@@ -33,10 +33,10 @@ Complete file:
 
 ![Transit route map custom style](./assets/style-cookbook/transit-route-map.png)
 
-This style is a good route-map example because it stresses edge width,
-rounded bends, compact station labels, and group labels. It also shows the
-current limit: JSON styles can make every connector look like a route, but
-they cannot yet assign stable route colors or station-dot glyphs per path.
+This style is a good route-map example because it stresses brand colors and
+connector weight. It also shows the current limit: JSON styles can set a
+route-map palette, but they cannot yet assign stable route colors or station-dot
+glyphs per path.
 
 Use it when you want to test whether a style keeps connectors readable:
 
@@ -54,18 +54,7 @@ Use it when you want to test whether a style keeps connectors readable:
   "font": "DejaVu Sans",
   "stroke": "crisp",
   "strokeWidth": 4,
-  "fill": "none",
-  "node": {
-    "cornerRadius": 18,
-    "lineWidth": 3,
-    "fillColor": "var(--bg)",
-    "borderColor": "var(--fg)"
-  },
-  "edge": {
-    "lineWidth": 4,
-    "bendRadius": 16,
-    "strokeColor": "var(--line)"
-  }
+  "fill": "none"
 }
 ```
 
@@ -77,7 +66,7 @@ Complete file:
 ![Mid-century report custom style](./assets/style-cookbook/mid-century-report.png)
 
 This is the easiest uncovered cluster to teach with today's StyleSpec. It is
-mostly palette, fill, typography, and role hierarchy. No new backend capability
+mostly palette, fill, typography, and page treatment. No new backend capability
 is needed.
 
 Use it when you want a report figure with visible section bands and square
@@ -96,17 +85,8 @@ technical connectors:
   },
   "font": "DejaVu Sans",
   "stroke": "crisp",
-  "fill": "solid",
-  "node": {
-    "cornerRadius": 3,
-    "fillColor": "#d9c27e",
-    "borderColor": "var(--fg)"
-  },
-  "group": {
-    "textTransform": "uppercase",
-    "headerFillColor": "#e0b653",
-    "fillColor": "#efe0c5"
-  }
+  "strokeWidth": 1.6,
+  "fill": "solid"
 }
 ```
 
@@ -138,12 +118,7 @@ Use it when you need a dark page style that still keeps labels readable:
   "stroke": "jittered",
   "roughness": 0.35,
   "fill": "none",
-  "backdrop": "grid",
-  "node": {
-    "fillColor": "var(--bg)",
-    "borderColor": "var(--accent)",
-    "textColor": "var(--fg)"
-  }
+  "backdrop": "grid"
 }
 ```
 
@@ -151,11 +126,10 @@ Use it when you need a dark page style that still keeps labels readable:
 
 Three clusters make good cookbook examples now:
 
-- **Transit/route-map semantics.** It teaches thick edges, bend radius, and the
-  difference between a styleable connector and a true route identity system.
+- **Transit/route-map semantics.** It teaches thick connector palettes and the
+  difference between a global palette and a true route identity system.
 - **Retro editorial palettes.** Bauhaus, mid-century, and report figures fit
-  the current fields well: color tokens, solid fills, typography, corners, and
-  section bands.
+  the current fields well: color tokens, solid fills, and typography.
 - **Star-chart/page treatments.** Dark pages and grid backdrops test whether
   every family routes text and strokes through style tokens.
 

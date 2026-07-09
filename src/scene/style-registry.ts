@@ -3,12 +3,11 @@
 //
 // A style is a PARTIAL description: every field is optional. A style that
 // only sets colors is what people call a theme (the THEMES palettes register
-// here as exactly that). A style that only sets node.cornerRadius is a
-// tweak. A style that sets stroke character, fills, typography, and a
-// palette is a full look. Styles compose by STACKING (resolveStyleStack):
-// RenderOptions.style accepts a name, a spec, or an array of either, merged
-// left → right per field — so "hand-drawn × dracula" is just
-// ['hand-drawn', 'dracula'].
+// here as exactly that). A style that sets stroke character, fills,
+// typography, and a palette is a full look. Styles compose by STACKING
+// (resolveStyleStack): RenderOptions.style accepts a name, a spec, or an
+// array of either, merged left → right per field — so "hand-drawn × dracula"
+// is just ['hand-drawn', 'dracula'].
 //
 // Authors never pick a backend: the engine infers it from what the style
 // asks for (inferBackend). Registered once, a style applies to every diagram
@@ -16,12 +15,11 @@
 // 'crisp' (or unset) is the byte-identical default path.
 // ============================================================================
 
-import type { DiagramStyleOptions } from '../types.ts'
+import type { TextTransform } from '../types.ts'
 import { THEMES } from '../theme.ts'
 
-/** A partial, composable description of how diagrams look. Extends the role
- *  overrides (text/node/edge/group), so a role-only object IS a valid style. */
-export interface StyleSpec extends DiagramStyleOptions {
+/** A partial, composable public description of how diagrams look. */
+export interface StyleSpec {
   /** Optional JSON Schema pointer for file-backed styles. Ignored at render time. */
   $schema?: string
   // identity — optional; anonymous inline styles are fine
@@ -63,18 +61,74 @@ export interface StyleSpec extends DiagramStyleOptions {
   mono?: boolean
 }
 
+/** Private renderer defaults for built-in looks. This is intentionally not
+ *  part of the public StyleSpec schema, registerStyle boundary, or docs. */
+export interface InternalStyleFace {
+  text?: InternalTextFace
+  node?: InternalNodeFace
+  edge?: InternalEdgeFace
+  group?: InternalGroupFace
+}
+export interface InternalTextFace {
+  fontSize?: number
+  fontWeight?: number
+  letterSpacing?: number
+  textTransform?: TextTransform
+  textColor?: string
+}
+export interface InternalBoxFace {
+  paddingX?: number
+  paddingY?: number
+  cornerRadius?: number
+  lineWidth?: number
+  fillColor?: string
+  borderColor?: string
+}
+export interface InternalNodeFace extends InternalTextFace, InternalBoxFace {}
+export interface InternalEdgeFace extends InternalTextFace {
+  lineWidth?: number
+  bendRadius?: number
+  strokeColor?: string
+}
+export interface InternalGroupFace extends InternalTextFace, InternalBoxFace {
+  fontFamily?: string
+  lineWidth?: number
+  headerFillColor?: string
+}
+
+interface InternalStyleSpec extends StyleSpec {
+  face?: InternalStyleFace
+}
+
 /** What RenderOptions.style accepts: a registered name, an inline spec, or a
  *  stack of either (merged left → right). */
 export type StyleInput = string | StyleSpec
 
-const STYLE_REGISTRY = new Map<string, StyleSpec>()
+const STYLE_REGISTRY = new Map<string, InternalStyleSpec>()
+
+function stripInternalStyle(spec: InternalStyleSpec | undefined): StyleSpec | undefined {
+  if (!spec) return undefined
+  const { face: _face, ...publicSpec } = spec
+  return publicSpec
+}
 
 export function registerStyle(spec: StyleSpec): void {
   if (!spec.name) throw new Error('registerStyle requires a name (anonymous specs are for inline use)')
+  const problems = validateStyleSpec(spec)
+  if (problems.length) throw new Error(`Invalid style spec "${spec.name}": ${problems.join('; ')}`)
+  STYLE_REGISTRY.set(spec.name, spec)
+}
+
+function registerBuiltInStyle(spec: InternalStyleSpec): void {
+  if (!spec.name) throw new Error('registerBuiltInStyle requires a name')
   STYLE_REGISTRY.set(spec.name, spec)
 }
 
 export function getStyle(name: string): StyleSpec | undefined {
+  return stripInternalStyle(STYLE_REGISTRY.get(name))
+}
+
+function getInternalStyle(name: string): InternalStyleSpec | undefined {
   return STYLE_REGISTRY.get(name)
 }
 
@@ -98,81 +152,83 @@ export function inferBackend(spec: StyleSpec): 'default' | 'rough' | 'hybrid' {
   return 'default'
 }
 
-const ROLE_KEYS = ['text', 'node', 'edge', 'group'] as const
+const FACE_KEYS = ['text', 'node', 'edge', 'group'] as const
 
-/** Merge a stack of styles left → right: later fields win; colors merge per
- *  channel; role overrides merge per field within each role. Names resolve
- *  through the registry; unknown names throw with the known list (fail loud —
- *  a silently-crisp fallback would erode trust in style coverage). */
-export function resolveStyleStack(input: StyleInput | StyleInput[] | undefined): StyleSpec | undefined {
-  if (input === undefined) return undefined
-  const stack = Array.isArray(input) ? input : [input]
-  const specs: StyleSpec[] = []
-  for (const entry of stack) {
-    if (typeof entry === 'string') {
-      if (entry === 'crisp' || entry === 'default') continue
-      const named = getStyle(entry)
-      if (!named) throw new Error(`Unknown style "${entry}". Known styles: ${knownStyles().join(', ')}`)
-      specs.push(named)
-    } else {
-      specs.push(entry)
-    }
-  }
-  if (specs.length === 0) return undefined
-  const merged: StyleSpec = {}
-  for (const spec of specs) {
-    for (const [key, value] of Object.entries(spec)) {
-      if (value === undefined) continue
-      if (key === 'colors') {
-        merged.colors = { ...merged.colors, ...spec.colors }
-      } else if ((ROLE_KEYS as readonly string[]).includes(key)) {
-        const role = key as (typeof ROLE_KEYS)[number]
-        merged[role] = { ...merged[role], ...spec[role] } as never
-      } else {
-        ;(merged as Record<string, unknown>)[key] = value
-      }
-    }
+function mergeFace(left: InternalStyleFace | undefined, right: InternalStyleFace | undefined): InternalStyleFace | undefined {
+  if (!left && !right) return undefined
+  const merged: InternalStyleFace = { ...left }
+  if (!right) return merged
+  for (const key of FACE_KEYS) {
+    if (right[key] !== undefined) merged[key] = { ...merged[key], ...right[key] } as never
   }
   return merged
 }
 
-/** Normalize any style input to its role overrides (text/node/edge/group).
- *  The common case — an already-merged spec or a bare role object — passes
- *  through without re-resolving; names and stacks resolve via the registry.
- *  This is the single reader used by resolveRenderStyle and family layouts. */
-export function styleRolesOf(input: StyleInput | StyleInput[] | undefined): DiagramStyleOptions | undefined {
-  if (input === undefined) return undefined
-  const spec = typeof input !== 'string' && !Array.isArray(input) ? input : resolveStyleStack(input)
-  return spec === undefined ? undefined : withDefaultBackendStrokeWidth(spec)
+function assertValidInlineStyle(entry: StyleSpec): void {
+  const problems = validateStyleSpec(entry)
+  if (problems.length) throw new Error(`Invalid style spec: ${problems.join('; ')}`)
 }
 
-/** On the default backend, `strokeWidth` seeds the role line widths so the
- *  knob works on every backend (sketch backends read it directly; without
- *  this it would be silently inert on crisp output). Explicit role widths
- *  win. Sketch paths pass through untouched — their crisp underlay must not
- *  double-scale what the backend already applies via strokeWidth. */
-function withDefaultBackendStrokeWidth(spec: StyleSpec): DiagramStyleOptions {
-  const width = spec.strokeWidth
-  if (width === undefined || !(width > 0) || inferBackend(spec) !== 'default') return spec
-  return {
-    ...spec,
-    node: { lineWidth: width, ...spec.node },
-    edge: { lineWidth: width, ...spec.edge },
-    group: { lineWidth: width, ...spec.group },
+/** Merge a stack of styles left → right: later fields win; colors merge per
+ *  channel. Names resolve through the registry; unknown names throw with the
+ *  known list (fail loud — a silently-crisp fallback would erode trust in
+ *  style coverage). */
+function resolveInternalStyleStack(input: StyleInput | StyleInput[] | undefined): InternalStyleSpec | undefined {
+  if (input === undefined) return undefined
+  const stack = Array.isArray(input) ? input : [input]
+  const specs: InternalStyleSpec[] = []
+  for (const entry of stack) {
+    if (typeof entry === 'string') {
+      if (entry === 'crisp' || entry === 'default') continue
+      const named = getInternalStyle(entry)
+      if (!named) throw new Error(`Unknown style "${entry}". Known styles: ${knownStyles().join(', ')}`)
+      specs.push(named)
+    } else {
+      assertValidInlineStyle(entry)
+      specs.push(entry)
+    }
   }
+  if (specs.length === 0) return undefined
+  const merged: InternalStyleSpec = {}
+  for (const spec of specs) {
+    for (const [key, value] of Object.entries(spec)) {
+      if (value === undefined || key === 'face') continue
+      if (key === 'colors') {
+        merged.colors = { ...merged.colors, ...spec.colors }
+      } else {
+        ;(merged as Record<string, unknown>)[key] = value
+      }
+    }
+    merged.face = mergeFace(merged.face, spec.face)
+  }
+  return merged
+}
+
+export function resolveStyleStack(input: StyleInput | StyleInput[] | undefined): StyleSpec | undefined {
+  return stripInternalStyle(resolveInternalStyleStack(input))
+}
+
+/** Private reader for renderer/layout defaults attached to built-in styles. */
+export function styleFaceOf(input: StyleInput | StyleInput[] | undefined): InternalStyleFace | undefined {
+  const spec = resolveInternalStyleStack(input)
+  if (spec === undefined) return undefined
+  const width = spec.strokeWidth
+  const widthFace: InternalStyleFace | undefined = width !== undefined && width > 0 && inferBackend(spec) === 'default'
+    ? { node: { lineWidth: width }, edge: { lineWidth: width }, group: { lineWidth: width } }
+    : undefined
+  return mergeFace(widthFace, spec.face)
 }
 
 /** A palette-only spec is what people call a THEME; anything that also sets
- *  stroke/fill/typography/roles is a full LOOK. One predicate, shared by the
- *  CLI's `am styles` listing and the editor's style picker, so the two
- *  surfaces can never disagree about what counts as a look. */
+ *  stroke/fill/typography is a full LOOK. One predicate, shared by the CLI's
+ *  `am styles` listing and the editor's style picker, so the two surfaces can
+ *  never disagree about what counts as a look. */
 export function styleKind(spec: StyleSpec): 'look' | 'theme' {
   return Object.keys(spec).every(k => k === '$schema' || k === 'name' || k === 'blurb' || k === 'colors') ? 'theme' : 'look'
 }
 
-/** True when a merged spec changes anything beyond role overrides/metadata —
- *  i.e. when rendering must go through the styled scene path. Role-only
- *  specs stay on the crisp path (byte-identical to previous releases). */
+/** True when a merged spec changes anything beyond metadata — i.e. when
+ *  rendering must go through the styled scene path. */
 export function isStyledSpec(spec: StyleSpec): boolean {
   return inferBackend(spec) !== 'default' || spec.colors !== undefined || spec.font !== undefined
 }
@@ -182,14 +238,7 @@ const KNOWN_KEYS = new Set([
   'stroke', 'roughness', 'bowing', 'passes', 'strokeWidth',
   'fill', 'hachureAngle', 'hachureGap', 'fillWeight', 'washOpacity', 'washEdge',
   'backdrop', 'backend', 'intent', 'mono',
-  'text', 'node', 'edge', 'group',
 ])
-const TEXT_ROLE_KEYS = ['fontSize', 'fontWeight', 'letterSpacing', 'textTransform', 'textColor'] as const
-const BOX_ROLE_KEYS = ['paddingX', 'paddingY', 'cornerRadius', 'lineWidth', 'fillColor', 'borderColor'] as const
-const EDGE_ROLE_KEYS = ['lineWidth', 'bendRadius', 'strokeColor'] as const
-const GROUP_ROLE_KEYS = ['fontFamily', 'headerFillColor'] as const
-const NUMBER_ROLE_KEYS = new Set(['fontSize', 'fontWeight', 'letterSpacing', 'paddingX', 'paddingY', 'cornerRadius', 'lineWidth', 'bendRadius'])
-const STRING_ROLE_KEYS = new Set(['textColor', 'fillColor', 'borderColor', 'strokeColor', 'fontFamily', 'headerFillColor'])
 
 /** Validate an untrusted (e.g. JSON) style record. Returns human-readable
  *  problems; [] means the record is a usable StyleSpec. Declarative-only by
@@ -222,34 +271,10 @@ export function validateStyleSpec(value: unknown): string[] {
     } else {
       for (const [token, color] of Object.entries(spec.colors as Record<string, unknown>)) {
         if (!['bg', 'fg', 'line', 'accent', 'muted', 'surface', 'border'].includes(token)) problems.push(`unknown color token "${token}"`)
-        else if (typeof color !== 'string') problems.push(`color token "${token}" must be a string`)
+        else if (color !== undefined && typeof color !== 'string') problems.push(`color token "${token}" must be a string`)
       }
     }
   }
-  const role = (k: 'text' | 'node' | 'edge' | 'group', allowed: readonly string[]) => {
-    const value = spec[k]
-    if (value === undefined) return
-    if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-      problems.push(`"${k}" must be an object of role style fields`)
-      return
-    }
-    const style = value as Record<string, unknown>
-    for (const [field, fieldValue] of Object.entries(style)) {
-      if (!allowed.includes(field)) {
-        problems.push(`unknown ${k} style field "${field}"`)
-      } else if (NUMBER_ROLE_KEYS.has(field) && !(typeof fieldValue === 'number' && Number.isFinite(fieldValue))) {
-        problems.push(`"${k}.${field}" must be a finite number`)
-      } else if (STRING_ROLE_KEYS.has(field) && typeof fieldValue !== 'string') {
-        problems.push(`"${k}.${field}" must be a string`)
-      } else if (field === 'textTransform' && !(typeof fieldValue === 'string' && ['uppercase', 'lowercase', 'capitalize'].includes(fieldValue))) {
-        problems.push(`"${k}.textTransform" must be one of uppercase | lowercase | capitalize`)
-      }
-    }
-  }
-  role('text', TEXT_ROLE_KEYS)
-  role('node', [...TEXT_ROLE_KEYS, ...BOX_ROLE_KEYS])
-  role('edge', [...TEXT_ROLE_KEYS, ...EDGE_ROLE_KEYS])
-  role('group', [...TEXT_ROLE_KEYS, ...BOX_ROLE_KEYS, ...GROUP_ROLE_KEYS])
   return problems
 }
 
@@ -281,7 +306,7 @@ for (const [name, palette] of Object.entries(THEMES)) {
 // (scripts/sketch-prototype); backends are inferred, never declared.
 // ----------------------------------------------------------------------------
 
-registerStyle({
+registerBuiltInStyle({
   name: 'hand-drawn',
   blurb: 'Black ink on ruled paper — wobbly double strokes, unfilled boxes.',
   intent: 'draft',
@@ -297,7 +322,7 @@ registerStyle({
   mono: true,
 })
 
-registerStyle({
+registerBuiltInStyle({
   name: 'excalidraw',
   blurb: 'Virtual whiteboard style — rough strokes, pastel hachure fills.',
   intent: 'draft',
@@ -314,7 +339,7 @@ registerStyle({
   fillWeight: 0.9,
 })
 
-registerStyle({
+registerBuiltInStyle({
   name: 'pen-and-ink',
   blurb: 'Fine single-pass linework on warm cream — no interior hatching.',
   intent: 'premium',
@@ -329,7 +354,7 @@ registerStyle({
   mono: true,
 })
 
-registerStyle({
+registerBuiltInStyle({
   name: 'freehand',
   blurb: 'Pressure-sensitive marker ribbons — variable-width filled strokes.',
   intent: 'draft',
@@ -343,7 +368,7 @@ registerStyle({
   mono: true,
 })
 
-registerStyle({
+registerBuiltInStyle({
   name: 'watercolor',
   blurb: 'Rough outlines over translucent glazes with pigment-pooled edges.',
   intent: 'premium',
@@ -359,7 +384,7 @@ registerStyle({
   washEdge: 0.34,
 })
 
-registerStyle({
+registerBuiltInStyle({
   name: 'blueprint',
   blurb: 'Cyanotype: white linework on Prussian blue with a drafting grid.',
   intent: 'premium',
@@ -375,29 +400,33 @@ registerStyle({
   mono: true,
 })
 
-registerStyle({
+registerBuiltInStyle({
   name: 'tufte',
   blurb: 'Maximal data-ink: crisp hairlines, warm paper, one red accent.',
   intent: 'premium',
   colors: { bg: '#fffff8', fg: '#111111', line: '#4a4a45', accent: '#a00000', muted: '#6b6b64', border: '#8a8a80' },
   font: 'EB Garamond',
-  node: { lineWidth: 0.8, cornerRadius: 0 },
-  edge: { lineWidth: 0.8 },
-  group: { lineWidth: 0.8 },
+  face: {
+    node: { lineWidth: 0.8, cornerRadius: 0 },
+    edge: { lineWidth: 0.8 },
+    group: { lineWidth: 0.8 },
+  },
   mono: true,
 })
 
-registerStyle({
+registerBuiltInStyle({
   name: 'accessible-high-contrast',
   blurb: 'Accessibility-first: large labels, heavy strokes, white ground, colorblind-safe blue accent.',
   intent: 'premium',
   colors: { bg: '#ffffff', fg: '#050505', line: '#111111', accent: '#005fcc', muted: '#333333', surface: '#ffffff', border: '#050505' },
-  node: { fontSize: 17, fontWeight: 700, textColor: 'var(--fg)', paddingX: 28, paddingY: 16, cornerRadius: 8, lineWidth: 2.4, borderColor: 'var(--fg)' },
-  edge: { fontSize: 14, fontWeight: 700, textColor: 'var(--fg)', lineWidth: 2.6, bendRadius: 10, strokeColor: 'var(--fg)' },
-  group: { fontSize: 14, fontWeight: 700, textColor: 'var(--fg)', paddingX: 24, paddingY: 22, cornerRadius: 8, lineWidth: 2.2, borderColor: 'var(--fg)' },
+  face: {
+    node: { fontSize: 17, fontWeight: 700, textColor: 'var(--fg)', paddingX: 28, paddingY: 16, cornerRadius: 8, lineWidth: 2.4, borderColor: 'var(--fg)' },
+    edge: { fontSize: 14, fontWeight: 700, textColor: 'var(--fg)', lineWidth: 2.6, bendRadius: 10, strokeColor: 'var(--fg)' },
+    group: { fontSize: 14, fontWeight: 700, textColor: 'var(--fg)', paddingX: 24, paddingY: 22, cornerRadius: 8, lineWidth: 2.2, borderColor: 'var(--fg)' },
+  },
 })
 
-registerStyle({
+registerBuiltInStyle({
   name: 'patent-drawing',
   blurb: 'Print-safe patent figure: uniform ink, strong outlines, tone via oblique hatching.',
   intent: 'premium',
@@ -412,23 +441,27 @@ registerStyle({
   hachureAngle: -50,
   hachureGap: 7,
   fillWeight: 0.65,
-  node: { fontSize: 14, fontWeight: 600, textColor: 'var(--fg)', paddingX: 24, paddingY: 13, lineWidth: 1.35, cornerRadius: 0, borderColor: 'var(--fg)' },
-  edge: { fontSize: 12, textColor: 'var(--fg)', lineWidth: 1.45, bendRadius: 0, strokeColor: 'var(--fg)' },
-  group: { fontSize: 12, fontWeight: 700, textColor: 'var(--fg)', paddingX: 22, paddingY: 18, lineWidth: 1.35, cornerRadius: 0, borderColor: 'var(--fg)' },
+  face: {
+    node: { fontSize: 14, fontWeight: 600, textColor: 'var(--fg)', paddingX: 24, paddingY: 13, lineWidth: 1.35, cornerRadius: 0, borderColor: 'var(--fg)' },
+    edge: { fontSize: 12, textColor: 'var(--fg)', lineWidth: 1.45, bendRadius: 0, strokeColor: 'var(--fg)' },
+    group: { fontSize: 12, fontWeight: 700, textColor: 'var(--fg)', paddingX: 22, paddingY: 18, lineWidth: 1.35, cornerRadius: 0, borderColor: 'var(--fg)' },
+  },
   mono: true,
 })
 
-registerStyle({
+registerBuiltInStyle({
   name: 'status-dashboard',
   blurb: 'Operational dashboard: dark surface, rounded modules, bright status-friendly accent.',
   intent: 'premium',
   colors: { bg: '#08111f', fg: '#e6f4ff', line: '#5a7c99', accent: '#2dd4bf', muted: '#8aa6bf', surface: '#102033', border: '#2e4c63' },
-  node: { fontSize: 14, fontWeight: 700, textColor: 'var(--fg)', paddingX: 24, paddingY: 13, cornerRadius: 10, lineWidth: 1.4, borderColor: 'var(--fg)' },
-  edge: { fontSize: 12, fontWeight: 600, textColor: 'var(--fg)', lineWidth: 2, bendRadius: 14, strokeColor: 'var(--fg)' },
-  group: { fontSize: 13, fontWeight: 700, textColor: 'var(--fg)', textTransform: 'uppercase', letterSpacing: 0.06, paddingX: 22, paddingY: 20, cornerRadius: 10, lineWidth: 1.3, borderColor: 'var(--fg)' },
+  face: {
+    node: { fontSize: 14, fontWeight: 700, textColor: 'var(--fg)', paddingX: 24, paddingY: 13, cornerRadius: 10, lineWidth: 1.4, borderColor: 'var(--fg)' },
+    edge: { fontSize: 12, fontWeight: 600, textColor: 'var(--fg)', lineWidth: 2, bendRadius: 14, strokeColor: 'var(--fg)' },
+    group: { fontSize: 13, fontWeight: 700, textColor: 'var(--fg)', textTransform: 'uppercase', letterSpacing: 0.06, paddingX: 22, paddingY: 20, cornerRadius: 10, lineWidth: 1.3, borderColor: 'var(--fg)' },
+  },
 })
 
-registerStyle({
+registerBuiltInStyle({
   name: 'ops-schematic',
   blurb: 'Dense operational schematic: compact mono labels, sturdy traces, theme-friendly geometry.',
   intent: 'lofi',
@@ -440,12 +473,14 @@ registerStyle({
   passes: 1,
   strokeWidth: 1.6,
   fill: 'none',
-  node: { fontSize: 12, fontWeight: 700, textTransform: 'uppercase', textColor: 'var(--fg)', paddingX: 16, paddingY: 8, cornerRadius: 2, lineWidth: 1.6, borderColor: 'var(--fg)' },
-  edge: { fontSize: 10, fontWeight: 700, textTransform: 'uppercase', textColor: 'var(--fg)', lineWidth: 1.8, bendRadius: 0, strokeColor: 'var(--fg)' },
-  group: { fontSize: 11, fontWeight: 700, textColor: 'var(--fg)', textTransform: 'uppercase', letterSpacing: 0.05, paddingX: 16, paddingY: 16, cornerRadius: 2, lineWidth: 1.5, borderColor: 'var(--fg)' },
+  face: {
+    node: { fontSize: 12, fontWeight: 700, textTransform: 'uppercase', textColor: 'var(--fg)', paddingX: 16, paddingY: 8, cornerRadius: 2, lineWidth: 1.6, borderColor: 'var(--fg)' },
+    edge: { fontSize: 10, fontWeight: 700, textTransform: 'uppercase', textColor: 'var(--fg)', lineWidth: 1.8, bendRadius: 0, strokeColor: 'var(--fg)' },
+    group: { fontSize: 11, fontWeight: 700, textColor: 'var(--fg)', textTransform: 'uppercase', letterSpacing: 0.05, paddingX: 16, paddingY: 16, cornerRadius: 2, lineWidth: 1.5, borderColor: 'var(--fg)' },
+  },
 })
 
-registerStyle({
+registerBuiltInStyle({
   name: 'chalkboard',
   blurb: 'Classroom chalkboard: dusty off-white strokes on green slate.',
   intent: 'draft',
@@ -457,13 +492,15 @@ registerStyle({
   passes: 2,
   strokeWidth: 1.9,
   fill: 'none',
-  node: { fontSize: 16, fontWeight: 700, textColor: 'var(--fg)', paddingX: 24, paddingY: 12, borderColor: 'var(--fg)' },
-  edge: { fontSize: 13, textColor: 'var(--fg)', lineWidth: 1.8, strokeColor: 'var(--fg)' },
-  group: { fontSize: 14, fontWeight: 700, textColor: 'var(--fg)', paddingX: 20, paddingY: 20, lineWidth: 1.7, borderColor: 'var(--fg)' },
+  face: {
+    node: { fontSize: 16, fontWeight: 700, textColor: 'var(--fg)', paddingX: 24, paddingY: 12, borderColor: 'var(--fg)' },
+    edge: { fontSize: 13, textColor: 'var(--fg)', lineWidth: 1.8, strokeColor: 'var(--fg)' },
+    group: { fontSize: 14, fontWeight: 700, textColor: 'var(--fg)', paddingX: 20, paddingY: 20, lineWidth: 1.7, borderColor: 'var(--fg)' },
+  },
   mono: true,
 })
 
-registerStyle({
+registerBuiltInStyle({
   name: 'risograph',
   blurb: 'Two-ink poster print: warm stock, offset blue linework, coral accent, coarse hachure.',
   intent: 'premium',
@@ -478,12 +515,14 @@ registerStyle({
   hachureAngle: 18,
   hachureGap: 6.5,
   fillWeight: 0.75,
-  node: { fontSize: 14, fontWeight: 700, textColor: 'var(--fg)', paddingX: 24, paddingY: 13, cornerRadius: 3, borderColor: 'var(--fg)' },
-  edge: { fontSize: 12, textColor: 'var(--fg)', lineWidth: 1.5, strokeColor: 'var(--fg)' },
-  group: { fontSize: 13, fontWeight: 700, textColor: 'var(--fg)', paddingX: 22, paddingY: 18, cornerRadius: 3, borderColor: 'var(--fg)' },
+  face: {
+    node: { fontSize: 14, fontWeight: 700, textColor: 'var(--fg)', paddingX: 24, paddingY: 13, cornerRadius: 3, borderColor: 'var(--fg)' },
+    edge: { fontSize: 12, textColor: 'var(--fg)', lineWidth: 1.5, strokeColor: 'var(--fg)' },
+    group: { fontSize: 13, fontWeight: 700, textColor: 'var(--fg)', paddingX: 22, paddingY: 18, cornerRadius: 3, borderColor: 'var(--fg)' },
+  },
 })
 
-registerStyle({
+registerBuiltInStyle({
   name: 'architectural-plan',
   blurb: 'Architectural plan: square technical linework, uppercase mono labels, room-like frames.',
   intent: 'premium',
@@ -495,19 +534,23 @@ registerStyle({
   passes: 1,
   strokeWidth: 1.45,
   fill: 'none',
-  node: { fontSize: 12, fontWeight: 700, textTransform: 'uppercase', textColor: 'var(--fg)', paddingX: 20, paddingY: 10, cornerRadius: 0, lineWidth: 1.45, borderColor: 'var(--fg)' },
-  edge: { fontSize: 10, fontWeight: 700, textTransform: 'uppercase', textColor: 'var(--fg)', lineWidth: 1.55, bendRadius: 0, strokeColor: 'var(--fg)' },
-  group: { fontSize: 11, fontWeight: 700, textColor: 'var(--fg)', textTransform: 'uppercase', letterSpacing: 0.06, paddingX: 20, paddingY: 20, cornerRadius: 0, lineWidth: 1.45, borderColor: 'var(--fg)' },
+  face: {
+    node: { fontSize: 12, fontWeight: 700, textTransform: 'uppercase', textColor: 'var(--fg)', paddingX: 20, paddingY: 10, cornerRadius: 0, lineWidth: 1.45, borderColor: 'var(--fg)' },
+    edge: { fontSize: 10, fontWeight: 700, textTransform: 'uppercase', textColor: 'var(--fg)', lineWidth: 1.55, bendRadius: 0, strokeColor: 'var(--fg)' },
+    group: { fontSize: 11, fontWeight: 700, textColor: 'var(--fg)', textTransform: 'uppercase', letterSpacing: 0.06, paddingX: 20, paddingY: 20, cornerRadius: 0, lineWidth: 1.45, borderColor: 'var(--fg)' },
+  },
 })
 
-registerStyle({
+registerBuiltInStyle({
   name: 'publication-figure',
   blurb: 'Polished publication figure: serif labels, confident rules, rounded boxes, one quiet accent.',
   intent: 'premium',
   colors: { bg: '#fffdf8', fg: '#171512', line: '#24211d', accent: '#1d4ed8', muted: '#5f5a52', surface: '#faf5ea', border: '#24211d' },
   font: 'EB Garamond',
   strokeWidth: 1.45,
-  node: { fontSize: 15, fontWeight: 700, textColor: 'var(--fg)', paddingX: 26, paddingY: 14, cornerRadius: 7, lineWidth: 1.45, borderColor: 'var(--fg)' },
-  edge: { fontSize: 12, fontWeight: 600, textColor: 'var(--fg)', lineWidth: 1.45, bendRadius: 8, strokeColor: 'var(--fg)' },
-  group: { fontSize: 12, fontWeight: 700, textColor: 'var(--fg)', textTransform: 'uppercase', letterSpacing: 0.08, paddingX: 24, paddingY: 22, cornerRadius: 7, lineWidth: 1.35, borderColor: 'var(--fg)' },
+  face: {
+    node: { fontSize: 15, fontWeight: 700, textColor: 'var(--fg)', paddingX: 26, paddingY: 14, cornerRadius: 7, lineWidth: 1.45, borderColor: 'var(--fg)' },
+    edge: { fontSize: 12, fontWeight: 600, textColor: 'var(--fg)', lineWidth: 1.45, bendRadius: 8, strokeColor: 'var(--fg)' },
+    group: { fontSize: 12, fontWeight: 700, textColor: 'var(--fg)', textTransform: 'uppercase', letterSpacing: 0.08, paddingX: 24, paddingY: 22, cornerRadius: 7, lineWidth: 1.35, borderColor: 'var(--fg)' },
+  },
 })

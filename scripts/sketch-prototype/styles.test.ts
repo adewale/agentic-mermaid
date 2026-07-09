@@ -118,7 +118,7 @@ test('restyle preserves rounded rectangle geometry', () => {
   const raw = renderMermaidSVG('flowchart TD\n  A[Alpha]', {
     transparent: true,
     embedFontImport: false,
-    style: { node: { cornerRadius: 12 } },
+    style: 'publication-figure',
   })
   const styled = restyle(raw, transit, { backdrop: false })
   const d = styled.match(/<path d="([^"]+)"[^>]*stroke="#d4d4d4"/)?.[1]

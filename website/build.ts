@@ -14,6 +14,7 @@ import { computeDeployVersion } from './src/deploy-hash.ts'
 import { CLEAN_PAGE_ROUTES, DYNAMIC_CLEAN_REDIRECT_LINES, staticRedirectLines } from './src/site-routes.ts'
 import { HOMEPAGE_AGENT_POINTER } from '../eval/agent-usage/homepage-prompt.ts'
 import { EDITOR_EXAMPLES } from '../editor/examples.ts'
+import { samples as RICH_EXAMPLES } from '../scripts/site/samples-data.ts'
 
 const ROOT = join(import.meta.dir, '..')
 const SOURCE = join(import.meta.dir, 'source')
@@ -546,6 +547,30 @@ function renderExampleSvg(example: any) {
   )
 }
 
+function exampleSlug(s: string) {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+}
+
+function richExampleId(sample: { title: string }, index: number) {
+  return `rich-${index + 1}-${exampleSlug(sample.title)}`
+}
+
+function renderRichExampleSvg(sample: any, id: string) {
+  const svg = renderMermaidSVG(sample.source, {
+    ...(sample.options ?? {}),
+    security: 'strict',
+    compact: true,
+    embedFontImport: false,
+    idPrefix: `example-${id}-`,
+  }).replace(/[ \t]+$/gm, '')
+  return addSvgAccessibleName(
+    svg,
+    `example-${id}`,
+    `${sample.title} diagram`,
+    `Build-time render of the shared ${sample.category ?? 'Mermaid'} corpus example.`,
+  )
+}
+
 function encodeEditorStateHash(state: Record<string, unknown>) {
   return Buffer.from(JSON.stringify(state), 'utf8').toString('base64')
 }
@@ -573,7 +598,7 @@ const FAMILY_AGENT_TASK: Record<string, { prompt: string; trace: string }> = {
 }
 // One-per-family supported examples are the canonical render for their family, so
 // anchor them by family id — old /gallery/#<family> deep links resolve here after
-// the redirect. Other examples (role-style presets) keep their own id.
+// the redirect. Other examples keep their own id.
 function exampleAnchor(example: any) {
   const family = familyForExample(example)
   return example.category === 'Supported diagrams' && family ? family.id : example.id
@@ -660,7 +685,7 @@ function renderStyleThemeSvg(combo: ReturnType<typeof styleThemeExamples>[number
 function exampleJumpCard(example: any, description: string) {
   return `<a class="example-jump-card" href="#${escapeAttr(exampleAnchor(example))}"><strong>${escapeHtml(example.label)}</strong><span>${escapeHtml(description)}</span></a>`
 }
-function examplesJumpHtml(groups: Map<string, any[]>, styleThemeCombos: ReturnType<typeof styleThemeExamples>) {
+function examplesJumpHtml(groups: Map<string, any[]>, styleThemeCombos: ReturnType<typeof styleThemeExamples>, richExamples = RICH_EXAMPLES) {
   const sections: string[] = []
   const familyExamples = groups.get('Supported diagrams') ?? []
   if (familyExamples.length) {
@@ -678,7 +703,42 @@ function examplesJumpHtml(groups: Map<string, any[]>, styleThemeCombos: ReturnTy
   }
   const styleThemeCards = styleThemeCombos.map((combo) => `<a class="example-jump-card" href="#${escapeAttr(combo.id)}"><strong>${escapeHtml(combo.family.editorDiagramType)}</strong><span>${escapeHtml(`${displayStyleName(combo.look)} × ${displayStyleName(combo.theme)}`)}</span></a>`).join('')
   sections.push(`<section class="example-jump-section" aria-labelledby="examples-style-palette-combinations-jump"><p class="example-jump-title" id="examples-style-palette-combinations-jump">Style × palette combinations</p><div class="example-jump-grid">${styleThemeCards}</div></section>`)
+  const richCategories = Array.from(new Set(richExamples.map((sample) => sample.category ?? 'Examples')))
+  const richCards = richCategories.map((category) => `<a class="example-jump-card" href="#rich-${escapeAttr(exampleSlug(category))}"><strong>${escapeHtml(category)}</strong><span>${escapeHtml(String(richExamples.filter((sample) => (sample.category ?? 'Examples') === category).length))} shared examples</span></a>`).join('')
+  sections.push(`<section class="example-jump-section" aria-labelledby="examples-rich-gallery-jump"><p class="example-jump-title" id="examples-rich-gallery-jump">Rich shared example gallery</p><div class="example-jump-grid">${richCards}</div></section>`)
   return `<nav class="example-jump" aria-label="Jump to examples">${sections.join('\n')}</nav>`
+}
+
+function richExamplesHtml(richExamples = RICH_EXAMPLES) {
+  const groups = new Map<string, Array<{ sample: any; id: string }>>()
+  richExamples.forEach((sample, index) => {
+    const category = sample.category ?? 'Examples'
+    if (!groups.has(category)) groups.set(category, [])
+    groups.get(category)!.push({ sample, id: richExampleId(sample, index) })
+  })
+  return `<section class="example-group" aria-labelledby="examples-rich-gallery">
+<h2 id="examples-rich-gallery">Rich shared example gallery</h2>
+<p class="muted">These examples are reused by benchmark and layout-evaluation tooling, then rendered here at build time. They cover feature syntax, larger real-world shapes, and Style + Palette combinations beyond the small editor starters.</p>
+${Array.from(groups, ([category, entries]) => `
+<section class="example-rich-group" aria-labelledby="rich-${escapeAttr(exampleSlug(category))}">
+<h3 id="rich-${escapeAttr(exampleSlug(category))}">${escapeHtml(category)}</h3>
+${entries.map(({ sample, id }) => `
+<article class="example-sample" id="${escapeAttr(id)}">
+  <header class="example-sample-head">
+    <div>
+      <p class="example-meta">${escapeHtml(category)}</p>
+      <h4>${escapeHtml(sample.title)}</h4>
+      <p>${escapeHtml(sample.description ?? '')}</p>
+    </div>
+    <a class="go" href="${escapeAttr(editorStateHref({ source: sample.source, config: sample.options ?? {} }))}">Open in editor</a>
+  </header>
+  <div class="example-sample-grid">
+    <section class="example-source" aria-label="${escapeAttr(sample.title)} Mermaid source"><pre><code>${escapeHtml(String(sample.source ?? '').trim())}</code></pre></section>
+    <figure class="example-render"><div class="example-svg">${renderRichExampleSvg(sample, id)}</div><figcaption>Build-time proof from the shared examples corpus.</figcaption></figure>
+  </div>
+</article>`).join('')}
+</section>`).join('')}
+</section>`
 }
 
 function styleThemeExamplesHtml(combos: ReturnType<typeof styleThemeExamples>) {
@@ -717,10 +777,10 @@ function examplesShowcaseHtml(editorExamples: any[]) {
     groups.get(category)!.push(example)
   }
   const combos = styleThemeExamples(editorExamples)
-  return '<div class="example-showcase">' + examplesJumpHtml(groups, combos) + Array.from(groups, ([category, examples]) => `
+  return '<div class="example-showcase">' + examplesJumpHtml(groups, combos, RICH_EXAMPLES) + Array.from(groups, ([category, examples]) => `
 <section class="example-group" aria-labelledby="${escapeAttr(exampleCategoryId(category))}">
 <h2 id="${escapeAttr(exampleCategoryId(category))}">${escapeHtml(exampleCategoryLabel(category))}</h2>
-<p class="muted">${category === 'Role style presets' ? 'These load role-style presets in the editor. This page renders them with one fixed review palette so the proof stays visually comparable.' : 'One proof per diagram family: the exact editor source, an agent task, the trace before return, and a build-time render from that same source.'}</p>
+<p class="muted">One proof per diagram family: the exact editor source, an agent task, the trace before return, and a build-time render from that same source.</p>
 ${examples.map((example) => {
   const family = familyForExample(example)
   const task = category === 'Supported diagrams' && family ? FAMILY_AGENT_TASK[family.id] : undefined
@@ -743,7 +803,7 @@ ${examples.map((example) => {
   </div>
 </article>`
 }).join('')}
-</section>`).join('\n') + '\n' + styleThemeExamplesHtml(combos) + '\n</div>'
+</section>`).join('\n') + '\n' + styleThemeExamplesHtml(combos) + '\n' + richExamplesHtml(RICH_EXAMPLES) + '\n</div>'
 }
 
 const mermaidRuntimeBytes = Buffer.from(await Bun.file(join(ROOT, 'node_modules/mermaid/dist/mermaid.min.js')).arrayBuffer())
@@ -1561,6 +1621,16 @@ const examples = {
       docs: `/examples/#${family.id}`,
     }
   }),
+  richExamples: RICH_EXAMPLES.map((sample, index) => ({
+    id: richExampleId(sample, index),
+    category: sample.category ?? 'Examples',
+    title: sample.title,
+    description: sample.description,
+    source: String(sample.source ?? '').trim(),
+    options: sample.options ?? {},
+    renderUrl: `/examples/#${richExampleId(sample, index)}`,
+    editorUrl: editorStateHref({ source: sample.source, config: sample.options ?? {} }),
+  })),
 }
 await emitJson('examples/index.json', examples)
 
@@ -1812,7 +1882,7 @@ const FAMILY_REFERENCE: Array<[id: string, label: string, draws: string]> = [
 // prose cannot drift from BUILTIN_FAMILY_METADATA.
 const FAMILY_COUNT_WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty']
 const familyCountWord = FAMILY_COUNT_WORDS[BUILTIN_FAMILY_METADATA.length] ?? String(BUILTIN_FAMILY_METADATA.length)
-const examplesLead = `${familyCountWord.charAt(0).toUpperCase()}${familyCountWord.slice(1)} diagram families with agent tasks, plus style presets that reuse the same role-based style data across families.`
+const examplesLead = `${familyCountWord.charAt(0).toUpperCase()}${familyCountWord.slice(1)} diagram families with agent tasks, Style + Palette combinations, and the richer shared examples corpus used by project tooling.`
 // The MCP config copy-card, same widget contract as the homepage prompt card
 // (data-copy-widget + data-copy-target + copy-prompt-btn, wired by theme.js).
 // Getting started is the canonical setup home for this config.
@@ -1984,7 +2054,7 @@ const docPages = [
   ['docs/theming/index.html', 'Styles and palettes', 'A style describes diagram rendering; a colors-only style is a palette.', '<p>One primitive covers visual rendering: a <strong>style</strong> is a partial, composable description of palette, typography, stroke character, and fills. A style that only sets colours is a palette. Styles such as <code>hand-drawn</code>, <code>watercolor</code>, and <code>blueprint</code> also change renderer treatment. Styles stack left \u2192 right (<code>{ style: [\'hand-drawn\', \'dracula\'] }</code> gives hand-drawn geometry with the dracula palette), the optional <code>seed</code> re-rolls styled ink without moving layout, and custom styles are plain JSON records. Use <a href="/docs/custom-styles/">Custom styles</a> for schema, complete JSON examples, and screenshots. The browser editor exposes both pickers: Style chooses renderer treatment; Palette chooses colors. SVG output can also inherit CSS variables for live palette swaps.</p>' + docsIndex],
   ['docs/custom-styles/index.html', 'Custom styles', 'Author JSON style files, validate them with the schema, and compare cookbook screenshots.', customStylesBody + docsIndex],
   ['docs/quality/index.html', 'Quality', 'Determinism, verify warnings, and layout metrics make diagram edits reviewable.', '<p><code>verify.ok</code> is a gate, not a promise of visual perfection. Include SVG/PNG/ASCII artifacts for human review when the change is visual.</p>\n<p><strong>Warnings are tiered</strong> so an agent knows how to react: <em>structural</em> problems can block a safe return and should be fixed first; <em>geometric</em> warnings ask for visual review; <em>lint</em> warnings mean a smaller or cleaner edit. Every code has a page under <a href="/warnings/">warnings</a> with what triggers it and how to clear it.</p>\n<p><strong>Evidence is curated, not raw private prompts:</strong> rely on CI, deterministic layout metrics, and generated artifacts to review a change. Private eval prompts and holdbacks are not public site content.</p>' + docsIndex],
-  ['docs/fork-differences/index.html', 'Fork differences', 'Agentic Mermaid adds styled rendering, typed editing, deterministic verification, CLI, MCP, and more families.', '<p>Agentic Mermaid (<code>agentic-mermaid</code>) forks <a href="https://github.com/lukilabs/beautiful-mermaid">beautiful-mermaid</a> for a job the render-only original did not have: agents creating polished, branded diagrams that stay editable as Mermaid source.</p>\n<ul>\n<li><strong>Typed agent surface.</strong> A render-only library forces an agent to regenerate a whole diagram to change one node. Here new diagrams are authored as source then parsed/verified/rendered, and existing diagrams go parse → narrow → mutate → verify → serialize via <code>agentic-mermaid/agent</code>. All twelve families are structured-when-narrowed; unmodeled syntax still round-trips losslessly as opaque fallback.</li>\n<li><strong>Deterministic, verifiable layout.</strong> Layout is byte-identical across processes, and <code>verifyMermaid</code> returns structured warnings in three tiers (structural, geometric, lint) plus perceptual quality metrics.</li>\n<li><strong>More families.</strong> Adds timeline, journey, architecture, pie, quadrant, and Gantt on top of the upstream six (flowchart, state, sequence, class, ER, and XY chart) — twelve in all.</li>\n<li><strong>Tools.</strong> An <code>am</code> CLI, an <code>agentic-mermaid-mcp</code> Code Mode MCP server (stdio + opt-in HTTP/SSE), and a hosted MCP endpoint at <code>/mcp</code>. There is no REST render API.</li>\n<li><strong>Semantic SVG styling.</strong> A role-based style API (<code>text</code>/<code>node</code>/<code>edge</code>/<code>group</code>) describes meaning rather than SVG element names.</li>\n</ul>\n<p>See <a href="/examples/">examples</a> for the family list and rendered source, and <a href="/about/">About</a> for the lineage.</p>' + docsIndex],
+  ['docs/fork-differences/index.html', 'Fork differences', 'Agentic Mermaid adds styled rendering, typed editing, deterministic verification, CLI, MCP, and more families.', '<p>Agentic Mermaid (<code>agentic-mermaid</code>) forks <a href="https://github.com/lukilabs/beautiful-mermaid">beautiful-mermaid</a> for a job the render-only original did not have: agents creating polished, branded diagrams that stay editable as Mermaid source.</p>\n<ul>\n<li><strong>Typed agent surface.</strong> A render-only library forces an agent to regenerate a whole diagram to change one node. Here new diagrams are authored as source then parsed/verified/rendered, and existing diagrams go parse → narrow → mutate → verify → serialize via <code>agentic-mermaid/agent</code>. All twelve families are structured-when-narrowed; unmodeled syntax still round-trips losslessly as opaque fallback.</li>\n<li><strong>Deterministic, verifiable layout.</strong> Layout is byte-identical across processes, and <code>verifyMermaid</code> returns structured warnings in three tiers (structural, geometric, lint) plus perceptual quality metrics.</li>\n<li><strong>More families.</strong> Adds timeline, journey, architecture, pie, quadrant, and Gantt on top of the upstream six (flowchart, state, sequence, class, ER, and XY chart) — twelve in all.</li>\n<li><strong>Tools.</strong> An <code>am</code> CLI, an <code>agentic-mermaid-mcp</code> Code Mode MCP server (stdio + opt-in HTTP/SSE), and a hosted MCP endpoint at <code>/mcp</code>. There is no REST render API.</li>\n<li><strong>Style + Palette rendering.</strong> Named looks and palette stacks keep appearance outside Mermaid source while preserving deterministic geometry.</li>\n</ul>\n<p>See <a href="/examples/">examples</a> for the family list and rendered source, and <a href="/about/">About</a> for the lineage.</p>' + docsIndex],
   ['examples/index.html', 'Examples', examplesLead, examplesShowcaseHtml(EDITOR_EXAMPLES), '/examples/'],
   ['comparisons/index.html', 'Comparisons', 'One source per family, rendered three ways.', comparisonsHtml(), '/comparisons/'],
 ]

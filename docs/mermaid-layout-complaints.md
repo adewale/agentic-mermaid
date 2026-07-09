@@ -262,8 +262,8 @@ diagrams; some embeddings are unreadable (dark-theme contrast).
   Mermaid's v11 `handDrawn`/`neo` "looks" are its own remediation.
 - Fixture/test: inherited from upstream Beautiful Mermaid: two-color theme
   derivation, 21 built-in themes, Shiki/VS Code theme compatibility. Fork
-  additions: semantic role styling (`style.node/edge/group/text`),
-  Tufte/Salmon theme families (PR #10), auto-contrast on custom fills
+  additions: Style + Palette stacks, Tufte/Salmon theme families (PR #10),
+  auto-contrast on custom fills
   (upstream #115 class) pinned by
   `src/__tests__/renderer-contrast.test.ts`.
 - Status here: **landed** (largely upstream's credit; see
@@ -714,7 +714,7 @@ intent is invented.
 | C4 | Erratic routing | mermaid#6476, #5601 | **partial**; fix **specced** | #25 §11–12; MFA worked example above |
 | C5 | Edge-label overlap | mermaid#2131, #7492 | **partial** | inline ELK labels; `labelEdgeProximity`; #25 §11.4 |
 | C6 | Order control / edit stability | mermaid#3723 (86R), #815 (45R) | **partial** | model-order ELK opts; `agent-auth-flow.test.ts`; edit-stability tests |
-| C7 | Default aesthetics | HN 30339032 | **landed** (upstream + fork) | theming; role styles; contrast tests |
+| C7 | Default aesthetics | HN 30339032 | **landed** (upstream + fork) | theming; Style + Palette; contrast tests |
 | C8 | Text clipping | mermaid#2688 (24R) | **landed** | zero-DOM text; `LABEL_OVERFLOW`; CJK tests; WS8 specced |
 | C9 | dagre stagnation | Mermaid docs' own ELK advice | **landed** structurally | `layout-engine.ts`; `elk-instance.ts`; #25 §10 |
 | C10 | Self-loops | mermaid#6336 (31R) | **partial** | clearance heuristics; #25 §8.1 specced |

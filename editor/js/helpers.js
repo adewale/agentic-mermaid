@@ -221,7 +221,7 @@ function emptyPreviewHtml() {
     + '<button class="placeholder-example-btn" type="button" data-action="load-example">Load an example</button>'
     + '<button class="placeholder-chip" type="button" data-example="flowchart-basic">Flowchart</button>'
     + '<button class="placeholder-chip" type="button" data-example="sequence-basic">Sequence</button>'
-    + '<button class="placeholder-chip" type="button" data-example="styled-flowchart">Role styled</button>'
+    + '<button class="placeholder-chip" type="button" data-example="quadrant-basic">Style + palette</button>'
     + '</div>'
     + '</div>';
 }

@@ -17,7 +17,7 @@
  *   - editor/html/ – HTML partials (topbar, left-panel, right-panel)
  */
 
-import { EDITOR_EXAMPLES, EDITOR_SEMANTIC_STYLE } from '../../editor/examples.ts'
+import { EDITOR_EXAMPLES } from '../../editor/examples.ts'
 import { HOSTED_FONT_FACES, hostedFontFaceCss } from '../../src/font-manifest.ts'
 import { THEMES } from '../../src/theme.ts'
 import { knownStyles, getStyle, styleKind } from '../../src/scene/style-registry.ts'
@@ -78,7 +78,7 @@ async function readCssFiles(fontPrefix: string): Promise<string> {
 }
 
 function editorExamplesDataJs(): string {
-  return `var EDITOR_SEMANTIC_STYLE = ${JSON.stringify(EDITOR_SEMANTIC_STYLE, null, 2)};\nvar EDITOR_EXAMPLES = ${JSON.stringify(EDITOR_EXAMPLES, null, 2)};`
+  return `var EDITOR_EXAMPLES = ${JSON.stringify(EDITOR_EXAMPLES, null, 2)};`
 }
 
 function editorFontDataJs(): string {

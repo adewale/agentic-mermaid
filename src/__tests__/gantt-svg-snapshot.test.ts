@@ -117,7 +117,7 @@ describe('renderMermaidSVG — gantt', () => {
     expect(plotBottom).toBeGreaterThan(60)
   })
 
-  it('applies edge text transforms to axis and vert marker labels', () => {
+  it('applies named-style text transforms to axis and vert marker labels', () => {
     const svg = renderMermaidSVG(`gantt
       dateFormat YYYY-MM-DD
       axisFormat %b
@@ -125,7 +125,7 @@ describe('renderMermaidSVG — gantt', () => {
       A :a, 2024-01-01, 40d
       cut over :vert, v, 2024-01-15, 0d
     `, {
-      style: { edge: { textTransform: 'uppercase' } },
+      style: 'ops-schematic',
     })
 
     expect(svg).toContain('>JAN</text>')

@@ -115,14 +115,40 @@ var shortcutsDialog = document.getElementById('shortcuts-dialog');
 var shortcutsDialogClose = document.getElementById('shortcuts-dialog-close');
 var shortcutsReturnFocus = null;
 
+function shortcutsFocusable() {
+  if (!shortcutsDialog) return [];
+  return Array.prototype.slice.call(shortcutsDialog.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'))
+    .filter(function(el) { return !el.disabled && el.offsetParent !== null; });
+}
+
+function trapShortcutsFocus(e) {
+  if (!shortcutsPopup || !shortcutsPopup.isOpen() || e.key !== 'Tab') return;
+  var focusable = shortcutsFocusable();
+  if (!focusable.length) return;
+  var first = focusable[0];
+  var last = focusable[focusable.length - 1];
+  if (!shortcutsDialog.contains(document.activeElement)) {
+    e.preventDefault();
+    first.focus();
+  } else if (e.shiftKey && document.activeElement === first) {
+    e.preventDefault();
+    last.focus();
+  } else if (!e.shiftKey && document.activeElement === last) {
+    e.preventDefault();
+    first.focus();
+  }
+}
+
 var shortcutsPopup = (shortcutsDialog && typeof createPopupController === 'function')
   ? createPopupController({
       popup: shortcutsDialog,
       visibility: { manageTabStops: true },
       afterOpen: function() {
+        document.addEventListener('keydown', trapShortcutsFocus, true);
         if (shortcutsDialogClose) shortcutsDialogClose.focus();
       },
       afterClose: function() {
+        document.removeEventListener('keydown', trapShortcutsFocus, true);
         if (shortcutsReturnFocus && typeof shortcutsReturnFocus.focus === 'function') shortcutsReturnFocus.focus();
         shortcutsReturnFocus = null;
       },

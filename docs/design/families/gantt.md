@@ -202,11 +202,8 @@ SVG requirements:
 - no default wall-clock `todayMarker`;
 - stable IDs namespaced through the existing `idPrefix` pass;
 - strict security removes executable callbacks, unsafe hrefs, scripts, images, and external refs;
-- role styling uses existing semantic roles:
-  - `style.text` for axis/task/date labels;
-  - `style.node` for bars and milestones;
-  - `style.edge` for grid lines, today/vert markers, dependency-adjacent marks;
-  - `style.group` for section bands;
+- Style + Palette rendering routes Gantt marks through the internal style face:
+  task labels, bars, grid lines, markers, and section bands should respond to named styles and palette stacks;
 - status classes: `gantt-bar`, `gantt-bar-done`, `gantt-bar-active`, `gantt-bar-crit`, `gantt-milestone`, `gantt-vert-marker`;
 - text contrast tests for status bars in light and dark themes;
 - `displayMode: compact` uses deterministic interval packing and has a fixture where dense rows would overlap under naive spacing.

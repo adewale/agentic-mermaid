@@ -1,7 +1,7 @@
 {
   "$schema": "https://agentic-mermaid.dev/schemas/style-spec.schema.json",
   "name": "transit-route-map",
-  "blurb": "Transit-map inspired: thick route strokes, rounded station labels, and white map stock.",
+  "blurb": "Transit-map inspired palette: white map stock, red route line, and blue transfer accent.",
   "colors": {
     "bg": "#fbfbf8",
     "fg": "#171923",
@@ -15,37 +15,5 @@
   "stroke": "crisp",
   "strokeWidth": 4,
   "fill": "none",
-  "intent": "premium",
-  "node": {
-    "fontSize": 14,
-    "fontWeight": 700,
-    "paddingX": 22,
-    "paddingY": 12,
-    "cornerRadius": 18,
-    "lineWidth": 3,
-    "fillColor": "var(--bg)",
-    "borderColor": "var(--fg)",
-    "textColor": "var(--fg)"
-  },
-  "edge": {
-    "fontSize": 12,
-    "fontWeight": 700,
-    "lineWidth": 4,
-    "bendRadius": 16,
-    "strokeColor": "var(--line)",
-    "textColor": "var(--fg)"
-  },
-  "group": {
-    "fontSize": 12,
-    "fontWeight": 700,
-    "textTransform": "uppercase",
-    "letterSpacing": 0.05,
-    "paddingX": 24,
-    "paddingY": 22,
-    "cornerRadius": 18,
-    "lineWidth": 2,
-    "fillColor": "#f2f3ef",
-    "borderColor": "#c8cabf",
-    "textColor": "#3c4250"
-  }
+  "intent": "premium"
 }

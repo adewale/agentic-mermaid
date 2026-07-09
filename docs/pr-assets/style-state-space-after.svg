@@ -119,8 +119,8 @@
         <rect x="95" y="0" width="295" height="62" fill="#e7f2ea" stroke="#9fbda8"/>
         <rect x="390" y="0" width="300" height="62" fill="#fff0dc" stroke="#d1ad78"/>
         <text x="12" y="27" font-family="DejaVu Sans" font-size="15" fill="#211f1b">Semantics</text>
-        <text x="110" y="22" font-family="DejaVu Sans" font-size="12" fill="#211f1b">text/node/edge/group roles;</text>
-        <text x="110" y="41" font-family="DejaVu Sans" font-size="12" fill="#211f1b">status-dashboard demonstrates intent.</text>
+        <text x="110" y="22" font-family="DejaVu Sans" font-size="12" fill="#211f1b">Style + Palette stacks;</text>
+        <text x="110" y="41" font-family="DejaVu Sans" font-size="12" fill="#211f1b">Mermaid classes carry intent.</text>
         <text x="405" y="22" font-family="DejaVu Sans" font-size="12" fill="#211f1b">Real subroles for status, ownership,</text>
         <text x="405" y="41" font-family="DejaVu Sans" font-size="12" fill="#211f1b">confidence, risk, priority.</text>
       </g>

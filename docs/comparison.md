@@ -35,7 +35,7 @@ changelogs for the current state.
 | Runtime | Browser DOM (Node via Puppeteer/`mermaid-cli`) | Pure TypeScript, zero DOM, synchronous | Pure TypeScript, zero DOM, synchronous |
 | Diagram types | ~25 (flowchart, sequence, class, state, ER, gantt, pie, mindmap, gitgraph, timeline, journey, quadrant, sankey, xychart, block, packet, kanban, architecture, radar, treemap, venn, ishikawa, wardley, treeview, event modeling, …) | 6 (flowchart, state, sequence, class, ER, XY chart) | 12 (those 6 + timeline, journey, architecture, pie, quadrant, gantt) |
 | Output formats | SVG (PNG/PDF via CLI tooling) | SVG, ASCII/Unicode | SVG, PNG (offline resvg), ASCII/Unicode, JSON layout |
-| Theming | Theme config + CSS | Two-color foundation, 15+ named themes, Shiki/VS Code compatibility, live CSS-variable switching | Inherits upstream's system + semantic role-based styling (`style.node/edge/group/text`) |
+| Theming | Theme config + CSS | Two-color foundation, 15+ named themes, Shiki/VS Code compatibility, live CSS-variable switching | Style + Palette stacks: named looks, palette-only styles, custom JSON records, and deterministic seeds |
 | Parse to a typed AST for editing | — (internal parser, not an editing API) | — (render-only API) | ✅ `parseMermaid` → typed `ValidDiagram` |
 | Typed mutation ops | — | — | ✅ 12 of 12 families (97 ops total), structured-or-opaque, never lossy |
 | Structural verification | — | — | ✅ 3 warning tiers + perceptual quality metrics, all families |

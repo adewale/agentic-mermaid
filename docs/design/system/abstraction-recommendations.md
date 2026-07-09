@@ -313,10 +313,9 @@ once, so downstream code never re-resolves). Everything below the waist sees onl
 contract.** Treat `MermaidThemeVariables`, `classDefs/nodeStyles/linkStyles`, and `RenderOptions` as
 **input dialects** that a boundary function (`resolveDiagramColors`) *parses* into `DiagramColors`
 — after which no renderer consults the raw dialects. Concretely: the precedence rule "classDef beats
-themeVariables beats RenderOptions" lives in **one** resolver, not scattered across families. Extend the
-**role-style** abstraction (`DiagramStyleOptions` / `resolveRenderStyle`) — which the audit rightly
-calls a *good* abstraction — to carry **color slots**, so pie/quadrant/gantt/architecture reach color
-the same way the others reach typography/spacing.
+themeVariables beats RenderOptions" lives in **one** resolver, not scattered across families. Keep the
+public custom-style surface to Style + Palette, and let built-in looks map into the internal style face
+so pie/quadrant/gantt/architecture reach typography, spacing, and color through the same waist.
 
 **(d) Tradeoffs / determinism risk.** Color resolution is already deterministic; the risk is *changing
 precedence* during consolidation. Lock current precedence with tests *before* refactoring (golden

@@ -307,6 +307,16 @@ describeBrowser('website browser accessibility smoke', () => {
       expect(await page.evaluate((selector) => document.activeElement === document.querySelector(selector), spec.button)).toBe(true)
     }
 
+    await page.locator('#examples-sidebar-btn').focus()
+    await page.evaluate(() => document.dispatchEvent(new KeyboardEvent('keydown', { key: '?', bubbles: true, cancelable: true })))
+    expect(await page.locator('#shortcuts-dialog').getAttribute('aria-hidden')).toBe('false')
+    expect(await page.evaluate(() => document.activeElement === document.querySelector('#shortcuts-dialog-close'))).toBe(true)
+    await page.keyboard.press('Tab')
+    expect(await page.evaluate(() => document.activeElement === document.querySelector('#shortcuts-dialog-close'))).toBe(true)
+    await page.keyboard.press('Escape')
+    expect(await page.locator('#shortcuts-dialog').getAttribute('aria-hidden')).toBe('true')
+    expect(await page.evaluate(() => document.activeElement === document.querySelector('#examples-sidebar-btn'))).toBe(true)
+
     await page.locator('#settings-btn').click()
     for (const spec of [
       { button: '#font-select-btn', popup: '#font-popup' },

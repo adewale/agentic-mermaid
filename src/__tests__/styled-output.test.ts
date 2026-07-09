@@ -159,12 +159,8 @@ describe('styled output', () => {
 describe('style consolidation', () => {
   const source = 'graph TD\n  A[Start] --> B{Choice}\n  B --> C([End])'
 
-  test('a role-only style object stays on the byte-identical crisp path', () => {
-    // The old DiagramStyleOptions shape is a valid (anonymous) StyleSpec and
-    // must keep producing the crisp renderer's exact bytes.
-    const viaStyle = renderMermaidSVG(source, { style: { node: { cornerRadius: 9 } } })
-    expect(viaStyle).toContain('rx="9"')
-    expect(viaStyle).not.toContain('data-backdrop="page"') // crisp path, no styled shell
+  test('removed role-style objects are rejected instead of silently applying', () => {
+    expect(() => renderMermaidSVG(source, { style: { node: { cornerRadius: 9 } } as any })).toThrow(/Invalid style spec/)
   })
 
   test('a theme is a style: THEMES palettes resolve by name', () => {
@@ -239,25 +235,19 @@ describe('style consolidation', () => {
     expect(svg).toContain('data-backdrop="page"')
   })
 
-  test('strokeWidth is honored on the default backend via role line widths', () => {
-    // Found by the Haiku emergence probe: a crisp-stroke style with
-    // strokeWidth used to be silently inert on the inferred default backend.
+  test('strokeWidth is honored on the default backend', () => {
     const svg = renderMermaidSVG(source, { style: { colors: { bg: '#0a0e27' }, strokeWidth: 2 } })
     expect(svg).toContain('stroke-width="2"')
-    const overridden = renderMermaidSVG(source, { style: { strokeWidth: 2, node: { lineWidth: 0.5 } } })
-    expect(overridden).toContain('stroke-width="0.5"') // explicit role width wins
   })
 
-  test('validateStyleSpec accepts fragments and rejects junk', () => {
+  test('validateStyleSpec accepts public fragments and rejects removed role keys plus junk', () => {
     expect(validateStyleSpec({ colors: { bg: '#fff' }, stroke: 'jittered' })).toEqual([])
-    expect(validateStyleSpec({ node: { cornerRadius: 4 } })).toEqual([])
     expect(validateStyleSpec({ stroke: 'wobbly' }).length).toBeGreaterThan(0)
     expect(validateStyleSpec({ colors: { background: '#fff' } }).length).toBeGreaterThan(0)
-    expect(validateStyleSpec({ node: { banana: true } }).length).toBeGreaterThan(0)
-    expect(validateStyleSpec({ edge: 'x' }).length).toBeGreaterThan(0)
-    expect(validateStyleSpec({ group: [] }).length).toBeGreaterThan(0)
-    expect(validateStyleSpec({ text: { fontSize: 'large' } }).length).toBeGreaterThan(0)
-    expect(validateStyleSpec({ edge: { textTransform: 'scream' } }).length).toBeGreaterThan(0)
+    expect(validateStyleSpec({ node: { cornerRadius: 4 } })).toContain('unknown field "node"')
+    expect(validateStyleSpec({ edge: 'x' })).toContain('unknown field "edge"')
+    expect(validateStyleSpec({ group: [] })).toContain('unknown field "group"')
+    expect(validateStyleSpec({ text: { fontSize: 'large' } })).toContain('unknown field "text"')
     expect(validateStyleSpec({ evil: '<script>' }).length).toBeGreaterThan(0)
     expect(validateStyleSpec('hand-drawn').length).toBeGreaterThan(0)
   })

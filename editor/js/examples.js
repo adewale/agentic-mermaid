@@ -82,6 +82,7 @@ function loadEditorExample(id) {
 
   editor.value = example.source.trim();
   state.config = cloneEditorConfig(example.options);
+  if (typeof hydrateConfigControls === 'function') hydrateConfigControls(state.config);
   markActiveExample(example.id);
   if (typeof setEditorErrorLine === 'function') setEditorErrorLine(0);
   if (typeof scheduleDraftSave === 'function') scheduleDraftSave();

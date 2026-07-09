@@ -1,7 +1,7 @@
 {
   "$schema": "https://agentic-mermaid.dev/schemas/style-spec.schema.json",
   "name": "mid-century-report",
-  "blurb": "Mid-century report figure: cream paper, teal panels, mustard accent, compact sans labels.",
+  "blurb": "Mid-century report palette: cream paper, teal panels, mustard accent, and compact sans labels.",
   "colors": {
     "bg": "#f4ead8",
     "fg": "#24211d",
@@ -15,38 +15,5 @@
   "stroke": "crisp",
   "strokeWidth": 1.6,
   "fill": "solid",
-  "intent": "premium",
-  "node": {
-    "fontSize": 14,
-    "fontWeight": 700,
-    "paddingX": 24,
-    "paddingY": 13,
-    "cornerRadius": 3,
-    "lineWidth": 1.6,
-    "fillColor": "#d9c27e",
-    "borderColor": "var(--fg)",
-    "textColor": "#1f1d1a"
-  },
-  "edge": {
-    "fontSize": 12,
-    "fontWeight": 600,
-    "lineWidth": 1.8,
-    "bendRadius": 0,
-    "strokeColor": "#2f4858",
-    "textColor": "#24211d"
-  },
-  "group": {
-    "fontSize": 12,
-    "fontWeight": 700,
-    "textTransform": "uppercase",
-    "letterSpacing": 0.08,
-    "paddingX": 24,
-    "paddingY": 22,
-    "cornerRadius": 3,
-    "lineWidth": 1.4,
-    "fillColor": "#efe0c5",
-    "headerFillColor": "#e0b653",
-    "borderColor": "#24211d",
-    "textColor": "#24211d"
-  }
+  "intent": "premium"
 }

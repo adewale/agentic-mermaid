@@ -11,6 +11,7 @@
  * when Playwright's Chromium is not installed (AM_CHROMIUM overrides).
  */
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
+import { Buffer } from 'node:buffer'
 import { existsSync } from 'node:fs'
 import { extname, join, normalize } from 'node:path'
 import { chromium, type Browser, type Page } from 'playwright'
@@ -95,6 +96,43 @@ async function topbarSlots(page: Page) {
   })
 }
 
+function legacyShareHash(payload: unknown) {
+  return Buffer.from(JSON.stringify(payload), 'utf8').toString('base64')
+}
+
+const STYLE_STACK_SHARE = {
+  source: `xychart
+  title "Styled Adoption"
+  x-axis [Mon, Tue, Wed, Thu, Fri]
+  y-axis "Renders" 0 --> 100
+  bar [25, 42, 58, 74, 88]
+  line [18, 35, 52, 70, 95]`,
+  theme: 'zinc-light',
+  style: 'publication-figure',
+  config: {
+    // Shared rich-example links can carry RenderOptions.style in config. It
+    // used to overwrite the dropdown's named style in buildOptions(), so
+    // picking Hand-drawn kept rendering as the config style with no sketch
+    // backdrop.
+    style: 'publication-figure',
+    interactive: true,
+  },
+}
+
+const RESTORED_CONFIG_SHARE = {
+  source: `flowchart TD
+  A[Alpha] --> B[Beta]`,
+  config: {
+    bg: '#112233',
+    fg: '#F8FAFC',
+    accent: '#66CCAA',
+    font: 'Caveat',
+    padding: 48,
+    editorEdgeStroke: 2.5,
+    editorNodeStroke: 3,
+  },
+}
+
 describeBrowser('editor style switcher restyles the artwork, never the chrome', () => {
   beforeAll(async () => {
     server = Bun.serve({
@@ -140,6 +178,91 @@ describeBrowser('editor style switcher restyles the artwork, never the chrome', 
     await page.click('#style-dropdown-btn')
     await page.click('.theme-dropdown-item[data-style="crisp"]')
     await waitForBackdrop(page, null)
+  }, 60_000)
+
+  test('shared config style still responds to the Style dropdown', async () => {
+    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
+    await page.goto(baseUrl + '/editor/?empty=1#' + legacyShareHash(STYLE_STACK_SHARE), { waitUntil: 'networkidle' })
+
+    await page.waitForFunction(() => {
+      const editor = document.getElementById('code-editor') as HTMLTextAreaElement | null
+      const label = document.getElementById('style-btn-label')
+      const svg = document.querySelector('.preview-inner svg')
+      return editor?.value.includes('Styled Adoption')
+        && label?.textContent?.includes('Report Figure')
+        && svg
+        && !svg.querySelector('[data-backdrop="paper-ruled"]')
+    }, null, { timeout: 15_000 })
+
+    await page.click('#style-dropdown-btn')
+    await page.click('.theme-dropdown-item[data-style="hand-drawn"]')
+    await waitForBackdrop(page, 'paper-ruled')
+    expect((await page.locator('#style-btn-label').textContent())?.trim()).toBe('Hand-drawn')
+    await page.close()
+  }, 60_000)
+
+  test('shared config hydrates Settings and survives the first settings edit', async () => {
+    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
+    await page.goto(baseUrl + '/editor/?empty=1#' + legacyShareHash(RESTORED_CONFIG_SHARE), { waitUntil: 'networkidle' })
+    await page.waitForFunction(() => {
+      const svg = document.querySelector('.preview-inner svg') as SVGSVGElement | null
+      return svg && getComputedStyle(svg).getPropertyValue('--bg').trim().toUpperCase() === '#112233'
+    }, null, { timeout: 15_000 })
+
+    await page.click('#settings-btn')
+    expect((await page.locator('#cfg-bg-label').textContent())?.trim().toUpperCase()).toBe('#112233')
+    expect((await page.locator('#font-select-label').textContent())?.trim()).toBe('Caveat')
+    expect(await page.locator('#cfg-padding').inputValue()).toBe('48')
+    expect(await page.locator('#cfg-edge-stroke').inputValue()).toBe('2.5')
+    expect(await page.locator('#cfg-node-stroke').inputValue()).toBe('3')
+
+    await page.locator('#cfg-padding').fill('36')
+    await page.locator('#cfg-padding').dispatchEvent('input')
+    await page.waitForFunction(() => {
+      const svg = document.querySelector('.preview-inner svg') as SVGSVGElement | null
+      return svg && getComputedStyle(svg).getPropertyValue('--bg').trim().toUpperCase() === '#112233'
+    }, null, { timeout: 15_000 })
+    expect((await page.locator('#cfg-bg-label').textContent())?.trim().toUpperCase()).toBe('#112233')
+    await page.close()
+  }, 60_000)
+
+  test('newer renders win over slower in-flight renders', async () => {
+    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
+    await page.addInitScript(() => {
+      let mermaidValue: any
+      Object.defineProperty(window, '__mermaid', {
+        configurable: true,
+        get() { return mermaidValue },
+        set(value) {
+          const original = value.renderMermaidSVGAsync
+          value.renderMermaidSVGAsync = async function(source: string, options: unknown) {
+            if (source.includes('Slow')) {
+              ;(window as any).__amSlowRenderStarted = true
+              await new Promise((resolve) => { ;(window as any).__amReleaseSlowRender = resolve })
+              const svg = await original(source, options)
+              ;(window as any).__amSlowRenderReturned = true
+              return svg
+            }
+            return original(source, options)
+          }
+          mermaidValue = value
+        },
+      })
+    })
+    await page.goto(baseUrl + '/editor/?empty=1', { waitUntil: 'networkidle' })
+    await page.waitForSelector('#code-editor')
+    await page.locator('#code-editor').fill('flowchart TD\n  Slow[Slow] --> Done[Done]')
+    await page.locator('#code-editor').dispatchEvent('input')
+    await page.waitForFunction(() => (window as any).__amSlowRenderStarted === true, null, { timeout: 15_000 })
+    await page.locator('#code-editor').fill('flowchart TD\n  Fast[Fast] --> Done[Done]')
+    await page.locator('#code-editor').dispatchEvent('input')
+    await page.waitForFunction(() => document.querySelector('.preview-inner svg')?.textContent?.includes('Fast'), null, { timeout: 15_000 })
+    await page.evaluate(() => (window as any).__amReleaseSlowRender())
+    await page.waitForFunction(() => (window as any).__amSlowRenderReturned === true, null, { timeout: 15_000 })
+    const text = await page.locator('.preview-inner svg').textContent()
+    expect(text).toContain('Fast')
+    expect(text).not.toContain('Slow')
+    await page.close()
   }, 60_000)
 
   test('style switch does not reflow the wrap-prone mobile topbar (portrait)', async () => {

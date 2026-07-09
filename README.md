@@ -24,7 +24,7 @@ Use it when you want to describe a diagram in plain language and get back someth
 |---|---|
 | An agent to draft the diagram | Mermaid source plus a verified render path |
 | Beautiful defaults | Built-in looks such as `watercolor`, `blueprint`, `hand-drawn`, and `publication-figure` |
-| Brand fit | Palette themes, role styles, and custom JSON styles you can keep in your repo |
+| Brand fit | Style + Palette stacks and custom JSON palettes you can keep in your repo |
 | Safe edits later | `parseMermaid` → family narrower → `mutate` → `verifyMermaid` → `serializeMermaid` |
 | Reviewable artifacts | SVG, PNG, ASCII, Unicode, and JSON layout from the same source |
 
@@ -209,7 +209,7 @@ See [diagram families](./docs/diagram-families.md) for examples and compatibilit
 
 ## Live editor and examples
 
-- [Sample gallery](https://agentic-mermaid.dev/) — supported families and role-style presets.
+- [Examples](https://agentic-mermaid.dev/examples/) — supported families, Style + Palette combinations, and the rich shared examples corpus.
 - [Live editor](https://agentic-mermaid.dev/editor) — SVG/PNG exports and URL sharing.
 - [`examples/agent-loop.ts`](./examples/agent-loop.ts)
 - [`examples/mcp-vs-cli-complex-diagrams.ts`](./examples/mcp-vs-cli-complex-diagrams.ts)

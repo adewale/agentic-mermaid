@@ -202,14 +202,16 @@ function shouldOpenEmptyEditor() {
     applyThemeToPage(state.theme);
     updateThemeButton();
     updateStyleButton();
-    refreshAllColorUIs();
+    if (typeof hydrateConfigControls === 'function') hydrateConfigControls(state.config);
+    else refreshAllColorUIs();
   } else if (queryExampleId && typeof loadEditorExample === 'function' && findEditorExample(queryExampleId)) {
     loadEditorExample(queryExampleId);
     loadedInitialExample = true;
   } else if (queryEmptyEditor) {
     editor.value = '';
     state.config = {};
-    refreshAllColorUIs();
+    if (typeof hydrateConfigControls === 'function') hydrateConfigControls(state.config);
+    else refreshAllColorUIs();
   } else {
     // No shared source or explicit blank-start request in the URL: restore the autosaved draft if one exists.
     var draft = typeof readEditorDraft === 'function' ? readEditorDraft() : null;
@@ -219,7 +221,8 @@ function shouldOpenEmptyEditor() {
       if (draft.style) state.style = draft.style;
       if (typeof draft.seed === 'number') state.seed = draft.seed;
       updateStyleButton();
-      refreshAllColorUIs();
+      if (typeof hydrateConfigControls === 'function') hydrateConfigControls(state.config);
+      else refreshAllColorUIs();
       showDraftRestoredNotice();
       // A restored draft means a returning editor: on mobile, put Source (and
       // the draft notice) back on screen instead of the first-run Preview.
