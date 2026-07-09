@@ -10,18 +10,16 @@ no browser — every function below runs synchronously in Node, Bun, or the brow
 
 ## Install
 
-The npm package is not yet published — install from source for now:
+```bash
+npm install agentic-mermaid
+# or: bun add agentic-mermaid / pnpm add agentic-mermaid
+```
+
+For repository development, install from source:
 
 ```bash
 git clone https://github.com/adewale/agentic-mermaid
 cd agentic-mermaid && bun install && bun run build
-```
-
-Once published, install it directly (the import paths below are unchanged):
-
-```bash
-npm install agentic-mermaid
-# or: bun add agentic-mermaid / pnpm add agentic-mermaid
 ```
 
 ## Render to SVG

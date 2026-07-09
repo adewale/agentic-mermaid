@@ -6,7 +6,7 @@
 
 Agentic Mermaid is an open-source Mermaid toolkit for people who want AI agents to create diagrams that look finished: SVG and PNG renders, ASCII and Unicode for review, deterministic layout, and Style + Palette controls for brand colors, typography, strokes, fills, and backdrops.
 
-It is forked from [`lukilabs/beautiful-mermaid`](https://github.com/lukilabs/beautiful-mermaid). It will be published to npm as `agentic-mermaid` — **not yet on npm; install from source for now** (see [Installation](#installation)). The GitHub repository is `adewale/agentic-mermaid`; the canonical live site is [`agentic-mermaid.dev`](https://agentic-mermaid.dev/), a Cloudflare Workers deployment.
+It is forked from [`lukilabs/beautiful-mermaid`](https://github.com/lukilabs/beautiful-mermaid). Published on npm as `agentic-mermaid`; the GitHub repository is `adewale/agentic-mermaid`; the canonical live site is [`agentic-mermaid.dev`](https://agentic-mermaid.dev/), a Cloudflare Workers deployment.
 
 ![Agentic Mermaid: Mermaid source plus typed edit ops on the left, the verified SVG render in the middle, and the same diagram as ASCII on the right](assets/hero.png)
 
@@ -42,36 +42,28 @@ The agent workflow is the guardrail behind the polish: agents should not guess f
 
 ## Installation
 
-> **Status:** the npm package is not yet published. Install from source until
-> `agentic-mermaid@0.1.0` lands on npm.
-
-```bash
-git clone https://github.com/adewale/agentic-mermaid
-cd agentic-mermaid
-bun install
-bun run build
-```
-
-From a source checkout, run the CLI/MCP bins through Bun:
-
-```bash
-bun run bin/am.ts --help
-bun run bin/agentic-mermaid-mcp.ts   # MCP stdio server
-```
-
-Once published, install the package and use the Node-runnable bins directly:
-
 ```bash
 npm install agentic-mermaid       # or: bun add agentic-mermaid / pnpm add agentic-mermaid
 am --help
 agentic-mermaid-mcp
 ```
 
+For repository development, install from source and run the Bun entrypoints:
+
+```bash
+git clone https://github.com/adewale/agentic-mermaid
+cd agentic-mermaid
+bun install
+bun run build
+bun run bin/am.ts --help
+bun run bin/agentic-mermaid-mcp.ts   # MCP stdio server
+```
+
 > **ESM-only.** `agentic-mermaid` ships ES modules (there is no CommonJS build);
 > `require()` consumers should use dynamic `import()` instead. Requires Node ≥ 18.
 >
-> The `am …` commands shown below assume the published bin. **From a source
-> checkout, run them as `bun run bin/am.ts …`** instead.
+> The `am …` commands shown below assume the published bin. From a source
+> checkout, run them as `bun run bin/am.ts …` instead.
 
 ## Output quick starts
 
@@ -134,7 +126,7 @@ am preview diagram.mmd --security strict --open
 am mutate diagram.mmd --op '{"kind":"add_node","id":"Cache","label":"Cache"}' --json
 ```
 
-Zero-install prompt for a coding agent: read `https://agentic-mermaid.dev/llms.txt` and follow the parse → narrow → mutate → verify → serialize workflow. To wire Agentic Mermaid into another repo, run `am init-agent` from a source build (or `npx agentic-mermaid init-agent` once the package is published); it writes a non-clobbering `AGENTS.md` section, root `skills/` bundle, and `.mcp.json` sample.
+Zero-install prompt for a coding agent: read `https://agentic-mermaid.dev/llms.txt` and follow the parse → narrow → mutate → verify → serialize workflow. To wire Agentic Mermaid into another repo, run `npx agentic-mermaid init-agent` (or `bun run bin/am.ts init-agent` from a source checkout); it writes a non-clobbering `AGENTS.md` section, root `skills/` bundle, and `.mcp.json` sample.
 
 Use strict `preview` for human inspection and `mutate --op/--ops` for verified one-shot or batched edits.
 
