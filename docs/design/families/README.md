@@ -9,7 +9,7 @@ across several surfaces; this hub points at each.
 |---|---|---|
 | Architecture (`architecture-beta`) | [`architecture-beta.md`](./architecture-beta.md) | ops in `AGENT_NATIVE.md`; level in [`source-preservation-ladder.md`](../system/source-preservation-ladder.md) |
 | Gantt | [`gantt.md`](./gantt.md) (+ [`gantt-research.md`](./gantt-research.md)) | schedule resolver; citizenship worked example |
-| Journey | [`journey.md`](./journey.md) | — |
+| Journey | [`journey.md`](./journey.md) (+ [`journey-migration-parity.md`](./journey-migration-parity.md), [`journey-usage-research.md`](./journey-usage-research.md)) | migration parity; classic visual mode; usage research |
 | XY chart | [`xychart.md`](./xychart.md) | — |
 | Flowchart | [`flowchart-parser-conformance.md`](./flowchart-parser-conformance.md) (conformance) | routing in [`route-contracts.md`](../system/route-contracts.md) |
 

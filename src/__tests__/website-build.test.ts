@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { gzipSync } from 'node:zlib'
+import { createWebsiteWorker } from '../../website/src/worker-core.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const SITE = join(REPO, 'website', 'public')
@@ -36,7 +37,11 @@ function editorExampleIds() {
 }
 
 async function websiteWorker(): Promise<{ fetch: (request: Request, env: any) => Promise<Response> }> {
-  return (await import('../../website/src/worker.ts')).default
+  return createWebsiteWorker({
+    executeHarness: 'test-harness',
+    renderPng: async () => new Uint8Array(),
+    deployVersion: 'test-deploy',
+  })
 }
 
 describe('Workers Static Assets website contract', () => {
@@ -144,6 +149,13 @@ describe('Workers Static Assets website contract', () => {
       expect({ rel, hasMockupDependency: /mockups\/(?:site-gen|home\.html)|join\([^\n]*['"]mockups['"]|\bMOCKUPS\b|readMock\b|copyMockFile\b/.test(text) }).toEqual({ rel, hasMockupDependency: false })
     }
     expect(readRepo('package.json')).toContain('"site:check": "bun run website:check"')
+    const preload = readRepo('src/__tests__/website-public.preload.ts')
+    expect(preload).toContain('buildFingerprint')
+    expect(preload).toContain('FINGERPRINT_PATHS')
+    expect(preload).toContain("'--public-only'")
+    for (const rel of ['docs/schemas/style-spec.schema.json', 'docs/assets/style-cookbook', 'examples/styles', 'skills/agentic-mermaid-diagram-workflow', 'Instructions_for_agents.md']) {
+      expect(preload).toContain(`'${rel}'`)
+    }
   })
 
   test('required human and machine routes are generated', () => {
@@ -775,7 +787,7 @@ describe('Workers Static Assets website contract', () => {
   test('audit fixes give public proof diagrams accessible names and immutable editor assets', () => {
     const home = read('index.html')
     const examples = read('examples/index.html')
-    const worker = readFileSync(join(REPO, 'website/src/worker.ts'), 'utf8')
+    const workerCore = readFileSync(join(REPO, 'website/src/worker-core.ts'), 'utf8')
     expect(home).toContain('role="img" aria-labelledby="edit-loop-svg-title edit-loop-svg-desc"')
     expect(home).toContain('<title id="edit-loop-svg-title">Agentic Mermaid edit loop</title>')
     expect(examples).toContain('role="img" aria-labelledby="example-flowchart-basic-svg-title example-flowchart-basic-svg-desc"')
@@ -785,9 +797,9 @@ describe('Workers Static Assets website contract', () => {
     expect(examples).not.toContain('aria-labelledby="tl-')
     expect(examples).not.toContain('aria-labelledby="journey-')
     expect(read('_headers')).not.toContain('Cache-Control')
-    expect(worker).toContain("headers.delete('Cache-Control')")
-    expect(worker).toContain("/^\\/(?:editor\\/editor-[a-f0-9]{12}|vendor\\/mermaid-[a-f0-9]{12}\\.min)\\.js$/i.test(pathname)")
-    expect(worker).toContain("public, max-age=31536000, immutable")
+    expect(workerCore).toContain("headers.delete('Cache-Control')")
+    expect(workerCore).toContain("/^\\/(?:editor\\/editor-[a-f0-9]{12}|vendor\\/mermaid-[a-f0-9]{12}\\.min)\\.js$/i.test(pathname)")
+    expect(workerCore).toContain("public, max-age=31536000, immutable")
     expect(read('shader-mark.js')).toContain('runs a short sweep only on direct hover/focus')
     expect(read('shader-mark.js')).not.toContain('requestAnimationFrame(frame);\n    }\n    requestAnimationFrame(frame);')
   })

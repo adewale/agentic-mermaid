@@ -34,6 +34,34 @@ export interface TimelineRuntimeConfig extends MermaidConfigMap {
   sectionColours?: string[]
 }
 
+export interface JourneyRuntimeConfig extends MermaidConfigMap {
+  diagramMarginX?: number
+  diagramMarginY?: number
+  leftMargin?: number
+  maxLabelWidth?: number
+  width?: number
+  height?: number
+  boxMargin?: number
+  boxTextMargin?: number
+  noteMargin?: number
+  messageMargin?: number
+  messageAlign?: 'left' | 'center' | 'right'
+  bottomMarginAdj?: number
+  useMaxWidth?: boolean
+  rightAngles?: boolean
+  taskFontSize?: string | number
+  taskFontFamily?: string
+  taskMargin?: number
+  activationWidth?: number
+  textPlacement?: string
+  actorColours?: string[]
+  sectionFills?: string[]
+  sectionColours?: string[]
+  titleColor?: string
+  titleFontFamily?: string
+  titleFontSize?: string | number
+}
+
 export interface GanttRuntimeConfig extends MermaidConfigMap {
   displayMode?: string
 }
@@ -43,6 +71,7 @@ export interface MermaidRuntimeConfig extends MermaidConfigMap {
   fontFamily?: string
   themeVariables?: MermaidThemeVariables
   timeline?: TimelineRuntimeConfig
+  journey?: JourneyRuntimeConfig
   xyChart?: MermaidConfigMap
   gantt?: GanttRuntimeConfig
   useMaxWidth?: boolean
@@ -196,6 +225,10 @@ function normalizeMermaidRuntimeConfig(raw: MermaidFrontmatterMap): MermaidRunti
     config.timeline = normalizeTimelineRuntimeConfig(config.timeline)
   }
 
+  if (isFrontmatterMap(config.journey)) {
+    config.journey = normalizeJourneyRuntimeConfig(config.journey)
+  }
+
   return config
 }
 
@@ -225,6 +258,54 @@ function normalizeTimelineRuntimeConfig(raw: MermaidFrontmatterMap): TimelineRun
 
   delete (config as MermaidFrontmatterMap).sectionColors
   return config
+}
+
+function normalizeJourneyRuntimeConfig(raw: MermaidFrontmatterMap): JourneyRuntimeConfig {
+  const config = cloneFrontmatterMap(raw) as JourneyRuntimeConfig
+
+  for (const key of [
+    'diagramMarginX', 'diagramMarginY', 'leftMargin', 'maxLabelWidth',
+    'width', 'height', 'boxMargin', 'boxTextMargin', 'noteMargin',
+    'messageMargin', 'bottomMarginAdj', 'taskMargin', 'activationWidth',
+  ] as const) {
+    const value = config[key]
+    if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+      delete config[key]
+    }
+  }
+
+  if (typeof config.useMaxWidth !== 'boolean') delete config.useMaxWidth
+  if (typeof config.rightAngles !== 'boolean') delete config.rightAngles
+
+  if (config.messageAlign !== 'left' && config.messageAlign !== 'center' && config.messageAlign !== 'right') {
+    delete config.messageAlign
+  }
+
+  const taskFontSize = normalizeCssFontSize(config.taskFontSize)
+  if (taskFontSize !== undefined) config.taskFontSize = taskFontSize
+  else delete config.taskFontSize
+
+  for (const key of ['taskFontFamily', 'textPlacement', 'titleColor', 'titleFontFamily'] as const) {
+    if (typeof config[key] !== 'string' || config[key]!.trim().length === 0) delete config[key]
+  }
+
+  const titleFontSize = normalizeCssFontSize(config.titleFontSize)
+  if (titleFontSize !== undefined) config.titleFontSize = titleFontSize
+  else delete config.titleFontSize
+
+  for (const key of ['actorColours', 'sectionFills', 'sectionColours'] as const) {
+    const colors = normalizeStringArray(config[key])
+    if (colors.length > 0) config[key] = colors
+    else delete config[key]
+  }
+
+  return config
+}
+
+function normalizeCssFontSize(value: MermaidConfigValue | undefined): string | number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value) && value > 0) return value
+  if (typeof value === 'string' && value.trim().length > 0) return value.trim()
+  return undefined
 }
 
 function normalizeStringArray(value: MermaidConfigValue | undefined): string[] {

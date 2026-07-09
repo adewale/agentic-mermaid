@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 604 370.29999999999995" width="604" height="370.29999999999995" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" role="img" aria-roledescription="user journey" aria-labelledby="journey-1b2tn0r-title">
-<title id="journey-1b2tn0r-title">Product journey</title>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 642 535.2" width="642" height="535.2" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" role="img" aria-roledescription="user journey" aria-labelledby="journey-4ys2ui-title">
+<title id="journey-4ys2ui-title">Product journey</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap');
   text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
@@ -19,78 +19,129 @@
     --_key-badge:     #e9e9ea;
   }
 </style>
+<defs>
+  <marker id="journey-4ys2ui-arrowhead" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
+    <path d="M0,0 L10,4 L0,8 Z" fill="#47474a" />
+  </marker>
+</defs>
 <style>
   .journey-title { fill: #27272A; }
-  .journey-section-bg { fill: #fafafa; stroke: #d4d4d4; stroke-width: 1; }
-  .journey-section-band { fill: #f0f0f1; stroke: #d4d4d4; stroke-width: 1; }
-  .journey-section-label { fill: #575759; }
-  .journey-task-card { fill: #f9f9f9; stroke: #d4d4d4; stroke-width: 1; }
+  .journey-section-bg { fill: #f0f0f1; stroke: #d4d4d4; stroke-width: 1; }
+  .journey-section-0 { fill: #f0f0f1; stroke: #b2b2b3; }
+  .journey-section-1 { fill: #ecedf4; stroke: #adb2d3; }
+  .journey-section-2 { fill: #f5f3fb; stroke: #d3ccf0; }
+  .journey-section-3 { fill: #ebecf1; stroke: #a9b0c4; }
+  .journey-section-4 { fill: #f9f7fd; stroke: #e6dcf5; }
+  .journey-section-5 { fill: #ebedf1; stroke: #a9b4c4; }
+  .journey-section-label-band { fill: #e5e5e6; stroke: none; }
+  .journey-section-band-0 { fill: #e5e5e6; }
+  .journey-section-band-1 { fill: #dddfec; }
+  .journey-section-band-2 { fill: #edeaf9; }
+  .journey-section-band-3 { fill: #dbdee6; }
+  .journey-section-band-4 { fill: #f5f0fb; }
+  .journey-section-band-5 { fill: #dbdfe6; }
+  .journey-section-label { fill: #27272A; }
+  .journey-section-label-0 { fill: #27272A; }
+  .journey-section-label-1 { fill: #27272A; }
+  .journey-section-label-2 { fill: #27272A; }
+  .journey-section-label-3 { fill: #27272A; }
+  .journey-section-label-4 { fill: #27272A; }
+  .journey-section-label-5 { fill: #27272A; }
+  .journey-task-box { fill: #f9f9f9; stroke: #d4d4d4; stroke-width: 1; }
   .journey-task-text { fill: #27272A; }
-  .journey-score-cell-filled { fill: #47474a; stroke: #47474a; stroke-width: 1; }
-  .journey-score-cell-empty { fill: #fcfcfc; stroke: #dcdcdc; stroke-width: 1; }
-  .journey-actor-pill { fill: #f0f0f1; stroke: #d7d7d7; stroke-width: 1; }
-  .journey-actor-text { fill: #575759; }
+  .journey-track { stroke: #dddddd; stroke-width: 1; stroke-dasharray: 4 7; }
+  .journey-guide { stroke: #e4e4e4; stroke-width: 1; }
+  .journey-score-label { fill: #575759; }
+  .journey-baseline { stroke: #47474a; stroke-width: 2; }
+  .journey-score-face { fill: #d7d7d7; stroke: #47474a; stroke-width: 1.2; }
+  .journey-face-eye { fill: #27272A; }
+  .journey-face-mouth { fill: none; stroke: #27272A; stroke-width: 1.6; stroke-linecap: round; }
+  .journey-actor-legend-title { fill: #575759; }
+  .journey-actor-legend-text { fill: #575759; }
+  .journey-actor-dot { stroke: #FFFFFF; stroke-width: 1; }
+  .journey-actor-0 { fill: #47474a; }
+  .journey-actor-1 { fill: #28358a; }
+  .journey-actor-2 { fill: #8c79d8; }
+  .journey-actor-3 { fill: #1d2f63; }
+  .journey-actor-4 { fill: #bea4e5; }
+  .journey-actor-5 { fill: #1d3963; }
+  .journey-actor-6 { fill: #cda8e6; }
+  .journey-actor-7 { fill: #1d4263; }
 </style>
+<g class="journey-score-guide" data-score-min="1" data-score-max="5">
+  <line class="journey-guide" x1="176" y1="273.20000000000005" x2="600" y2="273.20000000000005" />
+  <text x="164" y="273.20000000000005" class="journey-score-label" text-anchor="end" font-size="11" font-weight="600" dy="3.8499999999999996">5</text>
+  <line class="journey-guide" x1="176" y1="313.20000000000005" x2="600" y2="313.20000000000005" />
+  <text x="164" y="313.20000000000005" class="journey-score-label" text-anchor="end" font-size="11" font-weight="600" dy="3.8499999999999996">4</text>
+  <line class="journey-guide" x1="176" y1="353.20000000000005" x2="600" y2="353.20000000000005" />
+  <text x="164" y="353.20000000000005" class="journey-score-label" text-anchor="end" font-size="11" font-weight="600" dy="3.8499999999999996">3</text>
+  <line class="journey-guide" x1="176" y1="393.20000000000005" x2="600" y2="393.20000000000005" />
+  <text x="164" y="393.20000000000005" class="journey-score-label" text-anchor="end" font-size="11" font-weight="600" dy="3.8499999999999996">2</text>
+  <line class="journey-guide" x1="176" y1="433.20000000000005" x2="600" y2="433.20000000000005" />
+  <text x="164" y="433.20000000000005" class="journey-score-label" text-anchor="end" font-size="11" font-weight="600" dy="3.8499999999999996">1</text>
+  <line class="journey-baseline" x1="176" y1="491.20000000000005" x2="600" y2="491.20000000000005" marker-end="url(#journey-4ys2ui-arrowhead)" />
+</g>
+<g class="journey-actor-legend">
+  <text x="32" y="118.4" class="journey-actor-legend-title" text-anchor="start" font-size="12" font-weight="600" dy="4.199999999999999">Actors</text>
+  <circle class="journey-actor-dot journey-actor-0" data-actor="PM" cx="37" cy="144.4" r="5" />
+  <text x="54" y="144.4" class="journey-actor-legend-text" text-anchor="start" font-size="11" font-weight="600" dy="3.8499999999999996">PM</text>
+  <circle class="journey-actor-dot journey-actor-1" data-actor="Research" cx="37" cy="166.4" r="5" />
+  <text x="54" y="166.4" class="journey-actor-legend-text" text-anchor="start" font-size="11" font-weight="600" dy="3.8499999999999996">Research</text>
+  <circle class="journey-actor-dot journey-actor-2" data-actor="Design" cx="37" cy="188.4" r="5" />
+  <text x="54" y="188.4" class="journey-actor-legend-text" text-anchor="start" font-size="11" font-weight="600" dy="3.8499999999999996">Design</text>
+  <circle class="journey-actor-dot journey-actor-3" data-actor="Eng" cx="37" cy="210.4" r="5" />
+  <text x="54" y="210.4" class="journey-actor-legend-text" text-anchor="start" font-size="11" font-weight="600" dy="3.8499999999999996">Eng</text>
+  <circle class="journey-actor-dot journey-actor-4" data-actor="QA" cx="37" cy="232.4" r="5" />
+  <text x="54" y="232.4" class="journey-actor-legend-text" text-anchor="start" font-size="11" font-weight="600" dy="3.8499999999999996">QA</text>
+</g>
 <g class="journey-section" data-id="section-0" data-label="Discover">
-  <rect class="journey-section-bg" x="32" y="75.4" width="256" height="156.8" rx="0" ry="0" />
-  <path class="journey-section-band" d="M32,75.4 H288 V103 H32 Z" />
-  <text x="44" y="89.2" class="journey-section-label" text-anchor="start" font-size="12" font-weight="600" dy="4.199999999999999">Discover</text>
+  <rect class="journey-section-bg journey-section-0" x="166" y="73.4" width="144" height="36" rx="6" ry="6" />
+  <rect class="journey-section-label-band journey-section-band-0" x="172" y="80.4" width="132" height="22" rx="6" ry="6" />
+  <text x="238" y="91.4" class="journey-section-label journey-section-label-0" text-anchor="middle" font-size="12" font-weight="600" dy="4.199999999999999">Discover</text>
 </g>
 <g class="journey-section" data-id="section-1" data-label="Deliver">
-  <rect class="journey-section-bg" x="316" y="75.4" width="256" height="266.9" rx="0" ry="0" />
-  <path class="journey-section-band" d="M316,75.4 H572 V103 H316 Z" />
-  <text x="328" y="89.2" class="journey-section-label" text-anchor="start" font-size="12" font-weight="600" dy="4.199999999999999">Deliver</text>
+  <rect class="journey-section-bg journey-section-1" x="316" y="73.4" width="294" height="36" rx="6" ry="6" />
+  <rect class="journey-section-label-band journey-section-band-1" x="322" y="80.4" width="282" height="22" rx="6" ry="6" />
+  <text x="463" y="91.4" class="journey-section-label journey-section-label-1" text-anchor="middle" font-size="12" font-weight="600" dy="4.199999999999999">Deliver</text>
 </g>
 <g class="journey-task" data-id="task-0" data-score="4" data-section="Discover" data-actors="PM, Research">
-  <rect class="journey-task-card" x="50" y="135" width="220" height="79.2" rx="0" ry="0" />
-  <text x="64" y="155.45" class="journey-task-text" text-anchor="start" font-size="13" font-weight="500" dy="4.55">Interview users</text>
-  <rect class="journey-score-cell-filled" x="186" y="150.45" width="10" height="10" rx="2" ry="2" />
-  <rect class="journey-score-cell-filled" x="201" y="150.45" width="10" height="10" rx="2" ry="2" />
-  <rect class="journey-score-cell-filled" x="216" y="150.45" width="10" height="10" rx="2" ry="2" />
-  <rect class="journey-score-cell-filled" x="231" y="150.45" width="10" height="10" rx="2" ry="2" />
-  <rect class="journey-score-cell-empty" x="246" y="150.45" width="10" height="10" rx="2" ry="2" />
-  <g class="journey-actor" data-actor="PM">
-    <rect class="journey-actor-pill" x="64" y="175.9" width="44" height="26.3" rx="13.15" ry="13.15" />
-    <text x="86" y="189.05" class="journey-actor-text" text-anchor="middle" font-size="11" font-weight="600" dy="3.8499999999999996">PM</text>
-  </g>
-  <g class="journey-actor" data-actor="Research">
-    <rect class="journey-actor-pill" x="114" y="175.9" width="70.44999999999999" height="26.3" rx="13.15" ry="13.15" />
-    <text x="149.225" y="189.05" class="journey-actor-text" text-anchor="middle" font-size="11" font-weight="600" dy="3.8499999999999996">Research</text>
+  <line class="journey-track" x1="238" y1="200.3" x2="238" y2="491.20000000000005" />
+  <rect class="journey-task-box" x="176" y="139.4" width="124" height="60.900000000000006" rx="5" ry="5" />
+  <text x="238" y="159.85" class="journey-task-text" text-anchor="middle" font-size="13" font-weight="500" dy="4.55">Interview users</text>
+  <circle class="journey-actor-dot journey-actor-0" data-actor="PM" cx="230" cy="184.3" r="4" />
+  <circle class="journey-actor-dot journey-actor-1" data-actor="Research" cx="246" cy="184.3" r="4" />
+  <g class="journey-score-marker" data-score="4">
+    <circle class="journey-score-face" cx="238" cy="313.20000000000005" r="16" />
+    <circle class="journey-face-eye" cx="232.5" cy="308.70000000000005" r="2" />
+    <circle class="journey-face-eye" cx="243.5" cy="308.70000000000005" r="2" />
+    <path class="journey-face-mouth" d="M230,318.20000000000005 Q238,324.20000000000005 246,318.20000000000005" />
   </g>
 </g>
 <g class="journey-task" data-id="task-1" data-score="3" data-section="Deliver" data-actors="Design, Eng">
-  <rect class="journey-task-card" x="334" y="135" width="220" height="96.1" rx="0" ry="0" />
-  <text x="348" y="163.9" class="journey-task-text" text-anchor="start" font-size="13" font-weight="500"><tspan x="348" dy="-3.9000000000000012">Prototype</tspan><tspan x="348" dy="16.900000000000002">review</tspan></text>
-  <rect class="journey-score-cell-filled" x="470" y="158.9" width="10" height="10" rx="2" ry="2" />
-  <rect class="journey-score-cell-filled" x="485" y="158.9" width="10" height="10" rx="2" ry="2" />
-  <rect class="journey-score-cell-filled" x="500" y="158.9" width="10" height="10" rx="2" ry="2" />
-  <rect class="journey-score-cell-empty" x="515" y="158.9" width="10" height="10" rx="2" ry="2" />
-  <rect class="journey-score-cell-empty" x="530" y="158.9" width="10" height="10" rx="2" ry="2" />
-  <g class="journey-actor" data-actor="Design">
-    <rect class="journey-actor-pill" x="348" y="192.8" width="54.60999999999999" height="26.3" rx="13.15" ry="13.15" />
-    <text x="375.305" y="205.95000000000002" class="journey-actor-text" text-anchor="middle" font-size="11" font-weight="600" dy="3.8499999999999996">Design</text>
-  </g>
-  <g class="journey-actor" data-actor="Eng">
-    <rect class="journey-actor-pill" x="408.61" y="192.8" width="44" height="26.3" rx="13.15" ry="13.15" />
-    <text x="430.61" y="205.95000000000002" class="journey-actor-text" text-anchor="middle" font-size="11" font-weight="600" dy="3.8499999999999996">Eng</text>
+  <line class="journey-track" x1="388" y1="217.20000000000002" x2="388" y2="491.20000000000005" />
+  <rect class="journey-task-box" x="326" y="139.4" width="124" height="77.80000000000001" rx="5" ry="5" />
+  <text x="388" y="168.3" class="journey-task-text" text-anchor="middle" font-size="13" font-weight="500"><tspan x="388" dy="-3.9000000000000012">Prototype</tspan><tspan x="388" dy="16.900000000000002">review</tspan></text>
+  <circle class="journey-actor-dot journey-actor-2" data-actor="Design" cx="380" cy="201.20000000000002" r="4" />
+  <circle class="journey-actor-dot journey-actor-3" data-actor="Eng" cx="396" cy="201.20000000000002" r="4" />
+  <g class="journey-score-marker" data-score="3">
+    <circle class="journey-score-face" cx="388" cy="353.20000000000005" r="16" />
+    <circle class="journey-face-eye" cx="382.5" cy="348.70000000000005" r="2" />
+    <circle class="journey-face-eye" cx="393.5" cy="348.70000000000005" r="2" />
+    <path class="journey-face-mouth" d="M380,359.20000000000005 L396,359.20000000000005" />
   </g>
 </g>
 <g class="journey-task" data-id="task-2" data-score="5" data-section="Deliver" data-actors="Eng, QA">
-  <rect class="journey-task-card" x="334" y="245.1" width="220" height="79.2" rx="0" ry="0" />
-  <text x="348" y="265.55" class="journey-task-text" text-anchor="start" font-size="13" font-weight="500" dy="4.55">Ship</text>
-  <rect class="journey-score-cell-filled" x="470" y="260.55" width="10" height="10" rx="2" ry="2" />
-  <rect class="journey-score-cell-filled" x="485" y="260.55" width="10" height="10" rx="2" ry="2" />
-  <rect class="journey-score-cell-filled" x="500" y="260.55" width="10" height="10" rx="2" ry="2" />
-  <rect class="journey-score-cell-filled" x="515" y="260.55" width="10" height="10" rx="2" ry="2" />
-  <rect class="journey-score-cell-filled" x="530" y="260.55" width="10" height="10" rx="2" ry="2" />
-  <g class="journey-actor" data-actor="Eng">
-    <rect class="journey-actor-pill" x="348" y="286" width="44" height="26.3" rx="13.15" ry="13.15" />
-    <text x="370" y="299.15" class="journey-actor-text" text-anchor="middle" font-size="11" font-weight="600" dy="3.8499999999999996">Eng</text>
-  </g>
-  <g class="journey-actor" data-actor="QA">
-    <rect class="journey-actor-pill" x="398" y="286" width="44" height="26.3" rx="13.15" ry="13.15" />
-    <text x="420" y="299.15" class="journey-actor-text" text-anchor="middle" font-size="11" font-weight="600" dy="3.8499999999999996">QA</text>
+  <line class="journey-track" x1="538" y1="200.3" x2="538" y2="491.20000000000005" />
+  <rect class="journey-task-box" x="476" y="139.4" width="124" height="60.900000000000006" rx="5" ry="5" />
+  <text x="538" y="159.85" class="journey-task-text" text-anchor="middle" font-size="13" font-weight="500" dy="4.55">Ship</text>
+  <circle class="journey-actor-dot journey-actor-3" data-actor="Eng" cx="530" cy="184.3" r="4" />
+  <circle class="journey-actor-dot journey-actor-4" data-actor="QA" cx="546" cy="184.3" r="4" />
+  <g class="journey-score-marker" data-score="5">
+    <circle class="journey-score-face" cx="538" cy="273.20000000000005" r="16" />
+    <circle class="journey-face-eye" cx="532.5" cy="268.70000000000005" r="2" />
+    <circle class="journey-face-eye" cx="543.5" cy="268.70000000000005" r="2" />
+    <path class="journey-face-mouth" d="M530,277.20000000000005 Q538,286.20000000000005 546,277.20000000000005" />
   </g>
 </g>
-<text x="302" y="39.7" class="journey-title" text-anchor="middle" font-size="18" font-weight="600" dy="6.3">Product journey</text>
+<text x="321" y="39.7" class="journey-title" text-anchor="middle" font-size="18" font-weight="600" dy="6.3">Product journey</text>
 </svg>

@@ -9,7 +9,7 @@ Product journey
 
 [Discover]
 ●●●●○ Interview
-       users
+      users
   by PM, Research
 
 [Deliver]

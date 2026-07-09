@@ -191,10 +191,10 @@ registerRenderHooks('timeline', {
 })
 
 registerRenderHooks('journey', {
-  layout: ctx => layoutResult(layoutJourneyDiagram(parseJourneyDiagram(ctx.source.lines), ctx.options)),
+  layout: ctx => layoutResult(layoutJourneyDiagram(parseJourneyDiagram(ctx.source.lines), ctx.renderOptions)),
   renderSvg: svg(renderJourneySvg),
   lowerScene: scene(lowerJourneyScene),
-  renderAscii: ctx => renderJourneyAscii(ctx.source.text, ctx.config, ctx.colorMode, ctx.theme),
+  renderAscii: ctx => renderJourneyAscii(ctx.source.text, ctx.config, ctx.colorMode, ctx.theme, ctx.options.maxWidth),
 })
 
 registerRenderHooks('xychart', {

@@ -156,7 +156,7 @@ function verifyStructure(input: ValidDiagram | string, opts: VerifyOptions = {})
       ? layoutGeometryWarnings(layout, { edgeAnchors: true, nodeOverlaps: true })
       : layoutGeometryWarnings(layout, {
         nodeOverlaps: d.body.kind === 'journey',
-        groupContainment: d.body.kind === 'journey' || d.body.kind === 'xychart' || d.body.kind === 'quadrant',
+        groupContainment: d.body.kind === 'xychart' || d.body.kind === 'quadrant',
       })
     return finalize(dedupedConcat(pluginWarnings, familyGeometry), layout, opts)
   }

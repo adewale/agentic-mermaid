@@ -106,14 +106,14 @@ describe('theme switching — accent propagation', () => {
       section Work
       Task: 5: Me`
 
-    it('renders score cells with Tufte accent, not default blue', () => {
+    it('renders score markers with Tufte accent, not default blue', () => {
       const svg = renderMermaidSVG(source, TUFTE)
       expect(svg).toContain('--accent:#7A0000')
-      expect(svg).toContain('class="journey-score-cell-filled"')
+      expect(svg).toContain('class="journey-score-marker"')
       assertNoHardcodedBlue(svg)
     })
 
-    it('renders score cells with Salmon accent, not default blue', () => {
+    it('renders score markers with Salmon accent, not default blue', () => {
       const svg = renderMermaidSVG(source, SALMON)
       expect(svg).toContain('--accent:#FF4801')
       assertNoHardcodedBlue(svg)

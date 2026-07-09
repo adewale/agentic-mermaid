@@ -9,6 +9,7 @@ import { parseJourneyDiagram } from '../journey/parser.ts'
 import { preprocessMermaidLines } from '../mermaid-source.ts'
 import { colorizeLine, DEFAULT_ASCII_THEME } from './ansi.ts'
 import type { AsciiConfig, AsciiTheme, CharRole, ColorMode } from './types.ts'
+import { visualWidth } from './width.ts'
 
 interface StyledSegment {
   text: string
@@ -52,6 +53,7 @@ export function renderJourneyAscii(
   config: AsciiConfig,
   colorMode: ColorMode = 'none',
   theme: AsciiTheme = DEFAULT_ASCII_THEME,
+  maxWidth?: number,
 ): string {
   const lines = preprocessMermaidLines(text)
   const diagram = parseJourneyDiagram(lines)
@@ -62,7 +64,7 @@ export function renderJourneyAscii(
   }
 
   if (diagram.title) {
-    for (const line of diagram.title.split('\n')) {
+    for (const line of wrapText(diagram.title, maxWidth)) {
       pushLine([{ text: line, role: 'text' }])
     }
     pushLine()
@@ -72,18 +74,21 @@ export function renderJourneyAscii(
     const section = diagram.sections[sectionIndex]!
 
     if (section.label) {
-      pushLine([
-        { text: '[', role: 'border' },
-        { text: section.label.replace(/\n/g, ' / '), role: 'text' },
-        { text: ']', role: 'border' },
-      ])
+      for (const line of wrapText(section.label.replace(/\n/g, ' / '), maxWidth ? Math.max(1, maxWidth - 2) : undefined)) {
+        pushLine([
+          { text: '[', role: 'border' },
+          { text: line, role: 'text' },
+          { text: ']', role: 'border' },
+        ])
+      }
     }
 
     for (let taskIndex = 0; taskIndex < section.tasks.length; taskIndex++) {
       const task = section.tasks[taskIndex]!
       const scoreSegments = renderScoreSegments(task.score, useAscii)
       const scoreWidth = 5
-      const taskLines = task.text.split('\n')
+      const taskPrefixWidth = scoreWidth + 1
+      const taskLines = wrapText(task.text, maxWidth ? Math.max(1, maxWidth - taskPrefixWidth) : undefined)
 
       pushLine([
         ...scoreSegments,
@@ -92,18 +97,24 @@ export function renderJourneyAscii(
       ])
       for (const line of taskLines.slice(1)) {
         pushLine([
-          { text: `${' '.repeat(scoreWidth + 1)} `, role: null },
+          { text: ' '.repeat(taskPrefixWidth), role: null },
           { text: line, role: 'text' },
         ])
       }
 
       if (task.actors.length > 0) {
-        pushLine([
-          { text: '  ', role: null },
-          { text: 'by', role: 'border' },
-          { text: ' ', role: null },
-          { text: task.actors.join(', '), role: 'text' },
-        ])
+        const actorPrefix = '  by '
+        const actorLines = wrapText(task.actors.join(', '), maxWidth ? Math.max(1, maxWidth - visualWidth(actorPrefix)) : undefined)
+        actorLines.forEach((line, index) => {
+          pushLine([
+            { text: index === 0 ? '  ' : ' '.repeat(visualWidth(actorPrefix)), role: null },
+            ...(index === 0 ? [
+              { text: 'by', role: 'border' as const },
+              { text: ' ', role: null },
+            ] : []),
+            { text: line, role: 'text' },
+          ])
+        })
       }
 
       const moreTasks = taskIndex < section.tasks.length - 1
@@ -113,4 +124,66 @@ export function renderJourneyAscii(
   }
 
   return out.join('\n').trimEnd()
+}
+
+function wrapText(text: string, maxWidth: number | undefined): string[] {
+  if (!maxWidth || !Number.isFinite(maxWidth) || maxWidth <= 0) return text.split('\n')
+  const limit = Math.max(1, Math.floor(maxWidth))
+  const lines: string[] = []
+  for (const paragraph of text.split('\n')) {
+    lines.push(...wrapParagraph(paragraph, limit))
+  }
+  return lines.length > 0 ? lines : ['']
+}
+
+function wrapParagraph(text: string, maxWidth: number): string[] {
+  if (visualWidth(text) <= maxWidth) return [text]
+  const words = text.split(/\s+/).filter(Boolean)
+  if (words.length === 0) return ['']
+
+  const lines: string[] = []
+  let current = ''
+  for (const word of words) {
+    if (!current) {
+      const chunks = breakWord(word, maxWidth)
+      lines.push(...chunks.slice(0, -1))
+      current = chunks[chunks.length - 1] ?? ''
+      continue
+    }
+
+    const candidate = `${current} ${word}`
+    if (visualWidth(candidate) <= maxWidth) {
+      current = candidate
+      continue
+    }
+
+    lines.push(current)
+    const chunks = breakWord(word, maxWidth)
+    lines.push(...chunks.slice(0, -1))
+    current = chunks[chunks.length - 1] ?? ''
+  }
+  if (current) lines.push(current)
+  return lines
+}
+
+function breakWord(word: string, maxWidth: number): string[] {
+  if (visualWidth(word) <= maxWidth) return [word]
+  const lines: string[] = []
+  let current = ''
+  let width = 0
+
+  for (const char of word) {
+    const charWidth = visualWidth(char)
+    if (current && width + charWidth > maxWidth) {
+      lines.push(current)
+      current = char
+      width = charWidth
+    } else {
+      current += char
+      width += charWidth
+    }
+  }
+
+  if (current) lines.push(current)
+  return lines
 }

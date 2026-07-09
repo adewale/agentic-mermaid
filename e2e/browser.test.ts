@@ -654,8 +654,12 @@ describe('browser: visual regression', () => {
     Try editor: 5: User
   section Deliver
     Deploy fix: 4: Engineer`,
-        required: ['<path class="journey-section-band"'],
-        forbidden: ['<rect class="journey-section-band"', 'journey-task-accent'],
+        required: [
+          '<rect class="journey-section-label-band journey-section-band-',
+          '<line class="journey-baseline"',
+          '<g class="journey-score-marker"',
+        ],
+        forbidden: ['journey-task-accent'],
       },
       {
         name: 'timeline-rounded-fill',

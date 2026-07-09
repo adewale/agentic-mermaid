@@ -531,7 +531,7 @@ describe('CLI — sad paths via runCli', () => {
     expect(payload.source).toContain('Review: 5: Me')
 
     const opaqueTmp = `/tmp/cli-journey-opaque-${Date.now()}.mmd`
-    require('node:fs').writeFileSync(opaqueTmp, 'journey\n  accTitle: A11y\n  Code: 4: Me\n')
+    require('node:fs').writeFileSync(opaqueTmp, 'journey\n  Code: 9: Me\n')
     const opaque = capture(() => runCli(['mutate', opaqueTmp, '--op', '{"kind":"add_task","sectionIndex":0,"text":"Review","score":5}', '--json']))
     expect(opaque.code).toBe(2)
     expect(JSON.parse(opaque.out).error.code).toBe('UNSUPPORTED_FAMILY')

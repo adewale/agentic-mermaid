@@ -19,6 +19,7 @@ const SOURCE_ASSETS = join(SOURCE, 'assets')
 const SOURCE_DIAGRAMS = join(SOURCE, 'diagrams')
 const OUT = join(import.meta.dir, 'public')
 const CHECK = process.argv.includes('--check')
+const PUBLIC_ONLY = process.argv.includes('--public-only')
 const HOSTED_FONT_FILES = [
   'DejaVuSans.ttf',
   'DejaVuSans-Bold.ttf',
@@ -2115,7 +2116,7 @@ async function emitWorkerArtifact(rel: string, content: Buffer) {
   await writeFile(dest, content)
 }
 
-{
+if (!PUBLIC_ONLY) {
   const harnessBuild = await Bun.build({
     entrypoints: [join(ROOT, 'src', 'mcp', 'dynamic-harness.ts')],
     target: 'browser',
@@ -2223,5 +2224,5 @@ if (CHECK) {
   }
   console.log(`website/build --check: ${workerGenerated.size} src/generated file(s) in sync (website/public is a build artifact, not checked).`)
 } else {
-  console.log(`website/build: wrote ${generated.size} files to website/public`)
+  console.log(`website/build: wrote ${generated.size} files to website/public${PUBLIC_ONLY ? ' (public only)' : ''}`)
 }

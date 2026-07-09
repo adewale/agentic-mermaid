@@ -1,5 +1,4 @@
 import type { JourneyDiagram, JourneySection, JourneyTask } from './types.ts'
-import { normalizeBrTags } from '../multiline-utils.ts'
 import { syntaxError } from '../shared/syntax-error.ts'
 
 // ============================================================================
@@ -19,11 +18,25 @@ import { syntaxError } from '../shared/syntax-error.ts'
 // ============================================================================
 
 function normalizeActorLabel(label: string): string {
-  return normalizeBrTags(label.trim())
+  return normalizeJourneyLabel(label.trim())
     .split('\n')
     .map(part => part.trim())
     .filter(Boolean)
     .join(' / ')
+}
+
+function normalizeJourneyLabel(label: string): string {
+  return label
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/\\n/g, '\n')
+    .replace(/<\/?(?:sub|sup|small|mark)\s*>/gi, '')
+    .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
+    .replace(/(?<!\*)\*([^\s*](?:[^*]*[^\s*])?)\*(?!\*)/g, '<i>$1</i>')
+    .replace(/~~(.+?)~~/g, '<s>$1</s>')
+}
+
+function isJourneyComment(line: string): boolean {
+  return line.startsWith('%%') || line.startsWith('#') || line.startsWith('%')
 }
 
 /**
@@ -51,6 +64,7 @@ export function parseJourneyDiagram(lines: string[]): JourneyDiagram {
     const line = lines[i]!
 
     if (/^journey\b/i.test(line)) continue
+    if (isJourneyComment(line)) continue
 
     const accTitle = parseAccessibilityLine(line, 'accTitle')
     if (accTitle !== undefined) {
@@ -62,7 +76,7 @@ export function parseJourneyDiagram(lines: string[]): JourneyDiagram {
     if (accDescrStart) {
       const initial = accDescrStart[1] ?? ''
       const parsed = collectAccessibilityBlock(initial, lines, i)
-      diagram.accessibilityDescription = normalizeBrTags(parsed.text)
+      diagram.accessibilityDescription = normalizeJourneyLabel(parsed.text)
       i = parsed.nextIndex
       continue
     }
@@ -75,15 +89,23 @@ export function parseJourneyDiagram(lines: string[]): JourneyDiagram {
 
     const titleMatch = line.match(/^title\s+(.+)$/i)
     if (titleMatch) {
-      diagram.title = normalizeBrTags(titleMatch[1]!.trim())
+      diagram.title = normalizeJourneyLabel(titleMatch[1]!.trim())
       continue
     }
 
     const sectionMatch = line.match(/^section\s+(.+)$/i)
     if (sectionMatch) {
+      const label = normalizeJourneyLabel(sectionMatch[1]!.trim())
+      if (label.includes(':')) {
+        throw syntaxError({
+          what: `Invalid user journey section: "${line}"`,
+          expectedForm: 'section Section name',
+          example: 'section Go to work',
+        })
+      }
       currentSection = {
         id: `section-${sectionIndex++}`,
-        label: normalizeBrTags(sectionMatch[1]!.trim()),
+        label,
         tasks: [],
       }
       diagram.sections.push(currentSection)
@@ -92,7 +114,7 @@ export function parseJourneyDiagram(lines: string[]): JourneyDiagram {
 
     const taskMatch = line.match(/^(.+?)\s*:\s*([0-9]+)\s*(?::\s*(.*))?$/)
     if (taskMatch) {
-      const text = normalizeBrTags(taskMatch[1]!.trim())
+      const text = normalizeJourneyLabel(taskMatch[1]!.trim())
       const rawScore = taskMatch[2]!
       const score = Number.parseInt(rawScore, 10)
 
@@ -105,7 +127,7 @@ export function parseJourneyDiagram(lines: string[]): JourneyDiagram {
       }
 
       if (!Number.isInteger(score) || score < 1 || score > 5) {
-        throw new Error(`Journey task "${text}" has invalid score ${rawScore}. Expected a number between 1 and 5`)
+        throw invalidJourneyScoreError(text, rawScore)
       }
 
       const actors = (taskMatch[3] ?? '')
@@ -124,9 +146,12 @@ export function parseJourneyDiagram(lines: string[]): JourneyDiagram {
       continue
     }
 
-    if (line.includes(':')) {
-      throw new Error(`Invalid user journey task: "${line}". Expected "Task name: 3: Actor"`)
+    const invalidScore = parseInvalidTaskScore(line)
+    if (invalidScore) {
+      throw invalidJourneyScoreError(invalidScore.text, invalidScore.rawScore)
     }
+
+    throw new Error(`Invalid user journey line: "${line}". Expected title, section, accessibility metadata, or "Task name: 3: Actor"`)
   }
 
   // Upstream parity: a journey with a title/acc metadata but no tasks still
@@ -139,12 +164,25 @@ export function parseJourneyDiagram(lines: string[]): JourneyDiagram {
   return diagram
 }
 
+function parseInvalidTaskScore(line: string): { text: string; rawScore: string } | null {
+  const match = line.match(/^(.+?)\s*:\s*([^:]+?)(?:\s*:\s*.*)?$/)
+  if (!match) return null
+  const text = normalizeJourneyLabel(match[1]!.trim())
+  const rawScore = match[2]!.trim()
+  if (!text || !rawScore) return null
+  return { text, rawScore }
+}
+
+function invalidJourneyScoreError(text: string, rawScore: string): Error {
+  return new Error(`Journey task "${text}" has invalid score ${rawScore}. Expected an integer from 1 through 5`)
+}
+
 function parseAccessibilityLine(
   line: string,
   directive: 'accTitle' | 'accDescr',
 ): string | undefined {
-  const match = line.match(new RegExp(`^${directive}\\s*:?[ \\t]+(.+)$`, 'i'))
-  return match ? normalizeBrTags(match[1]!.trim()) : undefined
+  const match = line.match(new RegExp(`^${directive}\\s*:[ \\t]*(.+)$`, 'i'))
+  return match ? normalizeJourneyLabel(match[1]!.trim()) : undefined
 }
 
 function collectAccessibilityBlock(
