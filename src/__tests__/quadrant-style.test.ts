@@ -81,9 +81,12 @@ describe('quadrant parser models point styles and classDefs', () => {
   })
 
   it('keeps the loud-error contract for malformed style metadata', () => {
-    expect(() => parse('quadrantChart\n  A: [0.5, 0.5] banana: split')).toThrow(/style/i)
+    // Known keys validate their values; any value with style=""-unsafe
+    // characters errors. Unknown keys with SAFE values are upstream-legal
+    // and preserved (see the bench-parity suite below), so they no longer
+    // throw here.
     expect(() => parse('quadrantChart\n  A: [0.5, 0.5] radius: big')).toThrow(/radius/i)
-    expect(() => parse('quadrantChart\n  classDef c1 banana: split')).toThrow(/classDef|style/i)
+    expect(() => parse('quadrantChart\n  A: [0.5, 0.5] banana: "spl;it"')).toThrow(/style/i)
     expect(() => parse('quadrantChart\n  A: [0.5, 0.5] color: "x;{}"')).toThrow(/color|style/i)
   })
 })
@@ -255,9 +258,74 @@ describe('quadrant agent body models styles structurally', () => {
     expect(p.ok).toBe(true)
     if (!p.ok) return
     expect(p.value.body.kind).toBe('opaque')
-    const bad = parseMermaid('quadrantChart\n  A: [0, 0] banana: split')
+    // A value with characters unsafe for a style="" attribute stays malformed.
+    const bad = parseMermaid('quadrantChart\n  A: [0, 0] banana: "spl;it"')
     expect(bad.ok).toBe(true)
     if (!bad.ok) return
     expect(bad.value.body.kind).toBe('opaque')
+  })
+})
+
+// Upstream's jison grammar accepts ANY `key: value` style entry and applies
+// only the four point properties — its own parser suite pins `classDef
+// constructor fill:#ff0000` as valid input. Unknown-but-safe entries are
+// therefore preserved verbatim (lossless round-trip), inert in render
+// (upstream behavior), and named by a Tier-3 diagnostic (P4: documented
+// limitation ⇒ runtime warning). `constructor`/`__proto__` are legal class
+// names per CLASS_NAME_RE, so the classDef table must not leak or pollute
+// Object.prototype.
+describe('unknown style properties and hostile class names (upstream bench parity)', () => {
+  const UPSTREAM = 'quadrantChart\n    classDef constructor fill:#ff0000\n    Microsoft:::constructor: [0.75, 0.75]'
+
+  it('upstream constructor-classname source parses structured and verifies ok', () => {
+    const p = parseMermaid(UPSTREAM)
+    expect(p.ok).toBe(true)
+    if (!p.ok) return
+    expect(p.value.body.kind).toBe('quadrant')
+    const v = verifyMermaid(p.value)
+    expect(v.ok).toBe(true)
+    const inert = v.warnings.filter(w => w.code === 'UNSUPPORTED_SYNTAX' && w.syntax === 'quadrant_style_property')
+    expect(inert.length).toBe(1)
+    expect((inert[0] as { message: string }).message).toContain('"fill"')
+  })
+
+  it('unknown properties survive serialize → re-parse verbatim (lossless)', () => {
+    const p = parseMermaid(UPSTREAM)
+    expect(p.ok).toBe(true)
+    if (!p.ok) return
+    const s = serializeMermaid(p.value)
+    expect(s).toContain('fill: #ff0000')
+    const rp = parseMermaid(s)
+    expect(rp.ok).toBe(true)
+    if (!rp.ok) return
+    expect(rp.value.body.kind).toBe('quadrant')
+    expect(serializeMermaid(rp.value)).toBe(s)
+  })
+
+  it('unknown properties are inert in render (never reach the style attribute)', () => {
+    const svg = renderMermaidSVG(UPSTREAM)
+    expect(svg).toContain('Microsoft')
+    expect(svg).not.toContain('#ff0000')
+  })
+
+  it('classDef named __proto__ does not pollute Object.prototype and still applies', () => {
+    const chart = parseQuadrantChart(toMermaidLines('quadrantChart\n  classDef __proto__ radius: 11\n  A:::__proto__: [0.5, 0.5]'))
+    expect(({} as { radius?: number }).radius).toBeUndefined()
+    const visual = resolvePointVisual(chart.points[0]!, chart.classDefs, { radius: 5 })
+    expect(visual.radius).toBe(11)
+  })
+
+  it('className constructor with no classDef resolves to defaults, not Object.prototype', () => {
+    const chart = parseQuadrantChart(toMermaidLines('quadrantChart\n  A:::constructor: [0.5, 0.5]'))
+    const visual = resolvePointVisual(chart.points[0]!, chart.classDefs, { radius: 5 })
+    expect(visual).toEqual({ radius: 5 })
+  })
+
+  it('well-formed unknown entries on a point stay structured with the style preserved', () => {
+    const p = parseMermaid('quadrantChart\n  A: [0.2, 0.2] banana: split')
+    expect(p.ok).toBe(true)
+    if (!p.ok) return
+    expect(p.value.body.kind).toBe('quadrant')
+    expect(serializeMermaid(p.value)).toContain('banana: split')
   })
 })

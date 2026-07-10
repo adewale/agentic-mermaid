@@ -110,7 +110,8 @@ export function parseQuadrantBody(lines: string[]): QuadrantBody | null {
     if ((m = line.match(CLASSDEF_RE))) {
       const parsed = parseClassDefTail(m[1]!)
       if (!parsed.ok) return null
-      body.classDefs = body.classDefs ?? {}
+      // Null prototype: `__proto__` is a legal class name (see point-style.ts).
+      body.classDefs = body.classDefs ?? (Object.create(null) as NonNullable<QuadrantBody['classDefs']>)
       body.classDefs[parsed.name] = parsed.style
       continue
     }
@@ -200,6 +201,7 @@ function cloneStyle(s: QuadrantPointStyle): QuadrantPointStyle {
   if (s.color !== undefined) style.color = s.color
   if (s.strokeColor !== undefined) style.strokeColor = s.strokeColor
   if (s.strokeWidth !== undefined) style.strokeWidth = s.strokeWidth
+  if (s.extra !== undefined) style.extra = [...s.extra]
   return style
 }
 
@@ -218,8 +220,10 @@ function cloneQuadrant(b: QuadrantBody): QuadrantBody {
     }),
   }
   if (b.classDefs !== undefined) {
-    clone.classDefs = Object.fromEntries(
-      Object.entries(b.classDefs).map(([name, style]) => [name, cloneStyle(style)]),
+    // Null prototype for the same reason as the parse site.
+    clone.classDefs = Object.assign(
+      Object.create(null) as NonNullable<QuadrantBody['classDefs']>,
+      Object.fromEntries(Object.entries(b.classDefs).map(([name, style]) => [name, cloneStyle(style)])),
     )
   }
   return clone

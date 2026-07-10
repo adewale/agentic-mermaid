@@ -113,7 +113,9 @@ describe('quadrant parser — sad paths error loudly', () => {
     { name: 'unclosed bracket', src: 'quadrantChart\n  A: [0.5, 0.5', match: /Invalid quadrant point/i },
     { name: 'wrong header', src: 'notquadrant\n  A: [0.5, 0.5]', match: /must start with "quadrantChart"/i },
     { name: 'unknown statement', src: 'quadrantChart\n  banana split', match: /Unrecognized quadrant chart line/i },
-    { name: 'unknown point style metadata', src: 'quadrantChart\n  A: [0.5, 0.5] banana: split', match: /Unsupported quadrant point style metadata/i },
+    // Unknown keys with SAFE values are upstream-legal (preserved verbatim,
+    // inert in render — see quadrant-style.test.ts); only unsafe values err.
+    { name: 'unknown point style metadata with unsafe value', src: 'quadrantChart\n  A: [0.5, 0.5] banana: "spl;it"', match: /style/i },
     { name: 'x-axis arrow but no far label', src: 'quadrantChart\n  x-axis Left -->', match: /no far label/i },
   ]
 

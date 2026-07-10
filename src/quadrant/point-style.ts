@@ -30,6 +30,11 @@ export interface QuadrantPointStyle {
   color?: string
   strokeColor?: string
   strokeWidth?: string
+  /** Unknown-but-safe `key: value` entries, verbatim in source order.
+   *  Upstream's jison grammar accepts any entry and applies only the four
+   *  properties above; these round-trip losslessly, never render, and are
+   *  named by verify's quadrant_style_property diagnostic. */
+  extra?: string[]
 }
 
 /** classDef table: class name → style, in source order. */
@@ -86,8 +91,17 @@ export function parsePointStyleEntries(tail: string): StyleParseResult {
         style.strokeWidth = value
         break
       }
-      default:
-        return { ok: false, error: `unknown style property "${key}" (expected radius/color/stroke-color/stroke-width)` }
+      default: {
+        // Upstream accepts any `key: value` entry and applies only the four
+        // known properties (its parser suite pins `classDef constructor
+        // fill:#ff0000`). Safe values are preserved verbatim and stay inert;
+        // unsafe characters remain a hard error (the value would land in a
+        // style="" attribute on serialize).
+        if (!COLOR_RE.test(value)) return { ok: false, error: `style property "${key}" has unsupported characters: "${value}"` }
+        style.extra = style.extra ?? []
+        style.extra.push(`${key}: ${value}`)
+        break
+      }
     }
     any = true
   }
@@ -152,7 +166,11 @@ export function resolvePointVisual(
   classDefs: QuadrantClassDefs | undefined,
   defaults: { radius: number },
 ): ResolvedPointVisual {
-  const cls = point.className ? classDefs?.[point.className] : undefined
+  // Own-key guard: `constructor`/`toString` are legal class names, and a
+  // plain-object table would otherwise leak Object.prototype members.
+  const cls = point.className && classDefs && Object.hasOwn(classDefs, point.className)
+    ? classDefs[point.className]
+    : undefined
   const resolved: ResolvedPointVisual = {
     radius: point.style?.radius ?? cls?.radius ?? defaults.radius,
   }
@@ -177,5 +195,6 @@ export function renderPointStyleEntries(style: QuadrantPointStyle | undefined): 
   if (style.color !== undefined) entries.push(`color: ${style.color}`)
   if (style.strokeColor !== undefined) entries.push(`stroke-color: ${style.strokeColor}`)
   if (style.strokeWidth !== undefined) entries.push(`stroke-width: ${style.strokeWidth}`)
+  if (style.extra !== undefined) entries.push(...style.extra)
   return entries.join(', ')
 }

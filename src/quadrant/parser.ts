@@ -61,7 +61,9 @@ export function parseQuadrantChart(lines: string[]): QuadrantChart {
   let yAxis: QuadrantAxis | undefined
   const quadrants: [string?, string?, string?, string?] = [undefined, undefined, undefined, undefined]
   const points: QuadrantPoint[] = []
-  const classDefs: QuadrantChart['classDefs'] = {}
+  // Null prototype: `__proto__`/`constructor` are legal class names and must
+  // become ordinary own keys, never prototype writes/reads.
+  const classDefs: QuadrantChart['classDefs'] = Object.create(null) as QuadrantChart['classDefs']
   const seenPointLabels = new Set<string>()
 
   for (let i = 1; i < lines.length; i++) {

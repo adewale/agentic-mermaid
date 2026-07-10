@@ -340,6 +340,10 @@ export interface QuadrantPointStyle {
   strokeColor?: string
   /** May carry a px suffix (upstream form, e.g. "5px"). */
   strokeWidth?: string
+  /** Unknown-but-safe `key: value` entries, verbatim (upstream accepts any
+   *  entry and applies only the four above; these round-trip losslessly,
+   *  never render, and verify names them — see src/quadrant/point-style.ts). */
+  extra?: string[]
 }
 
 export interface QuadrantPoint {

@@ -101,8 +101,10 @@ describe('quadrant structured-or-opaque fallback', () => {
     ['accTitle line', 'quadrantChart\n  accTitle: Accessible\n  A: [0, 0]'],
     // Well-formed classDef/::: styling is STRUCTURED now (upstream #5173 is
     // modeled — see quadrant-style.test.ts); only MALFORMED styling falls
-    // back to opaque, mirroring the legacy parser's loud error.
-    ['malformed classDef style', 'quadrantChart\n  classDef foo banana: split\n  A: [0, 0]'],
+    // back to opaque, mirroring the legacy parser's loud error. Unknown keys
+    // with SAFE values are upstream-legal and stay structured (preserved
+    // verbatim, inert in render); unsafe values are the malformed case.
+    ['malformed classDef style', 'quadrantChart\n  classDef foo banana: "spl;it"\n  A: [0, 0]'],
     ['class assignment ::: after coords (invalid style tail)', 'quadrantChart\n  A: [0, 0] ::: foo'],
     ['out-of-range coord', 'quadrantChart\n  A: [1.5, 0]'],
     ['negative coord', 'quadrantChart\n  A: [-0.1, 0]'],

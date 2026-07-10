@@ -204,6 +204,25 @@ function quadrantIneffectiveConfigWarnings(d: ValidDiagram): LayoutWarning[] {
   }))
 }
 
+// Upstream's quadrant grammar accepts ANY `key: value` style entry and
+// applies only radius/color/stroke-color/stroke-width; unknown-but-safe
+// entries are preserved verbatim on the body (point-style.ts `extra`) and
+// never render. P4: name them instead of staying silent.
+function quadrantInertStyleWarnings(d: ValidDiagram): LayoutWarning[] {
+  if (d.body.kind !== 'quadrant') return []
+  const inert = new Set<string>()
+  const collect = (style?: { extra?: string[] }) => {
+    for (const entry of style?.extra ?? []) inert.add(entry.slice(0, entry.indexOf(':')).trim())
+  }
+  for (const point of d.body.points) collect(point.style)
+  for (const style of Object.values(d.body.classDefs ?? {})) collect(style)
+  return [...inert].sort().map(property => ({
+    code: 'UNSUPPORTED_SYNTAX',
+    syntax: 'quadrant_style_property',
+    message: `Quadrant style property "${property}" is preserved in source for upstream compatibility but has no effect on rendered points (rendered properties: radius, color, stroke-color, stroke-width).`,
+  }))
+}
+
 function verifyStructure(input: ValidDiagram | string, opts: VerifyOptions = {}): VerifyResult {
   const d = typeof input === 'string' ? unwrap(input) : input
   if (!d) return finalize([{ code: 'EMPTY_DIAGRAM' }], emptyRenderedLayout('flowchart'), opts)
@@ -221,7 +240,8 @@ function verifyStructure(input: ValidDiagram | string, opts: VerifyOptions = {})
     ? [{ code: 'COMMENT_DROPPED', count: d.meta.droppedComments.length, lines: d.meta.droppedComments.map(c => c.line) }]
     : []
   const sourceWarnings = d.kind === 'flowchart' ? flowchartUnsupportedSyntaxWarnings(d.canonicalSource)
-    : d.kind === 'er' ? erUnsupportedSyntaxWarnings(d.canonicalSource) : []
+    : d.kind === 'er' ? erUnsupportedSyntaxWarnings(d.canonicalSource)
+    : d.kind === 'quadrant' ? quadrantInertStyleWarnings(d) : []
   const faithfulnessWarnings = roundtripFaithfulnessWarnings(d)
   const configWarnings = d.kind === 'journey'
     ? journeyIneffectiveConfigWarnings(d)
