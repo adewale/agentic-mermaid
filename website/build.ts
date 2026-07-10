@@ -1611,37 +1611,68 @@ const HERO_SOURCE = `flowchart LR
     Ord --> DB
     W --> DB
   end`
-const HERO_COMBOS = [
-  { look: 'watercolor', theme: 'paper', seed: 4, label: 'watercolor · paper' },
-  { look: 'publication-figure', theme: 'github-light', seed: 0, label: 'publication-figure · github-light' },
-  { look: 'ops-schematic', theme: 'tokyo-night', seed: 8, label: 'ops-schematic · tokyo-night' },
-] as const
+// Gallery slides: the first three cycle ONE source (the checkout architecture)
+// through three style stacks — flipping between them shows layout invariance —
+// then six pre-chosen family showcases reuse the same curated pairs the
+// Examples page renders (STYLE_THEME_PAIR_BY_FAMILY), so "prettiest combo per
+// family" has exactly one home. No autoplay: a click (or arrow key) advances.
+const HERO_GALLERY_FAMILIES = ['class', 'er', 'timeline', 'journey', 'gantt', 'quadrant'] as const
+function heroGallerySlides() {
+  const heroStacks = [
+    { look: 'watercolor', theme: 'paper', seed: 4 },
+    { look: 'publication-figure', theme: 'github-light', seed: 0 },
+    { look: 'ops-schematic', theme: 'tokyo-night', seed: 8 },
+  ]
+  const sameSource = heroStacks.map((stack, i) => ({
+    key: `arch-${stack.look}`,
+    source: HERO_SOURCE,
+    subject: 'Checkout service — same source as the previous slide',
+    subjectShort: 'Flowchart',
+    ...stack,
+  }))
+  const showcases = styleThemeExamples(EDITOR_EXAMPLES)
+    .filter((combo) => (HERO_GALLERY_FAMILIES as readonly string[]).includes(combo.family.id))
+    .map((combo) => ({
+      key: `family-${combo.family.id}`,
+      source: String(combo.example.source),
+      subject: `${combo.family.editorDiagramType} — ${String(combo.example.label ?? combo.example.id)}`,
+      subjectShort: String(combo.family.editorDiagramType),
+      look: combo.look,
+      theme: combo.theme,
+      seed: combo.seed,
+    }))
+  return [...sameSource, ...showcases]
+}
 function heroStyleFigureHtml() {
-  const panels = HERO_COMBOS.map((combo, i) => {
+  const slides = heroGallerySlides()
+  const panels = slides.map((slide, i) => {
     const svg = addSvgAccessibleName(
-      renderMermaidSVG(HERO_SOURCE, {
-        style: [combo.look, combo.theme], seed: combo.seed,
-        security: 'strict', embedFontImport: false, idPrefix: `hero-${combo.look}-`,
+      renderMermaidSVG(slide.source, {
+        style: [slide.look, slide.theme], seed: slide.seed,
+        security: 'strict', compact: true, embedFontImport: false, idPrefix: `hero-${slide.key}-`,
       }).replace(/[ \t]+$/gm, ''),
-      `hero-${combo.look}`,
-      `Checkout service architecture in ${displayStyleName(combo.look)} and ${displayStyleName(combo.theme)}`,
-      `The same Mermaid source rendered with style ${combo.look}, palette ${combo.theme}, seed ${combo.seed}. Node positions and edge routes are identical in every style.`,
+      `hero-${slide.key}`,
+      `${slide.subjectShort} in ${displayStyleName(slide.look)} and ${displayStyleName(slide.theme)}`,
+      `Build-time render: ${slide.subject}, style ${slide.look}, palette ${slide.theme}, seed ${slide.seed}.`,
     )
-    return `<div class="tab-panel hero-style-panel" role="tabpanel" id="hero-style-panel-${combo.look}" aria-labelledby="hero-style-tab-${combo.look}" tabindex="0">
-      <p class="meta-label tab-panel-label">${escapeHtml(combo.label)}</p>
+    const label = `${slide.look} · ${slide.theme}`
+    return `<div class="gallery-panel hero-style-panel" data-gallery-panel data-gallery-label="${escapeAttr(`${label} — ${slide.subjectShort}`)}" data-gallery-editor="${escapeAttr(editorStateHref({ source: slide.source, style: slide.look, theme: slide.theme, seed: slide.seed }))}"${i === 0 ? '' : ' hidden'}>
+      <p class="meta-label gallery-panel-label">${escapeHtml(`${label} — ${slide.subjectShort}`)}</p>
       <div class="plate dia-plate hero-plate">${svg}</div>
     </div>`
   }).join('\n')
-  const tabs = HERO_COMBOS.map((combo, i) =>
-    `<button type="button" role="tab" id="hero-style-tab-${combo.look}" aria-controls="hero-style-panel-${combo.look}" aria-selected="${i === 0 ? 'true' : 'false'}"${i === 0 ? '' : ' tabindex="-1"'}>${escapeHtml(combo.label)}</button>`
-  ).join('')
-  const first = HERO_COMBOS[0]!
+  const firstLabel = `${slides[0]!.look} · ${slides[0]!.theme} — ${slides[0]!.subjectShort}`
   return `<figure class="hero-style-figure">
-    <div class="tabbed-card hero-style-card" data-tabs>
-      <div class="tab-bar hero-style-chips" role="tablist" aria-label="Render style and palette">${tabs}</div>
+    <div class="hero-style-card" data-gallery>
+      <div class="gallery-bar">
+        <button type="button" class="gallery-nav" data-gallery-prev aria-label="Previous style combination">‹</button>
+        <p class="gallery-status"><span data-gallery-status aria-live="polite">${escapeHtml(firstLabel)} (1/${slides.length})</span></p>
+        <button type="button" class="gallery-nav" data-gallery-next aria-label="Next style combination">›</button>
+        <a class="go gallery-editor-link" data-gallery-editor-link href="${escapeAttr(editorStateHref({ source: slides[0]!.source, style: slides[0]!.look, theme: slides[0]!.theme, seed: slides[0]!.seed }))}">Open in editor</a>
+      </div>
       ${panels}
     </div>
-    <figcaption>One Mermaid source, three render options — drawn at build time by the same renderer your agent calls. The layout never moves; only style and palette change. <a class="go" href="${escapeAttr(editorStateHref({ source: HERO_SOURCE, style: first.look, theme: first.theme, seed: first.seed }))}">Edit this diagram in the editor</a></figcaption>
+    <figcaption>${slides.length} pre-chosen style × palette × family combinations, drawn at build time by the same renderer your agent calls. Slides 1–3 are one identical source — the layout never moves; only style and palette change.</figcaption>
   </figure>`
 }
 function injectHeroStyleFigure(html: string) {

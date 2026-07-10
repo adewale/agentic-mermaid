@@ -890,11 +890,19 @@ figcaption { color: var(--ink-faint); font-size: var(--t-label); line-height: 1.
    scrolls horizontally on narrow screens instead of letterboxing. ---- */
 .hero-style-figure { margin: var(--sp-7) 0; }
 .hero-style-card { border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); overflow: hidden; }
-.hero-style-chips { border-bottom: 1px solid var(--line); }
-.hero-style-chips [role="tab"] { font-family: var(--mono); font-size: var(--t-mono-sm, 12px); font-weight: 400; letter-spacing: 0; }
+.gallery-bar { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-bottom: 1px solid var(--line); }
+.gallery-nav { min-height: var(--control-h); min-width: var(--control-h); border: 1px solid var(--control-border); border-radius: var(--radius-md); background: var(--control-bg); color: var(--ink); font-size: 18px; line-height: 1; cursor: pointer; transition: background-color var(--dur-control) var(--ease-out); }
+.gallery-nav:hover { background: var(--control-bg-hover); }
+.gallery-status { flex: 1; margin: 0; min-width: 0; font-family: var(--mono); font-size: var(--t-mono-sm, 12px); color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gallery-editor-link { font-size: var(--t-sm); }
+/* Without JS the widget degrades to its first slide (panels 2..n ship with the
+   hidden attribute): one labeled render plus the figcaption, no inert chrome. */
+[data-gallery]:not(.gallery-ready) .gallery-bar { display: none; }
+.gallery-ready .gallery-panel-label { display: none; }
+.gallery-panel-label { padding: 12px 18px 0; margin: 0; }
 .hero-style-panel { padding: 0; }
-.hero-style-panel .plate.dia-plate { margin: 0; border: 0; border-radius: 0; overflow-x: auto; }
-.hero-style-panel .plate.dia-plate svg { min-width: 560px; }
+.hero-style-panel .plate.dia-plate { margin: 0; border: 0; border-radius: 0; overflow-x: auto; display: flex; justify-content: center; }
+.hero-style-panel .plate.dia-plate svg { min-width: 560px; max-width: 1100px; max-height: 480px; height: auto; }
 .hero-style-figure figcaption { margin-top: var(--sp-3); }
 
 /* Quick-start's small edit-loop figure (formerly the hero). */
