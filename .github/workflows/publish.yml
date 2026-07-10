@@ -40,12 +40,13 @@ jobs:
         # Node 22 bundles npm 10.9.x; trusted publishing needs npm >= 11.5.1.
         # Pin npm instead of using the moving `latest` tag: npm 12.0.0 shipped
         # without the `sigstore` module needed by libnpmpublish's provenance
-        # path on GitHub-hosted runners. Install `sigstore` alongside npm so
-        # package-level `publishConfig.provenance` can resolve it robustly.
+        # path on GitHub-hosted runners. Install `sigstore` into npm's own
+        # module tree so libnpmpublish can resolve it from inside npm.
         run: |
-          npm install -g npm@11.18.0 sigstore@latest
+          npm install -g npm@11.18.0
+          npm install --prefix "$(npm root -g)/npm" sigstore@latest --no-save
           npm --version
-          node -e "console.log(require.resolve('sigstore'))"
+          NPM_GLOBAL_ROOT="$(npm root -g)" node -e "const { createRequire } = require('module'); console.log(createRequire(process.env.NPM_GLOBAL_ROOT + '/npm/package.json').resolve('sigstore'))"
 
       - name: Install dependencies
         run: bun install
