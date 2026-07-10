@@ -150,7 +150,24 @@ export const METAMORPHIC_FAMILIES: Record<DiagramKind, FamilyMetamorphic> = {
   },
   journey: {
     family: 'journey',
-    build: (k, t) => lines('journey', '  title J', '  section S', ...range(k).map(i => `    ${t}${i}: 5: Me`)),
+    // Real journey shapes (derived deterministically from k and the tag):
+    // multiple tiled sections, the full 1..5 score range (the experience curve
+    // must stay monotone per score), and multiple actors (dot rows + legend).
+    // The single-section/constant-score generator this replaces starved the
+    // metamorphic/fuzz oracles of exactly the geometry PR #136 got wrong.
+    build: (k, t) => {
+      const sections = 1 + (k % 3)
+      const tasks = range(k).map(i => `    ${t}${i}: ${(i % 5) + 1}: A${i % 3}${i % 2 === 0 ? ', Me' : ''}`)
+      const perSection = Math.ceil(tasks.length / sections)
+      return lines(
+        'journey',
+        '  title J',
+        ...range(sections).flatMap(s => [
+          `  section ${t}S${s} ${s === 0 ? 'with a much longer section label' : ''}`.trimEnd(),
+          ...tasks.slice(s * perSection, (s + 1) * perSection),
+        ]),
+      )
+    },
     kRange: [2, 6],
     addPrimary: { snippet: (_k, t) => `\n    ${t}x: 4: Me`, nodeDelta: 1 },
     addRelation: null,

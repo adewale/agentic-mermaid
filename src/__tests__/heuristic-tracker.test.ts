@@ -54,6 +54,9 @@ describe('heuristic-tracker ratchet', () => {
   test('no NEW unexplained-bend or label-overlap findings across the tracked corpus (criterion 7)', () => {
     const offenders: string[] = []
     for (const ex of trackedExamples()) {
+      // Route contracts are an ELK-routed-graph audit; family examples are
+      // scored by the family rubric instead (and gated by totalHard above).
+      if (ex.family) continue
       const key = `${ex.group}/${ex.name}`
       try {
         const graph = parseMermaid(ex.source)

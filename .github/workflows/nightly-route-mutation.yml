@@ -31,6 +31,12 @@ jobs:
           - name: sabotage-routes
             command: bun run sabotage:routes
             timeout: 30
+          - name: journey
+            command: bun run mutation-test:journey
+            timeout: 90
+          - name: families
+            command: bun run mutation-test:families
+            timeout: 120
 
     steps:
       - uses: actions/checkout@v4

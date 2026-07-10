@@ -4,11 +4,15 @@
  *   bun run eval/heuristic-tracker/run.ts            # score all examples, compare to baseline, show deltas
  *   bun run eval/heuristic-tracker/run.ts --update   # write the current scores as the new baseline
  *
- * Per example it records: HARD rubric violations (must stay 0), off-cardinal
- * endpoints (informational — many are correct-by-standard reciprocal/spread
- * attachments), total bends, straight-edge count, crossings, and (for fan-ins)
- * the mirror-symmetry error. A committed baseline lets any heuristic change be
- * judged improvement vs. regression at a glance.
+ * Per FLOWCHART example it records: HARD rubric violations (must stay 0),
+ * off-cardinal endpoints (informational — many are correct-by-standard
+ * reciprocal/spread attachments), total bends, straight-edge count, crossings,
+ * and (for fan-ins) the mirror-symmetry error. Examples with a `family` field
+ * (journey, sequence, class, …) are scored via the family-generic rubric
+ * (src/family-rubric.ts) over their RenderedLayout instead — journey adds its
+ * layered assessor (tiling / marker centring / score monotonicity / actor
+ * dots). A committed baseline lets any heuristic change be judged improvement
+ * vs. regression at a glance, for EVERY family, not just flowchart.
  */
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { join, dirname } from 'node:path'
@@ -16,6 +20,12 @@ import { parseMermaid } from '../../src/parser.ts'
 import { layoutGraphSync } from '../../src/layout-engine.ts'
 import { assessLayout } from '../../src/layout-rubric.ts'
 import { shapePorts, diamondFacetPorts } from '../../src/route-contracts.ts'
+import { parseMermaid as parseAgentMermaid, layoutMermaid } from '../../src/agent/index.ts'
+import { assessRenderedLayout, assessJourneyLayout, familyHardViolations } from '../../src/family-rubric.ts'
+import { parseJourneyDiagram } from '../../src/journey/parser.ts'
+import { layoutJourneyDiagram } from '../../src/journey/layout.ts'
+import { toMermaidLines } from '../../src/mermaid-source.ts'
+import type { DiagramKind } from '../../src/agent/types.ts'
 import { trackedExamples } from './catalog.ts'
 
 interface Row {
@@ -25,6 +35,21 @@ interface Row {
    *  labels are so a regression of the symmetric-dogleg hugging class trips the
    *  gate; null when the example has no labelled edges. */
   labelOff: number | null
+}
+
+/** Family-rubric row for non-flowchart examples. `hard` folds in the journey
+ *  assessor's violations for journey examples, so the per-PR totalHard gate
+ *  (heuristic-tracker.test.ts) covers the journey-specific invariants too. */
+interface FamilyRow {
+  kind: 'family'
+  hard: number
+  /** Family-rubric score (0–100, higher better, stable weights). */
+  score: number
+  offCanvas: number; nodeOverlaps: number; groupBreaches: number; groupOverlaps: number
+  /** Labelled-box rate, 3dp (higher better). */
+  labelled: number
+  /** Journey assessor score (0–100, higher better); null for other families. */
+  journeyScore: number | null
 }
 
 // A "designated" attachment point: the four cardinal side-midpoints for every
@@ -59,7 +84,40 @@ function fanInSymmetryError(pos: any): number | null {
   return any ? Number(worst.toFixed(1)) : null
 }
 
-export type ScoreResult = Row | { error: string }
+export type ScoreResult = Row | FamilyRow | { error: string }
+
+/**
+ * Score a non-flowchart example via the family-generic rubric over its
+ * RenderedLayout (the same projection verify/measureQuality consume), plus the
+ * journey assessor over the positioned journey diagram for journey examples.
+ */
+export function scoreFamily(source: string, family: DiagramKind): ScoreResult {
+  let result
+  try {
+    const p = parseAgentMermaid(source)
+    if (!p.ok) return { error: 'parse' }
+    const layout = layoutMermaid(p.value)
+    if (layout.nodes.length === 0) return { error: 'empty layout' }
+    result = assessRenderedLayout(layout)
+  } catch (e) { return { error: String(e).slice(0, 60) } }
+  let hard = familyHardViolations(result).length
+  let journeyScore: number | null = null
+  if (family === 'journey') {
+    try {
+      const j = assessJourneyLayout(layoutJourneyDiagram(parseJourneyDiagram(toMermaidLines(source))))
+      journeyScore = j.score
+      hard += j.violations.length // every journey metric is HARD
+    } catch (e) { return { error: String(e).slice(0, 60) } }
+  }
+  const m = result.metrics
+  return {
+    kind: 'family', hard, score: result.score,
+    offCanvas: m.offCanvas, nodeOverlaps: m.nodeOverlaps,
+    groupBreaches: m.groupBreaches, groupOverlaps: m.groupOverlaps,
+    labelled: Number(m.labelledBoxRate.toFixed(3)),
+    journeyScore,
+  }
+}
 
 export function score(source: string): ScoreResult {
   let pos: any
@@ -87,10 +145,13 @@ export function score(source: string): ScoreResult {
 
 export const baselinePath = join(dirname(new URL(import.meta.url).pathname), 'baseline.json')
 
-/** Score every tracked example, keyed `group/name`. */
+/** Score every tracked example, keyed `group/name`. Examples with a `family`
+ *  field route through the family rubric; the rest keep flowchart scoring. */
 export function scoreAll(): Record<string, ScoreResult> {
   const current: Record<string, ScoreResult> = {}
-  for (const ex of trackedExamples()) current[`${ex.group}/${ex.name}`] = score(ex.source)
+  for (const ex of trackedExamples()) {
+    current[`${ex.group}/${ex.name}`] = ex.family ? scoreFamily(ex.source, ex.family) : score(ex.source)
+  }
   return current
 }
 
@@ -126,6 +187,24 @@ export function compareToBaseline(
     totalHard += c.hard
     const b = baseline[key]
     if (!b || b.error) continue
+    if (c.kind === 'family') {
+      // Family-rubric rows: hard counts must not rise; scores and the
+      // labelled-box rate must not fall.
+      for (const m of ['hard', 'offCanvas', 'nodeOverlaps', 'groupBreaches', 'groupOverlaps'] as const) {
+        const d = c[m] - (b[m] ?? 0)
+        if (d === 0) continue
+        if (d < 0) improvements++
+        else { regressions++; regressionDetails.push(`${key}: ${m} ${b[m]}→${c[m]}`) }
+      }
+      for (const m of ['score', 'labelled', 'journeyScore'] as const) {
+        if (c[m] === null || b[m] == null) continue
+        const d = c[m] - b[m]
+        if (Math.abs(d) < 1e-9) continue
+        if (d > 0) improvements++
+        else { regressions++; regressionDetails.push(`${key}: ${m} ${b[m]}→${c[m]}`) }
+      }
+      continue
+    }
     for (const m of ['hard', 'offCardinal', 'bends', 'straight', 'crossings'] as const) {
       const d = c[m] - b[m]
       if (d === 0) continue
@@ -168,6 +247,29 @@ if (import.meta.main) {
     const c = current[key] as any
     const b = baseline[key]
     if (c.error) { console.log(key.padEnd(34), `ERROR: ${c.error}`); continue }
+    if (c.kind === 'family') {
+      const deltas: string[] = []
+      if (b && !b.error && b.kind === 'family') {
+        for (const m of ['hard', 'offCanvas', 'nodeOverlaps', 'groupBreaches', 'groupOverlaps'] as const) {
+          const d = c[m] - (b[m] ?? 0)
+          if (d !== 0) deltas.push(`${m}${d > 0 ? '+' : ''}${d}${d < 0 ? '✓' : '✗'}`)
+        }
+        for (const m of ['score', 'labelled', 'journeyScore'] as const) {
+          if (c[m] === null || b[m] == null) continue
+          const d = c[m] - b[m]
+          if (Math.abs(d) > 1e-9) deltas.push(`${m}${d > 0 ? '+' : ''}${Number(d.toFixed(3))}${d > 0 ? '✓' : '✗'}`)
+        }
+      }
+      console.log(
+        key.padEnd(34),
+        String(c.hard).padStart(4),
+        `score ${String(c.score).padStart(5)}`,
+        c.journeyScore !== null ? `journey ${String(c.journeyScore).padStart(5)}` : ''.padEnd(13),
+        `lbl ${c.labelled.toFixed(3)}`,
+        '  ' + (deltas.join(' ') || (b ? '=' : 'new')),
+      )
+      continue
+    }
     const deltas: string[] = []
     if (b && !b.error) {
       for (const m of ['hard', 'offCardinal', 'bends', 'straight', 'crossings'] as const) {
