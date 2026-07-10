@@ -301,7 +301,9 @@ ul, ol { margin: 0 0 var(--sp-5); padding-left: var(--sp-6); }
 li { margin: var(--sp-2) 0; }
 li::marker { color: var(--ink-faint); }
 hr { border: 0; margin: var(--sp-6) 0; }
-.go { color: var(--link); font-weight: 600; white-space: nowrap; }
+/* inline-flex + 24px min-height keeps these standalone action links at the
+   WCAG 2.5.8 minimum touch-target size without changing their text metrics */
+.go { display: inline-flex; align-items: center; min-height: 24px; color: var(--link); font-weight: 600; white-space: nowrap; }
 /* long .go labels (e.g. getting-started's prompt link) must wrap on phones
    rather than push the page wider than the viewport */
 @media (max-width: 640px) { .go { white-space: normal; } }
@@ -916,8 +918,11 @@ figcaption { color: var(--ink-faint); font-size: var(--t-label); line-height: 1.
 .faq-list dd { margin: var(--sp-1) 0 0; color: var(--ink-soft); }
 
 /* Examples page: 135 inline SVG cards — skip layout/paint for off-screen
-   cards so first render only pays for the viewport. */
-.example-source, .example-rich-group { content-visibility: auto; contain-intrinsic-size: auto 640px; }
+   cards so first render only pays for the viewport. Applied per card (not per
+   group): a whole group's placeholder height estimate is off by screens,
+   which misplaces boxes in the a11y/geometry snapshot; per-card estimates
+   stay close and `auto` pins the real size after first render. */
+.example-source, .example-rich-group article { content-visibility: auto; contain-intrinsic-size: auto 520px; }
 
 /* Compact masthead on phones: one row of scrollable links instead of three
    stacked rows before the h1. */
