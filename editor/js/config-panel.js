@@ -52,7 +52,11 @@ function updateColorUI(key) {
 
   if (label) {
     label.textContent = override || (themeVal ? themeVal : '–');
-    label.style.opacity = override ? '1' : '0.45';
+    // Theme-inherited values read as secondary via italics plus a light fade,
+    // but stay WCAG AA: 0.85 opacity on --fg2 over --control-bg is 5.1:1 on
+    // the light chrome and 7.0:1 on the dark one (0.45 dimmed to ~2.1:1).
+    label.style.opacity = override ? '1' : '0.85';
+    label.style.fontStyle = override ? 'normal' : 'italic';
   }
   if (swatch) {
     swatch.style.background = effective || 'transparent';

@@ -247,8 +247,47 @@ function setEditorErrorLine(line) {
   if (typeof updateLineNumbers === 'function') updateLineNumbers();
 }
 
+// Headers that are valid Mermaid but outside this renderer's supported
+// families (the supported list is detectDiagramTypeFromFirstLine in
+// src/mermaid-source.ts; unknown headers fall through to the flowchart parser,
+// whose "Invalid mermaid header" would otherwise call valid Mermaid invalid).
+// Keys are the lowercased first token of the header line.
+var UNSUPPORTED_MERMAID_HEADERS = {
+  mindmap: 'mindmap',
+  gitgraph: 'gitGraph',
+  c4context: 'C4Context',
+  c4container: 'C4Container',
+  c4component: 'C4Component',
+  c4dynamic: 'C4Dynamic',
+  c4deployment: 'C4Deployment',
+  sankey: 'sankey-beta', 'sankey-beta': 'sankey-beta',
+  requirement: 'requirementDiagram', requirementdiagram: 'requirementDiagram',
+  kanban: 'kanban',
+  block: 'block-beta', 'block-beta': 'block-beta',
+  packet: 'packet-beta', 'packet-beta': 'packet-beta',
+  zenuml: 'zenuml',
+  radar: 'radar-beta', 'radar-beta': 'radar-beta',
+  treemap: 'treemap-beta', 'treemap-beta': 'treemap-beta',
+};
+
+var SUPPORTED_FAMILY_LIST = 'flowchart / graph, stateDiagram-v2, sequenceDiagram, classDiagram, erDiagram, architecture-beta, timeline, journey, xychart-beta, pie, quadrantChart, and gantt';
+
+function unsupportedFamilyFromError(detail) {
+  var m = String(detail || '').match(/Invalid mermaid header: "([^"]*)"/);
+  if (!m) return null;
+  var token = (m[1].trim().match(/^[A-Za-z0-9-]+/) || [''])[0].toLowerCase();
+  return UNSUPPORTED_MERMAID_HEADERS[token] || null;
+}
+
 function formatRenderErrorHtml(err) {
   var detail = String(err || 'Unknown render error');
+  var family = unsupportedFamilyFromError(detail);
+  if (family) {
+    return '<div class="preview-error" role="alert">'
+      + '<strong class="preview-error-title">' + escHtml(family) + ' is valid Mermaid, but this editor does not support it.</strong>'
+      + '<span class="preview-error-copy">Supported families: ' + escHtml(SUPPORTED_FAMILY_LIST) + '.</span>'
+      + '</div>';
+  }
   var loc = extractErrorLocation(detail);
   var location = loc
     ? ' Check around line ' + loc.line + (loc.column ? ', column ' + loc.column : '') + '.'
