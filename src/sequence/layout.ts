@@ -4,6 +4,7 @@ import type { RenderOptions } from '../types.ts'
 import { applyTextTransform, estimateTextWidth, FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults } from '../styles.ts'
 import { measureMultilineText } from '../text-metrics.ts'
+import type { ResolvedSequenceConfig } from './config.ts'
 
 // ============================================================================
 // Sequence diagram layout engine
@@ -80,16 +81,28 @@ export const SEQUENCE_STYLE_DEFAULTS: RenderStyleDefaults = {
 /**
  * Lay out a parsed sequence diagram.
  * Returns a fully positioned diagram ready for SVG rendering.
+ *
+ * `config` carries the WIRED sequence runtime config keys (src/sequence/
+ * config.ts, family-elevation-plan §Sequence item 6). Every knob defaults to
+ * the historical SEQ constant, so an absent/empty config keeps default
+ * geometry byte-identical.
  */
 export function layoutSequenceDiagram(
   diagram: SequenceDiagram,
-  options: RenderOptions = {}
+  options: RenderOptions = {},
+  config: ResolvedSequenceConfig = {},
 ): PositionedSequenceDiagram {
   const style = resolveRenderStyle(options, SEQUENCE_STYLE_DEFAULTS)
-  const actorHeight = Math.max(SEQ.actorHeight, measureMultilineText('Mg', style.nodeLabelFontSize, style.nodeLabelFontWeight).height + style.nodePaddingY * 2)
+  const padX = config.diagramMarginX ?? SEQ.padding
+  const padY = config.diagramMarginY ?? SEQ.padding
+  const minActorWidth = config.width ?? 80
+  const noteGap = config.noteMargin ?? SEQ.noteGap
+  const activationWidth = config.activationWidth ?? SEQ.activationWidth
+  const actorHeight = Math.max(config.height ?? SEQ.actorHeight, measureMultilineText('Mg', style.nodeLabelFontSize, style.nodeLabelFontWeight).height + style.nodePaddingY * 2)
   const defaultEdgeTextHeight = measureMultilineText('Mg', SEQUENCE_STYLE_DEFAULTS.edgeLabelFontSize, SEQUENCE_STYLE_DEFAULTS.edgeLabelFontWeight).height
   const edgeTextHeight = measureMultilineText('Mg', style.edgeLabelFontSize, style.edgeLabelFontWeight).height
-  const messageRowHeight = Math.max(SEQ.messageRowHeight, SEQ.messageRowHeight + edgeTextHeight - defaultEdgeTextHeight)
+  const baseRowHeight = config.messageMargin ?? SEQ.messageRowHeight
+  const messageRowHeight = Math.max(baseRowHeight, baseRowHeight + edgeTextHeight - defaultEdgeTextHeight)
   const selfMessageHeight = Math.max(SEQ.selfMessageHeight, messageRowHeight - 10)
   const blockPadTop = Math.max(
     SEQ.blockPadTop,
@@ -104,15 +117,20 @@ export function layoutSequenceDiagram(
   // 1. Calculate actor widths and assign horizontal positions (center X)
   const actorWidths = diagram.actors.map(a => {
     const textW = estimateTextWidth(applyTextTransform(a.label, style.nodeTextTransform), style.nodeLabelFontSize, style.nodeLabelFontWeight)
-    return Math.max(textW + style.nodePaddingX * 2, 80)
+    return Math.max(textW + style.nodePaddingX * 2, minActorWidth)
   })
 
-  // Build actor center X positions with minimum gap
+  // Build actor center X positions with minimum gap. With actorMargin
+  // configured, spacing follows upstream's model exactly: center gap =
+  // (w₁+w₂)/2 + actorMargin. Without it, the historical floor formula holds.
   const actorCenterX: number[] = []
-  let currentX = SEQ.padding + actorWidths[0]! / 2
+  let currentX = padX + actorWidths[0]! / 2
   for (let i = 0; i < diagram.actors.length; i++) {
     if (i > 0) {
-      const minGap = Math.max(SEQ.actorGap, (actorWidths[i - 1]! + actorWidths[i]!) / 2 + 40)
+      const halfWidths = (actorWidths[i - 1]! + actorWidths[i]!) / 2
+      const minGap = config.actorMargin !== undefined
+        ? halfWidths + config.actorMargin
+        : Math.max(SEQ.actorGap, halfWidths + 40)
       currentX += minGap
     }
     actorCenterX.push(currentX)
@@ -127,7 +145,7 @@ export function layoutSequenceDiagram(
   // 2. Position actors at the top. `box … end` groups draw a title band above
   //    the actor boxes, so boxed diagrams reserve extra headroom for it.
   const boxGroups = (diagram.boxes ?? []).filter(b => b.actorIds.some(id => actorIndex.has(id)))
-  const actorY = SEQ.padding + (boxGroups.length > 0 ? SEQ.boxTitleSpace + 6 : 0)
+  const actorY = padY + (boxGroups.length > 0 ? SEQ.boxTitleSpace + 6 : 0)
   const actors: PositionedActor[] = diagram.actors.map((a, i) => ({
     id: a.id,
     label: a.label,
@@ -207,9 +225,9 @@ export function layoutSequenceDiagram(
     const firstActorIdx = actorIndex.get(note.actorIds[0] ?? '') ?? 0
     let noteX: number
     if (note.position === 'left') {
-      noteX = actorCenterX[firstActorIdx]! - actorWidths[firstActorIdx]! / 2 - noteW - SEQ.noteGap
+      noteX = actorCenterX[firstActorIdx]! - actorWidths[firstActorIdx]! / 2 - noteW - noteGap
     } else if (note.position === 'right') {
-      noteX = actorCenterX[firstActorIdx]! + actorWidths[firstActorIdx]! / 2 + SEQ.noteGap
+      noteX = actorCenterX[firstActorIdx]! + actorWidths[firstActorIdx]! / 2 + noteGap
     } else if (note.actorIds.length > 1) {
       const lastActorIdx = actorIndex.get(note.actorIds[note.actorIds.length - 1] ?? '') ?? firstActorIdx
       noteX = (actorCenterX[firstActorIdx]! + actorCenterX[lastActorIdx]!) / 2 - noteW / 2
@@ -287,10 +305,10 @@ export function layoutSequenceDiagram(
         const xOffset = depth * nestingOffset
         activations.push({
           actorId: msg.from,
-          x: actorCenterX[idx]! - SEQ.activationWidth / 2 + xOffset,
+          x: actorCenterX[idx]! - activationWidth / 2 + xOffset,
           topY: startY,
           bottomY: messageY,
-          width: SEQ.activationWidth,
+          width: activationWidth,
         })
       }
     }
@@ -332,10 +350,10 @@ export function layoutSequenceDiagram(
       const xOffset = depth * nestingOffset
       activations.push({
         actorId,
-        x: actorCenterX[idx]! - SEQ.activationWidth / 2 + xOffset,
+        x: actorCenterX[idx]! - activationWidth / 2 + xOffset,
         topY: startY,
         bottomY: messageY - messageRowHeight / 2,
-        width: SEQ.activationWidth,
+        width: activationWidth,
       })
     }
   }
@@ -447,7 +465,7 @@ export function layoutSequenceDiagram(
       const titleW = estimateTextWidth(applyTextTransform(box.label, style.groupTextTransform), style.groupHeaderFontSize, style.groupHeaderFontWeight)
       right = Math.max(right, left + titleW + SEQ.boxPadX * 2)
     }
-    const top = SEQ.padding
+    const top = padY
     return {
       label: box.label,
       color: box.color,
@@ -464,10 +482,10 @@ export function layoutSequenceDiagram(
   // can extend beyond the actor-based viewport. Compute the true bounding box
   // across all positioned elements, then shift everything right if anything
   // extends left of the desired padding margin and expand the width to fit.
-  const diagramBottom = messageY + SEQ.padding
+  const diagramBottom = messageY + padY
 
   // Find global X extents across actors, blocks, notes, and message labels
-  let globalMinX: number = SEQ.padding // actors already start at SEQ.padding
+  let globalMinX: number = padX // actors already start at padX
   let globalMaxX = 0
   for (const a of actors) {
     globalMinX = Math.min(globalMinX, a.x - a.width / 2)
@@ -498,7 +516,7 @@ export function layoutSequenceDiagram(
   }
 
   // If elements extend left of the desired padding, shift everything right
-  const shiftX = globalMinX < SEQ.padding ? SEQ.padding - globalMinX : 0
+  const shiftX = globalMinX < padX ? padX - globalMinX : 0
   if (shiftX > 0) {
     for (const a of actors) a.x += shiftX
     for (const m of messages) { m.x1 += shiftX; m.x2 += shiftX }
@@ -517,7 +535,7 @@ export function layoutSequenceDiagram(
     actorId: a.id,
     x: actorCenterX[i]!,
     topY: actors[i]!.y + actorHeight,
-    bottomY: destroyYByActor.get(a.id) ?? (diagramBottom - SEQ.padding),
+    bottomY: destroyYByActor.get(a.id) ?? (diagramBottom - padY),
   }))
   const destructions: LifelineCross[] = diagram.actors
     .filter(a => destroyYByActor.has(a.id))
@@ -528,7 +546,7 @@ export function layoutSequenceDiagram(
     }))
 
   // 8. Calculate diagram dimensions from the bounding box
-  const diagramWidth = globalMaxX + shiftX + SEQ.padding
+  const diagramWidth = globalMaxX + shiftX + padX
   const diagramHeight = diagramBottom
 
   return {

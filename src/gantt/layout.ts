@@ -11,14 +11,31 @@
 
 import type {
   GanttModel, GanttSchedule, GanttLayoutResult, GanttBarLayout, GanttRowLayout,
-  GanttSectionBand, GanttVertLayout, GanttTick, GanttTickUnit, GanttDependencyLayout, EpochMs,
+  GanttSectionBand, GanttVertLayout, GanttTick, GanttTickUnit, GanttDependencyLayout,
+  GanttExcludedBand, EpochMs,
 } from './types.ts'
 import { DAY_MS, dayOfWeek, WEEKDAY_INDEX, formatGanttInstant, ganttDependencyEdges, startOfDay } from './schedule.ts'
 import { applyTextTransform, estimateTextWidth, resolveRenderStyle, STROKE_WIDTHS } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
+import { wrapLabelToWidth } from '../shared/label-wrap.ts'
 import type { RenderOptions } from '../types.ts'
 
 export const GANTT_MAX_TICKS = 120
+
+/**
+ * Width budget (px of text) for the left label column (family-elevation-plan
+ * §Gantt item 5; upstream #6946/#2886). Labels measuring wider wrap via the
+ * SHARED measured-pixel machinery (src/shared/label-wrap.ts — the journey
+ * extraction, no fourth wrap fork); labels at or under the budget render
+ * byte-identically to previous releases. 220px holds every mermaid-docs
+ * corpus gantt label (max ≈ 201px) on one line.
+ */
+export const GANTT_LABEL_WRAP_BUDGET = 220
+
+/** Excluded-day shading walks at most this many days; absurd ranges skip
+ *  shading entirely rather than emit thousands of rects (same order as the
+ *  scheduler's MAX_CALENDAR_STEPS bound). */
+const GANTT_MAX_SHADED_DAYS = 10_000
 
 export interface GanttLayoutOptions {
   /** Total drawing width; the plot shrinks to fit. */
@@ -491,6 +508,31 @@ function routeGanttDependencies(
   return out
 }
 
+/** A column label wrapped to the budget: transformed display lines plus the
+ *  widest measured line. Single-line results keep `lines.length === 1` and the
+ *  exact pre-wrap measurement, so unwrapped charts stay byte-identical. */
+interface WrappedColumnLabel { lines: string[]; width: number }
+
+function wrapColumnLabel(
+  raw: string,
+  transform: ResolvedRenderStyle['nodeTextTransform'],
+  fontSize: number,
+  fontWeight: number,
+  letterSpacing: number,
+): WrappedColumnLabel {
+  const label = applyTextTransform(raw, transform)
+  const width = ganttMeasureTextWidth(label, fontSize, fontWeight, letterSpacing)
+  if (width <= GANTT_LABEL_WRAP_BUDGET) return { lines: [label], width }
+  // Shared wrap machinery (measured pixels, grapheme-safe CJK breaks). It
+  // measures without letter-spacing; non-zero tracking can overshoot the
+  // budget by a few px, which the labelGap margin absorbs.
+  const lines = wrapLabelToWidth(label, GANTT_LABEL_WRAP_BUDGET, fontSize, fontWeight).split('\n')
+  return {
+    lines,
+    width: Math.max(...lines.map(l => ganttMeasureTextWidth(l, fontSize, fontWeight, letterSpacing))),
+  }
+}
+
 export function layoutGantt(model: GanttModel, schedule: GanttSchedule, options: GanttLayoutOptions = {}): GanttLayoutResult {
   const style = resolveGanttRenderStyle(options.renderOptions)
   const compact = options.compact ?? (model.displayMode === 'compact')
@@ -501,15 +543,28 @@ export function layoutGantt(model: GanttModel, schedule: GanttSchedule, options:
   const rowTasks = schedule.tasks.filter(t => !t.tags.includes('vert'))
 
   // ---- label column ---------------------------------------------------------
+  // Standard mode wraps task labels to the column budget (item 5); compact
+  // mode keeps single-line labels because they sit BESIDE bars in the plot,
+  // not in the column. Section headers live in the column in both modes.
+  const taskWraps = new Map<number, WrappedColumnLabel>()
+  const sectionWraps = new Map<number, WrappedColumnLabel>()
   let labelColumnWidth = 0
   for (const t of rowTasks) {
-    const label = applyTextTransform(t.label, style.nodeTextTransform)
-    labelColumnWidth = Math.max(labelColumnWidth, ganttMeasureTextWidth(label, style.nodeLabelFontSize, style.nodeLabelFontWeight, style.nodeLetterSpacing))
+    if (compact) {
+      const label = applyTextTransform(t.label, style.nodeTextTransform)
+      labelColumnWidth = Math.max(labelColumnWidth, ganttMeasureTextWidth(label, style.nodeLabelFontSize, style.nodeLabelFontWeight, style.nodeLetterSpacing))
+    } else {
+      const wrapped = wrapColumnLabel(t.label, style.nodeTextTransform, style.nodeLabelFontSize, style.nodeLabelFontWeight, style.nodeLetterSpacing)
+      taskWraps.set(t.index, wrapped)
+      labelColumnWidth = Math.max(labelColumnWidth, wrapped.width)
+    }
   }
-  for (const s of model.sections) {
+  for (let si = 0; si < model.sections.length; si++) {
+    const s = model.sections[si]!
     if (s.label) {
-      const label = applyTextTransform(s.label, style.groupTextTransform)
-      labelColumnWidth = Math.max(labelColumnWidth, ganttMeasureTextWidth(label, style.groupHeaderFontSize, style.groupHeaderFontWeight, style.groupLetterSpacing))
+      const wrapped = wrapColumnLabel(s.label, style.groupTextTransform, style.groupHeaderFontSize, style.groupHeaderFontWeight, style.groupLetterSpacing)
+      sectionWraps.set(si, wrapped)
+      labelColumnWidth = Math.max(labelColumnWidth, wrapped.width)
     }
   }
   labelColumnWidth = Math.ceil(labelColumnWidth) + GL.labelGap
@@ -532,6 +587,15 @@ export function layoutGantt(model: GanttModel, schedule: GanttSchedule, options:
   const sections: GanttSectionBand[] = []
   let y = plotY
 
+  // Label-aware row advance (item 5): a wrapped label draws its first line at
+  // the bar's vertical center and the rest below, so the row must advance far
+  // enough for the block to clear the next row. Single-line rows keep the
+  // uniform rowH by construction (bh/2 + lh/2 <= max(bh, lh) always).
+  const rowAdvance = (lineCount: number, lineHeight: number): number =>
+    lineCount <= 1 ? rowH : Math.max(rowH, Math.ceil(barHeight / 2 + (lineCount - 0.5) * lineHeight) + GL.rowGap)
+  const taskLineHeight = style.nodeLabelFontSize * 1.3
+  const sectionLineHeight = style.groupHeaderFontSize * 1.3
+
   for (let si = 0; si < model.sections.length; si++) {
     const section = model.sections[si]!
     const sectionTasks = rowTasks.filter(t => t.sectionIndex === si)
@@ -541,19 +605,31 @@ export function layoutGantt(model: GanttModel, schedule: GanttSchedule, options:
     const bandIndex = sections.length
     const bandStartY = y
     const rowStart = rows.length
-    if (section.label !== undefined) y += rowH // the section header row
+    const sectionLines = sectionWraps.get(si)?.lines
+    if (section.label !== undefined) y += rowAdvance(sectionLines?.length ?? 1, sectionLineHeight)
 
     const lanes = compact ? packCompactLanes(sectionTasks) : sectionTasks.map((_, i) => i)
     const laneCount = sectionTasks.length === 0 ? 0 : Math.max(...lanes) + 1
     const laneRows: GanttRowLayout[] = []
-    for (let li = 0; li < laneCount; li++) {
-      laneRows.push({ barIndexes: [], sectionIndex: bandIndex, y: y + li * rowH, h: barHeight })
+    if (compact) {
+      for (let li = 0; li < laneCount; li++) {
+        laneRows.push({ barIndexes: [], sectionIndex: bandIndex, y: y + li * rowH, h: barHeight })
+      }
+    } else {
+      // Standard mode: one row per task, advanced by its wrapped label height.
+      let rowY = y
+      for (const t of sectionTasks) {
+        laneRows.push({ barIndexes: [], sectionIndex: bandIndex, y: rowY, h: barHeight })
+        rowY += rowAdvance(taskWraps.get(t.index)?.lines.length ?? 1, taskLineHeight)
+      }
     }
     sectionTasks.forEach((t, i) => {
       const lane = lanes[i]!
       const row = laneRows[lane]!
       const x = xOf(t.start)
-      const w = Math.max(t.end > t.start ? 2 : 0, xOf(t.end) - x)
+      // Bars draw to renderEnd (the upstream renderEndTime split): trailing
+      // excluded days belong to the chain, not the bar.
+      const w = Math.max(t.renderEnd > t.start ? 2 : 0, xOf(t.renderEnd) - x)
       const isMilestone = t.tags.includes('milestone')
       // Milestone diamonds extend ±barHeight/2 around their center; clamp the
       // center so a milestone at the range edge stays inside the plot band
@@ -566,20 +642,27 @@ export function layoutGantt(model: GanttModel, schedule: GanttSchedule, options:
         const hi = Math.max(lo, plotX + plotW - r)
         milestoneX = Math.min(hi, Math.max(lo, x + w / 2))
       }
+      const taskLines = taskWraps.get(t.index)?.lines
       bars.push({
         taskIndex: t.index, id: t.id, label: t.label, tags: t.tags, sectionIndex: bandIndex,
         x, y: row.y, w, h: barHeight,
         milestoneX,
         rowIndex: rowStart + (section.label !== undefined ? 1 : 0) + lane,
-        start: t.start, end: t.end,
+        start: t.start, end: t.renderEnd,
+        ...(taskLines && taskLines.length > 1 ? { labelLines: taskLines } : {}),
       })
       row.barIndexes.push(bars.length - 1)
     })
     rows.push(...laneRows)
-    y += laneCount * rowH
+    if (compact) {
+      y += laneCount * rowH
+    } else {
+      for (const t of sectionTasks) y += rowAdvance(taskWraps.get(t.index)?.lines.length ?? 1, taskLineHeight)
+    }
     sections.push({
       label: section.label, y: bandStartY, h: y - bandStartY,
       rowStart, rowEnd: rows.length,
+      ...(sectionLines && sectionLines.length > 1 ? { labelLines: sectionLines } : {}),
     })
     y += GL.sectionGap
   }
@@ -594,12 +677,38 @@ export function layoutGantt(model: GanttModel, schedule: GanttSchedule, options:
 
   const verts: GanttVertLayout[] = vertTasks.map(t => ({
     taskIndex: t.index, label: t.label,
-    x: xOf(t.start + (t.end - t.start) / 2), time: t.start,
+    x: xOf(t.start + (t.renderEnd - t.start) / 2), time: t.start,
   }))
 
   const todayX = options.today !== undefined && options.today >= schedule.timeMin && options.today <= schedule.timeMax
     ? xOf(options.today)
     : undefined
+
+  // ---- excluded-day shading bands (item 2; default-on, upstream parity) -----
+  // One calendar, two consumers: the SAME isExcludedDay predicate that drives
+  // the scheduler's duration walk paints the plot. Day shading only has
+  // meaning on date-only charts; consecutive excluded days merge into one
+  // band, clipped to the visible range.
+  const excludedBands: GanttExcludedBand[] = []
+  if (model.excludes.length > 0 && schedule.dateOnly
+    && (schedule.timeMax - startOfDay(schedule.timeMin)) / DAY_MS <= GANTT_MAX_SHADED_DAYS) {
+    let runStart: EpochMs | undefined
+    const flush = (runEnd: EpochMs): void => {
+      if (runStart === undefined) return
+      const s = Math.max(runStart, schedule.timeMin)
+      const e = Math.min(runEnd, schedule.timeMax)
+      if (e > s) excludedBands.push({ x: xOf(s), w: xOf(e) - xOf(s), start: s, end: e })
+      runStart = undefined
+    }
+    for (let day = startOfDay(schedule.timeMin); day < schedule.timeMax; day += DAY_MS) {
+      if (schedule.isExcludedDay(day)) {
+        if (runStart === undefined) runStart = day
+      } else {
+        flush(day)
+      }
+    }
+    flush(schedule.timeMax)
+  }
 
   const critIds = new Set(schedule.analysis?.criticalPathTaskIds ?? [])
   const criticalTaskIndexes = schedule.tasks
@@ -614,8 +723,10 @@ export function layoutGantt(model: GanttModel, schedule: GanttSchedule, options:
     labelColumnWidth,
     rows, sections, bars, verts, ticks,
     dependencies, criticalTaskIndexes,
+    excludedBands,
     topAxis: model.topAxis,
     todayX,
+    ...(model.todayMarker?.style !== undefined ? { todayMarkerStyle: model.todayMarker.style } : {}),
     timeMin: schedule.timeMin, timeMax: schedule.timeMax,
     dateOnly: schedule.dateOnly,
     compact, barHeight,

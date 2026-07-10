@@ -80,15 +80,15 @@ Legend: “parse” means recognized and preserved by the family parser. “rend
 | `tickInterval ...` | parse + render, bounded | Must validate interval count before generating ticks. Regression source: [PR #7197](https://github.com/mermaid-js/mermaid/pull/7197). |
 | `inclusiveEndDates` | parse + render | Apply at scheduling boundary, not by stretching bars in renderer code. |
 | `topAxis` | parse + render in SVG; parse + preserve in ASCII | SVG should draw top axis. ASCII may choose a single top/bottom axis according to width, but must document the choice. |
-| `excludes ...` | parse + render | Support multiple lines per [PR #7772](https://github.com/mermaid-js/mermaid/pull/7772). Accept weekdays, `weekends`, and explicit dates. Do not support date ranges until Mermaid core does. |
+| `excludes ...` | parse + render | Support multiple lines per [PR #7772](https://github.com/mermaid-js/mermaid/pull/7772). Accept weekdays, `weekends`, and explicit dates. Do not support date ranges until Mermaid core does. Excluded days shade the plot by default (see [Excluded-day shading and the boundary model](#excluded-day-shading-and-the-boundary-model)). |
 | `includes ...` | parse + render | Multiple lines. Includes override excludes for explicitly listed dates. |
 | `weekend friday|saturday` | parse + render | Mirrors [PR #5358](https://github.com/mermaid-js/mermaid/pull/5358). |
 | `weekday <day>` | parse + render for weekly tick alignment | Do not let tick alignment affect task duration. |
-| `todayMarker ...` / `todayMarker off` | parse + render only with supplied clock | Agentic Mermaid must not read wall-clock time by default. Draw the marker only when the caller passes `options.gantt.today` or equivalent; `off` always disables it. |
+| `todayMarker ...` / `todayMarker off` | parse + render only with supplied clock | Agentic Mermaid must not read wall-clock time by default. Draw the marker only when the caller passes `ganttToday` (library/MCP) or `am render --gantt-today <DATE>` (CLI); `off` always disables it. The directive's style payload applies to the today line: `stroke`, `stroke-width`, `opacity`, and `stroke-dasharray` are sanitized (quadrant `COLOR_RE` value policy — no quotes/semicolons/colons can reach the style attribute) and wired; any other property in the payload is named by verify's Tier-3 `INEFFECTIVE_CONFIG` lint as `todayMarker.<prop>` (src/gantt/today-marker.ts is the single wire/sanitize table). |
 | `section ...` | parse + render | Section labels get their own row/band. Multiline HTML section labels are preserved; first release may render them as plain text with `<br>` normalized to a line break only if the renderer can size the row. See [#7602](https://github.com/mermaid-js/mermaid/issues/7602). |
-| Task row: `Label : metadata` | parse + render | Preserve label text exactly enough for round-trip; render plain text after sanitization. |
+| Task row: `Label : metadata` | parse + render | Preserve label text exactly enough for round-trip; render plain text after sanitization. In the SVG label column, labels wider than the `GANTT_LABEL_WRAP_BUDGET` (220px) wrap via the shared `src/shared/label-wrap.ts` machinery (the journey extraction — no fourth wrap fork); row height becomes label-aware; labels at or under the budget render byte-identically. Section headers wrap into the same budget. Compact mode is exempt (its task labels sit beside bars in the plot, not in the column). |
 | Task ids | parse + render | IDs are used by `after`, `until`, and `click`. Duplicate IDs are a structured parse error. |
-| Status tags `done`, `active`, `crit` | parse + render | SVG classes and ASCII glyphs must distinguish states. Text contrast is tested in light/dark themes. |
+| Status tags `done`, `active`, `crit` | parse + render | SVG classes and ASCII glyphs must distinguish states. Text contrast is tested in light/dark themes. Milestones carry the same status classes (`gantt-milestone-done` / `-active` / `-crit`) mirroring the bar convention; the done/active rules are emitted only when such milestones exist so other charts stay byte-identical. |
 | `milestone` | parse + render | Render as diamond/marker, zero-width task. |
 | `vert` marker | parse + render | Render vertical marker without consuming a task row, per [PR #7284](https://github.com/mermaid-js/mermaid/pull/7284). |
 | `after <id...>` | parse + render | Multiple IDs resolve to the latest referenced end date, matching Mermaid docs. Unknown IDs are structured errors, not silent fallbacks. |
@@ -133,6 +133,43 @@ Hard gates, honoring [`gantt-research.md`](./gantt-research.md)'s caveat that de
 3. with the options off (the default), SVG output is byte-identical to previous releases — the representative golden and an explicit options-off equality test pin this.
 
 Known limits: in `displayMode: compact`, task labels sit beside bars inside the plot, and connectors may cross those labels (never bars). `vert` tasks render as markers, not bars, so edges touching them draw no connector. ASCII output carries no dependency notation — the line grid has no opt-in channel and an always-on annotation would change every existing golden; the per-task date gutter plus `describe`'s dependency facts remain the terminal story.
+
+## Excluded-day shading and the boundary model
+
+Shipped 2026-07 (family-elevation-plan §Gantt items 2 and 6):
+
+**Shading is default-on** (upstream parity: mermaid draws `exclude-range`
+rects unconditionally, and the absence of shading read as a bug — upstream
+#6421/#7062/#314). Correctness by construction: the bands derive from the
+SAME `schedule.isExcludedDay` predicate the duration walk uses — one
+calendar, two consumers — never a second calendar implementation. Bands
+merge consecutive excluded days, clip to the visible range, appear only on
+date-only charts with `excludes` (time-bearing `dateFormat`s and
+exclude-free charts are byte-identical to previous releases, including
+their CSS block), and always paint BEFORE grid lines and bars (z-order
+invariant, gated in `src/__tests__/gantt-excluded-shading.test.ts`).
+
+**The exclude-boundary divergence is RESOLVED by adopting upstream's
+model.** `src/gantt/schedule.ts` now mirrors mermaid's `fixTaskDates` walk
+exactly: excluded days are counted in `(start, end]` — the cursor starts
+one day after the task start, so a task starting on an excluded day gets
+that day free — and the `endTime`/`renderEndTime` split is mirrored as
+`ScheduledGanttTask.end` (chain end: where `after` successors and
+implicit-start followers begin) vs `.renderEnd` (drawn-bar end: trailing
+excluded days extend the chain but never stretch the bar; always within
+`[start, end]`). Bars, milestones, ASCII tracks, and the date gutter draw
+`renderEnd`; dependency chaining, critical-path analysis, and `describe`
+use `end`. The axis range covers drawn extents, not phantom trailing
+exclusions. The former `exclude-boundary-model` ledger entries
+(`eval/mermaid-gantt-bench/exclusions.json` e3/e4) are now executed parity
+cases (`db-weekends-mega`, `db-exclude-all-but-friday` in `cases.json`),
+pinning all seven chain instants of upstream's "should ignore weekends"
+spec; `src/__tests__/gantt-exclusion-boundary.test.ts` pins the
+`renderEnd` split.
+
+Evidence: `gantt-completion-before.png` / `gantt-completion-after.png`
+(source `gantt-completion-demo.mmd`) — weekend shading, the styled today
+marker, a wrapped 65-char label, and status-styled milestones in one chart.
 
 ## Architecture
 
@@ -225,7 +262,7 @@ SVG requirements:
 - strict security removes executable callbacks, unsafe hrefs, scripts, images, and external refs;
 - Style + Palette rendering routes Gantt marks through the internal style face:
   task labels, bars, grid lines, markers, and section bands should respond to named styles and palette stacks;
-- status classes: `gantt-bar`, `gantt-bar-done`, `gantt-bar-active`, `gantt-bar-crit`, `gantt-milestone`, `gantt-vert-marker`;
+- status classes: `gantt-bar`, `gantt-bar-done`, `gantt-bar-active`, `gantt-bar-crit`, `gantt-milestone`, `gantt-milestone-done`, `gantt-milestone-active`, `gantt-milestone-crit`, `gantt-vert-marker`, `gantt-excluded-band`;
 - text contrast tests for status bars in light and dark themes;
 - `displayMode: compact` uses deterministic interval packing and has a fixture where dense rows would overlap under naive spacing.
 

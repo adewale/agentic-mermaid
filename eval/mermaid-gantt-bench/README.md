@@ -44,10 +44,16 @@ Every case additionally proves the agent-layer round-trip law on its source
   the case unless `TZ=America/Los_Angeles`). Our scheduler is UTC-only.
 - `silent-ignore-vs-named-error` — upstream tolerates a token its own docs
   call unsupported; we error by name per the spec.
-- `exclude-boundary-model` — upstream's exclude-walk counts days in
-  `(start, end]`; ours counts `[start, end)`. Both conserve the working-day
-  count (property-tested); instants differ only when a task starts on an
-  excluded day. Documented candidate for a future compat pass.
+
+Retired reason codes:
+
+- `exclude-boundary-model` (retired 2026-07) — upstream's exclude-walk counts
+  days in `(start, end]`; ours used to count `[start, end)`. The divergence
+  was RESOLVED by adopting upstream's boundary (family-elevation-plan §Gantt
+  item 6): `src/gantt/schedule.ts` now mirrors mermaid's `fixTaskDates` walk,
+  including the `endTime`/`renderEndTime` split (`ScheduledGanttTask.end` vs
+  `.renderEnd`). The former e3/e4 entries moved into `cases.json`
+  (`db-weekends-mega`, `db-exclude-all-but-friday`) as executed parity pins.
 
 ## Not portable by construction
 

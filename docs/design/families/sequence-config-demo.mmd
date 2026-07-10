@@ -1,0 +1,9 @@
+%%{init: {"sequence": {"actorMargin": 140, "width": 130, "height": 55, "messageMargin": 50, "showSequenceNumbers": true}}}%%
+sequenceDiagram
+  participant C as Client
+  participant G as Gateway
+  participant S as Service
+  C->>G: POST /orders
+  G->>S: validate + enqueue
+  S-->>G: 202 Accepted
+  G-->>C: order id

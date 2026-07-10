@@ -60,6 +60,9 @@ export interface PngOptions {
   style?: StyleInput | StyleInput[]
   /** Ink-wobble seed for styled looks, same as RenderOptions.seed. */
   seed?: number
+  /** Explicit gantt "today" clock, same as RenderOptions.ganttToday (gantt
+   *  rendering never reads wall-clock time; without this the marker is absent). */
+  ganttToday?: string
   /** Extra font directories searched in addition to the bundled ones —
    *  the escape hatch for custom styles that reference unbundled families
    *  and for scripts the bundled fonts don't cover (CJK, emoji). */
@@ -114,7 +117,7 @@ export function renderMermaidPNG(input: ValidDiagram | string, opts: PngOptions 
   // the SVG still declares its font-family preference via --font.
   const source = typeof input === 'string' ? input : serializeMermaid(input)
   const svg = inlineFontVarForRaster(
-    renderMermaidSVG(source, { embedFontImport: false, style: opts.style, seed: opts.seed }),
+    renderMermaidSVG(source, { embedFontImport: false, style: opts.style, seed: opts.seed, ganttToday: opts.ganttToday }),
   )
 
   const scale = opts.scale ?? 2

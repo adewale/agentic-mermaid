@@ -28,6 +28,7 @@
 
 import type { GanttLayoutResult } from './types.ts'
 import { ganttAxisLabelOffset, ganttMeasureTextWidth, ganttTitleFontSize, ganttTitleY, resolveGanttRenderStyle } from './layout.ts'
+import { parseTodayMarkerStyle, todayMarkerStyleAttr } from './today-marker.ts'
 import type { RenderContext } from '../types.ts'
 import { svgOpenTag, buildStyleBlock } from '../theme.ts'
 import { escapeAttr, escapeXml } from '../multiline-utils.ts'
@@ -47,6 +48,7 @@ const GS = {
 interface GanttPalette {
   groupFill: string
   groupOpacity: string
+  excludedFill: string
   edgeStroke: string
   nodeFill: string
   nodeBorder: string
@@ -63,6 +65,7 @@ function ganttPalette(style: ResolvedRenderStyle): GanttPalette {
   return {
     groupFill: style.groupFillColor ?? 'var(--surface, var(--fg))',
     groupOpacity: style.groupFillColor ? '1' : '0.07',
+    excludedFill: style.edgeStrokeColor ?? 'var(--muted, var(--line, var(--fg)))',
     edgeStroke: style.edgeStrokeColor ?? 'var(--line, var(--border, var(--fg)))',
     nodeFill: style.nodeFillColor ?? 'var(--accent, var(--fg))',
     nodeBorder: style.nodeBorderColor ?? 'var(--fg)',
@@ -86,16 +89,41 @@ interface GanttOverlayFlags {
 
 const OVERLAY_OFF: GanttOverlayFlags = { dependencyArrows: false, criticalBars: false, criticalArrows: false }
 
-function ganttStyles(style: ResolvedRenderStyle, overlay: GanttOverlayFlags = OVERLAY_OFF): string {
+/** Content-conditional rules (not option-gated): emitted only when the layout
+ *  actually draws the mark, so charts without it stay byte-identical. */
+interface GanttConditionalCss {
+  excludedBands: boolean
+  milestoneDone: boolean
+  milestoneActive: boolean
+}
+
+const CONDITIONAL_OFF: GanttConditionalCss = { excludedBands: false, milestoneDone: false, milestoneActive: false }
+
+function ganttStyles(
+  style: ResolvedRenderStyle,
+  overlay: GanttOverlayFlags = OVERLAY_OFF,
+  conditional: GanttConditionalCss = CONDITIONAL_OFF,
+): string {
   const p = ganttPalette(style)
 
-  // Overlay rules append after the base rules (equal specificity — later wins)
-  // and only when their option draws something, so the default CSS block stays
-  // byte-identical with the overlay off. The connector is deliberately quieter
-  // than the bars (the journey curve's restraint); critical-path emphasis is
-  // the stronger stroke, never a hard-coded red (Google-Charts lesson from the
-  // research doc: opt-in and theme-aware).
+  // Overlay/conditional rules append after the base rules (equal specificity —
+  // later wins) and only when their option/content draws something, so the
+  // default CSS block stays byte-identical otherwise. The connector is
+  // deliberately quieter than the bars (the journey curve's restraint);
+  // critical-path emphasis is the stronger stroke, never a hard-coded red
+  // (Google-Charts lesson from the research doc: opt-in and theme-aware).
   const extra: string[] = []
+  if (conditional.excludedBands) {
+    // Excluded-day shading (item 2, default-on upstream parity): a quiet tint
+    // slightly stronger than the section band so weekends read as "off" days.
+    extra.push(`  .gantt-excluded-band { fill: ${p.excludedFill}; opacity: 0.1; }`)
+  }
+  if (conditional.milestoneDone) {
+    extra.push(`  .gantt-milestone-done { fill: ${p.doneFill}; opacity: ${style.nodeFillColor ? '0.72' : '0.55'}; }`)
+  }
+  if (conditional.milestoneActive) {
+    extra.push(`  .gantt-milestone-active { fill: ${p.nodeFill}; stroke: ${p.nodeBorder}; stroke-width: ${Math.max(1.5, style.nodeLineWidth)}; opacity: 1; }`)
+  }
   if (overlay.dependencyArrows) {
     extra.push(`  .gantt-dep-arrow { fill: none; stroke: ${p.edgeStroke}; stroke-width: ${Math.max(1.2, style.lineWidth)}; opacity: 0.6; }`)
   }
@@ -235,8 +263,16 @@ export function lowerGanttScene(
   }
   const criticalPathSet = new Set(overlay.criticalBars ? layout.criticalTaskIndexes : [])
 
+  // Content-conditional CSS: excluded-day bands and status-milestone rules
+  // exist only when the chart draws them (byte-inert otherwise).
+  const conditional: GanttConditionalCss = {
+    excludedBands: layout.excludedBands.length > 0,
+    milestoneDone: layout.bars.some(b => b.milestoneX !== undefined && statusChannel(b.tags) === 'done'),
+    milestoneActive: layout.bars.some(b => b.milestoneX !== undefined && statusChannel(b.tags) === 'active'),
+  }
+
   // SVG root with CSS variables + shared style block + gantt CSS.
-  const extraCss = ganttStyles(style, overlay)
+  const extraCss = ganttStyles(style, overlay, conditional)
   parts.push(marks.prelude(
     {
       id: 'prelude',
@@ -291,6 +327,19 @@ export function lowerGanttScene(
     }
   })
 
+  // Excluded-day shading bands (role: grid) — default-on upstream parity,
+  // drawn AFTER the section tint and BEFORE grid lines and bars, so bands sit
+  // behind every bar by paint order (the z-order invariant gate).
+  const excludedPaint: MarkPaint = { fill: palette.excludedFill, opacity: '0.1' }
+  for (const band of layout.excludedBands) {
+    parts.push(marks.shape({
+      id: `excluded:${band.start}`,
+      role: 'grid',
+      geometry: { kind: 'rect', x: r(band.x), y: r(plot.y), width: r(band.w), height: r(plot.h) },
+      paint: excludedPaint,
+    }, `<rect class="gantt-excluded-band" x="${r(band.x)}" y="${r(plot.y)}" width="${r(band.w)}" height="${r(plot.h)}" />`))
+  }
+
   // Grid lines at each tick (role: grid).
   const gridPaint: MarkPaint = {
     stroke: palette.edgeStroke,
@@ -318,13 +367,21 @@ export function lowerGanttScene(
   }
 
   // Section + task labels in the left column (roles: section / label).
+  // layout.labelLines (when present) are pre-wrapped AND pre-transformed —
+  // drawn verbatim, one text element per line; single-line labels keep the
+  // exact historical mark (byte-identical below the wrap budget).
+  const sectionLineHeight = style.groupHeaderFontSize * 1.3
+  const taskLineHeight = style.nodeLabelFontSize * 1.3
   const sectionLabelOccurrence = new Map<string, number>()
   for (const s of layout.sections) {
     if (s.label !== undefined) {
-      const label = applyTextTransform(s.label, style.groupTextTransform)
       const k = sectionLabelOccurrence.get(s.label) ?? 0
       sectionLabelOccurrence.set(s.label, k + 1)
-      parts.push(textMark(`section-label:${s.label}#${k}`, 'section', 8, s.y + layout.barHeight / 2 + 4, label, 'gantt-section-label', style.groupHeaderFontSize, style.groupHeaderFontWeight, palette.groupText, 'start', style.groupLetterSpacing, { category: s.label }))
+      const lines = s.labelLines ?? [applyTextTransform(s.label, style.groupTextTransform)]
+      lines.forEach((line, li) => {
+        const id = li === 0 ? `section-label:${s.label}#${k}` : `section-label:${s.label}#${k}/${li}`
+        parts.push(textMark(id, 'section', 8, s.y + layout.barHeight / 2 + 4 + li * sectionLineHeight, line, 'gantt-section-label', style.groupHeaderFontSize, style.groupHeaderFontWeight, palette.groupText, 'start', style.groupLetterSpacing, { category: s.label }))
+      })
     }
   }
   // Compact mode packs several tasks into one lane, so the fixed left-column
@@ -341,8 +398,12 @@ export function lowerGanttScene(
   }
   if (!layout.compact) {
     for (const bar of layout.bars) {
-      const label = applyTextTransform(bar.label, style.nodeTextTransform)
-      parts.push(textMark(taskLabelId(bar.id ?? bar.label), 'label', 16, bar.y + bar.h / 2, label, 'gantt-task-label', style.nodeLabelFontSize, style.nodeLabelFontWeight, palette.taskText, 'start', style.nodeLetterSpacing))
+      const lines = bar.labelLines ?? [applyTextTransform(bar.label, style.nodeTextTransform)]
+      const baseId = taskLabelId(bar.id ?? bar.label)
+      lines.forEach((line, li) => {
+        const id = li === 0 ? baseId : `${baseId}/${li}`
+        parts.push(textMark(id, 'label', 16, bar.y + bar.h / 2 + li * taskLineHeight, line, 'gantt-task-label', style.nodeLabelFontSize, style.nodeLabelFontWeight, palette.taskText, 'start', style.nodeLetterSpacing))
+      })
     }
   } else {
     const byRow = new Map<number, typeof layout.bars>()
@@ -393,22 +454,28 @@ export function lowerGanttScene(
       const cx = bar.milestoneX
       const cy = bar.y + bar.h / 2
       const radius = bar.h / 2
-      const crit = bar.tags.includes('crit')
-      const cls = (crit ? 'gantt-milestone gantt-milestone-crit' : 'gantt-milestone') + criticalPathCls
+      // Status classes mirror the bar convention (item 6): done/active/crit
+      // milestones differentiate exactly like done/active/crit bars do.
+      const status = statusChannel(bar.tags)
+      const cls = ('gantt-milestone' + (status !== undefined ? ` gantt-milestone-${status}` : '')) + criticalPathCls
       const d = `M ${r(cx)} ${r(cy - radius)} L ${r(cx + radius)} ${r(cy)} L ${r(cx)} ${r(cy + radius)} L ${r(cx - radius)} ${r(cy)} Z`
-      const milestonePaint: MarkPaint = {
-        ...(crit
+      const statusPaint: MarkPaint =
+        status === 'crit'
           ? { fill: palette.criticalFill, stroke: palette.criticalStroke, strokeWidth: String(Math.max(1.5, style.nodeLineWidth)) }
-          : { fill: palette.nodeFill, stroke: palette.nodeBorder, strokeWidth: String(Math.max(1, style.nodeLineWidth)) }),
-        ...criticalPathPaint,
-      }
+          : status === 'active'
+            ? { fill: palette.nodeFill, stroke: palette.nodeBorder, strokeWidth: String(Math.max(1.5, style.nodeLineWidth)), opacity: '1' }
+            : status === 'done'
+              ? { fill: palette.doneFill, stroke: palette.nodeBorder, strokeWidth: String(Math.max(1, style.nodeLineWidth)), opacity: style.nodeFillColor ? '0.72' : '0.55' }
+              : { fill: palette.nodeFill, stroke: palette.nodeBorder, strokeWidth: String(Math.max(1, style.nodeLineWidth)) }
+      const milestonePaint: MarkPaint = { ...statusPaint, ...criticalPathPaint }
       parts.push(marks.shape({
         id: taskSceneId(bar.id ?? bar.label),
         role: 'milestone',
         geometry: { kind: 'path', d },
         paint: milestonePaint,
         channels: {
-          ...(crit ? { status: 'crit' } : {}),
+          ...(status !== undefined ? { status } : {}),
+          ...(status === 'done' ? { progress: 1 } : {}),
           ...(onCriticalPath ? { emphasis: true } : {}),
           ...(section !== undefined ? { category: section } : {}),
         },
@@ -490,18 +557,25 @@ export function lowerGanttScene(
     parts.push(textMark(`vert-label:${v.label}#${k}`, 'axis', v.x, plot.y - vertOffset, label, 'gantt-axis-label', style.edgeLabelFontSize, Math.max(style.edgeLabelFontWeight, 600), palette.axisText, 'middle', style.edgeLetterSpacing))
   }
 
-  // Today marker — only with a supplied clock.
+  // Today marker — only with a supplied clock. The todayMarker directive's
+  // sanitized style payload (item 3) rides as an inline style attribute
+  // (overriding the class rule) and mirrors into the scene paint so styled
+  // backends honor it too. No payload → the historical byte-exact mark.
   if (layout.todayX !== undefined) {
+    const todayStyle = layout.todayMarkerStyle !== undefined ? parseTodayMarkerStyle(layout.todayMarkerStyle) : undefined
+    const styleAttr = todayStyle !== undefined ? todayMarkerStyleAttr(todayStyle) : ''
+    const overrides: Record<string, string> = Object.fromEntries(todayStyle?.applied ?? [])
     parts.push(marks.shape({
       id: 'today-marker',
       role: 'marker-line',
       geometry: { kind: 'line', x1: r(layout.todayX), y1: r(plot.y), x2: r(layout.todayX), y2: r(plotBottom) },
       paint: {
-        stroke: style.edgeStrokeColor ?? 'var(--accent, var(--fg))',
-        strokeWidth: String(Math.max(2, style.lineWidth)),
-        strokeDasharray: '4 3',
+        stroke: overrides['stroke'] ?? style.edgeStrokeColor ?? 'var(--accent, var(--fg))',
+        strokeWidth: overrides['stroke-width'] ?? String(Math.max(2, style.lineWidth)),
+        strokeDasharray: overrides['stroke-dasharray'] ?? '4 3',
+        ...(overrides['opacity'] !== undefined ? { opacity: overrides['opacity'] } : {}),
       },
-    }, `<line class="gantt-today-marker" x1="${r(layout.todayX)}" y1="${r(plot.y)}" x2="${r(layout.todayX)}" y2="${r(plotBottom)}" />`))
+    }, `<line class="gantt-today-marker"${styleAttr ? ` style="${escapeAttr(styleAttr)}"` : ''} x1="${r(layout.todayX)}" y1="${r(plot.y)}" x2="${r(layout.todayX)}" y2="${r(plotBottom)}" />`))
   }
 
   if (layout.title) {

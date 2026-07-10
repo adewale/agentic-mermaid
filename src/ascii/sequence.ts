@@ -11,6 +11,7 @@
 
 import { parseSequenceDiagram, displayMessageLabel } from '../sequence/parser.ts'
 import type { SequenceDiagram, Block } from '../sequence/types.ts'
+import type { ResolvedSequenceConfig } from '../sequence/config.ts'
 import type { Canvas, AsciiConfig, RoleCanvas, CharRole, AsciiTheme, ColorMode } from './types.ts'
 import { mkCanvas, mkRoleCanvas, canvasToString, increaseSize, increaseRoleCanvasSize, setRole } from './canvas.ts'
 import { splitLines, maxLineWidth, lineCount } from './multiline-utils.ts'
@@ -26,10 +27,13 @@ function classifyBoxChar(ch: string): CharRole {
  * Render a Mermaid sequence diagram to ASCII/Unicode text.
  *
  * Pipeline: parse → layout (columns + rows) → draw onto canvas → string.
+ * `seqConfig` carries the wired sequence runtime config; the ASCII surface
+ * honors showSequenceNumbers (numbering must not depend on the output
+ * format) — the pixel-geometry knobs have no cell-grid meaning here.
  */
-export function renderSequenceAscii(text: string, config: AsciiConfig, colorMode?: ColorMode, theme?: AsciiTheme): string {
+export function renderSequenceAscii(text: string, config: AsciiConfig, colorMode?: ColorMode, theme?: AsciiTheme, seqConfig: ResolvedSequenceConfig = {}): string {
   const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('%%'))
-  const diagram = parseSequenceDiagram(lines)
+  const diagram = parseSequenceDiagram(lines, seqConfig)
 
   if (diagram.actors.length === 0) return ''
 

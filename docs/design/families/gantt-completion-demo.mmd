@@ -1,0 +1,13 @@
+gantt
+  title Sprint 12 — platform hardening
+  dateFormat YYYY-MM-DD
+  excludes weekends
+  todayMarker stroke-width:3px,stroke:#e4572e,opacity:0.6
+  section Build
+    Implement the schema migration tooling for the billing pipeline :done, mig, 2024-01-01, 4d
+    API hardening :active, api, after mig, 5d
+    Cutover ready :milestone, done, m1, after mig, 0d
+  section Ship
+    Load test :crit, load, after api, 3d
+    Sign-off :milestone, active, m2, after load, 0d
+    Release :milestone, crit, m3, 2024-01-19, 0d

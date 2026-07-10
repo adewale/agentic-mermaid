@@ -20,24 +20,6 @@
     "notes": "Determinism contract: named error instead of a date that changes every day."
   },
   {
-    "id": "e3-weekends-mega",
-    "origin": "mermaid/ganttDb.spec.ts",
-    "upstream": "should ignore weekends",
-    "source": "gantt\ndateFormat YYYY-MM-DD\nexcludes weekends 2019-02-06,friday\nsection weekends skip test\ntest1 :id1,2019-02-01,1d\ntest2 :id2,after id1,2d\ntest3 :id3,after id2,7d\ntest4 :id4,2019-02-01,2019-02-20\ntest5 :id5,after id4,1d\nsection full ending task on last day\ntest6 :id6,2019-02-13,2d\ntest7 :id7,after id6,1d",
-    "reason": "exclude-boundary-model",
-    "upstreamBehavior": "Upstream's exclude-walk counts days in (start, end] (it starts the cursor at start+1), so a task STARTING on an excluded day effectively gets that day free: test1 starts excluded Friday 2019-02-01 and ends Monday 02-04. Our walk counts [start, end), pushing the same task to 02-05; every downstream after-chain instant then shifts.",
-    "notes": "Both models conserve the working-day count of a duration (property-tested on our side); they disagree only on which boundary day absorbs the exclusion. Our model also drives the visual bar directly, where upstream splits endTime (chain) from renderEndTime (drawn bar). Candidate for a deliberate compat follow-up if drift matters in practice."
-  },
-  {
-    "id": "e4-exclude-all-but-friday",
-    "origin": "mermaid/ganttDb.spec.ts",
-    "upstream": "should not infinite loop when excluding everything (fridays allowed)",
-    "source": "gantt\ndateFormat YYYY-MM-DD\nexcludes weekends,monday,tuesday,wednesday,thursday\nweekend saturday\nsection weekends skip test\ntest1 :id1,2019-02-01,7d",
-    "reason": "exclude-boundary-model",
-    "upstreamBehavior": "Resolves without error (only asserted as not-throwing). Start day 2019-02-01 is a Friday \u2014 the only working weekday \u2014 so the boundary-model difference (their (start,end] vs our [start,end)) shifts which Friday completes the 7th working day.",
-    "notes": "Ours also resolves without error; only the boundary instants differ, so the case is excluded from instant-level parity."
-  },
-  {
     "id": "e5-dst-25-hour-day",
     "origin": "mermaid/ganttDb.spec.ts",
     "upstream": "should add 1 day even on days with 25 hours",

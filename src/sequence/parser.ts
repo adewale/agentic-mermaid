@@ -32,8 +32,14 @@ import { isCssColorToken } from './colors.ts'
 /**
  * Parse a Mermaid sequence diagram.
  * Expects the first line to be "sequenceDiagram".
+ *
+ * `opts.showSequenceNumbers` (the wired sequence config key) starts the
+ * diagram with autonumbering already on — exactly as if the body opened with
+ * an `autonumber` directive — so numbering config reaches every surface that
+ * parses through here (SVG layout and ASCII alike). An explicit `autonumber`
+ * directive in the body still takes precedence from its own line on.
  */
-export function parseSequenceDiagram(lines: string[]): SequenceDiagram {
+export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumbers?: boolean } = {}): SequenceDiagram {
   const diagram: SequenceDiagram = {
     actors: [],
     messages: [],
@@ -49,7 +55,7 @@ export function parseSequenceDiagram(lines: string[]): SequenceDiagram {
   // Open `box … end` group (boxes never nest; they only wrap participant lines)
   let openBox: SequenceBoxGroup | null = null
   // Active autonumber state; null = numbering off
-  let autonumber: { next: number; step: number } | null = null
+  let autonumber: { next: number; step: number } | null = opts.showSequenceNumbers === true ? { next: 1, step: 1 } : null
   // Actors awaiting their binding message (`create X` / `destroy X` directives
   // take effect at the NEXT message that involves the actor)
   const pendingCreates: string[] = []

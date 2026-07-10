@@ -149,7 +149,16 @@ export interface ScheduledGanttTask {
   tags: GanttTaskTag[]
   sectionIndex: number
   start: EpochMs
+  /** Chain end: where `after` successors and implicit-start followers begin.
+   *  Mirrors upstream's `endTime` — the exclusion walk counts excluded days
+   *  in (start, end] (mermaid's fixTaskDates; adopted 2026-07, resolving the
+   *  `exclude-boundary-model` ledger divergence). */
   end: EpochMs
+  /** Drawn-bar end: mirrors upstream's `renderEndTime`. Equals `end` except
+   *  when the exclusion walk terminates inside a trailing excluded run — the
+   *  bar stops before those days while the chain continues past them.
+   *  Always within [start, end]. */
+  renderEnd: EpochMs
   /** True when the end came from an explicit date (calendar excludes never
    *  extend it), false when it came from a duration or until ref. */
   manualEnd: boolean
@@ -208,7 +217,13 @@ export interface GanttBarLayout {
   milestoneX?: number
   rowIndex: number
   start: EpochMs
+  /** Bar-end instant (ScheduledGanttTask.renderEnd — the drawn extent). */
   end: EpochMs
+  /** Wrapped label-column lines (family-elevation-plan §Gantt item 5): set
+   *  only when the label exceeded the column budget and wrapped to 2+ lines
+   *  (standard mode). Text-transform is ALREADY applied — renderers draw
+   *  these verbatim. Absent = single line, current rendering. */
+  labelLines?: string[]
 }
 
 export interface GanttSectionBand {
@@ -217,6 +232,20 @@ export interface GanttSectionBand {
   h: number
   rowStart: number
   rowEnd: number
+  /** Wrapped section-header lines (same contract as GanttBarLayout.labelLines). */
+  labelLines?: string[]
+}
+
+/** A merged run of excluded calendar days, shaded behind the bars
+ *  (family-elevation-plan §Gantt item 2; upstream draws these by default).
+ *  Derived from the SAME schedule.isExcludedDay predicate the duration walk
+ *  uses — one calendar, two consumers. */
+export interface GanttExcludedBand {
+  x: number
+  w: number
+  /** Clipped-to-range instants ([timeMin, timeMax]) the band covers. */
+  start: EpochMs
+  end: EpochMs
 }
 
 export interface GanttVertLayout {
@@ -274,8 +303,14 @@ export interface GanttLayoutResult extends PositionedDiagram {
   /** Model task indexes on the critical path (from GanttScheduleAnalysis);
    *  drawn emphasized only under the `gantt.criticalPath` render option. */
   criticalTaskIndexes: number[]
+  /** Excluded-day shading bands (default-on, upstream parity). Empty when the
+   *  model has no excludes or the dateFormat is time-bearing. */
+  excludedBands: GanttExcludedBand[]
   topAxis: boolean
   todayX?: number
+  /** Raw `todayMarker` style payload (sanitized at render time by
+   *  src/gantt/today-marker.ts; applied only when the marker draws). */
+  todayMarkerStyle?: string
   timeMin: EpochMs
   timeMax: EpochMs
   dateOnly: boolean
