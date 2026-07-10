@@ -9,6 +9,7 @@ import { getSeriesColor, CHART_ACCENT_FALLBACK } from './colors.ts'
 import type { MarkPaint, SceneDoc, SceneNode } from '../scene/ir.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
+import { tooltipMarkup, tooltipCss } from '../shared/svg-tooltip.ts'
 
 // ============================================================================
 // XY Chart SVG renderer
@@ -34,16 +35,9 @@ const CHART_FONT = {
   lineWidth: 3,
 } as const
 
-const TIP = {
-  fontSize: 15,
-  fontWeight: 500,
-  height: 32,
-  padX: 14,
-  offsetY: 12,
-  rx: 8,
-  minY: 4,
-  pointerSize: 6,
-} as const
+// Tooltip metrics/markup/CSS live in the shared primitive (also consumed by
+// the quadrant renderer); prefix "xychart" reproduces the historical strings
+// byte-for-byte.
 
 export function renderXYChartSvg(
   ctx: RenderContext<PositionedXYChart>,
@@ -151,7 +145,7 @@ export function lowerXYChartScene(
         `<g class="xychart-bar-group">` +
         `<rect x="${r(bar.x)}" y="${r(bar.y)}" width="${r(bar.width)}" height="${r(bar.height)}" fill="transparent"/>` +
         `<title>${escapeXml(tipTitle)}</title>` +
-        tooltipAbove(tipAnchorX, tipAnchorY, tipText) +
+        tooltipMarkup('xychart', tipAnchorX, tipAnchorY, tipText) +
         `</g>`,
       ))
     }
@@ -208,7 +202,7 @@ export function lowerXYChartScene(
             {
               node: marks.raw({ id: `tooltip:${pointId}`, role: 'chrome' },
                 `<title>${escapeXml(tipTitle)}</title>` +
-                tooltipAbove(point.x, point.y - CHART_FONT.dotRadius, tipText)),
+                tooltipMarkup('xychart', point.x, point.y - CHART_FONT.dotRadius, tipText)),
               indent: 0,
             },
           ],
@@ -519,13 +513,7 @@ function chartStyles(
     seriesRules.push(`  circle.xychart-color-${index} { fill: ${color}; }`)
   }
 
-  const tipRules = interactive ? `
-  .xychart-tip { opacity: 0; pointer-events: none; }
-  .xychart-tip-bg { fill: var(--_text); }
-  .xychart-tip-text { fill: var(--bg); font-size: ${TIP.fontSize}px; font-weight: ${TIP.fontWeight}; }
-  .xychart-tip-ptr { fill: var(--_text); }
-  .xychart-bar-group:hover .xychart-tip,
-  .xychart-dot-group:hover .xychart-tip { opacity: 1; }` : ''
+  const tipRules = interactive ? tooltipCss('xychart', ['xychart-bar-group', 'xychart-dot-group']) : ''
 
   const colorVarsBlock = colorVarDefs.length > 0 ? `\n  svg {\n${colorVarDefs.join('\n')}\n  }` : ''
 
@@ -616,31 +604,6 @@ function buildBarDataLabels(
     })
 }
 
-function tooltipAbove(cx: number, topY: number, text: string): string {
-  const textW = estimateTextWidth(text, TIP.fontSize, TIP.fontWeight)
-  const bgW = textW + TIP.padX * 2
-  const bgX = cx - bgW / 2
-  let bgY = topY - TIP.offsetY - TIP.height
-  let ptrY = bgY + TIP.height
-
-  if (bgY < TIP.minY) {
-    bgY = TIP.minY
-    ptrY = bgY + TIP.height
-  }
-
-  const textX = cx
-  const textY = bgY + TIP.height / 2
-  const p = TIP.pointerSize
-  const ptrPath = `M${r(cx - p)},${r(ptrY)} L${r(cx + p)},${r(ptrY)} L${r(cx)},${r(ptrY + p)} Z`
-
-  return (
-    `<g class="xychart-tip">` +
-    `<rect x="${r(bgX)}" y="${r(bgY)}" width="${r(bgW)}" height="${TIP.height}" rx="${TIP.rx}" class="xychart-tip xychart-tip-bg"/>` +
-    `<path d="${ptrPath}" class="xychart-tip xychart-tip-ptr"/>` +
-    `<text x="${r(textX)}" y="${r(textY)}" text-anchor="middle" dy="${TEXT_BASELINE_SHIFT}" class="xychart-tip xychart-tip-text">${escapeXml(text)}</text>` +
-    `</g>`
-  )
-}
 
 function formatTipValue(value: number): string {
   if (Number.isInteger(value)) return String(value)

@@ -2,6 +2,7 @@ import type { QuadrantChart, QuadrantAxis, QuadrantPoint } from './types.ts'
 import { accessibilityDirectiveEnd } from '../shared/accessibility-directives.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
 import { syntaxError } from '../shared/syntax-error.ts'
+import { parsePointStyleEntries, parseClassDefTail, splitPointClassSuffix } from './point-style.ts'
 
 // ============================================================================
 // Quadrant chart parser
@@ -15,16 +16,18 @@ import { syntaxError } from '../shared/syntax-error.ts'
 //   y-axis <bottom> [--> <top>]
 //   quadrant-1..quadrant-4 <label>
 //   <Label>[:::class]: [x, y] [radius/color/stroke metadata]
-//   classDef <class> <style metadata>    accepted for Mermaid-docs fidelity;
-//                                      style metadata is intentionally ignored
-//                                      by the local renderer.
+//   classDef <class> <style metadata>
+//
+// Point styling follows upstream (merged mermaid-js/mermaid#5173): styles are
+// MODELED — they flow through layout to the renderer. The grammar lives in
+// point-style.ts (shared with the agent body so the surfaces cannot drift).
 //
 // Faithfulness contract (docs/project/lessons-learned.md, Loop 17 ER lesson):
 // malformed lines ERROR LOUDLY — never silently dropped:
 //   - coordinates out of [0,1]
 //   - non-numeric coordinates
 //   - missing / malformed brackets on a point line
-//   - malformed/unknown point style metadata
+//   - malformed/unknown point or classDef style metadata
 //   - any unrecognized statement
 // ============================================================================
 
@@ -34,8 +37,7 @@ const QUADRANT_RE = /^quadrant-([1-4])\s+(.+)$/i
 // A point line: `Label[:::class]: [x, y] [style metadata]`. The label is
 // everything before the LAST colon that precedes a bracketed coordinate pair.
 const POINT_RE = /^(.+?)\s*:\s*\[\s*([^,\]]+)\s*,\s*([^,\]]+)\s*\]\s*(.*)$/
-const POINT_CLASS_SUFFIX_RE = /\s*:::\s*[A-Za-z_][\w-]*\s*$/
-const POINT_STYLE_KEYS = new Set(['radius', 'color', 'stroke-color', 'stroke-width'])
+const CLASSDEF_RE = /^classDef\s+(.+)$/i
 
 /**
  * Parse a Mermaid quadrant chart from preprocessed lines (trimmed,
@@ -59,24 +61,29 @@ export function parseQuadrantChart(lines: string[]): QuadrantChart {
   let yAxis: QuadrantAxis | undefined
   const quadrants: [string?, string?, string?, string?] = [undefined, undefined, undefined, undefined]
   const points: QuadrantPoint[] = []
+  const classDefs: QuadrantChart['classDefs'] = {}
   const seenPointLabels = new Set<string>()
 
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i]!.trim()
     if (line.length === 0 || line.startsWith('%%')) continue
 
-    // Mermaid's official quadrant docs use classDef and point style metadata.
-    // The local renderer does not model those visual styles yet, but accepting
-    // and ignoring known styling keeps render/verify seams open without losing
-    // source fidelity in the agent path (which falls back to opaque for style).
-    if (/^classDef\s+[A-Za-z_][\w-]*\s+.+$/i.test(line)) continue
+    let m: RegExpMatchArray | null
+
+    // classDef <name> <styles> — modeled (upstream point styling contract).
+    if ((m = line.match(CLASSDEF_RE))) {
+      const parsed = parseClassDefTail(m[1]!)
+      if (!parsed.ok) {
+        throw new Error(`Invalid quadrant classDef: ${parsed.error}`)
+      }
+      classDefs[parsed.name] = parsed.style
+      continue
+    }
 
     // Mermaid-universal accessibility directives: accept and skip, same as
-    // classDef (sequence models them fully; quadrant has no aria slot yet).
+    // sequence models them fully; quadrant has no aria slot yet.
     const accEnd = accessibilityDirectiveEnd(lines, i)
     if (accEnd !== -1) { i = accEnd; continue }
-
-    let m: RegExpMatchArray | null
 
     if ((m = line.match(TITLE_RE))) {
       title = normalizeBrTags(m[1]!.trim())
@@ -97,12 +104,13 @@ export function parseQuadrantChart(lines: string[]): QuadrantChart {
     }
 
     if ((m = line.match(POINT_RE))) {
-      const rawLabel = stripPointClass(m[1]!.trim())
+      const { label: rawLabel, className } = splitPointClassSuffix(m[1]!.trim())
       const label = normalizeBrTags(rawLabel)
       const styleTail = m[4]!.trim()
-      if (!isSupportedPointStyleTail(styleTail)) {
+      const parsedStyle = parsePointStyleEntries(styleTail)
+      if (!parsedStyle.ok) {
         throw new Error(
-          `Unsupported quadrant point style metadata: "${styleTail}". ` +
+          `Unsupported quadrant point style metadata: "${styleTail}" — ${parsedStyle.error}. ` +
             'Expected comma-separated radius/color/stroke-color/stroke-width entries.',
         )
       }
@@ -112,7 +120,10 @@ export function parseQuadrantChart(lines: string[]): QuadrantChart {
         throw new Error(`Duplicate quadrant point label: "${label}"`)
       }
       seenPointLabels.add(label)
-      points.push({ label, x, y })
+      const point: QuadrantPoint = { label, x, y }
+      if (className !== undefined) point.className = className
+      if (parsedStyle.style !== undefined) point.style = parsedStyle.style
+      points.push(point)
       continue
     }
 
@@ -126,12 +137,12 @@ export function parseQuadrantChart(lines: string[]): QuadrantChart {
 
     throw syntaxError({
       what: `Unrecognized quadrant chart line: "${line}"`,
-      expectedForm: 'a title, x-axis/y-axis, a quadrant-N label, or a point (Label: [x, y])',
+      expectedForm: 'a title, x-axis/y-axis, a quadrant-N label, a point (Label: [x, y]), or a classDef',
       example: 'Quick win: [0.2, 0.8]',
     })
   }
 
-  return { title, xAxis, yAxis, quadrants, points }
+  return { title, xAxis, yAxis, quadrants, points, classDefs }
 }
 
 /** Parse an axis declaration tail (`<near> [--> <far>]`). */
@@ -148,20 +159,6 @@ function parseAxis(tail: string, which: string): QuadrantAxis {
   const near = normalizeBrTags(tail.trim())
   if (!near) throw new Error(`Quadrant ${which}-axis is missing its ${side} label`)
   return { near }
-}
-
-function stripPointClass(label: string): string {
-  return label.replace(POINT_CLASS_SUFFIX_RE, '').trim()
-}
-
-function isSupportedPointStyleTail(tail: string): boolean {
-  if (tail.length === 0) return true
-  const parts = tail.split(',').map(part => part.trim()).filter(Boolean)
-  if (parts.length === 0) return true
-  return parts.every(part => {
-    const match = part.match(/^([a-z][\w-]*)\s*:\s*(.+)$/i)
-    return Boolean(match && POINT_STYLE_KEYS.has(match[1]!.toLowerCase()) && match[2]!.trim().length > 0)
-  })
 }
 
 /** Parse a coordinate, enforcing the [0,1] range (loud error otherwise). */

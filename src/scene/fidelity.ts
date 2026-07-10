@@ -147,6 +147,25 @@ export function nodeProblems(node: SceneNode, path: string, problems: string[]):
       if (fs !== undefined && num(fs) !== node.fontSize) {
         problems.push(`${path}(text:${node.id}).fontSize: semantic ${node.fontSize} != crisp ${fs}`)
       }
+      // Text geometry: semantic x/y/anchor must match the drawn attributes.
+      // Every emitter anchors <text> at the semantic point and applies
+      // baseline shifts via dy/tspans, so x/y compare exactly (0.5px rounding
+      // slack); a missing text-anchor attribute means SVG's default 'start'.
+      // This closes the drift class where a lowering claimed one label
+      // position while the crisp drew another (quadrant point labels, 2026-07).
+      const anchor = el.attrs.get('text-anchor') ?? 'start'
+      const wantAnchor = node.anchor ?? 'start'
+      if (anchor !== wantAnchor) {
+        problems.push(`${path}(text:${node.id}).anchor: semantic ${wantAnchor} != crisp ${anchor}`)
+      }
+      const tx = num(el.attrs.get('x'))
+      if (tx !== undefined && Math.abs(tx - node.x) > 0.5) {
+        problems.push(`${path}(text:${node.id}).x: semantic ${node.x} != crisp ${tx}`)
+      }
+      const ty = num(el.attrs.get('y'))
+      if (ty !== undefined && Math.abs(ty - node.y) > 0.5) {
+        problems.push(`${path}(text:${node.id}).y: semantic ${node.y} != crisp ${ty}`)
+      }
       // The semantic text must appear in the crisp chunk. Both sides are
       // normalized the way the text emitter normalizes labels (markdown
       // backticks, <b>/<i>/<u>/<s> emphasis tags, whitespace), so formatted

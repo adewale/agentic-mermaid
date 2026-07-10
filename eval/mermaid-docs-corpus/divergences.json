@@ -1,19 +1,5 @@
 [
   {
-    "id": "quadrant-point-style-metadata",
-    "family": "quadrant",
-    "origin": "syntax/quadrantChart.md",
-    "indices": [
-      2
-    ],
-    "reason": "quadrant-style-metadata-preserved-not-modeled",
-    "expectedWarningCodes": [
-      "UNSUPPORTED_SYNTAX"
-    ],
-    "upstreamBehavior": "Mermaid renders point radius/color/stroke metadata and classDef styling for quadrant charts. Agentic Mermaid preserves the source and renders the chart, but typed mutation/layout metadata intentionally does not model those styling attributes yet.",
-    "notes": "Executable ledger: the corpus test proves the official styled example parses, verifies with UNSUPPORTED_SYNTAX, and round-trips without dropping style source."
-  },
-  {
     "id": "architecture-align-edges-unrenderable",
     "family": "architecture",
     "origin": "syntax/architecture.md",
