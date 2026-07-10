@@ -24,6 +24,15 @@ export const MAX_MCP_BODY_BYTES = 128 * 1024
 // of calls covers legitimate batching (e.g. initialize + tools/list + a few
 // renders); abuse-scale fan-out is refused.
 export const MAX_BATCH_ITEMS = 20
+// See the batch validation below: execute items get their own dynamic-worker
+// isolate with a full cpuMs budget each, so they are capped per-request
+// independently of the cheap declarative tools.
+export const MAX_EXECUTE_ITEMS_PER_BATCH = 1
+
+function isExecuteCall(message: unknown): boolean {
+  const m = message as { method?: unknown; params?: { name?: unknown } } | null
+  return !!m && m.method === 'tools/call' && m.params?.name === 'execute'
+}
 const CACHE_TTL_SECONDS = 86_400
 
 export interface McpCache {
@@ -292,6 +301,17 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
       // unbounded number of billable isolates/renders (see MAX_BATCH_ITEMS).
       if (parsed.length > MAX_BATCH_ITEMS) {
         return json(400, { jsonrpc: '2.0', id: null, error: { code: -32600, message: `batch exceeds the ${MAX_BATCH_ITEMS}-request limit` } }, cors)
+      }
+      // execute is the one tool with its own per-item isolate CPU budget, so it
+      // is the one batch amplifier: 20 executes × 30s cpuMs = 600 billable
+      // CPU-seconds from one HTTP request, while pure tools share the parent
+      // request's own CPU cap. Measured worst legit item (64KB flowchart,
+      // parse+verify+serialize) needs ~18s of that 30s budget, so the per-item
+      // budget stays; the amplification goes. Real MCP clients send one
+      // tools/call per request, so a 1-per-request execute cap costs nothing.
+      const executeItems = parsed.filter((p) => isExecuteCall(p)).length
+      if (executeItems > MAX_EXECUTE_ITEMS_PER_BATCH) {
+        return json(400, { jsonrpc: '2.0', id: null, error: { code: -32600, message: `a batch may contain at most ${MAX_EXECUTE_ITEMS_PER_BATCH} execute call (execute runs in its own CPU-budgeted isolate); send execute calls as separate requests` } }, cors)
       }
       // One event per request even for batches: each item gets an entry, not a line.
       event.items = parsed.map(() => newItemEvent())

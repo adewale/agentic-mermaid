@@ -167,6 +167,27 @@ describe('JSON-RPC round trips', () => {
     expect(res.status).toBe(200)
     expect((await res.json()) as any[]).toHaveLength(MAX_BATCH_ITEMS)
   })
+
+  // execute is the only tool with a per-item isolate CPU budget, so it is the
+  // one batch amplifier (20 × 30s cpuMs = 600 billable CPU-seconds per HTTP
+  // request). Measured worst legitimate single item — a 64KB flowchart through
+  // parse+verify+serialize — needs ~18s, so the per-item budget stays and the
+  // per-request multiplicity goes.
+  test('a batch may carry at most one execute item, refused before any isolate spins', async () => {
+    const { handler, executeCalls } = makeHandler()
+    const res = await handler(post([call('execute', { code: '1' }, 'a'), call('execute', { code: '2' }, 'b')]))
+    expect(res.status).toBe(400)
+    expect(((await res.json()) as any).error.message).toContain('at most 1 execute call')
+    expect(executeCalls).toHaveLength(0)
+  })
+
+  test('one execute may ride with cheap tools up to the fan-out cap', async () => {
+    const { handler } = makeHandler()
+    const items = [call('execute', { code: '40 + 2' }, 'x'), ...Array.from({ length: MAX_BATCH_ITEMS - 1 }, (_, i) => rpc('ping', undefined, i))]
+    const res = await handler(post(items))
+    expect(res.status).toBe(200)
+    expect((await res.json()) as any[]).toHaveLength(MAX_BATCH_ITEMS)
+  })
 })
 
 describe('protocol-version header validation', () => {
