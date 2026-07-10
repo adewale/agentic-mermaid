@@ -67,6 +67,9 @@ do not resolve CSS custom properties — `renderMermaidPNG` inlines the
 resolved family before rasterizing; do the same if you feed the raw SVG to
 your own pipeline.
 
+For complete custom-Style recipes using `font`, `fontDirs`, browser faces, and
+SVG font declarations, see [Fonts in custom styles](./custom-fonts.md).
+
 ### ASCII / Unicode
 
 ```ts
@@ -106,7 +109,7 @@ const ascii = renderMermaidASCII(`flowchart LR
 | `muted` | `string?` | — | Secondary text/labels. |
 | `surface` | `string?` | — | Node fill tint. |
 | `border` | `string?` | — | Node stroke color. |
-| `font` | `string` | `Inter` | Font family. |
+| `font` | `string` | `Inter` | CSS font family or stack. See [Fonts in custom styles](./custom-fonts.md). |
 | `style` | `string \| StyleSpec \| (string \| StyleSpec)[]` | — | How the diagram looks: a registered style name (`'hand-drawn'`, `'tufte'`, any palette like `'dracula'`), an inline public `StyleSpec`, or a stack merged left→right (`['hand-drawn', 'dracula']`). See `docs/style-authoring.md`. |
 | `seed` | `number` | `0` | Deterministic re-roll for stochastic styles — shuffles ink wobble, never layout. |
 | `transparent` | `boolean` | `false` | Transparent SVG background. |
@@ -117,7 +120,7 @@ const ascii = renderMermaidASCII(`flowchart LR
 | `interactive` | `boolean` | `false` | XY chart hover tooltips. |
 | `shadow` | `boolean` | `false` | Explicit drop shadows. |
 | `mermaidConfig` | `MermaidRuntimeConfig` | — | Runtime Mermaid config. |
-| `embedFontImport` | `boolean` | `true` | Include Google Fonts `@import`; set false for offline SVG/PNG. |
+| `embedFontImport` | `boolean` | `true` | Include Google Fonts imports for a single plain family and class/ER mono labels; set false for offline SVG. PNG disables imports internally. |
 | `compact` | `boolean` | `false` | Compact SVG output while preserving agent hooks. |
 | `idPrefix` | `string` | `''` | Namespace generated SVG def ids. |
 | `security` | `'default' | 'strict'` | `'default'` | `strict` disables external-fetch references. |
@@ -128,7 +131,8 @@ For JSON files, use
 same schema is exported from the npm package as
 `agentic-mermaid/style-spec.schema.json`; see
 [`custom-style-cookbook.md`](./custom-style-cookbook.md) for complete style
-files and screenshots.
+files and screenshots, and [`custom-fonts.md`](./custom-fonts.md) for font
+resolution across output surfaces.
 
 ## Agent edit API
 

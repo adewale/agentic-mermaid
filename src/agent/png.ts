@@ -55,8 +55,8 @@ export interface PngOptions {
   /** Constrain output dimensions; otherwise honors scale on the SVG bounds. */
   fitTo?: { width?: number; height?: number }
   /** Style name | spec | stack, same as RenderOptions.style. Faces referenced
-   *  by the built-in looks are bundled in assets/fonts/; other families fall
-   *  back to DejaVu Sans unless supplied via fontDirs. */
+   *  by the built-in looks are bundled in assets/fonts/; other families use
+   *  Inter with DejaVu per-glyph fallback unless supplied via fontDirs. */
   style?: StyleInput | StyleInput[]
   /** Ink-wobble seed for styled looks, same as RenderOptions.seed. */
   seed?: number

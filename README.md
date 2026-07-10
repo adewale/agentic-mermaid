@@ -193,6 +193,7 @@ See [diagram families](./docs/diagram-families.md) for examples and compatibilit
 - [Agent API cookbook](./docs/agent-api-cookbook.md) — practical recipes for agents.
 - [Theming](./docs/theming.md) — two-color themes, built-ins, Shiki compatibility.
 - [Custom style cookbook](./docs/custom-style-cookbook.md) — JSON style files, screenshots, schema usage, and CLI commands.
+- [Fonts in custom styles](./docs/custom-fonts.md) — font selection, SVG declarations, PNG directories, fallbacks, and browser usage.
 - [React integration](./docs/react.md) — zero-flash `useMemo` rendering.
 - [ASCII output](./docs/ascii.md) — terminal output, color modes, XY charts.
 - [Mermaid config](./docs/config.md) — frontmatter, init directives, runtime config.

@@ -12,6 +12,7 @@ This directory holds the long-form documentation. The root README is intentional
 | [`theming.md`](./theming.md) | Two-color themes, built-in themes, custom themes, Shiki import. |
 | [`style-authoring.md`](./style-authoring.md) | Style model, stack semantics, field reference, rubric, and validation commands. |
 | [`custom-style-cookbook.md`](./custom-style-cookbook.md) | Complete custom style JSON files, screenshots, schema usage, and CLI commands. |
+| [`custom-fonts.md`](./custom-fonts.md) | How custom Styles select and resolve fonts across SVG, PNG, browser, and MCP surfaces. |
 | [`react.md`](./react.md) | Zero-flash React rendering with CSS variables. |
 | [`ascii.md`](./ascii.md) | Terminal output, ASCII vs Unicode, color modes, XY charts. |
 | [`config.md`](./config.md) | `mermaidConfig`, YAML frontmatter, and init directives. |

@@ -30,7 +30,10 @@
         "border": { "type": "string" }
       }
     },
-    "font": { "type": "string" },
+    "font": {
+      "type": "string",
+      "description": "CSS font family name or stack. The Style references the family; the rendering environment supplies the font face."
+    },
     "stroke": {
       "enum": ["crisp", "jittered", "freehand"]
     },

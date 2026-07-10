@@ -64,7 +64,7 @@ on the crisp default backend with your palette and font.
 |---|---|
 | identity | `name`, `blurb` (required only for `registerStyle`) |
 | palette | `colors: { bg, fg, line, accent, muted, surface, border }` — all optional |
-| typography | `font` — SVG always declares it; for PNG the faces built-in looks use are bundled (Caveat, EB Garamond, Architects Daughter, Share Tech Mono), other families need the `fontDirs` PNG option or fall back to DejaVu Sans |
+| typography | `font` — a CSS family name or stack; SVG declares it, while PNG resolves bundled faces plus `fontDirs`/system fonts and otherwise uses Inter with DejaVu per-glyph fallback. See [Fonts in custom styles](./custom-fonts.md). |
 | stroke | `stroke: 'crisp' \| 'jittered' \| 'freehand'`, `roughness`, `bowing`, `passes` (1 = single pass, 2 = sketchy double stroke), `strokeWidth` — works on every backend |
 | fill | `fill: 'none' \| 'hachure' \| 'solid' \| 'wash'`, `hachureAngle`, `hachureGap`, `fillWeight`, `washOpacity`, `washEdge` — `fill` picks the *sketch* fill algorithm; the default backend already paints flat `surface` fills, so `'solid'` is its native behavior and `'none'` only changes output on sketch backends |
 | page | `backdrop: 'plain' \| 'paper-ruled' \| 'grid'` |
@@ -80,7 +80,8 @@ For file-backed styles, use the schema at
 [`docs/schemas/style-spec.schema.json`](./schemas/style-spec.schema.json), also
 published as `agentic-mermaid/style-spec.schema.json`. The
 [`custom style cookbook`](./custom-style-cookbook.md) has complete JSON files,
-screenshots, and CLI commands.
+screenshots, and CLI commands. For font resolution across SVG, PNG, browser,
+and MCP surfaces, see [Fonts in custom styles](./custom-fonts.md).
 
 Only a genuinely **new capability** (a new fill algorithm, compositor, or
 layout-aware dialect) justifies code: implement `StyleBackend`, call

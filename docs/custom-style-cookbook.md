@@ -26,6 +26,10 @@ const problems = validateStyleSpec(style)
 if (problems.length) throw new Error(problems.join('\n'))
 ```
 
+The `font` field names a family; the output environment still has to provide
+that face. See [Fonts in custom styles](./custom-fonts.md) for SVG behavior,
+PNG `fontDirs`, system fonts, fallbacks, and browser usage.
+
 ## Transit route map
 
 Complete file:
