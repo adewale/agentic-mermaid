@@ -55,7 +55,11 @@ needs npm ≥ 11.5.1 / Node ≥ 22.14).
    publication fires `publish.yml`, which gates, builds, publishes to npm, and
    then publishes the matching server metadata to the MCP Registry.
 6. **Verify:** `npm view agentic-mermaid version` shows the new version;
-   `npm install agentic-mermaid` into a scratch project resolves and its bins run.
+   `npm install agentic-mermaid` into a scratch project resolves and its bins
+   run; and
+   `curl "https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.adewale/agentic-mermaid"`
+   returns the matching server and version. The official registry is still in
+   preview, so verify its record after every release.
 7. **After the first publish,** set the package on npmjs.com to
    "Require two-factor authentication and disallow tokens" — trusted publishing
    keeps working, and token-based publishing is locked out.
