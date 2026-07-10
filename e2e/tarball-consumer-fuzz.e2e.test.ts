@@ -259,6 +259,13 @@ describe('installed tarball — am bin', () => {
 // T3 — the `agentic-mermaid-mcp` bin under Node (stdio JSON-RPC).
 // ---------------------------------------------------------------------------
 describe('installed tarball — mcp bin', () => {
+  fn('default package binary routes the registry mcp argument', () => {
+    expect(haveConsumer).toBe(true)
+    const r = spawnSync(NODE!, [amBin, 'mcp', '--help'], { cwd: work, encoding: 'utf8', timeout: RUN_TIMEOUT_MS })
+    expect({ status: r.status, stderr: r.stderr }).toEqual({ status: 0, stderr: '' })
+    expect(r.stdout).toContain('agentic-mermaid-mcp [--transport stdio|http]')
+  }, RUN_TIMEOUT_MS)
+
   fn('generated JSON-RPC over stdio yields well-formed responses and never crashes', () => {
     expect(haveConsumer).toBe(true)
     const codes = fc.sample(codeArb, 18)

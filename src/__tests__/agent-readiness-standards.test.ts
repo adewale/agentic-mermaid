@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test'
+import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -164,6 +165,9 @@ describe('agent-readiness standards syntax', () => {
       registryType: 'npm',
       identifier: packageJson.name,
       version: packageJson.version,
+      runtimeHint: 'npx',
+      runtimeArguments: [{ type: 'positional', value: '-y' }],
+      packageArguments: [{ type: 'positional', value: 'mcp' }],
       transport: { type: 'stdio' },
     }])
     expect(registry.remotes).toEqual([{
@@ -176,5 +180,9 @@ describe('agent-readiness standards syntax', () => {
     expect(publishWorkflow).toContain('ab128162b0616090b47cf245afe0a23f3ef08936fdce19074f5ba0a4469281ac')
     expect(publishWorkflow).toContain('./mcp-publisher login github-oidc')
     expect(publishWorkflow).toContain('./mcp-publisher publish')
+
+    const packageBin = spawnSync('bun', ['run', join(REPO, 'bin/am.ts'), 'mcp', '--help'], { encoding: 'utf8' })
+    expect({ status: packageBin.status, stderr: packageBin.stderr }).toEqual({ status: 0, stderr: '' })
+    expect(packageBin.stdout).toContain('agentic-mermaid-mcp [--transport stdio|http]')
   })
 })
