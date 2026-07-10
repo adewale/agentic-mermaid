@@ -203,4 +203,30 @@ describe('layoutArchitectureDiagram', () => {
     expect(edge.labelPosition).toBeDefined()
     expect(distanceToPolyline(edge.labelPosition!, edge.points)).toBeLessThanOrEqual(0.001)
   })
+
+  // Upstream v11.16.0 align directives: the deterministic layout accepts them
+  // (probe p8) but deliberately does NOT honor them as placement constraints —
+  // the layered engine never collapses siblings onto one coordinate, which is
+  // the fcose failure mode align was invented to patch. verify announces the
+  // limitation as a Tier-3 UNSUPPORTED_SYNTAX lint (option (b), plan P4).
+  // These tests pin both halves of that contract.
+  it('lays out align sources and leaves geometry identical to the align-free layout', () => {
+    const body = `
+      group api(cloud)[API]
+      service db1(database)[DB1] in api
+      service db2(database)[DB2] in api
+      service db3(database)[DB3] in api
+      service mcp(server)[MCP] in api
+      db1:R --> L:mcp
+      db2:R --> L:mcp
+      db3:R --> L:mcp`
+
+    const aligned = layout(`architecture-beta${body}\n      align column db1 db2 db3`)
+    const plain = layout(`architecture-beta${body}`)
+
+    expect(aligned.services.length).toBe(4)
+    expect(aligned.edges.length).toBe(3)
+    // Constraint not honored (documented limitation): geometry is byte-identical.
+    expect(JSON.stringify(aligned)).toBe(JSON.stringify(plain))
+  })
 })

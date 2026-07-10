@@ -234,9 +234,9 @@
       "family": "architecture",
       "status": "full-harvest-accounted",
       "consideredBlocks": 33,
-      "importedCases": 5,
-      "importedBlocks": 5,
-      "excludedBlocks": 28,
+      "importedCases": 8,
+      "importedBlocks": 8,
+      "excludedBlocks": 25,
       "deferredBlocks": 0,
       "files": [
         {

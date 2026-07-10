@@ -209,6 +209,106 @@ describe('architecture verify + render', () => {
   })
 })
 
+// Upstream v11.16.0 align directives (PR #7708; plan §Architecture 2, probe
+// p8). Shipped as option (b): parsed and modeled once (src/architecture/
+// align.ts), preserved losslessly through serialization, rendered WITHOUT the
+// placement constraint, and announced by a Tier-3 UNSUPPORTED_SYNTAX lint that
+// names the construct — lint never flips verify.ok.
+describe('architecture align directives (upstream v11.16.0)', () => {
+  const ALIGN_SRC = `architecture-beta
+  group api(cloud)[API]
+  service db1(database)[DB1] in api
+  service db2(database)[DB2] in api
+  service db3(database)[DB3] in api
+  service mcp(server)[MCP] in api
+  db1:R --> L:mcp
+  db2:R --> L:mcp
+  db3:R --> L:mcp
+  align column db1 db2 db3
+`
+
+  test('align sources parse structurally and model alignments', () => {
+    const d = architecture(ALIGN_SRC)
+    expect(d.body.alignments).toEqual([{ axis: 'column', members: ['db1', 'db2', 'db3'] }])
+    expect(d.body.services.map(s => s.id)).toEqual(['db1', 'db2', 'db3', 'mcp'])
+  })
+
+  test('align statements survive serialize→re-parse byte-verbatim (canonical form)', () => {
+    const d = architecture(ALIGN_SRC)
+    const out = serializeMermaid(d)
+    expect(out).toContain('align column db1 db2 db3')
+    const d2 = architecture(out)
+    expect(d2.body).toEqual(d.body)
+    expect(serializeMermaid(d2)).toBe(out)
+  })
+
+  test('verify passes (ok=true) with an UNSUPPORTED_SYNTAX lint naming architecture_align', () => {
+    const v = verifyMermaid(architecture(ALIGN_SRC))
+    expect(v.ok).toBe(true)
+    const lint = v.warnings.find(w => w.code === 'UNSUPPORTED_SYNTAX')
+    expect(lint).toMatchObject({ code: 'UNSUPPORTED_SYNTAX', syntax: 'architecture_align' })
+  })
+
+  test('multiple align directives round-trip in declaration order', () => {
+    const d = architecture(`architecture-beta
+  service a(server)[A]
+  service b(server)[B]
+  service c(server)[C]
+  align row a b
+  align column b c
+`)
+    expect(d.body.alignments).toEqual([
+      { axis: 'row', members: ['a', 'b'] },
+      { axis: 'column', members: ['b', 'c'] },
+    ])
+    const out = serializeMermaid(d)
+    expect(out.indexOf('align row a b')).toBeLessThan(out.indexOf('align column b c'))
+  })
+
+  test('rename_service rewrites alignment members', () => {
+    const d = apply(architecture(ALIGN_SRC), { kind: 'rename_service', from: 'db2', to: 'replica' })
+    expect(d.body.alignments).toEqual([{ axis: 'column', members: ['db1', 'replica', 'db3'] }])
+    expect(d.canonicalSource).toContain('align column db1 replica db3')
+  })
+
+  test('remove_service drops the member and dissolves sub-minimum alignments', () => {
+    let d = apply(architecture(ALIGN_SRC), { kind: 'remove_service', id: 'db3' })
+    expect(d.body.alignments).toEqual([{ axis: 'column', members: ['db1', 'db2'] }])
+    // One member left after the next removal — the directive dissolves (an
+    // align needs at least two members to be renderable upstream).
+    d = apply(d, { kind: 'remove_service', id: 'db2' })
+    expect(d.body.alignments ?? []).toEqual([])
+    expect(d.canonicalSource).not.toContain('align')
+  })
+
+  test('invalid align directives fall back to opaque (upstream rejects them too)', () => {
+    const cases = [
+      ['unknown member', 'architecture-beta\n  service a(server)[A]\n  service b(server)[B]\n  align row a ghost'],
+      ['single member', 'architecture-beta\n  service a(server)[A]\n  service b(server)[B]\n  align row a'],
+      ['duplicate member', 'architecture-beta\n  service a(server)[A]\n  service b(server)[B]\n  align row a a'],
+      ['group member', 'architecture-beta\n  group g(cloud)[G]\n  service a(server)[A] in g\n  service b(server)[B]\n  align column a g'],
+    ] as const
+    for (const [name, src] of cases) {
+      const r = parseMermaid(src)
+      expect({ name, ok: r.ok }).toEqual({ name, ok: true })
+      if (!r.ok) continue
+      expect({ name, kind: r.value.body.kind }).toEqual({ name, kind: 'opaque' })
+      // Render parity keeps the failure honest: the render parser rejects
+      // exactly what upstream rejects, so verify reports RENDER_FAILED.
+      const v = verifyMermaid(r.value)
+      expect({ name, ok: v.ok, codes: v.warnings.some(w => w.code === 'RENDER_FAILED') })
+        .toEqual({ name, ok: false, codes: true })
+    }
+  })
+
+  test('align sources render through the legacy renderer', async () => {
+    const { renderMermaidSVG } = await import('../agent/index.ts')
+    const svg = renderMermaidSVG(architecture(ALIGN_SRC))
+    expect(svg).toContain('<svg')
+    expect(svg).toContain('DB1')
+  })
+})
+
 describe('architecture round-trip property', () => {
   const idArb = fc.stringMatching(/^[a-z][a-z0-9]{0,7}$/)
   const labelArb = fc.stringMatching(/^[A-Za-z][A-Za-z ]{0,18}[A-Za-z]$/)

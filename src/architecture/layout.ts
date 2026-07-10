@@ -1,5 +1,6 @@
 import { applyTextTransform, estimateTextWidth } from '../styles.ts'
 import type { Point, RenderOptions } from '../types.ts'
+import { ARCHITECTURE_DEFAULT_LAYER_SPACING, ARCHITECTURE_DEFAULT_NODE_SPACING } from './config.ts'
 import type { ArchitectureLayoutMetrics } from './config.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { architectureToMermaidGraph } from './parser.ts'
@@ -51,8 +52,8 @@ export function layoutArchitectureDiagram(
   const graph = architectureToMermaidGraph(diagram)
   const positioned = layoutGraphSync(graph, {
     padding: options.padding ?? 40,
-    nodeSpacing: options.nodeSpacing ?? 36,
-    layerSpacing: options.layerSpacing ?? 56,
+    nodeSpacing: options.nodeSpacing ?? ARCHITECTURE_DEFAULT_NODE_SPACING,
+    layerSpacing: options.layerSpacing ?? ARCHITECTURE_DEFAULT_LAYER_SPACING,
     componentSpacing: options.componentSpacing,
     preserveSubgraphChildOrder: true,
     styleFace: metrics ? {

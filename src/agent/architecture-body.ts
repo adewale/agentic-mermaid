@@ -9,6 +9,9 @@
 //   junction <id> [in <group>]
 //   <id>[{group}]:<SIDE> <arrow> <SIDE>:<id>[{group}]   (SIDE ∈ L|R|T|B)
 //     arrows: -- --> <-- <-->  and labeled  -[label]-  forms
+//   align row|column <id> <id> ...   (upstream v11.16.0 — shared shape parser
+//     in src/architecture/align.ts; preserved losslessly, layout does not
+//     honor the constraint, verify lints UNSUPPORTED_SYNTAX architecture_align)
 //
 // Structured-or-opaque: any other non-blank, non-comment line (accTitle,
 // accDescr, the {group} boundary modifier, unmodeled syntax) returns null so
@@ -17,9 +20,10 @@
 // ============================================================================
 
 import { unknownOpMessage } from './mutation-ops.ts'
+import { ALIGN_DIRECTIVE_RE, parseAlignDirective, serializeAlignDirective } from '../architecture/align.ts'
 import type {
   ArchitectureBody, ArchitectureGroup, ArchitectureService, ArchitectureJunction,
-  ArchitectureEdge, ArchitectureSide, ArchitectureMutationOp,
+  ArchitectureEdge, ArchitectureAlignment, ArchitectureSide, ArchitectureMutationOp,
   MutationError, Result, LayoutWarning, VerifyOptions,
 } from './types.ts'
 import { ok, err, DEFAULT_LABEL_CHAR_CAP } from './types.ts'
@@ -92,6 +96,7 @@ export function parseArchitectureBody(lines: string[]): ArchitectureBody | null 
   const services: ArchitectureService[] = []
   const junctions: ArchitectureJunction[] = []
   const edges: ArchitectureEdge[] = []
+  const alignments: ArchitectureAlignment[] = []
   const ids = new Set<string>()
   const groupIds = new Set<string>()
   const endpointIds = new Set<string>() // services + junctions (valid edge endpoints)
@@ -142,6 +147,17 @@ export function parseArchitectureBody(lines: string[]): ArchitectureBody | null 
       continue
     }
 
+    // `align` is reserved upstream, so a leading `align` token is always a
+    // directive. Malformed directives (bad axis, <2 members, duplicates) fall
+    // back to opaque — the legacy render parser rejects them, exactly like
+    // upstream, and verify reports the render failure honestly.
+    if (ALIGN_DIRECTIVE_RE.test(line)) {
+      const parsed = parseAlignDirective(line)
+      if (!parsed.ok) return null
+      alignments.push(parsed.alignment)
+      continue
+    }
+
     const edge = parseEdge(line)
     if (edge) {
       edges.push(edge)
@@ -153,20 +169,26 @@ export function parseArchitectureBody(lines: string[]): ArchitectureBody | null 
   }
 
   // Validation: every `in` parent must be a declared group; every edge endpoint
-  // must be a declared service or junction. The legacy parser rejects diagrams
-  // that violate these, so a structured body must satisfy them to round-trip.
+  // and align member must be a declared service or junction. The legacy parser
+  // rejects diagrams that violate these, so a structured body must satisfy
+  // them to round-trip.
   for (const { parent } of pendingParents) {
     if (!groupIds.has(parent)) return null
   }
   for (const edge of edges) {
     if (!endpointIds.has(edge.source.id) || !endpointIds.has(edge.target.id)) return null
   }
+  for (const alignment of alignments) {
+    for (const member of alignment.members) {
+      if (!endpointIds.has(member)) return null
+    }
+  }
 
   // The legacy renderer rejects an empty architecture diagram; model the same
   // floor so a structured body always renders.
   if (groups.length === 0 && services.length === 0 && junctions.length === 0) return null
 
-  return { kind: 'architecture', groups, services, junctions, edges }
+  return { kind: 'architecture', groups, services, junctions, edges, alignments }
 }
 
 // ---- Serializer -------------------------------------------------------------
@@ -198,6 +220,11 @@ export function renderArchitecture(body: ArchitectureBody): string {
   for (const e of body.edges) {
     lines.push(`  ${e.source.id}:${e.source.side} ${renderArrow(e)} ${e.target.side}:${e.target.id}`)
   }
+  // Align directives last: canonical order guarantees every member is already
+  // declared, which both the upstream grammar and the legacy parser require.
+  for (const a of body.alignments ?? []) {
+    lines.push(`  ${serializeAlignDirective(a)}`)
+  }
   return lines.join('\n') + '\n'
 }
 
@@ -213,6 +240,26 @@ function cloneArchitecture(b: ArchitectureBody): ArchitectureBody {
       source: { ...e.source }, target: { ...e.target },
       label: e.label, hasArrowStart: e.hasArrowStart, hasArrowEnd: e.hasArrowEnd,
     })),
+    ...(b.alignments ? { alignments: b.alignments.map(a => ({ axis: a.axis, members: [...a.members] })) } : {}),
+  }
+}
+
+/**
+ * Keep align directives coherent after id changes: drop removed members and
+ * dissolve any directive left with fewer than two (the grammar's floor —
+ * mirrors the edge cascade in remove_service). `rename` rewrites in place.
+ */
+function dropAlignmentMember(next: ArchitectureBody, id: string): void {
+  if (!next.alignments) return
+  next.alignments = next.alignments
+    .map(a => ({ axis: a.axis, members: a.members.filter(m => m !== id) }))
+    .filter(a => a.members.length >= 2)
+}
+
+function renameAlignmentMember(next: ArchitectureBody, from: string, to: string): void {
+  if (!next.alignments) return
+  for (const a of next.alignments) {
+    a.members = a.members.map(m => (m === from ? to : m))
   }
 }
 
@@ -283,8 +330,10 @@ export function mutateArchitecture(body: ArchitectureBody, op: ArchitectureMutat
       const idx = next.services.findIndex(s => s.id === op.id)
       if (idx < 0) return err({ code: 'SERVICE_NOT_FOUND', message: `No service "${op.id}"` })
       next.services.splice(idx, 1)
-      // Cascade: drop every edge that touches the removed service.
+      // Cascade: drop every edge that touches the removed service, and every
+      // align membership (dissolving directives that fall below two members).
       next.edges = next.edges.filter(e => e.source.id !== op.id && e.target.id !== op.id)
+      dropAlignmentMember(next, op.id)
       break
     }
     case 'rename_service': {
@@ -298,11 +347,12 @@ export function mutateArchitecture(body: ArchitectureBody, op: ArchitectureMutat
         return err({ code: 'INVALID_OP', message: `Identifier "${to.value}" already exists` })
       }
       svc.id = to.value
-      // Keep edges anchored to the renamed service.
+      // Keep edges and align memberships anchored to the renamed service.
       for (const e of next.edges) {
         if (e.source.id === from.value) e.source.id = to.value
         if (e.target.id === from.value) e.target.id = to.value
       }
+      renameAlignmentMember(next, from.value, to.value)
       break
     }
     case 'set_service_label': {
@@ -454,5 +504,16 @@ export function verifyArchitecture(body: ArchitectureBody, opts: VerifyOptions):
     }
     if (e.label !== undefined) overflow(`edge#${i}:${architectureEdgeId(e)}`, e.label)
   })
+  // P4 (documented limitation ⇒ runtime diagnostic): align directives are
+  // parsed and preserved losslessly, but the deterministic layout does not
+  // honor them as placement constraints. One lint names the construct; it
+  // never flips verify.ok (Tier 3).
+  if ((body.alignments ?? []).length > 0) {
+    warnings.push({
+      code: 'UNSUPPORTED_SYNTAX',
+      syntax: 'architecture_align',
+      message: 'align row/column directives are parsed and preserved in source, but the deterministic layout does not honor them as placement constraints; the layered placement never stacks siblings on one coordinate, so rendering proceeds without the alignment.',
+    })
+  }
   return warnings
 }

@@ -55,6 +55,20 @@ config:
     expect(ascii).toContain('color:#38bdf8')
   })
 
+  it('renders align sources (upstream v11.16.0) without erroring', () => {
+    const ascii = renderMermaidASCII(`architecture-beta
+      service src1(server)[Source 1]
+      service src2(server)[Source 2]
+      service proc(server)[Processor]
+      src1:B --> T:proc
+      src2:B --> T:proc
+      align row src1 src2`, { useAscii: true })
+
+    expect(ascii).toContain('[server] Source 1')
+    expect(ascii).toContain('[server] Source 2')
+    expect(ascii).toContain('[server] Processor')
+  })
+
   it('renders junction markers', () => {
     const ascii = renderMermaidASCII(`architecture-beta
       group app(cloud)[Application]

@@ -3,6 +3,14 @@ import type { MermaidFrontmatterMap, MermaidConfigValue } from '../mermaid-sourc
 import type { RenderOptions, TextTransform } from '../types.ts'
 import { resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults } from '../styles.ts'
+import { ineffectiveFieldsPresent } from '../class/layout.ts'
+
+// Deterministic spacing defaults, shared with layout.ts so the
+// idealEdgeLengthMultiplier mapping and the layout fallback cannot drift.
+export const ARCHITECTURE_DEFAULT_NODE_SPACING = 36
+export const ARCHITECTURE_DEFAULT_LAYER_SPACING = 56
+/** Upstream's documented idealEdgeLengthMultiplier default — the neutral point. */
+const IDEAL_EDGE_LENGTH_BASELINE = 1.5
 
 export interface ArchitectureVisualConfig {
   groupHeaderHeight: number
@@ -75,6 +83,10 @@ export interface ResolvedArchitectureVisualConfig {
   visual: ArchitectureVisualConfig
   layout: ArchitectureLayoutMetrics
   padding?: number
+  /** Wired `architecture.nodeSeparation` (px between same-layer siblings). */
+  nodeSpacing?: number
+  /** Wired `architecture.idealEdgeLengthMultiplier`, mapped onto the layer gap. */
+  layerSpacing?: number
 }
 
 export const DEFAULT_ARCHITECTURE_VISUAL: ArchitectureVisualConfig = {
@@ -211,7 +223,78 @@ export function resolveArchitectureVisualConfig(
     visual,
     layout: architectureLayoutMetrics(visual),
     padding: getNumber(architecture, 'padding'),
+    nodeSpacing: resolveNodeSeparation(architecture),
+    layerSpacing: resolveIdealEdgeLength(architecture),
   }
+}
+
+// ---------------------------------------------------------------------------
+// Wire-or-warn (plan §Architecture 3, workstream X7) for the six documented
+// architecture.* layout-tuning keys:
+//   WIRED  nodeSeparation            → same-layer sibling spacing (px, the
+//                                      class/er nodeSpacing pass-through idiom)
+//   WIRED  idealEdgeLengthMultiplier → layer gap scaled around upstream's 1.5
+//                                      default (upstream: ideal same-group edge
+//                                      length; the layer gap IS the deterministic
+//                                      edge length between connected ranks)
+//   LINT   edgeElasticity, numIter, seed, randomize — fcose simulation knobs
+//          with no meaning in a deterministic layout; named by verify's
+//          INEFFECTIVE_CONFIG (ARCHITECTURE_NOOP_CONFIG_FIELDS below), never
+//          silently swallowed.
+// ---------------------------------------------------------------------------
+
+function resolveNodeSeparation(architecture: MermaidFrontmatterMap | undefined): number | undefined {
+  const value = getNumber(architecture, 'nodeSeparation')
+  if (value === undefined || !Number.isFinite(value) || value < 0) return undefined
+  return clamp(Math.round(value), 0, 512)
+}
+
+function resolveIdealEdgeLength(architecture: MermaidFrontmatterMap | undefined): number | undefined {
+  const multiplier = getNumber(architecture, 'idealEdgeLengthMultiplier')
+  if (multiplier === undefined || !Number.isFinite(multiplier) || multiplier <= 0) return undefined
+  return clamp(Math.round(ARCHITECTURE_DEFAULT_LAYER_SPACING * multiplier / IDEAL_EDGE_LENGTH_BASELINE), 8, 512)
+}
+
+/**
+ * Fold the wired architecture.* frontmatter keys (padding, nodeSeparation,
+ * idealEdgeLengthMultiplier) into RenderOptions — explicit RenderOptions
+ * always win (the class/er resolveClassRenderOptions idiom). Consumed by the
+ * SVG render hook AND verify's layout adapter so verify.layout stays truthful
+ * under config.
+ */
+export function resolveArchitectureRenderOptions(
+  frontmatter: MermaidFrontmatterMap | undefined,
+  options: RenderOptions,
+): RenderOptions {
+  const architecture = frontmatter ? getMap(frontmatter, 'architecture') : undefined
+  if (!architecture) return options
+  const padding = getNumber(architecture, 'padding')
+  const nodeSpacing = resolveNodeSeparation(architecture)
+  const layerSpacing = resolveIdealEdgeLength(architecture)
+  if (padding === undefined && nodeSpacing === undefined && layerSpacing === undefined) return options
+  return {
+    ...options,
+    padding: options.padding ?? padding,
+    nodeSpacing: options.nodeSpacing ?? nodeSpacing,
+    layerSpacing: options.layerSpacing ?? layerSpacing,
+  }
+}
+
+/**
+ * Documented architecture config keys accepted for Mermaid config-shape
+ * compatibility but NOT wired to any geometry or paint: they tune upstream's
+ * fcose force simulation, which has no analogue in this deterministic layout.
+ * Verify names each present key via INEFFECTIVE_CONFIG (P4). The wired keys —
+ * nodeSeparation, idealEdgeLengthMultiplier, padding, iconSize, fontSize —
+ * never appear here.
+ */
+export const ARCHITECTURE_NOOP_CONFIG_FIELDS = [
+  'edgeElasticity', 'numIter', 'randomize', 'seed',
+] as const
+
+/** Which documented-but-unwired `architecture` config fields are present (sorted). */
+export function architectureIneffectiveConfigFields(configs: unknown[]): string[] {
+  return ineffectiveFieldsPresent(configs, ARCHITECTURE_NOOP_CONFIG_FIELDS)
 }
 
 export function architectureLayoutMetrics(visual: ArchitectureVisualConfig): ArchitectureLayoutMetrics {

@@ -6,6 +6,9 @@
 // ============================================================================
 
 import type { Point, PositionedDiagram } from '../types.ts'
+import type { ArchitectureAlignment } from './align.ts'
+
+export type { ArchitectureAlignment, ArchitectureAlignmentAxis } from './align.ts'
 
 export type ArchitectureSide = 'L' | 'R' | 'T' | 'B'
 export type ArchitectureEndpointBoundary = 'item' | 'group'
@@ -54,6 +57,12 @@ export interface ArchitectureDiagram {
   services: ArchitectureService[]
   junctions: ArchitectureJunction[]
   edges: ArchitectureEdge[]
+  /**
+   * `align row|column` directives (upstream v11.16.0), in source order.
+   * Parsed and preserved; the deterministic layout does not (yet) honor them
+   * as placement constraints — see src/architecture/align.ts.
+   */
+  alignments: ArchitectureAlignment[]
   rootChildren: ArchitectureChildRef[]
   accessibilityTitle?: string
   accessibilityDescription?: string
