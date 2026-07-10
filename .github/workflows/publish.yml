@@ -38,7 +38,14 @@ jobs:
 
       - name: Upgrade npm for trusted publishing
         # Node 22 bundles npm 10.9.x; trusted publishing needs npm >= 11.5.1.
-        run: npm install -g npm@latest
+        # Pin npm instead of using the moving `latest` tag: npm 12.0.0 shipped
+        # without the `sigstore` module needed by libnpmpublish's provenance
+        # path on GitHub-hosted runners. Install `sigstore` alongside npm so
+        # package-level `publishConfig.provenance` can resolve it robustly.
+        run: |
+          npm install -g npm@11.18.0 sigstore@latest
+          npm --version
+          node -e "console.log(require.resolve('sigstore'))"
 
       - name: Install dependencies
         run: bun install
