@@ -8,9 +8,9 @@
 // ============================================================================
 
 import { measureTextWidth } from './text-metrics'
-import { styleRolesOf } from './scene/style-registry.ts'
-import type { StyleInput } from './scene/style-registry.ts'
-import type { DiagramStyleOptions, TextTransform } from './types.ts'
+import { styleFaceOf } from './scene/style-registry.ts'
+import type { InternalStyleFace, StyleInput } from './scene/style-registry.ts'
+import type { TextTransform } from './types.ts'
 
 /** Average character width in px at the given font size and weight (proportional font) */
 export function estimateTextWidth(text: string, fontSize: number, fontWeight: number): number {
@@ -108,9 +108,10 @@ export const FLOWCHART_DOTTED_DASH = {
 // ============================================================================
 
 export interface RenderStyleOptions {
-  /** A style input (name | spec | stack); only its role overrides
-   *  (text/node/edge/group) are read here — normalized via styleRolesOf. */
+  /** A style input (name | spec | stack); built-in style faces are read here. */
   style?: StyleInput | StyleInput[]
+  /** @internal Projected families can pass precomputed face metrics without exposing them as public style JSON. */
+  styleFace?: InternalStyleFace
 }
 
 export interface RenderStyleDefaults {
@@ -268,11 +269,11 @@ export function resolveRenderStyle(
   options: RenderStyleOptions = {},
   defaults: RenderStyleDefaults = FLOWCHART_STYLE_DEFAULTS,
 ): ResolvedRenderStyle {
-  const roles = styleRolesOf(options.style)
-  const text = roles?.text
-  const node = roles?.node
-  const edge = roles?.edge
-  const group = roles?.group
+  const face = options.styleFace ?? styleFaceOf(options.style)
+  const text = face?.text
+  const node = face?.node
+  const edge = face?.edge
+  const group = face?.group
   const explicitGroupPaddingX = nonNegativeNumber(undefined, group?.paddingX)
   const cornerRadius = defaults.nodeCornerRadius == null
     ? nonNegativeNumber(undefined, node?.cornerRadius)

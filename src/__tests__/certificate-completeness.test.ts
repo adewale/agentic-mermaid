@@ -29,9 +29,12 @@ describe('certificate completeness: every edge out of the pipeline is certified'
   test('issue #83 repro (RL)', () => {
     expect(uncertified(`flowchart RL\n  ${REPRO}`)).toEqual([])
   })
-  test('tracked corpus (76 examples)', () => {
+  test('tracked corpus (76 flowchart examples)', () => {
     const bad: string[] = []
     for (const ex of trackedExamples()) {
+      // Route certificates are an ELK-routed-graph contract; family examples
+      // (journey, pie, …) are scored by the family rubric instead.
+      if (ex.family) continue
       const missing = uncertified(ex.source)
       if (missing.length) bad.push(`${ex.name}: ${missing.join(',')}`)
     }

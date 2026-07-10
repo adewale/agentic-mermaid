@@ -102,7 +102,7 @@ function updateHash() {
   var token = ++hashUpdateToken;
   return encodeSourceCompressed(JSON.stringify(obj)).then(function(encoded) {
     if (token !== hashUpdateToken) return;
-    window.history.replaceState(null, '', '#' + encoded);
+    window.history.replaceState(null, '', window.location.pathname + '#' + encoded);
   });
 }
 

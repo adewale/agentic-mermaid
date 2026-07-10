@@ -3,6 +3,7 @@
  */
 import { describe, it, expect } from 'bun:test'
 import { renderMermaidASCII } from '../ascii/index.ts'
+import { visualWidth } from '../ascii/width.ts'
 
 function render(text: string, options: Parameters<typeof renderMermaidASCII>[1] = {}): string {
   return renderMermaidASCII(text, { colorMode: 'none', ...options })
@@ -47,6 +48,29 @@ describe('timeline ASCII', () => {
 
     expect(result).toContain('Soft')
     expect(result).toContain('launch')
+  })
+
+  it('wraps long timeline labels by terminal display width', () => {
+    const result = render(`timeline
+      title Product history overview for the year
+      section Growth and expansion phase
+      2023 : Public launch of the platform across regions`, { maxWidth: 24 })
+
+    expect(result).toContain('○ 2023')
+    expect(result).toContain('regions')
+    for (const line of result.split('\n')) {
+      expect(visualWidth(line)).toBeLessThanOrEqual(24)
+    }
+  })
+
+  it('brackets only the first line of a wrapped timeline section label', () => {
+    const result = render(`timeline
+      section Growth and expansion phase
+      2023 : Launch`, { maxWidth: 24 })
+
+    const lines = result.split('\n')
+    expect(lines).toContain('[Growth and expansion')
+    expect(lines).toContain(' phase]')
   })
 
   it('supports themed HTML output and escapes labels safely', () => {

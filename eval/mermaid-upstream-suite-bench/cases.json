@@ -7169,7 +7169,6 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
       "nodeCount": 0,
       "edgeCount": 0,
       "groupCount": 0
@@ -7189,7 +7188,6 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
       "nodeCount": 0,
       "edgeCount": 0,
       "groupCount": 1

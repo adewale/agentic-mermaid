@@ -80,7 +80,7 @@ describe('metamorphic: relations across all renderable families', () => {
     xychart: { nodes: 1, edges: 0, groups: 0 },
     pie: { nodes: 2, edges: 0, groups: 0 },
     quadrant: { nodes: 2, edges: 0, groups: 0 },
-    journey: { nodes: 2, edges: 0, groups: 1 },
+    journey: { nodes: 2, edges: 0, groups: 3 },
     timeline: { nodes: 4, edges: 0, groups: 1 },
     gantt: { nodes: 2, edges: 0, groups: 1 },
   }

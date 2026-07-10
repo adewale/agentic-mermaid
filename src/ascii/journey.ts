@@ -6,9 +6,12 @@
 // ============================================================================
 
 import { parseJourneyDiagram } from '../journey/parser.ts'
+import type { JourneyDiagram } from '../journey/types.ts'
 import { preprocessMermaidLines } from '../mermaid-source.ts'
 import { colorizeLine, DEFAULT_ASCII_THEME } from './ansi.ts'
 import type { AsciiConfig, AsciiTheme, CharRole, ColorMode } from './types.ts'
+import { visualWidth } from './width.ts'
+import { wrapText } from './wrap.ts'
 
 interface StyledSegment {
   text: string
@@ -44,6 +47,24 @@ function renderScoreSegments(score: number, useAscii: boolean): StyledSegment[] 
   return segments.filter(segment => segment.text.length > 0)
 }
 
+/** Block glyphs for scores 1..5 — five distinct heights, lowest to full. */
+const SCORE_BLOCKS = ['▁', '▂', '▄', '▆', '█'] as const
+
+/**
+ * Score trajectory strip — one glyph per task in source order, a single
+ * space between sections. Mirrors the SVG renderer's experience curve so
+ * terminal output conveys the trajectory too. ASCII mode uses the score
+ * digits themselves. Scores are parser-validated to the 1..5 range.
+ */
+function renderScoreStrip(diagram: JourneyDiagram, useAscii: boolean): string {
+  return diagram.sections
+    .map(section => section.tasks
+      .map(task => useAscii ? String(task.score) : SCORE_BLOCKS[task.score - 1]!)
+      .join(''))
+    .filter(group => group.length > 0)
+    .join(' ')
+}
+
 /**
  * Render a Mermaid journey diagram to ASCII/Unicode text.
  */
@@ -52,6 +73,7 @@ export function renderJourneyAscii(
   config: AsciiConfig,
   colorMode: ColorMode = 'none',
   theme: AsciiTheme = DEFAULT_ASCII_THEME,
+  maxWidth?: number,
 ): string {
   const lines = preprocessMermaidLines(text)
   const diagram = parseJourneyDiagram(lines)
@@ -62,9 +84,24 @@ export function renderJourneyAscii(
   }
 
   if (diagram.title) {
-    for (const line of diagram.title.split('\n')) {
+    for (const line of wrapText(diagram.title, maxWidth)) {
       pushLine([{ text: line, role: 'text' }])
     }
+    pushLine()
+  }
+
+  const scoreStrip = renderScoreStrip(diagram, useAscii)
+  if (scoreStrip) {
+    const stripPrefix = 'scores: '
+    const stripLines = wrapText(scoreStrip, maxWidth ? Math.max(1, maxWidth - stripPrefix.length) : undefined, { hyphenate: false })
+    stripLines.forEach((line, index) => {
+      pushLine([
+        index === 0
+          ? { text: stripPrefix, role: 'border' }
+          : { text: ' '.repeat(stripPrefix.length), role: null },
+        { text: line, role: 'arrow' },
+      ])
+    })
     pushLine()
   }
 
@@ -72,18 +109,28 @@ export function renderJourneyAscii(
     const section = diagram.sections[sectionIndex]!
 
     if (section.label) {
-      pushLine([
-        { text: '[', role: 'border' },
-        { text: section.label.replace(/\n/g, ' / '), role: 'text' },
-        { text: ']', role: 'border' },
-      ])
+      // Bracket only the first line of a wrapped label — bracketing every
+      // line would read as one section per line. Continuations indent by
+      // one cell to align inside the opening bracket.
+      const labelLines = wrapText(section.label.replace(/\n/g, ' / '), maxWidth ? Math.max(1, maxWidth - 2) : undefined)
+      labelLines.forEach((line, index) => {
+        const segments: StyledSegment[] = [
+          index === 0
+            ? { text: '[', role: 'border' }
+            : { text: ' ', role: null },
+          { text: line, role: 'text' },
+        ]
+        if (index === labelLines.length - 1) segments.push({ text: ']', role: 'border' })
+        pushLine(segments)
+      })
     }
 
     for (let taskIndex = 0; taskIndex < section.tasks.length; taskIndex++) {
       const task = section.tasks[taskIndex]!
       const scoreSegments = renderScoreSegments(task.score, useAscii)
       const scoreWidth = 5
-      const taskLines = task.text.split('\n')
+      const taskPrefixWidth = scoreWidth + 1
+      const taskLines = wrapText(task.text, maxWidth ? Math.max(1, maxWidth - taskPrefixWidth) : undefined)
 
       pushLine([
         ...scoreSegments,
@@ -92,18 +139,24 @@ export function renderJourneyAscii(
       ])
       for (const line of taskLines.slice(1)) {
         pushLine([
-          { text: `${' '.repeat(scoreWidth + 1)} `, role: null },
+          { text: ' '.repeat(taskPrefixWidth), role: null },
           { text: line, role: 'text' },
         ])
       }
 
       if (task.actors.length > 0) {
-        pushLine([
-          { text: '  ', role: null },
-          { text: 'by', role: 'border' },
-          { text: ' ', role: null },
-          { text: task.actors.join(', '), role: 'text' },
-        ])
+        const actorPrefix = '  by '
+        const actorLines = wrapText(task.actors.join(', '), maxWidth ? Math.max(1, maxWidth - visualWidth(actorPrefix)) : undefined)
+        actorLines.forEach((line, index) => {
+          pushLine([
+            { text: index === 0 ? '  ' : ' '.repeat(visualWidth(actorPrefix)), role: null },
+            ...(index === 0 ? [
+              { text: 'by', role: 'border' as const },
+              { text: ' ', role: null },
+            ] : []),
+            { text: line, role: 'text' },
+          ])
+        })
       }
 
       const moreTasks = taskIndex < section.tasks.length - 1

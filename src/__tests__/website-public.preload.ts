@@ -6,23 +6,114 @@
 // agent-doc-sync) would fail reading it. Build it once here, in a separate
 // process so the unit run's coverage instrumentation never touches the build.
 //
-// Liveness is tracked by a sentinel written only AFTER a fully successful build.
-// index.html is emitted early in the build, so it is not a reliable marker — a
-// crashed or killed build would leave it behind and the next run would skip the
-// rebuild and test a half-built bundle. On failure the partial output is removed
-// so the next run rebuilds from scratch.
-import { existsSync, rmSync, writeFileSync } from 'node:fs'
+// Liveness is tracked by a source fingerprint sentinel written only AFTER a
+// fully successful build. index.html is emitted early in the build, so it is
+// not a reliable marker — a crashed or killed build would leave it behind and
+// the next run would skip the rebuild and test a half-built bundle. On failure
+// the partial output is removed so the next run rebuilds from scratch.
+import { createHash } from 'node:crypto'
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const OUT = join(ROOT, 'website', 'public')
 const SENTINEL = join(OUT, '.preload-built')
+const LOCK = join(OUT, '.preload-build.lock')
+const FINGERPRINT_PATHS = [
+  'website/build.ts',
+  'website/source',
+  'website/src',
+  'public',
+  'docs/schemas/style-spec.schema.json',
+  'docs/assets/style-cookbook',
+  'examples/styles',
+  'skills/agentic-mermaid-diagram-workflow',
+  'Instructions_for_agents.md',
+  'editor/examples.ts',
+  'editor/js',
+  'scripts/site/samples-data.ts',
+  'src',
+  'eval/agent-usage/homepage-prompt.ts',
+  'assets/fonts',
+  'package.json',
+  'bun.lock',
+]
 
-if (!existsSync(SENTINEL)) {
-  const r = Bun.spawnSync(['bun', 'run', 'website/build.ts'], { cwd: ROOT, stdout: 'inherit', stderr: 'inherit' })
-  if (r.exitCode !== 0) {
-    rmSync(OUT, { recursive: true, force: true })
-    throw new Error('website/public build (test preload) failed')
+ensureBuilt()
+
+function ensureBuilt(): void {
+  const fingerprint = buildFingerprint()
+  if (readSentinel() === fingerprint) return
+
+  mkdirSync(OUT, { recursive: true })
+  const acquired = acquireLock(fingerprint)
+  if (!acquired) return
+  try {
+    const latest = buildFingerprint()
+    if (readSentinel() === latest) return
+    const r = Bun.spawnSync(['bun', 'run', 'website/build.ts', '--public-only'], { cwd: ROOT, stdout: 'inherit', stderr: 'inherit' })
+    if (r.exitCode !== 0) {
+      rmSync(OUT, { recursive: true, force: true })
+      throw new Error('website/public build (test preload) failed')
+    }
+    writeFileSync(SENTINEL, buildFingerprint())
+  } finally {
+    rmSync(LOCK, { recursive: true, force: true })
   }
-  writeFileSync(SENTINEL, '')
+}
+
+function acquireLock(fingerprint: string): boolean {
+  for (let attempt = 0; attempt < 600; attempt++) {
+    try {
+      mkdirSync(LOCK, { recursive: false })
+      return true
+    } catch {
+      if (readSentinel() === fingerprint) return false
+      sleepSync(100)
+    }
+  }
+  throw new Error('Timed out waiting for website/public build preload lock')
+}
+
+function sleepSync(ms: number): void {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
+}
+
+function readSentinel(): string | null {
+  if (!existsSync(SENTINEL)) return null
+  return readFileSync(SENTINEL, 'utf8')
+}
+
+function buildFingerprint(): string {
+  const hash = createHash('sha256')
+  for (const rel of FINGERPRINT_PATHS) {
+    addPathToHash(hash, join(ROOT, rel), rel)
+  }
+  return hash.digest('hex')
+}
+
+function addPathToHash(hash: ReturnType<typeof createHash>, abs: string, rel: string): void {
+  hash.update(rel)
+  hash.update('\0')
+  if (!existsSync(abs)) {
+    hash.update('missing')
+    hash.update('\0')
+    return
+  }
+  const stat = statSync(abs)
+  if (stat.isDirectory()) {
+    hash.update('dir')
+    hash.update('\0')
+    for (const name of readdirSync(abs).sort()) {
+      if (rel === 'website' && name === 'public') continue
+      if (rel === 'website/src' && name === 'generated') continue
+      if (rel === 'src' && name === '__tests__') continue
+      addPathToHash(hash, join(abs, name), `${rel}/${name}`)
+    }
+    return
+  }
+  hash.update('file')
+  hash.update('\0')
+  hash.update(readFileSync(abs))
+  hash.update('\0')
 }

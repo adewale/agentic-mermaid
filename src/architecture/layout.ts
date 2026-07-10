@@ -55,7 +55,7 @@ export function layoutArchitectureDiagram(
     layerSpacing: options.layerSpacing ?? 56,
     componentSpacing: options.componentSpacing,
     preserveSubgraphChildOrder: true,
-    style: metrics ? {
+    styleFace: metrics ? {
       node: {
         fontSize: metrics.serviceFontSize,
         fontWeight: metrics.serviceFontWeight,

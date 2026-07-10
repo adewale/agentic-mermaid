@@ -682,5 +682,170 @@
     "crossings": 0,
     "symErr": 0,
     "labelOff": 0.092
+  },
+  "journey/mermaid-docs-working-day": {
+    "kind": "family",
+    "hard": 0,
+    "score": 100,
+    "offCanvas": 0,
+    "nodeOverlaps": 0,
+    "groupBreaches": 0,
+    "groupOverlaps": 0,
+    "labelled": 1,
+    "journeyScore": 100
+  },
+  "journey/wide-section-label": {
+    "kind": "family",
+    "hard": 0,
+    "score": 100,
+    "offCanvas": 0,
+    "nodeOverlaps": 0,
+    "groupBreaches": 0,
+    "groupOverlaps": 0,
+    "labelled": 1,
+    "journeyScore": 100
+  },
+  "journey/many-tasks-15": {
+    "kind": "family",
+    "hard": 0,
+    "score": 100,
+    "offCanvas": 0,
+    "nodeOverlaps": 0,
+    "groupBreaches": 0,
+    "groupOverlaps": 0,
+    "labelled": 1,
+    "journeyScore": 100
+  },
+  "journey/multi-actor": {
+    "kind": "family",
+    "hard": 0,
+    "score": 100,
+    "offCanvas": 0,
+    "nodeOverlaps": 0,
+    "groupBreaches": 0,
+    "groupOverlaps": 0,
+    "labelled": 1,
+    "journeyScore": 100
+  },
+  "family/state": {
+    "kind": "family",
+    "hard": 0,
+    "score": 100,
+    "offCanvas": 0,
+    "nodeOverlaps": 0,
+    "groupBreaches": 0,
+    "groupOverlaps": 0,
+    "labelled": 1,
+    "journeyScore": null
+  },
+  "family/sequence": {
+    "kind": "family",
+    "hard": 0,
+    "score": 100,
+    "offCanvas": 0,
+    "nodeOverlaps": 0,
+    "groupBreaches": 0,
+    "groupOverlaps": 0,
+    "labelled": 1,
+    "journeyScore": null
+  },
+  "family/timeline": {
+    "kind": "family",
+    "hard": 0,
+    "score": 100,
+    "offCanvas": 0,
+    "nodeOverlaps": 0,
+    "groupBreaches": 0,
+    "groupOverlaps": 0,
+    "labelled": 1,
+    "journeyScore": null
+  },
+  "family/class": {
+    "kind": "family",
+    "hard": 0,
+    "score": 100,
+    "offCanvas": 0,
+    "nodeOverlaps": 0,
+    "groupBreaches": 0,
+    "groupOverlaps": 0,
+    "labelled": 1,
+    "journeyScore": null
+  },
+  "family/er": {
+    "kind": "family",
+    "hard": 0,
+    "score": 100,
+    "offCanvas": 0,
+    "nodeOverlaps": 0,
+    "groupBreaches": 0,
+    "groupOverlaps": 0,
+    "labelled": 1,
+    "journeyScore": null
+  },
+  "family/journey": {
+    "kind": "family",
+    "hard": 0,
+    "score": 100,
+    "offCanvas": 0,
+    "nodeOverlaps": 0,
+    "groupBreaches": 0,
+    "groupOverlaps": 0,
+    "labelled": 1,
+    "journeyScore": 100
+  },
+  "family/architecture": {
+    "kind": "family",
+    "hard": 0,
+    "score": 100,
+    "offCanvas": 0,
+    "nodeOverlaps": 0,
+    "groupBreaches": 0,
+    "groupOverlaps": 0,
+    "labelled": 1,
+    "journeyScore": null
+  },
+  "family/xychart": {
+    "kind": "family",
+    "hard": 0,
+    "score": 100,
+    "offCanvas": 0,
+    "nodeOverlaps": 0,
+    "groupBreaches": 0,
+    "groupOverlaps": 0,
+    "labelled": 1,
+    "journeyScore": null
+  },
+  "family/pie": {
+    "kind": "family",
+    "hard": 0,
+    "score": 100,
+    "offCanvas": 0,
+    "nodeOverlaps": 0,
+    "groupBreaches": 0,
+    "groupOverlaps": 0,
+    "labelled": 1,
+    "journeyScore": null
+  },
+  "family/quadrant": {
+    "kind": "family",
+    "hard": 0,
+    "score": 100,
+    "offCanvas": 0,
+    "nodeOverlaps": 0,
+    "groupBreaches": 0,
+    "groupOverlaps": 0,
+    "labelled": 1,
+    "journeyScore": null
+  },
+  "family/gantt": {
+    "kind": "family",
+    "hard": 0,
+    "score": 100,
+    "offCanvas": 0,
+    "nodeOverlaps": 0,
+    "groupBreaches": 0,
+    "groupOverlaps": 0,
+    "labelled": 1,
+    "journeyScore": null
   }
 }

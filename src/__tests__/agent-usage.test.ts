@@ -159,26 +159,23 @@ describe('anti-pattern linter (the affordances steer agents right)', () => {
 })
 
 describe('homepage prompt eval contract', () => {
-  test('homepage CTA prompt is the prompt used by default agent eval cases', () => {
+  test('homepage CTA is fetch-only and eval cases append only task slots', () => {
     const prompt = extractHomepageAgentPrompt()
-    expect(homepagePromptChecklist(prompt)).toEqual([])
-    expect(prompt).toContain('Create or edit a Mermaid diagram')
-    expect(prompt).toContain('Do not assume this repository is checked out')
-    expect(prompt).toContain('one channel available to you')
-    expect(prompt).toContain('the hosted MCP at `https://agentic-mermaid.dev/mcp`')
-    expect(prompt).toContain('Library imports, when available')
-    expect(prompt).toContain('For a new diagram, author Mermaid source directly')
-    expect(prompt).toContain('Mutation ops use a `kind` discriminator')
-    expect(prompt).toContain('return an object with `{ source }`')
-    expect(prompt).toContain('In Trace, name the channel and the calls/ops you actually ran')
-    expect(prompt).toContain('For an existing diagram, parse it')
+    expect(prompt).toBe('Fetch https://agentic-mermaid.dev/start.md and follow it.')
+    expect(homepagePromptChecklist(buildHomepageFullPrompt())).toEqual([])
+    expect(buildHomepageFullPrompt()).toContain('Do not assume this repository is checked out')
+    expect(buildHomepageFullPrompt()).toContain('the hosted MCP at `https://agentic-mermaid.dev/mcp`')
+    expect(buildHomepageFullPrompt()).toContain('Mutation ops use a `kind` discriminator')
     for (const c of DEFAULT_CASES) {
-      expect({ id: c.id, hasPrompt: c.prompt.includes('Create or edit a Mermaid diagram') }).toEqual({ id: c.id, hasPrompt: true })
+      expect({ id: c.id, startsWithPointer: c.prompt.startsWith(`${HOMEPAGE_AGENT_POINTER}\n\nTask:\n`) }).toEqual({ id: c.id, startsWithPointer: true })
       expect({ id: c.id, unresolved: /<replace with|<include the facts|<paste existing/.test(c.prompt) }).toEqual({ id: c.id, unresolved: false })
+      for (const inlineOnly of ['Do not assume this repository is checked out', 'Mutation ops use a `kind` discriminator', 'return an object with `{ source }`']) {
+        expect({ id: c.id, inlineOnly, leaked: c.prompt.includes(inlineOnly) }).toEqual({ id: c.id, inlineOnly, leaked: false })
+      }
     }
   })
 
-  test('homepage prompt variants remove only eval-targeted semantic read-back guidance', () => {
+  test('start.md prompt variants remove only eval-targeted semantic read-back guidance', () => {
     const baseline = buildHomepageFullPrompt()
     const treatment = applyHomepagePromptVariant(baseline, 'no-semantic-readback')
     const removed = 'Before returning, confirm the specific change the task asked for is actually present'
@@ -194,11 +191,11 @@ describe('homepage prompt eval contract', () => {
       expect({ heldConstant, baseline: baseline.includes(heldConstant), treatment: treatment.includes(heldConstant) })
         .toEqual({ heldConstant, baseline: true, treatment: true })
     }
-    expect(() => applyHomepagePromptVariant('not the homepage prompt', 'no-semantic-readback')).toThrow('semantic read-back guidance')
+    expect(() => applyHomepagePromptVariant('not the start.md protocol', 'no-semantic-readback')).toThrow('semantic read-back guidance')
   })
 
-  test('subagent prompt capture records the homepage prompt variant in requests and manifest', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'am-prompt-variant-'))
+  test('subagent prompt capture keeps the homepage surface fetch-only', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'am-homepage-fetch-only-'))
     const c = DEFAULT_CASES.find(c => c.id === 'state_add_done_transition')!
     const manifest = prepareSubagentPromptEval({
       outDir: dir,
@@ -206,34 +203,28 @@ describe('homepage prompt eval contract', () => {
       model: 'unit',
       surface: 'homepage',
       mode: 'code',
-      promptVariant: 'no-semantic-readback',
       caseIds: [c.id],
       capturedAt: '2026-07-04T00:00:00.000Z',
     })
     const request = readFileSync(manifest.requests[0]!.requestPath, 'utf8')
-    expect(manifest.promptVariant).toBe('no-semantic-readback')
-    expect(JSON.parse(readFileSync(join(dir, 'subagent-prompt-eval.json'), 'utf8')).promptVariant).toBe('no-semantic-readback')
+    expect(manifest.promptVariant).toBe('baseline')
+    expect(JSON.parse(readFileSync(join(dir, 'subagent-prompt-eval.json'), 'utf8')).promptVariant).toBe('baseline')
     expect(request).toContain('Task prompt under test:')
-    expect(request).toContain('Run `verifyMermaid` at every commit point')
+    expect(request).toContain(HOMEPAGE_AGENT_POINTER)
+    expect(request).toContain('Task:\nAdd a done transition')
+    expect(request).not.toContain('Run `verifyMermaid` at every commit point')
     expect(request).not.toContain('Before returning, confirm the specific change')
     rmSync(dir, { recursive: true, force: true })
   })
 
-  test('the pointer and the graded inline prompt are one fetch flow, both derived from start.md', () => {
-    // The homepage primary CTA is a short pointer that tells an agent to fetch
-    // start.md; the eval grades the inline fallback (buildHomepageFullPrompt).
-    // This proves those two surfaces are the same protocol: the inline prompt
-    // embeds the entire start.md body, and the pointer targets that same hosted
-    // file with the same fill-in slots — so grading the inline prompt grades
-    // exactly what an agent gets by following the pointer.
+  test('the pointer targets start.md and does not duplicate its protocol', () => {
     const startBody = readStartMd().replace(/^#[^\n]*\n+/, '').trim()
-    const inline = buildHomepageFullPrompt()
-    expect(inline.includes(startBody)).toBe(true)
-    expect(HOMEPAGE_AGENT_POINTER).toContain('Fetch https://agentic-mermaid.dev/start.md and follow it')
-    expect(HOMEPAGE_AGENT_POINTER).toContain('<replace with the requested diagram goal or edit>')
-    for (const shared of ['Create or edit a Mermaid diagram with Agentic Mermaid.', 'Task:', 'Context:', 'Mermaid source (for edits; leave blank for a new diagram):']) {
-      expect({ shared, inPointer: HOMEPAGE_AGENT_POINTER.includes(shared), inInline: inline.includes(shared) })
-        .toEqual({ shared, inPointer: true, inInline: true })
+    const protocol = buildHomepageFullPrompt()
+    expect(protocol).toBe(startBody)
+    expect(HOMEPAGE_AGENT_POINTER).toBe('Fetch https://agentic-mermaid.dev/start.md and follow it.')
+    for (const startOnly of ['Do not assume this repository is checked out', 'Run `verifyMermaid` at every commit point', 'Updated Mermaid']) {
+      expect({ startOnly, inPointer: HOMEPAGE_AGENT_POINTER.includes(startOnly), inStartMd: protocol.includes(startOnly) })
+        .toEqual({ startOnly, inPointer: false, inStartMd: true })
     }
   })
 
@@ -287,7 +278,7 @@ describe('homepage prompt eval contract', () => {
     // the transport. Run that literal body through the hosted handler: if the
     // tool name, argument shape, or handshake-free contract drifts, this fails
     // before the prompt lies to anyone.
-    const prompt = extractHomepageAgentPrompt()
+    const prompt = buildHomepageFullPrompt()
     const quoted = prompt.match(/\{"jsonrpc":"2\.0"[^`]*\}/)?.[0]
     expect(quoted).toBeDefined()
     // verify/tools-list never reach Code Mode, so the execute stub must not run.

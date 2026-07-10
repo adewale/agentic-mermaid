@@ -22,8 +22,9 @@ describe('renderMermaidSVG – journey diagrams', () => {
     expect(svg).toContain('My working day')
     expect(svg).toContain('class="journey-section"')
     expect(svg).toContain('class="journey-task"')
-    expect(svg).toContain('class="journey-score-cell-filled"')
-    expect(svg).toContain('class="journey-actor-pill"')
+    expect(svg).toContain('class="journey-score-marker"')
+    expect(svg).toContain('class="journey-actor-dot')
+    expect(svg).toContain('class="journey-baseline"')
   })
 
   it('routes journey diagrams through frontmatter and Mermaid init directives', () => {
@@ -83,15 +84,37 @@ describe('renderMermaidSVG – journey diagrams', () => {
     expect(svg).toContain('data-actor="Cat"')
   })
 
-  it('renders the correct number of filled and empty score cells', () => {
+  it('renders score guide ticks and one score marker per task', () => {
     const svg = render(`journey
       section Work
       Do work: 3: Me`)
 
-    const filledCount = (svg.match(/class="journey-score-cell-filled"/g) ?? []).length
-    const emptyCount = (svg.match(/class="journey-score-cell-empty"/g) ?? []).length
-    expect(filledCount).toBe(3)
-    expect(emptyCount).toBe(2)
+    const guideCount = (svg.match(/class="journey-guide"/g) ?? []).length
+    const markerCount = (svg.match(/class="journey-score-marker"/g) ?? []).length
+    expect(guideCount).toBe(5)
+    expect(markerCount).toBe(1)
+    expect(svg).toContain('data-score="3"')
+    expect(svg).toContain('class="journey-score-face"')
+  })
+
+  it('namespaces Journey marker ids per SVG instead of using the fixed Mermaid id', () => {
+    const first = render(`journey
+      section Work
+      Do work: 3: Me`)
+    const second = render(`journey
+      section Play
+      Take break: 5: Me`)
+
+    const firstMarker = first.match(/<marker id="([^"]*journey[^"]*arrowhead)"/)?.[1]
+    const secondMarker = second.match(/<marker id="([^"]*journey[^"]*arrowhead)"/)?.[1]
+
+    expect(first).not.toContain('id="journey-arrowhead"')
+    expect(first).not.toContain('url(#journey-arrowhead)')
+    expect(firstMarker).toBeDefined()
+    expect(secondMarker).toBeDefined()
+    expect(firstMarker).not.toBe(secondMarker)
+    expect(first).toContain(`marker-end="url(#${firstMarker})"`)
+    expect(second).toContain(`marker-end="url(#${secondMarker})"`)
   })
 
   it('renders multiline labels with tspans', () => {

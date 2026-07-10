@@ -1,15 +1,14 @@
 # Authoring styles
 
 A **style** is a partial description of how diagrams look. Every field is
-optional: a style that only sets colors is what people call a *theme*; a
-style that only sets `node.cornerRadius` is a tweak; a style that sets
+optional: a style that only sets colors is a palette; a style that sets
 stroke character, fills, typography, and a palette is a full look. Styles
 apply uniformly to **every** diagram family — registered once, they work for
 all twelve types, including families added later.
 
 Styles compose by **stacking**: `RenderOptions.style` accepts a name, an
 inline spec, or an array of either, merged left → right (later fields win,
-colors merge per channel, role overrides merge per field):
+colors merge per channel):
 
 ```ts
 import { renderMermaidSVG, registerStyle } from 'agentic-mermaid'
@@ -40,7 +39,7 @@ You never pick a backend. The engine infers the machinery from what the
 style asks for: `stroke: 'freehand'` or `fill: 'wash'` engages the hybrid
 backend (pressure ribbons, watercolor); `stroke: 'jittered'`, hachure fills,
 sketch parameters, or a page backdrop engage rough.js; anything else renders
-on the crisp default backend with your palette and typography.
+on the crisp default backend with your palette and font.
 
 ## The contract you get for free
 
@@ -57,8 +56,7 @@ on the crisp default backend with your palette and typography.
   drawn last, never perturbed, with a page-colored halo (labels stay legible
   on any fill).
 - **Crisp is sacred.** `style: 'crisp'` (or unset) is byte-identical to the
-  plain renderer and gated by a corpus-wide equivalence test. A style that
-  only sets role overrides also stays on the crisp path.
+  plain renderer and gated by a corpus-wide equivalence test.
 
 ## Field reference
 
@@ -67,10 +65,9 @@ on the crisp default backend with your palette and typography.
 | identity | `name`, `blurb` (required only for `registerStyle`) |
 | palette | `colors: { bg, fg, line, accent, muted, surface, border }` — all optional |
 | typography | `font` — SVG always declares it; for PNG the faces built-in looks use are bundled (Caveat, EB Garamond, Architects Daughter, Share Tech Mono), other families need the `fontDirs` PNG option or fall back to DejaVu Sans |
-| stroke | `stroke: 'crisp' \| 'jittered' \| 'freehand'`, `roughness`, `bowing`, `passes` (1 = single pass, 2 = sketchy double stroke), `strokeWidth` — works on every backend (on the default backend it sets the role line widths; explicit `node`/`edge`/`group.lineWidth` win) |
+| stroke | `stroke: 'crisp' \| 'jittered' \| 'freehand'`, `roughness`, `bowing`, `passes` (1 = single pass, 2 = sketchy double stroke), `strokeWidth` — works on every backend |
 | fill | `fill: 'none' \| 'hachure' \| 'solid' \| 'wash'`, `hachureAngle`, `hachureGap`, `fillWeight`, `washOpacity`, `washEdge` — `fill` picks the *sketch* fill algorithm; the default backend already paints flat `surface` fills, so `'solid'` is its native behavior and `'none'` only changes output on sketch backends |
 | page | `backdrop: 'plain' \| 'paper-ruled' \| 'grid'` |
-| role overrides | `text`, `node`, `edge`, `group` (font sizes, label transforms, line widths, corner radii, paddings per semantic role) |
 | advisory | `intent: 'premium' \| 'draft' \| 'lofi'`, `mono` — read by pickers and the rubric below, never by the engine |
 | expert | `backend` — overrides inference; only needed for code-backed extensions |
 
@@ -88,7 +85,7 @@ screenshots, and CLI commands.
 Only a genuinely **new capability** (a new fill algorithm, compositor, or
 layout-aware dialect) justifies code: implement `StyleBackend`, call
 `registerBackend(...)`, and keep the determinism rule (seed in, bytes out).
-Backends never dispatch on diagram family — they see roles and channels.
+Backends never dispatch on diagram family — they see semantic scene marks and paint channels.
 
 ## The quality rubric — what makes a style GOOD
 
@@ -124,7 +121,7 @@ judgement.
 ## Verify before you ship
 
 ```bash
-bun run style:audit                         # element role coverage + role-token propagation + contrast + label transforms
+bun run style:audit                         # Style + Palette contract across families
 bun test src/__tests__/styled-output.test.ts   # determinism + goldens + composition
 bun test src/__tests__/scene-fidelity.test.ts  # semantic/crisp agreement
 bun test src/__tests__/svg-equivalence.test.ts # crisp path untouched

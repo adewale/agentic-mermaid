@@ -7,9 +7,11 @@ journey
 ---
 Product journey
 
+scores: ▆ █
+
 [Discover]
 ●●●●○ Interview
-       users
+      users
   by PM, Research
 
 [Deliver]

@@ -628,21 +628,32 @@ describe('property-based journey layout bounds', () => {
             expectFinite(task.textX, `task(${task.id}).textX`)
             expectFinite(task.textY, `task(${task.id}).textY`)
 
-            // Score cells should be finite and within canvas
-            for (const cell of task.scoreCells) {
-              expectFinite(cell.x, 'scoreCell.x')
-              expectFinite(cell.y, 'scoreCell.y')
-              expectFinite(cell.size, 'scoreCell.size')
-              expect(cell.size > 0).toBe(true)
-              expect(cell.x >= -0.5).toBe(true)
-              expect(cell.y >= -0.5).toBe(true)
-            }
+            // Score marker and track should be finite and within canvas
+            expectFinite(task.centerX, `task(${task.id}).centerX`)
+            expectFinite(task.track.x, `track(${task.id}).x`)
+            expectFinite(task.track.y1, `track(${task.id}).y1`)
+            expectFinite(task.track.y2, `track(${task.id}).y2`)
+            expect(task.track.y1 >= -0.5).toBe(true)
+            expect(task.track.y2 <= canvas.height + 0.5).toBe(true)
+            expectFinite(task.marker.cx, `marker(${task.id}).cx`)
+            expectFinite(task.marker.cy, `marker(${task.id}).cy`)
+            expectFinite(task.marker.r, `marker(${task.id}).r`)
+            expect(task.marker.r > 0).toBe(true)
+            expect(task.marker.cx - task.marker.r >= -0.5).toBe(true)
+            expect(task.marker.cx + task.marker.r <= canvas.width + 0.5).toBe(true)
+            expect(task.marker.cy - task.marker.r >= -0.5).toBe(true)
+            expect(task.marker.cy + task.marker.r <= canvas.height + 0.5).toBe(true)
 
-            // Actor pills should be finite
-            for (const pill of task.actorPills) {
-              expectFiniteRect(pill, `actorPill(${pill.label})`)
-              expect(pill.width > 0).toBe(true)
-              expect(pill.height > 0).toBe(true)
+            // Actor dots should be finite
+            for (const dot of task.actorDots) {
+              expectFinite(dot.x, `actorDot(${dot.label}).x`)
+              expectFinite(dot.y, `actorDot(${dot.label}).y`)
+              expectFinite(dot.r, `actorDot(${dot.label}).r`)
+              expect(dot.r > 0).toBe(true)
+              expect(dot.x - dot.r >= -0.5).toBe(true)
+              expect(dot.y - dot.r >= -0.5).toBe(true)
+              expect(dot.x + dot.r <= canvas.width + 0.5).toBe(true)
+              expect(dot.y + dot.r <= canvas.height + 0.5).toBe(true)
             }
           }
         }
@@ -679,7 +690,8 @@ describe('property-based journey layout bounds', () => {
           for (const task of section.tasks) {
             expect(task.width > 0).toBe(true)
             expect(task.height > 0).toBe(true)
-            expect(task.scoreCells.length).toBe(5)
+            expect(task.marker.r > 0).toBe(true)
+            expect(task.track.y2).toBeGreaterThan(task.track.y1)
           }
         }
       }),

@@ -4,6 +4,10 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ## Unreleased
 
+_No changes yet._
+
+## 0.1.0 — 2026-07-09
+
 ### Added
 - **Validated declarative edit boundary + `mutate`/`build` hosted MCP tools.** The untyped MCP/CLI JSON boundary now shape-validates every op before the mutator (field presence, primitive type, enum membership across all 12 families), so a malformed op — e.g. `add_class {name:'Duck'}` where `id` is expected — returns a prescriptive `INVALID_OP` naming the offending field and listing the valid ones, instead of silently producing `class undefined`. One choke point (`mutateChecked`) backs every untyped path: the new hosted `mutate` (edit a `source`) and `build` (author from a `family`) tools, the Code Mode facade, and the CLI `--op`/`--ops`. All return one canonical envelope `{ ok, family, source, verify }`. Code Mode `execute` now also marshals a returned diagram (or `Result` wrapping one) to that same envelope rather than failing "non-serializable"; other unserializable returns get a prescriptive plain-data hint.
 - **Blank-slate authoring on the typed path: `createMermaid(kind)` / `buildMermaid(kind, ops)`** (from direct agent feedback). `createMermaid` returns an empty structured `ValidDiagram` for any built-in family (overloads narrow the return per kind; `direction` option for flowchart/state); `buildMermaid` folds a typed mutation list over that empty diagram, with errors carrying the failing op's `opIndex`. Exposed in the library (`agentic-mermaid/agent`), the Code Mode `mermaid.*` SDK (results are trusted inputs to `mutate`/`verify`/`serialize`), and the SDK declaration. Creating a new diagram no longer requires hand-writing Mermaid source. To let empty diagrams be built up op by op, the journey/xychart "structured floor" now refuses only mutations that would *empty a non-empty* body, and the ER serializer emits label-less relations as `: ""` so they re-parse structured instead of falling back to opaque.
@@ -41,14 +45,14 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 - **`am` CLI**: `render`, `preview` (strict standalone HTML + optional `--open`), `verify`, `parse`, `serialize`, `mutate` (single `--op` or batched `--ops`, verify-before-emit), `format`, `describe`, `capabilities`, `batch` (including mutate), `render-markdown`, `llms-txt`, `init-agent`, `--json`, per-command `--help`, and `--agent-instructions`.
 - **Node-runnable package bins**: `am`, `agentic-mermaid`, and `agentic-mermaid-mcp` point to built `dist/*.js` entrypoints for npm/npx consumers while Bun `bin/*.ts` files remain for local development.
 - **Hosted agent manifests**: the Agentic Mermaid website publishes `/llms.txt` and `/agent-instructions.md` for zero-install agent onboarding.
-- **Publish hardening**: package metadata and release workflow support public npm provenance (`publishConfig.provenance`, GitHub OIDC `id-token`, build-before-publish, and `npm publish --provenance`).
+- **Publish hardening**: package metadata and release workflow support public npm provenance (`publishConfig.provenance`, GitHub OIDC `id-token`, build-before-publish, and trusted publishing via `npm publish`).
 - **`agentic-mermaid-mcp`**: a Code Mode MCP server (one JavaScript `execute` tool, `node:vm` sandbox, typed SDK declaration) so agents compose the whole verify-before-commit loop in one round-trip.
 - **`Instructions_for_agents.md`** and agent-agnostic skill bundles under `skills/`.
 - See [`AGENT_NATIVE.md`](./AGENT_NATIVE.md) for the design, [`examples/agent-loop.ts`](./examples/agent-loop.ts) for a runnable walkthrough, [`examples/mcp-vs-cli-complex-diagrams.ts`](./examples/mcp-vs-cli-complex-diagrams.ts) for MCP-vs-CLI parity, and [`examples/agent-improve-auth-flow.ts`](./examples/agent-improve-auth-flow.ts) for create → assess → mutate → reassess → render.
 - Live editor deployment at <https://agentic-mermaid.dev/editor>.
 - Editor examples palette with presets for every supported diagram family: flowchart, state, architecture, sequence, class, ER, timeline, journey, xychart, pie, quadrant, and gantt.
-- Semantic role-based SVG styling via `options.style.text`, `options.style.node`, `options.style.edge`, and `options.style.group`.
-- Role-style showcase samples in the live gallery under **Contents → Role Styles**.
+- Style + Palette SVG styling via named looks, palette stacks, custom public JSON style records, and deterministic `seed` values.
+- Style + Palette showcase samples in the live examples surface.
 - Fork documentation describing differences from upstream in [`docs/fork-differences.md`](./docs/fork-differences.md).
 - Product/design context documents ([`docs/project/product.md`](./docs/project/product.md), [`docs/project/design.md`](./docs/project/design.md)) for future design-system aligned work.
 - Homepage sample search and category filters for browsing the full showcase.
@@ -58,12 +62,13 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 - **Consumer-path fuzz** (`e2e/tarball-consumer-fuzz.e2e.test.ts`): closes the last artifact gap by fuzzing what actually ships — `npm pack` → install the tarball into a clean project → drive the installed package and its bins under **plain Node** with generated input. Three arms over one install: the installed library resolves both entry points via the exports map and renders identically to source (crash parity + flowchart byte-equality + PNG crash-freedom); `am batch --jsonl` emits one result per line with no stream-abort on hostile lines and ASCII matching source, and one-shot `am render` across formats plus a not-found file return valid exit codes without crashing; and the `agentic-mermaid-mcp` bin answers generated JSON-RPC over stdio with well-formed responses and no server crash. This validates files[] completeness, exports resolution, bin linking, and native-dependency install end-to-end; it runs in the CI e2e lane.
 
 ### Changed
+- **0.1.0 release prep**: README, Getting started, and the generated website install card now make `npm install agentic-mermaid` the primary path; source-checkout instructions remain for repository development and pre-publish previews can still force source-install copy with `SITE_NPM_STATUS=source` or `SITE_NPM_PUBLISHED=0`.
 - **`LABEL_OVERFLOW` now measures the rendered label, not raw source chars** (from direct agent feedback: the cap counted `<br/>` tags and `&#160;` entities toward the 40-char limit, flagging legitimately-fine multi-line labels). The cap now applies to the longest *displayed* line — XML entities decode to one character, `<br>`/`\n` split lines, and formatting tags (`<b>`, `<i>`, …) are stripped — mirroring what the SVG renderer draws. `charCount` in the warning payload reports the rendered length. Applies to every family and to the opaque-body label extractors.
 - The local HTTP MCP startup line now names the plain-JSON `/rpc` endpoint alongside `/sse`, and `docs/mcp-http-transport.md` spells out which endpoints reply with SSE framing vs. plain `application/json` (from direct agent feedback: a script POSTing to the SSE session flow had to strip `data:` framing by hand).
 - The website MCP and security pages now carry an explicit privacy note: hosted tool calls send diagram source/code to the server and successful responses are edge-cached; local library/CLI/stdio need no network.
 - BUILD-20 now has a checked cross-family upstream parser/DB harvest under `eval/mermaid-upstream-suite-bench/` with a pinned Mermaid revision (`a2d9686451df7c4644a3eeca20535bbd4c5776b0`), repeatable `harvest:upstream` and `harvest:upstream:refresh-check` commands, exact structural assertions, BUILD-20 ownership on local compatibility exclusions, and a family-by-family manifest accounting for all 1,170 considered upstream parser/DB blocks: 658 imported source blocks, 512 documented exclusions, and 0 deferred blocks. The executable gate covers 648 cases including the existing 68-case Gantt companion bench, and `ratchet.json` fails CI if imported coverage drops or local-gap budgets grow.
 - **Breaking (unreleased agent surface, BUILD-19): flowchart ops no longer apply to state diagrams.** `asFlowchart` now returns `null` on a state diagram (its body kind is `'state'`, not `'flowchart'`); narrow with `asState` and use the state-shaped ops instead. The CLI `MUTATION_OPS_BY_FAMILY.state` list changed from the 6 flowchart ops to the 8 new state ops, and `mutateAny` narrows `asState` before `asFlowchart`. Every agent surface that said "state shares the flowchart body / narrow via asFlowchart" is updated to the new truth.
-- SVG style customization is now role-based and diagram-family aware; removed flat render style aliases are intentionally ignored.
+- SVG appearance customization now uses Style + Palette render options; removed flat render style aliases are intentionally ignored.
 - Showcase and editor docs now point users to live examples and presets.
 - Fork docs and deploy script now treat GitHub Pages as the fork-owned site and avoid the upstream-owned Craft/Cloudflare deployment target.
 - Live editor now starts blank by default, uses salmon as the default theme, uses a larger grouped Examples palette, and includes Copy SVG alongside Save SVG/PNG export.
@@ -73,7 +78,7 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 - Editor controls, empty state, sidebar, and dropdowns received polish for concentric radii, tactile press states, smoother icon transitions, tabular numbers, and cleaner text wrapping.
 - Homepage and editor typography now use Atkinson Hyperlegible for a more distinctive, readable UI face.
 - Homepage rendering yields between sample batches to keep the page responsive while the full gallery renders.
-- Editor empty state now includes quick starter chips for Flowchart, Sequence, and Role styled examples.
+- Editor empty state now includes quick starter chips for Flowchart, Sequence, and Style + Palette examples.
 - Example rows now include compact diagram-family glyphs for faster scanning.
 - Agent-facing Code Mode examples are executable JavaScript snippets and the stored eval now checks ordered verify inspection before serialization.
 - Every built-in renderable family is structured-when-narrowed in the agent surface; source-level-only editing is reserved for opaque fallback bodies with unmodeled syntax.

@@ -1,9 +1,22 @@
 var renderTimer = null;
+var renderRequestVersion = 0;
 var autoFitPending = true;
 
+function currentEditorSource() {
+  return editor.value.trim();
+}
+
+function isCurrentRender(version, source) {
+  return version === renderRequestVersion && currentEditorSource() === source;
+}
+
 function scheduleRender(delay) {
+  var version = ++renderRequestVersion;
   if (renderTimer) clearTimeout(renderTimer);
-  renderTimer = setTimeout(doRender, delay ?? 300);
+  renderTimer = setTimeout(function() {
+    renderTimer = null;
+    doRender(version);
+  }, delay ?? 300);
 }
 
 function hexToRgb(hex) {
@@ -93,14 +106,26 @@ function buildOptions() {
     if (t.surface) opts.surface = t.surface;
     if (t.border) opts.border = t.border;
   }
-  // Style = the LOOK (hand-drawn, watercolor, ...); theme = the PALETTE.
-  // Explicit theme colors above win over the style's own palette by render
-  // precedence, so any look stacks with any theme.
-  if (state.style && state.style !== "crisp") {
-    opts.style = state.style;
-    opts.seed = state.seed || 0;
-  }
-  return Object.assign(opts, state.config);
+
+  var config = Object.assign({}, state.config);
+  var configStyle = config.style;
+  delete config.style;
+  delete config.editorEdgeStroke;
+  delete config.editorNodeStroke;
+  Object.assign(opts, config);
+
+  // Style picks renderer treatment; Palette picks colors. Shared example links
+  // can also carry a full RenderOptions.style stack in config, so combine the
+  // dropdown style with the config stack instead of letting one overwrite the
+  // other. Later stack entries win for public style fields.
+  var styleStack = [];
+  if (state.style && state.style !== "crisp") styleStack.push(state.style);
+  if (Array.isArray(configStyle)) styleStack = styleStack.concat(configStyle);
+  else if (configStyle) styleStack.push(configStyle);
+  if (styleStack.length === 1) opts.style = styleStack[0];
+  else if (styleStack.length > 1) opts.style = styleStack;
+  if (state.style && state.style !== "crisp") opts.seed = state.seed || 0;
+  return opts;
 }
 
 function setTextOutputs(unicode, ascii) {
@@ -385,9 +410,11 @@ function ensureTextOutputs(source) {
   renderTextOutputs(source);
 }
 
-async function doRender() {
-  var source = editor.value.trim();
+async function doRender(version) {
+  if (typeof version !== "number") version = ++renderRequestVersion;
+  var source = currentEditorSource();
   if (!source) {
+    if (!isCurrentRender(version, source)) return;
     previewInner.innerHTML = emptyPreviewHtml();
     markTextOutputsDirty();
     setTextOutputs("", "");
@@ -405,6 +432,7 @@ async function doRender() {
 
   try {
     var svg = await renderMermaid(source, buildOptions());
+    if (!isCurrentRender(version, source)) return;
     var ms = (performance.now() - t0).toFixed(0);
     previewInner.innerHTML = svg;
     var svgEl = previewInner.querySelector("svg");
@@ -423,6 +451,7 @@ async function doRender() {
     if (typeof updateExportAvailability === "function") updateExportAvailability();
     updateHash();
   } catch (err) {
+    if (!isCurrentRender(version, source)) return;
     var ms = (performance.now() - t0).toFixed(0);
     previewInner.innerHTML = formatRenderErrorHtml(err);
     var errorLoc = extractErrorLocation(String(err || ""));
@@ -437,6 +466,6 @@ async function doRender() {
     setTextOutputs("Fix the render error to see Unicode output.", "Fix the render error to see ASCII output.");
     if (typeof updateExportAvailability === "function") updateExportAvailability();
   } finally {
-    spinner.classList.remove("visible");
+    if (version === renderRequestVersion) spinner.classList.remove("visible");
   }
 }

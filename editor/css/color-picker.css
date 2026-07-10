@@ -88,6 +88,7 @@
 }
 .color-swatch-btn {
   width: 100%;
+  min-height: 28px;
   aspect-ratio: 1;
   border-radius: var(--radius-sm);
   border: 1px solid var(--line-strong);
@@ -99,4 +100,8 @@
   box-shadow: var(--shadow-control);
   z-index: 1;
   position: relative;
+}
+@media (pointer: coarse) {
+  .color-palette { grid-template-columns: repeat(6, 1fr); }
+  .color-swatch-btn { min-height: 36px; }
 }

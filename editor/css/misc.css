@@ -66,9 +66,6 @@
   background: color-mix(in srgb, var(--popover-bg) 88%, transparent);
   -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
-  border: 1px solid var(--control-border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-popover);
 }
 .shortcuts-dialog-header {
   display: flex;

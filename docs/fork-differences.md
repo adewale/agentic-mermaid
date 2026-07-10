@@ -18,7 +18,7 @@ GitHub Pages is no longer a deployed surface; its samples-gallery generator has 
 
 Agentic Mermaid is published as `agentic-mermaid` and adds a typed editing surface for AI agents under the `agentic-mermaid/agent` subpath export, plus an `am` CLI and an `agentic-mermaid-mcp` Code Mode MCP server (stdio plus opt-in HTTP/SSE transport with managed render artifacts). A render-only library forces an agent to regenerate the whole diagram to change one node; here, new diagrams are authored as source then parsed/verified/rendered, while existing structured diagrams go parse → narrow → mutate → verify → serialize.
 
-Twelve of the twelve families are structured-when-narrowed: flowchart (6 ops), state (8 ops via a dedicated `StateBody` and `asState`), sequence (5 ops, **segment-preserving** — notes/`alt`/`loop` blocks ride along verbatim while the ops stay live), timeline (10), class (10), ER (7), journey (10), XY chart (8), architecture (10), pie (7 via `asPie`), quadrant (7 via `asQuadrant`), and Gantt (9 via `asGantt`). Any unmodeled syntax still round-trips losslessly via preserved source (opaque fallback). Layout is deterministic and verified byte-identical across processes, and `verifyMermaid` returns structured warnings in three tiers (structural, geometric, lint) plus perceptual quality metrics (`measureQuality`) covering every family. See [`AGENT_NATIVE.md`](../AGENT_NATIVE.md) and [`Instructions_for_agents.md`](../Instructions_for_agents.md). Upstream has no equivalent; for a three-way functionality view including Mermaid itself, see [`comparison.md`](./comparison.md).
+Twelve of the twelve families are structured-when-narrowed: flowchart (6 ops), state (8 ops via a dedicated `StateBody` and `asState`), sequence (5 ops, **segment-preserving** — notes/`alt`/`loop` blocks ride along verbatim while the ops stay live), timeline (10), class (10), ER (7), journey (14, including move_task/move_section ordering and accessibility-metadata ops), XY chart (8), architecture (10), pie (7 via `asPie`), quadrant (7 via `asQuadrant`), and Gantt (9 via `asGantt`). Any unmodeled syntax still round-trips losslessly via preserved source (opaque fallback). Layout is deterministic and verified byte-identical across processes, and `verifyMermaid` returns structured warnings in three tiers (structural, geometric, lint) plus perceptual quality metrics (`measureQuality`) covering every family. See [`AGENT_NATIVE.md`](../AGENT_NATIVE.md) and [`Instructions_for_agents.md`](../Instructions_for_agents.md). Upstream has no equivalent; for a three-way functionality view including Mermaid itself, see [`comparison.md`](./comparison.md).
 
 ## New and expanded diagram support
 
@@ -40,31 +40,18 @@ The live editor has registry-backed example coverage for every built-in family
 (`src/__tests__/editor-examples.test.ts`). Browser E2E still spot-checks several
 fork-added rendering paths: architecture, timeline, journey, and xychart.
 
-## Semantic role-based SVG styling
+## Style + Palette SVG rendering
 
-The fork adds a consistent SVG styling API across diagram families:
+The fork adds a consistent Style + Palette API across diagram families:
 
 ```ts
 renderMermaidSVG(source, {
-  style: {
-    text: { fontSize: 13, letterSpacing: 0.1 },
-    node: { fontSize: 15, paddingX: 22, paddingY: 14, cornerRadius: 16, lineWidth: 1.5 },
-    edge: { fontSize: 12, lineWidth: 2.25, bendRadius: 12 },
-    group: { fontSize: 12, textTransform: 'uppercase', paddingX: 24, paddingY: 18, cornerRadius: 18 },
-  },
+  style: ['publication-figure', 'github-light'],
+  seed: 2,
 })
 ```
 
-The roles intentionally describe meaning instead of SVG element names:
-
-| Role | Used for |
-| --- | --- |
-| `style.text` | Shared typography fallback |
-| `style.node` | Primary cards, boxes, entities, services, participants, tasks |
-| `style.edge` | Connectors, relationships, messages, route labels |
-| `style.group` | Subgraphs, groups, sections, bands, containers |
-
-Diagram families only consume roles that their layout and renderer both support. Defaults are preserved when `style` is omitted.
+A style chooses the renderer treatment — for example `hand-drawn`, `watercolor`, `publication-figure`, or `ops-schematic`. A palette-only style chooses colors — for example `github-light`, `dracula`, or a custom JSON record with `colors`. Stacks merge left to right, so agents can keep visual requests out of Mermaid source while preserving deterministic geometry.
 
 ## Mermaid config and source wrappers
 
@@ -81,8 +68,8 @@ These are merged with `options.mermaidConfig` where supported. XY chart and arch
 
 Users can discover fork features through:
 
-1. The [live gallery](https://agentic-mermaid.dev/), especially **Contents → Role Styles**.
-2. The [live editor](https://agentic-mermaid.dev/editor), which starts blank and has **Examples** for every supported diagram family plus role-style presets.
+1. The [examples page](https://agentic-mermaid.dev/examples/), including supported families, Style + Palette combinations, and the richer shared examples corpus.
+2. The [live editor](https://agentic-mermaid.dev/editor), which starts with examples for every supported diagram family.
 3. [`README.md`](../README.md) quick starts and docs routing.
 4. [`CHANGELOG.md`](../CHANGELOG.md) for user-facing change history.
 

@@ -6,11 +6,15 @@ import { BUILTIN_FAMILY_METADATA } from '../src/agent/families.ts'
 import { verifyMermaid } from '../src/agent/index.ts'
 import { buildCapabilities } from '../src/cli/index.ts'
 import { renderMermaidASCII, renderMermaidSVG } from '../src/index.ts'
+import { HOSTED_FONT_FILES, hostedFontFaceCss } from '../src/font-manifest.ts'
 import { namespaceSvgIds } from '../src/renderer.ts'
 import { HOSTED_TOOLS } from '../src/mcp/hosted-server.ts'
 import { MCP_SERVER_NAME, MCP_SERVER_VERSION } from '../src/mcp/tool-surface.ts'
 import { computeDeployVersion } from './src/deploy-hash.ts'
-import { HOMEPAGE_AGENT_POINTER, buildHomepageFullPrompt } from '../eval/agent-usage/homepage-prompt.ts'
+import { CLEAN_PAGE_ROUTES, DYNAMIC_CLEAN_REDIRECT_LINES, staticRedirectLines } from './src/site-routes.ts'
+import { HOMEPAGE_AGENT_POINTER } from '../eval/agent-usage/homepage-prompt.ts'
+import { EDITOR_EXAMPLES } from '../editor/examples.ts'
+import { samples as RICH_EXAMPLES } from '../scripts/site/samples-data.ts'
 
 const ROOT = join(import.meta.dir, '..')
 const SOURCE = join(import.meta.dir, 'source')
@@ -19,14 +23,7 @@ const SOURCE_ASSETS = join(SOURCE, 'assets')
 const SOURCE_DIAGRAMS = join(SOURCE, 'diagrams')
 const OUT = join(import.meta.dir, 'public')
 const CHECK = process.argv.includes('--check')
-const HOSTED_FONT_FILES = [
-  'DejaVuSans.ttf',
-  'DejaVuSans-Bold.ttf',
-  'Caveat.ttf',
-  'EBGaramond.ttf',
-  'ArchitectsDaughter.ttf',
-  'ShareTechMono.ttf',
-]
+const PUBLIC_ONLY = process.argv.includes('--public-only')
 
 type FileContent = string | Buffer
 const generated = new Map<string, FileContent>()
@@ -359,6 +356,19 @@ async function copySourceAsset(rel: string, destRel = rel) {
   await copyFileFrom(join(SOURCE_ASSETS, rel), destRel)
 }
 
+async function emitStylesheet() {
+  const css = await Bun.file(join(SOURCE_ASSETS, 'styles.css')).text()
+  await emit('styles.css', hostedFontFaceCss('/fonts/') + '\n' + css)
+}
+
+async function emitThemeScript() {
+  const [copyFeedback, theme] = await Promise.all([
+    Bun.file(join(ROOT, 'shared', 'browser', 'copy-feedback.js')).text(),
+    Bun.file(join(SOURCE_ASSETS, 'theme.js')).text(),
+  ])
+  await emit('theme.js', copyFeedback + '\n' + theme)
+}
+
 async function copyDir(srcAbs: string, destRel: string) {
   async function walk(abs: string, rel: string) {
     for (const ent of await readdir(abs, { withFileTypes: true })) {
@@ -375,29 +385,11 @@ function sha256(text: string | Buffer) {
   return createHash('sha256').update(text).digest('hex')
 }
 
-function extractBalancedLiteral(src: string, marker: string, open: string, close: string): string {
-  const lb = src.indexOf(open, src.indexOf(marker))
-  let depth = 0, q: string | null = null
-  for (let i = lb; i < src.length; i++) {
-    const c = src[i]
-    if (q) { if (c === '\\') { i++; continue } if (c === q) q = null; continue }
-    if (c === "'" || c === '"' || c === '`') { q = c; continue }
-    if (c === '/' && src[i + 1] === '/') { const nl = src.indexOf('\n', i); i = nl < 0 ? src.length : nl; continue }
-    if (c === '/' && src[i + 1] === '*') { const e = src.indexOf('*/', i + 2); i = e < 0 ? src.length : e + 1; continue }
-    if (c === open) depth++
-    else if (c === close && --depth === 0) return src.slice(lb, i + 1)
-  }
-  throw new Error('could not extract ' + marker)
-}
-function extractArrayLiteral(src: string, marker: string): string {
-  return extractBalancedLiteral(src, marker, '[', ']')
-}
-function extractObjectLiteral(src: string, marker: string): string {
-  return extractBalancedLiteral(src, marker, '{', '}')
-}
-
 async function generateEditorHtml() {
-  const result = Bun.spawnSync(['bun', 'run', 'scripts/site/editor.ts'], { cwd: ROOT })
+  const result = Bun.spawnSync(['bun', 'run', 'scripts/site/editor.ts'], {
+    cwd: ROOT,
+    env: { ...process.env, AM_EDITOR_FONT_PREFIX: '/fonts/' },
+  })
   if (result.exitCode !== 0) {
     throw new Error(`scripts/site/editor.ts failed:\n${result.stderr.toString()}`)
   }
@@ -420,6 +412,7 @@ function mastheadHtml(currentHref = '') {
     ['/examples/', 'Examples', ''],
     ['/comparisons/', 'Comparisons', ''],
     ['/docs/', 'Docs', ''],
+    ['https://github.com/adewale/agentic-mermaid', 'GitHub', ''],
     [GENERIC_EDITOR_HREF, 'Open editor', 'link-editor'],
   ] as const
   const nav = links.map(([href, label, cls]) => {
@@ -427,14 +420,6 @@ function mastheadHtml(currentHref = '') {
     return `<a ${attrs ? attrs + ' ' : ''}href="${href}">${label}</a>`
   }).join('')
   return `<header class="masthead"><div class="bar"><a class="brand" href="/"><span class="mark"></span> Agentic&nbsp;Mermaid</a><span class="links">${nav}</span></div><hr></header>`
-}
-
-// Two footer rows shared by every shipped page: a human row (reference pages
-// plus the repository) and a machine row (agent artifacts). GitHub lives here
-// deliberately — the website contract test forbids repository chrome in the
-// masthead, so the footer is the one place the repo link ships.
-function footerHtml() {
-  return `<footer><div class="footlinks"><a href="/warnings/">Warnings</a><span class="sep">&middot;</span><a href="/errors/">Errors</a><span class="sep">&middot;</span><a href="/skills/agentic-mermaid-diagram-workflow/">Skill</a><span class="sep">&middot;</span><a href="/about/design/">Design</a><span class="sep">&middot;</span><a href="https://github.com/adewale/agentic-mermaid">GitHub</a></div><div class="footlinks"><a href="/llms.txt">llms.txt</a><span class="sep">&middot;</span><a href="/agent-instructions.md">agent-instructions.md</a><span class="sep">&middot;</span><a href="/capabilities.json">capabilities.json</a><span class="sep">&middot;</span><a href="/examples/index.json">examples.json</a><span class="sep">&middot;</span><a href="/skills/agentic-mermaid-diagram-workflow/SKILL.md">workflow skill</a></div></footer>`
 }
 
 // Single page header contract: h1 + lead, then an optional meta row
@@ -471,7 +456,6 @@ ${mastheadHtml(currentHref)}
 ${meta ? `<p class="page-meta">${meta}</p>\n` : ''}${actions ? `<div class="page-actions">${actions}</div>\n` : ''}</section>
 ${body}
 </main>
-${footerHtml()}
 <script src="/shader-mark.js"></script>
 <script src="/theme.js"></script>
 </body>
@@ -509,17 +493,16 @@ const generatedFrom = {
   gitSha: process.env.SITE_GIT_SHA ?? 'development',
   buildTime: process.env.SITE_BUILD_TIME ?? 'development',
 }
-const npmPublished = process.env.SITE_NPM_STATUS === 'published' || process.env.SITE_NPM_PUBLISHED === '1'
+const npmPublished = process.env.SITE_NPM_STATUS === 'source'
+  ? false
+  : process.env.SITE_NPM_STATUS === 'published' || process.env.SITE_NPM_PUBLISHED !== '0'
 const installCommand = npmPublished
   ? 'npm i agentic-mermaid'
   : 'git clone https://github.com/adewale/agentic-mermaid && cd agentic-mermaid && bun install && bun run build'
 const installNotice = npmPublished
-  ? 'The npm package is marked published for this build.'
+  ? 'Install the published npm package.'
   : 'The npm package is not yet published; install from source.'
 
-const examplesSrc = await Bun.file(join(ROOT, 'editor/js/examples.js')).text()
-const EDITOR_SEMANTIC_STYLE: any = new Function('return (' + extractObjectLiteral(examplesSrc, 'EDITOR_SEMANTIC_STYLE =') + ');')()
-const EDITOR_EXAMPLES: any[] = new Function('EDITOR_SEMANTIC_STYLE', 'return (' + extractArrayLiteral(examplesSrc, 'EDITOR_EXAMPLES =') + ');')(EDITOR_SEMANTIC_STYLE)
 const familyByExampleId = new Map<string, any>(BUILTIN_FAMILY_METADATA.map((f) => [f.editorExampleId, f]))
 const familyByDiagramType: Record<string, string> = {
   Flowchart: 'flowchart', State: 'state', Architecture: 'architecture', Sequence: 'sequence', Class: 'class', ER: 'er', Timeline: 'timeline', Journey: 'journey', 'XY Chart': 'xychart', Pie: 'pie', Quadrant: 'quadrant', Gantt: 'gantt',
@@ -566,6 +549,38 @@ function renderExampleSvg(example: any) {
     `Build-time render of the ${example.diagramType ?? 'Mermaid'} example loaded by the editor.`,
   )
 }
+
+function exampleSlug(s: string) {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+}
+
+function richExampleId(sample: { title: string }, index: number) {
+  return `rich-${index + 1}-${exampleSlug(sample.title)}`
+}
+
+function renderRichExampleSvg(sample: any, id: string) {
+  const svg = renderMermaidSVG(sample.source, {
+    ...(sample.options ?? {}),
+    security: 'strict',
+    compact: true,
+    embedFontImport: false,
+    idPrefix: `example-${id}-`,
+  }).replace(/[ \t]+$/gm, '')
+  return addSvgAccessibleName(
+    svg,
+    `example-${id}`,
+    `${sample.title} diagram`,
+    `Build-time render of the shared ${sample.category ?? 'Mermaid'} corpus example.`,
+  )
+}
+
+function encodeEditorStateHash(state: Record<string, unknown>) {
+  return Buffer.from(JSON.stringify(state), 'utf8').toString('base64')
+}
+
+function editorStateHref(state: Record<string, unknown>) {
+  return `/editor/#${encodeEditorStateHash(state)}`
+}
 // Per-family agent task: a plausible prompt and the trace an agent runs before
 // it returns source. Absorbed from the former Gallery page so the unified
 // Examples page carries the agentic narrative — prompt, trace, render, deep
@@ -586,7 +601,7 @@ const FAMILY_AGENT_TASK: Record<string, { prompt: string; trace: string }> = {
 }
 // One-per-family supported examples are the canonical render for their family, so
 // anchor them by family id — old /gallery/#<family> deep links resolve here after
-// the redirect. Other examples (role-style presets) keep their own id.
+// the redirect. Other examples keep their own id.
 function exampleAnchor(example: any) {
   const family = familyForExample(example)
   return example.category === 'Supported diagrams' && family ? family.id : example.id
@@ -594,15 +609,169 @@ function exampleAnchor(example: any) {
 function exampleCategoryId(category: string) {
   return 'examples-' + category.toLowerCase().replace(/[^a-z0-9]+/g, '-')
 }
-// Compact anchor index at the top of the (very tall) Examples page: one row per
-// category, each example label linking to its existing render anchor.
-function examplesTocHtml(groups: Map<string, any[]>) {
-  const rows = Array.from(groups, ([category, examples]) => {
-    const links = examples.map((example) => `<a href="#${escapeAttr(exampleAnchor(example))}">${escapeHtml(example.label)}</a>`).join('<span class="sep">&middot;</span>')
-    return `<p><a href="#${escapeAttr(exampleCategoryId(category))}"><strong>${escapeHtml(category)}</strong></a> ${links}</p>`
-  }).join('\n')
-  return `<div class="example-tools" role="search"><label for="example-filter">Filter examples</label><input id="example-filter" type="search" data-example-filter placeholder="flowchart, gantt, agent trace"></div><nav class="example-toc" aria-label="Examples on this page">\n${rows}\n</nav>`
+function exampleCategoryLabel(category: string) {
+  return category === 'Supported diagrams' ? 'Diagram examples' : category
 }
+function exampleFamilyDescription(familyId: string, fallback: string) {
+  return FAMILY_REFERENCE.find(([id]) => id === familyId)?.[2] ?? fallback
+}
+
+const STYLE_THEME_PAIR_BY_FAMILY: Record<string, { look: string; theme: string; seed: number }> = {
+  flowchart: { look: 'watercolor', theme: 'paper', seed: 4 },
+  state: { look: 'chalkboard', theme: 'dusk', seed: 2 },
+  architecture: { look: 'blueprint', theme: 'nord', seed: 1 },
+  sequence: { look: 'publication-figure', theme: 'github-light', seed: 0 },
+  class: { look: 'patent-drawing', theme: 'paper', seed: 6 },
+  er: { look: 'risograph', theme: 'salmon', seed: 5 },
+  timeline: { look: 'hand-drawn', theme: 'catppuccin-latte', seed: 3 },
+  journey: { look: 'status-dashboard', theme: 'github-dark', seed: 0 },
+  xychart: { look: 'accessible-high-contrast', theme: 'zinc-light', seed: 0 },
+  pie: { look: 'pen-and-ink', theme: 'tufte', seed: 7 },
+  quadrant: { look: 'ops-schematic', theme: 'nord-light', seed: 8 },
+  gantt: { look: 'architectural-plan', theme: 'solarized-light', seed: 9 },
+}
+
+const STYLE_THEME_LABELS: Record<string, string> = {
+  'accessible-high-contrast': 'Accessible Contrast',
+  'architectural-plan': 'Plan Drafting',
+  'catppuccin-latte': 'Catppuccin Latte',
+  'github-dark': 'GitHub Dark',
+  'github-light': 'GitHub Light',
+  'hand-drawn': 'Hand-drawn',
+  'ops-schematic': 'Compact Trace Map',
+  'patent-drawing': 'Patent Hatching',
+  'pen-and-ink': 'Pen & ink',
+  'publication-figure': 'Report Figure',
+  'risograph': 'Riso Print',
+  'solarized-light': 'Solarized Light',
+  'status-dashboard': 'Dark Ops Dashboard',
+  'zinc-light': 'Zinc Light',
+}
+
+function displayStyleName(name: string) {
+  return STYLE_THEME_LABELS[name] ?? name.split('-').map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ')
+}
+
+function styleThemeExamples(editorExamples: any[]) {
+  const byFamily = new Map<string, any>()
+  for (const example of editorExamples) {
+    const family = familyForExample(example)
+    if (example.category === 'Supported diagrams' && family) byFamily.set(family.id, example)
+  }
+  return BUILTIN_FAMILY_METADATA.map((family) => {
+    const example = byFamily.get(family.id)
+    const pair = STYLE_THEME_PAIR_BY_FAMILY[family.id]
+    if (!example || !pair) throw new Error(`missing style/theme example wiring for ${family.id}`)
+    return { ...pair, family, example, id: `style-palette-${family.id}` }
+  })
+}
+
+function renderStyleThemeSvg(combo: ReturnType<typeof styleThemeExamples>[number]) {
+  const svg = renderMermaidSVG(combo.example.source, {
+    style: [combo.look, combo.theme],
+    seed: combo.seed,
+    interactive: Boolean(combo.example.options?.interactive),
+    security: 'strict',
+    compact: true,
+    embedFontImport: false,
+    idPrefix: `example-${combo.id}-`,
+  }).replace(/[ \t]+$/gm, '')
+  return addSvgAccessibleName(
+    svg,
+    `example-${combo.id}`,
+    `${combo.family.editorDiagramType} ${displayStyleName(combo.look)} ${displayStyleName(combo.theme)} diagram`,
+    `Build-time render of ${combo.family.editorDiagramType} with ${combo.look} style and ${combo.theme} palette.`,
+  )
+}
+// Examples is now the family-discovery surface: jump cards replace the removed
+// Diagram families page and the old search box.
+function exampleJumpCard(example: any, description: string) {
+  return `<a class="example-jump-card" href="#${escapeAttr(exampleAnchor(example))}"><strong>${escapeHtml(example.label)}</strong><span>${escapeHtml(description)}</span></a>`
+}
+function examplesJumpHtml(groups: Map<string, any[]>, styleThemeCombos: ReturnType<typeof styleThemeExamples>, richExamples = RICH_EXAMPLES) {
+  const sections: string[] = []
+  const familyExamples = groups.get('Supported diagrams') ?? []
+  if (familyExamples.length) {
+    const cards = familyExamples.map((example) => {
+      const family = familyForExample(example)
+      const description = family ? exampleFamilyDescription(family.id, example.description ?? example.label) : (example.description ?? example.label)
+      return exampleJumpCard(example, description)
+    }).join('')
+    sections.push(`<section class="example-jump-section" aria-labelledby="example-jump-families"><p class="example-jump-title" id="example-jump-families">Jump to a diagram family</p><div class="example-jump-grid">${cards}</div></section>`)
+  }
+  for (const [category, examples] of groups) {
+    if (category === 'Supported diagrams') continue
+    const cards = examples.map((example) => exampleJumpCard(example, example.description ?? example.label)).join('')
+    sections.push(`<section class="example-jump-section" aria-labelledby="${escapeAttr(exampleCategoryId(category))}-jump"><p class="example-jump-title" id="${escapeAttr(exampleCategoryId(category))}-jump">${escapeHtml(exampleCategoryLabel(category))}</p><div class="example-jump-grid">${cards}</div></section>`)
+  }
+  const styleThemeCards = styleThemeCombos.map((combo) => `<a class="example-jump-card" href="#${escapeAttr(combo.id)}"><strong>${escapeHtml(combo.family.editorDiagramType)}</strong><span>${escapeHtml(`${displayStyleName(combo.look)} × ${displayStyleName(combo.theme)}`)}</span></a>`).join('')
+  sections.push(`<section class="example-jump-section" aria-labelledby="examples-style-palette-combinations-jump"><p class="example-jump-title" id="examples-style-palette-combinations-jump">Style × palette combinations</p><div class="example-jump-grid">${styleThemeCards}</div></section>`)
+  const richCategories = Array.from(new Set(richExamples.map((sample) => sample.category ?? 'Examples')))
+  const richCards = richCategories.map((category) => `<a class="example-jump-card" href="#rich-${escapeAttr(exampleSlug(category))}"><strong>${escapeHtml(category)}</strong><span>${escapeHtml(String(richExamples.filter((sample) => (sample.category ?? 'Examples') === category).length))} shared examples</span></a>`).join('')
+  sections.push(`<section class="example-jump-section" aria-labelledby="examples-rich-gallery-jump"><p class="example-jump-title" id="examples-rich-gallery-jump">Rich shared example gallery</p><div class="example-jump-grid">${richCards}</div></section>`)
+  return `<nav class="example-jump" aria-label="Jump to examples">${sections.join('\n')}</nav>`
+}
+
+function richExamplesHtml(richExamples = RICH_EXAMPLES) {
+  const groups = new Map<string, Array<{ sample: any; id: string }>>()
+  richExamples.forEach((sample, index) => {
+    const category = sample.category ?? 'Examples'
+    if (!groups.has(category)) groups.set(category, [])
+    groups.get(category)!.push({ sample, id: richExampleId(sample, index) })
+  })
+  return `<section class="example-group" aria-labelledby="examples-rich-gallery">
+<h2 id="examples-rich-gallery">Rich shared example gallery</h2>
+<p class="muted">These examples are reused by benchmark and layout-evaluation tooling, then rendered here at build time. They cover feature syntax, larger real-world shapes, and Style + Palette combinations beyond the small editor starters.</p>
+${Array.from(groups, ([category, entries]) => `
+<section class="example-rich-group" aria-labelledby="rich-${escapeAttr(exampleSlug(category))}">
+<h3 id="rich-${escapeAttr(exampleSlug(category))}">${escapeHtml(category)}</h3>
+${entries.map(({ sample, id }) => `
+<article class="example-sample" id="${escapeAttr(id)}">
+  <header class="example-sample-head">
+    <div>
+      <p class="example-meta">${escapeHtml(category)}</p>
+      <h4>${escapeHtml(sample.title)}</h4>
+      <p>${escapeHtml(sample.description ?? '')}</p>
+    </div>
+    <a class="go" href="${escapeAttr(editorStateHref({ source: sample.source, config: sample.options ?? {} }))}">Open in editor</a>
+  </header>
+  <div class="example-sample-grid">
+    <section class="example-source" aria-label="${escapeAttr(sample.title)} Mermaid source"><pre><code>${escapeHtml(String(sample.source ?? '').trim())}</code></pre></section>
+    <figure class="example-render"><div class="example-svg">${renderRichExampleSvg(sample, id)}</div><figcaption>Build-time proof from the shared examples corpus.</figcaption></figure>
+  </div>
+</article>`).join('')}
+</section>`).join('')}
+</section>`
+}
+
+function styleThemeExamplesHtml(combos: ReturnType<typeof styleThemeExamples>) {
+  return `<section class="example-group" aria-labelledby="examples-style-palette-combinations">
+<h2 id="examples-style-palette-combinations">Style × palette combinations</h2>
+<p class="muted">Each card uses one supported family, one named style, and one palette. Agents pass this as render options; they do not edit Mermaid source just to change appearance.</p>
+${combos.map((combo) => {
+  const look = displayStyleName(combo.look)
+  const theme = displayStyleName(combo.theme)
+  const styleCode = `style: ['${combo.look}', '${combo.theme}'], seed: ${combo.seed}`
+  return `
+<article class="example-sample" id="${escapeAttr(combo.id)}">
+  <header class="example-sample-head">
+    <div>
+      <p class="example-meta">${escapeHtml(combo.family.editorDiagramType)}</p>
+      <h3>${escapeHtml(`${combo.family.editorDiagramType}: ${look} × ${theme}`)}</h3>
+      <p>${escapeHtml(`The Mermaid source stays the same; the render call supplies ${combo.look} as the style and ${combo.theme} as the palette.`)}</p>
+      <p class="example-trace"><span>Render options</span> <code>${escapeHtml(styleCode)}</code></p>
+    </div>
+    <a class="go" href="${escapeAttr(editorStateHref({ source: combo.example.source, style: combo.look, theme: combo.theme, seed: combo.seed }))}">Open styled</a>
+  </header>
+  <div class="example-sample-grid">
+    <section class="example-source" aria-label="${escapeAttr(combo.family.editorDiagramType)} Mermaid source"><pre><code>${escapeHtml(String(combo.example.source ?? '').trim())}</code></pre></section>
+    <figure class="example-render"><div class="example-svg">${renderStyleThemeSvg(combo)}</div><figcaption>Build-time proof: same source, render options <code>${escapeHtml(styleCode)}</code>.</figcaption></figure>
+  </div>
+</article>`
+}).join('')}
+</section>`
+}
+
 function examplesShowcaseHtml(editorExamples: any[]) {
   const groups = new Map<string, any[]>()
   for (const example of editorExamples) {
@@ -610,10 +779,11 @@ function examplesShowcaseHtml(editorExamples: any[]) {
     if (!groups.has(category)) groups.set(category, [])
     groups.get(category)!.push(example)
   }
-  return '<div class="example-showcase">' + examplesTocHtml(groups) + Array.from(groups, ([category, examples]) => `
+  const combos = styleThemeExamples(editorExamples)
+  return '<div class="example-showcase">' + examplesJumpHtml(groups, combos, RICH_EXAMPLES) + Array.from(groups, ([category, examples]) => `
 <section class="example-group" aria-labelledby="${escapeAttr(exampleCategoryId(category))}">
-<h2 id="${escapeAttr(exampleCategoryId(category))}">${escapeHtml(category)}</h2>
-<p class="muted">${category === 'Role style presets' ? 'These load role-style presets in the editor. This page renders them with one fixed review theme so the proof stays visually comparable.' : 'One proof per supported family: the exact editor source, an agent task, the trace before return, and a build-time render from that same source.'}</p>
+<h2 id="${escapeAttr(exampleCategoryId(category))}">${escapeHtml(exampleCategoryLabel(category))}</h2>
+<p class="muted">One proof per diagram family: the exact editor source, an agent task, the trace before return, and a build-time render from that same source.</p>
 ${examples.map((example) => {
   const family = familyForExample(example)
   const task = category === 'Supported diagrams' && family ? FAMILY_AGENT_TASK[family.id] : undefined
@@ -636,22 +806,7 @@ ${examples.map((example) => {
   </div>
 </article>`
 }).join('')}
-</section>`).join('\n') + `
-<script>
-(function () {
-  var input = document.querySelector('[data-example-filter]');
-  if (!input) return;
-  var samples = Array.from(document.querySelectorAll('.example-sample'));
-  function apply() {
-    var q = input.value.trim().toLowerCase();
-    samples.forEach(function (sample) {
-      var haystack = sample.textContent.toLowerCase() + ' ' + sample.id.toLowerCase();
-      sample.hidden = Boolean(q && haystack.indexOf(q) === -1);
-    });
-  }
-  input.addEventListener('input', apply);
-})();
-</script>` + '\n</div>'
+</section>`).join('\n') + '\n' + styleThemeExamplesHtml(combos) + '\n' + richExamplesHtml(RICH_EXAMPLES) + '\n</div>'
 }
 
 const mermaidRuntimeBytes = Buffer.from(await Bun.file(join(ROOT, 'node_modules/mermaid/dist/mermaid.min.js')).arrayBuffer())
@@ -821,7 +976,7 @@ function comparisonEditorHref(source: string) {
 }
 const COMPARISON_TAKEAWAYS: Record<string, string> = {
   flowchart: 'Compare edge routing, label stability, and whether dense fan-out still reads without browser-dependent drift.',
-  state: 'Look for nested-state containment and transition labels that remain readable as the lifecycle grows.',
+  state: 'Check nested-state containment and transition labels that remain readable as the lifecycle grows.',
   sequence: 'Check participant alignment, block labels, and warning paths: this is the common agent-edit audit loop.',
   class: 'Compare relationship routing and member-box spacing on a compact class model.',
   er: 'Inspect cardinality labels and orthogonal routes across a wide schema.',
@@ -832,6 +987,77 @@ const COMPARISON_TAKEAWAYS: Record<string, string> = {
   pie: 'The slice labels and values come from the same local source model as SVG/PNG/text output.',
   quadrant: 'Points and axes remain inspectable source, not a static image pasted into docs.',
   gantt: 'Schedule resolution is verified locally so bad dependencies can fail before an agent returns source.',
+}
+const COMPARISON_STYLE_DEMO_SOURCE = `flowchart LR
+  Draft[Draft source] --> Verify{Verify}
+  Verify -->|ok| Publish[Publish]
+  Verify -->|warnings| Revise[Revise]
+  Revise --> Verify`
+const COMPARISON_STYLE_ROWS = [
+  {
+    tool: 'Mermaid',
+    surface: 'Host-owned runtime config',
+    visible: 'The page or CLI wrapper owns colors and CSS; the Mermaid source stays structural, but the style contract lives beside the renderer.',
+    handoff: 'Source plus host config such as mermaid.initialize({ themeVariables }).',
+  },
+  {
+    tool: 'Beautiful Mermaid',
+    surface: 'Render-call palette options',
+    visible: 'A synchronous browserless renderer applies colors, fonts, and CSS variables for supported families; it is still render-only.',
+    handoff: 'Source plus render options; no typed edit/verify sequence is part of the handoff.',
+  },
+  {
+    tool: 'Agentic Mermaid',
+    surface: 'Composable style stack',
+    visible: 'The same render call can stack renderer treatment, palette, custom JSON roles, and seed after the agent verifies source.',
+    handoff: 'Typed edit → verify → render with style: [\'watercolor\', \'paper\'], seed: 4.',
+  },
+] as const
+function comparisonStyleBeautifulSvg() {
+  return comparisonSvg(renderBeautifulMermaidSVG(COMPARISON_STYLE_DEMO_SOURCE, {
+    bg: '#F8FAF8', fg: '#16382B', accent: '#1A7351', line: '#8B9791', surface: '#FFFFFF', border: '#C7D5CE', font: 'Avenir Next', embedFontImport: false,
+  } as any), 'comparison-style-beautiful', 'Beautiful Mermaid', 'Style palette demo')
+}
+function comparisonStyleAgenticSvg() {
+  return comparisonSvg(renderMermaidSVG(COMPARISON_STYLE_DEMO_SOURCE, {
+    style: ['watercolor', 'paper'], seed: 4, compact: true, security: 'strict', embedFontImport: false, idPrefix: 'comparison-style-agentic-',
+  }), 'comparison-style-agentic', 'Agentic Mermaid', 'Style palette demo')
+}
+function comparisonStyleSupportHtml() {
+  const mermaidConfig = `mermaid.initialize({\n  theme: 'base',\n  themeVariables: {\n    primaryColor: '#f8faf8',\n    primaryTextColor: '#16382b'\n  }\n})`
+  const beautifulConfig = `renderMermaidSVG(source, {\n  bg: '#F8FAF8',\n  fg: '#16382B',\n  accent: '#1A7351'\n})`
+  const agenticConfig = `renderMermaidSVG(source, {\n  style: [\n    'watercolor',\n    'paper'\n  ],\n  seed: 4\n})`
+  return `<section class="comparison-style-matrix" aria-labelledby="comparison-style-matrix-title">
+<h2 id="comparison-style-matrix-title">Style and palette support</h2>
+<p>The render rows above compare one source family by family. This section uses one small source and shows where each renderer expects appearance controls to live.</p>
+<div class="comparison-style-demo-grid">
+  <article class="comparison-style-demo-card">
+    <h3>Mermaid</h3>
+    <p>Appearance belongs to the host runtime or page CSS. The diagram source is the same, but the styling contract is outside the Mermaid text.</p>
+    <pre><code>${escapeHtml(mermaidConfig)}</code></pre>
+    <div class="comparison-style-demo-render"><pre class="mermaid comparison-mermaid" id="comparison-style-demo-mermaid">${escapeHtml(COMPARISON_STYLE_DEMO_SOURCE)}</pre></div>
+  </article>
+  <article class="comparison-style-demo-card">
+    <h3>Beautiful Mermaid</h3>
+    <p>Appearance is render-call data for supported families: colors, fonts, and CSS-variable SVG output, without an edit/verify loop.</p>
+    <pre><code>${escapeHtml(beautifulConfig)}</code></pre>
+    <div class="comparison-style-demo-render">${comparisonStyleBeautifulSvg()}</div>
+  </article>
+  <article class="comparison-style-demo-card comparison-style-demo-card-agentic">
+    <h3>Agentic Mermaid</h3>
+    <p>Appearance is a style stack passed after source verification. Styles can change stroke character and typography; palettes change color.</p>
+    <pre><code>${escapeHtml(agenticConfig)}</code></pre>
+    <div class="comparison-style-demo-render">${comparisonStyleAgenticSvg()}</div>
+  </article>
+</div>
+<div class="table-scroll"><table class="comparison-style-table">
+<thead><tr><th>Tool</th><th>Where controls live</th><th>What changes visually</th><th>Agent handoff</th></tr></thead>
+<tbody>
+${COMPARISON_STYLE_ROWS.map((row) => `<tr><th scope="row">${escapeHtml(row.tool)}</th><td>${escapeHtml(row.surface)}</td><td>${escapeHtml(row.visible)}</td><td>${escapeHtml(row.handoff)}</td></tr>`).join('\n')}
+</tbody>
+</table></div>
+<p class="muted">Summary: Mermaid leaves appearance with the host renderer, Beautiful Mermaid accepts render-call palettes for supported families, and Agentic Mermaid keeps the safe sequence together: edit typed source, verify it, then pass style and palette render options.</p>
+</section>`
 }
 function comparisonsHtml() {
   const sections = COMPARISON_CASES.map((c) => {
@@ -847,8 +1073,9 @@ function comparisonsHtml() {
 <section class="comparison-case${beautiful.supported ? '' : ' comparison-case-omits-beautiful'}" id="${escapeAttr(c.id)}" aria-labelledby="comparison-${escapeAttr(c.id)}-title" data-comparison-editor-href="${escapeAttr(comparisonEditorHref(c.source))}">
   <header class="comparison-case-head">
     <h2 id="comparison-${escapeAttr(c.id)}-title">${escapeHtml(c.family)}</h2>
+    <button class="comparison-open" type="button" data-comparison-open>Open larger comparison</button>
   </header>
-  <p class="comparison-takeaway"><strong>What to look for.</strong> ${escapeHtml(takeaway)}</p>${note}
+  <p class="comparison-takeaway"><strong>Review focus.</strong> ${escapeHtml(takeaway)}</p>${note}
   <div class="comparison-grid" data-comparison-lightbox-panel>
     ${panels}
   </div>
@@ -862,6 +1089,7 @@ function comparisonsHtml() {
 <li>The runtime Mermaid panels are progressive enhancement: source stays visible even before the browser renderer loads.</li>
 </ul>
 </div><div class="comparisons" data-mermaid-runtime="/${mermaidRuntimeRel}">${sections}
+${comparisonStyleSupportHtml()}
 <dialog class="comparison-dialog" data-comparison-dialog aria-labelledby="comparison-dialog-title">
   <form class="comparison-dialog-bar" method="dialog">
     <div>
@@ -1209,6 +1437,11 @@ function comparisonsHtml() {
   document.querySelectorAll('.comparison-case').forEach(function (section) {
     setLightboxTriggers(section, true);
   });
+  document.querySelectorAll('[data-comparison-open]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      openComparison(button.closest('.comparison-case'));
+    });
+  });
   document.querySelectorAll('[data-comparison-lightbox-panel]').forEach(function (group) {
     group.addEventListener('click', function () {
       if (group.closest('[data-comparison-dialog]')) return;
@@ -1235,9 +1468,9 @@ if (!CHECK) await rm(OUT, { recursive: true, force: true })
 await emit(mermaidRuntimeRel, mermaidRuntimeBytes)
 
 // Core source-derived pages.
-// #9 — single source of truth for the parse->serialize loop, rendered at two
-// densities: the compact rail on the home page and the section headings in the
-// docs manual. Editing a label or summary here updates both, so they can't drift.
+// #9 — single source of truth for the parse->serialize loop in the docs manual.
+// The homepage now leads with the creator workflow (prompt, style, verify), while
+// the manual keeps the lower-level typed-edit sequence in sync from here.
 const LOOP_STEPS = [
   { label: 'Parse', short: 'Read the source into a typed model; unmodeled syntax round-trips as preserved source.' },
   { label: 'Narrow', short: 'Resolve the one node or edge the edit touches via the matching family surface (<code>asFlowchart</code>, <code>asSequence</code>, …).' },
@@ -1245,10 +1478,6 @@ const LOOP_STEPS = [
   { label: 'Verify', short: 'Read structural, geometric, and lint warnings before serializing or rendering artifacts.' },
   { label: 'Serialize', short: 'Write the typed model back to Mermaid source, then render only when an artifact is needed.' },
 ] as const
-function injectLoopRail(html: string) {
-  const items = LOOP_STEPS.map((s) => `      <li><strong>${s.label}.</strong> ${s.short}</li>`).join('\n')
-  return html.replace(/<ol class="quick-steps">[\s\S]*?<\/ol>/, `<ol class="quick-steps">\n${items}\n    </ol>`)
-}
 function injectLoopHeadings(html: string) {
   return LOOP_STEPS.reduce((h, s, i) => h.replace(new RegExp(`<h2>${i + 1} &middot; [^<]*</h2>`), `<h2>${i + 1} &middot; ${s.label}</h2>`), html)
 }
@@ -1256,7 +1485,7 @@ function injectLoopHeadings(html: string) {
 // with a leading rule) and the docs article gets it injected at build time —
 // same single-source pattern as the loop rail — so the source page's
 // hand-baked list can never drift from the pages that actually ship.
-const docsIndexBody = '<h2>Docs index</h2><ul class="doc-index doc-index-grouped"><li><strong>Start</strong><ul><li><a href="/docs/getting-started/">Getting started</a></li><li><a href="/docs/families/">Diagram families</a></li><li><a href="/examples/">Examples</a></li></ul></li><li><strong>Use locally</strong><ul><li><a href="/docs/api/">Library API</a></li><li><a href="/docs/cli/">CLI</a></li><li><a href="/docs/mcp/">MCP</a></li></ul></li><li><strong>Debug</strong><ul><li><a href="/warnings/">Warnings</a></li><li><a href="/errors/">Errors</a></li><li><a href="/docs/quality/">Quality</a></li></ul></li><li><strong>Reference</strong><ul><li><a href="/docs/ascii/">ASCII and Unicode</a></li><li><a href="/docs/theming/">Theming</a></li><li><a href="/docs/custom-styles/">Custom styles</a></li><li><a href="/docs/fork-differences/">Fork differences</a></li></ul></li></ul>'
+const docsIndexBody = '<h2>Docs index</h2><ul class="doc-index doc-index-grouped"><li><strong>Start</strong><ul><li><a href="/docs/getting-started/">Getting started</a></li><li><a href="/examples/">Examples</a></li></ul></li><li><strong>Use locally</strong><ul><li><a href="/docs/api/">Library API</a></li><li><a href="/docs/cli/">CLI</a></li><li><a href="/docs/mcp/">MCP</a></li></ul></li><li><strong>Debug</strong><ul><li><a href="/warnings/">Warnings</a></li><li><a href="/errors/">Errors</a></li><li><a href="/docs/quality/">Quality</a></li></ul></li><li><strong>Reference</strong><ul><li><a href="/docs/ascii/">ASCII and Unicode</a></li><li><a href="/docs/theming/">Styles and palettes</a></li><li><a href="/docs/custom-styles/">Custom styles</a></li><li><a href="/docs/fork-differences/">Fork differences</a></li></ul></li></ul>'
 const docsIndex = '<hr>' + docsIndexBody
 function injectDocsIndex(html: string) {
   return html.replace(/<h2>Docs index<\/h2>\s*<ul class="doc-index">[\s\S]*?<\/ul>/, docsIndexBody)
@@ -1273,10 +1502,57 @@ function addWorkflowSvgA11y(svg: string) {
 // and inherit the page tokens — invisible while the chrome accent WAS the Paper
 // terracotta, but when the shell moved to the Pine brand the hero silently
 // re-themed with it, violating the design contract ("diagram themes colour the
-// artwork, never this shell"). Bake the Paper render theme instead, exactly like
-// the about-page diagrams (ABOUT_DIAGRAM_THEME below).
+// artwork, never this shell"). Bake the terracotta diagram ink while using the
+// shell ground for transparent label halos.
 const workflowPaperSvg = addWorkflowSvgA11y(renderMermaidSVG(workflowSource,
-  { bg: '#F5F0E4', fg: '#221E16', accent: '#9A4A24', transparent: true, security: 'strict', embedFontImport: false }))
+  { bg: '#F8F4F0', fg: '#221E16', accent: '#9A4A24', transparent: true, security: 'strict', embedFontImport: false }))
+const HOME_STYLE_SHOWCASE_SOURCE = `flowchart TD
+  Task[Task] --> Agent[Agent]
+  Agent --> Source[Mermaid source]
+  Source --> Render[Styled render]`
+const HOME_STYLE_SHOWCASE_COMBOS = [
+  { label: 'Sketch note', look: 'watercolor', theme: 'paper', seed: 4, blurb: 'For whiteboards, docs drafts, and agent working notes.' },
+  { label: 'Report figure', look: 'publication-figure', theme: 'github-light', seed: 0, blurb: 'For specs, READMEs, and reviewable product documents.' },
+  { label: 'Ops map', look: 'ops-schematic', theme: 'nord-light', seed: 8, blurb: 'For traces, runbooks, and compact engineering diagrams.' },
+] as const
+function renderHomeStyleShowcaseSvg(combo: (typeof HOME_STYLE_SHOWCASE_COMBOS)[number]) {
+  const svg = renderMermaidSVG(HOME_STYLE_SHOWCASE_SOURCE, {
+    style: [combo.look, combo.theme],
+    seed: combo.seed,
+    security: 'strict',
+    compact: true,
+    embedFontImport: false,
+    idPrefix: `home-style-${combo.look}-`,
+  }).replace(/[ \t]+$/gm, '')
+  return addSvgAccessibleName(
+    svg,
+    `home-style-${combo.look}`,
+    `${combo.label} diagram in ${displayStyleName(combo.look)} and ${displayStyleName(combo.theme)}`,
+    `The same Mermaid source rendered with ${combo.look}, ${combo.theme}, and seed ${combo.seed}.`,
+  )
+}
+function homeStyleShowcaseHtml() {
+  return `<div class="home-style-showcase-grid">
+${HOME_STYLE_SHOWCASE_COMBOS.map((combo) => {
+  return `<article class="home-style-card">
+  <div class="home-style-render">${renderHomeStyleShowcaseSvg(combo)}</div>
+  <div class="home-style-card-body">
+    <h3>${escapeHtml(combo.label)}</h3>
+    <p>${escapeHtml(combo.blurb)}</p>
+    <ul class="home-style-meta" aria-label="${escapeAttr(combo.label)} render options">
+      <li><span>Style</span><code>${escapeHtml(combo.look)}</code></li>
+      <li><span>Palette</span><code>${escapeHtml(combo.theme)}</code></li>
+      <li><span>Seed</span><code>${combo.seed}</code></li>
+    </ul>
+    <a class="go" href="${escapeAttr(editorStateHref({ source: HOME_STYLE_SHOWCASE_SOURCE, style: combo.look, theme: combo.theme, seed: combo.seed }))}">Open this style</a>
+  </div>
+</article>`
+}).join('\n')}
+</div>`
+}
+function injectHomeStyleShowcase(html: string) {
+  return html.replace('{{HOME_STYLE_SHOWCASE}}', homeStyleShowcaseHtml())
+}
 function injectWorkflowSvg(html: string) {
   return html.replace(/<div class="plate dia-plate">[\s\S]*?<\/div>|<div class="plate"><div class="dia-wrap">[\s\S]*?<\/div><\/div>/,
     `<div class="plate dia-plate">\n      ${workflowPaperSvg}\n    </div>`)
@@ -1293,18 +1569,15 @@ for (const [source, target] of pageOutputs) {
   // Source pages can carry hand-baked mastheads that predate newer routes.
   // Swap in the one canonical masthead so every shipped page shares one nav.
   html = html.replace(/<header class="masthead">[\s\S]*?<\/header>/, () => mastheadHtml(currentHref))
-  // Same treatment for the hand-baked footers: every shipped page carries the
-  // one canonical human + machine link rows.
-  html = html.replace(/<footer>[\s\S]*?<\/footer>/, () => footerHtml())
+  // Source pages can carry hand-baked footers that predate the footerless shell.
+  html = html.replace(/<footer>[\s\S]*?<\/footer>/, '')
   html = injectWorkflowSvg(html)
   if (source === 'home.html') {
-    // The agent pointer (primary CTA) and the inline fallback prompt are both
-    // derived from website/source/start.md so they cannot drift from the hosted
-    // bootstrap. Inject them here rather than hand-maintaining copies in the page.
-    html = html
-      .replace('{{AGENT_POINTER}}', escapeHtml(HOMEPAGE_AGENT_POINTER))
-      .replace('{{AGENT_FULL_PROMPT}}', escapeHtml(buildHomepageFullPrompt()))
-    html = injectLoopRail(injectWorkflowUnicode(html))
+    // The agent pointer (primary CTA) is intentionally a single fetch instruction;
+    // start.md stays the canonical protocol instead of being duplicated inline.
+    html = html.replace('{{AGENT_POINTER}}', escapeAttr(HOMEPAGE_AGENT_POINTER))
+    html = injectHomeStyleShowcase(html)
+    html = injectWorkflowUnicode(html)
   }
   if (source === 'docs-article.html') html = injectDocsIndex(injectLoopHeadings(html))
   await emit(target, html)
@@ -1312,8 +1585,11 @@ for (const [source, target] of pageOutputs) {
 await emit('editor/index.html', await generateEditorHtml())
 
 // Static assets.
-for (const asset of ['favicon.svg', 'styles.css', 'theme.js', 'shader-mark.js']) await copySourceAsset(asset)
+await emitStylesheet()
+await emitThemeScript()
+for (const asset of ['favicon.svg', 'shader-mark.js']) await copySourceAsset(asset)
 for (const asset of ['favicon.ico', 'apple-touch-icon.png', 'og-image.png']) await copyFileFrom(join(ROOT, 'public', asset), asset)
+for (const font of HOSTED_FONT_FILES) await copyFileFrom(join(ROOT, 'assets', 'fonts', font), `fonts/${font}`)
 await copyDir(SOURCE_DIAGRAMS, 'diagrams')
 await copyFileFrom(join(ROOT, 'docs', 'schemas', 'style-spec.schema.json'), 'schemas/style-spec.schema.json')
 await copyDir(join(ROOT, 'docs', 'assets', 'style-cookbook'), 'docs/assets/style-cookbook')
@@ -1345,9 +1621,19 @@ const examples = {
       renderUrl: `/examples/#${exampleAnchor(example)}`,
       editorUrl: `/editor/?example=${example.id}`,
       outputs: capabilities.outputFormats,
-      docs: `/docs/families/#${family.id}`,
+      docs: `/examples/#${family.id}`,
     }
   }),
+  richExamples: RICH_EXAMPLES.map((sample, index) => ({
+    id: richExampleId(sample, index),
+    category: sample.category ?? 'Examples',
+    title: sample.title,
+    description: sample.description,
+    source: String(sample.source ?? '').trim(),
+    options: sample.options ?? {},
+    renderUrl: `/examples/#${richExampleId(sample, index)}`,
+    editorUrl: editorStateHref({ source: sample.source, config: sample.options ?? {} }),
+  })),
 }
 await emitJson('examples/index.json', examples)
 
@@ -1529,13 +1815,11 @@ await emit('start.md', await Bun.file(join(SOURCE, 'start.md')).text())
 await emit('index.md', await Bun.file(join(SOURCE, 'index.md')).text())
 
 // Spec route coverage pages.
-const aboutLead = 'Agentic Mermaid is a fork of beautiful-mermaid, aimed at a job the original did not have: programs that draw and check diagrams with no person watching. It renders without a browser, reports its own layout errors, and edits diagrams as a typed tree.'
-// The brand Paper palette, hex-resolved. The public site is light-only, so these
-// diagrams render once in Paper rather than carrying a var()-token SVG: page-level
-// custom properties do not inherit into an inlined SVG here, which would leave
-// edge-label halos at fill's black initial value. Paper's derived tiers come from
-// the engine's MIX weights, matching #F5F0E4 page tokens exactly (see THEMES.paper).
-const ABOUT_DIAGRAM_THEME = { bg: '#F5F0E4', fg: '#221E16', accent: '#9A4A24' }
+const aboutLead = 'Beautiful diagrams, made with your agent. Agentic Mermaid turns Mermaid source into styled SVG, PNG, ASCII, and Unicode, with layout JSON available for tools that need coordinates.'
+// About-page diagrams use the shell ground for transparent label halos and the
+// terracotta Paper ink for diagram accents. Hex-resolve the tokens so inlined SVG
+// never depends on page-level CSS variable inheritance.
+const ABOUT_DIAGRAM_THEME = { bg: '#F8F4F0', fg: '#221E16', accent: '#9A4A24' }
 function aboutDiagram(source: string, id: string) {
   // Drawn by the engine at build time — a page about a Mermaid renderer, rendered
   // by it. Transparent canvas so the diagram floats on the page; halos resolve to
@@ -1544,11 +1828,11 @@ function aboutDiagram(source: string, id: string) {
   return `<figure class="about-diagram">${svg}</figure>`
 }
 const aboutBody = `
-<h2>An agent writes a diagram it cannot see</h2>
-<p>When a coding agent emits a Mermaid block, it is working blind. mermaid.js renders in a browser, so the only way to know whether an edge landed on the right node, or whether two boxes overlap, is to start a headless Chrome, rasterize, and look at the picture. An agent in the middle of a task has no picture to look at, so the diagram ships and the break surfaces when a person opens the page. Agentic Mermaid takes the browser out of the path and hands the agent something it can read instead.</p>
+<h2>A diagram should be ready when the agent returns it</h2>
+<p>Ask for an architecture map, a launch timeline, or a product flow and the agent should return source you can keep editing plus an artifact you can use. Agentic Mermaid gives that agent the diagram language, style controls, renderer, and verification step in one workflow: SVG or PNG for pages and decks, ASCII or Unicode for text review, and layout JSON when a tool needs coordinates.</p>
 
-<h2>The same source renders the same way</h2>
-<p>The layout is a pure function of the source and the theme tokens. Render twice and the geometry is byte-identical, on any machine, with nothing measuring text in a browser. Because the bytes are stable, a rendered SVG can be committed and diffed in review, a PNG can be cached by the hash of its source, and a render can gate a CI job without flaking. mermaid.js holds none of this: its layout moves between versions and depends on the browser doing the measurement.</p>
+<h2>The same source can wear your brand</h2>
+<p>Styles are data: a named style, a palette-only style, a JSON record, or a stack of those pieces. Text, nodes, edges, groups, fills, strokes, and typography can follow your house style without touching the diagram's meaning. Render twice and the geometry is byte-identical; change the palette and the boxes stay put.</p>
 <pre><code>am render diagram.mmd --format svg > a.svg
 am render diagram.mmd --format svg > b.svg
 diff a.svg b.svg        # no output: identical bytes, every run, no browser</code></pre>
@@ -1567,14 +1851,14 @@ const r = mutate(flow, { kind: 'add_edge', from: 'API', to: 'Cache' })
 if (!verifyMermaid(r.value).ok) throw new Error('mutation left it broken')
 const next = serializeMermaid(r.value)                 // typed tree back to text</code></pre>
 
-<h2>One source, five surfaces</h2>
-<p>The same parsed diagram serializes to SVG for a web page, PNG for a document, ASCII and Unicode for a terminal, and JSON for the raw layout coordinates. The text forms are the ones agents actually use: an agent reading a pull request or a CI log sees the diagram as box-drawing characters it can parse, where an image tag would be a dead link. The editor renders all three from the one source in the box on the left, so the Diagram, Unicode, and ASCII tabs are the same diagram under three encodings.</p>
+<h2>One source, human artifacts, and tool coordinates</h2>
+<p>The same parsed diagram serializes to SVG for a web page, PNG for a deck or document, and ASCII or Unicode for a terminal. The CLI and library can also emit layout JSON — node boxes, edge points, groups, bounds, and optional route certificates — when a test, agent, or integration needs geometry instead of a picture. The text forms are the ones agents actually use: an agent reading a pull request or a CI log sees the diagram as box-drawing characters it can parse, where an image tag would be a dead link. The editor renders the visual and text tabs from the same source in the box on the left.</p>
 <pre><code>am render flow.mmd --format svg    > flow.svg
 am render flow.mmd --format png    > flow.png
 am render flow.mmd --format ascii          # box-drawing, into the terminal</code></pre>
 
 <h2>The loop</h2>
-<p>These are one loop. An agent parses the source, narrows it with <code>asFlowchart</code>, mutates a node, verifies the result, and serializes it back, then renders the same bytes every time and reads the ASCII when it cannot open an image. It runs the whole loop with no browser and without asking a person whether the picture looks right. That last part is what beautiful-mermaid had no reason to do, and the reason this fork exists.</p>
+<p>These are one loop. An agent writes or parses the source, narrows it when an edit is typed, applies the requested change, verifies the result, and renders with the chosen style. Because verification runs before rendering, you can ask for a branded diagram without accepting a silent source rewrite.</p>
 ${aboutDiagram('flowchart LR\n  Parse --> Narrow\n  Narrow --> Mutate\n  Mutate --> Verify\n  Verify -- ok --> Serialize\n  Verify -- warnings --> Narrow', 'loop')}
 <p class="muted">The loop itself, drawn by Agentic Mermaid at build time from six lines of Mermaid.</p>
 
@@ -1582,9 +1866,8 @@ ${aboutDiagram('flowchart LR\n  Parse --> Narrow\n  Narrow --> Mutate\n  Mutate 
 <p><a href="https://mermaid.js.org">Mermaid</a> is the text syntax these diagrams are written in; its own renderer draws them in a browser. Drawing that text without a browser has been tried before — <a href="https://github.com/AlexanderGrooff/mermaid-ascii">mermaid-ascii</a> renders Mermaid graphs as ASCII straight in a terminal. <a href="https://github.com/lukilabs/beautiful-mermaid">Beautiful Mermaid</a>, from the team at Craft, is a zero-dependency TypeScript renderer that outputs both SVG and ASCII, with its ASCII engine ported from mermaid-ascii's Go. Agentic Mermaid forks Beautiful Mermaid and adds the typed editing and deterministic verification above it, so an agent can change a diagram and check it, where the renderers before it could only draw one.</p>
 ${aboutDiagram('flowchart TD\n  M[Mermaid] --> BM[Beautiful Mermaid]\n  MA[mermaid-ascii] --> BM\n  BM --> AM[Agentic Mermaid]', 'lineage')}
 `
-// The former top-level Families page, folded into Docs as a reference. The 12
-// rows keep their family-id anchors so deep links (and the examples manifest's
-// `docs` field) resolve to /docs/families/#<family>.
+// Example-jump descriptions. This replaces the removed Diagram families page:
+// users choose a concrete example instead of landing on a second reference list.
 const FAMILY_REFERENCE: Array<[id: string, label: string, draws: string]> = [
   ['flowchart', 'Flowchart', 'Decision flow with labeled branches.'],
   ['state', 'State', 'Lifecycle using Mermaid stateDiagram-v2 syntax.'],
@@ -1599,20 +1882,11 @@ const FAMILY_REFERENCE: Array<[id: string, label: string, draws: string]> = [
   ['quadrant', 'Quadrant', 'Two-axis priority map with labeled regions and points.'],
   ['gantt', 'Gantt', 'Sections, dependencies, status tags, and a milestone.'],
 ]
-// Number-word for the family count, derived from the registry so the published
-// prose can't drift from BUILTIN_FAMILY_METADATA (adding a family updates this).
+// Number-word for the family count, derived from the registry so published
+// prose cannot drift from BUILTIN_FAMILY_METADATA.
 const FAMILY_COUNT_WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty']
 const familyCountWord = FAMILY_COUNT_WORDS[BUILTIN_FAMILY_METADATA.length] ?? String(BUILTIN_FAMILY_METADATA.length)
-const familiesLead = `${familyCountWord.charAt(0).toUpperCase()}${familyCountWord.slice(1)} families share one deterministic layout engine. Each parses from Mermaid text and renders to SVG, PNG, ASCII, Unicode, and layout JSON from the same positioned model.`
-function familiesReferenceHtml() {
-  const rows = FAMILY_REFERENCE.map(([id, label, draws]) => `<tr id="${id}"><td><strong>${escapeHtml(label)}</strong></td><td>${escapeHtml(draws)}</td></tr>`).join('')
-  return `<p>Every family carries a route certificate: a machine-checkable claim about how its edges were routed — orthogonal boxes for class and ER, lifelines for sequence, side-anchored links for architecture. That certificate is what lets <code>verify</code> answer in tiers instead of guessing.</p>
-<table>
-<thead><tr><th>Family</th><th>What it draws</th></tr></thead>
-<tbody>${rows}</tbody>
-</table>
-<p>See any of them rendered on the <a href="/examples/">examples</a> page, or open one in the <a href="${GENERIC_EDITOR_HREF}">editor</a>.</p>${docsIndex}`
-}
+const examplesLead = `${familyCountWord.charAt(0).toUpperCase()}${familyCountWord.slice(1)} diagram families with agent tasks, Style + Palette combinations, and the richer shared examples corpus used by project tooling.`
 // The MCP config copy-card, same widget contract as the homepage prompt card
 // (data-copy-widget + data-copy-target + copy-prompt-btn, wired by theme.js).
 // Getting started is the canonical setup home for this config.
@@ -1635,23 +1909,41 @@ function mcpConfigCardHtml(idPrefix: string) {
 <p class="copy-prompt-status" id="${idPrefix}-mcp-copy-status" role="status" aria-live="polite"></p>
 </div>`
 }
-const gettingStartedBody = `<p>Start with Mermaid source, not a screenshot. Render it locally, then give an agent the prompt from the homepage when you want an edit.</p>
+const gettingStartedBody = `<p>Use this page to install the tool and render once yourself. When you hand work to an agent, do not copy a long prompt from this page. Give it three things: your task, the Mermaid source, and one bootstrap line that tells it to fetch the maintained instructions.</p>
 <ol class="start-rail">
 <li><strong>Install Agentic Mermaid.</strong><p>${escapeHtml(installNotice)}</p><pre><code>${escapeHtml(installCommand)}</code></pre></li>
-<li><strong>Create a diagram.</strong><pre><code>cat > diagram.mmd &lt;&lt;'MMD'
+<li><strong>Create a diagram.</strong><p>This first pass uses source directly. Add <code>--style watercolor</code>, <code>--style blueprint</code>, or a JSON style file when you render.</p><pre><code>cat > diagram.mmd &lt;&lt;'MMD'
 flowchart LR
   Idea[Idea] --&gt; Draft[Draft]
   Draft --&gt; Review{Review}
   Review --&gt;|ok| Ship[Ship]
 MMD</code></pre></li>
 <li><strong>Verify, then render.</strong><pre><code>bun run bin/am.ts verify diagram.mmd --json
-bun run bin/am.ts render diagram.mmd --format svg --output diagram.svg
+bun run bin/am.ts render diagram.mmd --format svg --style publication-figure --output diagram.svg
 bun run bin/am.ts render diagram.mmd --format unicode</code></pre></li>
-<li><strong>Ask an agent for the smallest edit.</strong><p>Paste your task and source into the homepage agent prompt, and require the agent to return Updated Mermaid, Verification, and Trace.</p><a class="go" href="/#home-agent-prompt">Get the agent prompt on the homepage</a></li>
+<li><strong>Hand the edit to an agent.</strong><p>Paste the task, paste the Mermaid source, then add this line:</p><pre><code>${escapeHtml(HOMEPAGE_AGENT_POINTER)}</code></pre><p>That line is the only prompt to copy from this page. The fetched file tells the agent how to choose library, CLI, or MCP and verify before returning, so this page does not duplicate the protocol.</p><a class="go" href="/">Copy this line on the homepage</a></li>
 <li><strong>Optional: wire MCP.</strong><p>Self-hosting over stdio is the default path; a hosted MCP endpoint is also available at <code>https://agentic-mermaid.dev/mcp</code> (streamable HTTP).</p>
 ${mcpConfigCardHtml('getting-started')}
 <pre><code>bun run bin/agentic-mermaid-mcp.ts</code></pre><p>Use stdio MCP from the cloned repo, or point an MCP client at the hosted endpoint.</p></li>
 </ol>
+<h2>Agent style/palette recipe</h2>
+<p>Keep appearance out of the Mermaid source. Ask the agent to edit structure with typed ops, verify the result, and pass style and palette as render options.</p>
+<pre><code>// Library or Code Mode
+renderMermaidSVG(source, {
+  style: ['ops-schematic', 'nord-light'],
+  seed: 0,
+  security: 'strict'
+})</code></pre>
+<pre><code># CLI
+bun run bin/am.ts styles --json
+bun run bin/am.ts render diagram.mmd --format svg --style ops-schematic,nord-light --output diagram.svg</code></pre>
+<pre><code>// Hosted MCP render_svg arguments
+{
+  "source": "flowchart TD\\n  A --> B",
+  "style": ["ops-schematic", "nord-light"],
+  "seed": 0
+}</code></pre>
+<p>A style name chooses stroke, fill, typography, and renderer treatment. A palette-only style such as <code>nord-light</code> supplies colors. In the editor those controls are Style and Palette; in API, CLI, and MCP calls, agents can send the stack directly.</p>
 <h2>Vocabulary</h2>
 <p>Shared terms for humans and agents, used across these docs.</p>
 <dl><dt>narrow</dt><dd>Resolve a parsed diagram to a family-specific typed surface.</dd><dt>verify</dt><dd>Return structural, geometric, and lint warnings before artifacts are trusted.</dd><dt>opaque fallback</dt><dd>Preserve unsupported syntax losslessly when structured mutation is unavailable.</dd></dl>
@@ -1660,10 +1952,10 @@ ${docsIndex}`
 // /about/design — the design-language reference. Specimens read the live CSS
 // tokens (var(--…)) rather than repeating hex, so the page cannot drift from
 // the stylesheet it documents; hex appears only as the label under a swatch.
-const designLead = 'The tokens, type, and motion the site and editor share — documented with the same variables that render this page. Diagram themes are deliberately absent: they colour the artwork, never this shell.'
+const designLead = 'The tokens, type, and motion the site and editor share — documented with the same variables that render this page. Diagram palettes are deliberately absent: they colour the artwork, never this shell.'
 const designBody = `
 <h2>Three layers, one seam</h2>
-<p>The stylesheet separates <strong>brand</strong> (the mark, the grain, the type — constants no theme may set), <strong>theme</strong> (a <code>--bg</code>/<code>--fg</code>/<code>--accent</code> triplet everything else derives from), and <strong>scheme</strong> (light/dark polarity). The seam means a renderer theme can restyle a diagram plate without touching the logo or the shell — the same isolation the editor uses when its theme dropdown changes render output but never the app chrome.</p>
+<p>The stylesheet separates <strong>brand</strong> (the mark, the grain, the type — constants no palette may set), <strong>palette</strong> (a <code>--bg</code>/<code>--fg</code>/<code>--accent</code> triplet everything else derives from), and <strong>scheme</strong> (light/dark polarity). The seam means a renderer palette can restyle a diagram plate without touching the logo or the shell — the same isolation the editor uses when its palette dropdown changes render output but never the app chrome.</p>
 
 <h2>Colour</h2>
 <p>The shell is warm stone and ink; one derived ramp covers text, borders, and surfaces. Ink steps keep WCAG AA: soft 8.0:1, faint 5.3:1 on the ground.</p>
@@ -1677,7 +1969,7 @@ const designBody = `
   <div class="dz-swatch"><div class="chip" style="background:var(--line)"></div><div class="meta"><b>--line</b><span>fg 13% · hairline</span></div></div>
   <div class="dz-swatch"><div class="chip" style="background:var(--accent)"></div><div class="meta"><b>--accent</b><span>#1B6E52 · pine, 5.7:1</span></div></div>
 </div>
-<p>The pine accent carries links, buttons, and focus. It sits in the hue region no diagram theme's accent occupies (the renderer accents cluster warm at 21–58° and cool at 217–318°), so chrome and artwork never read as one palette. The brand chip is its own token pair — <code>--brand-pine</code>/<code>--brand-on</code> — outside the theme layer entirely.</p>
+<p>The pine accent carries links, buttons, and focus. It sits in the hue region no diagram palette's accent occupies (the renderer accents cluster warm at 21–58° and cool at 217–318°), so chrome and artwork never read as one palette. The brand chip is its own token pair — <code>--brand-pine</code>/<code>--brand-on</code> — outside the palette layer entirely.</p>
 <h3>Functional colour</h3>
 <p>Four hues carry meaning only, each with a solid ink for text and a 14% tint for fills. On this ground the inks measure success 5.9:1, info 4.8:1, warn 5.4:1, danger 6.3:1. Success is a true leaf green held at least 20° of OkLCH hue from the pine accent, so a link and a confirmation never read as the same colour.</p>
 <div class="dz-grid">
@@ -1740,10 +2032,10 @@ const designBody = `
 <li>Errors name the unmet condition: <code>Load or write a diagram before exporting.</code> rather than an apology.</li>
 <li>Status is concrete: <code>Verified: no warnings</code>, <code>Rendered in 12ms</code> — a measurement, not an adjective.</li>
 </ul>
-<p class="muted">Diagram styles and themes (hand-drawn, watercolor, paper, dusk, tokyo-night, …) are documented in <a href="/docs/theming/">theming</a>; they style rendered diagrams and stay out of this shell by construction.</p>`
+<p class="muted">Diagram styles and palettes (hand-drawn, watercolor, paper, dusk, tokyo-night, …) are documented in <a href="/docs/theming/">Styles and palettes</a>; they style rendered diagrams and stay out of this shell by construction.</p>`
 
 const customStylesBody = [
-  '<p>Custom styles are plain JSON files passed to <code>--style</code>. Keep them in source control, add a <code>seed</code> when the look uses sketch variation, and validate the file before using it from an untrusted source.</p>',
+  '<p>Custom styles are plain JSON files passed to <code>--style</code>. Keep them in source control, add a <code>seed</code> when the style uses sketch variation, and validate the file before using it from an untrusted source.</p>',
   '<pre><code>am render diagram.mmd --format png --style examples/styles/transit-route-map.style.json --seed 11 --output diagram.png</code></pre>',
   '<p>Use the public schema at <a href="/schemas/style-spec.schema.json"><code>/schemas/style-spec.schema.json</code></a>. The same file is exported from the npm package as <code>agentic-mermaid/style-spec.schema.json</code>, so editors can map either the hosted URL or the package export.</p>',
   '<h2>Cookbook examples</h2>',
@@ -1758,17 +2050,16 @@ const customStylesBody = [
 const docPages = [
   ['about/index.html', 'About Agentic Mermaid', aboutLead, aboutBody, '/about/'],
   ['about/design/index.html', 'Design language', designLead, designBody, '/about/'],
-  ['docs/getting-started/index.html', 'Getting started', 'From Mermaid source to a verified local render, then to an agent-safe edit loop.', gettingStartedBody, '/docs/'],
-  ['docs/families/index.html', 'Diagram families', familiesLead, familiesReferenceHtml(), '/docs/'],
+  ['docs/getting-started/index.html', 'Getting started', 'From a prompt and style choice to a verified local render, then to an agent-safe edit loop.', gettingStartedBody, '/docs/'],
   ['docs/api/index.html', 'Library API', 'Use agentic-mermaid and agentic-mermaid/agent from local JS or TS.', '<p>Import rendering helpers from <code>agentic-mermaid</code> and typed parse/mutate/verify helpers from <code>agentic-mermaid/agent</code>. Everything runs locally with no network.</p>\n<pre><code>import { renderMermaidSVG, renderMermaidASCII } from \'agentic-mermaid\'\nimport { parseMermaid, verifyMermaid } from \'agentic-mermaid/agent\'\n\nconst src = \'flowchart LR\\n  A[Idea] --&gt; B[Ship]\'\nconst svg = renderMermaidSVG(src)           // also renderMermaidASCII / unicode\nconst { ok, warnings } = verifyMermaid(src) // structured, tiered warnings</code></pre>\n<p>Render helpers return strings (SVG, ASCII, Unicode); the agent surface returns typed diagrams plus structured verify warnings. <strong>In React</strong>, call the same helpers in your component and inject the SVG — private diagrams never leave the browser or your own infrastructure. <strong>Config:</strong> supported Mermaid frontmatter and <code>init</code> directives are normalized before rendering; unsupported syntax is preserved or reported, never silently dropped.</p>' + docsIndex],
   ['docs/cli/index.html', 'CLI', 'Use the am CLI for local rendering, verification, batch checks, and Markdown rendering.', '<p>The <code>am</code> CLI wraps the library for local rendering, verification, and batch checks. In the cloned repo, <code>am</code> is <code>bun run bin/am.ts</code>.</p>\n<pre><code>am verify diagram.mmd                # structural + geometric + lint warnings\nam verify diagram.mmd --json         # machine-readable for agents\nam render diagram.mmd --format svg --output diagram.svg\nam render diagram.mmd --format png --output diagram.png\nam render diagram.mmd --format ascii # or --format unicode</code></pre>\n<p>Prefer <code>--json</code> in agent loops so you can branch on <code>verify.ok</code> and the stable warning codes instead of parsing prose.</p>' + docsIndex],
   ['docs/mcp/index.html', 'MCP', 'Hosted MCP at /mcp, plus a local stdio server.', '<p>The hosted MCP endpoint is <code>https://agentic-mermaid.dev/mcp</code>: stateless streamable HTTP (JSON-RPC over POST, no sessions). Hosted tools: <code>execute</code>, <code>render_svg</code>, <code>render_ascii</code>, <code>render_png</code>, <code>verify</code>, <code>describe</code>, <code>mutate</code>, and <code>build</code>. Pass <code>format: &quot;facts&quot;</code> to <code>describe</code> for deterministic semantic read-back. Deterministic responses are edge-cached, inputs are capped at 64KB, and Code Mode <code>execute</code> runs in an isolated on-demand Worker with network access disabled and a CPU budget.</p><p>The local MCP tools are <code>execute</code>, <code>render_png</code>, and <code>describe</code>. Multi-step parse/narrow/mutate/verify workflows run inside <code>execute(code)</code>; local <code>describe</code> also supports <code>format: &quot;facts&quot;</code>. For file/URL PNG artifacts, diagrams beyond the hosted caps, or offline use, run the stdio server from the repo: <code>bun run bin/agentic-mermaid-mcp.ts</code>.</p><p><strong>Privacy:</strong> every hosted tool call sends your diagram source (or Code Mode code) to this site\u2019s server, and successful responses are edge-cached for up to a day. For diagrams that must not leave your machine, use the library, the CLI, or the local stdio server \u2014 the pipeline is fully local and needs no network.</p><p><strong>Response framing:</strong> the hosted <code>/mcp</code> endpoint always replies with plain <code>application/json</code> \u2014 no SSE <code>data:</code> framing \u2014 so scripts can parse the body directly. The local HTTP transport\u2019s <code>/sse</code> + <code>/message</code> pair delivers responses as SSE events on the open stream; script writers who want unframed JSON should POST to its <code>/rpc</code> endpoint instead.</p>' + docsIndex],
   ['docs/ascii/index.html', 'ASCII and Unicode', 'Text output is first-class for terminals, PR comments, and agent review.', '<p>Text output is first-class, not a fallback: ASCII (portable 7-bit) and Unicode (box-drawing) renders drop straight into terminals, PR comments, commit messages, and agent transcripts where an SVG cannot go.</p>\n<pre><code>am render diagram.mmd --format ascii    # portable, 7-bit\nam render diagram.mmd --format unicode  # sharper box-drawing glyphs</code></pre>\n<p>The text path is deterministic like the SVG path, so the same source always yields the same characters — reviewable in a plain diff. The ASCII engine is ported from mermaid-ascii; see <a href="/about/">About</a> for the lineage.</p>' + docsIndex],
-  ['docs/theming/index.html', 'Theming and styles', 'A style describes how diagrams look; a colors-only style is a theme.', '<p>One primitive covers every look: a <strong>style</strong> is a partial, composable description of how diagrams render — palette, typography, stroke character, fills. A style that only sets colours is what people call a <em>theme</em>; full looks like <code>hand-drawn</code>, <code>watercolor</code>, or <code>blueprint</code> also change the mark treatment. Styles stack left \u2192 right (<code>{ style: [\'hand-drawn\', \'dracula\'] }</code> is hand-drawn geometry in the dracula palette), the optional <code>seed</code> re-rolls styled ink without ever moving layout, and custom styles are plain JSON records. Use <a href="/docs/custom-styles/">Custom styles</a> for schema, complete JSON examples, and screenshots. The browser editor exposes both pickers \u2014 Style chooses the look, Theme chooses the palette \u2014 and SVG output can also inherit CSS variables for live theming.</p>' + docsIndex],
+  ['docs/theming/index.html', 'Styles and palettes', 'A style describes diagram rendering; a colors-only style is a palette.', '<p>One primitive covers visual rendering: a <strong>style</strong> is a partial, composable description of palette, typography, stroke character, and fills. A style that only sets colours is a palette. Styles such as <code>hand-drawn</code>, <code>watercolor</code>, and <code>blueprint</code> also change renderer treatment. Styles stack left \u2192 right (<code>{ style: [\'hand-drawn\', \'dracula\'] }</code> gives hand-drawn geometry with the dracula palette), the optional <code>seed</code> re-rolls styled ink without moving layout, and custom styles are plain JSON records. Use <a href="/docs/custom-styles/">Custom styles</a> for schema, complete JSON examples, and screenshots. The browser editor exposes both pickers: Style chooses renderer treatment; Palette chooses colors. SVG output can also inherit CSS variables for live palette swaps.</p>' + docsIndex],
   ['docs/custom-styles/index.html', 'Custom styles', 'Author JSON style files, validate them with the schema, and compare cookbook screenshots.', customStylesBody + docsIndex],
   ['docs/quality/index.html', 'Quality', 'Determinism, verify warnings, and layout metrics make diagram edits reviewable.', '<p><code>verify.ok</code> is a gate, not a promise of visual perfection. Include SVG/PNG/ASCII artifacts for human review when the change is visual.</p>\n<p><strong>Warnings are tiered</strong> so an agent knows how to react: <em>structural</em> problems can block a safe return and should be fixed first; <em>geometric</em> warnings ask for visual review; <em>lint</em> warnings mean a smaller or cleaner edit. Every code has a page under <a href="/warnings/">warnings</a> with what triggers it and how to clear it.</p>\n<p><strong>Evidence is curated, not raw private prompts:</strong> rely on CI, deterministic layout metrics, and generated artifacts to review a change. Private eval prompts and holdbacks are not public site content.</p>' + docsIndex],
-  ['docs/fork-differences/index.html', 'Fork differences', 'Agentic Mermaid adds typed editing, deterministic verification, CLI, MCP, and more families.', '<p>Agentic Mermaid (<code>agentic-mermaid</code>) forks <a href="https://github.com/lukilabs/beautiful-mermaid">beautiful-mermaid</a> for a job the render-only original did not have: programs that draw and check diagrams with no person watching.</p>\n<ul>\n<li><strong>Typed agent surface.</strong> A render-only library forces an agent to regenerate a whole diagram to change one node. Here new diagrams are authored as source then parsed/verified/rendered, and existing diagrams go parse → narrow → mutate → verify → serialize via <code>agentic-mermaid/agent</code>. All twelve families are structured-when-narrowed; unmodeled syntax still round-trips losslessly as opaque fallback.</li>\n<li><strong>Deterministic, verifiable layout.</strong> Layout is byte-identical across processes, and <code>verifyMermaid</code> returns structured warnings in three tiers (structural, geometric, lint) plus perceptual quality metrics.</li>\n<li><strong>More families.</strong> Adds timeline, journey, architecture, pie, quadrant, and Gantt on top of the upstream six (flowchart, state, sequence, class, ER, and XY chart) — twelve in all.</li>\n<li><strong>Tools.</strong> An <code>am</code> CLI, an <code>agentic-mermaid-mcp</code> Code Mode MCP server (stdio + opt-in HTTP/SSE), and a hosted MCP endpoint at <code>/mcp</code>. There is no REST render API.</li>\n<li><strong>Semantic SVG styling.</strong> A role-based style API (<code>text</code>/<code>node</code>/<code>edge</code>/<code>group</code>) describes meaning rather than SVG element names.</li>\n</ul>\n<p>See <a href="/docs/families/">diagram families</a> for the full family list and <a href="/about/">About</a> for the lineage.</p>' + docsIndex],
-  ['examples/index.html', 'Examples', 'Proof that each editor source parses, renders, and carries an agent task you can replay.', examplesShowcaseHtml(EDITOR_EXAMPLES), '/examples/'],
+  ['docs/fork-differences/index.html', 'Fork differences', 'Agentic Mermaid adds styled rendering, typed editing, deterministic verification, CLI, MCP, and more families.', '<p>Agentic Mermaid (<code>agentic-mermaid</code>) forks <a href="https://github.com/lukilabs/beautiful-mermaid">beautiful-mermaid</a> for a job the render-only original did not have: agents creating polished, branded diagrams that stay editable as Mermaid source.</p>\n<ul>\n<li><strong>Typed agent surface.</strong> A render-only library forces an agent to regenerate a whole diagram to change one node. Here new diagrams are authored as source then parsed/verified/rendered, and existing diagrams go parse → narrow → mutate → verify → serialize via <code>agentic-mermaid/agent</code>. All twelve families are structured-when-narrowed; unmodeled syntax still round-trips losslessly as opaque fallback.</li>\n<li><strong>Deterministic, verifiable layout.</strong> Layout is byte-identical across processes, and <code>verifyMermaid</code> returns structured warnings in three tiers (structural, geometric, lint) plus perceptual quality metrics.</li>\n<li><strong>More families.</strong> Adds timeline, journey, architecture, pie, quadrant, and Gantt on top of the upstream six (flowchart, state, sequence, class, ER, and XY chart) — twelve in all.</li>\n<li><strong>Tools.</strong> An <code>am</code> CLI, an <code>agentic-mermaid-mcp</code> Code Mode MCP server (stdio + opt-in HTTP/SSE), and a hosted MCP endpoint at <code>/mcp</code>. There is no REST render API.</li>\n<li><strong>Style + Palette rendering.</strong> Named looks and palette stacks keep appearance outside Mermaid source while preserving deterministic geometry.</li>\n</ul>\n<p>See <a href="/examples/">examples</a> for the family list and rendered source, and <a href="/about/">About</a> for the lineage.</p>' + docsIndex],
+  ['examples/index.html', 'Examples', examplesLead, examplesShowcaseHtml(EDITOR_EXAMPLES), '/examples/'],
   ['comparisons/index.html', 'Comparisons', 'One source per family, rendered three ways.', comparisonsHtml(), '/comparisons/'],
 ]
 // Prev/next pager for the manual pages under /docs/, in docPages order with no
@@ -1940,7 +2231,7 @@ function warningDemoHtml(code: string, example: string): string {
   try { fired = verifyMermaid(example).warnings.some((w: any) => w.code === code) } catch { fired = false }
   if (!fired) return ''
   const editorHash = btoa(unescape(encodeURIComponent(example)))
-  return `\n<h2>See it fire</h2>\n<p>This minimal source triggers <code>${code}</code> — checked at build time against the same engine the editor runs.</p>\n<pre><code>${escapeHtml(example)}</code></pre>\n<p><a class="go" href="/editor/#${editorHash}">Open in the editor and watch it clear</a></p>`
+  return `\n<h2>Minimal reproducer</h2>\n<p>This source triggers <code>${code}</code> — checked at build time against the same engine the editor runs.</p>\n<pre><code>${escapeHtml(example)}</code></pre>\n<p><a class="go" href="/editor/#${editorHash}">Open this reproducer in the editor</a></p>`
 }
 
 function warningsIndexHtml() {
@@ -1984,7 +2275,7 @@ for (const w of capabilities.warningCodes) {
 <p>Run <code>am verify diagram.mmd --json</code>, inspect this code, and apply the smallest source or typed mutation that clears it. If it persists after two mechanical attempts, return the warning and ask for human review.</p>
 <p class="muted">In the cloned repo, <code>am</code> is <code>bun run bin/am.ts</code>.</p>
 <p class="muted">Machine-readable: <a href="/warnings/${w.code}/index.md">this page as Markdown</a>.</p>
-<p class="muted">Back to <a href="/warnings/">all warning codes</a>, or <a href="${GENERIC_EDITOR_HREF}">open the editor</a> to watch this warning clear as you edit.</p>`)
+<p class="muted">Back to <a href="/warnings/">all warning codes</a>, or <a href="${GENERIC_EDITOR_HREF}">open a blank editor</a> to try a fix.</p>`)
   // Markdown sibling: the same triage prose an agent gets from verify, without
   // scraping HTML. Discoverable via the link above and served as text/markdown.
   const md = [`# ${w.code}`, '', `> ${inlineHtmlToMarkdown(lead)}`, '',
@@ -2033,7 +2324,7 @@ for (const e of errors) {
   await emitShell(`errors/${e.id}/index.html`, e.title, e.desc, `<p>${e.recover}</p>
 ${e.related ? `<p>${e.related}</p>\n` : ''}<pre><code>am verify diagram.mmd --json</code></pre><p>Return the structured error to the caller when a safe automatic fix is not obvious.</p>
 <p class="muted">Machine-readable: <a href="/errors/${e.id}/index.md">this page as Markdown</a>.</p>
-<p class="muted">Back to <a href="/errors/">all errors</a>, or <a href="${GENERIC_EDITOR_HREF}">open the editor</a> to reproduce the failure as you type.</p>`)
+<p class="muted">Back to <a href="/errors/">all errors</a>, or <a href="${GENERIC_EDITOR_HREF}">open a blank editor</a> to test a source file.</p>`)
   // Markdown sibling (item 7): same recovery guidance without scraping HTML.
   const md = [`# ${e.title}`, '', `> ${inlineHtmlToMarkdown(e.desc)}`, '',
     '## How to recover', '', inlineHtmlToMarkdown(e.recover), '']
@@ -2062,19 +2353,15 @@ const securityHeaders = [
 ].join('\n')
 await emit('_headers', securityHeaders)
 
-// Single source of truth for the trailing-slash redirects: every emitted page
-// lives at <dir>/index.html, so its clean route is that directory. Derive the
-// list from the generated pages instead of hand-maintaining it (which had
-// drifted — /about/design was missing a redirect). Per-code warning/error pages
-// are covered by the :code / :kind splat rules below, so exclude their subpaths.
-const pageRoutes = [...generated.keys()]
-  .filter((rel) => rel.endsWith('/index.html'))
-  .map((rel) => rel.slice(0, -'/index.html'.length))
-  .filter((dir) => dir && !dir.startsWith('warnings/') && !dir.startsWith('errors/'))
-  .sort()
+// Shared route manifest: the Worker and the generated _redirects file use the
+// same clean-route list. Assert the manifest only names pages that this build
+// actually emitted (root index excluded because it has no clean-route redirect).
+for (const route of CLEAN_PAGE_ROUTES) {
+  if (!generated.has(`${route}/index.html`)) throw new Error(`route manifest names missing page: ${route}/index.html`)
+}
 const redirectLines = [
-  ...pageRoutes.map((r) => `/${r} /${r}/ 308`),
-  '/warnings/:code /warnings/:code/ 308', '/errors/:kind /errors/:kind/ 308',
+  ...staticRedirectLines(),
+  ...DYNAMIC_CLEAN_REDIRECT_LINES,
   '',
 ].join('\n')
 await emit('_redirects', redirectLines)
@@ -2117,7 +2404,7 @@ async function emitWorkerArtifact(rel: string, content: Buffer) {
   await writeFile(dest, content)
 }
 
-{
+if (!PUBLIC_ONLY) {
   const harnessBuild = await Bun.build({
     entrypoints: [join(ROOT, 'src', 'mcp', 'dynamic-harness.ts')],
     target: 'browser',
@@ -2225,5 +2512,5 @@ if (CHECK) {
   }
   console.log(`website/build --check: ${workerGenerated.size} src/generated file(s) in sync (website/public is a build artifact, not checked).`)
 } else {
-  console.log(`website/build: wrote ${generated.size} files to website/public`)
+  console.log(`website/build: wrote ${generated.size} files to website/public${PUBLIC_ONLY ? ' (public only)' : ''}`)
 }

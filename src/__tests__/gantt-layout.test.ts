@@ -49,18 +49,13 @@ describe('gantt layout — plot geometry', () => {
     const base = layoutOf(src).layout
     const styled = layoutOf(src, {
       renderOptions: {
-        style: {
-          text: { textTransform: 'uppercase', letterSpacing: 4 },
-          node: { fontSize: 24, fontWeight: 700 },
-          edge: { fontSize: 30, fontWeight: 700 },
-          group: { fontSize: 28, fontWeight: 700 },
-        },
+        style: 'accessible-high-contrast',
       },
     }).layout
 
     expect(styled.labelColumnWidth).toBeGreaterThan(base.labelColumnWidth)
     expect(styled.plot.x).toBeGreaterThan(base.plot.x)
-    expect(styled.plot.y).toBeGreaterThan(base.plot.y)
+    expect(styled.plot.h).toBeGreaterThan(base.plot.h)
     expect(styled.height).toBeGreaterThan(base.height)
     expect(styled.rows[1]!.y - styled.rows[0]!.y).toBeGreaterThan(base.rows[1]!.y - base.rows[0]!.y)
   })

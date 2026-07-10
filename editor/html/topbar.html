@@ -1,6 +1,6 @@
 <header class="topbar" role="banner">
   <h1 class="sr-only">Agentic Mermaid Live Editor</h1>
-  <a href="/beautiful-mermaid/" class="app-brand" aria-label="Agentic Mermaid Editor home">
+  <a href="/" class="app-brand" aria-label="Agentic Mermaid Editor home">
     <span class="app-mark" aria-hidden="true">
       <svg viewBox="0 0 48 48" focusable="false">
         <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
@@ -73,10 +73,10 @@
     </svg>
   </button>
 
-  <!-- Diagram look: Style (texture) and Theme (palette) fused into one split
-       pill. Each half is its own labelled dropdown trigger; the wrap ids and
-       button ids are unchanged so the popup controllers keep working. -->
-  <div class="axis-pill" role="group" aria-label="Diagram look">
+  <!-- Diagram style and palette fused into one split pill. Each half is its
+       own labelled dropdown trigger; the wrap ids and button ids are unchanged
+       so the popup controllers keep working. -->
+  <div class="axis-pill" role="group" aria-label="Diagram style and palette">
     <div class="theme-dropdown-wrap axis-half" id="style-dropdown-wrap">
       <button class="axis-btn" id="style-dropdown-btn" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="style-dropdown-menu">
         <span class="axis-text">
@@ -111,34 +111,7 @@
     </div>
   </div>
 
-  <button class="btn seed-shuffle-btn is-inactive" id="seed-shuffle-btn" type="button" title="Re-roll the ink of the current style (never moves layout)" aria-label="Re-roll style ink" aria-hidden="true" tabindex="-1" inert>
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <rect x="3" y="3" width="18" height="18" rx="3" />
-      <circle cx="8.5" cy="8.5" r="1.2" fill="currentColor" stroke="none" />
-      <circle cx="15.5" cy="8.5" r="1.2" fill="currentColor" stroke="none" />
-      <circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none" />
-      <circle cx="8.5" cy="15.5" r="1.2" fill="currentColor" stroke="none" />
-      <circle cx="15.5" cy="15.5" r="1.2" fill="currentColor" stroke="none" />
-    </svg>
-  </button>
-
   <div class="topbar-sep"></div>
-
-  <!-- Second entry point for the agent handoff (wide viewports only; CSS hides
-       it below 1100px). Shares copyAgentTask with #copy-agent-prompt-btn. -->
-  <button class="btn" id="agent-prompt-topbar-btn" type="button" title="Copies a ready-to-paste prompt — your diagram, your task, and the editing rules — for a coding agent like Claude Code or Cursor">
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-    >
-      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-    </svg>
-    <span>Copy agent prompt</span>
-  </button>
 
   <div class="export-wrap" id="export-wrap">
     <button class="btn" id="export-main-btn" type="button" title="Save PNG (⌘S)" disabled aria-disabled="true">
@@ -154,7 +127,7 @@
         <polyline points="7 10 12 15 17 10" />
         <line x1="12" y1="15" x2="12" y2="3" />
       </svg>
-      Export Image
+      Export
     </button>
     <button
       class="btn export-chevron"
@@ -162,7 +135,7 @@
       type="button"
       title="More export options"
       aria-label="More export options"
-      aria-haspopup="menu"
+      aria-haspopup="dialog"
       aria-expanded="false"
       aria-controls="export-dropdown"
       aria-disabled="false"
@@ -181,7 +154,7 @@
       </svg>
     </button>
 
-    <div class="export-dropdown" id="export-dropdown" role="menu" aria-label="Export options" aria-hidden="true" inert>
+    <div class="export-dropdown" id="export-dropdown" role="dialog" aria-modal="false" aria-label="Export options" aria-hidden="true" inert>
       <button class="export-item" id="export-png-btn" type="button" disabled aria-disabled="true">
         <svg
           class="export-item-icon"
@@ -268,21 +241,6 @@
         </svg>
         <span class="export-item-label">Copy link</span>
       </button>
-      <button class="export-item" id="copy-agent-prompt-btn" type="button" title="Copies a ready-to-paste prompt — your diagram, your task, and the editing rules — for a coding agent like Claude Code or Cursor">
-        <svg
-          class="export-item-icon"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.75"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-        </svg>
-        <span class="export-item-label">Copy agent prompt</span>
-      </button>
-
       <div class="export-divider"></div>
 
       <div class="export-size-row">

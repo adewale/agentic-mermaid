@@ -32,7 +32,7 @@ describe('layoutJourneyDiagram', () => {
     expect(first.y).toBe(second.y)
   })
 
-  it('keeps score cells and actor pills inside each task card', () => {
+  it('keeps score markers, tracks, and actor dots aligned to each task column', () => {
     const diagram = layout(`journey
       section Work
       Prototype<br>review: 3: Design, Eng
@@ -40,22 +40,21 @@ describe('layoutJourneyDiagram', () => {
 
     const task = diagram.sections[0]!.tasks[0]!
 
-    for (const cell of task.scoreCells) {
-      expect(cell.x).toBeGreaterThanOrEqual(task.x)
-      expect(cell.y).toBeGreaterThanOrEqual(task.y)
-      expect(cell.x + cell.size).toBeLessThanOrEqual(task.x + task.width)
-      expect(cell.y + cell.size).toBeLessThanOrEqual(task.y + task.height)
-    }
+    expect(task.track.x).toBe(task.centerX)
+    expect(task.track.y1).toBeGreaterThanOrEqual(task.y + task.height)
+    expect(task.track.y2).toBe(diagram.scoreGuide.baseline.y1)
+    expect(task.marker.cx).toBe(task.centerX)
+    expect(task.marker.cy).toBe(diagram.scoreGuide.ticks.find(tick => tick.score === 3)!.y)
 
-    for (const pill of task.actorPills) {
-      expect(pill.x).toBeGreaterThanOrEqual(task.x)
-      expect(pill.y).toBeGreaterThanOrEqual(task.y)
-      expect(pill.x + pill.width).toBeLessThanOrEqual(task.x + task.width)
-      expect(pill.y + pill.height).toBeLessThanOrEqual(task.y + task.height)
+    for (const dot of task.actorDots) {
+      expect(dot.x - dot.r).toBeGreaterThanOrEqual(task.x)
+      expect(dot.y - dot.r).toBeGreaterThanOrEqual(task.y)
+      expect(dot.x + dot.r).toBeLessThanOrEqual(task.x + task.width)
+      expect(dot.y + dot.r).toBeLessThanOrEqual(task.y + task.height)
     }
   })
 
-  it('leaves a single implicit section unframed while stacking tasks top-to-bottom', () => {
+  it('leaves a single implicit section unframed while ordering tasks left-to-right', () => {
     const diagram = layout(`journey
       Wake up: 3: Me
       Make coffee: 5: Me`)
@@ -65,6 +64,7 @@ describe('layoutJourneyDiagram', () => {
 
     expect(section.framed).toBe(false)
     expect(section.headerHeight).toBe(0)
-    expect(section.tasks[0]!.y + section.tasks[0]!.height).toBeLessThan(section.tasks[1]!.y)
+    expect(section.tasks[0]!.y).toBe(section.tasks[1]!.y)
+    expect(section.tasks[0]!.x + section.tasks[0]!.width).toBeLessThan(section.tasks[1]!.x)
   })
 })

@@ -123,6 +123,79 @@ function createPopupController(opts) {
   return controller;
 }
 
+function createListboxPopupController(opts) {
+  opts = opts || {};
+  var popup = opts.popup;
+  var trigger = popupTrigger(opts);
+  var itemSelector = opts.itemSelector || '[role="option"]';
+  var activeSelector = opts.activeSelector || '.active';
+
+  function items() {
+    return Array.prototype.slice.call(popup ? popup.querySelectorAll(itemSelector) : []);
+  }
+
+  function activeItem() {
+    return popup && (popup.querySelector(activeSelector) || popup.querySelector(itemSelector));
+  }
+
+  function syncTabStops(open) {
+    items().forEach(function(item) {
+      item.tabIndex = open && item === activeItem() ? 0 : -1;
+    });
+  }
+
+  function focusActive() {
+    var active = activeItem();
+    if (active) active.focus();
+  }
+
+  var controller = createPopupController(Object.assign({}, opts, {
+    visibility: Object.assign({ manageTabStops: false }, opts.visibility || {}),
+    afterOpen: function(meta, currentTrigger) {
+      syncTabStops(true);
+      if (opts.afterOpen) opts.afterOpen(meta, currentTrigger);
+      if (meta && meta.focusFirst) focusActive();
+    },
+    afterClose: function(meta, currentTrigger) {
+      syncTabStops(false);
+      if (opts.afterClose) opts.afterClose(meta, currentTrigger);
+    },
+  }));
+
+  if (popup) {
+    popup.addEventListener('click', function(e) {
+      var item = e.target.closest(itemSelector);
+      if (!item || !popup.contains(item)) return;
+      if (opts.onSelect) opts.onSelect(item, e);
+      controller.close({ source: 'select' });
+      if (trigger && opts.focusTriggerOnSelect !== false) trigger.focus();
+    });
+    popup.addEventListener('keydown', function(e) {
+      var list = items();
+      if (!list.length) return;
+      var current = list.indexOf(document.activeElement);
+      if (current < 0) current = Math.max(0, list.indexOf(activeItem()));
+      if (["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key)) {
+        e.preventDefault();
+        var next = current;
+        if (e.key === 'Home') next = 0;
+        else if (e.key === 'End') next = list.length - 1;
+        else next = (current + (e.key === 'ArrowDown' ? 1 : -1) + list.length) % list.length;
+        list.forEach(function(item) { item.tabIndex = -1; });
+        list[next].tabIndex = 0;
+        list[next].focus();
+      }
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        if (document.activeElement && popup.contains(document.activeElement)) document.activeElement.click();
+      }
+    });
+  }
+
+  controller.syncTabStops = syncTabStops;
+  return controller;
+}
+
 function positionAnchoredPopup(popup, anchor, opts) {
   if (!popup || !anchor) return;
   opts = opts || {};
@@ -139,31 +212,6 @@ function positionAnchoredPopup(popup, anchor, opts) {
   popup.style.top = Math.round(top) + 'px';
 }
 
-function copyFeedbackLabel(btn) {
-  if (!btn) return null;
-  return btn.querySelector('.export-item-label') || btn.querySelector('span:last-child') || btn;
-}
-
-function setCopyFeedback(btn, state) {
-  if (!btn) return;
-  var label = copyFeedbackLabel(btn);
-  if (!label) return;
-  if (!btn.dataset.copyOriginalLabel) btn.dataset.copyOriginalLabel = label.textContent || '';
-  // Pin the resting width before swapping in the shorter "Copied" label, so a
-  // labelled topbar button (e.g. Copy agent prompt) can't shrink and slide its
-  // flex neighbours ~80px sideways for the feedback window. Released on restore.
-  if (!btn.style.minWidth) btn.style.minWidth = Math.ceil(btn.getBoundingClientRect().width) + 'px';
-  btn.dataset.copyState = state;
-  label.textContent = state === 'ok' ? 'Copied' : 'Copy failed';
-  window.clearTimeout(btn._copyFeedbackTimer);
-  btn._copyFeedbackTimer = window.setTimeout(function() {
-    label.textContent = btn.dataset.copyOriginalLabel || '';
-    delete btn.dataset.copyState;
-    delete btn.dataset.copyOriginalLabel;
-    btn.style.minWidth = '';
-  }, 1800);
-}
-
 function emptyPreviewHtml() {
   return '<div class="preview-placeholder" id="preview-placeholder">'
     + '<span class="placeholder-kicker">Blank canvas</span>'
@@ -173,7 +221,7 @@ function emptyPreviewHtml() {
     + '<button class="placeholder-example-btn" type="button" data-action="load-example">Load an example</button>'
     + '<button class="placeholder-chip" type="button" data-example="flowchart-basic">Flowchart</button>'
     + '<button class="placeholder-chip" type="button" data-example="sequence-basic">Sequence</button>'
-    + '<button class="placeholder-chip" type="button" data-example="styled-flowchart">Role styled</button>'
+    + '<button class="placeholder-chip" type="button" data-example="quadrant-basic">Style + palette</button>'
     + '</div>'
     + '</div>';
 }

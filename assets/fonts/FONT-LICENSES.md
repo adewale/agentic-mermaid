@@ -2,11 +2,14 @@
 
 The `.ttf` files in this directory ship inside the `agentic-mermaid` npm
 package so PNG rasterization (`renderMermaidPNG`) is deterministic and
-offline: DejaVu Sans is the default face, and the four OFL faces are the
-typefaces referenced by the built-in styles (hand-drawn, excalidraw,
-watercolor → Caveat; pen-and-ink, tufte → EB Garamond; freehand →
-Architects Daughter; blueprint → Share Tech Mono). Custom styles that
-reference other families can supply them via the `fontDirs` PNG option.
+offline: Inter (weights 400/500/600/700 — the weights the SVG output
+requests) is the default face and the family the text-metrics model is
+calibrated for; DejaVu Sans serves as the per-glyph fallback for symbols
+Inter lacks; and the remaining OFL faces are the typefaces referenced by
+the built-in styles (hand-drawn, excalidraw, watercolor → Caveat;
+pen-and-ink, tufte → EB Garamond; freehand → Architects Daughter;
+blueprint → Share Tech Mono). Custom styles that reference other families
+can supply them via the `fontDirs` PNG option.
 
 ## OFL-1.1 faces
 
@@ -16,6 +19,7 @@ required by OFL condition 2.
 
 | File | Typeface | Copyright / Reserved Font Name | Source |
 |---|---|---|---|
+| `Inter-Regular.ttf`, `Inter-Medium.ttf`, `Inter-SemiBold.ttf`, `Inter-Bold.ttf` | Inter (v4.001 statics, weights 400/500/600/700) | Copyright 2016 The Inter Project Authors (https://github.com/rsms/inter) | fonts.google.com/specimen/Inter |
 | `Caveat.ttf` | Caveat | Copyright 2014 The Caveat Project Authors (https://github.com/googlefonts/caveat) | fonts.google.com/specimen/Caveat |
 | `EBGaramond.ttf` | EB Garamond | Copyright 2017 The EB Garamond Project Authors (https://github.com/octaviopardo/EBGaramond12) | fonts.google.com/specimen/EB+Garamond |
 | `ArchitectsDaughter.ttf` | Architects Daughter | Copyright (c) 2010, Kimberly Geswein (kimberlygeswein.com) | fonts.google.com/specimen/Architects+Daughter |

@@ -54,6 +54,11 @@ export interface DiagramColors {
   /**
    * Font family for all text. Emitted on the SVG root as `--font`, so the family
    * stays overridable post-render via inline style. Default: 'Inter'.
+   *
+   * Accepts a plain family name ('Inter'), a CSS variable reference
+   * ('var(--brand-font)'), or a multi-family stack ('Inter, system-ui').
+   * Only plain names get a Google Fonts `@import`; var() references and
+   * stacks are emitted as-is (unquoted) and never fetched.
    */
   font?: string
 
@@ -329,25 +334,76 @@ function isColorDark(color: string): boolean {
  * a blended value from --fg and --bg using color-mix().
  */
 /**
+ * True when `font` is a single plain family name (e.g. 'Inter', 'IBM Plex
+ * Sans') — the only shape that can be turned into a Google Fonts @import URL
+ * and safely single-quoted in CSS. var() references, multi-family stacks,
+ * and already-quoted names don't qualify: URL-encoding those produces a
+ * nonsense @import (e.g. family=var(--brand-font)) and quoting them produces
+ * an invalid family literal (issue: CSS-variable fonts).
+ */
+function isPlainFontFamily(font: string): boolean {
+  return /^[A-Za-z0-9][A-Za-z0-9 _-]*$/.test(font)
+}
+
+/** Family substituted when a raster target cannot resolve a var() font. */
+const RASTER_FONT_FALLBACK = "'Inter'"
+
+/**
+ * Resolve one `var(--font, <fallback>)` fallback to a family list usable by
+ * a static rasterizer. Plain literals ('Inter', Inter, system-ui) pass
+ * through unchanged; a var() reference (e.g. `var(--brand-font)`) points at
+ * a host-page custom property that doesn't exist under resvg, so it resolves
+ * to its own concrete fallback when present, else the default family.
+ */
+function resolveRasterFontFamily(fallback: string): string {
+  if (!fallback.includes('var(')) return fallback
+  const inner = /^var\(\s*--[\w-]+\s*,\s*([^()]+)\)$/.exec(fallback)?.[1]?.trim()
+  return inner || RASTER_FONT_FALLBACK
+}
+
+/**
  * Inline the `--font` CSS variable for static rasterizers. The renderer emits
- * `font-family: var(--font, 'Face')` (see the declaration in buildStyleBlock)
- * so browsers can live-swap the family — but resvg/librsvg have no CSS
- * custom-property support, so the declaration never matches and every face
- * silently falls back. The resolved family is always present as the var()
- * fallback literal; substituting it is raster-only and leaves SVG output
- * byte-identical. Both PNG paths (napi and wasm) share this one workaround.
+ * `font-family: var(--font, <fallback>)` (see the declaration in
+ * buildStyleBlock) so browsers can live-swap the family — but resvg/librsvg
+ * have no CSS custom-property support, so the declaration never matches and
+ * every face silently falls back. The fallback carries the resolved family
+ * (or a var() reference, resolved via resolveRasterFontFamily); substituting
+ * it is raster-only and leaves SVG output byte-identical. Both PNG paths
+ * (napi and wasm) share this one workaround.
  */
 export function inlineFontVarForRaster(svg: string): string {
-  return svg.replace(/var\(--font,\s*('[^']*')\)/g, '$1')
+  const marker = 'var(--font,'
+  let out = ''
+  let i = 0
+  while (true) {
+    const at = svg.indexOf(marker, i)
+    if (at === -1) return out + svg.slice(i)
+    out += svg.slice(i, at)
+    // Scan to the matching close paren — the fallback may itself nest a
+    // var() reference, so a fixed regex can't find the boundary.
+    let depth = 1
+    let j = at + marker.length
+    while (j < svg.length && depth > 0) {
+      if (svg[j] === '(') depth++
+      else if (svg[j] === ')') depth--
+      j++
+    }
+    out += resolveRasterFontFamily(svg.slice(at + marker.length, j - 1).trim())
+    i = j
+  }
 }
 
 export function buildStyleBlock(font: string, hasMonoFont: boolean, shadow?: boolean, embedFontImport: boolean = true): string {
   // CLI / PNG path sets embedFontImport=false explicitly to render offline /
   // CSP-friendly; library default preserves wire compatibility (existing SVG
-  // fixtures and consumer snapshots assert the @import is present).
+  // fixtures and consumer snapshots assert the @import is present). The family
+  // @import is additionally suppressed for var() references and multi-family
+  // stacks — URL-encoding those yields a nonsense Google Fonts request.
   const fontImports = embedFontImport
     ? [
-        `@import url('https://fonts.googleapis.com/css2?family=${encodeURIComponent(font)}:wght@400;500;600;700&amp;display=swap');`,
+        ...(isPlainFontFamily(font)
+          ? [`@import url('https://fonts.googleapis.com/css2?family=${encodeURIComponent(font)}:wght@400;500;600;700&amp;display=swap');`]
+          : []),
         ...(hasMonoFont
           ? [`@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&amp;display=swap');`]
           : []),
@@ -379,12 +435,17 @@ export function buildStyleBlock(font: string, hasMonoFont: boolean, shadow?: boo
   // CSS variable --font lets consumers swap the family post-render by mutating
   // `style="--font:Roboto"` on the SVG root. The literal default family is the
   // last-ditch fallback so SVGs viewed without the variable still render OK.
-  const fontFamilyDecl = `  text { font-family: var(--font, '${font}'), system-ui, sans-serif; }`
+  // Plain names are single-quoted (current wire format); var() references and
+  // multi-family stacks pass through unquoted — quoting those would make the
+  // fallback a bogus single family literally named e.g. "var(--brand-font)".
+  const fontFallback = isPlainFontFamily(font) ? `'${font}'` : font
+  const fontFamilyDecl = `  text { font-family: var(--font, ${fontFallback}), system-ui, sans-serif; }`
 
-  // Only emit the @import line when embedFontImport is true. We still emit the
-  // style block (for derived vars, etc.) and the font-family declaration; only
-  // the network-fetched @import disappears.
-  const styleHead = embedFontImport
+  // Only emit @import lines when there are any (embedFontImport=false, or the
+  // family import was suppressed for a non-plain font and no mono face is
+  // needed). We still emit the style block (for derived vars, etc.) and the
+  // font-family declaration; only the network-fetched @import disappears.
+  const styleHead = fontImports.length > 0
     ? [`  ${fontImports.join('\n  ')}`, fontFamilyDecl]
     : [fontFamilyDecl]
 
@@ -563,6 +624,16 @@ export function inlineResolvedColors(svg: string, colors: DiagramColors): string
   // (which exists to make non-browser SVG renderers like resvg work; resvg
   // resolves CSS-variable font-families natively against the SVG root style).
   const SKIP_VARS = new Set(['font'])
+  // A var()-valued font (e.g. `--font:var(--brand-font, Georgia)`) must also
+  // stay a live reference for host pages — without this the generic fallback
+  // pass below would collapse it to its fallback literal. Only names that are
+  // not diagram color variables are protected, so a (pathological) font like
+  // 'var(--fg)' doesn't break color resolution.
+  if (colors.font) {
+    for (const m of colors.font.matchAll(/var\(\s*--([\w-]+)/g)) {
+      if (!vars.has(m[1]!)) SKIP_VARS.add(m[1]!)
+    }
+  }
 
   // Phase 1: Iteratively resolve var() and color-mix() from innermost outward
   for (let pass = 0; pass < 10; pass++) {

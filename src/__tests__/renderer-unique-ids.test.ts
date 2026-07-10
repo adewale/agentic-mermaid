@@ -8,6 +8,8 @@ import { namespaceSvgIds } from '../renderer.ts'
 
 const ids = (s: string) => [...s.matchAll(/\sid="([^"]+)"/g)].map(m => m[1]!)
 const refs = (s: string) => [...s.matchAll(/url\(#([^)]+)\)/g)].map(m => m[1]!)
+const ariaRefs = (s: string) => [...s.matchAll(/\saria-(?:labelledby|describedby)="([^"]+)"/g)]
+  .flatMap(m => m[1]!.split(/\s+/).filter(Boolean))
 
 describe('#7540 unique SVG ids across diagrams', () => {
   test('default (no idPrefix) is unchanged — back-compat', () => {
@@ -41,6 +43,26 @@ describe('#7540 unique SVG ids across diagrams', () => {
     expect(ids(a).every(i => i.startsWith('q-'))).toBe(true)
     const declared = new Set(ids(a))
     for (const r of refs(a)) expect(declared.has(r)).toBe(true)
+  })
+
+  test('journey markers and accessibility ids are namespaced by idPrefix', () => {
+    const src = `journey
+  accTitle: Working day
+  accDescr: Sentiment across the day
+  section Go to work
+  Make tea: 5: Me
+  Do work: 1: Me, Cat`
+    const a = renderMermaidSVG(src, { idPrefix: 'j0-' })
+    const b = renderMermaidSVG(src, { idPrefix: 'j1-' })
+    expect(ids(a).filter(x => ids(b).includes(x))).toEqual([])
+    expect(ids(a).every(i => i.startsWith('j0-'))).toBe(true)
+    expect(ids(b).every(i => i.startsWith('j1-'))).toBe(true)
+    const declared = new Set(ids(a))
+    for (const r of refs(a)) expect(declared.has(r)).toBe(true)
+    for (const r of ariaRefs(a)) {
+      expect(r.startsWith('j0-')).toBe(true)
+      expect(declared.has(r)).toBe(true)
+    }
   })
 
   test('namespaceSvgIds: empty prefix is a no-op', () => {

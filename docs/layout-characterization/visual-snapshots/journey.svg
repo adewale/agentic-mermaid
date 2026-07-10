@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 353.4" width="320" height="353.4" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" role="img" aria-roledescription="user journey" aria-labelledby="journey-yvy3dp-title">
-<title id="char-journey-journey-yvy3dp-title">Checkout</title>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 530 482.3" width="530" height="482.3" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" role="img" aria-roledescription="user journey" aria-labelledby="char-journey-journey-4ni3mk-title">
+<title id="char-journey-journey-4ni3mk-title">Checkout</title>
 <style>
   text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
   svg {
@@ -18,48 +18,81 @@
     --_key-badge:     #e9e9ea;
   }
 </style>
+<defs>
+  <marker id="char-journey-journey-4ni3mk-arrowhead" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
+    <path d="M0,0 L10,4 L0,8 Z" fill="#47474a" />
+  </marker>
+</defs>
 <style>
   .journey-title { fill: #27272A; }
-  .journey-section-bg { fill: #fafafa; stroke: #d4d4d4; stroke-width: 1; }
-  .journey-section-band { fill: #f0f0f1; stroke: #d4d4d4; stroke-width: 1; }
-  .journey-section-label { fill: #575759; }
-  .journey-task-card { fill: #f9f9f9; stroke: #d4d4d4; stroke-width: 1; }
+  .journey-section-bg { fill: #f0f0f1; stroke: #d4d4d4; stroke-width: 1; }
+  .journey-section-0 { fill: #f0f0f1; stroke: #b2b2b3; }
+  .journey-section-label-band { fill: #e5e5e6; stroke: none; }
+  .journey-section-band-0 { fill: #e5e5e6; }
+  .journey-section-label { fill: #27272A; }
+  .journey-section-label-0 { fill: #27272A; }
+  .journey-task-box { fill: #f9f9f9; stroke: #d4d4d4; stroke-width: 1; }
   .journey-task-text { fill: #27272A; }
-  .journey-score-cell-filled { fill: #47474a; stroke: #47474a; stroke-width: 1; }
-  .journey-score-cell-empty { fill: #fcfcfc; stroke: #dcdcdc; stroke-width: 1; }
-  .journey-actor-pill { fill: #f0f0f1; stroke: #d7d7d7; stroke-width: 1; }
-  .journey-actor-text { fill: #575759; }
+  .journey-track { stroke: #dddddd; stroke-width: 1; stroke-dasharray: 4 7; }
+  .journey-curve { fill: none; stroke: #9a9a9b; stroke-width: 2; stroke-linecap: round; }
+  .journey-guide { stroke: #e4e4e4; stroke-width: 1; }
+  .journey-score-label { fill: #575759; }
+  .journey-baseline { stroke: #47474a; stroke-width: 2; }
+  .journey-score-face { fill: #d7d7d7; stroke: #47474a; stroke-width: 1.2; }
+  .journey-face-eye { fill: #27272A; }
+  .journey-face-mouth { fill: none; stroke: #27272A; stroke-width: 1.6; stroke-linecap: round; }
+  .journey-actor-legend-title { fill: #575759; }
+  .journey-actor-legend-text { fill: #575759; }
+  .journey-actor-dot { stroke: #FFFFFF; stroke-width: 1; }
+  .journey-actor-0 { fill: #34438d; }
 </style>
-<g class="journey-section" data-id="section-0" data-label="Cart">
-  <rect class="journey-section-bg" x="32" y="75.4" width="256" height="250" rx="0" ry="0" />
-  <path class="journey-section-band" d="M32,75.4 H288 V103 H32 Z" />
-  <text x="44" y="89.2" class="journey-section-label" text-anchor="start" font-size="12" font-weight="600" dy="4.199999999999999">Cart</text>
+<g class="journey-score-guide" data-score-min="1" data-score-max="5">
+  <line class="journey-guide" x1="176" y1="256.3" x2="498" y2="256.3" />
+  <text x="164" y="256.3" class="journey-score-label" text-anchor="end" font-size="11" font-weight="600" dy="3.8499999999999996">5</text>
+  <line class="journey-guide" x1="176" y1="296.3" x2="498" y2="296.3" />
+  <text x="164" y="296.3" class="journey-score-label" text-anchor="end" font-size="11" font-weight="600" dy="3.8499999999999996">4</text>
+  <line class="journey-guide" x1="176" y1="336.3" x2="498" y2="336.3" />
+  <text x="164" y="336.3" class="journey-score-label" text-anchor="end" font-size="11" font-weight="600" dy="3.8499999999999996">3</text>
+  <line class="journey-guide" x1="176" y1="376.3" x2="498" y2="376.3" />
+  <text x="164" y="376.3" class="journey-score-label" text-anchor="end" font-size="11" font-weight="600" dy="3.8499999999999996">2</text>
+  <line class="journey-guide" x1="176" y1="416.3" x2="498" y2="416.3" />
+  <text x="164" y="416.3" class="journey-score-label" text-anchor="end" font-size="11" font-weight="600" dy="3.8499999999999996">1</text>
+  <line class="journey-baseline" x1="176" y1="448.3" x2="498" y2="448.3" marker-end="url(#char-journey-journey-4ni3mk-arrowhead)" />
 </g>
+<g class="journey-actor-legend">
+  <text x="32" y="118.4" class="journey-actor-legend-title" text-anchor="start" font-size="12" font-weight="600" dy="4.199999999999999">Actors</text>
+  <circle class="journey-actor-dot journey-actor-0" data-actor="Shopper" cx="37" cy="144.4" r="5" />
+  <text x="54" y="144.4" class="journey-actor-legend-text" text-anchor="start" font-size="11" font-weight="600" dy="3.8499999999999996">Shopper</text>
+</g>
+<g class="journey-section" data-id="section-0" data-label="Cart">
+  <rect class="journey-section-bg journey-section-0" x="176" y="73.4" width="294" height="36" rx="6" ry="6" />
+  <rect class="journey-section-label-band journey-section-band-0" x="182" y="80.4" width="282" height="22" rx="6" ry="6" />
+  <text x="323" y="91.4" class="journey-section-label journey-section-label-0" text-anchor="middle" font-size="12" font-weight="600" dy="4.199999999999999">Cart</text>
+</g>
+<path class="journey-curve" d="M248,296.3 C298,296.3 348,256.3 398,256.3" />
 <g class="journey-task" data-id="task-0" data-score="4" data-section="Cart" data-actors="Shopper">
-  <rect class="journey-task-card" x="50" y="135" width="220" height="79.2" rx="0" ry="0" />
-  <text x="64" y="155.45" class="journey-task-text" text-anchor="start" font-size="13" font-weight="500" dy="4.55">Review basket</text>
-  <rect class="journey-score-cell-filled" x="186" y="150.45" width="10" height="10" rx="2" ry="2" />
-  <rect class="journey-score-cell-filled" x="201" y="150.45" width="10" height="10" rx="2" ry="2" />
-  <rect class="journey-score-cell-filled" x="216" y="150.45" width="10" height="10" rx="2" ry="2" />
-  <rect class="journey-score-cell-filled" x="231" y="150.45" width="10" height="10" rx="2" ry="2" />
-  <rect class="journey-score-cell-empty" x="246" y="150.45" width="10" height="10" rx="2" ry="2" />
-  <g class="journey-actor" data-actor="Shopper">
-    <rect class="journey-actor-pill" x="64" y="175.9" width="63.849999999999994" height="26.3" rx="13.15" ry="13.15" />
-    <text x="95.925" y="189.05" class="journey-actor-text" text-anchor="middle" font-size="11" font-weight="600" dy="3.8499999999999996">Shopper</text>
+  <line class="journey-track" x1="248" y1="200.3" x2="248" y2="448.3" />
+  <rect class="journey-task-box" x="186" y="139.4" width="124" height="60.900000000000006" rx="5" ry="5" />
+  <text x="248" y="159.85" class="journey-task-text" text-anchor="middle" font-size="13" font-weight="500" dy="4.55">Review basket</text>
+  <circle class="journey-actor-dot journey-actor-0" data-actor="Shopper" cx="248" cy="184.3" r="4" />
+  <g class="journey-score-marker" data-score="4">
+    <circle class="journey-score-face" cx="248" cy="296.3" r="16" />
+    <circle class="journey-face-eye" cx="242.5" cy="291.8" r="2" />
+    <circle class="journey-face-eye" cx="253.5" cy="291.8" r="2" />
+    <path class="journey-face-mouth" d="M240,301.3 Q248,307.3 256,301.3" />
   </g>
 </g>
 <g class="journey-task" data-id="task-1" data-score="5" data-section="Cart" data-actors="Shopper">
-  <rect class="journey-task-card" x="50" y="228.2" width="220" height="79.2" rx="0" ry="0" />
-  <text x="64" y="248.64999999999998" class="journey-task-text" text-anchor="start" font-size="13" font-weight="500" dy="4.55">Pay</text>
-  <rect class="journey-score-cell-filled" x="186" y="243.64999999999998" width="10" height="10" rx="2" ry="2" />
-  <rect class="journey-score-cell-filled" x="201" y="243.64999999999998" width="10" height="10" rx="2" ry="2" />
-  <rect class="journey-score-cell-filled" x="216" y="243.64999999999998" width="10" height="10" rx="2" ry="2" />
-  <rect class="journey-score-cell-filled" x="231" y="243.64999999999998" width="10" height="10" rx="2" ry="2" />
-  <rect class="journey-score-cell-filled" x="246" y="243.64999999999998" width="10" height="10" rx="2" ry="2" />
-  <g class="journey-actor" data-actor="Shopper">
-    <rect class="journey-actor-pill" x="64" y="269.09999999999997" width="63.849999999999994" height="26.3" rx="13.15" ry="13.15" />
-    <text x="95.925" y="282.24999999999994" class="journey-actor-text" text-anchor="middle" font-size="11" font-weight="600" dy="3.8499999999999996">Shopper</text>
+  <line class="journey-track" x1="398" y1="200.3" x2="398" y2="448.3" />
+  <rect class="journey-task-box" x="336" y="139.4" width="124" height="60.900000000000006" rx="5" ry="5" />
+  <text x="398" y="159.85" class="journey-task-text" text-anchor="middle" font-size="13" font-weight="500" dy="4.55">Pay</text>
+  <circle class="journey-actor-dot journey-actor-0" data-actor="Shopper" cx="398" cy="184.3" r="4" />
+  <g class="journey-score-marker" data-score="5">
+    <circle class="journey-score-face" cx="398" cy="256.3" r="16" />
+    <circle class="journey-face-eye" cx="392.5" cy="251.8" r="2" />
+    <circle class="journey-face-eye" cx="403.5" cy="251.8" r="2" />
+    <path class="journey-face-mouth" d="M390,260.3 Q398,269.3 406,260.3" />
   </g>
 </g>
-<text x="160" y="39.7" class="journey-title" text-anchor="middle" font-size="18" font-weight="600" dy="6.3">Checkout</text>
+<text x="265" y="39.7" class="journey-title" text-anchor="middle" font-size="18" font-weight="600" dy="6.3">Checkout</text>
 </svg>

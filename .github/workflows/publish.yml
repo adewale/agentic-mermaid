@@ -38,7 +38,19 @@ jobs:
 
       - name: Upgrade npm for trusted publishing
         # Node 22 bundles npm 10.9.x; trusted publishing needs npm >= 11.5.1.
-        run: npm install -g npm@latest
+        # Pin npm instead of using the moving `latest` tag: npm 12.0.0 shipped
+        # without the `sigstore` module needed by libnpmpublish's provenance
+        # path on GitHub-hosted runners. Install `sigstore` in a temp prefix,
+        # then copy that node_modules tree into npm's own module tree so
+        # libnpmpublish can resolve it from inside npm without asking npm to
+        # install dependencies for npm itself.
+        run: |
+          npm install -g npm@11.18.0
+          tmp_sigstore="$(mktemp -d)"
+          npm install --prefix "$tmp_sigstore" sigstore@latest
+          cp -R "$tmp_sigstore/node_modules/." "$(npm root -g)/npm/node_modules/"
+          npm --version
+          NPM_GLOBAL_ROOT="$(npm root -g)" node -e "const { createRequire } = require('module'); console.log(createRequire(process.env.NPM_GLOBAL_ROOT + '/npm/package.json').resolve('sigstore'))"
 
       - name: Install dependencies
         run: bun install

@@ -24,17 +24,6 @@ function raster(svg: string, width: number, bg?: string) {
 }
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
-// Bump in-diagram type sizes so labels are a LARGE fraction of each diagram —
-// this is what makes text legible once a diagram is shrunk into a cell.
-const TYPE_OPT = {
-  style: {
-    text: { fontSize: 22 },
-    node: { fontSize: 26, fontWeight: 600, paddingX: 22, paddingY: 14 },
-    edge: { fontSize: 22, fontWeight: 600 },
-    group: { fontSize: 22, fontWeight: 700 },
-  },
-}
-
 // layout (logical px; whole poster is scaled up at raster time). Big cells +
 // big type = readable. Each diagram is rendered at ~cell pixel size (no
 // down-rezzing), so text stays crisp.
@@ -100,7 +89,7 @@ function build(): string {
       P.push(cellBg(st, x + GAP, y + GAP, CELL_W - GAP * 2, CELL_H - GAP * 2))
       const availW = CELL_W - GAP * 2 - 24, availH = CELL_H - GAP * 2 - 24
       try {
-        const raw = renderMermaidSVG(d.src, { bg: st.colors.bg, fg: st.colors.fg, line: st.colors.line, accent: st.colors.accent, muted: st.colors.muted, surface: st.colors.surface, border: st.colors.border, font: st.font, embedFontImport: false, transparent: true, ...TYPE_OPT, style: { ...TYPE_OPT.style, node: { ...TYPE_OPT.style.node, cornerRadius: st.nodeCornerRadius } } })
+        const raw = renderMermaidSVG(d.src, { bg: st.colors.bg, fg: st.colors.fg, line: st.colors.line, accent: st.colors.accent, muted: st.colors.muted, surface: st.colors.surface, border: st.colors.border, font: st.font, embedFontImport: false, transparent: true, style: 'publication-figure' })
         const styled = restyle(raw, st, { backdrop: false })
         // render the diagram at ~final cell pixel size so its text is crisp (no down-rez)
         const img = raster(styled, Math.round(availW * SCALE))

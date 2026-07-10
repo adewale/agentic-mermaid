@@ -554,8 +554,16 @@ export function namespaceSvgIds(svg: string, prefix: string): string {
   // (never an accidental `url(#…)` inside escaped label text).
   const declared = new Set<string>()
   for (const m of svg.matchAll(/\sid="([^"]+)"/g)) declared.add(m[1]!)
-  let out = svg.replace(/(\sid=")([^"]+)(")/g, (_full, pre, id: string, post) => `${pre}${prefix}${id}${post}`)
-  out = out.replace(/url\(#([^)]+)\)/g, (full, id: string) => declared.has(id) ? `url(#${prefix}${id})` : full)
+  const namespaced = (id: string) => id.startsWith(prefix) ? id : `${prefix}${id}`
+  let out = svg.replace(/(\sid=")([^"]+)(")/g, (_full, pre, id: string, post) => `${pre}${namespaced(id)}${post}`)
+  out = out.replace(/url\(#([^)]+)\)/g, (full, id: string) => declared.has(id) ? `url(#${namespaced(id)})` : full)
+  out = out.replace(/(\saria-(?:labelledby|describedby)=")([^"]+)(")/g, (_full, pre, value: string, post) => {
+    const refs = value.split(/\s+/).map(id => declared.has(id) ? namespaced(id) : id)
+    return `${pre}${refs.join(' ')}${post}`
+  })
+  out = out.replace(/(\s(?:xlink:)?href=")#([^"]+)(")/g, (full, pre, id: string, post) =>
+    declared.has(id) ? `${pre}#${namespaced(id)}${post}` : full,
+  )
   return out
 }
 

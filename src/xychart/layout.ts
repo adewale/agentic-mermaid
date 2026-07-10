@@ -1,4 +1,4 @@
-import { styleRolesOf } from '../scene/style-registry.ts'
+import { styleFaceOf } from '../scene/style-registry.ts'
 import type {
   AxisTick,
   GridLine,
@@ -50,19 +50,19 @@ export function layoutXYChart(
 ): PositionedXYChart {
   const style = resolveRenderStyle(options, XY_STYLE_DEFAULTS)
   const config = resolveXYChartRenderConfig(chart.config)
-  const roles = styleRolesOf(options.style)
-  if (roles?.group?.fontSize != null || roles?.text?.fontSize != null) {
+  const face = styleFaceOf(options.style)
+  if (face?.group?.fontSize != null || face?.text?.fontSize != null) {
     config.titleFontSize = style.groupHeaderFontSize
   }
-  if (roles?.node?.fontSize != null || roles?.text?.fontSize != null) {
+  if (face?.node?.fontSize != null || face?.text?.fontSize != null) {
     config.xAxis.labelFontSize = style.nodeLabelFontSize
     config.yAxis.labelFontSize = style.nodeLabelFontSize
   }
-  if (roles?.edge?.fontSize != null || roles?.text?.fontSize != null) {
+  if (face?.edge?.fontSize != null || face?.text?.fontSize != null) {
     config.xAxis.titleFontSize = style.edgeLabelFontSize
     config.yAxis.titleFontSize = style.edgeLabelFontSize
   }
-  if (roles?.edge?.lineWidth != null) {
+  if (face?.edge?.lineWidth != null) {
     config.xAxis.axisLineWidth = style.lineWidth
     config.yAxis.axisLineWidth = style.lineWidth
     config.xAxis.tickWidth = style.lineWidth

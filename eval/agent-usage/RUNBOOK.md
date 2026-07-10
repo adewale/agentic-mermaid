@@ -42,8 +42,8 @@ manifest. Note the printed run directory.
 One fresh agent per request — fresh context, no cross-case leakage (pooling
 cases into one agent lets it learn the syntax and inflates later cases). Each
 agent reads its request file, follows the "Task prompt under test" (the
-populated homepage prompt), and returns the chat response (`Updated Mermaid` /
-`Verification` / `Trace`).
+fetch-only homepage prompt plus task slots, which points at `start.md`), and
+returns the chat response (`Updated Mermaid` / `Verification` / `Trace`).
 
 **With the repo (in-checkout):** the agent may use the local library / CLI. This
 is the easiest channel but means `taskOk` is an *upper bound* — the agent can

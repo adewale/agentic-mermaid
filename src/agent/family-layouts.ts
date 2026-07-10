@@ -382,7 +382,13 @@ function journeyToRendered(d: ValidDiagram): RenderedLayout {
         nodes.push({ id: t.id, x: f(t.x), y: f(t.y), w: f(t.width), h: f(t.height), shape: 'rectangle', label: t.text })
         memberIds.push(t.id)
       }
-      groups.push({ id: s.id, x: f(s.x), y: f(s.y), w: f(s.width), h: f(s.height), members: memberIds, label: s.label })
+      // The group is the section COLUMN (header band down through its task
+      // boxes), not just the header rect — so groupContainment verifies the
+      // real invariant: every task sits inside its own section span.
+      const bottom = s.tasks.length > 0
+        ? Math.max(s.y + s.height, ...s.tasks.map(t => t.y + t.height))
+        : s.y + s.height
+      groups.push({ id: s.id, x: f(s.x), y: f(s.y), w: f(s.width), h: f(bottom - s.y), members: memberIds, label: s.label })
     }
     return { version: 1, kind: d.kind, nodes, edges: [], groups, bounds: { w: f(positioned.width), h: f(positioned.height) } }
   } catch { return emptyRenderedLayout(d.kind) }

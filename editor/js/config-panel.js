@@ -13,18 +13,26 @@ var COLOR_PRESETS = [
 ];
 
 function readConfig() {
-  var cfg = {};
-  if (cfgColors.bg)      cfg.bg      = cfgColors.bg;
-  if (cfgColors.fg)      cfg.fg      = cfgColors.fg;
-  if (cfgColors.accent)  cfg.accent  = cfgColors.accent;
-  if (cfgColors.line)    cfg.line    = cfgColors.line;
-  if (cfgColors.muted)   cfg.muted   = cfgColors.muted;
-  if (cfgColors.surface) cfg.surface = cfgColors.surface;
-  if (cfgFont)           cfg.font    = cfgFont;
+  // Preserve non-control render options restored from examples/share links
+  // (notably Style + Palette stacks and xychart interactivity) while the
+  // settings form owns only the visible color/font/layout fields.
+  var cfg = Object.assign({}, state.config || {});
+  Object.keys(cfgColors).forEach(function(key) {
+    if (cfgColors[key]) cfg[key] = cfgColors[key];
+    else delete cfg[key];
+  });
+  if (cfgFont) cfg.font = cfgFont;
+  else delete cfg.font;
   if (cfgPadding !== 24) cfg.padding = cfgPadding;
+  else delete cfg.padding;
+  if (cfgEdgeStroke !== 1) cfg.editorEdgeStroke = cfgEdgeStroke;
+  else delete cfg.editorEdgeStroke;
+  if (cfgNodeStroke !== 1) cfg.editorNodeStroke = cfgNodeStroke;
+  else delete cfg.editorNodeStroke;
   state.config = cfg;
-  // Per-diagram config rides along in the autosaved draft.
+  // Per-diagram config rides along in the autosaved draft and share URL.
   if (typeof scheduleDraftSave === 'function') scheduleDraftSave();
+  if (typeof updateHash === 'function') updateHash();
 }
 
 var THEME_COLOR_MAP = { bg: 'bg', fg: 'fg', accent: 'accent', line: 'line', muted: 'muted', surface: 'surface' };
@@ -60,6 +68,38 @@ function updateColorUI(key) {
 
 function refreshAllColorUIs() {
   Object.keys(cfgColors).forEach(function(k) { updateColorUI(k); });
+}
+
+function fontLabelForValue(value) {
+  if (!value) return 'Default';
+  var presets = typeof PRESET_FONTS !== 'undefined' ? PRESET_FONTS : [];
+  for (var i = 0; i < presets.length; i++) if (presets[i].value === value) return presets[i].name;
+  return value;
+}
+
+function clampStroke(raw) {
+  var v = Math.max(0.25, Math.min(6, parseFloat(raw) || 1));
+  return Math.round(v * 4) / 4;
+}
+
+function hydrateConfigControls(config) {
+  config = (config && typeof config === 'object') ? config : {};
+  Object.keys(cfgColors).forEach(function(key) {
+    cfgColors[key] = typeof config[key] === 'string' ? config[key] : '';
+  });
+  cfgFont = typeof config.font === 'string' ? config.font : '';
+  var parsedPadding = parseInt(config.padding, 10);
+  cfgPadding = Number.isFinite(parsedPadding) ? Math.max(0, Math.min(120, parsedPadding)) : 24;
+  cfgEdgeStroke = clampStroke(config.editorEdgeStroke);
+  cfgNodeStroke = clampStroke(config.editorNodeStroke);
+  if (typeof fontSelectLabel !== 'undefined' && fontSelectLabel) fontSelectLabel.textContent = fontLabelForValue(cfgFont);
+  if (typeof paddingNum !== 'undefined' && paddingNum) paddingNum.value = cfgPadding;
+  if (typeof paddingSlider !== 'undefined' && paddingSlider) paddingSlider.value = cfgPadding;
+  if (typeof edgeStrokeNum !== 'undefined' && edgeStrokeNum) edgeStrokeNum.value = cfgEdgeStroke;
+  if (typeof edgeStrokeSlider !== 'undefined' && edgeStrokeSlider) edgeStrokeSlider.value = cfgEdgeStroke;
+  if (typeof nodeStrokeNum !== 'undefined' && nodeStrokeNum) nodeStrokeNum.value = cfgNodeStroke;
+  if (typeof nodeStrokeSlider !== 'undefined' && nodeStrokeSlider) nodeStrokeSlider.value = cfgNodeStroke;
+  refreshAllColorUIs();
 }
 
 refreshAllColorUIs();
@@ -101,11 +141,11 @@ function applyStrokeOverrides(svgEl) {
 
 function makeStrokeSetter(numEl, sliderEl, getVal, setVal) {
   return function(raw) {
-    var v = Math.max(0.25, Math.min(6, parseFloat(raw) || 1));
-    v = Math.round(v * 4) / 4;
+    var v = clampStroke(raw);
     setVal(v);
     numEl.value    = v;
     sliderEl.value = v;
+    readConfig();
     var svgEl = previewInner.querySelector('svg');
     if (svgEl) applyStrokeOverrides(svgEl);
   };
@@ -135,13 +175,8 @@ nodeStrokeSlider.addEventListener('input', function() { setNodeStroke(nodeStroke
 // loads later but shares scope; this only runs on click, by which point they
 // are defined.
 function resetConfig() {
-  Object.keys(cfgColors).forEach(function(k) { cfgColors[k] = ''; });
-  cfgFont = '';
-  if (typeof fontSelectLabel !== 'undefined' && fontSelectLabel) fontSelectLabel.textContent = 'Default';
-  if (typeof setEdgeStroke === 'function') setEdgeStroke(1);
-  if (typeof setNodeStroke === 'function') setNodeStroke(1);
-  if (typeof setPadding === 'function') setPadding(24);
-  refreshAllColorUIs();
+  state.config = {};
+  hydrateConfigControls(state.config);
   readConfig();
   if (typeof scheduleRender === 'function') scheduleRender(0);
   if (typeof showToast === 'function') showToast('Style reset to theme.');

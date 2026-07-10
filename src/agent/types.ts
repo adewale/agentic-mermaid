@@ -115,6 +115,10 @@ export interface JourneySection {
 export interface JourneyBody {
   kind: 'journey'
   title?: string
+  /** Optional accessibility title from Mermaid accTitle. */
+  accessibilityTitle?: string
+  /** Optional accessibility description from Mermaid accDescr. */
+  accessibilityDescription?: string
   sections: JourneySection[]
 }
 
@@ -683,15 +687,22 @@ export type ErMutationOp =
 
 export type JourneyMutationOp =
   | { kind: 'set_title'; title: string | null }
-  | { kind: 'add_section'; label: string }
+  | { kind: 'add_section'; label: string; index?: number }
   | { kind: 'remove_section'; index: number }
   | { kind: 'set_section_label'; index: number; label: string }
-  | { kind: 'add_task'; sectionIndex: number; text: string; score: number; actors?: string[] }
+  | { kind: 'add_task'; sectionIndex: number; text: string; score: number; actors?: string[]; index?: number }
   | { kind: 'remove_task'; sectionIndex: number; taskIndex: number }
   | { kind: 'set_task_text'; sectionIndex: number; taskIndex: number; text: string }
   | { kind: 'set_task_score'; sectionIndex: number; taskIndex: number; score: number }
   | { kind: 'set_task_actors'; sectionIndex: number; taskIndex: number; actors: string[] }
   | { kind: 'rename_actor'; from: string; to: string }
+  // Journey order IS the timeline, so ordering is a first-class edit rather
+  // than a remove+re-add dance with shifting indices (every other ordered
+  // family already carries its reorder op).
+  | { kind: 'move_task'; fromSection: number; fromIndex: number; toSection: number; toIndex: number }
+  | { kind: 'move_section'; from: number; to: number }
+  | { kind: 'set_accessibility_title'; title: string | null }
+  | { kind: 'set_accessibility_description'; description: string | null }
 
 export type ArchitectureMutationOp =
   | { kind: 'add_service'; id: string; label?: string; icon?: string | null; group?: string | null }
@@ -786,7 +797,7 @@ export type Tier2WarningCode =
  * Tier 3 (advisory lint). Family-specific quality hints for common agent
  * mistakes that still parse and render. Lint warnings never flip verify.ok.
  */
-export type Tier3WarningCode = 'DUPLICATE_EDGE' | 'UNREACHABLE_NODE' | 'DECISION_BRANCH_UNLABELED' | 'COMMENT_DROPPED' | 'UNSUPPORTED_SYNTAX' | 'CONTENT_DROPPED_ON_ROUNDTRIP'
+export type Tier3WarningCode = 'DUPLICATE_EDGE' | 'UNREACHABLE_NODE' | 'DECISION_BRANCH_UNLABELED' | 'COMMENT_DROPPED' | 'UNSUPPORTED_SYNTAX' | 'CONTENT_DROPPED_ON_ROUNDTRIP' | 'INEFFECTIVE_CONFIG'
 export type WarningCode = Tier1WarningCode | Tier2WarningCode | Tier3WarningCode
 
 export type LayoutWarning =
@@ -835,6 +846,13 @@ export type LayoutWarning =
    * success is not faithfulness" (Loop 17). Lint, never flips verify.ok.
    */
   | { code: 'CONTENT_DROPPED_ON_ROUNDTRIP'; before: { nodes: number; edges: number; groups: number }; after: { nodes: number; edges: number; groups: number } }
+  /**
+   * A Mermaid config field was accepted (for config-shape compatibility) but
+   * has no effect on this family's geometry or paint — e.g. Journey's
+   * sequence-era fields. Accepting-and-ignoring silently misleads migrating
+   * users; this lint says so. Never flips verify.ok.
+   */
+  | { code: 'INEFFECTIVE_CONFIG'; field: string; message: string }
 
 export const WARNING_SEVERITY: Record<WarningCode, WarningSeverity> = {
   EMPTY_DIAGRAM: 'error',
@@ -859,6 +877,7 @@ export const WARNING_SEVERITY: Record<WarningCode, WarningSeverity> = {
   COMMENT_DROPPED: 'warning',
   UNSUPPORTED_SYNTAX: 'warning',
   CONTENT_DROPPED_ON_ROUNDTRIP: 'warning',
+  INEFFECTIVE_CONFIG: 'warning',
 }
 
 export const WARNING_TIER: Record<WarningCode, WarningTier> = {
@@ -884,6 +903,7 @@ export const WARNING_TIER: Record<WarningCode, WarningTier> = {
   COMMENT_DROPPED: 'lint',
   UNSUPPORTED_SYNTAX: 'lint',
   CONTENT_DROPPED_ON_ROUNDTRIP: 'lint',
+  INEFFECTIVE_CONFIG: 'lint',
 }
 
 export const DEFAULT_LABEL_CHAR_CAP = 40

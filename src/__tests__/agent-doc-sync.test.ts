@@ -689,6 +689,19 @@ describe('spec honesty', () => {
     }
   })
 
+  test('removed editor seed-shuffle affordance is not advertised as current UI', () => {
+    const checks = [
+      ['src/types.ts', 'editor "shuffle"'],
+      ['docs/design/system/styles-rollout.md', '🎲'],
+      ['docs/design/system/styles-rollout.md', 'style picker, 🎲 shuffle'],
+      ['scripts/sketch-prototype/SPEC.md', 'editor "shuffle"'],
+    ] as const
+    for (const [file, stale] of checks) {
+      const text = readFileSync(join(REPO, file), 'utf8')
+      expect({ file, stale, present: text.includes(stale) }).toEqual({ file, stale, present: false })
+    }
+  })
+
   test('Cloudflare Code Mode remains future inspiration, not a shipped runtime claim', () => {
     const spec = readFileSync(join(REPO, 'AGENT_NATIVE.md'), 'utf8')
     const rationale = readFileSync(join(REPO, 'docs/mcp-code-mode-rationale.md'), 'utf8')

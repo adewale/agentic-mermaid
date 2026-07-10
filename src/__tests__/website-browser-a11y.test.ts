@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import { existsSync } from 'node:fs'
 import { extname, join, normalize } from 'node:path'
 import { chromium, type Browser, type Page } from 'playwright'
+import { HOSTED_FONT_FACES } from '../font-manifest.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const SITE = join(REPO, 'website', 'public')
@@ -30,6 +31,7 @@ const mime: Record<string, string> = {
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
   '.ico': 'image/x-icon',
+  '.ttf': 'font/ttf',
   '.txt': 'text/plain; charset=utf-8',
   '.md': 'text/markdown; charset=utf-8',
 }
@@ -110,34 +112,21 @@ describeBrowser('website browser accessibility smoke', () => {
 
   test('public routes have named controls, valid ARIA references, and no mobile horizontal overflow', async () => {
     const page = await browser.newPage({ viewport: { width: 390, height: 900 } })
-    for (const route of ['/', '/examples/', '/comparisons/', '/about/', '/docs/getting-started/', '/docs/families/#gantt', '/docs/', '/skills/agentic-mermaid-diagram-workflow/']) {
+    for (const route of ['/', '/examples/#gantt', '/comparisons/', '/about/', '/docs/getting-started/', '/docs/', '/skills/agentic-mermaid-diagram-workflow/']) {
       await page.goto(baseUrl + route, { waitUntil: 'networkidle' })
       expect({ route, unnamed: await namedControls(page) }).toEqual({ route, unnamed: [] })
       expect({ route, broken: await brokenAriaControls(page) }).toEqual({ route, broken: [] })
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
       expect({ route, overflow }).toEqual({ route, overflow: 0 })
       if (route === '/comparisons/') {
-        await page.waitForFunction(() => document.querySelectorAll('.comparison-mermaid[data-processed="true"]').length === 12, null, { timeout: 10_000 })
-        expect(await page.locator('.comparison-mermaid[data-processed="true"]').count()).toBe(12)
+        await page.waitForFunction(() => document.querySelectorAll('.comparison-mermaid[data-processed="true"]').length === 13, null, { timeout: 10_000 })
+        expect(await page.locator('.comparison-mermaid[data-processed="true"]').count()).toBe(13)
         expect(await page.locator('.comparison-panel').count()).toBe(30)
         await page.locator('[data-comparison-lightbox-panel]').first().click()
         expect(await page.locator('.comparison-dialog[open]').count()).toBe(1)
         expect(await page.locator('.comparison-dialog .comparison-panel').count()).toBeGreaterThanOrEqual(2)
         await page.locator('.comparison-dialog-close').click()
         expect(await page.locator('.comparison-dialog[open]').count()).toBe(0)
-      }
-      if (route === '/') {
-        const unicodeMetrics = await page.locator('.unicode-diagram').evaluate((el) => {
-          const code = el.querySelector('code') as HTMLElement
-          return {
-            overflowX: getComputedStyle(el).overflowX,
-            codeSize: Number.parseFloat(getComputedStyle(code).fontSize),
-            containedOverflow: el.scrollWidth - el.clientWidth,
-          }
-        })
-        expect({ route, overflowX: unicodeMetrics.overflowX }).toEqual({ route, overflowX: 'auto' })
-        expect(unicodeMetrics.codeSize).toBeGreaterThanOrEqual(12)
-        expect(unicodeMetrics.containedOverflow).toBeGreaterThanOrEqual(0)
       }
       expect(await page.locator('.theme-switch').count()).toBe(0)
     }
@@ -151,19 +140,16 @@ describeBrowser('website browser accessibility smoke', () => {
       const body = getComputedStyle(document.body)
       const doc = document.querySelector('.doc') as HTMLElement
       const lead = document.querySelector('.home-main .page-header > .lead') as HTMLElement
-      const code = document.querySelector('.agent-prompt code') as HTMLElement
+      const codeBlock = document.querySelector('.channels pre') as HTMLElement
+      const code = codeBlock.querySelector('code') as HTMLElement
       const h1 = document.querySelector('h1') as HTMLElement
-      const unicode = document.querySelector('.unicode-diagram') as HTMLElement
       return {
         bodyLine: Number.parseFloat(body.lineHeight) / Number.parseFloat(body.fontSize),
         docWidth: doc.getBoundingClientRect().width,
         leadWidth: lead.getBoundingClientRect().width,
-        codeWrap: getComputedStyle(code).overflowWrap,
+        codeOverflowX: getComputedStyle(codeBlock).overflowX,
         codeLigatures: getComputedStyle(code).fontFeatureSettings,
         h1Tracking: Number.parseFloat(getComputedStyle(h1).letterSpacing),
-        unicodeOverflow: unicode.scrollWidth - unicode.clientWidth,
-        unicodeOverflowX: getComputedStyle(unicode).overflowX,
-        unicodeCodeSize: getComputedStyle(unicode.querySelector('code') as HTMLElement).fontSize,
       }
     })
     expect(metrics.bodyLine).toBeGreaterThanOrEqual(1.55)
@@ -171,11 +157,8 @@ describeBrowser('website browser accessibility smoke', () => {
     expect(metrics.docWidth).toBeGreaterThanOrEqual(1000)
     expect(metrics.docWidth).toBeLessThanOrEqual(1008)
     expect(metrics.leadWidth).toBeGreaterThanOrEqual(950)
-    expect(metrics.codeWrap).toBe('break-word')
+    expect(metrics.codeOverflowX).toBe('auto')
     expect(metrics.codeLigatures).toContain('"liga" 0')
-    expect(metrics.unicodeOverflow).toBeGreaterThanOrEqual(0)
-    expect(metrics.unicodeOverflowX).toBe('auto')
-    expect(Number.parseFloat(metrics.unicodeCodeSize)).toBeGreaterThanOrEqual(12)
     expect(Math.abs(metrics.h1Tracking)).toBeLessThan(2)
     await page.close()
   }, 30_000)
@@ -188,6 +171,78 @@ describeBrowser('website browser accessibility smoke', () => {
     await page.waitForFunction(() => document.querySelector('#preview-placeholder'))
     expect(await page.locator('#code-editor').inputValue()).toBe('')
     expect(await page.locator('#preview-placeholder .placeholder-title').textContent()).toContain('No diagram yet')
+    await page.close()
+  }, 30_000)
+
+  test('editor corrupt share hashes do not load stale query examples', async () => {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+    await page.goto(baseUrl + '/editor/?example=flowchart-basic#deflate:bad', { waitUntil: 'networkidle' })
+    await page.waitForFunction(() => (document.querySelector('#code-editor') as HTMLTextAreaElement | null)?.value.length)
+    const source = await page.locator('#code-editor').inputValue()
+    expect(source).toContain('Parse source')
+    expect(source).not.toContain('Decision?')
+    await page.waitForFunction(() => location.search === '', null, { timeout: 10_000 })
+    await page.close()
+  }, 30_000)
+
+  test('editor loads every self-hosted diagram font face it advertises', async () => {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+    await page.goto(baseUrl + '/editor/?empty=1', { waitUntil: 'networkidle' })
+    const results = await page.evaluate(async (faces) => {
+      return Promise.all(faces.map(async (face) => {
+        const response = await fetch(`/fonts/${face.file}`)
+        const weights = face.weight.split(/\s+/)
+        const requestedWeight = weights.includes('700') ? '700' : (weights[0] || '400')
+        const descriptor = `${face.style} ${requestedWeight} 16px "${face.family}"`
+        const loaded = await document.fonts.load(descriptor)
+        return {
+          family: face.family,
+          file: face.file,
+          weight: face.weight,
+          style: face.style,
+          requestedWeight,
+          fetchOk: response.ok,
+          checkOk: document.fonts.check(descriptor),
+          loadedFaces: loaded.map((font) => ({ family: font.family.replace(/["']/g, ''), weight: font.weight, style: font.style, status: font.status })),
+        }
+      }))
+    }, HOSTED_FONT_FACES)
+    for (const result of results) {
+      expect(result).toMatchObject({ fetchOk: true, checkOk: true })
+      expect(result.loadedFaces.some((font) => font.family === result.family && font.status === 'loaded' && font.style === result.style)).toBe(true)
+    }
+    await page.close()
+  }, 30_000)
+
+  test('editor share links restore style state and styled label fonts', async () => {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+    const hash = 'deflate:PY5BDoIwEEWvMumaegAXnkAIgYRNZTHCIARoybRIkLD1AB7Rk5iWxOV_7yf_b8KamSsSZ9EMZqlaZAfX7KYBcpUHBadxrEuQ8gKpmpAtlV6ngSRKI7NZAkoCitU4O3RHKw6o2J7EXbPuHhUgJZg-iExZ4g6H7kXwfX-ASdfE5b-2IOtOP-yxJSLhWhr92QknYhEJ69bB56rFob8b5FrsPw'
+    await page.goto(baseUrl + '/editor/#' + hash, { waitUntil: 'networkidle' })
+    await page.locator('#preview-inner svg text').first().waitFor({ state: 'visible', timeout: 10_000 })
+    await page.waitForFunction(() => document.fonts.check('16px Caveat'))
+    expect(await page.locator('#style-btn-label').textContent()).toBe('Chalkboard')
+    expect(await page.locator('#theme-btn-label').textContent()).toBe('Paper')
+    const labelFont = await page.locator('#preview-inner svg text').first().evaluate((el) => getComputedStyle(el).fontFamily)
+    expect(labelFont).toContain('Caveat')
+    await page.close()
+  }, 30_000)
+
+  test('editor share links apply compact schematic label typography in the browser', async () => {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+    const hash = 'deflate:RY6xDoIwFEV_5eXNdDcMGqGsLriYykDKkzZCS9pnjKH8uykOjuec5OauGP0raMISH5N_a9MHhqu8O4CzarkP3IEQR6hWSdpG691py7HKNt0oJqiV9MCGgI11Y_evF59AqvZpF7C8-3rfalTjhp3lj7FANjTnE86HQUx2NIwFRv5MWfoliqgNzT1bnT3RgOVh-wI'
+    await page.goto(baseUrl + '/editor/#' + hash, { waitUntil: 'networkidle' })
+    await page.locator('#preview-inner svg text').first().waitFor({ state: 'visible', timeout: 10_000 })
+    await page.waitForFunction(() => document.fonts.check('12px "Share Tech Mono"'))
+    expect(await page.locator('#style-btn-label').textContent()).toBe('Compact Trace Map')
+    expect(await page.locator('#theme-btn-label').textContent()).toBe('Nord Light')
+    const label = await page.locator('#preview-inner svg text', { hasText: 'START' }).first().evaluate((el) => {
+      const style = getComputedStyle(el)
+      return { text: el.textContent, fontFamily: style.fontFamily, fontWeight: style.fontWeight, fontSize: style.fontSize }
+    })
+    expect(label.text).toBe('START')
+    expect(label.fontFamily).toContain('Share Tech Mono')
+    expect(Number.parseInt(label.fontWeight, 10)).toBeGreaterThanOrEqual(700)
+    expect(label.fontSize).toBe('12px')
     await page.close()
   }, 30_000)
 
@@ -262,6 +317,16 @@ describeBrowser('website browser accessibility smoke', () => {
       expect(await page.locator(spec.popup).evaluate((el) => (el as HTMLElement).inert)).toBe(true)
       expect(await page.evaluate((selector) => document.activeElement === document.querySelector(selector), spec.button)).toBe(true)
     }
+
+    await page.locator('#examples-sidebar-btn').focus()
+    await page.evaluate(() => document.dispatchEvent(new KeyboardEvent('keydown', { key: '?', bubbles: true, cancelable: true })))
+    expect(await page.locator('#shortcuts-dialog').getAttribute('aria-hidden')).toBe('false')
+    expect(await page.evaluate(() => document.activeElement === document.querySelector('#shortcuts-dialog-close'))).toBe(true)
+    await page.keyboard.press('Tab')
+    expect(await page.evaluate(() => document.activeElement === document.querySelector('#shortcuts-dialog-close'))).toBe(true)
+    await page.keyboard.press('Escape')
+    expect(await page.locator('#shortcuts-dialog').getAttribute('aria-hidden')).toBe('true')
+    expect(await page.evaluate(() => document.activeElement === document.querySelector('#examples-sidebar-btn'))).toBe(true)
 
     await page.locator('#settings-btn').click()
     for (const spec of [
