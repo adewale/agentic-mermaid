@@ -1,0 +1,813 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agentic Mermaid — fluid-interface upgrades, before/after</title>
+<style>
+  /* ============ tokens: the site's own Kiln system, both schemes ============ */
+  :root {
+    --bg: #F8F4F0; --fg: #26201B; --accent: #1B6E52;
+    --plate: #FFFFFF;
+    --ink-soft: color-mix(in srgb, var(--fg) 80%, var(--bg));
+    --ink-faint: color-mix(in srgb, var(--fg) 64%, var(--bg));
+    --surface: color-mix(in srgb, var(--fg) 4%, var(--bg));
+    --chip: color-mix(in srgb, var(--fg) 9%, var(--bg));
+    --line: color-mix(in srgb, var(--fg) 13%, var(--bg));
+    --line-strong: color-mix(in srgb, var(--fg) 24%, var(--bg));
+    --accent-tint: color-mix(in srgb, var(--accent) 12%, var(--bg));
+    --scrim: rgba(24, 22, 18, 0.55);
+    --shadow-pop: 0 0 0 1px rgba(0,0,0,0.05), 0 4px 10px rgba(0,0,0,0.10), 0 18px 44px rgba(0,0,0,0.18);
+    --grain-o: 0.13;
+    --serif: Charter, 'Bitstream Charter', 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+    --sans: 'Avenir Next', Avenir, 'Segoe UI', system-ui, sans-serif;
+    --mono: 'SFMono-Regular', 'SF Mono', Menlo, Consolas, ui-monospace, monospace;
+    --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #17130D; --fg: #EBE7E0; --accent: #6FC2A2;
+      --plate: #141D19;
+      --scrim: rgba(0, 0, 0, 0.6);
+      --shadow-pop: 0 0 0 1px rgba(255,255,255,0.08), 0 18px 44px rgba(0,0,0,0.5);
+      --grain-o: 0.06;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #17130D; --fg: #EBE7E0; --accent: #6FC2A2;
+    --plate: #141D19;
+    --scrim: rgba(0, 0, 0, 0.6);
+    --shadow-pop: 0 0 0 1px rgba(255,255,255,0.08), 0 18px 44px rgba(0,0,0,0.5);
+    --grain-o: 0.06;
+  }
+  :root[data-theme="light"] {
+    --bg: #F8F4F0; --fg: #26201B; --accent: #1B6E52;
+    --plate: #FFFFFF;
+    --scrim: rgba(24, 22, 18, 0.55);
+    --shadow-pop: 0 0 0 1px rgba(0,0,0,0.05), 0 4px 10px rgba(0,0,0,0.10), 0 18px 44px rgba(0,0,0,0.18);
+    --grain-o: 0.13;
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font-family: var(--sans); font-size: 1.0625rem; line-height: 1.6;
+  }
+  /* the site's grain, so the mock reads as the same material */
+  body::before {
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0; opacity: var(--grain-o);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  main { position: relative; z-index: 1; max-width: 920px; margin: 0 auto; padding: 48px 24px 96px; }
+
+  .kicker { margin: 0 0 10px; color: var(--ink-soft); font-family: var(--mono); font-size: 0.8125rem; font-weight: 650; }
+  h1 {
+    margin: 0 0 14px; font-family: var(--serif); font-weight: 600;
+    font-size: clamp(1.9rem, 4.5vw, 2.6rem); line-height: 1.08; letter-spacing: -0.018em; text-wrap: balance;
+  }
+  .lead { max-width: 46rem; margin: 0 0 8px; color: var(--ink-soft); font-size: 1.15rem; line-height: 1.5; text-wrap: pretty; }
+  .lead strong { color: var(--fg); }
+  .note { max-width: 46rem; margin: 0; color: var(--ink-faint); font-size: 0.875rem; }
+  .note code { font-family: var(--mono); font-size: 0.9em; background: var(--surface); padding: 1px 6px; border-radius: 6px; }
+
+  section.demo { margin-top: 56px; padding-top: 24px; border-top: 1px solid var(--line); }
+  section.demo h2 { margin: 0 0 6px; font-family: var(--serif); font-weight: 600; font-size: 1.45rem; line-height: 1.2; letter-spacing: -0.012em; text-wrap: balance; }
+  section.demo > p { max-width: 46rem; margin: 0 0 18px; color: var(--ink-soft); font-size: 0.9375rem; line-height: 1.55; text-wrap: pretty; }
+
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 700px) { .pair { grid-template-columns: 1fr; } }
+  .card {
+    min-width: 0; display: flex; flex-direction: column;
+    border: 1px solid var(--line); border-radius: 12px; background: var(--surface);
+    overflow: hidden; box-shadow: 0 1px 0 color-mix(in srgb, var(--fg) 5%, transparent);
+  }
+  .card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 12px; border-bottom: 1px solid var(--line); }
+  .tag { font-family: var(--mono); font-size: 0.75rem; font-weight: 650; padding: 2px 10px; border-radius: 999px; border: 1px solid var(--line-strong); color: var(--ink-soft); }
+  .card.after .tag { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); background: var(--accent-tint); }
+  .card-head small { color: var(--ink-faint); font-size: 0.75rem; font-family: var(--mono); }
+  .stage { position: relative; background: var(--plate); min-height: 170px; display: grid; place-items: center; overflow: hidden; }
+  .card-foot { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-top: 1px solid var(--line); min-height: 46px; }
+  .readout { margin-left: auto; color: var(--ink-faint); font-family: var(--mono); font-size: 0.78rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  button.ctl {
+    font: 650 0.8125rem var(--sans); color: var(--ink-soft);
+    background: var(--surface); border: 1px solid var(--line-strong); border-radius: 8px;
+    min-height: 34px; padding: 0 12px; cursor: pointer;
+    transition: background 0.16s var(--ease-out), color 0.16s var(--ease-out), transform 0.1s var(--ease-out);
+  }
+  button.ctl:hover { background: var(--chip); color: var(--fg); }
+  button.ctl:active { transform: scale(0.96); }
+  button.ctl:focus-visible, .thumb:focus-visible, .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  button.ctl.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+  button.ctl.primary:hover { background: color-mix(in srgb, var(--accent) 70%, var(--fg)); }
+
+  /* R1 — latency */
+  .minisrc { width: 100%; padding: 10px 14px; border-bottom: 1px dashed var(--line); font-family: var(--mono); font-size: 0.78rem; color: var(--ink-soft); white-space: pre; overflow-x: auto; }
+  .minisrc .caret { display: inline-block; width: 7px; height: 13px; background: var(--accent); vertical-align: -2px; opacity: 0; }
+  .minisrc .caret.on { opacity: 1; }
+  .r1-stage { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; }
+  .r1-svgwrap { flex: 1; display: grid; place-items: center; padding: 12px; }
+  .spinner {
+    position: absolute; top: 10px; right: 10px; width: 16px; height: 16px; border-radius: 50%;
+    border: 2px solid var(--chip); border-top-color: var(--accent); opacity: 0;
+  }
+  .spinner.on { opacity: 1; animation: spin 0.6s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .dia-node { fill: var(--surface); stroke: var(--line-strong); }
+  .dia-node.acc { stroke: var(--accent); }
+  .dia-edge { stroke: var(--ink-faint); fill: none; }
+  .dia-label { font: 600 10px var(--sans); fill: var(--fg); }
+
+  /* R3 — momentum pan */
+  .panbox { position: absolute; inset: 0; cursor: grab; touch-action: none; }
+  .panbox:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .panbox.grabbing { cursor: grabbing; }
+  .pancontent { position: absolute; top: 0; left: 0; will-change: transform; }
+  .hint {
+    position: absolute; left: 10px; bottom: 8px; pointer-events: none;
+    font-family: var(--mono); font-size: 0.72rem; color: var(--ink-faint);
+    background: color-mix(in srgb, var(--plate) 82%, transparent); padding: 2px 8px; border-radius: 999px;
+  }
+
+  /* R2 — zoom */
+  .zoomwrap { position: absolute; inset: 0; display: grid; place-items: center; overflow: hidden; }
+  .zoomsubject { display: grid; justify-items: center; will-change: transform; }
+
+  /* R7 — lightbox */
+  .thumbrow { display: flex; gap: 10px; padding: 16px; }
+  .thumb { padding: 0; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); cursor: zoom-in; display: block; }
+  .thumb svg { display: block; border-radius: 7px; }
+  .overlay { position: absolute; inset: 0; display: none; place-items: center; background: var(--scrim); z-index: 3; }
+  .overlay.open { display: grid; }
+  .overlay-panel {
+    width: 78%; max-width: 320px; border-radius: 12px; background: var(--bg);
+    border: 1px solid var(--line-strong); box-shadow: var(--shadow-pop); padding: 12px;
+    will-change: transform, opacity;
+  }
+  .overlay-panel h3 { margin: 0 0 8px; font: 600 0.9rem var(--sans); }
+  .overlay-panel .frame { display: grid; place-items: center; background: var(--plate); border: 1px solid var(--line); border-radius: 8px; padding: 10px; }
+  .overlay-panel footer { display: flex; justify-content: flex-end; margin-top: 10px; }
+
+  /* R6 — popover */
+  .popanchor { position: relative; }
+  .popmenu {
+    position: absolute; top: calc(100% + 6px); right: 0; z-index: 2; min-width: 150px;
+    background: var(--bg); border: 1px solid var(--line-strong); border-radius: 10px;
+    box-shadow: var(--shadow-pop); padding: 5px; display: none;
+    transform-origin: top right; will-change: transform, opacity;
+  }
+  .popmenu.open { display: block; }
+  .popmenu button { display: block; width: 100%; text-align: left; border: 0; background: transparent; cursor: pointer; padding: 7px 10px; border-radius: 6px; font: 500 0.8125rem var(--sans); color: var(--ink-soft); }
+  .popmenu button:hover { background: var(--chip); color: var(--fg); }
+  .popmenu button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+  /* R8 — mobile panel switch */
+  .phone { width: min(230px, 80%); border: 1px solid var(--line-strong); border-radius: 14px; overflow: hidden; background: var(--bg); }
+  .seg { display: flex; gap: 3px; padding: 5px; border-bottom: 1px solid var(--line); background: var(--surface); }
+  .seg button {
+    flex: 1; font: 650 0.72rem var(--sans); color: var(--ink-soft); background: transparent;
+    border: 0; border-radius: 6px; min-height: 28px; cursor: pointer;
+  }
+  .seg button[aria-pressed="true"] { background: var(--bg); color: var(--fg); box-shadow: 0 0 0 1px var(--line); }
+  .phone-body { position: relative; height: 120px; background: var(--plate); }
+  .phone-view { position: absolute; inset: 0; display: grid; place-items: center; }
+  .phone-view.src { padding: 10px 12px; place-items: start; font-family: var(--mono); font-size: 0.68rem; line-height: 1.7; color: var(--ink-soft); white-space: pre; }
+  .phone-view[hidden] { display: none; }
+  @keyframes fadein { from { opacity: 0; } }
+  .fade-on-show .phone-view:not([hidden]) { animation: fadein 0.12s var(--ease-out); }
+
+  /* R12 — toast */
+  .toast {
+    position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%) translateY(6px);
+    background: var(--bg); border: 1px solid var(--line-strong); border-radius: 8px;
+    box-shadow: var(--shadow-pop); padding: 8px 12px 10px; min-width: 190px;
+    font: 500 0.8125rem var(--sans); opacity: 0; pointer-events: none;
+    visibility: hidden;
+    transition: opacity 0.2s, transform 0.2s, visibility 0s 0.2s;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; visibility: visible; transition: opacity 0.2s, transform 0.2s, visibility 0s; }
+  .toast .bar { height: 2px; margin-top: 7px; border-radius: 1px; background: var(--chip); overflow: hidden; }
+  .toast .bar i { display: block; height: 100%; width: 100%; background: var(--accent); transform-origin: left; }
+
+  /* remainder table */
+  .rest { margin-top: 56px; padding-top: 24px; border-top: 1px solid var(--line); }
+  .rest h2 { margin: 0 0 12px; font-family: var(--serif); font-weight: 600; font-size: 1.45rem; letter-spacing: -0.012em; }
+  .rest ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
+  .rest li { display: flex; gap: 14px; align-items: baseline; padding: 11px 0; border-bottom: 1px solid var(--line); font-size: 0.9375rem; color: var(--ink-soft); }
+  .rest li b { color: var(--fg); }
+  .rest .rid { flex: none; width: 88px; font-family: var(--mono); font-size: 0.78rem; font-weight: 650; color: var(--accent); }
+  footer.colophon { margin-top: 48px; color: var(--ink-faint); font-size: 0.8125rem; max-width: 46rem; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .spinner.on { animation: none; }
+    .fade-on-show .phone-view:not([hidden]) { animation: none; }
+    .toast { transition: opacity 0.15s, visibility 0s 0.15s; transform: translateX(-50%); }
+    .toast.show { transform: translateX(-50%); transition: opacity 0.15s, visibility 0s; }
+  }
+</style>
+
+<main>
+  <p class="kicker">agentic-mermaid · apple-design skill · mock, not screenshots</p>
+  <h1>Fluid-interface upgrades: what changes, side by side</h1>
+  <p class="lead">Nearly every recommendation in this PR is about <strong>motion and latency</strong>, which a static screenshot can't show. Each pair below is a <strong>working simulation</strong> — the “Proposed” cards run the actual physics from the plan (critically-damped springs, exponential momentum decay, grab-to-interrupt). Visual design of the site is intentionally unchanged.</p>
+  <p class="note">Ranks refer to <code>research/apple-design-fluid-interactions.md</code>. This page honors <code>prefers-reduced-motion</code>: with it enabled, “Proposed” demos fall back to fades and instant states — exactly the behavior the plan specifies (R11).</p>
+
+  <!-- ============================ R1 ============================ -->
+  <section class="demo" id="r1">
+    <h2><span style="font-family:var(--mono);font-size:0.8em;color:var(--accent)">Rank 1 · R1</span> — Type-to-render latency</h2>
+    <p>Today every keystroke waits a fixed 300&nbsp;ms debounce and flashes a spinner even when the render takes 25&nbsp;ms. Proposed: the debounce adapts to the last measured render time, and the spinner only appears for genuinely slow renders. Press the button in each card and watch the diagram respond.</p>
+    <div class="pair">
+      <div class="card before" data-r1 data-delay="300" data-spinner="1">
+        <div class="card-head"><span class="tag">Current</span><small>300 ms fixed debounce</small></div>
+        <div class="stage r1-stage">
+          <div class="minisrc">flowchart TD
+  A[Parse] --&gt; B[Verify]<span class="r1-newline"></span><span class="caret"></span></div>
+          <div class="r1-svgwrap"></div>
+          <div class="spinner"></div>
+        </div>
+        <div class="card-foot"><button class="ctl primary r1-go" type="button">Edit source</button><span class="readout">—</span></div>
+      </div>
+      <div class="card after" data-r1 data-delay="80" data-spinner="0">
+        <div class="card-head"><span class="tag">Proposed</span><small>adaptive ≈ 80 ms, no spinner flash</small></div>
+        <div class="stage r1-stage">
+          <div class="minisrc">flowchart TD
+  A[Parse] --&gt; B[Verify]<span class="r1-newline"></span><span class="caret"></span></div>
+          <div class="r1-svgwrap"></div>
+          <div class="spinner"></div>
+        </div>
+        <div class="card-foot"><button class="ctl primary r1-go" type="button">Edit source</button><span class="readout">—</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ R3 ============================ -->
+  <section class="demo" id="r3">
+    <h2><span style="font-family:var(--mono);font-size:0.8em;color:var(--accent)">Rank 4 · R3</span> — Momentum panning with grab-to-interrupt</h2>
+    <p>Today a drag-pan tracks the pointer 1:1 but stops dead the instant you let go. Proposed: the canvas inherits your release velocity and coasts with scroll-like deceleration — and touching it mid-coast grabs it exactly where it is. <strong>Flick each canvas.</strong></p>
+    <div class="pair">
+      <div class="card before" data-r3 data-momentum="0">
+        <div class="card-head"><span class="tag">Current</span><small>stops dead on release</small></div>
+        <div class="stage"><div class="panbox"><div class="pancontent"></div></div><span class="hint">drag / flick</span></div>
+        <div class="card-foot"><span class="readout">release velocity discarded</span></div>
+      </div>
+      <div class="card after" data-r3 data-momentum="1">
+        <div class="card-head"><span class="tag">Proposed</span><small>decay 0.998 · grab to stop</small></div>
+        <div class="stage"><div class="panbox"><div class="pancontent"></div></div><span class="hint">flick, then grab mid-coast</span></div>
+        <div class="card-foot"><span class="readout">—</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ R2 ============================ -->
+  <section class="demo" id="r2">
+    <h2><span style="font-family:var(--mono);font-size:0.8em;color:var(--accent)">Rank 5 · R2</span> — Smooth, interruptible zoom</h2>
+    <p>Today each zoom step lands as an instant ×1.25 jump (and relayouts the whole SVG). Proposed: one retargetable spring drives the scale — mash <b>+</b> three times fast and it glides to the final target with no jumps, starting every retarget from the live on-screen value.</p>
+    <div class="pair">
+      <div class="card before" data-r2 data-spring="0">
+        <div class="card-head"><span class="tag">Current</span><small>discrete ×1.25 steps</small></div>
+        <div class="stage"><div class="zoomwrap"><div class="zoomsubject"></div></div></div>
+        <div class="card-foot">
+          <button class="ctl z-out" type="button" aria-label="Zoom out">−</button>
+          <button class="ctl z-in" type="button" aria-label="Zoom in">+</button>
+          <button class="ctl z-reset" type="button">100%</button>
+          <span class="readout">100%</span>
+        </div>
+      </div>
+      <div class="card after" data-r2 data-spring="1">
+        <div class="card-head"><span class="tag">Proposed</span><small>critically-damped spring, response 0.3&nbsp;s</small></div>
+        <div class="stage"><div class="zoomwrap"><div class="zoomsubject"></div></div></div>
+        <div class="card-foot">
+          <button class="ctl z-out" type="button" aria-label="Zoom out">−</button>
+          <button class="ctl z-in" type="button" aria-label="Zoom in">+</button>
+          <button class="ctl z-reset" type="button">100%</button>
+          <span class="readout">100%</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ R7 ============================ -->
+  <section class="demo" id="r7">
+    <h2><span style="font-family:var(--mono);font-size:0.8em;color:var(--accent)">Rank 7 · R7</span> — Comparison lightbox grows from its source</h2>
+    <p>On the public site's comparisons page, clicking a render pair opens the inspection dialog with no motion at all — it simply appears. Proposed: the dialog scales up from the panel you clicked and returns into it on close, so the spatial relationship is never lost. <strong>Click a thumbnail in each card.</strong></p>
+    <div class="pair">
+      <div class="card before" data-r7 data-anim="0">
+        <div class="card-head"><span class="tag">Current</span><small>appears / vanishes instantly</small></div>
+        <div class="stage">
+          <div class="thumbrow"></div>
+          <div class="overlay"><div class="overlay-panel" role="dialog" aria-modal="true" aria-label="Inspect render"><h3>Inspect render</h3><div class="frame"></div><footer><button class="ctl ov-close" type="button">Close</button></footer></div></div>
+        </div>
+        <div class="card-foot"><span class="readout">no origin, no path</span></div>
+      </div>
+      <div class="card after" data-r7 data-anim="1">
+        <div class="card-head"><span class="tag">Proposed</span><small>origin-aware · 200 ms in, 120 ms out</small></div>
+        <div class="stage">
+          <div class="thumbrow"></div>
+          <div class="overlay"><div class="overlay-panel" role="dialog" aria-modal="true" aria-label="Inspect render"><h3>Inspect render</h3><div class="frame"></div><footer><button class="ctl ov-close" type="button">Close</button></footer></div></div>
+        </div>
+        <div class="card-foot"><span class="readout">—</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ R12 ============================ -->
+  <section class="demo" id="r12">
+    <h2><span style="font-family:var(--mono);font-size:0.8em;color:var(--accent)">Rank 8 · R12</span> — Toasts stop racing the reader</h2>
+    <p>Editor toasts dismiss on a fixed 2.5&nbsp;s timer even while you're reading them. Proposed: hovering (or focusing) the toast pauses the timer; it resumes when you leave. <strong>Trigger the toast, then hold your pointer over it.</strong></p>
+    <div class="pair">
+      <div class="card before" data-r12 data-pause="0">
+        <div class="card-head"><span class="tag">Current</span><small>timer ignores the reader</small></div>
+        <div class="stage" style="min-height:130px">
+          <button class="ctl toast-go" type="button">Copy share link</button>
+          <div class="toast" role="status"><span class="msg"></span><span class="bar"><i></i></span></div>
+        </div>
+        <div class="card-foot"><span class="readout">dismisses under your cursor</span></div>
+      </div>
+      <div class="card after" data-r12 data-pause="1">
+        <div class="card-head"><span class="tag">Proposed</span><small>hover / focus pauses the timer</small></div>
+        <div class="stage" style="min-height:130px">
+          <button class="ctl toast-go" type="button">Copy share link</button>
+          <div class="toast" role="status"><span class="msg"></span><span class="bar"><i></i></span></div>
+        </div>
+        <div class="card-foot"><span class="readout">—</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ R6 ============================ -->
+  <section class="demo" id="r6">
+    <h2><span style="font-family:var(--mono);font-size:0.8em;color:var(--accent)">Rank 10 · R6</span> — Popovers exit the way they entered</h2>
+    <p>Editor menus animate in from their trigger but currently vanish instantly on close — an asymmetry the eye registers as unfinished. Proposed: a 90&nbsp;ms reverse along the same path, faster than the 160&nbsp;ms entrance so dismissal still feels immediate. <strong>Open and close each menu.</strong></p>
+    <div class="pair">
+      <div class="card before" data-r6 data-exit="0">
+        <div class="card-head"><span class="tag">Current</span><small>enter 160 ms · exit instant</small></div>
+        <div class="stage">
+          <div class="popanchor">
+            <button class="ctl pop-btn" type="button" aria-haspopup="true" aria-expanded="false">Export ▾</button>
+            <div class="popmenu" role="menu"><button type="button" role="menuitem">SVG</button><button type="button" role="menuitem">PNG</button><button type="button" role="menuitem">Copy source</button></div>
+          </div>
+        </div>
+        <div class="card-foot"><span class="readout">asymmetric</span></div>
+      </div>
+      <div class="card after" data-r6 data-exit="1">
+        <div class="card-head"><span class="tag">Proposed</span><small>enter 160 ms · exit 90 ms, same path</small></div>
+        <div class="stage">
+          <div class="popanchor">
+            <button class="ctl pop-btn" type="button" aria-haspopup="true" aria-expanded="false">Export ▾</button>
+            <div class="popmenu" role="menu"><button type="button" role="menuitem">SVG</button><button type="button" role="menuitem">PNG</button><button type="button" role="menuitem">Copy source</button></div>
+          </div>
+        </div>
+        <div class="card-foot"><span class="readout">symmetric</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ R8 ============================ -->
+  <section class="demo" id="r8">
+    <h2><span style="font-family:var(--mono);font-size:0.8em;color:var(--accent)">Rank 11 · R8</span> — Mobile panel switch: hard cut → soft cut</h2>
+    <p>On phones, switching Source/Preview flips the entire viewport with <code>display:none</code> — a jarring hard cut. Proposed: the incoming panel fades in over 120&nbsp;ms. <strong>Toggle the segmented control.</strong></p>
+    <div class="pair">
+      <div class="card before" data-r8 data-fade="0">
+        <div class="card-head"><span class="tag">Current</span><small>hard cut</small></div>
+        <div class="stage">
+          <div class="phone">
+            <div class="seg"><button type="button" data-v="src" aria-pressed="true">Source</button><button type="button" data-v="pre" aria-pressed="false">Preview</button></div>
+            <div class="phone-body">
+              <div class="phone-view src">flowchart TD
+  A[Parse] --&gt; B[Verify]
+  B --&gt; C[Serialize]</div>
+              <div class="phone-view pre" hidden></div>
+            </div>
+          </div>
+        </div>
+        <div class="card-foot"><span class="readout">display:none flip</span></div>
+      </div>
+      <div class="card after" data-r8 data-fade="1">
+        <div class="card-head"><span class="tag">Proposed</span><small>120 ms fade-in</small></div>
+        <div class="stage">
+          <div class="phone">
+            <div class="seg"><button type="button" data-v="src" aria-pressed="true">Source</button><button type="button" data-v="pre" aria-pressed="false">Preview</button></div>
+            <div class="phone-body">
+              <div class="phone-view src">flowchart TD
+  A[Parse] --&gt; B[Verify]
+  B --&gt; C[Serialize]</div>
+              <div class="phone-view pre" hidden></div>
+            </div>
+          </div>
+        </div>
+        <div class="card-foot"><span class="readout">soft cut</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ the rest ============================ -->
+  <section class="rest">
+    <h2>In the plan, not demoable on this page</h2>
+    <ul>
+      <li><span class="rid">Rank 2 · R11</span><span><b>Curated reduced-motion.</b> Both stylesheets currently zero <i>all</i> animation to 0.01 ms under <code>prefers-reduced-motion</code>, which also kills comprehension-aiding fades and theme-change easing. The plan restores short, transform-free fades — this very page behaves that way.</span></li>
+      <li><span class="rid">Rank 3 · F1</span><span><b>Motion utility.</b> The ~60-line vanilla spring/decay/velocity helper. The Proposed cards above literally run it — it is the prototype.</span></li>
+      <li><span class="rid">Rank 6 · R10</span><span><b>Transparency &amp; contrast fallbacks.</b> <code>prefers-reduced-transparency</code> and <code>prefers-contrast</code> are unhandled today on the frosted shortcuts dialog and lightbox backdrop; the plan adds solid equivalents. No visual change unless the OS signal is set.</span></li>
+      <li><span class="rid">Rank 9 · R5</span><span><b>Two-finger pinch zoom.</b> Touch users currently have no pinch at all in the preview. Needs a touch device to demonstrate; behavior = the R2 spring driven by two pointers.</span></li>
+      <li><span class="rid">Rank 12 · R15</span><span><b>Design-page specimens.</b> The shipped spring values and rulings get added to <code>/about/design</code> and <code>DESIGN.md</code> so future contributors inherit them.</span></li>
+    </ul>
+  </section>
+
+  <footer class="colophon">
+    Built with the site's own tokens (Kiln Stone / Charcoal grounds, Pine accent, Charter/Avenir/SF&nbsp;Mono stacks) so the pairs read as the real product. The static design of the site is deliberately untouched by this plan — every change above is behavioral. Full details, file:line references, and acceptance criteria: <span style="font-family:var(--mono)">research/apple-design-fluid-interactions.md</span>.
+  </footer>
+</main>
+
+<script>
+(function () {
+  'use strict';
+  var RM = matchMedia('(prefers-reduced-motion: reduce)');
+  function reduced() { return RM.matches; }
+
+  /* ==== F1: the actual motion utility from the plan (prototype) ==== */
+  function springTo(from, to, v0, response, onFrame, onDone) {
+    var omega = (2 * Math.PI) / response;
+    var A = from - to, B = v0 + omega * A;
+    var start = performance.now(), raf = 0;
+    function frame(now) {
+      var t = (now - start) / 1000, e = Math.exp(-omega * t);
+      var x = to + (A + B * t) * e;
+      var v = (B - omega * (A + B * t)) * e;
+      if (Math.abs(x - to) < 0.0015 * Math.max(1, Math.abs(A)) && Math.abs(v) < 0.02) {
+        onFrame(to, 0); if (onDone) onDone(); return;
+      }
+      onFrame(x, v);
+      raf = requestAnimationFrame(frame);
+    }
+    raf = requestAnimationFrame(frame);
+    return function cancel() { cancelAnimationFrame(raf); };
+  }
+  function decay2d(vx, vy, rate, onFrame, onDone) {
+    var last = performance.now(), raf = 0;
+    function frame(now) {
+      var dt = Math.min(0.05, (now - last) / 1000); last = now;
+      var k = Math.pow(rate, dt * 1000);
+      vx *= k; vy *= k;
+      if (Math.hypot(vx, vy) < 4) { if (onDone) onDone(); return; }
+      onFrame(vx * dt, vy * dt);
+      raf = requestAnimationFrame(frame);
+    }
+    raf = requestAnimationFrame(frame);
+    return function cancel() { cancelAnimationFrame(raf); };
+  }
+  function makeVelocityTracker() {
+    var samples = [];
+    return {
+      push: function (t, x, y) {
+        samples.push({ t: t, x: x, y: y });
+        while (samples.length > 2 && t - samples[0].t > 100) samples.shift();
+      },
+      get: function () {
+        if (samples.length < 2) return { vx: 0, vy: 0 };
+        var a = samples[0], b = samples[samples.length - 1];
+        var dt = (b.t - a.t) / 1000;
+        if (dt <= 0) return { vx: 0, vy: 0 };
+        return { vx: (b.x - a.x) / dt, vy: (b.y - a.y) / dt };
+      },
+      reset: function () { samples.length = 0; }
+    };
+  }
+
+  /* ==== tiny SVG diagram builders (generated, not hand-authored) ==== */
+  var SVGNS = 'http://www.w3.org/2000/svg';
+  function el(name, attrs, parent) {
+    var e = document.createElementNS(SVGNS, name);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  function miniDiagram(nodes) {
+    // nodes: array of {x,y,label,acc}
+    var svg = el('svg', { viewBox: '0 0 220 96', width: '220', height: '96', role: 'img', 'aria-label': 'Mini flowchart' });
+    for (var i = 1; i < nodes.length; i++) {
+      var a = nodes[i - 1], b = nodes[i];
+      el('path', { d: 'M' + (a.x + 26) + ' ' + a.y + ' L' + (b.x - 26) + ' ' + b.y, class: 'dia-edge', 'stroke-width': '1.3' }, svg);
+    }
+    nodes.forEach(function (n) {
+      el('rect', { x: n.x - 26, y: n.y - 14, width: 52, height: 28, rx: 6, class: 'dia-node' + (n.acc ? ' acc' : ''), 'stroke-width': '1.2' }, svg);
+      var t = el('text', { x: n.x, y: n.y + 3.5, 'text-anchor': 'middle', class: 'dia-label' }, svg);
+      t.textContent = n.label;
+    });
+    return svg;
+  }
+
+  /* ============================ R1 ============================ */
+  document.querySelectorAll('[data-r1]').forEach(function (card) {
+    var wrap = card.querySelector('.r1-svgwrap');
+    var spinner = card.querySelector('.spinner');
+    var readout = card.querySelector('.readout');
+    var btn = card.querySelector('.r1-go');
+    var newline = card.querySelector('.r1-newline');
+    var caret = card.querySelector('.caret');
+    var delay = parseInt(card.dataset.delay, 10);
+    var showSpinner = card.dataset.spinner === '1';
+    var extended = false, busy = false;
+
+    function draw() {
+      wrap.innerHTML = '';
+      var nodes = [{ x: 34, y: 48, label: 'Parse' }, { x: 110, y: 48, label: 'Verify' }];
+      if (extended) nodes.push({ x: 186, y: 48, label: 'Render', acc: true });
+      wrap.appendChild(miniDiagram(nodes));
+    }
+    draw();
+
+    btn.addEventListener('click', function () {
+      if (busy) return;
+      busy = true;
+      extended = !extended;
+      newline.textContent = extended ? '\n  B --> C[Render]' : '';
+      caret.classList.add('on');
+      if (showSpinner) spinner.classList.add('on');
+      readout.textContent = 'debouncing…';
+      var t0 = performance.now();
+      setTimeout(function () {                       // the debounce
+        setTimeout(function () {                     // the (fast) render itself
+          draw();
+          spinner.classList.remove('on');
+          caret.classList.remove('on');
+          readout.textContent = 'updated in ' + Math.round(performance.now() - t0) + ' ms';
+          busy = false;
+        }, 25);
+      }, delay);
+    });
+  });
+
+  /* ============================ R3 ============================ */
+  document.querySelectorAll('[data-r3]').forEach(function (card) {
+    var box = card.querySelector('.panbox');
+    var content = card.querySelector('.pancontent');
+    var readout = card.querySelector('.readout');
+    var momentum = card.dataset.momentum === '1';
+
+    // generate a wide node-field to pan around
+    var W = 1200, H = 520;
+    var svg = el('svg', { viewBox: '0 0 ' + W + ' ' + H, width: W, height: H, 'aria-hidden': 'true' });
+    var col = 0;
+    for (var gx = 50; gx < W; gx += 92) {
+      col++;
+      var row = 0;
+      for (var gy = 40; gy < H; gy += 72) {
+        row++;
+        var jitter = ((gx * 7 + gy * 13) % 3) - 1;
+        if (gx + 92 < W) el('path', { d: 'M' + (gx + 22) + ' ' + gy + ' L' + (gx + 72) + ' ' + (gy + jitter * 12), class: 'dia-edge', 'stroke-width': '1.2', opacity: '0.8' }, svg);
+        el('rect', { x: gx - 20, y: gy - 11, width: 40, height: 22, rx: 5, class: 'dia-node' + ((col + row) % 5 === 0 ? ' acc' : ''), 'stroke-width': '1.3' }, svg);
+      }
+    }
+    content.appendChild(svg);
+
+    var x = -220, y = -60, dragging = false, startX = 0, startY = 0, ox = 0, oy = 0;
+    var tracker = makeVelocityTracker(), cancelCoast = null;
+    function bounds() {
+      var r = box.getBoundingClientRect();
+      return { minX: Math.min(0, r.width - W), minY: Math.min(0, r.height - H) };
+    }
+    function apply() {
+      var b = bounds();
+      x = Math.max(b.minX, Math.min(0, x));
+      y = Math.max(b.minY, Math.min(0, y));
+      content.style.transform = 'translate(' + x + 'px,' + y + 'px)';
+    }
+    apply();
+
+    box.addEventListener('pointerdown', function (e) {
+      if (cancelCoast) { cancelCoast(); cancelCoast = null; readout.textContent = 'grabbed mid-coast'; }
+      dragging = true;
+      box.classList.add('grabbing');
+      box.setPointerCapture(e.pointerId);
+      startX = e.clientX; startY = e.clientY; ox = x; oy = y;
+      tracker.reset();
+      tracker.push(performance.now(), e.clientX, e.clientY);
+      e.preventDefault();
+    });
+    box.addEventListener('pointermove', function (e) {
+      if (!dragging) return;
+      x = ox + (e.clientX - startX);
+      y = oy + (e.clientY - startY);
+      tracker.push(performance.now(), e.clientX, e.clientY);
+      apply();
+    });
+    function up(e) {
+      if (!dragging) return;
+      dragging = false;
+      box.classList.remove('grabbing');
+      if (!momentum || reduced()) return;
+      tracker.push(performance.now(), e.clientX, e.clientY); // a hold before release reads as ~0 velocity
+      var v = tracker.get();
+      if (Math.hypot(v.vx, v.vy) < 50) return;
+      readout.textContent = 'coasting — ' + Math.round(Math.hypot(v.vx, v.vy)) + ' px/s handed off';
+      cancelCoast = decay2d(v.vx, v.vy, 0.998, function (dx, dy) {
+        x += dx; y += dy; apply();
+      }, function () { cancelCoast = null; readout.textContent = 'settled'; });
+    }
+    box.addEventListener('pointerup', up);
+    box.addEventListener('pointercancel', up);
+    box.tabIndex = 0;
+    box.setAttribute('aria-label', 'Pannable diagram canvas. Use arrow keys to pan.');
+    box.addEventListener('keydown', function (e) {
+      var step = e.shiftKey ? 120 : 40, dx = 0, dy = 0;
+      if (e.key === 'ArrowLeft') dx = step; else if (e.key === 'ArrowRight') dx = -step;
+      else if (e.key === 'ArrowUp') dy = step; else if (e.key === 'ArrowDown') dy = -step;
+      else return;
+      e.preventDefault();
+      if (cancelCoast) { cancelCoast(); cancelCoast = null; }
+      x += dx; y += dy; apply();
+    });
+  });
+
+  /* ============================ R2 ============================ */
+  document.querySelectorAll('[data-r2]').forEach(function (card) {
+    var subject = card.querySelector('.zoomsubject');
+    var readout = card.querySelector('.readout');
+    var useSpring = card.dataset.spring === '1';
+    subject.appendChild(miniDiagram([
+      { x: 34, y: 30, label: 'Source' }, { x: 110, y: 30, label: 'Layout' }, { x: 186, y: 30, label: 'SVG', acc: true },
+      ]));
+    // second row for a bit of visual mass
+    var svg2 = miniDiagram([{ x: 72, y: 20, label: 'Verify' }, { x: 148, y: 20, label: 'Export' }]);
+    svg2.setAttribute('viewBox', '0 0 220 40');
+    svg2.setAttribute('height', '40');
+    subject.appendChild(svg2);
+
+    var scale = 1, target = 1, vel = 0, cancel = null;
+    function render(s) { subject.style.transform = 'scale(' + s + ')'; readout.textContent = Math.round(s * 100) + '%'; }
+    function go(next) {
+      target = Math.max(0.4, Math.min(3, next));
+      if (!useSpring || reduced()) { if (cancel) cancel(); scale = target; vel = 0; render(scale); return; }
+      if (cancel) cancel();                      // retarget from the live value + velocity
+      cancel = springTo(scale, target, vel, 0.3, function (x, v) { scale = x; vel = v; render(x); },
+        function () { cancel = null; });
+    }
+    card.querySelector('.z-in').addEventListener('click', function () { go(target * 1.25); });
+    card.querySelector('.z-out').addEventListener('click', function () { go(target / 1.25); });
+    card.querySelector('.z-reset').addEventListener('click', function () { go(1); });
+    render(1);
+  });
+
+  /* ============================ R7 ============================ */
+  document.querySelectorAll('[data-r7]').forEach(function (card) {
+    var row = card.querySelector('.thumbrow');
+    var overlay = card.querySelector('.overlay');
+    var panel = card.querySelector('.overlay-panel');
+    var frame = card.querySelector('.frame');
+    var readout = card.querySelector('.readout');
+    var animate = card.dataset.anim === '1';
+    var labels = [['Crisp', 'Paper'], ['Sketch', 'Nord'], ['Blueprint', 'Dusk']];
+    var lastThumb = null;
+
+    labels.forEach(function (pair, i) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'thumb';
+      b.setAttribute('aria-label', 'Inspect ' + pair[0] + ' × ' + pair[1]);
+      var s = miniDiagram([{ x: 60, y: 48, label: pair[0] }, { x: 160, y: 48, label: pair[1], acc: i === 1 }]);
+      s.setAttribute('width', '132'); s.setAttribute('height', '58');
+      b.appendChild(s);
+      row.appendChild(b);
+      b.addEventListener('click', function () { open(b, pair); });
+    });
+
+    function open(thumb, pair) {
+      frame.innerHTML = '';
+      var s = miniDiagram([{ x: 60, y: 48, label: pair[0] }, { x: 160, y: 48, label: pair[1], acc: true }]);
+      s.setAttribute('width', '100%'); s.removeAttribute('height');
+      frame.appendChild(s);
+      lastThumb = thumb;
+      overlay.classList.add('open');
+      if (animate && !reduced()) {
+        // origin is panel-relative; values outside 0-100% are valid and anchor correctly
+        var pr = panel.getBoundingClientRect(), tr = thumb.getBoundingClientRect();
+        var oxp = ((tr.left + tr.width / 2 - pr.left) / pr.width) * 100;
+        var oyp = ((tr.top + tr.height / 2 - pr.top) / pr.height) * 100;
+        panel.style.transformOrigin = oxp + '% ' + oyp + '%';
+        panel.animate(
+          [{ opacity: 0, transform: 'scale(0.86)' }, { opacity: 1, transform: 'scale(1)' }],
+          { duration: 200, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' });
+        overlay.animate([{ backgroundColor: 'transparent' }, {}], { duration: 200 });
+        readout.textContent = 'origin: the panel you clicked';
+      } else if (animate) {
+        panel.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 150 });
+      }
+      card.querySelector('.ov-close').focus();
+    }
+    function close() {
+      if (animate && !reduced()) {
+        var a = panel.animate(
+          [{ opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: 'scale(0.86)' }],
+          { duration: 120, easing: 'cubic-bezier(0.4, 0, 1, 1)' });
+        a.onfinish = function () { overlay.classList.remove('open'); if (lastThumb) lastThumb.focus(); };
+      } else {
+        overlay.classList.remove('open');
+        if (lastThumb) lastThumb.focus();
+      }
+    }
+    card.querySelector('.ov-close').addEventListener('click', close);
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && overlay.classList.contains('open')) close();
+    });
+  });
+
+  /* ============================ R6 ============================ */
+  document.querySelectorAll('[data-r6]').forEach(function (card) {
+    var btn = card.querySelector('.pop-btn');
+    var menu = card.querySelector('.popmenu');
+    var symmetric = card.dataset.exit === '1';
+    var open = false, closing = null;
+
+    function setOpen(next) {
+      if (next === open && !closing) return;
+      if (closing) { closing.cancel(); closing = null; }
+      open = next;
+      btn.setAttribute('aria-expanded', String(open));
+      if (open) {
+        menu.classList.add('open');
+        if (!reduced()) {
+          menu.animate(
+            [{ opacity: 0, transform: 'translateY(-2px) scale(0.96)' }, { opacity: 1, transform: 'none' }],
+            { duration: 160, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' });
+        }
+      } else if (symmetric && !reduced()) {
+        closing = menu.animate(
+          [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(-2px) scale(0.96)' }],
+          { duration: 90, easing: 'cubic-bezier(0.4, 0, 1, 1)' });
+        closing.onfinish = function () { menu.classList.remove('open'); closing = null; };
+      } else {
+        menu.classList.remove('open');
+      }
+    }
+    btn.addEventListener('click', function () { setOpen(!open); });
+    document.addEventListener('pointerdown', function (e) {
+      if (open && !card.contains(e.target)) setOpen(false);
+    });
+    card.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && open) { setOpen(false); btn.focus(); }
+    });
+  });
+
+  /* ============================ R8 ============================ */
+  document.querySelectorAll('[data-r8]').forEach(function (card) {
+    var fade = card.dataset.fade === '1';
+    var body = card.querySelector('.phone-body');
+    var views = { src: card.querySelector('.phone-view.src'), pre: card.querySelector('.phone-view.pre') };
+    views.pre.appendChild(miniDiagram([{ x: 60, y: 48, label: 'Parse' }, { x: 160, y: 48, label: 'Verify', acc: true }]));
+    if (fade) body.classList.add('fade-on-show');
+    card.querySelectorAll('.seg button').forEach(function (b) {
+      b.addEventListener('click', function () {
+        card.querySelectorAll('.seg button').forEach(function (o) { o.setAttribute('aria-pressed', String(o === b)); });
+        var show = b.dataset.v;
+        for (var k in views) views[k].hidden = (k !== show);
+        if (fade && !reduced()) {
+          // restart the fade-in animation on the incoming panel
+          var v = views[show];
+          v.style.animation = 'none';
+          void v.offsetWidth;
+          v.style.animation = '';
+        }
+      });
+    });
+  });
+
+  /* ============================ R12 ============================ */
+  document.querySelectorAll('[data-r12]').forEach(function (card) {
+    var pausable = card.dataset.pause === '1';
+    var toast = card.querySelector('.toast');
+    var bar = card.querySelector('.bar i');
+    var readout = card.querySelector('.readout');
+    var DURATION = 2500;
+    var remaining = 0, lastTick = 0, raf = 0, paused = false;
+
+    function tick(now) {
+      if (!paused) {
+        remaining -= (now - lastTick);
+        if (remaining <= 0) { hide(); return; }
+      }
+      lastTick = now;
+      bar.style.transform = 'scaleX(' + Math.max(0, remaining / DURATION) + ')';
+      raf = requestAnimationFrame(tick);
+    }
+    var msg = toast.querySelector('.msg');
+    function show() {
+      cancelAnimationFrame(raf);
+      remaining = DURATION; paused = false; lastTick = performance.now();
+      msg.textContent = 'Share link copied.';
+      toast.classList.add('show');
+      raf = requestAnimationFrame(tick);
+    }
+    function hide() {
+      toast.classList.remove('show');
+      msg.textContent = '';
+      cancelAnimationFrame(raf);
+      if (pausable) readout.textContent = '—';
+    }
+    card.querySelector('.toast-go').addEventListener('click', show);
+    if (pausable) {
+      toast.addEventListener('pointerenter', function () { paused = true; readout.textContent = 'timer paused'; });
+      toast.addEventListener('pointerleave', function () { paused = false; lastTick = performance.now(); readout.textContent = 'timer resumed'; });
+      toast.addEventListener('focusin', function () { paused = true; });
+      toast.addEventListener('focusout', function () { paused = false; lastTick = performance.now(); });
+      toast.tabIndex = 0;
+    }
+  });
+})();
+</script>
