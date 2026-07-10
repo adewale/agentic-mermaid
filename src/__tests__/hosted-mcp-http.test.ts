@@ -411,6 +411,44 @@ describe('wide-event canonical log lines', () => {
     expect(JSON.stringify(events)).not.toContain('flowchart')
   })
 
+  test('execute events carry only the configured CPU limit and loader-attempt proxy', async () => {
+    const { events, onEvent } = capture()
+    const { handler } = makeHandler({ onEvent })
+    const code = '/* private agent code */ 20 + 22'
+    await handler(post(call('execute', { code, timeoutMs: 1234 })))
+    expect(events).toHaveLength(1)
+    expect(events[0]!.items).toEqual([expect.objectContaining({
+      tool: 'execute', cache_hit: false, loader_attempts: 1, configured_cpu_limit_ms: 1234,
+    })])
+    expect(JSON.stringify(events)).not.toContain(code)
+  })
+
+  test('the handler preserves a statement-fallback loader-attempt count', async () => {
+    const { events, onEvent } = capture()
+    const { handler } = makeHandler({
+      onEvent,
+      context: {
+        async execute(_code, _timeoutMs, onTelemetry) {
+          onTelemetry?.({ loaderAttempts: 2 })
+          return { ok: true, value: 'ran', logs: [] }
+        },
+      },
+    })
+    await handler(post(call('execute', { code: 'const x = 42; return x', timeoutMs: 1234 })))
+    expect(events[0]!.items).toEqual([expect.objectContaining({
+      tool: 'execute', loader_attempts: 2, configured_cpu_limit_ms: 1234,
+    })])
+  })
+
+  test('pre-screened execute errors do not claim a loader attempt or CPU allocation', async () => {
+    const { events, onEvent } = capture()
+    const { handler } = makeHandler({ onEvent })
+    await handler(post(call('execute', { code: 'await fetch("https://example.test")', timeoutMs: 1234 })))
+    expect(events[0]!.items).toEqual([expect.objectContaining({
+      tool: 'execute', is_error: true, loader_attempts: 0, configured_cpu_limit_ms: null,
+    })])
+  })
+
   test('an unknown tool is a tool_error carrying the JSON-RPC error code', async () => {
     const { events, onEvent } = capture()
     const { handler } = makeHandler({ onEvent })
@@ -464,7 +502,8 @@ describe('wide-event canonical log lines', () => {
     expect(events).toHaveLength(1)
     expect(events[0]!.outcome).toBe('exception')
     expect(events[0]!.http_status).toBe(500)
-    expect(events[0]!.error).toEqual({ type: 'Error', message: 'waitUntil rejected' }) // message only — no stack, no payload
+    expect(events[0]!.error).toEqual({ type: 'Error', code: 'INTERNAL_ERROR' })
+    expect(JSON.stringify(events[0])).not.toContain('waitUntil rejected')
   })
 
   test('OPTIONS and other pre-dispatch requests emit transport-level events', async () => {

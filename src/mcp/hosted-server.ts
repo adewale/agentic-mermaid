@@ -29,9 +29,15 @@ import type { ExecuteResult } from './sandbox.ts'
 
 export type { ExecuteResult }
 
+/** Internal execution facts for the request log. This never reaches an MCP
+ * client: the hosted transport consumes it through the optional callback. */
+export interface HostedExecuteTelemetry {
+  loaderAttempts: 1 | 2
+}
+
 export interface HostedMcpContext {
   /** Run Code Mode JavaScript. Hosted: a Dynamic Worker isolate. */
-  execute(code: string, timeoutMs: number): Promise<ExecuteResult>
+  execute(code: string, timeoutMs: number, onTelemetry?: (telemetry: HostedExecuteTelemetry) => void): Promise<ExecuteResult>
   /** Rasterize SVG to PNG bytes. Hosted: resvg-wasm. Absent → render_png reports unavailable. */
   renderPng?(source: string, opts: { scale?: number; background?: string; style?: StyleInput | StyleInput[]; seed?: number }): Promise<Uint8Array>
 }

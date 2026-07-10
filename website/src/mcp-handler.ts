@@ -55,6 +55,10 @@ export interface McpItemEvent {
   /** Structured tool error code (e.g. SOURCE_TOO_LARGE) or JSON-RPC error code. */
   error_code: string | number | null
   cache_hit: boolean
+  /** Dynamic Worker entrypoint calls made for this item; 0 if none started. */
+  loader_attempts: 0 | 1 | 2
+  /** The normalized Dynamic Worker cpuMs limit; null when no loader ran. */
+  configured_cpu_limit_ms: number | null
   duration_ms: number
 }
 
@@ -77,9 +81,11 @@ export interface McpRequestEvent {
   /** UTF-8 bytes of the body read (the declared length or the cap when refused). */
   body_bytes: number
   items: McpItemEvent[]
-  /** Set when outcome is 'exception': error class + message, no stack, no payload. */
-  error?: { type: string; message: string }
+  /** Set when outcome is 'exception': bounded error class + stable code; no message, stack, or payload. */
+  error?: { type: McpInternalErrorType; code: 'INTERNAL_ERROR' }
 }
+
+type McpInternalErrorType = 'Error' | 'TypeError' | 'RangeError' | 'SyntaxError' | 'ReferenceError' | 'EvalError' | 'URIError' | 'UnknownError'
 
 export interface McpHandlerOptions {
   context: HostedMcpContext
@@ -162,7 +168,47 @@ async function sha256Hex(text: string): Promise<string> {
 }
 
 function newItemEvent(): McpItemEvent {
-  return { tool: null, is_error: false, error_code: null, cache_hit: false, duration_ms: 0 }
+  return {
+    tool: null,
+    is_error: false,
+    error_code: null,
+    cache_hit: false,
+    loader_attempts: 0,
+    configured_cpu_limit_ms: null,
+    duration_ms: 0,
+  }
+}
+
+function internalErrorType(error: unknown): McpInternalErrorType {
+  if (error instanceof TypeError) return 'TypeError'
+  if (error instanceof RangeError) return 'RangeError'
+  if (error instanceof SyntaxError) return 'SyntaxError'
+  if (error instanceof ReferenceError) return 'ReferenceError'
+  if (error instanceof EvalError) return 'EvalError'
+  if (error instanceof URIError) return 'URIError'
+  if (error instanceof Error) return 'Error'
+  return 'UnknownError'
+}
+
+/** Scope the execution telemetry callback to the item which started the
+ * loader. A test/local context that does not implement the optional callback
+ * still truthfully records the one execute call it received. */
+function contextForItem(context: HostedMcpContext, item: McpItemEvent): HostedMcpContext {
+  return {
+    ...context,
+    async execute(code, timeoutMs) {
+      item.configured_cpu_limit_ms = timeoutMs
+      let reported = false
+      try {
+        return await context.execute(code, timeoutMs, telemetry => {
+          item.loader_attempts = telemetry.loaderAttempts
+          reported = true
+        })
+      } finally {
+        if (!reported) item.loader_attempts = 1
+      }
+    },
+  }
 }
 
 /** Fill an item's error fields from its JSON-RPC response: the tool-level
@@ -200,21 +246,24 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
         const name = (r.params as { name?: unknown } | undefined)?.name
         item.tool = typeof name === 'string' ? name : null
       }
-      response = r.method === 'tools/call' && cache ? await handleCachedToolCall(r, item) : await handleHostedRequest(r, context)
+      const itemContext = contextForItem(context, item)
+      response = r.method === 'tools/call' && cache
+        ? await handleCachedToolCall(r, item, itemContext)
+        : await handleHostedRequest(r, itemContext)
     }
     item.duration_ms = Date.now() - started
     recordItemOutcome(item, response)
     return response
   }
 
-  async function handleCachedToolCall(req: JsonRpcRequest, item: McpItemEvent): Promise<JsonRpcResponse | null> {
+  async function handleCachedToolCall(req: JsonRpcRequest, item: McpItemEvent, itemContext: HostedMcpContext): Promise<JsonRpcResponse | null> {
     // Key on the normalized, output-affecting arguments (not raw params): junk
     // or out-of-range args cannot bust the cache or force recompute. A null
     // canonical form means "not cacheable" — run the request directly (it will
     // error, and errors are not cached anyway).
     const p = req.params as { name?: string; arguments?: Record<string, unknown> } | undefined
     const canonical = cacheKeyFor(p?.name, p?.arguments ?? {})
-    if (canonical === null) return handleHostedRequest(req, context)
+    if (canonical === null) return handleHostedRequest(req, itemContext)
     const key = new Request(`https://mcp-cache.agentic-mermaid.dev/${encodeURIComponent(cacheVersion)}/${await sha256Hex(JSON.stringify(sortKeys(canonical)))}`)
     try {
       const hit = await cache!.match(key)
@@ -223,7 +272,7 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
         return reply(req.id ?? null, await hit.json())
       }
     } catch { /* cache failures must never fail the call */ }
-    const response = await handleHostedRequest(req, context)
+    const response = await handleHostedRequest(req, itemContext)
     const result = response?.result as { isError?: boolean } | undefined
     if (result && result.isError === false) {
       const write = cache!.put(key, new Response(JSON.stringify(result), {
@@ -353,11 +402,11 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
         : response.status < 400 ? 'success' : 'transport_error'
       return response
     } catch (e) {
-      // The event must survive an escaping exception: message only — no stack,
-      // no payload — and the client gets an opaque JSON-RPC internal error.
+      // The event must survive an escaping exception without recording a
+      // user-controlled message, stack, request body, or code string.
       event.http_status = 500
       event.outcome = 'exception'
-      event.error = { type: e instanceof Error ? e.constructor.name : typeof e, message: e instanceof Error ? e.message : String(e) }
+      event.error = { type: internalErrorType(e), code: 'INTERNAL_ERROR' }
       return json(500, rpcError(null, -32603, 'internal error'), corsHeadersFor(request))
     } finally {
       event.duration_ms = Date.now() - started

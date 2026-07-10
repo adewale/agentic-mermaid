@@ -114,7 +114,9 @@ describe('Workers Static Assets website contract', () => {
     ])
     expect(config.workers_dev).toBe(false)
     expect(config.preview_urls).toBe(false)
-    expect(config.observability).toEqual({ enabled: true })
+    // Explicit full launch sampling makes the MCP cost-proxy event policy
+    // reviewable instead of relying on the platform default.
+    expect(config.observability).toEqual({ enabled: true, head_sampling_rate: 1 })
     expect(config.version_metadata).toEqual({ binding: 'CF_VERSION_METADATA' })
     // run_worker_first so the redirects/headers and the /mcp handler wrap asset
     // responses (the hosted MCP must reach the worker before Static Assets).
