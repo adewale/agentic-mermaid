@@ -750,27 +750,60 @@
     var symmetric = card.dataset.exit === '1';
     var open = false, closing = null;
 
+    function setMenuSemantics(next) {
+      menu.setAttribute('aria-hidden', String(!next));
+      menu.inert = !next;
+      menu.querySelectorAll('button, [href], input, select, textarea, [tabindex]').forEach(function (el) {
+        if (next) el.removeAttribute('tabindex');
+        else el.setAttribute('tabindex', '-1');
+      });
+    }
+    function clearClosing() {
+      if (!closing) return;
+      var state = closing;
+      closing = null;
+      state.animation.cancel();
+      if (state.element.parentNode) state.element.parentNode.removeChild(state.element);
+    }
+    function animateExitTail() {
+      if (!symmetric || reduced()) return;
+      var rect = menu.getBoundingClientRect();
+      var tail = menu.cloneNode(true);
+      tail.setAttribute('aria-hidden', 'true');
+      tail.inert = true;
+      tail.querySelectorAll('button, [href], input, select, textarea, [tabindex]').forEach(function (el) { el.setAttribute('tabindex', '-1'); });
+      tail.style.cssText += ';display:block;position:fixed;z-index:2147483647;top:' + rect.top + 'px;left:' + rect.left + 'px;width:' + rect.width + 'px;height:' + rect.height + 'px;margin:0;pointer-events:none;overflow:hidden';
+      document.body.appendChild(tail);
+      var state = { element: tail, animation: tail.animate(
+        [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(-2px) scale(0.96)' }],
+        { duration: 90, easing: 'cubic-bezier(0.4, 0, 1, 1)' }) };
+      closing = state;
+      state.animation.onfinish = state.animation.oncancel = function () {
+        if (closing === state) closing = null;
+        if (tail.parentNode) tail.parentNode.removeChild(tail);
+      };
+    }
     function setOpen(next) {
       if (next === open && !closing) return;
-      if (closing) { closing.cancel(); closing = null; }
+      clearClosing();
       open = next;
       btn.setAttribute('aria-expanded', String(open));
       if (open) {
+        setMenuSemantics(true);
         menu.classList.add('open');
         if (!reduced()) {
           menu.animate(
             [{ opacity: 0, transform: 'translateY(-2px) scale(0.96)' }, { opacity: 1, transform: 'none' }],
             { duration: 160, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' });
         }
-      } else if (symmetric && !reduced()) {
-        closing = menu.animate(
-          [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(-2px) scale(0.96)' }],
-          { duration: 90, easing: 'cubic-bezier(0.4, 0, 1, 1)' });
-        closing.onfinish = function () { menu.classList.remove('open'); closing = null; };
       } else {
+        if (menu.contains(document.activeElement)) btn.focus();
+        animateExitTail();
         menu.classList.remove('open');
+        setMenuSemantics(false);
       }
     }
+    setMenuSemantics(false);
     btn.addEventListener('click', function () { setOpen(!open); });
     document.addEventListener('pointerdown', function (e) {
       if (open && !card.contains(e.target)) setOpen(false);

@@ -154,8 +154,10 @@ describeBrowser('website browser accessibility smoke', () => {
   test('design motion specimen supports keyboard and direct manipulation without reduced-motion coast', async () => {
     const page = await browser.newPage({ viewport: { width: 390, height: 900 } })
     const trackTransform = () => page.locator('.dz-motion-track').evaluate((el) => (el as HTMLElement).style.transform)
-    async function dragLeft() {
-      const box = await page.locator('[data-motion-strip]').boundingBox()
+    async function dragLeft(stationaryBeforeReleaseMs = 0) {
+      const strip = page.locator('[data-motion-strip]')
+      await strip.scrollIntoViewIfNeeded()
+      const box = await strip.boundingBox()
       expect(box).not.toBeNull()
       const x = box!.x + box!.width * 0.8
       const y = box!.y + box!.height / 2
@@ -163,7 +165,10 @@ describeBrowser('website browser accessibility smoke', () => {
       await page.mouse.down()
       await new Promise((resolve) => setTimeout(resolve, 24))
       await page.mouse.move(x - box!.width * 0.5, y)
+      if (stationaryBeforeReleaseMs) await new Promise((resolve) => setTimeout(resolve, stationaryBeforeReleaseMs))
+      const beforeRelease = await trackTransform()
       await page.mouse.up()
+      return beforeRelease
     }
 
     await page.goto(baseUrl + '/about/design/', { waitUntil: 'networkidle' })
@@ -174,15 +179,23 @@ describeBrowser('website browser accessibility smoke', () => {
     await page.keyboard.press('ArrowRight')
     expect(await trackTransform()).not.toBe(beforeKeyboard)
     const beforeDrag = await trackTransform()
-    await dragLeft()
-    expect(await trackTransform()).not.toBe(beforeDrag)
+    const afterNormalRelease = await dragLeft()
+    expect(afterNormalRelease).not.toBe(beforeDrag)
+    await new Promise((resolve) => setTimeout(resolve, 120))
+    expect(await trackTransform()).not.toBe(afterNormalRelease)
+
+    // A release after holding still must not reuse the preceding drag velocity.
+    await page.goto(baseUrl + '/about/design/', { waitUntil: 'networkidle' })
+    await page.waitForFunction(() => Boolean((document.querySelector('.dz-motion-track') as HTMLElement | null)?.style.transform), undefined, { timeout: 2_000 })
+    const afterStationaryRelease = await dragLeft(150)
+    await new Promise((resolve) => setTimeout(resolve, 180))
+    expect(await trackTransform()).toBe(afterStationaryRelease)
 
     try {
       await page.emulateMedia({ reducedMotion: 'reduce' })
       await page.goto(baseUrl + '/about/design/', { waitUntil: 'networkidle' })
       await page.waitForFunction(() => Boolean((document.querySelector('.dz-motion-track') as HTMLElement | null)?.style.transform), undefined, { timeout: 2_000 })
-      await dragLeft()
-      const afterRelease = await trackTransform()
+      const afterRelease = await dragLeft()
       await new Promise((resolve) => setTimeout(resolve, 180))
       expect(await trackTransform()).toBe(afterRelease)
     } finally {
@@ -379,12 +392,24 @@ describeBrowser('website browser accessibility smoke', () => {
     await page.locator('#examples-sidebar-btn').focus()
     await page.evaluate(() => document.dispatchEvent(new KeyboardEvent('keydown', { key: '?', bubbles: true, cancelable: true })))
     expect(await page.locator('#shortcuts-dialog').getAttribute('aria-hidden')).toBe('false')
+    expect(await page.evaluate(() => document.getElementById('code-editor')?.closest('[inert]') !== null)).toBe(true)
+    await page.evaluate(() => (document.getElementById('code-editor') as HTMLTextAreaElement).focus())
     expect(await page.evaluate(() => document.activeElement === document.querySelector('#shortcuts-dialog-close'))).toBe(true)
     await page.keyboard.press('Tab')
     expect(await page.evaluate(() => document.activeElement === document.querySelector('#shortcuts-dialog-close'))).toBe(true)
     await page.keyboard.press('Escape')
     expect(await page.locator('#shortcuts-dialog').getAttribute('aria-hidden')).toBe('true')
     expect(await page.evaluate(() => document.activeElement === document.querySelector('#examples-sidebar-btn'))).toBe(true)
+    expect(await page.evaluate(() => document.getElementById('code-editor')?.closest('[inert]') === null)).toBe(true)
+    expect(await page.evaluate(() => document.getElementById('shortcuts-dialog')?.parentElement !== document.body)).toBe(true)
+
+    // Opening shortcuts closes peer popups, so focus must return to the peer's
+    // usable trigger rather than an element that became inert with the popup.
+    await page.locator('#settings-btn').click()
+    await page.locator('#font-select-btn').focus()
+    await page.evaluate(() => document.dispatchEvent(new KeyboardEvent('keydown', { key: '?', bubbles: true, cancelable: true })))
+    await page.keyboard.press('Escape')
+    expect(await page.evaluate(() => document.activeElement === document.querySelector('#settings-btn'))).toBe(true)
 
     await page.locator('#settings-btn').click()
     for (const spec of [

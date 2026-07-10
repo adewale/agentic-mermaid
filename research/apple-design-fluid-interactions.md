@@ -136,8 +136,9 @@ new message resets the full timer. Hidden toasts are noninteractive and leave th
 
 Popup controllers close semantically on the event frame: ARIA, `inert`, tab stops, focus, and peer
 state release immediately. Eligible popups then retain only a noninteractive `.closing` visual tail
-for 90 ms; reopening cancels that tail. Reduced motion skips the tail. The shortcuts dialog follows
-the same rule without retaining its focus trap.
+for 90 ms; reopening cancels that tail. Reduced motion skips the tail. The shortcuts dialog is
+ported to a direct body child while open, makes its editor siblings `inert`, and restores them on
+the same close event before its noninteractive visual tail.
 
 At phone widths, the incoming editor Source/Style/Preview panel uses a one-way 160 ms opacity
 entrance under `prefers-reduced-motion: no-preference`. The outgoing panel remains `display:none`;

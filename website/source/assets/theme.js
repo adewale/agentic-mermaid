@@ -98,6 +98,9 @@
       });
       const end = (event, cancelled) => {
         if (event.pointerId !== pointer) return;
+        // A stationary hold is not a fling. Keep the last direct-manipulation
+        // velocity only while it is recent enough to describe the release.
+        if (last && performance.now() - last.t > 100) velocity = 0;
         pointer = null; strip.classList.remove('dragging');
         if (!cancelled) beginCoast();
       };

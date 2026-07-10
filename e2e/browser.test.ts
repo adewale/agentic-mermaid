@@ -396,6 +396,22 @@ describe('browser: live editor integration', () => {
     }
   }, 60_000)
 
+  it('commits button zoom immediately under reduced motion', async () => {
+    await gotoApp(`${BASE}/editor`)
+    await page.waitForSelector('#code-editor', { timeout: 30_000 })
+    await waitForEditorRender(60_000)
+    try {
+      await page.emulateMedia({ reducedMotion: 'reduce' })
+      await page.click('#zoom-label')
+      await page.waitForFunction(() => document.getElementById('zoom-label')?.textContent === '100%', undefined, { timeout: 10_000 })
+      await page.click('#zoom-in-btn')
+      expect(await page.locator('#zoom-label').textContent()).toBe('125%')
+      expect(await page.locator('#preview-inner svg').evaluate((el) => ({ transform: (el as HTMLElement).style.transform, width: (el as HTMLElement).style.width }))).toEqual({ transform: '', width: expect.stringMatching(/px$/) })
+    } finally {
+      await page.emulateMedia({ reducedMotion: 'no-preference' })
+    }
+  }, 60_000)
+
   it('empty-state CTA opens a persistent examples sidebar', async () => {
     await gotoApp(`${BASE}/editor`)
     await page.waitForSelector('#code-editor', { timeout: 30_000 })
