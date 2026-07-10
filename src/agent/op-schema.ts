@@ -120,15 +120,24 @@ const FLOWCHART_SCHEMA: Record<string, OpSpec> = {
   set_node_style: { fields: { id: str(), style: withNote(strOrNull(), 'inline style pairs, e.g. "fill:#bbf"; null clears') } },
 }
 
+const STATE_DIRECTIONS = ['TD', 'TB', 'LR', 'BT', 'RL'] as const
+const STATE_NOTE_SIDES = ['left', 'right'] as const
+
 const STATE_SCHEMA: Record<string, OpSpec> = {
   add_state:            { fields: { id: str(), label: strOrNull(false), parent: strOrNull(false) } },
-  remove_state:         { fields: { id: str() } },
+  remove_state:         { fields: { id: str(), recursive: withNote(bool(false), 'default false: refuse a non-empty composite; true removes the whole subtree (transitions + notes cascade)') } },
   rename_state:         { fields: { from: str(), to: str() } },
   set_state_label:      { fields: { id: str(), label: strOrNull() } },
-  add_transition:       { fields: { from: str(), to: str(), label: strOrNull(false), parent: strOrNull(false) } },
+  add_transition:       { fields: { from: withNote(str(), 'a state id, "[*]", or a history ref like "X[H]"'), to: withNote(str(), 'a state id, "[*]", or a history ref like "X[H]"'), label: strOrNull(false), parent: strOrNull(false) } },
   remove_transition:    { fields: { index: num(false), from: str(false), to: str(false), parent: strOrNull(false) }, requireOneOf: ['index', 'from', 'to'] },
   set_transition_label: { fields: { index: num(false), from: str(false), to: str(false), label: strOrNull(), parent: strOrNull(false) }, requireOneOf: ['index', 'from', 'to'] },
   make_composite:       { fields: { id: str(), members: strArr(), label: strOrNull(false) } },
+  set_direction:        { fields: { direction: oneOf(STATE_DIRECTIONS), state: withNote(strOrNull(false), 'omit to set the diagram direction; a composite id sets that composite\'s direction override') } },
+  move_state:           { fields: { id: str(), parent: withNote(strOrNull(), 'target composite id; null moves the state to the top level') } },
+  dissolve_composite:   { fields: { id: withNote(str(), 'children and inner transitions hoist into the parent scope; rejects while transitions/notes still reference the composite') } },
+  add_note:             { fields: { target: str(), side: withNote(oneOf(STATE_NOTE_SIDES, false), 'default: right'), text: withNote(str(), 'multi-line text serializes as a block note') } },
+  remove_note:          { fields: { index: num() } },
+  set_note_text:        { fields: { index: num(), text: str() } },
 }
 
 const SEQUENCE_SCHEMA: Record<string, OpSpec> = {

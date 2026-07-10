@@ -4495,25 +4495,25 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "id": "B->B",
       "label": {
         "text": "12",
-        "x": 115,
+        "x": 95,
         "y": 365,
       },
       "path": [
         [
           136,
-          359,
+          356,
         ],
         [
-          126,
-          359,
+          112,
+          356,
         ],
         [
-          126,
-          371,
+          112,
+          374,
         ],
         [
           136,
-          371,
+          374,
         ],
       ],
       "to": "B",
@@ -4595,25 +4595,25 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "id": "C->C",
       "label": {
         "text": "18",
-        "x": 170,
+        "x": 150,
         "y": 494,
       },
       "path": [
         [
           191,
-          488,
+          485,
         ],
         [
-          181,
-          488,
+          167,
+          485,
         ],
         [
-          181,
-          500,
+          167,
+          503,
         ],
         [
           191,
-          500,
+          503,
         ],
       ],
       "to": "C",
@@ -4623,25 +4623,25 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "id": "D->D",
       "label": {
         "text": "21",
-        "x": 112,
+        "x": 92,
         "y": 647,
       },
       "path": [
         [
           133,
-          641,
+          638,
         ],
         [
-          123,
-          641,
+          109,
+          638,
         ],
         [
-          123,
-          653,
+          109,
+          656,
         ],
         [
           133,
-          653,
+          656,
         ],
       ],
       "to": "D",

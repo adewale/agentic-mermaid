@@ -31,6 +31,7 @@ import type {
 } from './types.ts'
 import { measureMultilineText } from './text-metrics.ts'
 import { applyTextTransform, resolveRenderStyle } from './styles.ts'
+import { clipEdgeToShape } from './shape-clipping.ts'
 
 type DraftRouteCertificate = Omit<RouteCertificate, 'invariant' | 'straightened'> & {
   invariant: RouteInvariant
@@ -49,8 +50,11 @@ const LABEL_CLEARANCE = 8
 /** The renderer draws labels as pills with this padding around the measured text. */
 const LABEL_PILL_PADDING = 8
 
-/** Shapes whose forward-facing side is a straight axis-aligned segment. */
-const RECT_LIKE = new Set(['rectangle', 'service', 'rounded', 'subroutine'])
+/** Shapes whose forward-facing side is a straight axis-aligned segment.
+ *  Fork/join bars are plain (rounded) rectangles geometrically, which is what
+ *  lets incoming/outgoing lanes attach anywhere along the bar — "the bar
+ *  spans its lanes" by construction. */
+const RECT_LIKE = new Set(['rectangle', 'service', 'rounded', 'subroutine', 'state-fork', 'state-join'])
 
 /**
  * Shapes whose four canonical ports (bbox side midpoints — see PortSide) lie
@@ -61,6 +65,9 @@ const RECT_LIKE = new Set(['rectangle', 'service', 'rounded', 'subroutine'])
 export const PORT_EXACT = new Set([
   ...RECT_LIKE, 'diamond',
   'circle', 'doublecircle', 'stadium', 'hexagon', 'cylinder', 'state-start', 'state-end',
+  // State pseudostates: choice is an inscribed diamond, history an inscribed
+  // circle — their bbox side midpoints lie exactly on the outline.
+  'state-choice', 'state-history',
   // The slanted family: their N/S ports sit on flat bbox-edge regions and
   // their E/W ports move inward onto the slant midpoints (see shapePorts).
   'trapezoid', 'trapezoid-alt', 'asymmetric', 'lean-r', 'lean-l',
@@ -453,6 +460,15 @@ interface LaneContext {
 function facingSide(axis: Axis, facing: 1 | -1): PortSide {
   const forward = facing * axis.sign > 0
   return axis.main === 'x' ? (forward ? 'E' : 'W') : (forward ? 'S' : 'N')
+}
+
+function opposite(side: PortSide): PortSide {
+  switch (side) {
+    case 'N': return 'S'
+    case 'S': return 'N'
+    case 'E': return 'W'
+    case 'W': return 'E'
+  }
 }
 
 interface RoutePortEndpointDraft {
@@ -1974,6 +1990,150 @@ export function applyRouteContracts(
     return escapes ? 'outer-feedback' : 'feedback-detour'
   }
 
+  // ---- Self-loop arc routing (plan §State 6; upstream #6336/#6049) --------
+  //
+  // ELK emits a self-loop as a ~10px stub that hides behind its own label
+  // pill. Rebuild every self-loop as the standard arc: leave the node on one
+  // side at cross-center − d, run out to a real depth, return at cross-center
+  // + d — orthogonal, endpoints on the outline at DISTINCT points, label ON
+  // the outer segment. The side starts from ELK's stub (the space it already
+  // reserved) and falls back to the side with the most clear depth; the depth
+  // is clamped against sibling nodes, group borders, and foreign label pills,
+  // so the arc cannot introduce an overlap. This is the typed self-loop route
+  // class doing its own certified repair — not an exemption from the gates.
+  const selfLoopRank = new Map<string, number>()
+  const repairSelfLoopArc = (edge: PositionedEdge): PortSide | null => {
+    const node = nodeMap.get(edge.source)
+    if (!node) return null
+    const rank = selfLoopRank.get(node.id) ?? 0
+    selfLoopRank.set(node.id, rank + 1)
+
+    const cx = node.x + node.width / 2
+    const cy = node.y + node.height / 2
+    // Preferred side: where ELK parked the stub (its reserved space).
+    const interior = edge.points.slice(1, -1)
+    const ref = interior.length > 0
+      ? { x: interior.reduce((s, p) => s + p.x, 0) / interior.length, y: interior.reduce((s, p) => s + p.y, 0) / interior.length }
+      : edge.points[0] ?? { x: node.x, y: cy }
+    const relX = (ref.x - cx) / Math.max(node.width / 2, 1)
+    const relY = (ref.y - cy) / Math.max(node.height / 2, 1)
+    const preferred: PortSide = Math.abs(relX) >= Math.abs(relY)
+      ? (relX < 0 ? 'W' : 'E')
+      : (relY < 0 ? 'N' : 'S')
+    const sideOrder: PortSide[] = [preferred, opposite(preferred), ...(preferred === 'W' || preferred === 'E' ? ['N', 'S'] as const : ['W', 'E'] as const)]
+
+    // Label pill measured once — it sits just OUTSIDE the loop's outer
+    // segment (a pill wider than the loop is deep would otherwise cover the
+    // whole arc, recreating the hidden-stub defect for short labels). The
+    // rubric's self-loop rule measures pill-RECT-to-route, so a 4px gap is
+    // well inside its allowance.
+    const pill = edge.label
+      ? measureMultilineText(applyTextTransform(edge.label, style.edgeTextTransform), style.edgeLabelFontSize, style.edgeLabelFontWeight)
+      : null
+    const pillMain = (side: PortSide): number => pill
+      ? (side === 'N' || side === 'S' ? pill.height : pill.width) + 2 * LABEL_PILL_PADDING
+      : 0
+
+    const clearDepth = (side: PortSide, d: number): number => {
+      const vertical = side === 'N' || side === 'S' // depth runs along y
+      const crossCenter = vertical ? cx : cy
+      const bandLo = crossCenter - d - 6
+      const bandHi = crossCenter + d + 6
+      const sideCoord = side === 'W' ? node.x : side === 'E' ? node.x + node.width
+        : side === 'N' ? node.y : node.y + node.height
+      const sign = side === 'W' || side === 'N' ? -1 : 1
+      let max = 1000
+      const consider = (lo: number, hi: number, nearEdge: number, inside: boolean): void => {
+        if (hi < bandLo || lo > bandHi) return
+        const dist = (nearEdge - sideCoord) * sign
+        const margin = inside ? 2 : 6
+        if (dist > 0) max = Math.min(max, dist - margin)
+      }
+      for (const other of ctx.nodes) {
+        if (other.id === node.id) continue
+        consider(vertical ? other.x : other.y, vertical ? other.x + other.width : other.y + other.height,
+          vertical ? (sign < 0 ? other.y + other.height : other.y) : (sign < 0 ? other.x + other.width : other.x), false)
+      }
+      for (const group of groupMap.values()) {
+        const containsNode = cx > group.x && cx < group.x + group.width && cy > group.y && cy < group.y + group.height
+        if (containsNode) {
+          // The loop must stay inside its own group: the border caps depth.
+          const inner = vertical ? (sign < 0 ? group.y : group.y + group.height) : (sign < 0 ? group.x : group.x + group.width)
+          const dist = (inner - sideCoord) * sign
+          if (dist > 0) max = Math.min(max, dist - 4)
+        } else {
+          consider(vertical ? group.x : group.y, vertical ? group.x + group.width : group.y + group.height,
+            vertical ? (sign < 0 ? group.y + group.height : group.y) : (sign < 0 ? group.x + group.width : group.x), false)
+        }
+      }
+      for (const other of ctx.edges) {
+        if (other === edge || !other.label) continue
+        const r = labelRect(other, style)
+        if (!r) continue
+        consider(vertical ? r.x : r.y, vertical ? r.x + r.w : r.y + r.h,
+          vertical ? (sign < 0 ? r.y + r.h : r.y) : (sign < 0 ? r.x + r.w : r.x), false)
+      }
+      return max
+    }
+
+    const crossSize = (side: PortSide): number => (side === 'N' || side === 'S') ? node.width : node.height
+    const pickGeometry = (side: PortSide): { d: number; desired: number; clear: number } => {
+      const size = crossSize(side)
+      const d = Math.min(Math.max(size / 4, 6), 10, Math.max(size / 2 - 2, 3)) + rank * 6
+      const desired = 24 + rank * 14
+      return { d, desired, clear: clearDepth(side, d) }
+    }
+    // The pill zone beyond the outer segment must be clear too.
+    const pillReserve = (side: PortSide): number => pill ? pillMain(side) + 8 : 0
+
+    let chosen: PortSide | null = null
+    let geo: { d: number; desired: number; clear: number } | null = null
+    for (const side of sideOrder) {
+      const g = pickGeometry(side)
+      if (g.clear - pillReserve(side) >= Math.min(g.desired, 14)) { chosen = side; geo = g; break }
+    }
+    if (!chosen || !geo) {
+      // No side offers the minimum arc — keep the widest one (still honest,
+      // still certified; the audit gates verify no overlap was introduced).
+      chosen = sideOrder.reduce((best, side) => pickGeometry(side).clear > pickGeometry(best).clear ? side : best, sideOrder[0]!)
+      geo = pickGeometry(chosen)
+    }
+    const depth = Math.max(Math.min(geo.desired, geo.clear - pillReserve(chosen)), 8)
+    const d = geo.d
+
+    const points: Point[] = (() => {
+      switch (chosen) {
+        case 'W': return [
+          { x: node.x, y: cy - d }, { x: node.x - depth, y: cy - d },
+          { x: node.x - depth, y: cy + d }, { x: node.x, y: cy + d }]
+        case 'E': return [
+          { x: node.x + node.width, y: cy - d }, { x: node.x + node.width + depth, y: cy - d },
+          { x: node.x + node.width + depth, y: cy + d }, { x: node.x + node.width, y: cy + d }]
+        case 'N': return [
+          { x: cx - d, y: node.y }, { x: cx - d, y: node.y - depth },
+          { x: cx + d, y: node.y - depth }, { x: cx + d, y: node.y }]
+        default: return [
+          { x: cx - d, y: node.y + node.height }, { x: cx - d, y: node.y + node.height + depth },
+          { x: cx + d, y: node.y + node.height + depth }, { x: cx + d, y: node.y + node.height }]
+      }
+    })()
+    // Clip both endpoints onto non-rectangular outlines (diamond facets,
+    // circles, …) — the clip slides the endpoint along its own orthogonal
+    // segment, so orthogonality is preserved.
+    edge.points = clipEdgeToShape(clipEdgeToShape(points, node, true), node, false)
+    if (edge.label && pill) {
+      // Pill centre one half-pill (+4px gap) beyond the outer segment, on the
+      // loop's cross-centreline — the pill hugs the arc without covering it.
+      const vertical = chosen === 'N' || chosen === 'S'
+      const sign = chosen === 'W' || chosen === 'N' ? -1 : 1
+      const sideCoord = chosen === 'W' ? node.x : chosen === 'E' ? node.x + node.width
+        : chosen === 'N' ? node.y : node.y + node.height
+      const outer = sideCoord + sign * (depth + pillMain(chosen) / 2 + 4)
+      edge.labelPosition = vertical ? { x: cx, y: outer } : { x: outer, y: cy }
+    }
+    return chosen
+  }
+
   const retry: Array<{ edge: PositionedEdge; cert: DraftRouteCertificate }> = []
   for (const edge of positioned.edges) {
     edge.points = simplifyPolyline(orthogonalizeResidualDiagonals(edge.points))
@@ -1991,6 +2151,11 @@ export function applyRouteContracts(
       cert.invariant = 'bundle'
     } else if (routeClass === 'self-loop') {
       cert.invariant = 'self-loop'
+      const side = repairSelfLoopArc(edge)
+      if (side) {
+        cert.loopSide = side
+        cert.bendCount = bendCount(edge.points)
+      }
     } else if (routeClass === 'container') {
       cert.invariant = 'container-attach'
       if (tryRepairContainerEdge(edge, groupMap, nodeMap, ctx)) {
@@ -2075,6 +2240,7 @@ export function applyRouteContracts(
       targetPort: targetNode && edge.points.length > 0 ? portAt(targetNode, edge.points[edge.points.length - 1]!) : undefined,
       sourcePortAssignment: portAssignment?.source,
       targetPortAssignment: portAssignment?.target,
+      ...(draft.loopSide !== undefined ? { loopSide: draft.loopSide } : {}),
     }
     // Public route certificates are a discriminated union: only final
     // straight routes may carry `straightened`. A retry can downgrade an
@@ -2125,6 +2291,7 @@ export function recertifyReroutedEdge(
     targetPort: targetNode && edge.points.length > 0 ? portAt(targetNode, edge.points[edge.points.length - 1]!) : saved.targetPort,
     sourcePortAssignment: saved.sourcePortAssignment,
     targetPortAssignment: saved.targetPortAssignment,
+    ...(saved.loopSide !== undefined ? { loopSide: saved.loopSide } : {}),
   }
   if (edge.points.length === 2 && bendCount(edge.points) === 0) {
     edge.routeCertificate = { ...base, invariant: 'straight' }

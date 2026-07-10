@@ -27,6 +27,7 @@ import type {
   PositionedNode,
   PositionedEdge,
   PositionedGroup,
+  PositionedStateNote,
   Point,
   RenderOptions,
   NodeShape,
@@ -181,9 +182,23 @@ function sourceAwareNodeOrder(nodeIds: string[], edges: Array<Pick<MermaidEdge, 
 // Node sizing (same logic as Dagre adapter)
 // ============================================================================
 
-function estimateNodeSize(id: string, label: string, shape: string, style: ResolvedRenderStyle): { width: number; height: number } {
+function estimateNodeSize(id: string, label: string, shape: string, style: ResolvedRenderStyle, direction: Direction = 'TB'): { width: number; height: number } {
   void id
   const metrics = measureMultilineText(applyTextTransform(label, style.nodeTextTransform), style.nodeLabelFontSize, style.nodeLabelFontWeight)
+
+  // State pseudostates (plan §State 2): fork/join bars run PERPENDICULAR to
+  // the flow (wide+thin in vertical flows, tall+thin in horizontal flows);
+  // choice is a small unlabeled diamond; history is a small (H) circle.
+  if (shape === 'state-fork' || shape === 'state-join') {
+    const horizontalFlow = direction === 'LR' || direction === 'RL'
+    return horizontalFlow ? { width: 10, height: 70 } : { width: 70, height: 10 }
+  }
+  if (shape === 'state-choice') {
+    return { width: 36, height: 36 }
+  }
+  if (shape === 'state-history') {
+    return { width: 32, height: 32 }
+  }
 
   let width = metrics.width + style.nodePaddingX * 2
   let height = metrics.height + style.nodePaddingY * 2
@@ -595,12 +610,12 @@ function mermaidToElk(
   for (const id of rootOrder) {
     const sg = topLevelSubgraphs.get(id)
     if (sg) {
-      elkGraph.children!.push(subgraphToElk(sg, graph, opts, style, edgesBySubgraph, subgraphPorts, crossEdgesByHost, routePortHints, useSourceAwareChildOrder, balancingLabels))
+      elkGraph.children!.push(subgraphToElk(sg, graph, opts, style, edgesBySubgraph, subgraphPorts, crossEdgesByHost, routePortHints, useSourceAwareChildOrder, balancingLabels, graph.direction))
       continue
     }
     const node = graph.nodes.get(id)
     if (node && !subgraphNodeIds.has(id) && !subgraphIds.has(id)) {
-      elkGraph.children!.push(nodeToElkLeaf(id, node, style, routePortHints))
+      elkGraph.children!.push(nodeToElkLeaf(id, node, style, routePortHints, graph.direction))
     }
   }
 
@@ -833,8 +848,8 @@ function elkPortSide(side: 'N' | 'E' | 'S' | 'W'): 'NORTH' | 'EAST' | 'SOUTH' | 
   }
 }
 
-function nodeToElkLeaf(id: string, node: MermaidNode, style: ResolvedRenderStyle, hints: RoutePortHints): ElkGraphNode {
-  const size = estimateNodeSize(id, node.label, node.shape, style)
+function nodeToElkLeaf(id: string, node: MermaidNode, style: ResolvedRenderStyle, hints: RoutePortHints, direction: Direction = 'TB'): ElkGraphNode {
+  const size = estimateNodeSize(id, node.label, node.shape, style, direction)
   const elkNode: ElkGraphNode = {
     id,
     width: size.width,
@@ -911,8 +926,14 @@ function subgraphToElk(
   routePortHints: RoutePortHints,
   useSourceAwareOrder: boolean,
   balancingLabels: Map<number, BalancingLabel>,
+  inheritedDirection: Direction = 'TB',
 ): ElkGraphNode {
-  const groupHeaderHeight = style.groupHeaderFontSize + 16
+  // Concurrency regions draw no header band of their own, so they reserve
+  // only the plain padding at the top (plan §State 2c).
+  const groupHeaderHeight = sg.concurrencyRegion ? 0 : style.groupHeaderFontSize + 16
+  // Effective direction of THIS scope — drives direction-dependent node
+  // sizing (fork/join bars) for direct children.
+  const effectiveDirection = sg.direction ?? inheritedDirection
   const layoutOptions: LayoutOptions = {
     'elk.algorithm': 'layered',
     'elk.padding': `[top=${groupHeaderHeight + style.groupPaddingY},left=${style.groupPaddingX},bottom=${style.groupPaddingY},right=${style.groupPaddingX}]`,
@@ -956,13 +977,13 @@ function subgraphToElk(
   for (const nodeId of childNodeOrder) {
     const node = graph.nodes.get(nodeId)
     if (node) {
-      elkNode.children!.push(nodeToElkLeaf(nodeId, node, style, routePortHints))
+      elkNode.children!.push(nodeToElkLeaf(nodeId, node, style, routePortHints, effectiveDirection))
     }
   }
 
   // Add nested subgraphs recursively
   for (const child of sg.children) {
-    elkNode.children!.push(subgraphToElk(child, graph, opts, style, edgesBySubgraph, subgraphPorts, crossEdgesByHost, routePortHints, useSourceAwareOrder, balancingLabels))
+    elkNode.children!.push(subgraphToElk(child, graph, opts, style, edgesBySubgraph, subgraphPorts, crossEdgesByHost, routePortHints, useSourceAwareOrder, balancingLabels, effectiveDirection))
   }
 
   // Add internal edges (edges where both endpoints are in this subgraph)
@@ -1158,6 +1179,8 @@ export interface LayoutPassContext extends PassContextBase {
   nodes: PositionedNode[]
   edges: PositionedEdge[]
   groups: PositionedGroup[]
+  /** State-diagram note boxes, populated by placeStateNotes (empty otherwise). */
+  notes: PositionedStateNote[]
   readonly margins: MarginInfo | undefined
   bundled: Set<PositionedEdge>
   readonly mergeEdges: boolean
@@ -1315,7 +1338,126 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     after: ['repairLabelsOffOwnRoute'], mutates: ['translate'], determinism: 'in-place',
     run: c => { translateGeometryToNonNegativeOrigin(c.nodes, c.edges, c.groups, c.layoutPadding) },
   },
+  {
+    // State diagrams only (plan §State 1, repo #118): place each note box on
+    // the DECLARED side of its target, pushed outward past any node/group/
+    // route obstacle — the anchoring invariant upstream #3782 breaks. A note
+    // landing at negative coords shifts the whole graph uniformly (translate,
+    // freeze-safe).
+    id: 'placeStateNotes', doc: 'place state-diagram note boxes on their declared side, clear of nodes/groups/routes (state diagrams only; translate-only)',
+    after: ['translateGeometryToNonNegativeOrigin'], mutates: ['translate'], determinism: 'in-place',
+    enabled: c => Boolean(c.graph.stateNotes?.length),
+    run: c => { c.notes = placeStateNotes(c.nodes, c.edges, c.groups, c.graph, c.style, c.layoutPadding) },
+  },
 ]
+
+// ============================================================================
+// State-diagram note placement (plan §State 1)
+// ============================================================================
+
+const NOTE_GAP = 18
+const NOTE_CLEARANCE = 6
+const NOTE_PADDING_X = 10
+const NOTE_PADDING_Y = 8
+
+interface NoteObstacle { x: number; y: number; w: number; h: number }
+
+/**
+ * Place every `note left|right of X` box beside its target's FINAL geometry.
+ * Correct by construction: the x-band starts adjacent to the target on the
+ * declared side and only ever moves OUTWARD (away from the target), stepping
+ * past any node box, group box, edge segment, edge-label pill, or previously
+ * placed note it would overlap — so "sits on the declared side" and "overlaps
+ * nothing" hold simultaneously and deterministically. Runs after the freeze
+ * as a translate-only pass: when a note lands at negative coordinates the
+ * whole graph (notes included) shifts uniformly.
+ */
+function placeStateNotes(
+  nodes: PositionedNode[],
+  edges: PositionedEdge[],
+  groups: PositionedGroup[],
+  graph: MermaidGraph,
+  style: ResolvedRenderStyle,
+  layoutPadding: number,
+): PositionedStateNote[] {
+  const specs = graph.stateNotes ?? []
+  if (specs.length === 0) return []
+
+  const flatGroups: PositionedGroup[] = []
+  const flatten = (gs: PositionedGroup[]): void => {
+    for (const g of gs) { flatGroups.push(g); flatten(g.children) }
+  }
+  flatten(groups)
+
+  // Fixed-order obstacle set: nodes, groups, edge segments (inflated), edge
+  // label pills. Placed notes are appended as they land.
+  const obstacles: NoteObstacle[] = []
+  for (const n of nodes) obstacles.push({ x: n.x, y: n.y, w: n.width, h: n.height })
+  for (const g of flatGroups) obstacles.push({ x: g.x, y: g.y, w: g.width, h: g.height })
+  for (const e of edges) {
+    if (e.style === 'invisible') continue
+    for (let i = 1; i < e.points.length; i++) {
+      const a = e.points[i - 1]!, b = e.points[i]!
+      obstacles.push({
+        x: Math.min(a.x, b.x) - 2, y: Math.min(a.y, b.y) - 2,
+        w: Math.abs(a.x - b.x) + 4, h: Math.abs(a.y - b.y) + 4,
+      })
+    }
+    const pill = e.label ? labelRect(e, style) : null
+    if (pill) obstacles.push(pill)
+  }
+
+  const intersects = (a: NoteObstacle, b: NoteObstacle): boolean =>
+    a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y
+
+  const placed: PositionedStateNote[] = []
+  for (const spec of specs) {
+    // Anchor box: a leaf node, or the group box for a composite target.
+    const node = nodes.find(n => n.id === spec.target)
+    const group = node ? undefined : flatGroups.find(g => g.id === spec.target)
+    const anchor = node ?? group
+    if (!anchor) continue
+
+    const metrics = measureMultilineText(spec.text, style.edgeLabelFontSize, style.edgeLabelFontWeight)
+    const w = metrics.width + NOTE_PADDING_X * 2
+    const h = metrics.height + NOTE_PADDING_Y * 2
+    const y = anchor.y + (anchor.height - h) / 2
+    let x = spec.side === 'left' ? anchor.x - NOTE_GAP - w : anchor.x + anchor.width + NOTE_GAP
+
+    // Push outward past obstacles (monotone, hence terminating). The anchor's
+    // own box lies behind the starting position by construction (NOTE_GAP >
+    // NOTE_CLEARANCE), so it never registers as a hit.
+    for (let guard = 0; guard < obstacles.length + placed.length + 4; guard++) {
+      const box: NoteObstacle = { x: x - NOTE_CLEARANCE, y: y - NOTE_CLEARANCE, w: w + NOTE_CLEARANCE * 2, h: h + NOTE_CLEARANCE * 2 }
+      const hit = obstacles.find(o => intersects(box, o))
+        ?? placed.map(p => ({ x: p.x, y: p.y, w: p.width, h: p.height })).find(o => intersects(box, o))
+      if (!hit) break
+      x = spec.side === 'left' ? hit.x - NOTE_CLEARANCE - w : hit.x + hit.w + NOTE_CLEARANCE
+    }
+
+    placed.push({ id: spec.id, target: spec.target, side: spec.side, text: spec.text, x, y, width: w, height: h })
+  }
+
+  // Uniform shift when any note went negative (left-side notes beside the
+  // leftmost node). Translate-only: nodes, groups, edges, labels, notes all
+  // move together, so certified routes stay valid.
+  let minX = 0
+  let minY = 0
+  for (const p of placed) { minX = Math.min(minX, p.x); minY = Math.min(minY, p.y) }
+  if (minX < 0 || minY < 0) {
+    const dx = minX < 0 ? -minX + layoutPadding : 0
+    const dy = minY < 0 ? -minY + layoutPadding : 0
+    const moveGroup = (g: PositionedGroup): void => { g.x += dx; g.y += dy; g.children.forEach(moveGroup) }
+    for (const n of nodes) { n.x += dx; n.y += dy }
+    for (const g of groups) moveGroup(g)
+    for (const e of edges) {
+      for (const p of e.points) { p.x += dx; p.y += dy }
+      if (e.labelPosition) { e.labelPosition.x += dx; e.labelPosition.y += dy }
+    }
+    for (const p of placed) { p.x += dx; p.y += dy }
+  }
+  return placed
+}
 
 function elkToPositioned(
   elkResult: ElkNode,
@@ -1356,6 +1498,7 @@ function elkToPositioned(
     nodes,
     edges,
     groups,
+    notes: [],
     margins,
     bundled: new Set<PositionedEdge>(),
     mergeEdges,
@@ -1390,6 +1533,10 @@ function elkToPositioned(
       height = Math.max(height, edge.labelPosition.y + 20 + padding)
     }
   }
+  for (const note of ctx.notes) {
+    width = Math.max(width, note.x + note.width + padding)
+    height = Math.max(height, note.y + note.height + padding)
+  }
 
   return {
     width,
@@ -1397,6 +1544,7 @@ function elkToPositioned(
     nodes,
     edges,
     groups,
+    ...(ctx.notes.length > 0 ? { notes: ctx.notes } : {}),
   }
 }
 
@@ -1437,6 +1585,7 @@ function extractNodesAndGroups(
         width,
         height,
         children: childGroups,
+        ...(mermaidSg?.concurrencyRegion ? { concurrencyRegion: true as const } : {}),
       })
     } else {
       // This is a leaf node

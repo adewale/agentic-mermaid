@@ -142,25 +142,17 @@ describe('state round-trip identity', () => {
 
 // ---------------------------------------------------------------------------
 describe('state opaque-fallback table (unmodeled syntax stays lossless)', () => {
+  // Repo #118 promoted notes and the fork/join/choice/history stereotypes to
+  // STRUCTURED (see state-notes.test.ts / state-pseudostates.test.ts); the
+  // rows below remain deliberately unmodeled and must keep the honest opaque
+  // fallback.
   const opaque: [string, string][] = [
-    ['fork', `stateDiagram-v2
-  state fork_state <<fork>>
-  [*] --> fork_state`],
-    ['choice', `stateDiagram-v2
-  state if_state <<choice>>
-  [*] --> if_state`],
-    ['join', `stateDiagram-v2
-  state join_state <<join>>
-  State2 --> join_state`],
     ['concurrency --', `stateDiagram-v2
   state Active {
     [*] --> A
     --
     [*] --> B
   }`],
-    ['note', `stateDiagram-v2
-  A --> B
-  note right of A : hello`],
     ['classDef styling', `stateDiagram-v2
   classDef bad fill:#f00
   A --> B
@@ -190,6 +182,20 @@ describe('state opaque-fallback table (unmodeled syntax stays lossless)', () => 
     })
   }
 
+  test('fork/choice/join/note — the former opaque rows — now parse structured', () => {
+    for (const src of [
+      'stateDiagram-v2\n  state fork_state <<fork>>\n  [*] --> fork_state',
+      'stateDiagram-v2\n  state if_state <<choice>>\n  [*] --> if_state',
+      'stateDiagram-v2\n  state join_state <<join>>\n  State2 --> join_state',
+      'stateDiagram-v2\n  A --> B\n  note right of A : hello',
+    ]) {
+      const r = parseMermaid(src)
+      expect(r.ok).toBe(true)
+      if (!r.ok) continue
+      expect(r.value.body.kind).toBe('state')
+      expect(asState(r.value)).not.toBeNull()
+    }
+  })
 })
 
 // ---------------------------------------------------------------------------

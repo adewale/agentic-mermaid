@@ -13,6 +13,7 @@ import type { SceneDoc } from './scene/ir.ts'
 
 import { parseSequenceDiagram } from './sequence/parser.ts'
 import { layoutSequenceDiagram } from './sequence/layout.ts'
+import { resolveSequenceConfig } from './sequence/config.ts'
 import { renderSequenceSvg, lowerSequenceScene } from './sequence/renderer.ts'
 import { parseClassDiagram } from './class/parser.ts'
 import { layoutClassDiagram, resolveClassRenderOptions } from './class/layout.ts'
@@ -180,10 +181,18 @@ registerRenderHooks('architecture', {
 })
 
 registerRenderHooks('sequence', {
-  layout: ctx => layoutResult(layoutSequenceDiagram(parseSequenceDiagram(ctx.source.lines), ctx.options)),
+  // Wire-or-warn config threading (src/sequence/config.ts): the typed
+  // `sequence` frontmatter/init section's wired keys reach the parser
+  // (showSequenceNumbers) and layout (margins/sizes); unwired keys are named
+  // by verify's INEFFECTIVE_CONFIG lint. Absent config resolves to {} and
+  // keeps default geometry byte-identical.
+  layout: ctx => {
+    const seqConfig = resolveSequenceConfig(ctx.source.frontmatter)
+    return layoutResult(layoutSequenceDiagram(parseSequenceDiagram(ctx.source.lines, seqConfig), ctx.options, seqConfig))
+  },
   renderSvg: svg(renderSequenceSvg),
   lowerScene: scene(lowerSequenceScene),
-  renderAscii: ctx => renderSequenceAscii(ctx.source.text, ctx.config, ctx.colorMode, ctx.theme),
+  renderAscii: ctx => renderSequenceAscii(ctx.source.text, ctx.config, ctx.colorMode, ctx.theme, resolveSequenceConfig(ctx.source.frontmatter)),
 })
 
 registerRenderHooks('class', {

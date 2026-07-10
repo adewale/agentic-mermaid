@@ -201,7 +201,13 @@ function renderShape(node: MermaidNode): string {
     case 'lean-l': return `[\\${lbl}\\]`
     case 'service': return `[${lbl}]`
     case 'state-start':
-    case 'state-end': return ''
+    case 'state-end':
+    // State-parser-only pseudostates — unreachable from flowchart bodies
+    // (the flowchart grammar and op menu never produce them).
+    case 'state-fork':
+    case 'state-join':
+    case 'state-choice':
+    case 'state-history': return ''
   }
 }
 

@@ -19,6 +19,25 @@ export interface MermaidGraph {
   nodeStyles: Map<string, Record<string, string>>
   /** Maps edge indices (or 'default') to inline styles from `linkStyle` directives */
   linkStyles: Map<number | 'default', Record<string, string>>
+  /** State diagrams only: `note left|right of X` annotations, in source order.
+   *  Placed by a post-layout pass (layout-engine placeStateNotes); flowcharts
+   *  never populate this. */
+  stateNotes?: StateNoteSpec[]
+}
+
+/** A state-diagram note (`note left of X : text` / block form). ONE grammar
+ *  models these for the render parser and the agent body alike —
+ *  src/state/parse-core.ts (plan §State 1, repo #118). */
+export interface StateNoteSpec {
+  /** Stable id (`note#<i>` in source order). */
+  id: string
+  /** The state (or composite) the note is anchored to. */
+  target: string
+  /** Declared side — the placement invariant is that the note box sits on
+   *  this side of its target's box (upstream's own placement bug: #3782). */
+  side: 'left' | 'right'
+  /** Note text; block-note body lines are joined with '\n'. */
+  text: string
 }
 
 export type Direction = 'TD' | 'TB' | 'LR' | 'BT' | 'RL'
@@ -63,6 +82,12 @@ export type NodeShape =
   // Batch 3 state diagram pseudostates
   | 'state-start'    // filled circle (start pseudostate)
   | 'state-end'      // bullseye circle (end pseudostate)
+  // Batch 4 state pseudostates (plan §State 2; upstream #2514 / PR #5700).
+  // State-parser-only: the flowchart grammar and op menu never produce these.
+  | 'state-fork'     // <<fork>> — filled bar perpendicular to the flow
+  | 'state-join'     // <<join>> — filled bar (same geometry as fork)
+  | 'state-choice'   // <<choice>> — small unlabeled diamond
+  | 'state-history'  // [H] / <<history>> — circle containing H (H* when deep)
 
 export interface MermaidEdge {
   source: string
@@ -101,6 +126,10 @@ export interface MermaidSubgraph {
   children: MermaidSubgraph[]
   /** Optional direction override for this subgraph's internal layout */
   direction?: Direction
+  /** State diagrams only: this subgraph is one concurrency region of its
+   *  parent composite (`--` separators, plan §State 2c). Regions draw no box
+   *  of their own; the renderer draws dashed separators between siblings. */
+  concurrencyRegion?: true
 }
 
 // ============================================================================
@@ -124,6 +153,23 @@ export interface PositionedGraph extends PositionedDiagram {
   nodes: PositionedNode[]
   edges: PositionedEdge[]
   groups: PositionedGroup[]
+  /** State-diagram notes with final placement (present only when the source
+   *  graph carried stateNotes). Invariants enforced by construction in
+   *  placeStateNotes: the box sits on the declared side of its target and
+   *  overlaps no node/group box. */
+  notes?: PositionedStateNote[]
+}
+
+/** A placed state-diagram note box. */
+export interface PositionedStateNote {
+  id: string
+  target: string
+  side: 'left' | 'right'
+  text: string
+  x: number
+  y: number
+  width: number
+  height: number
 }
 
 export interface PositionedNode {
@@ -260,6 +306,10 @@ interface RouteCertificateBase {
   sourcePortAssignment?: RoutePortAssignment
   /** Dynamic side/slot/role allocation for the target endpoint. */
   targetPortAssignment?: RoutePortAssignment
+  /** Self-loop routes only: the node side the loop departs from and returns
+   *  to. Part of the self-loop certificate vocabulary (plan §State 6) — the
+   *  arc leaves and re-enters this side at distinct boundary points. */
+  loopSide?: PortSide
 }
 
 export type StraightRouteCertificate = RouteCertificateBase & {
@@ -346,6 +396,9 @@ export interface PositionedGroup {
   width: number
   height: number
   children: PositionedGroup[]
+  /** State diagrams only: this group is a concurrency region (drawn as dashed
+   *  separators between siblings instead of its own box). */
+  concurrencyRegion?: true
 }
 
 // ============================================================================

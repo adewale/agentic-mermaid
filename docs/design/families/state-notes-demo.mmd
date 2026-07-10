@@ -1,0 +1,8 @@
+stateDiagram-v2
+  [*] --> Active
+  Active --> Idle : timeout
+  note right of Active : Currently processing
+  note left of Idle
+    Waits for input
+    from the user
+  end note

@@ -18,7 +18,7 @@ gates: `src/__tests__/contact-sheet.test.ts`,
 | Class diagram | [class.svg](./visual-snapshots/class.svg) | `d14da80c1cb7` | `ea089943c1dc` | 3950 | 360x237.8 | 360x238 | 3/2 | 0 | 2 | 240 | 20.6% | 100.0% | 0 | n/a | 1.51 |
 | ER diagram | [er.svg](./visual-snapshots/er.svg) | `55081c8b168b` | `2b49625fda09` | 9693 | 951.768x136 | 952x136 | 3/2 | 0 | 0 | 452 | 18.2% | 100.0% | 0 | 115 | 7.00 |
 | Timeline | [timeline.svg](./visual-snapshots/timeline.svg) | `c07cd647b657` | `c01793e9745b` | 8031 | 380x286.6 | 380x287 | 4/0 | 0 | 0 | 0 | 13.2% | 100.0% | 0 | n/a | 1.32 |
-| Gantt chart | [gantt.svg](./visual-snapshots/gantt.svg) | `784dedd3d334` | `21ee1716da07` | 9321 | 703x282 | 703x282 | 4/0 | 0 | 0 | 0 | 6.9% | 75.0% | 0 | n/a | 2.49 |
+| Gantt chart | [gantt.svg](./visual-snapshots/gantt.svg) | `34b24615a4cd` | `f52f9cf1e84a` | 10373 | 703x282 | 703x282 | 4/0 | 0 | 0 | 0 | 5.4% | 75.0% | 0 | n/a | 2.49 |
 | User journey | [journey.svg](./visual-snapshots/journey.svg) | `b47e71e142ea` | `3069450b8529` | 15279 | 530x482.3 | 530x482 | 2/0 | 0 | 0 | 0 | 5.9% | 100.0% | 0 | n/a | 1.10 |
 | XY chart | [xychart.svg](./visual-snapshots/xychart.svg) | `36646cb1be5a` | `765ea453d984` | 18006 | 700x500 | 700x500 | 6/0 | 0 | 0 | 0 | 33.9% | 50.0% | 0 | n/a | 1.40 |
 | Pie chart | [pie.svg](./visual-snapshots/pie.svg) | `60a51984f96d` | `61c805ac4e77` | 12063 | 368.79x276 | 369x276 | 3/0 | 0 | 0 | 0 | 4.1% | 100.0% | 0 | n/a | 1.34 |

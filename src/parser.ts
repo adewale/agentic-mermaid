@@ -1,6 +1,10 @@
 import type { MermaidGraph, MermaidNode, MermaidEdge, MermaidSubgraph, Direction, NodeShape, EdgeStyle, EdgeMarker } from './types.ts'
 import { normalizeBrTags } from './multiline-utils.ts'
 import { normalizeV11Shape } from './flowchart-shapes.ts'
+import {
+  matchNoteLine, matchNoteOpen, isNoteEnd, matchStereotypeDecl,
+  isConcurrencySeparator, matchHistoryEndpoint, matchTransitionLine, historyLabel,
+} from './state/parse-core.ts'
 
 // ============================================================================
 // Mermaid parser — flowcharts and state diagrams
@@ -409,7 +413,16 @@ function normalizeFlowchartDirection(raw: string): Direction {
 //   s1 --> [*]            (end pseudostate)
 //   state CompositeState {
 //     inner1 --> inner2
+//     --                  (concurrency region separator)
 //   }
+//   state f1 <<fork|join|choice|history|H|deephistory|H*>>
+//   note left|right of s1 : text     (and the block form … end note)
+//   s1 --> s2[H]          (history transition endpoints, incl. bare [H]/[H*])
+//
+// Notes, pseudostate stereotypes, history endpoints, and concurrency
+// separators are recognized through the ONE state grammar in
+// src/state/parse-core.ts, which the structured agent body also consumes
+// (plan §State 1-2, repo #118) — the two surfaces cannot drift.
 // ============================================================================
 
 function parseStateDiagram(lines: string[]): MermaidGraph {
@@ -424,16 +437,84 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     linkStyles: new Map(),
   }
 
-  // Track composite state nesting (like subgraphs)
+  // Track composite state nesting (like subgraphs). Concurrency regions are
+  // pushed as synthetic child subgraphs flagged concurrencyRegion, so member
+  // tracking lands in the active region automatically.
   const compositeStack: MermaidSubgraph[] = []
   // Track all composite state IDs to avoid creating duplicate nodes
   const compositeStateIds = new Set<string>()
   // Counter for unique [*] pseudostate IDs
   let startCount = 0
   let endCount = 0
+  // Per-composite region counter (for stable region ids `X__r1`, `X__r2`, …).
+  const regionCounts = new Map<string, number>()
+  // Open block note (`note left of X` … `end note`), collecting body lines.
+  let openNote: { target: string; side: 'left' | 'right'; lines: string[] } | null = null
+
+  const addNote = (target: string, side: 'left' | 'right', text: string): void => {
+    if (!graph.stateNotes) graph.stateNotes = []
+    graph.stateNotes.push({ id: `note#${graph.stateNotes.length}`, target, side, text })
+    // A note on an undeclared state declares it (upstream parity) — unless the
+    // id is (or later becomes) a composite, which the composite opener handles.
+    if (!compositeStateIds.has(target)) ensureStateNode(graph, compositeStack, target)
+  }
+
+  /** Resolve a transition endpoint: `[*]` pseudostates, `[H]`/`X[H]` history
+   *  pseudostates (registered as state-history nodes), composites, and plain
+   *  states. Returns the graph node id to wire the edge to. */
+  const resolveEndpoint = (raw: string, endpoint: 'source' | 'target'): string => {
+    if (raw === '[*]') {
+      if (endpoint === 'source') {
+        startCount++
+        const id = `_start${startCount > 1 ? startCount : ''}`
+        registerStateNode(graph, compositeStack, { id, label: '', shape: 'state-start' })
+        return id
+      }
+      endCount++
+      const id = `_end${endCount > 1 ? endCount : ''}`
+      registerStateNode(graph, compositeStack, { id, label: '', shape: 'state-end' })
+      return id
+    }
+    const history = matchHistoryEndpoint(raw)
+    if (history) {
+      // A bare [H]/[H*] belongs to the enclosing composite (region's parent);
+      // `Base[H]` names its composite explicitly. Repeated references to the
+      // same history resolve to the same node.
+      const enclosing = [...compositeStack].reverse().find(sg => !sg.concurrencyRegion)
+      const base = history.base !== '' ? history.base : enclosing?.id ?? ''
+      const id = `${base}[H${history.deep ? '*' : ''}]`
+      registerStateNode(graph, compositeStack, { id, label: historyLabel(history.deep), shape: 'state-history' })
+      return id
+    }
+    if (!compositeStateIds.has(raw)) ensureStateNode(graph, compositeStack, raw)
+    return raw
+  }
 
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i]!
+
+    // --- open block note: collect body lines verbatim until `end note` ---
+    if (openNote) {
+      if (isNoteEnd(line)) {
+        addNote(openNote.target, openNote.side, openNote.lines.join('\n'))
+        openNote = null
+      } else {
+        openNote.lines.push(line)
+      }
+      continue
+    }
+
+    // --- notes: `note left|right of X : text` / `note left|right of X` ---
+    const noteLine = matchNoteLine(line)
+    if (noteLine) {
+      addNote(noteLine.target, noteLine.side, normalizeBrTags(noteLine.text))
+      continue
+    }
+    const noteOpen = matchNoteOpen(line)
+    if (noteOpen) {
+      openNote = { target: noteOpen.target, side: noteOpen.side, lines: [] }
+      continue
+    }
 
     // --- direction override ---
     const dirMatch = line.match(/^direction\s+(TD|TB|LR|BT|RL)\s*$/i)
@@ -465,6 +546,57 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
       continue
     }
 
+    // --- pseudostate stereotype: `state f1 <<fork|join|choice|history|…>>` ---
+    const stereotype = matchStereotypeDecl(line)
+    if (stereotype) {
+      const shape: NodeShape =
+        stereotype.stereotype === 'fork' ? 'state-fork'
+        : stereotype.stereotype === 'join' ? 'state-join'
+        : stereotype.stereotype === 'choice' ? 'state-choice'
+        : 'state-history'
+      const label = shape === 'state-history'
+        ? historyLabel(stereotype.stereotype === 'deep-history')
+        : ''
+      // Upsert: a transition may have referenced the id first (creating a
+      // plain rounded node) — the declaration owns the shape either way.
+      graph.nodes.set(stereotype.id, { id: stereotype.id, label, shape })
+      trackInStateScope(compositeStack, stereotype.id)
+      continue
+    }
+
+    // --- concurrency region separator inside a composite: `--` ---
+    if (isConcurrencySeparator(line) && compositeStack.length > 0) {
+      const top = compositeStack[compositeStack.length - 1]!
+      let composite: MermaidSubgraph
+      if (top.concurrencyRegion) {
+        // Close the current region (already attached to its composite).
+        compositeStack.pop()
+        composite = compositeStack[compositeStack.length - 1]!
+      } else {
+        // First separator in this composite: everything collected so far
+        // becomes region 1.
+        composite = top
+        const first: MermaidSubgraph = {
+          id: `${composite.id}__r${nextRegion(regionCounts, composite.id)}`,
+          label: '',
+          nodeIds: composite.nodeIds.splice(0),
+          children: composite.children.splice(0),
+          concurrencyRegion: true,
+        }
+        composite.children.push(first)
+      }
+      const next: MermaidSubgraph = {
+        id: `${composite.id}__r${nextRegion(regionCounts, composite.id)}`,
+        label: '',
+        nodeIds: [],
+        children: [],
+        concurrencyRegion: true,
+      }
+      composite.children.push(next)
+      compositeStack.push(next)
+      continue
+    }
+
     // --- composite state start: `state CompositeState {` ---
     const compositeMatch = line.match(/^state\s+(?:"([^"]+)"\s+as\s+)?([\w\p{L}]+)\s*\{$/u)
     if (compositeMatch) {
@@ -482,6 +614,10 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
 
     // --- composite state end ---
     if (line === '}') {
+      // An open concurrency region closes with its composite.
+      if (compositeStack.length > 0 && compositeStack[compositeStack.length - 1]!.concurrencyRegion) {
+        compositeStack.pop()
+      }
       const completed = compositeStack.pop()
       if (completed) {
         if (compositeStack.length > 0) {
@@ -502,32 +638,12 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
       continue
     }
 
-    // --- transition: `s1 --> s2` or `s1 --> s2 : label` or `[*] --> s1` ---
-    const transitionMatch = line.match(/^(\[\*\]|[\w\p{L}-]+)\s*(-->)\s*(\[\*\]|[\w\p{L}-]+)(?:\s*:\s*(.+))?$/u)
-    if (transitionMatch) {
-      let sourceId = transitionMatch[1]!
-      let targetId = transitionMatch[3]!
-      const rawTransitionLabel = transitionMatch[4]?.trim()
-      const edgeLabel = rawTransitionLabel ? normalizeBrTags(rawTransitionLabel) : undefined
-
-      // Handle [*] pseudostates — each occurrence gets a unique ID
-      if (sourceId === '[*]') {
-        startCount++
-        sourceId = `_start${startCount > 1 ? startCount : ''}`
-        registerStateNode(graph, compositeStack, { id: sourceId, label: '', shape: 'state-start' })
-      } else if (!compositeStateIds.has(sourceId)) {
-        // Only create a node if this isn't a composite state
-        ensureStateNode(graph, compositeStack, sourceId)
-      }
-
-      if (targetId === '[*]') {
-        endCount++
-        targetId = `_end${endCount > 1 ? endCount : ''}`
-        registerStateNode(graph, compositeStack, { id: targetId, label: '', shape: 'state-end' })
-      } else if (!compositeStateIds.has(targetId)) {
-        // Only create a node if this isn't a composite state
-        ensureStateNode(graph, compositeStack, targetId)
-      }
+    // --- transition: `s1 --> s2 [: label]`, endpoints may be [*] or history ---
+    const transition = matchTransitionLine(line)
+    if (transition) {
+      const sourceId = resolveEndpoint(transition.from, 'source')
+      const targetId = resolveEndpoint(transition.to, 'target')
+      const edgeLabel = transition.label ? normalizeBrTags(transition.label) : undefined
 
       graph.edges.push({
         source: sourceId,
@@ -550,7 +666,26 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     }
   }
 
+  // An unterminated block note still lands (lenient, like unbalanced braces).
+  if (openNote) addNote(openNote.target, openNote.side, openNote.lines.join('\n'))
+
   return graph
+}
+
+function nextRegion(counts: Map<string, number>, compositeId: string): number {
+  const n = (counts.get(compositeId) ?? 0) + 1
+  counts.set(compositeId, n)
+  return n
+}
+
+/** Track an id in the innermost composite/region scope (no node creation). */
+function trackInStateScope(compositeStack: MermaidSubgraph[], id: string): void {
+  if (compositeStack.length > 0) {
+    const current = compositeStack[compositeStack.length - 1]!
+    if (!current.nodeIds.includes(id)) {
+      current.nodeIds.push(id)
+    }
+  }
 }
 
 /** Register a state node and track in composite state if applicable */

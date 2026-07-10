@@ -20,6 +20,9 @@ type MermaidRuntimeConfig = {
   timeline?: { [key: string]: MermaidConfigValue | undefined; disableMulticolor?: boolean; sectionFills?: string[]; sectionColours?: string[] }
   xyChart?: { [key: string]: MermaidConfigValue | undefined }
   gantt?: { [key: string]: MermaidConfigValue | undefined; displayMode?: string }
+  // Wired sequence keys (unlisted documented keys are accepted and named by
+  // verify's INEFFECTIVE_CONFIG lint — see src/sequence/config.ts).
+  sequence?: { [key: string]: MermaidConfigValue | undefined; actorMargin?: number; width?: number; height?: number; diagramMarginX?: number; diagramMarginY?: number; messageMargin?: number; noteMargin?: number; activationWidth?: number; showSequenceNumbers?: boolean }
   useMaxWidth?: boolean
   useWidth?: number
   themeCSS?: string
@@ -82,9 +85,10 @@ interface FlowchartGraph {
   subgraphs: { id: string; label: string; nodeIds: string[]; children: FlowchartGraph['subgraphs']; direction?: FlowchartGraph['direction'] }[]
 }
 
-interface StateNode { id: string; label?: string; states?: StateNode[]; transitions?: StateTransition[]; direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }
-interface StateTransition { from: string; to: string; label?: string }   // from/to may be '[*]'
-interface StateBody { kind: 'state'; states: StateNode[]; transitions: StateTransition[]; direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }
+interface StateNode { id: string; label?: string; stereotype?: 'fork' | 'join' | 'choice' | 'history' | 'deep-history'; states?: StateNode[]; transitions?: StateTransition[]; direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }
+interface StateTransition { from: string; to: string; label?: string }   // from/to may be '[*]' or a history ref ('[H]', 'X[H*]')
+interface StateNote { target: string; side: 'left' | 'right'; text: string }
+interface StateBody { kind: 'state'; states: StateNode[]; transitions: StateTransition[]; notes?: StateNote[]; direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }
 
 interface SeqParticipant { id: string; label: string; kind: 'participant' | 'actor' }
 interface SeqMessage { from: string; to: string; text: string; style: string }
@@ -188,13 +192,19 @@ type FlowchartMutationOp =
 
 type StateMutationOp =
   | { kind: 'add_state'; id: string; label?: string | null; parent?: string | null }
-  | { kind: 'remove_state'; id: string }
+  | { kind: 'remove_state'; id: string; recursive?: boolean }   // recursive: true removes a non-empty composite's whole subtree
   | { kind: 'rename_state'; from: string; to: string }
   | { kind: 'set_state_label'; id: string; label: string | null }
-  | { kind: 'add_transition'; from: string; to: string; label?: string | null; parent?: string | null }   // from/to may be '[*]'
+  | { kind: 'add_transition'; from: string; to: string; label?: string | null; parent?: string | null }   // from/to may be '[*]' or a history ref ('X[H]')
   | { kind: 'remove_transition'; index?: number; from?: string; to?: string; parent?: string | null }
   | { kind: 'set_transition_label'; index?: number; from?: string; to?: string; label: string | null; parent?: string | null }
   | { kind: 'make_composite'; id: string; members: string[]; label?: string | null }
+  | { kind: 'set_direction'; direction: 'TD' | 'TB' | 'LR' | 'BT' | 'RL'; state?: string | null }   // omit state = diagram direction; composite id = its override
+  | { kind: 'move_state'; id: string; parent: string | null }   // null = top level; simple parents promote to composites
+  | { kind: 'dissolve_composite'; id: string }                  // hoists children + inner transitions; rejects while referenced
+  | { kind: 'add_note'; target: string; side?: 'left' | 'right'; text: string }   // side defaults to 'right'
+  | { kind: 'remove_note'; index: number }
+  | { kind: 'set_note_text'; index: number; text: string }
 
 type SequenceMutationOp =
   | { kind: 'add_participant'; id: string; label?: string; participantKind?: 'participant' | 'actor' }

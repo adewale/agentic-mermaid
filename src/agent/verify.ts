@@ -33,6 +33,10 @@ import { pieIneffectiveConfigFields } from '../pie/config.ts'
 import { QUADRANT_NOOP_CONFIG_FIELDS } from '../quadrant/config.ts'
 import { architectureIneffectiveConfigFields } from '../architecture/config.ts'
 import { flowchartIneffectiveConfigFields } from '../flowchart-config.ts'
+import { sequenceIneffectiveConfigFields } from '../sequence/config.ts'
+import { parseGanttModel, applyGanttFrontmatterConfig } from '../gantt/parser.ts'
+import { parseTodayMarkerStyle, GANTT_TODAY_MARKER_STYLE_PROPS } from '../gantt/today-marker.ts'
+import { normalizeMermaidSource } from '../mermaid-source.ts'
 import { normalizeV11Shape } from '../flowchart-shapes.ts'
 import './families-builtin.ts'  // registers built-in families at import time
 
@@ -40,6 +44,7 @@ const KNOWN_SHAPES = new Set([
   'rectangle', 'service', 'rounded', 'diamond', 'stadium', 'circle',
   'subroutine', 'doublecircle', 'hexagon', 'cylinder', 'asymmetric',
   'trapezoid', 'trapezoid-alt', 'lean-r', 'lean-l', 'state-start', 'state-end',
+  'state-fork', 'state-join', 'state-choice', 'state-history',
 ])
 
 function opaqueSourceHasOnlyHeader(kind: ValidDiagram['kind'], source: string): boolean {
@@ -274,6 +279,44 @@ function flowchartIneffectiveConfigWarnings(d: ValidDiagram): LayoutWarning[] {
   }))
 }
 
+// Sequence wires actorMargin/width/height/diagramMarginX/Y/messageMargin/
+// noteMargin/activationWidth/showSequenceNumbers (src/sequence/config.ts →
+// src/sequence/layout.ts); the documented remainder (wrap, mirrorActors,
+// fonts, …) is named here per P4 (wire-or-warn). The NOOP field table lives
+// beside the wiring in src/sequence/config.ts so wire and warn cannot drift.
+function sequenceIneffectiveConfigWarnings(d: ValidDiagram): LayoutWarning[] {
+  const configs: unknown[] = [
+    (d.meta.frontmatter as Record<string, unknown> | undefined)?.sequence,
+    ...d.meta.initDirectives.map(directive => (directive.parsed as Record<string, unknown> | undefined)?.sequence),
+  ]
+  return sequenceIneffectiveConfigFields(configs).map(field => ({
+    code: 'INEFFECTIVE_CONFIG',
+    field,
+    message: `Sequence config field "${field}" is accepted for Mermaid config-shape compatibility but has no effect on sequence geometry or paint.`,
+  }))
+}
+
+// Gantt's todayMarker directive style payload: the wired line-paint
+// properties apply to the today line (src/gantt/today-marker.ts, the single
+// sanitize/wire table); every other property present in the payload — or a
+// wired one whose value failed sanitation — is named here per P4 instead of
+// being silently swallowed.
+function ganttTodayMarkerWarnings(d: ValidDiagram): LayoutWarning[] {
+  try {
+    const normalized = normalizeMermaidSource(d.canonicalSource)
+    const model = applyGanttFrontmatterConfig(parseGanttModel(normalized.lines), normalized.frontmatter)
+    const payload = model.todayMarker?.style
+    if (payload === undefined) return []
+    return [...parseTodayMarkerStyle(payload).ignored].sort().map(prop => ({
+      code: 'INEFFECTIVE_CONFIG',
+      field: `todayMarker.${prop}`,
+      message: `Gantt todayMarker style property "${prop}" is accepted for Mermaid compatibility but is not applied to the today line (wired, sanitized properties: ${GANTT_TODAY_MARKER_STYLE_PROPS.join(', ')}).`,
+    }))
+  } catch {
+    return [] // unparseable gantt bodies surface via UNRESOLVABLE_SCHEDULE instead
+  }
+}
+
 // v11 typed shapes (repo #44): documented names whose geometry mapping is
 // approximate render with the nearest existing geometry — announce each
 // substitution (Tier-3, never flips ok) so the approximation is honest.
@@ -342,7 +385,9 @@ function verifyStructure(input: ValidDiagram | string, opts: VerifyOptions = {})
     : d.kind === 'class' ? classErIneffectiveConfigWarnings(d, 'class', classIneffectiveConfigFields, 'Class')
     : d.kind === 'er' ? classErIneffectiveConfigWarnings(d, 'er', erIneffectiveConfigFields, 'Er')
     : d.kind === 'architecture' ? architectureIneffectiveConfigWarnings(d)
-    : d.kind === 'flowchart' ? flowchartIneffectiveConfigWarnings(d) : []
+    : d.kind === 'flowchart' ? flowchartIneffectiveConfigWarnings(d)
+    : d.kind === 'sequence' ? sequenceIneffectiveConfigWarnings(d)
+    : d.kind === 'gantt' ? ganttTodayMarkerWarnings(d) : []
   const pluginWarnings = dedupedConcat(dedupedConcat(dedupedConcat(dedupedConcat(metaWarnings, dispatchFamilyVerify(d, opts)), sourceWarnings), faithfulnessWarnings), configWarnings)
 
   if (d.body.kind === 'sequence') return mergeFinalize(verifySequence(d as ValidDiagram & { body: SequenceBody }, cap, opts), pluginWarnings, opts)

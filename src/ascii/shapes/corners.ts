@@ -132,6 +132,25 @@ export const SHAPE_CORNERS: Record<AsciiNodeShape, ShapeCorners> = {
     unicode: { tl: '◉', tr: '◉', bl: '◉', br: '◉' },
     ascii: { tl: '@', tr: '@', bl: '@', br: '@' },
   },
+
+  // Batch 4 state pseudostates: bars are solid boxes; choice shares the
+  // diamond corners; history shares the circle markers.
+  'state-fork': {
+    unicode: { tl: '█', tr: '█', bl: '█', br: '█' },
+    ascii: { tl: '#', tr: '#', bl: '#', br: '#' },
+  },
+  'state-join': {
+    unicode: { tl: '█', tr: '█', bl: '█', br: '█' },
+    ascii: { tl: '#', tr: '#', bl: '#', br: '#' },
+  },
+  'state-choice': {
+    unicode: { tl: '◇', tr: '◇', bl: '◇', br: '◇' },
+    ascii: { tl: '<', tr: '>', bl: '<', br: '>' },
+  },
+  'state-history': {
+    unicode: { tl: '◯', tr: '◯', bl: '◯', br: '◯' },
+    ascii: { tl: 'o', tr: 'o', bl: 'o', br: 'o' },
+  },
 }
 
 /**

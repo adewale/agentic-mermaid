@@ -8,7 +8,7 @@ import type { DiagramKind } from './types.ts'
 // instead of leaving a caller — especially a smaller model — to guess them.
 export const MUTATION_OPS_BY_FAMILY = {
   flowchart: ['add_node', 'remove_node', 'rename_node', 'set_label', 'add_edge', 'remove_edge', 'set_shape', 'set_direction', 'add_subgraph', 'remove_subgraph', 'move_node', 'define_class', 'set_node_class', 'set_node_style'],
-  state: ['add_state', 'remove_state', 'rename_state', 'set_state_label', 'add_transition', 'remove_transition', 'set_transition_label', 'make_composite'],
+  state: ['add_state', 'remove_state', 'rename_state', 'set_state_label', 'add_transition', 'remove_transition', 'set_transition_label', 'make_composite', 'set_direction', 'move_state', 'dissolve_composite', 'add_note', 'remove_note', 'set_note_text'],
   sequence: ['add_participant', 'remove_participant', 'add_message', 'remove_message', 'set_message_text', 'move_message', 'set_participant_label'],
   timeline: ['set_title', 'add_section', 'remove_section', 'set_section_label', 'add_period', 'remove_period', 'set_period_label', 'add_event', 'remove_event', 'set_event_text', 'move_period', 'move_event', 'move_section', 'set_accessibility_title', 'set_accessibility_description'],
   class: ['set_title', 'add_class', 'remove_class', 'rename_class', 'add_member', 'remove_member', 'add_relation', 'remove_relation', 'add_note', 'remove_note', 'set_class_namespace'],

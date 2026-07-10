@@ -56,6 +56,12 @@ export const shapeRegistry: ShapeRegistry = new Map<AsciiNodeShape, ShapeRendere
   // State diagram pseudo-states
   ['state-start', stateStartRenderer],
   ['state-end', stateEndRenderer],
+  // Batch 4 state pseudostates: bars draw as compact boxes, choice reuses the
+  // diamond, history reuses the circle (label 'H'/'H*').
+  ['state-fork', rectangleRenderer],
+  ['state-join', rectangleRenderer],
+  ['state-choice', diamondRenderer],
+  ['state-history', circleRenderer],
 ])
 
 /**

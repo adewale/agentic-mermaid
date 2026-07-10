@@ -151,6 +151,50 @@ export interface FlowchartRuntimeConfig extends MermaidConfigMap {
   inheritDir?: boolean
 }
 
+/**
+ * Mermaid's documented sequence config shape (wire-or-warn, P4): actorMargin,
+ * width, height, diagramMarginX/Y, messageMargin, noteMargin, activationWidth,
+ * and showSequenceNumbers are wired (src/sequence/config.ts
+ * resolveSequenceConfig → src/sequence/layout.ts); every other documented key
+ * is accepted for config-shape compatibility and named by verify's
+ * INEFFECTIVE_CONFIG lint (SEQUENCE_NOOP_CONFIG_FIELDS in
+ * src/sequence/config.ts).
+ */
+export interface SequenceRuntimeConfig extends MermaidConfigMap {
+  actorMargin?: number
+  width?: number
+  height?: number
+  diagramMarginX?: number
+  diagramMarginY?: number
+  messageMargin?: number
+  noteMargin?: number
+  activationWidth?: number
+  showSequenceNumbers?: boolean
+  boxMargin?: number
+  boxTextMargin?: number
+  messageAlign?: 'left' | 'center' | 'right'
+  mirrorActors?: boolean
+  bottomMarginAdj?: number
+  rightAngles?: boolean
+  wrap?: boolean
+  wrapPadding?: number
+  labelBoxWidth?: number
+  labelBoxHeight?: number
+  hideUnusedParticipants?: boolean
+  forceMenus?: boolean
+  arrowMarkerAbsolute?: boolean
+  noteAlign?: 'left' | 'center' | 'right'
+  actorFontSize?: string | number
+  actorFontFamily?: string
+  actorFontWeight?: string | number
+  noteFontSize?: string | number
+  noteFontFamily?: string
+  noteFontWeight?: string | number
+  messageFontSize?: string | number
+  messageFontFamily?: string
+  messageFontWeight?: string | number
+}
+
 export interface MermaidRuntimeConfig extends MermaidConfigMap {
   theme?: string
   fontFamily?: string
@@ -160,6 +204,7 @@ export interface MermaidRuntimeConfig extends MermaidConfigMap {
   journey?: JourneyRuntimeConfig
   xyChart?: MermaidConfigMap
   gantt?: GanttRuntimeConfig
+  sequence?: SequenceRuntimeConfig
   class?: ClassRuntimeConfig
   er?: ErRuntimeConfig
   architecture?: ArchitectureRuntimeConfig

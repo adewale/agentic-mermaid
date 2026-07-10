@@ -454,6 +454,10 @@ export interface StateNode {
   id: string
   /** Optional display label (`state "Label" as id` / `id : Label`). */
   label?: string
+  /** Pseudostate stereotype (`state id <<fork|join|choice|history|…>>`) —
+   *  fork/join render as bars, choice as a diamond, history as an (H)/(H*)
+   *  circle. `<<H>>`/`<<H*>>` shorthands normalize to history/deep-history. */
+  stereotype?: 'fork' | 'join' | 'choice' | 'history' | 'deep-history'
   /** Composite children — present iff this is a composite state. */
   states?: StateNode[]
   /** Composite-internal transitions — present iff this is a composite state. */
@@ -463,17 +467,32 @@ export interface StateNode {
 }
 
 export interface StateTransition {
-  /** Source state id, or '[*]' for a start pseudostate. */
+  /** Source state id, '[*]' for a start pseudostate, or a history reference
+   *  (`[H]`, `[H*]`, `Base[H]`, `Base[H*]` — preserved verbatim). */
   from: string
-  /** Target state id, or '[*]' for an end pseudostate. */
+  /** Target state id, '[*]' for an end pseudostate, or a history reference. */
   to: string
   label?: string
+}
+
+/** A state-diagram note (`note left|right of X`). Part of the structured body
+ *  (repo #118): queryable, mutable via add_note/remove_note/set_note_text,
+ *  and round-tripping through the render parser. */
+export interface StateNote {
+  /** The state (or composite) the note is anchored to. */
+  target: string
+  /** Declared side — the renderer anchors the note box on this side. */
+  side: 'left' | 'right'
+  /** Note text; multi-line text serializes as the block form (`end note`). */
+  text: string
 }
 
 export interface StateBody {
   kind: 'state'
   states: StateNode[]
   transitions: StateTransition[]
+  /** Notes in source order; absent when the diagram has none. */
+  notes?: StateNote[]
   /** Optional top-level layout direction. */
   direction?: import('../types.ts').Direction
 }
@@ -819,13 +838,29 @@ export type ArchitectureMutationOp =
 
 export type StateMutationOp =
   | { kind: 'add_state'; id: string; label?: string | null; parent?: string | null }
-  | { kind: 'remove_state'; id: string }
+  // recursive: true removes a non-empty composite with its whole subtree
+  // (default refuses, naming the flag); transitions and notes touching any
+  // removed id cascade away, history references (`X[H]`) included.
+  | { kind: 'remove_state'; id: string; recursive?: boolean }
   | { kind: 'rename_state'; from: string; to: string }
   | { kind: 'set_state_label'; id: string; label: string | null }
   | { kind: 'add_transition'; from: string; to: string; label?: string | null; parent?: string | null }
   | { kind: 'remove_transition'; index?: number; from?: string; to?: string; parent?: string | null }
   | { kind: 'set_transition_label'; index?: number; from?: string; to?: string; label: string | null; parent?: string | null }
   | { kind: 'make_composite'; id: string; members: string[]; label?: string | null }
+  // omit `state` (or pass null) to set the diagram direction; a composite id
+  // sets that composite's direction override (flowchart set_direction idiom).
+  | { kind: 'set_direction'; direction: import('../types.ts').Direction; state?: string | null }
+  // Reparent a state (with its subtree); parent: null moves it to the top
+  // level; a simple parent is promoted to a composite (add_state idiom).
+  | { kind: 'move_state'; id: string; parent: string | null }
+  // Hoist a composite's children + inner transitions into its parent scope
+  // and drop the shell; rejects while transitions/notes still reference it.
+  | { kind: 'dissolve_composite'; id: string }
+  // Note ops (class-family naming). side defaults to 'right'.
+  | { kind: 'add_note'; target: string; side?: 'left' | 'right'; text: string }
+  | { kind: 'remove_note'; index: number }
+  | { kind: 'set_note_text'; index: number; text: string }
 
 export type XyChartAxisSpec = { name?: string | null; categories?: string[]; range?: { min: number; max: number } }
 
