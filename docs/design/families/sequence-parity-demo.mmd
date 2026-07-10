@@ -1,0 +1,15 @@
+sequenceDiagram
+  autonumber
+  box Aqua Payments core
+    participant G as Gateway
+    participant L as Ledger
+  end
+  actor U as Customer
+  U->>G: Pay $30
+  G->>L: Record entry
+  create participant R as Receipt
+  G->>R: Issue receipt
+  L-->>G: Confirmed
+  destroy R
+  U->>R: Download PDF
+  G-->>U: Done
