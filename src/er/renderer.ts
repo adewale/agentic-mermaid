@@ -530,11 +530,11 @@ function renderRelationshipLabel(rel: PositionedErRelationship, style: ResolvedR
  * Render crow's foot cardinality markers at both endpoints of a relationship.
  * One shape mark per endpoint (compound geometry of the glyph's lines/circle).
  *
- * Crow's foot notation:
- *   'one':       ─║─   (single vertical line)
- *   'zero-one':  ─o║─  (circle + single line)
- *   'many':      ─╢─   (crow's foot + single line)
- *   'zero-many': ─o╣─  (circle + crow's foot)
+ * Crow's foot notation (upstream erMarkers reference):
+ *   'one':       ─║─   (two ticks: one and only one)
+ *   'zero-one':  ─o│─  (circle + ONE tick)
+ *   'many':      ─│<─  (one tick + crow's foot: one or more)
+ *   'zero-many': ─o<─  (circle + crow's foot)
  */
 function renderCardinality(rel: PositionedErRelationship, style: ResolvedRenderStyle, sceneId: string): SceneNode[] {
   if (rel.points.length < 2) {
@@ -614,18 +614,23 @@ function renderCrowsFoot(
   const backX = point.x - ux * 16
   const backY = point.y - uy * 16
 
-  // Single line: always present for 'one' and part of others
-  const hasOneLine = cardinality === 'one' || cardinality === 'zero-one'
+  // Primitive vocabulary follows upstream's erMarkers reference exactly:
+  //   one        = tick + tick        zero-one  = tick + circle
+  //   many       = crow's foot + tick zero-many = crow's foot + circle
+  // A tick is a perpendicular line; the circle marks the "zero" minimum.
+  // Before this correction 'zero-one' drew TWO ticks (reading as "one and
+  // only one" plus a circle) and 'many' drew no tick (one-or-more was
+  // indistinguishable from a bare many).
   const hasCrowsFoot = cardinality === 'many' || cardinality === 'zero-many'
   const hasCircle = cardinality === 'zero-one' || cardinality === 'zero-many'
 
-  // Draw single vertical line (perpendicular to edge) at the tip
-  if (hasOneLine) {
+  /** Draw one tick (perpendicular line) centered on (cx, cy). */
+  const pushTickAt = (cx: number, cy: number): void => {
     const halfW = 6
-    const x1 = tipX + px * halfW
-    const y1 = tipY + py * halfW
-    const x2 = tipX - px * halfW
-    const y2 = tipY - py * halfW
+    const x1 = cx + px * halfW
+    const y1 = cy + py * halfW
+    const x2 = cx - px * halfW
+    const y2 = cy - py * halfW
     pieces.push({
       geometry: { kind: 'line', x1, y1, x2, y2 },
       crisp:
@@ -633,20 +638,17 @@ function renderCrowsFoot(
         `x2="${x2}" y2="${y2}" ` +
         `stroke="${stroke}" stroke-width="${sw}" />`,
     })
-    // Second line slightly back for "exactly one" emphasis
-    const line2X = tipX - ux * 4
-    const line2Y = tipY - uy * 4
-    const l2x1 = line2X + px * halfW
-    const l2y1 = line2Y + py * halfW
-    const l2x2 = line2X - px * halfW
-    const l2y2 = line2Y - py * halfW
-    pieces.push({
-      geometry: { kind: 'line', x1: l2x1, y1: l2y1, x2: l2x2, y2: l2y2 },
-      crisp:
-        `<line x1="${l2x1}" y1="${l2y1}" ` +
-        `x2="${l2x2}" y2="${l2y2}" ` +
-        `stroke="${stroke}" stroke-width="${sw}" />`,
-    })
+  }
+
+  if (cardinality === 'one') {
+    // Two ticks: one and only one. (The second tick keeps the historical
+    // two-step arithmetic — (tip - 4u), not (point - 8u) — so existing `||`
+    // markers stay byte-identical.)
+    pushTickAt(tipX, tipY)
+    pushTickAt(tipX - ux * 4, tipY - uy * 4)
+  } else if (cardinality === 'zero-one') {
+    // ONE tick at the tip; the circle behind it carries the "zero" minimum.
+    pushTickAt(tipX, tipY)
   }
 
   // Crow's foot (three lines fanning out from tip)
@@ -684,6 +686,11 @@ function renderCrowsFoot(
         `x2="${backX}" y2="${backY}" ` +
         `stroke="${stroke}" stroke-width="${sw}" />`,
     })
+    // One-or-more: the "one" tick behind the foot (where zero-many's circle
+    // sits), so `}|` and `}o` stay distinguishable at a glance.
+    if (cardinality === 'many') {
+      pushTickAt(point.x - ux * 20, point.y - uy * 20)
+    }
   }
 
   // Circle (for zero variants)

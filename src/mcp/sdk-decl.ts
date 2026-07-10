@@ -97,11 +97,14 @@ interface TimelinePeriod { id: string; label: string; events: TimelineEvent[] }
 interface TimelineSection { id: string; label?: string; periods: TimelinePeriod[] }
 interface TimelineBody { kind: 'timeline'; title?: string; sections: TimelineSection[] }
 
-interface ClassNode { id: string; label?: string; members: string[] }
+interface ClassNode { id: string; label?: string; members: string[]; namespace?: string }
 type ClassRelationKind = 'inheritance' | 'composition' | 'aggregation' | 'association' | 'dependency' | 'realization' | 'link-solid' | 'link-dashed'
 interface ClassRelation { from: string; to: string; kind: ClassRelationKind; label?: string; fromCardinality?: string; toCardinality?: string }
 interface ClassNote { text: string; for?: string }
-interface ClassBody { kind: 'class'; title?: string; classes: ClassNode[]; relations: ClassRelation[]; notes: ClassNote[] }
+// namespace paths are dot-joined (e.g. 'Platform.Auth'); namespaces render as
+// compound boxes and serialize to "namespace path { ... }" blocks.
+interface ClassNamespaceDecl { name: string; label?: string }
+interface ClassBody { kind: 'class'; title?: string; classes: ClassNode[]; relations: ClassRelation[]; notes: ClassNote[]; namespaces?: ClassNamespaceDecl[] }
 
 type ErCardinality = 'one-only' | 'zero-or-one' | 'zero-or-many' | 'one-or-many'
 interface ErAttribute { text: string }
@@ -129,10 +132,14 @@ interface PieSlice { id: string; label: string; value: number }   // value > 0
 interface PieBody { kind: 'pie'; title?: string; showData: boolean; slices: PieSlice[] }
 
 interface QuadrantAxis { near: string; far?: string }
-interface QuadrantPoint { label: string; x: number; y: number }   // x,y in [0,1]
+// Upstream per-point styling (direct \`radius:/color:/stroke-color:/stroke-width:\`
+// tails, \`classDef\` tables, \`:::class\` assignments) is structured content:
+// preserved by every op and serialized canonically. strokeWidth may carry px.
+interface QuadrantPointStyle { radius?: number; color?: string; strokeColor?: string; strokeWidth?: string }
+interface QuadrantPoint { label: string; x: number; y: number; className?: string; style?: QuadrantPointStyle }   // x,y in [0,1]
 // quadrants indexed 0-based; index n-1 holds Mermaid quadrant-n
 // (1=top-right, 2=top-left, 3=bottom-left, 4=bottom-right)
-interface QuadrantBody { kind: 'quadrant'; title?: string; xAxis?: QuadrantAxis; yAxis?: QuadrantAxis; quadrants: [string?, string?, string?, string?]; points: QuadrantPoint[] }
+interface QuadrantBody { kind: 'quadrant'; title?: string; xAxis?: QuadrantAxis; yAxis?: QuadrantAxis; quadrants: [string?, string?, string?, string?]; points: QuadrantPoint[]; classDefs?: Record<string, QuadrantPointStyle> }
 
 type GanttTaskTag = 'active' | 'done' | 'crit' | 'milestone' | 'vert'
 // start: a date in the diagram's dateFormat or 'after id…'; undefined = previous task's end.
@@ -191,7 +198,7 @@ type TimelineMutationOp =
 
 type ClassMutationOp =
   | { kind: 'set_title'; title: string | null }
-  | { kind: 'add_class'; id: string; label?: string; members?: string[] }
+  | { kind: 'add_class'; id: string; label?: string; members?: string[]; namespace?: string }
   | { kind: 'remove_class'; id: string }
   | { kind: 'rename_class'; from: string; to: string }
   | { kind: 'add_member'; class: string; text: string }
@@ -200,6 +207,7 @@ type ClassMutationOp =
   | { kind: 'remove_relation'; index: number }
   | { kind: 'add_note'; text: string; for?: string }
   | { kind: 'remove_note'; index: number }
+  | { kind: 'set_class_namespace'; class: string; namespace: string | null }
 
 type ErMutationOp =
   | { kind: 'add_entity'; id: string; attributes?: string[] }

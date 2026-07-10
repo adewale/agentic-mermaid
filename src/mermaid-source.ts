@@ -66,6 +66,48 @@ export interface GanttRuntimeConfig extends MermaidConfigMap {
   displayMode?: string
 }
 
+/**
+ * Mermaid's documented classDiagram config shape (wire-or-warn, P4):
+ * nodeSpacing/rankSpacing are wired into the ELK layout
+ * (src/class/layout.ts resolveClassRenderOptions); every other documented
+ * key is accepted for config-shape compatibility and named by verify's
+ * INEFFECTIVE_CONFIG lint (CLASS_NOOP_CONFIG_FIELDS in src/agent/verify.ts).
+ */
+export interface ClassRuntimeConfig extends MermaidConfigMap {
+  nodeSpacing?: number
+  rankSpacing?: number
+  titleTopMargin?: number
+  arrowMarkerAbsolute?: boolean
+  dividerMargin?: number
+  padding?: number
+  textHeight?: number
+  defaultRenderer?: string
+  diagramPadding?: number
+  htmlLabels?: boolean
+  hideEmptyMembersBox?: boolean
+  hierarchicalNamespaces?: boolean
+}
+
+/**
+ * Mermaid's documented er config shape (wire-or-warn, P4): layoutDirection +
+ * nodeSpacing/rankSpacing are wired (src/er/layout.ts
+ * applyErFrontmatterConfig); the rest emit INEFFECTIVE_CONFIG
+ * (ER_NOOP_CONFIG_FIELDS in src/agent/verify.ts).
+ */
+export interface ErRuntimeConfig extends MermaidConfigMap {
+  layoutDirection?: string
+  nodeSpacing?: number
+  rankSpacing?: number
+  titleTopMargin?: number
+  diagramPadding?: number
+  minEntityWidth?: number
+  minEntityHeight?: number
+  entityPadding?: number
+  stroke?: string
+  fill?: string
+  fontSize?: number
+}
+
 export interface MermaidRuntimeConfig extends MermaidConfigMap {
   theme?: string
   fontFamily?: string
@@ -74,6 +116,8 @@ export interface MermaidRuntimeConfig extends MermaidConfigMap {
   journey?: JourneyRuntimeConfig
   xyChart?: MermaidConfigMap
   gantt?: GanttRuntimeConfig
+  class?: ClassRuntimeConfig
+  er?: ErRuntimeConfig
   useMaxWidth?: boolean
   useWidth?: number
   themeCSS?: string
@@ -621,7 +665,9 @@ export function detectDiagramTypeFromFirstLine(firstLine: string): RoutedDiagram
   if (/^journey\s*$/.test(line)) return 'journey'
   if (/^sequencediagram\s*$/.test(line)) return 'sequence'
   if (/^classdiagram\s*$/.test(line)) return 'class'
-  if (/^erdiagram\s*$/.test(line)) return 'er'
+  // Upstream's parser tolerates a flowchart-style subgraph clause riding the
+  // erDiagram header (repo #103); the ER parser ignores the grouping.
+  if (/^erdiagram(\s+subgraph\b.*)?\s*$/.test(line)) return 'er'
   if (/^(?:flowchart|graph|swimlane)\b/.test(line) || /^statediagram(?:-v2)?\s*$/.test(line)) return 'flowchart'
   return null
 }

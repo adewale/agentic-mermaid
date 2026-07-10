@@ -141,6 +141,20 @@ export interface ClassNode {
   label?: string
   /** Members, each as the raw source string ('+String name', '+eat()', '<<interface>>'). */
   members: string[]
+  /**
+   * Dot-joined namespace path the class is declared in (e.g. 'Platform.Auth');
+   * undefined = top level. Serialization groups classes into `namespace path {}`
+   * blocks the render parser accepts (repo #118).
+   */
+  namespace?: string
+}
+
+/** A declared namespace: dot path + optional display label (`namespace X["L"]`). */
+export interface ClassNamespaceDecl {
+  /** Dot-joined path, e.g. 'Company.Engineering.Backend'. */
+  name: string
+  /** Optional display label (upstream v11.15+). */
+  label?: string
 }
 
 export interface ClassRelation {
@@ -167,6 +181,11 @@ export interface ClassBody {
   classes: ClassNode[]
   relations: ClassRelation[]
   notes: ClassNote[]
+  /**
+   * Declared namespaces in first-seen order (repo #118). Optional so existing
+   * constructions stay valid; classes reference entries via `namespace`.
+   */
+  namespaces?: ClassNamespaceDecl[]
 }
 
 // ---- ER body --------------------------------------------------------------
@@ -313,12 +332,26 @@ export interface QuadrantAxis {
   far?: string
 }
 
+/** Per-point styling (upstream mermaid#5173): direct or via classDef + `:::`.
+ *  Shares the grammar/validation in src/quadrant/point-style.ts. */
+export interface QuadrantPointStyle {
+  radius?: number
+  color?: string
+  strokeColor?: string
+  /** May carry a px suffix (upstream form, e.g. "5px"). */
+  strokeWidth?: string
+}
+
 export interface QuadrantPoint {
   label: string
   /** Normalized x in [0, 1] (0 = left, 1 = right). */
   x: number
   /** Normalized y in [0, 1] (0 = bottom, 1 = top). */
   y: number
+  /** Optional `:::className` class assignment. */
+  className?: string
+  /** Optional direct styles (win over class styles). */
+  style?: QuadrantPointStyle
 }
 
 export interface QuadrantBody {
@@ -334,6 +367,9 @@ export interface QuadrantBody {
   quadrants: [string?, string?, string?, string?]
   /** Plotted points in source order. */
   points: QuadrantPoint[]
+  /** classDef styles by class name, in source order. Optional for synthesized
+   *  payloads; parsed bodies populate it whenever classDefs are present. */
+  classDefs?: Record<string, QuadrantPointStyle>
 }
 
 // ---- Gantt body --------------------------------------------------------------
@@ -673,7 +709,7 @@ export type TimelineMutationOp =
 
 export type ClassMutationOp =
   | { kind: 'set_title'; title: string | null }
-  | { kind: 'add_class'; id: string; label?: string; members?: string[] }
+  | { kind: 'add_class'; id: string; label?: string; members?: string[]; namespace?: string }
   | { kind: 'remove_class'; id: string }
   | { kind: 'rename_class'; from: string; to: string }
   | { kind: 'add_member'; class: string; text: string }
@@ -682,6 +718,10 @@ export type ClassMutationOp =
   | { kind: 'remove_relation'; index: number }
   | { kind: 'add_note'; text: string; for?: string }
   | { kind: 'remove_note'; index: number }
+  // Namespace membership (repo #118): a dot path (e.g. 'Platform.Auth')
+  // moves the class into that namespace (declared on demand); null moves it
+  // back to the top level.
+  | { kind: 'set_class_namespace'; class: string; namespace: string | null }
 
 export type ErMutationOp =
   | { kind: 'add_entity'; id: string; attributes?: string[] }

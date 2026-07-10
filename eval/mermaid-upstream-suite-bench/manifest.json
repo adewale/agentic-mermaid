@@ -157,9 +157,9 @@
       "family": "er",
       "status": "full-harvest-accounted",
       "consideredBlocks": 142,
-      "importedCases": 60,
-      "importedBlocks": 60,
-      "excludedBlocks": 82,
+      "importedCases": 61,
+      "importedBlocks": 61,
+      "excludedBlocks": 81,
       "deferredBlocks": 0,
       "files": [
         {

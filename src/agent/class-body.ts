@@ -16,23 +16,28 @@
 //   note for A "text"
 //   note "text"
 //   title T
+//   namespace X { class A ... }                  (repo #118: nesting, dot
+//   namespace A.B.C { ... }                       paths, and ["Label"] via
+//   namespace X["Label"] { ... }                  the render parser's own
+//                                                 namespace grammar)
 //
 // Unmodeled (forces opaque):
-//   - direction TB / namespaces / generic types / annotations like <<enum>>
-//     embedded after `class X` (we DO accept them as `members` of X via the
-//     `class X { <<interface>> }` form). The standalone `class X <<...>>`
-//     form falls back to opaque.
+//   - direction TB (wired at layout, unmodeled here) / generic types /
+//     annotations like <<enum>> embedded after `class X` (we DO accept them
+//     as `members` of X via the `class X { <<interface>> }` form). The
+//     standalone `class X <<...>>` form falls back to opaque.
 //   - cssClass / link / callback / click handlers
 //   - styled / classDef
 // ============================================================================
 
 import { unknownOpMessage } from './mutation-ops.ts'
 import type {
-  ClassBody, ClassNode, ClassRelation, ClassRelationKind, ClassNote,
+  ClassBody, ClassNode, ClassRelation, ClassRelationKind, ClassNote, ClassNamespaceDecl,
   ClassMutationOp, MutationError, Result, LayoutWarning, VerifyOptions,
 } from './types.ts'
 import { ok, err, DEFAULT_LABEL_CHAR_CAP } from './types.ts'
 import { labelOverflowWarning } from './label-metrics.ts'
+import { parseNamespaceHeader } from '../class/parser.ts'
 
 // ---- Parser ---------------------------------------------------------------
 
@@ -88,6 +93,20 @@ export function parseClassBody(lines: string[]): ClassBody | null {
     else if (label !== undefined && !c.label) c.label = label
     return c
   }
+  // Open namespace nesting: segment stack + how many segments each
+  // `namespace` opener pushed (a dot path pushes several that one closing
+  // `}` pops together). Declared paths are registered in first-seen order.
+  const nsStack: string[] = []
+  const nsFrames: number[] = []
+  const namespaces: ClassNamespaceDecl[] = []
+  const declareNamespace = (path: string, label?: string): void => {
+    const existing = namespaces.find(n => n.name === path)
+    if (!existing) namespaces.push(label !== undefined ? { name: path, label } : { name: path })
+    else if (label !== undefined && existing.label === undefined) existing.label = label
+  }
+  const claimClass = (node: ClassNode): void => {
+    if (nsStack.length > 0 && node.namespace === undefined) node.namespace = nsStack.join('.')
+  }
 
   let i = 0
   while (i < lines.length) {
@@ -99,12 +118,29 @@ export function parseClassBody(lines: string[]): ClassBody | null {
     const tm = raw.match(TITLE_RE)
     if (tm) { body.title = tm[1]!.trim(); continue }
 
+    // Namespace opener — the same grammar the render parser uses
+    // (src/class/parser.ts parseNamespaceHeader), so membership cannot drift.
+    const ns = parseNamespaceHeader(raw)
+    if (ns) {
+      nsStack.push(...ns.path)
+      nsFrames.push(ns.path.length)
+      declareNamespace(nsStack.join('.'), ns.label)
+      continue
+    }
+
+    // Namespace close
+    if (raw === '}' && nsFrames.length > 0) {
+      nsStack.length -= nsFrames.pop()!
+      continue
+    }
+
     // Class declaration (with or without open brace)
     const cm = raw.match(CLASS_DECL_RE)
     if (cm) {
       const id = stripBackticks(cm[1]!)
       const label = cm[2] ?? cm[3]
       const node = upsert(id, label)
+      claimClass(node)
       if (cm[4] === '{') {
         // Consume members until closing brace
         while (i < lines.length) {
@@ -141,6 +177,10 @@ export function parseClassBody(lines: string[]): ClassBody | null {
     // Unmodeled line — bail to opaque.
     return null
   }
+  // A dangling namespace block (missing `}`) is malformed — keep it opaque
+  // rather than guessing where the block ends.
+  if (nsFrames.length > 0) return null
+  if (namespaces.length > 0) body.namespaces = namespaces
   return body
 }
 
@@ -161,6 +201,18 @@ function quoteIfNeeded(id: string): string {
   return /^[\w$]+$/.test(id) ? id : `\`${id}\``
 }
 
+/** Emit one class declaration (+ optional member block) at an indent depth. */
+function pushClassLines(lines: string[], c: ClassNode, indent: string): void {
+  const head = `class ${quoteIfNeeded(c.id)}${c.label ? `["${c.label}"]` : ''}`
+  if (c.members.length === 0) {
+    lines.push(`${indent}${head}`)
+  } else {
+    lines.push(`${indent}${head} {`)
+    for (const m of c.members) lines.push(`${indent}  ${m}`)
+    lines.push(`${indent}}`)
+  }
+}
+
 export function renderClass(body: ClassBody): string {
   const lines: string[] = ['classDiagram']
   if (body.title) lines.push(`  title ${body.title}`)
@@ -168,15 +220,26 @@ export function renderClass(body: ClassBody): string {
     if (n.for) lines.push(`  note for ${quoteIfNeeded(n.for)} "${n.text}"`)
     else lines.push(`  note "${n.text}"`)
   }
+  // Namespace blocks (repo #118), canonicalized to dot-path form — the exact
+  // production the render parser's namespace grammar accepts (P3). A parent
+  // path without direct members is implied by its descendants' dot paths and
+  // skipped, unless it carries a label or is a childless declaration.
+  const namespaces = body.namespaces ?? []
+  const registryPaths = namespaces.map(n => n.name)
+  for (const ns of namespaces) {
+    const members = body.classes.filter(c => c.namespace === ns.name)
+    const hasRegisteredDescendant = registryPaths.some(p => p.startsWith(`${ns.name}.`))
+    if (members.length === 0 && ns.label === undefined && hasRegisteredDescendant) continue
+    lines.push(`  namespace ${ns.name}${ns.label !== undefined ? `["${ns.label}"]` : ''} {`)
+    for (const c of members) pushClassLines(lines, c, '    ')
+    lines.push(`  }`)
+  }
+  // Classes claimed by a namespace the registry doesn't know (possible only
+  // through hand-built bodies) fall back to top level rather than vanishing.
+  const known = new Set(registryPaths)
   for (const c of body.classes) {
-    const head = `class ${quoteIfNeeded(c.id)}${c.label ? `["${c.label}"]` : ''}`
-    if (c.members.length === 0) {
-      lines.push(`  ${head}`)
-    } else {
-      lines.push(`  ${head} {`)
-      for (const m of c.members) lines.push(`    ${m}`)
-      lines.push(`  }`)
-    }
+    if (c.namespace !== undefined && known.has(c.namespace)) continue
+    pushClassLines(lines, c, '  ')
   }
   for (const r of body.relations) {
     const arrow = ARROW_FOR[r.kind]
@@ -194,10 +257,21 @@ function cloneClass(body: ClassBody): ClassBody {
   return {
     kind: 'class',
     title: body.title,
-    classes: body.classes.map(c => ({ id: c.id, label: c.label, members: [...c.members] })),
+    classes: body.classes.map(c => ({ id: c.id, label: c.label, members: [...c.members], namespace: c.namespace })),
     relations: body.relations.map(r => ({ ...r })),
     notes: body.notes.map(n => ({ ...n })),
+    ...(body.namespaces ? { namespaces: body.namespaces.map(n => ({ ...n })) } : {}),
   }
+}
+
+/** Valid namespace path: dot-joined identifier segments (the same shape the
+ *  render parser's namespace grammar accepts). */
+const NAMESPACE_PATH_RE = /^[\w$]+(\.[\w$]+)*$/
+
+/** Register a namespace path on the body (first-seen order, idempotent). */
+function declareNamespaceOn(b: ClassBody, path: string): void {
+  if (!b.namespaces) b.namespaces = []
+  if (!b.namespaces.some(n => n.name === path)) b.namespaces.push({ name: path })
 }
 
 export function mutateClass(body: ClassBody, op: ClassMutationOp): Result<ClassBody, MutationError> {
@@ -211,7 +285,25 @@ export function mutateClass(body: ClassBody, op: ClassMutationOp): Result<ClassB
     }
     case 'add_class': {
       if (findClass(op.id)) return err({ code: 'DUPLICATE_CLASS', message: `class ${op.id} already exists` })
-      b.classes.push({ id: op.id, label: op.label, members: op.members ?? [] })
+      if (op.namespace !== undefined && !NAMESPACE_PATH_RE.test(op.namespace)) {
+        return err({ code: 'INVALID_OP', message: `invalid namespace path "${op.namespace}" — expected dot-joined identifier segments like "Platform.Auth"` })
+      }
+      b.classes.push({ id: op.id, label: op.label, members: op.members ?? [], namespace: op.namespace })
+      if (op.namespace !== undefined) declareNamespaceOn(b, op.namespace)
+      return ok(b)
+    }
+    case 'set_class_namespace': {
+      const c = findClass(op.class)
+      if (!c) return err({ code: 'CLASS_NOT_FOUND', message: `class ${op.class} not found` })
+      if (op.namespace === null) {
+        c.namespace = undefined
+        return ok(b)
+      }
+      if (!NAMESPACE_PATH_RE.test(op.namespace)) {
+        return err({ code: 'INVALID_OP', message: `invalid namespace path "${op.namespace}" — expected dot-joined identifier segments like "Platform.Auth"` })
+      }
+      c.namespace = op.namespace
+      declareNamespaceOn(b, op.namespace)
       return ok(b)
     }
     case 'remove_class': {
@@ -296,6 +388,9 @@ export function verifyClass(body: ClassBody, opts: VerifyOptions): LayoutWarning
     for (let i = 0; i < c.members.length; i++) {
       overflow(`${c.id}#m${i}`, c.members[i]!)
     }
+  }
+  for (const ns of body.namespaces ?? []) {
+    if (ns.label) overflow(`namespace:${ns.name}`, ns.label)
   }
   for (let i = 0; i < body.relations.length; i++) {
     const r = body.relations[i]!

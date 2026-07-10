@@ -192,6 +192,6 @@ describe('schema covers every mutable family (§11)', () => {
   test('opMenu lists every op kind for a family, marking optional fields', () => {
     const menu = opMenu('class')
     expect(Object.keys(menu).sort()).toEqual([...MUTATION_OPS_BY_FAMILY.class].sort())
-    expect(menu.add_class).toEqual(['id', 'label?', 'members?'])
+    expect(menu.add_class).toEqual(['id', 'label?', 'members?', 'namespace?'])
   })
 })

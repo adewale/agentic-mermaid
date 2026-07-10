@@ -22,6 +22,24 @@ import type {
 } from './types.ts'
 import { ok, err, DEFAULT_LABEL_CHAR_CAP } from './types.ts'
 import { labelOverflowWarning } from './label-metrics.ts'
+import { erContainsSubgraphConstruct } from '../er/parser.ts'
+import { toMermaidLines } from '../mermaid-source.ts'
+
+/**
+ * ER source-level UNSUPPORTED_SYNTAX warnings (repo #103): flowchart-style
+ * `subgraph … direction … end` blocks are tolerated by the render parser —
+ * the entities inside render, the grouping does not. Announce the dropped
+ * construct by name (the flowchart sourceWarnings pattern); its presence also
+ * suppresses the generic `er_opaque` double-flag in verify.
+ */
+export function erUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarning[] {
+  if (!erContainsSubgraphConstruct(toMermaidLines(canonicalSource))) return []
+  return [{
+    code: 'UNSUPPORTED_SYNTAX',
+    syntax: 'er_subgraph',
+    message: 'This erDiagram uses flowchart-style subgraph blocks. The renderer tolerates them: entities and relationships inside render, but the subgraph grouping (and any direction scoped to it) is dropped. Typed mutation is unavailable while the blocks are present.',
+  }]
+}
 
 // ---- Parser ---------------------------------------------------------------
 
@@ -54,6 +72,11 @@ export function parseErBody(lines: string[]): ErBody | null {
     const raw = lines[i]!.trim()
     i++
     if (!raw || raw.startsWith('%%')) continue
+
+    // Flowchart-style subgraph vocabulary (repo #103): unmodeled — fall back
+    // to opaque so the block round-trips verbatim. Checked before the bare-
+    // entity rule so a closing `end` can never mint a phantom entity.
+    if (/^subgraph\b/.test(raw) || raw === 'end') return null
 
     const rm = raw.match(REL_RE)
     if (rm) {

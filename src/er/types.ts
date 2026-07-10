@@ -5,7 +5,7 @@
 // ER diagrams show database entities, their attributes, and relationships.
 // ============================================================================
 
-import type { PositionedDiagram } from '../types.ts'
+import type { PositionedDiagram, Direction } from '../types.ts'
 
 /** Parsed ER diagram — logical structure from mermaid text */
 export interface ErDiagram {
@@ -13,6 +13,12 @@ export interface ErDiagram {
   accessibilityTitle?: string
   /** Optional accessibility description (Mermaid accDescr) */
   accessibilityDescription?: string
+  /**
+   * Layout direction from a `direction TB|BT|LR|RL` statement (upstream
+   * v11.4+). Default is LR — this fork's deliberate divergence from
+   * upstream's TB default (documented in docs/design/families/er.md).
+   */
+  direction?: Direction
   /** All entity definitions */
   entities: ErEntity[]
   /** Relationships between entities */

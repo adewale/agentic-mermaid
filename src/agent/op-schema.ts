@@ -138,7 +138,7 @@ const TIMELINE_SCHEMA: Record<string, OpSpec> = {
 
 const CLASS_SCHEMA: Record<string, OpSpec> = {
   set_title:       { fields: { title: strOrNull() } },
-  add_class:       { fields: { id: str(), label: str(false), members: strArr(false) } },
+  add_class:       { fields: { id: str(), label: str(false), members: strArr(false), namespace: withNote(str(false), 'dot path, e.g. "Platform.Auth"; declared on demand') } },
   remove_class:    { fields: { id: str() } },
   rename_class:    { fields: { from: str(), to: str() } },
   add_member:      { fields: { class: str(), text: str() } },
@@ -147,6 +147,7 @@ const CLASS_SCHEMA: Record<string, OpSpec> = {
   remove_relation: { fields: { index: num() } },
   add_note:        { fields: { text: str(), for: str(false) } },
   remove_note:     { fields: { index: num() } },
+  set_class_namespace: { fields: { class: str(), namespace: withNote(strOrNull(), 'dot path moves the class into that namespace (declared on demand); null moves it to the top level') } },
 }
 
 const ER_SCHEMA: Record<string, OpSpec> = {

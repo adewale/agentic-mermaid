@@ -136,10 +136,10 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 1,
       "edgeCount": 0,
-      "groupCount": 0,
+      "groupCount": 2,
       "minNodes": 1,
       "labelsContain": [
         "Foo"
@@ -160,10 +160,10 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 2,
       "edgeCount": 0,
-      "groupCount": 0,
+      "groupCount": 3,
       "minNodes": 2,
       "labelsContain": [
         "Developer",
@@ -185,10 +185,10 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 2,
       "edgeCount": 0,
-      "groupCount": 0,
+      "groupCount": 3,
       "minNodes": 2,
       "labelsContain": [
         "Developer",
@@ -210,10 +210,10 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 2,
       "edgeCount": 0,
-      "groupCount": 0,
+      "groupCount": 1,
       "minNodes": 2,
       "labelsContain": [
         "Class1",
@@ -235,10 +235,10 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 4,
       "edgeCount": 2,
-      "groupCount": 0,
+      "groupCount": 2,
       "minNodes": 4,
       "minEdges": 2,
       "labelsContain": [
@@ -392,10 +392,10 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 2,
       "edgeCount": 0,
-      "groupCount": 0,
+      "groupCount": 3,
       "minNodes": 2,
       "labelsContain": [
         "User",
@@ -486,10 +486,10 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 2,
       "edgeCount": 1,
-      "groupCount": 0,
+      "groupCount": 3,
       "minNodes": 2,
       "minEdges": 1,
       "labelsContain": [
@@ -516,7 +516,7 @@
       "expectStructured": false,
       "nodeCount": 1,
       "edgeCount": 0,
-      "groupCount": 0,
+      "groupCount": 3,
       "minNodes": 1,
       "labelsContain": [
         "GenericClass<T>"
@@ -540,7 +540,7 @@
       "expectStructured": false,
       "nodeCount": 2,
       "edgeCount": 0,
-      "groupCount": 0,
+      "groupCount": 2,
       "minNodes": 2,
       "labelsContain": [
         "Class1",
@@ -565,7 +565,7 @@
       "expectStructured": false,
       "nodeCount": 1,
       "edgeCount": 0,
-      "groupCount": 0,
+      "groupCount": 1,
       "minNodes": 1,
       "labelsContain": [
         "Square<Shape>"
@@ -586,10 +586,10 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 2,
       "edgeCount": 1,
-      "groupCount": 0,
+      "groupCount": 4,
       "minNodes": 2,
       "minEdges": 1,
       "labelsContain": [
@@ -613,10 +613,10 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 2,
       "edgeCount": 0,
-      "groupCount": 0,
+      "groupCount": 2,
       "minNodes": 2,
       "labelsContain": [
         "Foo",
@@ -754,7 +754,7 @@
   {
     "id": "class-upstream-should-parse-classes-with-different-text-labels",
     "family": "class",
-    "source": "classDiagram\nclass C1[\"OneWord\"]\nclass C2[\"With, Comma\"]\nclass C3[\"With (Brackets)\"]\nclass C4[\"With [Brackets]\"]\nclass C5[\"With {Brackets}\"]\nclass C6[\" \"]\nclass C7[\"With 1 number\"]\nclass C8[\"With . period...\"]\nclass C9[\"With - dash\"]\nclass C10[\"With _ underscore\"]\nclass C11[\"With ' single quote\"]\nclass C12[\"With ~!@#$%^&*()_+=-/?\"]\nclass C13[\"With Città foreign language\"]",
+    "source": "classDiagram\nclass C1[\"OneWord\"]\nclass C2[\"With, Comma\"]\nclass C3[\"With (Brackets)\"]\nclass C4[\"With [Brackets]\"]\nclass C5[\"With {Brackets}\"]\nclass C6[\" \"]\nclass C7[\"With 1 number\"]\nclass C8[\"With . period...\"]\nclass C9[\"With - dash\"]\nclass C10[\"With _ underscore\"]\nclass C11[\"With ' single quote\"]\nclass C12[\"With ~!@#$%^&*()_+=-/?\"]\nclass C13[\"With Citt\u00e0 foreign language\"]",
     "upstream": {
       "repo": "mermaid-js/mermaid",
       "files": [
@@ -964,10 +964,10 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 1,
       "edgeCount": 0,
-      "groupCount": 0,
+      "groupCount": 1,
       "minNodes": 1,
       "labelsContain": [
         "UserService"
@@ -2398,6 +2398,23 @@
     }
   },
   {
+    "id": "er-upstream-should-correctly-parse-direction-rl-inside-a-subgraph",
+    "family": "er",
+    "source": "erDiagram subgraph WithRL\ndirection RL\nA\nB\nend",
+    "upstream": {
+      "repo": "mermaid-js/mermaid",
+      "files": [
+        "packages/mermaid/src/diagrams/er/parser/subgraph.spec.js"
+      ],
+      "blocks": [
+        "packages/mermaid/src/diagrams/er/parser/subgraph.spec.js :: should correctly parse direction RL inside a subgraph"
+      ]
+    },
+    "assertions": {
+      "expectStructured": false
+    }
+  },
+  {
     "id": "flowchart-upstream-id",
     "family": "flowchart",
     "source": "graph TD\ndefault --> monograph",
@@ -3671,14 +3688,14 @@
   {
     "id": "flowchart-upstream-should-handle-and-minus",
     "family": "flowchart",
-    "source": "graph TD;A-->C{Chimpansen hoppar åäö-ÅÄÖ};",
+    "source": "graph TD;A-->C{Chimpansen hoppar \u00e5\u00e4\u00f6-\u00c5\u00c4\u00d6};",
     "upstream": {
       "repo": "mermaid-js/mermaid",
       "files": [
         "packages/mermaid/src/diagrams/flowchart/parser/flow-text.spec.js"
       ],
       "blocks": [
-        "packages/mermaid/src/diagrams/flowchart/parser/flow-text.spec.js :: should handle åäö and minus"
+        "packages/mermaid/src/diagrams/flowchart/parser/flow-text.spec.js :: should handle \u00e5\u00e4\u00f6 and minus"
       ]
     },
     "assertions": {
@@ -3689,7 +3706,7 @@
       "minEdges": 1,
       "labelsContain": [
         "A",
-        "Chimpansen hoppar åäö-ÅÄÖ"
+        "Chimpansen hoppar \u00e5\u00e4\u00f6-\u00c5\u00c4\u00d6"
       ]
     }
   },
@@ -6448,14 +6465,14 @@
   {
     "id": "flowchart-upstream-should-handle-text-in-with-2",
     "family": "flowchart",
-    "source": "graph TD;A(éèêàçô)-->|éèêàçô|C;",
+    "source": "graph TD;A(\u00e9\u00e8\u00ea\u00e0\u00e7\u00f4)-->|\u00e9\u00e8\u00ea\u00e0\u00e7\u00f4|C;",
     "upstream": {
       "repo": "mermaid-js/mermaid",
       "files": [
         "packages/mermaid/src/diagrams/flowchart/parser/flow-text.spec.js"
       ],
       "blocks": [
-        "packages/mermaid/src/diagrams/flowchart/parser/flow-text.spec.js :: should handle text in with éèêàçô"
+        "packages/mermaid/src/diagrams/flowchart/parser/flow-text.spec.js :: should handle text in with \u00e9\u00e8\u00ea\u00e0\u00e7\u00f4"
       ]
     },
     "assertions": {
@@ -6465,7 +6482,7 @@
       "minNodes": 2,
       "minEdges": 1,
       "labelsContain": [
-        "éèêàçô",
+        "\u00e9\u00e8\u00ea\u00e0\u00e7\u00f4",
         "C"
       ]
     }
@@ -6670,7 +6687,7 @@
   {
     "id": "flowchart-upstream-should-handle-unicode-chars",
     "family": "flowchart",
-    "source": "graph TD;A-->C(Начало);",
+    "source": "graph TD;A-->C(\u041d\u0430\u0447\u0430\u043b\u043e);",
     "upstream": {
       "repo": "mermaid-js/mermaid",
       "files": [
@@ -6688,7 +6705,7 @@
       "minEdges": 1,
       "labelsContain": [
         "A",
-        "Начало"
+        "\u041d\u0430\u0447\u0430\u043b\u043e"
       ]
     }
   },
@@ -6826,14 +6843,14 @@
   {
     "id": "flowchart-upstream-should-handle-with-minus-and-space-and-br",
     "family": "flowchart",
-    "source": "graph TD;A-->C(Chimpansen hoppar åäö  <br> -  ÅÄÖ);",
+    "source": "graph TD;A-->C(Chimpansen hoppar \u00e5\u00e4\u00f6  <br> -  \u00c5\u00c4\u00d6);",
     "upstream": {
       "repo": "mermaid-js/mermaid",
       "files": [
         "packages/mermaid/src/diagrams/flowchart/parser/flow-text.spec.js"
       ],
       "blocks": [
-        "packages/mermaid/src/diagrams/flowchart/parser/flow-text.spec.js :: should handle with åäö, minus and space and br"
+        "packages/mermaid/src/diagrams/flowchart/parser/flow-text.spec.js :: should handle with \u00e5\u00e4\u00f6, minus and space and br"
       ]
     },
     "assertions": {
@@ -6844,7 +6861,7 @@
       "minEdges": 1,
       "labelsContain": [
         "A",
-        "Chimpansen hoppar åäö  \n -  ÅÄÖ"
+        "Chimpansen hoppar \u00e5\u00e4\u00f6  \n -  \u00c5\u00c4\u00d6"
       ]
     }
   },
@@ -7424,7 +7441,7 @@
   {
     "id": "quadrant-upstream-german",
     "family": "quadrant",
-    "source": "quadrantChart\nx-axis Café --> Größe",
+    "source": "quadrantChart\nx-axis Caf\u00e9 --> Gr\u00f6\u00dfe",
     "upstream": {
       "repo": "mermaid-js/mermaid",
       "files": [
@@ -7469,7 +7486,7 @@
   {
     "id": "quadrant-upstream-should-be-able-to-parse-a-full-chart-with-chinese",
     "family": "quadrant",
-    "source": "quadrantChart\ntitle 分析象限图\nx-axis 低覆盖率 --> 高覆盖率\ny-axis 低参与度 --> 高参与度\nquadrant-1 需要扩展\nquadrant-2 需要推广\nquadrant-3 重新评估\nquadrant-4 可以改进\n产品A: [0.3, 0.6]\n产品B: [0.45, 0.23]",
+    "source": "quadrantChart\ntitle \u5206\u6790\u8c61\u9650\u56fe\nx-axis \u4f4e\u8986\u76d6\u7387 --> \u9ad8\u8986\u76d6\u7387\ny-axis \u4f4e\u53c2\u4e0e\u5ea6 --> \u9ad8\u53c2\u4e0e\u5ea6\nquadrant-1 \u9700\u8981\u6269\u5c55\nquadrant-2 \u9700\u8981\u63a8\u5e7f\nquadrant-3 \u91cd\u65b0\u8bc4\u4f30\nquadrant-4 \u53ef\u4ee5\u6539\u8fdb\n\u4ea7\u54c1A: [0.3, 0.6]\n\u4ea7\u54c1B: [0.45, 0.23]",
     "upstream": {
       "repo": "mermaid-js/mermaid",
       "files": [
@@ -7486,19 +7503,19 @@
       "minNodes": 2,
       "minGroups": 4,
       "labelsContain": [
-        "产品A",
-        "产品B",
-        "需要推广",
-        "需要扩展",
-        "重新评估",
-        "可以改进"
+        "\u4ea7\u54c1A",
+        "\u4ea7\u54c1B",
+        "\u9700\u8981\u63a8\u5e7f",
+        "\u9700\u8981\u6269\u5c55",
+        "\u91cd\u65b0\u8bc4\u4f30",
+        "\u53ef\u4ee5\u6539\u8fdb"
       ]
     }
   },
   {
     "id": "quadrant-upstream-should-be-able-to-parse-chinese-point-names",
     "family": "quadrant",
-    "source": "quadrantChart\n产品A: [0.3, 0.6]",
+    "source": "quadrantChart\n\u4ea7\u54c1A: [0.3, 0.6]",
     "upstream": {
       "repo": "mermaid-js/mermaid",
       "files": [
@@ -7515,14 +7532,14 @@
       "minNodes": 1,
       "minGroups": 4,
       "labelsContain": [
-        "产品A"
+        "\u4ea7\u54c1A"
       ]
     }
   },
   {
     "id": "quadrant-upstream-should-be-able-to-parse-chinese-text-in-quadrant-labels",
     "family": "quadrant",
-    "source": "quadrantChart\nquadrant-1 需要扩展",
+    "source": "quadrantChart\nquadrant-1 \u9700\u8981\u6269\u5c55",
     "upstream": {
       "repo": "mermaid-js/mermaid",
       "files": [
@@ -7538,14 +7555,14 @@
       "groupCount": 4,
       "minGroups": 4,
       "labelsContain": [
-        "需要扩展"
+        "\u9700\u8981\u6269\u5c55"
       ]
     }
   },
   {
     "id": "quadrant-upstream-should-be-able-to-parse-chinese-text-in-x-axis",
     "family": "quadrant",
-    "source": "quadrantChart\nx-axis 低覆盖率 --> 高覆盖率",
+    "source": "quadrantChart\nx-axis \u4f4e\u8986\u76d6\u7387 --> \u9ad8\u8986\u76d6\u7387",
     "upstream": {
       "repo": "mermaid-js/mermaid",
       "files": [
@@ -7565,7 +7582,7 @@
   {
     "id": "quadrant-upstream-should-be-able-to-parse-chinese-text-in-y-axis",
     "family": "quadrant",
-    "source": "quadrantChart\ny-axis 低参与度 --> 高参与度",
+    "source": "quadrantChart\ny-axis \u4f4e\u53c2\u4e0e\u5ea6 --> \u9ad8\u53c2\u4e0e\u5ea6",
     "upstream": {
       "repo": "mermaid-js/mermaid",
       "files": [
@@ -7585,7 +7602,7 @@
   {
     "id": "quadrant-upstream-should-be-able-to-parse-emoji-in-text",
     "family": "quadrant",
-    "source": "quadrantChart\nquadrant-2 🚀Growth",
+    "source": "quadrantChart\nquadrant-2 \ud83d\ude80Growth",
     "upstream": {
       "repo": "mermaid-js/mermaid",
       "files": [
@@ -7601,14 +7618,14 @@
       "groupCount": 4,
       "minGroups": 4,
       "labelsContain": [
-        "🚀Growth"
+        "\ud83d\ude80Growth"
       ]
     }
   },
   {
     "id": "quadrant-upstream-should-be-able-to-parse-japanese-text",
     "family": "quadrant",
-    "source": "quadrantChart\nquadrant-1 拡張が必要\nx-axis 低い --> 高い",
+    "source": "quadrantChart\nquadrant-1 \u62e1\u5f35\u304c\u5fc5\u8981\nx-axis \u4f4e\u3044 --> \u9ad8\u3044",
     "upstream": {
       "repo": "mermaid-js/mermaid",
       "files": [
@@ -7624,14 +7641,14 @@
       "groupCount": 4,
       "minGroups": 4,
       "labelsContain": [
-        "拡張が必要"
+        "\u62e1\u5f35\u304c\u5fc5\u8981"
       ]
     }
   },
   {
     "id": "quadrant-upstream-should-be-able-to-parse-korean-text",
     "family": "quadrant",
-    "source": "quadrantChart\nx-axis 낮음 --> 높음",
+    "source": "quadrantChart\nx-axis \ub0ae\uc74c --> \ub192\uc74c",
     "upstream": {
       "repo": "mermaid-js/mermaid",
       "files": [
@@ -7767,7 +7784,7 @@
   {
     "id": "quadrant-upstream-should-be-able-to-parse-the-whole-chart",
     "family": "quadrant",
-    "source": "quadrantChart\n      title Analytics and Business Intelligence Platforms\n      x-axis \"Completeness of Vision ❤\" --> \"x-axis-2\"\n      y-axis Ability to Execute --> \"y-axis-2\"\n      quadrant-1 Leaders\n      quadrant-2 Challengers\n      quadrant-3 Niche\n      quadrant-4 Visionaries\n      Microsoft: [0.75, 0.75]\n      Salesforce: [0.55, 0.60]\n      IBM: [0.51, 0.40]\n      Incorta: [0.20, 0.30]",
+    "source": "quadrantChart\n      title Analytics and Business Intelligence Platforms\n      x-axis \"Completeness of Vision \u2764\" --> \"x-axis-2\"\n      y-axis Ability to Execute --> \"y-axis-2\"\n      quadrant-1 Leaders\n      quadrant-2 Challengers\n      quadrant-3 Niche\n      quadrant-4 Visionaries\n      Microsoft: [0.75, 0.75]\n      Salesforce: [0.55, 0.60]\n      IBM: [0.51, 0.40]\n      Incorta: [0.20, 0.30]",
     "upstream": {
       "repo": "mermaid-js/mermaid",
       "files": [
@@ -7798,7 +7815,7 @@
   {
     "id": "quadrant-upstream-should-be-able-to-parse-the-whole-chart-with-point-styling-with-all-params-or-some-params",
     "family": "quadrant",
-    "source": "quadrantChart\n      title Analytics and Business Intelligence Platforms\n      x-axis \"Completeness of Vision ❤\" --> \"x-axis-2\"\n      y-axis Ability to Execute --> \"y-axis-2\"\n      quadrant-1 Leaders\n      quadrant-2 Challengers\n      quadrant-3 Niche\n      quadrant-4 Visionaries\n      Microsoft: [0.75, 0.75] radius: 10\n      Salesforce: [0.55, 0.60] radius: 10, color: #ff0000\n      IBM: [0.51, 0.40] radius: 10, color: #ff0000, stroke-color: #ff00ff\n      Incorta: [0.20, 0.30] radius: 10 ,color: #ff0000 ,stroke-color: #ff00ff ,stroke-width: 10px",
+    "source": "quadrantChart\n      title Analytics and Business Intelligence Platforms\n      x-axis \"Completeness of Vision \u2764\" --> \"x-axis-2\"\n      y-axis Ability to Execute --> \"y-axis-2\"\n      quadrant-1 Leaders\n      quadrant-2 Challengers\n      quadrant-3 Niche\n      quadrant-4 Visionaries\n      Microsoft: [0.75, 0.75] radius: 10\n      Salesforce: [0.55, 0.60] radius: 10, color: #ff0000\n      IBM: [0.51, 0.40] radius: 10, color: #ff0000, stroke-color: #ff00ff\n      Incorta: [0.20, 0.30] radius: 10 ,color: #ff0000 ,stroke-color: #ff00ff ,stroke-width: 10px",
     "upstream": {
       "repo": "mermaid-js/mermaid",
       "files": [
@@ -7830,7 +7847,7 @@
   {
     "id": "quadrant-upstream-should-be-able-to-parse-the-whole-chart-with-point-styling-with-params-in-a-random-order-c",
     "family": "quadrant",
-    "source": "quadrantChart\n      title Analytics and Business Intelligence Platforms\n      x-axis \"Completeness of Vision ❤\" --> \"x-axis-2\"\n      y-axis Ability to Execute --> \"y-axis-2\"\n      quadrant-1 Leaders\n      quadrant-2 Challengers\n      quadrant-3 Niche\n      quadrant-4 Visionaries\n      Microsoft: [0.75, 0.75] stroke-color: #ff00ff ,stroke-width: 10px, color: #ff0000, radius: 10\n      Salesforce:::class1: [0.55, 0.60] radius: 10, color: #ff0000\n      IBM: [0.51, 0.40] stroke-color: #ff00ff ,stroke-width: 10px\n      Incorta: [0.20, 0.30] stroke-width: 10px",
+    "source": "quadrantChart\n      title Analytics and Business Intelligence Platforms\n      x-axis \"Completeness of Vision \u2764\" --> \"x-axis-2\"\n      y-axis Ability to Execute --> \"y-axis-2\"\n      quadrant-1 Leaders\n      quadrant-2 Challengers\n      quadrant-3 Niche\n      quadrant-4 Visionaries\n      Microsoft: [0.75, 0.75] stroke-color: #ff00ff ,stroke-width: 10px, color: #ff0000, radius: 10\n      Salesforce:::class1: [0.55, 0.60] radius: 10, color: #ff0000\n      IBM: [0.51, 0.40] stroke-color: #ff00ff ,stroke-width: 10px\n      Incorta: [0.20, 0.30] stroke-width: 10px",
     "upstream": {
       "repo": "mermaid-js/mermaid",
       "files": [
@@ -7922,7 +7939,7 @@
   {
     "id": "quadrant-upstream-should-parse-accented-characters-in-quadrant-labels",
     "family": "quadrant",
-    "source": "quadrantChart\nquadrant-1 catégoría\nquadrant-2 naïve",
+    "source": "quadrantChart\nquadrant-1 cat\u00e9gor\u00eda\nquadrant-2 na\u00efve",
     "upstream": {
       "repo": "mermaid-js/mermaid",
       "files": [
@@ -7938,8 +7955,8 @@
       "groupCount": 4,
       "minGroups": 4,
       "labelsContain": [
-        "naïve",
-        "catégoría"
+        "na\u00efve",
+        "cat\u00e9gor\u00eda"
       ]
     }
   },

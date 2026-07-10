@@ -26,6 +26,11 @@ import { getFamily, extractLabelsGeneric, builtinFamilyMetadata } from './famili
 import { labelOverflowWarning } from './label-metrics.ts'
 import { stateBodyToGraph } from './state-body.ts'
 import { flowchartUnsupportedSyntaxWarnings } from './flowchart-unsupported.ts'
+import { erUnsupportedSyntaxWarnings } from './er-body.ts'
+import { classIneffectiveConfigFields } from '../class/layout.ts'
+import { erIneffectiveConfigFields } from '../er/layout.ts'
+import { pieIneffectiveConfigFields } from '../pie/config.ts'
+import { QUADRANT_NOOP_CONFIG_FIELDS } from '../quadrant/config.ts'
 import './families-builtin.ts'  // registers built-in families at import time
 
 const KNOWN_SHAPES = new Set([
@@ -135,6 +140,70 @@ function journeyIneffectiveConfigWarnings(d: ValidDiagram): LayoutWarning[] {
   }))
 }
 
+// Pie wires textPosition/donutHole/legendPosition + the pieN/stroke/opacity
+// theme variables (src/pie/config.ts); the documented remainder is named
+// here per P4 (wire-or-warn) instead of being silently swallowed.
+function pieIneffectiveConfigWarnings(d: ValidDiagram): LayoutWarning[] {
+  const frontmatter = d.meta.frontmatter as Record<string, unknown> | undefined
+  const directives = d.meta.initDirectives.map(directive => directive.parsed as Record<string, unknown> | undefined)
+  const fields = pieIneffectiveConfigFields(
+    [frontmatter?.pie, ...directives.map(parsed => parsed?.pie)],
+    [frontmatter?.themeVariables, ...directives.map(parsed => parsed?.themeVariables)],
+  )
+  return fields.map(field => ({
+    code: 'INEFFECTIVE_CONFIG',
+    field,
+    message: `Pie config field "${field}" is accepted for Mermaid config-shape compatibility but has no effect on pie geometry or paint.`,
+  }))
+}
+
+// Class wires nodeSpacing/rankSpacing (src/class/layout.ts
+// resolveClassRenderOptions) and ER wires layoutDirection +
+// nodeSpacing/rankSpacing (src/er/layout.ts applyErFrontmatterConfig); the
+// documented remainders are named here per P4 (wire-or-warn) instead of
+// being silently swallowed. The NOOP field tables live beside the wiring in
+// the family layouts so wire and warn cannot drift.
+function classErIneffectiveConfigWarnings(
+  d: ValidDiagram,
+  sectionKey: 'class' | 'er',
+  fieldsPresent: (configs: unknown[]) => string[],
+  familyLabel: string,
+): LayoutWarning[] {
+  const configs: unknown[] = [
+    (d.meta.frontmatter as Record<string, unknown> | undefined)?.[sectionKey],
+    ...d.meta.initDirectives.map(directive => (directive.parsed as Record<string, unknown> | undefined)?.[sectionKey]),
+  ]
+  return fieldsPresent(configs).map(field => ({
+    code: 'INEFFECTIVE_CONFIG',
+    field,
+    message: `${familyLabel} config field "${field}" is accepted for Mermaid config-shape compatibility but has no effect on ${sectionKey === 'class' ? 'class-diagram' : 'ER'} geometry or paint.`,
+  }))
+}
+
+// Quadrant wires most of the documented quadrantChart section (chart size,
+// fonts, point radius/padding, border widths, useMaxWidth — see
+// src/quadrant/config.ts, the single wire-or-warn table); the unwired
+// remainder (axis positions, quadrantTextTopPadding, useWidth) is named here
+// per P4 instead of being silently swallowed.
+function quadrantIneffectiveConfigWarnings(d: ValidDiagram): LayoutWarning[] {
+  const configs: unknown[] = [
+    (d.meta.frontmatter as Record<string, unknown> | undefined)?.quadrantChart,
+    ...d.meta.initDirectives.map(directive => (directive.parsed as Record<string, unknown> | undefined)?.quadrantChart),
+  ]
+  const present = new Set<string>()
+  for (const config of configs) {
+    if (!config || typeof config !== 'object') continue
+    for (const field of QUADRANT_NOOP_CONFIG_FIELDS) {
+      if (field in (config as Record<string, unknown>)) present.add(field)
+    }
+  }
+  return [...present].sort().map(field => ({
+    code: 'INEFFECTIVE_CONFIG',
+    field,
+    message: `Quadrant config field "${field}" is accepted for Mermaid config-shape compatibility but has no effect on quadrant geometry or paint.`,
+  }))
+}
+
 function verifyStructure(input: ValidDiagram | string, opts: VerifyOptions = {}): VerifyResult {
   const d = typeof input === 'string' ? unwrap(input) : input
   if (!d) return finalize([{ code: 'EMPTY_DIAGRAM' }], emptyRenderedLayout('flowchart'), opts)
@@ -151,9 +220,15 @@ function verifyStructure(input: ValidDiagram | string, opts: VerifyOptions = {})
   const metaWarnings: LayoutWarning[] = d.meta.droppedComments?.length
     ? [{ code: 'COMMENT_DROPPED', count: d.meta.droppedComments.length, lines: d.meta.droppedComments.map(c => c.line) }]
     : []
-  const sourceWarnings = d.kind === 'flowchart' ? flowchartUnsupportedSyntaxWarnings(d.canonicalSource) : []
+  const sourceWarnings = d.kind === 'flowchart' ? flowchartUnsupportedSyntaxWarnings(d.canonicalSource)
+    : d.kind === 'er' ? erUnsupportedSyntaxWarnings(d.canonicalSource) : []
   const faithfulnessWarnings = roundtripFaithfulnessWarnings(d)
-  const configWarnings = d.kind === 'journey' ? journeyIneffectiveConfigWarnings(d) : []
+  const configWarnings = d.kind === 'journey'
+    ? journeyIneffectiveConfigWarnings(d)
+    : d.kind === 'pie' ? pieIneffectiveConfigWarnings(d)
+    : d.kind === 'quadrant' ? quadrantIneffectiveConfigWarnings(d)
+    : d.kind === 'class' ? classErIneffectiveConfigWarnings(d, 'class', classIneffectiveConfigFields, 'Class')
+    : d.kind === 'er' ? classErIneffectiveConfigWarnings(d, 'er', erIneffectiveConfigFields, 'Er') : []
   const pluginWarnings = dedupedConcat(dedupedConcat(dedupedConcat(dedupedConcat(metaWarnings, dispatchFamilyVerify(d, opts)), sourceWarnings), faithfulnessWarnings), configWarnings)
 
   if (d.body.kind === 'sequence') return mergeFinalize(verifySequence(d as ValidDiagram & { body: SequenceBody }, cap, opts), pluginWarnings, opts)
@@ -183,7 +258,9 @@ function verifyStructure(input: ValidDiagram | string, opts: VerifyOptions = {})
     // class/entity box boundaries and boxes must remain on-canvas/non-overlap.
     const layout = layoutFamilyToRendered(d) ?? emptyRenderedLayout(d.kind)
     const familyGeometry = (d.body.kind === 'class' || d.body.kind === 'er')
-      ? layoutGeometryWarnings(layout, { edgeAnchors: true, nodeOverlaps: true })
+      // Class namespaces are groups whose members are the namespaced class
+      // boxes (family-layouts.ts), so containment is a reportable breach.
+      ? layoutGeometryWarnings(layout, { edgeAnchors: true, nodeOverlaps: true, groupContainment: d.body.kind === 'class' })
       : layoutGeometryWarnings(layout, {
         nodeOverlaps: d.body.kind === 'journey',
         // Journey sections are groups with task members (family-layouts.ts),

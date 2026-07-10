@@ -178,9 +178,15 @@ function factsTimeline(out: string[], body: TimelineBody): void {
 
 function factsClass(out: string[], body: ClassBody): void {
   if (body.title) add(out, `title ${clean(body.title)}`)
+  // Namespace declarations + membership (repo #118): both directions are
+  // queryable — "what namespaces exist" and "which namespace holds class X".
+  for (const ns of body.namespaces ?? []) {
+    add(out, `namespace ${clean(ns.name)}${ns.label ? ` : ${clean(ns.label)}` : ''}`)
+  }
   for (const c of body.classes) {
     add(out, `class ${clean(c.id)}`)
     if (c.label) add(out, `class ${clean(c.id)} : ${clean(c.label)}`)
+    if (c.namespace) add(out, `class ${clean(c.id)} in namespace ${clean(c.namespace)}`)
     for (const member of c.members) add(out, `member ${clean(c.id)} ${clean(member)}`)
   }
   body.relations.forEach((r, i) => {

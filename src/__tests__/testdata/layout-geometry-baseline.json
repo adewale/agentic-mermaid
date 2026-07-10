@@ -1103,8 +1103,8 @@
       "nodes": [
         {
           "id": "Triangle",
-          "x": 40,
-          "y": 40,
+          "x": 56,
+          "y": 96,
           "w": 120,
           "h": 49,
           "shape": "rectangle",
@@ -1112,8 +1112,8 @@
         },
         {
           "id": "Rectangle",
-          "x": 40,
-          "y": 109,
+          "x": 216,
+          "y": 76,
           "w": 120,
           "h": 89,
           "shape": "rectangle",
@@ -1121,10 +1121,23 @@
         }
       ],
       "edges": [],
-      "groups": [],
+      "groups": [
+        {
+          "id": "BaseShapes",
+          "x": 40,
+          "y": 40,
+          "w": 312,
+          "h": 141,
+          "members": [
+            "Triangle",
+            "Rectangle"
+          ],
+          "label": "BaseShapes"
+        }
+      ],
       "bounds": {
-        "w": 200,
-        "h": 238
+        "w": 392,
+        "h": 221
       }
     }
   },
@@ -1136,8 +1149,8 @@
       "nodes": [
         {
           "id": "UserService",
-          "x": 40,
-          "y": 40,
+          "x": 56,
+          "y": 76,
           "w": 120,
           "h": 89,
           "shape": "rectangle",
@@ -1145,10 +1158,22 @@
         }
       ],
       "edges": [],
-      "groups": [],
+      "groups": [
+        {
+          "id": "Auth",
+          "x": 40,
+          "y": 40,
+          "w": 152,
+          "h": 141,
+          "members": [
+            "UserService"
+          ],
+          "label": "Authentication Service"
+        }
+      ],
       "bounds": {
-        "w": 200,
-        "h": 169
+        "w": 232,
+        "h": 221
       }
     }
   },
@@ -1160,8 +1185,8 @@
       "nodes": [
         {
           "id": "Developer",
-          "x": 40,
-          "y": 249,
+          "x": 88,
+          "y": 362,
           "w": 120,
           "h": 69,
           "shape": "rectangle",
@@ -1169,8 +1194,8 @@
         },
         {
           "id": "Designer",
-          "x": 200,
-          "y": 249,
+          "x": 280,
+          "y": 362,
           "w": 122,
           "h": 69,
           "shape": "rectangle",
@@ -1178,8 +1203,8 @@
         },
         {
           "id": "TechLead",
-          "x": 60,
-          "y": 40,
+          "x": 108,
+          "y": 112,
           "w": 120,
           "h": 69,
           "shape": "rectangle",
@@ -1193,17 +1218,17 @@
           "to": "Developer",
           "path": [
             [
-              100,
-              109
+              148,
+              181
             ],
             [
-              100,
-              249
+              148,
+              362
             ]
           ],
           "label": {
-            "x": 80,
-            "y": 179,
+            "x": 128,
+            "y": 251,
             "text": "leads"
           }
         },
@@ -1213,33 +1238,79 @@
           "to": "Designer",
           "path": [
             [
-              140,
-              109
+              188,
+              181
             ],
             [
-              140,
-              119
+              188,
+              191
             ],
             [
-              261,
-              119
+              341,
+              191
             ],
             [
-              261,
-              249
+              341,
+              362
             ]
           ],
           "label": {
-            "x": 282,
-            "y": 179,
+            "x": 362,
+            "y": 251,
             "text": "leads"
           }
         }
       ],
-      "groups": [],
+      "groups": [
+        {
+          "id": "Company",
+          "x": 40,
+          "y": 40,
+          "w": 410,
+          "h": 439,
+          "members": [],
+          "label": "Company"
+        },
+        {
+          "id": "Company.Engineering",
+          "x": 56,
+          "y": 76,
+          "w": 378,
+          "h": 387,
+          "members": [
+            "TechLead"
+          ],
+          "label": "Engineering",
+          "parentId": "Company"
+        },
+        {
+          "id": "Company.Engineering.Backend",
+          "x": 72,
+          "y": 326,
+          "w": 152,
+          "h": 121,
+          "members": [
+            "Developer"
+          ],
+          "label": "Backend",
+          "parentId": "Company.Engineering"
+        },
+        {
+          "id": "Company.Engineering.Frontend",
+          "x": 264,
+          "y": 326,
+          "w": 154,
+          "h": 121,
+          "members": [
+            "Designer"
+          ],
+          "label": "Frontend",
+          "parentId": "Company.Engineering"
+        }
+      ],
       "bounds": {
-        "w": 362,
-        "h": 358
+        "w": 490,
+        "h": 519
       }
     }
   },
@@ -1251,8 +1322,8 @@
       "nodes": [
         {
           "id": "UserService",
-          "x": 40,
-          "y": 249,
+          "x": 72,
+          "y": 326,
           "w": 120,
           "h": 89,
           "shape": "rectangle",
@@ -1260,8 +1331,8 @@
         },
         {
           "id": "Repository",
-          "x": 200,
-          "y": 249,
+          "x": 264,
+          "y": 326,
           "w": 120,
           "h": 89,
           "shape": "rectangle",
@@ -1269,8 +1340,8 @@
         },
         {
           "id": "Gateway",
-          "x": 60,
-          "y": 40,
+          "x": 92,
+          "y": 76,
           "w": 120,
           "h": 69,
           "shape": "rectangle",
@@ -1284,17 +1355,17 @@
           "to": "UserService",
           "path": [
             [
-              100,
-              109
+              132,
+              145
             ],
             [
-              100,
-              249
+              132,
+              326
             ]
           ],
           "label": {
-            "x": 70,
-            "y": 179,
+            "x": 102,
+            "y": 215,
             "text": "delegates"
           }
         },
@@ -1304,33 +1375,69 @@
           "to": "Repository",
           "path": [
             [
-              140,
-              109
+              172,
+              145
             ],
             [
-              140,
-              119
+              172,
+              155
             ],
             [
-              260,
-              119
+              324,
+              155
             ],
             [
-              260,
-              249
+              324,
+              326
             ]
           ],
           "label": {
-            "x": 291,
-            "y": 179,
+            "x": 355,
+            "y": 215,
             "text": "delegates"
           }
         }
       ],
-      "groups": [],
+      "groups": [
+        {
+          "id": "Platform",
+          "x": 40,
+          "y": 40,
+          "w": 376,
+          "h": 407,
+          "members": [
+            "Gateway"
+          ],
+          "label": "Platform"
+        },
+        {
+          "id": "Platform.Auth",
+          "x": 56,
+          "y": 290,
+          "w": 152,
+          "h": 141,
+          "members": [
+            "UserService"
+          ],
+          "label": "Auth",
+          "parentId": "Platform"
+        },
+        {
+          "id": "Platform.Data",
+          "x": 248,
+          "y": 290,
+          "w": 152,
+          "h": 141,
+          "members": [
+            "Repository"
+          ],
+          "label": "Data",
+          "parentId": "Platform"
+        }
+      ],
       "bounds": {
-        "w": 360,
-        "h": 378
+        "w": 456,
+        "h": 487
       }
     }
   },
@@ -1342,8 +1449,8 @@
       "nodes": [
         {
           "id": "Developer",
-          "x": 40,
-          "y": 249,
+          "x": 88,
+          "y": 367,
           "w": 120,
           "h": 69,
           "shape": "rectangle",
@@ -1351,8 +1458,8 @@
         },
         {
           "id": "Designer",
-          "x": 200,
-          "y": 249,
+          "x": 280,
+          "y": 367,
           "w": 122,
           "h": 69,
           "shape": "rectangle",
@@ -1360,8 +1467,8 @@
         },
         {
           "id": "CEO",
-          "x": 57,
-          "y": 40,
+          "x": 105,
+          "y": 76,
           "w": 128,
           "h": 69,
           "shape": "rectangle",
@@ -1375,17 +1482,17 @@
           "to": "Developer",
           "path": [
             [
-              100,
-              109
+              148,
+              145
             ],
             [
-              100,
-              249
+              148,
+              367
             ]
           ],
           "label": {
-            "x": 70,
-            "y": 179,
+            "x": 118,
+            "y": 215,
             "text": "oversees"
           }
         },
@@ -1395,33 +1502,79 @@
           "to": "Designer",
           "path": [
             [
-              143,
-              109
+              191,
+              145
             ],
             [
-              143,
-              119
+              191,
+              235
             ],
             [
-              261,
-              119
+              341,
+              235
             ],
             [
-              261,
-              249
+              341,
+              367
             ]
           ],
           "label": {
-            "x": 292,
-            "y": 179,
+            "x": 222,
+            "y": 215,
             "text": "oversees"
           }
         }
       ],
-      "groups": [],
+      "groups": [
+        {
+          "id": "Company",
+          "x": 40,
+          "y": 40,
+          "w": 410,
+          "h": 444,
+          "members": [
+            "CEO"
+          ],
+          "label": "Company"
+        },
+        {
+          "id": "Company.Engineering",
+          "x": 56,
+          "y": 290,
+          "w": 378,
+          "h": 178,
+          "members": [],
+          "label": "Engineering",
+          "parentId": "Company"
+        },
+        {
+          "id": "Company.Engineering.Backend",
+          "x": 72,
+          "y": 331,
+          "w": 152,
+          "h": 121,
+          "members": [
+            "Developer"
+          ],
+          "label": "Backend",
+          "parentId": "Company.Engineering"
+        },
+        {
+          "id": "Company.Engineering.Frontend",
+          "x": 264,
+          "y": 331,
+          "w": 154,
+          "h": 121,
+          "members": [
+            "Designer"
+          ],
+          "label": "Frontend",
+          "parentId": "Company.Engineering"
+        }
+      ],
       "bounds": {
-        "w": 362,
-        "h": 358
+        "w": 490,
+        "h": 524
       }
     }
   },
@@ -1706,8 +1859,8 @@
       "nodes": [
         {
           "id": "Student",
-          "x": 56,
-          "y": 40,
+          "x": 327,
+          "y": 61,
           "w": 135,
           "h": 69,
           "shape": "rectangle",
@@ -1716,7 +1869,7 @@
         {
           "id": "IdCard",
           "x": 40,
-          "y": 249,
+          "y": 40,
           "w": 122,
           "h": 89,
           "shape": "rectangle",
@@ -1724,9 +1877,9 @@
         },
         {
           "id": "Bike",
-          "x": 202,
-          "y": 249,
-          "w": 121,
+          "x": 40,
+          "y": 169,
+          "w": 122,
           "h": 89,
           "shape": "rectangle",
           "label": "Bike"
@@ -1739,17 +1892,17 @@
           "to": "IdCard",
           "path": [
             [
-              101,
-              109
+              327,
+              84
             ],
             [
-              101,
-              249
+              162,
+              84
             ]
           ],
           "label": {
-            "x": 76,
-            "y": 179,
+            "x": 244,
+            "y": 71,
             "text": "carries"
           }
         },
@@ -1759,33 +1912,33 @@
           "to": "Bike",
           "path": [
             [
-              146,
-              109
+              327,
+              107
             ],
             [
-              146,
-              119
+              317,
+              107
             ],
             [
-              262,
-              119
+              317,
+              213
             ],
             [
-              262,
-              249
+              162,
+              213
             ]
           ],
           "label": {
-            "x": 283,
-            "y": 179,
+            "x": 244,
+            "y": 227,
             "text": "rides"
           }
         }
       ],
       "groups": [],
       "bounds": {
-        "w": 363,
-        "h": 378
+        "w": 502,
+        "h": 298
       }
     }
   },
@@ -2709,7 +2862,7 @@
       "nodes": [
         {
           "id": "CUSTOMER",
-          "x": 40,
+          "x": 56,
           "y": 40,
           "w": 147,
           "h": 100,
@@ -2718,17 +2871,17 @@
         },
         {
           "id": "ORDER",
-          "x": 409,
-          "y": 51,
-          "w": 179,
+          "x": 40,
+          "y": 340,
+          "w": 180,
           "h": 78,
           "shape": "rectangle",
           "label": "ORDER"
         },
         {
           "id": "LINE-ITEM",
-          "x": 818,
-          "y": 40,
+          "x": 53,
+          "y": 619,
           "w": 154,
           "h": 100,
           "shape": "rectangle",
@@ -2742,17 +2895,17 @@
           "to": "ORDER",
           "path": [
             [
-              187,
-              90
+              130,
+              140
             ],
             [
-              409,
-              90
+              130,
+              340
             ]
           ],
           "label": {
-            "x": 409,
-            "y": 90,
+            "x": 130,
+            "y": 340,
             "text": "places"
           }
         },
@@ -2762,25 +2915,25 @@
           "to": "LINE-ITEM",
           "path": [
             [
-              588,
-              90
+              130,
+              418
             ],
             [
-              818,
-              90
+              130,
+              619
             ]
           ],
           "label": {
-            "x": 818,
-            "y": 90,
+            "x": 130,
+            "y": 619,
             "text": "contains"
           }
         }
       ],
       "groups": [],
       "bounds": {
-        "w": 1012,
-        "h": 180
+        "w": 260,
+        "h": 759
       }
     }
   },

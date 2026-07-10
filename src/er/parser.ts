@@ -1,5 +1,6 @@
 import type { ErDiagram, ErEntity, ErAttribute, ErRelationship, Cardinality } from './types.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
+import { parseDirectionStatement } from '../shared/direction-statement.ts'
 
 // ============================================================================
 // ER diagram parser
@@ -40,6 +41,13 @@ export function parseErDiagram(lines: string[]): ErDiagram {
   const entityMap = new Map<string, ErEntity>()
   // Track entity body parsing
   let currentEntity: ErEntity | null = null
+  // Flowchart-style `subgraph … end` blocks are TOLERATED, not modeled
+  // (repo #103, option 2): the block delimiters and any `direction` scoped to
+  // them are ignored; entity/relationship lines inside still parse (without
+  // grouping). verify announces the dropped grouping via UNSUPPORTED_SYNTAX.
+  // Upstream's pinned test rides the opener on the header line
+  // (`erDiagram subgraph WithRL`), so that form opens a block too.
+  let subgraphDepth = /^erdiagram\s+subgraph\b/i.test(lines[0] ?? '') ? 1 : 0
 
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i]!
@@ -76,6 +84,25 @@ export function parseErDiagram(lines: string[]): ErDiagram {
       if (attr) {
         currentEntity.attributes.push(attr)
       }
+      continue
+    }
+
+    // --- Tolerated flowchart-syntax block delimiters (repo #103) ---
+    if (/^subgraph\b/.test(line)) {
+      subgraphDepth++
+      continue
+    }
+    if (line === 'end' && subgraphDepth > 0) {
+      subgraphDepth--
+      continue
+    }
+
+    // --- Direction statement (upstream v11.4+) ---
+    // Inside a tolerated subgraph block the direction belongs to the dropped
+    // grouping and must not leak to the diagram level.
+    const direction = parseDirectionStatement(line)
+    if (direction) {
+      if (subgraphDepth === 0) diagram.direction = direction
       continue
     }
 
@@ -212,6 +239,18 @@ function parseRelationshipLine(line: string): ErRelationship | null {
   }
 
   return { entity1, entity2, cardinality1, cardinality2, label, identifying }
+}
+
+/**
+ * Does this ER source carry the tolerated flowchart-style subgraph construct
+ * (repo #103) — either riding the header (`erDiagram subgraph X`) or as body
+ * `subgraph …` openers? Consumed by verify to emit the UNSUPPORTED_SYNTAX
+ * lint that announces the dropped grouping; lives beside the tolerance so the
+ * announcement cannot drift from what the parser actually ignores.
+ */
+export function erContainsSubgraphConstruct(lines: string[]): boolean {
+  if (/^erdiagram\s+subgraph\b/i.test(lines[0] ?? '')) return true
+  return lines.slice(1).some(line => /^subgraph\b/.test(line))
 }
 
 /** Parse a cardinality notation string into a Cardinality type */

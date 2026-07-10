@@ -1,5 +1,21 @@
 import type { ClassDiagram, ClassNode, ClassRelationship, ClassMember, RelationshipType, ClassNamespace } from './types.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
+import { parseDirectionStatement } from '../shared/direction-statement.ts'
+
+// ---- Shared namespace grammar ----------------------------------------------
+// One grammar, two consumers: this render parser and the agent body parser
+// (src/agent/class-body.ts) both parse namespace headers through
+// parseNamespaceHeader, so membership cannot drift between the surfaces (C1).
+
+/** `namespace A.B.C {` / `namespace X["Display label"] {` */
+const NAMESPACE_OPEN_RE = /^namespace\s+([\w$]+(?:\.[\w$]+)*)(?:\s*\[\s*"?([^\]"]*)"?\s*\])?\s*\{$/
+
+/** Parse a `namespace … {` opener into its dot path + optional label. */
+export function parseNamespaceHeader(line: string): { path: string[]; label?: string } | null {
+  const m = line.match(NAMESPACE_OPEN_RE)
+  if (!m) return null
+  return { path: m[1]!.split('.'), label: m[2] || undefined }
+}
 
 // ============================================================================
 // Class diagram parser
@@ -18,6 +34,9 @@ import { normalizeBrTags } from '../multiline-utils.ts'
 //   A "1" --> "*" B : label   (with cardinality + label)
 //   Animal : +String name     (inline attribute)
 //   namespace MyNamespace { class A { } }
+//   namespace A.B.C { ... }   (dot notation auto-creates parents A, A.B)
+//   namespace X["Label"] { }  (display label, upstream v11.15+)
+//   direction LR              (TB | BT | LR | RL)
 // ============================================================================
 
 /**
@@ -33,11 +52,51 @@ export function parseClassDiagram(lines: string[]): ClassDiagram {
 
   // Track classes by ID for deduplication
   const classMap = new Map<string, ClassNode>()
-  // Track namespace nesting
-  let currentNamespace: ClassNamespace | null = null
+  // Namespace registry by full dot path (dot notation and re-opened blocks
+  // share one node) + the currently-open nesting stack.
+  const namespaceByPath = new Map<string, ClassNamespace>()
+  const namespaceStack: ClassNamespace[] = []
+  const pathStack: string[] = []
+  // A class belongs to exactly one namespace: the first block that declares it.
+  const claimedClasses = new Set<string>()
+
+  /** Resolve (creating as needed) the namespace chain for a dot path relative
+   *  to the current stack, and return the final node. */
+  const openNamespace = (segments: string[], label: string | undefined): ClassNamespace => {
+    let parentPath = pathStack.join('.')
+    let parentChildren = namespaceStack.length > 0
+      ? namespaceStack[namespaceStack.length - 1]!.children
+      : diagram.namespaces
+    let node: ClassNamespace | undefined
+    for (const segment of segments) {
+      const fullPath = parentPath ? `${parentPath}.${segment}` : segment
+      node = namespaceByPath.get(fullPath)
+      if (!node) {
+        node = { name: segment, classIds: [], children: [] }
+        namespaceByPath.set(fullPath, node)
+        parentChildren.push(node)
+      }
+      parentPath = fullPath
+      parentChildren = node.children
+      pathStack.push(segment)
+      namespaceStack.push(node)
+    }
+    if (label && node) node.label = label
+    return node!
+  }
+
+  const claimClass = (id: string): void => {
+    if (namespaceStack.length === 0 || claimedClasses.has(id)) return
+    claimedClasses.add(id)
+    namespaceStack[namespaceStack.length - 1]!.classIds.push(id)
+  }
+
   // Track class body parsing
   let currentClass: ClassNode | null = null
   let braceDepth = 0
+  // How many stack levels each open `namespace` line pushed (dot paths push
+  // several segments that one closing `}` must pop together).
+  const namespaceFrameSizes: number[] = []
 
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i]!
@@ -91,17 +150,26 @@ export function parseClassDiagram(lines: string[]): ClassDiagram {
       continue
     }
 
-    // --- Namespace block start ---
-    const nsMatch = line.match(/^namespace\s+(\S+)\s*\{$/)
-    if (nsMatch) {
-      currentNamespace = { name: nsMatch[1]!, classIds: [] }
+    // --- Direction statement ---
+    const direction = parseDirectionStatement(line)
+    if (direction) {
+      diagram.direction = direction
+      continue
+    }
+
+    // --- Namespace block start (supports nesting, dot paths, labels) ---
+    const nsHeader = parseNamespaceHeader(line)
+    if (nsHeader) {
+      openNamespace(nsHeader.path, nsHeader.label)
+      namespaceFrameSizes.push(nsHeader.path.length)
       continue
     }
 
     // --- Namespace end ---
-    if (line === '}' && currentNamespace) {
-      diagram.namespaces.push(currentNamespace)
-      currentNamespace = null
+    if (line === '}' && namespaceFrameSizes.length > 0) {
+      const frame = namespaceFrameSizes.pop()!
+      namespaceStack.length -= frame
+      pathStack.length -= frame
       continue
     }
 
@@ -116,9 +184,7 @@ export function parseClassDiagram(lines: string[]): ClassDiagram {
       }
       currentClass = cls
       braceDepth = 1
-      if (currentNamespace) {
-        currentNamespace.classIds.push(id)
-      }
+      claimClass(id)
       continue
     }
 
@@ -131,9 +197,7 @@ export function parseClassDiagram(lines: string[]): ClassDiagram {
       if (generic) {
         cls.label = `${id}<${generic}>`
       }
-      if (currentNamespace) {
-        currentNamespace.classIds.push(id)
-      }
+      claimClass(id)
       continue
     }
 
@@ -142,6 +206,7 @@ export function parseClassDiagram(lines: string[]): ClassDiagram {
     if (inlineAnnotMatch) {
       const cls = ensureClass(classMap, inlineAnnotMatch[1]!)
       cls.annotation = inlineAnnotMatch[2]!
+      claimClass(cls.id)
       continue
     }
 

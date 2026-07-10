@@ -8,11 +8,15 @@
 
 import type { ElkNode, ElkExtendedEdge } from 'elkjs'
 import type { ErDiagram, ErEntity, PositionedErDiagram, PositionedErEntity, PositionedErRelationship } from './types.ts'
-import type { RenderOptions, Point } from '../types.ts'
+import type { RenderOptions, Point, Direction } from '../types.ts'
+import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
+import { getFrontmatterScalar } from '../mermaid-source.ts'
 import { applyTextTransform, estimateTextWidth, estimateMonoTextWidth, FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults } from '../styles.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import { elkLayoutSync } from '../elk-instance.ts'
+import { directionToElk } from '../layout-engine.ts'
+import { configSpacing, ineffectiveFieldsPresent } from '../class/layout.ts'
 
 /** Layout constants for ER diagrams */
 const ER = {
@@ -46,6 +50,51 @@ export const ER_STYLE_DEFAULTS: RenderStyleDefaults = {
   groupLineWidth: STROKE_WIDTHS.outerBox,
 }
 
+/**
+ * Fold the typed `er` frontmatter config section into the layout inputs
+ * (wire-or-warn, P4): layoutDirection + nodeSpacing/rankSpacing are the wired
+ * keys. Precedence: an in-body `direction` statement > er.layoutDirection >
+ * the LR default; explicit RenderOptions spacing > er.nodeSpacing/rankSpacing.
+ * The documented-but-unwired keys are named by verify's INEFFECTIVE_CONFIG
+ * lint (ER_NOOP_CONFIG_FIELDS in src/agent/verify.ts).
+ */
+export function applyErFrontmatterConfig(
+  diagram: ErDiagram,
+  frontmatter: MermaidFrontmatterMap | undefined,
+  options: RenderOptions,
+): { diagram: ErDiagram; options: RenderOptions } {
+  if (!frontmatter) return { diagram, options }
+  const rawDirection = getFrontmatterScalar<string>(frontmatter, ['er', 'layoutDirection'])
+  const layoutDirection = typeof rawDirection === 'string' && /^(TB|TD|BT|LR|RL)$/i.test(rawDirection)
+    ? rawDirection.toUpperCase() as Direction
+    : undefined
+  const nodeSpacing = configSpacing(frontmatter, 'er', 'nodeSpacing')
+  const rankSpacing = configSpacing(frontmatter, 'er', 'rankSpacing')
+  const outDiagram = diagram.direction === undefined && layoutDirection !== undefined
+    ? { ...diagram, direction: layoutDirection }
+    : diagram
+  const outOptions = nodeSpacing === undefined && rankSpacing === undefined
+    ? options
+    : { ...options, nodeSpacing: options.nodeSpacing ?? nodeSpacing, layerSpacing: options.layerSpacing ?? rankSpacing }
+  return { diagram: outDiagram, options: outOptions }
+}
+
+/**
+ * Documented er config keys accepted for Mermaid config-shape compatibility
+ * but NOT wired to any ER geometry or paint (P4: named by verify's
+ * INEFFECTIVE_CONFIG lint). The wired keys — layoutDirection, nodeSpacing,
+ * rankSpacing — never appear here.
+ */
+export const ER_NOOP_CONFIG_FIELDS = [
+  'diagramPadding', 'entityPadding', 'fill', 'fontSize', 'minEntityHeight',
+  'minEntityWidth', 'stroke', 'titleTopMargin',
+] as const
+
+/** Which documented-but-unwired `er` config fields are present (sorted). */
+export function erIneffectiveConfigFields(configs: unknown[]): string[] {
+  return ineffectiveFieldsPresent(configs, ER_NOOP_CONFIG_FIELDS)
+}
+
 type EntitySizeMap = Map<string, { width: number; height: number; headerHeight: number }>
 
 /** Build ELK graph and size map from an ER diagram. */
@@ -75,9 +124,11 @@ function buildErElkGraph(
     id: 'root',
     layoutOptions: {
       'elk.algorithm': 'layered',
-      'elk.direction': 'RIGHT',
-      'elk.spacing.nodeNode': String(ER.nodeSpacing),
-      'elk.layered.spacing.nodeNodeBetweenLayers': String(ER.layerSpacing),
+      // direction statement (upstream v11.4+) via the shared flowchart
+      // mapping; the fork default stays LR (upstream defaults TB).
+      'elk.direction': directionToElk(diagram.direction ?? 'LR'),
+      'elk.spacing.nodeNode': String(options.nodeSpacing ?? ER.nodeSpacing),
+      'elk.layered.spacing.nodeNodeBetweenLayers': String(options.layerSpacing ?? ER.layerSpacing),
       'elk.padding': `[top=${ER.padding},left=${ER.padding},bottom=${ER.padding},right=${ER.padding}]`,
       'elk.edgeRouting': 'ORTHOGONAL',
       'elk.edgeLabels.placement': 'CENTER',

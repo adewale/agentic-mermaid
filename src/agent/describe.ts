@@ -307,6 +307,15 @@ function describeClass(d: ClassValidDiagram): string {
   const relStr = relations.map(r => `${r.from} ${r.kind} ${r.to}`)
   let s = `A class diagram with ${classes.length} classes.`
   if (names.length > 0) s += ` Classes: ${names.join(', ')}.`
+  // Namespace membership (repo #118): name each namespace with its members.
+  const namespaces = d.body.namespaces ?? []
+  if (namespaces.length > 0) {
+    const nsStr = namespaces.map(ns => {
+      const members = classes.filter(c => c.namespace === ns.name).map(c => c.id)
+      return `${ns.name} [${members.join(', ')}]`
+    })
+    s += ` Namespaces: ${nsStr.join('; ')}.`
+  }
   if (relStr.length > 0) s += ` Relations: ${relStr.join('; ')}.`
   return s
 }

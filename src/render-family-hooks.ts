@@ -14,10 +14,10 @@ import { parseSequenceDiagram } from './sequence/parser.ts'
 import { layoutSequenceDiagram } from './sequence/layout.ts'
 import { renderSequenceSvg, lowerSequenceScene } from './sequence/renderer.ts'
 import { parseClassDiagram } from './class/parser.ts'
-import { layoutClassDiagram } from './class/layout.ts'
+import { layoutClassDiagram, resolveClassRenderOptions } from './class/layout.ts'
 import { renderClassSvg, lowerClassScene } from './class/renderer.ts'
 import { parseErDiagram } from './er/parser.ts'
-import { layoutErDiagram } from './er/layout.ts'
+import { layoutErDiagram, applyErFrontmatterConfig } from './er/layout.ts'
 import { renderErSvg, lowerErScene } from './er/renderer.ts'
 import { parseTimelineDiagram } from './timeline/parser.ts'
 import { layoutTimelineDiagram } from './timeline/layout.ts'
@@ -30,9 +30,11 @@ import { layoutXYChart } from './xychart/layout.ts'
 import { renderXYChartSvg, lowerXYChartScene } from './xychart/renderer.ts'
 import { parsePieChart } from './pie/parser.ts'
 import { layoutPieChart } from './pie/layout.ts'
+import { resolvePieVisualConfig } from './pie/config.ts'
 import { renderPieSvg, lowerPieScene } from './pie/renderer.ts'
 import { parseQuadrantChart } from './quadrant/parser.ts'
 import { layoutQuadrantChart } from './quadrant/layout.ts'
+import { resolveQuadrantVisualConfig } from './quadrant/config.ts'
 import { renderQuadrantSvg, lowerQuadrantScene } from './quadrant/renderer.ts'
 import { buildGanttRenderPipeline } from './gantt/pipeline.ts'
 import { renderGanttSvg, lowerGanttScene } from './gantt/renderer.ts'
@@ -170,14 +172,25 @@ registerRenderHooks('sequence', {
 })
 
 registerRenderHooks('class', {
-  layout: ctx => layoutResult(layoutClassDiagram(parseClassDiagram(ctx.source.lines), ctx.options)),
+  // Wire-or-warn config threading: the typed `class` frontmatter section's
+  // nodeSpacing/rankSpacing fold into RenderOptions (explicit options win).
+  layout: ctx => layoutResult(layoutClassDiagram(
+    parseClassDiagram(ctx.source.lines),
+    resolveClassRenderOptions(ctx.source.frontmatter, ctx.options),
+  )),
   renderSvg: svg(renderClassSvg),
   lowerScene: scene(lowerClassScene),
   renderAscii: ctx => renderClassAscii(ctx.source.text, ctx.config, ctx.colorMode, ctx.theme),
 })
 
 registerRenderHooks('er', {
-  layout: ctx => layoutResult(layoutErDiagram(parseErDiagram(ctx.source.lines), ctx.options)),
+  // Wire-or-warn config threading: er.layoutDirection + nodeSpacing/
+  // rankSpacing fold into the parsed diagram/options (statement + explicit
+  // options win over frontmatter).
+  layout: ctx => {
+    const configured = applyErFrontmatterConfig(parseErDiagram(ctx.source.lines), ctx.source.frontmatter, ctx.options)
+    return layoutResult(layoutErDiagram(configured.diagram, configured.options))
+  },
   renderSvg: svg(renderErSvg),
   lowerScene: scene(lowerErScene),
   renderAscii: ctx => renderErAscii(ctx.source.text, ctx.config, ctx.colorMode, ctx.theme),
@@ -212,14 +225,25 @@ registerRenderHooks('xychart', {
 })
 
 registerRenderHooks('pie', {
-  layout: ctx => layoutResult(layoutPieChart(parsePieChart(ctx.source.lines), ctx.options)),
+  layout: ctx => layoutResult(layoutPieChart(
+    parsePieChart(ctx.source.lines),
+    ctx.options,
+    resolvePieVisualConfig(ctx.source.frontmatter),
+  )),
   renderSvg: svg(renderPieSvg),
   lowerScene: scene(lowerPieScene),
-  renderAscii: ctx => renderPieAscii(ctx.source.lines, ctx.config, ctx.colorMode, ctx.theme),
+  renderAscii: ctx => renderPieAscii(ctx.source.lines, ctx.config, ctx.colorMode, ctx.theme, ctx.source.frontmatter),
 })
 
 registerRenderHooks('quadrant', {
-  layout: ctx => layoutResult(layoutQuadrantChart(parseQuadrantChart(ctx.source.lines), ctx.options)),
+  // The wired quadrantChart config section (chart size, fonts, point radius,
+  // border widths, useMaxWidth) resolves from frontmatter/init directives and
+  // rides on the positioned chart so layout and renderer read the SAME values.
+  layout: ctx => layoutResult(layoutQuadrantChart(
+    parseQuadrantChart(ctx.source.lines),
+    ctx.options,
+    resolveQuadrantVisualConfig(ctx.source.frontmatter),
+  )),
   renderSvg: svg(renderQuadrantSvg),
   lowerScene: scene(lowerQuadrantScene),
   renderAscii: ctx => renderQuadrantAscii(ctx.source.lines, ctx.config, ctx.colorMode, ctx.theme),

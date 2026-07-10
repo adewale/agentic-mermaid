@@ -446,7 +446,13 @@ registerFamily({
   // removed the duplicate per-body branch in verify.ts).
   verify: (body, opts) => body.kind === 'er' ? verifyErBody(body, opts) : [],
   buildSourceMap: buildErSourceMap,
-  ...structuredFamilyHooks('er', { parseBody: parseErBody, serialize: renderEr, mutate: mutateEr }),
+  ...structuredFamilyHooks('er', {
+    // A header-riding subgraph clause (`erDiagram subgraph X`, repo #103) is
+    // tolerated by the renderer but unmodeled here: keep the body opaque so
+    // the clause round-trips verbatim instead of being dropped on serialize.
+    headerOk: h => /^erdiagram\s*$/i.test(h),
+    parseBody: parseErBody, serialize: renderEr, mutate: mutateEr,
+  }),
 })
 
 // ---- Journey --------------------------------------------------------------
@@ -778,6 +784,10 @@ function verifyOpaqueQuadrant(body: DiagramBody): LayoutWarning[] {
   // Unrenderable opaque sources are the universal render-parity gate's job
   // (Tier-1 RENDER_FAILED in verifyMermaid) — this hook's remaining value is
   // the style-metadata lint, which scans raw lines and needs no parse.
+  // Well-formed styles/classDefs parse STRUCTURED now (upstream #5173 is
+  // modeled end to end), so these warnings only fire when style-looking
+  // metadata rides on an OPAQUE body: either the metadata itself is malformed
+  // (the renderer errors loudly on it) or another line forced the fallback.
 
   let sawPointStyle = false
   let sawClassDef = false
@@ -792,14 +802,14 @@ function verifyOpaqueQuadrant(body: DiagramBody): LayoutWarning[] {
     warnings.push({
       code: 'UNSUPPORTED_SYNTAX',
       syntax: 'quadrant_point_style_metadata',
-      message: 'Quadrant point style/class metadata is preserved in source and accepted by the local renderer, but typed mutation/layout metadata does not model radius/color/class styling.',
+      message: 'Quadrant point style/class metadata is present but this diagram fell back to an opaque body (malformed style metadata or other unmodeled syntax), so typed mutation cannot see the styles. Well-formed radius/color/stroke styling parses structured and renders.',
     })
   }
   if (sawClassDef) {
     warnings.push({
       code: 'UNSUPPORTED_SYNTAX',
       syntax: 'quadrant_classDef_metadata',
-      message: 'Quadrant classDef metadata is preserved in source and accepted by the local renderer, but typed mutation/layout metadata does not model class styling.',
+      message: 'Quadrant classDef metadata is present but this diagram fell back to an opaque body (malformed classDef or other unmodeled syntax), so typed mutation cannot see the classes. Well-formed classDefs parse structured and render.',
     })
   }
   return warnings
@@ -811,7 +821,7 @@ registerFamily({
   extractLabels: extractQuadrantLabels,
   // Quadrant is structured-when-narrowed. The verify hook covers the structured
   // body; opaque fallbacks keep the universal label-extraction path and warn
-  // when official style metadata is preserved but not semantically modeled.
+  // when style-looking metadata is preserved on an opaque body.
   verify: (body, opts) => body.kind === 'quadrant' ? verifyQuadrant(body, opts) : verifyOpaqueQuadrant(body),
   buildSourceMap: buildChartSourceMap,
   ...structuredFamilyHooks('quadrant', {

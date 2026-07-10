@@ -28,24 +28,20 @@
     }
   },
   "observed": {
-    "importedCases": 642,
-    "importedBlocks": 652,
+    "importedCases": 643,
+    "importedBlocks": 653,
     "localGaps": {
-      "totalBlocks": 6,
+      "totalBlocks": 5,
       "byReason": {
-        "local-verify-gap": 6
+        "local-verify-gap": 5
       },
       "byFamily": {
         "architecture": 4,
-        "er": 1,
         "flowchart": 1
       },
       "byFamilyReason": {
         "architecture": {
           "local-verify-gap": 4
-        },
-        "er": {
-          "local-verify-gap": 1
         },
         "flowchart": {
           "local-verify-gap": 1

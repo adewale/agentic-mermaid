@@ -9441,39 +9441,6 @@
     }
   },
   {
-    "id": "er-upstream-should-correctly-parse-direction-rl-inside-a-subgraph",
-    "families": [
-      "er"
-    ],
-    "reason": "local-verify-gap",
-    "summary": "Upstream-valid source the local render parser rejects (Invalid mermaid header: \"erDiagram subgraph WithRL\". Expected \"graph TD\", \"flowchart LR\", \"stateDiagram-v2\", etc.). Verify now reports Tier-1 RENDER_FAILED for it, so it no longer imports as a green case; closing the renderer gap re-imports it.",
-    "blockCount": 1,
-    "upstream": {
-      "repo": "mermaid-js/mermaid",
-      "files": [
-        "packages/mermaid/src/diagrams/er/parser/subgraph.spec.js"
-      ],
-      "blocks": [
-        "packages/mermaid/src/diagrams/er/parser/subgraph.spec.js :: should correctly parse direction RL inside a subgraph"
-      ]
-    },
-    "source": "erDiagram subgraph WithRL\ndirection RL\nA\nB\nend",
-    "ours": {
-      "parseOk": true,
-      "structured": false,
-      "verifyOk": false,
-      "layoutOk": true,
-      "roundtripOk": true
-    },
-    "tracking": {
-      "issue": "#103",
-      "owner": "BUILD-20",
-      "lane": "er-parity",
-      "priority": "P2",
-      "target": "convert-to-case"
-    }
-  },
-  {
     "id": "flowchart-upstream-markdown-formatting-in-nodes-and-labels",
     "families": [
       "flowchart"
