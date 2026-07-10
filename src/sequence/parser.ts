@@ -1,5 +1,6 @@
-import type { SequenceDiagram, Actor, Message, Block, Note } from './types.ts'
+import type { SequenceDiagram, Actor, Message, Block, Note, SequenceBoxGroup } from './types.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
+import { isCssColorToken } from './colors.ts'
 
 // ============================================================================
 // Sequence diagram parser
@@ -22,6 +23,10 @@ import { normalizeBrTags } from '../multiline-utils.ts'
 //   Note left of A: Text
 //   Note right of A: Text
 //   Note over A,B: Text
+//   autonumber [off | <start> [<step>]]
+//   box [<color>] [Label] ... end
+//   create participant|actor X [as Label]
+//   destroy X
 // ============================================================================
 
 /**
@@ -34,12 +39,61 @@ export function parseSequenceDiagram(lines: string[]): SequenceDiagram {
     messages: [],
     blocks: [],
     notes: [],
+    boxes: [],
   }
 
   // Track actor IDs to auto-create actors referenced in messages
   const actorIds = new Set<string>()
   // Track block nesting with a stack
   const blockStack: Array<{ type: Block['type']; label: string; startIndex: number; dividers: Block['dividers'] }> = []
+  // Open `box … end` group (boxes never nest; they only wrap participant lines)
+  let openBox: SequenceBoxGroup | null = null
+  // Active autonumber state; null = numbering off
+  let autonumber: { next: number; step: number } | null = null
+  // Actors awaiting their binding message (`create X` / `destroy X` directives
+  // take effect at the NEXT message that involves the actor)
+  const pendingCreates: string[] = []
+  const pendingDestroys: string[] = []
+
+  // Shared handler for the two message regex branches, so autonumber and
+  // create/destroy binding cannot drift between them.
+  const pushMessage = (from: string, arrow: string, activationMark: string | undefined, to: string, rawLabel: string): void => {
+    // Ensure both actors exist
+    ensureActor(diagram, actorIds, from)
+    ensureActor(diagram, actorIds, to)
+
+    // Determine line style and arrow head from the arrow operator
+    const lineStyle = arrow.startsWith('--') ? 'dashed' : 'solid'
+    // ">>" = filled arrow, ")" or ">" alone = open arrow, "x" = cross (treat as filled)
+    const arrowHead = arrow.includes('>>') || arrow.includes('x') ? 'filled' : 'open'
+
+    const msg: Message = {
+      from,
+      to,
+      label: normalizeBrTags(rawLabel.trim()),
+      lineStyle,
+      arrowHead,
+    }
+
+    // Activation/deactivation via +/- prefix on target
+    if (activationMark === '+') msg.activate = true
+    if (activationMark === '-') msg.deactivate = true
+
+    if (autonumber) {
+      msg.number = autonumber.next
+      // Upstream allows decimal steps to the hundredth; round so float drift
+      // can't leak into labels.
+      autonumber.next = Math.round((autonumber.next + autonumber.step) * 100) / 100
+    }
+
+    // Bind pending create/destroy directives to this message when it involves
+    // the actor (upstream ties creation to the message the actor receives and
+    // destruction to the next message it sends or receives).
+    bindLifecycle(pendingCreates, from, to, diagram, actor => { actor.createMessageIndex = diagram.messages.length })
+    bindLifecycle(pendingDestroys, from, to, diagram, actor => { actor.destroyMessageIndex = diagram.messages.length })
+
+    diagram.messages.push(msg)
+  }
 
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i]!
@@ -83,6 +137,71 @@ export function parseSequenceDiagram(lines: string[]): SequenceDiagram {
         actorIds.add(id)
         diagram.actors.push({ id, label, type })
       }
+      // Declarations inside an open box join its membership (re-declaration
+      // included, matching upstream where the declaring line places the actor)
+      if (openBox && !openBox.actorIds.includes(id)) openBox.actorIds.push(id)
+      continue
+    }
+
+    // --- autonumber [off | <start> [<step>]] ---
+    const autoMatch = line.match(/^autonumber(?:\s+(.*))?$/i)
+    if (autoMatch) {
+      const rest = autoMatch[1]?.trim() ?? ''
+      if (/^off$/i.test(rest)) {
+        autonumber = null
+      } else {
+        const nums = rest.match(/^(\d+(?:\.\d+)?)(?:\s+(\d+(?:\.\d+)?))?$/)
+        autonumber = {
+          next: nums ? Number.parseFloat(nums[1]!) : 1,
+          step: nums?.[2] !== undefined ? Number.parseFloat(nums[2]) : 1,
+        }
+      }
+      continue
+    }
+
+    // --- box [<color>] [Label] … end ---
+    const boxMatch = line.match(/^box(?:\s+(.*))?$/i)
+    if (boxMatch) {
+      const rest = boxMatch[1]?.trim() ?? ''
+      const box: SequenceBoxGroup = { actorIds: [] }
+      // The leading token is a color when it IS one (color functions may
+      // contain spaces, so match them before splitting on whitespace);
+      // `box transparent <label>` is the upstream escape hatch for labels
+      // that look like colors.
+      const fnColor = rest.match(/^((?:rgb|rgba|hsl|hsla)\([^)]*\))\s*(.*)$/i)
+      let label = rest
+      if (fnColor) {
+        box.color = fnColor[1]!
+        label = fnColor[2]?.trim() ?? ''
+      } else {
+        const firstWord = rest.split(/\s+/, 1)[0] ?? ''
+        if (firstWord && isCssColorToken(firstWord)) {
+          box.color = firstWord
+          label = rest.slice(firstWord.length).trim()
+        }
+      }
+      if (label) box.label = normalizeBrTags(label)
+      diagram.boxes!.push(box)
+      openBox = box
+      continue
+    }
+
+    // --- create / destroy lifecycle directives ---
+    const createMatch = line.match(/^create\s+(participant|actor)\s+(\S+?)(?:\s+as\s+(.+))?$/i)
+    if (createMatch) {
+      const type = createMatch[1]!.toLowerCase() as 'participant' | 'actor'
+      const id = createMatch[2]!
+      const label = normalizeBrTags(createMatch[3]?.trim() ?? id)
+      if (!actorIds.has(id)) {
+        actorIds.add(id)
+        diagram.actors.push({ id, label, type })
+      }
+      pendingCreates.push(id)
+      continue
+    }
+    const destroyMatch = line.match(/^destroy\s+(\S+)$/i)
+    if (destroyMatch) {
+      pendingDestroys.push(destroyMatch[1]!)
       continue
     }
 
@@ -153,6 +272,13 @@ export function parseSequenceDiagram(lines: string[]): SequenceDiagram {
       continue
     }
 
+    // --- Box end (boxes only wrap participant declarations, so any `end`
+    //     with no open block closes the open box) ---
+    if (line === 'end' && openBox) {
+      openBox = null
+      continue
+    }
+
     // --- Message ---
     // Patterns: A->>B, A-->>B, A-)B, A--)B, with optional +/- activation
     // Format: FROM ARROW TO: LABEL
@@ -160,34 +286,7 @@ export function parseSequenceDiagram(lines: string[]): SequenceDiagram {
       /^(\S+?)\s*(--?>?>|--?[)x]|--?>>|--?>)\s*([+-]?)(\S+?)\s*:\s*(.+)$/
     )
     if (msgMatch) {
-      const from = msgMatch[1]!
-      const arrow = msgMatch[2]!
-      const activationMark = msgMatch[3]
-      const to = msgMatch[4]!
-      const label = normalizeBrTags(msgMatch[5]!.trim())
-
-      // Ensure both actors exist
-      ensureActor(diagram, actorIds, from)
-      ensureActor(diagram, actorIds, to)
-
-      // Determine line style and arrow head from the arrow operator
-      const lineStyle = arrow.startsWith('--') ? 'dashed' : 'solid'
-      // ">>" = filled arrow, ")" or ">" alone = open arrow, "x" = cross (treat as filled)
-      const arrowHead = arrow.includes('>>') || arrow.includes('x') ? 'filled' : 'open'
-
-      const msg: Message = {
-        from,
-        to,
-        label,
-        lineStyle,
-        arrowHead,
-      }
-
-      // Activation/deactivation via +/- prefix on target
-      if (activationMark === '+') msg.activate = true
-      if (activationMark === '-') msg.deactivate = true
-
-      diagram.messages.push(msg)
+      pushMessage(msgMatch[1]!, msgMatch[2]!, msgMatch[3], msgMatch[4]!, msgMatch[5]!)
       continue
     }
 
@@ -196,23 +295,7 @@ export function parseSequenceDiagram(lines: string[]): SequenceDiagram {
       /^(\S+?)\s*(->>|-->>|-\)|--\)|-x|--x|->|-->)\s*([+-]?)(\S+?)\s*:\s*(.+)$/
     )
     if (simpleMsgMatch) {
-      const from = simpleMsgMatch[1]!
-      const arrow = simpleMsgMatch[2]!
-      const activationMark = simpleMsgMatch[3]
-      const to = simpleMsgMatch[4]!
-      const label = normalizeBrTags(simpleMsgMatch[5]!.trim())
-
-      ensureActor(diagram, actorIds, from)
-      ensureActor(diagram, actorIds, to)
-
-      const lineStyle = arrow.startsWith('--') ? 'dashed' : 'solid'
-      const arrowHead = arrow.includes('>>') || arrow.includes('x') ? 'filled' : 'open'
-
-      const msg: Message = { from, to, label, lineStyle, arrowHead }
-      if (activationMark === '+') msg.activate = true
-      if (activationMark === '-') msg.deactivate = true
-
-      diagram.messages.push(msg)
+      pushMessage(simpleMsgMatch[1]!, simpleMsgMatch[2]!, simpleMsgMatch[3], simpleMsgMatch[4]!, simpleMsgMatch[5]!)
       continue
     }
 
@@ -252,4 +335,30 @@ function ensureActor(diagram: SequenceDiagram, actorIds: Set<string>, id: string
     actorIds.add(id)
     diagram.actors.push({ id, label: id, type: 'participant' })
   }
+}
+
+/** Bind any pending create/destroy directive whose actor participates in the
+ *  message being parsed; unmatched directives stay pending (and stay inert if
+ *  no later message ever involves the actor). */
+function bindLifecycle(
+  pending: string[],
+  from: string,
+  to: string,
+  diagram: SequenceDiagram,
+  assign: (actor: Actor) => void,
+): void {
+  for (let i = pending.length - 1; i >= 0; i--) {
+    const id = pending[i]!
+    if (id !== from && id !== to) continue
+    const actor = diagram.actors.find(a => a.id === id)
+    if (actor) assign(actor)
+    pending.splice(i, 1)
+  }
+}
+
+/** The label a display surface should draw for a message: the autonumber
+ *  prefix ("1. label") composed in exactly one place, shared by the SVG
+ *  layout and the ASCII renderer so the surfaces cannot drift. */
+export function displayMessageLabel(msg: Pick<Message, 'label' | 'number'>): string {
+  return msg.number !== undefined ? `${msg.number}. ${msg.label}` : msg.label
 }

@@ -1,4 +1,7 @@
-import type { PositionedSequenceDiagram, PositionedActor, Lifeline, PositionedMessage, Activation, PositionedBlock, PositionedNote } from './types.ts'
+import type { PositionedSequenceDiagram, PositionedActor, Lifeline, PositionedMessage, Activation, PositionedBlock, PositionedNote, PositionedBoxGroup, LifelineCross } from './types.ts'
+import { boxColorToHex } from './colors.ts'
+import { contrastTextColor } from '../color-resolver.ts'
+import { wcagContrastRatio } from '../shared/color-math.ts'
 import type { RenderContext } from '../types.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
 import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, ARROW_HEAD, estimateTextWidth, TEXT_BASELINE_SHIFT, applyTextTransform, resolveRenderStyle } from '../styles.ts'
@@ -26,11 +29,12 @@ import { DefaultBackend } from '../scene/backend.ts'
 // All colors use CSS custom properties (var(--_xxx)) from the theme system.
 //
 // Render order (back to front):
+//   0. Box group frames (`box … end` backgrounds + titles)
 //   1. Block backgrounds (loop/alt/opt)
 //   2. Lifelines (dashed vertical lines)
 //   3. Activation boxes
 //   4. Messages (arrows with labels)
-//   5. Notes
+//   5. Notes (then destroy crosses)
 //   6. Actor boxes (at top)
 // ============================================================================
 
@@ -97,6 +101,15 @@ export function lowerSequenceScene(
       `<desc id="${descId}">${escapeXml(diagram.accessibilityDescription)}</desc>`))
   }
 
+  // 0. Box group frames (behind everything, including block backgrounds)
+  const boxOccurrence = new Map<string, number>()
+  for (const box of diagram.boxes) {
+    const boxKey = box.label ?? ''
+    const k = boxOccurrence.get(boxKey) ?? 0
+    boxOccurrence.set(boxKey, k + 1)
+    parts.push(renderBoxGroup(box, style, `box:${boxKey}#${k}`))
+  }
+
   // 1. Block backgrounds (loop/alt/opt rectangles)
   const blockOccurrence = new Map<string, number>()
   for (const block of diagram.blocks) {
@@ -134,6 +147,12 @@ export function lowerSequenceScene(
     const k = noteOccurrence.get(noteKey) ?? 0
     noteOccurrence.set(noteKey, k + 1)
     parts.push(renderNote(note, style, `note:${noteKey}#${k}`))
+  }
+
+  // 5b. Destroy crosses (X where a destroyed lifeline ends) — drawn above
+  //     messages/lifelines so the cross stays legible.
+  for (const cross of diagram.destructions) {
+    parts.push(renderDestroyCross(cross, style))
   }
 
   // 6. Actor boxes at top (rendered last so they're on top)
@@ -533,6 +552,101 @@ function renderBlock(block: PositionedBlock, style: ResolvedRenderStyle, sceneId
     close: '</g>',
     children,
   })
+}
+
+/**
+ * Render a `box … end` group frame: a background rect spanning the member
+ * actors and their lifelines, plus a centered title in the top band.
+ *
+ * Fill policy: explicit source colors ('Aqua', '#1f2a44', 'rgb(…)') are used
+ * verbatim; 'transparent' renders no fill; without a color the fill derives
+ * from the theme (color-mix of fg over bg), so it adapts to dark themes.
+ * Title ink follows the journey precedent: when the effective fill resolves
+ * to a concrete hex, the default ink is WCAG-guarded (>= 4.5:1) and flips to
+ * the black/white contrast pick when it can't be proven safe.
+ */
+function renderBoxGroup(box: PositionedBoxGroup, style: ResolvedRenderStyle, sceneId: string): SceneNode {
+  const children: Array<{ node: SceneNode; indent: number }> = []
+  const labelAttr = box.label ? ` data-label="${escapeAttr(box.label)}"` : ''
+  const open = `<g class="box"${labelAttr}>`
+
+  const explicit = box.color?.toLowerCase() === 'transparent' ? 'none' : box.color
+  const fill = explicit ?? 'color-mix(in srgb, var(--fg) 5%, var(--bg))'
+  children.push({
+    indent: 2,
+    node: marks.shape({
+      id: `${sceneId}:rect`,
+      role: 'group',
+      geometry: { kind: 'rect', x: box.x, y: box.y, width: box.width, height: box.height, rx: style.groupCornerRadius, ry: style.groupCornerRadius },
+      paint: { fill, stroke: 'none' },
+    },
+      `<rect x="${box.x}" y="${box.y}" width="${box.width}" height="${box.height}" ` +
+      `rx="${style.groupCornerRadius}" ry="${style.groupCornerRadius}" fill="${escapeAttr(fill)}" stroke="none" />`),
+  })
+
+  if (box.label) {
+    const displayLabel = applyTextTransform(box.label, style.groupTextTransform)
+    const ink = boxTitleInk(explicit, style)
+    const titleX = box.x + box.width / 2
+    const titleY = box.y + 13
+    children.push({
+      indent: 2,
+      node: marks.text({
+        id: `${sceneId}:title`,
+        role: 'label',
+        text: displayLabel,
+        x: titleX,
+        y: titleY,
+        fontSize: style.groupHeaderFontSize,
+        anchor: 'middle',
+        paint: { fill: ink },
+      }, renderMultilineText(displayLabel, titleX, titleY, style.groupHeaderFontSize,
+        `font-size="${style.groupHeaderFontSize}" text-anchor="middle" font-weight="${style.groupHeaderFontWeight}"${style.groupFont ? ` font-family="${escapeAttr(style.groupFont)}"` : ''}${letterAttr(style.groupLetterSpacing)} fill="${escapeAttr(ink)}"`)),
+    })
+  }
+
+  return marks.group({
+    id: sceneId,
+    role: 'group',
+    open,
+    close: '</g>',
+    children,
+  })
+}
+
+/** Title ink for a box: theme text color by default; against a concretely
+ *  resolvable fill it must clear WCAG AA (4.5:1) or flip to the black/white
+ *  contrast pick (journey's contrastGuardedLabelColor pattern). */
+function boxTitleInk(fill: string | undefined, style: ResolvedRenderStyle): string {
+  const themed = style.groupTextColor ?? 'var(--_text-sec)'
+  if (!fill || fill === 'none') return themed
+  const fillHex = boxColorToHex(fill)
+  if (!fillHex) return themed // non-resolvable paint — theme ink passes through
+  const explicit = style.groupTextColor
+  if (explicit) {
+    const ratio = wcagContrastRatio(explicit, fillHex)
+    if (ratio !== null && ratio >= 4.5) return explicit
+  }
+  return contrastTextColor(fillHex) ?? themed
+}
+
+/**
+ * Render the X cross ending a destroyed lifeline (`destroy` directive).
+ */
+function renderDestroyCross(cross: LifelineCross, style: ResolvedRenderStyle): SceneNode {
+  const r = 8
+  const stroke = style.edgeStrokeColor ?? 'var(--_line)'
+  const strokeWidth = Math.max(1.5, style.lineWidth)
+  const d = `M ${cross.x - r} ${cross.y - r} L ${cross.x + r} ${cross.y + r} M ${cross.x - r} ${cross.y + r} L ${cross.x + r} ${cross.y - r}`
+  return marks.shape({
+    id: `destroy:${cross.actorId}`,
+    role: 'icon',
+    geometry: { kind: 'path', d },
+    paint: { stroke, strokeWidth: String(strokeWidth) },
+    channels: { category: cross.actorId },
+  },
+    `<path class="destroy-cross" data-actor="${escapeAttr(cross.actorId)}" d="${d}" ` +
+    `fill="none" stroke="${escapeAttr(stroke)}" stroke-width="${strokeWidth}" />`)
 }
 
 /**
