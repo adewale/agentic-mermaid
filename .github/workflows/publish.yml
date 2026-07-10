@@ -81,6 +81,15 @@ jobs:
         # under trusted publishing — no `--provenance` flag needed.
         run: npm publish --access public
 
+  publish-mcp:
+    # Keep registry publication in a retryable job. If it fails after npm has
+    # accepted an immutable version, rerunning this job must not publish npm again.
+    needs: publish
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
       - name: Install MCP Registry publisher
         # This binary shares the job's OIDC permission, so pin both the release
         # and checksum instead of executing the mutable latest download.

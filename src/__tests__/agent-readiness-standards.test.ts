@@ -171,6 +171,7 @@ describe('agent-readiness standards syntax', () => {
       url: 'https://agentic-mermaid.dev/mcp',
     }])
     expect(packageJson.files).toContain('server.json')
+    expect(publishWorkflow).toMatch(/\n  publish-mcp:\n(?:    .*\n)*?    needs: publish\n/)
     expect(publishWorkflow).toContain('releases/download/v1.7.9/mcp-publisher_linux_amd64.tar.gz')
     expect(publishWorkflow).toContain('ab128162b0616090b47cf245afe0a23f3ef08936fdce19074f5ba0a4469281ac')
     expect(publishWorkflow).toContain('./mcp-publisher login github-oidc')
