@@ -7,6 +7,8 @@ journey
 ---
 Product journey
 
+scores: 4 5
+
 [Discover]
 ####. Interview
       users

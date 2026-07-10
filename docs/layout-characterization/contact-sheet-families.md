@@ -332,6 +332,8 @@ Rendered:
 ```
 My Day
 
+scores: ▄▁ █
+
 [Morning]
 ●●●○○ Wake up
   by Me

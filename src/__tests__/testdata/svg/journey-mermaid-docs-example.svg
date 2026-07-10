@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 942 518.3" width="942" height="518.3" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" role="img" aria-roledescription="user journey" aria-labelledby="journey-1drb3r0-title">
-<title id="journey-1drb3r0-title">My working day</title>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 982 482.3" width="982" height="482.3" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" role="img" aria-roledescription="user journey" aria-labelledby="journey-ynv8jk-title">
+<title id="journey-ynv8jk-title">My working day</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap');
   text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
@@ -20,7 +20,7 @@
   }
 </style>
 <defs>
-  <marker id="journey-1drb3r0-arrowhead" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
+  <marker id="journey-ynv8jk-arrowhead" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
     <path d="M0,0 L10,4 L0,8 Z" fill="#47474a" />
   </marker>
 </defs>
@@ -29,27 +29,16 @@
   .journey-section-bg { fill: #f0f0f1; stroke: #d4d4d4; stroke-width: 1; }
   .journey-section-0 { fill: #f0f0f1; stroke: #b2b2b3; }
   .journey-section-1 { fill: #ecedf4; stroke: #adb2d3; }
-  .journey-section-2 { fill: #f5f3fb; stroke: #d3ccf0; }
-  .journey-section-3 { fill: #ebecf1; stroke: #a9b0c4; }
-  .journey-section-4 { fill: #f9f7fd; stroke: #e6dcf5; }
-  .journey-section-5 { fill: #ebedf1; stroke: #a9b4c4; }
   .journey-section-label-band { fill: #e5e5e6; stroke: none; }
   .journey-section-band-0 { fill: #e5e5e6; }
   .journey-section-band-1 { fill: #dddfec; }
-  .journey-section-band-2 { fill: #edeaf9; }
-  .journey-section-band-3 { fill: #dbdee6; }
-  .journey-section-band-4 { fill: #f5f0fb; }
-  .journey-section-band-5 { fill: #dbdfe6; }
   .journey-section-label { fill: #27272A; }
   .journey-section-label-0 { fill: #27272A; }
   .journey-section-label-1 { fill: #27272A; }
-  .journey-section-label-2 { fill: #27272A; }
-  .journey-section-label-3 { fill: #27272A; }
-  .journey-section-label-4 { fill: #27272A; }
-  .journey-section-label-5 { fill: #27272A; }
   .journey-task-box { fill: #f9f9f9; stroke: #d4d4d4; stroke-width: 1; }
   .journey-task-text { fill: #27272A; }
   .journey-track { stroke: #dddddd; stroke-width: 1; stroke-dasharray: 4 7; }
+  .journey-curve { fill: none; stroke: #9a9a9b; stroke-width: 2; stroke-linecap: round; }
   .journey-guide { stroke: #e4e4e4; stroke-width: 1; }
   .journey-score-label { fill: #575759; }
   .journey-baseline { stroke: #47474a; stroke-width: 2; }
@@ -59,27 +48,21 @@
   .journey-actor-legend-title { fill: #575759; }
   .journey-actor-legend-text { fill: #575759; }
   .journey-actor-dot { stroke: #FFFFFF; stroke-width: 1; }
-  .journey-actor-0 { fill: #47474a; }
-  .journey-actor-1 { fill: #28358a; }
-  .journey-actor-2 { fill: #8c79d8; }
-  .journey-actor-3 { fill: #1d2f63; }
-  .journey-actor-4 { fill: #bea4e5; }
-  .journey-actor-5 { fill: #1d3963; }
-  .journey-actor-6 { fill: #cda8e6; }
-  .journey-actor-7 { fill: #1d4263; }
+  .journey-actor-0 { fill: #34438d; }
+  .journey-actor-1 { fill: #8d3f34; }
 </style>
 <g class="journey-score-guide" data-score-min="1" data-score-max="5">
-  <line class="journey-guide" x1="176" y1="256.3" x2="900" y2="256.3" />
+  <line class="journey-guide" x1="176" y1="256.3" x2="950" y2="256.3" />
   <text x="164" y="256.3" class="journey-score-label" text-anchor="end" font-size="11" font-weight="600" dy="3.8499999999999996">5</text>
-  <line class="journey-guide" x1="176" y1="296.3" x2="900" y2="296.3" />
+  <line class="journey-guide" x1="176" y1="296.3" x2="950" y2="296.3" />
   <text x="164" y="296.3" class="journey-score-label" text-anchor="end" font-size="11" font-weight="600" dy="3.8499999999999996">4</text>
-  <line class="journey-guide" x1="176" y1="336.3" x2="900" y2="336.3" />
+  <line class="journey-guide" x1="176" y1="336.3" x2="950" y2="336.3" />
   <text x="164" y="336.3" class="journey-score-label" text-anchor="end" font-size="11" font-weight="600" dy="3.8499999999999996">3</text>
-  <line class="journey-guide" x1="176" y1="376.3" x2="900" y2="376.3" />
+  <line class="journey-guide" x1="176" y1="376.3" x2="950" y2="376.3" />
   <text x="164" y="376.3" class="journey-score-label" text-anchor="end" font-size="11" font-weight="600" dy="3.8499999999999996">2</text>
-  <line class="journey-guide" x1="176" y1="416.3" x2="900" y2="416.3" />
+  <line class="journey-guide" x1="176" y1="416.3" x2="950" y2="416.3" />
   <text x="164" y="416.3" class="journey-score-label" text-anchor="end" font-size="11" font-weight="600" dy="3.8499999999999996">1</text>
-  <line class="journey-baseline" x1="176" y1="474.3" x2="900" y2="474.3" marker-end="url(#journey-1drb3r0-arrowhead)" />
+  <line class="journey-baseline" x1="176" y1="448.3" x2="950" y2="448.3" marker-end="url(#journey-ynv8jk-arrowhead)" />
 </g>
 <g class="journey-actor-legend">
   <text x="32" y="118.4" class="journey-actor-legend-title" text-anchor="start" font-size="12" font-weight="600" dy="4.199999999999999">Actors</text>
@@ -89,75 +72,76 @@
   <text x="54" y="166.4" class="journey-actor-legend-text" text-anchor="start" font-size="11" font-weight="600" dy="3.8499999999999996">Cat</text>
 </g>
 <g class="journey-section" data-id="section-0" data-label="Go to work">
-  <rect class="journey-section-bg journey-section-0" x="166" y="73.4" width="444" height="36" rx="6" ry="6" />
-  <rect class="journey-section-label-band journey-section-band-0" x="172" y="80.4" width="432" height="22" rx="6" ry="6" />
-  <text x="388" y="91.4" class="journey-section-label journey-section-label-0" text-anchor="middle" font-size="12" font-weight="600" dy="4.199999999999999">Go to work</text>
+  <rect class="journey-section-bg journey-section-0" x="176" y="73.4" width="444" height="36" rx="6" ry="6" />
+  <rect class="journey-section-label-band journey-section-band-0" x="182" y="80.4" width="432" height="22" rx="6" ry="6" />
+  <text x="398" y="91.4" class="journey-section-label journey-section-label-0" text-anchor="middle" font-size="12" font-weight="600" dy="4.199999999999999">Go to work</text>
 </g>
 <g class="journey-section" data-id="section-1" data-label="Go home">
-  <rect class="journey-section-bg journey-section-1" x="616" y="73.4" width="294" height="36" rx="6" ry="6" />
-  <rect class="journey-section-label-band journey-section-band-1" x="622" y="80.4" width="282" height="22" rx="6" ry="6" />
-  <text x="763" y="91.4" class="journey-section-label journey-section-label-1" text-anchor="middle" font-size="12" font-weight="600" dy="4.199999999999999">Go home</text>
+  <rect class="journey-section-bg journey-section-1" x="628" y="73.4" width="294" height="36" rx="6" ry="6" />
+  <rect class="journey-section-label-band journey-section-band-1" x="634" y="80.4" width="282" height="22" rx="6" ry="6" />
+  <text x="775" y="91.4" class="journey-section-label journey-section-label-1" text-anchor="middle" font-size="12" font-weight="600" dy="4.199999999999999">Go home</text>
 </g>
+<path class="journey-curve" d="M248,256.3 C298,256.3 348,336.3 398,336.3 C448,336.3 498,416.3 548,416.3 C598.6666666666666,416.3 649.3333333333334,256.3 700,256.3 C750,256.3 800,336.3 850,336.3" />
 <g class="journey-task" data-id="task-0" data-score="5" data-section="Go to work" data-actors="Me">
-  <line class="journey-track" x1="238" y1="200.3" x2="238" y2="474.3" />
-  <rect class="journey-task-box" x="176" y="139.4" width="124" height="60.900000000000006" rx="5" ry="5" />
-  <text x="238" y="159.85" class="journey-task-text" text-anchor="middle" font-size="13" font-weight="500" dy="4.55">Make tea</text>
-  <circle class="journey-actor-dot journey-actor-0" data-actor="Me" cx="238" cy="184.3" r="4" />
+  <line class="journey-track" x1="248" y1="200.3" x2="248" y2="448.3" />
+  <rect class="journey-task-box" x="186" y="139.4" width="124" height="60.900000000000006" rx="5" ry="5" />
+  <text x="248" y="159.85" class="journey-task-text" text-anchor="middle" font-size="13" font-weight="500" dy="4.55">Make tea</text>
+  <circle class="journey-actor-dot journey-actor-0" data-actor="Me" cx="248" cy="184.3" r="4" />
   <g class="journey-score-marker" data-score="5">
-    <circle class="journey-score-face" cx="238" cy="256.3" r="16" />
-    <circle class="journey-face-eye" cx="232.5" cy="251.8" r="2" />
-    <circle class="journey-face-eye" cx="243.5" cy="251.8" r="2" />
-    <path class="journey-face-mouth" d="M230,260.3 Q238,269.3 246,260.3" />
+    <circle class="journey-score-face" cx="248" cy="256.3" r="16" />
+    <circle class="journey-face-eye" cx="242.5" cy="251.8" r="2" />
+    <circle class="journey-face-eye" cx="253.5" cy="251.8" r="2" />
+    <path class="journey-face-mouth" d="M240,260.3 Q248,269.3 256,260.3" />
   </g>
 </g>
 <g class="journey-task" data-id="task-1" data-score="3" data-section="Go to work" data-actors="Me">
-  <line class="journey-track" x1="388" y1="200.3" x2="388" y2="474.3" />
-  <rect class="journey-task-box" x="326" y="139.4" width="124" height="60.900000000000006" rx="5" ry="5" />
-  <text x="388" y="159.85" class="journey-task-text" text-anchor="middle" font-size="13" font-weight="500" dy="4.55">Go upstairs</text>
-  <circle class="journey-actor-dot journey-actor-0" data-actor="Me" cx="388" cy="184.3" r="4" />
+  <line class="journey-track" x1="398" y1="200.3" x2="398" y2="448.3" />
+  <rect class="journey-task-box" x="336" y="139.4" width="124" height="60.900000000000006" rx="5" ry="5" />
+  <text x="398" y="159.85" class="journey-task-text" text-anchor="middle" font-size="13" font-weight="500" dy="4.55">Go upstairs</text>
+  <circle class="journey-actor-dot journey-actor-0" data-actor="Me" cx="398" cy="184.3" r="4" />
   <g class="journey-score-marker" data-score="3">
-    <circle class="journey-score-face" cx="388" cy="336.3" r="16" />
-    <circle class="journey-face-eye" cx="382.5" cy="331.8" r="2" />
-    <circle class="journey-face-eye" cx="393.5" cy="331.8" r="2" />
-    <path class="journey-face-mouth" d="M380,342.3 L396,342.3" />
+    <circle class="journey-score-face" cx="398" cy="336.3" r="16" />
+    <circle class="journey-face-eye" cx="392.5" cy="331.8" r="2" />
+    <circle class="journey-face-eye" cx="403.5" cy="331.8" r="2" />
+    <path class="journey-face-mouth" d="M390,342.3 L406,342.3" />
   </g>
 </g>
 <g class="journey-task" data-id="task-2" data-score="1" data-section="Go to work" data-actors="Me, Cat">
-  <line class="journey-track" x1="538" y1="200.3" x2="538" y2="474.3" />
-  <rect class="journey-task-box" x="476" y="139.4" width="124" height="60.900000000000006" rx="5" ry="5" />
-  <text x="538" y="159.85" class="journey-task-text" text-anchor="middle" font-size="13" font-weight="500" dy="4.55">Do work</text>
-  <circle class="journey-actor-dot journey-actor-0" data-actor="Me" cx="530" cy="184.3" r="4" />
-  <circle class="journey-actor-dot journey-actor-1" data-actor="Cat" cx="546" cy="184.3" r="4" />
+  <line class="journey-track" x1="548" y1="200.3" x2="548" y2="448.3" />
+  <rect class="journey-task-box" x="486" y="139.4" width="124" height="60.900000000000006" rx="5" ry="5" />
+  <text x="548" y="159.85" class="journey-task-text" text-anchor="middle" font-size="13" font-weight="500" dy="4.55">Do work</text>
+  <circle class="journey-actor-dot journey-actor-0" data-actor="Me" cx="540" cy="184.3" r="4" />
+  <circle class="journey-actor-dot journey-actor-1" data-actor="Cat" cx="556" cy="184.3" r="4" />
   <g class="journey-score-marker" data-score="1">
-    <circle class="journey-score-face" cx="538" cy="416.3" r="16" />
-    <circle class="journey-face-eye" cx="532.5" cy="411.8" r="2" />
-    <circle class="journey-face-eye" cx="543.5" cy="411.8" r="2" />
-    <path class="journey-face-mouth" d="M529,427.3 Q538,416.3 547,427.3" />
+    <circle class="journey-score-face" cx="548" cy="416.3" r="16" />
+    <circle class="journey-face-eye" cx="542.5" cy="411.8" r="2" />
+    <circle class="journey-face-eye" cx="553.5" cy="411.8" r="2" />
+    <path class="journey-face-mouth" d="M539,427.3 Q548,416.3 557,427.3" />
   </g>
 </g>
 <g class="journey-task" data-id="task-3" data-score="5" data-section="Go home" data-actors="Me">
-  <line class="journey-track" x1="688" y1="200.3" x2="688" y2="474.3" />
-  <rect class="journey-task-box" x="626" y="139.4" width="124" height="60.900000000000006" rx="5" ry="5" />
-  <text x="688" y="159.85" class="journey-task-text" text-anchor="middle" font-size="13" font-weight="500" dy="4.55">Go downstairs</text>
-  <circle class="journey-actor-dot journey-actor-0" data-actor="Me" cx="688" cy="184.3" r="4" />
+  <line class="journey-track" x1="700" y1="200.3" x2="700" y2="448.3" />
+  <rect class="journey-task-box" x="638" y="139.4" width="124" height="60.900000000000006" rx="5" ry="5" />
+  <text x="700" y="159.85" class="journey-task-text" text-anchor="middle" font-size="13" font-weight="500" dy="4.55">Go downstairs</text>
+  <circle class="journey-actor-dot journey-actor-0" data-actor="Me" cx="700" cy="184.3" r="4" />
   <g class="journey-score-marker" data-score="5">
-    <circle class="journey-score-face" cx="688" cy="256.3" r="16" />
-    <circle class="journey-face-eye" cx="682.5" cy="251.8" r="2" />
-    <circle class="journey-face-eye" cx="693.5" cy="251.8" r="2" />
-    <path class="journey-face-mouth" d="M680,260.3 Q688,269.3 696,260.3" />
+    <circle class="journey-score-face" cx="700" cy="256.3" r="16" />
+    <circle class="journey-face-eye" cx="694.5" cy="251.8" r="2" />
+    <circle class="journey-face-eye" cx="705.5" cy="251.8" r="2" />
+    <path class="journey-face-mouth" d="M692,260.3 Q700,269.3 708,260.3" />
   </g>
 </g>
 <g class="journey-task" data-id="task-4" data-score="3" data-section="Go home" data-actors="Me">
-  <line class="journey-track" x1="838" y1="200.3" x2="838" y2="474.3" />
-  <rect class="journey-task-box" x="776" y="139.4" width="124" height="60.900000000000006" rx="5" ry="5" />
-  <text x="838" y="159.85" class="journey-task-text" text-anchor="middle" font-size="13" font-weight="500" dy="4.55">Sit down</text>
-  <circle class="journey-actor-dot journey-actor-0" data-actor="Me" cx="838" cy="184.3" r="4" />
+  <line class="journey-track" x1="850" y1="200.3" x2="850" y2="448.3" />
+  <rect class="journey-task-box" x="788" y="139.4" width="124" height="60.900000000000006" rx="5" ry="5" />
+  <text x="850" y="159.85" class="journey-task-text" text-anchor="middle" font-size="13" font-weight="500" dy="4.55">Sit down</text>
+  <circle class="journey-actor-dot journey-actor-0" data-actor="Me" cx="850" cy="184.3" r="4" />
   <g class="journey-score-marker" data-score="3">
-    <circle class="journey-score-face" cx="838" cy="336.3" r="16" />
-    <circle class="journey-face-eye" cx="832.5" cy="331.8" r="2" />
-    <circle class="journey-face-eye" cx="843.5" cy="331.8" r="2" />
-    <path class="journey-face-mouth" d="M830,342.3 L846,342.3" />
+    <circle class="journey-score-face" cx="850" cy="336.3" r="16" />
+    <circle class="journey-face-eye" cx="844.5" cy="331.8" r="2" />
+    <circle class="journey-face-eye" cx="855.5" cy="331.8" r="2" />
+    <path class="journey-face-mouth" d="M842,342.3 L858,342.3" />
   </g>
 </g>
-<text x="471" y="39.7" class="journey-title" text-anchor="middle" font-size="18" font-weight="600" dy="6.3">My working day</text>
+<text x="491" y="39.7" class="journey-title" text-anchor="middle" font-size="18" font-weight="600" dy="6.3">My working day</text>
 </svg>
