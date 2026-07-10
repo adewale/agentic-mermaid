@@ -11,35 +11,41 @@
 //
 // Each bar's length is proportional to the slice's share of the total. With
 // `showData` the raw value is shown alongside the percentage. Bars use █
-// (Unicode) or # (ASCII fallback), colored per-slice with the same xychart
-// palette as the SVG renderer for cross-format consistency.
+// (Unicode) or # (ASCII fallback), colored per-slice with the SAME shared pie
+// palette as the SVG renderer (src/pie/palette.ts) — including pie1..pie12
+// theme-variable overrides — for cross-format consistency.
 // ============================================================================
 
 import { parsePieChart } from '../pie/parser.ts'
 import { formatPieValue, formatPiePercent } from '../pie/layout.ts'
+import { pieSliceColors } from '../pie/palette.ts'
+import { resolvePieVisualConfig } from '../pie/config.ts'
+import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
 import { colorizeText } from './ansi.ts'
-import { getSeriesColor, CHART_ACCENT_FALLBACK, isValidHex } from '../xychart/colors.ts'
 
 /** Maximum bar length in characters (the largest slice fills this). */
 const MAX_BAR = 30
-
-function sliceColor(index: number, theme: AsciiTheme): string {
-  const accent = theme.accent && isValidHex(theme.accent) ? theme.accent : CHART_ACCENT_FALLBACK
-  return getSeriesColor(index, accent, theme.bg)
-}
 
 export function renderPieAscii(
   lines: string[],
   config: AsciiConfig,
   colorMode: ColorMode,
   theme: AsciiTheme,
+  frontmatter: MermaidFrontmatterMap = {},
 ): string {
   const chart = parsePieChart(lines)
   const barChar = config.useAscii ? '#' : '█'
 
   const total = chart.entries.reduce((sum, e) => sum + e.value, 0)
   if (total <= 0) return ''
+
+  const visual = resolvePieVisualConfig(frontmatter)
+  const colors = pieSliceColors(chart.entries.length, {
+    accent: theme.accent,
+    bg: theme.bg,
+    overrides: visual.paletteOverrides,
+  })
 
   // Column widths.
   const labelWidth = Math.max(...chart.entries.map(e => e.label.length))
@@ -53,7 +59,7 @@ export function renderPieAscii(
     // Bar length proportional to the largest slice, min 1 char for nonzero.
     const barLen = Math.max(1, Math.round((entry.value / maxValue) * MAX_BAR))
     const bar = barChar.repeat(barLen)
-    const coloredBar = colorMode === 'none' ? bar : colorizeText(bar, sliceColor(index, theme), colorMode)
+    const coloredBar = colorMode === 'none' ? bar : colorizeText(bar, colors[index]!, colorMode)
 
     const label = entry.label.padEnd(labelWidth)
     const barPad = ' '.repeat(MAX_BAR - barLen + 2)
