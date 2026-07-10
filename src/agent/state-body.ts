@@ -825,6 +825,17 @@ export function verifyState(body: StateBody, opts: VerifyOptions): LayoutWarning
           message: `History pseudostate '${s.id}' is preserved and rendered as the standard H-circle; history re-entry semantics are not modeled by analysis.`,
         })
       }
+      // P4: bars/diamonds/H-circles are anonymous glyphs (UML + upstream),
+      // so an author-written alias label (`state "L" as id <<fork>>`) is
+      // preserved in source but never drawn — announce it, don't stay silent.
+      if (s.stereotype !== undefined && s.label !== undefined) {
+        warnings.push({
+          code: 'UNSUPPORTED_SYNTAX',
+          syntax: 'state_pseudostate_label',
+          node: s.id,
+          message: `Pseudostate '${s.id}' carries the label "${s.label}", but ${s.stereotype} pseudostates render as anonymous glyphs (UML convention); the label is preserved in source and not drawn.`,
+        })
+      }
       if (s.states !== undefined) visit(s.states, s.transitions ?? [])
     }
     transitions.forEach(t => {

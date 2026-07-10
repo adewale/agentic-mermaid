@@ -260,3 +260,40 @@ describe('concurrency regions (--) — split, contain, and separate', () => {
     expect(serializeMermaid(r.value)).toBe(CONC_SRC)
   })
 })
+
+// Readability-audit finding: a QUOTED alias label on a pseudostate
+// (`state "Fan out" as f1 <<fork>>`) is author-written display text, but
+// bars/diamonds/H-circles are anonymous glyphs (UML + upstream) and carry no
+// text. P4: the dropped label must be announced, never silently invisible.
+describe('pseudostate alias labels are announced, not silently invisible', () => {
+  const SRC = `stateDiagram-v2
+  state "Fan out" as f1 <<fork>>
+  state "Pick one" as c1 <<choice>>
+  [*] --> f1
+  f1 --> A
+  f1 --> c1
+  c1 --> B : yes
+`
+
+  test('verify names each pseudostate whose label will not be drawn', () => {
+    const v = verifyMermaid(SRC)
+    expect(v.ok).toBe(true)
+    const dropped = v.warnings.filter(w => w.code === 'UNSUPPORTED_SYNTAX' && (w as { syntax?: string }).syntax === 'state_pseudostate_label')
+    expect(dropped.map(w => (w as { node?: string }).node).sort()).toEqual(['c1', 'f1'])
+    expect((dropped[0] as { message: string }).message).toContain('"Fan out"')
+  })
+
+  test('the glyphs still render anonymous and the label survives round-trip', () => {
+    const svg = renderMermaidSVG(SRC)
+    expect(/<text[^>]*>[^<]*Fan out/.test(svg)).toBe(false)
+    const r = parseMermaid(SRC)
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(serializeMermaid(r.value)).toContain('state "Fan out" as f1 <<fork>>')
+  })
+
+  test('unlabeled pseudostates stay lint-free', () => {
+    const v = verifyMermaid('stateDiagram-v2\n  state f2 <<fork>>\n  [*] --> f2\n  f2 --> A')
+    expect(v.warnings.filter(w => (w as { syntax?: string }).syntax === 'state_pseudostate_label')).toEqual([])
+  })
+})
