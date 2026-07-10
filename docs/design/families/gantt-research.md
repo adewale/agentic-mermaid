@@ -116,7 +116,7 @@ The base [`gantt.md`](./gantt.md) should keep its syntax matrix unchanged, but i
 
 - Do not add baselines, resources, owners, or workload syntax unless Mermaid core standardizes it.
 - Do not infer critical path when dependencies are missing or cyclic.
-- Do not render dependency arrows in v1 unless they are separately tested for label/tick overlap.
+- Do not render dependency arrows in v1 unless they are separately tested for label/tick overlap. *(Discharged post-v1: the overlay shipped as the opt-in `gantt.dependencyArrows`/`gantt.criticalPath` render options gated on exactly those tests — endpoint-anchoring and bar-interior-overlap invariants plus a generated-schedule fast-check property in `src/__tests__/gantt-dependency-overlay.test.ts`; defaults stay off and default output is byte-pinned. See [`gantt.md` §Dependency arrows and critical-path overlay](./gantt.md#dependency-arrows-and-critical-path-overlay-render-option).)*
 - Do not use a browser Gantt library as the implementation; it would violate Agentic Mermaid’s synchronous, DOM-free core.
 - Do not optimize for interactive drag editing in v1. Source remains the edit format.
 

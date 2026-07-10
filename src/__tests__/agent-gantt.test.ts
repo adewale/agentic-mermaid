@@ -135,6 +135,7 @@ describe('gantt mutation ops (every declared op round-trips)', () => {
     expect([...MUTATION_OPS_BY_FAMILY.gantt]).toEqual([
       'set_title', 'add_section', 'rename_section', 'remove_section',
       'add_task', 'remove_task', 'rename_task', 'set_task_status', 'set_task_dates',
+      'set_task_flags', 'set_task_id', 'move_task', 'move_section',
     ])
     const cap = buildCapabilities().families.find(f => f.id === 'gantt')
     expect(cap).toMatchObject({ hasMutate: true, editPolicy: 'structured-when-narrowed' })
@@ -222,6 +223,214 @@ describe('gantt mutation ops (every declared op round-trips)', () => {
     const d = gantt()
     apply(d, { kind: 'rename_task', sectionIndex: 0, taskIndex: 0, label: 'Changed' })
     expect(d.body.sections[0]!.tasks[0]!.label).toBe('Core engine')
+  })
+})
+
+// Ordering + identity ops (family-elevation-plan §Gantt item 4). Source order
+// IS scheduling semantics for gantt: an implicit start ("end, no start")
+// chains from the PREVIOUS task in flat source order, so move ops REJECT any
+// move that would change an implicit-start task's predecessor — the caller
+// materializes an explicit start first. Insertion (add_task index) into a
+// chain is the documented exception: re-chaining the follower onto the
+// inserted task is the point of inserting mid-pipeline.
+describe('gantt ordering ops (move_task / move_section / add_task index)', () => {
+  // Chained (implicit start, no id — an id would force an explicit start slot).
+  const CHAIN = `gantt
+  dateFormat YYYY-MM-DD
+  section Build
+    Core :core, 2024-01-01, 10d
+    Chained :5d
+    Explicit :ex, 2024-02-01, 2d
+  section Ship
+    Release :rel, after ex, 1d
+`
+
+  test('move_task moves an explicit-start task across sections and round-trips', () => {
+    // Explicit (0,2) -> Ship head: flat source order is unchanged, so no
+    // implicit chain is disturbed.
+    const d = apply(gantt(CHAIN), { kind: 'move_task', fromSection: 0, fromIndex: 2, toSection: 1, toIndex: 0 })
+    expect(d.body.sections[0]!.tasks.map(t => t.label)).toEqual(['Core', 'Chained'])
+    expect(d.body.sections[1]!.tasks.map(t => t.label)).toEqual(['Explicit', 'Release'])
+    const out = d.canonicalSource
+    expect(out.indexOf('Explicit')).toBeGreaterThan(out.indexOf('section Ship'))
+    expect(out.indexOf('Explicit')).toBeLessThan(out.indexOf('Release'))
+    expect(shape(gantt(out))).toEqual(shape(d))
+  })
+
+  test('move_task within a section keeps statements coherent', () => {
+    const d = apply(gantt(), { kind: 'move_task', fromSection: 0, fromIndex: 1, toSection: 1, toIndex: 0 })
+    expect(d.body.sections[0]!.tasks.map(t => t.label)).toEqual(['Core engine'])
+    expect(d.body.sections[1]!.tasks.map(t => t.label)).toEqual(['Polish', 'Release'])
+    // Opaque directives (dateFormat, excludes, click) survive verbatim.
+    expect(d.canonicalSource).toContain('  click core href "https://example.com/core"\n')
+    expect(shape(gantt(d.canonicalSource))).toEqual(shape(d))
+  })
+
+  test('move_task rejects moving a task with an implicit start (prescriptive)', () => {
+    const r = mutate(gantt(CHAIN), { kind: 'move_task', fromSection: 0, fromIndex: 1, toSection: 1, toIndex: 1 })
+    expect(r.ok).toBe(false)
+    if (r.ok) return
+    expect(r.error.code).toBe('INVALID_OP')
+    expect(r.error.message).toContain('Chained')
+    expect(r.error.message).toContain('implicit')
+    expect(r.error.message).toContain('set_task_dates')
+  })
+
+  test('move_task rejects when the old or new follower has an implicit start', () => {
+    // Moving Core away re-chains Chained (implicit) onto nothing.
+    const oldFollower = mutate(gantt(CHAIN), { kind: 'move_task', fromSection: 0, fromIndex: 0, toSection: 1, toIndex: 1 })
+    expect(oldFollower.ok).toBe(false)
+    if (!oldFollower.ok) expect(oldFollower.error.message).toContain('Chained')
+    // Moving Explicit between Core and Chained re-chains Chained onto Explicit.
+    const newFollower = mutate(gantt(CHAIN), { kind: 'move_task', fromSection: 0, fromIndex: 2, toSection: 0, toIndex: 1 })
+    expect(newFollower.ok).toBe(false)
+    if (!newFollower.ok) expect(newFollower.error.message).toContain('Chained')
+  })
+
+  test('move_task not-found and out-of-range errors', () => {
+    expect(mutate(gantt(), { kind: 'move_task', fromSection: 9, fromIndex: 0, toSection: 0, toIndex: 0 }).ok).toBe(false)
+    expect(mutate(gantt(), { kind: 'move_task', fromSection: 0, fromIndex: 9, toSection: 0, toIndex: 0 }).ok).toBe(false)
+    expect(mutate(gantt(), { kind: 'move_task', fromSection: 0, fromIndex: 0, toSection: 9, toIndex: 0 }).ok).toBe(false)
+    expect(mutate(gantt(), { kind: 'move_task', fromSection: 0, fromIndex: 0, toSection: 1, toIndex: 5 }).ok).toBe(false)
+  })
+
+  test('move_section reorders labeled sections and drags their statements along', () => {
+    const d = apply(gantt(), { kind: 'move_section', from: 1, to: 0 })
+    expect(d.body.sections.map(s => s.label)).toEqual(['Ship', 'Build'])
+    const out = d.canonicalSource
+    expect(out.indexOf('section Ship')).toBeLessThan(out.indexOf('section Build'))
+    expect(out.indexOf('dateFormat')).toBeLessThan(out.indexOf('section Ship'))
+    // The click line was inside Ship's statement span and travels with it.
+    expect(out.indexOf('click core')).toBeLessThan(out.indexOf('section Build'))
+    expect(shape(gantt(out))).toEqual(shape(d))
+  })
+
+  test('move_section rejects when it would re-chain an implicit start across sections', () => {
+    const src = 'gantt\n  dateFormat YYYY-MM-DD\n  section Build\n    Core :core, 2024-01-01, 10d\n  section Ship\n    Wrap :2d'
+    const r = mutate(gantt(src), { kind: 'move_section', from: 1, to: 0 })
+    expect(r.ok).toBe(false)
+    if (r.ok) return
+    expect(r.error.code).toBe('INVALID_OP')
+    expect(r.error.message).toContain('Wrap')
+  })
+
+  test('move_section rejects the implicit section and positions before it', () => {
+    const src = 'gantt\n  Loose :l1, 2024-01-01, 2d\n  section Named\n    Inside :i1, after l1, 1d'
+    const moveImplicit = mutate(gantt(src), { kind: 'move_section', from: 0, to: 1 })
+    expect(moveImplicit.ok).toBe(false)
+    if (!moveImplicit.ok) expect(moveImplicit.error.message).toContain('implicit')
+    const beforeImplicit = mutate(gantt(src), { kind: 'move_section', from: 1, to: 0 })
+    expect(beforeImplicit.ok).toBe(false)
+  })
+
+  test('add_task with index inserts at position and re-chains an implicit follower (documented)', () => {
+    const src = 'gantt\n  dateFormat YYYY-MM-DD\n  A :a, 2024-01-01, 2d\n  B follows :3d'
+    const d = apply(gantt(src), { kind: 'add_task', sectionIndex: 0, index: 1, label: 'Inserted', taskId: 'ins', start: 'after a', end: '1d' })
+    expect(d.body.sections[0]!.tasks.map(t => t.label)).toEqual(['A', 'Inserted', 'B follows'])
+    const out = d.canonicalSource
+    expect(out.indexOf('Inserted')).toBeGreaterThan(out.indexOf('A :a'))
+    expect(out.indexOf('Inserted')).toBeLessThan(out.indexOf('B follows'))
+    expect(shape(gantt(out))).toEqual(shape(d))
+  })
+
+  test('add_task index out of range is INVALID_OP', () => {
+    const r = mutate(gantt(), { kind: 'add_task', sectionIndex: 0, index: 7, label: 'X', end: '1d' })
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('INVALID_OP')
+  })
+})
+
+describe('gantt set_task_flags (milestone/vert toggles after creation)', () => {
+  test('toggles milestone off and on, preserving status tags in canonical order', () => {
+    let d = apply(gantt(), { kind: 'set_task_flags', sectionIndex: 1, taskIndex: 0, milestone: false })
+    expect(d.body.sections[1]!.tasks[0]!.tags).toEqual([])
+    expect(d.canonicalSource).toContain('Release :rel, after pol, 0d')
+    d = apply(d, { kind: 'set_task_status', sectionIndex: 1, taskIndex: 0, status: 'done' })
+    d = apply(d, { kind: 'set_task_flags', sectionIndex: 1, taskIndex: 0, milestone: true })
+    expect(d.body.sections[1]!.tasks[0]!.tags).toEqual(['done', 'milestone'])
+    expect(d.canonicalSource).toContain('Release :done, milestone, rel, after pol, 0d')
+    expect(shape(gantt(d.canonicalSource))).toEqual(shape(d))
+  })
+
+  test('toggles vert on a plain task', () => {
+    const d = apply(gantt(), { kind: 'set_task_flags', sectionIndex: 0, taskIndex: 0, vert: true })
+    expect(d.body.sections[0]!.tasks[0]!.tags).toEqual(['vert'])
+    expect(d.canonicalSource).toContain('Core engine :vert, core, 2024-01-01, 10d')
+  })
+
+  test('task not found', () => {
+    expect(mutate(gantt(), { kind: 'set_task_flags', sectionIndex: 0, taskIndex: 9, milestone: true }).ok).toBe(false)
+  })
+})
+
+// Reference-coherence contract (documented in docs/design/families/gantt.md):
+// renaming a task id REWRITES all structured after/until references so the
+// dependency graph stays coherent; it REJECTS while the id is referenced from
+// opaque segments (click lines, unmodeled task lines) because typed ops never
+// rewrite opaque source; clearing an id (null) REJECTS while ANY reference
+// exists — there is nothing to retarget the referents to.
+describe('gantt set_task_id (rename keeps after/until references coherent)', () => {
+  const REFS = `gantt
+  dateFormat YYYY-MM-DD
+  section Build
+    Core :core, 2024-01-01, 10d
+    Polish :pol, after core, 5d
+    Wrap :wrap, 2024-01-05, until pol
+  section Ship
+    Release :rel, after core pol, 1d
+`
+
+  test('rename rewrites every structured after/until reference', () => {
+    const d = apply(gantt(REFS), { kind: 'set_task_id', sectionIndex: 0, taskIndex: 0, taskId: 'engine' })
+    expect(d.body.sections[0]!.tasks[0]!.taskId).toBe('engine')
+    const out = d.canonicalSource
+    expect(out).toContain('Polish :pol, after engine, 5d')
+    expect(out).toContain('Release :rel, after engine pol, 1d')
+    expect(out).not.toContain('after core')
+    expect(verifyMermaid(d).warnings.map(w => w.code)).not.toContain('EDGE_MISANCHORED')
+    expect(shape(gantt(out))).toEqual(shape(d))
+  })
+
+  test('rename rewrites until references too', () => {
+    const d = apply(gantt(REFS), { kind: 'set_task_id', sectionIndex: 0, taskIndex: 1, taskId: 'shine' })
+    expect(d.canonicalSource).toContain('Wrap :wrap, 2024-01-05, until shine')
+    expect(d.canonicalSource).toContain('Release :rel, after core shine, 1d')
+  })
+
+  test('rename rejects while the id is referenced from an opaque segment (click line)', () => {
+    const r = mutate(gantt(), { kind: 'set_task_id', sectionIndex: 0, taskIndex: 0, taskId: 'engine' })
+    expect(r.ok).toBe(false)
+    if (r.ok) return
+    expect(r.error.code).toBe('INVALID_OP')
+    expect(r.error.message).toContain('opaque')
+    expect(r.error.message).toContain('click core')
+  })
+
+  test('clearing an id rejects while referenced, listing the referents', () => {
+    const r = mutate(gantt(REFS), { kind: 'set_task_id', sectionIndex: 0, taskIndex: 0, taskId: null })
+    expect(r.ok).toBe(false)
+    if (r.ok) return
+    expect(r.error.message).toContain('Polish')
+    expect(r.error.message).toContain('Release')
+    // Unreferenced ids clear cleanly.
+    const d = apply(gantt(REFS), { kind: 'set_task_id', sectionIndex: 0, taskIndex: 2, taskId: null })
+    expect(d.body.sections[0]!.tasks[2]!.taskId).toBeUndefined()
+    expect(d.canonicalSource).toContain('Wrap :2024-01-05, until pol')
+  })
+
+  test('assigns an id to a task that had none', () => {
+    const src = 'gantt\n  dateFormat YYYY-MM-DD\n  Loose :2024-01-01, 2d'
+    const d = apply(gantt(src), { kind: 'set_task_id', sectionIndex: 0, taskIndex: 0, taskId: 'loose' })
+    expect(d.canonicalSource).toContain('Loose :loose, 2024-01-01, 2d')
+  })
+
+  test('duplicate and malformed ids are rejected', () => {
+    const dup = mutate(gantt(REFS), { kind: 'set_task_id', sectionIndex: 0, taskIndex: 0, taskId: 'pol' })
+    expect(dup.ok).toBe(false)
+    if (!dup.ok) expect(dup.error.code).toBe('DUPLICATE_TASK')
+    const bad = mutate(gantt(REFS), { kind: 'set_task_id', sectionIndex: 0, taskIndex: 0, taskId: 'has space' })
+    expect(bad.ok).toBe(false)
+    if (!bad.ok) expect(bad.error.code).toBe('INVALID_OP')
   })
 })
 

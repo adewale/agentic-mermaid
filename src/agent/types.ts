@@ -770,11 +770,22 @@ export type GanttMutationOp =
   | { kind: 'add_section'; label: string }
   | { kind: 'rename_section'; index: number; label: string }
   | { kind: 'remove_section'; index: number }
-  | { kind: 'add_task'; sectionIndex: number; label: string; taskId?: string; tags?: GanttBodyTaskTag[]; start?: string; end: string }
+  | { kind: 'add_task'; sectionIndex: number; label: string; taskId?: string; tags?: GanttBodyTaskTag[]; start?: string; end: string; index?: number }
   | { kind: 'remove_task'; sectionIndex: number; taskIndex: number }
   | { kind: 'rename_task'; sectionIndex: number; taskIndex: number; label: string }
   | { kind: 'set_task_status'; sectionIndex: number; taskIndex: number; status: 'active' | 'done' | 'crit' | null }
   | { kind: 'set_task_dates'; sectionIndex: number; taskIndex: number; start?: string | null; end?: string }
+  // Structural-tag toggles after creation (set_task_status never touches them).
+  | { kind: 'set_task_flags'; sectionIndex: number; taskIndex: number; milestone?: boolean; vert?: boolean }
+  // Renames REWRITE structured after/until references (coherence by
+  // construction); they REJECT while the id is referenced from opaque
+  // segments, and `null` rejects while ANY reference exists.
+  | { kind: 'set_task_id'; sectionIndex: number; taskIndex: number; taskId: string | null }
+  // Gantt source order IS scheduling semantics (implicit starts chain from the
+  // previous task), so moves REJECT prescriptively whenever they would change
+  // any implicit-start task's predecessor instead of silently rescheduling it.
+  | { kind: 'move_task'; fromSection: number; fromIndex: number; toSection: number; toIndex: number }
+  | { kind: 'move_section'; from: number; to: number }
 
 export type AnyMutationOp = FlowchartMutationOp | StateMutationOp | SequenceMutationOp | TimelineMutationOp | ClassMutationOp | ErMutationOp | JourneyMutationOp | ArchitectureMutationOp | XyChartMutationOp | PieMutationOp | QuadrantMutationOp | GanttMutationOp
 export type MutationOp = FlowchartMutationOp // legacy alias

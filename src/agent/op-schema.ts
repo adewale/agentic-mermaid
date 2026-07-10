@@ -227,11 +227,15 @@ const GANTT_SCHEMA: Record<string, OpSpec> = {
   add_section:     { fields: { label: str() } },
   rename_section:  { fields: { index: num(), label: str() } },
   remove_section:  { fields: { index: num() } },
-  add_task:        { fields: { sectionIndex: num(), label: str(), taskId: str(false), tags: strArr(false), start: withNote(str(false), 'date, or "after <taskId>"'), end: withNote(str(), 'date, a duration like "3d", or "until <taskId>"') } },
+  add_task:        { fields: { sectionIndex: num(), label: str(), taskId: str(false), tags: strArr(false), start: withNote(str(false), 'date, or "after <taskId>"'), end: withNote(str(), 'date, a duration like "3d", or "until <taskId>"'), index: withNote(num(false), 'insert position; omit to append — inserting into an implicit-start chain re-chains the follower onto the new task') } },
   remove_task:     { fields: { sectionIndex: num(), taskIndex: num() } },
   rename_task:     { fields: { sectionIndex: num(), taskIndex: num(), label: str() } },
   set_task_status: { fields: { sectionIndex: num(), taskIndex: num(), status: oneOf(GANTT_STATUSES, true, true) } },
   set_task_dates:  { fields: { sectionIndex: num(), taskIndex: num(), start: strOrNull(false), end: str(false) } },
+  set_task_flags:  { fields: { sectionIndex: num(), taskIndex: num(), milestone: bool(false), vert: bool(false) } },
+  set_task_id:     { fields: { sectionIndex: num(), taskIndex: num(), taskId: withNote(strOrNull(), 'renames rewrite after/until references; null clears (rejected while referenced)') } },
+  move_task:       { fields: { fromSection: num(), fromIndex: num(), toSection: num(), toIndex: withNote(num(), 'insert position in the target section, applied after removal — rejected if the move would change an implicit-start task\'s predecessor') } },
+  move_section:    { fields: { from: num(), to: num() } },
 }
 
 const SCHEMAS: Record<OpFamily, Record<string, OpSpec>> = {

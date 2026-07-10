@@ -393,6 +393,50 @@ export function resolveGanttSchedule(model: GanttModel, clock: GanttClock = {}):
   }
 }
 
+// ---- Dependency edges (for the dependency-arrow overlay) ---------------------
+
+export interface GanttDependencyEdgeRef {
+  /** Model task indexes. */
+  from: number
+  to: number
+  kind: 'after' | 'until'
+}
+
+/**
+ * Every dependency reference as a directed edge over model task indexes, in
+ * source order, deduplicated. `after` edges point ref → task (the task starts
+ * from the referenced end); `until` edges point task → ref (the task's end
+ * feeds the referenced start). Unknown refs are simply skipped here — the
+ * resolver has already rejected them before any consumer runs.
+ */
+export function ganttDependencyEdges(model: GanttModel): GanttDependencyEdgeRef[] {
+  const byId = new Map<string, GanttModelTask>()
+  for (const t of model.tasks) if (t.id !== undefined) byId.set(t.id, t)
+  const out: GanttDependencyEdgeRef[] = []
+  const seen = new Set<string>()
+  const push = (from: number, to: number, kind: 'after' | 'until'): void => {
+    const key = `${from}>${to}:${kind}`
+    if (seen.has(key)) return
+    seen.add(key)
+    out.push({ from, to, kind })
+  }
+  for (const t of model.tasks) {
+    if (t.start?.kind === 'after') {
+      for (const ref of t.start.refs) {
+        const dep = byId.get(ref)
+        if (dep) push(dep.index, t.index, 'after')
+      }
+    }
+    if (t.end.kind === 'until') {
+      for (const ref of t.end.refs) {
+        const dep = byId.get(ref)
+        if (dep) push(t.index, dep.index, 'until')
+      }
+    }
+  }
+  return out
+}
+
 // ---- Analysis (critical path / slack over `after` edges) --------------------
 
 function analyzeSchedule(

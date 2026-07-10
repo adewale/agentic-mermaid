@@ -30,7 +30,8 @@ import type { GanttLayoutResult } from './types.ts'
 import { ganttAxisLabelOffset, ganttMeasureTextWidth, ganttTitleFontSize, ganttTitleY, resolveGanttRenderStyle } from './layout.ts'
 import type { RenderContext } from '../types.ts'
 import { svgOpenTag, buildStyleBlock } from '../theme.ts'
-import { escapeXml } from '../multiline-utils.ts'
+import { escapeAttr, escapeXml } from '../multiline-utils.ts'
+import { hashId } from '../scene/seed.ts'
 import { applyTextTransform } from '../styles.ts'
 import type { ResolvedRenderStyle } from '../styles.ts'
 import type { MarkPaint, SceneDoc, SceneNode, SemanticChannels } from '../scene/ir.ts'
@@ -75,8 +76,36 @@ function ganttPalette(style: ResolvedRenderStyle): GanttPalette {
   }
 }
 
-function ganttStyles(style: ResolvedRenderStyle): string {
+/** Opt-in overlay flags (RenderOptions.gantt), pre-gated on the layout
+ *  actually having something to draw so the CSS never carries dead rules. */
+interface GanttOverlayFlags {
+  dependencyArrows: boolean
+  criticalBars: boolean
+  criticalArrows: boolean
+}
+
+const OVERLAY_OFF: GanttOverlayFlags = { dependencyArrows: false, criticalBars: false, criticalArrows: false }
+
+function ganttStyles(style: ResolvedRenderStyle, overlay: GanttOverlayFlags = OVERLAY_OFF): string {
   const p = ganttPalette(style)
+
+  // Overlay rules append after the base rules (equal specificity — later wins)
+  // and only when their option draws something, so the default CSS block stays
+  // byte-identical with the overlay off. The connector is deliberately quieter
+  // than the bars (the journey curve's restraint); critical-path emphasis is
+  // the stronger stroke, never a hard-coded red (Google-Charts lesson from the
+  // research doc: opt-in and theme-aware).
+  const extra: string[] = []
+  if (overlay.dependencyArrows) {
+    extra.push(`  .gantt-dep-arrow { fill: none; stroke: ${p.edgeStroke}; stroke-width: ${Math.max(1.2, style.lineWidth)}; opacity: 0.6; }`)
+  }
+  if (overlay.criticalArrows) {
+    extra.push(`  .gantt-dep-arrow-crit { stroke: ${p.criticalStroke}; stroke-width: ${Math.max(1.8, style.lineWidth * 1.5)}; opacity: 0.95; }`)
+  }
+  if (overlay.criticalBars) {
+    extra.push(`  .gantt-bar-critical-path { stroke: ${p.criticalStroke}; stroke-width: ${Math.max(2, style.nodeLineWidth * 1.5)}; }`)
+  }
+  const overlayCss = extra.length > 0 ? `${extra.join('\n')}\n` : ''
 
   return `<style>
   .gantt-section-band { fill: ${p.groupFill}; opacity: ${p.groupOpacity}; }
@@ -93,7 +122,7 @@ function ganttStyles(style: ResolvedRenderStyle): string {
   .gantt-section-label { fill: ${p.groupText}; }
   .gantt-task-label { fill: ${p.taskText}; }
   .gantt-axis-label { fill: ${p.axisText}; }
-</style>`
+${overlayCss}</style>`
 }
 
 function statusClass(tags: readonly string[]): string {
@@ -195,8 +224,19 @@ export function lowerGanttScene(
   const palette = ganttPalette(style)
   const parts: SceneNode[] = []
 
+  // Opt-in dependency/critical-path overlay (RenderOptions.gantt) — both
+  // default OFF, and every overlay branch below is byte-inert when off.
+  const ganttOptions = options.gantt ?? {}
+  const overlay: GanttOverlayFlags = {
+    dependencyArrows: ganttOptions.dependencyArrows === true && layout.dependencies.length > 0,
+    criticalBars: ganttOptions.criticalPath === true && layout.criticalTaskIndexes.length > 0,
+    criticalArrows: ganttOptions.dependencyArrows === true && ganttOptions.criticalPath === true
+      && layout.dependencies.some(d => d.critical),
+  }
+  const criticalPathSet = new Set(overlay.criticalBars ? layout.criticalTaskIndexes : [])
+
   // SVG root with CSS variables + shared style block + gantt CSS.
-  const extraCss = ganttStyles(style)
+  const extraCss = ganttStyles(style, overlay)
   parts.push(marks.prelude(
     {
       id: 'prelude',
@@ -212,6 +252,24 @@ export function lowerGanttScene(
     buildStyleBlock(font, false, colors.shadow, colors.embedFontImport) + '\n' +
     extraCss,
   ))
+
+  // Dependency arrowhead defs — content-hashed ids (the journey id-namespacing
+  // pattern) so two different gantt SVGs inlined into one page cannot collide.
+  const depMarkerId = `${ganttNamespace(layout)}-dep-arrow`
+  const depMarkerCritId = `${depMarkerId}-crit`
+  if (overlay.dependencyArrows) {
+    const markers = [
+      `  <marker id="${escapeAttr(depMarkerId)}" markerWidth="8" markerHeight="7" refX="8" refY="3.5" orient="auto">
+    <path d="M0,0 L8,3.5 L0,7 Z" fill="${palette.edgeStroke}" />
+  </marker>`,
+    ]
+    if (overlay.criticalArrows) {
+      markers.push(`  <marker id="${escapeAttr(depMarkerCritId)}" markerWidth="8" markerHeight="7" refX="8" refY="3.5" orient="auto">
+    <path d="M0,0 L8,3.5 L0,7 Z" fill="${palette.criticalStroke}" />
+  </marker>`)
+    }
+    parts.push(marks.raw({ id: 'defs', role: 'defs' }, `<defs>\n${markers.join('\n')}\n</defs>`))
+  }
 
   const plot = layout.plot
   const plotBottom = plot.y + plot.h
@@ -325,16 +383,25 @@ export function lowerGanttScene(
   }
   for (const bar of layout.bars) {
     const section = layout.sections[bar.sectionIndex]?.label
+    // Critical-path emphasis (opt-in): the analysis-backed stronger stroke.
+    const onCriticalPath = criticalPathSet.has(bar.taskIndex)
+    const criticalPathCls = onCriticalPath ? ' gantt-bar-critical-path' : ''
+    const criticalPathPaint: Partial<MarkPaint> = onCriticalPath
+      ? { stroke: palette.criticalStroke, strokeWidth: String(Math.max(2, style.nodeLineWidth * 1.5)) }
+      : {}
     if (bar.milestoneX !== undefined) {
       const cx = bar.milestoneX
       const cy = bar.y + bar.h / 2
       const radius = bar.h / 2
       const crit = bar.tags.includes('crit')
-      const cls = crit ? 'gantt-milestone gantt-milestone-crit' : 'gantt-milestone'
+      const cls = (crit ? 'gantt-milestone gantt-milestone-crit' : 'gantt-milestone') + criticalPathCls
       const d = `M ${r(cx)} ${r(cy - radius)} L ${r(cx + radius)} ${r(cy)} L ${r(cx)} ${r(cy + radius)} L ${r(cx - radius)} ${r(cy)} Z`
-      const milestonePaint: MarkPaint = crit
-        ? { fill: palette.criticalFill, stroke: palette.criticalStroke, strokeWidth: String(Math.max(1.5, style.nodeLineWidth)) }
-        : { fill: palette.nodeFill, stroke: palette.nodeBorder, strokeWidth: String(Math.max(1, style.nodeLineWidth)) }
+      const milestonePaint: MarkPaint = {
+        ...(crit
+          ? { fill: palette.criticalFill, stroke: palette.criticalStroke, strokeWidth: String(Math.max(1.5, style.nodeLineWidth)) }
+          : { fill: palette.nodeFill, stroke: palette.nodeBorder, strokeWidth: String(Math.max(1, style.nodeLineWidth)) }),
+        ...criticalPathPaint,
+      }
       parts.push(marks.shape({
         id: taskSceneId(bar.id ?? bar.label),
         role: 'milestone',
@@ -342,6 +409,7 @@ export function lowerGanttScene(
         paint: milestonePaint,
         channels: {
           ...(crit ? { status: 'crit' } : {}),
+          ...(onCriticalPath ? { emphasis: true } : {}),
           ...(section !== undefined ? { category: section } : {}),
         },
       }, `<path class="${cls}" d="${d}" data-task="${escapeXml(bar.id ?? bar.label)}" />`))
@@ -352,18 +420,51 @@ export function lowerGanttScene(
       id: taskSceneId(bar.id ?? bar.label),
       role: 'task',
       geometry: { kind: 'rect', x: r(bar.x), y: r(bar.y), width: r(Math.max(2, bar.w)), height: r(bar.h), rx: GS.barRadius, ry: GS.barRadius },
-      paint: barPaint(status, palette, style),
+      paint: { ...barPaint(status, palette, style), ...criticalPathPaint },
       channels: {
         ...(status !== undefined ? { status } : {}),
         // The layout carries no per-task completion fraction; 'done' is the
         // only completion signal, and it lands on the status channel.
         ...(status === 'done' ? { progress: 1 } : {}),
+        ...(onCriticalPath ? { emphasis: true } : {}),
         ...(section !== undefined ? { category: section } : {}),
       },
     },
-      `<rect class="${statusClass(bar.tags)}" x="${r(bar.x)}" y="${r(bar.y)}" width="${r(Math.max(2, bar.w))}" height="${r(bar.h)}" ` +
+      `<rect class="${statusClass(bar.tags)}${criticalPathCls}" x="${r(bar.x)}" y="${r(bar.y)}" width="${r(Math.max(2, bar.w))}" height="${r(bar.h)}" ` +
         `rx="${GS.barRadius}" ry="${GS.barRadius}" data-task="${escapeXml(bar.id ?? bar.label)}" />`,
     ))
+  }
+
+  // Dependency connectors (opt-in): quiet elbow arrows from predecessor end to
+  // successor start, drawn over the bars they anchor to but crossing no bar's
+  // interior (the routing invariant lives in layout.ts, not here).
+  if (overlay.dependencyArrows) {
+    const barByTask = new Map(layout.bars.map(b => [b.taskIndex, b]))
+    const depOccurrence = new Map<string, number>()
+    for (const dep of layout.dependencies) {
+      const fromKey = depTaskKey(barByTask.get(dep.fromTaskIndex))
+      const toKey = depTaskKey(barByTask.get(dep.toTaskIndex))
+      const key = `${fromKey}->${toKey}:${dep.kind}`
+      const k = depOccurrence.get(key) ?? 0
+      depOccurrence.set(key, k + 1)
+      const critical = overlay.criticalArrows && dep.critical
+      const cls = critical ? 'gantt-dep-arrow gantt-dep-arrow-crit' : 'gantt-dep-arrow'
+      const markerId = critical ? depMarkerCritId : depMarkerId
+      const points = dep.points.map(p => ({ x: r(p.x), y: r(p.y) }))
+      const d = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ')
+      parts.push(marks.connector({
+        id: k === 0 ? `dep:${key}` : `dep:${key}#${k}`,
+        role: 'edge',
+        geometry: { kind: 'path', d, points },
+        lineStyle: 'solid',
+        paint: critical
+          ? { stroke: palette.criticalStroke, strokeWidth: String(Math.max(1.8, style.lineWidth * 1.5)), opacity: '0.95' }
+          : { stroke: palette.edgeStroke, strokeWidth: String(Math.max(1.2, style.lineWidth)), opacity: '0.6' },
+        endMarker: { id: markerId, shape: 'arrow' },
+        channels: critical ? { status: 'crit', emphasis: true } : undefined,
+      }, `<path class="${cls}" d="${d}" marker-end="url(#${escapeAttr(markerId)})" ` +
+        `data-from="${escapeAttr(fromKey)}" data-to="${escapeAttr(toKey)}" />`))
+    }
   }
 
   // Vert markers (role: marker-line): full-height line + label at the top.
@@ -411,4 +512,21 @@ export function lowerGanttScene(
   parts.push(marks.raw({ id: 'svg-close', role: 'chrome' }, '</svg>'))
 
   return { family: 'gantt', width: layout.width, height: layout.height, colors, parts }
+}
+
+/** Content-hashed def-id namespace (the journey pattern, X5 id hygiene):
+ *  derived from semantic layout content, never from render order or RNG. */
+function ganttNamespace(layout: GanttLayoutResult): string {
+  return `gantt-${hashId(
+    layout.width,
+    layout.height,
+    ...layout.bars.map(b => `${b.taskIndex}:${b.id ?? b.label}`),
+    ...layout.dependencies.map(d => `${d.fromTaskIndex}>${d.toTaskIndex}:${d.kind}`),
+  )}`
+}
+
+/** Stable task key for connector data attributes: the Mermaid task id when
+ *  present (dependencies always reference ids), else the label. */
+function depTaskKey(bar: { id?: string; label: string } | undefined): string {
+  return bar === undefined ? '' : bar.id ?? bar.label
 }

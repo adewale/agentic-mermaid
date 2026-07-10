@@ -398,6 +398,24 @@ export interface RenderOptions {
      */
     experienceCurve?: boolean
   }
+  /** Family-specific SVG renderer options for gantt diagrams. */
+  gantt?: {
+    /**
+     * Draw dependency connectors — deterministic elbow arrows from each
+     * predecessor bar's end to its successor bar's start — for every
+     * `after`/`until` reference. No new Mermaid syntax: the edges come from
+     * the scheduler's dependency graph. Default: `false` (output without it
+     * is byte-identical to previous releases).
+     */
+    dependencyArrows?: boolean
+    /**
+     * Emphasize the critical path from the scheduler's analysis
+     * (GanttScheduleAnalysis.criticalPathTaskIds): stronger stroke on
+     * critical-path bars/milestones and, when `dependencyArrows` is also on,
+     * on the connectors along the path. Default: `false`.
+     */
+    criticalPath?: boolean
+  }
   /** Optional Mermaid-style runtime config (analogous to initialize/frontmatter config). */
   mermaidConfig?: MermaidRuntimeConfig
   /**

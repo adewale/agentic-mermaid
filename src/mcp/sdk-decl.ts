@@ -274,11 +274,21 @@ type GanttMutationOp =
   | { kind: 'add_section'; label: string }
   | { kind: 'rename_section'; index: number; label: string }
   | { kind: 'remove_section'; index: number }
-  | { kind: 'add_task'; sectionIndex: number; label: string; taskId?: string; tags?: GanttTaskTag[]; start?: string; end: string }
+  | { kind: 'add_task'; sectionIndex: number; label: string; taskId?: string; tags?: GanttTaskTag[]; start?: string; end: string; index?: number }
   | { kind: 'remove_task'; sectionIndex: number; taskIndex: number }
   | { kind: 'rename_task'; sectionIndex: number; taskIndex: number; label: string }
   | { kind: 'set_task_status'; sectionIndex: number; taskIndex: number; status: 'active' | 'done' | 'crit' | null }
   | { kind: 'set_task_dates'; sectionIndex: number; taskIndex: number; start?: string | null; end?: string }
+  | { kind: 'set_task_flags'; sectionIndex: number; taskIndex: number; milestone?: boolean; vert?: boolean }
+  // set_task_id rewrites structured after/until references on rename; rejects
+  // while referenced from opaque lines (click/comments), and null rejects
+  // while referenced at all.
+  | { kind: 'set_task_id'; sectionIndex: number; taskIndex: number; taskId: string | null }
+  // Source order IS gantt scheduling semantics: moves are rejected with a
+  // prescriptive error when they would change an implicit-start task's
+  // predecessor (materialize an explicit start via set_task_dates first).
+  | { kind: 'move_task'; fromSection: number; fromIndex: number; toSection: number; toIndex: number }
+  | { kind: 'move_section'; from: number; to: number }
 
 // Tier 1 (structural, reliable): EMPTY_DIAGRAM, EDGE_MISANCHORED, OFF_CANVAS,
 //   GROUP_BREACH, UNKNOWN_SHAPE, LABEL_OVERFLOW (rendered-line char count:

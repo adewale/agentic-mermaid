@@ -291,6 +291,104 @@ function allTaskIds(body: GanttBody): Set<string> {
   return ids
 }
 
+function resolveInsertIndex(index: number | undefined, length: number): Result<number, MutationError> {
+  if (index === undefined) return ok(length)
+  if (!Number.isInteger(index) || index < 0 || index > length) {
+    return err({ code: 'INVALID_OP', message: `Gantt insert index ${index} out of range (0..${length})` })
+  }
+  return ok(index)
+}
+
+/** Tasks in flat serialization order — statement order IS source order, and
+ *  source order IS gantt scheduling semantics (implicit starts chain from the
+ *  previous task in this order, across section boundaries). */
+function flatTasks(body: GanttBody): GanttBodyTask[] {
+  const out: GanttBodyTask[] = []
+  for (const st of body.statements ?? []) {
+    if (st.kind !== 'task') continue
+    const t = body.sections[st.section]?.tasks[st.ref]
+    if (t) out.push(t)
+  }
+  return out
+}
+
+/**
+ * The implicit-start guard for ordering ops: a task without a start begins
+ * when the PREVIOUS task ends, so any reorder that changes an implicit-start
+ * task's predecessor silently reschedules it. Ordering ops reject with the
+ * fix in the message instead of guessing (the caller materializes an explicit
+ * start first). add_task with an insert index is the deliberate exception:
+ * re-chaining the follower onto the inserted task is the point of a mid-chain
+ * insert, and the new task is visible in the diff.
+ */
+function implicitChainError(opKind: string, before: GanttBodyTask[], after: GanttBodyTask[]): MutationError | null {
+  const disturbed: string[] = []
+  for (let i = 0; i < after.length; i++) {
+    const task = after[i]!
+    if (task.start !== undefined) continue
+    const prevBefore = before[before.indexOf(task) - 1]
+    if (prevBefore !== after[i - 1]) disturbed.push(task.label)
+  }
+  if (disturbed.length === 0) return null
+  const names = disturbed.map(l => `"${l}"`).join(', ')
+  return {
+    code: 'INVALID_OP',
+    message: `${opKind} would silently change the schedule: task(s) ${names} have an implicit start `
+      + `(they begin when the previous task in source order ends) and this move changes their predecessor. `
+      + `Materialize an explicit start first — set_task_dates with the resolved start date (read it from `
+      + `describe/analyze) or an "after <taskId>" dependency — then retry the move.`,
+  }
+}
+
+// ---- set_task_id reference scanning/rewriting --------------------------------
+
+const REF_EXPR_RE = /\b(?:after|until)\s+([^,:#]+)/gi
+
+/** Structured tasks whose after/until expressions reference `id`. */
+function tasksReferencing(body: GanttBody, id: string): GanttBodyTask[] {
+  const out: GanttBodyTask[] = []
+  for (const s of body.sections) {
+    for (const t of s.tasks) {
+      for (const expr of [t.start, t.end]) {
+        const m = expr?.match(AFTER_OR_UNTIL_RE)
+        if (m && m[1]!.split(/\s+/).includes(id)) {
+          out.push(t)
+          break
+        }
+      }
+    }
+  }
+  return out
+}
+
+/** Opaque lines where `id` acts as a task reference: click targets and
+ *  after/until token lists inside unmodeled task-shaped lines. Ids match
+ *  [\w-]+ (TASK_ID_RE), so interpolating them into a regex needs no escaping. */
+function opaqueLinesReferencing(body: GanttBody, id: string): string[] {
+  const clickRe = new RegExp(`^click\\s+${id}(?:\\s|$)`, 'i')
+  const out: string[] = []
+  for (const st of body.statements ?? []) {
+    if (st.kind !== 'opaque-block') continue
+    for (const raw of st.lines) {
+      const line = raw.trim()
+      if (!line || line.startsWith('%%')) continue
+      if (clickRe.test(line)) { out.push(line); continue }
+      for (const m of line.matchAll(REF_EXPR_RE)) {
+        if (m[1]!.trim().split(/\s+/).includes(id)) { out.push(line); break }
+      }
+    }
+  }
+  return out
+}
+
+/** Rewrite `oldId` → `newId` inside an `after …`/`until …` expression. */
+function rewriteRefExpr(expr: string, keyword: 'after' | 'until', oldId: string, newId: string): string {
+  if (!expr.startsWith(`${keyword} `)) return expr
+  const refs = expr.slice(keyword.length + 1).split(/\s+/).filter(Boolean)
+  if (!refs.includes(oldId)) return expr
+  return `${keyword} ${refs.map(ref => (ref === oldId ? newId : ref)).join(' ')}`
+}
+
 export function mutateGantt(input: GanttBody, op: GanttMutationOp): Result<GanttBody, MutationError> {
   const body = cloneBody(input)
   const statements = body.statements!
@@ -347,6 +445,8 @@ export function mutateGantt(input: GanttBody, op: GanttMutationOp): Result<Gantt
       if (op.taskId !== undefined && allTaskIds(body).has(op.taskId)) {
         return err({ code: 'DUPLICATE_TASK', message: `Task id "${op.taskId}" already exists` })
       }
+      const index = resolveInsertIndex(op.index, s.tasks.length)
+      if (!index.ok) return index
       const task: GanttBodyTask = {
         id: nextTaskId(),
         taskId: op.taskId,
@@ -357,8 +457,8 @@ export function mutateGantt(input: GanttBody, op: GanttMutationOp): Result<Gantt
       }
       const bad = validateTask(task)
       if (bad) return err(bad)
-      s.tasks.push(task)
-      insertTaskStatement(statements, op.sectionIndex, s.tasks.length - 1)
+      s.tasks.splice(index.value, 0, task)
+      insertTaskStatement(statements, op.sectionIndex, index.value)
       break
     }
     case 'remove_task': {
@@ -366,10 +466,76 @@ export function mutateGantt(input: GanttBody, op: GanttMutationOp): Result<Gantt
       if (!s) return err({ code: 'SECTION_NOT_FOUND', message: `No section at index ${op.sectionIndex}` })
       if (!s.tasks[op.taskIndex]) return err({ code: 'TASK_NOT_FOUND', message: `No task at index ${op.taskIndex}` })
       s.tasks.splice(op.taskIndex, 1)
-      removeAll(statements, st => st.kind === 'task' && st.section === op.sectionIndex && st.ref === op.taskIndex)
-      for (const st of statements) {
-        if (st.kind === 'task' && st.section === op.sectionIndex && st.ref > op.taskIndex) st.ref--
+      removeTaskStatement(statements, op.sectionIndex, op.taskIndex)
+      break
+    }
+    case 'move_task': {
+      const from = getSection(op.fromSection)
+      if (!from) return err({ code: 'SECTION_NOT_FOUND', message: `No section at index ${op.fromSection}` })
+      const task = from.tasks[op.fromIndex]
+      if (!task) return err({ code: 'TASK_NOT_FOUND', message: `No task at index ${op.fromIndex}` })
+      const to = getSection(op.toSection)
+      if (!to) return err({ code: 'SECTION_NOT_FOUND', message: `No section at index ${op.toSection}` })
+      const before = flatTasks(body)
+      from.tasks.splice(op.fromIndex, 1)
+      removeTaskStatement(statements, op.fromSection, op.fromIndex)
+      if (!Number.isInteger(op.toIndex) || op.toIndex < 0 || op.toIndex > to.tasks.length) {
+        return err({ code: 'TASK_NOT_FOUND', message: `No insert position ${op.toIndex} in section ${op.toSection} (0..${to.tasks.length})` })
       }
+      to.tasks.splice(op.toIndex, 0, task)
+      insertTaskStatement(statements, op.toSection, op.toIndex)
+      const chain = implicitChainError('move_task', before, flatTasks(body))
+      if (chain) return err(chain)
+      break
+    }
+    case 'move_section': {
+      const section = getSection(op.from)
+      if (!section) return err({ code: 'SECTION_NOT_FOUND', message: `No section at index ${op.from}` })
+      if (!Number.isInteger(op.to) || op.to < 0 || op.to >= body.sections.length) {
+        return err({ code: 'SECTION_NOT_FOUND', message: `No section position ${op.to} (0..${body.sections.length - 1})` })
+      }
+      if (section.label === undefined) {
+        return err({
+          code: 'INVALID_OP',
+          message: 'Cannot move the implicit (unlabeled) section: its tasks precede the first "section" line by construction. Move the labeled sections around it instead.',
+        })
+      }
+      if (body.sections[0]?.label === undefined && op.to === 0) {
+        return err({
+          code: 'INVALID_OP',
+          message: 'Position 0 is held by the implicit (unlabeled) section — tasks before the first "section" line. The earliest position for a labeled section is 1.',
+        })
+      }
+      if (op.to === op.from) break
+      const before = flatTasks(body)
+      const { preamble, spans } = sectionSpans(statements)
+      const spanByOld = new Map(spans.map(sp => [sp.sectionIndex, sp]))
+      for (let i = 0; i < body.sections.length; i++) {
+        if (body.sections[i]!.label !== undefined && !spanByOld.has(i)) {
+          return err({ code: 'INVALID_OP', message: `move_section: section ${i} has no section statement to move` })
+        }
+      }
+      // oldIndexes[newIndex] = oldIndex — the reorder applied to index space.
+      const oldIndexes = body.sections.map((_, i) => i)
+      oldIndexes.splice(op.from, 1)
+      oldIndexes.splice(op.to, 0, op.from)
+      const newIndexOf = new Array<number>(body.sections.length)
+      oldIndexes.forEach((old, nw) => { newIndexOf[old] = nw })
+
+      const [moved] = body.sections.splice(op.from, 1)
+      body.sections.splice(op.to, 0, moved!)
+
+      // Whole statement SPANS travel: a section's header, tasks, and any
+      // interleaved opaque lines move as one block; the preamble (title,
+      // directives, implicit-section tasks) never moves.
+      statements.length = 0
+      statements.push(...preamble, ...oldIndexes.filter(old => spanByOld.has(old)).flatMap(old => spanByOld.get(old)!.statements))
+      for (const st of statements) {
+        if (st.kind === 'section') st.ref = newIndexOf[st.ref]!
+        else if (st.kind === 'task') st.section = newIndexOf[st.section]!
+      }
+      const chain = implicitChainError('move_section', before, flatTasks(body))
+      if (chain) return err(chain)
       break
     }
     case 'rename_task': {
@@ -404,6 +570,81 @@ export function mutateGantt(input: GanttBody, op: GanttMutationOp): Result<Gantt
       t.end = candidate.end
       break
     }
+    case 'set_task_flags': {
+      const t = getTask(op.sectionIndex, op.taskIndex)
+      if (!t) return err({ code: 'TASK_NOT_FOUND', message: `No task at (${op.sectionIndex},${op.taskIndex})` })
+      const tags = new Set<GanttBodyTaskTag>(t.tags)
+      if (op.milestone !== undefined) { if (op.milestone) tags.add('milestone'); else tags.delete('milestone') }
+      if (op.vert !== undefined) { if (op.vert) tags.add('vert'); else tags.delete('vert') }
+      const candidate = { ...t, tags: canonicalTags([...tags]) }
+      const bad = validateTask(candidate)
+      if (bad) return err(bad)
+      t.tags = candidate.tags
+      break
+    }
+    case 'set_task_id': {
+      // Reference-coherence contract (documented in docs/design/families/
+      // gantt.md): renames REWRITE structured after/until references so the
+      // dependency graph never dangles; opaque references (click lines,
+      // unmodeled task lines) REJECT the rename because typed ops never edit
+      // opaque source; clearing (null) REJECTS while any reference exists —
+      // there is nothing to retarget the referents to.
+      const t = getTask(op.sectionIndex, op.taskIndex)
+      if (!t) return err({ code: 'TASK_NOT_FOUND', message: `No task at (${op.sectionIndex},${op.taskIndex})` })
+      const oldId = t.taskId
+      if (op.taskId === null) {
+        if (oldId === undefined) break
+        const structuredRefs = tasksReferencing(body, oldId).filter(rt => rt !== t)
+        const opaqueRefs = opaqueLinesReferencing(body, oldId)
+        if (structuredRefs.length > 0 || opaqueRefs.length > 0) {
+          const referents = [
+            ...structuredRefs.map(rt => `task "${rt.label}"`),
+            ...opaqueRefs.map(l => `opaque line "${l}"`),
+          ].join(', ')
+          return err({
+            code: 'INVALID_OP',
+            message: `Cannot clear task id "${oldId}": it is referenced by ${referents}. `
+              + `Retarget or remove those references first (set_task_dates on the referencing tasks; opaque lines are edited at the source level).`,
+          })
+        }
+        const cleared = { ...t, taskId: undefined }
+        const bad = validateTask(cleared)
+        if (bad) return err(bad)
+        t.taskId = undefined
+        break
+      }
+      const newId = op.taskId.trim()
+      if (!TASK_ID_RE.test(newId)) {
+        return err({ code: 'INVALID_OP', message: `Gantt task id "${newId}" must match ${TASK_ID_RE}` })
+      }
+      if (newId === oldId) break
+      if (allTaskIds(body).has(newId)) {
+        return err({ code: 'DUPLICATE_TASK', message: `Task id "${newId}" already exists` })
+      }
+      if (oldId !== undefined) {
+        const opaqueRefs = opaqueLinesReferencing(body, oldId)
+        if (opaqueRefs.length > 0) {
+          return err({
+            code: 'INVALID_OP',
+            message: `Cannot rename task id "${oldId}": it is referenced from opaque segment(s) ${opaqueRefs.map(l => `"${l}"`).join(', ')} `
+              + `— typed ops never rewrite opaque lines (click/comments/unmodeled syntax). Edit those lines at the source level first.`,
+          })
+        }
+      }
+      const candidate = { ...t, taskId: newId }
+      const bad = validateTask(candidate)
+      if (bad) return err(bad)
+      t.taskId = newId
+      if (oldId !== undefined) {
+        for (const s of body.sections) {
+          for (const rt of s.tasks) {
+            if (rt.start !== undefined) rt.start = rewriteRefExpr(rt.start, 'after', oldId, newId)
+            rt.end = rewriteRefExpr(rt.end, 'until', oldId, newId)
+          }
+        }
+      }
+      break
+    }
     default: {
       const _x: never = op
       return err({ code: 'INVALID_OP', message: unknownOpMessage('gantt', _x) })
@@ -416,18 +657,65 @@ function removeAll(statements: GanttStatement[], pred: (s: GanttStatement) => bo
   for (let i = statements.length - 1; i >= 0; i--) if (pred(statements[i]!)) statements.splice(i, 1)
 }
 
-// Insert a new task statement right after the last statement belonging to its
-// section (the section header or its last task), so serialization keeps tasks
-// under the right `section` line even with directives interleaved.
+// Insert a task statement so it serializes at position `taskRef` within its
+// section: later same-section refs shift up, and the statement lands right
+// before the task it displaced — or after the section's last statement (the
+// header or its last task) when appending, so serialization keeps tasks under
+// the right `section` line even with directives interleaved.
 function insertTaskStatement(statements: GanttStatement[], sectionIndex: number, taskRef: number): void {
-  let at = -1
+  for (const st of statements) {
+    if (st.kind === 'task' && st.section === sectionIndex && st.ref >= taskRef) st.ref++
+  }
+  let insertAt = -1
+  let lastOfSection = -1
   for (let i = 0; i < statements.length; i++) {
-    const s = statements[i]!
-    if ((s.kind === 'section' && s.ref === sectionIndex) || (s.kind === 'task' && s.section === sectionIndex)) at = i
+    const st = statements[i]!
+    if (st.kind === 'section' && st.ref === sectionIndex) lastOfSection = i
+    if (st.kind === 'task' && st.section === sectionIndex) {
+      if (st.ref > taskRef && insertAt === -1) insertAt = i
+      lastOfSection = i
+    }
   }
   const st: GanttStatement = { kind: 'task', section: sectionIndex, ref: taskRef }
-  if (at >= 0) statements.splice(at + 1, 0, st)
+  if (insertAt >= 0) statements.splice(insertAt, 0, st)
+  else if (lastOfSection >= 0) statements.splice(lastOfSection + 1, 0, st)
   else statements.push(st)
+}
+
+/** Remove a task's statement and close the ref gap it leaves. */
+function removeTaskStatement(statements: GanttStatement[], sectionIndex: number, taskRef: number): void {
+  removeAll(statements, st => st.kind === 'task' && st.section === sectionIndex && st.ref === taskRef)
+  for (const st of statements) {
+    if (st.kind === 'task' && st.section === sectionIndex && st.ref > taskRef) st.ref--
+  }
+}
+
+/**
+ * Partition the statement stream into the preamble (everything before the
+ * first `section` statement: title, directives, implicit-section tasks) and
+ * one contiguous span per labeled section — the section header plus every
+ * following statement up to the next header, opaque lines included. Only task
+ * statements of the span's own section can appear inside it (tasks always
+ * attach to the current section at parse time, and insertTaskStatement keeps
+ * new ones inside their section's span).
+ */
+function sectionSpans(statements: GanttStatement[]): {
+  preamble: GanttStatement[]
+  spans: Array<{ sectionIndex: number; statements: GanttStatement[] }>
+} {
+  const preamble: GanttStatement[] = []
+  const spans: Array<{ sectionIndex: number; statements: GanttStatement[] }> = []
+  let current: { sectionIndex: number; statements: GanttStatement[] } | null = null
+  for (const st of statements) {
+    if (st.kind === 'section') {
+      current = { sectionIndex: st.ref, statements: [st] }
+      spans.push(current)
+      continue
+    }
+    if (current) current.statements.push(st)
+    else preamble.push(st)
+  }
+  return { preamble, spans }
 }
 
 // ---- Verify --------------------------------------------------------------------

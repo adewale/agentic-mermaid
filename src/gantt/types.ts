@@ -234,6 +234,29 @@ export interface GanttRowLayout {
   h: number
 }
 
+/**
+ * A routed dependency connector (the opt-in `gantt.dependencyArrows` render
+ * option; family-elevation-plan §Gantt item 1). Deterministic orthogonal
+ * elbow route from the predecessor bar's end to the successor bar's start.
+ * Invariants (tested): the first point touches the from-bar, the last point
+ * touches the to-bar, and no segment crosses ANY bar's interior — the router
+ * jogs through row gutters and the corridor just left of the plot instead.
+ */
+export interface GanttDependencyLayout {
+  /** Model task indexes (GanttModelTask.index / ScheduledGanttTask.index). */
+  fromTaskIndex: number
+  toTaskIndex: number
+  /** `after` edges point ref → task; `until` edges point task → ref. */
+  kind: 'after' | 'until'
+  /** True when this is a binding `after` edge between two critical-path tasks
+   *  (GanttScheduleAnalysis; zero slack, predecessor end == successor start). */
+  critical: boolean
+  /** Orthogonal polyline in layout coordinates. */
+  points: Array<{ x: number; y: number }>
+  /** Direction the arrowhead points where the route meets the successor. */
+  arrowDir: 'right' | 'down' | 'up'
+}
+
 export interface GanttLayoutResult extends PositionedDiagram {
   title?: string
   width: number
@@ -245,6 +268,12 @@ export interface GanttLayoutResult extends PositionedDiagram {
   bars: GanttBarLayout[]
   verts: GanttVertLayout[]
   ticks: GanttTick[]
+  /** Routed after/until connectors — always computed (deterministic, cheap);
+   *  drawn only under the `gantt.dependencyArrows` render option. */
+  dependencies: GanttDependencyLayout[]
+  /** Model task indexes on the critical path (from GanttScheduleAnalysis);
+   *  drawn emphasized only under the `gantt.criticalPath` render option. */
+  criticalTaskIndexes: number[]
   topAxis: boolean
   todayX?: number
   timeMin: EpochMs
