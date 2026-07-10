@@ -59,7 +59,7 @@ describe('am render --gantt-today', () => {
 
   test('the flag is registered (usage/spec sync)', () => {
     expect(FLAG_SPECS['gantt-today']).toBeDefined()
-    expect(FLAG_SPECS['gantt-today']!.arg).toBeTruthy()
+    expect(FLAG_SPECS['gantt-today']!.arg).toBe('DATE')
   })
 })
 
