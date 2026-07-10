@@ -54,7 +54,8 @@ Agentic Mermaid outputs **SVG, PNG, ASCII, Unicode, and JSON layout** from the s
   MCP render tools take `style`/`seed`; RENDER_FAILED-gated verify means a
   clean verify proves the styled source renders. Authoring guide, schema, and
   cookbook: `docs/style-authoring.md`, `docs/schemas/style-spec.schema.json`,
-  and `docs/custom-style-cookbook.md`.
+  and `docs/custom-style-cookbook.md`. Custom font selection and resolution:
+  `docs/custom-fonts.md`.
 
 - **SVG** — `renderMermaidSVG` (`compact`, `security:'strict'`, CSS
   variable fonts, `idPrefix` namespacing). CLI exposes `--security strict`.

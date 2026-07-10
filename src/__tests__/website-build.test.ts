@@ -923,6 +923,9 @@ describe('Workers Static Assets website contract', () => {
     expect(page).toContain('/schemas/style-spec.schema.json')
     expect(page).toContain('/examples/styles/transit-route-map.style.json')
     expect(page).toContain('/docs/assets/style-cookbook/transit-route-map.png')
+    expect(page).toContain('<h2>Custom fonts</h2>')
+    expect(page).toContain('--font-dirs ./fonts')
+    expect(page).toContain('MCP <code>render_png</code> tools do not accept font directories')
     for (const rel of [
       'examples/styles/transit-route-map.style.json',
       'examples/styles/mid-century-report.style.json',

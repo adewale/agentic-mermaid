@@ -122,7 +122,7 @@ Agentic Mermaid outputs SVG, PNG, ASCII, Unicode, and JSON layout. For non-PNG o
         source: { type: 'string', description: 'Mermaid source.' },
         scale: { type: 'number', description: hosted ? 'Output scale multiplier (default 2 — retina; clamped to 0.1–8).' : 'Output scale multiplier (default 2 — retina).' },
         background: { type: 'string', description: "CSS color string (default 'white')." },
-        style: { description: hosted ? 'Style name | record | stack (same as render_svg). Hosted rasterization bundles the built-in style faces; custom unbundled fonts fall back to DejaVu.' : 'Style: a name (hand-drawn, watercolor, …, or any theme name), an inline style record, or an array stack merged left → right.' },
+        style: { description: hosted ? 'Style name | record | stack (same as render_svg). Hosted rasterization bundles the built-in style faces; custom unbundled fonts use Inter with DejaVu per-glyph fallback.' : 'Style: a name (hand-drawn, watercolor, …, or any theme name), an inline style record, or an array stack merged left → right.' },
         seed: { type: 'number', description: hosted ? 'Ink seed for styled looks.' : 'Re-rolls ink wobble of styled looks; never moves layout.' },
         ...(hosted ? {} : { output: { type: 'string', enum: ['base64', 'file', 'url'], description: 'PNG return mode (default base64).' } }),
       },

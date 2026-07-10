@@ -21,6 +21,7 @@ describe('custom style cookbook docs', () => {
     const schema = JSON.parse(readFileSync(schemaPath, 'utf8'))
     expect(schema.$id).toBe('https://agentic-mermaid.dev/schemas/style-spec.schema.json')
     expect(schema.properties.$schema.type).toBe('string')
+    expect(schema.properties.font.description).toContain('rendering environment supplies the font face')
     expect(schema.properties.stroke.enum).toEqual(['crisp', 'jittered', 'freehand'])
   })
 
@@ -35,6 +36,29 @@ describe('custom style cookbook docs', () => {
       $schema: 'https://agentic-mermaid.dev/schemas/style-spec.schema.json',
       colors: { bg: '#fff' },
     })).toEqual([])
+  })
+
+  it('keeps the custom-font recipe valid and linked from its entry points', () => {
+    const guide = readFileSync(join(REPO, 'docs/custom-fonts.md'), 'utf8')
+    const json = guide.match(/```json\n([\s\S]*?)\n```/)?.[1]
+    expect(json).toBeDefined()
+    expect(validateStyleSpec(JSON.parse(json!))).toEqual([])
+
+    for (const rel of [
+      'README.md',
+      'docs/README.md',
+      'docs/api.md',
+      'docs/custom-style-cookbook.md',
+      'docs/features.md',
+      'docs/style-authoring.md',
+      'docs/theming.md',
+    ]) {
+      expect(readFileSync(join(REPO, rel), 'utf8'), rel).toContain('custom-fonts.md')
+    }
+
+    for (const term of ['fontDirs', 'loadSystemFonts', "security: 'strict'", 'Inter', 'DejaVu']) {
+      expect(guide, term).toContain(term)
+    }
   })
 
   it('keeps cookbook screenshots in sync with the generator', () => {

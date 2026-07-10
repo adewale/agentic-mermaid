@@ -262,7 +262,7 @@ describe('bundled fonts', () => {
 
   test('every hosted typeface ships in assets/fonts', () => {
     // PNG rasterization loads assets/fonts with loadSystemFonts: false — a
-    // look whose face is missing there silently falls back to DejaVu Sans.
+    // look whose face is missing there uses Inter with DejaVu per-glyph fallback.
     const fontsDir = join(import.meta.dir, '..', '..', 'assets', 'fonts')
     for (const file of HOSTED_FONT_FILES) {
       expect({ file, exists: existsSync(join(fontsDir, file)) }).toEqual({ file, exists: true })
