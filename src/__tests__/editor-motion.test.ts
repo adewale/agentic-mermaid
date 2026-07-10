@@ -64,6 +64,10 @@ describe('editor motion primitives', () => {
       onFrame(value, velocity) { frames.push({ value, velocity }) },
       onDone() { done++ },
     })
+    step(16)
+    expect(frames).toHaveLength(1)
+    expect(frames[0]!.velocity).toBeGreaterThan(0)
+    expect(spring.getState().velocity).toBeGreaterThan(0)
     for (let i = 0; i < 120 && pending(); i++) step(16)
     expect(done).toBe(1)
     expect(frames.at(-1)).toEqual({ value: 2, velocity: 0 })

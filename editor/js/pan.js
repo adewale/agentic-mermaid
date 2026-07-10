@@ -161,7 +161,12 @@ function endPan(event, cancelled) {
   panStart = null;
   panPointerId = null;
   previewBody.classList.remove('panning');
-  if (!cancelled && !EditorMotion.reduced()) beginMomentum();
+  if (!cancelled && !EditorMotion.reduced()) {
+    // Release is a velocity sample too: a stationary hold before pointerup
+    // must clear an earlier drag's momentum rather than restarting it.
+    panTracker.push(performance.now(), event.clientX, event.clientY);
+    beginMomentum();
+  }
 }
 previewBody.addEventListener('pointerup', function(event) { endPan(event, false); });
 previewBody.addEventListener('pointercancel', function(event) { endPan(event, true); });

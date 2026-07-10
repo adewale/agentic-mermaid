@@ -345,7 +345,7 @@ describe('browser: live editor integration', () => {
       await page.waitForFunction(() => Number.parseInt(document.getElementById('zoom-label')?.textContent || '0', 10) >= 380, undefined, { timeout: 10_000 })
       await page.click('#pan-btn')
     }
-    async function flingLeft() {
+    async function flingLeft(stationaryBeforeReleaseMs = 0) {
       const box = await page.locator('#preview-body').boundingBox()
       expect(box).not.toBeNull()
       const x = box!.x + box!.width * 0.6
@@ -354,6 +354,7 @@ describe('browser: live editor integration', () => {
       await page.mouse.down()
       await new Promise((resolve) => setTimeout(resolve, 24))
       await page.mouse.move(x - 140, y)
+      if (stationaryBeforeReleaseMs) await new Promise((resolve) => setTimeout(resolve, stationaryBeforeReleaseMs))
       await page.mouse.up()
     }
 
@@ -363,6 +364,13 @@ describe('browser: live editor integration', () => {
     const beforeGrab = await page.locator('#preview-body').evaluate((el) => (el as HTMLElement).scrollLeft)
     await new Promise((resolve) => setTimeout(resolve, 120))
     expect(await page.locator('#preview-body').evaluate((el) => (el as HTMLElement).scrollLeft)).toBeGreaterThan(beforeGrab)
+    // A release after a deliberate stationary hold must not reuse old drag velocity.
+    await preparePannablePreview()
+    await flingLeft(150)
+    const afterStationaryRelease = await page.locator('#preview-body').evaluate((el) => (el as HTMLElement).scrollLeft)
+    await new Promise((resolve) => setTimeout(resolve, 160))
+    expect(await page.locator('#preview-body').evaluate((el) => (el as HTMLElement).scrollLeft)).toBe(afterStationaryRelease)
+
     // Start a fresh coast and grab it promptly, before it can reach its scroll bound.
     await preparePannablePreview()
     await flingLeft()

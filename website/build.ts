@@ -1221,7 +1221,7 @@ ${comparisonStyleSupportHtml()}
   var note = dialog.querySelector('[data-comparison-dialog-note]');
   var current = null;
   var dialogAnimation = null;
-  var dialogClosing = false;
+  var dialogExitTail = null;
   var ENGINES = {
     agentic: 'Agentic Mermaid',
     mermaid: 'Mermaid',
@@ -1481,23 +1481,48 @@ ${comparisonStyleSupportHtml()}
       { duration: 200, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }
     );
   }
-  function requestClose() {
-    if (!dialog.open || dialogClosing) return;
-    dialogClosing = true;
-    if (dialogAnimation) dialogAnimation.cancel();
-    dialogAnimation = reducedMotion()
-      ? dialog.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 120, easing: 'ease-out' })
-      : dialog.animate(
-        [{ opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: 'scale(0.98)' }],
-        { duration: 120, easing: 'cubic-bezier(0.4, 0, 1, 1)' }
-      );
-    dialogAnimation.onfinish = function() {
-      dialogClosing = false;
-      if (dialog.open) dialog.close();
+  function clearDialogExitTail() {
+    if (!dialogExitTail) return;
+    var tail = dialogExitTail;
+    dialogExitTail = null;
+    if (tail.animation) tail.animation.cancel();
+    if (tail.element.parentNode) tail.element.parentNode.removeChild(tail.element);
+  }
+  function animateDialogExitTail() {
+    if (reducedMotion()) return;
+    clearDialogExitTail();
+    var rect = dialog.getBoundingClientRect();
+    var tail = dialog.cloneNode(true);
+    tail.removeAttribute('open');
+    tail.removeAttribute('aria-modal');
+    tail.removeAttribute('aria-labelledby');
+    tail.removeAttribute('aria-describedby');
+    tail.setAttribute('aria-hidden', 'true');
+    tail.inert = true;
+    tail.querySelectorAll('[id]').forEach(function(node) { node.removeAttribute('id'); });
+    tail.style.cssText += ';display:block;position:fixed;z-index:2147483647;inset:auto;top:' + rect.top + 'px;left:' + rect.left + 'px;width:' + rect.width + 'px;height:' + rect.height + 'px;margin:0;pointer-events:none;overflow:hidden';
+    document.body.appendChild(tail);
+    var state = { element: tail, animation: null };
+    dialogExitTail = state;
+    state.animation = tail.animate(
+      [{ opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: 'scale(0.98)' }],
+      { duration: 120, easing: 'cubic-bezier(0.4, 0, 1, 1)' }
+    );
+    state.animation.onfinish = state.animation.oncancel = function() {
+      if (dialogExitTail === state) dialogExitTail = null;
+      if (tail.parentNode) tail.parentNode.removeChild(tail);
     };
-    dialogAnimation.oncancel = function() { dialogClosing = false; };
+  }
+  function requestClose() {
+    if (!dialog.open) return;
+    if (dialogAnimation) dialogAnimation.cancel();
+    animateDialogExitTail();
+    // Native close restores the document's semantics and focus immediately;
+    // any remaining visual tail is an inert, non-modal snapshot.
+    dialog.close();
   }
   function openComparison(section, origin) {
+    clearDialogExitTail();
     restore();
     var grid = section && section.querySelector('.comparison-grid');
     if (!section || !grid || !body) return;
@@ -1595,7 +1620,6 @@ ${comparisonStyleSupportHtml()}
   });
   window.addEventListener('resize', refreshFit);
   dialog.addEventListener('close', function() {
-    dialogClosing = false;
     restore();
   });
   dialog.addEventListener('click', function (event) {

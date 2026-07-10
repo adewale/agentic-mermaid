@@ -664,7 +664,7 @@
     var readout = card.querySelector('.readout');
     var animate = card.dataset.anim === '1';
     var labels = [['Crisp', 'Paper'], ['Sketch', 'Nord'], ['Blueprint', 'Dusk']];
-    var lastThumb = null, dialogAnimation = null, dialogClosing = false;
+    var lastThumb = null, dialogAnimation = null, exitTail = null;
 
     labels.forEach(function (pair, i) {
       var b = document.createElement('button');
@@ -684,6 +684,7 @@
       frame.appendChild(s);
       lastThumb = thumb;
       if (dialogAnimation) dialogAnimation.cancel();
+      clearExitTail();
       overlay.showModal();
       if (animate && !reduced()) {
         var pr = panel.getBoundingClientRect(), tr = thumb.getBoundingClientRect();
@@ -699,16 +700,34 @@
       }
       card.querySelector('.ov-close').focus();
     }
+    function clearExitTail() {
+      if (!exitTail) return;
+      exitTail.animation.cancel();
+      if (exitTail.element.parentNode) exitTail.element.parentNode.removeChild(exitTail.element);
+      exitTail = null;
+    }
+    function makeExitTail() {
+      if (!animate || reduced()) return;
+      clearExitTail();
+      var rect = panel.getBoundingClientRect();
+      var tail = panel.cloneNode(true);
+      tail.setAttribute('aria-hidden', 'true');
+      tail.inert = true;
+      tail.querySelectorAll('[id]').forEach(function (node) { node.removeAttribute('id'); });
+      tail.style.cssText += ';display:block;position:fixed;z-index:2147483647;top:' + rect.top + 'px;left:' + rect.left + 'px;width:' + rect.width + 'px;height:' + rect.height + 'px;margin:0;pointer-events:none;overflow:hidden';
+      document.body.appendChild(tail);
+      var state = { element: tail, animation: tail.animate([{ opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: 'scale(0.86)' }], { duration: 120, easing: 'cubic-bezier(0.4, 0, 1, 1)' }) };
+      exitTail = state;
+      state.animation.onfinish = state.animation.oncancel = function () {
+        if (exitTail === state) exitTail = null;
+        if (tail.parentNode) tail.parentNode.removeChild(tail);
+      };
+    }
     function close() {
-      if (!overlay.open || dialogClosing) return;
-      if (!animate) { overlay.close(); return; }
-      dialogClosing = true;
+      if (!overlay.open) return;
       if (dialogAnimation) dialogAnimation.cancel();
-      dialogAnimation = reduced()
-        ? panel.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 120 })
-        : panel.animate([{ opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: 'scale(0.86)' }], { duration: 120, easing: 'cubic-bezier(0.4, 0, 1, 1)' });
-      dialogAnimation.onfinish = function () { dialogClosing = false; if (overlay.open) overlay.close(); };
-      dialogAnimation.oncancel = function () { dialogClosing = false; };
+      makeExitTail();
+      overlay.close();
     }
     card.querySelector('.ov-close').addEventListener('click', close);
     overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
@@ -721,7 +740,7 @@
       if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
       else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
     });
-    overlay.addEventListener('close', function () { dialogClosing = false; if (lastThumb) lastThumb.focus(); });
+    overlay.addEventListener('close', function () { if (lastThumb) lastThumb.focus(); });
   });
 
   /* ============================ R6 ============================ */

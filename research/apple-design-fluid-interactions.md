@@ -115,9 +115,11 @@ passes its actual invoking element to `openComparison(section, origin)`. The sou
 captured before it is moved into the dialog, then a 200 ms scale/fade uses that origin.
 
 All close paths are centralized in `requestClose()`: Close, native `cancel`/Escape, and backdrop
-click defer native `dialog.close()` until the 120 ms exit completes. The `close` event remains the
-single restoration point for the moved grid, controls, overflow, trigger attributes, and focus.
-Reduced motion uses an opacity-only open/close.
+click snapshot a noninteractive visual tail, then call native `dialog.close()` on the same event
+frame. The `close` event remains the single restoration point for the moved grid, controls,
+overflow, trigger attributes, and focus; the 120 ms tail is a detached, `inert`, `aria-hidden`
+copy and cannot retain modality or focus. Reduced motion skips the exit tail; opening remains
+opacity-only.
 
 `src/__tests__/website-browser-a11y.test.ts` covers grid and header openers, animated close, Escape,
 and focus return. The standalone research mock now uses native dialogs too; it is an interaction
