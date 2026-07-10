@@ -8,16 +8,27 @@ import type {
 import type { RenderOptions } from '../types.ts'
 import { measureMultilineText, measureTextWidth } from '../text-metrics.ts'
 import { STROKE_WIDTHS, applyTextTransform, resolveRenderStyle } from '../styles.ts'
-import type { RenderStyleDefaults } from '../styles.ts'
+import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import { stripFormattingTags } from '../multiline-utils.ts'
 
 // ============================================================================
 // Timeline diagram layout engine
 //
-// Computes direct coordinates for a horizontal timeline with:
+// Computes direct coordinates for a timeline with:
 //   - optional section frames
-//   - period pills above the rail
-//   - stacked event cards below the rail
+//   - period pills beside the rail
+//   - stacked event cards on the rail's far side
+//
+// ONE placement walk serves both orientations (upstream PR #7270): geometry is
+// computed along a MAIN axis (the direction periods advance in) and a CROSS
+// axis (pill band → rail → event stacks), then mapped to screen x/y at
+// materialization time. LR maps main→x / cross→y (the historical layout,
+// byte-identical by construction); TD maps main→y / cross→x, so periods flow
+// downward with pills left of a vertical rail and events to its right. Boxes
+// never rotate — text metrics are orientation-independent — only positions map
+// through the axis frame. The two deliberate non-transform pieces are header
+// furniture: the title always spans the top, and section header bands stay
+// horizontal (they consume cross-axis space in LR, main-axis space in TD).
 // ============================================================================
 
 const TL = {
@@ -55,6 +66,10 @@ const TL = {
   eventGap: 10,
 } as const
 
+/** Width control never wraps below this (px): narrower than ~4 characters
+ *  produces vertical letter soup instead of a narrower chart. */
+const TIMELINE_MIN_WRAP = 36
+
 /** Shared by layout (sizing) and renderer (drawing) — keep it single-sourced. */
 export const TIMELINE_STYLE_DEFAULTS: RenderStyleDefaults = {
   nodeLabelFontSize: TL.eventFontSize,
@@ -79,28 +94,55 @@ interface PeriodMetric {
   label: string
   pillWidth: number
   pillHeight: number
-  columnWidth: number
-  stackHeight: number
+  /** Main-axis extent of the period column/row: max of the pill and event
+   *  main-axis sizes (width in LR, height in TD). */
+  mainExtent: number
   events: Array<{ text: string; width: number; height: number }>
 }
 
 interface SectionMetric {
   label?: string
   headerWidth: number
-  innerWidth: number
-  columnAreaWidth: number
+  /** Main-axis extent of the period run (columns in LR, rows in TD). */
+  runMain: number
+  /** Run extent plus anything else the frame must span on the main axis —
+   *  in LR the header text may be wider than the columns. */
+  innerMain: number
   periods: PeriodMetric[]
-  maxStackHeight: number
+}
+
+/** Wrap caps + box minimums for the metric pass. Width control substitutes a
+ *  compressed set; the default set reproduces the historical layout exactly. */
+interface TimelineWrapCaps {
+  pill: number
+  event: number
+  pillMinWidth: number
+  eventMinWidth: number
+}
+
+const DEFAULT_WRAP_CAPS: TimelineWrapCaps = {
+  pill: TL.pillWrapWidth,
+  event: TL.eventWrapWidth,
+  pillMinWidth: TL.pillMinWidth,
+  eventMinWidth: TL.eventMinWidth,
 }
 
 /**
- * Lay out a parsed timeline diagram.
+ * Lay out a parsed timeline diagram. `diagram.direction === 'TD'` flows
+ * top-down; anything else (including the tolerated tb/bt/rl tokens) keeps the
+ * historical horizontal layout byte-for-byte.
  */
 export function layoutTimelineDiagram(
   diagram: TimelineDiagram,
   options: RenderOptions = {}
 ): PositionedTimelineDiagram {
   const style = resolveRenderStyle(options, TIMELINE_STYLE_DEFAULTS)
+  const vertical = diagram.direction === 'TD'
+  // Box main/cross extents: boxes keep their measured width/height in both
+  // orientations; only which dimension advances each axis flips.
+  const mainOf = (width: number, height: number): number => (vertical ? height : width)
+  const crossOf = (width: number, height: number): number => (vertical ? width : height)
+
   const hasNamedSections = diagram.sections.some(section => !!section.label)
   const showSectionFrames = diagram.sections.length > 1 || hasNamedSections
   const sectionHeaderHeight = hasNamedSections ? Math.max(TL.sectionHeaderHeight, style.groupHeaderFontSize + style.groupPaddingY) : 0
@@ -113,71 +155,36 @@ export function layoutTimelineDiagram(
     ? measureMultilineText(titleText, TL.titleFontSize, TL.titleFontWeight)
     : undefined
 
-  const metrics: SectionMetric[] = diagram.sections.map(section => {
-    const wrappedSectionLabel = section.label
-      ? wrapTimelineText(applyTextTransform(section.label, style.groupTextTransform), TL.sectionWrapWidth, style.groupHeaderFontSize, style.groupHeaderFontWeight)
-      : undefined
-    const periodMetrics: PeriodMetric[] = section.periods.map(period => {
-      const wrappedPeriodLabel = wrapTimelineText(applyTextTransform(period.label, style.edgeTextTransform), TL.pillWrapWidth, style.edgeLabelFontSize, style.edgeLabelFontWeight)
-      const pillText = measureMultilineText(wrappedPeriodLabel, style.edgeLabelFontSize, style.edgeLabelFontWeight)
-      const pillWidth = Math.max(TL.pillMinWidth, pillText.width + style.nodePaddingX * 2)
-      const pillHeight = pillText.height + style.nodePaddingY * 2
+  let metrics = computeSectionMetrics(diagram, style, DEFAULT_WRAP_CAPS, vertical)
 
-      const eventMetrics = period.events.map(event => {
-        const wrappedEventText = wrapTimelineText(applyTextTransform(event.text, style.nodeTextTransform), TL.eventWrapWidth, style.nodeLabelFontSize, style.nodeLabelFontWeight)
-        const text = measureMultilineText(wrappedEventText, style.nodeLabelFontSize, style.nodeLabelFontWeight)
-        return {
-          text: wrappedEventText,
-          width: Math.max(TL.eventMinWidth, text.width + style.nodePaddingX * 2),
-          height: text.height + style.nodePaddingY * 2,
-        }
-      })
-
-      const columnWidth = Math.max(
-        pillWidth,
-        ...eventMetrics.map(event => event.width),
-      )
-
-      const stackHeight = eventMetrics.reduce((sum, event, index) => {
-        const gap = index === 0 ? 0 : TL.eventGap
-        return sum + gap + event.height
-      }, 0)
-
-      return {
-        label: wrappedPeriodLabel,
-        pillWidth,
-        pillHeight,
-        columnWidth,
-        stackHeight,
-        events: eventMetrics,
-      }
-    })
-
-    const columnAreaWidth = periodMetrics.reduce((sum, period, index) => {
-      const gap = index === 0 ? 0 : TL.columnGap
-      return sum + gap + period.columnWidth
-    }, 0)
-
-    const headerWidth = wrappedSectionLabel
-      ? measureMultilineText(wrappedSectionLabel, style.groupHeaderFontSize, style.groupHeaderFontWeight).width + style.groupLabelPaddingX * 2
-      : 0
-
-    const innerWidth = Math.max(columnAreaWidth, headerWidth)
-    const maxStackHeight = Math.max(0, ...periodMetrics.map(period => period.stackHeight))
-
-    return {
-      label: wrappedSectionLabel,
-      headerWidth,
-      innerWidth,
-      columnAreaWidth,
-      periods: periodMetrics,
-      maxStackHeight,
+  // Width control (RenderOptions.timeline.maxWidth, horizontal only): when the
+  // chart would exceed the budget, derive a per-column budget from the fixed
+  // overhead (paddings, gaps, frame insets) and re-run the metric pass ONCE
+  // with proportionally compressed wrap caps and box minimums. Deterministic
+  // (a pure function of the same inputs), and a no-op when the chart already
+  // fits, so the default path stays byte-identical. Best-effort: unbreakable
+  // tokens and extra-wide section headers can still exceed the budget.
+  const budget = options.timeline?.maxWidth
+  if (!vertical && typeof budget === 'number' && Number.isFinite(budget) && budget > 0) {
+    const projected = projectedMainEnd(metrics, sectionPadX, showSectionFrames)
+    const periodCount = metrics.reduce((sum, section) => sum + section.periods.length, 0)
+    if (projected > budget && periodCount > 0) {
+      const columnsTotal = metrics.reduce(
+        (sum, section) => sum + section.periods.reduce((s, period) => s + period.mainExtent, 0), 0)
+      const perColumn = Math.max(TIMELINE_MIN_WRAP + style.nodePaddingX * 2, (budget - (projected - columnsTotal)) / periodCount)
+      const cap = Math.max(TIMELINE_MIN_WRAP, perColumn - style.nodePaddingX * 2)
+      metrics = computeSectionMetrics(diagram, style, {
+        pill: Math.min(TL.pillWrapWidth, cap),
+        event: Math.min(TL.eventWrapWidth, cap),
+        pillMinWidth: Math.min(TL.pillMinWidth, perColumn),
+        eventMinWidth: Math.min(TL.eventMinWidth, perColumn),
+      }, vertical)
     }
-  })
+  }
 
-  const maxPillHeight = Math.max(
+  const maxPillCross = Math.max(
     0,
-    ...metrics.flatMap(section => section.periods.map(period => period.pillHeight)),
+    ...metrics.flatMap(section => section.periods.map(period => crossOf(period.pillWidth, period.pillHeight))),
   )
 
   let contentTop = TL.paddingY
@@ -186,98 +193,118 @@ export function layoutTimelineDiagram(
     contentTop += TL.titleGap
   }
 
-  const pillY = contentTop + sectionHeaderHeight + (hasNamedSections ? TL.sectionHeaderGap : 0)
-  const railY = pillY + maxPillHeight + TL.railToPillGap
-  const eventsTop = railY + TL.railToEventsGap
+  // Cross-axis anatomy: [header band (LR only)] pill band → rail → events.
+  // TD moves the header band to the main axis (a horizontal band atop each
+  // frame) and pads the pill column with the frame inset instead.
+  const headerBlock = sectionHeaderHeight + (hasNamedSections ? TL.sectionHeaderGap : 0)
+  const crossBase = vertical ? TL.paddingX : contentTop
+  const pillBandCross = crossBase + (vertical ? (showSectionFrames ? sectionPadX : 0) : headerBlock)
+  const railCross = pillBandCross + maxPillCross + TL.railToPillGap
+  const eventsCross = railCross + TL.railToEventsGap
+  const headerMain = vertical ? headerBlock : 0
 
-  let cursorX = TL.paddingX
+  let mainCursor = vertical ? contentTop : TL.paddingX
   const sections: PositionedTimelineSection[] = []
-  let maxBottom = railY + TL.markerRadius
+  let maxCrossEnd = railCross + TL.markerRadius
 
   for (let sectionIndex = 0; sectionIndex < diagram.sections.length; sectionIndex++) {
     const section = diagram.sections[sectionIndex]!
     const metric = metrics[sectionIndex]!
-    const sectionWidth = metric.innerWidth + sectionPadX * 2
-    const columnStartX = cursorX + sectionPadX + (metric.innerWidth - metric.columnAreaWidth) / 2
+    const sectionMainStart = mainCursor
+    const sectionMainExtent = headerMain + metric.innerMain + sectionPadX * 2
+    const runStart = mainCursor + headerMain + sectionPadX + (metric.innerMain - metric.runMain) / 2
 
-    let periodCursorX = columnStartX
+    let periodCursor = runStart
     const periods: PositionedTimelinePeriod[] = []
-    let sectionBottom = railY + TL.markerRadius
+    let sectionCrossEnd = railCross + TL.markerRadius
 
     for (let periodIndex = 0; periodIndex < section.periods.length; periodIndex++) {
       const period = section.periods[periodIndex]!
       const periodMetric = metric.periods[periodIndex]!
-      const centerX = periodCursorX + periodMetric.columnWidth / 2
+      const centerMain = periodCursor + periodMetric.mainExtent / 2
 
-      let eventY = eventsTop
+      let eventCross = eventsCross
       const events: PositionedTimelineEvent[] = period.events.map((event, eventIndex) => {
         const eventMetric = periodMetric.events[eventIndex]!
+        const eventMain = centerMain - mainOf(eventMetric.width, eventMetric.height) / 2
         const positioned: PositionedTimelineEvent = {
           id: event.id,
           sectionId: section.id,
           periodId: period.id,
           periodLabel: periodMetric.label,
           text: eventMetric.text,
-          x: centerX - eventMetric.width / 2,
-          y: eventY,
+          x: vertical ? eventCross : eventMain,
+          y: vertical ? eventMain : eventCross,
           width: eventMetric.width,
           height: eventMetric.height,
         }
-        eventY += eventMetric.height + TL.eventGap
+        eventCross += crossOf(eventMetric.width, eventMetric.height) + TL.eventGap
         return positioned
       })
 
-      const stemBottomY = events.length > 0 ? events[0]!.y - 10 : railY + 16
+      const stemStartCross = railCross + TL.markerRadius
+      const stemEndCross = events.length > 0 ? eventsCross - 10 : railCross + 16
+      const pillMain = centerMain - mainOf(periodMetric.pillWidth, periodMetric.pillHeight) / 2
 
       periods.push({
         id: period.id,
         sectionId: section.id,
         label: periodMetric.label,
-        centerX,
-        markerY: railY,
-        pillX: centerX - periodMetric.pillWidth / 2,
-        pillY,
+        centerX: vertical ? pillBandCross + periodMetric.pillWidth / 2 : centerMain,
+        markerX: vertical ? railCross : centerMain,
+        markerY: vertical ? centerMain : railCross,
+        pillX: vertical ? pillBandCross : centerMain - periodMetric.pillWidth / 2,
+        pillY: vertical ? pillMain : pillBandCross,
         pillWidth: periodMetric.pillWidth,
         pillHeight: periodMetric.pillHeight,
-        stemTopY: railY + TL.markerRadius,
-        stemBottomY,
+        stem: vertical
+          ? { x1: stemStartCross, y1: centerMain, x2: stemEndCross, y2: centerMain }
+          : { x1: centerMain, y1: stemStartCross, x2: centerMain, y2: stemEndCross },
         events,
       })
 
       if (events.length > 0) {
         const lastEvent = events[events.length - 1]!
-        sectionBottom = Math.max(sectionBottom, lastEvent.y + lastEvent.height)
+        sectionCrossEnd = Math.max(sectionCrossEnd, vertical ? lastEvent.x + lastEvent.width : lastEvent.y + lastEvent.height)
       }
 
-      periodCursorX += periodMetric.columnWidth + TL.columnGap
+      periodCursor += periodMetric.mainExtent + TL.columnGap
     }
 
-    sectionBottom += style.groupPaddingY
-    maxBottom = Math.max(maxBottom, sectionBottom)
+    sectionCrossEnd += style.groupPaddingY
+    maxCrossEnd = Math.max(maxCrossEnd, sectionCrossEnd)
 
     sections.push({
       id: section.id,
       label: metric.label,
-      x: cursorX,
-      y: contentTop,
-      width: sectionWidth,
-      height: sectionBottom - contentTop,
+      x: vertical ? crossBase : sectionMainStart,
+      y: vertical ? sectionMainStart : crossBase,
+      width: vertical ? sectionCrossEnd - crossBase : sectionMainExtent,
+      height: vertical ? sectionMainExtent : sectionCrossEnd - crossBase,
       framed: showSectionFrames,
       headerHeight: sectionHeaderHeight,
       periods,
     })
 
-    cursorX += sectionWidth
+    mainCursor += sectionMainExtent
     if (sectionIndex < diagram.sections.length - 1) {
-      cursorX += showSectionFrames ? TL.sectionGap : TL.columnGap
+      mainCursor += showSectionFrames ? TL.sectionGap : TL.columnGap
     }
   }
 
-  const width = cursorX + TL.paddingX
-  const height = maxBottom + TL.paddingY
+  const mainEnd = mainCursor + (vertical ? TL.paddingY : TL.paddingX)
+  const crossEnd = maxCrossEnd + (vertical ? TL.paddingX : TL.paddingY)
+  const width = vertical ? crossEnd : mainEnd
+  const height = vertical ? mainEnd : crossEnd
+
   const allPeriods = sections.flatMap(section => section.periods)
-  const firstCenter = allPeriods[0]?.centerX ?? TL.paddingX
-  const lastCenter = allPeriods[allPeriods.length - 1]?.centerX ?? width - TL.paddingX
+  const mainCenterOf = (period: PositionedTimelinePeriod): number => (vertical ? period.markerY : period.centerX)
+  const firstCenter = allPeriods.length > 0 ? mainCenterOf(allPeriods[0]!) : (vertical ? contentTop : TL.paddingX)
+  const lastCenter = allPeriods.length > 0
+    ? mainCenterOf(allPeriods[allPeriods.length - 1]!)
+    : mainEnd - (vertical ? TL.paddingY : TL.paddingX)
+  const railMain1 = firstCenter === lastCenter ? firstCenter - 42 : firstCenter
+  const railMain2 = firstCenter === lastCenter ? lastCenter + 42 : lastCenter
 
   return {
     width,
@@ -291,13 +318,88 @@ export function layoutTimelineDiagram(
       : undefined,
     accessibilityTitle: diagram.accessibilityTitle,
     accessibilityDescription: diagram.accessibilityDescription,
-    rail: {
-      x1: firstCenter === lastCenter ? firstCenter - 42 : firstCenter,
-      x2: firstCenter === lastCenter ? lastCenter + 42 : lastCenter,
-      y: railY,
-    },
+    rail: vertical
+      ? { x1: railCross, y1: railMain1, x2: railCross, y2: railMain2 }
+      : { x1: railMain1, y1: railCross, x2: railMain2, y2: railCross },
     sections,
   }
+}
+
+/** The metric pass: wrap + measure every label once. Orientation enters only
+ *  through `mainOf` (which box dimension advances the main axis). */
+function computeSectionMetrics(
+  diagram: TimelineDiagram,
+  style: ResolvedRenderStyle,
+  caps: TimelineWrapCaps,
+  vertical: boolean,
+): SectionMetric[] {
+  const mainOf = (width: number, height: number): number => (vertical ? height : width)
+  return diagram.sections.map(section => {
+    const wrappedSectionLabel = section.label
+      ? wrapTimelineText(applyTextTransform(section.label, style.groupTextTransform), TL.sectionWrapWidth, style.groupHeaderFontSize, style.groupHeaderFontWeight)
+      : undefined
+    const periodMetrics: PeriodMetric[] = section.periods.map(period => {
+      const wrappedPeriodLabel = wrapTimelineText(applyTextTransform(period.label, style.edgeTextTransform), caps.pill, style.edgeLabelFontSize, style.edgeLabelFontWeight)
+      const pillText = measureMultilineText(wrappedPeriodLabel, style.edgeLabelFontSize, style.edgeLabelFontWeight)
+      const pillWidth = Math.max(caps.pillMinWidth, pillText.width + style.nodePaddingX * 2)
+      const pillHeight = pillText.height + style.nodePaddingY * 2
+
+      const eventMetrics = period.events.map(event => {
+        const wrappedEventText = wrapTimelineText(applyTextTransform(event.text, style.nodeTextTransform), caps.event, style.nodeLabelFontSize, style.nodeLabelFontWeight)
+        const text = measureMultilineText(wrappedEventText, style.nodeLabelFontSize, style.nodeLabelFontWeight)
+        return {
+          text: wrappedEventText,
+          width: Math.max(caps.eventMinWidth, text.width + style.nodePaddingX * 2),
+          height: text.height + style.nodePaddingY * 2,
+        }
+      })
+
+      const mainExtent = Math.max(
+        mainOf(pillWidth, pillHeight),
+        ...eventMetrics.map(event => mainOf(event.width, event.height)),
+      )
+
+      return {
+        label: wrappedPeriodLabel,
+        pillWidth,
+        pillHeight,
+        mainExtent,
+        events: eventMetrics,
+      }
+    })
+
+    const runMain = periodMetrics.reduce((sum, period, index) => {
+      const gap = index === 0 ? 0 : TL.columnGap
+      return sum + gap + period.mainExtent
+    }, 0)
+
+    const headerWidth = wrappedSectionLabel
+      ? measureMultilineText(wrappedSectionLabel, style.groupHeaderFontSize, style.groupHeaderFontWeight).width + style.groupLabelPaddingX * 2
+      : 0
+
+    // In LR the header text rides the main axis, so it can widen the frame
+    // beyond the period run; in TD it spans the (shared) cross axis instead.
+    const innerMain = vertical ? runMain : Math.max(runMain, headerWidth)
+
+    return {
+      label: wrappedSectionLabel,
+      headerWidth,
+      runMain,
+      innerMain,
+      periods: periodMetrics,
+    }
+  })
+}
+
+/** Horizontal main-axis end (the final width) the placement walk would reach —
+ *  used by width control to decide whether compression is needed at all. */
+function projectedMainEnd(metrics: SectionMetric[], sectionPadX: number, showSectionFrames: boolean): number {
+  let cursor = TL.paddingX
+  for (let index = 0; index < metrics.length; index++) {
+    cursor += metrics[index]!.innerMain + sectionPadX * 2
+    if (index < metrics.length - 1) cursor += showSectionFrames ? TL.sectionGap : TL.columnGap
+  }
+  return cursor + TL.paddingX
 }
 
 function wrapTimelineText(

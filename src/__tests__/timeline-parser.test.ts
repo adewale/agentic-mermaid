@@ -165,3 +165,27 @@ describe('parseTimelineDiagram', () => {
     expect(() => parse(`timeline`)).toThrow('Timeline diagram must include at least one period, section, or title')
   })
 })
+
+describe('parseTimelineDiagram – direction (upstream PR #7270 contract)', () => {
+  it('`timeline TD` on the header line sets direction TD', () => {
+    expect(parse('timeline TD\n  2020 : A').direction).toBe('TD')
+  })
+
+  it('`timeline LR` records the explicit horizontal direction', () => {
+    expect(parse('timeline LR\n  2020 : A').direction).toBe('LR')
+  })
+
+  it('a bare header leaves direction unset (LR default)', () => {
+    expect(parse('timeline\n  2020 : A').direction).toBeUndefined()
+  })
+
+  it('accepts the direction token case-insensitively (routing already lowercases)', () => {
+    expect(parse('timeline td\n  2020 : A').direction).toBe('TD')
+  })
+
+  it('keeps accepting-and-ignoring non-upstream tokens (tb/bt/rl) as horizontal', () => {
+    const d = parse('timeline TB\n  2020 : A')
+    expect(d.direction).toBeUndefined()
+    expect(d.sections[0]!.periods[0]!.label).toBe('2020')
+  })
+})

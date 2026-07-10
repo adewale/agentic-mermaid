@@ -7,8 +7,14 @@
 
 import type { PositionedDiagram } from '../types.ts'
 
+/** Timeline flow direction (upstream PR #7270): LR = horizontal (default),
+ *  TD = vertical. Only these two tokens exist in upstream's grammar. */
+export type TimelineDirection = 'LR' | 'TD'
+
 /** Parsed timeline diagram — logical structure from Mermaid text */
 export interface TimelineDiagram {
+  /** Explicit direction token from the header (`timeline TD`). Undefined = LR default. */
+  direction?: TimelineDirection
   /** Optional timeline title */
   title?: string
   /** Optional accessibility title (Mermaid accTitle) */
@@ -57,10 +63,13 @@ export interface PositionedTimelineTitle {
   y: number
 }
 
+/** The rail is a straight segment: horizontal (y1 === y2) in LR mode,
+ *  vertical (x1 === x2) in TD mode. */
 export interface TimelineRail {
   x1: number
+  y1: number
   x2: number
-  y: number
+  y2: number
 }
 
 export interface PositionedTimelineSection {
@@ -81,14 +90,17 @@ export interface PositionedTimelinePeriod {
   id: string
   sectionId: string
   label: string
+  /** Pill label anchor x (the pill box center on the x axis in both modes). */
   centerX: number
+  /** Marker center — on the rail: (centerX, railY) in LR, (railX, row center) in TD. */
+  markerX: number
   markerY: number
   pillX: number
   pillY: number
   pillWidth: number
   pillHeight: number
-  stemTopY: number
-  stemBottomY: number
+  /** Marker-to-events connector: vertical (x1 === x2) in LR, horizontal (y1 === y2) in TD. */
+  stem: { x1: number; y1: number; x2: number; y2: number }
   events: PositionedTimelineEvent[]
 }
 

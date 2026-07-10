@@ -8,13 +8,22 @@ import { syntaxError } from '../shared/syntax-error.ts'
 // Parses Mermaid timeline syntax into a TimelineDiagram structure.
 //
 // Supported syntax:
-//   timeline
+//   timeline [LR|TD]
 //   title Timeline Title
 //   section Section Label
 //   2020 : Event 1
 //   2021 : Event 1 : Event 2
 //        : Continued event for the previous period
+//
+// Direction (upstream PR #7270): the token rides the header line — `timeline
+// TD` flows top-down, `timeline LR` (or a bare header) stays horizontal. The
+// upstream lexer only knows LR/TD; the tb/bt/rl tokens the router tolerates
+// remain accepted-and-ignored (horizontal) so existing sources are unchanged.
 // ============================================================================
+
+/** Header direction token: `timeline TD` / `timeline LR` (case-insensitive —
+ *  the source router already matches the header case-insensitively). */
+const TIMELINE_HEADER_DIRECTION_RE = /^timeline\s+(LR|TD)\s*$/i
 
 /**
  * Parse a Mermaid timeline diagram.
@@ -22,6 +31,11 @@ import { syntaxError } from '../shared/syntax-error.ts'
  */
 export function parseTimelineDiagram(lines: string[]): TimelineDiagram {
   const diagram: TimelineDiagram = { sections: [] }
+
+  const headerDirection = lines[0]?.trim().match(TIMELINE_HEADER_DIRECTION_RE)
+  if (headerDirection) {
+    diagram.direction = headerDirection[1]!.toUpperCase() as TimelineDiagram['direction']
+  }
 
   let currentSection: TimelineSection | undefined
   let currentPeriod: TimelinePeriod | undefined
