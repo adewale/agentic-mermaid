@@ -61,7 +61,16 @@ function applyOneMutation(
     // 1C wrapper policy: a mutated diagram keeps its leading wrapper
     // (frontmatter/directives/comments) byte-verbatim; only the body changes.
     const canonicalSource = wrapperPrefix(d.meta) + plugin.serialize(r.value)
-    return ok({ ...d, body: r.value, canonicalSource } as MutableValidDiagram)
+    const meta = r.value.kind === 'journey'
+      ? {
+          ...d.meta,
+          accessibility: {
+            ...(r.value.accessibilityTitle !== undefined ? { title: r.value.accessibilityTitle } : {}),
+            ...(r.value.accessibilityDescription !== undefined ? { descr: r.value.accessibilityDescription } : {}),
+          },
+        }
+      : d.meta
+    return ok({ ...d, body: r.value, meta, canonicalSource } as MutableValidDiagram)
   }
   return err({ code: 'INVALID_OP', message: `Unsupported mutable diagram kind: ${d.kind}` })
 }

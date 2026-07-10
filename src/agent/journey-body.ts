@@ -25,7 +25,7 @@ import { ok, err, DEFAULT_LABEL_CHAR_CAP } from './types.ts'
 import { labelOverflowWarning } from './label-metrics.ts'
 import {
   walkJourneyLines, normalizeJourneyText, normalizeJourneyActor,
-  isValidJourneyScore, type JourneyParseIssue,
+  isValidJourneyScore, hasJourneyStatementDelimiter, JOURNEY_ACTOR_COLOR_LIMIT, type JourneyParseIssue,
 } from '../journey/parse-core.ts'
 
 // ---- Parser -----------------------------------------------------------------
@@ -146,8 +146,11 @@ function makeIdAllocator(body: JourneyBody): (prefix: 'section' | 'task') => str
 function normalizeOpText(value: string, field: string, opts: { allowColon?: boolean } = {}): Result<string, MutationError> {
   if (typeof value !== 'string') return err({ code: 'INVALID_OP', message: `Journey ${field} must be a string` })
   const normalized = normalizeJourneyText(value)
-  if (!normalized || (!opts.allowColon && normalized.includes(':'))) {
-    return err({ code: 'INVALID_OP', message: `Journey ${field} must be non-empty and must not contain :` })
+  if (!normalized || (!opts.allowColon && normalized.includes(':')) || hasJourneyStatementDelimiter(normalized)) {
+    return err({
+      code: 'INVALID_OP',
+      message: `Journey ${field} must be non-empty${opts.allowColon ? '' : ', must not contain :'}, and must not contain statement-delimiter semicolons`,
+    })
   }
   return ok(normalized)
 }
@@ -170,8 +173,8 @@ function normalizeAccessibilityOpText(
   if (value === null) return ok(undefined)
   if (typeof value !== 'string') return err({ code: 'INVALID_OP', message: `Journey ${field} must be a string or null` })
   const normalized = normalizeJourneyText(value)
-  if (!normalized || /[;{}]/.test(normalized)) {
-    return err({ code: 'INVALID_OP', message: `Journey ${field} must be non-empty and must not contain ;, {, or }` })
+  if (!normalized || /[{}]/.test(normalized) || hasJourneyStatementDelimiter(normalized)) {
+    return err({ code: 'INVALID_OP', message: `Journey ${field} must be non-empty and must not contain statement-delimiter semicolons, {, or }` })
   }
   return ok(normalized)
 }
@@ -181,7 +184,9 @@ function normalizeActors(actors: string[] | undefined): Result<string[], Mutatio
   for (const raw of actors ?? []) {
     if (typeof raw !== 'string') return err({ code: 'INVALID_OP', message: 'Journey actor must be a string' })
     const normalized = normalizeJourneyActor(raw)
-    if (!normalized) return err({ code: 'INVALID_OP', message: 'Journey actor must be non-empty' })
+    if (!normalized || normalized.includes(',') || hasJourneyStatementDelimiter(normalized)) {
+      return err({ code: 'INVALID_OP', message: 'Journey actor must be non-empty and must not contain commas or statement-delimiter semicolons' })
+    }
     out.push(normalized)
   }
   return ok(out)
@@ -310,20 +315,22 @@ export function mutateJourney(body: JourneyBody, op: JourneyMutationOp): Result<
       break
     }
     case 'rename_actor': {
-      const from = normalizeOpText(op.from, 'actor', { allowColon: true })
-      if (!from.ok) return from
-      const to = normalizeOpText(op.to, 'actor', { allowColon: true })
-      if (!to.ok) return to
+      const fromActors = normalizeActors([op.from])
+      if (!fromActors.ok) return fromActors
+      const toActors = normalizeActors([op.to])
+      if (!toActors.ok) return toActors
+      const from = fromActors.value[0]!
+      const to = toActors.value[0]!
       let found = false
       for (const s of next.sections) {
         for (const t of s.tasks) {
           t.actors = t.actors.map(a => {
-            if (a === from.value) { found = true; return to.value }
+            if (a === from) { found = true; return to }
             return a
           })
         }
       }
-      if (!found) return err({ code: 'ACTOR_NOT_FOUND', message: `Actor "${from.value}" not found` })
+      if (!found) return err({ code: 'ACTOR_NOT_FOUND', message: `Actor "${from}" not found` })
       break
     }
     default: {
@@ -341,7 +348,27 @@ export function mutateJourney(body: JourneyBody, op: JourneyMutationOp): Result<
     return err({ code: 'INVALID_OP', message: 'Journey must keep at least one scored task' })
   }
 
+  // Construction postcondition: every successful edit must survive the exact
+  // canonical serializer/parser waist with identical user-visible semantics.
+  // Generated IDs are intentionally omitted because reparsing allocates them.
+  const reparsed = parseJourneyBody(renderJourney(next).trimEnd().split(/\r?\n/).slice(1))
+  if (!reparsed.ok || JSON.stringify(journeySemantics(reparsed.body)) !== JSON.stringify(journeySemantics(next))) {
+    return err({ code: 'INVALID_OP', message: 'Journey edit cannot be represented losslessly by Mermaid syntax' })
+  }
+
   return ok(next)
+}
+
+function journeySemantics(body: JourneyBody): unknown {
+  return {
+    title: body.title,
+    accessibilityTitle: body.accessibilityTitle,
+    accessibilityDescription: body.accessibilityDescription,
+    sections: body.sections.map(section => ({
+      label: section.label,
+      tasks: section.tasks.map(task => ({ text: task.text, score: task.score, actors: task.actors })),
+    })),
+  }
 }
 
 // ---- Verifier (FamilyPlugin.verify hook) ------------------------------------
@@ -362,6 +389,14 @@ export function verifyJourney(body: JourneyBody, opts: VerifyOptions): LayoutWar
   if (body.title !== undefined) {
     const w = labelOverflowWarning('title', body.title, Math.max(cap, 80))
     if (w) warnings.push(w)
+  }
+  const actors = new Set(body.sections.flatMap(section => section.tasks.flatMap(task => task.actors)))
+  if (actors.size > JOURNEY_ACTOR_COLOR_LIMIT) {
+    warnings.push({
+      code: 'UNSUPPORTED_SYNTAX',
+      syntax: 'journey_actor_palette_limit',
+      message: `Journey guarantees unique derived actor colors through ${JOURNEY_ACTOR_COLOR_LIMIT} actors; this diagram has ${actors.size}, so colors repeat deterministically above that bound.`,
+    })
   }
   for (const s of body.sections) {
     if (s.label !== undefined) overflow(s.id, s.label)

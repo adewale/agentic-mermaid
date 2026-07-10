@@ -45,6 +45,12 @@ const STEREOTYPE_RE = /^state\s+(?:"([^"]+)"\s+as\s+)?([\w\p{L}]+)\s*<<\s*(fork|
 const SEPARATOR_RE = /^-{2,}$/
 /** History transition endpoints: bare `[H]`/`[H*]` or suffixed `Base[H]`/`Base[H*]`. */
 const HISTORY_ENDPOINT_RE = /^([\w\p{L}-]*)\[(H\*?)\]$/u
+const STATE_NODE_ID_RE = /^[\w\p{L}-]+$/u
+
+/** Ordinary simple-state/note identifier grammar (hyphens allowed). */
+export function isStateNodeId(id: string): boolean {
+  return STATE_NODE_ID_RE.test(id)
+}
 
 /** `note left|right of X : text` — single-line note. */
 export function matchNoteLine(line: string): StateNoteLineMatch | null {

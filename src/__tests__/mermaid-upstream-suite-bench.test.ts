@@ -160,6 +160,12 @@ function expectBudgetAtOrBelow(observed: LocalGapBudget, budget: LocalGapBudget)
 }
 
 describe('BUILD-20 Mermaid upstream parser/DB bench', () => {
+  it('keeps the committed case corpus in canonical two-space JSON', () => {
+    const path = join(ROOT, 'eval/mermaid-upstream-suite-bench/cases.json')
+    const text = readFileSync(path, 'utf8')
+    expect(text).toBe(JSON.stringify(JSON.parse(text), null, 2) + '\n')
+  })
+
   it('has a manifest row and portable upstream-derived case for every renderable built-in family', () => {
     const covered = new Set(cases.map(c => c.family))
     const manifested = new Set(manifest.families.map(f => f.family))

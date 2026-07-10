@@ -2001,12 +2001,18 @@ export function applyRouteContracts(
   // is clamped against sibling nodes, group borders, and foreign label pills,
   // so the arc cannot introduce an overlap. This is the typed self-loop route
   // class doing its own certified repair — not an exemption from the gates.
+  // Occupancy is allocated per node AND side. A node-global rank eventually
+  // pushed attachments beyond the usable side span; clipping then collapsed
+  // dense loops onto identical boundary-running geometry.
   const selfLoopRank = new Map<string, number>()
+  const selfLoopLabelRects: Array<{ x: number; y: number; w: number; h: number }> = []
+  const selfLoopLabelsBySide = new Map<string, Array<{ edge: PositionedEdge; rectIndex: number }>>()
+  const rectsOverlap = (a: { x: number; y: number; w: number; h: number }, b: { x: number; y: number; w: number; h: number }): boolean =>
+    Math.min(a.x + a.w, b.x + b.w) > Math.max(a.x, b.x) &&
+    Math.min(a.y + a.h, b.y + b.h) > Math.max(a.y, b.y)
   const repairSelfLoopArc = (edge: PositionedEdge): PortSide | null => {
     const node = nodeMap.get(edge.source)
     if (!node) return null
-    const rank = selfLoopRank.get(node.id) ?? 0
-    selfLoopRank.set(node.id, rank + 1)
 
     const cx = node.x + node.width / 2
     const cy = node.y + node.height / 2
@@ -2067,7 +2073,9 @@ export function applyRouteContracts(
         }
       }
       for (const other of ctx.edges) {
-        if (other === edge || !other.label) continue
+        // Self-loop labels are allocated together with their loop geometry;
+        // stale ELK positions must not collapse later loop depth.
+        if (other === edge || other.source === other.target || !other.label) continue
         const r = labelRect(other, style)
         if (!r) continue
         consider(vertical ? r.x : r.y, vertical ? r.x + r.w : r.y + r.h,
@@ -2077,28 +2085,39 @@ export function applyRouteContracts(
     }
 
     const crossSize = (side: PortSide): number => (side === 'N' || side === 'S') ? node.width : node.height
+    const sideKey = (side: PortSide): string => `${node.id}:${side}`
+    const sideRank = (side: PortSide): number => selfLoopRank.get(sideKey(side)) ?? 0
+    const baseAttachment = (side: PortSide): number =>
+      Math.min(Math.max(crossSize(side) / 4, 6), 10, Math.max(crossSize(side) / 2 - 2, 3))
+    const sideHasSlot = (side: PortSide): boolean =>
+      baseAttachment(side) + sideRank(side) * 6 <= crossSize(side) / 2 - 2
     const pickGeometry = (side: PortSide): { d: number; desired: number; clear: number } => {
-      const size = crossSize(side)
-      const d = Math.min(Math.max(size / 4, 6), 10, Math.max(size / 2 - 2, 3)) + rank * 6
-      const desired = 24 + rank * 14
+      const rank = sideRank(side)
+      const d = baseAttachment(side) + rank * 6
+      const desired = 24 + rank * Math.max(14, pillMain(side) + 8)
       return { d, desired, clear: clearDepth(side, d) }
     }
-    // The pill zone beyond the outer segment must be clear too.
-    const pillReserve = (side: PortSide): number => pill ? pillMain(side) + 8 : 0
-
     let chosen: PortSide | null = null
     let geo: { d: number; desired: number; clear: number } | null = null
-    for (const side of sideOrder) {
+    const allocatedOrder = sideOrder
+      .map((side, preference) => ({ side, preference, rank: sideRank(side) }))
+      .sort((a, b) => a.rank - b.rank || a.preference - b.preference)
+      .map(entry => entry.side)
+    for (const side of allocatedOrder) {
+      if (!sideHasSlot(side)) continue
       const g = pickGeometry(side)
-      if (g.clear - pillReserve(side) >= Math.min(g.desired, 14)) { chosen = side; geo = g; break }
+      if (g.clear >= Math.min(g.desired, 14)) { chosen = side; geo = g; break }
     }
     if (!chosen || !geo) {
       // No side offers the minimum arc — keep the widest one (still honest,
       // still certified; the audit gates verify no overlap was introduced).
-      chosen = sideOrder.reduce((best, side) => pickGeometry(side).clear > pickGeometry(best).clear ? side : best, sideOrder[0]!)
+      const available = allocatedOrder.filter(sideHasSlot)
+      if (available.length === 0) return null
+      chosen = available.reduce((best, side) => pickGeometry(side).clear > pickGeometry(best).clear ? side : best, available[0]!)
       geo = pickGeometry(chosen)
     }
-    const depth = Math.max(Math.min(geo.desired, geo.clear - pillReserve(chosen)), 8)
+    selfLoopRank.set(sideKey(chosen), sideRank(chosen) + 1)
+    const depth = Math.max(Math.min(geo.desired, geo.clear), 8)
     const d = geo.d
 
     const points: Point[] = (() => {
@@ -2122,14 +2141,60 @@ export function applyRouteContracts(
     // segment, so orthogonality is preserved.
     edge.points = clipEdgeToShape(clipEdgeToShape(points, node, true), node, false)
     if (edge.label && pill) {
-      // Pill centre one half-pill (+4px gap) beyond the outer segment, on the
-      // loop's cross-centreline — the pill hugs the arc without covering it.
+      // Center the pill normally just beyond its outer segment. If a blocker
+      // capped two same-side depths close together, shift the later pill only
+      // far enough along that segment to clear the earlier pill while staying
+      // within the route-label distance contract.
       const vertical = chosen === 'N' || chosen === 'S'
-      const sign = chosen === 'W' || chosen === 'N' ? -1 : 1
+      const normalSign = chosen === 'W' || chosen === 'N' ? -1 : 1
+      const tangentSign = chosen === 'W' || chosen === 'S' ? -1 : 1
       const sideCoord = chosen === 'W' ? node.x : chosen === 'E' ? node.x + node.width
         : chosen === 'N' ? node.y : node.y + node.height
-      const outer = sideCoord + sign * (depth + pillMain(chosen) / 2 + 4)
-      edge.labelPosition = vertical ? { x: cx, y: outer } : { x: outer, y: cy }
+      const outer = sideCoord + normalSign * (depth + pillMain(chosen) / 2 + 4)
+      const crossPitch = (vertical ? pill.width : pill.height) + 2 * LABEL_PILL_PADDING + 2
+      const rank = sideRank(chosen) - 1
+      let position = vertical ? { x: cx, y: outer } : { x: outer, y: cy }
+      const rectAt = (p: Point): { x: number; y: number; w: number; h: number } => ({
+        x: p.x - pill.width / 2 - LABEL_PILL_PADDING,
+        y: p.y - pill.height / 2 - LABEL_PILL_PADDING,
+        w: pill.width + 2 * LABEL_PILL_PADDING,
+        h: pill.height + 2 * LABEL_PILL_PADDING,
+      })
+      // Once a side gains a nested route, move its earlier centered pill to
+      // one tangent and start the later pill on the other. Both remain close
+      // to their outer segments, while the wider nested route can pass through
+      // the center lane without crossing the earlier pill.
+      const labelSideKey = sideKey(chosen)
+      const previousOnSide = selfLoopLabelsBySide.get(labelSideKey) ?? []
+      if (rank > 0) {
+        for (const previous of previousOnSide) {
+          const old = previous.edge.labelPosition!
+          previous.edge.labelPosition = vertical
+            ? { x: cx - tangentSign * crossPitch, y: old.y }
+            : { x: old.x, y: cy - tangentSign * crossPitch }
+          selfLoopLabelRects[previous.rectIndex] = rectAt(previous.edge.labelPosition)
+        }
+        position = vertical
+          ? { x: cx + tangentSign * crossPitch * rank, y: outer }
+          : { x: outer, y: cy + tangentSign * crossPitch * rank }
+      }
+      if (selfLoopLabelRects.some(r => rectsOverlap(rectAt(position), r))) {
+        for (let attempt = 0; attempt < 8; attempt++) {
+          const direction = attempt % 2 === 0 ? tangentSign : -tangentSign
+          const offset = (1 + Math.floor(attempt / 2)) * crossPitch
+          const candidate = vertical
+            ? { x: cx + direction * offset, y: outer }
+            : { x: outer, y: cy + direction * offset }
+          if (!selfLoopLabelRects.some(r => rectsOverlap(rectAt(candidate), r))) {
+            position = candidate
+            break
+          }
+        }
+      }
+      edge.labelPosition = position
+      const rectIndex = selfLoopLabelRects.push(rectAt(position)) - 1
+      previousOnSide.push({ edge, rectIndex })
+      selfLoopLabelsBySide.set(labelSideKey, previousOnSide)
     }
     return chosen
   }
@@ -2150,11 +2215,15 @@ export function applyRouteContracts(
     if (bundled.has(edge)) {
       cert.invariant = 'bundle'
     } else if (routeClass === 'self-loop') {
-      cert.invariant = 'self-loop'
       const side = repairSelfLoopArc(edge)
       if (side) {
+        cert.invariant = 'self-loop'
         cert.loopSide = side
         cert.bendCount = bendCount(edge.points)
+      } else {
+        // Never stamp a self-loop certificate when bounded attachment
+        // allocation failed; downstream audits must see an unproven detour.
+        cert.invariant = 'explained-detour'
       }
     } else if (routeClass === 'container') {
       cert.invariant = 'container-attach'
@@ -2444,6 +2513,7 @@ function tryRepairContainerEdge(
 export type RouteAuditFinding =
   | { code: 'ROUTE_UNEXPLAINED_BEND'; edge: string }
   | { code: 'ROUTE_LABEL_ON_SHARED_TRUNK'; edge: string; sharedWith: string }
+  | { code: 'ROUTE_SELF_LOOP_OCCUPANCY'; edge: string; conflictWith?: string; kind: 'allocation' | 'side' | 'boundary' | 'route-route' | 'label-label' | 'label-route' }
   | { code: 'ROUTE_CONTAINER_MISANCHOR'; edge: string; container: string }
   | { code: 'ROUTE_SHAPE_MISANCHOR'; edge: string; node: string }
   | { code: 'ROUTE_STALE_AFTER_NODE_MOVE'; edge: string; node: string }
@@ -2884,6 +2954,88 @@ export function auditRouteContracts(
     if (edge.label && edge.labelPosition) {
       const other = sharedTrunkConflict(edge, positioned.edges, style)
       if (other) findings.push({ code: 'ROUTE_LABEL_ON_SHARED_TRUNK', edge: id, sharedWith: edgeId(other) })
+    }
+  }
+
+  const loops = positioned.edges.filter(edge => edge.source === edge.target)
+  const segmentConflict = (a: Point, b: Point, c: Point, d: Point): boolean => {
+    const av = Math.abs(a.x - b.x) <= EPS
+    const cv = Math.abs(c.x - d.x) <= EPS
+    if (av === cv) {
+      const sameLine = av ? Math.abs(a.x - c.x) <= EPS : Math.abs(a.y - c.y) <= EPS
+      if (!sameLine) return false
+      const [a0, a1] = av ? [Math.min(a.y, b.y), Math.max(a.y, b.y)] : [Math.min(a.x, b.x), Math.max(a.x, b.x)]
+      const [c0, c1] = av ? [Math.min(c.y, d.y), Math.max(c.y, d.y)] : [Math.min(c.x, d.x), Math.max(c.x, d.x)]
+      return Math.min(a1, c1) - Math.max(a0, c0) > EPS
+    }
+    const vertical = av ? { a, b } : { a: c, b: d }
+    const horizontal = av ? { a: c, b: d } : { a, b }
+    const x = vertical.a.x
+    const y = horizontal.a.y
+    return x > Math.min(horizontal.a.x, horizontal.b.x) + EPS && x < Math.max(horizontal.a.x, horizontal.b.x) - EPS &&
+      y > Math.min(vertical.a.y, vertical.b.y) + EPS && y < Math.max(vertical.a.y, vertical.b.y) - EPS
+  }
+  const segmentHitsRect = (a: Point, b: Point, rect: { x: number; y: number; w: number; h: number }): boolean => {
+    if (Math.abs(a.x - b.x) <= EPS) {
+      return a.x > rect.x + EPS && a.x < rect.x + rect.w - EPS &&
+        Math.min(Math.max(a.y, b.y), rect.y + rect.h) - Math.max(Math.min(a.y, b.y), rect.y) > EPS
+    }
+    if (Math.abs(a.y - b.y) <= EPS) {
+      return a.y > rect.y + EPS && a.y < rect.y + rect.h - EPS &&
+        Math.min(Math.max(a.x, b.x), rect.x + rect.w) - Math.max(Math.min(a.x, b.x), rect.x) > EPS
+    }
+    return false
+  }
+  for (let i = 0; i < loops.length; i++) {
+    const edge = loops[i]!
+    const cert = edge.routeCertificate
+    const id = edgeId(edge)
+    const node = nodeMap.get(edge.source)
+    if (!cert || cert.invariant !== 'self-loop' || !cert.loopSide) {
+      findings.push({ code: 'ROUTE_SELF_LOOP_OCCUPANCY', edge: id, kind: 'allocation' })
+      continue
+    }
+    if (node && RECT_LIKE.has(node.shape)) {
+      const first = edge.points[0]!
+      const last = edge.points[edge.points.length - 1]!
+      const onSide = (point: Point): boolean => cert.loopSide === 'N' ? Math.abs(point.y - node.y) <= TOL
+        : cert.loopSide === 'S' ? Math.abs(point.y - (node.y + node.height)) <= TOL
+          : cert.loopSide === 'W' ? Math.abs(point.x - node.x) <= TOL
+            : Math.abs(point.x - (node.x + node.width)) <= TOL
+      if (!onSide(first) || !onSide(last) || Math.hypot(first.x - last.x, first.y - last.y) < 8) {
+        findings.push({ code: 'ROUTE_SELF_LOOP_OCCUPANCY', edge: id, kind: 'side' })
+      }
+      for (let segment = 1; segment < edge.points.length; segment++) {
+        const a = edge.points[segment - 1]!, b = edge.points[segment]!
+        const alongHorizontal = Math.abs(a.y - b.y) <= EPS && (Math.abs(a.y - node.y) <= TOL || Math.abs(a.y - (node.y + node.height)) <= TOL) &&
+          Math.min(Math.max(a.x, b.x), node.x + node.width) - Math.max(Math.min(a.x, b.x), node.x) > EPS
+        const alongVertical = Math.abs(a.x - b.x) <= EPS && (Math.abs(a.x - node.x) <= TOL || Math.abs(a.x - (node.x + node.width)) <= TOL) &&
+          Math.min(Math.max(a.y, b.y), node.y + node.height) - Math.max(Math.min(a.y, b.y), node.y) > EPS
+        if (alongHorizontal || alongVertical) {
+          findings.push({ code: 'ROUTE_SELF_LOOP_OCCUPANCY', edge: id, kind: 'boundary' })
+          break
+        }
+      }
+    }
+    for (let j = i + 1; j < loops.length; j++) {
+      const other = loops[j]!
+      let conflict = false
+      for (let a = 1; a < edge.points.length && !conflict; a++) {
+        for (let b = 1; b < other.points.length; b++) {
+          if (segmentConflict(edge.points[a - 1]!, edge.points[a]!, other.points[b - 1]!, other.points[b]!)) { conflict = true; break }
+        }
+      }
+      if (conflict) findings.push({ code: 'ROUTE_SELF_LOOP_OCCUPANCY', edge: id, conflictWith: edgeId(other), kind: 'route-route' })
+      const edgeLabel = labelRect(edge, style)
+      const otherLabel = labelRect(other, style)
+      if (edgeLabel && otherLabel && edgeLabel.x < otherLabel.x + otherLabel.w && edgeLabel.x + edgeLabel.w > otherLabel.x && edgeLabel.y < otherLabel.y + otherLabel.h && edgeLabel.y + edgeLabel.h > otherLabel.y) {
+        findings.push({ code: 'ROUTE_SELF_LOOP_OCCUPANCY', edge: id, conflictWith: edgeId(other), kind: 'label-label' })
+      }
+    }
+    const ownLabel = labelRect(edge, style)
+    if (ownLabel) {
+      const labelHitsRoute = loops.some(route => route.points.some((point, index) => index > 0 && segmentHitsRect(route.points[index - 1]!, point, ownLabel)))
+      if (labelHitsRoute) findings.push({ code: 'ROUTE_SELF_LOOP_OCCUPANCY', edge: id, kind: 'label-route' })
     }
   }
   return findings

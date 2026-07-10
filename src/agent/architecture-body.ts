@@ -154,6 +154,9 @@ export function parseArchitectureBody(lines: string[]): ArchitectureBody | null 
     if (ALIGN_DIRECTIVE_RE.test(line)) {
       const parsed = parseAlignDirective(line)
       if (!parsed.ok) return null
+      // Renderer semantics are declaration-order-sensitive: align can only
+      // reference endpoints already declared at this source position.
+      if (parsed.alignment.members.some(member => !endpointIds.has(member))) return null
       alignments.push(parsed.alignment)
       continue
     }

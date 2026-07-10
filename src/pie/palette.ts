@@ -54,7 +54,7 @@ export function pieSliceColors(count: number, inputs: PiePaletteInputs = {}): st
 }
 
 function hueSpreadColors(count: number, accent: string, bg: string | undefined): string[] {
-  const [accentHue, accentSat] = hexToHsl(accent)
+  const [accentHue, accentSat, accentLightness] = hexToHsl(accent)
   // Neutral accents (the default gray theme) have no meaningful hue; anchor
   // the wheel on the indigo family the derived palettes lean on (the journey
   // actor-palette convention).
@@ -67,8 +67,14 @@ function hueSpreadColors(count: number, accent: string, bg: string | undefined):
   const tiers: [number, number] = dark ? [62, 46] : [46, 64]
   const step = 360 / count
   return Array.from({ length: count }, (_unused, index) => {
-    // Slice 0 keeps the accent itself (continuity with the small-chart ladder).
-    if (index === 0) return accent
+    // Preserve the exact accent when it is visible; otherwise apply the same
+    // background-contrast construction used for every other derived slice.
+    if (index === 0) {
+      const ratio = bg === undefined ? null : wcagContrastRatio(accent, bg)
+      return bg === undefined || (ratio !== null && ratio >= BG_CONTRAST_FLOOR)
+        ? accent
+        : ensureBgContrast(accentHue, accentSat, accentLightness, bg)
+    }
     const hue = ((baseHue + index * step) % 360 + 360) % 360
     return ensureBgContrast(hue, saturation, tiers[index % 2]!, bg)
   })

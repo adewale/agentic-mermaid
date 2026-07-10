@@ -26,6 +26,7 @@ import { rpcError, toolResult, type JsonRpcRequest, type JsonRpcResponse } from 
 import { SDK_DECLARATION } from './sdk-decl.ts'
 import { PURE_COMPUTE_ANNOTATIONS, createDescribeTool, createExecuteTool, createRenderPngTool, dispatchMcpRequest, type McpServerSurface } from './tool-surface.ts'
 import type { ExecuteResult } from './sandbox.ts'
+import type { PngRasterResult } from '../shared/png-font-warnings.ts'
 
 export type { ExecuteResult }
 
@@ -39,7 +40,7 @@ export interface HostedMcpContext {
   /** Run Code Mode JavaScript. Hosted: a Dynamic Worker isolate. */
   execute(code: string, timeoutMs: number, onTelemetry?: (telemetry: HostedExecuteTelemetry) => void): Promise<ExecuteResult>
   /** Rasterize SVG to PNG bytes. Hosted: resvg-wasm. Absent → render_png reports unavailable. */
-  renderPng?(source: string, opts: { scale?: number; background?: string; style?: StyleInput | StyleInput[]; seed?: number }): Promise<Uint8Array>
+  renderPng?(source: string, opts: { scale?: number; background?: string; style?: StyleInput | StyleInput[]; seed?: number }): Promise<PngRasterResult>
 }
 
 // Streamable HTTP clients negotiate 2025-03-26+; the node transports pin
@@ -469,8 +470,8 @@ async function handleRenderPng(id: number | string | null, args: Record<string, 
     const background = typeof args.background === 'string' ? args.background : undefined
     const style = normalizeStyleArg(args.style)
     const seed = typeof args.seed === 'number' && Number.isFinite(args.seed) ? args.seed : undefined
-    const png = await context.renderPng(source, { scale, background, style, seed })
-    return toolResult(id, { ok: true as const, png_base64: base64Encode(png) }, false)
+    const result = await context.renderPng(source, { scale, background, style, seed })
+    return toolResult(id, { ok: true as const, png_base64: base64Encode(result.png), warnings: result.warnings }, false)
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
     return toolResult(id, { ok: false as const, error: { code: 'PNG_RENDER_FAILED', message: msg } }, true)

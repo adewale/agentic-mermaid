@@ -23,10 +23,12 @@ import fontShareTechMono from './generated/ShareTechMono.ttf'
 import { renderMermaidSVG } from '../../src/index.ts'
 import { inlineFontVarForRaster } from '../../src/theme.ts'
 import { assertRasterBudget } from './raster-budget.ts'
+import { findUncoveredScriptsFromBuffers } from '../../src/agent/font-coverage-core.ts'
+import { buildPngFontWarnings, type PngRasterResult } from '../../src/shared/png-font-warnings.ts'
 
 let ready: Promise<void> | undefined
 
-export async function renderMermaidPNGWasm(source: string, opts: { scale?: number; background?: string; style?: unknown; seed?: number } = {}): Promise<Uint8Array> {
+export async function renderMermaidPNGWasm(source: string, opts: { scale?: number; background?: string; style?: unknown; seed?: number } = {}): Promise<PngRasterResult> {
   // initWasm throws if called twice; keep a single init promise per isolate.
   ready ??= Promise.resolve(initWasm(resvgWasmModule))
   await ready
@@ -34,25 +36,27 @@ export async function renderMermaidPNGWasm(source: string, opts: { scale?: numbe
     renderMermaidSVG(source, { embedFontImport: false, style: opts.style as never, seed: opts.seed }),
   )
   assertRasterBudget(svg, opts.scale ?? 2)
+  const fontBuffers = [
+    new Uint8Array(fontInterRegular),
+    new Uint8Array(fontInterMedium),
+    new Uint8Array(fontInterSemiBold),
+    new Uint8Array(fontInterBold),
+    new Uint8Array(fontRegular),
+    new Uint8Array(fontBold),
+    new Uint8Array(fontCaveat),
+    new Uint8Array(fontEbGaramond),
+    new Uint8Array(fontArchitectsDaughter),
+    new Uint8Array(fontShareTechMono),
+  ]
+  const warnings = buildPngFontWarnings(findUncoveredScriptsFromBuffers(svg, fontBuffers))
   const resvg = new Resvg(svg, {
     background: opts.background ?? 'white',
     fitTo: { mode: 'zoom', value: opts.scale ?? 2 },
     font: {
       loadSystemFonts: false,
-      fontBuffers: [
-        new Uint8Array(fontInterRegular),
-        new Uint8Array(fontInterMedium),
-        new Uint8Array(fontInterSemiBold),
-        new Uint8Array(fontInterBold),
-        new Uint8Array(fontRegular),
-        new Uint8Array(fontBold),
-        new Uint8Array(fontCaveat),
-        new Uint8Array(fontEbGaramond),
-        new Uint8Array(fontArchitectsDaughter),
-        new Uint8Array(fontShareTechMono),
-      ],
+      fontBuffers,
       defaultFontFamily: 'Inter',
     },
   })
-  return resvg.render().asPng()
+  return { png: resvg.render().asPng(), warnings }
 }

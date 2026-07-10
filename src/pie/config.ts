@@ -25,6 +25,7 @@
 
 import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
 import { getFrontmatterMap } from '../mermaid-source.ts'
+import { safeCssColor } from '../shared/css-color.ts'
 
 export type PieLegendPosition = 'top' | 'bottom' | 'left' | 'right' | 'center'
 
@@ -68,9 +69,6 @@ function cssSize(value: unknown): number | undefined {
   return undefined
 }
 
-function cssColor(value: unknown): string | undefined {
-  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined
-}
 
 export function resolvePieVisualConfig(frontmatter: MermaidFrontmatterMap = {}): PieVisualConfig {
   const pie = getFrontmatterMap(frontmatter, ['pie']) ?? {}
@@ -94,17 +92,17 @@ export function resolvePieVisualConfig(frontmatter: MermaidFrontmatterMap = {}):
   }
 
   for (let i = 0; i < 12; i++) {
-    const fill = cssColor(vars[`pie${i + 1}`])
+    const fill = safeCssColor(vars[`pie${i + 1}`])
     if (fill !== undefined) config.paletteOverrides[i] = fill
   }
 
-  const strokeColor = cssColor(vars.pieStrokeColor)
+  const strokeColor = safeCssColor(vars.pieStrokeColor)
   if (strokeColor !== undefined) config.strokeColor = strokeColor
   const strokeWidth = cssSize(vars.pieStrokeWidth)
   if (strokeWidth !== undefined) config.strokeWidth = strokeWidth
   const outerStrokeWidth = cssSize(vars.pieOuterStrokeWidth)
   if (outerStrokeWidth !== undefined) config.outerStrokeWidth = outerStrokeWidth
-  const outerStrokeColor = cssColor(vars.pieOuterStrokeColor)
+  const outerStrokeColor = safeCssColor(vars.pieOuterStrokeColor)
   if (outerStrokeColor !== undefined) config.outerStrokeColor = outerStrokeColor
   const opacity = vars.pieOpacity
   if (typeof opacity === 'number' && Number.isFinite(opacity) && opacity >= 0 && opacity <= 1) {
@@ -112,7 +110,7 @@ export function resolvePieVisualConfig(frontmatter: MermaidFrontmatterMap = {}):
   }
   const sectionTextSize = cssSize(vars.pieSectionTextSize)
   if (sectionTextSize !== undefined) config.sectionTextSize = sectionTextSize
-  const sectionTextColor = cssColor(vars.pieSectionTextColor)
+  const sectionTextColor = safeCssColor(vars.pieSectionTextColor)
   if (sectionTextColor !== undefined) config.sectionTextColor = sectionTextColor
 
   return config

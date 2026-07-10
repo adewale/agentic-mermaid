@@ -58,6 +58,8 @@ export interface QuadrantAxis {
 export interface QuadrantChart {
   /** Optional diagram title (`title <text>`). */
   title?: string
+  /** Mermaid-universal accessibility metadata. */
+  accessibility?: { title?: string; description?: string }
   /** x-axis labels (left / right). */
   xAxis?: QuadrantAxis
   /** y-axis labels (bottom / top). */
@@ -146,6 +148,7 @@ export interface PositionedQuadrantChart extends PositionedDiagram {
   width: number
   height: number
   title?: { text: string; x: number; y: number; fontSize: number }
+  accessibility?: { title?: string; description?: string }
   /** Square plot area bounds. */
   plot: { x: number; y: number; size: number }
   regions: PositionedQuadrantRegion[]

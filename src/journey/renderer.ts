@@ -14,6 +14,7 @@ import { svgOpenTag, buildStyleBlock, buildShadowDefs, resolveColors } from '../
 import { resolveJourneyStyle, resolveJourneyVisualConfig } from './layout.ts'
 import type { JourneyVisualConfig } from './layout.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
+import { JOURNEY_ACTOR_COLOR_LIMIT } from './parse-core.ts'
 import { escapeAttr, renderMultilineText, escapeXml } from '../multiline-utils.ts'
 import { applyTextTransform } from '../styles.ts'
 import type { ResolvedRenderStyle } from '../styles.ts'
@@ -22,8 +23,7 @@ import { hashId } from '../scene/seed.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { getSeriesColor, hexToHsl, hslToHex, isDarkBackground } from '../xychart/colors.ts'
-import { isHexColor, tryParseHex, wcagContrastRatio } from '../shared/color-math.ts'
-import { contrastTextColor } from '../color-resolver.ts'
+import { isHexColor, wcagCssContrastRatio } from '../shared/color-math.ts'
 
 // ============================================================================
 // Journey diagram SVG renderer
@@ -773,6 +773,7 @@ function journeyPaints(
       visual.sectionColours.length > 0 ? visual.sectionColours[index % visual.sectionColours.length] : undefined,
       sectionBands[index]!,
       style.groupTextColor ?? 'var(--_text)',
+      colors.bg,
     ),
   )
   const actorColors = visual.actorColours.length > 0
@@ -811,17 +812,24 @@ function paletteBases(arrow: string, colors: DiagramColors, style: ResolvedRende
   ]
 }
 
-/** Explicit label color wins only when it clears WCAG AA (4.5:1) against the
- * band; otherwise flip to the band's black/white contrast color. Non-hex
- * bands (derived color-mix paints) are contrast-safe by construction, so the
- * explicit/fallback color passes through untouched there. */
-function contrastGuardedLabelColor(explicit: string | undefined, band: string, fallback: string): string {
-  if (!tryParseHex(band)) return explicit ?? fallback
+/** Explicit label color wins only when concrete composited paints clear
+ * WCAG AA (4.5:1). A null ratio is uncertainty, never proof. */
+function contrastGuardedLabelColor(
+  explicit: string | undefined,
+  band: string,
+  fallback: string,
+  canvas: string,
+): string {
   if (explicit) {
-    const ratio = wcagContrastRatio(explicit, band)
-    if (ratio === null || ratio >= 4.5) return explicit
+    const ratio = wcagCssContrastRatio(explicit, band, canvas)
+    if (ratio !== null && ratio >= 4.5) return explicit
   }
-  return contrastTextColor(band) ?? explicit ?? fallback
+  const black = wcagCssContrastRatio('#000000', band, canvas)
+  const white = wcagCssContrastRatio('#ffffff', band, canvas)
+  if (black !== null && white !== null) return black >= white ? '#000000' : '#ffffff'
+  // Dynamic CSS variables/color-mix paints cannot be certified here. Keep the
+  // themed fallback without claiming a measured guarantee.
+  return fallback
 }
 
 /** Actor identity is carried by 4px dots, where only hue differences read.
@@ -841,8 +849,22 @@ function actorPalette(arrow: string, colors: DiagramColors, style: ResolvedRende
       const baseHue = accentSat < 20 ? 230 : accentHue
       const saturation = Math.min(72, Math.max(42, accentSat < 20 ? 46 : accentSat))
       const lightness = dark ? 64 : 38
-      return Array.from({ length: count }, (_unused, index) =>
-        hslToHex((baseHue + index * 137.508) % 360, saturation, lightness))
+      const unique: string[] = []
+      const seen = new Set<string>()
+      const bounded = Math.min(count, JOURNEY_ACTOR_COLOR_LIMIT)
+      for (let attempt = 0; unique.length < bounded && attempt < JOURNEY_ACTOR_COLOR_LIMIT * 16; attempt++) {
+        const band = Math.floor(attempt / 360)
+        const hue = (baseHue + (attempt % 360) * 137.508) % 360
+        const candidate = hslToHex(
+          hue,
+          Math.max(34, saturation - (band % 4) * 7),
+          Math.max(dark ? 46 : 24, Math.min(dark ? 78 : 58, lightness + (band % 2 === 0 ? -band * 2 : band * 2))),
+        )
+        if (!seen.has(candidate)) { seen.add(candidate); unique.push(candidate) }
+      }
+      // Above the documented bound, repeat the guaranteed lattice rather than
+      // pretending unbounded 8-bit categorical uniqueness is possible.
+      return Array.from({ length: count }, (_unused, index) => unique[index % unique.length]!)
     }
   }
   const fallback = [

@@ -335,6 +335,11 @@ function placeSliceLabels(
     const sweep = slice.endAngle - slice.startAngle
     if (!(sweep > 0)) continue
     const width = measureTextWidth(text, fontSize, PIE.sliceLabelFontWeight)
+    // A label must fit the local wedge chord at its actual radial position.
+    // Clamp at π: larger wedges have at least a diameter of usable span and
+    // must not shrink again because sine is periodic.
+    const availableChord = 2 * labelRadius * Math.sin(Math.min(sweep, Math.PI) / 2)
+    if (width + PIE.sliceLabelFitPad > availableChord) continue
     const mid = (slice.startAngle + slice.endAngle) / 2
     candidates.push({
       index: i,

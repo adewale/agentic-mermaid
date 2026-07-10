@@ -1,7 +1,13 @@
 # Family Elevation Plan
 
-Status: plan of record — no code in this change
+Status: implementation ledger — Phases 0–3 substantially shipped in PR #142; explicit Phase 4/new-family items remain deferred
 Last reviewed: 2026-07-10
+
+This document began as the plan of record and now records the implemented
+family-elevation scope. “Substantially shipped” does not mean every item below
+is complete: the Phase 4 signatures, width-constrained ASCII, generalized SVG
+identity, and new mindmap/gitGraph families remain follow-up work and must not
+be described as delivered by PR #142.
 Worked example: the Journey elevation (PR #141), whose method this plan
 generalizes to the other eleven families.
 
@@ -265,7 +271,7 @@ Format: `[Fix|Feature(parity)|Feature(beyond)] [V|S] Title — construction move
   the typed graph model; WCAG-checked themes. (upstream #2395/#5632/#3691;
   beautiful-mermaid#115/PR #116)
 - **X7 [Fix] Typed runtime-config sections + `INEFFECTIVE_CONFIG`** for the
-  eight families lacking them (C3, mechanical). 
+  eight families lacking them (C3, mechanical).
 - **X8 [Feature(beyond)] New families through the citizenship gate:
   mindmap and gitGraph first** — the strongest fork-graph signal (three
   independent forks each spent their largest effort on family expansion);

@@ -18,6 +18,11 @@ type MermaidRuntimeConfig = {
   fontFamily?: string
   themeVariables?: { [key: string]: MermaidConfigValue | undefined; fontFamily?: string }
   timeline?: { [key: string]: MermaidConfigValue | undefined; disableMulticolor?: boolean; sectionFills?: string[]; sectionColours?: string[] }
+  journey?: { [key: string]: MermaidConfigValue | undefined; diagramMarginX?: number; diagramMarginY?: number; leftMargin?: number; maxLabelWidth?: number; taskMargin?: number; actorColours?: string[]; sectionFills?: string[]; sectionColours?: string[]; useMaxWidth?: boolean }
+  flowchart?: { [key: string]: MermaidConfigValue | undefined; nodeSpacing?: number; rankSpacing?: number; wrappingWidth?: number }
+  class?: { [key: string]: MermaidConfigValue | undefined; nodeSpacing?: number; rankSpacing?: number }
+  er?: { [key: string]: MermaidConfigValue | undefined; layoutDirection?: string; nodeSpacing?: number; rankSpacing?: number }
+  architecture?: { [key: string]: MermaidConfigValue | undefined; padding?: number; iconSize?: number; fontSize?: number; nodeSeparation?: number; idealEdgeLengthMultiplier?: number }
   xyChart?: { [key: string]: MermaidConfigValue | undefined }
   gantt?: { [key: string]: MermaidConfigValue | undefined; displayMode?: string }
   // Wired sequence keys (unlisted documented keys are accepted and named by
@@ -339,20 +344,23 @@ type GanttMutationOp =
 // Tier 1 (structural, reliable): EMPTY_DIAGRAM, EDGE_MISANCHORED, OFF_CANVAS,
 //   GROUP_BREACH, UNKNOWN_SHAPE, LABEL_OVERFLOW (rendered-line char count:
 //   <br> splits lines, XML entities decode to one char),
-//   UNRESOLVABLE_SCHEDULE (gantt: parses but schedule cannot resolve; render would fail).
+//   UNRESOLVABLE_SCHEDULE (gantt: parses but schedule cannot resolve; render would fail),
+//   RENDER_FAILED (strict renderer rejected the canonical source).
 // Tier 2 (geometric, advisory): NODE_OVERLAP, ROUTE_SELF_CROSS, and the
 // route-contract tripwires ROUTE_HITCH, ROUTE_UNEXPLAINED_BEND,
-// ROUTE_LABEL_ON_SHARED_TRUNK, ROUTE_CONTAINER_MISANCHOR,
+// ROUTE_LABEL_ON_SHARED_TRUNK, ROUTE_SELF_LOOP_OCCUPANCY, ROUTE_CONTAINER_MISANCHOR,
 // ROUTE_SHAPE_MISANCHOR, ROUTE_STALE_AFTER_NODE_MOVE.
 // Tier 3 (lint, advisory): DUPLICATE_EDGE, UNREACHABLE_NODE,
-// DECISION_BRANCH_UNLABELED, COMMENT_DROPPED, UNSUPPORTED_SYNTAX.
+// DECISION_BRANCH_UNLABELED, COMMENT_DROPPED, UNSUPPORTED_SYNTAX,
+// CONTENT_DROPPED_ON_ROUNDTRIP, INEFFECTIVE_CONFIG.
 type WarningCode =
   | 'EMPTY_DIAGRAM' | 'EDGE_MISANCHORED' | 'OFF_CANVAS' | 'GROUP_BREACH'
-  | 'UNKNOWN_SHAPE' | 'LABEL_OVERFLOW' | 'UNRESOLVABLE_SCHEDULE'
+  | 'UNKNOWN_SHAPE' | 'LABEL_OVERFLOW' | 'UNRESOLVABLE_SCHEDULE' | 'RENDER_FAILED'
   | 'NODE_OVERLAP' | 'ROUTE_SELF_CROSS' | 'ROUTE_HITCH'
-  | 'ROUTE_UNEXPLAINED_BEND' | 'ROUTE_LABEL_ON_SHARED_TRUNK' | 'ROUTE_CONTAINER_MISANCHOR'
+  | 'ROUTE_UNEXPLAINED_BEND' | 'ROUTE_LABEL_ON_SHARED_TRUNK' | 'ROUTE_SELF_LOOP_OCCUPANCY' | 'ROUTE_CONTAINER_MISANCHOR'
   | 'ROUTE_SHAPE_MISANCHOR' | 'ROUTE_STALE_AFTER_NODE_MOVE'
   | 'DUPLICATE_EDGE' | 'UNREACHABLE_NODE' | 'DECISION_BRANCH_UNLABELED' | 'COMMENT_DROPPED' | 'UNSUPPORTED_SYNTAX'
+  | 'CONTENT_DROPPED_ON_ROUNDTRIP' | 'INEFFECTIVE_CONFIG'
 
 interface VerifyResult {
   ok: boolean

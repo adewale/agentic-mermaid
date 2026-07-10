@@ -214,6 +214,37 @@ export function layoutSequenceDiagram(
   const activationStacks = new Map<string, { startY: number; depth: number }[]>()
   const activations: Activation[] = []
   const nestingOffset = 4 // Horizontal offset per nesting level
+  const activationEvents = new Map<number, NonNullable<SequenceDiagram['activationEvents']>>()
+  for (const event of diagram.activationEvents ?? []) {
+    const list = activationEvents.get(event.messageIndex) ?? []
+    list.push(event)
+    activationEvents.set(event.messageIndex, list)
+  }
+  const activate = (actorId: string, y: number): void => {
+    const stack = activationStacks.get(actorId) ?? []
+    stack.push({ startY: y, depth: stack.length })
+    activationStacks.set(actorId, stack)
+  }
+  const deactivate = (actorId: string, y: number): void => {
+    const stack = activationStacks.get(actorId)
+    if (!stack || stack.length === 0) return
+    const { startY, depth } = stack.pop()!
+    const idx = actorIndex.get(actorId)
+    if (idx === undefined || y <= startY) return
+    activations.push({
+      actorId,
+      x: actorCenterX[idx]! - activationWidth / 2 + depth * nestingOffset,
+      topY: startY,
+      bottomY: y,
+      width: activationWidth,
+    })
+  }
+  const applyActivationEvents = (boundary: number, y: number): void => {
+    for (const event of activationEvents.get(boundary) ?? []) {
+      if (event.kind === 'activate') activate(event.actorId, y)
+      else deactivate(event.actorId, y)
+    }
+  }
 
   const positionNote = (note: typeof diagram.notes[number], noteY: number): PositionedNote => {
     const noteText = applyTextTransform(note.text, style.nodeTextTransform)
@@ -265,6 +296,7 @@ export function layoutSequenceDiagram(
     // Add extra vertical space if this message sits below a block header or divider
     const extra = extraSpaceBefore.get(msgIdx) ?? 0
     if (extra > 0) messageY += extra
+    applyActivationEvents(msgIdx, messageY)
 
     const x1 = actorCenterX[fromIdx]!
     const x2 = actorCenterX[toIdx]!
@@ -286,32 +318,9 @@ export function layoutSequenceDiagram(
     const destroyedHere = destroyAtIndex.get(msgIdx)
     if (destroyedHere) for (const id of destroyedHere) destroyYByActor.set(id, messageY)
 
-    // Handle activation - track nesting depth for visual offset
-    if (msg.activate) {
-      if (!activationStacks.has(msg.to)) {
-        activationStacks.set(msg.to, [])
-      }
-      const stack = activationStacks.get(msg.to)!
-      const depth = stack.length // Current depth before pushing
-      stack.push({ startY: messageY, depth })
-    }
-
-    if (msg.deactivate) {
-      const stack = activationStacks.get(msg.from)
-      if (stack && stack.length > 0) {
-        const { startY, depth } = stack.pop()!
-        const idx = actorIndex.get(msg.from) ?? 0
-        // Offset nested activations to the right for visual distinction
-        const xOffset = depth * nestingOffset
-        activations.push({
-          actorId: msg.from,
-          x: actorCenterX[idx]! - activationWidth / 2 + xOffset,
-          topY: startY,
-          bottomY: messageY,
-          width: activationWidth,
-        })
-      }
-    }
+    // Message +/- markers and standalone commands share one stack machine.
+    if (msg.activate) activate(msg.to, messageY)
+    if (msg.deactivate) deactivate(msg.from, messageY)
 
     // Advance messageY past the message itself
     messageY += isSelf ? selfMessageHeight + messageRowHeight : messageRowHeight
@@ -343,19 +352,15 @@ export function layoutSequenceDiagram(
     }
   }
 
-  // Close any unclosed activations (preserving depth for offset)
+  const activationTailY = Math.max(
+    messages[messages.length - 1]?.y ?? messageY,
+    messageY - messageRowHeight / 2,
+  )
+  applyActivationEvents(diagram.messages.length, activationTailY)
+
+  // Close any unclosed activations at the lifeline tail.
   for (const [actorId, stack] of activationStacks) {
-    for (const { startY, depth } of stack) {
-      const idx = actorIndex.get(actorId) ?? 0
-      const xOffset = depth * nestingOffset
-      activations.push({
-        actorId,
-        x: actorCenterX[idx]! - activationWidth / 2 + xOffset,
-        topY: startY,
-        bottomY: messageY - messageRowHeight / 2,
-        width: activationWidth,
-      })
-    }
+    while (stack.length > 0) deactivate(actorId, activationTailY)
   }
 
   // 3b. Reposition created actors: their header box centers on the create

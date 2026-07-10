@@ -45,6 +45,7 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
     messages: [],
     blocks: [],
     notes: [],
+    activationEvents: [],
     boxes: [],
   }
 
@@ -95,8 +96,8 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
     // Bind pending create/destroy directives to this message when it involves
     // the actor (upstream ties creation to the message the actor receives and
     // destruction to the next message it sends or receives).
-    bindLifecycle(pendingCreates, from, to, diagram, actor => { actor.createMessageIndex = diagram.messages.length })
-    bindLifecycle(pendingDestroys, from, to, diagram, actor => { actor.destroyMessageIndex = diagram.messages.length })
+    bindLifecycle(pendingCreates, id => id === to, diagram, actor => { actor.createMessageIndex = diagram.messages.length })
+    bindLifecycle(pendingDestroys, id => id === from || id === to, diagram, actor => { actor.destroyMessageIndex = diagram.messages.length })
 
     diagram.messages.push(msg)
   }
@@ -306,8 +307,17 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
     }
 
     // --- activate / deactivate explicit commands ---
-    // These are handled implicitly via +/- on messages but can also appear standalone
-    // For now, we skip explicit activate/deactivate lines (they affect rendering only)
+    const activationMatch = line.match(/^(activate|deactivate)\s+(\S+)$/i)
+    if (activationMatch) {
+      const actorId = activationMatch[2]!
+      ensureActor(diagram, actorIds, actorId)
+      diagram.activationEvents!.push({
+        actorId,
+        kind: activationMatch[1]!.toLowerCase() as 'activate' | 'deactivate',
+        messageIndex: diagram.messages.length,
+      })
+      continue
+    }
   }
 
   return diagram
@@ -348,14 +358,13 @@ function ensureActor(diagram: SequenceDiagram, actorIds: Set<string>, id: string
  *  no later message ever involves the actor). */
 function bindLifecycle(
   pending: string[],
-  from: string,
-  to: string,
+  matches: (id: string) => boolean,
   diagram: SequenceDiagram,
   assign: (actor: Actor) => void,
 ): void {
   for (let i = pending.length - 1; i >= 0; i--) {
     const id = pending[i]!
-    if (id !== from && id !== to) continue
+    if (!matches(id)) continue
     const actor = diagram.actors.find(a => a.id === id)
     if (actor) assign(actor)
     pending.splice(i, 1)

@@ -320,6 +320,7 @@ export function layoutQuadrantChart(
     title: chart.title
       ? { text: chart.title, x: round(plotX + size / 2), y: round(paddingY + titleFontSize / 2), fontSize: titleFontSize }
       : undefined,
+    accessibility: chart.accessibility ? { ...chart.accessibility } : undefined,
     plot: { x: round(plotX), y: round(plotY), size: round(size) },
     regions,
     points,

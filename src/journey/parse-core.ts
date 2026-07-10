@@ -18,11 +18,13 @@
 
 export const JOURNEY_MIN_SCORE = 1
 export const JOURNEY_MAX_SCORE = 5
+/** Finite categorical-color guarantee for derived actor dots. */
+export const JOURNEY_ACTOR_COLOR_LIMIT = 256
 
 export const JOURNEY_TITLE_RE = /^title\s+(.+)$/i
 export const JOURNEY_SECTION_RE = /^section\s+(.+)$/i
-export const JOURNEY_TASK_RE = /^(.+?)\s*:\s*([0-9]+)\s*(?::\s*(.*))?$/
-const TASK_LIKE_RE = /^(.+?)\s*:\s*([^:]+?)(?:\s*:\s*.*)?$/
+export const JOURNEY_TASK_RE = /^([^:]+?)\s*:\s*([0-9]+)\s*(?::\s*(.*))?$/
+const TASK_LIKE_RE = /^([^:]+?)\s*:\s*([^:]+?)(?:\s*:\s*.*)?$/
 const ACC_LINE_RE = (directive: 'accTitle' | 'accDescr') => new RegExp(`^${directive}\\s*:[ \\t]*(.+)$`, 'i')
 const ACC_DESCR_BLOCK_START_RE = /^accDescr\s*:?\s*\{\s*(.*)$/i
 
@@ -116,6 +118,10 @@ export function walkJourneyLines(lines: string[], startIndex: number, events: Jo
       }
       events.accDescr?.(normalizeJourneyText(collected.text), i)
       i = collected.nextIndex
+      for (const statement of splitJourneyStatements(collected.suffix)) {
+        const outcome = classifyStatement(statement, collected.nextIndex, events)
+        if (outcome === 'stop') return
+      }
       continue
     }
 
@@ -194,11 +200,24 @@ export function invalidScoreDetail(text: string, rawScore: string): string {
 
 const HTML_ENTITY_RE = /^&(?:[a-zA-Z][a-zA-Z0-9]{1,31}|#[0-9]{1,7}|#x[0-9a-fA-F]{1,6});$/
 
+/** True when text contains a real Journey statement delimiter. Semicolons
+ * closing HTML entities are label text, not delimiters. */
+export function hasJourneyStatementDelimiter(value: string): boolean {
+  for (let i = 0; i < value.length; i++) {
+    if (value[i] !== ';') continue
+    const amp = value.lastIndexOf('&', i)
+    if (amp >= 0 && HTML_ENTITY_RE.test(value.slice(amp, i + 1))) continue
+    return true
+  }
+  return false
+}
+
 /** Split a line into `;`-terminated statements (lexer parity). A ';' that
  * closes an HTML entity (&amp; &#59; &#x3B;) is literal label text, and a
  * statement that starts like a comment after the split is a comment tail. */
 function splitJourneyStatements(line: string): string[] {
-  if (!line.includes(';')) return [line]
+  if (!line.trim()) return []
+  if (!line.includes(';')) return [line.trim()]
   const parts: string[] = []
   let start = 0
   for (let i = 0; i < line.length; i++) {
@@ -222,12 +241,13 @@ export function collectJourneyAccessibilityBlock(
   initial: string,
   lines: string[],
   startIndex: number,
-): { text: string; nextIndex: number } | null {
+): { text: string; nextIndex: number; suffix: string } | null {
   const initialEnd = initial.indexOf('}')
   if (initialEnd !== -1) {
     return {
       text: initial.slice(0, initialEnd).trim(),
       nextIndex: startIndex,
+      suffix: initial.slice(initialEnd + 1).trim(),
     }
   }
 
@@ -242,6 +262,7 @@ export function collectJourneyAccessibilityBlock(
       return {
         text: parts.join('\n'),
         nextIndex: i,
+        suffix: line.slice(end + 1).trim(),
       }
     }
     parts.push(line)

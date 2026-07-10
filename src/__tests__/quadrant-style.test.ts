@@ -57,6 +57,22 @@ const STYLED = `quadrantChart
 describe('quadrant parser models point styles and classDefs', () => {
   const chart = parse(STYLED)
 
+  it('keeps commas inside functional colors while splitting top-level entries', () => {
+    const chart = parse(`quadrantChart
+  RGB: [0.2, 0.8] color: rgb(255, 0, 0), radius: 10, stroke-color: hsl(120, 100%, 50%)
+  classDef mixed color: color-mix(in srgb, red 20%, blue)
+  Mixed:::mixed: [0.8, 0.2]`)
+    expect(chart.points[0]!.style).toMatchObject({ color: 'rgb(255, 0, 0)', radius: 10, strokeColor: 'hsl(120, 100%, 50%)' })
+    expect(chart.classDefs.mixed!.color).toBe('color-mix(in srgb, red 20%, blue)')
+    const svg = renderMermaidSVG(`quadrantChart
+  RGB: [0.2, 0.8] color: rgb(255, 0, 0), radius: 10`)
+    expect(svg).toContain('fill:rgb(255, 0, 0)')
+  })
+
+  it('rejects unbalanced color functions loudly', () => {
+    expect(() => parse('quadrantChart\n  Broken: [0.2, 0.8] color: rgb(1, 2, 3')).toThrow('unbalanced parentheses')
+  })
+
   it('parses direct point styles into typed fields', () => {
     const byLabel = (l: string) => chart.points.find(p => p.label === l)!
     expect(byLabel('Campaign A').style).toEqual({ radius: 12 })

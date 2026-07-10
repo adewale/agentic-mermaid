@@ -336,6 +336,25 @@ describe('diagram-family citizenship ratchet (issue #41)', () => {
     }
   })
 
+  test('every registered family is scheduled with threshold-gated JSON mutation evidence', () => {
+    const workflow = readFileSync(join(REPO, '.github/workflows/nightly-route-mutation.yml'), 'utf8')
+    const commandFor: Record<string, string> = {
+      flowchart: 'mutation-test:routes', state: 'mutation-test:state', sequence: 'mutation-test:sequence',
+      timeline: 'mutation-test:timeline', class: 'mutation-test:class', er: 'mutation-test:er',
+      journey: 'mutation-test:journey', xychart: 'mutation-test:families', architecture: 'mutation-test:families',
+      pie: 'mutation-test:pie', quadrant: 'mutation-test:quadrant', gantt: 'mutation-test:gantt',
+    }
+    const matrix = loadMatrix()
+    for (const family of BUILTIN_FAMILY_METADATA) {
+      expect(workflow).toContain(`bun run ${commandFor[family.id]}`)
+      const configs = matrix.families[family.id]!.cells.mutationLane.evidence
+        .filter(path => path.startsWith('stryker.') && path.endsWith('.config.json'))
+        .map(path => JSON.parse(readFileSync(join(REPO, path), 'utf8')) as { thresholds?: { break?: number }; reporters?: string[]; jsonReporter?: { fileName?: string } })
+      expect(configs.some(config => (config.thresholds?.break ?? 0) > 0)).toBe(true)
+      expect(configs.some(config => config.reporters?.includes('json') && config.jsonReporter?.fileName)).toBe(true)
+    }
+  })
+
   test('Gantt is the worked example and at least one non-Gantt family is audited', () => {
     const matrix = loadMatrix()
     const worked = Object.entries(matrix.families).filter(([, row]) => row.workedExample).map(([id]) => id)

@@ -41,6 +41,9 @@ describe('er subgraph tolerance (#103)', () => {
   it('the upstream header-riding form renders instead of hard-failing', () => {
     const svg = renderMermaidSVG(UPSTREAM_FORM)
     expect(svg).toContain('<svg')
+    expect(svg).toContain('>A<')
+    expect(svg).toContain('>B<')
+    expect(svg).not.toContain('width="0" height="0"')
   })
 
   it('body-form subgraph blocks are ignored; content around and inside renders', () => {

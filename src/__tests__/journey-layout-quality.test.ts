@@ -13,7 +13,8 @@ import { renderMermaidSVG } from '../index.ts'
 import { parseJourneyDiagram } from '../journey/parser.ts'
 import { layoutJourneyDiagram } from '../journey/layout.ts'
 import { preprocessMermaidLines } from '../mermaid-source.ts'
-import { wcagContrastRatio } from '../shared/color-math.ts'
+import { wcagContrastRatio, wcagCssContrastRatio } from '../shared/color-math.ts'
+import { verifyMermaid } from '../agent/verify.ts'
 
 function layout(text: string, options = {}) {
   return layoutJourneyDiagram(parseJourneyDiagram(preprocessMermaidLines(text)), options)
@@ -51,6 +52,17 @@ describe('section tiling', () => {
 })
 
 describe('label wrapping', () => {
+  it('never splits or hyphenates emoji grapheme clusters', () => {
+    const original = '👩‍🔬'.repeat(24)
+    const positioned = layout(`journey\n  ${original}: 3: Me`)
+    const wrapped = positioned.sections[0]!.tasks[0]!.text
+    expect(wrapped.replace(/\n/g, '')).toBe(original)
+    expect(wrapped).not.toContain('-')
+    for (const line of wrapped.split('\n')) {
+      expect(line.startsWith('\u200d')).toBe(false)
+      expect(line.endsWith('\u200d')).toBe(false)
+    }
+  })
   it('wraps long task labels instead of growing the column unboundedly', () => {
     const positioned = layout(`journey
       Draft the quarterly report for the steering committee across four time zones with appendices: 3: Me`)
@@ -135,6 +147,17 @@ describe('useMaxWidth config', () => {
 })
 
 describe('actor palette', () => {
+  it('guarantees unique derived colors through the documented finite bound', () => {
+    const actors = Array.from({ length: 256 }, (_unused, index) => `Actor${index}`)
+    const svg = renderMermaidSVG(`journey\n  Task: 3: ${actors.join(', ')}`)
+    const colors = [...svg.matchAll(/\.journey-actor-\d+ \{ fill: ([^;]+);/g)].map(match => match[1])
+    expect(colors).toHaveLength(256)
+    expect(new Set(colors).size).toBe(256)
+    const warning = verifyMermaid(`journey\n  Task: 3: ${[...actors, 'Over'].join(', ')}`).warnings
+      .find(item => item.code === 'UNSUPPORTED_SYNTAX' && item.syntax === 'journey_actor_palette_limit')
+    expect(warning).toBeDefined()
+  })
+
   it('gives nine actors nine distinct derived colors', () => {
     const tasks = Array.from({ length: 9 }, (_v, i) => `    T${i}: 3: Actor${i}`).join('\n')
     const svg = renderMermaidSVG(`journey\n  section S\n${tasks}`)
@@ -168,6 +191,17 @@ journey
     for (const index of [0, 1, 2]) {
       const [label, band] = sectionPair(svg, index)
       expect(wcagContrastRatio(label, band)).toBeGreaterThanOrEqual(4.5)
+    }
+  })
+
+  it('guards named, rgb, and saturated concrete pairs with composited WCAG math', () => {
+    const cases: Array<[string, string]> = [['#00a000', '#ffffff'], ['#f0f0f0', 'white'], ['rgb(240,240,240)', 'white']]
+    for (const [band, requested] of cases) {
+      const svg = renderMermaidSVG(`%%{init: ${JSON.stringify({ journey: { sectionFills: [band], sectionColours: [requested] } })}}%%\njourney\n  section S\n    Task: 3: Me`)
+      const emittedBand = /\.journey-section-band-0 \{ fill: ([^;]+);/.exec(svg)?.[1] ?? band
+      const emittedText = /\.journey-section-label-0 \{ fill: ([^;]+);/.exec(svg)?.[1]
+      expect(emittedText).toBeDefined()
+      expect(wcagCssContrastRatio(emittedText!, emittedBand, '#ffffff')!).toBeGreaterThanOrEqual(4.5)
     }
   })
 

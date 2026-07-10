@@ -8,9 +8,11 @@ What Agentic Mermaid can do, organized by capability area. The npm import paths 
 - **`parseMermaid(source)`** → `Result<ValidDiagram, ParseError[]>`. Never
   throws on malformed input; structured errors.
 - **`mutate(d, op)`** — family-overloaded typed mutation. Ops per family:
-  flowchart (6), state (8), sequence (5), timeline (10), class (10), ER (7),
-  journey (10), architecture (10), xychart (8), pie (7), quadrant (7), gantt (9).
-- **`verifyMermaid(d, opts)`** — structural verification (no pixels).
+  flowchart (14), state (14), sequence (7), timeline (15), class (11), ER (7),
+  journey (14), architecture (10), xychart (10), pie (7), quadrant (7), gantt (13): **129 total**.
+- **`verifyMermaid(d, opts)`** — structural and geometric verification plus a
+  strict render-parity gate, with deterministic semantic facts available for
+  meaning-level checks.
 - **`serializeMermaid(d)`** — back to canonical source.
 - **Round-trip** — structured bodies serialize to canonical, idempotent
   source; opaque bodies preserve original indentation/comments verbatim.
@@ -74,7 +76,7 @@ Agentic Mermaid outputs **SVG, PNG, ASCII, Unicode, and JSON layout** from the s
 - **Tier 1 (structural, universal):** EMPTY_DIAGRAM, EDGE_MISANCHORED,
   OFF_CANVAS, GROUP_BREACH, UNKNOWN_SHAPE, LABEL_OVERFLOW, UNRESOLVABLE_SCHEDULE,
   RENDER_FAILED (a clean verify proves the source actually renders).
-- **Tier 2 (geometric — route tripwires for flowchart/state, anchor/overlap checks for class/ER):** NODE_OVERLAP, ROUTE_SELF_CROSS, and the route-contract tripwires ROUTE_HITCH, ROUTE_UNEXPLAINED_BEND, ROUTE_LABEL_ON_SHARED_TRUNK, ROUTE_CONTAINER_MISANCHOR, ROUTE_SHAPE_MISANCHOR, ROUTE_STALE_AFTER_NODE_MOVE.
+- **Tier 2 (geometric — route tripwires for flowchart/state, anchor/overlap checks for class/ER):** NODE_OVERLAP, ROUTE_SELF_CROSS, and the route-contract tripwires ROUTE_HITCH, ROUTE_UNEXPLAINED_BEND, ROUTE_LABEL_ON_SHARED_TRUNK, ROUTE_SELF_LOOP_OCCUPANCY, ROUTE_CONTAINER_MISANCHOR, ROUTE_SHAPE_MISANCHOR, ROUTE_STALE_AFTER_NODE_MOVE.
 - **Tier 3 (lint, advisory):** DUPLICATE_EDGE, UNREACHABLE_NODE, DECISION_BRANCH_UNLABELED, COMMENT_DROPPED, UNSUPPORTED_SYNTAX, CONTENT_DROPPED_ON_ROUNDTRIP, INEFFECTIVE_CONFIG.
 - **Perceptual quality** — `measureQuality` / `checkQuality` (edge
   crossings, label legibility, whitespace balance, …). See [`quality.md`](./quality.md).

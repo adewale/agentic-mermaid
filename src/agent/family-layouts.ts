@@ -284,11 +284,11 @@ function sequenceToRendered(d: ValidDiagram, opts: { debug?: boolean } = {}): Re
     const nodes: RenderedLayoutNode[] = [
       ...positioned.actors.map(a => ({
         id: a.id, x: f(a.x - a.width / 2), y: f(a.y), w: f(a.width), h: f(a.height),
-        shape: 'rectangle', label: a.label,
+        shape: 'rectangle', label: a.label, role: 'box' as const,
       })),
       ...positioned.notes.map((n, i) => ({
         id: `note#${i}`, x: f(n.x), y: f(n.y), w: f(n.width), h: f(n.height),
-        shape: 'note', label: n.text,
+        shape: 'note', label: n.text, role: 'box' as const,
       })),
     ]
     return {
@@ -429,17 +429,24 @@ function architectureToRendered(d: ValidDiagram, opts: { debug?: boolean } = {})
     )
     const nodes: RenderedLayoutNode[] = [
       ...positioned.services.map(s => ({
-        id: s.id, x: f(s.x), y: f(s.y), w: f(s.width), h: f(s.height), shape: 'service', label: s.label,
+        id: s.id, x: f(s.x), y: f(s.y), w: f(s.width), h: f(s.height), shape: 'service', label: s.label, role: 'box' as const,
       })),
       ...positioned.junctions.map(j => ({
-        id: j.id, x: f(j.x), y: f(j.y), w: f(j.width), h: f(j.height), shape: 'circle' as const, label: undefined,
+        id: j.id, x: f(j.x), y: f(j.y), w: f(j.width), h: f(j.height), shape: 'circle' as const, label: undefined, role: 'mark' as const,
       })),
     ]
     const flatGroups = new Map<string, PositionedArchitectureGroup>()
     const groups: RenderedLayoutGroup[] = []
     const flatten = (g: PositionedArchitectureGroup): void => {
       flatGroups.set(g.id, g)
-      groups.push({ id: g.id, x: f(g.x), y: f(g.y), w: f(g.width), h: f(g.height), members: [], label: g.label, parentId: g.parentId })
+      groups.push({
+        id: g.id, x: f(g.x), y: f(g.y), w: f(g.width), h: f(g.height),
+        members: [
+          ...positioned.services.filter(service => service.parentId === g.id).map(service => service.id),
+          ...positioned.junctions.filter(junction => junction.parentId === g.id).map(junction => junction.id),
+        ],
+        label: g.label, parentId: g.parentId,
+      })
       for (const c of g.children) flatten(c)
     }
     for (const g of positioned.groups) flatten(g)
@@ -514,19 +521,22 @@ function xychartToRendered(d: ValidDiagram, opts: { debug?: boolean } = {}): Ren
     const nodes: RenderedLayoutNode[] = []
     // Bars are the primary boxes.
     positioned.bars.forEach((b, i) => {
-      nodes.push({ id: `bar#${i}`, x: f(b.x), y: f(b.y), w: f(b.width), h: f(b.height), shape: 'rectangle', label: b.label })
+      nodes.push({ id: `bar#${i}`, x: f(b.x), y: f(b.y), w: f(b.width), h: f(b.height), shape: 'rectangle', label: b.label, role: 'labelled-mark' })
     })
     // Line series points become small marker boxes so line-only charts are
     // still measured (whitespace/legibility care about node area).
     positioned.lines.forEach((ln, li) => {
       ln.points.forEach((p, pi) => {
-        nodes.push({ id: `line#${li}:pt#${pi}`, x: f(p.x - 3), y: f(p.y - 3), w: f(6), h: f(6), shape: 'circle', label: p.label })
+        nodes.push({ id: `line#${li}:pt#${pi}`, x: f(p.x - 3), y: f(p.y - 3), w: f(6), h: f(6), shape: 'circle', label: p.label, role: p.label ? 'labelled-mark' : 'mark' })
       })
     })
     // Plot area is the single group (the chart's content frame).
     const groups: RenderedLayoutGroup[] = [{
       id: 'plot', x: f(positioned.plotArea.x), y: f(positioned.plotArea.y),
-      w: f(positioned.plotArea.width), h: f(positioned.plotArea.height), members: [],
+      w: f(positioned.plotArea.width), h: f(positioned.plotArea.height), members: nodes
+        .filter(node => node.x + node.w / 2 >= positioned.plotArea.x && node.x + node.w / 2 <= positioned.plotArea.x + positioned.plotArea.width &&
+          node.y + node.h / 2 >= positioned.plotArea.y && node.y + node.h / 2 <= positioned.plotArea.y + positioned.plotArea.height)
+        .map(node => node.id),
     }]
     const layout: RenderedLayout = { version: 1, kind: d.kind, nodes, edges: [], groups, bounds: { w: f(positioned.width), h: f(positioned.height) } }
     if (opts.debug) layout.certificates = elementCertificates('xychart', layout, 'plot-contained', groups[0], 'center')
@@ -749,7 +759,7 @@ export function ganttScheduleWarning(d: ValidDiagram): LayoutWarning | null {
  */
 export function layoutGeometryWarnings(
   layout: RenderedLayout,
-  opts: { edgeAnchors?: boolean; nodeOverlaps?: boolean; groupContainment?: boolean } = {},
+  opts: { edgeAnchors?: boolean; nodeOverlaps?: boolean; groupContainment?: boolean | 'center' } = {},
 ): LayoutWarning[] {
   const warnings: LayoutWarning[] = []
   const TOL = 0.5
@@ -782,8 +792,11 @@ export function layoutGeometryWarnings(
       for (const memberId of g.members) {
         const n = nodeById.get(memberId)
         if (!n) continue
-        const inside = n.x >= g.x - TOL && n.y >= g.y - TOL &&
-          n.x + n.w <= g.x + g.w + TOL && n.y + n.h <= g.y + g.h + TOL
+        const inside = opts.groupContainment === 'center'
+          ? n.x + n.w / 2 >= g.x - TOL && n.y + n.h / 2 >= g.y - TOL &&
+            n.x + n.w / 2 <= g.x + g.w + TOL && n.y + n.h / 2 <= g.y + g.h + TOL
+          : n.x >= g.x - TOL && n.y >= g.y - TOL &&
+            n.x + n.w <= g.x + g.w + TOL && n.y + n.h <= g.y + g.h + TOL
         if (!inside) warnings.push({ code: 'GROUP_BREACH', group: g.id, member: memberId })
       }
     }
@@ -838,10 +851,14 @@ function quadrantToRendered(d: ValidDiagram, opts: { debug?: boolean } = {}): Re
     const positioned = layoutQuadrantChart(quadrantChartForRenderedLayout(d), {}, visual)
     const nodes: RenderedLayoutNode[] = positioned.points.map((p, i) => ({
       id: `point#${i}:${p.label}`, x: f(p.cx - p.radius), y: f(p.cy - p.radius),
-      w: f(p.radius * 2), h: f(p.radius * 2), shape: 'circle', label: p.label,
+      w: f(p.radius * 2), h: f(p.radius * 2), shape: 'circle', label: p.label, role: 'labelled-mark' as const,
     }))
     const groups: RenderedLayoutGroup[] = positioned.regions.map(r => ({
-      id: `quadrant#${r.number}`, x: f(r.x), y: f(r.y), w: f(r.width), h: f(r.height), members: [], label: r.label,
+      id: `quadrant#${r.number}`, x: f(r.x), y: f(r.y), w: f(r.width), h: f(r.height),
+      members: positioned.points.map((point, index) => ({ point, index })).filter(({ point }) =>
+        r.number === (point.nx >= 0.5 ? (point.ny >= 0.5 ? 1 : 4) : (point.ny >= 0.5 ? 2 : 3)))
+        .map(({ point, index }) => `point#${index}:${point.label}`),
+      label: r.label,
     }))
     const layout: RenderedLayout = { version: 1, kind: d.kind, nodes, edges: [], groups, bounds: { w: f(positioned.width), h: f(positioned.height) } }
     if (opts.debug) layout.certificates = elementCertificates('quadrant', layout, 'plot-contained')

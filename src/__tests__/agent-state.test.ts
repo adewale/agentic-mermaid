@@ -18,6 +18,8 @@ import { verifyMermaid } from '../agent/verify.ts'
 import { asState, asFlowchart } from '../agent/types.ts'
 import type { StateValidDiagram, StateMutationOp, StateNode, MutationError } from '../agent/types.ts'
 import { parseMermaid as parseLegacy } from '../parser.ts'
+import { describeMermaidFacts } from '../agent/facts.ts'
+import { describeMermaid } from '../agent/describe.ts'
 
 const SRC = `stateDiagram-v2
   [*] --> Idle
@@ -87,6 +89,23 @@ describe('state structured parse', () => {
     // The top-level transition referencing the composite stays at top level.
     expect(d.body.transitions).toContainEqual({ from: '[*]', to: 'First' })
     expect(d.body.transitions).toContainEqual({ from: 'First', to: '[*]' })
+  })
+
+  test('forward references to nested composites keep one globally unique ID', () => {
+    let d = state(`stateDiagram-v2
+  A --> C
+  state P {
+    state C {
+      X --> Y
+    }
+  }`)
+    const all: StateNode[] = []
+    const walk = (nodes: StateNode[]) => { for (const node of nodes) { all.push(node); if (node.states) walk(node.states) } }
+    walk(d.body.states)
+    expect(all.filter(node => node.id === 'C')).toHaveLength(1)
+    expect(all.find(node => node.id === 'C')?.states).toBeDefined()
+    d = apply(d, { kind: 'set_direction', state: 'C', direction: 'LR' })
+    expect(state(serializeMermaid(d)).body).toEqual(d.body)
   })
 
   test('top-level direction is modeled', () => {
@@ -508,6 +527,20 @@ describe('state fast-check round-trip property', () => {
 })
 
 // ---------------------------------------------------------------------------
+describe('state semantic read-back', () => {
+  test('facts, check surface, and prose expose stereotypes and notes', () => {
+    const d = state(`stateDiagram-v2
+  state F <<fork>>
+  note right of F : hello`)
+    const facts = describeMermaidFacts(d)
+    expect(facts).toContain('state F stereotype fork')
+    expect(facts).toContain('note#0 right of F : hello')
+    const prose = describeMermaid(d, { format: 'text' })
+    expect(prose).toContain('F (fork)')
+    expect(prose).toContain('right of F: hello')
+  })
+})
+
 describe('state describe (prose + AX tree)', () => {
   test('AX tree exposes states as nodes and transitions as edges', () => {
     // describeMermaidTree is exercised through the public describe surface.

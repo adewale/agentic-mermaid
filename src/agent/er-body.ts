@@ -22,7 +22,7 @@ import type {
 } from './types.ts'
 import { ok, err, DEFAULT_LABEL_CHAR_CAP } from './types.ts'
 import { labelOverflowWarning } from './label-metrics.ts'
-import { erContainsSubgraphConstruct } from '../er/parser.ts'
+import { erContainsSubgraphConstruct, parseErEntityId } from '../er/parser.ts'
 import { toMermaidLines } from '../mermaid-source.ts'
 
 /**
@@ -56,7 +56,6 @@ const RIGHT_CARD: Record<string, ErCardinality> = {
 
 const REL_RE = /^([A-Za-z_][\w-]*)\s+([|o}{][|o}{])\s*(--|\.\.)\s*([|o}{][|o}{])\s+([A-Za-z_][\w-]*)\s*:\s*(.+)$/
 const ENTITY_OPEN_RE = /^([A-Za-z_][\w-]*)\s*\{$/
-const ENTITY_BARE_RE = /^([A-Za-z_][\w-]*)$/
 
 export function parseErBody(lines: string[]): ErBody | null {
   const body: ErBody = { kind: 'er', entities: [], relations: [] }
@@ -92,8 +91,8 @@ export function parseErBody(lines: string[]): ErBody | null {
     }
 
     // Bare entity declaration: `CUSTOMER` (no attributes)
-    const bm = raw.match(ENTITY_BARE_RE)
-    if (bm) { upsert(bm[1]!); continue }
+    const bareId = parseErEntityId(raw)
+    if (bareId) { upsert(bareId); continue }
 
     // Entity with attribute block
     const om = raw.match(ENTITY_OPEN_RE)

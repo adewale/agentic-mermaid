@@ -251,6 +251,12 @@ export function mutateSequence(body: SequenceBody, op: SequenceMutationOp): Resu
     case 'remove_participant': {
       const idx = participants.findIndex(p => p.id === op.id)
       if (idx < 0) return err({ code: 'PARTICIPANT_NOT_FOUND', message: `Participant "${op.id}" not found` })
+      if (opaqueBlocksReference(statements, op.id)) {
+        return err({
+          code: 'INVALID_OP',
+          message: `Participant "${op.id}" is referenced by preserved sequence syntax; remove or model that opaque block before removing the participant`,
+        })
+      }
       participants.splice(idx, 1)
       // Drop messages touching the participant, then rebuild statements over
       // the surviving messages/participants (opaque blocks are preserved).
@@ -319,6 +325,13 @@ export function mutateSequence(body: SequenceBody, op: SequenceMutationOp): Resu
     }
   }
   return ok({ kind: 'sequence', participants, messages, statements })
+}
+
+function opaqueBlocksReference(statements: SequenceStatement[], id: string): boolean {
+  const escaped = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const token = new RegExp(`(^|[^A-Za-z0-9_])${escaped}(?=$|[^A-Za-z0-9_])`)
+  return statements.some(statement =>
+    statement.kind === 'opaque-block' && statement.lines.some(line => token.test(line)))
 }
 
 function cloneStatement(s: SequenceStatement): SequenceStatement {

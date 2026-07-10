@@ -80,6 +80,32 @@ function generatedSequenceSource(input: {
   return lines.join('\n')
 }
 
+describe('sequence layout – standalone activation events', () => {
+  it('renders positive-height standalone activation rectangles', () => {
+    const positioned = layout(`sequenceDiagram
+      participant A
+      activate A
+      A->>A: work
+      deactivate A`)
+    expect(positioned.activations).toHaveLength(1)
+    expect(positioned.activations[0]!.actorId).toBe('A')
+    expect(positioned.activations[0]!.bottomY).toBeGreaterThan(positioned.activations[0]!.topY)
+  })
+
+  it('shares one nested stack between standalone and message +/- syntax', () => {
+    const positioned = layout(`sequenceDiagram
+      participant A
+      participant B
+      activate B
+      A->>+B: nested
+      B-->>-A: inner done
+      deactivate B`)
+    expect(positioned.activations).toHaveLength(2)
+    expect(new Set(positioned.activations.map(activation => activation.x)).size).toBe(2)
+    expect(positioned.activations.every(activation => activation.bottomY > activation.topY)).toBe(true)
+  })
+})
+
 describe('sequence layout – block spacing', () => {
   it('messages outside blocks are spaced at the base row height', () => {
     const result = layout(`sequenceDiagram

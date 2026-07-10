@@ -17,6 +17,30 @@ export function parseNamespaceHeader(line: string): { path: string[]; label?: st
   return { path: m[1]!.split('.'), label: m[2] || undefined }
 }
 
+// Shared class declaration grammar. The structured serializer emits bracket
+// labels, so the renderer and agent parser must resolve them to the same
+// logical ID instead of treating `A["Label"]` as an identifier.
+const CLASS_DECLARATION_RE = /^class\s+(`[^`]+`|[\w$]+)(?:\s*\[\s*"([^"]*)"\s*\])?(?:\s+as\s+"([^"]+)")?(?:\s*~(\w+)~)?\s*(\{)?\s*$/
+
+export interface ParsedClassDeclaration {
+  id: string
+  label?: string
+  generic?: string
+  opensBody: boolean
+}
+
+export function parseClassDeclaration(line: string): ParsedClassDeclaration | null {
+  const match = line.match(CLASS_DECLARATION_RE)
+  if (!match) return null
+  const rawId = match[1]!
+  return {
+    id: rawId.startsWith('`') ? rawId.slice(1, -1) : rawId,
+    label: match[2] ?? match[3],
+    generic: match[4],
+    opensBody: match[5] === '{',
+  }
+}
+
 // ============================================================================
 // Class diagram parser
 //
@@ -173,31 +197,17 @@ export function parseClassDiagram(lines: string[]): ClassDiagram {
       continue
     }
 
-    // --- Class block start: `class ClassName {` or `class ClassName` ---
-    const classBlockMatch = line.match(/^class\s+(\S+?)(?:\s*~(\w+)~)?\s*\{$/)
-    if (classBlockMatch) {
-      const id = classBlockMatch[1]!
-      const generic = classBlockMatch[2]
-      const cls = ensureClass(classMap, id)
-      if (generic) {
-        cls.label = `${id}<${generic}>`
+    // --- Class declaration (standalone or opening a member block) ---
+    const declaration = parseClassDeclaration(line)
+    if (declaration) {
+      const cls = ensureClass(classMap, declaration.id)
+      if (declaration.label !== undefined) cls.label = normalizeBrTags(declaration.label)
+      else if (declaration.generic) cls.label = `${declaration.id}<${declaration.generic}>`
+      if (declaration.opensBody) {
+        currentClass = cls
+        braceDepth = 1
       }
-      currentClass = cls
-      braceDepth = 1
-      claimClass(id)
-      continue
-    }
-
-    // --- Standalone class declaration (no body): `class ClassName` ---
-    const classOnlyMatch = line.match(/^class\s+(\S+?)(?:\s*~(\w+)~)?\s*$/)
-    if (classOnlyMatch) {
-      const id = classOnlyMatch[1]!
-      const generic = classOnlyMatch[2]
-      const cls = ensureClass(classMap, id)
-      if (generic) {
-        cls.label = `${id}<${generic}>`
-      }
-      claimClass(id)
+      claimClass(declaration.id)
       continue
     }
 

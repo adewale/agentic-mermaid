@@ -314,7 +314,8 @@ export interface XyChartSeries {
 export interface XyChartBody {
   kind: 'xychart'
   title?: string
-  /** Header orientation suffix: `xychart-beta horizontal`. Default vertical. */
+  /** Header orientation: true = explicit horizontal, false = explicit vertical,
+   *  absent = no header override (runtime config decides). */
   horizontal?: boolean
   xAxis?: XyChartAxis
   yAxis?: XyChartAxis
@@ -940,7 +941,7 @@ export type Tier1WarningCode =
   | 'RENDER_FAILED'
 export type Tier2WarningCode =
   | 'NODE_OVERLAP' | 'ROUTE_SELF_CROSS' | 'ROUTE_HITCH'
-  | 'ROUTE_UNEXPLAINED_BEND' | 'ROUTE_LABEL_ON_SHARED_TRUNK'
+  | 'ROUTE_UNEXPLAINED_BEND' | 'ROUTE_LABEL_ON_SHARED_TRUNK' | 'ROUTE_SELF_LOOP_OCCUPANCY'
   | 'ROUTE_CONTAINER_MISANCHOR' | 'ROUTE_SHAPE_MISANCHOR' | 'ROUTE_STALE_AFTER_NODE_MOVE'
 /**
  * Tier 3 (advisory lint). Family-specific quality hints for common agent
@@ -979,6 +980,7 @@ export type LayoutWarning =
   | { code: 'ROUTE_HITCH'; edge: EdgeId; deviationPx: number }
   | { code: 'ROUTE_UNEXPLAINED_BEND'; edge: EdgeId }
   | { code: 'ROUTE_LABEL_ON_SHARED_TRUNK'; edge: EdgeId; sharedWith: EdgeId }
+  | { code: 'ROUTE_SELF_LOOP_OCCUPANCY'; edge: EdgeId; conflictWith?: EdgeId; kind: 'allocation' | 'side' | 'boundary' | 'route-route' | 'label-label' | 'label-route' }
   | { code: 'ROUTE_CONTAINER_MISANCHOR'; edge: EdgeId; container: GroupId }
   | { code: 'ROUTE_SHAPE_MISANCHOR'; edge: EdgeId; node: NodeId }
   | { code: 'ROUTE_STALE_AFTER_NODE_MOVE'; edge: EdgeId; node: NodeId }
@@ -1017,6 +1019,7 @@ export const WARNING_SEVERITY: Record<WarningCode, WarningSeverity> = {
   ROUTE_HITCH: 'warning',
   ROUTE_UNEXPLAINED_BEND: 'warning',
   ROUTE_LABEL_ON_SHARED_TRUNK: 'warning',
+  ROUTE_SELF_LOOP_OCCUPANCY: 'warning',
   ROUTE_CONTAINER_MISANCHOR: 'warning',
   ROUTE_SHAPE_MISANCHOR: 'warning',
   ROUTE_STALE_AFTER_NODE_MOVE: 'warning',
@@ -1043,6 +1046,7 @@ export const WARNING_TIER: Record<WarningCode, WarningTier> = {
   ROUTE_HITCH: 'geometric',
   ROUTE_UNEXPLAINED_BEND: 'geometric',
   ROUTE_LABEL_ON_SHARED_TRUNK: 'geometric',
+  ROUTE_SELF_LOOP_OCCUPANCY: 'geometric',
   ROUTE_CONTAINER_MISANCHOR: 'geometric',
   ROUTE_SHAPE_MISANCHOR: 'geometric',
   ROUTE_STALE_AFTER_NODE_MOVE: 'geometric',
@@ -1075,6 +1079,9 @@ export interface RenderedRegion {
 
 export interface RenderedLayoutNode {
   id: NodeId; x: Finite; y: Finite; w: Finite; h: Finite; shape: string; label?: string
+  /** Explicit semantic role for family-generic quality scoring. Shape is paint,
+   *  not semantics: a rectangular bar is a mark, not a node box. */
+  role?: 'box' | 'mark' | 'labelled-mark'
 }
 export interface RenderedLayoutEdge {
   id: EdgeId; from: NodeId; to: NodeId; path: [Finite, Finite][]

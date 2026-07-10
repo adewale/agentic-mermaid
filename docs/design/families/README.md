@@ -16,6 +16,26 @@ across several surfaces; this hub points at each.
 Families **without** a dedicated design note — sequence, class, ER, pie, quadrant, timeline,
 state — are documented entirely through the cross-cutting surfaces below.
 
+## PR #142 generated visual evidence
+
+The `*-demo.mmd` fixtures in this directory drive the captioned before/after PNGs in
+[PR #142](https://github.com/adewale/agentic-mermaid/pull/142). “Before” artifacts were rendered
+at `476e72f` (or, for the dense-loop follow-up, `84b2ca95`); “after” artifacts use the PR branch.
+Most after images regenerate with:
+
+```bash
+bun run bin/am.ts render docs/design/families/<name>-demo.mmd --format png \
+  --output docs/design/families/<name>-after.png
+```
+
+The Gantt completion image additionally uses `ganttToday: '2024-01-08'`; the dependency image
+uses `{ gantt: { dependencyArrows: true, criticalPath: true } }` through `renderMermaidPNG`.
+The all-family Style + Palette sheet is generated and tested byte-for-byte:
+
+```bash
+bun run scripts/pr-assets/family-elevation-style-palette.ts
+```
+
 ## Where every family is documented (all 12)
 
 - **Canonical registry:** `BUILTIN_FAMILY_METADATA` in `src/agent/families.ts` — and its generated roster table in [`abstraction-audit.md`](../system/abstraction-audit.md) §2.

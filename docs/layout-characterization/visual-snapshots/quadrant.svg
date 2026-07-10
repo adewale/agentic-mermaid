@@ -1,4 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 456 492" width="456" height="492" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" role="img" aria-roledescription="quadrant chart">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 456 492" width="456" height="492" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" id="char-quadrant-quadrant-2kbvr6" role="img" aria-roledescription="quadrant chart" aria-labelledby="char-quadrant-quadrant-2kbvr6-title">
+<title id="char-quadrant-quadrant-2kbvr6-title">Priorities</title>
 <style>
   text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
   svg {

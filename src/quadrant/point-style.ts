@@ -24,6 +24,8 @@
 //                 brackets) are rejected.
 // ============================================================================
 
+import { isSafeCssColor } from '../shared/css-color.ts'
+
 /** Typed per-point style properties (upstream's documented set). */
 export interface QuadrantPointStyle {
   radius?: number
@@ -47,9 +49,28 @@ export type StyleParseResult =
 const CLASS_NAME_RE = /^[A-Za-z_][\w-]*$/
 const RADIUS_RE = /^\d+(?:\.\d+)?$/
 const STROKE_WIDTH_RE = /^\d+(?:\.\d+)?(?:px)?$/
-// Hex/named colors plus rgb()/hsl()/color-mix() functional forms. No quotes,
-// semicolons, braces, or angle brackets — the value lands in a style="" attr.
-const COLOR_RE = /^[#\w][\w#(),.%\s/-]*$/
+const SAFE_EXTRA_VALUE_RE = /^[#\w][\w#(),.%+\s/~-]*$/
+
+/** Split style entries at commas outside CSS function parentheses. */
+function splitTopLevelEntries(value: string): string[] | null {
+  const entries: string[] = []
+  let start = 0
+  let depth = 0
+  for (let i = 0; i < value.length; i++) {
+    const char = value[i]!
+    if (char === '(') depth++
+    else if (char === ')') {
+      depth--
+      if (depth < 0) return null
+    } else if (char === ',' && depth === 0) {
+      entries.push(value.slice(start, i))
+      start = i + 1
+    }
+  }
+  if (depth !== 0) return null
+  entries.push(value.slice(start))
+  return entries
+}
 
 /**
  * Parse a comma-separated `key: value` style tail (the text after a point's
@@ -63,7 +84,9 @@ export function parsePointStyleEntries(tail: string): StyleParseResult {
   if (trimmed.length === 0) return { ok: true, style: undefined }
   const style: QuadrantPointStyle = {}
   let any = false
-  for (const part of trimmed.split(',')) {
+  const parts = splitTopLevelEntries(trimmed)
+  if (!parts) return { ok: false, error: 'style functions have unbalanced parentheses' }
+  for (const part of parts) {
     const entry = part.trim()
     if (!entry) continue
     const m = entry.match(/^([a-z][\w-]*)\s*:\s*(.+)$/i)
@@ -77,12 +100,12 @@ export function parsePointStyleEntries(tail: string): StyleParseResult {
         break
       }
       case 'color': {
-        if (!COLOR_RE.test(value)) return { ok: false, error: `color has unsupported characters: "${value}"` }
+        if (!isSafeCssColor(value)) return { ok: false, error: `color has unsupported characters or syntax: "${value}"` }
         style.color = value
         break
       }
       case 'stroke-color': {
-        if (!COLOR_RE.test(value)) return { ok: false, error: `stroke-color has unsupported characters: "${value}"` }
+        if (!isSafeCssColor(value)) return { ok: false, error: `stroke-color has unsupported characters or syntax: "${value}"` }
         style.strokeColor = value
         break
       }
@@ -97,7 +120,7 @@ export function parsePointStyleEntries(tail: string): StyleParseResult {
         // fill:#ff0000`). Safe values are preserved verbatim and stay inert;
         // unsafe characters remain a hard error (the value would land in a
         // style="" attribute on serialize).
-        if (!COLOR_RE.test(value)) return { ok: false, error: `style property "${key}" has unsupported characters: "${value}"` }
+        if (!SAFE_EXTRA_VALUE_RE.test(value)) return { ok: false, error: `style property "${key}" has unsupported characters: "${value}"` }
         style.extra = style.extra ?? []
         style.extra.push(`${key}: ${value}`)
         break

@@ -137,6 +137,7 @@ function factsState(out: string[], body: StateBody): void {
     for (const s of states) {
       add(out, `state ${clean(s.id)}`)
       if (s.label) add(out, `state ${clean(s.id)} : ${clean(s.label)}`)
+      if (s.stereotype) add(out, `state ${clean(s.id)} stereotype ${clean(s.stereotype)}`)
       if (path) add(out, `state ${clean(s.id)} parent ${clean(path)}`)
       if (s.states !== undefined) {
         add(out, `composite ${clean(s.id)}`)
@@ -147,6 +148,9 @@ function factsState(out: string[], body: StateBody): void {
     for (const t of transitions) add(out, edgeFact(t.from, t.to, t.label))
   }
   visit(body.states, body.transitions)
+  for (const [index, note] of (body.notes ?? []).entries()) {
+    add(out, `note#${index} ${note.side} of ${clean(note.target)} : ${clean(note.text)}`)
+  }
 }
 
 function factsSequence(out: string[], body: SequenceBody): void {

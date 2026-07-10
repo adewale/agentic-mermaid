@@ -73,6 +73,20 @@ describe('parseSequenceBody – box ... end (fix)', () => {
     expect(out).toContain('end')
   })
 
+  it('remove_participant rejects when a preserved box would resurrect the actor', () => {
+    const parsed = parseMermaid(BOXED)
+    if (!parsed.ok) throw new Error('parse failed')
+    const sequence = asSequence(parsed.value)!
+    const before = sequence.canonicalSource
+    const result = mutate(sequence, { kind: 'remove_participant', id: 'A' })
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error.code).toBe('INVALID_OP')
+      expect(result.error.message).toContain('preserved sequence syntax')
+    }
+    expect(sequence.canonicalSource).toBe(before)
+  })
+
   it('a stray end without any open block still falls back to opaque', () => {
     const body = parseSequenceBody(['A->>B: hi', 'end'])
     expect(body).toBeNull()

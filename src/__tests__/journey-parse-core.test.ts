@@ -83,6 +83,27 @@ describe('semicolon statement separation (Mermaid lexer parity)', () => {
   })
 })
 
+describe('accessibility block suffix and colon grammar', () => {
+  test('same-line and closing-line suffix statements are classified instead of discarded', () => {
+    for (const source of [
+      'journey\n  accDescr {summary} Task: 3: Me',
+      'journey\n  accDescr {\n    summary\n  } Task: 3: Me',
+    ]) {
+      const parsed = parseMermaid(source)
+      expect(parsed.ok).toBe(true)
+      if (!parsed.ok) continue
+      expect(parsed.value.body.kind).toBe('journey')
+      if (parsed.value.body.kind === 'journey') expect(parsed.value.body.sections[0]!.tasks[0]!.text).toBe('Task')
+    }
+  })
+
+  test('task text containing a colon is rejected consistently', () => {
+    const parsed = parseMermaid('journey\n  A:B: 3: Me')
+    expect(parsed.ok).toBe(true)
+    if (parsed.ok) expect(parsed.value.body.kind).toBe('opaque')
+  })
+})
+
 describe('typed opaque outcomes → targeted verify diagnostics', () => {
   const cases: Array<[string, string, string, number]> = [
     // [name, source, expected syntax tag, expected 1-based line]

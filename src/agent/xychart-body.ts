@@ -257,7 +257,12 @@ function renderAxis(keyword: 'x-axis' | 'y-axis', axis: XyChartAxis): string {
 }
 
 export function renderXyChart(body: XyChartBody): string {
-  const lines: string[] = [body.horizontal ? 'xychart-beta horizontal' : 'xychart-beta']
+  const header = body.horizontal === true
+    ? 'xychart-beta horizontal'
+    : body.horizontal === false
+      ? 'xychart-beta vertical'
+      : 'xychart-beta'
+  const lines: string[] = [header]
   if (body.title !== undefined) lines.push(`  title ${body.title}`)
   if (body.xAxis) lines.push(renderAxis('x-axis', body.xAxis))
   if (body.yAxis) lines.push(renderAxis('y-axis', body.yAxis))
@@ -438,10 +443,9 @@ export function mutateXyChart(body: XyChartBody, op: XyChartMutationOp): Result<
       if (typeof op.horizontal !== 'boolean') {
         return err({ code: 'INVALID_OP', message: `XY chart set_orientation horizontal must be a boolean (true = horizontal, false = vertical), got ${JSON.stringify(op.horizontal)}` })
       }
-      // The serializer emits the `horizontal` header suffix only when set, so
-      // vertical (the default) drops the flag instead of storing `false`.
-      if (op.horizontal) next.horizontal = true
-      else delete next.horizontal
+      // Preserve both explicit orientations. Absence remains the only state
+      // that defers to runtime frontmatter configuration.
+      next.horizontal = op.horizontal
       break
     }
     case 'set_data_point': {

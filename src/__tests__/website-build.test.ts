@@ -80,7 +80,7 @@ function staticCleanRoutesFromGeneratedPages() {
 async function websiteWorker(): Promise<{ fetch: (request: Request, env: any) => Promise<Response> }> {
   return createWebsiteWorker({
     executeHarness: 'test-harness',
-    renderPng: async () => new Uint8Array(),
+    renderPng: async () => ({ png: new Uint8Array(), warnings: [] }),
     deployVersion: 'test-deploy',
   })
 }

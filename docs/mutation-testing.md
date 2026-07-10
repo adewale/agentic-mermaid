@@ -32,17 +32,15 @@ bun run sabotage:routes                # one-line revert checks against committe
 ```
 
 The JSON report lands in `reports/mutation/` (gitignored). Beyond the lanes
-documented here, `stryker.*.config.json` also covers the per-family parsers
-(state/sequence/timeline/class/er/journey/pie/quadrant/gantt via
-`mutation-test:families`), characterization, and the link-grammar lane — see
-`package.json` scripts for the full index. Broad route lanes
-are intentionally not part of the PR gate, but `.github/workflows/nightly-route-mutation.yml`
-runs `mutation-test:routes`, `mutation-test:routes:certs`,
-`mutation-test:routes:subgraph`, and `sabotage:routes` nightly and on manual
-`workflow_dispatch`, uploading reports as artifacts — though every scheduled
-run to date has been cancelled at the 90-minute cap before uploading anything
-(the unsharded routes lane exceeds it; PR #63 carries the sharding fix), so
-current scores come from local runs. Run the narrow lane locally
+documented here, `stryker.*.config.json` also covers every family through a
+named package script: flowchart uses the route lane; XYChart and Architecture
+share `mutation-test:families`; State, Sequence, Timeline, Class, ER, Journey,
+Pie, Quadrant, and Gantt each have a focused command. Every family lane emits a
+uniquely named JSON report and has a `thresholds.break: 60` adequacy floor.
+`.github/workflows/nightly-route-mutation.yml` schedules all of those lanes,
+plus route certificates/subgraph routing and `sabotage:routes`, nightly and on
+manual `workflow_dispatch`, uploading reports as artifacts. Broad mutation
+runs remain outside the PR gate; run the narrow lane locally
 when you touch ASCII/route core logic and want immediate proof the tests bite.
 
 ## Policy

@@ -128,6 +128,7 @@ Correctly detect what they claim to detect, but the occurrence may be intentiona
 | `ROUTE_HITCH` | warning | An edge bends although a direct lane for it is provably clear (route-contract tripwire) |
 | `ROUTE_UNEXPLAINED_BEND` | warning | An edge contains a diagonal segment under orthogonal routing (route-contract tripwire) |
 | `ROUTE_LABEL_ON_SHARED_TRUNK` | warning | A label pill sits on a line segment another edge shares (route-contract tripwire) |
+| `ROUTE_SELF_LOOP_OCCUPANCY` | warning | A self-loop certificate has invalid side/boundary geometry or collides with another loop/label |
 | `ROUTE_CONTAINER_MISANCHOR` | warning | A container edge does not terminate on the container border (route-contract tripwire) |
 | `ROUTE_SHAPE_MISANCHOR` | warning | An endpoint is off the rendered shape boundary (route-contract tripwire) |
 | `ROUTE_STALE_AFTER_NODE_MOVE` | warning | An endpoint detached from its node entirely (route-contract tripwire) |

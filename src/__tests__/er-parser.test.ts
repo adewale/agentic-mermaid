@@ -18,6 +18,11 @@ function parse(text: string) {
 // ============================================================================
 
 describe('parseErDiagram – entity definitions', () => {
+  it('bare entity declarations produce visible logical entities', () => {
+    const diagram = parse('erDiagram\n  A\n  B')
+    expect(diagram.entities.map(entity => entity.id)).toEqual(['A', 'B'])
+    expect(diagram.relationships).toEqual([])
+  })
   it('parses an entity with attributes', () => {
     const d = parse(`erDiagram
       CUSTOMER {

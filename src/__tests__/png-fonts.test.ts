@@ -100,10 +100,12 @@ describe('PNG glyph-coverage warnings', () => {
     expect(warnings).toEqual([])
   })
 
-  test('loadSystemFonts: true skips the coverage warning (system coverage is unknown)', () => {
+  test('loadSystemFonts: true keeps a qualified known-font warning', () => {
     const { png, warnings } = collectWarnings(CJK_SRC, { loadSystemFonts: true })
     expect(png.length).toBeGreaterThan(100)
-    expect(warnings).toEqual([])
+    expect(warnings.some(w => w.script === 'CJK')).toBe(true)
+    expect(warnings[0]!.message).toContain('installed system font may cover')
+    expect(warnings[0]!.message).not.toContain('will draw as')
   })
 
   test('warnings are deterministic across identical renders', () => {
@@ -182,10 +184,11 @@ describe('am render --format png font flags', () => {
     expect(readFileSync(outFile).length).toBeGreaterThan(100)
   })
 
-  test('--system-fonts opts in to system fonts and skips the coverage check', () => {
+  test('--system-fonts keeps a qualified bundled-font coverage warning', () => {
     const { code, err, outFile } = tmpPngRun(CJK_SRC, ['--system-fonts'])
     expect(code).toBe(0)
-    expect(err).not.toContain('PNG_FONT_COVERAGE')
+    expect(err).toContain('PNG_FONT_COVERAGE')
+    expect(err).toContain('installed system font may cover')
     expect(readFileSync(outFile).length).toBeGreaterThan(100)
   })
 })

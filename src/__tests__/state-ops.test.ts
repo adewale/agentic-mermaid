@@ -81,6 +81,26 @@ describe('registration: schema, menu, and mutation-op list agree', () => {
 })
 
 // ---------------------------------------------------------------------------
+describe('history endpoint mutation', () => {
+  test('shallow/deep qualified and bare history stay contextual and round-trip', () => {
+    let d = state()
+    d = apply(d, { kind: 'add_transition', from: 'Machine[H]', to: 'Machine' })
+    d = apply(d, { kind: 'add_transition', from: 'Machine[H*]', to: 'Machine' })
+    d = apply(d, { kind: 'add_transition', from: '[H]', to: 'Cog', parent: 'Machine' })
+    const ids: string[] = []
+    const walk = (nodes: typeof d.body.states) => { for (const node of nodes) { ids.push(node.id); if (node.states) walk(node.states) } }
+    walk(d.body.states)
+    expect(ids.some(id => id.includes('[H'))).toBe(false)
+    expect(state(serializeMermaid(d)).body).toEqual(d.body)
+  })
+
+  test('rejects missing/simple history bases and bare history without a composite scope', () => {
+    expectErr(state(), { kind: 'add_transition', from: 'Missing[H]', to: 'Idle' }, 'STATE_NOT_FOUND')
+    expectErr(state(), { kind: 'add_transition', from: 'Idle[H]', to: 'Active' }, 'INVALID_OP')
+    expectErr(state(), { kind: 'add_transition', from: '[H]', to: 'Idle' }, 'INVALID_OP')
+  })
+})
+
 describe('set_direction', () => {
   test('sets the diagram direction', () => {
     const d = apply(state(), { kind: 'set_direction', direction: 'LR' })

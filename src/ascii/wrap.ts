@@ -13,7 +13,10 @@
 // fullwidth text wraps at any character without hyphenation.
 // ============================================================================
 
+import { graphemes } from '../shared/graphemes.ts'
 import { visualWidth } from './width.ts'
+
+export { graphemes } from '../shared/graphemes.ts'
 
 /** Options for wrapText/wrapParagraph/breakWord. */
 export interface WrapOptions {
@@ -23,14 +26,6 @@ export interface WrapOptions {
    * Default: true. Glyph strips (e.g. the journey score strip) disable it.
    */
   hyphenate?: boolean
-}
-
-/** Grapheme segmentation is locale-independent (UAX #29), so this is deterministic. */
-const segmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' })
-
-/** Split a string into grapheme clusters (emoji ZWJ sequences stay whole). */
-export function graphemes(text: string): string[] {
-  return Array.from(segmenter.segment(text), s => s.segment)
 }
 
 /**

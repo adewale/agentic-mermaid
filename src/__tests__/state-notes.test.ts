@@ -186,6 +186,13 @@ describe('state notes — structured agent body', () => {
 
 // ---------------------------------------------------------------------------
 describe('state note ops (add_note / remove_note / set_note_text)', () => {
+  test('add_note accepts every parser-legal hyphenated ordinary state target', () => {
+    let d = state('stateDiagram-v2\n  in-progress : Working')
+    d = apply(d, { kind: 'add_note', target: 'in-progress', side: 'right', text: 'watch' })
+    expect(d.body.notes?.[0]).toMatchObject({ target: 'in-progress', text: 'watch' })
+    expect(state(serializeMermaid(d)).body).toEqual(d.body)
+  })
+
   test('add_note appends and round-trips through the render parser', () => {
     let d = state(`stateDiagram-v2
   A --> B

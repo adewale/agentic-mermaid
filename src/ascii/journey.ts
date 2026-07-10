@@ -8,6 +8,7 @@
 import { parseJourneyDiagram } from '../journey/parser.ts'
 import type { JourneyDiagram } from '../journey/types.ts'
 import { preprocessMermaidLines } from '../mermaid-source.ts'
+import { stripFormattingTags } from '../multiline-utils.ts'
 import { colorizeLine, DEFAULT_ASCII_THEME } from './ansi.ts'
 import type { AsciiConfig, AsciiTheme, CharRole, ColorMode } from './types.ts'
 import { visualWidth } from './width.ts'
@@ -84,7 +85,7 @@ export function renderJourneyAscii(
   }
 
   if (diagram.title) {
-    for (const line of wrapText(diagram.title, maxWidth)) {
+    for (const line of wrapText(stripFormattingTags(diagram.title), maxWidth)) {
       pushLine([{ text: line, role: 'text' }])
     }
     pushLine()
@@ -112,7 +113,7 @@ export function renderJourneyAscii(
       // Bracket only the first line of a wrapped label — bracketing every
       // line would read as one section per line. Continuations indent by
       // one cell to align inside the opening bracket.
-      const labelLines = wrapText(section.label.replace(/\n/g, ' / '), maxWidth ? Math.max(1, maxWidth - 2) : undefined)
+      const labelLines = wrapText(stripFormattingTags(section.label).replace(/\n/g, ' / '), maxWidth ? Math.max(1, maxWidth - 2) : undefined)
       labelLines.forEach((line, index) => {
         const segments: StyledSegment[] = [
           index === 0
@@ -130,7 +131,7 @@ export function renderJourneyAscii(
       const scoreSegments = renderScoreSegments(task.score, useAscii)
       const scoreWidth = 5
       const taskPrefixWidth = scoreWidth + 1
-      const taskLines = wrapText(task.text, maxWidth ? Math.max(1, maxWidth - taskPrefixWidth) : undefined)
+      const taskLines = wrapText(stripFormattingTags(task.text), maxWidth ? Math.max(1, maxWidth - taskPrefixWidth) : undefined)
 
       pushLine([
         ...scoreSegments,
@@ -146,7 +147,7 @@ export function renderJourneyAscii(
 
       if (task.actors.length > 0) {
         const actorPrefix = '  by '
-        const actorLines = wrapText(task.actors.join(', '), maxWidth ? Math.max(1, maxWidth - visualWidth(actorPrefix)) : undefined)
+        const actorLines = wrapText(task.actors.map(stripFormattingTags).join(', '), maxWidth ? Math.max(1, maxWidth - visualWidth(actorPrefix)) : undefined)
         actorLines.forEach((line, index) => {
           pushLine([
             { text: index === 0 ? '  ' : ' '.repeat(visualWidth(actorPrefix)), role: null },

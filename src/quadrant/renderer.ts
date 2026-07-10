@@ -10,6 +10,8 @@ import type { SceneDoc, SceneNode } from '../scene/ir.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { tooltipMarkup, tooltipCss } from '../shared/svg-tooltip.ts'
+import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
+import { hashId } from '../scene/seed.ts'
 
 // ============================================================================
 // Quadrant chart SVG renderer
@@ -60,6 +62,19 @@ export function lowerQuadrantScene(
   const style = resolveRenderStyle(options, quadrantStyleDefaults(chart.visual))
   const hasLeaders = chart.points.some(p => p.leader)
   const parts: SceneNode[] = []
+  const accessibility = {
+    title: chart.accessibility?.title ?? chart.title?.text,
+    description: chart.accessibility?.description,
+  }
+  const namespace = `quadrant-${hashId(
+    chart.width,
+    chart.height,
+    accessibility.title ?? '',
+    accessibility.description ?? '',
+    ...chart.points.flatMap(point => [point.label, point.nx, point.ny]),
+  )}`
+  const titleId = `${namespace}-title`
+  const descId = `${namespace}-desc`
 
   // Document shell: SVG root with CSS variables + shared style block +
   // optional shadow defs + the quadrant CSS, joined exactly as the string
@@ -68,9 +83,11 @@ export function lowerQuadrantScene(
   // re-derives rather than a standalone defs mark.
   const extraCss = quadrantStyles(chart, style, { leaders: hasLeaders, interactive })
   const preludeSegments = [
-    openQuadrantSvgTag(chart, colors, transparent),
-    buildStyleBlock(font, false, colors.shadow, colors.embedFontImport),
+    openQuadrantSvgTag(chart, colors, transparent, accessibility, namespace, titleId, descId),
   ]
+  if (accessibility.title) preludeSegments.push(`<title id="${titleId}">${escapeXml(accessibility.title)}</title>`)
+  if (accessibility.description) preludeSegments.push(`<desc id="${descId}">${escapeXml(accessibility.description)}</desc>`)
+  preludeSegments.push(buildStyleBlock(font, false, colors.shadow, colors.embedFontImport))
   const shadowDefs = buildShadowDefs(colors)
   if (shadowDefs) preludeSegments.push(`<defs>${shadowDefs}</defs>`)
   preludeSegments.push(extraCss)
@@ -319,6 +336,10 @@ function openQuadrantSvgTag(
   chart: PositionedQuadrantChart,
   colors: DiagramColors,
   transparent: boolean,
+  accessibility: { title?: string; description?: string },
+  namespace: string,
+  titleId: string,
+  descId: string,
 ): string {
   // Wired base-config useMaxWidth (upstream semantics, xychart parity): a
   // responsive root capped at the layout width. Absent/false keeps the
@@ -328,7 +349,10 @@ function openQuadrantSvgTag(
     : {}
   return svgOpenTag(chart.width, chart.height, colors, transparent, {
     ...overrides,
-    attrs: { role: 'img', 'aria-roledescription': 'quadrant chart' },
+    attrs: {
+      id: namespace,
+      ...buildAccessibilityAttrs(accessibility.title, accessibility.description, titleId, descId, 'quadrant chart'),
+    },
   })
 }
 

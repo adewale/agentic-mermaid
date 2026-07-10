@@ -425,6 +425,21 @@ function mermaidToElk(
     collectSubgraphNodeIds(sg, subgraphNodeIds, subgraphIds)
   }
 
+  // ELK does not reserve the label footprint of many parallel self-loops.
+  // Give dense loop hubs enough rank clearance for the post-layout allocator's
+  // outer arcs and pills; ordinary diagrams (<=4 loops per node) remain byte-
+  // identical. This prevents north/south loop labels from covering adjacent
+  // primary-chain nodes and their arrowheads.
+  const selfLoopsByNode = new Map<string, number>()
+  for (const edge of graph.edges) {
+    if (edge.source !== edge.target) continue
+    selfLoopsByNode.set(edge.source, (selfLoopsByNode.get(edge.source) ?? 0) + 1)
+  }
+  const maxSelfLoops = Math.max(0, ...selfLoopsByNode.values())
+  if (maxSelfLoops > 4) {
+    opts = { ...opts, layerSpacing: Math.max(opts.layerSpacing, opts.layerSpacing + (maxSelfLoops - 4) * 16) }
+  }
+
   // Layout-only balancing labels that co-rank mixed-label fan-ins (default ON;
   // empty when APL_NO_CORANK_FANIN is set). Applied at every label-injection
   // site below so the rank balance holds wherever the edge is hosted (root,

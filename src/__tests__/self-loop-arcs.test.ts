@@ -178,16 +178,47 @@ describe('self-loops are real arcs (typed route class, not a stub)', () => {
     expect(auditRouteContracts(positioned, graph)).toEqual([])
   })
 
-  test('two self-loops on one node nest without colliding', () => {
+  test('two self-loops on one node allocate distinct collision-free geometry', () => {
     const graph = parseLegacy(`flowchart TD\n  A --> B\n  B -->|x| B\n  B -->|y| B\n`)
     const positioned = layoutGraphSync(graph)
     const loops = positioned.edges.filter(e => e.source === 'B' && e.target === 'B')
     expect(loops.length).toBe(2)
-    const depth = (e: PositionedEdge) => Math.max(...e.points.map(p => Math.hypot(
-      Math.max(0, positioned.nodes.find(n => n.id === 'B')!.x - p.x, p.x - (positioned.nodes.find(n => n.id === 'B')!.x + positioned.nodes.find(n => n.id === 'B')!.width)),
-      0,
-    )))
-    expect(Math.abs(depth(loops[0]!) - depth(loops[1]!))).toBeGreaterThanOrEqual(8)
+    expect(JSON.stringify(loops[0]!.points)).not.toBe(JSON.stringify(loops[1]!.points))
+    expect(loops[0]!.labelPosition).not.toEqual(loops[1]!.labelPosition)
+    expect(auditRouteContracts(positioned, graph)).toEqual([])
+  })
+
+  test('eight labeled loops allocate unique bounded routes and label centers', () => {
+    const source = ['flowchart TD', 'A --> B', ...Array.from({ length: 8 }, (_unused, index) => `B -->|loop${index + 1}| B`), 'B --> C'].join('\n')
+    const graph = parseLegacy(source)
+    const positioned = layoutGraphSync(graph)
+    const loops = positioned.edges.filter(edge => edge.source === 'B' && edge.target === 'B')
+    const node = positioned.nodes.find(candidate => candidate.id === 'B')!
+    expect(loops).toHaveLength(8)
+    expect(new Set(loops.map(edge => JSON.stringify(edge.points))).size).toBe(8)
+    expect(new Set(loops.map(edge => `${edge.labelPosition?.x},${edge.labelPosition?.y}`)).size).toBe(8)
+    const style = resolveRenderStyle({})
+    for (const edge of loops) {
+      expect(edge.routeCertificate?.invariant).toBe('self-loop')
+      expect(Math.hypot(edge.points[0]!.x - edge.points.at(-1)!.x, edge.points[0]!.y - edge.points.at(-1)!.y)).toBeGreaterThanOrEqual(8)
+      expect(onBoundary(edge.points[0]!, node)).toBe(true)
+      expect(onBoundary(edge.points.at(-1)!, node)).toBe(true)
+      const metrics = measureMultilineText(edge.label!, style.edgeLabelFontSize, style.edgeLabelFontWeight)
+      const label = {
+        x: edge.labelPosition!.x - metrics.width / 2 - 8,
+        y: edge.labelPosition!.y - metrics.height / 2 - 8,
+        w: metrics.width + 16,
+        h: metrics.height + 16,
+      }
+      for (const other of positioned.nodes) {
+        if (other.id === node.id) continue
+        const overlapX = Math.min(label.x + label.w, other.x + other.width) - Math.max(label.x, other.x)
+        const overlapY = Math.min(label.y + label.h, other.y + other.height) - Math.max(label.y, other.y)
+        expect(overlapX > 0 && overlapY > 0, `${edge.label} must not cover ${other.id}`).toBe(false)
+      }
+    }
+    expect(auditRouteContracts(positioned, graph)).toEqual([])
+    expect(JSON.stringify(layoutGraphSync(parseLegacy(source)).edges)).toBe(JSON.stringify(positioned.edges))
   })
 
   test('self-loop layout is deterministic', () => {

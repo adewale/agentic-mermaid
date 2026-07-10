@@ -65,6 +65,25 @@ export const FLAG_SPECS: Record<string, { arg?: string }> = {
 
 export const BOOLEAN_FLAGS = new Set(Object.keys(FLAG_SPECS).filter(name => !FLAG_SPECS[name]!.arg))
 
+// Command ownership is the second half of the flag contract: recognizing a
+// name globally is not permission to ignore it on an unrelated command.
+const COMMAND_FLAGS: Record<string, readonly string[]> = {
+  render: ['help', 'json', 'ascii', 'certificates', 'watch', 'system-fonts', 'style', 'seed', 'output', 'format', 'security', 'font-dirs', 'gantt-today', 'scale', 'bg', 'o'],
+  verify: ['help', 'json', 'suppress', 'label-cap'],
+  parse: ['help', 'json'],
+  serialize: ['help'],
+  mutate: ['help', 'json', 'op', 'ops'],
+  preview: ['help', 'json', 'output', 'open', 'security'],
+  format: ['help', 'canonical-wrapper'],
+  describe: ['help', 'json', 'format'],
+  capabilities: ['help', 'json'],
+  styles: ['help', 'json'],
+  'llms-txt': ['help'],
+  'init-agent': ['help', 'json', 'dir', 'force'],
+  batch: ['help'],
+  'render-markdown': ['help', 'ascii'],
+}
+
 export function parseArgs(argv: string[]): ParsedArgs {
   const out: ParsedArgs = { positional: [], flags: {} }
   let i = 0
@@ -185,7 +204,7 @@ EMPTY_DIAGRAM, EDGE_MISANCHORED, OFF_CANVAS, GROUP_BREACH, UNRESOLVABLE_SCHEDULE
 RENDER_FAILED (source verifies structurally but the render parser rejects it). Warning codes:
 UNKNOWN_SHAPE, LABEL_OVERFLOW (char-cap),
 NODE_OVERLAP, ROUTE_SELF_CROSS, ROUTE_HITCH, ROUTE_UNEXPLAINED_BEND, ROUTE_LABEL_ON_SHARED_TRUNK,
-ROUTE_CONTAINER_MISANCHOR, ROUTE_SHAPE_MISANCHOR, ROUTE_STALE_AFTER_NODE_MOVE,
+ROUTE_SELF_LOOP_OCCUPANCY, ROUTE_CONTAINER_MISANCHOR, ROUTE_SHAPE_MISANCHOR, ROUTE_STALE_AFTER_NODE_MOVE,
 DUPLICATE_EDGE, UNREACHABLE_NODE, DECISION_BRANCH_UNLABELED, COMMENT_DROPPED, UNSUPPORTED_SYNTAX,
 CONTENT_DROPPED_ON_ROUNDTRIP, INEFFECTIVE_CONFIG. Tier-3 lint is advisory.
 Exit 0 if ok, 3 if verify reports severity='error'.`,
@@ -253,15 +272,29 @@ export function runCli(argv: string[]): number {
     return EXIT_OK
   }
   const json = Boolean(args.flags.json)
+  const argError = (message: string): number => {
+    if (json) process.stdout.write(JSON.stringify({ ok: false, error: { code: 'ARG', message } }) + '\n')
+    process.stderr.write(`${message}\n`)
+    return EXIT_ARG_ERROR
+  }
   // Unknown flags are ERRORS, not silently-swallowed no-ops (probe-confirmed
   // bug class: `--gantt-toady 2024-01-05` used to exit 0 with no marker and no
   // complaint). FLAG_SPECS is the single source of truth for what exists.
   const unknownFlags = Object.keys(args.flags).filter(name => !(name in FLAG_SPECS))
   if (unknownFlags.length > 0) {
     const message = `Unknown flag${unknownFlags.length > 1 ? 's' : ''}: ${unknownFlags.map(f => `--${f}`).join(', ')}. Run \`am --help\` or \`am ${args.command} --help\` for the flag list.`
-    if (json) process.stdout.write(JSON.stringify({ ok: false, error: { code: 'ARG', message } }) + '\n')
-    process.stderr.write(`${message}\n`)
-    return EXIT_ARG_ERROR
+    return argError(message)
+  }
+  const missingValues = Object.entries(args.flags)
+    .filter(([name, value]) => FLAG_SPECS[name]?.arg && (typeof value !== 'string' || value.length === 0))
+    .map(([name]) => name)
+  if (missingValues.length > 0) {
+    return argError(`Flag${missingValues.length > 1 ? 's' : ''} ${missingValues.map(name => `--${name}`).join(', ')} require${missingValues.length === 1 ? 's' : ''} a value.`)
+  }
+  const allowed = new Set(COMMAND_FLAGS[args.command] ?? ['help'])
+  const inapplicable = Object.keys(args.flags).filter(name => !allowed.has(name))
+  if (inapplicable.length > 0) {
+    return argError(`Flag${inapplicable.length > 1 ? 's' : ''} ${inapplicable.map(name => `--${name}`).join(', ')} ${inapplicable.length > 1 ? 'are' : 'is'} not valid for am ${args.command}.`)
   }
   // Opt-in invocation logging: when AM_TRACE_LOG names a file, append one JSON
   // line per real command run. Shares the sink with the library and hosted MCP
@@ -312,6 +345,15 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
   }
   if (args.flags.security !== undefined && args.flags.security !== 'strict') {
     process.stderr.write('am render --security accepts only strict\n')
+    return EXIT_ARG_ERROR
+  }
+  const pngOnly = ['scale', 'bg', 'font-dirs', 'system-fonts'].filter(name => args.flags[name] !== undefined)
+  if (format !== 'png' && pngOnly.length > 0) {
+    process.stderr.write(`am render: ${pngOnly.map(name => `--${name}`).join(', ')} ${pngOnly.length > 1 ? 'are' : 'is'} valid only with --format png\n`)
+    return EXIT_ARG_ERROR
+  }
+  if (args.flags.certificates && format !== 'json') {
+    process.stderr.write('am render: --certificates is valid only with --format json\n')
     return EXIT_ARG_ERROR
   }
   if (args.flags.watch && args.positional.length > 1) {

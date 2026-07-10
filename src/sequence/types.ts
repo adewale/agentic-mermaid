@@ -21,6 +21,9 @@ export interface SequenceDiagram {
   blocks: Block[]
   /** Notes attached to actors */
   notes: Note[]
+  /** Ordered standalone activate/deactivate commands, anchored at the next
+   * message boundary (messages.length at the source position). */
+  activationEvents?: SequenceActivationEvent[]
   /** `box <color?> <label?> ... end` participant groups (upstream §Grouping/Box).
    *  Optional for hand-built diagrams; the parser always populates it. */
   boxes?: SequenceBoxGroup[]
@@ -48,6 +51,12 @@ export interface SequenceBoxGroup {
   color?: string
   /** Declared participant ids inside the box, in declaration order. */
   actorIds: string[]
+}
+
+export interface SequenceActivationEvent {
+  actorId: string
+  kind: 'activate' | 'deactivate'
+  messageIndex: number
 }
 
 export interface Message {

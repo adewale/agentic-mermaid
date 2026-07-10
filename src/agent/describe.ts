@@ -212,6 +212,11 @@ function describeState(body: import('./types.ts').StateBody): string {
   let s = `A state diagram with ${flat.length} states and ${allTransitions.length} transitions.`
   if (composites.length > 0) s += ` Composite states: ${composites.map(c => c.label || c.id).join(', ')}.`
   if (stateLabels.length > 0) s += ` States: ${stateLabels.join(', ')}.`
+  const stereotypes = flat.filter(state => state.stereotype).map(state => `${state.label || state.id} (${state.stereotype})`)
+  if (stereotypes.length > 0) s += ` Pseudostates: ${stereotypes.join(', ')}.`
+  if ((body.notes ?? []).length > 0) {
+    s += ` Notes: ${body.notes!.map(note => `${note.side} of ${note.target}: ${note.text}`).join('; ')}.`
+  }
   if (transStr.length > 0) s += ` Transitions: ${transStr.join('; ')}.`
   if (starts.length > 0) s += ` Initial: ${starts.join(', ')}.`
   return s

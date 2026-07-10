@@ -662,7 +662,7 @@ registerFamily({
     const header = lines[0]?.trim() ?? ''
     const hm = header.match(/^xychart(?:-beta)?(?:\s+(horizontal|vertical))?\s*$/i)
     const body = hm ? parseXyChartBody(lines.slice(1)) : null
-    if (body && hm?.[1]?.toLowerCase() === 'horizontal') body.horizontal = true
+    if (body && hm?.[1]) body.horizontal = hm[1].toLowerCase() === 'horizontal'
     return ok(body ?? { kind: 'opaque', family: 'xychart', source: opaqueSource })
   },
   serialize: body => {

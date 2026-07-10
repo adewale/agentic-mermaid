@@ -281,6 +281,19 @@ describe('architecture align directives (upstream v11.16.0)', () => {
     expect(d.canonicalSource).not.toContain('align')
   })
 
+  test('align members must be declared before the directive', () => {
+    const source = `architecture-beta
+  align row a b
+  service a(server)[A]
+  service b(server)[B]`
+    const parsed = parseMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(parsed.value.body.kind).toBe('opaque')
+    expect(serializeMermaid(parsed.value)).toBe(source + '\n')
+    expect(verifyMermaid(parsed.value).warnings.some(warning => warning.code === 'RENDER_FAILED')).toBe(true)
+  })
+
   test('invalid align directives fall back to opaque (upstream rejects them too)', () => {
     const cases = [
       ['unknown member', 'architecture-beta\n  service a(server)[A]\n  service b(server)[B]\n  align row a ghost'],

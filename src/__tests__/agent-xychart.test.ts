@@ -290,12 +290,28 @@ describe('xychart set_orientation / set_data_point ops', () => {
     expect(applyXYChartFrontmatterConfig(parseXYChart(norm.lines), norm.frontmatter).horizontal).toBe(true)
   })
 
-  test('set_orientation back to vertical drops the header suffix', () => {
+  test('explicit vertical mutation wins over contradictory horizontal frontmatter', () => {
+    const source = `---
+config:
+  xyChart:
+    chartOrientation: horizontal
+---
+xychart-beta
+  bar [1, 2]`
+    const d = apply(xychart(source), { kind: 'set_orientation', horizontal: false })
+    const out = serializeMermaid(d)
+    expect(out).toContain('chartOrientation: horizontal')
+    expect(out).toContain('xychart-beta vertical')
+    const normalized = normalizeMermaidSource(out)
+    expect(applyXYChartFrontmatterConfig(parseXYChart(normalized.lines), normalized.frontmatter).horizontal).toBe(false)
+  })
+
+  test('set_orientation back to vertical preserves an explicit vertical header', () => {
     let d = apply(xychart('xychart-beta horizontal\n  bar [1, 2]'), { kind: 'set_orientation', horizontal: false })
     expect(Boolean(d.body.horizontal)).toBe(false)
     const out = serializeMermaid(d)
-    expect(out).not.toContain('horizontal')
-    expect(Boolean(xychart(out).body.horizontal)).toBe(false)
+    expect(out).toContain('xychart-beta vertical')
+    expect(xychart(out).body.horizontal).toBe(false)
     // Idempotent: setting the current orientation is a no-op, not an error.
     d = apply(d, { kind: 'set_orientation', horizontal: false })
     expect(Boolean(d.body.horizontal)).toBe(false)

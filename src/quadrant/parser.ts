@@ -1,5 +1,4 @@
 import type { QuadrantChart, QuadrantAxis, QuadrantPoint } from './types.ts'
-import { accessibilityDirectiveEnd } from '../shared/accessibility-directives.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
 import { syntaxError } from '../shared/syntax-error.ts'
 import { parsePointStyleEntries, parseClassDefTail, splitPointClassSuffix } from './point-style.ts'
@@ -38,6 +37,9 @@ const QUADRANT_RE = /^quadrant-([1-4])\s+(.+)$/i
 // everything before the LAST colon that precedes a bracketed coordinate pair.
 const POINT_RE = /^(.+?)\s*:\s*\[\s*([^,\]]+)\s*,\s*([^,\]]+)\s*\]\s*(.*)$/
 const CLASSDEF_RE = /^classDef\s+(.+)$/i
+const ACC_TITLE_RE = /^accTitle\s*:\s*(.+)$/i
+const ACC_DESCR_RE = /^accDescr\s*:\s*(?!\{)(.+)$/i
+const ACC_DESCR_BLOCK_RE = /^accDescr\s*:?\s*\{\s*(.*)$/i
 
 /**
  * Parse a Mermaid quadrant chart from preprocessed lines (trimmed,
@@ -57,6 +59,7 @@ export function parseQuadrantChart(lines: string[]): QuadrantChart {
   }
 
   let title: string | undefined
+  const accessibility: NonNullable<QuadrantChart['accessibility']> = {}
   let xAxis: QuadrantAxis | undefined
   let yAxis: QuadrantAxis | undefined
   const quadrants: [string?, string?, string?, string?] = [undefined, undefined, undefined, undefined]
@@ -82,10 +85,38 @@ export function parseQuadrantChart(lines: string[]): QuadrantChart {
       continue
     }
 
-    // Mermaid-universal accessibility directives: accept and skip, same as
-    // sequence models them fully; quadrant has no aria slot yet.
-    const accEnd = accessibilityDirectiveEnd(lines, i)
-    if (accEnd !== -1) { i = accEnd; continue }
+    if ((m = line.match(ACC_TITLE_RE))) {
+      accessibility.title = normalizeBrTags(m[1]!.trim())
+      continue
+    }
+    if ((m = line.match(ACC_DESCR_RE))) {
+      accessibility.description = normalizeBrTags(m[1]!.trim())
+      continue
+    }
+    if ((m = line.match(ACC_DESCR_BLOCK_RE))) {
+      const parts: string[] = []
+      let rest = m[1]!
+      let closed = false
+      for (;;) {
+        const end = rest.indexOf('}')
+        if (end !== -1) {
+          const text = rest.slice(0, end).trim()
+          if (text) parts.push(text)
+          if (rest.slice(end + 1).trim()) {
+            throw new Error(`Unrecognized text after quadrant accDescr block: "${rest.slice(end + 1).trim()}"`)
+          }
+          closed = true
+          break
+        }
+        if (rest.trim()) parts.push(rest.trim())
+        i++
+        if (i >= lines.length) break
+        rest = lines[i]!
+      }
+      if (!closed) throw new Error('Quadrant accDescr block is missing a closing "}"')
+      accessibility.description = normalizeBrTags(parts.join('\n'))
+      continue
+    }
 
     if ((m = line.match(TITLE_RE))) {
       title = normalizeBrTags(m[1]!.trim())
@@ -144,7 +175,15 @@ export function parseQuadrantChart(lines: string[]): QuadrantChart {
     })
   }
 
-  return { title, xAxis, yAxis, quadrants, points, classDefs }
+  return {
+    title,
+    ...(accessibility.title || accessibility.description ? { accessibility } : {}),
+    xAxis,
+    yAxis,
+    quadrants,
+    points,
+    classDefs,
+  }
 }
 
 /** Parse an axis declaration tail (`<near> [--> <far>]`). */

@@ -31,9 +31,35 @@ jobs:
           - name: sabotage-routes
             command: bun run sabotage:routes
             timeout: 30
+          # Every registered family has a scheduled mutation lane. Flowchart
+          # is covered by routes; XYChart + Architecture by families.
+          - name: state
+            command: bun run mutation-test:state
+            timeout: 90
+          - name: sequence
+            command: bun run mutation-test:sequence
+            timeout: 90
+          - name: timeline
+            command: bun run mutation-test:timeline
+            timeout: 90
+          - name: class
+            command: bun run mutation-test:class
+            timeout: 90
+          - name: er
+            command: bun run mutation-test:er
+            timeout: 90
           - name: journey
             command: bun run mutation-test:journey
             timeout: 90
+          - name: pie
+            command: bun run mutation-test:pie
+            timeout: 90
+          - name: quadrant
+            command: bun run mutation-test:quadrant
+            timeout: 90
+          - name: gantt
+            command: bun run mutation-test:gantt
+            timeout: 120
           - name: families
             command: bun run mutation-test:families
             timeout: 120

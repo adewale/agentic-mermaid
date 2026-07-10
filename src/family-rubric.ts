@@ -116,12 +116,21 @@ const BOX_SHAPES = new Set(['rectangle', 'rounded', 'note', 'service', 'diamond'
  * groupContainment only for the families whose groups are bounding frames.
  * Default (unlisted family): 'both'.
  */
-const GROUP_CONTAINMENT_AXES: Partial<Record<DiagramKind, 'both' | 'x' | 'none'>> = {
+const GROUP_CONTAINMENT_AXES: Partial<Record<DiagramKind, 'both' | 'x' | 'center' | 'none'>> = {
   journey: 'x',
+  // Sequence blocks are temporal frames around message rows, not ownership
+  // containers for actor/note node boxes.
+  sequence: 'none',
+  xychart: 'center',
+  quadrant: 'center',
 }
 
 function isBox(node: RenderedLayoutNode): boolean {
-  return BOX_SHAPES.has(node.shape)
+  return node.role ? node.role === 'box' : BOX_SHAPES.has(node.shape)
+}
+
+function requiresLabel(node: RenderedLayoutNode): boolean {
+  return isBox(node) || node.role === 'labelled-mark'
 }
 
 function finiteRect(x: number, y: number, w: number, h: number): boolean {
@@ -236,8 +245,12 @@ export function assessRenderedLayout(layout: RenderedLayout): FamilyRubricResult
       for (const memberId of g.members) {
         const n = nodeById.get(memberId)
         if (!n || !finiteRect(n.x, n.y, n.w, n.h)) continue
-        const xOk = n.x >= g.x - TOL && n.x + n.w <= g.x + g.w + TOL
-        const yOk = axes === 'x' || (n.y >= g.y - TOL && n.y + n.h <= g.y + g.h + TOL)
+        const xOk = axes === 'center'
+          ? n.x + n.w / 2 >= g.x - TOL && n.x + n.w / 2 <= g.x + g.w + TOL
+          : n.x >= g.x - TOL && n.x + n.w <= g.x + g.w + TOL
+        const yOk = axes === 'x' || (axes === 'center'
+          ? n.y + n.h / 2 >= g.y - TOL && n.y + n.h / 2 <= g.y + g.h + TOL
+          : n.y >= g.y - TOL && n.y + n.h <= g.y + g.h + TOL)
         if (!xOk || !yOk) {
           groupBreaches++
           violations.push({ metric: 'groupBreaches', detail: `${memberId} outside ${g.id}` })
@@ -263,8 +276,9 @@ export function assessRenderedLayout(layout: RenderedLayout): FamilyRubricResult
     }
   }
 
-  // Label presence on text-bearing boxes.
-  const boxes = layout.nodes.filter(isBox)
+  // Label presence on semantic boxes and labelled data marks. Shapes alone
+  // cannot distinguish a rectangular bar mark from a text-bearing node.
+  const boxes = layout.nodes.filter(requiresLabel)
   const labelledBoxes = boxes.filter(n => (n.label ?? '').trim().length > 0)
   for (const n of boxes) {
     if ((n.label ?? '').trim().length === 0) violations.push({ metric: 'missingLabel', detail: `box ${n.id} has no label` })

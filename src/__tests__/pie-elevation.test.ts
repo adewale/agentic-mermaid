@@ -100,12 +100,11 @@ describe('pie percent formatting', () => {
 describe('pie on-slice percentage labels', () => {
   const BASIC = 'pie title Pets adopted by volunteers\n  "Dogs" : 386\n  "Cats" : 85\n  "Rats" : 15'
 
-  it('renders integer percentages on slices by default (upstream toFixed(0) format)', () => {
+  it('renders integer percentages only when they fit their wedge chord', () => {
     const svg = renderMermaidSVG(BASIC)
-    for (const pct of ['79%', '17%', '3%']) {
-      expect(svg).toContain(`>${pct}<`)
-    }
-    expect((svg.match(/class="pie-slice-label"/g) ?? []).length).toBe(3)
+    for (const pct of ['79%', '17%']) expect(svg).toContain(`>${pct}<`)
+    expect(svg).not.toContain('>3%<')
+    expect((svg.match(/class="pie-slice-label"/g) ?? []).length).toBe(2)
   })
 
   it('places labels at radius * textPosition along the slice mid-angle (default 0.75)', () => {
@@ -132,6 +131,14 @@ describe('pie on-slice percentage labels', () => {
     const near = at(renderMermaidSVG(src(0.3)))
     const far = at(renderMermaidSVG(src(0.9)))
     expect(far).toBeGreaterThan(near + 20)
+  })
+
+  it('suppresses a percentage that cannot fit its wedge chord without dropping data', () => {
+    const p = layout('pie\n  "Tiny" : 1\n  "Large" : 99')
+    expect(p.slices[0]!.pctLabel).toBeUndefined()
+    expect(p.slices[1]!.pctLabel?.text).toBe('99%')
+    expect(p.slices).toHaveLength(2)
+    expect(p.legend).toHaveLength(2)
   })
 
   it('suppresses the on-slice label for slices that would read "0%", keeps the wedge + legend row', () => {
@@ -379,6 +386,32 @@ describe('pie config wire-or-warn', () => {
 // pie1..pie12 theme variables — honored in SOURCE order (fixes upstream #5314)
 // ---------------------------------------------------------------------------
 
+describe('pie color injection defenses', () => {
+  const chart = 'pie\n  "A" : 1\n  "B" : 2'
+  const renderWith = (field: string, value: string) => renderMermaidSVG(
+    `%%{init: ${JSON.stringify({ themeVariables: { [field]: value } })}}%%\n${chart}`,
+  )
+
+  it('rejects attribute and stylesheet escape payloads on every color sink', () => {
+    const payloads = ['red" onmouseover="alert(1)', '</style><script>alert(1)</script><style>', 'url(https://example.invalid/x)', 'red;stroke:black', 'red{fill:black}']
+    for (const field of ['pie1', 'pieStrokeColor', 'pieOuterStrokeColor', 'pieSectionTextColor']) {
+      for (const payload of payloads) {
+        const svg = renderWith(field, payload)
+        expect(svg).not.toContain('onmouseover=')
+        expect(svg).not.toContain('<script>')
+        expect(svg).not.toContain('example.invalid')
+        expect(svg).not.toContain(payload)
+      }
+    }
+  })
+
+  it('keeps explicitly supported concrete and functional colors', () => {
+    for (const color of ['#abc', '#112233', 'rebeccapurple', 'rgb(1, 2, 3)', 'hsl(120 100% 50% / 0.5)', 'color-mix(in srgb, red 20%, blue)']) {
+      expect(resolvePieVisualConfig({ themeVariables: { pie1: color } }).paletteOverrides[0]).toBe(color)
+    }
+  })
+})
+
 describe('pie1..pie12 theme variables', () => {
   const THEMED = [
     '---',
@@ -478,12 +511,10 @@ describe('pie high-count palette', () => {
     }
   })
 
-  it('every high-count color keeps a wedge-visibility contrast floor vs the background', () => {
+  it('every high-count color, including slice zero, keeps a visibility floor vs the background', () => {
     for (const bg of ['#ffffff', '#1a1b26']) {
-      const cols = pieSliceColors(15, { accent: '#3b82f6', bg })
-      for (const c of cols) {
-        expect(wcagContrastRatio(c, bg)!).toBeGreaterThanOrEqual(1.25)
-      }
+      const equal = pieSliceColors(15, { accent: bg, bg })
+      for (const c of equal) expect(wcagContrastRatio(c, bg)!).toBeGreaterThanOrEqual(1.25)
     }
   })
 

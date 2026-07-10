@@ -169,7 +169,7 @@ export function lowerPieScene(
         },
         channels: { category: slice.label, value: slice.fraction },
       },
-      `<path class="pie-slice" d="${slice.path}" fill="${fill}" ` +
+      `<path class="pie-slice" d="${slice.path}" fill="${escapeXml(fill)}" ` +
         `data-label="${escapeXml(slice.label)}" data-value="${slice.value}" data-percent="${pct}" />`,
     ))
   }
@@ -198,7 +198,7 @@ export function lowerPieScene(
         label.y,
         label.fontSize,
         `class="pie-slice-label" text-anchor="middle" dominant-baseline="middle" ` +
-          `font-size="${label.fontSize}" font-weight="${PIE_SLICE_LABEL_FONT_WEIGHT}" fill="${fill}"`,
+          `font-size="${label.fontSize}" font-weight="${PIE_SLICE_LABEL_FONT_WEIGHT}" fill="${escapeXml(fill)}"`,
       ),
     ))
   }
@@ -220,7 +220,7 @@ export function lowerPieScene(
         },
         channels: { category: item.label, value: item.fraction },
       },
-      `<rect class="pie-legend-swatch" x="${item.x}" y="${item.y}" width="${item.swatchSize}" height="${item.swatchSize}" rx="2" ry="2" fill="${fill}" />`,
+      `<rect class="pie-legend-swatch" x="${item.x}" y="${item.y}" width="${item.swatchSize}" height="${item.swatchSize}" rx="2" ry="2" fill="${escapeXml(fill)}" />`,
     ))
     // Display lines are composed (and measured) by the layout; multiline
     // labels carry the value/percent suffix on their last line.

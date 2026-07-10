@@ -22,7 +22,7 @@ gates: `src/__tests__/contact-sheet.test.ts`,
 | User journey | [journey.svg](./visual-snapshots/journey.svg) | `b47e71e142ea` | `3069450b8529` | 15279 | 530x482.3 | 530x482 | 2/0 | 0 | 0 | 0 | 5.9% | 100.0% | 0 | n/a | 1.10 |
 | XY chart | [xychart.svg](./visual-snapshots/xychart.svg) | `36646cb1be5a` | `765ea453d984` | 18006 | 700x500 | 700x500 | 6/0 | 0 | 0 | 0 | 33.9% | 50.0% | 0 | n/a | 1.40 |
 | Pie chart | [pie.svg](./visual-snapshots/pie.svg) | `60a51984f96d` | `61c805ac4e77` | 12063 | 368.79x276 | 369x276 | 3/0 | 0 | 0 | 0 | 4.1% | 100.0% | 0 | n/a | 1.34 |
-| Quadrant chart | [quadrant.svg](./visual-snapshots/quadrant.svg) | `d75d9de8aea3` | `63b16868b93e` | 9305 | 456x492 | 456x492 | 2/0 | 0 | 0 | 0 | 0.1% | 100.0% | 0 | n/a | 0.93 |
+| Quadrant chart | [quadrant.svg](./visual-snapshots/quadrant.svg) | `f297339c264b` | `63b16868b93e` | 9305 | 456x492 | 456x492 | 2/0 | 0 | 0 | 0 | 0.1% | 100.0% | 0 | n/a | 0.93 |
 | Architecture diagram | [architecture.svg](./visual-snapshots/architecture.svg) | `56fce2e98409` | `777507a15f7a` | 4182 | 414x188 | 414x188 | 2/1 | 0 | 0 | 78 | 14.8% | 100.0% | 0 | n/a | 2.20 |
 
 ## Sources

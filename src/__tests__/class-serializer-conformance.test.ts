@@ -58,6 +58,18 @@ namespace Shapes {
 class Free
 Triangle --> Free : points at`
 
+describe('class labeled declaration conformance', () => {
+  test('serializer labels resolve to one logical renderer class and relations attach to it', () => {
+    let d = classDiagram('classDiagram\n  class B')
+    d = apply(d, { kind: 'add_class', id: 'A', label: 'Alpha' })
+    d = apply(d, { kind: 'add_relation', from: 'A', to: 'B', relKind: 'association' })
+    const parsed = renderParse(serializeMermaid(d))
+    expect(parsed.classes.map(cls => cls.id).sort()).toEqual(['A', 'B'])
+    expect(parsed.classes.find(cls => cls.id === 'A')?.label).toBe('Alpha')
+    expect(parsed.relationships[0]).toMatchObject({ from: 'A', to: 'B' })
+  })
+})
+
 describe('class namespaces — structured agent body (#118)', () => {
   test('namespaced source parses structured, not opaque', () => {
     const d = classDiagram(NAMESPACED)

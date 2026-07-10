@@ -28,6 +28,15 @@ const SRC = `sequenceDiagram
   A->>B: done`
 
 describe('parseSequenceDiagram – create/destroy', () => {
+  it('binds creation only to the next inbound message for that actor', () => {
+    const d = parse(`sequenceDiagram
+  participant A
+  create participant C
+  C->>A: outgoing
+  A->>C: received`)
+    expect(d.actors.find(actor => actor.id === 'C')?.createMessageIndex).toBe(1)
+  })
+
   it('binds creation to the next message and respects the alias', () => {
     const d = parse(SRC)
     const donald = d.actors.find(a => a.id === 'D')!

@@ -40,6 +40,41 @@ import { normalizeMermaidSource } from '../mermaid-source.ts'
 import { normalizeV11Shape } from '../flowchart-shapes.ts'
 import './families-builtin.ts'  // registers built-in families at import time
 
+const FAMILY_CONFIG_KEYS: Partial<Record<ValidDiagram['kind'], { section: string; keys: readonly string[] }>> = {
+  flowchart: { section: 'flowchart', keys: ['nodeSpacing', 'rankSpacing', 'wrappingWidth', 'titleTopMargin', 'subGraphTitleMargin', 'arrowMarkerAbsolute', 'diagramPadding', 'htmlLabels', 'curve', 'padding', 'defaultRenderer', 'inheritDir'] },
+  sequence: { section: 'sequence', keys: ['actorMargin', 'width', 'height', 'diagramMarginX', 'diagramMarginY', 'messageMargin', 'noteMargin', 'activationWidth', 'showSequenceNumbers', 'boxMargin', 'boxTextMargin', 'messageAlign', 'mirrorActors', 'bottomMarginAdj', 'rightAngles', 'wrap', 'wrapPadding', 'labelBoxWidth', 'labelBoxHeight', 'hideUnusedParticipants', 'forceMenus', 'arrowMarkerAbsolute', 'noteAlign', 'actorFontSize', 'actorFontFamily', 'actorFontWeight', 'noteFontSize', 'noteFontFamily', 'noteFontWeight', 'messageFontSize', 'messageFontFamily', 'messageFontWeight'] },
+  timeline: { section: 'timeline', keys: ['disableMulticolor', 'sectionFills', 'sectionColours', 'diagramMarginX', 'diagramMarginY', 'leftMargin', 'width', 'height', 'padding', 'boxMargin', 'boxTextMargin', 'noteMargin', 'messageMargin', 'messageAlign', 'bottomMarginAdj', 'rightAngles', 'taskFontSize', 'taskFontFamily', 'taskMargin', 'activationWidth', 'textPlacement', 'actorColours', 'useMaxWidth', 'useWidth'] },
+  journey: { section: 'journey', keys: ['diagramMarginX', 'diagramMarginY', 'leftMargin', 'maxLabelWidth', 'width', 'height', 'taskFontSize', 'taskFontFamily', 'taskMargin', 'actorColours', 'sectionFills', 'sectionColours', 'titleColor', 'titleFontFamily', 'titleFontSize', 'useMaxWidth', 'boxMargin', 'boxTextMargin', 'noteMargin', 'messageMargin', 'messageAlign', 'bottomMarginAdj', 'rightAngles', 'activationWidth', 'textPlacement'] },
+  class: { section: 'class', keys: ['nodeSpacing', 'rankSpacing', 'titleTopMargin', 'arrowMarkerAbsolute', 'dividerMargin', 'padding', 'textHeight', 'defaultRenderer', 'diagramPadding', 'htmlLabels', 'hideEmptyMembersBox', 'hierarchicalNamespaces'] },
+  er: { section: 'er', keys: ['layoutDirection', 'nodeSpacing', 'rankSpacing', 'titleTopMargin', 'diagramPadding', 'minEntityWidth', 'minEntityHeight', 'entityPadding', 'stroke', 'fill', 'fontSize'] },
+  architecture: { section: 'architecture', keys: ['padding', 'iconSize', 'fontSize', 'nodeSeparation', 'idealEdgeLengthMultiplier', 'edgeElasticity', 'numIter', 'seed', 'randomize'] },
+  xychart: { section: 'xyChart', keys: ['width', 'height', 'useMaxWidth', 'useWidth', 'titleFontSize', 'titlePadding', 'chartOrientation', 'plotReservedSpacePercent', 'showDataLabel', 'showTitle', 'showLegend', 'legendFontSize', 'legendPadding', 'xAxis', 'yAxis'] },
+  pie: { section: 'pie', keys: ['textPosition', 'donutHole', 'legendPosition', 'highlightSlice', 'useMaxWidth', 'useWidth'] },
+  quadrant: { section: 'quadrantChart', keys: ['chartWidth', 'chartHeight', 'titleFontSize', 'titlePadding', 'quadrantPadding', 'quadrantLabelFontSize', 'xAxisLabelFontSize', 'yAxisLabelFontSize', 'xAxisLabelPadding', 'yAxisLabelPadding', 'pointLabelFontSize', 'pointRadius', 'pointTextPadding', 'quadrantInternalBorderStrokeWidth', 'quadrantExternalBorderStrokeWidth', 'useMaxWidth', 'quadrantTextTopPadding', 'xAxisPosition', 'yAxisPosition', 'useWidth'] },
+  gantt: { section: 'gantt', keys: ['displayMode'] },
+}
+
+function unknownFamilyConfigWarnings(d: ValidDiagram): LayoutWarning[] {
+  const spec = FAMILY_CONFIG_KEYS[d.kind]
+  if (!spec) return []
+  const known = new Set(spec.keys)
+  const roots: Array<Record<string, unknown> | undefined> = [
+    d.meta.frontmatter as Record<string, unknown> | undefined,
+    ...d.meta.initDirectives.map(directive => directive.parsed as Record<string, unknown> | undefined),
+  ]
+  const unknown = new Set<string>()
+  for (const root of roots) {
+    const section = root?.[spec.section]
+    if (!section || typeof section !== 'object' || Array.isArray(section)) continue
+    for (const key of Object.keys(section)) if (!known.has(key)) unknown.add(key)
+  }
+  return [...unknown].sort().map(key => ({
+    code: 'INEFFECTIVE_CONFIG',
+    field: `${spec.section}.${key}`,
+    message: `${d.kind} config field "${key}" is unknown and has no effect; check the spelling or remove it.`,
+  }))
+}
+
 const KNOWN_SHAPES = new Set([
   'rectangle', 'service', 'rounded', 'diamond', 'stadium', 'circle',
   'subroutine', 'doublecircle', 'hexagon', 'cylinder', 'asymmetric',
@@ -377,7 +412,7 @@ function verifyStructure(input: ValidDiagram | string, opts: VerifyOptions = {})
     : d.kind === 'er' ? erUnsupportedSyntaxWarnings(d.canonicalSource)
     : d.kind === 'quadrant' ? quadrantInertStyleWarnings(d) : []
   const faithfulnessWarnings = roundtripFaithfulnessWarnings(d)
-  const configWarnings = d.kind === 'journey'
+  const specificConfigWarnings = d.kind === 'journey'
     ? journeyIneffectiveConfigWarnings(d)
     : d.kind === 'timeline' ? timelineIneffectiveConfigWarnings(d)
     : d.kind === 'pie' ? pieIneffectiveConfigWarnings(d)
@@ -388,6 +423,7 @@ function verifyStructure(input: ValidDiagram | string, opts: VerifyOptions = {})
     : d.kind === 'flowchart' ? flowchartIneffectiveConfigWarnings(d)
     : d.kind === 'sequence' ? sequenceIneffectiveConfigWarnings(d)
     : d.kind === 'gantt' ? ganttTodayMarkerWarnings(d) : []
+  const configWarnings = dedupedConcat(specificConfigWarnings, unknownFamilyConfigWarnings(d))
   const pluginWarnings = dedupedConcat(dedupedConcat(dedupedConcat(dedupedConcat(metaWarnings, dispatchFamilyVerify(d, opts)), sourceWarnings), faithfulnessWarnings), configWarnings)
 
   if (d.body.kind === 'sequence') return mergeFinalize(verifySequence(d as ValidDiagram & { body: SequenceBody }, cap, opts), pluginWarnings, opts)
@@ -424,7 +460,9 @@ function verifyStructure(input: ValidDiagram | string, opts: VerifyOptions = {})
         nodeOverlaps: d.body.kind === 'journey',
         // Journey sections are groups with task members (family-layouts.ts),
         // so a task laid outside its section band is a reportable breach.
-        groupContainment: d.body.kind === 'xychart' || d.body.kind === 'quadrant' || d.body.kind === 'journey',
+        groupContainment: d.body.kind === 'xychart' || d.body.kind === 'quadrant'
+          ? 'center'
+          : d.body.kind === 'journey',
       })
     return finalize(dedupedConcat(pluginWarnings, familyGeometry), layout, opts)
   }

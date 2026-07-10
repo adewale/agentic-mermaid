@@ -20,7 +20,7 @@ type LooseLayout = {
   [K in keyof RenderedLayout]: RenderedLayout[K]
 }
 function looseLayout(layout: {
-  nodes?: Array<{ id: string; x: number; y: number; w: number; h: number; shape: string; label: string }>
+  nodes?: Array<{ id: string; x: number; y: number; w: number; h: number; shape: string; label: string; role?: 'box' | 'mark' | 'labelled-mark' }>
   groups?: Array<{ id: string; x: number; y: number; w: number; h: number; members: string[]; label?: string; parentId?: string }>
   bounds?: { w: number; h: number }
 } = {}): LooseLayout {
@@ -77,6 +77,16 @@ describe('family rubric hard metrics discriminate', () => {
     }))
     expect(marks.metrics.nodeOverlaps).toBe(0)
     expect(marks.metrics.markOverlapRate).toBeGreaterThan(0)
+    expect(marks.score).toBeLessThan(100)
+  })
+
+  it('explicit labelled marks participate in the missing-label score', () => {
+    const result = assessRenderedLayout(baseLayout({
+      nodes: [{ id: 'bar', x: 10, y: 10, w: 20, h: 40, shape: 'rectangle', label: '', role: 'labelled-mark' }],
+    }))
+    expect(result.metrics.labelledBoxRate).toBe(0)
+    expect(result.violations).toContainEqual(expect.objectContaining({ metric: 'missingLabel' }))
+    expect(result.score).toBeLessThan(100)
   })
 
   it('flags a member outside its group (x axis for journey)', () => {
@@ -137,6 +147,14 @@ describe('journey assessor', () => {
         Task: 4: Me`))
     expect(r.metrics.sectionSpanOverlaps).toBe(0)
     expect(r.score).toBe(100)
+  })
+
+  it('detects overlapping section spans on perturbed geometry', () => {
+    const layout = positioned('journey\n  section One\n    A: 3: Me\n  section Two\n    B: 4: Me')
+    layout.sections[1]!.x = layout.sections[0]!.x + layout.sections[0]!.width / 2
+    const result = assessJourneyLayout(layout)
+    expect(result.metrics.sectionSpanOverlaps).toBeGreaterThan(0)
+    expect(result.score).toBeLessThan(100)
   })
 
   it('detects a broken score axis on perturbed geometry', () => {

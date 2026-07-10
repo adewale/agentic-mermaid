@@ -2,6 +2,14 @@ import type { ErDiagram, ErEntity, ErAttribute, ErRelationship, Cardinality } fr
 import { normalizeBrTags } from '../multiline-utils.ts'
 import { parseDirectionStatement } from '../shared/direction-statement.ts'
 
+const ER_ENTITY_ID_RE = /^[A-Za-z_][\w-]*$/
+
+/** Shared renderer/agent grammar for an ER entity identifier. */
+export function parseErEntityId(value: string): string | null {
+  const id = value.trim()
+  return ER_ENTITY_ID_RE.test(id) ? id : null
+}
+
 // ============================================================================
 // ER diagram parser
 //
@@ -124,6 +132,12 @@ export function parseErDiagram(lines: string[]): ErDiagram {
       diagram.relationships.push(rel)
       continue
     }
+
+    // Bare entities are emitted by the typed serializer. Delimiters,
+    // subgraph headers, and direction statements were consumed above, so this
+    // branch cannot mint phantom `end` or direction entities.
+    const bareEntity = parseErEntityId(line)
+    if (bareEntity) ensureEntity(entityMap, bareEntity)
   }
 
   diagram.entities = [...entityMap.values()]

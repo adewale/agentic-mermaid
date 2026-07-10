@@ -37,7 +37,7 @@ import type {
 } from './types.ts'
 import { ok, err, DEFAULT_LABEL_CHAR_CAP } from './types.ts'
 import { labelOverflowWarning } from './label-metrics.ts'
-import { parseNamespaceHeader } from '../class/parser.ts'
+import { parseClassDeclaration, parseNamespaceHeader } from '../class/parser.ts'
 
 // ---- Parser ---------------------------------------------------------------
 
@@ -58,8 +58,6 @@ const RELATION_TOKENS: Array<{ pat: RegExp; kind: ClassRelationKind }> = [
   { pat: /\.\./,  kind: 'link-dashed' },
 ]
 
-// `class X`, `class X { ... }`, `class X["label"]`, `class X as "label"`
-const CLASS_DECL_RE = /^class\s+(`[^`]+`|[\w$]+)(?:\s*\[\s*"([^"]*)"\s*\])?(?:\s+as\s+"([^"]+)")?\s*(\{)?\s*$/
 const MEMBER_DECL_RE = /^(`[^`]+`|[\w$]+)\s*:\s*(.+)$/
 const NOTE_RE = /^note(?:\s+for\s+(`[^`]+`|[\w$]+))?\s+"([^"]+)"\s*$/
 const TITLE_RE = /^title\s+(.+)$/i
@@ -135,13 +133,12 @@ export function parseClassBody(lines: string[]): ClassBody | null {
     }
 
     // Class declaration (with or without open brace)
-    const cm = raw.match(CLASS_DECL_RE)
-    if (cm) {
-      const id = stripBackticks(cm[1]!)
-      const label = cm[2] ?? cm[3]
-      const node = upsert(id, label)
+    const declaration = parseClassDeclaration(raw)
+    if (declaration) {
+      const label = declaration.label ?? (declaration.generic ? `${declaration.id}<${declaration.generic}>` : undefined)
+      const node = upsert(declaration.id, label)
       claimClass(node)
-      if (cm[4] === '{') {
+      if (declaration.opensBody) {
         // Consume members until closing brace
         while (i < lines.length) {
           const ml = lines[i]!.trim()

@@ -4,7 +4,22 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ## Unreleased
 
-_No changes yet._
+### Added
+- Elevated all twelve diagram families to a common agent-native quality contract: 129 typed mutation operations, deterministic family layout rubrics/certificates, expanded semantic facts, configuration wire-or-warn coverage, and parser/serializer conformance gates.
+- Added first-class State notes/stereotypes/history, Sequence box/create/destroy/standalone activation behavior, Class namespace labels, ER bare entities, Architecture alignment directives, Quadrant accessibility/style functions, Pie wedge labels/donut/legend controls, and explicit XYChart orientation mutation.
+
+### Changed
+- Gantt calendar spans use the documented `(start, end]` exclusion boundary model and excluded-day shading is enabled by default; today markers remain caller-clocked.
+- Known command-inapplicable CLI flags and value-taking flags without values now exit 2 instead of being accepted as silent no-ops.
+- PNG coverage warnings now flow through local and hosted MCP renders; system-font mode reports qualified bundled-font uncertainty rather than suppressing it.
+
+### Fixed
+- Rejected source-controlled Pie colors that could escape SVG attributes or styles; hardened cross-format color contrast and XML sinks.
+- Fixed successful-but-lossy Journey/State/Sequence/Class/ER/Architecture/XYChart mutations and parser round trips, including accessibility metadata, history endpoints, boxed participants, labeled classes, bare ER entities, forward alignment, and explicit vertical orientation.
+- Fixed dense self-loop route/label collisions and reserved rank clearance so loop pills cannot cover adjacent nodes or primary-chain arrowheads; also fixed grapheme-splitting label wraps, terminal formatting leakage, ER relationship glyph fidelity, and State pseudostate visuals.
+
+### Breaking
+- Gantt exclusion-boundary semantics and default shading may change existing rendered calendars; CLI scripts relying on ignored known flags now fail fast with exit 2.
 
 ## 0.1.1 — 2026-07-10
 
@@ -14,6 +29,7 @@ _No changes yet._
 ## 0.1.0 — 2026-07-09
 
 ### Added
+- **Journey and output-family foundation.** Journey gained deterministic geometry/paint and accessibility-aware rendering; ASCII/Unicode output became a first-class cross-family surface; PNG switched to bundled Inter metrics with DejaVu per-glyph fallback and introduced the public warning vocabulary used by verification/render tooling.
 - **Validated declarative edit boundary + `mutate`/`build` hosted MCP tools.** The untyped MCP/CLI JSON boundary now shape-validates every op before the mutator (field presence, primitive type, enum membership across all 12 families), so a malformed op — e.g. `add_class {name:'Duck'}` where `id` is expected — returns a prescriptive `INVALID_OP` naming the offending field and listing the valid ones, instead of silently producing `class undefined`. One choke point (`mutateChecked`) backs every untyped path: the new hosted `mutate` (edit a `source`) and `build` (author from a `family`) tools, the Code Mode facade, and the CLI `--op`/`--ops`. All return one canonical envelope `{ ok, family, source, verify }`. Code Mode `execute` now also marshals a returned diagram (or `Result` wrapping one) to that same envelope rather than failing "non-serializable"; other unserializable returns get a prescriptive plain-data hint.
 - **Blank-slate authoring on the typed path: `createMermaid(kind)` / `buildMermaid(kind, ops)`** (from direct agent feedback). `createMermaid` returns an empty structured `ValidDiagram` for any built-in family (overloads narrow the return per kind; `direction` option for flowchart/state); `buildMermaid` folds a typed mutation list over that empty diagram, with errors carrying the failing op's `opIndex`. Exposed in the library (`agentic-mermaid/agent`), the Code Mode `mermaid.*` SDK (results are trusted inputs to `mutate`/`verify`/`serialize`), and the SDK declaration. Creating a new diagram no longer requires hand-writing Mermaid source. To let empty diagrams be built up op by op, the journey/xychart "structured floor" now refuses only mutations that would *empty a non-empty* body, and the ER serializer emits label-less relations as `: ""` so they re-parse structured instead of falling back to opaque.
 - **Repo-wide fast-check seed policy**: every property suite now runs at one pinned global seed via a `bun test` preload (`src/__tests__/fc-seed.preload.ts`; `AM_FC_SEED=<int>` reproduces a specific roll, `AM_FC_SEED=random` restores finder-mode randomness). Suite-scoped seed overrides save/restore the global config instead of resetting it, and two meta-gates keep the policy from silently un-landing (a preload-wiring test plus an end-of-alphabet epilogue). Landed after a 1,368-run sweep (48/24/12 seeds per suite, scaled by runtime) found zero latent seed-dependent failures. Completes the determinism policy from the 2026-07 audit, which had been applied incident-by-incident to three suites (see `docs/testing-strategy.md` §4).
