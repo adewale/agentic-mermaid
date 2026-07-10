@@ -44,11 +44,15 @@ placement, not DKIM-style; and if you ever rotate keys, delete the old TXT
 record, since a stale one is tried first and fails verification. Keep `key.pem`
 somewhere safe — you need it for every future publish (version bumps).
 
-After the record propagates:
+After the record propagates, extract the key hex to a file rather than an
+environment variable or inline substitution — key material in a shell variable
+lands in shell history, `ps` output, and secret-scanner findings:
 
 ```bash
-PRIVATE_KEY="$(openssl pkey -in key.pem -noout -text | grep -A3 "priv:" | tail -n +2 | tr -d ' :\n')"
-mcp-publisher login dns --domain agentic-mermaid.dev --private-key "${PRIVATE_KEY}"
+openssl pkey -in key.pem -noout -text | grep -A3 "priv:" | tail -n +2 | tr -d ' :\n' > key.hex
+chmod 600 key.hex
+mcp-publisher login dns --domain agentic-mermaid.dev --private-key "$(cat key.hex)"
+shred -u key.hex   # or rm; key.pem remains the durable copy
 ```
 
 (Equivalent alternative if DNS is inconvenient: `mcp-publisher login http` with
