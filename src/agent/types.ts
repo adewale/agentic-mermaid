@@ -648,9 +648,16 @@ export type FlowchartMutationOp =
 export type SequenceMutationOp =
   | { kind: 'add_participant'; id: ParticipantId; label?: string; participantKind?: 'participant' | 'actor' }
   | { kind: 'remove_participant'; id: ParticipantId }
-  | { kind: 'add_message'; from: ParticipantId; to: ParticipantId; text: string; style?: SequenceMessageStyle }
+  // index = optional TOP-LEVEL insert position (same addressing as
+  // remove_message/set_message_text: messages inside opaque blocks are
+  // invisible); omitted = append.
+  | { kind: 'add_message'; from: ParticipantId; to: ParticipantId; text: string; style?: SequenceMessageStyle; index?: number }
   | { kind: 'remove_message'; index: number }
   | { kind: 'set_message_text'; index: number; text: string }
+  // Source order IS the interaction timeline, so reorder is a first-class
+  // edit (journey move_task precedent); from/to are top-level indices.
+  | { kind: 'move_message'; from: number; to: number }
+  | { kind: 'set_participant_label'; id: ParticipantId; label: string }
 
 export type TimelineMutationOp =
   | { kind: 'set_title'; title: string | null }
@@ -737,6 +744,8 @@ export type XyChartMutationOp =
   | { kind: 'set_series_values'; index: number; values: number[] }
   | { kind: 'set_series_name'; index: number; name: string | null }
   | { kind: 'reorder_series'; from: number; to: number }
+  | { kind: 'set_orientation'; horizontal: boolean }
+  | { kind: 'set_data_point'; seriesIndex: number; index: number; value: number }
 
 export type PieMutationOp =
   | { kind: 'set_title'; title: string | null }

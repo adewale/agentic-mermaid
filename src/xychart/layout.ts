@@ -2,6 +2,7 @@ import { styleFaceOf } from '../scene/style-registry.ts'
 import type {
   AxisTick,
   GridLine,
+  LegendItem,
   PlotArea,
   PositionedBar,
   PositionedLine,
@@ -15,6 +16,7 @@ import { estimateTextWidth, STROKE_WIDTHS, resolveRenderStyle } from '../styles.
 import type { RenderStyleDefaults } from '../styles.ts'
 import { resolveXYChartRenderConfig } from './config.ts'
 import { formatTickValue, getCategoryLabels, getDataCount, getDataXValues, getPointSpacing, linearTicks } from './axis-utils.ts'
+import { legendEntries } from './legend.ts'
 
 // ============================================================================
 // XY Chart layout engine
@@ -25,6 +27,10 @@ import { formatTickValue, getCategoryLabels, getDataCount, getDataXValues, getPo
 // ============================================================================
 
 const BAR_PADDING_PERCENT = 0.05
+
+/** Legend swatch geometry, shared with the renderer and pinned by tests. */
+export const LEGEND_SWATCH_SIZE = 12
+export const LEGEND_SWATCH_GAP = 6
 
 /** Shared by layout (sizing) and renderer (drawing) — keep it single-sourced. */
 export const XY_STYLE_DEFAULTS: RenderStyleDefaults = {
@@ -96,11 +102,14 @@ function layoutVertical(chart: XYChart, config: ResolvedXYChartConfig): Position
   const yAxisConfig = fitVerticalAxisConfig(config.yAxis, chart.yAxis.title, yTickLabels, remainingLeftBudget)
   remainingLeftBudget = Math.max(0, remainingLeftBudget - yAxisConfig.size)
 
+  const plotHeight = Math.max(0, totalH - titleHeight - xAxisConfig.size)
+  const legend = fitLegend(chart, config, remainingLeftBudget, totalW, titleHeight, plotHeight)
+
   const plotArea: PlotArea = {
     x: yAxisConfig.size,
     y: titleHeight,
-    width: Math.max(0, totalW - yAxisConfig.size),
-    height: Math.max(0, totalH - titleHeight - xAxisConfig.size),
+    width: Math.max(0, totalW - yAxisConfig.size - legend.size),
+    height: plotHeight,
   }
 
   const xScaleValue = chart.xAxis.range
@@ -168,7 +177,7 @@ function layoutVertical(chart: XYChart, config: ResolvedXYChartConfig): Position
     bars,
     lines,
     gridLines,
-    legend: [],
+    legend: legend.items,
     config,
     theme: chart.theme,
   }
@@ -196,11 +205,15 @@ function layoutHorizontal(chart: XYChart, config: ResolvedXYChartConfig): Positi
   const leftAxisConfig = fitVerticalAxisConfig(config.xAxis, chart.xAxis.title, categoryLabels, remainingLeftBudget)
   remainingLeftBudget = Math.max(0, remainingLeftBudget - leftAxisConfig.size)
 
+  const plotTop = titleHeight + topAxisConfig.size
+  const plotHeight = Math.max(0, totalH - plotTop)
+  const legend = fitLegend(chart, config, remainingLeftBudget, totalW, plotTop, plotHeight)
+
   const plotArea: PlotArea = {
     x: leftAxisConfig.size,
-    y: titleHeight + topAxisConfig.size,
-    width: Math.max(0, totalW - leftAxisConfig.size),
-    height: Math.max(0, totalH - titleHeight - topAxisConfig.size),
+    y: plotTop,
+    width: Math.max(0, totalW - leftAxisConfig.size - legend.size),
+    height: plotHeight,
   }
 
   const valueScale = (value: number) => plotArea.x + ((value - yRange.min) / (yRange.max - yRange.min || 1)) * plotArea.width
@@ -255,10 +268,48 @@ function layoutHorizontal(chart: XYChart, config: ResolvedXYChartConfig): Positi
     bars,
     lines,
     gridLines,
-    legend: [],
+    legend: legend.items,
     config,
     theme: chart.theme,
   }
+}
+
+/**
+ * Fit the right-side legend column into the remaining horizontal budget
+ * (upstream PR #7724 places the legend on the right, reserving its space
+ * before the plot expands into the remaining width). Entries stack top-down,
+ * top-aligned with the plot area. Containment by construction: the column is
+ * DROPPED — never clipped — when its measured width exceeds the budget or its
+ * height exceeds the plot band.
+ */
+function fitLegend(
+  chart: XYChart,
+  config: ResolvedXYChartConfig,
+  budget: number,
+  totalW: number,
+  plotTop: number,
+  plotHeight: number,
+): { items: LegendItem[]; size: number } {
+  if (!config.showLegend) return { items: [], size: 0 }
+  const entries = legendEntries(chart.series)
+  if (entries.length === 0) return { items: [], size: 0 }
+
+  const maxLabelWidth = Math.ceil(Math.max(...entries.map(entry => estimateTextWidth(entry.label, config.legendFontSize, 400))))
+  const width = config.legendPadding * 2 + LEGEND_SWATCH_SIZE + LEGEND_SWATCH_GAP + maxLabelWidth
+  const rowHeight = Math.max(config.legendFontSize, LEGEND_SWATCH_SIZE) + config.legendPadding
+  const height = config.legendPadding + entries.length * rowHeight
+  if (width > budget || height > plotHeight) return { items: [], size: 0 }
+
+  const swatchX = totalW - width + config.legendPadding
+  const items: LegendItem[] = entries.map((entry, index) => ({
+    label: entry.label,
+    x: swatchX,
+    y: plotTop + config.legendPadding + index * rowHeight,
+    type: entry.type,
+    seriesIndex: entry.seriesIndex,
+    colorIndex: entry.colorIndex,
+  }))
+  return { items, size: width }
 }
 
 function fitChartTitle(title: string | undefined, config: ResolvedXYChartConfig, budget: number): number {

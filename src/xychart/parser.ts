@@ -312,6 +312,9 @@ export function resolveXYChartConfig(frontmatter: MermaidFrontmatterMap): XYChar
     plotReservedSpacePercent: getPositiveNumber(root, ['plotReservedSpacePercent']),
     showDataLabel: getBoolean(root, ['showDataLabel']),
     showTitle: getBoolean(root, ['showTitle']),
+    showLegend: getBoolean(root, ['showLegend']),
+    legendFontSize: getPositiveNumber(root, ['legendFontSize']),
+    legendPadding: getNonNegativeNumber(root, ['legendPadding']),
     xAxis: resolveAxisConfig(root, 'xAxis'),
     yAxis: resolveAxisConfig(root, 'yAxis'),
   }
@@ -334,6 +337,7 @@ export function resolveXYChartTheme(frontmatter: MermaidFrontmatterMap): XYChart
     yAxisTickColor: getString(root, ['yAxisTickColor']),
     yAxisLineColor: getString(root, ['yAxisLineColor']),
     yAxisTitleColor: getString(root, ['yAxisTitleColor']),
+    legendTextColor: getString(root, ['legendTextColor']),
     plotColorPalette: getPalette(root, ['plotColorPalette']),
   }
 }

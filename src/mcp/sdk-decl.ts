@@ -171,9 +171,11 @@ type StateMutationOp =
 type SequenceMutationOp =
   | { kind: 'add_participant'; id: string; label?: string; participantKind?: 'participant' | 'actor' }
   | { kind: 'remove_participant'; id: string }
-  | { kind: 'add_message'; from: string; to: string; text: string; style?: 'sync' | 'reply' | 'async' | 'async-dashed' | 'lost' | 'lost-dashed' }
+  | { kind: 'add_message'; from: string; to: string; text: string; style?: 'sync' | 'reply' | 'async' | 'async-dashed' | 'lost' | 'lost-dashed'; index?: number }   // index = top-level insert position; omitted = append
   | { kind: 'remove_message'; index: number }
   | { kind: 'set_message_text'; index: number; text: string }
+  | { kind: 'move_message'; from: number; to: number }   // top-level indices
+  | { kind: 'set_participant_label'; id: string; label: string }
 
 type TimelineMutationOp =
   | { kind: 'set_title'; title: string | null }
@@ -246,6 +248,8 @@ type XyChartMutationOp =
   | { kind: 'set_series_values'; index: number; values: number[] }
   | { kind: 'set_series_name'; index: number; name: string | null }
   | { kind: 'reorder_series'; from: number; to: number }
+  | { kind: 'set_orientation'; horizontal: boolean }
+  | { kind: 'set_data_point'; seriesIndex: number; index: number; value: number }
 
 type PieMutationOp =
   | { kind: 'set_title'; title: string | null }

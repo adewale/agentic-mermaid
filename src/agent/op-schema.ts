@@ -116,9 +116,11 @@ const STATE_SCHEMA: Record<string, OpSpec> = {
 const SEQUENCE_SCHEMA: Record<string, OpSpec> = {
   add_participant:  { fields: { id: str(), label: str(false), participantKind: oneOf(PARTICIPANT_KINDS, false) } },
   remove_participant: { fields: { id: str() } },
-  add_message:      { fields: { from: str(), to: str(), text: str(), style: withNote(oneOf(SEQUENCE_MESSAGE_STYLES, false), 'default: sync') } },
+  add_message:      { fields: { from: str(), to: str(), text: str(), style: withNote(oneOf(SEQUENCE_MESSAGE_STYLES, false), 'default: sync'), index: withNote(num(false), 'top-level insert position; default: append') } },
   remove_message:   { fields: { index: num() } },
   set_message_text: { fields: { index: num(), text: str() } },
+  move_message:     { fields: { from: withNote(num(), 'top-level message index'), to: withNote(num(), 'top-level target position') } },
+  set_participant_label: { fields: { id: str(), label: str() } },
 }
 
 const TIMELINE_SCHEMA: Record<string, OpSpec> = {
@@ -196,6 +198,8 @@ const XYCHART_SCHEMA: Record<string, OpSpec> = {
   set_series_values: { fields: { index: num(), values: numArr() } },
   set_series_name:   { fields: { index: num(), name: strOrNull() } },
   reorder_series:    { fields: { from: num(), to: num() } },
+  set_orientation:   { fields: { horizontal: withNote(bool(), 'true = horizontal, false = vertical (the default)') } },
+  set_data_point:    { fields: { seriesIndex: num(), index: withNote(num(), '0-based position within the series values'), value: withNote(num(), 'finite') } },
 }
 
 const PIE_SCHEMA: Record<string, OpSpec> = {

@@ -48,7 +48,40 @@ Key layout choices:
 - horizontal charts place the numeric axis at the top and category axis on the left, matching Mermaid more closely
 - ticks use a simple linear tick generator for readable numeric steps
 - plot geometry stays within the declared chart box
-- legends are omitted to keep mixed charts visually quiet
+- legend-worthy charts get a right-side legend column whose space is reserved
+  before the plot expands into the remaining width (see Legend below)
+
+### Legend
+
+The earlier stance ("legends are omitted to keep mixed charts visually quiet")
+is obsolete: upstream Mermaid shipped xychart legends in 2026-06 (PR #7724,
+closing #5292), so a legend is now parity, not noise. The contract:
+
+- a chart is **legend-worthy** when it has more than one series, or when any
+  series carries an explicit name (`bar "Revenue" [...]` / `line avg [...]`) —
+  naming a single series opts it into the legend, matching upstream
+- every series of a legend-worthy chart gets one swatch+label entry in source
+  order; **unnamed series get deterministic `Bar N` / `Line N` defaults**,
+  numbered within their type. This is a deliberate divergence from upstream,
+  which omits unnamed series from the legend: the ASCII renderer had already
+  established the `Bar N` / `Line N` naming, and dropping entries would leave
+  multi-series colors ambiguous
+- swatches are theme-aware and reuse the exact per-series colors of the plot
+  marks (`--xychart-color-N`): a rounded rect for bar series, a stroke sample
+  plus center dot for line series
+- the SVG legend sits in a right-side column, top-aligned with the plot area,
+  and is **contained by construction**: layout reserves its measured width
+  before sizing the plot, and drops the whole column (never clips it) when the
+  width budget or the plot band cannot fit it. The ASCII legend keeps its
+  established top row placement
+- naming and order come from one shared builder (`src/xychart/legend.ts`)
+  consumed by both the SVG layout and the ASCII renderer, and a consistency
+  test (`xychart-legend.test.ts`) pins the agreement between the two surfaces
+
+Config surface (mirroring upstream's contract): `xyChart.showLegend`
+(default `true`), `xyChart.legendFontSize` (default 14),
+`xyChart.legendPadding` (default 5), and
+`themeVariables.xyChart.legendTextColor`.
 
 ### Renderer
 
@@ -73,6 +106,20 @@ Intentional gap today:
 
 - visual parity aims to stay close to Mermaid, but is not byte-for-byte identical
 
+## Agent Surface
+
+The structured body (`src/agent/xychart-body.ts`) models the header
+orientation, title, axes, and series, and its op menu includes two
+whole-chart/point-level ops beyond the series-level set:
+
+- `set_orientation {horizontal: boolean}` — flips the `xychart-beta
+  horizontal` header suffix; `false` drops the suffix (vertical is the
+  serialized default)
+- `set_data_point {seriesIndex, index, value}` — edits a single value in
+  place with prescriptive index validation (`SERIES_NOT_FOUND` /
+  `POINT_NOT_FOUND` errors name the valid ranges) and rejects non-finite
+  values so the serializer can never emit NaN
+
 ## Verification Expectations
 
 XY chart changes should keep the following layers covered:
@@ -80,6 +127,8 @@ XY chart changes should keep the following layers covered:
 - parser tests for stable/beta headers, quoted labels, comments, and frontmatter
 - layout tests for chart bounds, axis placement, and visibility rules
 - renderer tests for semantic classes, escaping, and theme token usage
+- legend tests for presence rules, containment, config, and the SVG/ASCII
+  naming-and-order consistency guard (`xychart-legend.test.ts`)
 - integration tests for full parse -> layout -> render behavior
 - ASCII tests for unicode and ASCII-safe rendering
 - `scripts/site/samples-data.ts` coverage so the visual samples page exercises the feature

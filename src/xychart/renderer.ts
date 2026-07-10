@@ -3,7 +3,7 @@ import type { RenderContext, RenderOptions } from '../types.ts'
 import { svgOpenTag, buildStyleBlock } from '../theme.ts'
 import { TEXT_BASELINE_SHIFT, applyTextTransform, estimateTextWidth, STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults } from '../styles.ts'
-import { XY_STYLE_DEFAULTS } from './layout.ts'
+import { LEGEND_SWATCH_GAP, LEGEND_SWATCH_SIZE, XY_STYLE_DEFAULTS } from './layout.ts'
 import { escapeXml } from '../multiline-utils.ts'
 import { getSeriesColor, CHART_ACCENT_FALLBACK } from './colors.ts'
 import type { MarkPaint, SceneDoc, SceneNode } from '../scene/ir.ts'
@@ -302,6 +302,82 @@ export function lowerXYChartScene(
     ))
   }
 
+  // Right-side legend (layout has already reserved its space inside the
+  // canvas; an empty legend array means the chart is not legend-worthy, the
+  // config hides it, or the column was dropped rather than clipped).
+  if (chart.legend.length > 0) {
+    const legendChildren: Array<{ node: SceneNode; indent: number }> = []
+    for (const item of chart.legend) {
+      const cy = item.y + LEGEND_SWATCH_SIZE / 2
+      if (item.type === 'bar') {
+        legendChildren.push({
+          node: marks.shape({
+            id: `legend:swatch:${item.colorIndex}`,
+            role: 'legend',
+            geometry: { kind: 'rect', x: rn(item.x), y: rn(item.y), width: LEGEND_SWATCH_SIZE, height: LEGEND_SWATCH_SIZE, rx: 2, ry: 2 },
+            paint: { fill: `var(--xychart-color-${item.colorIndex})` },
+            channels: { category: `bar-${item.seriesIndex}` },
+          },
+            `<rect x="${r(item.x)}" y="${r(item.y)}" width="${LEGEND_SWATCH_SIZE}" height="${LEGEND_SWATCH_SIZE}" rx="2" ry="2" ` +
+            `class="xychart-legend-swatch" fill="var(--xychart-color-${item.colorIndex})"/>`),
+          indent: 2,
+        })
+      } else {
+        // Line swatch: a stroke sample plus its center dot (the LegendItem
+        // contract: rect for bar, line+dot for line).
+        legendChildren.push({
+          node: marks.shape({
+            id: `legend:swatch:${item.colorIndex}`,
+            role: 'legend',
+            geometry: { kind: 'line', x1: rn(item.x), y1: rn(cy), x2: rn(item.x + LEGEND_SWATCH_SIZE), y2: rn(cy) },
+            paint: { stroke: `var(--xychart-color-${item.colorIndex})`, strokeWidth: String(CHART_FONT.lineWidth) },
+            channels: { category: `line-${item.seriesIndex}` },
+          },
+            `<line x1="${r(item.x)}" y1="${r(cy)}" x2="${r(item.x + LEGEND_SWATCH_SIZE)}" y2="${r(cy)}" ` +
+            `class="xychart-legend-swatch" stroke="var(--xychart-color-${item.colorIndex})" stroke-width="${CHART_FONT.lineWidth}" stroke-linecap="round"/>`),
+          indent: 2,
+        })
+        legendChildren.push({
+          node: marks.shape({
+            id: `legend:dot:${item.colorIndex}`,
+            role: 'legend',
+            geometry: { kind: 'circle', cx: rn(item.x + LEGEND_SWATCH_SIZE / 2), cy: rn(cy), r: 2.5 },
+            paint: { fill: `var(--xychart-color-${item.colorIndex})`, stroke: 'var(--bg)', strokeWidth: '1' },
+            channels: { category: `line-${item.seriesIndex}` },
+          },
+            `<circle cx="${r(item.x + LEGEND_SWATCH_SIZE / 2)}" cy="${r(cy)}" r="2.5" ` +
+            `class="xychart-legend-dot" fill="var(--xychart-color-${item.colorIndex})" stroke="var(--bg)" stroke-width="1"/>`),
+          indent: 2,
+        })
+      }
+      const label = applyTextTransform(item.label, style.nodeTextTransform)
+      const labelX = item.x + LEGEND_SWATCH_SIZE + LEGEND_SWATCH_GAP
+      legendChildren.push({
+        node: marks.text({
+          id: `legend:label:${item.colorIndex}`,
+          role: 'legend',
+          text: label,
+          x: rn(labelX),
+          y: rn(cy),
+          fontSize: chart.config.legendFontSize,
+          anchor: 'start',
+          paint: { fill: chartColors.legendTextColor },
+        },
+          `<text x="${r(labelX)}" y="${r(cy)}" text-anchor="start" dominant-baseline="middle" ` +
+          `font-size="${chart.config.legendFontSize}" font-weight="${style.nodeLabelFontWeight}"${letterAttr(style.nodeLetterSpacing)} ` +
+          `class="xychart-legend-label">${escapeXml(label)}</text>`),
+        indent: 2,
+      })
+    }
+    parts.push(marks.group({
+      id: 'legend',
+      role: 'legend',
+      open: '<g class="xychart-legend">',
+      close: '</g>',
+      children: legendChildren,
+    }))
+  }
+
   for (const group of barOverlay) parts.push(group)
   for (const group of dotOverlay) parts.push(group)
 
@@ -386,6 +462,7 @@ interface ResolvedChartColors {
   yAxisLineColor: string
   xAxisTitleColor: string
   yAxisTitleColor: string
+  legendTextColor: string
 }
 
 function resolveChartColors(
@@ -406,6 +483,7 @@ function resolveChartColors(
     yAxisLineColor: themeOverrides.yAxisLineColor ?? renderStyle.edgeStrokeColor ?? 'var(--_text-sec)',
     xAxisTitleColor: themeOverrides.xAxisTitleColor ?? renderStyle.edgeTextColor ?? renderStyle.nodeTextColor ?? 'var(--_text)',
     yAxisTitleColor: themeOverrides.yAxisTitleColor ?? renderStyle.edgeTextColor ?? renderStyle.nodeTextColor ?? 'var(--_text)',
+    legendTextColor: themeOverrides.legendTextColor ?? renderStyle.nodeTextColor ?? 'var(--_text)',
   }
 }
 
@@ -470,7 +548,7 @@ function chartStyles(
   .xychart-x-axis-title { fill: ${cc.xAxisTitleColor}; }
   .xychart-y-axis-title { fill: ${cc.yAxisTitleColor}; }
   .xychart-title { fill: ${cc.titleColor}; }
-  .xychart-data-label { fill: ${cc.labelColor}; pointer-events: none; }${colorVarsBlock}
+  .xychart-data-label { fill: ${cc.labelColor}; pointer-events: none; }${chart.legend.length > 0 ? `\n  .xychart-legend-label { fill: ${cc.legendTextColor}; }` : ''}${colorVarsBlock}
 ${seriesRules.join('\n')}${tipRules}${extraThemeCss}
 </style>`
 

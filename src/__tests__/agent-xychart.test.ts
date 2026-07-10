@@ -277,6 +277,80 @@ describe('xychart verify + render', () => {
   })
 })
 
+describe('xychart set_orientation / set_data_point ops', () => {
+  test('set_orientation horizontal flips the header and serialize→re-parse preserves it', () => {
+    const d = apply(xychart(), { kind: 'set_orientation', horizontal: true })
+    expect(d.body.horizontal).toBe(true)
+    const out = serializeMermaid(d)
+    expect(out).toContain('xychart-beta horizontal')
+    // Agent re-parse agrees.
+    expect(Boolean(xychart(out).body.horizontal)).toBe(true)
+    // Legacy renderer parser agrees.
+    const norm = normalizeMermaidSource(out)
+    expect(applyXYChartFrontmatterConfig(parseXYChart(norm.lines), norm.frontmatter).horizontal).toBe(true)
+  })
+
+  test('set_orientation back to vertical drops the header suffix', () => {
+    let d = apply(xychart('xychart-beta horizontal\n  bar [1, 2]'), { kind: 'set_orientation', horizontal: false })
+    expect(Boolean(d.body.horizontal)).toBe(false)
+    const out = serializeMermaid(d)
+    expect(out).not.toContain('horizontal')
+    expect(Boolean(xychart(out).body.horizontal)).toBe(false)
+    // Idempotent: setting the current orientation is a no-op, not an error.
+    d = apply(d, { kind: 'set_orientation', horizontal: false })
+    expect(Boolean(d.body.horizontal)).toBe(false)
+  })
+
+  test('set_data_point edits exactly one value and serialize→re-parse preserves', () => {
+    const d = apply(xychart(), { kind: 'set_data_point', seriesIndex: 0, index: 1, value: 99.5 })
+    expect(d.body.series[0]!.values).toEqual([10, 99.5, 30])
+    // Neighbors and the other series are untouched.
+    expect(d.body.series[1]!.values).toEqual([5, -2, 0.1])
+    expect(d.canonicalSource).toContain('bar Online [10, 99.5, 30]')
+    const d2 = xychart(serializeMermaid(d))
+    expect(d2.body.series[0]!.values).toEqual([10, 99.5, 30])
+    // Legacy renderer parser sees the same data.
+    const norm = normalizeMermaidSource(serializeMermaid(d))
+    expect(applyXYChartFrontmatterConfig(parseXYChart(norm.lines), norm.frontmatter).series[0]!.data).toEqual([10, 99.5, 30])
+  })
+
+  test('set_data_point error paths are prescriptive', () => {
+    // Series index out of range → SERIES_NOT_FOUND naming the valid range.
+    const badSeries = mutate(xychart(), { kind: 'set_data_point', seriesIndex: 5, index: 0, value: 1 })
+    expect(badSeries.ok).toBe(false)
+    if (!badSeries.ok) {
+      expect(badSeries.error.code).toBe('SERIES_NOT_FOUND')
+      expect(badSeries.error.message).toContain('0..1')
+    }
+    // Point index out of range → POINT_NOT_FOUND naming the valid range.
+    const badIndex = mutate(xychart(), { kind: 'set_data_point', seriesIndex: 0, index: 3, value: 1 })
+    expect(badIndex.ok).toBe(false)
+    if (!badIndex.ok) {
+      expect(badIndex.error.code).toBe('POINT_NOT_FOUND')
+      expect(badIndex.error.message).toContain('0..2')
+    }
+    // Non-integer indices are rejected, not truncated.
+    const fracIndex = mutate(xychart(), { kind: 'set_data_point', seriesIndex: 0, index: 0.5, value: 1 })
+    expect(fracIndex.ok).toBe(false)
+    const fracSeries = mutate(xychart(), { kind: 'set_data_point', seriesIndex: 0.5 as never, index: 0, value: 1 })
+    expect(fracSeries.ok).toBe(false)
+    // Non-finite values are rejected so the serializer never emits NaN.
+    for (const value of [Number.NaN, Infinity, -Infinity]) {
+      const r = mutate(xychart(), { kind: 'set_data_point', seriesIndex: 0, index: 0, value })
+      expect(r.ok).toBe(false)
+      if (!r.ok) expect(r.error.code).toBe('INVALID_OP')
+    }
+  })
+
+  test('mutation does not alias the input diagram (set_data_point / set_orientation)', () => {
+    const d = xychart()
+    apply(d, { kind: 'set_data_point', seriesIndex: 0, index: 0, value: -1 })
+    apply(d, { kind: 'set_orientation', horizontal: true })
+    expect(d.body.series[0]!.values[0]).toBe(10)
+    expect(Boolean(d.body.horizontal)).toBe(false)
+  })
+})
+
 describe('xychart round-trip property', () => {
   const nameArb = fc.stringMatching(/^[A-Za-z][A-Za-z0-9 ]{0,12}[A-Za-z0-9]$/)
   const catArb = fc.stringMatching(/^[A-Za-z][A-Za-z0-9]{0,6}$/)

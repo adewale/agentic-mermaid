@@ -434,6 +434,31 @@ export function mutateXyChart(body: XyChartBody, op: XyChartMutationOp): Result<
       next.series.splice(to, 0, moved!)
       break
     }
+    case 'set_orientation': {
+      if (typeof op.horizontal !== 'boolean') {
+        return err({ code: 'INVALID_OP', message: `XY chart set_orientation horizontal must be a boolean (true = horizontal, false = vertical), got ${JSON.stringify(op.horizontal)}` })
+      }
+      // The serializer emits the `horizontal` header suffix only when set, so
+      // vertical (the default) drops the flag instead of storing `false`.
+      if (op.horizontal) next.horizontal = true
+      else delete next.horizontal
+      break
+    }
+    case 'set_data_point': {
+      const s = Number.isInteger(op.seriesIndex) ? next.series[op.seriesIndex] : undefined
+      if (!s) {
+        const range = next.series.length > 0 ? ` (valid indices 0..${next.series.length - 1})` : ' (the chart has no series)'
+        return err({ code: 'SERIES_NOT_FOUND', message: `No series at index ${JSON.stringify(op.seriesIndex)}${range}` })
+      }
+      if (!Number.isInteger(op.index) || op.index < 0 || op.index >= s.values.length) {
+        return err({ code: 'POINT_NOT_FOUND', message: `No data point at index ${JSON.stringify(op.index)} in series ${op.seriesIndex} (${s.values.length} values, valid indices 0..${s.values.length - 1})` })
+      }
+      if (!isFiniteNumber(op.value)) {
+        return err({ code: 'INVALID_OP', message: `XY chart data point value must be a finite number, got ${JSON.stringify(op.value)}` })
+      }
+      s.values[op.index] = op.value
+      break
+    }
     default: {
       const _x: never = op
       return err({ code: 'INVALID_OP', message: unknownOpMessage('xychart', _x) })
