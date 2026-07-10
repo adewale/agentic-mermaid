@@ -882,3 +882,52 @@ figcaption { color: var(--ink-faint); font-size: var(--t-label); line-height: 1.
 .dz-icons { display: flex; gap: var(--sp-4); align-items: center; color: var(--ink-soft); }
 .dz-voice li { margin-bottom: var(--sp-2); }
 .dz-voice code { font-size: 0.9em; }
+
+/* ---- Hero style figure (homepage): one diagram, three switchable render
+   options. Reuses the tabbed-card contract; chips read as pills, the plate
+   scrolls horizontally on narrow screens instead of letterboxing. ---- */
+.hero-style-figure { margin: var(--sp-7) 0; }
+.hero-style-card { border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); overflow: hidden; }
+.hero-style-chips { border-bottom: 1px solid var(--line); }
+.hero-style-chips [role="tab"] { font-family: var(--mono); font-size: var(--t-mono-sm, 12px); font-weight: 400; letter-spacing: 0; }
+.hero-style-panel { padding: 0; }
+.hero-style-panel .plate.dia-plate { margin: 0; border: 0; border-radius: 0; overflow-x: auto; }
+.hero-style-panel .plate.dia-plate svg { min-width: 560px; }
+.hero-style-figure figcaption { margin-top: var(--sp-3); }
+
+/* Quick-start's small edit-loop figure (formerly the hero). */
+.workflow-figure { margin: var(--sp-5) 0 0; }
+.workflow-figure .plate.dia-plate { overflow-x: auto; }
+.workflow-figure .plate.dia-plate svg { min-width: 560px; }
+.workflow-figure figcaption { margin-top: var(--sp-2); font-size: var(--t-sm); color: var(--ink-faint); }
+
+/* Primary-CTA explainer under the action row. */
+.cta-note { margin: var(--sp-3) 0 0; font-size: var(--t-sm); max-width: 46.25rem; }
+
+/* ---- Site footer: quiet trust strip on every document page. ---- */
+.site-footer { max-width: var(--content-max); margin: var(--sp-9) auto 0; padding: 0 var(--page-gutter) var(--sp-7); }
+.site-footer hr { border: 0; margin: 0 0 var(--sp-4); }
+.site-footer p { margin: 0; font-size: var(--t-sm); color: var(--ink-faint); }
+.site-footer a { color: var(--ink-soft); }
+.site-footer a:hover { color: var(--link); }
+
+/* About-page FAQ (the visible content behind the FAQPage structured data). */
+.faq-list dt { font-weight: 700; margin-top: var(--sp-4); }
+.faq-list dd { margin: var(--sp-1) 0 0; color: var(--ink-soft); }
+
+/* Examples page: 135 inline SVG cards — skip layout/paint for off-screen
+   cards so first render only pays for the viewport. */
+.example-source, .example-rich-group { content-visibility: auto; contain-intrinsic-size: auto 640px; }
+
+/* Compact masthead on phones: one row of scrollable links instead of three
+   stacked rows before the h1. */
+@media (max-width: 640px) {
+  .masthead { padding-top: var(--sp-4); }
+  .masthead .bar { flex-wrap: nowrap; align-items: center; gap: 10px; }
+  .masthead .links { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .masthead .links::-webkit-scrollbar { display: none; }
+  .masthead .links a { white-space: nowrap; }
+}
+
+/* Focusable scroll regions (pre, plates) get the shared focus treatment. */
+pre:focus-visible, .plate.dia-plate:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

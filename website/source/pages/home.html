@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Agentic Mermaid</title>
+<meta name="description" content="Agentic Mermaid turns agent prompts into beautiful, verified Mermaid diagrams: deterministic layout, {{FACT_STYLES}} styles and {{FACT_PALETTES}} palettes, SVG/PNG/ASCII output, and typed edits via library, CLI, or MCP.">
+<title>Agentic Mermaid — beautiful diagrams, made with your agent</title>
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="icon" href="favicon.ico" type="image/x-icon">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -30,12 +31,10 @@
       <a class="secondary-action" href="/docs/getting-started/">Install locally</a>
       <span class="copy-prompt-status" id="home-copy-status" role="status" aria-live="polite"></span>
     </div>
+    <p class="muted cta-note">“Use with an agent” copies a one-line prompt — paste it into Claude, Cursor, or any coding agent, then describe the diagram you want.</p>
   </section>
 
-  <figure>
-    <div class="plate dia-plate"></div>
-    <figcaption>The agent workflow, rendered to SVG with the site palette. <a class="go" href="/editor/#Zmxvd2NoYXJ0IExSCiAgU1tTb3VyY2UgLm1tZF0gLS0+IFBbcGFyc2VdCiAgUCAtLT4gTltuYXJyb3ddCiAgTiAtLT4gTVttdXRhdGVdCiAgTSAtLT4gVnt2ZXJpZnl9CiAgViAtLSBvayAtLT4gUltzZXJpYWxpemUg4oaSIHJlbmRlcl0KICBWIC0tIHdhcm5pbmdzIC0tPiBO">Edit this diagram in the editor</a></figcaption>
-  </figure>
+  {{HERO_STYLE_FIGURE}}
 
   <section class="quick-start" aria-labelledby="quick-start-title">
     <p class="section-kicker">Agent quick start</p>
@@ -47,6 +46,7 @@
       <li><strong>Verify before export.</strong> Render SVG or PNG only after warnings are read and the source still says what you asked for.</li>
     </ol>
     <p class="agent-trace" aria-label="Expected agent trace"><span>parseMermaid</span><span>asFlowchart</span><span>mutate(add_edge)</span><span>verifyMermaid</span><span>serializeMermaid</span></p>
+    {{WORKFLOW_FIGURE}}
   </section>
 
   <section class="why-typed" aria-labelledby="why-typed-title">
@@ -103,12 +103,13 @@ const next = serializeMermaid(r.value)</code></pre>
       <div class="tab-panel" role="tabpanel" id="channel-panel-mcp" aria-labelledby="channel-tab-mcp" tabindex="0">
         <p class="meta-label tab-panel-label">MCP</p>
         <pre><code><span class="c">// MCP Code Mode: the hosted MCP at https://agentic-mermaid.dev/mcp, or a self-hosted server.</span>
-<span class="c">// The whole loop runs in one execute(code) call.</span>
+<span class="c">// The whole loop runs in one execute(code) call; the SDK is bound as `mermaid`.</span>
 execute(`
-  const flow = asFlowchart(parseMermaid(source).value)
-  const r = mutate(flow, { kind: 'add_edge', from: 'API', to: 'Cache' })
-  const v = verifyMermaid(r.value)
-  return v.ok ? { source: serializeMermaid(r.value) }
+  const source = 'flowchart LR\n  UI[Web app] --> API\n  API --> DB[(Postgres)]'
+  const flow = mermaid.asFlowchart(mermaid.parseMermaid(source).value)
+  const r = mermaid.mutate(flow, { kind: 'add_edge', from: 'API', to: 'Cache' })
+  const v = mermaid.verifyMermaid(r.value)
+  return v.ok ? { source: mermaid.serializeMermaid(r.value) }
               : { error: 'verify failed', warnings: v.warnings }
 `)</code></pre>
       </div>
@@ -132,11 +133,11 @@ execute(`
   </section>
 
   <ul class="fact-strip" aria-label="Capability evidence">
-    <li><a href="/examples/"><strong>12</strong> diagram families</a></li>
-    <li><a href="/docs/theming/"><strong>15</strong> built-in styles</a></li>
-    <li><a href="/docs/theming/"><strong>21</strong> palettes</a></li>
+    <li><a href="/examples/"><strong>{{FACT_FAMILIES}}</strong> diagram families</a></li>
+    <li><a href="/docs/theming/"><strong>{{FACT_STYLES}}</strong> built-in styles</a></li>
+    <li><a href="/docs/theming/"><strong>{{FACT_PALETTES}}</strong> palettes</a></li>
     <li><a href="/docs/custom-styles/"><strong>JSON</strong> custom styles</a></li>
-    <li><a href="/examples/"><strong>5</strong> outputs per source</a></li>
+    <li><a href="/examples/"><strong>{{FACT_OUTPUTS}}</strong> outputs per source</a></li>
     <li><a href="/warnings/"><strong>Verified</strong> source before export</a></li>
   </ul>
 

@@ -119,9 +119,20 @@ describeBrowser('website browser accessibility smoke', () => {
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
       expect({ route, overflow }).toEqual({ route, overflow: 0 })
       if (route === '/comparisons/') {
-        await page.waitForFunction(() => document.querySelectorAll('.comparison-mermaid[data-processed="true"]').length === 13, null, { timeout: 10_000 })
+        // Panels render lazily as they approach the viewport (IntersectionObserver
+        // + sequential drain), so walk the page bottom-ward to queue all 13, then
+        // wait for the drain to finish.
+        await page.evaluate(async () => {
+          const step = window.innerHeight
+          for (let y = 0; y <= document.documentElement.scrollHeight; y += step) {
+            window.scrollTo(0, y)
+            await new Promise((resolve) => setTimeout(resolve, 50))
+          }
+        })
+        await page.waitForFunction(() => document.querySelectorAll('.comparison-mermaid[data-processed="true"]').length === 13, null, { timeout: 20_000 })
         expect(await page.locator('.comparison-mermaid[data-processed="true"]').count()).toBe(13)
         expect(await page.locator('.comparison-panel').count()).toBe(30)
+        await page.evaluate(() => window.scrollTo(0, 0))
         await page.locator('[data-comparison-lightbox-panel]').first().click()
         expect(await page.locator('.comparison-dialog[open]').count()).toBe(1)
         expect(await page.locator('.comparison-dialog .comparison-panel').count()).toBeGreaterThanOrEqual(2)
