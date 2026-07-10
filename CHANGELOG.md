@@ -4,6 +4,10 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ## Unreleased
 
+_No changes yet._
+
+## 0.1.1 — 2026-07-10
+
 ### Added
 - **Standards-based agent discovery and MCP Registry publishing.** Agent guidance now states when to use Agentic Mermaid and when to keep diagrams local. The website publishes `/index.md`, negotiates it from `/` with `Vary: Accept`, and advertises machine-readable resources with RFC 8288 links. The npm package ships official `server.json` metadata, exposes the registry launch path as `npx -y agentic-mermaid mcp`, and publishes each new release to the MCP Registry after npm succeeds.
 
