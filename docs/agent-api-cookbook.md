@@ -259,7 +259,7 @@ Use `am capabilities --json` for machine-readable discovery. Current typed mutat
 | Timeline | `asTimeline` | `set_title`, `add_section`, `remove_section`, `set_section_label`, `add_period`, `remove_period`, `set_period_label`, `add_event`, `remove_event`, `set_event_text` |
 | Class | `asClass` | `set_title`, `add_class`, `remove_class`, `rename_class`, `add_member`, `remove_member`, `add_relation`, `remove_relation`, `add_note`, `remove_note` |
 | ER | `asEr` | `add_entity`, `remove_entity`, `rename_entity`, `add_attribute`, `remove_attribute`, `add_relation`, `remove_relation` |
-| Journey | `asJourney` | `set_title`, `add_section`, `remove_section`, `set_section_label`, `add_task`, `remove_task`, `set_task_text`, `set_task_score`, `set_task_actors`, `rename_actor` |
+| Journey | `asJourney` | `set_title`, `add_section`, `remove_section`, `set_section_label`, `add_task`, `remove_task`, `set_task_text`, `set_task_score`, `set_task_actors`, `rename_actor`, `move_task`, `move_section`, `set_accessibility_title`, `set_accessibility_description` |
 | Architecture | `asArchitecture` | `add_service`, `remove_service`, `rename_service`, `set_service_label`, `set_service_icon`, `move_service`, `add_group`, `remove_group`, `add_edge`, `remove_edge` |
 | XY chart | `asXyChart` | `set_title`, `set_x_axis`, `set_y_axis`, `add_series`, `remove_series`, `set_series_values`, `set_series_name`, `reorder_series` |
 | Pie | `asPie` | `set_title`, `set_show_data`, `add_slice`, `remove_slice`, `rename_slice`, `set_slice_value`, `reorder_slice` |
@@ -285,7 +285,7 @@ Tier 1 warnings are reliable structural/source checks. Do not suppress Tier 1 er
 
 Tier 2 warnings are advisory geometric checks — route tripwires for flowchart/state, plus boundary-anchor/overlap checks on class/ER entity boxes: `NODE_OVERLAP`, `ROUTE_SELF_CROSS`, and the route-contract tripwires `ROUTE_HITCH`, `ROUTE_UNEXPLAINED_BEND`, `ROUTE_LABEL_ON_SHARED_TRUNK`, `ROUTE_CONTAINER_MISANCHOR`, `ROUTE_SHAPE_MISANCHOR`, `ROUTE_STALE_AFTER_NODE_MOVE`.
 
-Tier 3 warnings are advisory lint checks for common agent mistakes or source-preserved Mermaid syntax that is not fully modeled: `DUPLICATE_EDGE`, `UNREACHABLE_NODE`, `DECISION_BRANCH_UNLABELED`, `COMMENT_DROPPED`, `UNSUPPORTED_SYNTAX`, `CONTENT_DROPPED_ON_ROUNDTRIP`. They do not flip `verify.ok`, but they are worth fixing when the caller asks for clean maintainable diagrams.
+Tier 3 warnings are advisory lint checks for common agent mistakes or source-preserved Mermaid syntax that is not fully modeled: `DUPLICATE_EDGE`, `UNREACHABLE_NODE`, `DECISION_BRANCH_UNLABELED`, `COMMENT_DROPPED`, `UNSUPPORTED_SYNTAX`, `CONTENT_DROPPED_ON_ROUNDTRIP`, `INEFFECTIVE_CONFIG` (a config field is accepted for Mermaid compatibility but has no effect on this family). They do not flip `verify.ok`, but they are worth fixing when the caller asks for clean maintainable diagrams.
 
 ## Common anti-patterns
 

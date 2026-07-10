@@ -111,7 +111,7 @@ interface ErBody { kind: 'er'; entities: ErEntity[]; relations: ErRelation[] }
 
 interface JourneyTask { id: string; text: string; score: number; actors: string[] }
 interface JourneySection { id: string; label?: string; tasks: JourneyTask[] }
-interface JourneyBody { kind: 'journey'; title?: string; sections: JourneySection[] }
+interface JourneyBody { kind: 'journey'; title?: string; accessibilityTitle?: string; accessibilityDescription?: string; sections: JourneySection[] }
 
 type ArchitectureSide = 'L' | 'R' | 'T' | 'B'
 interface ArchitectureGroup { id: string; label: string; icon?: string; parentId?: string }
@@ -210,15 +210,19 @@ type ErMutationOp =
 
 type JourneyMutationOp =
   | { kind: 'set_title'; title: string | null }
-  | { kind: 'add_section'; label: string }
+  | { kind: 'add_section'; label: string; index?: number }
   | { kind: 'remove_section'; index: number }
   | { kind: 'set_section_label'; index: number; label: string }
-  | { kind: 'add_task'; sectionIndex: number; text: string; score: number; actors?: string[] }
+  | { kind: 'add_task'; sectionIndex: number; text: string; score: number; actors?: string[]; index?: number }
   | { kind: 'remove_task'; sectionIndex: number; taskIndex: number }
   | { kind: 'set_task_text'; sectionIndex: number; taskIndex: number; text: string }
   | { kind: 'set_task_score'; sectionIndex: number; taskIndex: number; score: number }
   | { kind: 'set_task_actors'; sectionIndex: number; taskIndex: number; actors: string[] }
   | { kind: 'rename_actor'; from: string; to: string }
+  | { kind: 'move_task'; fromSection: number; fromIndex: number; toSection: number; toIndex: number }
+  | { kind: 'move_section'; from: number; to: number }
+  | { kind: 'set_accessibility_title'; title: string | null }
+  | { kind: 'set_accessibility_description'; description: string | null }
 
 type ArchitectureMutationOp =
   | { kind: 'add_service'; id: string; label?: string; icon?: string | null; group?: string | null }

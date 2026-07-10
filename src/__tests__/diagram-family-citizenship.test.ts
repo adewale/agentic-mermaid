@@ -4,8 +4,10 @@ import { join } from 'node:path'
 
 import { BUILTIN_FAMILY_METADATA, type BuiltinFamilyId } from '../agent/families.ts'
 import { MUTATION_OPS_BY_FAMILY } from '../cli/index.ts'
-import { parseMermaid, verifyMermaid, serializeMermaid, renderMermaidSVG, renderMermaidASCII } from '../agent/index.ts'
+import { parseMermaid, verifyMermaid, serializeMermaid, renderMermaidSVG, renderMermaidASCII, layoutMermaid } from '../agent/index.ts'
 import { FAMILY_COUNT_FIXTURES } from './helpers/family-count-fixtures.ts'
+import { METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'
+import { trackedExamples } from '../../eval/heuristic-tracker/catalog.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const MATRIX_PATH = join(REPO, 'docs/contributing/diagram-family-citizenship.matrix.json')
@@ -351,6 +353,35 @@ describe('diagram-family citizenship ratchet (issue #41)', () => {
     expect(xychart.cells.upstreamHarvest.evidence).toContain('eval/mermaid-docs-corpus/corpus.json')
     expect(xychart.cells.divergenceLedger.evidence).toContain('eval/mermaid-docs-corpus/divergences.json')
     expect(xychart.cells.mutationLane.evidence).toContain('stryker.families.config.json')
+  })
+
+  test('flagship quality loop: every registered family is enrolled in fuzz, tracker, and layout projection', () => {
+    // The Journey elevation audit found that nothing FORCED a family into the
+    // layout-quality machinery, so families shipped outside it. This gate makes enrollment structural: a
+    // NEW family added to BUILTIN_FAMILY_METADATA fails here (and in tsc, via
+    // the Record<DiagramKind, …> registries) until it joins the loop.
+    const tracked = trackedExamples()
+    for (const family of BUILTIN_FAMILY_METADATA) {
+      // (a) Deep-fuzz generator: registered and producing a parseable base build.
+      const generator = METAMORPHIC_FAMILIES[family.id]
+      expect({ family: family.id, fuzzGenerator: Boolean(generator) }).toEqual({ family: family.id, fuzzGenerator: true })
+      const base = parseMermaid(generator.build(generator.kRange[0], 'cz'))
+      expect({ family: family.id, fuzzBaseParses: base.ok }).toEqual({ family: family.id, fuzzBaseParses: true })
+
+      // (b) Heuristic-tracker enrollment: at least one baselined example (the
+      // catalog's family group auto-enrolls from the registry example, so this
+      // fails only if that wiring is removed).
+      const hasTracked = tracked.some(ex => family.id === 'flowchart' ? !ex.family : ex.family === family.id)
+      expect({ family: family.id, trackedExample: hasTracked }).toEqual({ family: family.id, trackedExample: true })
+
+      // (c) RenderedLayout projection: the family rubric can see it (nodes > 0
+      // on the canonical registry example).
+      if (base.ok) {
+        const layout = layoutMermaid(base.value)
+        expect({ family: family.id, projectedNodes: layout.nodes.length > 0 })
+          .toEqual({ family: family.id, projectedNodes: true })
+      }
+    }
   })
 
   test('reviewer-facing docs link the checklist, matrix, and follow-up ledger', () => {

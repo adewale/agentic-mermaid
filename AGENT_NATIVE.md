@@ -146,6 +146,7 @@ Tier 3 warnings are family-specific quality hints for "common LLM mistakes" that
 | `COMMENT_DROPPED` | warning | The source contains in-body `%%` comments that this diagram's structured serialization does not preserve (reported with `count` and `lines`). The leading wrapper — frontmatter, `%%{init}%%` directives, comments before the header — always round-trips byte-verbatim; in-body comments survive only in opaque bodies or preserved opaque segments. Re-home load-bearing comments into the wrapper, or accept the loss as canonicalization. |
 | `UNSUPPORTED_SYNTAX` | warning | The source uses Mermaid syntax that is preserved losslessly but not fully modeled by local structured mutation/render semantics (for example flowchart edge IDs, edge metadata, click/href directives, or markdown strings). Payload includes `syntax`, optional `line`, and `message`. |
 | `CONTENT_DROPPED_ON_ROUNDTRIP` | warning | The structured `{nodes, edges, groups}` tally changed across a parse → serialize → re-parse cycle, so canonical serialization is silently dropping or duplicating content even though the bytes may re-parse (payload carries `before`/`after` counts). The faithfulness analogue of `COMMENT_DROPPED` — "100% parse success is not faithfulness". Runs on every verify, for every family; opaque bodies (byte-verbatim) are exempt. |
+| `INEFFECTIVE_CONFIG` | warning | A Mermaid config field was accepted (for config-shape compatibility) but has no effect on this family's geometry or paint — e.g. Journey's sequence-era fields (`boxMargin`, `rightAngles`, …). Payload names the `field`. Accepting-and-ignoring silently misleads migrating users; this lint says so. |
 
 `FamilyPlugin.verify` hooks are wired and run today; built-ins use them for Tier 1 structural warnings for class/ER and the central flowchart verifier emits the initial Tier 3 lint catalogue. Future lint codes should be added deliberately to `WARNING_TIER`, documented here, and covered by doc-sync tests.
 
@@ -295,20 +296,24 @@ Two contracts:
 | `add_relation`      | `from`, `to`, `leftCard`, `rightCard` (+ `dashed`, `label`) | `remove_relation(index)` |
 | `remove_relation`   | `index`                                               | `add_relation(...)` |
 
-**Journey MutationOp kinds** (10, BUILD-15 — the pilot promotion from opaque-only fallback semantics to structured mutation via the FamilyPlugin registry):
+**Journey MutationOp kinds** (14, BUILD-15 — the pilot promotion from opaque-only fallback semantics to structured mutation via the FamilyPlugin registry; ordering + accessibility ops added with the Mermaid-classic renderer elevation, since journey order IS the timeline):
 
 | Kind | Required | Inverse |
 |---|---|---|
 | `set_title`          | `title \| null`                                          | `set_title(prev_title)` |
-| `add_section`        | `label`                                                   | `remove_section(index)` |
+| `add_section`        | `label` (+ optional insert `index`)                       | `remove_section(index)` |
 | `remove_section`     | `index`                                                   | `add_section(label)` |
 | `set_section_label`  | `index`, `label`                                          | `set_section_label(index, prev_label)` |
-| `add_task`           | `sectionIndex`, `text`, `score` (+ optional `actors`)     | `remove_task(sectionIndex, taskIndex)` |
+| `add_task`           | `sectionIndex`, `text`, `score` (+ optional `actors`, insert `index`) | `remove_task(sectionIndex, taskIndex)` |
 | `remove_task`        | `sectionIndex`, `taskIndex`                               | `add_task(...)` |
 | `set_task_text`      | `sectionIndex`, `taskIndex`, `text`                       | `set_task_text(... prev_text)` |
 | `set_task_score`     | `sectionIndex`, `taskIndex`, `score` (integer 1..5)       | `set_task_score(... prev_score)` |
 | `set_task_actors`    | `sectionIndex`, `taskIndex`, `actors: string[]`           | `set_task_actors(... prev_actors)` |
 | `rename_actor`       | `from`, `to`                                              | `rename_actor(to, from)` |
+| `move_task`          | `fromSection`, `fromIndex`, `toSection`, `toIndex`        | `move_task(toSection, toIndex, fromSection, fromIndex)` |
+| `move_section`       | `from`, `to`                                              | `move_section(to, from)` |
+| `set_accessibility_title`       | `title \| null`                               | `set_accessibility_title(prev)` |
+| `set_accessibility_description` | `description \| null`                         | `set_accessibility_description(prev)` |
 
 **Architecture MutationOp kinds** (10, BUILD-17 — promoting the architecture-beta family to structured mutation via the FamilyPlugin registry, following the BUILD-15 journey pilot):
 

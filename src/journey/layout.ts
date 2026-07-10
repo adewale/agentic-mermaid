@@ -35,6 +35,7 @@ const JY = {
   sectionHeaderPadX: 16,
   sectionTaskGap: 30,
   sectionSpanPadX: 10,
+  sectionGap: 8,
   legendGap: 26,
   legendMinWidth: 96,
   legendTitleGap: 26,
@@ -55,8 +56,10 @@ const JY = {
   taskToGuideGap: 56,
   scoreStep: 40,
   markerRadius: 16,
-  baselineGap: 58,
-  minPlotWidth: 320,
+  baselineGap: 32,
+  baselineClearance: 6,
+  arrowOverhang: 28,
+  minPlotWidth: 200,
 } as const
 
 export interface JourneyVisualConfig {
@@ -190,7 +193,14 @@ export function layoutJourneyDiagram(
     : 0
 
   const sectionMetrics: SectionMetric[] = diagram.sections.map(section => {
-    const label = section.label ? applyTextTransform(section.label, style.groupTextTransform) : undefined
+    const label = section.label
+      ? wrapLabelToWidth(
+          applyTextTransform(section.label, style.groupTextTransform),
+          visual.maxLabelWidth,
+          style.groupHeaderFontSize,
+          style.groupHeaderFontWeight,
+        )
+      : undefined
     const labelWidth = label
       ? measureMultilineText(label, style.groupHeaderFontSize, style.groupHeaderFontWeight).width
       : 0
@@ -228,70 +238,74 @@ export function layoutJourneyDiagram(
     + (legendWidth > 0 ? JY.legendGap : 0)
     + JY.scoreLabelGutter
 
+  // Sections are tiled blocks: each span is wide enough for both its tasks
+  // and its header label, and tasks center inside the span. The next span
+  // starts after this one's right edge BY CONSTRUCTION, so a section label
+  // wider than its tasks widens the tile instead of overhanging its neighbor.
   let cursorX = plotLeft
   const sections: PositionedJourneySection[] = []
 
   for (let sectionIndex = 0; sectionIndex < diagram.sections.length; sectionIndex++) {
     const section = diagram.sections[sectionIndex]!
     const metric = sectionMetrics[sectionIndex]!
+    const framed = !!metric.label
+    if (sectionIndex > 0) cursorX += JY.sectionGap
+
+    const taskSpan = metric.tasks.length > 0
+      ? metric.tasks.reduce((sum, task) => sum + task.width, 0) + (metric.tasks.length - 1) * visual.taskGap
+      : 0
+    const spanWidth = framed
+      ? Math.max(
+          taskSpan > 0 ? taskSpan + JY.sectionSpanPadX * 2 : metric.emptyWidth,
+          metric.labelWidth + JY.sectionHeaderPadX * 2,
+        )
+      : Math.max(taskSpan, metric.tasks.length === 0 ? metric.emptyWidth : 0)
+    const spanX = cursorX
+
     const tasks: PositionedJourneyTask[] = []
-    let sectionStartX = cursorX
-    let sectionEndX = cursorX
+    let taskX = spanX + (spanWidth - taskSpan) / 2
 
-    if (section.tasks.length === 0) {
-      if (cursorX > plotLeft) cursorX += visual.taskGap
-      sectionStartX = cursorX
-      cursorX += metric.emptyWidth
-      sectionEndX = cursorX
-    } else {
-      for (let taskIndex = 0; taskIndex < section.tasks.length; taskIndex++) {
-        const task = section.tasks[taskIndex]!
-        const taskMetric = metric.tasks[taskIndex]!
-        if (cursorX > plotLeft) cursorX += visual.taskGap
-        if (tasks.length === 0) sectionStartX = cursorX
+    for (let taskIndex = 0; taskIndex < section.tasks.length; taskIndex++) {
+      const task = section.tasks[taskIndex]!
+      const taskMetric = metric.tasks[taskIndex]!
+      if (taskIndex > 0) taskX += visual.taskGap
 
-        const x = cursorX
-        const centerX = x + taskMetric.width / 2
-        const markerY = scoreToY(task.score, guideTop)
-        const actorDots = positionActorDots(task, actorIndex, centerX, taskY + taskMetric.height - style.nodePaddingY - JY.actorDotRadius)
+      const x = taskX
+      const centerX = x + taskMetric.width / 2
+      const markerY = scoreToY(task.score, guideTop)
+      const actorDots = positionActorDots(task, actorIndex, centerX, taskY + taskMetric.height - style.nodePaddingY - JY.actorDotRadius)
 
-        tasks.push({
-          id: task.id,
-          sectionId: section.id,
-          text: taskMetric.text,
+      tasks.push({
+        id: task.id,
+        sectionId: section.id,
+        text: taskMetric.text,
+        score: task.score,
+        actors: task.actors,
+        x,
+        y: taskY,
+        width: taskMetric.width,
+        height: taskMetric.height,
+        textX: centerX,
+        textY: taskY + style.nodePaddingY + taskMetric.textHeight / 2,
+        centerX,
+        track: {
+          x: centerX,
+          y1: taskY + taskMetric.height,
+          y2: baselineY,
+        },
+        marker: {
+          cx: centerX,
+          cy: markerY,
+          r: JY.markerRadius,
           score: task.score,
-          actors: task.actors,
-          x,
-          y: taskY,
-          width: taskMetric.width,
-          height: taskMetric.height,
-          textX: centerX,
-          textY: taskY + style.nodePaddingY + taskMetric.textHeight / 2,
-          centerX,
-          track: {
-            x: centerX,
-            y1: taskY + taskMetric.height,
-            y2: baselineY,
-          },
-          marker: {
-            cx: centerX,
-            cy: markerY,
-            r: JY.markerRadius,
-            score: task.score,
-          },
-          actorDots,
-        })
+        },
+        actorDots,
+      })
 
-        cursorX += taskMetric.width
-        sectionEndX = cursorX
-      }
+      taskX += taskMetric.width
     }
 
-    const framed = !!metric.label
-    const spanX = framed ? sectionStartX - JY.sectionSpanPadX : sectionStartX
-    const spanWidth = framed
-      ? Math.max(metric.labelWidth + JY.sectionHeaderPadX * 2, sectionEndX - sectionStartX + JY.sectionSpanPadX * 2)
-      : Math.max(0, sectionEndX - sectionStartX)
+    cursorX = spanX + spanWidth
 
     sections.push({
       id: section.id,
@@ -308,7 +322,9 @@ export function layoutJourneyDiagram(
     })
   }
 
-  const naturalPlotRight = cursorX
+  // The progression arrow overshoots the last section slightly; tiny journeys
+  // still get a readable minimum axis rather than a page-wide one.
+  const naturalPlotRight = cursorX + JY.arrowOverhang
   const plotRight = Math.max(naturalPlotRight, plotLeft + JY.minPlotWidth)
   const maxSectionRight = Math.max(plotRight, ...sections.map(section => section.x + section.width))
   const width = maxSectionRight + visual.paddingX
@@ -330,8 +346,11 @@ export function layoutJourneyDiagram(
   const legendBottom = actors.length > 0
     ? actors[actors.length - 1]!.y + JY.legendDotRadius
     : 0
+  // Nothing renders below the baseline except the arrowhead, so the canvas
+  // reserves only its clearance (upstream Mermaid's #3501 bottom-whitespace
+  // complaint is the anti-goal here).
   const height = Math.max(
-    baselineY + JY.markerRadius + visual.paddingY,
+    baselineY + JY.baselineClearance + visual.paddingY,
     legendBottom + visual.paddingY,
   )
 
@@ -381,7 +400,15 @@ function measureTask(
   style: ResolvedRenderStyle,
   visual: JourneyVisualConfig,
 ): TaskMetric {
-  const taskText = applyTextTransform(text, style.nodeTextTransform)
+  // Task labels share the actor-legend wrap cap: a long label wraps into a
+  // taller box instead of stretching the whole plot (Mermaid clips here —
+  // upstream issue #6243; we wrap).
+  const taskText = wrapLabelToWidth(
+    applyTextTransform(text, style.nodeTextTransform),
+    visual.maxLabelWidth,
+    style.nodeLabelFontSize,
+    style.nodeLabelFontWeight,
+  )
   const textMetrics = measureMultilineText(taskText, style.nodeLabelFontSize, style.nodeLabelFontWeight)
   const actorDotsWidth = actorCount > 0
     ? actorCount * JY.actorDotRadius * 2 + (actorCount - 1) * JY.actorDotGap
@@ -458,7 +485,10 @@ function breakWordToWidth(word: string, maxWidth: number, fontSize: number, font
   for (const char of [...word]) {
     const candidate = current + char
     if (current && measureTextWidth(stripFormattingTags(candidate), fontSize, fontWeight) > maxWidth) {
-      lines.push(`${current}-`)
+      // A hyphen marks a mid-word break in alphabetic scripts; CJK and other
+      // fullwidth text breaks between any two characters without one.
+      const breakIsFullwidth = isFullwidthChar(current[current.length - 1]!) && isFullwidthChar(char)
+      lines.push(breakIsFullwidth ? current : `${current}-`)
       current = char
     } else {
       current = candidate
@@ -466,6 +496,10 @@ function breakWordToWidth(word: string, maxWidth: number, fontSize: number, font
   }
   if (current) lines.push(current)
   return lines.join('\n')
+}
+
+function isFullwidthChar(char: string): boolean {
+  return /[ᄀ-ᅟ⺀-꓏가-힣豈-﫿︰-﹏＀-｠￠-￦\u{1F300}-\u{1FAFF}\u{20000}-\u{2FA1F}]/u.test(char)
 }
 
 function cssFontSizeToPx(value: string | number | undefined, fallback: number): number {

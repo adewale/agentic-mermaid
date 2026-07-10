@@ -106,6 +106,35 @@ function withRenderParity(input: ValidDiagram | string, result: VerifyResult, op
   }
 }
 
+// Journey accepts Mermaid's full JourneyDiagramConfig shape, but the
+// sequence-era fields have no Journey geometry or paint. Accepting-and-
+// ignoring misleads migrating users, so name each ineffective field (lint;
+// never flips verify.ok). useMaxWidth and the layout/typography/color fields
+// ARE wired and never warn.
+const JOURNEY_NOOP_CONFIG_FIELDS = [
+  'boxMargin', 'boxTextMargin', 'noteMargin', 'messageMargin', 'messageAlign',
+  'bottomMarginAdj', 'rightAngles', 'activationWidth', 'textPlacement',
+] as const
+
+function journeyIneffectiveConfigWarnings(d: ValidDiagram): LayoutWarning[] {
+  const configs: unknown[] = [
+    (d.meta.frontmatter as Record<string, unknown> | undefined)?.journey,
+    ...d.meta.initDirectives.map(directive => (directive.parsed as Record<string, unknown> | undefined)?.journey),
+  ]
+  const present = new Set<string>()
+  for (const config of configs) {
+    if (!config || typeof config !== 'object') continue
+    for (const field of JOURNEY_NOOP_CONFIG_FIELDS) {
+      if (field in (config as Record<string, unknown>)) present.add(field)
+    }
+  }
+  return [...present].sort().map(field => ({
+    code: 'INEFFECTIVE_CONFIG',
+    field,
+    message: `Journey config field "${field}" is accepted for Mermaid config-shape compatibility but has no effect on journey geometry or paint.`,
+  }))
+}
+
 function verifyStructure(input: ValidDiagram | string, opts: VerifyOptions = {}): VerifyResult {
   const d = typeof input === 'string' ? unwrap(input) : input
   if (!d) return finalize([{ code: 'EMPTY_DIAGRAM' }], emptyRenderedLayout('flowchart'), opts)
@@ -124,7 +153,8 @@ function verifyStructure(input: ValidDiagram | string, opts: VerifyOptions = {})
     : []
   const sourceWarnings = d.kind === 'flowchart' ? flowchartUnsupportedSyntaxWarnings(d.canonicalSource) : []
   const faithfulnessWarnings = roundtripFaithfulnessWarnings(d)
-  const pluginWarnings = dedupedConcat(dedupedConcat(dedupedConcat(metaWarnings, dispatchFamilyVerify(d, opts)), sourceWarnings), faithfulnessWarnings)
+  const configWarnings = d.kind === 'journey' ? journeyIneffectiveConfigWarnings(d) : []
+  const pluginWarnings = dedupedConcat(dedupedConcat(dedupedConcat(dedupedConcat(metaWarnings, dispatchFamilyVerify(d, opts)), sourceWarnings), faithfulnessWarnings), configWarnings)
 
   if (d.body.kind === 'sequence') return mergeFinalize(verifySequence(d as ValidDiagram & { body: SequenceBody }, cap, opts), pluginWarnings, opts)
   if (d.body.kind === 'timeline') return mergeFinalize(verifyTimeline(d as ValidDiagram & { body: import('./types.ts').TimelineBody }, cap, opts), pluginWarnings, opts)
@@ -156,7 +186,9 @@ function verifyStructure(input: ValidDiagram | string, opts: VerifyOptions = {})
       ? layoutGeometryWarnings(layout, { edgeAnchors: true, nodeOverlaps: true })
       : layoutGeometryWarnings(layout, {
         nodeOverlaps: d.body.kind === 'journey',
-        groupContainment: d.body.kind === 'xychart' || d.body.kind === 'quadrant',
+        // Journey sections are groups with task members (family-layouts.ts),
+        // so a task laid outside its section band is a reportable breach.
+        groupContainment: d.body.kind === 'xychart' || d.body.kind === 'quadrant' || d.body.kind === 'journey',
       })
     return finalize(dedupedConcat(pluginWarnings, familyGeometry), layout, opts)
   }

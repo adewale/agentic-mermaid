@@ -9,6 +9,7 @@
 import { parseTimelineDiagram } from '../timeline/parser.ts'
 import { colorizeLine, DEFAULT_ASCII_THEME } from './ansi.ts'
 import type { AsciiConfig, AsciiTheme, CharRole, ColorMode } from './types.ts'
+import { wrapText } from './wrap.ts'
 
 interface StyledSegment {
   text: string
@@ -41,6 +42,7 @@ export function renderTimelineAscii(
   config: AsciiConfig,
   colorMode: ColorMode = 'none',
   theme: AsciiTheme = DEFAULT_ASCII_THEME,
+  maxWidth?: number,
 ): string {
   const diagram = parseTimelineDiagram(lines)
   const useAscii = config.useAscii
@@ -58,7 +60,7 @@ export function renderTimelineAscii(
   }
 
   if (diagram.title) {
-    for (const line of diagram.title.split('\n')) {
+    for (const line of wrapText(diagram.title, maxWidth)) {
       pushLine([{ text: line, role: 'text' }])
     }
     pushLine()
@@ -68,16 +70,26 @@ export function renderTimelineAscii(
     const section = diagram.sections[sectionIndex]!
 
     if (section.label) {
-      pushLine([
-        { text: '[', role: 'border' },
-        { text: section.label.replace(/\n/g, ' / '), role: 'text' },
-        { text: ']', role: 'border' },
-      ])
+      // Bracket only the first line of a wrapped label — bracketing every
+      // line would read as one section per line. Continuations indent by
+      // one cell to align inside the opening bracket.
+      const labelLines = wrapText(section.label.replace(/\n/g, ' / '), maxWidth ? Math.max(1, maxWidth - 2) : undefined)
+      labelLines.forEach((line, index) => {
+        const segments: StyledSegment[] = [
+          index === 0
+            ? { text: '[', role: 'border' }
+            : { text: ' ', role: null },
+          { text: line, role: 'text' },
+        ]
+        if (index === labelLines.length - 1) segments.push({ text: ']', role: 'border' })
+        pushLine(segments)
+      })
     }
 
     for (let periodIndex = 0; periodIndex < section.periods.length; periodIndex++) {
       const period = section.periods[periodIndex]!
-      const periodLines = period.label.split('\n')
+      // Continuation lines carry the wider 3-cell prefix, so wrap to that.
+      const periodLines = wrapText(period.label, maxWidth ? Math.max(1, maxWidth - 3) : undefined)
 
       pushLine([
         { text: marker, role: 'junction' },
@@ -93,7 +105,8 @@ export function renderTimelineAscii(
 
       for (let eventIndex = 0; eventIndex < period.events.length; eventIndex++) {
         const event = period.events[eventIndex]!
-        const eventLines = event.text.split('\n')
+        // First-line prefix ('│  ├─ ') is 6 cells wide.
+        const eventLines = wrapText(event.text, maxWidth ? Math.max(1, maxWidth - 6) : undefined)
         const junction = eventIndex === period.events.length - 1 ? lastBranch : branch
         pushLine([
           { text: vertical, role: 'line' },

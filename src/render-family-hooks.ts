@@ -187,7 +187,7 @@ registerRenderHooks('timeline', {
   layout: ctx => layoutResult(layoutTimelineDiagram(parseTimelineDiagram(ctx.source.lines), ctx.options)),
   renderSvg: svg(renderTimelineSvg),
   lowerScene: scene(lowerTimelineScene),
-  renderAscii: ctx => renderTimelineAscii(ctx.source.lines, ctx.config, ctx.colorMode, ctx.theme),
+  renderAscii: ctx => renderTimelineAscii(ctx.source.lines, ctx.config, ctx.colorMode, ctx.theme, ctx.options.maxWidth),
 })
 
 registerRenderHooks('journey', {

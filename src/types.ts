@@ -390,6 +390,14 @@ export interface RenderOptions {
   architecture?: {
     visual?: ArchitectureVisualConfig
   }
+  /** Family-specific SVG renderer options for user-journey diagrams. */
+  journey?: {
+    /**
+     * Draw the experience-curve line connecting score markers in task order.
+     * Default: `true`. Set `false` for the marker-only Mermaid-classic look.
+     */
+    experienceCurve?: boolean
+  }
   /** Optional Mermaid-style runtime config (analogous to initialize/frontmatter config). */
   mermaidConfig?: MermaidRuntimeConfig
   /**

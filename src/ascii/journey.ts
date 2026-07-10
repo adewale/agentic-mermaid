@@ -6,10 +6,12 @@
 // ============================================================================
 
 import { parseJourneyDiagram } from '../journey/parser.ts'
+import type { JourneyDiagram } from '../journey/types.ts'
 import { preprocessMermaidLines } from '../mermaid-source.ts'
 import { colorizeLine, DEFAULT_ASCII_THEME } from './ansi.ts'
 import type { AsciiConfig, AsciiTheme, CharRole, ColorMode } from './types.ts'
 import { visualWidth } from './width.ts'
+import { wrapText } from './wrap.ts'
 
 interface StyledSegment {
   text: string
@@ -45,6 +47,24 @@ function renderScoreSegments(score: number, useAscii: boolean): StyledSegment[] 
   return segments.filter(segment => segment.text.length > 0)
 }
 
+/** Block glyphs for scores 1..5 — five distinct heights, lowest to full. */
+const SCORE_BLOCKS = ['▁', '▂', '▄', '▆', '█'] as const
+
+/**
+ * Score trajectory strip — one glyph per task in source order, a single
+ * space between sections. Mirrors the SVG renderer's experience curve so
+ * terminal output conveys the trajectory too. ASCII mode uses the score
+ * digits themselves. Scores are parser-validated to the 1..5 range.
+ */
+function renderScoreStrip(diagram: JourneyDiagram, useAscii: boolean): string {
+  return diagram.sections
+    .map(section => section.tasks
+      .map(task => useAscii ? String(task.score) : SCORE_BLOCKS[task.score - 1]!)
+      .join(''))
+    .filter(group => group.length > 0)
+    .join(' ')
+}
+
 /**
  * Render a Mermaid journey diagram to ASCII/Unicode text.
  */
@@ -70,17 +90,39 @@ export function renderJourneyAscii(
     pushLine()
   }
 
+  const scoreStrip = renderScoreStrip(diagram, useAscii)
+  if (scoreStrip) {
+    const stripPrefix = 'scores: '
+    const stripLines = wrapText(scoreStrip, maxWidth ? Math.max(1, maxWidth - stripPrefix.length) : undefined, { hyphenate: false })
+    stripLines.forEach((line, index) => {
+      pushLine([
+        index === 0
+          ? { text: stripPrefix, role: 'border' }
+          : { text: ' '.repeat(stripPrefix.length), role: null },
+        { text: line, role: 'arrow' },
+      ])
+    })
+    pushLine()
+  }
+
   for (let sectionIndex = 0; sectionIndex < diagram.sections.length; sectionIndex++) {
     const section = diagram.sections[sectionIndex]!
 
     if (section.label) {
-      for (const line of wrapText(section.label.replace(/\n/g, ' / '), maxWidth ? Math.max(1, maxWidth - 2) : undefined)) {
-        pushLine([
-          { text: '[', role: 'border' },
+      // Bracket only the first line of a wrapped label — bracketing every
+      // line would read as one section per line. Continuations indent by
+      // one cell to align inside the opening bracket.
+      const labelLines = wrapText(section.label.replace(/\n/g, ' / '), maxWidth ? Math.max(1, maxWidth - 2) : undefined)
+      labelLines.forEach((line, index) => {
+        const segments: StyledSegment[] = [
+          index === 0
+            ? { text: '[', role: 'border' }
+            : { text: ' ', role: null },
           { text: line, role: 'text' },
-          { text: ']', role: 'border' },
-        ])
-      }
+        ]
+        if (index === labelLines.length - 1) segments.push({ text: ']', role: 'border' })
+        pushLine(segments)
+      })
     }
 
     for (let taskIndex = 0; taskIndex < section.tasks.length; taskIndex++) {
@@ -124,66 +166,4 @@ export function renderJourneyAscii(
   }
 
   return out.join('\n').trimEnd()
-}
-
-function wrapText(text: string, maxWidth: number | undefined): string[] {
-  if (!maxWidth || !Number.isFinite(maxWidth) || maxWidth <= 0) return text.split('\n')
-  const limit = Math.max(1, Math.floor(maxWidth))
-  const lines: string[] = []
-  for (const paragraph of text.split('\n')) {
-    lines.push(...wrapParagraph(paragraph, limit))
-  }
-  return lines.length > 0 ? lines : ['']
-}
-
-function wrapParagraph(text: string, maxWidth: number): string[] {
-  if (visualWidth(text) <= maxWidth) return [text]
-  const words = text.split(/\s+/).filter(Boolean)
-  if (words.length === 0) return ['']
-
-  const lines: string[] = []
-  let current = ''
-  for (const word of words) {
-    if (!current) {
-      const chunks = breakWord(word, maxWidth)
-      lines.push(...chunks.slice(0, -1))
-      current = chunks[chunks.length - 1] ?? ''
-      continue
-    }
-
-    const candidate = `${current} ${word}`
-    if (visualWidth(candidate) <= maxWidth) {
-      current = candidate
-      continue
-    }
-
-    lines.push(current)
-    const chunks = breakWord(word, maxWidth)
-    lines.push(...chunks.slice(0, -1))
-    current = chunks[chunks.length - 1] ?? ''
-  }
-  if (current) lines.push(current)
-  return lines
-}
-
-function breakWord(word: string, maxWidth: number): string[] {
-  if (visualWidth(word) <= maxWidth) return [word]
-  const lines: string[] = []
-  let current = ''
-  let width = 0
-
-  for (const char of word) {
-    const charWidth = visualWidth(char)
-    if (current && width + charWidth > maxWidth) {
-      lines.push(current)
-      current = char
-      width = charWidth
-    } else {
-      current += char
-      width += charWidth
-    }
-  }
-
-  if (current) lines.push(current)
-  return lines
 }

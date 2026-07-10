@@ -107,8 +107,12 @@ export function describeMermaidTree(d: ValidDiagram): DescribeTree {
       tree.nodes.push({ id: p.id, label: p.label })
     }
   } else if (d.body.kind === 'journey') {
+    // Tasks carry their journey semantics (score + actors) in the label, the
+    // same way pie embeds values and quadrant embeds coordinates — an agent
+    // reading the tree can find the pain points without re-parsing source.
     for (const s of d.body.sections) for (const t of s.tasks) {
-      tree.nodes.push({ id: t.id, label: t.text })
+      const actors = t.actors.length ? `; ${t.actors.join(', ')}` : ''
+      tree.nodes.push({ id: t.id, label: `${t.text} (score ${t.score}${actors})` })
     }
   } else if (d.body.kind === 'architecture') {
     for (const g of d.body.groups) tree.nodes.push({ id: g.id, label: g.label || g.id })

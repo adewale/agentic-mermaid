@@ -159,15 +159,19 @@ const ER_SCHEMA: Record<string, OpSpec> = {
 
 const JOURNEY_SCHEMA: Record<string, OpSpec> = {
   set_title:         { fields: { title: strOrNull() } },
-  add_section:       { fields: { label: str() } },
+  add_section:       { fields: { label: str(), index: withNote(num(false), 'insert position; omit to append') } },
   remove_section:    { fields: { index: num() } },
   set_section_label: { fields: { index: num(), label: str() } },
-  add_task:          { fields: { sectionIndex: num(), text: str(), score: withNote(num(), 'integer 1..5'), actors: strArr(false) } },
+  add_task:          { fields: { sectionIndex: num(), text: str(), score: withNote(num(), 'integer 1..5'), actors: strArr(false), index: withNote(num(false), 'insert position; omit to append') } },
   remove_task:       { fields: { sectionIndex: num(), taskIndex: num() } },
   set_task_text:     { fields: { sectionIndex: num(), taskIndex: num(), text: str() } },
   set_task_score:    { fields: { sectionIndex: num(), taskIndex: num(), score: withNote(num(), 'integer 1..5') } },
   set_task_actors:   { fields: { sectionIndex: num(), taskIndex: num(), actors: strArr() } },
   rename_actor:      { fields: { from: str(), to: str() } },
+  move_task:         { fields: { fromSection: num(), fromIndex: num(), toSection: num(), toIndex: withNote(num(), 'insert position in the target section, applied after removal') } },
+  move_section:      { fields: { from: num(), to: num() } },
+  set_accessibility_title:       { fields: { title: strOrNull() } },
+  set_accessibility_description: { fields: { description: strOrNull() } },
 }
 
 const ARCHITECTURE_SCHEMA: Record<string, OpSpec> = {

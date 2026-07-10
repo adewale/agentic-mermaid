@@ -172,17 +172,28 @@ describe('SVG well-formedness: timeline', () => {
 
 describe('SVG well-formedness: journey', () => {
   it('produces well-formed SVG for random journey diagrams', () => {
+    // Multi-section, multi-task shapes: the single-section/single-task arb
+    // this replaces could not reach section tiling, the experience curve, or
+    // multi-actor dot rows.
     const journeyArb = fc.record({
       title: shortLabelArb,
-      section: shortLabelArb,
-      task: shortLabelArb,
-      score: fc.integer({ min: 1, max: 5 }),
-      actor: wordArb,
+      sections: fc.array(fc.record({
+        label: shortLabelArb,
+        tasks: fc.array(fc.record({
+          task: shortLabelArb,
+          score: fc.integer({ min: 1, max: 5 }),
+          actors: fc.array(wordArb, { minLength: 0, maxLength: 3 }),
+        }), { minLength: 1, maxLength: 4 }),
+      }), { minLength: 1, maxLength: 4 }),
     })
 
     fc.assert(
-      fc.property(journeyArb, ({ title, section, task, score, actor }) => {
-        const source = `journey\n  title ${title}\n  section ${section}\n  ${task}: ${score}: ${actor}`
+      fc.property(journeyArb, ({ title, sections }) => {
+        const body = sections.flatMap(s => [
+          `  section ${s.label}`,
+          ...s.tasks.map(t => `  ${t.task}: ${t.score}${t.actors.length ? `: ${t.actors.join(', ')}` : ''}`),
+        ])
+        const source = `journey\n  title ${title}\n${body.join('\n')}`
         const svg = renderMermaidSVG(source, { accent: ACCENT_COLOR })
 
         assertSvgWellFormed(svg)

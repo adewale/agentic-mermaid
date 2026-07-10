@@ -70,3 +70,24 @@ export function isSixDigitHex(s: string): boolean {
 export function luma255(r: number, g: number, b: number): number {
   return (r * 299 + g * 587 + b * 114) / 1000
 }
+
+/** WCAG 2.x relative luminance of an sRGB hex color. */
+export function wcagRelativeLuminance(hex: string): number | null {
+  const rgb = tryParseHex(hex)
+  if (!rgb) return null
+  const lin = (channel: number): number => {
+    const c = channel / 255
+    return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+  }
+  return 0.2126 * lin(rgb[0]) + 0.7152 * lin(rgb[1]) + 0.0722 * lin(rgb[2])
+}
+
+/** WCAG 2.x contrast ratio between two hex colors (1..21), or null when
+ * either color is not a parseable hex. */
+export function wcagContrastRatio(a: string, b: string): number | null {
+  const la = wcagRelativeLuminance(a)
+  const lb = wcagRelativeLuminance(b)
+  if (la === null || lb === null) return null
+  const [hi, lo] = la > lb ? [la, lb] : [lb, la]
+  return (hi + 0.05) / (lo + 0.05)
+}

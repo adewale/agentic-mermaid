@@ -17,7 +17,7 @@ export const CHART_ACCENT_FALLBACK = '#3b82f6' // blue-500
 // HSL ↔ Hex conversion
 // ---------------------------------------------------------------------------
 
-function hexToHsl(hex: string): [number, number, number] {
+export function hexToHsl(hex: string): [number, number, number] {
   const [r8, g8, b8] = parseHex(hex)
   const ri = r8 / 255
   const gi = g8 / 255
@@ -40,7 +40,7 @@ function hexToHsl(hex: string): [number, number, number] {
   return [hue * 360, s * 100, l * 100]
 }
 
-function hslToHex(h: number, s: number, l: number): string {
+export function hslToHex(h: number, s: number, l: number): string {
   const si = s / 100
   const li = l / 100
 

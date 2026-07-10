@@ -1,7 +1,13 @@
 # Journey Migration Parity Spec
 
-Status: implemented for SVG visual metaphor, structured accessibility/literal text parity, marker namespacing, ASCII width handling, and style/palette/config coverage
-Last reviewed: 2026-07-09
+Status: implemented — SVG visual metaphor (now with the experience-curve line
+and tiled section spans), shared parse core with typed opaque reasons,
+structured accessibility/literal text parity, semicolon statement parity,
+marker namespacing, ASCII width handling (grapheme-safe), style/palette/config
+coverage with WCAG-guarded section labels, and the Describe/Facts/Verify spec
+below. The elevation PR's description records why the first implementation's
+safeguards missed and what now enforces them.
+Last reviewed: 2026-07-10
 Issue: https://github.com/adewale/agentic-mermaid/issues/128
 Origin: https://github.com/adewale/agentic-mermaid/pull/6
 Research: [`journey-usage-research.md`](./journey-usage-research.md)
@@ -92,9 +98,9 @@ Mermaid config compatibility but do not all have meaningful Journey geometry.
 
 Known remaining syntax/parity gaps and caveats:
 
-- Semicolon-separated Journey statements are not modeled. This is not part of
-  the documented Journey syntax, but Beautiful Mermaid issue #7 shows terminal
-  users notice semicolon compatibility in Mermaid-like renderers.
+- Semicolon-separated Journey statements now follow upstream lexer semantics:
+  `;` terminates a statement (so `A: 5: Me; B: 3: Me` is two tasks) while
+  HTML entities such as `&amp;` keep their semicolons as literal label text.
 - Journey ASCII remains a compact semantic list, not a visual clone of
   Mermaid's SVG Journey chart. It now wraps to `maxWidth` using terminal display
   width, including CJK/emoji text, but it is intentionally not a miniature SVG

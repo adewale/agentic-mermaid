@@ -29,6 +29,23 @@ import type { StyleInput } from '../scene/style-registry.ts'
 import { serializeMermaid } from './serialize.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { inlineFontVarForRaster } from '../theme.ts'
+import { findUncoveredScripts } from './font-coverage.ts'
+
+/**
+ * Loud-tofu guard: emitted when rendered text contains characters no loaded
+ * font covers (they would silently rasterize as empty boxes). Delivered to
+ * `PngOptions.onWarning` when provided, otherwise written to stderr — never
+ * silent either way.
+ */
+export interface PngFontWarning {
+  code: 'PNG_FONT_COVERAGE'
+  /** Coarse script bucket of the uncovered characters ('CJK', 'emoji', …). */
+  script: string
+  /** The uncovered characters, unique, ascending codepoint order. */
+  chars: string[]
+  /** Human-readable summary naming the script and the escape hatches. */
+  message: string
+}
 
 export interface PngOptions {
   /** Output scale multiplier (default 2 — retina). */
@@ -44,8 +61,18 @@ export interface PngOptions {
   /** Ink-wobble seed for styled looks, same as RenderOptions.seed. */
   seed?: number
   /** Extra font directories searched in addition to the bundled ones —
-   *  the escape hatch for custom styles that reference unbundled families. */
+   *  the escape hatch for custom styles that reference unbundled families
+   *  and for scripts the bundled fonts don't cover (CJK, emoji). */
   fontDirs?: string[]
+  /** Also load the OS's installed fonts (default false). Opting in trades
+   *  cross-machine determinism for coverage — useful when the diagram needs
+   *  CJK/emoji glyphs and a system font provides them. Coverage warnings are
+   *  skipped in this mode: the system font set is unknown to the checker. */
+  loadSystemFonts?: boolean
+  /** Receives glyph-coverage warnings instead of the default stderr write.
+   *  Warnings never change the PNG bytes; identical inputs render
+   *  identically whether or not a handler is installed. */
+  onWarning?: (warning: PngFontWarning) => void
 }
 
 /**
@@ -92,6 +119,28 @@ export function renderMermaidPNG(input: ValidDiagram | string, opts: PngOptions 
 
   const scale = opts.scale ?? 2
   const fontDir = resolveFontDir()
+  const loadSystemFonts = opts.loadSystemFonts ?? false
+  const fontDirs = [...(fontDir ? [fontDir] : []), ...(opts.fontDirs ?? [])]
+
+  // Loud-tofu guard: characters no loaded font covers rasterize as empty
+  // boxes, so surface them BEFORE the bytes ship. Skipped with system fonts
+  // (their coverage is unknown to the cmap checker). Warnings never affect
+  // the rendered bytes.
+  if (!loadSystemFonts) {
+    const emit = opts.onWarning ?? ((w: PngFontWarning) => process.stderr.write(`agentic-mermaid renderMermaidPNG: warning ${w.code}: ${w.message}\n`))
+    for (const { script, chars } of findUncoveredScripts(svg, fontDirs)) {
+      const examples = chars.slice(0, 5).join(' ')
+      emit({
+        code: 'PNG_FONT_COVERAGE',
+        script,
+        chars,
+        message:
+          `no bundled font covers ${chars.length} ${script} character${chars.length === 1 ? '' : 's'} (${examples}); ` +
+          `they will draw as empty tofu boxes. Point fontDirs (CLI: --font-dirs <dir>) at a font that covers them, ` +
+          `or opt in to system fonts with loadSystemFonts: true (CLI: --system-fonts).`,
+      })
+    }
+  }
 
   const resvgOpts: ConstructorParameters<typeof Resvg>[1] = {
     background: opts.background ?? 'white',
@@ -101,12 +150,17 @@ export function renderMermaidPNG(input: ValidDiagram | string, opts: PngOptions 
         ? { mode: 'height' as const, value: opts.fitTo.height }
         : { mode: 'zoom' as const, value: scale },
     font: {
-      loadSystemFonts: false,
-      // Bundled fonts (DejaVu Sans + the faces built-in styles reference)
-      // for cross-runtime determinism, plus caller-supplied directories.
-      // Falls back to resvg's built-in fonts if nothing is found.
-      fontDirs: [...(fontDir ? [fontDir] : []), ...(opts.fontDirs ?? [])],
-      defaultFontFamily: 'DejaVu Sans',
+      loadSystemFonts,
+      // Bundled fonts (Inter + DejaVu Sans + the faces built-in styles
+      // reference) for cross-runtime determinism, plus caller-supplied
+      // directories. Falls back to resvg's built-in fonts if nothing is found.
+      fontDirs,
+      // Inter is the metrics font: src/text-metrics.ts is calibrated for it
+      // and the SVG @import requests it, so rasterizing with anything else
+      // (DejaVu is ~14% wider) pushes long labels outside their measured
+      // boxes. resvg falls back per-glyph across every loaded font, so
+      // DejaVu still covers glyphs Inter lacks (arrows, math, Armenian, …).
+      defaultFontFamily: 'Inter',
     },
   }
 
