@@ -8,8 +8,12 @@
 // Layout is deterministic, so successful tools/call results are cached in the
 // (injected) Cache API keyed on a hash of the canonicalized call — repeat
 // renders skip compute and repeat execute calls skip the dynamic isolate.
+//
+// Observability: every HTTP request emits exactly ONE structured wide event
+// (McpRequestEvent) through the injectable onEvent hook — console.log JSON by
+// default, which Cloudflare Workers Logs ingests as queryable fields.
 
-import { handleHostedRequest, cacheKeyFor, SUPPORTED_PROTOCOL_VERSIONS, type HostedMcpContext } from '../../src/mcp/hosted-server.ts'
+import { handleHostedRequest, cacheKeyFor, LOCAL_FALLBACK_HINT, SUPPORTED_PROTOCOL_VERSIONS, type HostedMcpContext } from '../../src/mcp/hosted-server.ts'
 import { reply, rpcError, type JsonRpcRequest, type JsonRpcResponse } from '../../src/mcp/protocol.ts'
 import { readCapped } from './execute-loader.ts'
 
@@ -20,12 +24,68 @@ export const MAX_MCP_BODY_BYTES = 128 * 1024
 // of calls covers legitimate batching (e.g. initialize + tools/list + a few
 // renders); abuse-scale fan-out is refused.
 export const MAX_BATCH_ITEMS = 20
+// See the batch validation below: execute items get their own dynamic-worker
+// isolate with a full cpuMs budget each, so they are capped per-request
+// independently of the cheap declarative tools.
+export const MAX_EXECUTE_ITEMS_PER_BATCH = 1
+
+function isExecuteCall(message: unknown): boolean {
+  const m = message as { method?: unknown; params?: { name?: unknown } } | null
+  return !!m && m.method === 'tools/call' && m.params?.name === 'execute'
+}
 const CACHE_TTL_SECONDS = 86_400
 
 export interface McpCache {
   match(key: Request): Promise<Response | undefined>
   put(key: Request, response: Response): Promise<void>
 }
+
+// ---- Wide-event logging -----------------------------------------------------
+// One canonical log line per HTTP request (the "wide events" pattern): every
+// fact the request accumulates — transport verdict, per-item tool outcomes,
+// cache hits, timings — lands in a single structured JSON event emitted from a
+// finally block, not scattered console lines. Payload contents (source / code /
+// labels) are NEVER logged: sizes and codes only.
+
+export interface McpItemEvent {
+  /** Tool name for tools/call items; null for every other method. */
+  tool: string | null
+  /** The tool-level isError flag (or a JSON-RPC error response). */
+  is_error: boolean
+  /** Structured tool error code (e.g. SOURCE_TOO_LARGE) or JSON-RPC error code. */
+  error_code: string | number | null
+  cache_hit: boolean
+  /** Dynamic Worker entrypoint calls made for this item; 0 if none started. */
+  loader_attempts: 0 | 1 | 2
+  /** The normalized Dynamic Worker cpuMs limit; null when no loader ran. */
+  configured_cpu_limit_ms: number | null
+  duration_ms: number
+}
+
+export interface McpRequestEvent {
+  event: 'mcp_request'
+  /** Unique per request — high cardinality is intentional in wide events. */
+  request_id: string
+  timestamp: string
+  /** JSON-RPC method of a single request, 'batch' for a batch, null before parse. */
+  method: string | null
+  http_status: number
+  outcome: 'success' | 'tool_error' | 'transport_error' | 'exception'
+  duration_ms: number
+  deploy_version: string
+  /** JSON-RPC items in the body (1 for a single request, 0 before parse). */
+  batch_size: number
+  protocol_version: string | null
+  /** Whether an Origin header was present — the value itself is not logged. */
+  has_origin: boolean
+  /** UTF-8 bytes of the body read (the declared length or the cap when refused). */
+  body_bytes: number
+  items: McpItemEvent[]
+  /** Set when outcome is 'exception': bounded error class + stable code; no message, stack, or payload. */
+  error?: { type: McpInternalErrorType; code: 'INTERNAL_ERROR' }
+}
+
+type McpInternalErrorType = 'Error' | 'TypeError' | 'RangeError' | 'SyntaxError' | 'ReferenceError' | 'EvalError' | 'URIError' | 'UnknownError'
 
 export interface McpHandlerOptions {
   context: HostedMcpContext
@@ -35,6 +95,10 @@ export interface McpHandlerOptions {
   cacheVersion: string
   /** Defer cache writes past the response (ctx.waitUntil in the Worker). */
   waitUntil?: (p: Promise<unknown>) => void
+  /** Receives the one wide event per HTTP request. Defaults to a single
+   *  console.log(JSON.stringify(event)) — the shape Workers Logs ingests as a
+   *  structured, queryable object. Injectable so tests assert on events. */
+  onEvent?: (event: McpRequestEvent) => void
 }
 
 const CORS_BASE = {
@@ -103,32 +167,112 @@ async function sha256Hex(text: string): Promise<string> {
   return Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join('')
 }
 
+function newItemEvent(): McpItemEvent {
+  return {
+    tool: null,
+    is_error: false,
+    error_code: null,
+    cache_hit: false,
+    loader_attempts: 0,
+    configured_cpu_limit_ms: null,
+    duration_ms: 0,
+  }
+}
+
+function internalErrorType(error: unknown): McpInternalErrorType {
+  if (error instanceof TypeError) return 'TypeError'
+  if (error instanceof RangeError) return 'RangeError'
+  if (error instanceof SyntaxError) return 'SyntaxError'
+  if (error instanceof ReferenceError) return 'ReferenceError'
+  if (error instanceof EvalError) return 'EvalError'
+  if (error instanceof URIError) return 'URIError'
+  if (error instanceof Error) return 'Error'
+  return 'UnknownError'
+}
+
+/** Scope the execution telemetry callback to the item which started the
+ * loader. A test/local context that does not implement the optional callback
+ * still truthfully records the one execute call it received. */
+function contextForItem(context: HostedMcpContext, item: McpItemEvent): HostedMcpContext {
+  return {
+    ...context,
+    async execute(code, timeoutMs) {
+      item.configured_cpu_limit_ms = timeoutMs
+      let reported = false
+      try {
+        return await context.execute(code, timeoutMs, telemetry => {
+          item.loader_attempts = telemetry.loaderAttempts
+          reported = true
+        })
+      } finally {
+        if (!reported) item.loader_attempts = 1
+      }
+    },
+  }
+}
+
+/** Fill an item's error fields from its JSON-RPC response: the tool-level
+ *  isError flag, plus a structured code when the payload carries one — the
+ *  code only, never the payload itself. */
+function recordItemOutcome(item: McpItemEvent, response: JsonRpcResponse | null): void {
+  if (response === null) return // notification: nothing to record
+  if (response.error) {
+    item.is_error = true
+    item.error_code = response.error.code
+    return
+  }
+  const result = response.result as { isError?: boolean; content?: Array<{ text?: string }> } | undefined
+  if (result?.isError !== true) return
+  item.is_error = true
+  try {
+    const payload = JSON.parse(result.content?.[0]?.text ?? '') as { error?: { code?: unknown } }
+    const code = payload.error?.code
+    if (typeof code === 'string' || typeof code === 'number') item.error_code = code
+  } catch { /* unstructured tool error: is_error stands with no code */ }
+}
+
 export function createMcpHandler(options: McpHandlerOptions): (request: Request) => Promise<Response> {
   const { context, cache, cacheVersion, waitUntil } = options
+  const onEvent = options.onEvent ?? ((event: McpRequestEvent) => console.log(JSON.stringify(event)))
 
-  async function handleOne(req: unknown): Promise<JsonRpcResponse | null> {
+  async function handleOne(req: unknown, item: McpItemEvent): Promise<JsonRpcResponse | null> {
+    const started = Date.now()
     const r = req as JsonRpcRequest | null
+    let response: JsonRpcResponse | null
     if (!r || typeof r !== 'object' || r.jsonrpc !== '2.0' || typeof r.method !== 'string') {
-      return rpcError((r as JsonRpcRequest | null)?.id ?? null, -32600, 'invalid JSON-RPC request')
+      response = rpcError((r as JsonRpcRequest | null)?.id ?? null, -32600, 'invalid JSON-RPC request')
+    } else {
+      if (r.method === 'tools/call') {
+        const name = (r.params as { name?: unknown } | undefined)?.name
+        item.tool = typeof name === 'string' ? name : null
+      }
+      const itemContext = contextForItem(context, item)
+      response = r.method === 'tools/call' && cache
+        ? await handleCachedToolCall(r, item, itemContext)
+        : await handleHostedRequest(r, itemContext)
     }
-    if (r.method === 'tools/call' && cache) return handleCachedToolCall(r)
-    return handleHostedRequest(r, context)
+    item.duration_ms = Date.now() - started
+    recordItemOutcome(item, response)
+    return response
   }
 
-  async function handleCachedToolCall(req: JsonRpcRequest): Promise<JsonRpcResponse | null> {
+  async function handleCachedToolCall(req: JsonRpcRequest, item: McpItemEvent, itemContext: HostedMcpContext): Promise<JsonRpcResponse | null> {
     // Key on the normalized, output-affecting arguments (not raw params): junk
     // or out-of-range args cannot bust the cache or force recompute. A null
     // canonical form means "not cacheable" — run the request directly (it will
     // error, and errors are not cached anyway).
     const p = req.params as { name?: string; arguments?: Record<string, unknown> } | undefined
     const canonical = cacheKeyFor(p?.name, p?.arguments ?? {})
-    if (canonical === null) return handleHostedRequest(req, context)
+    if (canonical === null) return handleHostedRequest(req, itemContext)
     const key = new Request(`https://mcp-cache.agentic-mermaid.dev/${encodeURIComponent(cacheVersion)}/${await sha256Hex(JSON.stringify(sortKeys(canonical)))}`)
     try {
       const hit = await cache!.match(key)
-      if (hit) return reply(req.id ?? null, await hit.json())
+      if (hit) {
+        item.cache_hit = true
+        return reply(req.id ?? null, await hit.json())
+      }
     } catch { /* cache failures must never fail the call */ }
-    const response = await handleHostedRequest(req, context)
+    const response = await handleHostedRequest(req, itemContext)
     const result = response?.result as { isError?: boolean } | undefined
     if (result && result.isError === false) {
       const write = cache!.put(key, new Response(JSON.stringify(result), {
@@ -140,7 +284,9 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
     return response
   }
 
-  return async (request: Request): Promise<Response> => {
+  // The transport body, instrumented: `event` accumulates the wide-event
+  // fields as the request moves through validation, parse, and dispatch.
+  async function respond(request: Request, event: McpRequestEvent): Promise<Response> {
     const cors = corsHeadersFor(request)
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors })
     // MCP Origin validation: refuse a cross-origin browser request whose Origin
@@ -167,7 +313,8 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
     }
     const declared = Number(request.headers.get('content-length') ?? 0)
     if (Number.isFinite(declared) && declared > MAX_MCP_BODY_BYTES) {
-      return json(413, { jsonrpc: '2.0', id: null, error: { code: -32000, message: `request body exceeds ${MAX_MCP_BODY_BYTES} bytes` } }, cors)
+      event.body_bytes = declared
+      return json(413, { jsonrpc: '2.0', id: null, error: { code: -32000, message: `request body exceeds ${MAX_MCP_BODY_BYTES} bytes; ${LOCAL_FALLBACK_HINT}` } }, cors)
     }
     // Stream-read with a hard cap so an oversized chunked body (no or false
     // Content-Length) is cancelled at the limit instead of buffered whole.
@@ -178,8 +325,10 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
       return json(400, rpcError(null, -32700, 'unreadable request body'), cors)
     }
     if (body === null) {
-      return json(413, { jsonrpc: '2.0', id: null, error: { code: -32000, message: `request body exceeds ${MAX_MCP_BODY_BYTES} bytes` } }, cors)
+      event.body_bytes = MAX_MCP_BODY_BYTES // read cancelled at the cap; true size unknown
+      return json(413, { jsonrpc: '2.0', id: null, error: { code: -32000, message: `request body exceeds ${MAX_MCP_BODY_BYTES} bytes; ${LOCAL_FALLBACK_HINT}` } }, cors)
     }
+    event.body_bytes = new TextEncoder().encode(body).length
     let parsed: unknown
     try {
       parsed = JSON.parse(body)
@@ -188,6 +337,8 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
     }
 
     if (Array.isArray(parsed)) {
+      event.method = 'batch'
+      event.batch_size = parsed.length
       // 2025-06-18 removed JSON-RPC batching: a client that pins that version via
       // the header must send a single message. Older negotiated versions
       // (2024-11-05 / 2025-03-26, or no header) may still batch.
@@ -200,10 +351,66 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
       if (parsed.length > MAX_BATCH_ITEMS) {
         return json(400, { jsonrpc: '2.0', id: null, error: { code: -32600, message: `batch exceeds the ${MAX_BATCH_ITEMS}-request limit` } }, cors)
       }
-      const responses = (await Promise.all(parsed.map(handleOne))).filter((r): r is JsonRpcResponse => r !== null)
+      // execute is the one tool with its own per-item isolate CPU budget, so it
+      // is the one batch amplifier: 20 executes × 30s cpuMs = 600 billable
+      // CPU-seconds from one HTTP request, while pure tools share the parent
+      // request's own CPU cap. Measured worst legit item (64KB flowchart,
+      // parse+verify+serialize) needs ~18s of that 30s budget, so the per-item
+      // budget stays; the amplification goes. Real MCP clients send one
+      // tools/call per request, so a 1-per-request execute cap costs nothing.
+      const executeItems = parsed.filter((p) => isExecuteCall(p)).length
+      if (executeItems > MAX_EXECUTE_ITEMS_PER_BATCH) {
+        return json(400, { jsonrpc: '2.0', id: null, error: { code: -32600, message: `a batch may contain at most ${MAX_EXECUTE_ITEMS_PER_BATCH} execute call (execute runs in its own CPU-budgeted isolate); send execute calls as separate requests` } }, cors)
+      }
+      // One event per request even for batches: each item gets an entry, not a line.
+      event.items = parsed.map(() => newItemEvent())
+      const responses = (await Promise.all(parsed.map((p, i) => handleOne(p, event.items[i]!)))).filter((r): r is JsonRpcResponse => r !== null)
       return responses.length === 0 ? new Response(null, { status: 202, headers: cors }) : json(200, responses, cors)
     }
-    const response = await handleOne(parsed)
+    event.method = typeof (parsed as { method?: unknown } | null)?.method === 'string' ? (parsed as { method: string }).method : null
+    event.batch_size = 1
+    event.items = [newItemEvent()]
+    const response = await handleOne(parsed, event.items[0]!)
     return response === null ? new Response(null, { status: 202, headers: cors }) : json(200, response, cors)
+  }
+
+  return async (request: Request): Promise<Response> => {
+    const started = Date.now()
+    const event: McpRequestEvent = {
+      event: 'mcp_request',
+      request_id: crypto.randomUUID(),
+      timestamp: new Date().toISOString(),
+      method: null,
+      http_status: 0,
+      outcome: 'success',
+      duration_ms: 0,
+      deploy_version: cacheVersion, // the full-deploy hash in production wiring
+      batch_size: 0,
+      protocol_version: request.headers.get('mcp-protocol-version'),
+      has_origin: request.headers.get('origin') !== null,
+      body_bytes: 0,
+      items: [],
+    }
+    try {
+      const response = await respond(request, event)
+      event.http_status = response.status
+      // Dispatched items decide success vs tool_error; a request refused before
+      // dispatch (4xx from the transport itself) is a transport error. OPTIONS
+      // preflights and pure-notification 202s count as success.
+      event.outcome = event.items.length > 0
+        ? (event.items.some(i => i.is_error) ? 'tool_error' : 'success')
+        : response.status < 400 ? 'success' : 'transport_error'
+      return response
+    } catch (e) {
+      // The event must survive an escaping exception without recording a
+      // user-controlled message, stack, request body, or code string.
+      event.http_status = 500
+      event.outcome = 'exception'
+      event.error = { type: internalErrorType(e), code: 'INTERNAL_ERROR' }
+      return json(500, rpcError(null, -32603, 'internal error'), corsHeadersFor(request))
+    } finally {
+      event.duration_ms = Date.now() - started
+      onEvent(event)
+    }
   }
 }

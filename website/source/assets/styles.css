@@ -301,7 +301,9 @@ ul, ol { margin: 0 0 var(--sp-5); padding-left: var(--sp-6); }
 li { margin: var(--sp-2) 0; }
 li::marker { color: var(--ink-faint); }
 hr { border: 0; margin: var(--sp-6) 0; }
-.go { color: var(--link); font-weight: 600; white-space: nowrap; }
+/* inline-flex + 24px min-height keeps these standalone action links at the
+   WCAG 2.5.8 minimum touch-target size without changing their text metrics */
+.go { display: inline-flex; align-items: center; min-height: 24px; color: var(--link); font-weight: 600; white-space: nowrap; }
 /* long .go labels (e.g. getting-started's prompt link) must wrap on phones
    rather than push the page wider than the viewport */
 @media (max-width: 640px) { .go { white-space: normal; } }
@@ -882,3 +884,68 @@ figcaption { color: var(--ink-faint); font-size: var(--t-label); line-height: 1.
 .dz-icons { display: flex; gap: var(--sp-4); align-items: center; color: var(--ink-soft); }
 .dz-voice li { margin-bottom: var(--sp-2); }
 .dz-voice code { font-size: 0.9em; }
+
+/* ---- Hero style figure (homepage): one diagram, three switchable render
+   options. Reuses the tabbed-card contract; chips read as pills, the plate
+   scrolls horizontally on narrow screens instead of letterboxing. ---- */
+.hero-style-figure { margin: var(--sp-7) 0; }
+.hero-style-card { border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); overflow: hidden; }
+.gallery-bar { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-bottom: 1px solid var(--line); }
+.gallery-nav { min-height: var(--control-h); min-width: var(--control-h); border: 1px solid var(--control-border); border-radius: var(--radius-md); background: var(--control-bg); color: var(--ink); font-size: 18px; line-height: 1; cursor: pointer; transition: background-color var(--dur-control) var(--ease-out); }
+.gallery-nav:hover { background: var(--control-bg-hover); }
+.gallery-status { flex: 1; margin: 0; min-width: 0; font-family: var(--mono); font-size: var(--t-mono-sm, 12px); color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gallery-editor-link { font-size: var(--t-sm); }
+/* Without JS the widget degrades to its first slide (panels 2..n ship with the
+   hidden attribute): one labeled render plus the figcaption, no inert chrome. */
+[data-gallery]:not(.gallery-ready) .gallery-bar { display: none; }
+.gallery-ready .gallery-panel-label { display: none; }
+.gallery-panel-label { padding: 12px 18px 0; margin: 0; }
+.hero-style-panel { padding: 0; }
+/* Constant plate height: slide renders range 250-570px natural height, and a
+   variable-height cycler yanks everything below it on every click. Short
+   diagrams sit matted on the plate instead. Phones keep auto height — the
+   widget fills the screen there, so nothing below it is visible to jump. */
+.hero-style-panel .plate.dia-plate { margin: 0; border: 0; border-radius: 0; overflow-x: auto; display: flex; justify-content: center; align-items: center; height: 500px; }
+.hero-style-panel .plate.dia-plate svg { min-width: 560px; max-width: 1100px; max-height: 480px; height: auto; }
+@media (max-width: 640px) { .hero-style-panel .plate.dia-plate { height: auto; min-height: 220px; } }
+.hero-style-figure figcaption { margin-top: var(--sp-3); }
+
+/* Quick-start's small edit-loop figure (formerly the hero). */
+.workflow-figure { margin: var(--sp-5) 0 0; }
+.workflow-figure .plate.dia-plate { overflow-x: auto; }
+.workflow-figure .plate.dia-plate svg { min-width: 560px; }
+.workflow-figure figcaption { margin-top: var(--sp-2); font-size: var(--t-sm); color: var(--ink-faint); }
+
+/* Primary-CTA explainer under the action row. */
+.cta-note { margin: var(--sp-3) 0 0; font-size: var(--t-sm); max-width: 46.25rem; }
+
+/* ---- Site footer: quiet trust strip on every document page. ---- */
+.site-footer { max-width: var(--content-max); margin: var(--sp-9) auto 0; padding: 0 var(--page-gutter) var(--sp-7); }
+.site-footer hr { border: 0; margin: 0 0 var(--sp-4); }
+.site-footer p { margin: 0; font-size: var(--t-sm); color: var(--ink-faint); }
+.site-footer a { color: var(--ink-soft); }
+.site-footer a:hover { color: var(--link); }
+
+/* About-page FAQ (the visible content behind the FAQPage structured data). */
+.faq-list dt { font-weight: 700; margin-top: var(--sp-4); }
+.faq-list dd { margin: var(--sp-1) 0 0; color: var(--ink-soft); }
+
+/* Examples page: 135 inline SVG cards — skip layout/paint for off-screen
+   cards so first render only pays for the viewport. Applied per card (not per
+   group): a whole group's placeholder height estimate is off by screens,
+   which misplaces boxes in the a11y/geometry snapshot; per-card estimates
+   stay close and `auto` pins the real size after first render. */
+.example-source, .example-rich-group article { content-visibility: auto; contain-intrinsic-size: auto 520px; }
+
+/* Compact masthead on phones: one row of scrollable links instead of three
+   stacked rows before the h1. */
+@media (max-width: 640px) {
+  .masthead { padding-top: var(--sp-4); }
+  .masthead .bar { flex-wrap: nowrap; align-items: center; gap: 10px; }
+  .masthead .links { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .masthead .links::-webkit-scrollbar { display: none; }
+  .masthead .links a { white-space: nowrap; }
+}
+
+/* Focusable scroll regions (pre, plates) get the shared focus treatment. */
+pre:focus-visible, .plate.dia-plate:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

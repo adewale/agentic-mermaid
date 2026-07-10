@@ -19,6 +19,11 @@ function copySource() {
 }
 
 function clearEditor() {
+  // Same guard as loadEditorExample: clearing discards the autosaved draft too.
+  if (typeof editorHasUnsavedWork === 'function' && editorHasUnsavedWork()
+      && !window.confirm('Start a blank diagram? Your current edits (and the autosaved draft) will be discarded.')) {
+    return;
+  }
   editor.value = '';
   setEditorErrorLine(0);
   if (typeof discardEditorDraft === 'function') discardEditorDraft();

@@ -114,11 +114,13 @@ describe('Workers Static Assets website contract', () => {
     ])
     expect(config.workers_dev).toBe(false)
     expect(config.preview_urls).toBe(false)
-    expect(config.observability).toEqual({ enabled: true })
+    // Explicit full launch sampling makes the MCP cost-proxy event policy
+    // reviewable instead of relying on the platform default.
+    expect(config.observability).toEqual({ enabled: true, head_sampling_rate: 1 })
     expect(config.version_metadata).toEqual({ binding: 'CF_VERSION_METADATA' })
     // run_worker_first so the redirects/headers and the /mcp handler wrap asset
     // responses (the hosted MCP must reach the worker before Static Assets).
-    expect(config.assets).toEqual({ directory: './public', binding: 'ASSETS', run_worker_first: true })
+    expect(config.assets).toEqual({ directory: './public', binding: 'ASSETS', run_worker_first: true, not_found_handling: '404-page' })
     // Hosted MCP contract: the Worker Loader binding backs Code Mode execute.
     expect(config.worker_loaders).toEqual([{ binding: 'LOADER' }])
     expect(readFileSync(join(REPO, 'package.json'), 'utf8')).toContain('wrangler@latest dev --port 9095 --ip 127.0.0.1')
@@ -188,7 +190,7 @@ describe('Workers Static Assets website contract', () => {
     }), env(() => new Response('should not run')))
     expect(wellKnownInitialize.status).toBe(200)
     const wellKnownPayload = await wellKnownInitialize.json() as any
-    expect(wellKnownPayload.result.serverInfo.name).toBe('agentic-mermaid-mcp')
+    expect(wellKnownPayload.result.serverInfo.name).toBe('agentic-mermaid-hosted')
     expect(assetFetches).toBe(0)
   })
 
@@ -344,10 +346,22 @@ describe('Workers Static Assets website contract', () => {
     const styles = read('styles.css')
     const editor = read('editor/index.html')
     expect(readRepo('website/source/assets/styles.css')).not.toContain('@font-face')
+    // Site CSS serves latin-subset woff2 first for the display faces (full TTF
+    // fallback second); DejaVu (PNG parity face) stays TTF-only. The editor
+    // page keeps the plain TTF faces — its export path embeds full fonts.
+    const SUBSET = new Set(['Caveat.ttf', 'EBGaramond.ttf', 'ShareTechMono.ttf', 'ArchitectsDaughter.ttf'])
     for (const font of HOSTED_FONT_FACES) {
       const publicFace = `@font-face { font-family: '${font.family}'; src: url('/fonts/${font.file}') format('truetype'); font-weight: ${font.weight}; font-style: ${font.style}; font-display: swap; }`
-      expect(styles).toContain(publicFace)
+      const subsetFace = publicFace.replace(
+        `src: url('/fonts/${font.file}') format('truetype');`,
+        `src: url('/fonts/${font.file.replace(/\.ttf$/, '.subset.woff2')}') format('woff2'), url('/fonts/${font.file}') format('truetype');`,
+      )
+      expect(styles).toContain(SUBSET.has(font.file) ? subsetFace : publicFace)
       expect(editor).toContain(publicFace)
+    }
+    for (const file of SUBSET) {
+      const rel = `fonts/${file.replace(/\.ttf$/, '.subset.woff2')}`
+      expect({ rel, exists: existsSync(join(SITE, rel)) }).toEqual({ rel, exists: true })
     }
     for (const file of HOSTED_FONT_FILES) {
       const rel = `fonts/${file}`
@@ -584,7 +598,13 @@ describe('Workers Static Assets website contract', () => {
       expect(html).not.toContain('class="crumb"')
       expect(html).not.toContain('Agentic Mermaid</a> /')
       expect(html).not.toContain('class="theme-switch"')
-      expect(html).not.toContain('<footer')
+      // One quiet trust footer per page: version, license, issues, changelog.
+      const footer = html.match(/<footer class="site-footer"[\s\S]*?<\/footer>/)?.[0] ?? ''
+      expect(footer).toContain('https://github.com/adewale/agentic-mermaid/issues')
+      expect(footer).toContain('CHANGELOG.md')
+      expect(footer).toContain('href="/about/design/"')
+      expect(footer).toContain('LICENSE')
+      expect(html.split('<footer').length).toBe(2)
       expect(html).not.toContain('class="footlinks"')
       // Gallery and Families were consolidated out of the top-level nav.
       expect(masthead).not.toContain('href="/gallery/"')
@@ -615,7 +635,9 @@ describe('Workers Static Assets website contract', () => {
     const styles = read('styles.css')
     expect(styles).toContain('.masthead .links .link-editor')
     expect(styles).not.toContain('footlinks')
-    expect(styles).not.toContain('footer {')
+    // The only footer styling is the site-footer trust strip.
+    expect(styles).toContain('.site-footer')
+    expect(styles.replace(/\.site-footer[^{]*\{/g, '')).not.toContain('footer {')
     expect(styles).not.toContain('.crumb')
     expect(styles).not.toContain('Legacy components')
     expect(styles).not.toContain('.nav {')
@@ -736,7 +758,11 @@ describe('Workers Static Assets website contract', () => {
     }
     expect(comparisons).toContain('Beautiful Mermaid does not render this family')
     expect(comparisons).toContain('loadMermaidRuntime')
-    expect(comparisons).toContain("mermaid.run({ querySelector: '.comparison-mermaid' })")
+    // Panels render one at a time as they near the viewport (IntersectionObserver
+    // + sequential yield), never as one whole-page synchronous batch.
+    expect(comparisons).toContain('mermaid.run({ nodes: [panel] })')
+    expect(comparisons).toContain('IntersectionObserver')
+    expect(comparisons).not.toContain("mermaid.run({ querySelector: '.comparison-mermaid' })")
     expect(comparisons).not.toContain('comparison-empty')
     expect(comparisons).not.toContain('fonts.googleapis.com')
     expect(comparisons).not.toContain('@import url(')
@@ -1018,7 +1044,15 @@ describe('Workers Static Assets website contract', () => {
     const homeJsonLd = read('index.html').match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)?.[1]
     expect(Boolean(homeJsonLd)).toBe(true)
     const graph = JSON.parse(homeJsonLd!)['@graph']
-    expect(graph.map((node: any) => node['@type'])).toEqual(expect.arrayContaining(['Organization', 'SoftwareApplication', 'Service', 'WebPage', 'FAQPage']))
+    expect(graph.map((node: any) => node['@type'])).toEqual(expect.arrayContaining(['Organization', 'SoftwareApplication', 'Service', 'WebPage']))
+    // FAQPage markup lives only on /about/, the page whose visible FAQ it
+    // describes (Google requires the Q&A to be on-page; site-wide duplication
+    // risks the markup being ignored).
+    expect(graph.map((node: any) => node['@type'])).not.toContain('FAQPage')
+    const aboutJsonLd = read('about/index.html').match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)?.[1]
+    const aboutGraph = JSON.parse(aboutJsonLd!)['@graph']
+    expect(aboutGraph.map((node: any) => node['@type'])).toContain('FAQPage')
+    expect(read('about/index.html')).toContain('Frequently asked questions')
     expect(graph.find((node: any) => node['@type'] === 'Organization').contactPoint.url).toBe('https://github.com/adewale/agentic-mermaid/issues')
     expect(graph.find((node: any) => node['@type'] === 'Organization').address.addressCountry).toBe('US')
     expect(graph.find((node: any) => node['@type'] === 'WebPage').speakable.cssSelector).toContain('h1')

@@ -76,9 +76,27 @@ function markActiveExample(id) {
   });
 }
 
+// Unsaved work = source the user authored: non-empty and not a preset the
+// editor itself put there (an example, or the default starter diagram from
+// init.js). Loading an example replaces both the source and the autosaved
+// draft, so those cases get a confirm() before being overwritten.
+function editorHasUnsavedWork() {
+  var current = editor.value.trim();
+  if (!current) return false;
+  if (typeof DEFAULT_SOURCE === 'string' && current === DEFAULT_SOURCE.trim()) return false;
+  for (var i = 0; i < EDITOR_EXAMPLES.length; i++) {
+    if (EDITOR_EXAMPLES[i].source.trim() === current) return false;
+  }
+  return true;
+}
+
 function loadEditorExample(id) {
   var example = findEditorExample(id);
   if (!example) return;
+  if (editorHasUnsavedWork()
+      && !window.confirm('Replace your current diagram with "' + example.label + '"? Your edits (and the autosaved draft) will be overwritten.')) {
+    return;
+  }
 
   editor.value = example.source.trim();
   state.config = cloneEditorConfig(example.options);

@@ -72,16 +72,18 @@ describe('hosted execute loader glue', () => {
     expect(requests[0]!.id).not.toBe(requests[1]!.id)
   })
 
-  test('a SyntaxError startup failure falls back to the statement-form isolate', async () => {
+  test('a SyntaxError startup failure falls back to the statement-form isolate and reports both loader attempts', async () => {
     const { loader, requests } = makeLoader(req =>
       req.id.includes('-e-')
         ? new Error("Failed to start Worker:\nUncaught SyntaxError: Unexpected token 'const'\n  at user.js:1")
         : okResponse({ ok: true, value: 42, logs: [] }))
     const execute = createLoaderExecute(loader, 'H')
-    const result = await execute('const x = 42; return x', 5000)
+    const telemetry: unknown[] = []
+    const result = await execute('const x = 42; return x', 5000, event => telemetry.push(event))
     expect(result).toEqual({ ok: true, value: 42, logs: [] })
     expect(requests.map(r => r.id.includes('-e-') ? 'e' : 's')).toEqual(['e', 's'])
     expect(requests[1]!.modules['user.js']).not.toContain('return (')
+    expect(telemetry).toEqual([{ loaderAttempts: 2 }])
   })
 
   test('a bare parser startup failure also falls back to the statement-form isolate', async () => {

@@ -71,7 +71,49 @@ jobs:
         run: bun install
       - name: Build the site bundle
         if: steps.cloudflare-secrets.outputs.available == 'true'
-        run: bun run website
+        # SITE_GIT_SHA stamps capabilities.json with the deployed commit instead
+        # of the 'development' fallback (build.ts). SITE_BUILD_TIME is left
+        # unset on purpose: a per-build timestamp makes the bundle
+        # non-deterministic and breaks `website:check` (see the sitemap comment
+        # in build.ts), so the sha is the only provenance the deploy adds.
+        run: SITE_GIT_SHA="${{ github.event.workflow_run.head_sha || github.sha }}" bun run website
       - name: Deploy to Cloudflare Workers
         if: steps.cloudflare-secrets.outputs.available == 'true'
         run: cd website && npx --yes wrangler@latest deploy
+      - name: Smoke-test the live /mcp endpoint
+        if: steps.cloudflare-secrets.outputs.available == 'true'
+        # Post-deploy verification against the live endpoint. Two probes:
+        #   1. `verify` on a 2-node flowchart — proves the Worker + MCP core
+        #      answer at all.
+        #   2. `execute` returning 42 — proves the LOADER (worker_loaders)
+        #      binding is provisioned. A deploy can succeed with the binding
+        #      declared but unprovisioned, and `execute` is the only tool that
+        #      touches it (see website/README.md promotion checklist), so the
+        #      pure-tool probe alone would pass while hosted Code Mode is dead.
+        # Deploy propagation can lag, so each probe retries with backoff.
+        # Assertions are on success values only — execute's error shape is not
+        # part of this contract. The full-surface probe stays in
+        # website/e2e-mcp.sh (no retries; asserts error shapes), run manually.
+        run: |
+          MCP='https://agentic-mermaid.dev/mcp'
+          probe() { # label payload expected-substring
+            local attempt
+            for attempt in 1 2 3 4 5; do
+              local got
+              got="$(curl -sS --max-time 30 -X POST "$MCP" -H 'content-type: application/json' -d "$2" || true)"
+              if [[ "$got" == *"$3"* ]]; then
+                echo "ok   $1"
+                return 0
+              fi
+              echo "retry $attempt/5 $1 (got: ${got:0:200})"
+              sleep $((attempt * 15))
+            done
+            echo "::error title=Live /mcp smoke test failed::$1 never returned the expected substring $3 — see website/README.md promotion checklist."
+            return 1
+          }
+          probe 'verify accepts a 2-node flowchart' \
+            '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"verify","arguments":{"source":"flowchart TD\n  A --> B"}}}' \
+            '\"ok\":true'
+          probe 'execute runs in a dynamic-worker isolate (LOADER provisioned)' \
+            '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"execute","arguments":{"code":"1 + 41"}}}' \
+            '\"value\":42'

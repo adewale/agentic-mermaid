@@ -115,6 +115,15 @@
   align-items: center;
   gap: 8px;
 }
+.report-issue-link {
+  color: var(--fg3);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.report-issue-link:hover,
+.report-issue-link:focus-visible {
+  color: var(--fg);
+}
 .status-actions {
   display: flex;
   align-items: center;

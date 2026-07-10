@@ -53,7 +53,39 @@
     });
   }
 
-  function init() { initCopyButtons(); initTabs(); }
+  /* Homepage style gallery: a prev/next cycler over pre-rendered panels.
+     Markup ships as stacked labeled panels (first visible, rest hidden) so the
+     content reads without JS; this wires the buttons, keeps exactly one panel
+     visible, and mirrors the active label + editor link into the bar. Clicks
+     only — no autoplay by design. */
+  function initGallery() {
+    document.querySelectorAll('[data-gallery]').forEach((card) => {
+      const panels = Array.prototype.slice.call(card.querySelectorAll('[data-gallery-panel]'));
+      const status = card.querySelector('[data-gallery-status]');
+      const editorLink = card.querySelector('[data-gallery-editor-link]');
+      const prev = card.querySelector('[data-gallery-prev]');
+      const next = card.querySelector('[data-gallery-next]');
+      if (panels.length < 2 || !status || !prev || !next) return;
+      let index = 0;
+      function select(nextIndex) {
+        index = (nextIndex + panels.length) % panels.length;
+        panels.forEach((panel, i) => { panel.hidden = i !== index; });
+        status.textContent = panels[index].getAttribute('data-gallery-label') + ' (' + (index + 1) + '/' + panels.length + ')';
+        if (editorLink) editorLink.setAttribute('href', panels[index].getAttribute('data-gallery-editor') || editorLink.getAttribute('href'));
+      }
+      prev.addEventListener('click', () => select(index - 1));
+      next.addEventListener('click', () => select(index + 1));
+      card.addEventListener('keydown', (e) => {
+        if (e.target !== prev && e.target !== next) return;
+        if (e.key === 'ArrowLeft') { e.preventDefault(); select(index - 1); }
+        if (e.key === 'ArrowRight') { e.preventDefault(); select(index + 1); }
+      });
+      card.classList.add('gallery-ready');
+      select(0);
+    });
+  }
+
+  function init() { initCopyButtons(); initTabs(); initGallery(); }
   if (document.readyState !== 'loading') init();
   else document.addEventListener('DOMContentLoaded', init);
 })();

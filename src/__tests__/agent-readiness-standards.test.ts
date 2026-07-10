@@ -70,7 +70,7 @@ describe('agent-readiness standards syntax', () => {
 
     const nodes = docs.flatMap(graphNodes)
     const byType = new Map(nodes.map((node: any) => [node['@type'], node]))
-    expect([...byType.keys()]).toEqual(expect.arrayContaining(['Organization', 'WebSite', 'SoftwareApplication', 'Service', 'WebPage', 'FAQPage']))
+    expect([...byType.keys()]).toEqual(expect.arrayContaining(['Organization', 'WebSite', 'SoftwareApplication', 'Service', 'WebPage']))
 
     const organization = byType.get('Organization') as any
     expect(organization.contactPoint['@type']).toBe('ContactPoint')
@@ -93,7 +93,11 @@ describe('agent-readiness standards syntax', () => {
     expect(page.speakable['@type']).toBe('SpeakableSpecification')
     expect(page.speakable.cssSelector).toEqual(expect.arrayContaining(['h1']))
 
-    const faq = byType.get('FAQPage') as any
+    // FAQPage markup is scoped to /about/, where the FAQ content is visible.
+    expect([...byType.keys()]).not.toContain('FAQPage')
+    const aboutNodes = htmlJsonLd(read('about/index.html')).flatMap(graphNodes)
+    const faq = aboutNodes.find((node: any) => node['@type'] === 'FAQPage') as any
+    expect(Boolean(faq)).toBe(true)
     expect(faq.mainEntity.every((entry: any) => entry['@type'] === 'Question' && entry.acceptedAnswer['@type'] === 'Answer')).toBe(true)
   })
 
@@ -103,7 +107,9 @@ describe('agent-readiness standards syntax', () => {
     const catalog = readJson('.well-known/ai-catalog.json')
 
     expect(card).toEqual(expect.objectContaining({
-      name: 'agentic-mermaid-mcp',
+      // The hosted transport identifies itself distinctly from the local stdio
+      // server (different tool sets must not share a cached identity).
+      name: 'agentic-mermaid-hosted',
       kind: 'product',
       transport: 'streamable-http',
       capabilities: { tools: true, resources: false },

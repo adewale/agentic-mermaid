@@ -126,11 +126,12 @@ jobs:
         run: cd e2e && bun test browser.test.ts --timeout 600000
 
       - name: Run browser-gated unit contracts
-        # editor-theme-switch.test.ts lives in src/__tests__ but needs a real
-        # Chromium, so it describe.skips in the unit job (no browsers there).
-        # Run it here where Playwright is installed — otherwise the
-        # chrome/artwork behavioral contract never executes in CI.
-        run: bun test src/__tests__/editor-theme-switch.test.ts --timeout 120000
+        # editor-theme-switch.test.ts and website-browser-a11y.test.ts live in
+        # src/__tests__ but need a real Chromium, so they describe.skip in the
+        # unit job (no browsers there). Run them here where Playwright is
+        # installed — otherwise the chrome/artwork behavioral contract and the
+        # website accessibility smoke never execute in CI.
+        run: bun test src/__tests__/editor-theme-switch.test.ts src/__tests__/website-browser-a11y.test.ts --timeout 120000
 
   # Fast incremental mutation gate. The broad route lanes stay nightly
   # (too slow to gate every PR); this lane mutates the small, pure faithfulness/

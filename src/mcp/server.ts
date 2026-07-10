@@ -60,7 +60,7 @@ export const LOCAL_TOOLS = [
 let defaultArtifactStore: ArtifactStore | undefined
 const MCP_NARROWERS = BUILTIN_FAMILY_METADATA.map(f => f.narrower).join('/')
 
-const LOCAL_INSTRUCTIONS = `agentic-mermaid Code Mode server. Primary tool execute runs synchronous JavaScript against the typed mermaid.* SDK in a sandbox; async/await and Promise jobs are not supported. render_png and describe are narrow helpers. render_png can return base64, managed file paths, or managed URLs when the transport config provides an artifact store. mutate is overloaded by family; narrow via ${MCP_NARROWERS}. Every built-in renderable family ships a typed path when the body narrows; only opaque fallback bodies are source-level only. Layout is deterministic; there is no layout seed (the optional style seed only re-rolls ink of styled looks, never geometry).`
+const LOCAL_INSTRUCTIONS = `agentic-mermaid Code Mode server. Primary tool execute runs synchronous JavaScript against the typed mermaid.* SDK in a sandbox; async/await and Promise jobs are not supported. render_png and describe are narrow helpers. render_png can return base64, managed file paths, or managed URLs when the transport config provides an artifact store. There is no mutate tool on this server: structured edits go through the SDK's mermaid.mutate(...) inside execute, which is overloaded by family; narrow via ${MCP_NARROWERS}. Every built-in renderable family ships a typed path when the body narrows; only opaque fallback bodies are source-level only. Layout is deterministic; there is no layout seed (the optional style seed only re-rolls ink of styled looks, never geometry).`
 
 const LOCAL_SURFACE: McpServerSurface<McpRequestContext> = {
   protocolVersion: PROTOCOL_VERSION,

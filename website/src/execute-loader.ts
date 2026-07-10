@@ -17,7 +17,7 @@
 // network (`globalOutbound: null`), and a CPU budget.
 
 import { userModuleSources, MAX_RESULT_BYTES } from '../../src/mcp/harness-runtime.ts'
-import type { ExecuteResult } from '../../src/mcp/hosted-server.ts'
+import type { ExecuteResult, HostedExecuteTelemetry } from '../../src/mcp/hosted-server.ts'
 import pkg from '../../package.json'
 
 // Keep in sync with wrangler.jsonc `compatibility_date`: the isolate should
@@ -89,9 +89,13 @@ function isSyntaxStartupFailure(message: string): boolean {
 // otherwise force a multi-second wait).
 export const DEFAULT_BACKSTOP_MARGIN_MS = 1_500
 
-export function createLoaderExecute(loader: WorkerLoaderBinding, harnessSource: string, backstopMarginMs: number = DEFAULT_BACKSTOP_MARGIN_MS): (code: string, timeoutMs: number) => Promise<ExecuteResult> {
+export function createLoaderExecute(loader: WorkerLoaderBinding, harnessSource: string, backstopMarginMs: number = DEFAULT_BACKSTOP_MARGIN_MS): (code: string, timeoutMs: number, onTelemetry?: (telemetry: HostedExecuteTelemetry) => void) => Promise<ExecuteResult> {
   const tag = deployTag(harnessSource)
-  return async (code, timeoutMs) => {
+  return async (code, timeoutMs, onTelemetry) => {
+    const complete = (result: ExecuteResult, loaderAttempts: 1 | 2): ExecuteResult => {
+      onTelemetry?.({ loaderAttempts })
+      return result
+    }
     const hash = await sha256Hex(code)
     const idBase = `exec-${await tag}`
     const { expr, stmt } = userModuleSources(code)
@@ -143,15 +147,15 @@ export function createLoaderExecute(loader: WorkerLoaderBinding, harnessSource: 
 
     const errorMessage = (e: unknown): string => (e instanceof Error ? e.message : String(e))
     try {
-      return await attempt('e', expr)
+      return complete(await attempt('e', expr), 1)
     } catch (exprError) {
       if (!isSyntaxStartupFailure(errorMessage(exprError))) {
-        return failure(errorMessage(exprError), timeoutMs)
+        return complete(failure(errorMessage(exprError), timeoutMs), 1)
       }
       try {
-        return await attempt('s', stmt)
+        return complete(await attempt('s', stmt), 2)
       } catch (stmtError) {
-        return failure(errorMessage(stmtError), timeoutMs)
+        return complete(failure(errorMessage(stmtError), timeoutMs), 2)
       }
     }
   }

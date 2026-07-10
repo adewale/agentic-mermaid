@@ -5,9 +5,10 @@
 
 import { describe, expect, test } from 'bun:test'
 import {
-  handleHostedRequest, HOSTED_TOOLS, MAX_CODE_BYTES, MAX_SOURCE_BYTES,
+  handleHostedRequest, HOSTED_MCP_SERVER_NAME, HOSTED_TOOLS, MAX_CODE_BYTES, MAX_SOURCE_BYTES,
   SUPPORTED_PROTOCOL_VERSIONS, cacheKeyFor, type HostedMcpContext, type ExecuteResult,
 } from '../mcp/hosted-server.ts'
+import { MCP_SERVER_NAME } from '../mcp/tool-surface.ts'
 import type { JsonRpcRequest } from '../mcp/protocol.ts'
 import pkg from '../../package.json'
 
@@ -62,9 +63,15 @@ describe('hosted MCP handshake', () => {
   test('initialize reports the package version and hosted instructions', async () => {
     const res = await handleHostedRequest(rpc('initialize'), makeContext())
     const result = res?.result as any
-    expect(result.serverInfo).toEqual({ name: 'agentic-mermaid-mcp', version: pkg.version })
+    expect(result.serverInfo).toEqual({ name: 'agentic-mermaid-hosted', version: pkg.version })
     expect(result.instructions).toContain('stateless')
     expect(result.instructions).toContain('render_svg')
+  })
+
+  test('the hosted identity is distinct from the local stdio server', () => {
+    // Registries and clients cache tool lists by server identity; the hosted
+    // surface (8 tools) must never shadow the local server's (3 tools).
+    expect(HOSTED_MCP_SERVER_NAME).not.toBe(MCP_SERVER_NAME)
   })
 
   test('tools/list exposes exactly the hosted tool surface', async () => {
@@ -252,7 +259,8 @@ describe('hosted execute', () => {
     const ctx = makeContext()
     const p = payloadOf(await handleHostedRequest(call('execute', { code: 'await fetch("https://x")' }), ctx))
     expect(p.ok).toBe(false)
-    expect(p.error).toContain('Code Mode is synchronous')
+    expect(p.error.code).toBe('EXECUTE_FAILED')
+    expect(p.error.message).toContain('Code Mode is synchronous')
     expect(ctx.executeCalls).toHaveLength(0)
   })
 
@@ -262,16 +270,31 @@ describe('hosted execute', () => {
     expect(missing?.error?.code).toBe(-32602)
     const big = payloadOf(await handleHostedRequest(call('execute', { code: '1 + ' + '1'.repeat(MAX_CODE_BYTES) }), ctx))
     expect(big.ok).toBe(false)
-    expect(big.error).toContain('CODE_TOO_LARGE')
+    expect(big.error.code).toBe('CODE_TOO_LARGE')
+    expect(big.error.message).toContain('agentic-mermaid.dev/docs/mcp')
     expect(ctx.executeCalls).toHaveLength(0)
   })
 
-  test('sandbox failures degrade to a structured error, not a thrown 500', async () => {
+  test('sandbox failures degrade to a structured { code, message } error, not a thrown 500', async () => {
     const ctx = makeContext({ execute: async () => { throw new Error('loader unavailable') } })
     const p = payloadOf(await handleHostedRequest(call('execute', { code: '1 + 1' }), ctx))
     expect(p.ok).toBe(false)
     expect(p.isError).toBe(true)
-    expect(p.error).toContain('loader unavailable')
+    expect(p.error.code).toBe('EXECUTE_FAILED')
+    expect(p.error.message).toContain('loader unavailable')
+  })
+
+  test('sandbox-reported failures carry the same envelope, classified by cause', async () => {
+    // Every hosted tool errors as { code, message }; execute is no exception.
+    // A CPU-budget overrun (execute-loader failure() wording) is EXECUTE_TIMEOUT;
+    // anything else — user throw, syntax error — is EXECUTE_FAILED, message verbatim.
+    const timedOut = makeContext({ execute: async () => ({ ok: false, error: 'Script execution exceeded its 5000ms CPU budget', logs: [] }) })
+    const t = payloadOf(await handleHostedRequest(call('execute', { code: 'while (true) {}' }), timedOut))
+    expect(t.error).toEqual({ code: 'EXECUTE_TIMEOUT', message: 'Script execution exceeded its 5000ms CPU budget' })
+    const threw = makeContext({ execute: async () => ({ ok: false, error: 'boom', logs: ['before the throw'] }) })
+    const e = payloadOf(await handleHostedRequest(call('execute', { code: 'throw new Error("boom")' }), threw))
+    expect(e.error).toEqual({ code: 'EXECUTE_FAILED', message: 'boom' })
+    expect(e.logs).toEqual(['before the throw']) // logs survive the re-shaping
   })
 })
 

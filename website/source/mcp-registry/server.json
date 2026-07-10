@@ -1,0 +1,18 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "dev.agentic-mermaid/mcp",
+  "title": "Agentic Mermaid",
+  "description": "Keyless hosted Mermaid MCP: verify, typed mutate/build ops, deterministic SVG/PNG/ASCII rendering",
+  "repository": {
+    "url": "https://github.com/adewale/agentic-mermaid",
+    "source": "github"
+  },
+  "websiteUrl": "https://agentic-mermaid.dev",
+  "version": "0.1.0",
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://agentic-mermaid.dev/mcp"
+    }
+  ]
+}

@@ -4,7 +4,7 @@
 // same match/put contract) and the execute sandbox (call-recording).
 
 import { describe, expect, test } from 'bun:test'
-import { createMcpHandler, MAX_MCP_BODY_BYTES, MAX_BATCH_ITEMS, type McpCache } from '../../website/src/mcp-handler.ts'
+import { createMcpHandler, MAX_MCP_BODY_BYTES, MAX_BATCH_ITEMS, type McpCache, type McpRequestEvent } from '../../website/src/mcp-handler.ts'
 import type { HostedMcpContext } from '../mcp/hosted-server.ts'
 
 const FLOW = 'flowchart LR\n  A --> B'
@@ -23,7 +23,7 @@ function makeCache(): McpCache & { store: Map<string, string> } {
   }
 }
 
-function makeHandler(overrides: { cache?: McpCache; context?: Partial<HostedMcpContext>; waitUntil?: (p: Promise<unknown>) => void } = {}) {
+function makeHandler(overrides: { cache?: McpCache; context?: Partial<HostedMcpContext>; waitUntil?: (p: Promise<unknown>) => void; onEvent?: (e: McpRequestEvent) => void } = {}) {
   const executeCalls: string[] = []
   const context: HostedMcpContext = {
     async execute(code) {
@@ -32,7 +32,8 @@ function makeHandler(overrides: { cache?: McpCache; context?: Partial<HostedMcpC
     },
     ...overrides.context,
   }
-  const handler = createMcpHandler({ context, cache: overrides.cache, cacheVersion: 'test-1', waitUntil: overrides.waitUntil })
+  // Silence the default console.log wide event; event-shape tests inject a collector.
+  const handler = createMcpHandler({ context, cache: overrides.cache, cacheVersion: 'test-1', waitUntil: overrides.waitUntil, onEvent: overrides.onEvent ?? (() => {}) })
   return { handler, executeCalls }
 }
 
@@ -70,11 +71,13 @@ describe('method and header validation', () => {
     expect(res.status).toBe(415)
   })
 
-  test('bodies over the cap are 413, declared or not', async () => {
+  test('bodies over the cap are 413 with the local-fallback hint, declared or not', async () => {
     const { handler } = makeHandler()
     const big = JSON.stringify(call('describe', { source: 'x'.repeat(MAX_MCP_BODY_BYTES) }))
     const declared = await handler(post(big))
     expect(declared.status).toBe(413)
+    // Parity with the 64KB per-field cap: the refusal names the way out.
+    expect(((await declared.json()) as any).error.message).toContain('agentic-mermaid.dev/docs/mcp')
     const undeclared = await handler(new Request('https://agentic-mermaid.dev/mcp', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -161,6 +164,27 @@ describe('JSON-RPC round trips', () => {
     const { handler } = makeHandler()
     const atCap = Array.from({ length: MAX_BATCH_ITEMS }, (_, i) => rpc('ping', undefined, i))
     const res = await handler(post(atCap))
+    expect(res.status).toBe(200)
+    expect((await res.json()) as any[]).toHaveLength(MAX_BATCH_ITEMS)
+  })
+
+  // execute is the only tool with a per-item isolate CPU budget, so it is the
+  // one batch amplifier (20 × 30s cpuMs = 600 billable CPU-seconds per HTTP
+  // request). Measured worst legitimate single item — a 64KB flowchart through
+  // parse+verify+serialize — needs ~18s, so the per-item budget stays and the
+  // per-request multiplicity goes.
+  test('a batch may carry at most one execute item, refused before any isolate spins', async () => {
+    const { handler, executeCalls } = makeHandler()
+    const res = await handler(post([call('execute', { code: '1' }, 'a'), call('execute', { code: '2' }, 'b')]))
+    expect(res.status).toBe(400)
+    expect(((await res.json()) as any).error.message).toContain('at most 1 execute call')
+    expect(executeCalls).toHaveLength(0)
+  })
+
+  test('one execute may ride with cheap tools up to the fan-out cap', async () => {
+    const { handler } = makeHandler()
+    const items = [call('execute', { code: '40 + 2' }, 'x'), ...Array.from({ length: MAX_BATCH_ITEMS - 1 }, (_, i) => rpc('ping', undefined, i))]
+    const res = await handler(post(items))
     expect(res.status).toBe(200)
     expect((await res.json()) as any[]).toHaveLength(MAX_BATCH_ITEMS)
   })
@@ -350,5 +374,146 @@ describe('cache-key normalization (cost control)', () => {
     expect(((await res.json()) as any).error.code).toBe(-32602)
     expect(matches).toBe(0)
     expect(cache.store.size).toBe(0)
+  })
+})
+
+describe('wide-event canonical log lines', () => {
+  // One structured event per HTTP request (Stripe canonical-log-lines shape),
+  // collected through the injectable onEvent seam instead of stdout capture.
+  function capture() {
+    const events: McpRequestEvent[] = []
+    return { events, onEvent: (e: McpRequestEvent) => events.push(e) }
+  }
+
+  test('a verify call emits exactly one success event; the repeat is a cache hit', async () => {
+    const { events, onEvent } = capture()
+    const { handler } = makeHandler({ cache: makeCache(), onEvent })
+    await handler(post(call('verify', { source: FLOW })))
+    await handler(post(call('verify', { source: FLOW })))
+    expect(events).toHaveLength(2)
+    const [first, second] = events as [McpRequestEvent, McpRequestEvent]
+    expect(first).toEqual(expect.objectContaining({
+      event: 'mcp_request', method: 'tools/call', http_status: 200, outcome: 'success',
+      deploy_version: 'test-1', batch_size: 1, protocol_version: null, has_origin: false,
+    }))
+    expect(first.request_id).not.toBe(second.request_id) // high-cardinality by design
+    expect(Number.isNaN(Date.parse(first.timestamp))).toBe(false)
+    expect(first.body_bytes).toBeGreaterThan(0)
+    expect(first.duration_ms).toBeGreaterThanOrEqual(0)
+    expect(first.items).toEqual([expect.objectContaining({ tool: 'verify', is_error: false, error_code: null, cache_hit: false })])
+    expect(second.items).toEqual([expect.objectContaining({ tool: 'verify', is_error: false, cache_hit: true })])
+  })
+
+  test('events carry sizes and codes, never the diagram payload', async () => {
+    const { events, onEvent } = capture()
+    const { handler } = makeHandler({ onEvent })
+    await handler(post(call('verify', { source: FLOW })))
+    expect(JSON.stringify(events)).not.toContain('flowchart')
+  })
+
+  test('execute events carry only the configured CPU limit and loader-attempt proxy', async () => {
+    const { events, onEvent } = capture()
+    const { handler } = makeHandler({ onEvent })
+    const code = '/* private agent code */ 20 + 22'
+    await handler(post(call('execute', { code, timeoutMs: 1234 })))
+    expect(events).toHaveLength(1)
+    expect(events[0]!.items).toEqual([expect.objectContaining({
+      tool: 'execute', cache_hit: false, loader_attempts: 1, configured_cpu_limit_ms: 1234,
+    })])
+    expect(JSON.stringify(events)).not.toContain(code)
+  })
+
+  test('the handler preserves a statement-fallback loader-attempt count', async () => {
+    const { events, onEvent } = capture()
+    const { handler } = makeHandler({
+      onEvent,
+      context: {
+        async execute(_code, _timeoutMs, onTelemetry) {
+          onTelemetry?.({ loaderAttempts: 2 })
+          return { ok: true, value: 'ran', logs: [] }
+        },
+      },
+    })
+    await handler(post(call('execute', { code: 'const x = 42; return x', timeoutMs: 1234 })))
+    expect(events[0]!.items).toEqual([expect.objectContaining({
+      tool: 'execute', loader_attempts: 2, configured_cpu_limit_ms: 1234,
+    })])
+  })
+
+  test('pre-screened execute errors do not claim a loader attempt or CPU allocation', async () => {
+    const { events, onEvent } = capture()
+    const { handler } = makeHandler({ onEvent })
+    await handler(post(call('execute', { code: 'await fetch("https://example.test")', timeoutMs: 1234 })))
+    expect(events[0]!.items).toEqual([expect.objectContaining({
+      tool: 'execute', is_error: true, loader_attempts: 0, configured_cpu_limit_ms: null,
+    })])
+  })
+
+  test('an unknown tool is a tool_error carrying the JSON-RPC error code', async () => {
+    const { events, onEvent } = capture()
+    const { handler } = makeHandler({ onEvent })
+    await handler(post(call('render_gif', { source: FLOW })))
+    expect(events).toHaveLength(1)
+    expect(events[0]!.outcome).toBe('tool_error')
+    expect(events[0]!.items).toEqual([expect.objectContaining({ tool: 'render_gif', is_error: true, error_code: -32602 })])
+  })
+
+  test('a structured tool error surfaces its code, not its message', async () => {
+    const { events, onEvent } = capture()
+    const { handler } = makeHandler({ onEvent })
+    await handler(post(call('verify', { source: 'flowchart TD\n' + 'x'.repeat(64 * 1024) })))
+    expect(events[0]!.outcome).toBe('tool_error')
+    expect(events[0]!.http_status).toBe(200) // tool errors are in-band, not HTTP failures
+    expect(events[0]!.items[0]).toEqual(expect.objectContaining({ tool: 'verify', is_error: true, error_code: 'SOURCE_TOO_LARGE' }))
+  })
+
+  test('an oversized body is a transport_error with http_status 413 and no items', async () => {
+    const { events, onEvent } = capture()
+    const { handler } = makeHandler({ onEvent })
+    await handler(post(JSON.stringify(call('describe', { source: 'x'.repeat(MAX_MCP_BODY_BYTES) }))))
+    expect(events).toHaveLength(1)
+    expect(events[0]).toEqual(expect.objectContaining({ outcome: 'transport_error', http_status: 413, items: [] }))
+    expect(events[0]!.body_bytes).toBeGreaterThanOrEqual(MAX_MCP_BODY_BYTES)
+  })
+
+  test('a batch emits ONE event with an item entry per JSON-RPC item', async () => {
+    const { events, onEvent } = capture()
+    const { handler } = makeHandler({ onEvent })
+    await handler(post([rpc('ping', undefined, 'a'), call('render_gif', {}, 'b'), call('describe', { source: FLOW }, 'c')]))
+    expect(events).toHaveLength(1)
+    expect(events[0]).toEqual(expect.objectContaining({ method: 'batch', batch_size: 3, outcome: 'tool_error' }))
+    expect(events[0]!.items.map(i => ({ tool: i.tool, is_error: i.is_error }))).toEqual([
+      { tool: null, is_error: false },
+      { tool: 'render_gif', is_error: true },
+      { tool: 'describe', is_error: false },
+    ])
+  })
+
+  test('an escaping exception still emits the event, then answers a clean 500', async () => {
+    const { events, onEvent } = capture()
+    const { handler } = makeHandler({
+      cache: makeCache(),
+      onEvent,
+      waitUntil: () => { throw new Error('waitUntil rejected') },
+    })
+    const res = await handler(post(call('describe', { source: FLOW })))
+    expect(res.status).toBe(500)
+    expect(((await res.json()) as any).error.code).toBe(-32603)
+    expect(events).toHaveLength(1)
+    expect(events[0]!.outcome).toBe('exception')
+    expect(events[0]!.http_status).toBe(500)
+    expect(events[0]!.error).toEqual({ type: 'Error', code: 'INTERNAL_ERROR' })
+    expect(JSON.stringify(events[0])).not.toContain('waitUntil rejected')
+  })
+
+  test('OPTIONS and other pre-dispatch requests emit transport-level events', async () => {
+    const { events, onEvent } = capture()
+    const { handler } = makeHandler({ onEvent })
+    await handler(new Request('https://agentic-mermaid.dev/mcp', { method: 'OPTIONS' }))
+    await handler(new Request('https://agentic-mermaid.dev/mcp')) // GET → 405
+    expect(events.map(e => ({ status: e.http_status, outcome: e.outcome, items: e.items.length }))).toEqual([
+      { status: 204, outcome: 'success', items: 0 },
+      { status: 405, outcome: 'transport_error', items: 0 },
+    ])
   })
 })
