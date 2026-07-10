@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test'
+import { describe, expect, mock, test } from 'bun:test'
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { gzipSync } from 'node:zlib'
@@ -36,6 +36,11 @@ function editorExampleIds() {
 }
 
 async function websiteWorker(): Promise<{ fetch: (request: Request, env: any) => Promise<Response> }> {
+  // Static-route tests do not exercise hosted PNG. Keep Bun from parsing the
+  // Worker-only .wasm/.ttf modules that Wrangler loads as binary assets.
+  mock.module('../../website/src/png-wasm.ts', () => ({
+    renderMermaidPNGWasm: async () => new Uint8Array(),
+  }))
   return (await import('../../website/src/worker.ts')).default
 }
 
@@ -135,6 +140,51 @@ describe('Workers Static Assets website contract', () => {
     expect(assetFetches).toBe(0)
   })
 
+  test('homepage negotiates Markdown and advertises existing machine-readable surfaces', async () => {
+    const worker = await websiteWorker()
+    const fetchedPaths: string[] = []
+    const env = {
+      ASSETS: {
+        fetch: async (request: Request) => {
+          const pathname = new URL(request.url).pathname
+          fetchedPaths.push(pathname)
+          return pathname === '/index.md'
+            ? new Response('# Agentic Mermaid', { headers: { 'content-type': 'text/markdown; charset=utf-8' } })
+            : new Response('<!doctype html>', { headers: { 'content-type': 'text/html; charset=utf-8', vary: 'Origin' } })
+        },
+      },
+    }
+
+    const markdown = await worker.fetch(new Request('https://agentic-mermaid.dev/', {
+      headers: { accept: 'text/html;q=0.5, text/markdown;q=0.9' },
+    }), env as any)
+    expect(fetchedPaths.at(-1)).toBe('/index.md')
+    expect(markdown.headers.get('content-type')).toContain('text/markdown')
+    expect((markdown.headers.get('vary') ?? '').toLowerCase().split(/\s*,\s*/)).toContain('accept')
+
+    const html = await worker.fetch(new Request('https://agentic-mermaid.dev/', {
+      headers: { accept: 'text/markdown;q=0, text/html' },
+    }), env as any)
+    expect(fetchedPaths.at(-1)).toBe('/')
+    expect(html.headers.get('content-type')).toContain('text/html')
+    expect((html.headers.get('vary') ?? '').toLowerCase().split(/\s*,\s*/)).toEqual(expect.arrayContaining(['origin', 'accept']))
+
+    const links = (html.headers.get('link') ?? '').split(/,\s*(?=<)/)
+    expect(links).toEqual(expect.arrayContaining([
+      '</index.md>; rel="alternate"; type="text/markdown"',
+      '</llms.txt>; rel="describedby"; type="text/plain"',
+      '</sitemap.xml>; rel="index"; type="application/xml"',
+      '</.well-known/mcp/server-card.json>; rel="service-desc"; type="application/json"',
+      '</skills/agentic-mermaid-diagram-workflow/SKILL.md>; rel="describedby"; type="text/markdown"',
+    ]))
+    const registeredRelations = new Set(['alternate', 'describedby', 'index', 'service-desc'])
+    for (const link of links) {
+      expect(link).toMatch(/^<\/[^>]+>; rel="[a-z-]+"; type="[a-z0-9.+-]+\/[a-z0-9.+-]+"$/)
+      expect(registeredRelations.has(link.match(/; rel="([a-z-]+)"/)?.[1] ?? '')).toBe(true)
+      expect(existsSync(join(SITE, link.match(/^<\/([^>]+)>/)?.[1] ?? '__missing__'))).toBe(true)
+    }
+  })
+
   test('Workers website source no longer depends on mockups', () => {
     expect(existsSync(join(REPO, 'website/source/pages/home.html'))).toBe(true)
     expect(existsSync(join(REPO, 'website/source/assets/styles.css'))).toBe(true)
@@ -153,7 +203,7 @@ describe('Workers Static Assets website contract', () => {
       'docs/mcp/index.html', 'docs/ascii/index.html', 'docs/theming/index.html',
       'docs/custom-styles/index.html', 'docs/quality/index.html', 'docs/fork-differences/index.html',
       'warnings/index.html', 'errors/index.html', 'examples/index.html', 'comparisons/index.html',
-      'llms.txt', 'llms.md', '.well-known/llms.txt', 'agent-instructions.md', 'capabilities.json', 'examples/index.json', 'schemas/style-spec.schema.json',
+      'index.md', 'llms.txt', 'llms.md', '.well-known/llms.txt', 'agent-instructions.md', 'capabilities.json', 'examples/index.json', 'schemas/style-spec.schema.json',
       '.well-known/mcp.json', '.well-known/mcp/server-card.json', '.well-known/ai-catalog.json',
       'sitemap.xml',
       'skills/agentic-mermaid-diagram-workflow/SKILL.md', '_headers', '_redirects',

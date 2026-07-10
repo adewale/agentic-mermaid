@@ -145,4 +145,35 @@ describe('agent-readiness standards syntax', () => {
     }))
     expect(mcpEntry.capabilities).toEqual(card.tools.map((tool: any) => tool.name))
   })
+
+  test('official MCP Registry metadata matches the npm package and hosted server', () => {
+    const packageJson = JSON.parse(readFileSync(join(REPO, 'package.json'), 'utf8'))
+    const registry = JSON.parse(readFileSync(join(REPO, 'server.json'), 'utf8'))
+    const publishWorkflow = readFileSync(join(REPO, '.github/workflows/publish.yml'), 'utf8')
+
+    expect(registry.$schema).toBe('https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json')
+    expect(registry.name).toBe('io.github.adewale/agentic-mermaid')
+    expect(packageJson.mcpName).toBe(registry.name)
+    expect(registry.version).toBe(packageJson.version)
+    expect(registry.description.length).toBeLessThanOrEqual(100)
+    expect(registry.repository).toEqual({
+      url: 'https://github.com/adewale/agentic-mermaid',
+      source: 'github',
+    })
+    expect(registry.packages).toEqual([{
+      registryType: 'npm',
+      identifier: packageJson.name,
+      version: packageJson.version,
+      transport: { type: 'stdio' },
+    }])
+    expect(registry.remotes).toEqual([{
+      type: 'streamable-http',
+      url: 'https://agentic-mermaid.dev/mcp',
+    }])
+    expect(packageJson.files).toContain('server.json')
+    expect(publishWorkflow).toContain('releases/download/v1.7.9/mcp-publisher_linux_amd64.tar.gz')
+    expect(publishWorkflow).toContain('ab128162b0616090b47cf245afe0a23f3ef08936fdce19074f5ba0a4469281ac')
+    expect(publishWorkflow).toContain('./mcp-publisher login github-oidc')
+    expect(publishWorkflow).toContain('./mcp-publisher publish')
+  })
 })

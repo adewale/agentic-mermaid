@@ -77,6 +77,7 @@ function rewriteUrl(value: string): string {
 }
 
 const agentDiscoveryLinks = [
+  '<link rel="alternate" type="text/markdown" href="/index.md">',
   '<link rel="alternate" type="text/plain" href="/llms.txt">',
   '<link rel="alternate" type="application/json" href="/capabilities.json">',
   '<link rel="alternate" type="text/markdown" href="/agent-instructions.md">',
@@ -1525,6 +1526,7 @@ await emit('llms.md', publicLlms)
 await emit('.well-known/llms.txt', publicLlms)
 await emit('agent-instructions.md', await Bun.file(join(ROOT, 'Instructions_for_agents.md')).text())
 await emit('start.md', await Bun.file(join(SOURCE, 'start.md')).text())
+await emit('index.md', await Bun.file(join(SOURCE, 'index.md')).text())
 
 // Spec route coverage pages.
 const aboutLead = 'Agentic Mermaid is a fork of beautiful-mermaid, aimed at a job the original did not have: programs that draw and check diagrams with no person watching. It renders without a browser, reports its own layout errors, and edits diagrams as a typed tree.'
