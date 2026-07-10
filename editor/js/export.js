@@ -25,6 +25,7 @@ var exportPopup = createPopupController({
   popup: exportDropdown,
   trigger: exportChevronBtn,
   visibility: { toggleTriggerClass: false },
+  visualClose: true,
   beforeOpen: updateExportAvailability,
   afterOpen: function(meta) {
     if (meta && meta.focusFirst) {

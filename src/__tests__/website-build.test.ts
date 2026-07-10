@@ -994,7 +994,9 @@ describe('Workers Static Assets website contract', () => {
     expect(editor).toContain('id="copy-link-btn"')
     // "?" opens the cheat sheet without a trigger button, and it renders as a
     // Gmail-style scrim + panel (aria-modal, backdrop click closes).
-    expect(editorAll).toContain("shortcutsReturnFocus = document.activeElement")
+    expect(editorAll).toContain("shortcutsReturnFocus = shortcutsReturnTarget(document.activeElement)")
+    expect(editorAll).toContain('portalShortcutsDialog()')
+    expect(editorAll).toContain('setShortcutsBackgroundInert(true)')
     expect(editor).toContain('id="shortcuts-dialog" role="dialog" aria-modal="true"')
     expect(editor).toContain('class="shortcuts-dialog-panel"')
     expect(styles).toContain('@media (forced-colors: active)')

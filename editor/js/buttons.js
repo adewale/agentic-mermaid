@@ -119,6 +119,68 @@ document.addEventListener('click', function(e) {
 var shortcutsDialog = document.getElementById('shortcuts-dialog');
 var shortcutsDialogClose = document.getElementById('shortcuts-dialog-close');
 var shortcutsReturnFocus = null;
+var shortcutsInertSiblings = [];
+var shortcutsHomeParent = shortcutsDialog && shortcutsDialog.parentNode;
+var shortcutsHomeNextSibling = shortcutsDialog && shortcutsDialog.nextSibling;
+var shortcutsExitTail = null;
+var shortcutsExitTimer = null;
+
+function portalShortcutsDialog() {
+  if (shortcutsDialog && shortcutsDialog.parentNode !== document.body) document.body.appendChild(shortcutsDialog);
+}
+
+function restoreShortcutsDialog() {
+  if (!shortcutsDialog || !shortcutsHomeParent || shortcutsDialog.parentNode === shortcutsHomeParent) return;
+  shortcutsHomeParent.insertBefore(shortcutsDialog, shortcutsHomeNextSibling);
+}
+
+function clearShortcutsExitTail() {
+  if (shortcutsExitTimer) clearTimeout(shortcutsExitTimer);
+  shortcutsExitTimer = null;
+  if (shortcutsExitTail && shortcutsExitTail.parentNode) shortcutsExitTail.parentNode.removeChild(shortcutsExitTail);
+  shortcutsExitTail = null;
+}
+
+function createShortcutsExitTail() {
+  if (!shortcutsDialog || (typeof EditorMotion !== 'undefined' && EditorMotion.reduced())) return;
+  clearShortcutsExitTail();
+  var tail = shortcutsDialog.cloneNode(true);
+  tail.removeAttribute('id');
+  tail.removeAttribute('aria-modal');
+  tail.removeAttribute('aria-labelledby');
+  tail.setAttribute('aria-hidden', 'true');
+  tail.inert = true;
+  tail.querySelectorAll('[id]').forEach(function(node) { node.removeAttribute('id'); });
+  tail.style.pointerEvents = 'none';
+  document.body.appendChild(tail);
+  shortcutsExitTail = tail;
+  shortcutsExitTimer = setTimeout(clearShortcutsExitTail, 90);
+}
+
+function shortcutsReturnTarget(target) {
+  var fallback = null;
+  for (var node = target; node && node !== document.body; node = node.parentElement) {
+    if (!node.id) continue;
+    var trigger = document.querySelector('[aria-controls="' + node.id + '"]');
+    if (trigger && !trigger.closest('[inert]')) fallback = trigger;
+  }
+  return fallback || target;
+}
+
+function setShortcutsBackgroundInert(open) {
+  if (!shortcutsDialog) return;
+  if (open) {
+    shortcutsInertSiblings = [];
+    Array.prototype.forEach.call(document.body.children, function(child) {
+      if (child === shortcutsDialog) return;
+      shortcutsInertSiblings.push({ element: child, inert: child.inert });
+      child.inert = true;
+    });
+    return;
+  }
+  shortcutsInertSiblings.forEach(function(entry) { entry.element.inert = entry.inert; });
+  shortcutsInertSiblings = [];
+}
 
 function shortcutsFocusable() {
   if (!shortcutsDialog) return [];
@@ -147,12 +209,20 @@ function trapShortcutsFocus(e) {
 var shortcutsPopup = (shortcutsDialog && typeof createPopupController === 'function')
   ? createPopupController({
       popup: shortcutsDialog,
+      visualClose: true,
       visibility: { manageTabStops: true },
       afterOpen: function() {
+        clearShortcutsExitTail();
+        portalShortcutsDialog();
+        setShortcutsBackgroundInert(true);
         document.addEventListener('keydown', trapShortcutsFocus, true);
         if (shortcutsDialogClose) shortcutsDialogClose.focus();
       },
       afterClose: function() {
+        createShortcutsExitTail();
+        clearPopupClosing(shortcutsDialog);
+        restoreShortcutsDialog();
+        setShortcutsBackgroundInert(false);
         document.removeEventListener('keydown', trapShortcutsFocus, true);
         if (shortcutsReturnFocus && typeof shortcutsReturnFocus.focus === 'function') shortcutsReturnFocus.focus();
         shortcutsReturnFocus = null;
@@ -177,6 +247,6 @@ document.addEventListener('keydown', function(e) {
   // as the cheat-sheet shortcut when focus is outside editable controls.
   if (tag === 'TEXTAREA' || tag === 'INPUT' || tag === 'SELECT' || (target && target.isContentEditable)) return;
   e.preventDefault();
-  shortcutsReturnFocus = document.activeElement;
+  shortcutsReturnFocus = shortcutsReturnTarget(document.activeElement);
   shortcutsPopup.open({ source: 'keyboard' });
 });

@@ -37,8 +37,10 @@
 }
 .toast.show {
   opacity: 1;
+  pointer-events: auto;
   transform: translateX(-50%) translateY(-4px);
 }
+.toast.replacing { opacity: 0; pointer-events: none; }
 
 /* Keyboard shortcuts cheat sheet dialog */
 /* Gmail-style cheat sheet: a full-screen scrim dims the editor behind a
@@ -55,9 +57,11 @@
   -webkit-backdrop-filter: blur(2px);
   backdrop-filter: blur(2px);
 }
-.shortcuts-dialog.open {
+.shortcuts-dialog.open,
+.shortcuts-dialog.closing {
   display: flex;
 }
+.shortcuts-dialog.closing { pointer-events: none; }
 .shortcuts-dialog-panel {
   width: min(400px, calc(100vw - 32px));
   max-height: min(80vh, 520px);
@@ -135,6 +139,31 @@
   margin-top: 8px;
   font-size: var(--t-label);
   color: var(--fg4);
+}
+
+/* Accessibility preferences replace frosted overlays with fully solid surfaces. */
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  .shortcuts-dialog {
+    background: var(--bg2);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .shortcuts-dialog-panel {
+    background: var(--popover-bg);
+    border-color: var(--line-strong);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+/* Reduced motion still preserves the helpful status fade, never its rise. */
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    transform: translateX(-50%);
+    transition-property: opacity;
+    transition-duration: 0.15s !important;
+  }
+  .toast.show { transform: translateX(-50%); }
 }
 
 /* Scrollbar */

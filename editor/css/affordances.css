@@ -45,18 +45,24 @@
 }
 :where(.export-dropdown, .theme-dropdown-menu, .font-popup, .color-popup) { z-index: var(--z-popover-nested); }
 
-/* Popovers enter from their trigger: one short ease-out fade/scale, with the
-   transform origin at the anchoring corner so the menu grows out of its button.
-   Exits stay instant — dismissal should never lag. The global reduced-motion
-   override in variables.css flattens these to 0.01ms. */
+/* Popovers close semantically on the event frame; this short noninteractive
+   visual tail preserves the origin path without trapping focus or clicks. */
 @keyframes popover-in {
   from { opacity: 0; transform: translateY(-2px) scale(0.98); }
+}
+@keyframes popover-out {
+  to { opacity: 0; transform: translateY(-2px) scale(0.98); }
 }
 :where(.export-dropdown, .theme-dropdown-menu, .font-popup, .color-popup).open {
   animation: popover-in var(--dur-control) var(--ease-out);
 }
-.export-dropdown.open, .theme-dropdown-menu.open { transform-origin: top right; }
-.font-popup.open, .color-popup.open { transform-origin: top left; }
+:where(.export-dropdown, .theme-dropdown-menu, .font-popup, .color-popup).closing {
+  display: flex;
+  pointer-events: none;
+  animation: popover-out 0.09s cubic-bezier(0.4, 0, 1, 1) both;
+}
+.export-dropdown.open, .theme-dropdown-menu.open, .export-dropdown.closing, .theme-dropdown-menu.closing { transform-origin: top right; }
+.font-popup.open, .color-popup.open, .font-popup.closing, .color-popup.closing { transform-origin: top left; }
 /* The scrim fades in; the centered panel fades and scales up behind it. */
 @keyframes dialog-in {
   from { opacity: 0; }
@@ -64,8 +70,16 @@
 @keyframes dialog-panel-in {
   from { opacity: 0; transform: scale(0.98) translateY(4px); }
 }
+@keyframes dialog-out {
+  to { opacity: 0; }
+}
+@keyframes dialog-panel-out {
+  to { opacity: 0; transform: scale(0.98) translateY(4px); }
+}
 .shortcuts-dialog.open { animation: dialog-in var(--dur-ui) var(--ease-out); }
 .shortcuts-dialog.open .shortcuts-dialog-panel { animation: dialog-panel-in var(--dur-ui) var(--ease-out); }
+.shortcuts-dialog.closing { animation: dialog-out 0.09s cubic-bezier(0.4, 0, 1, 1) both; }
+.shortcuts-dialog.closing .shortcuts-dialog-panel { animation: dialog-panel-out 0.09s cubic-bezier(0.4, 0, 1, 1) both; }
 :where(.preview-label, .panel-title, .verify-label, .text-output-label, .example-category-title, .font-section-label, .color-palette-title, .placeholder-kicker) {
   color: var(--fg3);
   font-family: var(--font-mono);
