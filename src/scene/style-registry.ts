@@ -554,6 +554,39 @@ registerBuiltInStyle({
 })
 
 registerBuiltInStyle({
+  name: 'cupertino',
+  blurb: 'Apple-HIG product surface for app and system docs: borderless white cards on a grouped gray page, hierarchy from surface and weight; light-first.',
+  intent: 'premium',
+  // Apple grouped-surface tokens (HIG "Materials"/"Color"), gate-adjusted:
+  // bg = systemGroupedBackground, surface = systemBackground (pure white is
+  // the sourced token — cards read as elevation only because the page is
+  // tinted), fg = label, border = separator. line/muted start from systemGray
+  // (#8e8e93) and secondaryLabel but are darkened to clear this repo's
+  // legibility gates (3:1 strokes, 4.5:1 text) — HIG's own grays measure
+  // 2.7-2.9:1 here; the deviation is deliberate and documented.
+  colors: { bg: '#f2f2f7', fg: '#000000', line: '#7a7a80', accent: '#007aff', muted: '#66666b', surface: '#ffffff', border: 'rgba(60,60,67,0.29)' },
+  // Inter, not SF Pro — SF's license restricts it to Apple platforms; Inter
+  // is the bundled PNG-safe stand-in. Do not substitute.
+  font: 'Inter',
+  face: {
+    // Typography ("The Details of UI Typography", WWDC 2020): hierarchy from
+    // weight + size as a set; tracking is size-specific — 13px labels at 0,
+    // 11px edge labels get SF's small-size bump (~+6/1000em ≈ 0.07px).
+    // Borderless cards: separation comes from surface fill + elevation, so
+    // borderColor is transparent and the fill falls back to the derived node
+    // fill when a stacked palette drops --surface.
+    node: { fontSize: 13, fontWeight: 600, letterSpacing: 0, textColor: 'var(--fg)', paddingX: 24, paddingY: 12, cornerRadius: 10, lineWidth: 1, fillColor: 'var(--surface, var(--_node-fill))', borderColor: 'transparent' },
+    edge: { fontSize: 11, fontWeight: 500, letterSpacing: 0.07, lineWidth: 1.5, bendRadius: 16, strokeColor: 'var(--line, var(--_line))', textColor: 'var(--fg)' },
+    // Materials ("Designing Fluid Interfaces", WWDC 2018): material weight
+    // encodes hierarchy — groups are quaternary-fill surfaces (alpha, so they
+    // survive palette stacking), header bands one step heavier, no borders;
+    // grouping reads from proximity, never from 1px dividers. Corner
+    // concentricity: group radius 26 = node radius 10 + padding 16.
+    group: { fontSize: 12, fontWeight: 600, letterSpacing: 0, textColor: 'var(--muted, var(--_text-sec))', paddingX: 16, paddingY: 16, cornerRadius: 26, lineWidth: 1, fillColor: 'rgba(120,120,128,0.08)', headerFillColor: 'rgba(120,120,128,0.12)', borderColor: 'transparent' },
+  },
+})
+
+registerBuiltInStyle({
   name: 'publication-figure',
   blurb: 'Polished publication figure: serif labels, confident rules, rounded boxes, one quiet accent.',
   intent: 'premium',

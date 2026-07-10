@@ -36,6 +36,7 @@ const LOOKS = [
   'chalkboard',
   'risograph',
   'architectural-plan',
+  'cupertino',
   'publication-figure',
 ]
 

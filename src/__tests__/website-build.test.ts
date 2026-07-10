@@ -531,7 +531,7 @@ describe('Workers Static Assets website contract', () => {
     expect(home).toContain('<li><span>Seed</span><code>8</code></li>')
     expect(home).toContain('home-style-watercolor-svg-title')
     expect(home).toContain('home-style-ops-schematic-svg-title')
-    expect(home).toContain('15</strong> built-in styles')
+    expect(home).toContain('16</strong> built-in styles')
     expect(home).toContain('JSON</strong> custom styles')
     expect(home).not.toContain('class="unicode-diagram"')
     expect(examples).toContain('<p class="example-prompt"><span>Prompt</span>')
