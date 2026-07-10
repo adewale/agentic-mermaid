@@ -23,18 +23,18 @@ What Agentic Mermaid can do, organized by capability area. The npm import paths 
 
 | Family | Parse/render/round-trip | Structured mutation |
 |---|---|---|
-| Flowchart | ✅ | ✅ (6 ops) |
-| State | ✅ | ✅ (8 ops via `asState`; `<<fork>>`/notes/`--`/`classDef` → opaque) |
-| Sequence | ✅ | ✅ (5 ops; alt/loop/note ride along verbatim as segments) |
-| Timeline | ✅ | ✅ (10 ops) |
-| Class | ✅ | ✅ (10 ops) |
+| Flowchart | ✅ | ✅ (14 ops) |
+| State | ✅ | ✅ (14 ops via `asState`; notes/`<<fork>>`/`<<choice>>`/history are structured; `--` regions/`classDef` → opaque) |
+| Sequence | ✅ | ✅ (7 ops; alt/loop/note/box ride along verbatim as segments) |
+| Timeline | ✅ | ✅ (15 ops) |
+| Class | ✅ | ✅ (11 ops) |
 | ER | ✅ | ✅ (7 ops) |
-| Journey | ✅ | ✅ (10 ops via `asJourney`) |
-| XY chart | ✅ | ✅ (8 ops via `asXyChart`) |
+| Journey | ✅ | ✅ (14 ops via `asJourney`) |
+| XY chart | ✅ | ✅ (10 ops via `asXyChart`) |
 | Architecture | ✅ | ✅ (10 ops via `asArchitecture`) |
 | Pie | ✅ | ✅ (7 ops via `asPie`) |
 | Quadrant | ✅ | ✅ (7 ops via `asQuadrant`) |
-| Gantt | ✅ | ✅ (9 ops via `asGantt`; calendar directives/click/comments ride along verbatim as segments) |
+| Gantt | ✅ | ✅ (13 ops via `asGantt`; calendar directives/click/comments ride along verbatim as segments) |
 
 **Structured-or-opaque rule:** every family either has a structured body
 or preserves source verbatim. Constructs are never silently dropped.

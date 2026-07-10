@@ -38,18 +38,18 @@ What the current Agentic Mermaid surface delivers and what it doesn't:
 
 | Family | Parse / verify / render / round-trip | Structured mutation |
 |---|---|---|
-| Flowchart | Full | ✅ 6 ops |
-| State | Structured round-trip for the modeled subset (simple states/transitions/`[*]`/composites/direction); `<<fork>>`/`<<choice>>`/notes/`--`/`classDef` fall back to opaque losslessly | 8 ops via `asState` (BUILD-19) |
-| Sequence | Structured-with-segments (BUILD-18): participant/message ops stay live while Note/alt/loop/par/activate/autonumber/title ride along verbatim as opaque-block segments; only un-segmentable input (unbalanced `end`) falls back to whole-body opaque | ✅ 5 ops when structured |
-| Timeline | Full | ✅ 10 ops |
-| Class | Full | ✅ 10 ops |
+| Flowchart | Full — including v11.6 edge IDs (`e1@-->`) and v11 `@{ shape: ... }` metadata (documented names/aliases parse structured); markdown strings (backtick labels) render but keep the body opaque losslessly | ✅ 14 ops |
+| State | Structured round-trip for the modeled subset (simple states/transitions/`[*]`/composites/direction, notes, `<<fork>>`/`<<join>>`/`<<choice>>` and history stereotypes, history endpoints `[H]`/`Base[H*]`); concurrency `--` (renders structurally), `classDef`/`class`/`:::` styling, and bare `stateId` lines fall back to opaque losslessly | 14 ops via `asState` (BUILD-19) |
+| Sequence | Structured-with-segments (BUILD-18): participant/message ops stay live while Note/alt/loop/par/box/activate/create/destroy/autonumber/title ride along verbatim as opaque-block segments; only un-segmentable input (unbalanced `end`) falls back to whole-body opaque | ✅ 7 ops when structured |
+| Timeline | Full — including the `timeline TD` vertical direction token | ✅ 15 ops |
+| Class | Full for the modeled subset — including namespaces (rendered as compound boxes AND structured); `direction` (rendering honors it) and generic class names (`Box~T~`) fall back to opaque losslessly | ✅ 11 ops |
 | ER | Full | ✅ 7 ops |
-| Journey | Full structured round-trip (title/sections/tasks) | 10 ops via `asJourney` (BUILD-15 pilot) |
-| Architecture | Structured round-trip for the modeled subset (groups/services/junctions/edges); `{group}` boundary edges + accTitle/accDescr fall back to opaque losslessly | 10 ops via `asArchitecture` (BUILD-17) |
-| XY chart | Structured round-trip for the modeled subset (title/axes/series); quoted text, `;` lines, accTitle/accDescr fall back to opaque losslessly | 8 ops via `asXyChart` (BUILD-16) |
+| Journey | Full structured round-trip (title/sections/tasks) | 14 ops via `asJourney` (BUILD-15 pilot) |
+| Architecture | Structured round-trip for the modeled subset (groups/services/junctions/edges, plus upstream `align row\|column` directives — preserved and linted, not yet honored by layout); `{group}` boundary edges + accTitle/accDescr fall back to opaque losslessly | 10 ops via `asArchitecture` (BUILD-17) |
+| XY chart | Structured round-trip for the modeled subset (orientation/title/axes/series; quoted text with bare content canonicalizes to unquoted form); embedded quotes/brackets, `;` multi-statement lines, accTitle/accDescr fall back to opaque losslessly | 10 ops via `asXyChart` (BUILD-16) |
 | Pie | Structured round-trip (title/showData/slices); accTitle/accDescr + malformed entries fall back to opaque losslessly | 7 ops via `asPie` |
-| Quadrant | Structured round-trip (title/axes/quadrant labels/points); styling + out-of-range coords fall back to opaque losslessly | 7 ops via `asQuadrant` |
-| Gantt | Structured-with-segments from day one ([`docs/design/families/gantt.md`](./docs/design/families/gantt.md)): title/section/task ops stay live while calendar directives, click lines, and comments ride along verbatim as opaque-block segments; duplicate task ids / unclosed accDescr fall back to whole-body opaque losslessly. Rendering is deterministic — the today marker needs a caller-supplied clock (`ganttToday`), never the wall clock | 9 ops via `asGantt` |
+| Quadrant | Structured round-trip (title/axes/quadrant labels/points, per-point styling: direct `radius:`/`color:` tails, `classDef` tables, `:::` assignments); malformed style metadata + out-of-range coords fall back to opaque losslessly | 7 ops via `asQuadrant` |
+| Gantt | Structured-with-segments from day one ([`docs/design/families/gantt.md`](./docs/design/families/gantt.md)): title/section/task ops stay live while calendar directives, click lines, and comments ride along verbatim as opaque-block segments; duplicate task ids / unclosed accDescr fall back to whole-body opaque losslessly. Rendering is deterministic — the today marker needs a caller-supplied clock (`ganttToday`), never the wall clock; dependency arrows / critical-path emphasis are opt-in render options (`gantt.dependencyArrows` / `gantt.criticalPath`), never new syntax | 13 ops via `asGantt` |
 
 The implication: for any opaque fallback, the agent's tool surface is *parse → verify → render → serialize*, not *parse → mutate → verify → serialize*. Cross-cutting edits on those bodies happen at the preserved source level (`body.source` for opaque bodies), not at the typed mutation layer. Code Mode opportunity #1 covers this for the cases where it matters.
 
@@ -220,7 +220,7 @@ Two contracts:
 - `serializeMermaid(parseMermaid(s)) ≡ normalize(s)` for canonical input. For structured families this emits a fresh canonical form; for opaque families it emits preserved source with `meta` re-attached.
 - `parseMermaid(serializeMermaid(d)) ≡ d` for every `d` produced by `parseMermaid` or `mutate`.
 
-**Flowchart MutationOp kinds** (6):
+**Flowchart MutationOp kinds** (14 — the family elevation widened the menu from 6; `shape` fields accept the geometry names AND any documented v11 `@{ shape }` name/alias, and `set_label.target`/`remove_edge.id` accept an authored v11.6 edge ID or the endpoint forms `from->to` / `from->to#k`):
 
 | Kind | Required | Optional | Inverse |
 |---|---|---|---|
@@ -230,51 +230,72 @@ Two contracts:
 | `set_label`   | `target`, `label` | —                 | `set_label(target, prev_label)` |
 | `add_edge`    | `from`, `to`      | `label`, `style`  | `remove_edge(id)` |
 | `remove_edge` | `id`              | —                 | `add_edge(from, to, label, style)` |
+| `set_shape`   | `id`, `shape`     | —                 | `set_shape(id, prev_shape)` |
+| `set_direction` | `direction`     | `subgraph` (sets that subgraph's override; omit = diagram) | `set_direction(prev_direction, subgraph)` |
+| `add_subgraph` | `id`             | `label`, `parent`, `members` (existing nodes MOVED in — the state `make_composite` precedent) | `remove_subgraph(id)` |
+| `remove_subgraph` | `id`          | `removeMembers` (default dissolves the box — members move to the parent scope; `true` deletes member nodes and their edges) | `add_subgraph(...)` |
+| `move_node`   | `id`, `subgraph \| null` (null = top level) | — | `move_node(id, prev_subgraph)` |
+| `define_class` | `name`, `style` (CSS-like pairs, parsed by the parser's own style grammar) | — | `define_class(name, prev_style)` |
+| `set_node_class` | `id`, `className \| null` | —      | `set_node_class(id, prev_class)` |
+| `set_node_style` | `id`, `style \| null` | —          | `set_node_style(id, prev_style)` |
 
-**State MutationOp kinds** (8, BUILD-19 — promoting state from a "parses AS flowchart" projection to a dedicated `StateBody` IR with state-shaped ops and a real `asState` narrower). Modeled grammar: simple states (`state "Label" as id`, `id : Label`), transitions `from --> to [: label]` where `from`/`to` may be the reserved pseudostate `[*]` (source = start, target = end, scoped per composite level), composite blocks `state X { … }` (nestable), and `direction`. Anything else (`<<fork>>`/`<<choice>>`/`<<join>>`, history states, concurrency `--`, notes, `classDef`/`class`/`:::` styling, bare `stateId` lines, hyphenated composite ids) keeps the whole body opaque and round-trips verbatim. `[*]` is contextual, not a state node:
+**State MutationOp kinds** (14, BUILD-19 + the family elevation — promoting state from a "parses AS flowchart" projection to a dedicated `StateBody` IR with state-shaped ops and a real `asState` narrower). Modeled grammar: simple states (`state "Label" as id`, `id : Label`), transitions `from --> to [: label]` where `from`/`to` may be the reserved pseudostate `[*]` (source = start, target = end, scoped per composite level) or a history reference (`[H]`, `Base[H*]`), composite blocks `state X { … }` (nestable), `direction`, pseudostate stereotypes (`state id <<fork|join|choice>>` plus the history forms `<<history>>`/`<<H>>`/`<<deephistory>>`/`<<H*>>`), and notes (`note left|right of X : text`, block form included). Anything else (concurrency `--` — which still renders structurally as dashed-separator regions — `classDef`/`class`/`:::` styling, bare `stateId` lines, hyphenated composite ids) keeps the whole body opaque and round-trips verbatim. `[*]` is contextual, not a state node:
 
 | Kind | Required | Optional | Inverse |
 |---|---|---|---|
 | `add_state`            | `id`              | `label`, `parent` (composite) | `remove_state(id)` |
-| `remove_state`         | `id` (refused on a non-empty composite — remove children first) | — | `add_state(...)` |
+| `remove_state`         | `id` (refused on a non-empty composite unless `recursive`) | `recursive` (`true` removes the whole subtree; touching transitions/notes cascade, history refs `X[H]` included) | `add_state(...)` |
 | `rename_state`         | `from`, `to`      | — (rewrites transitions) | `rename_state(to, from)` |
 | `set_state_label`      | `id`, `label \| null` | —             | `set_state_label(id, prev_label)` |
 | `add_transition`       | `from`, `to` (`[*]` allowed) | `label`, `parent` | `remove_transition(from->to)` |
 | `remove_transition`    | `index` or `from`/`to` pair | `parent` | `add_transition(...)` |
 | `set_transition_label` | `label \| null` + (`index` or `from`/`to`) | `parent` | `set_transition_label(..., prev_label)` |
-| `make_composite`       | `id`, `members: string[]` | `label`  | (move members out, remove composite) |
+| `make_composite`       | `id`, `members: string[]` | `label`  | `dissolve_composite(id)` |
+| `set_direction`        | `direction`       | `state` (composite override; omit/null = diagram) | `set_direction(prev, state)` |
+| `move_state`           | `id`, `parent \| null` (null = top level; a simple parent promotes to a composite) | — | `move_state(id, prev_parent)` |
+| `dissolve_composite`   | `id` (hoists children + inner transitions into the parent scope; rejects while transitions/notes still reference it) | — | `make_composite(id, members, label)` |
+| `add_note`             | `target`, `text`  | `side` (`left`/`right`, default `right`) | `remove_note(index)` |
+| `remove_note`          | `index`           | —                 | `add_note(target, side, text)` |
+| `set_note_text`        | `index`, `text`   | —                 | `set_note_text(index, prev_text)` |
 
-**Sequence MutationOp kinds** (5):
+**Sequence MutationOp kinds** (7 — message indices address the TOP-LEVEL `messages` array; messages inside opaque blocks are invisible to ops):
 
 | Kind | Required | Optional | Inverse |
 |---|---|---|---|
-| `add_participant`    | `id`                  | `label` | `remove_participant(id)` |
+| `add_participant`    | `id`                  | `label`, `participantKind` (`participant`/`actor`) | `remove_participant(id)` |
 | `remove_participant` | `id`                  | —       | `add_participant(id, label)` |
-| `add_message`        | `from`, `to`, `text`  | `style` (sync/async) | `remove_message(index)` |
+| `add_message`        | `from`, `to`, `text`  | `style` (sync/async), insert `index` (omitted = append) | `remove_message(index)` |
 | `remove_message`     | `index`               | —       | `add_message(...)` |
 | `set_message_text`   | `index`, `text`       | —       | `set_message_text(index, prev_text)` |
+| `move_message`       | `from`, `to` (source order IS the interaction timeline, so reorder is a first-class edit) | — | `move_message(to, from)` |
+| `set_participant_label` | `id`, `label`      | —       | `set_participant_label(id, prev_label)` |
 
-**Timeline MutationOp kinds** (10):
+**Timeline MutationOp kinds** (15 — the journey conventions from PR #141: `index?` on add ops is an insert position, move ops take the insert position after removal, and errors name the legal range):
 
 | Kind | Required | Inverse |
 |---|---|---|
 | `set_title`          | `title \| null`                                           | `set_title(prev_title)` |
-| `add_section`        | `label`                                                   | `remove_section(index)` |
+| `add_section`        | `label` (+ optional insert `index`)                       | `remove_section(index)` |
 | `remove_section`     | `index`                                                   | `add_section(label)` |
 | `set_section_label`  | `index`, `label`                                          | `set_section_label(index, prev_label)` |
-| `add_period`         | `sectionIndex`, `label` (+ optional `events: string[]`)   | `remove_period(sectionIndex, periodIndex)` |
+| `add_period`         | `sectionIndex`, `label` (+ optional `events: string[]`, insert `index`) | `remove_period(sectionIndex, periodIndex)` |
 | `remove_period`      | `sectionIndex`, `periodIndex`                             | `add_period(...)` |
 | `set_period_label`   | `sectionIndex`, `periodIndex`, `label`                    | `set_period_label(... prev_label)` |
-| `add_event`          | `sectionIndex`, `periodIndex`, `text`                     | `remove_event(... eventIndex)` |
+| `add_event`          | `sectionIndex`, `periodIndex`, `text` (+ optional insert `index`) | `remove_event(... eventIndex)` |
 | `remove_event`       | `sectionIndex`, `periodIndex`, `eventIndex`               | `add_event(...)` |
 | `set_event_text`     | `sectionIndex`, `periodIndex`, `eventIndex`, `text`       | `set_event_text(... prev_text)` |
+| `move_period`        | `fromSection`, `fromIndex`, `toSection`, `toIndex` (timeline order IS the chronology, so reorder is a first-class edit) | `move_period(toSection, toIndex, fromSection, fromIndex)` |
+| `move_event`         | `fromSection`, `fromPeriod`, `fromIndex`, `toSection`, `toPeriod`, `toIndex` | `move_event(...)` |
+| `move_section`       | `from`, `to`                                              | `move_section(to, from)` |
+| `set_accessibility_title`       | `title \| null`                                | `set_accessibility_title(prev)` |
+| `set_accessibility_description` | `description \| null`                          | `set_accessibility_description(prev)` |
 
-**Class MutationOp kinds** (10):
+**Class MutationOp kinds** (11):
 
 | Kind | Required | Inverse |
 |---|---|---|
 | `set_title`         | `title \| null`                                      | `set_title(prev_title)` |
-| `add_class`         | `id` (+ optional `label`, `members: string[]`)        | `remove_class(id)` |
+| `add_class`         | `id` (+ optional `label`, `members: string[]`, `namespace` dot path) | `remove_class(id)` |
 | `remove_class`      | `id`                                                  | `add_class(id, label, members)` |
 | `rename_class`      | `from`, `to`                                          | `rename_class(to, from)` |
 | `add_member`        | `class`, `text`                                       | `remove_member(class, index)` |
@@ -283,6 +304,7 @@ Two contracts:
 | `remove_relation`   | `index`                                               | `add_relation(...)` |
 | `add_note`          | `text` (+ optional `for: class`)                       | `remove_note(index)` |
 | `remove_note`       | `index`                                               | `add_note(text, for)` |
+| `set_class_namespace` | `class`, `namespace \| null` (a dot path like `Platform.Auth`, declared on demand; null = top level) | `set_class_namespace(class, prev_namespace)` |
 
 **ER MutationOp kinds** (7):
 
@@ -330,7 +352,7 @@ Two contracts:
 | `add_edge`           | `from`, `to`, `fromSide`, `toSide` (+ optional `label`, `hasArrowStart`, `hasArrowEnd`) | `remove_edge(id)` |
 | `remove_edge`        | `index` or `id` (`from->to`)                             | `add_edge(...)` |
 
-**XY chart MutationOp kinds** (8, BUILD-16 — promoting the xychart family to structured mutation via the FamilyPlugin registry, following the BUILD-15 journey and BUILD-17 architecture pilots). Canonical number format is `String(n)` (shortest round-tripping decimal); all values must be finite. Modeled grammar covers bare (unquoted) titles/axis-names/series-names/categories; quoted text, multi-statement `;` lines, accTitle/accDescr, and any other unmodeled syntax fall back to opaque:
+**XY chart MutationOp kinds** (10, BUILD-16 — promoting the xychart family to structured mutation via the FamilyPlugin registry, following the BUILD-15 journey and BUILD-17 architecture pilots). Canonical number format is `String(n)` (shortest round-tripping decimal); all values must be finite. Modeled grammar covers bare titles/axis-names/series-names/categories — quoted text whose content is bare parses and canonicalizes to unquoted form; embedded quotes/brackets, multi-statement `;` lines, accTitle/accDescr, and any other unmodeled syntax fall back to opaque:
 
 | Kind | Required | Inverse |
 |---|---|---|
@@ -342,6 +364,8 @@ Two contracts:
 | `set_series_values`  | `index`, `values: number[]`                              | `set_series_values(index, prev_values)` |
 | `set_series_name`    | `index`, `name: string \| null`                          | `set_series_name(index, prev_name)` |
 | `reorder_series`     | `from`, `to`                                             | `reorder_series(to, from)` |
+| `set_orientation`    | `horizontal: boolean` (`true` adds the `horizontal` header suffix; `false` drops it — vertical is the serialized default) | `set_orientation(prev)` |
+| `set_data_point`     | `seriesIndex`, `index`, `value` (finite; out-of-range indices name the valid ranges) | `set_data_point(seriesIndex, index, prev_value)` |
 
 **Pie MutationOp kinds** (7 — promoting the pie family to structured mutation via the FamilyPlugin registry, following the journey/architecture/xychart pilots). Slices are addressed by their (unique) label; values must be positive finite numbers. The header's `showData` flag and an optional `title` are modeled; any unmodeled line (accTitle/accDescr, malformed entry) falls back to opaque losslessly:
 
@@ -367,7 +391,7 @@ Two contracts:
 | `move_point`         | `label`, `x`, `y` (in `[0,1]`)                           | `move_point(label, prev_x, prev_y)` |
 | `rename_point`       | `from`, `to`                                             | `rename_point(to, from)` |
 
-**Gantt MutationOp kinds** (9 — segment-preserving from day one per [`docs/design/families/gantt.md`](./docs/design/families/gantt.md)). Sections and tasks are addressed by index (`sectionIndex`, `taskIndex`); `taskId` is the Mermaid id used by `after`/`until`/`click`. Calendar directives (`dateFormat`, `excludes`, `includes`, `weekend`, `weekday`, `todayMarker`, `tickInterval`, `inclusiveEndDates`, `topAxis`), `click` lines, accTitle/accDescr, and comments ride along VERBATIM as opaque-block segments — preserved, source-level-editable, never typed-editable in v1. Every value an op writes is validated by rendering its canonical line and re-parsing it (correctness by construction), so labels with `:` or values with `,` are rejected rather than corrupting the source:
+**Gantt MutationOp kinds** (13 — segment-preserving from day one per [`docs/design/families/gantt.md`](./docs/design/families/gantt.md)). Sections and tasks are addressed by index (`sectionIndex`, `taskIndex`); `taskId` is the Mermaid id used by `after`/`until`/`click`. Calendar directives (`dateFormat`, `excludes`, `includes`, `weekend`, `weekday`, `todayMarker`, `tickInterval`, `inclusiveEndDates`, `topAxis`), `click` lines, accTitle/accDescr, and comments ride along VERBATIM as opaque-block segments — preserved, source-level-editable, never typed-editable in v1. Every value an op writes is validated by rendering its canonical line and re-parsing it (correctness by construction), so labels with `:` or values with `,` are rejected rather than corrupting the source. Gantt source order IS scheduling semantics (a task with an implicit start chains from the previous task in flat source order), so the move ops REJECT prescriptively whenever they would change an implicit-start task's predecessor — materialize an explicit start (`set_task_dates` or an `after` dependency) and retry:
 
 | Kind | Required | Inverse |
 |---|---|---|
@@ -375,15 +399,19 @@ Two contracts:
 | `add_section`        | `label`                                                   | `remove_section(index)` |
 | `rename_section`     | `index`, `label`                                          | `rename_section(index, prev_label)` |
 | `remove_section`     | `index` (drops its tasks too)                             | `add_section(...)` + `add_task(...)` |
-| `add_task`           | `sectionIndex`, `label`, `end` (+ optional `taskId`, `tags`, `start`) | `remove_task(sectionIndex, taskIndex)` |
+| `add_task`           | `sectionIndex`, `label`, `end` (+ optional `taskId`, `tags`, `start`, insert `index` — a mid-chain insert deliberately re-chains the follower) | `remove_task(sectionIndex, taskIndex)` |
 | `remove_task`        | `sectionIndex`, `taskIndex`                               | `add_task(...)` |
 | `rename_task`        | `sectionIndex`, `taskIndex`, `label`                      | `rename_task(..., prev_label)` |
 | `set_task_status`    | `sectionIndex`, `taskIndex`, `status: 'active' \| 'done' \| 'crit' \| null` (milestone/vert tags are never disturbed) | `set_task_status(..., prev_status)` |
 | `set_task_dates`     | `sectionIndex`, `taskIndex`, `start?: string \| null`, `end?: string` | `set_task_dates(..., prev_start, prev_end)` |
+| `set_task_flags`     | `sectionIndex`, `taskIndex`, `milestone?`, `vert?` (structural-tag toggles; `set_task_status` never touches them) | `set_task_flags(..., prev_flags)` |
+| `set_task_id`        | `sectionIndex`, `taskIndex`, `taskId \| null` (a rename REWRITES structured `after`/`until` references; REJECTS while opaque segments reference the id, and `null` rejects while ANY reference exists) | `set_task_id(..., prev_id)` |
+| `move_task`          | `fromSection`, `fromIndex`, `toSection`, `toIndex` (implicit-start guard above) | `move_task(toSection, toIndex, fromSection, fromIndex)` |
+| `move_section`       | `from`, `to` (implicit-start guard above)                 | `move_section(to, from)` |
 
-**Structured-or-opaque rule (v4): never lossy.** The parser only produces a structured body when it fully understands every non-blank, non-comment line for most structured families. If the source contains *any* construct the parser doesn't model — `direction TB` in class, `accTitle` or out-of-range scores in journey, the `{group}` boundary modifier in architecture, quoted text or `curve basis` in xychart, a malformed entry in pie, or out-of-range coordinates in quadrant, etc. — parsing **falls back to an opaque body**. The diagram still parses, renders, verifies (structurally), and round-trips losslessly via preserved `body.source`; it simply isn't offered for structured mutation (structured-family narrowers return `null` on opaque fallbacks). This guarantees the parser never silently drops information. Earlier drafts dropped unrecognized lines on the floor; v4 does not.
+**Structured-or-opaque rule (v4): never lossy.** The parser only produces a structured body when it fully understands every non-blank, non-comment line for most structured families. If the source contains *any* construct the parser doesn't model — `direction TB` in class, `accTitle` or out-of-range scores in journey, the `{group}` boundary modifier in architecture, a `;`-joined multi-statement line in xychart, a malformed entry in pie, or out-of-range coordinates in quadrant, etc. — parsing **falls back to an opaque body**. The diagram still parses, renders, verifies (structurally), and round-trips losslessly via preserved `body.source`; it simply isn't offered for structured mutation (structured-family narrowers return `null` on opaque fallbacks). This guarantees the parser never silently drops information. Earlier drafts dropped unrecognized lines on the floor; v4 does not.
 
-**Segment-preserving bodies (BUILD-18) — sequence ends the all-or-nothing cliff.** Sequence is the first family that does *not* go whole-body opaque on the first unmodeled line. Its body carries an ordered `statements: SequenceStatement[]` list (`participant` / `message` refs into the existing `participants`/`messages` arrays, plus `opaque-block` segments holding unmodeled lines VERBATIM). Block constructs (`alt|opt|loop|par|critical|break|rect … end`, nesting-tracked) become one opaque-block segment; `Note`/`activate`/`deactivate`/`autonumber`/`title` lines each join an adjacent segment. The participant/message ops stay live and address the top-level `messages` array exactly as before — **messages inside an opaque block are invisible to ops and are never touched.** Only an un-segmentable body (a stray `end`, an unclosed block) still falls back to whole-body opaque. Either way the round-trip is verbatim-lossless. Gantt adopts the same pattern from its first release: typed ops on title/sections/tasks, opaque-block segments for calendar directives/click/comments, whole-opaque only for duplicate ids or unclosed accDescr blocks. Class/ER/timeline segment-preservation is follow-up work.
+**Segment-preserving bodies (BUILD-18) — sequence ends the all-or-nothing cliff.** Sequence is the first family that does *not* go whole-body opaque on the first unmodeled line. Its body carries an ordered `statements: SequenceStatement[]` list (`participant` / `message` refs into the existing `participants`/`messages` arrays, plus `opaque-block` segments holding unmodeled lines VERBATIM). Block constructs (`alt|opt|loop|par|critical|break|rect|box … end`, nesting-tracked) become one opaque-block segment; `Note`/`activate`/`deactivate`/`create`/`destroy`/`autonumber`/`title` lines each join an adjacent segment. The participant/message ops stay live and address the top-level `messages` array exactly as before — **messages inside an opaque block are invisible to ops and are never touched.** Only an un-segmentable body (a stray `end`, an unclosed block) still falls back to whole-body opaque. Either way the round-trip is verbatim-lossless. Gantt adopts the same pattern from its first release: typed ops on title/sections/tasks, opaque-block segments for calendar directives/click/comments, whole-opaque only for duplicate ids or unclosed accDescr blocks. Class/ER/timeline segment-preservation is follow-up work.
 
 For any opaque fallback, cross-cutting edits are source-level only: operate against preserved source intentionally, then re-parse and verify before returning. Every renderable family now ships structured mutation; a new family follows the same pattern as its definition of done: narrowed type + body parser + serializer + per-family ops + verify hook + round-trip property tests + doc sync (most recently gantt). See `docs/contributing/adding-diagram-types.md`.
 
