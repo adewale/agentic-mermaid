@@ -108,16 +108,61 @@ export interface ErRuntimeConfig extends MermaidConfigMap {
   fontSize?: number
 }
 
+/**
+ * Mermaid's documented architecture config shape (wire-or-warn, P4): padding,
+ * iconSize, fontSize, nodeSeparation, and idealEdgeLengthMultiplier are wired
+ * (src/architecture/config.ts); the fcose simulation knobs — edgeElasticity,
+ * numIter, seed, randomize — have no meaning in the deterministic layout and
+ * emit INEFFECTIVE_CONFIG (ARCHITECTURE_NOOP_CONFIG_FIELDS in
+ * src/architecture/config.ts).
+ */
+export interface ArchitectureRuntimeConfig extends MermaidConfigMap {
+  padding?: number
+  iconSize?: number
+  fontSize?: number
+  nodeSeparation?: number
+  idealEdgeLengthMultiplier?: number
+  edgeElasticity?: number
+  numIter?: number
+  seed?: number
+  randomize?: boolean
+}
+
+/**
+ * Mermaid's documented flowchart config shape (wire-or-warn, P4):
+ * nodeSpacing/rankSpacing/wrappingWidth are wired
+ * (src/flowchart-config.ts resolveFlowchartRenderOptions); every other
+ * documented key is accepted for config-shape compatibility and named by
+ * verify's INEFFECTIVE_CONFIG lint (FLOWCHART_NOOP_CONFIG_FIELDS in
+ * src/flowchart-config.ts).
+ */
+export interface FlowchartRuntimeConfig extends MermaidConfigMap {
+  nodeSpacing?: number
+  rankSpacing?: number
+  wrappingWidth?: number
+  titleTopMargin?: number
+  subGraphTitleMargin?: MermaidConfigMap
+  arrowMarkerAbsolute?: boolean
+  diagramPadding?: number
+  htmlLabels?: boolean
+  curve?: string
+  padding?: number
+  defaultRenderer?: string
+  inheritDir?: boolean
+}
+
 export interface MermaidRuntimeConfig extends MermaidConfigMap {
   theme?: string
   fontFamily?: string
   themeVariables?: MermaidThemeVariables
+  flowchart?: FlowchartRuntimeConfig
   timeline?: TimelineRuntimeConfig
   journey?: JourneyRuntimeConfig
   xyChart?: MermaidConfigMap
   gantt?: GanttRuntimeConfig
   class?: ClassRuntimeConfig
   er?: ErRuntimeConfig
+  architecture?: ArchitectureRuntimeConfig
   useMaxWidth?: boolean
   useWidth?: number
   themeCSS?: string

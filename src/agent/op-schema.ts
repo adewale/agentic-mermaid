@@ -21,6 +21,7 @@
 // ============================================================================
 
 import type { NodeShape, EdgeStyle } from '../types.ts'
+import { flowchartV11ShapeNames } from '../flowchart-shapes.ts'
 import type {
   SequenceMessageStyle, ClassRelationKind, ErCardinality, ArchitectureSide, GanttBodyTaskTag,
 } from './types.ts'
@@ -93,13 +94,30 @@ const withNote = (spec: FieldSpec, note: string): FieldSpec => ({ ...spec, note 
 
 // ---- Per-op schemas (transcribed from the *MutationOp unions in types.ts) ---
 
+// set_shape/add_node accept the geometry names PLUS every documented Mermaid
+// v11 @{ shape } short name and alias — one vocabulary, sourced from the
+// normalization table (src/flowchart-shapes.ts).
+const FLOWCHART_SHAPE_VALUES: readonly string[] = [
+  ...NODE_SHAPES,
+  ...flowchartV11ShapeNames().filter(name => !(NODE_SHAPES as readonly string[]).includes(name)),
+]
+const FLOWCHART_DIRECTIONS = ['TD', 'TB', 'LR', 'BT', 'RL'] as const
+
 const FLOWCHART_SCHEMA: Record<string, OpSpec> = {
-  add_node:    { fields: { id: str(), label: str(), shape: withNote(oneOf(NODE_SHAPES, false), 'default: rectangle'), parent: str(false) } },
+  add_node:    { fields: { id: str(), label: str(), shape: withNote(oneOf(FLOWCHART_SHAPE_VALUES, false), 'default: rectangle; also accepts Mermaid v11 @{ shape } names/aliases (e.g. manual-input)'), parent: str(false) } },
   remove_node: { fields: { id: str() } },
   rename_node: { fields: { from: str(), to: str() } },
-  set_label:   { fields: { target: str(), label: str() } },
+  set_label:   { fields: { target: withNote(str(), 'a node id, an authored edge ID (e1), or "from->to"/"from->to#k"'), label: str() } },
   add_edge:    { fields: { from: str(), to: str(), label: str(false), style: withNote(oneOf(EDGE_STYLES, false), 'default: solid') } },
-  remove_edge: { fields: { id: str() } },
+  remove_edge: { fields: { id: withNote(str(), 'an authored edge ID (e1), or "from->to"/"from->to#k" for the k-th parallel edge') } },
+  set_shape:   { fields: { id: str(), shape: withNote(oneOf(FLOWCHART_SHAPE_VALUES), 'a geometry name or a Mermaid v11 @{ shape } name/alias; v11 names render with the documented geometry mapping and serialize with the authored spelling') } },
+  set_direction: { fields: { direction: oneOf(FLOWCHART_DIRECTIONS), subgraph: withNote(str(false), 'omit to set the diagram direction; a subgraph id sets that subgraph\'s direction override') } },
+  add_subgraph: { fields: { id: str(), label: str(false), parent: withNote(str(false), 'nest inside this subgraph'), members: withNote(strArr(false), 'existing node ids MOVED into the new subgraph') } },
+  remove_subgraph: { fields: { id: str(), removeMembers: withNote(bool(false), 'default false: dissolve — members move to the parent scope; true also removes member nodes and their edges') } },
+  move_node:   { fields: { id: str(), subgraph: withNote(strOrNull(), 'target subgraph id; null moves the node to the top level') } },
+  define_class: { fields: { name: str(), style: withNote(str(), 'CSS-like pairs, e.g. "fill:#f96,stroke:#333,stroke-width:2px"') } },
+  set_node_class: { fields: { id: str(), className: withNote(strOrNull(), 'assigns a classDef name (define_class or source classDef); null removes the assignment') } },
+  set_node_style: { fields: { id: str(), style: withNote(strOrNull(), 'inline style pairs, e.g. "fill:#bbf"; null clears') } },
 }
 
 const STATE_SCHEMA: Record<string, OpSpec> = {
@@ -125,15 +143,20 @@ const SEQUENCE_SCHEMA: Record<string, OpSpec> = {
 
 const TIMELINE_SCHEMA: Record<string, OpSpec> = {
   set_title:         { fields: { title: strOrNull() } },
-  add_section:       { fields: { label: str() } },
+  add_section:       { fields: { label: str(), index: withNote(num(false), 'insert position; omit to append') } },
   remove_section:    { fields: { index: num() } },
   set_section_label: { fields: { index: num(), label: str() } },
-  add_period:        { fields: { sectionIndex: num(), label: str(), events: strArr(false) } },
+  add_period:        { fields: { sectionIndex: num(), label: str(), events: strArr(false), index: withNote(num(false), 'insert position; omit to append') } },
   remove_period:     { fields: { sectionIndex: num(), periodIndex: num() } },
   set_period_label:  { fields: { sectionIndex: num(), periodIndex: num(), label: str() } },
-  add_event:         { fields: { sectionIndex: num(), periodIndex: num(), text: str() } },
+  add_event:         { fields: { sectionIndex: num(), periodIndex: num(), text: str(), index: withNote(num(false), 'insert position; omit to append') } },
   remove_event:      { fields: { sectionIndex: num(), periodIndex: num(), eventIndex: num() } },
   set_event_text:    { fields: { sectionIndex: num(), periodIndex: num(), eventIndex: num(), text: str() } },
+  move_period:       { fields: { fromSection: num(), fromIndex: num(), toSection: num(), toIndex: withNote(num(), 'insert position in the target section, applied after removal') } },
+  move_event:        { fields: { fromSection: num(), fromPeriod: num(), fromIndex: num(), toSection: num(), toPeriod: num(), toIndex: withNote(num(), 'insert position in the target period, applied after removal') } },
+  move_section:      { fields: { from: num(), to: num() } },
+  set_accessibility_title:       { fields: { title: strOrNull() } },
+  set_accessibility_description: { fields: { description: strOrNull() } },
 }
 
 const CLASS_SCHEMA: Record<string, OpSpec> = {

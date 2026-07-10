@@ -27,6 +27,18 @@ export interface MermaidNode {
   id: string
   label: string
   shape: NodeShape
+  /** Mermaid v11 `@{ shape: ... }` semantic shape, normalized to the canonical
+   *  short name (e.g. 'sl-rect' for `manual-input`). Set only for
+   *  metadata-declared nodes; `shape` stays the rendering geometry
+   *  (src/flowchart-shapes.ts is the one mapping table). */
+  semanticShape?: string
+  /** The authored v11 shape spelling (alias preserved verbatim, e.g.
+   *  'manual-input') — the serializer re-emits exactly this. */
+  authoredShape?: string
+  /** True when the label came from a Mermaid markdown string (backtick
+   *  label): emphasis markers are stripped at parse time and the label
+   *  auto-wraps at flowchart.wrappingWidth (upstream default 200). */
+  markdownLabel?: true
 }
 
 export type NodeShape =
@@ -55,6 +67,10 @@ export type NodeShape =
 export interface MermaidEdge {
   source: string
   target: string
+  /** Authored Mermaid v11.6 edge ID (`e1@-->`): stable edge identity.
+   *  Round-trips verbatim, emitted as the SVG edge's data-id, and accepted
+   *  by remove_edge/set_label as a target selector. */
+  id?: string
   label?: string
   style: EdgeStyle
   /** Whether to render a marker at the start (source end) of the edge */
@@ -114,6 +130,9 @@ export interface PositionedNode {
   id: string
   label: string
   shape: NodeShape
+  /** Mermaid v11 semantic shape id when the node was declared via
+   *  `@{ shape: ... }` metadata — emitted as the SVG data-semantic-shape. */
+  semanticShape?: string
   x: number
   y: number
   width: number
@@ -127,6 +146,8 @@ export interface PositionedNode {
 export interface PositionedEdge {
   source: string
   target: string
+  /** Authored Mermaid v11.6 edge ID (`e1@-->`) — SVG identity (data-id). */
+  id?: string
   label?: string
   style: EdgeStyle
   hasArrowStart: boolean
@@ -378,6 +399,13 @@ export interface RenderOptions {
   nodeSpacing?: number
   /** Vertical spacing between layers. Default: 40 */
   layerSpacing?: number
+  /**
+   * Flowchart-only: measured-pixel auto-wrap budget for node labels (mermaid's
+   * `flowchart.wrappingWidth`). Unset = no wrapping for regular labels;
+   * markdown-string labels always wrap at the upstream default of 200.
+   * Explicit option wins over frontmatter config. Other families ignore it.
+   */
+  wrappingWidth?: number
   /** Spacing between disconnected components. Default: nodeSpacing (24) */
   componentSpacing?: number
   /** Render with transparent background (no background style on SVG). Default: false */
@@ -389,6 +417,19 @@ export interface RenderOptions {
   /** Family-specific SVG renderer options for architecture-beta diagrams. */
   architecture?: {
     visual?: ArchitectureVisualConfig
+  }
+  /** Family-specific layout options for timeline diagrams. */
+  timeline?: {
+    /**
+     * Best-effort width budget (px) for HORIZONTAL timelines: when the chart
+     * would exceed it, the per-column wrap caps compress proportionally so
+     * labels wrap tighter instead of the canvas growing (13 periods stop
+     * rendering 2,400+px wide). No-op when the chart already fits — the
+     * default layout stays byte-identical — and ignored in `timeline TD`
+     * mode (vertical timelines are inherently narrow). Unbreakable tokens
+     * and extra-wide section headers can still exceed the budget.
+     */
+    maxWidth?: number
   }
   /** Family-specific SVG renderer options for user-journey diagrams. */
   journey?: {

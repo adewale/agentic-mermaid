@@ -68,8 +68,14 @@ type GanttValidDiagram     = ValidDiagram & { body: GanttBody }
 
 interface FlowchartGraph {
   direction: 'TD' | 'TB' | 'LR' | 'BT' | 'RL'
-  nodes: Map<string, { id: string; label: string; shape: string }>
+  // semanticShape/authoredShape carry Mermaid v11 @{ shape } metadata: shape
+  // stays the drawn geometry, semanticShape the canonical v11 id, and
+  // authoredShape the exact spelling that serializes back.
+  nodes: Map<string, { id: string; label: string; shape: string; semanticShape?: string; authoredShape?: string }>
   edges: {
+    // id = authored v11.6 edge ID ('e1@-->'): round-trips verbatim and is a
+    // valid remove_edge/set_label target selector.
+    id?: string
     source: string; target: string; label?: string; style: string
     hasArrowStart?: boolean; hasArrowEnd?: boolean; startMarker?: string; endMarker?: string
   }[]
@@ -95,7 +101,8 @@ interface SequenceBody { kind: 'sequence'; participants: SeqParticipant[]; messa
 interface TimelineEvent { id: string; text: string }
 interface TimelinePeriod { id: string; label: string; events: TimelineEvent[] }
 interface TimelineSection { id: string; label?: string; periods: TimelinePeriod[] }
-interface TimelineBody { kind: 'timeline'; title?: string; sections: TimelineSection[] }
+// direction: explicit \`timeline TD\`/\`timeline LR\` header token (TD = vertical, upstream PR #7270); undefined = LR default.
+interface TimelineBody { kind: 'timeline'; direction?: 'LR' | 'TD'; title?: string; accessibilityTitle?: string; accessibilityDescription?: string; sections: TimelineSection[] }
 
 interface ClassNode { id: string; label?: string; members: string[]; namespace?: string }
 type ClassRelationKind = 'inheritance' | 'composition' | 'aggregation' | 'association' | 'dependency' | 'realization' | 'link-solid' | 'link-dashed'
@@ -122,7 +129,12 @@ interface ArchitectureService { id: string; label: string; icon?: string; parent
 interface ArchitectureJunction { id: string; parentId?: string }
 interface ArchitectureEndpoint { id: string; side: ArchitectureSide }
 interface ArchitectureEdge { source: ArchitectureEndpoint; target: ArchitectureEndpoint; label?: string; hasArrowStart: boolean; hasArrowEnd: boolean }
-interface ArchitectureBody { kind: 'architecture'; groups: ArchitectureGroup[]; services: ArchitectureService[]; junctions: ArchitectureJunction[]; edges: ArchitectureEdge[] }
+// alignments: upstream v11.16.0 "align row|column" directives, preserved losslessly
+// (members are declared services/junctions, >=2 and unique per directive); the
+// deterministic layout does not honor the placement constraint — verify announces
+// it with the Tier-3 UNSUPPORTED_SYNTAX lint syntax "architecture_align".
+interface ArchitectureAlignment { axis: 'row' | 'column'; members: string[] }
+interface ArchitectureBody { kind: 'architecture'; groups: ArchitectureGroup[]; services: ArchitectureService[]; junctions: ArchitectureJunction[]; edges: ArchitectureEdge[]; alignments?: ArchitectureAlignment[] }
 
 interface XyChartAxis { name?: string; categories?: string[]; range?: { min: number; max: number } }
 interface XyChartSeries { id: string; kind: 'bar' | 'line'; name?: string; values: number[] }
@@ -158,12 +170,21 @@ type GanttStatement =
 interface GanttBody { kind: 'gantt'; title?: string; sections: GanttSection[]; statements?: GanttStatement[] }
 
 type FlowchartMutationOp =
+  // shape also accepts any Mermaid v11 @{ shape } name/alias (e.g. 'manual-input')
   | { kind: 'add_node'; id: string; label: string; shape?: string; parent?: string }
   | { kind: 'remove_node'; id: string }
   | { kind: 'rename_node'; from: string; to: string }
-  | { kind: 'set_label'; target: string; label: string }
+  | { kind: 'set_label'; target: string; label: string }   // target: node id, authored edge ID (e1), or 'from->to'/'from->to#k'
   | { kind: 'add_edge'; from: string; to: string; label?: string; style?: 'solid' | 'dotted' | 'thick' | 'invisible' }
-  | { kind: 'remove_edge'; id: string }
+  | { kind: 'remove_edge'; id: string }                    // id: authored edge ID (e1), or 'from->to'/'from->to#k'
+  | { kind: 'set_shape'; id: string; shape: string }       // geometry name or v11 @{ shape } name/alias
+  | { kind: 'set_direction'; direction: 'TD' | 'TB' | 'LR' | 'BT' | 'RL'; subgraph?: string }   // omit subgraph = diagram direction
+  | { kind: 'add_subgraph'; id: string; label?: string; parent?: string; members?: string[] }   // members MOVE into the new subgraph
+  | { kind: 'remove_subgraph'; id: string; removeMembers?: boolean }   // default dissolves; true deletes members + their edges
+  | { kind: 'move_node'; id: string; subgraph: string | null }         // null = top level
+  | { kind: 'define_class'; name: string; style: string }              // CSS-like pairs 'fill:#f96,stroke:#333'
+  | { kind: 'set_node_class'; id: string; className: string | null }   // null removes the assignment
+  | { kind: 'set_node_style'; id: string; style: string | null }       // null clears the inline style
 
 type StateMutationOp =
   | { kind: 'add_state'; id: string; label?: string | null; parent?: string | null }
@@ -186,15 +207,22 @@ type SequenceMutationOp =
 
 type TimelineMutationOp =
   | { kind: 'set_title'; title: string | null }
-  | { kind: 'add_section'; label: string }
+  | { kind: 'add_section'; label: string; index?: number }             // index = insert position; omit to append
   | { kind: 'remove_section'; index: number }
   | { kind: 'set_section_label'; index: number; label: string }
-  | { kind: 'add_period'; sectionIndex: number; label: string; events?: string[] }
+  | { kind: 'add_period'; sectionIndex: number; label: string; events?: string[]; index?: number }
   | { kind: 'remove_period'; sectionIndex: number; periodIndex: number }
   | { kind: 'set_period_label'; sectionIndex: number; periodIndex: number; label: string }
-  | { kind: 'add_event'; sectionIndex: number; periodIndex: number; text: string }
+  | { kind: 'add_event'; sectionIndex: number; periodIndex: number; text: string; index?: number }
   | { kind: 'remove_event'; sectionIndex: number; periodIndex: number; eventIndex: number }
   | { kind: 'set_event_text'; sectionIndex: number; periodIndex: number; eventIndex: number; text: string }
+  // Chronology reorder (journey move_task/move_section convention): toIndex is
+  // the insert position in the target container, applied after removal.
+  | { kind: 'move_period'; fromSection: number; fromIndex: number; toSection: number; toIndex: number }
+  | { kind: 'move_event'; fromSection: number; fromPeriod: number; fromIndex: number; toSection: number; toPeriod: number; toIndex: number }
+  | { kind: 'move_section'; from: number; to: number }
+  | { kind: 'set_accessibility_title'; title: string | null }
+  | { kind: 'set_accessibility_description'; description: string | null }
 
 type ClassMutationOp =
   | { kind: 'set_title'; title: string | null }

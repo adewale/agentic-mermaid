@@ -376,12 +376,15 @@ function renderEdge(edge: PositionedEdge, style: ResolvedRenderStyle, sceneId: s
 
   // Semantic data attributes for edge identification and inspection:
   // - class="edge": CSS targeting and type identification
+  // - data-id: authored v11.6 edge ID (`e1@-->`) when present — the stable
+  //   edge identity contract (X4), mirroring node/subgraph data-id
   // - data-from/data-to: source and target node IDs
   // - data-style: edge style (solid, dotted, thick)
   // - data-arrow-start/end: arrow presence flags
   // - data-label: edge label if present (for quick lookup without traversing DOM)
   const dataAttrs = [
     'class="edge"',
+    ...(edge.id ? [`data-id="${escapeAttr(edge.id)}"`] : []),
     `data-from="${escapeAttr(edge.source)}"`,
     `data-to="${escapeAttr(edge.target)}"`,
     `data-style="${edge.style}"`,
@@ -694,10 +697,14 @@ function renderNode(node: PositionedNode, font: string, style: ResolvedRenderSty
   if (label) {
     children.push({ indent: 2, node: label })
   }
+  // data-semantic-shape names the Mermaid v11 `@{ shape }` id when the drawn
+  // geometry is a mapping of it, so agents can explain the semantic shape
+  // even when the geometry is approximate (repo #44).
+  const semanticShape = node.semanticShape ? ` data-semantic-shape="${escapeAttr(node.semanticShape)}"` : ''
   return marks.group({
     id: `node:${node.id}`,
     role: 'node',
-    open: `<g class="${classAttr}" data-id="${escapeAttr(node.id)}" data-label="${escapeAttr(node.label)}" data-shape="${node.shape}">`,
+    open: `<g class="${classAttr}" data-id="${escapeAttr(node.id)}" data-label="${escapeAttr(node.label)}" data-shape="${node.shape}"${semanticShape}>`,
     close: '</g>',
     children,
     channels,

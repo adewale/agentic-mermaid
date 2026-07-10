@@ -5513,25 +5513,25 @@
       "nodes": [
         {
           "id": "A",
-          "x": 69,
+          "x": 59,
           "y": 40,
-          "w": 118,
+          "w": 138,
           "h": 37,
-          "shape": "rectangle",
+          "shape": "trapezoid-alt",
           "label": "File Handling"
         },
         {
           "id": "B",
-          "x": 69,
+          "x": 59,
           "y": 105,
-          "w": 102,
+          "w": 122,
           "h": 37,
-          "shape": "rectangle",
+          "shape": "lean-r",
           "label": "User Input"
         },
         {
           "id": "C",
-          "x": 69,
+          "x": 59,
           "y": 170,
           "w": 155,
           "h": 37,
@@ -5540,7 +5540,7 @@
         },
         {
           "id": "D",
-          "x": 69,
+          "x": 59,
           "y": 235,
           "w": 160,
           "h": 37,
@@ -5549,7 +5549,7 @@
         },
         {
           "id": "E",
-          "x": 69,
+          "x": 59,
           "y": 300,
           "w": 133,
           "h": 37,
@@ -5560,7 +5560,7 @@
       "edges": [],
       "groups": [],
       "bounds": {
-        "w": 269,
+        "w": 259,
         "h": 377
       }
     }
@@ -5625,7 +5625,7 @@
           "y": 40,
           "w": 133,
           "h": 37,
-          "shape": "rectangle",
+          "shape": "rounded",
           "label": "This is an event"
         }
       ],
@@ -5649,7 +5649,7 @@
           "y": 40,
           "w": 124,
           "h": 37,
-          "shape": "rectangle",
+          "shape": "stadium",
           "label": "Terminal point"
         }
       ],
@@ -5673,7 +5673,7 @@
           "y": 40,
           "w": 166,
           "h": 37,
-          "shape": "rectangle",
+          "shape": "subroutine",
           "label": "This is a subprocess"
         }
       ],
@@ -5696,8 +5696,8 @@
           "x": 40,
           "y": 40,
           "w": 98,
-          "h": 37,
-          "shape": "rectangle",
+          "h": 51,
+          "shape": "cylinder",
           "label": "Database"
         }
       ],
@@ -5705,7 +5705,7 @@
       "groups": [],
       "bounds": {
         "w": 178,
-        "h": 117
+        "h": 131
       }
     }
   },
@@ -5719,17 +5719,17 @@
           "id": "A",
           "x": 40,
           "y": 40,
-          "w": 70,
-          "h": 37,
-          "shape": "rectangle",
+          "w": 88,
+          "h": 88,
+          "shape": "circle",
           "label": "Start"
         }
       ],
       "edges": [],
       "groups": [],
       "bounds": {
-        "w": 150,
-        "h": 117
+        "w": 168,
+        "h": 168
       }
     }
   },
@@ -5743,16 +5743,16 @@
           "id": "A",
           "x": 40,
           "y": 40,
-          "w": 105,
+          "w": 117,
           "h": 37,
-          "shape": "rectangle",
+          "shape": "asymmetric",
           "label": "Odd shape"
         }
       ],
       "edges": [],
       "groups": [],
       "bounds": {
-        "w": 185,
+        "w": 197,
         "h": 117
       }
     }
@@ -5767,17 +5767,17 @@
           "id": "A",
           "x": 40,
           "y": 40,
-          "w": 94,
-          "h": 37,
-          "shape": "rectangle",
+          "w": 118,
+          "h": 118,
+          "shape": "diamond",
           "label": "Decision"
         }
       ],
       "edges": [],
       "groups": [],
       "bounds": {
-        "w": 174,
-        "h": 117
+        "w": 198,
+        "h": 198
       }
     }
   },
@@ -5791,16 +5791,16 @@
           "id": "A",
           "x": 40,
           "y": 40,
-          "w": 158,
+          "w": 178,
           "h": 37,
-          "shape": "rectangle",
+          "shape": "hexagon",
           "label": "Prepare conditional"
         }
       ],
       "edges": [],
       "groups": [],
       "bounds": {
-        "w": 238,
+        "w": 258,
         "h": 117
       }
     }
@@ -5815,16 +5815,16 @@
           "id": "A",
           "x": 40,
           "y": 40,
-          "w": 111,
+          "w": 131,
           "h": 37,
-          "shape": "rectangle",
+          "shape": "lean-r",
           "label": "Input/Output"
         }
       ],
       "edges": [],
       "groups": [],
       "bounds": {
-        "w": 191,
+        "w": 211,
         "h": 117
       }
     }
@@ -5838,29 +5838,20 @@
         {
           "id": "markdown",
           "x": 40,
-          "y": 40,
-          "w": 169,
+          "y": 57,
+          "w": 161,
           "h": 37,
           "shape": "rectangle",
-          "label": "`This <b>is</b> _Markdown_`"
+          "label": "This is _Markdown_"
         },
         {
           "id": "newLines",
-          "x": 257,
+          "x": 249,
           "y": 40,
-          "w": 100,
-          "h": 37,
+          "w": 78,
+          "h": 71,
           "shape": "rectangle",
-          "label": "newLines"
-        },
-        {
-          "id": "Line",
-          "x": 40,
-          "y": 105,
-          "w": 69,
-          "h": 37,
-          "shape": "rectangle",
-          "label": "Line"
+          "label": "Line1\nLine 2\nLine 3"
         }
       ],
       "edges": [
@@ -5870,20 +5861,20 @@
           "to": "newLines",
           "path": [
             [
-              209,
-              58
+              201,
+              75
             ],
             [
-              257,
-              58
+              249,
+              75
             ]
           ]
         }
       ],
       "groups": [],
       "bounds": {
-        "w": 396,
-        "h": 182
+        "w": 368,
+        "h": 151
       }
     }
   },
@@ -5897,16 +5888,16 @@
           "id": "A",
           "x": 40,
           "y": 40,
-          "w": 111,
+          "w": 131,
           "h": 37,
-          "shape": "rectangle",
+          "shape": "lean-l",
           "label": "Output/Input"
         }
       ],
       "edges": [],
       "groups": [],
       "bounds": {
-        "w": 191,
+        "w": 211,
         "h": 117
       }
     }
@@ -5922,8 +5913,8 @@
           "x": 40,
           "y": 40,
           "w": 100,
-          "h": 37,
-          "shape": "rectangle",
+          "h": 51,
+          "shape": "cylinder",
           "label": "Datastore"
         }
       ],
@@ -5931,7 +5922,7 @@
       "groups": [],
       "bounds": {
         "w": 180,
-        "h": 117
+        "h": 131
       }
     }
   },
@@ -5945,16 +5936,16 @@
           "id": "A",
           "x": 40,
           "y": 40,
-          "w": 124,
+          "w": 144,
           "h": 37,
-          "shape": "rectangle",
+          "shape": "trapezoid",
           "label": "Priority action"
         }
       ],
       "edges": [],
       "groups": [],
       "bounds": {
-        "w": 204,
+        "w": 224,
         "h": 117
       }
     }
@@ -5969,16 +5960,16 @@
           "id": "A",
           "x": 40,
           "y": 40,
-          "w": 144,
+          "w": 164,
           "h": 37,
-          "shape": "rectangle",
+          "shape": "trapezoid-alt",
           "label": "Manual operation"
         }
       ],
       "edges": [],
       "groups": [],
       "bounds": {
-        "w": 224,
+        "w": 244,
         "h": 117
       }
     }
@@ -5993,17 +5984,17 @@
           "id": "A",
           "x": 40,
           "y": 40,
-          "w": 69,
-          "h": 37,
-          "shape": "rectangle",
+          "w": 98,
+          "h": 98,
+          "shape": "doublecircle",
           "label": "Stop"
         }
       ],
       "edges": [],
       "groups": [],
       "bounds": {
-        "w": 149,
-        "h": 117
+        "w": 178,
+        "h": 178
       }
     }
   },
@@ -6067,7 +6058,7 @@
           "y": 40,
           "w": 129,
           "h": 37,
-          "shape": "rectangle",
+          "shape": "subroutine",
           "label": "Lined process"
         }
       ],
@@ -6089,17 +6080,17 @@
           "id": "A",
           "x": 40,
           "y": 40,
-          "w": 102,
-          "h": 37,
-          "shape": "rectangle",
+          "w": 117,
+          "h": 117,
+          "shape": "circle",
           "label": "Small start"
         }
       ],
       "edges": [],
       "groups": [],
       "bounds": {
-        "w": 182,
-        "h": 117
+        "w": 197,
+        "h": 197
       }
     }
   },
@@ -6113,17 +6104,17 @@
           "id": "A",
           "x": 40,
           "y": 40,
-          "w": 69,
-          "h": 37,
-          "shape": "rectangle",
+          "w": 98,
+          "h": 98,
+          "shape": "doublecircle",
           "label": "Stop"
         }
       ],
       "edges": [],
       "groups": [],
       "bounds": {
-        "w": 149,
-        "h": 117
+        "w": 178,
+        "h": 178
       }
     }
   },
@@ -6210,17 +6201,17 @@
           "id": "A",
           "x": 40,
           "y": 40,
-          "w": 82,
-          "h": 37,
-          "shape": "rectangle",
+          "w": 106,
+          "h": 106,
+          "shape": "diamond",
           "label": "Collate"
         }
       ],
       "edges": [],
       "groups": [],
       "bounds": {
-        "w": 162,
-        "h": 117
+        "w": 186,
+        "h": 186
       }
     }
   },
@@ -6356,7 +6347,7 @@
           "y": 40,
           "w": 76,
           "h": 37,
-          "shape": "rectangle",
+          "shape": "rounded",
           "label": "Delay"
         }
       ],
@@ -6379,8 +6370,8 @@
           "x": 40,
           "y": 40,
           "w": 172,
-          "h": 37,
-          "shape": "rectangle",
+          "h": 51,
+          "shape": "cylinder",
           "label": "Direct access storage"
         }
       ],
@@ -6388,7 +6379,7 @@
       "groups": [],
       "bounds": {
         "w": 252,
-        "h": 117
+        "h": 131
       }
     }
   },
@@ -6403,8 +6394,8 @@
           "x": 40,
           "y": 40,
           "w": 117,
-          "h": 37,
-          "shape": "rectangle",
+          "h": 51,
+          "shape": "cylinder",
           "label": "Disk storage"
         }
       ],
@@ -6412,7 +6403,7 @@
       "groups": [],
       "bounds": {
         "w": 197,
-        "h": 117
+        "h": 131
       }
     }
   },
@@ -6477,7 +6468,7 @@
           "y": 40,
           "w": 86,
           "h": 37,
-          "shape": "rectangle",
+          "shape": "rounded",
           "label": "Display"
         }
       ],
@@ -6523,16 +6514,16 @@
           "id": "A",
           "x": 40,
           "y": 40,
-          "w": 85,
+          "w": 105,
           "h": 37,
-          "shape": "rectangle",
+          "shape": "trapezoid",
           "label": "Extract"
         }
       ],
       "edges": [],
       "groups": [],
       "bounds": {
-        "w": 165,
+        "w": 185,
         "h": 117
       }
     }
@@ -6571,17 +6562,17 @@
           "id": "A",
           "x": 40,
           "y": 40,
-          "w": 94,
-          "h": 37,
-          "shape": "rectangle",
+          "w": 109,
+          "h": 109,
+          "shape": "circle",
           "label": "Junction"
         }
       ],
       "edges": [],
       "groups": [],
       "bounds": {
-        "w": 174,
-        "h": 117
+        "w": 189,
+        "h": 189
       }
     }
   },
@@ -6619,16 +6610,16 @@
           "id": "A",
           "x": 40,
           "y": 40,
-          "w": 96,
+          "w": 116,
           "h": 37,
-          "shape": "rectangle",
+          "shape": "hexagon",
           "label": "Loop limit"
         }
       ],
       "edges": [],
       "groups": [],
       "bounds": {
-        "w": 176,
+        "w": 196,
         "h": 117
       }
     }
@@ -6643,16 +6634,16 @@
           "id": "A",
           "x": 40,
           "y": 40,
-          "w": 104,
+          "w": 124,
           "h": 37,
-          "shape": "rectangle",
+          "shape": "trapezoid-alt",
           "label": "Manual file"
         }
       ],
       "edges": [],
       "groups": [],
       "bounds": {
-        "w": 184,
+        "w": 204,
         "h": 117
       }
     }
@@ -6667,16 +6658,16 @@
           "id": "A",
           "x": 40,
           "y": 40,
-          "w": 116,
+          "w": 136,
           "h": 37,
-          "shape": "rectangle",
+          "shape": "lean-r",
           "label": "Manual input"
         }
       ],
       "edges": [],
       "groups": [],
       "bounds": {
-        "w": 196,
+        "w": 216,
         "h": 117
       }
     }
@@ -6788,8 +6779,8 @@
           "x": 40,
           "y": 40,
           "w": 109,
-          "h": 37,
-          "shape": "rectangle",
+          "h": 51,
+          "shape": "cylinder",
           "label": "Stored data"
         }
       ],
@@ -6797,7 +6788,7 @@
       "groups": [],
       "bounds": {
         "w": 189,
-        "h": 117
+        "h": 131
       }
     }
   },
@@ -6811,17 +6802,17 @@
           "id": "A",
           "x": 40,
           "y": 40,
-          "w": 97,
-          "h": 37,
-          "shape": "rectangle",
+          "w": 112,
+          "h": 112,
+          "shape": "circle",
           "label": "Summary"
         }
       ],
       "edges": [],
       "groups": [],
       "bounds": {
-        "w": 177,
-        "h": 117
+        "w": 192,
+        "h": 192
       }
     }
   },
@@ -9702,59 +9693,110 @@
           "id": "a",
           "x": 56,
           "y": 84,
-          "w": 60,
-          "h": 37,
-          "shape": "rectangle",
-          "label": "a"
+          "w": 92,
+          "h": 54,
+          "shape": "rounded",
+          "label": "The cat\nin the hat"
         },
         {
-          "id": "in",
-          "x": 56,
-          "y": 149,
-          "w": 60,
+          "id": "b",
+          "x": 314,
+          "y": 92,
+          "w": 167,
           "h": 37,
-          "shape": "rectangle",
-          "label": "in"
+          "shape": "hexagon",
+          "label": "The dog in the hog"
         },
         {
           "id": "c",
           "x": 56,
-          "y": 274,
-          "w": 60,
+          "y": 226,
+          "w": 92,
+          "h": 54,
+          "shape": "rounded",
+          "label": "The cat\nin the hat"
+        },
+        {
+          "id": "d",
+          "x": 314,
+          "y": 234,
+          "w": 147,
           "h": 37,
-          "shape": "rectangle",
-          "label": "c"
+          "shape": "rounded",
+          "label": "The dog in the hog"
         }
       ],
-      "edges": [],
+      "edges": [
+        {
+          "id": "a->b",
+          "from": "a",
+          "to": "b",
+          "path": [
+            [
+              148,
+              111
+            ],
+            [
+              314,
+              111
+            ]
+          ],
+          "label": {
+            "x": 225,
+            "y": 110,
+            "text": "edge label"
+          }
+        },
+        {
+          "id": "c->d",
+          "from": "c",
+          "to": "d",
+          "path": [
+            [
+              148,
+              253
+            ],
+            [
+              314,
+              253
+            ]
+          ],
+          "label": {
+            "x": 237,
+            "y": 252,
+            "text": "Bold edge label"
+          }
+        }
+      ],
       "groups": [
         {
           "id": "One",
           "x": 40,
           "y": 40,
-          "w": 92,
-          "h": 162,
+          "w": 445,
+          "h": 114,
           "members": [
             "a",
-            "in"
+            "b"
           ],
           "label": "One"
         },
         {
           "id": "Two",
           "x": 40,
-          "y": 230,
-          "w": 92,
-          "h": 97,
+          "y": 182,
+          "w": 448,
+          "h": 114,
           "members": [
-            "c"
+            "c",
+            "d"
           ],
-          "label": "`<b>Two</b>`"
+          "label": "Two"
         }
       ],
       "bounds": {
-        "w": 172,
-        "h": 367
+        "w": 528,
+        "h": 336
       }
     }
   },

@@ -31,6 +31,9 @@ import { classIneffectiveConfigFields } from '../class/layout.ts'
 import { erIneffectiveConfigFields } from '../er/layout.ts'
 import { pieIneffectiveConfigFields } from '../pie/config.ts'
 import { QUADRANT_NOOP_CONFIG_FIELDS } from '../quadrant/config.ts'
+import { architectureIneffectiveConfigFields } from '../architecture/config.ts'
+import { flowchartIneffectiveConfigFields } from '../flowchart-config.ts'
+import { normalizeV11Shape } from '../flowchart-shapes.ts'
 import './families-builtin.ts'  // registers built-in families at import time
 
 const KNOWN_SHAPES = new Set([
@@ -140,6 +143,38 @@ function journeyIneffectiveConfigWarnings(d: ValidDiagram): LayoutWarning[] {
   }))
 }
 
+// Timeline wires disableMulticolor + sectionFills/sectionColours
+// (src/timeline/renderer.ts). Upstream's documented TimelineDiagramConfig is
+// journey-shaped (sequence-era margins, actor boxes, task fonts), and none of
+// that remainder — nor the BaseDiagramConfig useWidth/useMaxWidth — touches
+// timeline geometry or paint here, so name each field per P4 (wire-or-warn)
+// instead of silently swallowing it. Lint only; never flips verify.ok.
+const TIMELINE_NOOP_CONFIG_FIELDS = [
+  'diagramMarginX', 'diagramMarginY', 'leftMargin', 'width', 'height', 'padding',
+  'boxMargin', 'boxTextMargin', 'noteMargin', 'messageMargin', 'messageAlign',
+  'bottomMarginAdj', 'rightAngles', 'taskFontSize', 'taskFontFamily', 'taskMargin',
+  'activationWidth', 'textPlacement', 'actorColours', 'useMaxWidth', 'useWidth',
+] as const
+
+function timelineIneffectiveConfigWarnings(d: ValidDiagram): LayoutWarning[] {
+  const configs: unknown[] = [
+    (d.meta.frontmatter as Record<string, unknown> | undefined)?.timeline,
+    ...d.meta.initDirectives.map(directive => (directive.parsed as Record<string, unknown> | undefined)?.timeline),
+  ]
+  const present = new Set<string>()
+  for (const config of configs) {
+    if (!config || typeof config !== 'object') continue
+    for (const field of TIMELINE_NOOP_CONFIG_FIELDS) {
+      if (field in (config as Record<string, unknown>)) present.add(field)
+    }
+  }
+  return [...present].sort().map(field => ({
+    code: 'INEFFECTIVE_CONFIG',
+    field,
+    message: `Timeline config field "${field}" is accepted for Mermaid config-shape compatibility but has no effect on timeline geometry or paint.`,
+  }))
+}
+
 // Pie wires textPosition/donutHole/legendPosition + the pieN/stroke/opacity
 // theme variables (src/pie/config.ts); the documented remainder is named
 // here per P4 (wire-or-warn) instead of being silently swallowed.
@@ -204,6 +239,61 @@ function quadrantIneffectiveConfigWarnings(d: ValidDiagram): LayoutWarning[] {
   }))
 }
 
+// Architecture wires nodeSeparation (sibling spacing) and
+// idealEdgeLengthMultiplier (layer gap) plus padding/iconSize/fontSize
+// (src/architecture/config.ts, the single wire-or-warn table); the remaining
+// documented keys (edgeElasticity, numIter, seed, randomize) tune upstream's
+// nondeterministic fcose simulation and have no meaning in this deterministic
+// layout — named here per P4 instead of being silently swallowed.
+function architectureIneffectiveConfigWarnings(d: ValidDiagram): LayoutWarning[] {
+  const configs: unknown[] = [
+    (d.meta.frontmatter as Record<string, unknown> | undefined)?.architecture,
+    ...d.meta.initDirectives.map(directive => (directive.parsed as Record<string, unknown> | undefined)?.architecture),
+  ]
+  return architectureIneffectiveConfigFields(configs).map(field => ({
+    code: 'INEFFECTIVE_CONFIG',
+    field,
+    message: `Architecture config field "${field}" tunes upstream's fcose force simulation; this architecture layout is deterministic, so the field is accepted for Mermaid config-shape compatibility but has no effect on geometry.`,
+  }))
+}
+
+// Flowchart wires nodeSpacing/rankSpacing/wrappingWidth
+// (src/flowchart-config.ts resolveFlowchartRenderOptions); the documented
+// remainder (curve, htmlLabels, padding, …) is named here per P4
+// (wire-or-warn). The NOOP field table lives beside the wiring in
+// src/flowchart-config.ts so wire and warn cannot drift.
+function flowchartIneffectiveConfigWarnings(d: ValidDiagram): LayoutWarning[] {
+  const configs: unknown[] = [
+    (d.meta.frontmatter as Record<string, unknown> | undefined)?.flowchart,
+    ...d.meta.initDirectives.map(directive => (directive.parsed as Record<string, unknown> | undefined)?.flowchart),
+  ]
+  return flowchartIneffectiveConfigFields(configs).map(field => ({
+    code: 'INEFFECTIVE_CONFIG',
+    field,
+    message: `Flowchart config field "${field}" is accepted for Mermaid config-shape compatibility but has no effect on flowchart geometry or paint.`,
+  }))
+}
+
+// v11 typed shapes (repo #44): documented names whose geometry mapping is
+// approximate render with the nearest existing geometry — announce each
+// substitution (Tier-3, never flips ok) so the approximation is honest.
+function flowchartShapeSubstitutionWarnings(d: ValidDiagram): LayoutWarning[] {
+  if (d.kind !== 'flowchart' || d.body.kind !== 'flowchart') return []
+  const warnings: LayoutWarning[] = []
+  for (const node of d.body.graph.nodes.values()) {
+    if (!node.semanticShape) continue
+    const v11 = normalizeV11Shape(node.semanticShape)
+    if (!v11 || v11.exact) continue
+    warnings.push({
+      code: 'UNSUPPORTED_SYNTAX',
+      syntax: 'flowchart_shape_substitution',
+      node: node.id,
+      message: `Mermaid v11 shape "${node.authoredShape ?? node.semanticShape}" (${v11.description}) has no dedicated renderer yet; node "${node.id}" renders with the nearest geometry "${v11.geometry}".`,
+    })
+  }
+  return warnings
+}
+
 // Upstream's quadrant grammar accepts ANY `key: value` style entry and
 // applies only radius/color/stroke-color/stroke-width; unknown-but-safe
 // entries are preserved verbatim on the body (point-style.ts `extra`) and
@@ -239,16 +329,20 @@ function verifyStructure(input: ValidDiagram | string, opts: VerifyOptions = {})
   const metaWarnings: LayoutWarning[] = d.meta.droppedComments?.length
     ? [{ code: 'COMMENT_DROPPED', count: d.meta.droppedComments.length, lines: d.meta.droppedComments.map(c => c.line) }]
     : []
-  const sourceWarnings = d.kind === 'flowchart' ? flowchartUnsupportedSyntaxWarnings(d.canonicalSource)
+  const sourceWarnings = d.kind === 'flowchart'
+    ? dedupedConcat(flowchartUnsupportedSyntaxWarnings(d.canonicalSource), flowchartShapeSubstitutionWarnings(d))
     : d.kind === 'er' ? erUnsupportedSyntaxWarnings(d.canonicalSource)
     : d.kind === 'quadrant' ? quadrantInertStyleWarnings(d) : []
   const faithfulnessWarnings = roundtripFaithfulnessWarnings(d)
   const configWarnings = d.kind === 'journey'
     ? journeyIneffectiveConfigWarnings(d)
+    : d.kind === 'timeline' ? timelineIneffectiveConfigWarnings(d)
     : d.kind === 'pie' ? pieIneffectiveConfigWarnings(d)
     : d.kind === 'quadrant' ? quadrantIneffectiveConfigWarnings(d)
     : d.kind === 'class' ? classErIneffectiveConfigWarnings(d, 'class', classIneffectiveConfigFields, 'Class')
-    : d.kind === 'er' ? classErIneffectiveConfigWarnings(d, 'er', erIneffectiveConfigFields, 'Er') : []
+    : d.kind === 'er' ? classErIneffectiveConfigWarnings(d, 'er', erIneffectiveConfigFields, 'Er')
+    : d.kind === 'architecture' ? architectureIneffectiveConfigWarnings(d)
+    : d.kind === 'flowchart' ? flowchartIneffectiveConfigWarnings(d) : []
   const pluginWarnings = dedupedConcat(dedupedConcat(dedupedConcat(dedupedConcat(metaWarnings, dispatchFamilyVerify(d, opts)), sourceWarnings), faithfulnessWarnings), configWarnings)
 
   if (d.body.kind === 'sequence') return mergeFinalize(verifySequence(d as ValidDiagram & { body: SequenceBody }, cap, opts), pluginWarnings, opts)
@@ -471,7 +565,9 @@ function mergeFinalize(prev: VerifyResult, extra: LayoutWarning[], opts: VerifyO
 }
 
 function warningKey(w: LayoutWarning): string {
-  if (w.code === 'UNSUPPORTED_SYNTAX') return `${w.code}:${w.syntax}:${w.line ?? ''}`
+  // node disambiguates per-node lints that share a syntax and carry no line
+  // (flowchart_shape_substitution) so two substituted nodes both surface.
+  if (w.code === 'UNSUPPORTED_SYNTAX') return `${w.code}:${w.syntax}:${w.line ?? ''}:${w.node ?? ''}`
   if ('target' in w) return `${w.code}:${w.target}`
   if ('edge' in w) return `${w.code}:${w.edge}`
   if ('node' in w) return `${w.code}:${w.node}`
@@ -552,7 +648,13 @@ function verifyTimeline(d: ValidDiagram & { body: import('./types.ts').TimelineB
   const body = d.body
   const layout = layoutFamilyToRendered(d) ?? emptyRenderedLayout(d.kind)
   const warnings: LayoutWarning[] = []
-  const hasContent = body.sections.some(s => s.periods.length > 0) || body.title !== undefined
+  // Upstream parity (mirrors the journey furniture rule): a timeline with a
+  // title, accessibility metadata, or sections — even period-less ones — still
+  // renders as header/section furniture. Only a timeline with NOTHING is empty.
+  const hasContent = body.sections.length > 0
+    || body.title !== undefined
+    || body.accessibilityTitle !== undefined
+    || body.accessibilityDescription !== undefined
   if (!hasContent) return finalize([{ code: 'EMPTY_DIAGRAM' }], layout, opts)
   const overflow = (target: string, text: string | undefined) => {
     const w = text !== undefined ? labelOverflowWarning(target, text, cap) : null

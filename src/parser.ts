@@ -1,5 +1,6 @@
 import type { MermaidGraph, MermaidNode, MermaidEdge, MermaidSubgraph, Direction, NodeShape, EdgeStyle, EdgeMarker } from './types.ts'
 import { normalizeBrTags } from './multiline-utils.ts'
+import { normalizeV11Shape } from './flowchart-shapes.ts'
 
 // ============================================================================
 // Mermaid parser — flowcharts and state diagrams
@@ -18,7 +19,7 @@ import { normalizeBrTags } from './multiline-utils.ts'
  * Throws on invalid/unsupported input.
  */
 export function parseMermaid(text: string): MermaidGraph {
-  const lines = expandInlineHeaderStatements(coalesceMetadataLines(text.split('\n')).map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('%%')))
+  const lines = expandInlineHeaderStatements(coalesceMetadataLines(coalesceMarkdownStringLines(text.split('\n'))).map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('%%')))
 
   if (lines.length === 0) {
     throw new Error('Empty mermaid diagram')
@@ -98,6 +99,87 @@ function metadataBraceDelta(text: string): number {
   return delta
 }
 
+/**
+ * Mermaid markdown strings ("`…`") may contain literal newlines as explicit
+ * line breaks. The parser is line-oriented, so an open backtick string (an
+ * odd number of backticks on a line) joins the following lines until the
+ * string closes. The break is joined as '<br>' — the label pipeline's
+ * canonical line-break token — so the single-line shape grammars keep
+ * matching and markdownStringToPlainText/normalizeBrTags restore '\n'.
+ * Comment lines outside an open string pass through untouched.
+ */
+function coalesceMarkdownStringLines(lines: string[]): string[] {
+  const out: string[] = []
+  let current: string[] | null = null
+  for (const line of lines) {
+    if (current) {
+      current.push(line.trim())
+      if (countBackticks(line) % 2 === 1) {
+        out.push(current.join('<br>'))
+        current = null
+      }
+      continue
+    }
+    if (line.trim().startsWith('%%')) { out.push(line); continue }
+    if (countBackticks(line) % 2 === 1) {
+      current = [line]
+      continue
+    }
+    out.push(line)
+  }
+  if (current) out.push(current.join('<br>'))
+  return out
+}
+
+function countBackticks(line: string): number {
+  let count = 0
+  let escaped = false
+  for (const ch of line) {
+    if (escaped) { escaped = false; continue }
+    if (ch === '\\') { escaped = true; continue }
+    if (ch === '`') count++
+  }
+  return count
+}
+
+/**
+ * Strip Mermaid markdown-string styling to plain text (repo #102 layer 1):
+ * bold/italic markers are removed (styled runs are layer 2, announced by the
+ * flowchart_markdown_string lint), <br>/literal \n become line breaks, and
+ * real newlines survive as the explicit breaks upstream documents.
+ */
+function markdownStringToPlainText(inner: string): string {
+  return inner
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/\\n/g, '\n')
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/(?<!\*)\*([^\s*](?:[^*]*[^\s*])?)\*(?!\*)/g, '$1')
+}
+
+interface ParsedLabelText {
+  text: string
+  markdown: boolean
+}
+
+/**
+ * ONE label normalization for node and edge labels: a quoted backtick string
+ * ("`…`") is a Mermaid markdown string — backticks consumed, styling
+ * stripped to plain text — while everything else keeps the existing
+ * normalizeBrTags pipeline (quote stripping, <br> handling, emphasis→tags).
+ * `alreadyUnquoted` marks callers whose grammar consumed the double quotes
+ * (consumeQuotedNode, parseMetadataLabel).
+ */
+function parseLabelText(raw: string, alreadyUnquoted = false): ParsedLabelText {
+  const unquoted = !alreadyUnquoted && raw.length >= 2 && raw.startsWith('"') && raw.endsWith('"')
+    ? raw.slice(1, -1)
+    : raw
+  const quoteConsumed = alreadyUnquoted || unquoted !== raw
+  if (quoteConsumed && unquoted.length >= 2 && unquoted.startsWith('`') && unquoted.endsWith('`')) {
+    return { text: markdownStringToPlainText(unquoted.slice(1, -1)), markdown: true }
+  }
+  return { text: normalizeBrTags(raw), markdown: false }
+}
+
 function splitFlowchartStatements(line: string): string[] {
   const out: string[] = []
   let start = 0
@@ -151,10 +233,10 @@ function isFlowchartInteractionDirective(line: string): boolean {
 function isUnsupportedEdgeMetadataLine(line: string): boolean {
   const match = line.trim().match(/^[\w-]+@\s*\{([\s\S]*)\}\s*$/)
   if (!match) return false
-  const metadata = match[1]!
-  // Node metadata is modeled by the safety fallback; edge metadata currently
-  // has animate/curve semantics only Mermaid itself understands.
-  return !/(?:^|,)\s*(?:shape|label|icon|img)\s*:/i.test(metadata)
+  // Node metadata is modeled (documented shapes) or label-preserved; edge
+  // metadata has animate/curve semantics only Mermaid itself understands.
+  const entries = parseMetadataEntries(match[1]!)
+  return !entries.has('shape') && !entries.has('label') && !entries.has('icon') && !entries.has('img')
 }
 
 // ============================================================================
@@ -259,10 +341,11 @@ function parseFlowchart(lines: string[]): MermaidGraph {
         let label: string
         if (bracketMatch) {
           id = bracketMatch[1]!
-          label = normalizeBrTags(bracketMatch[2]!)
+          label = parseLabelText(bracketMatch[2]!).text
         } else {
-          // Use the label text as id (slugified)
-          label = normalizeBrTags(rest)
+          // Use the label text as id (slugified); markdown-string labels
+          // ("`**Two**`") display as plain text like every other label.
+          label = parseLabelText(rest).text
           id = rest.replace(/\s+/g, '_').replace(/[^\w]/g, '')
         }
         const sg: MermaidSubgraph = { id, label, nodeIds: [], children: [] }
@@ -534,7 +617,7 @@ function splitTopLevelCommas(s: string): string[] {
   return out.map(part => part.replace(/\\,/g, ','))
 }
 
-function parseStyleProps(propsStr: string): Record<string, string> {
+export function parseStyleProps(propsStr: string): Record<string, string> {
   // Strip trailing semicolons — Mermaid tolerates them (e.g. `stroke:#f00;`)
   const cleaned = propsStr.replace(/;\s*$/, '')
   const props: Record<string, string> = {}
@@ -693,14 +776,18 @@ function parseEdgeLine(
     let edgeLabel: string | undefined
     let length: number | undefined
 
+    // v11.6 edge IDs (`e1@-->`): the authored ID is modeled as stable edge
+    // identity (plan §Flowchart 7) — carried on MermaidEdge.id, re-emitted
+    // verbatim by the serializer, and accepted as an op target selector.
     const edgeIdMatch = remaining.match(EDGE_ID_PREFIX_REGEX)
+    const edgeId = edgeIdMatch?.[1]
     if (edgeIdMatch) remaining = remaining.slice(edgeIdMatch[0].length).trim()
 
     const arrowMatch = remaining.match(ARROW_REGEX)
     if (arrowMatch) {
       const arrowOp = arrowMatch[2]!
       const rawEdgeLabel = arrowMatch[3]?.trim()
-      edgeLabel = rawEdgeLabel ? normalizeBrTags(rawEdgeLabel) : undefined
+      edgeLabel = rawEdgeLabel ? parseLabelText(rawEdgeLabel).text : undefined
       remaining = remaining.slice(arrowMatch[0].length).trim()
       style = arrowStyleFromOp(arrowOp)
       length = arrowLengthFromOp(arrowOp)
@@ -714,7 +801,7 @@ function parseEdgeLine(
       if (!textMatch) break
       hasArrowStart = Boolean(textMatch[1])
       const rawLabel = textMatch[3]!.trim()
-      edgeLabel = rawLabel ? normalizeBrTags(rawLabel) : undefined
+      edgeLabel = rawLabel ? parseLabelText(rawLabel).text : undefined
       const openOp = textMatch[2]!
       const closeOp = textMatch[4]!
       remaining = remaining.slice(textMatch[0].length).trim()
@@ -737,6 +824,7 @@ function parseEdgeLine(
         graph.edges.push({
           source: sourceId,
           target: targetId,
+          ...(edgeId !== undefined ? { id: edgeId } : {}),
           label: edgeLabel,
           style,
           hasArrowStart,
@@ -803,15 +891,33 @@ function consumeMetadataNode(
   if (objectEnd < 0) return null
 
   const metadata = text.slice(objectStart + 1, objectEnd)
-  const label = parseMetadataLabel(metadata)
-  // #29 safety floor: we preserve labels/edges for rendering and reserve the
-  // expanded Mermaid v11 shape vocabulary for the follow-up modeled support.
+  const entries = parseMetadataEntries(metadata)
+  const label = entries.get('label')
+  const parsedLabel = label !== undefined ? parseLabelText(label, true) : undefined
+  // v11 typed shapes (repo #44): documented `@{ shape: ... }` names normalize
+  // through the ONE table in src/flowchart-shapes.ts to a semantic shape id +
+  // rendering geometry; the authored spelling is preserved for round-trip.
+  // Undocumented names keep the #29 safety floor (labeled rectangle);
+  // icon/img/extra keys stay on the opaque agent path (flowchart-unsupported).
+  const shapeName = entries.get('shape')
+  const v11 = shapeName !== undefined ? normalizeV11Shape(shapeName) : null
+  const shapeFields = v11 ? { shape: v11.geometry, semanticShape: v11.canonical, authoredShape: shapeName!.trim() } : {}
   const existing = graph.nodes.get(id)
   if (existing) {
-    if (label !== undefined) graph.nodes.set(id, { ...existing, label: normalizeBrTags(label) })
+    graph.nodes.set(id, {
+      ...existing,
+      ...(parsedLabel !== undefined ? { label: parsedLabel.text, ...(parsedLabel.markdown ? { markdownLabel: true as const } : {}) } : {}),
+      ...shapeFields,
+    })
     trackInSubgraph(subgraphStack, id)
   } else {
-    registerNode(graph, subgraphStack, { id, label: normalizeBrTags(label ?? id), shape: 'rectangle' })
+    registerNode(graph, subgraphStack, {
+      id,
+      label: parsedLabel?.text ?? id,
+      shape: 'rectangle',
+      ...(parsedLabel?.markdown ? { markdownLabel: true as const } : {}),
+      ...shapeFields,
+    })
   }
   return { id, remaining: text.slice(objectEnd + 1) }
 }
@@ -839,14 +945,51 @@ function findMetadataObjectEnd(text: string, start: number): number {
   return -1
 }
 
-function parseMetadataLabel(metadata: string): string | undefined {
-  const match = metadata.match(/(?:^|,)\s*label\s*:\s*("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[^,}]+)/)
-  if (!match) return undefined
-  const raw = match[1]!.trim()
-  if ((raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'"))) {
+/**
+ * THE `@{ ... }` metadata-entry grammar (one table, two consumers: this
+ * parser's node consumption and the agent-side modeled/opaque gate in
+ * flowchart-unsupported.ts). Entries separate on top-level commas OR
+ * whitespace (upstream's multiline YAML-ish form joins to spaces); quoted
+ * values never split. Keys lowercase; values unquoted/unescaped.
+ */
+export function parseMetadataEntries(metadata: string): Map<string, string> {
+  // Mask quoted spans so key detection never fires inside a value.
+  let masked = ''
+  let quote: '"' | "'" | null = null
+  let escaped = false
+  for (const ch of metadata) {
+    if (escaped) { escaped = false; masked += ' '; continue }
+    if (ch === '\\') { masked += ' '; escaped = true; continue }
+    if (quote) {
+      if (ch === quote) quote = null
+      masked += ' '
+      continue
+    }
+    if (ch === '"' || ch === "'") { quote = ch; masked += ' '; continue }
+    masked += ch
+  }
+
+  const keyRe = /(^|[,\s])([\w-]+)\s*:/g
+  const found: Array<{ key: string; keyStart: number; valueStart: number }> = []
+  let match: RegExpExecArray | null
+  while ((match = keyRe.exec(masked)) !== null) {
+    found.push({ key: match[2]!.toLowerCase(), keyStart: match.index + match[1]!.length, valueStart: match.index + match[0].length })
+  }
+
+  const entries = new Map<string, string>()
+  for (let i = 0; i < found.length; i++) {
+    const end = i + 1 < found.length ? found[i + 1]!.keyStart : metadata.length
+    const raw = metadata.slice(found[i]!.valueStart, end).trim().replace(/,\s*$/, '').trim()
+    entries.set(found[i]!.key, unquoteMetadataValue(raw))
+  }
+  return entries
+}
+
+function unquoteMetadataValue(raw: string): string {
+  if (raw.length >= 2 && ((raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'")))) {
     return raw.slice(1, -1).replace(/\\([\\"'])/g, '$1')
   }
-  return raw.trim()
+  return raw
 }
 
 function consumeQuotedNode(
@@ -854,11 +997,11 @@ function consumeQuotedNode(
   graph: MermaidGraph,
   subgraphStack: MermaidSubgraph[]
 ): ConsumedNode | null {
-  const match = text.match(/^([\w-]+)\["((?:\\.|[^"\\])*)"\]/)
+  const match = text.match(/^([\w-]+)\["((?:\\.|[^"\\])*)"\]/s)
   if (!match) return null
   const id = match[1]!
-  const label = normalizeBrTags(match[2]!.replace(/\\(["\\])/g, '$1'))
-  registerNode(graph, subgraphStack, { id, label, shape: 'rectangle' })
+  const { text: label, markdown } = parseLabelText(match[2]!.replace(/\\(["\\])/g, '$1'), true)
+  registerNode(graph, subgraphStack, { id, label, shape: 'rectangle', ...(markdown ? { markdownLabel: true as const } : {}) })
   return { id, remaining: text.slice(match[0].length) }
 }
 
@@ -897,8 +1040,8 @@ function consumeNode(
     if (match) {
       if (nodePatternSwallowedArrow(text, match[1]!.length)) continue
       id = match[1]!
-      const label = normalizeBrTags(match[2]!)
-      registerNode(graph, subgraphStack, { id, label, shape })
+      const { text: label, markdown } = parseLabelText(match[2]!)
+      registerNode(graph, subgraphStack, { id, label, shape, ...(markdown ? { markdownLabel: true as const } : {}) })
       remaining = text.slice(match[0].length)
       break
     }

@@ -7,6 +7,7 @@ import type { DiagramColors } from './theme.ts'
 
 import { parseMermaid } from './parser.ts'
 import { layoutGraphSync } from './layout-engine.ts'
+import { resolveFlowchartRenderOptions, applyFlowchartLabelWrapping } from './flowchart-config.ts'
 import { renderSvg, lowerGraphScene } from './renderer.ts'
 import type { SceneDoc } from './scene/ir.ts'
 
@@ -41,7 +42,7 @@ import { renderGanttSvg, lowerGanttScene } from './gantt/renderer.ts'
 import { parseArchitectureDiagram } from './architecture/parser.ts'
 import { layoutArchitectureDiagram } from './architecture/layout.ts'
 import { renderArchitectureSvg, lowerArchitectureScene } from './architecture/renderer.ts'
-import { resolveArchitectureVisualConfig } from './architecture/config.ts'
+import { resolveArchitectureVisualConfig, resolveArchitectureRenderOptions } from './architecture/config.ts'
 
 import { convertToAsciiGraph } from './ascii/converter.ts'
 import { createMapping } from './ascii/grid.ts'
@@ -90,6 +91,18 @@ function layoutFlowchart(ctx: FamilyLayoutContext): FamilyLayoutResult {
   return layoutResult(layoutGraphSync(parseMermaid(ctx.source.text), ctx.options))
 }
 
+// Flowchart proper (not state) additionally wires the typed `flowchart`
+// frontmatter config section (nodeSpacing/rankSpacing/wrappingWidth —
+// explicit RenderOptions win; unwired keys are named by verify's
+// INEFFECTIVE_CONFIG lint) and applies measured-width label wrapping before
+// ELK sizing so layout, renderer, and SVG see the same lines.
+function layoutFlowchartWithConfig(ctx: FamilyLayoutContext): FamilyLayoutResult {
+  const options = resolveFlowchartRenderOptions(ctx.source.frontmatter, ctx.options)
+  const graph = parseMermaid(ctx.source.text)
+  applyFlowchartLabelWrapping(graph, options)
+  return layoutResult(layoutGraphSync(graph, options))
+}
+
 function renderFlowchartAscii(ctx: AsciiContext): string {
   const parsed = parseMermaid(ctx.source.text)
   const config = { ...ctx.config }
@@ -118,9 +131,11 @@ function renderFlowchartAscii(ctx: AsciiContext): string {
 
 function layoutArchitecture(ctx: FamilyLayoutContext): FamilyLayoutResult {
   const archVisual = resolveArchitectureVisualConfig(ctx.source.frontmatter, ctx.colors, ctx.options)
-  const archOptions = archVisual.padding != null
-    ? { ...ctx.options, padding: ctx.options.padding ?? archVisual.padding }
-    : ctx.options
+  // Wire-or-warn (X7): fold the wired architecture.* keys (padding,
+  // nodeSeparation, idealEdgeLengthMultiplier) into RenderOptions — explicit
+  // RenderOptions win. The unwired fcose keys are named by verify's
+  // INEFFECTIVE_CONFIG lint (src/architecture/config.ts).
+  const archOptions = resolveArchitectureRenderOptions(ctx.source.frontmatter, ctx.options)
   const diagram = parseArchitectureDiagram(ctx.source.lines)
   return layoutResult(layoutArchitectureDiagram(diagram, archOptions, archVisual.layout), {
     options: {
@@ -144,7 +159,7 @@ function renderArchitectureAsciiWithContext(ctx: AsciiContext): string {
 }
 
 registerRenderHooks('flowchart', {
-  layout: layoutFlowchart,
+  layout: layoutFlowchartWithConfig,
   renderSvg: svg(renderSvg),
   lowerScene: scene(lowerGraphScene),
   renderAscii: renderFlowchartAscii,

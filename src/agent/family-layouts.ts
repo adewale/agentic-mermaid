@@ -65,6 +65,7 @@ import { parseJourneyDiagram } from '../journey/parser.ts'
 import { layoutJourneyDiagram } from '../journey/layout.ts'
 import { parseArchitectureDiagram } from '../architecture/parser.ts'
 import { layoutArchitectureDiagram } from '../architecture/layout.ts'
+import { resolveArchitectureRenderOptions } from '../architecture/config.ts'
 import { applyXYChartFrontmatterConfig, parseXYChart, resolveXYChartConfig, resolveXYChartTheme } from '../xychart/parser.ts'
 import { layoutXYChart } from '../xychart/layout.ts'
 import type { XYAxis, XYChart } from '../xychart/types.ts'
@@ -417,7 +418,15 @@ function journeyToRendered(d: ValidDiagram): RenderedLayout {
 
 function architectureToRendered(d: ValidDiagram, opts: { debug?: boolean } = {}): RenderedLayout {
   try {
-    const positioned = layoutArchitectureDiagram(parseArchitectureDiagram(toMermaidLines(d.canonicalSource)))
+    // Same config threading the render hook applies (wired architecture
+    // padding/nodeSeparation/idealEdgeLengthMultiplier), so verify.layout
+    // stays truthful under config — and frontmatter no longer poisons the
+    // header check (toMermaidLines kept `---` lines; class/er precedent).
+    const normalized = normalizeMermaidSource(d.canonicalSource)
+    const positioned = layoutArchitectureDiagram(
+      parseArchitectureDiagram(normalized.lines),
+      resolveArchitectureRenderOptions(normalized.frontmatter, {}),
+    )
     const nodes: RenderedLayoutNode[] = [
       ...positioned.services.map(s => ({
         id: s.id, x: f(s.x), y: f(s.y), w: f(s.width), h: f(s.height), shape: 'service', label: s.label,

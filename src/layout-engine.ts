@@ -1451,6 +1451,7 @@ function extractNodesAndGroups(
           id: child.id,
           label: mNode.label,
           shape: mNode.shape,
+          ...(mNode.semanticShape !== undefined ? { semanticShape: mNode.semanticShape } : {}),
           x,
           y,
           width,

@@ -6,7 +6,7 @@
 // nothing). The only verify knob is labelCharCap. See AGENT_NATIVE.md § (1).
 // ============================================================================
 
-import type { MermaidGraph, NodeShape, EdgeStyle, EdgeRouteCertificate, RegionContainmentCertificate, RouteCertificate, RouteClass } from '../types.ts'
+import type { MermaidGraph, NodeShape, EdgeStyle, Direction, EdgeRouteCertificate, RegionContainmentCertificate, RouteCertificate, RouteClass } from '../types.ts'
 import type { MermaidFrontmatterMap, MermaidConfigMap } from '../mermaid-source.ts'
 
 // ---- Result ---------------------------------------------------------------
@@ -90,7 +90,14 @@ export interface TimelineSection {
 
 export interface TimelineBody {
   kind: 'timeline'
+  /** Explicit header direction token (`timeline TD` / `timeline LR`,
+   *  upstream PR #7270). Undefined = bare header (LR default). */
+  direction?: 'LR' | 'TD'
   title?: string
+  /** Optional accessibility title from Mermaid accTitle. */
+  accessibilityTitle?: string
+  /** Optional accessibility description from Mermaid accDescr (line or block form). */
+  accessibilityDescription?: string
   sections: TimelineSection[]
 }
 
@@ -260,12 +267,24 @@ export interface ArchitectureEdge {
   hasArrowEnd: boolean
 }
 
+/** `align row|column` directive (upstream v11.16.0): members share a row
+ *  (same y) or column (same x). Members are declared services/junctions,
+ *  ≥2 and unique per directive. Preserved losslessly; the deterministic
+ *  layout does not honor the placement constraint (verify announces this
+ *  as the Tier-3 UNSUPPORTED_SYNTAX lint `architecture_align`). */
+export interface ArchitectureAlignment {
+  axis: 'row' | 'column'
+  members: string[]
+}
+
 export interface ArchitectureBody {
   kind: 'architecture'
   groups: ArchitectureGroup[]
   services: ArchitectureService[]
   junctions: ArchitectureJunction[]
   edges: ArchitectureEdge[]
+  /** Optional so externally-synthesized bodies stay valid; absent ≡ []. */
+  alignments?: ArchitectureAlignment[]
 }
 
 // ---- XY chart body ---------------------------------------------------------
@@ -678,12 +697,34 @@ export type GroupId = string
 export type ParticipantId = string
 
 export type FlowchartMutationOp =
-  | { kind: 'add_node'; id: NodeId; label: string; shape?: NodeShape; parent?: GroupId }
+  // shape also accepts any documented Mermaid v11 @{ shape } name/alias
+  // (normalized via src/flowchart-shapes.ts; the authored spelling serializes).
+  | { kind: 'add_node'; id: NodeId; label: string; shape?: NodeShape | (string & {}); parent?: GroupId }
   | { kind: 'remove_node'; id: NodeId }
   | { kind: 'rename_node'; from: NodeId; to: NodeId }
+  // target/id accept a node id, an authored v11.6 edge ID (`e1@-->`), or the
+  // endpoint forms `from->to` / `from->to#k`.
   | { kind: 'set_label'; target: NodeId | EdgeId; label: string }
   | { kind: 'add_edge'; from: NodeId; to: NodeId; label?: string; style?: EdgeStyle }
   | { kind: 'remove_edge'; id: EdgeId }
+  | { kind: 'set_shape'; id: NodeId; shape: NodeShape | (string & {}) }
+  // Omit subgraph to set the diagram direction; name a subgraph to set that
+  // subgraph's `direction` override.
+  | { kind: 'set_direction'; direction: Direction; subgraph?: GroupId }
+  // members are existing node ids MOVED into the new subgraph (the state
+  // make_composite precedent); parent nests the new subgraph.
+  | { kind: 'add_subgraph'; id: GroupId; label?: string; parent?: GroupId; members?: NodeId[] }
+  // Default dissolves the box (members move to the parent scope, children are
+  // promoted); removeMembers also deletes member nodes and their edges.
+  | { kind: 'remove_subgraph'; id: GroupId; removeMembers?: boolean }
+  // null moves the node to the top level.
+  | { kind: 'move_node'; id: NodeId; subgraph: GroupId | null }
+  // Declares/replaces a classDef; style is CSS-like pairs ("fill:#f96,stroke:#333").
+  | { kind: 'define_class'; name: string; style: string }
+  // Assigns a classDef name to a node (`class A hot`); null removes it.
+  | { kind: 'set_node_class'; id: NodeId; className: string | null }
+  // Sets a node's inline `style` directive; null clears it.
+  | { kind: 'set_node_style'; id: NodeId; style: string | null }
 
 export type SequenceMutationOp =
   | { kind: 'add_participant'; id: ParticipantId; label?: string; participantKind?: 'participant' | 'actor' }
@@ -701,15 +742,24 @@ export type SequenceMutationOp =
 
 export type TimelineMutationOp =
   | { kind: 'set_title'; title: string | null }
-  | { kind: 'add_section'; label: string }
+  // index = optional insert position (journey convention from PR #141); omitted = append.
+  | { kind: 'add_section'; label: string; index?: number }
   | { kind: 'remove_section'; index: number }
   | { kind: 'set_section_label'; index: number; label: string }
-  | { kind: 'add_period'; sectionIndex: number; label: string; events?: string[] }
+  | { kind: 'add_period'; sectionIndex: number; label: string; events?: string[]; index?: number }
   | { kind: 'remove_period'; sectionIndex: number; periodIndex: number }
   | { kind: 'set_period_label'; sectionIndex: number; periodIndex: number; label: string }
-  | { kind: 'add_event'; sectionIndex: number; periodIndex: number; text: string }
+  | { kind: 'add_event'; sectionIndex: number; periodIndex: number; text: string; index?: number }
   | { kind: 'remove_event'; sectionIndex: number; periodIndex: number; eventIndex: number }
   | { kind: 'set_event_text'; sectionIndex: number; periodIndex: number; eventIndex: number; text: string }
+  // Timeline order IS the chronology, so reorder is a first-class edit rather
+  // than a remove+re-add dance with shifting indices (journey move_task /
+  // move_section precedent).
+  | { kind: 'move_period'; fromSection: number; fromIndex: number; toSection: number; toIndex: number }
+  | { kind: 'move_event'; fromSection: number; fromPeriod: number; fromIndex: number; toSection: number; toPeriod: number; toIndex: number }
+  | { kind: 'move_section'; from: number; to: number }
+  | { kind: 'set_accessibility_title'; title: string | null }
+  | { kind: 'set_accessibility_description'; description: string | null }
 
 export type ClassMutationOp =
   | { kind: 'set_title'; title: string | null }
@@ -901,7 +951,7 @@ export type LayoutWarning =
   | { code: 'UNREACHABLE_NODE'; node: NodeId }
   | { code: 'DECISION_BRANCH_UNLABELED'; node: NodeId; edge: EdgeId }
   | { code: 'COMMENT_DROPPED'; count: number; lines: number[] }
-  | { code: 'UNSUPPORTED_SYNTAX'; line?: number; syntax: string; message: string }
+  | { code: 'UNSUPPORTED_SYNTAX'; line?: number; syntax: string; node?: NodeId; message: string }
   /**
    * Structured content was lost across a parse → serialize → re-parse cycle:
    * the {nodes, edges, groups} tally changed, so canonical serialization is

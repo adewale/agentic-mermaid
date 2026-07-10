@@ -27,7 +27,7 @@ describe('op field notes (mutator-enforced constraints + omit-defaults)', () => 
     expect(noteOf('pie', 'set_slice_value', 'value')).toBe('> 0, finite')
   })
   test('flowchart shape/edge carry their omit-defaults', () => {
-    expect(noteOf('flowchart', 'add_node', 'shape')).toBe('default: rectangle')
+    expect(noteOf('flowchart', 'add_node', 'shape')).toContain('default: rectangle')
     expect(noteOf('flowchart', 'add_edge', 'style')).toBe('default: solid')
   })
   test('xychart kind2 names the field footgun', () => {

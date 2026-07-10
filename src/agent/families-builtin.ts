@@ -237,14 +237,31 @@ function extractTimelineLabels(source: string): ExtractedLabel[] {
   return out
 }
 
+// Upstream PR #7270: the header may carry an LR/TD direction token
+// (`timeline TD` = vertical). It is part of the modeled grammar — captured on
+// the body so it survives serialize — while any OTHER header suffix still
+// falls back to a verbatim opaque body (structuredFamilyHooks headerOk
+// convention, spelled out here because the hook needs the header line).
+const TIMELINE_BODY_HEADER_RE = /^timeline(?:\s+(LR|TD))?\s*$/i
+
 registerFamily({
   id: 'timeline',
   detect: l => l.startsWith('timeline'),
   extractLabels: extractTimelineLabels,
-  ...structuredFamilyHooks('timeline', {
-    headerOk: h => /^timeline\s*$/i.test(h),
-    parseBody: parseTimelineBody, serialize: renderTimeline, mutate: mutateTimeline,
-  }),
+  parse: (lines, opaqueSource) => {
+    const header = (lines[0]?.trim() ?? '').match(TIMELINE_BODY_HEADER_RE)
+    const body = header ? parseTimelineBody(lines.slice(1)) : null
+    if (body && header?.[1]) body.direction = header[1].toUpperCase() as 'LR' | 'TD'
+    return ok(body ?? { kind: 'opaque', family: 'timeline', source: opaqueSource })
+  },
+  serialize: body => {
+    if (body.kind !== 'timeline') throw new Error(`timeline serializer received body kind ${body.kind}`)
+    return renderTimeline(body)
+  },
+  mutate: (body, op) => {
+    if (body.kind !== 'timeline') return err<MutationError>({ code: 'INVALID_OP', message: `timeline mutator received body kind ${body.kind}` })
+    return mutateTimeline(body, op as never)
+  },
 })
 
 // ---- Class ---------------------------------------------------------------

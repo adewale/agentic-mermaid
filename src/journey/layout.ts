@@ -11,6 +11,7 @@ import { measureMultilineText, measureTextWidth } from '../text-metrics.ts'
 import { STROKE_WIDTHS, applyTextTransform, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import { stripFormattingTags } from '../multiline-utils.ts'
+import { wrapLabelToWidth } from '../shared/label-wrap.ts'
 import type { JourneyRuntimeConfig } from '../mermaid-source.ts'
 
 // ============================================================================
@@ -449,57 +450,6 @@ function collectActors(diagram: JourneyDiagram): string[] {
   }
 
   return labels
-}
-
-function wrapLabelToWidth(
-  text: string,
-  maxWidth: number,
-  fontSize: number,
-  fontWeight: number,
-): string {
-  if (!Number.isFinite(maxWidth) || maxWidth <= 0) return text
-  if (measureTextWidth(stripFormattingTags(text), fontSize, fontWeight) <= maxWidth) return text
-
-  const lines: string[] = []
-  for (const paragraph of text.split(/\r?\n/)) {
-    const words = paragraph.split(/\s+/).filter(Boolean)
-    let current = ''
-    for (const word of words) {
-      const candidate = current ? `${current} ${word}` : word
-      if (measureTextWidth(stripFormattingTags(candidate), fontSize, fontWeight) <= maxWidth) {
-        current = candidate
-        continue
-      }
-      if (current) lines.push(current)
-      current = breakWordToWidth(word, maxWidth, fontSize, fontWeight)
-    }
-    if (current) lines.push(current)
-  }
-  return lines.join('\n')
-}
-
-function breakWordToWidth(word: string, maxWidth: number, fontSize: number, fontWeight: number): string {
-  if (measureTextWidth(stripFormattingTags(word), fontSize, fontWeight) <= maxWidth) return word
-  const lines: string[] = []
-  let current = ''
-  for (const char of [...word]) {
-    const candidate = current + char
-    if (current && measureTextWidth(stripFormattingTags(candidate), fontSize, fontWeight) > maxWidth) {
-      // A hyphen marks a mid-word break in alphabetic scripts; CJK and other
-      // fullwidth text breaks between any two characters without one.
-      const breakIsFullwidth = isFullwidthChar(current[current.length - 1]!) && isFullwidthChar(char)
-      lines.push(breakIsFullwidth ? current : `${current}-`)
-      current = char
-    } else {
-      current = candidate
-    }
-  }
-  if (current) lines.push(current)
-  return lines.join('\n')
-}
-
-function isFullwidthChar(char: string): boolean {
-  return /[ᄀ-ᅟ⺀-꓏가-힣豈-﫿︰-﹏＀-｠￠-￦\u{1F300}-\u{1FAFF}\u{20000}-\u{2FA1F}]/u.test(char)
 }
 
 function cssFontSizeToPx(value: string | number | undefined, fallback: number): number {

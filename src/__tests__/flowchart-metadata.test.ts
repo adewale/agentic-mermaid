@@ -51,16 +51,20 @@ function parseAgent(source: string) {
 
 describe('flowchart @{...} node metadata preservation (issue #29)', () => {
   for (const c of ISSUE_29_CASES) {
-    test(`${c.name}: agent parse falls back to lossless opaque source`, () => {
+    // Documented `@{ shape, label }` metadata is MODELED now (repo #44): the
+    // agent body is structured, the authored shape spelling survives
+    // serialization, and the canonical form is round-trip stable.
+    test(`${c.name}: agent parse is structured and keeps the authored shape spelling`, () => {
       const diagram = parseAgent(c.source)
       expect(diagram.kind).toBe('flowchart')
-      expect(diagram.body.kind).toBe('opaque')
-      expect(diagram.body.kind === 'opaque' ? diagram.body.source : '').toBe(c.source)
-      expect(serializeMermaid(diagram)).toBe(c.source)
-      expect(asFlowchart(diagram)).toBeNull()
+      expect(diagram.body.kind).toBe('flowchart')
+      expect(asFlowchart(diagram)).not.toBeNull()
 
-      const reparsed = parseAgent(serializeMermaid(diagram))
-      expect(serializeMermaid(reparsed)).toBe(c.source)
+      const authoredShape = c.source.match(/shape:\s*([\w-]+)/)![1]!
+      const serialized = serializeMermaid(diagram)
+      expect(serialized).toContain(`@{ shape: ${authoredShape}`)
+      const reparsed = parseAgent(serialized)
+      expect(serializeMermaid(reparsed)).toBe(serialized)
     })
 
     test(`${c.name}: legacy renderer parser keeps nodes and edges without fabricating metadata keys`, () => {
@@ -74,7 +78,7 @@ describe('flowchart @{...} node metadata preservation (issue #29)', () => {
       expect(graph.edges.map(e => [e.source, e.target])).toEqual(c.expectedEdges.map(([source, target]) => [source, target]))
     })
 
-    test(`${c.name}: render and layout degrade to labeled rectangle fallback`, () => {
+    test(`${c.name}: render and layout use the mapped geometry with labels intact`, () => {
       const diagram = parseAgent(c.source)
       const verify = verifyMermaid(c.source)
       expect(verify.ok).toBe(true)
