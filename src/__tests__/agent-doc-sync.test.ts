@@ -48,6 +48,16 @@ describe('Instructions_for_agents.md', () => {
     expect(existsSync(path)).toBe(true)
     expect(readFileSync(path, 'utf8').split('\n').length).toBeLessThanOrEqual(100)
   })
+  test('front-loads explicit when-to-use guidance', () => {
+    const guide = readFileSync(join(REPO, 'Instructions_for_agents.md'), 'utf8')
+    const whenToUse = guide.indexOf('## When to use Agentic Mermaid')
+    const quickStart = guide.indexOf('## Quick start')
+
+    expect(whenToUse).toBeGreaterThan(0)
+    expect(whenToUse).toBeLessThan(quickStart)
+    expect(guide.slice(whenToUse, quickStart)).toContain('create, edit, verify, describe, or render Mermaid diagrams')
+    expect(guide.slice(whenToUse, quickStart)).toContain('Do not use the hosted MCP for private diagrams')
+  })
   test('byte-matches am --agent-instructions exactly', () => {
     const guide = readFileSync(join(REPO, 'Instructions_for_agents.md'), 'utf8')
     expect(AGENT_INSTRUCTIONS).toEqual(guide)

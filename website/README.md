@@ -6,7 +6,7 @@ Cloudflare Workers Static Assets site for `agentic-mermaid.dev`, generated from 
 
 - `source/` — website-owned source pages, assets, and diagram seeds.
 - `public/` — built static assets served by Cloudflare's asset binding.
-- `src/worker.ts` — Worker-first shell (`run_worker_first`): canonical host redirect (`www` → apex), path redirects, and security/cache headers that wrap asset responses, plus the hosted MCP endpoint at `/mcp`. Static asset requests still return from the `ASSETS` binding.
+- `src/worker.ts` — Worker-first shell (`run_worker_first`): canonical host redirect (`www` → apex), path redirects, security/cache headers, homepage Markdown negotiation, and RFC 8288 discovery links that wrap asset responses, plus the hosted MCP endpoint at `/mcp`. Static asset requests still return from the `ASSETS` binding.
 - `src/mcp-handler.ts` — stateless Streamable HTTP transport (POST-only JSON-RPC, no sessions/SSE) with Cache API response caching keyed on a hash of each deterministic `tools/call`. Guards: reflective CORS with Origin validation (no-Origin agent/server clients keep `*`; disallowed browser Origins get 403), `MCP-Protocol-Version` validation (unsupported → 400; a 2025-06-18 header forbids batching per that revision), and a `MAX_BATCH_ITEMS` fan-out cap so one request cannot spin an unbounded number of billable isolates.
 - `src/execute-loader.ts` — Code Mode `execute` via the Worker Loader (Dynamic Workers): one isolate per unique code hash, `globalOutbound: null`, empty env, `cpuMs` budget. Expression-form wrap is tried first; workerd compiles isolate modules eagerly, so a statement-form body costs one failed isolate attempt before the fallback (identical repeats are absorbed by the response cache).
 - `src/png-wasm.ts` — hosted `render_png` on `@resvg/resvg-wasm` (pinned to the napi version) with DejaVu plus the built-in style faces. Not byte-guaranteed against the local napi renderer; documented as a convenience surface.
@@ -22,11 +22,13 @@ The MCP server core lives in `src/mcp/hosted-server.ts` (repo root `src/`), shar
 - `/docs/api/`, `/docs/source-level/`, `/docs/cli/`, `/docs/mcp/`, `/docs/ascii/`, `/docs/theming/`, `/docs/config/`, `/docs/react/`, `/docs/quality/`, `/docs/fork-differences/`, `/docs/vocabulary/`
 - `/skills/agentic-mermaid-diagram-workflow/`
 - `/warnings/`, `/warnings/<CODE>/`, `/errors/`, `/errors/<kind>/`, `/examples/`, `/evidence/`, `/security/`, `/releases/`
-- `/llms.txt`, `/llms.md`, `/.well-known/llms.txt`, `/agent-instructions.md`, `/capabilities.json`, `/examples/index.json`
+- `/index.md`, `/llms.txt`, `/llms.md`, `/.well-known/llms.txt`, `/agent-instructions.md`, `/capabilities.json`, `/examples/index.json`
 - `/.well-known/mcp`, `/.well-known/mcp.json`, `/.well-known/mcp/server-card.json`, `/.well-known/ai-catalog.json`
 - raw `/skills/agentic-mermaid-diagram-workflow/SKILL.md`
 - `/mcp` — hosted MCP (stateless Streamable HTTP; `claude mcp add --transport http agentic-mermaid https://agentic-mermaid.dev/mcp`)
 - `/.well-known/mcp` — standard discovery alias for the same hosted MCP transport.
+
+`GET /` and `HEAD /` select `/index.md` when `Accept` gives `text/markdown` a higher quality than `text/html`; ties and generic browser requests keep HTML. Both representations send `Vary: Accept` and `Link` headers for the Markdown homepage, `llms.txt`, sitemap, MCP server card, and published workflow skill.
 
 ## Commands
 

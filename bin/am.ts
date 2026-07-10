@@ -1,3 +1,4 @@
 #!/usr/bin/env bun
-import { runCli } from '../src/cli/index.ts'
-process.exit(runCli(process.argv.slice(2)))
+import { runAmCli } from '../src/cli/run-entrypoint.ts'
+
+const code = await runAmCli(process.argv.slice(2)); if (code !== 0) process.exit(code)

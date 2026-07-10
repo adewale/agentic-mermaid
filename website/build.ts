@@ -74,6 +74,7 @@ function rewriteUrl(value: string): string {
 }
 
 const agentDiscoveryLinks = [
+  '<link rel="alternate" type="text/markdown" href="/index.md">',
   '<link rel="alternate" type="text/plain" href="/llms.txt">',
   '<link rel="alternate" type="application/json" href="/capabilities.json">',
   '<link rel="alternate" type="text/markdown" href="/agent-instructions.md">',
@@ -1811,6 +1812,7 @@ await emit('llms.md', publicLlms)
 await emit('.well-known/llms.txt', publicLlms)
 await emit('agent-instructions.md', await Bun.file(join(ROOT, 'Instructions_for_agents.md')).text())
 await emit('start.md', await Bun.file(join(SOURCE, 'start.md')).text())
+await emit('index.md', await Bun.file(join(SOURCE, 'index.md')).text())
 
 // Spec route coverage pages.
 const aboutLead = 'Beautiful diagrams, made with your agent. Agentic Mermaid turns Mermaid source into styled SVG, PNG, ASCII, and Unicode, with layout JSON available for tools that need coordinates.'

@@ -1,5 +1,6 @@
 {
   "name": "agentic-mermaid",
+  "mcpName": "io.github.adewale/agentic-mermaid",
   "version": "0.1.0",
   "license": "MIT",
   "description": "Agentic Mermaid: render, verify, and safely edit Mermaid diagrams as ASCII, PNG, SVG, or structured agent workflows — with composable styles (hand-drawn, excalidraw, watercolor, or your own as JSON).",
@@ -88,6 +89,7 @@
     "examples/mcp-vs-cli-complex-diagrams.ts",
     "examples/agent-improve-auth-flow.ts",
     "Instructions_for_agents.md",
+    "server.json",
     "AGENT_NATIVE.md",
     "CHANGELOG.md",
     "TODO.md",

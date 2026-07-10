@@ -1130,5 +1130,3 @@ function toJsonSafe(d: ValidDiagram): unknown {
   }
   return { kind: d.kind, meta: d.meta, body: d.body, canonicalSource: d.canonicalSource }
 }
-
-if (import.meta.main) process.exit(runCli(process.argv.slice(2)))

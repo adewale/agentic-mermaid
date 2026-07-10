@@ -5,7 +5,10 @@ which triggers on a **published GitHub Release**. The workflow reproduces CI's
 deterministic gate (tests, `tsc`, `hero:check`, `website:check`, golden-drift,
 incremental mutation), fuzzes the built bundle + packed tarball under Node,
 builds with `tsup`, and runs `npm publish --access public`. There is no manual
-`npm publish` step.
+`npm publish` step. After npm succeeds, a separate dependent job publishes
+[`server.json`](../../server.json) to the official MCP Registry. Keeping that
+step separate lets a failed registry publication be retried without attempting
+to republish an immutable npm version.
 
 Publishing uses **npm OIDC trusted publishing** — no `NPM_TOKEN` secret. The
 workflow mints a short-lived OIDC id-token (`permissions: id-token: write`), npm
@@ -39,16 +42,24 @@ needs npm ≥ 11.5.1 / Node ≥ 22.14).
 1. **Land everything on `main` green.** Releases are cut from `main`, whose CI
    has already run; `publish.yml` re-runs the deterministic gate + artifact fuzz
    as a backstop.
-2. **Bump `version`** in `package.json` (first release is `0.1.0`). `llms.txt` /
-   `am capabilities` derive the version from `package.json`, so no manual edit.
+2. **Bump the package and MCP server versions together.** Update `version` in
+   `package.json`, the top-level `version` in `server.json`, and
+   `packages[0].version` in `server.json`. The readiness tests require an exact
+   match. `llms.txt` / `am capabilities` derive the version from `package.json`,
+   so no manual edit is needed for those files.
 3. **Roll the changelog.** Retitle `## Unreleased` in
    [`CHANGELOG.md`](../../CHANGELOG.md) to `## <version> — <YYYY-MM-DD>` and open a
    fresh empty `## Unreleased` above it.
 4. **Flip the "published" copy** (see below), commit via PR, and merge to `main`.
 5. **Create the GitHub Release** on the merge commit (tag `v<version>`). Its
-   publication fires `publish.yml`, which gates, builds, and publishes.
+   publication fires `publish.yml`, which gates, builds, publishes to npm, and
+   then publishes the matching server metadata to the MCP Registry.
 6. **Verify:** `npm view agentic-mermaid version` shows the new version;
-   `npm install agentic-mermaid` into a scratch project resolves and its bins run.
+   `npm install agentic-mermaid` into a scratch project resolves and its bins
+   run; and
+   `curl "https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.adewale/agentic-mermaid"`
+   returns the matching server and version. The official registry is still in
+   preview, so verify its record after every release.
 7. **After the first publish,** set the package on npmjs.com to
    "Require two-factor authentication and disallow tokens" — trusted publishing
    keeps working, and token-based publishing is locked out.

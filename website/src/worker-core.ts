@@ -47,7 +47,58 @@ const csp = [
   "form-action 'none'",
 ].join('; ')
 
-function withHeaders(response: Response, pathname: string): Response {
+const homepageDiscoveryLinks = [
+  '</index.md>; rel="alternate"; type="text/markdown"',
+  '</llms.txt>; rel="describedby"; type="text/plain"',
+  '</sitemap.xml>; rel="index"; type="application/xml"',
+  '</.well-known/mcp/server-card.json>; rel="service-desc"; type="application/json"',
+  '</skills/agentic-mermaid-diagram-workflow/SKILL.md>; rel="describedby"; type="text/markdown"',
+].join(', ')
+
+function appendVary(headers: Headers, field: string) {
+  const values = (headers.get('Vary') ?? '').split(',').map(value => value.trim()).filter(Boolean)
+  if (!values.some(value => value === '*' || value.toLowerCase() === field.toLowerCase())) {
+    values.push(field)
+  }
+  headers.set('Vary', values.join(', '))
+}
+
+function acceptedQuality(accept: string, representation: string): number {
+  const [targetType, targetSubtype] = representation.toLowerCase().split('/')
+  let bestSpecificity = -1
+  let bestQuality = 0
+
+  for (const entry of accept.split(',')) {
+    const [rawRange, ...parameters] = entry.split(';')
+    const [rangeType, rangeSubtype] = rawRange!.trim().toLowerCase().split('/')
+    if (!rangeType || !rangeSubtype) continue
+    if (rangeType !== '*' && rangeType !== targetType) continue
+    if (rangeSubtype !== '*' && rangeSubtype !== targetSubtype) continue
+
+    const specificity = rangeType === '*' ? 0 : rangeSubtype === '*' ? 1 : 2
+    if (specificity <= bestSpecificity) continue
+
+    const qualityParameter = parameters.find(parameter => /^\s*q\s*=/i.test(parameter))
+    const parsedQuality = qualityParameter
+      ? Number(qualityParameter.slice(qualityParameter.indexOf('=') + 1).trim())
+      : 1
+    bestSpecificity = specificity
+    bestQuality = Number.isFinite(parsedQuality) && parsedQuality >= 0 && parsedQuality <= 1
+      ? parsedQuality
+      : 0
+  }
+
+  return bestQuality
+}
+
+function prefersMarkdown(accept: string | null): boolean {
+  if (!accept) return false
+  const markdownQuality = acceptedQuality(accept, 'text/markdown')
+  const htmlQuality = acceptedQuality(accept, 'text/html')
+  return markdownQuality > 0 && markdownQuality > htmlQuality
+}
+
+function withHeaders(response: Response, pathname: string, negotiatesHomepage = false): Response {
   const headers = new Headers(response.headers)
   headers.set('X-Content-Type-Options', 'nosniff')
   headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
@@ -66,6 +117,13 @@ function withHeaders(response: Response, pathname: string): Response {
     headers.set('Cache-Control', 'public, max-age=31536000, immutable')
   } else if (/\.(css|js|svg|ttf)$/i.test(pathname)) {
     headers.set('Cache-Control', 'public, max-age=3600')
+  }
+
+  if (negotiatesHomepage) {
+    appendVary(headers, 'Accept')
+    const existingLinks = headers.get('Link')
+    headers.set('Link', existingLinks ? `${existingLinks}, ${homepageDiscoveryLinks}` : homepageDiscoveryLinks)
+    if (pathname === '/index.md') headers.set('Content-Location', '/index.md')
   }
 
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers })
@@ -115,8 +173,18 @@ export function createWebsiteWorker(runtime: WebsiteWorkerRuntime) {
         return handler(request)
       }
 
-      const response = await env.ASSETS.fetch(request)
-      return withHeaders(response, url.pathname)
+      const negotiatesHomepage = url.pathname === '/' && (request.method === 'GET' || request.method === 'HEAD')
+      let assetRequest = request
+      let assetPathname = url.pathname
+      if (negotiatesHomepage && prefersMarkdown(request.headers.get('Accept'))) {
+        const markdownUrl = new URL(url)
+        markdownUrl.pathname = '/index.md'
+        assetRequest = new Request(markdownUrl, request)
+        assetPathname = markdownUrl.pathname
+      }
+
+      const response = await env.ASSETS.fetch(assetRequest)
+      return withHeaders(response, assetPathname, negotiatesHomepage)
     },
   }
 }
