@@ -1,0 +1,5 @@
+flowchart LR
+  A@{ shape: manual-input, label: "Operator enters ticket" } --> B@{ shape: hex, label: "Validate" }
+  B --> C@{ shape: cyl, label: "Store" }
+  B --> D@{ shape: docs, label: "Audit trail" }
+  C --> E@{ shape: stadium, label: "Done" }
