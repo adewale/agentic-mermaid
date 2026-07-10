@@ -5,9 +5,9 @@ and tiled section spans), shared parse core with typed opaque reasons,
 structured accessibility/literal text parity, semicolon statement parity,
 marker namespacing, ASCII width handling (grapheme-safe), style/palette/config
 coverage with WCAG-guarded section labels, and the Describe/Facts/Verify spec
-below. See [`journey-quality-retrospective.md`](./journey-quality-retrospective.md)
-for why the first implementation's safeguards missed and what now enforces them.
-Last reviewed: 2026-07-09
+below. The elevation PR's description records why the first implementation's
+safeguards missed and what now enforces them.
+Last reviewed: 2026-07-10
 Issue: https://github.com/adewale/agentic-mermaid/issues/128
 Origin: https://github.com/adewale/agentic-mermaid/pull/6
 Research: [`journey-usage-research.md`](./journey-usage-research.md)

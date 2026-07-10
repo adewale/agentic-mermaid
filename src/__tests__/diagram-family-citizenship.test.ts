@@ -356,9 +356,8 @@ describe('diagram-family citizenship ratchet (issue #41)', () => {
   })
 
   test('flagship quality loop: every registered family is enrolled in fuzz, tracker, and layout projection', () => {
-    // The Journey retrospective (docs/design/families/journey-quality-retrospective.md)
-    // found that nothing FORCED a family into the layout-quality machinery, so
-    // families shipped outside it. This gate makes enrollment structural: a
+    // The Journey elevation audit found that nothing FORCED a family into the
+    // layout-quality machinery, so families shipped outside it. This gate makes enrollment structural: a
     // NEW family added to BUILTIN_FAMILY_METADATA fails here (and in tsc, via
     // the Record<DiagramKind, …> registries) until it joins the loop.
     const tracked = trackedExamples()
