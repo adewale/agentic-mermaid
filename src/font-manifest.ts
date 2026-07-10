@@ -6,6 +6,10 @@ export interface HostedFontFace {
 }
 
 export const HOSTED_FONT_FACES: readonly HostedFontFace[] = [
+  { family: 'Inter', file: 'Inter-Regular.ttf', weight: '400', style: 'normal' },
+  { family: 'Inter', file: 'Inter-Medium.ttf', weight: '500', style: 'normal' },
+  { family: 'Inter', file: 'Inter-SemiBold.ttf', weight: '600', style: 'normal' },
+  { family: 'Inter', file: 'Inter-Bold.ttf', weight: '700', style: 'normal' },
   { family: 'Caveat', file: 'Caveat.ttf', weight: '400 700', style: 'normal' },
   { family: 'EB Garamond', file: 'EBGaramond.ttf', weight: '400 700', style: 'normal' },
   { family: 'Architects Daughter', file: 'ArchitectsDaughter.ttf', weight: '400', style: 'normal' },

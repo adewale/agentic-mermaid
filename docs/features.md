@@ -60,8 +60,8 @@ Agentic Mermaid outputs **SVG, PNG, ASCII, Unicode, and JSON layout** from the s
   variable fonts, `idPrefix` namespacing). CLI exposes `--security strict`.
 - **ASCII / Unicode** — `renderMermaidASCII` (CJK/emoji width, FE0F/ZWJ,
   `maxWidth` wrapping, trunk-shared fanouts).
-- **PNG** — `renderMermaidPNG(source, { fitTo, background, style, seed, fontDirs })` or `am render diagram.mmd --format png --output diagram.png` (offline `@resvg/resvg-js`; bundled DejaVu plus the built-in style faces,
-  cross-runtime deterministic on same-machine x86_64/ARM64 where Node + built `dist/` are present).
+- **PNG** — `renderMermaidPNG(source, { fitTo, background, style, seed, fontDirs, loadSystemFonts, onWarning })` or `am render diagram.mmd --format png --output diagram.png` (offline `@resvg/resvg-js`; bundled Inter — the metrics font — with DejaVu fallback plus the built-in style faces,
+  cross-runtime deterministic on same-machine x86_64/ARM64 where Node + built `dist/` are present). Characters without bundled coverage (CJK, emoji) warn loudly; supply `--font-dirs <dir>` / `fontDirs` or `--system-fonts` / `loadSystemFonts: true`.
 - **JSON layout** — `layoutMermaid` / `am render --format json`; add `--certificates` (or `layoutMermaid(d, { debug: true })`) to include opt-in graph route certificates, family edge-route certificates (class/ER/architecture/sequence), region-containment certificates (timeline/charts), V1 region/action sidecars, exact ports, and side/slot/role assignments where applicable.
 - **ASCII with metadata** — `renderMermaidASCIIWithMeta` → `{ ascii, regions, warnings, routeParity }`
   for TUI click-mapping.
@@ -74,7 +74,7 @@ Agentic Mermaid outputs **SVG, PNG, ASCII, Unicode, and JSON layout** from the s
   OFF_CANVAS, GROUP_BREACH, UNKNOWN_SHAPE, LABEL_OVERFLOW, UNRESOLVABLE_SCHEDULE,
   RENDER_FAILED (a clean verify proves the source actually renders).
 - **Tier 2 (geometric — route tripwires for flowchart/state, anchor/overlap checks for class/ER):** NODE_OVERLAP, ROUTE_SELF_CROSS, and the route-contract tripwires ROUTE_HITCH, ROUTE_UNEXPLAINED_BEND, ROUTE_LABEL_ON_SHARED_TRUNK, ROUTE_CONTAINER_MISANCHOR, ROUTE_SHAPE_MISANCHOR, ROUTE_STALE_AFTER_NODE_MOVE.
-- **Tier 3 (lint, advisory):** DUPLICATE_EDGE, UNREACHABLE_NODE, DECISION_BRANCH_UNLABELED, COMMENT_DROPPED, UNSUPPORTED_SYNTAX, CONTENT_DROPPED_ON_ROUNDTRIP.
+- **Tier 3 (lint, advisory):** DUPLICATE_EDGE, UNREACHABLE_NODE, DECISION_BRANCH_UNLABELED, COMMENT_DROPPED, UNSUPPORTED_SYNTAX, CONTENT_DROPPED_ON_ROUNDTRIP, INEFFECTIVE_CONFIG.
 - **Perceptual quality** — `measureQuality` / `checkQuality` (edge
   crossings, label legibility, whitespace balance, …). See [`quality.md`](./quality.md).
 

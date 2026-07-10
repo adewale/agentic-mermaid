@@ -12,6 +12,7 @@ import { serializeMermaid, synthesizeFromGraph } from '../agent/serialize.ts'
 import { mutateChecked } from '../agent/mutate.ts'
 import { verifyMermaid } from '../agent/verify.ts'
 import { renderMermaidSVG, renderMermaidASCII, renderMermaidPNG, layoutMermaid } from '../agent/index.ts'
+import type { PngFontWarning } from '../agent/png.ts'
 import { describeMermaid } from '../agent/describe.ts'
 import { collectBatched } from '../shared/batched.ts'
 import type {
@@ -50,12 +51,12 @@ export interface ParsedArgs { command?: string; positional: string[]; flags: Rec
 export const FLAG_SPECS: Record<string, { arg?: string }> = {
   // booleans
   'agent-instructions': {}, 'ascii': {}, 'certificates': {}, 'help': {}, 'json': {},
-  'watch': {}, 'open': {}, 'force': {}, 'canonical-wrapper': {},
+  'watch': {}, 'open': {}, 'force': {}, 'canonical-wrapper': {}, 'system-fonts': {},
   // value flags (placeholder = what the usage shows after the flag)
   'suppress': { arg: 'CODES' }, 'label-cap': { arg: 'N' }, 'op': { arg: 'JSON' },
   'style': { arg: 'NAMES|file' }, 'seed': { arg: 'N' },
   'ops': { arg: 'JSON|file' }, 'output': { arg: 'FILE' }, 'format': { arg: 'fmt' },
-  'security': { arg: 'mode' }, 'dir': { arg: 'DIR' },
+  'security': { arg: 'mode' }, 'dir': { arg: 'DIR' }, 'font-dirs': { arg: 'DIRS' },
 }
 
 export const BOOLEAN_FLAGS = new Set(Object.keys(FLAG_SPECS).filter(name => !FLAG_SPECS[name]!.arg))
@@ -123,6 +124,8 @@ Flags:
   --force                For init-agent: refresh generated skill/MCP files
   --style <NAMES|file>   For render svg/png: style stack — comma-separated names and/or .json spec files
   --seed <N>             For render svg/png: re-roll ink wobble of styled looks (never layout)
+  --font-dirs <DIRS>     For render png: extra font directories, comma-separated (CJK/emoji coverage)
+  --system-fonts         For render png: also load OS fonts (coverage warnings then skipped)
   --suppress <CODES>     For verify: comma-separated WarningCodes to suppress
   --label-cap <N>        For verify: LABEL_OVERFLOW char cap (default 40)
   --certificates         For render --format json: include route/family certificates
@@ -149,6 +152,11 @@ Render a diagram. Default is SVG.
                     merged left → right (e.g. --style hand-drawn,dracula or
                     --style ./brand.json). Applies to svg/png. See: am styles
   --seed <N>        Re-roll ink wobble of styled looks; never moves layout
+  --font-dirs <DIRS> PNG only: extra font directories (comma-separated) for
+                    scripts the bundled Inter/DejaVu fonts don't cover (CJK,
+                    emoji); uncovered characters warn on stderr
+  --system-fonts    PNG only: also load OS-installed fonts (trades cross-machine
+                    determinism for coverage; skips coverage warnings)
   --security strict Remove external-fetch refs from SVG output
   --watch           Re-render one input file on change (non-PNG only)
 Multiple inputs emit a JSON results array for non-PNG formats.
@@ -169,7 +177,7 @@ UNKNOWN_SHAPE, LABEL_OVERFLOW (char-cap),
 NODE_OVERLAP, ROUTE_SELF_CROSS, ROUTE_HITCH, ROUTE_UNEXPLAINED_BEND, ROUTE_LABEL_ON_SHARED_TRUNK,
 ROUTE_CONTAINER_MISANCHOR, ROUTE_SHAPE_MISANCHOR, ROUTE_STALE_AFTER_NODE_MOVE,
 DUPLICATE_EDGE, UNREACHABLE_NODE, DECISION_BRANCH_UNLABELED, COMMENT_DROPPED, UNSUPPORTED_SYNTAX,
-CONTENT_DROPPED_ON_ROUNDTRIP. Tier-3 lint is advisory.
+CONTENT_DROPPED_ON_ROUNDTRIP, INEFFECTIVE_CONFIG. Tier-3 lint is advisory.
 Exit 0 if ok, 3 if verify reports severity='error'.`,
   parse: `am parse <file|->
 Emits ValidDiagram JSON (Maps serialized to objects). Exit 2 on parse error.
@@ -361,9 +369,13 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
     }
     const scale = typeof args.flags.scale === 'string' ? Number(args.flags.scale) : 2
     const background = typeof args.flags.bg === 'string' ? args.flags.bg : 'white'
+    const fontDirs = typeof args.flags['font-dirs'] === 'string'
+      ? args.flags['font-dirs'].split(',').map(s => s.trim()).filter(Boolean)
+      : undefined
+    const loadSystemFonts = args.flags['system-fonts'] === true
     // PNG render is native-sync via resvg; keep bytes off stdout and write the
     // raster artifact explicitly to the requested output path.
-    return renderPngSync(source, { scale, background, style, seed }, outFile, json)
+    return renderPngSync(source, { scale, background, style, seed, fontDirs, loadSystemFonts }, outFile, json)
   }
   // Loop 9 M3/M4, #7645: json = layout shape; unicode is the default text
   // renderer; `--security strict` strips external-fetch refs from SVG.
@@ -427,11 +439,16 @@ function cmdRenderWatch(file: string, format: string, args: ParsedArgs, _json: b
   return EXIT_OK
 }
 
-function renderPngSync(source: string, opts: { scale: number; background: string; style?: StyleInput[]; seed?: number }, outFile: string, json: boolean): number {
+function renderPngSync(source: string, opts: { scale: number; background: string; style?: StyleInput[]; seed?: number; fontDirs?: string[]; loadSystemFonts?: boolean }, outFile: string, json: boolean): number {
   try {
-    const png = renderMermaidPNG(source, opts)
+    // Glyph-coverage warnings (CJK/emoji without a covering font) go to
+    // stderr — the PNG itself can't show what silently became tofu — and
+    // ride along in the --json envelope for programmatic callers.
+    const warnings: PngFontWarning[] = []
+    const png = renderMermaidPNG(source, { ...opts, onWarning: w => warnings.push(w) })
     writeFileSync(outFile, png)
-    if (json) process.stdout.write(JSON.stringify({ ok: true, path: outFile, bytes: png.length }) + '\n')
+    for (const w of warnings) process.stderr.write(`am render --format png: warning ${w.code}: ${w.message}\n`)
+    if (json) process.stdout.write(JSON.stringify({ ok: true, path: outFile, bytes: png.length, warnings }) + '\n')
     return EXIT_OK
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)

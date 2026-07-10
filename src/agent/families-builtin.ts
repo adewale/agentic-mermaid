@@ -23,6 +23,7 @@ import { verifyErBody, parseErBody, renderEr, mutateEr } from './er-body.ts'
 import { parseSequenceBody, renderSequence, mutateSequence } from './sequence-body.ts'
 import { parseTimelineBody, renderTimeline, mutateTimeline } from './timeline-body.ts'
 import { parseJourneyBody, renderJourney, mutateJourney, verifyJourney } from './journey-body.ts'
+import { walkJourneyLines, type JourneyParseIssue } from '../journey/parse-core.ts'
 import { parseArchitectureBody, renderArchitecture, mutateArchitecture, verifyArchitecture } from './architecture-body.ts'
 import { parseXyChartBody, renderXyChart, mutateXyChart, verifyXyChart } from './xychart-body.ts'
 import { parsePieBody, renderPie, mutatePie, verifyPie } from './pie-body.ts'
@@ -449,85 +450,66 @@ registerFamily({
 })
 
 // ---- Journey --------------------------------------------------------------
-// title T, section S, task: 3: Me
+// title T, section S, task: 3: Me — label extraction rides the shared parse
+// core walker (scan mode: issues are skipped, labels still flow), so opaque
+// journey sources get overflow checks from the same grammar the parsers use.
 function extractJourneyLabels(source: string): ExtractedLabel[] {
   const out: ExtractedLabel[] = []
   const lines = source.split(/\r?\n/)
-  for (let i = 0; i < lines.length; i++) {
-    const raw = lines[i]!.trim()
-    if (!raw || raw.startsWith('%%')) continue
-    let m
-    if ((m = raw.match(/^accDescr\s*:?\s*\{\s*(.*)$/i))) {
-      const first = m[1]!
-      const end = first.indexOf('}')
-      if (end >= 0) {
-        const text = first.slice(0, end).trim()
-        if (text) out.push({ text, target: `line${i + 1}` })
-      } else {
-        const text = first.trim()
-        if (text) out.push({ text, target: `line${i + 1}` })
-        for (i += 1; i < lines.length; i++) {
-          const line = lines[i]!.trim()
-          const close = line.indexOf('}')
-          const text = (close >= 0 ? line.slice(0, close) : line).trim()
-          if (text) out.push({ text, target: `line${i + 1}` })
-          if (close >= 0) break
-        }
-      }
-    } else if ((m = raw.match(/^accTitle\s*:?\s*(.+)$/i))) {
-      out.push({ text: m[1]!.trim(), target: `line${i + 1}` })
-    } else if ((m = raw.match(/^accDescr\s*:?\s*(.+)$/i))) {
-      out.push({ text: m[1]!.replace(/^\{/, '').replace(/\}$/, '').trim(), target: `line${i + 1}` })
-    } else if ((m = raw.match(/^title\s+(.+)$/i))) {
-      out.push({ text: m[1]!.trim(), target: `line${i + 1}` })
-    } else if ((m = raw.match(/^section\s+(.+)$/i))) {
-      out.push({ text: m[1]!.trim(), target: `line${i + 1}` })
-    } else if ((m = raw.match(/^(.+?):\s*\d+(?:\s*:\s*(.*))?$/))) {
-      out.push({ text: m[1]!.trim(), target: `line${i + 1}` })
-      for (const actor of (m[2] ?? '').split(',')) {
-        const text = actor.trim()
-        if (text) out.push({ text, target: `line${i + 1}` })
-      }
+  const headerIndex = lines.findIndex(line => /^\s*journey\b/i.test(line))
+  const push = (text: string, lineIndex: number): void => {
+    for (const part of text.split('\n')) {
+      if (part) out.push({ text: part, target: `line${lineIndex + 1}` })
     }
   }
+  walkJourneyLines(lines, headerIndex + 1, {
+    title: push,
+    accTitle: push,
+    accDescr: push,
+    section: push,
+    task: (text, _score, actors, lineIndex) => {
+      push(text, lineIndex)
+      for (const actor of actors) push(actor, lineIndex)
+    },
+  })
   return out
 }
 
+// Opaque-journey diagnostics re-derive the blocking issue from source with the
+// SAME shared grammar the parsers use (src/journey/parse-core.ts), so the
+// reported reason cannot drift from what the parser actually rejected — and
+// comments / accDescr block interiors are never mistaken for bad task lines.
 function verifyOpaqueJourney(body: DiagramBody): LayoutWarning[] {
   if (body.kind !== 'opaque' || body.family !== 'journey') return []
   const warnings: LayoutWarning[] = []
   const lines = body.source.split(/\r?\n/)
-  for (let i = 0; i < lines.length; i++) {
-    const diagnostic = invalidJourneyScoreDiagnostic(lines[i]!.trim())
-    if (!diagnostic) continue
+  // Skip the header line wherever it sits (leading blanks/comments preserved
+  // in opaque source keep their positions, so line numbers stay truthful).
+  const headerIndex = lines.findIndex(line => /^\s*journey\b/i.test(line))
+  let blocking: JourneyParseIssue | undefined
+  walkJourneyLines(lines, headerIndex + 1, {
+    issue: issue => {
+      if (issue.code === 'invalid_score') {
+        warnings.push({
+          code: 'UNSUPPORTED_SYNTAX',
+          line: issue.lineIndex + 1,
+          syntax: 'journey_invalid_score',
+          message: `${issue.detail}.`,
+        })
+        return
+      }
+      blocking ??= issue
+    },
+  })
+  if (blocking) {
     warnings.push({
       code: 'UNSUPPORTED_SYNTAX',
-      line: i + 1,
-      syntax: 'journey_invalid_score',
-      message: `Journey task "${diagnostic.text}" uses invalid score ${diagnostic.rawScore}; Mermaid Journey scores must be integers from 1 through 5.`,
+      line: blocking.lineIndex + 1,
+      syntax: `journey_${blocking.code}`,
+      message: `${blocking.detail}. The diagram is preserved verbatim as source; fix this line to unlock typed journey mutation.`,
     })
   }
   return warnings
-}
-
-function invalidJourneyScoreDiagnostic(raw: string): { text: string; rawScore: string } | null {
-  if (!raw || raw.startsWith('%%')) return null
-  if (/^(?:journey|title|section)\b/i.test(raw)) return null
-  if (/^acc(?:Title|Descr)\b/i.test(raw)) return null
-
-  const numeric = raw.match(/^(.+?)\s*:\s*([0-9]+)\s*(?::\s*(.*))?$/)
-  if (numeric) {
-    const score = Number.parseInt(numeric[2]!, 10)
-    if (Number.isInteger(score) && score >= 1 && score <= 5) return null
-    return { text: numeric[1]!.trim(), rawScore: numeric[2]! }
-  }
-
-  const taskLike = raw.match(/^(.+?)\s*:\s*([^:]+?)(?:\s*:\s*.*)?$/)
-  if (!taskLike) return null
-  const text = taskLike[1]!.trim()
-  const rawScore = taskLike[2]!.trim()
-  if (!text || !rawScore) return null
-  return { text, rawScore }
 }
 
 registerFamily({
@@ -539,7 +521,11 @@ registerFamily({
   verify: (body, opts) => body.kind === 'journey' ? verifyJourney(body, opts) : verifyOpaqueJourney(body),
   ...structuredFamilyHooks('journey', {
     headerOk: h => /^journey\s*$/i.test(h),
-    parseBody: parseJourneyBody, serialize: renderJourney, mutate: mutateJourney,
+    parseBody: lines => {
+      const outcome = parseJourneyBody(lines)
+      return outcome.ok ? outcome.body : null
+    },
+    serialize: renderJourney, mutate: mutateJourney,
   }),
 })
 

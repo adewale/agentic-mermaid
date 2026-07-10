@@ -46,13 +46,21 @@ writeFileSync('diagram.png', png)
 | `fitTo` | `{ width?: number; height?: number }` | — | Constrain output to a width or height. |
 | `style` | `StyleInput \| StyleInput[]` | — | Style name \| spec \| stack, same as `RenderOptions.style`. |
 | `seed` | `number` | `0` | Ink-wobble seed for styled looks, same as `RenderOptions.seed`. |
-| `fontDirs` | `string[]` | — | Extra font directories for custom styles that reference unbundled families. |
+| `fontDirs` | `string[]` | — | Extra font directories: custom styles that reference unbundled families, and scripts the bundled fonts don't cover (CJK, emoji). CLI: `--font-dirs <dirs>` (comma-separated). |
+| `loadSystemFonts` | `boolean` | `false` | Also load OS-installed fonts. Trades cross-machine determinism for glyph coverage; coverage warnings are skipped (system coverage is unknown). CLI: `--system-fonts`. |
+| `onWarning` | `(w: PngFontWarning) => void` | stderr | Receives `PNG_FONT_COVERAGE` warnings (characters no loaded font covers, grouped per script). Without a handler they are written to stderr — tofu is never silent. |
 
 PNG rasterization uses offline `@resvg/resvg-js` with bundled fonts for
-deterministic same-machine output: DejaVu Sans (default) plus the faces the
-built-in styles reference (Caveat, EB Garamond, Architects Daughter, Share
-Tech Mono — see `assets/fonts/FONT-LICENSES.md`). A style whose `font` is
-neither bundled nor supplied via `fontDirs` rasterizes with DejaVu Sans.
+deterministic same-machine output: Inter (the default face — the same family
+the SVG requests and the family `src/text-metrics.ts` is calibrated for, so
+rasterized labels match their measured boxes), DejaVu Sans as a per-glyph
+fallback for symbols Inter lacks, plus the faces the built-in styles
+reference (Caveat, EB Garamond, Architects Daughter, Share Tech Mono — see
+`assets/fonts/FONT-LICENSES.md`). A style whose `font` is neither bundled
+nor supplied via `fontDirs` rasterizes with Inter. Characters no loaded font
+covers (CJK, most emoji) draw as tofu boxes and raise a `PNG_FONT_COVERAGE`
+warning naming the script and the escape hatches (`fontDirs` /
+`loadSystemFonts`).
 Note for third-party rasterizers: the SVG declares fonts as
 `font-family: var(--font, 'Face')`, and static rasterizers (resvg, librsvg)
 do not resolve CSS custom properties — `renderMermaidPNG` inlines the

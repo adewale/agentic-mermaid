@@ -214,6 +214,29 @@ function factsJourney(out: string[], body: JourneyBody): void {
       if (s.label) add(out, `journey task ${clean(t.text)} section ${clean(s.label)}`)
     })
   })
+
+  // Aggregates (parity spec §Describe, Facts, and Verify): score statistics
+  // and participation counts make pain-point queries one checkMermaid away
+  // instead of a re-parse-and-compute exercise.
+  const tasks = body.sections.flatMap(s => s.tasks)
+  add(out, `journey sections ${body.sections.length}`)
+  add(out, `journey tasks ${tasks.length}`)
+  const participation = new Map<string, number>()
+  for (const t of tasks) for (const a of t.actors) participation.set(a, (participation.get(a) ?? 0) + 1)
+  add(out, `journey actors ${participation.size}`)
+  if (tasks.length > 0) {
+    const scores = tasks.map(t => t.score)
+    const min = Math.min(...scores)
+    const max = Math.max(...scores)
+    const average = Math.round((scores.reduce((sum, score) => sum + score, 0) / scores.length) * 100) / 100
+    add(out, `journey score range ${min}..${max}`)
+    add(out, `journey average score ${num(average)}`)
+    for (const t of tasks) {
+      if (t.score === min) add(out, `journey lowest task ${clean(t.text)} score ${num(t.score)}`)
+      if (t.score === max) add(out, `journey highest task ${clean(t.text)} score ${num(t.score)}`)
+    }
+  }
+  for (const [actor, count] of participation) add(out, `journey actor ${clean(actor)} tasks ${count}`)
 }
 
 function factsArchitecture(out: string[], body: ArchitectureBody): void {

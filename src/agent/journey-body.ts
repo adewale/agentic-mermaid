@@ -1,7 +1,8 @@
 // ============================================================================
 // Journey structured body (BUILD-15 pilot for promoting source-level families).
 //
-// Modeled grammar (mirrors the legacy renderer parser, src/journey/parser.ts):
+// The grammar lives in src/journey/parse-core.ts and is shared with the
+// renderer parser, so the two surfaces cannot drift on documented syntax:
 //   title <text>
 //   accTitle: <text>
 //   accDescr: <text>
@@ -9,10 +10,10 @@
 //   section <label>
 //   <task text>: <score 1..5>[: <actor>[, <actor>…]]
 //
-// Structured-or-opaque: any other non-blank, non-comment line (unmodeled
-// syntax, out-of-range scores) returns null so the caller falls back to a
-// lossless opaque body. Render support stays unchanged — the legacy renderer
-// keeps parsing canonical source.
+// Structured-or-opaque with a typed reason: any line the grammar rejects
+// yields the JourneyParseIssue that triggered opacity, so the caller can fall
+// back to a lossless opaque body AND verify can say why. Render support stays
+// unchanged — the legacy renderer keeps parsing canonical source.
 // ============================================================================
 
 import { unknownOpMessage } from './mutation-ops.ts'
@@ -22,53 +23,32 @@ import type {
 } from './types.ts'
 import { ok, err, DEFAULT_LABEL_CHAR_CAP } from './types.ts'
 import { labelOverflowWarning } from './label-metrics.ts'
+import {
+  walkJourneyLines, normalizeJourneyText, normalizeJourneyActor,
+  isValidJourneyScore, type JourneyParseIssue,
+} from '../journey/parse-core.ts'
 
 // ---- Parser -----------------------------------------------------------------
 
-const TITLE_RE = /^title\s+(.+)$/i
-const ACC_LINE_RE = (directive: 'accTitle' | 'accDescr') => new RegExp(`^${directive}\\s*:[ \\t]*(.+)$`, 'i')
-const SECTION_RE = /^section\s+(.+)$/i
-const TASK_RE = /^(.+?)\s*:\s*([0-9]+)\s*(?::\s*(.*))?$/
-
-function normalizeText(value: string): string {
-  return normalizeJourneyLabel(value).split(/\r?\n/).map(part => part.trim()).filter(Boolean).join('\n')
-}
-
-function normalizeActorText(value: string): string {
-  return normalizeText(value).split(/\r?\n/).map(part => part.trim()).filter(Boolean).join(' / ')
-}
-
-function normalizeJourneyLabel(label: string): string {
-  return label
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/\\n/g, '\n')
-    .replace(/<\/?(?:sub|sup|small|mark)\s*>/gi, '')
-    .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
-    .replace(/(?<!\*)\*([^\s*](?:[^*]*[^\s*])?)\*(?!\*)/g, '<i>$1</i>')
-    .replace(/~~(.+?)~~/g, '<s>$1</s>')
-}
+export type JourneyBodyParse =
+  | { ok: true; body: JourneyBody }
+  | { ok: false; issue: JourneyParseIssue }
 
 function formatJourneyInline(value: string): string {
   return value.split(/\r?\n/).map(part => part.trim()).join('<br>')
 }
 
-function isJourneyComment(line: string): boolean {
-  return line.startsWith('%%') || line.startsWith('#') || line.startsWith('%')
-}
-
-function validScore(score: number): boolean {
-  return Number.isInteger(score) && score >= 1 && score <= 5
-}
-
 /**
  * Parse journey body lines (header excluded). Returns a structured body only
- * if EVERY non-blank, non-comment line is a title, section, or task with a
- * valid 1..5 integer score. Otherwise returns null (opaque fallback).
+ * if EVERY non-blank, non-comment statement is modeled grammar with a valid
+ * 1..5 integer score. Otherwise returns the first JourneyParseIssue so the
+ * opaque fallback can carry its reason.
  */
-export function parseJourneyBody(lines: string[]): JourneyBody | null {
+export function parseJourneyBody(lines: string[]): JourneyBodyParse {
   const body: JourneyBody = { kind: 'journey', sections: [] }
   let currentSection: JourneySection | undefined
   let sIdx = 0, tIdx = 0
+  let firstIssue: JourneyParseIssue | undefined
 
   const implicitSection = (): JourneySection => {
     if (!currentSection) {
@@ -78,75 +58,35 @@ export function parseJourneyBody(lines: string[]): JourneyBody | null {
     return currentSection
   }
 
-  for (let i = 0; i < lines.length; i++) {
-    const raw = lines[i]!
-    const line = raw.trim()
-    if (!line) continue
-    if (isJourneyComment(line)) continue
-
-    const accTitle = parseAccessibilityLine(line, 'accTitle')
-    if (accTitle !== undefined) {
-      body.accessibilityTitle = accTitle
-      continue
-    }
-
-    const accDescrStart = line.match(/^accDescr\s*:?\s*\{\s*(.*)$/i)
-    if (accDescrStart) {
-      const initial = accDescrStart[1] ?? ''
-      const parsed = collectAccessibilityBlock(initial, lines, i)
-      if (!parsed) return null
-      body.accessibilityDescription = normalizeAccessibilityText(parsed.text)
-      i = parsed.nextIndex
-      continue
-    }
-
-    const accDescr = parseAccessibilityLine(line, 'accDescr')
-    if (accDescr !== undefined) {
-      body.accessibilityDescription = accDescr
-      continue
-    }
-
-    const tm = line.match(TITLE_RE)
-    if (tm) {
-      const title = normalizeText(tm[1]!)
-      if (!title) return null
-      body.title = title
-      continue
-    }
-
-    const sm = line.match(SECTION_RE)
-    if (sm) {
-      const label = normalizeText(sm[1]!)
-      if (!label || label.includes(':')) return null
+  walkJourneyLines(lines, 0, {
+    title: text => { body.title = text },
+    accTitle: text => { body.accessibilityTitle = text },
+    accDescr: text => { body.accessibilityDescription = text },
+    section: label => {
       currentSection = { id: `section-${sIdx++}`, label, tasks: [] }
       body.sections.push(currentSection)
-      continue
-    }
-
-    const km = line.match(TASK_RE)
-    if (km) {
-      const text = normalizeText(km[1]!)
-      const score = Number.parseInt(km[2]!, 10)
-      if (!text || !validScore(score)) return null
-      const actors = (km[3] ?? '')
-        .split(',')
-        .map(normalizeActorText)
-        .filter(Boolean)
+    },
+    task: (text, score, actors) => {
       implicitSection().tasks.push({ id: `task-${tIdx++}`, text, score, actors })
-      continue
-    }
+    },
+    issue: issue => {
+      firstIssue = issue
+      return 'stop'
+    },
+  })
 
-    // Unmodeled line (anything else) → opaque fallback.
-    return null
-  }
+  if (firstIssue) return { ok: false, issue: firstIssue }
 
   // Upstream parity: title/acc metadata-only journeys are renderable header
   // furniture. A truly empty journey still stays opaque for source fidelity.
   if (body.sections.length === 0 && body.sections.every(s => s.tasks.length === 0) && !body.title && !body.accessibilityTitle && !body.accessibilityDescription) {
-    return null
+    return {
+      ok: false,
+      issue: { code: 'empty_journey', lineIndex: 0, statement: '', detail: 'Journey has no title, sections, or scored tasks' },
+    }
   }
 
-  return body
+  return { ok: true, body }
 }
 
 // ---- Serializer -------------------------------------------------------------
@@ -205,9 +145,33 @@ function makeIdAllocator(body: JourneyBody): (prefix: 'section' | 'task') => str
 
 function normalizeOpText(value: string, field: string, opts: { allowColon?: boolean } = {}): Result<string, MutationError> {
   if (typeof value !== 'string') return err({ code: 'INVALID_OP', message: `Journey ${field} must be a string` })
-  const normalized = normalizeText(value)
+  const normalized = normalizeJourneyText(value)
   if (!normalized || (!opts.allowColon && normalized.includes(':'))) {
     return err({ code: 'INVALID_OP', message: `Journey ${field} must be non-empty and must not contain :` })
+  }
+  return ok(normalized)
+}
+
+function resolveInsertIndex(index: number | undefined, length: number): Result<number, MutationError> {
+  if (index === undefined) return ok(length)
+  if (!Number.isInteger(index) || index < 0 || index > length) {
+    return err({ code: 'INVALID_OP', message: `Journey insert index ${index} out of range (0..${length})` })
+  }
+  return ok(index)
+}
+
+/** Accessibility text is line-oriented free text, but `;` terminates a
+ * journey statement and `{`/`}` delimit the accDescr block form — text
+ * carrying them would not survive serialize → re-parse. null clears. */
+function normalizeAccessibilityOpText(
+  value: string | null,
+  field: string,
+): Result<string | undefined, MutationError> {
+  if (value === null) return ok(undefined)
+  if (typeof value !== 'string') return err({ code: 'INVALID_OP', message: `Journey ${field} must be a string or null` })
+  const normalized = normalizeJourneyText(value)
+  if (!normalized || /[;{}]/.test(normalized)) {
+    return err({ code: 'INVALID_OP', message: `Journey ${field} must be non-empty and must not contain ;, {, or }` })
   }
   return ok(normalized)
 }
@@ -216,59 +180,11 @@ function normalizeActors(actors: string[] | undefined): Result<string[], Mutatio
   const out: string[] = []
   for (const raw of actors ?? []) {
     if (typeof raw !== 'string') return err({ code: 'INVALID_OP', message: 'Journey actor must be a string' })
-    const normalized = normalizeActorText(raw)
+    const normalized = normalizeJourneyActor(raw)
     if (!normalized) return err({ code: 'INVALID_OP', message: 'Journey actor must be non-empty' })
     out.push(normalized)
   }
   return ok(out)
-}
-
-function normalizeAccessibilityText(value: string): string {
-  return normalizeJourneyLabel(value)
-    .split(/\r?\n/)
-    .map(part => part.trim())
-    .filter(Boolean)
-    .join('\n')
-}
-
-function parseAccessibilityLine(
-  line: string,
-  directive: 'accTitle' | 'accDescr',
-): string | undefined {
-  const match = line.match(ACC_LINE_RE(directive))
-  return match ? normalizeAccessibilityText(match[1]!) : undefined
-}
-
-function collectAccessibilityBlock(
-  initial: string,
-  lines: string[],
-  startIndex: number,
-): { text: string; nextIndex: number } | null {
-  const initialEnd = initial.indexOf('}')
-  if (initialEnd !== -1) {
-    return {
-      text: initial.slice(0, initialEnd).trim(),
-      nextIndex: startIndex,
-    }
-  }
-
-  const parts = [initial.trim()].filter(Boolean)
-
-  for (let i = startIndex + 1; i < lines.length; i++) {
-    const line = lines[i]!
-    const end = line.indexOf('}')
-    if (end !== -1) {
-      const beforeBrace = line.slice(0, end).trim()
-      if (beforeBrace) parts.push(beforeBrace)
-      return {
-        text: parts.join('\n'),
-        nextIndex: i,
-      }
-    }
-    parts.push(line)
-  }
-
-  return null
 }
 
 export function mutateJourney(body: JourneyBody, op: JourneyMutationOp): Result<JourneyBody, MutationError> {
@@ -291,7 +207,9 @@ export function mutateJourney(body: JourneyBody, op: JourneyMutationOp): Result<
     case 'add_section': {
       const label = normalizeOpText(op.label, 'section label')
       if (!label.ok) return label
-      next.sections.push({ id: nextId('section'), label: label.value, tasks: [] })
+      const index = resolveInsertIndex(op.index, next.sections.length)
+      if (!index.ok) return index
+      next.sections.splice(index.value, 0, { id: nextId('section'), label: label.value, tasks: [] })
       break
     }
     case 'remove_section': {
@@ -312,10 +230,12 @@ export function mutateJourney(body: JourneyBody, op: JourneyMutationOp): Result<
       if (!s) return err({ code: 'SECTION_NOT_FOUND', message: `No section at index ${op.sectionIndex}` })
       const text = normalizeOpText(op.text, 'task text')
       if (!text.ok) return text
-      if (!validScore(op.score)) return err({ code: 'INVALID_OP', message: `Journey score must be an integer 1..5, got ${op.score}` })
+      if (!isValidJourneyScore(op.score)) return err({ code: 'INVALID_OP', message: `Journey score must be an integer 1..5, got ${op.score}` })
       const actors = normalizeActors(op.actors)
       if (!actors.ok) return actors
-      s.tasks.push({ id: nextId('task'), text: text.value, score: op.score, actors: actors.value })
+      const index = resolveInsertIndex(op.index, s.tasks.length)
+      if (!index.ok) return index
+      s.tasks.splice(index.value, 0, { id: nextId('task'), text: text.value, score: op.score, actors: actors.value })
       break
     }
     case 'remove_task': {
@@ -337,7 +257,7 @@ export function mutateJourney(body: JourneyBody, op: JourneyMutationOp): Result<
     case 'set_task_score': {
       const t = getTask(op.sectionIndex, op.taskIndex)
       if (!t) return err({ code: 'TASK_NOT_FOUND', message: `No task at (${op.sectionIndex},${op.taskIndex})` })
-      if (!validScore(op.score)) return err({ code: 'INVALID_OP', message: `Journey score must be an integer 1..5, got ${op.score}` })
+      if (!isValidJourneyScore(op.score)) return err({ code: 'INVALID_OP', message: `Journey score must be an integer 1..5, got ${op.score}` })
       t.score = op.score
       break
     }
@@ -347,6 +267,46 @@ export function mutateJourney(body: JourneyBody, op: JourneyMutationOp): Result<
       const actors = normalizeActors(op.actors)
       if (!actors.ok) return actors
       t.actors = actors.value
+      break
+    }
+    case 'move_task': {
+      const from = getSection(op.fromSection)
+      if (!from) return err({ code: 'SECTION_NOT_FOUND', message: `No section at index ${op.fromSection}` })
+      if (!from.tasks[op.fromIndex]) return err({ code: 'TASK_NOT_FOUND', message: `No task at index ${op.fromIndex}` })
+      const to = getSection(op.toSection)
+      if (!to) return err({ code: 'SECTION_NOT_FOUND', message: `No section at index ${op.toSection}` })
+      const [task] = from.tasks.splice(op.fromIndex, 1)
+      if (!Number.isInteger(op.toIndex) || op.toIndex < 0 || op.toIndex > to.tasks.length) {
+        return err({ code: 'TASK_NOT_FOUND', message: `No insert position ${op.toIndex} in section ${op.toSection} (0..${to.tasks.length})` })
+      }
+      to.tasks.splice(op.toIndex, 0, task!)
+      // remove_task parity: an emptied implicit (unlabeled) section disappears.
+      if (from !== to && from.label === undefined && from.tasks.length === 0) {
+        next.sections.splice(next.sections.indexOf(from), 1)
+      }
+      break
+    }
+    case 'move_section': {
+      if (!getSection(op.from)) return err({ code: 'SECTION_NOT_FOUND', message: `No section at index ${op.from}` })
+      if (!Number.isInteger(op.to) || op.to < 0 || op.to >= next.sections.length) {
+        return err({ code: 'SECTION_NOT_FOUND', message: `No section position ${op.to} (0..${next.sections.length - 1})` })
+      }
+      const [section] = next.sections.splice(op.from, 1)
+      next.sections.splice(op.to, 0, section!)
+      break
+    }
+    case 'set_accessibility_title': {
+      const title = normalizeAccessibilityOpText(op.title, 'accessibility title')
+      if (!title.ok) return title
+      if (title.value === undefined) delete next.accessibilityTitle
+      else next.accessibilityTitle = title.value
+      break
+    }
+    case 'set_accessibility_description': {
+      const description = normalizeAccessibilityOpText(op.description, 'accessibility description')
+      if (!description.ok) return description
+      if (description.value === undefined) delete next.accessibilityDescription
+      else next.accessibilityDescription = description.value
       break
     }
     case 'rename_actor': {

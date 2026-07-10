@@ -21,8 +21,9 @@ import type { SceneDoc, SceneNode, SemanticChannels } from '../scene/ir.ts'
 import { hashId } from '../scene/seed.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
-import { getSeriesColor } from '../xychart/colors.ts'
-import { isHexColor } from '../shared/color-math.ts'
+import { getSeriesColor, hexToHsl, hslToHex, isDarkBackground } from '../xychart/colors.ts'
+import { isHexColor, tryParseHex, wcagContrastRatio } from '../shared/color-math.ts'
+import { contrastTextColor } from '../color-resolver.ts'
 
 // ============================================================================
 // Journey diagram SVG renderer
@@ -91,14 +92,21 @@ export function lowerJourneyScene(
   const parts: SceneNode[] = []
   const style = resolveJourneyStyle(options)
   const visual = resolveJourneyVisualConfig(options)
-  const paints = journeyPaints(style, visual, colors)
+  const paints = journeyPaints(style, visual, colors, {
+    sectionCount: diagram.sections.length,
+    actorCount: diagram.actors.length,
+  })
 
   const accessibility = buildJourneyAccessibility(diagram)
   const uid = journeyNamespace(diagram)
   const arrowMarkerId = `${uid}-arrowhead`
   const titleId = `${uid}-title`
   const descId = `${uid}-desc`
-  const journeyCss = journeyStyles(style, visual, paints)
+  const curveMarkers = options.journey?.experienceCurve !== false
+    ? diagram.sections.flatMap(section => section.tasks.map(task => task.marker))
+    : []
+  const drawCurve = curveMarkers.length >= 2
+  const journeyCss = journeyStyles(style, visual, paints, drawCurve)
 
   parts.push(marks.prelude(
     {
@@ -111,7 +119,7 @@ export function lowerJourneyScene(
       hasMonoFont: false,
       extraCss: journeyCss,
     },
-    openJourneySvgTag(diagram, colors, transparent, accessibility, titleId, descId),
+    openJourneySvgTag(diagram, colors, transparent, accessibility, titleId, descId, options.mermaidConfig?.journey?.useMaxWidth === true),
   ))
   if (accessibility.title) {
     parts.push(marks.raw({ id: 'a11y-title', role: 'chrome' },
@@ -137,6 +145,14 @@ export function lowerJourneyScene(
       parts.push(renderSectionFrame(section, style, paints, index))
     }
   })
+
+  // The experience curve is the journey's trajectory made visible: a smooth
+  // line through the score markers in task order, beneath the faces. Upstream
+  // Mermaid positions faces but never connects them; render(source,
+  // { journey: { experienceCurve: false } }) restores that classic look.
+  if (drawCurve) {
+    parts.push(renderExperienceCurve(curveMarkers, style, paints))
+  }
 
   for (const section of diagram.sections) {
     for (const task of section.tasks) {
@@ -209,8 +225,12 @@ function openJourneySvgTag(
   accessibility: { title?: string; description?: string },
   titleId: string,
   descId: string,
+  useMaxWidth: boolean,
 ): string {
+  // Mermaid's useMaxWidth contract (same shape as the xychart renderer):
+  // a responsive width capped at the natural size, viewBox preserving aspect.
   return svgOpenTag(diagram.width, diagram.height, colors, transparent, {
+    ...(useMaxWidth ? { width: '100%', height: '100%', style: `max-width:${diagram.width}px` } : {}),
     attrs: buildAccessibilityAttrs(accessibility.title, accessibility.description, titleId, descId, 'user journey'),
   })
 }
@@ -226,7 +246,7 @@ function buildJourneyDefs(colors: DiagramColors, paints: JourneyPaints, arrowMar
   return `<defs>\n${defs.join('\n')}\n</defs>`
 }
 
-function journeyStyles(style: ResolvedRenderStyle, visual: JourneyVisualConfig, paints: JourneyPaints): string {
+function journeyStyles(style: ResolvedRenderStyle, visual: JourneyVisualConfig, paints: JourneyPaints, drawCurve: boolean): string {
   const sectionPalette = sectionPaletteCss(paints)
   const sectionBandPalette = sectionBandPaletteCss(paints)
   const sectionLabelPalette = sectionLabelPaletteCss(paints)
@@ -242,7 +262,8 @@ ${sectionBandPalette}
 ${sectionLabelPalette}
   .journey-task-box { fill: ${paints.nodeFill}; stroke: ${paints.nodeStroke}; stroke-width: ${style.nodeLineWidth}; }
   .journey-task-text { fill: ${style.nodeTextColor ?? 'var(--_text)'};${visual.taskFontFamily ? ` font-family: ${visual.taskFontFamily};` : ''} }
-  .journey-track { stroke: color-mix(in srgb, ${paints.nodeStroke} 78%, var(--bg)); stroke-width: ${style.lineWidth}; stroke-dasharray: 4 7; }
+  .journey-track { stroke: color-mix(in srgb, ${paints.nodeStroke} 78%, var(--bg)); stroke-width: ${style.lineWidth}; stroke-dasharray: 4 7; }${drawCurve ? `
+  .journey-curve { fill: none; stroke: color-mix(in srgb, ${paints.arrow} 55%, var(--bg)); stroke-width: ${Math.max(2, style.lineWidth * 2)}; stroke-linecap: round; }` : ''}
   .journey-guide { stroke: color-mix(in srgb, ${paints.nodeStroke} 62%, var(--bg)); stroke-width: 1; }
   .journey-score-label { fill: ${style.edgeTextColor ?? 'var(--_text-sec)'}; }
   .journey-baseline { stroke: ${paints.arrow}; stroke-width: ${Math.max(2, style.lineWidth * 2)}; }
@@ -254,6 +275,42 @@ ${sectionLabelPalette}
   .journey-actor-dot { stroke: var(--bg); stroke-width: 1; }
 ${actorPalette}
 </style>`
+}
+
+function renderExperienceCurve(
+  markers: PositionedJourneyScoreMarker[],
+  style: ResolvedRenderStyle,
+  paints: JourneyPaints,
+): SceneNode {
+  const points = markers.map(marker => ({ x: marker.cx, y: marker.cy }))
+  const d = smoothCurvePath(points)
+  return marks.connector(
+    {
+      id: 'experience-curve',
+      role: 'series',
+      geometry: { kind: 'path', d, points },
+      lineStyle: 'solid',
+      paint: {
+        stroke: `color-mix(in srgb, ${paints.arrow} 55%, var(--bg))`,
+        strokeWidth: String(Math.max(2, style.lineWidth * 2)),
+      },
+    },
+    `<path class="journey-curve" d="${d}" />`,
+  )
+}
+
+/** Cubic segments with horizontal tangents at each marker: smooth, monotone
+ * between neighbors (no overshoot past a score line), and deterministic. */
+function smoothCurvePath(points: Array<{ x: number; y: number }>): string {
+  const first = points[0]!
+  let d = `M${first.x},${first.y}`
+  for (let i = 1; i < points.length; i++) {
+    const from = points[i - 1]!
+    const to = points[i]!
+    const dx = (to.x - from.x) / 3
+    d += ` C${from.x + dx},${from.y} ${to.x - dx},${to.y} ${to.x},${to.y}`
+  }
+  return d
 }
 
 function renderScoreGuide(guide: PositionedJourneyScoreGuide, style: ResolvedRenderStyle, arrowMarkerId: string): SceneNode {
@@ -669,28 +726,41 @@ function mouthPath(marker: PositionedJourneyScoreMarker): string {
   return `M${cx - 9},${cy + 11} Q${cx},${cy} ${cx + 9},${cy + 11}`
 }
 
-function journeyPaints(style: ResolvedRenderStyle, visual: JourneyVisualConfig, colors: DiagramColors): JourneyPaints {
+interface JourneyPaintCounts {
+  sectionCount: number
+  actorCount: number
+}
+
+function journeyPaints(
+  style: ResolvedRenderStyle,
+  visual: JourneyVisualConfig,
+  colors: DiagramColors,
+  counts: JourneyPaintCounts,
+): JourneyPaints {
   const arrow = style.edgeStrokeColor ?? 'var(--_arrow)'
   const nodeFill = style.nodeFillColor ?? 'var(--_node-fill)'
   const nodeStroke = style.nodeBorderColor ?? 'var(--_node-stroke)'
   const groupFill = style.groupFillColor ?? `color-mix(in srgb, ${arrow} 8%, var(--bg))`
   const groupStroke = style.groupBorderColor ?? 'var(--_node-stroke)'
   const groupText = style.groupTextColor ?? 'var(--_text-sec)'
-  const sectionBases = paletteBases(arrow, colors, style)
+  const sectionBases = paletteBases(arrow, colors, style, counts.sectionCount)
   const configuredSectionCount = Math.max(
     visual.sectionFills.length,
     visual.sectionColours.length,
-    sectionBases.length,
+    Math.min(sectionBases.length, Math.max(counts.sectionCount, 1)),
   )
   const sectionFills = Array.from({ length: configuredSectionCount }, (_unused, index) => {
     const explicitFill = visual.sectionFills[index % visual.sectionFills.length]
     return explicitFill ?? style.groupFillColor ?? `color-mix(in srgb, ${sectionBases[index % sectionBases.length]} ${index === 0 ? 8 : 9}%, var(--bg))`
   })
+  // An explicit Mermaid sectionFill is used as-authored for the label band
+  // (Mermaid semantics: the header band IS the section color), so Mermaid's
+  // stock sectionColours stay readable on it.
   const sectionBands = Array.from({ length: configuredSectionCount }, (_unused, index) => {
     const explicitFill = visual.sectionFills[index % visual.sectionFills.length]
     return explicitFill
-      ? `color-mix(in srgb, ${explicitFill} ${index === 0 ? 14 : 16}%, var(--bg))`
-      : style.groupHeaderFillColor ?? `color-mix(in srgb, ${sectionBases[index % sectionBases.length]} ${index === 0 ? 14 : 16}%, var(--bg))`
+      ?? style.groupHeaderFillColor
+      ?? `color-mix(in srgb, ${sectionBases[index % sectionBases.length]} ${index === 0 ? 14 : 16}%, var(--bg))`
   })
   const sectionStrokes = Array.from({ length: configuredSectionCount }, (_unused, index) => {
     const explicitFill = visual.sectionFills[index % visual.sectionFills.length]
@@ -699,11 +769,15 @@ function journeyPaints(style: ResolvedRenderStyle, visual: JourneyVisualConfig, 
       : style.groupBorderColor ?? `color-mix(in srgb, ${sectionBases[index % sectionBases.length]} ${index === 0 ? 42 : 38}%, var(--bg))`
   })
   const sectionTextColors = Array.from({ length: configuredSectionCount }, (_unused, index) =>
-    visual.sectionColours[index % visual.sectionColours.length] ?? style.groupTextColor ?? 'var(--_text)',
+    contrastGuardedLabelColor(
+      visual.sectionColours.length > 0 ? visual.sectionColours[index % visual.sectionColours.length] : undefined,
+      sectionBands[index]!,
+      style.groupTextColor ?? 'var(--_text)',
+    ),
   )
   const actorColors = visual.actorColours.length > 0
     ? visual.actorColours
-    : actorPalette(arrow, colors, style)
+    : actorPalette(arrow, colors, style, counts.actorCount)
 
   return {
     arrow,
@@ -724,8 +798,8 @@ function journeyPaints(style: ResolvedRenderStyle, visual: JourneyVisualConfig, 
   }
 }
 
-function paletteBases(arrow: string, colors: DiagramColors, style: ResolvedRenderStyle): string[] {
-  const series = concreteSeriesColors(colors, style, 6)
+function paletteBases(arrow: string, colors: DiagramColors, style: ResolvedRenderStyle, sectionCount: number): string[] {
+  const series = concreteSeriesColors(colors, style, Math.max(6, sectionCount))
   if (series) return series
   return [
     arrow,
@@ -737,10 +811,41 @@ function paletteBases(arrow: string, colors: DiagramColors, style: ResolvedRende
   ]
 }
 
-function actorPalette(arrow: string, colors: DiagramColors, style: ResolvedRenderStyle): string[] {
-  const series = concreteSeriesColors(colors, style, 8)
-  if (series) return series
-  return [
+/** Explicit label color wins only when it clears WCAG AA (4.5:1) against the
+ * band; otherwise flip to the band's black/white contrast color. Non-hex
+ * bands (derived color-mix paints) are contrast-safe by construction, so the
+ * explicit/fallback color passes through untouched there. */
+function contrastGuardedLabelColor(explicit: string | undefined, band: string, fallback: string): string {
+  if (!tryParseHex(band)) return explicit ?? fallback
+  if (explicit) {
+    const ratio = wcagContrastRatio(explicit, band)
+    if (ratio === null || ratio >= 4.5) return explicit
+  }
+  return contrastTextColor(band) ?? explicit ?? fallback
+}
+
+/** Actor identity is carried by 4px dots, where only hue differences read.
+ * Derived actor colors therefore rotate hue (golden-angle steps from the
+ * accent) at fixed saturation/lightness, sized to the actual actor count —
+ * two actors can never share a color because the palette ran out. */
+function actorPalette(arrow: string, colors: DiagramColors, style: ResolvedRenderStyle, actorCount: number): string[] {
+  const count = Math.max(actorCount, 1)
+  if (isHexColor(colors.bg) && isHexColor(colors.fg)) {
+    const resolved = resolveColors(colors)
+    const accent = firstHexColor(style.edgeStrokeColor, colors.accent, resolved.arrow)
+    if (accent) {
+      const [accentHue, accentSat] = hexToHsl(accent)
+      const dark = isDarkBackground(colors.bg)
+      // Neutral accents (the default gray theme) have no meaningful hue, so
+      // anchor the wheel on the indigo family the derived palettes lean on.
+      const baseHue = accentSat < 20 ? 230 : accentHue
+      const saturation = Math.min(72, Math.max(42, accentSat < 20 ? 46 : accentSat))
+      const lightness = dark ? 64 : 38
+      return Array.from({ length: count }, (_unused, index) =>
+        hslToHex((baseHue + index * 137.508) % 360, saturation, lightness))
+    }
+  }
+  const fallback = [
     arrow,
     'var(--line, var(--_line))',
     'var(--accent, var(--_arrow))',
@@ -750,6 +855,7 @@ function actorPalette(arrow: string, colors: DiagramColors, style: ResolvedRende
     'color-mix(in srgb, var(--accent, var(--_arrow)) 62%, var(--bg))',
     'color-mix(in srgb, var(--line, var(--_line)) 72%, var(--bg))',
   ]
+  return fallback.slice(0, Math.max(count <= fallback.length ? count : fallback.length, 1))
 }
 
 function concreteSeriesColors(colors: DiagramColors, style: ResolvedRenderStyle, count: number): string[] | undefined {

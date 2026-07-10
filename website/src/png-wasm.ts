@@ -1,6 +1,6 @@
 // Hosted render_png: resvg-wasm (pinned to the same version as the local napi
-// build) with the repo's bundled DejaVu fonts plus the built-in style faces,
-// mirroring src/agent/png.ts
+// build) with the repo's bundled Inter (the text-metrics model) + DejaVu
+// fallback fonts plus the built-in style faces, mirroring src/agent/png.ts
 // option-for-option. The wasm rasterizer is not guaranteed byte-identical to
 // the napi build, so hosted PNG is a convenience surface, not part of the
 // byte-determinism contract (see docs/quality.md "PNG determinism").
@@ -10,6 +10,10 @@
 
 import { initWasm, Resvg } from '@resvg/resvg-wasm'
 import resvgWasmModule from './generated/resvg.wasm'
+import fontInterRegular from './generated/Inter-Regular.ttf'
+import fontInterMedium from './generated/Inter-Medium.ttf'
+import fontInterSemiBold from './generated/Inter-SemiBold.ttf'
+import fontInterBold from './generated/Inter-Bold.ttf'
 import fontRegular from './generated/DejaVuSans.ttf'
 import fontBold from './generated/DejaVuSans-Bold.ttf'
 import fontCaveat from './generated/Caveat.ttf'
@@ -36,6 +40,10 @@ export async function renderMermaidPNGWasm(source: string, opts: { scale?: numbe
     font: {
       loadSystemFonts: false,
       fontBuffers: [
+        new Uint8Array(fontInterRegular),
+        new Uint8Array(fontInterMedium),
+        new Uint8Array(fontInterSemiBold),
+        new Uint8Array(fontInterBold),
         new Uint8Array(fontRegular),
         new Uint8Array(fontBold),
         new Uint8Array(fontCaveat),
@@ -43,7 +51,7 @@ export async function renderMermaidPNGWasm(source: string, opts: { scale?: numbe
         new Uint8Array(fontArchitectsDaughter),
         new Uint8Array(fontShareTechMono),
       ],
-      defaultFontFamily: 'DejaVu Sans',
+      defaultFontFamily: 'Inter',
     },
   })
   return resvg.render().asPng()

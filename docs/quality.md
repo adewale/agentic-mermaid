@@ -175,12 +175,15 @@ Loop 8 added PNG export via `@resvg/resvg-js` (pinned exact `2.6.2`,
 napi-rs native build). The rasterizer choice was hardened by the Loop 8
 critic pass:
 
-- `loadSystemFonts: false` is mandatory — fontconfig differs between
+- `loadSystemFonts: false` is the default — fontconfig differs between
   OSes and CI images, so system fonts would collapse cross-runtime
-  parity.
-- Bundled `assets/fonts/DejaVuSans.ttf` + `-Bold.ttf` ship with the
-  package. `defaultFontFamily: 'DejaVu Sans'` so resvg has a known
-  font for every text node.
+  parity. (`loadSystemFonts: true` / `--system-fonts` is an explicit
+  opt-in for CJK/emoji coverage; determinism is the caller's tradeoff.)
+- Bundled `assets/fonts/Inter-*.ttf` (400/500/600/700) plus
+  `DejaVuSans.ttf` + `-Bold.ttf` ship with the package.
+  `defaultFontFamily: 'Inter'` — the family the SVG requests and the one
+  `src/text-metrics.ts` models, so raster text fits its measured boxes;
+  resvg falls back per-glyph to DejaVu for symbols Inter lacks.
 - SVG input passes `embedFontImport: false` so resvg doesn't fetch
   Google Fonts at rasterization time. CSS variable `--font` still
   declares family preference for browser consumers.
@@ -207,6 +210,6 @@ What's NOT tested (honest gaps):
   change PNG bytes (zlib compression, font hinting). The version is
   pinned exact (no caret) to prevent silent drift on `npm install`,
   but a deliberate bump needs re-baseline.
-- **Different system fonts.** Bundled DejaVu is what we render with;
-  consumers post-processing the output font-substituted SVGs will get
-  different pixels. By design.
+- **Different system fonts.** Bundled Inter (+ DejaVu fallback) is what
+  we render with; consumers post-processing the output font-substituted
+  SVGs will get different pixels. By design.
