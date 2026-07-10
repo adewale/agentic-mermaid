@@ -1,5 +1,10 @@
 # Cupertino style — plan
 
+> Execution detail for one probe of the umbrella
+> [brand-primitives discovery plan](./brand-primitives-plan.md), which frames
+> the goal (the right primitives for brand expression across all families),
+> the three example brands, and the declarative–programmatic balance.
+
 ## Decision
 
 Add `cupertino` as a built-in full look: an Apple-HIG product surface — borderless
