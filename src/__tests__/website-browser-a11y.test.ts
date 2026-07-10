@@ -137,7 +137,13 @@ describeBrowser('website browser accessibility smoke', () => {
         expect(await page.locator('.comparison-dialog[open]').count()).toBe(1)
         expect(await page.locator('.comparison-dialog .comparison-panel').count()).toBeGreaterThanOrEqual(2)
         await page.locator('.comparison-dialog-close').click()
+        await page.waitForFunction(() => document.querySelector('.comparison-dialog[open]') === null)
         expect(await page.locator('.comparison-dialog[open]').count()).toBe(0)
+        await page.locator('[data-comparison-open]').first().click()
+        expect(await page.locator('.comparison-dialog[open]').count()).toBe(1)
+        await page.keyboard.press('Escape')
+        await page.waitForFunction(() => document.querySelector('.comparison-dialog[open]') === null)
+        expect(await page.evaluate(() => document.activeElement === document.querySelector('[data-comparison-open]'))).toBe(true)
       }
       expect(await page.locator('.theme-switch').count()).toBe(0)
     }

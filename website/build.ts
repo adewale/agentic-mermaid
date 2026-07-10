@@ -1133,13 +1133,13 @@ function comparisonsHtml() {
 </div><div class="comparisons" data-mermaid-runtime="/${mermaidRuntimeRel}">${sections}
 ${comparisonStyleSupportHtml()}
 <dialog class="comparison-dialog" data-comparison-dialog aria-labelledby="comparison-dialog-title">
-  <form class="comparison-dialog-bar" method="dialog">
+  <div class="comparison-dialog-bar">
     <div>
       <h2 id="comparison-dialog-title">Comparison</h2>
       <p class="comparison-dialog-note" data-comparison-dialog-note hidden></p>
     </div>
-    <button class="comparison-dialog-close" type="submit">Close</button>
-  </form>
+    <button class="comparison-dialog-close" type="button">Close</button>
+  </div>
   <div class="comparison-dialog-body" data-comparison-dialog-body></div>
 </dialog>
 <script>
@@ -1220,6 +1220,8 @@ ${comparisonStyleSupportHtml()}
   var title = dialog.querySelector('#comparison-dialog-title');
   var note = dialog.querySelector('[data-comparison-dialog-note]');
   var current = null;
+  var dialogAnimation = null;
+  var dialogClosing = false;
   var ENGINES = {
     agentic: 'Agentic Mermaid',
     mermaid: 'Mermaid',
@@ -1450,18 +1452,58 @@ ${comparisonStyleSupportHtml()}
   }
   function restore() {
     if (!current) return;
+    var returnFocus = current.origin;
     document.documentElement.style.overflow = current.previousOverflow || '';
     resetGrid(current.grid);
     body.textContent = '';
     current.marker.parentNode.replaceChild(current.grid, current.marker);
     setLightboxTriggers(current.section, true);
+    dialog.style.transformOrigin = '';
     current = null;
+    if (returnFocus && typeof returnFocus.focus === 'function') returnFocus.focus({ preventScroll: true });
   }
-  function openComparison(section) {
+  function reducedMotion() {
+    return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  }
+  function animateDialogFrom(originRect) {
+    if (dialogAnimation) dialogAnimation.cancel();
+    if (reducedMotion()) {
+      dialogAnimation = dialog.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 150, easing: 'ease-out' });
+      return;
+    }
+    if (!originRect) return;
+    var rect = dialog.getBoundingClientRect();
+    var originX = ((originRect.left + originRect.width / 2 - rect.left) / (rect.width || 1)) * 100;
+    var originY = ((originRect.top + originRect.height / 2 - rect.top) / (rect.height || 1)) * 100;
+    dialog.style.transformOrigin = originX + '% ' + originY + '%';
+    dialogAnimation = dialog.animate(
+      [{ opacity: 0, transform: 'scale(0.98)' }, { opacity: 1, transform: 'scale(1)' }],
+      { duration: 200, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }
+    );
+  }
+  function requestClose() {
+    if (!dialog.open || dialogClosing) return;
+    dialogClosing = true;
+    if (dialogAnimation) dialogAnimation.cancel();
+    dialogAnimation = reducedMotion()
+      ? dialog.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 120, easing: 'ease-out' })
+      : dialog.animate(
+        [{ opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: 'scale(0.98)' }],
+        { duration: 120, easing: 'cubic-bezier(0.4, 0, 1, 1)' }
+      );
+    dialogAnimation.onfinish = function() {
+      dialogClosing = false;
+      if (dialog.open) dialog.close();
+    };
+    dialogAnimation.oncancel = function() { dialogClosing = false; };
+  }
+  function openComparison(section, origin) {
     restore();
     var grid = section && section.querySelector('.comparison-grid');
     if (!section || !grid || !body) return;
     section.dispatchEvent(new CustomEvent('am:render-comparison-panels', { bubbles: true }));
+    var originEl = origin || grid;
+    var originRect = originEl.getBoundingClientRect();
     setLightboxTriggers(section, false);
     var marker = document.createComment('comparison-grid');
     grid.parentNode.insertBefore(marker, grid);
@@ -1473,7 +1515,7 @@ ${comparisonStyleSupportHtml()}
     var noteText = section.querySelector('.comparison-note')?.textContent || section.querySelector('.comparison-takeaway')?.textContent || '';
     note.textContent = noteText;
     note.hidden = !noteText;
-    current = { section: section, grid: grid, marker: marker, controls: controls, family: family, editorHref: editorHrefForSection(section), pair: null, view: 'compare', zoom: 1, previousOverflow: document.documentElement.style.overflow };
+    current = { section: section, grid: grid, marker: marker, controls: controls, family: family, editorHref: editorHrefForSection(section), pair: null, view: 'compare', zoom: 1, origin: originEl, originRect: originRect, previousOverflow: document.documentElement.style.overflow };
     document.documentElement.style.overflow = 'hidden';
     controls.addEventListener('input', function (event) {
       var target = event.target;
@@ -1510,6 +1552,7 @@ ${comparisonStyleSupportHtml()}
       applyDetailState();
     });
     dialog.showModal();
+    animateDialogFrom(originRect);
     updateSourceControls();
     applyDetailState();
     setTimeout(refreshFit, 80);
@@ -1521,25 +1564,42 @@ ${comparisonStyleSupportHtml()}
   });
   document.querySelectorAll('[data-comparison-open]').forEach(function (button) {
     button.addEventListener('click', function () {
-      openComparison(button.closest('.comparison-case'));
+      openComparison(button.closest('.comparison-case'), button);
     });
   });
   document.querySelectorAll('[data-comparison-lightbox-panel]').forEach(function (group) {
     group.addEventListener('click', function () {
       if (group.closest('[data-comparison-dialog]')) return;
-      openComparison(group.closest('.comparison-case'));
+      openComparison(group.closest('.comparison-case'), group);
     });
     group.addEventListener('keydown', function (event) {
       if (group.closest('[data-comparison-dialog]')) return;
       if (event.key !== 'Enter' && event.key !== ' ') return;
       event.preventDefault();
-      openComparison(group.closest('.comparison-case'));
+      openComparison(group.closest('.comparison-case'), group);
     });
   });
+  dialog.querySelector('.comparison-dialog-close').addEventListener('click', requestClose);
+  document.addEventListener('keydown', function(event) {
+    if (!dialog.open || event.key !== 'Tab') return;
+    var focusable = Array.prototype.slice.call(dialog.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'));
+    if (!focusable.length) return;
+    var first = focusable[0], last = focusable[focusable.length - 1];
+    if (!dialog.contains(document.activeElement)) { event.preventDefault(); first.focus(); }
+    else if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+  });
+  dialog.addEventListener('cancel', function(event) {
+    event.preventDefault();
+    requestClose();
+  });
   window.addEventListener('resize', refreshFit);
-  dialog.addEventListener('close', restore);
+  dialog.addEventListener('close', function() {
+    dialogClosing = false;
+    restore();
+  });
   dialog.addEventListener('click', function (event) {
-    if (event.target === dialog) dialog.close();
+    if (event.target === dialog) requestClose();
   });
 })();
 </script>
@@ -2248,11 +2308,15 @@ const designBody = `
 </div>
 
 <h2>Motion</h2>
-<p>Three durations, one curve. Presses run <code>--dur-press</code> 0.1s, control state changes <code>--dur-control</code> 0.16s, page-level fades <code>--dur-ui</code> 0.2s, all on <code>--ease-out</code> <code>cubic-bezier(0.22,&nbsp;1,&nbsp;0.36,&nbsp;1)</code> — fast start, soft landing, the curve for anything answering the user. Every press lands at <code>scale(0.96)</code>. Popovers enter with a short fade-and-scale from the corner that anchors them and exit instantly; <code>prefers-reduced-motion</code> flattens all of it.</p>
+<p>Three durations, one curve. Presses run <code>--dur-press</code> 0.1s, control state changes <code>--dur-control</code> 0.16s, page-level fades <code>--dur-ui</code> 0.2s, all on <code>--ease-out</code> <code>cubic-bezier(0.22,&nbsp;1,&nbsp;0.36,&nbsp;1)</code> — fast start, soft landing, the curve for anything answering the user. Every press lands at <code>scale(0.96)</code>. Popovers enter from their anchor and visually return along the same path in 90ms, while their semantic close and focus release happen immediately.</p>
 <div class="dz-motion">
   <button class="dz-press" type="button">Press me — 0.96 at 0.1s</button>
-  <span style="font-family:var(--mono);font-size:var(--t-label);color:var(--ink-faint)">hover 0.16s · enter 0.16s ease-out · exit instant</span>
+  <span style="font-family:var(--mono);font-size:var(--t-label);color:var(--ink-faint)">hover 0.16s · enter 0.16s ease-out · exit 0.09s</span>
 </div>
+<div class="dz-motion-strip" data-motion-strip tabindex="0" aria-label="Momentum pan specimen. Drag or use arrow keys to move the diagram strip.">
+  <div class="dz-motion-track"><span>Parse</span><i></i><span>Narrow</span><i></i><span>Mutate</span><i></i><span>Verify</span><i></i><span>Serialize</span></div>
+</div>
+<ul class="dz-motion-rules"><li>Start from the current visible value; a new gesture cancels and takes over immediately.</li><li>Only momentum-bearing gestures may coast. Click-triggered controls never bounce or overshoot.</li><li>Reduced motion keeps brief opacity and colour feedback, never translation or scale; rendering itself never animates.</li><li>No new translucent surfaces: existing overlays offer opaque reduced-transparency and contrast fallbacks.</li></ul>
 
 <h2>Iconography</h2>
 <p>Interface icons are hairline strokes with round caps and joins: <code>stroke-width</code> 2 up to 14px, 1.75 from 15px, so optical weight stays even as size grows. The graph mark is exempt — it is brand art with its own drawn weights, isolated in the brand layer.</p>

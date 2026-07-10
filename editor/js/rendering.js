@@ -1,5 +1,7 @@
 var renderTimer = null;
+var renderSpinnerTimer = null;
 var renderRequestVersion = 0;
+var lastSuccessfulRenderMs = null;
 var autoFitPending = true;
 
 function currentEditorSource() {
@@ -10,13 +12,21 @@ function isCurrentRender(version, source) {
   return version === renderRequestVersion && currentEditorSource() === source;
 }
 
+function clearRenderSpinner() {
+  if (renderSpinnerTimer) clearTimeout(renderSpinnerTimer);
+  renderSpinnerTimer = null;
+  spinner.classList.remove("visible");
+}
+
 function scheduleRender(delay) {
   var version = ++renderRequestVersion;
   if (renderTimer) clearTimeout(renderTimer);
+  clearRenderSpinner();
+  var nextDelay = delay == null ? EditorMotion.adaptiveRenderDelay(lastSuccessfulRenderMs) : delay;
   renderTimer = setTimeout(function() {
     renderTimer = null;
     doRender(version);
-  }, delay ?? 300);
+  }, nextDelay);
 }
 
 function hexToRgb(hex) {
@@ -412,6 +422,8 @@ function ensureTextOutputs(source) {
 
 async function doRender(version) {
   if (typeof version !== "number") version = ++renderRequestVersion;
+  if (typeof cancelPreviewMotion === 'function') cancelPreviewMotion();
+  clearRenderSpinner();
   var source = currentEditorSource();
   if (!source) {
     if (!isCurrentRender(version, source)) return;
@@ -427,13 +439,17 @@ async function doRender(version) {
     return;
   }
 
-  spinner.classList.add("visible");
   var t0 = performance.now();
+  renderSpinnerTimer = setTimeout(function() {
+    if (version === renderRequestVersion) spinner.classList.add("visible");
+  }, 250);
 
   try {
     var svg = await renderMermaid(source, buildOptions());
     if (!isCurrentRender(version, source)) return;
-    var ms = (performance.now() - t0).toFixed(0);
+    var renderMs = performance.now() - t0;
+    var ms = renderMs.toFixed(0);
+    lastSuccessfulRenderMs = renderMs;
     previewInner.innerHTML = svg;
     var svgEl = previewInner.querySelector("svg");
     ensurePreviewSvgAccessibility(svgEl, source);
@@ -466,6 +482,6 @@ async function doRender(version) {
     setTextOutputs("Fix the render error to see Unicode output.", "Fix the render error to see ASCII output.");
     if (typeof updateExportAvailability === "function") updateExportAvailability();
   } finally {
-    if (version === renderRequestVersion) spinner.classList.remove("visible");
+    if (version === renderRequestVersion) clearRenderSpinner();
   }
 }

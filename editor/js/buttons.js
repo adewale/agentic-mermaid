@@ -147,6 +147,7 @@ function trapShortcutsFocus(e) {
 var shortcutsPopup = (shortcutsDialog && typeof createPopupController === 'function')
   ? createPopupController({
       popup: shortcutsDialog,
+      visualClose: true,
       visibility: { manageTabStops: true },
       afterOpen: function() {
         document.addEventListener('keydown', trapShortcutsFocus, true);

@@ -135,10 +135,10 @@
   .thumbrow { display: flex; gap: 10px; padding: 16px; }
   .thumb { padding: 0; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); cursor: zoom-in; display: block; }
   .thumb svg { display: block; border-radius: 7px; }
-  .overlay { position: absolute; inset: 0; display: none; place-items: center; background: var(--scrim); z-index: 3; }
-  .overlay.open { display: grid; }
+  .overlay { width: min(78vw, 320px); max-width: 320px; border: 0; padding: 0; background: transparent; }
+  .overlay::backdrop { background: var(--scrim); }
   .overlay-panel {
-    width: 78%; max-width: 320px; border-radius: 12px; background: var(--bg);
+    width: 100%; border-radius: 12px; background: var(--bg);
     border: 1px solid var(--line-strong); box-shadow: var(--shadow-pop); padding: 12px;
     will-change: transform, opacity;
   }
@@ -225,8 +225,8 @@
         </div>
         <div class="card-foot"><button class="ctl primary r1-go" type="button">Edit source</button><span class="readout">—</span></div>
       </div>
-      <div class="card after" data-r1 data-delay="80" data-spinner="0">
-        <div class="card-head"><span class="tag">Proposed</span><small>adaptive ≈ 80 ms, no spinner flash</small></div>
+      <div class="card after" data-r1 data-spinner="0">
+        <div class="card-head"><span class="tag">Proposed</span><small>adaptive 60–300 ms, no spinner flash</small></div>
         <div class="stage r1-stage">
           <div class="minisrc">flowchart TD
   A[Parse] --&gt; B[Verify]<span class="r1-newline"></span><span class="caret"></span></div>
@@ -293,7 +293,7 @@
         <div class="card-head"><span class="tag">Current</span><small>appears / vanishes instantly</small></div>
         <div class="stage">
           <div class="thumbrow"></div>
-          <div class="overlay"><div class="overlay-panel" role="dialog" aria-modal="true" aria-label="Inspect render"><h3>Inspect render</h3><div class="frame"></div><footer><button class="ctl ov-close" type="button">Close</button></footer></div></div>
+          <dialog class="overlay" aria-label="Inspect render"><div class="overlay-panel"><h3>Inspect render</h3><div class="frame"></div><footer><button class="ctl ov-close" type="button">Close</button></footer></div></dialog>
         </div>
         <div class="card-foot"><span class="readout">no origin, no path</span></div>
       </div>
@@ -301,7 +301,7 @@
         <div class="card-head"><span class="tag">Proposed</span><small>origin-aware · 200 ms in, 120 ms out</small></div>
         <div class="stage">
           <div class="thumbrow"></div>
-          <div class="overlay"><div class="overlay-panel" role="dialog" aria-modal="true" aria-label="Inspect render"><h3>Inspect render</h3><div class="frame"></div><footer><button class="ctl ov-close" type="button">Close</button></footer></div></div>
+          <dialog class="overlay" aria-label="Inspect render"><div class="overlay-panel"><h3>Inspect render</h3><div class="frame"></div><footer><button class="ctl ov-close" type="button">Close</button></footer></div></dialog>
         </div>
         <div class="card-foot"><span class="readout">—</span></div>
       </div>
@@ -501,9 +501,14 @@
     var btn = card.querySelector('.r1-go');
     var newline = card.querySelector('.r1-newline');
     var caret = card.querySelector('.caret');
-    var delay = parseInt(card.dataset.delay, 10);
+    var fixedDelay = parseInt(card.dataset.delay, 10);
     var showSpinner = card.dataset.spinner === '1';
+    var lastRenderMs = showSpinner ? null : 53;
     var extended = false, busy = false;
+    function delayForNextRender() {
+      if (showSpinner) return fixedDelay;
+      return Math.max(60, Math.min(300, lastRenderMs * 1.5));
+    }
 
     function draw() {
       wrap.innerHTML = '';
@@ -520,11 +525,14 @@
       newline.textContent = extended ? '\n  B --> C[Render]' : '';
       caret.classList.add('on');
       if (showSpinner) spinner.classList.add('on');
-      readout.textContent = 'debouncing…';
+      var delay = delayForNextRender();
+      readout.textContent = 'debouncing ' + Math.round(delay) + ' ms…';
       var t0 = performance.now();
       setTimeout(function () {                       // the debounce
         setTimeout(function () {                     // the (fast) render itself
           draw();
+          var renderMs = performance.now() - t0 - delay;
+          if (!showSpinner) lastRenderMs = renderMs;
           spinner.classList.remove('on');
           caret.classList.remove('on');
           readout.textContent = 'updated in ' + Math.round(performance.now() - t0) + ' ms';
@@ -557,7 +565,7 @@
     }
     content.appendChild(svg);
 
-    var x = -220, y = -60, dragging = false, startX = 0, startY = 0, ox = 0, oy = 0;
+    var x = -220, y = -60, dragging = false, pointerId = null, startX = 0, startY = 0, ox = 0, oy = 0;
     var tracker = makeVelocityTracker(), cancelCoast = null;
     function bounds() {
       var r = box.getBoundingClientRect();
@@ -574,6 +582,7 @@
     box.addEventListener('pointerdown', function (e) {
       if (cancelCoast) { cancelCoast(); cancelCoast = null; readout.textContent = 'grabbed mid-coast'; }
       dragging = true;
+      pointerId = e.pointerId;
       box.classList.add('grabbing');
       box.setPointerCapture(e.pointerId);
       startX = e.clientX; startY = e.clientY; ox = x; oy = y;
@@ -582,17 +591,18 @@
       e.preventDefault();
     });
     box.addEventListener('pointermove', function (e) {
-      if (!dragging) return;
+      if (!dragging || e.pointerId !== pointerId) return;
       x = ox + (e.clientX - startX);
       y = oy + (e.clientY - startY);
       tracker.push(performance.now(), e.clientX, e.clientY);
       apply();
     });
-    function up(e) {
-      if (!dragging) return;
+    function up(e, cancelled) {
+      if (!dragging || e.pointerId !== pointerId) return;
       dragging = false;
+      pointerId = null;
       box.classList.remove('grabbing');
-      if (!momentum || reduced()) return;
+      if (cancelled || !momentum || reduced()) return;
       tracker.push(performance.now(), e.clientX, e.clientY); // a hold before release reads as ~0 velocity
       var v = tracker.get();
       if (Math.hypot(v.vx, v.vy) < 50) return;
@@ -601,8 +611,8 @@
         x += dx; y += dy; apply();
       }, function () { cancelCoast = null; readout.textContent = 'settled'; });
     }
-    box.addEventListener('pointerup', up);
-    box.addEventListener('pointercancel', up);
+    box.addEventListener('pointerup', function (e) { up(e, false); });
+    box.addEventListener('pointercancel', function (e) { up(e, true); });
     box.tabIndex = 0;
     box.setAttribute('aria-label', 'Pannable diagram canvas. Use arrow keys to pan.');
     box.addEventListener('keydown', function (e) {
@@ -654,7 +664,7 @@
     var readout = card.querySelector('.readout');
     var animate = card.dataset.anim === '1';
     var labels = [['Crisp', 'Paper'], ['Sketch', 'Nord'], ['Blueprint', 'Dusk']];
-    var lastThumb = null;
+    var lastThumb = null, dialogAnimation = null, dialogClosing = false;
 
     labels.forEach(function (pair, i) {
       var b = document.createElement('button');
@@ -673,39 +683,45 @@
       s.setAttribute('width', '100%'); s.removeAttribute('height');
       frame.appendChild(s);
       lastThumb = thumb;
-      overlay.classList.add('open');
+      if (dialogAnimation) dialogAnimation.cancel();
+      overlay.showModal();
       if (animate && !reduced()) {
-        // origin is panel-relative; values outside 0-100% are valid and anchor correctly
         var pr = panel.getBoundingClientRect(), tr = thumb.getBoundingClientRect();
         var oxp = ((tr.left + tr.width / 2 - pr.left) / pr.width) * 100;
         var oyp = ((tr.top + tr.height / 2 - pr.top) / pr.height) * 100;
         panel.style.transformOrigin = oxp + '% ' + oyp + '%';
-        panel.animate(
+        dialogAnimation = panel.animate(
           [{ opacity: 0, transform: 'scale(0.86)' }, { opacity: 1, transform: 'scale(1)' }],
           { duration: 200, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' });
-        overlay.animate([{ backgroundColor: 'transparent' }, {}], { duration: 200 });
         readout.textContent = 'origin: the panel you clicked';
       } else if (animate) {
-        panel.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 150 });
+        dialogAnimation = panel.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 150 });
       }
       card.querySelector('.ov-close').focus();
     }
     function close() {
-      if (animate && !reduced()) {
-        var a = panel.animate(
-          [{ opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: 'scale(0.86)' }],
-          { duration: 120, easing: 'cubic-bezier(0.4, 0, 1, 1)' });
-        a.onfinish = function () { overlay.classList.remove('open'); if (lastThumb) lastThumb.focus(); };
-      } else {
-        overlay.classList.remove('open');
-        if (lastThumb) lastThumb.focus();
-      }
+      if (!overlay.open || dialogClosing) return;
+      if (!animate) { overlay.close(); return; }
+      dialogClosing = true;
+      if (dialogAnimation) dialogAnimation.cancel();
+      dialogAnimation = reduced()
+        ? panel.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 120 })
+        : panel.animate([{ opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: 'scale(0.86)' }], { duration: 120, easing: 'cubic-bezier(0.4, 0, 1, 1)' });
+      dialogAnimation.onfinish = function () { dialogClosing = false; if (overlay.open) overlay.close(); };
+      dialogAnimation.oncancel = function () { dialogClosing = false; };
     }
     card.querySelector('.ov-close').addEventListener('click', close);
     overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
-    document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape' && overlay.classList.contains('open')) close();
+    overlay.addEventListener('cancel', function (e) { e.preventDefault(); close(); });
+    overlay.addEventListener('keydown', function (e) {
+      if (e.key !== 'Tab') return;
+      var focusable = Array.prototype.slice.call(overlay.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'));
+      if (!focusable.length) return;
+      var first = focusable[0], last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
     });
+    overlay.addEventListener('close', function () { dialogClosing = false; if (lastThumb) lastThumb.focus(); });
   });
 
   /* ============================ R6 ============================ */

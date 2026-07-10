@@ -23,10 +23,29 @@ function setDescendantTabStops(container, enabled) {
   });
 }
 
+function clearPopupClosing(popup) {
+  if (!popup) return;
+  if (popup._closingTimer) clearTimeout(popup._closingTimer);
+  popup._closingTimer = null;
+  popup.classList.remove('closing');
+}
+
+function startPopupClosing(popup, opts) {
+  if (!popup || !opts.visualClose || (typeof EditorMotion !== 'undefined' && EditorMotion.reduced())) return;
+  clearPopupClosing(popup);
+  popup.classList.add('closing');
+  popup._closingTimer = setTimeout(function() {
+    popup.classList.remove('closing');
+    popup._closingTimer = null;
+  }, opts.closeDuration || 90);
+}
+
 function setPopupVisibility(popup, trigger, open, opts) {
   if (!popup) return;
   opts = opts || {};
   var className = opts.className || 'open';
+  if (open) clearPopupClosing(popup);
+  else startPopupClosing(popup, opts);
   popup.classList.toggle(className, open);
   popup.setAttribute('aria-hidden', open ? 'false' : 'true');
   if (opts.inert !== false) popup.inert = !open;
@@ -68,7 +87,7 @@ function createPopupController(opts) {
       });
     }
     if (open && typeof opts.beforeOpen === 'function') opts.beforeOpen(meta, currentTrigger);
-    setPopupVisibility(popup, currentTrigger, open, Object.assign({ className: className }, opts.visibility || {}));
+    setPopupVisibility(popup, currentTrigger, open, Object.assign({ className: className, visualClose: opts.visualClose, closeDuration: opts.closeDuration }, opts.visibility || {}));
     if (open && typeof opts.afterOpen === 'function') opts.afterOpen(meta, currentTrigger);
     if (!open && typeof opts.afterClose === 'function') opts.afterClose(meta, currentTrigger);
     if (!open && meta.restoreFocus && opts.restoreFocus !== false && currentTrigger && typeof currentTrigger.focus === 'function') {

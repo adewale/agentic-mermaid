@@ -21,6 +21,7 @@ var colorPopupController = createPopupController({
   popup: colorPopup,
   trigger: function() { return activeColorAnchor; },
   closePeersOnOpen: false,
+  visualClose: true,
   triggerEvents: false,
   visibility: { focusSelector: '#color-hex-input' },
   beforeOpen: function() {

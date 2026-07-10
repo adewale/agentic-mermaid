@@ -85,6 +85,7 @@ var fontPopupController = createPopupController({
   popup: fontPopup,
   trigger: fontSelectBtn,
   closePeersOnOpen: false,
+  visualClose: true,
   visibility: { focusSelector: '#font-search' },
   beforeOpen: function() {
     // The colour picker is the one peer sharing the nested tier (both skip the

@@ -100,6 +100,7 @@ async function readJsFiles(): Promise<string> {
     'js/elements.js',
     'js/sharing.js',
     'js/rendering.js',
+    'js/motion.js',
     'js/zoom.js',
     'js/pan.js',
     'js/editor-helpers.js',

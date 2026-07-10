@@ -45,6 +45,7 @@ var themeMenuPopup = createListboxPopupController({
   trigger: themeDropdownBtn,
   itemSelector: '.theme-dropdown-item',
   activeSelector: '.theme-dropdown-item.active',
+  visualClose: true,
   contains: function(target) { return !!target.closest("#theme-dropdown-wrap"); },
   onSelect: function(item) { setTheme(item.dataset.theme || ""); },
 });
@@ -111,6 +112,7 @@ var styleMenuPopup = createListboxPopupController({
   trigger: styleDropdownBtn,
   itemSelector: '.theme-dropdown-item',
   activeSelector: '.theme-dropdown-item.active',
+  visualClose: true,
   contains: function(target) { return !!target.closest("#style-dropdown-wrap"); },
   onSelect: function(item) { setStyle(item.dataset.style || "crisp"); },
 });

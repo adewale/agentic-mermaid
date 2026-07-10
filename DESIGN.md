@@ -174,3 +174,12 @@ The prompt card is the agent handoff primitive. It must keep copy controls visib
 - **Don't** use gradient text, decorative grid backgrounds, broad soft card shadows, or side-stripe borders.
 - **Don't** repeat tiny uppercase/mono section labels as page scaffolding when headings or grouping can do the work.
 - **Don't** hide core editor controls on mobile; adapt them so Source, Preview, Diagram, Unicode, ASCII, zoom, pan, copy, export, settings, examples, and theme remain reachable.
+
+## Motion Rules
+
+- Start any animation from the current presentation value; a fresh gesture cancels and takes control immediately.
+- Momentum belongs only to a gesture that supplied velocity. Click-triggered controls, menus, dialogs, tabs, and copy feedback never bounce or overshoot.
+- Rendering is a response path, never a choreography path: improve render latency and suppress spinner flashes rather than crossfading a preview swap.
+- Reduced motion preserves short opacity and colour feedback only. It never restores translation, scale, springs, or decorative movement.
+- Do not add translucent chrome. Existing frosted overlays must provide opaque reduced-transparency and increased-contrast fallbacks.
+- Keep rubber-band splitters, floating translucent preview toolbars, haptic copy ticks, global page transitions, and broad mechanical px-to-rem conversion out of this product surface unless separately justified and reviewed.

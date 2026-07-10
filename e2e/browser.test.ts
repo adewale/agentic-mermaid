@@ -288,6 +288,106 @@ describe('browser: live editor integration', () => {
     }
   }, 60_000)
 
+  it('retargets preview zoom and pauses a focused toast without blocking its eventual dismissal', async () => {
+    await gotoApp(`${BASE}/editor`)
+    await page.waitForSelector('#code-editor', { timeout: 30_000 })
+    await waitForEditorRender(60_000)
+
+    await page.click('#zoom-label')
+    await page.waitForFunction(() => document.getElementById('zoom-label')?.textContent === '100%', undefined, { timeout: 10_000 })
+    await page.click('#zoom-in-btn')
+    await page.click('#zoom-in-btn')
+    await page.click('#zoom-in-btn')
+    await page.waitForFunction(() => document.getElementById('zoom-label')?.textContent === '195%', undefined, { timeout: 10_000 })
+
+    await page.click('#pan-btn')
+    await page.evaluate(() => {
+      const body = document.getElementById('preview-body')!
+      const pointer = (type: string, pointerId: number, clientX: number, clientY: number) => body.dispatchEvent(new PointerEvent(type, {
+        bubbles: true, cancelable: true, pointerId, pointerType: 'touch', clientX, clientY,
+      }))
+      pointer('pointerdown', 1, 120, 160)
+      pointer('pointerdown', 2, 220, 160)
+      pointer('pointermove', 2, 300, 160)
+      pointer('pointerup', 2, 300, 160)
+      pointer('pointerup', 1, 120, 160)
+    })
+    await page.waitForFunction(() => Number.parseInt(document.getElementById('zoom-label')?.textContent || '0', 10) > 195, undefined, { timeout: 10_000 })
+
+    // The generated editor runs from a local HTTP origin, so clipboard access
+    // intentionally fails and exercises the same user-visible toast path.
+    await page.click('#copy-text-output-btn')
+    await page.locator('#toast.show').waitFor({ state: 'visible', timeout: 10_000 })
+    await page.locator('#toast').focus()
+    // Programmatic activation preserves focus on the status node, exercising
+    // replacement while a reader is still holding the pause.
+    await page.evaluate(() => (document.getElementById('copy-text-output-btn') as HTMLButtonElement).click())
+    await new Promise((resolve) => setTimeout(resolve, 150))
+    await new Promise((resolve) => setTimeout(resolve, 2600))
+    expect(await page.locator('#toast').evaluate((el) => el.classList.contains('show'))).toBe(true)
+    await page.locator('#zoom-label').focus()
+    await page.waitForFunction(() => !document.getElementById('toast')?.classList.contains('show'), undefined, { timeout: 4_000 })
+
+    await page.click('#export-chevron-btn')
+    await page.keyboard.press('Escape')
+    expect(await page.locator('#export-dropdown').evaluate((el) => ({ inert: (el as HTMLElement).inert, closing: el.classList.contains('closing') }))).toEqual({ inert: true, closing: true })
+    await page.waitForFunction(() => !document.getElementById('export-dropdown')?.classList.contains('closing'), undefined, { timeout: 1_000 })
+  }, 60_000)
+
+  it('lets an ordinary pointer grab preview momentum and suppresses coast under reduced motion', async () => {
+    async function preparePannablePreview() {
+      await gotoApp(`${BASE}/editor`)
+      await page.waitForSelector('#code-editor', { timeout: 30_000 })
+      await waitForEditorRender(60_000)
+      await page.click('#zoom-label')
+      await page.waitForFunction(() => document.getElementById('zoom-label')?.textContent === '100%', undefined, { timeout: 10_000 })
+      for (let i = 0; i < 6; i++) await page.click('#zoom-in-btn')
+      await page.waitForFunction(() => Number.parseInt(document.getElementById('zoom-label')?.textContent || '0', 10) >= 380, undefined, { timeout: 10_000 })
+      await page.click('#pan-btn')
+    }
+    async function flingLeft() {
+      const box = await page.locator('#preview-body').boundingBox()
+      expect(box).not.toBeNull()
+      const x = box!.x + box!.width * 0.6
+      const y = box!.y + box!.height * 0.5
+      await page.mouse.move(x, y)
+      await page.mouse.down()
+      await new Promise((resolve) => setTimeout(resolve, 24))
+      await page.mouse.move(x - 140, y)
+      await page.mouse.up()
+    }
+
+    await preparePannablePreview()
+    await flingLeft()
+    await new Promise((resolve) => setTimeout(resolve, 40))
+    const beforeGrab = await page.locator('#preview-body').evaluate((el) => (el as HTMLElement).scrollLeft)
+    await new Promise((resolve) => setTimeout(resolve, 120))
+    expect(await page.locator('#preview-body').evaluate((el) => (el as HTMLElement).scrollLeft)).toBeGreaterThan(beforeGrab)
+    // Start a fresh coast and grab it promptly, before it can reach its scroll bound.
+    await preparePannablePreview()
+    await flingLeft()
+    await new Promise((resolve) => setTimeout(resolve, 16))
+    await page.click('#pan-btn')
+    const box = await page.locator('#preview-body').boundingBox()
+    await page.mouse.move(box!.x + box!.width * 0.6, box!.y + box!.height * 0.5)
+    await page.mouse.down()
+    await page.mouse.up()
+    const afterGrab = await page.locator('#preview-body').evaluate((el) => (el as HTMLElement).scrollLeft)
+    await new Promise((resolve) => setTimeout(resolve, 120))
+    expect(await page.locator('#preview-body').evaluate((el) => (el as HTMLElement).scrollLeft)).toBe(afterGrab)
+
+    try {
+      await preparePannablePreview()
+      await page.emulateMedia({ reducedMotion: 'reduce' })
+      await flingLeft()
+      const afterRelease = await page.locator('#preview-body').evaluate((el) => (el as HTMLElement).scrollLeft)
+      await new Promise((resolve) => setTimeout(resolve, 160))
+      expect(await page.locator('#preview-body').evaluate((el) => (el as HTMLElement).scrollLeft)).toBe(afterRelease)
+    } finally {
+      await page.emulateMedia({ reducedMotion: 'no-preference' })
+    }
+  }, 60_000)
+
   it('empty-state CTA opens a persistent examples sidebar', async () => {
     await gotoApp(`${BASE}/editor`)
     await page.waitForSelector('#code-editor', { timeout: 30_000 })

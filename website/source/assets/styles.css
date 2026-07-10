@@ -451,6 +451,10 @@ hr { border: 0; margin: var(--sp-6) 0; }
 .comparison-dialog { width: min(calc(100vw - 24px), 1800px); height: min(calc(100dvh - 24px), 1120px); max-width: none; max-height: none; padding: 0; border: 1px solid var(--surface-border-strong); border-radius: var(--radius-lg); background: var(--bg); color: var(--ink); box-shadow: var(--shadow-popover); }
 .comparison-dialog[open] { display: grid; grid-template-rows: auto minmax(0, 1fr); }
 .comparison-dialog::backdrop { background: rgb(24 22 18 / 0.68); backdrop-filter: blur(4px); }
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  .comparison-dialog::backdrop { background: var(--bg); backdrop-filter: none; -webkit-backdrop-filter: none; }
+  .comparison-dialog { border-color: var(--line-strong); }
+}
 .comparison-dialog-bar { position: sticky; top: 0; z-index: 1; display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; padding: 14px 16px; border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--bg) 92%, transparent); }
 .comparison-dialog-bar h2 { margin: 0; font-size: var(--t-h3); }
 .comparison-dialog-note { margin: 4px 0 0; color: var(--ink-faint); font-size: var(--t-label); line-height: var(--lh-ui); }
@@ -759,7 +763,16 @@ figcaption { color: var(--ink-faint); font-size: var(--t-label); line-height: 1.
   @keyframes panel-in { from { opacity: 0; } to { opacity: 1; } }
   .tabs-ready .tab-panel:not([hidden]) { animation: panel-in var(--dur-control) var(--ease-out); }
 }
-@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; } }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+  /* Keep comprehension-only fades; no transform or scale returns under this preference. */
+  @keyframes panel-in-reduced { from { opacity: 0; } to { opacity: 1; } }
+  .tabs-ready .tab-panel:not([hidden]) { animation: panel-in-reduced 0.15s var(--ease-out) !important; }
+  :where(body, .doc, a, button, .copy-prompt-status) {
+    transition-property: opacity, color, background-color, border-color !important;
+    transition-duration: 0.15s !important;
+  }
+}
 
 /* Shared affordance primitives: keep links, controls, metadata, surfaces, and
    status feedback on one visual contract instead of page-specific one-offs. */
@@ -880,6 +893,14 @@ figcaption { color: var(--ink-faint); font-size: var(--t-label); line-height: 1.
 .dz-shadow { height: 72px; border-radius: var(--radius-lg); background: var(--surface); display: grid; place-items: center; font-family: var(--mono); font-size: var(--t-label); color: var(--ink-soft); }
 .dz-motion { display: flex; gap: var(--sp-3); align-items: center; flex-wrap: wrap; margin: var(--sp-4) 0; }
 .dz-press { padding: 0 var(--control-px); font-weight: 650; }
+.dz-motion-strip { overflow: hidden; margin: var(--sp-4) 0 var(--sp-3); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); cursor: grab; touch-action: none; }
+.dz-motion-strip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.dz-motion-strip.dragging { cursor: grabbing; user-select: none; }
+.dz-motion-track { display: flex; align-items: center; gap: 14px; width: max-content; padding: 18px; color: var(--ink-soft); font-family: var(--mono); font-size: var(--t-label); font-weight: 650; will-change: transform; }
+.dz-motion-track span { display: inline-grid; min-width: 84px; min-height: 38px; place-items: center; border: 1px solid var(--line-strong); border-radius: var(--radius-md); background: var(--paper); }
+.dz-motion-track i { width: 24px; height: 1px; background: var(--line-strong); }
+.dz-motion-rules { display: grid; gap: 5px; margin: 0; padding-left: 20px; color: var(--ink-soft); font-size: var(--t-sm); }
+@media (prefers-reduced-motion: reduce) { .dz-motion-track { will-change: auto; } }
 .dz-mark-row { display: flex; align-items: center; gap: var(--sp-4); margin: var(--sp-4) 0; }
 .dz-icons { display: flex; gap: var(--sp-4); align-items: center; color: var(--ink-soft); }
 .dz-voice li { margin-bottom: var(--sp-2); }

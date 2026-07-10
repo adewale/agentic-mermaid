@@ -285,6 +285,14 @@
   body[data-mobile-panel="preview"] .panel-right {
     display: flex;
   }
+  @media (prefers-reduced-motion: no-preference) {
+    @keyframes mobile-panel-in { from { opacity: 0; } to { opacity: 1; } }
+    body[data-mobile-panel="code"] .panel-left,
+    body[data-mobile-panel="config"] .panel-left,
+    body[data-mobile-panel="preview"] .panel-right {
+      animation: mobile-panel-in var(--dur-control) var(--ease-out);
+    }
+  }
   .examples-sidebar {
     width: var(--examples-width, calc(100vw - 20px));
   }

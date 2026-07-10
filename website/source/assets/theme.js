@@ -53,6 +53,66 @@
     });
   }
 
+  function initMotionStrips() {
+    document.querySelectorAll('[data-motion-strip]').forEach((strip) => {
+      const track = strip.querySelector('.dz-motion-track');
+      if (!track) return;
+      let offset = 0;
+      let pointer = null;
+      let start = 0;
+      let origin = 0;
+      let velocity = 0;
+      let last = null;
+      let coast = 0;
+      const reduced = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const min = () => Math.min(0, strip.clientWidth - track.scrollWidth);
+      const paint = () => { offset = Math.max(min(), Math.min(0, offset)); track.style.transform = `translateX(${offset}px)`; };
+      const stop = () => { if (coast) cancelAnimationFrame(coast); coast = 0; };
+      const beginCoast = () => {
+        if (reduced() || Math.abs(velocity) < 50) return;
+        let previous = performance.now();
+        const frame = (now) => {
+          const dt = Math.min(0.05, (now - previous) / 1000); previous = now;
+          velocity *= Math.pow(0.998, dt * 1000);
+          if (Math.abs(velocity) < 4) { coast = 0; return; }
+          const before = offset;
+          offset += velocity * dt;
+          paint();
+          if (offset === before) { coast = 0; return; }
+          coast = requestAnimationFrame(frame);
+        };
+        coast = requestAnimationFrame(frame);
+      };
+      strip.addEventListener('pointerdown', (event) => {
+        stop(); pointer = event.pointerId; start = event.clientX; origin = offset; velocity = 0; last = { x: event.clientX, t: performance.now() };
+        strip.setPointerCapture?.(pointer); strip.classList.add('dragging'); event.preventDefault();
+      });
+      strip.addEventListener('pointermove', (event) => {
+        if (event.pointerId !== pointer) return;
+        offset = origin + event.clientX - start;
+        const now = performance.now();
+        const dt = Math.max(1, now - last.t);
+        velocity = (event.clientX - last.x) / dt * 1000;
+        last = { x: event.clientX, t: now };
+        paint();
+      });
+      const end = (event, cancelled) => {
+        if (event.pointerId !== pointer) return;
+        pointer = null; strip.classList.remove('dragging');
+        if (!cancelled) beginCoast();
+      };
+      strip.addEventListener('pointerup', (event) => end(event, false));
+      strip.addEventListener('pointercancel', (event) => end(event, true));
+      strip.addEventListener('keydown', (event) => {
+        const step = event.shiftKey ? 120 : 40;
+        if (event.key === 'ArrowLeft') { stop(); offset += step; paint(); event.preventDefault(); }
+        if (event.key === 'ArrowRight') { stop(); offset -= step; paint(); event.preventDefault(); }
+      });
+      window.addEventListener('resize', paint);
+      paint();
+    });
+  }
+
   /* Homepage style gallery: a prev/next cycler over pre-rendered panels.
      Markup ships as stacked labeled panels (first visible, rest hidden) so the
      content reads without JS; this wires the buttons, keeps exactly one panel
@@ -85,7 +145,8 @@
     });
   }
 
-  function init() { initCopyButtons(); initTabs(); initGallery(); }
+
+  function init() { initCopyButtons(); initTabs(); initGallery(); initMotionStrips(); }
   if (document.readyState !== 'loading') init();
   else document.addEventListener('DOMContentLoaded', init);
 })();
