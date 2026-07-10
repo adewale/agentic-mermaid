@@ -41,6 +41,11 @@ export interface HostedMcpContext {
 export const SUPPORTED_PROTOCOL_VERSIONS = ['2024-11-05', '2025-03-26', '2025-06-18']
 const DEFAULT_PROTOCOL_VERSION = '2025-03-26'
 
+// Hosted server identity, distinct from the local stdio server's
+// MCP_SERVER_NAME: registries and clients cache tool lists by server identity,
+// and this surface (8 tools) must never shadow the local one (3 tools).
+export const HOSTED_MCP_SERVER_NAME = 'agentic-mermaid-hosted'
+
 export const MAX_SOURCE_BYTES = 64 * 1024
 export const MAX_CODE_BYTES = 64 * 1024
 const MAX_EXECUTE_TIMEOUT_MS = 30_000
@@ -50,7 +55,10 @@ const DEFAULT_EXECUTE_TIMEOUT_MS = 5_000
 export const MIN_PNG_SCALE = 0.1
 export const MAX_PNG_SCALE = 8
 
-const TOO_LARGE_HINT = 'input exceeds the hosted size cap; run the local agentic-mermaid CLI or stdio MCP server instead (see https://agentic-mermaid.dev/docs/mcp/)'
+// Shared with the transport's 413 (total-body cap) so every "too big" refusal
+// points at the same way out.
+export const LOCAL_FALLBACK_HINT = 'run the local agentic-mermaid CLI or stdio MCP server instead (see https://agentic-mermaid.dev/docs/mcp/)'
+const TOO_LARGE_HINT = `input exceeds the hosted size cap; ${LOCAL_FALLBACK_HINT}`
 
 // The structured op menu, family → op signatures with field names, embedded in
 // the declarative tool descriptions so a caller can fill an op correctly on the
@@ -166,6 +174,7 @@ function hostedProtocolVersion(params: unknown): string {
 
 const HOSTED_SURFACE: McpServerSurface<HostedMcpContext> = {
   protocolVersion: hostedProtocolVersion,
+  serverName: HOSTED_MCP_SERVER_NAME,
   tools: HOSTED_TOOLS,
   instructions: INSTRUCTIONS,
   handleToolCall,
@@ -403,26 +412,36 @@ function sourceTool(id: number | string | null, args: Record<string, unknown>, e
   }
 }
 
+/** Hosted execute errors share the { code, message } envelope of every other
+ *  hosted tool. The sandbox's message is kept verbatim and only classified:
+ *  a CPU-budget overrun (see failure() in website/src/execute-loader.ts) is
+ *  EXECUTE_TIMEOUT; everything else — user exceptions, syntax errors, loader
+ *  failures — is EXECUTE_FAILED. */
+function executeError(message: string): { code: 'EXECUTE_FAILED' | 'EXECUTE_TIMEOUT'; message: string } {
+  return { code: /exceeded its \d+ms CPU budget/.test(message) ? 'EXECUTE_TIMEOUT' : 'EXECUTE_FAILED', message }
+}
+
 async function handleExecute(id: number | string | null, args: Record<string, unknown>, context: HostedMcpContext): Promise<JsonRpcResponse> {
   const code = args.code
   if (typeof code !== 'string') return rpcError(id, -32602, 'execute requires `code` (string)')
   if (utf8Bytes(code) > MAX_CODE_BYTES) {
-    return toolResult(id, { ok: false, error: `CODE_TOO_LARGE: ${TOO_LARGE_HINT}`, logs: [] }, true)
+    return toolResult(id, { ok: false as const, error: { code: 'CODE_TOO_LARGE', message: TOO_LARGE_HINT }, logs: [] }, true)
   }
   // Screen sync-only violations before any isolate exists: rejected code costs
-  // nothing and the error text matches the local sandbox exactly.
+  // nothing and the error message matches the local sandbox exactly.
   const reason = unsupportedCodeReason(code)
-  if (reason) return toolResult(id, { ok: false, error: reason, logs: [] }, true)
+  if (reason) return toolResult(id, { ok: false as const, error: executeError(reason), logs: [] }, true)
   const requested = args.timeoutMs
   const timeoutMs = typeof requested === 'number' && Number.isFinite(requested)
     ? Math.max(1, Math.min(requested, MAX_EXECUTE_TIMEOUT_MS))
     : DEFAULT_EXECUTE_TIMEOUT_MS
   try {
     const r = await context.execute(code, timeoutMs)
-    return toolResult(id, r, !r.ok)
+    if (r.ok) return toolResult(id, r, false)
+    return toolResult(id, { ok: false as const, error: executeError(r.error ?? 'sandbox returned no error message'), logs: r.logs ?? [] }, true)
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
-    return toolResult(id, { ok: false, error: `execute failed: ${msg}`, logs: [] }, true)
+    return toolResult(id, { ok: false as const, error: executeError(msg), logs: [] }, true)
   }
 }
 

@@ -15,11 +15,17 @@ export interface McpToolDefinition {
 
 export interface McpServerSurface<Context> {
   protocolVersion: string | ((params: unknown) => string)
+  /** initialize serverInfo.name; defaults to the local MCP_SERVER_NAME. */
+  serverName?: string
   tools: McpToolDefinition[]
   instructions: string
   handleToolCall(id: number | string | null, params: unknown, context: Context): JsonRpcResponse | Promise<JsonRpcResponse>
 }
 
+// The LOCAL stdio/HTTP server identity. The hosted transport reports its own
+// name (HOSTED_MCP_SERVER_NAME in hosted-server.ts): registries and clients
+// cache tool lists by server identity, and the two surfaces expose different
+// tools (3 local vs 8 hosted), so they must not share one.
 export const MCP_SERVER_NAME = 'agentic-mermaid-mcp'
 // Derived from package.json so every MCP handshake reports the same package
 // version as the published npm artifact.
@@ -46,7 +52,7 @@ export async function dispatchMcpRequest<Context>(req: JsonRpcRequest, context: 
         : surface.protocolVersion
       return reply(id, {
         protocolVersion,
-        serverInfo: { name: MCP_SERVER_NAME, version: MCP_SERVER_VERSION },
+        serverInfo: { name: surface.serverName ?? MCP_SERVER_NAME, version: MCP_SERVER_VERSION },
         capabilities: { tools: {} },
         instructions: surface.instructions,
       })
