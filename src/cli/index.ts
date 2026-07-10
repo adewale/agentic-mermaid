@@ -119,7 +119,7 @@ Flags:
   --ascii                For render/render-markdown: ASCII instead of SVG
   --op <JSON>            For mutate: one MutationOp
   --ops <JSON|file>      For mutate: JSON array of MutationOps
-  --output <FILE>        For render png / preview output path
+  --output <FILE>        Write render/preview output to FILE instead of stdout
   --open                 For preview: open generated HTML in browser
   --force                For init-agent: refresh generated skill/MCP files
   --style <NAMES|file>   For render svg/png: style stack — comma-separated names and/or .json spec files
@@ -380,11 +380,18 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
   // Loop 9 M3/M4, #7645: json = layout shape; unicode is the default text
   // renderer; `--security strict` strips external-fetch refs from SVG.
   const out = renderSourceToFormat(source, format, { security, certificates: args.flags.certificates === true, style, seed })
-  if (typeof out !== 'string') {
-    process.stdout.write(JSON.stringify(out) + '\n')
+  // --output writes the artifact for every single-shot format, matching the
+  // documented `am render --format svg --output diagram.svg` (it was png-only,
+  // silently ignored elsewhere — the docs' samples produced no file).
+  const outFile = typeof args.flags.o === 'string' ? args.flags.o : (typeof args.flags.output === 'string' ? args.flags.output : '')
+  const text = typeof out === 'string'
+    ? (json ? JSON.stringify({ [format]: out }) + '\n' : (out.endsWith('\n') ? out : out + '\n'))
+    : JSON.stringify(out) + '\n'
+  if (outFile) {
+    writeFileSync(outFile, text)
     return EXIT_OK
   }
-  process.stdout.write(json ? JSON.stringify({ [format]: out }) + '\n' : (out.endsWith('\n') ? out : out + '\n'))
+  process.stdout.write(text)
   return EXIT_OK
 }
 
