@@ -51,7 +51,7 @@ export interface ParsedArgs { command?: string; positional: string[]; flags: Rec
 export const FLAG_SPECS: Record<string, { arg?: string }> = {
   // booleans
   'agent-instructions': {}, 'ascii': {}, 'certificates': {}, 'help': {}, 'json': {},
-  'watch': {}, 'open': {}, 'force': {}, 'canonical-wrapper': {}, 'system-fonts': {},
+  'jsonl': {}, 'watch': {}, 'open': {}, 'force': {}, 'canonical-wrapper': {}, 'system-fonts': {},
   // value flags (placeholder = what the usage shows after the flag)
   'suppress': { arg: 'CODES' }, 'label-cap': { arg: 'N' }, 'op': { arg: 'JSON' },
   'style': { arg: 'NAMES|file' }, 'seed': { arg: 'N' },
@@ -80,7 +80,7 @@ const COMMAND_FLAGS: Record<string, readonly string[]> = {
   styles: ['help', 'json'],
   'llms-txt': ['help'],
   'init-agent': ['help', 'json', 'dir', 'force'],
-  batch: ['help'],
+  batch: ['help', 'jsonl'],
   'render-markdown': ['help', 'ascii'],
 }
 

@@ -57,6 +57,12 @@ describe('command-specific flag validity', () => {
     }
   }
 
+  test('batch keeps its documented --jsonl mode under command ownership checks', () => {
+    const parsed = parseArgs(['batch', '--jsonl'])
+    expect(parsed.flags.jsonl).toBe(true)
+    expect(capture(['batch', '--jsonl']).code).toBe(0)
+  })
+
   test('known but inapplicable flags and missing values fail with ARG exit 2', () => {
     for (const argv of [
       ['verify', '--scale', '2', 'ignored.mmd'],
