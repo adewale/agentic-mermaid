@@ -1,5 +1,58 @@
 import type { ClassDiagram, ClassNode, ClassRelationship, ClassMember, RelationshipType, ClassNamespace } from './types.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
+import { parseDirectionStatement } from '../shared/direction-statement.ts'
+
+// ---- Shared namespace grammar ----------------------------------------------
+// One grammar, two consumers: this render parser and the agent body parser
+// (src/agent/class-body.ts) both parse namespace headers through
+// parseNamespaceHeader, so membership cannot drift between the surfaces (C1).
+
+/** `namespace A.B.C {` / `namespace X["Display label"] {` */
+const NAMESPACE_OPEN_RE = /^namespace\s+([\w$]+(?:\.[\w$]+)*)(?:\s*\[\s*"?([^\]"]*)"?\s*\])?\s*\{$/
+
+/** Parse a `namespace … {` opener into its dot path + optional label. */
+export function parseNamespaceHeader(line: string): { path: string[]; label?: string } | null {
+  const m = line.match(NAMESPACE_OPEN_RE)
+  if (!m) return null
+  return { path: m[1]!.split('.'), label: m[2] || undefined }
+}
+
+// Shared class declaration grammar. The structured serializer emits bracket
+// labels, so the renderer and agent parser must resolve them to the same
+// logical ID instead of treating `A["Label"]` as an identifier.
+const CLASS_DECLARATION_RE = /^class\s+(`[^`]+`|[\w$]+)(?:\s*~([^~]+)~)?(?:\s*\[\s*"([^"]*)"\s*\])?(?:\s+as\s+"([^"]+)")?(?:\s+~([^~]+)~)?\s*(\{)?\s*$/
+
+export interface ParsedClassDeclaration {
+  id: string
+  label?: string
+  generic?: string
+  opensBody: boolean
+}
+
+export function parseClassDeclaration(line: string): ParsedClassDeclaration | null {
+  const match = line.match(CLASS_DECLARATION_RE)
+  if (!match) return null
+  const rawId = match[1]!
+  return {
+    id: rawId.startsWith('`') ? rawId.slice(1, -1) : rawId,
+    generic: (match[2] ?? match[5])?.trim(),
+    label: match[3] ?? match[4],
+    opensBody: match[6] === '{',
+  }
+}
+
+/** Parse an upstream class reference, normalizing `Box~T~` to stable id
+ * `Box` plus a generic parameter. The same identity rule is used by
+ * declarations, relationships, notes, and member statements. */
+export function parseClassReference(token: string): { id: string; generic?: string } | null {
+  const match = token.trim().match(/^(`[^`]+`|[\w$]+)(?:~([^~]+)~)?$/)
+  if (!match) return null
+  const rawId = match[1]!
+  return {
+    id: rawId.startsWith('`') ? rawId.slice(1, -1) : rawId,
+    generic: match[2]?.trim() || undefined,
+  }
+}
 
 // ============================================================================
 // Class diagram parser
@@ -18,6 +71,9 @@ import { normalizeBrTags } from '../multiline-utils.ts'
 //   A "1" --> "*" B : label   (with cardinality + label)
 //   Animal : +String name     (inline attribute)
 //   namespace MyNamespace { class A { } }
+//   namespace A.B.C { ... }   (dot notation auto-creates parents A, A.B)
+//   namespace X["Label"] { }  (display label, upstream v11.15+)
+//   direction LR              (TB | BT | LR | RL)
 // ============================================================================
 
 /**
@@ -33,11 +89,51 @@ export function parseClassDiagram(lines: string[]): ClassDiagram {
 
   // Track classes by ID for deduplication
   const classMap = new Map<string, ClassNode>()
-  // Track namespace nesting
-  let currentNamespace: ClassNamespace | null = null
+  // Namespace registry by full dot path (dot notation and re-opened blocks
+  // share one node) + the currently-open nesting stack.
+  const namespaceByPath = new Map<string, ClassNamespace>()
+  const namespaceStack: ClassNamespace[] = []
+  const pathStack: string[] = []
+  // A class belongs to exactly one namespace: the first block that declares it.
+  const claimedClasses = new Set<string>()
+
+  /** Resolve (creating as needed) the namespace chain for a dot path relative
+   *  to the current stack, and return the final node. */
+  const openNamespace = (segments: string[], label: string | undefined): ClassNamespace => {
+    let parentPath = pathStack.join('.')
+    let parentChildren = namespaceStack.length > 0
+      ? namespaceStack[namespaceStack.length - 1]!.children
+      : diagram.namespaces
+    let node: ClassNamespace | undefined
+    for (const segment of segments) {
+      const fullPath = parentPath ? `${parentPath}.${segment}` : segment
+      node = namespaceByPath.get(fullPath)
+      if (!node) {
+        node = { name: segment, classIds: [], children: [] }
+        namespaceByPath.set(fullPath, node)
+        parentChildren.push(node)
+      }
+      parentPath = fullPath
+      parentChildren = node.children
+      pathStack.push(segment)
+      namespaceStack.push(node)
+    }
+    if (label && node) node.label = label
+    return node!
+  }
+
+  const claimClass = (id: string): void => {
+    if (namespaceStack.length === 0 || claimedClasses.has(id)) return
+    claimedClasses.add(id)
+    namespaceStack[namespaceStack.length - 1]!.classIds.push(id)
+  }
+
   // Track class body parsing
   let currentClass: ClassNode | null = null
   let braceDepth = 0
+  // How many stack levels each open `namespace` line pushed (dot paths push
+  // several segments that one closing `}` must pop together).
+  const namespaceFrameSizes: number[] = []
 
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i]!
@@ -91,58 +187,66 @@ export function parseClassDiagram(lines: string[]): ClassDiagram {
       continue
     }
 
-    // --- Namespace block start ---
-    const nsMatch = line.match(/^namespace\s+(\S+)\s*\{$/)
-    if (nsMatch) {
-      currentNamespace = { name: nsMatch[1]!, classIds: [] }
+    // --- Direction statement ---
+    const direction = parseDirectionStatement(line)
+    if (direction) {
+      diagram.direction = direction
+      continue
+    }
+
+    // --- Namespace block start (supports nesting, dot paths, labels) ---
+    const nsHeader = parseNamespaceHeader(line)
+    if (nsHeader) {
+      openNamespace(nsHeader.path, nsHeader.label)
+      namespaceFrameSizes.push(nsHeader.path.length)
       continue
     }
 
     // --- Namespace end ---
-    if (line === '}' && currentNamespace) {
-      diagram.namespaces.push(currentNamespace)
-      currentNamespace = null
+    if (line === '}' && namespaceFrameSizes.length > 0) {
+      const frame = namespaceFrameSizes.pop()!
+      namespaceStack.length -= frame
+      pathStack.length -= frame
       continue
     }
 
-    // --- Class block start: `class ClassName {` or `class ClassName` ---
-    const classBlockMatch = line.match(/^class\s+(\S+?)(?:\s*~(\w+)~)?\s*\{$/)
-    if (classBlockMatch) {
-      const id = classBlockMatch[1]!
-      const generic = classBlockMatch[2]
-      const cls = ensureClass(classMap, id)
-      if (generic) {
-        cls.label = `${id}<${generic}>`
+    // --- Class declaration (standalone or opening a member block) ---
+    const declaration = parseClassDeclaration(line)
+    if (declaration) {
+      const cls = ensureClass(classMap, declaration.id, declaration.generic)
+      if (declaration.label !== undefined) cls.label = normalizeBrTags(declaration.label)
+      if (declaration.opensBody) {
+        currentClass = cls
+        braceDepth = 1
       }
-      currentClass = cls
-      braceDepth = 1
-      if (currentNamespace) {
-        currentNamespace.classIds.push(id)
-      }
-      continue
-    }
-
-    // --- Standalone class declaration (no body): `class ClassName` ---
-    const classOnlyMatch = line.match(/^class\s+(\S+?)(?:\s*~(\w+)~)?\s*$/)
-    if (classOnlyMatch) {
-      const id = classOnlyMatch[1]!
-      const generic = classOnlyMatch[2]
-      const cls = ensureClass(classMap, id)
-      if (generic) {
-        cls.label = `${id}<${generic}>`
-      }
-      if (currentNamespace) {
-        currentNamespace.classIds.push(id)
-      }
+      claimClass(declaration.id)
       continue
     }
 
     // --- Inline annotation: `class ClassName { <<interface>> }` (single line) ---
     const inlineAnnotMatch = line.match(/^class\s+(\S+?)\s*\{\s*<<(\w+)>>\s*\}$/)
     if (inlineAnnotMatch) {
-      const cls = ensureClass(classMap, inlineAnnotMatch[1]!)
+      const ref = parseClassReference(inlineAnnotMatch[1]!)
+      if (!ref) continue
+      const cls = ensureClass(classMap, ref.id, ref.generic)
       cls.annotation = inlineAnnotMatch[2]!
+      claimClass(cls.id)
       continue
+    }
+
+    // --- Class shorthand: `ClassName:::style` ---
+    // Styling is not yet modeled by ClassDiagram, but consuming the legal
+    // shorthand here prevents it from becoming a phantom `::style` member.
+    // The agent body remains opaque and announces that typed mutation is
+    // unavailable, preserving the authored styling source verbatim.
+    const classShorthand = line.match(/^(.+?):::([\w-]+)$/)
+    if (classShorthand) {
+      const reference = parseClassReference(classShorthand[1]!)
+      if (reference) {
+        ensureClass(classMap, reference.id, reference.generic)
+        claimClass(reference.id)
+        continue
+      }
     }
 
     // --- Inline attribute: `ClassName : +String name` ---
@@ -151,7 +255,9 @@ export function parseClassDiagram(lines: string[]): ClassDiagram {
       // Make sure this isn't a relationship line (those have arrows)
       const rest = inlineAttrMatch[2]!
       if (!rest.match(/<\|--|--|\*--|o--|-->|\.\.>|\.\.\|>/)) {
-        const cls = ensureClass(classMap, inlineAttrMatch[1]!)
+        const ref = parseClassReference(inlineAttrMatch[1]!)
+        if (!ref) continue
+        const cls = ensureClass(classMap, ref.id, ref.generic)
         const member = parseMember(rest)
         if (member) {
           if (member.isMethod) {
@@ -171,9 +277,10 @@ export function parseClassDiagram(lines: string[]): ClassDiagram {
     const rel = parseRelationship(line)
     if (rel) {
       // Ensure both classes exist
-      ensureClass(classMap, rel.from)
-      ensureClass(classMap, rel.to)
-      diagram.relationships.push(rel)
+      ensureClass(classMap, rel.from, rel.fromGeneric)
+      ensureClass(classMap, rel.to, rel.toGeneric)
+      const { fromGeneric: _fromGeneric, toGeneric: _toGeneric, ...relationship } = rel
+      diagram.relationships.push(relationship)
       continue
     }
   }
@@ -205,11 +312,14 @@ function collectAccessibilityBlock(initial: string, lines: string[], startIndex:
 }
 
 /** Ensure a class exists in the map, creating a default if needed */
-function ensureClass(classMap: Map<string, ClassNode>, id: string): ClassNode {
+function ensureClass(classMap: Map<string, ClassNode>, id: string, generic?: string): ClassNode {
   let cls = classMap.get(id)
   if (!cls) {
-    cls = { id, label: id, attributes: [], methods: [] }
+    cls = { id, label: generic ? `${id}<${generic}>` : id, generic, attributes: [], methods: [] }
     classMap.set(id, cls)
+  } else if (generic && !cls.generic) {
+    cls.generic = generic
+    if (cls.label === id) cls.label = `${id}<${generic}>`
   }
   return cls
 }
@@ -281,7 +391,7 @@ function parseMember(line: string): { member: ClassMember; isMethod: boolean } |
 }
 
 /** Parse a relationship line into a ClassRelationship */
-function parseRelationship(line: string): ClassRelationship | null {
+function parseRelationship(line: string): (ClassRelationship & { fromGeneric?: string; toGeneric?: string }) | null {
   // Relationship regex — handles all arrow types with optional cardinality and labels
   // Pattern: FROM ["card"] ARROW ["card"] TO [: label]
   const match = line.match(
@@ -289,20 +399,28 @@ function parseRelationship(line: string): ClassRelationship | null {
   )
   if (!match) return null
 
-  const from = match[1]!
+  const fromRef = parseClassReference(match[1]!)
+  const toRef = parseClassReference(match[5]!)
+  if (!fromRef || !toRef) return null
+  const from = fromRef.id
   const rawFromCardinality = match[2]
   const fromCardinality = rawFromCardinality ? normalizeBrTags(rawFromCardinality) : undefined
   const arrow = match[3]!.trim()
   const rawToCardinality = match[4]
   const toCardinality = rawToCardinality ? normalizeBrTags(rawToCardinality) : undefined
-  const to = match[5]!
+  const to = toRef.id
   const rawLabel = match[6]?.trim()
   const label = rawLabel ? normalizeBrTags(rawLabel) : undefined
 
   const parsed = parseArrow(arrow)
   if (!parsed) return null
 
-  return { from, to, type: parsed.type, markerAt: parsed.markerAt, label, fromCardinality, toCardinality }
+  return {
+    from, to, type: parsed.type, markerAt: parsed.markerAt, label,
+    fromCardinality, toCardinality,
+    ...(fromRef.generic ? { fromGeneric: fromRef.generic } : {}),
+    ...(toRef.generic ? { toGeneric: toRef.generic } : {}),
+  }
 }
 
 /**

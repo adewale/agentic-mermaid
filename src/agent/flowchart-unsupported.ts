@@ -1,18 +1,22 @@
 import type { LayoutWarning } from './types.ts'
+import { normalizeV11Shape } from '../flowchart-shapes.ts'
+import { parseMetadataEntries } from '../parser.ts'
 
 export interface FlowchartStatement {
   text: string
   line: number
 }
 
-const EDGE_ID_OPERATOR_LOOKAHEAD = String.raw`(?:<)?(?:~{3,}|-\.+->|-\.+-|={2,}>|={3,}|o-{2,}[ox]|x-{2,}[ox]|-{2,}[ox]|-{2,}>|-{3,}|(?:-{2,}|-\.+|={2,})\s+)`
-const EDGE_ID_REGEX = new RegExp(String.raw`(?:^|[\s&])([\w-]+)@\s*(?=${EDGE_ID_OPERATOR_LOOKAHEAD})`)
-
+// Edge IDs (`e1@-->`) are MODELED structured edge identity (plan §Flowchart 7)
+// and no longer force the opaque fallback or a lint. Node metadata with only
+// documented `shape`/`label` keys is modeled too (repo #44); everything else
+// under `@{ ... }` (icon/img/animate/undocumented shapes) keeps the lossless
+// opaque fallback. Markdown strings render with styled emphasis (repo #102)
+// but stay opaque so the authored quoting round-trips byte-verbatim.
 export function containsFlowchartOpaqueSyntax(source: string): boolean {
   if (/`/.test(source)) return true
   return flowchartStatements(source).some(({ text }) =>
-    /^([\w-]+)@\s*\{/.test(text)
-    || hasFlowchartEdgeId(text)
+    hasUnmodeledMetadata(text)
     || isFlowchartInteractionDirective(text)
   )
 }
@@ -20,20 +24,17 @@ export function containsFlowchartOpaqueSyntax(source: string): boolean {
 export function flowchartUnsupportedSyntaxWarnings(source: string): LayoutWarning[] {
   const warnings: LayoutWarning[] = []
   for (const { text, line } of flowchartStatements(source)) {
-    if (hasFlowchartEdgeId(text)) {
-      warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_edge_id', message: 'Flowchart edge IDs are preserved as source but not modeled as structured edge identity yet.' })
-    }
     if (isUnsupportedEdgeMetadataStatement(text)) {
       warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_edge_metadata', message: 'Flowchart edge metadata is preserved as source but ignored by the local renderer/layout.' })
     }
-    if (isNodeMetadataStatement(text)) {
-      warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_node_metadata', message: 'Flowchart node metadata (@{ shape: ... }) is preserved as source and its label is rendered, but the v11 shape vocabulary is not yet modeled by the local renderer/layout.' })
+    if (hasUnmodeledNodeMetadata(text)) {
+      warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_node_metadata', message: 'Flowchart node metadata with an undocumented shape name or icon/img keys is preserved as source; its label renders on a rectangle fallback. Documented v11 shape/label metadata is modeled.' })
     }
     if (isFlowchartInteractionDirective(text)) {
       warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_interaction_directive', message: 'Flowchart click/href directives are preserved as source but ignored by the local renderer for security and layout.' })
     }
     if (/`/.test(text)) {
-      warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_markdown_string', message: 'Flowchart markdown strings are preserved as source but not fully modeled by the local parser.' })
+      warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_markdown_string', message: 'Flowchart markdown strings render with bold/italic styled runs, explicit breaks, and wrapping, but remain source-preserved rather than structurally mutable. The source is preserved verbatim.' })
     }
     const malformed = malformedFlowchartStatement(text)
     if (malformed) {
@@ -41,6 +42,75 @@ export function flowchartUnsupportedSyntaxWarnings(source: string): LayoutWarnin
     }
   }
   return warnings
+}
+
+// ---- `@{ ... }` metadata classification ------------------------------------
+
+/** Every balanced `id@{ … }` object body in the statement (quote-aware). */
+function metadataObjects(statement: string): string[] {
+  const out: string[] = []
+  const re = /([\w-]+)@\s*\{/g
+  let match: RegExpExecArray | null
+  while ((match = re.exec(statement)) !== null) {
+    const before = match.index === 0 ? '' : statement[match.index - 1]!
+    if (before && /[\w-]/.test(before)) continue
+    const open = statement.indexOf('{', match.index + match[1]!.length)
+    const end = findBalancedBraceEnd(statement, open)
+    if (end < 0) {
+      out.push(statement.slice(open + 1))
+      break
+    }
+    out.push(statement.slice(open + 1, end))
+    re.lastIndex = end + 1
+  }
+  return out
+}
+
+function findBalancedBraceEnd(text: string, start: number): number {
+  if (start < 0 || text[start] !== '{') return -1
+  let depth = 0
+  let quote: '"' | "'" | null = null
+  let escaped = false
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i]!
+    if (escaped) { escaped = false; continue }
+    if (ch === '\\') { escaped = true; continue }
+    if (quote) {
+      if (ch === quote) quote = null
+      continue
+    }
+    if (ch === '"' || ch === "'") { quote = ch; continue }
+    if (ch === '{') depth++
+    else if (ch === '}') {
+      depth--
+      if (depth === 0) return i
+    }
+  }
+  return -1
+}
+
+/** Modeled = only shape/label keys, and any shape names a documented v11
+ *  shape — via the SAME entry grammar (parser.parseMetadataEntries) and the
+ *  ONE shape table (src/flowchart-shapes.ts) the render parser consumes. */
+function isModeledNodeMetadata(metadata: string): boolean {
+  const entries = parseMetadataEntries(metadata)
+  if (entries.size === 0) return false
+  for (const key of entries.keys()) {
+    if (key !== 'shape' && key !== 'label') return false
+  }
+  const shape = entries.get('shape')
+  if (shape === undefined) return true
+  return normalizeV11Shape(shape.trim()) !== null
+}
+
+function hasUnmodeledMetadata(statement: string): boolean {
+  return metadataObjects(statement).some(metadata => !isModeledNodeMetadata(metadata))
+}
+
+/** Unmodeled metadata that is NODE metadata (shape/label/icon/img keys) —
+ *  the flowchart_node_metadata lint; edge metadata has its own lint. */
+function hasUnmodeledNodeMetadata(statement: string): boolean {
+  return metadataObjects(statement).some(metadata => isNodeMetadata(metadata) && !isModeledNodeMetadata(metadata))
 }
 
 // Keyword statements where brackets/quotes are free text (subgraph labels) or
@@ -138,10 +208,6 @@ function hasUnclosedMetadataBlock(text: string): boolean {
   return depth > 0
 }
 
-function hasFlowchartEdgeId(statement: string): boolean {
-  return EDGE_ID_REGEX.test(maskFlowchartLabels(statement))
-}
-
 function isFlowchartInteractionDirective(statement: string): boolean {
   return /^(?:click|href)\s+/i.test(statement.trim())
 }
@@ -155,45 +221,9 @@ function isUnsupportedEdgeMetadataStatement(statement: string): boolean {
   return !isNodeMetadata(metadata)
 }
 
-// `id@{ shape: ... }` node metadata (Mermaid v11.3+). Preserved losslessly by the
-// opaque fallback (issue #29), but still unmodeled — so it is surfaced loudly,
-// like every other unsupported flowchart construct (issue #36), rather than kept
-// silent. Advisory (Tier-3): it never flips verify.ok and never drops source.
-function isNodeMetadataStatement(statement: string): boolean {
-  const match = statement.trim().match(/^[\w-]+@\s*\{([\s\S]*)\}\s*$/)
-  return match ? isNodeMetadata(match[1]!) : false
-}
-
 function isNodeMetadata(metadata: string): boolean {
-  return /(?:^|,)\s*(?:shape|label|icon|img)\s*:/i.test(metadata)
-}
-
-function maskFlowchartLabels(statement: string): string {
-  let masked = ''
-  let start = 0
-  let quote: '"' | "'" | '`' | null = null
-  let escaped = false
-  let pipeStart = -1
-  for (let i = 0; i < statement.length; i++) {
-    const ch = statement[i]!
-    if (escaped) { escaped = false; continue }
-    if (ch === '\\') { escaped = true; continue }
-    if (quote) {
-      if (ch === quote) quote = null
-      continue
-    }
-    if (ch === '"' || ch === "'" || ch === '`') { quote = ch; continue }
-    if (ch !== '|') continue
-    if (pipeStart < 0) {
-      pipeStart = i
-    } else {
-      masked += statement.slice(start, pipeStart) + '| |'
-      start = i + 1
-      pipeStart = -1
-    }
-  }
-  masked += statement.slice(start)
-  return masked.replace(/((?:<)?(?:-{2,}|-\.+|={2,}))\s+(.+?)\s+(-{2,}>|-{3,}|\.+->|-\.+-|={2,}>|={3,})/g, '$1 $3')
+  const entries = parseMetadataEntries(metadata)
+  return entries.has('shape') || entries.has('label') || entries.has('icon') || entries.has('img')
 }
 
 function splitFlowchartStatements(line: string): string[] {

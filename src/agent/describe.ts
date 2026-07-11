@@ -100,7 +100,7 @@ export function describeMermaidTree(d: ValidDiagram): DescribeTree {
     for (const c of d.body.classes) tree.nodes.push({ id: c.id, label: c.label || c.id })
     for (const r of d.body.relations) tree.edges.push({ from: r.from, to: r.to, label: r.label || r.kind })
   } else if (d.body.kind === 'er') {
-    for (const e of d.body.entities) tree.nodes.push({ id: e.id, label: e.id })
+    for (const e of d.body.entities) tree.nodes.push({ id: e.id, label: e.label || e.id })
     for (const r of d.body.relations) tree.edges.push({ from: r.from, to: r.to, label: r.label || undefined })
   } else if (d.body.kind === 'timeline') {
     for (const s of d.body.sections) for (const p of s.periods) {
@@ -212,6 +212,11 @@ function describeState(body: import('./types.ts').StateBody): string {
   let s = `A state diagram with ${flat.length} states and ${allTransitions.length} transitions.`
   if (composites.length > 0) s += ` Composite states: ${composites.map(c => c.label || c.id).join(', ')}.`
   if (stateLabels.length > 0) s += ` States: ${stateLabels.join(', ')}.`
+  const stereotypes = flat.filter(state => state.stereotype).map(state => `${state.label || state.id} (${state.stereotype})`)
+  if (stereotypes.length > 0) s += ` Pseudostates: ${stereotypes.join(', ')}.`
+  if ((body.notes ?? []).length > 0) {
+    s += ` Notes: ${body.notes!.map(note => `${note.side} of ${note.target}: ${note.text}`).join('; ')}.`
+  }
   if (transStr.length > 0) s += ` Transitions: ${transStr.join('; ')}.`
   if (starts.length > 0) s += ` Initial: ${starts.join(', ')}.`
   return s
@@ -256,7 +261,7 @@ function describeArchitecture(body: import('./types.ts').ArchitectureBody): stri
   const services = body.services
   const junctions = body.junctions
   const edges = body.edges
-  let s = `An architecture diagram with ${groups.length} groups, ${services.length} services, and ${edges.length} connections.`
+  let s = `An architecture diagram${body.title ? ` titled "${body.title}"` : ''} with ${groups.length} groups, ${services.length} services, and ${edges.length} connections.`
   if (groups.length > 0) s += ` Groups: ${groups.map(g => g.label || g.id).join(', ')}.`
   if (services.length > 0) s += ` Services: ${services.map(sv => sv.label || sv.id).join(', ')}.`
   if (junctions.length > 0) s += ` Junctions: ${junctions.map(j => j.id).join(', ')}.`
@@ -303,10 +308,19 @@ function describeQuadrant(body: import('./types.ts').QuadrantBody): string {
 function describeClass(d: ClassValidDiagram): string {
   const classes = d.body.classes
   const relations = d.body.relations
-  const names = classes.map(c => c.id)
+  const names = classes.map(c => c.generic ? `${c.id}<${c.generic}>` : c.id)
   const relStr = relations.map(r => `${r.from} ${r.kind} ${r.to}`)
   let s = `A class diagram with ${classes.length} classes.`
   if (names.length > 0) s += ` Classes: ${names.join(', ')}.`
+  // Namespace membership (repo #118): name each namespace with its members.
+  const namespaces = d.body.namespaces ?? []
+  if (namespaces.length > 0) {
+    const nsStr = namespaces.map(ns => {
+      const members = classes.filter(c => c.namespace === ns.name).map(c => c.id)
+      return `${ns.name} [${members.join(', ')}]`
+    })
+    s += ` Namespaces: ${nsStr.join('; ')}.`
+  }
   if (relStr.length > 0) s += ` Relations: ${relStr.join('; ')}.`
   return s
 }
@@ -314,7 +328,7 @@ function describeClass(d: ClassValidDiagram): string {
 function describeEr(d: ErValidDiagram): string {
   const entities = d.body.entities
   const relations = d.body.relations
-  const names = entities.map(e => e.id)
+  const names = entities.map(e => e.label ? `${e.id} ("${e.label}")` : e.id)
   const relStr = relations.map(r => {
     const lbl = r.label ? ` (${r.label})` : ''
     return `${r.from} ${r.leftCard}-${r.rightCard} ${r.to}${lbl}`

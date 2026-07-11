@@ -137,6 +137,7 @@ function factsState(out: string[], body: StateBody): void {
     for (const s of states) {
       add(out, `state ${clean(s.id)}`)
       if (s.label) add(out, `state ${clean(s.id)} : ${clean(s.label)}`)
+      if (s.stereotype) add(out, `state ${clean(s.id)} stereotype ${clean(s.stereotype)}`)
       if (path) add(out, `state ${clean(s.id)} parent ${clean(path)}`)
       if (s.states !== undefined) {
         add(out, `composite ${clean(s.id)}`)
@@ -147,6 +148,9 @@ function factsState(out: string[], body: StateBody): void {
     for (const t of transitions) add(out, edgeFact(t.from, t.to, t.label))
   }
   visit(body.states, body.transitions)
+  for (const [index, note] of (body.notes ?? []).entries()) {
+    add(out, `note#${index} ${note.side} of ${clean(note.target)} : ${clean(note.text)}`)
+  }
 }
 
 function factsSequence(out: string[], body: SequenceBody): void {
@@ -178,9 +182,16 @@ function factsTimeline(out: string[], body: TimelineBody): void {
 
 function factsClass(out: string[], body: ClassBody): void {
   if (body.title) add(out, `title ${clean(body.title)}`)
+  // Namespace declarations + membership (repo #118): both directions are
+  // queryable — "what namespaces exist" and "which namespace holds class X".
+  for (const ns of body.namespaces ?? []) {
+    add(out, `namespace ${clean(ns.name)}${ns.label ? ` : ${clean(ns.label)}` : ''}`)
+  }
   for (const c of body.classes) {
     add(out, `class ${clean(c.id)}`)
+    if (c.generic) add(out, `class ${clean(c.id)} generic ${clean(c.generic)}`)
     if (c.label) add(out, `class ${clean(c.id)} : ${clean(c.label)}`)
+    if (c.namespace) add(out, `class ${clean(c.id)} in namespace ${clean(c.namespace)}`)
     for (const member of c.members) add(out, `member ${clean(c.id)} ${clean(member)}`)
   }
   body.relations.forEach((r, i) => {
@@ -193,7 +204,7 @@ function factsClass(out: string[], body: ClassBody): void {
 
 function factsEr(out: string[], body: ErBody): void {
   for (const e of body.entities) {
-    add(out, `entity ${clean(e.id)}`)
+    add(out, `entity ${clean(e.id)}${e.label ? ` label ${clean(e.label)}` : ''}`)
     for (const attr of e.attributes) add(out, `attribute ${clean(e.id)} ${clean(attr.text)}`)
   }
   body.relations.forEach((r, i) => {
@@ -240,6 +251,7 @@ function factsJourney(out: string[], body: JourneyBody): void {
 }
 
 function factsArchitecture(out: string[], body: ArchitectureBody): void {
+  if (body.title) add(out, `title ${clean(body.title)}`)
   for (const g of body.groups) {
     add(out, `group ${clean(g.id)} : ${clean(g.label || g.id)}`)
     if (g.icon) add(out, `group ${clean(g.id)} icon ${clean(g.icon)}`)

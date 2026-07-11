@@ -123,6 +123,81 @@
     }
   },
   {
+    "id": "architecture-upstream-should-not-collide-with-services-whose-id-starts-with-row-or-column",
+    "family": "architecture",
+    "source": "architecture-beta\n  service rowspan(server)[Rowspan]\n  service columnar(server)[Columnar]\n  align row rowspan columnar",
+    "upstream": {
+      "repo": "mermaid-js/mermaid",
+      "files": [
+        "packages/mermaid/src/diagrams/architecture/architecture.spec.ts"
+      ],
+      "blocks": [
+        "packages/mermaid/src/diagrams/architecture/architecture.spec.ts :: should not collide with services whose id starts with row or column"
+      ]
+    },
+    "assertions": {
+      "nodeCount": 2,
+      "edgeCount": 0,
+      "groupCount": 0,
+      "minNodes": 2,
+      "labelsContain": [
+        "Rowspan",
+        "Columnar"
+      ]
+    }
+  },
+  {
+    "id": "architecture-upstream-should-parse-a-column-alignment",
+    "family": "architecture",
+    "source": "architecture-beta\n  service a(server)[A]\n  service b(server)[B]\n  align column a b",
+    "upstream": {
+      "repo": "mermaid-js/mermaid",
+      "files": [
+        "packages/mermaid/src/diagrams/architecture/architecture.spec.ts"
+      ],
+      "blocks": [
+        "packages/mermaid/src/diagrams/architecture/architecture.spec.ts :: should parse a column alignment"
+      ]
+    },
+    "assertions": {
+      "nodeCount": 2,
+      "edgeCount": 0,
+      "groupCount": 0,
+      "minNodes": 2,
+      "labelsContain": [
+        "A",
+        "B"
+      ]
+    }
+  },
+  {
+    "id": "architecture-upstream-should-parse-a-row-alignment-and-expose-it-via-getlayouthints",
+    "family": "architecture",
+    "source": "architecture-beta\n  group api(cloud)[API]\n  service db1(database)[DB1] in api\n  service db2(database)[DB2] in api\n  service db3(database)[DB3] in api\n  align row db1 db2 db3",
+    "upstream": {
+      "repo": "mermaid-js/mermaid",
+      "files": [
+        "packages/mermaid/src/diagrams/architecture/architecture.spec.ts"
+      ],
+      "blocks": [
+        "packages/mermaid/src/diagrams/architecture/architecture.spec.ts :: should parse a row alignment and expose it via getLayoutHints"
+      ]
+    },
+    "assertions": {
+      "nodeCount": 3,
+      "edgeCount": 0,
+      "groupCount": 1,
+      "minNodes": 3,
+      "minGroups": 1,
+      "labelsContain": [
+        "DB1",
+        "DB2",
+        "DB3",
+        "API"
+      ]
+    }
+  },
+  {
     "id": "class-upstream-defaults-to-hierarchical-rendering-when-hierarchicalnamespaces-is-unset",
     "family": "class",
     "source": "classDiagram\n        namespace A.B {\n          class Foo\n        }",
@@ -136,10 +211,10 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 1,
       "edgeCount": 0,
-      "groupCount": 0,
+      "groupCount": 2,
       "minNodes": 1,
       "labelsContain": [
         "Foo"
@@ -160,10 +235,10 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 2,
       "edgeCount": 0,
-      "groupCount": 0,
+      "groupCount": 3,
       "minNodes": 2,
       "labelsContain": [
         "Developer",
@@ -185,10 +260,10 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 2,
       "edgeCount": 0,
-      "groupCount": 0,
+      "groupCount": 3,
       "minNodes": 2,
       "labelsContain": [
         "Developer",
@@ -210,10 +285,10 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 2,
       "edgeCount": 0,
-      "groupCount": 0,
+      "groupCount": 1,
       "minNodes": 2,
       "labelsContain": [
         "Class1",
@@ -235,10 +310,10 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 4,
       "edgeCount": 2,
-      "groupCount": 0,
+      "groupCount": 2,
       "minNodes": 4,
       "minEdges": 2,
       "labelsContain": [
@@ -374,7 +449,7 @@
       "groupCount": 0,
       "minNodes": 1,
       "labelsContain": [
-        "`IPC::Sender`"
+        "IPC::Sender"
       ]
     }
   },
@@ -392,10 +467,10 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 2,
       "edgeCount": 0,
-      "groupCount": 0,
+      "groupCount": 3,
       "minNodes": 2,
       "labelsContain": [
         "User",
@@ -486,10 +561,10 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 2,
       "edgeCount": 1,
-      "groupCount": 0,
+      "groupCount": 3,
       "minNodes": 2,
       "minEdges": 1,
       "labelsContain": [
@@ -513,10 +588,10 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 1,
       "edgeCount": 0,
-      "groupCount": 0,
+      "groupCount": 3,
       "minNodes": 1,
       "labelsContain": [
         "GenericClass<T>"
@@ -540,7 +615,7 @@
       "expectStructured": false,
       "nodeCount": 2,
       "edgeCount": 0,
-      "groupCount": 0,
+      "groupCount": 2,
       "minNodes": 2,
       "labelsContain": [
         "Class1",
@@ -562,10 +637,10 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 1,
       "edgeCount": 0,
-      "groupCount": 0,
+      "groupCount": 1,
       "minNodes": 1,
       "labelsContain": [
         "Square<Shape>"
@@ -586,10 +661,10 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 2,
       "edgeCount": 1,
-      "groupCount": 0,
+      "groupCount": 4,
       "minNodes": 2,
       "minEdges": 1,
       "labelsContain": [
@@ -613,10 +688,10 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 2,
       "edgeCount": 0,
-      "groupCount": 0,
+      "groupCount": 2,
       "minNodes": 2,
       "labelsContain": [
         "Foo",
@@ -644,7 +719,7 @@
       "minNodes": 2,
       "minEdges": 1,
       "labelsContain": [
-        "C1",
+        "Class 1 with text label",
         "C2"
       ]
     }
@@ -669,7 +744,7 @@
       "minNodes": 2,
       "minEdges": 1,
       "labelsContain": [
-        "C1",
+        "Class 1 with text label",
         "C2"
       ]
     }
@@ -694,7 +769,7 @@
       "minNodes": 2,
       "minEdges": 1,
       "labelsContain": [
-        "C1",
+        "Class 1 with text label",
         "C2"
       ]
     }
@@ -720,7 +795,7 @@
       "minNodes": 2,
       "minEdges": 1,
       "labelsContain": [
-        "C1",
+        "Class 1 with text label",
         "C2"
       ]
     }
@@ -766,12 +841,13 @@
       ]
     },
     "assertions": {
-      "nodeCount": 1,
+      "nodeCount": 13,
       "edgeCount": 0,
       "groupCount": 0,
-      "minNodes": 1,
+      "minNodes": 13,
       "labelsContain": [
-        "C1[\"OneWord\"]"
+        "OneWord",
+        "With Città foreign language"
       ]
     }
   },
@@ -818,9 +894,13 @@
       ]
     },
     "assertions": {
-      "nodeCount": 0,
+      "nodeCount": 3,
       "edgeCount": 0,
-      "groupCount": 0
+      "groupCount": 0,
+      "minNodes": 3,
+      "labelsContain": [
+        "Class with text label"
+      ]
     }
   },
   {
@@ -843,9 +923,7 @@
       "minNodes": 3,
       "minEdges": 2,
       "labelsContain": [
-        "C1",
-        "C2",
-        "C3"
+        "Class with text label"
       ]
     }
   },
@@ -869,8 +947,8 @@
       "minNodes": 2,
       "minEdges": 1,
       "labelsContain": [
-        "C1",
-        "C2"
+        "Class 1 with text label",
+        "Class 2 with chars @?"
       ]
     }
   },
@@ -921,8 +999,8 @@
       "minNodes": 2,
       "minEdges": 1,
       "labelsContain": [
-        "C1",
-        "C2"
+        "Class 1 with text label",
+        "Long long long long long long long long long long label"
       ]
     }
   },
@@ -964,10 +1042,10 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 1,
       "edgeCount": 0,
-      "groupCount": 0,
+      "groupCount": 1,
       "minNodes": 1,
       "labelsContain": [
         "UserService"
@@ -1065,14 +1143,15 @@
       ]
     },
     "assertions": {
-      "nodeCount": 2,
+      "nodeCount": 3,
       "edgeCount": 1,
       "groupCount": 0,
-      "minNodes": 2,
+      "minNodes": 3,
       "minEdges": 1,
       "labelsContain": [
         "CUSTOMER",
         "DELIVERY-ADDRESS",
+        "u",
         "has"
       ]
     }
@@ -1091,7 +1170,6 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
       "nodeCount": 1,
       "edgeCount": 0,
       "groupCount": 0,
@@ -1115,15 +1193,15 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
-      "nodeCount": 2,
+      "nodeCount": 3,
       "edgeCount": 1,
       "groupCount": 0,
-      "minNodes": 2,
+      "minNodes": 3,
       "minEdges": 1,
       "labelsContain": [
         "CUSTOMER",
         "DELIVERY-ADDRESS",
+        "2.5",
         "has"
       ]
     }
@@ -1142,7 +1220,6 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
       "nodeCount": 2,
       "edgeCount": 1,
       "groupCount": 0,
@@ -1169,7 +1246,6 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
       "nodeCount": 1,
       "edgeCount": 0,
       "groupCount": 0,
@@ -1193,15 +1269,15 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
-      "nodeCount": 2,
+      "nodeCount": 3,
       "edgeCount": 1,
       "groupCount": 0,
-      "minNodes": 2,
+      "minNodes": 3,
       "minEdges": 1,
       "labelsContain": [
         "CUSTOMER",
         "DELIVERY-ADDRESS",
+        "1",
         "has"
       ]
     }
@@ -1220,7 +1296,6 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
       "nodeCount": 2,
       "edgeCount": 1,
       "groupCount": 0,
@@ -1490,7 +1565,6 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
       "nodeCount": 5,
       "edgeCount": 3,
       "groupCount": 0,
@@ -1500,7 +1574,7 @@
         "CUSTOMER",
         "1",
         "u",
-        "\"2.5\"",
+        "2.5",
         "ORDER",
         "places",
         "contains",
@@ -1523,9 +1597,14 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 0,
+      "nodeCount": 2,
       "edgeCount": 0,
-      "groupCount": 0
+      "groupCount": 0,
+      "minNodes": 2,
+      "labelsContain": [
+        "A",
+        "B"
+      ]
     }
   },
   {
@@ -1811,12 +1890,13 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 2,
+      "nodeCount": 3,
       "edgeCount": 1,
       "groupCount": 0,
-      "minNodes": 2,
+      "minNodes": 3,
       "minEdges": 1,
       "labelsContain": [
+        "A",
         "Group",
         "B",
         "relates to"
@@ -1865,9 +1945,13 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 0,
+      "nodeCount": 1,
       "edgeCount": 0,
-      "groupCount": 0
+      "groupCount": 0,
+      "minNodes": 1,
+      "labelsContain": [
+        "A"
+      ]
     }
   },
   {
@@ -1885,9 +1969,14 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 0,
+      "nodeCount": 2,
       "edgeCount": 0,
-      "groupCount": 0
+      "groupCount": 0,
+      "minNodes": 2,
+      "labelsContain": [
+        "A",
+        "B"
+      ]
     }
   },
   {
@@ -2213,9 +2302,13 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 0,
+      "nodeCount": 1,
       "edgeCount": 0,
-      "groupCount": 0
+      "groupCount": 0,
+      "minNodes": 1,
+      "labelsContain": [
+        "A"
+      ]
     }
   },
   {
@@ -2372,9 +2465,14 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 0,
+      "nodeCount": 2,
       "edgeCount": 0,
-      "groupCount": 0
+      "groupCount": 0,
+      "minNodes": 2,
+      "labelsContain": [
+        "A",
+        "B"
+      ]
     }
   },
   {
@@ -2392,9 +2490,31 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 0,
+      "nodeCount": 2,
       "edgeCount": 0,
-      "groupCount": 0
+      "groupCount": 0,
+      "minNodes": 2,
+      "labelsContain": [
+        "A",
+        "B"
+      ]
+    }
+  },
+  {
+    "id": "er-upstream-should-correctly-parse-direction-rl-inside-a-subgraph",
+    "family": "er",
+    "source": "erDiagram subgraph WithRL\ndirection RL\nA\nB\nend",
+    "upstream": {
+      "repo": "mermaid-js/mermaid",
+      "files": [
+        "packages/mermaid/src/diagrams/er/parser/subgraph.spec.js"
+      ],
+      "blocks": [
+        "packages/mermaid/src/diagrams/er/parser/subgraph.spec.js :: should correctly parse direction RL inside a subgraph"
+      ]
+    },
+    "assertions": {
+      "expectStructured": false
     }
   },
   {
@@ -2436,7 +2556,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 5,
       "edgeCount": 3,
       "groupCount": 0,
@@ -2466,17 +2586,18 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 3,
-      "edgeCount": 0,
+      "nodeCount": 4,
+      "edgeCount": 2,
       "groupCount": 2,
       "minNodes": 3,
       "minGroups": 2,
       "labelsContain": [
-        "a",
-        "in",
-        "c",
+        "The cat",
+        "in the hat",
+        "The dog in the hog",
+        "1o ipa",
         "One",
-        "`<b>Two</b>`"
+        "Two"
       ]
     }
   },
@@ -2631,7 +2752,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 1,
       "edgeCount": 0,
       "groupCount": 0,
@@ -2655,7 +2776,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 1,
       "edgeCount": 0,
       "groupCount": 0,
@@ -2687,7 +2808,8 @@
       "labelsContain": [
         "A",
         "D"
-      ]
+      ],
+      "expectStructured": false
     }
   },
   {
@@ -2917,10 +3039,10 @@
         "@A@",
         "@for@ B@",
         "@for@ c@",
-        "`@for@ E@`",
+        "@for@ E@",
         "@for@ D@",
         "@for@ H@",
-        "`@for@ H@`",
+        "@for@ H@",
         "@for@ Q@"
       ]
     }
@@ -3782,7 +3904,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 1,
       "edgeCount": 0,
       "groupCount": 0,
@@ -3806,7 +3928,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 1,
       "edgeCount": 0,
       "groupCount": 0,
@@ -3830,7 +3952,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 2,
       "edgeCount": 0,
       "groupCount": 0,
@@ -3855,7 +3977,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 3,
       "edgeCount": 2,
       "groupCount": 0,
@@ -3882,7 +4004,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 3,
       "edgeCount": 2,
       "groupCount": 0,
@@ -3909,7 +4031,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 4,
       "edgeCount": 4,
       "groupCount": 0,
@@ -3937,7 +4059,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 4,
       "edgeCount": 4,
       "groupCount": 0,
@@ -3965,7 +4087,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 4,
       "edgeCount": 4,
       "groupCount": 0,
@@ -5207,7 +5329,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 2,
       "edgeCount": 1,
       "groupCount": 0,
@@ -5390,7 +5512,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 7,
       "edgeCount": 6,
       "groupCount": 0,
@@ -5446,7 +5568,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 2,
       "edgeCount": 1,
       "groupCount": 0,
@@ -6706,7 +6828,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 7,
       "edgeCount": 6,
       "groupCount": 0,
@@ -6990,7 +7112,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 1,
       "edgeCount": 0,
       "groupCount": 0,
@@ -7014,7 +7136,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 1,
       "edgeCount": 0,
       "groupCount": 0,
@@ -7455,7 +7577,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 1,
       "edgeCount": 0,
       "groupCount": 4,
@@ -7809,7 +7931,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 4,
       "edgeCount": 0,
       "groupCount": 4,
@@ -7841,7 +7963,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 4,
       "edgeCount": 0,
       "groupCount": 4,
@@ -8831,7 +8953,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 3,
       "edgeCount": 0,
       "groupCount": 0,
@@ -8857,7 +8979,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 3,
       "edgeCount": 0,
       "groupCount": 0,
@@ -8883,7 +9005,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 3,
       "edgeCount": 0,
       "groupCount": 0,
@@ -10357,7 +10479,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 2,
       "edgeCount": 1,
       "groupCount": 0,
@@ -12175,9 +12297,9 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
-      "nodeCount": 0,
-      "edgeCount": 0,
+      "expectStructured": true,
+      "nodeCount": 7,
+      "edgeCount": 7,
       "groupCount": 0
     }
   },
@@ -12195,9 +12317,9 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
-      "nodeCount": 0,
-      "edgeCount": 0,
+      "expectStructured": true,
+      "nodeCount": 7,
+      "edgeCount": 7,
       "groupCount": 0
     }
   },
@@ -12295,9 +12417,9 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
-      "nodeCount": 0,
-      "edgeCount": 0,
+      "expectStructured": true,
+      "nodeCount": 3,
+      "edgeCount": 2,
       "groupCount": 0
     }
   },
@@ -12315,9 +12437,9 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
-      "nodeCount": 0,
-      "edgeCount": 0,
+      "expectStructured": true,
+      "nodeCount": 3,
+      "edgeCount": 2,
       "groupCount": 0
     }
   },
@@ -12335,10 +12457,10 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
-      "nodeCount": 0,
-      "edgeCount": 0,
-      "groupCount": 0
+      "expectStructured": true,
+      "nodeCount": 4,
+      "edgeCount": 4,
+      "groupCount": 1
     }
   },
   {
@@ -12355,10 +12477,10 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
-      "nodeCount": 0,
-      "edgeCount": 0,
-      "groupCount": 0
+      "expectStructured": true,
+      "nodeCount": 4,
+      "edgeCount": 4,
+      "groupCount": 1
     }
   },
   {
@@ -13146,7 +13268,6 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
       "nodeCount": 7,
       "edgeCount": 0,
       "groupCount": 1,
@@ -13178,7 +13299,6 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
       "nodeCount": 2,
       "edgeCount": 0,
       "groupCount": 1
@@ -13254,7 +13374,6 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
       "nodeCount": 4,
       "edgeCount": 0,
       "groupCount": 2
@@ -13274,7 +13393,6 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
       "nodeCount": 0,
       "edgeCount": 0,
       "groupCount": 1
@@ -13294,7 +13412,6 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
       "nodeCount": 0,
       "edgeCount": 0,
       "groupCount": 1
@@ -14258,6 +14375,54 @@
       "nodeCount": 2,
       "edgeCount": 0,
       "groupCount": 0
+    }
+  },
+  {
+    "id": "architecture-upstream-should-handle-title-on-another-line",
+    "family": "architecture",
+    "source": "architecture-beta\n            title Simple Architecture Diagram",
+    "upstream": {
+      "repo": "mermaid-js/mermaid",
+      "files": [
+        "packages/mermaid/src/diagrams/architecture/architecture.spec.ts"
+      ],
+      "blocks": [
+        "packages/mermaid/src/diagrams/architecture/architecture.spec.ts :: should handle title on another line"
+      ]
+    },
+    "assertions": {
+      "expectStructured": true,
+      "nodeCount": 0,
+      "edgeCount": 0,
+      "groupCount": 0
+    }
+  },
+  {
+    "id": "flowchart-upstream-markdown-formatting-in-nodes-and-labels",
+    "family": "flowchart",
+    "source": "flowchart\nA[\"`The cat in **the** hat`\"]-- \"`The *bat* in the chat`\" -->B[\"The dog in the hog\"] -- \"The rat in the mat\" -->C;",
+    "upstream": {
+      "repo": "mermaid-js/mermaid",
+      "files": [
+        "packages/mermaid/src/diagrams/flowchart/parser/flow-md-string.spec.js"
+      ],
+      "blocks": [
+        "packages/mermaid/src/diagrams/flowchart/parser/flow-md-string.spec.js :: markdown formatting in nodes and labels"
+      ]
+    },
+    "assertions": {
+      "expectStructured": false,
+      "nodeCount": 3,
+      "edgeCount": 2,
+      "groupCount": 0,
+      "minNodes": 3,
+      "minEdges": 2,
+      "labelsContain": [
+        "The cat in the hat",
+        "The bat in the chat",
+        "The dog in the hog",
+        "The rat in the mat"
+      ]
     }
   }
 ]

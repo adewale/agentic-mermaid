@@ -18,11 +18,17 @@
 
 import { describe, test, expect } from 'bun:test'
 import fc from 'fast-check'
-import { parseMermaid, layoutMermaid, renderMermaidSVG } from '../agent/index.ts'
+import {
+  parseMermaid, layoutMermaid, renderMermaidSVG, serializeMermaid,
+  describeMermaidFacts,
+} from '../agent/index.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
+import { parseMermaid as parseRendererGraph } from '../parser.ts'
 import { auditRouteContracts } from '../route-contracts.ts'
 import { auditRenderedRoutes } from '../agent/rendered-route-audit.ts'
 import { stateBodyToGraph } from '../agent/state-body.ts'
+import { positionedToRenderedLayout } from '../agent/layout-to-rendered.ts'
+import { layoutFamilyToRendered } from '../agent/family-layouts.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'
 import type { RenderedLayout, ValidDiagram } from '../agent/types.ts'
@@ -57,12 +63,118 @@ function assertWellFormedSvg(svg: string): void {
   expect(svg.includes('NaN') || svg.includes('Infinity') || svg.includes('undefined')).toBe(false)
 }
 
+interface SemanticInventory { nodes: string[]; edges: string[]; groups: string[] }
+const sorted = (values: string[]): string[] => values.sort((a, b) => a.localeCompare(b))
+const item = (id: string, label?: string): string => `${id}|${label ?? ''}`
+const edge = (from: string, to: string, label?: string): string => `${from}->${to}|${label ?? ''}`
+const group = (id: string, label: string | undefined, members: string[]): string => `${id}|${label ?? ''}|${[...members].sort().join(',')}`
+
+/** Independently project the structured agent body — never via a renderer parser. */
+function structuredBodyInventory(d: ValidDiagram): SemanticInventory {
+  const body = d.body
+  if (body.kind === 'flowchart' || body.kind === 'state') {
+    const graphBody = body.kind === 'flowchart' ? body.graph : stateBodyToGraph(body)
+    const groups: string[] = []
+    const visit = (entries: typeof graphBody.subgraphs): void => {
+      for (const sg of entries) {
+        groups.push(group(sg.id, sg.label, sg.nodeIds))
+        visit(sg.children)
+      }
+    }
+    visit(graphBody.subgraphs)
+    return {
+      nodes: sorted([...graphBody.nodes.values()].map(node => item(node.id, node.label))),
+      edges: sorted(graphBody.edges.map(e => edge(e.source, e.target, e.label))),
+      groups: sorted(groups),
+    }
+  }
+  switch (body.kind) {
+    case 'sequence': return {
+      nodes: sorted(body.participants.map(p => item(p.id, p.label))),
+      edges: sorted(body.messages.map(m => edge(m.from, m.to, m.text))), groups: [],
+    }
+    case 'class': return {
+      nodes: sorted(body.classes.map(c => item(c.id, c.label ?? c.id))),
+      edges: sorted(body.relations.map(r => edge(r.from, r.to, r.label))),
+      groups: sorted((body.namespaces ?? []).map(ns => group(ns.name, ns.label ?? ns.name, body.classes.filter(c => c.namespace === ns.name).map(c => c.id)))),
+    }
+    case 'er': return {
+      nodes: sorted(body.entities.map(e => item(e.id, e.label ?? e.id))),
+      edges: sorted(body.relations.map(r => edge(r.from, r.to, r.label))), groups: [],
+    }
+    case 'architecture': return {
+      nodes: sorted([
+        ...body.services.map(s => item(s.id, s.label)),
+        ...body.junctions.map(j => item(j.id)),
+      ]),
+      edges: sorted(body.edges.map(e => edge(e.source.id, e.target.id, e.label))),
+      groups: sorted(body.groups.map(g => group(g.id, g.label, [
+        ...body.services.filter(s => s.parentId === g.id).map(s => s.id),
+        ...body.junctions.filter(j => j.parentId === g.id).map(j => j.id),
+      ]))),
+    }
+    case 'xychart': {
+      const categories = body.xAxis?.categories ?? []
+      return { nodes: sorted(body.series.flatMap(series => series.values.map((_v, i) => categories[i] ?? String(i)))), edges: [], groups: [] }
+    }
+    case 'pie': return { nodes: sorted(body.slices.map(slice => slice.label)), edges: [], groups: [] }
+    case 'quadrant': return { nodes: sorted(body.points.map(point => point.label)), edges: [], groups: [] }
+    case 'journey': return {
+      nodes: sorted(body.sections.flatMap(section => section.tasks.map(task => item(task.id, task.text)))), edges: [],
+      groups: sorted(body.sections.map(section => group(section.id, section.label, section.tasks.map(task => task.id)))),
+    }
+    case 'timeline': return {
+      nodes: sorted(body.sections.flatMap(section => section.periods.flatMap(period => [
+        item(`${period.id}:period`, period.label), ...period.events.map(event => item(event.id, event.text)),
+      ]))), edges: [], groups: [],
+    }
+    case 'gantt': return {
+      nodes: sorted(body.sections.flatMap(section => section.tasks.map(task => item(task.taskId ?? task.id, task.label)))), edges: [],
+      groups: sorted(body.sections.map((section, index) => group(`section#${index}`, section.label, section.tasks.map(task => task.taskId ?? task.id)))),
+    }
+    default: throw new Error(`structured inventory unavailable for ${body.kind}`)
+  }
+}
+
+/** Parse canonical source through the real renderer parser, then normalize its inventory. */
+function rendererInventory(d: ValidDiagram, canonical: string): SemanticInventory {
+  let layout: RenderedLayout
+  if (d.kind === 'flowchart' || d.kind === 'state') {
+    const graph = parseRendererGraph(canonical)
+    layout = positionedToRenderedLayout(layoutGraphSync(graph), d.kind, {})
+  } else {
+    layout = layoutFamilyToRendered({ ...d, canonicalSource: canonical })!
+  }
+  const plainLabels = layout.kind === 'pie'
+    ? layout.nodes.map(node => (node.label ?? '').replace(/ \([^)]*%\)$/, ''))
+    : layout.kind === 'xychart' || layout.kind === 'quadrant'
+      ? layout.nodes.map(node => node.label ?? '')
+      : null
+  return {
+    nodes: sorted(plainLabels ?? layout.nodes.map(node => item(node.id, node.label))),
+    edges: sorted(layout.edges.map(e => edge(e.from, e.to, e.label?.text))),
+    groups: layout.kind === 'xychart' || layout.kind === 'quadrant'
+      ? []
+      : sorted(layout.groups.map(g => group(g.id, g.label, g.members))),
+  }
+}
+
+function rendererSemanticProjection(layout: RenderedLayout): unknown {
+  const sortJson = <T>(values: T[]): T[] => values.sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)))
+  return {
+    kind: layout.kind,
+    nodes: sortJson(layout.nodes.map(({ id, shape, label, role }) => ({ id, shape, label, role }))),
+    edges: sortJson(layout.edges.map(({ from, to, label }) => ({ from, to, label: label?.text }))),
+    groups: sortJson(layout.groups.map(({ id, members, label, parentId }) => ({ id, members: [...members].sort(), label, parentId }))),
+  }
+}
+
 describe('universal fuzz: every renderable family (strong output oracles)', () => {
   // A new family in the central registry must declare a fuzz generator, or this
   // fails — which is what "new diagram types automatically get fuzzing" means:
   // the loop below picks up every registry entry, and this gate keeps the
   // registry complete.
-  test('every BUILTIN family has a fuzz generator (citizenship)', () => {
+  test('X1 acceptance: every built-in family has a cross-parser fuzz generator', () => {
     expect(Object.keys(METAMORPHIC_FAMILIES).sort()).toEqual(BUILTIN_FAMILY_METADATA.map(f => f.id).sort())
   })
 
@@ -79,6 +191,41 @@ describe('universal fuzz: every renderable family (strong output oracles)', () =
       if (extra === 'primary' && fam.addPrimary) s += fam.addPrimary.snippet(k, tag)
       if (extra === 'relation' && fam.addRelation) s += fam.addRelation(k, tag)
       return s
+    })
+
+    test(`${fam.family}: serializer output reparses through the agent and renderer without semantic drift`, () => {
+      fc.assert(
+        fc.property(srcArb, src => {
+          const original = parseMermaid(src)
+          expect(original.ok).toBe(true)
+          if (!original.ok) return
+          expect(original.value.body.kind).not.toBe('opaque')
+
+          const canonical = serializeMermaid(original.value)
+          const reparsed = parseMermaid(canonical)
+          expect(reparsed.ok).toBe(true)
+          if (!reparsed.ok) return
+          expect(reparsed.value.body.kind).toBe(original.value.body.kind)
+          expect(serializeMermaid(reparsed.value)).toBe(canonical)
+          expect(describeMermaidFacts(reparsed.value)).toEqual(describeMermaidFacts(original.value))
+
+          // This is the load-bearing cross-parser assertion: independently
+          // project the structured agent body and compare it with canonical
+          // source parsed by the actual renderer parser for that family.
+          expect(rendererInventory(original.value, canonical)).toEqual(structuredBodyInventory(original.value))
+
+          // layoutMermaid and renderMermaidSVG invoke each family's actual
+          // renderer parser/layout hook. Compare its semantic inventory rather
+          // than coordinates: canonical declaration order may intentionally
+          // change deterministic geometry (notably architecture), but may not
+          // add/drop/retarget renderer nodes, edges, groups, labels, or roles.
+          expect(rendererSemanticProjection(layoutMermaid(reparsed.value))).toEqual(
+            rendererSemanticProjection(layoutMermaid(original.value)),
+          )
+          assertWellFormedSvg(renderMermaidSVG(canonical))
+        }),
+        { numRuns: 30, seed: SEED ^ 0x51a1 },
+      )
     })
 
     test(`${fam.family}: fuzzed diagrams are finite, well-formed, deterministic, route-clean`, () => {

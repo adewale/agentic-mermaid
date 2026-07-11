@@ -4,11 +4,14 @@
 // journey pilot).
 //
 // Modeled grammar (mirrors the legacy renderer parser, src/architecture/parser.ts):
+//   title <Visible diagram heading>
 //   group <id>(<icon>)[<Label>] [in <parentGroup>]
 //   service <id>(<icon>)[<Label>] [in <group>]
 //   junction <id> [in <group>]
 //   <id>[{group}]:<SIDE> <arrow> <SIDE>:<id>[{group}]   (SIDE ∈ L|R|T|B)
 //     arrows: -- --> <-- <-->  and labeled  -[label]-  forms
+//   align row|column <id> <id> ...   (upstream v11.16.0 — shared shape parser
+//     in src/architecture/align.ts; preserved and honored by layout)
 //
 // Structured-or-opaque: any other non-blank, non-comment line (accTitle,
 // accDescr, the {group} boundary modifier, unmodeled syntax) returns null so
@@ -17,9 +20,10 @@
 // ============================================================================
 
 import { unknownOpMessage } from './mutation-ops.ts'
+import { ALIGN_DIRECTIVE_RE, parseAlignDirective, serializeAlignDirective } from '../architecture/align.ts'
 import type {
   ArchitectureBody, ArchitectureGroup, ArchitectureService, ArchitectureJunction,
-  ArchitectureEdge, ArchitectureSide, ArchitectureMutationOp,
+  ArchitectureEdge, ArchitectureAlignment, ArchitectureSide, ArchitectureMutationOp,
   MutationError, Result, LayoutWarning, VerifyOptions,
 } from './types.ts'
 import { ok, err, DEFAULT_LABEL_CHAR_CAP } from './types.ts'
@@ -88,10 +92,12 @@ function parseEdge(line: string): ArchitectureEdge | null {
  * null (opaque fallback).
  */
 export function parseArchitectureBody(lines: string[]): ArchitectureBody | null {
+  let title: string | undefined
   const groups: ArchitectureGroup[] = []
   const services: ArchitectureService[] = []
   const junctions: ArchitectureJunction[] = []
   const edges: ArchitectureEdge[] = []
+  const alignments: ArchitectureAlignment[] = []
   const ids = new Set<string>()
   const groupIds = new Set<string>()
   const endpointIds = new Set<string>() // services + junctions (valid edge endpoints)
@@ -101,6 +107,14 @@ export function parseArchitectureBody(lines: string[]): ArchitectureBody | null 
     const line = raw.trim()
     if (!line) continue
     if (line.startsWith('%%')) continue
+
+    const titleMatch = line.match(/^title\s+(.+)$/i)
+    if (titleMatch) {
+      if (title !== undefined) return null
+      title = normalizeText(titleMatch[1]!)
+      if (!title) return null
+      continue
+    }
 
     const gm = line.match(GROUP_RE)
     if (gm) {
@@ -142,6 +156,20 @@ export function parseArchitectureBody(lines: string[]): ArchitectureBody | null 
       continue
     }
 
+    // `align` is reserved upstream, so a leading `align` token is always a
+    // directive. Malformed directives (bad axis, <2 members, duplicates) fall
+    // back to opaque — the legacy render parser rejects them, exactly like
+    // upstream, and verify reports the render failure honestly.
+    if (ALIGN_DIRECTIVE_RE.test(line)) {
+      const parsed = parseAlignDirective(line)
+      if (!parsed.ok) return null
+      // Renderer semantics are declaration-order-sensitive: align can only
+      // reference endpoints already declared at this source position.
+      if (parsed.alignment.members.some(member => !endpointIds.has(member))) return null
+      alignments.push(parsed.alignment)
+      continue
+    }
+
     const edge = parseEdge(line)
     if (edge) {
       edges.push(edge)
@@ -153,20 +181,26 @@ export function parseArchitectureBody(lines: string[]): ArchitectureBody | null 
   }
 
   // Validation: every `in` parent must be a declared group; every edge endpoint
-  // must be a declared service or junction. The legacy parser rejects diagrams
-  // that violate these, so a structured body must satisfy them to round-trip.
+  // and align member must be a declared service or junction. The legacy parser
+  // rejects diagrams that violate these, so a structured body must satisfy
+  // them to round-trip.
   for (const { parent } of pendingParents) {
     if (!groupIds.has(parent)) return null
   }
   for (const edge of edges) {
     if (!endpointIds.has(edge.source.id) || !endpointIds.has(edge.target.id)) return null
   }
+  for (const alignment of alignments) {
+    for (const member of alignment.members) {
+      if (!endpointIds.has(member)) return null
+    }
+  }
 
-  // The legacy renderer rejects an empty architecture diagram; model the same
-  // floor so a structured body always renders.
-  if (groups.length === 0 && services.length === 0 && junctions.length === 0) return null
+  // A visible title is renderable furniture on its own; without one, retain
+  // the historical non-empty architecture floor.
+  if (groups.length === 0 && services.length === 0 && junctions.length === 0 && title === undefined) return null
 
-  return { kind: 'architecture', groups, services, junctions, edges }
+  return { kind: 'architecture', title, groups, services, junctions, edges, alignments }
 }
 
 // ---- Serializer -------------------------------------------------------------
@@ -190,6 +224,7 @@ function renderArrow(edge: ArchitectureEdge): string {
 
 export function renderArchitecture(body: ArchitectureBody): string {
   const lines: string[] = ['architecture-beta']
+  if (body.title !== undefined) lines.push(`  title ${body.title}`)
   for (const g of body.groups) lines.push(renderNode('group', g.id, g.label, g.icon, g.parentId))
   for (const s of body.services) lines.push(renderNode('service', s.id, s.label, s.icon, s.parentId))
   for (const j of body.junctions) {
@@ -197,6 +232,11 @@ export function renderArchitecture(body: ArchitectureBody): string {
   }
   for (const e of body.edges) {
     lines.push(`  ${e.source.id}:${e.source.side} ${renderArrow(e)} ${e.target.side}:${e.target.id}`)
+  }
+  // Align directives last: canonical order guarantees every member is already
+  // declared, which both the upstream grammar and the legacy parser require.
+  for (const a of body.alignments ?? []) {
+    lines.push(`  ${serializeAlignDirective(a)}`)
   }
   return lines.join('\n') + '\n'
 }
@@ -206,6 +246,7 @@ export function renderArchitecture(body: ArchitectureBody): string {
 function cloneArchitecture(b: ArchitectureBody): ArchitectureBody {
   return {
     kind: 'architecture',
+    title: b.title,
     groups: b.groups.map(g => ({ ...g })),
     services: b.services.map(s => ({ ...s })),
     junctions: b.junctions.map(j => ({ ...j })),
@@ -213,6 +254,26 @@ function cloneArchitecture(b: ArchitectureBody): ArchitectureBody {
       source: { ...e.source }, target: { ...e.target },
       label: e.label, hasArrowStart: e.hasArrowStart, hasArrowEnd: e.hasArrowEnd,
     })),
+    ...(b.alignments ? { alignments: b.alignments.map(a => ({ axis: a.axis, members: [...a.members] })) } : {}),
+  }
+}
+
+/**
+ * Keep align directives coherent after id changes: drop removed members and
+ * dissolve any directive left with fewer than two (the grammar's floor —
+ * mirrors the edge cascade in remove_service). `rename` rewrites in place.
+ */
+function dropAlignmentMember(next: ArchitectureBody, id: string): void {
+  if (!next.alignments) return
+  next.alignments = next.alignments
+    .map(a => ({ axis: a.axis, members: a.members.filter(m => m !== id) }))
+    .filter(a => a.members.length >= 2)
+}
+
+function renameAlignmentMember(next: ArchitectureBody, from: string, to: string): void {
+  if (!next.alignments) return
+  for (const a of next.alignments) {
+    a.members = a.members.map(m => (m === from ? to : m))
   }
 }
 
@@ -256,6 +317,16 @@ export function mutateArchitecture(body: ArchitectureBody, op: ArchitectureMutat
   const next = cloneArchitecture(body)
 
   switch (op.kind) {
+    case 'set_title': {
+      if (op.title === null) {
+        next.title = undefined
+      } else {
+        const title = normalizeText(op.title)
+        if (!title) return err({ code: 'INVALID_OP', message: 'Architecture title must be a non-empty string or null' })
+        next.title = title
+      }
+      break
+    }
     case 'add_service': {
       const id = validId(op.id, 'service id')
       if (!id.ok) return id
@@ -283,8 +354,10 @@ export function mutateArchitecture(body: ArchitectureBody, op: ArchitectureMutat
       const idx = next.services.findIndex(s => s.id === op.id)
       if (idx < 0) return err({ code: 'SERVICE_NOT_FOUND', message: `No service "${op.id}"` })
       next.services.splice(idx, 1)
-      // Cascade: drop every edge that touches the removed service.
+      // Cascade: drop every edge that touches the removed service, and every
+      // align membership (dissolving directives that fall below two members).
       next.edges = next.edges.filter(e => e.source.id !== op.id && e.target.id !== op.id)
+      dropAlignmentMember(next, op.id)
       break
     }
     case 'rename_service': {
@@ -298,11 +371,12 @@ export function mutateArchitecture(body: ArchitectureBody, op: ArchitectureMutat
         return err({ code: 'INVALID_OP', message: `Identifier "${to.value}" already exists` })
       }
       svc.id = to.value
-      // Keep edges anchored to the renamed service.
+      // Keep edges and align memberships anchored to the renamed service.
       for (const e of next.edges) {
         if (e.source.id === from.value) e.source.id = to.value
         if (e.target.id === from.value) e.target.id = to.value
       }
+      renameAlignmentMember(next, from.value, to.value)
       break
     }
     case 'set_service_label': {
@@ -418,10 +492,10 @@ export function mutateArchitecture(body: ArchitectureBody, op: ArchitectureMutat
     }
   }
 
-  // Preserve the structured floor: an architecture diagram must keep at least
-  // one node so it always renders.
-  if (next.groups.length === 0 && next.services.length === 0 && next.junctions.length === 0) {
-    return err({ code: 'INVALID_OP', message: 'Architecture diagram must keep at least one group, service, or junction' })
+  // Preserve the structured floor: visible title furniture or at least one
+  // node must remain, so canonical output always has renderable content.
+  if (next.groups.length === 0 && next.services.length === 0 && next.junctions.length === 0 && next.title === undefined) {
+    return err({ code: 'INVALID_OP', message: 'Architecture diagram must keep a title, group, service, or junction' })
   }
 
   return ok(next)
@@ -436,9 +510,10 @@ export function verifyArchitecture(body: ArchitectureBody, opts: VerifyOptions):
     const w = labelOverflowWarning(target, text, cap)
     if (w) warnings.push(w)
   }
-  if (body.groups.length === 0 && body.services.length === 0 && body.junctions.length === 0) {
+  if (body.groups.length === 0 && body.services.length === 0 && body.junctions.length === 0 && body.title === undefined) {
     warnings.push({ code: 'EMPTY_DIAGRAM' })
   }
+  if (body.title !== undefined) overflow('title', body.title)
   for (const g of body.groups) overflow(g.id, g.label)
   for (const s of body.services) overflow(s.id, s.label)
   body.edges.forEach((e, i) => {

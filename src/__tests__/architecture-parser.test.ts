@@ -114,6 +114,70 @@ config:
       service api(server)[API]`))).toThrow('Unterminated accDescr block')
   })
 
+  // Upstream v11.16.0 (PR #7708): `align row|column <id> <id> ...` declares
+  // that a set of already-declared services/junctions share a row (same y) or
+  // column (same x). The plan's probe p8 class: these upstream-legal sources
+  // must parse instead of hard-erroring as "Invalid architecture edge".
+  it('parses a row alignment (upstream v11.16.0 align directive)', () => {
+    const diagram = parseArchitectureDiagram(prep(`architecture-beta
+      service src1(server)[Source 1]
+      service src2(server)[Source 2]
+      service src3(server)[Source 3]
+      service proc(server)[Processor]
+      src1:B --> T:proc
+      src2:B --> T:proc
+      src3:B --> T:proc
+      align row src1 src2 src3`))
+
+    expect(diagram.alignments).toEqual([{ axis: 'row', members: ['src1', 'src2', 'src3'] }])
+    expect(diagram.services).toHaveLength(4)
+    expect(diagram.edges).toHaveLength(3)
+  })
+
+  it('parses a column alignment with grouped services and junction members', () => {
+    const diagram = parseArchitectureDiagram(prep(`architecture-beta
+      group api(cloud)[API]
+      service db1(database)[DB1] in api
+      service db2(database)[DB2] in api
+      junction j in api
+      align column db1 db2 j`))
+
+    expect(diagram.alignments).toEqual([{ axis: 'column', members: ['db1', 'db2', 'j'] }])
+  })
+
+  it('does not confuse align members with services whose id starts with row or column', () => {
+    const diagram = parseArchitectureDiagram(prep(`architecture-beta
+      service rowspan(server)[Rowspan]
+      service columnar(server)[Columnar]
+      align row rowspan columnar`))
+
+    expect(diagram.services.map((service) => service.id)).toEqual(['rowspan', 'columnar'])
+    expect(diagram.alignments).toEqual([{ axis: 'row', members: ['rowspan', 'columnar'] }])
+  })
+
+  it('rejects malformed align directives (upstream-parity negatives)', () => {
+    const declared = `architecture-beta
+      group g(cloud)[G]
+      service a(server)[A]
+      service b(server)[B]`
+
+    // Axis must be row or column.
+    expect(() => parseArchitectureDiagram(prep(`${declared}
+      align diagonal a b`))).toThrow(/align/)
+    // At least two members.
+    expect(() => parseArchitectureDiagram(prep(`${declared}
+      align row a`))).toThrow(/align/)
+    // No duplicate members within one directive.
+    expect(() => parseArchitectureDiagram(prep(`${declared}
+      align row a a`))).toThrow(/align/)
+    // Members must already be declared…
+    expect(() => parseArchitectureDiagram(prep(`${declared}
+      align row a ghost`))).toThrow(/ghost/)
+    // …and must be services or junctions, never groups.
+    expect(() => parseArchitectureDiagram(prep(`${declared}
+      align row a g`))).toThrow(/group/)
+  })
+
   it('converts architecture diagrams into graph layout input', () => {
     const graph = architectureToMermaidGraph(parseArchitectureDiagram(prep(`architecture-beta
       group platform(cloud)[Platform]

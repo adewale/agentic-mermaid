@@ -32,6 +32,29 @@ describe('ER — parse', () => {
     expect(d.body.entities[0]!.attributes.map(a => a.text)).toEqual(['string name', 'string email PK'])
   })
 
+  test('entity aliases are structured with stable identity and round-trip through the renderer grammar', () => {
+    const d = parse('erDiagram\n  CUSTOMER["Customer Account"] ||--o{ ORDER : places')
+    expect(d.body.kind).toBe('er')
+    if (d.body.kind !== 'er') return
+    expect(d.body.entities.find(entity => entity.id === 'CUSTOMER')?.label).toBe('Customer Account')
+    const canonical = serializeMermaid(d)
+    expect(canonical).toContain('CUSTOMER["Customer Account"]')
+    const reparsed = parse(canonical)
+    expect(reparsed.body.kind === 'er' && reparsed.body.entities.find(entity => entity.id === 'CUSTOMER')?.label)
+      .toBe('Customer Account')
+  })
+
+  test('quoted entity names with line breaks remain structured and canonical', () => {
+    const d = parse('erDiagram\n  "Entity<br>Name" {\n    string id\n  }')
+    expect(d.body.kind).toBe('er')
+    if (d.body.kind !== 'er') return
+    expect(d.body.entities[0]!.id).toBe('Entity<br>Name')
+    expect(d.body.entities[0]!.label).toBe('Entity\nName')
+    const canonical = serializeMermaid(d)
+    expect(canonical).toContain('"Entity<br>Name" {')
+    expect(parse(canonical).body.kind).toBe('er')
+  })
+
   test('quoted label', () => {
     const d = parse('erDiagram\n  A ||--|{ B : "places orders"')
     if (d.body.kind !== 'er') throw new Error()
@@ -52,6 +75,18 @@ describe('ER — mutate', () => {
     expect(r.ok).toBe(true)
     if (!r.ok) return
     expect(r.value.body.entities.map(e => e.id).sort()).toEqual(['CUSTOMER', 'ORDER', 'PRODUCT'])
+  })
+
+  test('set_entity_label adds and removes a display alias without changing identity', () => {
+    const d = asEr(parse('erDiagram\n  CUSTOMER'))!
+    const labeled = mutate(d, { kind: 'set_entity_label', entity: 'CUSTOMER', label: 'Customer Account' })
+    expect(labeled.ok).toBe(true)
+    if (!labeled.ok) return
+    expect(labeled.value.body.entities[0]).toEqual({ id: 'CUSTOMER', label: 'Customer Account', attributes: [] })
+    expect(serializeMermaid(labeled.value)).toContain('CUSTOMER["Customer Account"]')
+
+    const cleared = mutate(labeled.value, { kind: 'set_entity_label', entity: 'CUSTOMER', label: null })
+    expect(cleared.ok && cleared.value.body.entities[0]!.label).toBeUndefined()
   })
 
   test('remove_entity cascades to relations', () => {

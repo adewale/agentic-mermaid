@@ -76,6 +76,12 @@ export interface XYChartConfig {
   showDataLabel?: boolean
   /** Hide the chart title even when the source defines one */
   showTitle?: boolean
+  /** Hide the legend even when the chart is legend-worthy (upstream PR #7724) */
+  showLegend?: boolean
+  /** Legend label font size in px */
+  legendFontSize?: number
+  /** Legend padding in px */
+  legendPadding?: number
   /** Per-axis visibility controls */
   xAxis?: XYAxisRenderConfig
   /** Per-axis visibility controls */
@@ -132,6 +138,9 @@ export interface ResolvedXYChartConfig {
   plotReservedSpacePercent: number
   showDataLabel: boolean
   showTitle: boolean
+  showLegend: boolean
+  legendFontSize: number
+  legendPadding: number
   xAxis: ResolvedXYAxisRenderConfig
   yAxis: ResolvedXYAxisRenderConfig
 }
@@ -159,6 +168,8 @@ export interface XYChartTheme {
   yAxisLineColor?: string
   /** Y-axis title color */
   yAxisTitleColor?: string
+  /** Legend label color (upstream themeVariables.xyChart.legendTextColor) */
+  legendTextColor?: string
   /** Explicit per-series palette */
   plotColorPalette?: string[]
 }

@@ -1,8 +1,10 @@
-import type { SequenceDiagram, PositionedSequenceDiagram, PositionedActor, Lifeline, PositionedMessage, Activation, PositionedBlock, PositionedNote } from './types.ts'
+import type { SequenceDiagram, PositionedSequenceDiagram, PositionedActor, Lifeline, PositionedMessage, Activation, PositionedBlock, PositionedNote, PositionedBoxGroup, LifelineCross } from './types.ts'
+import { displayMessageLabel } from './parser.ts'
 import type { RenderOptions } from '../types.ts'
 import { applyTextTransform, estimateTextWidth, FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults } from '../styles.ts'
 import { measureMultilineText } from '../text-metrics.ts'
+import type { ResolvedSequenceConfig } from './config.ts'
 
 // ============================================================================
 // Sequence diagram layout engine
@@ -48,6 +50,12 @@ const SEQ = {
   notePadX: 12,
   notePadY: 6,
   noteGap: 10,
+  /** `box … end` group frames: horizontal padding beyond the member actor
+   *  boxes, vertical band reserved above the actors for the title, and the
+   *  overhang below the lifeline ends. */
+  boxPadX: 8,
+  boxTitleSpace: 22,
+  boxPadBottom: 8,
 } as const
 
 /** Shared by layout (sizing) and renderer (drawing) — keep it single-sourced. */
@@ -73,16 +81,28 @@ export const SEQUENCE_STYLE_DEFAULTS: RenderStyleDefaults = {
 /**
  * Lay out a parsed sequence diagram.
  * Returns a fully positioned diagram ready for SVG rendering.
+ *
+ * `config` carries the WIRED sequence runtime config keys (src/sequence/
+ * config.ts, family-elevation-plan §Sequence item 6). Every knob defaults to
+ * the historical SEQ constant, so an absent/empty config keeps default
+ * geometry byte-identical.
  */
 export function layoutSequenceDiagram(
   diagram: SequenceDiagram,
-  options: RenderOptions = {}
+  options: RenderOptions = {},
+  config: ResolvedSequenceConfig = {},
 ): PositionedSequenceDiagram {
   const style = resolveRenderStyle(options, SEQUENCE_STYLE_DEFAULTS)
-  const actorHeight = Math.max(SEQ.actorHeight, measureMultilineText('Mg', style.nodeLabelFontSize, style.nodeLabelFontWeight).height + style.nodePaddingY * 2)
+  const padX = config.diagramMarginX ?? SEQ.padding
+  const padY = config.diagramMarginY ?? SEQ.padding
+  const minActorWidth = config.width ?? 80
+  const noteGap = config.noteMargin ?? SEQ.noteGap
+  const activationWidth = config.activationWidth ?? SEQ.activationWidth
+  const actorHeight = Math.max(config.height ?? SEQ.actorHeight, measureMultilineText('Mg', style.nodeLabelFontSize, style.nodeLabelFontWeight).height + style.nodePaddingY * 2)
   const defaultEdgeTextHeight = measureMultilineText('Mg', SEQUENCE_STYLE_DEFAULTS.edgeLabelFontSize, SEQUENCE_STYLE_DEFAULTS.edgeLabelFontWeight).height
   const edgeTextHeight = measureMultilineText('Mg', style.edgeLabelFontSize, style.edgeLabelFontWeight).height
-  const messageRowHeight = Math.max(SEQ.messageRowHeight, SEQ.messageRowHeight + edgeTextHeight - defaultEdgeTextHeight)
+  const baseRowHeight = config.messageMargin ?? SEQ.messageRowHeight
+  const messageRowHeight = Math.max(baseRowHeight, baseRowHeight + edgeTextHeight - defaultEdgeTextHeight)
   const selfMessageHeight = Math.max(SEQ.selfMessageHeight, messageRowHeight - 10)
   const blockPadTop = Math.max(
     SEQ.blockPadTop,
@@ -91,21 +111,26 @@ export function layoutSequenceDiagram(
       + (style.groupPaddingY - SEQUENCE_STYLE_DEFAULTS.groupPaddingY) * 2,
   )
   if (diagram.actors.length === 0) {
-    return { width: 0, height: 0, accessibilityTitle: diagram.accessibilityTitle, accessibilityDescription: diagram.accessibilityDescription, actors: [], lifelines: [], messages: [], activations: [], blocks: [], notes: [] }
+    return { width: 0, height: 0, accessibilityTitle: diagram.accessibilityTitle, accessibilityDescription: diagram.accessibilityDescription, actors: [], lifelines: [], messages: [], activations: [], blocks: [], notes: [], boxes: [], destructions: [] }
   }
 
   // 1. Calculate actor widths and assign horizontal positions (center X)
   const actorWidths = diagram.actors.map(a => {
     const textW = estimateTextWidth(applyTextTransform(a.label, style.nodeTextTransform), style.nodeLabelFontSize, style.nodeLabelFontWeight)
-    return Math.max(textW + style.nodePaddingX * 2, 80)
+    return Math.max(textW + style.nodePaddingX * 2, minActorWidth)
   })
 
-  // Build actor center X positions with minimum gap
+  // Build actor center X positions with minimum gap. With actorMargin
+  // configured, spacing follows upstream's model exactly: center gap =
+  // (w₁+w₂)/2 + actorMargin. Without it, the historical floor formula holds.
   const actorCenterX: number[] = []
-  let currentX = SEQ.padding + actorWidths[0]! / 2
+  let currentX = padX + actorWidths[0]! / 2
   for (let i = 0; i < diagram.actors.length; i++) {
     if (i > 0) {
-      const minGap = Math.max(SEQ.actorGap, (actorWidths[i - 1]! + actorWidths[i]!) / 2 + 40)
+      const halfWidths = (actorWidths[i - 1]! + actorWidths[i]!) / 2
+      const minGap = config.actorMargin !== undefined
+        ? halfWidths + config.actorMargin
+        : Math.max(SEQ.actorGap, halfWidths + 40)
       currentX += minGap
     }
     actorCenterX.push(currentX)
@@ -117,8 +142,10 @@ export function layoutSequenceDiagram(
     actorIndex.set(diagram.actors[i]!.id, i)
   }
 
-  // 2. Position actors at the top
-  const actorY = SEQ.padding
+  // 2. Position actors at the top. `box … end` groups draw a title band above
+  //    the actor boxes, so boxed diagrams reserve extra headroom for it.
+  const boxGroups = (diagram.boxes ?? []).filter(b => b.actorIds.some(id => actorIndex.has(id)))
+  const actorY = padY + (boxGroups.length > 0 ? SEQ.boxTitleSpace + 6 : 0)
   const actors: PositionedActor[] = diagram.actors.map((a, i) => ({
     id: a.id,
     label: a.label,
@@ -150,6 +177,28 @@ export function layoutSequenceDiagram(
     }
   }
 
+  // Pre-scan actor lifecycles: a `create` message row hosts the created
+  // actor's header box (centered on the message), so it needs half a box of
+  // clearance above and below; a `destroy` message row ends the lifeline.
+  const createAtIndex = new Map<number, number[]>()
+  const destroyAtIndex = new Map<number, string[]>()
+  const destroyYByActor = new Map<string, number>()
+  for (let ai = 0; ai < diagram.actors.length; ai++) {
+    const a = diagram.actors[ai]!
+    if (a.createMessageIndex !== undefined && a.createMessageIndex < diagram.messages.length) {
+      const list = createAtIndex.get(a.createMessageIndex) ?? []
+      list.push(ai)
+      createAtIndex.set(a.createMessageIndex, list)
+      const prev = extraSpaceBefore.get(a.createMessageIndex) ?? 0
+      extraSpaceBefore.set(a.createMessageIndex, Math.max(prev, actorHeight / 2 + 8))
+    }
+    if (a.destroyMessageIndex !== undefined && a.destroyMessageIndex < diagram.messages.length) {
+      const list = destroyAtIndex.get(a.destroyMessageIndex) ?? []
+      list.push(a.id)
+      destroyAtIndex.set(a.destroyMessageIndex, list)
+    }
+  }
+
   // Pre-group notes by the message index they follow, so we can position
   // them inline during the message stacking loop (avoids overlap bugs).
   const notesByAfterIndex = new Map<number, typeof diagram.notes>()
@@ -165,6 +214,37 @@ export function layoutSequenceDiagram(
   const activationStacks = new Map<string, { startY: number; depth: number }[]>()
   const activations: Activation[] = []
   const nestingOffset = 4 // Horizontal offset per nesting level
+  const activationEvents = new Map<number, NonNullable<SequenceDiagram['activationEvents']>>()
+  for (const event of diagram.activationEvents ?? []) {
+    const list = activationEvents.get(event.messageIndex) ?? []
+    list.push(event)
+    activationEvents.set(event.messageIndex, list)
+  }
+  const activate = (actorId: string, y: number): void => {
+    const stack = activationStacks.get(actorId) ?? []
+    stack.push({ startY: y, depth: stack.length })
+    activationStacks.set(actorId, stack)
+  }
+  const deactivate = (actorId: string, y: number): void => {
+    const stack = activationStacks.get(actorId)
+    if (!stack || stack.length === 0) return
+    const { startY, depth } = stack.pop()!
+    const idx = actorIndex.get(actorId)
+    if (idx === undefined || y <= startY) return
+    activations.push({
+      actorId,
+      x: actorCenterX[idx]! - activationWidth / 2 + depth * nestingOffset,
+      topY: startY,
+      bottomY: y,
+      width: activationWidth,
+    })
+  }
+  const applyActivationEvents = (boundary: number, y: number): void => {
+    for (const event of activationEvents.get(boundary) ?? []) {
+      if (event.kind === 'activate') activate(event.actorId, y)
+      else deactivate(event.actorId, y)
+    }
+  }
 
   const positionNote = (note: typeof diagram.notes[number], noteY: number): PositionedNote => {
     const noteText = applyTextTransform(note.text, style.nodeTextTransform)
@@ -176,9 +256,9 @@ export function layoutSequenceDiagram(
     const firstActorIdx = actorIndex.get(note.actorIds[0] ?? '') ?? 0
     let noteX: number
     if (note.position === 'left') {
-      noteX = actorCenterX[firstActorIdx]! - actorWidths[firstActorIdx]! / 2 - noteW - SEQ.noteGap
+      noteX = actorCenterX[firstActorIdx]! - actorWidths[firstActorIdx]! / 2 - noteW - noteGap
     } else if (note.position === 'right') {
-      noteX = actorCenterX[firstActorIdx]! + actorWidths[firstActorIdx]! / 2 + SEQ.noteGap
+      noteX = actorCenterX[firstActorIdx]! + actorWidths[firstActorIdx]! / 2 + noteGap
     } else if (note.actorIds.length > 1) {
       const lastActorIdx = actorIndex.get(note.actorIds[note.actorIds.length - 1] ?? '') ?? firstActorIdx
       noteX = (actorCenterX[firstActorIdx]! + actorCenterX[lastActorIdx]!) / 2 - noteW / 2
@@ -216,6 +296,7 @@ export function layoutSequenceDiagram(
     // Add extra vertical space if this message sits below a block header or divider
     const extra = extraSpaceBefore.get(msgIdx) ?? 0
     if (extra > 0) messageY += extra
+    applyActivationEvents(msgIdx, messageY)
 
     const x1 = actorCenterX[fromIdx]!
     const x2 = actorCenterX[toIdx]!
@@ -223,7 +304,7 @@ export function layoutSequenceDiagram(
     messages.push({
       from: msg.from,
       to: msg.to,
-      label: msg.label,
+      label: displayMessageLabel(msg), // autonumber prefix baked in ("1. label")
       lineStyle: msg.lineStyle,
       arrowHead: msg.arrowHead,
       x1, x2,
@@ -231,35 +312,20 @@ export function layoutSequenceDiagram(
       isSelf,
     })
 
-    // Handle activation - track nesting depth for visual offset
-    if (msg.activate) {
-      if (!activationStacks.has(msg.to)) {
-        activationStacks.set(msg.to, [])
-      }
-      const stack = activationStacks.get(msg.to)!
-      const depth = stack.length // Current depth before pushing
-      stack.push({ startY: messageY, depth })
-    }
+    // Lifecycle bookkeeping: created actors' header boxes sit ON this row
+    // (repositioned after the loop, clearance reserved via extraSpaceBefore
+    // above and the extra advance below); destroyed lifelines end here.
+    const destroyedHere = destroyAtIndex.get(msgIdx)
+    if (destroyedHere) for (const id of destroyedHere) destroyYByActor.set(id, messageY)
 
-    if (msg.deactivate) {
-      const stack = activationStacks.get(msg.from)
-      if (stack && stack.length > 0) {
-        const { startY, depth } = stack.pop()!
-        const idx = actorIndex.get(msg.from) ?? 0
-        // Offset nested activations to the right for visual distinction
-        const xOffset = depth * nestingOffset
-        activations.push({
-          actorId: msg.from,
-          x: actorCenterX[idx]! - SEQ.activationWidth / 2 + xOffset,
-          topY: startY,
-          bottomY: messageY,
-          width: SEQ.activationWidth,
-        })
-      }
-    }
+    // Message +/- markers and standalone commands share one stack machine.
+    if (msg.activate) activate(msg.to, messageY)
+    if (msg.deactivate) deactivate(msg.from, messageY)
 
     // Advance messageY past the message itself
     messageY += isSelf ? selfMessageHeight + messageRowHeight : messageRowHeight
+    // Clearance below a create row for the bottom half of the created actor's box
+    if (createAtIndex.has(msgIdx)) messageY += actorHeight / 2
 
     // Position notes that appear after this message.
     // Notes start below the self-message loop (if self) or below the arrow,
@@ -286,18 +352,25 @@ export function layoutSequenceDiagram(
     }
   }
 
-  // Close any unclosed activations (preserving depth for offset)
+  const activationTailY = Math.max(
+    messages[messages.length - 1]?.y ?? messageY,
+    messageY - messageRowHeight / 2,
+  )
+  applyActivationEvents(diagram.messages.length, activationTailY)
+
+  // Close any unclosed activations at the lifeline tail.
   for (const [actorId, stack] of activationStacks) {
-    for (const { startY, depth } of stack) {
-      const idx = actorIndex.get(actorId) ?? 0
-      const xOffset = depth * nestingOffset
-      activations.push({
-        actorId,
-        x: actorCenterX[idx]! - SEQ.activationWidth / 2 + xOffset,
-        topY: startY,
-        bottomY: messageY - messageRowHeight / 2,
-        width: SEQ.activationWidth,
-      })
+    while (stack.length > 0) deactivate(actorId, activationTailY)
+  }
+
+  // 3b. Reposition created actors: their header box centers on the create
+  //     message row instead of the diagram top (clearance was reserved during
+  //     stacking). Lifelines pick the new top up in step 7.
+  for (const [msgIdx, actorIdxs] of createAtIndex) {
+    const msgY = messages[msgIdx]?.y
+    if (msgY === undefined) continue
+    for (const ai of actorIdxs) {
+      actors[ai]!.y = msgY - actorHeight / 2
     }
   }
 
@@ -382,16 +455,42 @@ export function layoutSequenceDiagram(
   //    (step 3) to properly account for self-message loops and vertical stacking.
   const notes = positionedNotes
 
+  // 5b. Box group frames: span the member actors horizontally (plus padding)
+  //     and run from the title band above the actor boxes to just below the
+  //     lifeline ends, so the group visibly owns its lifelines.
+  const lifelineBottom = messageY // lifelines end here (see step 7)
+  const boxes: PositionedBoxGroup[] = boxGroups.map(box => {
+    const memberIdxs = box.actorIds
+      .map(id => actorIndex.get(id))
+      .filter((i): i is number => i !== undefined)
+    const left = Math.min(...memberIdxs.map(i => actorCenterX[i]! - actorWidths[i]! / 2)) - SEQ.boxPadX
+    let right = Math.max(...memberIdxs.map(i => actorCenterX[i]! + actorWidths[i]! / 2)) + SEQ.boxPadX
+    // A title wider than the member span widens the frame so it can't clip
+    if (box.label) {
+      const titleW = estimateTextWidth(applyTextTransform(box.label, style.groupTextTransform), style.groupHeaderFontSize, style.groupHeaderFontWeight)
+      right = Math.max(right, left + titleW + SEQ.boxPadX * 2)
+    }
+    const top = padY
+    return {
+      label: box.label,
+      color: box.color,
+      x: left,
+      y: top,
+      width: right - left,
+      height: lifelineBottom + SEQ.boxPadBottom - top,
+    }
+  })
+
   // 6. Bounding-box post-processing
   //
   // Notes positioned "left of" the first actor or "right of" the last actor
   // can extend beyond the actor-based viewport. Compute the true bounding box
   // across all positioned elements, then shift everything right if anything
   // extends left of the desired padding margin and expand the width to fit.
-  const diagramBottom = messageY + SEQ.padding
+  const diagramBottom = messageY + padY
 
   // Find global X extents across actors, blocks, notes, and message labels
-  let globalMinX: number = SEQ.padding // actors already start at SEQ.padding
+  let globalMinX: number = padX // actors already start at padX
   let globalMaxX = 0
   for (const a of actors) {
     globalMinX = Math.min(globalMinX, a.x - a.width / 2)
@@ -404,6 +503,10 @@ export function layoutSequenceDiagram(
   for (const n of notes) {
     globalMinX = Math.min(globalMinX, n.x)
     globalMaxX = Math.max(globalMaxX, n.x + n.width)
+  }
+  for (const b of boxes) {
+    globalMinX = Math.min(globalMinX, b.x)
+    globalMaxX = Math.max(globalMaxX, b.x + b.width)
   }
   // Include self-message labels in bounding box — they extend to the right of the actor
   // and could be clipped if not accounted for in the SVG width
@@ -418,27 +521,37 @@ export function layoutSequenceDiagram(
   }
 
   // If elements extend left of the desired padding, shift everything right
-  const shiftX = globalMinX < SEQ.padding ? SEQ.padding - globalMinX : 0
+  const shiftX = globalMinX < padX ? padX - globalMinX : 0
   if (shiftX > 0) {
     for (const a of actors) a.x += shiftX
     for (const m of messages) { m.x1 += shiftX; m.x2 += shiftX }
     for (const act of activations) act.x += shiftX
     for (const b of blocks) { b.x += shiftX; }
     for (const n of notes) n.x += shiftX
+    for (const b of boxes) b.x += shiftX
     // Also shift actor center X array (used for lifelines below)
     for (let i = 0; i < actorCenterX.length; i++) actorCenterX[i]! += shiftX
   }
 
-  // 7. Calculate final lifelines (after shift so X positions are correct)
+  // 7. Calculate final lifelines (after shift so X positions are correct).
+  //    Created actors' lifelines start below their repositioned header box;
+  //    destroyed actors' lifelines end at the destroy message with an X cross.
   const lifelines: Lifeline[] = diagram.actors.map((a, i) => ({
     actorId: a.id,
     x: actorCenterX[i]!,
-    topY: actorY + actorHeight,
-    bottomY: diagramBottom - SEQ.padding,
+    topY: actors[i]!.y + actorHeight,
+    bottomY: destroyYByActor.get(a.id) ?? (diagramBottom - padY),
   }))
+  const destructions: LifelineCross[] = diagram.actors
+    .filter(a => destroyYByActor.has(a.id))
+    .map(a => ({
+      actorId: a.id,
+      x: actorCenterX[actorIndex.get(a.id)!]!,
+      y: destroyYByActor.get(a.id)!,
+    }))
 
   // 8. Calculate diagram dimensions from the bounding box
-  const diagramWidth = globalMaxX + shiftX + SEQ.padding
+  const diagramWidth = globalMaxX + shiftX + padX
   const diagramHeight = diagramBottom
 
   return {
@@ -452,5 +565,7 @@ export function layoutSequenceDiagram(
     activations,
     blocks,
     notes,
+    boxes,
+    destructions,
   }
 }

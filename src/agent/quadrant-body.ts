@@ -9,14 +9,21 @@
 //   x-axis <near> [--> <far>]
 //   y-axis <near> [--> <far>]
 //   quadrant-1..quadrant-4 <label>
-//   <Label>: [x, y]                  x,y in [0,1]
+//   <Label>[:::class]: [x, y] [styles]   x,y in [0,1]
+//   classDef <class> <styles>
+//
+// Per-point styling (upstream mermaid#5173) is STRUCTURED content: `:::`
+// classes, direct radius/color/stroke styles, and classDef tables parse into
+// typed fields, survive every mutation op, and serialize canonically. The
+// style grammar is shared with the renderer parser via
+// src/quadrant/point-style.ts, so the two surfaces cannot drift.
 //
 // Mermaid quadrant numbering (reused from the renderer, src/quadrant/types.ts):
 //   1 = top-right, 2 = top-left, 3 = bottom-left, 4 = bottom-right.
 // Stored as a 0-based 4-tuple where index `n-1` holds quadrant-`n`.
 //
 // Structured-or-opaque: any other non-blank, non-comment line (accTitle,
-// accDescr, styling `:::`/`classDef`, unmodeled syntax) returns null so the
+// accDescr, malformed style metadata, unmodeled syntax) returns null so the
 // caller falls back to a lossless opaque body. The serializer re-emits a
 // canonical form the legacy parser re-parses identically (differential-tested).
 // The legacy renderer ERRORS LOUDLY on malformed lines / out-of-range coords;
@@ -26,11 +33,15 @@
 
 import { unknownOpMessage } from './mutation-ops.ts'
 import type {
-  QuadrantBody, QuadrantAxis, QuadrantMutationOp,
+  QuadrantBody, QuadrantAxis, QuadrantMutationOp, QuadrantPointStyle,
   MutationError, Result, LayoutWarning, VerifyOptions,
 } from './types.ts'
 import { ok, err, DEFAULT_LABEL_CHAR_CAP } from './types.ts'
 import { labelOverflowWarning } from './label-metrics.ts'
+import {
+  parsePointStyleEntries, parseClassDefTail, splitPointClassSuffix,
+  renderPointStyleEntries,
+} from '../quadrant/point-style.ts'
 
 // ---- Number format ----------------------------------------------------------
 
@@ -47,7 +58,8 @@ function isCoord(n: unknown): n is number {
 const TITLE_RE = /^title\s+(.+)$/i
 const AXIS_RE = /^([xy])-axis\s+(.+)$/i
 const QUADRANT_RE = /^quadrant-([1-4])\s+(.+)$/i
-const POINT_RE = /^(.+?)\s*:\s*\[\s*([^,\]]+)\s*,\s*([^,\]]+)\s*\]\s*$/
+const POINT_RE = /^(.+?)\s*:\s*\[\s*([^,\]]+)\s*,\s*([^,\]]+)\s*\]\s*(.*)$/
+const CLASSDEF_RE = /^classDef\s+(.+)$/i
 const COORD_RE = /^[+-]?(?:\d+(?:\.\d+)?|\.\d+)$/
 
 function parseCoord(raw: string): number | null {
@@ -91,10 +103,18 @@ export function parseQuadrantBody(lines: string[]): QuadrantBody | null {
     if (!line) continue
     if (line.startsWith('%%')) continue
 
-    // Styling is unmodeled — fall back to opaque (legacy parser errors loudly).
-    if (/^classDef\b/i.test(line) || line.includes(':::')) return null
-
     let m: RegExpMatchArray | null
+
+    // classDef <name> <styles> — modeled via the shared style grammar; a
+    // malformed classDef falls back to opaque (legacy parser errors loudly).
+    if ((m = line.match(CLASSDEF_RE))) {
+      const parsed = parseClassDefTail(m[1]!)
+      if (!parsed.ok) return null
+      // Null prototype: `__proto__` is a legal class name (see point-style.ts).
+      body.classDefs = body.classDefs ?? (Object.create(null) as NonNullable<QuadrantBody['classDefs']>)
+      body.classDefs[parsed.name] = parsed.style
+      continue
+    }
 
     if ((m = line.match(TITLE_RE))) {
       const title = m[1]!.trim()
@@ -120,13 +140,17 @@ export function parseQuadrantBody(lines: string[]): QuadrantBody | null {
     }
 
     if ((m = line.match(POINT_RE))) {
-      const label = m[1]!.trim()
+      const { label, className } = splitPointClassSuffix(m[1]!.trim())
       const x = parseCoord(m[2]!.trim())
       const y = parseCoord(m[3]!.trim())
-      if (!label || x === null || y === null) return null
+      const styleTail = parsePointStyleEntries(m[4]!)
+      if (!label || x === null || y === null || !styleTail.ok) return null
       if (seen.has(label)) return null
       seen.add(label)
-      body.points.push({ label, x, y })
+      const point: QuadrantBody['points'][number] = { label, x, y }
+      if (className !== undefined) point.className = className
+      if (styleTail.style !== undefined) point.style = styleTail.style
+      body.points.push(point)
       continue
     }
 
@@ -154,7 +178,13 @@ export function renderQuadrant(body: QuadrantBody): string {
     if (label !== undefined) lines.push(`  quadrant-${i + 1} ${label}`)
   }
   for (const p of body.points) {
-    lines.push(`  ${p.label}: [${formatNumber(p.x)}, ${formatNumber(p.y)}]`)
+    const cls = p.className !== undefined ? `:::${p.className}` : ''
+    const tail = renderPointStyleEntries(p.style)
+    lines.push(`  ${p.label}${cls}: [${formatNumber(p.x)}, ${formatNumber(p.y)}]${tail ? ` ${tail}` : ''}`)
+  }
+  // classDefs after points (the upstream docs' canonical order).
+  for (const [name, style] of Object.entries(body.classDefs ?? {})) {
+    lines.push(`  classDef ${name} ${renderPointStyleEntries(style)}`)
   }
   return lines.join('\n') + '\n'
 }
@@ -165,15 +195,38 @@ function cloneAxis(a: QuadrantAxis): QuadrantAxis {
   return { near: a.near, far: a.far }
 }
 
+function cloneStyle(s: QuadrantPointStyle): QuadrantPointStyle {
+  const style: QuadrantPointStyle = {}
+  if (s.radius !== undefined) style.radius = s.radius
+  if (s.color !== undefined) style.color = s.color
+  if (s.strokeColor !== undefined) style.strokeColor = s.strokeColor
+  if (s.strokeWidth !== undefined) style.strokeWidth = s.strokeWidth
+  if (s.extra !== undefined) style.extra = [...s.extra]
+  return style
+}
+
 function cloneQuadrant(b: QuadrantBody): QuadrantBody {
-  return {
+  const clone: QuadrantBody = {
     kind: 'quadrant',
     title: b.title,
     xAxis: b.xAxis ? cloneAxis(b.xAxis) : undefined,
     yAxis: b.yAxis ? cloneAxis(b.yAxis) : undefined,
     quadrants: [...b.quadrants] as QuadrantBody['quadrants'],
-    points: b.points.map(p => ({ label: p.label, x: p.x, y: p.y })),
+    points: b.points.map(p => {
+      const point: QuadrantBody['points'][number] = { label: p.label, x: p.x, y: p.y }
+      if (p.className !== undefined) point.className = p.className
+      if (p.style !== undefined) point.style = cloneStyle(p.style)
+      return point
+    }),
   }
+  if (b.classDefs !== undefined) {
+    // Null prototype for the same reason as the parse site.
+    clone.classDefs = Object.assign(
+      Object.create(null) as NonNullable<QuadrantBody['classDefs']>,
+      Object.fromEntries(Object.entries(b.classDefs).map(([name, style]) => [name, cloneStyle(style)])),
+    )
+  }
+  return clone
 }
 
 /** A label that round-trips through the canonical serializer: non-empty, no

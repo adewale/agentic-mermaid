@@ -33,8 +33,11 @@
   .gantt-section-label { fill: #27272A; }
   .gantt-task-label { fill: #27272A; }
   .gantt-axis-label { fill: #27272A; }
+  .gantt-excluded-band { fill: #27272A; opacity: 0.1; }
 </style>
 <rect class="gantt-section-band" x="119" y="50" width="600" height="120" />
+<rect class="gantt-excluded-band" x="319" y="50" width="80" height="222" />
+<rect class="gantt-excluded-band" x="599" y="50" width="80" height="222" />
 <line class="gantt-grid-line" x1="359" y1="50" x2="359" y2="272" />
 <line class="gantt-grid-line" x1="639" y1="50" x2="639" y2="272" />
 <text class="gantt-axis-label" x="359" y="284" text-anchor="middle" dominant-baseline="middle" font-size="11" font-weight="500">01-12</text>

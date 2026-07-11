@@ -1,6 +1,8 @@
 import type { MermaidGraph, MermaidSubgraph, Direction } from '../types.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
 import { syntaxError } from '../shared/syntax-error.ts'
+import { ALIGN_DIRECTIVE_RE, parseAlignDirective } from './align.ts'
+import type { ArchitectureAlignment } from './align.ts'
 import type {
   ArchitectureChildRef,
   ArchitectureDiagram,
@@ -16,11 +18,13 @@ import type {
 //
 // Supported statements:
 //   architecture-beta
+//   title Visible diagram heading
 //   group id(icon)[Label] in parent
 //   service id(icon)[Label] in group
 //   junction id in group
 //   serviceId:R --> L:otherService
 //   serviceId{group}:R -[label]-> L:otherService
+//   align row|column id id ...     (parsed + preserved; see align.ts)
 // ============================================================================
 
 const IDENT = '[\\w-]+'
@@ -47,11 +51,19 @@ export function parseArchitectureDiagram(lines: string[]): ArchitectureDiagram {
   const junctions = new Map<string, ArchitectureJunction>()
   const rootChildren: ArchitectureChildRef[] = []
   const edges: ArchitectureEdge[] = []
+  const alignments: ArchitectureAlignment[] = []
+  let title: string | undefined
   let accessibilityTitle: string | undefined
   let accessibilityDescription: string | undefined
 
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i]!
+
+    const titleMatch = line.match(/^title\s+(.+)$/i)
+    if (titleMatch) {
+      title = normalizeBrTags(titleMatch[1]!.trim())
+      continue
+    }
 
     const accTitleMatch = line.match(/^accTitle\s*:\s*(.+)$/i)
     if (accTitleMatch) {
@@ -125,18 +137,63 @@ export function parseArchitectureDiagram(lines: string[]): ArchitectureDiagram {
       continue
     }
 
+    // `align` is a reserved word upstream, so a leading `align` token is
+    // always a directive — never an edge whose source happens to be named
+    // "align" (edge endpoints carry a `:SIDE` suffix and do not match).
+    if (ALIGN_DIRECTIVE_RE.test(line)) {
+      alignments.push(parseAlignmentLine(line, groups, services, junctions))
+      continue
+    }
+
     edges.push(parseArchitectureEdge(line, services, junctions))
   }
 
   return {
+    title,
     groups: [...groups.values()],
     services: [...services.values()],
     junctions: [...junctions.values()],
     edges,
+    alignments,
     rootChildren,
     accessibilityTitle,
     accessibilityDescription,
   }
+}
+
+/**
+ * Parse + validate one `align row|column ...` directive (upstream v11.16.0).
+ * Shape rules (axis keyword, ≥2 members, no duplicates) live in align.ts;
+ * this adds the declaration checks upstream applies at the DB level: every
+ * member must be an already-declared service or junction, never a group.
+ */
+function parseAlignmentLine(
+  line: string,
+  groups: Map<string, ArchitectureGroup>,
+  services: Map<string, ArchitectureService>,
+  junctions: Map<string, ArchitectureJunction>,
+): ArchitectureAlignment {
+  const parsed = parseAlignDirective(line)
+  if (!parsed.ok) {
+    throw syntaxError({
+      what: `Invalid architecture align directive "${line}" — ${parsed.reason}`,
+      expectedForm: 'align row|column memberA memberB ..., listing at least two distinct services or junctions',
+      example: 'align row db1 db2 db3',
+    })
+  }
+  for (const member of parsed.alignment.members) {
+    if (services.has(member) || junctions.has(member)) continue
+    if (groups.has(member)) {
+      throw new Error(`Architecture align members must be services or junctions; "${member}" is a group in line "${line}"`)
+    }
+    throw syntaxError({
+      what: `Unknown architecture align member "${member}" in line "${line}"`,
+      expectedForm: 'a service or junction declared earlier',
+      example: `service ${member}(server)[${member}]`,
+      known: [...services.keys(), ...junctions.keys()],
+    })
+  }
+  return parsed.alignment
 }
 
 function groupMatchSafe(value: string | undefined, fallback: string): string {

@@ -300,6 +300,12 @@ describe('vocabulary doc-sync', () => {
       for (const surface of surfaces) expect(surface).toContain(code)
     }
   })
+  test('MCP SDK WarningCode exactly matches the runtime warning registry', () => {
+    const block = /type WarningCode =([\s\S]*?)\n\ninterface VerifyResult/.exec(SDK_DECLARATION)?.[1] ?? ''
+    const declared = [...block.matchAll(/'([A-Z][A-Z0-9_]+)'/g)].map(match => match[1]!).sort()
+    expect(declared).toEqual(Object.keys(WARNING_TIER).sort())
+  })
+
   test('every code tiered + severity', () => {
     for (const code of Object.keys(WARNING_SEVERITY)) {
       expect(WARNING_SEVERITY[code as keyof typeof WARNING_SEVERITY]).toMatch(/^(error|warning)$/)

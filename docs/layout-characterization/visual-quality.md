@@ -16,13 +16,13 @@ gates: `src/__tests__/contact-sheet.test.ts`,
 | State diagram | [state.svg](./visual-snapshots/state.svg) | `8e9deb92ba71` | `171ef8b10734` | 7326 | 241.14266666666668x375.15000000000003 | 241x375 | 5/5 | 0 | 6 | 628 | 11.3% | 100.0% | 0 | n/a | 0.64 |
 | Sequence diagram | [sequence.svg](./visual-snapshots/sequence.svg) | `23717c64433e` | `fc934d1a2e01` | 7135 | 420x280 | 420x280 | 3/4 | 0 | 0 | 560 | 8.2% | 100.0% | 0 | 10 | 1.50 |
 | Class diagram | [class.svg](./visual-snapshots/class.svg) | `d14da80c1cb7` | `ea089943c1dc` | 3950 | 360x237.8 | 360x238 | 3/2 | 0 | 2 | 240 | 20.6% | 100.0% | 0 | n/a | 1.51 |
-| ER diagram | [er.svg](./visual-snapshots/er.svg) | `be65847067be` | `e16cb6c925da` | 9649 | 951.768x136 | 952x136 | 3/2 | 0 | 0 | 452 | 18.2% | 100.0% | 0 | 115 | 7.00 |
+| ER diagram | [er.svg](./visual-snapshots/er.svg) | `55081c8b168b` | `2b49625fda09` | 9693 | 951.768x136 | 952x136 | 3/2 | 0 | 0 | 452 | 18.2% | 100.0% | 0 | 115 | 7.00 |
 | Timeline | [timeline.svg](./visual-snapshots/timeline.svg) | `c07cd647b657` | `c01793e9745b` | 8031 | 380x286.6 | 380x287 | 4/0 | 0 | 0 | 0 | 13.2% | 100.0% | 0 | n/a | 1.32 |
-| Gantt chart | [gantt.svg](./visual-snapshots/gantt.svg) | `784dedd3d334` | `21ee1716da07` | 9321 | 703x282 | 703x282 | 4/0 | 0 | 0 | 0 | 6.9% | 75.0% | 0 | n/a | 2.49 |
+| Gantt chart | [gantt.svg](./visual-snapshots/gantt.svg) | `34b24615a4cd` | `f52f9cf1e84a` | 10373 | 703x282 | 703x282 | 4/0 | 0 | 0 | 0 | 5.4% | 75.0% | 0 | n/a | 2.49 |
 | User journey | [journey.svg](./visual-snapshots/journey.svg) | `b47e71e142ea` | `3069450b8529` | 15279 | 530x482.3 | 530x482 | 2/0 | 0 | 0 | 0 | 5.9% | 100.0% | 0 | n/a | 1.10 |
-| XY chart | [xychart.svg](./visual-snapshots/xychart.svg) | `bdcb4e4ce1b2` | `d7df7b4f86de` | 15427 | 700x500 | 700x500 | 6/0 | 0 | 0 | 0 | 37.6% | 50.0% | 0 | n/a | 1.40 |
-| Pie chart | [pie.svg](./visual-snapshots/pie.svg) | `fc3f5d7bfc34` | `dde9d49be7a7` | 10784 | 368.79x276 | 369x276 | 3/0 | 0 | 0 | 0 | 4.1% | 100.0% | 0 | n/a | 1.34 |
-| Quadrant chart | [quadrant.svg](./visual-snapshots/quadrant.svg) | `d75d9de8aea3` | `63b16868b93e` | 9305 | 456x492 | 456x492 | 2/0 | 0 | 0 | 0 | 0.1% | 100.0% | 0 | n/a | 0.93 |
+| XY chart | [xychart.svg](./visual-snapshots/xychart.svg) | `36646cb1be5a` | `765ea453d984` | 18006 | 700x500 | 700x500 | 6/0 | 0 | 0 | 0 | 33.9% | 50.0% | 0 | n/a | 1.40 |
+| Pie chart | [pie.svg](./visual-snapshots/pie.svg) | `60a51984f96d` | `61c805ac4e77` | 12063 | 368.79x276 | 369x276 | 3/0 | 0 | 0 | 0 | 4.1% | 100.0% | 0 | n/a | 1.34 |
+| Quadrant chart | [quadrant.svg](./visual-snapshots/quadrant.svg) | `f297339c264b` | `63b16868b93e` | 9305 | 456x492 | 456x492 | 2/0 | 0 | 0 | 0 | 0.1% | 100.0% | 0 | n/a | 0.93 |
 | Architecture diagram | [architecture.svg](./visual-snapshots/architecture.svg) | `56fce2e98409` | `777507a15f7a` | 4182 | 414x188 | 414x188 | 2/1 | 0 | 0 | 78 | 14.8% | 100.0% | 0 | n/a | 2.20 |
 
 ## Sources

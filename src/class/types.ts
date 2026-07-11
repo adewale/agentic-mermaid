@@ -5,7 +5,7 @@
 // Class diagrams show UML class relationships, inheritance, composition, etc.
 // ============================================================================
 
-import type { PositionedDiagram } from '../types.ts'
+import type { PositionedDiagram, Direction } from '../types.ts'
 
 /** Parsed class diagram — logical structure from mermaid text */
 export interface ClassDiagram {
@@ -13,17 +13,22 @@ export interface ClassDiagram {
   accessibilityTitle?: string
   /** Optional accessibility description (Mermaid accDescr) */
   accessibilityDescription?: string
+  /** Layout direction from a `direction TB|BT|LR|RL` statement (default TB). */
+  direction?: Direction
   /** All class definitions */
   classes: ClassNode[]
   /** Relationships between classes */
   relationships: ClassRelationship[]
-  /** Optional namespace groupings */
+  /** Top-level namespace groupings (each may nest children) */
   namespaces: ClassNamespace[]
 }
 
 export interface ClassNode {
+  /** Stable bare identity; Mermaid `~T~` parameters are stored separately. */
   id: string
   label: string
+  /** Generic type parameter text from `ClassName~T~`. */
+  generic?: string
   /** Annotation like <<interface>>, <<abstract>>, <<service>>, <<enumeration>> */
   annotation?: string
   /** Class attributes (fields/properties) */
@@ -77,9 +82,20 @@ export interface ClassRelationship {
   toCardinality?: string
 }
 
+/**
+ * A namespace grouping (upstream: `namespace X { class A }`). Nesting follows
+ * upstream Mermaid: syntactic (`namespace A { namespace B { … } }`) and dot
+ * notation (`namespace A.B.C` auto-creates `A` and `A.B` as parents). `name`
+ * is the SEGMENT name; the full path is the ancestor chain joined with dots.
+ */
 export interface ClassNamespace {
   name: string
+  /** Optional display label from `namespace X["Label"]` (upstream v11.15+). */
+  label?: string
+  /** Ids of classes declared directly in this namespace. */
   classIds: string[]
+  /** Nested child namespaces. */
+  children: ClassNamespace[]
 }
 
 // ============================================================================
@@ -93,6 +109,28 @@ export interface PositionedClassDiagram extends PositionedDiagram {
   accessibilityDescription?: string
   classes: PositionedClassNode[]
   relationships: PositionedClassRelationship[]
+  /** Namespace boxes, flattened parent-first, in absolute coordinates. */
+  namespaces: PositionedClassNamespace[]
+}
+
+/** A laid-out namespace box (ELK compound node), absolute coordinates. */
+export interface PositionedClassNamespace {
+  /** Full dot path (unique id), e.g. 'Company.Engineering.Backend'. */
+  id: string
+  /** Segment name (last path element). */
+  name: string
+  /** Display label to draw in the header (label ?? name). */
+  label: string
+  /** Parent namespace's full path (undefined = top-level). */
+  parentId?: string
+  /** Ids of classes declared directly in this namespace. */
+  classIds: string[]
+  x: number
+  y: number
+  width: number
+  height: number
+  /** Height of the header band carrying the label. */
+  headerHeight: number
 }
 
 export interface PositionedClassNode {

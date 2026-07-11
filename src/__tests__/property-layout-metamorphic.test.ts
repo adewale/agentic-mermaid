@@ -27,6 +27,7 @@ import { parseMermaid, verifyMermaid, layoutMermaid, measureQuality, serializeMe
 import { countStructuralElements, type StructuralCount } from '../agent/structural-count.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'
+import { assessRenderedLayout, familyHardViolations } from '../family-rubric.ts'
 
 /** Parse + structural count, asserting the source is well-formed and structured. */
 function counts(source: string): StructuralCount {
@@ -124,6 +125,8 @@ describe('metamorphic: relations across all renderable families', () => {
         if (!p.ok) return
         expect(countStructuralElements(p.value)).not.toBeNull()
         expect(verifyMermaid(p.value).ok).toBe(true)
+        const rubric = assessRenderedLayout(layoutMermaid(p.value))
+        expect(familyHardViolations(rubric)).toEqual([])
       }), { numRuns: 40 })
     })
 

@@ -237,14 +237,31 @@ function extractTimelineLabels(source: string): ExtractedLabel[] {
   return out
 }
 
+// Upstream PR #7270: the header may carry an LR/TD direction token
+// (`timeline TD` = vertical). It is part of the modeled grammar — captured on
+// the body so it survives serialize — while any OTHER header suffix still
+// falls back to a verbatim opaque body (structuredFamilyHooks headerOk
+// convention, spelled out here because the hook needs the header line).
+const TIMELINE_BODY_HEADER_RE = /^timeline(?:\s+(LR|TD))?\s*$/i
+
 registerFamily({
   id: 'timeline',
   detect: l => l.startsWith('timeline'),
   extractLabels: extractTimelineLabels,
-  ...structuredFamilyHooks('timeline', {
-    headerOk: h => /^timeline\s*$/i.test(h),
-    parseBody: parseTimelineBody, serialize: renderTimeline, mutate: mutateTimeline,
-  }),
+  parse: (lines, opaqueSource) => {
+    const header = (lines[0]?.trim() ?? '').match(TIMELINE_BODY_HEADER_RE)
+    const body = header ? parseTimelineBody(lines.slice(1)) : null
+    if (body && header?.[1]) body.direction = header[1].toUpperCase() as 'LR' | 'TD'
+    return ok(body ?? { kind: 'opaque', family: 'timeline', source: opaqueSource })
+  },
+  serialize: body => {
+    if (body.kind !== 'timeline') throw new Error(`timeline serializer received body kind ${body.kind}`)
+    return renderTimeline(body)
+  },
+  mutate: (body, op) => {
+    if (body.kind !== 'timeline') return err<MutationError>({ code: 'INVALID_OP', message: `timeline mutator received body kind ${body.kind}` })
+    return mutateTimeline(body, op as never)
+  },
 })
 
 // ---- Class ---------------------------------------------------------------
@@ -446,7 +463,13 @@ registerFamily({
   // removed the duplicate per-body branch in verify.ts).
   verify: (body, opts) => body.kind === 'er' ? verifyErBody(body, opts) : [],
   buildSourceMap: buildErSourceMap,
-  ...structuredFamilyHooks('er', { parseBody: parseErBody, serialize: renderEr, mutate: mutateEr }),
+  ...structuredFamilyHooks('er', {
+    // A header-riding subgraph clause (`erDiagram subgraph X`, repo #103) is
+    // tolerated by the renderer but unmodeled here: keep the body opaque so
+    // the clause round-trips verbatim instead of being dropped on serialize.
+    headerOk: h => /^erdiagram\s*$/i.test(h),
+    parseBody: parseErBody, serialize: renderEr, mutate: mutateEr,
+  }),
 })
 
 // ---- Journey --------------------------------------------------------------
@@ -639,7 +662,7 @@ registerFamily({
     const header = lines[0]?.trim() ?? ''
     const hm = header.match(/^xychart(?:-beta)?(?:\s+(horizontal|vertical))?\s*$/i)
     const body = hm ? parseXyChartBody(lines.slice(1)) : null
-    if (body && hm?.[1]?.toLowerCase() === 'horizontal') body.horizontal = true
+    if (body && hm?.[1]) body.horizontal = hm[1].toLowerCase() === 'horizontal'
     return ok(body ?? { kind: 'opaque', family: 'xychart', source: opaqueSource })
   },
   serialize: body => {
@@ -778,6 +801,10 @@ function verifyOpaqueQuadrant(body: DiagramBody): LayoutWarning[] {
   // Unrenderable opaque sources are the universal render-parity gate's job
   // (Tier-1 RENDER_FAILED in verifyMermaid) — this hook's remaining value is
   // the style-metadata lint, which scans raw lines and needs no parse.
+  // Well-formed styles/classDefs parse STRUCTURED now (upstream #5173 is
+  // modeled end to end), so these warnings only fire when style-looking
+  // metadata rides on an OPAQUE body: either the metadata itself is malformed
+  // (the renderer errors loudly on it) or another line forced the fallback.
 
   let sawPointStyle = false
   let sawClassDef = false
@@ -792,14 +819,14 @@ function verifyOpaqueQuadrant(body: DiagramBody): LayoutWarning[] {
     warnings.push({
       code: 'UNSUPPORTED_SYNTAX',
       syntax: 'quadrant_point_style_metadata',
-      message: 'Quadrant point style/class metadata is preserved in source and accepted by the local renderer, but typed mutation/layout metadata does not model radius/color/class styling.',
+      message: 'Quadrant point style/class metadata is present but this diagram fell back to an opaque body (malformed style metadata or other unmodeled syntax), so typed mutation cannot see the styles. Well-formed radius/color/stroke styling parses structured and renders.',
     })
   }
   if (sawClassDef) {
     warnings.push({
       code: 'UNSUPPORTED_SYNTAX',
       syntax: 'quadrant_classDef_metadata',
-      message: 'Quadrant classDef metadata is preserved in source and accepted by the local renderer, but typed mutation/layout metadata does not model class styling.',
+      message: 'Quadrant classDef metadata is present but this diagram fell back to an opaque body (malformed classDef or other unmodeled syntax), so typed mutation cannot see the classes. Well-formed classDefs parse structured and render.',
     })
   }
   return warnings
@@ -811,7 +838,7 @@ registerFamily({
   extractLabels: extractQuadrantLabels,
   // Quadrant is structured-when-narrowed. The verify hook covers the structured
   // body; opaque fallbacks keep the universal label-extraction path and warn
-  // when official style metadata is preserved but not semantically modeled.
+  // when style-looking metadata is preserved on an opaque body.
   verify: (body, opts) => body.kind === 'quadrant' ? verifyQuadrant(body, opts) : verifyOpaqueQuadrant(body),
   buildSourceMap: buildChartSourceMap,
   ...structuredFamilyHooks('quadrant', {
@@ -894,6 +921,8 @@ function extractArchitectureLabels(source: string): ExtractedLabel[] {
   for (let i = 0; i < lines.length; i++) {
     const raw = lines[i]!.trim()
     if (!raw || raw.startsWith('%%')) continue
+    const title = raw.match(/^title\s+(.+)$/i)
+    if (title) out.push({ text: title[1]!.trim(), target: 'title' })
     for (const m of raw.matchAll(/\[([^\]]+)\]/g)) {
       out.push({ text: m[1]!, target: `line${i + 1}` })
     }

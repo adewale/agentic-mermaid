@@ -3,47 +3,60 @@
 // "parses AS flowchart" projection to a dedicated state IR with state-shaped
 // ops and a real `asState` narrower).
 //
-// Modeled grammar (mirrors the legacy renderer parser, src/parser.ts
-// parseStateDiagram — probed empirically, see BUILD-19 notes):
+// Modeled grammar (the state parse core, src/state/parse-core.ts, is shared
+// with the legacy renderer parser, src/parser.ts parseStateDiagram — one
+// grammar, two consumers, so the surfaces cannot drift):
 //   stateDiagram-v2 | stateDiagram
 //   state "Description" as id            — aliased simple state
 //   id : Description                     — bare state description
-//   from --> to [: label]                — transition (from/to may be `[*]`)
+//   from --> to [: label]                — transition (from/to may be `[*]`,
+//                                          `[H]`/`[H*]`, or `Base[H]`/`Base[H*]`)
 //   [*] --> id                           — start pseudostate (source)
 //   id --> [*]                           — end pseudostate (target)
 //   state Composite { … }                — composite block (nestable)
 //   state "Label" as Composite { … }     — aliased composite block
+//   state id <<fork|join|choice|history|H|deephistory|H*>> — pseudostate decl
+//   note left|right of id : text         — single-line note
+//   note left|right of id … end note     — block note
 //   direction TD|TB|LR|BT|RL             — top-level or per-composite direction
 //
 // `[*]` is NOT a state node: it is modeled CONTEXTUALLY as the reserved
 // endpoint id '[*]' on transitions, scoped per composite level — exactly as
 // the legacy parser disambiguates ([*] as a transition SOURCE = start
-// pseudostate, as a TARGET = end pseudostate). This avoids inventing the
-// `_start`/`_end` synthetic ids the flowchart projection produced.
+// pseudostate, as a TARGET = end pseudostate). History endpoints (`[H]`,
+// `Base[H*]`, …) are likewise contextual endpoint strings, preserved verbatim
+// on transitions (verifyState announces them via the Tier-3 `state_history`
+// lint; the renderer draws the (H)/(H*) circle).
 //
 // Structured-or-opaque: any non-blank, non-comment line that is NOT one of the
 // modeled forms returns null so the caller falls back to a lossless opaque
-// body. Deliberately UNMODELED (the legacy parser silently DROPS these, so a
-// structured model would be lossy): `<<fork>>/<<choice>>/<<join>>` markers,
-// history states, concurrency separators `--`, notes (`note … / end note`),
-// `classDef`/`class`/`:::` styling, bare `stateId` lines, and composite ids
-// containing hyphens (the legacy composite regex rejects them). Each of those
-// keeps the whole body opaque so it round-trips verbatim.
+// body. Deliberately UNMODELED: concurrency separators `--` (regions render
+// via the legacy parser, but a structured region model is deferred — repo
+// #118 does not list it), `classDef`/`class`/`:::` styling, bare `stateId`
+// lines, and composite ids containing hyphens (the legacy composite regex
+// rejects them). Each of those keeps the whole body opaque so it round-trips
+// verbatim.
 //
 // Canonical serialization emits state DEFINITIONS before transitions, because
 // the legacy parser only applies a `state "…" as id` / `id : …` label when the
 // node does not yet exist (definition-before-use); a transition that mentions
-// the id first would otherwise pin the label to the bare id.
+// the id first would otherwise pin the label to the bare id. Notes serialize
+// LAST (they are annotations over already-declared states).
 // ============================================================================
 
 import { unknownOpMessage } from './mutation-ops.ts'
 import type {
-  StateBody, StateNode, StateTransition, StateMutationOp,
+  StateBody, StateNode, StateNote, StateTransition, StateMutationOp,
   MutationError, Result, LayoutWarning, VerifyOptions,
 } from './types.ts'
 import { ok, err, DEFAULT_LABEL_CHAR_CAP } from './types.ts'
 import { labelOverflowWarning } from './label-metrics.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
+import {
+  matchNoteLine, matchNoteOpen, isNoteEnd, matchStereotypeDecl,
+  matchTransitionLine, isHistoryEndpoint, matchHistoryEndpoint,
+  isStateNodeId, stereotypeMarker,
+} from '../state/parse-core.ts'
 
 // ---- Identifiers ------------------------------------------------------------
 //
@@ -52,14 +65,11 @@ export const PSEUDO = '[*]'
 
 // Composite ids: the legacy composite regex is `[\w\p{L}]+` (NO hyphen).
 const COMPOSITE_ID_RE = /^[\w\p{L}]+$/u
-// Transition / description endpoint ids allow hyphens: `[\w\p{L}-]+`.
-const ENDPOINT_ID_RE = /^[\w\p{L}-]+$/u
-
 function isCompositeId(id: string): boolean {
   return COMPOSITE_ID_RE.test(id)
 }
 function isEndpointId(id: string): boolean {
-  return id === PSEUDO || ENDPOINT_ID_RE.test(id)
+  return id === PSEUDO || isHistoryEndpoint(id) || isStateNodeId(id)
 }
 
 // ---- Parser -----------------------------------------------------------------
@@ -67,7 +77,6 @@ function isEndpointId(id: string): boolean {
 const DIRECTION_RE = /^direction\s+(TD|TB|LR|BT|RL)$/i
 const ALIAS_RE = /^state\s+"([^"]+)"\s+as\s+([\w\p{L}]+)\s*$/u
 const COMPOSITE_OPEN_RE = /^state\s+(?:"([^"]+)"\s+as\s+)?([\w\p{L}]+)\s*\{$/u
-const TRANSITION_RE = /^(\[\*\]|[\w\p{L}-]+)\s*-->\s*(\[\*\]|[\w\p{L}-]+)(?:\s*:\s*(.+))?$/u
 const DESC_RE = /^([\w\p{L}-]+)\s*:\s*(.+)$/u
 
 /** A mutable scope used during parsing — one per composite nesting level. */
@@ -104,11 +113,30 @@ function ensureState(scope: ParseScope, id: string): StateNode {
 export function parseStateBody(lines: string[]): StateBody | null {
   const root = newScope()
   const stack: ParseScope[] = [root]
-  // Track composite ids so transitions referencing a composite don't create a
-  // duplicate simple node (mirrors legacy compositeStateIds).
+  // Discover composite declarations before materializing transition endpoints.
+  // Mermaid state IDs are global even when the declaration is nested, so a
+  // forward reference must never create a competing simple placeholder.
   const compositeIds = new Set<string>()
+  for (const raw of lines) {
+    const match = raw.trim().match(COMPOSITE_OPEN_RE)
+    if (!match) continue
+    const id = match[2]!
+    if (compositeIds.has(id)) return null
+    compositeIds.add(id)
+  }
+  const pendingCompositeLabels = new Map<string, string>()
   // Pending composites awaiting their `}` — parent scope + the node to attach.
   const pending: Array<{ parent: ParseScope; node: StateNode }> = []
+  // Notes, in source order (global list — state ids are global in mermaid).
+  const notes: StateNote[] = []
+  // Open block note (`note left of X` … `end note`), collecting body lines.
+  let openNote: { target: string; side: 'left' | 'right'; lines: string[] } | null = null
+
+  const pushNote = (scope: ParseScope, target: string, side: 'left' | 'right', text: string): void => {
+    notes.push({ target, side, text })
+    // A note on an undeclared state declares it (mirrors the render parser).
+    if (!compositeIds.has(target)) ensureState(scope, target)
+  }
 
   for (const raw of lines) {
     const line = raw.trim()
@@ -116,6 +144,29 @@ export function parseStateBody(lines: string[]): StateBody | null {
     if (line.startsWith('%%')) continue
 
     const scope = stack[stack.length - 1]!
+
+    // --- open block note: collect body lines until `end note` ---
+    if (openNote) {
+      if (isNoteEnd(line)) {
+        pushNote(scope, openNote.target, openNote.side, openNote.lines.join('\n'))
+        openNote = null
+      } else {
+        openNote.lines.push(line)
+      }
+      continue
+    }
+
+    // --- notes (before the ::: gate: note TEXT may legally contain :::) ---
+    const noteLine = matchNoteLine(line)
+    if (noteLine) {
+      pushNote(scope, noteLine.target, noteLine.side, normalizeBrTags(noteLine.text))
+      continue
+    }
+    const noteOpen = matchNoteOpen(line)
+    if (noteOpen) {
+      openNote = { target: noteOpen.target, side: noteOpen.side, lines: [] }
+      continue
+    }
 
     // `:::` is class-assignment shorthand (e.g. `A:::cls`) — unmodeled styling.
     // The legacy parser turns it into a lossy label, so keep the body opaque.
@@ -128,12 +179,24 @@ export function parseStateBody(lines: string[]): StateBody | null {
       continue
     }
 
+    // --- pseudostate stereotype: `state f1 <<fork>>` (also history forms) ---
+    const stereo = matchStereotypeDecl(line)
+    if (stereo) {
+      if (!isCompositeId(stereo.id) || (compositeIds.has(stereo.id) && !scope.byId.has(stereo.id))) return null
+      const node = ensureState(scope, stereo.id)
+      node.stereotype = stereo.stereotype
+      if (stereo.label !== undefined && node.label === undefined) node.label = normalizeBrTags(stereo.label)
+      continue
+    }
+
     // --- composite open: `state X {` / `state "Label" as X {` ---
     const open = line.match(COMPOSITE_OPEN_RE)
     if (open) {
       const id = open[2]!
       if (!isCompositeId(id)) return null
-      const label = open[1] !== undefined ? normalizeBrTags(open[1]!) : undefined
+      const label = open[1] !== undefined
+        ? normalizeBrTags(open[1]!)
+        : pendingCompositeLabels.get(id)
       const child = newScope()
       const node: StateNode = { id, ...(label !== undefined ? { label } : {}), states: child.states, transitions: child.transitions }
       // Reuse any existing node slot (a prior transition may have referenced it),
@@ -146,7 +209,6 @@ export function parseStateBody(lines: string[]): StateBody | null {
         scope.states.push(node)
       }
       scope.byId.set(id, node)
-      compositeIds.add(id)
       pending.push({ parent: scope, node })
       stack.push(child)
       continue
@@ -169,23 +231,26 @@ export function parseStateBody(lines: string[]): StateBody | null {
     if (alias) {
       const id = alias[2]!
       const label = normalizeBrTags(alias[1]!)
-      const node = ensureState(scope, id)
-      // Definition-before-use: only set if not already labeled.
-      if (node.label === undefined) node.label = label
+      if (compositeIds.has(id) && !scope.byId.has(id)) {
+        if (!pendingCompositeLabels.has(id)) pendingCompositeLabels.set(id, label)
+      } else {
+        const node = ensureState(scope, id)
+        // Definition-before-use: only set if not already labeled.
+        if (node.label === undefined) node.label = label
+      }
       continue
     }
 
-    // --- transition: `from --> to [: label]` ---
-    const tr = line.match(TRANSITION_RE)
+    // --- transition: `from --> to [: label]` (endpoints may be [*]/[H]/X[H]) ---
+    const tr = matchTransitionLine(line)
     if (tr) {
-      const from = tr[1]!
-      const to = tr[2]!
-      const rawLabel = tr[3]?.trim()
-      const label = rawLabel ? normalizeBrTags(rawLabel) : undefined
+      const { from, to } = tr
+      const label = tr.label ? normalizeBrTags(tr.label) : undefined
       if (!isEndpointId(from) || !isEndpointId(to)) return null
-      // Only materialize simple-state nodes for non-pseudo, non-composite ids.
-      if (from !== PSEUDO && !compositeIds.has(from)) ensureState(scope, from)
-      if (to !== PSEUDO && !compositeIds.has(to)) ensureState(scope, to)
+      // Only materialize simple-state nodes for non-pseudo, non-history,
+      // non-composite ids (pseudostates are contextual endpoint strings).
+      if (from !== PSEUDO && !isHistoryEndpoint(from) && !compositeIds.has(from)) ensureState(scope, from)
+      if (to !== PSEUDO && !isHistoryEndpoint(to) && !compositeIds.has(to)) ensureState(scope, to)
       scope.transitions.push({ from, to, ...(label !== undefined ? { label } : {}) })
       continue
     }
@@ -195,8 +260,12 @@ export function parseStateBody(lines: string[]): StateBody | null {
     if (desc) {
       const id = desc[1]!
       const label = normalizeBrTags(desc[2]!.trim())
-      const node = ensureState(scope, id)
-      if (node.label === undefined) node.label = label
+      if (compositeIds.has(id) && !scope.byId.has(id)) {
+        if (!pendingCompositeLabels.has(id)) pendingCompositeLabels.set(id, label)
+      } else {
+        const node = ensureState(scope, id)
+        if (node.label === undefined) node.label = label
+      }
       continue
     }
 
@@ -204,17 +273,20 @@ export function parseStateBody(lines: string[]): StateBody | null {
     return null
   }
 
-  // Unbalanced composite braces → opaque.
+  // Unbalanced composite braces / unterminated block note → opaque.
   if (stack.length !== 1) return null
+  if (openNote) return null
 
+  canonicalizeStateOrder(root.states)
   const body: StateBody = {
     kind: 'state',
     states: root.states,
     transitions: root.transitions,
+    ...(notes.length > 0 ? { notes } : {}),
     ...(root.direction !== undefined ? { direction: root.direction } : {}),
   }
   // Header-only / empty bodies stay opaque so they round-trip verbatim.
-  if (body.states.length === 0 && body.transitions.length === 0) return null
+  if (body.states.length === 0 && body.transitions.length === 0 && notes.length === 0) return null
   return body
 }
 
@@ -231,8 +303,15 @@ function renderScope(states: StateNode[], transitions: StateTransition[], direct
       out.push(`${indent}${header}`)
       renderScope(s.states ?? [], s.transitions ?? [], s.direction, indent + '  ', out)
       out.push(`${indent}}`)
+    } else if (s.stereotype !== undefined) {
+      // Pseudostate declaration (fork/join/choice/history) — canonical marker
+      // spelling; `<<H>>`/`<<H*>>` shorthands normalize on parse.
+      const alias = s.label !== undefined ? `"${s.label}" as ` : ''
+      out.push(`${indent}state ${alias}${s.id} ${stereotypeMarker(s.stereotype)}`)
     } else if (s.label !== undefined) {
-      out.push(`${indent}state "${s.label}" as ${s.id}`)
+      out.push(isCompositeId(s.id)
+        ? `${indent}state "${s.label}" as ${s.id}`
+        : `${indent}${s.id} : ${s.label}`)
     }
     // Bare simple states with no label are emitted implicitly via transitions;
     // a state that appears in no transition AND has no label is unreachable in
@@ -248,6 +327,18 @@ function renderScope(states: StateNode[], transitions: StateTransition[], direct
 export function renderState(body: StateBody): string {
   const out: string[] = ['stateDiagram-v2']
   renderScope(body.states, body.transitions, body.direction, '  ', out)
+  // Notes last: single-line form when the text has no line break, block form
+  // (`note … end note`) otherwise. Note text is canonical by construction
+  // (validNoteText): trimmed lines, no blank lines, no `end note` line.
+  for (const n of body.notes ?? []) {
+    if (n.text.includes('\n')) {
+      out.push(`  note ${n.side} of ${n.target}`)
+      for (const line of n.text.split('\n')) out.push(`    ${line}`)
+      out.push('  end note')
+    } else {
+      out.push(`  note ${n.side} of ${n.target} : ${n.text}`)
+    }
+  }
   return out.join('\n') + '\n'
 }
 
@@ -270,6 +361,7 @@ function cloneState(s: StateNode): StateNode {
   return {
     id: s.id,
     ...(s.label !== undefined ? { label: s.label } : {}),
+    ...(s.stereotype !== undefined ? { stereotype: s.stereotype } : {}),
     ...(s.direction !== undefined ? { direction: s.direction } : {}),
     ...(s.states !== undefined ? { states: s.states.map(cloneState) } : {}),
     ...(s.transitions !== undefined ? { transitions: s.transitions.map(t => ({ ...t })) } : {}),
@@ -281,6 +373,7 @@ function cloneStateBody(b: StateBody): StateBody {
     kind: 'state',
     states: b.states.map(cloneState),
     transitions: b.transitions.map(t => ({ ...t })),
+    ...(b.notes !== undefined ? { notes: b.notes.map(n => ({ ...n })) } : {}),
     ...(b.direction !== undefined ? { direction: b.direction } : {}),
   }
 }
@@ -328,10 +421,52 @@ function validId(value: unknown, field: string): Result<string, MutationError> {
   return ok(value)
 }
 
-/** Validate a transition endpoint: a state id or the reserved '[*]'. */
-function validEndpoint(value: unknown, field: string): Result<string, MutationError> {
-  if (value === PSEUDO) return ok(PSEUDO)
-  return validId(value, field)
+type ClassifiedEndpoint = { value: string; kind: 'pseudo' | 'history' | 'state' }
+
+/** Classify endpoint syntax before mutation; only ordinary state endpoints may
+ * reach auto-materialization. */
+function validEndpoint(value: unknown, field: string): Result<ClassifiedEndpoint, MutationError> {
+  if (value === PSEUDO) return ok({ value: PSEUDO, kind: 'pseudo' })
+  if (typeof value === 'string' && isHistoryEndpoint(value)) return ok({ value, kind: 'history' })
+  if (typeof value !== 'string' || !isStateNodeId(value)) {
+    return err({ code: 'INVALID_OP', message: `State ${field} must be a state id, [*], [H], [H*], or a qualified history endpoint` })
+  }
+  return ok({ value, kind: 'state' })
+}
+
+function validateHistoryContext(
+  body: StateBody,
+  endpoint: ClassifiedEndpoint,
+  parent: string | null | undefined,
+): Result<true, MutationError> {
+  if (endpoint.kind !== 'history') return ok(true)
+  const history = matchHistoryEndpoint(endpoint.value)!
+  const base = history.base || parent
+  if (!base) return err({ code: 'INVALID_OP', message: `Bare history endpoint '${endpoint.value}' requires a composite parent scope` })
+  const located = locate(body, base)
+  if (!located) return err({ code: 'STATE_NOT_FOUND', message: `History endpoint '${endpoint.value}' references missing composite '${base}'` })
+  if (!isComposite(located.node)) return err({ code: 'INVALID_OP', message: `History endpoint '${endpoint.value}' requires '${base}' to be a composite state` })
+  return ok(true)
+}
+
+/** Validate note text: non-empty; lines are trimmed and blank lines dropped
+ *  (the canonical block-note form the parser produces), so serialization
+ *  round-trips byte-stably; an `end note` line would truncate the block. */
+function validNoteText(value: unknown): Result<string, MutationError> {
+  if (typeof value !== 'string') return err({ code: 'INVALID_OP', message: 'Note text must be a string' })
+  const lines = normalizeBrTags(value).split('\n').map(l => l.trim()).filter(l => l.length > 0)
+  if (lines.length === 0) return err({ code: 'INVALID_OP', message: 'Note text must be non-empty' })
+  if (lines.some(l => /^end\s+note$/i.test(l))) {
+    return err({ code: 'INVALID_OP', message: 'Note text must not contain an "end note" line (it would terminate the serialized note block)' })
+  }
+  return ok(lines.join('\n'))
+}
+
+/** Validate a note side; omitted defaults to 'right' (upstream's most common). */
+function validNoteSide(value: unknown): Result<'left' | 'right', MutationError> {
+  if (value === undefined || value === null) return ok('right')
+  if (value === 'left' || value === 'right') return ok(value)
+  return err({ code: 'INVALID_OP', message: `Note side must be "left" or "right", got ${JSON.stringify(value)}` })
 }
 
 function isComposite(s: StateNode): boolean {
@@ -372,13 +507,23 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
     case 'remove_state': {
       const loc = locate(next, op.id)
       if (!loc) return err({ code: 'STATE_NOT_FOUND', message: `State '${op.id}' not found` })
-      if (isComposite(loc.node) && (loc.node.states!.length > 0 || loc.node.transitions!.length > 0)) {
-        return err({ code: 'INVALID_OP', message: `Refusing to remove non-empty composite '${op.id}'; remove its children first` })
+      const nonEmpty = isComposite(loc.node) && (loc.node.states!.length > 0 || loc.node.transitions!.length > 0)
+      if (nonEmpty && op.recursive !== true) {
+        return err({ code: 'INVALID_OP', message: `Refusing to remove non-empty composite '${op.id}'; remove its children first, or pass recursive: true to remove the whole subtree` })
       }
+      // Collect every id that disappears (the state and, recursively, its
+      // descendants) so the transition/note cascade reaches all of them.
+      const removedIds = new Set<string>()
+      collectIds([loc.node], removedIds)
       const ix = loc.siblings.indexOf(loc.node)
       loc.siblings.splice(ix, 1)
-      // Cascade: drop every transition (at any level) touching the removed id.
-      cascadeRemoveTransitions(next, op.id)
+      // Cascade: drop every transition (at any level) and note touching a
+      // removed id — including history references (`X[H]`) to removed bases.
+      for (const id of removedIds) cascadeRemoveTransitions(next, id)
+      if (next.notes) {
+        next.notes = next.notes.filter(n => !removedIds.has(n.target))
+        if (next.notes.length === 0) delete next.notes
+      }
       break
     }
     case 'rename_state': {
@@ -391,6 +536,9 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
       if (ids.has(to.value)) return err({ code: 'DUPLICATE_STATE', message: `State '${to.value}' already exists` })
       loc.node.id = to.value
       renameInTransitions(next, op.from, to.value)
+      for (const n of next.notes ?? []) {
+        if (n.target === op.from) n.target = to.value
+      }
       break
     }
     case 'set_state_label': {
@@ -407,10 +555,12 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
       if (!from.ok) return from
       const to = validEndpoint(op.to, 'transition to')
       if (!to.ok) return to
-      // Endpoints that are not '[*]' must reference an existing state at the
-      // top level (mirrors flowchart add_edge requiring known nodes), unless we
-      // auto-create. We auto-create simple top-level states for unknown ids so
-      // `add_transition` is ergonomic like the flowchart idiom.
+      const fromContext = validateHistoryContext(next, from.value, op.parent)
+      if (!fromContext.ok) return fromContext
+      const toContext = validateHistoryContext(next, to.value, op.parent)
+      if (!toContext.ok) return toContext
+      // Ordinary state endpoints remain ergonomic and may be auto-created;
+      // pseudostate/history syntax is contextual and can never become a node.
       const scope = resolveScope(next, op.parent)
       if (!scope.ok) return scope
       const target = scope.value
@@ -420,9 +570,9 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
         if (!l.ok) return l
         label = l.value
       }
-      ensureSimpleInScope(next, target, from.value)
-      ensureSimpleInScope(next, target, to.value)
-      target.transitions.push({ from: from.value, to: to.value, ...(label !== undefined ? { label } : {}) })
+      if (from.value.kind === 'state') ensureSimpleInScope(next, target, from.value.value)
+      if (to.value.kind === 'state') ensureSimpleInScope(next, target, to.value.value)
+      target.transitions.push({ from: from.value.value, to: to.value.value, ...(label !== undefined ? { label } : {}) })
       break
     }
     case 'remove_transition': {
@@ -454,6 +604,100 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
       const l = validLabel(op.label, 'transition label')
       if (!l.ok) return l
       t.label = l.value
+      break
+    }
+    case 'set_direction': {
+      if (op.state === undefined || op.state === null) {
+        next.direction = op.direction
+        break
+      }
+      const loc = locate(next, op.state)
+      if (!loc) return err({ code: 'STATE_NOT_FOUND', message: `State '${op.state}' not found` })
+      if (!isComposite(loc.node)) {
+        return err({ code: 'INVALID_OP', message: `'${op.state}' is a simple state — direction applies to the diagram (omit "state") or to a composite` })
+      }
+      loc.node.direction = op.direction
+      break
+    }
+    case 'move_state': {
+      const loc = locate(next, op.id)
+      if (!loc) return err({ code: 'STATE_NOT_FOUND', message: `State '${op.id}' not found` })
+      if (op.parent !== null) {
+        if (op.parent === op.id) return err({ code: 'INVALID_OP', message: `Cannot move state '${op.id}' into itself` })
+        const descendants = new Set<string>()
+        collectIds([loc.node], descendants)
+        if (descendants.has(op.parent)) {
+          return err({ code: 'INVALID_OP', message: `Cannot move '${op.id}' into '${op.parent}' — it is a descendant of '${op.id}'` })
+        }
+        const parentLoc = locate(next, op.parent)
+        if (!parentLoc) return err({ code: 'STATE_NOT_FOUND', message: `Parent state '${op.parent}' not found` })
+        // Detach, then attach (transitions stay where they are — state ids
+        // are global in mermaid, so cross-boundary transitions remain legal).
+        loc.siblings.splice(loc.siblings.indexOf(loc.node), 1)
+        if (!isComposite(parentLoc.node)) {
+          // Promote the simple parent into a composite (add_state convention).
+          parentLoc.node.states = []
+          parentLoc.node.transitions = []
+        }
+        parentLoc.node.states!.push(loc.node)
+      } else {
+        if (loc.siblings === next.states) break // already top-level — no-op
+        loc.siblings.splice(loc.siblings.indexOf(loc.node), 1)
+        next.states.push(loc.node)
+      }
+      break
+    }
+    case 'dissolve_composite': {
+      const loc = locate(next, op.id)
+      if (!loc) return err({ code: 'STATE_NOT_FOUND', message: `State '${op.id}' not found` })
+      if (!isComposite(loc.node)) {
+        return err({ code: 'INVALID_OP', message: `'${op.id}' is not a composite — dissolve_composite hoists a composite's children into its parent scope` })
+      }
+      const referenced = transitionsTouching(next, op.id)
+      if (referenced > 0) {
+        return err({ code: 'INVALID_OP', message: `${referenced} transition(s) still reference composite '${op.id}'; remove or retarget them first (remove_transition / add_transition), then dissolve` })
+      }
+      if ((next.notes ?? []).some(n => n.target === op.id)) {
+        return err({ code: 'INVALID_OP', message: `A note is anchored to composite '${op.id}'; remove it first (remove_note), then dissolve` })
+      }
+      // Hoist children + inner transitions into the parent scope at the
+      // composite's position, then drop the composite shell (label included).
+      const ix = loc.siblings.indexOf(loc.node)
+      loc.siblings.splice(ix, 1, ...(loc.node.states ?? []))
+      loc.transitions.push(...(loc.node.transitions ?? []))
+      break
+    }
+    case 'add_note': {
+      if (typeof op.target !== 'string' || !isStateNodeId(op.target)) {
+        return err({ code: 'INVALID_OP', message: 'State note target must be an ordinary state identifier (letters, digits, underscore, or hyphen)' })
+      }
+      const target = op.target
+      if (!locate(next, target)) return err({ code: 'STATE_NOT_FOUND', message: `State '${target}' not found` })
+      const side = validNoteSide(op.side)
+      if (!side.ok) return side
+      const text = validNoteText(op.text)
+      if (!text.ok) return text
+      if (!next.notes) next.notes = []
+      next.notes.push({ target, side: side.value, text: text.value })
+      break
+    }
+    case 'remove_note': {
+      const notes = next.notes ?? []
+      if (!Number.isInteger(op.index) || op.index < 0 || op.index >= notes.length) {
+        return err({ code: 'NOTE_NOT_FOUND', message: `No note at index ${op.index} (the body has ${notes.length} note(s))` })
+      }
+      notes.splice(op.index, 1)
+      if (notes.length === 0) delete next.notes
+      break
+    }
+    case 'set_note_text': {
+      const notes = next.notes ?? []
+      if (!Number.isInteger(op.index) || op.index < 0 || op.index >= notes.length) {
+        return err({ code: 'NOTE_NOT_FOUND', message: `No note at index ${op.index} (the body has ${notes.length} note(s))` })
+      }
+      const text = validNoteText(op.text)
+      if (!text.ok) return text
+      notes[op.index]!.text = text.value
       break
     }
     case 'make_composite': {
@@ -497,7 +741,18 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
     }
   }
 
+  canonicalizeStateOrder(next.states)
   return ok(next)
+}
+
+/** Match the serializer's definitions-before-transitions order so structured
+ * bodies are canonical before they leave parse/mutate, not only after a
+ * serialize/reparse cycle. */
+function canonicalizeStateOrder(states: StateNode[]): void {
+  for (const state of states) if (state.states) canonicalizeStateOrder(state.states)
+  const declared = states.filter(state => state.label !== undefined || state.stereotype !== undefined || isComposite(state))
+  const implicit = states.filter(state => state.label === undefined && state.stereotype === undefined && !isComposite(state))
+  states.splice(0, states.length, ...declared, ...implicit)
 }
 
 /** Resolve the scope (states+transitions) named by `parent`, or the root. */
@@ -514,17 +769,23 @@ function resolveScope(body: StateBody, parent: string | null | undefined): Resul
 
 /** Auto-create a simple state for a non-pseudo endpoint absent from the scope. */
 function ensureSimpleInScope(body: StateBody, scope: { states: StateNode[] }, id: string): void {
-  if (id === PSEUDO) return
+  if (id === PSEUDO || isHistoryEndpoint(id)) return
   const ids = new Set<string>()
   collectIds(body.states, ids)
   if (ids.has(id)) return
   scope.states.push({ id })
 }
 
+/** True when a transition endpoint refers to `id` — directly, or as the base
+ *  of a history reference (`id[H]` / `id[H*]`). */
+function endpointTouches(endpoint: string, id: string): boolean {
+  return endpoint === id || endpoint === `${id}[H]` || endpoint === `${id}[H*]`
+}
+
 /** Remove every transition (any nesting level) that touches `id`. */
 function cascadeRemoveTransitions(body: StateBody, id: string): void {
   const walk = (states: StateNode[], transitions: StateTransition[]): StateTransition[] => {
-    const kept = transitions.filter(t => t.from !== id && t.to !== id)
+    const kept = transitions.filter(t => !endpointTouches(t.from, id) && !endpointTouches(t.to, id))
     for (const s of states) {
       if (s.states !== undefined) s.transitions = walk(s.states, s.transitions ?? [])
     }
@@ -533,12 +794,32 @@ function cascadeRemoveTransitions(body: StateBody, id: string): void {
   body.transitions = walk(body.states, body.transitions)
 }
 
-/** Rewrite `from`→`to` in every transition (any nesting level). */
-function renameInTransitions(body: StateBody, from: string, to: string): void {
+/** Count transitions (any nesting level) touching `id` (incl. history refs). */
+function transitionsTouching(body: StateBody, id: string): number {
+  let count = 0
   const walk = (states: StateNode[], transitions: StateTransition[]): void => {
     for (const t of transitions) {
-      if (t.from === from) t.from = to
-      if (t.to === from) t.to = to
+      if (endpointTouches(t.from, id) || endpointTouches(t.to, id)) count++
+    }
+    for (const s of states) if (s.states !== undefined) walk(s.states, s.transitions ?? [])
+  }
+  walk(body.states, body.transitions)
+  return count
+}
+
+/** Rewrite `from`→`to` in every transition (any nesting level), including
+ *  history references whose base is `from` (`from[H]` → `to[H]`). */
+function renameInTransitions(body: StateBody, from: string, to: string): void {
+  const rename = (endpoint: string): string => {
+    if (endpoint === from) return to
+    if (endpoint === `${from}[H]`) return `${to}[H]`
+    if (endpoint === `${from}[H*]`) return `${to}[H*]`
+    return endpoint
+  }
+  const walk = (states: StateNode[], transitions: StateTransition[]): void => {
+    for (const t of transitions) {
+      t.from = rename(t.from)
+      t.to = rename(t.to)
     }
     for (const s of states) if (s.states !== undefined) walk(s.states, s.transitions ?? [])
   }
@@ -555,7 +836,7 @@ function renameInTransitions(body: StateBody, from: string, to: string): void {
 export function verifyState(body: StateBody, opts: VerifyOptions): LayoutWarning[] {
   const cap = opts.labelCharCap ?? DEFAULT_LABEL_CHAR_CAP
   const warnings: LayoutWarning[] = []
-  if (body.states.length === 0 && body.transitions.length === 0) {
+  if (body.states.length === 0 && body.transitions.length === 0 && (body.notes ?? []).length === 0) {
     return [{ code: 'EMPTY_DIAGRAM' }]
   }
   const overflow = (target: string, text: string) => {
@@ -567,23 +848,70 @@ export function verifyState(body: StateBody, opts: VerifyOptions): LayoutWarning
   // reserved pseudostate. Collect the full id set once for the misanchor check.
   const known = new Set<string>([PSEUDO])
   collectIds(body.states, known)
+  // A history endpoint anchors when its base names a known state (bare [H]
+  // anchors to the enclosing composite, so it is always structurally valid).
+  const anchors = (endpoint: string): boolean => {
+    if (known.has(endpoint)) return true
+    const h = endpoint.match(/^([\w\p{L}-]*)\[H\*?\]$/u)
+    if (!h) return false
+    return h[1] === '' || known.has(h[1]!)
+  }
+  // Tier-3 honesty lint (plan §State 2a): history semantics ("re-enter where
+  // you left off") are not modeled by any local analysis — announce that the
+  // transition is preserved and rendered as the standard (H)/(H*) circle.
+  const historyLint = (endpoint: string): void => {
+    if (!isHistoryEndpoint(endpoint)) return
+    warnings.push({
+      code: 'UNSUPPORTED_SYNTAX',
+      syntax: 'state_history',
+      node: endpoint,
+      message: `History pseudostate '${endpoint}' is preserved and rendered as the standard H-circle; history re-entry semantics are not modeled by analysis.`,
+    })
+  }
   const visit = (states: StateNode[], transitions: StateTransition[]): void => {
     for (const s of states) {
       if (s.label !== undefined) overflow(s.id, s.label)
+      if (s.stereotype === 'history' || s.stereotype === 'deep-history') {
+        warnings.push({
+          code: 'UNSUPPORTED_SYNTAX',
+          syntax: 'state_history',
+          node: s.id,
+          message: `History pseudostate '${s.id}' is preserved and rendered as the standard H-circle; history re-entry semantics are not modeled by analysis.`,
+        })
+      }
+      // P4: bars/diamonds/H-circles are anonymous glyphs (UML + upstream),
+      // so an author-written alias label (`state "L" as id <<fork>>`) is
+      // preserved in source but never drawn — announce it, don't stay silent.
+      if (s.stereotype !== undefined && s.label !== undefined) {
+        warnings.push({
+          code: 'UNSUPPORTED_SYNTAX',
+          syntax: 'state_pseudostate_label',
+          node: s.id,
+          message: `Pseudostate '${s.id}' carries the label "${s.label}", but ${s.stereotype} pseudostates render as anonymous glyphs (UML convention); the label is preserved in source and not drawn.`,
+        })
+      }
       if (s.states !== undefined) visit(s.states, s.transitions ?? [])
     }
     transitions.forEach(t => {
       const edge = `${t.from}->${t.to}`
-      if (!known.has(t.from) || !known.has(t.to)) {
+      if (!anchors(t.from) || !anchors(t.to)) {
         warnings.push({
           code: 'EDGE_MISANCHORED', edge,
-          from: known.has(t.from) ? t.from : undefined,
-          to: known.has(t.to) ? t.to : undefined,
+          from: anchors(t.from) ? t.from : undefined,
+          to: anchors(t.to) ? t.to : undefined,
         })
       }
+      historyLint(t.from)
+      historyLint(t.to)
       if (t.label !== undefined) overflow(edge, t.label)
     })
   }
   visit(body.states, body.transitions)
+  body.notes?.forEach((n, i) => {
+    if (!known.has(n.target)) {
+      warnings.push({ code: 'EDGE_MISANCHORED', edge: `note#${i}->${n.target}`, from: `note#${i}` })
+    }
+    overflow(`note#${i}`, n.text)
+  })
   return warnings
 }

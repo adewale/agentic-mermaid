@@ -10,7 +10,7 @@
 // Worker invocation and are edge-cacheable.
 
 import { parseMermaid } from '../agent/parse.ts'
-import { verifyMermaid } from '../agent/verify.ts'
+import { configWarningsForMermaid, verifyMermaid } from '../agent/verify.ts'
 import { applyOps } from '../agent/apply.ts'
 import { MUTATION_OPS_BY_FAMILY } from '../agent/mutation-ops.ts'
 import { opSignatures, type OpFamily } from '../agent/op-schema.ts'
@@ -26,6 +26,7 @@ import { rpcError, toolResult, type JsonRpcRequest, type JsonRpcResponse } from 
 import { SDK_DECLARATION } from './sdk-decl.ts'
 import { PURE_COMPUTE_ANNOTATIONS, createDescribeTool, createExecuteTool, createRenderPngTool, dispatchMcpRequest, type McpServerSurface } from './tool-surface.ts'
 import type { ExecuteResult } from './sandbox.ts'
+import type { PngRasterResult } from '../shared/png-font-warnings.ts'
 
 export type { ExecuteResult }
 
@@ -39,7 +40,7 @@ export interface HostedMcpContext {
   /** Run Code Mode JavaScript. Hosted: a Dynamic Worker isolate. */
   execute(code: string, timeoutMs: number, onTelemetry?: (telemetry: HostedExecuteTelemetry) => void): Promise<ExecuteResult>
   /** Rasterize SVG to PNG bytes. Hosted: resvg-wasm. Absent → render_png reports unavailable. */
-  renderPng?(source: string, opts: { scale?: number; background?: string; style?: StyleInput | StyleInput[]; seed?: number }): Promise<Uint8Array>
+  renderPng?(source: string, opts: { scale?: number; background?: string; style?: StyleInput | StyleInput[]; seed?: number }): Promise<PngRasterResult>
 }
 
 // Streamable HTTP clients negotiate 2025-03-26+; the node transports pin
@@ -197,8 +198,16 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
   const args = p?.arguments ?? {}
   switch (name) {
     case 'execute': return handleExecute(id, args, context)
-    case 'render_svg': return sourceTool(id, args, 'SVG_RENDER_FAILED', source => ({ ok: true as const, svg: renderMermaidSVG(source, svgOptions(args)) }))
-    case 'render_ascii': return sourceTool(id, args, 'ASCII_RENDER_FAILED', source => ({ ok: true as const, text: renderMermaidASCII(source, { useAscii: args.useAscii === true }) }))
+    case 'render_svg': return sourceTool(id, args, 'SVG_RENDER_FAILED', source => ({
+      ok: true as const,
+      svg: renderMermaidSVG(source, svgOptions(args)),
+      warnings: sourceConfigWarnings(source),
+    }))
+    case 'render_ascii': return sourceTool(id, args, 'ASCII_RENDER_FAILED', source => ({
+      ok: true as const,
+      text: renderMermaidASCII(source, { useAscii: args.useAscii === true }),
+      warnings: sourceConfigWarnings(source),
+    }))
     case 'render_png': return handleRenderPng(id, args, context)
     case 'verify': return sourceTool(id, args, 'VERIFY_FAILED', source => {
       const parsed = parseMermaid(source)
@@ -230,6 +239,10 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
  * dialect in the same response. Matched by the family's own header keyword, so a
  * `graph`/`flowchart`/`architecture-beta`/… first line resolves deterministically.
  */
+function sourceConfigWarnings(source: string) {
+  return configWarningsForMermaid(source)
+}
+
 function familyExampleForSource(source: string): { family: string; example: string } | undefined {
   const first = source.split('\n').map(l => l.trim()).find(l => l.length > 0) ?? ''
   const header = first.split(/\s+/)[0] ?? ''
@@ -469,8 +482,10 @@ async function handleRenderPng(id: number | string | null, args: Record<string, 
     const background = typeof args.background === 'string' ? args.background : undefined
     const style = normalizeStyleArg(args.style)
     const seed = typeof args.seed === 'number' && Number.isFinite(args.seed) ? args.seed : undefined
-    const png = await context.renderPng(source, { scale, background, style, seed })
-    return toolResult(id, { ok: true as const, png_base64: base64Encode(png) }, false)
+    const result = await context.renderPng(source, { scale, background, style, seed })
+    const warnings = [...sourceConfigWarnings(source), ...result.warnings]
+      .filter((warning, index, all) => all.findIndex(candidate => JSON.stringify(candidate) === JSON.stringify(warning)) === index)
+    return toolResult(id, { ok: true as const, png_base64: base64Encode(result.png), warnings }, false)
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
     return toolResult(id, { ok: false as const, error: { code: 'PNG_RENDER_FAILED', message: msg } }, true)

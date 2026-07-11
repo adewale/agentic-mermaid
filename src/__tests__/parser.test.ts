@@ -10,6 +10,7 @@
  * - Comments and error cases
  */
 import { describe, it, expect } from 'bun:test'
+import fc from 'fast-check'
 import { parseMermaid } from '../parser.ts'
 
 // ============================================================================
@@ -503,6 +504,43 @@ describe('parseMermaid – parallel links (&)', () => {
 // ::: class shorthand (Batch 1.2)
 // ============================================================================
 
+describe('parseMermaid – quoted shape labels and Unicode identifiers', () => {
+  const quotedShapes = [
+    ['A("Retry (up to 3x)") --> B', 'rounded', 'Retry (up to 3x)'],
+    ['A{{"Choose {A or B}"}} --> B', 'hexagon', 'Choose {A or B}'],
+    ['A(("Wait (30s)")) --> B', 'circle', 'Wait (30s)'],
+    ['A{"Is [ready]?"} --> B', 'diamond', 'Is [ready]?'],
+  ] as const
+
+  for (const [source, shape, label] of quotedShapes) {
+    it(`keeps delimiters inside a quoted ${shape} label`, () => {
+      const graph = parseMermaid(`flowchart TD\n  ${source}`)
+      expect(graph.nodes.get('A')?.shape).toBe(shape)
+      expect(graph.nodes.get('A')?.label).toBe(label)
+      expect(graph.edges.map(edge => `${edge.source}->${edge.target}`)).toEqual(['A->B'])
+    })
+  }
+
+  it('preserves arbitrary balanced-delimiter text inside quoted rounded labels', () => {
+    fc.assert(fc.property(
+      fc.array(fc.constantFrom('a', 'Z', ' ', '(', ')', '[', ']', '{', '}'), { minLength: 1, maxLength: 30 }),
+      chars => {
+        const label = chars.join('')
+        const graph = parseMermaid(`flowchart TD\n  A("${label}") --> B`)
+        expect(graph.nodes.get('A')?.label).toBe(label)
+        expect(graph.edges).toHaveLength(1)
+      },
+    ), { numRuns: 60 })
+  })
+
+  it('parses bare and shaped CJK identifiers without producing an empty graph', () => {
+    const graph = parseMermaid('flowchart TD\n  開始("開始 (確認)") --> 終了')
+    expect([...graph.nodes.keys()]).toEqual(['開始', '終了'])
+    expect(graph.edges.map(edge => `${edge.source}->${edge.target}`)).toEqual(['開始->終了'])
+    expect(graph.nodes.get('開始')?.label).toBe('開始 (確認)')
+  })
+})
+
 describe('parseMermaid – ::: class shorthand', () => {
   it('assigns class via ::: on shaped nodes', () => {
     const g = parseMermaid('graph TD\n  A[Start]:::highlight --> B')
@@ -833,6 +871,21 @@ describe('parseMermaid – state diagrams', () => {
       s1 --> s2`)
     expect(g.nodes.get('s1')!.label).toBe('Idle State')
     expect(g.nodes.get('s1')!.shape).toBe('rounded')
+  })
+
+  it('consumes state ::: class shorthand without corrupting the visible label', () => {
+    const g = parseMermaid(`stateDiagram-v2
+      A : Alpha
+      A:::urgent
+      A --> B:::target
+      classDef urgent fill:#f00
+      classDef target fill:#0f0`)
+    expect([...g.nodes.keys()]).toEqual(['A', 'B'])
+    expect(g.nodes.get('A')!.label).toBe('Alpha')
+    expect(g.nodes.get('B')!.label).toBe('B')
+    expect(g.classAssignments.get('A')).toBe('urgent')
+    expect(g.classAssignments.get('B')).toBe('target')
+    expect(g.edges.map(edge => `${edge.source}->${edge.target}`)).toEqual(['A->B'])
   })
 
   it('parses state alias: state "Description" as s1', () => {

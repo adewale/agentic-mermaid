@@ -73,7 +73,8 @@ export function countStructuralElements(d: ValidDiagram): StructuralCount | null
       return { nodes: top.nodes, edges: top.edges + body.transitions.length, groups: 0 }
     }
     case 'class':
-      return { nodes: body.classes.length, edges: body.relations.length, groups: 0 }
+      // Namespaces are the class family's containers (repo #118).
+      return { nodes: body.classes.length, edges: body.relations.length, groups: (body.namespaces ?? []).length }
     case 'er':
       return { nodes: body.entities.length, edges: body.relations.length, groups: 0 }
     case 'timeline': {

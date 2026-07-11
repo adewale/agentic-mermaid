@@ -175,6 +175,26 @@ describe('renderMermaidSVG – timeline diagrams', () => {
     expect(familyIds).toEqual(['0', '0', '0'])
   })
 
+  it('respects disableMulticolor for labeled sections too (plan §Timeline 3)', () => {
+    const src = (config: string) => `${config}timeline
+      section Foundation
+      2020 : Prototype
+      section Growth
+      2021 : Launch
+      section Exit
+      2022 : IPO`
+    const disabled = render(src('---\nconfig:\n  timeline:\n    disableMulticolor: true\n---\n'))
+    const periodFamilies = [...disabled.matchAll(/class="timeline-period"[\s\S]*?data-family="(\d+)"/g)].map(m => m[1])
+    expect(periodFamilies).toEqual(['0', '0', '0'])
+    const sectionFamilies = [...disabled.matchAll(/<g class="timeline-section"[^>]*data-family="(\d+)"/g)].map(m => m[1])
+    expect(sectionFamilies).toEqual(['0', '0', '0'])
+
+    // The default multicolor path is untouched: one family per labeled section.
+    const multicolor = render(src(''))
+    const defaultFamilies = [...multicolor.matchAll(/<g class="timeline-section"[^>]*data-family="(\d+)"/g)].map(m => m[1])
+    expect(defaultFamilies).toEqual(['0', '1', '2'])
+  })
+
   it('wraps long labels automatically without explicit <br> tags', () => {
     const svg = render(`timeline
       2024 : This is a deliberately long event label that should wrap across multiple lines to match Mermaid timeline behavior more closely`)

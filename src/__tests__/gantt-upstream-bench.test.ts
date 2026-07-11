@@ -62,8 +62,11 @@ const cases: BenchCase[] = JSON.parse(readFileSync(join(BENCH, 'cases.json'), 'u
 const exclusions: Exclusion[] = JSON.parse(readFileSync(join(BENCH, 'exclusions.json'), 'utf8'))
 
 const KNOWN_ORIGINS = ['mermaid/', 'pgavlin/', 'kais-radwan/']
+// 2026-07: 'exclude-boundary-model' retired — the divergence was RESOLVED by
+// adopting upstream's (start,end] exclude walk (family-elevation-plan §Gantt
+// item 6); its e3/e4 entries moved into cases.json as parity pins.
 const KNOWN_REASONS = new Set([
-  'wall-clock-fallback', 'local-tz', 'silent-ignore-vs-named-error', 'exclude-boundary-model',
+  'wall-clock-fallback', 'local-tz', 'silent-ignore-vs-named-error',
 ])
 
 function modelOf(source: string): GanttModel {
@@ -115,7 +118,7 @@ describe('mermaid-gantt-bench manifest hygiene', () => {
   })
 
   test('the exclusions ledger is non-empty and every reason code is documented', () => {
-    expect(exclusions.length).toBeGreaterThanOrEqual(8)
+    expect(exclusions.length).toBeGreaterThanOrEqual(7)
     const readme = readFileSync(join(BENCH, 'README.md'), 'utf8')
     for (const e of exclusions) {
       expect({ id: e.id, reasonKnown: KNOWN_REASONS.has(e.reason) }).toEqual({ id: e.id, reasonKnown: true })

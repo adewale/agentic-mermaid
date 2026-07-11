@@ -1,7 +1,8 @@
 # Project Backlog
 
-`TODO.md` is the only active backlog. No other root doc may carry unchecked
-project TODOs. Docs map: `docs/features.md` = current capabilities;
+`TODO.md` is the canonical root backlog. Design plans may carry a subordinate,
+mechanically checked execution ledger only when one explicit umbrella item
+below links it and this file remains the owner-facing priority surface. Docs map: `docs/features.md` = current capabilities;
 `docs/project/divergences.md` = implementation history;
 `docs/project/lessons-learned.md` = cumulative fork narrative (loops 1–22);
 `docs/contributing/lessons-learned.md` = dated contributor process lessons;
@@ -21,6 +22,7 @@ dependents after. IDs are stable names, not an ordering.
 
 ## 0. Release / owner decisions
 
+- [ ] **FAM-ELEVATION-RESIDUAL — Finish the family-elevation completion packages** (`todo`). The authoritative item statuses and exact remainders are the mechanically checked B03–B18 rows in `docs/design/family-elevation-plan.md`; B01/B02 are complete. Prioritize generalized Architecture routing (`B03`), terminal/Unicode proof (`B05`/`B06`), and the identity/accessibility contracts (`B13`/`B14`) before beyond-parity families (`B15`/`B16`). This is the root-backlog umbrella; the design ledger is the subordinate acceptance decomposition, not a second priority list.
 - [ ] **DEC-1 — Get one real external consumer** (`todo`). Validate
   `agentic-mermaid/agent`, `am`, or `agentic-mermaid-mcp` in a real agent,
   TUI, CI gate, or editor integration outside this repo. Unblocked
@@ -103,19 +105,12 @@ dependents after. IDs are stable names, not an ordering.
   and privacy-policy URLs, screenshots, test prompts/responses, localization,
   and review notes. Submit through the plugin portal only when the live endpoint
   and UI are stable enough to preserve the reviewed metadata contract.
-- [ ] **BUILD-25 — Structured coverage for the last silent-opaque constructs**
-  (`todo`, needs legacy-renderer support first; tracked as **#118**). The systemic `UNSUPPORTED_SYNTAX`
-  warning (2026-07) now announces every opaque fallback, so these are visible but
-  still source-only. Promoting them to structured is blocked on the LEGACY parser/
-  renderer, which drops them today (verified): class generic type params
-  (`class Box~T~` → `parseClassDiagram` returns empty), class `namespace {…}`,
-  state `note … / end note` and `<<choice>>/<<fork>>/<<join>>` pseudostates
-  (`state-body.ts:27-31` documents the legacy drop). Each needs the legacy
-  parser/renderer taught first, then a body-type + parser + serializer + mutator +
-  round-trip test — one family per PR to preserve the determinism/render-parity
-  contract. NON-goal: accepting UNQUOTED pie labels — Mermaid's pie grammar
-  requires quotes, so that would accept invalid Mermaid (the fork rejects what
-  Mermaid rejects); the systemic warning already covers the bare-label trap.
+- [x] **BUILD-25 — Structured coverage for the last silent-opaque constructs**
+  (completed on PR #142; tracked as **#118**). Class generics and compound/block
+  namespaces, plus State notes, fork/join/choice pseudostates, and history states now pass
+  through shared render/agent grammars with typed mutation and canonical
+  round-trip coverage. Unquoted Pie labels remain intentionally invalid because
+  Mermaid's grammar requires quotes.
 - [ ] **BUILD-24 — Layout hints: rank/group pinning and edge-length
   preferences** (`todo`). Direct agent feedback (2026-07): an agent deleted a
   real edge because the auto-layout drew its feedback loop as a long,
@@ -191,13 +186,13 @@ dependents after. IDs are stable names, not an ordering.
   multi-error parse and a buildSourceMap hook — no in-tree exception
   remains. Mutation rebuilds `canonicalSource` uniformly. Unblocks
   BUILD-5/BUILD-6/BUILD-11 and the mutation roadmap.
-- [ ] **BUILD-5 — Common-README family coverage: pie, gantt, mindmap,
-  gitgraph** (`in-progress`). These families are common in
-  real-world READMEs/docs and already have authoring syntax references in
-  `skills/agentic-mermaid-diagram-workflow/references/upstream/`, but the
-  renderer does not accept them. No public usage statistics exist, so first
-  gather evidence (count fenced ` ```mermaid ` header families across a
-  GitHub README corpus), then implement in evidence order. Each addition
+- [ ] **BUILD-5 — Common-README family coverage: mindmap and gitgraph**
+  (`in-progress`; Pie and Gantt are complete below). These remaining families
+  are common in real-world READMEs/docs and already have authoring syntax
+  references in `skills/agentic-mermaid-diagram-workflow/references/upstream/`,
+  but the renderer does not accept them. The completed corpus evidence and
+  Pie/Gantt implementations establish the method; implement the remaining
+  families in evidence order. Each addition
   follows `docs/contributing/adding-diagram-types.md` and ships
   parse/verify/render/round-trip (source-level body is acceptable; structured
   mutation only where the IR can preserve semantics). The corpus count also
@@ -484,7 +479,7 @@ dependents after. IDs are stable names, not an ordering.
   opaquely; `src/__tests__/flowchart-metadata.test.ts` pins inline,
   standalone, and multiline safety cases plus round-trip behavior. Modeled
   support for the full v11 typed-shape vocabulary (ISO 5807/ANSI X3.5 symbols
-  mapped onto `NodeShape`) remains separate (#44). BUILD-1 still needs
+  mapped onto `NodeShape`) shipped in PR #142 and closes #44. BUILD-1 still needs
   compatible `@{ view: collapsed }` semantics, but no longer starts from a
   silent-loss parser floor.
 - [ ] **BUILD-1 — Collapsible subgraphs (#7785)** (`todo`, after BUILD-23 metadata safety floor; independent of BUILD-20 harvest). Track Mermaid PR

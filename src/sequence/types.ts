@@ -21,6 +21,12 @@ export interface SequenceDiagram {
   blocks: Block[]
   /** Notes attached to actors */
   notes: Note[]
+  /** Ordered standalone activate/deactivate commands, anchored at the next
+   * message boundary (messages.length at the source position). */
+  activationEvents?: SequenceActivationEvent[]
+  /** `box <color?> <label?> ... end` participant groups (upstream §Grouping/Box).
+   *  Optional for hand-built diagrams; the parser always populates it. */
+  boxes?: SequenceBoxGroup[]
 }
 
 export interface Actor {
@@ -28,6 +34,29 @@ export interface Actor {
   label: string
   /** 'participant' renders as a box, 'actor' renders as a stick figure */
   type: 'participant' | 'actor'
+  /** Index of the message this actor is created at (`create participant …`);
+   *  its header box + lifeline start there instead of the diagram top. */
+  createMessageIndex?: number
+  /** Index of the message this actor is destroyed at (`destroy …`); the
+   *  lifeline ends there with an X cross. */
+  destroyMessageIndex?: number
+}
+
+/** A `box … end` group of participants. */
+export interface SequenceBoxGroup {
+  /** Title text drawn at the top of the box (may be absent). */
+  label?: string
+  /** Explicit CSS color from the source (named color, #hex, rgb()/rgba(),
+   *  hsl()/hsla(), or 'transparent'). Absent = theme-derived fill. */
+  color?: string
+  /** Declared participant ids inside the box, in declaration order. */
+  actorIds: string[]
+}
+
+export interface SequenceActivationEvent {
+  actorId: string
+  kind: 'activate' | 'deactivate'
+  messageIndex: number
 }
 
 export interface Message {
@@ -42,6 +71,9 @@ export interface Message {
   activate?: boolean
   /** Deactivate the source lifeline (-) */
   deactivate?: boolean
+  /** Sequence number assigned by `autonumber` (absent when numbering is off).
+   *  Display surfaces prefix it to the label ("1. label"). */
+  number?: number
 }
 
 export interface Block {
@@ -83,6 +115,28 @@ export interface PositionedSequenceDiagram extends PositionedDiagram {
   activations: Activation[]
   blocks: PositionedBlock[]
   notes: PositionedNote[]
+  /** Background frames for `box … end` participant groups. */
+  boxes: PositionedBoxGroup[]
+  /** X crosses marking `destroy` points at the end of destroyed lifelines. */
+  destructions: LifelineCross[]
+}
+
+/** Positioned `box … end` background frame (drawn behind everything). */
+export interface PositionedBoxGroup {
+  label?: string
+  /** Explicit CSS color from the source; absent = theme-derived fill. */
+  color?: string
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+/** An X cross drawn where a destroyed lifeline ends. */
+export interface LifelineCross {
+  actorId: string
+  x: number
+  y: number
 }
 
 export interface PositionedActor {

@@ -1,0 +1,5 @@
+erDiagram
+  CUSTOMER["Customer Account"] {
+    int account_id PK, FK "shared key"
+  }
+  CUSTOMER ||--o{ ORDER : places

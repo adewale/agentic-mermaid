@@ -24,11 +24,10 @@ function loadCorpus(): CorpusEntry[] {
   return existsSync(CORPUS_PATH) ? JSON.parse(readFileSync(CORPUS_PATH, 'utf8')) : []
 }
 
-const EXPECTED_CORPUS_RENDERED = 266
+const EXPECTED_CORPUS_RENDERED = 269
 const EXPECTED_CORPUS_ASCII_ERRORS = [
-  'architecture:syntax/architecture.md:1',
-  'architecture:syntax/architecture.md:2',
-  'architecture:syntax/architecture.md:3',
+  // architecture:syntax/architecture.md:1–3 rendered as of the align
+  // acceptance (upstream v11.16.0 align directives parse and render).
   // Gantt docs entries that error BY DESIGN, deterministically: index 6 is a
   // directive-only fragment (GANTT_EMPTY) and index 10 ends a task with an
   // inline `%% not yet official` comment that even upstream only renders via

@@ -1,4 +1,4 @@
-import type { PositionedClassDiagram, PositionedClassNode, PositionedClassRelationship, ClassMember, RelationshipType } from './types.ts'
+import type { PositionedClassDiagram, PositionedClassNode, PositionedClassNamespace, PositionedClassRelationship, ClassMember, RelationshipType } from './types.ts'
 import type { RenderContext } from '../types.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
 import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, TEXT_BASELINE_SHIFT, applyTextTransform, resolveRenderStyle } from '../styles.ts'
@@ -98,6 +98,13 @@ export function lowerClassScene(
     parts.push(marks.raw({ id: 'desc', role: 'chrome' }, `<desc id="${descId}">${escapeXml(diagram.accessibilityDescription)}</desc>`))
   }
 
+  // 0. Namespace boxes (behind everything, parent-first so children draw on
+  // top). Only namespaced diagrams add marks here, so namespace-free output
+  // stays byte-identical to previous releases.
+  for (const ns of diagram.namespaces) {
+    parts.push(renderNamespaceBox(ns, style))
+  }
+
   // 1. Relationship lines (rendered behind boxes)
   const relOccurrence = new Map<string, number>()
   for (const rel of diagram.relationships) {
@@ -162,6 +169,83 @@ function relationshipMarkerDefs(style: ResolvedRenderStyle): string {
     `\n    <polyline points="0 0, 8 3, 0 6" fill="none" stroke="${edgeColor}" stroke-width="1.5" />` +
     `\n  </marker>`
   )
+}
+
+// ============================================================================
+// Namespace box rendering (ELK compound groups — flowchart subgraph pattern)
+// ============================================================================
+
+/**
+ * Render a namespace box: outer rect, header band, and the namespace label.
+ * Wrapped in <g class="namespace"> with semantic data attributes. Coordinates
+ * are absolute (the layout flattens compound nesting), so children need no
+ * recursive transform here — nested boxes simply draw after their parents.
+ */
+function renderNamespaceBox(ns: PositionedClassNamespace, style: ResolvedRenderStyle): SceneNode {
+  const children: Array<{ node: SceneNode; indent: number }> = []
+  const open =
+    `<g class="namespace" data-id="${escapeAttr(ns.id)}" data-label="${escapeAttr(ns.label)}"${ns.parentId ? ` data-parent-id="${escapeAttr(ns.parentId)}"` : ''}>`
+
+  // Outer rectangle
+  const rectFill = style.groupFillColor ?? 'var(--_group-fill)'
+  const rectStroke = style.groupBorderColor ?? 'var(--_node-stroke)'
+  children.push({
+    indent: 2,
+    node: marks.shape({
+      id: `namespace-rect:${ns.id}`,
+      role: 'group',
+      geometry: { kind: 'rect', x: ns.x, y: ns.y, width: ns.width, height: ns.height, rx: style.groupCornerRadius, ry: style.groupCornerRadius },
+      paint: { fill: rectFill, stroke: rectStroke, strokeWidth: String(style.groupLineWidth) },
+    },
+      `<rect x="${ns.x}" y="${ns.y}" width="${ns.width}" height="${ns.height}" ` +
+      `rx="${style.groupCornerRadius}" ry="${style.groupCornerRadius}" fill="${escapeAttr(rectFill)}" stroke="${escapeAttr(rectStroke)}" stroke-width="${style.groupLineWidth}" />`),
+  })
+
+  // Header band
+  const headerFill = style.groupHeaderFillColor ?? 'var(--_group-hdr)'
+  const headerPath = topRoundedRectPath(ns.x, ns.y, ns.width, ns.headerHeight, style.groupCornerRadius)
+  children.push({
+    indent: 2,
+    node: marks.shape({
+      id: `namespace-header:${ns.id}`,
+      role: 'group-header',
+      geometry: { kind: 'path', d: headerPath },
+      paint: { fill: headerFill, stroke: rectStroke, strokeWidth: String(style.groupLineWidth) },
+    },
+      `<path d="${headerPath}" ` +
+      `fill="${escapeAttr(headerFill)}" stroke="${escapeAttr(rectStroke)}" stroke-width="${style.groupLineWidth}" />`),
+  })
+
+  // Header label (display label when given, else the segment name)
+  const headerText = applyTextTransform(ns.label, style.groupTextTransform)
+  const headerTextColor = style.groupTextColor ?? 'var(--_text-sec)'
+  children.push({
+    indent: 2,
+    node: marks.text({
+      id: `namespace-label:${ns.id}`,
+      role: 'group-header',
+      text: headerText,
+      x: ns.x + style.groupLabelPaddingX,
+      y: ns.y + ns.headerHeight / 2,
+      fontSize: style.groupHeaderFontSize,
+      anchor: 'start',
+      paint: { fill: headerTextColor },
+    }, renderMultilineText(
+      headerText,
+      ns.x + style.groupLabelPaddingX,
+      ns.y + ns.headerHeight / 2,
+      style.groupHeaderFontSize,
+      `font-size="${style.groupHeaderFontSize}" font-weight="${style.groupHeaderFontWeight}"${style.groupFont ? ` font-family="${escapeAttr(style.groupFont)}"` : ''}${style.groupLetterSpacing !== 0 ? ` letter-spacing="${style.groupLetterSpacing}"` : ''} fill="${escapeAttr(headerTextColor)}"`
+    )),
+  })
+
+  return marks.group({
+    id: `namespace:${ns.id}`,
+    role: 'group',
+    open,
+    close: '</g>',
+    children,
+  })
 }
 
 // ============================================================================

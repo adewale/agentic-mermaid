@@ -1,4 +1,4 @@
-import type { PositionedGraph, PositionedNode, PositionedEdge, PositionedGroup, Point, EdgeMarker, RenderContext } from './types.ts'
+import type { PositionedGraph, PositionedNode, PositionedEdge, PositionedGroup, PositionedStateNote, Point, EdgeMarker, RenderContext } from './types.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from './theme.ts'
 import { STROKE_WIDTHS, ARROW_HEAD, FLOWCHART_DOTTED_DASH, applyTextTransform, resolveRenderStyle } from './styles.ts'
 import type { ResolvedRenderStyle } from './styles.ts'
@@ -9,6 +9,7 @@ import { resolveInlineNodeTextColor } from './color-resolver.ts'
 import type { Geometry, MarkerRef, SceneDoc, SceneNode, SemanticChannels } from './scene/ir.ts'
 import * as marks from './scene/marks.ts'
 import { DefaultBackend } from './scene/backend.ts'
+import type { StateRenderOptions } from './state/config.ts'
 
 // ============================================================================
 // SVG renderer — converts a PositionedGraph into an SVG string.
@@ -67,7 +68,8 @@ export function lowerGraphScene(
   const font = colors.font ?? 'Inter'
   const transparent = options.transparent ?? false
   const parts: SceneNode[] = []
-  const style = resolveRenderStyle(options)
+  const stateVisual = (options as StateRenderOptions).stateVisual
+  const style = resolveRenderStyle(options, stateVisual?.styleDefaults)
 
   // SVG root with CSS variables + style block + defs
   parts.push(marks.prelude(
@@ -138,6 +140,11 @@ export function lowerGraphScene(
   // 4. Nodes (shape + label wrapped in <g class="node">)
   for (const node of graph.nodes) {
     parts.push(renderNode(node, font, style))
+  }
+
+  // 5. State-diagram notes (placed by the layout pass on their declared side)
+  for (const note of graph.notes ?? []) {
+    parts.push(renderStateNote(note, font, style))
   }
 
   parts.push(marks.raw({ id: 'svg-close', role: 'chrome' }, '</svg>'))
@@ -254,6 +261,19 @@ function markerSuffix(color: string): string {
 // ============================================================================
 
 function renderGroup(group: PositionedGroup, font: string, style: ResolvedRenderStyle, parentId?: string): SceneNode {
+  // Concurrency regions (plan §State 2c) draw no box/header of their own —
+  // the parent composite draws dashed separators between them instead. Nested
+  // composites inside a region still render normally.
+  if (group.concurrencyRegion) {
+    return marks.group({
+      id: `group:${group.id}`,
+      role: 'group',
+      open: `<g class="concurrency-region" data-id="${escapeAttr(group.id)}"${parentId ? ` data-parent-id="${escapeAttr(parentId)}"` : ''}>`,
+      close: '</g>',
+      children: group.children.map(child => ({ indent: 0, node: renderGroup(child, font, style, group.id) })),
+    })
+  }
+
   const headerHeight = style.groupHeaderFontSize + 16
   const children: Array<{ node: SceneNode; indent: number }> = []
 
@@ -316,6 +336,22 @@ function renderGroup(group: PositionedGroup, font: string, style: ResolvedRender
     )),
   })
 
+  // Dashed separators between concurrency regions (`--`): one line in each
+  // gap between adjacent region boxes, spanning the composite's inner extent.
+  for (const sep of regionSeparators(group, headerHeight)) {
+    children.push({
+      indent: 2,
+      node: marks.shape({
+        id: `region-separator:${group.id}:${sep.index}`,
+        role: 'group',
+        geometry: { kind: 'line', x1: sep.x1, y1: sep.y1, x2: sep.x2, y2: sep.y2 },
+        paint: { stroke: rectStroke, strokeWidth: String(style.groupLineWidth), strokeDasharray: '6 4' },
+      },
+        `<line class="region-separator" x1="${sep.x1}" y1="${sep.y1}" x2="${sep.x2}" y2="${sep.y2}" ` +
+        `stroke="${escapeAttr(rectStroke)}" stroke-width="${style.groupLineWidth}" stroke-dasharray="6 4" />`),
+    })
+  }
+
   // Render nested groups recursively (inside this group)
   for (const child of group.children) {
     children.push({ indent: 0, node: renderGroup(child, font, style, group.id) })
@@ -327,6 +363,84 @@ function renderGroup(group: PositionedGroup, font: string, style: ResolvedRender
     open,
     close: '</g>',
     children,
+  })
+}
+
+interface RegionSeparator { index: number; x1: number; y1: number; x2: number; y2: number }
+
+/** Separator lines between adjacent concurrency regions of a composite. The
+ *  arrangement axis is derived from the region boxes themselves (side-by-side
+ *  regions get vertical separators; stacked regions horizontal ones), so the
+ *  invariant "the separator sits between the region boxes" holds whatever the
+ *  compound packing chose. */
+function regionSeparators(group: PositionedGroup, headerHeight: number): RegionSeparator[] {
+  const regions = group.children.filter(c => c.concurrencyRegion)
+  if (regions.length < 2) return []
+  const spread = (lo: (g: PositionedGroup) => number): number =>
+    Math.max(...regions.map(lo)) - Math.min(...regions.map(lo))
+  const sideBySide = spread(g => g.x + g.width / 2) >= spread(g => g.y + g.height / 2)
+  const sorted = [...regions].sort((a, b) => sideBySide ? a.x - b.x : a.y - b.y)
+  const inset = 4
+  const out: RegionSeparator[] = []
+  for (let i = 1; i < sorted.length; i++) {
+    const prev = sorted[i - 1]!, next = sorted[i]!
+    if (sideBySide) {
+      const x = (prev.x + prev.width + next.x) / 2
+      out.push({ index: i - 1, x1: x, y1: group.y + headerHeight + inset, x2: x, y2: group.y + group.height - inset })
+    } else {
+      const y = (prev.y + prev.height + next.y) / 2
+      out.push({ index: i - 1, x1: group.x + inset, y1: y, x2: group.x + group.width - inset, y2: y })
+    }
+  }
+  return out
+}
+
+// ============================================================================
+// State-note rendering (plan §State 1) — a bordered annotation box anchored
+// on the declared side of its state by placeStateNotes.
+// ============================================================================
+
+function renderStateNote(note: PositionedStateNote, font: string, style: ResolvedRenderStyle): SceneNode {
+  void font
+  const { x, y, width: w, height: h } = note
+  const rawFill = style.groupHeaderFillColor ?? 'var(--_group-hdr)'
+  const rawStroke = style.groupBorderColor ?? 'var(--_node-stroke)'
+  const rawTextColor = style.edgeTextColor ?? 'var(--_text-sec)'
+  const displayText = applyTextTransform(note.text, style.nodeTextTransform)
+  const sceneId = `state-note:${note.id}`
+
+  return marks.group({
+    id: sceneId,
+    role: 'note',
+    open: `<g class="state-note" data-id="${escapeAttr(note.id)}" data-target="${escapeAttr(note.target)}" data-side="${note.side}">`,
+    close: '</g>',
+    children: [
+      {
+        indent: 2,
+        node: marks.shape({
+          id: `${sceneId}:rect`,
+          role: 'note',
+          geometry: { kind: 'rect', x, y, width: w, height: h, rx: 4, ry: 4 },
+          paint: { fill: rawFill, stroke: rawStroke, strokeWidth: String(STROKE_WIDTHS.innerBox) },
+        },
+          `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" ry="4" ` +
+          `fill="${escapeAttr(rawFill)}" stroke="${escapeAttr(rawStroke)}" stroke-width="${STROKE_WIDTHS.innerBox}" />`),
+      },
+      {
+        indent: 2,
+        node: marks.text({
+          id: `${sceneId}:text`,
+          role: 'label',
+          text: displayText,
+          x: x + w / 2,
+          y: y + h / 2,
+          fontSize: style.edgeLabelFontSize,
+          anchor: 'middle',
+          paint: { fill: rawTextColor },
+        }, renderMultilineText(displayText, x + w / 2, y + h / 2, style.edgeLabelFontSize,
+          `text-anchor="middle" font-size="${style.edgeLabelFontSize}" font-weight="${style.edgeLabelFontWeight}"${style.edgeLetterSpacing !== 0 ? ` letter-spacing="${style.edgeLetterSpacing}"` : ''} fill="${escapeAttr(rawTextColor)}"`)),
+      },
+    ],
   })
 }
 
@@ -376,12 +490,15 @@ function renderEdge(edge: PositionedEdge, style: ResolvedRenderStyle, sceneId: s
 
   // Semantic data attributes for edge identification and inspection:
   // - class="edge": CSS targeting and type identification
+  // - data-id: authored v11.6 edge ID (`e1@-->`) when present — the stable
+  //   edge identity contract (X4), mirroring node/subgraph data-id
   // - data-from/data-to: source and target node IDs
   // - data-style: edge style (solid, dotted, thick)
   // - data-arrow-start/end: arrow presence flags
   // - data-label: edge label if present (for quick lookup without traversing DOM)
   const dataAttrs = [
     'class="edge"',
+    ...(edge.id ? [`data-id="${escapeAttr(edge.id)}"`] : []),
     `data-from="${escapeAttr(edge.source)}"`,
     `data-to="${escapeAttr(edge.target)}"`,
     `data-style="${edge.style}"`,
@@ -694,10 +811,14 @@ function renderNode(node: PositionedNode, font: string, style: ResolvedRenderSty
   if (label) {
     children.push({ indent: 2, node: label })
   }
+  // data-semantic-shape names the Mermaid v11 `@{ shape }` id when the drawn
+  // geometry is a mapping of it, so agents can explain the semantic shape
+  // even when the geometry is approximate (repo #44).
+  const semanticShape = node.semanticShape ? ` data-semantic-shape="${escapeAttr(node.semanticShape)}"` : ''
   return marks.group({
     id: `node:${node.id}`,
     role: 'node',
-    open: `<g class="${classAttr}" data-id="${escapeAttr(node.id)}" data-label="${escapeAttr(node.label)}" data-shape="${node.shape}">`,
+    open: `<g class="${classAttr}" data-id="${escapeAttr(node.id)}" data-label="${escapeAttr(node.label)}" data-shape="${node.shape}"${semanticShape}>`,
     close: '</g>',
     children,
     channels,
@@ -751,13 +872,20 @@ function renderNodeShape(node: PositionedNode, style: ResolvedRenderStyle): Scen
         return renderStateStart(x, y, width, height)
       case 'state-end':
         return renderStateEnd(x, y, width, height)
+      case 'state-fork':
+      case 'state-join':
+        return renderStateBar(x, y, width, height)
+      case 'state-choice':
+        return renderDiamond(x, y, width, height, fill, stroke, sw)
+      case 'state-history':
+        return renderCircle(x, y, width, height, fill, stroke, sw)
       case 'rectangle':
       default:
         return renderRect(x, y, width, height, fill, stroke, sw, style.cornerRadius ?? 0)
     }
   })()
 
-  const paint = shape === 'state-start'
+  const paint = shape === 'state-start' || shape === 'state-fork' || shape === 'state-join'
     ? { fill: 'var(--_text)', stroke: 'none' }
     : shape === 'state-end'
       ? { fill: 'var(--_text)', stroke: 'var(--_text)' }
@@ -1054,13 +1182,24 @@ function renderStateEnd(x: number, y: number, w: number, h: number): ShapePiece 
   }
 }
 
+/** Fork/join bar: filled rounded bar using primary text color (upstream #2514
+ *  renders these as plain boxes — the bar is the standard UML notation). */
+function renderStateBar(x: number, y: number, w: number, h: number): ShapePiece {
+  const r = Math.min(w, h) / 2
+  return {
+    geometry: { kind: 'rect', x, y, width: w, height: h, rx: r, ry: r },
+    crisp: `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}" ry="${r}" fill="var(--_text)" stroke="none" />`,
+  }
+}
+
 // ============================================================================
 // Node label rendering
 // ============================================================================
 
 function renderNodeLabel(node: PositionedNode, font: string, style: ResolvedRenderStyle): SceneNode | null {
-  // State pseudostates have no label
-  if (node.shape === 'state-start' || node.shape === 'state-end') {
+  // State pseudostates have no label (history keeps its H/H* glyph)
+  if (node.shape === 'state-start' || node.shape === 'state-end' ||
+      node.shape === 'state-fork' || node.shape === 'state-join' || node.shape === 'state-choice') {
     if (!node.label) return null
   }
 

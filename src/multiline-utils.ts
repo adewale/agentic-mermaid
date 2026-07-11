@@ -7,6 +7,7 @@
 // ============================================================================
 
 import { LINE_HEIGHT_RATIO } from './text-metrics.ts'
+import { HAS_FORMAT_TAGS, parseInlineFormatting } from './shared/inline-format.ts'
 
 /**
  * Normalize label text: strip surrounding quotes, convert <br> tags and
@@ -58,56 +59,6 @@ export function escapeAttr(text: string): string {
 // ============================================================================
 // Inline formatting: <b>, <i>, <u>, <s> → SVG tspan attributes
 // ============================================================================
-
-interface StyledSegment {
-  text: string
-  bold: boolean
-  italic: boolean
-  underline: boolean
-  strikethrough: boolean
-}
-
-/** Regex to match opening/closing formatting tags */
-const FORMAT_TAG_REGEX = /<(\/)?(?:(b|strong)|(i|em)|(u)|(s|del))\s*>/gi
-
-/**
- * Parse a line of text into styled segments based on inline formatting tags.
- * Supports nesting: `<b>bold <i>both</i> bold</b>`.
- */
-function parseInlineFormatting(line: string): StyledSegment[] {
-  const segments: StyledSegment[] = []
-  let bold = false, italic = false, underline = false, strikethrough = false
-  let lastIndex = 0
-
-  // Reset lastIndex for global regex
-  FORMAT_TAG_REGEX.lastIndex = 0
-
-  let match: RegExpExecArray | null
-  while ((match = FORMAT_TAG_REGEX.exec(line)) !== null) {
-    // Capture text before this tag
-    if (match.index > lastIndex) {
-      segments.push({ text: line.slice(lastIndex, match.index), bold, italic, underline, strikethrough })
-    }
-    lastIndex = match.index + match[0].length
-
-    const isClosing = Boolean(match[1])
-    // match[2] = b|strong, match[3] = i|em, match[4] = u, match[5] = s|del
-    if (match[2]) bold = !isClosing
-    else if (match[3]) italic = !isClosing
-    else if (match[4]) underline = !isClosing
-    else if (match[5]) strikethrough = !isClosing
-  }
-
-  // Remaining text after last tag
-  if (lastIndex < line.length) {
-    segments.push({ text: line.slice(lastIndex), bold, italic, underline, strikethrough })
-  }
-
-  return segments
-}
-
-/** Check if a line contains any formatting tags */
-const HAS_FORMAT_TAGS = /<\/?(?:b|strong|i|em|u|s|del)\s*>/i
 
 /**
  * Render a line's content as SVG, with inline formatting applied as tspan attributes.

@@ -9,8 +9,9 @@
 // Instead: actors → columns, messages → rows, all positioned linearly.
 // ============================================================================
 
-import { parseSequenceDiagram } from '../sequence/parser.ts'
+import { parseSequenceDiagram, displayMessageLabel } from '../sequence/parser.ts'
 import type { SequenceDiagram, Block } from '../sequence/types.ts'
+import type { ResolvedSequenceConfig } from '../sequence/config.ts'
 import type { Canvas, AsciiConfig, RoleCanvas, CharRole, AsciiTheme, ColorMode } from './types.ts'
 import { mkCanvas, mkRoleCanvas, canvasToString, increaseSize, increaseRoleCanvasSize, setRole } from './canvas.ts'
 import { splitLines, maxLineWidth, lineCount } from './multiline-utils.ts'
@@ -26,14 +27,21 @@ function classifyBoxChar(ch: string): CharRole {
  * Render a Mermaid sequence diagram to ASCII/Unicode text.
  *
  * Pipeline: parse → layout (columns + rows) → draw onto canvas → string.
+ * `seqConfig` carries the wired sequence runtime config; the ASCII surface
+ * honors showSequenceNumbers (numbering must not depend on the output
+ * format) — the pixel-geometry knobs have no cell-grid meaning here.
  */
-export function renderSequenceAscii(text: string, config: AsciiConfig, colorMode?: ColorMode, theme?: AsciiTheme): string {
+export function renderSequenceAscii(text: string, config: AsciiConfig, colorMode?: ColorMode, theme?: AsciiTheme, seqConfig: ResolvedSequenceConfig = {}): string {
   const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('%%'))
-  const diagram = parseSequenceDiagram(lines)
+  const diagram = parseSequenceDiagram(lines, seqConfig)
 
   if (diagram.actors.length === 0) return ''
 
   const useAscii = config.useAscii
+
+  // Display labels: the autonumber prefix ("1. label") is composed by the
+  // same helper the SVG layout uses, so the two surfaces cannot drift.
+  const msgLabels = diagram.messages.map(displayMessageLabel)
 
   // Box-drawing characters
   const H = useAscii ? '-' : '─'
@@ -64,14 +72,15 @@ export function renderSequenceAscii(text: string, config: AsciiConfig, colorMode
   // For messages spanning multiple actors, distribute the required width across gaps.
   const adjMaxWidth: number[] = new Array(Math.max(diagram.actors.length - 1, 0)).fill(0)
 
-  for (const msg of diagram.messages) {
+  for (let mi = 0; mi < diagram.messages.length; mi++) {
+    const msg = diagram.messages[mi]!
     const fi = actorIdx.get(msg.from)!
     const ti = actorIdx.get(msg.to)!
     if (fi === ti) continue // self-messages don't affect spacing
     const lo = Math.min(fi, ti)
     const hi = Math.max(fi, ti)
     // Required gap per span = (max line width + arrow decorations) / number of gaps
-    const needed = maxLineWidth(msg.label) + 4
+    const needed = maxLineWidth(msgLabels[mi]!) + 4
     const numGaps = hi - lo
     const perGap = Math.ceil(needed / numGaps)
     for (let g = lo; g < hi; g++) {
@@ -156,7 +165,7 @@ export function renderSequenceAscii(text: string, config: AsciiConfig, colorMode
     const isSelf = msg.from === msg.to
 
     // Calculate height needed for multi-line message labels
-    const msgLineCount = lineCount(msg.label)
+    const msgLineCount = lineCount(msgLabels[m]!)
 
     if (isSelf) {
       // Self-message occupies 3+ rows: top-arm, label-col(s), bottom-arm
@@ -207,7 +216,7 @@ export function renderSequenceAscii(text: string, config: AsciiConfig, colorMode
     const msg = diagram.messages[m]!
     if (msg.from === msg.to) {
       const fi = actorIdx.get(msg.from)!
-      const selfRight = llX[fi]! + 6 + 2 + maxLineWidth(msg.label)
+      const selfRight = llX[fi]! + 6 + 2 + maxLineWidth(msgLabels[m]!)
       totalW = Math.max(totalW, selfRight + 1)
     }
   }
@@ -313,7 +322,7 @@ export function renderSequenceAscii(text: string, config: AsciiConfig, colorMode
       // its own row with a continuing right-side wall.
       const y0 = msgArrowY[m]!
       const loopW = 4
-      const selfLines = splitLines(msg.label)
+      const selfLines = splitLines(msgLabels[m]!)
 
       // Row 0: start junction + horizontal + top-right corner
       setC(fromX, y0, JL, 'junction')
@@ -356,7 +365,7 @@ export function renderSequenceAscii(text: string, config: AsciiConfig, colorMode
       // parity. Iterate codepoints (not UTF-16 code units) so emoji surrogate
       // pairs render as one glyph.
       const boxWidth = Math.abs(toX - fromX)
-      const msgLines = splitLines(msg.label)
+      const msgLines = splitLines(msgLabels[m]!)
 
       for (let lineIdx = 0; lineIdx < msgLines.length; lineIdx++) {
         const line = msgLines[lineIdx]!
@@ -409,7 +418,7 @@ export function renderSequenceAscii(text: string, config: AsciiConfig, colorMode
         // longest line determining the extra width. Match the totalW math
         // (llX[f] + 6 + maxLineWidth(label)) and add a 2-cell breathing room
         // so the right border doesn't sit immediately on the last glyph.
-        const selfRight = llX[f]! + 6 + maxLineWidth(msg.label) + 2
+        const selfRight = llX[f]! + 6 + maxLineWidth(msgLabels[m]!) + 2
         maxLX = Math.max(maxLX, selfRight)
       } else {
         maxLX = Math.max(maxLX, llX[Math.max(f, t)]!)

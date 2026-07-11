@@ -106,6 +106,18 @@ describe('parseSequenceDiagram – messages', () => {
     expect(d.messages[2]!.label).toBe('Third')
   })
 
+  it('preserves standalone activate/deactivate commands in source order', () => {
+    const d = parse(`sequenceDiagram
+  participant A
+  activate A
+  A->>A: work
+  deactivate A`)
+    expect(d.activationEvents).toEqual([
+      { actorId: 'A', kind: 'activate', messageIndex: 0 },
+      { actorId: 'A', kind: 'deactivate', messageIndex: 1 },
+    ])
+  })
+
   it('parses activation marker (+)', () => {
     const d = parse(`sequenceDiagram
       A->>+B: Activate`)

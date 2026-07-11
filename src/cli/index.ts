@@ -10,14 +10,14 @@ import { parseMermaid } from '../agent/parse.ts'
 import { logToolInvocation } from '../agent/trace-log.ts'
 import { serializeMermaid, synthesizeFromGraph } from '../agent/serialize.ts'
 import { mutateChecked } from '../agent/mutate.ts'
-import { verifyMermaid } from '../agent/verify.ts'
+import { configWarningsForMermaid, verifyMermaid } from '../agent/verify.ts'
 import { renderMermaidSVG, renderMermaidASCII, renderMermaidPNG, layoutMermaid } from '../agent/index.ts'
 import type { PngFontWarning } from '../agent/png.ts'
 import { describeMermaid } from '../agent/describe.ts'
 import { collectBatched } from '../shared/batched.ts'
 import type {
   ValidDiagram, WarningCode, AnyMutationOp,
-  MutationError, Result, MutableValidDiagram,
+  MutationError, Result, MutableValidDiagram, LayoutWarning,
 } from '../agent/types.ts'
 import { WARNING_SEVERITY, WARNING_TIER } from '../agent/types.ts'
 import { BUILTIN_FAMILY_METADATA, builtinFamilyMetadata, knownFamilies, getFamily } from '../agent/families.ts'
@@ -51,15 +51,38 @@ export interface ParsedArgs { command?: string; positional: string[]; flags: Rec
 export const FLAG_SPECS: Record<string, { arg?: string }> = {
   // booleans
   'agent-instructions': {}, 'ascii': {}, 'certificates': {}, 'help': {}, 'json': {},
-  'watch': {}, 'open': {}, 'force': {}, 'canonical-wrapper': {}, 'system-fonts': {},
+  'jsonl': {}, 'watch': {}, 'open': {}, 'force': {}, 'canonical-wrapper': {}, 'system-fonts': {},
   // value flags (placeholder = what the usage shows after the flag)
   'suppress': { arg: 'CODES' }, 'label-cap': { arg: 'N' }, 'op': { arg: 'JSON' },
   'style': { arg: 'NAMES|file' }, 'seed': { arg: 'N' },
   'ops': { arg: 'JSON|file' }, 'output': { arg: 'FILE' }, 'format': { arg: 'fmt' },
   'security': { arg: 'mode' }, 'dir': { arg: 'DIR' }, 'font-dirs': { arg: 'DIRS' },
+  'gantt-today': { arg: 'DATE' },
+  // PNG raster knobs (read by cmdRender's png path since v4; registered so
+  // the unknown-flag gate cannot reject them).
+  'scale': { arg: 'N' }, 'bg': { arg: 'COLOR' }, 'o': { arg: 'FILE' },
 }
 
 export const BOOLEAN_FLAGS = new Set(Object.keys(FLAG_SPECS).filter(name => !FLAG_SPECS[name]!.arg))
+
+// Command ownership is the second half of the flag contract: recognizing a
+// name globally is not permission to ignore it on an unrelated command.
+const COMMAND_FLAGS: Record<string, readonly string[]> = {
+  render: ['help', 'json', 'ascii', 'certificates', 'watch', 'system-fonts', 'style', 'seed', 'output', 'format', 'security', 'font-dirs', 'gantt-today', 'scale', 'bg', 'o'],
+  verify: ['help', 'json', 'suppress', 'label-cap'],
+  parse: ['help', 'json'],
+  serialize: ['help'],
+  mutate: ['help', 'json', 'op', 'ops'],
+  preview: ['help', 'json', 'output', 'open', 'security'],
+  format: ['help', 'canonical-wrapper'],
+  describe: ['help', 'json', 'format'],
+  capabilities: ['help', 'json'],
+  styles: ['help', 'json'],
+  'llms-txt': ['help'],
+  'init-agent': ['help', 'json', 'dir', 'force'],
+  batch: ['help', 'jsonl'],
+  'render-markdown': ['help', 'ascii'],
+}
 
 export function parseArgs(argv: string[]): ParsedArgs {
   const out: ParsedArgs = { positional: [], flags: {} }
@@ -129,6 +152,7 @@ Flags:
   --suppress <CODES>     For verify: comma-separated WarningCodes to suppress
   --label-cap <N>        For verify: LABEL_OVERFLOW char cap (default 40)
   --certificates         For render --format json: include route/family certificates
+  --gantt-today <DATE>   For render: draw the gantt today marker at DATE (rendering never reads the wall clock)
   --agent-instructions   Print the canonical agent-use guide
   --help                 Show this message (or per-command help: am <cmd> --help)
 
@@ -158,6 +182,11 @@ Render a diagram. Default is SVG.
   --system-fonts    PNG only: also load OS-installed fonts (trades cross-machine
                     determinism for coverage; skips coverage warnings)
   --security strict Remove external-fetch refs from SVG output
+  --gantt-today <DATE> Gantt only: draw the today marker at DATE (in the
+                    diagram's dateFormat or ISO YYYY-MM-DD); rendering never
+                    reads the wall clock, so without this the marker is absent
+  --scale <N>       PNG only: output scale multiplier (default 2)
+  --bg <COLOR>      PNG only: background color (default white)
   --watch           Re-render one input file on change (non-PNG only)
 Multiple inputs emit a JSON results array for non-PNG formats.
 With --json, the svg/ascii/unicode forms wrap output as {"<format>": "..."}.`,
@@ -175,7 +204,7 @@ EMPTY_DIAGRAM, EDGE_MISANCHORED, OFF_CANVAS, GROUP_BREACH, UNRESOLVABLE_SCHEDULE
 RENDER_FAILED (source verifies structurally but the render parser rejects it). Warning codes:
 UNKNOWN_SHAPE, LABEL_OVERFLOW (char-cap),
 NODE_OVERLAP, ROUTE_SELF_CROSS, ROUTE_HITCH, ROUTE_UNEXPLAINED_BEND, ROUTE_LABEL_ON_SHARED_TRUNK,
-ROUTE_CONTAINER_MISANCHOR, ROUTE_SHAPE_MISANCHOR, ROUTE_STALE_AFTER_NODE_MOVE,
+ROUTE_SELF_LOOP_OCCUPANCY, ROUTE_CONTAINER_MISANCHOR, ROUTE_SHAPE_MISANCHOR, ROUTE_STALE_AFTER_NODE_MOVE,
 DUPLICATE_EDGE, UNREACHABLE_NODE, DECISION_BRANCH_UNLABELED, COMMENT_DROPPED, UNSUPPORTED_SYNTAX,
 CONTENT_DROPPED_ON_ROUNDTRIP, INEFFECTIVE_CONFIG. Tier-3 lint is advisory.
 Exit 0 if ok, 3 if verify reports severity='error'.`,
@@ -243,6 +272,30 @@ export function runCli(argv: string[]): number {
     return EXIT_OK
   }
   const json = Boolean(args.flags.json)
+  const argError = (message: string): number => {
+    if (json) process.stdout.write(JSON.stringify({ ok: false, error: { code: 'ARG', message } }) + '\n')
+    process.stderr.write(`${message}\n`)
+    return EXIT_ARG_ERROR
+  }
+  // Unknown flags are ERRORS, not silently-swallowed no-ops (probe-confirmed
+  // bug class: `--gantt-toady 2024-01-05` used to exit 0 with no marker and no
+  // complaint). FLAG_SPECS is the single source of truth for what exists.
+  const unknownFlags = Object.keys(args.flags).filter(name => !(name in FLAG_SPECS))
+  if (unknownFlags.length > 0) {
+    const message = `Unknown flag${unknownFlags.length > 1 ? 's' : ''}: ${unknownFlags.map(f => `--${f}`).join(', ')}. Run \`am --help\` or \`am ${args.command} --help\` for the flag list.`
+    return argError(message)
+  }
+  const missingValues = Object.entries(args.flags)
+    .filter(([name, value]) => FLAG_SPECS[name]?.arg && (typeof value !== 'string' || value.length === 0))
+    .map(([name]) => name)
+  if (missingValues.length > 0) {
+    return argError(`Flag${missingValues.length > 1 ? 's' : ''} ${missingValues.map(name => `--${name}`).join(', ')} require${missingValues.length === 1 ? 's' : ''} a value.`)
+  }
+  const allowed = new Set(COMMAND_FLAGS[args.command] ?? ['help'])
+  const inapplicable = Object.keys(args.flags).filter(name => !allowed.has(name))
+  if (inapplicable.length > 0) {
+    return argError(`Flag${inapplicable.length > 1 ? 's' : ''} ${inapplicable.map(name => `--${name}`).join(', ')} ${inapplicable.length > 1 ? 'are' : 'is'} not valid for am ${args.command}.`)
+  }
   // Opt-in invocation logging: when AM_TRACE_LOG names a file, append one JSON
   // line per real command run. Shares the sink with the library and hosted MCP
   // (src/agent/trace-log.ts) so the agent-usage eval can grade traceOk from
@@ -284,12 +337,23 @@ export function runCli(argv: string[]): number {
 function cmdRender(args: ParsedArgs, json: boolean): number {
   const format = typeof args.flags.format === 'string' ? args.flags.format : (args.flags.ascii ? 'ascii' : 'svg')
   const security = args.flags.security === 'strict' ? 'strict' as const : 'default' as const
+  // Explicit gantt clock (rendering never reads wall-clock time).
+  const ganttToday = typeof args.flags['gantt-today'] === 'string' ? args.flags['gantt-today'] : undefined
   if (!['svg', 'ascii', 'unicode', 'json', 'png'].includes(format)) {
     process.stderr.write(`am render: unsupported --format ${format}; expected svg, ascii, unicode, json, or png\n`)
     return EXIT_ARG_ERROR
   }
   if (args.flags.security !== undefined && args.flags.security !== 'strict') {
     process.stderr.write('am render --security accepts only strict\n')
+    return EXIT_ARG_ERROR
+  }
+  const pngOnly = ['scale', 'bg', 'font-dirs', 'system-fonts'].filter(name => args.flags[name] !== undefined)
+  if (format !== 'png' && pngOnly.length > 0) {
+    process.stderr.write(`am render: ${pngOnly.map(name => `--${name}`).join(', ')} ${pngOnly.length > 1 ? 'are' : 'is'} valid only with --format png\n`)
+    return EXIT_ARG_ERROR
+  }
+  if (args.flags.certificates && format !== 'json') {
+    process.stderr.write('am render: --certificates is valid only with --format json\n')
     return EXIT_ARG_ERROR
   }
   if (args.flags.watch && args.positional.length > 1) {
@@ -331,8 +395,10 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
     const results = args.positional.map((file, index) => {
       try {
         const src = readSourceArg(file)
-        const output = renderSourceToFormat(src, format, { security, certificates: args.flags.certificates === true, style, seed })
-        return { index, file, ok: true, output }
+        const warnings = configWarningsForMermaid(src)
+        emitConfigWarnings(warnings, `am render ${file}`)
+        const output = renderSourceToFormat(src, format, { security, certificates: args.flags.certificates === true, style, seed, ganttToday })
+        return { index, file, ok: true, output, warnings }
       } catch (e) {
         const parseEnvelope = e as { ok?: false; error?: { code?: string; message?: string; details?: unknown } }
         if (parseEnvelope?.ok === false && parseEnvelope.error?.code === 'PARSE_FAILED') {
@@ -351,7 +417,7 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
     return EXIT_ARG_ERROR
   }
   if (args.flags.watch && typeof args.positional[0] === 'string' && args.positional[0] !== '-') {
-    return cmdRenderWatch(args.positional[0], format, args, json, { security, certificates: args.flags.certificates === true, style, seed })
+    return cmdRenderWatch(args.positional[0], format, args, json, { security, certificates: args.flags.certificates === true, style, seed, ganttToday })
   }
 
   const source = readSourceArg(args.positional[0])
@@ -361,8 +427,9 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
     return EXIT_ARG_ERROR
   }
 
-  if (format === 'png') {
-    const outFile = typeof args.flags.o === 'string' ? args.flags.o : (typeof args.flags.output === 'string' ? args.flags.output : '')
+  const configWarnings = configWarningsForMermaid(source)
+
+  if (format === 'png') {    const outFile = typeof args.flags.o === 'string' ? args.flags.o : (typeof args.flags.output === 'string' ? args.flags.output : '')
     if (!outFile) {
       process.stderr.write('am render --format png requires --output <file.png> (PNG bytes corrupt terminals if piped to stdout)\n')
       return EXIT_ARG_ERROR
@@ -375,18 +442,19 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
     const loadSystemFonts = args.flags['system-fonts'] === true
     // PNG render is native-sync via resvg; keep bytes off stdout and write the
     // raster artifact explicitly to the requested output path.
-    return renderPngSync(source, { scale, background, style, seed, fontDirs, loadSystemFonts }, outFile, json)
+    return renderPngSync(source, { scale, background, style, seed, fontDirs, loadSystemFonts, ganttToday }, outFile, json, configWarnings)
   }
   // Loop 9 M3/M4, #7645: json = layout shape; unicode is the default text
   // renderer; `--security strict` strips external-fetch refs from SVG.
-  const out = renderSourceToFormat(source, format, { security, certificates: args.flags.certificates === true, style, seed })
+  emitConfigWarnings(configWarnings, 'am render')
+  const out = renderSourceToFormat(source, format, { security, certificates: args.flags.certificates === true, style, seed, ganttToday })
   // --output writes the artifact for every single-shot format, matching the
   // documented `am render --format svg --output diagram.svg` (it was png-only,
   // silently ignored elsewhere — the docs' samples produced no file).
   const outFile = typeof args.flags.o === 'string' ? args.flags.o : (typeof args.flags.output === 'string' ? args.flags.output : '')
   const text = typeof out === 'string'
-    ? (json ? JSON.stringify({ [format]: out }) + '\n' : (out.endsWith('\n') ? out : out + '\n'))
-    : JSON.stringify(out) + '\n'
+    ? (json ? JSON.stringify({ [format]: out, warnings: configWarnings }) + '\n' : (out.endsWith('\n') ? out : out + '\n'))
+    : JSON.stringify(configWarnings.length > 0 ? { ...out, warnings: configWarnings } : out) + '\n'
   if (outFile) {
     writeFileSync(outFile, text)
     return EXIT_OK
@@ -395,7 +463,7 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
   return EXIT_OK
 }
 
-interface RenderFormatOptions { security?: 'default' | 'strict'; certificates?: boolean; style?: StyleInput[]; seed?: number }
+interface RenderFormatOptions { security?: 'default' | 'strict'; certificates?: boolean; style?: StyleInput[]; seed?: number; ganttToday?: string }
 
 /** The ONE format dispatch behind every render path — single-input,
  *  multi-input, and watch differ only in I/O and error envelopes, so they
@@ -403,13 +471,13 @@ interface RenderFormatOptions { security?: 'default' | 'strict'; certificates?: 
  *  threading previously had to touch three copies). JSON parse failures
  *  throw the structured envelope; callers decide how to surface it. */
 function renderSourceToFormat(source: string, format: string, opts: RenderFormatOptions = {}): string | object {
-  if (format === 'ascii' || format === 'unicode') return renderMermaidASCII(source, { useAscii: format === 'ascii' })
+  if (format === 'ascii' || format === 'unicode') return renderMermaidASCII(source, { useAscii: format === 'ascii', ganttToday: opts.ganttToday })
   if (format === 'json') {
     const parsed = parseMermaid(source)
     if (!parsed.ok) throw parseErrorEnvelope(parsed.error)
     return layoutMermaid(parsed.value, { debug: opts.certificates === true })
   }
-  return renderMermaidSVG(source, { security: opts.security, style: opts.style, seed: opts.seed })
+  return renderMermaidSVG(source, { security: opts.security, style: opts.style, seed: opts.seed, ganttToday: opts.ganttToday })
 }
 
 /**
@@ -430,13 +498,16 @@ export function renderFileOnce(file: string, format: string, opts: RenderFormatO
   }
 }
 
-function cmdRenderWatch(file: string, format: string, args: ParsedArgs, _json: boolean, opts: { security?: 'default' | 'strict'; certificates?: boolean; style?: StyleInput[]; seed?: number } = {}): number {
+function cmdRenderWatch(file: string, format: string, args: ParsedArgs, _json: boolean, opts: RenderFormatOptions = {}): number {
   const outFile = typeof args.flags.output === 'string' ? args.flags.output : ''
   const emit = () => {
     try {
-      const out = renderFileOnce(file, format, opts)
-      if (outFile) { writeFileSync(outFile, out) ; process.stderr.write(`rendered → ${outFile}\n`) }
-      else process.stdout.write(out + (out.endsWith('\n') ? '' : '\n'))
+      const src = readFileSync(file, 'utf8')
+      emitConfigWarnings(configWarningsForMermaid(src), 'am render --watch')
+      const out = renderSourceToFormat(src, format, opts)
+      const text = typeof out === 'string' ? out : JSON.stringify(out)
+      if (outFile) { writeFileSync(outFile, text) ; process.stderr.write(`rendered → ${outFile}\n`) }
+      else process.stdout.write(text + (text.endsWith('\n') ? '' : '\n'))
     } catch (e) { process.stderr.write(`render error: ${(e as Error).message}\n`) }
   }
   emit() // initial render
@@ -446,15 +517,22 @@ function cmdRenderWatch(file: string, format: string, args: ParsedArgs, _json: b
   return EXIT_OK
 }
 
-function renderPngSync(source: string, opts: { scale: number; background: string; style?: StyleInput[]; seed?: number; fontDirs?: string[]; loadSystemFonts?: boolean }, outFile: string, json: boolean): number {
+function emitConfigWarnings(warnings: LayoutWarning[], prefix: string): void {
+  for (const warning of warnings) {
+    process.stderr.write(`${prefix}: warning ${warning.code}${'field' in warning ? ` (${warning.field})` : ''}: ${'message' in warning ? warning.message : 'configuration has no effect'}\n`)
+  }
+}
+
+function renderPngSync(source: string, opts: { scale: number; background: string; style?: StyleInput[]; seed?: number; fontDirs?: string[]; loadSystemFonts?: boolean; ganttToday?: string }, outFile: string, json: boolean, configWarnings: LayoutWarning[] = []): number {
   try {
     // Glyph-coverage warnings (CJK/emoji without a covering font) go to
     // stderr — the PNG itself can't show what silently became tofu — and
     // ride along in the --json envelope for programmatic callers.
-    const warnings: PngFontWarning[] = []
-    const png = renderMermaidPNG(source, { ...opts, onWarning: w => warnings.push(w) })
+    const fontWarnings: PngFontWarning[] = []
+    const png = renderMermaidPNG(source, { ...opts, onWarning: w => fontWarnings.push(w) })
+    const warnings: Array<PngFontWarning | LayoutWarning> = [...configWarnings, ...fontWarnings]
     writeFileSync(outFile, png)
-    for (const w of warnings) process.stderr.write(`am render --format png: warning ${w.code}: ${w.message}\n`)
+    for (const w of warnings) process.stderr.write(`am render --format png: warning ${w.code}: ${'message' in w ? w.message : 'configuration has no effect'}\n`)
     if (json) process.stdout.write(JSON.stringify({ ok: true, path: outFile, bytes: png.length, warnings }) + '\n')
     return EXIT_OK
   } catch (e) {

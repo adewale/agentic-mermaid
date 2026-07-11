@@ -30,6 +30,9 @@ export const DEFAULT_XY_CHART_CONFIG: ResolvedXYChartConfig = {
   plotReservedSpacePercent: 50,
   showDataLabel: false,
   showTitle: true,
+  showLegend: true,
+  legendFontSize: 14,
+  legendPadding: 5,
   xAxis: { ...DEFAULT_XY_AXIS_CONFIG },
   yAxis: { ...DEFAULT_XY_AXIS_CONFIG },
 }
@@ -66,6 +69,9 @@ export function resolveXYChartRenderConfig(config: XYChartConfig): ResolvedXYCha
     ),
     showDataLabel: config.showDataLabel ?? DEFAULT_XY_CHART_CONFIG.showDataLabel,
     showTitle: config.showTitle ?? DEFAULT_XY_CHART_CONFIG.showTitle,
+    showLegend: config.showLegend ?? DEFAULT_XY_CHART_CONFIG.showLegend,
+    legendFontSize: getPositiveNumber(config.legendFontSize, DEFAULT_XY_CHART_CONFIG.legendFontSize),
+    legendPadding: getNonNegativeNumber(config.legendPadding, DEFAULT_XY_CHART_CONFIG.legendPadding),
     xAxis: resolveXYAxisRenderConfig(config.xAxis),
     yAxis: resolveXYAxisRenderConfig(config.yAxis),
   }

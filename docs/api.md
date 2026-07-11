@@ -120,6 +120,7 @@ const ascii = renderMermaidASCII(`flowchart LR
 | `interactive` | `boolean` | `false` | XY chart hover tooltips. |
 | `shadow` | `boolean` | `false` | Explicit drop shadows. |
 | `mermaidConfig` | `MermaidRuntimeConfig` | — | Runtime Mermaid config. |
+| `onConfigDiagnostic` | `(diagnostic: ConfigDiagnostic) => void` | console warning for explicit ineffective State config | Collect qualified warnings without changing SVG bytes. |
 | `embedFontImport` | `boolean` | `true` | Include Google Fonts imports for a single plain family and class/ER mono labels; set false for offline SVG. PNG disables imports internally. |
 | `compact` | `boolean` | `false` | Compact SVG output while preserving agent hooks. |
 | `idPrefix` | `string` | `''` | Namespace generated SVG def ids. |
@@ -174,7 +175,7 @@ Typed mutation families:
 | Sequence | `asSequence` | `add_participant`, `remove_participant`, `add_message`, `remove_message`, `set_message_text` |
 | Timeline | `asTimeline` | `set_title`, `add_section`, `add_period`, `add_event`, remove/set variants |
 | Class | `asClass` | `add_class`, `remove_class`, `rename_class`, `add_member`, `add_relation`, notes |
-| ER | `asEr` | `add_entity`, `remove_entity`, `rename_entity`, `add_attribute`, `add_relation` |
+| ER | `asEr` | `add_entity`, `remove_entity`, `rename_entity`, `set_entity_label`, `add_attribute`, `remove_attribute`, `add_relation`, `remove_relation` |
 | Journey | `asJourney` | `set_title`, `add_section`, `add_task`, `set_task_score`, `set_task_actors`, `rename_actor`, … |
 | XY chart | `asXyChart` | `set_title`, `set_x_axis`, `set_y_axis`, `add_series`, `set_series_values`, `reorder_series`, … |
 | Architecture | `asArchitecture` | `add_service`, `move_service`, `add_group`, `add_edge`, `rename_service`, … |

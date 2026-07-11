@@ -129,4 +129,13 @@ describe('timeline ASCII', () => {
     expect(result).not.toContain('Accessible roadmap')
     expect(result).not.toContain('Product launch plan')
   })
+
+  it('renders `timeline TD` identically to the horizontal source (the outline is orientation-agnostic)', () => {
+    const src = `timeline
+      title Product history
+      section Growth
+      2023 : Public launch
+      2024 : Timeline support`
+    expect(render(src.replace('timeline', 'timeline TD'))).toBe(render(src))
+  })
 })

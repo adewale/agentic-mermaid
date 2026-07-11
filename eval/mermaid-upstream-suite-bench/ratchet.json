@@ -2,21 +2,21 @@
   "version": 1,
   "upstreamRevision": "a2d9686451df7c4644a3eeca20535bbd4c5776b0",
   "budgets": {
-    "importedCaseFloor": 642,
-    "importedBlockFloor": 652,
+    "importedCaseFloor": 645,
+    "importedBlockFloor": 655,
     "localGaps": {
-      "totalBlocks": 6,
+      "totalBlocks": 3,
       "byReason": {
-        "local-verify-gap": 6
+        "local-verify-gap": 3
       },
       "byFamily": {
-        "architecture": 4,
+        "architecture": 1,
         "er": 1,
         "flowchart": 1
       },
       "byFamilyReason": {
         "architecture": {
-          "local-verify-gap": 4
+          "local-verify-gap": 1
         },
         "er": {
           "local-verify-gap": 1
@@ -28,29 +28,13 @@
     }
   },
   "observed": {
-    "importedCases": 642,
-    "importedBlocks": 652,
+    "importedCases": 648,
+    "importedBlocks": 658,
     "localGaps": {
-      "totalBlocks": 6,
-      "byReason": {
-        "local-verify-gap": 6
-      },
-      "byFamily": {
-        "architecture": 4,
-        "er": 1,
-        "flowchart": 1
-      },
-      "byFamilyReason": {
-        "architecture": {
-          "local-verify-gap": 4
-        },
-        "er": {
-          "local-verify-gap": 1
-        },
-        "flowchart": {
-          "local-verify-gap": 1
-        }
-      }
+      "totalBlocks": 0,
+      "byReason": {},
+      "byFamily": {},
+      "byFamilyReason": {}
     }
   }
 }

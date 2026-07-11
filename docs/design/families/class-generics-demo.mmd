@@ -1,0 +1,7 @@
+classDiagram
+  class Box~T~ {
+    +value T
+    +map(fn) Box~T~
+  }
+  class IntBox
+  Box~T~ <|-- IntBox : specializes

@@ -80,15 +80,15 @@ Legend: “parse” means recognized and preserved by the family parser. “rend
 | `tickInterval ...` | parse + render, bounded | Must validate interval count before generating ticks. Regression source: [PR #7197](https://github.com/mermaid-js/mermaid/pull/7197). |
 | `inclusiveEndDates` | parse + render | Apply at scheduling boundary, not by stretching bars in renderer code. |
 | `topAxis` | parse + render in SVG; parse + preserve in ASCII | SVG should draw top axis. ASCII may choose a single top/bottom axis according to width, but must document the choice. |
-| `excludes ...` | parse + render | Support multiple lines per [PR #7772](https://github.com/mermaid-js/mermaid/pull/7772). Accept weekdays, `weekends`, and explicit dates. Do not support date ranges until Mermaid core does. |
+| `excludes ...` | parse + render | Support multiple lines per [PR #7772](https://github.com/mermaid-js/mermaid/pull/7772). Accept weekdays, `weekends`, and explicit dates. Do not support date ranges until Mermaid core does. Excluded days shade the plot by default (see [Excluded-day shading and the boundary model](#excluded-day-shading-and-the-boundary-model)). |
 | `includes ...` | parse + render | Multiple lines. Includes override excludes for explicitly listed dates. |
 | `weekend friday|saturday` | parse + render | Mirrors [PR #5358](https://github.com/mermaid-js/mermaid/pull/5358). |
 | `weekday <day>` | parse + render for weekly tick alignment | Do not let tick alignment affect task duration. |
-| `todayMarker ...` / `todayMarker off` | parse + render only with supplied clock | Agentic Mermaid must not read wall-clock time by default. Draw the marker only when the caller passes `options.gantt.today` or equivalent; `off` always disables it. |
+| `todayMarker ...` / `todayMarker off` | parse + render only with supplied clock | Agentic Mermaid must not read wall-clock time by default. Draw the marker only when the caller passes `ganttToday` (library/MCP) or `am render --gantt-today <DATE>` (CLI); `off` always disables it. The directive's style payload applies to the today line: `stroke`, `stroke-width`, `opacity`, and `stroke-dasharray` are sanitized (quadrant `COLOR_RE` value policy — no quotes/semicolons/colons can reach the style attribute) and wired; any other property in the payload is named by verify's Tier-3 `INEFFECTIVE_CONFIG` lint as `todayMarker.<prop>` (src/gantt/today-marker.ts is the single wire/sanitize table). |
 | `section ...` | parse + render | Section labels get their own row/band. Multiline HTML section labels are preserved; first release may render them as plain text with `<br>` normalized to a line break only if the renderer can size the row. See [#7602](https://github.com/mermaid-js/mermaid/issues/7602). |
-| Task row: `Label : metadata` | parse + render | Preserve label text exactly enough for round-trip; render plain text after sanitization. |
+| Task row: `Label : metadata` | parse + render | Preserve label text exactly enough for round-trip; render plain text after sanitization. In the SVG label column, labels wider than the `GANTT_LABEL_WRAP_BUDGET` (220px) wrap via the shared `src/shared/label-wrap.ts` machinery (the journey extraction — no fourth wrap fork); row height becomes label-aware; labels at or under the budget render byte-identically. Section headers wrap into the same budget. Compact mode is exempt (its task labels sit beside bars in the plot, not in the column). |
 | Task ids | parse + render | IDs are used by `after`, `until`, and `click`. Duplicate IDs are a structured parse error. |
-| Status tags `done`, `active`, `crit` | parse + render | SVG classes and ASCII glyphs must distinguish states. Text contrast is tested in light/dark themes. |
+| Status tags `done`, `active`, `crit` | parse + render | SVG classes and ASCII glyphs must distinguish states. Text contrast is tested in light/dark themes. Milestones carry the same status classes (`gantt-milestone-done` / `-active` / `-crit`) mirroring the bar convention; the done/active rules are emitted only when such milestones exist so other charts stay byte-identical. |
 | `milestone` | parse + render | Render as diamond/marker, zero-width task. |
 | `vert` marker | parse + render | Render vertical marker without consuming a task row, per [PR #7284](https://github.com/mermaid-js/mermaid/pull/7284). |
 | `after <id...>` | parse + render | Multiple IDs resolve to the latest referenced end date, matching Mermaid docs. Unknown IDs are structured errors, not silent fallbacks. |
@@ -104,14 +104,72 @@ Legend: “parse” means recognized and preserved by the family parser. “rend
 
 These are deliberate boundaries, not hidden gaps:
 
-- **No typed ops for directives, click events, markers, or comments.** `asGantt` exposes ops on sections and tasks only (`set_title`, `add_section`/`rename_section`/`remove_section`, `add_task`/`remove_task`/`rename_task`, `set_task_status`, `set_task_dates`; exact list finalized against the other families' conventions). `dateFormat`, `excludes`/`includes`, `weekend`/`weekday`, `todayMarker`, `click`, and comment lines are preserved verbatim as opaque segments and are edited at the source level. Promoting any of them to typed ops is future work gated on the scheduler being able to re-resolve them.
+- **No typed ops for directives, click events, markers, or comments.** `asGantt` exposes ops on sections and tasks only (`set_title`, `add_section`/`rename_section`/`remove_section`/`move_section`, `add_task` with an optional insert `index`, `remove_task`/`rename_task`/`move_task`, `set_task_status`, `set_task_flags`, `set_task_dates`, `set_task_id`). `dateFormat`, `excludes`/`includes`, `weekend`/`weekday`, `todayMarker`, `click`, and comment lines are preserved verbatim as opaque segments and are edited at the source level. Promoting any of them to typed ops is future work gated on the scheduler being able to re-resolve them. The ordering and identity ops carry two prescriptive contracts:
+  1. **Source order IS scheduling semantics.** A task with an implicit start (end only, no start expression) begins when the previous task in flat source order ends — across section boundaries. `move_task` and `move_section` therefore REJECT, with the fix named in the error, any move that would change an implicit-start task's predecessor, instead of silently rescheduling it; the caller materializes an explicit start first (`set_task_dates` with the resolved date from `describe`/`analyze`, or an `after` dependency) and retries. `add_task` with an insert `index` is the deliberate exception: inserting into a chain re-chains the follower onto the new task, which is the point of a mid-chain insert and is visible in the source diff.
+  2. **`set_task_id` keeps references coherent by construction.** A rename REWRITES every structured `after`/`until` reference to the old id, so the dependency graph never dangles. It REJECTS while the id is referenced from opaque segments (click lines, unmodeled task lines) because typed ops never rewrite opaque source — those lines are edited at the source level first. `taskId: null` (clearing the id) REJECTS while ANY reference exists, listing the referents, because there is nothing to retarget them to.
 - **No JavaScript callback execution.** `click id call fn(args)` is parsed and preserved; it is not executed or emitted as executable script.
 - **No non-Mermaid proposed syntax.** This excludes date ranges in `excludes` ([#2424](https://github.com/mermaid-js/mermaid/issues/2424)), custom task states ([#3539](https://github.com/mermaid-js/mermaid/issues/3539)), relative symbolic dates such as `m1` ([#2850](https://github.com/mermaid-js/mermaid/issues/2850)), dynamic `now` / `getdate` task values ([#3532](https://github.com/mermaid-js/mermaid/issues/3532)), and vertical Gantt charts ([#6773](https://github.com/mermaid-js/mermaid/issues/6773)).
-- **No dependency arrows beyond Mermaid syntax.** Users have asked for arrows in [#7300](https://github.com/mermaid-js/mermaid/issues/7300) and vertical dependency lines in [#3290](https://github.com/mermaid-js/mermaid/issues/3290). First release may compute dependency data for scheduling and accessibility, but the visual arrows are future work.
+- **No dependency-arrow syntax.** Users have asked for arrows in [#7300](https://github.com/mermaid-js/mermaid/issues/7300) and vertical dependency lines in [#3290](https://github.com/mermaid-js/mermaid/issues/3290). The visual overlay shipped as an opt-in RENDER OPTION — see [Dependency arrows and critical-path overlay](#dependency-arrows-and-critical-path-overlay-render-option) below — and Mermaid source stays untouched: no new syntax, and default output is byte-identical to a renderer without the feature.
 - **No WBS/subtask syntax.** Subtasks and work-breakdown hierarchies are requested in [#3295](https://github.com/mermaid-js/mermaid/issues/3295) and [#6449](https://github.com/mermaid-js/mermaid/issues/6449). Do not invent syntax.
 - **No work-hour calendar syntax until Mermaid stabilizes it.** Track [#4060](https://github.com/mermaid-js/mermaid/issues/4060) and [PR #7733](https://github.com/mermaid-js/mermaid/pull/7733).
 - **No BC/inverted time axis in first release.** Track [#4437](https://github.com/mermaid-js/mermaid/issues/4437).
 - **No host-specific fallback behavior.** If GitHub’s pinned Mermaid version lacks a feature, Agentic Mermaid may still support it if the pinned syntax target does.
+
+## Dependency arrows and critical-path overlay (render option)
+
+Shipped (family-elevation-plan §Gantt item 1): the dependency visuals requested upstream in [#7300](https://github.com/mermaid-js/mermaid/issues/7300), [#3290](https://github.com/mermaid-js/mermaid/issues/3290), and [#818](https://github.com/mermaid-js/mermaid/issues/818) are render options on the SVG path, sourced entirely from the scheduler's existing dependency graph and `GanttScheduleAnalysis` — never new Mermaid syntax:
+
+```ts
+render(source, { gantt: { dependencyArrows: true, criticalPath: true } })
+```
+
+- **`dependencyArrows`** (default `false`) draws one deterministic orthogonal elbow connector per `after`/`until` reference, from the predecessor bar's end to the successor bar's start (`after` edges point ref → task; `until` edges point task → referenced start). Routing lives in `src/gantt/layout.ts` (`GanttLayoutResult.dependencies`), never in the renderer: horizontal runs travel in row gutters (bar-free by construction) or as short stubs beside the two anchored bars; vertical runs cross a row band only at an x proven clear of every bar interior, jogging inside the preceding gutter — the corridor just left of the plot (`plot.x - GANTT_DEP_STUB`, inside the label column's `labelGap` margin, so labels stay clear in standard mode) is always available. Milestones anchor at the diamond's bounding box/tips. Connectors are quieter than bars (the journey curve's restraint), carry `data-from`/`data-to` task identity, and terminate in arrowheads whose marker ids are content-hashed (the journey id-namespacing pattern) and respond to `idPrefix`.
+- **`criticalPath`** (default `false`) applies a stronger theme-aware stroke (`gantt-bar-critical-path`) to the bars and milestones on `GanttScheduleAnalysis.criticalPathTaskIds`, and — combined with `dependencyArrows` — emphasizes the binding connectors along the path (`gantt-dep-arrow-crit`: an `after` edge between two critical tasks where the successor starts exactly at the predecessor's end). Never a hard-coded red (the Google-Charts lesson from the research doc), and never inferred: no `after` dependencies means no analysis and no emphasis.
+
+Hard gates, honoring [`gantt-research.md`](./gantt-research.md)'s caveat that dependency arrows ship only with overlap tests (`src/__tests__/gantt-dependency-overlay.test.ts`, including a fast-check property over generated schedules):
+
+1. connector endpoints touch exactly their two bars;
+2. connectors never overlap any bar's interior rect — a route that would is unrepresentable in the output (the router validates the final polyline and skips the connector rather than draw a violation);
+3. with the options off (the default), SVG output is byte-identical to previous releases — the representative golden and an explicit options-off equality test pin this.
+
+Known limits: in `displayMode: compact`, task labels sit beside bars inside the plot, and connectors may cross those labels (never bars). `vert` tasks render as markers, not bars, so edges touching them draw no connector. ASCII output carries no dependency notation — the line grid has no opt-in channel and an always-on annotation would change every existing golden; the per-task date gutter plus `describe`'s dependency facts remain the terminal story.
+
+## Excluded-day shading and the boundary model
+
+Shipped 2026-07 (family-elevation-plan §Gantt items 2 and 6):
+
+**Shading is default-on** (upstream parity: mermaid draws `exclude-range`
+rects unconditionally, and the absence of shading read as a bug — upstream
+#6421/#7062/#314). Correctness by construction: the bands derive from the
+SAME `schedule.isExcludedDay` predicate the duration walk uses — one
+calendar, two consumers — never a second calendar implementation. Bands
+merge consecutive excluded days, clip to the visible range, appear only on
+date-only charts with `excludes` (time-bearing `dateFormat`s and
+exclude-free charts are byte-identical to previous releases, including
+their CSS block), and always paint BEFORE grid lines and bars (z-order
+invariant, gated in `src/__tests__/gantt-excluded-shading.test.ts`).
+
+**The exclude-boundary divergence is RESOLVED by adopting upstream's
+model.** `src/gantt/schedule.ts` now mirrors mermaid's `fixTaskDates` walk
+exactly: excluded days are counted in `(start, end]` — the cursor starts
+one day after the task start, so a task starting on an excluded day gets
+that day free — and the `endTime`/`renderEndTime` split is mirrored as
+`ScheduledGanttTask.end` (chain end: where `after` successors and
+implicit-start followers begin) vs `.renderEnd` (drawn-bar end: trailing
+excluded days extend the chain but never stretch the bar; always within
+`[start, end]`). Bars, milestones, ASCII tracks, and the date gutter draw
+`renderEnd`; dependency chaining, critical-path analysis, and `describe`
+use `end`. The axis range covers drawn extents, not phantom trailing
+exclusions. The former `exclude-boundary-model` ledger entries
+(`eval/mermaid-gantt-bench/exclusions.json` e3/e4) are now executed parity
+cases (`db-weekends-mega`, `db-exclude-all-but-friday` in `cases.json`),
+pinning all seven chain instants of upstream's "should ignore weekends"
+spec; `src/__tests__/gantt-exclusion-boundary.test.ts` pins the
+`renderEnd` split.
+
+Evidence: `gantt-completion-before.png` / `gantt-completion-after.png`
+(source `gantt-completion-demo.mmd`) — weekend shading, the styled today
+marker, a wrapped 65-char label, and status-styled milestones in one chart.
 
 ## Architecture
 
@@ -204,7 +262,7 @@ SVG requirements:
 - strict security removes executable callbacks, unsafe hrefs, scripts, images, and external refs;
 - Style + Palette rendering routes Gantt marks through the internal style face:
   task labels, bars, grid lines, markers, and section bands should respond to named styles and palette stacks;
-- status classes: `gantt-bar`, `gantt-bar-done`, `gantt-bar-active`, `gantt-bar-crit`, `gantt-milestone`, `gantt-vert-marker`;
+- status classes: `gantt-bar`, `gantt-bar-done`, `gantt-bar-active`, `gantt-bar-crit`, `gantt-milestone`, `gantt-milestone-done`, `gantt-milestone-active`, `gantt-milestone-crit`, `gantt-vert-marker`, `gantt-excluded-band`;
 - text contrast tests for status bars in light and dark themes;
 - `displayMode: compact` uses deterministic interval packing and has a fixture where dense rows would overlap under naive spacing.
 

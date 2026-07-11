@@ -60,6 +60,7 @@ const EQUIVALENT_CASES: Array<[label: string, code: string]> = [
   ['SDK parse → narrow → serialize round trip', `${PARSE}; const f = mermaid.asFlowchart(r.value); return mermaid.serializeMermaid(f)`],
   ['SDK mutate adds a node', `${PARSE}; const m = mermaid.mutate(r.value, { kind: 'add_node', id: 'C', label: 'New' }); return { ok: m.ok, source: m.ok ? mermaid.serializeMermaid(m.value) : null }`],
   ['SDK render through execute', `${PARSE}; return mermaid.renderMermaidSVG(r.value).length`],
+  ['SDK render config callback survives the façade', `const warnings = []; mermaid.renderMermaidSVG('stateDiagram-v2\\n  A --> B', { mermaidConfig: { state: { titleTopMargin: 10 } }, onConfigDiagnostic: d => warnings.push(d.field) }); return warnings`],
   ['SDK verify warnings shape', `${PARSE}; const v = mermaid.verifyMermaid(r.value); return { ok: v.ok, warnings: v.warnings.length }`],
   ['returning a diagram marshals to the canonical envelope', `${PARSE}; return r.value`],
   ['returning a mutate Result marshals to the canonical envelope', `${PARSE}; return mermaid.mutate(mermaid.asFlowchart(r.value), { kind: 'add_node', id: 'C', label: 'New' })`],

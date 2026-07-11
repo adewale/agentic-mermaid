@@ -3,12 +3,13 @@ import type { RenderContext, RenderOptions } from '../types.ts'
 import { svgOpenTag, buildStyleBlock } from '../theme.ts'
 import { TEXT_BASELINE_SHIFT, applyTextTransform, estimateTextWidth, STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults } from '../styles.ts'
-import { XY_STYLE_DEFAULTS } from './layout.ts'
+import { LEGEND_SWATCH_GAP, LEGEND_SWATCH_SIZE, XY_STYLE_DEFAULTS } from './layout.ts'
 import { escapeXml } from '../multiline-utils.ts'
 import { getSeriesColor, CHART_ACCENT_FALLBACK } from './colors.ts'
 import type { MarkPaint, SceneDoc, SceneNode } from '../scene/ir.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
+import { tooltipMarkup, tooltipCss } from '../shared/svg-tooltip.ts'
 
 // ============================================================================
 // XY Chart SVG renderer
@@ -34,16 +35,9 @@ const CHART_FONT = {
   lineWidth: 3,
 } as const
 
-const TIP = {
-  fontSize: 15,
-  fontWeight: 500,
-  height: 32,
-  padX: 14,
-  offsetY: 12,
-  rx: 8,
-  minY: 4,
-  pointerSize: 6,
-} as const
+// Tooltip metrics/markup/CSS live in the shared primitive (also consumed by
+// the quadrant renderer); prefix "xychart" reproduces the historical strings
+// byte-for-byte.
 
 export function renderXYChartSvg(
   ctx: RenderContext<PositionedXYChart>,
@@ -151,7 +145,7 @@ export function lowerXYChartScene(
         `<g class="xychart-bar-group">` +
         `<rect x="${r(bar.x)}" y="${r(bar.y)}" width="${r(bar.width)}" height="${r(bar.height)}" fill="transparent"/>` +
         `<title>${escapeXml(tipTitle)}</title>` +
-        tooltipAbove(tipAnchorX, tipAnchorY, tipText) +
+        tooltipMarkup('xychart', tipAnchorX, tipAnchorY, tipText) +
         `</g>`,
       ))
     }
@@ -208,7 +202,7 @@ export function lowerXYChartScene(
             {
               node: marks.raw({ id: `tooltip:${pointId}`, role: 'chrome' },
                 `<title>${escapeXml(tipTitle)}</title>` +
-                tooltipAbove(point.x, point.y - CHART_FONT.dotRadius, tipText)),
+                tooltipMarkup('xychart', point.x, point.y - CHART_FONT.dotRadius, tipText)),
               indent: 0,
             },
           ],
@@ -302,6 +296,82 @@ export function lowerXYChartScene(
     ))
   }
 
+  // Right-side legend (layout has already reserved its space inside the
+  // canvas; an empty legend array means the chart is not legend-worthy, the
+  // config hides it, or the column was dropped rather than clipped).
+  if (chart.legend.length > 0) {
+    const legendChildren: Array<{ node: SceneNode; indent: number }> = []
+    for (const item of chart.legend) {
+      const cy = item.y + LEGEND_SWATCH_SIZE / 2
+      if (item.type === 'bar') {
+        legendChildren.push({
+          node: marks.shape({
+            id: `legend:swatch:${item.colorIndex}`,
+            role: 'legend',
+            geometry: { kind: 'rect', x: rn(item.x), y: rn(item.y), width: LEGEND_SWATCH_SIZE, height: LEGEND_SWATCH_SIZE, rx: 2, ry: 2 },
+            paint: { fill: `var(--xychart-color-${item.colorIndex})` },
+            channels: { category: `bar-${item.seriesIndex}` },
+          },
+            `<rect x="${r(item.x)}" y="${r(item.y)}" width="${LEGEND_SWATCH_SIZE}" height="${LEGEND_SWATCH_SIZE}" rx="2" ry="2" ` +
+            `class="xychart-legend-swatch" fill="var(--xychart-color-${item.colorIndex})"/>`),
+          indent: 2,
+        })
+      } else {
+        // Line swatch: a stroke sample plus its center dot (the LegendItem
+        // contract: rect for bar, line+dot for line).
+        legendChildren.push({
+          node: marks.shape({
+            id: `legend:swatch:${item.colorIndex}`,
+            role: 'legend',
+            geometry: { kind: 'line', x1: rn(item.x), y1: rn(cy), x2: rn(item.x + LEGEND_SWATCH_SIZE), y2: rn(cy) },
+            paint: { stroke: `var(--xychart-color-${item.colorIndex})`, strokeWidth: String(CHART_FONT.lineWidth) },
+            channels: { category: `line-${item.seriesIndex}` },
+          },
+            `<line x1="${r(item.x)}" y1="${r(cy)}" x2="${r(item.x + LEGEND_SWATCH_SIZE)}" y2="${r(cy)}" ` +
+            `class="xychart-legend-swatch" stroke="var(--xychart-color-${item.colorIndex})" stroke-width="${CHART_FONT.lineWidth}" stroke-linecap="round"/>`),
+          indent: 2,
+        })
+        legendChildren.push({
+          node: marks.shape({
+            id: `legend:dot:${item.colorIndex}`,
+            role: 'legend',
+            geometry: { kind: 'circle', cx: rn(item.x + LEGEND_SWATCH_SIZE / 2), cy: rn(cy), r: 2.5 },
+            paint: { fill: `var(--xychart-color-${item.colorIndex})`, stroke: 'var(--bg)', strokeWidth: '1' },
+            channels: { category: `line-${item.seriesIndex}` },
+          },
+            `<circle cx="${r(item.x + LEGEND_SWATCH_SIZE / 2)}" cy="${r(cy)}" r="2.5" ` +
+            `class="xychart-legend-dot" fill="var(--xychart-color-${item.colorIndex})" stroke="var(--bg)" stroke-width="1"/>`),
+          indent: 2,
+        })
+      }
+      const label = applyTextTransform(item.label, style.nodeTextTransform)
+      const labelX = item.x + LEGEND_SWATCH_SIZE + LEGEND_SWATCH_GAP
+      legendChildren.push({
+        node: marks.text({
+          id: `legend:label:${item.colorIndex}`,
+          role: 'legend',
+          text: label,
+          x: rn(labelX),
+          y: rn(cy),
+          fontSize: chart.config.legendFontSize,
+          anchor: 'start',
+          paint: { fill: chartColors.legendTextColor },
+        },
+          `<text x="${r(labelX)}" y="${r(cy)}" text-anchor="start" dominant-baseline="middle" ` +
+          `font-size="${chart.config.legendFontSize}" font-weight="${style.nodeLabelFontWeight}"${letterAttr(style.nodeLetterSpacing)} ` +
+          `class="xychart-legend-label">${escapeXml(label)}</text>`),
+        indent: 2,
+      })
+    }
+    parts.push(marks.group({
+      id: 'legend',
+      role: 'legend',
+      open: '<g class="xychart-legend">',
+      close: '</g>',
+      children: legendChildren,
+    }))
+  }
+
   for (const group of barOverlay) parts.push(group)
   for (const group of dotOverlay) parts.push(group)
 
@@ -386,6 +456,7 @@ interface ResolvedChartColors {
   yAxisLineColor: string
   xAxisTitleColor: string
   yAxisTitleColor: string
+  legendTextColor: string
 }
 
 function resolveChartColors(
@@ -406,6 +477,7 @@ function resolveChartColors(
     yAxisLineColor: themeOverrides.yAxisLineColor ?? renderStyle.edgeStrokeColor ?? 'var(--_text-sec)',
     xAxisTitleColor: themeOverrides.xAxisTitleColor ?? renderStyle.edgeTextColor ?? renderStyle.nodeTextColor ?? 'var(--_text)',
     yAxisTitleColor: themeOverrides.yAxisTitleColor ?? renderStyle.edgeTextColor ?? renderStyle.nodeTextColor ?? 'var(--_text)',
+    legendTextColor: themeOverrides.legendTextColor ?? renderStyle.nodeTextColor ?? 'var(--_text)',
   }
 }
 
@@ -441,13 +513,7 @@ function chartStyles(
     seriesRules.push(`  circle.xychart-color-${index} { fill: ${color}; }`)
   }
 
-  const tipRules = interactive ? `
-  .xychart-tip { opacity: 0; pointer-events: none; }
-  .xychart-tip-bg { fill: var(--_text); }
-  .xychart-tip-text { fill: var(--bg); font-size: ${TIP.fontSize}px; font-weight: ${TIP.fontWeight}; }
-  .xychart-tip-ptr { fill: var(--_text); }
-  .xychart-bar-group:hover .xychart-tip,
-  .xychart-dot-group:hover .xychart-tip { opacity: 1; }` : ''
+  const tipRules = interactive ? tooltipCss('xychart', ['xychart-bar-group', 'xychart-dot-group']) : ''
 
   const colorVarsBlock = colorVarDefs.length > 0 ? `\n  svg {\n${colorVarDefs.join('\n')}\n  }` : ''
 
@@ -470,7 +536,7 @@ function chartStyles(
   .xychart-x-axis-title { fill: ${cc.xAxisTitleColor}; }
   .xychart-y-axis-title { fill: ${cc.yAxisTitleColor}; }
   .xychart-title { fill: ${cc.titleColor}; }
-  .xychart-data-label { fill: ${cc.labelColor}; pointer-events: none; }${colorVarsBlock}
+  .xychart-data-label { fill: ${cc.labelColor}; pointer-events: none; }${chart.legend.length > 0 ? `\n  .xychart-legend-label { fill: ${cc.legendTextColor}; }` : ''}${colorVarsBlock}
 ${seriesRules.join('\n')}${tipRules}${extraThemeCss}
 </style>`
 
@@ -538,31 +604,6 @@ function buildBarDataLabels(
     })
 }
 
-function tooltipAbove(cx: number, topY: number, text: string): string {
-  const textW = estimateTextWidth(text, TIP.fontSize, TIP.fontWeight)
-  const bgW = textW + TIP.padX * 2
-  const bgX = cx - bgW / 2
-  let bgY = topY - TIP.offsetY - TIP.height
-  let ptrY = bgY + TIP.height
-
-  if (bgY < TIP.minY) {
-    bgY = TIP.minY
-    ptrY = bgY + TIP.height
-  }
-
-  const textX = cx
-  const textY = bgY + TIP.height / 2
-  const p = TIP.pointerSize
-  const ptrPath = `M${r(cx - p)},${r(ptrY)} L${r(cx + p)},${r(ptrY)} L${r(cx)},${r(ptrY + p)} Z`
-
-  return (
-    `<g class="xychart-tip">` +
-    `<rect x="${r(bgX)}" y="${r(bgY)}" width="${r(bgW)}" height="${TIP.height}" rx="${TIP.rx}" class="xychart-tip xychart-tip-bg"/>` +
-    `<path d="${ptrPath}" class="xychart-tip xychart-tip-ptr"/>` +
-    `<text x="${r(textX)}" y="${r(textY)}" text-anchor="middle" dy="${TEXT_BASELINE_SHIFT}" class="xychart-tip xychart-tip-text">${escapeXml(text)}</text>` +
-    `</g>`
-  )
-}
 
 function formatTipValue(value: number): string {
   if (Number.isInteger(value)) return String(value)

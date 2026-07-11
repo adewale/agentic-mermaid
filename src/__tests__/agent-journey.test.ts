@@ -227,6 +227,21 @@ describe('journey mutation ops', () => {
     expect(d.body.sections[0]!.tasks[2]!.actors).toEqual(['Sam', 'Cat'])
   })
 
+  test('rejects edits that cannot survive Journey statement/actor delimiters', () => {
+    const d = journey()
+    for (const op of [
+      { kind: 'set_title', title: 'A; B' },
+      { kind: 'set_task_text', sectionIndex: 0, taskIndex: 0, text: 'A; B' },
+      { kind: 'set_task_actors', sectionIndex: 0, taskIndex: 0, actors: ['A, B'] },
+      { kind: 'rename_actor', from: 'Me', to: 'A; B' },
+    ] as JourneyMutationOp[]) {
+      const result = mutate(d, op)
+      expect(result.ok).toBe(false)
+      if (!result.ok) expect(result.error.code).toBe('INVALID_OP')
+    }
+    expect(apply(d, { kind: 'set_title', title: 'A &amp; B' }).body.title).toBe('A &amp; B')
+  })
+
   test('error paths: missing targets, invalid score, unknown actor, emptying floor', () => {
     const cases: Array<[JourneyMutationOp, import('../agent/types.ts').MutationError['code']]> = [
       [{ kind: 'remove_section', index: 9 }, 'SECTION_NOT_FOUND'],
@@ -296,6 +311,19 @@ describe('journey ordering + accessibility ops', () => {
     // Omitting index keeps append semantics.
     d = apply(d, { kind: 'add_task', sectionIndex: 0, text: 'Plan', score: 3 })
     expect(d.body.sections[0]!.tasks.map(t => t.text)).toEqual(['Plan'])
+  })
+
+  test('accessibility edits update body, source, metadata, facts, and clears atomically', () => {
+    let d = journey('journey\n  accTitle: Old\n  accDescr: Old description\n  Task: 3: Me')
+    d = apply(d, { kind: 'set_accessibility_title', title: 'New' })
+    d = apply(d, { kind: 'set_accessibility_description', description: 'New description' })
+    expect(d.meta.accessibility).toEqual({ title: 'New', descr: 'New description' })
+    expect(d.canonicalSource).toContain('accTitle: New')
+    expect(describeMermaidFacts(d)).toContain('accessibility title New')
+    d = apply(d, { kind: 'set_accessibility_title', title: null })
+    d = apply(d, { kind: 'set_accessibility_description', description: null })
+    expect(d.meta.accessibility).toEqual({})
+    expect(describeMermaidFacts(d).some(fact => fact.startsWith('accessibility '))).toBe(false)
   })
 
   test('set_accessibility_title / set_accessibility_description set, round-trip, and clear', () => {

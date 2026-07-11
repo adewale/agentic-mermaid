@@ -257,7 +257,12 @@ function renderAxis(keyword: 'x-axis' | 'y-axis', axis: XyChartAxis): string {
 }
 
 export function renderXyChart(body: XyChartBody): string {
-  const lines: string[] = [body.horizontal ? 'xychart-beta horizontal' : 'xychart-beta']
+  const header = body.horizontal === true
+    ? 'xychart-beta horizontal'
+    : body.horizontal === false
+      ? 'xychart-beta vertical'
+      : 'xychart-beta'
+  const lines: string[] = [header]
   if (body.title !== undefined) lines.push(`  title ${body.title}`)
   if (body.xAxis) lines.push(renderAxis('x-axis', body.xAxis))
   if (body.yAxis) lines.push(renderAxis('y-axis', body.yAxis))
@@ -432,6 +437,30 @@ export function mutateXyChart(body: XyChartBody, op: XyChartMutationOp): Result<
       }
       const [moved] = next.series.splice(from, 1)
       next.series.splice(to, 0, moved!)
+      break
+    }
+    case 'set_orientation': {
+      if (typeof op.horizontal !== 'boolean') {
+        return err({ code: 'INVALID_OP', message: `XY chart set_orientation horizontal must be a boolean (true = horizontal, false = vertical), got ${JSON.stringify(op.horizontal)}` })
+      }
+      // Preserve both explicit orientations. Absence remains the only state
+      // that defers to runtime frontmatter configuration.
+      next.horizontal = op.horizontal
+      break
+    }
+    case 'set_data_point': {
+      const s = Number.isInteger(op.seriesIndex) ? next.series[op.seriesIndex] : undefined
+      if (!s) {
+        const range = next.series.length > 0 ? ` (valid indices 0..${next.series.length - 1})` : ' (the chart has no series)'
+        return err({ code: 'SERIES_NOT_FOUND', message: `No series at index ${JSON.stringify(op.seriesIndex)}${range}` })
+      }
+      if (!Number.isInteger(op.index) || op.index < 0 || op.index >= s.values.length) {
+        return err({ code: 'POINT_NOT_FOUND', message: `No data point at index ${JSON.stringify(op.index)} in series ${op.seriesIndex} (${s.values.length} values, valid indices 0..${s.values.length - 1})` })
+      }
+      if (!isFiniteNumber(op.value)) {
+        return err({ code: 'INVALID_OP', message: `XY chart data point value must be a finite number, got ${JSON.stringify(op.value)}` })
+      }
+      s.values[op.index] = op.value
       break
     }
     default: {

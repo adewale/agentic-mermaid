@@ -62,9 +62,10 @@ export function lowerArchitectureScene(
     visual.edgeText ? `--arch-edge-label:${visual.edgeText}` : '',
   ].filter(Boolean).join(';')
 
-  const hasTitle = Boolean(diagram.accessibilityTitle)
+  const accessibleTitle = diagram.accessibilityTitle ?? diagram.title?.text
+  const hasTitle = Boolean(accessibleTitle)
   const hasDesc = Boolean(diagram.accessibilityDescription)
-  const uid = `arch-${hashId(diagram.width, diagram.height, diagram.services.map(s => s.id).join(','), diagram.groups.map(g => g.id).join(','))}`
+  const uid = `arch-${hashId(diagram.width, diagram.height, diagram.title?.text ?? '', diagram.services.map(s => s.id).join(','), diagram.groups.map(g => g.id).join(','))}`
   const titleId = `${uid}-title`
   const descId = `${uid}-desc`
   const a11yAttrs: Record<string, string | undefined> = {}
@@ -87,7 +88,7 @@ export function lowerArchitectureScene(
     style: archVars,
     attrs: a11yAttrs,
   }))
-  if (hasTitle) preludeParts.push(`<title id="${titleId}">${escapeXml(diagram.accessibilityTitle!)}</title>`)
+  if (hasTitle) preludeParts.push(`<title id="${titleId}">${escapeXml(accessibleTitle!)}</title>`)
   if (hasDesc) preludeParts.push(`<desc id="${descId}">${escapeXml(diagram.accessibilityDescription!)}</desc>`)
   preludeParts.push(buildStyleBlock(font, false, undefined, colors.embedFontImport))
   preludeParts.push(archCss)
@@ -106,6 +107,25 @@ export function lowerArchitectureScene(
     { id: 'defs', role: 'defs' },
     ['<defs>', arrowMarkerDefs(), '</defs>'].join('\n'),
   ))
+
+  if (diagram.title) {
+    parts.push(marks.text({
+      id: 'title',
+      role: 'title',
+      text: diagram.title.text,
+      x: diagram.title.x,
+      y: diagram.title.y,
+      fontSize: 18,
+      anchor: 'middle',
+      paint: { fill: 'var(--arch-service-label, var(--_text))' },
+    }, renderMultilineText(
+      diagram.title.text,
+      diagram.title.x,
+      diagram.title.y,
+      18,
+      'class="architecture-title" text-anchor="middle" font-size="18" font-weight="600" fill="var(--arch-service-label, var(--_text))"',
+    )))
+  }
 
   for (const group of diagram.groups) {
     parts.push(lowerGroup(group, visual))

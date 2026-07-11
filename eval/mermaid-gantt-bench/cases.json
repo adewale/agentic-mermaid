@@ -263,5 +263,20 @@
       { "index": 1, "id": "b1", "start": "2024-01-15", "end": "2024-01-29" } ] } },
   { "id": "kr-title-centered", "origin": "kais-radwan/ascii-mermaid ts/test/gantt.test.js", "upstream": "renders title centered above bars",
     "source": "gantt\n    title My Project\n    section Work\n        Task :t1, 2024-01-01, 7d",
-    "expect": { "kind": "schedule", "render": true, "renderContains": ["My Project", "Task"], "tasks": [ { "index": 0, "id": "t1", "start": "2024-01-01", "end": "2024-01-08" } ] } }
+    "expect": { "kind": "schedule", "render": true, "renderContains": ["My Project", "Task"], "tasks": [ { "index": 0, "id": "t1", "start": "2024-01-01", "end": "2024-01-08" } ] } },
+  { "id": "db-weekends-mega", "origin": "mermaid/ganttDb.spec.ts", "upstream": "should ignore weekends",
+    "source": "gantt\ndateFormat YYYY-MM-DD\nexcludes weekends 2019-02-06,friday\nsection weekends skip test\ntest1 :id1,2019-02-01,1d\ntest2 :id2,after id1,2d\ntest3 :id3,after id2,7d\ntest4 :id4,2019-02-01,2019-02-20\ntest5 :id5,after id4,1d\nsection full ending task on last day\ntest6 :id6,2019-02-13,2d\ntest7 :id7,after id6,1d",
+    "expect": { "kind": "schedule", "tasks": [
+      { "index": 0, "id": "id1", "start": "2019-02-01", "end": "2019-02-04" },
+      { "index": 1, "id": "id2", "start": "2019-02-04", "end": "2019-02-07" },
+      { "index": 2, "id": "id3", "start": "2019-02-07", "end": "2019-02-20" },
+      { "index": 3, "id": "id4", "start": "2019-02-01", "end": "2019-02-20" },
+      { "index": 4, "id": "id5", "start": "2019-02-20", "end": "2019-02-21" },
+      { "index": 5, "id": "id6", "start": "2019-02-13", "end": "2019-02-18" },
+      { "index": 6, "id": "id7", "start": "2019-02-18", "end": "2019-02-19" } ] },
+    "notes": "Was exclusions.json e3-weekends-mega (exclude-boundary-model). Adopted upstream's (start,end] exclude walk 2026-07 (family-elevation-plan \u00a7Gantt item 6): chain endTime instants match ganttDb.spec.ts exactly; upstream's renderEndTime split is mirrored by ScheduledGanttTask.renderEnd and pinned in src/__tests__/gantt-exclusion-boundary.test.ts." },
+  { "id": "db-exclude-all-but-friday", "origin": "mermaid/ganttDb.spec.ts", "upstream": "should not infinite loop when excluding everything (fridays allowed)",
+    "source": "gantt\ndateFormat YYYY-MM-DD\nexcludes weekends,monday,tuesday,wednesday,thursday\nweekend saturday\nsection weekends skip test\ntest1 :id1,2019-02-01,7d",
+    "expect": { "kind": "schedule", "render": true, "tasks": [ { "index": 0, "id": "id1", "start": "2019-02-01", "end": "2019-03-22" } ] },
+    "notes": "Was exclusions.json e4-exclude-all-but-friday. Upstream only asserts not-throwing; the pinned end (7 working Fridays after the Friday start under the adopted (start,end] walk) is our deterministic resolution of the same source." }
 ]

@@ -225,22 +225,38 @@ export function buildExclusionPredicate(calendar: GanttCalendar): (dayStartMs: E
 }
 
 /**
- * Extend a duration-derived end over excluded days (Mermaid's fixTaskDates):
- * each excluded day inside [start, end) pushes the end out one day. Explicit
- * (manual) end dates never pass through this. Bounded by MAX_CALENDAR_STEPS.
+ * Extend a duration-derived end over excluded days — upstream-exact mirror of
+ * Mermaid's `fixTaskDates` (adopted 2026-07, family-elevation-plan §Gantt
+ * item 6, retiring the `exclude-boundary-model` bench ledger entries): the
+ * cursor starts one day AFTER the task start and each excluded day it meets
+ * in (start, end] pushes the end out one day — a task STARTING on an excluded
+ * day gets that day free. `renderEnd` tracks upstream's `renderEndTime`: the
+ * end value last observed while the walk was on working days, so a trailing
+ * excluded run extends the chain end without stretching the drawn bar.
+ * Explicit (manual) end dates never pass through this. Bounded by
+ * MAX_CALENDAR_STEPS.
  */
-function extendOverExcludedDays(start: EpochMs, end: EpochMs, isExcluded: (d: EpochMs) => boolean, line?: number): EpochMs {
-  let cursor = startOfDay(start)
+function extendOverExcludedDays(
+  start: EpochMs,
+  end: EpochMs,
+  isExcluded: (d: EpochMs) => boolean,
+  line?: number,
+): { end: EpochMs; renderEnd: EpochMs } {
+  let cursor = start + DAY_MS
   let result = end
+  let renderEnd = end
+  let invalid = false
   let steps = 0
-  while (cursor < result) {
+  while (cursor <= result) {
     if (++steps > MAX_CALENDAR_STEPS) {
       throw new GanttError('GANTT_SCHEDULE_OVERFLOW', `Calendar exclusion walk exceeded ${MAX_CALENDAR_STEPS} days (is every day excluded?)`, line)
     }
-    if (isExcluded(cursor)) result += DAY_MS
+    if (!invalid) renderEnd = result
+    invalid = isExcluded(cursor)
+    if (invalid) result += DAY_MS
     cursor += DAY_MS
   }
-  return result
+  return { end: result, renderEnd }
 }
 
 // ---- Resolver ---------------------------------------------------------------
@@ -352,14 +368,19 @@ export function resolveGanttSchedule(model: GanttModel, clock: GanttClock = {}):
       manualEnd = true
     }
 
+    let renderEnd = end
     if (!manualEnd && (calendar.excludes.length > 0)) {
-      end = extendOverExcludedDays(start, end, isExcludedDay, task.line)
+      const fixed = extendOverExcludedDays(start, end, isExcludedDay, task.line)
+      end = fixed.end
+      renderEnd = fixed.renderEnd
     }
     if (end < start) end = start // zero-width is legal (milestones, until == start)
+    if (renderEnd < start) renderEnd = start
+    if (renderEnd > end) renderEnd = end
 
     const scheduled: ScheduledGanttTask = {
       index: task.index, id: task.id, label: task.label, tags: task.tags,
-      sectionIndex: task.sectionIndex, start, end, manualEnd, line: task.line,
+      sectionIndex: task.sectionIndex, start, end, renderEnd, manualEnd, line: task.line,
     }
     resolved[task.index] = scheduled
     return scheduled
@@ -369,11 +390,14 @@ export function resolveGanttSchedule(model: GanttModel, clock: GanttClock = {}):
 
   if (tasks.length === 0) throw new GanttError('GANTT_EMPTY', 'Gantt diagram has no tasks')
 
+  // The axis range covers every DRAWN extent (renderEnd) and every start.
+  // A trailing-excluded chain end that nothing starts from would only pad the
+  // axis with empty days; any successor's own start re-enters the range.
   let timeMin = Infinity
   let timeMax = -Infinity
   for (const t of tasks) {
     timeMin = Math.min(timeMin, t.start)
-    timeMax = Math.max(timeMax, t.end)
+    timeMax = Math.max(timeMax, t.renderEnd)
   }
   if (timeMax === timeMin) timeMax = timeMin + (dateOnly ? DAY_MS : 3_600_000)
 
@@ -391,6 +415,50 @@ export function resolveGanttSchedule(model: GanttModel, clock: GanttClock = {}):
     analysis: analyzeSchedule(model, tasks, byId),
     isExcludedDay,
   }
+}
+
+// ---- Dependency edges (for the dependency-arrow overlay) ---------------------
+
+export interface GanttDependencyEdgeRef {
+  /** Model task indexes. */
+  from: number
+  to: number
+  kind: 'after' | 'until'
+}
+
+/**
+ * Every dependency reference as a directed edge over model task indexes, in
+ * source order, deduplicated. `after` edges point ref → task (the task starts
+ * from the referenced end); `until` edges point task → ref (the task's end
+ * feeds the referenced start). Unknown refs are simply skipped here — the
+ * resolver has already rejected them before any consumer runs.
+ */
+export function ganttDependencyEdges(model: GanttModel): GanttDependencyEdgeRef[] {
+  const byId = new Map<string, GanttModelTask>()
+  for (const t of model.tasks) if (t.id !== undefined) byId.set(t.id, t)
+  const out: GanttDependencyEdgeRef[] = []
+  const seen = new Set<string>()
+  const push = (from: number, to: number, kind: 'after' | 'until'): void => {
+    const key = `${from}>${to}:${kind}`
+    if (seen.has(key)) return
+    seen.add(key)
+    out.push({ from, to, kind })
+  }
+  for (const t of model.tasks) {
+    if (t.start?.kind === 'after') {
+      for (const ref of t.start.refs) {
+        const dep = byId.get(ref)
+        if (dep) push(dep.index, t.index, 'after')
+      }
+    }
+    if (t.end.kind === 'until') {
+      for (const ref of t.end.refs) {
+        const dep = byId.get(ref)
+        if (dep) push(t.index, dep.index, 'until')
+      }
+    }
+  }
+  return out
 }
 
 // ---- Analysis (critical path / slack over `after` edges) --------------------

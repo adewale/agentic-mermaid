@@ -19,6 +19,25 @@ export interface MermaidGraph {
   nodeStyles: Map<string, Record<string, string>>
   /** Maps edge indices (or 'default') to inline styles from `linkStyle` directives */
   linkStyles: Map<number | 'default', Record<string, string>>
+  /** State diagrams only: `note left|right of X` annotations, in source order.
+   *  Placed by a post-layout pass (layout-engine placeStateNotes); flowcharts
+   *  never populate this. */
+  stateNotes?: StateNoteSpec[]
+}
+
+/** A state-diagram note (`note left of X : text` / block form). ONE grammar
+ *  models these for the render parser and the agent body alike —
+ *  src/state/parse-core.ts (plan §State 1, repo #118). */
+export interface StateNoteSpec {
+  /** Stable id (`note#<i>` in source order). */
+  id: string
+  /** The state (or composite) the note is anchored to. */
+  target: string
+  /** Declared side — the placement invariant is that the note box sits on
+   *  this side of its target's box (upstream's own placement bug: #3782). */
+  side: 'left' | 'right'
+  /** Note text; block-note body lines are joined with '\n'. */
+  text: string
 }
 
 export type Direction = 'TD' | 'TB' | 'LR' | 'BT' | 'RL'
@@ -27,6 +46,18 @@ export interface MermaidNode {
   id: string
   label: string
   shape: NodeShape
+  /** Mermaid v11 `@{ shape: ... }` semantic shape, normalized to the canonical
+   *  short name (e.g. 'sl-rect' for `manual-input`). Set only for
+   *  metadata-declared nodes; `shape` stays the rendering geometry
+   *  (src/flowchart-shapes.ts is the one mapping table). */
+  semanticShape?: string
+  /** The authored v11 shape spelling (alias preserved verbatim, e.g.
+   *  'manual-input') — the serializer re-emits exactly this. */
+  authoredShape?: string
+  /** True when the label came from a Mermaid markdown string (backtick
+   *  label): emphasis markers are stripped at parse time and the label
+   *  auto-wraps at flowchart.wrappingWidth (upstream default 200). */
+  markdownLabel?: true
 }
 
 export type NodeShape =
@@ -51,10 +82,20 @@ export type NodeShape =
   // Batch 3 state diagram pseudostates
   | 'state-start'    // filled circle (start pseudostate)
   | 'state-end'      // bullseye circle (end pseudostate)
+  // Batch 4 state pseudostates (plan §State 2; upstream #2514 / PR #5700).
+  // State-parser-only: the flowchart grammar and op menu never produce these.
+  | 'state-fork'     // <<fork>> — filled bar perpendicular to the flow
+  | 'state-join'     // <<join>> — filled bar (same geometry as fork)
+  | 'state-choice'   // <<choice>> — small unlabeled diamond
+  | 'state-history'  // [H] / <<history>> — circle containing H (H* when deep)
 
 export interface MermaidEdge {
   source: string
   target: string
+  /** Authored Mermaid v11.6 edge ID (`e1@-->`): stable edge identity.
+   *  Round-trips verbatim, emitted as the SVG edge's data-id, and accepted
+   *  by remove_edge/set_label as a target selector. */
+  id?: string
   label?: string
   style: EdgeStyle
   /** Whether to render a marker at the start (source end) of the edge */
@@ -85,6 +126,10 @@ export interface MermaidSubgraph {
   children: MermaidSubgraph[]
   /** Optional direction override for this subgraph's internal layout */
   direction?: Direction
+  /** State diagrams only: this subgraph is one concurrency region of its
+   *  parent composite (`--` separators, plan §State 2c). Regions draw no box
+   *  of their own; the renderer draws dashed separators between siblings. */
+  concurrencyRegion?: true
 }
 
 // ============================================================================
@@ -108,12 +153,32 @@ export interface PositionedGraph extends PositionedDiagram {
   nodes: PositionedNode[]
   edges: PositionedEdge[]
   groups: PositionedGroup[]
+  /** State-diagram notes with final placement (present only when the source
+   *  graph carried stateNotes). Invariants enforced by construction in
+   *  placeStateNotes: the box sits on the declared side of its target and
+   *  overlaps no node/group box. */
+  notes?: PositionedStateNote[]
+}
+
+/** A placed state-diagram note box. */
+export interface PositionedStateNote {
+  id: string
+  target: string
+  side: 'left' | 'right'
+  text: string
+  x: number
+  y: number
+  width: number
+  height: number
 }
 
 export interface PositionedNode {
   id: string
   label: string
   shape: NodeShape
+  /** Mermaid v11 semantic shape id when the node was declared via
+   *  `@{ shape: ... }` metadata — emitted as the SVG data-semantic-shape. */
+  semanticShape?: string
   x: number
   y: number
   width: number
@@ -127,6 +192,8 @@ export interface PositionedNode {
 export interface PositionedEdge {
   source: string
   target: string
+  /** Authored Mermaid v11.6 edge ID (`e1@-->`) — SVG identity (data-id). */
+  id?: string
   label?: string
   style: EdgeStyle
   hasArrowStart: boolean
@@ -239,6 +306,10 @@ interface RouteCertificateBase {
   sourcePortAssignment?: RoutePortAssignment
   /** Dynamic side/slot/role allocation for the target endpoint. */
   targetPortAssignment?: RoutePortAssignment
+  /** Self-loop routes only: the node side the loop departs from and returns
+   *  to. Part of the self-loop certificate vocabulary (plan §State 6) — the
+   *  arc leaves and re-enters this side at distinct boundary points. */
+  loopSide?: PortSide
 }
 
 export type StraightRouteCertificate = RouteCertificateBase & {
@@ -325,6 +396,9 @@ export interface PositionedGroup {
   width: number
   height: number
   children: PositionedGroup[]
+  /** State diagrams only: this group is a concurrency region (drawn as dashed
+   *  separators between siblings instead of its own box). */
+  concurrencyRegion?: true
 }
 
 // ============================================================================
@@ -337,6 +411,14 @@ export interface PositionedGroup {
 // ============================================================================
 
 export type TextTransform = 'uppercase' | 'lowercase' | 'capitalize'
+
+/** A deterministic warning for accepted configuration that cannot affect output. */
+export interface ConfigDiagnostic {
+  code: 'INEFFECTIVE_CONFIG'
+  /** Fully-qualified config path, for example `state.titleTopMargin`. */
+  field: string
+  message: string
+}
 
 export interface RenderOptions {
   /** Background color → CSS variable --bg. Default: '#FFFFFF' */
@@ -378,17 +460,37 @@ export interface RenderOptions {
   nodeSpacing?: number
   /** Vertical spacing between layers. Default: 40 */
   layerSpacing?: number
+  /**
+   * Flowchart-only: measured-pixel auto-wrap budget for node labels (mermaid's
+   * `flowchart.wrappingWidth`). Unset = no wrapping for regular labels;
+   * markdown-string labels always wrap at the upstream default of 200.
+   * Explicit option wins over frontmatter config. Other families ignore it.
+   */
+  wrappingWidth?: number
   /** Spacing between disconnected components. Default: nodeSpacing (24) */
   componentSpacing?: number
   /** Render with transparent background (no background style on SVG). Default: false */
   transparent?: boolean
-  /** Enable hover tooltips on chart data points (xychart only). Default: false */
+  /** Enable hover tooltips on chart data points (xychart, quadrant, and pie). Default: false */
   interactive?: boolean
   /** Optional explicit drop shadows on node shapes. Default: false */
   shadow?: boolean
   /** Family-specific SVG renderer options for architecture-beta diagrams. */
   architecture?: {
     visual?: ArchitectureVisualConfig
+  }
+  /** Family-specific layout options for timeline diagrams. */
+  timeline?: {
+    /**
+     * Best-effort width budget (px) for HORIZONTAL timelines: when the chart
+     * would exceed it, the per-column wrap caps compress proportionally so
+     * labels wrap tighter instead of the canvas growing (13 periods stop
+     * rendering 2,400+px wide). No-op when the chart already fits — the
+     * default layout stays byte-identical — and ignored in `timeline TD`
+     * mode (vertical timelines are inherently narrow). Unbreakable tokens
+     * and extra-wide section headers can still exceed the budget.
+     */
+    maxWidth?: number
   }
   /** Family-specific SVG renderer options for user-journey diagrams. */
   journey?: {
@@ -398,8 +500,32 @@ export interface RenderOptions {
      */
     experienceCurve?: boolean
   }
+  /** Family-specific SVG renderer options for gantt diagrams. */
+  gantt?: {
+    /**
+     * Draw dependency connectors — deterministic elbow arrows from each
+     * predecessor bar's end to its successor bar's start — for every
+     * `after`/`until` reference. No new Mermaid syntax: the edges come from
+     * the scheduler's dependency graph. Default: `false` (output without it
+     * is byte-identical to previous releases).
+     */
+    dependencyArrows?: boolean
+    /**
+     * Emphasize the critical path from the scheduler's analysis
+     * (GanttScheduleAnalysis.criticalPathTaskIds): stronger stroke on
+     * critical-path bars/milestones and, when `dependencyArrows` is also on,
+     * on the connectors along the path. Default: `false`.
+     */
+    criticalPath?: boolean
+  }
   /** Optional Mermaid-style runtime config (analogous to initialize/frontmatter config). */
   mermaidConfig?: MermaidRuntimeConfig
+  /**
+   * Receives warnings for explicit config that cannot affect output. Installing
+   * a collector never changes SVG bytes. Without one, explicit ineffective
+   * config is reported through `console.warn` rather than accepted silently.
+   */
+  onConfigDiagnostic?: (diagnostic: ConfigDiagnostic) => void
   /**
    * Whether to embed the Google Fonts `@import` line in the SVG `<style>` block.
    * Default: `true` (preserves wire compatibility with all existing consumers).

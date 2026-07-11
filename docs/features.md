@@ -8,9 +8,11 @@ What Agentic Mermaid can do, organized by capability area. The npm import paths 
 - **`parseMermaid(source)`** → `Result<ValidDiagram, ParseError[]>`. Never
   throws on malformed input; structured errors.
 - **`mutate(d, op)`** — family-overloaded typed mutation. Ops per family:
-  flowchart (6), state (8), sequence (5), timeline (10), class (10), ER (7),
-  journey (10), architecture (10), xychart (8), pie (7), quadrant (7), gantt (9).
-- **`verifyMermaid(d, opts)`** — structural verification (no pixels).
+  flowchart (14), state (14), sequence (7), timeline (15), class (12), ER (8),
+  journey (14), architecture (11), xychart (10), pie (7), quadrant (7), gantt (13): **132 total**.
+- **`verifyMermaid(d, opts)`** — structural and geometric verification plus a
+  strict render-parity gate, with deterministic semantic facts available for
+  meaning-level checks.
 - **`serializeMermaid(d)`** — back to canonical source.
 - **Round-trip** — structured bodies serialize to canonical, idempotent
   source; opaque bodies preserve original indentation/comments verbatim.
@@ -23,18 +25,18 @@ What Agentic Mermaid can do, organized by capability area. The npm import paths 
 
 | Family | Parse/render/round-trip | Structured mutation |
 |---|---|---|
-| Flowchart | ✅ | ✅ (6 ops) |
-| State | ✅ | ✅ (8 ops via `asState`; `<<fork>>`/notes/`--`/`classDef` → opaque) |
-| Sequence | ✅ | ✅ (5 ops; alt/loop/note ride along verbatim as segments) |
-| Timeline | ✅ | ✅ (10 ops) |
-| Class | ✅ | ✅ (10 ops) |
-| ER | ✅ | ✅ (7 ops) |
-| Journey | ✅ | ✅ (10 ops via `asJourney`) |
-| XY chart | ✅ | ✅ (8 ops via `asXyChart`) |
-| Architecture | ✅ | ✅ (10 ops via `asArchitecture`) |
+| Flowchart | ✅ | ✅ (14 ops) |
+| State | ✅ | ✅ (14 ops via `asState`; notes/`<<fork>>`/`<<choice>>`/history are structured; `--` regions/`classDef` → opaque) |
+| Sequence | ✅ | ✅ (7 ops; alt/loop/note/box ride along verbatim as segments) |
+| Timeline | ✅ | ✅ (15 ops) |
+| Class | ✅ | ✅ (12 ops) |
+| ER | ✅ | ✅ (8 ops; aliases use stable ids plus display labels) |
+| Journey | ✅ | ✅ (14 ops via `asJourney`) |
+| XY chart | ✅ | ✅ (10 ops via `asXyChart`) |
+| Architecture | ✅ | ✅ (11 ops via `asArchitecture`) |
 | Pie | ✅ | ✅ (7 ops via `asPie`) |
 | Quadrant | ✅ | ✅ (7 ops via `asQuadrant`) |
-| Gantt | ✅ | ✅ (9 ops via `asGantt`; calendar directives/click/comments ride along verbatim as segments) |
+| Gantt | ✅ | ✅ (13 ops via `asGantt`; calendar directives/click/comments ride along verbatim as segments) |
 
 **Structured-or-opaque rule:** every family either has a structured body
 or preserves source verbatim. Constructs are never silently dropped.
@@ -74,7 +76,7 @@ Agentic Mermaid outputs **SVG, PNG, ASCII, Unicode, and JSON layout** from the s
 - **Tier 1 (structural, universal):** EMPTY_DIAGRAM, EDGE_MISANCHORED,
   OFF_CANVAS, GROUP_BREACH, UNKNOWN_SHAPE, LABEL_OVERFLOW, UNRESOLVABLE_SCHEDULE,
   RENDER_FAILED (a clean verify proves the source actually renders).
-- **Tier 2 (geometric — route tripwires for flowchart/state, anchor/overlap checks for class/ER):** NODE_OVERLAP, ROUTE_SELF_CROSS, and the route-contract tripwires ROUTE_HITCH, ROUTE_UNEXPLAINED_BEND, ROUTE_LABEL_ON_SHARED_TRUNK, ROUTE_CONTAINER_MISANCHOR, ROUTE_SHAPE_MISANCHOR, ROUTE_STALE_AFTER_NODE_MOVE.
+- **Tier 2 (geometric — route tripwires for flowchart/state, anchor/overlap checks for class/ER):** NODE_OVERLAP, ROUTE_SELF_CROSS, and the route-contract tripwires ROUTE_HITCH, ROUTE_UNEXPLAINED_BEND, ROUTE_LABEL_ON_SHARED_TRUNK, ROUTE_SELF_LOOP_OCCUPANCY, ROUTE_CONTAINER_MISANCHOR, ROUTE_SHAPE_MISANCHOR, ROUTE_STALE_AFTER_NODE_MOVE.
 - **Tier 3 (lint, advisory):** DUPLICATE_EDGE, UNREACHABLE_NODE, DECISION_BRANCH_UNLABELED, COMMENT_DROPPED, UNSUPPORTED_SYNTAX, CONTENT_DROPPED_ON_ROUNDTRIP, INEFFECTIVE_CONFIG.
 - **Perceptual quality** — `measureQuality` / `checkQuality` (edge
   crossings, label legibility, whitespace balance, …). See [`quality.md`](./quality.md).

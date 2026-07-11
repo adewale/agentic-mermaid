@@ -52,10 +52,11 @@ import { toFinite } from './types.ts'
 import { emptyRenderedLayout } from './layout-to-rendered.ts'
 
 import { toMermaidLines, normalizeMermaidSource } from '../mermaid-source.ts'
+import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
 import { parseClassDiagram } from '../class/parser.ts'
-import { layoutClassDiagram } from '../class/layout.ts'
+import { layoutClassDiagram, resolveClassRenderOptions } from '../class/layout.ts'
 import { parseErDiagram } from '../er/parser.ts'
-import { layoutErDiagram } from '../er/layout.ts'
+import { layoutErDiagram, applyErFrontmatterConfig } from '../er/layout.ts'
 import { layoutSequenceDiagram } from '../sequence/layout.ts'
 import { parseSequenceDiagram } from '../sequence/parser.ts'
 import { parseTimelineDiagram } from '../timeline/parser.ts'
@@ -64,15 +65,18 @@ import { parseJourneyDiagram } from '../journey/parser.ts'
 import { layoutJourneyDiagram } from '../journey/layout.ts'
 import { parseArchitectureDiagram } from '../architecture/parser.ts'
 import { layoutArchitectureDiagram } from '../architecture/layout.ts'
+import { resolveArchitectureRenderOptions } from '../architecture/config.ts'
 import { applyXYChartFrontmatterConfig, parseXYChart, resolveXYChartConfig, resolveXYChartTheme } from '../xychart/parser.ts'
 import { layoutXYChart } from '../xychart/layout.ts'
 import type { XYAxis, XYChart } from '../xychart/types.ts'
 import type { PositionedArchitectureEdge, PositionedArchitectureGroup, PositionedArchitectureJunction, PositionedArchitectureService } from '../architecture/types.ts'
 import { parsePieChart } from '../pie/parser.ts'
-import { layoutPieChart } from '../pie/layout.ts'
+import { layoutPieChart, formatPiePercent } from '../pie/layout.ts'
+import { resolvePieVisualConfig } from '../pie/config.ts'
 import type { PieChart } from '../pie/types.ts'
 import { parseQuadrantChart } from '../quadrant/parser.ts'
 import { layoutQuadrantChart } from '../quadrant/layout.ts'
+import { resolveQuadrantVisualConfig } from '../quadrant/config.ts'
 import type { QuadrantChart } from '../quadrant/types.ts'
 import { parseGanttModel, applyGanttFrontmatterConfig, GANTT_DURATION_RE } from '../gantt/parser.ts'
 import { resolveGanttSchedule } from '../gantt/schedule.ts'
@@ -120,7 +124,13 @@ export function layoutFamilyToRendered(d: ValidDiagram, opts: { debug?: boolean 
 
 function classToRendered(d: ValidDiagram, opts: { debug?: boolean } = {}): RenderedLayout {
   try {
-    const positioned = layoutClassDiagram(parseClassDiagram(toMermaidLines(d.canonicalSource)))
+    // Same config threading the render hook applies (wired class.nodeSpacing/
+    // rankSpacing), so verify.layout stays truthful under config.
+    const normalized = normalizeMermaidSource(d.canonicalSource)
+    const positioned = layoutClassDiagram(
+      parseClassDiagram(normalized.lines),
+      resolveClassRenderOptions(normalized.frontmatter, {}),
+    )
     const nodes: RenderedLayoutNode[] = positioned.classes.map(c => ({
       id: c.id, x: f(c.x), y: f(c.y), w: fSpan(c.x, c.width), h: fSpan(c.y, c.height), shape: 'rectangle', label: c.label,
     }))
@@ -131,7 +141,13 @@ function classToRendered(d: ValidDiagram, opts: { debug?: boolean } = {}): Rende
       label: r.label && r.labelPosition ? { x: f(r.labelPosition.x), y: f(r.labelPosition.y), text: r.label } : undefined,
       route: opts.debug ? boxRouteCertificate('class', i, r.points, boxById.get(r.from), boxById.get(r.to)) : undefined,
     }))
-    return { version: 1, kind: d.kind, nodes, edges, groups: [], bounds: { w: f(positioned.width), h: f(positioned.height) } }
+    // Namespaces are groups whose members are their directly-declared classes
+    // (the family rubric's group-containment axis judges them).
+    const groups: RenderedLayoutGroup[] = positioned.namespaces.map(ns => ({
+      id: ns.id, x: f(ns.x), y: f(ns.y), w: fSpan(ns.x, ns.width), h: fSpan(ns.y, ns.height),
+      members: [...ns.classIds], label: ns.label, parentId: ns.parentId,
+    }))
+    return { version: 1, kind: d.kind, nodes, edges, groups, bounds: { w: f(positioned.width), h: f(positioned.height) } }
   } catch { return emptyRenderedLayout(d.kind) }
 }
 
@@ -139,7 +155,11 @@ function classToRendered(d: ValidDiagram, opts: { debug?: boolean } = {}): Rende
 
 function erToRendered(d: ValidDiagram, opts: { debug?: boolean } = {}): RenderedLayout {
   try {
-    const positioned = layoutErDiagram(parseErDiagram(toMermaidLines(d.canonicalSource)))
+    // Same config threading the render hook applies (wired er.layoutDirection
+    // + nodeSpacing/rankSpacing), so verify.layout stays truthful under config.
+    const normalized = normalizeMermaidSource(d.canonicalSource)
+    const configured = applyErFrontmatterConfig(parseErDiagram(normalized.lines), normalized.frontmatter, {})
+    const positioned = layoutErDiagram(configured.diagram, configured.options)
     const nodes: RenderedLayoutNode[] = positioned.entities.map(e => ({
       id: e.id, x: f(e.x), y: f(e.y), w: fSpan(e.x, e.width), h: fSpan(e.y, e.height), shape: 'rectangle', label: e.label,
     }))
@@ -264,11 +284,11 @@ function sequenceToRendered(d: ValidDiagram, opts: { debug?: boolean } = {}): Re
     const nodes: RenderedLayoutNode[] = [
       ...positioned.actors.map(a => ({
         id: a.id, x: f(a.x - a.width / 2), y: f(a.y), w: f(a.width), h: f(a.height),
-        shape: 'rectangle', label: a.label,
+        shape: 'rectangle', label: a.label, role: 'box' as const,
       })),
       ...positioned.notes.map((n, i) => ({
         id: `note#${i}`, x: f(n.x), y: f(n.y), w: f(n.width), h: f(n.height),
-        shape: 'note', label: n.text,
+        shape: 'note', label: n.text, role: 'box' as const,
       })),
     ]
     return {
@@ -398,20 +418,35 @@ function journeyToRendered(d: ValidDiagram): RenderedLayout {
 
 function architectureToRendered(d: ValidDiagram, opts: { debug?: boolean } = {}): RenderedLayout {
   try {
-    const positioned = layoutArchitectureDiagram(parseArchitectureDiagram(toMermaidLines(d.canonicalSource)))
+    // Same config threading the render hook applies (wired architecture
+    // padding/nodeSeparation/idealEdgeLengthMultiplier), so verify.layout
+    // stays truthful under config — and frontmatter no longer poisons the
+    // header check (toMermaidLines kept `---` lines; class/er precedent).
+    const normalized = normalizeMermaidSource(d.canonicalSource)
+    const positioned = layoutArchitectureDiagram(
+      parseArchitectureDiagram(normalized.lines),
+      resolveArchitectureRenderOptions(normalized.frontmatter, {}),
+    )
     const nodes: RenderedLayoutNode[] = [
       ...positioned.services.map(s => ({
-        id: s.id, x: f(s.x), y: f(s.y), w: f(s.width), h: f(s.height), shape: 'service', label: s.label,
+        id: s.id, x: f(s.x), y: f(s.y), w: f(s.width), h: f(s.height), shape: 'service', label: s.label, role: 'box' as const,
       })),
       ...positioned.junctions.map(j => ({
-        id: j.id, x: f(j.x), y: f(j.y), w: f(j.width), h: f(j.height), shape: 'circle' as const, label: undefined,
+        id: j.id, x: f(j.x), y: f(j.y), w: f(j.width), h: f(j.height), shape: 'circle' as const, label: undefined, role: 'mark' as const,
       })),
     ]
     const flatGroups = new Map<string, PositionedArchitectureGroup>()
     const groups: RenderedLayoutGroup[] = []
     const flatten = (g: PositionedArchitectureGroup): void => {
       flatGroups.set(g.id, g)
-      groups.push({ id: g.id, x: f(g.x), y: f(g.y), w: f(g.width), h: f(g.height), members: [], label: g.label, parentId: g.parentId })
+      groups.push({
+        id: g.id, x: f(g.x), y: f(g.y), w: f(g.width), h: f(g.height),
+        members: [
+          ...positioned.services.filter(service => service.parentId === g.id).map(service => service.id),
+          ...positioned.junctions.filter(junction => junction.parentId === g.id).map(junction => junction.id),
+        ],
+        label: g.label, parentId: g.parentId,
+      })
       for (const c of g.children) flatten(c)
     }
     for (const g of positioned.groups) flatten(g)
@@ -486,19 +521,22 @@ function xychartToRendered(d: ValidDiagram, opts: { debug?: boolean } = {}): Ren
     const nodes: RenderedLayoutNode[] = []
     // Bars are the primary boxes.
     positioned.bars.forEach((b, i) => {
-      nodes.push({ id: `bar#${i}`, x: f(b.x), y: f(b.y), w: f(b.width), h: f(b.height), shape: 'rectangle', label: b.label })
+      nodes.push({ id: `bar#${i}`, x: f(b.x), y: f(b.y), w: f(b.width), h: f(b.height), shape: 'rectangle', label: b.label, role: 'labelled-mark' })
     })
     // Line series points become small marker boxes so line-only charts are
     // still measured (whitespace/legibility care about node area).
     positioned.lines.forEach((ln, li) => {
       ln.points.forEach((p, pi) => {
-        nodes.push({ id: `line#${li}:pt#${pi}`, x: f(p.x - 3), y: f(p.y - 3), w: f(6), h: f(6), shape: 'circle', label: p.label })
+        nodes.push({ id: `line#${li}:pt#${pi}`, x: f(p.x - 3), y: f(p.y - 3), w: f(6), h: f(6), shape: 'circle', label: p.label, role: p.label ? 'labelled-mark' : 'mark' })
       })
     })
     // Plot area is the single group (the chart's content frame).
     const groups: RenderedLayoutGroup[] = [{
       id: 'plot', x: f(positioned.plotArea.x), y: f(positioned.plotArea.y),
-      w: f(positioned.plotArea.width), h: f(positioned.plotArea.height), members: [],
+      w: f(positioned.plotArea.width), h: f(positioned.plotArea.height), members: nodes
+        .filter(node => node.x + node.w / 2 >= positioned.plotArea.x && node.x + node.w / 2 <= positioned.plotArea.x + positioned.plotArea.width &&
+          node.y + node.h / 2 >= positioned.plotArea.y && node.y + node.h / 2 <= positioned.plotArea.y + positioned.plotArea.height)
+        .map(node => node.id),
     }]
     const layout: RenderedLayout = { version: 1, kind: d.kind, nodes, edges: [], groups, bounds: { w: f(positioned.width), h: f(positioned.height) } }
     if (opts.debug) layout.certificates = elementCertificates('xychart', layout, 'plot-contained', groups[0], 'center')
@@ -557,14 +595,17 @@ function xyAxisFromBody(axis: XyChartBody['xAxis']): XYAxis {
 
 function pieToRendered(d: ValidDiagram, opts: { debug?: boolean } = {}): RenderedLayout {
   try {
-    const positioned = layoutPieChart(pieChartForRenderedLayout(d))
+    // Same visual config the render hook resolves, so verify.layout stays
+    // truthful under legendPosition / donutHole config.
+    const visual = resolvePieVisualConfig(normalizeMermaidSource(d.canonicalSource).frontmatter)
+    const positioned = layoutPieChart(pieChartForRenderedLayout(d), {}, visual)
     // Pie has no structural nodes/edges — the slices are angular wedges. Use
     // each slice's legend row as a label-anchored box (legend swatch top-left,
     // approximate width from label length at the legend font baseline). This
     // gives the metrics a positive node area + legible labels to measure.
     const CHAR_PX = 7
     const nodes: RenderedLayoutNode[] = positioned.legend.map((l, i) => {
-      const labelText = `${l.label} (${(l.fraction * 100).toFixed(1)}%)`
+      const labelText = `${l.label} (${formatPiePercent(l.fraction)})`
       const w = Math.max(l.swatchSize, labelText.length * CHAR_PX + l.swatchSize)
       return { id: `slice#${i}:${l.label}`, x: f(l.x), y: f(l.y), w: f(w), h: f(l.swatchSize), shape: 'rectangle', label: labelText }
     })
@@ -718,7 +759,7 @@ export function ganttScheduleWarning(d: ValidDiagram): LayoutWarning | null {
  */
 export function layoutGeometryWarnings(
   layout: RenderedLayout,
-  opts: { edgeAnchors?: boolean; nodeOverlaps?: boolean; groupContainment?: boolean } = {},
+  opts: { edgeAnchors?: boolean; nodeOverlaps?: boolean; groupContainment?: boolean | 'center' } = {},
 ): LayoutWarning[] {
   const warnings: LayoutWarning[] = []
   const TOL = 0.5
@@ -751,8 +792,11 @@ export function layoutGeometryWarnings(
       for (const memberId of g.members) {
         const n = nodeById.get(memberId)
         if (!n) continue
-        const inside = n.x >= g.x - TOL && n.y >= g.y - TOL &&
-          n.x + n.w <= g.x + g.w + TOL && n.y + n.h <= g.y + g.h + TOL
+        const inside = opts.groupContainment === 'center'
+          ? n.x + n.w / 2 >= g.x - TOL && n.y + n.h / 2 >= g.y - TOL &&
+            n.x + n.w / 2 <= g.x + g.w + TOL && n.y + n.h / 2 <= g.y + g.h + TOL
+          : n.x >= g.x - TOL && n.y >= g.y - TOL &&
+            n.x + n.w <= g.x + g.w + TOL && n.y + n.h <= g.y + g.h + TOL
         if (!inside) warnings.push({ code: 'GROUP_BREACH', group: g.id, member: memberId })
       }
     }
@@ -801,13 +845,20 @@ export function ganttGeometryWarnings(layout: RenderedLayout): LayoutWarning[] {
 
 function quadrantToRendered(d: ValidDiagram, opts: { debug?: boolean } = {}): RenderedLayout {
   try {
-    const positioned = layoutQuadrantChart(quadrantChartForRenderedLayout(d))
+    // Same wired config the render path resolves (chart size, point radius),
+    // so verify's layout matches what actually renders.
+    const visual = resolveQuadrantVisualConfig(d.meta.frontmatter as MermaidFrontmatterMap)
+    const positioned = layoutQuadrantChart(quadrantChartForRenderedLayout(d), {}, visual)
     const nodes: RenderedLayoutNode[] = positioned.points.map((p, i) => ({
       id: `point#${i}:${p.label}`, x: f(p.cx - p.radius), y: f(p.cy - p.radius),
-      w: f(p.radius * 2), h: f(p.radius * 2), shape: 'circle', label: p.label,
+      w: f(p.radius * 2), h: f(p.radius * 2), shape: 'circle', label: p.label, role: 'labelled-mark' as const,
     }))
     const groups: RenderedLayoutGroup[] = positioned.regions.map(r => ({
-      id: `quadrant#${r.number}`, x: f(r.x), y: f(r.y), w: f(r.width), h: f(r.height), members: [], label: r.label,
+      id: `quadrant#${r.number}`, x: f(r.x), y: f(r.y), w: f(r.width), h: f(r.height),
+      members: positioned.points.map((point, index) => ({ point, index })).filter(({ point }) =>
+        r.number === (point.nx >= 0.5 ? (point.ny >= 0.5 ? 1 : 4) : (point.ny >= 0.5 ? 2 : 3)))
+        .map(({ point, index }) => `point#${index}:${point.label}`),
+      label: r.label,
     }))
     const layout: RenderedLayout = { version: 1, kind: d.kind, nodes, edges: [], groups, bounds: { w: f(positioned.width), h: f(positioned.height) } }
     if (opts.debug) layout.certificates = elementCertificates('quadrant', layout, 'plot-contained')
@@ -823,7 +874,16 @@ function quadrantChartForRenderedLayout(d: ValidDiagram): QuadrantChart {
 function quadrantChartFromBody(body: QuadrantBody): QuadrantChart {
   const chart: QuadrantChart = {
     quadrants: [...body.quadrants] as QuadrantChart['quadrants'],
-    points: body.points.map(p => ({ label: p.label, x: p.x, y: p.y })),
+    // Styles carry through so the verify layout sees resolved radii.
+    points: body.points.map(p => {
+      const point: QuadrantChart['points'][number] = { label: p.label, x: p.x, y: p.y }
+      if (p.className !== undefined) point.className = p.className
+      if (p.style !== undefined) point.style = { ...p.style }
+      return point
+    }),
+    classDefs: Object.fromEntries(
+      Object.entries(body.classDefs ?? {}).map(([name, style]) => [name, { ...style }]),
+    ),
   }
   if (body.title !== undefined) chart.title = body.title
   if (body.xAxis) chart.xAxis = { ...body.xAxis }

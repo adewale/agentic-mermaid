@@ -26,7 +26,7 @@ function makeContext(overrides: Partial<HostedMcpContext> = {}): HostedMcpContex
     },
     async renderPng(source, opts) {
       pngCalls.push({ source, ...opts })
-      return new Uint8Array([0x89, 0x50, 0x4e, 0x47])
+      return { png: new Uint8Array([0x89, 0x50, 0x4e, 0x47]), warnings: [] }
     },
     ...overrides,
   }
@@ -117,6 +117,17 @@ describe('hosted pure tools', () => {
     const dark = payloadOf(await handleHostedRequest(call('render_svg', { source: FLOW, bg: '#101014', fg: '#e6e6f0' }), makeContext()))
     expect(dark.svg).toContain('#101014')
     expect(dark.svg).not.toBe(first.svg)
+  })
+
+  test('render tools expose source config diagnostics instead of dropping them', async () => {
+    const source = '---\nconfig:\n  state:\n    titleTopMargin: 10\n---\nstateDiagram-v2\n  A --> B'
+    for (const name of ['render_svg', 'render_ascii']) {
+      const payload = payloadOf(await handleHostedRequest(call(name, { source }), makeContext()))
+      expect(payload.ok).toBe(true)
+      expect(payload.warnings).toContainEqual(expect.objectContaining({
+        code: 'INEFFECTIVE_CONFIG', field: 'state.titleTopMargin',
+      }))
+    }
   })
 
   test('render_svg rejects unknown themes with the theme list', async () => {
@@ -222,7 +233,7 @@ describe('hosted declarative mutate/build tools', () => {
     expect(p.isError).toBe(true)
     expect(p.ok).toBe(false)
     expect(p.opIndex).toBe(0)
-    expect(p.error.message).toContain('Valid fields: id, label, members')
+    expect(p.error.message).toContain('Valid fields: id, label, generic, members, namespace')
     expect(p.error.message).not.toContain('undefined')
   })
 
@@ -234,7 +245,7 @@ describe('hosted declarative mutate/build tools', () => {
   test('tool descriptions embed the op menu WITH field signatures so ops are fillable first-try', () => {
     const build = HOSTED_TOOLS.find(t => t.name === 'build')!
     // Field names inline (not just op names) — the discovery gap the eval surfaced.
-    expect(build.description).toContain('add_class(id, label?, members?)')
+    expect(build.description).toContain('add_class(id, label?, generic?, members?, namespace?)')
     expect(build.description).toContain('add_series(kind2, name?, values)')
   })
 })
@@ -299,6 +310,29 @@ describe('hosted execute', () => {
 })
 
 describe('hosted render_png', () => {
+  test('threads deterministic font warnings through the complete tool payload', async () => {
+    const warning = {
+      code: 'PNG_FONT_COVERAGE' as const,
+      script: 'CJK',
+      chars: ['日', '本', '語'],
+      message: 'known bundled-font coverage gap',
+    }
+    const ctx = makeContext({ renderPng: async () => ({ png: new Uint8Array([0x89, 0x50, 0x4e, 0x47]), warnings: [warning] }) })
+    const payload = payloadOf(await handleHostedRequest(call('render_png', { source: 'flowchart LR\n  A[日本語]' }), ctx))
+    expect(payload.ok).toBe(true)
+    expect(payload.png_base64).toBe('iVBORw==')
+    expect(payload.warnings).toEqual([warning])
+  })
+  test('combines source config diagnostics with raster font warnings', async () => {
+    const fontWarning = { code: 'PNG_FONT_COVERAGE' as const, script: 'CJK', chars: ['日'], message: 'font gap' }
+    const ctx = makeContext({ renderPng: async () => ({ png: new Uint8Array([0x89, 0x50, 0x4e, 0x47]), warnings: [fontWarning] }) })
+    const source = '---\nconfig:\n  state:\n    titleTopMargin: 10\n---\nstateDiagram-v2\n  A[日] --> B'
+    const payload = payloadOf(await handleHostedRequest(call('render_png', { source }), ctx))
+    expect(payload.ok).toBe(true)
+    expect(payload.warnings).toContainEqual(expect.objectContaining({ field: 'state.titleTopMargin' }))
+    expect(payload.warnings).toContainEqual(fontWarning)
+  })
+
   test('returns base64 PNG bytes from the injected rasterizer', async () => {
     const ctx = makeContext()
     const p = payloadOf(await handleHostedRequest(call('render_png', { source: FLOW, scale: 3, background: '#fff' }), ctx))
@@ -313,7 +347,7 @@ describe('hosted render_png', () => {
     // boundary joins. A wrong chunk stride would drop or duplicate bytes.
     const big = new Uint8Array(0x8000 * 2 + 123)
     for (let i = 0; i < big.length; i++) big[i] = i % 256
-    const ctx = makeContext({ renderPng: async () => big })
+    const ctx = makeContext({ renderPng: async () => ({ png: big, warnings: [] }) })
     const p = payloadOf(await handleHostedRequest(call('render_png', { source: FLOW }), ctx))
     expect(p.ok).toBe(true)
     const decoded = Uint8Array.from(atob(p.png_base64), c => c.charCodeAt(0))

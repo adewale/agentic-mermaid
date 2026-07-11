@@ -7,7 +7,7 @@
 import { describe, test, expect } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { BOOLEAN_FLAGS, FLAG_SPECS, GLOBAL_USAGE, parseArgs } from '../cli/index.ts'
+import { BOOLEAN_FLAGS, FLAG_SPECS, GLOBAL_USAGE, parseArgs, runCli } from '../cli/index.ts'
 import { parseFlagsBlock, booleanFlagReads } from './helpers/cli-flag-parsing.ts'
 
 describe('FLAG_SPECS is the single source for flag classification', () => {
@@ -41,6 +41,38 @@ describe('code reads ↔ BOOLEAN_FLAGS', () => {
     const used = booleanFlagReads(cliSource)
     expect(used.has('canonical-wrapper')).toBe(true)
     expect(used.has('ascii')).toBe(true)
+  })
+})
+
+describe('command-specific flag validity', () => {
+  const capture = (argv: string[]): { code: number; output: string } => {
+    let output = ''
+    const stdout = process.stdout.write
+    const stderr = process.stderr.write
+    process.stdout.write = ((chunk: unknown) => { output += String(chunk); return true }) as typeof process.stdout.write
+    process.stderr.write = ((chunk: unknown) => { output += String(chunk); return true }) as typeof process.stderr.write
+    try { return { code: runCli(argv), output } } finally {
+      process.stdout.write = stdout
+      process.stderr.write = stderr
+    }
+  }
+
+  test('batch keeps its documented --jsonl mode under command ownership checks', () => {
+    const parsed = parseArgs(['batch', '--jsonl'])
+    expect(parsed.flags.jsonl).toBe(true)
+    expect(capture(['batch', '--jsonl']).code).toBe(0)
+  })
+
+  test('known but inapplicable flags and missing values fail with ARG exit 2', () => {
+    for (const argv of [
+      ['verify', '--scale', '2', 'ignored.mmd'],
+      ['describe', '--gantt-today', '2024-01-01', 'ignored.mmd'],
+      ['verify', '--label-cap'],
+    ]) {
+      const result = capture(argv)
+      expect(result.code).toBe(2)
+      expect(result.output).toMatch(/not valid|require.*value/)
+    }
   })
 })
 

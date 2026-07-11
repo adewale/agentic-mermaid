@@ -1,0 +1,17 @@
+classDiagram
+  direction LR
+  namespace Store {
+    class Catalog {
+      +list() Item
+    }
+    class Cart {
+      +add(item)
+    }
+  }
+  namespace Billing {
+    class Invoice {
+      +total() Money
+    }
+  }
+  Cart --> Catalog : browses
+  Invoice ..> Cart : bills

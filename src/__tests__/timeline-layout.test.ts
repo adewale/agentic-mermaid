@@ -22,7 +22,7 @@ describe('timeline layout', () => {
     expect(diagram.rail.x1).toBeLessThan(period.centerX)
     expect(diagram.rail.x2).toBeGreaterThan(period.centerX)
     expect(period.pillX + period.pillWidth / 2).toBe(period.centerX)
-    expect(period.stemBottomY).toBeLessThan(event.y)
+    expect(period.stem.y2).toBeLessThan(event.y)
     expect(event.y + event.height).toBeLessThanOrEqual(section.y + section.height)
   })
 

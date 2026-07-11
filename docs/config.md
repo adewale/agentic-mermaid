@@ -29,7 +29,7 @@ const svg = renderMermaidSVG(source, {
 })
 ```
 
-Explicit options win over source-level config when both specify the same supported field.
+Explicit options win over source-level config when both specify the same supported field. `RenderOptions.onConfigDiagnostic` can collect warnings for explicit config that is unknown, invalid, or has no faithful effect; without a collector, explicit ineffective State config warns through `console.warn` rather than disappearing silently.
 
 ## YAML frontmatter
 
@@ -70,14 +70,29 @@ Top-level:
 `themeVariables` and explicit color options still win over a style's
 palette, preserving Mermaid compatibility.)
 
-Family-specific:
+Family-specific config is **wire-or-warn**: every accepted key either changes
+output or produces `INEFFECTIVE_CONFIG` naming the field. Unknown keys also
+warn, so spelling mistakes cannot disappear silently. This contract covers all
+12 families and both frontmatter and init directives.
 
-- `xyChart.width`, `xyChart.height`, `xyChart.chartOrientation`, `xyChart.showDataLabel`, `xyChart.titlePadding`, `xyChart.xAxisLabelPadding`, `xyChart.yAxisLabelPadding`, `xyChart.plotReservedSpacePercent`, `xyChart.plotColorPalette`, `xyChart.useMaxWidth`, `xyChart.useWidth`
-- `architecture.padding`, `architecture.iconSize`, `architecture.fontSize`
-- `timeline.disableMulticolor`, `timeline.padding`, `timeline.sectionFontSize`, `timeline.periodFontSize`, `timeline.eventFontSize`
-- `gantt.displayMode` (`compact` packs non-overlapping tasks in a section into shared rows)
+Notable wired sections include:
 
-Unsupported fields are preserved at the source level where possible, but only documented fields are interpreted by renderers.
+- `flowchart`: spacing and measured wrapping;
+- `sequence`: actor/message/note spacing, dimensions, activations, and numbering;
+- `timeline`, `journey`, `class`, `er`, `architecture`, `xyChart`, `pie`, and
+  `quadrantChart`: the fields documented in their family design notes;
+- `gantt.displayMode` (`compact` packs non-overlapping tasks in a section into
+  shared rows).
+
+`state` has a typed `StateRuntimeConfig`. `nodeSpacing`, `rankSpacing`,
+`padding`, `radius`, `fontSize`, `compositTitleSize` (upstream spelling),
+`forkWidth`, `forkHeight`, `noteMargin`, and `dividerMargin` are wired to
+State-specific geometry/paint. `defaultRenderer: 'elk'` is satisfied;
+alternate renderer requests, invalid values, and legacy Dagre/fixed-metric
+calibration fields emit qualified `state.*` diagnostics. Unsupported fields
+and wrappers remain source-preserved. The executable all-family audit is
+`src/__tests__/unknown-config-wire-or-warn.test.ts`; the independent State key
+inventory and discriminating geometry probes are in `state-config.test.ts`.
 
 ## Security
 

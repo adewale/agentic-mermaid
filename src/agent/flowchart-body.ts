@@ -16,9 +16,10 @@
 //     header) and contributes a SourceMap via the buildSourceMap hook.
 // ============================================================================
 
-import { parseMermaid as parseFlowchartLegacy } from '../parser.ts'
+import { parseMermaid as parseFlowchartLegacy, parseStyleProps } from '../parser.ts'
 import { unknownOpMessage } from './mutation-ops.ts'
-import type { MermaidGraph, MermaidNode, MermaidEdge, MermaidSubgraph } from '../types.ts'
+import { normalizeV11Shape } from '../flowchart-shapes.ts'
+import type { MermaidGraph, MermaidNode, MermaidEdge, MermaidSubgraph, NodeShape, Direction } from '../types.ts'
 import type {
   DiagramBody, FlowchartMutationOp, MutationError, ParseError, Result, SourceMap,
 } from './types.ts'
@@ -171,10 +172,17 @@ export function renderFlowchart(graph: MermaidGraph, headerKind: 'flowchart' | '
 }
 
 function needsExplicitDeclaration(node: MermaidNode): boolean {
-  return node.label !== node.id || node.shape !== 'rectangle'
+  return node.label !== node.id || node.shape !== 'rectangle' || node.authoredShape !== undefined
 }
 
 function renderShape(node: MermaidNode): string {
+  // v11 typed shapes serialize as `@{ shape: <authored spelling>, label: … }`
+  // — the AUTHORED alias round-trips verbatim (repo #44); the label uses the
+  // same quoting table as every other emitted label.
+  if (node.authoredShape !== undefined) {
+    const label = node.label !== node.id ? `, label: ${quoteLabel(node.label)}` : ''
+    return `@{ shape: ${node.authoredShape}${label} }`
+  }
   const lbl = escapeLabel(node.label)
   switch (node.shape) {
     case 'rectangle': return `[${lbl}]`
@@ -193,13 +201,28 @@ function renderShape(node: MermaidNode): string {
     case 'lean-l': return `[\\${lbl}\\]`
     case 'service': return `[${lbl}]`
     case 'state-start':
-    case 'state-end': return ''
+    case 'state-end':
+    // State-parser-only pseudostates — unreachable from flowchart bodies
+    // (the flowchart grammar and op menu never produce them).
+    case 'state-fork':
+    case 'state-join':
+    case 'state-choice':
+    case 'state-history': return ''
   }
+}
+
+/** The ONE quoted-label escaping used by every serialization site (bracket
+ *  labels and `@{ label: … }` metadata): `<br>`-normalized, `"` and `\`
+ *  backslash-escaped — exactly the form the parser's quoted-label grammar
+ *  reads back. */
+function quoteLabel(label: string): string {
+  const normalized = label.replace(/\r?\n/g, '<br>')
+  return `"${normalized.replace(/["\\]/g, '\\$&')}"`
 }
 
 function escapeLabel(label: string): string {
   const normalized = label.replace(/\r?\n/g, '<br>')
-  if (/[\[\]{}()|]/.test(normalized)) return `"${normalized.replace(/["\\]/g, '\\$&')}"`
+  if (/[\[\]{}()|]/.test(normalized)) return quoteLabel(label)
   return normalized
 }
 
@@ -207,7 +230,9 @@ function renderEdge(edge: MermaidEdge, nodes: Map<string, MermaidNode>, declared
   const src = inlineNodeRef(edge.source, nodes, declaredInline)
   const dst = inlineNodeRef(edge.target, nodes, declaredInline)
   const labelPart = edge.label ? `|${escapeLabel(edge.label)}|` : ''
-  return `${src} ${renderEdgeArrow(edge)}${labelPart} ${dst}`
+  // v11.6 edge identity: the authored `id@` prefix round-trips verbatim.
+  const idPrefix = edge.id ? `${edge.id}@` : ''
+  return `${src} ${idPrefix}${renderEdgeArrow(edge)}${labelPart} ${dst}`
 }
 
 function inlineNodeRef(id: string, nodes: Map<string, MermaidNode>, declaredInline: Set<string>): string {
@@ -252,7 +277,14 @@ export function mutateFlowchart(body: FlowchartBody, op: FlowchartMutationOp): R
   switch (op.kind) {
     case 'add_node': {
       if (graph.nodes.has(op.id)) return err({ code: 'DUPLICATE_NODE', message: `Node "${op.id}" already exists` })
-      graph.nodes.set(op.id, { id: op.id, label: op.label, shape: op.shape ?? 'rectangle' })
+      const resolved = resolveShapeValue(op.shape ?? 'rectangle')
+      if (!resolved) {
+        return err({ code: 'INVALID_OP', message: `Unknown shape "${op.shape}" — pass a geometry (${GEOMETRY_SHAPES.join(', ')}) or a Mermaid v11 @{ shape } name/alias (e.g. manual-input, document, delay)` })
+      }
+      graph.nodes.set(op.id, {
+        id: op.id, label: op.label, shape: resolved.shape,
+        ...(resolved.semanticShape !== undefined ? { semanticShape: resolved.semanticShape, authoredShape: resolved.authoredShape } : {}),
+      })
       if (op.parent) {
         const parent = findSubgraph(graph, op.parent)
         if (!parent) return err({ code: 'INVALID_OP', message: `Parent group "${op.parent}" not found` })
@@ -305,8 +337,105 @@ export function mutateFlowchart(body: FlowchartBody, op: FlowchartMutationOp): R
     }
     case 'remove_edge': {
       const idx = findEdgeIndexById(graph, op.id)
-      if (idx < 0) return err({ code: 'EDGE_NOT_FOUND', message: `Edge "${op.id}" not found` })
+      if (idx < 0) return err({ code: 'EDGE_NOT_FOUND', message: `Edge "${op.id}" not found — pass an authored edge ID (e1), "from->to", or "from->to#k" for the k-th parallel edge` })
       graph.edges.splice(idx, 1)
+      return done()
+    }
+    case 'set_shape': {
+      const node = graph.nodes.get(op.id)
+      if (!node) return err({ code: 'NODE_NOT_FOUND', message: `Node "${op.id}" not found` })
+      const resolved = resolveShapeValue(op.shape)
+      if (!resolved) {
+        return err({ code: 'INVALID_OP', message: `Unknown shape "${op.shape}" — pass a geometry (${GEOMETRY_SHAPES.join(', ')}) or a Mermaid v11 @{ shape } name/alias (e.g. manual-input, document, delay)` })
+      }
+      graph.nodes.set(op.id, {
+        ...node,
+        shape: resolved.shape,
+        semanticShape: resolved.semanticShape,
+        authoredShape: resolved.authoredShape,
+      })
+      return done()
+    }
+    case 'set_direction': {
+      if (op.subgraph !== undefined && op.subgraph !== null) {
+        const sg = findSubgraph(graph, op.subgraph)
+        if (!sg) return err({ code: 'GROUP_NOT_FOUND', message: `Subgraph "${op.subgraph}" not found` })
+        sg.direction = op.direction
+        return done()
+      }
+      graph.direction = op.direction
+      return done()
+    }
+    case 'add_subgraph': {
+      if (findSubgraph(graph, op.id)) return err({ code: 'INVALID_OP', message: `Subgraph "${op.id}" already exists` })
+      if (graph.nodes.has(op.id)) return err({ code: 'INVALID_OP', message: `Identifier "${op.id}" is already a node — subgraph ids and node ids share one namespace` })
+      const members: string[] = []
+      for (const memberId of op.members ?? []) {
+        if (!graph.nodes.has(memberId)) return err({ code: 'NODE_NOT_FOUND', message: `Member node "${memberId}" not found — add_node it first` })
+        members.push(memberId)
+      }
+      const sg: MermaidSubgraph = { id: op.id, label: op.label ?? op.id, nodeIds: [], children: [] }
+      if (op.parent !== undefined && op.parent !== null) {
+        const parent = findSubgraph(graph, op.parent)
+        if (!parent) return err({ code: 'GROUP_NOT_FOUND', message: `Parent subgraph "${op.parent}" not found` })
+        parent.children.push(sg)
+      } else {
+        graph.subgraphs.push(sg)
+      }
+      // Members MOVE into the new subgraph from wherever they currently live
+      // (top level or another subgraph) — the state make_composite precedent.
+      for (const memberId of members) {
+        for (const existing of graph.subgraphs) removeFromSubgraph(existing, memberId)
+        sg.nodeIds.push(memberId)
+      }
+      return done()
+    }
+    case 'remove_subgraph': {
+      const located = locateSubgraph(graph, op.id)
+      if (!located) return err({ code: 'GROUP_NOT_FOUND', message: `Subgraph "${op.id}" not found` })
+      const { list, index } = located
+      const sg = list[index]!
+      if (op.removeMembers) {
+        for (const memberId of collectMemberNodeIds(sg)) {
+          graph.nodes.delete(memberId)
+          graph.edges = graph.edges.filter(e => e.source !== memberId && e.target !== memberId)
+          graph.classAssignments.delete(memberId)
+          graph.nodeStyles.delete(memberId)
+        }
+        list.splice(index, 1)
+        return done()
+      }
+      // Default: dissolve the box — member nodes survive at the parent scope
+      // and nested subgraphs are promoted in place.
+      list.splice(index, 1, ...sg.children)
+      return done()
+    }
+    case 'move_node': {
+      if (!graph.nodes.has(op.id)) return err({ code: 'NODE_NOT_FOUND', message: `Node "${op.id}" not found` })
+      const target = op.subgraph === null ? null : findSubgraph(graph, op.subgraph)
+      if (op.subgraph !== null && !target) return err({ code: 'GROUP_NOT_FOUND', message: `Subgraph "${op.subgraph}" not found` })
+      for (const sg of graph.subgraphs) removeFromSubgraph(sg, op.id)
+      if (target) target.nodeIds.push(op.id)
+      return done()
+    }
+    case 'define_class': {
+      const props = parseStylePropsForOp(op.style)
+      if (!props) return err({ code: 'INVALID_OP', message: `Style "${op.style}" parses to no properties — expected CSS-like pairs such as "fill:#f96,stroke:#333"` })
+      graph.classDefs.set(op.name, props)
+      return done()
+    }
+    case 'set_node_class': {
+      if (!graph.nodes.has(op.id)) return err({ code: 'NODE_NOT_FOUND', message: `Node "${op.id}" not found` })
+      if (op.className === null) graph.classAssignments.delete(op.id)
+      else graph.classAssignments.set(op.id, op.className)
+      return done()
+    }
+    case 'set_node_style': {
+      if (!graph.nodes.has(op.id)) return err({ code: 'NODE_NOT_FOUND', message: `Node "${op.id}" not found` })
+      if (op.style === null) { graph.nodeStyles.delete(op.id); return done() }
+      const props = parseStylePropsForOp(op.style)
+      if (!props) return err({ code: 'INVALID_OP', message: `Style "${op.style}" parses to no properties — expected CSS-like pairs such as "fill:#bbf,stroke-width:2px"` })
+      graph.nodeStyles.set(op.id, props)
       return done()
     }
     default: {
@@ -316,6 +445,60 @@ export function mutateFlowchart(body: FlowchartBody, op: FlowchartMutationOp): R
   }
 }
 
+// ---- Op helpers ---------------------------------------------------------
+
+/** Runtime NodeShape vocabulary for set_shape/add_node — mirrors the
+ *  NodeShape type (the op-schema enum is transcribed from the same list). */
+const GEOMETRY_SHAPES: readonly NodeShape[] = [
+  'rectangle', 'service', 'rounded', 'diamond', 'stadium', 'circle', 'subroutine',
+  'doublecircle', 'hexagon', 'cylinder', 'asymmetric', 'trapezoid', 'trapezoid-alt',
+  'lean-r', 'lean-l', 'state-start', 'state-end',
+]
+
+interface ResolvedShapeValue {
+  shape: NodeShape
+  semanticShape?: string
+  authoredShape?: string
+}
+
+/** Resolve a shape value: a NodeShape geometry name passes through (clearing
+ *  any v11 metadata), a documented v11 name/alias maps through the ONE table
+ *  in src/flowchart-shapes.ts and keeps the authored spelling. */
+function resolveShapeValue(shape: string): ResolvedShapeValue | null {
+  if ((GEOMETRY_SHAPES as readonly string[]).includes(shape)) {
+    return { shape: shape as NodeShape }
+  }
+  const v11 = normalizeV11Shape(shape)
+  if (!v11) return null
+  return { shape: v11.geometry, semanticShape: v11.canonical, authoredShape: shape }
+}
+
+/** Style strings parse through the parser's OWN parseStyleProps (one style
+ *  grammar, two consumers); null when nothing parses — the op is rejected
+ *  prescriptively instead of writing an empty directive. */
+function parseStylePropsForOp(style: string): Record<string, string> | null {
+  const props = parseStyleProps(style)
+  return Object.keys(props).length > 0 ? props : null
+}
+
+function locateSubgraph(graph: MermaidGraph, id: string): { list: MermaidSubgraph[]; index: number } | null {
+  const search = (list: MermaidSubgraph[]): { list: MermaidSubgraph[]; index: number } | null => {
+    for (let i = 0; i < list.length; i++) {
+      if (list[i]!.id === id) return { list, index: i }
+      const nested = search(list[i]!.children)
+      if (nested) return nested
+    }
+    return null
+  }
+  return search(graph.subgraphs)
+}
+
+function collectMemberNodeIds(sg: MermaidSubgraph): string[] {
+  const out = [...sg.nodeIds]
+  for (const child of sg.children) out.push(...collectMemberNodeIds(child))
+  return out
+}
+
 // ---- Graph helpers ----------------------------------------------------------
 
 export function edgeIdOf(edge: MermaidEdge, idx = 0): string {
@@ -323,6 +506,10 @@ export function edgeIdOf(edge: MermaidEdge, idx = 0): string {
 }
 
 function findEdgeIndexById(graph: MermaidGraph, id: string): number {
+  // Authored v11.6 edge IDs are the primary selector (`e1@-->` identity);
+  // the endpoint forms `from->to` / `from->to#k` remain valid.
+  const authored = graph.edges.findIndex(e => e.id === id)
+  if (authored >= 0) return authored
   const [endpoints, suffix] = id.split('#')
   const [from, to] = (endpoints ?? '').split('->')
   if (!from || !to) return -1

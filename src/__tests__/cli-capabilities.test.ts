@@ -128,6 +128,8 @@ describe('am capabilities', () => {
 describe('family examples', () => {
   it('every built-in family ships a canonical example that parses, verifies clean, and renders', async () => {
     const { parseMermaid } = await import('../agent/parse.ts')
+    const { serializeMermaid } = await import('../agent/serialize.ts')
+    const { describeMermaidFacts } = await import('../agent/facts.ts')
     const { verifyMermaid } = await import('../agent/verify.ts')
     const { renderMermaidSVG } = await import('../index.ts')
     const cap = buildCapabilities()
@@ -140,11 +142,26 @@ describe('family examples', () => {
       // The example must be the family's kind, verify with ZERO warnings
       // (it's the syntax agents copy — it must be beyond reproach), and
       // render (implied by the verify RENDER_FAILED gate, asserted anyway).
-      expect({ id: family.id, kind: String(parsed.value.kind) }).toEqual({ id: family.id, kind: family.id })
+      expect({ id: family.id, kind: String(parsed.value.kind), bodyKind: String(parsed.value.body.kind) })
+        .toEqual({ id: family.id, kind: family.id, bodyKind: family.id })
       const v = verifyMermaid(parsed.value)
       expect({ id: family.id, ok: v.ok, warnings: v.warnings.map(w => w.code) })
         .toEqual({ id: family.id, ok: true, warnings: [] })
-      expect(renderMermaidSVG(family.example!).length).toBeGreaterThan(100)
+
+      // Phase 0 / X1: the discovery example is also the minimum executable
+      // serializer→render-parser conformance witness for every registered
+      // family. Canonical output must stay structured, fact-equivalent,
+      // idempotent, verified, and renderable through the public SVG path.
+      const canonical = serializeMermaid(parsed.value)
+      const reparsed = parseMermaid(canonical)
+      expect({ id: family.id, reparseOk: reparsed.ok }).toEqual({ id: family.id, reparseOk: true })
+      if (!reparsed.ok) continue
+      expect({ id: family.id, kind: String(reparsed.value.kind), bodyKind: String(reparsed.value.body.kind) })
+        .toEqual({ id: family.id, kind: family.id, bodyKind: family.id })
+      expect(describeMermaidFacts(reparsed.value)).toEqual(describeMermaidFacts(parsed.value))
+      expect(serializeMermaid(reparsed.value)).toBe(canonical)
+      expect(verifyMermaid(reparsed.value).warnings).toEqual([])
+      expect(renderMermaidSVG(canonical).length).toBeGreaterThan(100)
     }
   })
 })

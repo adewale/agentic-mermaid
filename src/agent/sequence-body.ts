@@ -34,8 +34,13 @@ import { ok, err } from './types.ts'
 const PARTICIPANT_RE = /^(participant|actor)\s+([A-Za-z_][\w]*)(?:\s+as\s+(.+))?$/i
 const MESSAGE_RE = /^([A-Za-z_][\w]*)\s*(-->>|--x|-->|->>|->|-x)\s*([A-Za-z_][\w]*)\s*:\s*(.+)$/
 
-// Keywords that OPEN a nestable block (closed by a matching `end`).
-const BLOCK_OPEN_RE = /^(alt|opt|loop|par|critical|break|rect)\b/i
+// Keywords that OPEN a nestable block (closed by a matching `end`). `box`
+// belongs here: its `end` used to hit the stray-`end` rule below and collapse
+// EVERY boxed diagram to the whole-body opaque fallback; as a preserved
+// segment (like alt/loop) the box rides along verbatim while the rest of the
+// diagram keeps its typed ops. Participants declared inside a box are part of
+// the segment and stay invisible to ops, like messages inside alt/loop.
+const BLOCK_OPEN_RE = /^(alt|opt|loop|par|critical|break|rect|box)\b/i
 // Continuation keywords valid only INSIDE an open block — never open/close one.
 const BLOCK_CONT_RE = /^(else|and|option)\b/i
 const BLOCK_END_RE = /^end\b/i
@@ -246,6 +251,12 @@ export function mutateSequence(body: SequenceBody, op: SequenceMutationOp): Resu
     case 'remove_participant': {
       const idx = participants.findIndex(p => p.id === op.id)
       if (idx < 0) return err({ code: 'PARTICIPANT_NOT_FOUND', message: `Participant "${op.id}" not found` })
+      if (opaqueBlocksReference(statements, op.id)) {
+        return err({
+          code: 'INVALID_OP',
+          message: `Participant "${op.id}" is referenced by preserved sequence syntax; remove or model that opaque block before removing the participant`,
+        })
+      }
       participants.splice(idx, 1)
       // Drop messages touching the participant, then rebuild statements over
       // the surviving messages/participants (opaque blocks are preserved).
@@ -256,10 +267,45 @@ export function mutateSequence(body: SequenceBody, op: SequenceMutationOp): Resu
       return ok({ kind: 'sequence', participants, messages: keptMessages, statements: rebuilt })
     }
     case 'add_message': {
+      if (op.index !== undefined && (!Number.isInteger(op.index) || op.index < 0 || op.index > messages.length)) {
+        return err({ code: 'INVALID_OP', message: `Sequence add_message index ${op.index} out of range (0..${messages.length})` })
+      }
       ensureParticipant(participants, statements, op.from)
       ensureParticipant(participants, statements, op.to)
-      messages.push({ from: op.from, to: op.to, text: op.text, style: op.style ?? 'sync' })
-      statements.push({ kind: 'message', ref: messages.length - 1 })
+      const index = op.index ?? messages.length
+      messages.splice(index, 0, { from: op.from, to: op.to, text: op.text, style: op.style ?? 'sync' })
+      insertMessageStatement(statements, index)
+      break
+    }
+    case 'move_message': {
+      if (!Number.isInteger(op.from) || op.from < 0 || op.from >= messages.length) {
+        return err({ code: 'MESSAGE_NOT_FOUND', message: `No message at index ${op.from} (0..${Math.max(messages.length - 1, 0)})` })
+      }
+      if (!Number.isInteger(op.to) || op.to < 0 || op.to >= messages.length) {
+        return err({ code: 'MESSAGE_NOT_FOUND', message: `No target position ${op.to} (0..${Math.max(messages.length - 1, 0)})` })
+      }
+      if (op.from === op.to) break
+      moveMessageStatement(statements, op.from, op.to)
+      const [moved] = messages.splice(op.from, 1)
+      messages.splice(op.to, 0, moved!)
+      break
+    }
+    case 'set_participant_label': {
+      const p = participants.find(x => x.id === op.id)
+      if (!p) return err({ code: 'PARTICIPANT_NOT_FOUND', message: `Participant "${op.id}" not found` })
+      const label = typeof op.label === 'string' ? op.label.trim() : ''
+      if (!label || /[\r\n]/.test(label)) {
+        return err({ code: 'INVALID_OP', message: 'Sequence participant label must be a non-empty single line' })
+      }
+      p.label = label
+      // Implicit (message-only) participants have no declaration statement;
+      // the label only survives serialize → re-parse if one exists. Insert it
+      // at the TOP so the renderer parser (first declaration wins) sees it
+      // before any boxed/opaque re-declaration of the same id.
+      const ref = participants.indexOf(p)
+      if (!statements.some(s => s.kind === 'participant' && s.ref === ref)) {
+        statements.unshift({ kind: 'participant', ref })
+      }
       break
     }
     case 'remove_message': {
@@ -279,6 +325,13 @@ export function mutateSequence(body: SequenceBody, op: SequenceMutationOp): Resu
     }
   }
   return ok({ kind: 'sequence', participants, messages, statements })
+}
+
+function opaqueBlocksReference(statements: SequenceStatement[], id: string): boolean {
+  const escaped = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const token = new RegExp(`(^|[^A-Za-z0-9_])${escaped}(?=$|[^A-Za-z0-9_])`)
+  return statements.some(statement =>
+    statement.kind === 'opaque-block' && statement.lines.some(line => token.test(line)))
 }
 
 function cloneStatement(s: SequenceStatement): SequenceStatement {
@@ -316,6 +369,37 @@ function removeMessageStatement(statements: SequenceStatement[], index: number):
   const pos = statements.findIndex(s => s.kind === 'message' && s.ref === index)
   if (pos >= 0) statements.splice(pos, 1)
   for (const s of statements) if (s.kind === 'message' && s.ref > index) s.ref--
+}
+
+// Insert the statement for a message just spliced into the messages array at
+// `index`: shift refs >= index up, then place the new statement where the
+// displaced message's statement was (append when inserting at the end, which
+// matches the historical add_message behavior).
+function insertMessageStatement(statements: SequenceStatement[], index: number): void {
+  const pos = statements.findIndex(s => s.kind === 'message' && s.ref === index)
+  for (const s of statements) if (s.kind === 'message' && s.ref >= index) s.ref++
+  if (pos >= 0) statements.splice(pos, 0, { kind: 'message', ref: index })
+  else statements.push({ kind: 'message', ref: index })
+}
+
+// Reposition a top-level message statement so the moved message ends up as
+// the `to`-th top-level message; opaque blocks and participant declarations
+// keep their positions relative to the surviving neighbors. Refs are then
+// renumbered sequentially — message statements always appear in ref order, so
+// after the caller applies the same splice to the messages array the two
+// views agree.
+function moveMessageStatement(statements: SequenceStatement[], from: number, to: number): void {
+  const fromPos = statements.findIndex(s => s.kind === 'message' && s.ref === from)
+  if (fromPos < 0) return // derived statement lists always carry every message
+  statements.splice(fromPos, 1)
+  const remaining: number[] = []
+  statements.forEach((s, i) => { if (s.kind === 'message') remaining.push(i) })
+  const insertPos = to < remaining.length
+    ? remaining[to]!
+    : (remaining.length > 0 ? remaining[remaining.length - 1]! + 1 : statements.length)
+  statements.splice(insertPos, 0, { kind: 'message', ref: -1 })
+  let next = 0
+  for (const s of statements) if (s.kind === 'message') s.ref = next++
 }
 
 // Rebuild statements after a participant removal: drop the removed

@@ -16,7 +16,7 @@ Agentic Mermaid supports Mermaid's common diagram families through a split pipel
 | XY chart | `xychart`, `xychart-beta` | SVG/PNG/ASCII | structured (8 ops) | Vertical/horizontal bar/line/mixed charts; modeled subset is structurally mutable via `asXyChart`. |
 | Pie | `pie` | SVG/PNG/ASCII | structured (7 ops) | `asPie` narrows title/showData/slices; malformed entries and accTitle/accDescr stay opaque. |
 | Quadrant | `quadrantChart` | SVG/PNG/ASCII | structured (7 ops) | `asQuadrant` narrows title/axes/quadrant labels/points; styling and out-of-range coords stay opaque. |
-| Architecture | `architecture-beta` | SVG/PNG/ASCII | structured (10 ops) | `asArchitecture` narrows the modeled subset (groups/services/junctions/edges); the `{group}` boundary modifier and accTitle/accDescr stay opaque. |
+| Architecture | `architecture-beta` | SVG/PNG/ASCII | structured (11 ops) | `asArchitecture` narrows visible titles, groups/services/junctions/edges, and honored `align` hints; the `{group}` boundary modifier and accTitle/accDescr stay opaque. |
 | Gantt | `gantt` | SVG/PNG/ASCII | structured (9 ops) | `asGantt` narrows title/sections/tasks; calendar directives, `click` lines, and comments ride along verbatim as opaque segments. Deterministic: the today marker draws only from a caller-supplied `ganttToday`. See [design/families/gantt.md](./design/families/gantt.md). |
 
 Opaque fallback does not mean unsupported: those bodies parse, render, verify, and round-trip losslessly, but agents should edit preserved source deliberately instead of calling `mutate`.

@@ -78,6 +78,22 @@ describe('parseClassDiagram – class definitions', () => {
     expect(d.classes[0]!.id).toBe('EmptyClass')
   })
 
+  it('consumes ::: styling shorthand without creating a phantom member', () => {
+    const d = parse(`classDiagram
+      class Account
+      Account:::highlight
+      class Registry$
+      Registry$:::highlight
+      class \`Display Name\`
+      \`Display Name\`:::highlight`)
+    expect(d.classes.map(cls => cls.id)).toEqual(['Account', 'Registry$', 'Display Name'])
+    for (const cls of d.classes) {
+      expect(cls.attributes).toEqual([])
+      expect(cls.methods).toEqual([])
+    }
+    expect(d.classes[0]!.label).toBe('Account')
+  })
+
   it('auto-creates classes from relationships', () => {
     const d = parse(`classDiagram
       Animal <|-- Dog`)

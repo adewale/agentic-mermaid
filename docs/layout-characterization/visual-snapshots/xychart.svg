@@ -36,6 +36,7 @@
   .xychart-y-axis-title { fill: #27272A; }
   .xychart-title { fill: #27272A; }
   .xychart-data-label { fill: #27272A; pointer-events: none; }
+  .xychart-legend-label { fill: #27272A; }
   svg {
     --xychart-color-0: #3b82f6;
     --xychart-color-1: #0d5ba5;
@@ -47,21 +48,21 @@
   path.xychart-color-1, line.xychart-color-1 { stroke: #0d5ba5; }
   circle.xychart-color-1 { fill: #0d5ba5; }
 </style>
-<line x1="55.68" y1="469" x2="700" y2="469" class="xychart-grid"/>
-<line x1="55.68" y1="426.1" x2="700" y2="426.1" class="xychart-grid"/>
-<line x1="55.68" y1="383.2" x2="700" y2="383.2" class="xychart-grid"/>
-<line x1="55.68" y1="340.3" x2="700" y2="340.3" class="xychart-grid"/>
-<line x1="55.68" y1="297.4" x2="700" y2="297.4" class="xychart-grid"/>
-<line x1="55.68" y1="254.5" x2="700" y2="254.5" class="xychart-grid"/>
-<line x1="55.68" y1="211.6" x2="700" y2="211.6" class="xychart-grid"/>
-<line x1="55.68" y1="168.7" x2="700" y2="168.7" class="xychart-grid"/>
-<line x1="55.68" y1="125.8" x2="700" y2="125.8" class="xychart-grid"/>
-<line x1="55.68" y1="82.9" x2="700" y2="82.9" class="xychart-grid"/>
-<line x1="55.68" y1="40" x2="700" y2="40" class="xychart-grid"/>
-<line x1="55.68" y1="470" x2="700" y2="470" class="xychart-axis-line xychart-x-axis-line" stroke-width="2"/>
-<line x1="163.07" y1="471" x2="163.07" y2="476" class="xychart-tick xychart-x-tick" stroke-width="2"/>
-<line x1="377.84" y1="471" x2="377.84" y2="476" class="xychart-tick xychart-x-tick" stroke-width="2"/>
-<line x1="592.61" y1="471" x2="592.61" y2="476" class="xychart-tick xychart-x-tick" stroke-width="2"/>
+<line x1="55.68" y1="469" x2="637" y2="469" class="xychart-grid"/>
+<line x1="55.68" y1="426.1" x2="637" y2="426.1" class="xychart-grid"/>
+<line x1="55.68" y1="383.2" x2="637" y2="383.2" class="xychart-grid"/>
+<line x1="55.68" y1="340.3" x2="637" y2="340.3" class="xychart-grid"/>
+<line x1="55.68" y1="297.4" x2="637" y2="297.4" class="xychart-grid"/>
+<line x1="55.68" y1="254.5" x2="637" y2="254.5" class="xychart-grid"/>
+<line x1="55.68" y1="211.6" x2="637" y2="211.6" class="xychart-grid"/>
+<line x1="55.68" y1="168.7" x2="637" y2="168.7" class="xychart-grid"/>
+<line x1="55.68" y1="125.8" x2="637" y2="125.8" class="xychart-grid"/>
+<line x1="55.68" y1="82.9" x2="637" y2="82.9" class="xychart-grid"/>
+<line x1="55.68" y1="40" x2="637" y2="40" class="xychart-grid"/>
+<line x1="55.68" y1="470" x2="637" y2="470" class="xychart-axis-line xychart-x-axis-line" stroke-width="2"/>
+<line x1="152.57" y1="471" x2="152.57" y2="476" class="xychart-tick xychart-x-tick" stroke-width="2"/>
+<line x1="346.34" y1="471" x2="346.34" y2="476" class="xychart-tick xychart-x-tick" stroke-width="2"/>
+<line x1="540.11" y1="471" x2="540.11" y2="476" class="xychart-tick xychart-x-tick" stroke-width="2"/>
 <line x1="54.68" y1="40" x2="54.68" y2="469" class="xychart-axis-line xychart-y-axis-line" stroke-width="2"/>
 <line x1="53.68" y1="469" x2="48.68" y2="469" class="xychart-tick xychart-y-tick" stroke-width="2"/>
 <line x1="53.68" y1="426.1" x2="48.68" y2="426.1" class="xychart-tick xychart-y-tick" stroke-width="2"/>
@@ -74,13 +75,13 @@
 <line x1="53.68" y1="125.8" x2="48.68" y2="125.8" class="xychart-tick xychart-y-tick" stroke-width="2"/>
 <line x1="53.68" y1="82.9" x2="48.68" y2="82.9" class="xychart-tick xychart-y-tick" stroke-width="2"/>
 <line x1="53.68" y1="40" x2="48.68" y2="40" class="xychart-tick xychart-y-tick" stroke-width="2"/>
-<rect x="61.05" y="340.3" width="204.03" height="128.7" class="xychart-bar xychart-color-0" data-value="3" data-label="Jan"/>
-<rect x="275.83" y="168.7" width="204.03" height="300.3" class="xychart-bar xychart-color-0" data-value="7" data-label="Feb"/>
-<rect x="490.6" y="254.5" width="204.03" height="214.5" class="xychart-bar xychart-color-0" data-value="5" data-label="Mar"/>
-<path d="M163.07,383.2 L377.84,211.6 L592.61,125.8" class="xychart-line xychart-color-1"/>
-<text x="163.07" y="495" text-anchor="middle" font-size="14" font-weight="400" dy="0.35em" class="xychart-label xychart-x-label">Jan</text>
-<text x="377.842" y="495" text-anchor="middle" font-size="14" font-weight="400" dy="0.35em" class="xychart-label xychart-x-label">Feb</text>
-<text x="592.614" y="495" text-anchor="middle" font-size="14" font-weight="400" dy="0.35em" class="xychart-label xychart-x-label">Mar</text>
+<rect x="60.53" y="340.3" width="184.08" height="128.7" class="xychart-bar xychart-color-0" data-value="3" data-label="Jan"/>
+<rect x="254.3" y="168.7" width="184.08" height="300.3" class="xychart-bar xychart-color-0" data-value="7" data-label="Feb"/>
+<rect x="448.07" y="254.5" width="184.08" height="214.5" class="xychart-bar xychart-color-0" data-value="5" data-label="Mar"/>
+<path d="M152.57,383.2 L346.34,211.6 L540.11,125.8" class="xychart-line xychart-color-1"/>
+<text x="152.57" y="495" text-anchor="middle" font-size="14" font-weight="400" dy="0.35em" class="xychart-label xychart-x-label">Jan</text>
+<text x="346.342" y="495" text-anchor="middle" font-size="14" font-weight="400" dy="0.35em" class="xychart-label xychart-x-label">Feb</text>
+<text x="540.114" y="495" text-anchor="middle" font-size="14" font-weight="400" dy="0.35em" class="xychart-label xychart-x-label">Mar</text>
 <text x="43.68399999999997" y="469" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">0</text>
 <text x="43.68399999999997" y="426.1" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">1</text>
 <text x="43.68399999999997" y="383.2" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">2</text>
@@ -94,4 +95,11 @@
 <text x="43.68399999999997" y="40" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">10</text>
 <text x="17.8" y="254.5" text-anchor="middle" transform="rotate(-90,17.8,254.5)" font-size="16" font-weight="400" dy="0.35em" class="xychart-axis-title xychart-y-axis-title">Revenue</text>
 <text x="350" y="30" text-anchor="middle" font-size="20" font-weight="500" dy="0.35em" class="xychart-title">Sales</text>
+<g class="xychart-legend">
+  <rect x="642" y="45" width="12" height="12" rx="2" ry="2" class="xychart-legend-swatch" fill="#3b82f6"/>
+  <text x="660" y="51" text-anchor="start" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-legend-label">Bar 1</text>
+  <line x1="642" y1="70" x2="654" y2="70" class="xychart-legend-swatch" stroke="#0d5ba5" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="648" cy="70" r="2.5" class="xychart-legend-dot" fill="#0d5ba5" stroke="#FFFFFF" stroke-width="1"/>
+  <text x="660" y="70" text-anchor="start" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-legend-label">Line 1</text>
+</g>
 </svg>

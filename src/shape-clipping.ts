@@ -26,19 +26,22 @@ export function clipEdgeToShape(
 ): Point[] {
   if (points.length < 2) return points
 
-  // Only clip non-rectangular shapes
-  if (node.shape === 'rectangle' || node.shape === 'service' || node.shape === 'rounded' || node.shape === 'subroutine') {
+  // Only clip non-rectangular shapes (fork/join bars are true rectangles)
+  if (node.shape === 'rectangle' || node.shape === 'service' || node.shape === 'rounded' || node.shape === 'subroutine' ||
+      node.shape === 'state-fork' || node.shape === 'state-join') {
     return points
   }
 
   const result = [...points]
   const clip = (endpoint: Point, adjacent: Point): Point => {
     switch (node.shape) {
-      case 'diamond': return clipToDiamond(endpoint, adjacent, node)
+      case 'diamond':
+      case 'state-choice': return clipToDiamond(endpoint, adjacent, node)
       case 'circle':
       case 'doublecircle':
       case 'state-start':
-      case 'state-end': return clipToEllipse(endpoint, adjacent, node)
+      case 'state-end':
+      case 'state-history': return clipToEllipse(endpoint, adjacent, node)
       case 'stadium': return clipToStadium(endpoint, adjacent, node)
       case 'hexagon': return clipToHexagon(endpoint, adjacent, node)
       case 'cylinder': return clipToCylinder(endpoint, adjacent, node)

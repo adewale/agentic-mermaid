@@ -18,6 +18,8 @@ import { verifyMermaid } from '../agent/verify.ts'
 import { asState, asFlowchart } from '../agent/types.ts'
 import type { StateValidDiagram, StateMutationOp, StateNode, MutationError } from '../agent/types.ts'
 import { parseMermaid as parseLegacy } from '../parser.ts'
+import { describeMermaidFacts } from '../agent/facts.ts'
+import { describeMermaid } from '../agent/describe.ts'
 
 const SRC = `stateDiagram-v2
   [*] --> Idle
@@ -89,6 +91,23 @@ describe('state structured parse', () => {
     expect(d.body.transitions).toContainEqual({ from: 'First', to: '[*]' })
   })
 
+  test('forward references to nested composites keep one globally unique ID', () => {
+    let d = state(`stateDiagram-v2
+  A --> C
+  state P {
+    state C {
+      X --> Y
+    }
+  }`)
+    const all: StateNode[] = []
+    const walk = (nodes: StateNode[]) => { for (const node of nodes) { all.push(node); if (node.states) walk(node.states) } }
+    walk(d.body.states)
+    expect(all.filter(node => node.id === 'C')).toHaveLength(1)
+    expect(all.find(node => node.id === 'C')?.states).toBeDefined()
+    d = apply(d, { kind: 'set_direction', state: 'C', direction: 'LR' })
+    expect(state(serializeMermaid(d)).body).toEqual(d.body)
+  })
+
   test('top-level direction is modeled', () => {
     const d = state(`stateDiagram-v2
   direction LR
@@ -142,25 +161,17 @@ describe('state round-trip identity', () => {
 
 // ---------------------------------------------------------------------------
 describe('state opaque-fallback table (unmodeled syntax stays lossless)', () => {
+  // Repo #118 promoted notes and the fork/join/choice/history stereotypes to
+  // STRUCTURED (see state-notes.test.ts / state-pseudostates.test.ts); the
+  // rows below remain deliberately unmodeled and must keep the honest opaque
+  // fallback.
   const opaque: [string, string][] = [
-    ['fork', `stateDiagram-v2
-  state fork_state <<fork>>
-  [*] --> fork_state`],
-    ['choice', `stateDiagram-v2
-  state if_state <<choice>>
-  [*] --> if_state`],
-    ['join', `stateDiagram-v2
-  state join_state <<join>>
-  State2 --> join_state`],
     ['concurrency --', `stateDiagram-v2
   state Active {
     [*] --> A
     --
     [*] --> B
   }`],
-    ['note', `stateDiagram-v2
-  A --> B
-  note right of A : hello`],
     ['classDef styling', `stateDiagram-v2
   classDef bad fill:#f00
   A --> B
@@ -190,6 +201,20 @@ describe('state opaque-fallback table (unmodeled syntax stays lossless)', () => 
     })
   }
 
+  test('fork/choice/join/note — the former opaque rows — now parse structured', () => {
+    for (const src of [
+      'stateDiagram-v2\n  state fork_state <<fork>>\n  [*] --> fork_state',
+      'stateDiagram-v2\n  state if_state <<choice>>\n  [*] --> if_state',
+      'stateDiagram-v2\n  state join_state <<join>>\n  State2 --> join_state',
+      'stateDiagram-v2\n  A --> B\n  note right of A : hello',
+    ]) {
+      const r = parseMermaid(src)
+      expect(r.ok).toBe(true)
+      if (!r.ok) continue
+      expect(r.value.body.kind).toBe('state')
+      expect(asState(r.value)).not.toBeNull()
+    }
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -502,6 +527,20 @@ describe('state fast-check round-trip property', () => {
 })
 
 // ---------------------------------------------------------------------------
+describe('state semantic read-back', () => {
+  test('facts, check surface, and prose expose stereotypes and notes', () => {
+    const d = state(`stateDiagram-v2
+  state F <<fork>>
+  note right of F : hello`)
+    const facts = describeMermaidFacts(d)
+    expect(facts).toContain('state F stereotype fork')
+    expect(facts).toContain('note#0 right of F : hello')
+    const prose = describeMermaid(d, { format: 'text' })
+    expect(prose).toContain('F (fork)')
+    expect(prose).toContain('right of F: hello')
+  })
+})
+
 describe('state describe (prose + AX tree)', () => {
   test('AX tree exposes states as nodes and transitions as edges', () => {
     // describeMermaidTree is exercised through the public describe surface.

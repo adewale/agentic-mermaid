@@ -22,6 +22,18 @@ describe('journey ASCII', () => {
     expect(result).toContain('by Me')
   })
 
+  it('projects renderer formatting tags to visible terminal text', () => {
+    const out = renderMermaidASCII(`journey
+  title **Checkout**
+  section *Pay*
+    ~~Submit~~: 3: **Customer**`)
+    expect(out).toContain('Checkout')
+    expect(out).toContain('Pay')
+    expect(out).toContain('Submit')
+    expect(out).toContain('Customer')
+    expect(out).not.toMatch(/<\/?(?:b|i|s)>/)
+  })
+
   it('renders multiple actors', () => {
     const result = render(`journey
       section Work

@@ -74,9 +74,11 @@ function truncateToWidth(text: string, width: number): string {
 function dateGutter(task: ScheduledGanttTask, schedule: GanttSchedule): string {
   const fmt = schedule.dateOnly ? '%m-%d' : '%m-%d %H:%M'
   if (task.tags.includes('milestone')) {
-    return formatGanttInstant(task.start + (task.end - task.start) / 2, fmt)
+    return formatGanttInstant(task.start + (task.renderEnd - task.start) / 2, fmt)
   }
-  return `${formatGanttInstant(task.start, fmt)} → ${formatGanttInstant(task.end, fmt)}`
+  // The gutter names the DRAWN extent (renderEnd) so the dates always match
+  // the bar; chain ends past trailing excluded days live in describe/analyze.
+  return `${formatGanttInstant(task.start, fmt)} → ${formatGanttInstant(task.renderEnd, fmt)}`
 }
 
 /**
@@ -154,7 +156,7 @@ export function renderGanttAscii(
     return Math.max(0, Math.min(plotWidth, c))
   }
 
-  const vertCols = new Set(vertTasks.map(v => Math.min(plotWidth - 1, colOf(v.start + (v.end - v.start) / 2))))
+  const vertCols = new Set(vertTasks.map(v => Math.min(plotWidth - 1, colOf(v.start + (v.renderEnd - v.start) / 2))))
   const todayCol = schedule.today !== undefined && schedule.today >= schedule.timeMin && schedule.today <= schedule.timeMax
     ? Math.min(plotWidth - 1, colOf(schedule.today))
     : undefined
@@ -182,11 +184,12 @@ export function renderGanttAscii(
   const buildTrack = (task: ScheduledGanttTask): string => {
     const cells = new Array<string>(plotWidth).fill(g.track)
     if (task.tags.includes('milestone')) {
-      const c = Math.min(plotWidth - 1, colOf(task.start + (task.end - task.start) / 2))
+      const c = Math.min(plotWidth - 1, colOf(task.start + (task.renderEnd - task.start) / 2))
       cells[c] = g.milestone
     } else {
+      // Bars draw to renderEnd — the same drawn extent the SVG bars use.
       const from = colOf(task.start)
-      const to = Math.max(from + 1, colOf(task.end))
+      const to = Math.max(from + 1, colOf(task.renderEnd))
       const fill = fillGlyph(task.tags, g)
       for (let c = from; c < to && c < plotWidth; c++) cells[c] = fill
     }
@@ -239,7 +242,7 @@ export function renderGanttAscii(
     pushLine([
       { text: padToWidth(TASK_INDENT + truncateToWidth(v.label, labelWidth - 4), labelWidth), role: 'text' },
       { text: '  ', role: null },
-      { text: padForCol(Math.min(plotWidth - 1, colOf(v.start + (v.end - v.start) / 2)), g.vert), role: 'line' },
+      { text: padForCol(Math.min(plotWidth - 1, colOf(v.start + (v.renderEnd - v.start) / 2)), g.vert), role: 'line' },
       { text: '  ', role: null },
       { text: formatGanttInstant(v.start, schedule.dateOnly ? '%m-%d' : '%m-%d %H:%M'), role: 'text' },
     ])

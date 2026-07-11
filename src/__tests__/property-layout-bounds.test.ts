@@ -494,9 +494,12 @@ describe('property-based timeline layout bounds', () => {
         // Rail should be within canvas
         expectFinite(positioned.rail.x1, 'rail.x1')
         expectFinite(positioned.rail.x2, 'rail.x2')
-        expectFinite(positioned.rail.y, 'rail.y')
-        expect(positioned.rail.y >= 0).toBe(true)
-        expect(positioned.rail.y <= canvas.height + 0.5).toBe(true)
+        expectFinite(positioned.rail.y1, 'rail.y1')
+        expectFinite(positioned.rail.y2, 'rail.y2')
+        expect(positioned.rail.y1 >= 0).toBe(true)
+        expect(positioned.rail.y1 <= canvas.height + 0.5).toBe(true)
+        expect(positioned.rail.y2 >= 0).toBe(true)
+        expect(positioned.rail.y2 <= canvas.height + 0.5).toBe(true)
 
         // Title should be within canvas
         if (positioned.title) {
@@ -522,9 +525,12 @@ describe('property-based timeline layout bounds', () => {
 
             // Marker and stem
             expectFinite(period.centerX, `period(${period.id}).centerX`)
+            expectFinite(period.markerX, `period(${period.id}).markerX`)
             expectFinite(period.markerY, `period(${period.id}).markerY`)
-            expectFinite(period.stemTopY, `period(${period.id}).stemTopY`)
-            expectFinite(period.stemBottomY, `period(${period.id}).stemBottomY`)
+            expectFinite(period.stem.x1, `period(${period.id}).stem.x1`)
+            expectFinite(period.stem.y1, `period(${period.id}).stem.y1`)
+            expectFinite(period.stem.x2, `period(${period.id}).stem.x2`)
+            expectFinite(period.stem.y2, `period(${period.id}).stem.y2`)
 
             for (const event of period.events) {
               expectWithinCanvas(event, canvas, `event(${event.id})`)

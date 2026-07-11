@@ -1,12 +1,39 @@
-# Lessons Learned — Loops 1 through 22
+# Lessons Learned — Fork Narrative and PR Retrospectives
 
-This document replaces the Loop 1 retrospective. It is the cumulative
-narrative across the agentic-mermaid fork. Each section reflects what a
-critic or implementer wished they had known when they started.
+This document replaces the Loop 1 retrospective. It is the long-form
+cumulative narrative across the fork's first 22 loops and subsequent major
+PRs. Each section reflects what a critic or implementer wished they had known
+when they started.
 
 > **Scope.** This is the long-form fork narrative. For dated, incident-tagged
 > contributor process lessons ("add new at the top"), see
 > [`../contributing/lessons-learned.md`](../contributing/lessons-learned.md).
+
+## Loop index and status
+
+“Loop” was the name for the fork's early numbered implementation/review cycles;
+it is not a current release phase or an open-work status. Loops 1–22 are
+historical and complete. After Loop 22, major work is recorded by PR/issue
+retrospectives rather than inventing Loop 23+ numbers.
+
+| Loop(s) | Historical focus | Status |
+|---|---|---|
+| 1–7 | Parser/mutation foundation, structured-or-opaque fidelity, determinism experiments, corpus/eval setup, ecosystem survey, and the first agent verbs (`capabilities`, `batch`). The surviving record is cumulative rather than a reliable milestone-by-milestone ledger. | Complete; lessons consolidated in sections (a)–(e). |
+| 8–9 | PNG export and backlog completion under recoverable, commit-per-milestone execution. | Complete. |
+| 10 | Replace grep-based gap claims with executed behavioral probes. | Complete. |
+| 11 | Apply observation-first verification and localized SVG post-passes. | Complete. |
+| 12 | Benchmark honestly, including competitor wins. | Complete. |
+| 13 | Treat the closed agent loop and real-consumer workflow as the product risk. | Complete. |
+| 14 | Make consistency and generated-surface synchronization explicit contracts. | Complete. |
+| 15 | Start from the agent contract when replaying or extending a feature. | Complete. |
+| 16 | Replace visual “vibes” with executable layout heuristics. | Complete. |
+| 17 | Measure heuristic blast radius before accepting layout changes. | Complete. |
+| 18 | Prefer evidence from actual agent behavior over imagined ergonomics. | Complete. |
+| 19 | Distinguish CI-green from adversarial audit-clean. | Complete. |
+| 20 | Treat hidden family registries and synchronized surfaces as product APIs. | Complete. |
+| 21 | Treat tracked exceptions as gap maps, not permanent permission slips. | Complete. |
+| 22 / issue #71 | Treat abstractions as product contracts, with migration and naming consequences. | Complete. |
+| Post-22 | PR #54, #64, #79, #94, the agent-edit boundary, and PR #142 carry subsequent retrospectives. | Ongoing chronology; no numbered Loop 23 exists. |
 
 ## (a) What we wish we'd known
 
@@ -1017,3 +1044,94 @@ never throws, and *a successful apply implies the op passed shape validation* �
 machine statement of "no silent mangle." That invariant is what goes red when the
 validator is removed, which is how you know the fuzz is discriminating and not a
 tautology.
+
+## PR #142 lesson — parity requires causal evidence and end-to-end semantics
+
+PR #142 elevated all twelve built-in families at once. The breadth made three
+failure modes unusually visible: visual changes without an adjacent reason look
+arbitrary, accepting syntax can masquerade as implementing it, and exact-output
+goldens can faithfully preserve incorrect geometry.
+
+**A visual diff needs a causal caption.** The original evidence table told reviewers
+what changed, but not why it should have changed. The Timeline pair was the clearest
+example: horizontal became vertical, with no explanation that the fixture explicitly
+uses `timeline TD`, Mermaid's top-to-bottom orientation, and that the old renderer
+ignored the token. The corrected table separates **Why** (the authored syntax,
+configuration, or semantic contract) from **What to inspect** (the visible proof).
+A before/after image establishes difference; it does not establish correctness until
+the intended cause is stated beside it. This applies equally to generated artifacts:
+reproducibility answers “did the renderer make this?” while the caption answers “was
+this the renderer's right decision?”
+
+**Parse support is not feature support.** An audit of every open repository issue
+found that three issues overlapped the PR but were only partly complete. Architecture
+`align` directives parsed and round-tripped but did not constrain geometry (#101).
+Flowchart markdown strings parsed, but bold and italic markers were flattened (#102).
+Namespaces and State constructs had landed for #118, but Class generics had not.
+Those are useful intermediate states when they are explicitly warned and ledgered;
+they are not honest issue closure. The durable completion check is the entire chain:
+parse → model → measure/layout → render → serialize → verify → typed mutation, with
+source-preserved opaque fallback where a typed stage remains intentionally absent.
+
+**Normalize semantic identity before adding syntax to mutation.** `Box~T~` initially
+risked becoming one class at declaration time and a second class when used as a
+relationship endpoint. Modeling it as stable identity `Box` plus generic metadata
+`T` let declarations, notes, members, relationships, rendering (`Box<T>`), canonical
+serialization, facts, and `set_class_generic` converge on one object. Surface syntax
+is not a safe identifier when decorations carry type parameters, aliases, or display
+labels; normalize once and make every consumer use the normalized identity.
+
+The final parser audit found the same defect family in three more spellings:
+`A:::class` became visible `::class` text in State/Class or a distinct ER entity,
+`CUSTOMER["Customer Account"]` made the alias part of identity, and comma punctuation
+made `PK, FK` lose `PK`. The fix was not four regex patches: Unicode-aware Mermaid
+identifier/class-suffix primitives, one quote-aware Flowchart shape scanner, and
+shared ER entity-reference/relationship/attribute grammars now feed renderer and
+agent parsing. Typed ER identity is `id` plus optional `label`, with
+`set_entity_label`; styling that is still unmodeled remains opaque and warned rather
+than being discarded. Correctness-by-construction means every decorated reference
+passes through the same normalization boundary before layout, render, facts, or
+mutation can observe it.
+
+**Goldens are necessary pins, not correctness proofs.** The final geometry audit
+found eight dense self-loops sharing only six label centers, Architecture routes
+anchored to stale pre-alignment bounds, and an aligned lane overlapping an
+unconstrained sibling. Every output was deterministic and therefore perfectly able
+to produce a stable wrong golden. The fixes were justified by discriminating
+properties—unique route/label occupancy, anchors derived from post-move geometry,
+non-overlap, containment, and source-order invariance—then the intentional goldens
+were regenerated. The order matters: prove the invariant first; use the golden to
+pin the proven result second.
+
+**Cross-family claims require a cross-family matrix.** Shared text measurement,
+wrapping, route contracts, palette resolution, and style transforms can improve one
+family while regressing another. Rendering every elevated feature under multiple
+Style + Palette stacks, checking one generated all-family sheet byte-for-byte, and
+running the ordinary family corpus caught integration drift that family-local tests
+could not. When a PR's claim says “all families,” at least one executable gate must
+quantify over all families rather than infer coverage from twelve separate anecdotes.
+
+**Registration is not reachability.** The follow-up audit found a deeper reason explicit State config was byte-inert: `stateDiagram-v2` still routed through the Flowchart family even though a State hook was registered. The resolver worked in isolation and could still be unreachable in production. The repair gave State its own routed family ID and preserved default bytes before wiring ten faithful fields. This is a reusable integration lesson: a feature is wired only when the public detector selects the registry entry, the registry invokes its hook, and a field-specific output invariant changes.
+
+**Serializer conformance must cross the renderer boundary.** Canonical discovery fixtures were enrollment, not the property P3 promised. The completed gate generates thirty structured diagrams per family, serializes and reparses them through both agent and real renderer layout paths, compares agent facts plus renderer node/edge/group inventories, asserts idempotence, and renders SVG. It deliberately compares semantic inventories rather than coordinates: Architecture's canonical declaration ordering may move equivalent elements, while geometry determinism remains a separate per-input invariant. This distinction made the property strong without forbidding legitimate canonicalization.
+
+**A prose ledger cannot prove its own completeness.** The first post-audit phase
+summary said config honesty covered the family set, while the hard-coded unknown-key
+matrix contained eleven entries and silently omitted State. A direct probe confirmed
+that both documented `state.nodeSpacing` and misspelled `state.madeUpKey` disappeared
+without a warning. The repair was partly behavioral—add a typed State config section
+and classify every currently unwired key—and partly structural: the config and opaque
+warning matrices now assert exact equality with `BUILTIN_FAMILY_METADATA`. The plan
+itself assigns stable IDs to all 72 original items and 18 completion packages, and a
+doc test rejects missing, duplicate, status-less, or evidence-less rows. “Everything
+is tracked” is now a checked set equality, not confidence based on a long document.
+
+**A phase needs an exit condition, not an adjective.** “Substantially complete” hid
+whether broad `<family>_opaque` warnings blocked Phase 0 forever. Re-reading the
+original honesty contract resolved the boundary: Phase 0 requires lossless preservation
+plus an actionable warning; construct-specific modeling is later parity work. Its exit
+is therefore executable and finite: all-family canonical conformance, corpus
+faithfulness, all-family opaque diagnostics, all-family config wire-or-warn, unknown
+CLI flag rejection, and Scene-IR text geometry fidelity. Naming that boundary lets the
+phase become honestly complete while the mechanical backlog continues to show the
+remaining rendering and mutation work.

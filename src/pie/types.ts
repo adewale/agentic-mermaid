@@ -14,6 +14,7 @@
 // ============================================================================
 
 import type { PositionedDiagram } from '../types.ts'
+import type { PieVisualConfig } from './config.ts'
 
 /** A single labelled slice of the pie. */
 export interface PieEntry {
@@ -37,6 +38,16 @@ export interface PieChart {
 // Positioned pie chart — ready for SVG rendering
 // ============================================================================
 
+/** An on-slice percentage label, placed by the layout's collision policy. */
+export interface PieSliceLabel {
+  /** Display text (upstream format: integer percent + '%'). */
+  text: string
+  /** Label anchor (text-anchor: middle; vertically centered). */
+  x: number
+  y: number
+  fontSize: number
+}
+
 export interface PositionedPieSlice {
   /** The original entry label. */
   label: string
@@ -48,8 +59,14 @@ export interface PositionedPieSlice {
   startAngle: number
   /** End angle in radians. */
   endAngle: number
-  /** SVG path `d` attribute for the slice wedge. */
+  /** SVG path `d` attribute for the slice wedge (annular in donut mode). */
   path: string
+  /**
+   * On-slice percentage label. Absent when the label is suppressed by the
+   * deterministic small-slice policy (rounds to "0%", doesn't fit its wedge,
+   * or would overlap an already-placed neighbor label).
+   */
+  pctLabel?: PieSliceLabel
 }
 
 export interface PositionedPieLegendItem {
@@ -63,6 +80,12 @@ export interface PositionedPieLegendItem {
   /** Baseline-ish y for the legend text. */
   textX: number
   textY: number
+  /**
+   * Display lines of the row (label lines from `<br/>`, with the value/percent
+   * suffix riding on the last line). The renderer joins with '\n'; layout
+   * measures each line so multiline rows size and clear correctly.
+   */
+  lines: string[]
 }
 
 export interface PositionedPieChart extends PositionedDiagram {
@@ -73,10 +96,14 @@ export interface PositionedPieChart extends PositionedDiagram {
   cx: number
   cy: number
   radius: number
+  /** Donut hole radius (donutHole * radius); 0 for a plain pie. */
+  innerRadius: number
   slices: PositionedPieSlice[]
   legend: PositionedPieLegendItem[]
   /** Whether numeric values are shown in the legend (`showData`). */
   showData: boolean
   /** Sum of all entry values (for percentage / value formatting). */
   total: number
+  /** Resolved pie config/theme-variable knobs (paint half consumed by the renderer). */
+  visual: PieVisualConfig
 }

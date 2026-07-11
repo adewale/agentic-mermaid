@@ -1,6 +1,17 @@
 import type { TimelineDiagram, TimelineSection, TimelinePeriod, TimelineEvent } from './types.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
 import { syntaxError } from '../shared/syntax-error.ts'
+import {
+  TIMELINE_ACCESSIBILITY_DESCRIPTION_BLOCK_RE,
+  TIMELINE_ACCESSIBILITY_DESCRIPTION_RE,
+  TIMELINE_ACCESSIBILITY_TITLE_RE,
+  TIMELINE_CONTINUATION_RE,
+  TIMELINE_HEADER_DIRECTION_RE,
+  TIMELINE_PERIOD_RE,
+  TIMELINE_SECTION_RE,
+  TIMELINE_TITLE_RE,
+  splitTimelineEvents,
+} from './parse-core.ts'
 
 // ============================================================================
 // Timeline diagram parser
@@ -8,12 +19,17 @@ import { syntaxError } from '../shared/syntax-error.ts'
 // Parses Mermaid timeline syntax into a TimelineDiagram structure.
 //
 // Supported syntax:
-//   timeline
+//   timeline [LR|TD]
 //   title Timeline Title
 //   section Section Label
 //   2020 : Event 1
 //   2021 : Event 1 : Event 2
 //        : Continued event for the previous period
+//
+// Direction (upstream PR #7270): the token rides the header line — `timeline
+// TD` flows top-down, `timeline LR` (or a bare header) stays horizontal. The
+// upstream lexer only knows LR/TD; the tb/bt/rl tokens the router tolerates
+// remain accepted-and-ignored (horizontal) so existing sources are unchanged.
 // ============================================================================
 
 /**
@@ -22,6 +38,11 @@ import { syntaxError } from '../shared/syntax-error.ts'
  */
 export function parseTimelineDiagram(lines: string[]): TimelineDiagram {
   const diagram: TimelineDiagram = { sections: [] }
+
+  const headerDirection = lines[0]?.trim().match(TIMELINE_HEADER_DIRECTION_RE)
+  if (headerDirection) {
+    diagram.direction = headerDirection[1]!.toUpperCase() as TimelineDiagram['direction']
+  }
 
   let currentSection: TimelineSection | undefined
   let currentPeriod: TimelinePeriod | undefined
@@ -58,25 +79,25 @@ export function parseTimelineDiagram(lines: string[]): TimelineDiagram {
     if (/^timeline\b/i.test(line)) continue
     if (/^#/.test(line)) continue
 
-    const titleMatch = line.match(/^title\s+(.+)$/i)
+    const titleMatch = line.match(TIMELINE_TITLE_RE)
     if (titleMatch) {
       diagram.title = normalizeBrTags(titleMatch[1]!.trim())
       continue
     }
 
-    const accTitleMatch = line.match(/^accTitle\s*:\s*(.+)$/i)
+    const accTitleMatch = line.match(TIMELINE_ACCESSIBILITY_TITLE_RE)
     if (accTitleMatch) {
       diagram.accessibilityTitle = normalizeBrTags(accTitleMatch[1]!.trim())
       continue
     }
 
-    const accDescrMatch = line.match(/^accDescr\s*:\s*(.+)$/i)
+    const accDescrMatch = line.match(TIMELINE_ACCESSIBILITY_DESCRIPTION_RE)
     if (accDescrMatch) {
       diagram.accessibilityDescription = normalizeBrTags(accDescrMatch[1]!.trim())
       continue
     }
 
-    if (/^accDescr\s*\{\s*$/i.test(line)) {
+    if (TIMELINE_ACCESSIBILITY_DESCRIPTION_BLOCK_RE.test(line)) {
       const descriptionLines: string[] = []
       let foundClosingBrace = false
 
@@ -97,7 +118,7 @@ export function parseTimelineDiagram(lines: string[]): TimelineDiagram {
       continue
     }
 
-    const sectionMatch = line.match(/^section\s+([^:]+)$/i)
+    const sectionMatch = line.match(TIMELINE_SECTION_RE)
     if (sectionMatch) {
       currentSection = {
         id: `section-${sectionIndex++}`,
@@ -109,7 +130,7 @@ export function parseTimelineDiagram(lines: string[]): TimelineDiagram {
       continue
     }
 
-    const continuationMatch = line.match(/^:\s+(.+)$/)
+    const continuationMatch = line.match(TIMELINE_CONTINUATION_RE)
     if (continuationMatch) {
       if (!currentPeriod) {
         throw new Error('Timeline continuation found before any period was declared')
@@ -118,7 +139,7 @@ export function parseTimelineDiagram(lines: string[]): TimelineDiagram {
       continue
     }
 
-    const periodMatch = line.match(/^([^:#\n]+?)(\s*:\s+.+)$/)
+    const periodMatch = line.match(TIMELINE_PERIOD_RE)
     if (periodMatch) {
       const periodLabel = normalizeBrTags(periodMatch[1]!.trim())
       const events = splitTimelineEvents(periodMatch[2]!)
@@ -177,39 +198,4 @@ export function parseTimelineDiagram(lines: string[]): TimelineDiagram {
   }
 
   return diagram
-}
-
-function splitTimelineEvents(raw: string): string[] {
-  const events: string[] = []
-  let index = 0
-
-  while (index < raw.length) {
-    while (index < raw.length && /\s/.test(raw[index]!)) index++
-    if (index >= raw.length) break
-
-    if (raw[index] !== ':') {
-      throw syntaxError({
-        what: `Invalid timeline event list: "${raw}"`,
-        expectedForm: 'events separated by " : "',
-        example: 'Launch : Beta',
-      })
-    }
-
-    index++
-    if (index >= raw.length || !/\s/.test(raw[index]!)) {
-      throw new Error(`Timeline events must use ": " separators: "${raw}"`)
-    }
-
-    while (index < raw.length && /\s/.test(raw[index]!)) index++
-    const start = index
-
-    while (index < raw.length) {
-      if (raw[index] === ':' && /\s/.test(raw[index + 1] ?? '')) break
-      index++
-    }
-
-    events.push(raw.slice(start, index).trim())
-  }
-
-  return events
 }

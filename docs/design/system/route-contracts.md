@@ -716,6 +716,7 @@ a real floating-edge bug, which was then fixed — see "Container repair").
 ROUTE_HITCH                { edge, deviationPx }  bends although a clear lane exists (flipped axis for feedback)
 ROUTE_UNEXPLAINED_BEND     { edge }               diagonal segment under orthogonal routing
 ROUTE_LABEL_ON_SHARED_TRUNK{ edge, sharedWith }   label pill on a line segment another edge shares collinearly
+ROUTE_SELF_LOOP_OCCUPANCY{ edge, conflictWith?, kind }   self-loop allocation/side/boundary or pairwise route/label occupancy proof failed
 ROUTE_CONTAINER_MISANCHOR  { edge, container }    container edge not terminating on the container border (§11.5)
 ROUTE_SHAPE_MISANCHOR      { edge, node }         endpoint off the rendered shape boundary (§11.6; rect-like + diamond)
 ROUTE_STALE_AFTER_NODE_MOVE{ edge, node }         endpoint detached, or a non-incident node moved onto a route
@@ -790,6 +791,7 @@ in sync by `src/__tests__/layout-pass-docsync.test.ts` (regenerate with
 21. `repairLabelsOffOwnRoute` - re-slot a labeled edge whose pill sits off its OWN route onto it — ELK offset placement on an already-straight edge (label-only, freeze-safe)
 22. `separateEdgeLabelPills` - slide colliding edge-label pills along their own routes into clear slots — parallel/reciprocal lane labels stack at midpoints (label-only, freeze-safe)
 23. `translateGeometryToNonNegativeOrigin` - shift whole graph to a non-negative origin (allowed after freeze)
+24. `placeStateNotes` - place state-diagram note boxes on their declared side, clear of nodes/groups/routes (state diagrams only; translate-only)
 
 <!-- LAYOUT-PIPELINE:end -->
 

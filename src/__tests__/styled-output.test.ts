@@ -172,6 +172,45 @@ describe('style consolidation', () => {
     expect(svg).toContain('data-backdrop="page"')
   })
 
+  test('Style + Palette stacks stay deterministic and finite across all elevated family features', () => {
+    const demoRoot = join(import.meta.dir, '..', '..', 'docs', 'design', 'families')
+    const familyFixtures = [
+      ['flowchart-v11-shapes-demo.mmd', {}],
+      ['state-pseudostates-demo.mmd', {}],
+      ['sequence-config-demo.mmd', {}],
+      ['timeline-vertical-demo.mmd', {}],
+      ['class-namespaces-demo.mmd', {}],
+      ['er-direction-demo.mmd', {}],
+      ['journey-section-overlap-demo.mmd', {}],
+      ['architecture-align-demo.mmd', {}],
+      ['xychart-legend-demo.mmd', {}],
+      ['pie-donut-labels-demo.mmd', {}],
+      ['quadrant-styling-demo.mmd', {}],
+      ['gantt-dependency-overlay-demo.mmd', { gantt: { dependencyArrows: true, criticalPath: true } }],
+    ] as const
+    const stacks = [
+      ['hand-drawn', 'dracula'],
+      ['publication-figure', 'github-light'],
+      ['watercolor', 'nord-light'],
+    ]
+    for (const [fixture, renderOptions] of familyFixtures) {
+      const source = readFileSync(join(demoRoot, fixture), 'utf8')
+      for (const stack of stacks) {
+        const palette = getStyle(stack[1]!)!.colors!
+        const first = renderMermaidSVG(source, { ...renderOptions, style: stack, seed: 7 })
+        const again = renderMermaidSVG(source, { ...renderOptions, style: stack, seed: 7 })
+        expect(first, `${fixture} × ${stack.join('+')}`).toBe(again)
+        expect(first).toContain(`--bg:${palette.bg}`)
+        expect(first).toContain(`--fg:${palette.fg}`)
+        expect(first).not.toMatch(/(?:NaN|Infinity|undefined)/)
+        const viewBox = first.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/)
+        expect(viewBox, `${fixture} has a viewBox`).not.toBeNull()
+        expect(Number(viewBox![1])).toBeGreaterThan(0)
+        expect(Number(viewBox![2])).toBeGreaterThan(0)
+      }
+    }
+  })
+
   test('stacks merge left → right: hand-drawn × dracula', () => {
     const dracula = getStyle('dracula')!
     const stacked = renderMermaidSVG(source, { style: ['hand-drawn', 'dracula'] })

@@ -113,7 +113,9 @@ describe('quadrant parser — sad paths error loudly', () => {
     { name: 'unclosed bracket', src: 'quadrantChart\n  A: [0.5, 0.5', match: /Invalid quadrant point/i },
     { name: 'wrong header', src: 'notquadrant\n  A: [0.5, 0.5]', match: /must start with "quadrantChart"/i },
     { name: 'unknown statement', src: 'quadrantChart\n  banana split', match: /Unrecognized quadrant chart line/i },
-    { name: 'unknown point style metadata', src: 'quadrantChart\n  A: [0.5, 0.5] banana: split', match: /Unsupported quadrant point style metadata/i },
+    // Unknown keys with SAFE values are upstream-legal (preserved verbatim,
+    // inert in render — see quadrant-style.test.ts); only unsafe values err.
+    { name: 'unknown point style metadata with unsafe value', src: 'quadrantChart\n  A: [0.5, 0.5] banana: "spl;it"', match: /style/i },
     { name: 'x-axis arrow but no far label', src: 'quadrantChart\n  x-axis Left -->', match: /no far label/i },
   ]
 
@@ -135,6 +137,29 @@ describe('quadrant parser — sad paths error loudly', () => {
 // ---------------------------------------------------------------------------
 // Geometry — a point per quadrant lands in the right pixel region
 // ---------------------------------------------------------------------------
+
+describe('quadrant accessibility metadata', () => {
+  it('preserves line and block directives through layout and renders resolvable escaped ARIA metadata', () => {
+    const source = `quadrantChart
+  accTitle: Safe <title>&
+  accDescr {
+    First line
+    Second <tag>&
+  }
+  Point: [0.5, 0.5]`
+    const parsed = parseQuadrantChart(toMermaidLines(source))
+    expect(parsed.accessibility).toEqual({ title: 'Safe <title>&', description: 'First line\nSecond <tag>&' })
+    expect(layoutQuadrantChart(parsed).accessibility).toEqual(parsed.accessibility)
+    const svg = renderMermaidSVG(source)
+    const titleId = /aria-labelledby="([^"]+)"/.exec(svg)?.[1]
+    const descId = /aria-describedby="([^"]+)"/.exec(svg)?.[1]
+    expect(titleId).toBeDefined()
+    expect(descId).toBeDefined()
+    expect(svg).toContain(`<title id="${titleId}">Safe &lt;title&gt;&amp;</title>`)
+    expect(svg).toContain(`<desc id="${descId}">First line\nSecond &lt;tag&gt;&amp;</desc>`)
+    expect(renderMermaidSVG(source)).toBe(svg)
+  })
+})
 
 describe('quadrant geometry', () => {
   // Build a chart with one point dead-center of each quadrant region.

@@ -106,13 +106,29 @@ describe('gantt scheduler properties (generated DAGs)', () => {
       tasks.forEach((t, i) => {
         const task = s.tasks[i]!
         if (task.manualEnd) return
-        // Count non-excluded days inside [start, end): must equal the duration.
+        // Upstream boundary (adopted 2026-07, family-elevation-plan §Gantt
+        // item 6): the exclude walk counts days in (start, end] — a task
+        // starting on an excluded day gets that day free — so the working-day
+        // conservation law counts the same window.
         let working = 0
-        for (let d = task.start; d < task.end; d += DAY_MS) {
+        for (let d = task.start + DAY_MS; d <= task.end; d += DAY_MS) {
           if (!s.isExcludedDay(d)) working++
         }
         expect(working).toBe(t.durationDays)
       })
+    }), { numRuns: 60 })
+  })
+
+  test('renderEnd (the drawn bar end) always sits inside [start, end]', () => {
+    fc.assert(fc.property(genTaskList, tasks => {
+      const s = scheduleOf(toSource(tasks, { excludes: 'weekends' }))
+      for (const t of s.tasks) {
+        expect(t.renderEnd).toBeGreaterThanOrEqual(t.start)
+        expect(t.renderEnd).toBeLessThanOrEqual(t.end)
+      }
+      // Without excludes the two never split.
+      const plain = scheduleOf(toSource(tasks))
+      for (const t of plain.tasks) expect(t.renderEnd).toBe(t.end)
     }), { numRuns: 60 })
   })
 

@@ -26,14 +26,18 @@
 //   const svg = renderMermaidSVG('graph TD\n  A --> B')
 // ============================================================================
 
-export type { RenderOptions, RenderContext, MermaidGraph, PositionedDiagram, PositionedGraph, RouteCertificate, EdgeRouteCertificate, FamilyEdgeRouteCertificate, RegionContainmentCertificate, FamilyRouteCertificate, LayoutRouteCertificate, LayoutRouteClass, RouteClass, RouteBlocker, RoutePortAssignment, PortSemanticRole, AnyPort, PortSide, DiamondFacet } from './types.ts'
+export type { RenderOptions, RenderContext, ConfigDiagnostic, MermaidGraph, PositionedDiagram, PositionedGraph, RouteCertificate, EdgeRouteCertificate, FamilyEdgeRouteCertificate, RegionContainmentCertificate, FamilyRouteCertificate, LayoutRouteCertificate, LayoutRouteClass, RouteClass, RouteBlocker, RoutePortAssignment, PortSemanticRole, AnyPort, PortSide, DiamondFacet } from './types.ts'
 export type { DiagramColors, ThemeName, ResolvedColors } from './theme.ts'
 export { fromShikiTheme, THEMES, DEFAULTS, resolveColors, inlineResolvedColors } from './theme.ts'
 export { resolveDiagramColors } from './color-resolver.ts'
 export { parseMermaid } from './parser.ts'
 export { renderMermaidASCII, renderMermaidAscii } from './ascii/index.ts'
 export type { AsciiRenderOptions } from './ascii/index.ts'
-export type { MermaidRuntimeConfig, MermaidThemeVariables, TimelineRuntimeConfig, JourneyRuntimeConfig } from './mermaid-source.ts'
+export type {
+  MermaidRuntimeConfig, MermaidThemeVariables, TimelineRuntimeConfig,
+  JourneyRuntimeConfig, StateRuntimeConfig, XyChartRuntimeConfig,
+  PieRuntimeConfig, QuadrantRuntimeConfig,
+} from './mermaid-source.ts'
 export { parseArchitectureDiagram, architectureToMermaidGraph } from './architecture/parser.ts'
 export { TEXT_MEASUREMENT_CONTRACT, measureText, measureTextWidth } from './text-metrics.ts'
 export type { TextMeasurementContract, TextMeasurementInput, TextMeasurementResult } from './text-metrics.ts'
@@ -50,6 +54,7 @@ import type { FamilyLayoutResult } from './agent/families.ts'
 import type { DiagramKind } from './agent/types.ts'
 import { resolveStyleStack, isStyledSpec, inferBackend } from './scene/style-registry.ts'
 import type { StyleSpec } from './scene/style-registry.ts'
+import { stateConfigDiagnostics } from './state/config.ts'
 import { getBackend } from './scene/backend.ts'
 import './scene/rough-backend.ts'
 import './scene/hybrid-backend.ts'
@@ -255,6 +260,11 @@ export function renderMermaidSVG(
   // Decode XML entities that may leak from markdown parsers (e.g. rehype-raw).
   // Without this, escapeXml() double-encodes them: &lt; → &amp;lt; → literal "&lt;" in SVG.
   text = decodeXML(text)
+  const explicitStateConfig = options.mermaidConfig?.state
+  if (explicitStateConfig) {
+    const report = options.onConfigDiagnostic ?? ((diagnostic) => console.warn(diagnostic.message))
+    for (const diagnostic of stateConfigDiagnostics([explicitStateConfig], true)) report(diagnostic)
+  }
   const normalizedSource = normalizeMermaidSource(text, options.mermaidConfig ?? {})
 
   // #7645/#7695: strict security mode disables the Google Fonts @import and

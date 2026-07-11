@@ -12,5 +12,6 @@
   "timeoutMS": 30000,
   "concurrency": 2,
   "tempDirName": ".stryker-tmp-er",
-  "disableTypeChecks": true
+  "disableTypeChecks": true,
+  "thresholds": { "break": 60 }
 }

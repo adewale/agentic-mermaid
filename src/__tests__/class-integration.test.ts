@@ -18,6 +18,14 @@ describe('renderMermaidSVG – class diagrams', () => {
     expect(svg).toContain('eat')
   })
 
+  it('renders ::: styled class identities without a phantom member', () => {
+    const svg = renderMermaidSVG(`classDiagram
+      class Account
+      Account:::highlight`)
+    expect(svg).toContain('Account')
+    expect(svg).not.toContain('::highlight')
+  })
+
   it('renders class with annotation', () => {
     const svg = renderMermaidSVG(`classDiagram
       class Flyable {

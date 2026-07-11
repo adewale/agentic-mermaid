@@ -26,6 +26,9 @@
 <path class="pie-slice" d="M 119 157 L 119 62 A 95 95 0 0 1 201.27 204.5 Z" fill="#3b82f6" data-label="Cats" data-value="4" data-percent="33.3%" />
 <path class="pie-slice" d="M 119 157 L 201.27 204.5 A 95 95 0 0 1 36.73 109.5 Z" fill="#0d5ba5" data-label="Dogs" data-value="6" data-percent="50.0%" />
 <path class="pie-slice" d="M 119 157 L 36.73 109.5 A 95 95 0 0 1 119 62 Z" fill="#5f79f2" data-label="Birds" data-value="2" data-percent="16.7%" />
+<text x="180.7" y="121.38" class="pie-slice-label" text-anchor="middle" dominant-baseline="middle" font-size="12" font-weight="500" fill="#FFFFFF" dy="4.199999999999999">33%</text>
+<text x="83.38" y="218.7" class="pie-slice-label" text-anchor="middle" dominant-baseline="middle" font-size="12" font-weight="500" fill="#FFFFFF" dy="4.199999999999999">50%</text>
+<text x="83.37" y="95.3" class="pie-slice-label" text-anchor="middle" dominant-baseline="middle" font-size="12" font-weight="500" fill="#FFFFFF" dy="4.199999999999999">17%</text>
 <rect class="pie-legend-swatch" x="246" y="128" width="14" height="14" rx="2" ry="2" fill="#3b82f6" />
 <text x="268" y="135" class="pie-legend-text" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500" dy="4.55">Cats (33.3%)</text>
 <rect class="pie-legend-swatch" x="246" y="150" width="14" height="14" rx="2" ry="2" fill="#0d5ba5" />

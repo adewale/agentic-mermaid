@@ -87,38 +87,43 @@ describe('flowchart parser conformance safety floor (issue #36)', () => {
     expect(metadataDiagram.body.kind).toBe('opaque')
     expect(serializeMermaid(metadataDiagram)).toBe(metadataSource)
     const syntaxes = verifyMermaid(metadataSource).warnings.map(w => w.code === 'UNSUPPORTED_SYNTAX' ? w.syntax : '').filter(Boolean)
-    expect(syntaxes).toContain('flowchart_edge_id')
     expect(syntaxes).toContain('flowchart_edge_metadata')
+    // Edge IDs themselves are modeled structured identity now — no lint.
+    expect(syntaxes).not.toContain('flowchart_edge_id')
   })
 
-  test('edge-id detection handles text-label arrows without scanning inside labels', () => {
+  test('edge IDs on text-label arrows are modeled without scanning inside labels', () => {
     const source = 'flowchart LR\n  A e1@-- text --> B\n'
     expect(edgeTriples(source)).toEqual([['A', 'B', 'text']])
     expect(edgeTriples('flowchart LR\n  A e1@-- x;y;z --> B')).toEqual([['A', 'B', 'x;y;z']])
     const diagram = parseAgent(source)
-    expect(diagram.body.kind).toBe('opaque')
-    expect(serializeMermaid(diagram)).toBe(source)
-    expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'flowchart_edge_id', line: 2 }))
+    expect(diagram.body.kind).toBe('flowchart')
+    // Canonical serialization uses the pipe-label form; the authored ID and
+    // canonical form are round-trip stable.
+    const serialized = serializeMermaid(diagram)
+    expect(serialized).toBe('flowchart LR\n  A e1@-->|text| B\n')
+    expect(serializeMermaid(parseAgent(serialized))).toBe(serialized)
 
     const labelOnly = 'flowchart LR\n  A -->|email e1@--> text| B\n'
     expect(parseAgent(labelOnly).body.kind).toBe('flowchart')
-    expect(verifyMermaid(labelOnly).warnings).not.toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'flowchart_edge_id' }))
+    expect(parseGraph(labelOnly).edges[0]!.id).toBeUndefined()
   })
 
-  test('edge IDs preserve topology and source while warning that edge identity is unmodeled', () => {
+  test('edge IDs are modeled as structured identity (no lint, byte round-trip)', () => {
     const source = 'flowchart LR\n  A e1@--> B\n'
     const graph = parseGraph(source)
     expect([...graph.nodes.keys()]).toEqual(['A', 'B'])
     expect(graph.edges.map(e => `${e.source}->${e.target}`)).toEqual(['A->B'])
+    expect(graph.edges[0]!.id).toBe('e1')
 
     const diagram = parseAgent(source)
-    expect(diagram.body.kind).toBe('opaque')
+    expect(diagram.body.kind).toBe('flowchart')
     expect(serializeMermaid(diagram)).toBe(source)
 
     const verify = verifyMermaid(source)
     expect(verify.ok).toBe(true)
     expect(verify.layout.edges.map(e => `${e.from}->${e.to}`)).toEqual(['A->B'])
-    expect(verify.warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'flowchart_edge_id', line: 2 }))
+    expect(verify.warnings).not.toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'flowchart_edge_id' }))
   })
 
   test('edge metadata is preserved as opaque source and never parsed as a phantom node', () => {
@@ -133,7 +138,6 @@ describe('flowchart parser conformance safety floor (issue #36)', () => {
     expect(serializeMermaid(diagram)).toBe(source)
 
     const warnings = verifyMermaid(source).warnings
-    expect(warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'flowchart_edge_id', line: 2 }))
     expect(warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'flowchart_edge_metadata', line: 3 }))
   })
 
@@ -160,21 +164,32 @@ describe('flowchart parser conformance safety floor (issue #36)', () => {
     expect(verify.warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'flowchart_markdown_string', line: 2 }))
   })
 
-  test('node metadata @{ shape } is preserved losslessly AND warned loudly (issue #36), no phantom nodes', () => {
+  test('node metadata @{ shape } is modeled for documented names, opaque + warned otherwise, no phantom nodes', () => {
     const source = 'flowchart LR\n  A@{ shape: rounded, label: "Start" }\n  A --> B\n'
     const graph = parseGraph(source)
     expect([...graph.nodes.keys()].sort()).toEqual(['A', 'B'])
     expect(graph.nodes.has('shape')).toBe(false)
     expect(graph.nodes.has('label')).toBe(false)
+    expect(graph.nodes.get('A')).toMatchObject({ shape: 'rounded', semanticShape: 'rounded', label: 'Start' })
 
+    // Documented shape/label metadata is STRUCTURED now (repo #44): the
+    // canonical serialization keeps the authored spelling and is stable.
     const diagram = parseAgent(source)
-    expect(diagram.body.kind).toBe('opaque')
-    expect(serializeMermaid(diagram)).toBe(source)
+    expect(diagram.body.kind).toBe('flowchart')
+    const serialized = serializeMermaid(diagram)
+    expect(serialized).toContain('A@{ shape: rounded, label: "Start" }')
+    expect(serializeMermaid(parseAgent(serialized))).toBe(serialized)
 
     const verify = verifyMermaid(source)
-    // Advisory (Tier-3): the warning is loud but never flips verify.ok and never drops source.
     expect(verify.ok).toBe(true)
-    expect(verify.warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'flowchart_node_metadata', line: 2 }))
+    expect(verify.warnings).not.toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'flowchart_node_metadata' }))
+
+    // UNDOCUMENTED shape names keep the lossless opaque fallback + loud lint.
+    const unknown = 'flowchart LR\n  A@{ shape: zigzag, label: "Start" }\n  A --> B\n'
+    const unknownDiagram = parseAgent(unknown)
+    expect(unknownDiagram.body.kind).toBe('opaque')
+    expect(serializeMermaid(unknownDiagram)).toBe(unknown)
+    expect(verifyMermaid(unknown).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'flowchart_node_metadata', line: 2 }))
 
     // Edge metadata must NOT be reclassified as node metadata.
     const edgeMeta = verifyMermaid('flowchart LR\n  A e1@==> B\n  e1@{ animate: true }\n').warnings
@@ -182,12 +197,13 @@ describe('flowchart parser conformance safety floor (issue #36)', () => {
     expect(edgeMeta).toContain('flowchart_edge_metadata')
     expect(edgeMeta).not.toContain('flowchart_node_metadata')
 
-    // The multiline block (the form Mermaid's docs use) must carry the SAME
-    // warning as the single-line form — it previously slipped through the
-    // line-by-line statement split with no warning at all (issue #44).
+    // The multiline block (the form Mermaid's docs use) behaves like the
+    // single-line form: documented shapes are modeled, and an approximate
+    // geometry announces its substitution (delay renders as rounded).
     const multiline = verifyMermaid('flowchart TD\n  C@{\n    shape: delay,\n    label: "Wait"\n  }\n  C --> D\n')
     expect(multiline.ok).toBe(true)
-    expect(multiline.warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'flowchart_node_metadata', line: 2 }))
+    expect(multiline.warnings).not.toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'flowchart_node_metadata' }))
+    expect(multiline.warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'flowchart_shape_substitution', node: 'C' }))
   })
 
   test('class shorthand before compact arrows keeps the edge and escaped classDef commas', () => {

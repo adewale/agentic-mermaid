@@ -12,9 +12,11 @@
   "commandRunner": {
     "command": "bun test src/__tests__/gantt-parser.test.ts src/__tests__/gantt-schedule.test.ts src/__tests__/gantt-layout.test.ts src/__tests__/gantt-svg-snapshot.test.ts src/__tests__/property-gantt-schedule.test.ts src/__tests__/agent-gantt.test.ts src/__tests__/ascii.test.ts"
   },
-  "reporters": ["clear-text", "progress"],
+  "reporters": ["clear-text", "progress", "json"],
+  "jsonReporter": { "fileName": "reports/mutation/gantt-mutation.json" },
   "timeoutMS": 30000,
   "concurrency": 2,
   "tempDirName": ".stryker-tmp-gantt",
-  "disableTypeChecks": true
+  "disableTypeChecks": true,
+  "thresholds": { "break": 60 }
 }

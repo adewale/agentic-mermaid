@@ -76,11 +76,14 @@ export function lowerTimelineScene(
   const parts: SceneNode[] = []
   const style = resolveRenderStyle(options, TIMELINE_STYLE_DEFAULTS)
   const paints = timelinePaints(style)
-  const useSectionFamilies = diagram.sections.some(section => Boolean(section.label))
   const accessibleTitle = diagram.accessibilityTitle ?? diagram.title?.text.replace(/\n+/g, ' ')
   const accessibleDescription = diagram.accessibilityDescription
   const familyPalettes = getTimelineFamilyPalettes(timelineConfig, themeVariables)
-  const allowMulticolor = !(timelineConfig.disableMulticolor && !useSectionFamilies)
+  // disableMulticolor collapses every color family to 0 — for per-period
+  // families AND labeled per-section families (upstream semantics; the old
+  // gate skipped labeled sections, plan §Timeline 3).
+  const allowMulticolor = !timelineConfig.disableMulticolor
+  const useSectionFamilies = allowMulticolor && diagram.sections.some(section => Boolean(section.label))
   const uid = `tl-${hashId(diagram.width, diagram.height, diagram.sections.map(s => s.periods.length).join(','))}`
   const titleId = `${uid}-title`
   const descId = `${uid}-desc`
@@ -134,14 +137,16 @@ export function lowerTimelineScene(
     }
   }
 
+  // The rail segment is horizontal in LR (y1 === y2) and vertical in TD
+  // (x1 === x2) — the crisp emits the positioned endpoints either way.
   parts.push(marks.shape(
     {
       id: 'rail',
       role: 'rail',
-      geometry: { kind: 'line', x1: diagram.rail.x1, y1: diagram.rail.y, x2: diagram.rail.x2, y2: diagram.rail.y },
+      geometry: { kind: 'line', x1: diagram.rail.x1, y1: diagram.rail.y1, x2: diagram.rail.x2, y2: diagram.rail.y2 },
       paint: paints.rail,
     },
-    `<line class="timeline-rail" x1="${diagram.rail.x1}" y1="${diagram.rail.y}" x2="${diagram.rail.x2}" y2="${diagram.rail.y}" />`,
+    `<line class="timeline-rail" x1="${diagram.rail.x1}" y1="${diagram.rail.y1}" x2="${diagram.rail.x2}" y2="${diagram.rail.y2}" />`,
   ))
 
   let periodFamilyIndex = 0
@@ -340,10 +345,10 @@ function lowerPeriod(
       {
         id: `period-stem:${period.label}`,
         role: 'period',
-        geometry: { kind: 'line', x1: period.centerX, y1: period.stemTopY, x2: period.centerX, y2: period.stemBottomY },
+        geometry: { kind: 'line', x1: period.stem.x1, y1: period.stem.y1, x2: period.stem.x2, y2: period.stem.y2 },
         paint: paints.stem,
       },
-      `<line class="timeline-stem" x1="${period.centerX}" y1="${period.stemTopY}" x2="${period.centerX}" y2="${period.stemBottomY}" />`,
+      `<line class="timeline-stem" x1="${period.stem.x1}" y1="${period.stem.y1}" x2="${period.stem.x2}" y2="${period.stem.y2}" />`,
     ),
   })
   children.push({
@@ -386,10 +391,10 @@ function lowerPeriod(
       {
         id: `period-marker-ring:${period.label}`,
         role: 'period',
-        geometry: { kind: 'circle', cx: period.centerX, cy: period.markerY, r: TL.markerOuterRadius },
+        geometry: { kind: 'circle', cx: period.markerX, cy: period.markerY, r: TL.markerOuterRadius },
         paint: paints.markerRing,
       },
-      `<circle class="timeline-marker-ring" cx="${period.centerX}" cy="${period.markerY}" r="${TL.markerOuterRadius}" />`,
+      `<circle class="timeline-marker-ring" cx="${period.markerX}" cy="${period.markerY}" r="${TL.markerOuterRadius}" />`,
     ),
   })
   children.push({
@@ -398,10 +403,10 @@ function lowerPeriod(
       {
         id: `period-marker-core:${period.label}`,
         role: 'period',
-        geometry: { kind: 'circle', cx: period.centerX, cy: period.markerY, r: TL.markerInnerRadius },
+        geometry: { kind: 'circle', cx: period.markerX, cy: period.markerY, r: TL.markerInnerRadius },
         paint: paints.markerCore,
       },
-      `<circle class="timeline-marker-core" cx="${period.centerX}" cy="${period.markerY}" r="${TL.markerInnerRadius}" />`,
+      `<circle class="timeline-marker-core" cx="${period.markerX}" cy="${period.markerY}" r="${TL.markerInnerRadius}" />`,
     ),
   })
 

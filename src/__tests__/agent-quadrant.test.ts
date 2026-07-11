@@ -99,8 +99,13 @@ describe('quadrant differential vs legacy parseQuadrantChart', () => {
 describe('quadrant structured-or-opaque fallback', () => {
   const opaqueCases: Array<[string, string]> = [
     ['accTitle line', 'quadrantChart\n  accTitle: Accessible\n  A: [0, 0]'],
-    ['classDef styling', 'quadrantChart\n  classDef foo color:#fff\n  A: [0, 0]'],
-    ['class assignment :::', 'quadrantChart\n  A: [0, 0] ::: foo'],
+    // Well-formed classDef/::: styling is STRUCTURED now (upstream #5173 is
+    // modeled — see quadrant-style.test.ts); only MALFORMED styling falls
+    // back to opaque, mirroring the legacy parser's loud error. Unknown keys
+    // with SAFE values are upstream-legal and stay structured (preserved
+    // verbatim, inert in render); unsafe values are the malformed case.
+    ['malformed classDef style', 'quadrantChart\n  classDef foo banana: "spl;it"\n  A: [0, 0]'],
+    ['class assignment ::: after coords (invalid style tail)', 'quadrantChart\n  A: [0, 0] ::: foo'],
     ['out-of-range coord', 'quadrantChart\n  A: [1.5, 0]'],
     ['negative coord', 'quadrantChart\n  A: [-0.1, 0]'],
     ['non-numeric coord', 'quadrantChart\n  A: [x, 0]'],
@@ -207,7 +212,10 @@ describe('quadrant verify + render', () => {
       .warnings.find(w => w.code === 'LABEL_OVERFLOW')).toBeDefined()
   })
 
-  test('styled Mermaid-docs quadrant stays opaque/source-preserved but still verifies and renders', async () => {
+  test('styled Mermaid-docs quadrant parses STRUCTURED, verifies clean, and renders', async () => {
+    // Upstream #5173 point styling is modeled end to end now: the official
+    // styled example narrows to a typed body (styles preserved as typed
+    // fields), verifies with no UNSUPPORTED_SYNTAX, and renders the styles.
     const { renderMermaidSVG, renderMermaidASCII } = await import('../agent/index.ts')
     const src = `quadrantChart
   Campaign A: [0.9, 0.0] radius: 12
@@ -217,11 +225,24 @@ describe('quadrant verify + render', () => {
     const parsed = parseMermaid(src)
     expect(parsed.ok).toBe(true)
     if (!parsed.ok) return
-    expect(parsed.value.body.kind).toBe('opaque')
-    expect(serializeMermaid(parsed.value)).toBe(src)
+    expect(parsed.value.body.kind).toBe('quadrant')
+    const q = asQuadrant(parsed.value)!
+    expect(q.body.points[0]).toMatchObject({ label: 'Campaign A', style: { radius: 12 } })
+    expect(q.body.points[1]).toMatchObject({ label: 'Campaign B', className: 'class1', style: { color: '#ff3300', radius: 10 } })
+    expect(q.body.classDefs).toEqual({ class1: { color: '#109060' } })
+    // Canonical serialization normalizes style-entry order (radius first), so
+    // the contract is round-trip STABILITY, not byte-verbatim of the input.
+    const out = serializeMermaid(parsed.value)
+    expect(out).toContain('Campaign B:::class1: [0.8, 0.1] radius: 10, color: #ff3300')
+    const reparsed = parseMermaid(out)
+    expect(reparsed.ok).toBe(true)
+    if (reparsed.ok) {
+      expect(reparsed.value.body).toEqual(parsed.value.body)
+      expect(serializeMermaid(reparsed.value)).toBe(out)
+    }
     const verify = verifyMermaid(parsed.value)
     expect(verify.ok).toBe(true)
-    expect(verify.warnings.map(w => w.code)).toContain('UNSUPPORTED_SYNTAX')
+    expect(verify.warnings.filter(w => w.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
     expect(renderMermaidSVG(parsed.value)).toContain('Campaign B')
     expect(renderMermaidASCII(parsed.value)).toContain('Campaign A')
   })

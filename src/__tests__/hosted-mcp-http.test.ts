@@ -346,7 +346,7 @@ describe('cache-key normalization (cost control)', () => {
     const pngCalls: number[] = []
     const { handler } = makeHandler({
       cache,
-      context: { renderPng: async (_s, opts) => { pngCalls.push(opts.scale ?? -1); return new Uint8Array([1]) } },
+      context: { renderPng: async (_s, opts) => { pngCalls.push(opts.scale ?? -1); return { png: new Uint8Array([1]), warnings: [] } } },
     })
     await handler(post(call('render_png', { source: FLOW, scale: 100 })))
     await handler(post(call('render_png', { source: FLOW, scale: 999 })))

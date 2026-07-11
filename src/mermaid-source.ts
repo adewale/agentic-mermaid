@@ -34,6 +34,80 @@ export interface TimelineRuntimeConfig extends MermaidConfigMap {
   sectionColours?: string[]
 }
 
+/** Mermaid stateDiagram config. Faithful ELK/measured-text fields are wired; legacy fields warn. */
+export interface StateRuntimeConfig extends MermaidConfigMap {
+  titleTopMargin?: number
+  arrowMarkerAbsolute?: boolean
+  dividerMargin?: number
+  sizeUnit?: number
+  padding?: number
+  textHeight?: number
+  titleShift?: number
+  noteMargin?: number
+  nodeSpacing?: number
+  rankSpacing?: number
+  forkWidth?: number
+  forkHeight?: number
+  miniPadding?: number
+  fontSizeFactor?: number
+  fontSize?: number
+  labelHeight?: number
+  edgeLengthFactor?: string
+  compositTitleSize?: number
+  radius?: number
+  defaultRenderer?: 'dagre-d3' | 'dagre-wrapper' | 'elk'
+}
+
+export interface XyChartRuntimeConfig extends MermaidConfigMap {
+  width?: number
+  height?: number
+  useMaxWidth?: boolean
+  useWidth?: number
+  titleFontSize?: number
+  titlePadding?: number
+  chartOrientation?: 'vertical' | 'horizontal'
+  plotReservedSpacePercent?: number
+  showDataLabel?: boolean
+  showTitle?: boolean
+  showLegend?: boolean
+  legendFontSize?: number
+  legendPadding?: number
+  xAxis?: MermaidConfigMap
+  yAxis?: MermaidConfigMap
+}
+
+export interface PieRuntimeConfig extends MermaidConfigMap {
+  textPosition?: number
+  donutHole?: number
+  legendPosition?: 'top' | 'bottom' | 'left' | 'right' | 'center'
+  highlightSlice?: string
+  useMaxWidth?: boolean
+  useWidth?: number
+}
+
+export interface QuadrantRuntimeConfig extends MermaidConfigMap {
+  chartWidth?: number
+  chartHeight?: number
+  titleFontSize?: number
+  titlePadding?: number
+  quadrantPadding?: number
+  quadrantLabelFontSize?: number
+  xAxisLabelFontSize?: number
+  yAxisLabelFontSize?: number
+  xAxisLabelPadding?: number
+  yAxisLabelPadding?: number
+  pointLabelFontSize?: number
+  pointRadius?: number
+  pointTextPadding?: number
+  quadrantInternalBorderStrokeWidth?: number
+  quadrantExternalBorderStrokeWidth?: number
+  useMaxWidth?: boolean
+  quadrantTextTopPadding?: number
+  xAxisPosition?: string
+  yAxisPosition?: string
+  useWidth?: number
+}
+
 export interface JourneyRuntimeConfig extends MermaidConfigMap {
   diagramMarginX?: number
   diagramMarginY?: number
@@ -66,14 +140,151 @@ export interface GanttRuntimeConfig extends MermaidConfigMap {
   displayMode?: string
 }
 
+/**
+ * Mermaid's documented classDiagram config shape (wire-or-warn, P4):
+ * nodeSpacing/rankSpacing are wired into the ELK layout
+ * (src/class/layout.ts resolveClassRenderOptions); every other documented
+ * key is accepted for config-shape compatibility and named by verify's
+ * INEFFECTIVE_CONFIG lint (CLASS_NOOP_CONFIG_FIELDS in src/agent/verify.ts).
+ */
+export interface ClassRuntimeConfig extends MermaidConfigMap {
+  nodeSpacing?: number
+  rankSpacing?: number
+  titleTopMargin?: number
+  arrowMarkerAbsolute?: boolean
+  dividerMargin?: number
+  padding?: number
+  textHeight?: number
+  defaultRenderer?: string
+  diagramPadding?: number
+  htmlLabels?: boolean
+  hideEmptyMembersBox?: boolean
+  hierarchicalNamespaces?: boolean
+}
+
+/**
+ * Mermaid's documented er config shape (wire-or-warn, P4): layoutDirection +
+ * nodeSpacing/rankSpacing are wired (src/er/layout.ts
+ * applyErFrontmatterConfig); the rest emit INEFFECTIVE_CONFIG
+ * (ER_NOOP_CONFIG_FIELDS in src/agent/verify.ts).
+ */
+export interface ErRuntimeConfig extends MermaidConfigMap {
+  layoutDirection?: string
+  nodeSpacing?: number
+  rankSpacing?: number
+  titleTopMargin?: number
+  diagramPadding?: number
+  minEntityWidth?: number
+  minEntityHeight?: number
+  entityPadding?: number
+  stroke?: string
+  fill?: string
+  fontSize?: number
+}
+
+/**
+ * Mermaid's documented architecture config shape (wire-or-warn, P4): padding,
+ * iconSize, fontSize, nodeSeparation, and idealEdgeLengthMultiplier are wired
+ * (src/architecture/config.ts); the fcose simulation knobs — edgeElasticity,
+ * numIter, seed, randomize — have no meaning in the deterministic layout and
+ * emit INEFFECTIVE_CONFIG (ARCHITECTURE_NOOP_CONFIG_FIELDS in
+ * src/architecture/config.ts).
+ */
+export interface ArchitectureRuntimeConfig extends MermaidConfigMap {
+  padding?: number
+  iconSize?: number
+  fontSize?: number
+  nodeSeparation?: number
+  idealEdgeLengthMultiplier?: number
+  edgeElasticity?: number
+  numIter?: number
+  seed?: number
+  randomize?: boolean
+}
+
+/**
+ * Mermaid's documented flowchart config shape (wire-or-warn, P4):
+ * nodeSpacing/rankSpacing/wrappingWidth are wired
+ * (src/flowchart-config.ts resolveFlowchartRenderOptions); every other
+ * documented key is accepted for config-shape compatibility and named by
+ * verify's INEFFECTIVE_CONFIG lint (FLOWCHART_NOOP_CONFIG_FIELDS in
+ * src/flowchart-config.ts).
+ */
+export interface FlowchartRuntimeConfig extends MermaidConfigMap {
+  nodeSpacing?: number
+  rankSpacing?: number
+  wrappingWidth?: number
+  titleTopMargin?: number
+  subGraphTitleMargin?: MermaidConfigMap
+  arrowMarkerAbsolute?: boolean
+  diagramPadding?: number
+  htmlLabels?: boolean
+  curve?: string
+  padding?: number
+  defaultRenderer?: string
+  inheritDir?: boolean
+}
+
+/**
+ * Mermaid's documented sequence config shape (wire-or-warn, P4): actorMargin,
+ * width, height, diagramMarginX/Y, messageMargin, noteMargin, activationWidth,
+ * and showSequenceNumbers are wired (src/sequence/config.ts
+ * resolveSequenceConfig → src/sequence/layout.ts); every other documented key
+ * is accepted for config-shape compatibility and named by verify's
+ * INEFFECTIVE_CONFIG lint (SEQUENCE_NOOP_CONFIG_FIELDS in
+ * src/sequence/config.ts).
+ */
+export interface SequenceRuntimeConfig extends MermaidConfigMap {
+  actorMargin?: number
+  width?: number
+  height?: number
+  diagramMarginX?: number
+  diagramMarginY?: number
+  messageMargin?: number
+  noteMargin?: number
+  activationWidth?: number
+  showSequenceNumbers?: boolean
+  boxMargin?: number
+  boxTextMargin?: number
+  messageAlign?: 'left' | 'center' | 'right'
+  mirrorActors?: boolean
+  bottomMarginAdj?: number
+  rightAngles?: boolean
+  wrap?: boolean
+  wrapPadding?: number
+  labelBoxWidth?: number
+  labelBoxHeight?: number
+  hideUnusedParticipants?: boolean
+  forceMenus?: boolean
+  arrowMarkerAbsolute?: boolean
+  noteAlign?: 'left' | 'center' | 'right'
+  actorFontSize?: string | number
+  actorFontFamily?: string
+  actorFontWeight?: string | number
+  noteFontSize?: string | number
+  noteFontFamily?: string
+  noteFontWeight?: string | number
+  messageFontSize?: string | number
+  messageFontFamily?: string
+  messageFontWeight?: string | number
+}
+
 export interface MermaidRuntimeConfig extends MermaidConfigMap {
   theme?: string
   fontFamily?: string
   themeVariables?: MermaidThemeVariables
+  flowchart?: FlowchartRuntimeConfig
+  state?: StateRuntimeConfig
   timeline?: TimelineRuntimeConfig
   journey?: JourneyRuntimeConfig
-  xyChart?: MermaidConfigMap
+  xyChart?: XyChartRuntimeConfig
+  pie?: PieRuntimeConfig
+  quadrantChart?: QuadrantRuntimeConfig
   gantt?: GanttRuntimeConfig
+  sequence?: SequenceRuntimeConfig
+  class?: ClassRuntimeConfig
+  er?: ErRuntimeConfig
+  architecture?: ArchitectureRuntimeConfig
   useMaxWidth?: boolean
   useWidth?: number
   themeCSS?: string
@@ -594,7 +805,7 @@ function unescapeQuotedString(valueText: string): string {
   }
 }
 
-export type RoutedDiagramType = 'flowchart' | 'architecture' | 'sequence' | 'class' | 'er' | 'timeline' | 'journey' | 'xychart' | 'pie' | 'quadrant' | 'gantt'
+export type RoutedDiagramType = 'flowchart' | 'state' | 'architecture' | 'sequence' | 'class' | 'er' | 'timeline' | 'journey' | 'xychart' | 'pie' | 'quadrant' | 'gantt'
 
 /**
  * Return the logical Mermaid lines after frontmatter/init/comment normalization.
@@ -621,8 +832,11 @@ export function detectDiagramTypeFromFirstLine(firstLine: string): RoutedDiagram
   if (/^journey\s*$/.test(line)) return 'journey'
   if (/^sequencediagram\s*$/.test(line)) return 'sequence'
   if (/^classdiagram\s*$/.test(line)) return 'class'
-  if (/^erdiagram\s*$/.test(line)) return 'er'
-  if (/^(?:flowchart|graph|swimlane)\b/.test(line) || /^statediagram(?:-v2)?\s*$/.test(line)) return 'flowchart'
+  // Upstream's parser tolerates a flowchart-style subgraph clause riding the
+  // erDiagram header (repo #103); the ER parser ignores the grouping.
+  if (/^erdiagram(\s+subgraph\b.*)?\s*$/.test(line)) return 'er'
+  if (/^statediagram(?:-v2)?\s*$/.test(line)) return 'state'
+  if (/^(?:flowchart|graph|swimlane)\b/.test(line)) return 'flowchart'
   return null
 }
 
@@ -642,7 +856,8 @@ export function detectLooseDiagramTypeFromFirstLine(firstLine: string): RoutedDi
   if (/^sequencediagram\b/.test(line)) return 'sequence'
   if (/^classdiagram\b/.test(line)) return 'class'
   if (/^erdiagram\b/.test(line)) return 'er'
-  if (/^(?:flowchart|graph|swimlane)\b/.test(line) || /^statediagram(?:-v2)?\b/.test(line)) return 'flowchart'
+  if (/^statediagram(?:-v2)?\b/.test(line)) return 'state'
+  if (/^(?:flowchart|graph|swimlane)\b/.test(line)) return 'flowchart'
   return null
 }
 

@@ -1,0 +1,10 @@
+gantt
+  title Release 1.4
+  dateFormat YYYY-MM-DD
+  section Build
+    Core engine       :core, 2026-01-05, 10d
+    API layer         :api, after core, 7d
+    Docs              :docs, after core, 4d
+  section Ship
+    Integration tests :itest, after api, 5d
+    Launch            :milestone, launch, after itest, 0d

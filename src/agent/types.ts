@@ -6,7 +6,7 @@
 // nothing). The only verify knob is labelCharCap. See AGENT_NATIVE.md § (1).
 // ============================================================================
 
-import type { MermaidGraph, NodeShape, EdgeStyle, EdgeRouteCertificate, RegionContainmentCertificate, RouteCertificate, RouteClass } from '../types.ts'
+import type { MermaidGraph, NodeShape, EdgeStyle, Direction, EdgeRouteCertificate, RegionContainmentCertificate, RouteCertificate, RouteClass } from '../types.ts'
 import type { MermaidFrontmatterMap, MermaidConfigMap } from '../mermaid-source.ts'
 
 // ---- Result ---------------------------------------------------------------
@@ -90,7 +90,14 @@ export interface TimelineSection {
 
 export interface TimelineBody {
   kind: 'timeline'
+  /** Explicit header direction token (`timeline TD` / `timeline LR`,
+   *  upstream PR #7270). Undefined = bare header (LR default). */
+  direction?: 'LR' | 'TD'
   title?: string
+  /** Optional accessibility title from Mermaid accTitle. */
+  accessibilityTitle?: string
+  /** Optional accessibility description from Mermaid accDescr (line or block form). */
+  accessibilityDescription?: string
   sections: TimelineSection[]
 }
 
@@ -135,12 +142,28 @@ export type ClassRelationKind =
   | 'link-dashed'    // ..
 
 export interface ClassNode {
-  /** The bare class name (e.g., 'Animal'). */
+  /** Stable bare class identity (e.g., `Box` for authored `Box~T~`). */
   id: string
+  /** Generic parameter text from Mermaid's `~...~` syntax. */
+  generic?: string
   /** Optional display label (e.g., from `class X["My Label"]` or `class X as "..."`). */
   label?: string
   /** Members, each as the raw source string ('+String name', '+eat()', '<<interface>>'). */
   members: string[]
+  /**
+   * Dot-joined namespace path the class is declared in (e.g. 'Platform.Auth');
+   * undefined = top level. Serialization groups classes into `namespace path {}`
+   * blocks the render parser accepts (repo #118).
+   */
+  namespace?: string
+}
+
+/** A declared namespace: dot path + optional display label (`namespace X["L"]`). */
+export interface ClassNamespaceDecl {
+  /** Dot-joined path, e.g. 'Company.Engineering.Backend'. */
+  name: string
+  /** Optional display label (upstream v11.15+). */
+  label?: string
 }
 
 export interface ClassRelation {
@@ -167,6 +190,11 @@ export interface ClassBody {
   classes: ClassNode[]
   relations: ClassRelation[]
   notes: ClassNote[]
+  /**
+   * Declared namespaces in first-seen order (repo #118). Optional so existing
+   * constructions stay valid; classes reference entries via `namespace`.
+   */
+  namespaces?: ClassNamespaceDecl[]
 }
 
 // ---- ER body --------------------------------------------------------------
@@ -183,7 +211,10 @@ export interface ErAttribute {
 }
 
 export interface ErEntity {
+  /** Stable source identity. */
   id: string
+  /** Optional display label from `ID["Label"]`; identity remains `id`. */
+  label?: string
   attributes: ErAttribute[]
 }
 
@@ -241,12 +272,24 @@ export interface ArchitectureEdge {
   hasArrowEnd: boolean
 }
 
+/** `align row|column` directive (upstream v11.16.0): members share a row
+ *  (same center y) or column (same center x). Members are declared
+ *  services/junctions, ≥2 and unique per directive. */
+export interface ArchitectureAlignment {
+  axis: 'row' | 'column'
+  members: string[]
+}
+
 export interface ArchitectureBody {
   kind: 'architecture'
+  /** Visible heading from `title ...` (distinct from accessibility metadata). */
+  title?: string
   groups: ArchitectureGroup[]
   services: ArchitectureService[]
   junctions: ArchitectureJunction[]
   edges: ArchitectureEdge[]
+  /** Optional so externally-synthesized bodies stay valid; absent ≡ []. */
+  alignments?: ArchitectureAlignment[]
 }
 
 // ---- XY chart body ---------------------------------------------------------
@@ -276,7 +319,8 @@ export interface XyChartSeries {
 export interface XyChartBody {
   kind: 'xychart'
   title?: string
-  /** Header orientation suffix: `xychart-beta horizontal`. Default vertical. */
+  /** Header orientation: true = explicit horizontal, false = explicit vertical,
+   *  absent = no header override (runtime config decides). */
   horizontal?: boolean
   xAxis?: XyChartAxis
   yAxis?: XyChartAxis
@@ -313,12 +357,30 @@ export interface QuadrantAxis {
   far?: string
 }
 
+/** Per-point styling (upstream mermaid#5173): direct or via classDef + `:::`.
+ *  Shares the grammar/validation in src/quadrant/point-style.ts. */
+export interface QuadrantPointStyle {
+  radius?: number
+  color?: string
+  strokeColor?: string
+  /** May carry a px suffix (upstream form, e.g. "5px"). */
+  strokeWidth?: string
+  /** Unknown-but-safe `key: value` entries, verbatim (upstream accepts any
+   *  entry and applies only the four above; these round-trip losslessly,
+   *  never render, and verify names them — see src/quadrant/point-style.ts). */
+  extra?: string[]
+}
+
 export interface QuadrantPoint {
   label: string
   /** Normalized x in [0, 1] (0 = left, 1 = right). */
   x: number
   /** Normalized y in [0, 1] (0 = bottom, 1 = top). */
   y: number
+  /** Optional `:::className` class assignment. */
+  className?: string
+  /** Optional direct styles (win over class styles). */
+  style?: QuadrantPointStyle
 }
 
 export interface QuadrantBody {
@@ -334,6 +396,9 @@ export interface QuadrantBody {
   quadrants: [string?, string?, string?, string?]
   /** Plotted points in source order. */
   points: QuadrantPoint[]
+  /** classDef styles by class name, in source order. Optional for synthesized
+   *  payloads; parsed bodies populate it whenever classDefs are present. */
+  classDefs?: Record<string, QuadrantPointStyle>
 }
 
 // ---- Gantt body --------------------------------------------------------------
@@ -395,6 +460,10 @@ export interface StateNode {
   id: string
   /** Optional display label (`state "Label" as id` / `id : Label`). */
   label?: string
+  /** Pseudostate stereotype (`state id <<fork|join|choice|history|…>>`) —
+   *  fork/join render as bars, choice as a diamond, history as an (H)/(H*)
+   *  circle. `<<H>>`/`<<H*>>` shorthands normalize to history/deep-history. */
+  stereotype?: 'fork' | 'join' | 'choice' | 'history' | 'deep-history'
   /** Composite children — present iff this is a composite state. */
   states?: StateNode[]
   /** Composite-internal transitions — present iff this is a composite state. */
@@ -404,17 +473,32 @@ export interface StateNode {
 }
 
 export interface StateTransition {
-  /** Source state id, or '[*]' for a start pseudostate. */
+  /** Source state id, '[*]' for a start pseudostate, or a history reference
+   *  (`[H]`, `[H*]`, `Base[H]`, `Base[H*]` — preserved verbatim). */
   from: string
-  /** Target state id, or '[*]' for an end pseudostate. */
+  /** Target state id, '[*]' for an end pseudostate, or a history reference. */
   to: string
   label?: string
+}
+
+/** A state-diagram note (`note left|right of X`). Part of the structured body
+ *  (repo #118): queryable, mutable via add_note/remove_note/set_note_text,
+ *  and round-tripping through the render parser. */
+export interface StateNote {
+  /** The state (or composite) the note is anchored to. */
+  target: string
+  /** Declared side — the renderer anchors the note box on this side. */
+  side: 'left' | 'right'
+  /** Note text; multi-line text serializes as the block form (`end note`). */
+  text: string
 }
 
 export interface StateBody {
   kind: 'state'
   states: StateNode[]
   transitions: StateTransition[]
+  /** Notes in source order; absent when the diagram has none. */
+  notes?: StateNote[]
   /** Optional top-level layout direction. */
   direction?: import('../types.ts').Direction
 }
@@ -638,48 +722,92 @@ export type GroupId = string
 export type ParticipantId = string
 
 export type FlowchartMutationOp =
-  | { kind: 'add_node'; id: NodeId; label: string; shape?: NodeShape; parent?: GroupId }
+  // shape also accepts any documented Mermaid v11 @{ shape } name/alias
+  // (normalized via src/flowchart-shapes.ts; the authored spelling serializes).
+  | { kind: 'add_node'; id: NodeId; label: string; shape?: NodeShape | (string & {}); parent?: GroupId }
   | { kind: 'remove_node'; id: NodeId }
   | { kind: 'rename_node'; from: NodeId; to: NodeId }
+  // target/id accept a node id, an authored v11.6 edge ID (`e1@-->`), or the
+  // endpoint forms `from->to` / `from->to#k`.
   | { kind: 'set_label'; target: NodeId | EdgeId; label: string }
   | { kind: 'add_edge'; from: NodeId; to: NodeId; label?: string; style?: EdgeStyle }
   | { kind: 'remove_edge'; id: EdgeId }
+  | { kind: 'set_shape'; id: NodeId; shape: NodeShape | (string & {}) }
+  // Omit subgraph to set the diagram direction; name a subgraph to set that
+  // subgraph's `direction` override.
+  | { kind: 'set_direction'; direction: Direction; subgraph?: GroupId }
+  // members are existing node ids MOVED into the new subgraph (the state
+  // make_composite precedent); parent nests the new subgraph.
+  | { kind: 'add_subgraph'; id: GroupId; label?: string; parent?: GroupId; members?: NodeId[] }
+  // Default dissolves the box (members move to the parent scope, children are
+  // promoted); removeMembers also deletes member nodes and their edges.
+  | { kind: 'remove_subgraph'; id: GroupId; removeMembers?: boolean }
+  // null moves the node to the top level.
+  | { kind: 'move_node'; id: NodeId; subgraph: GroupId | null }
+  // Declares/replaces a classDef; style is CSS-like pairs ("fill:#f96,stroke:#333").
+  | { kind: 'define_class'; name: string; style: string }
+  // Assigns a classDef name to a node (`class A hot`); null removes it.
+  | { kind: 'set_node_class'; id: NodeId; className: string | null }
+  // Sets a node's inline `style` directive; null clears it.
+  | { kind: 'set_node_style'; id: NodeId; style: string | null }
 
 export type SequenceMutationOp =
   | { kind: 'add_participant'; id: ParticipantId; label?: string; participantKind?: 'participant' | 'actor' }
   | { kind: 'remove_participant'; id: ParticipantId }
-  | { kind: 'add_message'; from: ParticipantId; to: ParticipantId; text: string; style?: SequenceMessageStyle }
+  // index = optional TOP-LEVEL insert position (same addressing as
+  // remove_message/set_message_text: messages inside opaque blocks are
+  // invisible); omitted = append.
+  | { kind: 'add_message'; from: ParticipantId; to: ParticipantId; text: string; style?: SequenceMessageStyle; index?: number }
   | { kind: 'remove_message'; index: number }
   | { kind: 'set_message_text'; index: number; text: string }
+  // Source order IS the interaction timeline, so reorder is a first-class
+  // edit (journey move_task precedent); from/to are top-level indices.
+  | { kind: 'move_message'; from: number; to: number }
+  | { kind: 'set_participant_label'; id: ParticipantId; label: string }
 
 export type TimelineMutationOp =
   | { kind: 'set_title'; title: string | null }
-  | { kind: 'add_section'; label: string }
+  // index = optional insert position (journey convention from PR #141); omitted = append.
+  | { kind: 'add_section'; label: string; index?: number }
   | { kind: 'remove_section'; index: number }
   | { kind: 'set_section_label'; index: number; label: string }
-  | { kind: 'add_period'; sectionIndex: number; label: string; events?: string[] }
+  | { kind: 'add_period'; sectionIndex: number; label: string; events?: string[]; index?: number }
   | { kind: 'remove_period'; sectionIndex: number; periodIndex: number }
   | { kind: 'set_period_label'; sectionIndex: number; periodIndex: number; label: string }
-  | { kind: 'add_event'; sectionIndex: number; periodIndex: number; text: string }
+  | { kind: 'add_event'; sectionIndex: number; periodIndex: number; text: string; index?: number }
   | { kind: 'remove_event'; sectionIndex: number; periodIndex: number; eventIndex: number }
   | { kind: 'set_event_text'; sectionIndex: number; periodIndex: number; eventIndex: number; text: string }
+  // Timeline order IS the chronology, so reorder is a first-class edit rather
+  // than a remove+re-add dance with shifting indices (journey move_task /
+  // move_section precedent).
+  | { kind: 'move_period'; fromSection: number; fromIndex: number; toSection: number; toIndex: number }
+  | { kind: 'move_event'; fromSection: number; fromPeriod: number; fromIndex: number; toSection: number; toPeriod: number; toIndex: number }
+  | { kind: 'move_section'; from: number; to: number }
+  | { kind: 'set_accessibility_title'; title: string | null }
+  | { kind: 'set_accessibility_description'; description: string | null }
 
 export type ClassMutationOp =
   | { kind: 'set_title'; title: string | null }
-  | { kind: 'add_class'; id: string; label?: string; members?: string[] }
+  | { kind: 'add_class'; id: string; label?: string; generic?: string; members?: string[]; namespace?: string }
   | { kind: 'remove_class'; id: string }
   | { kind: 'rename_class'; from: string; to: string }
+  | { kind: 'set_class_generic'; class: string; generic: string | null }
   | { kind: 'add_member'; class: string; text: string }
   | { kind: 'remove_member'; class: string; index: number }
   | { kind: 'add_relation'; from: string; to: string; relKind: ClassRelationKind; label?: string }
   | { kind: 'remove_relation'; index: number }
   | { kind: 'add_note'; text: string; for?: string }
   | { kind: 'remove_note'; index: number }
+  // Namespace membership (repo #118): a dot path (e.g. 'Platform.Auth')
+  // moves the class into that namespace (declared on demand); null moves it
+  // back to the top level.
+  | { kind: 'set_class_namespace'; class: string; namespace: string | null }
 
 export type ErMutationOp =
-  | { kind: 'add_entity'; id: string; attributes?: string[] }
+  | { kind: 'add_entity'; id: string; label?: string; attributes?: string[] }
   | { kind: 'remove_entity'; id: string }
   | { kind: 'rename_entity'; from: string; to: string }
+  | { kind: 'set_entity_label'; entity: string; label: string | null }
   | { kind: 'add_attribute'; entity: string; text: string }
   | { kind: 'remove_attribute'; entity: string; index: number }
   | { kind: 'add_relation'; from: string; to: string; leftCard: ErCardinality; rightCard: ErCardinality; dashed?: boolean; label?: string }
@@ -705,6 +833,7 @@ export type JourneyMutationOp =
   | { kind: 'set_accessibility_description'; description: string | null }
 
 export type ArchitectureMutationOp =
+  | { kind: 'set_title'; title: string | null }
   | { kind: 'add_service'; id: string; label?: string; icon?: string | null; group?: string | null }
   | { kind: 'remove_service'; id: string }
   | { kind: 'rename_service'; from: string; to: string }
@@ -718,13 +847,29 @@ export type ArchitectureMutationOp =
 
 export type StateMutationOp =
   | { kind: 'add_state'; id: string; label?: string | null; parent?: string | null }
-  | { kind: 'remove_state'; id: string }
+  // recursive: true removes a non-empty composite with its whole subtree
+  // (default refuses, naming the flag); transitions and notes touching any
+  // removed id cascade away, history references (`X[H]`) included.
+  | { kind: 'remove_state'; id: string; recursive?: boolean }
   | { kind: 'rename_state'; from: string; to: string }
   | { kind: 'set_state_label'; id: string; label: string | null }
   | { kind: 'add_transition'; from: string; to: string; label?: string | null; parent?: string | null }
   | { kind: 'remove_transition'; index?: number; from?: string; to?: string; parent?: string | null }
   | { kind: 'set_transition_label'; index?: number; from?: string; to?: string; label: string | null; parent?: string | null }
   | { kind: 'make_composite'; id: string; members: string[]; label?: string | null }
+  // omit `state` (or pass null) to set the diagram direction; a composite id
+  // sets that composite's direction override (flowchart set_direction idiom).
+  | { kind: 'set_direction'; direction: import('../types.ts').Direction; state?: string | null }
+  // Reparent a state (with its subtree); parent: null moves it to the top
+  // level; a simple parent is promoted to a composite (add_state idiom).
+  | { kind: 'move_state'; id: string; parent: string | null }
+  // Hoist a composite's children + inner transitions into its parent scope
+  // and drop the shell; rejects while transitions/notes still reference it.
+  | { kind: 'dissolve_composite'; id: string }
+  // Note ops (class-family naming). side defaults to 'right'.
+  | { kind: 'add_note'; target: string; side?: 'left' | 'right'; text: string }
+  | { kind: 'remove_note'; index: number }
+  | { kind: 'set_note_text'; index: number; text: string }
 
 export type XyChartAxisSpec = { name?: string | null; categories?: string[]; range?: { min: number; max: number } }
 
@@ -737,6 +882,8 @@ export type XyChartMutationOp =
   | { kind: 'set_series_values'; index: number; values: number[] }
   | { kind: 'set_series_name'; index: number; name: string | null }
   | { kind: 'reorder_series'; from: number; to: number }
+  | { kind: 'set_orientation'; horizontal: boolean }
+  | { kind: 'set_data_point'; seriesIndex: number; index: number; value: number }
 
 export type PieMutationOp =
   | { kind: 'set_title'; title: string | null }
@@ -761,11 +908,22 @@ export type GanttMutationOp =
   | { kind: 'add_section'; label: string }
   | { kind: 'rename_section'; index: number; label: string }
   | { kind: 'remove_section'; index: number }
-  | { kind: 'add_task'; sectionIndex: number; label: string; taskId?: string; tags?: GanttBodyTaskTag[]; start?: string; end: string }
+  | { kind: 'add_task'; sectionIndex: number; label: string; taskId?: string; tags?: GanttBodyTaskTag[]; start?: string; end: string; index?: number }
   | { kind: 'remove_task'; sectionIndex: number; taskIndex: number }
   | { kind: 'rename_task'; sectionIndex: number; taskIndex: number; label: string }
   | { kind: 'set_task_status'; sectionIndex: number; taskIndex: number; status: 'active' | 'done' | 'crit' | null }
   | { kind: 'set_task_dates'; sectionIndex: number; taskIndex: number; start?: string | null; end?: string }
+  // Structural-tag toggles after creation (set_task_status never touches them).
+  | { kind: 'set_task_flags'; sectionIndex: number; taskIndex: number; milestone?: boolean; vert?: boolean }
+  // Renames REWRITE structured after/until references (coherence by
+  // construction); they REJECT while the id is referenced from opaque
+  // segments, and `null` rejects while ANY reference exists.
+  | { kind: 'set_task_id'; sectionIndex: number; taskIndex: number; taskId: string | null }
+  // Gantt source order IS scheduling semantics (implicit starts chain from the
+  // previous task), so moves REJECT prescriptively whenever they would change
+  // any implicit-start task's predecessor instead of silently rescheduling it.
+  | { kind: 'move_task'; fromSection: number; fromIndex: number; toSection: number; toIndex: number }
+  | { kind: 'move_section'; from: number; to: number }
 
 export type AnyMutationOp = FlowchartMutationOp | StateMutationOp | SequenceMutationOp | TimelineMutationOp | ClassMutationOp | ErMutationOp | JourneyMutationOp | ArchitectureMutationOp | XyChartMutationOp | PieMutationOp | QuadrantMutationOp | GanttMutationOp
 export type MutationOp = FlowchartMutationOp // legacy alias
@@ -791,7 +949,7 @@ export type Tier1WarningCode =
   | 'RENDER_FAILED'
 export type Tier2WarningCode =
   | 'NODE_OVERLAP' | 'ROUTE_SELF_CROSS' | 'ROUTE_HITCH'
-  | 'ROUTE_UNEXPLAINED_BEND' | 'ROUTE_LABEL_ON_SHARED_TRUNK'
+  | 'ROUTE_UNEXPLAINED_BEND' | 'ROUTE_LABEL_ON_SHARED_TRUNK' | 'ROUTE_SELF_LOOP_OCCUPANCY'
   | 'ROUTE_CONTAINER_MISANCHOR' | 'ROUTE_SHAPE_MISANCHOR' | 'ROUTE_STALE_AFTER_NODE_MOVE'
 /**
  * Tier 3 (advisory lint). Family-specific quality hints for common agent
@@ -830,6 +988,7 @@ export type LayoutWarning =
   | { code: 'ROUTE_HITCH'; edge: EdgeId; deviationPx: number }
   | { code: 'ROUTE_UNEXPLAINED_BEND'; edge: EdgeId }
   | { code: 'ROUTE_LABEL_ON_SHARED_TRUNK'; edge: EdgeId; sharedWith: EdgeId }
+  | { code: 'ROUTE_SELF_LOOP_OCCUPANCY'; edge: EdgeId; conflictWith?: EdgeId; kind: 'allocation' | 'side' | 'boundary' | 'route-route' | 'label-label' | 'label-route' }
   | { code: 'ROUTE_CONTAINER_MISANCHOR'; edge: EdgeId; container: GroupId }
   | { code: 'ROUTE_SHAPE_MISANCHOR'; edge: EdgeId; node: NodeId }
   | { code: 'ROUTE_STALE_AFTER_NODE_MOVE'; edge: EdgeId; node: NodeId }
@@ -837,7 +996,7 @@ export type LayoutWarning =
   | { code: 'UNREACHABLE_NODE'; node: NodeId }
   | { code: 'DECISION_BRANCH_UNLABELED'; node: NodeId; edge: EdgeId }
   | { code: 'COMMENT_DROPPED'; count: number; lines: number[] }
-  | { code: 'UNSUPPORTED_SYNTAX'; line?: number; syntax: string; message: string }
+  | { code: 'UNSUPPORTED_SYNTAX'; line?: number; syntax: string; node?: NodeId; message: string }
   /**
    * Structured content was lost across a parse → serialize → re-parse cycle:
    * the {nodes, edges, groups} tally changed, so canonical serialization is
@@ -868,6 +1027,7 @@ export const WARNING_SEVERITY: Record<WarningCode, WarningSeverity> = {
   ROUTE_HITCH: 'warning',
   ROUTE_UNEXPLAINED_BEND: 'warning',
   ROUTE_LABEL_ON_SHARED_TRUNK: 'warning',
+  ROUTE_SELF_LOOP_OCCUPANCY: 'warning',
   ROUTE_CONTAINER_MISANCHOR: 'warning',
   ROUTE_SHAPE_MISANCHOR: 'warning',
   ROUTE_STALE_AFTER_NODE_MOVE: 'warning',
@@ -894,6 +1054,7 @@ export const WARNING_TIER: Record<WarningCode, WarningTier> = {
   ROUTE_HITCH: 'geometric',
   ROUTE_UNEXPLAINED_BEND: 'geometric',
   ROUTE_LABEL_ON_SHARED_TRUNK: 'geometric',
+  ROUTE_SELF_LOOP_OCCUPANCY: 'geometric',
   ROUTE_CONTAINER_MISANCHOR: 'geometric',
   ROUTE_SHAPE_MISANCHOR: 'geometric',
   ROUTE_STALE_AFTER_NODE_MOVE: 'geometric',
@@ -926,6 +1087,9 @@ export interface RenderedRegion {
 
 export interface RenderedLayoutNode {
   id: NodeId; x: Finite; y: Finite; w: Finite; h: Finite; shape: string; label?: string
+  /** Explicit semantic role for family-generic quality scoring. Shape is paint,
+   *  not semantics: a rectangular bar is a mark, not a node box. */
+  role?: 'box' | 'mark' | 'labelled-mark'
 }
 export interface RenderedLayoutEdge {
   id: EdgeId; from: NodeId; to: NodeId; path: [Finite, Finite][]

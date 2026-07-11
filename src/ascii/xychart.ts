@@ -17,6 +17,7 @@ import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode, CharRole, Canvas, RoleCanvas } from './types.ts'
 import { colorizeText } from './ansi.ts'
 import { getSeriesColor, CHART_ACCENT_FALLBACK, isValidHex } from '../xychart/colors.ts'
+import { isLegendWorthy, legendEntries } from '../xychart/legend.ts'
 
 // ============================================================================
 // Constants
@@ -137,7 +138,7 @@ function renderVertical(
   // Canvas dimensions
   const hasTitle = !!chart.title && chart.config.showTitle !== false
   const hasXTitle = !!chart.xAxis.title && chart.config.xAxis?.showTitle !== false
-  const hasLegend = chart.series.length > 1
+  const hasLegend = chart.config.showLegend !== false && isLegendWorthy(chart.series)
   const titleRow = hasTitle ? 0 : -1
   const plotTop = (hasTitle ? 2 : 0) + (hasLegend ? 1 : 0)
   const plotLeft = yGutter + 1 // +1 for axis character
@@ -314,7 +315,7 @@ function renderHorizontal(
 
   const hasTitle = !!chart.title && chart.config.showTitle !== false
   const hasYTitle = !!chart.yAxis.title && chart.config.yAxis?.showTitle !== false
-  const hasLegend = chart.series.length > 1
+  const hasLegend = chart.config.showLegend !== false && isLegendWorthy(chart.series)
   const plotTop = (hasTitle ? 2 : 0) + (hasLegend ? 1 : 0)
   const plotLeft = catGutter + 1
   const dataLabelPad = chart.config.showDataLabel ? 12 : 2
@@ -668,20 +669,14 @@ function drawLegend(
   ch: typeof UNI | typeof ASC,
   seriesColors: string[],
 ): void {
-  // Build legend items with global series indices
-  type LegendItem = { symbol: string; label: string; globalIdx: number }
-  const items: LegendItem[] = []
-  let barIdx = 0, lineIdx = 0
-  for (let si = 0; si < chart.series.length; si++) {
-    const s = chart.series[si]!
-    if (s.type === 'bar') {
-      items.push({ symbol: ch.bar, label: `Bar ${barIdx + 1}`, globalIdx: si })
-      barIdx++
-    } else {
-      items.push({ symbol: ch.hLine, label: `Line ${lineIdx + 1}`, globalIdx: si })
-      lineIdx++
-    }
-  }
+  // Legend naming/order comes from the shared entry builder so the ASCII and
+  // SVG surfaces cannot drift (xychart-legend.test.ts pins the agreement):
+  // series names when present, "Bar N" / "Line N" defaults otherwise.
+  const items = legendEntries(chart.series).map(entry => ({
+    symbol: entry.type === 'bar' ? ch.bar : ch.hLine,
+    label: entry.label,
+    globalIdx: entry.colorIndex,
+  }))
 
   // Calculate total legend width: "symbol space label  symbol space label ..."
   let totalLen = 0

@@ -1,7 +1,40 @@
 import { describe, expect, it } from 'bun:test'
 import { renderMermaidSVG } from '../index.ts'
+import { parseArchitectureDiagram } from '../architecture/parser.ts'
+import { layoutArchitectureDiagram } from '../architecture/layout.ts'
 
 describe('renderMermaidSVG – architecture diagrams', () => {
+  it('renders a standalone visible title as header furniture', () => {
+    const svg = renderMermaidSVG('architecture-beta\n  title Simple Architecture Diagram')
+    expect(svg).toContain('class="architecture-title"')
+    expect(svg).toContain('Simple Architecture Diagram')
+    expect(svg).toContain('role="img"')
+  })
+
+  it('honors row and column alignment hints as center-coordinate constraints', () => {
+    const layout = (source: string) => layoutArchitectureDiagram(
+      parseArchitectureDiagram(source.split('\n').map(line => line.trim()).filter(Boolean)),
+    )
+    const row = layout('architecture-beta\nservice a(server)[A]\nservice b(server)[B]\nservice c(server)[C]\nalign row a b c')
+    expect(new Set(row.services.map(s => s.y + s.height / 2)).size).toBe(1)
+    for (let i = 1; i < row.services.length; i++) {
+      expect(row.services[i]!.x).toBeGreaterThanOrEqual(row.services[i - 1]!.x + row.services[i - 1]!.width)
+    }
+
+    const column = layout('architecture-beta\nservice a(server)[A]\nservice b(server)[B]\nservice c(server)[C]\nalign column a b c')
+    expect(new Set(column.services.map(s => s.x + s.width / 2)).size).toBe(1)
+    for (let i = 1; i < column.services.length; i++) {
+      expect(column.services[i]!.y).toBeGreaterThanOrEqual(column.services[i - 1]!.y + column.services[i - 1]!.height)
+    }
+
+    const declarations = '\nservice a(server)[A]\nservice b(server)[B]\nservice c(server)[C]\nservice d(server)[D]'
+    const rowFirst = layout(`architecture-beta${declarations}\nalign row a b\nalign row c d\nalign column a c\nalign column b d`)
+    const columnFirst = layout(`architecture-beta${declarations}\nalign column a c\nalign column b d\nalign row a b\nalign row c d`)
+    expect(columnFirst.services.map(({ id, x, y }) => ({ id, x, y }))).toEqual(
+      rowFirst.services.map(({ id, x, y }) => ({ id, x, y })),
+    )
+  })
+
   it('renders architecture services, groups, and junctions with semantic classes', () => {
     const svg = renderMermaidSVG(`architecture-beta
       group app(cloud)[Application]

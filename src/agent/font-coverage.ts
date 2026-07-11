@@ -21,6 +21,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { decodeXML } from 'entities'
+import { findUncoveredScriptsFromBuffers } from './font-coverage-core.ts'
 
 /** Per-font glyph lookup backed by the raw cmap bytes (exact, incl. glyph 0). */
 interface CmapLookup { has(cp: number): boolean }
@@ -264,25 +265,11 @@ export interface UncoveredScript {
  * deterministic for identical inputs.
  */
 export function findUncoveredScripts(svg: string, fontDirs: readonly string[]): UncoveredScript[] {
-  const text = extractSvgTextContent(svg)
-  if (!text) return []
-  const unique = new Set<number>()
-  for (const ch of text) unique.add(ch.codePointAt(0)!)
-
-  // Font files parse once per process (fileLookupCache); per render this is
-  // a handful of binary searches per unique codepoint.
-  const lookups = lookupsForDirs(fontDirs)
-  const byScript = new Map<string, number[]>()
-  for (const cp of unique) {
-    if (isIgnorable(cp)) continue
-    if (lookups.some(l => l.has(cp))) continue
-    const script = classifyScript(cp)
-    const bucket = byScript.get(script)
-    if (bucket) bucket.push(cp)
-    else byScript.set(script, [cp])
+  const buffers: Uint8Array[] = []
+  for (const dir of fontDirs) {
+    for (const file of fontFilesUnder(dir)) {
+      try { buffers.push(readFileSync(file)) } catch { /* unreadable fonts cover nothing */ }
+    }
   }
-
-  return [...byScript.entries()]
-    .sort(([a], [b]) => (a < b ? -1 : 1))
-    .map(([script, cps]) => ({ script, chars: cps.sort((a, b) => a - b).map(cp => String.fromCodePoint(cp)) }))
+  return findUncoveredScriptsFromBuffers(svg, buffers)
 }

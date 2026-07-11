@@ -1,5 +1,16 @@
 import type { MermaidGraph, MermaidNode, MermaidEdge, MermaidSubgraph, Direction, NodeShape, EdgeStyle, EdgeMarker } from './types.ts'
 import { normalizeBrTags } from './multiline-utils.ts'
+import { normalizeV11Shape } from './flowchart-shapes.ts'
+import {
+  matchNoteLine, matchNoteOpen, isNoteEnd, matchStereotypeDecl,
+  isConcurrencySeparator, matchHistoryEndpoint, matchTransitionLine, historyLabel,
+} from './state/parse-core.ts'
+import {
+  MERMAID_IDENTIFIER_SOURCE,
+  consumeClassShorthandPrefix,
+  consumeMermaidIdentifier,
+  parseClassShorthandStatement,
+} from './shared/mermaid-identifiers.ts'
 
 // ============================================================================
 // Mermaid parser — flowcharts and state diagrams
@@ -18,7 +29,7 @@ import { normalizeBrTags } from './multiline-utils.ts'
  * Throws on invalid/unsupported input.
  */
 export function parseMermaid(text: string): MermaidGraph {
-  const lines = expandInlineHeaderStatements(coalesceMetadataLines(text.split('\n')).map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('%%')))
+  const lines = expandInlineHeaderStatements(coalesceMetadataLines(coalesceMarkdownStringLines(text.split('\n'))).map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('%%')))
 
   if (lines.length === 0) {
     throw new Error('Empty mermaid diagram')
@@ -98,6 +109,82 @@ function metadataBraceDelta(text: string): number {
   return delta
 }
 
+/**
+ * Mermaid markdown strings ("`…`") may contain literal newlines as explicit
+ * line breaks. The parser is line-oriented, so an open backtick string (an
+ * odd number of backticks on a line) joins the following lines until the
+ * string closes. The break is joined as '<br>' — the label pipeline's
+ * canonical line-break token — so the single-line shape grammars keep
+ * matching and markdownStringToFormattedText/normalizeBrTags restore '\n'.
+ * Comment lines outside an open string pass through untouched.
+ */
+function coalesceMarkdownStringLines(lines: string[]): string[] {
+  const out: string[] = []
+  let current: string[] | null = null
+  for (const line of lines) {
+    if (current) {
+      current.push(line.trim())
+      if (countBackticks(line) % 2 === 1) {
+        out.push(current.join('<br>'))
+        current = null
+      }
+      continue
+    }
+    if (line.trim().startsWith('%%')) { out.push(line); continue }
+    if (countBackticks(line) % 2 === 1) {
+      current = [line]
+      continue
+    }
+    out.push(line)
+  }
+  if (current) out.push(current.join('<br>'))
+  return out
+}
+
+function countBackticks(line: string): number {
+  let count = 0
+  let escaped = false
+  for (const ch of line) {
+    if (escaped) { escaped = false; continue }
+    if (ch === '\\') { escaped = true; continue }
+    if (ch === '`') count++
+  }
+  return count
+}
+
+/**
+ * Normalize Mermaid markdown-string content (repo #102): backticks are
+ * consumed by the caller, explicit breaks become newlines, and the shared
+ * inline-text pipeline maps bold/italic markers to styled SVG tspan runs.
+ */
+function markdownStringToFormattedText(inner: string): string {
+  return normalizeBrTags(inner)
+}
+
+interface ParsedLabelText {
+  text: string
+  markdown: boolean
+}
+
+/**
+ * ONE label normalization for node and edge labels: a quoted backtick string
+ * ("`…`") is a Mermaid markdown string — backticks consumed, styling
+ * retained as formatted runs — while everything else keeps the existing
+ * normalizeBrTags pipeline (quote stripping, <br> handling, emphasis→tags).
+ * `alreadyUnquoted` marks callers whose grammar consumed the double quotes
+ * (consumeQuotedNode, parseMetadataLabel).
+ */
+function parseLabelText(raw: string, alreadyUnquoted = false): ParsedLabelText {
+  const unquoted = !alreadyUnquoted && raw.length >= 2 && raw.startsWith('"') && raw.endsWith('"')
+    ? raw.slice(1, -1)
+    : raw
+  const quoteConsumed = alreadyUnquoted || unquoted !== raw
+  if (quoteConsumed && unquoted.length >= 2 && unquoted.startsWith('`') && unquoted.endsWith('`')) {
+    return { text: markdownStringToFormattedText(unquoted.slice(1, -1)), markdown: true }
+  }
+  return { text: normalizeBrTags(raw), markdown: false }
+}
+
 function splitFlowchartStatements(line: string): string[] {
   const out: string[] = []
   let start = 0
@@ -151,10 +238,10 @@ function isFlowchartInteractionDirective(line: string): boolean {
 function isUnsupportedEdgeMetadataLine(line: string): boolean {
   const match = line.trim().match(/^[\w-]+@\s*\{([\s\S]*)\}\s*$/)
   if (!match) return false
-  const metadata = match[1]!
-  // Node metadata is modeled by the safety fallback; edge metadata currently
-  // has animate/curve semantics only Mermaid itself understands.
-  return !/(?:^|,)\s*(?:shape|label|icon|img)\s*:/i.test(metadata)
+  // Node metadata is modeled (documented shapes) or label-preserved; edge
+  // metadata has animate/curve semantics only Mermaid itself understands.
+  const entries = parseMetadataEntries(match[1]!)
+  return !entries.has('shape') && !entries.has('label') && !entries.has('icon') && !entries.has('img')
 }
 
 // ============================================================================
@@ -162,12 +249,12 @@ function isUnsupportedEdgeMetadataLine(line: string): boolean {
 // ============================================================================
 
 function parseFlowchart(lines: string[]): MermaidGraph {
-  const headerMatch = lines[0]!.match(/^(?:graph|flowchart|swimlane)\s+(TD|TB|LR|BT|RL|[<>^v])\s*$/i)
+  const headerMatch = lines[0]!.match(/^(?:(?:graph|swimlane)\s+(TD|TB|LR|BT|RL|[<>^v])|flowchart(?:\s+(TD|TB|LR|BT|RL|[<>^v]))?)\s*$/i)
   if (!headerMatch) {
     throw new Error(`Invalid mermaid header: "${lines[0]}". Expected "graph TD", "flowchart LR", "stateDiagram-v2", etc.`)
   }
 
-  const direction = normalizeFlowchartDirection(headerMatch[1]!)
+  const direction = normalizeFlowchartDirection(headerMatch[1] ?? headerMatch[2] ?? 'TD')
 
   const graph: MermaidGraph = {
     direction,
@@ -259,10 +346,11 @@ function parseFlowchart(lines: string[]): MermaidGraph {
         let label: string
         if (bracketMatch) {
           id = bracketMatch[1]!
-          label = normalizeBrTags(bracketMatch[2]!)
+          label = parseLabelText(bracketMatch[2]!).text
         } else {
-          // Use the label text as id (slugified)
-          label = normalizeBrTags(rest)
+          // Use the label text as id (slugified); markdown-string labels
+          // ("`**Two**`") display as plain text like every other label.
+          label = parseLabelText(rest).text
           id = rest.replace(/\s+/g, '_').replace(/[^\w]/g, '')
         }
         const sg: MermaidSubgraph = { id, label, nodeIds: [], children: [] }
@@ -326,7 +414,16 @@ function normalizeFlowchartDirection(raw: string): Direction {
 //   s1 --> [*]            (end pseudostate)
 //   state CompositeState {
 //     inner1 --> inner2
+//     --                  (concurrency region separator)
 //   }
+//   state f1 <<fork|join|choice|history|H|deephistory|H*>>
+//   note left|right of s1 : text     (and the block form … end note)
+//   s1 --> s2[H]          (history transition endpoints, incl. bare [H]/[H*])
+//
+// Notes, pseudostate stereotypes, history endpoints, and concurrency
+// separators are recognized through the ONE state grammar in
+// src/state/parse-core.ts, which the structured agent body also consumes
+// (plan §State 1-2, repo #118) — the two surfaces cannot drift.
 // ============================================================================
 
 function parseStateDiagram(lines: string[]): MermaidGraph {
@@ -341,16 +438,84 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     linkStyles: new Map(),
   }
 
-  // Track composite state nesting (like subgraphs)
+  // Track composite state nesting (like subgraphs). Concurrency regions are
+  // pushed as synthetic child subgraphs flagged concurrencyRegion, so member
+  // tracking lands in the active region automatically.
   const compositeStack: MermaidSubgraph[] = []
   // Track all composite state IDs to avoid creating duplicate nodes
   const compositeStateIds = new Set<string>()
   // Counter for unique [*] pseudostate IDs
   let startCount = 0
   let endCount = 0
+  // Per-composite region counter (for stable region ids `X__r1`, `X__r2`, …).
+  const regionCounts = new Map<string, number>()
+  // Open block note (`note left of X` … `end note`), collecting body lines.
+  let openNote: { target: string; side: 'left' | 'right'; lines: string[] } | null = null
+
+  const addNote = (target: string, side: 'left' | 'right', text: string): void => {
+    if (!graph.stateNotes) graph.stateNotes = []
+    graph.stateNotes.push({ id: `note#${graph.stateNotes.length}`, target, side, text })
+    // A note on an undeclared state declares it (upstream parity) — unless the
+    // id is (or later becomes) a composite, which the composite opener handles.
+    if (!compositeStateIds.has(target)) ensureStateNode(graph, compositeStack, target)
+  }
+
+  /** Resolve a transition endpoint: `[*]` pseudostates, `[H]`/`X[H]` history
+   *  pseudostates (registered as state-history nodes), composites, and plain
+   *  states. Returns the graph node id to wire the edge to. */
+  const resolveEndpoint = (raw: string, endpoint: 'source' | 'target'): string => {
+    if (raw === '[*]') {
+      if (endpoint === 'source') {
+        startCount++
+        const id = `_start${startCount > 1 ? startCount : ''}`
+        registerStateNode(graph, compositeStack, { id, label: '', shape: 'state-start' })
+        return id
+      }
+      endCount++
+      const id = `_end${endCount > 1 ? endCount : ''}`
+      registerStateNode(graph, compositeStack, { id, label: '', shape: 'state-end' })
+      return id
+    }
+    const history = matchHistoryEndpoint(raw)
+    if (history) {
+      // A bare [H]/[H*] belongs to the enclosing composite (region's parent);
+      // `Base[H]` names its composite explicitly. Repeated references to the
+      // same history resolve to the same node.
+      const enclosing = [...compositeStack].reverse().find(sg => !sg.concurrencyRegion)
+      const base = history.base !== '' ? history.base : enclosing?.id ?? ''
+      const id = `${base}[H${history.deep ? '*' : ''}]`
+      registerStateNode(graph, compositeStack, { id, label: historyLabel(history.deep), shape: 'state-history' })
+      return id
+    }
+    if (!compositeStateIds.has(raw)) ensureStateNode(graph, compositeStack, raw)
+    return raw
+  }
 
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i]!
+
+    // --- open block note: collect body lines verbatim until `end note` ---
+    if (openNote) {
+      if (isNoteEnd(line)) {
+        addNote(openNote.target, openNote.side, openNote.lines.join('\n'))
+        openNote = null
+      } else {
+        openNote.lines.push(line)
+      }
+      continue
+    }
+
+    // --- notes: `note left|right of X : text` / `note left|right of X` ---
+    const noteLine = matchNoteLine(line)
+    if (noteLine) {
+      addNote(noteLine.target, noteLine.side, normalizeBrTags(noteLine.text))
+      continue
+    }
+    const noteOpen = matchNoteOpen(line)
+    if (noteOpen) {
+      openNote = { target: noteOpen.target, side: noteOpen.side, lines: [] }
+      continue
+    }
 
     // --- direction override ---
     const dirMatch = line.match(/^direction\s+(TD|TB|LR|BT|RL)\s*$/i)
@@ -360,6 +525,15 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
       } else {
         graph.direction = dirMatch[1]!.toUpperCase() as Direction
       }
+      continue
+    }
+
+    // --- classDef: shared paint model with flowcharts ---
+    const stateClassDefMatch = line.match(/^classDef\s+([\w,-]+)\s+(.+)$/)
+    if (stateClassDefMatch) {
+      const names = stateClassDefMatch[1]!.split(',').map(name => name.trim()).filter(Boolean)
+      const props = parseStyleProps(stateClassDefMatch[2]!)
+      for (const name of names) graph.classDefs.set(name, props)
       continue
     }
 
@@ -382,6 +556,57 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
       continue
     }
 
+    // --- pseudostate stereotype: `state f1 <<fork|join|choice|history|…>>` ---
+    const stereotype = matchStereotypeDecl(line)
+    if (stereotype) {
+      const shape: NodeShape =
+        stereotype.stereotype === 'fork' ? 'state-fork'
+        : stereotype.stereotype === 'join' ? 'state-join'
+        : stereotype.stereotype === 'choice' ? 'state-choice'
+        : 'state-history'
+      const label = shape === 'state-history'
+        ? historyLabel(stereotype.stereotype === 'deep-history')
+        : ''
+      // Upsert: a transition may have referenced the id first (creating a
+      // plain rounded node) — the declaration owns the shape either way.
+      graph.nodes.set(stereotype.id, { id: stereotype.id, label, shape })
+      trackInStateScope(compositeStack, stereotype.id)
+      continue
+    }
+
+    // --- concurrency region separator inside a composite: `--` ---
+    if (isConcurrencySeparator(line) && compositeStack.length > 0) {
+      const top = compositeStack[compositeStack.length - 1]!
+      let composite: MermaidSubgraph
+      if (top.concurrencyRegion) {
+        // Close the current region (already attached to its composite).
+        compositeStack.pop()
+        composite = compositeStack[compositeStack.length - 1]!
+      } else {
+        // First separator in this composite: everything collected so far
+        // becomes region 1.
+        composite = top
+        const first: MermaidSubgraph = {
+          id: `${composite.id}__r${nextRegion(regionCounts, composite.id)}`,
+          label: '',
+          nodeIds: composite.nodeIds.splice(0),
+          children: composite.children.splice(0),
+          concurrencyRegion: true,
+        }
+        composite.children.push(first)
+      }
+      const next: MermaidSubgraph = {
+        id: `${composite.id}__r${nextRegion(regionCounts, composite.id)}`,
+        label: '',
+        nodeIds: [],
+        children: [],
+        concurrencyRegion: true,
+      }
+      composite.children.push(next)
+      compositeStack.push(next)
+      continue
+    }
+
     // --- composite state start: `state CompositeState {` ---
     const compositeMatch = line.match(/^state\s+(?:"([^"]+)"\s+as\s+)?([\w\p{L}]+)\s*\{$/u)
     if (compositeMatch) {
@@ -399,6 +624,10 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
 
     // --- composite state end ---
     if (line === '}') {
+      // An open concurrency region closes with its composite.
+      if (compositeStack.length > 0 && compositeStack[compositeStack.length - 1]!.concurrencyRegion) {
+        compositeStack.pop()
+      }
       const completed = compositeStack.pop()
       if (completed) {
         if (compositeStack.length > 0) {
@@ -419,32 +648,14 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
       continue
     }
 
-    // --- transition: `s1 --> s2` or `s1 --> s2 : label` or `[*] --> s1` ---
-    const transitionMatch = line.match(/^(\[\*\]|[\w\p{L}-]+)\s*(-->)\s*(\[\*\]|[\w\p{L}-]+)(?:\s*:\s*(.+))?$/u)
-    if (transitionMatch) {
-      let sourceId = transitionMatch[1]!
-      let targetId = transitionMatch[3]!
-      const rawTransitionLabel = transitionMatch[4]?.trim()
-      const edgeLabel = rawTransitionLabel ? normalizeBrTags(rawTransitionLabel) : undefined
-
-      // Handle [*] pseudostates — each occurrence gets a unique ID
-      if (sourceId === '[*]') {
-        startCount++
-        sourceId = `_start${startCount > 1 ? startCount : ''}`
-        registerStateNode(graph, compositeStack, { id: sourceId, label: '', shape: 'state-start' })
-      } else if (!compositeStateIds.has(sourceId)) {
-        // Only create a node if this isn't a composite state
-        ensureStateNode(graph, compositeStack, sourceId)
-      }
-
-      if (targetId === '[*]') {
-        endCount++
-        targetId = `_end${endCount > 1 ? endCount : ''}`
-        registerStateNode(graph, compositeStack, { id: targetId, label: '', shape: 'state-end' })
-      } else if (!compositeStateIds.has(targetId)) {
-        // Only create a node if this isn't a composite state
-        ensureStateNode(graph, compositeStack, targetId)
-      }
+    // --- transition: `s1 --> s2 [: label]`, endpoints may be [*] or history ---
+    const transition = matchTransitionLine(line)
+    if (transition) {
+      const sourceId = resolveEndpoint(transition.from, 'source')
+      const targetId = resolveEndpoint(transition.to, 'target')
+      if (transition.fromClass) graph.classAssignments.set(sourceId, transition.fromClass)
+      if (transition.toClass) graph.classAssignments.set(targetId, transition.toClass)
+      const edgeLabel = transition.label ? normalizeBrTags(transition.label) : undefined
 
       graph.edges.push({
         source: sourceId,
@@ -454,6 +665,16 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
         hasArrowStart: false,
         hasArrowEnd: true,
       })
+      continue
+    }
+
+    // --- class shorthand: `s1:::highlight` ---
+    // Consume before the description grammar so two of the three colons can
+    // never leak into a visible `::highlight` label.
+    const stateClass = parseClassShorthandStatement(line)
+    if (stateClass) {
+      ensureStateNode(graph, compositeStack, stateClass.id)
+      graph.classAssignments.set(stateClass.id, stateClass.className)
       continue
     }
 
@@ -467,7 +688,26 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     }
   }
 
+  // An unterminated block note still lands (lenient, like unbalanced braces).
+  if (openNote) addNote(openNote.target, openNote.side, openNote.lines.join('\n'))
+
   return graph
+}
+
+function nextRegion(counts: Map<string, number>, compositeId: string): number {
+  const n = (counts.get(compositeId) ?? 0) + 1
+  counts.set(compositeId, n)
+  return n
+}
+
+/** Track an id in the innermost composite/region scope (no node creation). */
+function trackInStateScope(compositeStack: MermaidSubgraph[], id: string): void {
+  if (compositeStack.length > 0) {
+    const current = compositeStack[compositeStack.length - 1]!
+    if (!current.nodeIds.includes(id)) {
+      current.nodeIds.push(id)
+    }
+  }
 }
 
 /** Register a state node and track in composite state if applicable */
@@ -534,7 +774,7 @@ function splitTopLevelCommas(s: string): string[] {
   return out.map(part => part.replace(/\\,/g, ','))
 }
 
-function parseStyleProps(propsStr: string): Record<string, string> {
+export function parseStyleProps(propsStr: string): Record<string, string> {
   // Strip trailing semicolons — Mermaid tolerates them (e.g. `stroke:#f00;`)
   const cleaned = propsStr.replace(/;\s*$/, '')
   const props: Record<string, string> = {}
@@ -590,44 +830,36 @@ const TEXT_ARROW_REGEX = /^(<)?(-{2,}|-\.+|={2,})\s+(.+?)\s+(-{2,}>|-{3,}|\.+->|
  * Node shape patterns — ordered from most specific delimiters to least.
  * Multi-char delimiters must be tried before single-char to avoid false matches.
  */
+const flowchartNodeRegex = (suffix: string): RegExp =>
+  new RegExp(`^(${MERMAID_IDENTIFIER_SOURCE})${suffix}`, 'u')
+
 const NODE_PATTERNS: Array<{ regex: RegExp; shape: NodeShape }> = [
   // Triple delimiters (must be first)
-  { regex: /^([\w-]+)\(\(\((.+?)\)\)\)/, shape: 'doublecircle' },  // A(((text)))
+  { regex: flowchartNodeRegex(String.raw`\(\(\((.+?)\)\)\)`), shape: 'doublecircle' },
 
   // Double delimiters with mixed brackets
-  { regex: /^([\w-]+)\(\[(.+?)\]\)/,     shape: 'stadium' },       // A([text])
-  { regex: /^([\w-]+)\(\((.+?)\)\)/,     shape: 'circle' },        // A((text))
-  { regex: /^([\w-]+)\[\[(.+?)\]\]/,     shape: 'subroutine' },    // A[[text]]
-  { regex: /^([\w-]+)\[\((.+?)\)\]/,     shape: 'cylinder' },      // A[(text)]
+  { regex: flowchartNodeRegex(String.raw`\(\[(.+?)\]\)`), shape: 'stadium' },
+  { regex: flowchartNodeRegex(String.raw`\(\((.+?)\)\)`), shape: 'circle' },
+  { regex: flowchartNodeRegex(String.raw`\[\[(.+?)\]\]`), shape: 'subroutine' },
+  { regex: flowchartNodeRegex(String.raw`\[\((.+?)\)\]`), shape: 'cylinder' },
 
   // Trapezoid + parallelogram variants — must come before plain [text].
-  // All four share the [/ or [\ opener and differ only in the closer (\] vs
-  // /] vs \]), so labels exclude ']' — a non-greedy (.+?) could otherwise
-  // skip past the true closer to a later node's on the same line.
-  { regex: /^([\w-]+)\[\/([^\]]+?)\\\]/, shape: 'trapezoid' },     // A[/text\]
-  { regex: /^([\w-]+)\[\\([^\]]+?)\/\]/, shape: 'trapezoid-alt' }, // A[\text/]
-  { regex: /^([\w-]+)\[\/([^\]]+?)\/\]/, shape: 'lean-r' },        // A[/text/]
-  { regex: /^([\w-]+)\[\\([^\]]+?)\\\]/, shape: 'lean-l' },        // A[\text\]
+  { regex: flowchartNodeRegex(String.raw`\[\/([^\]]+?)\\\]`), shape: 'trapezoid' },
+  { regex: flowchartNodeRegex(String.raw`\[\\([^\]]+?)\/\]`), shape: 'trapezoid-alt' },
+  { regex: flowchartNodeRegex(String.raw`\[\/([^\]]+?)\/\]`), shape: 'lean-r' },
+  { regex: flowchartNodeRegex(String.raw`\[\\([^\]]+?)\\\]`), shape: 'lean-l' },
 
-  // Asymmetric flag shape
-  { regex: /^([\w-]+)>(.+?)\]/,          shape: 'asymmetric' },    // A>text]
-
-  // Double curly braces (hexagon) — must come before single {text}
-  { regex: /^([\w-]+)\{\{(.+?)\}\}/,     shape: 'hexagon' },       // A{{text}}
-
-  // Single-char delimiters (last — most common, least specific)
-  { regex: /^([\w-]+)\[(.+?)\]/,         shape: 'rectangle' },     // A[text]
-  { regex: /^([\w-]+)\((.+?)\)/,         shape: 'rounded' },       // A(text)
-  { regex: /^([\w-]+)\{(.+?)\}/,         shape: 'diamond' },       // A{text}
+  { regex: flowchartNodeRegex(String.raw`>(.+?)\]`), shape: 'asymmetric' },
+  { regex: flowchartNodeRegex(String.raw`\{\{(.+?)\}\}`), shape: 'hexagon' },
+  { regex: flowchartNodeRegex(String.raw`\[(.+?)\]`), shape: 'rectangle' },
+  { regex: flowchartNodeRegex(String.raw`\((.+?)\)`), shape: 'rounded' },
+  { regex: flowchartNodeRegex(String.raw`\{(.+?)\}`), shape: 'diamond' },
 ]
 
-/** Regex for a bare node reference (just an ID, no shape brackets) */
-const BARE_NODE_REGEX = /^([\w-]+)/
-
 function consumeBareNodeId(text: string): { id: string; length: number } | null {
-  const whole = text.match(BARE_NODE_REGEX)
+  const whole = consumeMermaidIdentifier(text)
   if (!whole) return null
-  const max = whole[1]!.length
+  const max = whole.length
   let end = 0
   for (let i = 0; i < max; i++) {
     if (i > 0 && startsFlowchartArrow(text.slice(i))) break
@@ -650,12 +882,10 @@ function nodePatternSwallowedArrow(text: string, idLength: number): boolean {
 const EDGE_ID_PREFIX_REGEX = /^([\w-]+)@\s*(?=(?:<)?(?:~{3,}|-\.+->|-\.+-|={2,}>|={3,}|o-{2,}[ox]|x-{2,}[ox]|-{2,}[ox]|-{2,}>|-{3,}|(?:-{2,}|-\.+|={2,})\s+))/
 
 function consumeClassShorthand(text: string): { className: string; length: number } | null {
-  if (!text.startsWith(':::')) return null
+  const parsed = consumeClassShorthandPrefix(text)
+  if (!parsed) return null
   const rest = text.slice(3)
-  if (!/^[\w]/.test(rest)) return null
-  const allowed = rest.match(/^[\w-]+/)
-  if (!allowed) return null
-  const max = allowed[0].length
+  const max = parsed.className.length
   let end = max
   for (let i = 1; i < max; i++) {
     if (startsFlowchartArrow(rest.slice(i))) { end = i; break }
@@ -693,14 +923,18 @@ function parseEdgeLine(
     let edgeLabel: string | undefined
     let length: number | undefined
 
+    // v11.6 edge IDs (`e1@-->`): the authored ID is modeled as stable edge
+    // identity (plan §Flowchart 7) — carried on MermaidEdge.id, re-emitted
+    // verbatim by the serializer, and accepted as an op target selector.
     const edgeIdMatch = remaining.match(EDGE_ID_PREFIX_REGEX)
+    const edgeId = edgeIdMatch?.[1]
     if (edgeIdMatch) remaining = remaining.slice(edgeIdMatch[0].length).trim()
 
     const arrowMatch = remaining.match(ARROW_REGEX)
     if (arrowMatch) {
       const arrowOp = arrowMatch[2]!
       const rawEdgeLabel = arrowMatch[3]?.trim()
-      edgeLabel = rawEdgeLabel ? normalizeBrTags(rawEdgeLabel) : undefined
+      edgeLabel = rawEdgeLabel ? parseLabelText(rawEdgeLabel).text : undefined
       remaining = remaining.slice(arrowMatch[0].length).trim()
       style = arrowStyleFromOp(arrowOp)
       length = arrowLengthFromOp(arrowOp)
@@ -714,7 +948,7 @@ function parseEdgeLine(
       if (!textMatch) break
       hasArrowStart = Boolean(textMatch[1])
       const rawLabel = textMatch[3]!.trim()
-      edgeLabel = rawLabel ? normalizeBrTags(rawLabel) : undefined
+      edgeLabel = rawLabel ? parseLabelText(rawLabel).text : undefined
       const openOp = textMatch[2]!
       const closeOp = textMatch[4]!
       remaining = remaining.slice(textMatch[0].length).trim()
@@ -737,6 +971,7 @@ function parseEdgeLine(
         graph.edges.push({
           source: sourceId,
           target: targetId,
+          ...(edgeId !== undefined ? { id: edgeId } : {}),
           label: edgeLabel,
           style,
           hasArrowStart,
@@ -795,7 +1030,7 @@ function consumeMetadataNode(
   graph: MermaidGraph,
   subgraphStack: MermaidSubgraph[]
 ): ConsumedNode | null {
-  const start = text.match(/^([\w-]+)@\s*\{/)
+  const start = text.match(new RegExp(`^(${MERMAID_IDENTIFIER_SOURCE})@\\s*\\{`, 'u'))
   if (!start) return null
   const id = start[1]!
   const objectStart = text.indexOf('{', start[0].indexOf('@'))
@@ -803,15 +1038,33 @@ function consumeMetadataNode(
   if (objectEnd < 0) return null
 
   const metadata = text.slice(objectStart + 1, objectEnd)
-  const label = parseMetadataLabel(metadata)
-  // #29 safety floor: we preserve labels/edges for rendering and reserve the
-  // expanded Mermaid v11 shape vocabulary for the follow-up modeled support.
+  const entries = parseMetadataEntries(metadata)
+  const label = entries.get('label')
+  const parsedLabel = label !== undefined ? parseLabelText(label, true) : undefined
+  // v11 typed shapes (repo #44): documented `@{ shape: ... }` names normalize
+  // through the ONE table in src/flowchart-shapes.ts to a semantic shape id +
+  // rendering geometry; the authored spelling is preserved for round-trip.
+  // Undocumented names keep the #29 safety floor (labeled rectangle);
+  // icon/img/extra keys stay on the opaque agent path (flowchart-unsupported).
+  const shapeName = entries.get('shape')
+  const v11 = shapeName !== undefined ? normalizeV11Shape(shapeName) : null
+  const shapeFields = v11 ? { shape: v11.geometry, semanticShape: v11.canonical, authoredShape: shapeName!.trim() } : {}
   const existing = graph.nodes.get(id)
   if (existing) {
-    if (label !== undefined) graph.nodes.set(id, { ...existing, label: normalizeBrTags(label) })
+    graph.nodes.set(id, {
+      ...existing,
+      ...(parsedLabel !== undefined ? { label: parsedLabel.text, ...(parsedLabel.markdown ? { markdownLabel: true as const } : {}) } : {}),
+      ...shapeFields,
+    })
     trackInSubgraph(subgraphStack, id)
   } else {
-    registerNode(graph, subgraphStack, { id, label: normalizeBrTags(label ?? id), shape: 'rectangle' })
+    registerNode(graph, subgraphStack, {
+      id,
+      label: parsedLabel?.text ?? id,
+      shape: 'rectangle',
+      ...(parsedLabel?.markdown ? { markdownLabel: true as const } : {}),
+      ...shapeFields,
+    })
   }
   return { id, remaining: text.slice(objectEnd + 1) }
 }
@@ -839,27 +1092,104 @@ function findMetadataObjectEnd(text: string, start: number): number {
   return -1
 }
 
-function parseMetadataLabel(metadata: string): string | undefined {
-  const match = metadata.match(/(?:^|,)\s*label\s*:\s*("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[^,}]+)/)
-  if (!match) return undefined
-  const raw = match[1]!.trim()
-  if ((raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'"))) {
-    return raw.slice(1, -1).replace(/\\([\\"'])/g, '$1')
+/**
+ * THE `@{ ... }` metadata-entry grammar (one table, two consumers: this
+ * parser's node consumption and the agent-side modeled/opaque gate in
+ * flowchart-unsupported.ts). Entries separate on top-level commas OR
+ * whitespace (upstream's multiline YAML-ish form joins to spaces); quoted
+ * values never split. Keys lowercase; values unquoted/unescaped.
+ */
+export function parseMetadataEntries(metadata: string): Map<string, string> {
+  // Mask quoted spans so key detection never fires inside a value.
+  let masked = ''
+  let quote: '"' | "'" | null = null
+  let escaped = false
+  for (const ch of metadata) {
+    if (escaped) { escaped = false; masked += ' '; continue }
+    if (ch === '\\') { masked += ' '; escaped = true; continue }
+    if (quote) {
+      if (ch === quote) quote = null
+      masked += ' '
+      continue
+    }
+    if (ch === '"' || ch === "'") { quote = ch; masked += ' '; continue }
+    masked += ch
   }
-  return raw.trim()
+
+  const keyRe = /(^|[,\s])([\w-]+)\s*:/g
+  const found: Array<{ key: string; keyStart: number; valueStart: number }> = []
+  let match: RegExpExecArray | null
+  while ((match = keyRe.exec(masked)) !== null) {
+    found.push({ key: match[2]!.toLowerCase(), keyStart: match.index + match[1]!.length, valueStart: match.index + match[0].length })
+  }
+
+  const entries = new Map<string, string>()
+  for (let i = 0; i < found.length; i++) {
+    const end = i + 1 < found.length ? found[i + 1]!.keyStart : metadata.length
+    const raw = metadata.slice(found[i]!.valueStart, end).trim().replace(/,\s*$/, '').trim()
+    entries.set(found[i]!.key, unquoteMetadataValue(raw))
+  }
+  return entries
 }
 
-function consumeQuotedNode(
+function unquoteMetadataValue(raw: string): string {
+  if (raw.length >= 2 && ((raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'")))) {
+    return raw.slice(1, -1).replace(/\\([\\"'])/g, '$1')
+  }
+  return raw
+}
+
+const QUOTED_SHAPE_DELIMITERS: Array<{ open: string; close: string; shape: NodeShape }> = [
+  { open: '(((', close: ')))', shape: 'doublecircle' },
+  { open: '([', close: '])', shape: 'stadium' },
+  { open: '((', close: '))', shape: 'circle' },
+  { open: '[[', close: ']]', shape: 'subroutine' },
+  { open: '[(', close: ')]', shape: 'cylinder' },
+  { open: '[/', close: '\\]', shape: 'trapezoid' },
+  { open: '[\\', close: '/]', shape: 'trapezoid-alt' },
+  { open: '[/', close: '/]', shape: 'lean-r' },
+  { open: '[\\', close: '\\]', shape: 'lean-l' },
+  { open: '>', close: ']', shape: 'asymmetric' },
+  { open: '{{', close: '}}', shape: 'hexagon' },
+  { open: '[', close: ']', shape: 'rectangle' },
+  { open: '(', close: ')', shape: 'rounded' },
+  { open: '{', close: '}', shape: 'diamond' },
+]
+
+/** Quote-aware shape consumption: delimiters inside an authored quoted label
+ * are text, not the end of the node. One scanner covers every legacy shape. */
+function consumeQuotedShapeNode(
   text: string,
   graph: MermaidGraph,
-  subgraphStack: MermaidSubgraph[]
+  subgraphStack: MermaidSubgraph[],
 ): ConsumedNode | null {
-  const match = text.match(/^([\w-]+)\["((?:\\.|[^"\\])*)"\]/)
-  if (!match) return null
-  const id = match[1]!
-  const label = normalizeBrTags(match[2]!.replace(/\\(["\\])/g, '$1'))
-  registerNode(graph, subgraphStack, { id, label, shape: 'rectangle' })
-  return { id, remaining: text.slice(match[0].length) }
+  const identifier = consumeMermaidIdentifier(text)
+  if (!identifier) return null
+  const suffix = text.slice(identifier.length)
+  for (const spec of QUOTED_SHAPE_DELIMITERS) {
+    if (!suffix.startsWith(`${spec.open}"`)) continue
+    const quoteStart = spec.open.length
+    let quoteEnd = -1
+    let escaped = false
+    for (let i = quoteStart + 1; i < suffix.length; i++) {
+      const ch = suffix[i]!
+      if (escaped) { escaped = false; continue }
+      if (ch === '\\') { escaped = true; continue }
+      if (ch === '"') { quoteEnd = i; break }
+    }
+    if (quoteEnd < 0 || !suffix.startsWith(spec.close, quoteEnd + 1)) continue
+    const raw = suffix.slice(quoteStart + 1, quoteEnd).replace(/\\(["\\])/g, '$1')
+    const parsed = parseLabelText(raw, true)
+    registerNode(graph, subgraphStack, {
+      id: identifier.id,
+      label: parsed.text,
+      shape: spec.shape,
+      ...(parsed.markdown ? { markdownLabel: true as const } : {}),
+    })
+    const consumed = identifier.length + quoteEnd + 1 + spec.close.length
+    return { id: identifier.id, remaining: text.slice(consumed) }
+  }
+  return null
 }
 
 /**
@@ -885,8 +1215,8 @@ function consumeNode(
     return { id: metadataNode.id, remaining }
   }
 
-  const quotedNode = consumeQuotedNode(text, graph, subgraphStack)
-  if (quotedNode) return quotedNode
+  const quotedShapeNode = consumeQuotedShapeNode(text, graph, subgraphStack)
+  if (quotedShapeNode) return quotedShapeNode
 
   let id: string | null = null
   let remaining: string = text
@@ -897,8 +1227,8 @@ function consumeNode(
     if (match) {
       if (nodePatternSwallowedArrow(text, match[1]!.length)) continue
       id = match[1]!
-      const label = normalizeBrTags(match[2]!)
-      registerNode(graph, subgraphStack, { id, label, shape })
+      const { text: label, markdown } = parseLabelText(match[2]!)
+      registerNode(graph, subgraphStack, { id, label, shape, ...(markdown ? { markdownLabel: true as const } : {}) })
       remaining = text.slice(match[0].length)
       break
     }

@@ -8,6 +8,7 @@ import {
 } from '../agent/index.ts'
 import type { DiagramKind, ValidDiagram } from '../agent/types.ts'
 import { countStructuralElements, isDrop } from '../agent/structural-count.ts'
+import { stripFormattingTags } from '../multiline-utils.ts'
 
 interface BenchCase {
   id: string
@@ -114,7 +115,7 @@ function layoutLabels(layout: ReturnType<typeof layoutMermaid>): string[] {
   for (const n of layout.nodes) if (n.label) labels.push(n.label)
   for (const e of layout.edges) if (e.label?.text) labels.push(e.label.text)
   for (const g of layout.groups) if (g.label) labels.push(g.label)
-  return labels
+  return labels.map(stripFormattingTags)
 }
 
 function safeVerifyOk(diagram: ValidDiagram): boolean {
@@ -160,6 +161,12 @@ function expectBudgetAtOrBelow(observed: LocalGapBudget, budget: LocalGapBudget)
 }
 
 describe('BUILD-20 Mermaid upstream parser/DB bench', () => {
+  it('keeps the committed case corpus in canonical two-space JSON', () => {
+    const path = join(ROOT, 'eval/mermaid-upstream-suite-bench/cases.json')
+    const text = readFileSync(path, 'utf8')
+    expect(text).toBe(JSON.stringify(JSON.parse(text), null, 2) + '\n')
+  })
+
   it('has a manifest row and portable upstream-derived case for every renderable built-in family', () => {
     const covered = new Set(cases.map(c => c.family))
     const manifested = new Set(manifest.families.map(f => f.family))

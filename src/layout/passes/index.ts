@@ -2485,6 +2485,9 @@ export function extractEdgesRecursively(
     edges.push({
       source: originalEdge.source,
       target: originalEdge.target,
+      // Authored v11.6 edge ID: carried through layout so the SVG can emit
+      // it as the edge's data-id (stable identity contract).
+      ...(originalEdge.id !== undefined ? { id: originalEdge.id } : {}),
       label: originalEdge.label,
       style: originalEdge.style,
       hasArrowStart: originalEdge.hasArrowStart,

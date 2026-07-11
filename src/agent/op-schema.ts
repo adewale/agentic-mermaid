@@ -21,6 +21,7 @@
 // ============================================================================
 
 import type { NodeShape, EdgeStyle } from '../types.ts'
+import { flowchartV11ShapeNames } from '../flowchart-shapes.ts'
 import type {
   SequenceMessageStyle, ClassRelationKind, ErCardinality, ArchitectureSide, GanttBodyTaskTag,
 } from './types.ts'
@@ -93,64 +94,100 @@ const withNote = (spec: FieldSpec, note: string): FieldSpec => ({ ...spec, note 
 
 // ---- Per-op schemas (transcribed from the *MutationOp unions in types.ts) ---
 
+// set_shape/add_node accept the geometry names PLUS every documented Mermaid
+// v11 @{ shape } short name and alias — one vocabulary, sourced from the
+// normalization table (src/flowchart-shapes.ts).
+const FLOWCHART_SHAPE_VALUES: readonly string[] = [
+  ...NODE_SHAPES,
+  ...flowchartV11ShapeNames().filter(name => !(NODE_SHAPES as readonly string[]).includes(name)),
+]
+const FLOWCHART_DIRECTIONS = ['TD', 'TB', 'LR', 'BT', 'RL'] as const
+
 const FLOWCHART_SCHEMA: Record<string, OpSpec> = {
-  add_node:    { fields: { id: str(), label: str(), shape: withNote(oneOf(NODE_SHAPES, false), 'default: rectangle'), parent: str(false) } },
+  add_node:    { fields: { id: str(), label: str(), shape: withNote(oneOf(FLOWCHART_SHAPE_VALUES, false), 'default: rectangle; also accepts Mermaid v11 @{ shape } names/aliases (e.g. manual-input)'), parent: str(false) } },
   remove_node: { fields: { id: str() } },
   rename_node: { fields: { from: str(), to: str() } },
-  set_label:   { fields: { target: str(), label: str() } },
+  set_label:   { fields: { target: withNote(str(), 'a node id, an authored edge ID (e1), or "from->to"/"from->to#k"'), label: str() } },
   add_edge:    { fields: { from: str(), to: str(), label: str(false), style: withNote(oneOf(EDGE_STYLES, false), 'default: solid') } },
-  remove_edge: { fields: { id: str() } },
+  remove_edge: { fields: { id: withNote(str(), 'an authored edge ID (e1), or "from->to"/"from->to#k" for the k-th parallel edge') } },
+  set_shape:   { fields: { id: str(), shape: withNote(oneOf(FLOWCHART_SHAPE_VALUES), 'a geometry name or a Mermaid v11 @{ shape } name/alias; v11 names render with the documented geometry mapping and serialize with the authored spelling') } },
+  set_direction: { fields: { direction: oneOf(FLOWCHART_DIRECTIONS), subgraph: withNote(str(false), 'omit to set the diagram direction; a subgraph id sets that subgraph\'s direction override') } },
+  add_subgraph: { fields: { id: str(), label: str(false), parent: withNote(str(false), 'nest inside this subgraph'), members: withNote(strArr(false), 'existing node ids MOVED into the new subgraph') } },
+  remove_subgraph: { fields: { id: str(), removeMembers: withNote(bool(false), 'default false: dissolve — members move to the parent scope; true also removes member nodes and their edges') } },
+  move_node:   { fields: { id: str(), subgraph: withNote(strOrNull(), 'target subgraph id; null moves the node to the top level') } },
+  define_class: { fields: { name: str(), style: withNote(str(), 'CSS-like pairs, e.g. "fill:#f96,stroke:#333,stroke-width:2px"') } },
+  set_node_class: { fields: { id: str(), className: withNote(strOrNull(), 'assigns a classDef name (define_class or source classDef); null removes the assignment') } },
+  set_node_style: { fields: { id: str(), style: withNote(strOrNull(), 'inline style pairs, e.g. "fill:#bbf"; null clears') } },
 }
+
+const STATE_DIRECTIONS = ['TD', 'TB', 'LR', 'BT', 'RL'] as const
+const STATE_NOTE_SIDES = ['left', 'right'] as const
 
 const STATE_SCHEMA: Record<string, OpSpec> = {
   add_state:            { fields: { id: str(), label: strOrNull(false), parent: strOrNull(false) } },
-  remove_state:         { fields: { id: str() } },
+  remove_state:         { fields: { id: str(), recursive: withNote(bool(false), 'default false: refuse a non-empty composite; true removes the whole subtree (transitions + notes cascade)') } },
   rename_state:         { fields: { from: str(), to: str() } },
   set_state_label:      { fields: { id: str(), label: strOrNull() } },
-  add_transition:       { fields: { from: str(), to: str(), label: strOrNull(false), parent: strOrNull(false) } },
+  add_transition:       { fields: { from: withNote(str(), 'a state id, "[*]", or a history ref like "X[H]"'), to: withNote(str(), 'a state id, "[*]", or a history ref like "X[H]"'), label: strOrNull(false), parent: strOrNull(false) } },
   remove_transition:    { fields: { index: num(false), from: str(false), to: str(false), parent: strOrNull(false) }, requireOneOf: ['index', 'from', 'to'] },
   set_transition_label: { fields: { index: num(false), from: str(false), to: str(false), label: strOrNull(), parent: strOrNull(false) }, requireOneOf: ['index', 'from', 'to'] },
   make_composite:       { fields: { id: str(), members: strArr(), label: strOrNull(false) } },
+  set_direction:        { fields: { direction: oneOf(STATE_DIRECTIONS), state: withNote(strOrNull(false), 'omit to set the diagram direction; a composite id sets that composite\'s direction override') } },
+  move_state:           { fields: { id: str(), parent: withNote(strOrNull(), 'target composite id; null moves the state to the top level') } },
+  dissolve_composite:   { fields: { id: withNote(str(), 'children and inner transitions hoist into the parent scope; rejects while transitions/notes still reference the composite') } },
+  add_note:             { fields: { target: str(), side: withNote(oneOf(STATE_NOTE_SIDES, false), 'default: right'), text: withNote(str(), 'multi-line text serializes as a block note') } },
+  remove_note:          { fields: { index: num() } },
+  set_note_text:        { fields: { index: num(), text: str() } },
 }
 
 const SEQUENCE_SCHEMA: Record<string, OpSpec> = {
   add_participant:  { fields: { id: str(), label: str(false), participantKind: oneOf(PARTICIPANT_KINDS, false) } },
   remove_participant: { fields: { id: str() } },
-  add_message:      { fields: { from: str(), to: str(), text: str(), style: withNote(oneOf(SEQUENCE_MESSAGE_STYLES, false), 'default: sync') } },
+  add_message:      { fields: { from: str(), to: str(), text: str(), style: withNote(oneOf(SEQUENCE_MESSAGE_STYLES, false), 'default: sync'), index: withNote(num(false), 'top-level insert position; default: append') } },
   remove_message:   { fields: { index: num() } },
   set_message_text: { fields: { index: num(), text: str() } },
+  move_message:     { fields: { from: withNote(num(), 'top-level message index'), to: withNote(num(), 'top-level target position') } },
+  set_participant_label: { fields: { id: str(), label: str() } },
 }
 
 const TIMELINE_SCHEMA: Record<string, OpSpec> = {
   set_title:         { fields: { title: strOrNull() } },
-  add_section:       { fields: { label: str() } },
+  add_section:       { fields: { label: str(), index: withNote(num(false), 'insert position; omit to append') } },
   remove_section:    { fields: { index: num() } },
   set_section_label: { fields: { index: num(), label: str() } },
-  add_period:        { fields: { sectionIndex: num(), label: str(), events: strArr(false) } },
+  add_period:        { fields: { sectionIndex: num(), label: str(), events: strArr(false), index: withNote(num(false), 'insert position; omit to append') } },
   remove_period:     { fields: { sectionIndex: num(), periodIndex: num() } },
   set_period_label:  { fields: { sectionIndex: num(), periodIndex: num(), label: str() } },
-  add_event:         { fields: { sectionIndex: num(), periodIndex: num(), text: str() } },
+  add_event:         { fields: { sectionIndex: num(), periodIndex: num(), text: str(), index: withNote(num(false), 'insert position; omit to append') } },
   remove_event:      { fields: { sectionIndex: num(), periodIndex: num(), eventIndex: num() } },
   set_event_text:    { fields: { sectionIndex: num(), periodIndex: num(), eventIndex: num(), text: str() } },
+  move_period:       { fields: { fromSection: num(), fromIndex: num(), toSection: num(), toIndex: withNote(num(), 'insert position in the target section, applied after removal') } },
+  move_event:        { fields: { fromSection: num(), fromPeriod: num(), fromIndex: num(), toSection: num(), toPeriod: num(), toIndex: withNote(num(), 'insert position in the target period, applied after removal') } },
+  move_section:      { fields: { from: num(), to: num() } },
+  set_accessibility_title:       { fields: { title: strOrNull() } },
+  set_accessibility_description: { fields: { description: strOrNull() } },
 }
 
 const CLASS_SCHEMA: Record<string, OpSpec> = {
   set_title:       { fields: { title: strOrNull() } },
-  add_class:       { fields: { id: str(), label: str(false), members: strArr(false) } },
+  add_class:       { fields: { id: str(), label: str(false), generic: withNote(str(false), 'Mermaid generic parameter text without surrounding ~ delimiters'), members: strArr(false), namespace: withNote(str(false), 'dot path, e.g. "Platform.Auth"; declared on demand') } },
   remove_class:    { fields: { id: str() } },
   rename_class:    { fields: { from: str(), to: str() } },
+  set_class_generic: { fields: { class: str(), generic: withNote(strOrNull(), 'parameter text without ~ delimiters; null removes it') } },
   add_member:      { fields: { class: str(), text: str() } },
   remove_member:   { fields: { class: str(), index: num() } },
   add_relation:    { fields: { from: str(), to: str(), relKind: oneOf(CLASS_REL_KINDS), label: str(false) } },
   remove_relation: { fields: { index: num() } },
   add_note:        { fields: { text: str(), for: str(false) } },
   remove_note:     { fields: { index: num() } },
+  set_class_namespace: { fields: { class: str(), namespace: withNote(strOrNull(), 'dot path moves the class into that namespace (declared on demand); null moves it to the top level') } },
 }
 
 const ER_SCHEMA: Record<string, OpSpec> = {
-  add_entity:       { fields: { id: str(), attributes: strArr(false) } },
+  add_entity:       { fields: { id: str(), label: str(false), attributes: strArr(false) } },
   remove_entity:    { fields: { id: str() } },
   rename_entity:    { fields: { from: str(), to: str() } },
+  set_entity_label: { fields: { entity: str(), label: strOrNull() } },
   add_attribute:    { fields: { entity: str(), text: str() } },
   remove_attribute: { fields: { entity: str(), index: num() } },
   add_relation:     { fields: { from: str(), to: str(), leftCard: oneOf(ER_CARDINALITIES), rightCard: oneOf(ER_CARDINALITIES), dashed: bool(false), label: str(false) } },
@@ -175,6 +212,7 @@ const JOURNEY_SCHEMA: Record<string, OpSpec> = {
 }
 
 const ARCHITECTURE_SCHEMA: Record<string, OpSpec> = {
+  set_title:         { fields: { title: strOrNull() } },
   add_service:       { fields: { id: str(), label: str(false), icon: strOrNull(false), group: strOrNull(false) } },
   remove_service:    { fields: { id: str() } },
   rename_service:    { fields: { from: str(), to: str() } },
@@ -196,6 +234,8 @@ const XYCHART_SCHEMA: Record<string, OpSpec> = {
   set_series_values: { fields: { index: num(), values: numArr() } },
   set_series_name:   { fields: { index: num(), name: strOrNull() } },
   reorder_series:    { fields: { from: num(), to: num() } },
+  set_orientation:   { fields: { horizontal: withNote(bool(), 'true = horizontal, false = vertical (the default)') } },
+  set_data_point:    { fields: { seriesIndex: num(), index: withNote(num(), '0-based position within the series values'), value: withNote(num(), 'finite') } },
 }
 
 const PIE_SCHEMA: Record<string, OpSpec> = {
@@ -223,11 +263,15 @@ const GANTT_SCHEMA: Record<string, OpSpec> = {
   add_section:     { fields: { label: str() } },
   rename_section:  { fields: { index: num(), label: str() } },
   remove_section:  { fields: { index: num() } },
-  add_task:        { fields: { sectionIndex: num(), label: str(), taskId: str(false), tags: strArr(false), start: withNote(str(false), 'date, or "after <taskId>"'), end: withNote(str(), 'date, a duration like "3d", or "until <taskId>"') } },
+  add_task:        { fields: { sectionIndex: num(), label: str(), taskId: str(false), tags: strArr(false), start: withNote(str(false), 'date, or "after <taskId>"'), end: withNote(str(), 'date, a duration like "3d", or "until <taskId>"'), index: withNote(num(false), 'insert position; omit to append — inserting into an implicit-start chain re-chains the follower onto the new task') } },
   remove_task:     { fields: { sectionIndex: num(), taskIndex: num() } },
   rename_task:     { fields: { sectionIndex: num(), taskIndex: num(), label: str() } },
   set_task_status: { fields: { sectionIndex: num(), taskIndex: num(), status: oneOf(GANTT_STATUSES, true, true) } },
   set_task_dates:  { fields: { sectionIndex: num(), taskIndex: num(), start: strOrNull(false), end: str(false) } },
+  set_task_flags:  { fields: { sectionIndex: num(), taskIndex: num(), milestone: bool(false), vert: bool(false) } },
+  set_task_id:     { fields: { sectionIndex: num(), taskIndex: num(), taskId: withNote(strOrNull(), 'renames rewrite after/until references; null clears (rejected while referenced)') } },
+  move_task:       { fields: { fromSection: num(), fromIndex: num(), toSection: num(), toIndex: withNote(num(), 'insert position in the target section, applied after removal — rejected if the move would change an implicit-start task\'s predecessor') } },
+  move_section:    { fields: { from: num(), to: num() } },
 }
 
 const SCHEMAS: Record<OpFamily, Record<string, OpSpec>> = {
