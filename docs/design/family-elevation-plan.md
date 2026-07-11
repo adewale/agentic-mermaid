@@ -1,10 +1,10 @@
 # Family Elevation Plan
 
-Status: implementation complete for all 72 family items; 17/18 completion packages done, with B18 awaiting commit-bound CI/review evidence
+Status: implementation complete for all 72 family items and all 18 completion packages; final-head CI/review evidence is retained externally
 Last reviewed: 2026-07-10
 
 This document began as the plan of record and now records the implemented
-family-elevation scope plus the remaining release-evidence gate. PR #142 delivered the broad twelve-family baseline and
+family-elevation scope plus the completed release-evidence gate. PR #142 delivered the broad twelve-family baseline and
 closed the parser-integrity cluster—Flowchart quoted non-rectangle labels and
 Unicode IDs, Timeline grammar drift, State/Class/ER `:::` identity corruption,
 and ER aliases/composite keys—using shared grammar primitives and cross-surface
@@ -260,7 +260,7 @@ Definition of Done.
 | B15 | 4 | done | All 26 official pinned Mindmap blocks plus parser/layout/SVG/terminal/agent/config/property/installed-package citizenship: `mindmap-gitgraph-upstream-oracle.test.ts`, `mindmap-gitgraph-citizenship.test.ts`, `e2e/tarball-consumer-fuzz.e2e.test.ts`. |
 | B16 | 4 | done | All 69 official pinned GitGraph blocks (62 executable, seven explicit exclusions/divergences) plus replay/layout/SVG/terminal/agent/config/property/installed-package citizenship: `mindmap-gitgraph-upstream-oracle.test.ts`, `mindmap-gitgraph-citizenship.test.ts`, `e2e/tarball-consumer-fuzz.e2e.test.ts`. |
 | B17 | 0/2 | done | Every family and local SVG reference type passes the two-instance collision matrix: `svg-id-hygiene-all-families.test.ts`. |
-| B18 | all | partial | The compatibility/registry/evidence follow-up passes the complete local unit/E2E/build/type/lint/website/golden/characterization/tracker/package matrix and all twenty-one causal probes. Remaining: commit and push the resulting head, retain green final-head GitHub Actions URLs, and obtain fresh post-fix reviewer acceptance in `docs/design/family-elevation-acceptance.md`. |
+| B18 | all | done | The complete local matrix, final-head SHA, immutable green CI jobs, fresh reviewer ACCEPT, and residual warnings are retained in `family-elevation-acceptance.md` and the stable [PR audit record](https://github.com/adewale/agentic-mermaid/pull/149#issuecomment-4949151500); `family-elevation-ledger.test.ts` keeps this done row exact-title bound. |
 <!-- family-elevation-backlog:end -->
 
 The retained causal check `bun run test:family-elevation-reverts` now injects twenty-one final-review regression classes in a temporary checkout and requires exact red counts `(1, 1, 14, 1, 1, 1, 1, 1, 1, 1, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)`. In addition to the original State paint, branch order, config, upstream, SVG identity, mutation grammar, hard-width, and ER-clearance faults, it now proves label-less ER relations, XYChart raster backgrounds, Quadrant axis budgets, Mindmap reserved-prefix closure, GitGraph ancestry validation, duplicate-parent suppression, injective relation identity, and continuous State concurrency separators. Every probe restores the source after its exact focused red count; earlier packages retain their focused Stryker/sabotage lanes.

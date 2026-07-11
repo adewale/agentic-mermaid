@@ -445,6 +445,11 @@
       "id": "B17",
       "file": "src/__tests__/svg-id-hygiene-all-families.test.ts",
       "title": "two instances of every family have no declaration collisions or dangling refs"
+    },
+    {
+      "id": "B18",
+      "file": "src/__tests__/family-elevation-ledger.test.ts",
+      "title": "every done claim resolves to an exact executable title in a cited test file"
     }
   ]
 }

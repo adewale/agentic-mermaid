@@ -1,8 +1,8 @@
 # Family-elevation acceptance record
 
-Status: **follow-up local gates green; commit-bound CI and final reviewer acceptance pending**.
+Status: **B18 complete; local gates, final-head CI, and post-fix reviewer acceptance retained**.
 
-This record prevents B18 from treating file presence or an old local run as release evidence. The complete matrix below has been rerun after the compatibility/registry/evidence follow-up. On the current working tree, focused Mindmap/GitGraph, ER/XYChart/Quadrant/State, characterization, registry, architecture, ledger, and TypeScript gates pass, and all twenty-one causal probes produce their exact red counts. These are reproducible local observations, not immutable CI attestations; B18 remains `partial` until the full matrix is rerun on the resulting commit, retained GitHub Actions URLs are added, and post-fix review accepts that tree.
+This record prevents B18 from treating file presence or an old local run as release evidence. The complete matrix below was rerun after the compatibility/registry/evidence follow-up. The stable [PR audit record](https://github.com/adewale/agentic-mermaid/pull/149#issuecomment-4949151500) is the external, immutable-head binding: it names the resulting SHA, links every green GitHub Actions job, records the fresh reviewer ACCEPT and residual non-gating annotations, and can be updated after this documentation-only closeout without creating another repository head.
 
 ## Local acceptance matrix
 
@@ -73,9 +73,10 @@ The latest local narrow-lane reruns passed their committed 60% break floors:
 
 Their JSON reports remain gitignored and have no retained CI URL, so these figures are historical local diagnostics. The committed configs and nightly workflow are the reproducibility surface; they do not enforce these measured scores. See [`../mutation-testing.md`](../mutation-testing.md).
 
-## B18 remaining evidence
+## B18 retained evidence
 
-- [ ] Record the final commit SHA and immutable comparison base.
-- [ ] Retain/link final GitHub Actions unit/E2E/build/package checks for that commit.
-- [ ] Record post-fix reviewer acceptance and any residual risk.
-- [ ] Only then change B18 from `partial` to `done` and update the headline/package count.
+- [x] Final commit SHA and immutable comparison base are named in the stable PR audit record.
+- [x] Final GitHub Actions test, E2E/package, and incremental-mutation job URLs are retained there.
+- [x] Fresh post-fix reviewer ACCEPT and the separately reviewed duplicate-parent delta are recorded there.
+- [x] Residual non-gating GitHub cache-service and Node-action deprecation annotations are disclosed.
+- [x] B18 is `done`; the mechanically checked headline/package count is 18/18.
