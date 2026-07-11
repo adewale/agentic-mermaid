@@ -106,8 +106,8 @@ dependents after. IDs are stable names, not an ordering.
   and review notes. Submit through the plugin portal only when the live endpoint
   and UI are stable enough to preserve the reviewed metadata contract.
 - [x] **BUILD-25 — Structured coverage for the last silent-opaque constructs**
-  (completed on PR #142; tracked as **#118**). Class generics and namespaces,
-  plus State notes, fork/join/choice pseudostates, and history states now pass
+  (completed on PR #142; tracked as **#118**). Class generics and compound/block
+  namespaces, plus State notes, fork/join/choice pseudostates, and history states now pass
   through shared render/agent grammars with typed mutation and canonical
   round-trip coverage. Unquoted Pie labels remain intentionally invalid because
   Mermaid's grammar requires quotes.
@@ -186,13 +186,13 @@ dependents after. IDs are stable names, not an ordering.
   multi-error parse and a buildSourceMap hook — no in-tree exception
   remains. Mutation rebuilds `canonicalSource` uniformly. Unblocks
   BUILD-5/BUILD-6/BUILD-11 and the mutation roadmap.
-- [ ] **BUILD-5 — Common-README family coverage: pie, gantt, mindmap,
-  gitgraph** (`in-progress`). These families are common in
-  real-world READMEs/docs and already have authoring syntax references in
-  `skills/agentic-mermaid-diagram-workflow/references/upstream/`, but the
-  renderer does not accept them. No public usage statistics exist, so first
-  gather evidence (count fenced ` ```mermaid ` header families across a
-  GitHub README corpus), then implement in evidence order. Each addition
+- [ ] **BUILD-5 — Common-README family coverage: mindmap and gitgraph**
+  (`in-progress`; Pie and Gantt are complete below). These remaining families
+  are common in real-world READMEs/docs and already have authoring syntax
+  references in `skills/agentic-mermaid-diagram-workflow/references/upstream/`,
+  but the renderer does not accept them. The completed corpus evidence and
+  Pie/Gantt implementations establish the method; implement the remaining
+  families in evidence order. Each addition
   follows `docs/contributing/adding-diagram-types.md` and ships
   parse/verify/render/round-trip (source-level body is acceptable; structured
   mutation only where the IR can preserve semantics). The corpus count also
@@ -479,7 +479,7 @@ dependents after. IDs are stable names, not an ordering.
   opaquely; `src/__tests__/flowchart-metadata.test.ts` pins inline,
   standalone, and multiline safety cases plus round-trip behavior. Modeled
   support for the full v11 typed-shape vocabulary (ISO 5807/ANSI X3.5 symbols
-  mapped onto `NodeShape`) remains separate (#44). BUILD-1 still needs
+  mapped onto `NodeShape`) shipped in PR #142 and closes #44. BUILD-1 still needs
   compatible `@{ view: collapsed }` semantics, but no longer starts from a
   silent-loss parser floor.
 - [ ] **BUILD-1 — Collapsible subgraphs (#7785)** (`todo`, after BUILD-23 metadata safety floor; independent of BUILD-20 harvest). Track Mermaid PR

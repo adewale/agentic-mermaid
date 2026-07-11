@@ -323,6 +323,16 @@ describe('hosted render_png', () => {
     expect(payload.png_base64).toBe('iVBORw==')
     expect(payload.warnings).toEqual([warning])
   })
+  test('combines source config diagnostics with raster font warnings', async () => {
+    const fontWarning = { code: 'PNG_FONT_COVERAGE' as const, script: 'CJK', chars: ['日'], message: 'font gap' }
+    const ctx = makeContext({ renderPng: async () => ({ png: new Uint8Array([0x89, 0x50, 0x4e, 0x47]), warnings: [fontWarning] }) })
+    const source = '---\nconfig:\n  state:\n    titleTopMargin: 10\n---\nstateDiagram-v2\n  A[日] --> B'
+    const payload = payloadOf(await handleHostedRequest(call('render_png', { source }), ctx))
+    expect(payload.ok).toBe(true)
+    expect(payload.warnings).toContainEqual(expect.objectContaining({ field: 'state.titleTopMargin' }))
+    expect(payload.warnings).toContainEqual(fontWarning)
+  })
+
   test('returns base64 PNG bytes from the injected rasterizer', async () => {
     const ctx = makeContext()
     const p = payloadOf(await handleHostedRequest(call('render_png', { source: FLOW, scale: 3, background: '#fff' }), ctx))

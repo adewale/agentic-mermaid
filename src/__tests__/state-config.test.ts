@@ -40,7 +40,7 @@ const EFFECT_CASES: Record<(typeof STATE_WIRED_CONFIG_FIELDS)[number], { value: 
 }
 
 describe('state runtime config is wire-or-warn', () => {
-  test('the independent documented inventory is partitioned exactly once', () => {
+  test('X7 acceptance: the independent State inventory is partitioned exactly once', () => {
     const expected = [
       'arrowMarkerAbsolute', 'compositTitleSize', 'defaultRenderer', 'dividerMargin',
       'edgeLengthFactor', 'fontSize', 'fontSizeFactor', 'forkHeight', 'forkWidth',

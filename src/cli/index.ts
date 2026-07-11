@@ -10,14 +10,14 @@ import { parseMermaid } from '../agent/parse.ts'
 import { logToolInvocation } from '../agent/trace-log.ts'
 import { serializeMermaid, synthesizeFromGraph } from '../agent/serialize.ts'
 import { mutateChecked } from '../agent/mutate.ts'
-import { verifyMermaid } from '../agent/verify.ts'
+import { configWarningsForMermaid, verifyMermaid } from '../agent/verify.ts'
 import { renderMermaidSVG, renderMermaidASCII, renderMermaidPNG, layoutMermaid } from '../agent/index.ts'
 import type { PngFontWarning } from '../agent/png.ts'
 import { describeMermaid } from '../agent/describe.ts'
 import { collectBatched } from '../shared/batched.ts'
 import type {
   ValidDiagram, WarningCode, AnyMutationOp,
-  MutationError, Result, MutableValidDiagram,
+  MutationError, Result, MutableValidDiagram, LayoutWarning,
 } from '../agent/types.ts'
 import { WARNING_SEVERITY, WARNING_TIER } from '../agent/types.ts'
 import { BUILTIN_FAMILY_METADATA, builtinFamilyMetadata, knownFamilies, getFamily } from '../agent/families.ts'
@@ -395,8 +395,10 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
     const results = args.positional.map((file, index) => {
       try {
         const src = readSourceArg(file)
+        const warnings = configWarningsForMermaid(src)
+        emitConfigWarnings(warnings, `am render ${file}`)
         const output = renderSourceToFormat(src, format, { security, certificates: args.flags.certificates === true, style, seed, ganttToday })
-        return { index, file, ok: true, output }
+        return { index, file, ok: true, output, warnings }
       } catch (e) {
         const parseEnvelope = e as { ok?: false; error?: { code?: string; message?: string; details?: unknown } }
         if (parseEnvelope?.ok === false && parseEnvelope.error?.code === 'PARSE_FAILED') {
@@ -425,8 +427,10 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
     return EXIT_ARG_ERROR
   }
 
-  if (format === 'png') {
-    const outFile = typeof args.flags.o === 'string' ? args.flags.o : (typeof args.flags.output === 'string' ? args.flags.output : '')
+  const configWarnings = configWarningsForMermaid(source)
+  emitConfigWarnings(configWarnings, 'am render')
+
+  if (format === 'png') {    const outFile = typeof args.flags.o === 'string' ? args.flags.o : (typeof args.flags.output === 'string' ? args.flags.output : '')
     if (!outFile) {
       process.stderr.write('am render --format png requires --output <file.png> (PNG bytes corrupt terminals if piped to stdout)\n')
       return EXIT_ARG_ERROR
@@ -439,7 +443,7 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
     const loadSystemFonts = args.flags['system-fonts'] === true
     // PNG render is native-sync via resvg; keep bytes off stdout and write the
     // raster artifact explicitly to the requested output path.
-    return renderPngSync(source, { scale, background, style, seed, fontDirs, loadSystemFonts, ganttToday }, outFile, json)
+    return renderPngSync(source, { scale, background, style, seed, fontDirs, loadSystemFonts, ganttToday }, outFile, json, configWarnings)
   }
   // Loop 9 M3/M4, #7645: json = layout shape; unicode is the default text
   // renderer; `--security strict` strips external-fetch refs from SVG.
@@ -449,8 +453,8 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
   // silently ignored elsewhere — the docs' samples produced no file).
   const outFile = typeof args.flags.o === 'string' ? args.flags.o : (typeof args.flags.output === 'string' ? args.flags.output : '')
   const text = typeof out === 'string'
-    ? (json ? JSON.stringify({ [format]: out }) + '\n' : (out.endsWith('\n') ? out : out + '\n'))
-    : JSON.stringify(out) + '\n'
+    ? (json ? JSON.stringify({ [format]: out, warnings: configWarnings }) + '\n' : (out.endsWith('\n') ? out : out + '\n'))
+    : JSON.stringify(configWarnings.length > 0 ? { ...out, warnings: configWarnings } : out) + '\n'
   if (outFile) {
     writeFileSync(outFile, text)
     return EXIT_OK
@@ -498,9 +502,12 @@ function cmdRenderWatch(file: string, format: string, args: ParsedArgs, _json: b
   const outFile = typeof args.flags.output === 'string' ? args.flags.output : ''
   const emit = () => {
     try {
-      const out = renderFileOnce(file, format, opts)
-      if (outFile) { writeFileSync(outFile, out) ; process.stderr.write(`rendered → ${outFile}\n`) }
-      else process.stdout.write(out + (out.endsWith('\n') ? '' : '\n'))
+      const src = readFileSync(file, 'utf8')
+      emitConfigWarnings(configWarningsForMermaid(src), 'am render --watch')
+      const out = renderSourceToFormat(src, format, opts)
+      const text = typeof out === 'string' ? out : JSON.stringify(out)
+      if (outFile) { writeFileSync(outFile, text) ; process.stderr.write(`rendered → ${outFile}\n`) }
+      else process.stdout.write(text + (text.endsWith('\n') ? '' : '\n'))
     } catch (e) { process.stderr.write(`render error: ${(e as Error).message}\n`) }
   }
   emit() // initial render
@@ -510,15 +517,22 @@ function cmdRenderWatch(file: string, format: string, args: ParsedArgs, _json: b
   return EXIT_OK
 }
 
-function renderPngSync(source: string, opts: { scale: number; background: string; style?: StyleInput[]; seed?: number; fontDirs?: string[]; loadSystemFonts?: boolean; ganttToday?: string }, outFile: string, json: boolean): number {
+function emitConfigWarnings(warnings: LayoutWarning[], prefix: string): void {
+  for (const warning of warnings) {
+    process.stderr.write(`${prefix}: warning ${warning.code}${'field' in warning ? ` (${warning.field})` : ''}: ${'message' in warning ? warning.message : 'configuration has no effect'}\n`)
+  }
+}
+
+function renderPngSync(source: string, opts: { scale: number; background: string; style?: StyleInput[]; seed?: number; fontDirs?: string[]; loadSystemFonts?: boolean; ganttToday?: string }, outFile: string, json: boolean, configWarnings: LayoutWarning[] = []): number {
   try {
     // Glyph-coverage warnings (CJK/emoji without a covering font) go to
     // stderr — the PNG itself can't show what silently became tofu — and
     // ride along in the --json envelope for programmatic callers.
-    const warnings: PngFontWarning[] = []
-    const png = renderMermaidPNG(source, { ...opts, onWarning: w => warnings.push(w) })
+    const fontWarnings: PngFontWarning[] = []
+    const png = renderMermaidPNG(source, { ...opts, onWarning: w => fontWarnings.push(w) })
+    const warnings: Array<PngFontWarning | LayoutWarning> = [...configWarnings, ...fontWarnings]
     writeFileSync(outFile, png)
-    for (const w of warnings) process.stderr.write(`am render --format png: warning ${w.code}: ${w.message}\n`)
+    for (const w of warnings) process.stderr.write(`am render --format png: warning ${w.code}: ${'message' in w ? w.message : 'configuration has no effect'}\n`)
     if (json) process.stdout.write(JSON.stringify({ ok: true, path: outFile, bytes: png.length, warnings }) + '\n')
     return EXIT_OK
   } catch (e) {

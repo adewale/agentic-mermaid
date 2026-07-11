@@ -427,7 +427,18 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
     else if (prop === 'renderMermaidSVG' || prop === 'renderMermaidASCII') value = harden((input: any, opts?: any) => {
       assertOpen()
       if (input && typeof input === 'object') requireTrustedDiagram(input, String(prop))
-      return hostCall(() => ((target as any)[prop] as (diagram: any, options?: any) => unknown)(rawOf(input), jsonClone(opts)))
+      const callback = prop === 'renderMermaidSVG' ? opts?.onConfigDiagnostic : undefined
+      if (callback !== undefined && typeof callback !== 'function') {
+        throw sandboxError('Code Mode renderMermaidSVG onConfigDiagnostic must be a function')
+      }
+      const cloned = jsonClone(opts) as Record<string, unknown> | undefined
+      const diagnostics: unknown[] = []
+      if (prop === 'renderMermaidSVG' && callback) {
+        if (cloned) cloned.onConfigDiagnostic = (diagnostic: unknown) => diagnostics.push(diagnostic)
+      }
+      const rendered = hostCall(() => ((target as any)[prop] as (diagram: any, options?: any) => unknown)(rawOf(input), cloned))
+      for (const diagnostic of diagnostics) callback(harden(jsonClone(diagnostic)))
+      return rendered
     })
     else if (prop === 'describeOps' || prop === 'opSignatures') value = harden((family: any) => {
       assertOpen()

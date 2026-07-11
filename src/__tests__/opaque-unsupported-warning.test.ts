@@ -34,7 +34,7 @@ const OPAQUE_BY_FAMILY: Record<string, string> = {
 const RENDERABLE_OPAQUE_FAMILIES = new Set(['class', 'state', 'er', 'xychart', 'architecture'])
 
 describe('opaque bodies announce UNSUPPORTED_SYNTAX instead of falling silent', () => {
-  test('generic plus specific warning fixtures enroll every built-in family', () => {
+  test('B02 acceptance: lossless opaque fixtures enroll every built-in family', () => {
     const covered = [...Object.keys(OPAQUE_BY_FAMILY), 'flowchart', 'quadrant'].sort()
     expect(covered).toEqual(BUILTIN_FAMILY_METADATA.map(entry => entry.id).sort())
     expect(new Set(covered).size).toBe(covered.length)

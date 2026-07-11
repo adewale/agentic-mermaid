@@ -221,7 +221,7 @@ the specification and provenance record.
 | A4 | 1/3 | partial | Core typed services/groups/edges ship; junction, group-label, boundary-edge, accessibility, and in-place edge edits remain. |
 | A5 | 4 | partial | A fallback badge exists; broader bundled packs and deterministic offline Iconify resolution remain. |
 | A6 | 4 | not-started | Spatial Architecture ASCII remains an outline plus edge list. |
-| X1 | 0 | done | Thirty generated structured diagrams per family serialize, re-enter both agent and renderer parsers, preserve semantic inventories, and serialize idempotently: `property-all-families-fuzz.test.ts`; canonical discovery and corpus guards remain in `cli-capabilities.test.ts`, `agent-mermaid-corpus.test.ts`. |
+| X1 | 0 | done | Thirty generated structured diagrams per family serialize, re-enter both parsers, and compare an independent structured-body inventory against the actual renderer-parser inventory before checking idempotence: `property-all-families-fuzz.test.ts`; canonical discovery/corpus guards remain in `cli-capabilities.test.ts`, `agent-mermaid-corpus.test.ts`. |
 | X2 | 2 | partial | Shared Unicode width primitives ship; complete adoption and per-surface adversarial proof remain. |
 | X3 | 4 | not-started | `--target-width`, auto-fit, multiline policy, and impossible-width diagnostics are not yet implemented. |
 | X4 | 4 | partial | Several families expose semantic SVG attributes; the documented all-family contract and enrollment proof remain. |
@@ -242,7 +242,7 @@ Definition of Done.
 <!-- family-elevation-backlog:start -->
 | ID | Phase | Status | Evidence or exact remainder |
 |---|---|---|---|
-| B01 | 0 | done | Mechanical IDs, statuses, duplicate/omission checks, and ordinal work-plan correspondence: `family-elevation-ledger.test.ts`. |
+| B01 | 0 | done | Mechanical IDs, statuses, duplicate/omission checks, ordinal work-plan correspondence, and exact acceptance-test IDs: `family-elevation-ledger.test.ts`. |
 | B02 | 0 | done | Generated all-family serializer→renderer-parser properties, lossless opaque reparse/render probes, State config geometry, CLI flag ownership, and scene fidelity: `property-all-families-fuzz.test.ts`, `opaque-unsupported-warning.test.ts`, `state-config.test.ts`. |
 | B03 | 1/4 | partial | Finish Architecture side-constrained obstacle routing and route certificates; remainder is tracked by `A1`. |
 | B04 | 1/3 | partial | Finish Architecture junction, group-label, boundary-edge, accessibility, and edge mutation; remainder is tracked by `A4`. |
@@ -432,10 +432,11 @@ Format: `[Fix|Feature(parity)|Feature(beyond)] [V|S] Title — construction move
 Phase 0 is complete under its original honesty-only boundary:
 
 - **X1 conformance:** the shared all-family property registry generates 30
-  structured diagrams per family. Each must serialize, re-enter both the agent
-  parser and that family's real renderer parser/layout hook, preserve renderer
-  nodes/edges/groups plus agent facts, serialize idempotently, and render valid
-  SVG (`property-all-families-fuzz.test.ts`). Canonical discovery and corpus
+  structured diagrams per family. Each must serialize and re-enter both parsers;
+  an inventory derived independently from the typed body is compared with the
+  actual renderer parser's nodes/edges/groups (Flowchart and State explicitly
+  invoke their legacy render parser), then agent facts, idempotence, and valid
+  SVG are checked (`property-all-families-fuzz.test.ts`). Canonical discovery and corpus
   conservation remain additional enrollment guards (`cli-capabilities.test.ts`,
   `agent-mermaid-corpus.test.ts`).
 - **Opaque honesty:** every family capable of whole-body fallback is enrolled
@@ -454,11 +455,14 @@ Phase 0 is complete under its original honesty-only boundary:
   Scene-IR text fidelity checks content plus x/y/anchor
   (`scene-text-fidelity.test.ts`).
 
-The State config test preserves the original two red→green warning failures
-and now adds field-specific geometry/diagnostic probes that fail if a mapping
-is removed. The ledger gate checks all 72 ordinal work-plan items against their
-stable IDs and derives Phase 0 status from named executable acceptance probes;
-it does not treat filename existence or the word “Complete” as proof.
+The original two State warning failures were author-reported during the first
+Phase 0 pass; their raw red output was not committed. The final review preserved
+stronger revert evidence in the PR description: disconnecting the State hook
+fails 11 focused tests, while dropping an Architecture service from serialized
+output fails the X1 property. The ledger gate checks all 72 ordinal work-plan
+items against stable IDs, resolves exact `test`/`it` acceptance titles, and
+allows a truthful prerequisite downgrade; it does not treat filename existence
+or the word “Complete” as behavioral proof.
 
 ### Phase status after PR #142
 

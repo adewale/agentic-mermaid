@@ -15,7 +15,7 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 - Gantt calendar spans use the documented `(start, end]` exclusion boundary model and excluded-day shading is enabled by default; today markers remain caller-clocked.
 - Known command-inapplicable CLI flags and value-taking flags without values now exit 2 instead of being accepted as silent no-ops.
 - PNG coverage warnings now flow through local and hosted MCP renders; system-font mode reports qualified bundled-font uncertainty rather than suppressing it.
-- State `nodeSpacing`, `rankSpacing`, node padding/radius/font size, composite-title size, fork dimensions, note margin, and divider margin now affect rendering. Legacy or invalid `state.*` values and unsupported renderer selections emit qualified `INEFFECTIVE_CONFIG` diagnostics through source verification and explicit render callbacks.
+- State `nodeSpacing`, `rankSpacing`, node padding/radius/font size, composite-title size, fork dimensions, note margin, and divider margin now affect rendering. Legacy or invalid `state.*` values and unsupported renderer selections emit qualified `INEFFECTIVE_CONFIG` diagnostics through source verification, library/Code Mode callbacks, CLI SVG/PNG envelopes, and hosted SVG/ASCII/PNG tools.
 
 ### Fixed
 - Rejected source-controlled Pie colors that could escape SVG attributes or styles; hardened cross-format color contrast and XML sinks.

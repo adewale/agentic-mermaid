@@ -10,7 +10,7 @@
 // Worker invocation and are edge-cacheable.
 
 import { parseMermaid } from '../agent/parse.ts'
-import { verifyMermaid } from '../agent/verify.ts'
+import { configWarningsForMermaid, verifyMermaid } from '../agent/verify.ts'
 import { applyOps } from '../agent/apply.ts'
 import { MUTATION_OPS_BY_FAMILY } from '../agent/mutation-ops.ts'
 import { opSignatures, type OpFamily } from '../agent/op-schema.ts'
@@ -240,9 +240,7 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
  * `graph`/`flowchart`/`architecture-beta`/… first line resolves deterministically.
  */
 function sourceConfigWarnings(source: string) {
-  const parsed = parseMermaid(source)
-  if (!parsed.ok) return []
-  return verifyMermaid(parsed.value).warnings.filter(warning => warning.code === 'INEFFECTIVE_CONFIG')
+  return configWarningsForMermaid(source)
 }
 
 function familyExampleForSource(source: string): { family: string; example: string } | undefined {
@@ -485,7 +483,9 @@ async function handleRenderPng(id: number | string | null, args: Record<string, 
     const style = normalizeStyleArg(args.style)
     const seed = typeof args.seed === 'number' && Number.isFinite(args.seed) ? args.seed : undefined
     const result = await context.renderPng(source, { scale, background, style, seed })
-    return toolResult(id, { ok: true as const, png_base64: base64Encode(result.png), warnings: result.warnings }, false)
+    const warnings = [...sourceConfigWarnings(source), ...result.warnings]
+      .filter((warning, index, all) => all.findIndex(candidate => JSON.stringify(candidate) === JSON.stringify(warning)) === index)
+    return toolResult(id, { ok: true as const, png_base64: base64Encode(result.png), warnings }, false)
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
     return toolResult(id, { ok: false as const, error: { code: 'PNG_RENDER_FAILED', message: msg } }, true)

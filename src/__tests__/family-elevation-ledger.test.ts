@@ -26,12 +26,12 @@ const FAMILY_ITEM_COUNTS: Record<string, number> = {
   Gantt: 6, XYChart: 5, Pie: 4, Quadrant: 4, Architecture: 6,
 }
 const PHASE_0_ACCEPTANCE = [
-  { id: 'B01', file: 'family-elevation-ledger.test.ts', probe: 'every numbered work-plan item has a corresponding ordinal ledger ID' },
-  { id: 'X1', file: 'property-all-families-fuzz.test.ts', probe: 'serializer output reparses through the agent and renderer without semantic drift' },
-  { id: 'B02', file: 'opaque-unsupported-warning.test.ts', probe: 'Opaque is a lossless source-preservation contract' },
-  { id: 'X7', file: 'state-config.test.ts', probe: 'the independent documented inventory is partitioned exactly once' },
-  { id: 'G3', file: 'cli-gantt-today-flag.test.ts', probe: 'unknown CLI flags error instead of being silently swallowed' },
-  { id: 'Q3', file: 'scene-text-fidelity.test.ts', probe: 'text geometry' },
+  { id: 'B01', file: 'family-elevation-ledger.test.ts', title: 'every numbered work-plan item has a corresponding ordinal ledger ID' },
+  { id: 'X1', file: 'property-all-families-fuzz.test.ts', title: 'X1 acceptance: every built-in family has a cross-parser fuzz generator' },
+  { id: 'B02', file: 'opaque-unsupported-warning.test.ts', title: 'B02 acceptance: lossless opaque fixtures enroll every built-in family' },
+  { id: 'X7', file: 'state-config.test.ts', title: 'X7 acceptance: the independent State inventory is partitioned exactly once' },
+  { id: 'G3', file: 'cli-gantt-today-flag.test.ts', title: 'a typo flag exits 2 and names itself' },
+  { id: 'Q3', file: 'scene-text-fidelity.test.ts', title: 'point labels carry their REAL collision-aware position in the scene IR' },
 ] as const
 
 function rows(marker: string): Array<{ id: string; phase: string; status: string; detail: string }> {
@@ -85,13 +85,16 @@ describe('family elevation plan is a mechanically complete ledger', () => {
     }
   })
 
-  test('Phase 0 status is derived from executable acceptance IDs, not completion prose', () => {
+  test('Phase 0 status is consistent with exact executable acceptance IDs', () => {
     const byId = new Map([...rows('family-elevation-ledger'), ...rows('family-elevation-backlog')].map(row => [row.id, row]))
     for (const acceptance of PHASE_0_ACCEPTANCE) {
-      expect(byId.get(acceptance.id)?.status, `${acceptance.id}: done`).toBe('done')
       const testSource = readFileSync(join(import.meta.dir, acceptance.file), 'utf8')
-      expect(testSource, `${acceptance.id}: executable acceptance probe`).toContain(acceptance.probe)
+      const declaredTitles = [...testSource.matchAll(/\b(?:test|it)\(\s*['"]([^'"]+)['"]/g)].map(match => match[1])
+      expect(declaredTitles, `${acceptance.id}: exact executable acceptance ID`).toContain(acceptance.title)
     }
+    // Do not force prerequisite rows to `done`: a truthful downgrade must be
+    // allowed. This gate only derives the phase-table wording from their
+    // independently reviewed statuses; the named tests prove behavior in CI.
     const derived = PHASE_0_ACCEPTANCE.every(acceptance => byId.get(acceptance.id)?.status === 'done')
       ? '**Complete**'
       : '**Partial**'

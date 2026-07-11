@@ -404,6 +404,28 @@ function quadrantInertStyleWarnings(d: ValidDiagram): LayoutWarning[] {
   }))
 }
 
+export function configWarningsForDiagram(d: ValidDiagram): LayoutWarning[] {
+  const specific = d.kind === 'journey'
+    ? journeyIneffectiveConfigWarnings(d)
+    : d.kind === 'timeline' ? timelineIneffectiveConfigWarnings(d)
+    : d.kind === 'pie' ? pieIneffectiveConfigWarnings(d)
+    : d.kind === 'quadrant' ? quadrantIneffectiveConfigWarnings(d)
+    : d.kind === 'class' ? classErIneffectiveConfigWarnings(d, 'class', classIneffectiveConfigFields, 'Class')
+    : d.kind === 'er' ? classErIneffectiveConfigWarnings(d, 'er', erIneffectiveConfigFields, 'Er')
+    : d.kind === 'architecture' ? architectureIneffectiveConfigWarnings(d)
+    : d.kind === 'flowchart' ? flowchartIneffectiveConfigWarnings(d)
+    : d.kind === 'state' ? stateIneffectiveConfigWarnings(d)
+    : d.kind === 'sequence' ? sequenceIneffectiveConfigWarnings(d)
+    : d.kind === 'gantt' ? ganttTodayMarkerWarnings(d) : []
+  return dedupedConcat(specific, unknownFamilyConfigWarnings(d))
+}
+
+/** Lightweight source-only config diagnostics; never lays out or renders. */
+export function configWarningsForMermaid(source: string): LayoutWarning[] {
+  const parsed = parseValidDiagram(source)
+  return parsed.ok ? configWarningsForDiagram(parsed.value) : []
+}
+
 function verifyStructure(input: ValidDiagram | string, opts: VerifyOptions = {}): VerifyResult {
   const d = typeof input === 'string' ? unwrap(input) : input
   if (!d) return finalize([{ code: 'EMPTY_DIAGRAM' }], emptyRenderedLayout('flowchart'), opts)
@@ -425,19 +447,7 @@ function verifyStructure(input: ValidDiagram | string, opts: VerifyOptions = {})
     : d.kind === 'er' ? erUnsupportedSyntaxWarnings(d.canonicalSource)
     : d.kind === 'quadrant' ? quadrantInertStyleWarnings(d) : []
   const faithfulnessWarnings = roundtripFaithfulnessWarnings(d)
-  const specificConfigWarnings = d.kind === 'journey'
-    ? journeyIneffectiveConfigWarnings(d)
-    : d.kind === 'timeline' ? timelineIneffectiveConfigWarnings(d)
-    : d.kind === 'pie' ? pieIneffectiveConfigWarnings(d)
-    : d.kind === 'quadrant' ? quadrantIneffectiveConfigWarnings(d)
-    : d.kind === 'class' ? classErIneffectiveConfigWarnings(d, 'class', classIneffectiveConfigFields, 'Class')
-    : d.kind === 'er' ? classErIneffectiveConfigWarnings(d, 'er', erIneffectiveConfigFields, 'Er')
-    : d.kind === 'architecture' ? architectureIneffectiveConfigWarnings(d)
-    : d.kind === 'flowchart' ? flowchartIneffectiveConfigWarnings(d)
-    : d.kind === 'state' ? stateIneffectiveConfigWarnings(d)
-    : d.kind === 'sequence' ? sequenceIneffectiveConfigWarnings(d)
-    : d.kind === 'gantt' ? ganttTodayMarkerWarnings(d) : []
-  const configWarnings = dedupedConcat(specificConfigWarnings, unknownFamilyConfigWarnings(d))
+  const configWarnings = configWarningsForDiagram(d)
   const pluginWarnings = dedupedConcat(dedupedConcat(dedupedConcat(dedupedConcat(metaWarnings, dispatchFamilyVerify(d, opts)), sourceWarnings), faithfulnessWarnings), configWarnings)
 
   if (d.body.kind === 'sequence') return mergeFinalize(verifySequence(d as ValidDiagram & { body: SequenceBody }, cap, opts), pluginWarnings, opts)
