@@ -29,7 +29,7 @@ const svg = renderMermaidSVG(source, {
 })
 ```
 
-Explicit options win over source-level config when both specify the same supported field.
+Explicit options win over source-level config when both specify the same supported field. `RenderOptions.onConfigDiagnostic` can collect warnings for explicit config that is unknown, invalid, or has no faithful effect; without a collector, explicit ineffective State config warns through `console.warn` rather than disappearing silently.
 
 ## YAML frontmatter
 
@@ -84,11 +84,15 @@ Notable wired sections include:
 - `gantt.displayMode` (`compact` packs non-overlapping tasks in a section into
   shared rows).
 
-`state` now has a typed `StateRuntimeConfig`, but its documented Mermaid config
-keys are not yet wired; each present key therefore warns by name. Unsupported
-fields and wrappers remain source-preserved. The executable all-family audit is
-`src/__tests__/unknown-config-wire-or-warn.test.ts`; family tests partition
-wired and no-op fields where the renderer supports configuration.
+`state` has a typed `StateRuntimeConfig`. `nodeSpacing`, `rankSpacing`,
+`padding`, `radius`, `fontSize`, `compositTitleSize` (upstream spelling),
+`forkWidth`, `forkHeight`, `noteMargin`, and `dividerMargin` are wired to
+State-specific geometry/paint. `defaultRenderer: 'elk'` is satisfied;
+alternate renderer requests, invalid values, and legacy Dagre/fixed-metric
+calibration fields emit qualified `state.*` diagnostics. Unsupported fields
+and wrappers remain source-preserved. The executable all-family audit is
+`src/__tests__/unknown-config-wire-or-warn.test.ts`; the independent State key
+inventory and discriminating geometry probes are in `state-config.test.ts`.
 
 ## Security
 

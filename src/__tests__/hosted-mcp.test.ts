@@ -119,6 +119,17 @@ describe('hosted pure tools', () => {
     expect(dark.svg).not.toBe(first.svg)
   })
 
+  test('render tools expose source config diagnostics instead of dropping them', async () => {
+    const source = '---\nconfig:\n  state:\n    titleTopMargin: 10\n---\nstateDiagram-v2\n  A --> B'
+    for (const name of ['render_svg', 'render_ascii']) {
+      const payload = payloadOf(await handleHostedRequest(call(name, { source }), makeContext()))
+      expect(payload.ok).toBe(true)
+      expect(payload.warnings).toContainEqual(expect.objectContaining({
+        code: 'INEFFECTIVE_CONFIG', field: 'state.titleTopMargin',
+      }))
+    }
+  })
+
   test('render_svg rejects unknown themes with the theme list', async () => {
     const p = payloadOf(await handleHostedRequest(call('render_svg', { source: FLOW, theme: 'no-such-theme' }), makeContext()))
     expect(p.ok).toBe(false)

@@ -8,6 +8,7 @@ import type { DiagramColors } from './theme.ts'
 import { parseMermaid } from './parser.ts'
 import { layoutGraphSync } from './layout-engine.ts'
 import { resolveFlowchartRenderOptions, applyFlowchartLabelWrapping } from './flowchart-config.ts'
+import { resolveStateRenderOptions } from './state/config.ts'
 import { renderSvg, lowerGraphScene } from './renderer.ts'
 import type { SceneDoc } from './scene/ir.ts'
 
@@ -92,6 +93,11 @@ function layoutFlowchart(ctx: FamilyLayoutContext): FamilyLayoutResult {
   return layoutResult(layoutGraphSync(parseMermaid(ctx.source.text), ctx.options))
 }
 
+function layoutStateWithConfig(ctx: FamilyLayoutContext): FamilyLayoutResult {
+  const options = resolveStateRenderOptions(ctx.source.frontmatter, ctx.options)
+  return layoutResult(layoutGraphSync(parseMermaid(ctx.source.text), options), { options })
+}
+
 // Flowchart proper (not state) additionally wires the typed `flowchart`
 // frontmatter config section (nodeSpacing/rankSpacing/wrappingWidth —
 // explicit RenderOptions win; unwired keys are named by verify's
@@ -167,7 +173,7 @@ registerRenderHooks('flowchart', {
 })
 
 registerRenderHooks('state', {
-  layout: layoutFlowchart,
+  layout: layoutStateWithConfig,
   renderSvg: svg(renderSvg),
   lowerScene: scene(lowerGraphScene),
   renderAscii: renderFlowchartAscii,

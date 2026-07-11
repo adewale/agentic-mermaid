@@ -412,6 +412,14 @@ export interface PositionedGroup {
 
 export type TextTransform = 'uppercase' | 'lowercase' | 'capitalize'
 
+/** A deterministic warning for accepted configuration that cannot affect output. */
+export interface ConfigDiagnostic {
+  code: 'INEFFECTIVE_CONFIG'
+  /** Fully-qualified config path, for example `state.titleTopMargin`. */
+  field: string
+  message: string
+}
+
 export interface RenderOptions {
   /** Background color → CSS variable --bg. Default: '#FFFFFF' */
   bg?: string
@@ -512,6 +520,12 @@ export interface RenderOptions {
   }
   /** Optional Mermaid-style runtime config (analogous to initialize/frontmatter config). */
   mermaidConfig?: MermaidRuntimeConfig
+  /**
+   * Receives warnings for explicit config that cannot affect output. Installing
+   * a collector never changes SVG bytes. Without one, explicit ineffective
+   * config is reported through `console.warn` rather than accepted silently.
+   */
+  onConfigDiagnostic?: (diagnostic: ConfigDiagnostic) => void
   /**
    * Whether to embed the Google Fonts `@import` line in the SVG `<style>` block.
    * Default: `true` (preserves wire compatibility with all existing consumers).

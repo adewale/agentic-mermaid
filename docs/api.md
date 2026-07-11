@@ -120,6 +120,7 @@ const ascii = renderMermaidASCII(`flowchart LR
 | `interactive` | `boolean` | `false` | XY chart hover tooltips. |
 | `shadow` | `boolean` | `false` | Explicit drop shadows. |
 | `mermaidConfig` | `MermaidRuntimeConfig` | — | Runtime Mermaid config. |
+| `onConfigDiagnostic` | `(diagnostic: ConfigDiagnostic) => void` | console warning for explicit ineffective State config | Collect qualified warnings without changing SVG bytes. |
 | `embedFontImport` | `boolean` | `true` | Include Google Fonts imports for a single plain family and class/ER mono labels; set false for offline SVG. PNG disables imports internally. |
 | `compact` | `boolean` | `false` | Compact SVG output while preserving agent hooks. |
 | `idPrefix` | `string` | `''` | Namespace generated SVG def ids. |

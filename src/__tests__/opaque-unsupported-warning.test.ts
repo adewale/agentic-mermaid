@@ -7,7 +7,7 @@
 // by a more specific warning.
 
 import { describe, test, expect } from 'bun:test'
-import { parseMermaid, verifyMermaid } from '../agent/index.ts'
+import { parseMermaid, verifyMermaid, serializeMermaid, renderMermaidSVG } from '../agent/index.ts'
 import { WARNING_TIER, WARNING_SEVERITY } from '../agent/types.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 
@@ -28,6 +28,11 @@ const OPAQUE_BY_FAMILY: Record<string, string> = {
   gantt: 'gantt LR\n  Task :t1, 2026-01-01, 1d', // unmodeled header suffix
 }
 
+// These fixtures are valid Mermaid syntax that the public renderer supports;
+// the remaining fixtures deliberately exercise malformed/header-tolerance
+// preservation and therefore are not required to render as their loose family.
+const RENDERABLE_OPAQUE_FAMILIES = new Set(['class', 'state', 'er', 'xychart', 'architecture'])
+
 describe('opaque bodies announce UNSUPPORTED_SYNTAX instead of falling silent', () => {
   test('generic plus specific warning fixtures enroll every built-in family', () => {
     const covered = [...Object.keys(OPAQUE_BY_FAMILY), 'flowchart', 'quadrant'].sort()
@@ -41,6 +46,21 @@ describe('opaque bodies announce UNSUPPORTED_SYNTAX instead of falling silent', 
       expect(p.ok).toBe(true)
       if (!p.ok) return
       expect(p.value.body.kind).toBe('opaque')
+
+      // Opaque is a lossless source-preservation contract, not merely a body
+      // tag. Serialization may add the canonical terminal newline, but cannot
+      // change any authored token; reparsing must stay opaque and idempotent.
+      const canonical = serializeMermaid(p.value)
+      expect(canonical).toBe(source + '\n')
+      const reparsed = parseMermaid(canonical)
+      expect(reparsed.ok).toBe(true)
+      if (!reparsed.ok) return
+      expect(reparsed.value.body.kind).toBe('opaque')
+      expect(serializeMermaid(reparsed.value)).toBe(canonical)
+      if (RENDERABLE_OPAQUE_FAMILIES.has(family)) {
+        expect(() => renderMermaidSVG(canonical)).not.toThrow()
+      }
+
       const v = verifyMermaid(p.value)
       const unsupported = v.warnings.filter(w => w.code === 'UNSUPPORTED_SYNTAX')
       expect(unsupported.length).toBeGreaterThanOrEqual(1)

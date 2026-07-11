@@ -34,7 +34,7 @@ export interface TimelineRuntimeConfig extends MermaidConfigMap {
   sectionColours?: string[]
 }
 
-/** Mermaid stateDiagram config. All fields currently warn as ineffective. */
+/** Mermaid stateDiagram config. Faithful ELK/measured-text fields are wired; legacy fields warn. */
 export interface StateRuntimeConfig extends MermaidConfigMap {
   titleTopMargin?: number
   arrowMarkerAbsolute?: boolean
@@ -805,7 +805,7 @@ function unescapeQuotedString(valueText: string): string {
   }
 }
 
-export type RoutedDiagramType = 'flowchart' | 'architecture' | 'sequence' | 'class' | 'er' | 'timeline' | 'journey' | 'xychart' | 'pie' | 'quadrant' | 'gantt'
+export type RoutedDiagramType = 'flowchart' | 'state' | 'architecture' | 'sequence' | 'class' | 'er' | 'timeline' | 'journey' | 'xychart' | 'pie' | 'quadrant' | 'gantt'
 
 /**
  * Return the logical Mermaid lines after frontmatter/init/comment normalization.
@@ -835,7 +835,8 @@ export function detectDiagramTypeFromFirstLine(firstLine: string): RoutedDiagram
   // Upstream's parser tolerates a flowchart-style subgraph clause riding the
   // erDiagram header (repo #103); the ER parser ignores the grouping.
   if (/^erdiagram(\s+subgraph\b.*)?\s*$/.test(line)) return 'er'
-  if (/^(?:flowchart|graph|swimlane)\b/.test(line) || /^statediagram(?:-v2)?\s*$/.test(line)) return 'flowchart'
+  if (/^statediagram(?:-v2)?\s*$/.test(line)) return 'state'
+  if (/^(?:flowchart|graph|swimlane)\b/.test(line)) return 'flowchart'
   return null
 }
 
@@ -855,7 +856,8 @@ export function detectLooseDiagramTypeFromFirstLine(firstLine: string): RoutedDi
   if (/^sequencediagram\b/.test(line)) return 'sequence'
   if (/^classdiagram\b/.test(line)) return 'class'
   if (/^erdiagram\b/.test(line)) return 'er'
-  if (/^(?:flowchart|graph|swimlane)\b/.test(line) || /^statediagram(?:-v2)?\b/.test(line)) return 'flowchart'
+  if (/^statediagram(?:-v2)?\b/.test(line)) return 'state'
+  if (/^(?:flowchart|graph|swimlane)\b/.test(line)) return 'flowchart'
   return null
 }
 

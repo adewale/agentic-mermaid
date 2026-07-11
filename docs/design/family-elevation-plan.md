@@ -221,28 +221,29 @@ the specification and provenance record.
 | A4 | 1/3 | partial | Core typed services/groups/edges ship; junction, group-label, boundary-edge, accessibility, and in-place edge edits remain. |
 | A5 | 4 | partial | A fallback badge exists; broader bundled packs and deterministic offline Iconify resolution remain. |
 | A6 | 4 | not-started | Spatial Architecture ASCII remains an outline plus edge list. |
-| X1 | 0 | done | All-family canonical examples, corpus faithfulness, and family conformance suites: `cli-capabilities.test.ts`, `agent-mermaid-corpus.test.ts`. |
+| X1 | 0 | done | Thirty generated structured diagrams per family serialize, re-enter both agent and renderer parsers, preserve semantic inventories, and serialize idempotently: `property-all-families-fuzz.test.ts`; canonical discovery and corpus guards remain in `cli-capabilities.test.ts`, `agent-mermaid-corpus.test.ts`. |
 | X2 | 2 | partial | Shared Unicode width primitives ship; complete adoption and per-surface adversarial proof remain. |
 | X3 | 4 | not-started | `--target-width`, auto-fit, multiline policy, and impossible-width diagnostics are not yet implemented. |
 | X4 | 4 | partial | Several families expose semantic SVG attributes; the documented all-family contract and enrollment proof remain. |
 | X5 | 0/2 | partial | Generic `idPrefix` rewriting ships, but an all-family marker, filter, clip-path, and ARIA collision matrix remains. |
 | X6 | 3/4 | partial | Titles, descriptions, and WCAG checks ship broadly; typed edge semantics and an all-palette contract remain. |
-| X7 | 0 | done | All 12 families now have typed config sections or explicit no-op classification: `unknown-config-wire-or-warn.test.ts`, `state-config.test.ts`. |
+| X7 | 0 | done | All 12 families have typed config sections and wire-or-warn classification; State wires ten faithful ELK/measured-text fields and qualifies legacy/invalid/unknown diagnostics: `unknown-config-wire-or-warn.test.ts`, `state-config.test.ts`. |
 | X8 | 4 | not-started | Mindmap and GitGraph still need upstream harvest and full citizenship implementation. |
 <!-- family-elevation-ledger:end -->
 
 ### Remaining completion packages
 
-This is the execution-ready backlog implied by the item ledger and the family
-boundary documents. It prevents “substantially complete” from hiding a missing
-acceptance decision. A package closes only when its linked ledger rows become
-`done` under the Definition of Done.
+This is the mechanically checked acceptance decomposition for the root
+`TODO.md` umbrella `FAM-ELEVATION-RESIDUAL`, not a second owner-priority list.
+It prevents “substantially complete” from hiding a missing acceptance decision.
+A package closes only when its linked ledger rows become `done` under the
+Definition of Done.
 
 <!-- family-elevation-backlog:start -->
 | ID | Phase | Status | Evidence or exact remainder |
 |---|---|---|---|
-| B01 | 0 | done | Mechanical IDs, statuses, and duplicate/omission checks: `family-elevation-ledger.test.ts`. |
-| B02 | 0 | done | Conformance enrollment, opaque diagnostics, State config honesty, CLI flag ownership, and scene fidelity: `cli-capabilities.test.ts`, `opaque-unsupported-warning.test.ts`, `state-config.test.ts`. |
+| B01 | 0 | done | Mechanical IDs, statuses, duplicate/omission checks, and ordinal work-plan correspondence: `family-elevation-ledger.test.ts`. |
+| B02 | 0 | done | Generated all-family serializer→renderer-parser properties, lossless opaque reparse/render probes, State config geometry, CLI flag ownership, and scene fidelity: `property-all-families-fuzz.test.ts`, `opaque-unsupported-warning.test.ts`, `state-config.test.ts`. |
 | B03 | 1/4 | partial | Finish Architecture side-constrained obstacle routing and route certificates; remainder is tracked by `A1`. |
 | B04 | 1/3 | partial | Finish Architecture junction, group-label, boundary-edge, accessibility, and edge mutation; remainder is tracked by `A4`. |
 | B05 | 2/4 | partial | Finish terminal geometry for State notes/regions, Class namespaces, ER clearance proof, and spatial Architecture; remainder spans `S4`, `CL6`, `ER5`, `A6`. |
@@ -430,33 +431,34 @@ Format: `[Fix|Feature(parity)|Feature(beyond)] [V|S] Title — construction move
 
 Phase 0 is complete under its original honesty-only boundary:
 
-- **X1 conformance:** every built-in discovery example must parse to its own
-  structured body, serialize, re-parse to the same family, preserve semantic
-  facts, serialize idempotently, verify without warnings, and render through
-  the public SVG path (`cli-capabilities.test.ts`). The larger docs corpus adds
-  all-family structural-count conservation and round-trip floors
-  (`agent-mermaid-corpus.test.ts`); family-specific property suites remain the
-  deeper discriminating layer.
+- **X1 conformance:** the shared all-family property registry generates 30
+  structured diagrams per family. Each must serialize, re-enter both the agent
+  parser and that family's real renderer parser/layout hook, preserve renderer
+  nodes/edges/groups plus agent facts, serialize idempotently, and render valid
+  SVG (`property-all-families-fuzz.test.ts`). Canonical discovery and corpus
+  conservation remain additional enrollment guards (`cli-capabilities.test.ts`,
+  `agent-mermaid-corpus.test.ts`).
 - **Opaque honesty:** every family capable of whole-body fallback is enrolled
-  in `opaque-unsupported-warning.test.ts`; Flowchart and Quadrant retain their
-  more specific reasons. A broad `<family>_opaque` warning is sufficient for
-  Phase 0 because it is lossless, names the unavailable typed surface, and
-  directs the caller to source editing. Replacing it with construct-specific
-  modeling belongs to later parity packages.
-- **X7 config:** State was the last missing family section. Its documented
-  Mermaid keys are now typed and all warn by name because none is wired;
-  unknown `state.*` keys use the same typo diagnostic as the other eleven
-  families (`state-config.test.ts`, `unknown-config-wire-or-warn.test.ts`).
+  in `opaque-unsupported-warning.test.ts`; each fixture now proves canonical
+  source preservation, opaque reparse, and idempotent serialization, while
+  valid unsupported fixtures also render through the public SVG path.
+  Flowchart and Quadrant retain their more specific reasons.
+- **X7 config:** State was the last missing family section. Ten fields with
+  faithful ELK/measured-text equivalents now have discriminating geometry
+  probes; nine legacy Dagre/fixed-metric fields, unsupported renderer values,
+  invalid values, and unknown `state.*` keys emit qualified diagnostics.
+  Explicit library config uses the same classifier and cannot disappear
+  silently (`state-config.test.ts`, `unknown-config-wire-or-warn.test.ts`).
 - **CLI and fidelity guards:** unknown or command-inapplicable flags fail with
   exit 2 (`cli-gantt-today-flag.test.ts`, `cli-flags-help-sync.test.ts`), and
   Scene-IR text fidelity checks content plus x/y/anchor
   (`scene-text-fidelity.test.ts`).
 
-The State config test was demonstrated red→green: before the classifier,
-`state.madeUpKey` disappeared and `src/state/config.ts` did not exist (two
-focused failures); both pass after the shared wire-or-warn extraction. The
-ledger test was also red before the marker blocks existed and now prevents any
-of the 72 original items or 18 completion packages from disappearing.
+The State config test preserves the original two red→green warning failures
+and now adds field-specific geometry/diagnostic probes that fail if a mapping
+is removed. The ledger gate checks all 72 ordinal work-plan items against their
+stable IDs and derives Phase 0 status from named executable acceptance probes;
+it does not treat filename existence or the word “Complete” as proof.
 
 ### Phase status after PR #142
 

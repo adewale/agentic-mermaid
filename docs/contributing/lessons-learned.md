@@ -10,6 +10,12 @@ date; do not delete old ones — supersede them in place.
 
 ## 2026-07 — the all-family elevation PR (#142)
 
+**A family-specific hook is not wired until routing can select it.** State had a registered family hook, but shared source detection still classified `stateDiagram-v2` as Flowchart, so State-only configuration could never reach it. Rule: test detector → family registry → layout hook → geometry as one path; unit-testing the resolver alone is insufficient.
+
+**Conformance compares semantics across parsers, not incidental declaration-order geometry.** The all-family property initially required byte-identical layout before and after canonical serialization. Architecture correctly canonicalizes declaration order, so equivalent structure can move without semantic drift. Rule: agent facts and renderer nodes/edges/groups must remain equal; geometry determinism is asserted separately for each canonical input.
+
+**Partition config into wired, legacy, and value-sensitive fields.** Pretending legacy Dagre calibration has an ELK/measured-text equivalent is as dishonest as silently ignoring it. Rule: wire only faithful mappings with field-specific geometry probes; qualify warnings for legacy, invalid, unknown, and unavailable-renderer requests; test explicit options, source wrappers, and hosted envelopes.
+
 **Make exhaustive ledgers executable.** The plan said config honesty covered the
 family set, but its hard-coded matrix omitted State and `state.*` keys vanished
 silently. Rule: assign stable IDs to every plan item, restrict status to a small

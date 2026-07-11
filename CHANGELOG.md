@@ -5,17 +5,17 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 ## Unreleased
 
 ### Added
-- Elevated all twelve diagram families to a common agent-native quality contract: 132 typed mutation operations, deterministic family layout rubrics/certificates, expanded semantic facts, configuration wire-or-warn coverage, and parser/serializer conformance gates.
+- Applied a broad shared agent-native quality baseline across all twelve existing families: 132 typed mutation operations, deterministic family layout rubrics/certificates, expanded semantic facts, configuration wire-or-warn coverage, and parser/serializer conformance gates. The family-elevation ledger still names incomplete geometry, terminal, identity, and new-family packages.
 - Added Flowchart v11 shape metadata and edge IDs; State notes/pseudostates/history; Sequence box/autonumber/create/destroy/standalone activation behavior; Class namespaces and generic parameters; ER bare entities; vertical Timeline layout; Gantt dependency/critical-path overlays; XYChart legends and explicit orientation mutation; Pie wedge labels/donut/legend controls; Quadrant accessibility/style functions; and visible Architecture titles with deterministic row/column alignment constraints.
 - Added measured bold/italic Flowchart markdown rendering and support for a bare `flowchart` header, which defaults to top-down layout while remaining source-preserved at the typed-edit boundary.
-- Added a mechanically checked family-elevation ledger: all 72 original items and 18 completion packages have stable IDs, constrained statuses, and evidence or exact remainders; CI rejects missing, duplicate, or evidence-less rows.
-- Completed the Phase 0 honesty contract with all-family canonical serializer/render conformance enrollment, registry-complete opaque diagnostics, and a typed `StateRuntimeConfig` whose currently unwired fields warn by name.
+- Added a mechanically checked family-elevation ledger: all 72 original items and 18 completion packages have stable IDs, constrained statuses, ordinal work-plan correspondence, and evidence or exact remainders; Phase 0 status is derived from named executable acceptance probes.
+- Completed the Phase 0 honesty contract with generated serializer→agent/renderer-parser properties for every family, registry-complete lossless opaque diagnostics, and a typed `StateRuntimeConfig` that wires ten faithful fields while warning on legacy, invalid, unknown, or unavailable-renderer requests.
 
 ### Changed
 - Gantt calendar spans use the documented `(start, end]` exclusion boundary model and excluded-day shading is enabled by default; today markers remain caller-clocked.
 - Known command-inapplicable CLI flags and value-taking flags without values now exit 2 instead of being accepted as silent no-ops.
 - PNG coverage warnings now flow through local and hosted MCP renders; system-font mode reports qualified bundled-font uncertainty rather than suppressing it.
-- Unknown `state.*` config keys and documented-but-unwired State config fields now emit `INEFFECTIVE_CONFIG` instead of disappearing silently; config-honesty and opaque-warning matrices must exactly match the built-in family registry.
+- State `nodeSpacing`, `rankSpacing`, node padding/radius/font size, composite-title size, fork dimensions, note margin, and divider margin now affect rendering. Legacy or invalid `state.*` values and unsupported renderer selections emit qualified `INEFFECTIVE_CONFIG` diagnostics through source verification and explicit render callbacks.
 
 ### Fixed
 - Rejected source-controlled Pie colors that could escape SVG attributes or styles; hardened cross-format color contrast and XML sinks.

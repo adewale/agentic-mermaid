@@ -489,7 +489,7 @@ There is no `LayoutContext`, no `SeededRNG`, no `Clock`, no font-metric table in
 - **IDs are content-hashed and stable** across runs (within an ELK version).
 - **`MermaidGraph` is kept** as an exported type — `ValidDiagram` wraps it in `body.graph` for flowchart, rather than replacing it. The original spec called for removal; the implementation showed it would break 61 test files and the Craft Agents consumer. The wrapping shape costs nothing.
 - **`renderMermaidSVGAsync` is kept**. Removing it was a v1-aspiration that turned out to break consumers for no win at the agent surface.
-- **`mermaidConfig` precedence** (frontmatter < init < render options) is enforced by tests via a single merge function — unchanged from the existing pipeline.
+- **`mermaidConfig` precedence** is source frontmatter < init < explicit render options for supported family fields. Normalization merges source wrappers; family resolvers then reapply the original explicit section last. State has direct public-path precedence and geometry probes in `state-config.test.ts`.
 
 ---
 

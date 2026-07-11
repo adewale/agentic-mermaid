@@ -20,9 +20,9 @@ type MermaidRuntimeConfig = {
   timeline?: { [key: string]: MermaidConfigValue | undefined; disableMulticolor?: boolean; sectionFills?: string[]; sectionColours?: string[] }
   journey?: { [key: string]: MermaidConfigValue | undefined; diagramMarginX?: number; diagramMarginY?: number; leftMargin?: number; maxLabelWidth?: number; taskMargin?: number; actorColours?: string[]; sectionFills?: string[]; sectionColours?: string[]; useMaxWidth?: boolean }
   flowchart?: { [key: string]: MermaidConfigValue | undefined; nodeSpacing?: number; rankSpacing?: number; wrappingWidth?: number }
-  // State keys are typed for compatibility but currently all emit
-  // INEFFECTIVE_CONFIG rather than silently disappearing.
-  state?: { [key: string]: MermaidConfigValue | undefined; nodeSpacing?: number; rankSpacing?: number; noteMargin?: number; forkWidth?: number; forkHeight?: number; radius?: number; defaultRenderer?: 'dagre-d3' | 'dagre-wrapper' | 'elk' }
+  // State geometry consumes the faithful ELK/measured-text equivalents;
+  // legacy Dagre calibration keys remain typed and emit INEFFECTIVE_CONFIG.
+  state?: { [key: string]: MermaidConfigValue | undefined; titleTopMargin?: number; arrowMarkerAbsolute?: boolean; dividerMargin?: number; sizeUnit?: number; padding?: number; textHeight?: number; titleShift?: number; noteMargin?: number; nodeSpacing?: number; rankSpacing?: number; forkWidth?: number; forkHeight?: number; miniPadding?: number; fontSizeFactor?: number; fontSize?: number; labelHeight?: number; edgeLengthFactor?: string; compositTitleSize?: number; radius?: number; defaultRenderer?: 'dagre-d3' | 'dagre-wrapper' | 'elk' }
   class?: { [key: string]: MermaidConfigValue | undefined; nodeSpacing?: number; rankSpacing?: number }
   er?: { [key: string]: MermaidConfigValue | undefined; layoutDirection?: string; nodeSpacing?: number; rankSpacing?: number }
   architecture?: { [key: string]: MermaidConfigValue | undefined; padding?: number; iconSize?: number; fontSize?: number; nodeSeparation?: number; idealEdgeLengthMultiplier?: number }
@@ -426,7 +426,7 @@ declare const mermaid: {
   checkMermaid(d: ValidDiagram, spec: CheckMermaidSpec): CheckMermaidResult
   checkMermaidSource(source: string, spec: CheckMermaidSpec): Result<CheckMermaidResult, { code: string; message: string }[]>
   serializeMermaid(d: ValidDiagram): string
-  renderMermaidSVG(input: ValidDiagram | string, opts?: { security?: 'default' | 'strict'; idPrefix?: string; ganttToday?: string; mermaidConfig?: MermaidRuntimeConfig; style?: StyleInput | StyleInput[]; seed?: number }): string
+  renderMermaidSVG(input: ValidDiagram | string, opts?: { security?: 'default' | 'strict'; idPrefix?: string; ganttToday?: string; mermaidConfig?: MermaidRuntimeConfig; style?: StyleInput | StyleInput[]; seed?: number; onConfigDiagnostic?: (diagnostic: { code: 'INEFFECTIVE_CONFIG'; field: string; message: string }) => void }): string
   renderMermaidASCII(input: ValidDiagram | string, opts?: { useAscii?: boolean; ganttToday?: string; mermaidConfig?: MermaidRuntimeConfig }): string
   // Op discovery — look up exact op shapes at runtime instead of guessing.
   // describeOps returns every op's field names, required-ness, inlined enum

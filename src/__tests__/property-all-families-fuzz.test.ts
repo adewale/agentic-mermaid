@@ -18,7 +18,10 @@
 
 import { describe, test, expect } from 'bun:test'
 import fc from 'fast-check'
-import { parseMermaid, layoutMermaid, renderMermaidSVG } from '../agent/index.ts'
+import {
+  parseMermaid, layoutMermaid, renderMermaidSVG, serializeMermaid,
+  describeMermaidFacts,
+} from '../agent/index.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { auditRouteContracts } from '../route-contracts.ts'
 import { auditRenderedRoutes } from '../agent/rendered-route-audit.ts'
@@ -57,6 +60,16 @@ function assertWellFormedSvg(svg: string): void {
   expect(svg.includes('NaN') || svg.includes('Infinity') || svg.includes('undefined')).toBe(false)
 }
 
+function rendererSemanticProjection(layout: RenderedLayout): unknown {
+  const sortJson = <T>(values: T[]): T[] => values.sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)))
+  return {
+    kind: layout.kind,
+    nodes: sortJson(layout.nodes.map(({ id, shape, label, role }) => ({ id, shape, label, role }))),
+    edges: sortJson(layout.edges.map(({ from, to, label }) => ({ from, to, label: label?.text }))),
+    groups: sortJson(layout.groups.map(({ id, members, label, parentId }) => ({ id, members: [...members].sort(), label, parentId }))),
+  }
+}
+
 describe('universal fuzz: every renderable family (strong output oracles)', () => {
   // A new family in the central registry must declare a fuzz generator, or this
   // fails — which is what "new diagram types automatically get fuzzing" means:
@@ -79,6 +92,36 @@ describe('universal fuzz: every renderable family (strong output oracles)', () =
       if (extra === 'primary' && fam.addPrimary) s += fam.addPrimary.snippet(k, tag)
       if (extra === 'relation' && fam.addRelation) s += fam.addRelation(k, tag)
       return s
+    })
+
+    test(`${fam.family}: serializer output reparses through the agent and renderer without semantic drift`, () => {
+      fc.assert(
+        fc.property(srcArb, src => {
+          const original = parseMermaid(src)
+          expect(original.ok).toBe(true)
+          if (!original.ok) return
+          expect(original.value.body.kind).not.toBe('opaque')
+
+          const canonical = serializeMermaid(original.value)
+          const reparsed = parseMermaid(canonical)
+          expect(reparsed.ok).toBe(true)
+          if (!reparsed.ok) return
+          expect(reparsed.value.body.kind).toBe(original.value.body.kind)
+          expect(serializeMermaid(reparsed.value)).toBe(canonical)
+          expect(describeMermaidFacts(reparsed.value)).toEqual(describeMermaidFacts(original.value))
+
+          // layoutMermaid and renderMermaidSVG invoke each family's actual
+          // renderer parser/layout hook. Compare its semantic inventory rather
+          // than coordinates: canonical declaration order may intentionally
+          // change deterministic geometry (notably architecture), but may not
+          // add/drop/retarget renderer nodes, edges, groups, labels, or roles.
+          expect(rendererSemanticProjection(layoutMermaid(reparsed.value))).toEqual(
+            rendererSemanticProjection(layoutMermaid(original.value)),
+          )
+          assertWellFormedSvg(renderMermaidSVG(canonical))
+        }),
+        { numRuns: 30, seed: SEED ^ 0x51a1 },
+      )
     })
 
     test(`${fam.family}: fuzzed diagrams are finite, well-formed, deterministic, route-clean`, () => {

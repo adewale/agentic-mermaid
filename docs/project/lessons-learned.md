@@ -1111,6 +1111,10 @@ running the ordinary family corpus caught integration drift that family-local te
 could not. When a PR's claim says “all families,” at least one executable gate must
 quantify over all families rather than infer coverage from twelve separate anecdotes.
 
+**Registration is not reachability.** The follow-up audit found a deeper reason explicit State config was byte-inert: `stateDiagram-v2` still routed through the Flowchart family even though a State hook was registered. The resolver worked in isolation and could still be unreachable in production. The repair gave State its own routed family ID and preserved default bytes before wiring ten faithful fields. This is a reusable integration lesson: a feature is wired only when the public detector selects the registry entry, the registry invokes its hook, and a field-specific output invariant changes.
+
+**Serializer conformance must cross the renderer boundary.** Canonical discovery fixtures were enrollment, not the property P3 promised. The completed gate generates thirty structured diagrams per family, serializes and reparses them through both agent and real renderer layout paths, compares agent facts plus renderer node/edge/group inventories, asserts idempotence, and renders SVG. It deliberately compares semantic inventories rather than coordinates: Architecture's canonical declaration ordering may move equivalent elements, while geometry determinism remains a separate per-input invariant. This distinction made the property strong without forbidding legitimate canonicalization.
+
 **A prose ledger cannot prove its own completeness.** The first post-audit phase
 summary said config honesty covered the family set, while the hard-coded unknown-key
 matrix contained eleven entries and silently omitted State. A direct probe confirmed

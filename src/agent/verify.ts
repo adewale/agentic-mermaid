@@ -34,7 +34,7 @@ import { QUADRANT_NOOP_CONFIG_FIELDS } from '../quadrant/config.ts'
 import { architectureIneffectiveConfigFields } from '../architecture/config.ts'
 import { flowchartIneffectiveConfigFields } from '../flowchart-config.ts'
 import { sequenceIneffectiveConfigFields } from '../sequence/config.ts'
-import { STATE_CONFIG_FIELDS, stateIneffectiveConfigFields } from '../state/config.ts'
+import { STATE_CONFIG_FIELDS, stateConfigDiagnostics } from '../state/config.ts'
 import { parseGanttModel, applyGanttFrontmatterConfig } from '../gantt/parser.ts'
 import { parseTodayMarkerStyle, GANTT_TODAY_MARKER_STYLE_PROPS } from '../gantt/today-marker.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
@@ -316,19 +316,15 @@ function flowchartIneffectiveConfigWarnings(d: ValidDiagram): LayoutWarning[] {
   }))
 }
 
-// State has a typed Mermaid config section, but no State-specific keys are
-// wired yet. Name every documented field per P4 rather than inheriting the
-// flowchart section or accepting it silently.
+// State geometry consumes the wired manifest in src/state/config.ts. Legacy,
+// invalid, and unavailable-renderer values remain explicit wire-or-warn
+// diagnostics with fully-qualified paths.
 function stateIneffectiveConfigWarnings(d: ValidDiagram): LayoutWarning[] {
   const configs: unknown[] = [
     (d.meta.frontmatter as Record<string, unknown> | undefined)?.state,
     ...d.meta.initDirectives.map(directive => (directive.parsed as Record<string, unknown> | undefined)?.state),
   ]
-  return stateIneffectiveConfigFields(configs).map(field => ({
-    code: 'INEFFECTIVE_CONFIG',
-    field,
-    message: `State config field "${field}" is accepted for Mermaid config-shape compatibility but has no effect on state geometry or paint.`,
-  }))
+  return stateConfigDiagnostics(configs).map(diagnostic => ({ ...diagnostic }))
 }
 
 // Sequence wires actorMargin/width/height/diagramMarginX/Y/messageMargin/

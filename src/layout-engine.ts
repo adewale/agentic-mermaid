@@ -37,6 +37,7 @@ import type {
 import { ARROW_HEAD, FLOWCHART_DOTTED_DASH, applyTextTransform, resolveRenderStyle } from './styles.ts'
 import type { ResolvedRenderStyle } from './styles.ts'
 import type { InternalStyleFace } from './scene/style-registry.ts'
+import type { ResolvedStateVisualConfig, StateRenderOptions } from './state/config.ts'
 import { measureMultilineText } from './text-metrics.ts'
 import { elkLayoutSync } from './elk-instance.ts'
 import { clipEdgeToShape } from './shape-clipping.ts'
@@ -96,7 +97,7 @@ interface LayoutEngineOptions extends RenderOptions {
 }
 
 type ElkConversionOptions = Required<Pick<RenderOptions, 'font' | 'padding' | 'nodeSpacing' | 'layerSpacing'>> &
-  Pick<LayoutEngineOptions, 'preserveSubgraphChildOrder'>
+  Pick<LayoutEngineOptions, 'preserveSubgraphChildOrder'> & { stateVisual?: ResolvedStateVisualConfig }
 
 // ============================================================================
 // Layout options
@@ -182,7 +183,7 @@ function sourceAwareNodeOrder(nodeIds: string[], edges: Array<Pick<MermaidEdge, 
 // Node sizing (same logic as Dagre adapter)
 // ============================================================================
 
-function estimateNodeSize(id: string, label: string, shape: string, style: ResolvedRenderStyle, direction: Direction = 'TB'): { width: number; height: number } {
+function estimateNodeSize(id: string, label: string, shape: string, style: ResolvedRenderStyle, direction: Direction = 'TB', stateVisual?: ResolvedStateVisualConfig): { width: number; height: number } {
   void id
   const metrics = measureMultilineText(applyTextTransform(label, style.nodeTextTransform), style.nodeLabelFontSize, style.nodeLabelFontWeight)
 
@@ -191,7 +192,9 @@ function estimateNodeSize(id: string, label: string, shape: string, style: Resol
   // choice is a small unlabeled diamond; history is a small (H) circle.
   if (shape === 'state-fork' || shape === 'state-join') {
     const horizontalFlow = direction === 'LR' || direction === 'RL'
-    return horizontalFlow ? { width: 10, height: 70 } : { width: 70, height: 10 }
+    const length = stateVisual?.forkWidth ?? 70
+    const thickness = stateVisual?.forkHeight ?? 10
+    return horizontalFlow ? { width: thickness, height: length } : { width: length, height: thickness }
   }
   if (shape === 'state-choice') {
     return { width: 36, height: 36 }
@@ -630,7 +633,7 @@ function mermaidToElk(
     }
     const node = graph.nodes.get(id)
     if (node && !subgraphNodeIds.has(id) && !subgraphIds.has(id)) {
-      elkGraph.children!.push(nodeToElkLeaf(id, node, style, routePortHints, graph.direction))
+      elkGraph.children!.push(nodeToElkLeaf(id, node, style, routePortHints, graph.direction, opts.stateVisual))
     }
   }
 
@@ -863,8 +866,8 @@ function elkPortSide(side: 'N' | 'E' | 'S' | 'W'): 'NORTH' | 'EAST' | 'SOUTH' | 
   }
 }
 
-function nodeToElkLeaf(id: string, node: MermaidNode, style: ResolvedRenderStyle, hints: RoutePortHints, direction: Direction = 'TB'): ElkGraphNode {
-  const size = estimateNodeSize(id, node.label, node.shape, style, direction)
+function nodeToElkLeaf(id: string, node: MermaidNode, style: ResolvedRenderStyle, hints: RoutePortHints, direction: Direction = 'TB', stateVisual?: ResolvedStateVisualConfig): ElkGraphNode {
+  const size = estimateNodeSize(id, node.label, node.shape, style, direction, stateVisual)
   const elkNode: ElkGraphNode = {
     id,
     width: size.width,
@@ -928,7 +931,7 @@ function crossHierarchyElkEdge(
 function subgraphToElk(
   sg: MermaidSubgraph,
   graph: MermaidGraph,
-  opts: Required<Pick<RenderOptions, 'font' | 'padding' | 'nodeSpacing' | 'layerSpacing'>>,
+  opts: ElkConversionOptions,
   style: ResolvedRenderStyle,
   edgesBySubgraph: Map<string | null, Array<{ index: number; edge: MermaidEdge }>>,
   subgraphPorts: Map<string, Array<{
@@ -946,12 +949,13 @@ function subgraphToElk(
   // Concurrency regions draw no header band of their own, so they reserve
   // only the plain padding at the top (plan §State 2c).
   const groupHeaderHeight = sg.concurrencyRegion ? 0 : style.groupHeaderFontSize + 16
+  const dividerMargin = sg.concurrencyRegion ? (opts.stateVisual?.dividerMargin ?? 0) : 0
   // Effective direction of THIS scope — drives direction-dependent node
   // sizing (fork/join bars) for direct children.
   const effectiveDirection = sg.direction ?? inheritedDirection
   const layoutOptions: LayoutOptions = {
     'elk.algorithm': 'layered',
-    'elk.padding': `[top=${groupHeaderHeight + style.groupPaddingY},left=${style.groupPaddingX},bottom=${style.groupPaddingY},right=${style.groupPaddingX}]`,
+    'elk.padding': `[top=${groupHeaderHeight + style.groupPaddingY + dividerMargin},left=${style.groupPaddingX + dividerMargin},bottom=${style.groupPaddingY + dividerMargin},right=${style.groupPaddingX + dividerMargin}]`,
     'elk.edgeRouting': 'ORTHOGONAL',
     'elk.contentAlignment': 'H_CENTER V_CENTER',
     'elk.spacing.edgeEdge': '12',
@@ -992,7 +996,7 @@ function subgraphToElk(
   for (const nodeId of childNodeOrder) {
     const node = graph.nodes.get(nodeId)
     if (node) {
-      elkNode.children!.push(nodeToElkLeaf(nodeId, node, style, routePortHints, effectiveDirection))
+      elkNode.children!.push(nodeToElkLeaf(nodeId, node, style, routePortHints, effectiveDirection, opts.stateVisual))
     }
   }
 
@@ -1201,6 +1205,7 @@ export interface LayoutPassContext extends PassContextBase {
   readonly mergeEdges: boolean
   readonly style: ResolvedRenderStyle
   readonly layoutPadding: number
+  readonly stateNoteMargin: number
   frozen: boolean
 }
 
@@ -1362,7 +1367,7 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     id: 'placeStateNotes', doc: 'place state-diagram note boxes on their declared side, clear of nodes/groups/routes (state diagrams only; translate-only)',
     after: ['translateGeometryToNonNegativeOrigin'], mutates: ['translate'], determinism: 'in-place',
     enabled: c => Boolean(c.graph.stateNotes?.length),
-    run: c => { c.notes = placeStateNotes(c.nodes, c.edges, c.groups, c.graph, c.style, c.layoutPadding) },
+    run: c => { c.notes = placeStateNotes(c.nodes, c.edges, c.groups, c.graph, c.style, c.layoutPadding, c.stateNoteMargin) },
   },
 ]
 
@@ -1370,7 +1375,6 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
 // State-diagram note placement (plan §State 1)
 // ============================================================================
 
-const NOTE_GAP = 18
 const NOTE_CLEARANCE = 6
 const NOTE_PADDING_X = 10
 const NOTE_PADDING_Y = 8
@@ -1394,6 +1398,7 @@ function placeStateNotes(
   graph: MermaidGraph,
   style: ResolvedRenderStyle,
   layoutPadding: number,
+  noteGap: number,
 ): PositionedStateNote[] {
   const specs = graph.stateNotes ?? []
   if (specs.length === 0) return []
@@ -1437,10 +1442,10 @@ function placeStateNotes(
     const w = metrics.width + NOTE_PADDING_X * 2
     const h = metrics.height + NOTE_PADDING_Y * 2
     const y = anchor.y + (anchor.height - h) / 2
-    let x = spec.side === 'left' ? anchor.x - NOTE_GAP - w : anchor.x + anchor.width + NOTE_GAP
+    let x = spec.side === 'left' ? anchor.x - noteGap - w : anchor.x + anchor.width + noteGap
 
     // Push outward past obstacles (monotone, hence terminating). The anchor's
-    // own box lies behind the starting position by construction (NOTE_GAP >
+    // own box lies behind the starting position by construction (noteGap >
     // NOTE_CLEARANCE), so it never registers as a hit.
     for (let guard = 0; guard < obstacles.length + placed.length + 4; guard++) {
       const box: NoteObstacle = { x: x - NOTE_CLEARANCE, y: y - NOTE_CLEARANCE, w: w + NOTE_CLEARANCE * 2, h: h + NOTE_CLEARANCE * 2 }
@@ -1480,6 +1485,7 @@ function elkToPositioned(
   mergeEdges: boolean = false,
   layoutPadding: number = DEFAULTS.padding,
   style: ResolvedRenderStyle = resolveRenderStyle({}),
+  stateNoteMargin: number = 18,
 ): PositionedGraph {
   const nodes: PositionedNode[] = []
   const edges: PositionedEdge[] = []
@@ -1519,6 +1525,7 @@ function elkToPositioned(
     mergeEdges,
     style,
     layoutPadding,
+    stateNoteMargin,
     frozen: false,
   }
   runPipeline(ctx, LAYOUT_PIPELINE)
@@ -1654,7 +1661,8 @@ export function layoutGraphSync(
   options: LayoutEngineOptions = {}
 ): PositionedGraph {
   const opts = { ...DEFAULTS, ...options }
-  const style = resolveRenderStyle(options)
+  const stateVisual = (options as StateRenderOptions).stateVisual
+  const style = resolveRenderStyle(options, stateVisual?.styleDefaults)
   const elkGraph = mermaidToElk(graph, opts, style)
   // ELK's bundled (GWT-compiled) code can throw internal exceptions on rare
   // dense multigraphs — observed with feedbackEdges routing, and pre-existing
@@ -1687,7 +1695,7 @@ export function layoutGraphSync(
     }
   }
   if (!result) throw lastError
-  const positioned = elkToPositioned(result, graph, DEFAULTS.mergeEdges, opts.padding, style)
+  const positioned = elkToPositioned(result, graph, DEFAULTS.mergeEdges, opts.padding, style, stateVisual?.noteMargin ?? 18)
 
   // Co-rank certify-or-fallback (the robustness-doc doctrine). The co-rank
   // balancing labels re-rank a mixed-label fan-in's sources; on rare graphs
@@ -1727,6 +1735,7 @@ export function convertToElkFormat(
   options: LayoutEngineOptions = {}
 ): ElkNode {
   const opts = { ...DEFAULTS, ...options }
-  const style = resolveRenderStyle(options)
+  const stateVisual = (options as StateRenderOptions).stateVisual
+  const style = resolveRenderStyle(options, stateVisual?.styleDefaults)
   return mermaidToElk(graph, opts, style)
 }

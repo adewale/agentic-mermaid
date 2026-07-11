@@ -25,13 +25,15 @@ Pipeline:
 
 ## Runtime config honesty
 
-`state` now has a typed `StateRuntimeConfig` covering Mermaid's documented
-stateDiagram section. No State-specific field is currently wired into this
-renderer, so every present documented field emits `INEFFECTIVE_CONFIG`; unknown
-keys emit the same warning with a spelling/removal hint. Frontmatter and
-`%%{init}%%` share the classifier in `src/state/config.ts`, and
-`state-config.test.ts` plus the registry-complete all-family config matrix keep
-State from silently falling out of the Phase 0 contract again.
+`state` has a typed `StateRuntimeConfig` covering Mermaid's documented
+stateDiagram section. Ten fields have faithful equivalents and are wired:
+node/rank spacing, node padding/radius/font size, composite-title size,
+fork width/thickness, note margin, and concurrency-divider margin. Legacy
+Dagre/fixed-metric fields, invalid values, unknown keys, and unavailable
+renderer selections emit qualified `INEFFECTIVE_CONFIG` diagnostics.
+Frontmatter, `%%{init}%%`, explicit `RenderOptions.mermaidConfig.state`, and
+hosted render tools share the classifier in `src/state/config.ts`;
+`state-config.test.ts` pins every field and its discriminating geometry.
 
 ## Input model
 

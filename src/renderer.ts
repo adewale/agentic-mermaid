@@ -9,6 +9,7 @@ import { resolveInlineNodeTextColor } from './color-resolver.ts'
 import type { Geometry, MarkerRef, SceneDoc, SceneNode, SemanticChannels } from './scene/ir.ts'
 import * as marks from './scene/marks.ts'
 import { DefaultBackend } from './scene/backend.ts'
+import type { StateRenderOptions } from './state/config.ts'
 
 // ============================================================================
 // SVG renderer — converts a PositionedGraph into an SVG string.
@@ -67,7 +68,8 @@ export function lowerGraphScene(
   const font = colors.font ?? 'Inter'
   const transparent = options.transparent ?? false
   const parts: SceneNode[] = []
-  const style = resolveRenderStyle(options)
+  const stateVisual = (options as StateRenderOptions).stateVisual
+  const style = resolveRenderStyle(options, stateVisual?.styleDefaults)
 
   // SVG root with CSS variables + style block + defs
   parts.push(marks.prelude(

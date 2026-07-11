@@ -1,7 +1,8 @@
 # Project Backlog
 
-`TODO.md` is the only active backlog. No other root doc may carry unchecked
-project TODOs. Docs map: `docs/features.md` = current capabilities;
+`TODO.md` is the canonical root backlog. Design plans may carry a subordinate,
+mechanically checked execution ledger only when one explicit umbrella item
+below links it and this file remains the owner-facing priority surface. Docs map: `docs/features.md` = current capabilities;
 `docs/project/divergences.md` = implementation history;
 `docs/project/lessons-learned.md` = cumulative fork narrative (loops 1–22);
 `docs/contributing/lessons-learned.md` = dated contributor process lessons;
@@ -21,6 +22,7 @@ dependents after. IDs are stable names, not an ordering.
 
 ## 0. Release / owner decisions
 
+- [ ] **FAM-ELEVATION-RESIDUAL — Finish the family-elevation completion packages** (`todo`). The authoritative item statuses and exact remainders are the mechanically checked B03–B18 rows in `docs/design/family-elevation-plan.md`; B01/B02 are complete. Prioritize generalized Architecture routing (`B03`), terminal/Unicode proof (`B05`/`B06`), and the identity/accessibility contracts (`B13`/`B14`) before beyond-parity families (`B15`/`B16`). This is the root-backlog umbrella; the design ledger is the subordinate acceptance decomposition, not a second priority list.
 - [ ] **DEC-1 — Get one real external consumer** (`todo`). Validate
   `agentic-mermaid/agent`, `am`, or `agentic-mermaid-mcp` in a real agent,
   TUI, CI gate, or editor integration outside this repo. Unblocked

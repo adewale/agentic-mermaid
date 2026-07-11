@@ -198,8 +198,16 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
   const args = p?.arguments ?? {}
   switch (name) {
     case 'execute': return handleExecute(id, args, context)
-    case 'render_svg': return sourceTool(id, args, 'SVG_RENDER_FAILED', source => ({ ok: true as const, svg: renderMermaidSVG(source, svgOptions(args)) }))
-    case 'render_ascii': return sourceTool(id, args, 'ASCII_RENDER_FAILED', source => ({ ok: true as const, text: renderMermaidASCII(source, { useAscii: args.useAscii === true }) }))
+    case 'render_svg': return sourceTool(id, args, 'SVG_RENDER_FAILED', source => ({
+      ok: true as const,
+      svg: renderMermaidSVG(source, svgOptions(args)),
+      warnings: sourceConfigWarnings(source),
+    }))
+    case 'render_ascii': return sourceTool(id, args, 'ASCII_RENDER_FAILED', source => ({
+      ok: true as const,
+      text: renderMermaidASCII(source, { useAscii: args.useAscii === true }),
+      warnings: sourceConfigWarnings(source),
+    }))
     case 'render_png': return handleRenderPng(id, args, context)
     case 'verify': return sourceTool(id, args, 'VERIFY_FAILED', source => {
       const parsed = parseMermaid(source)
@@ -231,6 +239,12 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
  * dialect in the same response. Matched by the family's own header keyword, so a
  * `graph`/`flowchart`/`architecture-beta`/… first line resolves deterministically.
  */
+function sourceConfigWarnings(source: string) {
+  const parsed = parseMermaid(source)
+  if (!parsed.ok) return []
+  return verifyMermaid(parsed.value).warnings.filter(warning => warning.code === 'INEFFECTIVE_CONFIG')
+}
+
 function familyExampleForSource(source: string): { family: string; example: string } | undefined {
   const first = source.split('\n').map(l => l.trim()).find(l => l.length > 0) ?? ''
   const header = first.split(/\s+/)[0] ?? ''
