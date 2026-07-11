@@ -6,6 +6,7 @@ import { asClass, type ClassMutationOp, type ClassValidDiagram } from '../agent/
 import { parseClassDiagram } from '../class/parser.ts'
 import { layoutClassDiagram } from '../class/layout.ts'
 import { renderMermaidSVG } from '../index.ts'
+import { renderMermaidASCII } from '../ascii/index.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 
 const lines = (source: string) => source.split('\n').map(line => line.trim()).filter(Boolean)
@@ -71,6 +72,15 @@ describe('Class residual elevation (B08/B10)', () => {
       ['Account', 'Domain'], ['Ledger', 'Domain'],
     ])
     expect(serializeMermaid(typed)).toContain('namespace Domain {')
+
+    const terminal = renderMermaidASCII(source, { useAscii: true, colorMode: 'none' }).split('\n')
+    const namespaceRow = terminal.findIndex(row => row.includes('Domain'))
+    const accountRow = terminal.findIndex(row => row.includes('Account'))
+    const ledgerRow = terminal.findIndex(row => row.includes('Ledger'))
+    expect(namespaceRow).toBeGreaterThanOrEqual(0)
+    expect(accountRow).toBeGreaterThan(namespaceRow)
+    expect(ledgerRow).toBeGreaterThan(namespaceRow)
+    expect(terminal[namespaceRow]).toMatch(/\+[-]+ Domain [-]+\+/)
   })
 
   test('hierarchicalNamespaces:false lays nested namespace compounds out as siblings and is not warned', () => {

@@ -34,6 +34,20 @@ const PHASE_0_ACCEPTANCE = [
   { id: 'Q3', file: 'scene-text-fidelity.test.ts', title: 'point labels carry their REAL collision-aware position in the scene IR' },
 ] as const
 
+const FINAL_RESIDUAL_ACCEPTANCE = [
+  { id: 'CL5', file: 'class-residual-elevation.test.ts', title: 'c5-stress allocates every cardinality box without card/card or card/node overlap' },
+  { id: 'CL6', file: 'class-residual-elevation.test.ts', title: 'single-line namespaces enter both parsers and terminal frames' },
+  { id: 'ER5', file: 'er-ascii-clearance.test.ts', title: 'routes a non-adjacent same-row relationship around the middle entity' },
+  { id: 'B05', file: 'er-ascii-clearance.test.ts', title: 'preserves every foreign entity rectangle across deterministic grid sizes' },
+  { id: 'B08', file: 'class-residual-elevation.test.ts', title: 'single-line namespaces enter both parsers and terminal frames' },
+  { id: 'B10', file: 'class-residual-elevation.test.ts', title: 'c5-stress allocates every cardinality box without card/card or card/node overlap' },
+] as const
+
+function declaredTestTitles(file: string): string[] {
+  const testSource = readFileSync(join(import.meta.dir, file), 'utf8')
+  return [...testSource.matchAll(/\b(?:test|it)\(\s*['"]([^'"]+)['"]/g)].map(match => match[1]!)
+}
+
 function rows(marker: string): Array<{ id: string; phase: string; status: string; detail: string }> {
   const section = PLAN.split(`<!-- ${marker}:start -->`)[1]?.split(`<!-- ${marker}:end -->`)[0]
   expect(section, `${marker} marker block`).toBeDefined()
@@ -90,9 +104,7 @@ describe('family elevation plan is a mechanically complete ledger', () => {
   test('Phase 0 status is consistent with exact executable acceptance IDs', () => {
     const byId = new Map([...rows('family-elevation-ledger'), ...rows('family-elevation-backlog')].map(row => [row.id, row]))
     for (const acceptance of PHASE_0_ACCEPTANCE) {
-      const testSource = readFileSync(join(import.meta.dir, acceptance.file), 'utf8')
-      const declaredTitles = [...testSource.matchAll(/\b(?:test|it)\(\s*['"]([^'"]+)['"]/g)].map(match => match[1])
-      expect(declaredTitles, `${acceptance.id}: exact executable acceptance ID`).toContain(acceptance.title)
+      expect(declaredTestTitles(acceptance.file), `${acceptance.id}: exact executable acceptance ID`).toContain(acceptance.title)
     }
     // Do not force prerequisite rows to `done`: a truthful downgrade must be
     // allowed. This gate only derives the phase-table wording from their
@@ -101,5 +113,14 @@ describe('family elevation plan is a mechanically complete ledger', () => {
       ? '**Complete**'
       : '**Partial**'
     expect(PLAN).toContain(`| 0 — honesty + guards | ${derived} |`)
+  })
+
+  test('final residual completion claims resolve exact executable acceptance IDs', () => {
+    const byId = new Map([...rows('family-elevation-ledger'), ...rows('family-elevation-backlog')].map(row => [row.id, row]))
+    for (const acceptance of FINAL_RESIDUAL_ACCEPTANCE) {
+      expect(byId.get(acceptance.id)?.status, `${acceptance.id}: completion status`).toBe('done')
+      expect(byId.get(acceptance.id)?.detail, `${acceptance.id}: cited test file`).toContain(`\`${acceptance.file}\``)
+      expect(declaredTestTitles(acceptance.file), `${acceptance.id}: exact executable acceptance ID`).toContain(acceptance.title)
+    }
   })
 })

@@ -233,7 +233,7 @@ rebuilds the diagram via synthesizeFromGraph without re-parsing source.`,
   mutate: `am mutate <file|-> (--op '<JSON>' | --ops '<JSON array|file.json>') [--json]
 Applies one or more MutationOps, verifies the final diagram, then emits source.
 Flowchart/state, sequence, timeline, class, ER, journey, architecture, xychart,
-pie, quadrant, and gantt have typed mutation ops; opaque-fallback diagrams (unmodeled
+pie, quadrant, gantt, mindmap, and gitgraph have typed mutation ops; opaque-fallback diagrams (unmodeled
 syntax) return a structured UNSUPPORTED_FAMILY error (exit 2). Verify failures
 exit 3 and omit source.`,
   preview: `am preview <file|-> [--output preview.html] [--open] [--json] [--security strict]

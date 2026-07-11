@@ -154,6 +154,16 @@ const probes: Probe[] = [
     test: ['src/__tests__/ascii-target-width.test.ts', '-t', 'every registered family shrinks'],
     failures: 1,
   },
+  {
+    name: 'ER shortcut routing cannot overwrite a foreign entity rectangle',
+    file: 'src/ascii/er-diagram.ts',
+    find: `      const detourY = blockers.length > 0
+        ? Math.max(left.y + left.height - 1, right.y + right.height - 1, ...blockers.map(item => item.y + item.height - 1)) + 2
+        : lineY`,
+    replace: `      const detourY = lineY // injected fault: tunnel directly through foreign boxes`,
+    test: ['src/__tests__/er-ascii-clearance.test.ts', '-t', 'routes a non-adjacent'],
+    failures: 1,
+  },
 ]
 
 function copyCheckout(): void {

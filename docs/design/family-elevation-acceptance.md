@@ -8,12 +8,13 @@ This record prevents B18 from treating file presence or an old local run as rele
 
 | Surface | Command | Result |
 |---|---|---|
-| Unit | `bun test src/__tests__/` | 5,768 passed, 2 documented platform skips, 0 failed; 207,875 assertions across 303 files |
+| Unit | `bun test src/__tests__/` | 5,770 passed, 2 documented platform skips, 0 failed; 209,707 assertions across 303 files |
 | Browser + distribution E2E | `bun run test:browser` | 64 passed, 0 failed across 7 files; includes packed-package library, Node CLI, stdio MCP, Apache license delivery, single binary, and browser screenshots |
 | Build | `bun run build` | ESM and declaration bundles built successfully |
 | Types | `bunx tsc --noEmit` | passed |
 | Test-quality/determinism lint | `bun run lint` | 62 passed, 0 failed |
 | Website inputs | `bun run website` then `bun run website:check` | 13/13 committed `website/src/generated` inputs in sync |
+| README hero | `bun run hero:check` | committed `assets/hero.png` and fingerprint match the current renderer |
 | Terminal goldens | `bun run goldens:ascii:check` | 153 ASCII/Unicode fixtures in sync |
 | Characterization | `bun run characterization:check` | 16 general contact examples, 14 family rows, and 15 visual artifacts in sync |
 | Layout tracker | `bun run track` | 93 examples, 0 hard violations, 0 improvements, 0 regressions |
@@ -39,6 +40,7 @@ This record prevents B18 from treating file presence or an old local run as rele
 | A Mindmap icon mutation changes the reparsed tree | 1/1 |
 | Multiline paint injects statements across Flowchart/State/Class/ER | 4/4 |
 | Width fitting drops the distinctive `descriptive` token | 1/1 |
+| ER shortcut routing overwrites a foreign entity rectangle | 1/1 |
 
 This is retained, executable revert evidence rather than a claim based on green tests. It supplements the committed Stryker lanes and the Phase 0 revert evidence recorded in the plan.
 

@@ -314,6 +314,14 @@ describe('vocabulary doc-sync', () => {
       expect(WARNING_TIER[code as keyof typeof WARNING_TIER]).toMatch(/^(structural|geometric|lint)$/)
     }
   })
+  test('public mutate help lists every registry-declared mutable family', () => {
+    const help = COMMAND_HELP.mutate?.toLowerCase() ?? ''
+    expect(help.length).toBeGreaterThan(0)
+    for (const [family, { cliLabel }] of Object.entries(MUTABLE_FAMILY_DOCS)) {
+      expect({ family, documented: help.includes(cliLabel.toLowerCase()) }).toEqual({ family, documented: true })
+    }
+  })
+
   test('every MutationOp kind is in spec, capabilities, and MCP SDK declaration', () => {
     const spec = readFileSync(join(REPO, 'AGENT_NATIVE.md'), 'utf8')
     const cap = buildCapabilities()

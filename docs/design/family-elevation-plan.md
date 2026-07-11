@@ -184,7 +184,7 @@ the specification and provenance record.
 | CL2 | 1 | done | Generic identity and member grammar: `class-generics.test.ts`, `class-parser.test.ts`. |
 | CL3 | 1/3 | done | Shared structured `classDef`/`class`/`cssClass`/`:::`/inline paint and typed style operations: `class-residual-elevation.test.ts`. |
 | CL4 | 1 | done | Direction, spacing, and config honesty: `class-direction-config.test.ts`. |
-| CL5 | 4 | done | Layout-owned cardinality-label allocation passes the dense collision stress invariant: `class-er-edge-quality.test.ts`. |
+| CL5 | 4 | done | Layout-owned cardinality-label allocation passes the dense collision stress invariant: `class-residual-elevation.test.ts`. |
 | CL6 | 3 | done | Compact/nested namespace parsing, configurable hierarchy, containment, and terminal frames: `class-residual-elevation.test.ts`, `class-ascii-namespaces.test.ts`. |
 | ER1 | 1 | done | Bare entities render and survive typed edits: `er-parser.test.ts`, `agent-er.test.ts`. |
 | ER2 | 1 | done | Stable IDs, aliases, and `set_entity_label`: `er-parser.test.ts`, `agent-er.test.ts`. |
@@ -243,16 +243,16 @@ Definition of Done.
 <!-- family-elevation-backlog:start -->
 | ID | Phase | Status | Evidence or exact remainder |
 |---|---|---|---|
-| B01 | 0 | done | Mechanical IDs, statuses, duplicate/omission checks, ordinal work-plan correspondence, and exact acceptance-test IDs: `family-elevation-ledger.test.ts`. |
+| B01 | 0 | done | Mechanical IDs, statuses, duplicate/omission checks, ordinal work-plan correspondence, cited-file existence, and exact Phase 0/final-residual acceptance-test IDs: `family-elevation-ledger.test.ts`. |
 | B02 | 0 | done | Generated all-family serializer→renderer-parser properties, lossless opaque reparse/render probes, State config geometry, CLI flag ownership, and scene fidelity: `property-all-families-fuzz.test.ts`, `opaque-unsupported-warning.test.ts`, `state-config.test.ts`. |
 | B03 | 1/4 | done | Architecture side-constrained placement, obstacle routing, and certificates close `A1`: `architecture-layout.test.ts`, `architecture-integration.test.ts`. |
 | B04 | 1/3 | done | Architecture junction/group/boundary/accessibility/edit parity closes `A4`: `agent-architecture.test.ts`. |
 | B05 | 2/4 | done | State notes/regions, Class namespace frames, ER clearance, and spatial Architecture terminal gates close `S4`, `CL6`, `ER5`, and `A6`: `state-ascii-elevation.test.ts`, `class-ascii-namespaces.test.ts`, `er-ascii-clearance.test.ts`, `architecture-ascii.test.ts`. |
 | B06 | 2 | done | Unicode-width adoption and adversarial terminal/SVG/PNG proof complete: `ascii-unicode-family-contract.test.ts`. |
 | B07 | 3 | done | Typed State regions, paint, bare declarations, hyphenated composites, and style operations: `state-typed-elevation.test.ts`, `state-ops.test.ts`. |
-| B08 | 1/3/4 | done | Class paint, compact/hierarchical namespaces, terminal frames, and cardinality allocation close `CL3`, `CL5`, and `CL6`: `class-residual-elevation.test.ts`, `class-er-edge-quality.test.ts`. |
+| B08 | 1/3/4 | done | Class paint, compact/hierarchical namespaces, terminal frames, and cardinality allocation close `CL3`, `CL5`, and `CL6`: `class-residual-elevation.test.ts`, `class-ascii-namespaces.test.ts`. |
 | B09 | 3 | done | ER direction/paint and ordered typed/opaque segments preserve source while refusing identity edits that would stale opaque text: `er-typed-segments.test.ts`. |
-| B10 | 4 | done | Layout-owned Class cardinality placement and dense discriminating collision stress close `CL5`: `class-er-edge-quality.test.ts`. |
+| B10 | 4 | done | Layout-owned Class cardinality placement and dense discriminating collision stress close `CL5`: `class-residual-elevation.test.ts`. |
 | B11 | 4 | done | Offline bounded Architecture icon registry, fallback policy, security tests, and licensing close `A5`: `architecture-icons.test.ts`, `THIRD_PARTY_NOTICES.md`. |
 | B12 | 4 | done | Width-constrained ASCII is specified and wired through library, CLI, Code Mode, hosted MCP, and docs: `ascii-target-width.test.ts`, `cli-target-width.test.ts`. |
 | B13 | 4 | done | One typed all-family SVG identity schema is published and enforced: `svg-identity-contract.test.ts`. |
@@ -260,10 +260,10 @@ Definition of Done.
 | B15 | 4 | done | All 26 official pinned Mindmap blocks plus parser/layout/SVG/terminal/agent/config/property/installed-package citizenship: `mindmap-gitgraph-upstream-oracle.test.ts`, `mindmap-gitgraph-citizenship.test.ts`, `e2e/tarball-consumer-fuzz.e2e.test.ts`. |
 | B16 | 4 | done | All 69 official pinned GitGraph blocks (63 executable, six explicit exclusions/divergences) plus replay/layout/SVG/terminal/agent/config/property/installed-package citizenship: `mindmap-gitgraph-upstream-oracle.test.ts`, `mindmap-gitgraph-citizenship.test.ts`, `e2e/tarball-consumer-fuzz.e2e.test.ts`. |
 | B17 | 0/2 | done | Every family and local SVG reference type passes the two-instance collision matrix: `svg-id-hygiene-all-families.test.ts`. |
-| B18 | all | partial | Local unit/E2E/build/type/lint/website/ASCII/characterization/tracker/package gates are green and mutation reruns are recorded only as non-gating local measurements. Remaining: bind the staged tree to a commit, retain final GitHub Actions check URLs, and obtain post-fix reviewer acceptance; evidence will live in `docs/design/family-elevation-acceptance.md`. |
+| B18 | all | partial | Local unit/E2E/build/type/lint/website/ASCII/characterization/tracker/package gates are green and mutation reruns are recorded only as non-gating local measurements. The PR tree is committed; remaining: retain green final-head GitHub Actions check URLs and post-fix reviewer acceptance in `docs/design/family-elevation-acceptance.md`. |
 <!-- family-elevation-backlog:end -->
 
-The retained causal check `bun run test:family-elevation-reverts` now injects twelve final-review regression classes in a temporary checkout and requires their exact red counts (1, 1, 14, 1, 1, 1, 1, 1, 1, 1, 4, 1). It covers B07, B08/B09, B12, B13, B15/B16, X3, X4, X7, and X8 without mutating the working tree; see the acceptance record for the fault/result map. Earlier packages retain the Phase 0 revert evidence above and their focused Stryker/sabotage lanes.
+The retained causal check `bun run test:family-elevation-reverts` now injects thirteen final-review regression classes in a temporary checkout and requires their exact red counts (1, 1, 14, 1, 1, 1, 1, 1, 1, 1, 4, 1, 1). It proves State global paint identity, GitGraph branch order, exhaustive config-value diagnostics, XY invalid-value fallback, upstream AST/provenance binding, exact SVG node/relation IDs, Mindmap icon grammar and mutation round-trip, multiline paint rejection, hard-width content preservation, and ER foreign-box route clearance without mutating the working tree. Earlier packages retain the Phase 0 revert evidence above and their focused Stryker/sabotage lanes.
 
 ## Work plan by family
 
