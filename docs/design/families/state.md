@@ -23,6 +23,16 @@ Pipeline:
 - `src/renderer.ts` — bars/choice/history shapes, note boxes, dashed
   concurrency-region separators.
 
+## Runtime config honesty
+
+`state` now has a typed `StateRuntimeConfig` covering Mermaid's documented
+stateDiagram section. No State-specific field is currently wired into this
+renderer, so every present documented field emits `INEFFECTIVE_CONFIG`; unknown
+keys emit the same warning with a spelling/removal hint. Frontmatter and
+`%%{init}%%` share the classifier in `src/state/config.ts`, and
+`state-config.test.ts` plus the registry-complete all-family config matrix keep
+State from silently falling out of the Phase 0 contract again.
+
 ## Input model
 
 Modeled constructs (both surfaces):

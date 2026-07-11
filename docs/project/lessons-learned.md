@@ -1110,3 +1110,24 @@ Style + Palette stacks, checking one generated all-family sheet byte-for-byte, a
 running the ordinary family corpus caught integration drift that family-local tests
 could not. When a PR's claim says “all families,” at least one executable gate must
 quantify over all families rather than infer coverage from twelve separate anecdotes.
+
+**A prose ledger cannot prove its own completeness.** The first post-audit phase
+summary said config honesty covered the family set, while the hard-coded unknown-key
+matrix contained eleven entries and silently omitted State. A direct probe confirmed
+that both documented `state.nodeSpacing` and misspelled `state.madeUpKey` disappeared
+without a warning. The repair was partly behavioral—add a typed State config section
+and classify every currently unwired key—and partly structural: the config and opaque
+warning matrices now assert exact equality with `BUILTIN_FAMILY_METADATA`. The plan
+itself assigns stable IDs to all 72 original items and 18 completion packages, and a
+doc test rejects missing, duplicate, status-less, or evidence-less rows. “Everything
+is tracked” is now a checked set equality, not confidence based on a long document.
+
+**A phase needs an exit condition, not an adjective.** “Substantially complete” hid
+whether broad `<family>_opaque` warnings blocked Phase 0 forever. Re-reading the
+original honesty contract resolved the boundary: Phase 0 requires lossless preservation
+plus an actionable warning; construct-specific modeling is later parity work. Its exit
+is therefore executable and finite: all-family canonical conformance, corpus
+faithfulness, all-family opaque diagnostics, all-family config wire-or-warn, unknown
+CLI flag rejection, and Scene-IR text geometry fidelity. Naming that boundary lets the
+phase become honestly complete while the mechanical backlog continues to show the
+remaining rendering and mutation work.

@@ -16,7 +16,8 @@ import type { RenderStyleDefaults } from '../styles.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import { elkLayoutSync } from '../elk-instance.ts'
 import { directionToElk } from '../layout-engine.ts'
-import { configSpacing, ineffectiveFieldsPresent } from '../class/layout.ts'
+import { configSpacing } from '../class/layout.ts'
+import { ineffectiveFieldsPresent } from '../shared/config-wire-or-warn.ts'
 
 /** Layout constants for ER diagrams */
 const ER = {

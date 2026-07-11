@@ -137,12 +137,129 @@ tsc + website:check green at every merge.
 |---|---|---|---|
 | C1 Grammar drift / silent misparse | flowchart, state, sequence, class, ER, timeline, xychart | One shared parse core per family (journey pattern: event-walker grammar consumed by renderer parser, agent body, verify scan) | Cross-surface convergence tests; differential fuzz (renderer vs agent accept/reject must agree) |
 | C2 Op→render fidelity break | class, ER, state, sequence, flowchart | Serializer emits only forms the render grammar accepts; ops validate labels against the render grammar | Per-family conformance property suite (P3) |
-| C3 Accepted-but-ignored config | all 11 | Typed runtime-config sections; wire-or-warn | `INEFFECTIVE_CONFIG` lint + config probes in tests |
+| C3 Accepted-but-ignored config | all 12 | Typed runtime-config sections; wire-or-warn | `INEFFECTIVE_CONFIG` lint + config probes in tests |
 | C4 Geometry invariant violations | flowchart, sequence, quadrant, pie, architecture | Layout structures that cannot express the violation (tiling, budgeted label columns) | Family-rubric assessors; verify tripwires promoted from warnings |
 | C5 Text truth (measurement, wrap, CJK, contrast) | all | Shared wrap/measure/contrast primitives; label width budgets in every layout | Width-budget and WCAG gates; adversarial text corpora (FE0F/ZWJ/CJK) |
 | C6 Output-surface divergence (SVG≠PNG≠ASCII≠scene-IR) | flowchart, xychart, pie, ER, quadrant | One source of geometric truth; raster font = metrics font; scene-IR semantic geometry = drawn geometry | PNG pixel-scan tests; ASCII no-shared-cells invariant; fidelity oracle checks text x/y/anchor |
 
 ---
+
+## Mechanically checked ledger
+
+This table is the authoritative status surface for every numbered family item
+and cross-cutting workstream below. Stable IDs make omissions and duplicate
+claims test failures in `family-elevation-ledger.test.ts`. Status has exactly
+three values: `done` means the named acceptance behavior and a discriminating
+or enrollment guard ship; `partial` names the remaining acceptance work;
+`not-started` means no implementation is claimed. The prose work plan remains
+the specification and provenance record.
+
+<!-- family-elevation-ledger:start -->
+| ID | Phase | Status | Evidence or exact remainder |
+|---|---|---|---|
+| F1 | 1 | done | Quote-aware shape scanning and round-trip properties: `parser.test.ts`, `flowchart-parser-conformance.test.ts`. |
+| F2 | 2 | done | Cross-hierarchy extraction and stale-route certificates: `subgraph-direction.test.ts`, `route-contracts.test.ts`. |
+| F3 | 1 | done | Unicode identifiers and bare-header defaults: `parser.test.ts`. |
+| F4 | 2 | done | Parallel ASCII lanes and reserved-cell properties: `property-ascii-routing.test.ts`, `ascii-pathfinder-determinism.test.ts`. |
+| F5 | 2 | partial | PNG marker rendering exists, but the plan's explicit pixel-scan and pre-rotated-marker proof remain missing. |
+| F6 | 2/3 | done | Typed wrapping and wire-or-warn spacing: `flowchart-runtime-config.test.ts`, `flowchart-markdown-strings.test.ts`. |
+| F7 | 3 | done | Stable authored edge IDs and ID-targeted edits: `flowchart-edge-ids.test.ts`. |
+| F8 | 3 | done | Expanded shape, direction, subgraph, and style operations: `flowchart-op-menu.test.ts`. |
+| S1 | 1/3 | done | Structured/rendered notes with side and clearance invariants: `state-notes.test.ts`. |
+| S2 | 1/3 | done | Fork, join, choice, history, and concurrency rendering: `state-pseudostates.test.ts`. |
+| S3 | 1 | done | Identity-safe class shorthand and shared paint rendering: `renderer-css-classes.test.ts`, `parser.test.ts`. |
+| S4 | 2 | partial | Composite ASCII is improved, but State notes and region separators remain missing from ASCII. |
+| S5 | 1 | done | Unlabeled state serialization re-parses: `agent-state.test.ts`, `state-ops.test.ts`. |
+| S6 | 3 | done | Certified self-loop arcs and dense occupancy: `self-loop-arcs.test.ts`. |
+| S7 | 3 | done | Direction, movement, composite, note, and recursive operations: `state-ops.test.ts`. |
+| SE1 | 1 | done | Boundary-aware block keywords: `sequence-parser.test.ts`. |
+| SE2 | 2 | done | Message-width budgeting and canvas containment: `sequence-layout.test.ts`. |
+| SE3 | 1 | done | Activation events and marker vocabulary: `sequence-parser.test.ts`, `sequence-layout.test.ts`. |
+| SE4 | 3 | done | Autonumber, lifecycle, and box rendering: `sequence-create-destroy.test.ts`, `sequence-box.test.ts`. |
+| SE5 | 1 | done | Participant removal respects preserved blocks: `agent-sequence-ops.test.ts`. |
+| SE6 | 3 | done | Typed sequence config and expanded operations: `sequence-config.test.ts`, `agent-sequence-ops.test.ts`. |
+| SE7 | 2 | done | Block and note containment geometry: `sequence-layout.test.ts`. |
+| CL1 | 1 | done | Serializer productions re-enter the render parser: `class-serializer-conformance.test.ts`. |
+| CL2 | 1 | done | Generic identity and member grammar: `class-generics.test.ts`, `class-parser.test.ts`. |
+| CL3 | 1/3 | partial | Identity corruption is fixed; Class `classDef`, `style`, `cssClass`, and typed style mutation remain unmodeled. |
+| CL4 | 1 | done | Direction, spacing, and config honesty: `class-direction-config.test.ts`. |
+| CL5 | 4 | not-started | The cardinality collision placement pass and `c5-stress` invariant are not yet implemented. |
+| CL6 | 3 | partial | Compound namespaces ship; single-line namespaces, ASCII frames, and compact namespace mode remain. |
+| ER1 | 1 | done | Bare entities render and survive typed edits: `er-parser.test.ts`, `agent-er.test.ts`. |
+| ER2 | 1 | done | Stable IDs, aliases, and `set_entity_label`: `er-parser.test.ts`, `agent-er.test.ts`. |
+| ER3 | 1/2 | done | Composite badges and visible comments: `er-parser.test.ts`, `er-integration.test.ts`. |
+| ER4 | 1 | done | Label-less relationships remain visible: `er-parser.test.ts`. |
+| ER5 | 2 | partial | Existing ASCII routing ships, but the original attribute-row and box-clearance probe still needs an explicit invariant gate. |
+| ER6 | 3 | done | Direction, config, and crow's-foot signatures: `er-direction-config.test.ts`, `er-crowsfoot.test.ts`. |
+| T1 | 1 | done | Shared colon/directive grammar: `timeline-parser.test.ts`, `agent-timeline.test.ts`. |
+| T2 | 1 | done | Event-less canonical periods re-render: `agent-timeline.test.ts`. |
+| T3 | 1 | done | `disableMulticolor` wiring and warnings: `agent-timeline.test.ts`. |
+| T4 | 3 | done | Vertical layout and width controls: `timeline-layout.test.ts`. |
+| T5 | 3 | done | Ordering, insertion, and accessibility operations: `agent-timeline.test.ts`. |
+| G1 | 4 | done | Dependency and critical-path overlays: `gantt-dependency-overlay.test.ts`. |
+| G2 | 3 | done | Excluded-day plot shading: `gantt-excluded-shading.test.ts`. |
+| G3 | 0/1 | done | Sanitized today marker, CLI clock, and unknown-flag errors: `cli-gantt-today-flag.test.ts`. |
+| G4 | 3 | done | Ordering, identity, and flag operations: `agent-gantt.test.ts`. |
+| G5 | 2/3 | done | Measured task-label wrapping: `gantt-layout.test.ts`. |
+| G6 | 1/3 | done | Upstream exclusion boundaries and milestone status paint: `gantt-exclusion-boundary.test.ts`. |
+| XY1 | 3 | done | Multi-series legend: `xychart-legend.test.ts`. |
+| XY2 | 1 | done | Strict finite series and shared axis parsing: `xychart-parser.test.ts`. |
+| XY3 | 1/2 | done | Background-aware contrast and raster parity: `xychart-renderer.test.ts`, `png-fonts.test.ts`. |
+| XY4 | 2 | done | Tick containment, thinning, and zero baseline geometry: `xychart-layout.test.ts`. |
+| XY5 | 3 | done | Orientation and point-level operations: `agent-xychart.test.ts`. |
+| P1 | 0/1 | done | Pie config/theme variables are wired or warned: `pie-elevation.test.ts`. |
+| P2 | 2 | done | Legend and percentage-label geometry: `pie-elevation.test.ts`. |
+| P3 | 3 | done | Slice labels, donut, and legend positions: `pie-elevation.test.ts`. |
+| P4 | 2 | done | High-count hue-spread palettes: `pie-elevation.test.ts`. |
+| Q1 | 3 | done | Structured point and class styling: `quadrant-style.test.ts`. |
+| Q2 | 2 | done | Axis-label budgets and wrapping: `quadrant.test.ts`. |
+| Q3 | 0 | done | Scene text x, y, and anchor fidelity: `scene-text-fidelity.test.ts`. |
+| Q4 | 4 | done | Dense placement and density/config sizing: `quadrant-style.test.ts`, `quadrant-config.test.ts`. |
+| A1 | 1/4 | partial | Authored sides survive and post-align anchors refresh; generalized side constraints and obstacle avoidance remain. |
+| A2 | 1 | done | Deterministic order-independent alignment: `architecture-layout.test.ts`. |
+| A3 | 0/1 | done | Natural config mappings plus named fcose no-ops: `architecture-config.test.ts`. |
+| A4 | 1/3 | partial | Core typed services/groups/edges ship; junction, group-label, boundary-edge, accessibility, and in-place edge edits remain. |
+| A5 | 4 | partial | A fallback badge exists; broader bundled packs and deterministic offline Iconify resolution remain. |
+| A6 | 4 | not-started | Spatial Architecture ASCII remains an outline plus edge list. |
+| X1 | 0 | done | All-family canonical examples, corpus faithfulness, and family conformance suites: `cli-capabilities.test.ts`, `agent-mermaid-corpus.test.ts`. |
+| X2 | 2 | partial | Shared Unicode width primitives ship; complete adoption and per-surface adversarial proof remain. |
+| X3 | 4 | not-started | `--target-width`, auto-fit, multiline policy, and impossible-width diagnostics are not yet implemented. |
+| X4 | 4 | partial | Several families expose semantic SVG attributes; the documented all-family contract and enrollment proof remain. |
+| X5 | 0/2 | partial | Generic `idPrefix` rewriting ships, but an all-family marker, filter, clip-path, and ARIA collision matrix remains. |
+| X6 | 3/4 | partial | Titles, descriptions, and WCAG checks ship broadly; typed edge semantics and an all-palette contract remain. |
+| X7 | 0 | done | All 12 families now have typed config sections or explicit no-op classification: `unknown-config-wire-or-warn.test.ts`, `state-config.test.ts`. |
+| X8 | 4 | not-started | Mindmap and GitGraph still need upstream harvest and full citizenship implementation. |
+<!-- family-elevation-ledger:end -->
+
+### Remaining completion packages
+
+This is the execution-ready backlog implied by the item ledger and the family
+boundary documents. It prevents “substantially complete” from hiding a missing
+acceptance decision. A package closes only when its linked ledger rows become
+`done` under the Definition of Done.
+
+<!-- family-elevation-backlog:start -->
+| ID | Phase | Status | Evidence or exact remainder |
+|---|---|---|---|
+| B01 | 0 | done | Mechanical IDs, statuses, and duplicate/omission checks: `family-elevation-ledger.test.ts`. |
+| B02 | 0 | done | Conformance enrollment, opaque diagnostics, State config honesty, CLI flag ownership, and scene fidelity: `cli-capabilities.test.ts`, `opaque-unsupported-warning.test.ts`, `state-config.test.ts`. |
+| B03 | 1/4 | partial | Finish Architecture side-constrained obstacle routing and route certificates; remainder is tracked by `A1`. |
+| B04 | 1/3 | partial | Finish Architecture junction, group-label, boundary-edge, accessibility, and edge mutation; remainder is tracked by `A4`. |
+| B05 | 2/4 | partial | Finish terminal geometry for State notes/regions, Class namespaces, ER clearance proof, and spatial Architecture; remainder spans `S4`, `CL6`, `ER5`, `A6`. |
+| B06 | 2 | partial | Finish Unicode-width adoption and adversarial SVG/ASCII/PNG coverage; remainder is tracked by `X2`. |
+| B07 | 3 | partial | Finish typed State concurrency, styling, bare declarations, and hyphenated composite IDs; deferred contract is in `families/state.md`. |
+| B08 | 1/3/4 | partial | Finish Class styling, namespace edge cases, and cardinality placement; remainder spans `CL3`, `CL5`, `CL6`. |
+| B09 | 3 | partial | Finish typed or segment-preserved ER styling and adopt segment-preserving bodies where whole-body opacity remains; see `families/er.md` and `TODO.md`. |
+| B10 | 4 | not-started | Implement the Class cardinality collision pass and discriminating stress property; remainder is `CL5`. |
+| B11 | 4 | partial | Finish deterministic offline Architecture icons, fallback policy, bundled assets, security, and licensing; remainder is `A5`. |
+| B12 | 4 | not-started | Specify and implement width-constrained ASCII across library, CLI, MCP, and docs; remainder is `X3`. |
+| B13 | 4 | partial | Publish and enforce one all-family SVG identity schema; remainder is `X4`. |
+| B14 | 3/4 | partial | Finish typed edge accessibility and the all-palette WCAG matrix; remainder is `X6`. |
+| B15 | 4 | not-started | Harvest upstream Mindmap cases first, then pass the full family-citizenship gate; remainder is `X8`. |
+| B16 | 4 | not-started | Harvest upstream GitGraph cases first, then pass the full family-citizenship gate; remainder is `X8`. |
+| B17 | 0/2 | partial | Prove multi-diagram ID hygiene for every family and SVG reference type; remainder is `X5`. |
+| B18 | all | partial | For each remaining package, finish red/revert proof, invariant evidence, Style + Palette checks, docs, changelog, and independent review before marking it done. |
+<!-- family-elevation-backlog:end -->
 
 ## Work plan by family
 
@@ -309,11 +426,43 @@ Format: `[Fix|Feature(parity)|Feature(beyond)] [V|S] Title — construction move
    pass, quadrant dense-cluster placement, X3 width-constrained ASCII,
    X4 identity contract, X8 mindmap + gitGraph.
 
+### Phase 0 closure in PR #142
+
+Phase 0 is complete under its original honesty-only boundary:
+
+- **X1 conformance:** every built-in discovery example must parse to its own
+  structured body, serialize, re-parse to the same family, preserve semantic
+  facts, serialize idempotently, verify without warnings, and render through
+  the public SVG path (`cli-capabilities.test.ts`). The larger docs corpus adds
+  all-family structural-count conservation and round-trip floors
+  (`agent-mermaid-corpus.test.ts`); family-specific property suites remain the
+  deeper discriminating layer.
+- **Opaque honesty:** every family capable of whole-body fallback is enrolled
+  in `opaque-unsupported-warning.test.ts`; Flowchart and Quadrant retain their
+  more specific reasons. A broad `<family>_opaque` warning is sufficient for
+  Phase 0 because it is lossless, names the unavailable typed surface, and
+  directs the caller to source editing. Replacing it with construct-specific
+  modeling belongs to later parity packages.
+- **X7 config:** State was the last missing family section. Its documented
+  Mermaid keys are now typed and all warn by name because none is wired;
+  unknown `state.*` keys use the same typo diagnostic as the other eleven
+  families (`state-config.test.ts`, `unknown-config-wire-or-warn.test.ts`).
+- **CLI and fidelity guards:** unknown or command-inapplicable flags fail with
+  exit 2 (`cli-gantt-today-flag.test.ts`, `cli-flags-help-sync.test.ts`), and
+  Scene-IR text fidelity checks content plus x/y/anchor
+  (`scene-text-fidelity.test.ts`).
+
+The State config test was demonstrated red→green: before the classifier,
+`state.madeUpKey` disappeared and `src/state/config.ts` did not exist (two
+focused failures); both pass after the shared wire-or-warn extraction. The
+ledger test was also red before the marker blocks existed and now prevents any
+of the 72 original items or 18 completion packages from disappearing.
+
 ### Phase status after PR #142
 
 | Phase | State | Evidence / remainder |
 |---|---|---|
-| 0 — honesty + guards | **Substantially complete** | Per-family conformance, opaque fallback diagnostics, wire-or-warn config, CLI flag ownership, and corpus gates ship. Some broad `<family>_opaque` diagnostics can still become more syntax-specific as constructs are modeled. |
+| 0 — honesty + guards | **Complete** | All-family canonical conformance enrollment, corpus faithfulness, universal opaque fallback diagnostics, typed wire-or-warn config including State, unknown-CLI-flag errors, and the scene text-geometry oracle are executable gates. More syntax-specific warnings are parity improvements, not honesty blockers, because every fallback is already lossless and announced. |
 | 1 — silent-data-loss fixes | **Complete for the parser-integrity cluster; routing remainder tracked** | Shared Flowchart identifier/quoted-label handling, Timeline parse core, State/Class/ER `:::` identity guards, ER aliases/composite keys, serializer conformance, and post-move Architecture anchors ship. Generalized Architecture port/obstacle routing remains tracked. |
 | 2 — geometry + text truth | **Substantially complete** | Shared measurement/wrapping/contrast, dense-loop occupancy, label fitting, PNG coverage warnings, and family rubrics ship. Width-constrained ASCII and some deeper spatial ASCII work remain. |
 | 3 — parity features | **Substantially complete** | Legends, donut/slice labels, Quadrant styles, vertical Timeline, Gantt shading, State pseudostates, Class namespaces/generics, ER direction, Sequence lifecycle/boxes, and expanded op menus ship. Unmodeled syntax remains source-preserved rather than claimed complete. |

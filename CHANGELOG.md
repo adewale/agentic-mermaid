@@ -8,11 +8,14 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 - Elevated all twelve diagram families to a common agent-native quality contract: 132 typed mutation operations, deterministic family layout rubrics/certificates, expanded semantic facts, configuration wire-or-warn coverage, and parser/serializer conformance gates.
 - Added Flowchart v11 shape metadata and edge IDs; State notes/pseudostates/history; Sequence box/autonumber/create/destroy/standalone activation behavior; Class namespaces and generic parameters; ER bare entities; vertical Timeline layout; Gantt dependency/critical-path overlays; XYChart legends and explicit orientation mutation; Pie wedge labels/donut/legend controls; Quadrant accessibility/style functions; and visible Architecture titles with deterministic row/column alignment constraints.
 - Added measured bold/italic Flowchart markdown rendering and support for a bare `flowchart` header, which defaults to top-down layout while remaining source-preserved at the typed-edit boundary.
+- Added a mechanically checked family-elevation ledger: all 72 original items and 18 completion packages have stable IDs, constrained statuses, and evidence or exact remainders; CI rejects missing, duplicate, or evidence-less rows.
+- Completed the Phase 0 honesty contract with all-family canonical serializer/render conformance enrollment, registry-complete opaque diagnostics, and a typed `StateRuntimeConfig` whose currently unwired fields warn by name.
 
 ### Changed
 - Gantt calendar spans use the documented `(start, end]` exclusion boundary model and excluded-day shading is enabled by default; today markers remain caller-clocked.
 - Known command-inapplicable CLI flags and value-taking flags without values now exit 2 instead of being accepted as silent no-ops.
 - PNG coverage warnings now flow through local and hosted MCP renders; system-font mode reports qualified bundled-font uncertainty rather than suppressing it.
+- Unknown `state.*` config keys and documented-but-unwired State config fields now emit `INEFFECTIVE_CONFIG` instead of disappearing silently; config-honesty and opaque-warning matrices must exactly match the built-in family registry.
 
 ### Fixed
 - Rejected source-controlled Pie colors that could escape SVG attributes or styles; hardened cross-format color contrast and XML sinks.

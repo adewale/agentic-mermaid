@@ -20,10 +20,15 @@ type MermaidRuntimeConfig = {
   timeline?: { [key: string]: MermaidConfigValue | undefined; disableMulticolor?: boolean; sectionFills?: string[]; sectionColours?: string[] }
   journey?: { [key: string]: MermaidConfigValue | undefined; diagramMarginX?: number; diagramMarginY?: number; leftMargin?: number; maxLabelWidth?: number; taskMargin?: number; actorColours?: string[]; sectionFills?: string[]; sectionColours?: string[]; useMaxWidth?: boolean }
   flowchart?: { [key: string]: MermaidConfigValue | undefined; nodeSpacing?: number; rankSpacing?: number; wrappingWidth?: number }
+  // State keys are typed for compatibility but currently all emit
+  // INEFFECTIVE_CONFIG rather than silently disappearing.
+  state?: { [key: string]: MermaidConfigValue | undefined; nodeSpacing?: number; rankSpacing?: number; noteMargin?: number; forkWidth?: number; forkHeight?: number; radius?: number; defaultRenderer?: 'dagre-d3' | 'dagre-wrapper' | 'elk' }
   class?: { [key: string]: MermaidConfigValue | undefined; nodeSpacing?: number; rankSpacing?: number }
   er?: { [key: string]: MermaidConfigValue | undefined; layoutDirection?: string; nodeSpacing?: number; rankSpacing?: number }
   architecture?: { [key: string]: MermaidConfigValue | undefined; padding?: number; iconSize?: number; fontSize?: number; nodeSeparation?: number; idealEdgeLengthMultiplier?: number }
   xyChart?: { [key: string]: MermaidConfigValue | undefined }
+  pie?: { [key: string]: MermaidConfigValue | undefined; textPosition?: number; donutHole?: number; legendPosition?: 'top' | 'bottom' | 'left' | 'right' | 'center' }
+  quadrantChart?: { [key: string]: MermaidConfigValue | undefined; chartWidth?: number; chartHeight?: number; pointRadius?: number; useMaxWidth?: boolean }
   gantt?: { [key: string]: MermaidConfigValue | undefined; displayMode?: string }
   // Wired sequence keys (unlisted documented keys are accepted and named by
   // verify's INEFFECTIVE_CONFIG lint — see src/sequence/config.ts).

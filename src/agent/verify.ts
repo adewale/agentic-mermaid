@@ -34,6 +34,7 @@ import { QUADRANT_NOOP_CONFIG_FIELDS } from '../quadrant/config.ts'
 import { architectureIneffectiveConfigFields } from '../architecture/config.ts'
 import { flowchartIneffectiveConfigFields } from '../flowchart-config.ts'
 import { sequenceIneffectiveConfigFields } from '../sequence/config.ts'
+import { STATE_CONFIG_FIELDS, stateIneffectiveConfigFields } from '../state/config.ts'
 import { parseGanttModel, applyGanttFrontmatterConfig } from '../gantt/parser.ts'
 import { parseTodayMarkerStyle, GANTT_TODAY_MARKER_STYLE_PROPS } from '../gantt/today-marker.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
@@ -42,6 +43,7 @@ import './families-builtin.ts'  // registers built-in families at import time
 
 const FAMILY_CONFIG_KEYS: Partial<Record<ValidDiagram['kind'], { section: string; keys: readonly string[] }>> = {
   flowchart: { section: 'flowchart', keys: ['nodeSpacing', 'rankSpacing', 'wrappingWidth', 'titleTopMargin', 'subGraphTitleMargin', 'arrowMarkerAbsolute', 'diagramPadding', 'htmlLabels', 'curve', 'padding', 'defaultRenderer', 'inheritDir'] },
+  state: { section: 'state', keys: STATE_CONFIG_FIELDS },
   sequence: { section: 'sequence', keys: ['actorMargin', 'width', 'height', 'diagramMarginX', 'diagramMarginY', 'messageMargin', 'noteMargin', 'activationWidth', 'showSequenceNumbers', 'boxMargin', 'boxTextMargin', 'messageAlign', 'mirrorActors', 'bottomMarginAdj', 'rightAngles', 'wrap', 'wrapPadding', 'labelBoxWidth', 'labelBoxHeight', 'hideUnusedParticipants', 'forceMenus', 'arrowMarkerAbsolute', 'noteAlign', 'actorFontSize', 'actorFontFamily', 'actorFontWeight', 'noteFontSize', 'noteFontFamily', 'noteFontWeight', 'messageFontSize', 'messageFontFamily', 'messageFontWeight'] },
   timeline: { section: 'timeline', keys: ['disableMulticolor', 'sectionFills', 'sectionColours', 'diagramMarginX', 'diagramMarginY', 'leftMargin', 'width', 'height', 'padding', 'boxMargin', 'boxTextMargin', 'noteMargin', 'messageMargin', 'messageAlign', 'bottomMarginAdj', 'rightAngles', 'taskFontSize', 'taskFontFamily', 'taskMargin', 'activationWidth', 'textPlacement', 'actorColours', 'useMaxWidth', 'useWidth'] },
   journey: { section: 'journey', keys: ['diagramMarginX', 'diagramMarginY', 'leftMargin', 'maxLabelWidth', 'width', 'height', 'taskFontSize', 'taskFontFamily', 'taskMargin', 'actorColours', 'sectionFills', 'sectionColours', 'titleColor', 'titleFontFamily', 'titleFontSize', 'useMaxWidth', 'boxMargin', 'boxTextMargin', 'noteMargin', 'messageMargin', 'messageAlign', 'bottomMarginAdj', 'rightAngles', 'activationWidth', 'textPlacement'] },
@@ -314,6 +316,21 @@ function flowchartIneffectiveConfigWarnings(d: ValidDiagram): LayoutWarning[] {
   }))
 }
 
+// State has a typed Mermaid config section, but no State-specific keys are
+// wired yet. Name every documented field per P4 rather than inheriting the
+// flowchart section or accepting it silently.
+function stateIneffectiveConfigWarnings(d: ValidDiagram): LayoutWarning[] {
+  const configs: unknown[] = [
+    (d.meta.frontmatter as Record<string, unknown> | undefined)?.state,
+    ...d.meta.initDirectives.map(directive => (directive.parsed as Record<string, unknown> | undefined)?.state),
+  ]
+  return stateIneffectiveConfigFields(configs).map(field => ({
+    code: 'INEFFECTIVE_CONFIG',
+    field,
+    message: `State config field "${field}" is accepted for Mermaid config-shape compatibility but has no effect on state geometry or paint.`,
+  }))
+}
+
 // Sequence wires actorMargin/width/height/diagramMarginX/Y/messageMargin/
 // noteMargin/activationWidth/showSequenceNumbers (src/sequence/config.ts →
 // src/sequence/layout.ts); the documented remainder (wrap, mirrorActors,
@@ -421,6 +438,7 @@ function verifyStructure(input: ValidDiagram | string, opts: VerifyOptions = {})
     : d.kind === 'er' ? classErIneffectiveConfigWarnings(d, 'er', erIneffectiveConfigFields, 'Er')
     : d.kind === 'architecture' ? architectureIneffectiveConfigWarnings(d)
     : d.kind === 'flowchart' ? flowchartIneffectiveConfigWarnings(d)
+    : d.kind === 'state' ? stateIneffectiveConfigWarnings(d)
     : d.kind === 'sequence' ? sequenceIneffectiveConfigWarnings(d)
     : d.kind === 'gantt' ? ganttTodayMarkerWarnings(d) : []
   const configWarnings = dedupedConcat(specificConfigWarnings, unknownFamilyConfigWarnings(d))

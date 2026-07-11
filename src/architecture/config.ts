@@ -3,7 +3,7 @@ import type { MermaidFrontmatterMap, MermaidConfigValue } from '../mermaid-sourc
 import type { RenderOptions, TextTransform } from '../types.ts'
 import { resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults } from '../styles.ts'
-import { ineffectiveFieldsPresent } from '../class/layout.ts'
+import { ineffectiveFieldsPresent } from '../shared/config-wire-or-warn.ts'
 
 // Deterministic spacing defaults, shared with layout.ts so the
 // idealEdgeLengthMultiplier mapping and the layout fallback cannot drift.

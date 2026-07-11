@@ -34,6 +34,80 @@ export interface TimelineRuntimeConfig extends MermaidConfigMap {
   sectionColours?: string[]
 }
 
+/** Mermaid stateDiagram config. All fields currently warn as ineffective. */
+export interface StateRuntimeConfig extends MermaidConfigMap {
+  titleTopMargin?: number
+  arrowMarkerAbsolute?: boolean
+  dividerMargin?: number
+  sizeUnit?: number
+  padding?: number
+  textHeight?: number
+  titleShift?: number
+  noteMargin?: number
+  nodeSpacing?: number
+  rankSpacing?: number
+  forkWidth?: number
+  forkHeight?: number
+  miniPadding?: number
+  fontSizeFactor?: number
+  fontSize?: number
+  labelHeight?: number
+  edgeLengthFactor?: string
+  compositTitleSize?: number
+  radius?: number
+  defaultRenderer?: 'dagre-d3' | 'dagre-wrapper' | 'elk'
+}
+
+export interface XyChartRuntimeConfig extends MermaidConfigMap {
+  width?: number
+  height?: number
+  useMaxWidth?: boolean
+  useWidth?: number
+  titleFontSize?: number
+  titlePadding?: number
+  chartOrientation?: 'vertical' | 'horizontal'
+  plotReservedSpacePercent?: number
+  showDataLabel?: boolean
+  showTitle?: boolean
+  showLegend?: boolean
+  legendFontSize?: number
+  legendPadding?: number
+  xAxis?: MermaidConfigMap
+  yAxis?: MermaidConfigMap
+}
+
+export interface PieRuntimeConfig extends MermaidConfigMap {
+  textPosition?: number
+  donutHole?: number
+  legendPosition?: 'top' | 'bottom' | 'left' | 'right' | 'center'
+  highlightSlice?: string
+  useMaxWidth?: boolean
+  useWidth?: number
+}
+
+export interface QuadrantRuntimeConfig extends MermaidConfigMap {
+  chartWidth?: number
+  chartHeight?: number
+  titleFontSize?: number
+  titlePadding?: number
+  quadrantPadding?: number
+  quadrantLabelFontSize?: number
+  xAxisLabelFontSize?: number
+  yAxisLabelFontSize?: number
+  xAxisLabelPadding?: number
+  yAxisLabelPadding?: number
+  pointLabelFontSize?: number
+  pointRadius?: number
+  pointTextPadding?: number
+  quadrantInternalBorderStrokeWidth?: number
+  quadrantExternalBorderStrokeWidth?: number
+  useMaxWidth?: boolean
+  quadrantTextTopPadding?: number
+  xAxisPosition?: string
+  yAxisPosition?: string
+  useWidth?: number
+}
+
 export interface JourneyRuntimeConfig extends MermaidConfigMap {
   diagramMarginX?: number
   diagramMarginY?: number
@@ -200,9 +274,12 @@ export interface MermaidRuntimeConfig extends MermaidConfigMap {
   fontFamily?: string
   themeVariables?: MermaidThemeVariables
   flowchart?: FlowchartRuntimeConfig
+  state?: StateRuntimeConfig
   timeline?: TimelineRuntimeConfig
   journey?: JourneyRuntimeConfig
-  xyChart?: MermaidConfigMap
+  xyChart?: XyChartRuntimeConfig
+  pie?: PieRuntimeConfig
+  quadrantChart?: QuadrantRuntimeConfig
   gantt?: GanttRuntimeConfig
   sequence?: SequenceRuntimeConfig
   class?: ClassRuntimeConfig

@@ -10,6 +10,18 @@ date; do not delete old ones — supersede them in place.
 
 ## 2026-07 — the all-family elevation PR (#142)
 
+**Make exhaustive ledgers executable.** The plan said config honesty covered the
+family set, but its hard-coded matrix omitted State and `state.*` keys vanished
+silently. Rule: assign stable IDs to every plan item, restrict status to a small
+enum, require evidence or an exact remainder, and assert registry equality for
+any “all families” table. A prose count is not enrollment.
+
+**Close phases against finite exit contracts.** “Substantially complete” is not
+a reviewable state. Rule: list the executable gates that close a phase and decide
+which later features are outside it. For honesty, lossless opaque preservation
+plus an actionable warning is complete; modeling that syntax is a later parity
+item and must remain visible in the backlog.
+
 **A before/after image proves change, not intent.** The first visual-evidence
 matrix said what moved but not why. Its Timeline row showed a horizontal diagram
 becoming vertical, which looked like an arbitrary redesign until the caption was

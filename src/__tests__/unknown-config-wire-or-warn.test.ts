@@ -1,9 +1,11 @@
 import { describe, expect, test } from 'bun:test'
 import { parseMermaid } from '../agent/parse.ts'
 import { verifyMermaid } from '../agent/verify.ts'
+import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 
 const CASES: Array<{ family: string; section: string; source: string }> = [
   { family: 'flowchart', section: 'flowchart', source: 'flowchart LR\n  A --> B' },
+  { family: 'state', section: 'state', source: 'stateDiagram-v2\n  A --> B' },
   { family: 'sequence', section: 'sequence', source: 'sequenceDiagram\n  A->>B: hi' },
   { family: 'timeline', section: 'timeline', source: 'timeline\n  2026 : Event' },
   { family: 'journey', section: 'journey', source: 'journey\n  Task: 3: Me' },
@@ -21,6 +23,11 @@ function configured(section: string, source: string): string {
 }
 
 describe('family config is exhaustive wire-or-warn', () => {
+  test('the config-honesty matrix enrolls every built-in family exactly once', () => {
+    expect(CASES.map(entry => entry.family).sort()).toEqual(BUILTIN_FAMILY_METADATA.map(entry => entry.id).sort())
+    expect(new Set(CASES.map(entry => entry.family)).size).toBe(CASES.length)
+  })
+
   for (const entry of CASES) {
     test(`${entry.family}: unknown keys never disappear silently`, () => {
       const parsed = parseMermaid(configured(entry.section, entry.source))

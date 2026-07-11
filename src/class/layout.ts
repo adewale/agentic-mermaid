@@ -20,6 +20,7 @@ import type { ClassDiagram, ClassNode, ClassNamespace, ClassMember, PositionedCl
 import type { RenderOptions, Point } from '../types.ts'
 import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
 import { getFrontmatterScalar } from '../mermaid-source.ts'
+import { ineffectiveFieldsPresent } from '../shared/config-wire-or-warn.ts'
 import { applyTextTransform, estimateTextWidth, estimateMonoTextWidth, FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import { measureMultilineText } from '../text-metrics.ts'
@@ -104,18 +105,6 @@ export const CLASS_NOOP_CONFIG_FIELDS = [
 /** Which documented-but-unwired `class` config fields are present (sorted). */
 export function classIneffectiveConfigFields(configs: unknown[]): string[] {
   return ineffectiveFieldsPresent(configs, CLASS_NOOP_CONFIG_FIELDS)
-}
-
-/** Shared presence scan for a family's NOOP config field list. */
-export function ineffectiveFieldsPresent(configs: unknown[], fields: readonly string[]): string[] {
-  const present = new Set<string>()
-  for (const config of configs) {
-    if (!config || typeof config !== 'object') continue
-    for (const field of fields) {
-      if (field in (config as Record<string, unknown>)) present.add(field)
-    }
-  }
-  return [...present].sort()
 }
 
 type ClassSizeMap = Map<string, { width: number; height: number; headerHeight: number; attrHeight: number; methodHeight: number }>
