@@ -80,8 +80,10 @@ describe('family elevation plan is a mechanically complete ledger', () => {
     ].join('\n')
     const names = [...checked.matchAll(/`([^`]+\.test\.ts)`/g)].map(match => match[1]!)
     expect(names.length).toBeGreaterThan(20)
+    const root = join(import.meta.dir, '..', '..')
     for (const name of names) {
-      expect(existsSync(join(import.meta.dir, name)), `documented evidence ${name}`).toBe(true)
+      const exists = existsSync(join(import.meta.dir, name)) || existsSync(join(root, name))
+      expect(exists, `documented evidence ${name}`).toBe(true)
     }
   })
 

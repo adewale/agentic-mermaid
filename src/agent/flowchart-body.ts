@@ -16,7 +16,8 @@
 //     header) and contributes a SourceMap via the buildSourceMap hook.
 // ============================================================================
 
-import { parseMermaid as parseFlowchartLegacy, parseStyleProps } from '../parser.ts'
+import { parseMermaid as parseFlowchartLegacy } from '../parser.ts'
+import { parseMutableStyleProps } from '../shared/style-props.ts'
 import { unknownOpMessage } from './mutation-ops.ts'
 import { normalizeV11Shape } from '../flowchart-shapes.ts'
 import type { MermaidGraph, MermaidNode, MermaidEdge, MermaidSubgraph, NodeShape, Direction } from '../types.ts'
@@ -419,6 +420,7 @@ export function mutateFlowchart(body: FlowchartBody, op: FlowchartMutationOp): R
       return done()
     }
     case 'define_class': {
+      if (!/^[\w-]+$/.test(op.name)) return err({ code: 'INVALID_OP', message: 'Class name must contain only letters, digits, underscore, or hyphen' })
       const props = parseStylePropsForOp(op.style)
       if (!props) return err({ code: 'INVALID_OP', message: `Style "${op.style}" parses to no properties — expected CSS-like pairs such as "fill:#f96,stroke:#333"` })
       graph.classDefs.set(op.name, props)
@@ -427,7 +429,10 @@ export function mutateFlowchart(body: FlowchartBody, op: FlowchartMutationOp): R
     case 'set_node_class': {
       if (!graph.nodes.has(op.id)) return err({ code: 'NODE_NOT_FOUND', message: `Node "${op.id}" not found` })
       if (op.className === null) graph.classAssignments.delete(op.id)
-      else graph.classAssignments.set(op.id, op.className)
+      else {
+        if (!/^[\w-]+$/.test(op.className)) return err({ code: 'INVALID_OP', message: 'Class name must contain only letters, digits, underscore, or hyphen' })
+        graph.classAssignments.set(op.id, op.className)
+      }
       return done()
     }
     case 'set_node_style': {
@@ -477,8 +482,8 @@ function resolveShapeValue(shape: string): ResolvedShapeValue | null {
  *  grammar, two consumers); null when nothing parses — the op is rejected
  *  prescriptively instead of writing an empty directive. */
 function parseStylePropsForOp(style: string): Record<string, string> | null {
-  const props = parseStyleProps(style)
-  return Object.keys(props).length > 0 ? props : null
+  const parsed = parseMutableStyleProps(style)
+  return parsed.ok ? parsed.value : null
 }
 
 function locateSubgraph(graph: MermaidGraph, id: string): { list: MermaidSubgraph[]; index: number } | null {

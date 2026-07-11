@@ -116,7 +116,7 @@ describe('experience-curve line', () => {
   it('draws a smooth path through the score markers, beneath the faces', () => {
     const svg = renderMermaidSVG(SOURCE)
     expect(svg).toContain('journey-curve')
-    const path = svg.match(/<path class="journey-curve"[^>]*d="([^"]+)"/)
+    const path = svg.match(/<path class="journey-curve"[^>]*\sd="([^"]+)"/)
     expect(path).not.toBeNull()
     // One M plus a C segment per marker-to-marker hop (5 tasks → 4 hops).
     expect(path![1]!.match(/C/g)?.length).toBe(4)

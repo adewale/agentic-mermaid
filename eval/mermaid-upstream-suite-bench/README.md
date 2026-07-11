@@ -6,20 +6,22 @@ family.
 
 ## Provenance
 
-- Upstream repo: [`mermaid-js/mermaid`](https://github.com/mermaid-js/mermaid), pinned to `a2d9686451df7c4644a3eeca20535bbd4c5776b0`.
+- Upstream repo: [`mermaid-js/mermaid`](https://github.com/mermaid-js/mermaid). The cross-family harvest is pinned to `a2d9686451df7c4644a3eeca20535bbd4c5776b0`; Mindmap/GitGraph compatibility is separately pinned to `f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc`.
 - Upstream license: MIT.
-- Harvest dates: seed pass 2026-06-03; full accounted harvest 2026-06-18.
-- Companion family bench: `eval/mermaid-gantt-bench/` remains the deeper Gantt-specific fixture set. The manifest summarizes it so BUILD-20 accounting has one table, but the executable Gantt detail stays in that dedicated bench.
+- Harvest dates: seed pass 2026-06-03; full cross-family harvest 2026-06-18; Mindmap/GitGraph block accounting 2026-07-10.
+- Companion benches: `eval/mermaid-gantt-bench/` holds the deeper Gantt fixtures. `mindmap-gitgraph-f3dea583.json` accounts for all 26 Mindmap and 69 GitGraph spec blocks, including executable negative/divergence cases, and `src/__tests__/mindmap-gitgraph-upstream-oracle.test.ts` runs the 89 portable/error cases. The manifest summarizes both companions so BUILD-20 has one table.
 - Repeatable command: `MERMAID_UPSTREAM_DIR=../upstream-mermaid bun run harvest:upstream`.
 - Refresh check: `MERMAID_UPSTREAM_DIR=../upstream-mermaid bun run harvest:upstream:refresh-check` fetches `origin/develop` and fails if newer upstream commits touch the harvested diagram spec scope.
+- Pinned companion verification: the exact upstream specs and MIT license are vendored under `upstream-f3dea583/`. The oracle test hashes them, extracts every direct `it(...)` title/source in order with the TypeScript AST, and compares all one-to-one classifications. Independently, clone Mermaid at `f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc` and hash the same two paths; expected SHA-256 values remain `98f31bd…269494` and `15284d1a…a0834`.
 
 ## Files
 
-- `harvest.ts` — regenerates the manifest, cases, exclusions, and ratchet from the pinned upstream checkout and the current public Agentic Mermaid parser/layout behavior. It refuses to run if the upstream checkout is not at the pinned revision.
+- `harvest.ts` — regenerates the main-revision manifest, cases, exclusions, and ratchet from the pinned upstream checkout and current public behavior, while incorporating the separately pinned Mindmap/GitGraph companion accounting. It refuses to run if the main upstream checkout is not at its pinned revision.
 - `refresh-check.ts` — fetches upstream `develop` and reports whether any newer commits changed the harvested diagram spec files.
 - `manifest.json` — pinned upstream revision plus family-by-family parser/DB files considered, upstream block counts, imported case counts, imported block counts, excluded block counts, and deferred block counts.
 - `cases.json` — portable source-level parser/DB cases. Each case records upstream files/blocks, source text, and public-surface assertions (`parseMermaid`, family narrower where structured, `verifyMermaid`, `serializeMermaid`, `layoutMermaid`).
 - `exclusions.json` — accounted non-portable or local-gap upstream behavior. Reason codes are validated by `src/__tests__/mermaid-upstream-suite-bench.test.ts`; entries with an `ours` expectation are executable.
+- `mindmap-gitgraph-f3dea583.json` — verbatim source cases, normalized upstream expectations, exact 26/69 block inventory, five source-inexpressible config-accessor exclusions, and one executable duplicate-id divergence. The two source spec SHA-256 values bind the inventory to the pinned commit.
 - `ratchet.json` — imported coverage floors plus local-gap budgets. The harvester may tighten these budgets when gaps shrink, but the test runner fails if local gaps grow or imported coverage falls.
 
 ## Case schema
@@ -74,6 +76,7 @@ interface ManifestFamily {
   deferredBlocks: number
   files: Array<{ path: string; testBlocks: number }>
   companionBench?: string
+  compatibilityRevision?: string
 }
 ```
 
@@ -103,7 +106,7 @@ interface ManifestFamily {
 - Imported coverage must stay above the ratchet floor, and local-gap budgets may only hold steady or decrease.
 - Upstream refreshes are explicit: the harvester checks the pinned checkout revision, and the refresh check fails when newer upstream commits change the harvested diagram spec files.
 
-Current BUILD-20 accounting: 1,170 considered upstream parser/DB blocks, 658
-imported source blocks, 512 excluded/accounted blocks, and 0 deferred blocks.
-The executable case count is 648 when the 68-case Gantt companion bench is
-included.
+Current BUILD-20 accounting: **1,265** considered upstream parser/DB blocks,
+**747** imported blocks, **518** excluded/accounted blocks, and **0** deferred
+blocks. The executable case count is **737**, including the 68-case Gantt and
+89-case Mindmap/GitGraph companion benches.

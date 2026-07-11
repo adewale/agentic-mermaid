@@ -75,10 +75,10 @@
 <line x1="53.68" y1="125.8" x2="48.68" y2="125.8" class="xychart-tick xychart-y-tick" stroke-width="2"/>
 <line x1="53.68" y1="82.9" x2="48.68" y2="82.9" class="xychart-tick xychart-y-tick" stroke-width="2"/>
 <line x1="53.68" y1="40" x2="48.68" y2="40" class="xychart-tick xychart-y-tick" stroke-width="2"/>
-<rect x="60.53" y="340.3" width="184.08" height="128.7" class="xychart-bar xychart-color-0" data-value="3" data-label="Jan"/>
-<rect x="254.3" y="168.7" width="184.08" height="300.3" class="xychart-bar xychart-color-0" data-value="7" data-label="Feb"/>
-<rect x="448.07" y="254.5" width="184.08" height="214.5" class="xychart-bar xychart-color-0" data-value="5" data-label="Mar"/>
-<path d="M152.57,383.2 L346.34,211.6 L540.11,125.8" class="xychart-line xychart-color-1"/>
+<rect x="60.53" y="340.3" width="184.08" height="128.7" class="xychart-bar xychart-color-0" data-value="3" data-label="Jan" data-id="bar:0:Jan" data-role="bar" />
+<rect x="254.3" y="168.7" width="184.08" height="300.3" class="xychart-bar xychart-color-0" data-value="7" data-label="Feb" data-id="bar:0:Feb" data-role="bar" />
+<rect x="448.07" y="254.5" width="184.08" height="214.5" class="xychart-bar xychart-color-0" data-value="5" data-label="Mar" data-id="bar:0:Mar" data-role="bar" />
+<path d="M152.57,383.2 L346.34,211.6 L540.11,125.8" class="xychart-line xychart-color-1" data-id="series:line-0" data-role="series" />
 <text x="152.57" y="495" text-anchor="middle" font-size="14" font-weight="400" dy="0.35em" class="xychart-label xychart-x-label">Jan</text>
 <text x="346.342" y="495" text-anchor="middle" font-size="14" font-weight="400" dy="0.35em" class="xychart-label xychart-x-label">Feb</text>
 <text x="540.114" y="495" text-anchor="middle" font-size="14" font-weight="400" dy="0.35em" class="xychart-label xychart-x-label">Mar</text>
@@ -94,7 +94,7 @@
 <text x="43.68399999999997" y="82.89999999999998" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">9</text>
 <text x="43.68399999999997" y="40" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">10</text>
 <text x="17.8" y="254.5" text-anchor="middle" transform="rotate(-90,17.8,254.5)" font-size="16" font-weight="400" dy="0.35em" class="xychart-axis-title xychart-y-axis-title">Revenue</text>
-<text x="350" y="30" text-anchor="middle" font-size="20" font-weight="500" dy="0.35em" class="xychart-title">Sales</text>
+<text x="350" y="30" text-anchor="middle" font-size="20" font-weight="500" dy="0.35em" class="xychart-title" data-id="title" data-role="title">Sales</text>
 <g class="xychart-legend">
   <rect x="642" y="45" width="12" height="12" rx="2" ry="2" class="xychart-legend-swatch" fill="#3b82f6"/>
   <text x="660" y="51" text-anchor="start" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-legend-label">Bar 1</text>

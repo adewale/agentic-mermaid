@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updated": "2026-06-16",
+  "updated": "2026-07-10",
   "statusValues": [
     "satisfied",
     "exception"
@@ -2119,6 +2119,288 @@
           "evidence": [
             "stryker.gantt.config.json",
             "package.json"
+          ]
+        }
+      }
+    },
+    "mindmap": {
+      "label": "Mindmap",
+      "auditLevel": "audited",
+      "role": "hierarchical ideation and decomposition",
+      "workedExample": false,
+      "cells": {
+        "registryDiscovery": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/families.ts"
+          ]
+        },
+        "detectionParse": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/mindmap-gitgraph-citizenship.test.ts"
+          ]
+        },
+        "semanticModel": {
+          "status": "satisfied",
+          "evidence": [
+            "src/mindmap/types.ts",
+            "src/agent/mindmap-body.ts"
+          ]
+        },
+        "serializeRoundTrip": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/mindmap-gitgraph-citizenship.test.ts"
+          ]
+        },
+        "typedMutation": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/mindmap-body.ts",
+            "src/__tests__/mindmap-gitgraph-citizenship.test.ts"
+          ]
+        },
+        "verifyRenderSeam": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/mindmap-gitgraph-citizenship.test.ts"
+          ]
+        },
+        "determinism": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/mindmap-gitgraph-citizenship.test.ts"
+          ]
+        },
+        "svgRender": {
+          "status": "satisfied",
+          "evidence": [
+            "src/mindmap/renderer.ts",
+            "src/__tests__/mindmap-gitgraph-citizenship.test.ts"
+          ]
+        },
+        "asciiUnicodeRender": {
+          "status": "satisfied",
+          "evidence": [
+            "src/ascii/mindmap.ts",
+            "src/__tests__/mindmap-gitgraph-citizenship.test.ts"
+          ]
+        },
+        "layoutProjection": {
+          "status": "satisfied",
+          "evidence": [
+            "src/mindmap/layout.ts",
+            "src/__tests__/mindmap-gitgraph-citizenship.test.ts"
+          ]
+        },
+        "stableRegions": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/mindmap-gitgraph-citizenship.test.ts"
+          ]
+        },
+        "editorExample": {
+          "status": "satisfied",
+          "evidence": [
+            "editor/examples.ts"
+          ]
+        },
+        "docsAgentSurfaces": {
+          "status": "satisfied",
+          "evidence": [
+            "docs/design/families/mindmap.md",
+            "docs/agent-api-cookbook.md"
+          ]
+        },
+        "evalFixture": {
+          "status": "satisfied",
+          "evidence": [
+            "eval/mermaid-upstream-suite-bench/mindmap-gitgraph-f3dea583.json"
+          ]
+        },
+        "upstreamHarvest": {
+          "status": "satisfied",
+          "evidence": [
+            "eval/mermaid-upstream-suite-bench/mindmap-gitgraph-f3dea583.json"
+          ]
+        },
+        "divergenceLedger": {
+          "status": "satisfied",
+          "evidence": [
+            "eval/mermaid-upstream-suite-bench/mindmap-gitgraph-f3dea583.json"
+          ]
+        },
+        "domainProperties": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/mindmap-gitgraph-citizenship.test.ts"
+          ]
+        },
+        "goldensEvidence": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/mindmap-gitgraph-citizenship.test.ts"
+          ]
+        },
+        "generatedSite": {
+          "status": "satisfied",
+          "evidence": [
+            "website/build.ts"
+          ]
+        },
+        "distributionPackage": {
+          "status": "satisfied",
+          "evidence": [
+            "package.json",
+            "src/index.ts"
+          ]
+        },
+        "mutationLane": {
+          "status": "satisfied",
+          "evidence": [
+            "stryker.families.config.json"
+          ]
+        }
+      }
+    },
+    "gitgraph": {
+      "label": "GitGraph",
+      "auditLevel": "audited",
+      "role": "branching commit history and release topology",
+      "workedExample": false,
+      "cells": {
+        "registryDiscovery": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/families.ts"
+          ]
+        },
+        "detectionParse": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/mindmap-gitgraph-citizenship.test.ts"
+          ]
+        },
+        "semanticModel": {
+          "status": "satisfied",
+          "evidence": [
+            "src/gitgraph/types.ts",
+            "src/agent/gitgraph-body.ts"
+          ]
+        },
+        "serializeRoundTrip": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/mindmap-gitgraph-citizenship.test.ts"
+          ]
+        },
+        "typedMutation": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/gitgraph-body.ts",
+            "src/__tests__/mindmap-gitgraph-citizenship.test.ts"
+          ]
+        },
+        "verifyRenderSeam": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/mindmap-gitgraph-citizenship.test.ts"
+          ]
+        },
+        "determinism": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/mindmap-gitgraph-citizenship.test.ts"
+          ]
+        },
+        "svgRender": {
+          "status": "satisfied",
+          "evidence": [
+            "src/gitgraph/renderer.ts",
+            "src/__tests__/mindmap-gitgraph-citizenship.test.ts"
+          ]
+        },
+        "asciiUnicodeRender": {
+          "status": "satisfied",
+          "evidence": [
+            "src/ascii/gitgraph.ts",
+            "src/__tests__/mindmap-gitgraph-citizenship.test.ts"
+          ]
+        },
+        "layoutProjection": {
+          "status": "satisfied",
+          "evidence": [
+            "src/gitgraph/layout.ts",
+            "src/__tests__/mindmap-gitgraph-citizenship.test.ts"
+          ]
+        },
+        "stableRegions": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/mindmap-gitgraph-citizenship.test.ts"
+          ]
+        },
+        "editorExample": {
+          "status": "satisfied",
+          "evidence": [
+            "editor/examples.ts"
+          ]
+        },
+        "docsAgentSurfaces": {
+          "status": "satisfied",
+          "evidence": [
+            "docs/design/families/gitgraph.md",
+            "docs/agent-api-cookbook.md"
+          ]
+        },
+        "evalFixture": {
+          "status": "satisfied",
+          "evidence": [
+            "eval/mermaid-upstream-suite-bench/mindmap-gitgraph-f3dea583.json"
+          ]
+        },
+        "upstreamHarvest": {
+          "status": "satisfied",
+          "evidence": [
+            "eval/mermaid-upstream-suite-bench/mindmap-gitgraph-f3dea583.json"
+          ]
+        },
+        "divergenceLedger": {
+          "status": "satisfied",
+          "evidence": [
+            "eval/mermaid-upstream-suite-bench/mindmap-gitgraph-f3dea583.json"
+          ]
+        },
+        "domainProperties": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/mindmap-gitgraph-citizenship.test.ts"
+          ]
+        },
+        "goldensEvidence": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/mindmap-gitgraph-citizenship.test.ts"
+          ]
+        },
+        "generatedSite": {
+          "status": "satisfied",
+          "evidence": [
+            "website/build.ts"
+          ]
+        },
+        "distributionPackage": {
+          "status": "satisfied",
+          "evidence": [
+            "package.json",
+            "src/index.ts"
+          ]
+        },
+        "mutationLane": {
+          "status": "satisfied",
+          "evidence": [
+            "stryker.families.config.json"
           ]
         }
       }

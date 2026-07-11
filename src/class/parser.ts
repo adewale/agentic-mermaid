@@ -1,6 +1,7 @@
 import type { ClassDiagram, ClassNode, ClassRelationship, ClassMember, RelationshipType, ClassNamespace } from './types.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
 import { parseDirectionStatement } from '../shared/direction-statement.ts'
+import { parseStyleProps } from '../shared/style-props.ts'
 
 // ---- Shared namespace grammar ----------------------------------------------
 // One grammar, two consumers: this render parser and the agent body parser
@@ -15,6 +16,19 @@ export function parseNamespaceHeader(line: string): { path: string[]; label?: st
   const m = line.match(NAMESPACE_OPEN_RE)
   if (!m) return null
   return { path: m[1]!.split('.'), label: m[2] || undefined }
+}
+
+/** Expand upstream's compact `namespace X { class A; class B }` form into
+ * the same statements consumed by both render and agent parsers. Class member
+ * bodies retain their multiline grammar; this compact form intentionally owns
+ * only brace-free statements. */
+export function expandInlineNamespaceStatement(line: string): string[] {
+  const match = line.match(/^(namespace\s+.+?)\s*\{\s*([^{}]*)\s*\}$/)
+  if (!match) return [line]
+  const opener = `${match[1]} {`
+  if (!parseNamespaceHeader(opener)) return [line]
+  const body = match[2]!.split(';').map(statement => statement.trim()).filter(Boolean)
+  return [opener, ...body, '}']
 }
 
 // Shared class declaration grammar. The structured serializer emits bracket
@@ -81,8 +95,10 @@ export function parseClassReference(token: string): { id: string; generic?: stri
  * Expects the first line to be "classDiagram".
  */
 export function parseClassDiagram(lines: string[]): ClassDiagram {
+  lines = lines.flatMap(expandInlineNamespaceStatement)
   const diagram: ClassDiagram = {
     classes: [],
+    classDefs: new Map(),
     relationships: [],
     namespaces: [],
   }
@@ -210,6 +226,39 @@ export function parseClassDiagram(lines: string[]): ClassDiagram {
       continue
     }
 
+    // --- Class paint directives ---
+    const classDef = line.match(/^classDef\s+([\w,-]+)\s+(.+)$/)
+    if (classDef) {
+      const props = parseStyleProps(classDef[2]!)
+      for (const name of classDef[1]!.split(',').map(value => value.trim()).filter(Boolean)) diagram.classDefs.set(name, { ...props })
+      continue
+    }
+    const classAssignment = line.match(/^(?:class|cssClass)\s+(.+?)\s+([\w-]+)$/)
+    if (classAssignment && !line.includes('{') && !line.includes('[') && !line.includes(' as ')) {
+      const refs = classAssignment[1]!.replace(/^"|"$/g, '').split(',').map(value => parseClassReference(value.trim())).filter((value): value is { id: string; generic?: string } => value !== null)
+      if (refs.length > 0) {
+        for (const ref of refs) {
+          const cls = ensureClass(classMap, ref.id, ref.generic)
+          cls.className = classAssignment[2]!
+          claimClass(cls.id)
+        }
+        continue
+      }
+    }
+    const inlineStyle = line.match(/^style\s+(.+?)\s+(.+)$/)
+    if (inlineStyle) {
+      const refs = inlineStyle[1]!.replace(/^"|"$/g, '').split(',').map(value => parseClassReference(value.trim())).filter((value): value is { id: string; generic?: string } => value !== null)
+      const props = parseStyleProps(inlineStyle[2]!)
+      if (refs.length > 0 && Object.keys(props).length > 0) {
+        for (const ref of refs) {
+          const cls = ensureClass(classMap, ref.id, ref.generic)
+          cls.inlineStyle = { ...cls.inlineStyle, ...props }
+          claimClass(cls.id)
+        }
+        continue
+      }
+    }
+
     // --- Class declaration (standalone or opening a member block) ---
     const declaration = parseClassDeclaration(line)
     if (declaration) {
@@ -235,15 +284,13 @@ export function parseClassDiagram(lines: string[]): ClassDiagram {
     }
 
     // --- Class shorthand: `ClassName:::style` ---
-    // Styling is not yet modeled by ClassDiagram, but consuming the legal
-    // shorthand here prevents it from becoming a phantom `::style` member.
-    // The agent body remains opaque and announces that typed mutation is
-    // unavailable, preserving the authored styling source verbatim.
+    // The suffix decorates the stable class identity; it is never a member.
     const classShorthand = line.match(/^(.+?):::([\w-]+)$/)
     if (classShorthand) {
       const reference = parseClassReference(classShorthand[1]!)
       if (reference) {
-        ensureClass(classMap, reference.id, reference.generic)
+        const cls = ensureClass(classMap, reference.id, reference.generic)
+        cls.className = classShorthand[2]!
         claimClass(reference.id)
         continue
       }

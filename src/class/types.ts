@@ -17,6 +17,8 @@ export interface ClassDiagram {
   direction?: Direction
   /** All class definitions */
   classes: ClassNode[]
+  /** Mermaid classDef paint declarations. */
+  classDefs: Map<string, Record<string, string>>
   /** Relationships between classes */
   relationships: ClassRelationship[]
   /** Top-level namespace groupings (each may nest children) */
@@ -35,6 +37,10 @@ export interface ClassNode {
   attributes: ClassMember[]
   /** Class methods (functions) */
   methods: ClassMember[]
+  /** Assigned classDef name (`A:::hot`, `class`, or `cssClass`). */
+  className?: string
+  /** Inline `style A ...` paint. */
+  inlineStyle?: Record<string, string>
 }
 
 export interface ClassMember {
@@ -149,6 +155,8 @@ export interface PositionedClassNode {
   attrHeight: number
   /** Height of the methods section */
   methodHeight: number
+  className?: string
+  inlineStyle?: Record<string, string>
 }
 
 export interface PositionedClassRelationship {
@@ -164,4 +172,7 @@ export interface PositionedClassRelationship {
   points: Array<{ x: number; y: number }>
   /** Dagre-computed label center position (avoids overlaps between nearby edges) */
   labelPosition?: { x: number; y: number }
+  /** Collision-separated endpoint text positions, computed by layout. */
+  fromCardinalityPosition?: { x: number; y: number }
+  toCardinalityPosition?: { x: number; y: number }
 }

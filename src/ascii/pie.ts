@@ -23,6 +23,8 @@ import { resolvePieVisualConfig } from '../pie/config.ts'
 import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
 import { colorizeText } from './ansi.ts'
+import { padEndToVisualWidth, visualWidth } from './width.ts'
+import { wrapText } from './wrap.ts'
 
 /** Maximum bar length in characters (the largest slice fills this). */
 const MAX_BAR = 30
@@ -33,6 +35,7 @@ export function renderPieAscii(
   colorMode: ColorMode,
   theme: AsciiTheme,
   frontmatter: MermaidFrontmatterMap = {},
+  targetWidth?: number,
 ): string {
   const chart = parsePieChart(lines)
   const barChar = config.useAscii ? '#' : '█'
@@ -47,12 +50,15 @@ export function renderPieAscii(
     overrides: visual.paletteOverrides,
   })
 
-  // Column widths.
-  const labelWidth = Math.max(...chart.entries.map(e => e.label.length))
   const maxValue = Math.max(...chart.entries.map(e => e.value))
+  const valueWidths = chart.entries.map(entry => chart.showData ? visualWidth(`  [${formatPieValue(entry.value)}]`) : 0)
+  const fixedWidth = 2 + MAX_BAR + 2 + 6 + Math.max(0, ...valueWidths)
+  const labelBudget = targetWidth ? Math.max(1, targetWidth - fixedWidth) : undefined
+  const labelLines = chart.entries.map(entry => wrapText(entry.label, labelBudget))
+  const labelWidth = Math.max(...labelLines.flat().map(visualWidth))
 
   const out: string[] = []
-  if (chart.title) out.push(chart.title)
+  if (chart.title) out.push(...wrapText(chart.title, targetWidth))
 
   chart.entries.forEach((entry, index) => {
     const fraction = entry.value / total
@@ -61,11 +67,14 @@ export function renderPieAscii(
     const bar = barChar.repeat(barLen)
     const coloredBar = colorMode === 'none' ? bar : colorizeText(bar, colors[index]!, colorMode)
 
-    const label = entry.label.padEnd(labelWidth)
     const barPad = ' '.repeat(MAX_BAR - barLen + 2)
     const pct = formatPiePercent(fraction).padStart(6)
     const valuePart = chart.showData ? `  [${formatPieValue(entry.value)}]` : ''
-
+    const linesForEntry = labelLines[index]!
+    for (let lineIndex = 0; lineIndex < linesForEntry.length - 1; lineIndex++) {
+      out.push(padEndToVisualWidth(linesForEntry[lineIndex]!, labelWidth))
+    }
+    const label = padEndToVisualWidth(linesForEntry.at(-1) ?? '', labelWidth)
     out.push(`${label}  ${coloredBar}${barPad}${pct}${valuePart}`)
   })
 

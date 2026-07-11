@@ -21,6 +21,8 @@ export interface ErDiagram {
   direction?: Direction
   /** All entity definitions */
   entities: ErEntity[]
+  /** Mermaid classDef paint declarations. */
+  classDefs: Map<string, Record<string, string>>
   /** Relationships between entities */
   relationships: ErRelationship[]
 }
@@ -31,6 +33,8 @@ export interface ErEntity {
   label: string
   /** Entity attributes (columns) */
   attributes: ErAttribute[]
+  className?: string
+  inlineStyle?: Record<string, string>
 }
 
 export interface ErAttribute {
@@ -91,6 +95,8 @@ export interface PositionedErEntity {
   headerHeight: number
   /** Height per attribute row */
   rowHeight: number
+  className?: string
+  inlineStyle?: Record<string, string>
 }
 
 export interface PositionedErRelationship {

@@ -32,6 +32,8 @@ const FAMILIES = [
   ['Pie', 'pie-donut-labels-demo.mmd', {}],
   ['Quadrant', 'quadrant-styling-demo.mmd', {}],
   ['Gantt', 'gantt-dependency-overlay-demo.mmd', { gantt: { dependencyArrows: true, criticalPath: true } }],
+  ['Mindmap', 'mindmap-demo.mmd', {}],
+  ['GitGraph', 'gitgraph-demo.mmd', {}],
 ] as const
 
 function esc(text: string): string {

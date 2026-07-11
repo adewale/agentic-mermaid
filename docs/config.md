@@ -73,14 +73,15 @@ palette, preserving Mermaid compatibility.)
 Family-specific config is **wire-or-warn**: every accepted key either changes
 output or produces `INEFFECTIVE_CONFIG` naming the field. Unknown keys also
 warn, so spelling mistakes cannot disappear silently. This contract covers all
-12 families and both frontmatter and init directives.
+14 families and both frontmatter and init directives.
 
 Notable wired sections include:
 
 - `flowchart`: spacing and measured wrapping;
 - `sequence`: actor/message/note spacing, dimensions, activations, and numbering;
-- `timeline`, `journey`, `class`, `er`, `architecture`, `xyChart`, `pie`, and
-  `quadrantChart`: the fields documented in their family design notes;
+- `timeline`, `journey`, `class`, `er`, `architecture`, `xyChart`, `pie`,
+  `quadrantChart`, `mindmap`, and `gitGraph`: the fields documented in their
+  family design notes;
 - `gantt.displayMode` (`compact` packs non-overlapping tasks in a section into
   shared rows).
 

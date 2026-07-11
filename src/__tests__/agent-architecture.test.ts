@@ -73,13 +73,33 @@ describe('architecture structured parse', () => {
     expect(d2.body).toEqual(d.body)
     expect(serializeMermaid(d2)).toBe(out)
   })
+
+  test('models accessibility directives and group-boundary endpoints without whole-body opacity', () => {
+    const d = architecture(`architecture-beta
+  accTitle: Storage topology
+  accDescr {
+    Database traffic crosses
+    the storage boundary
+  }
+  group store(cloud)[Store]
+  service db(database)[DB] in store
+  service cache(disk)[Cache]
+  db{group}:R -[replicates]-> L:cache`)
+    expect(d.body.accessibilityTitle).toBe('Storage topology')
+    expect(d.body.accessibilityDescription).toBe('Database traffic crosses\nthe storage boundary')
+    expect(d.body.edges[0]).toMatchObject({
+      source: { id: 'db', side: 'R', boundary: 'group' },
+      target: { id: 'cache', side: 'L' },
+    })
+    const out = serializeMermaid(d)
+    expect(out).toContain('accTitle: Storage topology')
+    expect(out).toContain('db{group}:R -[replicates]-> L:cache')
+    expect(architecture(out).body).toEqual(d.body)
+  })
 })
 
 describe('architecture structured-or-opaque fallback', () => {
   const opaqueCases: Array<[string, string]> = [
-    ['accTitle line', 'architecture-beta\n  accTitle: System overview\n  service api(server)[API]'],
-    ['accDescr block', 'architecture-beta\n  accDescr {\n    description\n  }\n  service api(server)[API]'],
-    ['{group} boundary edge', 'architecture-beta\n  group store(cloud)[Store]\n  service db(database)[DB] in store\n  service cache(disk)[Cache]\n  db{group}:R -[r]-> L:cache'],
     ['unknown in-parent group', 'architecture-beta\n  service db(database)[DB] in nowhere'],
     ['edge to undeclared item', 'architecture-beta\n  service api(server)[API]\n  api:R --> L:ghost'],
     ['header suffix', 'architecture-beta EXTRA\n  service api(server)[API]'],
@@ -143,11 +163,69 @@ describe('architecture mutation ops', () => {
     expect(d.body.services.find(s => s.id === 'db')!.parentId).toBeUndefined()
   })
 
-  test('add_group / remove_group (empty)', () => {
+  test('add_group / set_group_label / remove_group (empty)', () => {
     let d = apply(architecture(), { kind: 'add_group', id: 'data', label: 'Data', icon: 'cloud' })
     expect(d.body.groups.map(g => g.id)).toContain('data')
+    d = apply(d, { kind: 'set_group_label', id: 'data', label: 'Data Plane' })
+    expect(d.body.groups.find(group => group.id === 'data')!.label).toBe('Data Plane')
     d = apply(d, { kind: 'remove_group', id: 'data' })
     expect(d.body.groups.map(g => g.id)).not.toContain('data')
+  })
+
+  test('adds, renames, moves, and removes junctions with coherent references', () => {
+    let d = apply(architecture(), { kind: 'add_junction', id: 'bus', group: 'api' })
+    d = apply(d, { kind: 'add_edge', from: 'gateway', to: 'bus', fromSide: 'R', toSide: 'L' })
+    d = apply(d, { kind: 'rename_junction', from: 'bus', to: 'spine' })
+    expect(d.body.junctions).toEqual([{ id: 'spine', parentId: 'api' }])
+    expect(d.body.edges.at(-1)!.target.id).toBe('spine')
+    d = apply(d, { kind: 'move_junction', id: 'spine', group: null })
+    expect(d.body.junctions[0]!.parentId).toBeUndefined()
+    d = apply(d, { kind: 'remove_junction', id: 'spine' })
+    expect(d.body.junctions).toEqual([])
+    expect(d.body.edges.some(edge => edge.target.id === 'spine')).toBe(false)
+  })
+
+  test('add_edge / update_edge / remove_edge supports group boundaries in place', () => {
+    let d = apply(architecture(), { kind: 'move_service', id: 'db', group: 'api' })
+    d = apply(d, {
+      kind: 'add_edge', from: 'db', to: 'web', fromSide: 'R', toSide: 'L',
+      fromBoundary: 'group', label: 'streams',
+    })
+    expect(d.body.edges.at(-1)!.source.boundary).toBe('group')
+    d = apply(d, {
+      kind: 'update_edge', index: d.body.edges.length - 1,
+      fromSide: 'B', toSide: 'T', fromBoundary: 'item', label: 'events',
+      hasArrowStart: true, hasArrowEnd: false,
+    })
+    expect(d.body.edges.at(-1)).toMatchObject({
+      source: { id: 'db', side: 'B' },
+      target: { id: 'web', side: 'T' },
+      label: 'events', hasArrowStart: true, hasArrowEnd: false,
+    })
+    expect(d.body.edges.at(-1)!.source.boundary).toBeUndefined()
+    expect(d.canonicalSource).toContain('db:B <-[events]- T:web')
+    d = apply(d, { kind: 'remove_edge', index: d.body.edges.length - 1 })
+    expect(d.body.edges.map(edge => edge.label)).not.toContain('events')
+  })
+
+  test('refuses to orphan a modeled group-boundary endpoint when moving a service to root', () => {
+    let d = apply(architecture(), { kind: 'move_service', id: 'db', group: 'api' })
+    d = apply(d, { kind: 'add_edge', from: 'db', to: 'web', fromSide: 'R', toSide: 'L', fromBoundary: 'group' })
+    const rejected = mutate(d, { kind: 'move_service', id: 'db', group: null })
+    expect(rejected).toMatchObject({ ok: false, error: { code: 'INVALID_OP' } })
+    expect(rejected.ok ? '' : rejected.error.message).toContain('update the edge boundary')
+  })
+
+  test('sets and clears accessibility metadata through typed ops', () => {
+    let d = apply(architecture(), { kind: 'set_accessibility_title', title: 'System topology' })
+    d = apply(d, { kind: 'set_accessibility_description', description: 'Line one\nLine two' })
+    expect(d.body.accessibilityTitle).toBe('System topology')
+    expect(d.body.accessibilityDescription).toBe('Line one\nLine two')
+    expect(d.canonicalSource).toContain('accDescr {\n    Line one\n    Line two\n  }')
+    d = apply(d, { kind: 'set_accessibility_title', title: null })
+    d = apply(d, { kind: 'set_accessibility_description', description: null })
+    expect(d.body.accessibilityTitle).toBeUndefined()
+    expect(d.body.accessibilityDescription).toBeUndefined()
   })
 
   test('add_edge / remove_edge by index and by id', () => {
@@ -170,7 +248,10 @@ describe('architecture mutation ops', () => {
       [{ kind: 'remove_group', id: 'api' }, 'INVALID_OP'],
       [{ kind: 'remove_group', id: 'ghost' }, 'GROUP_NOT_FOUND'],
       [{ kind: 'add_edge', from: 'web', to: 'ghost', fromSide: 'R', toSide: 'L' }, 'SERVICE_NOT_FOUND'],
+      [{ kind: 'add_edge', from: 'db', to: 'web', fromSide: 'R', toSide: 'L', fromBoundary: 'group' }, 'INVALID_OP'],
       [{ kind: 'add_edge', from: 'web', to: 'db', fromSide: 'X' as never, toSide: 'L' }, 'INVALID_OP'],
+      [{ kind: 'remove_junction', id: 'ghost' }, 'SERVICE_NOT_FOUND'],
+      [{ kind: 'update_edge', index: 9, label: 'missing' }, 'EDGE_NOT_FOUND'],
       [{ kind: 'remove_edge', index: 9 }, 'EDGE_NOT_FOUND'],
       [{ kind: 'remove_edge', id: 'no->edge' }, 'EDGE_NOT_FOUND'],
     ]

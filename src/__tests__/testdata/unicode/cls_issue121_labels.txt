@@ -9,20 +9,22 @@ classDiagram
   }
   Customer "1" --> "*" Order : places labeled orders
 ---
-┌───────────────────────┐
-│ Customer              │
-├───────────────────────┤
-│ +emailAddress: String │
-├───────────────────────┤
-│ +placeOrder: Receipt  │
-└───────────────────────┘
-            │
-   places labeled orders
-               ▼
-┌────────────────────────────┐
-│ Order                      │
-├────────────────────────────┤
-│ +externalReference: String │
-├────────────────────────────┤
-│ +totalCents: int           │
-└────────────────────────────┘
+┌───────────────────────────────┐    
+│ Customer                      │    
+├───────────────────────────────┤    
+│ +emailAddress: String         │    
+├───────────────────────────────┤    
+│ +placeOrder(orderId): Receipt │    
+└───────────────────────────────┘    
+                │                    
+     places labeled orders           
+               ▼                     
+┌────────────────────────────┐       
+│ Order                      │       
+├────────────────────────────┤       
+│ +externalReference: String │       
+├────────────────────────────┤       
+│ +totalCents(): int         │       
+└────────────────────────────┘       
+                                     
+                                     

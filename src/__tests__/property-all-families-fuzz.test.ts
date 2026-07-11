@@ -132,6 +132,21 @@ function structuredBodyInventory(d: ValidDiagram): SemanticInventory {
       nodes: sorted(body.sections.flatMap(section => section.tasks.map(task => item(task.taskId ?? task.id, task.label)))), edges: [],
       groups: sorted(body.sections.map((section, index) => group(`section#${index}`, section.label, section.tasks.map(task => task.taskId ?? task.id)))),
     }
+    case 'mindmap': {
+      const nodes: string[] = [], edges: string[] = []
+      const visit = (node: import('../mindmap/types.ts').MindmapNode, parent?: string): void => {
+        nodes.push(item(node.id, node.label))
+        if (parent) edges.push(edge(parent, node.id))
+        node.children.forEach(child => visit(child, node.id))
+      }
+      visit(body.root)
+      return { nodes: sorted(nodes), edges: sorted(edges), groups: [] }
+    }
+    case 'gitgraph': return {
+      nodes: sorted(body.commits.map(commit => item(commit.id, commit.message ?? commit.id))),
+      edges: sorted(body.commits.flatMap(commit => commit.parents.map(parent => edge(parent, commit.id)))),
+      groups: sorted(body.branches.map(branch => group(`branch:${branch.name}`, branch.name, body.commits.filter(commit => commit.branch === branch.name).map(commit => commit.id)))),
+    }
     default: throw new Error(`structured inventory unavailable for ${body.kind}`)
   }
 }

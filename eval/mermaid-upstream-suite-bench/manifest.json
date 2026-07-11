@@ -6,7 +6,7 @@
     "harvestDate": "2026-06-18",
     "license": "MIT"
   },
-  "scope": "Current Agentic Mermaid renderable built-in families. Every considered upstream parser/DB block is imported as a public-API case, excluded with a documented reason, or delegated to the dedicated Gantt companion bench.",
+  "scope": "Current Agentic Mermaid renderable built-in families. Every considered upstream parser/DB block is imported as an executable case, excluded with a documented reason, or delegated to a named family companion bench. Mindmap and GitGraph are pinned separately to their declared compatibility revision.",
   "families": [
     {
       "family": "flowchart",
@@ -301,6 +301,40 @@
           "testBlocks": 5
         }
       ]
+    },
+    {
+      "family": "mindmap",
+      "status": "full-harvest-accounted",
+      "consideredBlocks": 26,
+      "importedCases": 26,
+      "importedBlocks": 26,
+      "excludedBlocks": 0,
+      "deferredBlocks": 0,
+      "compatibilityRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "files": [
+        {
+          "path": "packages/mermaid/src/diagrams/mindmap/mindmap.spec.ts",
+          "testBlocks": 26
+        }
+      ],
+      "companionBench": "src/__tests__/mindmap-gitgraph-upstream-oracle.test.ts"
+    },
+    {
+      "family": "gitgraph",
+      "status": "full-harvest-accounted",
+      "consideredBlocks": 69,
+      "importedCases": 63,
+      "importedBlocks": 63,
+      "excludedBlocks": 6,
+      "deferredBlocks": 0,
+      "compatibilityRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "files": [
+        {
+          "path": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+          "testBlocks": 69
+        }
+      ],
+      "companionBench": "src/__tests__/mindmap-gitgraph-upstream-oracle.test.ts"
     }
   ]
 }

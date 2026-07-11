@@ -41,7 +41,7 @@ export interface StateStereotypeMatch {
 const NOTE_LINE_RE = /^note\s+(left|right)\s+of\s+([\w\p{L}-]+)\s*:\s*(.+)$/iu
 const NOTE_OPEN_RE = /^note\s+(left|right)\s+of\s+([\w\p{L}-]+)\s*$/iu
 const NOTE_END_RE = /^end\s+note$/i
-const STEREOTYPE_RE = /^state\s+(?:"([^"]+)"\s+as\s+)?([\w\p{L}]+)\s*<<\s*(fork|join|choice|history|deephistory|H\*|H)\s*>>$/u
+const STEREOTYPE_RE = /^state\s+(?:"([^"]+)"\s+as\s+)?([\w\p{L}-]+)\s*<<\s*(fork|join|choice|history|deephistory|H\*|H)\s*>>$/u
 const SEPARATOR_RE = /^-{2,}$/
 /** History transition endpoints: bare `[H]`/`[H*]` or suffixed `Base[H]`/`Base[H*]`. */
 const HISTORY_ENDPOINT_RE = /^([\w\p{L}-]*)\[(H\*?)\]$/u

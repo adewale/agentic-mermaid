@@ -13,6 +13,7 @@ import { getFamily, extractLabelsGeneric } from './families.ts'
 import type {
   ArchitectureBody, ClassBody, ErBody, GanttBody, JourneyBody, PieBody,
   QuadrantBody, SequenceBody, StateBody, TimelineBody, XyChartBody,
+  MindmapBody, GitGraphBody,
 } from './types.ts'
 
 export type MermaidFact = string
@@ -89,6 +90,8 @@ export function describeMermaidFacts(d: ValidDiagram): string[] {
     case 'pie': factsPie(out, d.body); break
     case 'quadrant': factsQuadrant(out, d.body); break
     case 'gantt': factsGantt(out, d.body); break
+    case 'mindmap': factsMindmap(out, d.body); break
+    case 'gitgraph': factsGitGraph(out, d.body); break
     case 'opaque': {
       add(out, `opaque ${d.body.family}`)
       const plugin = getFamily(d.kind)
@@ -139,11 +142,17 @@ function factsState(out: string[], body: StateBody): void {
       if (s.label) add(out, `state ${clean(s.id)} : ${clean(s.label)}`)
       if (s.stereotype) add(out, `state ${clean(s.id)} stereotype ${clean(s.stereotype)}`)
       if (path) add(out, `state ${clean(s.id)} parent ${clean(path)}`)
-      if (s.states !== undefined) {
+      if (s.states !== undefined || s.regions !== undefined) {
         add(out, `composite ${clean(s.id)}`)
         if (s.direction) add(out, `state ${clean(s.id)} direction ${s.direction}`)
-        visit(s.states, s.transitions ?? [], s.id)
+        if (s.regions) s.regions.forEach((region, index) => {
+          add(out, `state ${clean(s.id)} region ${index}`)
+          visit(region.states, region.transitions, s.id)
+        })
+        else visit(s.states ?? [], s.transitions ?? [], s.id)
       }
+      if (s.className) add(out, `state ${clean(s.id)} class ${clean(s.className)}`)
+      if (s.style) add(out, `state ${clean(s.id)} styled`)
     }
     for (const t of transitions) add(out, edgeFact(t.from, t.to, t.label))
   }
@@ -203,8 +212,11 @@ function factsClass(out: string[], body: ClassBody): void {
 }
 
 function factsEr(out: string[], body: ErBody): void {
+  if (body.direction) add(out, `direction ${body.direction}`)
   for (const e of body.entities) {
     add(out, `entity ${clean(e.id)}${e.label ? ` label ${clean(e.label)}` : ''}`)
+    if (e.className) add(out, `entity ${clean(e.id)} class ${clean(e.className)}`)
+    if (e.style) add(out, `entity ${clean(e.id)} styled`)
     for (const attr of e.attributes) add(out, `attribute ${clean(e.id)} ${clean(attr.text)}`)
   }
   body.relations.forEach((r, i) => {
@@ -252,6 +264,8 @@ function factsJourney(out: string[], body: JourneyBody): void {
 
 function factsArchitecture(out: string[], body: ArchitectureBody): void {
   if (body.title) add(out, `title ${clean(body.title)}`)
+  if (body.accessibilityTitle) add(out, `accessibility title ${clean(body.accessibilityTitle)}`)
+  if (body.accessibilityDescription) add(out, `accessibility description ${clean(body.accessibilityDescription)}`)
   for (const g of body.groups) {
     add(out, `group ${clean(g.id)} : ${clean(g.label || g.id)}`)
     if (g.icon) add(out, `group ${clean(g.id)} icon ${clean(g.icon)}`)
@@ -267,9 +281,11 @@ function factsArchitecture(out: string[], body: ArchitectureBody): void {
     if (j.parentId) add(out, `junction ${clean(j.id)} parent ${clean(j.parentId)}`)
   }
   body.edges.forEach((e, i) => {
-    const base = `edge ${clean(e.source.id)}:${e.source.side} -> ${clean(e.target.id)}:${e.target.side}`
+    const source = `${clean(e.source.id)}${e.source.boundary === 'group' ? '{group}' : ''}:${e.source.side}`
+    const target = `${clean(e.target.id)}${e.target.boundary === 'group' ? '{group}' : ''}:${e.target.side}`
+    const base = `edge ${source} -> ${target}`
     add(out, e.label ? `${base} : ${clean(e.label)}` : base)
-    add(out, `edge#${i} ${clean(e.source.id)}:${e.source.side} -> ${clean(e.target.id)}:${e.target.side}${e.label ? ` : ${clean(e.label)}` : ''}`)
+    add(out, `edge#${i} ${source} -> ${target}${e.label ? ` : ${clean(e.label)}` : ''}`)
   })
 }
 
@@ -319,6 +335,33 @@ function factsGantt(out: string[], body: GanttBody): void {
       add(out, `task ${clean(t.label)} end ${clean(t.end)}`)
     })
   })
+}
+
+function factsMindmap(out: string[], body: MindmapBody): void {
+  const visit = (node: import('../mindmap/types.ts').MindmapNode, parent?: string): void => {
+    add(out, `node ${clean(node.id)} : ${clean(node.label)}`)
+    add(out, `node ${clean(node.id)} shape ${node.shape}`)
+    if (parent) add(out, edgeFact(parent, node.id))
+    if (node.icon) add(out, `node ${clean(node.id)} icon ${clean(node.icon)}`)
+    if (node.className) add(out, `node ${clean(node.id)} class ${clean(node.className)}`)
+    node.children.forEach(child => visit(child, node.id))
+  }
+  visit(body.root)
+}
+
+function factsGitGraph(out: string[], body: GitGraphBody): void {
+  add(out, `direction ${body.direction}`)
+  for (const branch of body.branches) {
+    add(out, `branch ${clean(branch.name)} order ${branch.order}`)
+    if (branch.head) add(out, `branch ${clean(branch.name)} head ${clean(branch.head)}`)
+  }
+  for (const commit of body.commits) {
+    add(out, `commit ${clean(commit.id)} branch ${clean(commit.branch)}`)
+    add(out, `commit ${clean(commit.id)} type ${commit.type}`)
+    if (commit.message) add(out, `commit ${clean(commit.id)} message ${clean(commit.message)}`)
+    commit.tags.forEach(tag => add(out, `commit ${clean(commit.id)} tag ${clean(tag)}`))
+    commit.parents.forEach(parent => add(out, edgeFact(parent, commit.id, commit.source === 'commit' ? undefined : commit.source)))
+  }
 }
 
 function axisFacts(out: string[], label: 'x-axis' | 'y-axis', axis: XyChartBody['xAxis']): void {

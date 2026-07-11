@@ -52,6 +52,7 @@ export interface AsciiContext {
   theme: AsciiTheme
   options: {
     maxWidth?: number
+    targetWidth?: number
     ganttToday?: string
   }
 }
@@ -152,6 +153,10 @@ export const BUILTIN_FAMILY_METADATA = [
     example: 'quadrantChart\n  title Prioritize\n  x-axis Low Effort --> High Effort\n  y-axis Low Value --> High Value\n  Quick win: [0.2, 0.8]\n  Money pit: [0.8, 0.2]' },
   { id: 'gantt', label: 'Gantt', headers: ['gantt'], narrower: 'asGantt', editorDiagramType: 'Gantt', editorExampleId: 'gantt-basic', editorGlyph: 'G',
     example: 'gantt\n  title Plan\n  dateFormat YYYY-MM-DD\n  section Build\n  Implement :a1, 2026-01-05, 5d\n  Review :after a1, 2d' },
+  { id: 'mindmap', label: 'Mindmap', headers: ['mindmap'], narrower: 'asMindmap', editorDiagramType: 'Mindmap', editorExampleId: 'mindmap-basic', editorGlyph: 'M',
+    example: 'mindmap\n  root((Product))\n    Research\n      Interviews\n      Evidence\n    Delivery\n      Launch' },
+  { id: 'gitgraph', label: 'GitGraph', headers: ['gitGraph'], narrower: 'asGitGraph', editorDiagramType: 'GitGraph', editorExampleId: 'gitgraph-basic', editorGlyph: 'Git',
+    example: 'gitGraph\n  commit id:"base"\n  branch feature\n  commit id:"work"\n  checkout main\n  commit id:"release"\n  merge feature id:"merge"' },
 ] as const satisfies readonly BuiltinFamilyMetadata[]
 
 export type BuiltinFamilyId = typeof BUILTIN_FAMILY_METADATA[number]['id']

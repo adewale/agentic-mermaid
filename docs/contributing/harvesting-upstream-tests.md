@@ -31,8 +31,13 @@ The contract that keeps it honest:
    README (state-reset tests, internal helper unit tests, renderer DOM
    assertions) so "the entirety of their suite" is fully accounted for.
 
-Template to copy: `eval/mermaid-gantt-bench/` +
-`src/__tests__/gantt-upstream-bench.test.ts`.
+Templates to copy: `eval/mermaid-gantt-bench/` +
+`src/__tests__/gantt-upstream-bench.test.ts`, or the combined revision-bound
+inventory in `eval/mermaid-upstream-suite-bench/mindmap-gitgraph-f3dea583.json`
++ `src/__tests__/mindmap-gitgraph-upstream-oracle.test.ts`. The latter records
+each direct official block in source order, stores source-file hashes, executes
+portable/error cases, and keeps API-internal blocks and intentional divergences
+in the same mechanically counted ledger.
 
 ## Where the upstream tests live
 

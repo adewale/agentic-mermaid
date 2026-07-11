@@ -15,9 +15,8 @@
  *   - verify announces the dropped grouping with the existing
  *     UNSUPPORTED_SYNTAX Tier-3 lint (naming the construct; suppressing the
  *     generic `er_opaque` double-flag),
- *   - the agent body stays a lossless opaque round-trip (the ER body has no
- *     statement-segment architecture to preserve structure around opaque
- *     blocks — see docs/design/families/er.md).
+ *   - the agent body uses ordered typed/opaque statement segments, so entity
+ *     and relation edits stay live without dropping tolerated grouping lines.
  */
 import { describe, it, expect } from 'bun:test'
 import { renderMermaidSVG } from '../index.ts'
@@ -78,11 +77,19 @@ describe('er subgraph tolerance (#103)', () => {
     expect(codes).not.toContain('RENDER_FAILED')
   })
 
-  it('agent body stays a lossless opaque round-trip', () => {
+  it('agent body preserves subgraph lines as ordered opaque segments around typed relations', () => {
     const r = parseMermaid(BODY_FORM)
     expect(r.ok).toBe(true)
     if (!r.ok) return
-    expect(r.value.body.kind).toBe('opaque')
-    expect(serializeMermaid(r.value)).toBe(BODY_FORM + '\n')
+    expect(r.value.body.kind).toBe('er')
+    if (r.value.body.kind === 'er') {
+      expect(r.value.body.statements?.map(statement => statement.kind)).toEqual(['opaque', 'relation', 'opaque', 'relation'])
+    }
+    const canonical = serializeMermaid(r.value)
+    expect(canonical).toContain('subgraph Domain')
+    expect(canonical).toContain('end')
+    const reparsed = parseMermaid(canonical)
+    expect(reparsed.ok).toBe(true)
+    if (reparsed.ok) expect(serializeMermaid(reparsed.value)).toBe(canonical)
   })
 })

@@ -83,6 +83,10 @@ import { resolveGanttSchedule } from '../gantt/schedule.ts'
 import { buildGanttRenderPipeline } from '../gantt/pipeline.ts'
 import { layoutGantt } from '../gantt/layout.ts'
 import type { GanttEndExpr, GanttLayoutResult, GanttModel, GanttModelSection, GanttModelTask, GanttStartExpr, GanttTaskTag } from '../gantt/types.ts'
+import { parseMindmap } from '../mindmap/parser.ts'
+import { layoutMindmap } from '../mindmap/layout.ts'
+import { parseGitGraph } from '../gitgraph/parser.ts'
+import { layoutGitGraph } from '../gitgraph/layout.ts'
 
 function f(n: number): Finite { return toFinite(Math.round(n)) }
 
@@ -116,8 +120,73 @@ export function layoutFamilyToRendered(d: ValidDiagram, opts: { debug?: boolean 
     case 'pie':          return pieToRendered(d, opts)
     case 'quadrant':     return quadrantToRendered(d, opts)
     case 'gantt':        return ganttToRendered(d, opts)
+    case 'mindmap':      return mindmapToRendered(d)
+    case 'gitgraph':     return gitgraphToRendered(d)
     default:             return null
   }
+}
+
+// ---- mindmap / gitgraph ---------------------------------------------------
+
+function mindmapToRendered(d: ValidDiagram): RenderedLayout {
+  try {
+    const normalized = normalizeMermaidSource(d.canonicalSource)
+    const diagram = d.body.kind === 'mindmap' ? d.body : parseMindmap(normalized.body)
+    const positioned = layoutMindmap(diagram, {
+      padding: typeof normalized.config.mindmap?.padding === 'number' ? normalized.config.mindmap.padding : undefined,
+      maxNodeWidth: typeof normalized.config.mindmap?.maxNodeWidth === 'number' ? normalized.config.mindmap.maxNodeWidth : undefined,
+    })
+    const nodes: RenderedLayoutNode[] = positioned.nodes.map(node => ({
+      id: node.id, x: f(node.x), y: f(node.y),
+      w: f(node.width), h: f(node.height), shape: node.shape === 'circle' ? 'ellipse' : 'rectangle', label: node.label,
+    }))
+    const edges: RenderedLayoutEdge[] = positioned.edges.map((edge, index) => ({
+      id: `edge#${index}:${edge.from}->${edge.to}`, from: edge.from, to: edge.to,
+      path: edge.points.map(point => [f(point.x), f(point.y)] as [Finite, Finite]),
+    }))
+    return { version: 1, kind: d.kind, nodes, edges, groups: [], bounds: { w: f(positioned.width), h: f(positioned.height) } }
+  } catch { return emptyRenderedLayout(d.kind) }
+}
+
+function gitgraphToRendered(d: ValidDiagram): RenderedLayout {
+  try {
+    const normalized = normalizeMermaidSource(d.canonicalSource)
+    const config = normalized.config.gitGraph
+    const positioned = layoutGitGraph(parseGitGraph(normalized.body, {
+      mainBranchName: config?.mainBranchName,
+      mainBranchOrder: config?.mainBranchOrder,
+    }), {
+      showBranches: config?.showBranches,
+      showCommitLabel: config?.showCommitLabel,
+      rotateCommitLabel: config?.rotateCommitLabel,
+      parallelCommits: config?.parallelCommits,
+    })
+    const nodes: RenderedLayoutNode[] = positioned.commits.map(commit => {
+      const type = commit.customType ?? commit.type
+      return {
+        id: commit.id, x: f(commit.x - 10), y: f(commit.y - 10), w: f(20), h: f(20),
+        shape: type === 'CHERRY_PICK' ? 'diamond' : type === 'HIGHLIGHT' ? 'rectangle' : 'ellipse',
+        label: commit.message || commit.id,
+      }
+    })
+    const edges: RenderedLayoutEdge[] = positioned.edges.map((edge, index) => ({
+      id: `edge#${index}:${edge.from}->${edge.to}`, from: edge.from, to: edge.to,
+      path: edge.points.map(point => [f(point.x), f(point.y)] as [Finite, Finite]),
+    }))
+    const groups: RenderedLayoutGroup[] = positioned.showBranches ? positioned.branches.map(branch => {
+      const commits = positioned.commits.filter(commit => commit.branch === branch.name)
+      const minX = Math.min(branch.x1, branch.x2, ...commits.map(commit => commit.x - 10))
+      const minY = Math.min(branch.y1, branch.y2, ...commits.map(commit => commit.y - 10))
+      const maxX = Math.max(branch.x1, branch.x2, ...commits.map(commit => commit.x + 10))
+      const maxY = Math.max(branch.y1, branch.y2, ...commits.map(commit => commit.y + 10))
+      return {
+        id: `branch:${branch.name}`,
+        x: f(minX), y: f(minY), w: f(Math.max(1, maxX - minX)), h: f(Math.max(1, maxY - minY)),
+        members: commits.map(commit => commit.id), label: branch.name,
+      }
+    }) : []
+    return { version: 1, kind: d.kind, nodes, edges, groups, bounds: { w: f(positioned.width), h: f(positioned.height) } }
+  } catch { return emptyRenderedLayout(d.kind) }
 }
 
 // ---- class ----------------------------------------------------------------
@@ -487,7 +556,7 @@ function architectureRouteCertificate(
     family: 'architecture',
     edgeIndex,
     routeClass: 'family-layout',
-    invariant: sourceAnchored && targetAnchored && orthogonal ? 'side-anchored' : 'unverified-family-route',
+    invariant: sourceAnchored && targetAnchored && orthogonal && edge.obstacleFree ? 'side-anchored' : 'unverified-family-route',
     bendCount: bendCount(edge.points),
     orthogonal,
     sourceSide: edge.source.side,
@@ -496,6 +565,10 @@ function architectureRouteCertificate(
     targetBoundary: edge.target.boundary,
     sourceAnchored,
     targetAnchored,
+    placement: edge.placement,
+    sourceFacesTarget: edge.sourceFacesTarget,
+    targetFacesSource: edge.targetFacesSource,
+    obstacleFree: edge.obstacleFree,
   }
 }
 

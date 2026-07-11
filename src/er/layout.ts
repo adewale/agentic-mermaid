@@ -180,6 +180,10 @@ function extractErLayout(
         height: child.height ?? entitySizes.get(entity.id)!.height,
         headerHeight: entitySizes.get(entity.id)!.headerHeight,
         rowHeight: ER.rowHeight,
+        ...(entity.className ? { className: entity.className } : {}),
+        ...((entity.className && diagram.classDefs.get(entity.className)) || entity.inlineStyle ? {
+          inlineStyle: { ...(entity.className ? diagram.classDefs.get(entity.className) : {}), ...entity.inlineStyle },
+        } : {}),
       })
     }
   }

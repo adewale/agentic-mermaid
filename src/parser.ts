@@ -3,8 +3,10 @@ import { normalizeBrTags } from './multiline-utils.ts'
 import { normalizeV11Shape } from './flowchart-shapes.ts'
 import {
   matchNoteLine, matchNoteOpen, isNoteEnd, matchStereotypeDecl,
-  isConcurrencySeparator, matchHistoryEndpoint, matchTransitionLine, historyLabel,
+  isConcurrencySeparator, isStateNodeId, matchHistoryEndpoint, matchTransitionLine, historyLabel,
 } from './state/parse-core.ts'
+import { parseStyleProps } from './shared/style-props.ts'
+export { parseStyleProps } from './shared/style-props.ts'
 import {
   MERMAID_IDENTIFIER_SOURCE,
   consumeClassShorthandPrefix,
@@ -537,6 +539,27 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
       continue
     }
 
+    // --- class/cssClass assignment and inline state style ---
+    const stateClassAssignment = line.match(/^(?:class|cssClass)\s+([\w\p{L},-]+)\s+([\w-]+)$/u)
+    if (stateClassAssignment) {
+      const ids = stateClassAssignment[1]!.split(',').map(id => id.trim()).filter(Boolean)
+      for (const id of ids) {
+        ensureStateNode(graph, compositeStack, id)
+        graph.classAssignments.set(id, stateClassAssignment[2]!)
+      }
+      continue
+    }
+    const stateInlineStyle = line.match(/^style\s+([\w\p{L},-]+)\s+(.+)$/u)
+    if (stateInlineStyle) {
+      const ids = stateInlineStyle[1]!.split(',').map(id => id.trim()).filter(Boolean)
+      const props = parseStyleProps(stateInlineStyle[2]!)
+      for (const id of ids) {
+        ensureStateNode(graph, compositeStack, id)
+        graph.nodeStyles.set(id, { ...graph.nodeStyles.get(id), ...props })
+      }
+      continue
+    }
+
     // --- linkStyle: `linkStyle 0 stroke:#f00` or `linkStyle default stroke:#f00` ---
     const linkStyleMatch = line.match(/^linkStyle\s+(default|[\d,\s]+)\s+(.+)$/)
     if (linkStyleMatch) {
@@ -608,7 +631,7 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     }
 
     // --- composite state start: `state CompositeState {` ---
-    const compositeMatch = line.match(/^state\s+(?:"([^"]+)"\s+as\s+)?([\w\p{L}]+)\s*\{$/u)
+    const compositeMatch = line.match(/^state\s+(?:"([^"]+)"\s+as\s+)?([\w\p{L}-]+)\s*\{$/u)
     if (compositeMatch) {
       const label = compositeMatch[1] ?? compositeMatch[2]!
       const id = compositeMatch[2]!
@@ -640,7 +663,7 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     }
 
     // --- state alias: `state "Description" as s1` (without brace) ---
-    const stateAliasMatch = line.match(/^state\s+"([^"]+)"\s+as\s+([\w\p{L}]+)\s*$/u)
+    const stateAliasMatch = line.match(/^state\s+"([^"]+)"\s+as\s+([\w\p{L}-]+)\s*$/u)
     if (stateAliasMatch) {
       const label = normalizeBrTags(stateAliasMatch[1]!)
       const id = stateAliasMatch[2]!
@@ -678,12 +701,16 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
       continue
     }
 
-    // --- state description: `s1 : Description` ---
+    // --- state description / bare declaration ---
     const stateDescMatch = line.match(/^([\w\p{L}-]+)\s*:\s*(.+)$/u)
     if (stateDescMatch) {
       const id = stateDescMatch[1]!
       const label = normalizeBrTags(stateDescMatch[2]!.trim())
       registerStateNode(graph, compositeStack, { id, label, shape: 'rounded' })
+      continue
+    }
+    if (isStateNodeId(line)) {
+      registerStateNode(graph, compositeStack, { id: line, label: line, shape: 'rounded' })
       continue
     }
   }
@@ -757,40 +784,6 @@ function ensureStateNode(
  * `rgb(10,10,10)`, `rgba(0,0,0,.5)`, `hsl(120,50%,50%)`) are NOT separators.
  * Fixes the bug where `fill:rgb(10,10,10)` was split into `fill:rgb(10`.
  */
-function splitTopLevelCommas(s: string): string[] {
-  const out: string[] = []
-  let depth = 0
-  let start = 0
-  let escaped = false
-  for (let i = 0; i < s.length; i++) {
-    const c = s[i]
-    if (escaped) { escaped = false; continue }
-    if (c === '\\') { escaped = true; continue }
-    if (c === '(') depth++
-    else if (c === ')') depth = Math.max(0, depth - 1)
-    else if (c === ',' && depth === 0) { out.push(s.slice(start, i)); start = i + 1 }
-  }
-  out.push(s.slice(start))
-  return out.map(part => part.replace(/\\,/g, ','))
-}
-
-export function parseStyleProps(propsStr: string): Record<string, string> {
-  // Strip trailing semicolons — Mermaid tolerates them (e.g. `stroke:#f00;`)
-  const cleaned = propsStr.replace(/;\s*$/, '')
-  const props: Record<string, string> = {}
-  for (const pair of splitTopLevelCommas(cleaned)) {
-    const colonIdx = pair.indexOf(':')
-    if (colonIdx > 0) {
-      const key = pair.slice(0, colonIdx).trim()
-      const val = pair.slice(colonIdx + 1).trim()
-      if (key && val) {
-        props[key] = val
-      }
-    }
-  }
-  return props
-}
-
 // ============================================================================
 // Flowchart edge line parser
 //

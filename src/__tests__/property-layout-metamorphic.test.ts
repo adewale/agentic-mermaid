@@ -84,6 +84,8 @@ describe('metamorphic: relations across all renderable families', () => {
     journey: { nodes: 2, edges: 0, groups: 3 },
     timeline: { nodes: 4, edges: 0, groups: 1 },
     gantt: { nodes: 2, edges: 0, groups: 1 },
+    mindmap: { nodes: 3, edges: 2, groups: 0 },
+    gitgraph: { nodes: 1, edges: 0, groups: 1 },
   }
 
   test('every generator base build has its pinned structural count', () => {

@@ -350,6 +350,12 @@ export type FamilyEdgeRouteCertificate =
     targetBoundary: 'item' | 'group'
     sourceAnchored: boolean
     targetAnchored: boolean
+    /** Authored endpoint half-plane constraints after deterministic placement. */
+    placement: 'satisfied' | 'conflicted'
+    sourceFacesTarget: boolean
+    targetFacesSource: boolean
+    /** Every route segment clears non-incident service, junction, and group interiors. */
+    obstacleFree: boolean
   }
   | {
     family: 'sequence'
@@ -475,6 +481,11 @@ export interface RenderOptions {
   interactive?: boolean
   /** Optional explicit drop shadows on node shapes. Default: false */
   shadow?: boolean
+  /** Family-specific class-diagram options. */
+  class?: {
+    /** Nest namespace compounds (default true); false lays them out compactly as siblings. */
+    hierarchicalNamespaces?: boolean
+  }
   /** Family-specific SVG renderer options for architecture-beta diagrams. */
   architecture?: {
     visual?: ArchitectureVisualConfig

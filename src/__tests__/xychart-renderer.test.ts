@@ -133,7 +133,7 @@ xychart
     expect(svg).toContain('class="xychart-axis-line xychart-y-axis-line" stroke-width="4"')
     expect(svg).toContain('dominant-baseline="middle"')
     expect(svg).toContain('font-size="13" font-weight="400"')
-    expect(svg).toContain('font-size="17" font-weight="400" dy="0.35em" class="xychart-axis-title xychart-y-axis-title">Users</text>')
+    expect(svg).toMatch(/font-size="17" font-weight="400" dy="0.35em" class="xychart-axis-title xychart-y-axis-title"[^>]*>Users<\/text>/)
   })
 
   it('renders tooltip groups and line dots only when interactive', () => {

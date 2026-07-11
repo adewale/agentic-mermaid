@@ -57,6 +57,55 @@ export function mixHex(fg: string, bg: string, pct: number): string {
   )
 }
 
+/** WCAG 2.x relative luminance for a concrete CSS color. */
+export function relativeLuminance(color: string): number | null {
+  const parsed = tryParseCssColor(color)
+  if (!parsed) return null
+  const linear = (channel: number): number => {
+    const value = channel / 255
+    return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4
+  }
+  return 0.2126 * linear(parsed[0]) + 0.7152 * linear(parsed[1]) + 0.0722 * linear(parsed[2])
+}
+
+/** WCAG contrast ratio, or null when either color is unresolved CSS. */
+export function contrastRatio(a: string, b: string): number | null {
+  const la = relativeLuminance(a)
+  const lb = relativeLuminance(b)
+  if (la === null || lb === null) return null
+  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05)
+}
+
+/**
+ * Preserve `candidate` when it meets the requested contrast. Otherwise mix it
+ * toward a contrasting fallback in deterministic 0.1% steps until it does.
+ * Unresolved CSS values pass through because their runtime background is
+ * unknowable; concrete built-in palettes are therefore fully checkable.
+ */
+export function ensureContrast(
+  candidate: string,
+  background: string,
+  minimum: number,
+  preferredFallback?: string,
+): string {
+  const current = contrastRatio(candidate, background)
+  if (current === null || current >= minimum) return candidate
+
+  const blackRatio = contrastRatio('#000000', background) ?? 0
+  const whiteRatio = contrastRatio('#ffffff', background) ?? 0
+  const preferredRatio = preferredFallback ? contrastRatio(preferredFallback, background) ?? 0 : 0
+  const fallback = preferredRatio >= minimum
+    ? preferredFallback!
+    : blackRatio >= whiteRatio ? '#000000' : '#ffffff'
+  if ((contrastRatio(fallback, background) ?? 0) < minimum) return candidate
+
+  for (let fallbackPart = 1; fallbackPart <= 1000; fallbackPart++) {
+    const mixed = mixHex(fallback, candidate, fallbackPart / 10)
+    if ((contrastRatio(mixed, background) ?? 0) >= minimum) return mixed
+  }
+  return fallback
+}
+
 /** Loose CSS hex form: #RGB, #RGBA, #RRGGBB, or #RRGGBBAA. */
 export function isHexColor(s: string): boolean {
   return /^#[0-9a-fA-F]{3,8}$/.test(s)

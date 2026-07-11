@@ -157,8 +157,9 @@ export function lowerGraphScene(
 // ============================================================================
 
 /**
- * Reusable arrow head markers — both forward (end) and reverse (start) variants.
- * The reverse marker uses orient="auto-start-reverse" to flip automatically.
+ * Reusable arrow head markers — both forward (end) and pre-rotated start variants.
+ * Start geometry points left in marker space and uses orient="auto". This avoids
+ * renderer-dependent auto-start-reverse behavior in SVG rasterizers.
  * Arrow color uses var(--_arrow) CSS variable.
  */
 function arrowMarkerDefs(): string {
@@ -173,10 +174,10 @@ function arrowMarkerDefs(): string {
     `  <marker id="arrowhead" markerWidth="${w}" markerHeight="${h}" refX="${refX}" refY="${h / 2}" orient="auto">` +
     `\n    <polygon points="0 0, ${w} ${h / 2}, 0 ${h}" ${arrowStyle} />` +
     `\n  </marker>` +
-    // Reverse arrow (marker-start) uses the same geometry as marker-end;
-    // auto-start-reverse handles orientation without a hand-flipped polygon.
-    `\n  <marker id="arrowhead-start" markerWidth="${w}" markerHeight="${h}" refX="${refX}" refY="${h / 2}" orient="auto-start-reverse">` +
-    `\n    <polygon points="0 0, ${w} ${h / 2}, 0 ${h}" ${arrowStyle} />` +
+    // Start arrow is explicitly pre-rotated: its tip is at x=0 and its body
+    // extends into the route, while refX=1 keeps the tip at the node boundary.
+    `\n  <marker id="arrowhead-start" markerWidth="${w}" markerHeight="${h}" refX="1" refY="${h / 2}" orient="auto">` +
+    `\n    <polygon points="${w} 0, 0 ${h / 2}, ${w} ${h}" ${arrowStyle} />` +
     `\n  </marker>`
   )
 }
@@ -196,8 +197,8 @@ function arrowMarkerDefsForColor(color: string): string {
     `  <marker id="arrowhead-${suffix}" markerWidth="${w}" markerHeight="${h}" refX="${refX}" refY="${h / 2}" orient="auto">` +
     `\n    <polygon points="0 0, ${w} ${h / 2}, 0 ${h}" ${arrowStyle} />` +
     `\n  </marker>` +
-    `\n  <marker id="arrowhead-start-${suffix}" markerWidth="${w}" markerHeight="${h}" refX="${refX}" refY="${h / 2}" orient="auto-start-reverse">` +
-    `\n    <polygon points="0 0, ${w} ${h / 2}, 0 ${h}" ${arrowStyle} />` +
+    `\n  <marker id="arrowhead-start-${suffix}" markerWidth="${w}" markerHeight="${h}" refX="1" refY="${h / 2}" orient="auto">` +
+    `\n    <polygon points="${w} 0, 0 ${h / 2}, ${w} ${h}" ${arrowStyle} />` +
     `\n  </marker>`
   )
 }
@@ -211,7 +212,7 @@ function circleMarkerDefs(color?: string): string {
     `  <marker id="circlehead${suffix}" markerWidth="${size}" markerHeight="${size}" refX="${size - 0.5}" refY="${size / 2}" orient="auto">` +
     `\n    <circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke="${stroke}" stroke-width="1" />` +
     `\n  </marker>` +
-    `\n  <marker id="circlehead-start${suffix}" markerWidth="${size}" markerHeight="${size}" refX="0.5" refY="${size / 2}" orient="auto-start-reverse">` +
+    `\n  <marker id="circlehead-start${suffix}" markerWidth="${size}" markerHeight="${size}" refX="0.5" refY="${size / 2}" orient="auto">` +
     `\n    <circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke="${stroke}" stroke-width="1" />` +
     `\n  </marker>`
   )
@@ -226,11 +227,11 @@ function crossMarkerDefs(color?: string): string {
   const b = size - pad
   const style = `stroke="${stroke}" stroke-width="1.25" stroke-linecap="round"`
   return (
-    `  <marker id="crosshead${suffix}" markerWidth="${size}" markerHeight="${size}" refX="${size / 2}" refY="${size / 2}" orient="auto">` +
+    `  <marker id="crosshead${suffix}" markerWidth="${size}" markerHeight="${size}" refX="${b}" refY="${size / 2}" orient="auto">` +
     `\n    <line x1="${a}" y1="${a}" x2="${b}" y2="${b}" ${style} />` +
     `\n    <line x1="${a}" y1="${b}" x2="${b}" y2="${a}" ${style} />` +
     `\n  </marker>` +
-    `\n  <marker id="crosshead-start${suffix}" markerWidth="${size}" markerHeight="${size}" refX="${size / 2}" refY="${size / 2}" orient="auto-start-reverse">` +
+    `\n  <marker id="crosshead-start${suffix}" markerWidth="${size}" markerHeight="${size}" refX="${pad}" refY="${size / 2}" orient="auto">` +
     `\n    <line x1="${a}" y1="${a}" x2="${b}" y2="${b}" ${style} />` +
     `\n    <line x1="${a}" y1="${b}" x2="${b}" y2="${a}" ${style} />` +
     `\n  </marker>`
@@ -667,6 +668,9 @@ export function compactSvg(svg: string): string {
  */
 export function namespaceSvgIds(svg: string, prefix: string): string {
   if (!prefix) return svg
+  if (!/^[A-Za-z0-9_.:-]+$/.test(prefix)) {
+    throw new Error('idPrefix may contain only ASCII letters, digits, underscore, hyphen, dot, and colon')
+  }
   // Collect declared ids so we only rewrite refs that point at our defs
   // (never an accidental `url(#…)` inside escaped label text).
   const declared = new Set<string>()

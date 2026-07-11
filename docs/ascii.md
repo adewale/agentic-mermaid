@@ -29,6 +29,7 @@ renderMermaidASCII(source, {
   paddingY: 2,
   boxBorderPadding: 1,
   colorMode: 'none',
+  targetWidth: 80,
 })
 ```
 
@@ -41,6 +42,8 @@ renderMermaidASCII(source, {
 | `colorMode` | `string` | `'auto'` | `'none'`, `'auto'`, `'ansi16'`, `'ansi256'`, `'truecolor'`, or `'html'`. |
 | `theme` | `Partial<AsciiTheme>` | — | Override terminal colors. |
 | `mermaidConfig` | `MermaidRuntimeConfig` | — | Mermaid-style runtime config. |
+| `maxWidth` | `number` | — | Deprecated best-effort label wrapping; the canvas may exceed it. |
+| `targetWidth` | `number` | — | Hard maximum in terminal display cells; impossible geometry throws `AsciiWidthError` with code `ASCII_TARGET_WIDTH_IMPOSSIBLE`. |
 
 ## ASCII with metadata
 
@@ -85,6 +88,8 @@ ASCII/Unicode output is available from the public entrypoints for:
 - pie
 - quadrant
 - gantt
+- mindmap
+- gitgraph
 
 PNG output is separate: use `renderMermaidPNG(source)` or `am render --format png --output file.png` when a raster artifact is required.
 

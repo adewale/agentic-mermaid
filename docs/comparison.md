@@ -20,7 +20,7 @@ one does, and the final section tells you which to install for common jobs.
   Mermaid for programs that edit diagrams — AI agents foremost. It adds a
   typed parse → mutate → verify → serialize loop, byte-identical output
   across runs, structured verification, and CLI/MCP surfaces. The trade is
-  explicit: 12 diagram families against Mermaid's ~25, in exchange for the
+  explicit: 14 diagram families against Mermaid's ~25, in exchange for the
   guarantee that parsing and re-serializing a diagram never drops syntax.
 
 Facts below reflect Mermaid ~11.15 and the upstream `beautiful-mermaid`
@@ -33,11 +33,11 @@ changelogs for the current state.
 |---|---|---|---|
 | Primary job | Define and render the diagram language everywhere | Fast, beautiful, browserless rendering | Agent-safe diagram *editing* plus rendering |
 | Runtime | Browser DOM (Node via Puppeteer/`mermaid-cli`) | Pure TypeScript, zero DOM, synchronous | Pure TypeScript, zero DOM, synchronous |
-| Diagram types | ~25 (flowchart, sequence, class, state, ER, gantt, pie, mindmap, gitgraph, timeline, journey, quadrant, sankey, xychart, block, packet, kanban, architecture, radar, treemap, venn, ishikawa, wardley, treeview, event modeling, …) | 6 (flowchart, state, sequence, class, ER, XY chart) | 12 (those 6 + timeline, journey, architecture, pie, quadrant, gantt) |
+| Diagram types | ~25 (flowchart, sequence, class, state, ER, gantt, pie, mindmap, gitgraph, timeline, journey, quadrant, sankey, xychart, block, packet, kanban, architecture, radar, treemap, venn, ishikawa, wardley, treeview, event modeling, …) | 6 (flowchart, state, sequence, class, ER, XY chart) | 14 (those 6 + timeline, journey, architecture, pie, quadrant, gantt, mindmap, gitgraph) |
 | Output formats | SVG (PNG/PDF via CLI tooling) | SVG, ASCII/Unicode | SVG, PNG (offline resvg), ASCII/Unicode, JSON layout |
 | Theming | Theme config + CSS | Two-color foundation, 15+ named themes, Shiki/VS Code compatibility, live CSS-variable switching | Style + Palette stacks: named looks, palette-only styles, custom JSON records, and deterministic seeds |
 | Parse to a typed AST for editing | — (internal parser, not an editing API) | — (render-only API) | ✅ `parseMermaid` → typed `ValidDiagram` |
-| Typed mutation ops | — | — | ✅ 12 of 12 families (132 ops total), structured-or-opaque, never lossy |
+| Typed mutation ops | — | — | ✅ 14 of 14 families (172 ops total), structured-or-opaque, never lossy |
 | Structural verification | — | — | ✅ 3 warning tiers + perceptual quality metrics, all families |
 | Deterministic output | Not a goal (browser/layout variance) | Mostly stable, not a tested guarantee | ✅ byte-identical across runs/processes, CI-gated |
 | Round-trip guarantee (parse → serialize keeps your source) | — | — | ✅ verbatim for unmodeled syntax, canonical for structured bodies |
@@ -75,8 +75,7 @@ diagrams once, while this surface serves programs that edit them repeatedly.
 
 ## Choosing
 
-- Rendering inside a web app, or you need mindmap/gitgraph/any family
-  beyond the 12 here → **Mermaid**.
+- Rendering inside a web app, or you need any family beyond the 14 here → **Mermaid**.
 - Fast, beautiful SVG/ASCII rendering of the core families in
   Node/Bun/terminal, render-only → **Beautiful Mermaid**.
 - An AI agent (or any program) needs to *edit* diagrams safely, verify them

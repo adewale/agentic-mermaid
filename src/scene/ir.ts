@@ -20,6 +20,8 @@
 // ============================================================================
 
 import type { DiagramColors } from '../theme.ts'
+import type { SvgSemanticIdentity } from './identity.ts'
+import type { SvgSemanticAccessibility } from './accessibility.ts'
 
 /** Semantic channels preserved across the renderer boundary (SPEC §5).
  *  `tone`/hue are style-derived outputs, not stored here. */
@@ -86,6 +88,10 @@ export interface SceneNodeBase {
    *  (§8 seed contract). */
   id: string
   role: SceneRole
+  /** Typed DOM identity mirrored as data-id/data-role on structured SVG marks. */
+  identity?: SvgSemanticIdentity
+  /** Typed accessibility semantics mirrored into ARIA on relation marks. */
+  accessibility?: SvgSemanticAccessibility
   channels?: SemanticChannels
   /** The exact crisp SVG serialization of this mark (possibly multi-line,
    *  possibly '' for marks that draw nothing, e.g. invisible edges). */

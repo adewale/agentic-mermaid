@@ -295,6 +295,32 @@
       "tags": ["family:gantt", "channel:library", "fixture", "artifact", "positive"]
     },
     {
+      "id": "pos-family-mindmap-library-fixture",
+      "split": "tune",
+      "kind": "positive",
+      "prompt": "Use the attached Mindmap fixture. Add a Validation child under Research with the typed library API, verify, and serialize. Write outputs/mindmap-product/final.mmd and outputs/mindmap-product/verify.json.",
+      "files": ["fixtures/mindmap-product/input.mmd"],
+      "expected_behavior": ["Uses asMindmap and add_node.", "Verifies before serializing."],
+      "assertions": [
+        {"name": "mindmap-loop", "type": "contains_all", "values": ["asMindmap", "add_node", "verifyMermaid", "serializeMermaid"]},
+        {"name": "validation", "type": "contains", "value": "Validation"}
+      ],
+      "tags": ["family:mindmap", "channel:library", "fixture", "artifact", "positive"]
+    },
+    {
+      "id": "pos-family-gitgraph-library-fixture",
+      "split": "tune",
+      "kind": "positive",
+      "prompt": "Use the attached GitGraph fixture. Create a docs branch, append a commit, return to main, merge it, verify, and serialize with the typed library API. Write outputs/gitgraph-release/final.mmd and outputs/gitgraph-release/verify.json.",
+      "files": ["fixtures/gitgraph-release/input.mmd"],
+      "expected_behavior": ["Uses asGitGraph and replay mutation ops.", "Verifies before serializing."],
+      "assertions": [
+        {"name": "gitgraph-loop", "type": "contains_all", "values": ["asGitGraph", "create_branch", "append_commit", "merge_branch", "verifyMermaid", "serializeMermaid"]},
+        {"name": "docs", "type": "contains", "value": "docs"}
+      ],
+      "tags": ["family:gitgraph", "channel:library", "fixture", "artifact", "positive"]
+    },
+    {
       "id": "pos-channel-mcp-code-mode-batch",
       "split": "tune",
       "kind": "positive",

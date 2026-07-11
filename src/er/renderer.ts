@@ -160,25 +160,30 @@ function renderEntityBox(entity: PositionedErEntity, style: ResolvedRenderStyle)
   const children: Array<{ node: SceneNode; indent: number }> = []
 
   // Semantic wrapper with entity metadata
-  const open = `<g class="entity" data-id="${escapeAttr(id)}" data-label="${escapeAttr(label)}">`
+  const classAttr = entity.className ? ` ${escapeAttr(entity.className)}` : ''
+  const dataClass = entity.className ? ` data-class="${escapeAttr(entity.className)}"` : ''
+  const open = `<g class="entity${classAttr}" data-id="${escapeAttr(id)}" data-label="${escapeAttr(label)}"${dataClass}>`
 
-  // Outer rectangle
-  const rectFill = style.nodeFillColor ?? 'var(--_node-fill)'
-  const rectStroke = style.nodeBorderColor ?? 'var(--_node-stroke)'
+  // classDef then inline style are merged by layout for backend parity.
+  const local = entity.inlineStyle ?? {}
+  const rectFill = local.fill ?? style.nodeFillColor ?? 'var(--_node-fill)'
+  const rectStroke = local.stroke ?? style.nodeBorderColor ?? 'var(--_node-stroke)'
+  const parsedStrokeWidth = Number.parseFloat(local['stroke-width'] ?? '')
+  const rectStrokeWidth = Number.isFinite(parsedStrokeWidth) && parsedStrokeWidth > 0 ? parsedStrokeWidth : style.nodeLineWidth
   children.push({
     indent: 2,
     node: marks.shape({
       id: `entity-rect:${id}`,
       role: 'entity',
       geometry: { kind: 'rect', x, y, width, height, rx: style.cornerRadius ?? 0, ry: style.cornerRadius ?? 0 },
-      paint: { fill: rectFill, stroke: rectStroke, strokeWidth: String(style.nodeLineWidth) },
+      paint: { fill: rectFill, stroke: rectStroke, strokeWidth: String(rectStrokeWidth) },
     },
       `<rect x="${x}" y="${y}" width="${width}" height="${height}" ` +
-      `rx="${style.cornerRadius ?? 0}" ry="${style.cornerRadius ?? 0}" fill="${escapeAttr(rectFill)}" stroke="${escapeAttr(rectStroke)}" stroke-width="${style.nodeLineWidth}" />`),
+      `rx="${style.cornerRadius ?? 0}" ry="${style.cornerRadius ?? 0}" fill="${escapeAttr(rectFill)}" stroke="${escapeAttr(rectStroke)}" stroke-width="${rectStrokeWidth}" />`),
   })
 
   // Header background
-  const headerFill = style.groupHeaderFillColor ?? 'var(--_group-hdr)'
+  const headerFill = local.fill ?? style.groupHeaderFillColor ?? 'var(--_group-hdr)'
   const headerPath = topRoundedRectPath(x, y, width, headerHeight, style.cornerRadius ?? 0)
   children.push({
     indent: 2,
@@ -186,14 +191,14 @@ function renderEntityBox(entity: PositionedErEntity, style: ResolvedRenderStyle)
       id: `entity-header:${id}`,
       role: 'group-header',
       geometry: { kind: 'path', d: headerPath },
-      paint: { fill: headerFill, stroke: rectStroke, strokeWidth: String(style.nodeLineWidth) },
+      paint: { fill: headerFill, stroke: rectStroke, strokeWidth: String(rectStrokeWidth) },
     },
       `<path d="${headerPath}" ` +
-      `fill="${escapeAttr(headerFill)}" stroke="${escapeAttr(rectStroke)}" stroke-width="${style.nodeLineWidth}" />`),
+      `fill="${escapeAttr(headerFill)}" stroke="${escapeAttr(rectStroke)}" stroke-width="${rectStrokeWidth}" />`),
   })
 
   // Entity name (supports multi-line via <br> tags)
-  const nameColor = style.nodeTextColor ?? 'var(--_text)'
+  const nameColor = local.color ?? style.nodeTextColor ?? 'var(--_text)'
   const displayLabel = applyTextTransform(label, style.nodeTextTransform)
   children.push({
     indent: 2,

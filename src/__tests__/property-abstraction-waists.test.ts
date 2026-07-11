@@ -81,6 +81,8 @@ function headerFor(kind: DiagramKind): string {
     case 'pie': return 'pie'
     case 'quadrant': return 'quadrantChart'
     case 'gantt': return 'gantt'
+    case 'mindmap': return 'mindmap'
+    case 'gitgraph': return 'gitGraph'
     default: {
       const _exhaustive: never = kind
       return _exhaustive
@@ -330,6 +332,10 @@ describe('property: layout certificate proof waist', () => {
       targetBoundary: fc.constantFrom('item', 'group'),
       sourceAnchored: fc.boolean(),
       targetAnchored: fc.boolean(),
+      placement: fc.constantFrom<'satisfied' | 'conflicted'>('satisfied', 'conflicted'),
+      sourceFacesTarget: fc.boolean(),
+      targetFacesSource: fc.boolean(),
+      obstacleFree: fc.boolean(),
     }),
     fc.record({
       family: fc.constant<'sequence'>('sequence'),

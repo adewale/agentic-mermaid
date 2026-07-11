@@ -198,7 +198,11 @@ export function lowerQuadrantScene(
   // Points. Interaction chrome (hover targets + tooltips) is collected into
   // an overlay appended after all data marks, mirroring the xychart pattern.
   const pointOverlay: SceneNode[] = []
+  const pointOccurrences = new Map<string, number>()
   for (const point of chart.points) {
+    const occurrence = pointOccurrences.get(point.label) ?? 0
+    pointOccurrences.set(point.label, occurrence + 1)
+    const pointId = occurrence === 0 ? `point:${point.label}` : `point:${point.label}#${occurrence}`
     // Leader line first so it paints under its circle and label.
     if (point.leader) {
       const l = point.leader
@@ -217,7 +221,7 @@ export function lowerQuadrantScene(
     const classAttr = point.className ? `quadrant-point ${point.className}` : 'quadrant-point'
     parts.push(marks.shape(
       {
-        id: `point:${point.label}`,
+        id: pointId,
         role: 'point',
         geometry: { kind: 'circle', cx: point.cx, cy: point.cy, r: point.radius },
         paint: {
@@ -232,7 +236,7 @@ export function lowerQuadrantScene(
     if (!point.labelHidden) {
       parts.push(marks.text(
         {
-          id: `point-label:${point.label}`,
+          id: `${pointId}:label`,
           role: 'label',
           text: point.label,
           x: point.labelX,
@@ -256,7 +260,7 @@ export function lowerQuadrantScene(
       // Hover target + native title + tooltip: pure interaction chrome. The
       // tooltip carries the full label even when dense placement hid it.
       const tipText = `${point.label}: [${point.nx}, ${point.ny}]`
-      pointOverlay.push(marks.raw({ id: `tooltip:point:${point.label}`, role: 'chrome' },
+      pointOverlay.push(marks.raw({ id: `tooltip:${pointId}`, role: 'chrome' },
         `<g class="quadrant-point-group">` +
         `<circle cx="${point.cx}" cy="${point.cy}" r="${point.radius + 6}" fill="transparent"/>` +
         `<title>${escapeXml(tipText)}</title>` +

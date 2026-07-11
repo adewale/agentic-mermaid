@@ -193,4 +193,21 @@ export const METAMORPHIC_FAMILIES: Record<DiagramKind, FamilyMetamorphic> = {
     addPrimary: { snippet: (_k, t) => `\n  ${t}x : tx, 2020-02-01, 1d`, nodeDelta: 1 },
     addRelation: null,
   },
+  mindmap: {
+    family: 'mindmap',
+    build: (k, t) => lines('mindmap', `  ${t}root`, ...range(k).map(i => `    ${t}${i}`)),
+    kRange: [2, 6],
+    // Tree syntax creates a containment relation with every node, so there is
+    // no source append that changes only the primary-node count.
+    addPrimary: null,
+    addRelation: null,
+  },
+  gitgraph: {
+    family: 'gitgraph',
+    build: (k, t) => lines('gitGraph', ...range(k).map(i => `  commit id:"${t}${i}" msg:"M${i}"`)),
+    kRange: [1, 6],
+    // Every commit after the root necessarily adds a parent relation.
+    addPrimary: null,
+    addRelation: null,
+  },
 }

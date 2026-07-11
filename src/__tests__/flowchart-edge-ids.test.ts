@@ -75,8 +75,10 @@ describe('flowchart edge IDs — SVG identity (X4)', () => {
     expect(svg).toMatch(/<polyline[^>]*class="edge"[^>]*data-id="e1"/)
   })
 
-  it('edges without authored IDs emit no data-id (byte stability)', () => {
-    expect(renderMermaidSVG('flowchart LR\n  A --> B')).not.toMatch(/<polyline[^>]*data-id=/)
+  it('edges without authored IDs receive deterministic endpoint/occurrence identity', () => {
+    const svg = renderMermaidSVG('flowchart LR\n  A --> B')
+    expect(svg).toMatch(/<polyline[^>]*data-id="edge:A-&gt;B#0"/)
+    expect(svg).toMatch(/<polyline[^>]*data-role="edge"/)
   })
 })
 

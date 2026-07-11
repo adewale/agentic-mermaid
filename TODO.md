@@ -22,7 +22,7 @@ dependents after. IDs are stable names, not an ordering.
 
 ## 0. Release / owner decisions
 
-- [ ] **FAM-ELEVATION-RESIDUAL — Finish the family-elevation completion packages** (`todo`). The authoritative item statuses and exact remainders are the mechanically checked B03–B18 rows in `docs/design/family-elevation-plan.md`; B01/B02 are complete. Prioritize generalized Architecture routing (`B03`), terminal/Unicode proof (`B05`/`B06`), and the identity/accessibility contracts (`B13`/`B14`) before beyond-parity families (`B15`/`B16`). This is the root-backlog umbrella; the design ledger is the subordinate acceptance decomposition, not a second priority list.
+- [ ] **FAM-ELEVATION-RESIDUAL — Finish the family-elevation completion packages** (`blocked`). All 72 implementation items and B01–B17 are complete. B18 is intentionally partial until the final commit has retained GitHub Actions check URLs and post-fix reviewer acceptance; local green results and the explicit remainder are recorded in `docs/design/family-elevation-acceptance.md`. Mutation scores remain non-gating local measurements.
 - [ ] **DEC-1 — Get one real external consumer** (`todo`). Validate
   `agentic-mermaid/agent`, `am`, or `agentic-mermaid-mcp` in a real agent,
   TUI, CI gate, or editor integration outside this repo. Unblocked
@@ -186,13 +186,12 @@ dependents after. IDs are stable names, not an ordering.
   multi-error parse and a buildSourceMap hook — no in-tree exception
   remains. Mutation rebuilds `canonicalSource` uniformly. Unblocks
   BUILD-5/BUILD-6/BUILD-11 and the mutation roadmap.
-- [ ] **BUILD-5 — Common-README family coverage: mindmap and gitgraph**
-  (`in-progress`; Pie and Gantt are complete below). These remaining families
-  are common in real-world READMEs/docs and already have authoring syntax
-  references in `skills/agentic-mermaid-diagram-workflow/references/upstream/`,
-  but the renderer does not accept them. The completed corpus evidence and
-  Pie/Gantt implementations establish the method; implement the remaining
-  families in evidence order. Each addition
+- [x] **BUILD-5 — Common-README family coverage: mindmap and gitgraph**
+  (`done`; Pie and Gantt were the earlier slices). Mindmap and GitGraph now
+  ship as first-class families with typed parsers/models, deterministic
+  layout, Scene/SVG/PNG and spatial terminal rendering, typed mutation,
+  config honesty, accessibility/security, and zero-exception citizenship.
+  Each addition
   follows `docs/contributing/adding-diagram-types.md` and ships
   parse/verify/render/round-trip (source-level body is acceptable; structured
   mutation only where the IR can preserve semantics). The corpus count also
@@ -209,14 +208,15 @@ dependents after. IDs are stable names, not an ordering.
   - [x] Gantt family (per the [docs/design/families/gantt.md](./docs/design/families/gantt.md)
     spec from PR #24): `src/gantt/` (types/parser/schedule/layout/SVG +
     `src/ascii/gantt.ts`), routing, segment-preserving typed mutation from day
-    one (`src/agent/gantt-body.ts`, `asGantt`, 9 ops), pure wall-clock-free
+    one (`src/agent/gantt-body.ts`, `asGantt`, 13 ops), pure wall-clock-free
     scheduler with named `GANTT_*` errors, critical-path analysis in
     `describe`, showcase samples, docs, ASCII/Unicode + SVG goldens,
     fast-check properties, a `mermaid-ast` differential, and a targeted
     Stryker config (`mutation-test:gantt`).
-  - [ ] mindmap, gitgraph: still to implement. Order the remaining
-    two by the real README corpus run (network required) per the evidence
-    step above — `eval/family-usage/RESULTS.md` does not assert that ordering.
+  - [x] Mindmap and GitGraph: implemented in that order. Compatibility is
+    pinned to Mermaid commit `f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc`;
+    the focused oracle and divergences live in
+    `eval/mermaid-upstream-suite-bench/mindmap-gitgraph-f3dea583.json`.
 - [x] **BUILD-20 — Upstream test-suite harvests for every current renderable family.** Apply
   [docs/contributing/harvesting-upstream-tests.md](./docs/contributing/harvesting-upstream-tests.md)
   (the method piloted by `eval/mermaid-gantt-bench/`, which found one real
@@ -225,18 +225,20 @@ dependents after. IDs are stable names, not an ordering.
   [`eval/mermaid-upstream-suite-bench/`](./eval/mermaid-upstream-suite-bench/)
   bench now pins upstream Mermaid at `a2d9686451df7c4644a3eeca20535bbd4c5776b0`,
   provides `bun run harvest:upstream` and `bun run harvest:upstream:refresh-check`,
-  records a family-by-family manifest for all 1,170 considered parser/DB
-  blocks, imports 658 source blocks, accounts for 512 exclusions, and leaves
-  0 deferred blocks. The executable gate covers 648 cases including the
-  68-case Gantt companion bench. Local compatibility exclusions carry BUILD-20
+  records a family-by-family manifest for all 1,265 considered parser/DB
+  blocks, imports 747 blocks, accounts for 518 exclusions, and leaves 0
+  deferred blocks. The executable gate covers 737 cases including the 68-case
+  Gantt and 89-case Mindmap/GitGraph companion benches. Local compatibility exclusions carry BUILD-20
   tracking metadata, exact case assertions are enforced, and `ratchet.json`
   prevents imported coverage from falling or local-gap budgets from growing.
   - [x] flowchart, state, sequence, class, ER, timeline, journey,
     architecture, xychart, pie, quadrant, and gantt all have checked
     cases/exclusions/manifest accounting.
-  - [ ] mindmap, gitgraph: harvest BEFORE implementing (BUILD-5) — these are
-    future families, so they are outside the current renderable-family BUILD-20
-    closure.
+  - [x] Mindmap and GitGraph were harvested before implementation against
+    pinned Mermaid commit `f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc`. The checked oracle now accounts
+    for every direct official block (26 Mindmap, 69 GitGraph): 89 executable
+    portable/error cases, five source-inexpressible config-accessor exclusions,
+    and one executable duplicate-id divergence.
 - [x] **BUILD-22 — Diagram-family citizenship gap backfill** (`done`). The
   checked matrix in
   [`docs/contributing/diagram-family-citizenship.matrix.json`](./docs/contributing/diagram-family-citizenship.matrix.json)
@@ -527,14 +529,15 @@ dependents after. IDs are stable names, not an ordering.
   before/after run against the base commit shows 0 regressions, 57 improvements,
   and zero SVG/ASCII byte changes on the 243 shared corpus samples (measurement
   only, no rendering change). `docs/quality.md` honest-gap + LLM-judge grid
-  updated (now 12 families, including gantt).
-  - Remaining sub-gaps (kept unchecked — need a non-sandbox browser run):
-    - [x] mermaid-docs corpus regen to include pie/quadrant docs examples.
-      `corpus.json` was regenerated from a real `mermaid-js/mermaid` clone and
-      now includes all 12 registered families (271 examples total). Corpus
-      entries are never fabricated.
-    - [ ] the new families have no browser screenshot baselines (needs a local
-      browser run).
+  now covers all 14 families.
+  - [x] Mermaid-docs corpus regenerated from a real `mermaid-js/mermaid`
+    clone for the 12 then-registered docs families (271 examples total);
+    Mindmap/GitGraph use their separately pinned upstream-suite oracle. Corpus
+    entries are never fabricated.
+  - [x] Every current family has deterministic SVG visual snapshots,
+    advisory visual metrics, contact-sheet coverage, and generated Style +
+    Palette PNG evidence; browser screenshots are not required for
+    deterministic geometry approval.
 
 ## 3. Agent-usage verification backlog
 

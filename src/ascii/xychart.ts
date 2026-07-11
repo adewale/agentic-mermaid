@@ -18,6 +18,8 @@ import type { AsciiConfig, AsciiTheme, ColorMode, CharRole, Canvas, RoleCanvas }
 import { colorizeText } from './ansi.ts'
 import { getSeriesColor, CHART_ACCENT_FALLBACK, isValidHex } from '../xychart/colors.ts'
 import { isLegendWorthy, legendEntries } from '../xychart/legend.ts'
+import { graphemes } from '../shared/graphemes.ts'
+import { visualWidth, WIDE_CHAR_CONTINUATION } from './width.ts'
 
 // ============================================================================
 // Constants
@@ -99,15 +101,16 @@ export function renderXYChartAscii(
   colorMode: ColorMode,
   theme: AsciiTheme,
   frontmatter: MermaidFrontmatterMap = {},
+  targetWidth?: number,
 ): string {
   const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('%%'))
   const chart = applyXYChartFrontmatterConfig(parseXYChart(lines), frontmatter)
   const ch = config.useAscii ? ASC : UNI
 
   if (chart.horizontal) {
-    return renderHorizontal(chart, ch, colorMode, theme)
+    return renderHorizontal(chart, ch, colorMode, theme, targetWidth)
   }
-  return renderVertical(chart, ch, colorMode, theme)
+  return renderVertical(chart, ch, colorMode, theme, targetWidth)
 }
 
 // ============================================================================
@@ -119,6 +122,7 @@ function renderVertical(
   ch: typeof UNI | typeof ASC,
   colorMode: ColorMode,
   theme: AsciiTheme,
+  targetWidth?: number,
 ): string {
   const dataCount = getDataCount(chart)
   if (dataCount === 0) return ''
@@ -128,9 +132,11 @@ function renderVertical(
   const yLabels = yTicks.map(v => formatTickValue(v))
   const showYLabels = chart.config.yAxis?.showLabel !== false
   const showXLabels = chart.config.xAxis?.showLabel !== false
-  const yGutter = showYLabels ? Math.max(...yLabels.map(l => l.length)) + 1 : 0
+  const yGutter = showYLabels ? Math.max(...yLabels.map(visualWidth)) + 1 : 0
 
-  const plotW = Math.max(PLOT_WIDTH, dataCount * 6)
+  const naturalPlotW = Math.max(PLOT_WIDTH, dataCount * 6)
+  const availablePlotW = targetWidth === undefined ? naturalPlotW : targetWidth - yGutter - 3
+  const plotW = Math.max(dataCount * 2, Math.min(naturalPlotW, availablePlotW))
   const plotH = PLOT_HEIGHT
   const bandW = Math.floor(plotW / dataCount)
   const catLabels = getCategoryLabels(chart, dataCount)
@@ -165,7 +171,7 @@ function renderVertical(
 
   // 1. Title
   if (hasTitle && titleRow >= 0) {
-    writeText(canvas, roles, titleRow, Math.floor(totalW / 2 - chart.title!.length / 2), chart.title!, 'text')
+    writeText(canvas, roles, titleRow, Math.floor(totalW / 2 - visualWidth(chart.title!) / 2), chart.title!, 'text')
   }
 
   // 2. Legend
@@ -191,7 +197,7 @@ function renderVertical(
     set(canvas, roles, displayRow, plotLeft - 1, row === 0 ? ch.origin : ch.yTick, 'border')
     // Label
     if (showYLabels) {
-      const labelStart = yGutter - label.length
+      const labelStart = yGutter - visualWidth(label)
       writeText(canvas, roles, displayRow, Math.max(0, labelStart), label, 'text')
     }
   }
@@ -205,7 +211,7 @@ function renderVertical(
     set(canvas, roles, xAxisRow, cx, ch.xTick, 'border')
     if (showXLabels && xLabelRow >= 0) {
       const label = catLabels[i]!
-      const labelStart = cx - Math.floor(label.length / 2)
+      const labelStart = cx - Math.floor(visualWidth(label) / 2)
       writeText(canvas, roles, xLabelRow, Math.max(0, labelStart), label, 'text')
     }
   }
@@ -213,7 +219,7 @@ function renderVertical(
   // 5. X-axis title
   if (hasXTitle && xTitleRow >= 0) {
     const title = chart.xAxis.title!
-    writeText(canvas, roles, xTitleRow, Math.floor(totalW / 2 - title.length / 2), title, 'text')
+    writeText(canvas, roles, xTitleRow, Math.floor(totalW / 2 - visualWidth(title) / 2), title, 'text')
   }
 
   // 6. Grid lines (subtle horizontal dots at y-tick positions)
@@ -266,7 +272,7 @@ function renderVertical(
           const labelRow = entry.data[i]! >= 0
             ? Math.max(plotTop, topDisplayRow - 1)
             : Math.min(xAxisRow - 1, bottomDisplayRow + 1)
-          const labelCol = Math.max(plotLeft, cx - Math.floor(label.length / 2))
+          const labelCol = Math.max(plotLeft, cx - Math.floor(visualWidth(label) / 2))
           writeColoredText(canvas, roles, hexColors, labelRow, labelCol, label, 'text', hexColor)
         }
       }
@@ -298,6 +304,7 @@ function renderHorizontal(
   ch: typeof UNI | typeof ASC,
   colorMode: ColorMode,
   theme: AsciiTheme,
+  targetWidth?: number,
 ): string {
   const dataCount = getDataCount(chart)
   if (dataCount === 0) return ''
@@ -307,9 +314,12 @@ function renderHorizontal(
   const catLabels = getCategoryLabels(chart, dataCount)
   const showCategoryLabels = chart.config.xAxis?.showLabel !== false
   const showValueLabels = chart.config.yAxis?.showLabel !== false
-  const catGutter = showCategoryLabels ? Math.max(...catLabels.map(l => l.length)) + 1 : 0
+  const catGutter = showCategoryLabels ? Math.max(...catLabels.map(visualWidth)) + 1 : 0
 
-  const plotW = Math.max(PLOT_WIDTH, 40)
+  const naturalPlotW = Math.max(PLOT_WIDTH, 40)
+  const dataLabelPad = chart.config.showDataLabel ? 12 : 2
+  const availablePlotW = targetWidth === undefined ? naturalPlotW : targetWidth - catGutter - 2 - dataLabelPad
+  const plotW = Math.max(dataCount * 2, Math.min(naturalPlotW, availablePlotW))
   const bandH = Math.max(2, Math.floor(PLOT_HEIGHT / dataCount))
   const plotH = bandH * dataCount
 
@@ -318,7 +328,6 @@ function renderHorizontal(
   const hasLegend = chart.config.showLegend !== false && isLegendWorthy(chart.series)
   const plotTop = (hasTitle ? 2 : 0) + (hasLegend ? 1 : 0)
   const plotLeft = catGutter + 1
-  const dataLabelPad = chart.config.showDataLabel ? 12 : 2
   const totalW = plotLeft + plotW + dataLabelPad
   const totalH = plotTop + plotH + 1 + (showValueLabels ? 1 : 0) + (hasYTitle ? 1 : 0)
   const xAxisRow = plotTop + plotH
@@ -339,7 +348,7 @@ function renderHorizontal(
 
   // Title
   if (hasTitle) {
-    writeText(canvas, roles, 0, Math.floor(totalW / 2 - chart.title!.length / 2), chart.title!, 'text')
+    writeText(canvas, roles, 0, Math.floor(totalW / 2 - visualWidth(chart.title!) / 2), chart.title!, 'text')
   }
 
   // Legend
@@ -358,7 +367,7 @@ function renderHorizontal(
     const my = bandMid(i)
     const label = catLabels[i]!
     if (showCategoryLabels) {
-      const labelStart = catGutter - label.length
+      const labelStart = catGutter - visualWidth(label)
       writeText(canvas, roles, my, Math.max(0, labelStart), label, 'text')
     }
   }
@@ -373,14 +382,14 @@ function renderHorizontal(
     set(canvas, roles, xAxisRow, cx, ch.xTick, 'border')
     if (showValueLabels) {
       const label = formatTickValue(tick)
-      writeText(canvas, roles, xAxisRow + 1, cx - Math.floor(label.length / 2), label, 'text')
+      writeText(canvas, roles, xAxisRow + 1, cx - Math.floor(visualWidth(label) / 2), label, 'text')
     }
   }
 
   // Y-axis title
   if (hasYTitle) {
     const title = chart.yAxis.title!
-    writeText(canvas, roles, totalH - 1, Math.floor(totalW / 2 - title.length / 2), title, 'text')
+    writeText(canvas, roles, totalH - 1, Math.floor(totalW / 2 - visualWidth(title) / 2), title, 'text')
   }
 
   // Grid lines (vertical at value tick positions)
@@ -426,8 +435,8 @@ function renderHorizontal(
         if (chart.config.showDataLabel) {
           const label = formatTickValue(entry.data[i]!)
           const labelCol = entry.data[i]! >= 0
-            ? Math.min(totalW - label.length, toCol + 2)
-            : Math.max(plotLeft, fromCol - label.length - 1)
+            ? Math.min(totalW - visualWidth(label), toCol + 2)
+            : Math.max(plotLeft, fromCol - visualWidth(label) - 1)
           writeColoredText(canvas, roles, hexColors, by, labelCol, label, 'text', hexColor)
         }
       }
@@ -682,7 +691,7 @@ function drawLegend(
   let totalLen = 0
   for (let i = 0; i < items.length; i++) {
     if (i > 0) totalLen += 2 // gap between items
-    totalLen += 1 + 1 + items[i]!.label.length // symbol + space + label
+    totalLen += 1 + 1 + visualWidth(items[i]!.label) // symbol + space + label
   }
 
   const startCol = Math.max(0, Math.floor(totalW / 2 - totalLen / 2))
@@ -698,7 +707,7 @@ function drawLegend(
     col += 1
     // Label text
     writeText(canvas, roles, row, col, item.label, 'text')
-    col += item.label.length
+    col += visualWidth(item.label)
   }
 }
 
@@ -738,8 +747,13 @@ function get(canvas: Canvas, row: number, col: number): string {
 }
 
 function writeText(canvas: Canvas, roles: RoleCanvas, row: number, startCol: number, text: string, role: CharRole): void {
-  for (let i = 0; i < text.length; i++) {
-    set(canvas, roles, row, startCol + i, text[i]!, role)
+  let col = startCol
+  for (const cluster of graphemes(text)) {
+    const width = visualWidth(cluster)
+    if (width === 0) continue
+    set(canvas, roles, row, col, cluster, role)
+    for (let offset = 1; offset < width; offset++) set(canvas, roles, row, col + offset, WIDE_CHAR_CONTINUATION, role)
+    col += width
   }
 }
 
@@ -753,8 +767,15 @@ function writeColoredText(
   role: CharRole,
   hex: string,
 ): void {
-  for (let i = 0; i < text.length; i++) {
-    set(canvas, roles, row, startCol + i, text[i]!, role, hexCanvas, hex)
+  let col = startCol
+  for (const cluster of graphemes(text)) {
+    const width = visualWidth(cluster)
+    if (width === 0) continue
+    set(canvas, roles, row, col, cluster, role, hexCanvas, hex)
+    for (let offset = 1; offset < width; offset++) {
+      set(canvas, roles, row, col + offset, WIDE_CHAR_CONTINUATION, role, hexCanvas, hex)
+    }
+    col += width
   }
 }
 
@@ -819,7 +840,7 @@ function colorizeRow(
   theme: AsciiTheme,
   mode: ColorMode,
 ): string {
-  if (mode === 'none') return chars.join('')
+  if (mode === 'none') return chars.filter(char => char !== WIDE_CHAR_CONTINUATION).join('')
 
   let result = ''
   let currentColor: string | null = null
@@ -827,6 +848,7 @@ function colorizeRow(
 
   for (let i = 0; i < chars.length; i++) {
     const char = chars[i]!
+    if (char === WIDE_CHAR_CONTINUATION) continue
 
     if (char === ' ') {
       // Flush buffer before whitespace

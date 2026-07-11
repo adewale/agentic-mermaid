@@ -35,24 +35,24 @@
   .gantt-axis-label { fill: #27272A; }
   .gantt-excluded-band { fill: #27272A; opacity: 0.1; }
 </style>
-<rect class="gantt-section-band" x="119" y="50" width="600" height="120" />
+<rect class="gantt-section-band" x="119" y="50" width="600" height="120" data-id="section-band:A section#0" data-role="section" />
 <rect class="gantt-excluded-band" x="319" y="50" width="80" height="222" />
 <rect class="gantt-excluded-band" x="599" y="50" width="80" height="222" />
 <line class="gantt-grid-line" x1="359" y1="50" x2="359" y2="272" />
 <line class="gantt-grid-line" x1="639" y1="50" x2="639" y2="272" />
 <text class="gantt-axis-label" x="359" y="284" text-anchor="middle" dominant-baseline="middle" font-size="11" font-weight="500">01-12</text>
 <text class="gantt-axis-label" x="639" y="284" text-anchor="middle" dominant-baseline="middle" font-size="11" font-weight="500">01-19</text>
-<text class="gantt-section-label" x="8" y="65" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="600">A section</text>
-<text class="gantt-section-label" x="8" y="191" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="600">Critical tasks</text>
+<text class="gantt-section-label" x="8" y="65" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="600" data-id="section-label:A section#0" data-role="section">A section</text>
+<text class="gantt-section-label" x="8" y="191" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="600" data-id="section-label:Critical tasks#0" data-role="section">Critical tasks</text>
 <text class="gantt-task-label" x="16" y="91" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500">Completed task</text>
 <text class="gantt-task-label" x="16" y="121" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500">Active task</text>
 <text class="gantt-task-label" x="16" y="151" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500">Future task</text>
 <text class="gantt-task-label" x="16" y="217" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500">Crit task</text>
 <text class="gantt-task-label" x="16" y="247" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500">Release</text>
-<rect class="gantt-bar gantt-bar-done" x="119" y="80" width="80" height="22" rx="3" ry="3" data-task="des1" />
-<rect class="gantt-bar gantt-bar-active" x="239" y="110" width="200" height="22" rx="3" ry="3" data-task="des2" />
-<rect class="gantt-bar" x="439" y="140" width="280" height="22" rx="3" ry="3" data-task="des3" />
-<rect class="gantt-bar gantt-bar-crit" x="119" y="206" width="160" height="22" rx="3" ry="3" data-task="c1" />
-<path class="gantt-milestone" d="M 708 236 L 719 247 L 708 258 L 697 247 Z" data-task="m1" />
-<text class="gantt-title" x="367.5" y="18" text-anchor="middle" dominant-baseline="middle" font-size="17" font-weight="600">Adding GANTT diagram functionality to mermaid</text>
+<rect class="gantt-bar gantt-bar-done" x="119" y="80" width="80" height="22" rx="3" ry="3" data-task="des1" data-id="task:des1" data-role="task" />
+<rect class="gantt-bar gantt-bar-active" x="239" y="110" width="200" height="22" rx="3" ry="3" data-task="des2" data-id="task:des2" data-role="task" />
+<rect class="gantt-bar" x="439" y="140" width="280" height="22" rx="3" ry="3" data-task="des3" data-id="task:des3" data-role="task" />
+<rect class="gantt-bar gantt-bar-crit" x="119" y="206" width="160" height="22" rx="3" ry="3" data-task="c1" data-id="task:c1" data-role="task" />
+<path class="gantt-milestone" d="M 708 236 L 719 247 L 708 258 L 697 247 Z" data-task="m1" data-id="task:m1" data-role="milestone" />
+<text class="gantt-title" x="367.5" y="18" text-anchor="middle" dominant-baseline="middle" font-size="17" font-weight="600" data-id="title" data-role="title">Adding GANTT diagram functionality to mermaid</text>
 </svg>

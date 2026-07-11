@@ -75,6 +75,20 @@ interface Exclusion {
   ours?: { parseOk?: boolean; structured?: boolean; verifyOk?: boolean; layoutOk?: boolean; roundtripOk?: boolean }
 }
 
+interface PinnedCompanionOracle {
+  upstream: {
+    commit: string
+    files: Array<{ family: 'mindmap' | 'gitgraph'; path: string; testBlocks: number }>
+  }
+  accounting: Record<'mindmap' | 'gitgraph', {
+    consideredBlocks: number
+    importedCases: number
+    importedBlocks: number
+    excludedBlocks: number
+    deferredBlocks: number
+  }>
+}
+
 interface LocalGapBudget {
   totalBlocks: number
   byReason: Record<string, number>
@@ -102,6 +116,9 @@ const BENCH = join(ROOT, 'eval/mermaid-upstream-suite-bench')
 const UPSTREAM = resolve(process.env.MERMAID_UPSTREAM_DIR ?? join(ROOT, '../upstream-mermaid'))
 const UPSTREAM_REVISION = 'a2d9686451df7c4644a3eeca20535bbd4c5776b0'
 const UPSTREAM_REPO = 'mermaid-js/mermaid' as const
+const PINNED_COMPANION_PATH = join(BENCH, 'mindmap-gitgraph-f3dea583.json')
+const PINNED_COMPANION = JSON.parse(readFileSync(PINNED_COMPANION_PATH, 'utf8')) as PinnedCompanionOracle
+const PINNED_FAMILIES = ['mindmap', 'gitgraph'] as const
 
 const FAMILY_CONFIGS: FamilyConfig[] = [
   {
@@ -313,9 +330,10 @@ function main(): void {
   writeJson(join(BENCH, 'manifest.json'), manifest)
   writeJson(join(BENCH, 'ratchet.json'), ratchet)
 
-  const totalCases = cases.length
-  const importedBlocks = cases.reduce((sum, c) => sum + c.upstream.blocks.length, 0) + 68
-  const excludedBlocks = exclusions.reduce((sum, e) => sum + e.blockCount, 0)
+  const companionCounts = Object.values(PINNED_COMPANION.accounting)
+  const totalCases = cases.length + companionCounts.reduce((sum, row) => sum + row.importedCases, 0)
+  const importedBlocks = cases.reduce((sum, c) => sum + c.upstream.blocks.length, 0) + 68 + companionCounts.reduce((sum, row) => sum + row.importedBlocks, 0)
+  const excludedBlocks = exclusions.reduce((sum, e) => sum + e.blockCount, 0) + companionCounts.reduce((sum, row) => sum + row.excludedBlocks, 0)
   console.log(`Harvested ${totalCases} cases covering ${importedBlocks} blocks; excluded/accounted ${excludedBlocks}; local-gap budget ${ratchet.budgets.localGaps.totalBlocks}; deferred 0.`)
 }
 
@@ -353,8 +371,8 @@ function buildManifest(cases: BenchCase[], exclusions: Exclusion[]): unknown {
       harvestDate: '2026-06-18',
       license: 'MIT',
     },
-    scope: 'Current Agentic Mermaid renderable built-in families. Every considered upstream parser/DB block is imported as a public-API case, excluded with a documented reason, or delegated to the dedicated Gantt companion bench.',
-    families: FAMILY_CONFIGS.map(config => {
+    scope: 'Current Agentic Mermaid renderable built-in families. Every considered upstream parser/DB block is imported as an executable case, excluded with a documented reason, or delegated to a named family companion bench. Mindmap and GitGraph are pinned separately to their declared compatibility revision.',
+    families: [...FAMILY_CONFIGS.map(config => {
       const importedBlocks = config.family === 'gantt' ? 68 : importedBlocksByFamily.get(config.family) ?? 0
       const importedCases = config.family === 'gantt' ? 68 : importedCasesByFamily.get(config.family) ?? 0
       const excludedBlocks = excludedBlocksByFamily.get(config.family) ?? 0
@@ -370,14 +388,27 @@ function buildManifest(cases: BenchCase[], exclusions: Exclusion[]): unknown {
         files: config.files,
         ...(config.companionBench ? { companionBench: config.companionBench } : {}),
       }
-    }),
+    }), ...PINNED_FAMILIES.map(family => {
+      const accounting = PINNED_COMPANION.accounting[family]
+      const file = PINNED_COMPANION.upstream.files.find(entry => entry.family === family)
+      if (!file) throw new Error(`Pinned companion oracle is missing ${family} file provenance.`)
+      return {
+        family,
+        status: 'full-harvest-accounted',
+        ...accounting,
+        compatibilityRevision: PINNED_COMPANION.upstream.commit,
+        files: [{ path: file.path, testBlocks: file.testBlocks }],
+        companionBench: 'src/__tests__/mindmap-gitgraph-upstream-oracle.test.ts',
+      }
+    })],
   }
 }
 
 function buildRatchet(cases: BenchCase[], exclusions: Exclusion[]): Ratchet {
+  const companionCounts = Object.values(PINNED_COMPANION.accounting)
   const observed: Ratchet['observed'] = {
-    importedCases: cases.length + 68,
-    importedBlocks: cases.reduce((sum, c) => sum + c.upstream.blocks.length, 0) + 68,
+    importedCases: cases.length + 68 + companionCounts.reduce((sum, row) => sum + row.importedCases, 0),
+    importedBlocks: cases.reduce((sum, c) => sum + c.upstream.blocks.length, 0) + 68 + companionCounts.reduce((sum, row) => sum + row.importedBlocks, 0),
     localGaps: localGapBudget(exclusions),
   }
   const previous = readRatchet()

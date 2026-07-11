@@ -41,10 +41,10 @@
     <polygon points="8 0, 0 2.5, 8 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
   </marker>
 </defs>
-<g class="architecture-group" data-id="api" data-label="API">
-  <rect class="architecture-group-frame" x="38" y="40" width="156" height="110" rx="0" ry="0" />
+<g class="architecture-group" data-id="api" data-label="API" data-role="group">
+  <rect class="architecture-group-frame" x="38" y="40" width="156" height="110" rx="0" ry="0" data-id="group-frame:api" data-role="group" />
   <path class="architecture-group-band" d="M38,40 H194 V68 H38 Z" />
-  <rect class="architecture-group-outline" x="38" y="40" width="156" height="110" rx="0" ry="0" />
+  <rect class="architecture-group-outline" x="38" y="40" width="156" height="110" rx="0" ry="0" data-id="group-outline:api" data-role="group" />
   <g class="architecture-icon" data-icon="cloud">
   <circle class="architecture-icon-mark" cx="53.3504" cy="54.2944" r="2.3552" />
 <circle class="architecture-icon-mark" cx="56.2944" cy="52.8224" r="2.9440000000000004" />
@@ -53,10 +53,10 @@
 </g>
   <text x="74" y="54" class="architecture-group-label" text-anchor="start" font-size="12" font-weight="600" dy="4.199999999999999">API</text>
 </g>
-<polyline class="architecture-edge" data-from="app" data-to="db" data-from-side="R" data-to-side="L" data-from-boundary="item" data-to-boundary="item" points="176,108 254,108" marker-end="url(#char-architecture-architecture-arrow-end)" />
-<g class="architecture-service" data-id="db" data-label="DB">
-  <rect class="architecture-service-card" x="254" y="84" width="120" height="48" rx="0" ry="0" />
-  <rect class="architecture-service-outline" x="254" y="84" width="120" height="48" rx="0" ry="0" />
+<polyline class="architecture-edge" data-from="app" data-to="db" data-from-side="R" data-to-side="L" data-from-boundary="item" data-to-boundary="item" points="176,108 254,108" marker-end="url(#char-architecture-architecture-arrow-end)" data-id="edge:app-&gt;db#0" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="app to db" />
+<g class="architecture-service" data-id="db" data-label="DB" data-role="service">
+  <rect class="architecture-service-card" x="254" y="84" width="120" height="48" rx="0" ry="0" data-id="service-card:db" data-role="service" />
+  <rect class="architecture-service-outline" x="254" y="84" width="120" height="48" rx="0" ry="0" data-id="service-outline:db" data-role="service" />
   <g class="architecture-icon" data-icon="database">
   <ellipse class="architecture-icon-mark" cx="283" cy="105.12" rx="4.32" ry="1.8" />
 <path class="architecture-icon-mark" d="M 278.68 105.12 V 111.6" />
@@ -66,9 +66,9 @@
 </g>
   <text x="306" y="108" class="architecture-service-label" text-anchor="start" font-size="13" font-weight="500" dy="4.55">DB</text>
 </g>
-<g class="architecture-service" data-id="app" data-label="App">
-  <rect class="architecture-service-card" x="56" y="84" width="120" height="48" rx="0" ry="0" />
-  <rect class="architecture-service-outline" x="56" y="84" width="120" height="48" rx="0" ry="0" />
+<g class="architecture-service" data-id="app" data-label="App" data-role="service">
+  <rect class="architecture-service-card" x="56" y="84" width="120" height="48" rx="0" ry="0" data-id="service-card:app" data-role="service" />
+  <rect class="architecture-service-outline" x="56" y="84" width="120" height="48" rx="0" ry="0" data-id="service-outline:app" data-role="service" />
   <g class="architecture-icon" data-icon="server">
   <rect class="architecture-icon-mark" x="81.04" y="103.68" width="7.92" height="8.64" rx="0" ry="0" />
 <path class="architecture-icon-mark" d="M 82.12 106.56 H 87.88" />

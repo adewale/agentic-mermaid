@@ -94,10 +94,12 @@ sources we did not write:
   documentation; gates parse, verify, and round-trip.
 - **MermaidSeqBench** (132 IBM-curated sequence diagrams) — parse rate,
   structured-vs-opaque split, verify rate, round-trip stability.
-- **upstream-suite bench** (`eval/mermaid-upstream-suite-bench/`, 658
-  imported cases from a *pinned* upstream commit) — with a **ratchet**
-  (`ratchet.json`) that fails the build if coverage drops or per-family
-  local-gap budgets grow.
+- **upstream-suite bench** (`eval/mermaid-upstream-suite-bench/`, 737
+  executable cases / 747 imported blocks from pinned upstream commits) — with
+  a **ratchet** (`ratchet.json`) that fails the build if coverage drops or
+  per-family local-gap budgets grow. Mindmap/GitGraph use their declared
+  `f3dea583…` compatibility revision and account for all 26/69 official spec
+  blocks in a dedicated executable oracle.
 
 These exist because our hand-written fixtures encode what we already knew
 the parser modeled. Upstream examples are "adversarial in exactly the
@@ -204,7 +206,7 @@ This is where we approximate aesthetics deterministically:
 
 - **`measureQuality` / `checkQuality`** — edge crossings, label
   legibility, whitespace balance, label-edge proximity, aspect ratio,
-  gated by `QualityBounds`. Cheap and deterministic; covers all twelve
+  gated by `QualityBounds`. Cheap and deterministic; covers all fourteen
   renderable families via `RenderedLayout` adapters.
 - **ugly-detector** (`eval/ugly-detector/`) — geometric defect detection:
   diagonal segments, floating endpoints, edges through nodes, hitches.

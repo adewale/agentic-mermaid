@@ -9,6 +9,7 @@ import { spawnSync } from 'node:child_process'
 import { readFileSync, writeFileSync, mkdtempSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
+import { BUILTIN_FAMILY_METADATA } from '../src/agent/families.ts'
 
 const AM = join(import.meta.dir, '..', 'bin', 'am.ts')
 const CORPUS = join(import.meta.dir, '..', 'eval', 'mermaid-docs-corpus', 'corpus.json')
@@ -20,6 +21,14 @@ function pickOnePerFamily(): Map<string, Fixture> {
   const corpus = JSON.parse(readFileSync(CORPUS, 'utf8')) as Fixture[]
   const out = new Map<string, Fixture>()
   for (const f of corpus) if (!out.has(f.family)) out.set(f.family, f)
+  // The harvested docs corpus intentionally contains only real upstream docs
+  // examples. Families absent there still need shipped-CLI coverage, so use
+  // the checked built-in metadata example rather than fabricating corpus rows.
+  for (const [index, family] of BUILTIN_FAMILY_METADATA.entries()) {
+    if (!out.has(family.id)) out.set(family.id, {
+      family: family.id, source: family.example, origin: 'BUILTIN_FAMILY_METADATA', index,
+    })
+  }
   return out
 }
 
@@ -38,6 +47,10 @@ function writeTmp(source: string): string {
 }
 
 describe('am render — per-family smoke', () => {
+  test('the CLI matrix covers the built-in registry exactly', () => {
+    expect([...PICKS.keys()].sort()).toEqual(BUILTIN_FAMILY_METADATA.map(family => family.id).sort())
+  })
+
   for (const family of [...PICKS.keys()].sort()) {
     test(`${family} renders to SVG without error`, () => {
       const fixture = PICKS.get(family)!

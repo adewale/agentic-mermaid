@@ -99,12 +99,14 @@ Layout is deterministic: identical input produces identical geometry.`,
   {
     name: 'render_ascii',
     description: `Render a Mermaid source string to text. Returns { ok, text }.
-useAscii true → plain ASCII (+,-,|); false/absent → Unicode box drawing (┌,─,│).`,
+useAscii true → plain ASCII (+,-,|); false/absent → Unicode box drawing (┌,─,│).
+targetWidth sets a hard terminal display-cell bound; impossible bounds return a typed error.`,
     inputSchema: {
       type: 'object',
       properties: {
         source: { type: 'string', description: 'Mermaid source.' },
         useAscii: { type: 'boolean', description: 'true = ASCII characters, false = Unicode (default).' },
+        targetWidth: { type: 'integer', minimum: 1, description: 'Hard maximum line width in terminal display cells.' },
       },
       required: ['source'],
     },
@@ -205,7 +207,10 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
     }))
     case 'render_ascii': return sourceTool(id, args, 'ASCII_RENDER_FAILED', source => ({
       ok: true as const,
-      text: renderMermaidASCII(source, { useAscii: args.useAscii === true }),
+      text: renderMermaidASCII(source, {
+        useAscii: args.useAscii === true,
+        targetWidth: args.targetWidth as number | undefined,
+      }),
       warnings: sourceConfigWarnings(source),
     }))
     case 'render_png': return handleRenderPng(id, args, context)
@@ -366,7 +371,12 @@ export function cacheKeyFor(name: string | undefined, args: Record<string, unkno
     case 'render_svg':
       return typeof args.source === 'string' ? { t: 'render_svg', source: args.source, ...effectiveSvgArgs(args) } : null
     case 'render_ascii':
-      return typeof args.source === 'string' ? { t: 'render_ascii', source: args.source, useAscii: args.useAscii === true } : null
+      return typeof args.source === 'string' ? {
+        t: 'render_ascii',
+        source: args.source,
+        useAscii: args.useAscii === true,
+        targetWidth: typeof args.targetWidth === 'number' ? args.targetWidth : undefined,
+      } : null
     case 'render_png': {
       if (typeof args.source !== 'string') return null
       const output = args.output ?? (args as { outputMode?: unknown }).outputMode
@@ -427,6 +437,17 @@ function sourceTool(id: number | string | null, args: Record<string, unknown>, e
     return toolResult(id, payload, !payload.ok)
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
+    if (typeof e === 'object' && e !== null && 'code' in e && e.code === 'ASCII_TARGET_WIDTH_IMPOSSIBLE') {
+      const widthError = e as { code: string; requestedWidth: number; requiredWidth: number; family: string; reason: string }
+      return toolResult(id, { ok: false as const, error: {
+        code: widthError.code,
+        message: msg,
+        requestedWidth: widthError.requestedWidth,
+        requiredWidth: widthError.requiredWidth,
+        family: widthError.family,
+        reason: widthError.reason,
+      } }, true)
+    }
     return toolResult(id, { ok: false as const, error: { code: errorCode, message: msg } }, true)
   }
 }

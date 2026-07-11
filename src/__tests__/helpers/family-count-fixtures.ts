@@ -37,4 +37,6 @@ export const FAMILY_COUNT_FIXTURES: FamilyCountFixture[] = [
   // A junction makes nodes = services + junctions discriminating (1 + 1 = 2):
   // kills the ArithmeticOperator mutant that flips `+` to `-` (1 - 1 = 0).
   { family: 'architecture', source: 'architecture-beta\n  group g(cloud)[G]\n  service a(server)[A] in g\n  junction jx in g\n  a:R -- L:jx', count: { nodes: 2, edges: 1, groups: 1 } },
+  { family: 'mindmap', source: 'mindmap\n  root((Product))\n    Research\n    Delivery', count: { nodes: 3, edges: 2, groups: 0 } },
+  { family: 'gitgraph', source: 'gitGraph\n  commit id:"a"\n  commit id:"b"\n  commit id:"c"', count: { nodes: 3, edges: 2, groups: 1 } },
 ]

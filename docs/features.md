@@ -8,8 +8,9 @@ What Agentic Mermaid can do, organized by capability area. The npm import paths 
 - **`parseMermaid(source)`** → `Result<ValidDiagram, ParseError[]>`. Never
   throws on malformed input; structured errors.
 - **`mutate(d, op)`** — family-overloaded typed mutation. Ops per family:
-  flowchart (14), state (14), sequence (7), timeline (15), class (12), ER (8),
-  journey (14), architecture (11), xychart (10), pie (7), quadrant (7), gantt (13): **132 total**.
+  flowchart (14), state (18), sequence (7), timeline (15), class (15), ER (12),
+  journey (14), architecture (19), xychart (10), pie (7), quadrant (7), gantt (13),
+  mindmap (10), gitgraph (11): **172 total**.
 - **`verifyMermaid(d, opts)`** — structural and geometric verification plus a
   strict render-parity gate, with deterministic semantic facts available for
   meaning-level checks.
@@ -17,26 +18,29 @@ What Agentic Mermaid can do, organized by capability area. The npm import paths 
 - **Round-trip** — structured bodies serialize to canonical, idempotent
   source; opaque bodies preserve original indentation/comments verbatim.
 - **Narrowers** — `asFlowchart`/`asState`/`asSequence`/`asTimeline`/`asClass`/`asEr`/
-  `asJourney`/`asArchitecture`/`asXyChart`/`asPie`/`asQuadrant`/`asGantt`
+  `asJourney`/`asArchitecture`/`asXyChart`/`asPie`/`asQuadrant`/`asGantt`/
+  `asMindmap`/`asGitGraph`
   return `null` on a non-matching or source-level/opaque body (steers agents
   off the unsafe path).
 
-## Diagram families (12)
+## Diagram families (14)
 
 | Family | Parse/render/round-trip | Structured mutation |
 |---|---|---|
 | Flowchart | ✅ | ✅ (14 ops) |
-| State | ✅ | ✅ (14 ops via `asState`; notes/`<<fork>>`/`<<choice>>`/history are structured; `--` regions/`classDef` → opaque) |
+| State | ✅ | ✅ (18 ops via `asState`; regions, notes, history, and paint are structured) |
 | Sequence | ✅ | ✅ (7 ops; alt/loop/note/box ride along verbatim as segments) |
 | Timeline | ✅ | ✅ (15 ops) |
-| Class | ✅ | ✅ (12 ops) |
-| ER | ✅ | ✅ (8 ops; aliases use stable ids plus display labels) |
+| Class | ✅ | ✅ (15 ops) |
+| ER | ✅ | ✅ (12 ops; aliases use stable ids plus display labels) |
 | Journey | ✅ | ✅ (14 ops via `asJourney`) |
 | XY chart | ✅ | ✅ (10 ops via `asXyChart`) |
-| Architecture | ✅ | ✅ (11 ops via `asArchitecture`) |
+| Architecture | ✅ | ✅ (19 ops via `asArchitecture`) |
 | Pie | ✅ | ✅ (7 ops via `asPie`) |
 | Quadrant | ✅ | ✅ (7 ops via `asQuadrant`) |
 | Gantt | ✅ | ✅ (13 ops via `asGantt`; calendar directives/click/comments ride along verbatim as segments) |
+| Mindmap | ✅ | ✅ (10 ops via `asMindmap`) |
+| GitGraph | ✅ | ✅ (11 ops via `asGitGraph`) |
 
 **Structured-or-opaque rule:** every family either has a structured body
 or preserves source verbatim. Constructs are never silently dropped.
@@ -60,9 +64,12 @@ Agentic Mermaid outputs **SVG, PNG, ASCII, Unicode, and JSON layout** from the s
   `docs/custom-fonts.md`.
 
 - **SVG** — `renderMermaidSVG` (`compact`, `security:'strict'`, CSS
-  variable fonts, `idPrefix` namespacing). CLI exposes `--security strict`.
-- **ASCII / Unicode** — `renderMermaidASCII` (CJK/emoji width, FE0F/ZWJ,
-  `maxWidth` wrapping, trunk-shared fanouts).
+  variable fonts, all-family semantic `data-id`/`data-role` identities, typed
+  relation ARIA, and `idPrefix` namespacing for markers, filters, clip paths,
+  paints, hrefs, and ARIA references). CLI exposes `--security strict`.
+- **ASCII / Unicode** — `renderMermaidASCII` uses grapheme/display-cell geometry
+  across every family. `targetWidth` is a hard bound with typed impossible-width
+  errors; deprecated `maxWidth` remains best-effort only.
 - **PNG** — `renderMermaidPNG(source, { fitTo, background, style, seed, fontDirs, loadSystemFonts, onWarning })` or `am render diagram.mmd --format png --output diagram.png` (offline `@resvg/resvg-js`; bundled Inter — the metrics font — with DejaVu fallback plus the built-in style faces,
   cross-runtime deterministic on same-machine x86_64/ARM64 where Node + built `dist/` are present). Characters without bundled coverage (CJK, emoji) warn loudly; supply `--font-dirs <dir>` / `fontDirs` or `--system-fonts` / `loadSystemFonts: true`.
 - **JSON layout** — `layoutMermaid` / `am render --format json`; add `--certificates` (or `layoutMermaid(d, { debug: true })`) to include opt-in graph route certificates, family edge-route certificates (class/ER/architecture/sequence), region-containment certificates (timeline/charts), V1 region/action sidecars, exact ports, and side/slot/role assignments where applicable.

@@ -171,6 +171,35 @@ export const EDITOR_EXAMPLES = [
   Palette polish: [0.35, 0.24]`,
   },
   {
+    id: 'mindmap-basic',
+    label: 'Mindmap',
+    category: 'Supported diagrams',
+    diagramType: 'Mindmap',
+    description: 'Indented idea hierarchy with explicit node shapes.',
+    source: `mindmap
+  root((Product launch))
+    Research
+      Customer interviews
+      Competitive evidence
+    Delivery
+      Beta
+      General availability`,
+  },
+  {
+    id: 'gitgraph-basic',
+    label: 'GitGraph',
+    category: 'Supported diagrams',
+    diagramType: 'GitGraph',
+    description: 'Branches, commits, and a deterministic merge history.',
+    source: `gitGraph
+  commit id:"base" msg:"Foundation"
+  branch feature
+  commit id:"feature-1" msg:"Build feature"
+  checkout main
+  commit id:"release" msg:"Prepare release"
+  merge feature id:"merge" tag:"v1.0"`,
+  },
+  {
     id: 'gantt-basic',
     label: 'Gantt chart',
     category: 'Supported diagrams',

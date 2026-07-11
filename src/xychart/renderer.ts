@@ -1,6 +1,6 @@
 import type { PositionedBar, PositionedXYChart } from './types.ts'
 import type { RenderContext, RenderOptions } from '../types.ts'
-import { svgOpenTag, buildStyleBlock } from '../theme.ts'
+import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
 import { TEXT_BASELINE_SHIFT, applyTextTransform, estimateTextWidth, STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults } from '../styles.ts'
 import { LEGEND_SWATCH_GAP, LEGEND_SWATCH_SIZE, XY_STYLE_DEFAULTS } from './layout.ts'
@@ -81,6 +81,8 @@ export function lowerXYChartScene(
     buildStyleBlock(font, false, colors.shadow, colors.embedFontImport) + '\n' +
     chartStyle,
   ))
+  const shadowDefs = buildShadowDefs(colors)
+  if (shadowDefs) parts.push(marks.raw({ id: 'shadow-defs', role: 'defs' }, `<defs>${shadowDefs}</defs>`))
   if (defs) parts.push(marks.raw({ id: 'defs', role: 'defs' }, defs))
   if (svgMeta.title) parts.push(marks.raw({ id: 'acc-title', role: 'chrome' }, svgMeta.title))
   if (svgMeta.description) parts.push(marks.raw({ id: 'acc-desc', role: 'chrome' }, svgMeta.description))

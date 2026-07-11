@@ -250,14 +250,17 @@ describe('concurrency regions (--) — split, contain, and separate', () => {
     expect(svg.match(/class="region-separator"/g)?.length).toBe(2)
   })
 
-  test('agent body stays honestly opaque for concurrency (announced, lossless)', () => {
+  test('agent body models concurrency regions and round-trips them stably', () => {
     const r = parseMermaid(CONC_SRC)
     expect(r.ok).toBe(true)
     if (!r.ok) return
-    expect(r.value.body.kind).toBe('opaque')
-    const v = verifyMermaid(r.value)
-    expect(v.warnings.some(w => w.code === 'UNSUPPORTED_SYNTAX')).toBe(true)
-    expect(serializeMermaid(r.value)).toBe(CONC_SRC)
+    expect(r.value.body.kind).toBe('state')
+    if (r.value.body.kind === 'state') expect(r.value.body.states.find(state => state.id === 'Active')?.regions).toHaveLength(2)
+    expect(verifyMermaid(r.value).warnings.some(w => w.code === 'UNSUPPORTED_SYNTAX' && 'syntax' in w && w.syntax === 'state_opaque')).toBe(false)
+    const canonical = serializeMermaid(r.value)
+    const reparsed = parseMermaid(canonical)
+    expect(reparsed.ok).toBe(true)
+    if (reparsed.ok) expect(serializeMermaid(reparsed.value)).toBe(canonical)
   })
 })
 

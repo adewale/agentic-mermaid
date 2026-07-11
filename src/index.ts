@@ -17,6 +17,8 @@
 //   - Pie charts (pie)
 //   - Quadrant charts (quadrantChart)
 //   - Gantt charts (gantt)
+//   - Mindmaps (mindmap)
+//   - Git graphs (gitGraph)
 //
 // Theming uses CSS custom properties (--bg, --fg, + optional enrichment).
 // See src/theme.ts for the full variable system.
@@ -31,14 +33,20 @@ export type { DiagramColors, ThemeName, ResolvedColors } from './theme.ts'
 export { fromShikiTheme, THEMES, DEFAULTS, resolveColors, inlineResolvedColors } from './theme.ts'
 export { resolveDiagramColors } from './color-resolver.ts'
 export { parseMermaid } from './parser.ts'
-export { renderMermaidASCII, renderMermaidAscii } from './ascii/index.ts'
-export type { AsciiRenderOptions } from './ascii/index.ts'
+export { renderMermaidASCII, renderMermaidAscii, AsciiWidthError } from './ascii/index.ts'
+export type { AsciiRenderOptions, AsciiWidthErrorReason } from './ascii/index.ts'
 export type {
   MermaidRuntimeConfig, MermaidThemeVariables, TimelineRuntimeConfig,
   JourneyRuntimeConfig, StateRuntimeConfig, XyChartRuntimeConfig,
-  PieRuntimeConfig, QuadrantRuntimeConfig,
+  PieRuntimeConfig, QuadrantRuntimeConfig, MindmapRuntimeConfig, GitGraphRuntimeConfig,
 } from './mermaid-source.ts'
 export { parseArchitectureDiagram, architectureToMermaidGraph } from './architecture/parser.ts'
+export { parseMindmap, serializeMindmap, MindmapDuplicateIdError, MindmapParseError } from './mindmap/parser.ts'
+export type { MindmapDiagram, MindmapNode, MindmapShape, PositionedMindmapDiagram } from './mindmap/types.ts'
+export { parseGitGraph, serializeGitGraph, GitGraphDuplicateCommitError, GitGraphParseError } from './gitgraph/parser.ts'
+export type { GitGraphDiagram, GitGraphCommit, GitGraphBranch, GitGraphCommitType, PositionedGitGraphDiagram } from './gitgraph/types.ts'
+export { resolveArchitectureIcon, architectureIconManifest, ARCHITECTURE_ICON_LIMITS } from './architecture/icons.ts'
+export type { ResolvedArchitectureIcon } from './architecture/icons.ts'
 export { TEXT_MEASUREMENT_CONTRACT, measureText, measureTextWidth } from './text-metrics.ts'
 export type { TextMeasurementContract, TextMeasurementInput, TextMeasurementResult } from './text-metrics.ts'
 
@@ -54,7 +62,7 @@ import type { FamilyLayoutResult } from './agent/families.ts'
 import type { DiagramKind } from './agent/types.ts'
 import { resolveStyleStack, isStyledSpec, inferBackend } from './scene/style-registry.ts'
 import type { StyleSpec } from './scene/style-registry.ts'
-import { stateConfigDiagnostics } from './state/config.ts'
+import { explicitFamilyConfigDiagnostics } from './shared/family-config-diagnostics.ts'
 import { getBackend } from './scene/backend.ts'
 import './scene/rough-backend.ts'
 import './scene/hybrid-backend.ts'
@@ -64,6 +72,8 @@ export type { StyleSpec, StyleInput } from './scene/style-registry.ts'
 export { registerBackend, getBackend, DefaultBackend } from './scene/backend.ts'
 export type { StyleBackend, StyleBackendContext } from './scene/backend.ts'
 export type { SceneDoc, SceneNode, SemanticChannels, SceneRole } from './scene/ir.ts'
+export type { SvgSemanticIdentity } from './scene/identity.ts'
+export type { SvgSemanticAccessibility, SvgRelationSemantics } from './scene/accessibility.ts'
 
 /**
  * Compose a merged style's defaults UNDER the user's options (the stack is
@@ -260,11 +270,6 @@ export function renderMermaidSVG(
   // Decode XML entities that may leak from markdown parsers (e.g. rehype-raw).
   // Without this, escapeXml() double-encodes them: &lt; → &amp;lt; → literal "&lt;" in SVG.
   text = decodeXML(text)
-  const explicitStateConfig = options.mermaidConfig?.state
-  if (explicitStateConfig) {
-    const report = options.onConfigDiagnostic ?? ((diagnostic) => console.warn(diagnostic.message))
-    for (const diagnostic of stateConfigDiagnostics([explicitStateConfig], true)) report(diagnostic)
-  }
   const normalizedSource = normalizeMermaidSource(text, options.mermaidConfig ?? {})
 
   // #7645/#7695: strict security mode disables the Google Fonts @import and
@@ -292,6 +297,10 @@ export function renderMermaidSVG(
     ?? 'Inter'
   const colors = resolveDiagramColors(effectiveOptions, normalizedSource.config, font)
   const diagramType = detectDiagramTypeFromFirstLine(normalizedSource.firstLine) ?? 'flowchart'
+  if (options.mermaidConfig) {
+    const report = options.onConfigDiagnostic ?? ((diagnostic) => console.warn(diagnostic.message))
+    for (const diagnostic of explicitFamilyConfigDiagnostics(diagramType, options.mermaidConfig)) report(diagnostic)
+  }
   const lines = normalizedSource.lines
   const renderOptions: RenderOptions = { ...effectiveOptions, mermaidConfig: normalizedSource.config }
   const renderContext = <TPositioned extends PositionedDiagram>(

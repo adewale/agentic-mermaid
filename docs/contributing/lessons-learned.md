@@ -322,3 +322,86 @@ invariant (no node overlaps after a shove) — after a session of fixing
 individual routing symptoms had removed only one sub-class. The post-freeze
 nets stay as insurance, but they are gated on violations that should never
 occur, not used as the primary mechanism.
+
+## 2026-07 — terminal width and SVG contracts
+
+**A hard width option is not a renamed wrapping hint.** Keep legacy `maxWidth`
+best-effort behavior separate from `targetWidth`: measure display cells after
+rendering, preserve grapheme clusters, and return a typed impossible-geometry
+error instead of silently exceeding the caller's bound.
+
+**Terminal coordinates are display cells, never UTF-16 indices.** Use
+`visualWidth`, grapheme iteration, and continuation cells for sizing, centering,
+clipping, writes, validation, and click-region metadata. A literal spacer after
+a wide glyph makes it three cells wide; the continuation is canvas state, not
+output text.
+
+**Semantic identity and DOM-reference identity are different namespaces.**
+Keep source-facing `data-id` stable, while `idPrefix` rewrites declared SVG
+`id`s and every local URL/href/ARIA reference. Test the contract as an
+all-family, two-instance matrix; testing one arrow marker cannot prove filters,
+clip paths, gradients, or accessibility references safe.
+
+## 2026-07 — family completion mechanics
+
+**One happy mutation chain is not an operation contract.** The first focused
+Mindmap/GitGraph mutation runs scored only 22.57% and 21.91% even though the
+citizenship suite was green. Exhaustive per-operation tests—success, exact error,
+null-clearing, ordering, cycle/duplicate guards, immutability, and verification
+warnings—raised the latest local runs to 98.77% and 97.03%. A test that
+touches every op name can still leave almost every branch unproved; mutation
+evidence is a useful check on that distinction. The reports were gitignored
+and the configs enforce only a 60% break floor, so retain a CI artifact or a
+content-addressed report before presenting a local score as an acceptance gate.
+
+**Treat mutation survivors as design feedback before classifying them.** The
+GitGraph run exposed an unused `currentBranch` helper, which was removed rather
+than “covered.” It also exposed missing clone, custom-main-branch, no-tag, and
+non-target statement rewrite assertions. Only after those real gaps were closed
+were the remaining canonicalization and discriminated-union equivalents
+classified. Do not write the survivor rationale before trying to make it fail.
+
+**Blank structured canvases and opaque-only content are different emptiness.**
+The ER segment-preservation fix correctly kept an empty tolerated subgraph
+opaque, but an over-broad zero-entity check also made a header-only `erDiagram`
+opaque and broke MCP typed authoring. Gate the *reason* for emptiness (opaque
+segments present), not only the resulting entity count; add a direct blank-
+canvas test alongside the unsupported-syntax case.
+
+**An aggregate compatibility fixture is not an upstream-suite harvest.** Count
+every direct `it`/`it.each` block in source order and map it to an executable
+portable/error case, an executable divergence, or a named source-inexpressible
+exclusion. Bind the inventory to a commit and source-file hash. The complete
+Mindmap/GitGraph pass exposed real inline-comment, legacy commit-message,
+multiline accessibility, and mixed branch-order semantics that one synthetic
+smoke case had hidden.
+
+**Generated evidence needs registry-driven enrollment, not manual memory.** A
+new family can pass rendering tests while remaining absent from contact sheets,
+visual metrics, style matrices, tracker baselines, SDK declarations, or the
+website. Every generated surface should either iterate the built-in registry or
+have an exact-set test against it; regeneration comes only after the invariant
+that explains the new bytes.
+
+**Scene semantics must use the same numeric normalization as crisp output.** A
+Mindmap polyline and several node dimensions differed only by floating-point
+spellings (`106.35000000000001` vs `106.35`), but styled backends consume the
+typed geometry, not the crisp string. Round once when constructing Scene
+geometry and serialize that same value; do not weaken the fidelity oracle to
+ignore drift.
+
+**Typed strings must be closed under the serializer's line grammar.** A value
+can pass a CSS-like or decoration parser yet contain `\n`, `\r`, `%%`, or a
+closing delimiter that turns canonical output into a new node/entity/class on
+reparse. Validate mutation-only paint with one shared single-line gate, and for
+compact decoration grammars prove the prospective body through
+serialize→parse structural equality. Success is not established until the
+serialized result preserves identity, hierarchy, and field values.
+
+**A direct upstream test block can expand to several executable cases.** Source
+order and a file hash prove which `it(...)` call was harvested, but a constant
+`for ... of` plus template interpolation can still hide manually fabricated
+variants. AST-evaluate constant loop bindings and template spans, then compare
+the exact expanded source list and order to the oracle. Likewise, SVG identity
+completeness means exact `(id, role, from, to)` tuples; endpoint or element
+counts cannot detect a deterministic wrong ID.

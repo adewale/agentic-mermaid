@@ -205,7 +205,7 @@ byte-identical, corpus-gated):
 - One sentence: *"A style is a small data record describing how diagrams
   look; stack styles to combine them — a color-only style is a theme."*
 - Crisp stays the default, stated with receipts (corpus-verified byte
-  identity), and styling covers **all 12 diagram types uniformly**.
+  identity), and styling covers **all 14 diagram types uniformly**.
 - Three promises for the supported path: **readable** built-in stacks
   (halos, theme-friendly structural ink, and generated evidence),
   **deterministic** (`seed` shuffles ink, never layout — cacheable,

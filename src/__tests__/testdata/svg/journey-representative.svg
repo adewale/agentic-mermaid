@@ -69,34 +69,34 @@
 </g>
 <g class="journey-actor-legend">
   <text x="32" y="118.4" class="journey-actor-legend-title" text-anchor="start" font-size="12" font-weight="600" dy="4.199999999999999">Actors</text>
-  <circle class="journey-actor-dot journey-actor-0" data-actor="PM" cx="37" cy="144.4" r="5" />
+  <circle class="journey-actor-dot journey-actor-0" data-actor="PM" cx="37" cy="144.4" r="5" data-id="actor-legend-dot:PM" data-role="actor" />
   <text x="54" y="144.4" class="journey-actor-legend-text" text-anchor="start" font-size="11" font-weight="600" dy="3.8499999999999996">PM</text>
-  <circle class="journey-actor-dot journey-actor-1" data-actor="Research" cx="37" cy="166.4" r="5" />
+  <circle class="journey-actor-dot journey-actor-1" data-actor="Research" cx="37" cy="166.4" r="5" data-id="actor-legend-dot:Research" data-role="actor" />
   <text x="54" y="166.4" class="journey-actor-legend-text" text-anchor="start" font-size="11" font-weight="600" dy="3.8499999999999996">Research</text>
-  <circle class="journey-actor-dot journey-actor-2" data-actor="Design" cx="37" cy="188.4" r="5" />
+  <circle class="journey-actor-dot journey-actor-2" data-actor="Design" cx="37" cy="188.4" r="5" data-id="actor-legend-dot:Design" data-role="actor" />
   <text x="54" y="188.4" class="journey-actor-legend-text" text-anchor="start" font-size="11" font-weight="600" dy="3.8499999999999996">Design</text>
-  <circle class="journey-actor-dot journey-actor-3" data-actor="Eng" cx="37" cy="210.4" r="5" />
+  <circle class="journey-actor-dot journey-actor-3" data-actor="Eng" cx="37" cy="210.4" r="5" data-id="actor-legend-dot:Eng" data-role="actor" />
   <text x="54" y="210.4" class="journey-actor-legend-text" text-anchor="start" font-size="11" font-weight="600" dy="3.8499999999999996">Eng</text>
-  <circle class="journey-actor-dot journey-actor-4" data-actor="QA" cx="37" cy="232.4" r="5" />
+  <circle class="journey-actor-dot journey-actor-4" data-actor="QA" cx="37" cy="232.4" r="5" data-id="actor-legend-dot:QA" data-role="actor" />
   <text x="54" y="232.4" class="journey-actor-legend-text" text-anchor="start" font-size="11" font-weight="600" dy="3.8499999999999996">QA</text>
 </g>
-<g class="journey-section" data-id="section-0" data-label="Discover">
-  <rect class="journey-section-bg journey-section-0" x="176" y="73.4" width="144" height="36" rx="6" ry="6" />
+<g class="journey-section" data-id="section-0" data-label="Discover" data-role="section">
+  <rect class="journey-section-bg journey-section-0" x="176" y="73.4" width="144" height="36" rx="6" ry="6" data-id="section-bg:section-0" data-role="section" />
   <rect class="journey-section-label-band journey-section-band-0" x="182" y="80.4" width="132" height="22" rx="6" ry="6" />
   <text x="248" y="91.4" class="journey-section-label journey-section-label-0" text-anchor="middle" font-size="12" font-weight="600" dy="4.199999999999999">Discover</text>
 </g>
-<g class="journey-section" data-id="section-1" data-label="Deliver">
-  <rect class="journey-section-bg journey-section-1" x="328" y="73.4" width="294" height="36" rx="6" ry="6" />
+<g class="journey-section" data-id="section-1" data-label="Deliver" data-role="section">
+  <rect class="journey-section-bg journey-section-1" x="328" y="73.4" width="294" height="36" rx="6" ry="6" data-id="section-bg:section-1" data-role="section" />
   <rect class="journey-section-label-band journey-section-band-1" x="334" y="80.4" width="282" height="22" rx="6" ry="6" />
   <text x="475" y="91.4" class="journey-section-label journey-section-label-1" text-anchor="middle" font-size="12" font-weight="600" dy="4.199999999999999">Deliver</text>
 </g>
-<path class="journey-curve" d="M248,313.20000000000005 C298.6666666666667,313.20000000000005 349.3333333333333,353.20000000000005 400,353.20000000000005 C450,353.20000000000005 500,273.20000000000005 550,273.20000000000005" />
-<g class="journey-task" data-id="task-0" data-score="4" data-section="Discover" data-actors="PM, Research">
+<path class="journey-curve" d="M248,313.20000000000005 C298.6666666666667,313.20000000000005 349.3333333333333,353.20000000000005 400,353.20000000000005 C450,353.20000000000005 500,273.20000000000005 550,273.20000000000005" data-id="experience-curve" data-role="series" />
+<g class="journey-task" data-id="task-0" data-score="4" data-section="Discover" data-actors="PM, Research" data-role="task">
   <line class="journey-track" x1="248" y1="200.3" x2="248" y2="465.20000000000005" />
-  <rect class="journey-task-box" x="186" y="139.4" width="124" height="60.900000000000006" rx="5" ry="5" />
+  <rect class="journey-task-box" x="186" y="139.4" width="124" height="60.900000000000006" rx="5" ry="5" data-id="task-box:task-0" data-role="task" />
   <text x="248" y="159.85" class="journey-task-text" text-anchor="middle" font-size="13" font-weight="500" dy="4.55">Interview users</text>
-  <circle class="journey-actor-dot journey-actor-0" data-actor="PM" cx="240" cy="184.3" r="4" />
-  <circle class="journey-actor-dot journey-actor-1" data-actor="Research" cx="256" cy="184.3" r="4" />
+  <circle class="journey-actor-dot journey-actor-0" data-actor="PM" cx="240" cy="184.3" r="4" data-id="actor-dot:task-0:PM" data-role="actor" />
+  <circle class="journey-actor-dot journey-actor-1" data-actor="Research" cx="256" cy="184.3" r="4" data-id="actor-dot:task-0:Research" data-role="actor" />
   <g class="journey-score-marker" data-score="4">
     <circle class="journey-score-face" cx="248" cy="313.20000000000005" r="16" />
     <circle class="journey-face-eye" cx="242.5" cy="308.70000000000005" r="2" />
@@ -104,12 +104,12 @@
     <path class="journey-face-mouth" d="M240,318.20000000000005 Q248,324.20000000000005 256,318.20000000000005" />
   </g>
 </g>
-<g class="journey-task" data-id="task-1" data-score="3" data-section="Deliver" data-actors="Design, Eng">
+<g class="journey-task" data-id="task-1" data-score="3" data-section="Deliver" data-actors="Design, Eng" data-role="task">
   <line class="journey-track" x1="400" y1="217.20000000000002" x2="400" y2="465.20000000000005" />
-  <rect class="journey-task-box" x="338" y="139.4" width="124" height="77.80000000000001" rx="5" ry="5" />
+  <rect class="journey-task-box" x="338" y="139.4" width="124" height="77.80000000000001" rx="5" ry="5" data-id="task-box:task-1" data-role="task" />
   <text x="400" y="168.3" class="journey-task-text" text-anchor="middle" font-size="13" font-weight="500"><tspan x="400" dy="-3.9000000000000012">Prototype</tspan><tspan x="400" dy="16.900000000000002">review</tspan></text>
-  <circle class="journey-actor-dot journey-actor-2" data-actor="Design" cx="392" cy="201.20000000000002" r="4" />
-  <circle class="journey-actor-dot journey-actor-3" data-actor="Eng" cx="408" cy="201.20000000000002" r="4" />
+  <circle class="journey-actor-dot journey-actor-2" data-actor="Design" cx="392" cy="201.20000000000002" r="4" data-id="actor-dot:task-1:Design" data-role="actor" />
+  <circle class="journey-actor-dot journey-actor-3" data-actor="Eng" cx="408" cy="201.20000000000002" r="4" data-id="actor-dot:task-1:Eng" data-role="actor" />
   <g class="journey-score-marker" data-score="3">
     <circle class="journey-score-face" cx="400" cy="353.20000000000005" r="16" />
     <circle class="journey-face-eye" cx="394.5" cy="348.70000000000005" r="2" />
@@ -117,12 +117,12 @@
     <path class="journey-face-mouth" d="M392,359.20000000000005 L408,359.20000000000005" />
   </g>
 </g>
-<g class="journey-task" data-id="task-2" data-score="5" data-section="Deliver" data-actors="Eng, QA">
+<g class="journey-task" data-id="task-2" data-score="5" data-section="Deliver" data-actors="Eng, QA" data-role="task">
   <line class="journey-track" x1="550" y1="200.3" x2="550" y2="465.20000000000005" />
-  <rect class="journey-task-box" x="488" y="139.4" width="124" height="60.900000000000006" rx="5" ry="5" />
+  <rect class="journey-task-box" x="488" y="139.4" width="124" height="60.900000000000006" rx="5" ry="5" data-id="task-box:task-2" data-role="task" />
   <text x="550" y="159.85" class="journey-task-text" text-anchor="middle" font-size="13" font-weight="500" dy="4.55">Ship</text>
-  <circle class="journey-actor-dot journey-actor-3" data-actor="Eng" cx="542" cy="184.3" r="4" />
-  <circle class="journey-actor-dot journey-actor-4" data-actor="QA" cx="558" cy="184.3" r="4" />
+  <circle class="journey-actor-dot journey-actor-3" data-actor="Eng" cx="542" cy="184.3" r="4" data-id="actor-dot:task-2:Eng" data-role="actor" />
+  <circle class="journey-actor-dot journey-actor-4" data-actor="QA" cx="558" cy="184.3" r="4" data-id="actor-dot:task-2:QA" data-role="actor" />
   <g class="journey-score-marker" data-score="5">
     <circle class="journey-score-face" cx="550" cy="273.20000000000005" r="16" />
     <circle class="journey-face-eye" cx="544.5" cy="268.70000000000005" r="2" />
@@ -130,5 +130,5 @@
     <path class="journey-face-mouth" d="M542,277.20000000000005 Q550,286.20000000000005 558,277.20000000000005" />
   </g>
 </g>
-<text x="341" y="39.7" class="journey-title" text-anchor="middle" font-size="18" font-weight="600" dy="6.3">Product journey</text>
+<text x="341" y="39.7" class="journey-title" text-anchor="middle" font-size="18" font-weight="600" dy="6.3" data-id="title" data-role="title">Product journey</text>
 </svg>

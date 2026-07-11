@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 521.1861827075496 300" width="521.1861827075496" height="300" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" role="img" aria-roledescription="git graph" aria-labelledby="char-gitgraph-gitgraph-title">
+<style>
+  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<title id="char-gitgraph-gitgraph-title">Git graph</title>
+<g class="git-branch" data-id="branch:main" data-branch="main" data-role="group">
+  <line class="git-branch-line" data-branch="main" x1="110" y1="44" x2="406" y2="44" stroke="#939395" stroke-width="3" opacity="0.45" />
+  <text class="git-branch-label" data-branch="main" x="100" y="44" text-anchor="end" font-size="12" font-weight="600" fill="#575759">main</text>
+</g>
+<g class="git-branch" data-id="branch:feature" data-branch="feature" data-role="group">
+  <line class="git-branch-line" data-branch="feature" x1="110" y1="126" x2="218" y2="126" stroke="#939395" stroke-width="3" opacity="0.45" />
+  <text class="git-branch-label" data-branch="feature" x="100" y="126" text-anchor="end" font-size="12" font-weight="600" fill="#575759">feature</text>
+</g>
+<polyline class="git-edge git-edge-parent" data-from="base" data-to="work" points="124,44 171,44 171,126 218,126" fill="none" stroke="#939395" stroke-width="2" data-id="base-&gt;work" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="base to work" />
+<polyline class="git-edge git-edge-parent" data-from="base" data-to="release" points="124,44 218,44 218,44 312,44" fill="none" stroke="#939395" stroke-width="2" data-id="base-&gt;release" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="base to release" />
+<polyline class="git-edge git-edge-parent" data-from="release" data-to="merge" points="312,44 359,44 359,44 406,44" fill="none" stroke="#939395" stroke-width="2" data-id="release-&gt;merge" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="release to merge" />
+<polyline class="git-edge git-edge-merge" data-from="work" data-to="merge" points="218,126 312,126 312,44 406,44" fill="none" stroke="#47474a" stroke-width="2.5" data-id="work-&gt;merge" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="work to merge" />
+<g class="git-commit type-normal" data-id="base" data-branch="main" data-commit-type="NORMAL" data-role="node">
+  <circle cx="124" cy="44" r="8" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="2" />
+  <text class="git-commit-label" x="124" y="68" text-anchor="middle" font-size="11" fill="#575759" transform="rotate(35 124 68)">base</text>
+</g>
+<g class="git-commit type-normal" data-id="work" data-branch="feature" data-commit-type="NORMAL" data-role="node">
+  <circle cx="218" cy="126" r="8" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="2" />
+  <text class="git-commit-label" x="218" y="150" text-anchor="middle" font-size="11" fill="#575759" transform="rotate(35 218 150)">work</text>
+</g>
+<g class="git-commit type-normal" data-id="release" data-branch="main" data-commit-type="NORMAL" data-role="node">
+  <circle cx="312" cy="44" r="8" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="2" />
+  <text class="git-commit-label" x="312" y="68" text-anchor="middle" font-size="11" fill="#575759" transform="rotate(35 312 68)">release</text>
+</g>
+<g class="git-commit type-merge" data-id="merge" data-branch="main" data-commit-type="MERGE" data-role="node">
+  <circle cx="406" cy="44" r="10" fill="#47474a" stroke="#d4d4d4" stroke-width="2" />
+  <circle cx="406" cy="44" r="5" fill="none" stroke="#FFFFFF" stroke-width="1.5" />
+  <text class="git-commit-label" x="406" y="68" text-anchor="middle" font-size="11" fill="#575759" transform="rotate(35 406 68)">merged branch feature into main</text>
+</g>
+</svg>

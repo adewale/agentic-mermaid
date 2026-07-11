@@ -177,6 +177,8 @@ describe('schema covers every mutable family (§11)', () => {
     pie: { kind: 'add_slice', label: 'A', value: 1 },
     quadrant: { kind: 'add_point', label: 'P', x: 0.1, y: 0.2 },
     gantt: { kind: 'add_section', label: 'S' },
+    mindmap: { kind: 'add_node', id: 'child', label: 'child', parent: 'root' },
+    gitgraph: { kind: 'append_commit', id: 'first' },
   }
 
   test('every family in MUTATION_OPS_BY_FAMILY has a schema and builds a valid op', () => {

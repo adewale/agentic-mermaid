@@ -32,12 +32,12 @@ The agent workflow is the guardrail behind the polish: agents should not guess f
 
 ## Highlights
 
-- **12 diagram families** — flowchart, state, architecture, sequence, class, ER, timeline, journey, XY chart, pie, quadrant, and Gantt.
+- **14 diagram families** — flowchart, state, architecture, sequence, class, ER, timeline, journey, XY chart, pie, quadrant, Gantt, Mindmap, and GitGraph.
 - **SVG, PNG, ASCII, Unicode, JSON** — one deterministic layout foundation for docs, decks, terminals, and agent workflows.
 - **Synchronous, zero-DOM SVG renderer** — no Puppeteer, no browser flash.
 - **Composable styles** — `{ style: ['hand-drawn', 'dracula'] }` stacks a look over a palette; 15 full looks cover sketch, watercolor, blueprint, accessibility, print, operational, physical-media, architecture, and editorial/report use cases. Custom styles are plain JSON records any agent can author (`docs/style-authoring.md`). `seed` re-rolls the ink, never the layout.
 - **21 built-in themes + Shiki compatibility** — a theme is a palette-only style: theme from two colors or a VS Code theme.
-- **Agent-native editing** — typed mutation for all twelve renderable families (flowchart/state, sequence, timeline, class, ER, journey, architecture, XY chart, pie, quadrant, Gantt); source-level round-trip only for opaque fallbacks (unmodeled syntax).
+- **Agent-native editing** — typed mutation for all fourteen renderable families (flowchart/state, sequence, timeline, class, ER, journey, architecture, XY chart, pie, quadrant, Gantt, Mindmap, GitGraph); source-level round-trip only for opaque fallbacks (unmodeled syntax).
 - **CLI + MCP + library** — `am`, `agentic-mermaid-mcp`, `agentic-mermaid`, and `agentic-mermaid/agent`.
 
 ## Installation
@@ -163,7 +163,7 @@ const source = serializeMermaid(next.value)
 
 Rules:
 
-- Use `asFlowchart` / `asState` / `asSequence` / `asTimeline` / `asClass` / `asEr` / `asJourney` / `asArchitecture` / `asXyChart` / `asPie` / `asQuadrant` / `asGantt` before mutating existing diagrams.
+- Use `asFlowchart` / `asState` / `asSequence` / `asTimeline` / `asClass` / `asEr` / `asJourney` / `asArchitecture` / `asXyChart` / `asPie` / `asQuadrant` / `asGantt` / `asMindmap` / `asGitGraph` before mutating existing diagrams.
 - Mutation ops use `kind`, not `type`.
 - Run `verifyMermaid` before every commit point.
 - Do not call `mutate` on opaque fallback bodies; the narrower returns `null` for unmodeled syntax.
@@ -183,6 +183,8 @@ Rules:
 | Quadrant | ✓ | ✓ | SVG/PNG/ASCII | ✓ |
 | Architecture | ✓ | ✓ | SVG/PNG/ASCII | modeled subset (BUILD-17) |
 | Gantt | ✓ | ✓ | SVG/PNG/ASCII | sections/tasks; calendar directives ride along verbatim |
+| Mindmap | ✓ | ✓ | SVG/PNG/ASCII | recursive tree, shapes/icons/classes |
+| GitGraph | ✓ | ✓ | SVG/PNG/ASCII | replayed commits, branches, merges, cherry-picks |
 
 See [diagram families](./docs/diagram-families.md) for examples and compatibility notes.
 

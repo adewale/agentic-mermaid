@@ -210,6 +210,7 @@ function convertSubgraph(
     children: [],
     minX: 0, minY: 0, maxX: 0, maxY: 0,
     direction: normalizedDirection,
+    ...(mSg.concurrencyRegion ? { concurrencyRegion: true as const } : {}),
   }
 
   // Resolve node references

@@ -64,6 +64,8 @@ export function describeMermaid(d: ValidDiagram, opts: DescribeOptions = {}): st
   if (d.body.kind === 'gantt') return describeGantt(d as ValidDiagram & { body: import('./types.ts').GanttBody })
   if (d.body.kind === 'pie') return describePie(d.body)
   if (d.body.kind === 'quadrant') return describeQuadrant(d.body)
+  if (d.body.kind === 'mindmap') return describeMindmap(d.body)
+  if (d.body.kind === 'gitgraph') return describeGitGraph(d.body)
   if (d.body.kind === 'opaque') return describeOpaque(d.kind, d.body.source)
   // Exhaustiveness guard: a new family must declare its prose here. This is why
   // pie/quadrant silently fell through to a "not yet supported" line for months.
@@ -88,7 +90,8 @@ export function describeMermaidTree(d: ValidDiagram): DescribeTree {
     const visit = (states: import('./types.ts').StateNode[], transitions: import('./types.ts').StateTransition[]) => {
       for (const s of states) {
         tree.nodes.push({ id: s.id, label: s.label || s.id })
-        if (s.states !== undefined) visit(s.states, s.transitions ?? [])
+        if (s.regions) for (const region of s.regions) visit(region.states, region.transitions)
+        else if (s.states !== undefined) visit(s.states, s.transitions ?? [])
       }
       for (const t of transitions) tree.edges.push({ from: t.from, to: t.to, label: t.label || undefined })
     }
@@ -145,6 +148,18 @@ export function describeMermaidTree(d: ValidDiagram): DescribeTree {
   } else if (d.body.kind === 'quadrant') {
     // Plotted points are the nodes; quadrant charts have no edges.
     d.body.points.forEach((p, i) => tree.nodes.push({ id: `point-${i}`, label: `${p.label} [${p.x}, ${p.y}]` }))
+  } else if (d.body.kind === 'mindmap') {
+    const visit = (node: import('../mindmap/types.ts').MindmapNode, parent?: string): void => {
+      tree.nodes.push({ id: node.id, label: node.label })
+      if (parent) tree.edges.push({ from: parent, to: node.id })
+      node.children.forEach(child => visit(child, node.id))
+    }
+    visit(d.body.root)
+  } else if (d.body.kind === 'gitgraph') {
+    for (const commit of d.body.commits) {
+      tree.nodes.push({ id: commit.id, label: commit.message || commit.id })
+      commit.parents.forEach(parent => tree.edges.push({ from: parent, to: commit.id, label: commit.source === 'commit' ? undefined : commit.source }))
+    }
   } else if (d.body.kind === 'opaque') {
     const plugin = getFamily(d.kind)
     const labels = (plugin?.extractLabels ?? extractLabelsGeneric)(d.body.source)
@@ -163,6 +178,25 @@ export function describeMermaidTree(d: ValidDiagram): DescribeTree {
     if (!outgoing.has(n.id) && incoming.has(n.id)) tree.sinks.push(n.id)
   }
   return tree
+}
+
+function describeMindmap(body: import('./types.ts').MindmapBody): string {
+  let count = 0
+  let leaves = 0
+  const top = body.root.children.map(node => node.label)
+  const visit = (node: import('../mindmap/types.ts').MindmapNode): void => {
+    count++
+    if (node.children.length === 0) leaves++
+    node.children.forEach(visit)
+  }
+  visit(body.root)
+  return `A ${count}-node mindmap rooted at ${body.root.label}, with ${leaves} leaves.${top.length ? ` Main branches: ${top.join(', ')}.` : ''}`
+}
+
+function describeGitGraph(body: import('./types.ts').GitGraphBody): string {
+  const merges = body.commits.filter(commit => commit.source === 'merge').length
+  const cherries = body.commits.filter(commit => commit.source === 'cherry-pick').length
+  return `A GitGraph with ${body.commits.length} commits across ${body.branches.length} branches, including ${merges} merges and ${cherries} cherry-picks. Branches: ${body.branches.map(branch => branch.name).join(', ')}.`
 }
 
 function describeFlowchart(d: FlowchartValidDiagram): string {
@@ -197,12 +231,13 @@ function describeState(body: import('./types.ts').StateBody): string {
   const collect = (states: import('./types.ts').StateNode[], transitions: import('./types.ts').StateTransition[]) => {
     for (const s of states) {
       flat.push(s)
-      if (s.states !== undefined) collect(s.states, s.transitions ?? [])
+      if (s.regions) for (const region of s.regions) collect(region.states, region.transitions)
+      else if (s.states !== undefined) collect(s.states, s.transitions ?? [])
     }
     allTransitions.push(...transitions)
   }
   collect(body.states, body.transitions)
-  const composites = flat.filter(s => s.states !== undefined)
+  const composites = flat.filter(s => s.states !== undefined || s.regions !== undefined)
   const stateLabels = flat.map(s => s.label || s.id)
   const transStr = allTransitions.map(t => {
     const lbl = t.label ? ` (${t.label})` : ''
@@ -262,6 +297,8 @@ function describeArchitecture(body: import('./types.ts').ArchitectureBody): stri
   const junctions = body.junctions
   const edges = body.edges
   let s = `An architecture diagram${body.title ? ` titled "${body.title}"` : ''} with ${groups.length} groups, ${services.length} services, and ${edges.length} connections.`
+  if (body.accessibilityTitle) s += ` Accessible title: ${body.accessibilityTitle}.`
+  if (body.accessibilityDescription) s += ` Accessible description: ${body.accessibilityDescription.replace(/\n/g, ' ')}.`
   if (groups.length > 0) s += ` Groups: ${groups.map(g => g.label || g.id).join(', ')}.`
   if (services.length > 0) s += ` Services: ${services.map(sv => sv.label || sv.id).join(', ')}.`
   if (junctions.length > 0) s += ` Junctions: ${junctions.map(j => j.id).join(', ')}.`

@@ -21,32 +21,32 @@
   <marker id="char-state-arrowhead" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto">
     <polygon points="0 0, 8 2.5, 0 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
   </marker>
-  <marker id="char-state-arrowhead-start" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto-start-reverse">
-    <polygon points="0 0, 8 2.5, 0 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
+  <marker id="char-state-arrowhead-start" markerWidth="8" markerHeight="5" refX="1" refY="2.5" orient="auto">
+    <polygon points="8 0, 0 2.5, 8 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
   </marker>
 </defs>
-<polyline class="edge" data-from="_start" data-to="Idle" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="120.25,68 120.25,116" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#char-state-arrowhead)" />
-<polyline class="edge" data-from="Idle" data-to="Running" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="120.25000000000001,152.9 120.25000000000001,200.9" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#char-state-arrowhead)" />
-<polyline class="edge" data-from="Running" data-to="Failed" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="120.25,237.8 120.25,264.025 79.5,264.025 79.5,290.25" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#char-state-arrowhead)" />
-<polyline class="edge" data-from="Failed" data-to="Idle" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="79.5,327.15000000000003 193.14266666666668,327.15000000000003 193.14266666666668,134.45 151.599,134.45" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#char-state-arrowhead)" />
-<polyline class="edge" data-from="Running" data-to="_end" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="120.25,237.8 120.25,264.025 161,264.025 161,290.25" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#char-state-arrowhead)" />
-<g class="node" data-id="_start" data-label="" data-shape="state-start">
-  <circle cx="120.25" cy="54" r="12" fill="#27272A" stroke="none" />
+<polyline class="edge" data-from="_start" data-to="Idle" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="120.25,68 120.25,116" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#char-state-arrowhead)" data-id="edge:_start-&gt;Idle#0" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="_start to Idle" />
+<polyline class="edge" data-from="Idle" data-to="Running" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="120.25000000000001,152.9 120.25000000000001,200.9" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#char-state-arrowhead)" data-id="edge:Idle-&gt;Running#0" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="Idle to Running" />
+<polyline class="edge" data-from="Running" data-to="Failed" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="120.25,237.8 120.25,264.025 79.5,264.025 79.5,290.25" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#char-state-arrowhead)" data-id="edge:Running-&gt;Failed#0" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="Running to Failed" />
+<polyline class="edge" data-from="Failed" data-to="Idle" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="79.5,327.15000000000003 193.14266666666668,327.15000000000003 193.14266666666668,134.45 151.599,134.45" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#char-state-arrowhead)" data-id="edge:Failed-&gt;Idle#0" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="Failed to Idle" />
+<polyline class="edge" data-from="Running" data-to="_end" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="120.25,237.8 120.25,264.025 161,264.025 161,290.25" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#char-state-arrowhead)" data-id="edge:Running-&gt;_end#0" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="Running to _end" />
+<g class="node" data-id="_start" data-label="" data-shape="state-start" data-role="node">
+  <circle cx="120.25" cy="54" r="12" fill="#27272A" stroke="none" data-id="node-shape:_start" data-role="node" />
 </g>
-<g class="node" data-id="Idle" data-label="Idle" data-shape="rounded">
-  <rect x="88.90100000000001" y="116" width="62.69799999999999" height="36.900000000000006" rx="6" ry="6" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" />
+<g class="node" data-id="Idle" data-label="Idle" data-shape="rounded" data-role="node">
+  <rect x="88.90100000000001" y="116" width="62.69799999999999" height="36.900000000000006" rx="6" ry="6" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" data-id="node-shape:Idle" data-role="node" />
   <text x="120.25" y="134.45" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Idle</text>
 </g>
-<g class="node" data-id="Running" data-label="Running" data-shape="rounded">
-  <rect x="74.822" y="200.9" width="90.856" height="36.900000000000006" rx="6" ry="6" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" />
+<g class="node" data-id="Running" data-label="Running" data-shape="rounded" data-role="node">
+  <rect x="74.822" y="200.9" width="90.856" height="36.900000000000006" rx="6" ry="6" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" data-id="node-shape:Running" data-role="node" />
   <text x="120.25" y="219.35000000000002" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Running</text>
 </g>
-<g class="node" data-id="Failed" data-label="Failed" data-shape="rounded">
-  <rect x="40" y="290.25" width="79" height="36.900000000000006" rx="6" ry="6" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" />
+<g class="node" data-id="Failed" data-label="Failed" data-shape="rounded" data-role="node">
+  <rect x="40" y="290.25" width="79" height="36.900000000000006" rx="6" ry="6" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" data-id="node-shape:Failed" data-role="node" />
   <text x="79.5" y="308.7" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Failed</text>
 </g>
-<g class="node" data-id="_end" data-label="" data-shape="state-end">
-  <circle cx="161" cy="304.25" r="12" fill="none" stroke="#27272A" stroke-width="1.5" />
+<g class="node" data-id="_end" data-label="" data-shape="state-end" data-role="node">
+  <circle cx="161" cy="304.25" r="12" fill="none" stroke="#27272A" stroke-width="1.5" data-id="node-shape:_end" data-role="node" />
   <circle cx="161" cy="304.25" r="8" fill="#27272A" stroke="none" />
 </g>
 </svg>

@@ -12,8 +12,10 @@
 import { parseErDiagram } from '../er/parser.ts'
 import type { ErDiagram, ErEntity, ErAttribute, Cardinality } from '../er/types.ts'
 import type { Canvas, AsciiConfig, RoleCanvas, CharRole, AsciiTheme, ColorMode } from './types.ts'
-import { mkCanvas, mkRoleCanvas, canvasToString, increaseSize, increaseRoleCanvasSize, setRole } from './canvas.ts'
+import { mkCanvas, mkRoleCanvas, canvasToString, increaseSize, increaseRoleCanvasSize, setRole, drawText } from './canvas.ts'
 import { drawMultiBox } from './draw.ts'
+import { visualWidth } from './width.ts'
+import { wrapText } from './wrap.ts'
 import { splitLines } from './multiline-utils.ts'
 
 /** Classify a character from a box drawing as 'border' or 'text'. */
@@ -29,14 +31,14 @@ function classifyBoxChar(ch: string): CharRole {
 /** Format an attribute line: "PK type name" or "FK type name" etc. */
 function formatAttribute(attr: ErAttribute): string {
   const keyStr = attr.keys.length > 0 ? attr.keys.join(',') + ' ' : '   '
-  return `${keyStr}${attr.type} ${attr.name}`
+  return `${keyStr}${attr.type} ${attr.name}${attr.comment ? ` # ${attr.comment}` : ''}`
 }
 
 /** Build sections for an entity box: [header], [attributes] */
-function buildEntitySections(entity: ErEntity): string[][] {
+function buildEntitySections(entity: ErEntity, maxTextWidth?: number): string[][] {
   // Support multi-line entity names
   const header = splitLines(entity.label)
-  const attrs = entity.attributes.map(formatAttribute)
+  const attrs = entity.attributes.flatMap(attr => wrapText(formatAttribute(attr), maxTextWidth))
   if (attrs.length === 0) return [header]
   return [header, attrs]
 }
@@ -156,7 +158,7 @@ function findConnectedComponents(diagram: ErDiagram): Set<string>[] {
  *
  * Pipeline: parse → build boxes → component-aware layout → draw boxes → draw relationships → string.
  */
-export function renderErAscii(text: string, config: AsciiConfig, colorMode?: ColorMode, theme?: AsciiTheme): string {
+export function renderErAscii(text: string, config: AsciiConfig, colorMode?: ColorMode, theme?: AsciiTheme, targetWidth?: number): string {
   const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('%%'))
   const diagram = parseErDiagram(lines)
 
@@ -165,10 +167,14 @@ export function renderErAscii(text: string, config: AsciiConfig, colorMode?: Col
   const useAscii = config.useAscii
   const maxRelationshipLabelWidth = Math.max(
     0,
-    ...diagram.relationships.flatMap(rel => rel.label ? splitLines(rel.label).map(line => line.length) : [0]),
+    ...diagram.relationships.flatMap(rel => rel.label ? splitLines(rel.label).map(visualWidth) : [0]),
   )
   const hGap = Math.max(6, maxRelationshipLabelWidth + 2)  // horizontal gap between entity boxes, wide enough for labels
-  const vGap = 4  // vertical gap between rows (for relationship lines)
+  const maxRelationshipLabelLines = Math.max(
+    0,
+    ...diagram.relationships.map(rel => rel.label ? splitLines(rel.label).length : 0),
+  )
+  const vGap = Math.max(4, maxRelationshipLabelLines + 3) // detours + labels stay between rows
   const componentGap = 6  // vertical gap between disconnected components
 
   // --- Build entity box dimensions ---
@@ -179,12 +185,12 @@ export function renderErAscii(text: string, config: AsciiConfig, colorMode?: Col
 
   for (const ent of diagram.entities) {
     entityById.set(ent.id, ent)
-    const sections = buildEntitySections(ent)
+    const sections = buildEntitySections(ent, targetWidth ? Math.max(1, targetWidth - 4) : undefined)
     entitySections.set(ent.id, sections)
 
     let maxTextW = 0
     for (const section of sections) {
-      for (const line of section) maxTextW = Math.max(maxTextW, line.length)
+      for (const line of section) maxTextW = Math.max(maxTextW, visualWidth(line))
     }
     const boxW = maxTextW + 4 // 2 border + 2 padding
 
@@ -320,45 +326,48 @@ export function renderErAscii(text: string, config: AsciiConfig, colorMode?: Col
       const endX = right.x - 1
       const lineY = left.y + Math.floor(left.height / 2)
 
-      // Draw horizontal line
-      for (let x = startX; x <= endX; x++) {
-        setC(x, lineY, lineH, 'line')
+      // A non-adjacent relationship must not tunnel through a foreign card.
+      // Detour in the reserved row gap while keeping endpoint cardinalities on
+      // the authored entities. Adjacent pairs retain their historical bytes.
+      const blockers = [...placed.values()].filter(candidate =>
+        candidate !== left && candidate !== right
+        && candidate.x <= endX && candidate.x + candidate.width - 1 >= startX
+        && lineY >= candidate.y && lineY < candidate.y + candidate.height,
+      )
+      const detourY = blockers.length > 0
+        ? Math.max(left.y + left.height - 1, right.y + right.height - 1, ...blockers.map(item => item.y + item.height - 1)) + 2
+        : lineY
+      if (detourY === lineY) {
+        for (let x = startX; x <= endX; x++) setC(x, lineY, lineH, 'line')
+      } else {
+        for (let y = lineY; y <= detourY; y++) {
+          setC(startX, y, lineV, 'line')
+          setC(endX, y, lineV, 'line')
+        }
+        for (let x = startX; x <= endX; x++) setC(x, detourY, lineH, 'line')
+        setC(startX, detourY, useAscii ? '+' : '└', 'corner')
+        setC(endX, detourY, useAscii ? '+' : '┘', 'corner')
       }
 
-      // Draw crow's foot markers at endpoints
-      // Left marker (at left entity's right edge) - isRight=false
       const leftChars = getCrowsFootChars(leftCard, useAscii, false)
-      for (let i = 0; i < leftChars.length; i++) {
-        setC(startX + i, lineY, leftChars[i]!, 'arrow')
-      }
-
-      // Right marker (at right entity's left edge) - isRight=true
+      for (let i = 0; i < leftChars.length; i++) setC(startX + i, lineY, leftChars[i]!, 'arrow')
       const rightChars = getCrowsFootChars(rightCard, useAscii, true)
-      for (let i = 0; i < rightChars.length; i++) {
-        setC(endX - rightChars.length + 1 + i, lineY, rightChars[i]!, 'arrow')
-      }
+      for (let i = 0; i < rightChars.length; i++) setC(endX - rightChars.length + 1 + i, lineY, rightChars[i]!, 'arrow')
 
-      // Relationship label centered in the gap between the two entities, below the line.
-      // Clamp label to the gap region [startX, endX] to avoid overwriting box borders.
-      // Supports multi-line labels.
       if (rel.label) {
         const lines = splitLines(rel.label)
         const gapMid = Math.floor((startX + endX) / 2)
-
-        // Place lines below the relationship line (lineY + 1, lineY + 2, ...)
         for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
           const line = lines[lineIdx]!
-          const labelStart = Math.max(startX, gapMid - Math.floor(line.length / 2))
-          const labelY = lineY + 1 + lineIdx
-          // Ensure canvas is tall enough
-          increaseSize(canvas, Math.max(labelStart + line.length, 1), Math.max(labelY + 1, 1))
-          increaseRoleCanvasSize(rc, Math.max(labelStart + line.length, 1), Math.max(labelY + 1, 1))
-          for (let i = 0; i < line.length; i++) {
-            const lx = labelStart + i
-            if (lx >= startX && lx <= endX) {
-              setC(lx, labelY, line[i]!, 'text')
-            }
-          }
+          const lineWidth = visualWidth(line)
+          const labelStart = Math.max(startX, gapMid - Math.floor(lineWidth / 2))
+          const labelY = detourY + 1 + lineIdx
+          increaseSize(canvas, Math.max(labelStart + lineWidth, 1), Math.max(labelY + 1, 1))
+          increaseRoleCanvasSize(rc, Math.max(labelStart + lineWidth, 1), Math.max(labelY + 1, 1))
+          const clippedWidth = Math.max(0, Math.min(lineWidth, endX - labelStart + 1))
+          for (let i = 0; i < clippedWidth; i++) setC(labelStart + i, labelY, ' ', 'text')
+          drawText(canvas, { x: labelStart, y: labelY }, line, true)
+          for (let i = 0; i < lineWidth; i++) setRole(rc, labelStart + i, labelY, 'text')
         }
       }
     } else {
@@ -421,14 +430,11 @@ export function renderErAscii(text: string, config: AsciiConfig, colorMode?: Col
           const labelX = lineX + 2
           const y = startLabelY + lineIdx
           if (y >= 0) {
-            for (let i = 0; i < line.length; i++) {
-              const lx = labelX + i
-              if (lx >= 0) {
-                increaseSize(canvas, lx + 1, y + 1)
-                increaseRoleCanvasSize(rc, lx + 1, y + 1)
-                setC(lx, y, line[i]!, 'text')
-              }
-            }
+            const lineWidth = visualWidth(line)
+            increaseSize(canvas, labelX + lineWidth, y + 1)
+            increaseRoleCanvasSize(rc, labelX + lineWidth, y + 1)
+            drawText(canvas, { x: labelX, y }, line, true)
+            for (let i = 0; i < lineWidth; i++) setRole(rc, labelX + i, y, 'text')
           }
         }
       }

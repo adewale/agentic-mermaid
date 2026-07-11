@@ -23,7 +23,7 @@
  * from Shiki themes or custom palettes. Each falls back to a color-mix()
  * derivation from bg + fg if not set.
  */
-import { parseHex, toHex, mixHex, isHexColor, luma255 } from './shared/color-math.ts'
+import { parseHex, toHex, mixHex, isHexColor, luma255, ensureContrast } from './shared/color-math.ts'
 
 export interface DiagramColors {
   /** Background color → CSS variable --bg */
@@ -544,19 +544,27 @@ export interface ResolvedColors {
  */
 export function resolveColors(colors: DiagramColors): ResolvedColors {
   const { bg, fg } = colors
+  const nodeFill = colors.surface ?? mixHex(fg, bg, MIX.nodeFill)
+  const groupHdr = mixHex(fg, bg, MIX.groupHeader)
+  let text = ensureContrast(fg, bg, 4.5)
+  text = ensureContrast(text, nodeFill, 4.5)
+  let textSec = ensureContrast(colors.muted ?? mixHex(fg, bg, MIX.textSec), bg, 4.5, text)
+  textSec = ensureContrast(textSec, groupHdr, 4.5, text)
+  const textMuted = ensureContrast(colors.muted ?? mixHex(fg, bg, MIX.textMuted), bg, 4.5, text)
+  const textFaint = ensureContrast(mixHex(fg, bg, MIX.textFaint), bg, 3, text)
   return {
     bg,
     fg,
-    text: fg,
-    textSec: colors.muted ?? mixHex(fg, bg, MIX.textSec),
-    textMuted: colors.muted ?? mixHex(fg, bg, MIX.textMuted),
-    textFaint: mixHex(fg, bg, MIX.textFaint),
-    line: colors.line ?? mixHex(fg, bg, MIX.line),
-    arrow: colors.accent ?? mixHex(fg, bg, MIX.arrow),
-    nodeFill: colors.surface ?? mixHex(fg, bg, MIX.nodeFill),
+    text,
+    textSec,
+    textMuted,
+    textFaint,
+    line: ensureContrast(colors.line ?? mixHex(fg, bg, MIX.line), bg, 3, text),
+    arrow: ensureContrast(colors.accent ?? mixHex(fg, bg, MIX.arrow), bg, 3, text),
+    nodeFill,
     nodeStroke: colors.border ?? mixHex(fg, bg, MIX.nodeStroke),
     groupFill: bg,
-    groupHdr: mixHex(fg, bg, MIX.groupHeader),
+    groupHdr,
     innerStroke: mixHex(fg, bg, MIX.innerStroke),
     keyBadge: mixHex(fg, bg, MIX.keyBadge),
   }

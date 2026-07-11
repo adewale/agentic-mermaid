@@ -8,11 +8,8 @@ import '../agent/families-builtin.ts'
 import type { DiagramKind } from '../agent/types.ts'
 
 describe('family registry', () => {
-  test('all 12 built-in families register', () => {
-    const ids = new Set(knownFamilies())
-    for (const id of ['flowchart', 'state', 'sequence', 'timeline', 'class', 'er', 'journey', 'xychart', 'architecture', 'pie', 'quadrant', 'gantt'] satisfies DiagramKind[]) {
-      expect(ids.has(id)).toBe(true)
-    }
+  test('every metadata-backed built-in family registers', () => {
+    expect(new Set(knownFamilies())).toEqual(new Set(BUILTIN_FAMILY_METADATA.map(family => family.id)))
   })
 
   test('knownFamilies returns built-ins in metadata order', () => {
@@ -43,10 +40,8 @@ describe('family registry', () => {
 describe('Phase B: universal LABEL_OVERFLOW on opaque bodies', () => {
   const long = 'X'.repeat(80)
 
-  // NOTE: xychart and any unmodeled syntax (here: journey `click` lines and
-  // architecture accTitle) are source-level/opaque in the agent surface; plugin
-  // extractLabels still has teeth on opaque bodies. (Journey and architecture
-  // structured subsets are LABEL_OVERFLOW-checked via their verify hooks.)
+  // NOTE: xychart and unmodeled journey `click` lines are source-level/opaque
+  // in the agent surface; plugin extractLabels still has teeth on opaque bodies.
   const cases: Array<[string, string]> = [
     ['journey opaque', `journey\n  title ${long}\n  click task href`],
     ['journey opaque task without actors', `journey\n  ${long}: 3\n  click task href`],
@@ -65,7 +60,6 @@ describe('Phase B: universal LABEL_OVERFLOW on opaque bodies', () => {
     ['xychart opaque single-quoted title', `xychart-beta\n  title '${long}'\n  curve basis`],
     ['xychart opaque one-line semicolon title', `xychart-beta; title "${long}"; curve basis`],
     ['xychart opaque one-line unquoted semicolon title', `xychart-beta; title ${long}; bar [1]; curve basis`],
-    ['architecture opaque (accTitle forces opaque)', `architecture-beta\n  accTitle: a11y\n  group api(cloud)[${long}]`],
   ]
 
   for (const [name, src] of cases) {
@@ -89,6 +83,15 @@ describe('Phase B: universal LABEL_OVERFLOW on opaque bodies', () => {
       expect(labelW).toEqual([])
     })
   }
+
+  test('architecture accessibility is structured and still checks label overflow', () => {
+    const source = `architecture-beta\n  accTitle: a11y\n  group api(cloud)[${long}]`
+    const parsed = parseMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(parsed.value.body.kind).toBe('architecture')
+    expect(verifyMermaid(parsed.value).warnings.some(warning => warning.code === 'LABEL_OVERFLOW')).toBe(true)
+  })
 
   // BUILD-18: a sequence whose only long label lives inside an opaque-block
   // segment is now STRUCTURED (not whole-body opaque), yet universal

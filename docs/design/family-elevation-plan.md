@@ -1,17 +1,18 @@
 # Family Elevation Plan
 
-Status: implementation ledger — broad cross-family elevation shipped in PR #142; incomplete items remain tracked below
+Status: implementation complete for all 72 family items; 17/18 completion packages done, with B18 awaiting commit-bound CI/review evidence
 Last reviewed: 2026-07-10
 
 This document began as the plan of record and now records the implemented
-family-elevation scope. PR #142 does **not** complete every item below. The
-final review closed the remaining parser-integrity cluster—Flowchart quoted
-non-rectangle labels and Unicode IDs, Timeline grammar drift, State/Class/ER
-`:::` identity corruption, and ER aliases/composite keys—using shared grammar
-primitives and cross-surface tests. Architecture's generalized port-routing
-work, the remaining Phase 4 signatures, width-constrained ASCII, generalized
-SVG identity, and new mindmap/gitGraph families remain follow-up work and must not be
-described as delivered by PR #142.
+family-elevation scope plus the remaining release-evidence gate. PR #142 delivered the broad twelve-family baseline and
+closed the parser-integrity cluster—Flowchart quoted non-rectangle labels and
+Unicode IDs, Timeline grammar drift, State/Class/ER `:::` identity corruption,
+and ER aliases/composite keys—using shared grammar primitives and cross-surface
+tests. The follow-on program completed Architecture routing/agent/icons/terminal
+work, State/Class/ER residual elevation, and full Mindmap/GitGraph citizenship,
+alongside the Unicode, hard-width terminal, marker, SVG identity/reference,
+accessibility, configuration-honesty, and mutation packages. Executable
+evidence is recorded below.
 Worked example: the Journey elevation (PR #141), whose method this plan
 generalizes to the other eleven families.
 
@@ -137,7 +138,7 @@ tsc + website:check green at every merge.
 |---|---|---|---|
 | C1 Grammar drift / silent misparse | flowchart, state, sequence, class, ER, timeline, xychart | One shared parse core per family (journey pattern: event-walker grammar consumed by renderer parser, agent body, verify scan) | Cross-surface convergence tests; differential fuzz (renderer vs agent accept/reject must agree) |
 | C2 Op→render fidelity break | class, ER, state, sequence, flowchart | Serializer emits only forms the render grammar accepts; ops validate labels against the render grammar | Per-family conformance property suite (P3) |
-| C3 Accepted-but-ignored config | all 12 | Typed runtime-config sections; wire-or-warn | `INEFFECTIVE_CONFIG` lint + config probes in tests |
+| C3 Accepted-but-ignored config | all 14 | Typed runtime-config sections; wire-or-warn | `INEFFECTIVE_CONFIG` lint + config probes in tests |
 | C4 Geometry invariant violations | flowchart, sequence, quadrant, pie, architecture | Layout structures that cannot express the violation (tiling, budgeted label columns) | Family-rubric assessors; verify tripwires promoted from warnings |
 | C5 Text truth (measurement, wrap, CJK, contrast) | all | Shared wrap/measure/contrast primitives; label width budgets in every layout | Width-budget and WCAG gates; adversarial text corpora (FE0F/ZWJ/CJK) |
 | C6 Output-surface divergence (SVG≠PNG≠ASCII≠scene-IR) | flowchart, xychart, pie, ER, quadrant | One source of geometric truth; raster font = metrics font; scene-IR semantic geometry = drawn geometry | PNG pixel-scan tests; ASCII no-shared-cells invariant; fidelity oracle checks text x/y/anchor |
@@ -161,14 +162,14 @@ the specification and provenance record.
 | F2 | 2 | done | Cross-hierarchy extraction and stale-route certificates: `subgraph-direction.test.ts`, `route-contracts.test.ts`. |
 | F3 | 1 | done | Unicode identifiers and bare-header defaults: `parser.test.ts`. |
 | F4 | 2 | done | Parallel ASCII lanes and reserved-cell properties: `property-ascii-routing.test.ts`, `ascii-pathfinder-determinism.test.ts`. |
-| F5 | 2 | partial | PNG marker rendering exists, but the plan's explicit pixel-scan and pre-rotated-marker proof remain missing. |
+| F5 | 2 | done | Start arrows use explicit pre-rotated geometry and start/end crosses have raster-proven symmetric visibility: `flowchart-marker-raster.test.ts`. |
 | F6 | 2/3 | done | Typed wrapping and wire-or-warn spacing: `flowchart-runtime-config.test.ts`, `flowchart-markdown-strings.test.ts`. |
 | F7 | 3 | done | Stable authored edge IDs and ID-targeted edits: `flowchart-edge-ids.test.ts`. |
 | F8 | 3 | done | Expanded shape, direction, subgraph, and style operations: `flowchart-op-menu.test.ts`. |
 | S1 | 1/3 | done | Structured/rendered notes with side and clearance invariants: `state-notes.test.ts`. |
 | S2 | 1/3 | done | Fork, join, choice, history, and concurrency rendering: `state-pseudostates.test.ts`. |
 | S3 | 1 | done | Identity-safe class shorthand and shared paint rendering: `renderer-css-classes.test.ts`, `parser.test.ts`. |
-| S4 | 2 | partial | Composite ASCII is improved, but State notes and region separators remain missing from ASCII. |
+| S4 | 2 | done | Spatial State terminal output includes note boxes/connectors and concurrency separators: `state-ascii-elevation.test.ts`. |
 | S5 | 1 | done | Unlabeled state serialization re-parses: `agent-state.test.ts`, `state-ops.test.ts`. |
 | S6 | 3 | done | Certified self-loop arcs and dense occupancy: `self-loop-arcs.test.ts`. |
 | S7 | 3 | done | Direction, movement, composite, note, and recursive operations: `state-ops.test.ts`. |
@@ -181,15 +182,15 @@ the specification and provenance record.
 | SE7 | 2 | done | Block and note containment geometry: `sequence-layout.test.ts`. |
 | CL1 | 1 | done | Serializer productions re-enter the render parser: `class-serializer-conformance.test.ts`. |
 | CL2 | 1 | done | Generic identity and member grammar: `class-generics.test.ts`, `class-parser.test.ts`. |
-| CL3 | 1/3 | partial | Identity corruption is fixed; Class `classDef`, `style`, `cssClass`, and typed style mutation remain unmodeled. |
+| CL3 | 1/3 | done | Shared structured `classDef`/`class`/`cssClass`/`:::`/inline paint and typed style operations: `class-residual-elevation.test.ts`. |
 | CL4 | 1 | done | Direction, spacing, and config honesty: `class-direction-config.test.ts`. |
-| CL5 | 4 | not-started | The cardinality collision placement pass and `c5-stress` invariant are not yet implemented. |
-| CL6 | 3 | partial | Compound namespaces ship; single-line namespaces, ASCII frames, and compact namespace mode remain. |
+| CL5 | 4 | done | Layout-owned cardinality-label allocation passes the dense collision stress invariant: `class-er-edge-quality.test.ts`. |
+| CL6 | 3 | done | Compact/nested namespace parsing, configurable hierarchy, containment, and terminal frames: `class-residual-elevation.test.ts`, `class-ascii-namespaces.test.ts`. |
 | ER1 | 1 | done | Bare entities render and survive typed edits: `er-parser.test.ts`, `agent-er.test.ts`. |
 | ER2 | 1 | done | Stable IDs, aliases, and `set_entity_label`: `er-parser.test.ts`, `agent-er.test.ts`. |
 | ER3 | 1/2 | done | Composite badges and visible comments: `er-parser.test.ts`, `er-integration.test.ts`. |
 | ER4 | 1 | done | Label-less relationships remain visible: `er-parser.test.ts`. |
-| ER5 | 2 | partial | Existing ASCII routing ships, but the original attribute-row and box-clearance probe still needs an explicit invariant gate. |
+| ER5 | 2 | done | Terminal routes avoid foreign entity boxes and attribute rows under explicit clearance invariants: `er-ascii-clearance.test.ts`. |
 | ER6 | 3 | done | Direction, config, and crow's-foot signatures: `er-direction-config.test.ts`, `er-crowsfoot.test.ts`. |
 | T1 | 1 | done | Shared colon/directive grammar: `timeline-parser.test.ts`, `agent-timeline.test.ts`. |
 | T2 | 1 | done | Event-less canonical periods re-render: `agent-timeline.test.ts`. |
@@ -215,20 +216,20 @@ the specification and provenance record.
 | Q2 | 2 | done | Axis-label budgets and wrapping: `quadrant.test.ts`. |
 | Q3 | 0 | done | Scene text x, y, and anchor fidelity: `scene-text-fidelity.test.ts`. |
 | Q4 | 4 | done | Dense placement and density/config sizing: `quadrant-style.test.ts`, `quadrant-config.test.ts`. |
-| A1 | 1/4 | partial | Authored sides survive and post-align anchors refresh; generalized side constraints and obstacle avoidance remain. |
+| A1 | 1/4 | done | Deterministic side-constrained placement, visibility-grid obstacle routing, and truthful route certificates: `architecture-layout.test.ts`, `architecture-integration.test.ts`. |
 | A2 | 1 | done | Deterministic order-independent alignment: `architecture-layout.test.ts`. |
 | A3 | 0/1 | done | Natural config mappings plus named fcose no-ops: `architecture-config.test.ts`. |
-| A4 | 1/3 | partial | Core typed services/groups/edges ship; junction, group-label, boundary-edge, accessibility, and in-place edge edits remain. |
-| A5 | 4 | partial | A fallback badge exists; broader bundled packs and deterministic offline Iconify resolution remain. |
-| A6 | 4 | not-started | Spatial Architecture ASCII remains an outline plus edge list. |
+| A4 | 1/3 | done | Typed junction, group-label, `{group}` boundary-edge, accessibility, move, and in-place edge operations: `agent-architecture.test.ts`. |
+| A5 | 4 | done | Bounded deterministic offline curated icon registry, sanitized fallback, native-byte preservation, and attribution: `architecture-icons.test.ts`, `THIRD_PARTY_NOTICES.md`. |
+| A6 | 4 | done | Projected services/junctions/groups, boundary-side routes, labels, Unicode, and hard-width terminal output: `architecture-ascii.test.ts`. |
 | X1 | 0 | done | Thirty generated structured diagrams per family serialize, re-enter both parsers, and compare an independent structured-body inventory against the actual renderer-parser inventory before checking idempotence: `property-all-families-fuzz.test.ts`; canonical discovery/corpus guards remain in `cli-capabilities.test.ts`, `agent-mermaid-corpus.test.ts`. |
-| X2 | 2 | partial | Shared Unicode width primitives ship; complete adoption and per-surface adversarial proof remain. |
-| X3 | 4 | not-started | `--target-width`, auto-fit, multiline policy, and impossible-width diagnostics are not yet implemented. |
-| X4 | 4 | partial | Several families expose semantic SVG attributes; the documented all-family contract and enrollment proof remain. |
-| X5 | 0/2 | partial | Generic `idPrefix` rewriting ships, but an all-family marker, filter, clip-path, and ARIA collision matrix remains. |
-| X6 | 3/4 | partial | Titles, descriptions, and WCAG checks ship broadly; typed edge semantics and an all-palette contract remain. |
-| X7 | 0 | done | All 12 families have typed config sections and wire-or-warn classification; State wires ten faithful ELK/measured-text fields and qualifies legacy/invalid/unknown diagnostics: `unknown-config-wire-or-warn.test.ts`, `state-config.test.ts`. |
-| X8 | 4 | not-started | Mindmap and GitGraph still need upstream harvest and full citizenship implementation. |
+| X2 | 2 | done | Grapheme/display-cell measurement and writes cover terminal renderers, metadata, validation, SVG, and PNG adversarial cases: `ascii-unicode-family-contract.test.ts`, `ascii-class-er-unicode.test.ts`. |
+| X3 | 4 | done | Hard `targetWidth`, typed impossible-width diagnostics, distinctive-content preservation for every family, and library/CLI/Code Mode/hosted plumbing: `ascii-target-width.test.ts`, `cli-target-width.test.ts`, `hosted-mcp.test.ts`. |
+| X4 | 4 | done | Typed Scene identity and deterministic all-family exact node/group `(id, role)` plus relation `(id, role, from, to)` multisets: `svg-identity-contract.test.ts`. |
+| X5 | 0/2 | done | Two-instance all-family collision proof plus marker/filter/clip-path/paint/href/ARIA reference coverage: `svg-id-hygiene-all-families.test.ts`. |
+| X6 | 3/4 | done | Typed relation ARIA and every built-in palette's WCAG text/relation thresholds: `accessibility-relation-palette.test.ts`. |
+| X7 | 0 | done | All 14 families have typed config sections and exhaustive key/value wire-or-warn classification on source and explicit config paths: `unknown-config-wire-or-warn.test.ts`, `state-config.test.ts`, `mindmap-gitgraph-citizenship.test.ts`. |
+| X8 | 4 | done | Mindmap and GitGraph pass the zero-exception 21-surface matrix, complete a vendored-and-hashed 26/69-block pinned upstream oracle whose AST-extracted titles/sources/order match every classification, installed-tarball library/CLI/MCP checks, all-family properties, and reproducible focused mutation lanes: `diagram-family-citizenship.test.ts`, `mindmap-gitgraph-upstream-oracle.test.ts`, `e2e/tarball-consumer-fuzz.e2e.test.ts`. |
 <!-- family-elevation-ledger:end -->
 
 ### Remaining completion packages
@@ -244,23 +245,25 @@ Definition of Done.
 |---|---|---|---|
 | B01 | 0 | done | Mechanical IDs, statuses, duplicate/omission checks, ordinal work-plan correspondence, and exact acceptance-test IDs: `family-elevation-ledger.test.ts`. |
 | B02 | 0 | done | Generated all-family serializer→renderer-parser properties, lossless opaque reparse/render probes, State config geometry, CLI flag ownership, and scene fidelity: `property-all-families-fuzz.test.ts`, `opaque-unsupported-warning.test.ts`, `state-config.test.ts`. |
-| B03 | 1/4 | partial | Finish Architecture side-constrained obstacle routing and route certificates; remainder is tracked by `A1`. |
-| B04 | 1/3 | partial | Finish Architecture junction, group-label, boundary-edge, accessibility, and edge mutation; remainder is tracked by `A4`. |
-| B05 | 2/4 | partial | Finish terminal geometry for State notes/regions, Class namespaces, ER clearance proof, and spatial Architecture; remainder spans `S4`, `CL6`, `ER5`, `A6`. |
-| B06 | 2 | partial | Finish Unicode-width adoption and adversarial SVG/ASCII/PNG coverage; remainder is tracked by `X2`. |
-| B07 | 3 | partial | Finish typed State concurrency, styling, bare declarations, and hyphenated composite IDs; deferred contract is in `families/state.md`. |
-| B08 | 1/3/4 | partial | Finish Class styling, namespace edge cases, and cardinality placement; remainder spans `CL3`, `CL5`, `CL6`. |
-| B09 | 3 | partial | Finish typed or segment-preserved ER styling and adopt segment-preserving bodies where whole-body opacity remains; see `families/er.md` and `TODO.md`. |
-| B10 | 4 | not-started | Implement the Class cardinality collision pass and discriminating stress property; remainder is `CL5`. |
-| B11 | 4 | partial | Finish deterministic offline Architecture icons, fallback policy, bundled assets, security, and licensing; remainder is `A5`. |
-| B12 | 4 | not-started | Specify and implement width-constrained ASCII across library, CLI, MCP, and docs; remainder is `X3`. |
-| B13 | 4 | partial | Publish and enforce one all-family SVG identity schema; remainder is `X4`. |
-| B14 | 3/4 | partial | Finish typed edge accessibility and the all-palette WCAG matrix; remainder is `X6`. |
-| B15 | 4 | not-started | Harvest upstream Mindmap cases first, then pass the full family-citizenship gate; remainder is `X8`. |
-| B16 | 4 | not-started | Harvest upstream GitGraph cases first, then pass the full family-citizenship gate; remainder is `X8`. |
-| B17 | 0/2 | partial | Prove multi-diagram ID hygiene for every family and SVG reference type; remainder is `X5`. |
-| B18 | all | partial | For each remaining package, finish red/revert proof, invariant evidence, Style + Palette checks, docs, changelog, and independent review before marking it done. |
+| B03 | 1/4 | done | Architecture side-constrained placement, obstacle routing, and certificates close `A1`: `architecture-layout.test.ts`, `architecture-integration.test.ts`. |
+| B04 | 1/3 | done | Architecture junction/group/boundary/accessibility/edit parity closes `A4`: `agent-architecture.test.ts`. |
+| B05 | 2/4 | done | State notes/regions, Class namespace frames, ER clearance, and spatial Architecture terminal gates close `S4`, `CL6`, `ER5`, and `A6`: `state-ascii-elevation.test.ts`, `class-ascii-namespaces.test.ts`, `er-ascii-clearance.test.ts`, `architecture-ascii.test.ts`. |
+| B06 | 2 | done | Unicode-width adoption and adversarial terminal/SVG/PNG proof complete: `ascii-unicode-family-contract.test.ts`. |
+| B07 | 3 | done | Typed State regions, paint, bare declarations, hyphenated composites, and style operations: `state-typed-elevation.test.ts`, `state-ops.test.ts`. |
+| B08 | 1/3/4 | done | Class paint, compact/hierarchical namespaces, terminal frames, and cardinality allocation close `CL3`, `CL5`, and `CL6`: `class-residual-elevation.test.ts`, `class-er-edge-quality.test.ts`. |
+| B09 | 3 | done | ER direction/paint and ordered typed/opaque segments preserve source while refusing identity edits that would stale opaque text: `er-typed-segments.test.ts`. |
+| B10 | 4 | done | Layout-owned Class cardinality placement and dense discriminating collision stress close `CL5`: `class-er-edge-quality.test.ts`. |
+| B11 | 4 | done | Offline bounded Architecture icon registry, fallback policy, security tests, and licensing close `A5`: `architecture-icons.test.ts`, `THIRD_PARTY_NOTICES.md`. |
+| B12 | 4 | done | Width-constrained ASCII is specified and wired through library, CLI, Code Mode, hosted MCP, and docs: `ascii-target-width.test.ts`, `cli-target-width.test.ts`. |
+| B13 | 4 | done | One typed all-family SVG identity schema is published and enforced: `svg-identity-contract.test.ts`. |
+| B14 | 3/4 | done | Typed relation accessibility and all-palette WCAG thresholds are executable: `accessibility-relation-palette.test.ts`. |
+| B15 | 4 | done | All 26 official pinned Mindmap blocks plus parser/layout/SVG/terminal/agent/config/property/installed-package citizenship: `mindmap-gitgraph-upstream-oracle.test.ts`, `mindmap-gitgraph-citizenship.test.ts`, `e2e/tarball-consumer-fuzz.e2e.test.ts`. |
+| B16 | 4 | done | All 69 official pinned GitGraph blocks (63 executable, six explicit exclusions/divergences) plus replay/layout/SVG/terminal/agent/config/property/installed-package citizenship: `mindmap-gitgraph-upstream-oracle.test.ts`, `mindmap-gitgraph-citizenship.test.ts`, `e2e/tarball-consumer-fuzz.e2e.test.ts`. |
+| B17 | 0/2 | done | Every family and local SVG reference type passes the two-instance collision matrix: `svg-id-hygiene-all-families.test.ts`. |
+| B18 | all | partial | Local unit/E2E/build/type/lint/website/ASCII/characterization/tracker/package gates are green and mutation reruns are recorded only as non-gating local measurements. Remaining: bind the staged tree to a commit, retain final GitHub Actions check URLs, and obtain post-fix reviewer acceptance; evidence will live in `docs/design/family-elevation-acceptance.md`. |
 <!-- family-elevation-backlog:end -->
+
+The retained causal check `bun run test:family-elevation-reverts` now injects twelve final-review regression classes in a temporary checkout and requires their exact red counts (1, 1, 14, 1, 1, 1, 1, 1, 1, 1, 4, 1). It covers B07, B08/B09, B12, B13, B15/B16, X3, X4, X7, and X8 without mutating the working tree; see the acceptance record for the fault/result map. Earlier packages retain the Phase 0 revert evidence above and their focused Stryker/sabotage lanes.
 
 ## Work plan by family
 
@@ -275,7 +278,7 @@ Format: `[Fix|Feature(parity)|Feature(beyond)] [V|S] Title — construction move
 5. **[Fix] [V] PNG loses bidirectional start markers and half-clips cross markers.** Construction: emit pre-rotated explicit marker geometry (no `auto-start-reverse` dependence); marker refX derived from marker size, not the border. Red: pixel-scan `f-markers` PNG for ink at both ends. (probe `f-markers`, `f-bidir-only`; code renderer.ts:157-231 + pinned resvg 2.6.2)
 6. **[Feature(parity)] [V] Label wrapping (`wrappingWidth`) + typed `FlowchartRuntimeConfig`.** Fix stage per P4: `INEFFECTIVE_CONFIG` for nodeSpacing/rankSpacing/curve today. Feature stage: measured-width auto-wrap in node sizing; thread spacing config into layout. Red (fix): config probe expects the lint; red (feature): sentence-length diamond label stays under a width budget. (probe `f-long-labels`, `f-theme-dark`; code src/mermaid-source.ts:69-80; upstream #6424/#4950/#7931)
 7. **[Feature(parity)] [S] Model v11.6 edge IDs (`e1@-->`) as stable edge identity** instead of consuming and discarding them; unlocks `remove_edge`/`set_label` targeting by ID. (code src/parser.ts:650,696; upstream PR #6136)
-8. **[Feature(parity)] [V] Widen the flowchart op menu** (subgraph ops, set_shape, set_direction, style ops) to the level its own graph model already supports — thinnest menu of all 12 families. (code op-schema.ts:96-103; journey convention from PR #141)
+8. **[Feature(parity)] [V] Widen the flowchart op menu** (subgraph ops, set_shape, set_direction, style ops) to the level its own graph model already supports — originally the thinnest menu of the 12-family baseline. (code op-schema.ts:96-103; journey convention from PR #141)
 
 ### State
 
@@ -464,18 +467,21 @@ items against stable IDs, resolves exact `test`/`it` acceptance titles, and
 allows a truthful prerequisite downgrade; it does not treat filename existence
 or the word “Complete” as behavioral proof.
 
-### Phase status after PR #142
+### Current phase status
 
 | Phase | State | Evidence / remainder |
 |---|---|---|
 | 0 — honesty + guards | **Complete** | All-family canonical conformance enrollment, corpus faithfulness, universal opaque fallback diagnostics, typed wire-or-warn config including State, unknown-CLI-flag errors, and the scene text-geometry oracle are executable gates. More syntax-specific warnings are parity improvements, not honesty blockers, because every fallback is already lossless and announced. |
-| 1 — silent-data-loss fixes | **Complete for the parser-integrity cluster; routing remainder tracked** | Shared Flowchart identifier/quoted-label handling, Timeline parse core, State/Class/ER `:::` identity guards, ER aliases/composite keys, serializer conformance, and post-move Architecture anchors ship. Generalized Architecture port/obstacle routing remains tracked. |
-| 2 — geometry + text truth | **Substantially complete** | Shared measurement/wrapping/contrast, dense-loop occupancy, label fitting, PNG coverage warnings, and family rubrics ship. Width-constrained ASCII and some deeper spatial ASCII work remain. |
-| 3 — parity features | **Substantially complete** | Legends, donut/slice labels, Quadrant styles, vertical Timeline, Gantt shading, State pseudostates, Class namespaces/generics, ER direction, Sequence lifecycle/boxes, and expanded op menus ship. Unmodeled syntax remains source-preserved rather than claimed complete. |
-| 4 — signatures | **Partial** | Gantt dependency/critical-path overlays and Quadrant dense-cluster placement ship; SVG identity has family-specific slices. Generalized Architecture routing, Class cardinality collision, width-constrained ASCII, a complete cross-family identity contract, mindmap, and gitGraph remain. |
+| 1 — silent-data-loss fixes | **Complete** | Shared parser grammars, serializer conformance, ordered preservation, and deterministic Architecture side/obstacle routing close every named C1/C2 and port-integrity item. |
+| 2 — geometry + text truth | **Complete** | Shared grapheme/display-cell measurement, hard target width, dense-loop occupancy, label fitting, PNG coverage, and spatial State/Class/ER/Architecture terminal invariants are executable. |
+| 3 — parity features | **Complete** | The named State/Class/ER residual syntax is typed, rendered, and editable; all existing family parity items and expanded op menus ship with source-preserved fallback only for genuinely unmodeled syntax. |
+| 4 — signatures | **Complete** | Gantt overlays, Quadrant density, hard terminal width, SVG identity/reference and WCAG contracts, Architecture routing/icons, Class cardinality allocation, and full Mindmap/GitGraph citizenship all pass acceptance. |
 
-“Substantially complete” is not a release euphemism for done: the remainder is
-named in the table so later PRs can close it with the same red→green contract.
+Phase completion follows the executable exits above; focused green tests alone
+do not override the full build/type/unit/E2E/website/tracker evidence. Mutation
+configs and nightly lanes are reproducible adequacy tools, while the 2026-07-10
+97–99% focused scores remain historical local measurements without retained
+CI artifacts and are not used as phase-completion proof.
 
 ## Definition of done (every item)
 

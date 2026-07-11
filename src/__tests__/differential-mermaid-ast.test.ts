@@ -63,10 +63,11 @@ describe('differential: our counter ↔ mermaid-ast (independent parser)', () =>
   test('B: corpus divergence profile vs mermaid-ast is pinned (ratchet)', () => {
     // Documented divergence classes (June 2026): mermaid-ast counts sequence
     // alt/loop/opt blocks as messages (we keep them as opaque segments); it
-    // counts nested-subgraph membership differently than our flattened universe.
+    // counts nested-subgraph membership differently than our flattened universe;
+    // and it does not project ER statements preserved inside tolerated subgraphs.
     // A change here means our counting moved relative to an independent
     // implementation — investigate before re-pinning.
-    const BASELINE: Record<string, number> = { flowchart: 2, sequence: 7 }
+    const BASELINE: Record<string, number> = { flowchart: 2, sequence: 7, er: 5 }
     const byFamily: Record<string, number> = {}
     let checked = 0
     for (const e of corpus) {

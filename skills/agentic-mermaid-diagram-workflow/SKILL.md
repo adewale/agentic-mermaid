@@ -1,6 +1,6 @@
 ---
 name: agentic-mermaid-diagram-workflow
-description: Agent-agnostic skill for authoring and editing Mermaid diagrams with structured verification, typed mutation, round-trip serialization, and SVG, PNG, ASCII, Unicode, and JSON layout outputs. Structured mutation for all twelve renderable families (flowchart, state, sequence, timeline, class, ER, journey, architecture, xychart, pie, quadrant, gantt); source-level parse-and-render only for opaque fallbacks (unmodeled syntax).
+description: Agent-agnostic skill for authoring and editing Mermaid diagrams with structured verification, typed mutation, round-trip serialization, and SVG, PNG, ASCII, Unicode, and JSON layout outputs. Structured mutation for all fourteen renderable families (flowchart, state, sequence, timeline, class, ER, journey, architecture, xychart, pie, quadrant, gantt, mindmap, gitgraph); source-level parse-and-render only for opaque fallbacks (unmodeled syntax).
 ---
 
 # Agentic Mermaid — diagram workflow
@@ -18,34 +18,24 @@ An agent-agnostic typed editing surface for Mermaid. New diagrams can be authore
 
 | Family | parse | verify | render | mutate | serialize |
 |---|---|---|---|---|---|
-| Flowchart | ✓ | full (Tier 1+2) | ✓ | 6 ops | structured |
-| **State (modeled subset)** | ✓ | full (Tier 1+2) | ✓ | **8 ops** | structured |
-| State (`<<fork>>`/`<<choice>>`/notes/`--`/`classDef`, unmodeled) | ✓ | structural | ✓ | — (opaque) | verbatim |
-| Sequence (simple) | ✓ | structural | ✓ | 5 ops | structured |
-| Sequence (notes/alt/loop/…) | ✓ | structural | ✓ | **5 ops** | structured-with-segments |
-| Sequence (un-segmentable, e.g. unbalanced `end`) | ✓ | structural | ✓ | — (opaque) | verbatim |
-| Timeline (simple) | ✓ | structural | ✓ | 10 ops | structured |
-| Timeline (unmodeled syntax) | ✓ | structural | ✓ | — (opaque) | verbatim |
-| **Class (modeled subset)** | ✓ | structural | ✓ | **12 ops** | structured |
-| Class (unmodeled syntax) | ✓ | structural | ✓ | — (opaque) | verbatim |
-| **ER (simple)** | ✓ | structural | ✓ | **8 ops** | structured |
-| ER (unmodeled syntax) | ✓ | structural | ✓ | — (opaque) | verbatim |
-| **Journey (simple)** | ✓ | structural | ✓ | **10 ops** | structured |
-| Journey (accTitle/accDescr, unmodeled) | ✓ | structural | ✓ | — (opaque) | verbatim |
-| **Architecture (modeled subset)** | ✓ | structural | ✓ | **11 ops** | structured |
-| Architecture (`{group}` boundary, accTitle/accDescr) | ✓ | structural | ✓ | — (opaque) | verbatim |
-| **XY chart (modeled subset)** | ✓ | structural | ✓ | **8 ops** | structured |
-| XY chart (quoted text, `;` lines, accTitle/accDescr) | ✓ | structural | ✓ | — (opaque) | verbatim |
-| **Pie (simple)** | ✓ | structural | ✓ | **7 ops** | structured |
-| Pie (accTitle/accDescr, malformed entries) | ✓ | structural | ✓ | — (opaque) | verbatim |
-| **Quadrant (modeled subset)** | ✓ | structural | ✓ | **7 ops** | structured |
-| Quadrant (styling `classDef`/`:::`, out-of-range coords) | ✓ | structural | ✓ | — (opaque) | verbatim |
-| **Gantt (modeled subset)** | ✓ | structural + schedule | ✓ | **9 ops** | structured-with-segments |
-| Gantt (duplicate ids / unclosed `accDescr`) | ✓ | structural | ✓ | — (opaque) | verbatim |
+| Flowchart | ✓ | full (Tier 1+2) | ✓ | 14 ops | structured |
+| State | ✓ | full (Tier 1+2) | ✓ | 18 ops | structured |
+| Sequence | ✓ | structural | ✓ | 7 ops | structured-with-segments |
+| Timeline | ✓ | structural | ✓ | 15 ops | structured |
+| Class | ✓ | structural | ✓ | 15 ops | structured |
+| ER | ✓ | structural | ✓ | 12 ops | ordered typed/opaque segments |
+| Journey | ✓ | structural | ✓ | 14 ops | structured |
+| Architecture | ✓ | structural | ✓ | 19 ops | structured |
+| XY chart | ✓ | structural | ✓ | 10 ops | structured |
+| Pie | ✓ | structural | ✓ | 7 ops | structured |
+| Quadrant | ✓ | structural | ✓ | 7 ops | structured |
+| Gantt | ✓ | structural + schedule | ✓ | 13 ops | structured-with-segments |
+| Mindmap | ✓ | structural | ✓ | 10 ops | structured tree |
+| GitGraph | ✓ | structural | ✓ | 11 ops | replayed structured history |
 
 Any diagram with constructs we don't model falls back to an **opaque** body: it still parses, renders, verifies, and round-trips losslessly — it just isn't offered for structured mutation (the narrower returns null). The parser never silently drops anything.
 
-State diagrams own a dedicated body (BUILD-19): narrow them with `asState` and apply state-shaped ops (`add_state`, `remove_state`, `rename_state`, `set_state_label`, `add_transition`, `remove_transition`, `set_transition_label`, `make_composite`). `asFlowchart` returns null on a state diagram. The modeled subset is simple states, transitions, `[*]` start/end pseudostates, composite blocks, and `direction`; anything else (`<<fork>>`/`<<choice>>`/`<<join>>`, history states, concurrency `--`, notes, `classDef`/`class`/`:::` styling) keeps the whole body opaque and round-trips verbatim.
+State diagrams own a dedicated body: `asState` models states/transitions, `[*]`, composites, stereotypes/history, concurrency regions, notes, bare declarations, and class/inline paint. `asFlowchart` returns null on a state diagram.
 
 Gantt diagrams are segment-preserving: `asGantt` keeps title/section/task ops live while calendar directives (`dateFormat`, `axisFormat`, `excludes`, `includes`, `weekend`, `weekday`, `todayMarker`, `tickInterval`, `inclusiveEndDates`, `topAxis`), `click` lines, comments, and accessibility lines ride along verbatim. Gantt rendering is deterministic and never reads the wall clock; pass `ganttToday` when rendering if a `todayMarker` should be visible.
 
@@ -56,7 +46,7 @@ Gantt diagrams are segment-preserving: `asGantt` keeps title/section/task ops li
 For new diagrams, author Mermaid source directly, then `parseMermaid` / `verifyMermaid` / render. For existing modeled diagrams:
 
 1. `parseMermaid(source)` → `ValidDiagram`.
-2. `asFlowchart(d)` / `asState(d)` / `asSequence(d)` / `asTimeline(d)` / `asClass(d)` / `asEr(d)` / `asJourney(d)` / `asArchitecture(d)` / `asXyChart(d)` / `asPie(d)` / `asQuadrant(d)` / `asGantt(d)` to narrow before mutating.
+2. `asFlowchart(d)` / `asState(d)` / `asSequence(d)` / `asTimeline(d)` / `asClass(d)` / `asEr(d)` / `asJourney(d)` / `asArchitecture(d)` / `asXyChart(d)` / `asPie(d)` / `asQuadrant(d)` / `asGantt(d)` / `asMindmap(d)` / `asGitGraph(d)` to narrow before mutating.
 3. `mutate(d, op)` (typed per family).
 4. `verifyMermaid(d)` — structured warnings; inspect `ok` / `warnings` / `layout`.
 5. On `!ok`, revert to the previous `ValidDiagram`, try another op.

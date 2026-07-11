@@ -40,6 +40,40 @@ function distanceToPolyline(
   return minDistance
 }
 
+function segmentCrossesBoxInterior(
+  a: { x: number; y: number },
+  b: { x: number; y: number },
+  box: { x: number; y: number; width: number; height: number },
+): boolean {
+  const EPS = 0.001
+  if (Math.abs(a.y - b.y) <= EPS) {
+    return a.y > box.y + EPS && a.y < box.y + box.height - EPS
+      && Math.min(a.x, b.x) < box.x + box.width - EPS
+      && Math.max(a.x, b.x) > box.x + EPS
+  }
+  if (Math.abs(a.x - b.x) <= EPS) {
+    return a.x > box.x + EPS && a.x < box.x + box.width - EPS
+      && Math.min(a.y, b.y) < box.y + box.height - EPS
+      && Math.max(a.y, b.y) > box.y + EPS
+  }
+  return true
+}
+
+function routeCrossesBoxInterior(
+  points: Array<{ x: number; y: number }>,
+  box: { x: number; y: number; width: number; height: number },
+): boolean {
+  return points.slice(1).some((point, index) => segmentCrossesBoxInterior(points[index]!, point, box))
+}
+
+function boxesOverlap(
+  a: { x: number; y: number; width: number; height: number },
+  b: { x: number; y: number; width: number; height: number },
+): boolean {
+  return a.x < b.x + b.width - 0.001 && b.x < a.x + a.width - 0.001
+    && a.y < b.y + b.height - 0.001 && b.y < a.y + a.height - 0.001
+}
+
 describe('layoutArchitectureDiagram', () => {
   it('keeps grouped services and junctions inside their parent frame', () => {
     const result = layout(`architecture-beta
@@ -108,7 +142,17 @@ describe('layoutArchitectureDiagram', () => {
           return n.x >= g.x - EPS && n.y >= g.y - EPS
             && n.x + n.width <= g.x + g.width + EPS && n.y + n.height <= g.y + g.height + EPS
         }
+        const servicePairsClear = result.services.every((service, index) =>
+          result.services.slice(index + 1).every(other => !boxesOverlap(service, other)))
+        const rootGroups = result.groups.filter(group => !group.parentId)
+        const rootGroupPairsClear = rootGroups.every((group, index) =>
+          rootGroups.slice(index + 1).every(other => !boxesOverlap(group, other)))
+        const routesClearCards = result.edges.every(edge =>
+          edge.obstacleFree && result.services
+            .filter(service => service.id !== edge.source.id && service.id !== edge.target.id)
+            .every(service => !routeCrossesBoxInterior(edge.points, service)))
         return result.services.every(contained) && result.junctions.every(contained)
+          && servicePairsClear && rootGroupPairsClear && routesClearCards
       }),
       { numRuns: 300 },
     )
@@ -202,6 +246,83 @@ describe('layoutArchitectureDiagram', () => {
     const edge = result.edges[0]!
     expect(edge.labelPosition).toBeDefined()
     expect(distanceToPolyline(edge.labelPosition!, edge.points)).toBeLessThanOrEqual(0.001)
+  })
+
+  // A1/B03 regression: the old midpoint dogleg drew the a→c shortcut straight
+  // through b. Authored endpoint sides are necessary but insufficient: every
+  // non-incident service is a routing obstacle.
+  it('routes a shortcut around an intervening service while retaining authored sides', () => {
+    const result = layout(`architecture-beta
+      service a(server)[A]
+      service b(server)[B]
+      service c(server)[C]
+      a:R --> L:b
+      b:R --> L:c
+      a:R -[shortcut]-> L:c`)
+    const shortcut = result.edges[2]!
+    const a = result.services.find(service => service.id === 'a')!
+    const b = result.services.find(service => service.id === 'b')!
+    const c = result.services.find(service => service.id === 'c')!
+
+    expect(shortcut.points[0]).toEqual({ x: a.x + a.width, y: a.y + a.height / 2 })
+    expect(shortcut.points.at(-1)).toEqual({ x: c.x, y: c.y + c.height / 2 })
+    expect(shortcut.points.every((point, index, points) => index === 0 || point.x === points[index - 1]!.x || point.y === points[index - 1]!.y)).toBe(true)
+    expect(routeCrossesBoxInterior(shortcut.points, b)).toBe(false)
+    expect(distanceToPolyline(shortcut.labelPosition!, shortcut.points)).toBeLessThanOrEqual(0.001)
+  })
+
+  it('every chain shortcut clears every intermediate card (property)', () => {
+    fc.assert(fc.property(fc.integer({ min: 3, max: 8 }), count => {
+      const lines = ['architecture-beta']
+      for (let i = 0; i < count; i++) lines.push(`service s${i}(server)[S${i}]`)
+      for (let i = 1; i < count; i++) lines.push(`s${i - 1}:R --> L:s${i}`)
+      lines.push(`s0:R -[shortcut]-> L:s${count - 1}`)
+      const result = layout(lines.join('\n'))
+      const shortcut = result.edges.at(-1)!
+      const intermediates = result.services.filter(service => service.id !== 's0' && service.id !== `s${count - 1}`)
+      return shortcut.points.every((point, index, points) => index === 0 || point.x === points[index - 1]!.x || point.y === points[index - 1]!.y)
+        && intermediates.every(service => !routeCrossesBoxInterior(shortcut.points, service))
+    }), { numRuns: 60 })
+  })
+
+  it('routes group-boundary shortcuts around an unrelated group interior', () => {
+    const result = layout(`architecture-beta
+      group ga(cloud)[A]
+      service a(server)[A] in ga
+      group gb(cloud)[B]
+      service b(server)[B] in gb
+      group gc(cloud)[C]
+      service c(server)[C] in gc
+      a{group}:R --> L:b{group}
+      b{group}:R --> L:c{group}
+      a{group}:R -[shortcut]-> L:c{group}`)
+    const middle = result.groups.find(group => group.id === 'gb')!
+    const shortcut = result.edges[2]!
+    expect(routeCrossesBoxInterior(shortcut.points, middle)).toBe(false)
+    expect(shortcut.obstacleFree).toBe(true)
+    expect(shortcut.placement).toBe('satisfied')
+  })
+
+  it('treats every satisfiable endpoint-side pair as placement constraints and classifies legal conflicts', () => {
+    const sides = ['L', 'R', 'T', 'B'] as const
+    const axis = (side: typeof sides[number]) => side === 'L' || side === 'R' ? 'x' : 'y'
+    for (const sourceSide of sides) {
+      for (const targetSide of sides) {
+        const result = layout(`architecture-beta
+          service a(server)[A]
+          service b(server)[B]
+          a:${sourceSide} --> ${targetSide}:b`)
+        const edge = result.edges[0]!
+        const impossible = axis(sourceSide) === axis(targetSide) && sourceSide === targetSide
+        expect({ sourceSide, targetSide, placement: edge.placement }).toEqual({
+          sourceSide,
+          targetSide,
+          placement: impossible ? 'conflicted' : 'satisfied',
+        })
+        expect(edge.sourceFacesTarget && edge.targetFacesSource).toBe(!impossible)
+        expect(edge.obstacleFree).toBe(true)
+      }
+    }
   })
 
   // Upstream v11.16.0 align directives are real geometry constraints. The

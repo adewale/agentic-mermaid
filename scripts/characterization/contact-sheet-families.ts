@@ -118,6 +118,22 @@ const FAMILIES: Family[] = [
     source: 'quadrantChart\n  title Reach vs Effort\n  x-axis Low Reach --> High Reach\n  y-axis Low Effort --> High Effort\n  "Feature A": [0.3, 0.6]\n  "Feature B": [0.7, 0.2]',
   },
   {
+    id: 'mindmap',
+    title: 'Mindmap',
+    strategy: 'Indentation-derived tree projection (src/ascii/mindmap.ts).',
+    signature: 'Parent/child order follows source indentation; Unicode branches and grapheme-aware labels remain deterministic. Ragged rows.',
+    invariants: { total: true, deterministic: true, noDiagonals: true, rectangular: false },
+    source: 'mindmap\n  root((Product))\n    Research\n      Interviews\n      Evidence\n    Delivery',
+  },
+  {
+    id: 'gitgraph',
+    title: 'GitGraph',
+    strategy: 'Replay-ordered commit columns on deterministic branch rails (src/ascii/gitgraph.ts).',
+    signature: 'Commit identities stay on source-ordered rails; merge and cherry-pick parent topology is spatial. Ragged rows.',
+    invariants: { total: true, deterministic: true, noDiagonals: true, rectangular: false },
+    source: 'gitGraph\n  commit id:"base"\n  branch feature\n  commit id:"work"\n  checkout main\n  commit id:"release"\n  merge feature id:"merge"',
+  },
+  {
     id: 'architecture',
     title: 'Architecture diagram',
     strategy: 'Projected graph layout over the grid engine (src/ascii/architecture.ts).',

@@ -57,6 +57,8 @@ const MUTATION_CONFIG_NEEDLES = {
   pie: ['src/agent/pie-body.ts', 'src/pie/parser.ts'],
   quadrant: ['src/agent/quadrant-body.ts', 'src/quadrant/parser.ts'],
   gantt: ['src/gantt/parser.ts'],
+  mindmap: ['src/mindmap/parser.ts', 'src/agent/mindmap-body.ts'],
+  gitgraph: ['src/gitgraph/parser.ts', 'src/agent/gitgraph-body.ts'],
 } satisfies Record<BuiltinFamilyId, readonly string[]>
 
 const REQUIRED_FAMILY_EVIDENCE = {
@@ -174,6 +176,26 @@ const REQUIRED_FAMILY_EVIDENCE = {
     divergenceLedger: ['eval/mermaid-gantt-bench/exclusions.json'],
     goldensEvidence: ['docs/assets/improvements/gantt-family.png'],
     mutationLane: ['stryker.gantt.config.json'],
+  },
+  mindmap: {
+    semanticModel: ['src/mindmap/types.ts', 'src/agent/mindmap-body.ts'],
+    serializeRoundTrip: ['src/__tests__/mindmap-gitgraph-citizenship.test.ts'],
+    domainProperties: ['src/__tests__/mindmap-gitgraph-citizenship.test.ts'],
+    stableRegions: ['src/__tests__/mindmap-gitgraph-citizenship.test.ts'],
+    upstreamHarvest: ['eval/mermaid-upstream-suite-bench/mindmap-gitgraph-f3dea583.json'],
+    divergenceLedger: ['eval/mermaid-upstream-suite-bench/mindmap-gitgraph-f3dea583.json'],
+    goldensEvidence: ['src/__tests__/mindmap-gitgraph-citizenship.test.ts'],
+    mutationLane: ['stryker.families.config.json'],
+  },
+  gitgraph: {
+    semanticModel: ['src/gitgraph/types.ts', 'src/agent/gitgraph-body.ts'],
+    serializeRoundTrip: ['src/__tests__/mindmap-gitgraph-citizenship.test.ts'],
+    domainProperties: ['src/__tests__/mindmap-gitgraph-citizenship.test.ts'],
+    stableRegions: ['src/__tests__/mindmap-gitgraph-citizenship.test.ts'],
+    upstreamHarvest: ['eval/mermaid-upstream-suite-bench/mindmap-gitgraph-f3dea583.json'],
+    divergenceLedger: ['eval/mermaid-upstream-suite-bench/mindmap-gitgraph-f3dea583.json'],
+    goldensEvidence: ['src/__tests__/mindmap-gitgraph-citizenship.test.ts'],
+    mutationLane: ['stryker.families.config.json'],
   },
 } satisfies Record<BuiltinFamilyId, Partial<Record<SurfaceId, readonly string[]>>>
 
@@ -343,6 +365,7 @@ describe('diagram-family citizenship ratchet (issue #41)', () => {
       timeline: 'mutation-test:timeline', class: 'mutation-test:class', er: 'mutation-test:er',
       journey: 'mutation-test:journey', xychart: 'mutation-test:families', architecture: 'mutation-test:families',
       pie: 'mutation-test:pie', quadrant: 'mutation-test:quadrant', gantt: 'mutation-test:gantt',
+      mindmap: 'mutation-test:families', gitgraph: 'mutation-test:families',
     }
     const matrix = loadMatrix()
     for (const family of BUILTIN_FAMILY_METADATA) {

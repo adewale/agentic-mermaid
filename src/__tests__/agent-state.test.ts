@@ -160,12 +160,8 @@ describe('state round-trip identity', () => {
 })
 
 // ---------------------------------------------------------------------------
-describe('state opaque-fallback table (unmodeled syntax stays lossless)', () => {
-  // Repo #118 promoted notes and the fork/join/choice/history stereotypes to
-  // STRUCTURED (see state-notes.test.ts / state-pseudostates.test.ts); the
-  // rows below remain deliberately unmodeled and must keep the honest opaque
-  // fallback.
-  const opaque: [string, string][] = [
+describe('state residual syntax promotion table', () => {
+  const promoted: [string, string][] = [
     ['concurrency --', `stateDiagram-v2
   state Active {
     [*] --> A
@@ -185,15 +181,13 @@ describe('state opaque-fallback table (unmodeled syntax stays lossless)', () => 
     x --> y
   }`],
   ]
-  for (const [name, src] of opaque) {
-    test(`${name} → opaque body, round-trips verbatim`, () => {
+  for (const [name, src] of promoted) {
+    test(`${name} → structured body, round-trips canonically`, () => {
       const r = parseMermaid(src)
       expect(r.ok).toBe(true)
       if (!r.ok) return
-      expect(r.value.body.kind).toBe('opaque')
-      // asState returns null on an opaque body — no structured edits offered.
-      expect(asState(r.value)).toBeNull()
-      // Round-trip stays stable.
+      expect(r.value.body.kind).toBe('state')
+      expect(asState(r.value)).not.toBeNull()
       const s1 = serializeMermaid(r.value)
       const r2 = parseMermaid(s1)
       expect(r2.ok).toBe(true)

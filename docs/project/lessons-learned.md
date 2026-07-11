@@ -1088,8 +1088,8 @@ made `PK, FK` lose `PK`. The fix was not four regex patches: Unicode-aware Merma
 identifier/class-suffix primitives, one quote-aware Flowchart shape scanner, and
 shared ER entity-reference/relationship/attribute grammars now feed renderer and
 agent parsing. Typed ER identity is `id` plus optional `label`, with
-`set_entity_label`; styling that is still unmodeled remains opaque and warned rather
-than being discarded. Correctness-by-construction means every decorated reference
+`set_entity_label`; shared structured paint now remains separate from identity, while
+truly unmodeled segments stay preserved and warned rather than being discarded. Correctness-by-construction means every decorated reference
 passes through the same normalization boundary before layout, render, facts, or
 mutation can observe it.
 
@@ -1109,7 +1109,7 @@ family while regressing another. Rendering every elevated feature under multiple
 Style + Palette stacks, checking one generated all-family sheet byte-for-byte, and
 running the ordinary family corpus caught integration drift that family-local tests
 could not. When a PR's claim says “all families,” at least one executable gate must
-quantify over all families rather than infer coverage from twelve separate anecdotes.
+quantify over all families rather than infer coverage from fourteen separate anecdotes.
 
 **Registration is not reachability.** The follow-up audit found a deeper reason explicit State config was byte-inert: `stateDiagram-v2` still routed through the Flowchart family even though a State hook was registered. The resolver worked in isolation and could still be unreachable in production. The repair gave State its own routed family ID and preserved default bytes before wiring ten faithful fields. This is a reusable integration lesson: a feature is wired only when the public detector selects the registry entry, the registry invokes its hook, and a field-specific output invariant changes.
 
@@ -1135,3 +1135,91 @@ faithfulness, all-family opaque diagnostics, all-family config wire-or-warn, unk
 CLI flag rejection, and Scene-IR text geometry fidelity. Naming that boundary lets the
 phase become honestly complete while the mechanical backlog continues to show the
 remaining rendering and mutation work.
+
+## 2026-07 — contracts at output boundaries
+
+**Cross-surface primitives only count when every writer adopts them.** The
+repository already had correct grapheme segmentation and display-width math,
+but Class/ER relationship labels, Sequence block text, Pie/Quadrant/XYChart,
+subgraph headers, validation, and TUI metadata still performed code-unit
+arithmetic. The completion move was an inventory of every sizing *and writing*
+site, followed by equal-display-width metamorphic pairs. Measuring correctly
+while writing UTF-16 units is still corrupt geometry.
+
+**DOM semantics belong in the Scene waist, not twelve renderer conventions.**
+Adding typed Scene identity and accessibility once let every existing family
+emit deterministic `data-id`/`data-role` and relation ARIA, including chart
+marks that had no source ID. A separate reference-hygiene matrix then found a
+real integration gap: XYChart and Gantt emitted CSS `url(#bm-shadow)` without
+the filter definition. Generic rewriting was correct; family enrollment was
+not. Shared machinery plus an all-family consumer test is the durable pair.
+
+**Accessibility palettes need executable thresholds, not names.** Several
+well-known themes called their low-contrast color “muted” and then used it for
+normal-size informational labels at roughly 2:1. Concrete palette resolution
+now preserves passing colors and deterministically lifts failing text to 4.5:1
+and relation graphics to 3:1. The key distinction is between a palette's authored
+intent and the rendered role's contrast obligation; a theme name is not a WCAG
+certificate.
+
+## 2026-07 — completing fourteen-family citizenship
+
+**Placement validity and route validity are separate facts.** Architecture can
+contain legal authored side constraints that contradict each other. Rejecting
+them loses source semantics; pretending they were satisfied lies. The durable
+model records `placement: satisfied|conflicted` independently from facing and
+obstacle-free route certificates. A conflicted layout can still produce a
+side-anchored, orthogonal, obstacle-free route, and review can see exactly which
+promise could not be met.
+
+**Indentation-sensitive syntax must enter before canonical trimming.** Mindmap
+failed when it was parsed from the same trimmed body used by line-oriented
+families: indentation *is* the tree. Its family hook now receives the untrimmed
+normalized body and produces one recursive model consumed by agent layout,
+SVG, and terminal rendering. Normalization is not universally safe; every
+family must declare which whitespace is syntax.
+
+**Statement families need replay, not token inventories.** GitGraph meaning is
+the evolving branch-head state, not a list of keywords. Replaying statements
+made invalid checkout/merge/cherry-pick states unrepresentable, exposed real
+parent relations to layout/accessibility, and separated semantic merge type from
+an authored visual override. Deterministic generated ids (`c<N>`) deliberately
+trade upstream randomness for reproducible artifacts.
+
+**Segment preservation is the middle path between full typing and whole-body
+opacity.** ER's tolerated subgraph syntax originally forced the entire family
+opaque. Ordered typed/opaque statements keep editable relationships and paint in
+place while preserving unsupported delimiters exactly; identity mutations are
+refused only when they would stale opaque text. The important boundary is not
+“typed or opaque diagram,” but whether each source segment has a safe owner.
+
+**A citizenship matrix prevents a new family from being only a renderer.** The
+Mindmap/GitGraph work was complete only after the library, CLI, Code Mode,
+hosted MCP, editor, website, documentation, eval, package, config, terminal,
+accessibility, security, properties, characterization, and mutation surfaces all
+agreed. Exact registry equality turned fourteen-family support from prose into a
+zero-exception contract.
+
+**Source success does not prove the package recipients run.** The installed
+artifact is a separate product surface: pack, install into a clean project,
+then exercise valid new-family inputs through bare library imports, the Node
+CLI, and the stdio MCP, requiring structured kinds and source/package output
+equality. The same consumer-path test now proves the Apache-2.0 license and
+third-party notice actually arrive beside the curated Architecture icon paths;
+package metadata alone could not prove either fact.
+
+**Final review must attack successful mutations, not only rejected inputs.** The
+post-green parser audit found values that passed typed operations but changed
+the model after canonical serialization: Mindmap delimiters/comments created
+children or lost class suffixes, and multiline paint created State/Class/ER
+entities. The fix was not more snapshots; it was grammar closure at the mutation
+boundary plus real-source revert probes. Completion review now includes the
+question: “Can any successful string-valued op become a second statement when
+the serializer adds its prefix?”
+
+**Evidence claims should name every field they prove.** Endpoint equality did
+not prove relation identity, and hashing a test file did not prove manually
+expanded loop variants. Tightening those claims required exact
+`(id, role, from, to)` multisets and AST-expanded source lists. When a plan says
+“exact,” the acceptance test must compare the exact object, not a count or a
+projection that happens to be sufficient for today’s fixture.

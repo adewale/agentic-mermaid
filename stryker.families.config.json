@@ -6,12 +6,20 @@
     "src/xychart/renderer.ts",
     "src/architecture/parser.ts",
     "src/architecture/layout.ts",
-    "src/architecture/renderer.ts"
+    "src/architecture/renderer.ts",
+    "src/mindmap/parser.ts",
+    "src/mindmap/layout.ts",
+    "src/mindmap/renderer.ts",
+    "src/agent/mindmap-body.ts",
+    "src/gitgraph/parser.ts",
+    "src/gitgraph/layout.ts",
+    "src/gitgraph/renderer.ts",
+    "src/agent/gitgraph-body.ts"
   ],
   "ignorePatterns": ["/site/**", "/dist/**", "/coverage/**"],
   "testRunner": "command",
   "commandRunner": {
-    "command": "bun test src/__tests__/xychart-parser.test.ts src/__tests__/xychart-layout.test.ts src/__tests__/xychart-renderer.test.ts src/__tests__/xychart-integration.test.ts src/__tests__/xychart-svg-snapshot.test.ts src/__tests__/xychart-ascii.test.ts src/__tests__/property-xychart.test.ts src/__tests__/architecture-parser.test.ts src/__tests__/architecture-layout.test.ts src/__tests__/architecture-renderer.test.ts src/__tests__/architecture-integration.test.ts src/__tests__/architecture-config.test.ts src/__tests__/architecture-theme.test.ts src/__tests__/architecture-svg-snapshot.test.ts src/__tests__/architecture-ascii.test.ts"
+    "command": "bun test src/__tests__/xychart-parser.test.ts src/__tests__/xychart-layout.test.ts src/__tests__/xychart-renderer.test.ts src/__tests__/xychart-integration.test.ts src/__tests__/xychart-svg-snapshot.test.ts src/__tests__/xychart-ascii.test.ts src/__tests__/property-xychart.test.ts src/__tests__/architecture-parser.test.ts src/__tests__/architecture-layout.test.ts src/__tests__/architecture-renderer.test.ts src/__tests__/architecture-integration.test.ts src/__tests__/architecture-config.test.ts src/__tests__/architecture-theme.test.ts src/__tests__/architecture-svg-snapshot.test.ts src/__tests__/architecture-ascii.test.ts src/__tests__/mindmap-gitgraph-citizenship.test.ts"
   },
   "reporters": ["clear-text", "progress", "json"],
   "jsonReporter": { "fileName": "reports/mutation/families-mutation.json" },

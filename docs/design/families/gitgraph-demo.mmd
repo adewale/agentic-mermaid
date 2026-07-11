@@ -1,0 +1,7 @@
+gitGraph
+  commit id:"base" msg:"Foundation"
+  branch feature
+  commit id:"work" type:HIGHLIGHT msg:"Build"
+  checkout main
+  commit id:"release" msg:"Prepare"
+  merge feature id:"merge" tag:"v1"

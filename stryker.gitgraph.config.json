@@ -1,0 +1,17 @@
+{
+  "$schema": "https://raw.githubusercontent.com/stryker-mutator/stryker/master/packages/core/schema/stryker-core.schema.json",
+  "_comment": "Narrow mutation lane for GitGraph typed editing and replay semantics.",
+  "mutate": ["src/agent/gitgraph-body.ts"],
+  "ignorePatterns": ["/site/**", "/dist/**", "/coverage/**", "/.stryker-tmp-*/**"],
+  "testRunner": "command",
+  "commandRunner": {
+    "command": "bun test src/__tests__/gitgraph-agent-ops.test.ts src/__tests__/mindmap-gitgraph-citizenship.test.ts"
+  },
+  "reporters": ["clear-text", "progress", "json"],
+  "jsonReporter": { "fileName": "reports/mutation/gitgraph-mutation.json" },
+  "timeoutMS": 30000,
+  "concurrency": 2,
+  "tempDirName": ".stryker-tmp-gitgraph",
+  "disableTypeChecks": true,
+  "thresholds": { "break": 60 }
+}

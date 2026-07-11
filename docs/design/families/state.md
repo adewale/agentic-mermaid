@@ -49,10 +49,12 @@ Modeled constructs (both surfaces):
   (shorthands normalize to `history` / `deep-history` on parse)
 - notes: `note left|right of X : text` and the block form
   `note left|right of X … end note` (body lines joined with `\n`)
-- `--` concurrency separators inside composites (render parser only — see
-  Deferred)
+- `--` concurrency separators inside composites as first-class ordered
+  `StateRegion[]` on both parser surfaces
+- bare state declarations, hyphenated composite ids, `classDef`,
+  `class`/`cssClass`/`:::`, inline state paint, and transition paint
 
-Render-parser-only details:
+Resolution details:
 
 - Note targets are auto-declared (upstream parity); a note on a composite
   anchors to the composite's box.
@@ -139,7 +141,11 @@ unchanged over the rebuilt geometry (`self-loop-arcs.test.ts` pins both).
 `StateBody` additions (repo #118 — these constructs no longer fall opaque):
 
 - `StateNode.stereotype?: 'fork' | 'join' | 'choice' | 'history' | 'deep-history'`
+- `StateNode.regions?: StateRegion[]`, preserving each `--` boundary and
+  region-local states/transitions recursively
 - `StateBody.notes?: StateNote[]` (`{ target, side, text }`, source order)
+- typed class definitions, per-state class/inline paint, default and indexed
+  transition paint
 - history endpoints preserved verbatim on `StateTransition.from/to`
 
 Serialization: definitions before transitions (definition-before-use), notes
@@ -147,7 +153,7 @@ last; single-line note form when the text has no `\n`, block form otherwise.
 Note text is canonical by construction (`validNoteText`: trimmed lines, no
 blanks, no `end note` line), so serialize∘parse is idempotent.
 
-Op menu (8 → 14; journey/gantt conventions — prescriptive errors, full
+Op menu (8 → 18; journey/gantt conventions — prescriptive errors, full
 registration in types/op-schema/mutation-ops/sdk-decl, render-parse
 round-trip proof per op):
 
@@ -161,6 +167,10 @@ round-trip proof per op):
   cascade (history refs `X[H]` included)
 - `add_note { target, side?, text }` / `remove_note { index }` /
   `set_note_text { index, text }` (class-family naming)
+- `define_class`, `set_state_class`, `set_state_style`, and
+  `set_transition_style` use the same parser-owned paint grammar as flowchart
+- region-aware state/transition operations take explicit region coordinates
+  where ambiguity would otherwise be possible
 
 ## Verification
 
@@ -175,20 +185,13 @@ round-trip proof per op):
   boundary/clearance/pill-hug (`state-notes`, `state-pseudostates`,
   `self-loop-arcs` suites).
 
-## Deferred / honest limits
+## Honest limits
 
-- **`--` concurrency in the agent body**: regions RENDER correctly, but the
-  structured body keeps such diagrams opaque (announced by the
-  `state_opaque` lint). A structured region model (regions inside
-  `StateNode`) is deliberate future work — repo #118 does not list it.
-- `classDef`/`:::` styling now renders through the shared graph paint model
-  without turning `A:::class` into visible `::class` text; the typed StateBody
-  still keeps styled sources opaque and warned. Full typed style mutation,
-  bare `stateId` lines, and hyphenated composite ids remain separate work.
 - Notes on deeply nested states sit outside the enclosing composite rather
   than growing it.
 - History rendering is visual+preservation only; no reachability analysis
   models re-entry semantics (the Tier-3 lint says so).
-- ASCII: the new shapes render via the shape registry (bars as solid-corner
-  boxes, choice as diamond, history as circle); notes and region separators
-  are not yet drawn on the ASCII surface.
+- Terminal rendering is spatial: notes are boxes connected to their targets,
+  concurrency regions draw separators, and fork/join/choice/history use the
+  shared shape registry. The terminal view intentionally does not encode
+  interactive SVG-only affordances.

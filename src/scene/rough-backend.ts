@@ -30,6 +30,7 @@ import { registerBackend, composeGroup, pageRectFor } from './backend.ts'
 import { nodeSeed } from './seed.ts'
 import { topLevelElements } from './fidelity.ts'
 import type { StyleSpec } from './style-registry.ts'
+import { ensureSvgIdentity } from './identity.ts'
 
 const gen = new RoughGenerator()
 
@@ -254,7 +255,10 @@ function sketchShape(node: ShapeMark, walk: Walk): string {
     }
     out.push(sketched)
   }
-  return out.filter(Boolean).join('\n')
+  const serialized = out.filter(Boolean).join('\n')
+  return node.identity && !/\sdata-id=/.test(serialized)
+    ? ensureSvgIdentity(serialized, node.identity)
+    : serialized
 }
 
 /** Default node-surface fills we may drop when a style wants open boxes;

@@ -159,9 +159,28 @@ describe('non-graph adapters: debug certificates stay family-specific (#26/#38)'
     const layout = layoutMermaid(p.value, { debug: true })
     expect(layout.edges.length).toBeGreaterThan(0)
     expect(layout.edges.every(e => e.route?.routeClass === 'family-layout' && 'family' in e.route && e.route.family === 'architecture' && e.route.invariant === 'side-anchored')).toBe(true)
+    expect(layout.edges.every(e => e.route && 'family' in e.route && e.route.family === 'architecture'
+      && e.route.placement === 'satisfied' && e.route.sourceFacesTarget && e.route.targetFacesSource && e.route.obstacleFree)).toBe(true)
     expect(layout.edges.every(e => e.route && layoutCertificateProof(e.route) === 'edge-route')).toBe(true)
     const plain = layoutMermaid(p.value)
     expect(plain.edges.every(e => e.route === undefined)).toBe(true)
+  })
+
+  it('architecture certificates distinguish a legal side conflict from a broken route', () => {
+    const p = parseMermaid('architecture-beta\n  service a(server)[A]\n  service b(server)[B]\n  a:R --> R:b')
+    expect(p.ok).toBe(true)
+    if (!p.ok) return
+    const route = layoutMermaid(p.value, { debug: true }).edges[0]!.route
+    expect(route && 'family' in route && route.family === 'architecture' ? route : undefined).toMatchObject({
+      invariant: 'side-anchored',
+      placement: 'conflicted',
+      sourceFacesTarget: true,
+      targetFacesSource: false,
+      sourceAnchored: true,
+      targetAnchored: true,
+      orthogonal: true,
+      obstacleFree: true,
+    })
   })
 
   it('sequence emits lifeline-message certificates only in debug layout', () => {

@@ -66,27 +66,27 @@
 </g>
 <g class="journey-actor-legend">
   <text x="32" y="118.4" class="journey-actor-legend-title" text-anchor="start" font-size="12" font-weight="600" dy="4.199999999999999">Actors</text>
-  <circle class="journey-actor-dot journey-actor-0" data-actor="Me" cx="37" cy="144.4" r="5" />
+  <circle class="journey-actor-dot journey-actor-0" data-actor="Me" cx="37" cy="144.4" r="5" data-id="actor-legend-dot:Me" data-role="actor" />
   <text x="54" y="144.4" class="journey-actor-legend-text" text-anchor="start" font-size="11" font-weight="600" dy="3.8499999999999996">Me</text>
-  <circle class="journey-actor-dot journey-actor-1" data-actor="Cat" cx="37" cy="166.4" r="5" />
+  <circle class="journey-actor-dot journey-actor-1" data-actor="Cat" cx="37" cy="166.4" r="5" data-id="actor-legend-dot:Cat" data-role="actor" />
   <text x="54" y="166.4" class="journey-actor-legend-text" text-anchor="start" font-size="11" font-weight="600" dy="3.8499999999999996">Cat</text>
 </g>
-<g class="journey-section" data-id="section-0" data-label="Go to work">
-  <rect class="journey-section-bg journey-section-0" x="176" y="73.4" width="444" height="36" rx="6" ry="6" />
+<g class="journey-section" data-id="section-0" data-label="Go to work" data-role="section">
+  <rect class="journey-section-bg journey-section-0" x="176" y="73.4" width="444" height="36" rx="6" ry="6" data-id="section-bg:section-0" data-role="section" />
   <rect class="journey-section-label-band journey-section-band-0" x="182" y="80.4" width="432" height="22" rx="6" ry="6" />
   <text x="398" y="91.4" class="journey-section-label journey-section-label-0" text-anchor="middle" font-size="12" font-weight="600" dy="4.199999999999999">Go to work</text>
 </g>
-<g class="journey-section" data-id="section-1" data-label="Go home">
-  <rect class="journey-section-bg journey-section-1" x="628" y="73.4" width="294" height="36" rx="6" ry="6" />
+<g class="journey-section" data-id="section-1" data-label="Go home" data-role="section">
+  <rect class="journey-section-bg journey-section-1" x="628" y="73.4" width="294" height="36" rx="6" ry="6" data-id="section-bg:section-1" data-role="section" />
   <rect class="journey-section-label-band journey-section-band-1" x="634" y="80.4" width="282" height="22" rx="6" ry="6" />
   <text x="775" y="91.4" class="journey-section-label journey-section-label-1" text-anchor="middle" font-size="12" font-weight="600" dy="4.199999999999999">Go home</text>
 </g>
-<path class="journey-curve" d="M248,256.3 C298,256.3 348,336.3 398,336.3 C448,336.3 498,416.3 548,416.3 C598.6666666666666,416.3 649.3333333333334,256.3 700,256.3 C750,256.3 800,336.3 850,336.3" />
-<g class="journey-task" data-id="task-0" data-score="5" data-section="Go to work" data-actors="Me">
+<path class="journey-curve" d="M248,256.3 C298,256.3 348,336.3 398,336.3 C448,336.3 498,416.3 548,416.3 C598.6666666666666,416.3 649.3333333333334,256.3 700,256.3 C750,256.3 800,336.3 850,336.3" data-id="experience-curve" data-role="series" />
+<g class="journey-task" data-id="task-0" data-score="5" data-section="Go to work" data-actors="Me" data-role="task">
   <line class="journey-track" x1="248" y1="200.3" x2="248" y2="448.3" />
-  <rect class="journey-task-box" x="186" y="139.4" width="124" height="60.900000000000006" rx="5" ry="5" />
+  <rect class="journey-task-box" x="186" y="139.4" width="124" height="60.900000000000006" rx="5" ry="5" data-id="task-box:task-0" data-role="task" />
   <text x="248" y="159.85" class="journey-task-text" text-anchor="middle" font-size="13" font-weight="500" dy="4.55">Make tea</text>
-  <circle class="journey-actor-dot journey-actor-0" data-actor="Me" cx="248" cy="184.3" r="4" />
+  <circle class="journey-actor-dot journey-actor-0" data-actor="Me" cx="248" cy="184.3" r="4" data-id="actor-dot:task-0:Me" data-role="actor" />
   <g class="journey-score-marker" data-score="5">
     <circle class="journey-score-face" cx="248" cy="256.3" r="16" />
     <circle class="journey-face-eye" cx="242.5" cy="251.8" r="2" />
@@ -94,11 +94,11 @@
     <path class="journey-face-mouth" d="M240,260.3 Q248,269.3 256,260.3" />
   </g>
 </g>
-<g class="journey-task" data-id="task-1" data-score="3" data-section="Go to work" data-actors="Me">
+<g class="journey-task" data-id="task-1" data-score="3" data-section="Go to work" data-actors="Me" data-role="task">
   <line class="journey-track" x1="398" y1="200.3" x2="398" y2="448.3" />
-  <rect class="journey-task-box" x="336" y="139.4" width="124" height="60.900000000000006" rx="5" ry="5" />
+  <rect class="journey-task-box" x="336" y="139.4" width="124" height="60.900000000000006" rx="5" ry="5" data-id="task-box:task-1" data-role="task" />
   <text x="398" y="159.85" class="journey-task-text" text-anchor="middle" font-size="13" font-weight="500" dy="4.55">Go upstairs</text>
-  <circle class="journey-actor-dot journey-actor-0" data-actor="Me" cx="398" cy="184.3" r="4" />
+  <circle class="journey-actor-dot journey-actor-0" data-actor="Me" cx="398" cy="184.3" r="4" data-id="actor-dot:task-1:Me" data-role="actor" />
   <g class="journey-score-marker" data-score="3">
     <circle class="journey-score-face" cx="398" cy="336.3" r="16" />
     <circle class="journey-face-eye" cx="392.5" cy="331.8" r="2" />
@@ -106,12 +106,12 @@
     <path class="journey-face-mouth" d="M390,342.3 L406,342.3" />
   </g>
 </g>
-<g class="journey-task" data-id="task-2" data-score="1" data-section="Go to work" data-actors="Me, Cat">
+<g class="journey-task" data-id="task-2" data-score="1" data-section="Go to work" data-actors="Me, Cat" data-role="task">
   <line class="journey-track" x1="548" y1="200.3" x2="548" y2="448.3" />
-  <rect class="journey-task-box" x="486" y="139.4" width="124" height="60.900000000000006" rx="5" ry="5" />
+  <rect class="journey-task-box" x="486" y="139.4" width="124" height="60.900000000000006" rx="5" ry="5" data-id="task-box:task-2" data-role="task" />
   <text x="548" y="159.85" class="journey-task-text" text-anchor="middle" font-size="13" font-weight="500" dy="4.55">Do work</text>
-  <circle class="journey-actor-dot journey-actor-0" data-actor="Me" cx="540" cy="184.3" r="4" />
-  <circle class="journey-actor-dot journey-actor-1" data-actor="Cat" cx="556" cy="184.3" r="4" />
+  <circle class="journey-actor-dot journey-actor-0" data-actor="Me" cx="540" cy="184.3" r="4" data-id="actor-dot:task-2:Me" data-role="actor" />
+  <circle class="journey-actor-dot journey-actor-1" data-actor="Cat" cx="556" cy="184.3" r="4" data-id="actor-dot:task-2:Cat" data-role="actor" />
   <g class="journey-score-marker" data-score="1">
     <circle class="journey-score-face" cx="548" cy="416.3" r="16" />
     <circle class="journey-face-eye" cx="542.5" cy="411.8" r="2" />
@@ -119,11 +119,11 @@
     <path class="journey-face-mouth" d="M539,427.3 Q548,416.3 557,427.3" />
   </g>
 </g>
-<g class="journey-task" data-id="task-3" data-score="5" data-section="Go home" data-actors="Me">
+<g class="journey-task" data-id="task-3" data-score="5" data-section="Go home" data-actors="Me" data-role="task">
   <line class="journey-track" x1="700" y1="200.3" x2="700" y2="448.3" />
-  <rect class="journey-task-box" x="638" y="139.4" width="124" height="60.900000000000006" rx="5" ry="5" />
+  <rect class="journey-task-box" x="638" y="139.4" width="124" height="60.900000000000006" rx="5" ry="5" data-id="task-box:task-3" data-role="task" />
   <text x="700" y="159.85" class="journey-task-text" text-anchor="middle" font-size="13" font-weight="500" dy="4.55">Go downstairs</text>
-  <circle class="journey-actor-dot journey-actor-0" data-actor="Me" cx="700" cy="184.3" r="4" />
+  <circle class="journey-actor-dot journey-actor-0" data-actor="Me" cx="700" cy="184.3" r="4" data-id="actor-dot:task-3:Me" data-role="actor" />
   <g class="journey-score-marker" data-score="5">
     <circle class="journey-score-face" cx="700" cy="256.3" r="16" />
     <circle class="journey-face-eye" cx="694.5" cy="251.8" r="2" />
@@ -131,11 +131,11 @@
     <path class="journey-face-mouth" d="M692,260.3 Q700,269.3 708,260.3" />
   </g>
 </g>
-<g class="journey-task" data-id="task-4" data-score="3" data-section="Go home" data-actors="Me">
+<g class="journey-task" data-id="task-4" data-score="3" data-section="Go home" data-actors="Me" data-role="task">
   <line class="journey-track" x1="850" y1="200.3" x2="850" y2="448.3" />
-  <rect class="journey-task-box" x="788" y="139.4" width="124" height="60.900000000000006" rx="5" ry="5" />
+  <rect class="journey-task-box" x="788" y="139.4" width="124" height="60.900000000000006" rx="5" ry="5" data-id="task-box:task-4" data-role="task" />
   <text x="850" y="159.85" class="journey-task-text" text-anchor="middle" font-size="13" font-weight="500" dy="4.55">Sit down</text>
-  <circle class="journey-actor-dot journey-actor-0" data-actor="Me" cx="850" cy="184.3" r="4" />
+  <circle class="journey-actor-dot journey-actor-0" data-actor="Me" cx="850" cy="184.3" r="4" data-id="actor-dot:task-4:Me" data-role="actor" />
   <g class="journey-score-marker" data-score="3">
     <circle class="journey-score-face" cx="850" cy="336.3" r="16" />
     <circle class="journey-face-eye" cx="844.5" cy="331.8" r="2" />
@@ -143,5 +143,5 @@
     <path class="journey-face-mouth" d="M842,342.3 L858,342.3" />
   </g>
 </g>
-<text x="491" y="39.7" class="journey-title" text-anchor="middle" font-size="18" font-weight="600" dy="6.3">My working day</text>
+<text x="491" y="39.7" class="journey-title" text-anchor="middle" font-size="18" font-weight="600" dy="6.3" data-id="title" data-role="title">My working day</text>
 </svg>

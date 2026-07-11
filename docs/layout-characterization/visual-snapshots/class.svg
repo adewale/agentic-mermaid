@@ -32,24 +32,24 @@
     <polyline points="0 0, 8 3, 0 6" fill="none" stroke="#47474a" stroke-width="1.5" />
   </marker>
 </defs>
-<polyline class="class-relationship" data-from="Animal" data-to="Dog" data-type="inheritance" data-marker-at="from" points="100,88.9 100,148.9" fill="none" stroke="#939395" stroke-width="1" marker-start="url(#char-class-cls-inherit)" />
-<polyline class="class-relationship" data-from="Animal" data-to="Cat" data-type="inheritance" data-marker-at="from" points="140,88.9 140,98.9 260,98.9 260,148.9" fill="none" stroke="#939395" stroke-width="1" marker-start="url(#char-class-cls-inherit)" />
-<g class="class-node" data-id="Animal" data-label="Animal">
-  <rect x="60" y="40" width="120" height="48.900000000000006" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1" />
+<polyline class="class-relationship" data-from="Animal" data-to="Dog" data-type="inheritance" data-marker-at="from" points="100,88.9 100,148.9" fill="none" stroke="#939395" stroke-width="1" marker-start="url(#char-class-cls-inherit)" data-id="rel:Animal-&gt;Dog#0" data-role="relationship" role="graphics-symbol" aria-roledescription="relation" aria-label="Animal to Dog" />
+<polyline class="class-relationship" data-from="Animal" data-to="Cat" data-type="inheritance" data-marker-at="from" points="140,88.9 140,98.9 260,98.9 260,148.9" fill="none" stroke="#939395" stroke-width="1" marker-start="url(#char-class-cls-inherit)" data-id="rel:Animal-&gt;Cat#0" data-role="relationship" role="graphics-symbol" aria-roledescription="relation" aria-label="Animal to Cat" />
+<g class="class-node" data-id="Animal" data-label="Animal" data-role="class-box">
+  <rect x="60" y="40" width="120" height="48.900000000000006" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1" data-id="class:Animal:box" data-role="class-box" />
   <path d="M60,40 H180 V72.9 H60 Z" fill="#f4f4f4" stroke="#d4d4d4" stroke-width="1" />
   <text x="120" y="56.45" text-anchor="middle" font-size="13" font-weight="700" fill="#27272A" dy="4.55">Animal</text>
   <line x1="60" y1="72.9" x2="180" y2="72.9" stroke="#d4d4d4" stroke-width="0.75" />
   <line x1="60" y1="80.9" x2="180" y2="80.9" stroke="#d4d4d4" stroke-width="0.75" />
 </g>
-<g class="class-node" data-id="Dog" data-label="Dog">
-  <rect x="40" y="148.9" width="120" height="48.900000000000006" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1" />
+<g class="class-node" data-id="Dog" data-label="Dog" data-role="class-box">
+  <rect x="40" y="148.9" width="120" height="48.900000000000006" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1" data-id="class:Dog:box" data-role="class-box" />
   <path d="M40,148.9 H160 V181.8 H40 Z" fill="#f4f4f4" stroke="#d4d4d4" stroke-width="1" />
   <text x="100" y="165.35000000000002" text-anchor="middle" font-size="13" font-weight="700" fill="#27272A" dy="4.55">Dog</text>
   <line x1="40" y1="181.8" x2="160" y2="181.8" stroke="#d4d4d4" stroke-width="0.75" />
   <line x1="40" y1="189.8" x2="160" y2="189.8" stroke="#d4d4d4" stroke-width="0.75" />
 </g>
-<g class="class-node" data-id="Cat" data-label="Cat">
-  <rect x="200" y="148.9" width="120" height="48.900000000000006" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1" />
+<g class="class-node" data-id="Cat" data-label="Cat" data-role="class-box">
+  <rect x="200" y="148.9" width="120" height="48.900000000000006" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1" data-id="class:Cat:box" data-role="class-box" />
   <path d="M200,148.9 H320 V181.8 H200 Z" fill="#f4f4f4" stroke="#d4d4d4" stroke-width="1" />
   <text x="260" y="165.35000000000002" text-anchor="middle" font-size="13" font-weight="700" fill="#27272A" dy="4.55">Cat</text>
   <line x1="200" y1="181.8" x2="320" y2="181.8" stroke="#d4d4d4" stroke-width="0.75" />

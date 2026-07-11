@@ -29,6 +29,9 @@ import { normalizeMermaidSource, detectDiagramTypeFromFirstLine } from '../merma
 import type { MermaidRuntimeConfig } from '../mermaid-source.ts'
 import { getFamily } from '../render-family-hooks.ts'
 import type { DiagramKind } from '../agent/types.ts'
+import { visualWidth } from './width.ts'
+import { graphemes } from '../shared/graphemes.ts'
+import { wrapText } from './wrap.ts'
 
 // Re-export types for external use
 export type { AsciiTheme, ColorMode }
@@ -66,6 +69,8 @@ export interface AsciiRenderOptions {
    * parallel columns; this is best-effort wrapping, not hard truncation.
    */
   maxWidth?: number
+  /** Hard maximum output width in terminal display cells. */
+  targetWidth?: number
   /**
    * Explicit "today" for the Gantt todayMarker (date in the diagram's
    * dateFormat or ISO YYYY-MM-DD). Gantt never reads the wall clock; without
@@ -100,13 +105,39 @@ export interface AsciiRenderOptions {
  * // +---+     +---+     +---+
  * ```
  */
+export type AsciiWidthErrorReason = 'UNBREAKABLE_GRAPHEME' | 'MINIMUM_GEOMETRY' | 'INVALID_WIDTH'
+
+export class AsciiWidthError extends Error {
+  readonly code = 'ASCII_TARGET_WIDTH_IMPOSSIBLE'
+  constructor(
+    readonly requestedWidth: number,
+    readonly requiredWidth: number,
+    readonly family: DiagramKind,
+    readonly reason: AsciiWidthErrorReason,
+  ) {
+    super(`Cannot render ${family} within ${requestedWidth} terminal cells; required width is ${requiredWidth} (${reason}).`)
+    this.name = 'AsciiWidthError'
+  }
+
+  /** Backward-friendly alias for callers that name the requested bound targetWidth. */
+  get targetWidth(): number { return this.requestedWidth }
+}
+
 export function renderMermaidASCII(
   text: string,
   options: AsciiRenderOptions = {},
 ): string {
+  if (options.maxWidth !== undefined && options.targetWidth !== undefined) {
+    const family = detectDiagramTypeFromFirstLine(normalizeMermaidSource(text).firstLine) ?? 'flowchart'
+    throw new AsciiWidthError(options.targetWidth, 1, family as DiagramKind, 'INVALID_WIDTH')
+  }
+  if (options.targetWidth !== undefined && (!Number.isFinite(options.targetWidth) || options.targetWidth <= 0 || !Number.isInteger(options.targetWidth))) {
+    const family = detectDiagramTypeFromFirstLine(normalizeMermaidSource(text).firstLine) ?? 'flowchart'
+    throw new AsciiWidthError(options.targetWidth, 1, family as DiagramKind, 'INVALID_WIDTH')
+  }
   const config: AsciiConfig = {
     useAscii: options.useAscii ?? false,
-    paddingX: options.paddingX ?? 5,
+    paddingX: options.paddingX ?? (options.targetWidth === undefined ? 5 : 1),
     paddingY: options.paddingY ?? 5,
     boxBorderPadding: options.boxBorderPadding ?? 1,
     graphDirection: 'TD', // default, overridden for flowcharts below
@@ -123,7 +154,8 @@ export function renderMermaidASCII(
   // the source and rewrites bracket-quoted labels to insert <br/> at word
   // boundaries when the label exceeds (maxWidth / 3). Family-agnostic
   // because every renderer respects <br/> as a hard line break.
-  const sourceText = options.maxWidth ? wrapLabelsInSource(text, options.maxWidth) : text
+  const widthBudget = options.targetWidth ?? options.maxWidth
+  const sourceText = widthBudget ? wrapLabelsInSource(text, widthBudget, options.targetWidth !== undefined) : text
   const normalizedSource = normalizeMermaidSource(sourceText, options.mermaidConfig ?? {})
 
   const diagramType = detectDiagramTypeFromFirstLine(normalizedSource.firstLine) ?? 'flowchart'
@@ -132,16 +164,45 @@ export function renderMermaidASCII(
   if (!family?.renderAscii) {
     throw new Error(`No ASCII renderer registered for Mermaid family ${diagramType}`)
   }
-  return family.renderAscii({
+  const output = family.renderAscii({
     source: normalizedSource,
     config,
     colorMode,
     theme,
     options: {
-      maxWidth: options.maxWidth,
+      maxWidth: widthBudget,
+      targetWidth: options.targetWidth,
       ganttToday: options.ganttToday,
     },
   })
+
+  if (options.targetWidth === undefined) return output
+  const boundedOutput = output.split('\n').map(line => line.trimEnd()).join('\n').trimEnd()
+  const requiredWidth = Math.max(0, ...boundedOutput.split('\n').map(terminalLineWidth))
+  if (requiredWidth > options.targetWidth) {
+    const hasTooWideGrapheme = graphemes(sourceText).some(cluster => visualWidth(cluster) > options.targetWidth!)
+    throw new AsciiWidthError(
+      options.targetWidth,
+      requiredWidth,
+      diagramType as DiagramKind,
+      hasTooWideGrapheme ? 'UNBREAKABLE_GRAPHEME' : 'MINIMUM_GEOMETRY',
+    )
+  }
+  return boundedOutput
+}
+
+/** Remove renderer-owned ANSI/HTML wrappers before measuring terminal cells. */
+function terminalLineWidth(line: string): number {
+  const plain = line
+    .replace(/\x1b\[[0-9;]*m/g, '')
+    .replace(/<\/?span(?:\s[^>]*)?>/g, '')
+    // HTML mode escapes renderer text once. Decode exactly that one layer so
+    // `&`, `<`, and `>` occupy the same cells as plain/ANSI output while an
+    // authored literal `&amp;` still measures as five displayed characters.
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+  return visualWidth(plain)
 }
 
 /** @deprecated Use `renderMermaidASCII` */
@@ -153,12 +214,12 @@ export const renderMermaidAscii = renderMermaidASCII
  * Returns the label with `<br/>` separators between wrapped lines.
  */
 export function wrapLabel(text: string, maxLineWidth: number): string {
-  if (text.length <= maxLineWidth) return text
+  if (visualWidth(text) <= maxLineWidth) return text
   const words = text.split(/\s+/).filter(Boolean)
   const lines: string[] = []
   let current = ''
   for (const word of words) {
-    if (word.length > maxLineWidth) {
+    if (visualWidth(word) > maxLineWidth) {
       // Word can't fit on its own line — emit warning, render anyway.
       // eslint-disable-next-line no-console
       console.warn(`wrapLabel: word "${word.slice(0, 20)}..." exceeds maxLineWidth=${maxLineWidth}`)
@@ -168,7 +229,7 @@ export function wrapLabel(text: string, maxLineWidth: number): string {
       continue
     }
     if (current.length === 0) current = word
-    else if (current.length + 1 + word.length <= maxLineWidth) current += ' ' + word
+    else if (visualWidth(current) + 1 + visualWidth(word) <= maxLineWidth) current += ' ' + word
     else { lines.push(current); current = word }
   }
   if (current) lines.push(current)
@@ -181,16 +242,20 @@ export function wrapLabel(text: string, maxLineWidth: number): string {
  * Family-agnostic — works on flowchart node labels, sequence message text,
  * class members, etc.
  */
-function wrapLabelsInSource(source: string, maxWidth: number): string {
-  const perLabel = Math.max(8, Math.floor(maxWidth / 3))
+function wrapLabelsInSource(source: string, maxWidth: number, hard = false): string {
+  const perLabel = Math.max(hard ? 1 : 8, Math.floor(maxWidth / 3))
   // Match bracket-quoted labels: ["text"], [text], (text), {text}, ((text))
   // Skip already-wrapped labels (those containing <br/>) and identifier-only labels.
   return source.replace(/(\[\[|\(\(|\[|\(|\{)("?)([^\[\]\(\)\{\}\n]+)\2(\]\]|\)\)|\]|\)|\})/g,
     (full, open: string, quote: string, inner: string, close: string) => {
-      if (inner.length <= perLabel || inner.includes('<br/>')) return full
+      if (visualWidth(inner) <= perLabel || inner.includes('<br/>')) return full
+      // Numeric arrays and coordinate tuples are grammar, not labels. Injecting
+      // <br/> into `[1, 2]` or `[0.3, 0.4]` can erase chart data or make a
+      // valid quadrant fail parsing at narrow target widths.
+      if (/^[\s,+.\-0-9]+$/.test(inner)) return full
       // Don't wrap identifier-like content (no spaces, looks like a variable)
       if (!inner.includes(' ')) return full
-      const wrapped = wrapLabel(inner, perLabel)
+      const wrapped = hard ? wrapText(inner, perLabel).join('<br/>') : wrapLabel(inner, perLabel)
       return open + quote + wrapped + quote + close
     })
 }

@@ -32,17 +32,19 @@ modeled subset. Silent loss is never an acceptable level.
 | Family | Body preservation level | L4 traceability status |
 |---|---|---|
 | flowchart | L3 for modeled graph syntax; L1 for unsupported syntax/metadata forms | Partial L4: nodes/edges/groups/labels/source map, route certs, action analysis, region MVP |
-| state | L3 structured body | Partial L4 via graph projection, source map, route certs, region MVP |
+| state | L3 structured body including concurrency regions and paint | Partial L4 via graph projection, source map, route certs, region MVP |
 | sequence | L2 segment-preserving structured body | Partial L4: participants/messages layout + lifeline certificates |
 | timeline | L3 structured body with opaque fallback | Partial L4: sections/periods/events layout regions/certs |
-| class | L3 structured body with opaque fallback | Partial L4: classes/members source map, geometry validators, orthogonal-box certs |
-| er | L3 structured body with opaque fallback | Partial L4: entities/attrs/cardinalities source map, geometry validators, orthogonal-box certs |
+| class | L3 structured body including namespaces/generics/paint | Partial L4: classes/members source map, geometry validators, orthogonal-box certs |
+| er | L2/L3 ordered typed/opaque segments including direction/paint | Partial L4: entities/attrs/cardinalities source map, geometry validators, orthogonal-box certs |
 | journey | L3 structured body with opaque fallback | Partial L4: sections/tasks regions/source map |
 | architecture | L3 structured body | Partial L4: groups/services/junctions/side-anchored certs |
 | xychart | L3 structured body with opaque fallback | Partial L4: plot/marks/labels source map + containment certs |
 | pie | L3 structured body with opaque fallback | Partial L4: slices/legend source map + containment certs |
 | quadrant | L3 structured body with opaque fallback | Partial L4: quadrants/points source map + containment certs |
 | gantt | L2/L3 structured body with schedule resolver and named schedule errors | Partial L4: sections/tasks source map, schedule analysis, containment certs |
+| mindmap | L3 indentation-sensitive structured tree; duplicate identities fail loud at L0 | Partial L4: node/edge projection and deterministic regions |
+| gitgraph | L3 replayed structured history; invalid replay and duplicate ids fail loud at L0 | Partial L4: commit/parent projection and deterministic regions |
 
 ## Reviewer rule
 

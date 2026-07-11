@@ -265,26 +265,31 @@ function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle): S
   // data-label: class name
   // data-annotation: stereotype (interface, abstract, etc.)
   const annotationAttr = cls.annotation ? ` data-annotation="${escapeAttr(cls.annotation)}"` : ''
+  const classAttr = cls.className ? ` ${escapeAttr(cls.className)}` : ''
+  const dataClass = cls.className ? ` data-class="${escapeAttr(cls.className)}"` : ''
   const open =
-    `<g class="class-node" data-id="${escapeAttr(cls.id)}" data-label="${escapeAttr(cls.label)}"${annotationAttr}>`
+    `<g class="class-node${classAttr}" data-id="${escapeAttr(cls.id)}" data-label="${escapeAttr(cls.label)}"${annotationAttr}${dataClass}>`
 
-  // Outer rectangle (full box)
-  const boxFill = style.nodeFillColor ?? 'var(--_node-fill)'
-  const boxStroke = style.nodeBorderColor ?? 'var(--_node-stroke)'
+  // classDef then inline style are merged by layout for backend parity.
+  const local = cls.inlineStyle ?? {}
+  const boxFill = local.fill ?? style.nodeFillColor ?? 'var(--_node-fill)'
+  const boxStroke = local.stroke ?? style.nodeBorderColor ?? 'var(--_node-stroke)'
+  const parsedStrokeWidth = Number.parseFloat(local['stroke-width'] ?? '')
+  const boxStrokeWidth = Number.isFinite(parsedStrokeWidth) && parsedStrokeWidth > 0 ? parsedStrokeWidth : style.nodeLineWidth
   children.push({
     indent: 2,
     node: marks.shape({
       id: `class:${cls.id}:box`,
       role: 'class-box',
       geometry: { kind: 'rect', x, y, width, height, rx: style.cornerRadius ?? 0, ry: style.cornerRadius ?? 0 },
-      paint: { fill: boxFill, stroke: boxStroke, strokeWidth: String(style.nodeLineWidth) },
+      paint: { fill: boxFill, stroke: boxStroke, strokeWidth: String(boxStrokeWidth) },
     },
       `<rect x="${x}" y="${y}" width="${width}" height="${height}" ` +
-      `rx="${style.cornerRadius ?? 0}" ry="${style.cornerRadius ?? 0}" fill="${escapeAttr(boxFill)}" stroke="${escapeAttr(boxStroke)}" stroke-width="${style.nodeLineWidth}" />`),
+      `rx="${style.cornerRadius ?? 0}" ry="${style.cornerRadius ?? 0}" fill="${escapeAttr(boxFill)}" stroke="${escapeAttr(boxStroke)}" stroke-width="${boxStrokeWidth}" />`),
   })
 
   // Header background
-  const headerFill = style.groupHeaderFillColor ?? 'var(--_group-hdr)'
+  const headerFill = local.fill ?? style.groupHeaderFillColor ?? 'var(--_group-hdr)'
   const headerPath = topRoundedRectPath(x, y, width, headerHeight, style.cornerRadius ?? 0)
   children.push({
     indent: 2,
@@ -292,17 +297,17 @@ function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle): S
       id: `class:${cls.id}:header`,
       role: 'group-header',
       geometry: { kind: 'path', d: headerPath },
-      paint: { fill: headerFill, stroke: boxStroke, strokeWidth: String(style.nodeLineWidth) },
+      paint: { fill: headerFill, stroke: boxStroke, strokeWidth: String(boxStrokeWidth) },
     },
       `<path d="${headerPath}" ` +
-      `fill="${escapeAttr(headerFill)}" stroke="${escapeAttr(boxStroke)}" stroke-width="${style.nodeLineWidth}" />`),
+      `fill="${escapeAttr(headerFill)}" stroke="${escapeAttr(boxStroke)}" stroke-width="${boxStrokeWidth}" />`),
   })
 
   // Annotation (<<interface>>, <<abstract>>, etc.)
   let nameY = y + headerHeight / 2
   if (cls.annotation) {
     const annotY = y + 12
-    const annotColor = style.nodeTextColor ?? 'var(--_text-muted)'
+    const annotColor = local.color ?? style.nodeTextColor ?? 'var(--_text-muted)'
     children.push({
       indent: 2,
       node: marks.text({
@@ -323,7 +328,7 @@ function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle): S
   }
 
   // Class name (supports multi-line via <br> tags)
-  const nameColor = style.nodeTextColor ?? 'var(--_text)'
+  const nameColor = local.color ?? style.nodeTextColor ?? 'var(--_text)'
   const label = applyTextTransform(cls.label, style.nodeTextTransform)
   children.push({
     indent: 2,
@@ -614,16 +619,17 @@ function renderRelationshipLabels(rel: PositionedClassRelationship, style: Resol
     const p = rel.points[0]!
     const next = rel.points[1]!
     const offset = cardinalityOffset(p, next)
+    const position = rel.fromCardinalityPosition ?? { x: p.x + offset.x, y: p.y + offset.y }
     out.push(marks.text({
       id: `rel-card:${key}:from`,
       role: 'cardinality',
       text: rel.fromCardinality,
-      x: p.x + offset.x,
-      y: p.y + offset.y,
+      x: position.x,
+      y: position.y,
       fontSize: style.edgeLabelFontSize,
       anchor: 'middle',
       paint: { fill: textColor },
-    }, renderMultilineText(rel.fromCardinality, p.x + offset.x, p.y + offset.y, style.edgeLabelFontSize, textAttrs)))
+    }, renderMultilineText(rel.fromCardinality, position.x, position.y, style.edgeLabelFontSize, textAttrs)))
   }
 
   // To cardinality (near end)
@@ -631,16 +637,17 @@ function renderRelationshipLabels(rel: PositionedClassRelationship, style: Resol
     const p = rel.points[rel.points.length - 1]!
     const prev = rel.points[rel.points.length - 2]!
     const offset = cardinalityOffset(p, prev)
+    const position = rel.toCardinalityPosition ?? { x: p.x + offset.x, y: p.y + offset.y }
     out.push(marks.text({
       id: `rel-card:${key}:to`,
       role: 'cardinality',
       text: rel.toCardinality,
-      x: p.x + offset.x,
-      y: p.y + offset.y,
+      x: position.x,
+      y: position.y,
       fontSize: style.edgeLabelFontSize,
       anchor: 'middle',
       paint: { fill: textColor },
-    }, renderMultilineText(rel.toCardinality, p.x + offset.x, p.y + offset.y, style.edgeLabelFontSize, textAttrs)))
+    }, renderMultilineText(rel.toCardinality, position.x, position.y, style.edgeLabelFontSize, textAttrs)))
   }
 
   return out

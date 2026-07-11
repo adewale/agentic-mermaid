@@ -32,6 +32,8 @@ import { parseStateBody, renderState, mutateState, verifyState } from './state-b
 import { parseGanttBody, renderGantt, mutateGantt, verifyGantt } from './gantt-body.ts'
 import { parseFlowchartBody, renderFlowchart, mutateFlowchart, buildFlowchartSourceMap, type FlowchartBody } from './flowchart-body.ts'
 import { containsFlowchartOpaqueSyntax } from './flowchart-unsupported.ts'
+import { parseMindmapBody, renderMindmapBody, mutateMindmap, verifyMindmap } from './mindmap-body.ts'
+import { parseGitGraphBody, renderGitGraphBody, mutateGitGraph, verifyGitGraph } from './gitgraph-body.ts'
 
 // Build the structured-or-opaque hook set shared by every structured family
 // that is not flowchart/state. `headerOk` gates structured parsing: families
@@ -942,6 +944,55 @@ registerFamily({
     headerOk: h => /^architecture-beta\s*$/i.test(h),
     parseBody: parseArchitectureBody, serialize: renderArchitecture, mutate: mutateArchitecture,
   }),
+})
+
+// ---- Mindmap ---------------------------------------------------------------
+registerFamily({
+  id: 'mindmap',
+  detect: line => /^mindmap\s*$/.test(line),
+  extractLabels: extractLabelsGeneric,
+  parse: (_lines, source) => {
+    try { return ok(parseMindmapBody(source)) }
+    catch (error) { return err([{ code: 'PARSE_FAILED', message: error instanceof Error ? error.message : String(error) }]) }
+  },
+  serialize: body => {
+    if (body.kind !== 'mindmap') throw new Error(`mindmap serializer received body kind ${body.kind}`)
+    return renderMindmapBody(body)
+  },
+  mutate: (body, op) => body.kind === 'mindmap'
+    ? mutateMindmap(body, op as never)
+    : err({ code: 'INVALID_OP', message: `mindmap mutator received body kind ${body.kind}` }),
+  verify: (body, opts) => body.kind === 'mindmap' ? verifyMindmap(body, opts) : [],
+})
+
+// ---- GitGraph --------------------------------------------------------------
+registerFamily({
+  id: 'gitgraph',
+  detect: line => /^gitgraph(?:\s+(?:lr|tb|bt))?\s*:?\s*$/.test(line),
+  extractLabels: extractLabelsGeneric,
+  parse: (_lines, source, meta) => {
+    try {
+      const merged: Record<string, unknown> = {
+        ...((meta.frontmatter?.gitGraph && typeof meta.frontmatter.gitGraph === 'object') ? meta.frontmatter.gitGraph : {}),
+      }
+      for (const directive of meta.initDirectives) {
+        const section = directive.parsed?.gitGraph
+        if (section && typeof section === 'object') Object.assign(merged, section)
+      }
+      return ok(parseGitGraphBody(source, {
+        mainBranchName: typeof merged.mainBranchName === 'string' ? merged.mainBranchName : undefined,
+        mainBranchOrder: typeof merged.mainBranchOrder === 'number' ? merged.mainBranchOrder : undefined,
+      }))
+    } catch (error) { return err([{ code: 'PARSE_FAILED', message: error instanceof Error ? error.message : String(error) }]) }
+  },
+  serialize: body => {
+    if (body.kind !== 'gitgraph') throw new Error(`gitgraph serializer received body kind ${body.kind}`)
+    return renderGitGraphBody(body)
+  },
+  mutate: (body, op) => body.kind === 'gitgraph'
+    ? mutateGitGraph(body, op as never)
+    : err({ code: 'INVALID_OP', message: `gitgraph mutator received body kind ${body.kind}` }),
+  verify: (body, opts) => body.kind === 'gitgraph' ? verifyGitGraph(body, opts) : [],
 })
 
 // Re-export so importing this module is the only thing needed to populate

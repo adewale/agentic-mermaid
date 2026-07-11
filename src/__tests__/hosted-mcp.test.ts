@@ -11,6 +11,7 @@ import {
 import { MCP_SERVER_NAME } from '../mcp/tool-surface.ts'
 import type { JsonRpcRequest } from '../mcp/protocol.ts'
 import pkg from '../../package.json'
+import { visualWidth } from '../ascii/width.ts'
 
 const FLOW = 'flowchart TD\n  A[Start] --> B{OK?}\n  B -->|yes| C[Done]'
 
@@ -147,6 +148,27 @@ describe('hosted pure tools', () => {
     expect(ascii.text).toContain('+')
   })
 
+  test('render_ascii exposes targetWidth and typed impossible-width errors', async () => {
+    const bounded = payloadOf(await handleHostedRequest(call('render_ascii', {
+      source: 'flowchart TD\n  A["日本語 descriptive terminal label"] --> B[Done]',
+      targetWidth: 28,
+    }), makeContext()))
+    expect(bounded.ok).toBe(true)
+    expect(Math.max(...bounded.text.split('\n').map(visualWidth))).toBeLessThanOrEqual(28)
+
+    const impossible = payloadOf(await handleHostedRequest(call('render_ascii', {
+      source: 'flowchart TD\n  A[🙂]',
+      targetWidth: 1,
+    }), makeContext()))
+    expect(impossible.ok).toBe(false)
+    expect(impossible.error).toMatchObject({
+      code: 'ASCII_TARGET_WIDTH_IMPOSSIBLE',
+      requestedWidth: 1,
+      family: 'flowchart',
+      reason: 'UNBREAKABLE_GRAPHEME',
+    })
+  })
+
   test('verify returns warnings and a layout summary for valid sources', async () => {
     const p = payloadOf(await handleHostedRequest(call('verify', { source: FLOW }), makeContext()))
     expect(p.ok).toBe(true)
@@ -225,6 +247,28 @@ describe('hosted declarative mutate/build tools', () => {
     const p = payloadOf(res)
     expect(p.ok).toBe(true)
     expect(p.source).toContain('class Dog')
+  })
+
+  test('Architecture junction, boundary-edge, accessibility, and in-place edge ops cross the hosted boundary', async () => {
+    const built = payloadOf(await handleHostedRequest(call('build', { family: 'architecture', ops: [
+      { kind: 'set_accessibility_title', title: 'Hosted topology' },
+      { kind: 'add_group', id: 'app', label: 'Application' },
+      { kind: 'add_service', id: 'api', label: 'API', group: 'app' },
+      { kind: 'add_junction', id: 'bus' },
+      { kind: 'add_edge', from: 'api', to: 'bus', fromSide: 'R', toSide: 'L', fromBoundary: 'group', label: 'events' },
+    ] }), makeContext()))
+    expect(built.ok).toBe(true)
+    expect(built.source).toContain('accTitle: Hosted topology')
+    expect(built.source).toContain('api{group}:R -[events]-> L:bus')
+
+    const mutated = payloadOf(await handleHostedRequest(call('mutate', { source: built.source, ops: [
+      { kind: 'update_edge', index: 0, fromBoundary: 'item', fromSide: 'B', toSide: 'T', label: 'queued' },
+      { kind: 'set_group_label', id: 'app', label: 'App Plane' },
+    ] }), makeContext()))
+    expect(mutated.ok).toBe(true)
+    expect(mutated.source).toContain('group app[App Plane]')
+    expect(mutated.source).toContain('api:B -[queued]-> T:bus')
+    expect(mutated.verify.ok).toBe(true)
   })
 
   test('a malformed op is a prescriptive in-band error (isError), not a mangled diagram', async () => {
@@ -442,9 +486,11 @@ describe('cacheKeyFor (normalized, output-affecting arguments)', () => {
       .not.toEqual(cacheKeyFor('render_svg', { source: FLOW, theme: 'b' }))
   })
 
-  test('render_ascii distinguishes the charset', () => {
+  test('render_ascii distinguishes charset and target width', () => {
     expect(cacheKeyFor('render_ascii', { source: FLOW, useAscii: true }))
       .not.toEqual(cacheKeyFor('render_ascii', { source: FLOW }))
+    expect(cacheKeyFor('render_ascii', { source: FLOW, targetWidth: 40 }))
+      .not.toEqual(cacheKeyFor('render_ascii', { source: FLOW, targetWidth: 60 }))
   })
 
   test('returns null for uncacheable calls (unknown tool, missing arg, bad output)', () => {

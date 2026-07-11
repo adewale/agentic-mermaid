@@ -19,13 +19,13 @@ function walk(dir: string): string[] {
   return out
 }
 
-// Files under the substrate's determinism contract. src/gantt is included
-// because its spec (docs/design/families/gantt.md) forbids wall-clock reads: the
-// today marker draws only from a caller-supplied clock.
+// Files under the substrate's determinism contract. src/gantt forbids
+// wall-clock reads; Mindmap/GitGraph require deterministic geometry and ids
+// (GitGraph deliberately replaces upstream random generated ids with c<N>).
 function substrateFiles(): string[] {
   const agentFiles = walk(join(SRC, 'agent'))
-  const ganttFiles = walk(join(SRC, 'gantt'))
-  return [...agentFiles, ...ganttFiles, join(SRC, 'layout-engine.ts')]
+  const familyFiles = ['gantt', 'mindmap', 'gitgraph'].flatMap(family => walk(join(SRC, family)))
+  return [...agentFiles, ...familyFiles, join(SRC, 'layout-engine.ts')]
 }
 
 const BANNED = [

@@ -6,18 +6,20 @@ Agentic Mermaid supports Mermaid's common diagram families through a split pipel
 
 | Family | Header(s) | Render | Structured mutation | Notes |
 |---|---|---|---|---|
-| Flowchart | `flowchart`, `graph` | SVG/PNG/ASCII | ✓ | 6 graph ops; narrow with `asFlowchart`. |
-| State | `stateDiagram-v2` | SVG/PNG/ASCII | ✓ | Dedicated `StateBody` (BUILD-19): narrow with `asState`, 8 state-shaped ops. `asFlowchart` returns null. |
-| Sequence | `sequenceDiagram` | SVG/PNG/ASCII | structured (5 ops) | Notes/alt/loop bodies are segment-preserving; un-segmentable syntax falls back to opaque. |
+| Flowchart | `flowchart`, `graph` | SVG/PNG/ASCII | ✓ | 14 ops; narrow with `asFlowchart`. |
+| State | `stateDiagram-v2` | SVG/PNG/ASCII | ✓ | 18 ops; concurrency regions and paint are structured. `asFlowchart` returns null. |
+| Sequence | `sequenceDiagram` | SVG/PNG/ASCII | structured (7 ops) | Notes/alt/loop bodies are segment-preserving; un-segmentable syntax falls back to opaque. |
 | Timeline | `timeline` | SVG/PNG/ASCII | ✓ | Supports sections, periods, events, title changes. |
-| Class | `classDiagram` | SVG/PNG/ASCII | ✓ | Classes, members, relations, notes. |
-| ER | `erDiagram` | SVG/PNG/ASCII | ✓ | Entities, attributes, relations. |
-| Journey | `journey` | SVG/PNG/ASCII | structured (10 ops) | `asJourney` narrows documented Journey syntax: title, accTitle/accDescr, sections, scored tasks, and actors. |
-| XY chart | `xychart`, `xychart-beta` | SVG/PNG/ASCII | structured (8 ops) | Vertical/horizontal bar/line/mixed charts; modeled subset is structurally mutable via `asXyChart`. |
+| Class | `classDiagram` | SVG/PNG/ASCII | structured (15 ops) | Classes, members, namespaces, relations, notes, and paint. |
+| ER | `erDiagram` | SVG/PNG/ASCII | structured (12 ops) | Entities, attributes, relations, direction, paint, and preserved opaque segments. |
+| Journey | `journey` | SVG/PNG/ASCII | structured (14 ops) | `asJourney` narrows documented Journey syntax: title, accTitle/accDescr, sections, scored tasks, and actors. |
+| XY chart | `xychart`, `xychart-beta` | SVG/PNG/ASCII | structured (10 ops) | Vertical/horizontal bar/line/mixed charts; modeled subset is structurally mutable via `asXyChart`. |
 | Pie | `pie` | SVG/PNG/ASCII | structured (7 ops) | `asPie` narrows title/showData/slices; malformed entries and accTitle/accDescr stay opaque. |
 | Quadrant | `quadrantChart` | SVG/PNG/ASCII | structured (7 ops) | `asQuadrant` narrows title/axes/quadrant labels/points; styling and out-of-range coords stay opaque. |
-| Architecture | `architecture-beta` | SVG/PNG/ASCII | structured (11 ops) | `asArchitecture` narrows visible titles, groups/services/junctions/edges, and honored `align` hints; the `{group}` boundary modifier and accTitle/accDescr stay opaque. |
-| Gantt | `gantt` | SVG/PNG/ASCII | structured (9 ops) | `asGantt` narrows title/sections/tasks; calendar directives, `click` lines, and comments ride along verbatim as opaque segments. Deterministic: the today marker draws only from a caller-supplied `ganttToday`. See [design/families/gantt.md](./design/families/gantt.md). |
+| Architecture | `architecture-beta` | SVG/PNG/ASCII | structured (19 ops) | Titles/accessibility, groups/services/junctions, boundary edges, and `align` hints are typed. |
+| Gantt | `gantt` | SVG/PNG/ASCII | structured (13 ops) | `asGantt` narrows title/sections/tasks; calendar directives, `click` lines, and comments ride along verbatim as opaque segments. Deterministic: the today marker draws only from a caller-supplied `ganttToday`. See [design/families/gantt.md](./design/families/gantt.md). |
+| Mindmap | `mindmap` | SVG/PNG/ASCII | structured (10 ops) | Indented tree, shapes/icons/classes, accessibility; see [mindmap](./design/families/mindmap.md). |
+| GitGraph | `gitGraph` | SVG/PNG/ASCII | structured (11 ops) | Replayed commits, branches, merges, cherry-picks; see [gitgraph](./design/families/gitgraph.md). |
 
 Opaque fallback does not mean unsupported: those bodies parse, render, verify, and round-trip losslessly, but agents should edit preserved source deliberately instead of calling `mutate`.
 
@@ -158,7 +160,32 @@ gantt
     another task    :24d
 ```
 
-Gantt charts accept the `gantt` header, `title`, calendar directives (`dateFormat`, `axisFormat`, `tickInterval`, `inclusiveEndDates`, `topAxis`, multiple `excludes`/`includes` lines, `weekend friday|saturday`, `weekday <day>`, `todayMarker`), `section` lines, and task lines `Label :[tags,] [id,] [start,] end` where tags are `active`/`done`/`crit`/`milestone`/`vert`, start is a date or `after id…`, and end is a date, a duration token (`ms s m h d w M y`, decimals allowed), or `until id…`. Dependencies resolve in a pure scheduler ([design/families/gantt.md](./design/families/gantt.md)): `after` starts at the latest referenced end, `until` ends at the earliest referenced start, working durations extend over excluded days, `includes` overrides `excludes`, and dependency cycles / unknown references / invalid dates are named structured errors (`GANTT_*`), never wall-clock fallbacks. Rendering is deterministic: the `todayMarker` draws only when the caller passes `ganttToday` (a date in the diagram's `dateFormat`), and `todayMarker off` always wins. `displayMode: compact` (frontmatter or `config.gantt`) packs non-overlapping tasks of a section into shared rows; `vert` markers draw a full-height line without consuming a task row. `click … href` is sanitized under strict security and `click … call` is parsed but never executed. Gantt is structured-when-narrowed AND segment-preserving: `asGantt` exposes 9 ops (`set_title`, `add_section`, `rename_section`, `remove_section`, `add_task`, `remove_task`, `rename_task`, `set_task_status`, `set_task_dates`) on title/sections/tasks while calendar directives, click lines, and comments ride along verbatim as opaque segments; duplicate task ids or an unclosed `accDescr` block fall back to a lossless whole-opaque body.
+Gantt charts accept the `gantt` header, `title`, calendar directives (`dateFormat`, `axisFormat`, `tickInterval`, `inclusiveEndDates`, `topAxis`, multiple `excludes`/`includes` lines, `weekend friday|saturday`, `weekday <day>`, `todayMarker`), `section` lines, and task lines `Label :[tags,] [id,] [start,] end` where tags are `active`/`done`/`crit`/`milestone`/`vert`, start is a date or `after id…`, and end is a date, a duration token (`ms s m h d w M y`, decimals allowed), or `until id…`. Dependencies resolve in a pure scheduler ([design/families/gantt.md](./design/families/gantt.md)): `after` starts at the latest referenced end, `until` ends at the earliest referenced start, working durations extend over excluded days, `includes` overrides `excludes`, and dependency cycles / unknown references / invalid dates are named structured errors (`GANTT_*`), never wall-clock fallbacks. Rendering is deterministic: the `todayMarker` draws only when the caller passes `ganttToday` (a date in the diagram's `dateFormat`), and `todayMarker off` always wins. `displayMode: compact` (frontmatter or `config.gantt`) packs non-overlapping tasks of a section into shared rows; `vert` markers draw a full-height line without consuming a task row. `click … href` is sanitized under strict security and `click … call` is parsed but never executed. Gantt is structured-when-narrowed AND segment-preserving: `asGantt` exposes 13 ops (including task flags/ids and task/section ordering) on title/sections/tasks while calendar directives, click lines, and comments ride along verbatim as opaque segments; duplicate task ids or an unclosed `accDescr` block fall back to a lossless whole-opaque body.
+
+## Mindmap
+
+```mermaid
+mindmap
+  root((Product))
+    Research
+      Evidence
+    Delivery
+```
+
+Mindmap uses indentation for parentage and supports Mermaid node shapes, `::icon(...)`, `:::class`, accessibility directives, deterministic tree layout, and 10 typed operations through `asMindmap`. Duplicate semantic ids are rejected. See [`design/families/mindmap.md`](./design/families/mindmap.md).
+
+## GitGraph
+
+```mermaid
+gitGraph
+  commit id:"base"
+  branch feature
+  commit id:"work"
+  checkout main
+  merge feature id:"merge"
+```
+
+GitGraph replays commits and branch movement in source order; `asGitGraph` exposes 11 typed operations. Generated ids are deterministic `c<N>` values and duplicate custom ids are rejected. See [`design/families/gitgraph.md`](./design/families/gitgraph.md).
 
 ## Architecture
 

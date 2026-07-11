@@ -10,6 +10,13 @@ const parse = (s: string) => {
 }
 
 describe('ER — parse', () => {
+  test('header-only source remains a structured blank canvas for typed authoring', () => {
+    const d = parse('erDiagram\n')
+    expect(asEr(d)).not.toBeNull()
+    expect(d.body.kind === 'er' ? { entities: d.body.entities.length, statements: d.body.statements?.length } : null)
+      .toEqual({ entities: 0, statements: 0 })
+  })
+
   test('basic relation', () => {
     const d = parse('erDiagram\n  CUSTOMER ||--o{ ORDER : places')
     expect(d.body.kind).toBe('er')

@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 469.316 212.70000000000002" width="469.316" height="212.70000000000002" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" role="img" aria-roledescription="mindmap" aria-labelledby="char-mindmap-mindmap-title">
+<style>
+  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<title id="char-mindmap-mindmap-title">Product</title>
+<polyline class="mindmap-edge" data-from="root" data-to="Research" points="105.374,120.575 145.374,120.575 145.374,77.9 185.374,77.9" fill="none" stroke="#939395" stroke-width="1.5" data-id="root-&gt;Research" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="root to Research" />
+<polyline class="mindmap-edge" data-from="Research" data-to="Interviews" points="270.604,77.9 310.604,77.9 310.604,49.45 350.604,49.45" fill="none" stroke="#939395" stroke-width="1.5" data-id="Research-&gt;Interviews" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="Research to Interviews" />
+<polyline class="mindmap-edge" data-from="Research" data-to="Evidence" points="270.604,77.9 310.604,77.9 310.604,106.35 350.604,106.35" fill="none" stroke="#939395" stroke-width="1.5" data-id="Research-&gt;Evidence" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="Research to Evidence" />
+<polyline class="mindmap-edge" data-from="root" data-to="Delivery" points="105.374,120.575 145.374,120.575 145.374,163.25 185.374,163.25" fill="none" stroke="#939395" stroke-width="1.5" data-id="root-&gt;Delivery" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="root to Delivery" />
+<g class="mindmap-node depth-0" data-id="root" data-label="Product" data-role="node">
+  <circle cx="68.687" cy="120.575" r="36.687" fill="#47474a" stroke="#47474a" stroke-width="1.5" />
+  <text x="68.687" y="120.575" text-anchor="middle" font-size="13" font-weight="500" fill="#FFFFFF" dy="4.55">Product</text>
+</g>
+<g class="mindmap-node depth-1" data-id="Research" data-label="Research" data-parent-id="root" data-role="node">
+  <rect x="185.374" y="60.45" width="85.23" height="34.9" rx="16" ry="16" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1.5" />
+  <text x="227.98899999999998" y="77.9" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Research</text>
+</g>
+<g class="mindmap-node depth-2" data-id="Interviews" data-label="Interviews" data-parent-id="Research" data-role="node">
+  <rect x="350.604" y="32" width="86.712" height="34.9" rx="16" ry="16" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1.5" />
+  <text x="393.96" y="49.45" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Interviews</text>
+</g>
+<g class="mindmap-node depth-2" data-id="Evidence" data-label="Evidence" data-parent-id="Research" data-role="node">
+  <rect x="350.604" y="88.9" width="82.266" height="34.9" rx="16" ry="16" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1.5" />
+  <text x="391.73699999999997" y="106.35000000000001" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Evidence</text>
+</g>
+<g class="mindmap-node depth-1" data-id="Delivery" data-label="Delivery" data-parent-id="root" data-role="node">
+  <rect x="185.374" y="145.8" width="76.338" height="34.9" rx="16" ry="16" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1.5" />
+  <text x="223.543" y="163.25" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Delivery</text>
+</g>
+</svg>

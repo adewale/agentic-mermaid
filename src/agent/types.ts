@@ -8,6 +8,8 @@
 
 import type { MermaidGraph, NodeShape, EdgeStyle, Direction, EdgeRouteCertificate, RegionContainmentCertificate, RouteCertificate, RouteClass } from '../types.ts'
 import type { MermaidFrontmatterMap, MermaidConfigMap } from '../mermaid-source.ts'
+import type { MindmapNode, MindmapShape } from '../mindmap/types.ts'
+import type { GitGraphDiagram, GitGraphCommitType } from '../gitgraph/types.ts'
 
 // ---- Result ---------------------------------------------------------------
 
@@ -20,6 +22,7 @@ export function err<E, T = never>(error: E): Result<T, E> { return { ok: false, 
 export type DiagramKind =
   | 'flowchart' | 'state' | 'sequence' | 'class' | 'er'
   | 'timeline' | 'journey' | 'xychart' | 'architecture' | 'pie' | 'quadrant' | 'gantt'
+  | 'mindmap' | 'gitgraph'
 
 // ---- Sequence body --------------------------------------------------------
 
@@ -156,6 +159,10 @@ export interface ClassNode {
    * blocks the render parser accepts (repo #118).
    */
   namespace?: string
+  /** Assigned classDef name (`A:::hot`, class, or cssClass). */
+  className?: string
+  /** Inline `style A ...` properties. */
+  style?: Record<string, string>
 }
 
 /** A declared namespace: dot path + optional display label (`namespace X["L"]`). */
@@ -195,6 +202,8 @@ export interface ClassBody {
    * constructions stay valid; classes reference entries via `namespace`.
    */
   namespaces?: ClassNamespaceDecl[]
+  /** Typed classDef declarations keyed by class name. */
+  classDefs?: Record<string, Record<string, string>>
 }
 
 // ---- ER body --------------------------------------------------------------
@@ -216,6 +225,8 @@ export interface ErEntity {
   /** Optional display label from `ID["Label"]`; identity remains `id`. */
   label?: string
   attributes: ErAttribute[]
+  className?: string
+  style?: Record<string, string>
 }
 
 export interface ErRelation {
@@ -228,15 +239,26 @@ export interface ErRelation {
   label?: string
 }
 
+export type ErStatement =
+  | { kind: 'entity'; id: string }
+  | { kind: 'relation'; ref: number }
+  | { kind: 'direction' }
+  | { kind: 'opaque'; lines: string[] }
+
 export interface ErBody {
   kind: 'er'
   entities: ErEntity[]
   relations: ErRelation[]
+  direction?: import('../types.ts').Direction
+  classDefs?: Record<string, Record<string, string>>
+  /** Ordered typed/opaque source segments; parsed bodies always populate it. */
+  statements?: ErStatement[]
 }
 
 // ---- Architecture body -----------------------------------------------------
 
 export type ArchitectureSide = 'L' | 'R' | 'T' | 'B'
+export type ArchitectureEndpointBoundary = 'item' | 'group'
 
 export interface ArchitectureGroup {
   id: string
@@ -262,6 +284,8 @@ export interface ArchitectureJunction {
 export interface ArchitectureEndpoint {
   id: string
   side: ArchitectureSide
+  /** Omitted is the canonical item boundary; `group` emits `{group}`. */
+  boundary?: ArchitectureEndpointBoundary
 }
 
 export interface ArchitectureEdge {
@@ -284,6 +308,8 @@ export interface ArchitectureBody {
   kind: 'architecture'
   /** Visible heading from `title ...` (distinct from accessibility metadata). */
   title?: string
+  accessibilityTitle?: string
+  accessibilityDescription?: string
   groups: ArchitectureGroup[]
   services: ArchitectureService[]
   junctions: ArchitectureJunction[]
@@ -460,15 +486,30 @@ export interface StateNode {
   id: string
   /** Optional display label (`state "Label" as id` / `id : Label`). */
   label?: string
+  /** Authored/synthesized standalone declaration; implicit transition endpoints omit it. */
+  declaredBare?: true
   /** Pseudostate stereotype (`state id <<fork|join|choice|history|…>>`) —
    *  fork/join render as bars, choice as a diamond, history as an (H)/(H*)
    *  circle. `<<H>>`/`<<H*>>` shorthands normalize to history/deep-history. */
   stereotype?: 'fork' | 'join' | 'choice' | 'history' | 'deep-history'
-  /** Composite children — present iff this is a composite state. */
+  /** Composite children — present for a non-concurrent composite. */
   states?: StateNode[]
-  /** Composite-internal transitions — present iff this is a composite state. */
+  /** Composite-internal transitions — present for a non-concurrent composite. */
   transitions?: StateTransition[]
+  /** Parallel regions split by `--`; mutually exclusive with states/transitions. */
+  regions?: StateRegion[]
+  /** Assigned classDef name (`A:::hot` / `class A hot`). */
+  className?: string
+  /** Inline state paint (`style A fill:#...`). */
+  style?: Record<string, string>
   /** Optional per-composite layout direction. */
+  direction?: import('../types.ts').Direction
+}
+
+export interface StateRegion {
+  states: StateNode[]
+  transitions: StateTransition[]
+  /** A direction authored after this region's separator. */
   direction?: import('../types.ts').Direction
 }
 
@@ -479,6 +520,8 @@ export interface StateTransition {
   /** Target state id, '[*]' for an end pseudostate, or a history reference. */
   to: string
   label?: string
+  /** Inline edge paint represented canonically as a linkStyle directive. */
+  style?: Record<string, string>
 }
 
 /** A state-diagram note (`note left|right of X`). Part of the structured body
@@ -501,6 +544,25 @@ export interface StateBody {
   notes?: StateNote[]
   /** Optional top-level layout direction. */
   direction?: import('../types.ts').Direction
+  /** Typed classDef declarations keyed by class name. */
+  classDefs?: Record<string, Record<string, string>>
+  /** Default edge paint (`linkStyle default ...`). */
+  defaultTransitionStyle?: Record<string, string>
+}
+
+// ---- Mindmap body ---------------------------------------------------------
+
+export interface MindmapBody {
+  kind: 'mindmap'
+  root: MindmapNode
+  accessibilityTitle?: string
+  accessibilityDescription?: string
+}
+
+// ---- GitGraph body --------------------------------------------------------
+
+export interface GitGraphBody extends GitGraphDiagram {
+  kind: 'gitgraph'
 }
 
 // ---- Meta + IR ------------------------------------------------------------
@@ -599,6 +661,8 @@ export type DiagramBody =
   | PieBody
   | QuadrantBody
   | GanttBody
+  | MindmapBody
+  | GitGraphBody
   /**
    * Opaque body — the parser understood the family header but encountered
    * unmodeled syntax. `source` is the ORIGINAL body with indentation, blank
@@ -645,7 +709,9 @@ export type XyChartValidDiagram = ValidDiagram & { body: XyChartBody }
 export type PieValidDiagram = ValidDiagram & { body: PieBody }
 export type QuadrantValidDiagram = ValidDiagram & { body: QuadrantBody }
 export type GanttValidDiagram = ValidDiagram & { body: GanttBody }
-export type MutableValidDiagram = FlowchartValidDiagram | StateValidDiagram | SequenceValidDiagram | TimelineValidDiagram | ClassValidDiagram | ErValidDiagram | JourneyValidDiagram | ArchitectureValidDiagram | XyChartValidDiagram | PieValidDiagram | QuadrantValidDiagram | GanttValidDiagram
+export type MindmapValidDiagram = ValidDiagram & { body: MindmapBody }
+export type GitGraphValidDiagram = ValidDiagram & { body: GitGraphBody }
+export type MutableValidDiagram = FlowchartValidDiagram | StateValidDiagram | SequenceValidDiagram | TimelineValidDiagram | ClassValidDiagram | ErValidDiagram | JourneyValidDiagram | ArchitectureValidDiagram | XyChartValidDiagram | PieValidDiagram | QuadrantValidDiagram | GanttValidDiagram | MindmapValidDiagram | GitGraphValidDiagram
 
 export function asFlowchart(d: ValidDiagram): FlowchartValidDiagram | null {
   return d.body.kind === 'flowchart' ? (d as FlowchartValidDiagram) : null
@@ -691,6 +757,14 @@ export function asQuadrant(d: ValidDiagram): QuadrantValidDiagram | null {
 
 export function asGantt(d: ValidDiagram): GanttValidDiagram | null {
   return d.body.kind === 'gantt' ? (d as GanttValidDiagram) : null
+}
+
+export function asMindmap(d: ValidDiagram): MindmapValidDiagram | null {
+  return d.body.kind === 'mindmap' ? (d as MindmapValidDiagram) : null
+}
+
+export function asGitGraph(d: ValidDiagram): GitGraphValidDiagram | null {
+  return d.body.kind === 'gitgraph' ? (d as GitGraphValidDiagram) : null
 }
 
 // ---- Errors ---------------------------------------------------------------
@@ -802,6 +876,9 @@ export type ClassMutationOp =
   // moves the class into that namespace (declared on demand); null moves it
   // back to the top level.
   | { kind: 'set_class_namespace'; class: string; namespace: string | null }
+  | { kind: 'define_class'; name: string; style: string }
+  | { kind: 'set_css_class'; class: string; className: string | null }
+  | { kind: 'set_class_style'; class: string; style: string | null }
 
 export type ErMutationOp =
   | { kind: 'add_entity'; id: string; label?: string; attributes?: string[] }
@@ -812,6 +889,10 @@ export type ErMutationOp =
   | { kind: 'remove_attribute'; entity: string; index: number }
   | { kind: 'add_relation'; from: string; to: string; leftCard: ErCardinality; rightCard: ErCardinality; dashed?: boolean; label?: string }
   | { kind: 'remove_relation'; index: number }
+  | { kind: 'set_direction'; direction: import('../types.ts').Direction }
+  | { kind: 'define_class'; name: string; style: string }
+  | { kind: 'set_entity_class'; entity: string; className: string | null }
+  | { kind: 'set_entity_style'; entity: string; style: string | null }
 
 export type JourneyMutationOp =
   | { kind: 'set_title'; title: string | null }
@@ -834,35 +915,43 @@ export type JourneyMutationOp =
 
 export type ArchitectureMutationOp =
   | { kind: 'set_title'; title: string | null }
+  | { kind: 'set_accessibility_title'; title: string | null }
+  | { kind: 'set_accessibility_description'; description: string | null }
   | { kind: 'add_service'; id: string; label?: string; icon?: string | null; group?: string | null }
   | { kind: 'remove_service'; id: string }
   | { kind: 'rename_service'; from: string; to: string }
   | { kind: 'set_service_label'; id: string; label: string }
   | { kind: 'set_service_icon'; id: string; icon: string | null }
   | { kind: 'move_service'; id: string; group: string | null }
+  | { kind: 'add_junction'; id: string; group?: string | null }
+  | { kind: 'remove_junction'; id: string }
+  | { kind: 'rename_junction'; from: string; to: string }
+  | { kind: 'move_junction'; id: string; group: string | null }
   | { kind: 'add_group'; id: string; label?: string; icon?: string | null; parent?: string | null }
+  | { kind: 'set_group_label'; id: string; label: string }
   | { kind: 'remove_group'; id: string }
-  | { kind: 'add_edge'; from: string; to: string; fromSide: ArchitectureSide; toSide: ArchitectureSide; label?: string | null; hasArrowStart?: boolean; hasArrowEnd?: boolean }
+  | { kind: 'add_edge'; from: string; to: string; fromSide: ArchitectureSide; toSide: ArchitectureSide; fromBoundary?: ArchitectureEndpointBoundary; toBoundary?: ArchitectureEndpointBoundary; label?: string | null; hasArrowStart?: boolean; hasArrowEnd?: boolean }
+  | { kind: 'update_edge'; index: number; from?: string; to?: string; fromSide?: ArchitectureSide; toSide?: ArchitectureSide; fromBoundary?: ArchitectureEndpointBoundary; toBoundary?: ArchitectureEndpointBoundary; label?: string | null; hasArrowStart?: boolean; hasArrowEnd?: boolean }
   | { kind: 'remove_edge'; index?: number; id?: string }
 
 export type StateMutationOp =
-  | { kind: 'add_state'; id: string; label?: string | null; parent?: string | null }
+  | { kind: 'add_state'; id: string; label?: string | null; parent?: string | null; region?: number }
   // recursive: true removes a non-empty composite with its whole subtree
   // (default refuses, naming the flag); transitions and notes touching any
   // removed id cascade away, history references (`X[H]`) included.
   | { kind: 'remove_state'; id: string; recursive?: boolean }
   | { kind: 'rename_state'; from: string; to: string }
   | { kind: 'set_state_label'; id: string; label: string | null }
-  | { kind: 'add_transition'; from: string; to: string; label?: string | null; parent?: string | null }
-  | { kind: 'remove_transition'; index?: number; from?: string; to?: string; parent?: string | null }
-  | { kind: 'set_transition_label'; index?: number; from?: string; to?: string; label: string | null; parent?: string | null }
+  | { kind: 'add_transition'; from: string; to: string; label?: string | null; parent?: string | null; region?: number }
+  | { kind: 'remove_transition'; index?: number; from?: string; to?: string; parent?: string | null; region?: number }
+  | { kind: 'set_transition_label'; index?: number; from?: string; to?: string; label: string | null; parent?: string | null; region?: number }
   | { kind: 'make_composite'; id: string; members: string[]; label?: string | null }
   // omit `state` (or pass null) to set the diagram direction; a composite id
   // sets that composite's direction override (flowchart set_direction idiom).
   | { kind: 'set_direction'; direction: import('../types.ts').Direction; state?: string | null }
   // Reparent a state (with its subtree); parent: null moves it to the top
   // level; a simple parent is promoted to a composite (add_state idiom).
-  | { kind: 'move_state'; id: string; parent: string | null }
+  | { kind: 'move_state'; id: string; parent: string | null; region?: number }
   // Hoist a composite's children + inner transitions into its parent scope
   // and drop the shell; rejects while transitions/notes still reference it.
   | { kind: 'dissolve_composite'; id: string }
@@ -870,6 +959,36 @@ export type StateMutationOp =
   | { kind: 'add_note'; target: string; side?: 'left' | 'right'; text: string }
   | { kind: 'remove_note'; index: number }
   | { kind: 'set_note_text'; index: number; text: string }
+  // State paint uses the same parser-owned CSS property grammar as flowchart.
+  | { kind: 'define_class'; name: string; style: string }
+  | { kind: 'set_state_class'; id: string; className: string | null }
+  | { kind: 'set_state_style'; id: string; style: string | null }
+  | { kind: 'set_transition_style'; index?: number; default?: boolean; style: string | null; parent?: string | null; region?: number }
+
+export type GitGraphMutationOp =
+  | { kind: 'append_commit'; id?: string; message?: string; type?: Extract<GitGraphCommitType, 'NORMAL' | 'REVERSE' | 'HIGHLIGHT'>; tags?: string[] }
+  | { kind: 'create_branch'; name: string; order?: number }
+  | { kind: 'checkout_branch'; name: string }
+  | { kind: 'merge_branch'; name: string; id?: string; type?: Extract<GitGraphCommitType, 'NORMAL' | 'REVERSE' | 'HIGHLIGHT'>; tags?: string[] }
+  | { kind: 'cherry_pick'; id: string; parent?: string; tags?: string[] }
+  | { kind: 'set_commit_message'; id: string; message: string | null }
+  | { kind: 'set_commit_type'; id: string; type: Extract<GitGraphCommitType, 'NORMAL' | 'REVERSE' | 'HIGHLIGHT'> }
+  | { kind: 'set_commit_tags'; id: string; tags: string[] }
+  | { kind: 'rename_branch'; from: string; to: string }
+  | { kind: 'set_accessibility_title'; title: string | null }
+  | { kind: 'set_accessibility_description'; description: string | null }
+
+export type MindmapMutationOp =
+  | { kind: 'add_node'; id: string; label: string; parent: string; shape?: MindmapShape; index?: number }
+  | { kind: 'remove_node'; id: string; recursive?: boolean }
+  | { kind: 'rename_node'; from: string; to: string }
+  | { kind: 'set_label'; id: string; label: string }
+  | { kind: 'move_node'; id: string; parent: string; index?: number }
+  | { kind: 'set_shape'; id: string; shape: MindmapShape }
+  | { kind: 'set_icon'; id: string; icon: string | null }
+  | { kind: 'set_node_class'; id: string; className: string | null }
+  | { kind: 'set_accessibility_title'; title: string | null }
+  | { kind: 'set_accessibility_description'; description: string | null }
 
 export type XyChartAxisSpec = { name?: string | null; categories?: string[]; range?: { min: number; max: number } }
 
@@ -925,7 +1044,7 @@ export type GanttMutationOp =
   | { kind: 'move_task'; fromSection: number; fromIndex: number; toSection: number; toIndex: number }
   | { kind: 'move_section'; from: number; to: number }
 
-export type AnyMutationOp = FlowchartMutationOp | StateMutationOp | SequenceMutationOp | TimelineMutationOp | ClassMutationOp | ErMutationOp | JourneyMutationOp | ArchitectureMutationOp | XyChartMutationOp | PieMutationOp | QuadrantMutationOp | GanttMutationOp
+export type AnyMutationOp = FlowchartMutationOp | StateMutationOp | SequenceMutationOp | TimelineMutationOp | ClassMutationOp | ErMutationOp | JourneyMutationOp | ArchitectureMutationOp | XyChartMutationOp | PieMutationOp | QuadrantMutationOp | GanttMutationOp | MindmapMutationOp | GitGraphMutationOp
 export type MutationOp = FlowchartMutationOp // legacy alias
 
 // ---- Branded Finite -------------------------------------------------------

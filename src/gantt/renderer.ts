@@ -30,7 +30,7 @@ import type { GanttLayoutResult } from './types.ts'
 import { ganttAxisLabelOffset, ganttMeasureTextWidth, ganttTitleFontSize, ganttTitleY, resolveGanttRenderStyle } from './layout.ts'
 import { parseTodayMarkerStyle, todayMarkerStyleAttr } from './today-marker.ts'
 import type { RenderContext } from '../types.ts'
-import { svgOpenTag, buildStyleBlock } from '../theme.ts'
+import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
 import { escapeAttr, escapeXml } from '../multiline-utils.ts'
 import { hashId } from '../scene/seed.ts'
 import { applyTextTransform } from '../styles.ts'
@@ -288,6 +288,9 @@ export function lowerGanttScene(
     buildStyleBlock(font, false, colors.shadow, colors.embedFontImport) + '\n' +
     extraCss,
   ))
+
+  const shadowDefs = buildShadowDefs(colors)
+  if (shadowDefs) parts.push(marks.raw({ id: 'shadow-defs', role: 'defs' }, `<defs>${shadowDefs}</defs>`))
 
   // Dependency arrowhead defs — content-hashed ids (the journey id-namespacing
   // pattern) so two different gantt SVGs inlined into one page cannot collide.

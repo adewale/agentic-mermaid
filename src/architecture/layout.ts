@@ -5,6 +5,7 @@ import type { ArchitectureLayoutMetrics } from './config.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { architectureToMermaidGraph } from './parser.ts'
 import type {
+  ArchitectureChildRef,
   ArchitectureDiagram,
   ArchitectureEndpoint,
   ArchitectureGroup,
@@ -144,9 +145,32 @@ export function layoutArchitectureDiagram(
   const flatGroups = new Map<string, PositionedArchitectureGroup>()
   const groups = positioned.groups.map((group) => mapGroup(group, groupsById, flatGroups))
   expandGroupBounds(groups, services, junctions, diagram.alignments.length > 0)
+  const sideConstraintsChanged = applyArchitectureSideConstraints(
+    diagram,
+    services,
+    junctions,
+    flatGroups,
+    options.nodeSpacing ?? ARCHITECTURE_DEFAULT_NODE_SPACING,
+  )
+  if (sideConstraintsChanged) {
+    // Port constraints can reorder a child or a whole nested group. Refit once
+    // more before resolving `{group}` anchors and route obstacles.
+    expandGroupBounds(groups, services, junctions, true)
+    for (const service of services) serviceBounds.set(service.id, service)
+    for (const junction of junctions) junctionBounds.set(junction.id, junction)
+  }
 
+  const positionedJunctionsById = new Map(junctions.map(junction => [junction.id, junction]))
   const edges = diagram.edges.map((edge) =>
-    routeArchitectureEdge(edge, servicesById, serviceBounds, junctionBounds, flatGroups)
+    routeArchitectureEdge(
+      edge,
+      servicesById,
+      serviceBounds,
+      junctionBounds,
+      flatGroups,
+      services,
+      positionedJunctionsById,
+    )
   )
   separateEdgeLabels(edges, services, metrics)
 
@@ -155,7 +179,7 @@ export function layoutArchitectureDiagram(
     : undefined
   let width = positioned.width
   let height = positioned.height
-  if (diagram.alignments.length > 0) {
+  if (diagram.alignments.length > 0 || sideConstraintsChanged) {
     // Alignment may collapse several old ranks into one; derive the canvas
     // from post-constraint geometry instead of retaining ELK's stale extent.
     width = Math.max(
@@ -330,6 +354,317 @@ function applyArchitectureAlignments(
   }
 }
 
+type SideConstraintAxis = 'x' | 'y'
+
+interface ArchitectureSideConstraint {
+  axis: SideConstraintAxis
+  parentId?: string
+  before: string
+  after: string
+  depth: number
+}
+
+/**
+ * Treat authored endpoint faces as deterministic sibling-order constraints.
+ * Constraints are solved at the endpoints' lowest common container: an edge
+ * between nested groups moves those groups as units, while an edge inside one
+ * group reorders only that group's direct children. Row/column alignment
+ * components move together on their fixed axis. Cyclic or intrinsically
+ * conflicting constraints remain renderable and are reported on the edge's
+ * route certificate as `placement: conflicted`.
+ */
+function applyArchitectureSideConstraints(
+  diagram: ArchitectureDiagram,
+  services: PositionedArchitectureService[],
+  junctions: PositionedArchitectureJunction[],
+  groups: Map<string, PositionedArchitectureGroup>,
+  spacing: number,
+): boolean {
+  let changed = false
+  const groupMeta = new Map(diagram.groups.map(group => [group.id, group]))
+  const serviceMeta = new Map(diagram.services.map(service => [service.id, service]))
+  const junctionMeta = new Map(diagram.junctions.map(junction => [junction.id, junction]))
+  const positionedServices = new Map(services.map(service => [service.id, service]))
+  const positionedJunctions = new Map(junctions.map(junction => [junction.id, junction]))
+  const unitKey = (kind: ArchitectureChildRef['kind'], id: string): string => `${kind}:${id}`
+  const splitUnitKey = (key: string): { kind: ArchitectureChildRef['kind']; id: string } => {
+    const separator = key.indexOf(':')
+    return { kind: key.slice(0, separator) as ArchitectureChildRef['kind'], id: key.slice(separator + 1) }
+  }
+
+  const groupAncestors = (parentId: string | undefined): string[] => {
+    const reversed: string[] = []
+    let current = parentId
+    while (current) {
+      reversed.push(unitKey('group', current))
+      current = groupMeta.get(current)?.parentId
+    }
+    return reversed.reverse()
+  }
+  const itemPath = (id: string, boundary: ArchitectureEndpoint['boundary'] = 'item'): string[] | null => {
+    const service = serviceMeta.get(id)
+    if (service) {
+      const ancestors = groupAncestors(service.parentId)
+      return boundary === 'group' ? ancestors : [...ancestors, unitKey('service', id)]
+    }
+    const junction = junctionMeta.get(id)
+    if (junction) return [...groupAncestors(junction.parentId), unitKey('junction', id)]
+    return null
+  }
+
+  const constraints: ArchitectureSideConstraint[] = []
+  for (const edge of diagram.edges) {
+    const sourcePath = itemPath(edge.source.id, edge.source.boundary)
+    const targetPath = itemPath(edge.target.id, edge.target.boundary)
+    if (!sourcePath || !targetPath) continue
+    let common = 0
+    while (common < sourcePath.length && common < targetPath.length && sourcePath[common] === targetPath[common]) common++
+    // One effective endpoint is the other's ancestor (for example a group
+    // boundary pointing back into that same group). There is no sibling move
+    // that can satisfy it; retain geometry and classify the legal conflict.
+    if (common >= sourcePath.length || common >= targetPath.length) continue
+    const parentId = common === 0 ? undefined : splitUnitKey(sourcePath[common - 1]!).id
+    const sourceUnit = sourcePath[common]!
+    const targetUnit = targetPath[common]!
+    const addForSide = (current: string, other: string, side: ArchitectureEndpoint['side']): void => {
+      const axis: SideConstraintAxis = side === 'L' || side === 'R' ? 'x' : 'y'
+      const currentBeforeOther = side === 'R' || side === 'B'
+      constraints.push({
+        axis,
+        parentId,
+        before: currentBeforeOther ? current : other,
+        after: currentBeforeOther ? other : current,
+        depth: common,
+      })
+    }
+    addForSide(sourceUnit, targetUnit, edge.source.side)
+    addForSide(targetUnit, sourceUnit, edge.target.side)
+  }
+
+  const siblingRefs = (parentId: string | undefined): ArchitectureChildRef[] =>
+    parentId ? groupMeta.get(parentId)?.children ?? [] : diagram.rootChildren
+  const unitBounds = (key: string): Bounds | undefined => {
+    const { kind, id } = splitUnitKey(key)
+    if (kind === 'group') return groups.get(id)
+    if (kind === 'service') return positionedServices.get(id)
+    return positionedJunctions.get(id)
+  }
+  const translateUnit = (key: string, axis: SideConstraintAxis, delta: number): void => {
+    if (Math.abs(delta) <= ROUTE_EPSILON) return
+    const { kind, id } = splitUnitKey(key)
+    if (kind === 'service') {
+      const service = positionedServices.get(id)
+      if (service) service[axis] += delta
+      return
+    }
+    if (kind === 'junction') {
+      const junction = positionedJunctions.get(id)
+      if (junction) junction[axis] += delta
+      return
+    }
+    const moveGroup = (groupId: string): void => {
+      const group = groups.get(groupId)
+      if (group) group[axis] += delta
+      for (const child of groupMeta.get(groupId)?.children ?? []) {
+        if (child.kind === 'group') moveGroup(child.id)
+        else translateUnit(unitKey(child.kind, child.id), axis, delta)
+      }
+    }
+    moveGroup(id)
+  }
+  const roots = [...groups.values()].filter(group => !group.parentId)
+
+  const grouped = new Map<string, ArchitectureSideConstraint[]>()
+  for (const constraint of constraints) {
+    const key = `${constraint.depth}:${constraint.parentId ?? ''}:${constraint.axis}`
+    const entries = grouped.get(key) ?? []
+    entries.push(constraint)
+    grouped.set(key, entries)
+  }
+  const orderedGroups = [...grouped.values()].sort((a, b) =>
+    b[0]!.depth - a[0]!.depth
+      || (a[0]!.parentId ?? '').localeCompare(b[0]!.parentId ?? '')
+      || a[0]!.axis.localeCompare(b[0]!.axis))
+
+  for (const entries of orderedGroups) {
+    const { axis, parentId } = entries[0]!
+    const siblingKeys = siblingRefs(parentId).map(ref => unitKey(ref.kind, ref.id)).filter(key => unitBounds(key) !== undefined)
+    if (siblingKeys.length < 2) continue
+
+    // Preserve declared row/column equal-coordinate components on their fixed
+    // axis by moving the component as one packing unit.
+    const parent = new Map(siblingKeys.map(key => [key, key]))
+    const find = (key: string): string => {
+      const current = parent.get(key) ?? key
+      if (current === key) return current
+      const root = find(current)
+      parent.set(key, root)
+      return root
+    }
+    const union = (a: string, b: string): void => {
+      const ra = find(a), rb = find(b)
+      if (ra !== rb) parent.set(rb, ra < rb ? ra : rb)
+    }
+    const fixedAlignment = axis === 'x' ? 'column' : 'row'
+    for (const alignment of diagram.alignments) {
+      if (alignment.axis !== fixedAlignment) continue
+      const directUnits = alignment.members.map(member => {
+        const path = itemPath(member)
+        if (!path) return undefined
+        if (!parentId) return path[0]
+        const parentKey = unitKey('group', parentId)
+        const parentIndex = path.indexOf(parentKey)
+        return parentIndex >= 0 ? path[parentIndex + 1] : undefined
+      }).filter((key): key is string => key !== undefined && parent.has(key))
+      for (let i = 1; i < directUnits.length; i++) union(directUnits[0]!, directUnits[i]!)
+    }
+
+    const componentMembers = new Map<string, string[]>()
+    for (const key of siblingKeys) {
+      const root = find(key)
+      const members = componentMembers.get(root) ?? []
+      members.push(key)
+      componentMembers.set(root, members)
+    }
+    const componentBounds = (root: string): Bounds => {
+      const bounds = componentMembers.get(root)!.map(key => unitBounds(key)!)
+      const minX = Math.min(...bounds.map(bound => bound.x))
+      const minY = Math.min(...bounds.map(bound => bound.y))
+      const maxX = Math.max(...bounds.map(bound => bound.x + bound.width))
+      const maxY = Math.max(...bounds.map(bound => bound.y + bound.height))
+      return { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
+    }
+
+    const arcs = new Map<string, Set<string>>()
+    let intrinsicConflict = false
+    for (const entry of entries) {
+      const before = find(entry.before)
+      const after = find(entry.after)
+      if (before === after) { intrinsicConflict = true; break }
+      const targets = arcs.get(before) ?? new Set<string>()
+      targets.add(after)
+      arcs.set(before, targets)
+    }
+    if (intrinsicConflict) continue
+
+    const components = [...componentMembers.keys()]
+    const constraintSatisfied = (before: string, after: string): boolean => {
+      const a = componentBounds(before), b = componentBounds(after)
+      return axis === 'x'
+        ? a.x + a.width + spacing <= b.x + ROUTE_EPSILON
+        : a.y + a.height + spacing <= b.y + ROUTE_EPSILON
+    }
+    if ([...arcs].every(([before, afters]) => [...afters].every(after => constraintSatisfied(before, after)))) continue
+
+    const indegree = new Map(components.map(component => [component, 0]))
+    for (const afters of arcs.values()) for (const after of afters) indegree.set(after, (indegree.get(after) ?? 0) + 1)
+    const order: string[] = []
+    while (order.length < components.length) {
+      const available = components.filter(component => !order.includes(component) && indegree.get(component) === 0)
+        .sort((a, b) => {
+          const aa = componentBounds(a), bb = componentBounds(b)
+          const delta = axis === 'x' ? aa.x - bb.x : aa.y - bb.y
+          return delta || a.localeCompare(b)
+        })
+      if (available.length === 0) break
+      const next = available[0]!
+      order.push(next)
+      for (const after of arcs.get(next) ?? []) indegree.set(after, indegree.get(after)! - 1)
+    }
+    // A cycle means the Mermaid sides are jointly impossible. Rendering is
+    // still legal; leave placement intact and let the typed certificate say so.
+    if (order.length !== components.length) continue
+
+    const initialBounds = components.map(componentBounds)
+    let cursor = Math.min(...initialBounds.map(bound => axis === 'x' ? bound.x : bound.y))
+    for (const component of order) {
+      const bounds = componentBounds(component)
+      const start = axis === 'x' ? bounds.x : bounds.y
+      const delta = cursor - start
+      if (Math.abs(delta) > ROUTE_EPSILON) changed = true
+      for (const key of componentMembers.get(component)!) translateUnit(key, axis, delta)
+      cursor += (axis === 'x' ? bounds.width : bounds.height) + spacing
+    }
+    // A nested reorder can enlarge its container; refresh before a parent-level
+    // constraint uses that group as one sibling unit.
+    expandGroupBounds(roots, services, junctions, true)
+  }
+
+  // A child reorder can enlarge its parent into a formerly clear sibling (for
+  // example two root groups stacked vertically). Resolve those secondary
+  // overlaps bottom-up. Row-aligned siblings form one component so cleanup
+  // cannot silently break an explicit alignment.
+  const contexts: Array<{ parentId?: string; depth: number }> = [
+    ...diagram.groups.map(group => ({ parentId: group.id, depth: groupAncestors(group.id).length })),
+    { parentId: undefined, depth: 0 },
+  ].sort((a, b) => b.depth - a.depth || (a.parentId ?? '').localeCompare(b.parentId ?? ''))
+  const overlaps = (a: Bounds, b: Bounds): boolean =>
+    a.x < b.x + b.width - ROUTE_EPSILON && b.x < a.x + a.width - ROUTE_EPSILON
+      && a.y < b.y + b.height - ROUTE_EPSILON && b.y < a.y + a.height - ROUTE_EPSILON
+
+  for (const context of contexts) {
+    const siblingKeys = siblingRefs(context.parentId).map(ref => unitKey(ref.kind, ref.id)).filter(key => unitBounds(key) !== undefined)
+    if (siblingKeys.length < 2) continue
+    const parent = new Map(siblingKeys.map(key => [key, key]))
+    const find = (key: string): string => {
+      const current = parent.get(key) ?? key
+      if (current === key) return current
+      const root = find(current)
+      parent.set(key, root)
+      return root
+    }
+    const union = (a: string, b: string): void => {
+      const ra = find(a), rb = find(b)
+      if (ra !== rb) parent.set(rb, ra < rb ? ra : rb)
+    }
+    for (const alignment of diagram.alignments) {
+      if (alignment.axis !== 'row') continue
+      const directUnits = alignment.members.map(member => {
+        const path = itemPath(member)
+        if (!path) return undefined
+        if (!context.parentId) return path[0]
+        const parentIndex = path.indexOf(unitKey('group', context.parentId))
+        return parentIndex >= 0 ? path[parentIndex + 1] : undefined
+      }).filter((key): key is string => key !== undefined && parent.has(key))
+      for (let i = 1; i < directUnits.length; i++) union(directUnits[0]!, directUnits[i]!)
+    }
+    const members = new Map<string, string[]>()
+    for (const key of siblingKeys) {
+      const root = find(key)
+      const values = members.get(root) ?? []
+      values.push(key)
+      members.set(root, values)
+    }
+    const boundsFor = (root: string): Bounds => {
+      const values = members.get(root)!.map(key => unitBounds(key)!)
+      const x = Math.min(...values.map(value => value.x))
+      const y = Math.min(...values.map(value => value.y))
+      const right = Math.max(...values.map(value => value.x + value.width))
+      const bottom = Math.max(...values.map(value => value.y + value.height))
+      return { x, y, width: right - x, height: bottom - y }
+    }
+    const order = [...members.keys()].sort((a, b) => {
+      const aa = boundsFor(a), bb = boundsFor(b)
+      return aa.y - bb.y || aa.x - bb.x || a.localeCompare(b)
+    })
+    const placed: string[] = []
+    for (const root of order) {
+      for (let pass = 0; pass <= placed.length; pass++) {
+        const bounds = boundsFor(root)
+        const blockers = placed.map(boundsFor).filter(other => overlaps(bounds, other))
+        if (blockers.length === 0) break
+        const targetY = Math.max(...blockers.map(other => other.y + other.height + spacing))
+        const delta = targetY - bounds.y
+        for (const key of members.get(root)!) translateUnit(key, 'y', delta)
+        changed = true
+      }
+      placed.push(root)
+    }
+    expandGroupBounds(roots, services, junctions, true)
+  }
+  return changed
+}
+
 function mapGroup(
   group: LayoutGroup,
   groupsById: Map<string, ArchitectureGroup>,
@@ -403,16 +738,27 @@ function routeArchitectureEdge(
   serviceBounds: Map<string, Bounds>,
   junctionBounds: Map<string, Bounds>,
   groups: Map<string, PositionedArchitectureGroup>,
+  services: PositionedArchitectureService[],
+  junctionsById: Map<string, PositionedArchitectureJunction>,
 ): PositionedArchitectureEdge {
   const source = resolveEndpoint(edge.source, servicesById, serviceBounds, junctionBounds, groups)
   const target = resolveEndpoint(edge.target, servicesById, serviceBounds, junctionBounds, groups)
-  const points = simplifyOrthogonalPoints([
-    source.anchor,
+  const obstacles = architectureRouteObstacles(edge, servicesById, groups, services, junctionsById)
+  const directMiddle = simplifyOrthogonalPoints([
     source.exit,
     ...routeBetween(source.exit, target.exit, edge.source.side, edge.target.side),
     target.exit,
+  ])
+  const middle = routeClearsObstacles(directMiddle, obstacles)
+    ? directMiddle
+    : routeOrthogonalAroundObstacles(source.exit, target.exit, obstacles) ?? directMiddle
+  const points = simplifyOrthogonalPoints([
+    source.anchor,
+    ...middle,
     target.anchor,
   ])
+  const sourceFacesTarget = sideFacesPoint(source.anchor, edge.source.side, target.anchor)
+  const targetFacesSource = sideFacesPoint(target.anchor, edge.target.side, source.anchor)
 
   return {
     source: edge.source,
@@ -422,7 +768,236 @@ function routeArchitectureEdge(
     hasArrowEnd: edge.hasArrowEnd,
     points,
     labelPosition: edge.label ? edgeMidpoint(points) : undefined,
+    placement: sourceFacesTarget && targetFacesSource ? 'satisfied' : 'conflicted',
+    sourceFacesTarget,
+    targetFacesSource,
+    obstacleFree: routeClearsObstacles(points, obstacles),
   }
+}
+
+interface RouteObstacle extends Bounds {
+  id: string
+  kind: 'service' | 'junction' | 'group'
+}
+
+const ROUTE_CLEARANCE = 6
+const ROUTE_EPSILON = 0.001
+
+/**
+ * Node cards, junctions, and unrelated group interiors are hard route
+ * obstacles. Ancestor groups of either endpoint are excluded: an item-level
+ * edge must be able to leave its own container, while `{group}` endpoints are
+ * anchored to that container boundary explicitly.
+ */
+function architectureRouteObstacles(
+  edge: ArchitectureDiagram['edges'][number],
+  servicesById: Map<string, ArchitectureService>,
+  groups: Map<string, PositionedArchitectureGroup>,
+  services: PositionedArchitectureService[],
+  junctionsById: Map<string, PositionedArchitectureJunction>,
+): RouteObstacle[] {
+  const excludedGroups = new Set<string>()
+  const addAncestors = (parentId: string | undefined): void => {
+    let current = parentId
+    while (current) {
+      if (excludedGroups.has(current)) break
+      excludedGroups.add(current)
+      current = groups.get(current)?.parentId
+    }
+  }
+  addAncestors(servicesById.get(edge.source.id)?.parentId ?? junctionsById.get(edge.source.id)?.parentId)
+  addAncestors(servicesById.get(edge.target.id)?.parentId ?? junctionsById.get(edge.target.id)?.parentId)
+
+  const inflate = (id: string, kind: RouteObstacle['kind'], bounds: Bounds): RouteObstacle => ({
+    id,
+    kind,
+    x: bounds.x - ROUTE_CLEARANCE,
+    y: bounds.y - ROUTE_CLEARANCE,
+    width: bounds.width + ROUTE_CLEARANCE * 2,
+    height: bounds.height + ROUTE_CLEARANCE * 2,
+  })
+  const obstacles: RouteObstacle[] = []
+  for (const service of services) {
+    if (service.id === edge.source.id || service.id === edge.target.id) continue
+    obstacles.push(inflate(service.id, 'service', service))
+  }
+  for (const junction of junctionsById.values()) {
+    if (junction.id === edge.source.id || junction.id === edge.target.id) continue
+    obstacles.push(inflate(junction.id, 'junction', junction))
+  }
+  for (const group of groups.values()) {
+    if (excludedGroups.has(group.id)) continue
+    obstacles.push(inflate(group.id, 'group', group))
+  }
+  return obstacles
+}
+
+function sideFacesPoint(anchor: Point, side: ArchitectureEndpoint['side'], other: Point): boolean {
+  switch (side) {
+    case 'L': return other.x < anchor.x - ROUTE_EPSILON
+    case 'R': return other.x > anchor.x + ROUTE_EPSILON
+    case 'T': return other.y < anchor.y - ROUTE_EPSILON
+    case 'B': return other.y > anchor.y + ROUTE_EPSILON
+  }
+}
+
+function routeClearsObstacles(points: Point[], obstacles: RouteObstacle[]): boolean {
+  for (let i = 1; i < points.length; i++) {
+    if (obstacles.some(obstacle => segmentCrossesObstacleInterior(points[i - 1]!, points[i]!, obstacle))) return false
+  }
+  return true
+}
+
+function segmentCrossesObstacleInterior(a: Point, b: Point, obstacle: Bounds): boolean {
+  if (Math.abs(a.y - b.y) <= ROUTE_EPSILON) {
+    return a.y > obstacle.y + ROUTE_EPSILON
+      && a.y < obstacle.y + obstacle.height - ROUTE_EPSILON
+      && Math.min(a.x, b.x) < obstacle.x + obstacle.width - ROUTE_EPSILON
+      && Math.max(a.x, b.x) > obstacle.x + ROUTE_EPSILON
+  }
+  if (Math.abs(a.x - b.x) <= ROUTE_EPSILON) {
+    return a.x > obstacle.x + ROUTE_EPSILON
+      && a.x < obstacle.x + obstacle.width - ROUTE_EPSILON
+      && Math.min(a.y, b.y) < obstacle.y + obstacle.height - ROUTE_EPSILON
+      && Math.max(a.y, b.y) > obstacle.y + ROUTE_EPSILON
+  }
+  return true
+}
+
+interface RouteQueueEntry {
+  state: number
+  cost: number
+}
+
+/** Deterministic binary min-heap used by the continuous-grid router. */
+class RouteMinHeap {
+  private entries: RouteQueueEntry[] = []
+
+  push(entry: RouteQueueEntry): void {
+    this.entries.push(entry)
+    let index = this.entries.length - 1
+    while (index > 0) {
+      const parent = Math.floor((index - 1) / 2)
+      if (!this.before(entry, this.entries[parent]!)) break
+      this.entries[index] = this.entries[parent]!
+      index = parent
+    }
+    this.entries[index] = entry
+  }
+
+  pop(): RouteQueueEntry | undefined {
+    const first = this.entries[0]
+    const last = this.entries.pop()
+    if (!first || !last || this.entries.length === 0) return first
+    let index = 0
+    this.entries[0] = last
+    while (true) {
+      const left = index * 2 + 1
+      const right = left + 1
+      if (left >= this.entries.length) break
+      let child = left
+      if (right < this.entries.length && this.before(this.entries[right]!, this.entries[left]!)) child = right
+      if (!this.before(this.entries[child]!, this.entries[index]!)) break
+      const swap = this.entries[index]!
+      this.entries[index] = this.entries[child]!
+      this.entries[child] = swap
+      index = child
+    }
+    return first
+  }
+
+  private before(a: RouteQueueEntry, b: RouteQueueEntry): boolean {
+    return a.cost < b.cost || (a.cost === b.cost && a.state < b.state)
+  }
+}
+
+/**
+ * Visibility-grid Manhattan router. Candidate coordinates are endpoint lanes
+ * and inflated obstacle faces; Dijkstra minimizes length, then bends, with
+ * stable numeric tie-breaking. No randomness or object iteration order enters
+ * the route.
+ */
+function routeOrthogonalAroundObstacles(
+  start: Point,
+  end: Point,
+  obstacles: RouteObstacle[],
+): Point[] | null {
+  const xs = [...new Set([start.x, end.x, ...obstacles.flatMap(obstacle => [obstacle.x, obstacle.x + obstacle.width])])].sort((a, b) => a - b)
+  const ys = [...new Set([start.y, end.y, ...obstacles.flatMap(obstacle => [obstacle.y, obstacle.y + obstacle.height])])].sort((a, b) => a - b)
+  const points: Point[] = []
+  const indexByCoordinate = new Map<string, number>()
+  const key = (x: number, y: number): string => `${x}\u0000${y}`
+  const insideObstacle = (x: number, y: number): boolean => obstacles.some(obstacle =>
+    x > obstacle.x + ROUTE_EPSILON && x < obstacle.x + obstacle.width - ROUTE_EPSILON
+      && y > obstacle.y + ROUTE_EPSILON && y < obstacle.y + obstacle.height - ROUTE_EPSILON)
+
+  for (const y of ys) {
+    for (const x of xs) {
+      if (insideObstacle(x, y) && !(x === start.x && y === start.y) && !(x === end.x && y === end.y)) continue
+      indexByCoordinate.set(key(x, y), points.length)
+      points.push({ x, y })
+    }
+  }
+  const startIndex = indexByCoordinate.get(key(start.x, start.y))
+  const endIndex = indexByCoordinate.get(key(end.x, end.y))
+  if (startIndex === undefined || endIndex === undefined) return null
+
+  const adjacency: Array<Array<{ point: number; direction: 1 | 2; length: number }>> = points.map(() => [])
+  const connectVisible = (indices: number[], direction: 1 | 2): void => {
+    for (let i = 1; i < indices.length; i++) {
+      const aIndex = indices[i - 1]!
+      const bIndex = indices[i]!
+      const a = points[aIndex]!
+      const b = points[bIndex]!
+      if (obstacles.some(obstacle => segmentCrossesObstacleInterior(a, b, obstacle))) continue
+      const length = Math.abs(a.x - b.x) + Math.abs(a.y - b.y)
+      adjacency[aIndex]!.push({ point: bIndex, direction, length })
+      adjacency[bIndex]!.push({ point: aIndex, direction, length })
+    }
+  }
+  for (const y of ys) {
+    const row = points.map((point, index) => ({ point, index })).filter(entry => entry.point.y === y).sort((a, b) => a.point.x - b.point.x).map(entry => entry.index)
+    connectVisible(row, 1)
+  }
+  for (const x of xs) {
+    const column = points.map((point, index) => ({ point, index })).filter(entry => entry.point.x === x).sort((a, b) => a.point.y - b.point.y).map(entry => entry.index)
+    connectVisible(column, 2)
+  }
+
+  // Direction states: 0 = none/start, 1 = horizontal, 2 = vertical.
+  const stateCount = points.length * 3
+  const distance = new Array<number>(stateCount).fill(Infinity)
+  const previous = new Array<number>(stateCount).fill(-1)
+  const startState = startIndex * 3
+  distance[startState] = 0
+  const queue = new RouteMinHeap()
+  queue.push({ state: startState, cost: 0 })
+  let finalState = -1
+  while (true) {
+    const current = queue.pop()
+    if (!current) break
+    if (current.cost !== distance[current.state]) continue
+    const pointIndex = Math.floor(current.state / 3)
+    const previousDirection = current.state % 3
+    if (pointIndex === endIndex) { finalState = current.state; break }
+    for (const neighbor of adjacency[pointIndex]!) {
+      const nextState = neighbor.point * 3 + neighbor.direction
+      const bendPenalty = previousDirection !== 0 && previousDirection !== neighbor.direction ? 8 : 0
+      const nextCost = current.cost + neighbor.length + bendPenalty
+      if (nextCost >= distance[nextState]!) continue
+      distance[nextState] = nextCost
+      previous[nextState] = current.state
+      queue.push({ state: nextState, cost: nextCost })
+    }
+  }
+  if (finalState < 0) return null
+
+  const reversed: Point[] = []
+  for (let state = finalState; state >= 0; state = previous[state]!) {
+    reversed.push(points[Math.floor(state / 3)]!)
+    if (state === startState) break
+  }
+  return simplifyOrthogonalPoints(reversed.reverse())
 }
 
 /**

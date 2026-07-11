@@ -8,7 +8,8 @@
 
 import type { Canvas, DrawingCoord, RoleCanvas, CharRole, AsciiTheme, ColorMode } from './types.ts'
 import { colorizeLine, DEFAULT_ASCII_THEME } from './ansi.ts'
-import { charVisualWidth, WIDE_CHAR_CONTINUATION } from './width.ts'
+import { visualWidth, WIDE_CHAR_CONTINUATION } from './width.ts'
+import { graphemes } from '../shared/graphemes.ts'
 
 /**
  * Create a blank canvas filled with spaces.
@@ -392,21 +393,23 @@ export function drawText(
   text: string,
   forceOverwrite = false
 ): void {
-  let width = 0
-  for (const ch of text) width += charVisualWidth(ch)
+  const width = visualWidth(text)
   increaseSize(canvas, start.x + width, start.y)
   let offset = 0
-  for (const ch of text) {
+  for (const cluster of graphemes(text)) {
+    const clusterWidth = visualWidth(cluster)
+    if (clusterWidth === 0) continue
     const x = start.x + offset
     const current = canvas[x]![start.y]!
-    // Only write if target is empty or we're forcing overwrite
+    // Store a grapheme cluster in one logical cell. Wide clusters reserve the
+    // following cell so later text cannot split emoji/ZWJ/combining sequences.
     if (forceOverwrite || current === ' ') {
-      canvas[x]![start.y] = ch
-      if (charVisualWidth(ch) === 2 && x + 1 < canvas.length) {
-        canvas[x + 1]![start.y] = WIDE_CHAR_CONTINUATION
+      canvas[x]![start.y] = cluster
+      for (let continuation = 1; continuation < clusterWidth && x + continuation < canvas.length; continuation++) {
+        canvas[x + continuation]![start.y] = WIDE_CHAR_CONTINUATION
       }
     }
-    offset += charVisualWidth(ch)
+    offset += clusterWidth
   }
 }
 
