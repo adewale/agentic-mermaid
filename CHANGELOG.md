@@ -5,7 +5,7 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 ## Unreleased
 
 ### Added
-- Elevated all twelve diagram families to a common agent-native quality contract: 131 typed mutation operations, deterministic family layout rubrics/certificates, expanded semantic facts, configuration wire-or-warn coverage, and parser/serializer conformance gates.
+- Elevated all twelve diagram families to a common agent-native quality contract: 132 typed mutation operations, deterministic family layout rubrics/certificates, expanded semantic facts, configuration wire-or-warn coverage, and parser/serializer conformance gates.
 - Added Flowchart v11 shape metadata and edge IDs; State notes/pseudostates/history; Sequence box/autonumber/create/destroy/standalone activation behavior; Class namespaces and generic parameters; ER bare entities; vertical Timeline layout; Gantt dependency/critical-path overlays; XYChart legends and explicit orientation mutation; Pie wedge labels/donut/legend controls; Quadrant accessibility/style functions; and visible Architecture titles with deterministic row/column alignment constraints.
 - Added measured bold/italic Flowchart markdown rendering and support for a bare `flowchart` header, which defaults to top-down layout while remaining source-preserved at the typed-edit boundary.
 
@@ -16,7 +16,8 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ### Fixed
 - Rejected source-controlled Pie colors that could escape SVG attributes or styles; hardened cross-format color contrast and XML sinks.
-- Fixed successful-but-lossy Journey/State/Sequence/Class/ER/Architecture/Timeline/XYChart mutations and parser round trips, including accessibility metadata, history endpoints, boxed participants, labeled and generic classes, bare ER entities, post-alignment route anchors, event text containing clock-time colons, event-less Timeline periods, and explicit vertical orientation.
+- Fixed successful-but-lossy Journey/State/Sequence/Class/ER/Architecture/Timeline/XYChart mutations and parser round trips, including accessibility metadata, history endpoints, boxed participants, labeled and generic classes, bare/aliased ER entities, post-alignment route anchors, event text containing clock-time colons, event-less Timeline periods, and explicit vertical orientation.
+- Fixed quoted Flowchart shape labels containing their own delimiters, Unicode/CJK Flowchart identifiers, corrupt State/Class `:::class` text, ER `:::class` phantom identities, and comma-separated ER composite keys; ER display aliases now have typed `set_entity_label` mutation.
 - Fixed dense self-loop route/label collisions and reserved rank clearance so loop pills cannot cover adjacent nodes or primary-chain arrowheads; also fixed grapheme-splitting label wraps, terminal formatting leakage, ER relationship glyph fidelity, and State pseudostate visuals.
 
 ### Breaking

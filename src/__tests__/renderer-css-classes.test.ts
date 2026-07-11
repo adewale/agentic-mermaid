@@ -40,6 +40,13 @@ describe('#81 external CSS class emission', () => {
     expect(svg).toContain('#ff0000')
   })
 
+  test('state ::: shorthand applies the class without leaking colons into text', () => {
+    const svg = renderMermaidSVG('stateDiagram-v2\n  A : Alpha\n  A:::hot\n  classDef hot fill:#ff0000')
+    expect(nodeG(svg, 'A')).toContain('class="node hot"')
+    expect(svg).toContain('Alpha')
+    expect(svg).not.toContain('::hot')
+  })
+
   test('class names with invalid CSS chars are sanitized', () => {
     // ::: shorthand class with a dotted/odd name — must not break the class attr.
     const svg = renderMermaidSVG('flowchart TD\n  A:::my-class\n  classDef my-class fill:#0f0')

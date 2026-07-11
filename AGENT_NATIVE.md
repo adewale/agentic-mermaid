@@ -43,7 +43,7 @@ What the current Agentic Mermaid surface delivers and what it doesn't:
 | Sequence | Structured-with-segments (BUILD-18): participant/message ops stay live while Note/alt/loop/par/box/activate/create/destroy/autonumber/title ride along verbatim as opaque-block segments; only un-segmentable input (unbalanced `end`) falls back to whole-body opaque | ✅ 7 ops when structured |
 | Timeline | Full — including the `timeline TD` vertical direction token | ✅ 15 ops |
 | Class | Full for the modeled subset — including namespaces and generic class parameters (`Box~T~`) as rendered, structured constructs; `direction` remains a lossless opaque fallback | ✅ 12 ops |
-| ER | Full | ✅ 7 ops |
+| ER | Full for bare/aliased entities, attributes, and relationships; `:::class` styling renders without corrupting identity but remains losslessly opaque for typed mutation | ✅ 8 ops |
 | Journey | Full structured round-trip (title/sections/tasks) | 14 ops via `asJourney` (BUILD-15 pilot) |
 | Architecture | Structured round-trip for the modeled subset (visible title, groups/services/junctions/edges, plus upstream `align row\|column` directives honored by layout); `{group}` boundary edges + accTitle/accDescr fall back to opaque losslessly | 11 ops via `asArchitecture` (BUILD-17) |
 | XY chart | Structured round-trip for the modeled subset (orientation/title/axes/series; quoted text with bare content canonicalizes to unquoted form); embedded quotes/brackets, `;` multi-statement lines, accTitle/accDescr fall back to opaque losslessly | 10 ops via `asXyChart` (BUILD-16) |
@@ -308,13 +308,14 @@ Two contracts:
 | `remove_note`       | `index`                                               | `add_note(text, for)` |
 | `set_class_namespace` | `class`, `namespace \| null` (a dot path like `Platform.Auth`, declared on demand; null = top level) | `set_class_namespace(class, prev_namespace)` |
 
-**ER MutationOp kinds** (7):
+**ER MutationOp kinds** (8):
 
 | Kind | Required | Inverse |
 |---|---|---|
-| `add_entity`        | `id` (+ optional `attributes: string[]`)             | `remove_entity(id)` |
-| `remove_entity`     | `id`                                                  | `add_entity(id, attributes)` |
+| `add_entity`        | `id` (+ optional `label`, `attributes: string[]`)    | `remove_entity(id)` |
+| `remove_entity`     | `id`                                                  | `add_entity(id, label, attributes)` |
 | `rename_entity`     | `from`, `to`                                          | `rename_entity(to, from)` |
+| `set_entity_label`  | `entity`, `label \| null`                             | `set_entity_label(entity, previous_label)` |
 | `add_attribute`     | `entity`, `text`                                      | `remove_attribute(entity, index)` |
 | `remove_attribute`  | `entity`, `index`                                     | `add_attribute(entity, text)` |
 | `add_relation`      | `from`, `to`, `leftCard`, `rightCard` (+ `dashed`, `label`) | `remove_relation(index)` |

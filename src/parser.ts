@@ -5,6 +5,12 @@ import {
   matchNoteLine, matchNoteOpen, isNoteEnd, matchStereotypeDecl,
   isConcurrencySeparator, matchHistoryEndpoint, matchTransitionLine, historyLabel,
 } from './state/parse-core.ts'
+import {
+  MERMAID_IDENTIFIER_SOURCE,
+  consumeClassShorthandPrefix,
+  consumeMermaidIdentifier,
+  parseClassShorthandStatement,
+} from './shared/mermaid-identifiers.ts'
 
 // ============================================================================
 // Mermaid parser — flowcharts and state diagrams
@@ -522,6 +528,15 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
       continue
     }
 
+    // --- classDef: shared paint model with flowcharts ---
+    const stateClassDefMatch = line.match(/^classDef\s+([\w,-]+)\s+(.+)$/)
+    if (stateClassDefMatch) {
+      const names = stateClassDefMatch[1]!.split(',').map(name => name.trim()).filter(Boolean)
+      const props = parseStyleProps(stateClassDefMatch[2]!)
+      for (const name of names) graph.classDefs.set(name, props)
+      continue
+    }
+
     // --- linkStyle: `linkStyle 0 stroke:#f00` or `linkStyle default stroke:#f00` ---
     const linkStyleMatch = line.match(/^linkStyle\s+(default|[\d,\s]+)\s+(.+)$/)
     if (linkStyleMatch) {
@@ -638,6 +653,8 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     if (transition) {
       const sourceId = resolveEndpoint(transition.from, 'source')
       const targetId = resolveEndpoint(transition.to, 'target')
+      if (transition.fromClass) graph.classAssignments.set(sourceId, transition.fromClass)
+      if (transition.toClass) graph.classAssignments.set(targetId, transition.toClass)
       const edgeLabel = transition.label ? normalizeBrTags(transition.label) : undefined
 
       graph.edges.push({
@@ -648,6 +665,16 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
         hasArrowStart: false,
         hasArrowEnd: true,
       })
+      continue
+    }
+
+    // --- class shorthand: `s1:::highlight` ---
+    // Consume before the description grammar so two of the three colons can
+    // never leak into a visible `::highlight` label.
+    const stateClass = parseClassShorthandStatement(line)
+    if (stateClass) {
+      ensureStateNode(graph, compositeStack, stateClass.id)
+      graph.classAssignments.set(stateClass.id, stateClass.className)
       continue
     }
 
@@ -803,44 +830,36 @@ const TEXT_ARROW_REGEX = /^(<)?(-{2,}|-\.+|={2,})\s+(.+?)\s+(-{2,}>|-{3,}|\.+->|
  * Node shape patterns — ordered from most specific delimiters to least.
  * Multi-char delimiters must be tried before single-char to avoid false matches.
  */
+const flowchartNodeRegex = (suffix: string): RegExp =>
+  new RegExp(`^(${MERMAID_IDENTIFIER_SOURCE})${suffix}`, 'u')
+
 const NODE_PATTERNS: Array<{ regex: RegExp; shape: NodeShape }> = [
   // Triple delimiters (must be first)
-  { regex: /^([\w-]+)\(\(\((.+?)\)\)\)/, shape: 'doublecircle' },  // A(((text)))
+  { regex: flowchartNodeRegex(String.raw`\(\(\((.+?)\)\)\)`), shape: 'doublecircle' },
 
   // Double delimiters with mixed brackets
-  { regex: /^([\w-]+)\(\[(.+?)\]\)/,     shape: 'stadium' },       // A([text])
-  { regex: /^([\w-]+)\(\((.+?)\)\)/,     shape: 'circle' },        // A((text))
-  { regex: /^([\w-]+)\[\[(.+?)\]\]/,     shape: 'subroutine' },    // A[[text]]
-  { regex: /^([\w-]+)\[\((.+?)\)\]/,     shape: 'cylinder' },      // A[(text)]
+  { regex: flowchartNodeRegex(String.raw`\(\[(.+?)\]\)`), shape: 'stadium' },
+  { regex: flowchartNodeRegex(String.raw`\(\((.+?)\)\)`), shape: 'circle' },
+  { regex: flowchartNodeRegex(String.raw`\[\[(.+?)\]\]`), shape: 'subroutine' },
+  { regex: flowchartNodeRegex(String.raw`\[\((.+?)\)\]`), shape: 'cylinder' },
 
   // Trapezoid + parallelogram variants — must come before plain [text].
-  // All four share the [/ or [\ opener and differ only in the closer (\] vs
-  // /] vs \]), so labels exclude ']' — a non-greedy (.+?) could otherwise
-  // skip past the true closer to a later node's on the same line.
-  { regex: /^([\w-]+)\[\/([^\]]+?)\\\]/, shape: 'trapezoid' },     // A[/text\]
-  { regex: /^([\w-]+)\[\\([^\]]+?)\/\]/, shape: 'trapezoid-alt' }, // A[\text/]
-  { regex: /^([\w-]+)\[\/([^\]]+?)\/\]/, shape: 'lean-r' },        // A[/text/]
-  { regex: /^([\w-]+)\[\\([^\]]+?)\\\]/, shape: 'lean-l' },        // A[\text\]
+  { regex: flowchartNodeRegex(String.raw`\[\/([^\]]+?)\\\]`), shape: 'trapezoid' },
+  { regex: flowchartNodeRegex(String.raw`\[\\([^\]]+?)\/\]`), shape: 'trapezoid-alt' },
+  { regex: flowchartNodeRegex(String.raw`\[\/([^\]]+?)\/\]`), shape: 'lean-r' },
+  { regex: flowchartNodeRegex(String.raw`\[\\([^\]]+?)\\\]`), shape: 'lean-l' },
 
-  // Asymmetric flag shape
-  { regex: /^([\w-]+)>(.+?)\]/,          shape: 'asymmetric' },    // A>text]
-
-  // Double curly braces (hexagon) — must come before single {text}
-  { regex: /^([\w-]+)\{\{(.+?)\}\}/,     shape: 'hexagon' },       // A{{text}}
-
-  // Single-char delimiters (last — most common, least specific)
-  { regex: /^([\w-]+)\[(.+?)\]/,         shape: 'rectangle' },     // A[text]
-  { regex: /^([\w-]+)\((.+?)\)/,         shape: 'rounded' },       // A(text)
-  { regex: /^([\w-]+)\{(.+?)\}/,         shape: 'diamond' },       // A{text}
+  { regex: flowchartNodeRegex(String.raw`>(.+?)\]`), shape: 'asymmetric' },
+  { regex: flowchartNodeRegex(String.raw`\{\{(.+?)\}\}`), shape: 'hexagon' },
+  { regex: flowchartNodeRegex(String.raw`\[(.+?)\]`), shape: 'rectangle' },
+  { regex: flowchartNodeRegex(String.raw`\((.+?)\)`), shape: 'rounded' },
+  { regex: flowchartNodeRegex(String.raw`\{(.+?)\}`), shape: 'diamond' },
 ]
 
-/** Regex for a bare node reference (just an ID, no shape brackets) */
-const BARE_NODE_REGEX = /^([\w-]+)/
-
 function consumeBareNodeId(text: string): { id: string; length: number } | null {
-  const whole = text.match(BARE_NODE_REGEX)
+  const whole = consumeMermaidIdentifier(text)
   if (!whole) return null
-  const max = whole[1]!.length
+  const max = whole.length
   let end = 0
   for (let i = 0; i < max; i++) {
     if (i > 0 && startsFlowchartArrow(text.slice(i))) break
@@ -863,12 +882,10 @@ function nodePatternSwallowedArrow(text: string, idLength: number): boolean {
 const EDGE_ID_PREFIX_REGEX = /^([\w-]+)@\s*(?=(?:<)?(?:~{3,}|-\.+->|-\.+-|={2,}>|={3,}|o-{2,}[ox]|x-{2,}[ox]|-{2,}[ox]|-{2,}>|-{3,}|(?:-{2,}|-\.+|={2,})\s+))/
 
 function consumeClassShorthand(text: string): { className: string; length: number } | null {
-  if (!text.startsWith(':::')) return null
+  const parsed = consumeClassShorthandPrefix(text)
+  if (!parsed) return null
   const rest = text.slice(3)
-  if (!/^[\w]/.test(rest)) return null
-  const allowed = rest.match(/^[\w-]+/)
-  if (!allowed) return null
-  const max = allowed[0].length
+  const max = parsed.className.length
   let end = max
   for (let i = 1; i < max; i++) {
     if (startsFlowchartArrow(rest.slice(i))) { end = i; break }
@@ -1013,7 +1030,7 @@ function consumeMetadataNode(
   graph: MermaidGraph,
   subgraphStack: MermaidSubgraph[]
 ): ConsumedNode | null {
-  const start = text.match(/^([\w-]+)@\s*\{/)
+  const start = text.match(new RegExp(`^(${MERMAID_IDENTIFIER_SOURCE})@\\s*\\{`, 'u'))
   if (!start) return null
   const id = start[1]!
   const objectStart = text.indexOf('{', start[0].indexOf('@'))
@@ -1122,17 +1139,57 @@ function unquoteMetadataValue(raw: string): string {
   return raw
 }
 
-function consumeQuotedNode(
+const QUOTED_SHAPE_DELIMITERS: Array<{ open: string; close: string; shape: NodeShape }> = [
+  { open: '(((', close: ')))', shape: 'doublecircle' },
+  { open: '([', close: '])', shape: 'stadium' },
+  { open: '((', close: '))', shape: 'circle' },
+  { open: '[[', close: ']]', shape: 'subroutine' },
+  { open: '[(', close: ')]', shape: 'cylinder' },
+  { open: '[/', close: '\\]', shape: 'trapezoid' },
+  { open: '[\\', close: '/]', shape: 'trapezoid-alt' },
+  { open: '[/', close: '/]', shape: 'lean-r' },
+  { open: '[\\', close: '\\]', shape: 'lean-l' },
+  { open: '>', close: ']', shape: 'asymmetric' },
+  { open: '{{', close: '}}', shape: 'hexagon' },
+  { open: '[', close: ']', shape: 'rectangle' },
+  { open: '(', close: ')', shape: 'rounded' },
+  { open: '{', close: '}', shape: 'diamond' },
+]
+
+/** Quote-aware shape consumption: delimiters inside an authored quoted label
+ * are text, not the end of the node. One scanner covers every legacy shape. */
+function consumeQuotedShapeNode(
   text: string,
   graph: MermaidGraph,
-  subgraphStack: MermaidSubgraph[]
+  subgraphStack: MermaidSubgraph[],
 ): ConsumedNode | null {
-  const match = text.match(/^([\w-]+)\["((?:\\.|[^"\\])*)"\]/s)
-  if (!match) return null
-  const id = match[1]!
-  const { text: label, markdown } = parseLabelText(match[2]!.replace(/\\(["\\])/g, '$1'), true)
-  registerNode(graph, subgraphStack, { id, label, shape: 'rectangle', ...(markdown ? { markdownLabel: true as const } : {}) })
-  return { id, remaining: text.slice(match[0].length) }
+  const identifier = consumeMermaidIdentifier(text)
+  if (!identifier) return null
+  const suffix = text.slice(identifier.length)
+  for (const spec of QUOTED_SHAPE_DELIMITERS) {
+    if (!suffix.startsWith(`${spec.open}"`)) continue
+    const quoteStart = spec.open.length
+    let quoteEnd = -1
+    let escaped = false
+    for (let i = quoteStart + 1; i < suffix.length; i++) {
+      const ch = suffix[i]!
+      if (escaped) { escaped = false; continue }
+      if (ch === '\\') { escaped = true; continue }
+      if (ch === '"') { quoteEnd = i; break }
+    }
+    if (quoteEnd < 0 || !suffix.startsWith(spec.close, quoteEnd + 1)) continue
+    const raw = suffix.slice(quoteStart + 1, quoteEnd).replace(/\\(["\\])/g, '$1')
+    const parsed = parseLabelText(raw, true)
+    registerNode(graph, subgraphStack, {
+      id: identifier.id,
+      label: parsed.text,
+      shape: spec.shape,
+      ...(parsed.markdown ? { markdownLabel: true as const } : {}),
+    })
+    const consumed = identifier.length + quoteEnd + 1 + spec.close.length
+    return { id: identifier.id, remaining: text.slice(consumed) }
+  }
+  return null
 }
 
 /**
@@ -1158,8 +1215,8 @@ function consumeNode(
     return { id: metadataNode.id, remaining }
   }
 
-  const quotedNode = consumeQuotedNode(text, graph, subgraphStack)
-  if (quotedNode) return quotedNode
+  const quotedShapeNode = consumeQuotedShapeNode(text, graph, subgraphStack)
+  if (quotedShapeNode) return quotedShapeNode
 
   let id: string | null = null
   let remaining: string = text

@@ -11,6 +11,24 @@ ELK layout engine (`src/layout-engine.ts`), the SceneGraph SVG renderer
 the elevation; the parser conformance floor lives in
 [flowchart-parser-conformance.md](./flowchart-parser-conformance.md).
 
+## Parser-integrity evidence (2026-07)
+
+**Why:** quoted legacy-shape labels may contain their own shape delimiters,
+and Mermaid identifiers are Unicode rather than ASCII-only. The fixture
+[`flowchart-parser-integrity-demo.mmd`](./flowchart-parser-integrity-demo.mmd)
+exercises both contracts in one graph.
+
+| Before (`7f5102a9`) | After |
+|---|---|
+| ![Truncated rounded label and missing CJK nodes](./flowchart-parser-integrity-before.png) | ![Complete quoted label and connected CJK nodes](./flowchart-parser-integrity-after.png) |
+
+**What to inspect:** before, the closing parenthesis inside the quoted label
+terminates the node and both the edge and CJK component disappear. After, the
+label is exact, its edge reaches `Done`, and `開始 --> 終了` is a second
+connected component. The after render uses `--font-dirs
+/System/Library/Fonts` only so the local Hiragino glyphs are visible; identifier
+parsing itself is font-independent.
+
 ## Typed runtime config (`flowchart` section) — wire-or-warn
 
 Upstream schema verified 2026-07-10
@@ -144,6 +162,9 @@ Every op round-trips: serialize → render-parse reproduces the edit (P3;
 - `flowchart-v11-shapes.test.ts` — full vocabulary coverage against the
   documented table, exact-geometry equivalence with legacy syntax,
   substitution lints, authored-spelling round-trip, opaque fallbacks.
+- `parser.test.ts` — one quote-aware shape scanner covers delimiters inside
+  quoted labels across legacy shapes, and the shared Unicode identifier
+  grammar keeps CJK bare/shaped nodes connected rather than emptying the graph.
 - `flowchart-markdown-strings.test.ts` — styled bold/italic runs and metrics,
   balanced formatting across wraps, explicit breaks, default auto-wrap,
   verbatim opaque round-trip, and the exact #102 sample.

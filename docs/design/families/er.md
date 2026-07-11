@@ -10,8 +10,8 @@ structured-or-opaque contract.
 
 Supported today:
 
-- bare entity declarations and entities with attribute blocks
-  (`type name PK|FK|UK "comment"`)
+- bare and aliased entity declarations (`CUSTOMER["Customer Account"]`) and
+  entities with attribute blocks (`type name PK|FK|UK "comment"`)
 - relationships with the full Mermaid cardinality token set
   (`|| |o o| }o o{ }| |{`), identifying (`--`) and non-identifying (`..`)
   lines, and labels
@@ -19,6 +19,21 @@ Supported today:
   (plan §ER 6)
 - **flowchart-style `subgraph … end` tolerance** (repo #103) — see below
 - accessibility directives, SVG/PNG/ASCII output
+
+## Alias and composite-key evidence (2026-07)
+
+**Why:** `CUSTOMER["Customer Account"]` separates stable identity from display
+label, while `PK, FK` declares two badges for one attribute. The fixture is
+[`er-alias-keys-demo.mmd`](./er-alias-keys-demo.mmd).
+
+| Before (`7f5102a9`) | After |
+|---|---|
+| ![Alias declaration rendered as a blank CUSTOMER entity](./er-alias-keys-before.png) | ![Display alias and both key badges rendered](./er-alias-keys-after.png) |
+
+**What to inspect:** before, the alias declaration and attribute block are
+dropped, leaving `CUSTOMER (no attributes)`. After, the header reads `Customer
+Account` and the row shows a `PK,FK` badge while the relationship still resolves
+the stable `CUSTOMER` endpoint.
 
 ## Direction and spacing (2026-07 elevation)
 
@@ -97,10 +112,10 @@ The former bench exclusion
 (`local-verify-gap`, tracked by #103) has been converted to an imported case
 per its `convert-to-case` target.
 
-## Known gaps (tracked)
+## Styling boundary
 
-- Entity aliases (`CUSTOMER["Customer Account"]`) remain opaque on the agent
-  surface and currently render blank — plan §ER 2.
-- Comma-separated composite keys such as `PK, FK` still lose the token carrying
-  the comma — plan §ER 3. Attribute comments are now visible in SVG rather than
-  tooltip-only, but composite-key tokenization remains incomplete.
+Entity `:::class` suffixes no longer alter semantic identity or create phantom
+entities. They render against the bare entity id, while the agent body remains
+losslessly opaque and emits `er_opaque` because ER class styling is not yet a
+typed mutation construct. Aliases and comma-separated composite keys are fully
+structured; `set_entity_label` edits display labels without renaming ids.

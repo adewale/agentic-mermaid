@@ -111,21 +111,29 @@ export function historyLabel(deep: boolean): 'H' | 'H*' {
  *  transition. */
 const TRANSITION_ENDPOINT = String.raw`\[\*\]|[\w\p{L}-]+\[H\*?\]|\[H\*?\]|[\w\p{L}-]+`
 const TRANSITION_RE = new RegExp(
-  `^(${TRANSITION_ENDPOINT})\\s*-->\\s*(${TRANSITION_ENDPOINT})(?:\\s*:\\s*(.+))?$`,
+  `^(${TRANSITION_ENDPOINT})(?::::([\\w-]+))?\\s*-->\\s*(${TRANSITION_ENDPOINT})(?::::([\\w-]+))?(?:\\s*:\\s*(.+))?$`,
   'u',
 )
 
 export interface StateTransitionMatch {
   from: string
   to: string
+  fromClass?: string
+  toClass?: string
   label?: string
 }
 
 export function matchTransitionLine(line: string): StateTransitionMatch | null {
   const m = line.match(TRANSITION_RE)
   if (!m) return null
-  const rawLabel = m[3]?.trim()
-  return { from: m[1]!, to: m[2]!, ...(rawLabel ? { label: rawLabel } : {}) }
+  const rawLabel = m[5]?.trim()
+  return {
+    from: m[1]!,
+    ...(m[2] ? { fromClass: m[2] } : {}),
+    to: m[3]!,
+    ...(m[4] ? { toClass: m[4] } : {}),
+    ...(rawLabel ? { label: rawLabel } : {}),
+  }
 }
 
 /** True when a transition endpoint is a history reference. */

@@ -28,7 +28,7 @@ An agent-agnostic typed editing surface for Mermaid. New diagrams can be authore
 | Timeline (unmodeled syntax) | ✓ | structural | ✓ | — (opaque) | verbatim |
 | **Class (modeled subset)** | ✓ | structural | ✓ | **12 ops** | structured |
 | Class (unmodeled syntax) | ✓ | structural | ✓ | — (opaque) | verbatim |
-| **ER (simple)** | ✓ | structural | ✓ | **7 ops** | structured |
+| **ER (simple)** | ✓ | structural | ✓ | **8 ops** | structured |
 | ER (unmodeled syntax) | ✓ | structural | ✓ | — (opaque) | verbatim |
 | **Journey (simple)** | ✓ | structural | ✓ | **10 ops** | structured |
 | Journey (accTitle/accDescr, unmodeled) | ✓ | structural | ✓ | — (opaque) | verbatim |

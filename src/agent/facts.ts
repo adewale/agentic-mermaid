@@ -204,7 +204,7 @@ function factsClass(out: string[], body: ClassBody): void {
 
 function factsEr(out: string[], body: ErBody): void {
   for (const e of body.entities) {
-    add(out, `entity ${clean(e.id)}`)
+    add(out, `entity ${clean(e.id)}${e.label ? ` label ${clean(e.label)}` : ''}`)
     for (const attr of e.attributes) add(out, `attribute ${clean(e.id)} ${clean(attr.text)}`)
   }
   body.relations.forEach((r, i) => {

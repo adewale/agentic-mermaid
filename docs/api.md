@@ -174,7 +174,7 @@ Typed mutation families:
 | Sequence | `asSequence` | `add_participant`, `remove_participant`, `add_message`, `remove_message`, `set_message_text` |
 | Timeline | `asTimeline` | `set_title`, `add_section`, `add_period`, `add_event`, remove/set variants |
 | Class | `asClass` | `add_class`, `remove_class`, `rename_class`, `add_member`, `add_relation`, notes |
-| ER | `asEr` | `add_entity`, `remove_entity`, `rename_entity`, `add_attribute`, `add_relation` |
+| ER | `asEr` | `add_entity`, `remove_entity`, `rename_entity`, `set_entity_label`, `add_attribute`, `remove_attribute`, `add_relation`, `remove_relation` |
 | Journey | `asJourney` | `set_title`, `add_section`, `add_task`, `set_task_score`, `set_task_actors`, `rename_actor`, … |
 | XY chart | `asXyChart` | `set_title`, `set_x_axis`, `set_y_axis`, `add_series`, `set_series_values`, `reorder_series`, … |
 | Architecture | `asArchitecture` | `add_service`, `move_service`, `add_group`, `add_edge`, `rename_service`, … |

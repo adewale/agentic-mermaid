@@ -100,7 +100,7 @@ export function describeMermaidTree(d: ValidDiagram): DescribeTree {
     for (const c of d.body.classes) tree.nodes.push({ id: c.id, label: c.label || c.id })
     for (const r of d.body.relations) tree.edges.push({ from: r.from, to: r.to, label: r.label || r.kind })
   } else if (d.body.kind === 'er') {
-    for (const e of d.body.entities) tree.nodes.push({ id: e.id, label: e.id })
+    for (const e of d.body.entities) tree.nodes.push({ id: e.id, label: e.label || e.id })
     for (const r of d.body.relations) tree.edges.push({ from: r.from, to: r.to, label: r.label || undefined })
   } else if (d.body.kind === 'timeline') {
     for (const s of d.body.sections) for (const p of s.periods) {
@@ -328,7 +328,7 @@ function describeClass(d: ClassValidDiagram): string {
 function describeEr(d: ErValidDiagram): string {
   const entities = d.body.entities
   const relations = d.body.relations
-  const names = entities.map(e => e.id)
+  const names = entities.map(e => e.label ? `${e.id} ("${e.label}")` : e.id)
   const relStr = relations.map(r => {
     const lbl = r.label ? ` (${r.label})` : ''
     return `${r.from} ${r.leftCard}-${r.rightCard} ${r.to}${lbl}`

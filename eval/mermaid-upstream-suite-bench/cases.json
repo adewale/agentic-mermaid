@@ -1170,7 +1170,6 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
       "nodeCount": 1,
       "edgeCount": 0,
       "groupCount": 0,
@@ -1194,15 +1193,15 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
-      "nodeCount": 2,
+      "nodeCount": 3,
       "edgeCount": 1,
       "groupCount": 0,
-      "minNodes": 2,
+      "minNodes": 3,
       "minEdges": 1,
       "labelsContain": [
         "CUSTOMER",
         "DELIVERY-ADDRESS",
+        "2.5",
         "has"
       ]
     }
@@ -1221,7 +1220,6 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
       "nodeCount": 2,
       "edgeCount": 1,
       "groupCount": 0,
@@ -1248,7 +1246,6 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
       "nodeCount": 1,
       "edgeCount": 0,
       "groupCount": 0,
@@ -1272,15 +1269,15 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
-      "nodeCount": 2,
+      "nodeCount": 3,
       "edgeCount": 1,
       "groupCount": 0,
-      "minNodes": 2,
+      "minNodes": 3,
       "minEdges": 1,
       "labelsContain": [
         "CUSTOMER",
         "DELIVERY-ADDRESS",
+        "1",
         "has"
       ]
     }
@@ -1299,7 +1296,6 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
       "nodeCount": 2,
       "edgeCount": 1,
       "groupCount": 0,
@@ -1569,7 +1565,6 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
       "nodeCount": 5,
       "edgeCount": 3,
       "groupCount": 0,
@@ -1579,7 +1574,7 @@
         "CUSTOMER",
         "1",
         "u",
-        "\"2.5\"",
+        "2.5",
         "ORDER",
         "places",
         "contains",

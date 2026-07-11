@@ -9,6 +9,32 @@ when they started.
 > contributor process lessons ("add new at the top"), see
 > [`../contributing/lessons-learned.md`](../contributing/lessons-learned.md).
 
+## Loop index and status
+
+“Loop” was the name for the fork's early numbered implementation/review cycles;
+it is not a current release phase or an open-work status. Loops 1–22 are
+historical and complete. After Loop 22, major work is recorded by PR/issue
+retrospectives rather than inventing Loop 23+ numbers.
+
+| Loop(s) | Historical focus | Status |
+|---|---|---|
+| 1–7 | Parser/mutation foundation, structured-or-opaque fidelity, determinism experiments, corpus/eval setup, ecosystem survey, and the first agent verbs (`capabilities`, `batch`). The surviving record is cumulative rather than a reliable milestone-by-milestone ledger. | Complete; lessons consolidated in sections (a)–(e). |
+| 8–9 | PNG export and backlog completion under recoverable, commit-per-milestone execution. | Complete. |
+| 10 | Replace grep-based gap claims with executed behavioral probes. | Complete. |
+| 11 | Apply observation-first verification and localized SVG post-passes. | Complete. |
+| 12 | Benchmark honestly, including competitor wins. | Complete. |
+| 13 | Treat the closed agent loop and real-consumer workflow as the product risk. | Complete. |
+| 14 | Make consistency and generated-surface synchronization explicit contracts. | Complete. |
+| 15 | Start from the agent contract when replaying or extending a feature. | Complete. |
+| 16 | Replace visual “vibes” with executable layout heuristics. | Complete. |
+| 17 | Measure heuristic blast radius before accepting layout changes. | Complete. |
+| 18 | Prefer evidence from actual agent behavior over imagined ergonomics. | Complete. |
+| 19 | Distinguish CI-green from adversarial audit-clean. | Complete. |
+| 20 | Treat hidden family registries and synchronized surfaces as product APIs. | Complete. |
+| 21 | Treat tracked exceptions as gap maps, not permanent permission slips. | Complete. |
+| 22 / issue #71 | Treat abstractions as product contracts, with migration and naming consequences. | Complete. |
+| Post-22 | PR #54, #64, #79, #94, the agent-edit boundary, and PR #142 carry subsequent retrospectives. | Ongoing chronology; no numbered Loop 23 exists. |
+
 ## (a) What we wish we'd known
 
 When we started this fork we built a class diagram parser, then an ER
@@ -1054,6 +1080,18 @@ relationship endpoint. Modeling it as stable identity `Box` plus generic metadat
 serialization, facts, and `set_class_generic` converge on one object. Surface syntax
 is not a safe identifier when decorations carry type parameters, aliases, or display
 labels; normalize once and make every consumer use the normalized identity.
+
+The final parser audit found the same defect family in three more spellings:
+`A:::class` became visible `::class` text in State/Class or a distinct ER entity,
+`CUSTOMER["Customer Account"]` made the alias part of identity, and comma punctuation
+made `PK, FK` lose `PK`. The fix was not four regex patches: Unicode-aware Mermaid
+identifier/class-suffix primitives, one quote-aware Flowchart shape scanner, and
+shared ER entity-reference/relationship/attribute grammars now feed renderer and
+agent parsing. Typed ER identity is `id` plus optional `label`, with
+`set_entity_label`; styling that is still unmodeled remains opaque and warned rather
+than being discarded. Correctness-by-construction means every decorated reference
+passes through the same normalization boundary before layout, render, facts, or
+mutation can observe it.
 
 **Goldens are necessary pins, not correctness proofs.** The final geometry audit
 found eight dense self-loops sharing only six label centers, Architecture routes

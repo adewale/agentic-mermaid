@@ -17,7 +17,7 @@ const OPAQUE_BY_FAMILY: Record<string, string> = {
   // Notes/pseudostates were promoted to structured (repo #118); `--`
   // concurrency regions render but keep the honest opaque agent body.
   state: 'stateDiagram-v2\n  state P {\n    a --> b\n    --\n    c --> d\n  }',
-  er: 'erDiagram\n  CUSTOMER["The Customer"] ||--o{ ORDER : places', // quoted alias
+  er: 'erDiagram\n  CUSTOMER:::highlight ||--o{ ORDER : places', // styling remains typed-opaque
   xychart: 'xychart-beta\n  accTitle: forces opaque\n  bar [1, 2, 3]', // accTitle directive
   pie: 'pie\n  Dogs : 40\n  Cats : 30', // unquoted labels (Mermaid requires quotes)
 }

@@ -184,9 +184,10 @@ const CLASS_SCHEMA: Record<string, OpSpec> = {
 }
 
 const ER_SCHEMA: Record<string, OpSpec> = {
-  add_entity:       { fields: { id: str(), attributes: strArr(false) } },
+  add_entity:       { fields: { id: str(), label: str(false), attributes: strArr(false) } },
   remove_entity:    { fields: { id: str() } },
   rename_entity:    { fields: { from: str(), to: str() } },
+  set_entity_label: { fields: { entity: str(), label: strOrNull() } },
   add_attribute:    { fields: { entity: str(), text: str() } },
   remove_attribute: { fields: { entity: str(), index: num() } },
   add_relation:     { fields: { from: str(), to: str(), leftCard: oneOf(ER_CARDINALITIES), rightCard: oneOf(ER_CARDINALITIES), dashed: bool(false), label: str(false) } },

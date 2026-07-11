@@ -124,7 +124,7 @@ interface ClassBody { kind: 'class'; title?: string; classes: ClassNode[]; relat
 
 type ErCardinality = 'one-only' | 'zero-or-one' | 'zero-or-many' | 'one-or-many'
 interface ErAttribute { text: string }
-interface ErEntity { id: string; attributes: ErAttribute[] }
+interface ErEntity { id: string; label?: string; attributes: ErAttribute[] }
 interface ErRelation { from: string; to: string; leftCard: ErCardinality; rightCard: ErCardinality; dashed: boolean; label?: string }
 interface ErBody { kind: 'er'; entities: ErEntity[]; relations: ErRelation[] }
 
@@ -252,9 +252,10 @@ type ClassMutationOp =
   | { kind: 'set_class_namespace'; class: string; namespace: string | null }
 
 type ErMutationOp =
-  | { kind: 'add_entity'; id: string; attributes?: string[] }
+  | { kind: 'add_entity'; id: string; label?: string; attributes?: string[] }
   | { kind: 'remove_entity'; id: string }
   | { kind: 'rename_entity'; from: string; to: string }
+  | { kind: 'set_entity_label'; entity: string; label: string | null }
   | { kind: 'add_attribute'; entity: string; text: string }
   | { kind: 'remove_attribute'; entity: string; index: number }
   | { kind: 'add_relation'; from: string; to: string; leftCard: ErCardinality; rightCard: ErCardinality; dashed?: boolean; label?: string }

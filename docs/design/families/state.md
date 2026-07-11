@@ -51,6 +51,20 @@ Render-parser-only details:
   (`X__r1`, `X__r2`, …) flagged `concurrencyRegion` — members land in their
   region, so containment is by construction.
 
+## `:::` class shorthand evidence (2026-07)
+
+**Why:** `A:::urgent` decorates state `A`; it must not become a description or
+change semantic identity. The fixture is
+[`state-style-shorthand-demo.mmd`](./state-style-shorthand-demo.mmd).
+
+| Before (`7f5102a9`) | After |
+|---|---|
+| ![Class shorthand leaked into the state label](./state-style-shorthand-before.png) | ![State identity preserved and class paint applied](./state-style-shorthand-after.png) |
+
+**What to inspect:** before, the node is visibly named `::urgent`. After, it is
+`A`, has the authored red class paint, and the transition remains attached to
+that same state.
+
 ## Rendering
 
 - **Fork/join** (`state-fork`/`state-join`): filled bars perpendicular to the
@@ -155,9 +169,10 @@ round-trip proof per op):
   structured body keeps such diagrams opaque (announced by the
   `state_opaque` lint). A structured region model (regions inside
   `StateNode`) is deliberate future work — repo #118 does not list it.
-- `classDef`/`class`/`:::` styling, bare `stateId` lines, hyphenated
-  composite ids: unchanged opaque fallbacks (plan §State 3 is a separate
-  work item).
+- `classDef`/`:::` styling now renders through the shared graph paint model
+  without turning `A:::class` into visible `::class` text; the typed StateBody
+  still keeps styled sources opaque and warned. Full typed style mutation,
+  bare `stateId` lines, and hyphenated composite ids remain separate work.
 - Notes on deeply nested states sit outside the enclosing composite rather
   than growing it.
 - History rendering is visual+preservation only; no reachability analysis

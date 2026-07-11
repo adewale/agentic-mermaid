@@ -12,7 +12,7 @@ export const MUTATION_OPS_BY_FAMILY = {
   sequence: ['add_participant', 'remove_participant', 'add_message', 'remove_message', 'set_message_text', 'move_message', 'set_participant_label'],
   timeline: ['set_title', 'add_section', 'remove_section', 'set_section_label', 'add_period', 'remove_period', 'set_period_label', 'add_event', 'remove_event', 'set_event_text', 'move_period', 'move_event', 'move_section', 'set_accessibility_title', 'set_accessibility_description'],
   class: ['set_title', 'add_class', 'remove_class', 'rename_class', 'set_class_generic', 'add_member', 'remove_member', 'add_relation', 'remove_relation', 'add_note', 'remove_note', 'set_class_namespace'],
-  er: ['add_entity', 'remove_entity', 'rename_entity', 'add_attribute', 'remove_attribute', 'add_relation', 'remove_relation'],
+  er: ['add_entity', 'remove_entity', 'rename_entity', 'set_entity_label', 'add_attribute', 'remove_attribute', 'add_relation', 'remove_relation'],
   journey: ['set_title', 'add_section', 'remove_section', 'set_section_label', 'add_task', 'remove_task', 'set_task_text', 'set_task_score', 'set_task_actors', 'rename_actor', 'move_task', 'move_section', 'set_accessibility_title', 'set_accessibility_description'],
   architecture: ['set_title', 'add_service', 'remove_service', 'rename_service', 'set_service_label', 'set_service_icon', 'move_service', 'add_group', 'remove_group', 'add_edge', 'remove_edge'],
   xychart: ['set_title', 'set_x_axis', 'set_y_axis', 'add_series', 'remove_series', 'set_series_values', 'set_series_name', 'reorder_series', 'set_orientation', 'set_data_point'],

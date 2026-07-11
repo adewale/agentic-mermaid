@@ -25,6 +25,18 @@ describe('renderMermaidSVG – ER diagrams', () => {
     expect(svg).toContain('belongs_to')
   })
 
+  it('renders aliased entities and all comma-separated key badges', () => {
+    const svg = renderMermaidSVG(`erDiagram
+      CUSTOMER["Customer Account"] {
+        int account_id PK, FK "shared key"
+      }
+      CUSTOMER ||--o{ ORDER : places`)
+    expect(svg).toContain('Customer Account')
+    expect(svg).toContain('PK,FK')
+    expect(svg).toContain('shared key')
+    expect(svg).not.toContain('CUSTOMER[&quot;Customer Account&quot;]')
+  })
+
   it('renders entity with attributes', () => {
     const svg = renderMermaidSVG(`erDiagram
       CUSTOMER {

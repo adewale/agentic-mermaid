@@ -63,6 +63,15 @@ describe('parseErDiagram – entity definitions', () => {
     expect(d.entities[0]!.attributes[0]!.keys).toContain('UK')
   })
 
+  it('parses comma-separated composite keys without dropping the first key', () => {
+    const d = parse(`erDiagram
+      USER {
+        int account_id PK, FK "shared key"
+      }`)
+    expect(d.entities[0]!.attributes[0]!.keys).toEqual(['PK', 'FK'])
+    expect(d.entities[0]!.attributes[0]!.comment).toBe('shared key')
+  })
+
   it('parses attributes with comment', () => {
     const d = parse(`erDiagram
       USER {
@@ -82,6 +91,37 @@ describe('parseErDiagram – entity definitions', () => {
         date created
       }`)
     expect(d.entities).toHaveLength(2)
+  })
+
+  it('accepts quoted and unquoted aliases on declarations with attributes', () => {
+    const d = parse(`erDiagram
+      p[Person] {
+        string name
+      }
+      a["Customer Account"] {
+        string email
+      }`)
+    expect(d.entities.map(entity => ({ id: entity.id, label: entity.label, attributes: entity.attributes.length }))).toEqual([
+      { id: 'p', label: 'Person', attributes: 1 },
+      { id: 'a', label: 'Customer Account', attributes: 1 },
+    ])
+  })
+
+  it('normalizes aliased declarations and relationship endpoints to one stable entity identity', () => {
+    const d = parse(`erDiagram
+      CUSTOMER["Customer Account"] ||--o{ ORDER["Purchase Order"] : places`)
+    expect(d.entities.map(entity => ({ id: entity.id, label: entity.label }))).toEqual([
+      { id: 'CUSTOMER', label: 'Customer Account' },
+      { id: 'ORDER', label: 'Purchase Order' },
+    ])
+    expect(d.relationships.map(relation => `${relation.entity1}->${relation.entity2}`)).toEqual(['CUSTOMER->ORDER'])
+  })
+
+  it('strips ::: styling suffixes from semantic identity instead of minting phantom entities', () => {
+    const d = parse(`erDiagram
+      PERSON:::source ||--o{ CAR:::target : owns`)
+    expect(d.entities.map(entity => entity.id)).toEqual(['PERSON', 'CAR'])
+    expect(d.relationships.map(relation => `${relation.entity1}->${relation.entity2}`)).toEqual(['PERSON->CAR'])
   })
 
   it('auto-creates entities from relationships', () => {

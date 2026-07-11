@@ -2,9 +2,42 @@ import type { ErDiagram, ErEntity, ErAttribute, ErRelationship, Cardinality } fr
 import { normalizeBrTags } from '../multiline-utils.ts'
 import { parseDirectionStatement } from '../shared/direction-statement.ts'
 
-const ER_ENTITY_ID_RE = /^[A-Za-z_][\w-]*$/
+// Mermaid ER accepts ordinary names, numeric/decimal names, and fully quoted
+// names (e.g. `1`, `2.5`, `"Entity<br>Name"`). Keep this grammar in one
+// place so declarations, blocks, relationships, and the agent body agree.
+const ER_BARE_ENTITY_ID_SOURCE = String.raw`[A-Za-z0-9_][\w.-]*`
+const ER_QUOTED_ENTITY_ID_SOURCE = String.raw`"(?:\\.|[^"\\])+"`
+const ER_ENTITY_ID_SOURCE = `(?:${ER_QUOTED_ENTITY_ID_SOURCE}|${ER_BARE_ENTITY_ID_SOURCE})`
+const ER_ENTITY_ID_RE = new RegExp(`^${ER_BARE_ENTITY_ID_SOURCE}$`)
+const ER_ENTITY_REFERENCE_SOURCE = `${ER_ENTITY_ID_SOURCE}(?:\\[\\s*(?:"(?:\\\\.|[^"\\\\])*"|[^\\]"\\r\\n]+)\\s*\\])?(?::::[\\w-]+)?`
 
-/** Shared renderer/agent grammar for an ER entity identifier. */
+export interface ParsedErEntityReference {
+  id: string
+  label?: string
+  /** Mermaid `:::class` styling is render-tolerated but not agent-modeled. */
+  className?: string
+}
+
+/** Shared renderer/agent grammar for bare and aliased ER entity references. */
+export function parseErEntityReference(value: string): ParsedErEntityReference | null {
+  const regex = new RegExp(`^(${ER_ENTITY_ID_SOURCE})(?:\\[\\s*(?:"((?:\\\\.|[^"\\\\])*)"|([^\\]"\\r\\n]+))\\s*\\])?(?::::([\\w-]+))?$`)
+  const match = value.trim().match(regex)
+  if (!match) return null
+  const quotedId = match[1]!.startsWith('"')
+  const id = quotedId
+    ? match[1]!.slice(1, -1).replace(/\\(["\\])/g, '$1')
+    : match[1]!
+  const alias = (match[2] ?? match[3]?.trim())?.replace(/\\(["\\])/g, '$1')
+  return {
+    id,
+    ...(alias !== undefined
+      ? { label: normalizeBrTags(alias) }
+      : quotedId ? { label: normalizeBrTags(id) } : {}),
+    ...(match[4] ? { className: match[4] } : {}),
+  }
+}
+
+/** Shared renderer/agent grammar for a plain ER entity identifier. */
 export function parseErEntityId(value: string): string | null {
   const id = value.trim()
   return ER_ENTITY_ID_RE.test(id) ? id : null
@@ -88,7 +121,7 @@ export function parseErDiagram(lines: string[]): ErDiagram {
       }
 
       // Attribute line: type name [PK|FK|UK] ["comment"]
-      const attr = parseAttribute(line)
+      const attr = parseErAttribute(line)
       if (attr) {
         currentEntity.attributes.push(attr)
       }
@@ -115,10 +148,11 @@ export function parseErDiagram(lines: string[]): ErDiagram {
     }
 
     // --- Entity block start: `ENTITY_NAME {` ---
-    const entityBlockMatch = line.match(/^(\S+)\s*\{$/)
+    const entityBlockMatch = line.match(new RegExp(`^(${ER_ENTITY_REFERENCE_SOURCE})\\s*\\{$`))
     if (entityBlockMatch) {
-      const id = entityBlockMatch[1]!
-      const entity = ensureEntity(entityMap, id)
+      const reference = parseErEntityReference(entityBlockMatch[1]!)
+      if (!reference) continue
+      const entity = ensureEntity(entityMap, reference.id, reference.label)
       currentEntity = entity
       continue
     }
@@ -127,8 +161,8 @@ export function parseErDiagram(lines: string[]): ErDiagram {
     const rel = parseRelationshipLine(line)
     if (rel) {
       // Ensure both entities exist
-      ensureEntity(entityMap, rel.entity1)
-      ensureEntity(entityMap, rel.entity2)
+      ensureEntity(entityMap, rel.entity1, rel.entity1Label)
+      ensureEntity(entityMap, rel.entity2, rel.entity2Label)
       diagram.relationships.push(rel)
       continue
     }
@@ -136,8 +170,8 @@ export function parseErDiagram(lines: string[]): ErDiagram {
     // Bare entities are emitted by the typed serializer. Delimiters,
     // subgraph headers, and direction statements were consumed above, so this
     // branch cannot mint phantom `end` or direction entities.
-    const bareEntity = parseErEntityId(line)
-    if (bareEntity) ensureEntity(entityMap, bareEntity)
+    const bareEntity = parseErEntityReference(line)
+    if (bareEntity) ensureEntity(entityMap, bareEntity.id, bareEntity.label)
   }
 
   diagram.entities = [...entityMap.values()]
@@ -167,17 +201,19 @@ function collectAccessibilityBlock(initial: string, lines: string[], startIndex:
 }
 
 /** Ensure an entity exists in the map */
-function ensureEntity(entityMap: Map<string, ErEntity>, id: string): ErEntity {
+function ensureEntity(entityMap: Map<string, ErEntity>, id: string, label?: string): ErEntity {
   let entity = entityMap.get(id)
   if (!entity) {
-    entity = { id, label: id, attributes: [] }
+    entity = { id, label: label ?? id, attributes: [] }
     entityMap.set(id, entity)
+  } else if (label !== undefined) {
+    entity.label = label
   }
   return entity
 }
 
 /** Parse an attribute line inside an entity block */
-function parseAttribute(line: string): ErAttribute | null {
+export function parseErAttribute(line: string): ErAttribute | null {
   // Format: type name [PK|FK|UK [...]] ["comment"]
   const match = line.match(/^(\S+)\s+(\S+)(?:\s+(.+))?$/)
   if (!match) return null
@@ -198,7 +234,7 @@ function parseAttribute(line: string): ErAttribute | null {
 
   // Extract key constraints
   const restWithoutComment = rest.replace(/"[^"]*"/, '').trim()
-  for (const part of restWithoutComment.split(/\s+/)) {
+  for (const part of restWithoutComment.split(/[\s,]+/)) {
     const upper = part.toUpperCase()
     if (upper === 'PK' || upper === 'FK' || upper === 'UK') {
       keys.push(upper as 'PK' | 'FK' | 'UK')
@@ -221,38 +257,58 @@ function parseAttribute(line: string): ErAttribute | null {
  *
  * Full pattern example: CUSTOMER ||--o{ ORDER : places
  */
-function parseRelationshipLine(line: string): ErRelationship | null {
-  // Match: ENTITY1 <cardinality_and_line> ENTITY2 : label
-  const match = line.match(/^(\S+)\s+([|o}{]+(?:--|\.\.)[|o}{]+)\s+(\S+)\s*:\s*(.+)$/)
+export interface ParsedErRelationshipSyntax {
+  entity1: ParsedErEntityReference
+  entity2: ParsedErEntityReference
+  leftToken: string
+  rightToken: string
+  identifying: boolean
+  label: string
+}
+
+/** Shared relationship grammar. Alias text may contain spaces; entity styling
+ * suffixes normalize to the same stable id instead of becoming phantom ids. */
+export function parseErRelationshipSyntax(line: string): ParsedErRelationshipSyntax | null {
+  const regex = new RegExp(`^(${ER_ENTITY_REFERENCE_SOURCE})\\s+([|o}{]+)(--|\\.\\.)([|o}{]+)\\s+(${ER_ENTITY_REFERENCE_SOURCE})\\s*:\\s*(.+)$`)
+  const match = line.match(regex)
   if (!match) return null
+  const entity1 = parseErEntityReference(match[1]!)
+  const entity2 = parseErEntityReference(match[5]!)
+  if (!entity1 || !entity2) return null
+  const rawLabel = match[6]!.trim().replace(/^["']|["']$/g, '')
+  return {
+    entity1,
+    entity2,
+    leftToken: match[2]!,
+    rightToken: match[4]!,
+    identifying: match[3] === '--',
+    label: normalizeBrTags(rawLabel),
+  }
+}
 
-  const entity1 = match[1]!
-  const cardinalityStr = match[2]!
-  const entity2 = match[3]!
-  // Strip surrounding quotes if present, then normalize br tags
-  const rawLabel = match[4]!.trim().replace(/^["']|["']$/g, '')
-  const label = normalizeBrTags(rawLabel)
-
-  // Split the cardinality string into left side, line style, right side
-  const lineMatch = cardinalityStr.match(/^([|o}{]+)(--|\.\.?)([|o}{]+)$/)
-  if (!lineMatch) return null
-
-  const leftStr = lineMatch[1]!
-  const lineStyle = lineMatch[2]!
-  const rightStr = lineMatch[3]!
-
-  const cardinality1 = parseCardinality(leftStr)
-  const cardinality2 = parseCardinality(rightStr)
-  const identifying = lineStyle === '--'
+function parseRelationshipLine(line: string): (ErRelationship & { entity1Label?: string; entity2Label?: string }) | null {
+  const syntax = parseErRelationshipSyntax(line)
+  if (!syntax) return null
+  const cardinality1 = parseCardinality(syntax.leftToken)
+  const cardinality2 = parseCardinality(syntax.rightToken)
 
   if (!cardinality1 || !cardinality2) {
     throw new Error(
-      `Invalid ER cardinality "${cardinalityStr}" in "${line}" ` +
+      `Invalid ER cardinality "${syntax.leftToken}${syntax.identifying ? '--' : '..'}${syntax.rightToken}" in "${line}" ` +
       `(valid tokens on either side: ||, |o, o|, }o, o{, }|, |{)`,
     )
   }
 
-  return { entity1, entity2, cardinality1, cardinality2, label, identifying }
+  return {
+    entity1: syntax.entity1.id,
+    entity2: syntax.entity2.id,
+    ...(syntax.entity1.label !== undefined ? { entity1Label: syntax.entity1.label } : {}),
+    ...(syntax.entity2.label !== undefined ? { entity2Label: syntax.entity2.label } : {}),
+    cardinality1,
+    cardinality2,
+    label: syntax.label,
+    identifying: syntax.identifying,
+  }
 }
 
 /**

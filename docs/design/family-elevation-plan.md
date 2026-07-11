@@ -4,14 +4,14 @@ Status: implementation ledger — broad cross-family elevation shipped in PR #14
 Last reviewed: 2026-07-10
 
 This document began as the plan of record and now records the implemented
-family-elevation scope. PR #142 does **not** complete every item below. In
-particular, residual Phase 1 fixes remain for Flowchart quoted non-rectangle
-labels/CJK IDs, State and Class `:::` styling, ER aliases/composite keys, and
-Architecture's generalized port-routing work. Phase 4 signatures,
-width-constrained ASCII, generalized SVG identity, and new mindmap/gitGraph
-families also remain follow-up work and must not be described as delivered by
-PR #142. Timeline's shared grammar and event-less serialization items were
-completed during final review.
+family-elevation scope. PR #142 does **not** complete every item below. The
+final review closed the remaining parser-integrity cluster—Flowchart quoted
+non-rectangle labels and Unicode IDs, Timeline grammar drift, State/Class/ER
+`:::` identity corruption, and ER aliases/composite keys—using shared grammar
+primitives and cross-surface tests. Architecture's generalized port-routing
+work, the remaining Phase 4 signatures, width-constrained ASCII, generalized
+SVG identity, and new mindmap/gitGraph families remain follow-up work and must not be
+described as delivered by PR #142.
 Worked example: the Journey elevation (PR #141), whose method this plan
 generalizes to the other eleven families.
 
@@ -308,6 +308,19 @@ Format: `[Fix|Feature(parity)|Feature(beyond)] [V|S] Title — construction move
    overlay, architecture icon + routing story, class cardinality collision
    pass, quadrant dense-cluster placement, X3 width-constrained ASCII,
    X4 identity contract, X8 mindmap + gitGraph.
+
+### Phase status after PR #142
+
+| Phase | State | Evidence / remainder |
+|---|---|---|
+| 0 — honesty + guards | **Substantially complete** | Per-family conformance, opaque fallback diagnostics, wire-or-warn config, CLI flag ownership, and corpus gates ship. Some broad `<family>_opaque` diagnostics can still become more syntax-specific as constructs are modeled. |
+| 1 — silent-data-loss fixes | **Complete for the parser-integrity cluster; routing remainder tracked** | Shared Flowchart identifier/quoted-label handling, Timeline parse core, State/Class/ER `:::` identity guards, ER aliases/composite keys, serializer conformance, and post-move Architecture anchors ship. Generalized Architecture port/obstacle routing remains tracked. |
+| 2 — geometry + text truth | **Substantially complete** | Shared measurement/wrapping/contrast, dense-loop occupancy, label fitting, PNG coverage warnings, and family rubrics ship. Width-constrained ASCII and some deeper spatial ASCII work remain. |
+| 3 — parity features | **Substantially complete** | Legends, donut/slice labels, Quadrant styles, vertical Timeline, Gantt shading, State pseudostates, Class namespaces/generics, ER direction, Sequence lifecycle/boxes, and expanded op menus ship. Unmodeled syntax remains source-preserved rather than claimed complete. |
+| 4 — signatures | **Partial** | Gantt dependency/critical-path overlays and Quadrant dense-cluster placement ship; SVG identity has family-specific slices. Generalized Architecture routing, Class cardinality collision, width-constrained ASCII, a complete cross-family identity contract, mindmap, and gitGraph remain. |
+
+“Substantially complete” is not a release euphemism for done: the remainder is
+named in the table so later PRs can close it with the same red→green contract.
 
 ## Definition of done (every item)
 

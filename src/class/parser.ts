@@ -234,6 +234,21 @@ export function parseClassDiagram(lines: string[]): ClassDiagram {
       continue
     }
 
+    // --- Class shorthand: `ClassName:::style` ---
+    // Styling is not yet modeled by ClassDiagram, but consuming the legal
+    // shorthand here prevents it from becoming a phantom `::style` member.
+    // The agent body remains opaque and announces that typed mutation is
+    // unavailable, preserving the authored styling source verbatim.
+    const classShorthand = line.match(/^(.+?):::([\w-]+)$/)
+    if (classShorthand) {
+      const reference = parseClassReference(classShorthand[1]!)
+      if (reference) {
+        ensureClass(classMap, reference.id, reference.generic)
+        claimClass(reference.id)
+        continue
+      }
+    }
+
     // --- Inline attribute: `ClassName : +String name` ---
     const inlineAttrMatch = line.match(/^(\S+?)\s*:\s*(.+)$/)
     if (inlineAttrMatch) {

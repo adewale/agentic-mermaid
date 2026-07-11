@@ -22,6 +22,22 @@ Supported today:
 - accessibility directives (`accTitle` / `accDescr`)
 - SVG, PNG, and ASCII output (ASCII does not draw namespace boxes yet)
 
+## `:::` class shorthand evidence (2026-07)
+
+**Why:** `Account:::highlight` decorates `Account`; the suffix is not an
+inline class member. The fixture is
+[`class-style-shorthand-demo.mmd`](./class-style-shorthand-demo.mmd).
+
+| Before (`7f5102a9`) | After |
+|---|---|
+| ![A phantom style-suffix member](./class-style-shorthand-before.png) | ![Stable class identity without a phantom member](./class-style-shorthand-after.png) |
+
+**What to inspect:** the before box contains a spurious `::highlight` member;
+the after box preserves one `Account` identity and an empty member compartment.
+The renderer intentionally does not claim classDiagram paint semantics yet;
+the structured agent surface therefore keeps styled class syntax opaque and
+warned rather than silently dropping it.
+
 ## Namespaces (2026-07 elevation)
 
 Upstream contract (verified against mermaid.js.org/syntax/classDiagram.html
@@ -121,6 +137,14 @@ identity (`Box`) plus `ClassNode.generic` (`T`). The renderer displays
 `Box<T>`; canonical serialization emits the upstream `~T~` declaration and
 bare relationship endpoints. `add_class.generic` and `set_class_generic`
 provide typed authoring/editing without forcing an opaque fallback.
+
+## Styling boundary
+
+`ClassName:::style` is consumed before inline-member parsing, including `$` and
+backtick class identities, so it can no longer create a phantom `::style`
+attribute. Class styling is not yet represented by the typed `ClassBody`; such
+sources therefore remain losslessly opaque with a `class_opaque` warning while
+the renderer preserves the class identity and draws uncorrupted content.
 
 ## Known gaps (tracked)
 
