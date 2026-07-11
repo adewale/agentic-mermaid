@@ -449,7 +449,7 @@
     {
       "id": "B18",
       "file": "src/__tests__/family-elevation-ledger.test.ts",
-      "title": "every done claim resolves to an exact executable title in a cited test file"
+      "title": "B18 closure cites the stable final-head audit record"
     }
   ]
 }

@@ -3,6 +3,8 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 const PLAN = readFileSync(join(import.meta.dir, '..', '..', 'docs/design/family-elevation-plan.md'), 'utf8')
+const ACCEPTANCE = readFileSync(join(import.meta.dir, '..', '..', 'docs/design/family-elevation-acceptance.md'), 'utf8')
+const FINAL_AUDIT_URL = 'https://github.com/adewale/agentic-mermaid/pull/149#issuecomment-4949151500'
 
 const EXPECTED_LEDGER_IDS = [
   ...Array.from({ length: 8 }, (_, i) => `F${i + 1}`),
@@ -105,6 +107,14 @@ describe('family elevation plan is a mechanically complete ledger', () => {
       expect(row.detail, `${acceptance.id}: evidence file is cited by the plan row`).toContain(`\`${acceptance.file.split('/').at(-1)}\``)
       expect(declaredTestTitles(acceptance.file), `${acceptance.id}: exact executable acceptance title`).toContain(acceptance.title)
     }
+  })
+
+  test('B18 closure cites the stable final-head audit record', () => {
+    const b18 = rows('family-elevation-backlog').find(row => row.id === 'B18')
+    expect(b18?.status).toBe('done')
+    expect(b18?.detail).toContain(FINAL_AUDIT_URL)
+    expect(ACCEPTANCE).toContain('Status: **B18 complete')
+    expect(ACCEPTANCE).toContain(FINAL_AUDIT_URL)
   })
 
   test('Phase 0 status is derived from its exact-evidence rows', () => {
