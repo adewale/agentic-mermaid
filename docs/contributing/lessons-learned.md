@@ -8,6 +8,34 @@ date; do not delete old ones — supersede them in place.
 > cumulative fork narrative (loops 1–22), see
 > [`../project/lessons-learned.md`](../project/lessons-learned.md).
 
+## 2026-07 — the all-family elevation PR (#142)
+
+**A before/after image proves change, not intent.** The first visual-evidence
+matrix said what moved but not why. Its Timeline row showed a horizontal diagram
+becoming vertical, which looked like an arbitrary redesign until the caption was
+amended to say that the fixture explicitly authors `timeline TD` and the old
+renderer ignored it. Rule: every visual comparison needs the authored trigger or
+user contract (**why**) separately from the pixels a reviewer should inspect
+(**what**). If the reason is not visible beside the evidence, the reviewer cannot
+distinguish a correction from churn.
+
+**Audit issue acceptance criteria, not issue keywords.** The broad family uplift
+overlapped five open issues, but three were only partly complete: Architecture
+accepted `align` without honoring its geometry (#101), Flowchart parsed markdown
+while discarding emphasis (#102), and the Class/State work for #118 still lacked
+Class generics. Rule: before claiming closure, replay every acceptance condition
+and probe the actual output. Either finish the overlap in the current PR or state
+precisely what remains; a parser accepting syntax is not the same as the product
+implementing it.
+
+**Goldens pin output; discriminating invariants prove correctness.** Snapshot drift
+did not reveal that eight dense self-loops had only six unique label centers, that
+Architecture routes still used pre-alignment anchors, or that an aligned lane hid
+an unconstrained sibling. Direct geometry assertions exposed all three. Rule: pair
+intentional golden updates with tests for the causal property—unique occupancy,
+post-move anchoring, containment, non-overlap, determinism, or source-order
+invariance—and verify that reverting the fix makes those tests red.
+
 ## 2026-07 — style coverage and typography semantics
 
 **A style transform is a semantic contract, not a blanket SVG rewrite.**

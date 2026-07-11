@@ -1017,3 +1017,57 @@ never throws, and *a successful apply implies the op passed shape validation* �
 machine statement of "no silent mangle." That invariant is what goes red when the
 validator is removed, which is how you know the fuzz is discriminating and not a
 tautology.
+
+## PR #142 lesson — parity requires causal evidence and end-to-end semantics
+
+PR #142 elevated all twelve built-in families at once. The breadth made three
+failure modes unusually visible: visual changes without an adjacent reason look
+arbitrary, accepting syntax can masquerade as implementing it, and exact-output
+goldens can faithfully preserve incorrect geometry.
+
+**A visual diff needs a causal caption.** The original evidence table told reviewers
+what changed, but not why it should have changed. The Timeline pair was the clearest
+example: horizontal became vertical, with no explanation that the fixture explicitly
+uses `timeline TD`, Mermaid's top-to-bottom orientation, and that the old renderer
+ignored the token. The corrected table separates **Why** (the authored syntax,
+configuration, or semantic contract) from **What to inspect** (the visible proof).
+A before/after image establishes difference; it does not establish correctness until
+the intended cause is stated beside it. This applies equally to generated artifacts:
+reproducibility answers “did the renderer make this?” while the caption answers “was
+this the renderer's right decision?”
+
+**Parse support is not feature support.** An audit of every open repository issue
+found that three issues overlapped the PR but were only partly complete. Architecture
+`align` directives parsed and round-tripped but did not constrain geometry (#101).
+Flowchart markdown strings parsed, but bold and italic markers were flattened (#102).
+Namespaces and State constructs had landed for #118, but Class generics had not.
+Those are useful intermediate states when they are explicitly warned and ledgered;
+they are not honest issue closure. The durable completion check is the entire chain:
+parse → model → measure/layout → render → serialize → verify → typed mutation, with
+source-preserved opaque fallback where a typed stage remains intentionally absent.
+
+**Normalize semantic identity before adding syntax to mutation.** `Box~T~` initially
+risked becoming one class at declaration time and a second class when used as a
+relationship endpoint. Modeling it as stable identity `Box` plus generic metadata
+`T` let declarations, notes, members, relationships, rendering (`Box<T>`), canonical
+serialization, facts, and `set_class_generic` converge on one object. Surface syntax
+is not a safe identifier when decorations carry type parameters, aliases, or display
+labels; normalize once and make every consumer use the normalized identity.
+
+**Goldens are necessary pins, not correctness proofs.** The final geometry audit
+found eight dense self-loops sharing only six label centers, Architecture routes
+anchored to stale pre-alignment bounds, and an aligned lane overlapping an
+unconstrained sibling. Every output was deterministic and therefore perfectly able
+to produce a stable wrong golden. The fixes were justified by discriminating
+properties—unique route/label occupancy, anchors derived from post-move geometry,
+non-overlap, containment, and source-order invariance—then the intentional goldens
+were regenerated. The order matters: prove the invariant first; use the golden to
+pin the proven result second.
+
+**Cross-family claims require a cross-family matrix.** Shared text measurement,
+wrapping, route contracts, palette resolution, and style transforms can improve one
+family while regressing another. Rendering every elevated feature under multiple
+Style + Palette stacks, checking one generated all-family sheet byte-for-byte, and
+running the ordinary family corpus caught integration drift that family-local tests
+could not. When a PR's claim says “all families,” at least one executable gate must
+quantify over all families rather than infer coverage from twelve separate anecdotes.
