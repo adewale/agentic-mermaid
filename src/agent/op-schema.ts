@@ -170,9 +170,10 @@ const TIMELINE_SCHEMA: Record<string, OpSpec> = {
 
 const CLASS_SCHEMA: Record<string, OpSpec> = {
   set_title:       { fields: { title: strOrNull() } },
-  add_class:       { fields: { id: str(), label: str(false), members: strArr(false), namespace: withNote(str(false), 'dot path, e.g. "Platform.Auth"; declared on demand') } },
+  add_class:       { fields: { id: str(), label: str(false), generic: withNote(str(false), 'Mermaid generic parameter text without surrounding ~ delimiters'), members: strArr(false), namespace: withNote(str(false), 'dot path, e.g. "Platform.Auth"; declared on demand') } },
   remove_class:    { fields: { id: str() } },
   rename_class:    { fields: { from: str(), to: str() } },
+  set_class_generic: { fields: { class: str(), generic: withNote(strOrNull(), 'parameter text without ~ delimiters; null removes it') } },
   add_member:      { fields: { class: str(), text: str() } },
   remove_member:   { fields: { class: str(), index: num() } },
   add_relation:    { fields: { from: str(), to: str(), relKind: oneOf(CLASS_REL_KINDS), label: str(false) } },
@@ -210,6 +211,7 @@ const JOURNEY_SCHEMA: Record<string, OpSpec> = {
 }
 
 const ARCHITECTURE_SCHEMA: Record<string, OpSpec> = {
+  set_title:         { fields: { title: strOrNull() } },
   add_service:       { fields: { id: str(), label: str(false), icon: strOrNull(false), group: strOrNull(false) } },
   remove_service:    { fields: { id: str() } },
   rename_service:    { fields: { from: str(), to: str() } },

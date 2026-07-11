@@ -1,7 +1,7 @@
 # Flowchart — family contracts
 
 Status: living contract for the flowchart-family elevation
-(plan §Flowchart items 6, 7, 8; repo issues #44 and #102 layer 1).
+(plan §Flowchart items 3, 6, 7, 8; repo issues #44 and #102).
 Last updated: 2026-07-10.
 
 Flowchart is the flagship family: the legacy `src/parser.ts` grammar feeds the
@@ -92,14 +92,14 @@ Upstream schema verified 2026-07-10
   documented v11 name/alias; v11 names set `semanticShape`/`authoredShape`,
   geometry names clear them.
 
-## Markdown strings (`"`…`"`) — repo #102 layer 1
+## Markdown strings (`"`…`"`) — repo #102
 
 - The render parser accepts backtick-quoted labels on nodes (any shape,
   single-line; multiline via the quoted-rectangle and shape forms) and on
   edge labels (pipe and text-arrow forms): backticks are consumed and
-  `**bold**` / `*italic*` markers are **stripped to plain text**. Styled runs
-  (bold/italic tspans inside one label) are layer 2 and remain future work —
-  the `flowchart_markdown_string` lint announces the stripping.
+  `**bold**` / `*italic*` markers render as weighted/italic SVG tspan runs.
+  Measurement accounts for bold-run weight, and wrapping rebalances tags per
+  line so emphasis cannot leak or disappear across a break.
 - Explicit line breaks: real newlines inside the backtick string (and `<br>`)
   become label line breaks. Multiline strings are coalesced pre-parse
   (`coalesceMarkdownStringLines`), joining on `<br>` — the label pipeline's
@@ -107,13 +107,11 @@ Upstream schema verified 2026-07-10
 - Markdown labels auto-wrap at `flowchart.wrappingWidth` (default 200),
   matching upstream's markdown-only auto-wrap default.
 - The agent body stays **opaque** for any backtick source, so the original
-  bytes round-trip verbatim; `verify` is clean (render parity passes) with
-  the Tier-3 lint present.
-- Known limitation: the direction-less `flowchart` header (plan §Flowchart 3)
-  still throws, so the upstream `flowchart\nA["`…`"]` sample renders only
-  with a direction token; the bench exclusion
-  `flowchart-upstream-markdown-formatting-in-nodes-and-labels` stays until
-  item 3 lands.
+  bytes round-trip verbatim; `verify` is clean (render parity passes) with a
+  Tier-3 lint explaining that the form is rendered but source-preserved rather
+  than structurally mutable.
+- A direction-less `flowchart` header now defaults to `TD`, so the exact
+  upstream markdown fixture renders and is imported into the executable bench.
 
 ## Op menu (plan §Flowchart 8)
 
@@ -146,8 +144,9 @@ Every op round-trips: serialize → render-parse reproduces the edit (P3;
 - `flowchart-v11-shapes.test.ts` — full vocabulary coverage against the
   documented table, exact-geometry equivalence with legacy syntax,
   substitution lints, authored-spelling round-trip, opaque fallbacks.
-- `flowchart-markdown-strings.test.ts` — plain-text stripping, explicit line
-  breaks, default auto-wrap, verbatim opaque round-trip, #102 sample.
+- `flowchart-markdown-strings.test.ts` — styled bold/italic runs and metrics,
+  balanced formatting across wraps, explicit breaks, default auto-wrap,
+  verbatim opaque round-trip, and the exact #102 sample.
 - `flowchart-op-menu.test.ts` — the widened menu, registry + schema + mutator
   + conformance.
 - Golden gates: 32 `layout-geometry-baseline.json` and 108

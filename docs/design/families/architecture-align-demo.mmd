@@ -1,10 +1,7 @@
 architecture-beta
+  title Aligned data services
   group api(cloud)[API]
   service db1(database)[DB1] in api
   service db2(database)[DB2] in api
   service db3(database)[DB3] in api
-  service mcp(server)[MCP] in api
-  db1:R --> L:mcp
-  db2:R --> L:mcp
-  db3:R --> L:mcp
-  align column db1 db2 db3
+  align row db1 db2 db3

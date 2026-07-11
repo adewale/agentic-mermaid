@@ -22,8 +22,8 @@
 //                                                 namespace grammar)
 //
 // Unmodeled (forces opaque):
-//   - direction TB (wired at layout, unmodeled here) / generic types /
-//     annotations like <<enum>> embedded after `class X` (we DO accept them
+//   - direction TB (wired at layout, unmodeled here) / annotations like
+//     <<enum>> embedded after `class X` (we DO accept them
 //     as `members` of X via the `class X { <<interface>> }` form). The
 //     standalone `class X <<...>>` form falls back to opaque.
 //   - cssClass / link / callback / click handlers
@@ -37,7 +37,7 @@ import type {
 } from './types.ts'
 import { ok, err, DEFAULT_LABEL_CHAR_CAP } from './types.ts'
 import { labelOverflowWarning } from './label-metrics.ts'
-import { parseClassDeclaration, parseNamespaceHeader } from '../class/parser.ts'
+import { parseClassDeclaration, parseClassReference, parseNamespaceHeader } from '../class/parser.ts'
 
 // ---- Parser ---------------------------------------------------------------
 
@@ -58,26 +58,27 @@ const RELATION_TOKENS: Array<{ pat: RegExp; kind: ClassRelationKind }> = [
   { pat: /\.\./,  kind: 'link-dashed' },
 ]
 
-const MEMBER_DECL_RE = /^(`[^`]+`|[\w$]+)\s*:\s*(.+)$/
-const NOTE_RE = /^note(?:\s+for\s+(`[^`]+`|[\w$]+))?\s+"([^"]+)"\s*$/
+const MEMBER_DECL_RE = /^(\S+)\s*:\s*(.+)$/
+const NOTE_RE = /^note(?:\s+for\s+(\S+))?\s+"([^"]+)"\s*$/
 const TITLE_RE = /^title\s+(.+)$/i
 
-function stripBackticks(s: string): string {
-  return s.startsWith('`') && s.endsWith('`') ? s.slice(1, -1) : s
-}
-
-function parseRelation(line: string): ClassRelation | null {
+function parseRelation(line: string): (ClassRelation & { fromGeneric?: string; toGeneric?: string }) | null {
   for (const { pat, kind } of RELATION_TOKENS) {
     const m = line.match(new RegExp(`^(\\S+?)(?:\\s+"([^"]+)")?\\s*${pat.source}\\s*(?:"([^"]+)"\\s+)?(\\S+?)(?:\\s*:\\s*(.+))?$`))
     if (!m) continue
-    const from = stripBackticks(m[1]!)
+    const fromRef = parseClassReference(m[1]!)
+    const toRef = parseClassReference(m[4]!)
+    if (!fromRef || !toRef) return null
+    const from = fromRef.id
     const fromCardinality = m[2]
     const toCardinality = m[3]
-    const to = stripBackticks(m[4]!)
+    const to = toRef.id
     const label = m[5]?.trim()
-    // Reject if from/to don't look like class names
-    if (!/^[\w$]+$/.test(from) || !/^[\w$]+$/.test(to)) return null
-    return { from, to, kind, label, fromCardinality, toCardinality }
+    return {
+      from, to, kind, label, fromCardinality, toCardinality,
+      ...(fromRef.generic ? { fromGeneric: fromRef.generic } : {}),
+      ...(toRef.generic ? { toGeneric: toRef.generic } : {}),
+    }
   }
   return null
 }
@@ -85,10 +86,13 @@ function parseRelation(line: string): ClassRelation | null {
 export function parseClassBody(lines: string[]): ClassBody | null {
   const body: ClassBody = { kind: 'class', classes: [], relations: [], notes: [] }
   const classMap = new Map<string, ClassNode>()
-  const upsert = (id: string, label?: string): ClassNode => {
+  const upsert = (id: string, label?: string, generic?: string): ClassNode => {
     let c = classMap.get(id)
-    if (!c) { c = { id, label, members: [] }; classMap.set(id, c); body.classes.push(c) }
-    else if (label !== undefined && !c.label) c.label = label
+    if (!c) { c = { id, label, generic, members: [] }; classMap.set(id, c); body.classes.push(c) }
+    else {
+      if (label !== undefined && !c.label) c.label = label
+      if (generic !== undefined && !c.generic) c.generic = generic
+    }
     return c
   }
   // Open namespace nesting: segment stack + how many segments each
@@ -135,8 +139,7 @@ export function parseClassBody(lines: string[]): ClassBody | null {
     // Class declaration (with or without open brace)
     const declaration = parseClassDeclaration(raw)
     if (declaration) {
-      const label = declaration.label ?? (declaration.generic ? `${declaration.id}<${declaration.generic}>` : undefined)
-      const node = upsert(declaration.id, label)
+      const node = upsert(declaration.id, declaration.label, declaration.generic)
       claimClass(node)
       if (declaration.opensBody) {
         // Consume members until closing brace
@@ -154,20 +157,29 @@ export function parseClassBody(lines: string[]): ClassBody | null {
     // Note (with or without target)
     const nm = raw.match(NOTE_RE)
     if (nm) {
-      body.notes.push({ text: nm[2]!, for: nm[1] ? stripBackticks(nm[1]) : undefined })
+      const target = nm[1] ? parseClassReference(nm[1]) : null
+      if (nm[1] && !target) return null
+      body.notes.push({ text: nm[2]!, for: target?.id })
       continue
     }
 
     // Relation — try this before member because relations may have `:` too
     const rel = parseRelation(raw)
-    if (rel) { body.relations.push(rel); upsert(rel.from); upsert(rel.to); continue }
+    if (rel) {
+      upsert(rel.from, undefined, rel.fromGeneric)
+      upsert(rel.to, undefined, rel.toGeneric)
+      const { fromGeneric: _fromGeneric, toGeneric: _toGeneric, ...relation } = rel
+      body.relations.push(relation)
+      continue
+    }
 
     // Member declaration (X : member)
     const mm = raw.match(MEMBER_DECL_RE)
     if (mm) {
-      const id = stripBackticks(mm[1]!)
+      const ref = parseClassReference(mm[1]!)
+      if (!ref) return null
       const text = mm[2]!.trim()
-      upsert(id).members.push(text)
+      upsert(ref.id, undefined, ref.generic).members.push(text)
       continue
     }
 
@@ -200,7 +212,7 @@ function quoteIfNeeded(id: string): string {
 
 /** Emit one class declaration (+ optional member block) at an indent depth. */
 function pushClassLines(lines: string[], c: ClassNode, indent: string): void {
-  const head = `class ${quoteIfNeeded(c.id)}${c.label ? `["${c.label}"]` : ''}`
+  const head = `class ${quoteIfNeeded(c.id)}${c.generic ? `~${c.generic}~` : ''}${c.label ? `["${c.label}"]` : ''}`
   if (c.members.length === 0) {
     lines.push(`${indent}${head}`)
   } else {
@@ -254,7 +266,7 @@ function cloneClass(body: ClassBody): ClassBody {
   return {
     kind: 'class',
     title: body.title,
-    classes: body.classes.map(c => ({ id: c.id, label: c.label, members: [...c.members], namespace: c.namespace })),
+    classes: body.classes.map(c => ({ id: c.id, label: c.label, generic: c.generic, members: [...c.members], namespace: c.namespace })),
     relations: body.relations.map(r => ({ ...r })),
     notes: body.notes.map(n => ({ ...n })),
     ...(body.namespaces ? { namespaces: body.namespaces.map(n => ({ ...n })) } : {}),
@@ -266,6 +278,15 @@ function cloneClass(body: ClassBody): ClassBody {
 const NAMESPACE_PATH_RE = /^[\w$]+(\.[\w$]+)*$/
 
 /** Register a namespace path on the body (first-seen order, idempotent). */
+function normalizeGeneric(value: unknown): Result<string, MutationError> {
+  if (typeof value !== 'string') return err({ code: 'INVALID_OP', message: 'Class generic must be a string or null' })
+  const generic = value.trim()
+  if (!generic || generic.includes('~') || /[\r\n]/.test(generic)) {
+    return err({ code: 'INVALID_OP', message: 'Class generic must be non-empty and must not contain ~ or line breaks' })
+  }
+  return ok(generic)
+}
+
 function declareNamespaceOn(b: ClassBody, path: string): void {
   if (!b.namespaces) b.namespaces = []
   if (!b.namespaces.some(n => n.name === path)) b.namespaces.push({ name: path })
@@ -285,7 +306,13 @@ export function mutateClass(body: ClassBody, op: ClassMutationOp): Result<ClassB
       if (op.namespace !== undefined && !NAMESPACE_PATH_RE.test(op.namespace)) {
         return err({ code: 'INVALID_OP', message: `invalid namespace path "${op.namespace}" — expected dot-joined identifier segments like "Platform.Auth"` })
       }
-      b.classes.push({ id: op.id, label: op.label, members: op.members ?? [], namespace: op.namespace })
+      let generic: string | undefined
+      if (op.generic !== undefined) {
+        const parsed = normalizeGeneric(op.generic)
+        if (!parsed.ok) return parsed
+        generic = parsed.value
+      }
+      b.classes.push({ id: op.id, label: op.label, generic, members: op.members ?? [], namespace: op.namespace })
       if (op.namespace !== undefined) declareNamespaceOn(b, op.namespace)
       return ok(b)
     }
@@ -321,6 +348,18 @@ export function mutateClass(body: ClassBody, op: ClassMutationOp): Result<ClassB
         if (r.to === op.from) r.to = op.to
       }
       for (const n of b.notes) if (n.for === op.from) n.for = op.to
+      return ok(b)
+    }
+    case 'set_class_generic': {
+      const c = findClass(op.class)
+      if (!c) return err({ code: 'CLASS_NOT_FOUND', message: `class ${op.class} not found` })
+      if (op.generic === null) {
+        c.generic = undefined
+      } else {
+        const generic = normalizeGeneric(op.generic)
+        if (!generic.ok) return generic
+        c.generic = generic.value
+      }
       return ok(b)
     }
     case 'add_member': {

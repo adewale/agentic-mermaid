@@ -189,6 +189,7 @@ function factsClass(out: string[], body: ClassBody): void {
   }
   for (const c of body.classes) {
     add(out, `class ${clean(c.id)}`)
+    if (c.generic) add(out, `class ${clean(c.id)} generic ${clean(c.generic)}`)
     if (c.label) add(out, `class ${clean(c.id)} : ${clean(c.label)}`)
     if (c.namespace) add(out, `class ${clean(c.id)} in namespace ${clean(c.namespace)}`)
     for (const member of c.members) add(out, `member ${clean(c.id)} ${clean(member)}`)
@@ -250,6 +251,7 @@ function factsJourney(out: string[], body: JourneyBody): void {
 }
 
 function factsArchitecture(out: string[], body: ArchitectureBody): void {
+  if (body.title) add(out, `title ${clean(body.title)}`)
   for (const g of body.groups) {
     add(out, `group ${clean(g.id)} : ${clean(g.label || g.id)}`)
     if (g.icon) add(out, `group ${clean(g.id)} icon ${clean(g.icon)}`)

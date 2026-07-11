@@ -14384,5 +14384,53 @@
       "edgeCount": 0,
       "groupCount": 0
     }
+  },
+  {
+    "id": "architecture-upstream-should-handle-title-on-another-line",
+    "family": "architecture",
+    "source": "architecture-beta\n            title Simple Architecture Diagram",
+    "upstream": {
+      "repo": "mermaid-js/mermaid",
+      "files": [
+        "packages/mermaid/src/diagrams/architecture/architecture.spec.ts"
+      ],
+      "blocks": [
+        "packages/mermaid/src/diagrams/architecture/architecture.spec.ts :: should handle title on another line"
+      ]
+    },
+    "assertions": {
+      "expectStructured": true,
+      "nodeCount": 0,
+      "edgeCount": 0,
+      "groupCount": 0
+    }
+  },
+  {
+    "id": "flowchart-upstream-markdown-formatting-in-nodes-and-labels",
+    "family": "flowchart",
+    "source": "flowchart\nA[\"`The cat in **the** hat`\"]-- \"`The *bat* in the chat`\" -->B[\"The dog in the hog\"] -- \"The rat in the mat\" -->C;",
+    "upstream": {
+      "repo": "mermaid-js/mermaid",
+      "files": [
+        "packages/mermaid/src/diagrams/flowchart/parser/flow-md-string.spec.js"
+      ],
+      "blocks": [
+        "packages/mermaid/src/diagrams/flowchart/parser/flow-md-string.spec.js :: markdown formatting in nodes and labels"
+      ]
+    },
+    "assertions": {
+      "expectStructured": false,
+      "nodeCount": 3,
+      "edgeCount": 2,
+      "groupCount": 0,
+      "minNodes": 3,
+      "minEdges": 2,
+      "labelsContain": [
+        "The cat in the hat",
+        "The bat in the chat",
+        "The dog in the hog",
+        "The rat in the mat"
+      ]
+    }
   }
 ]

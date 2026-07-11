@@ -261,7 +261,7 @@ function describeArchitecture(body: import('./types.ts').ArchitectureBody): stri
   const services = body.services
   const junctions = body.junctions
   const edges = body.edges
-  let s = `An architecture diagram with ${groups.length} groups, ${services.length} services, and ${edges.length} connections.`
+  let s = `An architecture diagram${body.title ? ` titled "${body.title}"` : ''} with ${groups.length} groups, ${services.length} services, and ${edges.length} connections.`
   if (groups.length > 0) s += ` Groups: ${groups.map(g => g.label || g.id).join(', ')}.`
   if (services.length > 0) s += ` Services: ${services.map(sv => sv.label || sv.id).join(', ')}.`
   if (junctions.length > 0) s += ` Junctions: ${junctions.map(j => j.id).join(', ')}.`
@@ -308,7 +308,7 @@ function describeQuadrant(body: import('./types.ts').QuadrantBody): string {
 function describeClass(d: ClassValidDiagram): string {
   const classes = d.body.classes
   const relations = d.body.relations
-  const names = classes.map(c => c.id)
+  const names = classes.map(c => c.generic ? `${c.id}<${c.generic}>` : c.id)
   const relStr = relations.map(r => `${r.from} ${r.kind} ${r.to}`)
   let s = `A class diagram with ${classes.length} classes.`
   if (names.length > 0) s += ` Classes: ${names.join(', ')}.`

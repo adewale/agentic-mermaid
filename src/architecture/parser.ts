@@ -18,6 +18,7 @@ import type {
 //
 // Supported statements:
 //   architecture-beta
+//   title Visible diagram heading
 //   group id(icon)[Label] in parent
 //   service id(icon)[Label] in group
 //   junction id in group
@@ -51,11 +52,18 @@ export function parseArchitectureDiagram(lines: string[]): ArchitectureDiagram {
   const rootChildren: ArchitectureChildRef[] = []
   const edges: ArchitectureEdge[] = []
   const alignments: ArchitectureAlignment[] = []
+  let title: string | undefined
   let accessibilityTitle: string | undefined
   let accessibilityDescription: string | undefined
 
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i]!
+
+    const titleMatch = line.match(/^title\s+(.+)$/i)
+    if (titleMatch) {
+      title = normalizeBrTags(titleMatch[1]!.trim())
+      continue
+    }
 
     const accTitleMatch = line.match(/^accTitle\s*:\s*(.+)$/i)
     if (accTitleMatch) {
@@ -141,6 +149,7 @@ export function parseArchitectureDiagram(lines: string[]): ArchitectureDiagram {
   }
 
   return {
+    title,
     groups: [...groups.values()],
     services: [...services.values()],
     junctions: [...junctions.values()],

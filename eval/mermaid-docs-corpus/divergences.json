@@ -1,18 +1,1 @@
-[
-  {
-    "id": "architecture-align-constraint-not-honored",
-    "family": "architecture",
-    "origin": "syntax/architecture.md",
-    "indices": [
-      1,
-      2,
-      3
-    ],
-    "reason": "architecture-align-placement-constraint-gap",
-    "expectedWarningCodes": [
-      "UNSUPPORTED_SYNTAX"
-    ],
-    "upstreamBehavior": "Mermaid v11.16.0 (PR #7708) honors `align row|column` directives as fcose relative-placement constraints. Agentic Mermaid parses, models, and round-trips align directives losslessly and renders the diagram, but the deterministic layered layout does not apply the alignment as a placement constraint; verify announces the limitation with a Tier-3 UNSUPPORTED_SYNTAX lint (syntax: architecture_align) that never flips verify.ok.",
-    "notes": "Executable ledger: honoring align as a deterministic placement constraint is the remaining gap (plan Architecture item 1, deferred with port routing); the BUILD-20 upstream-suite align cases are imported as green cases."
-  }
-]
+[]

@@ -921,6 +921,8 @@ function extractArchitectureLabels(source: string): ExtractedLabel[] {
   for (let i = 0; i < lines.length; i++) {
     const raw = lines[i]!.trim()
     if (!raw || raw.startsWith('%%')) continue
+    const title = raw.match(/^title\s+(.+)$/i)
+    if (title) out.push({ text: title[1]!.trim(), target: 'title' })
     for (const m of raw.matchAll(/\[([^\]]+)\]/g)) {
       out.push({ text: m[1]!, target: `line${i + 1}` })
     }

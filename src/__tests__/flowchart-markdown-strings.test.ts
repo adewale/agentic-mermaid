@@ -1,11 +1,10 @@
 /**
- * Mermaid markdown strings — backtick-quoted labels (repo #102, layer 1).
+ * Mermaid markdown strings — backtick-quoted labels (repo #102).
  *
  * Contract:
  *  - the render parser accepts `A["`**bold** text`"]` node labels and
  *    `-- "`…`" -->` / `-->|"`…`"|` edge labels: the backticks are consumed and
- *    the emphasis markers (**, *) are STRIPPED — the label renders as plain
- *    text (layer 2, styled runs, is out of scope and announced by the lint);
+ *    bold/italic emphasis renders as styled SVG text runs;
  *  - explicit line breaks inside a markdown string (real newlines in the
  *    source, or <br>) become label line breaks;
  *  - markdown labels auto-wrap at flowchart.wrappingWidth (upstream default
@@ -27,17 +26,25 @@ function parseAgent(source: string) {
 }
 
 describe('markdown strings — node labels', () => {
-  it('strips backticks and emphasis markers to plain text', () => {
+  it('consumes backticks and preserves bold emphasis as a styled run', () => {
     const graph = parseGraph('flowchart TD\n  A["`hello **world**`"] --> B\n')
     const node = graph.nodes.get('A')!
-    expect(node.label).toBe('hello world')
+    expect(node.label).toBe('hello <b>world</b>')
     expect(node.markdownLabel).toBe(true)
     expect(graph.edges.map(e => `${e.source}->${e.target}`)).toEqual(['A->B'])
   })
 
-  it('italic markers strip too', () => {
-    const graph = parseGraph('flowchart TD\n  A["`The *bat* in the chat`"] --> B\n')
-    expect(graph.nodes.get('A')!.label).toBe('The bat in the chat')
+  it('preserves italic emphasis as a styled run', () => {
+    const source = 'flowchart TD\n  A["`The *bat* in the chat`"] --> B\n'
+    const graph = parseGraph(source)
+    expect(graph.nodes.get('A')!.label).toBe('The <i>bat</i> in the chat')
+    const svg = renderMermaidSVG(source)
+    expect(svg).toContain('<tspan font-style="italic">bat</tspan>')
+  })
+
+  it('renders bold emphasis as a styled run', () => {
+    const svg = renderMermaidSVG('flowchart TD\n  A["`hello **world**`"] --> B\n')
+    expect(svg).toContain('<tspan font-weight="bold">world</tspan>')
   })
 
   it('non-markdown labels keep today\'s pipeline (bold tags, quotes)', () => {
@@ -50,19 +57,19 @@ describe('markdown strings — node labels', () => {
     const graph = parseGraph('flowchart TD\n  A{"`Is **it**?`"} --> B\n')
     const node = graph.nodes.get('A')!
     expect(node.shape).toBe('diamond')
-    expect(node.label).toBe('Is it?')
+    expect(node.label).toBe('Is <b>it</b>?')
   })
 })
 
 describe('markdown strings — edge labels', () => {
-  it('text-arrow markdown labels strip to plain text', () => {
+  it('text-arrow markdown labels preserve italic styling', () => {
     const graph = parseGraph('flowchart TD\n  A-- "`The *bat* in the chat`" -->B\n')
-    expect(graph.edges[0]!.label).toBe('The bat in the chat')
+    expect(graph.edges[0]!.label).toBe('The <i>bat</i> in the chat')
   })
 
-  it('pipe markdown labels strip to plain text', () => {
+  it('pipe markdown labels preserve bold styling', () => {
     const graph = parseGraph('flowchart TD\n  A-->|"`**yes** please`"|B\n')
-    expect(graph.edges[0]!.label).toBe('yes please')
+    expect(graph.edges[0]!.label).toBe('<b>yes</b> please')
   })
 })
 
@@ -97,9 +104,15 @@ describe('markdown strings — auto-wrap at wrappingWidth', () => {
     const nodeText = wide.split('data-id="A"')[1]!.split('</g>')[0]!
     expect(nodeText).not.toContain('<tspan')
   })
+
+  it('keeps emphasis balanced on every line when a styled span wraps', () => {
+    const svg = renderMermaidSVG('---\nconfig:\n  flowchart:\n    wrappingWidth: 80\n---\nflowchart TD\n  A["`**alpha beta gamma delta**`"]\n')
+    const nodeText = svg.split('data-id="A"')[1]!.split('</g>')[0]!
+    expect(nodeText.match(/font-weight="bold"/g)?.length).toBeGreaterThan(1)
+  })
 })
 
-describe('markdown strings — agent contract (#102 layer 1)', () => {
+describe('markdown strings — agent contract (#102)', () => {
   const SOURCE = 'flowchart TD\n  A["`**bold** text`"] --> B\n'
 
   it('agent parse stays opaque and round-trips verbatim', () => {
@@ -117,14 +130,17 @@ describe('markdown strings — agent contract (#102 layer 1)', () => {
     }))
   })
 
-  it('the #102 sample (with a direction header) renders all nodes and edges', () => {
-    const source = 'flowchart TD\nA["`The cat in **the** hat`"]-- "`The *bat* in the chat`" -->B["The dog in the hog"] -- "The rat in the mat" -->C;\n'
+  it('the exact #102 sample accepts a bare header and renders all nodes, edges, and emphasis', () => {
+    const source = 'flowchart\nA["`The cat in **the** hat`"]-- "`The *bat* in the chat`" -->B["The dog in the hog"] -- "The rat in the mat" -->C;\n'
     const graph = parseGraph(source)
     expect([...graph.nodes.keys()]).toEqual(['A', 'B', 'C'])
-    expect(graph.nodes.get('A')!.label).toBe('The cat in the hat')
-    expect(graph.edges.map(e => e.label)).toEqual(['The bat in the chat', 'The rat in the mat'])
+    expect(graph.direction).toBe('TD')
+    expect(graph.nodes.get('A')!.label).toBe('The cat in <b>the</b> hat')
+    expect(graph.edges.map(e => e.label)).toEqual(['The <i>bat</i> in the chat', 'The rat in the mat'])
     const svg = renderMermaidSVG(source)
-    expect(svg).toContain('The cat in the hat')
+    expect(svg).toContain('<tspan font-weight="bold">the</tspan>')
+    expect(svg).toContain('<tspan font-style="italic">bat</tspan>')
     expect(svg).not.toContain('`')
+    expect(verifyMermaid(source).ok).toBe(true)
   })
 })

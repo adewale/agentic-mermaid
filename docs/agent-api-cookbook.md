@@ -257,10 +257,10 @@ Use `am capabilities --json` for machine-readable discovery. Current typed mutat
 | State | `asState` | `add_state`, `remove_state`, `rename_state`, `set_state_label`, `add_transition`, `remove_transition`, `set_transition_label`, `make_composite`, `set_direction`, `move_state`, `dissolve_composite`, `add_note`, `remove_note`, `set_note_text` |
 | Sequence | `asSequence` | `add_participant`, `remove_participant`, `add_message`, `remove_message`, `set_message_text`, `move_message`, `set_participant_label` |
 | Timeline | `asTimeline` | `set_title`, `add_section`, `remove_section`, `set_section_label`, `add_period`, `remove_period`, `set_period_label`, `add_event`, `remove_event`, `set_event_text`, `move_period`, `move_event`, `move_section`, `set_accessibility_title`, `set_accessibility_description` |
-| Class | `asClass` | `set_title`, `add_class`, `remove_class`, `rename_class`, `add_member`, `remove_member`, `add_relation`, `remove_relation`, `add_note`, `remove_note`, `set_class_namespace` |
+| Class | `asClass` | `set_title`, `add_class`, `remove_class`, `rename_class`, `set_class_generic`, `add_member`, `remove_member`, `add_relation`, `remove_relation`, `add_note`, `remove_note`, `set_class_namespace` |
 | ER | `asEr` | `add_entity`, `remove_entity`, `rename_entity`, `add_attribute`, `remove_attribute`, `add_relation`, `remove_relation` |
 | Journey | `asJourney` | `set_title`, `add_section`, `remove_section`, `set_section_label`, `add_task`, `remove_task`, `set_task_text`, `set_task_score`, `set_task_actors`, `rename_actor`, `move_task`, `move_section`, `set_accessibility_title`, `set_accessibility_description` |
-| Architecture | `asArchitecture` | `add_service`, `remove_service`, `rename_service`, `set_service_label`, `set_service_icon`, `move_service`, `add_group`, `remove_group`, `add_edge`, `remove_edge` |
+| Architecture | `asArchitecture` | `set_title`, `add_service`, `remove_service`, `rename_service`, `set_service_label`, `set_service_icon`, `move_service`, `add_group`, `remove_group`, `add_edge`, `remove_edge` |
 | XY chart | `asXyChart` | `set_title`, `set_x_axis`, `set_y_axis`, `add_series`, `remove_series`, `set_series_values`, `set_series_name`, `reorder_series`, `set_orientation`, `set_data_point` |
 | Pie | `asPie` | `set_title`, `set_show_data`, `add_slice`, `remove_slice`, `rename_slice`, `set_slice_value`, `reorder_slice` |
 | Quadrant | `asQuadrant` | `set_title`, `set_axis_labels`, `set_quadrant_label`, `add_point`, `remove_point`, `move_point`, `rename_point` |

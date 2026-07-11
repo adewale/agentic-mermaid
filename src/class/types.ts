@@ -24,8 +24,11 @@ export interface ClassDiagram {
 }
 
 export interface ClassNode {
+  /** Stable bare identity; Mermaid `~T~` parameters are stored separately. */
   id: string
   label: string
+  /** Generic type parameter text from `ClassName~T~`. */
+  generic?: string
   /** Annotation like <<interface>>, <<abstract>>, <<service>>, <<enumeration>> */
   annotation?: string
   /** Class attributes (fields/properties) */

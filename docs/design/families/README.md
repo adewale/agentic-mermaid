@@ -8,19 +8,21 @@ across several surfaces; this hub points at each.
 | Family | Design note | Notable cross-cutting surface |
 |---|---|---|
 | Architecture (`architecture-beta`) | [`architecture-beta.md`](./architecture-beta.md) | ops in `AGENT_NATIVE.md`; level in [`source-preservation-ladder.md`](../system/source-preservation-ladder.md) |
+| Class | [`class.md`](./class.md) | namespace + generic structured coverage |
+| Flowchart | [`flowchart.md`](./flowchart.md) (+ [`flowchart-parser-conformance.md`](./flowchart-parser-conformance.md)) | routing in [`route-contracts.md`](../system/route-contracts.md) |
 | Gantt | [`gantt.md`](./gantt.md) (+ [`gantt-research.md`](./gantt-research.md)) | schedule resolver; citizenship worked example |
 | Journey | [`journey.md`](./journey.md) (+ [`journey-migration-parity.md`](./journey-migration-parity.md), [`journey-usage-research.md`](./journey-usage-research.md)) | migration parity; classic visual mode; usage research |
 | XY chart | [`xychart.md`](./xychart.md) | — |
-| Flowchart | [`flowchart-parser-conformance.md`](./flowchart-parser-conformance.md) (conformance) | routing in [`route-contracts.md`](../system/route-contracts.md) |
 
-Families **without** a dedicated design note — sequence, class, ER, pie, quadrant, timeline,
+Families **without** a dedicated design note — sequence, ER, pie, quadrant, timeline,
 state — are documented entirely through the cross-cutting surfaces below.
 
 ## PR #142 generated visual evidence
 
 The `*-demo.mmd` fixtures in this directory drive the captioned before/after PNGs in
 [PR #142](https://github.com/adewale/agentic-mermaid/pull/142). “Before” artifacts were rendered
-at `476e72f` (or, for the dense-loop follow-up, `84b2ca95`); “after” artifacts use the PR branch.
+at `476e72f` (for the dense-loop follow-up, `84b2ca95`; for the class-generics completion,
+`fb220147`); “after” artifacts use the PR branch.
 Most after images regenerate with:
 
 ```bash

@@ -11,12 +11,8 @@
 // This module is the single owner of the directive's shape: the strict render
 // parser (src/architecture/parser.ts) and the structured agent body parser
 // (src/agent/architecture-body.ts) both consume it, so the two surfaces
-// cannot drift. Placement semantics are deliberately NOT implemented: the
-// deterministic layered layout never collapses siblings onto one coordinate
-// (the fcose failure mode `align` was invented to patch), so alignments are
-// parsed, preserved losslessly, and announced by verify's Tier-3
-// UNSUPPORTED_SYNTAX lint (syntax: architecture_align) instead of silently
-// dropped or hard-errored. See docs/design/families/architecture.md.
+// cannot drift. src/architecture/layout.ts applies the parsed row/column
+// center-coordinate constraints deterministically before routes are frozen.
 // ============================================================================
 
 export type ArchitectureAlignmentAxis = 'row' | 'column'

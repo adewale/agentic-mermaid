@@ -204,13 +204,10 @@ describe('layoutArchitectureDiagram', () => {
     expect(distanceToPolyline(edge.labelPosition!, edge.points)).toBeLessThanOrEqual(0.001)
   })
 
-  // Upstream v11.16.0 align directives: the deterministic layout accepts them
-  // (probe p8) but deliberately does NOT honor them as placement constraints —
-  // the layered engine never collapses siblings onto one coordinate, which is
-  // the fcose failure mode align was invented to patch. verify announces the
-  // limitation as a Tier-3 UNSUPPORTED_SYNTAX lint (option (b), plan P4).
-  // These tests pin both halves of that contract.
-  it('lays out align sources and leaves geometry identical to the align-free layout', () => {
+  // Upstream v11.16.0 align directives are real geometry constraints. The
+  // graph engine establishes deterministic order; architecture layout then
+  // shares the requested center coordinate before routes freeze.
+  it('honors align row with shared centers and non-overlapping siblings', () => {
     const body = `
       group api(cloud)[API]
       service db1(database)[DB1] in api
@@ -221,12 +218,27 @@ describe('layoutArchitectureDiagram', () => {
       db2:R --> L:mcp
       db3:R --> L:mcp`
 
-    const aligned = layout(`architecture-beta${body}\n      align column db1 db2 db3`)
+    const aligned = layout(`architecture-beta${body}\n      align row db1 db2 db3`)
     const plain = layout(`architecture-beta${body}`)
 
     expect(aligned.services.length).toBe(4)
     expect(aligned.edges.length).toBe(3)
-    // Constraint not honored (documented limitation): geometry is byte-identical.
-    expect(JSON.stringify(aligned)).toBe(JSON.stringify(plain))
+    const members = ['db1', 'db2', 'db3'].map(id => aligned.services.find(service => service.id === id)!)
+    expect(new Set(members.map(service => service.y + service.height / 2)).size).toBe(1)
+    for (let i = 1; i < members.length; i++) {
+      expect(members[i]!.x).toBeGreaterThanOrEqual(members[i - 1]!.x + members[i - 1]!.width)
+    }
+    for (let i = 0; i < aligned.services.length; i++) {
+      for (let j = i + 1; j < aligned.services.length; j++) {
+        const a = aligned.services[i]!, b = aligned.services[j]!
+        const overlaps = a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height
+        expect({ pair: `${a.id}/${b.id}`, overlaps }).toEqual({ pair: `${a.id}/${b.id}`, overlaps: false })
+      }
+    }
+    for (const edge of aligned.edges) {
+      const source = aligned.services.find(service => service.id === edge.source.id)!
+      expect(edge.points[0]).toEqual({ x: source.x + source.width, y: source.y + source.height / 2 })
+    }
+    expect(JSON.stringify(aligned)).not.toBe(JSON.stringify(plain))
   })
 })

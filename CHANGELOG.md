@@ -5,7 +5,7 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 ## Unreleased
 
 ### Added
-- Elevated all twelve diagram families to a common agent-native quality contract: 129 typed mutation operations, deterministic family layout rubrics/certificates, expanded semantic facts, configuration wire-or-warn coverage, and parser/serializer conformance gates.
+- Elevated all twelve diagram families to a common agent-native quality contract: 131 typed mutation operations, deterministic family layout rubrics/certificates, expanded semantic facts, configuration wire-or-warn coverage, and parser/serializer conformance gates.
 - Added first-class State notes/stereotypes/history, Sequence box/create/destroy/standalone activation behavior, Class namespace labels, ER bare entities, Architecture alignment directives, Quadrant accessibility/style functions, Pie wedge labels/donut/legend controls, and explicit XYChart orientation mutation.
 
 ### Changed

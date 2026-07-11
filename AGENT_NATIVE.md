@@ -42,10 +42,10 @@ What the current Agentic Mermaid surface delivers and what it doesn't:
 | State | Structured round-trip for the modeled subset (simple states/transitions/`[*]`/composites/direction, notes, `<<fork>>`/`<<join>>`/`<<choice>>` and history stereotypes, history endpoints `[H]`/`Base[H*]`); concurrency `--` (renders structurally), `classDef`/`class`/`:::` styling, and bare `stateId` lines fall back to opaque losslessly | 14 ops via `asState` (BUILD-19) |
 | Sequence | Structured-with-segments (BUILD-18): participant/message ops stay live while Note/alt/loop/par/box/activate/create/destroy/autonumber/title ride along verbatim as opaque-block segments; only un-segmentable input (unbalanced `end`) falls back to whole-body opaque | ✅ 7 ops when structured |
 | Timeline | Full — including the `timeline TD` vertical direction token | ✅ 15 ops |
-| Class | Full for the modeled subset — including namespaces (rendered as compound boxes AND structured); `direction` (rendering honors it) and generic class names (`Box~T~`) fall back to opaque losslessly | ✅ 11 ops |
+| Class | Full for the modeled subset — including namespaces and generic class parameters (`Box~T~`) as rendered, structured constructs; `direction` remains a lossless opaque fallback | ✅ 12 ops |
 | ER | Full | ✅ 7 ops |
 | Journey | Full structured round-trip (title/sections/tasks) | 14 ops via `asJourney` (BUILD-15 pilot) |
-| Architecture | Structured round-trip for the modeled subset (groups/services/junctions/edges, plus upstream `align row\|column` directives — preserved and linted, not yet honored by layout); `{group}` boundary edges + accTitle/accDescr fall back to opaque losslessly | 10 ops via `asArchitecture` (BUILD-17) |
+| Architecture | Structured round-trip for the modeled subset (visible title, groups/services/junctions/edges, plus upstream `align row\|column` directives honored by layout); `{group}` boundary edges + accTitle/accDescr fall back to opaque losslessly | 11 ops via `asArchitecture` (BUILD-17) |
 | XY chart | Structured round-trip for the modeled subset (orientation/title/axes/series; quoted text with bare content canonicalizes to unquoted form); embedded quotes/brackets, `;` multi-statement lines, accTitle/accDescr fall back to opaque losslessly | 10 ops via `asXyChart` (BUILD-16) |
 | Pie | Structured round-trip (title/showData/slices); accTitle/accDescr + malformed entries fall back to opaque losslessly | 7 ops via `asPie` |
 | Quadrant | Structured round-trip (title/axes/quadrant labels/points, per-point styling: direct `radius:`/`color:` tails, `classDef` tables, `:::` assignments); malformed style metadata + out-of-range coords fall back to opaque losslessly | 7 ops via `asQuadrant` |
@@ -291,14 +291,15 @@ Two contracts:
 | `set_accessibility_title`       | `title \| null`                                | `set_accessibility_title(prev)` |
 | `set_accessibility_description` | `description \| null`                          | `set_accessibility_description(prev)` |
 
-**Class MutationOp kinds** (11):
+**Class MutationOp kinds** (12):
 
 | Kind | Required | Inverse |
 |---|---|---|
 | `set_title`         | `title \| null`                                      | `set_title(prev_title)` |
-| `add_class`         | `id` (+ optional `label`, `members: string[]`, `namespace` dot path) | `remove_class(id)` |
+| `add_class`         | `id` (+ optional `label`, `generic`, `members: string[]`, `namespace` dot path) | `remove_class(id)` |
 | `remove_class`      | `id`                                                  | `add_class(id, label, members)` |
 | `rename_class`      | `from`, `to`                                          | `rename_class(to, from)` |
+| `set_class_generic` | `class`, `generic \| null`                            | `set_class_generic(class, prev_generic)` |
 | `add_member`        | `class`, `text`                                       | `remove_member(class, index)` |
 | `remove_member`     | `class`, `index`                                      | `add_member(class, text)` |
 | `add_relation`      | `from`, `to`, `relKind` (+ optional `label`)          | `remove_relation(index)` |
@@ -338,10 +339,11 @@ Two contracts:
 | `set_accessibility_title`       | `title \| null`                               | `set_accessibility_title(prev)` |
 | `set_accessibility_description` | `description \| null`                         | `set_accessibility_description(prev)` |
 
-**Architecture MutationOp kinds** (10, BUILD-17 — promoting the architecture-beta family to structured mutation via the FamilyPlugin registry, following the BUILD-15 journey pilot):
+**Architecture MutationOp kinds** (11, BUILD-17 — promoting the architecture-beta family to structured mutation via the FamilyPlugin registry, following the BUILD-15 journey pilot):
 
 | Kind | Required | Inverse |
 |---|---|---|
+| `set_title`          | `title \| null`                                          | `set_title(prev_title)` |
 | `add_service`        | `id` (+ optional `label`, `icon`, `group`)               | `remove_service(id)` |
 | `remove_service`     | `id` (cascades its edges)                                | `add_service(...)` + re-add edges |
 | `rename_service`     | `from`, `to` (updates edges)                             | `rename_service(to, from)` |

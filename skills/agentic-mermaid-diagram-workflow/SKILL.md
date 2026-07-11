@@ -26,13 +26,13 @@ An agent-agnostic typed editing surface for Mermaid. New diagrams can be authore
 | Sequence (un-segmentable, e.g. unbalanced `end`) | ✓ | structural | ✓ | — (opaque) | verbatim |
 | Timeline (simple) | ✓ | structural | ✓ | 10 ops | structured |
 | Timeline (unmodeled syntax) | ✓ | structural | ✓ | — (opaque) | verbatim |
-| **Class (simple)** | ✓ | structural | ✓ | **10 ops** | structured |
+| **Class (modeled subset)** | ✓ | structural | ✓ | **12 ops** | structured |
 | Class (unmodeled syntax) | ✓ | structural | ✓ | — (opaque) | verbatim |
 | **ER (simple)** | ✓ | structural | ✓ | **7 ops** | structured |
 | ER (unmodeled syntax) | ✓ | structural | ✓ | — (opaque) | verbatim |
 | **Journey (simple)** | ✓ | structural | ✓ | **10 ops** | structured |
 | Journey (accTitle/accDescr, unmodeled) | ✓ | structural | ✓ | — (opaque) | verbatim |
-| **Architecture (modeled subset)** | ✓ | structural | ✓ | **10 ops** | structured |
+| **Architecture (modeled subset)** | ✓ | structural | ✓ | **11 ops** | structured |
 | Architecture (`{group}` boundary, accTitle/accDescr) | ✓ | structural | ✓ | — (opaque) | verbatim |
 | **XY chart (modeled subset)** | ✓ | structural | ✓ | **8 ops** | structured |
 | XY chart (quoted text, `;` lines, accTitle/accDescr) | ✓ | structural | ✓ | — (opaque) | verbatim |

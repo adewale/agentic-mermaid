@@ -20,7 +20,7 @@ export function parseNamespaceHeader(line: string): { path: string[]; label?: st
 // Shared class declaration grammar. The structured serializer emits bracket
 // labels, so the renderer and agent parser must resolve them to the same
 // logical ID instead of treating `A["Label"]` as an identifier.
-const CLASS_DECLARATION_RE = /^class\s+(`[^`]+`|[\w$]+)(?:\s*\[\s*"([^"]*)"\s*\])?(?:\s+as\s+"([^"]+)")?(?:\s*~(\w+)~)?\s*(\{)?\s*$/
+const CLASS_DECLARATION_RE = /^class\s+(`[^`]+`|[\w$]+)(?:\s*~([^~]+)~)?(?:\s*\[\s*"([^"]*)"\s*\])?(?:\s+as\s+"([^"]+)")?(?:\s+~([^~]+)~)?\s*(\{)?\s*$/
 
 export interface ParsedClassDeclaration {
   id: string
@@ -35,9 +35,22 @@ export function parseClassDeclaration(line: string): ParsedClassDeclaration | nu
   const rawId = match[1]!
   return {
     id: rawId.startsWith('`') ? rawId.slice(1, -1) : rawId,
-    label: match[2] ?? match[3],
-    generic: match[4],
-    opensBody: match[5] === '{',
+    generic: (match[2] ?? match[5])?.trim(),
+    label: match[3] ?? match[4],
+    opensBody: match[6] === '{',
+  }
+}
+
+/** Parse an upstream class reference, normalizing `Box~T~` to stable id
+ * `Box` plus a generic parameter. The same identity rule is used by
+ * declarations, relationships, notes, and member statements. */
+export function parseClassReference(token: string): { id: string; generic?: string } | null {
+  const match = token.trim().match(/^(`[^`]+`|[\w$]+)(?:~([^~]+)~)?$/)
+  if (!match) return null
+  const rawId = match[1]!
+  return {
+    id: rawId.startsWith('`') ? rawId.slice(1, -1) : rawId,
+    generic: match[2]?.trim() || undefined,
   }
 }
 
@@ -200,9 +213,8 @@ export function parseClassDiagram(lines: string[]): ClassDiagram {
     // --- Class declaration (standalone or opening a member block) ---
     const declaration = parseClassDeclaration(line)
     if (declaration) {
-      const cls = ensureClass(classMap, declaration.id)
+      const cls = ensureClass(classMap, declaration.id, declaration.generic)
       if (declaration.label !== undefined) cls.label = normalizeBrTags(declaration.label)
-      else if (declaration.generic) cls.label = `${declaration.id}<${declaration.generic}>`
       if (declaration.opensBody) {
         currentClass = cls
         braceDepth = 1
@@ -214,7 +226,9 @@ export function parseClassDiagram(lines: string[]): ClassDiagram {
     // --- Inline annotation: `class ClassName { <<interface>> }` (single line) ---
     const inlineAnnotMatch = line.match(/^class\s+(\S+?)\s*\{\s*<<(\w+)>>\s*\}$/)
     if (inlineAnnotMatch) {
-      const cls = ensureClass(classMap, inlineAnnotMatch[1]!)
+      const ref = parseClassReference(inlineAnnotMatch[1]!)
+      if (!ref) continue
+      const cls = ensureClass(classMap, ref.id, ref.generic)
       cls.annotation = inlineAnnotMatch[2]!
       claimClass(cls.id)
       continue
@@ -226,7 +240,9 @@ export function parseClassDiagram(lines: string[]): ClassDiagram {
       // Make sure this isn't a relationship line (those have arrows)
       const rest = inlineAttrMatch[2]!
       if (!rest.match(/<\|--|--|\*--|o--|-->|\.\.>|\.\.\|>/)) {
-        const cls = ensureClass(classMap, inlineAttrMatch[1]!)
+        const ref = parseClassReference(inlineAttrMatch[1]!)
+        if (!ref) continue
+        const cls = ensureClass(classMap, ref.id, ref.generic)
         const member = parseMember(rest)
         if (member) {
           if (member.isMethod) {
@@ -246,9 +262,10 @@ export function parseClassDiagram(lines: string[]): ClassDiagram {
     const rel = parseRelationship(line)
     if (rel) {
       // Ensure both classes exist
-      ensureClass(classMap, rel.from)
-      ensureClass(classMap, rel.to)
-      diagram.relationships.push(rel)
+      ensureClass(classMap, rel.from, rel.fromGeneric)
+      ensureClass(classMap, rel.to, rel.toGeneric)
+      const { fromGeneric: _fromGeneric, toGeneric: _toGeneric, ...relationship } = rel
+      diagram.relationships.push(relationship)
       continue
     }
   }
@@ -280,11 +297,14 @@ function collectAccessibilityBlock(initial: string, lines: string[], startIndex:
 }
 
 /** Ensure a class exists in the map, creating a default if needed */
-function ensureClass(classMap: Map<string, ClassNode>, id: string): ClassNode {
+function ensureClass(classMap: Map<string, ClassNode>, id: string, generic?: string): ClassNode {
   let cls = classMap.get(id)
   if (!cls) {
-    cls = { id, label: id, attributes: [], methods: [] }
+    cls = { id, label: generic ? `${id}<${generic}>` : id, generic, attributes: [], methods: [] }
     classMap.set(id, cls)
+  } else if (generic && !cls.generic) {
+    cls.generic = generic
+    if (cls.label === id) cls.label = `${id}<${generic}>`
   }
   return cls
 }
@@ -356,7 +376,7 @@ function parseMember(line: string): { member: ClassMember; isMethod: boolean } |
 }
 
 /** Parse a relationship line into a ClassRelationship */
-function parseRelationship(line: string): ClassRelationship | null {
+function parseRelationship(line: string): (ClassRelationship & { fromGeneric?: string; toGeneric?: string }) | null {
   // Relationship regex — handles all arrow types with optional cardinality and labels
   // Pattern: FROM ["card"] ARROW ["card"] TO [: label]
   const match = line.match(
@@ -364,20 +384,28 @@ function parseRelationship(line: string): ClassRelationship | null {
   )
   if (!match) return null
 
-  const from = match[1]!
+  const fromRef = parseClassReference(match[1]!)
+  const toRef = parseClassReference(match[5]!)
+  if (!fromRef || !toRef) return null
+  const from = fromRef.id
   const rawFromCardinality = match[2]
   const fromCardinality = rawFromCardinality ? normalizeBrTags(rawFromCardinality) : undefined
   const arrow = match[3]!.trim()
   const rawToCardinality = match[4]
   const toCardinality = rawToCardinality ? normalizeBrTags(rawToCardinality) : undefined
-  const to = match[5]!
+  const to = toRef.id
   const rawLabel = match[6]?.trim()
   const label = rawLabel ? normalizeBrTags(rawLabel) : undefined
 
   const parsed = parseArrow(arrow)
   if (!parsed) return null
 
-  return { from, to, type: parsed.type, markerAt: parsed.markerAt, label, fromCardinality, toCardinality }
+  return {
+    from, to, type: parsed.type, markerAt: parsed.markerAt, label,
+    fromCardinality, toCardinality,
+    ...(fromRef.generic ? { fromGeneric: fromRef.generic } : {}),
+    ...(toRef.generic ? { toGeneric: toRef.generic } : {}),
+  }
 }
 
 /**

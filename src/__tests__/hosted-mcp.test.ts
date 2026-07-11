@@ -222,7 +222,7 @@ describe('hosted declarative mutate/build tools', () => {
     expect(p.isError).toBe(true)
     expect(p.ok).toBe(false)
     expect(p.opIndex).toBe(0)
-    expect(p.error.message).toContain('Valid fields: id, label, members')
+    expect(p.error.message).toContain('Valid fields: id, label, generic, members, namespace')
     expect(p.error.message).not.toContain('undefined')
   })
 
@@ -234,7 +234,7 @@ describe('hosted declarative mutate/build tools', () => {
   test('tool descriptions embed the op menu WITH field signatures so ops are fillable first-try', () => {
     const build = HOSTED_TOOLS.find(t => t.name === 'build')!
     // Field names inline (not just op names) — the discovery gap the eval surfaced.
-    expect(build.description).toContain('add_class(id, label?, members?, namespace?)')
+    expect(build.description).toContain('add_class(id, label?, generic?, members?, namespace?)')
     expect(build.description).toContain('add_series(kind2, name?, values)')
   })
 })

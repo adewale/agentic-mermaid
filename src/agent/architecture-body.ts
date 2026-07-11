@@ -4,14 +4,14 @@
 // journey pilot).
 //
 // Modeled grammar (mirrors the legacy renderer parser, src/architecture/parser.ts):
+//   title <Visible diagram heading>
 //   group <id>(<icon>)[<Label>] [in <parentGroup>]
 //   service <id>(<icon>)[<Label>] [in <group>]
 //   junction <id> [in <group>]
 //   <id>[{group}]:<SIDE> <arrow> <SIDE>:<id>[{group}]   (SIDE ∈ L|R|T|B)
 //     arrows: -- --> <-- <-->  and labeled  -[label]-  forms
 //   align row|column <id> <id> ...   (upstream v11.16.0 — shared shape parser
-//     in src/architecture/align.ts; preserved losslessly, layout does not
-//     honor the constraint, verify lints UNSUPPORTED_SYNTAX architecture_align)
+//     in src/architecture/align.ts; preserved and honored by layout)
 //
 // Structured-or-opaque: any other non-blank, non-comment line (accTitle,
 // accDescr, the {group} boundary modifier, unmodeled syntax) returns null so
@@ -92,6 +92,7 @@ function parseEdge(line: string): ArchitectureEdge | null {
  * null (opaque fallback).
  */
 export function parseArchitectureBody(lines: string[]): ArchitectureBody | null {
+  let title: string | undefined
   const groups: ArchitectureGroup[] = []
   const services: ArchitectureService[] = []
   const junctions: ArchitectureJunction[] = []
@@ -106,6 +107,14 @@ export function parseArchitectureBody(lines: string[]): ArchitectureBody | null 
     const line = raw.trim()
     if (!line) continue
     if (line.startsWith('%%')) continue
+
+    const titleMatch = line.match(/^title\s+(.+)$/i)
+    if (titleMatch) {
+      if (title !== undefined) return null
+      title = normalizeText(titleMatch[1]!)
+      if (!title) return null
+      continue
+    }
 
     const gm = line.match(GROUP_RE)
     if (gm) {
@@ -187,11 +196,11 @@ export function parseArchitectureBody(lines: string[]): ArchitectureBody | null 
     }
   }
 
-  // The legacy renderer rejects an empty architecture diagram; model the same
-  // floor so a structured body always renders.
-  if (groups.length === 0 && services.length === 0 && junctions.length === 0) return null
+  // A visible title is renderable furniture on its own; without one, retain
+  // the historical non-empty architecture floor.
+  if (groups.length === 0 && services.length === 0 && junctions.length === 0 && title === undefined) return null
 
-  return { kind: 'architecture', groups, services, junctions, edges, alignments }
+  return { kind: 'architecture', title, groups, services, junctions, edges, alignments }
 }
 
 // ---- Serializer -------------------------------------------------------------
@@ -215,6 +224,7 @@ function renderArrow(edge: ArchitectureEdge): string {
 
 export function renderArchitecture(body: ArchitectureBody): string {
   const lines: string[] = ['architecture-beta']
+  if (body.title !== undefined) lines.push(`  title ${body.title}`)
   for (const g of body.groups) lines.push(renderNode('group', g.id, g.label, g.icon, g.parentId))
   for (const s of body.services) lines.push(renderNode('service', s.id, s.label, s.icon, s.parentId))
   for (const j of body.junctions) {
@@ -236,6 +246,7 @@ export function renderArchitecture(body: ArchitectureBody): string {
 function cloneArchitecture(b: ArchitectureBody): ArchitectureBody {
   return {
     kind: 'architecture',
+    title: b.title,
     groups: b.groups.map(g => ({ ...g })),
     services: b.services.map(s => ({ ...s })),
     junctions: b.junctions.map(j => ({ ...j })),
@@ -306,6 +317,16 @@ export function mutateArchitecture(body: ArchitectureBody, op: ArchitectureMutat
   const next = cloneArchitecture(body)
 
   switch (op.kind) {
+    case 'set_title': {
+      if (op.title === null) {
+        next.title = undefined
+      } else {
+        const title = normalizeText(op.title)
+        if (!title) return err({ code: 'INVALID_OP', message: 'Architecture title must be a non-empty string or null' })
+        next.title = title
+      }
+      break
+    }
     case 'add_service': {
       const id = validId(op.id, 'service id')
       if (!id.ok) return id
@@ -471,10 +492,10 @@ export function mutateArchitecture(body: ArchitectureBody, op: ArchitectureMutat
     }
   }
 
-  // Preserve the structured floor: an architecture diagram must keep at least
-  // one node so it always renders.
-  if (next.groups.length === 0 && next.services.length === 0 && next.junctions.length === 0) {
-    return err({ code: 'INVALID_OP', message: 'Architecture diagram must keep at least one group, service, or junction' })
+  // Preserve the structured floor: visible title furniture or at least one
+  // node must remain, so canonical output always has renderable content.
+  if (next.groups.length === 0 && next.services.length === 0 && next.junctions.length === 0 && next.title === undefined) {
+    return err({ code: 'INVALID_OP', message: 'Architecture diagram must keep a title, group, service, or junction' })
   }
 
   return ok(next)
@@ -489,9 +510,10 @@ export function verifyArchitecture(body: ArchitectureBody, opts: VerifyOptions):
     const w = labelOverflowWarning(target, text, cap)
     if (w) warnings.push(w)
   }
-  if (body.groups.length === 0 && body.services.length === 0 && body.junctions.length === 0) {
+  if (body.groups.length === 0 && body.services.length === 0 && body.junctions.length === 0 && body.title === undefined) {
     warnings.push({ code: 'EMPTY_DIAGRAM' })
   }
+  if (body.title !== undefined) overflow('title', body.title)
   for (const g of body.groups) overflow(g.id, g.label)
   for (const s of body.services) overflow(s.id, s.label)
   body.edges.forEach((e, i) => {
@@ -507,16 +529,5 @@ export function verifyArchitecture(body: ArchitectureBody, opts: VerifyOptions):
     }
     if (e.label !== undefined) overflow(`edge#${i}:${architectureEdgeId(e)}`, e.label)
   })
-  // P4 (documented limitation ⇒ runtime diagnostic): align directives are
-  // parsed and preserved losslessly, but the deterministic layout does not
-  // honor them as placement constraints. One lint names the construct; it
-  // never flips verify.ok (Tier 3).
-  if ((body.alignments ?? []).length > 0) {
-    warnings.push({
-      code: 'UNSUPPORTED_SYNTAX',
-      syntax: 'architecture_align',
-      message: 'align row/column directives are parsed and preserved in source, but the deterministic layout does not honor them as placement constraints; the layered placement never stacks siblings on one coordinate, so rendering proceeds without the alignment.',
-    })
-  }
   return warnings
 }

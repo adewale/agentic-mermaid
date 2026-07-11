@@ -13,7 +13,7 @@ import { WARNING_TIER, WARNING_SEVERITY } from '../agent/types.ts'
 // Each source is valid-enough to parse but uses a construct the structured
 // parser does not model, so it lands on the opaque path.
 const OPAQUE_BY_FAMILY: Record<string, string> = {
-  class: 'classDiagram\n  class Box~T~\n  Box~T~ <|-- IntBox', // generics
+  class: 'classDiagram\n  direction LR\n  class Box', // direction remains render-only
   // Notes/pseudostates were promoted to structured (repo #118); `--`
   // concurrency regions render but keep the honest opaque agent body.
   state: 'stateDiagram-v2\n  state P {\n    a --> b\n    --\n    c --> d\n  }',

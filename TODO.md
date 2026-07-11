@@ -103,19 +103,12 @@ dependents after. IDs are stable names, not an ordering.
   and privacy-policy URLs, screenshots, test prompts/responses, localization,
   and review notes. Submit through the plugin portal only when the live endpoint
   and UI are stable enough to preserve the reviewed metadata contract.
-- [ ] **BUILD-25 — Structured coverage for the last silent-opaque constructs**
-  (`todo`, needs legacy-renderer support first; tracked as **#118**). The systemic `UNSUPPORTED_SYNTAX`
-  warning (2026-07) now announces every opaque fallback, so these are visible but
-  still source-only. Promoting them to structured is blocked on the LEGACY parser/
-  renderer, which drops them today (verified): class generic type params
-  (`class Box~T~` → `parseClassDiagram` returns empty), class `namespace {…}`,
-  state `note … / end note` and `<<choice>>/<<fork>>/<<join>>` pseudostates
-  (`state-body.ts:27-31` documents the legacy drop). Each needs the legacy
-  parser/renderer taught first, then a body-type + parser + serializer + mutator +
-  round-trip test — one family per PR to preserve the determinism/render-parity
-  contract. NON-goal: accepting UNQUOTED pie labels — Mermaid's pie grammar
-  requires quotes, so that would accept invalid Mermaid (the fork rejects what
-  Mermaid rejects); the systemic warning already covers the bare-label trap.
+- [x] **BUILD-25 — Structured coverage for the last silent-opaque constructs**
+  (completed on PR #142; tracked as **#118**). Class generics and namespaces,
+  plus State notes, fork/join/choice pseudostates, and history states now pass
+  through shared render/agent grammars with typed mutation and canonical
+  round-trip coverage. Unquoted Pie labels remain intentionally invalid because
+  Mermaid's grammar requires quotes.
 - [ ] **BUILD-24 — Layout hints: rank/group pinning and edge-length
   preferences** (`todo`). Direct agent feedback (2026-07): an agent deleted a
   real edge because the auto-layout drew its feedback loop as a long,

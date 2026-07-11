@@ -109,7 +109,7 @@ function metadataBraceDelta(text: string): number {
  * odd number of backticks on a line) joins the following lines until the
  * string closes. The break is joined as '<br>' — the label pipeline's
  * canonical line-break token — so the single-line shape grammars keep
- * matching and markdownStringToPlainText/normalizeBrTags restore '\n'.
+ * matching and markdownStringToFormattedText/normalizeBrTags restore '\n'.
  * Comment lines outside an open string pass through untouched.
  */
 function coalesceMarkdownStringLines(lines: string[]): string[] {
@@ -147,17 +147,12 @@ function countBackticks(line: string): number {
 }
 
 /**
- * Strip Mermaid markdown-string styling to plain text (repo #102 layer 1):
- * bold/italic markers are removed (styled runs are layer 2, announced by the
- * flowchart_markdown_string lint), <br>/literal \n become line breaks, and
- * real newlines survive as the explicit breaks upstream documents.
+ * Normalize Mermaid markdown-string content (repo #102): backticks are
+ * consumed by the caller, explicit breaks become newlines, and the shared
+ * inline-text pipeline maps bold/italic markers to styled SVG tspan runs.
  */
-function markdownStringToPlainText(inner: string): string {
-  return inner
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/\\n/g, '\n')
-    .replace(/\*\*(.+?)\*\*/g, '$1')
-    .replace(/(?<!\*)\*([^\s*](?:[^*]*[^\s*])?)\*(?!\*)/g, '$1')
+function markdownStringToFormattedText(inner: string): string {
+  return normalizeBrTags(inner)
 }
 
 interface ParsedLabelText {
@@ -168,7 +163,7 @@ interface ParsedLabelText {
 /**
  * ONE label normalization for node and edge labels: a quoted backtick string
  * ("`…`") is a Mermaid markdown string — backticks consumed, styling
- * stripped to plain text — while everything else keeps the existing
+ * retained as formatted runs — while everything else keeps the existing
  * normalizeBrTags pipeline (quote stripping, <br> handling, emphasis→tags).
  * `alreadyUnquoted` marks callers whose grammar consumed the double quotes
  * (consumeQuotedNode, parseMetadataLabel).
@@ -179,7 +174,7 @@ function parseLabelText(raw: string, alreadyUnquoted = false): ParsedLabelText {
     : raw
   const quoteConsumed = alreadyUnquoted || unquoted !== raw
   if (quoteConsumed && unquoted.length >= 2 && unquoted.startsWith('`') && unquoted.endsWith('`')) {
-    return { text: markdownStringToPlainText(unquoted.slice(1, -1)), markdown: true }
+    return { text: markdownStringToFormattedText(unquoted.slice(1, -1)), markdown: true }
   }
   return { text: normalizeBrTags(raw), markdown: false }
 }
@@ -248,12 +243,12 @@ function isUnsupportedEdgeMetadataLine(line: string): boolean {
 // ============================================================================
 
 function parseFlowchart(lines: string[]): MermaidGraph {
-  const headerMatch = lines[0]!.match(/^(?:graph|flowchart|swimlane)\s+(TD|TB|LR|BT|RL|[<>^v])\s*$/i)
+  const headerMatch = lines[0]!.match(/^(?:(?:graph|swimlane)\s+(TD|TB|LR|BT|RL|[<>^v])|flowchart(?:\s+(TD|TB|LR|BT|RL|[<>^v]))?)\s*$/i)
   if (!headerMatch) {
     throw new Error(`Invalid mermaid header: "${lines[0]}". Expected "graph TD", "flowchart LR", "stateDiagram-v2", etc.`)
   }
 
-  const direction = normalizeFlowchartDirection(headerMatch[1]!)
+  const direction = normalizeFlowchartDirection(headerMatch[1] ?? headerMatch[2] ?? 'TD')
 
   const graph: MermaidGraph = {
     direction,

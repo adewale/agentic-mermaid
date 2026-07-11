@@ -53,14 +53,15 @@ export interface ArchitectureEdge {
 }
 
 export interface ArchitectureDiagram {
+  /** Visible diagram heading from `title ...` (distinct from accTitle). */
+  title?: string
   groups: ArchitectureGroup[]
   services: ArchitectureService[]
   junctions: ArchitectureJunction[]
   edges: ArchitectureEdge[]
   /**
    * `align row|column` directives (upstream v11.16.0), in source order.
-   * Parsed and preserved; the deterministic layout does not (yet) honor them
-   * as placement constraints — see src/architecture/align.ts.
+   * Parsed, preserved, and honored as deterministic placement constraints.
    */
   alignments: ArchitectureAlignment[]
   rootChildren: ArchitectureChildRef[]
@@ -113,6 +114,7 @@ export interface PositionedArchitectureEdge {
 export interface PositionedArchitectureDiagram extends PositionedDiagram {
   width: number
   height: number
+  title?: { text: string; x: number; y: number }
   groups: PositionedArchitectureGroup[]
   services: PositionedArchitectureService[]
   junctions: PositionedArchitectureJunction[]

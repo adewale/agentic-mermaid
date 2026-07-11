@@ -142,8 +142,10 @@ export type ClassRelationKind =
   | 'link-dashed'    // ..
 
 export interface ClassNode {
-  /** The bare class name (e.g., 'Animal'). */
+  /** Stable bare class identity (e.g., `Box` for authored `Box~T~`). */
   id: string
+  /** Generic parameter text from Mermaid's `~...~` syntax. */
+  generic?: string
   /** Optional display label (e.g., from `class X["My Label"]` or `class X as "..."`). */
   label?: string
   /** Members, each as the raw source string ('+String name', '+eat()', '<<interface>>'). */
@@ -268,10 +270,8 @@ export interface ArchitectureEdge {
 }
 
 /** `align row|column` directive (upstream v11.16.0): members share a row
- *  (same y) or column (same x). Members are declared services/junctions,
- *  ≥2 and unique per directive. Preserved losslessly; the deterministic
- *  layout does not honor the placement constraint (verify announces this
- *  as the Tier-3 UNSUPPORTED_SYNTAX lint `architecture_align`). */
+ *  (same center y) or column (same center x). Members are declared
+ *  services/junctions, ≥2 and unique per directive. */
 export interface ArchitectureAlignment {
   axis: 'row' | 'column'
   members: string[]
@@ -279,6 +279,8 @@ export interface ArchitectureAlignment {
 
 export interface ArchitectureBody {
   kind: 'architecture'
+  /** Visible heading from `title ...` (distinct from accessibility metadata). */
+  title?: string
   groups: ArchitectureGroup[]
   services: ArchitectureService[]
   junctions: ArchitectureJunction[]
@@ -783,9 +785,10 @@ export type TimelineMutationOp =
 
 export type ClassMutationOp =
   | { kind: 'set_title'; title: string | null }
-  | { kind: 'add_class'; id: string; label?: string; members?: string[]; namespace?: string }
+  | { kind: 'add_class'; id: string; label?: string; generic?: string; members?: string[]; namespace?: string }
   | { kind: 'remove_class'; id: string }
   | { kind: 'rename_class'; from: string; to: string }
+  | { kind: 'set_class_generic'; class: string; generic: string | null }
   | { kind: 'add_member'; class: string; text: string }
   | { kind: 'remove_member'; class: string; index: number }
   | { kind: 'add_relation'; from: string; to: string; relKind: ClassRelationKind; label?: string }
@@ -826,6 +829,7 @@ export type JourneyMutationOp =
   | { kind: 'set_accessibility_description'; description: string | null }
 
 export type ArchitectureMutationOp =
+  | { kind: 'set_title'; title: string | null }
   | { kind: 'add_service'; id: string; label?: string; icon?: string | null; group?: string | null }
   | { kind: 'remove_service'; id: string }
   | { kind: 'rename_service'; from: string; to: string }

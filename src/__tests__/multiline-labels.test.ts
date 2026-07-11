@@ -668,23 +668,27 @@ describe('stripFormattingTags', () => {
 })
 
 // ============================================================================
-// Text metrics: formatting tags excluded from width
+// Text metrics: formatting tags excluded, styled run weights included
 // ============================================================================
 
 describe('measureMultilineText – formatting tag exclusion', () => {
   const fontSize = 13
   const fontWeight = 500
 
-  it('measures width of plain text, not tag text', () => {
-    const withTags = measureMultilineText('<b>bold</b>', fontSize, fontWeight)
+  it('excludes tag glyphs but accounts for a bold run\'s heavier metrics', () => {
+    const bold = measureMultilineText('<b>bold</b>', fontSize, fontWeight)
     const plain = measureMultilineText('bold', fontSize, fontWeight)
-    expect(withTags.width).toBe(plain.width)
+    expect(bold.width).toBeGreaterThan(plain.width)
+    expect(bold.width).toBe(measureTextWidth('bold', fontSize, 700))
   })
 
-  it('excludes nested tags from width', () => {
-    const withTags = measureMultilineText('<b><i>text</i></b>', fontSize, fontWeight)
+  it('italic tags do not change advance width, including inside bold', () => {
+    const boldItalic = measureMultilineText('<b><i>text</i></b>', fontSize, fontWeight)
+    const bold = measureMultilineText('<b>text</b>', fontSize, fontWeight)
+    const italic = measureMultilineText('<i>text</i>', fontSize, fontWeight)
     const plain = measureMultilineText('text', fontSize, fontWeight)
-    expect(withTags.width).toBe(plain.width)
+    expect(boldItalic.width).toBe(bold.width)
+    expect(italic.width).toBe(plain.width)
   })
 })
 

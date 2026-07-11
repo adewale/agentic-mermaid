@@ -72,10 +72,8 @@ describe('mermaid-js docs corpus (271 examples, 12 families)', () => {
     timeline:     { minParse: 1.00, minVerify: 1.00, minRoundTrip: 1.00 },
     journey:      { minParse: 1.00, minVerify: 1.00, minRoundTrip: 1.00 },
     xychart:      { minParse: 1.00, minVerify: 1.00, minRoundTrip: 1.00 },
-    // Align directives (upstream v11.16.0) now parse, verify (ok=true with a
-    // Tier-3 UNSUPPORTED_SYNTAX lint naming architecture_align — the layout
-    // does not honor the placement constraint), and round-trip losslessly, so
-    // all 6 official examples are green (ledgered in divergences.json).
+    // Align directives (upstream v11.16.0) parse, verify, round-trip, and now
+    // constrain geometry; all official examples remain green.
     architecture: { minParse: 1.00, minVerify: 1.00, minRoundTrip: 1.00 },
     pie:          { minParse: 1.00, minVerify: 1.00, minRoundTrip: 1.00 },
     quadrant:     { minParse: 1.00, minVerify: 1.00, minRoundTrip: 1.00 },
@@ -93,7 +91,7 @@ describe('mermaid-js docs corpus (271 examples, 12 families)', () => {
 
   test('divergence ledger entries are executable and documented', () => {
     const readme = readFileSync(join(import.meta.dir, '..', '..', 'eval', 'mermaid-docs-corpus', 'README.md'), 'utf8')
-    expect(divergences.length).toBeGreaterThan(0)
+    expect(Array.isArray(divergences)).toBe(true)
     for (const d of divergences) {
       expect({ id: d.id, documented: readme.includes('divergences.json') }).toEqual({ id: d.id, documented: true })
       expect(d.reason.length).toBeGreaterThan(5)

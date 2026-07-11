@@ -8,6 +8,7 @@ import {
 } from '../agent/index.ts'
 import type { DiagramKind, ValidDiagram } from '../agent/types.ts'
 import { countStructuralElements, isDrop } from '../agent/structural-count.ts'
+import { stripFormattingTags } from '../multiline-utils.ts'
 
 interface BenchCase {
   id: string
@@ -114,7 +115,7 @@ function layoutLabels(layout: ReturnType<typeof layoutMermaid>): string[] {
   for (const n of layout.nodes) if (n.label) labels.push(n.label)
   for (const e of layout.edges) if (e.label?.text) labels.push(e.label.text)
   for (const g of layout.groups) if (g.label) labels.push(g.label)
-  return labels
+  return labels.map(stripFormattingTags)
 }
 
 function safeVerifyOk(diagram: ValidDiagram): boolean {

@@ -8,8 +8,8 @@ What Agentic Mermaid can do, organized by capability area. The npm import paths 
 - **`parseMermaid(source)`** → `Result<ValidDiagram, ParseError[]>`. Never
   throws on malformed input; structured errors.
 - **`mutate(d, op)`** — family-overloaded typed mutation. Ops per family:
-  flowchart (14), state (14), sequence (7), timeline (15), class (11), ER (7),
-  journey (14), architecture (10), xychart (10), pie (7), quadrant (7), gantt (13): **129 total**.
+  flowchart (14), state (14), sequence (7), timeline (15), class (12), ER (7),
+  journey (14), architecture (11), xychart (10), pie (7), quadrant (7), gantt (13): **131 total**.
 - **`verifyMermaid(d, opts)`** — structural and geometric verification plus a
   strict render-parity gate, with deterministic semantic facts available for
   meaning-level checks.
@@ -29,11 +29,11 @@ What Agentic Mermaid can do, organized by capability area. The npm import paths 
 | State | ✅ | ✅ (14 ops via `asState`; notes/`<<fork>>`/`<<choice>>`/history are structured; `--` regions/`classDef` → opaque) |
 | Sequence | ✅ | ✅ (7 ops; alt/loop/note/box ride along verbatim as segments) |
 | Timeline | ✅ | ✅ (15 ops) |
-| Class | ✅ | ✅ (11 ops) |
+| Class | ✅ | ✅ (12 ops) |
 | ER | ✅ | ✅ (7 ops) |
 | Journey | ✅ | ✅ (14 ops via `asJourney`) |
 | XY chart | ✅ | ✅ (10 ops via `asXyChart`) |
-| Architecture | ✅ | ✅ (10 ops via `asArchitecture`) |
+| Architecture | ✅ | ✅ (11 ops via `asArchitecture`) |
 | Pie | ✅ | ✅ (7 ops via `asPie`) |
 | Quadrant | ✅ | ✅ (7 ops via `asQuadrant`) |
 | Gantt | ✅ | ✅ (13 ops via `asGantt`; calendar directives/click/comments ride along verbatim as segments) |

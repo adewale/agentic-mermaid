@@ -36,6 +36,13 @@ function apply(d: ArchitectureValidDiagram, op: ArchitectureMutationOp): Archite
 }
 
 describe('architecture structured parse', () => {
+  test('models a standalone visible title, including a title-only diagram', () => {
+    const d = architecture('architecture-beta\n  title Simple Architecture Diagram')
+    expect(d.body.title).toBe('Simple Architecture Diagram')
+    expect(serializeMermaid(d)).toBe('architecture-beta\n  title Simple Architecture Diagram\n')
+    expect(verifyMermaid(d).ok).toBe(true)
+  })
+
   test('models groups, services, junctions, and edges with sides + labels', () => {
     const d = architecture()
     expect(d.kind).toBe('architecture')
@@ -91,6 +98,14 @@ describe('architecture structured-or-opaque fallback', () => {
 })
 
 describe('architecture mutation ops', () => {
+  test('set_title adds, updates, and removes the visible title', () => {
+    let d = apply(architecture(), { kind: 'set_title', title: 'System Map' })
+    expect(d.body.title).toBe('System Map')
+    expect(d.canonicalSource).toContain('title System Map')
+    d = apply(d, { kind: 'set_title', title: null })
+    expect(d.body.title).toBeUndefined()
+  })
+
   test('add_service (root + into group) extends the diagram', () => {
     let d = apply(architecture(), { kind: 'add_service', id: 'cache', label: 'Cache', icon: 'disk' })
     expect(d.body.services.map(s => s.id)).toContain('cache')
@@ -242,11 +257,12 @@ describe('architecture align directives (upstream v11.16.0)', () => {
     expect(serializeMermaid(d2)).toBe(out)
   })
 
-  test('verify passes (ok=true) with an UNSUPPORTED_SYNTAX lint naming architecture_align', () => {
+  test('verify passes without an unsupported-syntax lint now that placement is honored', () => {
     const v = verifyMermaid(architecture(ALIGN_SRC))
     expect(v.ok).toBe(true)
-    const lint = v.warnings.find(w => w.code === 'UNSUPPORTED_SYNTAX')
-    expect(lint).toMatchObject({ code: 'UNSUPPORTED_SYNTAX', syntax: 'architecture_align' })
+    expect(v.warnings).not.toContainEqual(expect.objectContaining({
+      code: 'UNSUPPORTED_SYNTAX', syntax: 'architecture_align',
+    }))
   })
 
   test('multiple align directives round-trip in declaration order', () => {

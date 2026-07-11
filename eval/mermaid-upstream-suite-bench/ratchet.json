@@ -28,25 +28,13 @@
     }
   },
   "observed": {
-    "importedCases": 646,
-    "importedBlocks": 656,
+    "importedCases": 648,
+    "importedBlocks": 658,
     "localGaps": {
-      "totalBlocks": 2,
-      "byReason": {
-        "local-verify-gap": 2
-      },
-      "byFamily": {
-        "architecture": 1,
-        "flowchart": 1
-      },
-      "byFamilyReason": {
-        "architecture": {
-          "local-verify-gap": 1
-        },
-        "flowchart": {
-          "local-verify-gap": 1
-        }
-      }
+      "totalBlocks": 0,
+      "byReason": {},
+      "byFamily": {},
+      "byFamilyReason": {}
     }
   }
 }

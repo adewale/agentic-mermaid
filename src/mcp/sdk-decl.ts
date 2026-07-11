@@ -113,7 +113,7 @@ interface TimelineSection { id: string; label?: string; periods: TimelinePeriod[
 // direction: explicit \`timeline TD\`/\`timeline LR\` header token (TD = vertical, upstream PR #7270); undefined = LR default.
 interface TimelineBody { kind: 'timeline'; direction?: 'LR' | 'TD'; title?: string; accessibilityTitle?: string; accessibilityDescription?: string; sections: TimelineSection[] }
 
-interface ClassNode { id: string; label?: string; members: string[]; namespace?: string }
+interface ClassNode { id: string; generic?: string; label?: string; members: string[]; namespace?: string }
 type ClassRelationKind = 'inheritance' | 'composition' | 'aggregation' | 'association' | 'dependency' | 'realization' | 'link-solid' | 'link-dashed'
 interface ClassRelation { from: string; to: string; kind: ClassRelationKind; label?: string; fromCardinality?: string; toCardinality?: string }
 interface ClassNote { text: string; for?: string }
@@ -138,12 +138,10 @@ interface ArchitectureService { id: string; label: string; icon?: string; parent
 interface ArchitectureJunction { id: string; parentId?: string }
 interface ArchitectureEndpoint { id: string; side: ArchitectureSide }
 interface ArchitectureEdge { source: ArchitectureEndpoint; target: ArchitectureEndpoint; label?: string; hasArrowStart: boolean; hasArrowEnd: boolean }
-// alignments: upstream v11.16.0 "align row|column" directives, preserved losslessly
-// (members are declared services/junctions, >=2 and unique per directive); the
-// deterministic layout does not honor the placement constraint — verify announces
-// it with the Tier-3 UNSUPPORTED_SYNTAX lint syntax "architecture_align".
+// alignments: upstream v11.16.0 "align row|column" directives, preserved
+// losslessly and honored as deterministic center-coordinate constraints.
 interface ArchitectureAlignment { axis: 'row' | 'column'; members: string[] }
-interface ArchitectureBody { kind: 'architecture'; groups: ArchitectureGroup[]; services: ArchitectureService[]; junctions: ArchitectureJunction[]; edges: ArchitectureEdge[]; alignments?: ArchitectureAlignment[] }
+interface ArchitectureBody { kind: 'architecture'; title?: string; groups: ArchitectureGroup[]; services: ArchitectureService[]; junctions: ArchitectureJunction[]; edges: ArchitectureEdge[]; alignments?: ArchitectureAlignment[] }
 
 interface XyChartAxis { name?: string; categories?: string[]; range?: { min: number; max: number } }
 interface XyChartSeries { id: string; kind: 'bar' | 'line'; name?: string; values: number[] }
@@ -241,9 +239,10 @@ type TimelineMutationOp =
 
 type ClassMutationOp =
   | { kind: 'set_title'; title: string | null }
-  | { kind: 'add_class'; id: string; label?: string; members?: string[]; namespace?: string }
+  | { kind: 'add_class'; id: string; label?: string; generic?: string; members?: string[]; namespace?: string }
   | { kind: 'remove_class'; id: string }
   | { kind: 'rename_class'; from: string; to: string }
+  | { kind: 'set_class_generic'; class: string; generic: string | null }
   | { kind: 'add_member'; class: string; text: string }
   | { kind: 'remove_member'; class: string; index: number }
   | { kind: 'add_relation'; from: string; to: string; relKind: ClassRelationKind; label?: string }
@@ -278,6 +277,7 @@ type JourneyMutationOp =
   | { kind: 'set_accessibility_description'; description: string | null }
 
 type ArchitectureMutationOp =
+  | { kind: 'set_title'; title: string | null }
   | { kind: 'add_service'; id: string; label?: string; icon?: string | null; group?: string | null }
   | { kind: 'remove_service'; id: string }
   | { kind: 'rename_service'; from: string; to: string }

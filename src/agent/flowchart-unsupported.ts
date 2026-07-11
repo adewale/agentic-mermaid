@@ -11,9 +11,8 @@ export interface FlowchartStatement {
 // and no longer force the opaque fallback or a lint. Node metadata with only
 // documented `shape`/`label` keys is modeled too (repo #44); everything else
 // under `@{ ... }` (icon/img/animate/undocumented shapes) keeps the lossless
-// opaque fallback. Markdown strings render (backticks consumed, emphasis
-// stripped — repo #102 layer 1) but stay opaque so the source round-trips
-// byte-verbatim.
+// opaque fallback. Markdown strings render with styled emphasis (repo #102)
+// but stay opaque so the authored quoting round-trips byte-verbatim.
 export function containsFlowchartOpaqueSyntax(source: string): boolean {
   if (/`/.test(source)) return true
   return flowchartStatements(source).some(({ text }) =>
@@ -35,7 +34,7 @@ export function flowchartUnsupportedSyntaxWarnings(source: string): LayoutWarnin
       warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_interaction_directive', message: 'Flowchart click/href directives are preserved as source but ignored by the local renderer for security and layout.' })
     }
     if (/`/.test(text)) {
-      warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_markdown_string', message: 'Flowchart markdown strings render as plain text (backticks consumed, **bold**/*italic* markers stripped); styled runs are not rendered. The source is preserved verbatim.' })
+      warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_markdown_string', message: 'Flowchart markdown strings render with bold/italic styled runs, explicit breaks, and wrapping, but remain source-preserved rather than structurally mutable. The source is preserved verbatim.' })
     }
     const malformed = malformedFlowchartStatement(text)
     if (malformed) {

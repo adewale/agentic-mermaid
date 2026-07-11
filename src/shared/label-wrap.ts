@@ -11,8 +11,8 @@
 // text breaks between any two characters without hyphenation.
 // ============================================================================
 
-import { measureTextWidth } from '../text-metrics.ts'
-import { stripFormattingTags } from '../multiline-utils.ts'
+import { measureFormattedTextWidth, measureTextWidth } from '../text-metrics.ts'
+import { HAS_FORMAT_TAGS, parseInlineFormatting, serializeStyledSegment, type StyledSegment } from './inline-format.ts'
 import { graphemes } from './graphemes.ts'
 
 /**
@@ -27,15 +27,19 @@ export function wrapLabelToWidth(
   fontWeight: number,
 ): string {
   if (!Number.isFinite(maxWidth) || maxWidth <= 0) return text
-  if (measureTextWidth(stripFormattingTags(text), fontSize, fontWeight) <= maxWidth) return text
+  if (measureFormattedTextWidth(text, fontSize, fontWeight) <= maxWidth) return text
 
   const lines: string[] = []
   for (const paragraph of text.split(/\r?\n/)) {
+    if (HAS_FORMAT_TAGS.test(paragraph)) {
+      lines.push(...wrapFormattedParagraph(paragraph, maxWidth, fontSize, fontWeight))
+      continue
+    }
     const words = paragraph.split(/\s+/).filter(Boolean)
     let current = ''
     for (const word of words) {
       const candidate = current ? `${current} ${word}` : word
-      if (measureTextWidth(stripFormattingTags(candidate), fontSize, fontWeight) <= maxWidth) {
+      if (measureTextWidth(candidate, fontSize, fontWeight) <= maxWidth) {
         current = candidate
         continue
       }
@@ -47,14 +51,78 @@ export function wrapLabelToWidth(
   return lines.join('\n')
 }
 
+type StyledWord = StyledSegment[]
+
+function styledWords(paragraph: string): StyledWord[] {
+  const words: StyledWord[] = []
+  let current: StyledWord = []
+  for (const segment of parseInlineFormatting(paragraph)) {
+    for (const part of segment.text.split(/(\s+)/)) {
+      if (!part) continue
+      if (/^\s+$/.test(part)) {
+        if (current.length > 0) {
+          words.push(current)
+          current = []
+        }
+      } else {
+        current.push({ ...segment, text: part })
+      }
+    }
+  }
+  if (current.length > 0) words.push(current)
+  return words
+}
+
+function renderStyledWord(word: StyledWord): string {
+  return word.map(serializeStyledSegment).join('')
+}
+
+function wrapFormattedParagraph(
+  paragraph: string,
+  maxWidth: number,
+  fontSize: number,
+  fontWeight: number,
+): string[] {
+  const lines: string[] = []
+  let current: string[] = []
+  for (const word of styledWords(paragraph)) {
+    const rendered = renderStyledWord(word)
+    const candidate = [...current, rendered].join(' ')
+    if (measureFormattedTextWidth(candidate, fontSize, fontWeight) <= maxWidth) {
+      current.push(rendered)
+      continue
+    }
+    if (current.length > 0) lines.push(current.join(' '))
+    current = []
+
+    // Preserve formatting on ordinary long single-style words. Mixed-style
+    // words are rare and stay intact rather than emitting malformed tags.
+    if (word.length === 1 && measureFormattedTextWidth(rendered, fontSize, fontWeight) > maxWidth) {
+      const segment = word[0]!
+      const broken = breakWordToWidth(
+        segment.text,
+        maxWidth,
+        fontSize,
+        segment.bold ? Math.max(700, fontWeight) : fontWeight,
+      ).split('\n')
+      lines.push(...broken.slice(0, -1).map(text => serializeStyledSegment({ ...segment, text })))
+      current = [serializeStyledSegment({ ...segment, text: broken.at(-1)! })]
+    } else {
+      current = [rendered]
+    }
+  }
+  if (current.length > 0) lines.push(current.join(' '))
+  return lines
+}
+
 export function breakWordToWidth(word: string, maxWidth: number, fontSize: number, fontWeight: number): string {
-  if (measureTextWidth(stripFormattingTags(word), fontSize, fontWeight) <= maxWidth) return word
+  if (measureTextWidth(word, fontSize, fontWeight) <= maxWidth) return word
   const lines: string[] = []
   let current = ''
   let previousCluster = ''
   for (const cluster of graphemes(word)) {
     const candidate = current + cluster
-    if (current && measureTextWidth(stripFormattingTags(candidate), fontSize, fontWeight) > maxWidth) {
+    if (current && measureTextWidth(candidate, fontSize, fontWeight) > maxWidth) {
       // A hyphen marks a mid-word break in alphabetic scripts; CJK, emoji,
       // and other fullwidth grapheme clusters break without one.
       const breakIsFullwidth = isFullwidthChar(previousCluster) && isFullwidthChar(cluster)

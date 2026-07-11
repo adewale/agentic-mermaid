@@ -12,9 +12,9 @@
       "family": "flowchart",
       "status": "full-harvest-accounted",
       "consideredBlocks": 301,
-      "importedCases": 185,
-      "importedBlocks": 190,
-      "excludedBlocks": 111,
+      "importedCases": 186,
+      "importedBlocks": 191,
+      "excludedBlocks": 110,
       "deferredBlocks": 0,
       "files": [
         {
@@ -234,9 +234,9 @@
       "family": "architecture",
       "status": "full-harvest-accounted",
       "consideredBlocks": 33,
-      "importedCases": 8,
-      "importedBlocks": 8,
-      "excludedBlocks": 25,
+      "importedCases": 9,
+      "importedBlocks": 9,
+      "excludedBlocks": 24,
       "deferredBlocks": 0,
       "files": [
         {

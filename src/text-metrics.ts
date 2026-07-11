@@ -14,6 +14,7 @@
 // ============================================================================
 
 import { isWideRange, isZeroWidth, VS_EMOJI, VS_TEXT } from './shared/unicode-ranges.ts'
+import { HAS_FORMAT_TAGS, parseInlineFormatting } from './shared/inline-format.ts'
 
 /**
  * Narrow characters - visually thin glyphs.
@@ -193,6 +194,15 @@ export function measureTextWidth(text: string, fontSize: number, fontWeight: num
   return measureText({ text, fontSize, fontWeight }).width
 }
 
+/** Measure normalized inline formatting with the actual weight of each run.
+ * Italic/decorations do not materially change this estimator's advance width;
+ * bold runs use at least weight 700. */
+export function measureFormattedTextWidth(text: string, fontSize: number, fontWeight: number): number {
+  if (!HAS_FORMAT_TAGS.test(text)) return measureTextWidth(text, fontSize, fontWeight)
+  return parseInlineFormatting(text).reduce((width, segment) =>
+    width + measureTextWidth(segment.text, fontSize, segment.bold ? Math.max(700, fontWeight) : fontWeight), 0)
+}
+
 // ============================================================================
 // Multi-line Text Measurement
 // ============================================================================
@@ -234,8 +244,7 @@ export function measureMultilineText(
   // Width = max of all line widths
   let maxWidth = 0
   for (const line of lines) {
-    const plain = line.replace(/<\/?(?:b|strong|i|em|u|s|del)\s*>/gi, '')
-    const w = measureTextWidth(plain, fontSize, fontWeight)
+    const w = measureFormattedTextWidth(line, fontSize, fontWeight)
     if (w > maxWidth) maxWidth = w
   }
 

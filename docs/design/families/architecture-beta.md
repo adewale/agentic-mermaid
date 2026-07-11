@@ -9,9 +9,9 @@ Current scope covers:
 - `group`, `service`, and `junction`
 - side-anchored edges (`L`, `R`, `T`, `B`)
 - `{group}` boundary routing for services inside groups
-- `align row|column` directives (upstream v11.16.0) — parsed, modeled, and
-  round-tripped losslessly; NOT honored as a placement constraint (see
-  [Align directives](#align-directives-upstream-v11160) below)
+- visible `title ...` header furniture, including title-only diagrams
+- `align row|column` directives (upstream v11.16.0) — parsed, modeled,
+  round-tripped losslessly, and honored as placement constraints
 - multi-line labels via `<br>` / `\n`
 - SVG, PNG, and ASCII output (PNG via the shared SVG rasterization pipeline)
 
@@ -36,6 +36,7 @@ Architecture-specific work happens after shared placement:
 
 `src/architecture/renderer.ts` renders architecture-specific SVG primitives rather than generic flowchart boxes:
 
+- visible diagram-title header furniture with an accessible-name fallback
 - framed groups with header bands
 - service cards with accent rails
 - junction rings
@@ -64,16 +65,13 @@ item 2, option (b)):
   construction), and survive serialize→re-parse byte-stably. `rename_service`
   rewrites members; `remove_service` drops the member and dissolves any
   directive left with fewer than two members (the edge-cascade idiom).
-- **Constraint deliberately not honored (documented limitation ⇒ runtime
-  diagnostic, P4)** — the deterministic layered layout never collapses
-  siblings onto one coordinate, which is the fcose failure mode `align` was
-  invented to patch; on the canonical upstream topologies the layered
-  placement already produces the requested row/column. Layout geometry is
-  byte-identical with and without the directives (pinned in
-  `architecture-layout.test.ts`), and verify announces the limitation with a
-  Tier-3 `UNSUPPORTED_SYNTAX` lint (`syntax: architecture_align`) that never
-  flips `verify.ok`. The docs-corpus ledger entry
-  `architecture-align-constraint-not-honored` keeps the divergence executable.
+- **Deterministic geometry constraint** — after layered placement establishes
+  stable source order, `src/architecture/layout.ts` gives row members one
+  center-y or column members one center-x and packs them on the free axis with
+  configured node spacing. This happens before group bounds and edge routes
+  freeze, so containment and side anchors reflect the aligned geometry. Verify
+  no longer emits `architecture_align`; geometry tests pin shared centers and
+  sibling non-overlap.
 
 ## Runtime config (wire-or-warn, plan §Architecture item 3 / X7)
 
@@ -101,8 +99,6 @@ These are documented boundaries, not omissions — each is a named item in
 - **Port routing / obstacle avoidance (item 1):** per-edge sides as placement
   constraints and routes that avoid node/group interiors, plus
   anchor-faces-partner verify tripwires.
-- **Honoring `align` as a deterministic placement constraint** (the remaining
-  half of item 2; today's contract is parse-preserve + lint, above).
 - **Agent-surface junctions, group labels, in-place edge ops (item 4):**
   `{group}` edges and accTitle/accDescr still fall back to opaque bodies.
 - **Iconify icons with a dignified fallback (item 5):** unknown icons still

@@ -113,10 +113,17 @@ The typed `class` frontmatter section (`ClassRuntimeConfig` in
   `hierarchicalNamespaces` — the table (`CLASS_NOOP_CONFIG_FIELDS`) lives
   beside the wiring in `src/class/layout.ts` so wire and warn cannot drift.
 
+## Generic classes (repo #118)
+
+`class Box~T~`, generic-bearing relationship endpoints, namespace-contained
+variants, notes, and separate member declarations normalize to one stable bare
+identity (`Box`) plus `ClassNode.generic` (`T`). The renderer displays
+`Box<T>`; canonical serialization emits the upstream `~T~` declaration and
+bare relationship endpoints. `add_class.generic` and `set_class_generic`
+provide typed authoring/editing without forcing an opaque fallback.
+
 ## Known gaps (tracked)
 
-- Generic class names (`class Box~T~` as a whole-body construct) keep the
-  agent body opaque — the remaining half of #118's class scope, a later wave.
 - Single-line namespace forms (`namespace X { class A }` on one line) are
   ignored by the render parser and keep the agent body opaque (upstream
   accepts them; pinned by the upstream-suite bench case
