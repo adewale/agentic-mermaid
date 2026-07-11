@@ -11,19 +11,18 @@ import type {
   TimelineMutationOp, MutationError, Result,
 } from './types.ts'
 import { ok, err } from './types.ts'
+import {
+  TIMELINE_ACCESSIBILITY_DESCRIPTION_BLOCK_RE,
+  TIMELINE_ACCESSIBILITY_DESCRIPTION_RE,
+  TIMELINE_ACCESSIBILITY_TITLE_RE,
+  TIMELINE_CONTINUATION_RE,
+  TIMELINE_PERIOD_RE,
+  TIMELINE_SECTION_RE,
+  TIMELINE_TITLE_RE,
+  splitTimelineEvents,
+} from '../timeline/parse-core.ts'
 
 // ---- Parser -----------------------------------------------------------------
-
-const TL_TITLE_RE = /^title\s+(.+)$/i
-const TL_SECTION_RE = /^section\s+(.+)$/i
-const TL_PERIOD_RE = /^([^:]+?)\s*:\s*(.*)$/
-const TL_CONT_RE = /^:\s*(.+)$/  // continuation of previous period
-// Accessibility directives — the SAME regexes the renderer parser matches
-// (src/timeline/parser.ts), so `accTitle: x` is a directive on both surfaces
-// instead of splitting into a phantom "accTitle" period here.
-const TL_ACC_TITLE_RE = /^accTitle\s*:\s*(.+)$/i
-const TL_ACC_DESCR_RE = /^accDescr\s*:\s*(.+)$/i
-const TL_ACC_DESCR_BLOCK_RE = /^accDescr\s*\{\s*$/i
 
 /**
  * Parse the body lines of a timeline diagram. Returns a structured body only
@@ -43,10 +42,13 @@ function validTimelineText(value: string, opts: { allowColon: boolean }): boolea
 }
 
 function parseTimelineEventSegments(raw: string): string[] | null {
-  if (raw.trim().length === 0) return []
-  const segments = raw.split(':').map(normalizeTimelineText)
-  if (segments.some(segment => !validTimelineText(segment, { allowColon: false }))) return null
-  return segments
+  try {
+    return splitTimelineEvents(raw)
+      .map(normalizeTimelineText)
+      .filter(segment => validTimelineText(segment, { allowColon: true }))
+  } catch {
+    return null
+  }
 }
 
 export function parseTimelineBody(lines: string[]): TimelineBody | null {
@@ -68,7 +70,7 @@ export function parseTimelineBody(lines: string[]): TimelineBody | null {
     if (!line) continue
     if (line.startsWith('%%')) continue
 
-    const tm = line.match(TL_TITLE_RE)
+    const tm = line.match(TIMELINE_TITLE_RE)
     if (tm) {
       const title = normalizeTimelineText(tm[1]!)
       if (!validTimelineText(title, { allowColon: true })) return null
@@ -76,13 +78,13 @@ export function parseTimelineBody(lines: string[]): TimelineBody | null {
       continue
     }
 
-    const at = line.match(TL_ACC_TITLE_RE)
+    const at = line.match(TIMELINE_ACCESSIBILITY_TITLE_RE)
     if (at) {
       body.accessibilityTitle = normalizeTimelineText(at[1]!)
       continue
     }
 
-    const ad = line.match(TL_ACC_DESCR_RE)
+    const ad = line.match(TIMELINE_ACCESSIBILITY_DESCRIPTION_RE)
     if (ad) {
       body.accessibilityDescription = normalizeTimelineText(ad[1]!)
       continue
@@ -90,7 +92,7 @@ export function parseTimelineBody(lines: string[]): TimelineBody | null {
 
     // `accDescr { … }` block form — collected exactly like the renderer parser
     // (lines until a bare `}`); an unclosed block is unmodeled → opaque.
-    if (TL_ACC_DESCR_BLOCK_RE.test(line)) {
+    if (TIMELINE_ACCESSIBILITY_DESCRIPTION_BLOCK_RE.test(line)) {
       const descriptionLines: string[] = []
       let closed = false
       while (++i < lines.length) {
@@ -103,7 +105,7 @@ export function parseTimelineBody(lines: string[]): TimelineBody | null {
       continue
     }
 
-    const sm = line.match(TL_SECTION_RE)
+    const sm = line.match(TIMELINE_SECTION_RE)
     if (sm) {
       const label = normalizeTimelineText(sm[1]!)
       if (!validTimelineText(label, { allowColon: true })) return null
@@ -114,28 +116,39 @@ export function parseTimelineBody(lines: string[]): TimelineBody | null {
     }
 
     // `: <continuation>` — extra event on the previous period.
-    const cont = line.match(TL_CONT_RE)
-    if (cont && !line.match(TL_PERIOD_RE)) {
+    const cont = line.match(TIMELINE_CONTINUATION_RE)
+    if (cont) {
       if (!currentPeriod) return null
-      const text = normalizeTimelineText(cont[1]!)
-      if (!validTimelineText(text, { allowColon: false })) return null
-      currentPeriod.events.push({ id: `event-${eIdx++}`, text })
+      const eventTexts = parseTimelineEventSegments(line)
+      if (!eventTexts || eventTexts.length === 0) return null
+      for (const text of eventTexts) {
+        currentPeriod.events.push({ id: `event-${eIdx++}`, text })
+      }
       continue
     }
 
     // `<label> : <event> [ : <event2> : <event3> …]`
-    const pm = line.match(TL_PERIOD_RE)
+    const pm = line.match(TIMELINE_PERIOD_RE)
     if (pm) {
       const label = normalizeTimelineText(pm[1]!)
       if (!validTimelineText(label, { allowColon: false })) return null
-      const restRaw = pm[2]!
       // Multi-event lines allow `: extra` segments to add more events to the same period.
-      const eventTexts = parseTimelineEventSegments(restRaw)
-      if (!eventTexts) return null
+      const eventTexts = parseTimelineEventSegments(pm[2]!)
+      if (!eventTexts || eventTexts.length === 0) return null
       const events: TimelineEvent[] = eventTexts.map(text => ({
         id: `event-${eIdx++}`, text,
       }))
       const period: TimelinePeriod = { id: `period-${pIdx++}`, label, events }
+      implicitSection().periods.push(period)
+      currentPeriod = period
+      continue
+    }
+
+    // Upstream parity: a bare colon-free line is a period with no events.
+    if (!line.includes(':')) {
+      const label = normalizeTimelineText(line)
+      if (!validTimelineText(label, { allowColon: false })) return null
+      const period: TimelinePeriod = { id: `period-${pIdx++}`, label, events: [] }
       implicitSection().periods.push(period)
       currentPeriod = period
       continue
@@ -171,7 +184,7 @@ export function renderTimeline(body: TimelineBody): string {
       // First event on the same line as the period label; extra events on
       // continuation lines (`: text`). Matches Mermaid timeline syntax.
       if (period.events.length === 0) {
-        lines.push(`  ${period.label} :`)
+        lines.push(`  ${period.label}`)
         continue
       }
       lines.push(`  ${period.label} : ${period.events[0]!.text}`)

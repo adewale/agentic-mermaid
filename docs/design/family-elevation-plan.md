@@ -1,13 +1,17 @@
 # Family Elevation Plan
 
-Status: implementation ledger — Phases 0–3 substantially shipped in PR #142; explicit Phase 4/new-family items remain deferred
+Status: implementation ledger — broad cross-family elevation shipped in PR #142; incomplete items remain tracked below
 Last reviewed: 2026-07-10
 
 This document began as the plan of record and now records the implemented
-family-elevation scope. “Substantially shipped” does not mean every item below
-is complete: the Phase 4 signatures, width-constrained ASCII, generalized SVG
-identity, and new mindmap/gitGraph families remain follow-up work and must not
-be described as delivered by PR #142.
+family-elevation scope. PR #142 does **not** complete every item below. In
+particular, residual Phase 1 fixes remain for Flowchart quoted non-rectangle
+labels/CJK IDs, State and Class `:::` styling, ER aliases/composite keys, and
+Architecture's generalized port-routing work. Phase 4 signatures,
+width-constrained ASCII, generalized SVG identity, and new mindmap/gitGraph
+families also remain follow-up work and must not be described as delivered by
+PR #142. Timeline's shared grammar and event-less serialization items were
+completed during final review.
 Worked example: the Journey elevation (PR #141), whose method this plan
 generalizes to the other eleven families.
 

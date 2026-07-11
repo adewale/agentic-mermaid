@@ -10,7 +10,8 @@ structured-or-opaque contract.
 
 Supported today:
 
-- entities with attribute blocks (`type name PK|FK|UK "comment"`)
+- bare entity declarations and entities with attribute blocks
+  (`type name PK|FK|UK "comment"`)
 - relationships with the full Mermaid cardinality token set
   (`|| |o o| }o o{ }| |{`), identifying (`--`) and non-identifying (`..`)
   lines, and labels
@@ -98,8 +99,8 @@ per its `convert-to-case` target.
 
 ## Known gaps (tracked)
 
-- Bare entities (`A` on its own line) are still dropped by the render parser
-  (plan §ER 1 — a separate fix); the #103 bench case therefore asserts no
-  node counts yet.
-- Entity aliases (`CUSTOMER["Customer Account"]`) — plan §ER 2.
-- Attribute composite keys / visible comments — plan §ER 3.
+- Entity aliases (`CUSTOMER["Customer Account"]`) remain opaque on the agent
+  surface and currently render blank — plan §ER 2.
+- Comma-separated composite keys such as `PK, FK` still lose the token carrying
+  the comma — plan §ER 3. Attribute comments are now visible in SVG rather than
+  tooltip-only, but composite-key tokenization remains incomplete.

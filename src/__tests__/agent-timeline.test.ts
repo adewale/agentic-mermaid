@@ -55,11 +55,11 @@ describe('timeline parsing — structured', () => {
 
 describe('timeline fidelity fallback', () => {
   test('unmodeled syntax falls back to opaque (lossless)', () => {
-    const d = parse('timeline\n  some other line')
+    const d = parse('timeline\n  some:unsupported')
     expect(d.body.kind).toBe('opaque')
     expect(asTimeline(d)).toBeNull()
     // Round-trip preserves the unknown line.
-    expect(serializeMermaid(d)).toContain('some other line')
+    expect(serializeMermaid(d)).toContain('some:unsupported')
   })
 
   test('continuation `: text` with no prior period falls back to opaque', () => {
@@ -73,11 +73,13 @@ describe('timeline fidelity fallback', () => {
     expect(serializeMermaid(d)).toContain('timeline EXTRA')
   })
 
-  test('lossy empty event segments fall back to opaque, but explicit empty periods are structured', () => {
-    expect(parse('timeline\n  2020 : A :').body.kind).toBe('opaque')
-    const emptyPeriod = parse('timeline\n  2020 :')
-    expect(emptyPeriod.body.kind).toBe('timeline')
-    expect(parse(serializeMermaid(emptyPeriod)).body.kind).toBe('timeline')
+  test('a trailing colon stays event text, while a dangling event separator falls back to opaque', () => {
+    const trailingText = parse('timeline\n  2020 : A :')
+    expect(trailingText.body.kind).toBe('timeline')
+    if (trailingText.body.kind === 'timeline') {
+      expect(trailingText.body.sections[0]!.periods[0]!.events[0]!.text).toBe('A :')
+    }
+    expect(parse('timeline\n  2020 :').body.kind).toBe('opaque')
   })
 })
 
@@ -410,6 +412,32 @@ describe('timeline differential vs renderer-grade parser', () => {
     if (d.body.kind !== 'timeline') throw new Error('expected structured timeline')
     const model = parseTimelineDiagram(normalizeMermaidSource(serializeMermaid(d)).lines)
     expect(model.direction).toBe('TD')
+  })
+
+  test('clock times containing a colon stay one event on both parser surfaces', () => {
+    const source = 'timeline\n  2020 : Standup at 10:30 daily'
+    const d = parse(source)
+    expect(d.body.kind).toBe('timeline')
+    if (d.body.kind !== 'timeline') return
+    expect(d.body.sections[0]!.periods[0]!.events.map(event => event.text))
+      .toEqual(['Standup at 10:30 daily'])
+
+    const model = parseTimelineDiagram(normalizeMermaidSource(source).lines)
+    expect(model.sections[0]!.periods[0]!.events.map(event => event.text))
+      .toEqual(['Standup at 10:30 daily'])
+  })
+
+  test('event-less periods serialize to the bare form accepted by both parser surfaces', () => {
+    const d = parse('timeline\n  2020')
+    expect(d.body.kind).toBe('timeline')
+    if (d.body.kind !== 'timeline') return
+    expect(d.body.sections[0]!.periods[0]!.events).toEqual([])
+
+    const canonical = serializeMermaid(d)
+    expect(canonical).toBe('timeline\n  2020\n')
+    const model = parseTimelineDiagram(normalizeMermaidSource(canonical).lines)
+    expect(model.sections[0]!.periods[0]!.label).toBe('2020')
+    expect(model.sections[0]!.periods[0]!.events).toEqual([])
   })
 })
 

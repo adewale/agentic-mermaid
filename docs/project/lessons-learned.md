@@ -1,8 +1,9 @@
-# Lessons Learned — Loops 1 through 22
+# Lessons Learned — Fork Narrative and PR Retrospectives
 
-This document replaces the Loop 1 retrospective. It is the cumulative
-narrative across the agentic-mermaid fork. Each section reflects what a
-critic or implementer wished they had known when they started.
+This document replaces the Loop 1 retrospective. It is the long-form
+cumulative narrative across the fork's first 22 loops and subsequent major
+PRs. Each section reflects what a critic or implementer wished they had known
+when they started.
 
 > **Scope.** This is the long-form fork narrative. For dated, incident-tagged
 > contributor process lessons ("add new at the top"), see

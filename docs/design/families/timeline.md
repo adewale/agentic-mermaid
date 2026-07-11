@@ -14,12 +14,12 @@ Pipeline:
 - `src/timeline/renderer.ts` — SceneGraph lowering + crisp SVG
 - `src/ascii/timeline.ts` — chronological outline for terminals
 
-Known debt (plan §Timeline 1–2, not yet landed): the renderer parser and the
-agent body still hold two hand-written copies of the line grammar (the
-bare-`:` event splitter differs on `10:30`-style text), and the body can
-serialize event-less periods as `2020 :`, which the renderer parser rejects.
-A shared timeline parse core (journey `parse-core.ts` pattern) is the planned
-fix; nothing in this note adds a third dialect.
+The renderer parser and agent body share `src/timeline/parse-core.ts` for
+header/content directives and event splitting. A colon starts a new event only
+when followed by whitespace, so `10:30` remains text on both surfaces.
+Event-less periods are modeled and serialize in the bare form (`2020`) accepted
+by the renderer; a dangling `2020 :` remains losslessly opaque instead of
+producing canonical source the renderer would reject.
 
 ## Input model
 

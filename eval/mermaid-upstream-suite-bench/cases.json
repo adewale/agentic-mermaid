@@ -13273,7 +13273,6 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
       "nodeCount": 7,
       "edgeCount": 0,
       "groupCount": 1,
@@ -13305,7 +13304,6 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
       "nodeCount": 2,
       "edgeCount": 0,
       "groupCount": 1
@@ -13381,7 +13379,6 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
       "nodeCount": 4,
       "edgeCount": 0,
       "groupCount": 2
