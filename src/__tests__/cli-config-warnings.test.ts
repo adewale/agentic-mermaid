@@ -49,7 +49,7 @@ describe('CLI render config diagnostics', () => {
     const { source, png } = fixture()
     const result = capture(() => runCli(['render', source, '--format', 'png', '--output', png, '--json']))
     expect(result.code).toBe(0)
-    expect(result.err).toContain('state.titleTopMargin')
+    expect(result.err.match(/state\.titleTopMargin/g)).toHaveLength(1)
     expect(JSON.parse(result.out).warnings).toContainEqual(expect.objectContaining({ field: 'state.titleTopMargin' }))
   })
 })

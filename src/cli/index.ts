@@ -428,7 +428,6 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
   }
 
   const configWarnings = configWarningsForMermaid(source)
-  emitConfigWarnings(configWarnings, 'am render')
 
   if (format === 'png') {    const outFile = typeof args.flags.o === 'string' ? args.flags.o : (typeof args.flags.output === 'string' ? args.flags.output : '')
     if (!outFile) {
@@ -447,6 +446,7 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
   }
   // Loop 9 M3/M4, #7645: json = layout shape; unicode is the default text
   // renderer; `--security strict` strips external-fetch refs from SVG.
+  emitConfigWarnings(configWarnings, 'am render')
   const out = renderSourceToFormat(source, format, { security, certificates: args.flags.certificates === true, style, seed, ganttToday })
   // --output writes the artifact for every single-shot format, matching the
   // documented `am render --format svg --output diagram.svg` (it was png-only,
