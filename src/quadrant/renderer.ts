@@ -273,10 +273,14 @@ export function lowerQuadrantScene(
 
   // Axis labels.
   for (const axis of chart.axisLabels) {
-    const label = applyTextTransform(axis.text, style.edgeTextTransform)
+    const lines = axis.text.split('\n').map(line => applyTextTransform(line, style.edgeTextTransform))
+    const label = lines.join('\n')
     // y-axis labels sit in the left gutter and are rotated upright.
     const isYAxis = axis.x < plot.x
     const transform = isYAxis ? ` transform="rotate(-90 ${axis.x} ${axis.y})"` : ''
+    const textMarkup = lines.length === 1
+      ? escapeXml(label)
+      : lines.map((line, index) => `<tspan x="${axis.x}" dy="${index === 0 ? 0 : '1.1em'}">${escapeXml(line)}</tspan>`).join('')
     parts.push(marks.text(
       {
         id: `axis:${axis.text}`,
@@ -290,7 +294,7 @@ export function lowerQuadrantScene(
       },
       `<text class="quadrant-axis-label" x="${axis.x}" y="${axis.y}" ` +
         `text-anchor="${axis.anchor}" font-size="${axis.fontSize}" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)}${transform}>` +
-        `${escapeXml(label)}</text>`,
+        `${textMarkup}</text>`,
     ))
   }
 

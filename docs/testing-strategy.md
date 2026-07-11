@@ -94,8 +94,8 @@ sources we did not write:
   documentation; gates parse, verify, and round-trip.
 - **MermaidSeqBench** (132 IBM-curated sequence diagrams) — parse rate,
   structured-vs-opaque split, verify rate, round-trip stability.
-- **upstream-suite bench** (`eval/mermaid-upstream-suite-bench/`, 737
-  executable cases / 747 imported blocks from pinned upstream commits) — with
+- **upstream-suite bench** (`eval/mermaid-upstream-suite-bench/`, 736
+  executable cases / 746 imported blocks from pinned upstream commits) — with
   a **ratchet** (`ratchet.json`) that fails the build if coverage drops or
   per-family local-gap budgets grow. Mindmap/GitGraph use their declared
   `f3dea583…` compatibility revision and account for all 26/69 official spec

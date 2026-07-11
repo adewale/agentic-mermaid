@@ -282,7 +282,7 @@ export function parseErAttribute(line: string): ErAttribute | null {
  * Forms like {o, o}, |}, {| are not Mermaid tokens; a relationship-shaped
  * line carrying one throws instead of being silently dropped.
  *
- * Full pattern example: CUSTOMER ||--o{ ORDER : places
+ * Full pattern examples: CUSTOMER ||--o{ ORDER : places; CUSTOMER ||--o{ ORDER
  */
 export interface ParsedErRelationshipSyntax {
   entity1: ParsedErEntityReference
@@ -296,13 +296,13 @@ export interface ParsedErRelationshipSyntax {
 /** Shared relationship grammar. Alias text may contain spaces; entity styling
  * suffixes normalize to the same stable id instead of becoming phantom ids. */
 export function parseErRelationshipSyntax(line: string): ParsedErRelationshipSyntax | null {
-  const regex = new RegExp(`^(${ER_ENTITY_REFERENCE_SOURCE})\\s+([|o}{]+)(--|\\.\\.)([|o}{]+)\\s+(${ER_ENTITY_REFERENCE_SOURCE})\\s*:\\s*(.+)$`)
+  const regex = new RegExp(`^(${ER_ENTITY_REFERENCE_SOURCE})\\s+([|o}{]+)(--|\\.\\.)([|o}{]+)\\s+(${ER_ENTITY_REFERENCE_SOURCE})(?:\\s*:\\s*(.*))?$`)
   const match = line.match(regex)
   if (!match) return null
   const entity1 = parseErEntityReference(match[1]!)
   const entity2 = parseErEntityReference(match[5]!)
   if (!entity1 || !entity2) return null
-  const rawLabel = match[6]!.trim().replace(/^["']|["']$/g, '')
+  const rawLabel = (match[6] ?? '').trim().replace(/^["']|["']$/g, '')
   return {
     entity1,
     entity2,

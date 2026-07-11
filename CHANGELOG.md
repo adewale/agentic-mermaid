@@ -14,6 +14,8 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 - Published one all-family SVG contract: deterministic `data-id`/`data-role`, normalized relation endpoints and ARIA semantics, complete local-reference namespacing, and typed Scene identity/accessibility records.
 - Added full Mindmap and GitGraph citizenship across library, CLI, Code Mode, local/hosted MCP, editor, website, docs, eval, packaging, terminal rendering, and mutation testing. Compatibility is pinned to Mermaid commit `f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc`; all 26 Mindmap and 69 GitGraph official spec blocks are now imported, excluded, or explicitly classified in an executable revision/hash-bound oracle; generated GitGraph ids are deterministic `c<N>` values.
 - Added focused Mindmap/GitGraph mutation lanes and exhaustive operation contracts. The latest 2026-07-10 local runs killed 400/405 Mindmap mutants (98.77%) and 294/303 GitGraph mutants (97.03%); reports were gitignored and the committed break floors remain 60%, so these measurements are not represented as immutable acceptance evidence.
+- Added official Mermaid 11.16.0 comparison fixtures and reproducible SVG/terminal contact sheets for Mindmap and GitGraph. The evidence records AlexanderGrooff/mermaid-ascii 1.4.0's exact unsupported-family result instead of fabricating equivalent output.
+- Added exact executable-title evidence for every done family-elevation ledger row; CI now rejects uncited files, missing titles, duplicate IDs, empty evidence, and newly-done rows without a matching evidence entry.
 
 ### Changed
 - Gantt calendar spans use the documented `(start, end]` exclusion boundary model and excluded-day shading is enabled by default; today markers remain caller-clocked.
@@ -21,6 +23,8 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 - PNG coverage warnings now flow through local and hosted MCP renders; system-font mode reports qualified bundled-font uncertainty rather than suppressing it.
 - State `nodeSpacing`, `rankSpacing`, node padding/radius/font size, composite-title size, fork dimensions, note margin, and divider margin now affect rendering. Legacy or invalid `state.*` values and unsupported renderer selections emit qualified `INEFFECTIVE_CONFIG` diagnostics through source verification, library/Code Mode callbacks, CLI SVG/PNG envelopes, and hosted SVG/ASCII/PNG tools.
 - Built-in concrete palettes now normalize normal text to WCAG AA (4.5:1) and meaningful relation lines/markers to 3:1; already-compliant colors and unresolved CSS-variable palettes remain unchanged.
+- Mindmap now accepts official multiline Markdown Strings, renders bold/italic spans, recognizes `layout: tidy-tree`, and fails closed on malformed reserved decorations, accessibility directives, and shape delimiters. GitGraph now renders frontmatter titles, uses 45° commit labels, stabilizes equal-order lanes by source order, and validates cherry-picks against full ancestry.
+- Editor supported-family diagnostics, characterization enrollment, and architecture documentation now derive from or are checked exactly against the fourteen-family runtime registry.
 - Architecture edges now use deterministic side-constrained placement and orthogonal visibility-grid routing with explicit placement/facing/obstacle certificates. State, Class, ER, and Architecture terminal output is spatial and display-cell aware; Class compact namespaces and ER ordered typed/opaque segments remain editable without stale identity references.
 - **Output compatibility note:** semantic SVG identity/ARIA attributes, palette contrast normalization, corrected marker/routing geometry, and spatial terminal rendering intentionally change SVG/PNG/ASCII bytes and regenerated characterization hashes. Consumers that snapshot output bytes should review and re-pin; source parsing and deterministic repeatability remain stable.
 
@@ -33,6 +37,8 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 - Finished grapheme/display-cell writes and measurements in Class, ER, Sequence blocks, Flowchart subgraphs, Pie, Quadrant, XYChart, validation, and TUI metadata; ER attribute comments are visible in terminal output.
 - Replaced Flowchart start-arrow reliance on `auto-start-reverse` with explicit pre-rotated geometry and balanced start/end cross-marker reference points, verified at raster pixels.
 - Fixed blank ER diagrams becoming opaque after ordered-segment promotion, preserving header-only ER as a structured typed-authoring canvas while keeping opaque-only tolerated subgraphs lossless.
+- Fixed label-less ER relations being silently dropped, XYChart `backgroundColor` being lost during PNG rasterization, and long Quadrant axis labels overprinting beyond their half-plot budgets.
+- Replaced delimiter-concatenated Mindmap/GitGraph Scene IDs with injective semantic identities, rejected already-reachable GitGraph cherry-picks, and aligned equal-order branch lanes across SVG and terminal renderers.
 
 ### Breaking
 - Gantt exclusion-boundary semantics and default shading may change existing rendered calendars; CLI scripts relying on ignored known flags now fail fast with exit 2.

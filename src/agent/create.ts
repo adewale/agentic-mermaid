@@ -56,7 +56,7 @@ function emptyBody(kind: DiagramKind, opts: CreateMermaidOptions): Exclude<Diagr
     case 'mindmap': return { kind: 'mindmap', root: { id: 'root', label: 'root', shape: 'default', children: [] } }
     case 'gitgraph': return {
       kind: 'gitgraph', direction: 'LR', mainBranchName: 'main', commits: [],
-      branches: [{ name: 'main', order: 0 }], statements: [],
+      branches: [{ name: 'main', order: 0, sequence: 0 }], statements: [],
     }
   }
 }

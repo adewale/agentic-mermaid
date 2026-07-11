@@ -1,0 +1,17 @@
+((Agent-native release))
+├─ [{fa fa-book} Discovery]
+│  ├─ [Evidence across]
+      [interviews, benchmarks, and Unicode naïve café]
+│  └─ {{Constraints}}
+│     ├─ Security
+│     └─ Determinism
+├─ (Delivery)
+│  ├─ ))Beta signal((
+│  ├─ )Launch cloud(
+│  └─ [Quality gates]
+│     ├─ Parser round-trip
+│     ├─ SVG identity
+│     └─ Terminal width
+└─ Ecosystem
+   ├─ Mermaid parity
+   └─ Terminal tools

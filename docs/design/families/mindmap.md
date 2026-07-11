@@ -4,7 +4,7 @@
 
 Mindmap is a first-class, indentation-sensitive family. The parser consumes the untrimmed normalized body, produces a recursive `MindmapNode` tree, and preserves Mermaid shapes, `::icon(...)`, `:::class`, `accTitle`, and `accDescr`. Duplicate semantic node identities fail with `MINDMAP_DUPLICATE_ID`; they never overwrite an earlier node.
 
-Compatibility is pinned to Mermaid commit `f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc`. The checked oracle accounts for all 26 direct blocks in upstream `mindmap.spec.ts`; every block is executable, and the source-file hash, normalized expectations, and intentional divergences live in `eval/mermaid-upstream-suite-bench/mindmap-gitgraph-f3dea583.json`. The harvest added trailing-inline-comment compatibility (`%%` outside quoted labels).
+Compatibility is pinned to Mermaid commit `f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc`. The checked oracle accounts for all 26 direct blocks in upstream `mindmap.spec.ts`; every block is executable, and the source-file hash, normalized expectations, and intentional divergences live in `eval/mermaid-upstream-suite-bench/mindmap-gitgraph-f3dea583.json`. The harvest added trailing-inline-comment compatibility (`%%` outside quoted labels). Current documentation parity also covers quoted multiline Markdown Strings with `**bold**`/`*italic*`, all seven documented shape delimiters, `::icon(...)`, multiple `:::class` names, and `layout: tidy-tree`. Malformed or whitespace-only decorations, metadata, accessibility directives, and shape delimiters fail closed rather than becoming nodes.
 
 ## Visual evidence
 
@@ -19,8 +19,17 @@ bun run bin/am.ts render docs/design/families/mindmap-demo.mmd \
 
 ![Mindmap rendered as a measured hierarchy](./mindmap-after.png)
 
-**What to inspect:** one semantic root, ordered Research/Delivery branches,
-nested child connectors, and labels contained by their measured node shapes.
+The same authored fixture also renders in official Mermaid 11.16.0 and both Agentic output engines:
+
+![Mindmap renderer comparison: official Mermaid, Agentic SVG, and Agentic Unicode](./mindmap-renderer-comparison.png)
+
+Regenerate the pinned upstream SVG, terminal text, and comparison sheet with:
+
+```bash
+bun run scripts/pr-assets/mindmap-gitgraph-comparison.ts
+```
+
+**What to inspect:** one semantic root; ordered Discovery/Delivery/Ecosystem branches; every documented shape; multiline Markdown formatting; offline icon-token fallback; nested orthogonal connectors; and the same labels preserved by the 72-cell terminal surface. Pixel identity is not expected because the renderers use different layout and style engines.
 There is intentionally no fabricated “before” picture: the causal before state
 was a named unsupported-family failure. Reproduce it in an isolated baseline
 worktree (do not run this over the feature checkout):
@@ -40,13 +49,9 @@ header: "mindmap"`; no PNG is produced.
 
 `src/mindmap/layout.ts` deterministically measures and wraps labels, assigns one horizontal layer per depth, centers parents over descendant leaves, and routes one orthogonal connector per non-root node. `src/mindmap/renderer.ts` lowers the result through Scene IR and emits source-semantic `data-id` values only on node groups. `src/ascii/mindmap.ts` renders the same hierarchy with Unicode or ASCII branches, grapheme-aware wrapping, and the hard `targetWidth` contract.
 
-The only wired family config fields are:
+The wired family config fields are `mindmap.padding`, `mindmap.maxNodeWidth`, and the official top-level `layout` selector. `layout: tidy-tree` selects the deterministic tree implementation (currently the sole Mindmap algorithm); every other value is diagnosed as `INEFFECTIVE_CONFIG`. Unknown fields and invalid documented values likewise produce named diagnostics and cannot silently change geometry.
 
-- `mindmap.padding`
-- `mindmap.maxNodeWidth`
-
-Unknown fields and invalid documented values produce named `INEFFECTIVE_CONFIG`
-diagnostics and cannot change geometry.
+`::icon(name)` is preserved structurally on every surface. Agentic Mermaid deliberately renders a bounded offline token fallback instead of resolving Mermaid Iconify packs: rendering never performs a network request or ambient filesystem lookup. Applications can inspect the typed `icon` field and provide their own trusted local icon policy.
 
 ## Typed editing
 
@@ -56,8 +61,7 @@ Use `asMindmap` before mutation. Operations cover add/remove/rename/move, label 
 
 `verifyMermaid` checks label overflow and projects real node/edge geometry into `RenderedLayout`. The focused citizenship suite proves parser/serializer stability, duplicate rejection, tree and route invariants, typed edits, Unicode/display-cell behavior, external-reference hygiene, deterministic SVG/layout, and property-generated sibling trees.
 
-See `src/__tests__/mindmap-gitgraph-citizenship.test.ts` and the exhaustive
-operation contract in `src/__tests__/mindmap-agent-ops.test.ts`. The focused
+See `src/__tests__/mindmap-gitgraph-citizenship.test.ts`, documentation/grammar parity in `src/__tests__/mindmap-gitgraph-doc-parity.test.ts`, and the exhaustive operation contract in `src/__tests__/mindmap-agent-ops.test.ts`. AlexanderGrooff/mermaid-ascii 1.4.0 currently exits 1 for this fixture with `unsupported graph type 'mindmap'`; its coverage request is [issue #74](https://github.com/AlexanderGrooff/mermaid-ascii/issues/74), so the comparison records capability honestly rather than fabricating equivalent output. The focused
 Stryker lane (`bun run mutation-test:mindmap`) killed 400/405 mutants
 (**98.77%**) in the latest 2026-07-10 local run; the gitignored report is not an
 immutable PR artifact and the committed break floor is 60%. The three survivors

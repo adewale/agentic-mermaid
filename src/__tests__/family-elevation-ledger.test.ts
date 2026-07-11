@@ -25,27 +25,17 @@ const FAMILY_ITEM_COUNTS: Record<string, number> = {
   Flowchart: 8, State: 7, Sequence: 7, Class: 6, ER: 6, Timeline: 5,
   Gantt: 6, XYChart: 5, Pie: 4, Quadrant: 4, Architecture: 6,
 }
-const PHASE_0_ACCEPTANCE = [
-  { id: 'B01', file: 'family-elevation-ledger.test.ts', title: 'every numbered work-plan item has a corresponding ordinal ledger ID' },
-  { id: 'X1', file: 'property-all-families-fuzz.test.ts', title: 'X1 acceptance: every built-in family has a cross-parser fuzz generator' },
-  { id: 'B02', file: 'opaque-unsupported-warning.test.ts', title: 'B02 acceptance: lossless opaque fixtures enroll every built-in family' },
-  { id: 'X7', file: 'state-config.test.ts', title: 'X7 acceptance: the independent State inventory is partitioned exactly once' },
-  { id: 'G3', file: 'cli-gantt-today-flag.test.ts', title: 'a typo flag exits 2 and names itself' },
-  { id: 'Q3', file: 'scene-text-fidelity.test.ts', title: 'point labels carry their REAL collision-aware position in the scene IR' },
-] as const
-
-const FINAL_RESIDUAL_ACCEPTANCE = [
-  { id: 'CL5', file: 'class-residual-elevation.test.ts', title: 'c5-stress allocates every cardinality box without card/card or card/node overlap' },
-  { id: 'CL6', file: 'class-residual-elevation.test.ts', title: 'single-line namespaces enter both parsers and terminal frames' },
-  { id: 'ER5', file: 'er-ascii-clearance.test.ts', title: 'routes a non-adjacent same-row relationship around the middle entity' },
-  { id: 'B05', file: 'er-ascii-clearance.test.ts', title: 'preserves every foreign entity rectangle across deterministic grid sizes' },
-  { id: 'B08', file: 'class-residual-elevation.test.ts', title: 'single-line namespaces enter both parsers and terminal frames' },
-  { id: 'B10', file: 'class-residual-elevation.test.ts', title: 'c5-stress allocates every cardinality box without card/card or card/node overlap' },
-] as const
+const PHASE_0_IDS = ['B01', 'X1', 'B02', 'X7', 'G3', 'Q3'] as const
+const ROOT = join(import.meta.dir, '..', '..')
+interface AcceptanceEvidence { id: string; file: string; title: string }
+const EVIDENCE = JSON.parse(readFileSync(join(ROOT, 'docs/design/family-elevation-evidence.json'), 'utf8')) as {
+  schemaVersion: number
+  entries: AcceptanceEvidence[]
+}
 
 function declaredTestTitles(file: string): string[] {
-  const testSource = readFileSync(join(import.meta.dir, file), 'utf8')
-  return [...testSource.matchAll(/\b(?:test|it)\(\s*['"]([^'"]+)['"]/g)].map(match => match[1]!)
+  const testSource = readFileSync(join(ROOT, file), 'utf8')
+  return [...testSource.matchAll(/\b(?:test|it)\(\s*['"`]([^'"`]+)['"`]/g)].map(match => match[1]!)
 }
 
 function rows(marker: string): Array<{ id: string; phase: string; status: string; detail: string }> {
@@ -94,33 +84,32 @@ describe('family elevation plan is a mechanically complete ledger', () => {
     ].join('\n')
     const names = [...checked.matchAll(/`([^`]+\.test\.ts)`/g)].map(match => match[1]!)
     expect(names.length).toBeGreaterThan(20)
-    const root = join(import.meta.dir, '..', '..')
     for (const name of names) {
-      const exists = existsSync(join(import.meta.dir, name)) || existsSync(join(root, name))
+      const exists = existsSync(join(import.meta.dir, name)) || existsSync(join(ROOT, name))
       expect(exists, `documented evidence ${name}`).toBe(true)
     }
   })
 
-  test('Phase 0 status is consistent with exact executable acceptance IDs', () => {
-    const byId = new Map([...rows('family-elevation-ledger'), ...rows('family-elevation-backlog')].map(row => [row.id, row]))
-    for (const acceptance of PHASE_0_ACCEPTANCE) {
-      expect(declaredTestTitles(acceptance.file), `${acceptance.id}: exact executable acceptance ID`).toContain(acceptance.title)
+  test('every done claim resolves to an exact executable title in a cited test file', () => {
+    expect(EVIDENCE.schemaVersion).toBe(1)
+    const allRows = [...rows('family-elevation-ledger'), ...rows('family-elevation-backlog')]
+    const done = allRows.filter(row => row.status === 'done')
+    expect(EVIDENCE.entries.map(entry => entry.id).sort()).toEqual(done.map(row => row.id).sort())
+    expect(new Set(EVIDENCE.entries.map(entry => entry.id)).size).toBe(EVIDENCE.entries.length)
+
+    const byId = new Map(allRows.map(row => [row.id, row]))
+    for (const acceptance of EVIDENCE.entries) {
+      const row = byId.get(acceptance.id)!
+      expect(acceptance.title.length, `${acceptance.id}: non-empty exact title`).toBeGreaterThan(0)
+      expect(existsSync(join(ROOT, acceptance.file)), `${acceptance.id}: evidence file exists`).toBe(true)
+      expect(row.detail, `${acceptance.id}: evidence file is cited by the plan row`).toContain(`\`${acceptance.file.split('/').at(-1)}\``)
+      expect(declaredTestTitles(acceptance.file), `${acceptance.id}: exact executable acceptance title`).toContain(acceptance.title)
     }
-    // Do not force prerequisite rows to `done`: a truthful downgrade must be
-    // allowed. This gate only derives the phase-table wording from their
-    // independently reviewed statuses; the named tests prove behavior in CI.
-    const derived = PHASE_0_ACCEPTANCE.every(acceptance => byId.get(acceptance.id)?.status === 'done')
-      ? '**Complete**'
-      : '**Partial**'
-    expect(PLAN).toContain(`| 0 — honesty + guards | ${derived} |`)
   })
 
-  test('final residual completion claims resolve exact executable acceptance IDs', () => {
+  test('Phase 0 status is derived from its exact-evidence rows', () => {
     const byId = new Map([...rows('family-elevation-ledger'), ...rows('family-elevation-backlog')].map(row => [row.id, row]))
-    for (const acceptance of FINAL_RESIDUAL_ACCEPTANCE) {
-      expect(byId.get(acceptance.id)?.status, `${acceptance.id}: completion status`).toBe('done')
-      expect(byId.get(acceptance.id)?.detail, `${acceptance.id}: cited test file`).toContain(`\`${acceptance.file}\``)
-      expect(declaredTestTitles(acceptance.file), `${acceptance.id}: exact executable acceptance ID`).toContain(acceptance.title)
-    }
+    const derived = PHASE_0_IDS.every(id => byId.get(id)?.status === 'done') ? '**Complete**' : '**Partial**'
+    expect(PLAN).toContain(`| 0 — honesty + guards | ${derived} |`)
   })
 })

@@ -152,11 +152,15 @@ export function familyConfigValueDiagnostics(kind: DiagramKind, root: unknown): 
   if (kind === 'state') return [] // state/config.ts owns its richer value diagnostics
   const spec = FAMILY_CONFIG_SPECS[kind]
   const config = section(root, spec.section)
-  if (!config) return []
   const diagnostics: ConfigDiagnostic[] = []
   const warn = (field: string, expected: string): void => {
     diagnostics.push({ code: 'INEFFECTIVE_CONFIG', field, message: `${field} must be ${expected}; the invalid value has no effect.` })
   }
+  if (kind === 'mindmap') {
+    const rootRecord = root && typeof root === 'object' && !Array.isArray(root) ? root as Record<string, unknown> : undefined
+    if (rootRecord && 'layout' in rootRecord && rootRecord.layout !== 'tidy-tree') warn('layout', '"tidy-tree" for mindmap diagrams')
+  }
+  if (!config) return diagnostics
   for (const [key, valueRule] of Object.entries(FAMILY_VALUE_RULES[kind] ?? {})) {
     if (key in config && !valueRule.valid(config[key])) warn(`${spec.section}.${key}`, valueRule.expected)
   }
@@ -183,12 +187,13 @@ export function explicitFamilyConfigDiagnostics(kind: DiagramKind, root: unknown
   const spec = FAMILY_CONFIG_SPECS[kind]
   const unknown = familyUnknownConfigDiagnostics(kind, root)
   const config = section(root, spec.section)
-  if (!config) return unknown
+  const valueDiagnostics = familyConfigValueDiagnostics(kind, root)
+  if (!config) return [...unknown, ...valueDiagnostics]
   if (kind === 'state') return stateConfigDiagnostics([config], true)
 
   const diagnostics = [
     ...unknown,
-    ...familyConfigValueDiagnostics(kind, root),
+    ...valueDiagnostics,
   ]
   const noop = new Set(spec.noopKeys ?? [])
   for (const key of Object.keys(config).filter(key => noop.has(key)).sort()) {

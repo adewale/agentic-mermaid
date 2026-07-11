@@ -26,6 +26,8 @@ export interface GitGraphCommit {
 export interface GitGraphBranch {
   name: string
   order: number
+  /** Source creation order; deterministic tiebreaker for equal explicit orders. */
+  sequence: number
   head?: string
 }
 
@@ -39,6 +41,8 @@ export type GitGraphStatement =
 export interface GitGraphDiagram {
   direction: GitGraphDirection
   mainBranchName: string
+  /** Frontmatter diagram title, rendered separately from accessibility metadata. */
+  title?: string
   commits: GitGraphCommit[]
   branches: GitGraphBranch[]
   statements: GitGraphStatement[]
@@ -69,6 +73,7 @@ export interface PositionedGitGraphEdge {
 
 export interface PositionedGitGraphDiagram extends PositionedDiagram {
   direction: GitGraphDirection
+  title?: string
   commits: PositionedGitGraphCommit[]
   branches: PositionedGitGraphBranch[]
   edges: PositionedGitGraphEdge[]

@@ -323,9 +323,9 @@
       "family": "gitgraph",
       "status": "full-harvest-accounted",
       "consideredBlocks": 69,
-      "importedCases": 63,
-      "importedBlocks": 63,
-      "excludedBlocks": 6,
+      "importedCases": 62,
+      "importedBlocks": 62,
+      "excludedBlocks": 7,
       "deferredBlocks": 0,
       "compatibilityRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
       "files": [

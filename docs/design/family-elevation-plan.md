@@ -243,7 +243,7 @@ Definition of Done.
 <!-- family-elevation-backlog:start -->
 | ID | Phase | Status | Evidence or exact remainder |
 |---|---|---|---|
-| B01 | 0 | done | Mechanical IDs, statuses, duplicate/omission checks, ordinal work-plan correspondence, cited-file existence, and exact Phase 0/final-residual acceptance-test IDs: `family-elevation-ledger.test.ts`. |
+| B01 | 0 | done | Mechanical IDs, statuses, duplicate/omission checks, ordinal work-plan correspondence, cited-file existence, and exact executable `(row, file, title)` evidence for every done claim: `family-elevation-ledger.test.ts`. |
 | B02 | 0 | done | Generated all-family serializer→renderer-parser properties, lossless opaque reparse/render probes, State config geometry, CLI flag ownership, and scene fidelity: `property-all-families-fuzz.test.ts`, `opaque-unsupported-warning.test.ts`, `state-config.test.ts`. |
 | B03 | 1/4 | done | Architecture side-constrained placement, obstacle routing, and certificates close `A1`: `architecture-layout.test.ts`, `architecture-integration.test.ts`. |
 | B04 | 1/3 | done | Architecture junction/group/boundary/accessibility/edit parity closes `A4`: `agent-architecture.test.ts`. |
@@ -258,12 +258,12 @@ Definition of Done.
 | B13 | 4 | done | One typed all-family SVG identity schema is published and enforced: `svg-identity-contract.test.ts`. |
 | B14 | 3/4 | done | Typed relation accessibility and all-palette WCAG thresholds are executable: `accessibility-relation-palette.test.ts`. |
 | B15 | 4 | done | All 26 official pinned Mindmap blocks plus parser/layout/SVG/terminal/agent/config/property/installed-package citizenship: `mindmap-gitgraph-upstream-oracle.test.ts`, `mindmap-gitgraph-citizenship.test.ts`, `e2e/tarball-consumer-fuzz.e2e.test.ts`. |
-| B16 | 4 | done | All 69 official pinned GitGraph blocks (63 executable, six explicit exclusions/divergences) plus replay/layout/SVG/terminal/agent/config/property/installed-package citizenship: `mindmap-gitgraph-upstream-oracle.test.ts`, `mindmap-gitgraph-citizenship.test.ts`, `e2e/tarball-consumer-fuzz.e2e.test.ts`. |
+| B16 | 4 | done | All 69 official pinned GitGraph blocks (62 executable, seven explicit exclusions/divergences) plus replay/layout/SVG/terminal/agent/config/property/installed-package citizenship: `mindmap-gitgraph-upstream-oracle.test.ts`, `mindmap-gitgraph-citizenship.test.ts`, `e2e/tarball-consumer-fuzz.e2e.test.ts`. |
 | B17 | 0/2 | done | Every family and local SVG reference type passes the two-instance collision matrix: `svg-id-hygiene-all-families.test.ts`. |
-| B18 | all | partial | Local unit/E2E/build/type/lint/website/ASCII/characterization/tracker/package gates are green and mutation reruns are recorded only as non-gating local measurements. The PR tree is committed; remaining: retain green final-head GitHub Actions check URLs and post-fix reviewer acceptance in `docs/design/family-elevation-acceptance.md`. |
+| B18 | all | partial | The compatibility/registry/evidence follow-up passes the complete local unit/E2E/build/type/lint/website/golden/characterization/tracker/package matrix and all twenty-one causal probes. Remaining: commit and push the resulting head, retain green final-head GitHub Actions URLs, and obtain fresh post-fix reviewer acceptance in `docs/design/family-elevation-acceptance.md`. |
 <!-- family-elevation-backlog:end -->
 
-The retained causal check `bun run test:family-elevation-reverts` now injects thirteen final-review regression classes in a temporary checkout and requires their exact red counts (1, 1, 14, 1, 1, 1, 1, 1, 1, 1, 4, 1, 1). It proves State global paint identity, GitGraph branch order, exhaustive config-value diagnostics, XY invalid-value fallback, upstream AST/provenance binding, exact SVG node/relation IDs, Mindmap icon grammar and mutation round-trip, multiline paint rejection, hard-width content preservation, and ER foreign-box route clearance without mutating the working tree. Earlier packages retain the Phase 0 revert evidence above and their focused Stryker/sabotage lanes.
+The retained causal check `bun run test:family-elevation-reverts` now injects twenty-one final-review regression classes in a temporary checkout and requires exact red counts `(1, 1, 14, 1, 1, 1, 1, 1, 1, 1, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)`. In addition to the original State paint, branch order, config, upstream, SVG identity, mutation grammar, hard-width, and ER-clearance faults, it now proves label-less ER relations, XYChart raster backgrounds, Quadrant axis budgets, Mindmap reserved-prefix closure, GitGraph ancestry validation, duplicate-parent suppression, injective relation identity, and continuous State concurrency separators. Every probe restores the source after its exact focused red count; earlier packages retain their focused Stryker/sabotage lanes.
 
 ## Work plan by family
 

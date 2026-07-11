@@ -30,9 +30,9 @@
     },
     "gitgraph": {
       "consideredBlocks": 69,
-      "importedCases": 63,
-      "importedBlocks": 63,
-      "excludedBlocks": 6,
+      "importedCases": 62,
+      "importedBlocks": 62,
+      "excludedBlocks": 7,
       "deferredBlocks": 0
     }
   },
@@ -2049,34 +2049,13 @@
         "block": "should support cherry-picking of merge commits with empty tag",
         "index": 49
       },
-      "classification": "portable",
+      "classification": "divergence",
       "source": "gitGraph\n        commit id: \"ZERO\"\n        branch feature\n        branch release\n        checkout feature\n        commit id: \"A\"\n        commit id: \"B\"\n        checkout main\n        merge feature id: \"M\"\n        checkout release\n        commit id: \"C\"\n        cherry-pick id:\"M\" parent: \"ZERO\" tag:\"\"\n        commit id: \"D\"\n        cherry-pick id:\"M\" tag:\"\" parent: \"B\"\n        ",
       "assertions": {
-        "branchesByCommit": [
-          "main",
-          "feature",
-          "feature",
-          "main",
-          "release",
-          "release",
-          "release",
-          "release"
-        ],
-        "tagsByCommit": [
-          [],
-          [],
-          [],
-          [],
-          [],
-          [
-            ""
-          ],
-          [],
-          [
-            ""
-          ]
-        ]
-      }
+        "errorMessage": "already reachable"
+      },
+      "reason": "reachable-cherry-pick-policy",
+      "summary": "Upstream permits cherry-picking the same merge commit twice on one branch; Agentic Mermaid rejects a source already reachable from the current head ancestry."
     },
     {
       "id": "gitgraph-should-fail-cherry-picking-of-merge-commits-if-the-parent-of-merge-commits-is-no",
@@ -2309,7 +2288,7 @@
       "classification": "divergence",
       "reason": "duplicate-id-policy",
       "summary": "Upstream logs and keeps replaying after a duplicate commit id; Agentic Mermaid rejects ambiguous identity deterministically.",
-      "source": "gitGraph\n     commit id:\"initial commit\"\n     commit id:\"work on first release\"\n     commit id:\"design freeze from here\"\n     branch v1-rc\n     checkout v1-rc\n     commit id:\"bugfix 1\"\n     commit id:\"bigfix 2\" tag:\"v1.0.1\"\n     branch FORK-v1.0-MDR\n     checkout FORK-v1.0-MDR\n     commit id:\"working on MDR\"\n     checkout v1-rc\n     commit id:\"minor design changes for MDR\" tag:\"v1.0.2\"\n     checkout FORK-v1.0-MDR\n     merge v1-rc\n     checkout main\n     commit id:\"new feature for v1.1…\"\n     checkout FORK-v1.0-MDR\n     commit id:\"working on MDR\"\n     commit id:\"finishing MDR\"\n     branch v1.0-MDR\n     checkout v1.0-MDR\n     commit id:\"brush up release\" tag:\"v1.0.2-MDR\"\n     checkout v1-rc\n     commit id:\"bugfix without MDR\"\n     checkout main\n     commit id:\"work on v1.1\"\n  ",
+      "source": "gitGraph\n     commit id:\"initial commit\"\n     commit id:\"work on first release\"\n     commit id:\"design freeze from here\"\n     branch v1-rc\n     checkout v1-rc\n     commit id:\"bugfix 1\"\n     commit id:\"bigfix 2\" tag:\"v1.0.1\"\n     branch FORK-v1.0-MDR\n     checkout FORK-v1.0-MDR\n     commit id:\"working on MDR\"\n     checkout v1-rc\n     commit id:\"minor design changes for MDR\" tag:\"v1.0.2\"\n     checkout FORK-v1.0-MDR\n     merge v1-rc\n     checkout main\n     commit id:\"new feature for v1.1\u2026\"\n     checkout FORK-v1.0-MDR\n     commit id:\"working on MDR\"\n     commit id:\"finishing MDR\"\n     branch v1.0-MDR\n     checkout v1.0-MDR\n     commit id:\"brush up release\" tag:\"v1.0.2-MDR\"\n     checkout v1-rc\n     commit id:\"bugfix without MDR\"\n     checkout main\n     commit id:\"work on v1.1\"\n  ",
       "assertions": {
         "errorCode": "GITGRAPH_DUPLICATE_COMMIT_ID"
       }
@@ -2396,6 +2375,13 @@
       "upstream": "Logs a warning and continues after a duplicate custom id.",
       "local": "Rejects the duplicate with GITGRAPH_DUPLICATE_COMMIT_ID before rendering.",
       "reason": "History replay must never silently overwrite an existing commit."
+    },
+    {
+      "family": "gitgraph",
+      "topic": "already-reachable cherry-pick",
+      "upstream": "Permits the same source merge commit to be cherry-picked repeatedly on one branch.",
+      "local": "Rejects a cherry-pick whenever the source commit is already reachable from the current head ancestry.",
+      "reason": "Replay history must not materialize duplicate/coincident semantic parent relations."
     }
   ]
 }

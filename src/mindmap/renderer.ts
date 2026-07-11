@@ -6,6 +6,7 @@ import { DefaultBackend } from '../scene/backend.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs, resolveColors } from '../theme.ts'
 import { ensureContrast, isHexColor } from '../shared/color-math.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
+import { semanticChildId, semanticRelationId } from '../scene/identity.ts'
 import { escapeAttr, escapeXml, renderMultilineText } from '../multiline-utils.ts'
 
 const FONT_SIZE = 13
@@ -45,7 +46,7 @@ export function lowerMindmapScene(ctx: RenderContext<PositionedMindmapDiagram>):
     const semanticPoints = edge.points.map(point => ({ x: round(point.x), y: round(point.y) }))
     const points = semanticPoints.map(point => `${point.x},${point.y}`).join(' ')
     parts.push(marks.connector({
-      id: `${edge.from}->${edge.to}`,
+      id: semanticRelationId(edge.from, edge.to),
       role: 'edge',
       geometry: { kind: 'polyline', points: semanticPoints },
       lineStyle: 'solid',
@@ -70,17 +71,17 @@ function renderNode(node: PositionedMindmapNode, colors: RenderContext<Positione
   const shape = nodeGeometry(node)
   const shapeSvg = geometrySvg(shape, fill, stroke)
   const children: Array<{ node: SceneNode; indent: number }> = [
-    { node: marks.shape({ id: `${node.id}:shape`, role: 'chrome', geometry: shape, paint: { fill, stroke, strokeWidth: '1.5' } }, shapeSvg), indent: 2 },
+    { node: marks.shape({ id: semanticChildId(node.id, 'shape'), role: 'chrome', geometry: shape, paint: { fill, stroke, strokeWidth: '1.5' } }, shapeSvg), indent: 2 },
   ]
   if (node.icon) {
     children.push({ node: marks.text({
-      id: `${node.id}:icon`, role: 'icon', text: node.icon, x: node.x + node.width / 2,
+      id: semanticChildId(node.id, 'icon'), role: 'icon', text: node.icon, x: node.x + node.width / 2,
       y: node.y + 11, fontSize: 9, anchor: 'middle', paint: { fill: textColor },
     }, `<text class="mindmap-icon" x="${round(node.x + node.width / 2)}" y="${round(node.y + 11)}" text-anchor="middle" font-size="9" fill="${textColor}">${escapeXml(node.icon)}</text>`), indent: 2 })
   }
   const labelY = node.y + node.height / 2 + (node.icon ? 5 : 0)
   children.push({ node: marks.text({
-    id: `${node.id}:label`, role: 'label', text: node.label,
+    id: semanticChildId(node.id, 'label'), role: 'label', text: node.label,
     x: node.x + node.width / 2, y: labelY, fontSize: FONT_SIZE,
     anchor: 'middle', paint: { fill: textColor },
   }, renderMultilineText(node.label, node.x + node.width / 2, labelY, FONT_SIZE,

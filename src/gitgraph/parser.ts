@@ -12,7 +12,7 @@ export class GitGraphDuplicateCommitError extends GitGraphParseError {
   constructor(readonly id: string, line: number) { super(`Duplicate gitGraph commit id '${id}' on line ${line}; commit IDs must be unique.`, line) }
 }
 
-export interface GitGraphParseOptions { mainBranchName?: string; mainBranchOrder?: number }
+export interface GitGraphParseOptions { mainBranchName?: string; mainBranchOrder?: number; title?: string }
 
 export function parseGitGraph(source: string, options: GitGraphParseOptions = {}): GitGraphDiagram {
   const lines = source.replace(/^\uFEFF/, '').split(/\r?\n/)
@@ -23,8 +23,9 @@ export function parseGitGraph(source: string, options: GitGraphParseOptions = {}
   const direction = (header[1]?.toUpperCase() ?? 'LR') as GitGraphDirection
   const mainBranchName = typeof options.mainBranchName === 'string' && options.mainBranchName.trim() ? options.mainBranchName.trim() : 'main'
   const mainOrder = finiteOrder(options.mainBranchOrder, 0)
+  const title = typeof options.title === 'string' && options.title.trim() ? options.title.trim() : undefined
   const commits: GitGraphCommit[] = []
-  const branches = new Map<string, GitGraphBranch>([[mainBranchName, { name: mainBranchName, order: mainOrder }]])
+  const branches = new Map<string, GitGraphBranch>([[mainBranchName, { name: mainBranchName, order: mainOrder, sequence: 0 }]])
   const statements: GitGraphStatement[] = []
   const commitById = new Map<string, GitGraphCommit>()
   let currentBranch = mainBranchName
@@ -106,8 +107,10 @@ export function parseGitGraph(source: string, options: GitGraphParseOptions = {}
       // positive-integer orders. Keep the familiar 0.1…0.9 values, then use a
       // monotone sequence approaching 1 so creation order remains correct for
       // ten or more branches (decimal-string 0.10 aliases 0.1).
-      const order = branchLine[2] === undefined ? implicitBranchOrder(branches.size) : Number(branchLine[2])
-      branches.set(name, { name, order, ...(branches.get(currentBranch)?.head ? { head: branches.get(currentBranch)!.head } : {}) })
+      const explicitOrder = branchLine[2] === undefined ? undefined : Number(branchLine[2])
+      if (explicitOrder !== undefined && explicitOrder <= 0) throw new GitGraphParseError('Branch order must be a positive integer.', index + 1)
+      const order = explicitOrder ?? implicitBranchOrder(branches.size)
+      branches.set(name, { name, order, sequence: branches.size, ...(branches.get(currentBranch)?.head ? { head: branches.get(currentBranch)!.head } : {}) })
       currentBranch = name
       statements.push({ kind: 'branch', name, ...(branchLine[2] !== undefined ? { order } : {}) })
       continue
@@ -147,7 +150,7 @@ export function parseGitGraph(source: string, options: GitGraphParseOptions = {}
       if (!source) throw new GitGraphParseError(`Cherry-pick source commit '${attrs.id}' does not exist.`, index + 1)
       const current = branches.get(currentBranch)!
       if (!current.head) throw new GitGraphParseError(`Current branch '${currentBranch}' has no commits.`, index + 1)
-      if (source.branch === currentBranch) throw new GitGraphParseError(`Cherry-pick source '${source.id}' is already on current branch '${currentBranch}'.`, index + 1)
+      if (reachableFrom(current.head, source.id, commitById)) throw new GitGraphParseError(`Cherry-pick source '${source.id}' is already reachable from current branch '${currentBranch}'.`, index + 1)
       if (source.parents.length === 2) {
         if (!attrs.parent) throw new GitGraphParseError(`Cherry-picking merge commit '${source.id}' requires parent:"immediate parent".`, index + 1)
         if (!source.parents.includes(attrs.parent)) throw new GitGraphParseError(`Cherry-pick parent '${attrs.parent}' is not an immediate parent of '${source.id}'.`, index + 1)
@@ -169,7 +172,7 @@ export function parseGitGraph(source: string, options: GitGraphParseOptions = {}
   }
 
   return {
-    direction, mainBranchName, commits, branches: [...branches.values()], statements,
+    direction, mainBranchName, ...(title ? { title } : {}), commits, branches: [...branches.values()], statements,
     ...(accessibilityTitle ? { accessibilityTitle } : {}),
     ...(accessibilityDescription ? { accessibilityDescription } : {}),
   }
@@ -215,6 +218,19 @@ function quoteToken(value: string): string {
 
 function finiteOrder(value: number | undefined, fallback: number): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback
+}
+
+function reachableFrom(head: string, target: string, commits: Map<string, GitGraphCommit>): boolean {
+  const pending = [head]
+  const seen = new Set<string>()
+  while (pending.length > 0) {
+    const id = pending.pop()!
+    if (id === target) return true
+    if (seen.has(id)) continue
+    seen.add(id)
+    pending.push(...(commits.get(id)?.parents ?? []))
+  }
+  return false
 }
 
 export function serializeGitGraph(diagram: GitGraphDiagram): string {

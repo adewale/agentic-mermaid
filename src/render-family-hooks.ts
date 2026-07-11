@@ -329,6 +329,7 @@ registerRenderHooks('gitgraph', {
     const diagram = parseGitGraph(ctx.source.body, {
       mainBranchName: config.parse.mainBranchName,
       mainBranchOrder: config.parse.mainBranchOrder,
+      title: typeof ctx.source.frontmatter.title === 'string' ? ctx.source.frontmatter.title : undefined,
     })
     return layoutResult(layoutGitGraph(diagram, config.layout), {
       injectAccessibility: false,
@@ -339,6 +340,7 @@ registerRenderHooks('gitgraph', {
   renderAscii: ctx => renderGitGraphAscii(parseGitGraph(ctx.source.body, {
     mainBranchName: ctx.source.config.gitGraph?.mainBranchName,
     mainBranchOrder: ctx.source.config.gitGraph?.mainBranchOrder,
+    title: typeof ctx.source.frontmatter.title === 'string' ? ctx.source.frontmatter.title : undefined,
   }), ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth),
 })
 

@@ -14,6 +14,33 @@ export interface SvgSemanticIdentity {
   classNames?: readonly string[]
 }
 
+function readableIdentityAtom(value: string): boolean {
+  return !value.includes('->') && !/[#:"\[\],\u0000-\u001f]/.test(value)
+}
+
+/** Keep established readable IDs for ordinary Mermaid identifiers while
+ * switching delimiter-bearing source identities to an injective JSON tuple. */
+export function semanticRelationId(from: string, to: string, prefix = ''): string {
+  const body = readableIdentityAtom(from) && readableIdentityAtom(to)
+    ? `${from}->${to}`
+    : `relation:${JSON.stringify([from, to])}`
+  return prefix ? `${prefix}:${body}` : body
+}
+
+export function semanticChildId(base: string, ...parts: Array<string | number>): string {
+  const textParts = parts.map(String)
+  return readableIdentityAtom(base) && textParts.every(readableIdentityAtom)
+    ? [base, ...textParts].join(':')
+    : `part:${JSON.stringify([base, ...textParts])}`
+}
+
+export function semanticNamespacedId(namespace: string, value: string, ...parts: Array<string | number>): string {
+  const textParts = parts.map(String)
+  return readableIdentityAtom(value) && textParts.every(readableIdentityAtom)
+    ? [namespace, value, ...textParts].join(':')
+    : `${namespace}:${JSON.stringify([value, ...textParts])}`
+}
+
 function decodeAttr(value: string): string {
   return value
     .replace(/&quot;/g, '"')

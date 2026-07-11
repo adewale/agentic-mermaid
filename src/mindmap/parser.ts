@@ -1,4 +1,5 @@
 import { normalizeBrTags } from '../multiline-utils.ts'
+import { HAS_FORMAT_TAGS } from '../shared/inline-format.ts'
 import type { MindmapDiagram, MindmapNode, MindmapShape } from './types.ts'
 
 export class MindmapParseError extends Error {
@@ -10,7 +11,7 @@ export class MindmapDuplicateIdError extends MindmapParseError {
   constructor(readonly id: string, line: number) { super(`Duplicate mindmap node identity '${id}' on line ${line}; every node identity must be unique.`, line) }
 }
 
-interface ParsedNode { id: string; label: string; shape: MindmapShape }
+interface ParsedNode { id: string; label: string; shape: MindmapShape; markdown?: true }
 
 /** Parse the indentation-sensitive source from the untrimmed normalized body. */
 export function parseMindmap(source: string): MindmapDiagram {
@@ -25,13 +26,26 @@ export function parseMindmap(source: string): MindmapDiagram {
   let accessibilityDescription: string | undefined
 
   for (let index = headerIndex + 1; index < rawLines.length; index++) {
-    const raw = stripInlineComment(rawLines[index]!)
+    let raw = rawLines[index]!
+    if (raw.includes('["`') && !raw.includes('`"]')) {
+      const parts = [raw]
+      let closed = false
+      while (++index < rawLines.length) {
+        parts.push(rawLines[index]!)
+        if (rawLines[index]!.includes('`"]')) { closed = true; break }
+      }
+      if (!closed) throw new MindmapParseError('Unclosed mindmap Markdown String', index + 1)
+      raw = parts.join('\n')
+    }
+    raw = stripInlineComment(raw)
     const trimmed = raw.trim()
     if (!trimmed || trimmed.startsWith('%%')) continue
     const accTitle = trimmed.match(/^accTitle\s*:\s*(.+)$/i)
     if (accTitle) { accessibilityTitle = normalizeBrTags(accTitle[1]!.trim()); continue }
+    if (/^accTitle\s*:/i.test(trimmed)) throw new MindmapParseError('Mindmap accTitle must contain a non-empty value', index + 1)
     const accDescr = trimmed.match(/^accDescr\s*:\s*(.+)$/i)
     if (accDescr) { accessibilityDescription = normalizeBrTags(accDescr[1]!.trim()); continue }
+    if (/^accDescr\s*:/i.test(trimmed)) throw new MindmapParseError('Mindmap accDescr must contain a non-empty value', index + 1)
     const accDescrBlock = trimmed.match(/^accDescr\s*\{\s*(.*)$/i)
     if (accDescrBlock) {
       const parts: string[] = []
@@ -49,23 +63,26 @@ export function parseMindmap(source: string): MindmapDiagram {
       accessibilityDescription = normalizeBrTags(parts.join(' ').trim())
       continue
     }
-    if (/^::icon\(/.test(trimmed)) {
-      const icon = trimmed.match(/^::icon\(([^)]*)\)$/)
+    if (/^::icon\b/i.test(trimmed)) {
+      const icon = trimmed.match(/^::icon\(([^)]*)\)$/i)
       const value = icon?.[1]?.trim()
       if (!icon || !value) throw new MindmapParseError('Mindmap icon decoration must contain a non-empty value without closing parentheses', index + 1)
       if (!lastNode) throw new MindmapParseError('Mindmap icon decoration requires a preceding node', index + 1)
       lastNode.icon = value
       continue
     }
-    const className = trimmed.match(/^:::\s*(.+)$/)
-    if (className) {
+    if (trimmed.startsWith(':::')) {
+      const className = trimmed.match(/^:::\s*(.+)$/)
+      if (!className) throw new MindmapParseError('Mindmap class decoration must contain at least one class name', index + 1)
       if (!lastNode) throw new MindmapParseError('Mindmap class decoration requires a preceding node', index + 1)
       lastNode.className = className[1]!.trim().replace(/\s+/g, ' ')
       continue
     }
 
     const parsed = parseNode(trimmed)
-    if (!parsed) throw new MindmapParseError(`Invalid mindmap node syntax on line ${index + 1}: ${trimmed}`, index + 1)
+    if (!parsed || (parsed.shape === 'default' && looksLikeMalformedShape(trimmed))) {
+      throw new MindmapParseError(`Invalid mindmap node syntax on line ${index + 1}: ${trimmed}`, index + 1)
+    }
     if (ids.has(parsed.id)) throw new MindmapDuplicateIdError(parsed.id, index + 1)
     ids.add(parsed.id)
     const node: MindmapNode = { ...parsed, children: [] }
@@ -119,22 +136,46 @@ function parseNode(source: string): ParsedNode | null {
   for (const { regex, shape } of patterns) {
     const match = source.match(regex)
     if (!match) continue
-    const label = cleanLabel(match[2]!)
+    const cleaned = cleanLabel(match[2]!)
     const explicit = match[1]!.trim()
-    const id = explicit || label
-    if (!id || !label) return null
-    return { id, label, shape }
+    const id = explicit || plainLabel(cleaned.label)
+    if (!id || !cleaned.label) return null
+    return { id, label: cleaned.label, shape, ...(cleaned.markdown ? { markdown: true } : {}) }
   }
-  const label = cleanLabel(source)
-  return label ? { id: label, label, shape: 'default' } : null
+  const cleaned = cleanLabel(source)
+  const id = plainLabel(cleaned.label)
+  return id ? { id, label: cleaned.label, shape: 'default', ...(cleaned.markdown ? { markdown: true } : {}) } : null
 }
 
-function cleanLabel(value: string): string {
+function cleanLabel(value: string): { label: string; markdown: boolean } {
   let label = value.trim()
-  if (label.startsWith('"`') && label.endsWith('`"')) label = label.slice(2, -2)
-  else if (label.startsWith('"') && label.endsWith('"')) label = label.slice(1, -1)
-  label = label.replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\*([^*]+)\*/g, '$1')
-  return normalizeBrTags(label).trim()
+  const markdown = label.startsWith('"`') && label.endsWith('`"')
+  if (markdown) label = markdownToInlineTags(label.slice(2, -2))
+  else {
+    if (label.startsWith('"') && label.endsWith('"')) label = label.slice(1, -1)
+    label = label.replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\*([^*]+)\*/g, '$1')
+  }
+  return { label: normalizeBrTags(label).trim(), markdown }
+}
+
+function markdownToInlineTags(value: string): string {
+  return value
+    .replace(/\*\*([\s\S]+?)\*\*/g, '<b>$1</b>')
+    .replace(/\*([\s\S]+?)\*/g, '<i>$1</i>')
+}
+
+function inlineTagsToMarkdown(value: string): string {
+  return value
+    .replace(/<b>([\s\S]*?)<\/b>/gi, '**$1**')
+    .replace(/<i>([\s\S]*?)<\/i>/gi, '*$1*')
+}
+
+function plainLabel(value: string): string {
+  return value.replace(/<\/?(?:b|i)>/gi, '').trim()
+}
+
+function looksLikeMalformedShape(value: string): boolean {
+  return /^[^\s[\](){}]+\s*(?:\[|\(\(?|\{\{|\)\))/.test(value)
 }
 
 export function serializeMindmap(diagram: MindmapDiagram): string {
@@ -143,7 +184,9 @@ export function serializeMindmap(diagram: MindmapDiagram): string {
   if (diagram.accessibilityDescription) lines.push(`  accDescr: ${diagram.accessibilityDescription}`)
   const visit = (node: MindmapNode, depth: number): void => {
     const indent = '  '.repeat(depth + 1)
-    const label = node.label.replace(/\n/g, '<br/>')
+    const label = node.markdown || HAS_FORMAT_TAGS.test(node.label)
+      ? `"\`${inlineTagsToMarkdown(node.label)}\`"`
+      : node.label.replace(/\n/g, '<br/>')
     const text = node.shape === 'default' ? label
       : node.shape === 'rect' ? `${node.id}[${label}]`
       : node.shape === 'rounded' ? `${node.id}(${label})`

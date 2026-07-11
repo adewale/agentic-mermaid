@@ -7,6 +7,8 @@ export interface MindmapNode {
   id: string
   label: string
   shape: MindmapShape
+  /** Label originated as Mermaid's quoted Markdown String syntax. */
+  markdown?: true
   icon?: string
   className?: string
   children: MindmapNode[]
@@ -22,6 +24,7 @@ export interface PositionedMindmapNode {
   id: string
   label: string
   shape: MindmapShape
+  markdown?: true
   icon?: string
   className?: string
   parentId?: string

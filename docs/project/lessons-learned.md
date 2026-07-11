@@ -1223,3 +1223,9 @@ expanded loop variants. Tightening those claims required exact
 `(id, role, from, to)` multisets and AST-expanded source lists. When a plan says
 “exact,” the acceptance test must compare the exact object, not a count or a
 projection that happens to be sufficient for today’s fixture.
+
+**Registry drift is a defect family, not three unrelated stale lists.** The editor still rejected Mindmap/GitGraph, characterization still enrolled twelve families, and a byte-fresh architecture SVG still said twelve. The systemic repair was registry-derived editor data plus exact registry-equality tests for characterization and semantic documentation claims. Generated freshness remains a second, separate gate.
+
+**Reachability and injective identity must be tested adversarially.** GitGraph branch provenance was too weak for cherry-pick validation, and `${from}->${to}` was too weak for authored relation IDs. An ancestry walk and tuple-safe semantic identity only became necessary when tests constructed inherited commits and delimiter-bearing IDs that collide under the old shortcuts.
+
+**Exact ledger titles turn review prose into executable coordinates.** Requiring every done row to resolve an exact title in a cited file found three claims with no defensible test. Closing them exposed a real dropped ER syntax, a PNG background bug, and missing Quadrant axis budgets. File existence and green neighboring tests had hidden all three.

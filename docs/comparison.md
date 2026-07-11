@@ -23,7 +23,7 @@ one does, and the final section tells you which to install for common jobs.
   explicit: 14 diagram families against Mermaid's ~25, in exchange for the
   guarantee that parsing and re-serializing a diagram never drops syntax.
 
-Facts below reflect Mermaid ~11.15 and the upstream `beautiful-mermaid`
+Facts below reflect Mermaid 11.16.0 and the upstream `beautiful-mermaid`
 repository as of mid-2026; both projects move quickly, so check their
 changelogs for the current state.
 
@@ -72,6 +72,19 @@ self-discovery), a local Code Mode MCP server, a bounded hosted MCP endpoint
 for zero-install render/verify/describe and structured edits, and tested
 byte-identical determinism. Neither upstream project needed any of this: both serve humans who write
 diagrams once, while this surface serves programs that edit them repeatedly.
+
+## Mindmap/GitGraph and the terminal ecosystem
+
+The checked fixtures follow the official [Mindmap](https://mermaid.ai/open-source/syntax/mindmap.html) and [GitGraph](https://mermaid.ai/open-source/syntax/gitgraph.html) syntax pages and render from the same authored source in Mermaid 11.16.0 and Agentic Mermaid. See the captioned [Mindmap comparison](./design/families/mindmap.md#visual-evidence) and [GitGraph comparison](./design/families/gitgraph.md#visual-evidence). Compare semantic structure—labels, shapes, hierarchy, lanes, commits, parentage, tags, and bounds—not pixels, because the layout/style engines differ.
+
+[AlexanderGrooff/mermaid-ascii](https://github.com/AlexanderGrooff/mermaid-ascii) 1.4.0 does not currently implement either family. Replaying the documented CLI against the same fixtures exits 1 with:
+
+```text
+unsupported graph type 'mindmap'. Supported types: graph TD, graph TB, graph LR, flowchart TD, flowchart TB, flowchart LR
+unsupported graph type 'gitGraph'. Supported types: graph TD, graph TB, graph LR, flowchart TD, flowchart TB, flowchart LR
+```
+
+Its [diagram coverage issue #74](https://github.com/AlexanderGrooff/mermaid-ascii/issues/74) tracks additional families. This is a capability difference, not a claim that an unsupported render is visually worse.
 
 ## Choosing
 

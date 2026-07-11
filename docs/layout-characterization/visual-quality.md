@@ -27,7 +27,7 @@ gates: `src/__tests__/contact-sheet.test.ts`,
 | Pie chart | [pie.svg](./visual-snapshots/pie.svg) | `f6de0f6eb52d` | `61c805ac4e77` | 12063 | 368.79x276 | 369x276 | 3/0 | 0 | 0 | 0 | 4.1% | 100.0% | 0 | n/a | 1.34 |
 | Quadrant chart | [quadrant.svg](./visual-snapshots/quadrant.svg) | `216bf17ccff0` | `63b16868b93e` | 9305 | 456x492 | 456x492 | 2/0 | 0 | 0 | 0 | 0.1% | 100.0% | 0 | n/a | 0.93 |
 | Mindmap | [mindmap.svg](./visual-snapshots/mindmap.svg) | `59c54c55cdf6` | `5a6446d8e5c6` | 10630 | 469.316x212.70000000000002 | 469x213 | 5/4 | 0 | 8 | 462 | 16.9% | 100.0% | 0 | n/a | 2.20 |
-| GitGraph | [gitgraph.svg](./visual-snapshots/gitgraph.svg) | `847513ad54c6` | `9e4c295394a1` | 9786 | 521.1861827075496x300 | 521x300 | 4/4 | 0 | 4 | 728 | 1.0% | n/a | 0 | n/a | 1.74 |
+| GitGraph | [gitgraph.svg](./visual-snapshots/gitgraph.svg) | `b1f1ede6c6cd` | `c2bd27ca4fb3` | 9456 | 513.7810316630266x300 | 514x300 | 4/4 | 0 | 4 | 728 | 1.0% | n/a | 0 | n/a | 1.71 |
 | Architecture diagram | [architecture.svg](./visual-snapshots/architecture.svg) | `b62df2307c70` | `777507a15f7a` | 4182 | 414x188 | 414x188 | 2/1 | 0 | 0 | 78 | 14.8% | 100.0% | 0 | n/a | 2.20 |
 
 ## Sources

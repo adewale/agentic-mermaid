@@ -21,6 +21,7 @@ import { EDITOR_EXAMPLES } from '../../editor/examples.ts'
 import { HOSTED_FONT_FACES, hostedFontFaceCss } from '../../src/font-manifest.ts'
 import { THEMES } from '../../src/theme.ts'
 import { knownStyles, getStyle, styleKind } from '../../src/scene/style-registry.ts'
+import { EDITOR_SUPPORTED_FAMILY_LIST, EDITOR_SUPPORTED_HEADER_TOKENS } from '../../src/editor-family-data.ts'
 
 const THEME_LABELS: Record<string, string> = {
   'paper': 'Paper',
@@ -81,6 +82,13 @@ function editorExamplesDataJs(): string {
   return `var EDITOR_EXAMPLES = ${JSON.stringify(EDITOR_EXAMPLES, null, 2)};`
 }
 
+function editorFamilyDataJs(): string {
+  return [
+    `var SUPPORTED_FAMILY_LIST = ${JSON.stringify(EDITOR_SUPPORTED_FAMILY_LIST)};`,
+    `var SUPPORTED_FAMILY_HEADERS = ${JSON.stringify(EDITOR_SUPPORTED_HEADER_TOKENS)};`,
+  ].join('\n')
+}
+
 function editorFontDataJs(): string {
   const hostedFamilies = Array.from(new Set(HOSTED_FONT_FACES.map(font => font.family)))
   const hosted = hostedFamilies.map(family => ({ name: family, value: family, group: 'Self-hosted' }))
@@ -120,7 +128,7 @@ async function readJsFiles(): Promise<string> {
     readSharedBrowserFile('copy-feedback.js'),
     ...order.map(f => readFile(f)),
   ])
-  return [copyFeedback, editorExamplesDataJs(), editorFontDataJs(), ...parts].join('\n\n')
+  return [copyFeedback, editorExamplesDataJs(), editorFamilyDataJs(), editorFontDataJs(), ...parts].join('\n\n')
 }
 
 const STYLE_LABELS: Record<string, string> = {

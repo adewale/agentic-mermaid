@@ -10,6 +10,10 @@ import { applyXYChartFrontmatterConfig, parseXYChart } from '../xychart/parser.t
 import { layoutXYChart } from '../xychart/layout.ts'
 import { renderXYChartSvg } from '../xychart/renderer.ts'
 import type { DiagramColors } from '../theme.ts'
+import { renderMermaidSVG } from '../index.ts'
+import { renderMermaidPNG } from '../agent/png.ts'
+import { decodePng } from './helpers/png-pixels.ts'
+import { contrastRatio, parseHex } from '../shared/color-math.ts'
 
 const lightColors: DiagramColors = { bg: '#FFFFFF', fg: '#27272A' }
 
@@ -134,6 +138,41 @@ xychart
     expect(svg).toContain('dominant-baseline="middle"')
     expect(svg).toContain('font-size="13" font-weight="400"')
     expect(svg).toMatch(/font-size="17" font-weight="400" dy="0.35em" class="xychart-axis-title xychart-y-axis-title"[^>]*>Users<\/text>/)
+  })
+
+  it('adapts text contrast to backgroundColor and carries the authored background and series palette into PNG', () => {
+    const source = `---
+config:
+  themeVariables:
+    xyChart:
+      backgroundColor: "#101820"
+      plotColorPalette: "#ffcc00, #4ade80"
+---
+xychart
+  title Dark deployment health
+  x-axis [Build, Ship]
+  y-axis Healthy 0 --> 10
+  bar [4, 8]
+  line [8, 4]`
+    const svg = renderMermaidSVG(source, { embedFontImport: false })
+    expect(svg).toContain('background:#101820')
+    const textColor = svg.match(/\.xychart-label \{ fill: (#[0-9a-f]{6});/)?.[1]
+    expect(textColor).toBeDefined()
+    expect(contrastRatio(textColor!, '#101820')).toBeGreaterThanOrEqual(4.5)
+
+    const png = decodePng(renderMermaidPNG(source, { scale: 1, onWarning: () => {} }))
+    expect([png.width, png.height]).toEqual([700, 500])
+    const countPixels = (color: string): number => {
+      const [r, g, b] = parseHex(color)
+      let count = 0
+      for (let index = 0; index < png.rgba.length; index += 4) {
+        if (png.rgba[index] === r && png.rgba[index + 1] === g && png.rgba[index + 2] === b && png.rgba[index + 3] === 255) count++
+      }
+      return count
+    }
+    expect(countPixels('#101820')).toBeGreaterThan(10_000)
+    expect(countPixels('#ffcc00')).toBeGreaterThan(1_000)
+    expect(countPixels('#4ade80')).toBeGreaterThan(100)
   })
 
   it('renders tooltip groups and line dots only when interactive', () => {

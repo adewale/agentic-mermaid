@@ -6,8 +6,8 @@
 // renderer family and public output surface, asserting only what actually
 // holds for each:
 //
-//   - Dispatch totality: all 12 families render as text, SVG, and PNG.
-//   - Label conservation + determinism: all 12 families on text renderers,
+//   - Dispatch totality: all registered families render as text, SVG, and PNG.
+//   - Label conservation + determinism: all registered families on text renderers,
 //     with PNG byte stability checked on the canonical matrix.
 //   - No diagonals: every text family (even xychart plots with block glyphs).
 //   - Rectangularity (all rows one width): only the box families
@@ -25,6 +25,7 @@ import { renderMermaidSVG } from '../index.ts'
 import { renderMermaidPNG } from '../agent/png.ts'
 import { renderMermaidASCII } from '../ascii/index.ts'
 import { hasDiagonalLines } from '../ascii/validate.ts'
+import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 
 const RUNS = 60
 const U = { colorMode: 'none', useAscii: false } as const
@@ -128,6 +129,15 @@ const architectureArb = fc.constant(
   'architecture-beta\n  group api(cloud)[API]\n  service db(database)[Database] in api\n  service server(server)[Server] in api\n  db:L -- R:server',
 )
 
+const flowchartArb = fc.constant('flowchart TD\n  Start[Start] --> Done[Done]')
+const stateArb = fc.constant('stateDiagram-v2\n  [*] --> Idle\n  Idle --> Running\n  Running --> [*]')
+const mindmapArb = fc.uniqueArray(word, { minLength: 1, maxLength: 6 }).map(labels =>
+  ['mindmap', '  Root', ...labels.map((label, index) => `    n${index}[${label}]`)].join('\n'),
+)
+const gitgraphArb = fc.integer({ min: 1, max: 8 }).map(length =>
+  ['gitGraph', ...Array.from({ length }, (_, index) => `  commit id:"c${index}"`)].join('\n'),
+)
+
 const RENDERER_CASES = [
   {
     family: 'flowchart',
@@ -190,6 +200,16 @@ const RENDERER_CASES = [
     source: 'architecture-beta\n  service api(server)[API]\n  service db(database)[DB]\n  api:R --> L:db',
     labels: ['API', 'DB'],
   },
+  {
+    family: 'mindmap',
+    source: 'mindmap\n  root((Product))\n    research[Research]\n    delivery{{Delivery}}',
+    labels: ['Product', 'Research', 'Delivery'],
+  },
+  {
+    family: 'gitgraph',
+    source: 'gitGraph\n  commit id:"base"\n  branch feature\n  commit id:"work"\n  checkout main\n  merge feature id:"merge"',
+    labels: ['main', 'feature', 'base', 'work', 'merge'],
+  },
 ] as const
 
 // ---------------------------------------------------------------------------
@@ -218,6 +238,8 @@ function assertPngSignature(bytes: Uint8Array) {
 }
 
 const ALL_FAMILIES: Array<[string, fc.Arbitrary<string>]> = [
+  ['flowchart', flowchartArb],
+  ['state', stateArb],
   ['sequence', sequenceArb],
   ['class', classArb],
   ['er', erArb],
@@ -228,6 +250,8 @@ const ALL_FAMILIES: Array<[string, fc.Arbitrary<string>]> = [
   ['gantt', ganttArb],
   ['journey', journeyArb],
   ['architecture', architectureArb],
+  ['mindmap', mindmapArb],
+  ['gitgraph', gitgraphArb],
 ]
 
 const BOX_FAMILIES: Array<[string, fc.Arbitrary<string>]> = [
@@ -241,7 +265,12 @@ const BOX_FAMILIES: Array<[string, fc.Arbitrary<string>]> = [
 // ===========================================================================
 
 describe('characterisation · families · universal invariants', () => {
-  it('all 12 families render through ASCII, SVG, and PNG surfaces', () => {
+  it('canonical renderer cases exactly enroll every registered family', () => {
+    expect(RENDERER_CASES.map(entry => entry.family).sort()).toEqual(BUILTIN_FAMILY_METADATA.map(entry => entry.id).sort())
+    expect(ALL_FAMILIES.map(([family]) => family).sort()).toEqual(BUILTIN_FAMILY_METADATA.map(entry => entry.id).sort())
+  })
+
+  it('all registered families render through ASCII, SVG, and PNG surfaces', () => {
     for (const { source } of RENDERER_CASES) {
       const { ascii, svg, png } = renderAll(source)
       expect(ascii.length).toBeGreaterThan(0)
@@ -251,7 +280,7 @@ describe('characterisation · families · universal invariants', () => {
     }
   })
 
-  it('all 12 families preserve sentinel labels on text renderers', () => {
+  it('all registered families preserve sentinel labels on text renderers', () => {
     for (const { source, labels } of RENDERER_CASES) {
       const { ascii, svg } = renderAll(source)
       for (const label of labels) {
@@ -261,7 +290,7 @@ describe('characterisation · families · universal invariants', () => {
     }
   })
 
-  it('all 12 families are byte-stable across repeated renders', () => {
+  it('all registered families are byte-stable across repeated renders', () => {
     for (const { source } of RENDERER_CASES) {
       const first = renderAll(source)
       const second = renderAll(source)
@@ -271,7 +300,7 @@ describe('characterisation · families · universal invariants', () => {
     }
   })
 
-  it('all 12 families emit clean SVG and plain ASCII', () => {
+  it('all registered families emit clean SVG and plain ASCII', () => {
     for (const { source } of RENDERER_CASES) {
       const { ascii, svg } = renderAll(source)
       expect(ascii).not.toMatch(/\x1b\[[0-9;]*m/)

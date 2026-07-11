@@ -63,7 +63,7 @@ function unstableNodeError(id: string, label: string, shape: MindmapShape): Resu
 }
 
 function nodeSignature(node: MindmapNode): string {
-  return JSON.stringify([node.id, node.label, node.shape, node.icon, node.className, node.children.map(nodeSignature)])
+  return JSON.stringify([node.id, node.label, node.shape, node.markdown, node.icon, node.className, node.children.map(nodeSignature)])
 }
 
 function bodySignature(body: Pick<MindmapBody, 'root' | 'accessibilityTitle' | 'accessibilityDescription'>): string {

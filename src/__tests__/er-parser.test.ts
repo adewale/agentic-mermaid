@@ -6,6 +6,7 @@
  */
 import { describe, it, expect } from 'bun:test'
 import { parseErDiagram } from '../er/parser.ts'
+import { renderMermaidSVG } from '../index.ts'
 
 /** Helper to parse — preprocesses text the same way index.ts does */
 function parse(text: string) {
@@ -183,6 +184,17 @@ describe('parseErDiagram – relationships', () => {
       ORDER ||--|{ LINE_ITEM : contains
       PRODUCT ||--o{ LINE_ITEM : appears_in`)
     expect(d.relationships).toHaveLength(3)
+  })
+
+  it('label-less relationships parse and render visibly', () => {
+    const source = 'erDiagram\n  CUSTOMER ||--o{ ORDER'
+    const diagram = parse(source)
+    expect(diagram.relationships).toHaveLength(1)
+    expect(diagram.relationships[0]).toMatchObject({ entity1: 'CUSTOMER', entity2: 'ORDER', label: '' })
+    const svg = renderMermaidSVG(source)
+    expect(svg).toContain('CUSTOMER')
+    expect(svg).toContain('ORDER')
+    expect(svg).toMatch(/<polyline[^>]+class="er-relationship"[^>]+data-from="CUSTOMER"[^>]+data-to="ORDER"/)
   })
 })
 

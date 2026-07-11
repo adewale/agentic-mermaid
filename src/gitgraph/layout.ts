@@ -18,8 +18,8 @@ export function layoutGitGraph(diagram: GitGraphDiagram, options: GitGraphLayout
   const showBranches = options.showBranches !== false
   const showCommitLabel = options.showCommitLabel !== false
   const rotateCommitLabel = options.rotateCommitLabel !== false
-  const branchOrder = new Map(diagram.branches.map((branch, index) => [branch.name, index]))
-  const orderedBranches = [...diagram.branches].sort((a, b) => a.order - b.order || branchOrder.get(a.name)! - branchOrder.get(b.name)! || compareCodePointStrings(a.name, b.name))
+  const titleHeight = diagram.title ? 40 : 0
+  const orderedBranches = [...diagram.branches].sort((a, b) => a.order - b.order || a.sequence - b.sequence || compareCodePointStrings(a.name, b.name))
   const laneByBranch = new Map(orderedBranches.map((branch, lane) => [branch.name, lane]))
   const commitById = new Map(diagram.commits.map(commit => [commit.id, commit]))
   const depth = new Map<string, number>()
@@ -36,50 +36,54 @@ export function layoutGitGraph(diagram: GitGraphDiagram, options: GitGraphLayout
     const lane = laneByBranch.get(commit.branch) ?? 0
     const axis = axisIndex(commit)
     if (diagram.direction === 'LR') {
-      return { ...commit, lane, x: padding + branchLabelSpace + axis * commitGap, y: padding + lane * laneGap }
+      return { ...commit, lane, x: padding + branchLabelSpace + axis * commitGap, y: padding + titleHeight + lane * laneGap }
     }
     return {
       ...commit,
       lane,
       x: padding + branchLabelSpace + lane * 150,
-      y: padding + (diagram.direction === 'BT' ? maxAxis - axis : axis) * commitGap,
+      y: padding + titleHeight + (diagram.direction === 'BT' ? maxAxis - axis : axis) * commitGap,
     }
   })
   const positionedById = new Map(commits.map(commit => [commit.id, commit]))
   const edges: PositionedGitGraphEdge[] = []
   for (const commit of commits) {
-    commit.parents.forEach((parentId, index) => {
+    // Public typed callers can construct a history directly; never emit two
+    // coincident semantic relations for a duplicated parent tuple.
+    for (const [index, parentId] of [...new Set(commit.parents)].entries()) {
       const parent = positionedById.get(parentId)
-      if (!parent) return
+      if (!parent) continue
       const middle = diagram.direction === 'LR' ? (parent.x + commit.x) / 2 : (parent.y + commit.y) / 2
       const points = diagram.direction === 'LR'
         ? [{ x: parent.x, y: parent.y }, { x: middle, y: parent.y }, { x: middle, y: commit.y }, { x: commit.x, y: commit.y }]
         : [{ x: parent.x, y: parent.y }, { x: parent.x, y: middle }, { x: commit.x, y: middle }, { x: commit.x, y: commit.y }]
       const kind: PositionedGitGraphEdge['kind'] = index === 0 ? 'parent' : commit.source === 'cherry-pick' ? 'cherry-pick' : 'merge'
       edges.push({ from: parent.id, to: commit.id, kind, points })
-    })
+    }
   }
   const branches: PositionedGitGraphBranch[] = orderedBranches.map((branch, lane) => {
     const own = commits.filter(commit => commit.branch === branch.name)
     if (diagram.direction === 'LR') {
-      const y = padding + lane * laneGap
+      const y = padding + titleHeight + lane * laneGap
       return { ...branch, lane, x1: padding + branchLabelSpace - 14, y1: y, x2: Math.max(padding + branchLabelSpace, ...own.map(commit => commit.x)), y2: y }
     }
     const x = padding + branchLabelSpace + lane * 150
-    return { ...branch, lane, x1: x, y1: padding - 14, x2: x, y2: Math.max(padding, ...own.map(commit => commit.y)) }
+    return { ...branch, lane, x1: x, y1: padding + titleHeight - 14, x2: x, y2: Math.max(padding + titleHeight, ...own.map(commit => commit.y)) }
   })
   let width: number
   let height: number
   if (diagram.direction === 'LR') {
     width = Math.max(padding * 2 + branchLabelSpace + 80, ...commits.map(commit => commit.x + (showCommitLabel ? Math.max(26, measureTextWidth(commit.id, 11, 500) * 0.75) : 18))) + padding
-    height = padding * 2 + Math.max(1, orderedBranches.length) * laneGap + (showCommitLabel ? 48 : 0)
+    height = padding * 2 + titleHeight + Math.max(1, orderedBranches.length) * laneGap + (showCommitLabel ? 48 : 0)
   } else {
     width = padding * 2 + branchLabelSpace + Math.max(1, orderedBranches.length) * 150
-    height = Math.max(padding * 2 + 80, ...commits.map(commit => commit.y + (showCommitLabel ? 38 : 18))) + padding
+    height = Math.max(padding * 2 + titleHeight + 80, ...commits.map(commit => commit.y + (showCommitLabel ? 38 : 18))) + padding
   }
 
+  if (diagram.title) width = Math.max(width, measureTextWidth(diagram.title, 16, 600) + padding * 2)
+
   // Canvas bounds follow the text the renderer actually displays (message
-  // fallback to id), including LR's 35° rotation. The old id-only estimate
+  // fallback to id), including LR's 45° rotation. The old id-only estimate
   // clipped long authored messages even though their commit marks were inside.
   const textBounds = commits.flatMap(commit => [
     ...(showCommitLabel ? [commitLabelBounds(commit, diagram.direction, rotateCommitLabel)] : []),
@@ -104,7 +108,7 @@ export function layoutGitGraph(diagram: GitGraphDiagram, options: GitGraphLayout
     height = Math.max(height + shiftY, maxY + shiftY + padding)
   }
   return {
-    width, height, direction: diagram.direction, commits, branches, edges,
+    width, height, direction: diagram.direction, ...(diagram.title ? { title: diagram.title } : {}), commits, branches, edges,
     accessibilityTitle: diagram.accessibilityTitle,
     accessibilityDescription: diagram.accessibilityDescription,
     showBranches, showCommitLabel, rotateCommitLabel,
@@ -120,7 +124,7 @@ function commitLabelBounds(
 ): TextBounds {
   const label = commit.message || commit.id
   return direction === 'LR'
-    ? measuredTextBounds(label, commit.x, commit.y + 24, 11, 500, 'middle', rotate ? 35 : 0)
+    ? measuredTextBounds(label, commit.x, commit.y + 24, 11, 500, 'middle', rotate ? 45 : 0)
     : measuredTextBounds(label, commit.x + 14, commit.y + 4, 11, 500, 'start', 0)
 }
 

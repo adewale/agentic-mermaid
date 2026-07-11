@@ -1,0 +1,450 @@
+{
+  "schemaVersion": 1,
+  "entries": [
+    {
+      "id": "F1",
+      "file": "src/__tests__/flowchart-parser-conformance.test.ts",
+      "title": "compact edge target may be an inline node definition without being swallowed as an asymmetric source"
+    },
+    {
+      "id": "F2",
+      "file": "src/__tests__/route-contracts.test.ts",
+      "title": "edges spanning subgraph scopes are cross-hierarchy"
+    },
+    {
+      "id": "F3",
+      "file": "src/__tests__/parser.test.ts",
+      "title": "parses bare and shaped CJK identifiers without producing an empty graph"
+    },
+    {
+      "id": "F4",
+      "file": "src/__tests__/property-ascii-routing.test.ts",
+      "title": "avoids occupied cells while staying orthogonal"
+    },
+    {
+      "id": "F5",
+      "file": "src/__tests__/flowchart-marker-raster.test.ts",
+      "title": "pre-rotates start arrows instead of relying on auto-start-reverse"
+    },
+    {
+      "id": "F6",
+      "file": "src/__tests__/flowchart-runtime-config.test.ts",
+      "title": "an explicit wrappingWidth wraps a sentence-length diamond label under the width budget"
+    },
+    {
+      "id": "F7",
+      "file": "src/__tests__/flowchart-edge-ids.test.ts",
+      "title": "the render parser models the authored edge ID"
+    },
+    {
+      "id": "F8",
+      "file": "src/__tests__/flowchart-op-menu.test.ts",
+      "title": "MUTATION_OPS_BY_FAMILY lists the widened flowchart menu"
+    },
+    {
+      "id": "S1",
+      "file": "src/__tests__/state-notes.test.ts",
+      "title": "single-line and block notes are modeled on the graph"
+    },
+    {
+      "id": "S2",
+      "file": "src/__tests__/state-pseudostates.test.ts",
+      "title": "regions parse as concurrency-region subgraphs instead of merging"
+    },
+    {
+      "id": "S3",
+      "file": "src/__tests__/renderer-css-classes.test.ts",
+      "title": "state ::: shorthand applies the class without leaking colons into text"
+    },
+    {
+      "id": "S4",
+      "file": "src/__tests__/state-ascii-elevation.test.ts",
+      "title": "places an intact right-note box beside its target with a continuous connector"
+    },
+    {
+      "id": "S5",
+      "file": "src/__tests__/agent-state.test.ts",
+      "title": "standalone alias with label equal to id stays renderable"
+    },
+    {
+      "id": "S6",
+      "file": "src/__tests__/self-loop-arcs.test.ts",
+      "title": "self-loop keeps clear of sibling nodes (no loop-through-node)"
+    },
+    {
+      "id": "S7",
+      "file": "src/__tests__/state-ops.test.ts",
+      "title": "MUTATION_OPS_BY_FAMILY.state lists the widened menu"
+    },
+    {
+      "id": "SE1",
+      "file": "src/__tests__/sequence-parser.test.ts",
+      "title": "parses alt/else block"
+    },
+    {
+      "id": "SE2",
+      "file": "src/__tests__/sequence-layout.test.ts",
+      "title": "messages stay finite and ordered with gaps never below the base height"
+    },
+    {
+      "id": "SE3",
+      "file": "src/__tests__/sequence-layout.test.ts",
+      "title": "renders positive-height standalone activation rectangles"
+    },
+    {
+      "id": "SE4",
+      "file": "src/__tests__/sequence-create-destroy.test.ts",
+      "title": "renders the alias label and a destroy cross marker"
+    },
+    {
+      "id": "SE5",
+      "file": "src/__tests__/agent-sequence-ops.test.ts",
+      "title": "move is stable across opaque segments (box/notes preserved verbatim)"
+    },
+    {
+      "id": "SE6",
+      "file": "src/__tests__/sequence-config.test.ts",
+      "title": "the typed shape accepts the documented keys"
+    },
+    {
+      "id": "SE7",
+      "file": "src/__tests__/sequence-layout.test.ts",
+      "title": "generated activation, note, and block cases keep chrome clear of structural boxes"
+    },
+    {
+      "id": "CL1",
+      "file": "src/__tests__/class-serializer-conformance.test.ts",
+      "title": "serializer labels resolve to one logical renderer class and relations attach to it"
+    },
+    {
+      "id": "CL2",
+      "file": "src/__tests__/class-generics.test.ts",
+      "title": "legacy parser gives generic-bearing declarations and relation endpoints one stable bare identity"
+    },
+    {
+      "id": "CL3",
+      "file": "src/__tests__/class-residual-elevation.test.ts",
+      "title": "models and renders classDef, class/cssClass, shorthand, and inline paint"
+    },
+    {
+      "id": "CL4",
+      "file": "src/__tests__/class-direction-config.test.ts",
+      "title": "class.nodeSpacing/rankSpacing are wired into the rendered geometry"
+    },
+    {
+      "id": "CL5",
+      "file": "src/__tests__/class-residual-elevation.test.ts",
+      "title": "c5-stress allocates every cardinality box without card/card or card/node overlap"
+    },
+    {
+      "id": "CL6",
+      "file": "src/__tests__/class-residual-elevation.test.ts",
+      "title": "single-line namespaces enter both parsers and terminal frames"
+    },
+    {
+      "id": "ER1",
+      "file": "src/__tests__/er-parser.test.ts",
+      "title": "bare entity declarations produce visible logical entities"
+    },
+    {
+      "id": "ER2",
+      "file": "src/__tests__/agent-er.test.ts",
+      "title": "set_entity_label adds and removes a display alias without changing identity"
+    },
+    {
+      "id": "ER3",
+      "file": "src/__tests__/er-integration.test.ts",
+      "title": "renders aliased entities and all comma-separated key badges"
+    },
+    {
+      "id": "ER4",
+      "file": "src/__tests__/er-parser.test.ts",
+      "title": "label-less relationships parse and render visibly"
+    },
+    {
+      "id": "ER5",
+      "file": "src/__tests__/er-ascii-clearance.test.ts",
+      "title": "preserves every foreign entity rectangle across deterministic grid sizes"
+    },
+    {
+      "id": "ER6",
+      "file": "src/__tests__/er-crowsfoot.test.ts",
+      "title": "all four cardinalities have pairwise-distinct marker signatures"
+    },
+    {
+      "id": "T1",
+      "file": "src/__tests__/agent-timeline.test.ts",
+      "title": "clock times containing a colon stay one event on both parser surfaces"
+    },
+    {
+      "id": "T2",
+      "file": "src/__tests__/agent-timeline.test.ts",
+      "title": "event-less periods serialize to the bare form accepted by both parser surfaces"
+    },
+    {
+      "id": "T3",
+      "file": "src/__tests__/agent-timeline.test.ts",
+      "title": "wired keys (disableMulticolor/sectionFills/sectionColours) never warn"
+    },
+    {
+      "id": "T4",
+      "file": "src/__tests__/timeline-layout.test.ts",
+      "title": "wraps long labels instead of letting a single event force unbounded width"
+    },
+    {
+      "id": "T5",
+      "file": "src/__tests__/agent-timeline.test.ts",
+      "title": "mutation chain with new ops stays round-trip stable"
+    },
+    {
+      "id": "G1",
+      "file": "src/__tests__/gantt-dependency-overlay.test.ts",
+      "title": "dependencyArrows draws one marker-terminated connector per dependency"
+    },
+    {
+      "id": "G2",
+      "file": "src/__tests__/gantt-excluded-shading.test.ts",
+      "title": "bands cover exactly the excluded days inside the schedule range, maximally merged"
+    },
+    {
+      "id": "G3",
+      "file": "src/__tests__/cli-gantt-today-flag.test.ts",
+      "title": "draws the today marker in SVG output"
+    },
+    {
+      "id": "G4",
+      "file": "src/__tests__/agent-gantt.test.ts",
+      "title": "move_task moves an explicit-start task across sections and round-trips"
+    },
+    {
+      "id": "G5",
+      "file": "src/__tests__/gantt-layout.test.ts",
+      "title": "transformed style typography expands labels, rows, and axis lanes before rendering"
+    },
+    {
+      "id": "G6",
+      "file": "src/__tests__/gantt-exclusion-boundary.test.ts",
+      "title": "upstream mega case: all seven chain instants match ganttDb.spec.ts"
+    },
+    {
+      "id": "XY1",
+      "file": "src/__tests__/xychart-legend.test.ts",
+      "title": "multi-series chart renders a legend group with one swatch+label per series"
+    },
+    {
+      "id": "XY2",
+      "file": "src/__tests__/xychart-parser.test.ts",
+      "title": "parses numeric axes and quoted axis titles"
+    },
+    {
+      "id": "XY3",
+      "file": "src/__tests__/xychart-renderer.test.ts",
+      "title": "adapts text contrast to backgroundColor and carries the authored background and series palette into PNG"
+    },
+    {
+      "id": "XY4",
+      "file": "src/__tests__/xychart-layout.test.ts",
+      "title": "keeps numeric x-axis line points inside the plot area"
+    },
+    {
+      "id": "XY5",
+      "file": "src/__tests__/agent-xychart.test.ts",
+      "title": "set_data_point edits exactly one value and serialize\u2192re-parse preserves"
+    },
+    {
+      "id": "P1",
+      "file": "src/__tests__/pie-elevation.test.ts",
+      "title": "unwired pie config fields carry INEFFECTIVE_CONFIG; wired fields stay silent"
+    },
+    {
+      "id": "P2",
+      "file": "src/__tests__/pie-elevation.test.ts",
+      "title": "property: emitted slice labels never overlap and never leave the canvas"
+    },
+    {
+      "id": "P3",
+      "file": "src/__tests__/pie-elevation.test.ts",
+      "title": "honors legendPosition from frontmatter end to end"
+    },
+    {
+      "id": "P4",
+      "file": "src/__tests__/pie-elevation.test.ts",
+      "title": "15 slices on the default light theme are pairwise distinguishable"
+    },
+    {
+      "id": "Q1",
+      "file": "src/__tests__/quadrant-style.test.ts",
+      "title": "direct styles reach the circle (fill / radius / stroke)"
+    },
+    {
+      "id": "Q2",
+      "file": "src/__tests__/quadrant.test.ts",
+      "title": "long axis labels wrap within their half-plot budgets without overprinting"
+    },
+    {
+      "id": "Q3",
+      "file": "src/__tests__/scene-text-fidelity.test.ts",
+      "title": "point labels carry their REAL collision-aware position in the scene IR"
+    },
+    {
+      "id": "Q4",
+      "file": "src/__tests__/quadrant-config.test.ts",
+      "title": "plot grows deterministically with point count when size is unconfigured"
+    },
+    {
+      "id": "A1",
+      "file": "src/__tests__/architecture-layout.test.ts",
+      "title": "treats every satisfiable endpoint-side pair as placement constraints and classifies legal conflicts"
+    },
+    {
+      "id": "A2",
+      "file": "src/__tests__/architecture-layout.test.ts",
+      "title": "honors align row with shared centers and non-overlapping siblings"
+    },
+    {
+      "id": "A3",
+      "file": "src/__tests__/architecture-config.test.ts",
+      "title": "verify emits INEFFECTIVE_CONFIG for the fcose keys and stays ok; wired keys stay silent"
+    },
+    {
+      "id": "A4",
+      "file": "src/__tests__/agent-architecture.test.ts",
+      "title": "add_edge / update_edge / remove_edge supports group boundaries in place"
+    },
+    {
+      "id": "A5",
+      "file": "src/__tests__/architecture-icons.test.ts",
+      "title": "keeps the bundled registry finite, path-only, and size-bounded"
+    },
+    {
+      "id": "A6",
+      "file": "src/__tests__/architecture-ascii.test.ts",
+      "title": "renders LR topology spatially instead of appending an endpoint edge list (A6)"
+    },
+    {
+      "id": "X1",
+      "file": "src/__tests__/property-all-families-fuzz.test.ts",
+      "title": "X1 acceptance: every built-in family has a cross-parser fuzz generator"
+    },
+    {
+      "id": "X2",
+      "file": "src/__tests__/ascii-unicode-family-contract.test.ts",
+      "title": "TUI metadata reports display-cell columns, not UTF-16 offsets"
+    },
+    {
+      "id": "X3",
+      "file": "src/__tests__/ascii-target-width.test.ts",
+      "title": "every registered family shrinks a feasible long label below natural width"
+    },
+    {
+      "id": "X4",
+      "file": "src/__tests__/svg-identity-contract.test.ts",
+      "title": "enrolls every registered family with stable, unique data-id + data-role pairs"
+    },
+    {
+      "id": "X5",
+      "file": "src/__tests__/svg-id-hygiene-all-families.test.ts",
+      "title": "two instances of every family have no declaration collisions or dangling refs"
+    },
+    {
+      "id": "X6",
+      "file": "src/__tests__/accessibility-relation-palette.test.ts",
+      "title": "registry-enrolls every relation-bearing family with one inspectable ARIA object per typed relation"
+    },
+    {
+      "id": "X7",
+      "file": "src/__tests__/unknown-config-wire-or-warn.test.ts",
+      "title": "the config-honesty matrix enrolls every built-in family exactly once"
+    },
+    {
+      "id": "X8",
+      "file": "src/__tests__/diagram-family-citizenship.test.ts",
+      "title": "citizenship backfill has no remaining matrix exceptions"
+    },
+    {
+      "id": "B01",
+      "file": "src/__tests__/family-elevation-ledger.test.ts",
+      "title": "every numbered family item and X1\u2013X8 has exactly one checked status row"
+    },
+    {
+      "id": "B02",
+      "file": "src/__tests__/opaque-unsupported-warning.test.ts",
+      "title": "B02 acceptance: lossless opaque fixtures enroll every built-in family"
+    },
+    {
+      "id": "B03",
+      "file": "src/__tests__/architecture-layout.test.ts",
+      "title": "every chain shortcut clears every intermediate card (property)"
+    },
+    {
+      "id": "B04",
+      "file": "src/__tests__/agent-architecture.test.ts",
+      "title": "models accessibility directives and group-boundary endpoints without whole-body opacity"
+    },
+    {
+      "id": "B05",
+      "file": "src/__tests__/state-ascii-elevation.test.ts",
+      "title": "places one continuous concurrency separator strictly between intact region node boxes"
+    },
+    {
+      "id": "B06",
+      "file": "src/__tests__/ascii-unicode-family-contract.test.ts",
+      "title": "SVG measurement and PNG bounds account for wide CJK deterministically"
+    },
+    {
+      "id": "B07",
+      "file": "src/__tests__/state-typed-elevation.test.ts",
+      "title": "models concurrency regions and lets region-addressed edits round-trip"
+    },
+    {
+      "id": "B08",
+      "file": "src/__tests__/class-residual-elevation.test.ts",
+      "title": "hierarchicalNamespaces:false lays nested namespace compounds out as siblings and is not warned"
+    },
+    {
+      "id": "B09",
+      "file": "src/__tests__/er-typed-segments.test.ts",
+      "title": "rejects identity edits that would stale an opaque segment reference"
+    },
+    {
+      "id": "B10",
+      "file": "src/__tests__/class-residual-elevation.test.ts",
+      "title": "c5-stress allocates every cardinality box without card/card or card/node overlap"
+    },
+    {
+      "id": "B11",
+      "file": "src/__tests__/architecture-icons.test.ts",
+      "title": "ships license attribution with the published package surface"
+    },
+    {
+      "id": "B12",
+      "file": "src/__tests__/ascii-target-width.test.ts",
+      "title": "is available through the hardened Code Mode SDK facade"
+    },
+    {
+      "id": "B13",
+      "file": "src/__tests__/svg-identity-contract.test.ts",
+      "title": "relations expose normalized data-from/data-to endpoints"
+    },
+    {
+      "id": "B14",
+      "file": "src/__tests__/accessibility-relation-palette.test.ts",
+      "title": "the resolved SVG uses the checked palette colors on text and relations"
+    },
+    {
+      "id": "B15",
+      "file": "src/__tests__/mindmap-gitgraph-upstream-oracle.test.ts",
+      "title": "binds every classification to the vendored pinned upstream title, order, source, and SHA-256"
+    },
+    {
+      "id": "B16",
+      "file": "src/__tests__/mindmap-gitgraph-upstream-oracle.test.ts",
+      "title": "accounts for every direct upstream test block exactly once"
+    },
+    {
+      "id": "B17",
+      "file": "src/__tests__/svg-id-hygiene-all-families.test.ts",
+      "title": "two instances of every family have no declaration collisions or dangling refs"
+    }
+  ]
+}

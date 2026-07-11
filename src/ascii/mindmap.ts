@@ -3,6 +3,7 @@ import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
 import { canvasToString, drawText, mkCanvas, mkRoleCanvas, setRole } from './canvas.ts'
 import { wrapText } from './wrap.ts'
 import { visualWidth } from './width.ts'
+import { plainTextFromInlineFormatting } from '../shared/inline-format.ts'
 
 export function renderMindmapAscii(
   diagram: MindmapDiagram,
@@ -17,7 +18,8 @@ export function renderMindmapAscii(
     const branch = prefix + connector
     const icon = node.icon ? `{${node.icon}} ` : ''
     const available = targetWidth === undefined ? undefined : Math.max(1, targetWidth - visualWidth(branch) - 4)
-    const labelLines = available ? wrapText(node.label, available) : node.label.split(/\r?\n/)
+    const plainLabel = plainTextFromInlineFormatting(node.label)
+    const labelLines = available ? wrapText(plainLabel, available) : plainLabel.split(/\r?\n/)
     const decorate = (label: string): string => {
       const value = icon + label
       if (node.shape === 'rect') return `[${value}]`

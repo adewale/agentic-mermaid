@@ -37,8 +37,11 @@ const GITGRAPH = `gitGraph LR:
   commit id:"work" type:HIGHLIGHT tag:"beta" msg:"Build"
   checkout main
   commit id:"release" type:REVERSE
+  branch patchline order:3
+  commit id:"patch" msg:"Backport candidate"
+  checkout main
   merge feature id:"merge" type:HIGHLIGHT tag:"v1"
-  cherry-pick id:"work" parent:"base" tag:"backport"
+  cherry-pick id:"patch" tag:"backport"
 `
 
 describe('Mindmap full-family citizenship', () => {
@@ -154,9 +157,9 @@ describe('Mindmap full-family citizenship', () => {
 describe('GitGraph full-family citizenship', () => {
   test('replays branch, merge, and cherry-pick semantics with deterministic generated IDs', () => {
     const parsed = parseGitGraph(GITGRAPH)
-    expect(parsed.commits.map(commit => commit.id)).toEqual(['base', 'work', 'release', 'merge', 'c4'])
+    expect(parsed.commits.map(commit => commit.id)).toEqual(['base', 'work', 'release', 'patch', 'merge', 'c5'])
     expect(parsed.commits.find(commit => commit.id === 'merge')).toMatchObject({ type: 'MERGE', customType: 'HIGHLIGHT', parents: ['release', 'work'] })
-    expect(parsed.commits.at(-1)).toMatchObject({ source: 'cherry-pick', cherrySource: 'work', cherryParent: 'base', parents: ['merge', 'work'] })
+    expect(parsed.commits.at(-1)).toMatchObject({ source: 'cherry-pick', cherrySource: 'patch', parents: ['merge', 'patch'] })
     const generated = parseGitGraph('gitGraph\n  commit\n  commit')
     expect(generated.commits.map(commit => commit.id)).toEqual(['c0', 'c1'])
     const legacyMessage = parseGitGraph('gitGraph:\n  commit "legacy commit message"')
@@ -182,7 +185,7 @@ describe('GitGraph full-family citizenship', () => {
     const first = layoutGitGraph(diagram)
     expect(layoutGitGraph(diagram)).toEqual(first)
     expect(first.edges).toHaveLength(diagram.commits.reduce((sum, commit) => sum + commit.parents.length, 0))
-    expect(new Set(first.commits.map(commit => commit.lane)).size).toBe(2)
+    expect(new Set(first.commits.map(commit => commit.lane)).size).toBe(3)
     expect(first.edges.some(edge => edge.kind === 'merge')).toBe(true)
     expect(first.edges.some(edge => edge.kind === 'cherry-pick')).toBe(true)
 
@@ -215,7 +218,7 @@ describe('GitGraph full-family citizenship', () => {
       const layout = layoutGitGraph(parseGitGraph(`gitGraph ${direction}:\n  commit id:"x" msg:"${message}"`))
       const commit = layout.commits[0]!
       const origin = direction === 'LR'
-        ? { x: commit.x, y: commit.y + 24, anchor: 'middle' as const, angle: 35 }
+        ? { x: commit.x, y: commit.y + 24, anchor: 'middle' as const, angle: 45 }
         : { x: commit.x + 14, y: commit.y + 4, anchor: 'start' as const, angle: 0 }
       const width = measureTextWidth(message, 11, 500)
       const left = origin.anchor === 'middle' ? -width / 2 : 0
@@ -275,10 +278,10 @@ describe('GitGraph full-family citizenship', () => {
   checkout main
   branch Zulu order:1
   commit id:"z"`)
-    expect(equalOrder.indexOf('Zulu')).toBeLessThan(equalOrder.indexOf('éclair'))
+    expect(equalOrder.indexOf('éclair')).toBeLessThan(equalOrder.indexOf('Zulu'))
     const parsed = parseMermaid(GITGRAPH)
     expect(parsed.ok).toBe(true)
-    if (parsed.ok) expect(layoutMermaid(parsed.value, { regions: true }).regions!.filter(region => region.kind === 'node')).toHaveLength(5)
+    if (parsed.ok) expect(layoutMermaid(parsed.value, { regions: true }).regions!.filter(region => region.kind === 'node')).toHaveLength(6)
   })
 
   test('wires GitGraph display/replay config and emits diagnostics for invalid values', () => {

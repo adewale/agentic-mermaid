@@ -152,7 +152,7 @@ describe('GitGraph typed operations — discriminating replay contract', () => {
     expectError({ kind: 'set_commit_message', id: 'missing', message: 'x' }, 'NODE_NOT_FOUND', "gitGraph commit 'missing' not found")
     expectError({ kind: 'set_commit_message', id: 'base', message: '\n' }, 'INVALID_OP', 'gitGraph commit message must be a non-empty single-line string')
     expectError({ kind: 'set_commit_message', id: 'merge', message: 'new' }, 'INVALID_OP', "Commit 'merge' is produced by merge; its generated message cannot be replaced")
-    const picked = apply({ kind: 'cherry_pick', id: 'feat' })
+    const picked = apply({ kind: 'cherry_pick', id: 'side1' })
     const cherryId = picked.commits.at(-1)!.id
     expectError({ kind: 'set_commit_message', id: cherryId, message: null }, 'INVALID_OP', `Commit '${cherryId}' is produced by cherry-pick; its generated message cannot be replaced`, picked)
   })
@@ -161,8 +161,8 @@ describe('GitGraph typed operations — discriminating replay contract', () => {
     expect(commit(apply({ kind: 'set_commit_type', id: 'base', type: 'REVERSE' }), 'base')?.type).toBe('REVERSE')
     expectError({ kind: 'set_commit_type', id: 'missing', type: 'NORMAL' }, 'NODE_NOT_FOUND', "gitGraph commit 'missing' not found")
     expectError({ kind: 'set_commit_type', id: 'merge', type: 'NORMAL' }, 'INVALID_OP', "Commit 'merge' is produced by merge; its semantic type cannot be replaced")
-    const picked = apply({ kind: 'cherry_pick', id: 'feat' })
-    expect(picked.commits.at(-1)?.tags).toEqual(['cherry-pick:feat'])
+    const picked = apply({ kind: 'cherry_pick', id: 'side1' })
+    expect(picked.commits.at(-1)?.tags).toEqual(['cherry-pick:side1'])
     const cherryId = picked.commits.at(-1)!.id
     expectError({ kind: 'set_commit_type', id: cherryId, type: 'HIGHLIGHT' }, 'INVALID_OP', `Commit '${cherryId}' is produced by cherry-pick; its semantic type cannot be replaced`, picked)
   })

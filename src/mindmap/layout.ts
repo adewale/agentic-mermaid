@@ -28,7 +28,7 @@ export function layoutMindmap(diagram: MindmapDiagram, options: MindmapLayoutOpt
     if (node.shape === 'circle') { width = height = Math.max(width, height, 54) }
     if (node.shape === 'bang' || node.shape === 'cloud') { width += 18; height += 10 }
     const positioned: PositionedMindmapNode = {
-      id: node.id, label, shape: node.shape, icon: node.icon, className: node.className,
+      id: node.id, label, shape: node.shape, markdown: node.markdown, icon: node.icon, className: node.className,
       ...(parentId ? { parentId } : {}), depth, x: 0, y: 0, width, height,
     }
     entries.set(node.id, positioned)

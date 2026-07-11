@@ -21,7 +21,7 @@ family.
 - `manifest.json` — pinned upstream revision plus family-by-family parser/DB files considered, upstream block counts, imported case counts, imported block counts, excluded block counts, and deferred block counts.
 - `cases.json` — portable source-level parser/DB cases. Each case records upstream files/blocks, source text, and public-surface assertions (`parseMermaid`, family narrower where structured, `verifyMermaid`, `serializeMermaid`, `layoutMermaid`).
 - `exclusions.json` — accounted non-portable or local-gap upstream behavior. Reason codes are validated by `src/__tests__/mermaid-upstream-suite-bench.test.ts`; entries with an `ours` expectation are executable.
-- `mindmap-gitgraph-f3dea583.json` — verbatim source cases, normalized upstream expectations, exact 26/69 block inventory, five source-inexpressible config-accessor exclusions, and one executable duplicate-id divergence. The two source spec SHA-256 values bind the inventory to the pinned commit.
+- `mindmap-gitgraph-f3dea583.json` — verbatim source cases, normalized upstream expectations, exact 26/69 block inventory, five source-inexpressible config-accessor exclusions, plus executable duplicate-id and already-reachable-cherry-pick divergences. The two source spec SHA-256 values bind the inventory to the pinned commit.
 - `ratchet.json` — imported coverage floors plus local-gap budgets. The harvester may tighten these budgets when gaps shrink, but the test runner fails if local gaps grow or imported coverage falls.
 
 ## Case schema
@@ -107,6 +107,6 @@ interface ManifestFamily {
 - Upstream refreshes are explicit: the harvester checks the pinned checkout revision, and the refresh check fails when newer upstream commits change the harvested diagram spec files.
 
 Current BUILD-20 accounting: **1,265** considered upstream parser/DB blocks,
-**747** imported blocks, **518** excluded/accounted blocks, and **0** deferred
-blocks. The executable case count is **737**, including the 68-case Gantt and
+**746** imported blocks, **519** excluded/accounted blocks, and **0** deferred
+blocks. The executable case count is **736**, including the 68-case Gantt and
 89-case Mindmap/GitGraph companion benches.

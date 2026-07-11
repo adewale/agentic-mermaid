@@ -9,6 +9,8 @@ import type {
 import type { RenderOptions } from '../types.ts'
 import type { QuadrantVisualConfig } from './config.ts'
 import { measureTextWidth } from '../text-metrics.ts'
+import { wrapLabelToWidth } from '../shared/label-wrap.ts'
+import { graphemes } from '../shared/graphemes.ts'
 import { applyTextTransform, resolveRenderStyle, STROKE_WIDTHS } from '../styles.ts'
 import type { RenderStyleDefaults } from '../styles.ts'
 import { resolvePointVisual } from './point-style.ts'
@@ -71,6 +73,25 @@ export function quadrantStyleDefaults(visual: QuadrantVisualConfig = {}): Render
 
 function round(n: number): number {
   return Math.round(n * 100) / 100
+}
+
+function ellipsizeToWidth(text: string, maxWidth: number, fontSize: number, fontWeight: number): string {
+  if (measureTextWidth(text, fontSize, fontWeight) <= maxWidth) return text
+  const suffix = '…'
+  let result = ''
+  for (const cluster of graphemes(text)) {
+    if (measureTextWidth(result + cluster + suffix, fontSize, fontWeight) > maxWidth) break
+    result += cluster
+  }
+  return result + suffix
+}
+
+/** At most two measured lines per half-axis. The typed chart retains the full
+ * label; only the paint string is ellipsized when two lines cannot contain it. */
+function budgetAxisLabel(text: string, maxWidth: number, fontSize: number, fontWeight: number): string {
+  const lines = wrapLabelToWidth(text, maxWidth, fontSize, fontWeight).split('\n')
+  if (lines.length <= 2) return lines.join('\n')
+  return `${lines[0]}\n${ellipsizeToWidth(lines.slice(1).join(' '), maxWidth, fontSize, fontWeight)}`
 }
 
 /** Density-scaled default plot side: 380px up to 8 points, then +20px per
@@ -173,25 +194,42 @@ export function layoutQuadrantChart(
   const axisFontY = visual.yAxisLabelFontSize ?? style.edgeLabelFontSize
   const axisPadX = visual.xAxisLabelPadding ?? Q.axisLabelPadding
   const axisPadY = visual.yAxisLabelPadding ?? Q.axisLabelPadding
-  // Gutters reserve room for the axis text (+7px breathing space keeps the
-  // historical 28px default: 13 + 2*4 + 7).
-  const xAxisGutter = axisFontX + axisPadX * 2 + 7
-  const yAxisGutter = axisFontY + axisPadY * 2 + 7
+  // Axis labels own one half-plot each. Compute measured two-line paint labels
+  // and enlarge only the appropriate gutter; sparse/default labels therefore
+  // keep their historical bytes. Explicit canvas dimensions are solved twice
+  // because a wrapped gutter slightly reduces the available square plot.
+  const baseXAxisGutter = axisFontX + axisPadX * 2 + 7
+  const baseYAxisGutter = axisFontY + axisPadY * 2 + 7
+  let xAxisGutter = baseXAxisGutter
+  let yAxisGutter = baseYAxisGutter
+  let size = densityPlotSize(chart.points.length)
+  let budgetedX: { near: string; far?: string } | undefined
+  let budgetedY: { near: string; far?: string } | undefined
+  for (let pass = 0; pass < 2; pass++) {
+    if (visual.chartWidth !== undefined || visual.chartHeight !== undefined) {
+      const chromeW = paddingX * 2 + yAxisGutter
+      const chromeH = paddingY * 2 + titleHeight + xAxisGutter
+      const fromW = visual.chartWidth !== undefined ? visual.chartWidth - chromeW : Number.POSITIVE_INFINITY
+      const fromH = visual.chartHeight !== undefined ? visual.chartHeight - chromeH : Number.POSITIVE_INFINITY
+      size = Math.max(60, Math.min(fromW, fromH))
+    }
+    const halfBudget = Math.max(24, size / 2 - 12)
+    budgetedX = chart.xAxis ? {
+      near: budgetAxisLabel(chart.xAxis.near, halfBudget, axisFontX, style.edgeLabelFontWeight),
+      ...(chart.xAxis.far ? { far: budgetAxisLabel(chart.xAxis.far, halfBudget, axisFontX, style.edgeLabelFontWeight) } : {}),
+    } : undefined
+    budgetedY = chart.yAxis ? {
+      near: budgetAxisLabel(chart.yAxis.near, halfBudget, axisFontY, style.edgeLabelFontWeight),
+      ...(chart.yAxis.far ? { far: budgetAxisLabel(chart.yAxis.far, halfBudget, axisFontY, style.edgeLabelFontWeight) } : {}),
+    } : undefined
+    const xLines = Math.max(1, ...(budgetedX ? [budgetedX.near, budgetedX.far ?? ''].map(text => text.split('\n').length) : [1]))
+    const yLines = Math.max(1, ...(budgetedY ? [budgetedY.near, budgetedY.far ?? ''].map(text => text.split('\n').length) : [1]))
+    xAxisGutter = baseXAxisGutter + (xLines - 1) * axisFontX * 1.1
+    yAxisGutter = baseYAxisGutter + (yLines - 1) * axisFontY * 1.1
+  }
 
   const plotX = paddingX + yAxisGutter
   const plotY = paddingY + titleHeight
-  // Plot side: explicit chartWidth/chartHeight (canvas dimensions) win;
-  // otherwise the density-scaled default.
-  const chromeW = paddingX * 2 + yAxisGutter
-  const chromeH = paddingY * 2 + titleHeight + xAxisGutter
-  let size: number
-  if (visual.chartWidth !== undefined || visual.chartHeight !== undefined) {
-    const fromW = visual.chartWidth !== undefined ? visual.chartWidth - chromeW : Number.POSITIVE_INFINITY
-    const fromH = visual.chartHeight !== undefined ? visual.chartHeight - chromeH : Number.POSITIVE_INFINITY
-    size = Math.max(60, Math.min(fromW, fromH))
-  } else {
-    size = densityPlotSize(chart.points.length)
-  }
   const half = size / 2
 
   const width = plotX + size + paddingX
@@ -298,19 +336,19 @@ export function layoutQuadrantChart(
   // Axis labels.
   const axisLabels: PositionedQuadrantAxisLabel[] = []
   const axisBaseline = plotY + size + axisFontX + axisPadX
-  if (chart.xAxis) {
+  if (budgetedX) {
     // Left label under the left half; right label under the right half.
-    axisLabels.push({ text: chart.xAxis.near, x: round(plotX + 4), y: round(axisBaseline), anchor: 'start', fontSize: axisFontX })
-    if (chart.xAxis.far) {
-      axisLabels.push({ text: chart.xAxis.far, x: round(plotX + size - 4), y: round(axisBaseline), anchor: 'end', fontSize: axisFontX })
+    axisLabels.push({ text: budgetedX.near, x: round(plotX + 4), y: round(axisBaseline), anchor: 'start', fontSize: axisFontX })
+    if (budgetedX.far) {
+      axisLabels.push({ text: budgetedX.far, x: round(plotX + size - 4), y: round(axisBaseline), anchor: 'end', fontSize: axisFontX })
     }
   }
-  if (chart.yAxis) {
+  if (budgetedY) {
     // Rotated labels along the left gutter: bottom label low, top label high.
     const yAxisX = paddingX + axisFontY
-    axisLabels.push({ text: chart.yAxis.near, x: round(yAxisX), y: round(plotY + size - 4), anchor: 'start', fontSize: axisFontY })
-    if (chart.yAxis.far) {
-      axisLabels.push({ text: chart.yAxis.far, x: round(yAxisX), y: round(plotY + 4), anchor: 'end', fontSize: axisFontY })
+    axisLabels.push({ text: budgetedY.near, x: round(yAxisX), y: round(plotY + size - 4), anchor: 'start', fontSize: axisFontY })
+    if (budgetedY.far) {
+      axisLabels.push({ text: budgetedY.far, x: round(yAxisX), y: round(plotY + 4), anchor: 'end', fontSize: axisFontY })
     }
   }
 

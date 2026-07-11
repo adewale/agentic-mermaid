@@ -12,8 +12,12 @@ export function renderGitGraphAscii(
   theme: AsciiTheme,
   targetWidth?: number,
 ): string {
-  const branches = [...diagram.branches].sort((a, b) => a.order - b.order || compareCodePointStrings(a.name, b.name))
+  const branches = [...diagram.branches].sort((a, b) => a.order - b.order || a.sequence - b.sequence || compareCodePointStrings(a.name, b.name))
   const lane = new Map(branches.map((branch, index) => [branch.name, index]))
+  const titleLines = diagram.title
+    ? targetWidth === undefined ? [diagram.title] : wrapText(diagram.title, Math.max(1, targetWidth))
+    : []
+  const titleRows = titleLines.length > 0 ? titleLines.length + 1 : 0
   const labelWidth = Math.max(4, ...branches.map(branch => visualWidth(branch.name)))
   const maxSequence = Math.max(0, ...diagram.commits.map(commit => commit.sequence))
   const columns = maxSequence + 1
@@ -28,15 +32,20 @@ export function renderGitGraphAscii(
   const gap = Math.max(5, commitLabelWidth + 2)
   const xFor = (sequence: number) => labelWidth + 3 + sequence * gap
   const laneHeight = Math.max(2, ...[...labelLines.values()].map(lines => lines.length + 1))
-  const yFor = (branch: string) => (lane.get(branch) ?? 0) * laneHeight
-  const width = xFor(maxSequence) + commitLabelWidth + 2
-  const height = Math.max(1, (branches.length - 1) * laneHeight + Math.max(1, ...[...labelLines.values()].map(lines => lines.length)))
+  const yFor = (branch: string) => titleRows + (lane.get(branch) ?? 0) * laneHeight
+  const width = Math.max(xFor(maxSequence) + commitLabelWidth + 2, ...titleLines.map(visualWidth))
+  const height = titleRows + Math.max(1, (branches.length - 1) * laneHeight + Math.max(1, ...[...labelLines.values()].map(lines => lines.length)))
   const canvas = mkCanvas(width, height)
   const roles = mkRoleCanvas(width, height)
   const put = (x: number, y: number, char: string, role: 'line' | 'arrow' | 'text'): void => {
     increaseSize(canvas, x, y); increaseRoleCanvasSize(roles, x, y)
     canvas[x]![y] = char; setRole(roles, x, y, role)
   }
+  titleLines.forEach((line, row) => {
+    const x = Math.max(0, Math.floor((width - visualWidth(line)) / 2))
+    drawText(canvas, { x, y: row }, line, true)
+    for (let col = x; col < x + visualWidth(line); col++) setRole(roles, col, row, 'text')
+  })
   branches.forEach(branch => {
     const y = yFor(branch.name)
     drawText(canvas, { x: Math.max(0, labelWidth - visualWidth(branch.name)), y }, branch.name, true)

@@ -405,3 +405,17 @@ variants. AST-evaluate constant loop bindings and template spans, then compare
 the exact expanded source list and order to the oracle. Likewise, SVG identity
 completeness means exact `(id, role, from, to)` tuples; endpoint or element
 counts cannot detect a deterministic wrong ID.
+
+## 2026-07 — ecosystem parity follow-up
+
+**A generated artifact can be fresh while its source is semantically stale.** The architecture SVG matched its committed Mermaid source, but both still claimed twelve families after the registry had fourteen. Validate source claims against the runtime registry before checking generated-byte freshness. Apply the same exact-set rule to editor diagnostics and characterization fixtures: support inventories are executable metadata, not prose to copy.
+
+**Graph provenance is not graph reachability.** A GitGraph commit authored on another branch may already be in the current head's ancestry through branch creation or merge. Cherry-pick validity therefore requires a parent walk from the current head, not `source.branch !== currentBranch`. The discriminating test must construct inherited reachability; a same-branch rejection only proves the weaker rule.
+
+**Delimiter concatenation is not an identity scheme.** `${from}->${to}` is ambiguous as soon as authored IDs may contain `->`; suffixes such as `:shape` have the same problem. Preserve readable legacy IDs only for a strictly safe atom alphabet, and encode all other tuples injectively. Test two different endpoint tuples that collide under concatenation and compare exact semantic IDs.
+
+**Reserved-prefix grammars must fail closed.** In indentation-sensitive syntax, `::icon (x)`, `:::`, malformed shape delimiters, and empty accessibility directives are not harmless text: accepting them as default nodes changes meaning on canonical serialization. Pair rejection cases with successful parse→serialize→parse properties around every reserved prefix, not just malformed snapshots.
+
+**A ledger needs executable coordinates, not only filenames.** A cited test file can exist and still contain no assertion for the row's claim. Store an exact `(row ID, cited file, test title)` mapping, require equality with every done row, and resolve each title against a declared `test`/`it`. Gaps found this way exposed three real weak claims: label-less ER relations, XYChart raster backgrounds, and Quadrant axis-label budgets.
+
+**Cross-renderer comparisons should preserve authored semantics, not imitate pixels.** Render the same fixture in the official Mermaid version and local SVG/terminal engines, caption which node/commit/parent/shape properties to inspect, and state renderer differences. When a comparison tool does not support the family, retain its exact versioned error; do not substitute a different diagram and call it parity.

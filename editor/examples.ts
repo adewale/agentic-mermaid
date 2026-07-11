@@ -175,29 +175,64 @@ export const EDITOR_EXAMPLES = [
     label: 'Mindmap',
     category: 'Supported diagrams',
     diagramType: 'Mindmap',
-    description: 'Indented idea hierarchy with explicit node shapes.',
-    source: `mindmap
-  root((Product launch))
-    Research
-      Customer interviews
-      Competitive evidence
-    Delivery
-      Beta
-      General availability`,
+    description: 'A shaped, decorated hierarchy with Markdown, Unicode, accessibility, and deep quality branches.',
+    source: `---
+config:
+  layout: tidy-tree
+---
+mindmap
+  root((Agent-native release))
+    discovery[Discovery]
+      ::icon(fa fa-book)
+      :::urgent large
+      evidence["\`**Evidence** across
+interviews, benchmarks, and Unicode naïve café\`"]
+      constraints{{Constraints}}
+        Security
+        Determinism
+    delivery(Delivery)
+      beta))Beta signal((
+      launch)Launch cloud(
+      quality[Quality gates]
+        Parser round-trip
+        SVG identity
+        Terminal width
+    Ecosystem
+      Mermaid parity
+      Terminal tools`,
   },
   {
     id: 'gitgraph-basic',
     label: 'GitGraph',
     category: 'Supported diagrams',
     diagramType: 'GitGraph',
-    description: 'Branches, commits, and a deterministic merge history.',
-    source: `gitGraph
-  commit id:"base" msg:"Foundation"
-  branch feature
-  commit id:"feature-1" msg:"Build feature"
+    description: 'Ordered branches, commit types, tags, a semantic merge, and a merge-parent backport.',
+    source: `---
+title: Release train with backport
+config:
+  gitGraph:
+    mainBranchName: main
+    mainBranchOrder: 0
+    showBranches: true
+    showCommitLabel: true
+    rotateCommitLabel: true
+---
+gitGraph LR:
+  accTitle: Release history with feature merge and backport
+  accDescr: Develop and release branches diverge, main merges develop, and release cherry-picks the merge
+  commit id:"ROOT" tag:"v1.0.0" msg:"Foundation"
+  branch develop order:2
+  commit id:"API" type:HIGHLIGHT tag:"beta" msg:"Build API"
+  branch release order:3
+  commit id:"RC" type:REVERSE tag:"rc.1" msg:"Cut release candidate"
+  checkout develop
+  commit id:"UI" msg:"Finish interface"
   checkout main
-  commit id:"release" msg:"Prepare release"
-  merge feature id:"merge" tag:"v1.0"`,
+  commit id:"HOTFIX" type:REVERSE msg:"Patch production"
+  merge develop id:"MERGE" tag:"v2.0.0" type:HIGHLIGHT
+  checkout release
+  cherry-pick id:"MERGE" parent:"UI" tag:"backport"
+  commit id:"PATCH" msg:"Verify release"`,
   },
   {
     id: 'gantt-basic',

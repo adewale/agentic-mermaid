@@ -148,7 +148,7 @@ describe('pinned Mermaid Mindmap/GitGraph upstream oracle',()=>{
       expect({consideredBlocks:blocks.length,importedCases:imported.length,importedBlocks:imported.length,excludedBlocks:blocks.length-imported.length,deferredBlocks:0}).toEqual(row)
       expect(oracle.upstream.files.find(f=>f.family===family)).toMatchObject({testBlocks:blocks.length,sha256:expect.stringMatching(/^[a-f0-9]{64}$/)})
     }
-    expect(oracle.accounting).toEqual({mindmap:{consideredBlocks:26,importedCases:26,importedBlocks:26,excludedBlocks:0,deferredBlocks:0},gitgraph:{consideredBlocks:69,importedCases:63,importedBlocks:63,excludedBlocks:6,deferredBlocks:0}})
+    expect(oracle.accounting).toEqual({mindmap:{consideredBlocks:26,importedCases:26,importedBlocks:26,excludedBlocks:0,deferredBlocks:0},gitgraph:{consideredBlocks:69,importedCases:62,importedBlocks:62,excludedBlocks:7,deferredBlocks:0}})
   })
 
   for(const b of oracle.blocks.filter(b=>b.classification==='portable'||b.classification==='error')) test(`${b.id} — ${b.upstream.block}`,()=>{
@@ -160,15 +160,20 @@ describe('pinned Mermaid Mindmap/GitGraph upstream oracle',()=>{
     else runGit(b.source!,b.assertions!)
   })
 
-  test('executes the documented duplicate-id divergence',()=>{
-    const b=oracle.blocks.find(x=>x.classification==='divergence')!
-    expect(()=>parseGitGraph(b.source!)).toThrow(GitGraphDuplicateCommitError)
-    try{parseGitGraph(b.source!)}catch(error){expect((error as GitGraphDuplicateCommitError).code).toBe(b.assertions!.errorCode)}
+  test('executes every documented GitGraph divergence',()=>{
+    const divergences=oracle.blocks.filter(x=>x.classification==='divergence')
+    expect(divergences.map(block=>block.reason)).toEqual(['reachable-cherry-pick-policy','duplicate-id-policy'])
+    for(const b of divergences){
+      if(b.reason==='duplicate-id-policy'){
+        expect(()=>parseGitGraph(b.source!)).toThrow(GitGraphDuplicateCommitError)
+        try{parseGitGraph(b.source!)}catch(error){expect((error as GitGraphDuplicateCommitError).code).toBe(b.assertions!.errorCode)}
+      }else expect(()=>parseGitGraph(b.source!)).toThrow(b.assertions!.errorMessage)
+    }
   })
   test('limits non-portable exclusions to source-inexpressible config accessors',()=>{
     const excluded=oracle.blocks.filter(b=>b.classification==='not-portable')
     expect(excluded).toHaveLength(5)
     for(const b of excluded){expect(b.reason).toBe('api-internal');expect(b.summary!.length).toBeGreaterThan(40);expect(b.source).toBeUndefined()}
-    expect(oracle.intentionalDivergences.map(d=>d.topic)).toEqual(['generated commit identity','duplicate node identity','duplicate custom commit identity'])
+    expect(oracle.intentionalDivergences.map(d=>d.topic)).toEqual(['generated commit identity','duplicate node identity','duplicate custom commit identity','already-reachable cherry-pick'])
   })
 })
