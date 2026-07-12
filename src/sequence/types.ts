@@ -29,11 +29,16 @@ export interface SequenceDiagram {
   boxes?: SequenceBoxGroup[]
 }
 
+export type SequenceActorType = 'participant' | 'actor' | 'boundary' | 'control' | 'entity' | 'database' | 'collections' | 'queue'
+export type SequenceMessageHead = 'none' | 'filled' | 'open' | 'cross' | 'half-top' | 'half-bottom'
+
 export interface Actor {
   id: string
   label: string
-  /** 'participant' renders as a box, 'actor' renders as a stick figure */
-  type: 'participant' | 'actor'
+  /** Closed official participant-glyph vocabulary. */
+  type: SequenceActorType
+  /** Safe actor-menu links; callbacks and unsafe schemes are rejected. */
+  links?: Record<string, string>
   /** Index of the message this actor is created at (`create participant …`);
    *  its header box + lifeline start there instead of the diagram top. */
   createMessageIndex?: number
@@ -65,8 +70,13 @@ export interface Message {
   label: string
   /** Arrow style: solid line or dashed line */
   lineStyle: 'solid' | 'dashed'
-  /** Arrow head: filled (closed) or open */
+  /** Legacy end-head projection retained for API compatibility. */
   arrowHead: 'filled' | 'open'
+  /** Exact source and target endpoint semantics. */
+  startHead: SequenceMessageHead
+  endHead: SequenceMessageHead
+  centralStart: boolean
+  centralEnd: boolean
   /** Activate the target lifeline (+) */
   activate?: boolean
   /** Deactivate the source lifeline (-) */
@@ -142,7 +152,8 @@ export interface LifelineCross {
 export interface PositionedActor {
   id: string
   label: string
-  type: 'participant' | 'actor'
+  type: SequenceActorType
+  links?: Record<string, string>
   /** Center x of the actor box */
   x: number
   /** Top y of the actor box */
@@ -165,6 +176,10 @@ export interface PositionedMessage {
   label: string
   lineStyle: 'solid' | 'dashed'
   arrowHead: 'filled' | 'open'
+  startHead: SequenceMessageHead
+  endHead: SequenceMessageHead
+  centralStart: boolean
+  centralEnd: boolean
   /** Start point (from actor's lifeline) */
   x1: number
   /** End point (to actor's lifeline) */

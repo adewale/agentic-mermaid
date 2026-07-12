@@ -26,12 +26,14 @@ interface VisualCase {
   family: string
   title: string
   source: string
+  labelFitApplicable?: boolean
 }
 
 export interface VisualQualityRow {
   family: string
   title: string
   source: string
+  labelFitApplicable?: boolean
   svg: string
   svgHash: string
   pngHash: string
@@ -103,6 +105,19 @@ const CASES: VisualCase[] = [
     family: 'quadrant',
     title: 'Quadrant chart',
     source: 'quadrantChart\n  title Priorities\n  x-axis Low --> High\n  y-axis Risk --> Reward\n  quadrant-1 Invest\n  A: [0.7, 0.8]\n  B: [0.3, 0.4]',
+  },
+  {
+    family: 'mindmap',
+    title: 'Mindmap',
+    source: 'mindmap\n  root((Product))\n    Research\n      Interviews\n      Evidence\n    Delivery',
+  },
+  {
+    family: 'gitgraph',
+    title: 'GitGraph',
+    source: 'gitGraph\n  commit id:"base"\n  branch feature\n  commit id:"work"\n  checkout main\n  commit id:"release"\n  merge feature id:"merge"',
+    // Commit labels are intentionally external/rotated annotations, not text
+    // contained by the 20px commit glyph measured by the generic fit metric.
+    labelFitApplicable: false,
   },
   {
     family: 'architecture',
@@ -236,6 +251,9 @@ function buildReport(rows: VisualQualityRow[]): string {
   out.push('human-inspectable snapshots; the hashes fingerprint the SVG and PNG surfaces;')
   out.push('the metrics are graph-drawing review signals (crossings, bends, canvas area,')
   out.push('label fit, and label-overlap risk), not standalone correctness laws.')
+  out.push('`Label fit` is `n/a` for GitGraph because commit labels are external/rotated')
+  out.push('annotations rather than text intended to fit inside the 20px commit glyph;')
+  out.push('GitGraph label/canvas containment is gated separately by its layout tests.')
   out.push('For graph-projected route correctness, pair this report with PR 30\'s hard')
   out.push('gates: `src/__tests__/contact-sheet.test.ts`,')
   out.push('`src/__tests__/layout-rubric.test.ts`, and `bun run track`.')
@@ -244,7 +262,7 @@ function buildReport(rows: VisualQualityRow[]): string {
   out.push('|--------|--------------|---------|---------|----------:|----------|---------------|-------------|----------:|------:|---------:|----------:|----------:|---------------:|---------------------:|-------:|')
   for (const row of rows) {
     const snapshot = `./visual-snapshots/${row.family}.svg`
-    out.push(`| ${row.title} | [${row.family}.svg](${snapshot}) | \`${shortHash(row.svgHash)}\` | \`${shortHash(row.pngHash)}\` | ${row.pngBytes} | ${row.svgSize.width}x${row.svgSize.height} | ${row.bounds.width}x${row.bounds.height} | ${row.metrics.nodeCount}/${row.metrics.edgeCount} | ${row.metrics.edgeCrossings} | ${row.bends} | ${row.routeLength} | ${fmtPct(row.metrics.whitespaceBalance)} | ${fmtPct(row.metrics.labelLegibility)} | ${row.labelOverlaps} | ${fmtNumber(row.metrics.labelEdgeProximity)} | ${row.metrics.aspectRatio.toFixed(2)} |`)
+    out.push(`| ${row.title} | [${row.family}.svg](${snapshot}) | \`${shortHash(row.svgHash)}\` | \`${shortHash(row.pngHash)}\` | ${row.pngBytes} | ${row.svgSize.width}x${row.svgSize.height} | ${row.bounds.width}x${row.bounds.height} | ${row.metrics.nodeCount}/${row.metrics.edgeCount} | ${row.metrics.edgeCrossings} | ${row.bends} | ${row.routeLength} | ${fmtPct(row.metrics.whitespaceBalance)} | ${row.labelFitApplicable === false ? 'n/a' : fmtPct(row.metrics.labelLegibility)} | ${row.labelOverlaps} | ${fmtNumber(row.metrics.labelEdgeProximity)} | ${row.metrics.aspectRatio.toFixed(2)} |`)
   }
   out.push('')
   out.push('## Sources')

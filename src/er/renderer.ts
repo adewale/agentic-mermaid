@@ -1,4 +1,4 @@
-import type { PositionedErDiagram, PositionedErEntity, PositionedErRelationship, ErAttribute, Cardinality } from './types.ts'
+import type { PositionedErDiagram, PositionedErEntity, PositionedErRelationship, PositionedErGroup, ErAttribute, Cardinality } from './types.ts'
 import type { RenderContext } from '../types.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
 import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, estimateTextWidth, TEXT_BASELINE_SHIFT, applyTextTransform, resolveRenderStyle } from '../styles.ts'
@@ -106,6 +106,9 @@ export function lowerErScene(
       `<desc id="${descId}">${escapeXml(diagram.accessibilityDescription)}</desc>`))
   }
 
+  // 0. ER subgraph frames, parent-first and behind relationships/entities.
+  for (const group of diagram.groups) parts.push(renderErGroup(group, style))
+
   // 1. Relationship lines
   const lineOccurrence = new Map<string, number>()
   for (const rel of diagram.relationships) {
@@ -147,6 +150,22 @@ export function lowerErScene(
   return { family: 'er', width: diagram.width, height: diagram.height, colors, parts }
 }
 
+function renderErGroup(group: PositionedErGroup, style: ResolvedRenderStyle): SceneNode {
+  const stroke = style.groupBorderColor ?? 'var(--_node-stroke)'
+  const fill = style.groupFillColor ?? 'var(--_group-fill)'
+  const headerFill = style.groupHeaderFillColor ?? 'var(--_group-hdr)'
+  const text = style.groupTextColor ?? 'var(--_text)'
+  return marks.group({
+    id: `er-group:${group.id}`, role: 'group',
+    open: `<g class="er-subgraph" data-id="${escapeAttr(group.id)}" data-label="${escapeAttr(group.label)}"${group.parentId ? ` data-parent-id="${escapeAttr(group.parentId)}"` : ''}>`,
+    close: '</g>', children: [
+      { node: marks.shape({ id: `er-group:${group.id}:box`, role: 'group', geometry: { kind: 'rect', x: group.x, y: group.y, width: group.width, height: group.height, rx: 6, ry: 6 }, paint: { fill, stroke, strokeWidth: '1.5' } }, `<rect x="${group.x}" y="${group.y}" width="${group.width}" height="${group.height}" rx="6" fill="${escapeAttr(fill)}" stroke="${escapeAttr(stroke)}" stroke-width="1.5" />`), indent: 2 },
+      { node: marks.shape({ id: `er-group:${group.id}:header`, role: 'group-header', geometry: { kind: 'rect', x: group.x, y: group.y, width: group.width, height: group.headerHeight, rx: 6, ry: 6 }, paint: { fill: headerFill, stroke: 'none' } }, `<rect x="${group.x}" y="${group.y}" width="${group.width}" height="${group.headerHeight}" rx="6" fill="${escapeAttr(headerFill)}" />`), indent: 2 },
+      { node: marks.text({ id: `er-group:${group.id}:label`, role: 'label', text: group.label, x: group.x + 10, y: group.y + group.headerHeight / 2, fontSize: 12, anchor: 'start', paint: { fill: text } }, renderMultilineText(group.label, group.x + 10, group.y + group.headerHeight / 2, 12, `text-anchor="start" font-weight="600" fill="${escapeAttr(text)}"`)), indent: 2 },
+    ],
+  })
+}
+
 // ============================================================================
 // Entity box rendering
 // ============================================================================
@@ -160,25 +179,30 @@ function renderEntityBox(entity: PositionedErEntity, style: ResolvedRenderStyle)
   const children: Array<{ node: SceneNode; indent: number }> = []
 
   // Semantic wrapper with entity metadata
-  const open = `<g class="entity" data-id="${escapeAttr(id)}" data-label="${escapeAttr(label)}">`
+  const classAttr = entity.className ? ` ${escapeAttr(entity.className)}` : ''
+  const dataClass = entity.className ? ` data-class="${escapeAttr(entity.className)}"` : ''
+  const open = `<g class="entity${classAttr}" data-id="${escapeAttr(id)}" data-label="${escapeAttr(label)}"${dataClass}>`
 
-  // Outer rectangle
-  const rectFill = style.nodeFillColor ?? 'var(--_node-fill)'
-  const rectStroke = style.nodeBorderColor ?? 'var(--_node-stroke)'
+  // classDef then inline style are merged by layout for backend parity.
+  const local = entity.inlineStyle ?? {}
+  const rectFill = local.fill ?? style.nodeFillColor ?? 'var(--_node-fill)'
+  const rectStroke = local.stroke ?? style.nodeBorderColor ?? 'var(--_node-stroke)'
+  const parsedStrokeWidth = Number.parseFloat(local['stroke-width'] ?? '')
+  const rectStrokeWidth = Number.isFinite(parsedStrokeWidth) && parsedStrokeWidth > 0 ? parsedStrokeWidth : style.nodeLineWidth
   children.push({
     indent: 2,
     node: marks.shape({
       id: `entity-rect:${id}`,
       role: 'entity',
       geometry: { kind: 'rect', x, y, width, height, rx: style.cornerRadius ?? 0, ry: style.cornerRadius ?? 0 },
-      paint: { fill: rectFill, stroke: rectStroke, strokeWidth: String(style.nodeLineWidth) },
+      paint: { fill: rectFill, stroke: rectStroke, strokeWidth: String(rectStrokeWidth) },
     },
       `<rect x="${x}" y="${y}" width="${width}" height="${height}" ` +
-      `rx="${style.cornerRadius ?? 0}" ry="${style.cornerRadius ?? 0}" fill="${escapeAttr(rectFill)}" stroke="${escapeAttr(rectStroke)}" stroke-width="${style.nodeLineWidth}" />`),
+      `rx="${style.cornerRadius ?? 0}" ry="${style.cornerRadius ?? 0}" fill="${escapeAttr(rectFill)}" stroke="${escapeAttr(rectStroke)}" stroke-width="${rectStrokeWidth}" />`),
   })
 
   // Header background
-  const headerFill = style.groupHeaderFillColor ?? 'var(--_group-hdr)'
+  const headerFill = local.fill ?? style.groupHeaderFillColor ?? 'var(--_group-hdr)'
   const headerPath = topRoundedRectPath(x, y, width, headerHeight, style.cornerRadius ?? 0)
   children.push({
     indent: 2,
@@ -186,14 +210,14 @@ function renderEntityBox(entity: PositionedErEntity, style: ResolvedRenderStyle)
       id: `entity-header:${id}`,
       role: 'group-header',
       geometry: { kind: 'path', d: headerPath },
-      paint: { fill: headerFill, stroke: rectStroke, strokeWidth: String(style.nodeLineWidth) },
+      paint: { fill: headerFill, stroke: rectStroke, strokeWidth: String(rectStrokeWidth) },
     },
       `<path d="${headerPath}" ` +
-      `fill="${escapeAttr(headerFill)}" stroke="${escapeAttr(rectStroke)}" stroke-width="${style.nodeLineWidth}" />`),
+      `fill="${escapeAttr(headerFill)}" stroke="${escapeAttr(rectStroke)}" stroke-width="${rectStrokeWidth}" />`),
   })
 
   // Entity name (supports multi-line via <br> tags)
-  const nameColor = style.nodeTextColor ?? 'var(--_text)'
+  const nameColor = local.color ?? style.nodeTextColor ?? 'var(--_text)'
   const displayLabel = applyTextTransform(label, style.nodeTextTransform)
   children.push({
     indent: 2,
@@ -438,7 +462,7 @@ function renderRelationshipLine(rel: PositionedErRelationship, style: ResolvedRe
  * and every entity box wins; the midpoint stays when nothing clears (surfaced
  * by eval/overlap-audit rather than hidden).
  */
-function separateRelationshipLabels(
+export function separateRelationshipLabels(
   diagram: PositionedErDiagram,
   style: ResolvedRenderStyle,
 ): Map<PositionedErRelationship, { x: number; y: number }> {
@@ -447,13 +471,25 @@ function separateRelationshipLabels(
   const intersects = (a: Box, b: Box): boolean =>
     Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) > 0.5 && Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0) > 0.5
   const entityBoxes: Box[] = diagram.entities.map(e => ({ x0: e.x, y0: e.y, x1: e.x + e.width, y1: e.y + e.height }))
+  // Crow's-foot/cardinality glyphs occupy a small zone around every route
+  // endpoint. Treat those zones as reserved so a displaced relationship label
+  // cannot become readable against boxes yet straddle a marker.
+  const endpointBoxes: Box[] = diagram.relationships.flatMap(relationship => {
+    if (relationship.points.length === 0) return []
+    const endpoints = [relationship.points[0]!, relationship.points[relationship.points.length - 1]!]
+    return endpoints.map(point => ({ x0: point.x - 18, y0: point.y - 18, x1: point.x + 18, y1: point.y + 18 }))
+  })
   const placed: Box[] = []
   for (const rel of diagram.relationships) {
     if (!rel.label || rel.points.length < 2) continue
     const m = measureMultilineText(applyTextTransform(rel.label, style.edgeTextTransform), style.edgeLabelFontSize, style.edgeLabelFontWeight)
-    const bgW = m.width + 8, bgH = m.height + 6
+    // Match the public readability audit's conservative glyph-clearance box
+    // (8px per side), not merely the smaller painted pill dimensions.
+    const bgW = m.width + 16, bgH = m.height + 16
     const boxAt = (cx: number, cy: number): Box => ({ x0: cx - bgW / 2, y0: cy - bgH / 2, x1: cx + bgW / 2, y1: cy + bgH / 2 })
-    const collides = (b: Box): boolean => placed.some(o => intersects(b, o)) || entityBoxes.some(o => intersects(b, o))
+    const collides = (b: Box): boolean =>
+      b.x0 < 0 || b.y0 < 0 || b.x1 > diagram.width || b.y1 > diagram.height
+      || placed.some(o => intersects(b, o)) || entityBoxes.some(o => intersects(b, o)) || endpointBoxes.some(o => intersects(b, o))
     const pts = rel.points
     const segLens: number[] = []
     let total = 0
@@ -475,6 +511,21 @@ function separateRelationshipLabels(
     if (collides(chosenBox)) {
       for (const f of [0.4, 0.6, 0.3, 0.7, 0.25, 0.75, 0.2, 0.8, 0.15, 0.85]) {
         const q = at(total * f)
+        const b = boxAt(q.x, q.y)
+        if (!collides(b)) { chosen = q; chosenBox = b; break }
+      }
+    }
+    // Group-to-group routes can cross every internal relationship, leaving no
+    // collision-free point on the polyline. Search deterministic normal lanes
+    // around its midpoint rather than accepting an unreadable overlap.
+    if (collides(chosenBox)) {
+      const first = pts[0]!, last = pts[pts.length - 1]!
+      const vx = last.x - first.x, vy = last.y - first.y
+      const length = Math.hypot(vx, vy) || 1
+      const nx = -vy / length, ny = vx / length
+      const step = Math.max(18, bgH + 6)
+      for (const multiple of [1, -1, 2, -2, 3, -3]) {
+        const q = { x: mid.x + nx * step * multiple, y: mid.y + ny * step * multiple }
         const b = boxAt(q.x, q.y)
         if (!collides(b)) { chosen = q; chosenBox = b; break }
       }

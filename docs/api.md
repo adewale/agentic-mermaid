@@ -93,8 +93,17 @@ const ascii = renderMermaidASCII(`flowchart LR
 | `boxBorderPadding` | `number` | `1` | Inner box padding. |
 | `colorMode` | `string` | `'auto'` | `'none'`, `'auto'`, `'ansi16'`, `'ansi256'`, `'truecolor'`, or `'html'`. |
 | `theme` | `Partial<AsciiTheme>` | — | Override ASCII colors. |
+| `targetWidth` | `number` | unset | Hard maximum line width in terminal display cells. Uses grapheme-safe fitting; impossible geometry throws `AsciiWidthError`. |
+| `maxWidth` | `number` | unset | Deprecated best-effort label wrapping. It does **not** guarantee the output width. Do not combine with `targetWidth`. |
 | `mermaidConfig` | `MermaidRuntimeConfig` | — | Mermaid-style runtime config. |
 | `ganttToday` | `string` | unset | Explicit "today" for the Gantt `todayMarker`; same deterministic clock behavior as SVG. |
+
+`AsciiWidthError` has code `ASCII_TARGET_WIDTH_IMPOSSIBLE` plus
+`requestedWidth`, `requiredWidth`, `family`, and `reason` (`MINIMUM_GEOMETRY`,
+`UNBREAKABLE_GRAPHEME`, or `INVALID_WIDTH`). The same fields are returned by
+CLI JSON and hosted MCP errors. CLI: `am render diagram.mmd --format unicode
+--target-width 80`; hosted `render_ascii`: `{ source, targetWidth: 80 }`.
+Omitting both width options preserves the unconstrained output path.
 
 ## SVG render options
 
@@ -123,9 +132,31 @@ const ascii = renderMermaidASCII(`flowchart LR
 | `onConfigDiagnostic` | `(diagnostic: ConfigDiagnostic) => void` | console warning for explicit ineffective State config | Collect qualified warnings without changing SVG bytes. |
 | `embedFontImport` | `boolean` | `true` | Include Google Fonts imports for a single plain family and class/ER mono labels; set false for offline SVG. PNG disables imports internally. |
 | `compact` | `boolean` | `false` | Compact SVG output while preserving agent hooks. |
-| `idPrefix` | `string` | `''` | Namespace generated SVG def ids. |
+| `idPrefix` | `string` | `''` | Namespace every declared SVG id and local marker/filter/clip-path/paint/href/ARIA reference. Semantic `data-id` values remain source-stable. |
 | `security` | `'default' | 'strict'` | `'default'` | `strict` disables external-fetch references. |
 | `ganttToday` | `string` | unset | Explicit "today" for the Gantt `todayMarker` (date in the diagram's `dateFormat` or ISO `YYYY-MM-DD`). Gantt never reads the wall clock; without this the marker is not drawn. |
+
+### SVG semantic identity and accessibility
+
+All built-in families expose the same inspectable element contract:
+
+- every source-semantic Scene mark has a deterministic `data-id` and closed
+  `data-role`; identity is unique within one SVG (layout furniture retains typed
+  Scene identity without bloating the DOM);
+- source relations use `data-from` and `data-to`; source `className` tokens stay
+  on the identified element's `class` attribute;
+- typed relations expose `role="graphics-symbol"`,
+  `aria-roledescription="relation"`, and an `aria-label` derived from endpoints
+  plus the authored relation label;
+- public Scene types expose `SvgSemanticIdentity`,
+  `SvgSemanticAccessibility`, and `SvgRelationSemantics`;
+- `idPrefix` rewrites local DOM `id` references, not source-facing `data-id`.
+
+Built-in concrete palettes are contrast-normalized at render time: normal text
+roles meet WCAG AA 4.5:1 and meaningful relation lines/markers meet 3:1 against
+the page background. Unresolved runtime CSS variables cannot be statically
+certified and pass through unchanged. See
+[`svg-semantic-contract.md`](./svg-semantic-contract.md) for the complete contract.
 
 For JSON files, use
 [`docs/schemas/style-spec.schema.json`](./schemas/style-spec.schema.json). The
@@ -156,7 +187,7 @@ Core functions:
 | Function | Purpose |
 |---|---|
 | `parseMermaid(source)` | Parse Mermaid source to `Result<ValidDiagram, ParseError[]>`. |
-| `asFlowchart(d)` / `asState(d)` / `asSequence(d)` / `asTimeline(d)` / `asClass(d)` / `asEr(d)` / `asJourney(d)` / `asArchitecture(d)` / `asXyChart(d)` / `asPie(d)` / `asQuadrant(d)` / `asGantt(d)` | Narrow to a mutable family or return `null`. |
+| `asFlowchart(d)` / `asState(d)` / `asSequence(d)` / `asTimeline(d)` / `asClass(d)` / `asEr(d)` / `asJourney(d)` / `asArchitecture(d)` / `asXyChart(d)` / `asPie(d)` / `asQuadrant(d)` / `asGantt(d)` / `asMindmap(d)` / `asGitGraph(d)` | Narrow to a mutable family or return `null`. |
 | `mutate(d, op)` | Apply a kind-discriminated typed mutation. |
 | `verifyMermaid(d)` | Return structural warnings and layout evidence. |
 | `analyzeMermaid(d)` / `analyzeMermaidSource(source)` | Return deterministic non-rendering analysis: feedback edges, source-only action records, and Gantt critical-path/slack summary when available. |
@@ -182,6 +213,8 @@ Typed mutation families:
 | Pie | `asPie` | `set_title`, `set_show_data`, `add_slice`, `remove_slice`, `rename_slice`, `set_slice_value`, `reorder_slice` |
 | Quadrant | `asQuadrant` | `set_title`, `set_axis_labels`, `set_quadrant_label`, `add_point`, `remove_point`, `move_point`, `rename_point` |
 | Gantt | `asGantt` | `set_title`, `add_section`, `rename_section`, `add_task`, `set_task_status`, `set_task_dates`, … |
+| Mindmap | `asMindmap` | `add_node`, `remove_node`, `rename_node`, `move_node`, `set_shape`, `set_icon`, … |
+| GitGraph | `asGitGraph` | `append_commit`, `create_branch`, `checkout_branch`, `merge_branch`, `cherry_pick`, … |
 
 Opaque fallback bodies (any unmodeled syntax) are source-level-only: edit source deliberately, then parse and verify again.
 

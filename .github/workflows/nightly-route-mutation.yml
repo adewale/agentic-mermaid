@@ -32,7 +32,9 @@ jobs:
             command: bun run sabotage:routes
             timeout: 30
           # Every registered family has a scheduled mutation lane. Flowchart
-          # is covered by routes; XYChart + Architecture by families.
+          # is covered by routes; XYChart + Architecture plus Mindmap/GitGraph
+          # parser/layout/render cores are covered by families. The two focused
+          # lanes below mutate their typed editing/replay bodies.
           - name: state
             command: bun run mutation-test:state
             timeout: 90
@@ -60,6 +62,12 @@ jobs:
           - name: gantt
             command: bun run mutation-test:gantt
             timeout: 120
+          - name: mindmap
+            command: bun run mutation-test:mindmap
+            timeout: 90
+          - name: gitgraph
+            command: bun run mutation-test:gitgraph
+            timeout: 90
           - name: families
             command: bun run mutation-test:families
             timeout: 120

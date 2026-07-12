@@ -1,0 +1,20 @@
+---
+title: Merge commit backports
+---
+gitGraph LR:
+  accTitle: Merge and cherry pick ancestry
+  accDescr: A merge is backported using an immediate parent explicitly
+  commit id:"ROOT" tag:"v1"
+  branch develop order:2
+  branch release/1.x order:3
+  commit id:"release-base" msg:"Maintain version one"
+  checkout main
+  commit id:"main-work" msg:"Prepare version two"
+  checkout develop
+  commit id:"feature-a" msg:"Feature A"
+  commit id:"feature-b" msg:"Feature B"
+  checkout main
+  merge develop id:"MERGE" type:HIGHLIGHT tag:"v2"
+  checkout release/1.x
+  cherry-pick id:"MERGE" parent:"feature-b" tag:"selected-backport"
+  commit id:"verify-backport" msg:"Verify maintenance release"

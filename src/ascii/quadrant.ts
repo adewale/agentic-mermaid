@@ -14,6 +14,9 @@ import { parseQuadrantChart } from '../quadrant/parser.ts'
 import type { QuadrantChart } from '../quadrant/types.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
 import { colorizeText } from './ansi.ts'
+import { graphemes } from '../shared/graphemes.ts'
+import { truncateToVisualWidth, visualWidth, WIDE_CHAR_CONTINUATION } from './width.ts'
+import { wrapText } from './wrap.ts'
 
 /** Interior plot dimensions in cells (odd so the dividers land cleanly). */
 const GRID_W = 41
@@ -38,6 +41,7 @@ export function renderQuadrantAscii(
   config: AsciiConfig,
   colorMode: ColorMode,
   theme: AsciiTheme,
+  targetWidth?: number,
 ): string {
   const chart = parseQuadrantChart(lines)
   const ch = config.useAscii ? ASC : UNI
@@ -73,26 +77,28 @@ export function renderQuadrantAscii(
 
   // Frame the grid with a border, with axis labels on the edges.
   const out: string[] = []
-  if (chart.title) out.push(centerText(chart.title, GRID_W + 2))
+  if (chart.title) {
+    for (const line of wrapText(chart.title, targetWidth)) out.push(centerText(line, GRID_W + 2))
+  }
 
   out.push(ch.tl + ch.h.repeat(GRID_W) + ch.tr)
   for (let r = 0; r < GRID_H; r++) {
     // The mid divider row meets the border as ├ … ┤ junctions.
     const left = r === midRow ? ch.tRight : ch.v
     const right = r === midRow ? ch.tLeft : ch.v
-    out.push(left + grid[r]!.join('') + right)
+    out.push(left + grid[r]!.join('').replaceAll(WIDE_CHAR_CONTINUATION, '') + right)
   }
   out.push(ch.bl + ch.h.repeat(GRID_W) + ch.br)
 
   // x-axis labels under the grid (left + right).
   if (chart.xAxis) {
-    out.push(edgeAxisRow(chart.xAxis.near, chart.xAxis.far, GRID_W + 2))
+    out.push(...wrapText(edgeAxisRow(chart.xAxis.near, chart.xAxis.far, GRID_W + 2), targetWidth))
   }
   // y-axis labels as a separate annotated line.
   if (chart.yAxis) {
     const top = chart.yAxis.far ? `top: ${chart.yAxis.far}` : ''
     const bottom = `bottom: ${chart.yAxis.near}`
-    out.push(`y-axis  ${bottom}${top ? `  |  ${top}` : ''}`)
+    out.push(...wrapText(`y-axis  ${bottom}${top ? `  |  ${top}` : ''}`, targetWidth))
   }
 
   // Legend — every point with its coordinates.
@@ -100,7 +106,10 @@ export function renderQuadrantAscii(
     out.push('')
     const pointGlyph = colorMode === 'none' ? ch.point : colorizeText(ch.point, pointColor(theme), colorMode)
     for (const p of chart.points) {
-      out.push(`${pointGlyph} ${p.label}: [${fmt(p.x)}, ${fmt(p.y)}]`)
+      const suffix = `: [${fmt(p.x)}, ${fmt(p.y)}]`
+      const labelLines = wrapText(p.label, targetWidth ? Math.max(1, targetWidth - visualWidth(suffix) - 2) : undefined)
+      for (let index = 0; index < labelLines.length - 1; index++) out.push(`${pointGlyph} ${labelLines[index]!}`)
+      out.push(`${pointGlyph} ${labelLines.at(-1) ?? ''}${suffix}`)
     }
   }
 
@@ -134,25 +143,32 @@ function placeLabel(
   const regionW = colEnd - colStart
   const regionH = rowEnd - rowStart
   if (regionW <= 0 || regionH <= 0) return
-  const text = label.length > regionW ? label.slice(0, regionW) : label
+  const text = truncateToVisualWidth(label, regionW)
   const row = top ? rowStart + 1 : rowStart + Math.floor(regionH / 2)
-  const col = colStart + Math.max(0, Math.floor((regionW - text.length) / 2))
-  for (let i = 0; i < text.length && col + i < colEnd; i++) {
-    if (occupied.has(`${row},${col + i}`)) continue
-    grid[row]![col + i] = text[i]!
+  let col = colStart + Math.max(0, Math.floor((regionW - visualWidth(text)) / 2))
+  for (const cluster of graphemes(text)) {
+    const width = visualWidth(cluster)
+    if (col + width > colEnd) break
+    const blocked = Array.from({ length: width }, (_, offset) => occupied.has(`${row},${col + offset}`)).some(Boolean)
+    if (!blocked) {
+      grid[row]![col] = cluster
+      for (let offset = 1; offset < width; offset++) grid[row]![col + offset] = WIDE_CHAR_CONTINUATION
+    }
+    col += width
   }
 }
 
 function centerText(text: string, width: number): string {
-  if (text.length >= width) return text
-  const pad = Math.floor((width - text.length) / 2)
+  const textWidth = visualWidth(text)
+  if (textWidth >= width) return text
+  const pad = Math.floor((width - textWidth) / 2)
   return ' '.repeat(pad) + text
 }
 
 /** Bottom edge axis row: near label left-aligned, far label right-aligned. */
 function edgeAxisRow(near: string, far: string | undefined, width: number): string {
   if (!far) return near
-  const gap = width - near.length - far.length
+  const gap = width - visualWidth(near) - visualWidth(far)
   if (gap < 1) return `${near} ${far}`
   return near + ' '.repeat(gap) + far
 }

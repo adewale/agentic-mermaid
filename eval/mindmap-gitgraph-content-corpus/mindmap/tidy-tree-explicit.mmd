@@ -1,0 +1,20 @@
+---
+config:
+  layout: tidy-tree
+---
+mindmap
+  accTitle: Explicit one-sided dependency tree
+  root((Compiler))
+    Front end
+      Lexer
+      Parser
+      Type checker
+    Middle end
+      Intermediate representation
+      Optimizer
+        Constant folding
+        Dead code elimination
+    Back end
+      Instruction selection
+      Register allocation
+      Machine code

@@ -13,7 +13,7 @@ import { HOSTED_TOOLS } from '../mcp/hosted-server.ts'
 import { WARNING_SEVERITY, WARNING_TIER } from '../agent/types.ts'
 import {
   asFlowchart, asState, asSequence, asTimeline, asClass, asEr,
-  asJourney, asArchitecture, asXyChart, asPie, asQuadrant, asGantt,
+  asJourney, asArchitecture, asXyChart, asPie, asQuadrant, asGantt, asMindmap, asGitGraph,
 } from '../agent/types.ts'
 import { BUILTIN_FAMILY_METADATA, BUILTIN_FAMILY_METADATA_COVERS_DIAGRAM_KIND, knownFamilies, getFamily } from '../agent/families.ts'
 import type { DiagramKind, ValidDiagram } from '../agent/types.ts'
@@ -36,6 +36,8 @@ const MUTABLE_FAMILY_DOCS = {
   pie: { label: 'Pie', narrower: 'asPie', cliLabel: 'pie' },
   quadrant: { label: 'Quadrant', narrower: 'asQuadrant', cliLabel: 'quadrant' },
   gantt: { label: 'Gantt', narrower: 'asGantt', cliLabel: 'gantt' },
+  mindmap: { label: 'Mindmap', narrower: 'asMindmap', cliLabel: 'mindmap' },
+  gitgraph: { label: 'GitGraph', narrower: 'asGitGraph', cliLabel: 'gitgraph' },
 } satisfies Record<keyof typeof MUTATION_OPS_BY_FAMILY, { label: string; narrower: string; cliLabel: string }>
 
 function escapeRegExp(text: string): string {
@@ -312,6 +314,14 @@ describe('vocabulary doc-sync', () => {
       expect(WARNING_TIER[code as keyof typeof WARNING_TIER]).toMatch(/^(structural|geometric|lint)$/)
     }
   })
+  test('public mutate help lists every registry-declared mutable family', () => {
+    const help = COMMAND_HELP.mutate?.toLowerCase() ?? ''
+    expect(help.length).toBeGreaterThan(0)
+    for (const [family, { cliLabel }] of Object.entries(MUTABLE_FAMILY_DOCS)) {
+      expect({ family, documented: help.includes(cliLabel.toLowerCase()) }).toEqual({ family, documented: true })
+    }
+  })
+
   test('every MutationOp kind is in spec, capabilities, and MCP SDK declaration', () => {
     const spec = readFileSync(join(REPO, 'AGENT_NATIVE.md'), 'utf8')
     const cap = buildCapabilities()
@@ -326,9 +336,14 @@ describe('vocabulary doc-sync', () => {
     }
   })
 
-  test('MCP SDK declaration exposes all mutable-family narrowers', () => {
+  test('MCP SDK declaration exposes and describes all mutable families', () => {
     for (const { narrower } of Object.values(MUTABLE_FAMILY_DOCS)) {
       expect(SDK_DECLARATION).toContain(narrower)
+    }
+    const convention = SDK_DECLARATION.split('// 3. mutate works on')[1]?.split('//    State owns')[0] ?? ''
+    for (const family of BUILTIN_FAMILY_METADATA) {
+      expect({ family: family.id, described: convention.toLowerCase().includes(family.id) })
+        .toEqual({ family: family.id, described: true })
     }
   })
 
@@ -396,6 +411,8 @@ describe('vocabulary doc-sync', () => {
       asPie: 'pie\\n  "Dogs" : 3',
       asQuadrant: 'quadrantChart\\n  Campaign A: [0.3, 0.6]',
       asGantt: 'gantt\\n  Task A :a1, 2024-01-01, 3d',
+      asMindmap: 'mindmap\\n  root\\n    child',
+      asGitGraph: 'gitGraph\\n  commit',
     }
     for (const narrower of advertised) {
       const source = SOURCES[narrower]
@@ -418,6 +435,7 @@ describe('vocabulary doc-sync', () => {
       flowchart: asFlowchart, state: asState, sequence: asSequence, timeline: asTimeline,
       class: asClass, er: asEr, journey: asJourney, architecture: asArchitecture,
       xychart: asXyChart, pie: asPie, quadrant: asQuadrant, gantt: asGantt,
+      mindmap: asMindmap, gitgraph: asGitGraph,
     }
     const FAIL = 'New families ship with typed mutation by default — see docs/contributing/adding-diagram-types.md.'
     for (const kind of knownFamilies()) {
@@ -542,7 +560,7 @@ describe('family/op-count prose does not rot', () => {
   test('fork-differences.md per-family op counts match MUTATION_OPS_BY_FAMILY', () => {
     const text = readFileSync(join(REPO, 'docs/fork-differences.md'), 'utf8')
     // "Twelve of the twelve" scales with the family count via the number word.
-    const word: Record<number, string> = { 11: 'Eleven', 12: 'Twelve', 13: 'Thirteen' }
+    const word: Record<number, string> = { 11: 'Eleven', 12: 'Twelve', 13: 'Thirteen', 14: 'Fourteen' }
     expect(text).toContain(`${word[familyCount]} of the ${word[familyCount]!.toLowerCase()} families`)
     // Each family appears as "<prose label> (<count>…)"; the phrasing after the
     // number varies (" ops", " via `asX`", or a bare close-paren), so guard the
@@ -551,6 +569,7 @@ describe('family/op-count prose does not rot', () => {
       flowchart: 'flowchart', state: 'state', sequence: 'sequence', timeline: 'timeline',
       class: 'class', er: 'ER', journey: 'journey', architecture: 'architecture',
       xychart: 'XY chart', pie: 'pie', quadrant: 'quadrant', gantt: 'Gantt',
+      mindmap: 'mindmap', gitgraph: 'GitGraph',
     }
     for (const [id, ops] of Object.entries(MUTATION_OPS_BY_FAMILY) as [DiagramKind, readonly unknown[]][]) {
       const label = proseLabel[id]
@@ -634,6 +653,7 @@ describe('root docs consistency', () => {
       'PRODUCT.md',
       'README.md',
       'SECURITY.md',
+      'THIRD_PARTY_NOTICES.md',
       'TODO.md',
     ])
   })
@@ -755,6 +775,8 @@ describe('detector drift guard (agent vs shared router)', () => {
       ['quadrantChart\n  title T\n  Campaign A: [0.3, 0.6]', 'quadrant'],
       ['architecture-beta\n  group api(cloud)[API]', 'architecture'],
       ['gantt\n  Task A :a1, 2024-01-01, 3d', 'gantt'],
+      ['mindmap\n  root\n    child', 'mindmap'],
+      ['gitGraph\n  commit', 'gitgraph'],
     ]
     // `detectDiagramType` is the shared renderer router: state diagrams still
     // route through the flowchart renderer path, then agent parsing splits

@@ -1,0 +1,2387 @@
+{
+  "schemaVersion": 2,
+  "upstream": {
+    "repository": "https://github.com/mermaid-js/mermaid",
+    "commit": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+    "license": "MIT",
+    "harvestDate": "2026-07-10",
+    "files": [
+      {
+        "family": "mindmap",
+        "path": "packages/mermaid/src/diagrams/mindmap/mindmap.spec.ts",
+        "testBlocks": 26,
+        "sha256": "98f31bd7b274c97e59d43f2eeb2f5260bc31ec66d9ff6a3dc38c552cea269494"
+      },
+      {
+        "family": "gitgraph",
+        "path": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "testBlocks": 69,
+        "sha256": "15284d1a16d0d6dee4c57550e10f29df6b3426bd2a9dd36ec811b9b6572a0834"
+      }
+    ]
+  },
+  "accounting": {
+    "mindmap": {
+      "consideredBlocks": 26,
+      "importedCases": 26,
+      "importedBlocks": 26,
+      "excludedBlocks": 0,
+      "deferredBlocks": 0
+    },
+    "gitgraph": {
+      "consideredBlocks": 69,
+      "importedCases": 62,
+      "importedBlocks": 62,
+      "excludedBlocks": 7,
+      "deferredBlocks": 0
+    }
+  },
+  "normalization": [
+    "Generated GitGraph commit ids are compared by replay sequence, preserving Agentic Mermaid deterministic c<N> identity as a documented divergence.",
+    "GitGraph numeric upstream commit types are compared by semantic names NORMAL, REVERSE, HIGHLIGHT, MERGE, and CHERRY_PICK.",
+    "Mindmap expectations are flattened to id, label, shape, parent, icon, and class fields; indentation remains verbatim in each source."
+  ],
+  "blocks": [
+    {
+      "id": "mindmap-mmp-1-should-handle-a-simple-root-definition-abc122",
+      "family": "mindmap",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/mindmap/mindmap.spec.ts",
+        "block": "MMP-1 should handle a simple root definition abc122",
+        "index": 1
+      },
+      "classification": "portable",
+      "source": "mindmap\n    root",
+      "assertions": {
+        "nodes": [
+          {
+            "id": "root",
+            "label": "root",
+            "shape": "default"
+          }
+        ]
+      }
+    },
+    {
+      "id": "mindmap-mmp-2-should-handle-a-hierarchical-mindmap-definition",
+      "family": "mindmap",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/mindmap/mindmap.spec.ts",
+        "block": "MMP-2 should handle a hierarchical mindmap definition",
+        "index": 2
+      },
+      "classification": "portable",
+      "source": "mindmap\n    root\n      child1\n      child2\n ",
+      "assertions": {
+        "nodes": [
+          {
+            "id": "root",
+            "label": "root",
+            "shape": "default"
+          },
+          {
+            "id": "child1",
+            "label": "child1",
+            "shape": "default",
+            "parentId": "root"
+          },
+          {
+            "id": "child2",
+            "label": "child2",
+            "shape": "default",
+            "parentId": "root"
+          }
+        ]
+      }
+    },
+    {
+      "id": "mindmap-3-should-handle-a-simple-root-definition-with-a-shape-and-without-an-id-abc123",
+      "family": "mindmap",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/mindmap/mindmap.spec.ts",
+        "block": "3 should handle a simple root definition with a shape and without an id abc123",
+        "index": 3
+      },
+      "classification": "portable",
+      "source": "mindmap\n    (root)",
+      "assertions": {
+        "nodes": [
+          {
+            "id": "root",
+            "label": "root",
+            "shape": "rounded"
+          }
+        ]
+      }
+    },
+    {
+      "id": "mindmap-mmp-4-should-handle-a-deeper-hierarchical-mindmap-definition",
+      "family": "mindmap",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/mindmap/mindmap.spec.ts",
+        "block": "MMP-4 should handle a deeper hierarchical mindmap definition",
+        "index": 4
+      },
+      "classification": "portable",
+      "source": "mindmap\n    root\n      child1\n        leaf1\n      child2",
+      "assertions": {
+        "nodes": [
+          {
+            "id": "root",
+            "label": "root",
+            "shape": "default"
+          },
+          {
+            "id": "child1",
+            "label": "child1",
+            "shape": "default",
+            "parentId": "root"
+          },
+          {
+            "id": "leaf1",
+            "label": "leaf1",
+            "shape": "default",
+            "parentId": "child1"
+          },
+          {
+            "id": "child2",
+            "label": "child2",
+            "shape": "default",
+            "parentId": "root"
+          }
+        ]
+      }
+    },
+    {
+      "id": "mindmap-5-multiple-roots-are-illegal",
+      "family": "mindmap",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/mindmap/mindmap.spec.ts",
+        "block": "5 Multiple roots are illegal",
+        "index": 5
+      },
+      "classification": "error",
+      "source": "mindmap\n    root\n    fakeRoot",
+      "assertions": {
+        "parseError": true
+      }
+    },
+    {
+      "id": "mindmap-mmp-6-real-root-in-wrong-place",
+      "family": "mindmap",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/mindmap/mindmap.spec.ts",
+        "block": "MMP-6 real root in wrong place",
+        "index": 6
+      },
+      "classification": "error",
+      "source": "mindmap\n          root\n        fakeRoot\n    realRootWrongPlace",
+      "assertions": {
+        "parseError": true
+      }
+    },
+    {
+      "id": "mindmap-mmp-7-should-handle-an-id-and-type-for-a-node-definition",
+      "family": "mindmap",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/mindmap/mindmap.spec.ts",
+        "block": "MMP-7 should handle an id and type for a node definition",
+        "index": 7
+      },
+      "classification": "portable",
+      "source": "mindmap\n    root[The root]\n      ",
+      "assertions": {
+        "nodes": [
+          {
+            "id": "root",
+            "label": "The root",
+            "shape": "rect"
+          }
+        ]
+      }
+    },
+    {
+      "id": "mindmap-mmp-8-should-handle-an-id-and-type-for-a-node-definition",
+      "family": "mindmap",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/mindmap/mindmap.spec.ts",
+        "block": "MMP-8 should handle an id and type for a node definition",
+        "index": 8
+      },
+      "classification": "portable",
+      "source": "mindmap\n    root\n      theId(child1)",
+      "assertions": {
+        "nodes": [
+          {
+            "id": "root",
+            "label": "root",
+            "shape": "default"
+          },
+          {
+            "id": "theId",
+            "label": "child1",
+            "shape": "rounded",
+            "parentId": "root"
+          }
+        ]
+      }
+    },
+    {
+      "id": "mindmap-mmp-9-should-handle-an-id-and-type-for-a-node-definition",
+      "family": "mindmap",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/mindmap/mindmap.spec.ts",
+        "block": "MMP-9 should handle an id and type for a node definition",
+        "index": 9
+      },
+      "classification": "portable",
+      "source": "mindmap\nroot\n      theId(child1)",
+      "assertions": {
+        "nodes": [
+          {
+            "id": "root",
+            "label": "root",
+            "shape": "default"
+          },
+          {
+            "id": "theId",
+            "label": "child1",
+            "shape": "rounded",
+            "parentId": "root"
+          }
+        ]
+      }
+    },
+    {
+      "id": "mindmap-mmp-10-multiple-types-circle",
+      "family": "mindmap",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/mindmap/mindmap.spec.ts",
+        "block": "MMP-10 multiple types (circle)",
+        "index": 10
+      },
+      "classification": "portable",
+      "source": "mindmap\n root((the root))\n ",
+      "assertions": {
+        "nodes": [
+          {
+            "id": "root",
+            "label": "the root",
+            "shape": "circle"
+          }
+        ]
+      }
+    },
+    {
+      "id": "mindmap-mmp-11-multiple-types-cloud",
+      "family": "mindmap",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/mindmap/mindmap.spec.ts",
+        "block": "MMP-11 multiple types (cloud)",
+        "index": 11
+      },
+      "classification": "portable",
+      "source": "mindmap\n root)the root(\n",
+      "assertions": {
+        "nodes": [
+          {
+            "id": "root",
+            "label": "the root",
+            "shape": "cloud"
+          }
+        ]
+      }
+    },
+    {
+      "id": "mindmap-mmp-12-multiple-types-bang",
+      "family": "mindmap",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/mindmap/mindmap.spec.ts",
+        "block": "MMP-12 multiple types (bang)",
+        "index": 12
+      },
+      "classification": "portable",
+      "source": "mindmap\n root))the root((\n",
+      "assertions": {
+        "nodes": [
+          {
+            "id": "root",
+            "label": "the root",
+            "shape": "bang"
+          }
+        ]
+      }
+    },
+    {
+      "id": "mindmap-mmp-12-a-multiple-types-hexagon",
+      "family": "mindmap",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/mindmap/mindmap.spec.ts",
+        "block": "MMP-12-a multiple types (hexagon)",
+        "index": 13
+      },
+      "classification": "portable",
+      "source": "mindmap\n root{{the root}}\n",
+      "assertions": {
+        "nodes": [
+          {
+            "id": "root",
+            "label": "the root",
+            "shape": "hexagon"
+          }
+        ]
+      }
+    },
+    {
+      "id": "mindmap-mmp-13-should-be-possible-to-set-an-icon-for-the-node",
+      "family": "mindmap",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/mindmap/mindmap.spec.ts",
+        "block": "MMP-13 should be possible to set an icon for the node",
+        "index": 14
+      },
+      "classification": "portable",
+      "source": "mindmap\n    root[The root]\n    ::icon(bomb)\n    ",
+      "assertions": {
+        "nodes": [
+          {
+            "id": "root",
+            "label": "The root",
+            "shape": "rect",
+            "icon": "bomb"
+          }
+        ]
+      }
+    },
+    {
+      "id": "mindmap-mmp-14-should-be-possible-to-set-classes-for-the-node",
+      "family": "mindmap",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/mindmap/mindmap.spec.ts",
+        "block": "MMP-14 should be possible to set classes for the node",
+        "index": 15
+      },
+      "classification": "portable",
+      "source": "mindmap\n    root[The root]\n    :::m-4 p-8\n    ",
+      "assertions": {
+        "nodes": [
+          {
+            "id": "root",
+            "label": "The root",
+            "shape": "rect",
+            "className": "m-4 p-8"
+          }
+        ]
+      }
+    },
+    {
+      "id": "mindmap-mmp-15-should-be-possible-to-set-both-classes-and-icon-for-the-node",
+      "family": "mindmap",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/mindmap/mindmap.spec.ts",
+        "block": "MMP-15 should be possible to set both classes and icon for the node",
+        "index": 16
+      },
+      "classification": "portable",
+      "source": "mindmap\n    root[The root]\n    :::m-4 p-8\n    ::icon(bomb)\n    ",
+      "assertions": {
+        "nodes": [
+          {
+            "id": "root",
+            "label": "The root",
+            "shape": "rect",
+            "icon": "bomb",
+            "className": "m-4 p-8"
+          }
+        ]
+      }
+    },
+    {
+      "id": "mindmap-mmp-16-should-be-possible-to-set-both-classes-and-icon-for-the-node",
+      "family": "mindmap",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/mindmap/mindmap.spec.ts",
+        "block": "MMP-16 should be possible to set both classes and icon for the node",
+        "index": 17
+      },
+      "classification": "portable",
+      "source": "mindmap\n    root[The root]\n    ::icon(bomb)\n    :::m-4 p-8\n    ",
+      "assertions": {
+        "nodes": [
+          {
+            "id": "root",
+            "label": "The root",
+            "shape": "rect",
+            "icon": "bomb",
+            "className": "m-4 p-8"
+          }
+        ]
+      }
+    },
+    {
+      "id": "mindmap-mmp-17-should-be-possible-to-use-node-syntax-in-the-descriptions",
+      "family": "mindmap",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/mindmap/mindmap.spec.ts",
+        "block": "MMP-17 should be possible to use node syntax in the descriptions",
+        "index": 18
+      },
+      "classification": "portable",
+      "source": "mindmap\n    root[\"String containing []\"]\n",
+      "assertions": {
+        "nodes": [
+          {
+            "id": "root",
+            "label": "String containing []",
+            "shape": "rect"
+          }
+        ]
+      }
+    },
+    {
+      "id": "mindmap-mmp-18-should-be-possible-to-use-node-syntax-in-the-descriptions-in-children",
+      "family": "mindmap",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/mindmap/mindmap.spec.ts",
+        "block": "MMP-18 should be possible to use node syntax in the descriptions in children",
+        "index": 19
+      },
+      "classification": "portable",
+      "source": "mindmap\n    root[\"String containing []\"]\n      child1[\"String containing ()\"]\n",
+      "assertions": {
+        "nodes": [
+          {
+            "id": "root",
+            "label": "String containing []",
+            "shape": "rect"
+          },
+          {
+            "id": "child1",
+            "label": "String containing ()",
+            "shape": "rect",
+            "parentId": "root"
+          }
+        ]
+      }
+    },
+    {
+      "id": "mindmap-mmp-19-should-be-possible-to-have-a-child-after-a-class-assignment",
+      "family": "mindmap",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/mindmap/mindmap.spec.ts",
+        "block": "MMP-19 should be possible to have a child after a class assignment",
+        "index": 20
+      },
+      "classification": "portable",
+      "source": "mindmap\n  root(Root)\n    Child(Child)\n    :::hot\n      a(a)\n      b[New Stuff]",
+      "assertions": {
+        "nodes": [
+          {
+            "id": "root",
+            "label": "Root",
+            "shape": "rounded"
+          },
+          {
+            "id": "Child",
+            "label": "Child",
+            "shape": "rounded",
+            "parentId": "root",
+            "className": "hot"
+          },
+          {
+            "id": "a",
+            "label": "a",
+            "shape": "rounded",
+            "parentId": "Child"
+          },
+          {
+            "id": "b",
+            "label": "New Stuff",
+            "shape": "rect",
+            "parentId": "Child"
+          }
+        ]
+      }
+    },
+    {
+      "id": "mindmap-mmp-20-should-be-possible-to-have-meaningless-empty-rows-in-a-mindmap-abc124",
+      "family": "mindmap",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/mindmap/mindmap.spec.ts",
+        "block": "MMP-20 should be possible to have meaningless empty rows in a mindmap abc124",
+        "index": 21
+      },
+      "classification": "portable",
+      "source": "mindmap\n  root(Root)\n    Child(Child)\n      a(a)\n\n      b[New Stuff]",
+      "assertions": {
+        "nodes": [
+          {
+            "id": "root",
+            "label": "Root",
+            "shape": "rounded"
+          },
+          {
+            "id": "Child",
+            "label": "Child",
+            "shape": "rounded",
+            "parentId": "root"
+          },
+          {
+            "id": "a",
+            "label": "a",
+            "shape": "rounded",
+            "parentId": "Child"
+          },
+          {
+            "id": "b",
+            "label": "New Stuff",
+            "shape": "rect",
+            "parentId": "Child"
+          }
+        ]
+      }
+    },
+    {
+      "id": "mindmap-mmp-21-should-be-possible-to-have-comments-in-a-mindmap",
+      "family": "mindmap",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/mindmap/mindmap.spec.ts",
+        "block": "MMP-21 should be possible to have comments in a mindmap",
+        "index": 22
+      },
+      "classification": "portable",
+      "source": "mindmap\n  root(Root)\n    Child(Child)\n      a(a)\n\n      %% This is a comment\n      b[New Stuff]",
+      "assertions": {
+        "nodes": [
+          {
+            "id": "root",
+            "label": "Root",
+            "shape": "rounded"
+          },
+          {
+            "id": "Child",
+            "label": "Child",
+            "shape": "rounded",
+            "parentId": "root"
+          },
+          {
+            "id": "a",
+            "label": "a",
+            "shape": "rounded",
+            "parentId": "Child"
+          },
+          {
+            "id": "b",
+            "label": "New Stuff",
+            "shape": "rect",
+            "parentId": "Child"
+          }
+        ]
+      }
+    },
+    {
+      "id": "mindmap-mmp-22-should-be-possible-to-have-comments-at-the-end-of-a-line",
+      "family": "mindmap",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/mindmap/mindmap.spec.ts",
+        "block": "MMP-22 should be possible to have comments at the end of a line",
+        "index": 23
+      },
+      "classification": "portable",
+      "source": "mindmap\n  root(Root)\n    Child(Child)\n      a(a) %% This is a comment\n      b[New Stuff]",
+      "assertions": {
+        "nodes": [
+          {
+            "id": "root",
+            "label": "Root",
+            "shape": "rounded"
+          },
+          {
+            "id": "Child",
+            "label": "Child",
+            "shape": "rounded",
+            "parentId": "root"
+          },
+          {
+            "id": "a",
+            "label": "a",
+            "shape": "rounded",
+            "parentId": "Child"
+          },
+          {
+            "id": "b",
+            "label": "New Stuff",
+            "shape": "rect",
+            "parentId": "Child"
+          }
+        ]
+      }
+    },
+    {
+      "id": "mindmap-mmp-23-rows-with-only-spaces-should-not-interfere",
+      "family": "mindmap",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/mindmap/mindmap.spec.ts",
+        "block": "MMP-23 Rows with only spaces should not interfere",
+        "index": 24
+      },
+      "classification": "portable",
+      "source": "mindmap\nroot\n A\n \n\n B",
+      "assertions": {
+        "nodes": [
+          {
+            "id": "root",
+            "label": "root",
+            "shape": "default"
+          },
+          {
+            "id": "A",
+            "label": "A",
+            "shape": "default",
+            "parentId": "root"
+          },
+          {
+            "id": "B",
+            "label": "B",
+            "shape": "default",
+            "parentId": "root"
+          }
+        ]
+      }
+    },
+    {
+      "id": "mindmap-mmp-24-handle-rows-above-the-mindmap-declarations",
+      "family": "mindmap",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/mindmap/mindmap.spec.ts",
+        "block": "MMP-24 Handle rows above the mindmap declarations",
+        "index": 25
+      },
+      "classification": "portable",
+      "source": "\n \nmindmap\nroot\n A\n \n\n B",
+      "assertions": {
+        "nodes": [
+          {
+            "id": "root",
+            "label": "root",
+            "shape": "default"
+          },
+          {
+            "id": "A",
+            "label": "A",
+            "shape": "default",
+            "parentId": "root"
+          },
+          {
+            "id": "B",
+            "label": "B",
+            "shape": "default",
+            "parentId": "root"
+          }
+        ]
+      }
+    },
+    {
+      "id": "mindmap-mmp-25-handle-rows-above-the-mindmap-declarations-no-space",
+      "family": "mindmap",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/mindmap/mindmap.spec.ts",
+        "block": "MMP-25 Handle rows above the mindmap declarations, no space",
+        "index": 26
+      },
+      "classification": "portable",
+      "source": "\n\n\nmindmap\nroot\n A\n \n\n B",
+      "assertions": {
+        "nodes": [
+          {
+            "id": "root",
+            "label": "root",
+            "shape": "default"
+          },
+          {
+            "id": "A",
+            "label": "A",
+            "shape": "default",
+            "parentId": "root"
+          },
+          {
+            "id": "B",
+            "label": "B",
+            "shape": "default",
+            "parentId": "root"
+          }
+        ]
+      }
+    },
+    {
+      "id": "gitgraph-should-handle-a-gitgraph-definition",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should handle a gitGraph definition",
+        "index": 1
+      },
+      "classification": "portable",
+      "source": "gitGraph:\n commit\n",
+      "assertions": {
+        "commits": 1,
+        "branches": 1,
+        "direction": "LR",
+        "currentBranch": "main"
+      }
+    },
+    {
+      "id": "gitgraph-should-handle-set-direction-top-to-bottom",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should handle set direction top to bottom",
+        "index": 2
+      },
+      "classification": "portable",
+      "source": "gitGraph TB:\ncommit\n",
+      "assertions": {
+        "commits": 1,
+        "branches": 1,
+        "direction": "TB",
+        "currentBranch": "main"
+      }
+    },
+    {
+      "id": "gitgraph-should-handle-set-direction-bottom-to-top",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should handle set direction bottom to top",
+        "index": 3
+      },
+      "classification": "portable",
+      "source": "gitGraph BT:\ncommit\n",
+      "assertions": {
+        "commits": 1,
+        "branches": 1,
+        "direction": "BT",
+        "currentBranch": "main"
+      }
+    },
+    {
+      "id": "gitgraph-should-checkout-a-branch",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should checkout a branch",
+        "index": 4
+      },
+      "classification": "portable",
+      "source": "gitGraph:\nbranch new\ncheckout new\n",
+      "assertions": {
+        "commits": 0,
+        "currentBranch": "new"
+      }
+    },
+    {
+      "id": "gitgraph-should-switch-a-branch",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should switch a branch",
+        "index": 5
+      },
+      "classification": "portable",
+      "source": "gitGraph:\nbranch new\nswitch new\n",
+      "assertions": {
+        "commits": 0,
+        "currentBranch": "new"
+      }
+    },
+    {
+      "id": "gitgraph-should-add-commits-to-checked-out-branch",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should add commits to checked out branch",
+        "index": 6
+      },
+      "classification": "portable",
+      "source": "gitGraph:\nbranch new\ncheckout new\ncommit\ncommit\n",
+      "assertions": {
+        "commits": 2,
+        "currentBranch": "new",
+        "parentsByCommit": [
+          [],
+          [
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "id": "gitgraph-should-handle-commit-with-args",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should handle commit with args",
+        "index": 7
+      },
+      "classification": "portable",
+      "source": "gitGraph:\ncommit \"a commit\"\n",
+      "assertions": {
+        "commits": 1,
+        "currentBranch": "main",
+        "messagesByCommit": [
+          "a commit"
+        ]
+      }
+    },
+    {
+      "id": "gitgraph-should-handle-cases-when-merge-is-a-noop",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should handle cases when merge is a noop",
+        "index": 8
+      },
+      "classification": "portable",
+      "source": "gitGraph:\ncommit\nbranch newbranch\ncheckout newbranch\ncommit\ncommit\nmerge main\n",
+      "assertions": {
+        "commits": 4,
+        "currentBranch": "newbranch",
+        "customIds": []
+      }
+    },
+    {
+      "id": "gitgraph-should-handle-merge-with-2-parents",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should handle merge with 2 parents",
+        "index": 9
+      },
+      "classification": "portable",
+      "source": "gitGraph:\ncommit\nbranch newbranch\ncheckout newbranch\ncommit\ncommit\ncheckout main\ncommit\nmerge newbranch\n",
+      "assertions": {
+        "commits": 5,
+        "currentBranch": "main",
+        "customIds": []
+      }
+    },
+    {
+      "id": "gitgraph-should-generate-an-array-of-known-branches",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should generate an array of known branches",
+        "index": 10
+      },
+      "classification": "portable",
+      "source": "gitGraph:\ncommit\nbranch b1\ncheckout b1\ncommit\ncommit\nbranch b2\n",
+      "assertions": {
+        "orderedBranches": [
+          "main",
+          "b1",
+          "b2"
+        ]
+      }
+    },
+    {
+      "id": "gitgraph-should-handle-a-gitgraph-commit-with-no-params-get-auto-generated-read-only-id",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should handle a gitGraph commit with NO params, get auto-generated read-only ID",
+        "index": 11
+      },
+      "classification": "portable",
+      "source": "gitGraph:\n        commit\n        ",
+      "assertions": {
+        "commits": 1,
+        "branches": 1,
+        "direction": "LR",
+        "currentBranch": "main",
+        "tagsByCommit": [
+          []
+        ],
+        "typesByCommit": [
+          {
+            "type": "NORMAL"
+          }
+        ],
+        "messagesByCommit": [
+          ""
+        ],
+        "customIds": []
+      }
+    },
+    {
+      "id": "gitgraph-should-handle-a-gitgraph-commit-with-custom-commit-id-only",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should handle a gitGraph commit with custom commit id only",
+        "index": 12
+      },
+      "classification": "portable",
+      "source": "gitGraph:\n        commit id:\"1111\"\n        ",
+      "assertions": {
+        "commits": 1,
+        "branches": 1,
+        "direction": "LR",
+        "currentBranch": "main",
+        "tagsByCommit": [
+          []
+        ],
+        "typesByCommit": [
+          {
+            "type": "NORMAL"
+          }
+        ],
+        "messagesByCommit": [
+          ""
+        ],
+        "customIds": [
+          {
+            "index": 0,
+            "id": "1111"
+          }
+        ]
+      }
+    },
+    {
+      "id": "gitgraph-should-handle-a-gitgraph-commit-with-custom-commit-tag-only",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should handle a gitGraph commit with custom commit tag only",
+        "index": 13
+      },
+      "classification": "portable",
+      "source": "gitGraph:\n        commit tag:\"test\"\n        ",
+      "assertions": {
+        "commits": 1,
+        "branches": 1,
+        "direction": "LR",
+        "currentBranch": "main",
+        "tagsByCommit": [
+          [
+            "test"
+          ]
+        ],
+        "typesByCommit": [
+          {
+            "type": "NORMAL"
+          }
+        ],
+        "messagesByCommit": [
+          ""
+        ],
+        "customIds": []
+      }
+    },
+    {
+      "id": "gitgraph-should-handle-a-gitgraph-commit-with-custom-commit-type-highlight-only",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should handle a gitGraph commit with custom commit type HIGHLIGHT only",
+        "index": 14
+      },
+      "classification": "portable",
+      "source": "gitGraph:\n        commit type: HIGHLIGHT\n        ",
+      "assertions": {
+        "commits": 1,
+        "branches": 1,
+        "direction": "LR",
+        "currentBranch": "main",
+        "tagsByCommit": [
+          []
+        ],
+        "typesByCommit": [
+          {
+            "type": "HIGHLIGHT"
+          }
+        ],
+        "messagesByCommit": [
+          ""
+        ],
+        "customIds": []
+      }
+    },
+    {
+      "id": "gitgraph-should-handle-a-gitgraph-commit-with-custom-commit-type-reverse-only",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should handle a gitGraph commit with custom commit type REVERSE only",
+        "index": 15
+      },
+      "classification": "portable",
+      "source": "gitGraph:\n        commit type: REVERSE\n        ",
+      "assertions": {
+        "commits": 1,
+        "branches": 1,
+        "direction": "LR",
+        "currentBranch": "main",
+        "tagsByCommit": [
+          []
+        ],
+        "typesByCommit": [
+          {
+            "type": "REVERSE"
+          }
+        ],
+        "messagesByCommit": [
+          ""
+        ],
+        "customIds": []
+      }
+    },
+    {
+      "id": "gitgraph-should-handle-a-gitgraph-commit-with-custom-commit-type-normal-only",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should handle a gitGraph commit with custom commit type NORMAL only",
+        "index": 16
+      },
+      "classification": "portable",
+      "source": "gitGraph:\n        commit type: NORMAL\n        ",
+      "assertions": {
+        "commits": 1,
+        "branches": 1,
+        "direction": "LR",
+        "currentBranch": "main",
+        "tagsByCommit": [
+          []
+        ],
+        "typesByCommit": [
+          {
+            "type": "NORMAL"
+          }
+        ],
+        "messagesByCommit": [
+          ""
+        ],
+        "customIds": []
+      }
+    },
+    {
+      "id": "gitgraph-should-handle-a-gitgraph-commit-with-custom-commit-msg-only",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should handle a gitGraph commit with custom commit msg only",
+        "index": 17
+      },
+      "classification": "portable",
+      "source": "gitGraph:\n        commit \"test commit\"\n        ",
+      "assertions": {
+        "commits": 1,
+        "branches": 1,
+        "direction": "LR",
+        "currentBranch": "main",
+        "tagsByCommit": [
+          []
+        ],
+        "typesByCommit": [
+          {
+            "type": "NORMAL"
+          }
+        ],
+        "messagesByCommit": [
+          "test commit"
+        ],
+        "customIds": []
+      }
+    },
+    {
+      "id": "gitgraph-should-handle-a-gitgraph-commit-with-custom-commit-msg-key-only",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should handle a gitGraph commit with custom commit \"msg:\" key only",
+        "index": 18
+      },
+      "classification": "portable",
+      "source": "gitGraph:\n        commit msg: \"test commit\"\n        ",
+      "assertions": {
+        "commits": 1,
+        "branches": 1,
+        "direction": "LR",
+        "currentBranch": "main",
+        "tagsByCommit": [
+          []
+        ],
+        "typesByCommit": [
+          {
+            "type": "NORMAL"
+          }
+        ],
+        "messagesByCommit": [
+          "test commit"
+        ],
+        "customIds": []
+      }
+    },
+    {
+      "id": "gitgraph-should-handle-a-gitgraph-commit-with-custom-commit-id-tag-only",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should handle a gitGraph commit with custom commit id, tag  only",
+        "index": 19
+      },
+      "classification": "portable",
+      "source": "gitGraph:\n        commit id:\"1111\" tag: \"test tag\"\n        ",
+      "assertions": {
+        "commits": 1,
+        "branches": 1,
+        "direction": "LR",
+        "currentBranch": "main",
+        "tagsByCommit": [
+          [
+            "test tag"
+          ]
+        ],
+        "typesByCommit": [
+          {
+            "type": "NORMAL"
+          }
+        ],
+        "messagesByCommit": [
+          ""
+        ],
+        "customIds": [
+          {
+            "index": 0,
+            "id": "1111"
+          }
+        ]
+      }
+    },
+    {
+      "id": "gitgraph-should-handle-a-gitgraph-commit-with-custom-commit-type-tag-only",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should handle a gitGraph commit with custom commit type, tag  only",
+        "index": 20
+      },
+      "classification": "portable",
+      "source": "gitGraph:\n        commit type:HIGHLIGHT tag: \"test tag\"\n        ",
+      "assertions": {
+        "commits": 1,
+        "branches": 1,
+        "direction": "LR",
+        "currentBranch": "main",
+        "tagsByCommit": [
+          [
+            "test tag"
+          ]
+        ],
+        "typesByCommit": [
+          {
+            "type": "HIGHLIGHT"
+          }
+        ],
+        "messagesByCommit": [
+          ""
+        ],
+        "customIds": []
+      }
+    },
+    {
+      "id": "gitgraph-should-handle-a-gitgraph-commit-with-custom-commit-tag-and-type-only",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should handle a gitGraph commit with custom commit tag and type only",
+        "index": 21
+      },
+      "classification": "portable",
+      "source": "gitGraph:\n        commit tag: \"test tag\" type:HIGHLIGHT\n        ",
+      "assertions": {
+        "commits": 1,
+        "branches": 1,
+        "direction": "LR",
+        "currentBranch": "main",
+        "tagsByCommit": [
+          [
+            "test tag"
+          ]
+        ],
+        "typesByCommit": [
+          {
+            "type": "HIGHLIGHT"
+          }
+        ],
+        "messagesByCommit": [
+          ""
+        ],
+        "customIds": []
+      }
+    },
+    {
+      "id": "gitgraph-should-handle-a-gitgraph-commit-with-custom-commit-id-type-and-tag-only",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should handle a gitGraph commit with custom commit id, type and tag only",
+        "index": 22
+      },
+      "classification": "portable",
+      "source": "gitGraph:\n        commit id:\"1111\" type:REVERSE tag: \"test tag\"\n        ",
+      "assertions": {
+        "commits": 1,
+        "branches": 1,
+        "direction": "LR",
+        "currentBranch": "main",
+        "tagsByCommit": [
+          [
+            "test tag"
+          ]
+        ],
+        "typesByCommit": [
+          {
+            "type": "REVERSE"
+          }
+        ],
+        "messagesByCommit": [
+          ""
+        ],
+        "customIds": [
+          {
+            "index": 0,
+            "id": "1111"
+          }
+        ]
+      }
+    },
+    {
+      "id": "gitgraph-should-handle-a-gitgraph-commit-with-custom-commit-id-type-tag-and-msg",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should handle a gitGraph commit with custom commit id, type,  tag and msg",
+        "index": 23
+      },
+      "classification": "portable",
+      "source": "gitGraph:\n        commit id:\"1111\" type:REVERSE tag: \"test tag\" msg:\"test msg\"\n        ",
+      "assertions": {
+        "commits": 1,
+        "branches": 1,
+        "direction": "LR",
+        "currentBranch": "main",
+        "tagsByCommit": [
+          [
+            "test tag"
+          ]
+        ],
+        "typesByCommit": [
+          {
+            "type": "REVERSE"
+          }
+        ],
+        "messagesByCommit": [
+          "test msg"
+        ],
+        "customIds": [
+          {
+            "index": 0,
+            "id": "1111"
+          }
+        ]
+      }
+    },
+    {
+      "id": "gitgraph-should-handle-a-gitgraph-commit-with-custom-type-tag-msg-commit-id",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should handle a gitGraph commit with custom  type,tag, msg, commit id,",
+        "index": 24
+      },
+      "classification": "portable",
+      "source": "gitGraph:\n        commit type:REVERSE tag: \"test tag\" msg: \"test msg\" id: \"1111\"\n\n        ",
+      "assertions": {
+        "commits": 1,
+        "branches": 1,
+        "direction": "LR",
+        "currentBranch": "main",
+        "tagsByCommit": [
+          [
+            "test tag"
+          ]
+        ],
+        "typesByCommit": [
+          {
+            "type": "REVERSE"
+          }
+        ],
+        "messagesByCommit": [
+          "test msg"
+        ],
+        "customIds": [
+          {
+            "index": 0,
+            "id": "1111"
+          }
+        ]
+      }
+    },
+    {
+      "id": "gitgraph-should-handle-a-gitgraph-commit-with-custom-tag-msg-commit-id-type",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should handle a gitGraph commit with custom  tag, msg, commit id, type,",
+        "index": 25
+      },
+      "classification": "portable",
+      "source": "gitGraph:\n        commit  tag: \"test tag\" msg:\"test msg\" id:\"1111\" type:REVERSE\n        ",
+      "assertions": {
+        "commits": 1,
+        "branches": 1,
+        "direction": "LR",
+        "currentBranch": "main",
+        "tagsByCommit": [
+          [
+            "test tag"
+          ]
+        ],
+        "typesByCommit": [
+          {
+            "type": "REVERSE"
+          }
+        ],
+        "messagesByCommit": [
+          "test msg"
+        ],
+        "customIds": [
+          {
+            "index": 0,
+            "id": "1111"
+          }
+        ]
+      }
+    },
+    {
+      "id": "gitgraph-should-handle-a-gitgraph-commit-with-custom-msg-commit-id-type-tag",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should handle a gitGraph commit with custom msg, commit id, type,tag",
+        "index": 26
+      },
+      "classification": "portable",
+      "source": "gitGraph:\n        commit msg:\"test msg\" id:\"1111\" type:REVERSE tag: \"test tag\"\n        ",
+      "assertions": {
+        "commits": 1,
+        "branches": 1,
+        "direction": "LR",
+        "currentBranch": "main",
+        "tagsByCommit": [
+          [
+            "test tag"
+          ]
+        ],
+        "typesByCommit": [
+          {
+            "type": "REVERSE"
+          }
+        ],
+        "messagesByCommit": [
+          "test msg"
+        ],
+        "customIds": [
+          {
+            "index": 0,
+            "id": "1111"
+          }
+        ]
+      }
+    },
+    {
+      "id": "gitgraph-should-handle-3-straight-commits",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should handle 3 straight commits",
+        "index": 27
+      },
+      "classification": "portable",
+      "source": "gitGraph:\n        commit\n        commit\n        commit\n        ",
+      "assertions": {
+        "commits": 3,
+        "branches": 1,
+        "direction": "LR",
+        "currentBranch": "main"
+      }
+    },
+    {
+      "id": "gitgraph-should-handle-new-branch-creation",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should handle new branch creation",
+        "index": 28
+      },
+      "classification": "portable",
+      "source": "gitGraph:\n        commit\n        branch testBranch\n        ",
+      "assertions": {
+        "commits": 1,
+        "branches": 2,
+        "direction": "LR",
+        "currentBranch": "testBranch"
+      }
+    },
+    {
+      "id": "gitgraph-should-allow-quoted-branch-names",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should allow quoted branch names",
+        "index": 29
+      },
+      "classification": "portable",
+      "source": "gitGraph:\n        commit\n        branch \"branch\"\n        checkout \"branch\"\n        commit\n        checkout main\n        merge \"branch\"\n        ",
+      "assertions": {
+        "commits": 3,
+        "branches": 2,
+        "direction": "LR",
+        "currentBranch": "main",
+        "branchesByCommit": [
+          "main",
+          "branch",
+          "main"
+        ],
+        "orderedBranches": [
+          "main",
+          "branch"
+        ]
+      }
+    },
+    {
+      "id": "gitgraph-should-allow-characters-in-branch-names",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should allow _-./ characters in branch names",
+        "index": 30
+      },
+      "classification": "portable",
+      "source": "gitGraph:\n        commit\n        branch azAZ_-./test\n        ",
+      "assertions": {
+        "commits": 1,
+        "branches": 2,
+        "direction": "LR",
+        "currentBranch": "azAZ_-./test"
+      }
+    },
+    {
+      "id": "gitgraph-should-allow-branch-names-starting-with-numbers",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should allow branch names starting with numbers",
+        "index": 31
+      },
+      "classification": "portable",
+      "source": "gitGraph:\n        commit\n        %% branch names starting with numbers are not recommended, but are supported by git\n        branch 1.0.1\n        ",
+      "assertions": {
+        "commits": 1,
+        "branches": 2,
+        "direction": "LR",
+        "currentBranch": "1.0.1"
+      }
+    },
+    {
+      "id": "gitgraph-should-allow-branch-names-starting-with-unusual-prefixes",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should allow branch names starting with unusual prefixes",
+        "index": 32
+      },
+      "classification": "portable",
+      "source": "gitGraph:\n        commit\n        %% branch names starting with numbers are not recommended, but are supported by git\n        branch branch01\n        branch checkout02\n        branch cherry-pick03\n        branch branch/example-branch\n        branch merge/test_merge\n        %% single character branch name\n        branch A\n        ",
+      "assertions": {
+        "commits": 1,
+        "branches": 7,
+        "direction": "LR",
+        "currentBranch": "A"
+      }
+    },
+    {
+      "id": "gitgraph-should-handle-new-branch-checkout",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should handle new branch checkout",
+        "index": 33
+      },
+      "classification": "portable",
+      "source": "gitGraph:\n        commit\n        branch testBranch\n        checkout testBranch\n        ",
+      "assertions": {
+        "commits": 1,
+        "branches": 2,
+        "direction": "LR",
+        "currentBranch": "testBranch"
+      }
+    },
+    {
+      "id": "gitgraph-should-handle-new-branch-checkout-with-order",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should handle new branch checkout with order",
+        "index": 34
+      },
+      "classification": "portable",
+      "source": "gitGraph:\n        commit\n        branch test1 order: 3\n        branch test2 order: 2\n        branch test3 order: 1\n        ",
+      "assertions": {
+        "commits": 1,
+        "branches": 4,
+        "currentBranch": "test3",
+        "orderedBranches": [
+          "main",
+          "test3",
+          "test2",
+          "test1"
+        ]
+      }
+    },
+    {
+      "id": "gitgraph-should-handle-new-branch-checkout-with-and-without-order",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should handle new branch checkout with and without order",
+        "index": 35
+      },
+      "classification": "portable",
+      "source": "gitGraph:\n        commit\n        branch test1 order: 1\n        branch test2\n        branch test3\n        ",
+      "assertions": {
+        "commits": 1,
+        "branches": 4,
+        "currentBranch": "test3",
+        "orderedBranches": [
+          "main",
+          "test2",
+          "test3",
+          "test1"
+        ]
+      }
+    },
+    {
+      "id": "gitgraph-should-handle-new-branch-checkout-commit",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should handle new branch checkout & commit",
+        "index": 36
+      },
+      "classification": "portable",
+      "source": "gitGraph:\n        commit\n        branch testBranch\n        checkout testBranch\n        commit\n        ",
+      "assertions": {
+        "commits": 2,
+        "branches": 2,
+        "direction": "LR",
+        "currentBranch": "testBranch",
+        "parentsByCommit": [
+          [],
+          [
+            0
+          ]
+        ],
+        "branchesByCommit": [
+          "main",
+          "testBranch"
+        ]
+      }
+    },
+    {
+      "id": "gitgraph-should-handle-new-branch-checkout-commit-and-merge",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should handle new branch checkout & commit and merge",
+        "index": 37
+      },
+      "classification": "portable",
+      "source": "gitGraph:\n        commit\n        branch testBranch\n        checkout testBranch\n        commit\n        commit\n        checkout main\n        merge testBranch\n        ",
+      "assertions": {
+        "commits": 4,
+        "branches": 2,
+        "direction": "LR",
+        "currentBranch": "main",
+        "parentsByCommit": [
+          [],
+          [
+            0
+          ],
+          [
+            1
+          ],
+          [
+            0,
+            2
+          ]
+        ],
+        "branchesByCommit": [
+          "main",
+          "testBranch",
+          "testBranch",
+          "main"
+        ],
+        "customIds": [],
+        "orderedBranches": [
+          "main",
+          "testBranch"
+        ]
+      }
+    },
+    {
+      "id": "gitgraph-should-handle-new-branch-switch",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should handle new branch switch",
+        "index": 38
+      },
+      "classification": "portable",
+      "source": "gitGraph:\n        commit\n        branch testBranch\n        switch testBranch\n        ",
+      "assertions": {
+        "commits": 1,
+        "branches": 2,
+        "direction": "LR",
+        "currentBranch": "testBranch"
+      }
+    },
+    {
+      "id": "gitgraph-should-handle-new-branch-switch-commit",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should handle new branch switch & commit",
+        "index": 39
+      },
+      "classification": "portable",
+      "source": "gitGraph:\n        commit\n        branch testBranch\n        switch testBranch\n        commit\n        ",
+      "assertions": {
+        "commits": 2,
+        "branches": 2,
+        "direction": "LR",
+        "currentBranch": "testBranch",
+        "parentsByCommit": [
+          [],
+          [
+            0
+          ]
+        ],
+        "branchesByCommit": [
+          "main",
+          "testBranch"
+        ]
+      }
+    },
+    {
+      "id": "gitgraph-should-handle-new-branch-switch-commit-and-merge",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should handle new branch switch & commit and merge",
+        "index": 40
+      },
+      "classification": "portable",
+      "source": "gitGraph:\n        commit\n        branch testBranch\n        switch testBranch\n        commit\n        commit\n        switch main\n        merge testBranch\n        ",
+      "assertions": {
+        "commits": 4,
+        "branches": 2,
+        "direction": "LR",
+        "currentBranch": "main",
+        "parentsByCommit": [
+          [],
+          [
+            0
+          ],
+          [
+            1
+          ],
+          [
+            0,
+            2
+          ]
+        ],
+        "branchesByCommit": [
+          "main",
+          "testBranch",
+          "testBranch",
+          "main"
+        ],
+        "customIds": [],
+        "orderedBranches": [
+          "main",
+          "testBranch"
+        ]
+      }
+    },
+    {
+      "id": "gitgraph-should-handle-merge-tags",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should handle merge tags",
+        "index": 41
+      },
+      "classification": "portable",
+      "source": "gitGraph:\n        commit\n        branch testBranch\n        checkout testBranch\n        commit\n        checkout main\n        merge testBranch tag: \"merge-tag\"\n        ",
+      "assertions": {
+        "commits": 3,
+        "branches": 2,
+        "direction": "LR",
+        "currentBranch": "main",
+        "parentsByCommit": [
+          [],
+          [
+            0
+          ],
+          [
+            0,
+            1
+          ]
+        ],
+        "branchesByCommit": [
+          "main",
+          "testBranch",
+          "main"
+        ],
+        "tagsByCommit": [
+          [],
+          [],
+          [
+            "merge-tag"
+          ]
+        ],
+        "customIds": [],
+        "orderedBranches": [
+          "main",
+          "testBranch"
+        ]
+      }
+    },
+    {
+      "id": "gitgraph-should-handle-merge-with-custom-ids-tags-and-type",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should handle merge with custom ids, tags and type",
+        "index": 42
+      },
+      "classification": "portable",
+      "source": "gitGraph:\n          commit\n          branch testBranch\n          checkout testBranch\n          commit\n          checkout main\n          %% Merge Tag and ID\n          merge testBranch tag: \"merge-tag\" id: \"2-222\"\n          branch testBranch2\n          checkout testBranch2\n          commit\n          checkout main\n          %% Merge ID and Tag (reverse order)\n          merge testBranch2 id: \"4-444\" tag: \"merge-tag2\" type:HIGHLIGHT\n          branch testBranch3\n          checkout testBranch3\n          commit\n          checkout main\n          %% just Merge ID\n          merge testBranch3 id: \"6-666\"\n        ",
+      "assertions": {
+        "commits": 7,
+        "direction": "LR",
+        "currentBranch": "main",
+        "parentsByCommit": [
+          [],
+          [
+            0
+          ],
+          [
+            0,
+            1
+          ],
+          [
+            2
+          ],
+          [
+            2,
+            3
+          ],
+          [
+            4
+          ],
+          [
+            4,
+            5
+          ]
+        ],
+        "branchesByCommit": [
+          "main",
+          "testBranch",
+          "main",
+          "testBranch2",
+          "main",
+          "testBranch3",
+          "main"
+        ],
+        "tagsByCommit": [
+          [],
+          [],
+          [
+            "merge-tag"
+          ],
+          [],
+          [
+            "merge-tag2"
+          ],
+          [],
+          []
+        ],
+        "typesByCommit": [
+          {
+            "type": "NORMAL"
+          },
+          {
+            "type": "NORMAL"
+          },
+          {
+            "type": "MERGE"
+          },
+          {
+            "type": "NORMAL"
+          },
+          {
+            "type": "MERGE",
+            "customType": "HIGHLIGHT"
+          },
+          {
+            "type": "NORMAL"
+          },
+          {
+            "type": "MERGE"
+          }
+        ],
+        "customIds": [
+          {
+            "index": 2,
+            "id": "2-222"
+          },
+          {
+            "index": 4,
+            "id": "4-444"
+          },
+          {
+            "index": 6,
+            "id": "6-666"
+          }
+        ],
+        "orderedBranches": [
+          "main",
+          "testBranch",
+          "testBranch2",
+          "testBranch3"
+        ]
+      }
+    },
+    {
+      "id": "gitgraph-should-support-cherry-picking-commits",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should support cherry-picking commits",
+        "index": 43
+      },
+      "classification": "portable",
+      "source": "gitGraph\n        commit id: \"ZERO\"\n        branch develop\n        commit id:\"A\"\n        checkout main\n        cherry-pick id:\"A\"\n        ",
+      "assertions": {
+        "branchesByCommit": [
+          "main",
+          "develop",
+          "main"
+        ],
+        "tagsByCommit": [
+          [],
+          [],
+          [
+            "cherry-pick:A"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "gitgraph-should-support-cherry-picking-commits-with-custom-tag",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should support cherry-picking commits with custom tag",
+        "index": 44
+      },
+      "classification": "portable",
+      "source": "gitGraph\n        commit id: \"ZERO\"\n        branch develop\n        commit id:\"A\"\n        checkout main\n        cherry-pick id:\"A\" tag:\"MyTag\"\n        ",
+      "assertions": {
+        "branchesByCommit": [
+          "main",
+          "develop",
+          "main"
+        ],
+        "tagsByCommit": [
+          [],
+          [],
+          [
+            "MyTag"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "gitgraph-should-support-cherry-picking-commits-with-no-tag",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should support cherry-picking commits with no tag",
+        "index": 45
+      },
+      "classification": "portable",
+      "source": "gitGraph\n        commit id: \"ZERO\"\n        branch develop\n        commit id:\"A\"\n        checkout main\n        cherry-pick id:\"A\" tag:\"\"\n        ",
+      "assertions": {
+        "branchesByCommit": [
+          "main",
+          "develop",
+          "main"
+        ],
+        "tagsByCommit": [
+          [],
+          [],
+          [
+            ""
+          ]
+        ]
+      }
+    },
+    {
+      "id": "gitgraph-should-support-cherry-picking-of-merge-commits",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should support cherry-picking of merge commits",
+        "index": 46
+      },
+      "classification": "portable",
+      "source": "gitGraph\n        commit id: \"ZERO\"\n        branch feature\n        branch release\n        checkout feature\n        commit id: \"A\"\n        commit id: \"B\"\n        checkout main\n        merge feature id: \"M\"\n        checkout release\n        cherry-pick id: \"M\" parent:\"B\"\n        ",
+      "assertions": {
+        "branchesByCommit": [
+          "main",
+          "feature",
+          "feature",
+          "main",
+          "release"
+        ],
+        "tagsByCommit": [
+          [],
+          [],
+          [],
+          [],
+          [
+            "cherry-pick:M|parent:B"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "gitgraph-should-support-cherry-picking-of-merge-commits-with-tag",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should support cherry-picking of merge commits with tag",
+        "index": 47
+      },
+      "classification": "portable",
+      "source": "gitGraph\n        commit id: \"ZERO\"\n        branch feature\n        branch release\n        checkout feature\n        commit id: \"A\"\n        commit id: \"B\"\n        checkout main\n        merge feature id: \"M\"\n        checkout release\n        cherry-pick id: \"M\" parent:\"ZERO\" tag: \"v1.0\"\n        ",
+      "assertions": {
+        "branchesByCommit": [
+          "main",
+          "feature",
+          "feature",
+          "main",
+          "release"
+        ],
+        "tagsByCommit": [
+          [],
+          [],
+          [],
+          [],
+          [
+            "v1.0"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "gitgraph-should-support-cherry-picking-of-merge-commits-with-additional-commit",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should support cherry-picking of merge commits with additional commit",
+        "index": 48
+      },
+      "classification": "portable",
+      "source": "gitGraph\n        commit id: \"ZERO\"\n        branch feature\n        branch release\n        checkout feature\n        commit id: \"A\"\n        commit id: \"B\"\n        checkout main\n        merge feature id: \"M\"\n        checkout release\n        commit id: \"C\"\n        cherry-pick id: \"M\" tag: \"v2.1:ZERO\" parent:\"ZERO\"\n        commit id: \"D\"\n        ",
+      "assertions": {
+        "branchesByCommit": [
+          "main",
+          "feature",
+          "feature",
+          "main",
+          "release",
+          "release",
+          "release"
+        ],
+        "tagsByCommit": [
+          [],
+          [],
+          [],
+          [],
+          [],
+          [
+            "v2.1:ZERO"
+          ],
+          []
+        ]
+      }
+    },
+    {
+      "id": "gitgraph-should-support-cherry-picking-of-merge-commits-with-empty-tag",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should support cherry-picking of merge commits with empty tag",
+        "index": 49
+      },
+      "classification": "divergence",
+      "source": "gitGraph\n        commit id: \"ZERO\"\n        branch feature\n        branch release\n        checkout feature\n        commit id: \"A\"\n        commit id: \"B\"\n        checkout main\n        merge feature id: \"M\"\n        checkout release\n        commit id: \"C\"\n        cherry-pick id:\"M\" parent: \"ZERO\" tag:\"\"\n        commit id: \"D\"\n        cherry-pick id:\"M\" tag:\"\" parent: \"B\"\n        ",
+      "assertions": {
+        "errorMessage": "already reachable"
+      },
+      "reason": "reachable-cherry-pick-policy",
+      "summary": "Upstream permits cherry-picking the same merge commit twice on one branch; Agentic Mermaid rejects a source already reachable from the current head ancestry."
+    },
+    {
+      "id": "gitgraph-should-fail-cherry-picking-of-merge-commits-if-the-parent-of-merge-commits-is-no",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should fail cherry-picking of merge commits if the parent of merge commits is not specified",
+        "index": 50
+      },
+      "classification": "error",
+      "source": "gitGraph\n        commit id: \"ZERO\"\n        branch feature\n        branch release\n        checkout feature\n        commit id: \"A\"\n        commit id: \"B\"\n        checkout main\n        merge feature id: \"M\"\n        checkout release\n        commit id: \"C\"\n        cherry-pick id:\"M\"\n        ",
+      "assertions": {
+        "parseError": true
+      }
+    },
+    {
+      "id": "gitgraph-should-fail-cherry-picking-of-merge-commits-when-the-parent-provided-is-not-an-i",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should fail cherry-picking of merge commits when the parent provided is not an immediate parent of cherry picked commit",
+        "index": 51
+      },
+      "classification": "error",
+      "source": "gitGraph\n        commit id: \"ZERO\"\n        branch feature\n        branch release\n        checkout feature\n        commit id: \"A\"\n        commit id: \"B\"\n        checkout main\n        merge feature id: \"M\"\n        checkout release\n        commit id: \"C\"\n        cherry-pick id:\"M\" parent: \"A\"\n        ",
+      "assertions": {
+        "parseError": true
+      }
+    },
+    {
+      "id": "gitgraph-should-throw-error-when-try-to-branch-existing-branch-main",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should throw error when try to branch existing branch: main",
+        "index": 52
+      },
+      "classification": "error",
+      "source": "gitGraph\n        commit\n        branch testBranch\n        commit\n        branch main\n        commit\n        checkout main\n        merge testBranch\n        ",
+      "assertions": {
+        "parseError": true
+      }
+    },
+    {
+      "id": "gitgraph-should-throw-error-when-try-to-branch-existing-branch-testbranch",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should throw error when try to branch existing branch: testBranch",
+        "index": 53
+      },
+      "classification": "error",
+      "source": "gitGraph\n        commit\n        branch testBranch\n        commit\n        branch testBranch\n        commit\n        checkout main\n        merge testBranch\n        ",
+      "assertions": {
+        "parseError": true
+      }
+    },
+    {
+      "id": "gitgraph-should-throw-error-when-try-to-checkout-unknown-branch-testbranch",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should throw error when try to checkout unknown branch: testBranch",
+        "index": 54
+      },
+      "classification": "error",
+      "source": "gitGraph\n        commit\n        checkout testBranch\n        commit\n        branch testBranch\n        commit\n        checkout main\n        merge testBranch\n        ",
+      "assertions": {
+        "parseError": true
+      }
+    },
+    {
+      "id": "gitgraph-should-throw-error-when-trying-to-merge-when-current-branch-has-no-commits",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should throw error when trying to merge, when current branch has no commits",
+        "index": 55
+      },
+      "classification": "error",
+      "source": "gitGraph\n        merge testBranch\n        commit\n        checkout testBranch\n        commit\n        branch testBranch\n        commit\n        checkout main\n        merge testBranch\n        ",
+      "assertions": {
+        "parseError": true
+      }
+    },
+    {
+      "id": "gitgraph-should-throw-error-when-trying-to-merge-unknown-branch",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should throw error when trying to merge unknown branch",
+        "index": 56
+      },
+      "classification": "error",
+      "source": "gitGraph\n        commit\n        merge testBranch\n        commit\n        checkout testBranch\n        commit\n        branch testBranch\n        commit\n        checkout main\n        merge testBranch\n        ",
+      "assertions": {
+        "parseError": true
+      }
+    },
+    {
+      "id": "gitgraph-should-throw-error-when-trying-to-merge-branch-to-itself",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should throw error when trying to merge branch to itself",
+        "index": 57
+      },
+      "classification": "error",
+      "source": "gitGraph\n        commit\n        branch testBranch\n        merge testBranch\n        ",
+      "assertions": {
+        "parseError": true
+      }
+    },
+    {
+      "id": "gitgraph-should-throw-error-when-using-existing-id-as-merge-id",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should throw error when using existing id as merge ID",
+        "index": 58
+      },
+      "classification": "error",
+      "source": "gitGraph\n        commit id: \"1-111\"\n        branch testBranch\n        commit id: \"2-222\"\n        commit id: \"3-333\"\n        checkout main\n        merge testBranch id: \"1-111\"\n        ",
+      "assertions": {
+        "parseError": true
+      }
+    },
+    {
+      "id": "gitgraph-should-throw-error-when-trying-to-merge-branches-having-same-heads",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should throw error when trying to merge branches having same heads",
+        "index": 59
+      },
+      "classification": "error",
+      "source": "gitGraph\n        commit\n        branch testBranch\n        checkout main\n        merge testBranch\n        ",
+      "assertions": {
+        "parseError": true
+      }
+    },
+    {
+      "id": "gitgraph-should-throw-error-when-trying-to-merge-branch-which-has-no-commits",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should throw error when trying to merge branch which has no commits",
+        "index": 60
+      },
+      "classification": "error",
+      "source": "gitGraph\n        branch test1\n\n        checkout main\n        commit\n        merge test1\n        ",
+      "assertions": {
+        "parseError": true
+      }
+    },
+    {
+      "id": "gitgraph-should-handle-a-title-and-a-description-accdescr",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should handle a title and a description (accDescr)",
+        "index": 61
+      },
+      "classification": "portable",
+      "source": "gitGraph:\n          accTitle: This is a title\n          accDescr: This is a description\n        commit\n        ",
+      "assertions": {
+        "accessibilityTitle": "This is a title",
+        "accessibilityDescription": "This is a description"
+      }
+    },
+    {
+      "id": "gitgraph-should-handle-a-title-and-a-multiline-description-accdescr",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should handle a title and a multiline description (accDescr)",
+        "index": 62
+      },
+      "classification": "portable",
+      "source": "gitGraph:\n          accTitle: This is a title\n          accDescr {\n            This is a description\n            using multiple lines\n          }\n        commit\n        ",
+      "assertions": {
+        "accessibilityTitle": "This is a title",
+        "accessibilityDescription": "This is a description\nusing multiple lines"
+      }
+    },
+    {
+      "id": "gitgraph-should-work-with-custom-commit-id-or-branch-name-prop",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "`should work with custom commit id or branch name ${prop}`",
+        "index": 63
+      },
+      "classification": "portable",
+      "variants": [
+        {
+          "source": "gitGraph\n        commit id:\"__proto__\"\n        branch __proto__\n        checkout __proto__\n        commit\n        checkout main\n        merge __proto__\n        ",
+          "assertions": {
+            "commits": 3,
+            "branches": 2,
+            "currentBranch": "main",
+            "orderedBranches": [
+              "main",
+              "__proto__"
+            ]
+          }
+        },
+        {
+          "source": "gitGraph\n        commit id:\"constructor\"\n        branch constructor\n        checkout constructor\n        commit\n        checkout main\n        merge constructor\n        ",
+          "assertions": {
+            "commits": 3,
+            "branches": 2,
+            "currentBranch": "main",
+            "orderedBranches": [
+              "main",
+              "constructor"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "gitgraph-should-log-a-warning-when-two-commits-have-the-same-id",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should log a warning when two commits have the same ID",
+        "index": 64
+      },
+      "classification": "divergence",
+      "reason": "duplicate-id-policy",
+      "summary": "Upstream logs and keeps replaying after a duplicate commit id; Agentic Mermaid rejects ambiguous identity deterministically.",
+      "source": "gitGraph\n     commit id:\"initial commit\"\n     commit id:\"work on first release\"\n     commit id:\"design freeze from here\"\n     branch v1-rc\n     checkout v1-rc\n     commit id:\"bugfix 1\"\n     commit id:\"bigfix 2\" tag:\"v1.0.1\"\n     branch FORK-v1.0-MDR\n     checkout FORK-v1.0-MDR\n     commit id:\"working on MDR\"\n     checkout v1-rc\n     commit id:\"minor design changes for MDR\" tag:\"v1.0.2\"\n     checkout FORK-v1.0-MDR\n     merge v1-rc\n     checkout main\n     commit id:\"new feature for v1.1\u2026\"\n     checkout FORK-v1.0-MDR\n     commit id:\"working on MDR\"\n     commit id:\"finishing MDR\"\n     branch v1.0-MDR\n     checkout v1.0-MDR\n     commit id:\"brush up release\" tag:\"v1.0.2-MDR\"\n     checkout v1-rc\n     commit id:\"bugfix without MDR\"\n     checkout main\n     commit id:\"work on v1.1\"\n  ",
+      "assertions": {
+        "errorCode": "GITGRAPH_DUPLICATE_COMMIT_ID"
+      }
+    },
+    {
+      "id": "gitgraph-should-expose-getconfig-method",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should expose getConfig method",
+        "index": 65
+      },
+      "classification": "not-portable",
+      "reason": "api-internal",
+      "summary": "This block asserts the upstream database config accessor rather than behavior representable by Mermaid source."
+    },
+    {
+      "id": "gitgraph-should-return-config-with-showbranches-property",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should return config with showBranches property",
+        "index": 66
+      },
+      "classification": "not-portable",
+      "reason": "api-internal",
+      "summary": "This block asserts the upstream database config accessor rather than behavior representable by Mermaid source."
+    },
+    {
+      "id": "gitgraph-should-return-config-with-showcommitlabel-property",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should return config with showCommitLabel property",
+        "index": 67
+      },
+      "classification": "not-portable",
+      "reason": "api-internal",
+      "summary": "This block asserts the upstream database config accessor rather than behavior representable by Mermaid source."
+    },
+    {
+      "id": "gitgraph-should-return-config-with-rotatecommitlabel-property",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should return config with rotateCommitLabel property",
+        "index": 68
+      },
+      "classification": "not-portable",
+      "reason": "api-internal",
+      "summary": "This block asserts the upstream database config accessor rather than behavior representable by Mermaid source."
+    },
+    {
+      "id": "gitgraph-should-return-config-with-parallelcommits-property",
+      "family": "gitgraph",
+      "upstream": {
+        "file": "packages/mermaid/src/diagrams/git/gitGraph.spec.ts",
+        "block": "should return config with parallelCommits property",
+        "index": 69
+      },
+      "classification": "not-portable",
+      "reason": "api-internal",
+      "summary": "This block asserts the upstream database config accessor rather than behavior representable by Mermaid source."
+    }
+  ],
+  "intentionalDivergences": [
+    {
+      "family": "gitgraph",
+      "topic": "generated commit identity",
+      "upstream": "Generates random commit ids when id: is omitted.",
+      "local": "Generates deterministic c<N> ids in replay order.",
+      "reason": "Identical input must produce identical semantic identity and SVG bytes."
+    },
+    {
+      "family": "mindmap",
+      "topic": "duplicate node identity",
+      "upstream": "May retain parser-generated node bookkeeping without a public duplicate-id diagnostic.",
+      "local": "Rejects duplicate semantic ids with MINDMAP_DUPLICATE_ID.",
+      "reason": "Typed mutation and SVG data-id require an unambiguous source identity."
+    },
+    {
+      "family": "gitgraph",
+      "topic": "duplicate custom commit identity",
+      "upstream": "Logs a warning and continues after a duplicate custom id.",
+      "local": "Rejects the duplicate with GITGRAPH_DUPLICATE_COMMIT_ID before rendering.",
+      "reason": "History replay must never silently overwrite an existing commit."
+    },
+    {
+      "family": "gitgraph",
+      "topic": "already-reachable cherry-pick",
+      "upstream": "Permits the same source merge commit to be cherry-picked repeatedly on one branch.",
+      "local": "Rejects a cherry-pick whenever the source commit is already reachable from the current head ancestry.",
+      "reason": "Replay history must not materialize duplicate/coincident semantic parent relations."
+    }
+  ]
+}

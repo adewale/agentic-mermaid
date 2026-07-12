@@ -40,6 +40,8 @@ function exampleGlyph(example) {
     Pie: 'P',
     Quadrant: '4Q',
     Gantt: 'G',
+    Mindmap: 'M',
+    GitGraph: 'Git',
   };
   return glyphs[type] || type.slice(0, 2).toUpperCase();
 }

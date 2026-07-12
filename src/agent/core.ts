@@ -10,7 +10,7 @@
 
 export type {
   Result, ValidDiagram, FlowchartValidDiagram, StateValidDiagram, SequenceValidDiagram, TimelineValidDiagram,
-  ClassValidDiagram, ErValidDiagram, JourneyValidDiagram, ArchitectureValidDiagram, XyChartValidDiagram, PieValidDiagram, QuadrantValidDiagram, GanttValidDiagram, MutableValidDiagram,
+  ClassValidDiagram, ErValidDiagram, JourneyValidDiagram, ArchitectureValidDiagram, XyChartValidDiagram, PieValidDiagram, QuadrantValidDiagram, GanttValidDiagram, MindmapValidDiagram, GitGraphValidDiagram, MutableValidDiagram,
   ValidDiagramMeta, ValidDiagramPayload, SerializedFlowchartGraph, DiagramBody, DiagramKind,
   StateBody, StateNode, StateTransition,
   SequenceBody, SequenceParticipant, SequenceMessage, SequenceMessageStyle,
@@ -18,13 +18,14 @@ export type {
   ClassBody, ClassNode, ClassRelation, ClassRelationKind, ClassNote,
   ErBody, ErEntity, ErRelation, ErAttribute, ErCardinality,
   JourneyBody, JourneySection, JourneyTask,
-  ArchitectureBody, ArchitectureGroup, ArchitectureService, ArchitectureJunction, ArchitectureEdge, ArchitectureEndpoint, ArchitectureSide,
+  ArchitectureBody, ArchitectureGroup, ArchitectureService, ArchitectureJunction, ArchitectureEdge, ArchitectureEndpoint, ArchitectureSide, ArchitectureEndpointBoundary,
   XyChartBody, XyChartAxis, XyChartSeries, XyChartAxisSpec,
   PieBody, PieSlice, QuadrantBody, QuadrantAxis, QuadrantPoint,
   GanttBody, GanttBodySection, GanttBodyTask, GanttBodyTaskTag, GanttStatement,
+  MindmapBody, GitGraphBody,
   SourceMap, SourceComment, InitDirective, Accessibility,
   ParseError, MutationError, MutationOp, FlowchartMutationOp, StateMutationOp, SequenceMutationOp, TimelineMutationOp,
-  ClassMutationOp, ErMutationOp, JourneyMutationOp, ArchitectureMutationOp, XyChartMutationOp, PieMutationOp, QuadrantMutationOp, GanttMutationOp, AnyMutationOp,
+  ClassMutationOp, ErMutationOp, JourneyMutationOp, ArchitectureMutationOp, XyChartMutationOp, PieMutationOp, QuadrantMutationOp, GanttMutationOp, MindmapMutationOp, GitGraphMutationOp, AnyMutationOp,
   NodeId, EdgeId, GroupId, ParticipantId,
   LayoutWarning, WarningCode, Tier1WarningCode, Tier2WarningCode, WarningSeverity, WarningTier,
   VerifyOptions, VerifyResult, RenderedLayout, RenderedLayoutNode, RenderedLayoutEdge, RenderedLayoutGroup, RenderedRegion, RenderedRegionKind,
@@ -33,7 +34,7 @@ export type {
 } from './types.ts'
 export type { MermaidFact, CheckMermaidSpec, CheckMermaidObjectSpec, CheckMermaidResult } from './facts.ts'
 
-export { WARNING_SEVERITY, WARNING_TIER, DEFAULT_LABEL_CHAR_CAP, ok, err, toFinite, asFlowchart, asState, asSequence, asTimeline, asClass, asEr, asJourney, asArchitecture, asXyChart, asPie, asQuadrant, asGantt } from './types.ts'
+export { WARNING_SEVERITY, WARNING_TIER, DEFAULT_LABEL_CHAR_CAP, ok, err, toFinite, asFlowchart, asState, asSequence, asTimeline, asClass, asEr, asJourney, asArchitecture, asXyChart, asPie, asQuadrant, asGantt, asMindmap, asGitGraph } from './types.ts'
 export { parseMermaid } from './parse.ts'
 export { serializeMermaid, synthesizeFromGraph } from './serialize.ts'
 export { createMermaid, buildMermaid } from './create.ts'
@@ -61,6 +62,8 @@ export type { TextMeasurementContract, TextMeasurementInput, TextMeasurementResu
 export type { DescribeTree } from './describe.ts'
 export type { DescribeOptions } from './describe.ts'
 export { asciiToMermaid } from '../ascii/reverse.ts'
+export { AsciiWidthError } from '../ascii/index.ts'
+export type { AsciiRenderOptions, AsciiWidthErrorReason } from '../ascii/index.ts'
 
 import { renderMermaidSVG as _svg } from '../index.ts'
 export { verifyNoExternalRefs } from '../index.ts'

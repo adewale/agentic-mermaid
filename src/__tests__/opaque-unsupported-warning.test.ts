@@ -15,27 +15,24 @@ import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 // parser does not model, so it lands on the opaque path.
 const OPAQUE_BY_FAMILY: Record<string, string> = {
   class: 'classDiagram\n  direction LR\n  class Box', // direction remains render-only
-  // Notes/pseudostates were promoted to structured (repo #118); `--`
-  // concurrency regions render but keep the honest opaque agent body.
-  state: 'stateDiagram-v2\n  state P {\n    a --> b\n    --\n    c --> d\n  }',
-  er: 'erDiagram\n  CUSTOMER:::highlight ||--o{ ORDER : places', // styling remains typed-opaque
   xychart: 'xychart-beta\n  accTitle: forces opaque\n  bar [1, 2, 3]', // accTitle directive
   pie: 'pie\n  Dogs : 40\n  Cats : 30', // unquoted labels (Mermaid requires quotes)
   sequence: 'sequenceDiagram\n  A->>B: hi\n  end', // unmatched block terminator
   timeline: 'timeline EXTRA\n  2026 : Event', // unmodeled header suffix
   journey: 'journey EXTRA\n  Wake: 3: Me', // unmodeled header suffix
-  architecture: 'architecture-beta\n  accTitle: System\n  service api(server)[API]',
+  architecture: 'architecture-beta\n  title First\n  title Second\n  service api(server)[API]',
   gantt: 'gantt LR\n  Task :t1, 2026-01-01, 1d', // unmodeled header suffix
 }
 
 // These fixtures are valid Mermaid syntax that the public renderer supports;
 // the remaining fixtures deliberately exercise malformed/header-tolerance
 // preservation and therefore are not required to render as their loose family.
-const RENDERABLE_OPAQUE_FAMILIES = new Set(['class', 'state', 'er', 'xychart', 'architecture'])
+const RENDERABLE_OPAQUE_FAMILIES = new Set(['class', 'xychart', 'architecture'])
+const FULLY_MODELED_OR_SPECIFIC_WARNING = ['flowchart', 'state', 'er', 'quadrant', 'mindmap', 'gitgraph']
 
 describe('opaque bodies announce UNSUPPORTED_SYNTAX instead of falling silent', () => {
   test('B02 acceptance: lossless opaque fixtures enroll every built-in family', () => {
-    const covered = [...Object.keys(OPAQUE_BY_FAMILY), 'flowchart', 'quadrant'].sort()
+    const covered = [...Object.keys(OPAQUE_BY_FAMILY), ...FULLY_MODELED_OR_SPECIFIC_WARNING].sort()
     expect(covered).toEqual(BUILTIN_FAMILY_METADATA.map(entry => entry.id).sort())
     expect(new Set(covered).size).toBe(covered.length)
   })
@@ -68,6 +65,19 @@ describe('opaque bodies announce UNSUPPORTED_SYNTAX instead of falling silent', 
     })
   }
 
+  test('promoted State/ER constructs remain structured instead of satisfying a stale opaque expectation', () => {
+    for (const source of [
+      'stateDiagram-v2\n  state P {\n    a --> b\n    --\n    c --> d\n  }',
+      'erDiagram\n  CUSTOMER:::highlight ||--o{ ORDER : places',
+    ]) {
+      const parsed = parseMermaid(source)
+      expect(parsed.ok).toBe(true)
+      if (!parsed.ok) continue
+      expect(parsed.value.body.kind).not.toBe('opaque')
+      expect(verifyMermaid(parsed.value).warnings.some(w => w.code === 'UNSUPPORTED_SYNTAX' && 'syntax' in w && w.syntax.endsWith('_opaque'))).toBe(false)
+    }
+  })
+
   test('it is a lint that never flips verify.ok', () => {
     expect(WARNING_TIER.UNSUPPORTED_SYNTAX).toBe('lint')
     expect(WARNING_SEVERITY.UNSUPPORTED_SYNTAX).toBe('warning')
@@ -86,15 +96,15 @@ describe('opaque bodies announce UNSUPPORTED_SYNTAX instead of falling silent', 
     expect(opaqueFlags).toEqual([])
   })
 
-  test('flowchart and quadrant keep their SPECIFIC warning (no generic double-flag)', () => {
-    // Flowchart interaction directive → flowchart_interaction_directive, not
-    // flowchart_opaque.
+  test('rendered-but-source-preserved flowchart metadata stays honest; quadrant keeps its specific warning', () => {
+    // A safe URL with an unmodeled target remains losslessly opaque and carries
+    // a construct-specific warning rather than silently dropping `_blank`.
     const flow = parseMermaid('flowchart TD\n  A --> B\n  click A "https://x" _blank')
     expect(flow.ok).toBe(true)
     if (flow.ok) {
       const codes = verifyMermaid(flow.value).warnings.filter(w => w.code === 'UNSUPPORTED_SYNTAX')
       expect(codes.some(w => 'syntax' in w && w.syntax === 'flowchart_opaque')).toBe(false)
-      expect(codes.length).toBeGreaterThanOrEqual(1)
+      expect(codes.some(w => 'syntax' in w && w.syntax === 'flowchart_interaction_directive')).toBe(true)
     }
     // Quadrant point-style metadata → quadrant_point_style_metadata, not
     // quadrant_opaque.

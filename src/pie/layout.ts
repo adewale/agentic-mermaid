@@ -161,11 +161,15 @@ export function layoutPieChart(
   const diameter = radius * 2
   const innerRadius = visual.donutHole > 0 ? round(visual.donutHole * radius) : 0
 
-  // Title band.
-  const titleHeight = chart.title ? PIE.titleFontSize + PIE.titleGap : 0
+  // Title/legend typography comes from the same resolved config the renderer
+  // uses, so larger documented theme sizes reserve geometry by construction.
+  const titleFontSize = visual.titleTextSize ?? PIE.titleFontSize
+  const legendFontSize = visual.legendTextSize ?? PIE.legendFontSize
+  const legendLineHeight = legendFontSize * 1.3
+  const titleHeight = chart.title ? titleFontSize + PIE.titleGap : 0
   const titleWidth = chart.title
     ? Math.max(...chart.title.split('\n').map(line =>
-      measureTextWidth(line, PIE.titleFontSize, PIE.titleFontWeight)))
+      measureTextWidth(line, titleFontSize, PIE.titleFontWeight)))
     : 0
 
   // Legend metrics — one row per entry; `<br/>` labels span multiple lines
@@ -178,9 +182,9 @@ export function layoutPieChart(
     const labelLines = e.label.split('\n')
     const lines = labelLines.map((line, k) => (k === labelLines.length - 1 ? `${line}${suffix}` : line))
     const textWidth = Math.max(...lines.map(line =>
-      measureTextWidth(line, PIE.legendFontSize, PIE.legendFontWeight)))
-    const contentHeight = Math.max(PIE.legendSwatch, PIE.legendFontSize) +
-      (lines.length - 1) * PIE.legendLineHeight
+      measureTextWidth(line, legendFontSize, PIE.legendFontWeight)))
+    const contentHeight = Math.max(PIE.legendSwatch, legendFontSize) +
+      (lines.length - 1) * legendLineHeight
     return { lines, fraction, textWidth, contentHeight }
   })
   const legendTextWidth = rows.length > 0 ? Math.max(...rows.map(r => r.textWidth)) : 0
@@ -283,7 +287,7 @@ export function layoutPieChart(
     width: round(width),
     height: round(height),
     title: chart.title
-      ? { text: chart.title, x: round(width / 2), y: PIE.paddingY + PIE.titleFontSize / 2 }
+      ? { text: chart.title, x: round(width / 2), y: PIE.paddingY + titleFontSize / 2 }
       : undefined,
     cx: round(cx),
     cy: round(cy),

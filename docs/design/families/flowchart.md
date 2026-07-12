@@ -64,9 +64,10 @@ Upstream schema verified 2026-07-10
 - `MermaidEdge.id` / `PositionedEdge.id` carry the authored ID through
   parse → layout → SVG. The serializer re-emits `id@` verbatim before the
   arrow operator; round-trip is byte-stable for `A e1@--> B`.
-- SVG: the edge line carries `data-id="e1"` (the X4 identity contract nodes
-  and subgraphs already honor); edges without an authored ID emit no
-  `data-id` (byte stability for existing output).
+- SVG: the edge line carries `data-id="e1"` when authored; otherwise X4 gives
+  it a deterministic endpoint/occurrence identity. Nodes, subgraphs, edges,
+  and labels all carry `data-role`; relations also expose `data-from`,
+  `data-to`, and typed ARIA semantics.
 - Ops: `remove_edge.id` and `set_label.target` accept an authored edge ID
   first, then the endpoint forms `from->to` / `from->to#k`
   (`findEdgeIndexById` in `src/agent/flowchart-body.ts`).

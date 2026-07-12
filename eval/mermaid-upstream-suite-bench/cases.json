@@ -19,7 +19,8 @@
       "minNodes": 1,
       "labelsContain": [
         "db"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -36,7 +37,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 0,
       "edgeCount": 0,
       "groupCount": 0
@@ -56,7 +57,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 0,
       "edgeCount": 0,
       "groupCount": 0
@@ -87,7 +88,8 @@
         "DB",
         "API",
         "App Env"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -119,7 +121,8 @@
         "Web App",
         "PE Blob",
         "PE Bus"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -143,7 +146,8 @@
       "labelsContain": [
         "Rowspan",
         "Columnar"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -167,7 +171,8 @@
       "labelsContain": [
         "A",
         "B"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -194,7 +199,8 @@
         "DB2",
         "DB3",
         "API"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -344,7 +350,8 @@
       "minNodes": 1,
       "labelsContain": [
         "Class1"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -367,7 +374,8 @@
       "minNodes": 1,
       "labelsContain": [
         "Class1"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -386,7 +394,8 @@
     "assertions": {
       "nodeCount": 0,
       "edgeCount": 0,
-      "groupCount": 0
+      "groupCount": 0,
+      "expectStructured": true
     }
   },
   {
@@ -498,7 +507,8 @@
       "minNodes": 1,
       "labelsContain": [
         "Class1"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -521,7 +531,8 @@
       "minNodes": 1,
       "labelsContain": [
         "Class1"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -544,7 +555,8 @@
       "minNodes": 1,
       "labelsContain": [
         "Class1"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -615,7 +627,7 @@
       "expectStructured": false,
       "nodeCount": 2,
       "edgeCount": 0,
-      "groupCount": 2,
+      "groupCount": 3,
       "minNodes": 2,
       "labelsContain": [
         "Class1",
@@ -721,7 +733,8 @@
       "labelsContain": [
         "Class 1 with text label",
         "C2"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -746,7 +759,8 @@
       "labelsContain": [
         "Class 1 with text label",
         "C2"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -771,7 +785,8 @@
       "labelsContain": [
         "Class 1 with text label",
         "C2"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -788,7 +803,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 2,
       "edgeCount": 1,
       "groupCount": 0,
@@ -848,7 +863,8 @@
       "labelsContain": [
         "OneWord",
         "With Città foreign language"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -900,7 +916,8 @@
       "minNodes": 3,
       "labelsContain": [
         "Class with text label"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -924,7 +941,8 @@
       "minEdges": 2,
       "labelsContain": [
         "Class with text label"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -949,7 +967,8 @@
       "labelsContain": [
         "Class 1 with text label",
         "Class 2 with chars @?"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -992,7 +1011,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 2,
       "edgeCount": 1,
       "groupCount": 0,
@@ -1075,7 +1094,8 @@
         "CUSTOMER",
         "ORDER",
         "places"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -1101,7 +1121,8 @@
         "CUSTOMER",
         "ORDER",
         "places"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -1126,7 +1147,8 @@
       "labelsContain": [
         "CUSTOMER",
         "ORDER"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -1153,7 +1175,8 @@
         "DELIVERY-ADDRESS",
         "u",
         "has"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -1176,7 +1199,8 @@
       "minNodes": 1,
       "labelsContain": [
         "2.5"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -1203,7 +1227,8 @@
         "DELIVERY-ADDRESS",
         "2.5",
         "has"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -1229,7 +1254,8 @@
         "CUSTOMER",
         "2.5",
         "has"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -1252,7 +1278,8 @@
       "minNodes": 1,
       "labelsContain": [
         "1"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -1279,7 +1306,8 @@
         "DELIVERY-ADDRESS",
         "1",
         "has"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -1305,7 +1333,8 @@
         "CUSTOMER",
         "1",
         "has"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -1370,7 +1399,8 @@
       "labelsContain": [
         "NODE",
         "leads to"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -1393,7 +1423,8 @@
       "minNodes": 1,
       "labelsContain": [
         "u"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -1419,7 +1450,8 @@
         "CUSTOMER",
         "u",
         "has"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -1445,7 +1477,8 @@
         "CAR",
         "DRIVER",
         "insured for"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -1548,7 +1581,8 @@
       "minNodes": 1,
       "labelsContain": [
         "ENTITY"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -1579,7 +1613,8 @@
         "places",
         "contains",
         "processes"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -1596,15 +1631,17 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 2,
       "edgeCount": 0,
-      "groupCount": 0,
+      "groupCount": 1,
       "minNodes": 2,
       "labelsContain": [
         "A",
         "B"
-      ]
+      ],
+      "minEdges": 0,
+      "minGroups": 1
     }
   },
   {
@@ -1621,10 +1658,13 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 0,
       "edgeCount": 0,
-      "groupCount": 0
+      "groupCount": 1,
+      "minNodes": 0,
+      "minEdges": 0,
+      "minGroups": 1
     }
   },
   {
@@ -1650,7 +1690,8 @@
         "A",
         "B",
         "has"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -1676,7 +1717,8 @@
         "A",
         "B",
         "has"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -1702,7 +1744,8 @@
         "A",
         "B",
         "has"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -1728,7 +1771,8 @@
         "A",
         "B",
         "has"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -1774,7 +1818,8 @@
         "A",
         "B",
         "has"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -1800,7 +1845,8 @@
         "A",
         "B",
         "has"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -1846,7 +1892,8 @@
         "A",
         "B",
         "has"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -1872,7 +1919,8 @@
         "A",
         "B",
         "has"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -1889,18 +1937,19 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
-      "nodeCount": 3,
+      "expectStructured": true,
+      "nodeCount": 2,
       "edgeCount": 1,
-      "groupCount": 0,
-      "minNodes": 3,
+      "groupCount": 1,
+      "minNodes": 2,
       "minEdges": 1,
       "labelsContain": [
         "A",
         "Group",
         "B",
         "relates to"
-      ]
+      ],
+      "minGroups": 1
     }
   },
   {
@@ -1917,17 +1966,18 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 2,
       "edgeCount": 1,
-      "groupCount": 0,
+      "groupCount": 1,
       "minNodes": 2,
       "minEdges": 1,
       "labelsContain": [
         "A",
         "B",
         "relates to"
-      ]
+      ],
+      "minGroups": 1
     }
   },
   {
@@ -1944,14 +1994,16 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 1,
       "edgeCount": 0,
-      "groupCount": 0,
+      "groupCount": 1,
       "minNodes": 1,
       "labelsContain": [
         "A"
-      ]
+      ],
+      "minEdges": 0,
+      "minGroups": 1
     }
   },
   {
@@ -1968,15 +2020,17 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 2,
       "edgeCount": 0,
-      "groupCount": 0,
+      "groupCount": 1,
       "minNodes": 2,
       "labelsContain": [
         "A",
         "B"
-      ]
+      ],
+      "minEdges": 0,
+      "minGroups": 1
     }
   },
   {
@@ -2002,7 +2056,8 @@
         "A",
         "B",
         "has"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -2048,7 +2103,8 @@
         "A",
         "B",
         "has"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -2114,7 +2170,8 @@
         "A",
         "B",
         "has"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -2160,7 +2217,8 @@
         "A",
         "B",
         "has"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -2186,7 +2244,8 @@
         "A",
         "B",
         "has"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -2212,7 +2271,8 @@
         "A",
         "B",
         "has"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -2238,7 +2298,8 @@
         "A",
         "B",
         "has"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -2284,7 +2345,8 @@
         "A",
         "B",
         "has"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -2301,14 +2363,16 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 1,
       "edgeCount": 0,
-      "groupCount": 0,
+      "groupCount": 1,
       "minNodes": 1,
       "labelsContain": [
         "A"
-      ]
+      ],
+      "minEdges": 0,
+      "minGroups": 1
     }
   },
   {
@@ -2325,17 +2389,18 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 2,
       "edgeCount": 1,
-      "groupCount": 0,
+      "groupCount": 1,
       "minNodes": 2,
       "minEdges": 1,
       "labelsContain": [
         "A",
         "B",
         "relates to"
-      ]
+      ],
+      "minGroups": 1
     }
   },
   {
@@ -2361,7 +2426,8 @@
         "HOUSE",
         "ROOM",
         "contains"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -2407,7 +2473,8 @@
         "PERSON",
         "POSSESSION",
         "owns"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -2464,15 +2531,17 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 2,
       "edgeCount": 0,
-      "groupCount": 0,
+      "groupCount": 1,
       "minNodes": 2,
       "labelsContain": [
         "A",
         "B"
-      ]
+      ],
+      "minEdges": 0,
+      "minGroups": 1
     }
   },
   {
@@ -2489,15 +2558,17 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 2,
       "edgeCount": 0,
-      "groupCount": 0,
+      "groupCount": 1,
       "minNodes": 2,
       "labelsContain": [
         "A",
         "B"
-      ]
+      ],
+      "minEdges": 0,
+      "minGroups": 1
     }
   },
   {
@@ -2514,7 +2585,12 @@
       ]
     },
     "assertions": {
-      "expectStructured": false
+      "expectStructured": false,
+      "nodeCount": 3,
+      "edgeCount": 0,
+      "groupCount": 0,
+      "minNodes": 3,
+      "minEdges": 0
     }
   },
   {
@@ -2539,7 +2615,8 @@
       "labelsContain": [
         "default",
         "monograph"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -2623,7 +2700,8 @@
       "labelsContain": [
         "A",
         "B"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -2654,7 +2732,8 @@
         "Round",
         "Decision",
         "Result 1"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -2685,7 +2764,8 @@
         "Result 1",
         "Result 2",
         "Text"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -2710,7 +2790,8 @@
       "labelsContain": [
         "A_node",
         "This node has a \\ as text"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -2735,7 +2816,8 @@
       "labelsContain": [
         "A_node",
         "This node has a / as text"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -3012,7 +3094,8 @@
       "labelsContain": [
         "1",
         "number as labels"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -3069,7 +3152,8 @@
         "label for n2",
         "label for n4",
         "label for n5"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -3096,7 +3180,8 @@
         "A1",
         "A2",
         "WithTD"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -3148,7 +3233,8 @@
       "labelsContain": [
         "A",
         "B"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -3173,7 +3259,8 @@
       "labelsContain": [
         "A",
         "B"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -3198,7 +3285,8 @@
       "labelsContain": [
         "A",
         "B"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -3223,7 +3311,8 @@
       "labelsContain": [
         "A",
         "B"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -3248,7 +3337,8 @@
       "labelsContain": [
         "A",
         "B"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -3271,7 +3361,8 @@
       "minNodes": 1,
       "labelsContain": [
         "A"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -3294,7 +3385,8 @@
       "minNodes": 1,
       "labelsContain": [
         "A"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -3317,7 +3409,8 @@
       "minNodes": 1,
       "labelsContain": [
         "A \n end"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -3340,7 +3433,8 @@
       "minNodes": 1,
       "labelsContain": [
         "A"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -3363,7 +3457,8 @@
       "minNodes": 1,
       "labelsContain": [
         "A"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -3386,7 +3481,8 @@
       "minNodes": 1,
       "labelsContain": [
         "A \n end"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -3409,7 +3505,8 @@
       "minNodes": 1,
       "labelsContain": [
         "A"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -3432,7 +3529,8 @@
       "minNodes": 1,
       "labelsContain": [
         "A"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -3455,7 +3553,8 @@
       "minNodes": 1,
       "labelsContain": [
         "A \n end"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -3478,7 +3577,8 @@
       "minNodes": 1,
       "labelsContain": [
         "A"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -3501,7 +3601,8 @@
       "minNodes": 1,
       "labelsContain": [
         "1"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -3526,7 +3627,8 @@
       "labelsContain": [
         "1",
         "hello"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -3549,7 +3651,8 @@
       "minNodes": 1,
       "labelsContain": [
         "i-d"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -3572,7 +3675,8 @@
       "minNodes": 1,
       "labelsContain": [
         "i_d"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -3595,7 +3699,8 @@
       "minNodes": 1,
       "labelsContain": [
         "id1"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -3618,7 +3723,8 @@
       "minNodes": 1,
       "labelsContain": [
         "1id"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -3641,7 +3747,8 @@
       "minNodes": 1,
       "labelsContain": [
         "A"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -3664,7 +3771,8 @@
       "minNodes": 1,
       "labelsContain": [
         "A"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -3687,7 +3795,8 @@
       "minNodes": 1,
       "labelsContain": [
         "A"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -3710,7 +3819,8 @@
       "minNodes": 1,
       "labelsContain": [
         "A \n end"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -3734,7 +3844,8 @@
       "minNodes": 1,
       "labelsContain": [
         "A"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -3761,7 +3872,8 @@
         "a",
         "b",
         "A"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -3787,7 +3899,8 @@
         "A",
         "B",
         "C"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -3812,7 +3925,8 @@
       "labelsContain": [
         "A",
         "Chimpansen hoppar åäö-ÅÄÖ"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -3837,7 +3951,8 @@
       "labelsContain": [
         "A",
         "B"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -3862,7 +3977,8 @@
       "labelsContain": [
         "A",
         "B"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -3887,7 +4003,8 @@
       "labelsContain": [
         "A",
         "c:\\windows"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -4122,7 +4239,8 @@
       "labelsContain": [
         "A",
         "some CAPS"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -4147,7 +4265,8 @@
       "labelsContain": [
         "A",
         "B"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -4175,7 +4294,8 @@
         "B2",
         "C",
         "D2"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -4201,7 +4321,8 @@
         " h ",
         " test ",
         "hello"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -4227,7 +4348,8 @@
         "A",
         "B",
         "C"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -4253,7 +4375,8 @@
         "A",
         "B",
         "C"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -4278,7 +4401,8 @@
       "labelsContain": [
         "A",
         "B"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -4303,7 +4427,8 @@
       "labelsContain": [
         "A",
         "B"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -4328,7 +4453,8 @@
       "labelsContain": [
         "A",
         "B"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -4353,7 +4479,8 @@
       "labelsContain": [
         "A",
         "B"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -4379,7 +4506,8 @@
       "labelsContain": [
         "A",
         "B"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -4404,7 +4532,8 @@
       "labelsContain": [
         "A",
         "B"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -4429,7 +4558,8 @@
       "labelsContain": [
         "A",
         "B"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -4454,7 +4584,8 @@
       "labelsContain": [
         "A",
         "some URL"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -4479,7 +4610,8 @@
       "labelsContain": [
         "A",
         "B"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -4504,7 +4636,8 @@
       "labelsContain": [
         "A",
         "B"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -4530,7 +4663,8 @@
         "A",
         "B",
         "test text with =="
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -4555,7 +4689,8 @@
       "labelsContain": [
         "A",
         "B"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -4580,7 +4715,8 @@
       "labelsContain": [
         "A",
         "B"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -4605,7 +4741,8 @@
       "labelsContain": [
         "A",
         "B"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -4631,7 +4768,8 @@
         "A",
         "B",
         "text"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -4657,7 +4795,8 @@
         "A",
         "B",
         "text"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -4683,7 +4822,8 @@
         "A",
         "B",
         "text"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -4708,7 +4848,8 @@
       "labelsContain": [
         "A_node",
         "Vertex Text"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -4942,7 +5083,8 @@
         "A",
         "B",
         "text including graph space"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -4967,7 +5109,8 @@
       "labelsContain": [
         "V",
         "v"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -4990,7 +5133,8 @@
       "minNodes": 1,
       "labelsContain": [
         "A--"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -5013,7 +5157,8 @@
       "minNodes": 1,
       "labelsContain": [
         "A--"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -5038,7 +5183,8 @@
       "labelsContain": [
         "A",
         "B"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -5066,7 +5212,8 @@
         "C",
         "text space",
         "more text with space"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -5093,7 +5240,8 @@
         "B",
         "This is the 123 s text",
         "This is the second edge"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -5120,7 +5268,8 @@
         "B",
         "D",
         "E"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -5149,7 +5298,8 @@
         "c",
         "A",
         "B"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -5178,7 +5328,8 @@
         "c",
         "A",
         "B"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -5207,7 +5358,8 @@
         "c",
         "B",
         "A"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -5236,7 +5388,8 @@
         "c",
         "A",
         "B"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -5262,7 +5415,8 @@
       "labelsContain": [
         "A",
         "B"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -5287,7 +5441,8 @@
       "labelsContain": [
         "blend",
         "monograph"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -5312,7 +5467,8 @@
       "labelsContain": [
         "endpoint",
         "sender"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -5364,7 +5520,8 @@
         "A",
         "B",
         "test text with =="
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -5389,7 +5546,8 @@
       "labelsContain": [
         "A",
         "B"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -5414,7 +5572,8 @@
       "labelsContain": [
         "A",
         "B"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -5431,7 +5590,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 6,
       "edgeCount": 3,
       "groupCount": 0,
@@ -5470,7 +5629,8 @@
         "V",
         "v",
         "test string()"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -5495,7 +5655,8 @@
       "labelsContain": [
         "chimpansen hoppar ()[]",
         "C"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -5551,7 +5712,8 @@
       "labelsContain": [
         "A",
         "B"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -5602,7 +5764,8 @@
       "labelsContain": [
         "A",
         "Chimpansen hoppar"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -5628,7 +5791,8 @@
         "A",
         "B",
         "text including CAPS space"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -5651,7 +5815,8 @@
       "minNodes": 1,
       "labelsContain": [
         "A--"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -5679,7 +5844,8 @@
         "A",
         "B",
         "text including URL space"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -5702,7 +5868,8 @@
       "minNodes": 1,
       "labelsContain": [
         "A--"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -5728,7 +5895,8 @@
         "A",
         "B",
         "text including R TD space"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -5751,7 +5919,8 @@
       "minNodes": 1,
       "labelsContain": [
         "A--"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -5774,7 +5943,8 @@
       "minNodes": 1,
       "labelsContain": [
         "A--text"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -5800,7 +5970,8 @@
         "A",
         "B",
         "text including URL space and send"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -5826,7 +5997,8 @@
         "A",
         "B",
         "textNoSpace"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -5849,7 +6021,8 @@
       "minNodes": 1,
       "labelsContain": [
         "A"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -5875,7 +6048,8 @@
         "A",
         "B",
         "C"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -5900,7 +6074,8 @@
       "labelsContain": [
         "A",
         "B"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -5925,7 +6100,8 @@
       "labelsContain": [
         "S",
         "T"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -5953,7 +6129,8 @@
         "Go shopping",
         "Get money",
         "1test"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -5981,7 +6158,8 @@
         "a2",
         "a3",
         "One"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -6008,7 +6186,8 @@
         "a1",
         "a2",
         "Some Title"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -6035,7 +6214,8 @@
         "a1",
         "a2",
         "Some Title"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -6062,7 +6242,8 @@
         "a1",
         "a2",
         "One"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -6091,7 +6272,8 @@
         "c",
         "d",
         "old style that is broken"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -6120,7 +6302,8 @@
         "c",
         "d",
         "a-b-c"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -6149,7 +6332,8 @@
         "c",
         "d",
         "text of doom"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -6178,7 +6362,8 @@
         "c",
         "d",
         "text of doom"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -6207,7 +6392,8 @@
         "c",
         "d",
         "textofdoom"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -6238,7 +6424,8 @@
         "c",
         "e",
         "myTitle"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -6267,7 +6454,8 @@
         "c",
         "d",
         "title in quotes"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -6296,7 +6484,8 @@
         "c",
         "d",
         "myTitle"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -6325,7 +6514,8 @@
         "c",
         "d",
         "myTitle"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -6354,7 +6544,8 @@
         "c",
         "d",
         "myTitle"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -6383,7 +6574,8 @@
         "c",
         "d",
         "myTitle"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -6414,7 +6606,8 @@
         "e",
         "text",
         "myTitle"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -6439,7 +6632,8 @@
       "labelsContain": [
         "chimpansen hoppar",
         "C"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -6464,7 +6658,8 @@
       "labelsContain": [
         "chimpansen hoppar",
         "C"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -6489,7 +6684,8 @@
       "labelsContain": [
         "-this is an ellipse-",
         "B"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -6514,7 +6710,8 @@
       "labelsContain": [
         "chimpansen hoppar",
         "C"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -6539,7 +6736,8 @@
       "labelsContain": [
         "chimpansen hoppar",
         "C"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -6564,7 +6762,8 @@
       "labelsContain": [
         "?",
         "C"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -6589,7 +6788,8 @@
       "labelsContain": [
         "éèêàçô",
         "C"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -6614,7 +6814,8 @@
       "labelsContain": [
         ",.?!+-*",
         "C"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -6639,7 +6840,8 @@
       "labelsContain": [
         "chimpansen_hoppar",
         "C"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -6665,7 +6867,8 @@
         "A",
         "B",
         "text with / should work"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -6688,7 +6891,8 @@
       "minNodes": 1,
       "labelsContain": [
         "A"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -6711,7 +6915,8 @@
       "minNodes": 1,
       "labelsContain": [
         "A--"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -6737,7 +6942,8 @@
         "A",
         "B",
         "textNoSpace"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -6760,7 +6966,8 @@
       "minNodes": 1,
       "labelsContain": [
         "A--"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -6786,7 +6993,8 @@
         "A",
         "B",
         "test text with -"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -6811,7 +7019,8 @@
       "labelsContain": [
         "A",
         "Начало"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -6867,7 +7076,8 @@
       "labelsContain": [
         "A",
         "my text"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -6892,7 +7102,8 @@
       "labelsContain": [
         "A",
         "my text"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -6917,7 +7128,8 @@
       "labelsContain": [
         "A",
         "my text"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -6942,7 +7154,8 @@
       "labelsContain": [
         "A",
         "my text"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -6967,7 +7180,8 @@
       "labelsContain": [
         "A",
         "Chimpansen hoppar åäö  \n -  ÅÄÖ"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -6993,7 +7207,8 @@
         "A",
         "B",
         "text including space"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -7016,7 +7231,8 @@
       "minNodes": 1,
       "labelsContain": [
         "A--"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -7041,7 +7257,8 @@
         " ",
         "Test",
         "C"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -7069,7 +7286,8 @@
         "B",
         "C",
         "D"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -7095,7 +7313,8 @@
         "A",
         "B",
         "C"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -7198,7 +7417,8 @@
         "a",
         "b",
         "A"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -7249,7 +7469,8 @@
         "a",
         "b",
         "A"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -7274,7 +7495,8 @@
       "labelsContain": [
         "AA",
         "BB"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -7293,7 +7515,8 @@
     "assertions": {
       "nodeCount": 0,
       "edgeCount": 0,
-      "groupCount": 0
+      "groupCount": 0,
+      "expectStructured": true
     }
   },
   {
@@ -7312,7 +7535,8 @@
     "assertions": {
       "nodeCount": 0,
       "edgeCount": 0,
-      "groupCount": 1
+      "groupCount": 1,
+      "expectStructured": true
     }
   },
   {
@@ -7336,7 +7560,8 @@
       "labelsContain": [
         "ash (60.0%)",
         "bat (40.0%)"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -7380,7 +7605,8 @@
       "labelsContain": [
         "ash (60.0%)",
         "bat (40.0%)"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -7444,7 +7670,8 @@
       "labelsContain": [
         "ash (60.0%)",
         "bat (40.0%)"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -7468,7 +7695,8 @@
       "labelsContain": [
         "ash (60.3%)",
         "bat (39.7%)"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -7492,7 +7720,8 @@
       "labelsContain": [
         "ash (60.0%)",
         "bat (40.0%)"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -7517,7 +7746,8 @@
         "__proto__ (79.4%)",
         "constructor (17.5%)",
         "prototype (3.1%)"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -7540,7 +7770,8 @@
       "minNodes": 1,
       "labelsContain": [
         "ash (100.0%)"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -7560,7 +7791,8 @@
       "nodeCount": 0,
       "edgeCount": 0,
       "groupCount": 4,
-      "minGroups": 4
+      "minGroups": 4,
+      "expectStructured": true
     }
   },
   {
@@ -7614,7 +7846,8 @@
         "需要扩展",
         "重新评估",
         "可以改进"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -7638,7 +7871,8 @@
       "minGroups": 4,
       "labelsContain": [
         "产品A"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -7661,7 +7895,8 @@
       "minGroups": 4,
       "labelsContain": [
         "需要扩展"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -7681,7 +7916,8 @@
       "nodeCount": 0,
       "edgeCount": 0,
       "groupCount": 4,
-      "minGroups": 4
+      "minGroups": 4,
+      "expectStructured": true
     }
   },
   {
@@ -7701,7 +7937,8 @@
       "nodeCount": 0,
       "edgeCount": 0,
       "groupCount": 4,
-      "minGroups": 4
+      "minGroups": 4,
+      "expectStructured": true
     }
   },
   {
@@ -7724,7 +7961,8 @@
       "minGroups": 4,
       "labelsContain": [
         "🚀Growth"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -7747,7 +7985,8 @@
       "minGroups": 4,
       "labelsContain": [
         "拡張が必要"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -7767,7 +8006,8 @@
       "nodeCount": 0,
       "edgeCount": 0,
       "groupCount": 4,
-      "minGroups": 4
+      "minGroups": 4,
+      "expectStructured": true
     }
   },
   {
@@ -7791,7 +8031,8 @@
       "minGroups": 4,
       "labelsContain": [
         "point1"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -7814,7 +8055,8 @@
       "minGroups": 4,
       "labelsContain": [
         "Plan"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -7837,7 +8079,8 @@
       "minGroups": 4,
       "labelsContain": [
         "do"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -7860,7 +8103,8 @@
       "minGroups": 4,
       "labelsContain": [
         "delegate"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -7883,7 +8127,8 @@
       "minGroups": 4,
       "labelsContain": [
         "delete"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -7914,7 +8159,8 @@
         "Leaders",
         "Niche",
         "Visionaries"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -7998,7 +8244,8 @@
       "nodeCount": 0,
       "edgeCount": 0,
       "groupCount": 4,
-      "minGroups": 4
+      "minGroups": 4,
+      "expectStructured": true
     }
   },
   {
@@ -8018,7 +8265,8 @@
       "nodeCount": 0,
       "edgeCount": 0,
       "groupCount": 4,
-      "minGroups": 4
+      "minGroups": 4,
+      "expectStructured": true
     }
   },
   {
@@ -8038,7 +8286,8 @@
       "nodeCount": 0,
       "edgeCount": 0,
       "groupCount": 4,
-      "minGroups": 4
+      "minGroups": 4,
+      "expectStructured": true
     }
   },
   {
@@ -8062,7 +8311,8 @@
       "labelsContain": [
         "naïve",
         "catégoría"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -8086,7 +8336,8 @@
       "labelsContain": [
         "Bob",
         "Alice"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -8110,7 +8361,8 @@
       "labelsContain": [
         "Bob",
         "Alice"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -8133,7 +8385,8 @@
       "minNodes": 1,
       "labelsContain": [
         "Alice"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -8194,7 +8447,8 @@
         "Hello Bob, how are you?",
         "I am good thanks",
         "rgb(200, 255, 200)"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -8225,7 +8479,8 @@
         "Hi Bob",
         "Hi Alice",
         "Hi John"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -8252,7 +8507,8 @@
         "Bob",
         "Hello Bob, how are you?",
         "I am good thanks!"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -8279,7 +8535,8 @@
         "Bob",
         "Hello Bob, how are you?",
         "I am good thanks!"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -8310,7 +8567,8 @@
         "I am good thanks",
         "rgb(0, 0, 0)",
         "rgb(200, 255, 200)"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -8338,7 +8596,8 @@
         "Bob thinks",
         "Hello Bob, how are you?",
         "I am good thanks!"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -8367,7 +8626,8 @@
         "Hello Bob, are you alright?",
         "I feel surrounded by darkness",
         "rgb(0, 0, 0)"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -8394,7 +8654,8 @@
         "Bob",
         "Hello Bob, how are you?",
         "Fine!"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -8422,7 +8683,8 @@
         "Bob thinks",
         "Hello Bob, how are you?",
         "Fine!"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -8450,7 +8712,8 @@
         "Bob thinks",
         "Hello Bob, how are you? If you are not available right now, I can leave you a message. Please get back to me as soon as you can!",
         "Fine!"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -8478,7 +8741,8 @@
         "Bob thinks",
         "Hello Bob, how are you? If you are not available right now, I can leave you a message. Please get back to me as soon as you can!",
         "Fine!"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -8506,7 +8770,8 @@
         "Bob thinks",
         "Hello Bob, how are you? If you are not available right now, I can leave you a message. Please get back to me as soon as you can!",
         "Fine!"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -8534,7 +8799,8 @@
         "Bob thinks",
         "wrap: Hello Bob, how are you? If you are not available right now, I can leave you a message. Please get back to me as soon as you can!",
         "Fine!"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -8562,7 +8828,8 @@
         "Bob thinks",
         "Hello Bob, how are you?",
         "Fine!"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -8591,7 +8858,8 @@
         "Hello Bob, how are you?",
         "Fine!",
         "Cheers"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -8610,7 +8878,8 @@
     "assertions": {
       "nodeCount": 0,
       "edgeCount": 0,
-      "groupCount": 0
+      "groupCount": 0,
+      "expectStructured": true
     }
   },
   {
@@ -8635,7 +8904,8 @@
       "labelsContain": [
         "E",
         "process"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -8660,7 +8930,8 @@
       "labelsContain": [
         "C",
         "action"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -8686,7 +8957,8 @@
         "Alice",
         "Bob",
         "Hello Bob, how are you?"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -8712,7 +8984,8 @@
         "Alice",
         "Bob",
         "Hello Bob, how are you?"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -8740,7 +9013,8 @@
         "Bob thinks",
         "Hello Bob, how are you?",
         "I am good thanks!"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -8768,7 +9042,8 @@
         "Bob thinks",
         "Hello Bob, how are you?",
         "I am good thanks!"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -8795,7 +9070,8 @@
         "Bob",
         "Hello Bob, how are you?",
         "Hello Alice, I'm fine and  you?"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -8821,7 +9097,8 @@
         "Alice",
         "Bob",
         "Hello Bob, how are you?"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -8852,7 +9129,8 @@
         "I am good thanks!",
         "Feel sick...",
         "isWell"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -8884,7 +9162,8 @@
         "Feel sick...",
         ":-)",
         "isWell"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -8907,10 +9186,11 @@
       "minNodes": 2,
       "minEdges": 1,
       "labelsContain": [
-        "Alice<<",
+        "Alice",
         "Bob",
         "Hello Bob, how are you?"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -8933,10 +9213,11 @@
       "minNodes": 2,
       "minEdges": 1,
       "labelsContain": [
-        "Alice<<",
+        "Alice",
         "Bob",
         "Hello Bob, how are you?"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -9046,7 +9327,8 @@
         "Start booking process",
         "show failure",
         "Start billing process"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -9070,7 +9352,8 @@
       "labelsContain": [
         "Alice",
         "Bob"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -9098,7 +9381,8 @@
         "Bob thinks",
         "Hello Bob, how are you?",
         "I am good thanks!"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -9128,7 +9412,8 @@
         "Log error",
         "Log different error",
         "ion Credentials rejected"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -9156,7 +9441,8 @@
         "DB",
         "connect",
         "Establish a connection to the DB"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -9183,7 +9469,8 @@
         "Bob",
         "Hello Bob, how are - you?",
         "I am good thanks!"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -9210,7 +9497,8 @@
         "Bob",
         "Hello Bob, how are - you?",
         "I am good thanks!"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -9234,7 +9522,8 @@
       "minEdges": 4,
       "labelsContain": [
         "multiline\ntext"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -9261,7 +9550,8 @@
         "Bob",
         "Hello Bob, how are - you?",
         "I am good thanks!"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -9291,7 +9581,8 @@
         "Test",
         "Test2",
         "Test3"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -9310,7 +9601,8 @@
     "assertions": {
       "nodeCount": 0,
       "edgeCount": 0,
-      "groupCount": 0
+      "groupCount": 0,
+      "expectStructured": true
     }
   },
   {
@@ -9336,7 +9628,8 @@
         "Alice",
         "Bob",
         "Hello Bob, how are you?"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -9362,7 +9655,8 @@
         "Alice",
         "Bob",
         "Hello Bob, how are you?"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -9388,7 +9682,8 @@
         "Alice",
         "Bob",
         "Hello Bob, how are you?"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -9414,7 +9709,8 @@
         "Alice",
         "Bob",
         "Hello Bob, how are you?"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -9440,7 +9736,8 @@
         "Alice",
         "Bob",
         "Hello Bob, how are you?"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -9465,7 +9762,8 @@
         "Alice",
         "Bob",
         "Charlie"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -9495,7 +9793,8 @@
         "Hello Bob, how are you?",
         "I am good thanks!",
         "Multiple happy responses"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -9523,7 +9822,8 @@
         "C",
         "Request",
         "Query"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -9548,7 +9848,8 @@
         "Alice",
         "Bob",
         "Charlie"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -9576,7 +9877,8 @@
         "Bob thinks",
         "Hello Bob, how are you?",
         "I am good thanks!"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -9605,7 +9907,8 @@
         "Hello Bob, how are you?",
         "I am good thanks!",
         ";Bob-->Alice: I am good thanks!"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -9633,7 +9936,8 @@
         "Bob",
         "Hello Bob, how are you?",
         "I am good thanks!"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -9662,7 +9966,8 @@
         "Hello Bob, how are you?",
         "I am good thanks!",
         "# comment"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -9691,7 +9996,8 @@
         "Hello Bob, how are you?",
         "I am good thanks!",
         ";Bob-->Alice: I am good thanks!"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -9717,7 +10023,8 @@
         "1",
         "2",
         "single-line text"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -9746,7 +10053,8 @@
         "4",
         "wrap: single-line text",
         "wrap: multiline\ntext"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -9777,7 +10085,8 @@
         "nowrap: single-line text",
         "multiline\ntext",
         "nowrap: multiline\ntext"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -9804,7 +10113,8 @@
         "Bob",
         "Bob thinks",
         "Hello Bob, how are you?"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -9832,7 +10142,8 @@
         "confusion",
         "resolution",
         "Hello Bob, how are you?"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -9856,7 +10167,8 @@
       "labelsContain": [
         "Alice",
         "Alice thinks"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -9880,7 +10192,8 @@
       "labelsContain": [
         "Alice",
         "Alice thinks"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -9904,7 +10217,8 @@
       "labelsContain": [
         "Alice",
         "Alice thinks"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -9932,7 +10246,8 @@
         "Bob thinks",
         "Hello Bob, how are you?",
         "I am good thanks!"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -9962,7 +10277,8 @@
         "Hello Bob, how are you?",
         "I am good thanks!",
         "Perhaps a happy response"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -9994,7 +10310,8 @@
         "Fine!",
         "What do you think about it?",
         "It's good!"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -10019,7 +10336,8 @@
       "labelsContain": [
         "API",
         "test"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -10044,7 +10362,8 @@
         "Alice",
         "Bob",
         "Charlie"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -10067,7 +10386,8 @@
       "minNodes": 1,
       "labelsContain": [
         "Alice"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -10086,7 +10406,8 @@
     "assertions": {
       "nodeCount": 0,
       "edgeCount": 0,
-      "groupCount": 0
+      "groupCount": 0,
+      "expectStructured": true
     }
   },
   {
@@ -10114,7 +10435,8 @@
         "Bob thinks",
         "Hello Bob, how are you?",
         "I am good thanks!"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -10146,7 +10468,8 @@
         "Fight against hypochondria",
         "Great!",
         "How about you?"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -10177,7 +10500,8 @@
         "Hello c!",
         "Hello b?",
         "Hello Donald?"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -10207,7 +10531,8 @@
         "Hello Alice!",
         "Where is Alice?",
         "Where are you?"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -10236,7 +10561,8 @@
         "Hello Bob, how are you?",
         "I am good thanks!",
         "-:<>,;# comment"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -10265,7 +10591,8 @@
         "Hello Bob, how are you?",
         "I am good thanks!",
         "-:<>,;# comment"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -10292,7 +10619,8 @@
         "Bob",
         "-:<>,;# comment",
         "Hello Bob, how are you?"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -10321,7 +10649,8 @@
         "Hello Bob, how are you?",
         "I am good thanks!",
         "-:<>,;# comment"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -10350,7 +10679,8 @@
         "Hello Bob, how are you?",
         "I am good thanks!",
         "-:<>,;# comment"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -10378,7 +10708,8 @@
         "Carol",
         "Hello Bob, how are you?",
         "Carol, let me introduce Alice?"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -10408,7 +10739,8 @@
         "Hello c!",
         "Hello b?",
         "Bye c !"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -10434,7 +10766,8 @@
         "Alice",
         "Bob",
         "Hello Bob, how are you?"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -10462,7 +10795,8 @@
         "Looks",
         "Looks back",
         "Hello Bob, how are you?"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -10515,7 +10849,8 @@
         "Alice",
         "Bob",
         "Hello Bob, how are you?"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -10541,7 +10876,8 @@
         "Alice",
         "Bob",
         "Hello Bob, how are you?"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -10569,7 +10905,8 @@
         "Hello Bob, how are you?",
         "I am good thanks!",
         "Have a good day!"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -10597,7 +10934,8 @@
         "Hello Bob, how are you?",
         "I am good thanks!",
         "Have a good day!"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -10625,7 +10963,8 @@
         "Bob thinks",
         "Hello Bob, how are you?",
         "I am good thanks!"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -10653,7 +10992,8 @@
         "Normal message",
         "Normal dotted message",
         "Normal cross message"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -10672,7 +11012,8 @@
     "assertions": {
       "nodeCount": 0,
       "edgeCount": 0,
-      "groupCount": 0
+      "groupCount": 0,
+      "expectStructured": true
     }
   },
   {
@@ -10699,7 +11040,8 @@
         "Bob",
         "Hello Bob, how are you?",
         "I am good thanks!"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -10727,7 +11069,8 @@
         "Bob thinks",
         "Hello Bob, how are you?",
         "I am good thanks!"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -10753,7 +11096,8 @@
         "Bob",
         "Alice",
         "Got it!"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -10777,7 +11121,8 @@
       "labelsContain": [
         "Alice",
         "Bob"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -10801,7 +11146,8 @@
       "labelsContain": [
         "Alice",
         "Bob"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -10825,7 +11171,8 @@
       "labelsContain": [
         "Alice",
         "Bob"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -10849,7 +11196,8 @@
       "labelsContain": [
         "Alice",
         "Bob"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -10873,7 +11221,8 @@
       "labelsContain": [
         "Alice",
         "Bob"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -10897,7 +11246,8 @@
       "labelsContain": [
         "Alice",
         "Bob"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -10921,7 +11271,8 @@
       "labelsContain": [
         "Alice",
         "Bob"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -10946,7 +11297,8 @@
       "labelsContain": [
         "A",
         "test"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -10969,11 +11321,12 @@
       "minNodes": 2,
       "minEdges": 2,
       "labelsContain": [
-        "U",
-        "DB",
+        "End User",
+        "User Database",
         "Query",
         "Result"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -10996,10 +11349,11 @@
       "minNodes": 2,
       "minEdges": 1,
       "labelsContain": [
-        "A",
-        "B",
+        "Database Server",
+        "Message Queue",
         "Send message"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -11024,7 +11378,8 @@
       "labelsContain": [
         "boundary",
         "test"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -11050,7 +11405,8 @@
         "Alice",
         "Bob",
         "Hello Bob, how are you?"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -11075,7 +11431,8 @@
       "labelsContain": [
         "L",
         "test"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -11100,7 +11457,8 @@
       "labelsContain": [
         "C",
         "test"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -11125,7 +11483,8 @@
       "labelsContain": [
         "C",
         "test"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -11150,7 +11509,8 @@
       "labelsContain": [
         "D",
         "test"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -11176,7 +11536,8 @@
       "labelsContain": [
         "E",
         "test"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -11206,7 +11567,8 @@
         "getUserb",
         "userb",
         "hello"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -11231,7 +11593,8 @@
       "labelsContain": [
         "P",
         "test"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -11258,7 +11621,8 @@
         "Auth",
         "Request",
         "Response"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -11281,11 +11645,12 @@
       "minNodes": 2,
       "minEdges": 2,
       "labelsContain": [
-        "Alice",
-        "Bob",
+        "Public API",
+        "Controller",
         "Request",
         "Response"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -11310,7 +11675,8 @@
       "labelsContain": [
         "API",
         "test"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -11327,17 +11693,22 @@
       ]
     },
     "assertions": {
-      "nodeCount": 2,
+      "nodeCount": 6,
       "edgeCount": 2,
       "groupCount": 0,
-      "minNodes": 2,
+      "minNodes": 6,
       "minEdges": 2,
       "labelsContain": [
-        "Bob",
         "Alice",
+        "Bob",
+        "Carl",
+        "David",
+        "Eve",
+        "Favela",
         "Hi Alice",
         "Hi Bob"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -11362,7 +11733,8 @@
       "labelsContain": [
         "Q",
         "test"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -11385,9 +11757,10 @@
       "minNodes": 1,
       "minEdges": 1,
       "labelsContain": [
-        "API",
+        "External Name",
         "test"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -11415,7 +11788,8 @@
         "Bob thinks",
         "Hello Bob, how are you?",
         "I am good thanks!"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -11442,7 +11816,8 @@
         "Bob",
         "Hello Bob, how are - you?",
         "I am good thanks!"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -11459,10 +11834,10 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
-      "nodeCount": 0,
-      "edgeCount": 0,
-      "groupCount": 0
+      "expectStructured": true,
+      "nodeCount": 2,
+      "edgeCount": 2,
+      "groupCount": 1
     }
   },
   {
@@ -11559,8 +11934,8 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
-      "nodeCount": 0,
+      "expectStructured": true,
+      "nodeCount": 2,
       "edgeCount": 0,
       "groupCount": 0
     }
@@ -11649,7 +12024,8 @@
         "inner state 1",
         "inner state 2",
         "Big State 1"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -11754,7 +12130,8 @@
       "minNodes": 1,
       "labelsContain": [
         "as"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -11791,8 +12168,8 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
-      "nodeCount": 0,
+      "expectStructured": true,
+      "nodeCount": 1,
       "edgeCount": 0,
       "groupCount": 0
     }
@@ -11811,8 +12188,8 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
-      "nodeCount": 0,
+      "expectStructured": true,
+      "nodeCount": 2,
       "edgeCount": 0,
       "groupCount": 0
     }
@@ -11877,7 +12254,8 @@
       "minNodes": 1,
       "labelsContain": [
         "Small State 1"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -11901,7 +12279,8 @@
       "minEdges": 2,
       "labelsContain": [
         "Still"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -12004,7 +12383,8 @@
       "minNodes": 1,
       "labelsContain": [
         "status: active"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -12030,7 +12410,8 @@
         "locked",
         "pending",
         "recoverable error (ex: timeout)"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -12056,7 +12437,8 @@
         "A",
         "B",
         "info: key: value"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -12080,7 +12462,8 @@
       "minEdges": 2,
       "labelsContain": [
         "Still"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -12137,10 +12520,10 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
-      "nodeCount": 0,
-      "edgeCount": 0,
-      "groupCount": 0
+      "expectStructured": true,
+      "nodeCount": 10,
+      "edgeCount": 10,
+      "groupCount": 4
     }
   },
   {
@@ -12157,10 +12540,10 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
-      "nodeCount": 0,
-      "edgeCount": 0,
-      "groupCount": 0
+      "expectStructured": true,
+      "nodeCount": 7,
+      "edgeCount": 4,
+      "groupCount": 4
     }
   },
   {
@@ -12177,10 +12560,10 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
-      "nodeCount": 0,
-      "edgeCount": 0,
-      "groupCount": 0
+      "expectStructured": true,
+      "nodeCount": 10,
+      "edgeCount": 10,
+      "groupCount": 4
     }
   },
   {
@@ -12197,10 +12580,10 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
-      "nodeCount": 0,
-      "edgeCount": 0,
-      "groupCount": 0
+      "expectStructured": true,
+      "nodeCount": 7,
+      "edgeCount": 4,
+      "groupCount": 4
     }
   },
   {
@@ -12337,8 +12720,8 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
-      "nodeCount": 0,
+      "expectStructured": true,
+      "nodeCount": 1,
       "edgeCount": 0,
       "groupCount": 0
     }
@@ -12357,8 +12740,8 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
-      "nodeCount": 0,
+      "expectStructured": true,
+      "nodeCount": 1,
       "edgeCount": 0,
       "groupCount": 0
     }
@@ -12512,7 +12895,8 @@
         "EvNewValueSaved",
         "Configuring",
         "NewValuePreview"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -12544,7 +12928,8 @@
         "EvNewValueSaved",
         "Configuring",
         "NewValuePreview"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -12569,7 +12954,8 @@
       "labelsContain": [
         "this is a string",
         "State2"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -12594,7 +12980,8 @@
       "labelsContain": [
         "this is a string",
         "State2"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -12617,7 +13004,8 @@
       "minNodes": 1,
       "labelsContain": [
         "Long state description"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -12645,7 +13033,8 @@
         "Configuring mode",
         "EvConfig",
         "Not Shooting State"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -12668,7 +13057,8 @@
       "minNodes": 1,
       "labelsContain": [
         "Long state description"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -12696,7 +13086,8 @@
         "Configuring mode",
         "EvConfig",
         "Not Shooting State"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -12726,7 +13117,8 @@
         "EvNewValueRejected",
         "EvNewValueSaved1",
         "Configuring"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -12756,7 +13148,8 @@
         "EvNewValueRejected",
         "EvNewValueSaved1",
         "Configuring"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -12773,9 +13166,9 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
-      "nodeCount": 0,
-      "edgeCount": 0,
+      "expectStructured": true,
+      "nodeCount": 2,
+      "edgeCount": 1,
       "groupCount": 0
     }
   },
@@ -12793,9 +13186,9 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
-      "nodeCount": 0,
-      "edgeCount": 0,
+      "expectStructured": true,
+      "nodeCount": 2,
+      "edgeCount": 1,
       "groupCount": 0
     }
   },
@@ -12880,7 +13273,8 @@
       "minEdges": 2,
       "labelsContain": [
         "this is another string"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -12904,7 +13298,8 @@
       "minEdges": 2,
       "labelsContain": [
         "this is another string"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -12934,7 +13329,8 @@
         "Transition 1",
         "Transition 2",
         "Transition 3"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -12959,7 +13355,8 @@
       "labelsContain": [
         "a simple description of the diagram",
         "this is another string"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -12984,7 +13381,8 @@
       "labelsContain": [
         "a simple description of the diagram",
         "this is another string"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -13029,7 +13427,8 @@
       "labelsContain": [
         "a simple title of the diagram",
         "this is another string"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -13054,7 +13453,8 @@
       "labelsContain": [
         "a simple title of the diagram",
         "this is another string"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -13077,7 +13477,8 @@
       "minNodes": 1,
       "labelsContain": [
         "Small State 1"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -13102,7 +13503,8 @@
       "minNodes": 1,
       "labelsContain": [
         "as"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -13119,10 +13521,10 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
-      "nodeCount": 0,
-      "edgeCount": 0,
-      "groupCount": 0
+      "expectStructured": true,
+      "nodeCount": 4,
+      "edgeCount": 2,
+      "groupCount": 2
     }
   },
   {
@@ -13145,7 +13547,8 @@
       "minNodes": 1,
       "labelsContain": [
         "Small State 1"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -13169,7 +13572,8 @@
       "minEdges": 2,
       "labelsContain": [
         "State1"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -13193,7 +13597,8 @@
       "minEdges": 2,
       "labelsContain": [
         "State1"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -13222,7 +13627,8 @@
         "event2",
         "event3",
         "abc-123"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -13251,7 +13657,8 @@
         "event2",
         "event3",
         "abc-123"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -13282,7 +13689,8 @@
         "event4",
         "event5",
         "abc-123"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -13301,7 +13709,8 @@
     "assertions": {
       "nodeCount": 2,
       "edgeCount": 0,
-      "groupCount": 1
+      "groupCount": 1,
+      "expectStructured": true
     }
   },
   {
@@ -13329,7 +13738,8 @@
         "#ev#ent2#",
         "#ev#ent3#",
         "#a#bc-123#"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -13357,7 +13767,8 @@
         ";ev;ent2;",
         ";ev;ent3;",
         ";a;bc-123;"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -13376,7 +13787,8 @@
     "assertions": {
       "nodeCount": 4,
       "edgeCount": 0,
-      "groupCount": 2
+      "groupCount": 2,
+      "expectStructured": true
     }
   },
   {
@@ -13395,7 +13807,8 @@
     "assertions": {
       "nodeCount": 0,
       "edgeCount": 0,
-      "groupCount": 1
+      "groupCount": 1,
+      "expectStructured": true
     }
   },
   {
@@ -13414,7 +13827,8 @@
     "assertions": {
       "nodeCount": 0,
       "edgeCount": 0,
-      "groupCount": 1
+      "groupCount": 1,
+      "expectStructured": true
     }
   },
   {
@@ -13441,7 +13855,8 @@
         "2",
         "3",
         "4"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -13467,7 +13882,8 @@
         "1",
         "2",
         "3"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -13484,7 +13900,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 3,
       "edgeCount": 0,
       "groupCount": 1,
@@ -13520,7 +13936,8 @@
         "1",
         "2",
         "3"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -13567,7 +13984,8 @@
         "1",
         "2",
         "3"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -13584,7 +14002,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 3,
       "edgeCount": 0,
       "groupCount": 1,
@@ -13611,7 +14029,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 2,
       "edgeCount": 0,
       "groupCount": 1,
@@ -13637,7 +14055,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 3,
       "edgeCount": 0,
       "groupCount": 1,
@@ -13664,7 +14082,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 3,
       "edgeCount": 0,
       "groupCount": 1,
@@ -13700,7 +14118,8 @@
         "1",
         "2",
         "3"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -13717,7 +14136,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 2,
       "edgeCount": 0,
       "groupCount": 1,
@@ -13753,7 +14172,8 @@
         "2",
         "3",
         "4"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -13780,7 +14200,8 @@
         "2",
         "3",
         "4"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {
@@ -13807,7 +14228,8 @@
         "category 2",
         "category3",
         "4"
-      ]
+      ],
+      "expectStructured": true
     }
   },
   {

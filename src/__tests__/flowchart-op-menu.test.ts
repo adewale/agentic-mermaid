@@ -166,6 +166,17 @@ describe('style ops', () => {
     expect(reparsed.classAssignments.get('A')).toBe('hot')
   })
 
+  it('class names reject line-oriented syntax injection', () => {
+    for (const op of [
+      { kind: 'define_class', name: 'hot\nInjected', style: 'fill:#f96' },
+      { kind: 'set_node_class', id: 'A', className: 'hot%%cut' },
+    ] as FlowchartMutationOp[]) {
+      const result = mutate(flowchart(BASE), op)
+      expect(result.ok, op.kind).toBe(false)
+      if (!result.ok) expect(result.error).toMatchObject({ code: 'INVALID_OP', message: expect.stringContaining('Class name') })
+    }
+  })
+
   it('set_node_class null clears the assignment', () => {
     let d = apply(flowchart(BASE), { kind: 'define_class', name: 'hot', style: 'fill:#f96' })
     d = apply(d, { kind: 'set_node_class', id: 'A', className: 'hot' })
@@ -177,6 +188,17 @@ describe('style ops', () => {
     const bad = mutate(flowchart(BASE), { kind: 'define_class', name: 'x', style: 'not a style' })
     expect(bad.ok).toBe(false)
     if (!bad.ok) expect(bad.error.message).toContain('fill:')
+  })
+
+  it('paint mutations reject line breaks that would create nodes', () => {
+    for (const op of [
+      { kind: 'define_class', name: 'hot', style: 'fill:#f00\nInjected' },
+      { kind: 'set_node_style', id: 'A', style: 'fill:#f00\rInjected' },
+    ] as FlowchartMutationOp[]) {
+      const result = mutate(flowchart(BASE), op)
+      expect(result.ok, op.kind).toBe(false)
+      if (!result.ok) expect(result.error.code).toBe('INVALID_OP')
+    }
   })
 
   it('set_node_style sets and clears inline styles', () => {

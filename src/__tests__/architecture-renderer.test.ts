@@ -62,6 +62,10 @@ function makeDiagram(overrides: Partial<PositionedArchitectureDiagram> = {}): Po
         { x: 280, y: 92 },
       ],
       labelPosition: { x: 220, y: 92 },
+      placement: 'satisfied',
+      sourceFacesTarget: true,
+      targetFacesSource: true,
+      obstacleFree: true,
     }],
     ...overrides,
   }

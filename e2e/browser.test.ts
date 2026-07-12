@@ -654,6 +654,28 @@ describe('browser: live editor integration', () => {
       { timeout: 60_000 },
     )
 
+    // Source, config, and theme updates share one compressed hash but are
+    // scheduled independently by the editor. Wait for the semantic hash state,
+    // not merely the earlier SVG paint, so this test cannot race a config write.
+    await page.waitForFunction(async () => {
+      try {
+        const hash = window.location.hash.slice(1)
+        let state: { config?: { interactive?: boolean } | null; theme?: string }
+        if (hash.startsWith('deflate:')) {
+          let b64 = hash.slice('deflate:'.length).replace(/-/g, '+').replace(/_/g, '/')
+          while (b64.length % 4) b64 += '='
+          const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))
+          const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'))
+          state = JSON.parse(await new Response(stream).text())
+        } else {
+          state = JSON.parse(decodeURIComponent(escape(atob(hash))))
+        }
+        return state.config?.interactive === true && state.theme === 'dracula'
+      } catch {
+        return false
+      }
+    }, undefined, { timeout: 30_000 })
+
     const hashState = await page.evaluate(async () => {
       // Mirrors sharing.js decodeSource: new hashes are deflate:-prefixed
       // base64url(deflate-raw); legacy hashes are plain base64.

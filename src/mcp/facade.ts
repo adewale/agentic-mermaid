@@ -40,7 +40,20 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
   const isMap = (value: unknown): value is Map<unknown, unknown> => value instanceof Map || Object.prototype.toString.call(value) === '[object Map]'
   const isSet = (value: unknown): value is Set<unknown> => value instanceof Set || Object.prototype.toString.call(value) === '[object Set]'
   const hostCall = <T>(fn: () => T): T => {
-    try { return fn() } catch (e) { throw sandboxError((e as Error).message) }
+    try { return fn() } catch (e) {
+      const wrapped = sandboxError((e as Error).message)
+      if (typeof e === 'object' && e !== null && 'code' in e && e.code === 'ASCII_TARGET_WIDTH_IMPOSSIBLE') {
+        const widthError = e as { code: string; requestedWidth: number; requiredWidth: number; family: string; reason: string }
+        Object.assign(wrapped, {
+          code: widthError.code,
+          requestedWidth: widthError.requestedWidth,
+          requiredWidth: widthError.requiredWidth,
+          family: widthError.family,
+          reason: widthError.reason,
+        })
+      }
+      throw wrapped
+    }
   }
   const jsonClone = <T>(value: T): T => hostCall(() => {
     if (!value || (typeof value !== 'object' && typeof value !== 'function')) return value
@@ -268,6 +281,8 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
     asPie: mermaid.asPie,
     asQuadrant: mermaid.asQuadrant,
     asGantt: mermaid.asGantt,
+    asMindmap: mermaid.asMindmap,
+    asGitGraph: mermaid.asGitGraph,
     mutate: mermaid.mutate,
     verifyMermaid: mermaid.verifyMermaid,
     analyzeMermaid: mermaid.analyzeMermaid,

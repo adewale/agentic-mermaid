@@ -3,6 +3,7 @@ import { mkdir, readdir, rm, unlink, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { renderMermaidSVG as renderBeautifulMermaidSVG } from 'beautiful-mermaid'
 import { BUILTIN_FAMILY_METADATA } from '../src/agent/families.ts'
+import type { BuiltinFamilyId } from '../src/agent/families.ts'
 import { verifyMermaid } from '../src/agent/index.ts'
 import { buildCapabilities } from '../src/cli/index.ts'
 import { renderMermaidASCII, renderMermaidSVG } from '../src/index.ts'
@@ -627,7 +628,7 @@ function editorStateHref(state: Record<string, unknown>) {
 // it returns source. Absorbed from the former Gallery page so the unified
 // Examples page carries the agentic narrative — prompt, trace, render, deep
 // link — rather than a bare source dump. Keyed by family id.
-const FAMILY_AGENT_TASK: Record<string, { prompt: string; trace: string }> = {
+const FAMILY_AGENT_TASK: Record<BuiltinFamilyId, { prompt: string; trace: string }> = {
   flowchart:    { prompt: 'Add a labeled failure branch and verify that every decision exit is named.', trace: 'asFlowchart · mutate(add_edge/set_label) · verify' },
   state:        { prompt: 'Add a retry transition from Failed back to Idle, then verify before returning source.', trace: 'asState · mutate(add_transition) · verify' },
   sequence:     { prompt: 'Insert the verification call before export and keep participant order stable.', trace: 'asSequence · mutate(add_message) · verify' },
@@ -640,6 +641,8 @@ const FAMILY_AGENT_TASK: Record<string, { prompt: string; trace: string }> = {
   pie:          { prompt: 'Add a Documentation slice and keep labels readable.', trace: 'asPie · mutate(add_slice) · verify' },
   quadrant:     { prompt: 'Move one point into the high-impact quadrant and verify coordinates.', trace: 'asQuadrant · mutate(move_point) · verify' },
   gantt:        { prompt: 'Add a verification milestone before release and resolve the schedule.', trace: 'asGantt · mutate(add_task) · verify' },
+  mindmap:      { prompt: 'Add an Evidence child under Research and verify the hierarchy before returning source.', trace: 'asMindmap · mutate(add_node) · verify' },
+  gitgraph:     { prompt: 'Add a release branch and merge it back with a tagged commit.', trace: 'asGitGraph · mutate(create_branch/merge_branch) · verify' },
 }
 // One-per-family supported examples are the canonical render for their family, so
 // anchor them by family id — old /gallery/#<family> deep links resolve here after
@@ -671,6 +674,8 @@ const STYLE_THEME_PAIR_BY_FAMILY: Record<string, { look: string; theme: string; 
   pie: { look: 'pen-and-ink', theme: 'tufte', seed: 7 },
   quadrant: { look: 'ops-schematic', theme: 'nord-light', seed: 8 },
   gantt: { look: 'architectural-plan', theme: 'solarized-light', seed: 9 },
+  mindmap: { look: 'hand-drawn', theme: 'paper', seed: 10 },
+  gitgraph: { look: 'ops-schematic', theme: 'github-light', seed: 11 },
 }
 
 const STYLE_THEME_LABELS: Record<string, string> = {

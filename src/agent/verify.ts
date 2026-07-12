@@ -34,47 +34,33 @@ import { QUADRANT_NOOP_CONFIG_FIELDS } from '../quadrant/config.ts'
 import { architectureIneffectiveConfigFields } from '../architecture/config.ts'
 import { flowchartIneffectiveConfigFields } from '../flowchart-config.ts'
 import { sequenceIneffectiveConfigFields } from '../sequence/config.ts'
-import { STATE_CONFIG_FIELDS, stateConfigDiagnostics } from '../state/config.ts'
+import { stateConfigDiagnostics } from '../state/config.ts'
 import { parseGanttModel, applyGanttFrontmatterConfig } from '../gantt/parser.ts'
 import { parseTodayMarkerStyle, GANTT_TODAY_MARKER_STYLE_PROPS } from '../gantt/today-marker.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
 import { normalizeV11Shape } from '../flowchart-shapes.ts'
+import {
+  familyUnknownConfigDiagnostics, familyConfigValueDiagnostics, familyNoopConfigDiagnostics,
+  JOURNEY_NOOP_CONFIG_FIELDS, TIMELINE_NOOP_CONFIG_FIELDS,
+} from '../shared/family-config-diagnostics.ts'
 import './families-builtin.ts'  // registers built-in families at import time
 
-const FAMILY_CONFIG_KEYS: Partial<Record<ValidDiagram['kind'], { section: string; keys: readonly string[] }>> = {
-  flowchart: { section: 'flowchart', keys: ['nodeSpacing', 'rankSpacing', 'wrappingWidth', 'titleTopMargin', 'subGraphTitleMargin', 'arrowMarkerAbsolute', 'diagramPadding', 'htmlLabels', 'curve', 'padding', 'defaultRenderer', 'inheritDir'] },
-  state: { section: 'state', keys: STATE_CONFIG_FIELDS },
-  sequence: { section: 'sequence', keys: ['actorMargin', 'width', 'height', 'diagramMarginX', 'diagramMarginY', 'messageMargin', 'noteMargin', 'activationWidth', 'showSequenceNumbers', 'boxMargin', 'boxTextMargin', 'messageAlign', 'mirrorActors', 'bottomMarginAdj', 'rightAngles', 'wrap', 'wrapPadding', 'labelBoxWidth', 'labelBoxHeight', 'hideUnusedParticipants', 'forceMenus', 'arrowMarkerAbsolute', 'noteAlign', 'actorFontSize', 'actorFontFamily', 'actorFontWeight', 'noteFontSize', 'noteFontFamily', 'noteFontWeight', 'messageFontSize', 'messageFontFamily', 'messageFontWeight'] },
-  timeline: { section: 'timeline', keys: ['disableMulticolor', 'sectionFills', 'sectionColours', 'diagramMarginX', 'diagramMarginY', 'leftMargin', 'width', 'height', 'padding', 'boxMargin', 'boxTextMargin', 'noteMargin', 'messageMargin', 'messageAlign', 'bottomMarginAdj', 'rightAngles', 'taskFontSize', 'taskFontFamily', 'taskMargin', 'activationWidth', 'textPlacement', 'actorColours', 'useMaxWidth', 'useWidth'] },
-  journey: { section: 'journey', keys: ['diagramMarginX', 'diagramMarginY', 'leftMargin', 'maxLabelWidth', 'width', 'height', 'taskFontSize', 'taskFontFamily', 'taskMargin', 'actorColours', 'sectionFills', 'sectionColours', 'titleColor', 'titleFontFamily', 'titleFontSize', 'useMaxWidth', 'boxMargin', 'boxTextMargin', 'noteMargin', 'messageMargin', 'messageAlign', 'bottomMarginAdj', 'rightAngles', 'activationWidth', 'textPlacement'] },
-  class: { section: 'class', keys: ['nodeSpacing', 'rankSpacing', 'titleTopMargin', 'arrowMarkerAbsolute', 'dividerMargin', 'padding', 'textHeight', 'defaultRenderer', 'diagramPadding', 'htmlLabels', 'hideEmptyMembersBox', 'hierarchicalNamespaces'] },
-  er: { section: 'er', keys: ['layoutDirection', 'nodeSpacing', 'rankSpacing', 'titleTopMargin', 'diagramPadding', 'minEntityWidth', 'minEntityHeight', 'entityPadding', 'stroke', 'fill', 'fontSize'] },
-  architecture: { section: 'architecture', keys: ['padding', 'iconSize', 'fontSize', 'nodeSeparation', 'idealEdgeLengthMultiplier', 'edgeElasticity', 'numIter', 'seed', 'randomize'] },
-  xychart: { section: 'xyChart', keys: ['width', 'height', 'useMaxWidth', 'useWidth', 'titleFontSize', 'titlePadding', 'chartOrientation', 'plotReservedSpacePercent', 'showDataLabel', 'showTitle', 'showLegend', 'legendFontSize', 'legendPadding', 'xAxis', 'yAxis'] },
-  pie: { section: 'pie', keys: ['textPosition', 'donutHole', 'legendPosition', 'highlightSlice', 'useMaxWidth', 'useWidth'] },
-  quadrant: { section: 'quadrantChart', keys: ['chartWidth', 'chartHeight', 'titleFontSize', 'titlePadding', 'quadrantPadding', 'quadrantLabelFontSize', 'xAxisLabelFontSize', 'yAxisLabelFontSize', 'xAxisLabelPadding', 'yAxisLabelPadding', 'pointLabelFontSize', 'pointRadius', 'pointTextPadding', 'quadrantInternalBorderStrokeWidth', 'quadrantExternalBorderStrokeWidth', 'useMaxWidth', 'quadrantTextTopPadding', 'xAxisPosition', 'yAxisPosition', 'useWidth'] },
-  gantt: { section: 'gantt', keys: ['displayMode'] },
-}
-
-function unknownFamilyConfigWarnings(d: ValidDiagram): LayoutWarning[] {
-  const spec = FAMILY_CONFIG_KEYS[d.kind]
-  if (!spec) return []
-  const known = new Set(spec.keys)
-  const roots: Array<Record<string, unknown> | undefined> = [
-    d.meta.frontmatter as Record<string, unknown> | undefined,
-    ...d.meta.initDirectives.map(directive => directive.parsed as Record<string, unknown> | undefined),
-  ]
-  const unknown = new Set<string>()
-  for (const root of roots) {
-    const section = root?.[spec.section]
-    if (!section || typeof section !== 'object' || Array.isArray(section)) continue
-    for (const key of Object.keys(section)) if (!known.has(key)) unknown.add(key)
-  }
-  return [...unknown].sort().map(key => ({
-    code: 'INEFFECTIVE_CONFIG',
-    field: `${spec.section}.${key}`,
-    message: `${d.kind} config field "${key}" is unknown and has no effect; check the spelling or remove it.`,
-  }))
+function familyConfigShapeWarnings(d: ValidDiagram): LayoutWarning[] {
+  const roots: unknown[] = [d.meta.frontmatter, ...d.meta.initDirectives.map(directive => directive.parsed)]
+  const warnings = roots.flatMap(root => d.kind === 'state'
+    ? familyUnknownConfigDiagnostics(d.kind, root).filter(diagnostic => diagnostic.field === 'state')
+    : [
+        ...familyUnknownConfigDiagnostics(d.kind, root),
+        ...familyConfigValueDiagnostics(d.kind, root),
+        ...(d.kind === 'gantt' ? familyNoopConfigDiagnostics(d.kind, root) : []),
+      ])
+  const seen = new Set<string>()
+  return warnings.filter(warning => {
+    const key = `${warning.field}\u0000${warning.message}`
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
 }
 
 const KNOWN_SHAPES = new Set([
@@ -161,11 +147,6 @@ function withRenderParity(input: ValidDiagram | string, result: VerifyResult, op
 // ignoring misleads migrating users, so name each ineffective field (lint;
 // never flips verify.ok). useMaxWidth and the layout/typography/color fields
 // ARE wired and never warn.
-const JOURNEY_NOOP_CONFIG_FIELDS = [
-  'boxMargin', 'boxTextMargin', 'noteMargin', 'messageMargin', 'messageAlign',
-  'bottomMarginAdj', 'rightAngles', 'activationWidth', 'textPlacement',
-] as const
-
 function journeyIneffectiveConfigWarnings(d: ValidDiagram): LayoutWarning[] {
   const configs: unknown[] = [
     (d.meta.frontmatter as Record<string, unknown> | undefined)?.journey,
@@ -191,13 +172,6 @@ function journeyIneffectiveConfigWarnings(d: ValidDiagram): LayoutWarning[] {
 // that remainder — nor the BaseDiagramConfig useWidth/useMaxWidth — touches
 // timeline geometry or paint here, so name each field per P4 (wire-or-warn)
 // instead of silently swallowing it. Lint only; never flips verify.ok.
-const TIMELINE_NOOP_CONFIG_FIELDS = [
-  'diagramMarginX', 'diagramMarginY', 'leftMargin', 'width', 'height', 'padding',
-  'boxMargin', 'boxTextMargin', 'noteMargin', 'messageMargin', 'messageAlign',
-  'bottomMarginAdj', 'rightAngles', 'taskFontSize', 'taskFontFamily', 'taskMargin',
-  'activationWidth', 'textPlacement', 'actorColours', 'useMaxWidth', 'useWidth',
-] as const
-
 function timelineIneffectiveConfigWarnings(d: ValidDiagram): LayoutWarning[] {
   const configs: unknown[] = [
     (d.meta.frontmatter as Record<string, unknown> | undefined)?.timeline,
@@ -324,7 +298,7 @@ function stateIneffectiveConfigWarnings(d: ValidDiagram): LayoutWarning[] {
     (d.meta.frontmatter as Record<string, unknown> | undefined)?.state,
     ...d.meta.initDirectives.map(directive => (directive.parsed as Record<string, unknown> | undefined)?.state),
   ]
-  return stateConfigDiagnostics(configs).map(diagnostic => ({ ...diagnostic }))
+  return stateConfigDiagnostics(configs, true).map(diagnostic => ({ ...diagnostic }))
 }
 
 // Sequence wires actorMargin/width/height/diagramMarginX/Y/messageMargin/
@@ -417,7 +391,7 @@ export function configWarningsForDiagram(d: ValidDiagram): LayoutWarning[] {
     : d.kind === 'state' ? stateIneffectiveConfigWarnings(d)
     : d.kind === 'sequence' ? sequenceIneffectiveConfigWarnings(d)
     : d.kind === 'gantt' ? ganttTodayMarkerWarnings(d) : []
-  return dedupedConcat(specific, unknownFamilyConfigWarnings(d))
+  return dedupedConcat(specific, familyConfigShapeWarnings(d))
 }
 
 /** Lightweight source-only config diagnostics; never lays out or renders. */
@@ -470,7 +444,7 @@ function verifyStructure(input: ValidDiagram | string, opts: VerifyOptions = {})
     return finalize(dedupedConcat(pluginWarnings, geometric), layout, opts)
   }
 
-  if (d.body.kind === 'class' || d.body.kind === 'er' || d.body.kind === 'journey' || d.body.kind === 'architecture' || d.body.kind === 'xychart' || d.body.kind === 'pie' || d.body.kind === 'quadrant') {
+  if (d.body.kind === 'class' || d.body.kind === 'er' || d.body.kind === 'journey' || d.body.kind === 'architecture' || d.body.kind === 'xychart' || d.body.kind === 'pie' || d.body.kind === 'quadrant' || d.body.kind === 'mindmap' || d.body.kind === 'gitgraph') {
     // QUAL-1: verify.layout is now truthful — the real positioned layout from
     // the family adapters (was emptyRenderedLayout). #33 adds zero-noise
     // class/ER semantic geometry tripwires: relationship endpoints must sit on

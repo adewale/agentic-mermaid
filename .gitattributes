@@ -2,3 +2,6 @@
 website/public/editor/*.js binary
 website/public/vendor/*.min.js binary
 website/src/generated/execute-harness.js.txt -whitespace
+# Rectangular terminal goldens preserve meaningful trailing display cells.
+src/__tests__/testdata/ascii/*.txt -whitespace
+src/__tests__/testdata/unicode/*.txt -whitespace

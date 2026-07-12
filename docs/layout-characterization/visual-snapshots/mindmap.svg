@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 445.654 173.8" width="445.654" height="173.8" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" role="img" aria-roledescription="mindmap" aria-labelledby="char-mindmap-mindmap-title">
+<style>
+  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<title id="char-mindmap-mindmap-title">Product</title>
+<path class="mindmap-edge" data-from="root" data-to="Research" data-branch-index="0" d="M 201.712 86.9 C 225.712 86.9 197.712 86.9 221.712 86.9" fill="none" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round" data-id="root-&gt;Research" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="root to Research" />
+<path class="mindmap-edge" data-from="Research" data-to="Interviews" data-branch-index="0" d="M 306.942 86.9 C 330.942 86.9 302.942 49.45 326.942 49.45" fill="none" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round" data-id="Research-&gt;Interviews" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="Research to Interviews" />
+<path class="mindmap-edge" data-from="Research" data-to="Evidence" data-branch-index="0" d="M 306.942 86.9 C 330.942 86.9 302.942 124.35 326.942 124.35" fill="none" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round" data-id="Research-&gt;Evidence" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="Research to Evidence" />
+<path class="mindmap-edge" data-from="root" data-to="Delivery" data-branch-index="1" d="M 128.338 86.9 C 104.338 86.9 132.338 86.9 108.338 86.9" fill="none" stroke="#0d5ba5" stroke-width="2.5" stroke-linecap="round" data-id="root-&gt;Delivery" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="root to Delivery" />
+<g class="mindmap-node depth-0" data-id="root" data-label="Product" data-role="node">
+  <circle cx="165.025" cy="86.9" r="36.687" fill="#47474a" stroke="#47474a" stroke-width="1.5" />
+  <text x="165.02499999999998" y="86.9" text-anchor="middle" font-size="13" font-weight="500" fill="#FFFFFF" dy="4.55">Product</text>
+</g>
+<g class="mindmap-node depth-1" data-id="Research" data-label="Research" data-branch-index="0" data-parent-id="root" data-role="node">
+  <rect x="221.712" y="69.45" width="85.23" height="34.9" rx="16" ry="16" fill="#c4dafc" stroke="#3b82f6" stroke-width="1.5" />
+  <text x="264.327" y="86.9" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Research</text>
+</g>
+<g class="mindmap-node depth-2" data-id="Interviews" data-label="Interviews" data-branch-index="0" data-parent-id="Research" data-role="node">
+  <rect x="326.942" y="32" width="86.712" height="34.9" rx="16" ry="16" fill="#d8e6fd" stroke="#3b82f6" stroke-width="1.5" />
+  <text x="370.298" y="49.45" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Interviews</text>
+</g>
+<g class="mindmap-node depth-2" data-id="Evidence" data-label="Evidence" data-branch-index="0" data-parent-id="Research" data-role="node">
+  <rect x="326.942" y="106.9" width="82.266" height="34.9" rx="16" ry="16" fill="#d8e6fd" stroke="#3b82f6" stroke-width="1.5" />
+  <text x="368.075" y="124.35000000000001" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Evidence</text>
+</g>
+<g class="mindmap-node depth-1" data-id="Delivery" data-label="Delivery" data-branch-index="1" data-parent-id="root" data-role="node">
+  <rect x="32" y="69.45" width="76.338" height="34.9" rx="16" ry="16" fill="#b6cee4" stroke="#0d5ba5" stroke-width="1.5" />
+  <text x="70.169" y="86.9" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Delivery</text>
+</g>
+</svg>

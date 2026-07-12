@@ -20,7 +20,7 @@ Supported today:
   below
 - **`direction TB|BT|LR|RL`** — wired to layout (plan §Class 4)
 - accessibility directives (`accTitle` / `accDescr`)
-- SVG, PNG, and ASCII output (ASCII does not draw namespace boxes yet)
+- SVG, PNG, and spatial ASCII/Unicode output, including nested namespace frames
 
 ## `:::` class shorthand evidence (2026-07)
 
@@ -34,9 +34,10 @@ inline class member. The fixture is
 
 **What to inspect:** the before box contains a spurious `::highlight` member;
 the after box preserves one `Account` identity and an empty member compartment.
-The renderer intentionally does not claim classDiagram paint semantics yet;
-the structured agent surface therefore keeps styled class syntax opaque and
-warned rather than silently dropping it.
+The renderer and structured agent surface now share parser-owned style
+properties: `classDef`, `class`/`cssClass`, `:::`, and inline `style` resolve to
+one identity-safe paint model. Typed `define_class`, `set_css_class`, and
+`set_class_style` operations round-trip that model.
 
 ## Namespaces (2026-07 elevation)
 
@@ -119,14 +120,16 @@ The typed `class` frontmatter section (`ClassRuntimeConfig` in
 `src/mermaid-source.ts`):
 
 - **Wired**: `nodeSpacing`, `rankSpacing` → RenderOptions
-  `nodeSpacing`/`layerSpacing` (explicit RenderOptions win) via
+  `nodeSpacing`/`layerSpacing` (explicit RenderOptions win), plus
+  `hierarchicalNamespaces` → nested compounds (`true`) or compact sibling
+  frames (`false`), via
   `resolveClassRenderOptions` in `src/class/layout.ts`, applied on both the
   render path (`render-family-hooks.ts`) and the verify layout path
   (`family-layouts.ts`).
 - **Lint** (`INEFFECTIVE_CONFIG`, Tier-3): `titleTopMargin`,
   `arrowMarkerAbsolute`, `dividerMargin`, `padding`, `textHeight`,
-  `defaultRenderer`, `diagramPadding`, `htmlLabels`, `hideEmptyMembersBox`,
-  `hierarchicalNamespaces` — the table (`CLASS_NOOP_CONFIG_FIELDS`) lives
+  `defaultRenderer`, `diagramPadding`, `htmlLabels`, `hideEmptyMembersBox` —
+  the table (`CLASS_NOOP_CONFIG_FIELDS`) lives
   beside the wiring in `src/class/layout.ts` so wire and warn cannot drift.
 
 ## Generic classes (repo #118)
@@ -138,20 +141,22 @@ identity (`Box`) plus `ClassNode.generic` (`T`). The renderer displays
 bare relationship endpoints. `add_class.generic` and `set_class_generic`
 provide typed authoring/editing without forcing an opaque fallback.
 
-## Styling boundary
+## Styling, compact namespaces, and cardinalities
 
 `ClassName:::style` is consumed before inline-member parsing, including `$` and
-backtick class identities, so it can no longer create a phantom `::style`
-attribute. Class styling is not yet represented by the typed `ClassBody`; such
-sources therefore remain losslessly opaque with a `class_opaque` warning while
-the renderer preserves the class identity and draws uncorrupted content.
+backtick identities, so decoration cannot mint a phantom class. The shared
+`src/shared/style-props.ts` grammar models `classDef`, `class`/`cssClass`,
+shorthand, and inline paint on both parser surfaces; classDef paint resolves
+before Scene/SVG/terminal rendering and inline properties win.
 
-## Known gaps (tracked)
+Single-line namespace forms (`namespace X { class A; class B }`) expand through
+one parser-owned statement grammar. `hierarchicalNamespaces: false` is wired:
+nested compounds become compact sibling frames rather than merely producing a
+warning. Terminal output draws grapheme-aware nested namespace frames with
+explicit containment gates.
 
-- Single-line namespace forms (`namespace X { class A }` on one line) are
-  ignored by the render parser and keep the agent body opaque (upstream
-  accepts them; pinned by the upstream-suite bench case
-  `class-upstream-should-handle-namespace`).
-- ASCII output does not draw namespace boxes.
-- `hierarchicalNamespaces: false` (compact mode) is announced, not wired —
-  namespaces always render hierarchically.
+Cardinality labels are allocated in `src/class/layout.ts`, not offset ad hoc in
+the renderer. The dense `c5-stress` property rejects cardinality/cardinality
+and cardinality/node overlap before SVG lowering. These residual contracts are
+pinned by `class-residual-elevation.test.ts`, `class-ascii-namespaces.test.ts`,
+and `class-er-edge-quality.test.ts`.

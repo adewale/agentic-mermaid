@@ -23,7 +23,7 @@
 import type { NodeShape, EdgeStyle } from '../types.ts'
 import { flowchartV11ShapeNames } from '../flowchart-shapes.ts'
 import type {
-  SequenceMessageStyle, ClassRelationKind, ErCardinality, ArchitectureSide, GanttBodyTaskTag,
+  SequenceMessageStyle, ClassRelationKind, ErCardinality, ArchitectureSide, ArchitectureEndpointBoundary, GanttBodyTaskTag,
 } from './types.ts'
 import { unknownOpMessage } from './mutation-ops.ts'
 import type { MutableFamilyId } from './mutation-ops.ts'
@@ -74,9 +74,12 @@ const PARTICIPANT_KINDS = ['participant', 'actor'] as const
 const CLASS_REL_KINDS: readonly ClassRelationKind[] = ['inheritance', 'composition', 'aggregation', 'association', 'dependency', 'realization', 'link-solid', 'link-dashed']
 const ER_CARDINALITIES: readonly ErCardinality[] = ['one-only', 'zero-or-one', 'zero-or-many', 'one-or-many']
 const ARCH_SIDES: readonly ArchitectureSide[] = ['L', 'R', 'T', 'B']
+const ARCH_BOUNDARIES: readonly ArchitectureEndpointBoundary[] = ['item', 'group']
 const SERIES_KINDS = ['bar', 'line'] as const
 const AXIS_KINDS = ['x', 'y'] as const
 const GANTT_STATUSES = ['active', 'done', 'crit'] as const
+const MINDMAP_SHAPES = ['default', 'rect', 'rounded', 'circle', 'cloud', 'bang', 'hexagon'] as const
+const GIT_COMMIT_TYPES = ['NORMAL', 'REVERSE', 'HIGHLIGHT'] as const
 const _GANTT_TAGS: readonly GanttBodyTaskTag[] = ['active', 'done', 'crit', 'milestone', 'vert'] // tags are shape-checked as string[]; deep enum check stays in the mutator
 
 // Field-spec shorthands.
@@ -124,20 +127,24 @@ const STATE_DIRECTIONS = ['TD', 'TB', 'LR', 'BT', 'RL'] as const
 const STATE_NOTE_SIDES = ['left', 'right'] as const
 
 const STATE_SCHEMA: Record<string, OpSpec> = {
-  add_state:            { fields: { id: str(), label: strOrNull(false), parent: strOrNull(false) } },
+  add_state:            { fields: { id: str(), label: strOrNull(false), parent: strOrNull(false), region: num(false) } },
   remove_state:         { fields: { id: str(), recursive: withNote(bool(false), 'default false: refuse a non-empty composite; true removes the whole subtree (transitions + notes cascade)') } },
   rename_state:         { fields: { from: str(), to: str() } },
   set_state_label:      { fields: { id: str(), label: strOrNull() } },
-  add_transition:       { fields: { from: withNote(str(), 'a state id, "[*]", or a history ref like "X[H]"'), to: withNote(str(), 'a state id, "[*]", or a history ref like "X[H]"'), label: strOrNull(false), parent: strOrNull(false) } },
-  remove_transition:    { fields: { index: num(false), from: str(false), to: str(false), parent: strOrNull(false) }, requireOneOf: ['index', 'from', 'to'] },
-  set_transition_label: { fields: { index: num(false), from: str(false), to: str(false), label: strOrNull(), parent: strOrNull(false) }, requireOneOf: ['index', 'from', 'to'] },
+  add_transition:       { fields: { from: withNote(str(), 'a state id, "[*]", or a history ref like "X[H]"'), to: withNote(str(), 'a state id, "[*]", or a history ref like "X[H]"'), label: strOrNull(false), parent: strOrNull(false), region: num(false) } },
+  remove_transition:    { fields: { index: num(false), from: str(false), to: str(false), parent: strOrNull(false), region: num(false) }, requireOneOf: ['index', 'from', 'to'] },
+  set_transition_label: { fields: { index: num(false), from: str(false), to: str(false), label: strOrNull(), parent: strOrNull(false), region: num(false) }, requireOneOf: ['index', 'from', 'to'] },
   make_composite:       { fields: { id: str(), members: strArr(), label: strOrNull(false) } },
   set_direction:        { fields: { direction: oneOf(STATE_DIRECTIONS), state: withNote(strOrNull(false), 'omit to set the diagram direction; a composite id sets that composite\'s direction override') } },
-  move_state:           { fields: { id: str(), parent: withNote(strOrNull(), 'target composite id; null moves the state to the top level') } },
+  move_state:           { fields: { id: str(), parent: withNote(strOrNull(), 'target composite id; null moves the state to the top level'), region: num(false) } },
   dissolve_composite:   { fields: { id: withNote(str(), 'children and inner transitions hoist into the parent scope; rejects while transitions/notes still reference the composite') } },
   add_note:             { fields: { target: str(), side: withNote(oneOf(STATE_NOTE_SIDES, false), 'default: right'), text: withNote(str(), 'multi-line text serializes as a block note') } },
   remove_note:          { fields: { index: num() } },
   set_note_text:        { fields: { index: num(), text: str() } },
+  define_class:         { fields: { name: str(), style: withNote(str(), 'CSS-like pairs, e.g. "fill:#f96,stroke:#333"') } },
+  set_state_class:      { fields: { id: str(), className: strOrNull() } },
+  set_state_style:      { fields: { id: str(), style: withNote(strOrNull(), 'inline style pairs; null clears') } },
+  set_transition_style: { fields: { index: num(false), default: bool(false), style: strOrNull(), parent: strOrNull(false), region: num(false) }, requireOneOf: ['index', 'default'] },
 }
 
 const SEQUENCE_SCHEMA: Record<string, OpSpec> = {
@@ -181,6 +188,9 @@ const CLASS_SCHEMA: Record<string, OpSpec> = {
   add_note:        { fields: { text: str(), for: str(false) } },
   remove_note:     { fields: { index: num() } },
   set_class_namespace: { fields: { class: str(), namespace: withNote(strOrNull(), 'dot path moves the class into that namespace (declared on demand); null moves it to the top level') } },
+  define_class:     { fields: { name: str(), style: withNote(str(), 'CSS-like pairs, e.g. "fill:#f96,stroke:#333"') } },
+  set_css_class:    { fields: { class: str(), className: strOrNull() } },
+  set_class_style:  { fields: { class: str(), style: strOrNull() } },
 }
 
 const ER_SCHEMA: Record<string, OpSpec> = {
@@ -192,6 +202,10 @@ const ER_SCHEMA: Record<string, OpSpec> = {
   remove_attribute: { fields: { entity: str(), index: num() } },
   add_relation:     { fields: { from: str(), to: str(), leftCard: oneOf(ER_CARDINALITIES), rightCard: oneOf(ER_CARDINALITIES), dashed: bool(false), label: str(false) } },
   remove_relation:  { fields: { index: num() } },
+  set_direction:    { fields: { direction: oneOf(STATE_DIRECTIONS) } },
+  define_class:     { fields: { name: str(), style: str() } },
+  set_entity_class: { fields: { entity: str(), className: strOrNull() } },
+  set_entity_style: { fields: { entity: str(), style: strOrNull() } },
 }
 
 const JOURNEY_SCHEMA: Record<string, OpSpec> = {
@@ -212,16 +226,24 @@ const JOURNEY_SCHEMA: Record<string, OpSpec> = {
 }
 
 const ARCHITECTURE_SCHEMA: Record<string, OpSpec> = {
-  set_title:         { fields: { title: strOrNull() } },
+  set_title:                     { fields: { title: strOrNull() } },
+  set_accessibility_title:       { fields: { title: strOrNull() } },
+  set_accessibility_description: { fields: { description: strOrNull() } },
   add_service:       { fields: { id: str(), label: str(false), icon: strOrNull(false), group: strOrNull(false) } },
   remove_service:    { fields: { id: str() } },
   rename_service:    { fields: { from: str(), to: str() } },
   set_service_label: { fields: { id: str(), label: str() } },
   set_service_icon:  { fields: { id: str(), icon: strOrNull() } },
   move_service:      { fields: { id: str(), group: strOrNull() } },
+  add_junction:      { fields: { id: str(), group: strOrNull(false) } },
+  remove_junction:   { fields: { id: str() } },
+  rename_junction:   { fields: { from: str(), to: str() } },
+  move_junction:     { fields: { id: str(), group: strOrNull() } },
   add_group:         { fields: { id: str(), label: str(false), icon: strOrNull(false), parent: strOrNull(false) } },
+  set_group_label:   { fields: { id: str(), label: str() } },
   remove_group:      { fields: { id: str() } },
-  add_edge:          { fields: { from: str(), to: str(), fromSide: oneOf(ARCH_SIDES), toSide: oneOf(ARCH_SIDES), label: strOrNull(false), hasArrowStart: bool(false), hasArrowEnd: bool(false) } },
+  add_edge:          { fields: { from: str(), to: str(), fromSide: oneOf(ARCH_SIDES), toSide: oneOf(ARCH_SIDES), fromBoundary: oneOf(ARCH_BOUNDARIES, false), toBoundary: oneOf(ARCH_BOUNDARIES, false), label: strOrNull(false), hasArrowStart: bool(false), hasArrowEnd: bool(false) } },
+  update_edge:       { fields: { index: num(), from: str(false), to: str(false), fromSide: oneOf(ARCH_SIDES, false), toSide: oneOf(ARCH_SIDES, false), fromBoundary: oneOf(ARCH_BOUNDARIES, false), toBoundary: oneOf(ARCH_BOUNDARIES, false), label: strOrNull(false), hasArrowStart: bool(false), hasArrowEnd: bool(false) } },
   remove_edge:       { fields: { index: num(false), id: str(false) }, requireOneOf: ['index', 'id'] },
 }
 
@@ -274,6 +296,33 @@ const GANTT_SCHEMA: Record<string, OpSpec> = {
   move_section:    { fields: { from: num(), to: num() } },
 }
 
+const MINDMAP_SCHEMA: Record<string, OpSpec> = {
+  add_node: { fields: { id: str(), label: str(), parent: str(), shape: oneOf(MINDMAP_SHAPES, false), index: num(false) } },
+  remove_node: { fields: { id: str(), recursive: bool(false) } },
+  rename_node: { fields: { from: str(), to: str() } },
+  set_label: { fields: { id: str(), label: str() } },
+  move_node: { fields: { id: str(), parent: str(), index: num(false) } },
+  set_shape: { fields: { id: str(), shape: oneOf(MINDMAP_SHAPES) } },
+  set_icon: { fields: { id: str(), icon: strOrNull() } },
+  set_node_class: { fields: { id: str(), className: strOrNull() } },
+  set_accessibility_title: { fields: { title: strOrNull() } },
+  set_accessibility_description: { fields: { description: strOrNull() } },
+}
+
+const GITGRAPH_SCHEMA: Record<string, OpSpec> = {
+  append_commit: { fields: { id: str(false), message: str(false), type: oneOf(GIT_COMMIT_TYPES, false), tags: strArr(false) } },
+  create_branch: { fields: { name: str(), order: num(false) } },
+  checkout_branch: { fields: { name: str() } },
+  merge_branch: { fields: { name: str(), id: str(false), type: oneOf(GIT_COMMIT_TYPES, false), tags: strArr(false) } },
+  cherry_pick: { fields: { id: str(), parent: str(false), tags: strArr(false) } },
+  set_commit_message: { fields: { id: str(), message: strOrNull() } },
+  set_commit_type: { fields: { id: str(), type: oneOf(GIT_COMMIT_TYPES) } },
+  set_commit_tags: { fields: { id: str(), tags: strArr() } },
+  rename_branch: { fields: { from: str(), to: str() } },
+  set_accessibility_title: { fields: { title: strOrNull() } },
+  set_accessibility_description: { fields: { description: strOrNull() } },
+}
+
 const SCHEMAS: Record<OpFamily, Record<string, OpSpec>> = {
   flowchart: FLOWCHART_SCHEMA,
   state: STATE_SCHEMA,
@@ -287,6 +336,8 @@ const SCHEMAS: Record<OpFamily, Record<string, OpSpec>> = {
   pie: PIE_SCHEMA,
   quadrant: QUADRANT_SCHEMA,
   gantt: GANTT_SCHEMA,
+  mindmap: MINDMAP_SCHEMA,
+  gitgraph: GITGRAPH_SCHEMA,
 }
 
 /** True when `family` has a shape schema (i.e. is a mutable structured family). */

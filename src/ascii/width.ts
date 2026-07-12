@@ -12,7 +12,8 @@
 // forces the previous base to width 2.
 // ============================================================================
 
-import { isWideRange, isZeroWidth, VS_TEXT, VS_EMOJI, ZWJ } from '../shared/unicode-ranges.ts'
+import { isEmojiModifier, isWideRange, isZeroWidth, VS_TEXT, VS_EMOJI, ZWJ } from '../shared/unicode-ranges.ts'
+import { graphemes } from '../shared/graphemes.ts'
 
 /** Sentinel stored in the canvas cell following a fullwidth character. */
 export const WIDE_CHAR_CONTINUATION = '\x00'
@@ -65,6 +66,7 @@ export function visualWidth(text: string): number {
       lastBaseWidth = 0
       continue
     }
+    if (isEmojiModifier(code) && lastBaseWidth === 2) continue
     if (isZeroWidth(code)) {
       lastBaseWidth = 0
       continue
@@ -78,4 +80,23 @@ export function visualWidth(text: string): number {
     lastBaseWidth = w
   }
   return total
+}
+
+/** Longest grapheme-safe prefix that occupies at most `maxWidth` cells. */
+export function truncateToVisualWidth(text: string, maxWidth: number): string {
+  if (maxWidth <= 0) return ''
+  let out = ''
+  let width = 0
+  for (const cluster of graphemes(text)) {
+    const clusterWidth = visualWidth(cluster)
+    if (width + clusterWidth > maxWidth) break
+    out += cluster
+    width += clusterWidth
+  }
+  return out
+}
+
+/** Pad without assuming one UTF-16 code unit equals one terminal cell. */
+export function padEndToVisualWidth(text: string, width: number): string {
+  return text + ' '.repeat(Math.max(0, width - visualWidth(text)))
 }

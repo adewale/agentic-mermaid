@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 665.966 226" width="665.966" height="226" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 665.966 290" width="665.966" height="290" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap');
   text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
@@ -42,10 +42,10 @@
     <polygon points="8 0, 0 2.5, 8 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
   </marker>
 </defs>
-<g class="architecture-group" data-id="edge" data-label="Edge">
-  <rect class="architecture-group-frame" x="40" y="40" width="0" height="0" rx="0" ry="0" />
+<g class="architecture-group" data-id="edge" data-label="Edge" data-role="group">
+  <rect class="architecture-group-frame" x="40" y="40" width="0" height="0" rx="0" ry="0" data-id="group-frame:edge" data-role="group" />
   <path class="architecture-group-band" d="M40,40 H40 V68 H40 Z" />
-  <rect class="architecture-group-outline" x="40" y="40" width="0" height="0" rx="0" ry="0" />
+  <rect class="architecture-group-outline" x="40" y="40" width="0" height="0" rx="0" ry="0" data-id="group-outline:edge" data-role="group" />
   <g class="architecture-icon" data-icon="cloud">
   <circle class="architecture-icon-mark" cx="55.3504" cy="54.2944" r="2.3552" />
 <circle class="architecture-icon-mark" cx="58.2944" cy="52.8224" r="2.9440000000000004" />
@@ -54,10 +54,10 @@
 </g>
   <text x="76" y="54" class="architecture-group-label" text-anchor="start" font-size="12" font-weight="600" dy="4.199999999999999">Edge</text>
 </g>
-<g class="architecture-group" data-id="app" data-label="Application">
-  <rect class="architecture-group-frame" x="38" y="76" width="384.58500000000004" height="112" rx="0" ry="0" />
+<g class="architecture-group" data-id="app" data-label="Application" data-role="group">
+  <rect class="architecture-group-frame" x="38" y="76" width="384.58500000000004" height="174" rx="0" ry="0" data-id="group-frame:app" data-role="group" />
   <path class="architecture-group-band" d="M38,76 H422.58500000000004 V104 H38 Z" />
-  <rect class="architecture-group-outline" x="38" y="76" width="384.58500000000004" height="112" rx="0" ry="0" />
+  <rect class="architecture-group-outline" x="38" y="76" width="384.58500000000004" height="174" rx="0" ry="0" data-id="group-outline:app" data-role="group" />
   <g class="architecture-icon" data-icon="server">
   <rect class="architecture-icon-mark" x="52.7616" y="86.4672" width="6.4768" height="7.0656" rx="0" ry="0" />
 <path class="architecture-icon-mark" d="M 53.644800000000004 88.8224 H 58.355199999999996" />
@@ -65,17 +65,17 @@
 </g>
   <text x="74" y="90" class="architecture-group-label" text-anchor="start" font-size="12" font-weight="600" dy="4.199999999999999">Application</text>
 </g>
-<polyline class="architecture-edge" data-from="api" data-to="db" data-from-side="R" data-to-side="L" data-from-boundary="item" data-to-boundary="item" points="191.971,146 337.278,146 337.278,158 482.58500000000004,158" marker-end="url(#architecture-arrow-end)" />
-<polyline class="architecture-edge" data-from="api" data-to="bus" data-from-side="B" data-to-side="T" data-from-boundary="item" data-to-boundary="item" data-label="async fan-out" points="123.9855,170 123.9855,147 390.58500000000004,147 390.58500000000004,120" marker-end="url(#architecture-arrow-end)" />
-<rect x="219.97825" y="132.85" width="78.614" height="28.3" class="architecture-edge-label-bg" rx="0" ry="0" />
-<text x="259.28525" y="147" class="architecture-edge-label-text" text-anchor="middle" font-size="11" font-weight="400" dy="3.8499999999999996">async fan-out</text>
-<g class="architecture-junction" data-id="bus">
-  <circle class="architecture-junction-ring" cx="390.58500000000004" cy="134" r="8" />
-  <circle class="architecture-junction-core" cx="390.58500000000004" cy="134" r="4.5" />
+<polyline class="architecture-edge" data-from="api" data-to="db" data-from-side="R" data-to-side="L" data-from-boundary="item" data-to-boundary="item" points="191.971,144 337.278,144 337.278,158 482.58500000000004,158" marker-end="url(#architecture-arrow-end)" data-id="edge:api-&gt;db#0" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="api to db" />
+<polyline class="architecture-edge" data-from="api" data-to="bus" data-from-side="B" data-to-side="T" data-from-boundary="item" data-to-boundary="item" data-label="async fan-out" points="123.9855,168 123.9855,188 390.58500000000004,188 390.58500000000004,204" marker-end="url(#architecture-arrow-end)" data-id="edge:api-&gt;bus#0" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="api to bus: async fan-out" />
+<rect x="215.97825" y="173.85" width="78.614" height="28.3" class="architecture-edge-label-bg" rx="0" ry="0" />
+<text x="255.28525000000002" y="188" class="architecture-edge-label-text" text-anchor="middle" font-size="11" font-weight="400" dy="3.8499999999999996">async fan-out</text>
+<g class="architecture-junction" data-id="bus" data-role="junction">
+  <circle class="architecture-junction-ring" cx="390.58500000000004" cy="218" r="8" data-id="junction-ring:bus" data-role="junction" />
+  <circle class="architecture-junction-core" cx="390.58500000000004" cy="218" r="4.5" data-id="junction-core:bus" data-role="junction" />
 </g>
-<g class="architecture-service" data-id="db" data-label="Primary DB">
-  <rect class="architecture-service-card" x="482.58500000000004" y="134" width="143.381" height="48" rx="0" ry="0" />
-  <rect class="architecture-service-outline" x="482.58500000000004" y="134" width="143.381" height="48" rx="0" ry="0" />
+<g class="architecture-service" data-id="db" data-label="Primary DB" data-role="service">
+  <rect class="architecture-service-card" x="482.58500000000004" y="134" width="143.381" height="48" rx="0" ry="0" data-id="service-card:db" data-role="service" />
+  <rect class="architecture-service-outline" x="482.58500000000004" y="134" width="143.381" height="48" rx="0" ry="0" data-id="service-outline:db" data-role="service" />
   <g class="architecture-icon" data-icon="database">
   <ellipse class="architecture-icon-mark" cx="511.58500000000004" cy="155.12" rx="4.32" ry="1.8" />
 <path class="architecture-icon-mark" d="M 507.26500000000004 155.12 V 161.6" />
@@ -85,14 +85,14 @@
 </g>
   <text x="534.585" y="158" class="architecture-service-label" text-anchor="start" font-size="13" font-weight="500" dy="4.55">Primary DB</text>
 </g>
-<g class="architecture-service" data-id="api" data-label="Public API">
-  <rect class="architecture-service-card" x="56" y="122" width="135.971" height="48" rx="0" ry="0" />
-  <rect class="architecture-service-outline" x="56" y="122" width="135.971" height="48" rx="0" ry="0" />
+<g class="architecture-service" data-id="api" data-label="Public API" data-role="service">
+  <rect class="architecture-service-card" x="56" y="120" width="135.971" height="48" rx="0" ry="0" data-id="service-card:api" data-role="service" />
+  <rect class="architecture-service-outline" x="56" y="120" width="135.971" height="48" rx="0" ry="0" data-id="service-outline:api" data-role="service" />
   <g class="architecture-icon" data-icon="server">
-  <rect class="architecture-icon-mark" x="81.04" y="141.68" width="7.92" height="8.64" rx="0" ry="0" />
-<path class="architecture-icon-mark" d="M 82.12 144.56 H 87.88" />
-<path class="architecture-icon-mark" d="M 82.12 147.08 H 87.88" />
+  <rect class="architecture-icon-mark" x="81.04" y="139.68" width="7.92" height="8.64" rx="0" ry="0" />
+<path class="architecture-icon-mark" d="M 82.12 142.56 H 87.88" />
+<path class="architecture-icon-mark" d="M 82.12 145.08 H 87.88" />
 </g>
-  <text x="108" y="146" class="architecture-service-label" text-anchor="start" font-size="13" font-weight="500" dy="4.55">Public API</text>
+  <text x="108" y="144" class="architecture-service-label" text-anchor="start" font-size="13" font-weight="500" dy="4.55">Public API</text>
 </g>
 </svg>

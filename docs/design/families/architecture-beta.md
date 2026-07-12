@@ -23,14 +23,13 @@ Current scope covers:
 
 ### Layout
 
-`src/architecture/layout.ts` delegates node and group placement to `layoutGraphSync()` through `architectureToMermaidGraph()`, then projects the positioned graph back into architecture-specific primitives.
+`src/architecture/layout.ts` starts from deterministic layered placement and then solves Architecture-specific constraints before geometry freezes:
 
-Architecture-specific work happens after shared placement:
-
-- services keep their card bounds from the graph layout
-- junctions reuse the graph point-node placement
-- group-boundary edges are rerouted against the enclosing group frame
-- edge labels use the orthogonal polyline midpoint so labels stay on-path
+- side declarations constrain the lowest-common-container sibling units; connected components move together and legal contradictory constraints remain renderable with `placement: 'conflicted'`;
+- services and junctions expose the authored `L`/`R`/`T`/`B` anchors, including group-boundary endpoints;
+- deterministic visibility-grid Dijkstra routing avoids every foreign service, junction, and group interior while minimizing length, then bends, with stable tie-breaking;
+- each route carries a certificate separating placement from route validity: `placement`, `sourceFacesTarget`, `targetFacesSource`, and `obstacleFree`;
+- group bounds and edge-label midpoints are recomputed from the final constrained geometry.
 
 ### Render
 
@@ -41,7 +40,7 @@ Architecture-specific work happens after shared placement:
 - service cards with accent rails
 - junction rings
 - architecture-specific arrow markers and semantic `data-*` hooks
-- lightweight icon badges with a fallback glyph path
+- native handcrafted icon paths plus the bounded offline curated registry in `src/architecture/icons.ts`; unknown names use an escaped fallback badge
 
 ## Align directives (upstream v11.16.0)
 
@@ -91,20 +90,26 @@ and is consumed by BOTH the SVG render hook and verify's layout adapter
 config. The typed section shape is `ArchitectureRuntimeConfig` in
 `src/mermaid-source.ts`.
 
-## Explicitly deferred (later phases of the family-elevation plan)
+## Completed elevation contracts
 
-These are documented boundaries, not omissions — each is a named item in
-`docs/design/family-elevation-plan.md` §Architecture:
+- **Typed editing:** services, junctions, groups, group labels, accessibility,
+  ordinary and `{group}` endpoints, moves, and in-place edge updates are all
+  structured. Moving a service referenced by a group-boundary edge is refused
+  unless the caller explicitly updates that boundary, so preserved semantics
+  cannot become stale silently.
+- **Offline icons:** `src/architecture/icons.ts` resolves curated MDI paths
+  without network, filesystem, dynamic import, or raw SVG. Inputs are bounded
+  by `ARCHITECTURE_ICON_LIMITS` (`maxIcons: 32`, `maxNameBytes: 128`,
+  `maxPathBytes: 4096`), paths-only, sanitized, deterministic, and attributed
+  in `THIRD_PARTY_NOTICES.md`. Native icon bytes remain unchanged.
+- **Spatial terminal output:** `src/ascii/architecture.ts` projects services,
+  junctions, nested groups, side/boundary routes, and labels onto a
+  grapheme/display-cell canvas. Unicode and 7-bit modes share topology and
+  honor the hard `targetWidth` contract.
 
-- **Port routing / obstacle avoidance (item 1):** per-edge sides as placement
-  constraints and routes that avoid node/group interiors, plus
-  anchor-faces-partner verify tripwires.
-- **Agent-surface junctions, group labels, in-place edge ops (item 4):**
-  `{group}` edges and accTitle/accDescr still fall back to opaque bodies.
-- **Iconify icons with a dignified fallback (item 5):** unknown icons still
-  degrade to the fallback glyph badge.
-- **Spatial ASCII architecture (item 6):** ASCII output remains an indented
-  outline with an edge list, not a spatial rendering.
+Executable gates: `architecture-layout.test.ts`,
+`architecture-integration.test.ts`, `agent-architecture.test.ts`,
+`architecture-icons.test.ts`, and `architecture-ascii.test.ts`.
 
 ## Compatibility Notes
 

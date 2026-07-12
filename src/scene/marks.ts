@@ -17,6 +17,8 @@ import type {
   RawMark, SceneNode, SceneRole, SemanticChannels, ShapeMark, TextMark,
 } from './ir.ts'
 import type { DiagramColors } from '../theme.ts'
+import { ensureSvgIdentity, semanticIdentityForSvg } from './identity.ts'
+import { ensureSvgAccessibility, relationAccessibilityForSvg } from './accessibility.ts'
 
 export function shape(fields: {
   id: string
@@ -25,7 +27,10 @@ export function shape(fields: {
   paint: MarkPaint
   channels?: SemanticChannels
 }, crisp: string): ShapeMark {
-  return { kind: 'shape', crisp, ...fields }
+  const identity = semanticIdentityForSvg(crisp, fields)
+  const accessibility = relationAccessibilityForSvg(crisp, identity)
+  const decorated = ensureSvgAccessibility(ensureSvgIdentity(crisp, identity), accessibility)
+  return { kind: 'shape', crisp: decorated, identity, accessibility, ...fields }
 }
 
 export function connector(fields: {
@@ -38,7 +43,10 @@ export function connector(fields: {
   endMarker?: MarkerRef
   channels?: SemanticChannels
 }, crisp: string): ConnectorMark {
-  return { kind: 'connector', crisp, ...fields }
+  const identity = semanticIdentityForSvg(crisp, fields)
+  const accessibility = relationAccessibilityForSvg(crisp, identity)
+  const decorated = ensureSvgAccessibility(ensureSvgIdentity(crisp, identity), accessibility)
+  return { kind: 'connector', crisp: decorated, identity, accessibility, ...fields }
 }
 
 export function text(fields: {
@@ -52,7 +60,10 @@ export function text(fields: {
   paint: MarkPaint
   channels?: SemanticChannels
 }, crisp: string): TextMark {
-  return { kind: 'text', crisp, ...fields }
+  const identity = semanticIdentityForSvg(crisp, fields)
+  const accessibility = relationAccessibilityForSvg(crisp, identity)
+  const decorated = ensureSvgAccessibility(ensureSvgIdentity(crisp, identity), accessibility)
+  return { kind: 'text', crisp: decorated, identity, accessibility, ...fields }
 }
 
 export function raw(fields: {
@@ -81,7 +92,10 @@ export function group(fields: {
   channels?: SemanticChannels
 }): GroupMark {
   const join = fields.join ?? '\n'
-  const segments: string[] = [fields.open]
+  const identity = semanticIdentityForSvg(fields.open, fields)
+  const accessibility = relationAccessibilityForSvg(fields.open, identity)
+  const open = ensureSvgAccessibility(ensureSvgIdentity(fields.open, identity), accessibility)
+  const segments: string[] = [open]
   for (const child of fields.children) {
     segments.push(indentLines(child.node.crisp, child.indent))
   }
@@ -91,11 +105,13 @@ export function group(fields: {
     crisp: segments.join(join),
     id: fields.id,
     role: fields.role,
-    open: fields.open,
+    open,
     close: fields.close,
     children: fields.children,
     join,
     channels: fields.channels,
+    identity,
+    accessibility,
   }
 }
 

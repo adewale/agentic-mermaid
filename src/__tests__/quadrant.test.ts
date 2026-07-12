@@ -23,6 +23,7 @@ import { parseMermaid } from '../agent/parse.ts'
 import { verifyMermaid } from '../agent/verify.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
 import { asJourney, asArchitecture } from '../agent/types.ts'
+import { measureTextWidth } from '../text-metrics.ts'
 
 function parse(src: string) {
   return parseQuadrantChart(toMermaidLines(src))
@@ -210,6 +211,41 @@ describe('quadrant geometry', () => {
     expect(p.cx).toBeGreaterThan(midX)
     expect(p.cy).toBeGreaterThan(midY)
     expect(p.cy).toBeLessThanOrEqual(plot.y + plot.size)
+  })
+
+  it('long axis labels wrap within their half-plot budgets without overprinting', () => {
+    const nearX = 'Low reach for early discovery experiments and interviews across regions'
+    const farX = 'High reach for globally launched campaigns with sustained distribution'
+    const nearY = 'Low engagement from passive evaluation without a committed owner'
+    const farY = 'High engagement from active teams shipping verified outcomes every week'
+    const source = `quadrantChart
+      x-axis ${nearX} --> ${farX}
+      y-axis ${nearY} --> ${farY}
+      Candidate: [0.5, 0.5]`
+    const parsed = parse(source)
+    expect(parsed.xAxis).toEqual({ near: nearX, far: farX })
+    expect(parsed.yAxis).toEqual({ near: nearY, far: farY })
+
+    const chart = layoutQuadrantChart(parsed)
+    const budget = chart.plot.size / 2 - 12
+    expect(chart.axisLabels).toHaveLength(4)
+    expect(chart.axisLabels.some(axis => axis.text.includes('\n'))).toBe(true)
+    for (const axis of chart.axisLabels) {
+      const lines = axis.text.split('\n')
+      expect(lines.length).toBeLessThanOrEqual(2)
+      const width = Math.max(...lines.map(line => measureTextWidth(line, axis.fontSize, 500)))
+      expect(width).toBeLessThanOrEqual(budget + 0.01)
+      if (axis.x >= chart.plot.x) {
+        if (axis.anchor === 'start') expect(axis.x + width).toBeLessThan(chart.plot.x + chart.plot.size / 2)
+        if (axis.anchor === 'end') expect(axis.x - width).toBeGreaterThan(chart.plot.x + chart.plot.size / 2)
+      } else {
+        if (axis.anchor === 'start') expect(axis.y - width).toBeGreaterThan(chart.plot.y + chart.plot.size / 2)
+        if (axis.anchor === 'end') expect(axis.y + width).toBeLessThan(chart.plot.y + chart.plot.size / 2)
+      }
+    }
+    const svg = renderMermaidSVG(source)
+    expect(svg.match(/<tspan /g)?.length ?? 0).toBeGreaterThanOrEqual(4)
+    expect(svg).toContain('class="quadrant-axis-label"')
   })
 
   it('region numbering: quadrant 1 sits top-right, 3 bottom-left', () => {

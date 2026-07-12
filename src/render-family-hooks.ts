@@ -2,7 +2,7 @@ import './agent/families-builtin.ts'
 import { getFamily, registerFamily, knownFamilies } from './agent/families.ts'
 import type { AsciiContext, FamilyLayoutContext, FamilyLayoutResult, FamilyPlugin } from './agent/families.ts'
 import type { DiagramKind } from './agent/types.ts'
-import type { PositionedDiagram, RenderContext } from './types.ts'
+import type { ConfigDiagnostic, PositionedDiagram, RenderContext } from './types.ts'
 import type { DiagramColors } from './theme.ts'
 
 import { parseMermaid } from './parser.ts'
@@ -41,6 +41,12 @@ import { resolveQuadrantVisualConfig } from './quadrant/config.ts'
 import { renderQuadrantSvg, lowerQuadrantScene } from './quadrant/renderer.ts'
 import { buildGanttRenderPipeline } from './gantt/pipeline.ts'
 import { renderGanttSvg, lowerGanttScene } from './gantt/renderer.ts'
+import { parseMindmap } from './mindmap/parser.ts'
+import { layoutMindmap } from './mindmap/layout.ts'
+import { renderMindmapSvg, lowerMindmapScene } from './mindmap/renderer.ts'
+import { parseGitGraph } from './gitgraph/parser.ts'
+import { layoutGitGraph } from './gitgraph/layout.ts'
+import { renderGitGraphSvg, lowerGitGraphScene, resolveGitGraphCommitLabelFontSize } from './gitgraph/renderer.ts'
 import { parseArchitectureDiagram } from './architecture/parser.ts'
 import { layoutArchitectureDiagram } from './architecture/layout.ts'
 import { renderArchitectureSvg, lowerArchitectureScene } from './architecture/renderer.ts'
@@ -51,6 +57,7 @@ import { createMapping } from './ascii/grid.ts'
 import { drawGraph } from './ascii/draw.ts'
 import { canvasToString, flipCanvasVertically, flipRoleCanvasVertically } from './ascii/canvas.ts'
 import { renderSequenceAscii } from './ascii/sequence.ts'
+import { renderStateAscii } from './ascii/state.ts'
 import { renderClassAscii } from './ascii/class-diagram.ts'
 import { renderErAscii } from './ascii/er-diagram.ts'
 import { renderTimelineAscii } from './ascii/timeline.ts'
@@ -60,6 +67,8 @@ import { renderXYChartAscii } from './ascii/xychart.ts'
 import { renderPieAscii } from './ascii/pie.ts'
 import { renderQuadrantAscii } from './ascii/quadrant.ts'
 import { renderArchitectureAscii } from './ascii/architecture.ts'
+import { renderMindmapAscii } from './ascii/mindmap.ts'
+import { renderGitGraphAscii } from './ascii/gitgraph.ts'
 import { diagramColorsToAsciiTheme } from './ascii/ansi.ts'
 
 type SvgRenderer<TPositioned extends PositionedDiagram> = (ctx: RenderContext<TPositioned>) => string
@@ -136,6 +145,13 @@ function renderFlowchartAscii(ctx: AsciiContext): string {
   })
 }
 
+function renderStateAsciiWithContext(ctx: AsciiContext): string {
+  const parsed = parseMermaid(ctx.source.text)
+  const config = { ...ctx.config }
+  config.graphDirection = parsed.direction === 'LR' || parsed.direction === 'RL' ? 'LR' : 'TD'
+  return renderStateAscii(parsed, config, ctx.colorMode, ctx.theme, ctx.options.targetWidth)
+}
+
 function layoutArchitecture(ctx: FamilyLayoutContext): FamilyLayoutResult {
   const archVisual = resolveArchitectureVisualConfig(ctx.source.frontmatter, ctx.colors, ctx.options)
   // Wire-or-warn (X7): fold the wired architecture.* keys (padding,
@@ -162,7 +178,7 @@ function renderArchitectureAsciiWithContext(ctx: AsciiContext): string {
     accent: vars?.primaryColor as string | undefined,
   }
   const archTheme = { ...ctx.theme, ...diagramColorsToAsciiTheme(archColors) }
-  return renderArchitectureAscii(ctx.source.lines, ctx.config, ctx.colorMode, archTheme)
+  return renderArchitectureAscii(ctx.source.lines, ctx.config, ctx.colorMode, archTheme, ctx.options)
 }
 
 registerRenderHooks('flowchart', {
@@ -176,7 +192,7 @@ registerRenderHooks('state', {
   layout: layoutStateWithConfig,
   renderSvg: svg(renderSvg),
   lowerScene: scene(lowerGraphScene),
-  renderAscii: renderFlowchartAscii,
+  renderAscii: renderStateAsciiWithContext,
 })
 
 registerRenderHooks('architecture', {
@@ -198,7 +214,7 @@ registerRenderHooks('sequence', {
   },
   renderSvg: svg(renderSequenceSvg),
   lowerScene: scene(lowerSequenceScene),
-  renderAscii: ctx => renderSequenceAscii(ctx.source.text, ctx.config, ctx.colorMode, ctx.theme, resolveSequenceConfig(ctx.source.frontmatter)),
+  renderAscii: ctx => renderSequenceAscii(ctx.source.text, ctx.config, ctx.colorMode, ctx.theme, resolveSequenceConfig(ctx.source.frontmatter), ctx.options.targetWidth),
 })
 
 registerRenderHooks('class', {
@@ -210,7 +226,7 @@ registerRenderHooks('class', {
   )),
   renderSvg: svg(renderClassSvg),
   lowerScene: scene(lowerClassScene),
-  renderAscii: ctx => renderClassAscii(ctx.source.text, ctx.config, ctx.colorMode, ctx.theme),
+  renderAscii: ctx => renderClassAscii(ctx.source.text, ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth),
 })
 
 registerRenderHooks('er', {
@@ -223,7 +239,7 @@ registerRenderHooks('er', {
   },
   renderSvg: svg(renderErSvg),
   lowerScene: scene(lowerErScene),
-  renderAscii: ctx => renderErAscii(ctx.source.text, ctx.config, ctx.colorMode, ctx.theme),
+  renderAscii: ctx => renderErAscii(ctx.source.text, ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth),
 })
 
 registerRenderHooks('timeline', {
@@ -251,7 +267,7 @@ registerRenderHooks('xychart', {
   },
   renderSvg: svg(renderXYChartSvg),
   lowerScene: scene(lowerXYChartScene),
-  renderAscii: ctx => renderXYChartAscii(ctx.source.text, ctx.config, ctx.colorMode, ctx.theme, ctx.source.frontmatter),
+  renderAscii: ctx => renderXYChartAscii(ctx.source.text, ctx.config, ctx.colorMode, ctx.theme, ctx.source.frontmatter, ctx.options.targetWidth),
 })
 
 registerRenderHooks('pie', {
@@ -262,7 +278,7 @@ registerRenderHooks('pie', {
   )),
   renderSvg: svg(renderPieSvg),
   lowerScene: scene(lowerPieScene),
-  renderAscii: ctx => renderPieAscii(ctx.source.lines, ctx.config, ctx.colorMode, ctx.theme, ctx.source.frontmatter),
+  renderAscii: ctx => renderPieAscii(ctx.source.lines, ctx.config, ctx.colorMode, ctx.theme, ctx.source.frontmatter, ctx.options.targetWidth),
 })
 
 registerRenderHooks('quadrant', {
@@ -276,7 +292,7 @@ registerRenderHooks('quadrant', {
   )),
   renderSvg: svg(renderQuadrantSvg),
   lowerScene: scene(lowerQuadrantScene),
-  renderAscii: ctx => renderQuadrantAscii(ctx.source.lines, ctx.config, ctx.colorMode, ctx.theme),
+  renderAscii: ctx => renderQuadrantAscii(ctx.source.lines, ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth),
 })
 
 registerRenderHooks('gantt', {
@@ -294,5 +310,92 @@ registerRenderHooks('gantt', {
     today: ctx.options.ganttToday,
   }),
 })
+
+registerRenderHooks('mindmap', {
+  layout: ctx => {
+    const config = resolveMindmapConfig(ctx.source.config.mindmap)
+    const authoredLayout = ctx.source.config.layout
+    const layout = authoredLayout === 'tidy-tree' ? 'tidy-tree' : 'radial'
+    return layoutResult(layoutMindmap(parseMindmap(ctx.source.body), { ...config.options, layout }), {
+      injectAccessibility: false,
+    })
+  },
+  renderSvg: svg(renderMindmapSvg),
+  lowerScene: scene(lowerMindmapScene),
+  renderAscii: ctx => renderMindmapAscii(parseMindmap(ctx.source.body), ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth),
+})
+
+registerRenderHooks('gitgraph', {
+  layout: ctx => {
+    const config = resolveGitGraphConfig(ctx.source.config.gitGraph)
+    const diagram = parseGitGraph(ctx.source.body, {
+      mainBranchName: config.parse.mainBranchName,
+      mainBranchOrder: config.parse.mainBranchOrder,
+      title: typeof ctx.source.frontmatter.title === 'string' ? ctx.source.frontmatter.title : undefined,
+    })
+    return layoutResult(layoutGitGraph(diagram, {
+      ...config.layout,
+      commitLabelFontSize: resolveGitGraphCommitLabelFontSize(ctx.source.config.themeVariables),
+    }), {
+      injectAccessibility: false,
+    })
+  },
+  renderSvg: svg(renderGitGraphSvg),
+  lowerScene: scene(lowerGitGraphScene),
+  renderAscii: ctx => renderGitGraphAscii(parseGitGraph(ctx.source.body, {
+    mainBranchName: ctx.source.config.gitGraph?.mainBranchName,
+    mainBranchOrder: ctx.source.config.gitGraph?.mainBranchOrder,
+    title: typeof ctx.source.frontmatter.title === 'string' ? ctx.source.frontmatter.title : undefined,
+  }), ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth, ctx.source.config.themeVariables),
+})
+
+function configDiagnostic(field: string, expected: string): ConfigDiagnostic {
+  return { code: 'INEFFECTIVE_CONFIG', field, message: `${field} must be ${expected}; the invalid value has no effect.` }
+}
+
+function resolveMindmapConfig(raw: unknown): {
+  options: { padding?: number; maxNodeWidth?: number }
+  diagnostics: ConfigDiagnostic[]
+} {
+  const options: { padding?: number; maxNodeWidth?: number } = {}
+  const diagnostics: ConfigDiagnostic[] = []
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { options, diagnostics }
+  const config = raw as Record<string, unknown>
+  if ('padding' in config) {
+    if (typeof config.padding === 'number' && Number.isFinite(config.padding) && config.padding >= 0) options.padding = config.padding
+    else diagnostics.push(configDiagnostic('mindmap.padding', 'a finite non-negative number'))
+  }
+  if ('maxNodeWidth' in config) {
+    if (typeof config.maxNodeWidth === 'number' && Number.isFinite(config.maxNodeWidth) && config.maxNodeWidth > 0) options.maxNodeWidth = config.maxNodeWidth
+    else diagnostics.push(configDiagnostic('mindmap.maxNodeWidth', 'a finite positive number'))
+  }
+  return { options, diagnostics }
+}
+
+function resolveGitGraphConfig(raw: unknown): {
+  parse: { mainBranchName?: string; mainBranchOrder?: number }
+  layout: { showBranches?: boolean; showCommitLabel?: boolean; rotateCommitLabel?: boolean; parallelCommits?: boolean }
+  diagnostics: ConfigDiagnostic[]
+} {
+  const parse: { mainBranchName?: string; mainBranchOrder?: number } = {}
+  const layout: { showBranches?: boolean; showCommitLabel?: boolean; rotateCommitLabel?: boolean; parallelCommits?: boolean } = {}
+  const diagnostics: ConfigDiagnostic[] = []
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { parse, layout, diagnostics }
+  const config = raw as Record<string, unknown>
+  for (const key of ['showBranches', 'showCommitLabel', 'rotateCommitLabel', 'parallelCommits'] as const) {
+    if (!(key in config)) continue
+    if (typeof config[key] === 'boolean') layout[key] = config[key]
+    else diagnostics.push(configDiagnostic(`gitGraph.${key}`, 'a boolean'))
+  }
+  if ('mainBranchName' in config) {
+    if (typeof config.mainBranchName === 'string' && config.mainBranchName.trim()) parse.mainBranchName = config.mainBranchName.trim()
+    else diagnostics.push(configDiagnostic('gitGraph.mainBranchName', 'a non-empty string'))
+  }
+  if ('mainBranchOrder' in config) {
+    if (typeof config.mainBranchOrder === 'number' && Number.isFinite(config.mainBranchOrder)) parse.mainBranchOrder = config.mainBranchOrder
+    else diagnostics.push(configDiagnostic('gitGraph.mainBranchOrder', 'a finite number'))
+  }
+  return { parse, layout, diagnostics }
+}
 
 export { getFamily, knownFamilies }

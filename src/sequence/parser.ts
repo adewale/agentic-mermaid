@@ -1,6 +1,28 @@
-import type { SequenceDiagram, Actor, Message, Block, Note, SequenceBoxGroup } from './types.ts'
+import type { SequenceDiagram, Actor, Message, Block, Note, SequenceBoxGroup, SequenceActorType, SequenceMessageHead } from './types.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
 import { isCssColorToken } from './colors.ts'
+
+const SEQUENCE_MESSAGE_RE = /^(\S+?)(\(\))?\s*(<<-->>|<<->>|-->>|->>|--x|-x|--\)|-\)|-->|->|--[|\\/]|-[|\\/]|[|\\/]--|[|\\/]-)\s*(\(\))?([+-]?)(\S+?)\s*:\s*(.+)$/
+
+export interface ParsedSequenceMessageLine {
+  from: string
+  to: string
+  arrow: string
+  activationMark?: string
+  label: string
+  centralStart: boolean
+  centralEnd: boolean
+}
+
+/** One message-line grammar shared by renderer and agent parsers. */
+export function parseSequenceMessageLine(line: string): ParsedSequenceMessageLine | null {
+  const match = line.match(SEQUENCE_MESSAGE_RE)
+  if (!match || !isMessageArrow(match[3]!)) return null
+  return {
+    from: match[1]!, arrow: match[3]!, activationMark: match[5] || undefined,
+    to: match[6]!, label: match[7]!, centralStart: Boolean(match[2]), centralEnd: Boolean(match[4]),
+  }
+}
 
 // ============================================================================
 // Sequence diagram parser
@@ -64,22 +86,24 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
 
   // Shared handler for the two message regex branches, so autonumber and
   // create/destroy binding cannot drift between them.
-  const pushMessage = (from: string, arrow: string, activationMark: string | undefined, to: string, rawLabel: string): void => {
+  const pushMessage = (from: string, arrow: string, activationMark: string | undefined, to: string, rawLabel: string, centralStart = false, centralEnd = false): void => {
     // Ensure both actors exist
     ensureActor(diagram, actorIds, from)
     ensureActor(diagram, actorIds, to)
 
-    // Determine line style and arrow head from the arrow operator
-    const lineStyle = arrow.startsWith('--') ? 'dashed' : 'solid'
-    // ">>" = filled arrow, ")" or ">" alone = open arrow, "x" = cross (treat as filled)
-    const arrowHead = arrow.includes('>>') || arrow.includes('x') ? 'filled' : 'open'
+    const endpoint = parseMessageArrow(arrow)
+    const arrowHead = endpoint.endHead === 'filled' || endpoint.endHead === 'cross' ? 'filled' : 'open'
 
     const msg: Message = {
       from,
       to,
       label: normalizeBrTags(rawLabel.trim()),
-      lineStyle,
+      lineStyle: endpoint.lineStyle,
       arrowHead,
+      startHead: endpoint.startHead,
+      endHead: endpoint.endHead,
+      centralStart,
+      centralEnd,
     }
 
     // Activation/deactivation via +/- prefix on target
@@ -131,22 +155,24 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
       continue
     }
 
-    // --- Participant / Actor declaration ---
-    // "participant A as Alice" or "participant Alice"
-    // "actor B as Bob" or "actor Bob"
-    const actorMatch = line.match(/^(participant|actor)\s+(\S+?)(?:\s+as\s+(.+))?$/)
-    if (actorMatch) {
-      const type = actorMatch[1] as 'participant' | 'actor'
-      const id = actorMatch[2]!
-      const rawLabel = actorMatch[3]?.trim() ?? id
-      const label = normalizeBrTags(rawLabel)
+    // --- Participant / Actor declaration, including Mermaid 11 metadata. ---
+    const actorDeclaration = parseActorDeclaration(line)
+    if (actorDeclaration) {
+      const { id, label, type } = actorDeclaration
       if (!actorIds.has(id)) {
         actorIds.add(id)
         diagram.actors.push({ id, label, type })
       }
-      // Declarations inside an open box join its membership (re-declaration
-      // included, matching upstream where the declaring line places the actor)
       if (openBox && !openBox.actorIds.includes(id)) openBox.actorIds.push(id)
+      continue
+    }
+
+    // --- Safe actor menus (`link` and JSON `links`). ---
+    const actorLinks = parseActorLinks(line)
+    if (actorLinks) {
+      ensureActor(diagram, actorIds, actorLinks.actorId)
+      const actor = diagram.actors.find(candidate => candidate.id === actorLinks.actorId)!
+      actor.links = { ...actor.links, ...actorLinks.links }
       continue
     }
 
@@ -286,23 +312,10 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
       continue
     }
 
-    // --- Message ---
-    // Patterns: A->>B, A-->>B, A-)B, A--)B, with optional +/- activation
-    // Format: FROM ARROW TO: LABEL
-    const msgMatch = line.match(
-      /^(\S+?)\s*(--?>?>|--?[)x]|--?>>|--?>)\s*([+-]?)(\S+?)\s*:\s*(.+)$/
-    )
-    if (msgMatch) {
-      pushMessage(msgMatch[1]!, msgMatch[2]!, msgMatch[3], msgMatch[4]!, msgMatch[5]!)
-      continue
-    }
-
-    // --- Simplified message format: A->>B: Label (fallback with more relaxed regex) ---
-    const simpleMsgMatch = line.match(
-      /^(\S+?)\s*(->>|-->>|-\)|--\)|-x|--x|->|-->)\s*([+-]?)(\S+?)\s*:\s*(.+)$/
-    )
-    if (simpleMsgMatch) {
-      pushMessage(simpleMsgMatch[1]!, simpleMsgMatch[2]!, simpleMsgMatch[3], simpleMsgMatch[4]!, simpleMsgMatch[5]!)
+    // --- Message. Full recognition keeps endpoint semantics out of actor IDs. ---
+    const parsedMessage = parseSequenceMessageLine(line)
+    if (parsedMessage) {
+      pushMessage(parsedMessage.from, parsedMessage.arrow, parsedMessage.activationMark, parsedMessage.to, parsedMessage.label, parsedMessage.centralStart, parsedMessage.centralEnd)
       continue
     }
 
@@ -321,6 +334,73 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
   }
 
   return diagram
+}
+
+const ACTOR_TYPES = new Set<SequenceActorType>(['participant', 'actor', 'boundary', 'control', 'entity', 'database', 'collections', 'queue'])
+
+export function parseActorDeclaration(line: string): Actor | null {
+  const metadata = line.match(/^(participant|actor)\s+([^\s@]+)@\{([\s\S]+)\}(?:\s+as\s+(.+))?$/i)
+  if (metadata) {
+    const baseType = metadata[1]!.toLowerCase() as 'participant' | 'actor'
+    const id = metadata[2]!
+    let values: Record<string, unknown> = {}
+    try { values = JSON.parse(`{${metadata[3]}}`) as Record<string, unknown> } catch {
+      // Mermaid also accepts identifier-style keys and single-quoted string
+      // values. Normalize only those documented JSON-like extensions;
+      // malformed metadata still fails closed instead of being guessed.
+      const normalized = metadata[3]!
+        .replace(/(^|[,{])(\s*)([A-Za-z][\w-]*)\s*:/g, '$1$2"$3":')
+        .replace(/'([^'\\]*(?:\\.[^'\\]*)*)'/g, (_whole, value: string) => JSON.stringify(value.replace(/\\'/g, "'")))
+      try { values = JSON.parse(`{${normalized}}`) as Record<string, unknown> } catch { return null }
+    }
+    const requested = typeof values.type === 'string' ? values.type.toLowerCase() : baseType
+    if (!ACTOR_TYPES.has(requested as SequenceActorType)) throw new Error(`Unknown sequence actor type '${requested}'`)
+    const type = requested as SequenceActorType
+    // Upstream gives an explicit external `as` alias precedence over inline
+    // metadata so the authored presentation name remains visible.
+    const alias = metadata[4]?.trim() ?? (typeof values.alias === 'string' ? values.alias : undefined)
+    return { id, label: normalizeBrTags(alias ?? id), type }
+  }
+  const ordinary = line.match(/^(participant|actor)\s+(\S+?)(?:\s+as\s+(.+))?$/i)
+  if (!ordinary) return null
+  const id = ordinary[2]!
+  return { id, label: normalizeBrTags(ordinary[3]?.trim() ?? id), type: ordinary[1]!.toLowerCase() as 'participant' | 'actor' }
+}
+
+export function parseActorLinks(line: string): { actorId: string; links: Record<string, string> } | null {
+  const single = line.match(/^link\s+(\S+)\s*:\s*(.+?)\s*@\s*(\S+)$/i)
+  if (single) {
+    if (!/^(?:https?:|mailto:)/i.test(single[3]!)) return null
+    return { actorId: single[1]!, links: { [single[2]!.trim()]: single[3]! } }
+  }
+  const multiple = line.match(/^links\s+(\S+)\s*:\s*(\{.*\})$/i)
+  if (!multiple) return null
+  try {
+    const parsed = JSON.parse(multiple[2]!) as Record<string, unknown>
+    const links: Record<string, string> = {}
+    for (const [label, href] of Object.entries(parsed)) if (typeof href === 'string' && /^(?:https?:|mailto:)/i.test(href)) links[label] = href
+    return Object.keys(links).length > 0 ? { actorId: multiple[1]!, links } : null
+  } catch { return null }
+}
+
+function isMessageArrow(value: string): boolean {
+  return /^(?:<<-+>>|-+>>?|-+[)x]|-+[|\\/]|[|\\/]-+)$/.test(value)
+}
+
+function parseMessageArrow(arrow: string): { lineStyle: 'solid' | 'dashed'; startHead: SequenceMessageHead; endHead: SequenceMessageHead } {
+  const lineStyle = arrow.includes('--') ? 'dashed' : 'solid'
+  if (/^<<-+>>$/.test(arrow)) return { lineStyle, startHead: 'filled', endHead: 'filled' }
+  if (arrow.endsWith('x')) return { lineStyle, startHead: 'none', endHead: 'cross' }
+  if (arrow.endsWith(')')) return { lineStyle, startHead: 'none', endHead: 'open' }
+  if (/^-+>>$/.test(arrow)) return { lineStyle, startHead: 'none', endHead: 'filled' }
+  if (/^-+>$/.test(arrow)) return { lineStyle, startHead: 'none', endHead: 'none' }
+  if (/^[|\\/]-+$/.test(arrow)) {
+    return { lineStyle, startHead: arrow.startsWith('/') ? 'half-bottom' : 'half-top', endHead: 'none' }
+  }
+  if (/^-+[|\\/]$/.test(arrow)) {
+    return { lineStyle, startHead: 'none', endHead: arrow.endsWith('/') ? 'half-bottom' : 'half-top' }
+  }
+  return { lineStyle, startHead: 'none', endHead: 'open' }
 }
 
 function parseAccessibilityLine(line: string, directive: 'accTitle' | 'accDescr'): string | undefined {

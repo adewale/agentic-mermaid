@@ -56,7 +56,9 @@ import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
 import { parseClassDiagram } from '../class/parser.ts'
 import { layoutClassDiagram, resolveClassRenderOptions } from '../class/layout.ts'
 import { parseErDiagram } from '../er/parser.ts'
-import { layoutErDiagram, applyErFrontmatterConfig } from '../er/layout.ts'
+import { layoutErDiagram, applyErFrontmatterConfig, ER_STYLE_DEFAULTS } from '../er/layout.ts'
+import { separateRelationshipLabels } from '../er/renderer.ts'
+import { resolveRenderStyle } from '../styles.ts'
 import { layoutSequenceDiagram } from '../sequence/layout.ts'
 import { parseSequenceDiagram } from '../sequence/parser.ts'
 import { parseTimelineDiagram } from '../timeline/parser.ts'
@@ -83,6 +85,11 @@ import { resolveGanttSchedule } from '../gantt/schedule.ts'
 import { buildGanttRenderPipeline } from '../gantt/pipeline.ts'
 import { layoutGantt } from '../gantt/layout.ts'
 import type { GanttEndExpr, GanttLayoutResult, GanttModel, GanttModelSection, GanttModelTask, GanttStartExpr, GanttTaskTag } from '../gantt/types.ts'
+import { parseMindmap } from '../mindmap/parser.ts'
+import { layoutMindmap } from '../mindmap/layout.ts'
+import { parseGitGraph } from '../gitgraph/parser.ts'
+import { layoutGitGraph } from '../gitgraph/layout.ts'
+import { resolveGitGraphCommitLabelFontSize } from '../gitgraph/renderer.ts'
 
 function f(n: number): Finite { return toFinite(Math.round(n)) }
 
@@ -116,8 +123,101 @@ export function layoutFamilyToRendered(d: ValidDiagram, opts: { debug?: boolean 
     case 'pie':          return pieToRendered(d, opts)
     case 'quadrant':     return quadrantToRendered(d, opts)
     case 'gantt':        return ganttToRendered(d, opts)
+    case 'mindmap':      return mindmapToRendered(d)
+    case 'gitgraph':     return gitgraphToRendered(d)
     default:             return null
   }
+}
+
+// ---- mindmap / gitgraph ---------------------------------------------------
+
+function mindmapToRendered(d: ValidDiagram): RenderedLayout {
+  try {
+    const normalized = normalizeMermaidSource(d.canonicalSource)
+    const wrapper = d.meta.frontmatter as Record<string, unknown> | undefined
+    const config: Record<string, unknown> = {
+      ...(((wrapper?.mindmap) as Record<string, unknown> | undefined) ?? {}),
+    }
+    let authoredLayout = wrapper?.layout
+    for (const directive of d.meta.initDirectives) {
+      const directiveConfig = directive.parsed?.mindmap
+      if (directiveConfig && typeof directiveConfig === 'object' && !Array.isArray(directiveConfig)) Object.assign(config, directiveConfig)
+      if (directive.parsed?.layout !== undefined) authoredLayout = directive.parsed.layout
+    }
+    const diagram = d.body.kind === 'mindmap' ? d.body : parseMindmap(normalized.body)
+    const positioned = layoutMindmap(diagram, {
+      padding: typeof config.padding === 'number' ? config.padding : undefined,
+      maxNodeWidth: typeof config.maxNodeWidth === 'number' ? config.maxNodeWidth : undefined,
+      layout: authoredLayout === 'tidy-tree' ? 'tidy-tree' : 'radial',
+    })
+    const nodes: RenderedLayoutNode[] = positioned.nodes.map(node => ({
+      id: node.id, x: f(node.x), y: f(node.y),
+      w: f(node.width), h: f(node.height), shape: node.shape === 'circle' ? 'ellipse' : 'rectangle', label: node.label,
+    }))
+    const edges: RenderedLayoutEdge[] = positioned.edges.map((edge, index) => ({
+      id: `edge#${index}:${edge.from}->${edge.to}`, from: edge.from, to: edge.to,
+      path: edge.points.map(point => [f(point.x), f(point.y)] as [Finite, Finite]),
+    }))
+    return { version: 1, kind: d.kind, nodes, edges, groups: [], bounds: { w: f(positioned.width), h: f(positioned.height) } }
+  } catch { return emptyRenderedLayout(d.kind) }
+}
+
+function gitgraphToRendered(d: ValidDiagram): RenderedLayout {
+  try {
+    const normalized = normalizeMermaidSource(d.canonicalSource)
+    const config: Record<string, unknown> = {
+      ...((((d.meta.frontmatter as Record<string, unknown> | undefined)?.gitGraph) as Record<string, unknown> | undefined) ?? {}),
+    }
+    const themeVariables: Record<string, unknown> = {
+      ...((((d.meta.frontmatter as Record<string, unknown> | undefined)?.themeVariables) as Record<string, unknown> | undefined) ?? {}),
+    }
+    for (const directive of d.meta.initDirectives) {
+      const directiveConfig = directive.parsed?.gitGraph
+      if (directiveConfig && typeof directiveConfig === 'object' && !Array.isArray(directiveConfig)) Object.assign(config, directiveConfig)
+      const directiveTheme = directive.parsed?.themeVariables
+      if (directiveTheme && typeof directiveTheme === 'object' && !Array.isArray(directiveTheme)) Object.assign(themeVariables, directiveTheme)
+    }
+    // Structured GitGraph bodies already carry the configured main-branch
+    // identity used during parse. Re-parsing canonicalSource alone loses the
+    // preserved wrapper config and can turn a valid custom-main history into
+    // a false 0×0 verification layout.
+    const diagram = d.body.kind === 'gitgraph' ? d.body : parseGitGraph(normalized.body, {
+      mainBranchName: typeof config.mainBranchName === 'string' ? config.mainBranchName : undefined,
+      mainBranchOrder: typeof config.mainBranchOrder === 'number' ? config.mainBranchOrder : undefined,
+    })
+    const positioned = layoutGitGraph(diagram, {
+      showBranches: typeof config.showBranches === 'boolean' ? config.showBranches : undefined,
+      showCommitLabel: typeof config.showCommitLabel === 'boolean' ? config.showCommitLabel : undefined,
+      rotateCommitLabel: typeof config.rotateCommitLabel === 'boolean' ? config.rotateCommitLabel : undefined,
+      parallelCommits: typeof config.parallelCommits === 'boolean' ? config.parallelCommits : undefined,
+      commitLabelFontSize: resolveGitGraphCommitLabelFontSize(themeVariables),
+    })
+    const nodes: RenderedLayoutNode[] = positioned.commits.map(commit => {
+      const type = commit.customType ?? commit.type
+      return {
+        id: commit.id, x: f(commit.x - 10), y: f(commit.y - 10), w: f(20), h: f(20),
+        shape: type === 'CHERRY_PICK' ? 'diamond' : type === 'HIGHLIGHT' ? 'rectangle' : 'ellipse',
+        label: commit.message || commit.id,
+      }
+    })
+    const edges: RenderedLayoutEdge[] = positioned.edges.map((edge, index) => ({
+      id: `edge#${index}:${edge.from}->${edge.to}`, from: edge.from, to: edge.to,
+      path: edge.points.map(point => [f(point.x), f(point.y)] as [Finite, Finite]),
+    }))
+    const groups: RenderedLayoutGroup[] = positioned.showBranches ? positioned.branches.map(branch => {
+      const commits = positioned.commits.filter(commit => commit.branch === branch.name)
+      const minX = Math.min(branch.x1, branch.x2, ...commits.map(commit => commit.x - 10))
+      const minY = Math.min(branch.y1, branch.y2, ...commits.map(commit => commit.y - 10))
+      const maxX = Math.max(branch.x1, branch.x2, ...commits.map(commit => commit.x + 10))
+      const maxY = Math.max(branch.y1, branch.y2, ...commits.map(commit => commit.y + 10))
+      return {
+        id: `branch:${branch.name}`,
+        x: f(minX), y: f(minY), w: f(Math.max(1, maxX - minX)), h: f(Math.max(1, maxY - minY)),
+        members: commits.map(commit => commit.id), label: branch.name,
+      }
+    }) : []
+    return { version: 1, kind: d.kind, nodes, edges, groups, bounds: { w: f(positioned.width), h: f(positioned.height) } }
+  } catch { return emptyRenderedLayout(d.kind) }
 }
 
 // ---- class ----------------------------------------------------------------
@@ -164,13 +264,25 @@ function erToRendered(d: ValidDiagram, opts: { debug?: boolean } = {}): Rendered
       id: e.id, x: f(e.x), y: f(e.y), w: fSpan(e.x, e.width), h: fSpan(e.y, e.height), shape: 'rectangle', label: e.label,
     }))
     const boxById = new Map(positioned.entities.map(e => [e.id, { x: e.x, y: e.y, width: e.width, height: e.height }]))
-    const edges: RenderedLayoutEdge[] = positioned.relationships.map((r, i) => ({
-      id: `rel#${i}:${r.entity1}->${r.entity2}`, from: r.entity1, to: r.entity2,
-      path: r.points.map(p => [f(p.x), f(p.y)] as [Finite, Finite]),
-      label: r.label ? labelMidpoint(r.points, r.label) : undefined,
-      route: opts.debug ? boxRouteCertificate('er', i, r.points, boxById.get(r.entity1), boxById.get(r.entity2)) : undefined,
+    const labelPositions = separateRelationshipLabels(positioned, resolveRenderStyle({}, ER_STYLE_DEFAULTS))
+    const edges: RenderedLayoutEdge[] = positioned.relationships.map((r, i) => {
+      const at = labelPositions.get(r)
+      return {
+        id: `rel#${i}:${r.entity1}->${r.entity2}`, from: r.entity1, to: r.entity2,
+        path: r.points.map(p => [f(p.x), f(p.y)] as [Finite, Finite]),
+        label: r.label && at ? { x: f(at.x), y: f(at.y), text: r.label } : undefined,
+        route: opts.debug ? boxRouteCertificate('er', i, r.points, boxById.get(r.entity1), boxById.get(r.entity2)) : undefined,
+      }
+    })
+    const groups: RenderedLayoutGroup[] = positioned.groups.map(group => ({
+      id: group.id, x: f(group.x), y: f(group.y), w: fSpan(group.x, group.width), h: fSpan(group.y, group.height),
+      members: [
+        ...positioned.entities.filter(entity => entity.groupId === group.id).map(entity => entity.id),
+        ...positioned.groups.filter(child => child.parentId === group.id).map(child => child.id),
+      ],
+      label: group.label, parentId: group.parentId,
     }))
-    return { version: 1, kind: d.kind, nodes, edges, groups: [], bounds: { w: f(positioned.width), h: f(positioned.height) } }
+    return { version: 1, kind: d.kind, nodes, edges, groups, bounds: { w: f(positioned.width), h: f(positioned.height) } }
   } catch { return emptyRenderedLayout(d.kind) }
 }
 
@@ -487,7 +599,7 @@ function architectureRouteCertificate(
     family: 'architecture',
     edgeIndex,
     routeClass: 'family-layout',
-    invariant: sourceAnchored && targetAnchored && orthogonal ? 'side-anchored' : 'unverified-family-route',
+    invariant: sourceAnchored && targetAnchored && orthogonal && edge.obstacleFree ? 'side-anchored' : 'unverified-family-route',
     bendCount: bendCount(edge.points),
     orthogonal,
     sourceSide: edge.source.side,
@@ -496,6 +608,10 @@ function architectureRouteCertificate(
     targetBoundary: edge.target.boundary,
     sourceAnchored,
     targetAnchored,
+    placement: edge.placement,
+    sourceFacesTarget: edge.sourceFacesTarget,
+    targetFacesSource: edge.targetFacesSource,
+    obstacleFree: edge.obstacleFree,
   }
 }
 

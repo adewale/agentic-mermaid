@@ -20,10 +20,10 @@ one does, and the final section tells you which to install for common jobs.
   Mermaid for programs that edit diagrams — AI agents foremost. It adds a
   typed parse → mutate → verify → serialize loop, byte-identical output
   across runs, structured verification, and CLI/MCP surfaces. The trade is
-  explicit: 12 diagram families against Mermaid's ~25, in exchange for the
+  explicit: 14 diagram families against Mermaid's ~25, in exchange for the
   guarantee that parsing and re-serializing a diagram never drops syntax.
 
-Facts below reflect Mermaid ~11.15 and the upstream `beautiful-mermaid`
+Facts below reflect Mermaid 11.16.0 and the upstream `beautiful-mermaid`
 repository as of mid-2026; both projects move quickly, so check their
 changelogs for the current state.
 
@@ -33,11 +33,11 @@ changelogs for the current state.
 |---|---|---|---|
 | Primary job | Define and render the diagram language everywhere | Fast, beautiful, browserless rendering | Agent-safe diagram *editing* plus rendering |
 | Runtime | Browser DOM (Node via Puppeteer/`mermaid-cli`) | Pure TypeScript, zero DOM, synchronous | Pure TypeScript, zero DOM, synchronous |
-| Diagram types | ~25 (flowchart, sequence, class, state, ER, gantt, pie, mindmap, gitgraph, timeline, journey, quadrant, sankey, xychart, block, packet, kanban, architecture, radar, treemap, venn, ishikawa, wardley, treeview, event modeling, …) | 6 (flowchart, state, sequence, class, ER, XY chart) | 12 (those 6 + timeline, journey, architecture, pie, quadrant, gantt) |
+| Diagram types | ~25 (flowchart, sequence, class, state, ER, gantt, pie, mindmap, gitgraph, timeline, journey, quadrant, sankey, xychart, block, packet, kanban, architecture, radar, treemap, venn, ishikawa, wardley, treeview, event modeling, …) | 6 (flowchart, state, sequence, class, ER, XY chart) | 14 (those 6 + timeline, journey, architecture, pie, quadrant, gantt, mindmap, gitgraph) |
 | Output formats | SVG (PNG/PDF via CLI tooling) | SVG, ASCII/Unicode | SVG, PNG (offline resvg), ASCII/Unicode, JSON layout |
 | Theming | Theme config + CSS | Two-color foundation, 15+ named themes, Shiki/VS Code compatibility, live CSS-variable switching | Style + Palette stacks: named looks, palette-only styles, custom JSON records, and deterministic seeds |
 | Parse to a typed AST for editing | — (internal parser, not an editing API) | — (render-only API) | ✅ `parseMermaid` → typed `ValidDiagram` |
-| Typed mutation ops | — | — | ✅ 12 of 12 families (132 ops total), structured-or-opaque, never lossy |
+| Typed mutation ops | — | — | ✅ 14 of 14 families (172 ops total), structured-or-opaque, never lossy |
 | Structural verification | — | — | ✅ 3 warning tiers + perceptual quality metrics, all families |
 | Deterministic output | Not a goal (browser/layout variance) | Mostly stable, not a tested guarantee | ✅ byte-identical across runs/processes, CI-gated |
 | Round-trip guarantee (parse → serialize keeps your source) | — | — | ✅ verbatim for unmodeled syntax, canonical for structured bodies |
@@ -73,10 +73,22 @@ for zero-install render/verify/describe and structured edits, and tested
 byte-identical determinism. Neither upstream project needed any of this: both serve humans who write
 diagrams once, while this surface serves programs that edit them repeatedly.
 
+## Mindmap/GitGraph and the terminal ecosystem
+
+The checked fixtures follow the official [Mindmap](https://mermaid.ai/open-source/syntax/mindmap.html) and [GitGraph](https://mermaid.ai/open-source/syntax/gitgraph.html) syntax pages and render from the same authored source in Mermaid 11.16.0 and Agentic Mermaid. See the captioned [Mindmap comparison](./design/families/mindmap.md#visual-evidence) and [GitGraph comparison](./design/families/gitgraph.md#visual-evidence). Compare semantic structure—labels, shapes, hierarchy, lanes, commits, parentage, tags, and bounds—not pixels, because the layout/style engines differ.
+
+[AlexanderGrooff/mermaid-ascii](https://github.com/AlexanderGrooff/mermaid-ascii) 1.4.0 does not currently implement either family. Replaying the documented CLI against the same fixtures exits 1 with:
+
+```text
+unsupported graph type 'mindmap'. Supported types: graph TD, graph TB, graph LR, flowchart TD, flowchart TB, flowchart LR
+unsupported graph type 'gitGraph'. Supported types: graph TD, graph TB, graph LR, flowchart TD, flowchart TB, flowchart LR
+```
+
+Its [diagram coverage issue #74](https://github.com/AlexanderGrooff/mermaid-ascii/issues/74) tracks additional families. This is a capability difference, not a claim that an unsupported render is visually worse.
+
 ## Choosing
 
-- Rendering inside a web app, or you need mindmap/gitgraph/any family
-  beyond the 12 here → **Mermaid**.
+- Rendering inside a web app, or you need any family beyond the 14 here → **Mermaid**.
 - Fast, beautiful SVG/ASCII rendering of the core families in
   Node/Bun/terminal, render-only → **Beautiful Mermaid**.
 - An AI agent (or any program) needs to *edit* diagrams safely, verify them

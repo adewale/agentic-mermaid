@@ -138,6 +138,35 @@ export interface JourneyRuntimeConfig extends MermaidConfigMap {
 
 export interface GanttRuntimeConfig extends MermaidConfigMap {
   displayMode?: string
+  barHeight?: number
+  topAxis?: boolean
+  tickInterval?: string
+  barGap?: number
+  topPadding?: number
+  leftPadding?: number
+  gridLineStartPadding?: number
+  fontSize?: number
+  sectionFontSize?: number
+  numberSectionStyles?: number
+  axisFormat?: string
+  todayMarker?: string
+  weekday?: string
+}
+
+/** Wired deterministic mindmap layout fields. */
+export interface MindmapRuntimeConfig extends MermaidConfigMap {
+  padding?: number
+  maxNodeWidth?: number
+}
+
+/** Wired GitGraph presentation and replay fields. */
+export interface GitGraphRuntimeConfig extends MermaidConfigMap {
+  showBranches?: boolean
+  showCommitLabel?: boolean
+  mainBranchName?: string
+  mainBranchOrder?: number
+  parallelCommits?: boolean
+  rotateCommitLabel?: boolean
 }
 
 /**
@@ -285,6 +314,8 @@ export interface MermaidRuntimeConfig extends MermaidConfigMap {
   class?: ClassRuntimeConfig
   er?: ErRuntimeConfig
   architecture?: ArchitectureRuntimeConfig
+  mindmap?: MindmapRuntimeConfig
+  gitGraph?: GitGraphRuntimeConfig
   useMaxWidth?: boolean
   useWidth?: number
   themeCSS?: string
@@ -805,7 +836,7 @@ function unescapeQuotedString(valueText: string): string {
   }
 }
 
-export type RoutedDiagramType = 'flowchart' | 'state' | 'architecture' | 'sequence' | 'class' | 'er' | 'timeline' | 'journey' | 'xychart' | 'pie' | 'quadrant' | 'gantt'
+export type RoutedDiagramType = 'flowchart' | 'state' | 'architecture' | 'sequence' | 'class' | 'er' | 'timeline' | 'journey' | 'xychart' | 'pie' | 'quadrant' | 'gantt' | 'mindmap' | 'gitgraph'
 
 /**
  * Return the logical Mermaid lines after frontmatter/init/comment normalization.
@@ -823,6 +854,8 @@ export function preprocessMermaidLines(text: string): string[] {
 export function detectDiagramTypeFromFirstLine(firstLine: string): RoutedDiagramType | null {
   const line = firstLine.split(';')[0]?.trim().toLowerCase() ?? ''
   if (/^architecture-beta\s*$/.test(line)) return 'architecture'
+  if (/^mindmap\s*$/.test(line)) return 'mindmap'
+  if (/^gitgraph(?:\s+(?:lr|tb|bt))?\s*:?\s*$/.test(line)) return 'gitgraph'
   if (/^xychart(-beta)?\b/.test(line)) return 'xychart'
   if (/^pie\b/.test(line)) return 'pie'
   if (/^quadrantchart\s*$/.test(line)) return 'quadrant'
@@ -847,6 +880,8 @@ export function detectDiagramTypeFromFirstLine(firstLine: string): RoutedDiagram
 export function detectLooseDiagramTypeFromFirstLine(firstLine: string): RoutedDiagramType | null {
   const line = firstLine.split(';')[0]?.trim().toLowerCase() ?? ''
   if (/^architecture-beta\b/.test(line)) return 'architecture'
+  if (/^mindmap\b/.test(line)) return 'mindmap'
+  if (/^gitgraph\b/.test(line)) return 'gitgraph'
   if (/^xychart(-beta)?\b/.test(line)) return 'xychart'
   if (/^pie\b/.test(line)) return 'pie'
   if (/^quadrantchart\b/.test(line)) return 'quadrant'

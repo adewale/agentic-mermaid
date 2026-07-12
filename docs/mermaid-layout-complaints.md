@@ -412,8 +412,9 @@ handling.
   pure, clock-free schedule resolver *before* layout, family validators
   (deterministic task intervals, milestone zero-width markers,
   non-overlapping compact rows) designed against precisely the mermaid#1301
-  class. C4, radar, and mindmap are not supported at all.
-- Status here: **partial** (pie/quadrant/gantt landed; C4/radar/mindmap
+  class. Mindmap now has deterministic tree geometry; C4 and radar remain
+  unsupported.
+- Status here: **partial** (pie/quadrant/gantt/mindmap landed; C4/radar
   absent — see [`comparison.md`](./comparison.md) for the current
   family-coverage trade).
 
@@ -743,9 +744,9 @@ Stated plainly so the scorecard cannot oversell:
    applies to diagrams rendered through this stack (agent pipelines, CI,
    terminals, the editor) plus whatever is upstreamed per the
    [upstreaming strategy](./fork-differences.md#upstreaming-strategy).
-4. **Family coverage.** 12 families vs Mermaid's ~25. Gantt is now rendered
-   and characterized in this fork; C4/radar/mindmap and many other Mermaid
-   families remain outside the current engine.
+4. **Family coverage.** 14 families vs Mermaid's ~25. Gantt, Mindmap, and
+   GitGraph are rendered and characterized in this fork; C4, radar, and many
+   other Mermaid families remain outside the current engine.
 5. **Metric honesty.** Today's perceptual metrics pass diagrams whose
    routing is visibly wrong (C4 worked example). Until #25 certificates and
    #26 family validators land, `verify.ok` + `checkQuality` must not be

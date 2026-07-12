@@ -35,13 +35,42 @@ The JSON report lands in `reports/mutation/` (gitignored). Beyond the lanes
 documented here, `stryker.*.config.json` also covers every family through a
 named package script: flowchart uses the route lane; XYChart and Architecture
 share `mutation-test:families`; State, Sequence, Timeline, Class, ER, Journey,
-Pie, Quadrant, and Gantt each have a focused command. Every family lane emits a
+Pie, Quadrant, Gantt, Mindmap, and GitGraph each have a focused command. The
+Mindmap/GitGraph focused lanes mutate typed editing/replay bodies; the broad
+family lane also mutates their parser/layout/renderer cores. Every family lane emits a
 uniquely named JSON report and has a `thresholds.break: 60` adequacy floor.
 `.github/workflows/nightly-route-mutation.yml` schedules all of those lanes,
 plus route certificates/subgraph routing and `sabotage:routes`, nightly and on
 manual `workflow_dispatch`, uploading reports as artifacts. Broad mutation
 runs remain outside the PR gate; run the narrow lane locally
 when you touch ASCII/route core logic and want immediate proof the tests bite.
+
+## Focused Mindmap/GitGraph historical local measurement (2026-07-10)
+
+These figures came from local runs. Their JSON reports are gitignored and no
+immutable CI artifact URL is committed, so they are diagnostic history—not a
+PR acceptance gate. The reproducible configs enforce only `thresholds.break:
+60`; they do not enforce the measured 97–99% scores.
+
+| Lane | Mutants | Killed | Survived | Score |
+|---|---:|---:|---:|---:|
+| `bun run mutation-test:mindmap` (`src/agent/mindmap-body.ts`) | 405 | 400 | 5 | **98.77%** |
+| `bun run mutation-test:gitgraph` (`src/agent/gitgraph-body.ts`) | 303 | 294 | 9 | **97.03%** |
+
+The operation suites exercise every happy path, validation branch, source-order
+rewrite, recursive/cycle guard, null-clearing path, and verification warning.
+Mindmap's five survivors are two correlated node-syntax tuple guards plus
+three exception-path mutations around the node/body stability probes (two
+empty `catch` forms remain falsy; one `false`→`true` mutation is retained as a
+non-gating test gap). GitGraph's nine
+survivors are canonical serialization equivalents (trimming an already
+canonical header, explicit `NORMAL`, and optional attribute whitespace),
+merge-field guards implied by the discriminated model, or widened
+statement-kind guards that serialize identically on valid replay state. Reports are generated at
+`reports/mutation/{mindmap,gitgraph}-mutation.json` (gitignored); the committed
+configs and nightly lanes make the runs reproducible. A future acceptance
+claim must cite retained CI artifacts or commit a content-addressed report; it
+must not infer the scores above from the 60% break floor.
 
 ## Policy
 
@@ -179,7 +208,7 @@ accepted not chased:
   the `default` branch *also* returns `null`, so mutating the `opaque` case
   cannot change the result for any input.
 - `structural-count.ts:98` (`default:` exhaustiveness branch) — two mutants
-  (the branch condition + its block). Unreachable by construction: all twelve
+  (the branch condition + its block). Unreachable by construction: all fourteen
   families are handled explicitly and the `const _never: never = body` assigns
   compile-time exhaustiveness, so the branch never executes at runtime.
 

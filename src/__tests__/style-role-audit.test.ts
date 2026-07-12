@@ -1,23 +1,11 @@
 import { describe, expect, test } from 'bun:test'
 import { EDITOR_EXAMPLES } from '../../editor/examples.ts'
 import { renderMermaidSVG, validateStyleSpec } from '../index.ts'
+import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 
 const FAMILY_STYLE_STACK = ['publication-figure', 'github-light'] as const
 
-const SUPPORTED_FAMILIES = [
-  'Flowchart',
-  'State',
-  'Architecture',
-  'Sequence',
-  'Class',
-  'ER',
-  'Timeline',
-  'Journey',
-  'XY Chart',
-  'Pie',
-  'Quadrant',
-  'Gantt',
-]
+const SUPPORTED_FAMILIES = BUILTIN_FAMILY_METADATA.map(family => family.editorDiagramType)
 
 describe('Style + Palette contract', () => {
   test('public style specs reject removed role-style keys', () => {

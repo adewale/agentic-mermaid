@@ -19,7 +19,7 @@ import type { RoleCanvas, CharRole } from './types.ts'
 import { determineDirection, dirEquals } from './edge-routing.ts'
 import { gridToDrawingCoord, lineToDrawing } from './grid.ts'
 import { splitLines } from './multiline-utils.ts'
-import { visualWidth } from './width.ts'
+import { visualWidth, truncateToVisualWidth } from './width.ts'
 import { getCorners } from './shapes/corners.ts'
 import { getShapeAttachmentPoint } from './shapes/index.ts'
 
@@ -1452,16 +1452,11 @@ export function drawSubgraphLabel(sg: AsciiSubgraph, graph: AsciiGraph): [Canvas
 
   // Start at row 1 inside subgraph, expand downward for multiple lines
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]!
+    const line = truncateToVisualWidth(lines[i]!, Math.max(0, width - 1))
     const labelY = 1 + i
-    let labelX = Math.floor(width / 2) - Math.floor(line.length / 2)
+    let labelX = Math.floor(width / 2) - Math.floor(visualWidth(line) / 2)
     if (labelX < 1) labelX = 1
-
-    for (let j = 0; j < line.length; j++) {
-      if (labelX + j < width && labelY < height) {
-        canvas[labelX + j]![labelY] = line[j]!
-      }
-    }
+    if (labelY < height) drawText(canvas, { x: labelX, y: labelY }, line, true)
   }
 
   return [canvas, { x: sg.minX, y: sg.minY }]
@@ -1472,6 +1467,37 @@ export function drawSubgraphLabel(sg: AsciiSubgraph, graph: AsciiGraph): [Canvas
 // ============================================================================
 
 /** Sort subgraphs by nesting depth (shallowest first) for correct layered rendering. */
+function drawConcurrencyRegionSeparators(graph: AsciiGraph): Canvas {
+  const [maxX, maxY] = getCanvasSize(graph.canvas)
+  const canvas = mkCanvas(maxX, maxY)
+  for (const parent of graph.subgraphs) {
+    const regions = parent.children.filter(child => child.concurrencyRegion && child.nodes.length > 0)
+    if (regions.length < 2) continue
+    const xSpread = Math.max(...regions.map(region => (region.minX + region.maxX) / 2))
+      - Math.min(...regions.map(region => (region.minX + region.maxX) / 2))
+    const ySpread = Math.max(...regions.map(region => (region.minY + region.maxY) / 2))
+      - Math.min(...regions.map(region => (region.minY + region.maxY) / 2))
+    if (xSpread >= ySpread) {
+      const ordered = [...regions].sort((a, b) => a.minX - b.minX)
+      for (let index = 1; index < ordered.length; index++) {
+        const x = Math.round((ordered[index - 1]!.maxX + ordered[index]!.minX) / 2)
+        const top = Math.max(parent.minY + 3, Math.min(...regions.map(region => region.minY)))
+        const bottom = Math.min(parent.maxY - 1, Math.max(...regions.map(region => region.maxY)))
+        for (let y = top; y <= bottom; y++) canvas[x]![y] = graph.config.useAscii ? ':' : '┆'
+      }
+    } else {
+      const ordered = [...regions].sort((a, b) => a.minY - b.minY)
+      for (let index = 1; index < ordered.length; index++) {
+        const y = Math.round((ordered[index - 1]!.maxY + ordered[index]!.minY) / 2)
+        const left = Math.max(parent.minX + 1, Math.min(...regions.map(region => region.minX)))
+        const right = Math.min(parent.maxX - 1, Math.max(...regions.map(region => region.maxX)))
+        for (let x = left; x <= right; x++) canvas[x]![y] = graph.config.useAscii ? '.' : '┄'
+      }
+    }
+  }
+  return canvas
+}
+
 function sortSubgraphsByDepth(subgraphs: AsciiSubgraph[]): AsciiSubgraph[] {
   function getDepth(sg: AsciiSubgraph): number {
     return sg.parent === null ? 0 : 1 + getDepth(sg.parent)
@@ -1571,12 +1597,17 @@ export function drawGraph(graph: AsciiGraph): Canvas {
   // Draw subgraph borders
   const sortedSgs = sortSubgraphsByDepth(graph.subgraphs)
   for (const sg of sortedSgs) {
+    if (sg.concurrencyRegion) continue
     const sgCanvas = drawSubgraphBox(sg, graph)
     const offset: DrawingCoord = { x: sg.minX, y: sg.minY }
     graph.canvas = mergeCanvases(graph.canvas, offset, useAscii, sgCanvas)
     // Subgraph borders get 'border' role
     fillRolesFromCanvas(graph.roleCanvas, sgCanvas, offset, 'border')
   }
+
+  const regionSeparators = drawConcurrencyRegionSeparators(graph)
+  graph.canvas = mergeCanvases(graph.canvas, zero, useAscii, regionSeparators)
+  fillRolesFromCanvas(graph.roleCanvas, regionSeparators, zero, 'border')
 
   // Draw node boxes
   for (const node of graph.nodes) {
@@ -1683,7 +1714,7 @@ export function drawGraph(graph: AsciiGraph): Canvas {
 
   // Draw subgraph labels last (on top)
   for (const sg of graph.subgraphs) {
-    if (sg.nodes.length === 0) continue
+    if (sg.nodes.length === 0 || sg.concurrencyRegion) continue
     const [labelCanvas, offset] = drawSubgraphLabel(sg, graph)
     graph.canvas = mergeCanvases(graph.canvas, offset, useAscii, labelCanvas)
     fillRolesFromCanvas(graph.roleCanvas, labelCanvas, offset, 'text')

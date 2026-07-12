@@ -3,6 +3,7 @@
 
 import { describe, test, expect } from 'bun:test'
 import { spawnSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { join } from 'node:path'
 import { verifyMermaid } from '../agent/verify.ts'
 
@@ -244,6 +245,7 @@ describe('determinism — cross-runtime ASCII (Loop 9 M7)', () => {
     'flowchart LR\n  A --> B',
     'flowchart TD\n  A --> B\n  B --> C\n  C --> D',
     'flowchart LR\n  A --> B\n  A --> C\n  B --> D\n  C --> D',
+    'gitGraph\n  commit id:"base"\n  branch "éclair" order:1\n  commit id:"e"\n  checkout main\n  branch Zulu order:1\n  commit id:"z"',
   ]) {
     fn(`bun ASCII SHA-256 ≡ node ASCII SHA-256: ${src.slice(0, 30).replace(/\n/g, ' ')}…`, async () => {
       const { renderMermaidASCII } = await import('../agent/index.ts')
@@ -266,19 +268,23 @@ describe('determinism — cross-runtime ASCII (Loop 9 M7)', () => {
 })
 
 describe('drift sentinel', () => {
+  // Explicit hashes avoid Bun's cross-file snapshot-writer race under the
+  // repository's default concurrent full-suite command while retaining the
+  // same exact-geometry regression pin.
   const SENTINELS = [
-    'flowchart TD\n  A --> B',
-    'flowchart LR\n  A --> B\n  B --> C',
-    'flowchart TD\n  A[Alpha] --> B[Beta]\n  B --> C[Gamma]',
-    'flowchart TD\n  A{Decision} --> B[Yes]\n  A --> C[No]',
-    'flowchart LR\n  A --> B\n  A --> C\n  B --> D\n  C --> D',
-    'flowchart TD\n  A((Start)) --> B[Step]\n  B --> C((End))',
-    'flowchart TD\n  A --> B\n  B --> C\n  C --> A',
-    'flowchart LR\n  A1 --> A2\n  A2 --> A3\n  A3 --> A4\n  A4 --> A5',
-  ]
-  for (const src of SENTINELS) {
+    ['flowchart TD\n  A --> B', '456d75dc859b16e90edae745127b9f86860b894bcbfb835049ff07862989e0d5'],
+    ['flowchart LR\n  A --> B\n  B --> C', 'ae83f4368a0c58a52e0976a12ac2fab1c8c348b7ad7f8e07b925a3e8b20b6bc9'],
+    ['flowchart TD\n  A[Alpha] --> B[Beta]\n  B --> C[Gamma]', '810a840ae2f2b31d9259a9c23003f2e780d8f8edc337be05615b81e10662d951'],
+    ['flowchart TD\n  A{Decision} --> B[Yes]\n  A --> C[No]', '070e19cb32fd2ea92574cc923ea11d4ef2cde2824c68accc555322b3a78e9b70'],
+    ['flowchart LR\n  A --> B\n  A --> C\n  B --> D\n  C --> D', 'b3edf5a745185ecdd6f309b8848f6a65e89c5fbfba8261b4adcb387dc4239e26'],
+    ['flowchart TD\n  A((Start)) --> B[Step]\n  B --> C((End))', '0cfb6e4aefdaf2deef0c8a2ce652014f396070036e6b41630a86b417ece0e9e4'],
+    ['flowchart TD\n  A --> B\n  B --> C\n  C --> A', 'b5ff88b9b687d6974f2a346af3bdebb4efa43809a72769d310beb913dd44e9dd'],
+    ['flowchart LR\n  A1 --> A2\n  A2 --> A3\n  A3 --> A4\n  A4 --> A5', 'a86d2cbdc98bf2c7f1da13f9937b0763101076b8a56cb3038a1e47d9e2b87750'],
+  ] as const
+  for (const [src, expectedHash] of SENTINELS) {
     test(`sentinel: ${src.replace(/\n/g, ' / ').slice(0, 60)}`, () => {
-      expect(verifyMermaid(src).layout).toMatchSnapshot()
+      const hash = createHash('sha256').update(JSON.stringify(verifyMermaid(src).layout)).digest('hex')
+      expect(hash).toBe(expectedHash)
     })
   }
 })

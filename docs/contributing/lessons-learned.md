@@ -8,6 +8,28 @@ date; do not delete old ones — supersede them in place.
 > long-form fork narrative and major-PR retrospectives, see
 > [`../project/lessons-learned.md`](../project/lessons-learned.md).
 
+## 2026-07 — closing Mermaid 11.16 fidelity gaps (#149)
+
+**A zero-overlap claim is only as strong as the transforms the auditor understands.** GitGraph's hardest labels were rotated 45°, while the universal overlap auditor deliberately skipped arbitrary angles; its green result therefore said nothing about the visible collisions. Rule: audit final transformed corners for every emitted transform, add a discriminating rotated-label probe, and run the real-content corpus through the upgraded oracle before tuning spacing.
+
+**Evidence layout can manufacture ugliness.** Squeezing a twelve-lane history into a two-column 300px card made readable source geometry illegible, while Mindmap's shared max-width columns charged both sides for one long label and created empty horizontal bands. Rule: measure both renderer geometry and presentation scale; size bilateral columns independently, pack from authored text bounds, and never use a thumbnail grid as the sole readability proof.
+
+**A new family is not compatible with Style + Palette until composed rendering is tested.** Crisp family tests can stay green while a rough/hybrid look, palette CSS variables, strict security, or font metrics fail on the styled backend. Rule: enroll every family—and representative broad, deep, Unicode, long-label, and many-lane content—in deterministic look+palette stacks; assert palette precedence, finite geometry, semantic text, and reference safety rather than accepting a non-empty SVG.
+
+**A PR screenshot is current only when its generator and URL are current.** An image can remain visually unchanged after source work and still be weak evidence if nobody reran its generator or if the PR points at an older head. Rule: regenerate every described artifact, fail on byte/receipt drift, bind dependency-complete receipts where practical, and update PR image URLs to the resulting immutable head.
+
+**Popularity-weighted examples catch seams that official syntax cases miss.** The official GitGraph config tests proved `mainBranchName` parsing and the renderer honored it, yet a transit-map example showed `layoutMermaid` reparsing wrapper-less canonical source and reporting a false 0×0 layout. Explicit Mindmap `tidy-tree` had the same projection drift. Rule: supplement exact upstream oracles with diverse real-content scenarios selected from docs, issue demand, terminal corpora, and high-signal fork networks; run each through parse → verify/layout → serialize → SVG → terminal, not only the family renderer.
+
+**A family is not faithful when its labels merely survive.** Mindmap accepted rich syntax and rendered every node, yet a one-sided dendrogram missed the family’s central, radiating metaphor. Rule: audit syntax coverage, semantic preservation, and recognizable family appearance separately; terminal availability is a fourth, independent claim.
+
+**Promotion from opaque to native must close the serializer at the same time.** Flowchart icon/image and edge-presentation metadata could render before the agent body could reproduce it, so native parsing would have traded source fidelity for structure. Rule: remove an opaque fallback only after the typed model and canonical serializer reproduce every promoted key; keep dimensions or placement opaque until they are modeled too.
+
+**The public geometry projection must use the renderer’s final label placement.** ER SVG already separated some duplicate labels, while `RenderedLayout` reported raw route midpoints and therefore disagreed with the pixels its readability gate was meant to audit. Rule: compute collision-separated positions once and share them with SVG and verification; reserve endpoint-marker zones as obstacles, then ratchet the global readability count to zero.
+
+**Inert metadata is still sensitive in strict mode.** A safe Gantt URL in `data-href` could not fetch by itself, but strict security promises no external reference text at all. Rule: preserve safe inert interaction metadata in normal static output, strip it under `security: 'strict'`, and test callbacks and unsafe schemes remain absent in both modes.
+
+**An external oracle’s old limitation is not the product contract.** Promoting Mermaid 11.16 XY labels, Sequence aliases, ER groups, and Flowchart metadata made several pinned expectations fail because they described this renderer’s former fallback rather than upstream semantics. Rule: retain upstream source/title/order provenance, but update executable expectations to the newly modeled meaning and document when an independent parser is too old to recognize it.
+
 ## 2026-07 — the all-family elevation PR (#142)
 
 **A callback in an SDK declaration is not a callback across a sandbox boundary.** Code Mode cloned render options through JSON, which silently removed `onConfigDiagnostic` even though autocomplete advertised it. Rule: bridge callbacks explicitly—clone only data, collect host diagnostics, then invoke the hardened sandbox callback—and differential-test local and hosted harnesses.
@@ -322,3 +344,100 @@ invariant (no node overlaps after a shove) — after a session of fixing
 individual routing symptoms had removed only one sub-class. The post-freeze
 nets stay as insurance, but they are gated on violations that should never
 occur, not used as the primary mechanism.
+
+## 2026-07 — terminal width and SVG contracts
+
+**A hard width option is not a renamed wrapping hint.** Keep legacy `maxWidth`
+best-effort behavior separate from `targetWidth`: measure display cells after
+rendering, preserve grapheme clusters, and return a typed impossible-geometry
+error instead of silently exceeding the caller's bound.
+
+**Terminal coordinates are display cells, never UTF-16 indices.** Use
+`visualWidth`, grapheme iteration, and continuation cells for sizing, centering,
+clipping, writes, validation, and click-region metadata. A literal spacer after
+a wide glyph makes it three cells wide; the continuation is canvas state, not
+output text.
+
+**Semantic identity and DOM-reference identity are different namespaces.**
+Keep source-facing `data-id` stable, while `idPrefix` rewrites declared SVG
+`id`s and every local URL/href/ARIA reference. Test the contract as an
+all-family, two-instance matrix; testing one arrow marker cannot prove filters,
+clip paths, gradients, or accessibility references safe.
+
+## 2026-07 — family completion mechanics
+
+**One happy mutation chain is not an operation contract.** The first focused
+Mindmap/GitGraph mutation runs scored only 22.57% and 21.91% even though the
+citizenship suite was green. Exhaustive per-operation tests—success, exact error,
+null-clearing, ordering, cycle/duplicate guards, immutability, and verification
+warnings—raised the latest local runs to 98.77% and 97.03%. A test that
+touches every op name can still leave almost every branch unproved; mutation
+evidence is a useful check on that distinction. The reports were gitignored
+and the configs enforce only a 60% break floor, so retain a CI artifact or a
+content-addressed report before presenting a local score as an acceptance gate.
+
+**Treat mutation survivors as design feedback before classifying them.** The
+GitGraph run exposed an unused `currentBranch` helper, which was removed rather
+than “covered.” It also exposed missing clone, custom-main-branch, no-tag, and
+non-target statement rewrite assertions. Only after those real gaps were closed
+were the remaining canonicalization and discriminated-union equivalents
+classified. Do not write the survivor rationale before trying to make it fail.
+
+**Blank structured canvases and opaque-only content are different emptiness.**
+The ER segment-preservation fix correctly kept an empty tolerated subgraph
+opaque, but an over-broad zero-entity check also made a header-only `erDiagram`
+opaque and broke MCP typed authoring. Gate the *reason* for emptiness (opaque
+segments present), not only the resulting entity count; add a direct blank-
+canvas test alongside the unsupported-syntax case.
+
+**An aggregate compatibility fixture is not an upstream-suite harvest.** Count
+every direct `it`/`it.each` block in source order and map it to an executable
+portable/error case, an executable divergence, or a named source-inexpressible
+exclusion. Bind the inventory to a commit and source-file hash. The complete
+Mindmap/GitGraph pass exposed real inline-comment, legacy commit-message,
+multiline accessibility, and mixed branch-order semantics that one synthetic
+smoke case had hidden.
+
+**Generated evidence needs registry-driven enrollment, not manual memory.** A
+new family can pass rendering tests while remaining absent from contact sheets,
+visual metrics, style matrices, tracker baselines, SDK declarations, or the
+website. Every generated surface should either iterate the built-in registry or
+have an exact-set test against it; regeneration comes only after the invariant
+that explains the new bytes.
+
+**Scene semantics must use the same numeric normalization as crisp output.** A
+Mindmap polyline and several node dimensions differed only by floating-point
+spellings (`106.35000000000001` vs `106.35`), but styled backends consume the
+typed geometry, not the crisp string. Round once when constructing Scene
+geometry and serialize that same value; do not weaken the fidelity oracle to
+ignore drift.
+
+**Typed strings must be closed under the serializer's line grammar.** A value
+can pass a CSS-like or decoration parser yet contain `\n`, `\r`, `%%`, or a
+closing delimiter that turns canonical output into a new node/entity/class on
+reparse. Validate mutation-only paint with one shared single-line gate, and for
+compact decoration grammars prove the prospective body through
+serialize→parse structural equality. Success is not established until the
+serialized result preserves identity, hierarchy, and field values.
+
+**A direct upstream test block can expand to several executable cases.** Source
+order and a file hash prove which `it(...)` call was harvested, but a constant
+`for ... of` plus template interpolation can still hide manually fabricated
+variants. AST-evaluate constant loop bindings and template spans, then compare
+the exact expanded source list and order to the oracle. Likewise, SVG identity
+completeness means exact `(id, role, from, to)` tuples; endpoint or element
+counts cannot detect a deterministic wrong ID.
+
+## 2026-07 — ecosystem parity follow-up
+
+**A generated artifact can be fresh while its source is semantically stale.** The architecture SVG matched its committed Mermaid source, but both still claimed twelve families after the registry had fourteen. Validate source claims against the runtime registry before checking generated-byte freshness. Apply the same exact-set rule to editor diagnostics and characterization fixtures: support inventories are executable metadata, not prose to copy.
+
+**Graph provenance is not graph reachability.** A GitGraph commit authored on another branch may already be in the current head's ancestry through branch creation or merge. Cherry-pick validity therefore requires a parent walk from the current head, not `source.branch !== currentBranch`. The discriminating test must construct inherited reachability; a same-branch rejection only proves the weaker rule.
+
+**Delimiter concatenation is not an identity scheme.** `${from}->${to}` is ambiguous as soon as authored IDs may contain `->`; suffixes such as `:shape` have the same problem. Preserve readable legacy IDs only for a strictly safe atom alphabet, and encode all other tuples injectively. Test two different endpoint tuples that collide under concatenation and compare exact semantic IDs.
+
+**Reserved-prefix grammars must fail closed.** In indentation-sensitive syntax, `::icon (x)`, `:::`, malformed shape delimiters, and empty accessibility directives are not harmless text: accepting them as default nodes changes meaning on canonical serialization. Pair rejection cases with successful parse→serialize→parse properties around every reserved prefix, not just malformed snapshots.
+
+**A ledger needs executable coordinates, not only filenames.** A cited test file can exist and still contain no assertion for the row's claim. Store an exact `(row ID, cited file, test title)` mapping, require equality with every done row, and resolve each title against a declared `test`/`it`. Gaps found this way exposed three real weak claims: label-less ER relations, XYChart raster backgrounds, and Quadrant axis-label budgets.
+
+**Cross-renderer comparisons should preserve authored semantics, not imitate pixels.** Render the same fixture in the official Mermaid version and local SVG/terminal engines, caption which node/commit/parent/shape properties to inspect, and state renderer differences. When a comparison tool does not support the family, retain its exact versioned error; do not substitute a different diagram and call it parity.

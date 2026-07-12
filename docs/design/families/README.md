@@ -8,21 +8,30 @@ across several surfaces; this hub points at each.
 | Family | Design note | Notable cross-cutting surface |
 |---|---|---|
 | Architecture (`architecture-beta`) | [`architecture-beta.md`](./architecture-beta.md) | ops in `AGENT_NATIVE.md`; level in [`source-preservation-ladder.md`](../system/source-preservation-ladder.md) |
-| Class | [`class.md`](./class.md) | namespace + generic structured coverage |
+| Class | [`class.md`](./class.md) | namespace, generic, paint, and cardinality coverage |
+| ER | [`er.md`](./er.md) | ordered typed/opaque segments and terminal clearance |
 | Flowchart | [`flowchart.md`](./flowchart.md) (+ [`flowchart-parser-conformance.md`](./flowchart-parser-conformance.md)) | routing in [`route-contracts.md`](../system/route-contracts.md) |
 | Gantt | [`gantt.md`](./gantt.md) (+ [`gantt-research.md`](./gantt-research.md)) | schedule resolver; citizenship worked example |
+| GitGraph | [`gitgraph.md`](./gitgraph.md), [`gitgraph-research.md`](./gitgraph-research.md) | replay semantics, deterministic identities, history/use-case visual research |
 | Journey | [`journey.md`](./journey.md) (+ [`journey-migration-parity.md`](./journey-migration-parity.md), [`journey-usage-research.md`](./journey-usage-research.md)) | migration parity; classic visual mode; usage research |
-| XY chart | [`xychart.md`](./xychart.md) | — |
+| Mindmap | [`mindmap.md`](./mindmap.md) | indentation-sensitive tree, compact bilateral layout, and spatial terminal output |
+| Pie | [`pie.md`](./pie.md) | donut, labels, palette, and legend geometry |
+| Quadrant | [`quadrant.md`](./quadrant.md) | point paint and dense placement |
+| Sequence | [`sequence.md`](./sequence.md) | block/lifecycle semantics and containment |
+| State | [`state.md`](./state.md) | regions, notes, pseudostates, paint, and loop routes |
+| Timeline | [`timeline.md`](./timeline.md) | shared grammar and vertical layout |
+| XY chart | [`xychart.md`](./xychart.md) | legend, axes, orientation, and raster parity |
 
-Families **without** a dedicated design note — sequence, ER, pie, quadrant, timeline,
-state — are documented entirely through the cross-cutting surfaces below.
+## Generated visual evidence
 
-## PR #142 generated visual evidence
-
-The `*-demo.mmd` fixtures in this directory drive the captioned before/after PNGs in
-[PR #142](https://github.com/adewale/agentic-mermaid/pull/142). “Before” artifacts were rendered
-at `476e72f` (for the dense-loop follow-up, `84b2ca95`; for the class-generics completion,
-`fb220147`); “after” artifacts use the PR branch.
+The `*-demo.mmd` fixtures in this directory drive captioned review PNGs. The
+original twelve-family before/after set belongs to
+[PR #142](https://github.com/adewale/agentic-mermaid/pull/142): “before”
+artifacts were rendered at `476e72f` (dense-loop follow-up `84b2ca95`,
+class-generics completion `fb220147`). Follow-on Mindmap/GitGraph evidence
+uses baseline `c7e33247` as the reproducible unsupported-family before state
+and generated after images; no fake before picture is substituted for a
+render that did not exist.
 Most after images regenerate with:
 
 ```bash
@@ -38,7 +47,7 @@ The all-family Style + Palette sheet is generated and tested byte-for-byte:
 bun run scripts/pr-assets/family-elevation-style-palette.ts
 ```
 
-## Where every family is documented (all 12)
+## Where every family is documented (all 14)
 
 - **Canonical registry:** `BUILTIN_FAMILY_METADATA` in `src/agent/families.ts` — and its generated roster table in [`abstraction-audit.md`](../system/abstraction-audit.md) §2.
 - **User-facing catalogue:** [`diagram-families.md`](../../diagram-families.md).

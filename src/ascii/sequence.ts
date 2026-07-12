@@ -10,12 +10,14 @@
 // ============================================================================
 
 import { parseSequenceDiagram, displayMessageLabel } from '../sequence/parser.ts'
-import type { SequenceDiagram, Block } from '../sequence/types.ts'
+import type { SequenceDiagram, Block, SequenceMessageHead } from '../sequence/types.ts'
 import type { ResolvedSequenceConfig } from '../sequence/config.ts'
 import type { Canvas, AsciiConfig, RoleCanvas, CharRole, AsciiTheme, ColorMode } from './types.ts'
-import { mkCanvas, mkRoleCanvas, canvasToString, increaseSize, increaseRoleCanvasSize, setRole } from './canvas.ts'
+import { mkCanvas, mkRoleCanvas, canvasToString, increaseSize, increaseRoleCanvasSize, setRole, drawText } from './canvas.ts'
 import { splitLines, maxLineWidth, lineCount } from './multiline-utils.ts'
-import { visualWidth, charVisualWidth } from './width.ts'
+import { visualWidth, truncateToVisualWidth, WIDE_CHAR_CONTINUATION } from './width.ts'
+import { graphemes } from '../shared/graphemes.ts'
+import { wrapText } from './wrap.ts'
 
 /** Classify a box-drawing character as 'border' or 'text'. */
 function classifyBoxChar(ch: string): CharRole {
@@ -31,7 +33,7 @@ function classifyBoxChar(ch: string): CharRole {
  * honors showSequenceNumbers (numbering must not depend on the output
  * format) — the pixel-geometry knobs have no cell-grid meaning here.
  */
-export function renderSequenceAscii(text: string, config: AsciiConfig, colorMode?: ColorMode, theme?: AsciiTheme, seqConfig: ResolvedSequenceConfig = {}): string {
+export function renderSequenceAscii(text: string, config: AsciiConfig, colorMode?: ColorMode, theme?: AsciiTheme, seqConfig: ResolvedSequenceConfig = {}, targetWidth?: number): string {
   const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('%%'))
   const diagram = parseSequenceDiagram(lines, seqConfig)
 
@@ -39,9 +41,14 @@ export function renderSequenceAscii(text: string, config: AsciiConfig, colorMode
 
   const useAscii = config.useAscii
 
+  const labelBudget = targetWidth ? Math.max(1, Math.floor(targetWidth / 3)) : undefined
+  const wrapDisplay = (value: string): string => wrapText(value, labelBudget).join('\n')
+  const actorLabels = diagram.actors.map(actor => wrapDisplay(
+    actor.type === 'participant' || actor.type === 'actor' ? actor.label : `«${actor.type}»\n${actor.label}`,
+  ))
   // Display labels: the autonumber prefix ("1. label") is composed by the
   // same helper the SVG layout uses, so the two surfaces cannot drift.
-  const msgLabels = diagram.messages.map(displayMessageLabel)
+  const msgLabels = diagram.messages.map(message => wrapDisplay(displayMessageLabel(message)))
 
   // Box-drawing characters
   const H = useAscii ? '-' : '─'
@@ -62,10 +69,10 @@ export function renderSequenceAscii(text: string, config: AsciiConfig, colorMode
 
   const boxPad = 1
   // Use max line width for multi-line actor labels
-  const actorBoxWidths = diagram.actors.map(a => maxLineWidth(a.label) + 2 * boxPad + 2)
+  const actorBoxWidths = actorLabels.map(label => maxLineWidth(label) + 2 * boxPad + 2)
   const halfBox = actorBoxWidths.map(w => Math.ceil(w / 2))
   // Calculate actor box heights based on number of lines in label
-  const actorBoxHeights = diagram.actors.map(a => lineCount(a.label) + 2) // lines + top/bottom border
+  const actorBoxHeights = actorLabels.map(label => lineCount(label) + 2) // lines + top/bottom border
   const actorBoxH = Math.max(...actorBoxHeights, 3) // Use max height for consistent lifeline positioning
 
   // Compute minimum gap between adjacent lifelines based on message labels.
@@ -113,7 +120,7 @@ export function renderSequenceAscii(text: string, config: AsciiConfig, colorMode
   let curY = actorBoxH // start right below header boxes
 
   const positionNote = (note: SequenceDiagram['notes'][number], y: number) => {
-    const nLines = splitLines(note.text)
+    const nLines = wrapText(note.text, labelBudget)
     const nWidth = Math.max(...nLines.map(line => maxLineWidth(line)), 0) + 4
     const nHeight = nLines.length + 2
     const aIdx = actorIdx.get(note.actorIds[0]!) ?? 0
@@ -235,6 +242,17 @@ export function renderSequenceAscii(text: string, config: AsciiConfig, colorMode
     }
   }
 
+  function writeDisplayText(x: number, y: number, text: string): void {
+    let cursor = x
+    for (const cluster of graphemes(text)) {
+      const width = visualWidth(cluster)
+      if (width === 0) continue
+      setC(cursor, y, cluster, 'text')
+      for (let offset = 1; offset < width; offset++) setC(cursor + offset, y, WIDE_CHAR_CONTINUATION, 'text')
+      cursor += width
+    }
+  }
+
   // ---- DRAW: helper to place a bordered actor box (supports multi-line labels) ----
 
   function drawActorBox(cx: number, topY: number, label: string): void {
@@ -260,11 +278,7 @@ export function renderSequenceAscii(text: string, config: AsciiConfig, colorMode
       const line = lines[i]!
       const lineW = visualWidth(line)
       const ls = left + 1 + boxPad + Math.floor((maxW - lineW) / 2)
-      let cursor = ls
-      for (const ch of line) {
-        setC(cursor, row, ch, 'text')
-        cursor += charVisualWidth(ch)
-      }
+      writeDisplayText(ls, row, line)
     }
 
     // Bottom border
@@ -287,8 +301,8 @@ export function renderSequenceAscii(text: string, config: AsciiConfig, colorMode
 
   for (let i = 0; i < diagram.actors.length; i++) {
     const actor = diagram.actors[i]!
-    drawActorBox(llX[i]!, 0, actor.label)
-    drawActorBox(llX[i]!, footerY, actor.label)
+    drawActorBox(llX[i]!, 0, actorLabels[i]!)
+    drawActorBox(llX[i]!, footerY, actorLabels[i]!)
 
     // Lifeline junctions on box borders (Unicode only)
     if (!useAscii) {
@@ -340,11 +354,7 @@ export function renderSequenceAscii(text: string, config: AsciiConfig, colorMode
         const line = selfLines[lineIdx]!
         // Use codepoint+stride pattern (same as actor box at lines 256-257) so
         // CJK / emoji / surrogate-pair labels render with correct column width.
-        let cursor = labelX
-        for (const ch of line) {
-          if (cursor < totalW) setC(cursor, row, ch, 'text')
-          cursor += charVisualWidth(ch)
-        }
+        writeDisplayText(labelX, row, line)
       }
 
       // Row N+1: arrow-back + horizontal + bottom-right corner.
@@ -372,24 +382,21 @@ export function renderSequenceAscii(text: string, config: AsciiConfig, colorMode
         const lineCells = visualWidth(line)
         const labelStart = Math.min(fromX, toX) + Math.floor((boxWidth - lineCells) / 2)
         const y = labelY + lineIdx
-        let cursor = labelStart
-        for (const ch of line) {
-          if (cursor >= 0 && cursor < totalW) setC(cursor, y, ch, 'text')
-          cursor += charVisualWidth(ch)
-        }
+        writeDisplayText(labelStart, y, line)
       }
 
-      // Draw arrow line
+      // Draw arrow line and exact endpoint semantics.
       if (leftToRight) {
         for (let x = fromX + 1; x < toX; x++) setC(x, arrowY, lineChar, 'line')
-        // Arrowhead at destination
-        const ah = isFilled ? (useAscii ? '>' : '▶') : (useAscii ? '>' : '▷')
-        setC(toX, arrowY, ah, 'arrow')
       } else {
         for (let x = toX + 1; x < fromX; x++) setC(x, arrowY, lineChar, 'line')
-        const ah = isFilled ? (useAscii ? '<' : '◀') : (useAscii ? '<' : '◁')
-        setC(toX, arrowY, ah, 'arrow')
       }
+      const startHead = msg.startHead ?? 'none'
+      const endHead = msg.endHead ?? (isFilled ? 'filled' : 'open')
+      if (startHead !== 'none') setC(fromX, arrowY, sequenceHeadGlyph(startHead, !leftToRight, useAscii), 'arrow')
+      if (endHead !== 'none') setC(toX, arrowY, sequenceHeadGlyph(endHead, leftToRight, useAscii), 'arrow')
+      if (msg.centralStart) setC(fromX, arrowY, useAscii ? 'o' : '○', 'arrow')
+      if (msg.centralEnd) setC(toX, arrowY, useAscii ? 'o' : '○', 'arrow')
     }
   }
 
@@ -437,10 +444,10 @@ export function renderSequenceAscii(text: string, config: AsciiConfig, colorMode
     const hdrLines = splitLines(hdrLabel)
 
     for (let lineIdx = 0; lineIdx < hdrLines.length && topY + lineIdx < botY; lineIdx++) {
-      const line = hdrLines[lineIdx]!
-      for (let i = 0; i < line.length && bLeft + 1 + i < bRight; i++) {
-        setC(bLeft + 1 + i, topY + lineIdx, line[i]!, 'text')
-      }
+      const line = truncateToVisualWidth(hdrLines[lineIdx]!, Math.max(0, bRight - bLeft - 1))
+      const y = topY + lineIdx
+      drawText(canvas, { x: bLeft + 1, y }, line, true)
+      for (let i = 0; i < visualWidth(line); i++) setRole(rc, bLeft + 1 + i, y, 'text')
     }
 
     // Bottom border
@@ -505,4 +512,12 @@ export function renderSequenceAscii(text: string, config: AsciiConfig, colorMode
   function isDashedH(): string {
     return useAscii ? '-' : '╌'
   }
+}
+
+function sequenceHeadGlyph(head: SequenceMessageHead, right: boolean, useAscii: boolean): string {
+  if (head === 'cross') return 'X'
+  if (head === 'half-top') return right ? (useAscii ? '/' : '◜') : (useAscii ? '\\' : '◝')
+  if (head === 'half-bottom') return right ? (useAscii ? '\\' : '◟') : (useAscii ? '/' : '◞')
+  if (head === 'filled') return right ? (useAscii ? '>' : '▶') : (useAscii ? '<' : '◀')
+  return right ? (useAscii ? '>' : '▷') : (useAscii ? '<' : '◁')
 }

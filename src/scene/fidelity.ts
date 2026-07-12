@@ -9,6 +9,7 @@
 // ============================================================================
 
 import type { Geometry, SceneDoc, SceneNode } from './ir.ts'
+import { hasDomSvgIdentityRole } from './identity.ts'
 
 /** Parse the top-level SVG elements out of a crisp chunk (self-closed or
  *  paired), ignoring nested content. Good enough for our own emitters. */
@@ -116,6 +117,24 @@ function unescapeXml(s: string): string {
 }
 
 export function nodeProblems(node: SceneNode, path: string, problems: string[]): void {
+  if (node.kind !== 'raw' && node.kind !== 'prelude') {
+    const first = topLevelElements(node.kind === 'group' ? node.open : node.crisp)[0]
+    if (node.crisp !== '' && hasDomSvgIdentityRole(node.role)) {
+      if (!node.identity) problems.push(`${path}(${node.kind}:${node.id}): missing typed identity`)
+      if (!first) problems.push(`${path}(${node.kind}:${node.id}): no SVG element for identity`)
+      if (first && node.identity) {
+        const domId = first.attrs.get('data-id') === undefined ? undefined : unescapeXml(first.attrs.get('data-id')!)
+        const domRole = first.attrs.get('data-role')
+        if (domId !== node.identity.id) problems.push(`${path}(${node.kind}:${node.id}): data-id ${domId} != typed ${node.identity.id}`)
+        if (domRole !== node.identity.role) problems.push(`${path}(${node.kind}:${node.id}): data-role ${domRole} != typed ${node.identity.role}`)
+      }
+    }
+    if (first && node.accessibility) {
+      const aria = unescapeXml(first.attrs.get('aria-label') ?? '')
+      if (aria !== node.accessibility.label) problems.push(`${path}(${node.kind}:${node.id}): aria-label ${aria} != typed ${node.accessibility.label}`)
+      if (first.attrs.get('role') !== node.accessibility.role) problems.push(`${path}(${node.kind}:${node.id}): ARIA role drift`)
+    }
+  }
   switch (node.kind) {
     case 'shape': {
       const els = topLevelElements(node.crisp)

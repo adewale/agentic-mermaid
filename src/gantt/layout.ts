@@ -715,13 +715,21 @@ export function layoutGantt(model: GanttModel, schedule: GanttSchedule, options:
     .filter(t => t.id !== undefined && critIds.has(t.id))
     .map(t => t.index)
   const dependencies = routeGanttDependencies(model, schedule, bars, rows, { x: plotX, y: plotY, w: plotW, h: plotH })
+  const taskIndexById = new Map(model.tasks.flatMap(task => task.id ? [[task.id, task.index] as const] : []))
+  const links = model.clicks.flatMap(click => {
+    if (click.action !== 'href') return [] // callbacks are deliberately never executable
+    const taskIndex = taskIndexById.get(click.taskId)
+    const token = click.rest.match(/^"((?:\\.|[^"])*)"|^(\S+)/)?.slice(1).find(Boolean)
+    if (taskIndex === undefined || !token || !/^(?:https?:|mailto:)/i.test(token)) return []
+    return [{ taskIndex, href: token.replace(/\\(["\\])/g, '$1') }]
+  })
 
   return {
     title: model.title,
     width, height,
     plot: { x: plotX, y: plotY, w: plotW, h: plotH },
     labelColumnWidth,
-    rows, sections, bars, verts, ticks,
+    rows, sections, bars, links, verts, ticks,
     dependencies, criticalTaskIndexes,
     excludedBands,
     topAxis: model.topAxis,

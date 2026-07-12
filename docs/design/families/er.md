@@ -100,22 +100,30 @@ ride the header line: `erDiagram subgraph WithRL`). The contract:
   `src/agent/er-body.ts` from the parser's own
   `erContainsSubgraphConstruct`), which also suppresses the generic
   `er_opaque` double-flag;
-- the agent body stays a lossless **opaque** round-trip. The ER body has no
-  statement-segment architecture (unlike sequence/gantt), so structuring the
-  content around the ignored blocks would have required inventing one for a
-  marginal, undocumented syntax; opaque-and-announced is the honest fallback.
-  `parseErBody` also treats `subgraph`/`end` vocabulary as unmodeled so a
-  stray `end` can never mint a phantom entity.
+- the agent body uses ordered `ErStatement` segments: relationships/entities
+  remain typed and editable while `subgraph`, scoped `direction`, `end`, and
+  tolerated unknown lines retain their exact source order as opaque segments.
+  Identity edits that would stale a preserved opaque reference are refused.
+  An opaque-only empty block remains whole-body opaque instead of becoming a
+  misleading structured empty diagram; a header-only `erDiagram` remains a
+  structured blank canvas for typed authoring.
 
 The former bench exclusion
 `er-upstream-should-correctly-parse-direction-rl-inside-a-subgraph`
 (`local-verify-gap`, tracked by #103) has been converted to an imported case
 per its `convert-to-case` target.
 
-## Styling boundary
+## Styling, ordered preservation, and terminal clearance
 
 Entity `:::class` suffixes no longer alter semantic identity or create phantom
-entities. They render against the bare entity id, while the agent body remains
-losslessly opaque and emits `er_opaque` because ER class styling is not yet a
-typed mutation construct. Aliases and comma-separated composite keys are fully
-structured; `set_entity_label` edits display labels without renaming ids.
+entities. `classDef`, class assignment, and inline `style` use the shared
+`src/shared/style-props.ts` grammar; paint resolves before rendering and is
+editable through `define_class`, `set_entity_class`, and `set_entity_style`.
+Aliases and comma-separated composite keys remain fully structured;
+`set_entity_label` edits display labels without renaming ids.
+
+`src/ascii/er-diagram.ts` reserves entity frames and attribute rows before
+routing. Deterministic detours cannot cross a foreign entity box, and Unicode
+labels are measured in display cells. `er-typed-segments.test.ts` pins ordered
+mixed typed/opaque preservation and identity-edit refusal;
+`er-ascii-clearance.test.ts` pins terminal box and attribute-row clearance.

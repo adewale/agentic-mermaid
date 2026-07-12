@@ -45,6 +45,20 @@ describe('RenderOptions style surface', () => {
     expect(svg).toContain('<svg')
   })
 
+  test('untrusted style colors and numeric controls reject injection and invalid geometry', () => {
+    for (const color of ['red" onload="alert(1)', '</style><script>alert(1)</script>', 'url(https://evil.example/x.svg)', 'var(--attacker)', 'expression(alert(1))']) {
+      expect(validateStyleSpec({ colors: { line: color } }), color).toContain('color token "line" must be a safe non-fetching CSS color')
+      expect(() => renderMermaidSVG(FLOW, { style: { colors: { line: color } } as any, embedFontImport: false })).toThrow(/Invalid style spec/)
+    }
+    for (const spec of [
+      { passes: 1.5 }, { passes: 0 }, { strokeWidth: -1 }, { hachureGap: 0 },
+      { washOpacity: -0.1 }, { washOpacity: 1.1 }, { washEdge: 9 },
+    ]) {
+      expect(validateStyleSpec(spec), JSON.stringify(spec)).not.toEqual([])
+      expect(() => renderMermaidSVG(FLOW, { style: spec as any, embedFontImport: false })).toThrow(/Invalid style spec/)
+    }
+  })
+
   test('removed role-style keys are rejected at validation and render boundaries', () => {
     for (const key of ['text', 'node', 'edge', 'group']) {
       expect(validateStyleSpec({ [key]: {} }), key).toContain(`unknown field "${key}"`)

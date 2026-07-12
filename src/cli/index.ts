@@ -36,6 +36,19 @@ import type { ParseError } from '../agent/types.ts'
  * ParseError[] in `details` — so an agent reads `error.details` instead of
  * re-parsing a JSON string buried in `error.message`.
  */
+function asciiWidthErrorEnvelope(error: unknown): { code: string; message: string; requestedWidth: number; requiredWidth: number; family: string; reason: string } | undefined {
+  if (typeof error !== 'object' || error === null || !('code' in error) || error.code !== 'ASCII_TARGET_WIDTH_IMPOSSIBLE') return undefined
+  const widthError = error as { code: string; message?: string; requestedWidth: number; requiredWidth: number; family: string; reason: string }
+  return {
+    code: widthError.code,
+    message: widthError.message ?? String(error),
+    requestedWidth: widthError.requestedWidth,
+    requiredWidth: widthError.requiredWidth,
+    family: widthError.family,
+    reason: widthError.reason,
+  }
+}
+
 function parseErrorEnvelope(errors: ParseError[]): { ok: false; error: { code: string; message: string; details: ParseError[] } } {
   const first = errors[0]
   const message = first ? `${first.code}: ${first.message}` : 'parse error'
@@ -57,7 +70,7 @@ export const FLAG_SPECS: Record<string, { arg?: string }> = {
   'style': { arg: 'NAMES|file' }, 'seed': { arg: 'N' },
   'ops': { arg: 'JSON|file' }, 'output': { arg: 'FILE' }, 'format': { arg: 'fmt' },
   'security': { arg: 'mode' }, 'dir': { arg: 'DIR' }, 'font-dirs': { arg: 'DIRS' },
-  'gantt-today': { arg: 'DATE' },
+  'gantt-today': { arg: 'DATE' }, 'target-width': { arg: 'CELLS' },
   // PNG raster knobs (read by cmdRender's png path since v4; registered so
   // the unknown-flag gate cannot reject them).
   'scale': { arg: 'N' }, 'bg': { arg: 'COLOR' }, 'o': { arg: 'FILE' },
@@ -68,7 +81,7 @@ export const BOOLEAN_FLAGS = new Set(Object.keys(FLAG_SPECS).filter(name => !FLA
 // Command ownership is the second half of the flag contract: recognizing a
 // name globally is not permission to ignore it on an unrelated command.
 const COMMAND_FLAGS: Record<string, readonly string[]> = {
-  render: ['help', 'json', 'ascii', 'certificates', 'watch', 'system-fonts', 'style', 'seed', 'output', 'format', 'security', 'font-dirs', 'gantt-today', 'scale', 'bg', 'o'],
+  render: ['help', 'json', 'ascii', 'certificates', 'watch', 'system-fonts', 'style', 'seed', 'output', 'format', 'security', 'font-dirs', 'gantt-today', 'target-width', 'scale', 'bg', 'o'],
   verify: ['help', 'json', 'suppress', 'label-cap'],
   parse: ['help', 'json'],
   serialize: ['help'],
@@ -153,6 +166,7 @@ Flags:
   --label-cap <N>        For verify: LABEL_OVERFLOW char cap (default 40)
   --certificates         For render --format json: include route/family certificates
   --gantt-today <DATE>   For render: draw the gantt today marker at DATE (rendering never reads the wall clock)
+  --target-width <CELLS> Hard terminal-cell bound for ASCII/Unicode output
   --agent-instructions   Print the canonical agent-use guide
   --help                 Show this message (or per-command help: am <cmd> --help)
 
@@ -185,6 +199,8 @@ Render a diagram. Default is SVG.
   --gantt-today <DATE> Gantt only: draw the today marker at DATE (in the
                     diagram's dateFormat or ISO YYYY-MM-DD); rendering never
                     reads the wall clock, so without this the marker is absent
+  --target-width <CELLS> ASCII/Unicode only: hard output bound in display cells;
+                    impossible geometry fails with ASCII_TARGET_WIDTH_IMPOSSIBLE
   --scale <N>       PNG only: output scale multiplier (default 2)
   --bg <COLOR>      PNG only: background color (default white)
   --watch           Re-render one input file on change (non-PNG only)
@@ -217,7 +233,7 @@ rebuilds the diagram via synthesizeFromGraph without re-parsing source.`,
   mutate: `am mutate <file|-> (--op '<JSON>' | --ops '<JSON array|file.json>') [--json]
 Applies one or more MutationOps, verifies the final diagram, then emits source.
 Flowchart/state, sequence, timeline, class, ER, journey, architecture, xychart,
-pie, quadrant, and gantt have typed mutation ops; opaque-fallback diagrams (unmodeled
+pie, quadrant, gantt, mindmap, and gitgraph have typed mutation ops; opaque-fallback diagrams (unmodeled
 syntax) return a structured UNSUPPORTED_FAMILY error (exit 2). Verify failures
 exit 3 and omit source.`,
   preview: `am preview <file|-> [--output preview.html] [--open] [--json] [--security strict]
@@ -324,6 +340,12 @@ export function runCli(argv: string[]): number {
     }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
+    const widthError = asciiWidthErrorEnvelope(e)
+    if (widthError) {
+      if (json) process.stdout.write(JSON.stringify({ ok: false, error: widthError }) + '\n')
+      else process.stderr.write(`Error: ${msg}\n`)
+      return EXIT_ARG_ERROR
+    }
     // Loop 9 M5: argument-shape errors (missing file, TTY stdin, etc.) get
     // exit 2 per the documented contract. Heuristic: messages thrown from
     // readSourceArg / arg parsing are advisory rather than internal bugs.
@@ -339,12 +361,21 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
   const security = args.flags.security === 'strict' ? 'strict' as const : 'default' as const
   // Explicit gantt clock (rendering never reads wall-clock time).
   const ganttToday = typeof args.flags['gantt-today'] === 'string' ? args.flags['gantt-today'] : undefined
+  const targetWidth = typeof args.flags['target-width'] === 'string' ? Number(args.flags['target-width']) : undefined
   if (!['svg', 'ascii', 'unicode', 'json', 'png'].includes(format)) {
     process.stderr.write(`am render: unsupported --format ${format}; expected svg, ascii, unicode, json, or png\n`)
     return EXIT_ARG_ERROR
   }
   if (args.flags.security !== undefined && args.flags.security !== 'strict') {
     process.stderr.write('am render --security accepts only strict\n')
+    return EXIT_ARG_ERROR
+  }
+  if (targetWidth !== undefined && (!Number.isInteger(targetWidth) || targetWidth <= 0)) {
+    process.stderr.write('am render --target-width expects a positive integer number of terminal cells\n')
+    return EXIT_ARG_ERROR
+  }
+  if (targetWidth !== undefined && format !== 'ascii' && format !== 'unicode') {
+    process.stderr.write('am render --target-width is valid only with --format ascii or unicode\n')
     return EXIT_ARG_ERROR
   }
   const pngOnly = ['scale', 'bg', 'font-dirs', 'system-fonts'].filter(name => args.flags[name] !== undefined)
@@ -397,14 +428,14 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
         const src = readSourceArg(file)
         const warnings = configWarningsForMermaid(src)
         emitConfigWarnings(warnings, `am render ${file}`)
-        const output = renderSourceToFormat(src, format, { security, certificates: args.flags.certificates === true, style, seed, ganttToday })
+        const output = renderSourceToFormat(src, format, { security, certificates: args.flags.certificates === true, style, seed, ganttToday, targetWidth })
         return { index, file, ok: true, output, warnings }
       } catch (e) {
         const parseEnvelope = e as { ok?: false; error?: { code?: string; message?: string; details?: unknown } }
         if (parseEnvelope?.ok === false && parseEnvelope.error?.code === 'PARSE_FAILED') {
           return { index, file, ok: false, error: parseEnvelope.error }
         }
-        return { index, file, ok: false, error: { code: 'RENDER_FAILED', message: e instanceof Error ? e.message : String(e) } }
+        return { index, file, ok: false, error: asciiWidthErrorEnvelope(e) ?? { code: 'RENDER_FAILED', message: e instanceof Error ? e.message : String(e) } }
       }
     })
     process.stdout.write(JSON.stringify({ ok: true, files: results }) + '\n')
@@ -417,7 +448,7 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
     return EXIT_ARG_ERROR
   }
   if (args.flags.watch && typeof args.positional[0] === 'string' && args.positional[0] !== '-') {
-    return cmdRenderWatch(args.positional[0], format, args, json, { security, certificates: args.flags.certificates === true, style, seed, ganttToday })
+    return cmdRenderWatch(args.positional[0], format, args, json, { security, certificates: args.flags.certificates === true, style, seed, ganttToday, targetWidth })
   }
 
   const source = readSourceArg(args.positional[0])
@@ -447,7 +478,7 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
   // Loop 9 M3/M4, #7645: json = layout shape; unicode is the default text
   // renderer; `--security strict` strips external-fetch refs from SVG.
   emitConfigWarnings(configWarnings, 'am render')
-  const out = renderSourceToFormat(source, format, { security, certificates: args.flags.certificates === true, style, seed, ganttToday })
+  const out = renderSourceToFormat(source, format, { security, certificates: args.flags.certificates === true, style, seed, ganttToday, targetWidth })
   // --output writes the artifact for every single-shot format, matching the
   // documented `am render --format svg --output diagram.svg` (it was png-only,
   // silently ignored elsewhere — the docs' samples produced no file).
@@ -463,7 +494,7 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
   return EXIT_OK
 }
 
-interface RenderFormatOptions { security?: 'default' | 'strict'; certificates?: boolean; style?: StyleInput[]; seed?: number; ganttToday?: string }
+interface RenderFormatOptions { security?: 'default' | 'strict'; certificates?: boolean; style?: StyleInput[]; seed?: number; ganttToday?: string; targetWidth?: number }
 
 /** The ONE format dispatch behind every render path — single-input,
  *  multi-input, and watch differ only in I/O and error envelopes, so they
@@ -471,7 +502,7 @@ interface RenderFormatOptions { security?: 'default' | 'strict'; certificates?: 
  *  threading previously had to touch three copies). JSON parse failures
  *  throw the structured envelope; callers decide how to surface it. */
 function renderSourceToFormat(source: string, format: string, opts: RenderFormatOptions = {}): string | object {
-  if (format === 'ascii' || format === 'unicode') return renderMermaidASCII(source, { useAscii: format === 'ascii', ganttToday: opts.ganttToday })
+  if (format === 'ascii' || format === 'unicode') return renderMermaidASCII(source, { useAscii: format === 'ascii', ganttToday: opts.ganttToday, targetWidth: opts.targetWidth })
   if (format === 'json') {
     const parsed = parseMermaid(source)
     if (!parsed.ok) throw parseErrorEnvelope(parsed.error)

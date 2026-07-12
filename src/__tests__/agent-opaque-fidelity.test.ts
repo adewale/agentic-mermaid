@@ -8,9 +8,8 @@ import { parseMermaid } from '../agent/parse.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
 
 describe('opaque-body fidelity (indentation + blank lines)', () => {
-  // NOTE: xychart and any unmodeled syntax (here: architecture accTitle +
-  // {group} boundary edges) are source-level in the agent surface; the
-  // journey / architecture / class / ER structured subsets are covered elsewhere.
+  // NOTE: xychart and unmodeled journey/sequence constructs stay source-level.
+  // Architecture accessibility and {group} endpoints are now structured.
   const cases: Array<[string, string]> = [
     ['journey-opaque', `journey
   title My day
@@ -24,15 +23,6 @@ describe('opaque-body fidelity (indentation + blank lines)', () => {
   y-axis "USD" 0 --> 100
   bar [10, 50, 90]
   curve basis`],
-    // Unmodeled syntax (accTitle + the {group} boundary modifier) keeps this
-    // architecture sample on the opaque path even after BUILD-17 promoted the
-    // structured subset.
-    ['architecture-opaque (accTitle + {group} boundary)', `architecture-beta
-  accTitle: System overview
-  group api(cloud)[API]
-  service db(database)[DB] in api
-  service web(server)[Web] in api
-  web{group}:R --> L:db`],
     // A stray `end` keeps this sample on the whole-body opaque path — it can't
     // be cleanly segmented, so the lossless v4 fallback still applies.
     ['sequence-opaque (unbalanced end)', `sequenceDiagram
@@ -62,6 +52,23 @@ describe('opaque-body fidelity (indentation + blank lines)', () => {
       expect(serializeMermaid(p2.value)).toBe(s1)
     })
   }
+
+  test('architecture accessibility + group-boundary endpoints are structured and stable', () => {
+    const src = `architecture-beta
+  accTitle: System overview
+  group api(cloud)[API]
+  service db(database)[DB] in api
+  service web(server)[Web] in api
+  web{group}:R --> L:db`
+    const parsed = parseMermaid(src)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(parsed.value.body.kind).toBe('architecture')
+    const canonical = serializeMermaid(parsed.value)
+    const reparsed = parseMermaid(canonical)
+    expect(reparsed.ok).toBe(true)
+    if (reparsed.ok) expect(serializeMermaid(reparsed.value)).toBe(canonical)
+  })
 
   // BUILD-18: the alt/activate/Note sample that used to go whole-body opaque
   // now parses structured-with-segments — but the verbatim fidelity assertion

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://raw.githubusercontent.com/stryker-mutator/stryker/master/packages/core/schema/stryker-core.schema.json",
+  "_comment": "Narrow mutation lane for Mindmap typed editing and serialization semantics.",
+  "mutate": ["src/agent/mindmap-body.ts"],
+  "ignorePatterns": ["/site/**", "/dist/**", "/coverage/**", "/.stryker-tmp-*/**"],
+  "testRunner": "command",
+  "commandRunner": {
+    "command": "bun test src/__tests__/mindmap-agent-ops.test.ts src/__tests__/mindmap-gitgraph-citizenship.test.ts"
+  },
+  "reporters": ["clear-text", "progress", "json"],
+  "jsonReporter": { "fileName": "reports/mutation/mindmap-mutation.json" },
+  "timeoutMS": 30000,
+  "concurrency": 2,
+  "tempDirName": ".stryker-tmp-mindmap",
+  "disableTypeChecks": true,
+  "thresholds": { "break": 60 }
+}

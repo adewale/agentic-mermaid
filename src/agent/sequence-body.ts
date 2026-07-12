@@ -28,11 +28,10 @@ import type {
   SequenceStatement, SequenceMutationOp, MutationError, Result,
 } from './types.ts'
 import { ok, err } from './types.ts'
+import { parseActorDeclaration, parseActorLinks, parseSequenceMessageLine } from '../sequence/parser.ts'
 
 // ---- Parser -----------------------------------------------------------------
 
-const PARTICIPANT_RE = /^(participant|actor)\s+([A-Za-z_][\w]*)(?:\s+as\s+(.+))?$/i
-const MESSAGE_RE = /^([A-Za-z_][\w]*)\s*(-->>|--x|-->|->>|->|-x)\s*([A-Za-z_][\w]*)\s*:\s*(.+)$/
 
 // Keywords that OPEN a nestable block (closed by a matching `end`). `box`
 // belongs here: its `end` used to hit the stray-`end` rule below and collapse
@@ -83,35 +82,52 @@ export function parseSequenceBody(trimmedLines: string[], rawLines?: string[]): 
     const line = rawLine.trim()
     if (!line || line.startsWith('%%')) { i++; continue }
 
-    const part = line.match(PARTICIPANT_RE)
-    if (part) {
-      const kind = part[1]!.toLowerCase() === 'actor' ? 'actor' : 'participant'
-      const id = part[2]!.trim()
-      const label = part[3]?.trim() ?? id
+    if (/^(participant|actor)\b/i.test(line)) {
+      let part
+      try { part = parseActorDeclaration(line) } catch {
+        appendOpaque(statements, [rawLine]); i++; continue
+      }
+      // A metadata-looking declaration that does not match the closed grammar
+      // remains losslessly opaque; never reinterpret `A@{` as an actor ID.
+      if (!part || (line.includes('@{') && !/^\s*(?:participant|actor)\s+[^\s@]+@\{[\s\S]+\}(?:\s+as\s+.+)?$/i.test(line))) {
+        appendOpaque(statements, [rawLine]); i++; continue
+      }
+      const declaration = line.toLowerCase().startsWith('actor ') ? 'actor' as const : 'participant' as const
+      const { id, label, type: kind } = part
+      const declarationField = kind === declaration ? {} : { declaration }
       if (!seen.has(id)) {
-        participants.push({ id, label, kind }); seen.add(id)
+        participants.push({ id, label, kind, ...declarationField }); seen.add(id)
         statements.push({ kind: 'participant', ref: participants.length - 1 })
       } else {
-        // Update an implicitly-declared participant with explicit info, and add
-        // a statement so the explicit declaration round-trips in position.
         const idx = participants.findIndex(p => p.id === id)
-        participants[idx]!.label = label
-        participants[idx]!.kind = kind
+        participants[idx] = { ...participants[idx]!, label, kind, ...declarationField }
         statements.push({ kind: 'participant', ref: idx })
       }
       i++
       continue
     }
 
-    const msg = line.match(MESSAGE_RE)
+    if (/^links?\b/i.test(line)) {
+      const parsedLinks = parseActorLinks(line)
+      if (!parsedLinks) return null
+      ensureKnown(parsedLinks.actorId)
+      const participant = participants.find(value => value.id === parsedLinks.actorId)!
+      participant.links = { ...participant.links, ...parsedLinks.links }
+      statements.push({ kind: 'actor-links', actorId: parsedLinks.actorId, links: { ...parsedLinks.links } })
+      i++
+      continue
+    }
+
+    const msg = !BLOCK_OPEN_RE.test(line) && !BLOCK_CONT_RE.test(line) ? parseSequenceMessageLine(line) : null
     if (msg) {
-      const from = msg[1]!.trim()
-      const arrow = msg[2]!.trim()
-      const to = msg[3]!.trim()
-      const text = msg[4]!.trim()
-      ensureKnown(from)
-      ensureKnown(to)
-      messages.push({ from, to, text, style: styleForArrow(arrow) })
+      ensureKnown(msg.from)
+      ensureKnown(msg.to)
+      messages.push({
+        from: msg.from, to: msg.to, text: msg.label.trim(), style: styleForArrow(msg.arrow),
+        arrow: msg.arrow as import('./types.ts').SequenceMessageArrow,
+        ...(msg.centralStart ? { centralStart: true } : {}), ...(msg.centralEnd ? { centralEnd: true } : {}),
+        ...(msg.activationMark === '+' ? { activate: true } : {}), ...(msg.activationMark === '-' ? { deactivate: true } : {}),
+      })
       statements.push({ kind: 'message', ref: messages.length - 1 })
       i++
       continue
@@ -191,6 +207,8 @@ export function renderSequence(body: SequenceBody): string {
       } else if (st.kind === 'participant') {
         const p = body.participants[st.ref]
         if (p) lines.push(renderParticipant(p))
+      } else if (st.kind === 'actor-links') {
+        for (const [label, href] of Object.entries(st.links)) lines.push(`  link ${st.actorId}: ${label} @ ${href}`)
       } else {
         const m = body.messages[st.ref]
         if (m) lines.push(renderMessage(m))
@@ -208,12 +226,16 @@ export function renderSequence(body: SequenceBody): string {
 }
 
 function renderParticipant(p: SequenceParticipant): string {
-  const tag = p.kind === 'actor' ? 'actor' : 'participant'
-  return `  ${tag} ${p.id}${p.label !== p.id ? ` as ${p.label}` : ''}`
+  const tag = p.declaration ?? (p.kind === 'actor' ? 'actor' : 'participant')
+  const metadata = p.kind !== 'participant' && p.kind !== 'actor' ? `@{ "type": "${p.kind}" }` : ''
+  const label = p.label.replace(/\r?\n/g, '<br/>')
+  return `  ${tag} ${p.id}${metadata}${label !== p.id ? ` as ${label}` : ''}`
 }
 
 function renderMessage(m: SequenceMessage): string {
-  return `  ${m.from}${arrowForStyle(m.style)}${m.to}: ${m.text}`
+  const from = `${m.from}${m.centralStart ? '()' : ''}`
+  const to = `${m.centralEnd ? '()' : ''}${m.activate ? '+' : m.deactivate ? '-' : ''}${m.to}`
+  return `  ${from}${m.arrow ?? arrowForStyle(m.style)}${to}: ${m.text}`
 }
 
 export function arrowForStyle(s: SequenceMessageStyle): string {
@@ -236,7 +258,7 @@ export function arrowForStyle(s: SequenceMessageStyle): string {
 // op and refs are re-indexed when a message is removed.
 
 export function mutateSequence(body: SequenceBody, op: SequenceMutationOp): Result<SequenceBody, MutationError> {
-  const participants = body.participants.map(p => ({ ...p }))
+  const participants = body.participants.map(p => ({ ...p, ...(p.links ? { links: { ...p.links } } : {}) }))
   const messages = body.messages.map(m => ({ ...m }))
   const statements: SequenceStatement[] = (body.statements ?? deriveStatements(body)).map(cloneStatement)
 
@@ -263,7 +285,7 @@ export function mutateSequence(body: SequenceBody, op: SequenceMutationOp): Resu
       const removedMsgIdx = new Set<number>()
       messages.forEach((m, mi) => { if (m.from === op.id || m.to === op.id) removedMsgIdx.add(mi) })
       const keptMessages = messages.filter((_, mi) => !removedMsgIdx.has(mi))
-      const rebuilt = rebuildStatements(statements, idx, removedMsgIdx)
+      const rebuilt = rebuildStatements(statements, idx, removedMsgIdx, op.id)
       return ok({ kind: 'sequence', participants, messages: keptMessages, statements: rebuilt })
     }
     case 'add_message': {
@@ -335,7 +357,9 @@ function opaqueBlocksReference(statements: SequenceStatement[], id: string): boo
 }
 
 function cloneStatement(s: SequenceStatement): SequenceStatement {
-  return s.kind === 'opaque-block' ? { kind: 'opaque-block', lines: [...s.lines] } : { ...s }
+  if (s.kind === 'opaque-block') return { kind: 'opaque-block', lines: [...s.lines] }
+  if (s.kind === 'actor-links') return { ...s, links: { ...s.links } }
+  return { ...s }
 }
 
 // Build a default statements list (participants then messages) for a body that
@@ -410,6 +434,7 @@ function rebuildStatements(
   statements: SequenceStatement[],
   removedParticipantIdx: number,
   removedMsgIdx: Set<number>,
+  removedParticipantId: string,
 ): SequenceStatement[] {
   const out: SequenceStatement[] = []
   for (const s of statements) {
@@ -417,6 +442,10 @@ function rebuildStatements(
     if (s.kind === 'participant') {
       if (s.ref === removedParticipantIdx) continue
       out.push({ kind: 'participant', ref: s.ref > removedParticipantIdx ? s.ref - 1 : s.ref })
+      continue
+    }
+    if (s.kind === 'actor-links') {
+      if (s.actorId !== removedParticipantId) out.push({ ...s, links: { ...s.links } })
       continue
     }
     // message

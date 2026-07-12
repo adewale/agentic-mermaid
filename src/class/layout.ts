@@ -76,11 +76,15 @@ export function resolveClassRenderOptions(
   if (!frontmatter) return options
   const nodeSpacing = configSpacing(frontmatter, 'class', 'nodeSpacing')
   const rankSpacing = configSpacing(frontmatter, 'class', 'rankSpacing')
-  if (nodeSpacing === undefined && rankSpacing === undefined) return options
+  const configuredHierarchy = getFrontmatterScalar<boolean>(frontmatter, ['class', 'hierarchicalNamespaces'])
+  const hierarchicalNamespaces = options.class?.hierarchicalNamespaces
+    ?? (typeof configuredHierarchy === 'boolean' ? configuredHierarchy : undefined)
+  if (nodeSpacing === undefined && rankSpacing === undefined && hierarchicalNamespaces === undefined) return options
   return {
     ...options,
     nodeSpacing: options.nodeSpacing ?? nodeSpacing,
     layerSpacing: options.layerSpacing ?? rankSpacing,
+    ...(hierarchicalNamespaces !== undefined ? { class: { ...options.class, hierarchicalNamespaces } } : {}),
   }
 }
 
@@ -98,7 +102,7 @@ export function configSpacing(frontmatter: MermaidFrontmatterMap, family: string
  */
 export const CLASS_NOOP_CONFIG_FIELDS = [
   'arrowMarkerAbsolute', 'defaultRenderer', 'diagramPadding', 'dividerMargin',
-  'hideEmptyMembersBox', 'hierarchicalNamespaces', 'htmlLabels', 'padding',
+  'hideEmptyMembersBox', 'htmlLabels', 'padding',
   'textHeight', 'titleTopMargin',
 ] as const
 
@@ -119,12 +123,12 @@ interface NamespaceInfo {
   ns: ClassNamespace
 }
 
-function flattenNamespaces(namespaces: ClassNamespace[], parentPath?: string): NamespaceInfo[] {
+function flattenNamespaces(namespaces: ClassNamespace[], parentPath?: string, hierarchical = true): NamespaceInfo[] {
   const out: NamespaceInfo[] = []
   for (const ns of namespaces) {
     const path = parentPath ? `${parentPath}.${ns.name}` : ns.name
-    out.push({ path, parentPath, ns })
-    out.push(...flattenNamespaces(ns.children, path))
+    out.push({ path, ...(hierarchical && parentPath ? { parentPath } : {}), ns })
+    out.push(...flattenNamespaces(ns.children, path, hierarchical))
   }
   return out
 }
@@ -167,7 +171,8 @@ function buildClassElkGraph(
   const nodeSpacing = options.nodeSpacing ?? CLS.nodeSpacing
   const layerSpacing = options.layerSpacing ?? CLS.layerSpacing
 
-  const namespaces = flattenNamespaces(diagram.namespaces)
+  const hierarchicalNamespaces = options.class?.hierarchicalNamespaces !== false
+  const namespaces = flattenNamespaces(diagram.namespaces, undefined, hierarchicalNamespaces)
   const hasNamespaces = namespaces.length > 0
 
   const rootOptions: LayoutOptions = {
@@ -235,6 +240,7 @@ function buildClassElkGraph(
   const ancestorsOf = (classId: string): string[] => {
     const path = namespaceOfClass.get(classId)
     if (!path) return []
+    if (!hierarchicalNamespaces) return [path]
     const segments = path.split('.')
     return segments.map((_, i) => segments.slice(0, i + 1).join('.'))
   }
@@ -265,10 +271,11 @@ function extractClassLayout(
   diagram: ClassDiagram,
   classSizes: ClassSizeMap,
   style: ResolvedRenderStyle,
+  hierarchicalNamespaces: boolean,
 ): PositionedClassDiagram {
   const classLookup = new Map<string, ClassNode>()
   for (const cls of diagram.classes) classLookup.set(cls.id, cls)
-  const namespaceInfoByPath = new Map(flattenNamespaces(diagram.namespaces).map(info => [info.path, info]))
+  const namespaceInfoByPath = new Map(flattenNamespaces(diagram.namespaces, undefined, hierarchicalNamespaces).map(info => [info.path, info]))
   const headerHeight = style.groupHeaderFontSize + 16
 
   const positionedClasses: PositionedClassNode[] = []
@@ -334,6 +341,11 @@ function extractClassLayout(
           headerHeight: size.headerHeight,
           attrHeight: size.attrHeight,
           methodHeight: size.methodHeight,
+          ...(cls.className ? { className: cls.className } : {}),
+          ...(cls.href ? { href: cls.href } : {}),
+          ...((cls.className && diagram.classDefs.get(cls.className)) || cls.inlineStyle ? {
+            inlineStyle: { ...(cls.className ? diagram.classDefs.get(cls.className) : {}), ...cls.inlineStyle },
+          } : {}),
         })
       }
     }
@@ -349,6 +361,8 @@ function extractClassLayout(
       to: rel.to,
       type: rel.type,
       markerAt: rel.markerAt,
+      fromType: rel.fromType,
+      toType: rel.toType,
       label: rel.label,
       fromCardinality: rel.fromCardinality,
       toCardinality: rel.toCardinality,
@@ -357,14 +371,146 @@ function extractClassLayout(
     })
   }
 
+  let width = result.width ?? 600
+  let height = result.height ?? 400
+  placeClassCardinalityLabels(relationships, positionedClasses, style, width, height)
+
+  interface NoteBox { x: number; y: number; width: number; height: number }
+  const occupied: NoteBox[] = positionedClasses.map(cls => ({ x: cls.x, y: cls.y, width: cls.width, height: cls.height }))
+  const overlaps = (a: NoteBox, b: NoteBox, gap = 8): boolean =>
+    a.x < b.x + b.width + gap && a.x + a.width + gap > b.x
+    && a.y < b.y + b.height + gap && a.y + a.height + gap > b.y
+  let freestandingY = height + 16
+  const notes = diagram.notes.map(note => {
+    const metrics = measureMultilineText(note.text, 12, 400)
+    const noteWidth = Math.max(90, metrics.width + 24)
+    const noteHeight = Math.max(40, metrics.height + 18)
+    const target = note.for ? positionedClasses.find(cls => cls.id === note.for) : undefined
+    let placement: NoteBox & { targetX?: number; targetY?: number; noteX?: number; noteY?: number }
+    if (target) {
+      const candidates: Array<NoteBox & { targetX: number; targetY: number; noteX: number; noteY: number }> = []
+      for (let lane = 0; lane < Math.max(4, diagram.notes.length + 1); lane++) {
+        const offset = lane * (noteHeight + 12)
+        candidates.push(
+          { x: target.x + target.width + 24, y: target.y + offset, width: noteWidth, height: noteHeight, targetX: target.x + target.width, targetY: target.y + target.height / 2, noteX: target.x + target.width + 24, noteY: target.y + offset + noteHeight / 2 },
+          { x: target.x - noteWidth - 24, y: target.y + offset, width: noteWidth, height: noteHeight, targetX: target.x, targetY: target.y + target.height / 2, noteX: target.x - 24, noteY: target.y + offset + noteHeight / 2 },
+          { x: target.x, y: target.y + target.height + 24 + offset, width: noteWidth, height: noteHeight, targetX: target.x + target.width / 2, targetY: target.y + target.height, noteX: target.x + noteWidth / 2, noteY: target.y + target.height + 24 + offset },
+        )
+      }
+      placement = candidates.find(candidate => candidate.x >= CLS.padding && candidate.y >= CLS.padding && !occupied.some(box => overlaps(candidate, box)))
+        ?? { x: width + 24, y: target.y, width: noteWidth, height: noteHeight, targetX: target.x + target.width, targetY: target.y + target.height / 2, noteX: width + 24, noteY: target.y + noteHeight / 2 }
+    } else {
+      placement = { x: CLS.padding, y: freestandingY, width: noteWidth, height: noteHeight }
+      freestandingY += noteHeight + 12
+    }
+    occupied.push(placement)
+    width = Math.max(width, placement.x + noteWidth + CLS.padding)
+    height = Math.max(height, placement.y + noteHeight + CLS.padding)
+    return { text: note.text, ...(note.for ? { for: note.for } : {}), ...placement }
+  })
+
   return {
-    width: result.width ?? 600,
-    height: result.height ?? 400,
+    width,
+    height,
     accessibilityTitle: diagram.accessibilityTitle,
     accessibilityDescription: diagram.accessibilityDescription,
     classes: positionedClasses,
     relationships,
+    notes,
     namespaces: positionedNamespaces,
+  }
+}
+
+interface CardinalityBox { x0: number; y0: number; x1: number; y1: number }
+
+/** Deterministically allocate endpoint text around routes. The renderer only
+ * consumes these positions; overlap freedom is a layout invariant rather than
+ * an SVG-time best effort. */
+function placeClassCardinalityLabels(
+  relationships: PositionedClassRelationship[],
+  classes: PositionedClassNode[],
+  style: ResolvedRenderStyle,
+  width: number,
+  height: number,
+): void {
+  const intersects = (a: CardinalityBox, b: CardinalityBox): boolean =>
+    Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) > 0.5
+    && Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0) > 0.5
+  const obstacles: CardinalityBox[] = classes.map(item => ({
+    x0: item.x - 1, y0: item.y - 1, x1: item.x + item.width + 1, y1: item.y + item.height + 1,
+  }))
+  for (const relationship of relationships) {
+    if (!relationship.label || !relationship.labelPosition) continue
+    const metrics = measureMultilineText(
+      applyTextTransform(relationship.label, style.edgeTextTransform),
+      style.edgeLabelFontSize,
+      style.edgeLabelFontWeight,
+    )
+    obstacles.push({
+      x0: relationship.labelPosition.x - metrics.width / 2 - 2,
+      y0: relationship.labelPosition.y - 8 - metrics.height / 2 - 2,
+      x1: relationship.labelPosition.x + metrics.width / 2 + 2,
+      y1: relationship.labelPosition.y - 8 + metrics.height / 2 + 2,
+    })
+  }
+
+  const allocate = (text: string, endpoint: Point, toward: Point): Point => {
+    const metrics = measureMultilineText(text, style.edgeLabelFontSize, style.edgeLabelFontWeight)
+    const halfW = metrics.width / 2 + 2
+    const halfH = metrics.height / 2 + 2
+    const dx = toward.x - endpoint.x
+    const dy = toward.y - endpoint.y
+    const horizontal = Math.abs(dx) >= Math.abs(dy)
+    const ux = horizontal ? Math.sign(dx || 1) : 0
+    const uy = horizontal ? 0 : Math.sign(dy || 1)
+    const px = -uy
+    const py = ux
+    const perpendicular: number[] = []
+    for (let distance = 10; distance <= 190; distance += 12) perpendicular.push(-distance, distance)
+    const candidates: Array<{ point: Point; box: CardinalityBox }> = []
+    for (let along = 14; along <= 150; along += 10) {
+      for (const offset of perpendicular) {
+        const point = {
+          x: endpoint.x + ux * along + px * offset,
+          y: endpoint.y + uy * along + py * offset,
+        }
+        const box = { x0: point.x - halfW, y0: point.y - halfH, x1: point.x + halfW, y1: point.y + halfH }
+        candidates.push({ point, box })
+        if (box.x0 < 0 || box.y0 < 0 || box.x1 > width || box.y1 > height) continue
+        if (obstacles.every(obstacle => !intersects(box, obstacle))) {
+          obstacles.push(box)
+          return point
+        }
+      }
+    }
+    // Extremely small canvases may have no perfect slot. Choose the stable
+    // candidate with the fewest collisions; normal and stress layouts never
+    // reach this fallback, but it keeps malformed/degenerate input renderable.
+    const fallback = candidates
+      .map(candidate => ({ ...candidate, collisions: obstacles.filter(obstacle => intersects(candidate.box, obstacle)).length }))
+      .sort((a, b) => a.collisions - b.collisions || a.point.y - b.point.y || a.point.x - b.point.x)[0]
+      ?? { point: endpoint, box: { x0: endpoint.x, y0: endpoint.y, x1: endpoint.x, y1: endpoint.y } }
+    obstacles.push(fallback.box)
+    return fallback.point
+  }
+
+  for (const relationship of relationships) {
+    if (relationship.points.length < 2) continue
+    if (relationship.fromCardinality) {
+      relationship.fromCardinalityPosition = allocate(
+        relationship.fromCardinality,
+        relationship.points[0]!,
+        relationship.points[1]!,
+      )
+    }
+    if (relationship.toCardinality) {
+      const last = relationship.points.length - 1
+      relationship.toCardinalityPosition = allocate(
+        relationship.toCardinality,
+        relationship.points[last]!,
+        relationship.points[last - 1]!,
+      )
+    }
   }
 }
 
@@ -376,12 +522,18 @@ export function layoutClassDiagram(
   options: RenderOptions = {}
 ): PositionedClassDiagram {
   if (diagram.classes.length === 0) {
-    return { width: 0, height: 0, accessibilityTitle: diagram.accessibilityTitle, accessibilityDescription: diagram.accessibilityDescription, classes: [], relationships: [], namespaces: [] }
+    return { width: 0, height: 0, accessibilityTitle: diagram.accessibilityTitle, accessibilityDescription: diagram.accessibilityDescription, classes: [], relationships: [], notes: [], namespaces: [] }
   }
 
   const { elkGraph, classSizes } = buildClassElkGraph(diagram, options)
   const result = elkLayoutSync(elkGraph)
-  return extractClassLayout(result, diagram, classSizes, resolveRenderStyle(options, CLASS_STYLE_DEFAULTS))
+  return extractClassLayout(
+    result,
+    diagram,
+    classSizes,
+    resolveRenderStyle(options, CLASS_STYLE_DEFAULTS),
+    options.class?.hierarchicalNamespaces !== false,
+  )
 }
 
 /** Calculate the max width of a list of class members (uses mono metrics) */

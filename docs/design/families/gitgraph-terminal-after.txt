@@ -1,0 +1,31 @@
+                                   Release train with backport
+
+   main ──*─[Founda-]─────────────────────────────────X─[Patch]──#─[merged]─┐─────────────────────
+            [tion]   │                                  [produc-]│ [branch] │
+                     │                                  [tion]   │ [develop]│
+                     │                                           │ [into]   │
+                     │                                           │ [main]   │
+                     │                                           │          │
+                     │                                           │          │
+                     │                                           │          │
+                     │                                           │          │
+                     │                                           │          │
+develop ─────────────#─[Build]─────────────*─[Finish]────────────┘──────────│─────────────────────
+                       [API]    │            [interf-]                      │
+                                │            [ace]                          │
+                                │                                           │
+                                │                                           │
+                                │                                           │
+                                │                                           │
+                                │                                           │
+                                │                                           │
+                                │                                           │
+release ────────────────────────X─[Cut]─────────────────────────────────────◆─[cherry-]*─[Verify]─
+                                  [release]                                   [-picked]  [release]
+                                  [candid-]                                   [merged]
+                                  [ate]                                       [branch]
+                                                                              [develop]
+                                                                              [into]
+                                                                              [main]
+                                                                              [into]
+                                                                              [release]

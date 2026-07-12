@@ -6,24 +6,29 @@ This is the approval layer for visual/layout quality. The SVG files are
 human-inspectable snapshots; the hashes fingerprint the SVG and PNG surfaces;
 the metrics are graph-drawing review signals (crossings, bends, canvas area,
 label fit, and label-overlap risk), not standalone correctness laws.
+`Label fit` is `n/a` for GitGraph because commit labels are external/rotated
+annotations rather than text intended to fit inside the 20px commit glyph;
+GitGraph label/canvas containment is gated separately by its layout tests.
 For graph-projected route correctness, pair this report with PR 30's hard
 gates: `src/__tests__/contact-sheet.test.ts`,
 `src/__tests__/layout-rubric.test.ts`, and `bun run track`.
 
 | Family | SVG snapshot | SVG SHA | PNG SHA | PNG bytes | SVG size | Layout bounds | Nodes/edges | Crossings | Bends | Route px | Area fill | Label fit | Label overlaps | Edge-label clearance | Aspect |
 |--------|--------------|---------|---------|----------:|----------|---------------|-------------|----------:|------:|---------:|----------:|----------:|---------------:|---------------------:|-------:|
-| Flowchart | [flowchart.svg](./visual-snapshots/flowchart.svg) | `ec1b1ca9443d` | `115eeaf5a982` | 9018 | 279.6835x434.582 | 280x435 | 4/4 | 0 | 0 | 533 | 15.5% | 100.0% | 0 | 7 | 0.64 |
-| State diagram | [state.svg](./visual-snapshots/state.svg) | `8e9deb92ba71` | `171ef8b10734` | 7326 | 241.14266666666668x375.15000000000003 | 241x375 | 5/5 | 0 | 6 | 628 | 11.3% | 100.0% | 0 | n/a | 0.64 |
-| Sequence diagram | [sequence.svg](./visual-snapshots/sequence.svg) | `23717c64433e` | `fc934d1a2e01` | 7135 | 420x280 | 420x280 | 3/4 | 0 | 0 | 560 | 8.2% | 100.0% | 0 | 10 | 1.50 |
-| Class diagram | [class.svg](./visual-snapshots/class.svg) | `d14da80c1cb7` | `ea089943c1dc` | 3950 | 360x237.8 | 360x238 | 3/2 | 0 | 2 | 240 | 20.6% | 100.0% | 0 | n/a | 1.51 |
-| ER diagram | [er.svg](./visual-snapshots/er.svg) | `55081c8b168b` | `2b49625fda09` | 9693 | 951.768x136 | 952x136 | 3/2 | 0 | 0 | 452 | 18.2% | 100.0% | 0 | 115 | 7.00 |
-| Timeline | [timeline.svg](./visual-snapshots/timeline.svg) | `c07cd647b657` | `c01793e9745b` | 8031 | 380x286.6 | 380x287 | 4/0 | 0 | 0 | 0 | 13.2% | 100.0% | 0 | n/a | 1.32 |
-| Gantt chart | [gantt.svg](./visual-snapshots/gantt.svg) | `34b24615a4cd` | `f52f9cf1e84a` | 10373 | 703x282 | 703x282 | 4/0 | 0 | 0 | 0 | 5.4% | 75.0% | 0 | n/a | 2.49 |
-| User journey | [journey.svg](./visual-snapshots/journey.svg) | `b47e71e142ea` | `3069450b8529` | 15279 | 530x482.3 | 530x482 | 2/0 | 0 | 0 | 0 | 5.9% | 100.0% | 0 | n/a | 1.10 |
-| XY chart | [xychart.svg](./visual-snapshots/xychart.svg) | `36646cb1be5a` | `765ea453d984` | 18006 | 700x500 | 700x500 | 6/0 | 0 | 0 | 0 | 33.9% | 50.0% | 0 | n/a | 1.40 |
-| Pie chart | [pie.svg](./visual-snapshots/pie.svg) | `60a51984f96d` | `61c805ac4e77` | 12063 | 368.79x276 | 369x276 | 3/0 | 0 | 0 | 0 | 4.1% | 100.0% | 0 | n/a | 1.34 |
-| Quadrant chart | [quadrant.svg](./visual-snapshots/quadrant.svg) | `f297339c264b` | `63b16868b93e` | 9305 | 456x492 | 456x492 | 2/0 | 0 | 0 | 0 | 0.1% | 100.0% | 0 | n/a | 0.93 |
-| Architecture diagram | [architecture.svg](./visual-snapshots/architecture.svg) | `56fce2e98409` | `777507a15f7a` | 4182 | 414x188 | 414x188 | 2/1 | 0 | 0 | 78 | 14.8% | 100.0% | 0 | n/a | 2.20 |
+| Flowchart | [flowchart.svg](./visual-snapshots/flowchart.svg) | `4983df8f78e7` | `115eeaf5a982` | 9018 | 279.6835x434.582 | 280x435 | 4/4 | 0 | 0 | 533 | 15.5% | 100.0% | 0 | 7 | 0.64 |
+| State diagram | [state.svg](./visual-snapshots/state.svg) | `73195d279a6e` | `171ef8b10734` | 7326 | 241.14266666666668x375.15000000000003 | 241x375 | 5/5 | 0 | 6 | 628 | 11.3% | 100.0% | 0 | n/a | 0.64 |
+| Sequence diagram | [sequence.svg](./visual-snapshots/sequence.svg) | `13354ecf04d5` | `b899fdc156a9` | 7220 | 420x286 | 420x286 | 3/4 | 0 | 0 | 560 | 8.0% | 100.0% | 0 | 10 | 1.47 |
+| Class diagram | [class.svg](./visual-snapshots/class.svg) | `0f1fe2955a84` | `ea089943c1dc` | 3950 | 360x237.8 | 360x238 | 3/2 | 0 | 2 | 240 | 20.6% | 100.0% | 0 | n/a | 1.51 |
+| ER diagram | [er.svg](./visual-snapshots/er.svg) | `3b3bb5da4863` | `2b49625fda09` | 9693 | 951.768x136 | 952x136 | 3/2 | 0 | 0 | 452 | 18.2% | 100.0% | 0 | 226 | 7.00 |
+| Timeline | [timeline.svg](./visual-snapshots/timeline.svg) | `4a176ff40b69` | `c01793e9745b` | 8031 | 380x286.6 | 380x287 | 4/0 | 0 | 0 | 0 | 13.2% | 100.0% | 0 | n/a | 1.32 |
+| Gantt chart | [gantt.svg](./visual-snapshots/gantt.svg) | `cf045c673ced` | `f52f9cf1e84a` | 10373 | 703x282 | 703x282 | 4/0 | 0 | 0 | 0 | 5.4% | 75.0% | 0 | n/a | 2.49 |
+| User journey | [journey.svg](./visual-snapshots/journey.svg) | `405d59f1c89a` | `3069450b8529` | 15279 | 530x482.3 | 530x482 | 2/0 | 0 | 0 | 0 | 5.9% | 100.0% | 0 | n/a | 1.10 |
+| XY chart | [xychart.svg](./visual-snapshots/xychart.svg) | `2e604e0ac7e0` | `765ea453d984` | 18006 | 700x500 | 700x500 | 6/0 | 0 | 0 | 0 | 33.9% | 50.0% | 0 | n/a | 1.40 |
+| Pie chart | [pie.svg](./visual-snapshots/pie.svg) | `df5f6a88f2ac` | `61c805ac4e77` | 12063 | 368.79x276 | 369x276 | 3/0 | 0 | 0 | 0 | 4.1% | 100.0% | 0 | n/a | 1.34 |
+| Quadrant chart | [quadrant.svg](./visual-snapshots/quadrant.svg) | `216bf17ccff0` | `63b16868b93e` | 9305 | 456x492 | 456x492 | 2/0 | 0 | 0 | 0 | 0.1% | 100.0% | 0 | n/a | 0.93 |
+| Mindmap | [mindmap.svg](./visual-snapshots/mindmap.svg) | `fb6b9016051d` | `005d10c30f28` | 10737 | 445.654x173.8 | 446x174 | 5/4 | 0 | 8 | 342 | 21.8% | 100.0% | 0 | n/a | 2.56 |
+| GitGraph | [gitgraph.svg](./visual-snapshots/gitgraph.svg) | `5148f25d317f` | `4e8e81ffef9b` | 13630 | 604.715x339.781 | 605x340 | 4/4 | 0 | 4 | 736 | 0.8% | n/a | 0 | n/a | 1.78 |
+| Architecture diagram | [architecture.svg](./visual-snapshots/architecture.svg) | `b62df2307c70` | `777507a15f7a` | 4182 | 414x188 | 414x188 | 2/1 | 0 | 0 | 78 | 14.8% | 100.0% | 0 | n/a | 2.20 |
 
 ## Sources
 
@@ -147,6 +152,29 @@ quadrantChart
   quadrant-1 Invest
   A: [0.7, 0.8]
   B: [0.3, 0.4]
+```
+
+### Mindmap
+
+```mermaid
+mindmap
+  root((Product))
+    Research
+      Interviews
+      Evidence
+    Delivery
+```
+
+### GitGraph
+
+```mermaid
+gitGraph
+  commit id:"base"
+  branch feature
+  commit id:"work"
+  checkout main
+  commit id:"release"
+  merge feature id:"merge"
 ```
 
 ### Architecture diagram

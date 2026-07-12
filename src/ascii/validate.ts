@@ -5,6 +5,9 @@
  * including diagonal line detection to ensure orthogonal-only routing.
  */
 
+import { graphemes } from '../shared/graphemes.ts'
+import { visualWidth } from './width.ts'
+
 /**
  * Characters that represent diagonal lines in ASCII and Unicode modes.
  * These should never appear in properly rendered diagrams.
@@ -55,25 +58,23 @@ export function findDiagonalLines(asciiOutput: string): DiagonalPosition[] {
   for (let lineNum = 0; lineNum < lines.length; lineNum++) {
     const line = lines[lineNum]!
 
-    // Find all box border positions in this line
-    const borderPositions: number[] = []
-    for (let col = 0; col < line.length; col++) {
-      if (boxBorders.has(line[col]!)) {
-        borderPositions.push(col)
-      }
+    const clusters = graphemes(line)
+    const cells: Array<{ char: string; col: number }> = []
+    let displayCol = 0
+    for (const char of clusters) {
+      cells.push({ char, col: displayCol })
+      displayCol += visualWidth(char)
     }
+    const borderPositions = cells.filter(cell => boxBorders.has(cell.char)).map(cell => cell.col)
 
-    for (let col = 0; col < line.length; col++) {
-      const char = line[col]!
+    for (const { char, col } of cells) {
       if (DIAGONAL_CHARS.all.includes(char as '/' | '\\' | '╱' | '╲')) {
         // Check if this position is inside a node (between two box borders)
-        // Find the nearest borders before and after this position
         let insideNode = false
         for (let i = 0; i < borderPositions.length - 1; i++) {
           const leftBorder = borderPositions[i]!
           const rightBorder = borderPositions[i + 1]!
           if (col > leftBorder && col < rightBorder) {
-            // This diagonal char is between two borders - likely inside a node label
             insideNode = true
             break
           }
@@ -81,7 +82,7 @@ export function findDiagonalLines(asciiOutput: string): DiagonalPosition[] {
 
         if (!insideNode) {
           positions.push({
-            line: lineNum + 1, // 1-indexed for human readability
+            line: lineNum + 1,
             col: col + 1,
             char,
           })

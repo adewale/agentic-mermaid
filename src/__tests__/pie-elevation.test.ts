@@ -356,22 +356,24 @@ describe('pie config wire-or-warn', () => {
   })
 
   it('unwired pie config fields carry INEFFECTIVE_CONFIG; wired fields stay silent', () => {
-    const parsed = parseMermaid('%%{init: {"pie": {"highlightSlice": "hover", "textPosition": 0.5, "donutHole": 0.3}}}%%\npie\n  "A" : 1')
+    const parsed = parseMermaid('%%{init: {"pie": {"highlightSlice": "hover", "textPosition": 0.5, "donutHole": 0.3, "unknownField": true}}}%%\npie\n  "A" : 1')
     expect(parsed.ok).toBe(true)
     if (!parsed.ok) return
     const verify = verifyMermaid(parsed.value)
     expect(verify.ok).toBe(true)
     const fields = verify.warnings.filter(w => w.code === 'INEFFECTIVE_CONFIG').map(w => (w as { field: string }).field)
-    expect(fields).toEqual(['highlightSlice'])
+    expect(fields).toEqual(['pie.unknownField'])
+    expect(renderMermaidSVG('%%{init: {"pie": {"highlightSlice": "A"}}}%%\npie\n  "A" : 1')).toContain('class="pie-slice highlighted"')
   })
 
-  it('unwired pie theme variables carry INEFFECTIVE_CONFIG; wired pieN/stroke vars stay silent', () => {
+  it('documented pie text, palette, and stroke variables are wired and stay silent', () => {
     const parsed = parseMermaid('%%{init: {"themeVariables": {"pieTitleTextSize": "30px", "pie1": "#ff0000", "pieStrokeColor": "#000000"}}}%%\npie\n  "A" : 1')
     expect(parsed.ok).toBe(true)
     if (!parsed.ok) return
     const verify = verifyMermaid(parsed.value)
     const fields = verify.warnings.filter(w => w.code === 'INEFFECTIVE_CONFIG').map(w => (w as { field: string }).field)
-    expect(fields).toEqual(['pieTitleTextSize'])
+    expect(fields).toEqual([])
+    expect(renderMermaidSVG('%%{init: {"themeVariables": {"pieTitleTextSize": "30px"}}}%%\npie title T\n  "A" : 1')).toContain('font-size="30"')
   })
 
   it('a config-free pie stays lint-free', () => {

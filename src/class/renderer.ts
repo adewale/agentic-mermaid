@@ -1,4 +1,4 @@
-import type { PositionedClassDiagram, PositionedClassNode, PositionedClassNamespace, PositionedClassRelationship, ClassMember, RelationshipType } from './types.ts'
+import type { PositionedClassDiagram, PositionedClassNode, PositionedClassNamespace, PositionedClassRelationship, PositionedClassNote, ClassMember, RelationshipType } from './types.ts'
 import type { RenderContext } from '../types.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
 import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, TEXT_BASELINE_SHIFT, applyTextTransform, resolveRenderStyle } from '../styles.ts'
@@ -119,7 +119,10 @@ export function lowerClassScene(
     parts.push(renderClassBox(cls, style))
   }
 
-  // 3. Relationship labels and cardinality
+  // 3. Notes are first-class UML marks; anchored notes include a connector.
+  for (let index = 0; index < diagram.notes.length; index++) parts.push(renderClassNote(diagram.notes[index]!, style, index))
+
+  // 4. Relationship labels and cardinality
   const labelOccurrence = new Map<string, number>()
   for (const rel of diagram.relationships) {
     const pairKey = `${rel.from}->${rel.to}`
@@ -167,6 +170,9 @@ function relationshipMarkerDefs(style: ResolvedRenderStyle): string {
     // Open arrow (association, dependency)
     `\n  <marker id="cls-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto-start-reverse">` +
     `\n    <polyline points="0 0, 8 3, 0 6" fill="none" stroke="${edgeColor}" stroke-width="1.5" />` +
+    `\n  </marker>` +
+    `\n  <marker id="cls-lollipop" markerWidth="14" markerHeight="14" refX="7" refY="7" orient="auto">` +
+    `\n    <circle cx="7" cy="7" r="5" fill="var(--bg)" stroke="${edgeColor}" stroke-width="1.5" />` +
     `\n  </marker>`
   )
 }
@@ -265,26 +271,32 @@ function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle): S
   // data-label: class name
   // data-annotation: stereotype (interface, abstract, etc.)
   const annotationAttr = cls.annotation ? ` data-annotation="${escapeAttr(cls.annotation)}"` : ''
+  const classAttr = cls.className ? ` ${escapeAttr(cls.className)}` : ''
+  const dataClass = cls.className ? ` data-class="${escapeAttr(cls.className)}"` : ''
+  const interaction = cls.href ? ` data-href="${escapeAttr(cls.href)}" role="link" tabindex="0"` : ''
   const open =
-    `<g class="class-node" data-id="${escapeAttr(cls.id)}" data-label="${escapeAttr(cls.label)}"${annotationAttr}>`
+    `<g class="class-node${classAttr}" data-id="${escapeAttr(cls.id)}" data-label="${escapeAttr(cls.label)}"${annotationAttr}${dataClass}${interaction}>`
 
-  // Outer rectangle (full box)
-  const boxFill = style.nodeFillColor ?? 'var(--_node-fill)'
-  const boxStroke = style.nodeBorderColor ?? 'var(--_node-stroke)'
+  // classDef then inline style are merged by layout for backend parity.
+  const local = cls.inlineStyle ?? {}
+  const boxFill = local.fill ?? style.nodeFillColor ?? 'var(--_node-fill)'
+  const boxStroke = local.stroke ?? style.nodeBorderColor ?? 'var(--_node-stroke)'
+  const parsedStrokeWidth = Number.parseFloat(local['stroke-width'] ?? '')
+  const boxStrokeWidth = Number.isFinite(parsedStrokeWidth) && parsedStrokeWidth > 0 ? parsedStrokeWidth : style.nodeLineWidth
   children.push({
     indent: 2,
     node: marks.shape({
       id: `class:${cls.id}:box`,
       role: 'class-box',
       geometry: { kind: 'rect', x, y, width, height, rx: style.cornerRadius ?? 0, ry: style.cornerRadius ?? 0 },
-      paint: { fill: boxFill, stroke: boxStroke, strokeWidth: String(style.nodeLineWidth) },
+      paint: { fill: boxFill, stroke: boxStroke, strokeWidth: String(boxStrokeWidth) },
     },
       `<rect x="${x}" y="${y}" width="${width}" height="${height}" ` +
-      `rx="${style.cornerRadius ?? 0}" ry="${style.cornerRadius ?? 0}" fill="${escapeAttr(boxFill)}" stroke="${escapeAttr(boxStroke)}" stroke-width="${style.nodeLineWidth}" />`),
+      `rx="${style.cornerRadius ?? 0}" ry="${style.cornerRadius ?? 0}" fill="${escapeAttr(boxFill)}" stroke="${escapeAttr(boxStroke)}" stroke-width="${boxStrokeWidth}" />`),
   })
 
   // Header background
-  const headerFill = style.groupHeaderFillColor ?? 'var(--_group-hdr)'
+  const headerFill = local.fill ?? style.groupHeaderFillColor ?? 'var(--_group-hdr)'
   const headerPath = topRoundedRectPath(x, y, width, headerHeight, style.cornerRadius ?? 0)
   children.push({
     indent: 2,
@@ -292,17 +304,17 @@ function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle): S
       id: `class:${cls.id}:header`,
       role: 'group-header',
       geometry: { kind: 'path', d: headerPath },
-      paint: { fill: headerFill, stroke: boxStroke, strokeWidth: String(style.nodeLineWidth) },
+      paint: { fill: headerFill, stroke: boxStroke, strokeWidth: String(boxStrokeWidth) },
     },
       `<path d="${headerPath}" ` +
-      `fill="${escapeAttr(headerFill)}" stroke="${escapeAttr(boxStroke)}" stroke-width="${style.nodeLineWidth}" />`),
+      `fill="${escapeAttr(headerFill)}" stroke="${escapeAttr(boxStroke)}" stroke-width="${boxStrokeWidth}" />`),
   })
 
   // Annotation (<<interface>>, <<abstract>>, etc.)
   let nameY = y + headerHeight / 2
   if (cls.annotation) {
     const annotY = y + 12
-    const annotColor = style.nodeTextColor ?? 'var(--_text-muted)'
+    const annotColor = local.color ?? style.nodeTextColor ?? 'var(--_text-muted)'
     children.push({
       indent: 2,
       node: marks.text({
@@ -323,7 +335,7 @@ function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle): S
   }
 
   // Class name (supports multi-line via <br> tags)
-  const nameColor = style.nodeTextColor ?? 'var(--_text)'
+  const nameColor = local.color ?? style.nodeTextColor ?? 'var(--_text)'
   const label = applyTextTransform(cls.label, style.nodeTextTransform)
   children.push({
     indent: 2,
@@ -440,6 +452,34 @@ function renderMember(member: ClassMember, x: number, y: number, style: Resolved
     `${spans.join('')}</text>`)
 }
 
+function renderClassNote(note: PositionedClassNote, style: ResolvedRenderStyle, index: number): SceneNode {
+  const stroke = style.groupBorderColor ?? 'var(--_node-stroke)'
+  const fill = style.groupFillColor ?? 'var(--_group-hdr)'
+  const text = style.groupTextColor ?? 'var(--_text)'
+  const children: Array<{ node: SceneNode; indent: number }> = []
+  if (note.targetX !== undefined && note.targetY !== undefined) {
+    children.push({ node: marks.connector({
+      id: `class-note:${index}:connector`, role: 'relationship',
+      geometry: { kind: 'line', x1: note.targetX, y1: note.targetY, x2: note.noteX ?? note.x, y2: note.noteY ?? note.y + note.height / 2 },
+      lineStyle: 'dashed', paint: { stroke, strokeWidth: '1', strokeDasharray: '4 3' },
+    }, `<line class="class-note-connector" x1="${note.targetX}" y1="${note.targetY}" x2="${note.noteX ?? note.x}" y2="${note.noteY ?? note.y + note.height / 2}" stroke="${escapeAttr(stroke)}" stroke-width="1" stroke-dasharray="4 3" />`), indent: 2 })
+  }
+  children.push({ node: marks.shape({
+    id: `class-note:${index}:box`, role: 'note',
+    geometry: { kind: 'rect', x: note.x, y: note.y, width: note.width, height: note.height, rx: 2, ry: 2 },
+    paint: { fill, stroke, strokeWidth: '1' },
+  }, `<rect x="${note.x}" y="${note.y}" width="${note.width}" height="${note.height}" rx="2" fill="${escapeAttr(fill)}" stroke="${escapeAttr(stroke)}" />`), indent: 2 })
+  children.push({ node: marks.text({
+    id: `class-note:${index}:label`, role: 'label', text: note.text,
+    x: note.x + note.width / 2, y: note.y + note.height / 2, fontSize: 12, anchor: 'middle', paint: { fill: text },
+  }, renderMultilineText(note.text, note.x + note.width / 2, note.y + note.height / 2, 12, `text-anchor="middle" fill="${escapeAttr(text)}"`)), indent: 2 })
+  return marks.group({
+    id: `class-note:${index}`, role: 'note',
+    open: `<g class="class-note" data-note-index="${index}"${note.for ? ` data-for="${escapeAttr(note.for)}"` : ''}>`,
+    close: '</g>', children,
+  })
+}
+
 // ============================================================================
 // Relationship rendering
 // ============================================================================
@@ -465,12 +505,13 @@ function renderRelationship(rel: PositionedClassRelationship, style: ResolvedRen
   const dashArray = isDashed ? ' stroke-dasharray="6 4"' : ''
   const lineStyle = isDashed ? 'dashed' : 'solid'
 
-  // Determine markers based on relationship type and which end has the marker
-  const markers = getRelationshipMarkers(rel.type, rel.markerAt)
-  const markerId = getMarkerDefId(rel.type)
-  const markerRef: MarkerRef | undefined = markerId ? { id: markerId, shape: markerShapeFor(markerId) } : undefined
-  const startMarker = rel.markerAt === 'from' ? markerRef : undefined
-  const endMarker = rel.markerAt === 'to' ? markerRef : undefined
+  const startType = rel.markerAt === 'from' || rel.markerAt === 'both' ? rel.fromType ?? rel.type : undefined
+  const endType = rel.markerAt === 'to' || rel.markerAt === 'both' ? rel.toType ?? rel.type : undefined
+  const startId = startType ? getMarkerDefId(startType) : null
+  const endId = endType ? getMarkerDefId(endType) : null
+  const startMarker: MarkerRef | undefined = startId ? { id: startId, shape: markerShapeFor(startId) } : undefined
+  const endMarker: MarkerRef | undefined = endId ? { id: endId, shape: markerShapeFor(endId) } : undefined
+  const markers = `${startId ? ` marker-start="url(#${startId})"` : ''}${endId ? ` marker-end="url(#${endId})"` : ''}`
 
   // Build semantic data attributes for relationship inspection:
   // - class="class-relationship": CSS targeting
@@ -484,6 +525,7 @@ function renderRelationship(rel: PositionedClassRelationship, style: ResolvedRen
     `data-from="${escapeAttr(rel.from)}"`,
     `data-to="${escapeAttr(rel.to)}"`,
     `data-type="${rel.type}"`,
+    `data-relation-type="${rel.type}"`,
     `data-marker-at="${rel.markerAt}"`,
   ]
   if (rel.label) {
@@ -537,15 +579,13 @@ function renderRelationship(rel: PositionedClassRelationship, style: ResolvedRen
  *   - 'from' → marker-start (prefix arrows like `<|--`, `*--`, `o--`)
  *   - 'to'   → marker-end   (suffix arrows like `..|>`, `-->`, `--*`)
  */
-function getRelationshipMarkers(type: RelationshipType, markerAt: 'from' | 'to'): string {
+function getRelationshipMarkers(type: RelationshipType, markerAt: 'from' | 'to' | 'both'): string {
   const markerId = getMarkerDefId(type)
   if (!markerId) return ''
 
-  if (markerAt === 'from') {
-    return ` marker-start="url(#${markerId})"`
-  } else {
-    return ` marker-end="url(#${markerId})"`
-  }
+  if (markerAt === 'from') return ` marker-start="url(#${markerId})"`
+  if (markerAt === 'both') return ` marker-start="url(#${markerId})" marker-end="url(#${markerId})"`
+  return ` marker-end="url(#${markerId})"`
 }
 
 /** Map relationship type to its SVG marker definition ID */
@@ -561,6 +601,8 @@ function getMarkerDefId(type: RelationshipType): string | null {
     case 'association':
     case 'dependency':
       return 'cls-arrow'
+    case 'lollipop':
+      return 'cls-lollipop'
     default:
       return null
   }
@@ -575,6 +617,8 @@ function markerShapeFor(markerId: string): MarkerRef['shape'] {
       return 'diamond'
     case 'cls-aggregation':
       return 'diamond-open'
+    case 'cls-lollipop':
+      return 'circle'
     default:
       return 'open-arrow'
   }
@@ -614,16 +658,17 @@ function renderRelationshipLabels(rel: PositionedClassRelationship, style: Resol
     const p = rel.points[0]!
     const next = rel.points[1]!
     const offset = cardinalityOffset(p, next)
+    const position = rel.fromCardinalityPosition ?? { x: p.x + offset.x, y: p.y + offset.y }
     out.push(marks.text({
       id: `rel-card:${key}:from`,
       role: 'cardinality',
       text: rel.fromCardinality,
-      x: p.x + offset.x,
-      y: p.y + offset.y,
+      x: position.x,
+      y: position.y,
       fontSize: style.edgeLabelFontSize,
       anchor: 'middle',
       paint: { fill: textColor },
-    }, renderMultilineText(rel.fromCardinality, p.x + offset.x, p.y + offset.y, style.edgeLabelFontSize, textAttrs)))
+    }, renderMultilineText(rel.fromCardinality, position.x, position.y, style.edgeLabelFontSize, textAttrs)))
   }
 
   // To cardinality (near end)
@@ -631,16 +676,17 @@ function renderRelationshipLabels(rel: PositionedClassRelationship, style: Resol
     const p = rel.points[rel.points.length - 1]!
     const prev = rel.points[rel.points.length - 2]!
     const offset = cardinalityOffset(p, prev)
+    const position = rel.toCardinalityPosition ?? { x: p.x + offset.x, y: p.y + offset.y }
     out.push(marks.text({
       id: `rel-card:${key}:to`,
       role: 'cardinality',
       text: rel.toCardinality,
-      x: p.x + offset.x,
-      y: p.y + offset.y,
+      x: position.x,
+      y: position.y,
       fontSize: style.edgeLabelFontSize,
       anchor: 'middle',
       paint: { fill: textColor },
-    }, renderMultilineText(rel.toCardinality, p.x + offset.x, p.y + offset.y, style.edgeLabelFontSize, textAttrs)))
+    }, renderMultilineText(rel.toCardinality, position.x, position.y, style.edgeLabelFontSize, textAttrs)))
   }
 
   return out

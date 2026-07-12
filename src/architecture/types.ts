@@ -109,6 +109,12 @@ export interface PositionedArchitectureEdge {
   hasArrowEnd: boolean
   points: Point[]
   labelPosition?: Point
+  /** Whether both authored endpoint faces point toward the opposite endpoint. */
+  placement: 'satisfied' | 'conflicted'
+  sourceFacesTarget: boolean
+  targetFacesSource: boolean
+  /** True when every routed segment clears non-incident cards and groups. */
+  obstacleFree: boolean
 }
 
 export interface PositionedArchitectureDiagram extends PositionedDiagram {

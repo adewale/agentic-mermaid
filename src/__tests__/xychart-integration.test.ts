@@ -249,8 +249,8 @@ describe('xychart – Mermaid parity', () => {
     const configuredSize = getSvgSize(svg)
 
     expect(svg).not.toContain('>Revenue</text>')
-    expect(svg).toContain('class="xychart-label xychart-x-label">A</text>')
-    expect(svg).toContain('class="xychart-axis-title xychart-y-axis-title">Users</text>')
+    expect(svg).toMatch(/class="xychart-label xychart-x-label"[^>]*>A<\/text>/)
+    expect(svg).toMatch(/class="xychart-axis-title xychart-y-axis-title"[^>]*>Users<\/text>/)
     expect(configuredSize.width).toBeGreaterThan(defaultSize.width)
     expect(configuredSize.height).toBeLessThan(defaultSize.height)
   })

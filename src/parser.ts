@@ -3,8 +3,10 @@ import { normalizeBrTags } from './multiline-utils.ts'
 import { normalizeV11Shape } from './flowchart-shapes.ts'
 import {
   matchNoteLine, matchNoteOpen, isNoteEnd, matchStereotypeDecl,
-  isConcurrencySeparator, matchHistoryEndpoint, matchTransitionLine, historyLabel,
+  isConcurrencySeparator, isStateNodeId, matchHistoryEndpoint, matchTransitionLine, historyLabel,
 } from './state/parse-core.ts'
+import { parseStyleProps } from './shared/style-props.ts'
+export { parseStyleProps } from './shared/style-props.ts'
 import {
   MERMAID_IDENTIFIER_SOURCE,
   consumeClassShorthandPrefix,
@@ -235,6 +237,41 @@ function isFlowchartInteractionDirective(line: string): boolean {
   return /^(?:click|href)\s+/i.test(line.trim())
 }
 
+function applyFlowchartInteraction(graph: MermaidGraph, line: string): void {
+  const match = line.trim().match(/^(?:click\s+)?([\w-]+)\s+(?:href\s+)?(?:"((?:\\.|[^"])*)"|(https?:\/\/\S+|mailto:\S+))/i)
+  if (!match) return
+  const href = (match[2] ?? match[3] ?? '').replace(/\\(["\\])/g, '$1')
+  if (!/^(?:https?:|mailto:)/i.test(href)) return
+  const node = graph.nodes.get(match[1]!)
+  if (node) node.href = href
+}
+
+function metadataText(value: string | undefined): string | undefined {
+  if (value === undefined) return undefined
+  const trimmed = value.trim()
+  const unquoted = trimmed.length >= 2 && ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'")))
+    ? trimmed.slice(1, -1).replace(/\\(["'\\])/g, '$1')
+    : trimmed
+  return unquoted || undefined
+}
+
+function applyFlowchartEdgeMetadata(graph: MermaidGraph, line: string): void {
+  const match = line.trim().match(/^([\w-]+)@\s*\{([\s\S]*)\}\s*$/)
+  if (!match) return
+  const edge = graph.edges.find(candidate => candidate.id === match[1])
+  if (!edge) return
+  const entries = parseMetadataEntries(match[2]!)
+  const curve = metadataText(entries.get('curve'))
+  if (curve && /^[a-z][a-z0-9-]*$/i.test(curve)) edge.curve = curve
+  const animate = metadataText(entries.get('animate'))?.toLowerCase()
+  const animation = metadataText(entries.get('animation'))?.toLowerCase()
+  if (animate === 'true' || animate === 'fast' || animate === 'slow' || animation === 'fast' || animation === 'slow') {
+    edge.animate = true
+    const speed = animate === 'fast' || animate === 'slow' ? animate : animation
+    if (speed === 'fast' || speed === 'slow') edge.animation = speed
+  }
+}
+
 function isUnsupportedEdgeMetadataLine(line: string): boolean {
   const match = line.trim().match(/^[\w-]+@\s*\{([\s\S]*)\}\s*$/)
   if (!match) return false
@@ -274,7 +311,14 @@ function parseFlowchart(lines: string[]): MermaidGraph {
   for (let i = 1; i < lines.length; i++) {
     for (const line of splitFlowchartStatements(lines[i]!)) {
       // --- source-level directives that do not affect local layout ---
-      if (isFlowchartInteractionDirective(line) || isUnsupportedEdgeMetadataLine(line)) continue
+      if (isFlowchartInteractionDirective(line)) {
+        applyFlowchartInteraction(graph, line)
+        continue
+      }
+      if (isUnsupportedEdgeMetadataLine(line)) {
+        applyFlowchartEdgeMetadata(graph, line)
+        continue
+      }
 
       // --- classDef: `classDef name prop:val,prop:val` ---
       const classDefMatch = line.match(/^classDef\s+([\w,-]+)\s+(.+)$/)
@@ -537,6 +581,27 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
       continue
     }
 
+    // --- class/cssClass assignment and inline state style ---
+    const stateClassAssignment = line.match(/^(?:class|cssClass)\s+([\w\p{L},-]+)\s+([\w-]+)$/u)
+    if (stateClassAssignment) {
+      const ids = stateClassAssignment[1]!.split(',').map(id => id.trim()).filter(Boolean)
+      for (const id of ids) {
+        ensureStateNode(graph, compositeStack, id)
+        graph.classAssignments.set(id, stateClassAssignment[2]!)
+      }
+      continue
+    }
+    const stateInlineStyle = line.match(/^style\s+([\w\p{L},-]+)\s+(.+)$/u)
+    if (stateInlineStyle) {
+      const ids = stateInlineStyle[1]!.split(',').map(id => id.trim()).filter(Boolean)
+      const props = parseStyleProps(stateInlineStyle[2]!)
+      for (const id of ids) {
+        ensureStateNode(graph, compositeStack, id)
+        graph.nodeStyles.set(id, { ...graph.nodeStyles.get(id), ...props })
+      }
+      continue
+    }
+
     // --- linkStyle: `linkStyle 0 stroke:#f00` or `linkStyle default stroke:#f00` ---
     const linkStyleMatch = line.match(/^linkStyle\s+(default|[\d,\s]+)\s+(.+)$/)
     if (linkStyleMatch) {
@@ -608,7 +673,7 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     }
 
     // --- composite state start: `state CompositeState {` ---
-    const compositeMatch = line.match(/^state\s+(?:"([^"]+)"\s+as\s+)?([\w\p{L}]+)\s*\{$/u)
+    const compositeMatch = line.match(/^state\s+(?:"([^"]+)"\s+as\s+)?([\w\p{L}-]+)\s*\{$/u)
     if (compositeMatch) {
       const label = compositeMatch[1] ?? compositeMatch[2]!
       const id = compositeMatch[2]!
@@ -640,7 +705,7 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     }
 
     // --- state alias: `state "Description" as s1` (without brace) ---
-    const stateAliasMatch = line.match(/^state\s+"([^"]+)"\s+as\s+([\w\p{L}]+)\s*$/u)
+    const stateAliasMatch = line.match(/^state\s+"([^"]+)"\s+as\s+([\w\p{L}-]+)\s*$/u)
     if (stateAliasMatch) {
       const label = normalizeBrTags(stateAliasMatch[1]!)
       const id = stateAliasMatch[2]!
@@ -678,12 +743,16 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
       continue
     }
 
-    // --- state description: `s1 : Description` ---
+    // --- state description / bare declaration ---
     const stateDescMatch = line.match(/^([\w\p{L}-]+)\s*:\s*(.+)$/u)
     if (stateDescMatch) {
       const id = stateDescMatch[1]!
       const label = normalizeBrTags(stateDescMatch[2]!.trim())
       registerStateNode(graph, compositeStack, { id, label, shape: 'rounded' })
+      continue
+    }
+    if (isStateNodeId(line)) {
+      registerStateNode(graph, compositeStack, { id: line, label: line, shape: 'rounded' })
       continue
     }
   }
@@ -757,40 +826,6 @@ function ensureStateNode(
  * `rgb(10,10,10)`, `rgba(0,0,0,.5)`, `hsl(120,50%,50%)`) are NOT separators.
  * Fixes the bug where `fill:rgb(10,10,10)` was split into `fill:rgb(10`.
  */
-function splitTopLevelCommas(s: string): string[] {
-  const out: string[] = []
-  let depth = 0
-  let start = 0
-  let escaped = false
-  for (let i = 0; i < s.length; i++) {
-    const c = s[i]
-    if (escaped) { escaped = false; continue }
-    if (c === '\\') { escaped = true; continue }
-    if (c === '(') depth++
-    else if (c === ')') depth = Math.max(0, depth - 1)
-    else if (c === ',' && depth === 0) { out.push(s.slice(start, i)); start = i + 1 }
-  }
-  out.push(s.slice(start))
-  return out.map(part => part.replace(/\\,/g, ','))
-}
-
-export function parseStyleProps(propsStr: string): Record<string, string> {
-  // Strip trailing semicolons — Mermaid tolerates them (e.g. `stroke:#f00;`)
-  const cleaned = propsStr.replace(/;\s*$/, '')
-  const props: Record<string, string> = {}
-  for (const pair of splitTopLevelCommas(cleaned)) {
-    const colonIdx = pair.indexOf(':')
-    if (colonIdx > 0) {
-      const key = pair.slice(0, colonIdx).trim()
-      const val = pair.slice(colonIdx + 1).trim()
-      if (key && val) {
-        props[key] = val
-      }
-    }
-  }
-  return props
-}
-
 // ============================================================================
 // Flowchart edge line parser
 //
@@ -1044,17 +1079,24 @@ function consumeMetadataNode(
   // v11 typed shapes (repo #44): documented `@{ shape: ... }` names normalize
   // through the ONE table in src/flowchart-shapes.ts to a semantic shape id +
   // rendering geometry; the authored spelling is preserved for round-trip.
-  // Undocumented names keep the #29 safety floor (labeled rectangle);
-  // icon/img/extra keys stay on the opaque agent path (flowchart-unsupported).
+  // Undocumented names keep the #29 safety floor (labeled rectangle).
   const shapeName = entries.get('shape')
   const v11 = shapeName !== undefined ? normalizeV11Shape(shapeName) : null
-  const shapeFields = v11 ? { shape: v11.geometry, semanticShape: v11.canonical, authoredShape: shapeName!.trim() } : {}
+  const icon = metadataText(entries.get('icon'))
+  const image = metadataText(entries.get('img'))
+  const form = metadataText(entries.get('form'))
+  const iconForm: MermaidNode['iconForm'] = form === 'circle' || form === 'rounded' || form === 'square' ? form : undefined
+  const shapeFields = v11 ? { shape: v11.geometry, semanticShape: v11.canonical, authoredShape: shapeName!.trim() }
+    : icon || image ? { shape: iconForm === 'circle' ? 'circle' as const : iconForm === 'rounded' ? 'rounded' as const : 'rectangle' as const, semanticShape: icon ? 'icon' : 'image' }
+    : {}
+  const mediaFields = { ...(icon ? { icon } : {}), ...(image ? { image } : {}), ...(iconForm ? { iconForm } : {}) }
   const existing = graph.nodes.get(id)
   if (existing) {
     graph.nodes.set(id, {
       ...existing,
       ...(parsedLabel !== undefined ? { label: parsedLabel.text, ...(parsedLabel.markdown ? { markdownLabel: true as const } : {}) } : {}),
       ...shapeFields,
+      ...mediaFields,
     })
     trackInSubgraph(subgraphStack, id)
   } else {
@@ -1064,6 +1106,7 @@ function consumeMetadataNode(
       shape: 'rectangle',
       ...(parsedLabel?.markdown ? { markdownLabel: true as const } : {}),
       ...shapeFields,
+      ...mediaFields,
     })
   }
   return { id, remaining: text.slice(objectEnd + 1) }

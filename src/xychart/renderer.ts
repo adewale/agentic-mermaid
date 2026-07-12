@@ -1,6 +1,6 @@
 import type { PositionedBar, PositionedXYChart } from './types.ts'
 import type { RenderContext, RenderOptions } from '../types.ts'
-import { svgOpenTag, buildStyleBlock } from '../theme.ts'
+import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
 import { TEXT_BASELINE_SHIFT, applyTextTransform, estimateTextWidth, STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults } from '../styles.ts'
 import { LEGEND_SWATCH_GAP, LEGEND_SWATCH_SIZE, XY_STYLE_DEFAULTS } from './layout.ts'
@@ -81,6 +81,8 @@ export function lowerXYChartScene(
     buildStyleBlock(font, false, colors.shadow, colors.embedFontImport) + '\n' +
     chartStyle,
   ))
+  const shadowDefs = buildShadowDefs(colors)
+  if (shadowDefs) parts.push(marks.raw({ id: 'shadow-defs', role: 'defs' }, `<defs>${shadowDefs}</defs>`))
   if (defs) parts.push(marks.raw({ id: 'defs', role: 'defs' }, defs))
   if (svgMeta.title) parts.push(marks.raw({ id: 'acc-title', role: 'chrome' }, svgMeta.title))
   if (svgMeta.description) parts.push(marks.raw({ id: 'acc-desc', role: 'chrome' }, svgMeta.description))
@@ -164,6 +166,31 @@ export function lowerXYChartScene(
     },
       `<path d="${d}" class="xychart-line xychart-color-${line.colorIndex}"/>`,
     ))
+  }
+
+  // Mermaid 11.16 line-point labels are semantic chart content, not hover
+  // chrome. A label therefore forces a visible point mark even when the
+  // interactive tooltip layer is disabled.
+  for (const line of chart.lines) {
+    line.points.forEach((point, pointIndex) => {
+      if (point.textLabel === undefined) return
+      const position = chart.horizontal ? 'right' : 'above'
+      const x = point.x + (chart.horizontal ? 8 : 0)
+      const y = point.y + (chart.horizontal ? 4 : -8)
+      const anchor = chart.horizontal ? 'start' : 'middle'
+      parts.push(marks.shape({
+        id: `point-label-dot:${line.seriesIndex}:${pointIndex}`, role: 'point',
+        geometry: { kind: 'circle', cx: rn(point.x), cy: rn(point.y), r: CHART_FONT.dotRadius },
+        paint: { fill: `var(--xychart-color-${line.colorIndex})`, stroke: 'var(--bg)', strokeWidth: '1' },
+        channels: { category: `line-${line.seriesIndex}`, value: normalized(point.value) },
+      }, `<circle cx="${r(point.x)}" cy="${r(point.y)}" r="${CHART_FONT.dotRadius}" class="xychart-dot xychart-color-${line.colorIndex}" data-value="${point.value}"/>`))
+      parts.push(marks.text({
+        id: `point-label:${line.seriesIndex}:${pointIndex}`, role: 'label', text: point.textLabel,
+        x, y, fontSize: 12, anchor,
+        paint: { fill: `var(--xychart-color-${line.colorIndex})` },
+        channels: { category: `line-${line.seriesIndex}`, value: normalized(point.value) },
+      }, `<text class="xychart-point-label xychart-color-${line.colorIndex}" data-label-position="${position}" x="${r(x)}" y="${r(y)}" text-anchor="${anchor}" font-size="12" fill="var(--xychart-color-${line.colorIndex})">${escapeXml(point.textLabel)}</text>`))
+    })
   }
 
   const dotOverlay: SceneNode[] = []

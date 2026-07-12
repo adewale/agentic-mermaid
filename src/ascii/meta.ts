@@ -26,6 +26,7 @@
 
 import { renderMermaidASCII, type AsciiRenderOptions } from './index.ts'
 import { parseMermaid } from '../agent/parse.ts'
+import { visualWidth } from './width.ts'
 
 export type RegionKind = 'node' | 'edge' | 'label' | 'subgraph'
 
@@ -110,7 +111,7 @@ function deriveRegions(ascii: string, source: string): AsciiRegion[] {
   if (candidates.length === 0) return []
   const lines = ascii.split('\n')
   // Sort longest label first so 'Alpha' wins over 'A' on the same row.
-  const sorted = [...candidates].sort((a, b) => b.label.length - a.label.length)
+  const sorted = [...candidates].sort((a, b) => visualWidth(b.label) - visualWidth(a.label))
   // Track regions already assigned so a label scan doesn't double-match.
   const used = new Set<string>()
   const out: AsciiRegion[] = []
@@ -125,8 +126,8 @@ function deriveRegions(ascii: string, source: string): AsciiRegion[] {
         id: c.id,
         sourceLine: c.sourceLine,
         canvasRow: row,
-        canvasColStart: idx,
-        canvasColEnd: idx + c.label.length,
+        canvasColStart: visualWidth(line.slice(0, idx)),
+        canvasColEnd: visualWidth(line.slice(0, idx)) + visualWidth(c.label),
       })
       used.add(c.id)
     }

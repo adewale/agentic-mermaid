@@ -69,6 +69,9 @@ export const EMOJI_RANGES: readonly CodepointRange[] = [
   [0x1f300, 0x1faff], // Misc Symbols & Pictographs through Symbols & Pictographs Extended-A
 ]
 
+/** Fitzpatrick emoji modifiers; zero-width only when attached to a base emoji. */
+export const EMOJI_MODIFIER_RANGE: CodepointRange = [0x1f3fb, 0x1f3ff]
+
 // ----------------------------------------------------------------------------
 // Combining-mark and zero-width ranges. Iterating codepoints and treating
 // these as width 0 keeps display-width math correct for accented Latin and
@@ -132,4 +135,8 @@ export function isWideRange(cp: number): boolean {
  */
 export function isZeroWidth(cp: number): boolean {
   return inRanges(cp, COMBINING_RANGES) || ZERO_WIDTH_CODEPOINTS.has(cp)
+}
+
+export function isEmojiModifier(cp: number): boolean {
+  return cp >= EMOJI_MODIFIER_RANGE[0] && cp <= EMOJI_MODIFIER_RANGE[1]
 }

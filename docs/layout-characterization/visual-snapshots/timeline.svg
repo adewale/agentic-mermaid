@@ -32,33 +32,33 @@
   .timeline-event-text { fill: #707072; }
 </style>
 <title id="char-timeline-tl-1p1dpwc-title">Release Plan</title>
-<g class="timeline-section" data-id="section-0" data-label="Build" data-family="0" style="--tl-accent:#47474a;--tl-fill:#f9f9f9;--tl-label:#27272A;--tl-line:#939395;--tl-section-bg:#ffffff;--tl-section-band:#fefefe;--tl-pill-fill:#fefefe;--tl-pill-stroke:#b8b8b9;--tl-event-fill:#f9f9f9">
-  <rect class="timeline-section-bg" x="32" y="75.4" width="316" height="183.20000000000002" rx="0" ry="0" />
+<g class="timeline-section" data-id="section-0" data-label="Build" data-family="0" style="--tl-accent:#47474a;--tl-fill:#f9f9f9;--tl-label:#27272A;--tl-line:#939395;--tl-section-bg:#ffffff;--tl-section-band:#fefefe;--tl-pill-fill:#fefefe;--tl-pill-stroke:#b8b8b9;--tl-event-fill:#f9f9f9" data-role="section">
+  <rect class="timeline-section-bg" x="32" y="75.4" width="316" height="183.20000000000002" rx="0" ry="0" data-id="section-bg:Build" data-role="section" />
   <path class="timeline-section-band" d="M32,75.4 H348 V105.4 H32 Z" />
   <text x="44" y="90.4" class="timeline-section-label" text-anchor="start" font-size="12" font-weight="600" dy="4.199999999999999">Build</text>
 </g>
 <line class="timeline-rail" x1="114" y1="177" x2="266" y2="177" />
-<g class="timeline-period" data-id="period-0" data-label="2025" data-section="Build" data-family="0" style="--tl-accent:#47474a;--tl-fill:#f9f9f9;--tl-label:#27272A;--tl-line:#939395;--tl-section-bg:#ffffff;--tl-section-band:#fefefe;--tl-pill-fill:#fefefe;--tl-pill-stroke:#b8b8b9;--tl-event-fill:#f9f9f9">
-  <line class="timeline-stem" x1="114" y1="185" x2="114" y2="195" />
-  <rect class="timeline-period-pill" x="78" y="119.4" width="72" height="35.6" rx="0" ry="0" />
+<g class="timeline-period" data-id="period-0" data-label="2025" data-section="Build" data-family="0" style="--tl-accent:#47474a;--tl-fill:#f9f9f9;--tl-label:#27272A;--tl-line:#939395;--tl-section-bg:#ffffff;--tl-section-band:#fefefe;--tl-pill-fill:#fefefe;--tl-pill-stroke:#b8b8b9;--tl-event-fill:#f9f9f9" data-role="period">
+  <line class="timeline-stem" x1="114" y1="185" x2="114" y2="195" data-id="period-stem:period-0" data-role="period" />
+  <rect class="timeline-period-pill" x="78" y="119.4" width="72" height="35.6" rx="0" ry="0" data-id="period-pill:period-0" data-role="period" />
   <text x="114" y="137.20000000000002" class="timeline-period-text" text-anchor="middle" font-size="12" font-weight="600" dy="4.199999999999999">2025</text>
-  <circle class="timeline-marker-ring" cx="114" cy="177" r="8" />
-  <circle class="timeline-marker-core" cx="114" cy="177" r="4.5" />
-<g class="timeline-event" data-id="event-0" data-period="2025" data-section="Build" data-family="0">
-  <rect class="timeline-event-card" x="50" y="205" width="128" height="35.6" rx="0" ry="0" />
+  <circle class="timeline-marker-ring" cx="114" cy="177" r="8" data-id="period-marker-ring:period-0" data-role="period" />
+  <circle class="timeline-marker-core" cx="114" cy="177" r="4.5" data-id="period-marker-core:period-0" data-role="period" />
+<g class="timeline-event" data-id="event-0" data-period="2025" data-section="Build" data-family="0" data-role="event">
+  <rect class="timeline-event-card" x="50" y="205" width="128" height="35.6" rx="0" ry="0" data-id="event:event-0" data-role="event" />
   <text x="64" y="222.8" class="timeline-event-text" text-anchor="start" font-size="12" font-weight="400" dy="4.199999999999999">Prototype</text>
 </g>
 </g>
-<g class="timeline-period" data-id="period-1" data-label="2026" data-section="Build" data-family="0" style="--tl-accent:#47474a;--tl-fill:#f9f9f9;--tl-label:#27272A;--tl-line:#939395;--tl-section-bg:#ffffff;--tl-section-band:#fefefe;--tl-pill-fill:#fefefe;--tl-pill-stroke:#b8b8b9;--tl-event-fill:#f9f9f9">
-  <line class="timeline-stem" x1="266" y1="185" x2="266" y2="195" />
-  <rect class="timeline-period-pill" x="230" y="119.4" width="72" height="35.6" rx="0" ry="0" />
+<g class="timeline-period" data-id="period-1" data-label="2026" data-section="Build" data-family="0" style="--tl-accent:#47474a;--tl-fill:#f9f9f9;--tl-label:#27272A;--tl-line:#939395;--tl-section-bg:#ffffff;--tl-section-band:#fefefe;--tl-pill-fill:#fefefe;--tl-pill-stroke:#b8b8b9;--tl-event-fill:#f9f9f9" data-role="period">
+  <line class="timeline-stem" x1="266" y1="185" x2="266" y2="195" data-id="period-stem:period-1" data-role="period" />
+  <rect class="timeline-period-pill" x="230" y="119.4" width="72" height="35.6" rx="0" ry="0" data-id="period-pill:period-1" data-role="period" />
   <text x="266" y="137.20000000000002" class="timeline-period-text" text-anchor="middle" font-size="12" font-weight="600" dy="4.199999999999999">2026</text>
-  <circle class="timeline-marker-ring" cx="266" cy="177" r="8" />
-  <circle class="timeline-marker-core" cx="266" cy="177" r="4.5" />
-<g class="timeline-event" data-id="event-1" data-period="2026" data-section="Build" data-family="0">
-  <rect class="timeline-event-card" x="202" y="205" width="128" height="35.6" rx="0" ry="0" />
+  <circle class="timeline-marker-ring" cx="266" cy="177" r="8" data-id="period-marker-ring:period-1" data-role="period" />
+  <circle class="timeline-marker-core" cx="266" cy="177" r="4.5" data-id="period-marker-core:period-1" data-role="period" />
+<g class="timeline-event" data-id="event-1" data-period="2026" data-section="Build" data-family="0" data-role="event">
+  <rect class="timeline-event-card" x="202" y="205" width="128" height="35.6" rx="0" ry="0" data-id="event:event-1" data-role="event" />
   <text x="216" y="222.8" class="timeline-event-text" text-anchor="start" font-size="12" font-weight="400" dy="4.199999999999999">Launch</text>
 </g>
 </g>
-<text x="190" y="39.7" class="timeline-title" text-anchor="middle" font-size="18" font-weight="600" dy="6.3">Release Plan</text>
+<text x="190" y="39.7" class="timeline-title" text-anchor="middle" font-size="18" font-weight="600" dy="6.3" data-id="title" data-role="title">Release Plan</text>
 </svg>

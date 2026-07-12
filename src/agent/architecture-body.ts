@@ -13,10 +13,9 @@
 //   align row|column <id> <id> ...   (upstream v11.16.0 — shared shape parser
 //     in src/architecture/align.ts; preserved and honored by layout)
 //
-// Structured-or-opaque: any other non-blank, non-comment line (accTitle,
-// accDescr, the {group} boundary modifier, unmodeled syntax) returns null so
-// the caller falls back to a lossless opaque body. Render support is unchanged
-// — the legacy renderer keeps parsing the canonical source this module emits.
+// Structured-or-opaque: every renderer-supported declaration above plus
+// accTitle/accDescr and `{group}` endpoints is modeled. Any other non-blank,
+// non-comment syntax falls back losslessly to an opaque body.
 // ============================================================================
 
 import { unknownOpMessage } from './mutation-ops.ts'
@@ -38,19 +37,15 @@ const LABEL = '\\[(.+)\\]'
 const GROUP_RE = new RegExp(`^group\\s+(${IDENT})(?:${ICON})?(?:${LABEL})?(?:\\s+in\\s+(${IDENT}))?\\s*$`)
 const SERVICE_RE = new RegExp(`^service\\s+(${IDENT})(?:${ICON})?(?:${LABEL})?(?:\\s+in\\s+(${IDENT}))?\\s*$`)
 const JUNCTION_RE = new RegExp(`^junction\\s+(${IDENT})(?:\\s+in\\s+(${IDENT}))?\\s*$`)
-// Endpoints: id:SIDE on the source, SIDE:id on the target. We deliberately do
-// NOT model the {group} boundary modifier (id{group}:R) — those lines fall
-// back to opaque, preserving the renderer's group-boundary feature losslessly.
-const SOURCE_RE = new RegExp(`^(${IDENT}):(L|R|T|B)$`)
-const TARGET_RE = new RegExp(`^(L|R|T|B):(${IDENT})$`)
+// Endpoints: id[{group}]:SIDE on the source, SIDE:id[{group}] on the target.
+const SOURCE_RE = new RegExp(`^(${IDENT})(\\{group\\})?:(L|R|T|B)$`)
+const TARGET_RE = new RegExp(`^(L|R|T|B):(${IDENT})(\\{group\\})?$`)
 
 const SIDES = new Set<ArchitectureSide>(['L', 'R', 'T', 'B'])
 
 function normalizeText(value: string): string {
   return value.split(/\r?\n/).map(part => part.trim()).filter(Boolean).join(' ')
 }
-
-interface ParsedEndpoint { id: string; side: ArchitectureSide }
 
 /** Parse an edge operator, returning the modeled arrow forms or null. */
 function parseArrow(token: string): { label?: string; hasArrowStart: boolean; hasArrowEnd: boolean } | null {
@@ -76,8 +71,16 @@ function parseEdge(line: string): ArchitectureEdge | null {
   const arrow = parseArrow(m[2]!)
   if (!arrow) return null
   return {
-    source: { id: src[1]!, side: src[2] as ArchitectureSide },
-    target: { id: tgt[2]!, side: tgt[1] as ArchitectureSide },
+    source: {
+      id: src[1]!,
+      side: src[3] as ArchitectureSide,
+      ...(src[2] ? { boundary: 'group' as const } : {}),
+    },
+    target: {
+      id: tgt[2]!,
+      side: tgt[1] as ArchitectureSide,
+      ...(tgt[3] ? { boundary: 'group' as const } : {}),
+    },
     label: arrow.label,
     hasArrowStart: arrow.hasArrowStart,
     hasArrowEnd: arrow.hasArrowEnd,
@@ -93,6 +96,8 @@ function parseEdge(line: string): ArchitectureEdge | null {
  */
 export function parseArchitectureBody(lines: string[]): ArchitectureBody | null {
   let title: string | undefined
+  let accessibilityTitle: string | undefined
+  let accessibilityDescription: string | undefined
   const groups: ArchitectureGroup[] = []
   const services: ArchitectureService[] = []
   const junctions: ArchitectureJunction[] = []
@@ -103,8 +108,8 @@ export function parseArchitectureBody(lines: string[]): ArchitectureBody | null 
   const endpointIds = new Set<string>() // services + junctions (valid edge endpoints)
   const pendingParents: Array<{ parent: string }> = []
 
-  for (const raw of lines) {
-    const line = raw.trim()
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+    const line = lines[lineIndex]!.trim()
     if (!line) continue
     if (line.startsWith('%%')) continue
 
@@ -113,6 +118,46 @@ export function parseArchitectureBody(lines: string[]): ArchitectureBody | null 
       if (title !== undefined) return null
       title = normalizeText(titleMatch[1]!)
       if (!title) return null
+      continue
+    }
+
+    const accessibilityTitleMatch = line.match(/^accTitle\s*:\s*(.+)$/i)
+    if (accessibilityTitleMatch) {
+      accessibilityTitle = normalizeText(accessibilityTitleMatch[1]!)
+      if (!accessibilityTitle) return null
+      continue
+    }
+
+    const accessibilityDescriptionMatch = line.match(/^accDescr\s*:\s*(?!\{)(.+)$/i)
+    if (accessibilityDescriptionMatch) {
+      accessibilityDescription = normalizeText(accessibilityDescriptionMatch[1]!)
+      if (!accessibilityDescription) return null
+      continue
+    }
+
+    const accessibilityDescriptionBlock = line.match(/^accDescr\s*:?\s*\{\s*(.*)$/i)
+    if (accessibilityDescriptionBlock) {
+      const blockLines: string[] = []
+      let remainder = accessibilityDescriptionBlock[1]!
+      let closed = false
+      if (remainder.includes('}')) {
+        blockLines.push(remainder.slice(0, remainder.indexOf('}')).trim())
+        closed = true
+      } else {
+        if (remainder.trim()) blockLines.push(remainder.trim())
+        while (++lineIndex < lines.length) {
+          const blockLine = lines[lineIndex]!
+          if (blockLine.includes('}')) {
+            const before = blockLine.slice(0, blockLine.indexOf('}')).trim()
+            if (before) blockLines.push(before)
+            closed = true
+            break
+          }
+          blockLines.push(blockLine.trim())
+        }
+      }
+      if (!closed) return null
+      accessibilityDescription = blockLines.filter(Boolean).join('\n')
       continue
     }
 
@@ -189,6 +234,11 @@ export function parseArchitectureBody(lines: string[]): ArchitectureBody | null 
   }
   for (const edge of edges) {
     if (!endpointIds.has(edge.source.id) || !endpointIds.has(edge.target.id)) return null
+    for (const endpoint of [edge.source, edge.target]) {
+      if (endpoint.boundary !== 'group') continue
+      const service = services.find(candidate => candidate.id === endpoint.id)
+      if (!service?.parentId) return null
+    }
   }
   for (const alignment of alignments) {
     for (const member of alignment.members) {
@@ -198,9 +248,20 @@ export function parseArchitectureBody(lines: string[]): ArchitectureBody | null 
 
   // A visible title is renderable furniture on its own; without one, retain
   // the historical non-empty architecture floor.
-  if (groups.length === 0 && services.length === 0 && junctions.length === 0 && title === undefined) return null
+  if (groups.length === 0 && services.length === 0 && junctions.length === 0
+    && title === undefined && accessibilityTitle === undefined && accessibilityDescription === undefined) return null
 
-  return { kind: 'architecture', title, groups, services, junctions, edges, alignments }
+  return {
+    kind: 'architecture',
+    title,
+    accessibilityTitle,
+    accessibilityDescription,
+    groups,
+    services,
+    junctions,
+    edges,
+    alignments,
+  }
 }
 
 // ---- Serializer -------------------------------------------------------------
@@ -225,13 +286,25 @@ function renderArrow(edge: ArchitectureEdge): string {
 export function renderArchitecture(body: ArchitectureBody): string {
   const lines: string[] = ['architecture-beta']
   if (body.title !== undefined) lines.push(`  title ${body.title}`)
+  if (body.accessibilityTitle !== undefined) lines.push(`  accTitle: ${body.accessibilityTitle}`)
+  if (body.accessibilityDescription !== undefined) {
+    if (body.accessibilityDescription.includes('\n')) {
+      lines.push('  accDescr {')
+      for (const line of body.accessibilityDescription.split(/\r?\n/)) lines.push(`    ${line.trim()}`)
+      lines.push('  }')
+    } else {
+      lines.push(`  accDescr: ${body.accessibilityDescription}`)
+    }
+  }
   for (const g of body.groups) lines.push(renderNode('group', g.id, g.label, g.icon, g.parentId))
   for (const s of body.services) lines.push(renderNode('service', s.id, s.label, s.icon, s.parentId))
   for (const j of body.junctions) {
     lines.push(`  junction ${j.id}${j.parentId ? ` in ${j.parentId}` : ''}`)
   }
   for (const e of body.edges) {
-    lines.push(`  ${e.source.id}:${e.source.side} ${renderArrow(e)} ${e.target.side}:${e.target.id}`)
+    const sourceBoundary = e.source.boundary === 'group' ? '{group}' : ''
+    const targetBoundary = e.target.boundary === 'group' ? '{group}' : ''
+    lines.push(`  ${e.source.id}${sourceBoundary}:${e.source.side} ${renderArrow(e)} ${e.target.side}:${e.target.id}${targetBoundary}`)
   }
   // Align directives last: canonical order guarantees every member is already
   // declared, which both the upstream grammar and the legacy parser require.
@@ -247,6 +320,8 @@ function cloneArchitecture(b: ArchitectureBody): ArchitectureBody {
   return {
     kind: 'architecture',
     title: b.title,
+    accessibilityTitle: b.accessibilityTitle,
+    accessibilityDescription: b.accessibilityDescription,
     groups: b.groups.map(g => ({ ...g })),
     services: b.services.map(s => ({ ...s })),
     junctions: b.junctions.map(j => ({ ...j })),
@@ -308,6 +383,36 @@ function validSide(value: unknown): value is ArchitectureSide {
   return typeof value === 'string' && SIDES.has(value as ArchitectureSide)
 }
 
+function normalizeAccessibilityText(value: unknown, field: string, multiline: boolean): Result<string, MutationError> {
+  if (typeof value !== 'string') return err({ code: 'INVALID_OP', message: `Architecture ${field} must be a string or null` })
+  const normalized = multiline
+    ? value.split(/\r?\n/).map(line => line.trim()).filter(Boolean).join('\n')
+    : normalizeText(value)
+  if (!normalized || normalized.includes('}')) {
+    return err({ code: 'INVALID_OP', message: `Architecture ${field} must be non-empty and must not contain }` })
+  }
+  return ok(normalized)
+}
+
+function validateArchitectureEndpoint(
+  body: ArchitectureBody,
+  id: string,
+  boundary: 'item' | 'group' | undefined,
+): Result<void, MutationError> {
+  const service = body.services.find(candidate => candidate.id === id)
+  const junction = body.junctions.find(candidate => candidate.id === id)
+  if (!service && !junction) return err({ code: 'SERVICE_NOT_FOUND', message: `No service/junction "${id}"` })
+  if (boundary === 'group' && !service?.parentId) {
+    return err({
+      code: 'INVALID_OP',
+      message: service
+        ? `Service "${id}" is not inside a group, so boundary "group" is invalid`
+        : `Architecture group boundaries apply only to services; "${id}" is a junction`,
+    })
+  }
+  return ok(undefined)
+}
+
 /** Edge id convention: `<from>-><to>` (matches the flowchart edgeId idiom). */
 export function architectureEdgeId(e: ArchitectureEdge): string {
   return `${e.source.id}->${e.target.id}`
@@ -324,6 +429,24 @@ export function mutateArchitecture(body: ArchitectureBody, op: ArchitectureMutat
         const title = normalizeText(op.title)
         if (!title) return err({ code: 'INVALID_OP', message: 'Architecture title must be a non-empty string or null' })
         next.title = title
+      }
+      break
+    }
+    case 'set_accessibility_title': {
+      if (op.title === null) delete next.accessibilityTitle
+      else {
+        const title = normalizeAccessibilityText(op.title, 'accessibility title', false)
+        if (!title.ok) return title
+        next.accessibilityTitle = title.value
+      }
+      break
+    }
+    case 'set_accessibility_description': {
+      if (op.description === null) delete next.accessibilityDescription
+      else {
+        const description = normalizeAccessibilityText(op.description, 'accessibility description', true)
+        if (!description.ok) return description
+        next.accessibilityDescription = description.value
       }
       break
     }
@@ -402,11 +525,71 @@ export function mutateArchitecture(body: ArchitectureBody, op: ArchitectureMutat
     case 'move_service': {
       const svc = next.services.find(s => s.id === op.id)
       if (!svc) return err({ code: 'SERVICE_NOT_FOUND', message: `No service "${op.id}"` })
-      if (op.group === null) { delete svc.parentId; break }
+      if (op.group === null) {
+        const boundaryEdge = next.edges.find(edge =>
+          (edge.source.id === op.id && edge.source.boundary === 'group')
+            || (edge.target.id === op.id && edge.target.boundary === 'group'))
+        if (boundaryEdge) {
+          return err({
+            code: 'INVALID_OP',
+            message: `Service "${op.id}" has a group-boundary edge; update the edge boundary to "item" before moving it to root`,
+          })
+        }
+        delete svc.parentId
+        break
+      }
       const g = validId(op.group, 'group id')
       if (!g.ok) return g
       if (!next.groups.some(grp => grp.id === g.value)) return err({ code: 'GROUP_NOT_FOUND', message: `No group "${g.value}"` })
       svc.parentId = g.value
+      break
+    }
+    case 'add_junction': {
+      const id = validId(op.id, 'junction id')
+      if (!id.ok) return id
+      if (allIds(next).has(id.value)) return err({ code: 'INVALID_OP', message: `Identifier "${id.value}" already exists` })
+      let parentId: string | undefined
+      if (op.group !== undefined && op.group !== null) {
+        const group = validId(op.group, 'group id')
+        if (!group.ok) return group
+        if (!next.groups.some(candidate => candidate.id === group.value)) return err({ code: 'GROUP_NOT_FOUND', message: `No group "${group.value}"` })
+        parentId = group.value
+      }
+      next.junctions.push({ id: id.value, parentId })
+      break
+    }
+    case 'remove_junction': {
+      const index = next.junctions.findIndex(junction => junction.id === op.id)
+      if (index < 0) return err({ code: 'SERVICE_NOT_FOUND', message: `No junction "${op.id}"` })
+      next.junctions.splice(index, 1)
+      next.edges = next.edges.filter(edge => edge.source.id !== op.id && edge.target.id !== op.id)
+      dropAlignmentMember(next, op.id)
+      break
+    }
+    case 'rename_junction': {
+      const from = validId(op.from, 'junction id')
+      if (!from.ok) return from
+      const to = validId(op.to, 'junction id')
+      if (!to.ok) return to
+      const junction = next.junctions.find(candidate => candidate.id === from.value)
+      if (!junction) return err({ code: 'SERVICE_NOT_FOUND', message: `No junction "${from.value}"` })
+      if (from.value !== to.value && allIds(next).has(to.value)) return err({ code: 'INVALID_OP', message: `Identifier "${to.value}" already exists` })
+      junction.id = to.value
+      for (const edge of next.edges) {
+        if (edge.source.id === from.value) edge.source.id = to.value
+        if (edge.target.id === from.value) edge.target.id = to.value
+      }
+      renameAlignmentMember(next, from.value, to.value)
+      break
+    }
+    case 'move_junction': {
+      const junction = next.junctions.find(candidate => candidate.id === op.id)
+      if (!junction) return err({ code: 'SERVICE_NOT_FOUND', message: `No junction "${op.id}"` })
+      if (op.group === null) { delete junction.parentId; break }
+      const group = validId(op.group, 'group id')
+      if (!group.ok) return group
+      if (!next.groups.some(candidate => candidate.id === group.value)) return err({ code: 'GROUP_NOT_FOUND', message: `No group "${group.value}"` })
+      junction.parentId = group.value
       break
     }
     case 'add_group': {
@@ -432,6 +615,14 @@ export function mutateArchitecture(body: ArchitectureBody, op: ArchitectureMutat
       next.groups.push({ id: id.value, label: label.value, icon, parentId })
       break
     }
+    case 'set_group_label': {
+      const group = next.groups.find(candidate => candidate.id === op.id)
+      if (!group) return err({ code: 'GROUP_NOT_FOUND', message: `No group "${op.id}"` })
+      const label = normalizeLabel(op.label, 'group label')
+      if (!label.ok) return label
+      group.label = label.value
+      break
+    }
     case 'remove_group': {
       const idx = next.groups.findIndex(g => g.id === op.id)
       if (idx < 0) return err({ code: 'GROUP_NOT_FOUND', message: `No group "${op.id}"` })
@@ -453,11 +644,14 @@ export function mutateArchitecture(body: ArchitectureBody, op: ArchitectureMutat
       if (!from.ok) return from
       const to = validId(op.to, 'service id')
       if (!to.ok) return to
-      const endpoints = new Set([...next.services.map(s => s.id), ...next.junctions.map(j => j.id)])
-      if (!endpoints.has(from.value)) return err({ code: 'SERVICE_NOT_FOUND', message: `No service/junction "${from.value}"` })
-      if (!endpoints.has(to.value)) return err({ code: 'SERVICE_NOT_FOUND', message: `No service/junction "${to.value}"` })
       if (!validSide(op.fromSide)) return err({ code: 'INVALID_OP', message: `fromSide must be one of L|R|T|B, got ${JSON.stringify(op.fromSide)}` })
       if (!validSide(op.toSide)) return err({ code: 'INVALID_OP', message: `toSide must be one of L|R|T|B, got ${JSON.stringify(op.toSide)}` })
+      const fromBoundary = op.fromBoundary ?? 'item'
+      const toBoundary = op.toBoundary ?? 'item'
+      const sourceValid = validateArchitectureEndpoint(next, from.value, fromBoundary)
+      if (!sourceValid.ok) return sourceValid
+      const targetValid = validateArchitectureEndpoint(next, to.value, toBoundary)
+      if (!targetValid.ok) return targetValid
       let label: string | undefined
       if (op.label !== undefined && op.label !== null) {
         const l = normalizeLabel(op.label, 'edge label')
@@ -465,12 +659,59 @@ export function mutateArchitecture(body: ArchitectureBody, op: ArchitectureMutat
         label = l.value
       }
       next.edges.push({
-        source: { id: from.value, side: op.fromSide },
-        target: { id: to.value, side: op.toSide },
+        source: { id: from.value, side: op.fromSide, ...(fromBoundary === 'group' ? { boundary: 'group' as const } : {}) },
+        target: { id: to.value, side: op.toSide, ...(toBoundary === 'group' ? { boundary: 'group' as const } : {}) },
         label,
         hasArrowStart: op.hasArrowStart ?? false,
         hasArrowEnd: op.hasArrowEnd ?? true,
       })
+      break
+    }
+    case 'update_edge': {
+      if (!Number.isInteger(op.index) || op.index < 0 || !next.edges[op.index]) {
+        return err({ code: 'EDGE_NOT_FOUND', message: `No edge at index ${op.index}` })
+      }
+      const edge = next.edges[op.index]!
+      if (op.from !== undefined) {
+        const from = validId(op.from, 'service id')
+        if (!from.ok) return from
+        edge.source.id = from.value
+      }
+      if (op.to !== undefined) {
+        const to = validId(op.to, 'service id')
+        if (!to.ok) return to
+        edge.target.id = to.value
+      }
+      if (op.fromSide !== undefined) {
+        if (!validSide(op.fromSide)) return err({ code: 'INVALID_OP', message: `fromSide must be one of L|R|T|B, got ${JSON.stringify(op.fromSide)}` })
+        edge.source.side = op.fromSide
+      }
+      if (op.toSide !== undefined) {
+        if (!validSide(op.toSide)) return err({ code: 'INVALID_OP', message: `toSide must be one of L|R|T|B, got ${JSON.stringify(op.toSide)}` })
+        edge.target.side = op.toSide
+      }
+      if (op.fromBoundary !== undefined) {
+        if (op.fromBoundary === 'group') edge.source.boundary = 'group'
+        else delete edge.source.boundary
+      }
+      if (op.toBoundary !== undefined) {
+        if (op.toBoundary === 'group') edge.target.boundary = 'group'
+        else delete edge.target.boundary
+      }
+      const sourceValid = validateArchitectureEndpoint(next, edge.source.id, edge.source.boundary)
+      if (!sourceValid.ok) return sourceValid
+      const targetValid = validateArchitectureEndpoint(next, edge.target.id, edge.target.boundary)
+      if (!targetValid.ok) return targetValid
+      if ('label' in op) {
+        if (op.label === null || op.label === undefined) delete edge.label
+        else {
+          const label = normalizeLabel(op.label, 'edge label')
+          if (!label.ok) return label
+          edge.label = label.value
+        }
+      }
+      if (op.hasArrowStart !== undefined) edge.hasArrowStart = op.hasArrowStart
+      if (op.hasArrowEnd !== undefined) edge.hasArrowEnd = op.hasArrowEnd
       break
     }
     case 'remove_edge': {
@@ -494,8 +735,9 @@ export function mutateArchitecture(body: ArchitectureBody, op: ArchitectureMutat
 
   // Preserve the structured floor: visible title furniture or at least one
   // node must remain, so canonical output always has renderable content.
-  if (next.groups.length === 0 && next.services.length === 0 && next.junctions.length === 0 && next.title === undefined) {
-    return err({ code: 'INVALID_OP', message: 'Architecture diagram must keep a title, group, service, or junction' })
+  if (next.groups.length === 0 && next.services.length === 0 && next.junctions.length === 0
+    && next.title === undefined && next.accessibilityTitle === undefined && next.accessibilityDescription === undefined) {
+    return err({ code: 'INVALID_OP', message: 'Architecture diagram must keep a title, accessibility directive, group, service, or junction' })
   }
 
   return ok(next)
@@ -510,10 +752,13 @@ export function verifyArchitecture(body: ArchitectureBody, opts: VerifyOptions):
     const w = labelOverflowWarning(target, text, cap)
     if (w) warnings.push(w)
   }
-  if (body.groups.length === 0 && body.services.length === 0 && body.junctions.length === 0 && body.title === undefined) {
+  if (body.groups.length === 0 && body.services.length === 0 && body.junctions.length === 0
+    && body.title === undefined && body.accessibilityTitle === undefined && body.accessibilityDescription === undefined) {
     warnings.push({ code: 'EMPTY_DIAGRAM' })
   }
   if (body.title !== undefined) overflow('title', body.title)
+  if (body.accessibilityTitle !== undefined) overflow('accessibility-title', body.accessibilityTitle)
+  if (body.accessibilityDescription !== undefined) overflow('accessibility-description', body.accessibilityDescription)
   for (const g of body.groups) overflow(g.id, g.label)
   for (const s of body.services) overflow(s.id, s.label)
   body.edges.forEach((e, i) => {

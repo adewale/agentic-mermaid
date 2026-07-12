@@ -37,12 +37,16 @@ import type {
 } from './types.ts'
 import { ok, err, DEFAULT_LABEL_CHAR_CAP } from './types.ts'
 import { labelOverflowWarning } from './label-metrics.ts'
-import { parseClassDeclaration, parseClassReference, parseNamespaceHeader } from '../class/parser.ts'
+import { expandInlineNamespaceStatement, parseClassDeclaration, parseClassInteraction, parseClassReference, parseClassRelationship, parseNamespaceHeader } from '../class/parser.ts'
+import { parseMutableStyleProps, parseStyleProps, serializeStyleProps } from '../shared/style-props.ts'
 
 // ---- Parser ---------------------------------------------------------------
 
-const RELATION_TOKENS: Array<{ pat: RegExp; kind: ClassRelationKind }> = [
-  // Order matters: more specific (4+ char) before shorter ones.
+const RELATION_TOKENS: Array<{ pat: RegExp; kind: ClassRelationKind; markerAt?: 'from' | 'to' | 'both'; fromKind?: ClassRelationKind; toKind?: ClassRelationKind }> = [
+  // Order matters: two-ended/lollipop forms before their one-ended prefixes.
+  { pat: /<\|--\|>/, kind: 'inheritance', markerAt: 'both', fromKind: 'inheritance', toKind: 'inheritance' },
+  { pat: /\(\)--/, kind: 'lollipop', markerAt: 'from' },
+  { pat: /--\(\)/, kind: 'lollipop', markerAt: 'to' },
   { pat: /<\|--/, kind: 'inheritance' },
   { pat: /--\|>/, kind: 'inheritance' },
   { pat: /\.\.\|>/, kind: 'realization' },
@@ -63,7 +67,21 @@ const NOTE_RE = /^note(?:\s+for\s+(\S+))?\s+"([^"]+)"\s*$/
 const TITLE_RE = /^title\s+(.+)$/i
 
 function parseRelation(line: string): (ClassRelation & { fromGeneric?: string; toGeneric?: string }) | null {
-  for (const { pat, kind } of RELATION_TOKENS) {
+  const shared = parseClassRelationship(line)
+  if (shared) {
+    return {
+      from: shared.from, to: shared.to, kind: shared.type as ClassRelationKind,
+      ...(shared.label ? { label: shared.label } : {}),
+      ...(shared.fromCardinality ? { fromCardinality: shared.fromCardinality } : {}),
+      ...(shared.toCardinality ? { toCardinality: shared.toCardinality } : {}),
+      markerAt: shared.markerAt,
+      ...(shared.fromType ? { fromKind: shared.fromType as ClassRelationKind } : {}),
+      ...(shared.toType ? { toKind: shared.toType as ClassRelationKind } : {}),
+      ...(shared.fromGeneric ? { fromGeneric: shared.fromGeneric } : {}),
+      ...(shared.toGeneric ? { toGeneric: shared.toGeneric } : {}),
+    }
+  }
+  for (const { pat, kind, markerAt, fromKind, toKind } of RELATION_TOKENS) {
     const m = line.match(new RegExp(`^(\\S+?)(?:\\s+"([^"]+)")?\\s*${pat.source}\\s*(?:"([^"]+)"\\s+)?(\\S+?)(?:\\s*:\\s*(.+))?$`))
     if (!m) continue
     const fromRef = parseClassReference(m[1]!)
@@ -76,6 +94,7 @@ function parseRelation(line: string): (ClassRelation & { fromGeneric?: string; t
     const label = m[5]?.trim()
     return {
       from, to, kind, label, fromCardinality, toCardinality,
+      ...(markerAt ? { markerAt } : {}), ...(fromKind ? { fromKind } : {}), ...(toKind ? { toKind } : {}),
       ...(fromRef.generic ? { fromGeneric: fromRef.generic } : {}),
       ...(toRef.generic ? { toGeneric: toRef.generic } : {}),
     }
@@ -84,6 +103,7 @@ function parseRelation(line: string): (ClassRelation & { fromGeneric?: string; t
 }
 
 export function parseClassBody(lines: string[]): ClassBody | null {
+  lines = lines.flatMap(expandInlineNamespaceStatement)
   const body: ClassBody = { kind: 'class', classes: [], relations: [], notes: [] }
   const classMap = new Map<string, ClassNode>()
   const upsert = (id: string, label?: string, generic?: string): ClassNode => {
@@ -133,6 +153,59 @@ export function parseClassBody(lines: string[]): ClassBody | null {
     // Namespace close
     if (raw === '}' && nsFrames.length > 0) {
       nsStack.length -= nsFrames.pop()!
+      continue
+    }
+
+    // Class paint directives — parsed before declarations so `class A hot`
+    // cannot be mistaken for a malformed class declaration.
+    const classDef = raw.match(/^classDef\s+([\w,-]+)\s+(.+)$/)
+    if (classDef) {
+      const props = parseStyleProps(classDef[2]!)
+      if (Object.keys(props).length === 0) return null
+      if (!body.classDefs) body.classDefs = {}
+      for (const name of classDef[1]!.split(',').map(value => value.trim()).filter(Boolean)) body.classDefs[name] = { ...props }
+      continue
+    }
+    const assignment = raw.match(/^(?:class|cssClass)\s+(.+?)\s+([\w-]+)$/)
+    if (assignment && !raw.includes('{') && !raw.includes('[') && !raw.includes(' as ')) {
+      const refs = assignment[1]!.replace(/^"|"$/g, '').split(',').map(value => parseClassReference(value.trim()))
+      if (refs.every(Boolean)) {
+        for (const ref of refs) {
+          const node = upsert(ref!.id, undefined, ref!.generic)
+          node.className = assignment[2]!
+          claimClass(node)
+        }
+        continue
+      }
+    }
+    const styleLine = raw.match(/^style\s+(.+?)\s+(.+)$/)
+    if (styleLine) {
+      const refs = styleLine[1]!.replace(/^"|"$/g, '').split(',').map(value => parseClassReference(value.trim()))
+      const props = parseStyleProps(styleLine[2]!)
+      if (refs.every(Boolean) && Object.keys(props).length > 0) {
+        for (const ref of refs) {
+          const node = upsert(ref!.id, undefined, ref!.generic)
+          node.style = { ...node.style, ...props }
+          claimClass(node)
+        }
+        continue
+      }
+    }
+    const shorthand = raw.match(/^(.+?):::([\w-]+)$/)
+    if (shorthand) {
+      const ref = parseClassReference(shorthand[1]!)
+      if (!ref) return null
+      const node = upsert(ref.id, undefined, ref.generic)
+      node.className = shorthand[2]!
+      claimClass(node)
+      continue
+    }
+
+    const interaction = parseClassInteraction(raw)
+    if (interaction) {
+      const node = upsert(interaction.id, undefined, interaction.generic)
+      node.href = interaction.href
+      claimClass(node)
       continue
     }
 
@@ -204,6 +277,24 @@ const ARROW_FOR: Record<ClassRelationKind, string> = {
   realization: '..|>',
   'link-solid': '--',
   'link-dashed': '..',
+  lollipop: '()--',
+}
+
+function arrowForRelation(relation: ClassRelation): string {
+  if (relation.kind === 'lollipop') return relation.markerAt === 'to' ? '--()' : '()--'
+  if (relation.markerAt === 'both') {
+    const fromKind = relation.fromKind ?? relation.kind
+    const toKind = relation.toKind ?? relation.kind
+    const endpoint = (kind: ClassRelationKind, left: boolean): string => {
+      if (kind === 'inheritance' || kind === 'realization') return left ? '<|' : '|>'
+      if (kind === 'composition') return '*'
+      if (kind === 'aggregation') return 'o'
+      return left ? '<' : '>'
+    }
+    const dashed = fromKind === 'dependency' || fromKind === 'realization' || toKind === 'dependency' || toKind === 'realization'
+    return `${endpoint(fromKind, true)}${dashed ? '..' : '--'}${endpoint(toKind, false)}`
+  }
+  return ARROW_FOR[relation.kind]
 }
 
 function quoteIfNeeded(id: string): string {
@@ -251,11 +342,17 @@ export function renderClass(body: ClassBody): string {
     pushClassLines(lines, c, '  ')
   }
   for (const r of body.relations) {
-    const arrow = ARROW_FOR[r.kind]
+    const arrow = arrowForRelation(r)
     const left = r.fromCardinality ? `${quoteIfNeeded(r.from)} "${r.fromCardinality}"` : quoteIfNeeded(r.from)
     const right = r.toCardinality ? `"${r.toCardinality}" ${quoteIfNeeded(r.to)}` : quoteIfNeeded(r.to)
     const label = r.label ? ` : ${r.label}` : ''
     lines.push(`  ${left} ${arrow} ${right}${label}`)
+  }
+  for (const [name, style] of Object.entries(body.classDefs ?? {})) lines.push(`  classDef ${name} ${serializeStyleProps(style)}`)
+  for (const c of body.classes) {
+    if (c.className) lines.push(`  class ${quoteIfNeeded(c.id)} ${c.className}`)
+    if (c.style) lines.push(`  style ${quoteIfNeeded(c.id)} ${serializeStyleProps(c.style)}`)
+    if (c.href) lines.push(`  click ${quoteIfNeeded(c.id)} href "${c.href.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`)
   }
   return lines.join('\n') + '\n'
 }
@@ -266,10 +363,16 @@ function cloneClass(body: ClassBody): ClassBody {
   return {
     kind: 'class',
     title: body.title,
-    classes: body.classes.map(c => ({ id: c.id, label: c.label, generic: c.generic, members: [...c.members], namespace: c.namespace })),
+    classes: body.classes.map(c => ({
+      id: c.id, label: c.label, generic: c.generic, members: [...c.members], namespace: c.namespace,
+      ...(c.className ? { className: c.className } : {}),
+      ...(c.style ? { style: { ...c.style } } : {}),
+      ...(c.href ? { href: c.href } : {}),
+    })),
     relations: body.relations.map(r => ({ ...r })),
     notes: body.notes.map(n => ({ ...n })),
     ...(body.namespaces ? { namespaces: body.namespaces.map(n => ({ ...n })) } : {}),
+    ...(body.classDefs ? { classDefs: Object.fromEntries(Object.entries(body.classDefs).map(([name, style]) => [name, { ...style }])) } : {}),
   }
 }
 
@@ -328,6 +431,45 @@ export function mutateClass(body: ClassBody, op: ClassMutationOp): Result<ClassB
       }
       c.namespace = op.namespace
       declareNamespaceOn(b, op.namespace)
+      return ok(b)
+    }
+    case 'define_class': {
+      if (typeof op.name !== 'string' || !/^[\w-]+$/.test(op.name)) return err({ code: 'INVALID_OP', message: 'classDef name must contain only letters, digits, underscore, or hyphen' })
+      const style = parseMutableStyleProps(op.style)
+      if (!style.ok) return err({
+        code: 'INVALID_OP',
+        message: style.reason === 'MULTILINE'
+          ? 'classDef style must be a single-line CSS-like property list'
+          : 'classDef style must contain at least one property:value pair',
+      })
+      if (!b.classDefs) b.classDefs = {}
+      b.classDefs[op.name] = style.value
+      return ok(b)
+    }
+    case 'set_css_class': {
+      const c = findClass(op.class)
+      if (!c) return err({ code: 'CLASS_NOT_FOUND', message: `class ${op.class} not found` })
+      if (op.className === null) delete c.className
+      else {
+        if (!/^[\w-]+$/.test(op.className)) return err({ code: 'INVALID_OP', message: 'CSS class name must contain only letters, digits, underscore, or hyphen' })
+        c.className = op.className
+      }
+      return ok(b)
+    }
+    case 'set_class_style': {
+      const c = findClass(op.class)
+      if (!c) return err({ code: 'CLASS_NOT_FOUND', message: `class ${op.class} not found` })
+      if (op.style === null) delete c.style
+      else {
+        const style = parseMutableStyleProps(op.style)
+        if (!style.ok) return err({
+          code: 'INVALID_OP',
+          message: style.reason === 'MULTILINE'
+            ? 'Class style must be a single-line CSS-like property list'
+            : 'Class style must contain at least one property:value pair',
+        })
+        c.style = style.value
+      }
       return ok(b)
     }
     case 'remove_class': {

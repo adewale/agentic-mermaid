@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import {
-  asArchitecture, asClass, asEr, asFlowchart, asGantt, asJourney, asPie, asQuadrant, asSequence, asState, asTimeline, asXyChart,
+  asArchitecture, asClass, asEr, asFlowchart, asGantt, asJourney, asPie, asQuadrant, asSequence, asState, asTimeline, asXyChart, asMindmap, asGitGraph,
   layoutMermaid, parseMermaid, serializeMermaid, verifyMermaid,
 } from '../agent/index.ts'
 import type { DiagramKind, ValidDiagram } from '../agent/types.ts'
@@ -52,6 +52,18 @@ interface Manifest {
     deferredBlocks: number
     files: Array<{ path: string; testBlocks: number }>
     companionBench?: string
+    compatibilityRevision?: string
+  }>
+}
+
+interface CompanionOracle {
+  upstream: { commit: string }
+  accounting: Record<'mindmap' | 'gitgraph', {
+    consideredBlocks: number
+    importedCases: number
+    importedBlocks: number
+    excludedBlocks: number
+    deferredBlocks: number
   }>
 }
 
@@ -82,6 +94,8 @@ const manifest = JSON.parse(readFileSync(join(ROOT, 'eval/mermaid-upstream-suite
 const cases = JSON.parse(readFileSync(join(ROOT, 'eval/mermaid-upstream-suite-bench/cases.json'), 'utf8')) as BenchCase[]
 const exclusions = JSON.parse(readFileSync(join(ROOT, 'eval/mermaid-upstream-suite-bench/exclusions.json'), 'utf8')) as Exclusion[]
 const ratchet = JSON.parse(readFileSync(join(ROOT, 'eval/mermaid-upstream-suite-bench/ratchet.json'), 'utf8')) as Ratchet
+const companionOracle = JSON.parse(readFileSync(join(ROOT, 'eval/mermaid-upstream-suite-bench/mindmap-gitgraph-f3dea583.json'), 'utf8')) as CompanionOracle
+const companionFamilies = new Set(Object.keys(companionOracle.accounting))
 const documentedReasons = new Set([
   'api-internal',
   'upstream-negative',
@@ -108,6 +122,8 @@ const narrowerByFamily: Record<DiagramKind, (d: ValidDiagram) => ValidDiagram | 
   pie: asPie,
   quadrant: asQuadrant,
   gantt: asGantt,
+  mindmap: asMindmap,
+  gitgraph: asGitGraph,
 }
 
 function layoutLabels(layout: ReturnType<typeof layoutMermaid>): string[] {
@@ -201,11 +217,17 @@ describe('BUILD-20 Mermaid upstream parser/DB bench', () => {
       if (row.family === 'gantt') {
         expect(row.importedCases).toBe(68)
         expect(row.importedBlocks).toBe(68)
+        expect(row.excludedBlocks).toBe(0)
+      } else if (companionFamilies.has(row.family)) {
+        const accounting = companionOracle.accounting[row.family as 'mindmap' | 'gitgraph']
+        expect(row).toMatchObject(accounting)
+        expect(row.compatibilityRevision).toBe(companionOracle.upstream.commit)
+        expect(row.companionBench).toBe('src/__tests__/mindmap-gitgraph-upstream-oracle.test.ts')
       } else {
         expect(row.importedCases).toBe(casesByFamily.get(row.family) ?? 0)
         expect(row.importedBlocks).toBe(importedBlocksByFamily.get(row.family) ?? 0)
+        expect(row.excludedBlocks).toBe(excludedBlocksByFamily.get(row.family) ?? 0)
       }
-      expect(row.excludedBlocks).toBe(excludedBlocksByFamily.get(row.family) ?? 0)
       expect(row.importedBlocks + row.excludedBlocks + row.deferredBlocks).toBe(row.consideredBlocks)
       expect(row.deferredBlocks).toBe(0)
       expect(row.importedCases).toBeGreaterThan(0)
@@ -213,8 +235,9 @@ describe('BUILD-20 Mermaid upstream parser/DB bench', () => {
   })
 
   it('keeps imported coverage above the ratchet floor and local gaps within budget', () => {
-    const importedCases = cases.length + 68
-    const importedBlocks = cases.reduce((sum, c) => sum + c.upstream.blocks.length, 0) + 68
+    const companionCounts = Object.values(companionOracle.accounting)
+    const importedCases = cases.length + 68 + companionCounts.reduce((sum, row) => sum + row.importedCases, 0)
+    const importedBlocks = cases.reduce((sum, c) => sum + c.upstream.blocks.length, 0) + 68 + companionCounts.reduce((sum, row) => sum + row.importedBlocks, 0)
     const observedLocalGaps = localGapBudget()
 
     expect(ratchet.version).toBe(1)

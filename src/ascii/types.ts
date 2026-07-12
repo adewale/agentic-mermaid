@@ -164,6 +164,8 @@ export interface AsciiSubgraph {
   maxY: number
   /** Optional direction override for layout within this subgraph (LR or TD). */
   direction?: 'LR' | 'TD'
+  /** State-only synthetic parallel region; drawn as a dashed separator, not a frame. */
+  concurrencyRegion?: true
 }
 
 /** Configuration for ASCII rendering. */

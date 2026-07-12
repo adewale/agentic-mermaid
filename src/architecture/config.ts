@@ -133,16 +133,16 @@ export function resolveArchitectureVisualConfig(
   const architecture = getMap(mermaidConfig, 'architecture')
 
   const baseFontSize = clamp(
-    getNumber(architecture, 'fontSize')
-      ?? getNumber(mermaidConfig, 'fontSize')
-      ?? getNumber(themeVariables, 'fontSize')
+    getPositiveNumber(architecture, 'fontSize')
+      ?? getPositiveNumber(mermaidConfig, 'fontSize')
+      ?? getPositiveNumber(themeVariables, 'fontSize')
       ?? DEFAULT_ARCHITECTURE_VISUAL.serviceFontSize,
     10,
     24,
   )
 
   const serviceIconSize = clamp(
-    getNumber(architecture, 'iconSize') ?? DEFAULT_ARCHITECTURE_VISUAL.serviceIconSize,
+    getPositiveNumber(architecture, 'iconSize') ?? DEFAULT_ARCHITECTURE_VISUAL.serviceIconSize,
     12,
     40,
   )
@@ -222,7 +222,7 @@ export function resolveArchitectureVisualConfig(
   return {
     visual,
     layout: architectureLayoutMetrics(visual),
-    padding: getNumber(architecture, 'padding'),
+    padding: getNonNegativeNumber(architecture, 'padding'),
     nodeSpacing: resolveNodeSeparation(architecture),
     layerSpacing: resolveIdealEdgeLength(architecture),
   }
@@ -268,7 +268,7 @@ export function resolveArchitectureRenderOptions(
 ): RenderOptions {
   const architecture = frontmatter ? getMap(frontmatter, 'architecture') : undefined
   if (!architecture) return options
-  const padding = getNumber(architecture, 'padding')
+  const padding = getNonNegativeNumber(architecture, 'padding')
   const nodeSpacing = resolveNodeSeparation(architecture)
   const layerSpacing = resolveIdealEdgeLength(architecture)
   if (padding === undefined && nodeSpacing === undefined && layerSpacing === undefined) return options
@@ -340,6 +340,16 @@ function getString(map: MermaidFrontmatterMap | undefined, key: string): string 
 
 function getNumber(map: MermaidFrontmatterMap | undefined, key: string): number | undefined {
   return toNumber(map?.[key])
+}
+
+function getPositiveNumber(map: MermaidFrontmatterMap | undefined, key: string): number | undefined {
+  const value = getNumber(map, key)
+  return value !== undefined && value > 0 ? value : undefined
+}
+
+function getNonNegativeNumber(map: MermaidFrontmatterMap | undefined, key: string): number | undefined {
+  const value = getNumber(map, key)
+  return value !== undefined && value >= 0 ? value : undefined
 }
 
 function getMap(map: MermaidFrontmatterMap | undefined, key: string): MermaidFrontmatterMap | undefined {

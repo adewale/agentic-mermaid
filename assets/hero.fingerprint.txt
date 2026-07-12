@@ -25,17 +25,17 @@
   <marker id="arrowhead" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto">
     <polygon points="0 0, 8 2.5, 0 5" fill="#FF4801" stroke="#FF4801" stroke-width="0.75" stroke-linejoin="round" />
   </marker>
-  <marker id="arrowhead-start" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto-start-reverse">
-    <polygon points="0 0, 8 2.5, 0 5" fill="#FF4801" stroke="#FF4801" stroke-width="0.75" stroke-linejoin="round" />
+  <marker id="arrowhead-start" markerWidth="8" markerHeight="5" refX="1" refY="2.5" orient="auto">
+    <polygon points="8 0, 0 2.5, 8 5" fill="#FF4801" stroke="#FF4801" stroke-width="0.75" stroke-linejoin="round" />
   </marker>
 </defs>
-<polyline class="edge" data-from="User" data-to="UI" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="129,140.8 177,140.8" fill="none" stroke="#C9A88A" stroke-width="1" marker-end="url(#arrowhead)" />
-<polyline class="edge" data-from="UI" data-to="Auth" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="286.381,140.8 334.381,140.8" fill="none" stroke="#C9A88A" stroke-width="1" marker-end="url(#arrowhead)" />
-<polyline class="edge" data-from="Auth" data-to="UI" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="no" points="385.881,192.3 385.881,202.3 231.6905,202.3 231.6905,159.25" fill="none" stroke="#C9A88A" stroke-width="1" marker-end="url(#arrowhead)" />
-<polyline class="edge" data-from="Session" data-to="Dash" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="906.3230000000001,139.44150000000002 954.3230000000001,139.44150000000002" fill="none" stroke="#C9A88A" stroke-width="1" marker-end="url(#arrowhead)" />
-<polyline class="edge" data-from="Auth" data-to="MFA" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="yes" points="437.381,140.8 578.0176666666666,140.8" fill="none" stroke="#C9A88A" stroke-width="1" marker-end="url(#arrowhead)" />
-<polyline class="edge" data-from="MFA" data-to="Session" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="ok" points="655.6999999999999,123.63333333333333 761.23,123.63333333333333 761.23,139.44150000000002 773.23,139.44150000000002" fill="none" stroke="#C9A88A" stroke-width="1" marker-end="url(#arrowhead)" />
-<polyline class="edge" data-from="MFA" data-to="UI" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="fail" points="608.2755,76.20883333333333 608.2755,51 231.6905,51 231.6905,122.35" fill="none" stroke="#C9A88A" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="User" data-to="UI" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="129,140.8 177,140.8" fill="none" stroke="#b28a6f" stroke-width="1" marker-end="url(#arrowhead)" data-id="edge:User-&gt;UI#0" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="User to UI" />
+<polyline class="edge" data-from="UI" data-to="Auth" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="286.381,140.8 334.381,140.8" fill="none" stroke="#b28a6f" stroke-width="1" marker-end="url(#arrowhead)" data-id="edge:UI-&gt;Auth#0" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="UI to Auth" />
+<polyline class="edge" data-from="Auth" data-to="UI" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="no" points="385.881,192.3 385.881,202.3 231.6905,202.3 231.6905,159.25" fill="none" stroke="#b28a6f" stroke-width="1" marker-end="url(#arrowhead)" data-id="edge:Auth-&gt;UI#0" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="Auth to UI: no" />
+<polyline class="edge" data-from="Session" data-to="Dash" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="906.3230000000001,139.44150000000002 954.3230000000001,139.44150000000002" fill="none" stroke="#b28a6f" stroke-width="1" marker-end="url(#arrowhead)" data-id="edge:Session-&gt;Dash#0" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="Session to Dash" />
+<polyline class="edge" data-from="Auth" data-to="MFA" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="yes" points="437.381,140.8 578.0176666666666,140.8" fill="none" stroke="#b28a6f" stroke-width="1" marker-end="url(#arrowhead)" data-id="edge:Auth-&gt;MFA#0" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="Auth to MFA: yes" />
+<polyline class="edge" data-from="MFA" data-to="Session" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="ok" points="655.6999999999999,123.63333333333333 761.23,123.63333333333333 761.23,139.44150000000002 773.23,139.44150000000002" fill="none" stroke="#b28a6f" stroke-width="1" marker-end="url(#arrowhead)" data-id="edge:MFA-&gt;Session#0" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="MFA to Session: ok" />
+<polyline class="edge" data-from="MFA" data-to="UI" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="fail" points="608.2755,76.20883333333333 608.2755,51 231.6905,51 231.6905,122.35" fill="none" stroke="#b28a6f" stroke-width="1" marker-end="url(#arrowhead)" data-id="edge:MFA-&gt;UI#0" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="MFA to UI: fail" />
 <g class="edge-label" data-from="Auth" data-to="UI" data-label="no">
   <rect class="edge-label-halo" x="256.851" y="182.3" width="37.53" height="38.3" rx="4" ry="4" fill="#FFFBF5" stroke="none" />
   <rect x="260.851" y="186.3" width="29.53" height="30.3" rx="2" ry="2" fill="#FFFBF5" stroke="#eadfd8" stroke-width="1" />
@@ -56,28 +56,28 @@
   <rect x="404.62399999999997" y="35.85" width="30.717999999999996" height="30.3" rx="2" ry="2" fill="#FFFBF5" stroke="#eadfd8" stroke-width="1" />
   <text x="419.98299999999995" y="51" text-anchor="middle" font-size="11" font-weight="400" fill="#85532E" dy="3.8499999999999996">fail</text>
 </g>
-<g class="node" data-id="User" data-label="User" data-shape="circle">
-  <circle cx="84.5" cy="140.8" r="44.5" fill="#FFFDFB" stroke="#D4B89E" stroke-width="0.75" />
+<g class="node" data-id="User" data-label="User" data-shape="circle" data-role="node">
+  <circle cx="84.5" cy="140.8" r="44.5" fill="#FFFDFB" stroke="#D4B89E" stroke-width="0.75" data-id="node-shape:User" data-role="node" />
   <text x="84.5" y="140.8" text-anchor="middle" font-size="13" font-weight="500" fill="#521000" dy="4.55">User</text>
 </g>
-<g class="node" data-id="UI" data-label="Login Page" data-shape="rectangle">
-  <rect x="177" y="122.35" width="109.381" height="36.900000000000006" rx="0" ry="0" fill="#FFFDFB" stroke="#D4B89E" stroke-width="0.75" />
+<g class="node" data-id="UI" data-label="Login Page" data-shape="rectangle" data-role="node">
+  <rect x="177" y="122.35" width="109.381" height="36.900000000000006" rx="0" ry="0" fill="#FFFDFB" stroke="#D4B89E" stroke-width="0.75" data-id="node-shape:UI" data-role="node" />
   <text x="231.6905" y="140.8" text-anchor="middle" font-size="13" font-weight="500" fill="#521000" dy="4.55">Login Page</text>
 </g>
-<g class="node" data-id="Auth" data-label="Valid?" data-shape="diamond">
-  <polygon points="385.881,89.30000000000001 437.381,140.8 385.881,192.3 334.381,140.8" fill="#FFFDFB" stroke="#D4B89E" stroke-width="0.75" />
+<g class="node" data-id="Auth" data-label="Valid?" data-shape="diamond" data-role="node">
+  <polygon points="385.881,89.30000000000001 437.381,140.8 385.881,192.3 334.381,140.8" fill="#FFFDFB" stroke="#D4B89E" stroke-width="0.75" data-id="node-shape:Auth" data-role="node" />
   <text x="385.881" y="140.8" text-anchor="middle" font-size="13" font-weight="500" fill="#521000" dy="4.55">Valid?</text>
 </g>
-<g class="node" data-id="MFA" data-label="MFA" data-shape="diamond">
-  <polygon points="608.2755,76.20883333333333 655.6999999999999,123.63333333333333 608.2755,171.05783333333332 560.851,123.63333333333333" fill="#FFFDFB" stroke="#D4B89E" stroke-width="0.75" />
+<g class="node" data-id="MFA" data-label="MFA" data-shape="diamond" data-role="node">
+  <polygon points="608.2755,76.20883333333333 655.6999999999999,123.63333333333333 608.2755,171.05783333333332 560.851,123.63333333333333" fill="#FFFDFB" stroke="#D4B89E" stroke-width="0.75" data-id="node-shape:MFA" data-role="node" />
   <text x="608.2755" y="123.63333333333333" text-anchor="middle" font-size="13" font-weight="500" fill="#521000" dy="4.55">MFA</text>
 </g>
-<g class="node" data-id="Session" data-label="Create Session" data-shape="rectangle">
-  <rect x="773.23" y="120.9915" width="133.09300000000002" height="36.900000000000006" rx="0" ry="0" fill="#FFFDFB" stroke="#D4B89E" stroke-width="0.75" />
+<g class="node" data-id="Session" data-label="Create Session" data-shape="rectangle" data-role="node">
+  <rect x="773.23" y="120.9915" width="133.09300000000002" height="36.900000000000006" rx="0" ry="0" fill="#FFFDFB" stroke="#D4B89E" stroke-width="0.75" data-id="node-shape:Session" data-role="node" />
   <text x="839.7765" y="139.44150000000002" text-anchor="middle" font-size="13" font-weight="500" fill="#521000" dy="4.55">Create Session</text>
 </g>
-<g class="node" data-id="Dash" data-label="Dashboard" data-shape="rectangle">
-  <rect x="954.3230000000001" y="120.9915" width="108.64" height="36.900000000000006" rx="0" ry="0" fill="#FFFDFB" stroke="#D4B89E" stroke-width="0.75" />
+<g class="node" data-id="Dash" data-label="Dashboard" data-shape="rectangle" data-role="node">
+  <rect x="954.3230000000001" y="120.9915" width="108.64" height="36.900000000000006" rx="0" ry="0" fill="#FFFDFB" stroke="#D4B89E" stroke-width="0.75" data-id="node-shape:Dash" data-role="node" />
   <text x="1008.6430000000001" y="139.44150000000002" text-anchor="middle" font-size="13" font-weight="500" fill="#521000" dy="4.55">Dashboard</text>
 </g>
 </svg>

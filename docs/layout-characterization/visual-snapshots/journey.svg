@@ -61,20 +61,20 @@
 </g>
 <g class="journey-actor-legend">
   <text x="32" y="118.4" class="journey-actor-legend-title" text-anchor="start" font-size="12" font-weight="600" dy="4.199999999999999">Actors</text>
-  <circle class="journey-actor-dot journey-actor-0" data-actor="Shopper" cx="37" cy="144.4" r="5" />
+  <circle class="journey-actor-dot journey-actor-0" data-actor="Shopper" cx="37" cy="144.4" r="5" data-id="actor-legend-dot:Shopper" data-role="actor" />
   <text x="54" y="144.4" class="journey-actor-legend-text" text-anchor="start" font-size="11" font-weight="600" dy="3.8499999999999996">Shopper</text>
 </g>
-<g class="journey-section" data-id="section-0" data-label="Cart">
-  <rect class="journey-section-bg journey-section-0" x="176" y="73.4" width="294" height="36" rx="6" ry="6" />
+<g class="journey-section" data-id="section-0" data-label="Cart" data-role="section">
+  <rect class="journey-section-bg journey-section-0" x="176" y="73.4" width="294" height="36" rx="6" ry="6" data-id="section-bg:section-0" data-role="section" />
   <rect class="journey-section-label-band journey-section-band-0" x="182" y="80.4" width="282" height="22" rx="6" ry="6" />
   <text x="323" y="91.4" class="journey-section-label journey-section-label-0" text-anchor="middle" font-size="12" font-weight="600" dy="4.199999999999999">Cart</text>
 </g>
-<path class="journey-curve" d="M248,296.3 C298,296.3 348,256.3 398,256.3" />
-<g class="journey-task" data-id="task-0" data-score="4" data-section="Cart" data-actors="Shopper">
+<path class="journey-curve" d="M248,296.3 C298,296.3 348,256.3 398,256.3" data-id="experience-curve" data-role="series" />
+<g class="journey-task" data-id="task-0" data-score="4" data-section="Cart" data-actors="Shopper" data-role="task">
   <line class="journey-track" x1="248" y1="200.3" x2="248" y2="448.3" />
-  <rect class="journey-task-box" x="186" y="139.4" width="124" height="60.900000000000006" rx="5" ry="5" />
+  <rect class="journey-task-box" x="186" y="139.4" width="124" height="60.900000000000006" rx="5" ry="5" data-id="task-box:task-0" data-role="task" />
   <text x="248" y="159.85" class="journey-task-text" text-anchor="middle" font-size="13" font-weight="500" dy="4.55">Review basket</text>
-  <circle class="journey-actor-dot journey-actor-0" data-actor="Shopper" cx="248" cy="184.3" r="4" />
+  <circle class="journey-actor-dot journey-actor-0" data-actor="Shopper" cx="248" cy="184.3" r="4" data-id="actor-dot:task-0:Shopper" data-role="actor" />
   <g class="journey-score-marker" data-score="4">
     <circle class="journey-score-face" cx="248" cy="296.3" r="16" />
     <circle class="journey-face-eye" cx="242.5" cy="291.8" r="2" />
@@ -82,11 +82,11 @@
     <path class="journey-face-mouth" d="M240,301.3 Q248,307.3 256,301.3" />
   </g>
 </g>
-<g class="journey-task" data-id="task-1" data-score="5" data-section="Cart" data-actors="Shopper">
+<g class="journey-task" data-id="task-1" data-score="5" data-section="Cart" data-actors="Shopper" data-role="task">
   <line class="journey-track" x1="398" y1="200.3" x2="398" y2="448.3" />
-  <rect class="journey-task-box" x="336" y="139.4" width="124" height="60.900000000000006" rx="5" ry="5" />
+  <rect class="journey-task-box" x="336" y="139.4" width="124" height="60.900000000000006" rx="5" ry="5" data-id="task-box:task-1" data-role="task" />
   <text x="398" y="159.85" class="journey-task-text" text-anchor="middle" font-size="13" font-weight="500" dy="4.55">Pay</text>
-  <circle class="journey-actor-dot journey-actor-0" data-actor="Shopper" cx="398" cy="184.3" r="4" />
+  <circle class="journey-actor-dot journey-actor-0" data-actor="Shopper" cx="398" cy="184.3" r="4" data-id="actor-dot:task-1:Shopper" data-role="actor" />
   <g class="journey-score-marker" data-score="5">
     <circle class="journey-score-face" cx="398" cy="256.3" r="16" />
     <circle class="journey-face-eye" cx="392.5" cy="251.8" r="2" />
@@ -94,5 +94,5 @@
     <path class="journey-face-mouth" d="M390,260.3 Q398,269.3 406,260.3" />
   </g>
 </g>
-<text x="265" y="39.7" class="journey-title" text-anchor="middle" font-size="18" font-weight="600" dy="6.3">Checkout</text>
+<text x="265" y="39.7" class="journey-title" text-anchor="middle" font-size="18" font-weight="600" dy="6.3" data-id="title" data-role="title">Checkout</text>
 </svg>

@@ -272,8 +272,6 @@ function setEditorErrorLine(line) {
 // whose "Invalid mermaid header" would otherwise call valid Mermaid invalid).
 // Keys are the lowercased first token of the header line.
 var UNSUPPORTED_MERMAID_HEADERS = {
-  mindmap: 'mindmap',
-  gitgraph: 'gitGraph',
   c4context: 'C4Context',
   c4container: 'C4Container',
   c4component: 'C4Component',
@@ -289,12 +287,11 @@ var UNSUPPORTED_MERMAID_HEADERS = {
   treemap: 'treemap-beta', 'treemap-beta': 'treemap-beta',
 };
 
-var SUPPORTED_FAMILY_LIST = 'flowchart / graph, stateDiagram-v2, sequenceDiagram, classDiagram, erDiagram, architecture-beta, timeline, journey, xychart-beta, pie, quadrantChart, and gantt';
-
 function unsupportedFamilyFromError(detail) {
   var m = String(detail || '').match(/Invalid mermaid header: "([^"]*)"/);
   if (!m) return null;
   var token = (m[1].trim().match(/^[A-Za-z0-9-]+/) || [''])[0].toLowerCase();
+  if (SUPPORTED_FAMILY_HEADERS.indexOf(token) !== -1) return null;
   return UNSUPPORTED_MERMAID_HEADERS[token] || null;
 }
 

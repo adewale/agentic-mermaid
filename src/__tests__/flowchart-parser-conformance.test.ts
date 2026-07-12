@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test'
 
 import { parseMermaid as parseGraph } from '../parser.ts'
 import { parseMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
+import { renderMermaidSVG } from '../index.ts'
 
 function nodeIds(source: string): string[] {
   return [...parseGraph(source).nodes.keys()]
@@ -75,19 +76,20 @@ describe('flowchart parser conformance safety floor (issue #36)', () => {
     ])
   })
 
-  test('same-line unsupported statements are preserved and warned instead of dropped', () => {
+  test('same-line rendered metadata canonicalizes to typed structure without semantic loss', () => {
     const clickSource = 'flowchart LR\n  A-->B; click A href "https://example.com"\n'
     const clickDiagram = parseAgent(clickSource)
-    expect(clickDiagram.body.kind).toBe('opaque')
-    expect(serializeMermaid(clickDiagram)).toBe(clickSource)
-    expect(verifyMermaid(clickSource).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'flowchart_interaction_directive', line: 2 }))
+    expect(clickDiagram.body.kind).toBe('flowchart')
+    expect(serializeMermaid(clickDiagram)).toBe('flowchart LR\n  A --> B\n  click A href "https://example.com"\n')
+    expect(renderMermaidSVG(clickSource)).toContain('data-href="https://example.com"')
 
     const metadataSource = 'flowchart LR\n  A e1@--> B; e1@{ animate: true }\n'
     const metadataDiagram = parseAgent(metadataSource)
-    expect(metadataDiagram.body.kind).toBe('opaque')
-    expect(serializeMermaid(metadataDiagram)).toBe(metadataSource)
+    expect(metadataDiagram.body.kind).toBe('flowchart')
+    expect(serializeMermaid(metadataDiagram)).toBe('flowchart LR\n  A e1@--> B\n  e1@{ animate: true }\n')
     const syntaxes = verifyMermaid(metadataSource).warnings.map(w => w.code === 'UNSUPPORTED_SYNTAX' ? w.syntax : '').filter(Boolean)
-    expect(syntaxes).toContain('flowchart_edge_metadata')
+    expect(syntaxes).not.toContain('flowchart_opaque')
+    expect(renderMermaidSVG(metadataSource)).toContain('data-animate="true"')
     // Edge IDs themselves are modeled structured identity now — no lint.
     expect(syntaxes).not.toContain('flowchart_edge_id')
   })
@@ -126,7 +128,7 @@ describe('flowchart parser conformance safety floor (issue #36)', () => {
     expect(verify.warnings).not.toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'flowchart_edge_id' }))
   })
 
-  test('edge metadata is preserved as opaque source and never parsed as a phantom node', () => {
+  test('edge metadata is rendered, source-preserved, and never parsed as a phantom node', () => {
     const source = 'flowchart LR\n  A e1@==> B\n  e1@{ animate: true }\n'
     const graph = parseGraph(source)
     expect([...graph.nodes.keys()].sort()).toEqual(['A', 'B'])
@@ -134,24 +136,28 @@ describe('flowchart parser conformance safety floor (issue #36)', () => {
     expect(graph.edges.map(e => `${e.source}->${e.target}:${e.style}`)).toEqual(['A->B:thick'])
 
     const diagram = parseAgent(source)
-    expect(diagram.body.kind).toBe('opaque')
+    expect(diagram.body.kind).toBe('flowchart')
     expect(serializeMermaid(diagram)).toBe(source)
+    if (diagram.body.kind === 'flowchart') expect(diagram.body.graph.edges[0]).toMatchObject({ id: 'e1', animate: true })
 
-    const warnings = verifyMermaid(source).warnings
-    expect(warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'flowchart_edge_metadata', line: 3 }))
+    expect(graph.edges[0]).toMatchObject({ animate: true })
+    expect(renderMermaidSVG(source)).toContain('data-animate="true"')
+    expect(verifyMermaid(source).warnings).not.toContainEqual(expect.objectContaining({ syntax: 'flowchart_edge_metadata' }))
   })
 
-  test('click/href directives are source-preserved and ignored for local layout without phantom nodes', () => {
-    const source = 'flowchart LR\n  A-->B\n  click A href "https://example.com" "open docs"\n'
+  test('safe click/href directives render inert link metadata without phantom nodes', () => {
+    const source = 'flowchart LR\n  A-->B\n  click A href "https://example.com"\n'
     const graph = parseGraph(source)
     expect([...graph.nodes.keys()]).toEqual(['A', 'B'])
     expect(graph.nodes.has('click')).toBe(false)
     expect(graph.edges.map(e => `${e.source}->${e.target}`)).toEqual(['A->B'])
 
     const diagram = parseAgent(source)
-    expect(diagram.body.kind).toBe('opaque')
-    expect(serializeMermaid(diagram)).toBe(source)
-    expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'flowchart_interaction_directive', line: 3 }))
+    expect(diagram.body.kind).toBe('flowchart')
+    expect(serializeMermaid(diagram)).toBe('flowchart LR\n  A --> B\n  click A href "https://example.com"\n')
+    expect(graph.nodes.get('A')?.href).toBe('https://example.com')
+    expect(renderMermaidSVG(source)).toContain('data-href="https://example.com" role="link"')
+    expect(verifyMermaid(source).warnings).not.toContainEqual(expect.objectContaining({ syntax: 'flowchart_interaction_directive' }))
   })
 
   test('markdown-string labels are source-preserved and warned, never silently dropped', () => {
@@ -194,16 +200,16 @@ describe('flowchart parser conformance safety floor (issue #36)', () => {
     // Edge metadata must NOT be reclassified as node metadata.
     const edgeMeta = verifyMermaid('flowchart LR\n  A e1@==> B\n  e1@{ animate: true }\n').warnings
       .map(w => w.code === 'UNSUPPORTED_SYNTAX' ? w.syntax : '').filter(Boolean)
-    expect(edgeMeta).toContain('flowchart_edge_metadata')
+    expect(edgeMeta).not.toContain('flowchart_opaque')
+    expect(edgeMeta).not.toContain('flowchart_edge_metadata')
     expect(edgeMeta).not.toContain('flowchart_node_metadata')
 
     // The multiline block (the form Mermaid's docs use) behaves like the
-    // single-line form: documented shapes are modeled, and an approximate
-    // geometry announces its substitution (delay renders as rounded).
+    // single-line form: documented shapes are modeled with native semantic geometry.
     const multiline = verifyMermaid('flowchart TD\n  C@{\n    shape: delay,\n    label: "Wait"\n  }\n  C --> D\n')
     expect(multiline.ok).toBe(true)
     expect(multiline.warnings).not.toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'flowchart_node_metadata' }))
-    expect(multiline.warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'flowchart_shape_substitution', node: 'C' }))
+    expect(multiline.warnings).not.toContainEqual(expect.objectContaining({ syntax: 'flowchart_shape_substitution' }))
   })
 
   test('class shorthand before compact arrows keeps the edge and escaped classDef commas', () => {

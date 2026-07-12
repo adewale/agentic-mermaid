@@ -11,10 +11,12 @@
 // ============================================================================
 
 import { parseClassDiagram } from '../class/parser.ts'
-import type { ClassDiagram, ClassNode, ClassMember, ClassRelationship, RelationshipType } from '../class/types.ts'
+import type { ClassDiagram, ClassNode, ClassMember, ClassNamespace, ClassRelationship, RelationshipType } from '../class/types.ts'
 import type { Canvas, AsciiConfig, RoleCanvas, CharRole, AsciiTheme, ColorMode } from './types.ts'
-import { mkCanvas, mkRoleCanvas, canvasToString, increaseSize, increaseRoleCanvasSize, setRole } from './canvas.ts'
+import { mkCanvas, mkRoleCanvas, canvasToString, increaseSize, increaseRoleCanvasSize, setRole, drawText } from './canvas.ts'
 import { drawMultiBox } from './draw.ts'
+import { visualWidth } from './width.ts'
+import { wrapText } from './wrap.ts'
 import { splitLines } from './multiline-utils.ts'
 
 /** Classify a character from a box drawing as 'border' or 'text'. */
@@ -30,12 +32,13 @@ function classifyBoxChar(ch: string): CharRole {
 /** Format a class member as a display string: visibility + name + optional type */
 function formatMember(m: ClassMember): string {
   const vis = m.visibility || ''
+  const signature = m.isMethod ? `${m.name}(${m.params ?? ''})` : m.name
   const type = m.type ? `: ${m.type}` : ''
-  return `${vis}${m.name}${type}`
+  return `${vis}${signature}${type}`
 }
 
 /** Build the text sections for a class box: [header], [attributes], [methods] */
-function buildClassSections(cls: ClassNode): string[][] {
+function buildClassSections(cls: ClassNode, maxTextWidth?: number): string[][] {
   // Header section: optional annotation + class name (may be multi-line)
   const header: string[] = []
   if (cls.annotation) header.push(`<<${cls.annotation}>>`)
@@ -43,11 +46,14 @@ function buildClassSections(cls: ClassNode): string[][] {
   const nameLines = splitLines(cls.label)
   header.push(...nameLines)
 
+  const wrap = (lines: string[]): string[] => maxTextWidth
+    ? lines.flatMap(line => wrapText(line, maxTextWidth))
+    : lines
   // Attributes section
-  const attrs = cls.attributes.map(formatMember)
+  const attrs = wrap(cls.attributes.map(formatMember))
 
   // Methods section
-  const methods = cls.methods.map(formatMember)
+  const methods = wrap(cls.methods.map(formatMember))
 
   // If no attrs and no methods, just return header (1-section box)
   if (attrs.length === 0 && methods.length === 0) return [header]
@@ -74,9 +80,9 @@ interface RelMarker {
  * Build the marker metadata for a relationship.
  * The actual marker character will be determined at placement time based on line direction.
  */
-function getRelMarker(type: RelationshipType, markerAt: 'from' | 'to'): RelMarker {
+function getRelMarker(type: RelationshipType, markerAt: 'from' | 'to' | 'both'): RelMarker {
   const dashed = type === 'dependency' || type === 'realization'
-  return { type, markerAt, dashed }
+  return { type, markerAt: markerAt === 'both' ? 'from' : markerAt, dashed }
 }
 
 /**
@@ -113,6 +119,8 @@ function getMarkerShape(
     case 'aggregation':
       // Hollow diamond - omnidirectional shape
       return useAscii ? 'o' : '◇'
+    case 'lollipop':
+      return useAscii ? 'O' : '○'
     case 'association':
     case 'dependency':
       // Directional arrow - rotate based on line direction
@@ -143,12 +151,23 @@ interface PlacedClass {
   height: number
 }
 
+interface PlacedNamespace {
+  id: string
+  label: string
+  parentId?: string
+  depth: number
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
 /**
  * Render a Mermaid class diagram to ASCII/Unicode text.
  *
  * Pipeline: parse → build boxes → level-based layout → draw boxes → draw relationships → string.
  */
-export function renderClassAscii(text: string, config: AsciiConfig, colorMode?: ColorMode, theme?: AsciiTheme): string {
+export function renderClassAscii(text: string, config: AsciiConfig, colorMode?: ColorMode, theme?: AsciiTheme, targetWidth?: number): string {
   const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('%%'))
   const diagram = parseClassDiagram(lines)
 
@@ -164,13 +183,13 @@ export function renderClassAscii(text: string, config: AsciiConfig, colorMode?: 
   const classBoxH = new Map<string, number>()
 
   for (const cls of diagram.classes) {
-    const sections = buildClassSections(cls)
+    const sections = buildClassSections(cls, targetWidth ? Math.max(1, targetWidth - 4) : undefined)
     classSections.set(cls.id, sections)
 
     // Compute box dimensions from drawMultiBox logic
     let maxTextW = 0
     for (const section of sections) {
-      for (const line of section) maxTextW = Math.max(maxTextW, line.length)
+      for (const line of section) maxTextW = Math.max(maxTextW, visualWidth(line))
     }
     const boxW = maxTextW + 4 // 2 border + 2 padding
 
@@ -280,12 +299,48 @@ export function renderClassAscii(text: string, config: AsciiConfig, colorMode?: 
     currentY += maxH + vGap
   }
 
+  // Namespace frames are derived from the already deterministic class
+  // placement. A uniform inset leaves room for nested headers while preserving
+  // all relationship geometry relative to the member cards.
+  const namespaceFrames: PlacedNamespace[] = []
+  if (diagram.namespaces.length > 0) {
+    const depthOf = (items: ClassNamespace[], depth = 1): number => Math.max(depth, ...items.map(item => depthOf(item.children, depth + 1)))
+    const inset = depthOf(diagram.namespaces) * 2 + 1
+    for (const item of placed.values()) { item.x += inset; item.y += inset }
+
+    const placeNamespace = (namespace: ClassNamespace, parentId?: string, depth = 1): PlacedNamespace | undefined => {
+      const id = parentId ? `${parentId}.${namespace.name}` : namespace.name
+      const children = namespace.children
+        .map(child => placeNamespace(child, id, depth + 1))
+        .filter((child): child is PlacedNamespace => child !== undefined)
+      const members = namespace.classIds.map(classId => placed.get(classId)).filter((item): item is PlacedClass => item !== undefined)
+      const bounds = [
+        ...members.map(item => ({ x1: item.x, y1: item.y, x2: item.x + item.width - 1, y2: item.y + item.height - 1 })),
+        ...children.map(item => ({ x1: item.x, y1: item.y, x2: item.x + item.width - 1, y2: item.y + item.height - 1 })),
+      ]
+      if (bounds.length === 0) return undefined
+      const label = namespace.label ?? namespace.name
+      const x = Math.min(...bounds.map(bound => bound.x1)) - 2
+      const y = Math.min(...bounds.map(bound => bound.y1)) - 2
+      const right = Math.max(Math.max(...bounds.map(bound => bound.x2)) + 2, x + visualWidth(label) + 3)
+      const bottom = Math.max(...bounds.map(bound => bound.y2)) + 2
+      const frame = { id, label, parentId, depth, x, y, width: right - x + 1, height: bottom - y + 1 }
+      namespaceFrames.push(frame)
+      return frame
+    }
+    for (const namespace of diagram.namespaces) placeNamespace(namespace)
+  }
+
   // --- Create canvas ---
   let totalW = 0
   let totalH = 0
   for (const p of placed.values()) {
     totalW = Math.max(totalW, p.x + p.width)
     totalH = Math.max(totalH, p.y + p.height)
+  }
+  for (const frame of namespaceFrames) {
+    totalW = Math.max(totalW, frame.x + frame.width)
+    totalH = Math.max(totalH, frame.y + frame.height)
   }
 
   // Extra space for relationship lines that may go below/beside
@@ -301,6 +356,27 @@ export function renderClassAscii(text: string, config: AsciiConfig, colorMode?: 
       canvas[x]![y] = ch
       setRole(rc, x, y, role)
     }
+  }
+
+  // Namespace frames are the background layer. Parents precede nested frames;
+  // class cards and routes remain foreground geometry.
+  for (const frame of [...namespaceFrames].sort((a, b) => a.depth - b.depth || a.id.localeCompare(b.id))) {
+    const left = frame.x
+    const right = frame.x + frame.width - 1
+    const top = frame.y
+    const bottom = frame.y + frame.height - 1
+    const h = useAscii ? '-' : '─'
+    const v = useAscii ? '|' : '│'
+    for (let x = left + 1; x < right; x++) { setC(x, top, h, 'border'); setC(x, bottom, h, 'border') }
+    for (let y = top + 1; y < bottom; y++) { setC(left, y, v, 'border'); setC(right, y, v, 'border') }
+    setC(left, top, useAscii ? '+' : '┌', 'border')
+    setC(right, top, useAscii ? '+' : '┐', 'border')
+    setC(left, bottom, useAscii ? '+' : '└', 'border')
+    setC(right, bottom, useAscii ? '+' : '┘', 'border')
+    const header = ` ${frame.label} `
+    const headerX = left + Math.max(1, Math.floor((frame.width - visualWidth(header)) / 2))
+    drawText(canvas, { x: headerX, y: top }, header, true)
+    for (let x = headerX; x < headerX + visualWidth(header); x++) setRole(rc, x, top, 'text')
   }
 
   // --- Draw class boxes ---
@@ -602,7 +678,7 @@ export function renderClassAscii(text: string, config: AsciiConfig, colorMode?: 
     // Add padding around the label for readability
     if (rel.label) {
       const lines = splitLines(rel.label)
-      const maxLabelWidth = Math.max(...lines.map(l => l.length)) + 2 // +2 for padding
+      const maxLabelWidth = Math.max(...lines.map(visualWidth)) + 2 // +2 for padding
 
       // Calculate ideal label position based on routing direction
       let baseMidY: number
@@ -673,25 +749,69 @@ export function renderClassAscii(text: string, config: AsciiConfig, colorMode?: 
       for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
         const paddedLine = ` ${lines[lineIdx]!} `  // Add space padding on both sides
         // Calculate label start, but ensure it doesn't go negative
-        const idealLabelStart = idealMidX - Math.floor(paddedLine.length / 2)
+        const paddedWidth = visualWidth(paddedLine)
+        const idealLabelStart = idealMidX - Math.floor(paddedWidth / 2)
         const labelStart = Math.max(0, idealLabelStart)
         const y = startY + lineIdx
         // Ensure canvas is wide enough for the label
-        const labelEnd = labelStart + paddedLine.length
+        const labelEnd = labelStart + paddedWidth
         if (labelEnd > 0 && y >= 0) {
           increaseSize(canvas, Math.max(labelEnd, 1), Math.max(y + 1, 1))
           increaseRoleCanvasSize(rc, Math.max(labelEnd, 1), Math.max(y + 1, 1))
         }
         // Clear the area first (overwrite line characters) then draw the padded label
-        for (let i = 0; i < paddedLine.length; i++) {
+        for (let i = 0; i < paddedWidth; i++) {
           const lx = labelStart + i
-          if (lx >= 0 && y >= 0) {
-            setC(lx, y, paddedLine[i]!, 'text')
-          }
+          if (lx >= 0 && y >= 0) setC(lx, y, ' ', 'text')
         }
+        if (y >= 0) drawText(canvas, { x: labelStart, y }, paddedLine, true)
       }
     }
   }
 
-  return canvasToString(canvas, { roleCanvas: rc, colorMode, theme })
+  // Notes are terminal geometry, not a prose appendix: place deterministic
+  // boxes below the class graph and connect attached notes to their class.
+  let noteY = (canvas[0]?.length ?? 0) + 1
+  for (const note of diagram.notes) {
+    const noteLines = note.text.split(/\r?\n/)
+    const noteWidth = Math.max(10, ...noteLines.map(line => visualWidth(line) + 4))
+    const noteHeight = noteLines.length + 2
+    const target = note.for ? placed.get(note.for) : undefined
+    const noteX = target ? target.x : 0
+    increaseSize(canvas, noteX + noteWidth + 1, noteY + noteHeight + 1)
+    increaseRoleCanvasSize(rc, noteX + noteWidth + 1, noteY + noteHeight + 1)
+    if (target) {
+      const connectorX = Math.max(noteX + 1, Math.min(noteX + noteWidth - 2, target.x + Math.floor(target.width / 2)))
+      for (let y = target.y + target.height; y < noteY; y++) setC(connectorX, y, useAscii ? '|' : '│', 'line')
+    }
+    for (let x = noteX + 1; x < noteX + noteWidth - 1; x++) {
+      setC(x, noteY, useAscii ? '-' : '─', 'border')
+      setC(x, noteY + noteHeight - 1, useAscii ? '-' : '─', 'border')
+    }
+    for (let y = noteY + 1; y < noteY + noteHeight - 1; y++) {
+      setC(noteX, y, useAscii ? '|' : '│', 'border')
+      setC(noteX + noteWidth - 1, y, useAscii ? '|' : '│', 'border')
+    }
+    setC(noteX, noteY, useAscii ? '+' : '┌', 'border'); setC(noteX + noteWidth - 1, noteY, useAscii ? '+' : '┐', 'border')
+    setC(noteX, noteY + noteHeight - 1, useAscii ? '+' : '└', 'border'); setC(noteX + noteWidth - 1, noteY + noteHeight - 1, useAscii ? '+' : '┘', 'border')
+    noteLines.forEach((line, index) => drawText(canvas, { x: noteX + 2, y: noteY + 1 + index }, line, true))
+    noteY += noteHeight + 1
+  }
+
+  const rendered = canvasToString(canvas, { roleCanvas: rc, colorMode, theme })
+  const semanticLines: string[] = []
+  for (const rel of diagram.relationships) {
+    if (rel.markerAt === 'both') semanticLines.push(`${rel.from} ${classEndpointToken(rel.fromType ?? rel.type, true)}--${classEndpointToken(rel.toType ?? rel.type, false)} ${rel.to}`)
+    else if (rel.type === 'lollipop') semanticLines.push(`${rel.from} ${rel.markerAt === 'from' ? '()--' : '--()'} ${rel.to}`)
+  }
+  for (const cls of diagram.classes) if (cls.href) semanticLines.push(`link ${cls.id}: ${cls.href}`)
+  return semanticLines.length ? `${rendered}\n${semanticLines.join('\n')}` : rendered
+}
+
+function classEndpointToken(type: RelationshipType, left: boolean): string {
+  if (type === 'inheritance' || type === 'realization') return left ? '<|' : '|>'
+  if (type === 'composition') return '*'
+  if (type === 'aggregation') return 'o'
+  if (type === 'lollipop') return '()'
+  return left ? '<' : '>'
 }

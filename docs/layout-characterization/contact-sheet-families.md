@@ -24,6 +24,8 @@ invariants hold (verified empirically).
 | [XY chart](#xychart) | ✓ | ✓ | ✓ | · |
 | [Pie chart](#pie) | ✓ | ✓ | ✓ | · |
 | [Quadrant chart](#quadrant) | ✓ | ✓ | ✓ | · |
+| [Mindmap](#mindmap) | ✓ | ✓ | ✓ | · |
+| [GitGraph](#gitgraph) | ✓ | ✓ | ✓ | · |
 | [Architecture diagram](#architecture) | ✓ | ✓ | ✓ | · |
 
 **Total** and **Deterministic** hold for every renderer (the bedrock contract;
@@ -196,7 +198,7 @@ Rendered:
 ├───────────────┤
 │ +name: String │
 ├───────────────┤
-│ +eat: void    │
+│ +eat(): void  │
 └───────────────┘
         △
    ┌────└─────┐
@@ -468,6 +470,59 @@ y-axis  bottom: Low Effort  |  top: High Effort
 ● Feature B: [0.7, 0.2]
 ```
 
+## <a id="mindmap"></a>Mindmap
+
+**Layout strategy:** Indentation-derived tree projection (src/ascii/mindmap.ts).
+
+**Signature invariant:** Parent/child order follows source indentation; Unicode branches and grapheme-aware labels remain deterministic. Ragged rows.
+
+Source:
+
+```mermaid
+mindmap
+  root((Product))
+    Research
+      Interviews
+      Evidence
+    Delivery
+```
+
+Rendered:
+
+```
+◀── Product ──▶
+◀ └─ Delivery
+▶ └─ Research
+▶    ├─ Interviews
+▶    └─ Evidence
+```
+
+## <a id="gitgraph"></a>GitGraph
+
+**Layout strategy:** Replay-ordered commit columns on deterministic branch rails (src/ascii/gitgraph.ts).
+
+**Signature invariant:** Commit identities stay on source-ordered rails; merge and cherry-pick parent topology is spatial. Ragged rows.
+
+Source:
+
+```mermaid
+gitGraph
+  commit id:"base"
+  branch feature
+  commit id:"work"
+  checkout main
+  commit id:"release"
+  merge feature id:"merge"
+```
+
+Rendered:
+
+```
+   main ──*─[base]──────────────────────────────────────────────────────────────*─[release]────────────────────────◎─[merged branch feature into main]
+                                             │                                                                     │
+feature ─────────────────────────────────────*─[work]──────────────────────────────────────────────────────────────┘──────────────────────────────────
+```
+
 ## <a id="architecture"></a>Architecture diagram
 
 **Layout strategy:** Projected graph layout over the grid engine (src/ascii/architecture.ts).
@@ -487,12 +542,11 @@ architecture-beta
 Rendered:
 
 ```
-┌────────────────────────────┐
-│ (cloud) API                │
-│────────────────────────────│
-  [database] Database
-  [server] Server
-└────────────────────────────┘
-
-  Database:L ──── R:Server
+  ┌─(cloud) API───────────────────────────────┐
+  │                                           │
+  │ ┌───────────────┐   ┌───────────────────┐ │
+  │ │[server] Server│───│[database] Database│ │
+  │ └───────────────┘   └───────────────────┘ │
+  │                                           │
+  └───────────────────────────────────────────┘
 ```

@@ -61,6 +61,8 @@ from the registry (regenerate with `UPDATE_GOLDEN=1 bun test src/__tests__/audit
 | Pie | `pie` | `pie` | `asPie` |
 | Quadrant | `quadrant` | `quadrantChart` | `asQuadrant` |
 | Gantt | `gantt` | `gantt` | `asGantt` |
+| Mindmap | `mindmap` | `mindmap` | `asMindmap` |
+| GitGraph | `gitgraph` | `gitGraph` | `asGitGraph` |
 <!-- FAMILY-TABLE:end -->
 
 - **Domain IR (input):** `MermaidGraph` (flowchart, `types.ts:7`) + 10 family input types

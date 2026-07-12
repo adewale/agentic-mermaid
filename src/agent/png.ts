@@ -31,6 +31,8 @@ import { renderMermaidSVG } from '../index.ts'
 import { inlineFontVarForRaster } from '../theme.ts'
 import { findUncoveredScripts } from './font-coverage.ts'
 import { buildPngFontWarnings } from '../shared/png-font-warnings.ts'
+import { getFrontmatterScalar, preprocessMermaidSource } from '../mermaid-source.ts'
+import { safeCssColor } from '../shared/css-color.ts'
 import type { PngFontWarning } from '../shared/png-font-warnings.ts'
 export type { PngFontWarning } from '../shared/png-font-warnings.ts'
 
@@ -117,8 +119,14 @@ export function renderMermaidPNG(input: ValidDiagram | string, opts: PngOptions 
   const emit = opts.onWarning ?? ((w: PngFontWarning) => process.stderr.write(`agentic-mermaid renderMermaidPNG: warning ${w.code}: ${w.message}\n`))
   for (const warning of buildPngFontWarnings(findUncoveredScripts(svg, fontDirs), { systemFontsMayCover: loadSystemFonts })) emit(warning)
 
+  const processed = preprocessMermaidSource(source)
+  const familyBackground = /^xychart(?:-beta)?\b/i.test(processed.lines[0] ?? '')
+    ? safeCssColor(getFrontmatterScalar(processed.frontmatter, ['themeVariables', 'xyChart', 'backgroundColor']))
+    : undefined
   const resvgOpts: ConstructorParameters<typeof Resvg>[1] = {
-    background: opts.background ?? 'white',
+    // XYChart's documented backgroundColor is part of the authored visual
+    // contract, not browser-only decoration. An explicit PNG option still wins.
+    background: opts.background ?? familyBackground ?? 'white',
     fitTo: opts.fitTo?.width
       ? { mode: 'width' as const, value: opts.fitTo.width }
       : opts.fitTo?.height

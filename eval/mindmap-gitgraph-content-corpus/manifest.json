@@ -1,0 +1,719 @@
+{
+  "schemaVersion": 1,
+  "target": "Mermaid 11.16.0",
+  "researchedAt": "2026-07-12",
+  "method": "Scenario selection starts with official Mermaid docs/specs and issue/PR examples, then weights ecosystem signals by a reproducible point-in-time sample of the most-starred forks. The exact API URLs, response hashes, ranking rule, sample sizes, exclusion of this evaluation target, and retained fork identities are in fork-snapshot.json. Forks without family-specific syntax changes influence terminal, install, and real-content stress priorities; they are not syntax authorities.",
+  "forkSnapshot": "fork-snapshot.json",
+  "forkGraphSnapshot": [
+    {
+      "root": "mermaid-js/mermaid",
+      "sampledForks": [
+        {
+          "repo": "jacob-lcs/mermaid",
+          "stars": 164
+        },
+        {
+          "repo": "jgraph/mermaid",
+          "stars": 50
+        },
+        {
+          "repo": "Mermaid-Chart/mermaid-develop",
+          "stars": 20
+        }
+      ],
+      "sampleWeight": 234,
+      "finding": "No sampled fork added a distinct Mindmap/GitGraph language. Official docs/issues remain the syntax authority; high-weight fork activity reinforces labels, layout, themes, and renderer robustness."
+    },
+    {
+      "root": "lukilabs/beautiful-mermaid",
+      "sampledForks": [
+        {
+          "repo": "vercel-labs/beautiful-mermaid",
+          "stars": 28
+        },
+        {
+          "repo": "ysknsid25/beautiful-mermaid",
+          "stars": 4
+        }
+      ],
+      "sampleWeight": 32,
+      "finding": "Distribution and layout forks dominate; issue #85 supplies direct demand for attractive Mindmap support."
+    },
+    {
+      "root": "AlexanderGrooff/mermaid-ascii",
+      "sampledForks": [
+        {
+          "repo": "ColtWindy/mermaid-ascii",
+          "stars": 1
+        }
+      ],
+      "sampleWeight": 1,
+      "finding": "Issue #74 reports 593 real RFC diagrams and motivates hard-width terminal projections even though Mindmap/GitGraph are not yet supported upstream."
+    }
+  ],
+  "cases": [
+    {
+      "id": "mindmap-docs-shapes-accessibility",
+      "family": "mindmap",
+      "file": "mindmap/docs-shapes-and-accessibility.mmd",
+      "scenario": "Official shapes, Markdown, classes, local icons, accessibility, and Unicode in one research map.",
+      "sources": [
+        "https://mermaid.js.org/syntax/mindmap.html",
+        "https://github.com/mermaid-js/mermaid/issues/4167",
+        "https://github.com/mermaid-js/mermaid/issues/5594",
+        "https://github.com/mermaid-js/mermaid/issues/7615"
+      ],
+      "expect": {
+        "nodeCount": 12,
+        "rootChildren": 3,
+        "layout": "central",
+        "labels": [
+          "Research map",
+          "<b>Official docs</b> & issue reports",
+          "Unicode evidence: naïve café, 東京, مرحبا"
+        ],
+        "terminalText": [
+          "Research map",
+          "東京",
+          "مرحبا"
+        ],
+        "shapes": [
+          "default",
+          "rect",
+          "rounded",
+          "circle",
+          "cloud",
+          "bang",
+          "hexagon"
+        ],
+        "icons": [
+          "fa fa-book"
+        ],
+        "classes": [
+          "reference important"
+        ],
+        "warningCodes": [],
+        "svgText": [
+          "Research map",
+          "Official docs",
+          "東京",
+          "مرحبا"
+        ]
+      }
+    },
+    {
+      "id": "mindmap-wide-incident-response",
+      "family": "mindmap",
+      "file": "mindmap/wide-incident-response.mmd",
+      "scenario": "A broad operational map with thirteen first-level branches and forty total nodes.",
+      "sources": [
+        "https://github.com/mermaid-js/mermaid/issues/5653",
+        "https://github.com/mermaid-js/mermaid/issues/7000",
+        "https://github.com/AlexanderGrooff/mermaid-ascii/issues/74"
+      ],
+      "expect": {
+        "nodeCount": 40,
+        "rootChildren": 13,
+        "layout": "central",
+        "labels": [
+          "Production incident",
+          "Payment processor",
+          "Cohort analysis"
+        ],
+        "terminalText": [
+          "Production incident",
+          "Payment processor",
+          "Cohort analysis"
+        ],
+        "warningCodes": [],
+        "svgText": [
+          "Production incident",
+          "Payment processor",
+          "Cohort analysis"
+        ]
+      }
+    },
+    {
+      "id": "mindmap-deep-work-breakdown",
+      "family": "mindmap",
+      "file": "mindmap/deep-work-breakdown.mmd",
+      "scenario": "Deep, uneven work-breakdown and folder-like hierarchy with non-uniform indentation.",
+      "sources": [
+        "https://github.com/mermaid-js/mermaid/issues/6449",
+        "https://github.com/mermaid-js/mermaid/issues/2645",
+        "https://github.com/lukilabs/beautiful-mermaid/issues/85"
+      ],
+      "expect": {
+        "nodeCount": 32,
+        "rootChildren": 3,
+        "layout": "central",
+        "labels": [
+          "Launch program",
+          "Authentication",
+          "General availability",
+          "Asia Pacific"
+        ],
+        "terminalText": [
+          "Launch program",
+          "Authentication",
+          "Asia Pacific"
+        ],
+        "warningCodes": [],
+        "svgText": [
+          "Launch program",
+          "Authentication",
+          "Asia Pacific"
+        ]
+      }
+    },
+    {
+      "id": "mindmap-multilingual-long-content",
+      "family": "mindmap",
+      "file": "mindmap/multilingual-long-content.mmd",
+      "scenario": "Long wrapped Markdown plus CJK, Arabic, emoji grapheme clusters, ampersands, and comparison characters.",
+      "sources": [
+        "https://github.com/mermaid-js/mermaid/issues/4465",
+        "https://github.com/mermaid-js/mermaid/issues/6308",
+        "https://github.com/mermaid-js/mermaid/issues/6396",
+        "https://github.com/AlexanderGrooff/mermaid-ascii/issues/74"
+      ],
+      "expect": {
+        "nodeCount": 12,
+        "rootChildren": 3,
+        "layout": "central",
+        "labels": [
+          "Global launch 🌍",
+          "東京の利用者インタビューと製品フィードバック",
+          "ملاحظات المستخدمين وخطة الإطلاق",
+          "Families 👨‍👩‍👧‍👦 and flags 🇳🇬 🇯🇵",
+          "A < B & C > D"
+        ],
+        "terminalText": [
+          "Global launch 🌍",
+          "東京の利用者インタビューと製品フィードバック",
+          "ملاحظات المستخدمين وخطة الإطلاق",
+          "👨‍👩‍👧‍👦"
+        ],
+        "warningCodes": [
+          "LABEL_OVERFLOW"
+        ],
+        "svgText": [
+          "Global launch 🌍",
+          "東京の利用者インタビュー",
+          "製品フィードバック",
+          "ملاحظات المستخدمين",
+          "👨‍👩‍👧‍👦"
+        ]
+      }
+    },
+    {
+      "id": "mindmap-tidy-tree-explicit",
+      "family": "mindmap",
+      "file": "mindmap/tidy-tree-explicit.mmd",
+      "scenario": "Explicit one-sided tidy-tree dependency hierarchy, kept separate from the central default.",
+      "sources": [
+        "https://mermaid.js.org/syntax/mindmap.html#tidy-tree-layout",
+        "https://github.com/mermaid-js/mermaid/issues/6763",
+        "https://github.com/mermaid-js/mermaid/issues/7579",
+        "https://github.com/mermaid-js/mermaid/issues/7945"
+      ],
+      "expect": {
+        "nodeCount": 14,
+        "rootChildren": 3,
+        "layout": "tidy-tree",
+        "labels": [
+          "Compiler",
+          "Intermediate representation",
+          "Dead code elimination",
+          "Machine code"
+        ],
+        "terminalText": [
+          "Compiler",
+          "Dead code elimination",
+          "Machine code"
+        ],
+        "warningCodes": [],
+        "svgText": [
+          "Compiler",
+          "Dead code elimination",
+          "Machine code"
+        ]
+      }
+    },
+    {
+      "id": "mindmap-org-folder-hierarchy",
+      "family": "mindmap",
+      "file": "mindmap/org-and-folder-hierarchy.mmd",
+      "scenario": "Organization and repository tree content frequently requested as a Mindmap-adjacent hierarchy.",
+      "sources": [
+        "https://github.com/mermaid-js/mermaid/issues/1360",
+        "https://github.com/mermaid-js/mermaid/issues/7458",
+        "https://github.com/mermaid-js/mermaid/issues/2645",
+        "https://github.com/lukilabs/beautiful-mermaid/issues/85"
+      ],
+      "expect": {
+        "nodeCount": 23,
+        "rootChildren": 2,
+        "layout": "central",
+        "labels": [
+          "Platform group",
+          "src/__tests__/",
+          "Incident response",
+          "contributing"
+        ],
+        "terminalText": [
+          "Platform group",
+          "src/__tests__/",
+          "Incident response"
+        ],
+        "warningCodes": [],
+        "svgText": [
+          "Platform group",
+          "src/__tests__/",
+          "Incident response"
+        ]
+      }
+    },
+    {
+      "id": "gitgraph-gitflow-release-hotfix",
+      "family": "gitgraph",
+      "file": "gitgraph/gitflow-release-hotfix.mmd",
+      "scenario": "Gitflow-style develop, feature, release, and emergency hotfix history.",
+      "sources": [
+        "https://mermaid.js.org/syntax/gitgraph.html",
+        "https://github.com/mermaid-js/mermaid/issues/3496"
+      ],
+      "expect": {
+        "commitCount": 9,
+        "branchCount": 5,
+        "direction": "LR",
+        "commitIds": [
+          "v1",
+          "develop-base",
+          "login-api",
+          "login-ui",
+          "merge-login",
+          "rc",
+          "security-fix",
+          "hotfix-merge",
+          "release-merge"
+        ],
+        "branches": [
+          "main",
+          "hotfix/security",
+          "develop",
+          "feature/login",
+          "release/2.0"
+        ],
+        "tags": [
+          "v1.0.0",
+          "login-integrated",
+          "v2.0.0-rc.1",
+          "v1.0.1",
+          "v2.0.0"
+        ],
+        "svgText": [
+          "Gitflow release and emergency hotfix",
+          "Finish login UI",
+          "v2.0.0"
+        ],
+        "terminalText": [
+          "Gitflow release and emergency hotfix",
+          "hotfix/security",
+          "feature/login",
+          "release/2.0"
+        ],
+        "parentCount": 11,
+        "parentRelations": {
+          "merge-login": [
+            "develop-base",
+            "login-ui"
+          ],
+          "hotfix-merge": [
+            "v1",
+            "security-fix"
+          ],
+          "release-merge": [
+            "hotfix-merge",
+            "rc"
+          ]
+        },
+        "warningCodes": []
+      }
+    },
+    {
+      "id": "gitgraph-long-labels-tags-tb",
+      "family": "gitgraph",
+      "file": "gitgraph/long-labels-and-tags-tb.mmd",
+      "scenario": "Top-to-bottom history with long messages, long tags, horizontal labels, and large typography.",
+      "sources": [
+        "https://github.com/mermaid-js/mermaid/issues/4028",
+        "https://github.com/mermaid-js/mermaid/issues/4908",
+        "https://github.com/mermaid-js/mermaid/issues/7327"
+      ],
+      "expect": {
+        "commitCount": 4,
+        "branchCount": 2,
+        "direction": "TB",
+        "commitIds": [
+          "foundation",
+          "telemetry",
+          "policy",
+          "observability-merge"
+        ],
+        "branches": [
+          "main",
+          "feature/observability"
+        ],
+        "tags": [
+          "release-2026.07-long-term-support",
+          "observability-preview-candidate",
+          "release-2026.08-observability-general-availability"
+        ],
+        "svgText": [
+          "Long release labels in top-to-bottom history",
+          "Add traces, logs, metrics, and structured events",
+          "release-2026.08-observability-general-availability"
+        ],
+        "terminalText": [
+          "Long release labels in top-to-bottom history",
+          "feature/observability",
+          "main"
+        ],
+        "parentCount": 4,
+        "parentRelations": {
+          "observability-merge": [
+            "policy",
+            "telemetry"
+          ]
+        },
+        "commitLabelFontSize": 18,
+        "rotateCommitLabel": false,
+        "warningCodes": [
+          "LABEL_OVERFLOW",
+          "LABEL_OVERFLOW",
+          "LABEL_OVERFLOW"
+        ]
+      }
+    },
+    {
+      "id": "gitgraph-many-lanes-ordering",
+      "family": "gitgraph",
+      "file": "gitgraph/many-lanes-and-ordering.mmd",
+      "scenario": "Twelve monorepo delivery lanes with explicit main placement and double-digit branch orders.",
+      "sources": [
+        "https://github.com/mermaid-js/mermaid/issues/3505",
+        "https://github.com/mermaid-js/mermaid/issues/7574"
+      ],
+      "expect": {
+        "commitCount": 13,
+        "branchCount": 12,
+        "direction": "LR",
+        "commitIds": [
+          "root",
+          "docs",
+          "api",
+          "web",
+          "mobile",
+          "data",
+          "infra",
+          "security",
+          "qa",
+          "release",
+          "support",
+          "analytics",
+          "ship"
+        ],
+        "branches": [
+          "api",
+          "web",
+          "mobile",
+          "data",
+          "infra",
+          "main",
+          "security",
+          "qa",
+          "release",
+          "support",
+          "analytics",
+          "docs"
+        ],
+        "tags": [
+          "train-ready"
+        ],
+        "svgText": [
+          "Monorepo delivery lanes",
+          "Coordinate delivery",
+          "train-ready"
+        ],
+        "terminalText": [
+          "Monorepo delivery lanes",
+          "analytics",
+          "docs",
+          "main"
+        ],
+        "parentCount": 12,
+        "parentRelations": {
+          "ship": [
+            "root"
+          ]
+        },
+        "branchLaneOrder": [
+          "api",
+          "web",
+          "mobile",
+          "data",
+          "infra",
+          "main",
+          "security",
+          "qa",
+          "release",
+          "support",
+          "analytics",
+          "docs"
+        ],
+        "warningCodes": []
+      }
+    },
+    {
+      "id": "gitgraph-merge-cherry-backports",
+      "family": "gitgraph",
+      "file": "gitgraph/merge-cherry-pick-backports.mmd",
+      "scenario": "A merge commit backported to a maintenance line with explicit immediate-parent ancestry.",
+      "sources": [
+        "https://mermaid.js.org/syntax/gitgraph.html#cherry-pick-similar-to-git-using-cherry-pick-command",
+        "https://github.com/mermaid-js/mermaid/issues/3496",
+        "https://github.com/mermaid-js/mermaid/issues/5540"
+      ],
+      "expect": {
+        "commitCount": 8,
+        "branchCount": 3,
+        "direction": "LR",
+        "commitIds": [
+          "ROOT",
+          "release-base",
+          "main-work",
+          "feature-a",
+          "feature-b",
+          "MERGE",
+          "c6",
+          "verify-backport"
+        ],
+        "branches": [
+          "main",
+          "develop",
+          "release/1.x"
+        ],
+        "tags": [
+          "v1",
+          "v2",
+          "selected-backport"
+        ],
+        "svgText": [
+          "Merge commit backports",
+          "selected-backport",
+          "Verify maintenance release"
+        ],
+        "terminalText": [
+          "Merge commit backports",
+          "release/1.x",
+          "Feature B"
+        ],
+        "parentCount": 9,
+        "parentRelations": {
+          "MERGE": [
+            "main-work",
+            "feature-b"
+          ],
+          "c6": [
+            "release-base",
+            "MERGE"
+          ],
+          "verify-backport": [
+            "c6"
+          ]
+        },
+        "cherrySource": "MERGE",
+        "cherryParent": "feature-b",
+        "warningCodes": [
+          "LABEL_OVERFLOW"
+        ]
+      }
+    },
+    {
+      "id": "gitgraph-unicode-unusual-branches",
+      "family": "gitgraph",
+      "file": "gitgraph/unicode-and-unusual-branches.mmd",
+      "scenario": "Custom Unicode main branch, quoted keyword branch, numeric release branch, slash path, CJK messages, and BT orientation.",
+      "sources": [
+        "https://github.com/mermaid-js/mermaid/issues/5597",
+        "https://mermaid.js.org/syntax/gitgraph.html#adding-a-new-branch",
+        "https://mermaid.js.org/syntax/gitgraph.html#bottom-to-top-bt"
+      ],
+      "expect": {
+        "commitCount": 5,
+        "branchCount": 4,
+        "direction": "BT",
+        "commitIds": [
+          "基础",
+          "修复",
+          "维护",
+          "東京",
+          "合并"
+        ],
+        "branches": [
+          "主线",
+          "cherry-pick",
+          "1.0.1",
+          "feature/東京"
+        ],
+        "tags": [
+          "版本-1.0",
+          "长期支持",
+          "版本-2.0"
+        ],
+        "svgText": [
+          "国际化发布历史",
+          "修复支付流程",
+          "版本-2.0"
+        ],
+        "terminalText": [
+          "国际化发布历史",
+          "feature/東京",
+          "修复支付流程"
+        ],
+        "parentCount": 5,
+        "parentRelations": {
+          "合并": [
+            "基础",
+            "東京"
+          ]
+        },
+        "warningCodes": []
+      }
+    },
+    {
+      "id": "gitgraph-transit-domain-transfer",
+      "family": "gitgraph",
+      "file": "gitgraph/transit-map-domain-transfer.mmd",
+      "scenario": "Official-doc-style railway map showing how users repurpose branch topology for transit lines.",
+      "sources": [
+        "https://mermaid.js.org/syntax/gitgraph.html#customizing-main-branch-name",
+        "https://github.com/mermaid-js/mermaid/issues/5242"
+      ],
+      "expect": {
+        "commitCount": 9,
+        "branchCount": 3,
+        "direction": "LR",
+        "commitIds": [
+          "Central",
+          "Museum",
+          "Harbor",
+          "Airport",
+          "University",
+          "Stadium",
+          "Gardens",
+          "Union",
+          "Civic"
+        ],
+        "branches": [
+          "MetroLine1",
+          "MetroLine2",
+          "MetroLine3"
+        ],
+        "tags": [
+          "express",
+          "interchange"
+        ],
+        "svgText": [
+          "Metro interchange map expressed as GitGraph",
+          "Airport terminal",
+          "interchange"
+        ],
+        "terminalText": [
+          "Metro interchange map expressed as GitGraph",
+          "MetroLine1",
+          "MetroLine3",
+          "Airport"
+        ],
+        "parentCount": 10,
+        "parentRelations": {
+          "Union": [
+            "Gardens",
+            "Airport"
+          ],
+          "Civic": [
+            "Union",
+            "Stadium"
+          ]
+        },
+        "warningCodes": []
+      }
+    },
+    {
+      "id": "gitgraph-cicd-promotion",
+      "family": "gitgraph",
+      "file": "gitgraph/cicd-promotion-pipeline.mmd",
+      "scenario": "Build, test, canary, and production promotion history modeled as branch merges.",
+      "sources": [
+        "https://github.com/mermaid-js/mermaid/issues/4394",
+        "https://github.com/AlexanderGrooff/mermaid-ascii/issues/74"
+      ],
+      "expect": {
+        "commitCount": 10,
+        "branchCount": 4,
+        "direction": "LR",
+        "commitIds": [
+          "source",
+          "compile",
+          "scan",
+          "artifact",
+          "integration",
+          "load",
+          "candidate",
+          "one-percent",
+          "ten-percent",
+          "production"
+        ],
+        "branches": [
+          "main",
+          "build",
+          "staging",
+          "canary"
+        ],
+        "tags": [
+          "sha-7f31",
+          "rc.4",
+          "v4.2.0"
+        ],
+        "svgText": [
+          "CI/CD promotion history",
+          "Supply-chain scan",
+          "v4.2.0"
+        ],
+        "terminalText": [
+          "CI/CD promotion history",
+          "build",
+          "staging",
+          "canary"
+        ],
+        "parentCount": 12,
+        "parentRelations": {
+          "artifact": [
+            "source",
+            "scan"
+          ],
+          "candidate": [
+            "artifact",
+            "load"
+          ],
+          "production": [
+            "candidate",
+            "ten-percent"
+          ]
+        },
+        "warningCodes": []
+      }
+    }
+  ]
+}

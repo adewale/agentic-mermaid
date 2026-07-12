@@ -46,8 +46,10 @@ export interface XYChartSeries {
   type: 'bar' | 'line'
   /** Optional Mermaid series label */
   label?: string
-  /** Data values — one per category, or evenly spaced across numeric range */
+  /** Data values — one per category, or evenly spaced across numeric range. */
   data: number[]
+  /** Mermaid 11.16 per-point text labels, index-aligned with data by parser construction. */
+  pointLabels?: Array<string | undefined>
 }
 
 export interface XYChartAccessibility {
@@ -278,7 +280,7 @@ export interface PositionedBar {
 
 export interface PositionedLine {
   /** Polyline points */
-  points: Array<{ x: number; y: number; value: number; label?: string }>
+  points: Array<{ x: number; y: number; value: number; label?: string; textLabel?: string }>
   /** Series index within line type (for layout grouping) */
   seriesIndex: number
   /** Global color index across all series */

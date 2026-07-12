@@ -29,6 +29,20 @@ describe('sandbox — happy', () => {
     `)
     expect(r.ok && (r.value as any).msgs).toBe(2)
   })
+  test('Architecture B04 workflow stays typed in Code Mode', async () => {
+    const r = await executeInSandbox(`
+      const r0 = mermaid.parseMermaid('architecture-beta\\n  accTitle: Topology\\n  group app[App]\\n  service api[API] in app\\n  junction bus\\n  api{group}:R --> L:bus')
+      const arch = mermaid.asArchitecture(r0.value); if (!arch) return { kind: r0.value.body.kind }
+      const r1 = mermaid.mutate(arch, { kind: 'update_edge', index: 0, fromBoundary: 'item', label: 'events' })
+      if (!r1.ok) return { error: r1.error }
+      const r2 = mermaid.mutate(r1.value, { kind: 'set_group_label', id: 'app', label: 'App Plane' })
+      const v = mermaid.verifyMermaid(r2.value); if (!v.ok) return { warnings: v.warnings }
+      return { source: mermaid.serializeMermaid(r2.value), junctions: r2.value.body.junctions.length }
+    `)
+    expect(r.ok && (r.value as any).junctions).toBe(1)
+    expect((r.value as any).source).toContain('api:R -[events]-> L:bus')
+    expect((r.value as any).source).toContain('group app[App Plane]')
+  })
   test('ValidDiagram render inputs use mutated body, not stale canonicalSource', () => {
     const { parseMermaid, asFlowchart, mutate, serializeMermaid, renderMermaidSVG, renderMermaidASCII } = require('../agent/index.ts')
     const r0 = parseMermaid('flowchart TD\n  API --> DB')
@@ -504,7 +518,7 @@ describe('CLI — sad paths via runCli', () => {
     expect(out).toContain('PARSE_FAILED')
   })
 
-  test('mutate on structured architecture succeeds (BUILD-17); opaque architecture stays unsupported', () => {
+  test('mutate on structured architecture preserves typed accessibility directives (B04)', () => {
     const tmp = `/tmp/cli-architecture-${Date.now()}.mmd`
     require('node:fs').writeFileSync(tmp, 'architecture-beta\n  service api(server)[API]\n')
     const { code, out } = capture(() => runCli(['mutate', tmp, '--op', '{"kind":"add_service","id":"db","label":"Database","icon":"database"}', '--json']))
@@ -513,12 +527,13 @@ describe('CLI — sad paths via runCli', () => {
     expect(payload.ok).toBe(true)
     expect(payload.source).toContain('service db(database)[Database]')
 
-    // The {group} boundary modifier is unmodeled → opaque → not mutable.
-    const opaqueTmp = `/tmp/cli-architecture-opaque-${Date.now()}.mmd`
-    require('node:fs').writeFileSync(opaqueTmp, 'architecture-beta\n  accTitle: A11y\n  service api(server)[API]\n')
-    const opaque = capture(() => runCli(['mutate', opaqueTmp, '--op', '{"kind":"add_service","id":"db","label":"DB"}', '--json']))
-    expect(opaque.code).toBe(2)
-    expect(JSON.parse(opaque.out).error.code).toBe('UNSUPPORTED_FAMILY')
+    const accessibleTmp = `/tmp/cli-architecture-accessible-${Date.now()}.mmd`
+    require('node:fs').writeFileSync(accessibleTmp, 'architecture-beta\n  accTitle: A11y\n  service api(server)[API]\n')
+    const accessible = capture(() => runCli(['mutate', accessibleTmp, '--op', '{"kind":"add_service","id":"db","label":"DB"}', '--json']))
+    expect(accessible.code).toBe(0)
+    const accessiblePayload = JSON.parse(accessible.out)
+    expect(accessiblePayload.source).toContain('accTitle: A11y')
+    expect(accessiblePayload.source).toContain('service db[DB]')
   })
 
   test('mutate on structured journey succeeds (BUILD-15); opaque journey stays unsupported', () => {

@@ -180,6 +180,15 @@ function arrowMarkerDefs(style: ResolvedRenderStyle): string {
     // Open arrow head (just lines, no fill)
     `\n  <marker id="seq-arrow-open" markerWidth="${w}" markerHeight="${h}" refX="${w}" refY="${h / 2}" orient="auto-start-reverse">` +
     `\n    <polyline points="0 0, ${w} ${h / 2}, 0 ${h}" fill="none" stroke="${edgeColor}" stroke-width="1" />` +
+    `\n  </marker>` +
+    `\n  <marker id="seq-arrow-cross" markerWidth="${w}" markerHeight="${h}" refX="${w / 2}" refY="${h / 2}" orient="auto">` +
+    `\n    <path d="M1 1 L${w - 1} ${h - 1} M1 ${h - 1} L${w - 1} 1" fill="none" stroke="${edgeColor}" stroke-width="1.5" />` +
+    `\n  </marker>` +
+    `\n  <marker id="seq-arrow-half-top" markerWidth="${w}" markerHeight="${h}" refX="${w}" refY="${h / 2}" orient="auto-start-reverse">` +
+    `\n    <path d="M0 0 L${w} ${h / 2}" fill="none" stroke="${edgeColor}" stroke-width="1" />` +
+    `\n  </marker>` +
+    `\n  <marker id="seq-arrow-half-bottom" markerWidth="${w}" markerHeight="${h}" refX="${w}" refY="${h / 2}" orient="auto-start-reverse">` +
+    `\n    <path d="M0 ${h} L${w} ${h / 2}" fill="none" stroke="${edgeColor}" stroke-width="1" />` +
     `\n  </marker>`
   )
 }
@@ -197,8 +206,9 @@ function renderActor(actor: PositionedActor, style: ResolvedRenderStyle): SceneN
   const children: Array<{ node: SceneNode; indent: number }> = []
 
   // Semantic wrapper with actor metadata
+  const menu = actor.links ? ` data-links="${escapeAttr(JSON.stringify(actor.links))}" role="link" tabindex="0"` : ''
   const open =
-    `<g class="actor" data-id="${escapeAttr(id)}" data-label="${escapeAttr(label)}" data-type="${type}">`
+    `<g class="actor" data-id="${escapeAttr(id)}" data-label="${escapeAttr(label)}" data-type="${type}"${menu}>`
 
   const rawTextColor = style.nodeTextColor ?? 'var(--_text)'
   const displayLabel = applyTextTransform(label, style.nodeTextTransform)
@@ -245,6 +255,32 @@ function renderActor(actor: PositionedActor, style: ResolvedRenderStyle): SceneN
         channels: { category: id },
       }, renderMultilineText(displayLabel, x, y + height + 14, style.nodeLabelFontSize, labelAttrs)),
     })
+  } else if (type !== 'participant') {
+    const rawStroke = escapeAttr(style.edgeStrokeColor ?? 'var(--_line)')
+    const rawFill = escapeAttr(style.nodeFillColor ?? 'var(--_node-fill)')
+    const left = x - width / 2
+    const top = y + 2
+    const w = width
+    const h = Math.max(24, height - 4)
+    const glyph = type === 'database'
+      ? `<ellipse cx="${x}" cy="${top + 5}" rx="${w / 2}" ry="5"/><path d="M${left} ${top + 5}V${top + h - 5}A${w / 2} 5 0 0 0 ${left + w} ${top + h - 5}V${top + 5}"/><ellipse cx="${x}" cy="${top + h - 5}" rx="${w / 2}" ry="5"/>`
+      : type === 'collections'
+        ? `<rect x="${left + 6}" y="${top}" width="${w - 6}" height="${h - 6}"/><rect x="${left}" y="${top + 6}" width="${w - 6}" height="${h - 6}"/>`
+        : type === 'queue'
+          ? `<rect x="${left}" y="${top}" width="${w}" height="${h}" rx="${h / 2}"/><line x1="${left + 8}" y1="${top + h / 2}" x2="${left + w - 8}" y2="${top + h / 2}"/>`
+          : type === 'entity'
+            ? `<circle cx="${x}" cy="${top + h / 2 - 3}" r="${Math.min(w, h) / 2 - 3}"/><line x1="${left + 5}" y1="${top + h}" x2="${left + w - 5}" y2="${top + h}"/>`
+            : type === 'boundary'
+              ? `<circle cx="${x + 3}" cy="${top + h / 2}" r="${Math.min(w, h) / 2 - 3}"/><line x1="${left + 3}" y1="${top + 2}" x2="${left + 3}" y2="${top + h - 2}"/>`
+              : type === 'control'
+                ? `<circle cx="${x}" cy="${top + h / 2}" r="${Math.min(w, h) / 2 - 3}"/><path d="M${x - 4} ${top + 4}L${x + 4} ${top}L${x + 2} ${top + 8}"/>`
+                : `<circle cx="${x}" cy="${top + h / 2}" r="${Math.min(w, h) / 2 - 3}"/>`
+    children.push({ indent: 2, node: marks.raw({ id: `actor:${id}:icon`, role: 'icon', channels: { category: id } },
+      `<g class="sequence-actor-glyph sequence-actor-${type}" fill="${rawFill}" stroke="${rawStroke}" stroke-width="${style.nodeLineWidth}">${glyph}</g>`) })
+    children.push({ indent: 2, node: marks.text({
+      id: `actor:${id}:label`, role: 'label', text: displayLabel, x, y: y + height + 14,
+      fontSize: style.nodeLabelFontSize, anchor: 'middle', paint: { fill: rawTextColor }, channels: { category: id },
+    }, renderMultilineText(displayLabel, x, y + height + 14, style.nodeLabelFontSize, labelAttrs)) })
   } else {
     // Participant: rectangle box with label (supports multi-line)
     const boxX = x - width / 2
@@ -278,6 +314,11 @@ function renderActor(actor: PositionedActor, style: ResolvedRenderStyle): SceneN
       }, renderMultilineText(displayLabel, x, y + height / 2, style.nodeLabelFontSize, labelAttrs)),
     })
   }
+
+  if (actor.links) children.push({ indent: 2, node: marks.text({
+    id: `actor:${id}:menu`, role: 'icon', text: '⋯', x: x + width / 2 - 7, y: y + 10,
+    fontSize: 10, anchor: 'middle', paint: { fill: rawTextColor }, channels: { category: id },
+  }, `<text class="sequence-actor-menu" x="${x + width / 2 - 7}" y="${y + 10}" text-anchor="middle" font-size="10" fill="${escapeAttr(rawTextColor)}">⋯</text>`) })
 
   return marks.group({
     id: `actor:${id}`,
@@ -333,11 +374,17 @@ function renderActivation(activation: Activation, style: ResolvedRenderStyle, sc
 function renderMessage(msg: PositionedMessage, style: ResolvedRenderStyle, sceneId: string): SceneNode {
   const children: Array<{ node: SceneNode; indent: number }> = []
   const dashArray = msg.lineStyle === 'dashed' ? ' stroke-dasharray="6 4"' : ''
-  const markerId = msg.arrowHead === 'filled' ? 'seq-arrow' : 'seq-arrow-open'
-  const endMarker: MarkerRef = {
-    id: markerId,
-    shape: msg.arrowHead === 'filled' ? 'arrow' : 'open-arrow',
+  const markerFor = (head: PositionedMessage['endHead']): MarkerRef | undefined => {
+    if (head === 'none') return undefined
+    if (head === 'filled') return { id: 'seq-arrow', shape: 'arrow' }
+    if (head === 'cross') return { id: 'seq-arrow-cross', shape: 'cross' }
+    if (head === 'half-top') return { id: 'seq-arrow-half-top', shape: 'open-arrow' }
+    if (head === 'half-bottom') return { id: 'seq-arrow-half-bottom', shape: 'open-arrow' }
+    return { id: 'seq-arrow-open', shape: 'open-arrow' }
   }
+  const startMarker = markerFor(msg.startHead)
+  const endMarker = markerFor(msg.endHead)
+  const markerAttrs = `${startMarker ? ` marker-start="url(#${startMarker.id})"` : ''}${endMarker ? ` marker-end="url(#${endMarker.id})"` : ''}`
   const rawStroke = style.edgeStrokeColor ?? 'var(--_line)'
   const rawTextColor = style.edgeTextColor ?? 'var(--_text-muted)'
   const displayLabel = applyTextTransform(msg.label, style.edgeTextTransform)
@@ -351,7 +398,7 @@ function renderMessage(msg: PositionedMessage, style: ResolvedRenderStyle, scene
   const open =
     `<g class="message" data-from="${escapeAttr(msg.from)}" data-to="${escapeAttr(msg.to)}" ` +
     `data-label="${escapeAttr(msg.label)}" data-line-style="${msg.lineStyle}" ` +
-    `data-arrow-head="${msg.arrowHead}" data-self="${msg.isSelf}">`
+    `data-start-head="${msg.startHead}" data-end-head="${msg.endHead}" data-central-start="${msg.centralStart}" data-central-end="${msg.centralEnd}" data-self="${msg.isSelf}">`
 
   if (msg.isSelf) {
     // Self-message: curved loop going right and back
@@ -375,10 +422,11 @@ function renderMessage(msg: PositionedMessage, style: ResolvedRenderStyle, scene
         },
         lineStyle: msg.lineStyle,
         paint: linePaint,
-        endMarker,
+        ...(startMarker ? { startMarker } : {}),
+        ...(endMarker ? { endMarker } : {}),
       },
         `<polyline points="${msg.x1},${msg.y} ${msg.x1 + loopW},${msg.y} ${msg.x1 + loopW},${msg.y + loopH} ${msg.x2},${msg.y + loopH}" ` +
-        `fill="none" stroke="${escapeAttr(rawStroke)}" stroke-width="${style.lineWidth}"${dashArray} marker-end="url(#${markerId})" />`),
+        `fill="none" stroke="${escapeAttr(rawStroke)}" stroke-width="${style.lineWidth}"${dashArray}${markerAttrs} />`),
     })
     // Label to the right of the loop (supports multi-line)
     children.push({
@@ -405,10 +453,11 @@ function renderMessage(msg: PositionedMessage, style: ResolvedRenderStyle, scene
         geometry: { kind: 'line', x1: msg.x1, y1: msg.y, x2: msg.x2, y2: msg.y },
         lineStyle: msg.lineStyle,
         paint: linePaint,
-        endMarker,
+        ...(startMarker ? { startMarker } : {}),
+        ...(endMarker ? { endMarker } : {}),
       },
         `<line x1="${msg.x1}" y1="${msg.y}" x2="${msg.x2}" y2="${msg.y}" ` +
-        `stroke="${escapeAttr(rawStroke)}" stroke-width="${style.lineWidth}"${dashArray} marker-end="url(#${markerId})" />`),
+        `stroke="${escapeAttr(rawStroke)}" stroke-width="${style.lineWidth}"${dashArray}${markerAttrs} />`),
     })
     // Label above the arrow, centered (supports multi-line)
     const midX = (msg.x1 + msg.x2) / 2
@@ -427,6 +476,15 @@ function renderMessage(msg: PositionedMessage, style: ResolvedRenderStyle, scene
         `font-size="${style.edgeLabelFontSize}" text-anchor="middle" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)} fill="${escapeAttr(rawTextColor)}"`)),
     })
   }
+
+  if (msg.centralStart) children.push({ indent: 2, node: marks.shape({
+    id: `${sceneId}:central-start`, role: 'chrome', geometry: { kind: 'circle', cx: msg.x1, cy: msg.y, r: 4 },
+    paint: { fill: 'var(--bg)', stroke: rawStroke, strokeWidth: '1.5' },
+  }, `<circle class="sequence-central-connection" data-side="start" cx="${msg.x1}" cy="${msg.y}" r="4" fill="var(--bg)" stroke="${escapeAttr(rawStroke)}" stroke-width="1.5" />`) })
+  if (msg.centralEnd) children.push({ indent: 2, node: marks.shape({
+    id: `${sceneId}:central-end`, role: 'chrome', geometry: { kind: 'circle', cx: msg.x2, cy: msg.y, r: 4 },
+    paint: { fill: 'var(--bg)', stroke: rawStroke, strokeWidth: '1.5' },
+  }, `<circle class="sequence-central-connection" data-side="end" cx="${msg.x2}" cy="${msg.y}" r="4" fill="var(--bg)" stroke="${escapeAttr(rawStroke)}" stroke-width="1.5" />`) })
 
   return marks.group({
     id: sceneId,

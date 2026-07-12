@@ -16,7 +16,8 @@
 //     header) and contributes a SourceMap via the buildSourceMap hook.
 // ============================================================================
 
-import { parseMermaid as parseFlowchartLegacy, parseStyleProps } from '../parser.ts'
+import { parseMermaid as parseFlowchartLegacy } from '../parser.ts'
+import { parseMutableStyleProps } from '../shared/style-props.ts'
 import { unknownOpMessage } from './mutation-ops.ts'
 import { normalizeV11Shape } from '../flowchart-shapes.ts'
 import type { MermaidGraph, MermaidNode, MermaidEdge, MermaidSubgraph, NodeShape, Direction } from '../types.ts'
@@ -155,7 +156,11 @@ export function renderFlowchart(graph: MermaidGraph, headerKind: 'flowchart' | '
   }
   for (const sg of graph.subgraphs) renderSubgraph(sg, '  ')
 
-  for (const edge of graph.edges) lines.push('  ' + renderEdge(edge, graph.nodes, declaredInline))
+  for (const edge of graph.edges) {
+    lines.push('  ' + renderEdge(edge, graph.nodes, declaredInline))
+    const metadata = renderEdgeMetadata(edge)
+    if (metadata) lines.push('  ' + metadata)
+  }
 
   for (const [id, node] of graph.nodes) {
     if (declaredInline.has(id) || membersDeclared.has(id)) continue
@@ -167,15 +172,28 @@ export function renderFlowchart(graph: MermaidGraph, headerKind: 'flowchart' | '
   for (const [id, cls] of graph.classAssignments) lines.push(`  class ${id} ${cls}`)
   for (const [id, style] of graph.nodeStyles) lines.push(`  style ${id} ${styleProps(style)}`)
   for (const [idx, style] of graph.linkStyles) lines.push(`  linkStyle ${idx} ${styleProps(style)}`)
+  for (const node of graph.nodes.values()) {
+    if (node.href) lines.push(`  click ${node.id} href ${quoteLabel(node.href)}`)
+  }
 
   return lines.join('\n') + '\n'
 }
 
 function needsExplicitDeclaration(node: MermaidNode): boolean {
-  return node.label !== node.id || node.shape !== 'rectangle' || node.authoredShape !== undefined
+  return node.label !== node.id || node.shape !== 'rectangle' || node.authoredShape !== undefined || node.icon !== undefined || node.image !== undefined
 }
 
 function renderShape(node: MermaidNode): string {
+  // Media metadata is fully modeled as inert local presentation data, so the
+  // typed serializer can reproduce it without falling back to an opaque body.
+  if (node.icon !== undefined || node.image !== undefined) {
+    const entries = [
+      node.icon !== undefined ? `icon: ${quoteLabel(node.icon)}` : `img: ${quoteLabel(node.image!)}`,
+      ...(node.iconForm ? [`form: ${node.iconForm}`] : []),
+      ...(node.label !== node.id ? [`label: ${quoteLabel(node.label)}`] : []),
+    ]
+    return `@{ ${entries.join(', ')} }`
+  }
   // v11 typed shapes serialize as `@{ shape: <authored spelling>, label: … }`
   // — the AUTHORED alias round-trips verbatim (repo #44); the label uses the
   // same quoting table as every other emitted label.
@@ -233,6 +251,16 @@ function renderEdge(edge: MermaidEdge, nodes: Map<string, MermaidNode>, declared
   // v11.6 edge identity: the authored `id@` prefix round-trips verbatim.
   const idPrefix = edge.id ? `${edge.id}@` : ''
   return `${src} ${idPrefix}${renderEdgeArrow(edge)}${labelPart} ${dst}`
+}
+
+function renderEdgeMetadata(edge: MermaidEdge): string | null {
+  if (!edge.id) return null
+  const entries = [
+    ...(edge.animate !== undefined ? [`animate: ${edge.animate}`] : []),
+    ...(edge.animation ? [`animation: ${edge.animation}`] : []),
+    ...(edge.curve ? [`curve: ${edge.curve}`] : []),
+  ]
+  return entries.length > 0 ? `${edge.id}@{ ${entries.join(', ')} }` : null
 }
 
 function inlineNodeRef(id: string, nodes: Map<string, MermaidNode>, declaredInline: Set<string>): string {
@@ -419,6 +447,7 @@ export function mutateFlowchart(body: FlowchartBody, op: FlowchartMutationOp): R
       return done()
     }
     case 'define_class': {
+      if (!/^[\w-]+$/.test(op.name)) return err({ code: 'INVALID_OP', message: 'Class name must contain only letters, digits, underscore, or hyphen' })
       const props = parseStylePropsForOp(op.style)
       if (!props) return err({ code: 'INVALID_OP', message: `Style "${op.style}" parses to no properties — expected CSS-like pairs such as "fill:#f96,stroke:#333"` })
       graph.classDefs.set(op.name, props)
@@ -427,7 +456,10 @@ export function mutateFlowchart(body: FlowchartBody, op: FlowchartMutationOp): R
     case 'set_node_class': {
       if (!graph.nodes.has(op.id)) return err({ code: 'NODE_NOT_FOUND', message: `Node "${op.id}" not found` })
       if (op.className === null) graph.classAssignments.delete(op.id)
-      else graph.classAssignments.set(op.id, op.className)
+      else {
+        if (!/^[\w-]+$/.test(op.className)) return err({ code: 'INVALID_OP', message: 'Class name must contain only letters, digits, underscore, or hyphen' })
+        graph.classAssignments.set(op.id, op.className)
+      }
       return done()
     }
     case 'set_node_style': {
@@ -477,8 +509,8 @@ function resolveShapeValue(shape: string): ResolvedShapeValue | null {
  *  grammar, two consumers); null when nothing parses — the op is rejected
  *  prescriptively instead of writing an empty directive. */
 function parseStylePropsForOp(style: string): Record<string, string> | null {
-  const props = parseStyleProps(style)
-  return Object.keys(props).length > 0 ? props : null
+  const parsed = parseMutableStyleProps(style)
+  return parsed.ok ? parsed.value : null
 }
 
 function locateSubgraph(graph: MermaidGraph, id: string): { list: MermaidSubgraph[]; index: number } | null {

@@ -30,7 +30,7 @@ import type { GanttLayoutResult } from './types.ts'
 import { ganttAxisLabelOffset, ganttMeasureTextWidth, ganttTitleFontSize, ganttTitleY, resolveGanttRenderStyle } from './layout.ts'
 import { parseTodayMarkerStyle, todayMarkerStyleAttr } from './today-marker.ts'
 import type { RenderContext } from '../types.ts'
-import { svgOpenTag, buildStyleBlock } from '../theme.ts'
+import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
 import { escapeAttr, escapeXml } from '../multiline-utils.ts'
 import { hashId } from '../scene/seed.ts'
 import { applyTextTransform } from '../styles.ts'
@@ -289,6 +289,9 @@ export function lowerGanttScene(
     extraCss,
   ))
 
+  const shadowDefs = buildShadowDefs(colors)
+  if (shadowDefs) parts.push(marks.raw({ id: 'shadow-defs', role: 'defs' }, `<defs>${shadowDefs}</defs>`))
+
   // Dependency arrowhead defs — content-hashed ids (the journey id-namespacing
   // pattern) so two different gantt SVGs inlined into one page cannot collide.
   const depMarkerId = `${ganttNamespace(layout)}-dep-arrow`
@@ -442,8 +445,13 @@ export function lowerGanttScene(
     taskIdOccurrence.set(key, k + 1)
     return k === 0 ? `task:${key}` : `task:${key}#${k}`
   }
+  const hrefByTask = new Map(layout.links.map(link => [link.taskIndex, link.href]))
   for (const bar of layout.bars) {
     const section = layout.sections[bar.sectionIndex]?.label
+    const safeHref = options.security === 'strict' ? undefined : hrefByTask.get(bar.taskIndex)
+    // Static output exposes sanitized inert metadata for downstream consumers;
+    // it must not claim keyboard-link semantics without an executable anchor.
+    const interactionAttrs = safeHref ? ` data-href="${escapeXml(safeHref)}"` : ''
     // Critical-path emphasis (opt-in): the analysis-backed stronger stroke.
     const onCriticalPath = criticalPathSet.has(bar.taskIndex)
     const criticalPathCls = onCriticalPath ? ' gantt-bar-critical-path' : ''
@@ -479,7 +487,7 @@ export function lowerGanttScene(
           ...(onCriticalPath ? { emphasis: true } : {}),
           ...(section !== undefined ? { category: section } : {}),
         },
-      }, `<path class="${cls}" d="${d}" data-task="${escapeXml(bar.id ?? bar.label)}" />`))
+      }, `<path class="${cls}" d="${d}" data-task="${escapeXml(bar.id ?? bar.label)}"${interactionAttrs} />`))
       continue
     }
     const status = statusChannel(bar.tags)
@@ -498,7 +506,7 @@ export function lowerGanttScene(
       },
     },
       `<rect class="${statusClass(bar.tags)}${criticalPathCls}" x="${r(bar.x)}" y="${r(bar.y)}" width="${r(Math.max(2, bar.w))}" height="${r(bar.h)}" ` +
-        `rx="${GS.barRadius}" ry="${GS.barRadius}" data-task="${escapeXml(bar.id ?? bar.label)}" />`,
+        `rx="${GS.barRadius}" ry="${GS.barRadius}" data-task="${escapeXml(bar.id ?? bar.label)}"${interactionAttrs} />`,
     ))
   }
 

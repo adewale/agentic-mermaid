@@ -17,6 +17,7 @@ import type { MarkerRef, SceneDoc, SceneNode } from '../scene/ir.ts'
 import { hashId } from '../scene/seed.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
+import { resolveArchitectureIcon } from './icons.ts'
 
 // ============================================================================
 // Architecture renderer — lowers a PositionedArchitectureDiagram to the
@@ -479,17 +480,37 @@ function lowerEdgeLabel(edge: PositionedArchitectureEdge, visual: ArchitectureVi
 
 function renderIcon(x: number, y: number, size: number, icon: string, compact: boolean): string {
   const parts: string[] = []
-  parts.push(`<g class="architecture-icon" data-icon="${escapeAttr(icon)}">`)
-  parts.push(`  ${renderIconGlyph(x, y, size, icon, compact)}`)
+  const rawName = icon.trim().toLowerCase()
+  const native = !rawName.includes(':') && !rawName.includes('/')
+    && ['cloud', 'database', 'disk', 'internet', 'server'].includes(rawName)
+  const resolved = native ? null : resolveArchitectureIcon(icon)
+  const metadata = resolved
+    ? ` data-icon-source="${resolved.source}" data-icon-license="${resolved.license}"`
+    : ''
+  parts.push(`<g class="architecture-icon" data-icon="${escapeAttr(icon)}"${metadata}>`)
+  parts.push(`  ${renderIconGlyph(x, y, size, icon, compact, resolved)}`)
   parts.push('</g>')
   return parts.join('\n')
 }
 
-function renderIconGlyph(x: number, y: number, size: number, icon: string, compact: boolean): string {
+function renderIconGlyph(
+  x: number,
+  y: number,
+  size: number,
+  icon: string,
+  compact: boolean,
+  resolved: ReturnType<typeof resolveArchitectureIcon>,
+): string {
   const name = normalizeIconName(icon)
   const cx = x + size / 2
   const cy = y + size / 2
   const s = compact ? size * 0.92 : size
+
+  if (resolved) {
+    const inset = (size - s) / 2
+    const scale = s / 24
+    return `<path class="architecture-icon-glyph" d="${resolved.path}" transform="translate(${x + inset} ${y + inset}) scale(${scale})" />`
+  }
 
   switch (name) {
     case 'cloud':
@@ -533,7 +554,7 @@ function renderIconGlyph(x: number, y: number, size: number, icon: string, compa
         cx,
         cy,
         Math.max(10, size * 0.56),
-        `class="architecture-icon-glyph" text-anchor="middle" font-size="${Math.max(10, size * 0.56)}" font-weight="700"`,
+        `class="architecture-icon-glyph architecture-icon-fallback" data-fallback="true" text-anchor="middle" font-size="${Math.max(10, size * 0.56)}" font-weight="700"`,
       )
     }
   }

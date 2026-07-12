@@ -21,8 +21,20 @@ export interface ErDiagram {
   direction?: Direction
   /** All entity definitions */
   entities: ErEntity[]
-  /** Relationships between entities */
+  /** Mermaid classDef paint declarations. */
+  classDefs: Map<string, Record<string, string>>
+  /** Relationships between entities or subgraph boundaries. */
   relationships: ErRelationship[]
+  /** Nested ER subgraphs from Mermaid 11.16. */
+  groups: ErGroup[]
+}
+
+export interface ErGroup {
+  id: string
+  label: string
+  parentId?: string
+  direction?: Direction
+  entityIds: string[]
 }
 
 export interface ErEntity {
@@ -31,6 +43,9 @@ export interface ErEntity {
   label: string
   /** Entity attributes (columns) */
   attributes: ErAttribute[]
+  className?: string
+  inlineStyle?: Record<string, string>
+  groupId?: string
 }
 
 export interface ErAttribute {
@@ -77,6 +92,18 @@ export interface PositionedErDiagram extends PositionedDiagram {
   accessibilityDescription?: string
   entities: PositionedErEntity[]
   relationships: PositionedErRelationship[]
+  groups: PositionedErGroup[]
+}
+
+export interface PositionedErGroup {
+  id: string
+  label: string
+  parentId?: string
+  x: number
+  y: number
+  width: number
+  height: number
+  headerHeight: number
 }
 
 export interface PositionedErEntity {
@@ -91,6 +118,9 @@ export interface PositionedErEntity {
   headerHeight: number
   /** Height per attribute row */
   rowHeight: number
+  className?: string
+  inlineStyle?: Record<string, string>
+  groupId?: string
 }
 
 export interface PositionedErRelationship {

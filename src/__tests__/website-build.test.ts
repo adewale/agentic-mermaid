@@ -7,6 +7,7 @@ import { samples as RICH_EXAMPLES } from '../../scripts/site/samples-data.ts'
 import { createWebsiteWorker } from '../../website/src/worker-core.ts'
 import { CLEAN_PAGE_ROUTES, DYNAMIC_CLEAN_REDIRECT_LINES, staticRedirectLines } from '../../website/src/site-routes.ts'
 import { HOSTED_FONT_FACES, HOSTED_FONT_FILES } from '../font-manifest.ts'
+import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const SITE = join(REPO, 'website', 'public')
@@ -789,13 +790,21 @@ describe('Workers Static Assets website contract', () => {
     expect(styles).not.toContain('.comparison-grid .comparison-panel[data-comparison-lightbox-panel]')
   })
 
-  test('examples page carries the agent task and a per-family render anchor', () => {
+  test('examples page carries an agent task, trace, and render anchor for every family', () => {
     const examples = read('examples/index.html')
-    // The consolidated Examples page absorbed the gallery: each supported family
-    // is anchored by family id and pairs an agent prompt with its trace.
-    for (const id of ['flowchart', 'er', 'journey', 'architecture', 'gantt']) {
-      expect(examples).toContain(`<article class="example-sample" id="${id}">`)
+    // Registry-exact: adding a family without a prompt/trace or supported render
+    // must fail this generated-site citizenship gate.
+    for (const family of BUILTIN_FAMILY_METADATA) {
+      const start = examples.indexOf(`<article class="example-sample" id="${family.id}">`)
+      expect(start, `${family.id} article`).toBeGreaterThanOrEqual(0)
+      const end = examples.indexOf('</article>', start)
+      const article = examples.slice(start, end)
+      expect(article, `${family.id} prompt`).toContain('<p class="example-prompt"><span>Prompt</span>')
+      expect(article, `${family.id} trace`).toContain('<p class="example-trace"><span>Trace</span>')
+      expect(article, `${family.id} narrower`).toContain(`<code>${family.narrower} · mutate(`)
     }
+    expect(examples.match(/<p class="example-prompt"><span>Prompt<\/span>/g)).toHaveLength(BUILTIN_FAMILY_METADATA.length)
+    expect(examples.match(/<p class="example-trace"><span>Trace<\/span>/g)).toHaveLength(BUILTIN_FAMILY_METADATA.length)
     expect(examples).toContain('<p class="example-prompt"><span>Prompt</span> Add a verification milestone before release')
     expect(examples).toContain('<p class="example-trace"><span>Trace</span> <code>asGantt · mutate(add_task) · verify</code>')
     expect(examples).not.toContain('Role style presets')

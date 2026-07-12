@@ -1,0 +1,42 @@
+---
+title: Monorepo delivery lanes
+config:
+  gitGraph:
+    mainBranchOrder: 6
+---
+gitGraph LR:
+  commit id:"root" msg:"Monorepo baseline"
+  branch docs order:12
+  commit id:"docs" msg:"Documentation"
+  checkout main
+  branch api order:1
+  commit id:"api" msg:"Public API"
+  checkout main
+  branch web order:2
+  commit id:"web" msg:"Web client"
+  checkout main
+  branch mobile order:3
+  commit id:"mobile" msg:"Mobile client"
+  checkout main
+  branch data order:4
+  commit id:"data" msg:"Data pipeline"
+  checkout main
+  branch infra order:5
+  commit id:"infra" msg:"Infrastructure"
+  checkout main
+  branch security order:7
+  commit id:"security" msg:"Security review"
+  checkout main
+  branch qa order:8
+  commit id:"qa" msg:"Quality gates"
+  checkout main
+  branch release order:9
+  commit id:"release" msg:"Release train"
+  checkout main
+  branch support order:10
+  commit id:"support" msg:"Support readiness"
+  checkout main
+  branch analytics order:11
+  commit id:"analytics" msg:"Usage analytics"
+  checkout main
+  commit id:"ship" type:HIGHLIGHT tag:"train-ready" msg:"Coordinate delivery"

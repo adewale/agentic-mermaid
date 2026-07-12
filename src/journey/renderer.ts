@@ -476,7 +476,7 @@ function renderSectionFrame(section: PositionedJourneySection, style: ResolvedRe
     indent: 2,
     node: marks.shape(
       {
-        id: `section-bg:${name}`,
+        id: `section-bg:${section.id}`,
         role: 'section',
         geometry: { kind: 'rect', x: section.x, y: section.y, width: section.width, height: section.height, rx: style.groupCornerRadius, ry: style.groupCornerRadius },
         paint: {
@@ -498,7 +498,7 @@ function renderSectionFrame(section: PositionedJourneySection, style: ResolvedRe
       indent: 2,
       node: marks.text(
         {
-          id: `section-label:${name}`,
+          id: `section-label:${section.id}`,
           role: 'group-header',
           text: section.label,
           x: section.labelX,
@@ -519,7 +519,7 @@ function renderSectionFrame(section: PositionedJourneySection, style: ResolvedRe
   }
 
   return marks.group({
-    id: `section:${name}`,
+    id: `section:${section.id}`,
     role: 'section',
     open: `<g class="journey-section" data-id="${escapeAttr(section.id)}"${labelAttr}>`,
     close: '</g>',
@@ -538,7 +538,7 @@ function renderSectionLabelBand(section: PositionedJourneySection, style: Resolv
 
   return marks.shape(
     {
-      id: `section-band:${section.label ?? section.id}`,
+      id: `section-band:${section.id}`,
       role: 'group-header',
       geometry: { kind: 'rect', x: bandX, y: bandY, width: bandWidth, height: bandHeight, rx: radius, ry: radius },
       paint: { fill: sectionHeaderFill(sectionIndex, paints), stroke: 'none' },
@@ -560,13 +560,13 @@ function renderTask(task: PositionedJourneyTask, sectionLabel: string | undefine
   ]
 
   for (const dot of task.actorDots) {
-    children.push({ indent: 2, node: renderActorDot(dot, task.text, paints) })
+    children.push({ indent: 2, node: renderActorDot(dot, task.id, paints) })
   }
 
-  children.push({ indent: 2, node: renderScoreMarker(task.marker, task.text, paints, channels) })
+  children.push({ indent: 2, node: renderScoreMarker(task.marker, task.id, paints, channels) })
 
   return marks.group({
-    id: `task:${task.text}`,
+    id: `task:${task.id}`,
     role: 'task',
     open: `<g class="journey-task" data-id="${escapeAttr(task.id)}" data-score="${task.score}"${sectionAttr}${actorAttr}>`,
     close: '</g>',
@@ -578,7 +578,7 @@ function renderTask(task: PositionedJourneyTask, sectionLabel: string | undefine
 function renderTrack(track: PositionedJourneyTrack, task: PositionedJourneyTask, style: ResolvedRenderStyle, paints: JourneyPaints): SceneNode {
   return marks.connector(
     {
-      id: `track:${task.text}`,
+      id: `track:${task.id}`,
       role: 'marker-line',
       geometry: { kind: 'line', x1: track.x, y1: track.y1, x2: track.x, y2: track.y2 },
       lineStyle: 'dashed',
@@ -596,7 +596,7 @@ function renderTrack(track: PositionedJourneyTrack, task: PositionedJourneyTask,
 function renderTaskBox(task: PositionedJourneyTask, style: ResolvedRenderStyle, paints: JourneyPaints, channels: SemanticChannels): SceneNode {
   return marks.shape(
     {
-      id: `task-box:${task.text}`,
+      id: `task-box:${task.id}`,
       role: 'task',
       geometry: { kind: 'rect', x: task.x, y: task.y, width: task.width, height: task.height, rx: style.cornerRadius ?? 0, ry: style.cornerRadius ?? 0 },
       paint: {
@@ -613,7 +613,7 @@ function renderTaskBox(task: PositionedJourneyTask, style: ResolvedRenderStyle, 
 function renderTaskLabel(task: PositionedJourneyTask, style: ResolvedRenderStyle, channels: SemanticChannels): SceneNode {
   return marks.text(
     {
-      id: `task-label:${task.text}`,
+      id: `task-label:${task.id}`,
       role: 'label',
       text: task.text,
       x: task.textX,
@@ -633,10 +633,10 @@ function renderTaskLabel(task: PositionedJourneyTask, style: ResolvedRenderStyle
   )
 }
 
-function renderActorDot(dot: PositionedJourneyActorDot, taskText: string, paints: JourneyPaints): SceneNode {
+function renderActorDot(dot: PositionedJourneyActorDot, taskId: string, paints: JourneyPaints): SceneNode {
   return marks.shape(
     {
-      id: `actor-dot:${taskText}:${dot.label}`,
+      id: `actor-dot:${taskId}:${dot.label}`,
       role: 'actor',
       geometry: { kind: 'circle', cx: dot.x, cy: dot.y, r: dot.r },
       paint: { fill: actorFill(dot.colorIndex, paints), stroke: 'var(--bg)', strokeWidth: '1' },
@@ -646,14 +646,14 @@ function renderActorDot(dot: PositionedJourneyActorDot, taskText: string, paints
   )
 }
 
-function renderScoreMarker(marker: PositionedJourneyScoreMarker, taskText: string, paints: JourneyPaints, channels: SemanticChannels): SceneNode {
+function renderScoreMarker(marker: PositionedJourneyScoreMarker, taskId: string, paints: JourneyPaints, channels: SemanticChannels): SceneNode {
   const eyeY = marker.cy - 4.5
   const leftEyeX = marker.cx - 5.5
   const rightEyeX = marker.cx + 5.5
   const mouth = mouthPath(marker)
 
   return marks.group({
-    id: `score-marker:${taskText}`,
+    id: `score-marker:${taskId}`,
     role: 'score',
     open: `<g class="journey-score-marker" data-score="${marker.score}">`,
     close: '</g>',
@@ -662,7 +662,7 @@ function renderScoreMarker(marker: PositionedJourneyScoreMarker, taskText: strin
         indent: 2,
         node: marks.shape(
           {
-            id: `score-face:${taskText}`,
+            id: `score-face:${taskId}`,
             role: 'score',
             geometry: { kind: 'circle', cx: marker.cx, cy: marker.cy, r: marker.r },
             paint: { fill: paints.scoreFaceFill, stroke: paints.scoreFaceStroke, strokeWidth: '1.2' },
@@ -675,7 +675,7 @@ function renderScoreMarker(marker: PositionedJourneyScoreMarker, taskText: strin
         indent: 2,
         node: marks.shape(
           {
-            id: `score-eye-left:${taskText}`,
+            id: `score-eye-left:${taskId}`,
             role: 'score',
             geometry: { kind: 'circle', cx: leftEyeX, cy: eyeY, r: 2 },
             paint: { fill: paints.scoreFaceInk },
@@ -688,7 +688,7 @@ function renderScoreMarker(marker: PositionedJourneyScoreMarker, taskText: strin
         indent: 2,
         node: marks.shape(
           {
-            id: `score-eye-right:${taskText}`,
+            id: `score-eye-right:${taskId}`,
             role: 'score',
             geometry: { kind: 'circle', cx: rightEyeX, cy: eyeY, r: 2 },
             paint: { fill: paints.scoreFaceInk },
@@ -701,7 +701,7 @@ function renderScoreMarker(marker: PositionedJourneyScoreMarker, taskText: strin
         indent: 2,
         node: marks.shape(
           {
-            id: `score-mouth:${taskText}`,
+            id: `score-mouth:${taskId}`,
             role: 'score',
             geometry: { kind: 'path', d: mouth },
             paint: { fill: 'none', stroke: paints.scoreFaceInk, strokeWidth: '1.6' },

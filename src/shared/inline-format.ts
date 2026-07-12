@@ -44,6 +44,10 @@ export function parseInlineFormatting(line: string): StyledSegment[] {
 
 /** Canonical formatting-tag serialization used when wrapping reconstructs a
  * line from styled runs. */
+export function plainTextFromInlineFormatting(text: string): string {
+  return text.split('\n').map(line => parseInlineFormatting(line).map(segment => segment.text).join('')).join('\n')
+}
+
 export function serializeStyledSegment(segment: StyledSegment): string {
   let text = segment.text
   if (segment.strikethrough) text = `<s>${text}</s>`

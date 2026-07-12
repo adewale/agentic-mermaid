@@ -1,0 +1,27 @@
+---
+title: Gitflow release and emergency hotfix
+config:
+  gitGraph:
+    mainBranchName: main
+    showBranches: true
+    showCommitLabel: true
+---
+gitGraph LR:
+  accTitle: Gitflow release history
+  accDescr: Develop, feature, release, and hotfix branches merge into main
+  commit id:"v1" tag:"v1.0.0" msg:"Production baseline"
+  branch develop order:2
+  commit id:"develop-base" msg:"Open next cycle"
+  branch feature/login order:3
+  commit id:"login-api" msg:"Add login API"
+  commit id:"login-ui" type:HIGHLIGHT msg:"Finish login UI"
+  checkout develop
+  merge feature/login id:"merge-login" tag:"login-integrated"
+  branch release/2.0 order:4
+  commit id:"rc" type:REVERSE tag:"v2.0.0-rc.1" msg:"Release candidate"
+  checkout main
+  branch hotfix/security order:1
+  commit id:"security-fix" type:HIGHLIGHT msg:"Patch production"
+  checkout main
+  merge hotfix/security id:"hotfix-merge" tag:"v1.0.1"
+  merge release/2.0 id:"release-merge" tag:"v2.0.0"

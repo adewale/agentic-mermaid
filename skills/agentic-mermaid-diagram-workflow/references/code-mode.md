@@ -25,6 +25,8 @@ mermaid.asXyChart(d):   XyChartValidDiagram | null
 mermaid.asPie(d):       PieValidDiagram | null
 mermaid.asQuadrant(d):  QuadrantValidDiagram | null
 mermaid.asGantt(d):     GanttValidDiagram | null
+mermaid.asMindmap(d):   MindmapValidDiagram | null
+mermaid.asGitGraph(d):  GitGraphValidDiagram | null
 mermaid.mutate(flow,     FlowchartMutationOp): Result<FlowchartValidDiagram, MutationError>
 mermaid.mutate(state,    StateMutationOp):     Result<StateValidDiagram, MutationError>
 mermaid.mutate(seq,      SequenceMutationOp):  Result<SequenceValidDiagram, MutationError>
@@ -37,6 +39,8 @@ mermaid.mutate(xy,       XyChartMutationOp):   Result<XyChartValidDiagram, Mutat
 mermaid.mutate(pie,      PieMutationOp):       Result<PieValidDiagram, MutationError>
 mermaid.mutate(quad,     QuadrantMutationOp):  Result<QuadrantValidDiagram, MutationError>
 mermaid.mutate(gantt,    GanttMutationOp):     Result<GanttValidDiagram, MutationError>
+mermaid.mutate(mindmap,  MindmapMutationOp):   Result<MindmapValidDiagram, MutationError>
+mermaid.mutate(gitgraph, GitGraphMutationOp):  Result<GitGraphValidDiagram, MutationError>
 mermaid.verifyMermaid(input, { suppress?, labelCharCap? }): VerifyResult
 mermaid.describeMermaidFacts(d): string[]
 mermaid.checkMermaid(d, spec): { ok: boolean; missing: string[]; unexpected: string[]; facts: string[] }
@@ -45,7 +49,7 @@ mermaid.renderMermaidASCII(input, { useAscii?: boolean, ganttToday?: string, mer
 mermaid.renderMermaidSVG(input, { security?: 'default'|'strict', idPrefix?, ganttToday?: string, mermaidConfig?: MermaidRuntimeConfig }): string
 ```
 
-Agentic Mermaid outputs SVG, PNG, ASCII, Unicode, and JSON layout. In Code Mode, render SVG and text through `mermaid.*`: `renderMermaidASCII(input, { useAscii: true })` returns ASCII and `useAscii: false` returns Unicode box-drawing text. Use the narrow MCP `render_png` helper or host/library code for PNG binary output; JSON layout is available on `verifyMermaid(...).layout` and through the CLI/library layout APIs. `MermaidRuntimeConfig` matches the runtime config surface: arbitrary Mermaid config keys plus `theme`, `fontFamily`, `themeVariables`, `timeline`, `xyChart`, `gantt`, `useMaxWidth`, `useWidth`, and `themeCSS`. `ganttToday` is a render option, not a clock read; pass it when a Gantt `todayMarker` should render.
+Agentic Mermaid outputs SVG, PNG, ASCII, Unicode, and JSON layout. In Code Mode, render SVG and text through `mermaid.*`: `renderMermaidASCII(input, { useAscii: true })` returns ASCII and `useAscii: false` returns Unicode box-drawing text. Use the narrow MCP `render_png` helper or host/library code for PNG binary output; JSON layout is available on `verifyMermaid(...).layout` and through the CLI/library layout APIs. `MermaidRuntimeConfig` matches the runtime config surface: arbitrary Mermaid config keys plus `theme`, `fontFamily`, `themeVariables`, `timeline`, `xyChart`, `gantt`, `mindmap`, `gitGraph`, `useMaxWidth`, `useWidth`, and `themeCSS`. `ganttToday` is a render option, not a clock read; pass it when a Gantt `todayMarker` should render.
 
 All SDK methods are synchronous and pure. Code Mode does not support `async`/`await`, Promise jobs, or dynamic import. Layout is deterministic; there is no layout seed (the render option `seed` only re-rolls ink of styled looks — `style: name | record | stack` — and never moves geometry).
 

@@ -3,6 +3,8 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 const PLAN = readFileSync(join(import.meta.dir, '..', '..', 'docs/design/family-elevation-plan.md'), 'utf8')
+const ACCEPTANCE = readFileSync(join(import.meta.dir, '..', '..', 'docs/design/family-elevation-acceptance.md'), 'utf8')
+const FINAL_AUDIT_URL = 'https://github.com/adewale/agentic-mermaid/pull/149#issuecomment-4949151500'
 
 const EXPECTED_LEDGER_IDS = [
   ...Array.from({ length: 8 }, (_, i) => `F${i + 1}`),
@@ -20,19 +22,24 @@ const EXPECTED_LEDGER_IDS = [
 ].sort()
 
 const EXPECTED_COMPLETION_PACKAGES = Array.from({ length: 18 }, (_, i) => `B${String(i + 1).padStart(2, '0')}`).sort()
+const EXPECTED_CLOSING_GAP_IDS = Array.from({ length: 15 }, (_, i) => `CG${String(i + 1).padStart(2, '0')}`).sort()
 const STATUS = new Set(['done', 'partial', 'not-started'])
 const FAMILY_ITEM_COUNTS: Record<string, number> = {
   Flowchart: 8, State: 7, Sequence: 7, Class: 6, ER: 6, Timeline: 5,
   Gantt: 6, XYChart: 5, Pie: 4, Quadrant: 4, Architecture: 6,
 }
-const PHASE_0_ACCEPTANCE = [
-  { id: 'B01', file: 'family-elevation-ledger.test.ts', title: 'every numbered work-plan item has a corresponding ordinal ledger ID' },
-  { id: 'X1', file: 'property-all-families-fuzz.test.ts', title: 'X1 acceptance: every built-in family has a cross-parser fuzz generator' },
-  { id: 'B02', file: 'opaque-unsupported-warning.test.ts', title: 'B02 acceptance: lossless opaque fixtures enroll every built-in family' },
-  { id: 'X7', file: 'state-config.test.ts', title: 'X7 acceptance: the independent State inventory is partitioned exactly once' },
-  { id: 'G3', file: 'cli-gantt-today-flag.test.ts', title: 'a typo flag exits 2 and names itself' },
-  { id: 'Q3', file: 'scene-text-fidelity.test.ts', title: 'point labels carry their REAL collision-aware position in the scene IR' },
-] as const
+const PHASE_0_IDS = ['B01', 'X1', 'B02', 'X7', 'G3', 'Q3'] as const
+const ROOT = join(import.meta.dir, '..', '..')
+interface AcceptanceEvidence { id: string; file: string; title: string }
+const EVIDENCE = JSON.parse(readFileSync(join(ROOT, 'docs/design/family-elevation-evidence.json'), 'utf8')) as {
+  schemaVersion: number
+  entries: AcceptanceEvidence[]
+}
+
+function declaredTestTitles(file: string): string[] {
+  const testSource = readFileSync(join(ROOT, file), 'utf8')
+  return [...testSource.matchAll(/\b(?:test|it)\(\s*['"`]([^'"`]+)['"`]/g)].map(match => match[1]!)
+}
 
 function rows(marker: string): Array<{ id: string; phase: string; status: string; detail: string }> {
   const section = PLAN.split(`<!-- ${marker}:start -->`)[1]?.split(`<!-- ${marker}:end -->`)[0]
@@ -62,6 +69,10 @@ describe('family elevation plan is a mechanically complete ledger', () => {
     expectMechanicalRows(rows('family-elevation-backlog'), EXPECTED_COMPLETION_PACKAGES)
   })
 
+  test('Closing The Gap captures every audited family and cross-family acceptance', () => {
+    expectMechanicalRows(rows('family-elevation-closing-gap'), EXPECTED_CLOSING_GAP_IDS)
+  })
+
   test('every numbered work-plan item has a corresponding ordinal ledger ID', () => {
     const workPlan = PLAN.split('## Work plan by family')[1]?.split('## Cross-cutting workstreams')[0] ?? ''
     for (const [family, count] of Object.entries(FAMILY_ITEM_COUNTS)) {
@@ -77,27 +88,44 @@ describe('family elevation plan is a mechanically complete ledger', () => {
     const checked = [
       PLAN.split('<!-- family-elevation-ledger:start -->')[1]?.split('<!-- family-elevation-ledger:end -->')[0] ?? '',
       PLAN.split('<!-- family-elevation-backlog:start -->')[1]?.split('<!-- family-elevation-backlog:end -->')[0] ?? '',
+      PLAN.split('<!-- family-elevation-closing-gap:start -->')[1]?.split('<!-- family-elevation-closing-gap:end -->')[0] ?? '',
     ].join('\n')
     const names = [...checked.matchAll(/`([^`]+\.test\.ts)`/g)].map(match => match[1]!)
     expect(names.length).toBeGreaterThan(20)
     for (const name of names) {
-      expect(existsSync(join(import.meta.dir, name)), `documented evidence ${name}`).toBe(true)
+      const exists = existsSync(join(import.meta.dir, name)) || existsSync(join(ROOT, name))
+      expect(exists, `documented evidence ${name}`).toBe(true)
     }
   })
 
-  test('Phase 0 status is consistent with exact executable acceptance IDs', () => {
-    const byId = new Map([...rows('family-elevation-ledger'), ...rows('family-elevation-backlog')].map(row => [row.id, row]))
-    for (const acceptance of PHASE_0_ACCEPTANCE) {
-      const testSource = readFileSync(join(import.meta.dir, acceptance.file), 'utf8')
-      const declaredTitles = [...testSource.matchAll(/\b(?:test|it)\(\s*['"]([^'"]+)['"]/g)].map(match => match[1])
-      expect(declaredTitles, `${acceptance.id}: exact executable acceptance ID`).toContain(acceptance.title)
+  test('every done claim resolves to an exact executable title in a cited test file', () => {
+    expect(EVIDENCE.schemaVersion).toBe(1)
+    const allRows = [...rows('family-elevation-ledger'), ...rows('family-elevation-backlog'), ...rows('family-elevation-closing-gap')]
+    const done = allRows.filter(row => row.status === 'done')
+    expect(EVIDENCE.entries.map(entry => entry.id).sort()).toEqual(done.map(row => row.id).sort())
+    expect(new Set(EVIDENCE.entries.map(entry => entry.id)).size).toBe(EVIDENCE.entries.length)
+
+    const byId = new Map(allRows.map(row => [row.id, row]))
+    for (const acceptance of EVIDENCE.entries) {
+      const row = byId.get(acceptance.id)!
+      expect(acceptance.title.length, `${acceptance.id}: non-empty exact title`).toBeGreaterThan(0)
+      expect(existsSync(join(ROOT, acceptance.file)), `${acceptance.id}: evidence file exists`).toBe(true)
+      expect(row.detail, `${acceptance.id}: evidence file is cited by the plan row`).toContain(`\`${acceptance.file.split('/').at(-1)}\``)
+      expect(declaredTestTitles(acceptance.file), `${acceptance.id}: exact executable acceptance title`).toContain(acceptance.title)
     }
-    // Do not force prerequisite rows to `done`: a truthful downgrade must be
-    // allowed. This gate only derives the phase-table wording from their
-    // independently reviewed statuses; the named tests prove behavior in CI.
-    const derived = PHASE_0_ACCEPTANCE.every(acceptance => byId.get(acceptance.id)?.status === 'done')
-      ? '**Complete**'
-      : '**Partial**'
+  })
+
+  test('B18 closure cites the stable final-head audit record', () => {
+    const b18 = rows('family-elevation-backlog').find(row => row.id === 'B18')
+    expect(b18?.status).toBe('done')
+    expect(b18?.detail).toContain(FINAL_AUDIT_URL)
+    expect(ACCEPTANCE).toContain('Status: **B18 complete')
+    expect(ACCEPTANCE).toContain(FINAL_AUDIT_URL)
+  })
+
+  test('Phase 0 status is derived from its exact-evidence rows', () => {
+    const byId = new Map([...rows('family-elevation-ledger'), ...rows('family-elevation-backlog')].map(row => [row.id, row]))
+    const derived = PHASE_0_IDS.every(id => byId.get(id)?.status === 'done') ? '**Complete**' : '**Partial**'
     expect(PLAN).toContain(`| 0 — honesty + guards | ${derived} |`)
   })
 })

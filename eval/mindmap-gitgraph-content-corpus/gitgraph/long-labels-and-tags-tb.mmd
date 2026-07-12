@@ -1,0 +1,16 @@
+---
+title: Long release labels in top-to-bottom history
+config:
+  gitGraph:
+    rotateCommitLabel: false
+  themeVariables:
+    commitLabelFontSize: 18
+---
+gitGraph TB:
+  accTitle: Top to bottom release history with long labels
+  commit id:"foundation" tag:"release-2026.07-long-term-support" msg:"Establish a stable production foundation"
+  branch feature/observability order:2
+  commit id:"telemetry" tag:"observability-preview-candidate" msg:"Add traces, logs, metrics, and structured events"
+  checkout main
+  commit id:"policy" type:REVERSE msg:"Document compatibility and rollback policy"
+  merge feature/observability id:"observability-merge" type:HIGHLIGHT tag:"release-2026.08-observability-general-availability"

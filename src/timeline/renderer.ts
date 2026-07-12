@@ -343,7 +343,7 @@ function lowerPeriod(
     indent: 2,
     node: marks.shape(
       {
-        id: `period-stem:${period.label}`,
+        id: `period-stem:${period.id}`,
         role: 'period',
         geometry: { kind: 'line', x1: period.stem.x1, y1: period.stem.y1, x2: period.stem.x2, y2: period.stem.y2 },
         paint: paints.stem,
@@ -355,7 +355,7 @@ function lowerPeriod(
     indent: 2,
     node: marks.shape(
       {
-        id: `period-pill:${period.label}`,
+        id: `period-pill:${period.id}`,
         role: 'period',
         geometry: { kind: 'rect', x: period.pillX, y: period.pillY, width: period.pillWidth, height: period.pillHeight, rx: style.cornerRadius ?? 0, ry: style.cornerRadius ?? 0 },
         paint: paints.pill,
@@ -367,7 +367,7 @@ function lowerPeriod(
     indent: 2,
     node: marks.text(
       {
-        id: `period-label:${period.label}`,
+        id: `period-label:${period.id}`,
         role: 'label',
         text: period.label,
         x: period.centerX,
@@ -389,7 +389,7 @@ function lowerPeriod(
     indent: 2,
     node: marks.shape(
       {
-        id: `period-marker-ring:${period.label}`,
+        id: `period-marker-ring:${period.id}`,
         role: 'period',
         geometry: { kind: 'circle', cx: period.markerX, cy: period.markerY, r: TL.markerOuterRadius },
         paint: paints.markerRing,
@@ -401,7 +401,7 @@ function lowerPeriod(
     indent: 2,
     node: marks.shape(
       {
-        id: `period-marker-core:${period.label}`,
+        id: `period-marker-core:${period.id}`,
         role: 'period',
         geometry: { kind: 'circle', cx: period.markerX, cy: period.markerY, r: TL.markerInnerRadius },
         paint: paints.markerCore,
@@ -415,12 +415,12 @@ function lowerPeriod(
   for (let k = 0; k < period.events.length; k++) {
     children.push({
       indent: 0,
-      node: lowerEvent(period.events[k]!, k, sectionLabel, familyIndex, familyPalettes, style, paints),
+      node: lowerEvent(period.events[k]!, sectionLabel, familyIndex, familyPalettes, style, paints),
     })
   }
 
   return marks.group({
-    id: `period:${period.label}`,
+    id: `period:${period.id}`,
     role: 'period',
     open: `<g class="timeline-period" data-id="${escapeAttr(period.id)}" data-label="${escapeAttr(period.label)}"${sectionAttr}${familyAttr}>`,
     close: '</g>',
@@ -430,7 +430,6 @@ function lowerPeriod(
 
 function lowerEvent(
   event: PositionedTimelineEvent,
-  k: number,
   sectionLabel: string | undefined,
   familyIndex: number,
   familyPalettes: readonly TimelineFamilyPalette[],
@@ -439,7 +438,7 @@ function lowerEvent(
 ): SceneNode {
   const sectionAttr = sectionLabel ? ` data-section="${escapeAttr(sectionLabel)}"` : ''
   const familyAttr = ` data-family="${familyIndex % familyPalettes.length}"`
-  const idBase = `event:${event.periodLabel}:${k}`
+  const idBase = `event:${event.id}`
 
   const card = marks.shape(
     {

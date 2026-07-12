@@ -9,7 +9,7 @@ classDiagram
 ├───────────────┤    
 │ +name: String │    
 ├───────────────┤    
-│ +eat: void    │    
+│ +eat(): void  │    
 └───────────────┘    
                      
                      

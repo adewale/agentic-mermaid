@@ -88,7 +88,24 @@ export function extract(svg: string): { texts: TextBox[]; prims: PrimBox[] } {
           const ys = [cy + sgn * (box.x0 - cx), cy + sgn * (box.x1 - cx)]
           box = { x0: Math.min(...xs), y0: Math.min(...ys), x1: Math.max(...xs), y1: Math.max(...ys) }
         } else if (ang !== 0) {
-          continue // arbitrary rotation: skip rather than mis-measure
+          // Generic corner map for GitGraph's 45° commit labels and any future
+          // deterministic angle. The old auditor skipped arbitrary rotations,
+          // which made its zero-overlap claim blind exactly where dense history
+          // labels were hardest to read.
+          const rad = ang * Math.PI / 180
+          const cos = Math.cos(rad), sin = Math.sin(rad)
+          const corners = [
+            [box.x0, box.y0], [box.x1, box.y0], [box.x0, box.y1], [box.x1, box.y1],
+          ].map(([px, py]) => ({
+            x: cx + (px! - cx) * cos - (py! - cy) * sin,
+            y: cy + (px! - cx) * sin + (py! - cy) * cos,
+          }))
+          box = {
+            x0: Math.min(...corners.map(point => point.x)),
+            y0: Math.min(...corners.map(point => point.y)),
+            x1: Math.max(...corners.map(point => point.x)),
+            y1: Math.max(...corners.map(point => point.y)),
+          }
         }
       }
       texts.push({ text: clean, owner, ...box })
@@ -99,8 +116,25 @@ export function extract(svg: string): { texts: TextBox[]; prims: PrimBox[] } {
     if (!(Number.isFinite(x0) && Number.isFinite(y0) && x1 > x0 && y1 > y0)) return
     prims.push({ kind, owner: innermostGroup(spans, pos) ?? `prim#${prims.length}`, x0, y0, x1, y1 })
   }
-  for (const r of svg.matchAll(/<rect\b[^>]*?x="([\d.e+-]+)"[^>]*?y="([\d.e+-]+)"[^>]*?width="([\d.e+-]+)"[^>]*?height="([\d.e+-]+)"[^>]*>/g))
-    push('rect', r.index!, num(r[1]), num(r[2]), num(r[1]) + num(r[3]), num(r[2]) + num(r[4]))
+  for (const r of svg.matchAll(/<rect\b([^>]*)>/g)) {
+    const attrs = r[1]!
+    const x = num(/(?:^|\s)x="([\d.e+-]+)"/.exec(attrs)?.[1])
+    const y = num(/(?:^|\s)y="([\d.e+-]+)"/.exec(attrs)?.[1])
+    const width = num(/(?:^|\s)width="([\d.e+-]+)"/.exec(attrs)?.[1])
+    const height = num(/(?:^|\s)height="([\d.e+-]+)"/.exec(attrs)?.[1])
+    let box: Box = { x0: x, y0: y, x1: x + width, y1: y + height }
+    const rot = /transform="rotate\((-?[\d.]+)[, ]+([\d.e+-]+)[, ]+([\d.e+-]+)\)"/.exec(attrs)
+    if (rot && Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(width) && Number.isFinite(height)) {
+      const angle = num(rot[1]) * Math.PI / 180, cx = num(rot[2]), cy = num(rot[3])
+      const cos = Math.cos(angle), sin = Math.sin(angle)
+      const corners = [[box.x0, box.y0], [box.x1, box.y0], [box.x0, box.y1], [box.x1, box.y1]].map(([px, py]) => ({
+        x: cx + (px! - cx) * cos - (py! - cy) * sin,
+        y: cy + (px! - cx) * sin + (py! - cy) * cos,
+      }))
+      box = { x0: Math.min(...corners.map(p => p.x)), y0: Math.min(...corners.map(p => p.y)), x1: Math.max(...corners.map(p => p.x)), y1: Math.max(...corners.map(p => p.y)) }
+    }
+    push('rect', r.index!, box.x0, box.y0, box.x1, box.y1)
+  }
   for (const e of svg.matchAll(/<ellipse\b[^>]*?cx="([\d.e+-]+)"[^>]*?cy="([\d.e+-]+)"[^>]*?rx="([\d.e+-]+)"[^>]*?ry="([\d.e+-]+)"[^>]*>/g))
     push('ellipse', e.index!, num(e[1]) - num(e[3]), num(e[2]) - num(e[4]), num(e[1]) + num(e[3]), num(e[2]) + num(e[4]))
   for (const c of svg.matchAll(/<circle\b[^>]*?cx="([\d.e+-]+)"[^>]*?cy="([\d.e+-]+)"[^>]*?r="([\d.e+-]+)"[^>]*>/g))

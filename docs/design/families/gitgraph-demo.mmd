@@ -1,0 +1,26 @@
+---
+title: Release train with backport
+config:
+  gitGraph:
+    mainBranchName: main
+    mainBranchOrder: 0
+    showBranches: true
+    showCommitLabel: true
+    rotateCommitLabel: true
+---
+gitGraph LR:
+  accTitle: Release history with feature merge and backport
+  accDescr: Develop and release branches diverge, main merges develop, and release cherry-picks the merge
+  commit id:"ROOT" tag:"v1.0.0" msg:"Foundation"
+  branch develop order:2
+  commit id:"API" type:HIGHLIGHT tag:"beta" msg:"Build API"
+  branch release order:3
+  commit id:"RC" type:REVERSE tag:"rc.1" msg:"Cut release candidate"
+  checkout develop
+  commit id:"UI" msg:"Finish interface"
+  checkout main
+  commit id:"HOTFIX" type:REVERSE msg:"Patch production"
+  merge develop id:"MERGE" tag:"v2.0.0" type:HIGHLIGHT
+  checkout release
+  cherry-pick id:"MERGE" parent:"UI" tag:"backport"
+  commit id:"PATCH" msg:"Verify release"

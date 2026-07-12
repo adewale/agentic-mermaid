@@ -17,8 +17,12 @@ export interface ClassDiagram {
   direction?: Direction
   /** All class definitions */
   classes: ClassNode[]
+  /** Mermaid classDef paint declarations. */
+  classDefs: Map<string, Record<string, string>>
   /** Relationships between classes */
   relationships: ClassRelationship[]
+  /** UML notes, optionally anchored to one class. */
+  notes: ClassNote[]
   /** Top-level namespace groupings (each may nest children) */
   namespaces: ClassNamespace[]
 }
@@ -35,6 +39,12 @@ export interface ClassNode {
   attributes: ClassMember[]
   /** Class methods (functions) */
   methods: ClassMember[]
+  /** Assigned classDef name (`A:::hot`, `class`, or `cssClass`). */
+  className?: string
+  /** Inline `style A ...` paint. */
+  inlineStyle?: Record<string, string>
+  /** Safe inert link metadata; callbacks are never executable. */
+  href?: string
 }
 
 export interface ClassMember {
@@ -55,6 +65,11 @@ export interface ClassMember {
 }
 
 /** Relationship types following UML conventions */
+export interface ClassNote {
+  text: string
+  for?: string
+}
+
 export type RelationshipType =
   | 'inheritance'   // A <|-- B   (solid line, hollow triangle)
   | 'composition'   // A *-- B    (solid line, filled diamond)
@@ -62,6 +77,7 @@ export type RelationshipType =
   | 'association'   // A --> B    (solid line, open arrow)
   | 'dependency'    // A ..> B    (dashed line, open arrow)
   | 'realization'   // A ..|> B   (dashed line, hollow triangle)
+  | 'lollipop'      // Interface ()-- Class
 
 export interface ClassRelationship {
   from: string
@@ -73,7 +89,10 @@ export interface ClassRelationship {
    *   - Prefix markers like `<|--`, `*--`, `o--` → 'from' (marker on left/from side)
    *   - Suffix markers like `..|>`, `-->`, `..>`, `--*`, `--o` → 'to' (marker on right/to side)
    */
-  markerAt: 'from' | 'to'
+  markerAt: 'from' | 'to' | 'both'
+  /** Exact endpoint marker types when a two-way relation uses different ends. */
+  fromType?: RelationshipType
+  toType?: RelationshipType
   /** Label on the relationship line */
   label?: string
   /** Cardinality at the "from" end (e.g., "1", "*", "0..1") */
@@ -109,6 +128,7 @@ export interface PositionedClassDiagram extends PositionedDiagram {
   accessibilityDescription?: string
   classes: PositionedClassNode[]
   relationships: PositionedClassRelationship[]
+  notes: PositionedClassNote[]
   /** Namespace boxes, flattened parent-first, in absolute coordinates. */
   namespaces: PositionedClassNamespace[]
 }
@@ -149,6 +169,22 @@ export interface PositionedClassNode {
   attrHeight: number
   /** Height of the methods section */
   methodHeight: number
+  className?: string
+  inlineStyle?: Record<string, string>
+  href?: string
+}
+
+export interface PositionedClassNote {
+  text: string
+  for?: string
+  x: number
+  y: number
+  width: number
+  height: number
+  targetX?: number
+  targetY?: number
+  noteX?: number
+  noteY?: number
 }
 
 export interface PositionedClassRelationship {
@@ -156,7 +192,9 @@ export interface PositionedClassRelationship {
   to: string
   type: RelationshipType
   /** Which end of the line has the UML marker — propagated from ClassRelationship */
-  markerAt: 'from' | 'to'
+  markerAt: 'from' | 'to' | 'both'
+  fromType?: RelationshipType
+  toType?: RelationshipType
   label?: string
   fromCardinality?: string
   toCardinality?: string
@@ -164,4 +202,7 @@ export interface PositionedClassRelationship {
   points: Array<{ x: number; y: number }>
   /** Dagre-computed label center position (avoids overlaps between nearby edges) */
   labelPosition?: { x: number; y: number }
+  /** Collision-separated endpoint text positions, computed by layout. */
+  fromCardinalityPosition?: { x: number; y: number }
+  toCardinalityPosition?: { x: number; y: number }
 }

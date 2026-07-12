@@ -1,0 +1,134 @@
+{
+  "schemaVersion": 1,
+  "mermaidVersion": "11.16.0",
+  "description": "One representative authored example per supported family, copied from the equivalent official Mermaid syntax document. The first twelve are pinned to eval/mermaid-docs-corpus; Mindmap and GitGraph are pinned directly because that corpus predates their enrollment.",
+  "cases": [
+    {
+      "family": "flowchart",
+      "title": "Decision flow",
+      "officialDocs": "https://mermaid.js.org/syntax/flowchart.html",
+      "origin": "syntax/flowchart.md",
+      "index": 90,
+      "source": "flowchart TD\n    A[Start] --> B{Is it?}\n    B -->|Yes| C[OK]\n    C --> D[Rethink]\n    D --> B\n    B ---->|No| E[End]",
+      "sourceSha256": "dece7fdc70e8be99c81d26e07c204c5c6136dafe39f99443bffbabeb20785f51"
+    },
+    {
+      "family": "state",
+      "title": "Fork and join",
+      "officialDocs": "https://mermaid.js.org/syntax/stateDiagram.html",
+      "origin": "syntax/stateDiagram.md",
+      "index": 12,
+      "source": "stateDiagram-v2\n    state fork_state <<fork>>\n      [*] --> fork_state\n      fork_state --> State2\n      fork_state --> State3\n\n      state join_state <<join>>\n      State2 --> join_state\n      State3 --> join_state\n      join_state --> State4\n      State4 --> [*]",
+      "sourceSha256": "27b58983c5c1c16e3d462be1d8e099736c74185f31de165f6251778e02be76a3"
+    },
+    {
+      "family": "sequence",
+      "title": "Alternative interaction",
+      "officialDocs": "https://mermaid.js.org/syntax/sequenceDiagram.html",
+      "origin": "syntax/sequenceDiagram.md",
+      "index": 24,
+      "source": "sequenceDiagram\n    Alice->>Bob: Hello Bob, how are you?\n    alt is sick\n        Bob->>Alice: Not so good :(\n    else is well\n        Bob->>Alice: Feeling fresh like a daisy\n    end\n    opt Extra response\n        Bob->>Alice: Thanks for asking\n    end",
+      "sourceSha256": "48b01399584a5f52e0c299720dc2399ab3c28f3f96f0fa48e60c949cff57d83c"
+    },
+    {
+      "family": "timeline",
+      "title": "Industrial revolutions",
+      "officialDocs": "https://mermaid.js.org/syntax/timeline.html",
+      "origin": "syntax/timeline.md",
+      "index": 2,
+      "source": "timeline\n    title Timeline of Industrial Revolution\n    section 17th-20th century\n        Industry 1.0 : Machinery, Water power, Steam <br>power\n        Industry 2.0 : Electricity, Internal combustion engine, Mass production\n        Industry 3.0 : Electronics, Computers, Automation\n    section 21st century\n        Industry 4.0 : Internet, Robotics, Internet of Things\n        Industry 5.0 : Artificial intelligence, Big data, 3D printing",
+      "sourceSha256": "e5332cb0ddf7860b91682727daead6c026fce53665628dba20abe409c9ec7132"
+    },
+    {
+      "family": "class",
+      "title": "Relationship types",
+      "officialDocs": "https://mermaid.js.org/syntax/classDiagram.html",
+      "origin": "syntax/classDiagram.md",
+      "index": 10,
+      "source": "classDiagram\nclassA --|> classB : Inheritance\nclassC --* classD : Composition\nclassE --o classF : Aggregation\nclassG --> classH : Association\nclassI -- classJ : Link(Solid)\nclassK ..> classL : Dependency\nclassM ..|> classN : Realization\nclassO .. classP : Link(Dashed)",
+      "sourceSha256": "b0d1430bd166c6be10fde385cb9f8bcfffb74005614c2a7b648314aefd72382f"
+    },
+    {
+      "family": "er",
+      "title": "Order relationships",
+      "officialDocs": "https://mermaid.js.org/syntax/entityRelationshipDiagram.html",
+      "origin": "syntax/entityRelationshipDiagram.md",
+      "index": 0,
+      "source": "---\ntitle: Order example\n---\nerDiagram\n    CUSTOMER ||--o{ ORDER : places\n    ORDER ||--|{ LINE-ITEM : contains\n    CUSTOMER }|..|{ DELIVERY-ADDRESS : uses",
+      "sourceSha256": "b167fccc0798ff01d73e697a293c2dad9e2d78eef7cf7b3a0df48c83c6f91fc1"
+    },
+    {
+      "family": "journey",
+      "title": "Working day",
+      "officialDocs": "https://mermaid.js.org/syntax/userJourney.html",
+      "origin": "syntax/userJourney.md",
+      "index": 0,
+      "source": "journey\n    title My working day\n    section Go to work\n      Make tea: 5: Me\n      Go upstairs: 3: Me\n      Do work: 1: Me, Cat\n    section Go home\n      Go downstairs: 5: Me\n      Sit down: 5: Me",
+      "sourceSha256": "8addc31e2a3b63dfa747b2f5b97988d0d7268a2fdda6ebf5795c66fa61b01792"
+    },
+    {
+      "family": "architecture",
+      "title": "Cloud services",
+      "officialDocs": "https://mermaid.js.org/syntax/architecture.html",
+      "origin": "syntax/architecture.md",
+      "index": 0,
+      "source": "architecture-beta\n    group api(cloud)[API]\n\n    service db(database)[Database] in api\n    service disk1(disk)[Storage] in api\n    service disk2(disk)[Storage] in api\n    service server(server)[Server] in api\n\n    db:L -- R:server\n    disk1:T -- B:server\n    disk2:T -- B:db",
+      "sourceSha256": "3ac9c372e33de93332d317b981309c8947430ff0fe02243d6e743c8751aff090"
+    },
+    {
+      "family": "xychart",
+      "title": "Monthly sales",
+      "officialDocs": "https://mermaid.js.org/syntax/xychart.html",
+      "origin": "syntax/xyChart.md",
+      "index": 0,
+      "source": "xychart\n    title \"Sales Revenue\"\n    x-axis [jan, feb, mar, apr, may, jun, jul, aug, sep, oct, nov, dec]\n    y-axis \"Revenue (in $)\" 4000 --> 11000\n    bar [5000, 6000, 7500, 8200, 9500, 10500, 11000, 10200, 9200, 8500, 7000, 6000]\n    line [5000, 6000, 7500, 8200, 9500, 10500, 11000, 10200, 9200, 8500, 7000, 6000]",
+      "sourceSha256": "e1f2fb9b78166627c631f8620fa929ec5eff7222c39cac56ce8fa499c6a98e6f"
+    },
+    {
+      "family": "pie",
+      "title": "Adopted pets",
+      "officialDocs": "https://mermaid.js.org/syntax/pie.html",
+      "origin": "syntax/pie.md",
+      "index": 0,
+      "source": "pie title Pets adopted by volunteers\n    \"Dogs\" : 386\n    \"Cats\" : 85\n    \"Rats\" : 15",
+      "sourceSha256": "6e9b2060d6d59e1b4eec6077d963d1a698666b9a6ca4a1e43e7eaf4877a5497f"
+    },
+    {
+      "family": "quadrant",
+      "title": "Campaign portfolio",
+      "officialDocs": "https://mermaid.js.org/syntax/quadrantChart.html",
+      "origin": "syntax/quadrantChart.md",
+      "index": 0,
+      "source": "quadrantChart\n    title Reach and engagement of campaigns\n    x-axis Low Reach --> High Reach\n    y-axis Low Engagement --> High Engagement\n    quadrant-1 We should expand\n    quadrant-2 Need to promote\n    quadrant-3 Re-evaluate\n    quadrant-4 May be improved\n    Campaign A: [0.3, 0.6]\n    Campaign B: [0.45, 0.23]\n    Campaign C: [0.57, 0.69]\n    Campaign D: [0.78, 0.34]\n    Campaign E: [0.40, 0.34]\n    Campaign F: [0.35, 0.78]",
+      "sourceSha256": "ab68741da71fae260c045fd990343c00fdd656747ad9624dda13e1872446c4f2"
+    },
+    {
+      "family": "gantt",
+      "title": "Project schedule",
+      "officialDocs": "https://mermaid.js.org/syntax/gantt.html",
+      "origin": "syntax/gantt.md",
+      "index": 0,
+      "source": "gantt\n    title A Gantt Diagram\n    dateFormat YYYY-MM-DD\n    section Section\n        A task          :a1, 2014-01-01, 30d\n        Another task    :after a1, 20d\n    section Another\n        Task in Another :2014-01-12, 12d\n        another task    :24d",
+      "sourceSha256": "f955dfcd90a5f5108a3d8c895adf067c131574df1e1c8554c2bd3b7a61020d01"
+    },
+    {
+      "family": "mindmap",
+      "title": "Mind map origins and uses",
+      "officialDocs": "https://mermaid.js.org/syntax/mindmap.html",
+      "origin": "syntax/mindmap.md",
+      "index": 0,
+      "source": "mindmap\n  root((mindmap))\n    Origins\n      Long history\n      ::icon(fa fa-book)\n      Popularisation\n        British popular psychology author Tony Buzan\n    Research\n      On effectiveness<br/>and features\n      On Automatic creation\n        Uses\n            Creative techniques\n            Strategic planning\n            Argument mapping\n    Tools\n      Pen and paper\n      Mermaid",
+      "sourceSha256": "77cde2c056e8ab1d81bb3480cb86ef805bf3111d890d02b8270b41cb1ad25a64"
+    },
+    {
+      "family": "gitgraph",
+      "title": "Feature branch workflow",
+      "officialDocs": "https://mermaid.js.org/syntax/gitgraph.html",
+      "origin": "syntax/gitgraph.md",
+      "index": 0,
+      "source": "---\ntitle: Example Git diagram\n---\ngitGraph\n   commit\n   commit\n   branch develop\n   checkout develop\n   commit\n   commit\n   checkout main\n   merge develop\n   commit\n   commit",
+      "sourceSha256": "145dfa31dac875c2aacfd7b2b1d435f1653ccbdd944bde56a646680f7d12813b"
+    }
+  ],
+  "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc"
+}

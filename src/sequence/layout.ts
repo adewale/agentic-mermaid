@@ -30,7 +30,7 @@ const SEQ = {
   /** Horizontal padding inside actor boxes */
   actorPadX: 16,
   /** Vertical space between actor boxes and first message */
-  headerGap: 20,
+  headerGap: 26,
   /** Vertical space per message row */
   messageRowHeight: 40,
   /** Extra vertical space for self-messages (they loop back) */
@@ -150,6 +150,7 @@ export function layoutSequenceDiagram(
     id: a.id,
     label: a.label,
     type: a.type,
+    ...(a.links ? { links: { ...a.links } } : {}),
     x: actorCenterX[i]!,
     y: actorY,
     width: actorWidths[i]!,
@@ -307,6 +308,10 @@ export function layoutSequenceDiagram(
       label: displayMessageLabel(msg), // autonumber prefix baked in ("1. label")
       lineStyle: msg.lineStyle,
       arrowHead: msg.arrowHead,
+      startHead: msg.startHead ?? 'none',
+      endHead: msg.endHead ?? (msg.arrowHead === 'filled' ? 'filled' : 'open'),
+      centralStart: msg.centralStart ?? false,
+      centralEnd: msg.centralEnd ?? false,
       x1, x2,
       y: messageY,
       isSelf,
@@ -337,7 +342,9 @@ export function layoutSequenceDiagram(
       // Self-message loops extend selfMessageHeight below msg.y;
       // normal arrows sit at msg.y with no extension below.
       const selfLoopExtra = isSelf ? selfMessageHeight : 0
-      let noteY = messages[msgIdx]!.y + selfLoopExtra + 8
+      // Keep the note frame clear of a preceding multiline message-label pill;
+      // the pill extends below the arrow even though its text baseline is above.
+      let noteY = messages[msgIdx]!.y + selfLoopExtra + 14
 
       for (const note of notesForMsg) {
         const positioned = positionNote(note, noteY)

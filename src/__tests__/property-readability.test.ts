@@ -1,28 +1,18 @@
 // Readability mechanism + fuzzing.
 //
-// "Readable" = every text element can actually be read: not occluded by foreign
-// geometry, not clipped off the canvas. auditReadability (src/agent/readability-
-// audit.ts) checks this on the public RenderedLayout — an edge-label pill over a
-// non-incident node or another edge label, a labelled node's box overlapped by
-// another node (node-link families), or anything past the bounds. It is the gate
-// the before/after fan-out screenshots would have failed (the "yes" label
-// clipped to "es" behind a node box; auditReadability flags exactly that — see
-// the unit test below).
+// This gate covers the text geometry represented by public RenderedLayout:
+// edge-label pills plus labelled boxes in node-link families. It catches a pill
+// over a foreign node/label, overlapping labelled boxes, and clipping. Family-
+// specific text roles (axes, legends, notes, headers) retain their own explicit
+// layout/containment suites; this file does not claim to replace those gates.
 //
-// The gate is a single GLOBAL RATCHET over the real mermaid-docs corpus PLUS a
-// deterministic fuzz sample of every family (vary entity count + relabel + append
-// a primary/relation, fixed seed). One number, no per-family special-casing, and
-// a regression ceiling whose target is 0: any new unreadable diagram — in any
-// family, including a new one that joins the registry — pushes the total over the
-// ceiling and fails CI. (Same shape as the duplicate-edge crossing ratchet; see
-// docs/contributing/visual-review-evidence.md.)
+// The single zero ratchet runs over the real Mermaid docs corpus and a
+// deterministic fuzz sample of every family. Parse failures are hard failures,
+// never silent skips that could make the score improve when support regresses.
 //
-// Today's baseline is two real, separately-fixable classes the mechanism surfaced:
-//   • 3 — sequence message labels grazing a participant box (sequence/15,/21,/22).
-//   • 9 — ER parallel-relationship label overlaps: a duplicate relationship
-//     between two entities, which the family-layout ER renderer does not yet
-//     separate into lanes (the same class fixed for flowchart edges elsewhere).
-// Lower the ceiling when either is fixed.
+// Closing The Gap removes the final two classes the mechanism surfaced:
+// sequence message-label/header and note clearance, plus ER duplicate/group
+// relationship label lanes. The zero ceiling is now a hard no-regression gate.
 
 import { describe, test, expect } from 'bun:test'
 import fc from 'fast-check'
@@ -35,7 +25,7 @@ import { toFinite } from '../agent/types.ts'
 import type { RenderedLayout } from '../agent/types.ts'
 
 const SEED = 0x0decaf
-const RATCHET = 12
+const RATCHET = 0
 
 const tagArb = fc.integer({ min: 0, max: 1_000_000 }).map(n => `q${n.toString(36)}`)
 function srcArb(fam: typeof METAMORPHIC_FAMILIES[keyof typeof METAMORPHIC_FAMILIES]) {
@@ -85,13 +75,14 @@ describe('auditReadability (the mechanism)', () => {
   })
 })
 
-describe('readability: global ratchet (corpus + fuzzed families, target 0)', () => {
+describe('node-link and edge-label readability ratchet (corpus + fuzzed families, target 0)', () => {
   test('total occluded/clipped labels does not exceed the ceiling', () => {
     const offenders: string[] = []
     let total = 0
     const tally = (id: string, src: string) => {
       const p = parseMermaid(src)
-      if (!p.ok) return
+      expect(p.ok, `${id}: source must parse; failed parsing cannot improve readability`).toBe(true)
+      if (!p.ok) throw new Error(`${id}: parse failed`)
       const n = auditReadability(layoutMermaid(p.value)).length
       if (n > 0) { total += n; offenders.push(`${id}×${n}`) }
     }
