@@ -11,6 +11,7 @@ import { trackedExamples } from '../../eval/heuristic-tracker/catalog.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const MATRIX_PATH = join(REPO, 'docs/contributing/diagram-family-citizenship.matrix.json')
+const FIDELITY_AUDIT_PATH = join(REPO, 'docs/design/mermaid-family-fidelity-audit.md')
 
 const EXPECTED_SURFACES = [
   'registryDiscovery',
@@ -29,7 +30,9 @@ const EXPECTED_SURFACES = [
   'evalFixture',
   'upstreamHarvest',
   'divergenceLedger',
+  'mermaidSyntaxParity',
   'domainProperties',
+  'familyVisualMetaphor',
   'goldensEvidence',
   'generatedSite',
   'distributionPackage',
@@ -200,7 +203,16 @@ const REQUIRED_FAMILY_EVIDENCE = {
 } satisfies Record<BuiltinFamilyId, Partial<Record<SurfaceId, readonly string[]>>>
 
 type Cell = { status: 'satisfied' | 'exception'; evidence: string[]; tracked?: string[]; note?: string }
-type FamilyRow = { label: string; auditLevel: string; role: string; workedExample: boolean; cells: Record<SurfaceId, Cell> }
+type FamilyFidelity = {
+  target: string
+  officialDocs: string
+  wikipedia: string
+  signature: string
+  syntaxEvidence: string[]
+  visualArtifact: string
+  visualEvidence: string[]
+}
+type FamilyRow = { label: string; auditLevel: string; role: string; workedExample: boolean; fidelity: FamilyFidelity; cells: Record<SurfaceId, Cell> }
 type Matrix = {
   schemaVersion: number
   updated: string
@@ -221,7 +233,7 @@ function repoPathExists(ref: string): boolean {
 describe('diagram-family citizenship ratchet (issue #41)', () => {
   test('matrix schema and family rows cover the built-in registry exactly', () => {
     const matrix = loadMatrix()
-    expect(matrix.schemaVersion).toBe(1)
+    expect(matrix.schemaVersion).toBe(2)
     expect(matrix.statusValues).toEqual(['satisfied', 'exception'])
     expect(matrix.surfaces.map(s => s.id)).toEqual([...EXPECTED_SURFACES])
     for (const surface of matrix.surfaces) expect(surface.description.length).toBeGreaterThan(20)
@@ -344,6 +356,54 @@ describe('diagram-family citizenship ratchet (issue #41)', () => {
     }
   })
 
+  test('every family proves Mermaid syntax parity and its recognizable domain metaphor', () => {
+    const matrix = loadMatrix()
+    const audit = readFileSync(FIDELITY_AUDIT_PATH, 'utf8')
+    expect(audit).toContain('Parser acceptance alone does not count')
+    expect(audit).toContain('Visual-metaphor complete')
+    expect(audit).toContain('Wikipedia/domain reference')
+
+    for (const family of BUILTIN_FAMILY_METADATA) {
+      const row = matrix.families[family.id]!
+      const fidelity = row.fidelity
+      expect({ family: family.id, auditLevel: row.auditLevel }).toEqual({
+        family: family.id,
+        auditLevel: expect.stringMatching(/^(audited|worked-example)$/),
+      })
+      expect({ family: family.id, target: fidelity.target }).toEqual({ family: family.id, target: 'Mermaid 11.16.0' })
+      expect(fidelity.officialDocs).toMatch(/^https:\/\/mermaid\.js\.org\/syntax\/.+\.html$/)
+      expect(fidelity.wikipedia).toMatch(/^https:\/\/en\.wikipedia\.org\/wiki\/.+/)
+      expect(fidelity.signature.length, `${family.id}: visual signature`).toBeGreaterThan(40)
+      expect(fidelity.syntaxEvidence.length, `${family.id}: syntax evidence`).toBeGreaterThanOrEqual(3)
+      expect(fidelity.syntaxEvidence).toContain('docs/design/mermaid-family-fidelity-audit.md')
+      expect(fidelity.syntaxEvidence).toContain('src/__tests__/closing-the-gap.test.ts')
+      expect(fidelity.syntaxEvidence.some(path => path.startsWith('eval/')), `${family.id}: upstream evidence`).toBe(true)
+      expect(fidelity.visualEvidence.length, `${family.id}: visual evidence`).toBeGreaterThanOrEqual(2)
+      expect(fidelity.visualArtifact).toMatch(/\.(?:png|svg)$/)
+      for (const evidence of [...fidelity.syntaxEvidence, fidelity.visualArtifact, ...fidelity.visualEvidence]) {
+        expect(repoPathExists(evidence), `${family.id}: ${evidence}`).toBe(true)
+      }
+      expect(row.cells.mermaidSyntaxParity.status).toBe('satisfied')
+      expect(row.cells.mermaidSyntaxParity.evidence).toEqual(fidelity.syntaxEvidence)
+      expect(row.cells.familyVisualMetaphor.status).toBe('satisfied')
+      expect(row.cells.familyVisualMetaphor.evidence).toEqual(expect.arrayContaining([
+        'docs/design/mermaid-family-fidelity-audit.md', fidelity.visualArtifact,
+      ]))
+      expect(audit).toContain(`| ${family.label} |`)
+      expect(audit).toContain(fidelity.officialDocs)
+      expect(audit).toContain(fidelity.wikipedia)
+      expect(audit).toContain(`./families/${fidelity.visualArtifact.split('/').at(-1)}`)
+    }
+
+    const mindmap = matrix.families.mindmap!.fidelity.signature.toLowerCase()
+    expect(mindmap).toContain('central')
+    expect(mindmap).toContain('bilateral')
+    const gantt = matrix.families.gantt!.fidelity.signature.toLowerCase()
+    expect(gantt).toContain('time-scaled')
+    const sequence = matrix.families.sequence!.fidelity.signature.toLowerCase()
+    expect(sequence).toContain('lifelines')
+  })
+
   test('satisfied mutation-lane evidence names an executable Stryker lane that mutates the family path', () => {
     const matrix = loadMatrix()
     for (const family of BUILTIN_FAMILY_METADATA) {
@@ -436,6 +496,11 @@ describe('diagram-family citizenship ratchet (issue #41)', () => {
     expect(citizenship).toContain('Non-Gantt audit: XY chart')
     expect(citizenship).toContain('diagram-family-citizenship.matrix.json')
     expect(adding).toContain('diagram-family citizenship matrix')
+    expect(adding).toContain('Wikipedia/domain reference')
+    expect(adding).toContain('Visual-metaphor complete')
+    expect(citizenship).toContain('mermaidSyntaxParity')
+    expect(citizenship).toContain('familyVisualMetaphor')
+    expect(citizenship).toContain('mermaid-family-fidelity-audit.md')
     expect(docsIndex).toContain('diagram-family-citizenship.md')
     expect(todo).toContain('BUILD-22 — Diagram-family citizenship gap backfill')
     expect(todo).toContain('docs-corpus citizenship backfill')

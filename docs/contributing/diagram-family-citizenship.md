@@ -2,19 +2,21 @@
 
 Issue: #41. Status: enforced checklist + checked matrix.
 
-A diagram family is a **good citizen** when it is integrated into every runtime, documentation, agent, editor, eval, and distribution surface that teaches users or agents what Agentic Mermaid supports. Rendering is not enough: a family must be discoverable, safely editable when its modeled body narrows, verifiable before render, represented in examples/evals, and either backed by evidence or tracked as an explicit exception.
+A diagram family is a **good citizen** when it is faithful before it is ubiquitous: it accounts for Mermaid's documented stable syntax, preserves the recognizable domain metaphor, and is then integrated into every runtime, documentation, agent, editor, eval, and distribution surface that teaches users or agents what Agentic Mermaid supports. Rendering is not enough: a family must be discoverable, safely editable, verifiable, represented in examples/evals, syntax-audited, and visually recognizable.
 
 ## Source of truth
 
 `BUILTIN_FAMILY_METADATA` in `src/agent/families.ts` is the canonical shipped-family registry. It records the family id, label, Mermaid headers, typed narrower, live-editor example id/type, and editor glyph. The registry has compile-time coverage against `DiagramKind`; tests then project it into CLI capabilities, MCP/Code Mode, docs, editor examples, eval fixtures, package keywords, and generated discovery docs.
 
-The checked citizenship matrix lives at [`diagram-family-citizenship.matrix.json`](./diagram-family-citizenship.matrix.json). It is intentionally separate from the registry: the registry says “this family ships”; the matrix says “these citizenship surfaces are satisfied, and these remaining gaps are tracked.”
+The checked citizenship matrix lives at [`diagram-family-citizenship.matrix.json`](./diagram-family-citizenship.matrix.json). It is intentionally separate from the registry: the registry says “this family ships”; the matrix says “these citizenship surfaces are satisfied, these Mermaid/Wikipedia fidelity claims are evidenced, and these remaining gaps are tracked.” The human-readable 14-family audit is [`mermaid-family-fidelity-audit.md`](../design/mermaid-family-fidelity-audit.md).
 
 ## Semantic correctness vs. system citizenship
 
 Keep these distinct in reviews:
 
 - **Semantic correctness** asks whether a parser/IR/serializer/verifier/renderer preserves the family’s own Mermaid meaning. Examples: Gantt schedule resolution, flowchart route certificates, sequence segment preservation, pie percentage invariants, XY axis/domain laws.
+- **Syntax parity** asks whether every stable construct in the pinned Mermaid documentation has an executable semantic outcome. Parse-only, source-preserved-only, flattened, warned, or ignored syntax is not native support.
+- **Visual metaphor** asks whether the rendered structure remains recognizably the domain diagram described by Mermaid and a Wikipedia/domain reference. A Mindmap must have a central idea and radiating hierarchy; generic boxes connected by lines do not satisfy that contract.
 - **System citizenship** asks whether every supported entry point points to the same typed path. Examples: `am capabilities`, `llms.txt`, `am init-agent`, MCP initialize guidance, SDK declarations, Code Mode sandbox narrowers, editor examples/glyphs, eval fixtures, generated site samples, package exports, and docs tables.
 
 A new family can be semantically good and still fail citizenship if an agent discovering the package through a different surface cannot find the same parse → narrow → mutate → verify → serialize path.
@@ -41,7 +43,9 @@ The matrix has one cell per family for each surface below. A cell is either `sat
 | `evalFixture` | Shared skill benchmark has at least one fixture-backed case tagged `family:<id>`. |
 | `upstreamHarvest` | Official upstream Mermaid examples/tests are harvested into an executable docs corpus, family bench, or accounted parser/DB bench. |
 | `divergenceLedger` | Known compatibility divergences in harvested upstream examples/tests are executable and cannot rot, or tracked for ledger work. |
+| `mermaidSyntaxParity` | The pinned Mermaid docs inventory is complete; every stable construct is natively semantic or a named, tested security/offline divergence. Parser acceptance alone does not satisfy this cell. |
 | `domainProperties` | Family-specific invariants/properties exist beyond “renders without throwing.” |
+| `familyVisualMetaphor` | Mermaid plus a Wikipedia/domain reference define a hallmark protected by independent geometry/semantic tests and a reviewer-visible artifact. |
 | `goldensEvidence` | Text/SVG/visual evidence exists where reviewer judgment needs artifacts. |
 | `generatedSite` | Site samples/gallery/generated docs include the family or have explicit exceptions. |
 | `distributionPackage` | Package exports/files/consumer init artifacts include the public family surface. |
@@ -77,6 +81,8 @@ When adding or changing a family:
 
 1. Add/update `BUILTIN_FAMILY_METADATA` first.
 2. Add/update parser, renderer, agent body, mutation ops, verify behavior, and examples.
-3. Update the citizenship matrix row in the same PR. Prefer `satisfied` with evidence; use `exception` only with a concrete TODO/issue reference.
-4. Run `bun test src/__tests__/diagram-family-citizenship.test.ts src/__tests__/agent-doc-sync.test.ts src/__tests__/editor-examples.test.ts src/__tests__/cli-capabilities.test.ts` before wider validation.
-5. For any matrix exception introduced by the PR, add a follow-up issue or `TODO.md` entry before merge.
+3. Inventory the pinned Mermaid syntax page and upstream specs. Add every stable construct to executable fixtures; do not count parse-only or opaque preservation as support.
+4. Cite Mermaid and a Wikipedia/domain reference, name the family hallmark, add an independent invariant, and commit a generated screenshot with a captioned PR Visual Evidence row.
+5. Update the citizenship matrix row—including `mermaidSyntaxParity`, `familyVisualMetaphor`, and its `fidelity` record—in the same PR. These two surfaces cannot be deferred for a newly registered family.
+6. Run `bun test src/__tests__/diagram-family-citizenship.test.ts src/__tests__/agent-doc-sync.test.ts src/__tests__/editor-examples.test.ts src/__tests__/cli-capabilities.test.ts` before wider validation.
+7. For any other matrix exception introduced by the PR, add a follow-up issue or `TODO.md` entry before merge.

@@ -8,7 +8,7 @@ This record prevents B18 from treating file presence or an old local run as rele
 
 | Surface | Command | Result |
 |---|---|---|
-| Unit | `bun test src/__tests__/` | 5,812 passed, 2 documented platform skips, 0 failed; 212,028 assertions across 306 files |
+| Unit | `bun test src/__tests__/` | 5,813 passed, 2 documented platform skips, 0 failed; 212,590 assertions across 306 files |
 | Browser + distribution E2E | `bun run test:browser` | 64 passed, 0 failed across 7 files; includes packed-package library, Node CLI, stdio MCP, Apache license delivery, single binary, and browser screenshots |
 | Build | `bun run build` | ESM and declaration bundles built successfully |
 | Types | `bunx tsc --noEmit` | passed |
@@ -18,7 +18,7 @@ This record prevents B18 from treating file presence or an old local run as rele
 | Terminal goldens | `bun run goldens:ascii:check` | 153 ASCII/Unicode fixtures in sync |
 | Characterization | `bun run characterization:check` | 16 general contact examples, 14 family rows, and 15 visual artifacts in sync |
 | Layout tracker | `bun run track` | 93 examples, 0 hard violations, 0 improvements, 0 regressions |
-| Packed contents | `npm pack --dry-run --json` | 519 files; Mindmap/GitGraph sources, `THIRD_PARTY_NOTICES.md`, and `LICENSES/Apache-2.0.txt` present (volatile compressed/unpacked byte counts intentionally omitted) |
+| Packed contents | `npm pack --dry-run --json` | 520 files; Mindmap/GitGraph sources, `THIRD_PARTY_NOTICES.md`, and `LICENSES/Apache-2.0.txt` present (volatile compressed/unpacked byte counts intentionally omitted) |
 | Upstream accounting | `bun test src/__tests__/mermaid-upstream-suite-bench.test.ts src/__tests__/mindmap-gitgraph-upstream-oracle.test.ts` | 1,265 blocks considered; 746 imported, 519 excluded/accounted, 0 deferred; all 26 Mindmap and 69 GitGraph blocks classified |
 | Diff hygiene | `git diff --check` and `git diff --cached --check` | passed |
 
@@ -77,7 +77,7 @@ Their JSON reports remain gitignored and have no retained CI URL, so these figur
 
 After the final source and generated-input refresh, five independent read-only reviewer passes returned **ACCEPT** with no remaining Blocker/P1/P2 findings. Their separate angles covered: core parser/model/serializer closure; State/Timeline/Journey/Architecture signature fidelity; cross-surface and package delivery; security/style/external-reference handling; and all-family configuration honesty. The last review found one misleading Gantt `tickInterval` example (`2weeks`); it was corrected to accepted Mermaid syntax (`2week`), guarded by an accept/reject regression test, and the same reviewer accepted the focused delta.
 
-The final clean rerun produced the matrix above, including 5,812 unit passes, 64 browser/distribution E2E passes, 21/21 causal revert probes, synchronized website inputs, 519 packed files, and zero tracker regressions. The upstream refresh command itself remains environment-dependent and was not rerun because the expected sibling Mermaid checkout was absent; pinned upstream accounting and oracle tests ran inside the unit suite and passed.
+The final clean rerun produced the matrix above, including 5,813 unit passes, 64 browser/distribution E2E passes, 21/21 causal revert probes, synchronized website inputs, 520 packed files, and zero tracker regressions. The citizenship ratchet now additionally requires `mermaidSyntaxParity` and `familyVisualMetaphor` evidence for every registered family, backed by the Mermaid/Wikipedia fidelity audit and captioned generated artifacts. The upstream refresh command itself remains environment-dependent and was not rerun because the expected sibling Mermaid checkout was absent; pinned upstream accounting and oracle tests ran inside the unit suite and passed.
 
 ## B18 retained evidence
 

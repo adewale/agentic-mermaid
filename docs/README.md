@@ -52,6 +52,7 @@ The design docs split into two tiers — **system** (how the engine works, cross
 | [`design/system/route-contracts.md`](./design/system/route-contracts.md) | Route contracts: edge classification, direct-lane proofs, certifying straightener (issue #25). |
 | [`design/system/layout-rubric.md`](./design/system/layout-rubric.md) | Deterministic layout-quality rubric: metrics, CI gates, and property oracles. |
 | [`design/system/source-preservation-ladder.md`](./design/system/source-preservation-ladder.md) | The structured\|opaque family-adoption contract (levels L0–L4). |
+| [`design/mermaid-family-fidelity-audit.md`](./design/mermaid-family-fidelity-audit.md) | Mermaid 11.16 syntax accounting and Mermaid/Wikipedia visual-metaphor audit for all 14 families. |
 | [`design/system/ugly-layouts.md`](./design/system/ugly-layouts.md) | Ugly-layout detector: catalogued failure shapes and heuristics. |
 
 ### Per-family design notes

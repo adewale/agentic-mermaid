@@ -11,7 +11,7 @@ Mermaid already documents the broad shape of a new diagram contribution:
 
 Their guidance is useful for structure: new diagrams usually need parsing, rendering, styling, registration, examples, docs, and tests. They also call out cross-cutting concerns such as directives, accessibility, theming, and comments.
 
-That is necessary, but not sufficient for this repo. Agentic Mermaid also needs Mermaid syntax compatibility and output quality that matches the rest of the library.
+That is necessary, but not sufficient for this repo. Agentic Mermaid also needs complete accounting of Mermaid's documented stable syntax and output that preserves the diagram family's recognizable domain metaphor. Registration is blocked until both contracts are evidenced.
 
 ## 1. Confirm The Target
 
@@ -20,7 +20,9 @@ That is necessary, but not sufficient for this repo. Agentic Mermaid also needs 
 - Add the family to the type-checked built-in family metadata manifest in `src/agent/families.ts` first. `BUILTIN_FAMILY_METADATA` is the reviewer-facing list for shipped families and has a compile-time coverage assertion against `DiagramKind`.
 - Update the [diagram-family citizenship matrix](./diagram-family-citizenship.md) in the same PR: every citizenship surface must be marked `satisfied` with evidence or `exception` with a tracked follow-up.
 - Prefer Mermaid's stable header if Mermaid supports both stable and beta forms.
-- Write down any known Mermaid features you are intentionally not implementing yet. Those gaps must be documented in the PR before merge.
+- Pin the Mermaid version and syntax page being implemented. Inventory every stable documented construct before coding; parser acceptance or source preservation alone does not count as rendered support.
+- Choose a Wikipedia/domain reference for the diagram form and write one sentence naming its recognizable visual hallmark (for example, a Mindmap has a central idea with radiating hierarchy).
+- Record both in [`mermaid-family-fidelity-audit.md`](../design/mermaid-family-fidelity-audit.md) and the matrix's `mermaidSyntaxParity` / `familyVisualMetaphor` cells. A missing stable Mermaid construct blocks registration unless it is an unavoidable security/offline divergence with a named diagnostic and executable test.
 
 ## 2. Start From Mermaid's Own Example
 
@@ -29,8 +31,9 @@ Every new diagram PR should include at least one official Mermaid example.
 1. Open the Mermaid syntax page for that diagram type.
 2. Copy a representative example from the Mermaid site, ideally the main example a user is most likely to try first.
 3. Add that exact Mermaid source to this repo's tests.
-4. Render it with Agentic Mermaid and confirm the structure is recognizably similar to Mermaid's published example.
-5. Commit both the example source and the rendered artifact used to verify it.
+4. Render it with official Mermaid and Agentic Mermaid from the same source. Confirm semantic equivalence and the family hallmark; pixel identity is not required.
+5. Commit the example source, official comparison (when reproducible), Agentic artifact, and exact regeneration command.
+6. Put the artifact in the PR's captioned Visual Evidence table with separate **Why** and **What to inspect** text.
 
 For this repo, that usually means:
 
@@ -38,7 +41,7 @@ For this repo, that usually means:
 - a committed golden SVG in `src/__tests__/testdata/svg/` when SVG fidelity matters
 - a screenshot or SVG preview attached to the PR description so reviewers do not have to run the branch to judge the result
 
-If the Mermaid example uses syntax we do not support yet, pick the closest official example we can support now and call out the remaining gap explicitly.
+If an official stable example uses syntax the implementation cannot render faithfully, the family is not ready to register. Do not substitute an easier example. The only exceptions are deliberately inert security/offline behaviors (such as JavaScript callback execution or network image fetching); those must preserve safe semantics, emit a named diagnostic, and have positive/negative tests.
 
 ## 3. Fit Agentic Mermaid's Architecture
 
@@ -62,15 +65,25 @@ Follow these repo standards:
 - Match the repo's visual language: readable labels, balanced padding, clear hierarchy, and outputs that still look good across built-in themes and CSS-variable inputs.
 - If the diagram needs unusual rendering rules, add a short design note like [docs/design/families/xychart.md](../design/families/xychart.md).
 
-## 4. Mermaid Compatibility Checklist
+## 4. Mermaid Syntax And Family-Metaphor Checklist
 
-Before merge, verify that the new diagram:
+Before merge, verify that the new diagram is **syntax-complete** for the pinned Mermaid documentation target:
 
-- accepts Mermaid's documented header and supported syntax variants
-- handles comments, quoted labels, escaping, and multiline labels when they apply
-- respects Mermaid frontmatter or config for that diagram type when the syntax supports it
-- fails clearly for unsupported Mermaid syntax instead of silently mis-rendering it
-- uses Mermaid terminology in parser types and errors where practical
+- every stable construct on the official syntax page appears in an independently reviewed inventory and executable fixture;
+- the documented header, aliases, statement variants, comments, labels, escaping, multiline forms, frontmatter, directives, and family config are modeled with their documented semantic effect;
+- parse → model → serialize → render remains closed; parser acceptance, opaque preservation, flattening, warning, or a non-empty SVG does not count as native support;
+- upstream examples/spec blocks are imported or placed in an executable divergence ledger with pinned source and rationale;
+- unsupported or invalid forms fail loudly rather than silently disappearing.
+
+Before merge, verify that it is **Visual-metaphor complete**:
+
+- Mermaid's rendered example and a Wikipedia/domain reference are both cited;
+- the family's recognizable hallmark is stated in the matrix (central idea for Mindmap, lifelines for Sequence, time-scaled bars for Gantt, and so on);
+- at least one independent semantic/geometry assertion proves that hallmark rather than snapshotting implementation bytes;
+- a representative generated screenshot is committed and captioned in the PR's Visual Evidence table;
+- SVG and terminal output are reviewed separately: surface availability does not prove visual fidelity.
+
+See [`mermaid-family-fidelity-audit.md`](../design/mermaid-family-fidelity-audit.md) for the current 14-family standard.
 
 ## 5. Required Tests
 
@@ -86,7 +99,7 @@ New diagram support should normally include most of these layers:
 - Regression tests for easy-to-break behavior such as ordering, escaping, markers, label normalization, or routing
 - Sample coverage in `scripts/site/samples-data.ts` when the feature should appear on the visual samples page
 - Live editor coverage in `editor/js/examples.js`: add one basic example under the `Supported diagrams` category, add an explicit picker glyph, and let `src/__tests__/editor-examples.test.ts` prove it parses and renders. This is required for every registered built-in family, not just marketing-worthy ones.
-- Citizenship matrix coverage in `docs/contributing/diagram-family-citizenship.matrix.json`, with evidence paths for completed surfaces and tracked exceptions for deferred quality/compatibility work.
+- Citizenship matrix coverage in `docs/contributing/diagram-family-citizenship.matrix.json`, including `mermaidSyntaxParity` and `familyVisualMetaphor` evidence: pinned Mermaid docs/upstream harvest, a Wikipedia/domain reference, a named signature, an independent invariant test, and a committed renderer artifact.
 - README updates for the new supported diagram type and any intentional compatibility gaps
 
 Use the existing naming pattern where possible:
@@ -133,12 +146,13 @@ Typed mutation is part of the definition of done for a new family, not a follow-
 
 A new Mermaid-backed diagram type is ready when:
 
-- Mermaid's official example renders with recognizably similar structure
-- the PR includes the example source and the rendered evidence used to review it
+- every stable construct in the pinned Mermaid syntax documentation is accounted for and rendered with its documented semantics (except named, tested security/offline divergences)
+- Mermaid's official example renders with recognizably similar structure and preserves the Wikipedia/domain visual hallmark
+- the PR includes the example source, official comparison where reproducible, regeneration command, and captioned rendered evidence used to review it
 - parser, integration, and regression coverage exist for the important syntax paths
 - specialized layout, renderer, theme, and ASCII behavior are covered when applicable
 - output quality matches the rest of Agentic Mermaid
 - the agent-native typed mutation surface from section 7 is wired and tested (the default-by-default enforcement test passes)
 - the live editor has a basic working example and explicit glyph for the family
 - the shared skill-eval manifest has at least one fixture-backed case tagged for the family
-- intentional gaps versus Mermaid are documented
+- `mermaidSyntaxParity` and `familyVisualMetaphor` are `satisfied` with real evidence; parse-only, source-preserved-only, flattened, or warned syntax is never described as full support

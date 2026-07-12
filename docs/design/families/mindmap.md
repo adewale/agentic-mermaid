@@ -29,7 +29,7 @@ Regenerate the pinned upstream SVG, terminal text, and comparison sheet with:
 bun run scripts/pr-assets/mindmap-gitgraph-comparison.ts
 ```
 
-**What to inspect:** one semantic root; ordered Discovery/Delivery/Ecosystem branches; every documented shape; multiline Markdown formatting; offline icon-token fallback; nested orthogonal connectors; and the same labels preserved by the 72-cell terminal surface. Pixel identity is not expected because the renderers use different layout and style engines.
+**What to inspect:** one central semantic root; deterministic branches on both sides; ordered Discovery/Delivery/Ecosystem subtrees; every documented shape; multiline Markdown formatting; a resolved local book pictogram; curved hierarchy connectors; and the same central-root meaning preserved by the 72-cell terminal surface. Pixel identity is not expected because the renderers use different layout and style engines.
 There is intentionally no fabricated “before” picture: the causal before state
 was a named unsupported-family failure. Reproduce it in an isolated baseline
 worktree (do not run this over the feature checkout):
@@ -47,11 +47,11 @@ header: "mindmap"`; no PNG is produced.
 
 ## Rendering and layout
 
-`src/mindmap/layout.ts` deterministically measures and wraps labels, assigns one horizontal layer per depth, centers parents over descendant leaves, and routes one orthogonal connector per non-root node. `src/mindmap/renderer.ts` lowers the result through Scene IR and emits source-semantic `data-id` values only on node groups. `src/ascii/mindmap.ts` renders the same hierarchy with Unicode or ASCII branches, grapheme-aware wrapping, and the hard `targetWidth` contract.
+`src/mindmap/layout.ts` deterministically measures and wraps labels, places the root centrally, partitions first-level branches across left and right sides, and preserves subtree order within each side. `src/mindmap/renderer.ts` draws curved branch connectors through Scene IR and emits source-semantic `data-id` values only on node groups. `src/ascii/mindmap.ts` renders a central-root projection with Unicode or ASCII branches, grapheme-aware wrapping, and the hard `targetWidth` contract.
 
-The wired family config fields are `mindmap.padding`, `mindmap.maxNodeWidth`, and the official top-level `layout` selector. `layout: tidy-tree` selects the deterministic tree implementation (currently the sole Mindmap algorithm); every other value is diagnosed as `INEFFECTIVE_CONFIG`. Unknown fields and invalid documented values likewise produce named diagnostics and cannot silently change geometry.
+The wired family config fields are `mindmap.padding`, `mindmap.maxNodeWidth`, and the official top-level `layout` selector. The default is the family-signature central bilateral layout. `layout: tidy-tree` explicitly selects the deterministic one-sided alternate; unknown layout values are diagnosed as `INEFFECTIVE_CONFIG`. Unknown fields and invalid documented values likewise produce named diagnostics and cannot silently change geometry.
 
-`::icon(name)` is preserved structurally on every surface. Agentic Mermaid deliberately renders a bounded offline token fallback instead of resolving Mermaid Iconify packs: rendering never performs a network request or ambient filesystem lookup. Applications can inspect the typed `icon` field and provide their own trusted local icon policy.
+`::icon(name)` is preserved structurally on every surface. Known curated names resolve to bounded local path pictograms; unknown packs render an explicit sanitized token fallback. Rendering never performs a network request or ambient filesystem lookup, and applications can inspect the typed `icon` field to provide an additional trusted local icon policy.
 
 ## Typed editing
 

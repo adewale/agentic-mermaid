@@ -1,6 +1,6 @@
 {
-  "schemaVersion": 1,
-  "updated": "2026-07-10",
+  "schemaVersion": 2,
+  "updated": "2026-07-12",
   "statusValues": [
     "satisfied",
     "exception"
@@ -71,8 +71,16 @@
       "description": "Known compatibility divergences in harvested upstream examples/tests are executable and documented."
     },
     {
+      "id": "mermaidSyntaxParity",
+      "description": "Pinned Mermaid syntax inventory is accounted for with executable native semantics or a named, tested safety divergence; parse-only preservation is not parity."
+    },
+    {
       "id": "domainProperties",
       "description": "Family-specific semantic/layout invariants are tested beyond render smoke."
+    },
+    {
+      "id": "familyVisualMetaphor",
+      "description": "Mermaid and a Wikipedia/domain reference define a recognizable family hallmark that is protected by geometry assertions and reviewer-visible artifacts."
     },
     {
       "id": "goldensEvidence",
@@ -263,12 +271,44 @@
             "stryker.route-certificates.config.json",
             "package.json"
           ]
+        },
+        "mermaidSyntaxParity": {
+          "status": "satisfied",
+          "evidence": [
+            "docs/design/mermaid-family-fidelity-audit.md",
+            "src/__tests__/closing-the-gap.test.ts",
+            "eval/mermaid-docs-corpus/corpus.json"
+          ]
+        },
+        "familyVisualMetaphor": {
+          "status": "satisfied",
+          "evidence": [
+            "docs/design/mermaid-family-fidelity-audit.md",
+            "docs/design/families/flowchart-v11-shapes-after.png",
+            "src/__tests__/flowchart-v11-shapes.test.ts"
+          ]
         }
+      },
+      "fidelity": {
+        "target": "Mermaid 11.16.0",
+        "officialDocs": "https://mermaid.js.org/syntax/flowchart.html",
+        "wikipedia": "https://en.wikipedia.org/wiki/Flowchart",
+        "signature": "Directed node-link topology with semantically distinct shapes and exposed arrowheads.",
+        "syntaxEvidence": [
+          "docs/design/mermaid-family-fidelity-audit.md",
+          "src/__tests__/closing-the-gap.test.ts",
+          "eval/mermaid-docs-corpus/corpus.json"
+        ],
+        "visualArtifact": "docs/design/families/flowchart-v11-shapes-after.png",
+        "visualEvidence": [
+          "docs/design/mermaid-family-fidelity-audit.md",
+          "src/__tests__/flowchart-v11-shapes.test.ts"
+        ]
       }
     },
     "state": {
       "label": "State",
-      "auditLevel": "inventoried",
+      "auditLevel": "audited",
       "role": "dedicated-body follow-up to flowchart",
       "workedExample": false,
       "cells": {
@@ -431,12 +471,44 @@
             "stryker.state.config.json",
             "package.json"
           ]
+        },
+        "mermaidSyntaxParity": {
+          "status": "satisfied",
+          "evidence": [
+            "docs/design/mermaid-family-fidelity-audit.md",
+            "src/__tests__/closing-the-gap.test.ts",
+            "eval/mermaid-docs-corpus/corpus.json"
+          ]
+        },
+        "familyVisualMetaphor": {
+          "status": "satisfied",
+          "evidence": [
+            "docs/design/mermaid-family-fidelity-audit.md",
+            "docs/design/families/state-pseudostates-after.png",
+            "src/__tests__/state-pseudostates.test.ts"
+          ]
         }
+      },
+      "fidelity": {
+        "target": "Mermaid 11.16.0",
+        "officialDocs": "https://mermaid.js.org/syntax/stateDiagram.html",
+        "wikipedia": "https://en.wikipedia.org/wiki/State_diagram",
+        "signature": "States and transitions with pseudostates, composite frames, notes, and concurrency regions.",
+        "syntaxEvidence": [
+          "docs/design/mermaid-family-fidelity-audit.md",
+          "src/__tests__/closing-the-gap.test.ts",
+          "eval/mermaid-docs-corpus/corpus.json"
+        ],
+        "visualArtifact": "docs/design/families/state-pseudostates-after.png",
+        "visualEvidence": [
+          "docs/design/mermaid-family-fidelity-audit.md",
+          "src/__tests__/state-pseudostates.test.ts"
+        ]
       }
     },
     "sequence": {
       "label": "Sequence",
-      "auditLevel": "inventoried",
+      "auditLevel": "audited",
       "role": "segment-preservation exemplar",
       "workedExample": false,
       "cells": {
@@ -601,12 +673,44 @@
             "stryker.sequence.config.json",
             "package.json"
           ]
+        },
+        "mermaidSyntaxParity": {
+          "status": "satisfied",
+          "evidence": [
+            "docs/design/mermaid-family-fidelity-audit.md",
+            "src/__tests__/closing-the-gap.test.ts",
+            "eval/mermaidseqbench/data.csv"
+          ]
+        },
+        "familyVisualMetaphor": {
+          "status": "satisfied",
+          "evidence": [
+            "docs/design/mermaid-family-fidelity-audit.md",
+            "docs/design/families/sequence-parity-after.png",
+            "src/__tests__/sequence-layout.test.ts"
+          ]
         }
+      },
+      "fidelity": {
+        "target": "Mermaid 11.16.0",
+        "officialDocs": "https://mermaid.js.org/syntax/sequenceDiagram.html",
+        "wikipedia": "https://en.wikipedia.org/wiki/Sequence_diagram",
+        "signature": "Participants above lifelines with chronological messages, activations, blocks, creation, and destruction.",
+        "syntaxEvidence": [
+          "docs/design/mermaid-family-fidelity-audit.md",
+          "src/__tests__/closing-the-gap.test.ts",
+          "eval/mermaidseqbench/data.csv"
+        ],
+        "visualArtifact": "docs/design/families/sequence-parity-after.png",
+        "visualEvidence": [
+          "docs/design/mermaid-family-fidelity-audit.md",
+          "src/__tests__/sequence-layout.test.ts"
+        ]
       }
     },
     "timeline": {
       "label": "Timeline",
-      "auditLevel": "inventoried",
+      "auditLevel": "audited",
       "role": "ordering/bounds family",
       "workedExample": false,
       "cells": {
@@ -769,12 +873,44 @@
             "stryker.timeline.config.json",
             "package.json"
           ]
+        },
+        "mermaidSyntaxParity": {
+          "status": "satisfied",
+          "evidence": [
+            "docs/design/mermaid-family-fidelity-audit.md",
+            "src/__tests__/closing-the-gap.test.ts",
+            "eval/mermaid-docs-corpus/corpus.json"
+          ]
+        },
+        "familyVisualMetaphor": {
+          "status": "satisfied",
+          "evidence": [
+            "docs/design/mermaid-family-fidelity-audit.md",
+            "docs/design/families/timeline-vertical-after.png",
+            "src/__tests__/timeline-layout.test.ts"
+          ]
         }
+      },
+      "fidelity": {
+        "target": "Mermaid 11.16.0",
+        "officialDocs": "https://mermaid.js.org/syntax/timeline.html",
+        "wikipedia": "https://en.wikipedia.org/wiki/Timeline",
+        "signature": "Ordered chronology on a visible rail with periods, sections, and event cards.",
+        "syntaxEvidence": [
+          "docs/design/mermaid-family-fidelity-audit.md",
+          "src/__tests__/closing-the-gap.test.ts",
+          "eval/mermaid-docs-corpus/corpus.json"
+        ],
+        "visualArtifact": "docs/design/families/timeline-vertical-after.png",
+        "visualEvidence": [
+          "docs/design/mermaid-family-fidelity-audit.md",
+          "src/__tests__/timeline-layout.test.ts"
+        ]
       }
     },
     "class": {
       "label": "Class",
-      "auditLevel": "inventoried",
+      "auditLevel": "audited",
       "role": "identity/relation family",
       "workedExample": false,
       "cells": {
@@ -938,12 +1074,44 @@
             "stryker.class.config.json",
             "package.json"
           ]
+        },
+        "mermaidSyntaxParity": {
+          "status": "satisfied",
+          "evidence": [
+            "docs/design/mermaid-family-fidelity-audit.md",
+            "src/__tests__/closing-the-gap.test.ts",
+            "eval/mermaid-docs-corpus/corpus.json"
+          ]
+        },
+        "familyVisualMetaphor": {
+          "status": "satisfied",
+          "evidence": [
+            "docs/design/mermaid-family-fidelity-audit.md",
+            "docs/design/families/class-namespaces-after.png",
+            "src/__tests__/class-er-edge-quality.test.ts"
+          ]
         }
+      },
+      "fidelity": {
+        "target": "Mermaid 11.16.0",
+        "officialDocs": "https://mermaid.js.org/syntax/classDiagram.html",
+        "wikipedia": "https://en.wikipedia.org/wiki/Class_diagram",
+        "signature": "UML compartment boxes, namespaces, cardinalities, and distinct relationship endpoint symbols.",
+        "syntaxEvidence": [
+          "docs/design/mermaid-family-fidelity-audit.md",
+          "src/__tests__/closing-the-gap.test.ts",
+          "eval/mermaid-docs-corpus/corpus.json"
+        ],
+        "visualArtifact": "docs/design/families/class-namespaces-after.png",
+        "visualEvidence": [
+          "docs/design/mermaid-family-fidelity-audit.md",
+          "src/__tests__/class-er-edge-quality.test.ts"
+        ]
       }
     },
     "er": {
       "label": "ER",
-      "auditLevel": "inventoried",
+      "auditLevel": "audited",
       "role": "cardinality/relation family",
       "workedExample": false,
       "cells": {
@@ -1107,12 +1275,44 @@
             "stryker.er.config.json",
             "package.json"
           ]
+        },
+        "mermaidSyntaxParity": {
+          "status": "satisfied",
+          "evidence": [
+            "docs/design/mermaid-family-fidelity-audit.md",
+            "src/__tests__/closing-the-gap.test.ts",
+            "eval/mermaid-docs-corpus/corpus.json"
+          ]
+        },
+        "familyVisualMetaphor": {
+          "status": "satisfied",
+          "evidence": [
+            "docs/design/mermaid-family-fidelity-audit.md",
+            "docs/design/families/er-direction-after.png",
+            "src/__tests__/class-er-edge-quality.test.ts"
+          ]
         }
+      },
+      "fidelity": {
+        "target": "Mermaid 11.16.0",
+        "officialDocs": "https://mermaid.js.org/syntax/entityRelationshipDiagram.html",
+        "wikipedia": "https://en.wikipedia.org/wiki/Entity%E2%80%93relationship_model",
+        "signature": "Entity and attribute boxes joined by distinguishable crow-foot cardinalities with group containment.",
+        "syntaxEvidence": [
+          "docs/design/mermaid-family-fidelity-audit.md",
+          "src/__tests__/closing-the-gap.test.ts",
+          "eval/mermaid-docs-corpus/corpus.json"
+        ],
+        "visualArtifact": "docs/design/families/er-direction-after.png",
+        "visualEvidence": [
+          "docs/design/mermaid-family-fidelity-audit.md",
+          "src/__tests__/class-er-edge-quality.test.ts"
+        ]
       }
     },
     "journey": {
       "label": "Journey",
-      "auditLevel": "inventoried",
+      "auditLevel": "audited",
       "role": "task/score family",
       "workedExample": false,
       "cells": {
@@ -1275,7 +1475,39 @@
             "stryker.journey.config.json",
             "package.json"
           ]
+        },
+        "mermaidSyntaxParity": {
+          "status": "satisfied",
+          "evidence": [
+            "docs/design/mermaid-family-fidelity-audit.md",
+            "src/__tests__/closing-the-gap.test.ts",
+            "eval/mermaid-docs-corpus/corpus.json"
+          ]
+        },
+        "familyVisualMetaphor": {
+          "status": "satisfied",
+          "evidence": [
+            "docs/design/mermaid-family-fidelity-audit.md",
+            "docs/design/families/journey-section-overlap-after.png",
+            "src/__tests__/journey-layout-quality.test.ts"
+          ]
         }
+      },
+      "fidelity": {
+        "target": "Mermaid 11.16.0",
+        "officialDocs": "https://mermaid.js.org/syntax/userJourney.html",
+        "wikipedia": "https://en.wikipedia.org/wiki/Customer_experience",
+        "signature": "Ordered scored tasks grouped into sections with actor ownership and a satisfaction trajectory.",
+        "syntaxEvidence": [
+          "docs/design/mermaid-family-fidelity-audit.md",
+          "src/__tests__/closing-the-gap.test.ts",
+          "eval/mermaid-docs-corpus/corpus.json"
+        ],
+        "visualArtifact": "docs/design/families/journey-section-overlap-after.png",
+        "visualEvidence": [
+          "docs/design/mermaid-family-fidelity-audit.md",
+          "src/__tests__/journey-layout-quality.test.ts"
+        ]
       }
     },
     "architecture": {
@@ -1443,7 +1675,39 @@
             "stryker.families.config.json",
             "package.json"
           ]
+        },
+        "mermaidSyntaxParity": {
+          "status": "satisfied",
+          "evidence": [
+            "docs/design/mermaid-family-fidelity-audit.md",
+            "src/__tests__/closing-the-gap.test.ts",
+            "eval/mermaid-docs-corpus/corpus.json"
+          ]
+        },
+        "familyVisualMetaphor": {
+          "status": "satisfied",
+          "evidence": [
+            "docs/design/mermaid-family-fidelity-audit.md",
+            "docs/design/families/architecture-align-after.png",
+            "src/__tests__/architecture-layout.test.ts"
+          ]
         }
+      },
+      "fidelity": {
+        "target": "Mermaid 11.16.0",
+        "officialDocs": "https://mermaid.js.org/syntax/architecture.html",
+        "wikipedia": "https://en.wikipedia.org/wiki/Software_architecture",
+        "signature": "Services, groups, junctions, icons, and side-aware links arranged as a bounded system map.",
+        "syntaxEvidence": [
+          "docs/design/mermaid-family-fidelity-audit.md",
+          "src/__tests__/closing-the-gap.test.ts",
+          "eval/mermaid-docs-corpus/corpus.json"
+        ],
+        "visualArtifact": "docs/design/families/architecture-align-after.png",
+        "visualEvidence": [
+          "docs/design/mermaid-family-fidelity-audit.md",
+          "src/__tests__/architecture-layout.test.ts"
+        ]
       }
     },
     "xychart": {
@@ -1612,12 +1876,44 @@
             "stryker.families.config.json",
             "package.json"
           ]
+        },
+        "mermaidSyntaxParity": {
+          "status": "satisfied",
+          "evidence": [
+            "docs/design/mermaid-family-fidelity-audit.md",
+            "src/__tests__/closing-the-gap.test.ts",
+            "eval/mermaid-docs-corpus/corpus.json"
+          ]
+        },
+        "familyVisualMetaphor": {
+          "status": "satisfied",
+          "evidence": [
+            "docs/design/mermaid-family-fidelity-audit.md",
+            "docs/design/families/xychart-legend-after.png",
+            "src/__tests__/xychart-renderer.test.ts"
+          ]
         }
+      },
+      "fidelity": {
+        "target": "Mermaid 11.16.0",
+        "officialDocs": "https://mermaid.js.org/syntax/xychart.html",
+        "wikipedia": "https://en.wikipedia.org/wiki/Statistical_graphics",
+        "signature": "Measured Cartesian axes with bars or lines, series identity, legends, and point labels.",
+        "syntaxEvidence": [
+          "docs/design/mermaid-family-fidelity-audit.md",
+          "src/__tests__/closing-the-gap.test.ts",
+          "eval/mermaid-docs-corpus/corpus.json"
+        ],
+        "visualArtifact": "docs/design/families/xychart-legend-after.png",
+        "visualEvidence": [
+          "docs/design/mermaid-family-fidelity-audit.md",
+          "src/__tests__/xychart-renderer.test.ts"
+        ]
       }
     },
     "pie": {
       "label": "Pie",
-      "auditLevel": "inventoried",
+      "auditLevel": "audited",
       "role": "slice/percentage family",
       "workedExample": false,
       "cells": {
@@ -1780,12 +2076,44 @@
             "stryker.pie.config.json",
             "package.json"
           ]
+        },
+        "mermaidSyntaxParity": {
+          "status": "satisfied",
+          "evidence": [
+            "docs/design/mermaid-family-fidelity-audit.md",
+            "src/__tests__/closing-the-gap.test.ts",
+            "eval/mermaid-docs-corpus/corpus.json"
+          ]
+        },
+        "familyVisualMetaphor": {
+          "status": "satisfied",
+          "evidence": [
+            "docs/design/mermaid-family-fidelity-audit.md",
+            "docs/design/families/pie-donut-labels-after.png",
+            "src/__tests__/pie-elevation.test.ts"
+          ]
         }
+      },
+      "fidelity": {
+        "target": "Mermaid 11.16.0",
+        "officialDocs": "https://mermaid.js.org/syntax/pie.html",
+        "wikipedia": "https://en.wikipedia.org/wiki/Pie_chart",
+        "signature": "Radial part-to-whole slices or donut with proportional angles, labels, legend, and emphasis.",
+        "syntaxEvidence": [
+          "docs/design/mermaid-family-fidelity-audit.md",
+          "src/__tests__/closing-the-gap.test.ts",
+          "eval/mermaid-docs-corpus/corpus.json"
+        ],
+        "visualArtifact": "docs/design/families/pie-donut-labels-after.png",
+        "visualEvidence": [
+          "docs/design/mermaid-family-fidelity-audit.md",
+          "src/__tests__/pie-elevation.test.ts"
+        ]
       }
     },
     "quadrant": {
       "label": "Quadrant",
-      "auditLevel": "inventoried",
+      "auditLevel": "audited",
       "role": "axis/quadrant-bounds family",
       "workedExample": false,
       "cells": {
@@ -1948,7 +2276,39 @@
             "stryker.quadrant.config.json",
             "package.json"
           ]
+        },
+        "mermaidSyntaxParity": {
+          "status": "satisfied",
+          "evidence": [
+            "docs/design/mermaid-family-fidelity-audit.md",
+            "src/__tests__/closing-the-gap.test.ts",
+            "eval/mermaid-docs-corpus/corpus.json"
+          ]
+        },
+        "familyVisualMetaphor": {
+          "status": "satisfied",
+          "evidence": [
+            "docs/design/mermaid-family-fidelity-audit.md",
+            "docs/design/families/quadrant-styling-after.png",
+            "src/__tests__/quadrant.test.ts"
+          ]
         }
+      },
+      "fidelity": {
+        "target": "Mermaid 11.16.0",
+        "officialDocs": "https://mermaid.js.org/syntax/quadrantChart.html",
+        "wikipedia": "https://en.wikipedia.org/wiki/Cartesian_coordinate_system",
+        "signature": "Two labeled axes divide four named regions containing normalized points and collision-free leaders.",
+        "syntaxEvidence": [
+          "docs/design/mermaid-family-fidelity-audit.md",
+          "src/__tests__/closing-the-gap.test.ts",
+          "eval/mermaid-docs-corpus/corpus.json"
+        ],
+        "visualArtifact": "docs/design/families/quadrant-styling-after.png",
+        "visualEvidence": [
+          "docs/design/mermaid-family-fidelity-audit.md",
+          "src/__tests__/quadrant.test.ts"
+        ]
       }
     },
     "gantt": {
@@ -2120,7 +2480,39 @@
             "stryker.gantt.config.json",
             "package.json"
           ]
+        },
+        "mermaidSyntaxParity": {
+          "status": "satisfied",
+          "evidence": [
+            "docs/design/mermaid-family-fidelity-audit.md",
+            "src/__tests__/closing-the-gap.test.ts",
+            "eval/mermaid-gantt-bench/cases.json"
+          ]
+        },
+        "familyVisualMetaphor": {
+          "status": "satisfied",
+          "evidence": [
+            "docs/design/mermaid-family-fidelity-audit.md",
+            "docs/design/families/gantt-dependency-overlay-after.png",
+            "src/__tests__/gantt-dependency-overlay.test.ts"
+          ]
         }
+      },
+      "fidelity": {
+        "target": "Mermaid 11.16.0",
+        "officialDocs": "https://mermaid.js.org/syntax/gantt.html",
+        "wikipedia": "https://en.wikipedia.org/wiki/Gantt_chart",
+        "signature": "Time-scaled task bars grouped by section with statuses, milestones, exclusions, and dependencies.",
+        "syntaxEvidence": [
+          "docs/design/mermaid-family-fidelity-audit.md",
+          "src/__tests__/closing-the-gap.test.ts",
+          "eval/mermaid-gantt-bench/cases.json"
+        ],
+        "visualArtifact": "docs/design/families/gantt-dependency-overlay-after.png",
+        "visualEvidence": [
+          "docs/design/mermaid-family-fidelity-audit.md",
+          "src/__tests__/gantt-dependency-overlay.test.ts"
+        ]
       }
     },
     "mindmap": {
@@ -2261,7 +2653,39 @@
           "evidence": [
             "stryker.families.config.json"
           ]
+        },
+        "mermaidSyntaxParity": {
+          "status": "satisfied",
+          "evidence": [
+            "docs/design/mermaid-family-fidelity-audit.md",
+            "src/__tests__/closing-the-gap.test.ts",
+            "eval/mermaid-upstream-suite-bench/mindmap-gitgraph-f3dea583.json"
+          ]
+        },
+        "familyVisualMetaphor": {
+          "status": "satisfied",
+          "evidence": [
+            "docs/design/mermaid-family-fidelity-audit.md",
+            "docs/design/families/mindmap-renderer-comparison.png",
+            "src/__tests__/closing-the-gap.test.ts"
+          ]
         }
+      },
+      "fidelity": {
+        "target": "Mermaid 11.16.0",
+        "officialDocs": "https://mermaid.js.org/syntax/mindmap.html",
+        "wikipedia": "https://en.wikipedia.org/wiki/Mind_map",
+        "signature": "A central idea with deterministic bilateral hierarchy, curved branches, authored shapes, and local pictograms.",
+        "syntaxEvidence": [
+          "docs/design/mermaid-family-fidelity-audit.md",
+          "src/__tests__/closing-the-gap.test.ts",
+          "eval/mermaid-upstream-suite-bench/mindmap-gitgraph-f3dea583.json"
+        ],
+        "visualArtifact": "docs/design/families/mindmap-renderer-comparison.png",
+        "visualEvidence": [
+          "docs/design/mermaid-family-fidelity-audit.md",
+          "src/__tests__/closing-the-gap.test.ts"
+        ]
       }
     },
     "gitgraph": {
@@ -2402,7 +2826,39 @@
           "evidence": [
             "stryker.families.config.json"
           ]
+        },
+        "mermaidSyntaxParity": {
+          "status": "satisfied",
+          "evidence": [
+            "docs/design/mermaid-family-fidelity-audit.md",
+            "src/__tests__/closing-the-gap.test.ts",
+            "eval/mermaid-upstream-suite-bench/mindmap-gitgraph-f3dea583.json"
+          ]
+        },
+        "familyVisualMetaphor": {
+          "status": "satisfied",
+          "evidence": [
+            "docs/design/mermaid-family-fidelity-audit.md",
+            "docs/design/families/gitgraph-renderer-comparison.png",
+            "src/__tests__/gitgraph-agent-ops.test.ts"
+          ]
         }
+      },
+      "fidelity": {
+        "target": "Mermaid 11.16.0",
+        "officialDocs": "https://mermaid.js.org/syntax/gitgraph.html",
+        "wikipedia": "https://en.wikipedia.org/wiki/Directed_acyclic_graph",
+        "signature": "Source-ordered commits on distinct branch lanes with merges, cherry-picks, tags, and commit marks.",
+        "syntaxEvidence": [
+          "docs/design/mermaid-family-fidelity-audit.md",
+          "src/__tests__/closing-the-gap.test.ts",
+          "eval/mermaid-upstream-suite-bench/mindmap-gitgraph-f3dea583.json"
+        ],
+        "visualArtifact": "docs/design/families/gitgraph-renderer-comparison.png",
+        "visualEvidence": [
+          "docs/design/mermaid-family-fidelity-audit.md",
+          "src/__tests__/gitgraph-agent-ops.test.ts"
+        ]
       }
     }
   }
