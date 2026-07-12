@@ -63,6 +63,60 @@ family docs, and `TODO.md`.
     ledgers and release retrospectives retain provenance under `project/archive/`.
     Genuine defects receive stable IDs and acceptance criteria in `TODO.md`.
 
+## Lessons from the consolidation audits
+
+- **A typed semantic field is unfinished until every backend consumes it.** Crisp
+  SVG fidelity and transformed bounds were green while the rough backend dropped
+  rotations on shapes and connectors. Enumerate consumers—crisp, styled,
+  terminal, bounds, verification, and export—and add a backend-discriminating
+  probe for each semantic field.
+- **Closed models should fail at compile time, not serialize to nothing.** A
+  helper accepted the full geometry union and returned an empty string for
+  unsupported variants. Narrow serializer inputs to the geometry they can
+  represent and make switches exhaustive so the next model expansion creates a
+  type error rather than invisible output loss.
+- **Determinism forbids ambient locale policy.** `localeCompare()` made warning
+  order depend on runtime locale even though ordinary runs looked stable. Public
+  ordering uses explicit code-point comparators and Unicode fixtures exercised
+  in different insertion orders; human collation belongs only where locale is an
+  authored input.
+- **Atomic output requires preflight before mutation.** Checking terminal bounds
+  one cell at a time allowed half of a width-two grapheme to be written. Validate
+  the complete grapheme span first, then write the cluster and continuation cells
+  as one operation. Apply the same preflight principle to multi-part SVG marks,
+  archive moves, and generated updates.
+- **Architecture direction is part of consolidation correctness.** Positioning
+  code importing a renderer-owned font resolver made the supposedly shared seam
+  depend on its consumer. Shared measurement/configuration belongs below both
+  layout and rendering; extraction is incomplete when the dependency arrow still
+  points upward.
+- **Archive moves are provenance operations, not documentation rewrites.** Move
+  accepted historical evidence byte-for-byte, pin immutable records by digest,
+  preserve old link targets with explicit bridges when necessary, and run local
+  Markdown-link closure. Put present-day interpretation in a current README, not
+  inside the archived record.
+- **An evidence manifest must validate its coordinates.** Existing evidence files
+  did not make a stale `file#symbol` authority true. Contract tests resolve the
+  declared path and exported symbol, while the manifest remains a navigation
+  index rather than proof of the behavior it cites.
+- **Run generators after the final source and test edit.** Dependency-complete
+  receipts correctly became stale after a late test change. The reliable order is
+  implementation → tests → audit remediation → generation → freshness gates →
+  resulting-head CI. Receipts should include package and lock inputs, but still
+  disclose environmental fonts, browser binaries, and rasterizers they cannot
+  pin.
+- **Conditional skips are capability gaps, not passes.** A skipped positive-path
+  integration test must name the missing external capability, retain adjacent
+  deterministic coverage for behavior available everywhere, and be reported
+  separately from passes. Prefer a committed fixture or provisioned CI dependency
+  when that positive path becomes a release-critical guarantee.
+- **Specialized independent audits beat one broad green review.** Security and
+  package surfaces were sound while separate reviewers found backend fidelity,
+  terminal atomicity, locale ordering, dependency direction, archive integrity,
+  and evidence-coordinate defects. Partition reviews by failure domain, require
+  exact reproductions, remediate all Blocker/P1/P2 findings, then rerun freshness
+  and resulting-head gates instead of treating an earlier acceptance as durable.
+
 ## How to apply these lessons
 
 - Start with the smallest failing characterization or invariant test.

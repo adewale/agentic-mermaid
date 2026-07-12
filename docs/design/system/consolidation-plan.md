@@ -1,6 +1,6 @@
 # Post-family-elevation consolidation plan
 
-Status: bounded implementation pass complete; final audit remediation and PR evidence pending. Baseline: merge `18979d1f` (PR #149). Broader architectural migrations discovered during this bounded pass are promoted to stable `TODO.md` items rather than hidden here.
+Status: bounded implementation pass, final audit remediation, and PR evidence complete. Baseline: merge `18979d1f` (PR #149). Broader architectural migrations discovered during this bounded pass are promoted to stable `TODO.md` items rather than hidden here.
 
 This plan converts the post-merge multi-agent audit into a characterization-first consolidation program. It deliberately avoids brittle prose counts: family, style, palette, operation, test, artifact, and package inventories must be derived from registries/manifests or checked structurally rather than copied into documentation.
 
