@@ -904,7 +904,7 @@
     },
     {
       "path": "src/__tests__/mindmap-gitgraph-content-corpus.test.ts",
-      "sha256": "03edb58cb1e4ff06b110148f264ba58aa4aa9d71d1ccbe32946ae60894b2cfc5"
+      "sha256": "0116d6606e6e4864075af95d2e6fe4c978e80b2d8f451db53bb6d2457f2c69a4"
     },
     {
       "path": "src/__tests__/mindmap-gitgraph-doc-parity.test.ts",
@@ -1188,7 +1188,7 @@
     },
     {
       "path": "src/__tests__/styled-output.test.ts",
-      "sha256": "c6202274eb1fd196b4fca51ba16f5b51e31924e529085fb081489d8e6d6be023"
+      "sha256": "862ef2d6239d851042de5c0370c2ee3694dfcf61cc0550e92660b087ab2f2059"
     },
     {
       "path": "src/__tests__/styles.test.ts",

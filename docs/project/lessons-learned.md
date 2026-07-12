@@ -1175,6 +1175,23 @@ meaning. An old independent parser remains valuable as a differential oracle, bu
 its lack of current v11 metadata support is a documented oracle boundary, not a
 reason to keep the product behind Mermaid.
 
+The post-completion real-content pass showed that syntax and crisp rendering are
+still not the final compatibility boundary. Every new family must also survive the
+Style + Palette composition path: rough/hybrid backends, palette precedence, strict
+reference safety, typography, and deterministic seeded geometry. The durable gate
+now renders all fourteen family demos and every additional Mindmap/GitGraph stress
+scenario through multiple look+palette stacks while checking semantic text and
+finite output. A style sheet containing all families is useful visual evidence, but
+only these independent assertions make it a compatibility claim.
+
+The same pass tightened screenshot provenance. “No visual diff” is not evidence
+that an artifact was checked: generators must be rerun, unchanged bytes observed,
+and changed evidence bound to the new immutable head. For generated galleries, a
+receipt over fixtures, provenance, the generator, the complete TypeScript source
+superset, and output PNGs makes staleness executable. PR image URLs then point to
+the resulting head rather than relying on mutable branch paths or historical
+screenshots whose relationship to the current implementation is implicit.
+
 ## 2026-07 — contracts at output boundaries
 
 **Cross-surface primitives only count when every writer adopts them.** The

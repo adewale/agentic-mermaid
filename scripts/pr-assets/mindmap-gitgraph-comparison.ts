@@ -21,6 +21,16 @@ for (const family of ['mindmap', 'gitgraph'] as const) {
   const source = readFileSync(join(OUT, `${family}-demo.mmd`), 'utf8')
   const officialPage = await browser.newPage({ viewport: { width: 1800, height: 1300 } })
   await officialPage.setContent('<div id="official"></div>')
+  // Mermaid synthesizes GitGraph cherry-pick IDs with Math.random(). Pin the
+  // browser oracle so rerunning reviewer evidence cannot change SVG classes or
+  // PNG bytes while preserving the same official geometry and semantics.
+  await officialPage.evaluate(() => {
+    let state = 0x4d45524d
+    Math.random = () => {
+      state = (Math.imul(state, 1664525) + 1013904223) >>> 0
+      return state / 0x100000000
+    }
+  })
   await officialPage.addScriptTag({ path: join(ROOT, 'node_modules', 'mermaid', 'dist', 'mermaid.min.js') })
   const officialSvgRaw = await officialPage.evaluate(async ({ source, family }) => {
     const mermaid = (globalThis as typeof globalThis & { mermaid: { initialize(config: object): void; render(id: string, source: string): Promise<{ svg: string }> } }).mermaid

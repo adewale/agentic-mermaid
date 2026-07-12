@@ -187,6 +187,8 @@ describe('style consolidation', () => {
       ['pie-donut-labels-demo.mmd', {}],
       ['quadrant-styling-demo.mmd', {}],
       ['gantt-dependency-overlay-demo.mmd', { gantt: { dependencyArrows: true, criticalPath: true } }],
+      ['mindmap-demo.mmd', {}],
+      ['gitgraph-demo.mmd', {}],
     ] as const
     const stacks = [
       ['hand-drawn', 'dracula'],

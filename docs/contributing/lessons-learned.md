@@ -10,6 +10,10 @@ date; do not delete old ones — supersede them in place.
 
 ## 2026-07 — closing Mermaid 11.16 fidelity gaps (#149)
 
+**A new family is not compatible with Style + Palette until composed rendering is tested.** Crisp family tests can stay green while a rough/hybrid look, palette CSS variables, strict security, or font metrics fail on the styled backend. Rule: enroll every family—and representative broad, deep, Unicode, long-label, and many-lane content—in deterministic look+palette stacks; assert palette precedence, finite geometry, semantic text, and reference safety rather than accepting a non-empty SVG.
+
+**A PR screenshot is current only when its generator and URL are current.** An image can remain visually unchanged after source work and still be weak evidence if nobody reran its generator or if the PR points at an older head. Rule: regenerate every described artifact, fail on byte/receipt drift, bind dependency-complete receipts where practical, and update PR image URLs to the resulting immutable head.
+
 **Popularity-weighted examples catch seams that official syntax cases miss.** The official GitGraph config tests proved `mainBranchName` parsing and the renderer honored it, yet a transit-map example showed `layoutMermaid` reparsing wrapper-less canonical source and reporting a false 0×0 layout. Explicit Mindmap `tidy-tree` had the same projection drift. Rule: supplement exact upstream oracles with diverse real-content scenarios selected from docs, issue demand, terminal corpora, and high-signal fork networks; run each through parse → verify/layout → serialize → SVG → terminal, not only the family renderer.
 
 **A family is not faithful when its labels merely survive.** Mindmap accepted rich syntax and rendered every node, yet a one-sided dendrogram missed the family’s central, radiating metaphor. Rule: audit syntax coverage, semantic preservation, and recognizable family appearance separately; terminal availability is a fourth, independent claim.

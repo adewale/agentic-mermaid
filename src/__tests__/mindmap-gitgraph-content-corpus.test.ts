@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { layoutGitGraph } from '../gitgraph/layout.ts'
 import { layoutMindmap } from '../mindmap/layout.ts'
 import type { MindmapNode, MindmapShape } from '../mindmap/types.ts'
-import { renderMermaidASCII, renderMermaidSVG, verifyNoExternalRefs } from '../index.ts'
+import { getStyle, renderMermaidASCII, renderMermaidSVG, verifyNoExternalRefs } from '../index.ts'
 import { asGitGraph, asMindmap, layoutMermaid, parseMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { visualWidth } from '../ascii/width.ts'
 
@@ -247,6 +247,31 @@ describe('Mindmap/GitGraph popularity-weighted real-content corpus', () => {
       expect(Math.max(...terminal.split('\n').map(visualWidth))).toBeLessThanOrEqual(terminalWidth)
     })
   }
+
+  test('every real-content scenario composes deterministically with Style + Palette stacks', () => {
+    const stacks = [
+      ['hand-drawn', 'dracula'],
+      ['publication-figure', 'github-light'],
+      ['watercolor', 'nord-light'],
+    ] as const
+    for (const entry of manifest.cases) {
+      const source = sourceFor(entry)
+      for (const stack of stacks) {
+        const options = { style: [...stack], seed: 7, security: 'strict' as const, embedFontImport: false }
+        const first = renderMermaidSVG(source, options)
+        const again = renderMermaidSVG(source, options)
+        const palette = getStyle(stack[1])!.colors!
+        expect(first, `${entry.id} × ${stack.join('+')}`).toBe(again)
+        expect(first).toContain(`--bg:${palette.bg}`)
+        expect(first).toContain(`--fg:${palette.fg}`)
+        expect(first).not.toMatch(/(?:NaN|Infinity|undefined)/)
+        expect(verifyNoExternalRefs(first), `${entry.id} × ${stack.join('+')}`).toEqual({ ok: true, refs: [] })
+        const sentinel = entry.expect.svgText?.[0] ?? entry.expect.labels?.[0]
+        expect(sentinel, entry.id).toBeDefined()
+        expect(plainSvgText(first), `${entry.id} × ${stack.join('+')} text`).toContain(sentinel!)
+      }
+    }
+  })
 
   test('public layout honors wrapper-only Mindmap layout and GitGraph main-branch config', () => {
     const tidyEntry = manifest.cases.find(entry => entry.id === 'mindmap-tidy-tree-explicit')!

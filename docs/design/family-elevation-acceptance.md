@@ -8,7 +8,7 @@ This record prevents B18 from treating file presence or an old local run as rele
 
 | Surface | Command | Result |
 |---|---|---|
-| Unit | `bun test src/__tests__/` | 5,829 passed, 2 documented platform skips, 0 failed; 213,201 assertions across 307 files |
+| Unit | `bun test src/__tests__/` | 5,830 passed, 2 documented platform skips, 0 failed; 214,042 assertions across 307 files |
 | Browser + distribution E2E | `bun run test:browser` | 64 passed, 0 failed across 7 files; includes packed-package library, Node CLI, stdio MCP, Apache license delivery, single binary, and browser screenshots |
 | Build | `bun run build` | ESM and declaration bundles built successfully |
 | Types | `bunx tsc --noEmit` | passed |
