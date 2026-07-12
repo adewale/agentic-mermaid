@@ -1,0 +1,19 @@
+---
+title: 国际化发布历史
+config:
+  gitGraph:
+    mainBranchName: 主线
+---
+gitGraph BT:
+  accTitle: 国际化 Git 历史
+  commit id:"基础" tag:"版本-1.0" msg:"建立稳定基线"
+  branch "cherry-pick" order:2
+  commit id:"修复" msg:"修复支付流程"
+  checkout 主线
+  branch 1.0.1 order:3
+  commit id:"维护" type:REVERSE tag:"长期支持" msg:"维护版本"
+  checkout 主线
+  branch feature/東京 order:4
+  commit id:"東京" type:HIGHLIGHT msg:"東京ユーザー向け機能"
+  checkout 主线
+  merge feature/東京 id:"合并" tag:"版本-2.0"

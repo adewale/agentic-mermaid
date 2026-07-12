@@ -1,0 +1,296 @@
+{
+  "schemaVersion": 1,
+  "fetchedAt": "2026-07-12T08:55:06Z",
+  "policy": {
+    "ranking": "GitHub forks REST endpoint sorted by stargazers, descending",
+    "pageSize": 100,
+    "sampleRule": "Take the first N API-ranked, non-archived forks after exclusions; preserve API order for equal-star ties. No activity cutoff.",
+    "exclusions": {
+      "lukilabs/beautiful-mermaid": [
+        "adewale/agentic-mermaid \u2014 current evaluation target; including it would make the signal self-referential."
+      ]
+    },
+    "sampleSizes": {
+      "mermaid-js/mermaid": 3,
+      "lukilabs/beautiful-mermaid": 2,
+      "AlexanderGrooff/mermaid-ascii": 1
+    }
+  },
+  "roots": [
+    {
+      "root": "mermaid-js/mermaid",
+      "apiUrl": "https://api.github.com/repos/mermaid-js/mermaid/forks?sort=stargazers&per_page=100&page=1",
+      "responseSha256": "a41f3400e624dd173caf24ccd3e53ec430d769c72acc30579248197dac4aee9e",
+      "returned": 100,
+      "sampleSize": 3,
+      "excluded": [],
+      "forks": [
+        {
+          "id": 516403838,
+          "repo": "jacob-lcs/mermaid",
+          "url": "https://github.com/jacob-lcs/mermaid",
+          "stars": 164,
+          "pushedAt": "2026-02-12T08:59:14Z",
+          "archived": false
+        },
+        {
+          "id": 605748121,
+          "repo": "jgraph/mermaid",
+          "url": "https://github.com/jgraph/mermaid",
+          "stars": 50,
+          "pushedAt": "2026-05-01T23:58:25Z",
+          "archived": false
+        },
+        {
+          "id": 718139291,
+          "repo": "Mermaid-Chart/mermaid-develop",
+          "url": "https://github.com/Mermaid-Chart/mermaid-develop",
+          "stars": 20,
+          "pushedAt": "2023-11-13T01:28:31Z",
+          "archived": false
+        },
+        {
+          "id": 306503151,
+          "repo": "lishid/mermaid",
+          "url": "https://github.com/lishid/mermaid",
+          "stars": 5,
+          "pushedAt": "2023-07-04T01:56:00Z",
+          "archived": false
+        },
+        {
+          "id": 463917490,
+          "repo": "NicolasNewman/mermaid",
+          "url": "https://github.com/NicolasNewman/mermaid",
+          "stars": 4,
+          "pushedAt": "2026-03-03T02:19:47Z",
+          "archived": false
+        },
+        {
+          "id": 618738431,
+          "repo": "xeolabs/mermaid",
+          "url": "https://github.com/xeolabs/mermaid",
+          "stars": 4,
+          "pushedAt": "2023-03-25T00:57:08Z",
+          "archived": false
+        },
+        {
+          "id": 1288071975,
+          "repo": "credkellar-boop/mermaid",
+          "url": "https://github.com/credkellar-boop/mermaid",
+          "stars": 4,
+          "pushedAt": "2026-07-03T06:09:00Z",
+          "archived": false
+        },
+        {
+          "id": 481372752,
+          "repo": "mbostock/mermaid",
+          "url": "https://github.com/mbostock/mermaid",
+          "stars": 4,
+          "pushedAt": "2023-04-22T17:21:35Z",
+          "archived": false
+        },
+        {
+          "id": 50891150,
+          "repo": "songshaodong/mermaid",
+          "url": "https://github.com/songshaodong/mermaid",
+          "stars": 3,
+          "pushedAt": "2016-02-02T01:40:52Z",
+          "archived": false
+        },
+        {
+          "id": 795990218,
+          "repo": "zakaria-forks/mermaid",
+          "url": "https://github.com/zakaria-forks/mermaid",
+          "stars": 3,
+          "pushedAt": "2024-05-04T09:35:02Z",
+          "archived": false
+        }
+      ],
+      "retained": 10
+    },
+    {
+      "root": "lukilabs/beautiful-mermaid",
+      "apiUrl": "https://api.github.com/repos/lukilabs/beautiful-mermaid/forks?sort=stargazers&per_page=100&page=1",
+      "responseSha256": "7c089e1ffc32659d078abf3cd2433fb1b63dd021f864656f22aee39237cb4d93",
+      "returned": 100,
+      "sampleSize": 2,
+      "excluded": [
+        "adewale/agentic-mermaid"
+      ],
+      "forks": [
+        {
+          "id": 1156543245,
+          "repo": "vercel-labs/beautiful-mermaid",
+          "url": "https://github.com/vercel-labs/beautiful-mermaid",
+          "stars": 28,
+          "pushedAt": "2026-02-24T00:31:38Z",
+          "archived": false
+        },
+        {
+          "id": 1181667327,
+          "repo": "adewale/agentic-mermaid",
+          "url": "https://github.com/adewale/agentic-mermaid",
+          "stars": 9,
+          "pushedAt": "2026-07-12T08:09:03Z",
+          "archived": false
+        },
+        {
+          "id": 1166400414,
+          "repo": "ysknsid25/beautiful-mermaid",
+          "url": "https://github.com/ysknsid25/beautiful-mermaid",
+          "stars": 4,
+          "pushedAt": "2026-02-26T02:34:53Z",
+          "archived": false
+        },
+        {
+          "id": 1146601612,
+          "repo": "Orbiter/beautiful-mermaid-py",
+          "url": "https://github.com/Orbiter/beautiful-mermaid-py",
+          "stars": 3,
+          "pushedAt": "2026-02-07T23:27:54Z",
+          "archived": false
+        },
+        {
+          "id": 1148190601,
+          "repo": "rohitg00/beautiful-mermaid",
+          "url": "https://github.com/rohitg00/beautiful-mermaid",
+          "stars": 3,
+          "pushedAt": "2026-02-02T17:48:12Z",
+          "archived": false
+        },
+        {
+          "id": 1145008089,
+          "repo": "Stars1233/beautiful-mermaid",
+          "url": "https://github.com/Stars1233/beautiful-mermaid",
+          "stars": 1,
+          "pushedAt": "2026-05-06T11:56:33Z",
+          "archived": false
+        },
+        {
+          "id": 1153168196,
+          "repo": "gmh5225/beautiful-mermaid",
+          "url": "https://github.com/gmh5225/beautiful-mermaid",
+          "stars": 1,
+          "pushedAt": "2026-01-31T12:56:52Z",
+          "archived": false
+        },
+        {
+          "id": 1209691387,
+          "repo": "2233admin/beautiful-mermaid",
+          "url": "https://github.com/2233admin/beautiful-mermaid",
+          "stars": 1,
+          "pushedAt": "2026-05-24T19:10:08Z",
+          "archived": false
+        },
+        {
+          "id": 1145999313,
+          "repo": "fdotu/beautiful-mermaid",
+          "url": "https://github.com/fdotu/beautiful-mermaid",
+          "stars": 1,
+          "pushedAt": "2026-01-29T21:18:26Z",
+          "archived": false
+        },
+        {
+          "id": 1146289845,
+          "repo": "01colyncelestine-stack/beautiful-mermaid",
+          "url": "https://github.com/01colyncelestine-stack/beautiful-mermaid",
+          "stars": 1,
+          "pushedAt": "2026-01-30T17:00:13Z",
+          "archived": false
+        }
+      ],
+      "retained": 10
+    },
+    {
+      "root": "AlexanderGrooff/mermaid-ascii",
+      "apiUrl": "https://api.github.com/repos/AlexanderGrooff/mermaid-ascii/forks?sort=stargazers&per_page=100&page=1",
+      "responseSha256": "f6e340f3fdb3677e28a8ba4737af2b4e972a8ed1abbf4966a9e2d4d0494eabf3",
+      "returned": 65,
+      "sampleSize": 1,
+      "excluded": [],
+      "forks": [
+        {
+          "id": 1146832845,
+          "repo": "ColtWindy/mermaid-ascii",
+          "url": "https://github.com/ColtWindy/mermaid-ascii",
+          "stars": 1,
+          "pushedAt": "2026-02-27T11:09:24Z",
+          "archived": false
+        },
+        {
+          "id": 1147660731,
+          "repo": "leonj1/mermaid-ascii",
+          "url": "https://github.com/leonj1/mermaid-ascii",
+          "stars": 0,
+          "pushedAt": "2026-02-01T20:30:42Z",
+          "archived": false
+        },
+        {
+          "id": 1157612158,
+          "repo": "sgryjp/mermaid-ascii",
+          "url": "https://github.com/sgryjp/mermaid-ascii",
+          "stars": 0,
+          "pushedAt": "2026-02-01T20:30:42Z",
+          "archived": false
+        },
+        {
+          "id": 1154414594,
+          "repo": "Aurelian-Shuttleworth/mermaid-ascii",
+          "url": "https://github.com/Aurelian-Shuttleworth/mermaid-ascii",
+          "stars": 0,
+          "pushedAt": "2026-02-01T20:30:42Z",
+          "archived": false
+        },
+        {
+          "id": 1154116217,
+          "repo": "drunkhacker/mermaid-ascii",
+          "url": "https://github.com/drunkhacker/mermaid-ascii",
+          "stars": 0,
+          "pushedAt": "2026-02-11T08:02:04Z",
+          "archived": false
+        },
+        {
+          "id": 1152828949,
+          "repo": "ktrysmt/mermaid-ascii",
+          "url": "https://github.com/ktrysmt/mermaid-ascii",
+          "stars": 0,
+          "pushedAt": "2026-02-08T14:04:44Z",
+          "archived": false
+        },
+        {
+          "id": 1152557231,
+          "repo": "catdevman/mermaid-ascii",
+          "url": "https://github.com/catdevman/mermaid-ascii",
+          "stars": 0,
+          "pushedAt": "2026-02-01T20:30:42Z",
+          "archived": false
+        },
+        {
+          "id": 1152016243,
+          "repo": "dydoc/mermaid-ascii",
+          "url": "https://github.com/dydoc/mermaid-ascii",
+          "stars": 0,
+          "pushedAt": "2026-02-01T20:30:42Z",
+          "archived": false
+        },
+        {
+          "id": 1149138639,
+          "repo": "jeis4wpi/mermaid-ascii",
+          "url": "https://github.com/jeis4wpi/mermaid-ascii",
+          "stars": 0,
+          "pushedAt": "2026-02-01T20:30:42Z",
+          "archived": false
+        },
+        {
+          "id": 1148520146,
+          "repo": "app-creative/mermaid-ascii",
+          "url": "https://github.com/app-creative/mermaid-ascii",
+          "stars": 0,
+          "pushedAt": "2026-02-01T20:30:42Z",
+          "archived": false
+        }
+      ],
+      "retained": 10
+    }
+  ]
+}

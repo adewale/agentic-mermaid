@@ -2608,7 +2608,10 @@
         "evalFixture": {
           "status": "satisfied",
           "evidence": [
-            "eval/mermaid-upstream-suite-bench/mindmap-gitgraph-f3dea583.json"
+            "eval/mermaid-upstream-suite-bench/mindmap-gitgraph-f3dea583.json",
+            "eval/mindmap-gitgraph-content-corpus/manifest.json",
+            "eval/mindmap-gitgraph-content-corpus/fork-snapshot.json",
+            "eval/mindmap-gitgraph-content-corpus/gallery-receipt.json"
           ]
         },
         "upstreamHarvest": {
@@ -2626,13 +2629,16 @@
         "domainProperties": {
           "status": "satisfied",
           "evidence": [
-            "src/__tests__/mindmap-gitgraph-citizenship.test.ts"
+            "src/__tests__/mindmap-gitgraph-citizenship.test.ts",
+            "src/__tests__/mindmap-gitgraph-content-corpus.test.ts"
           ]
         },
         "goldensEvidence": {
           "status": "satisfied",
           "evidence": [
-            "src/__tests__/mindmap-gitgraph-citizenship.test.ts"
+            "src/__tests__/mindmap-gitgraph-citizenship.test.ts",
+            "docs/design/families/mindmap-content-gallery.png",
+            "eval/mindmap-gitgraph-content-corpus/gallery-receipt.json"
           ]
         },
         "generatedSite": {
@@ -2659,15 +2665,18 @@
           "evidence": [
             "docs/design/mermaid-family-fidelity-audit.md",
             "src/__tests__/closing-the-gap.test.ts",
-            "eval/mermaid-upstream-suite-bench/mindmap-gitgraph-f3dea583.json"
+            "eval/mermaid-upstream-suite-bench/mindmap-gitgraph-f3dea583.json",
+            "eval/mindmap-gitgraph-content-corpus/manifest.json",
+            "src/__tests__/mindmap-gitgraph-content-corpus.test.ts"
           ]
         },
         "familyVisualMetaphor": {
           "status": "satisfied",
           "evidence": [
             "docs/design/mermaid-family-fidelity-audit.md",
-            "docs/design/families/mindmap-renderer-comparison.png",
-            "src/__tests__/closing-the-gap.test.ts"
+            "docs/design/families/mindmap-content-gallery.png",
+            "eval/mindmap-gitgraph-content-corpus/gallery-receipt.json",
+            "src/__tests__/mindmap-gitgraph-content-corpus.test.ts"
           ]
         }
       },
@@ -2679,12 +2688,17 @@
         "syntaxEvidence": [
           "docs/design/mermaid-family-fidelity-audit.md",
           "src/__tests__/closing-the-gap.test.ts",
-          "eval/mermaid-upstream-suite-bench/mindmap-gitgraph-f3dea583.json"
+          "eval/mermaid-upstream-suite-bench/mindmap-gitgraph-f3dea583.json",
+          "eval/mindmap-gitgraph-content-corpus/manifest.json",
+          "src/__tests__/mindmap-gitgraph-content-corpus.test.ts"
         ],
-        "visualArtifact": "docs/design/families/mindmap-renderer-comparison.png",
+        "visualArtifact": "docs/design/families/mindmap-content-gallery.png",
         "visualEvidence": [
           "docs/design/mermaid-family-fidelity-audit.md",
-          "src/__tests__/closing-the-gap.test.ts"
+          "src/__tests__/closing-the-gap.test.ts",
+          "src/__tests__/mindmap-gitgraph-content-corpus.test.ts",
+          "docs/design/families/mindmap-content-gallery.png",
+          "eval/mindmap-gitgraph-content-corpus/gallery-receipt.json"
         ]
       }
     },
@@ -2781,7 +2795,10 @@
         "evalFixture": {
           "status": "satisfied",
           "evidence": [
-            "eval/mermaid-upstream-suite-bench/mindmap-gitgraph-f3dea583.json"
+            "eval/mermaid-upstream-suite-bench/mindmap-gitgraph-f3dea583.json",
+            "eval/mindmap-gitgraph-content-corpus/manifest.json",
+            "eval/mindmap-gitgraph-content-corpus/fork-snapshot.json",
+            "eval/mindmap-gitgraph-content-corpus/gallery-receipt.json"
           ]
         },
         "upstreamHarvest": {
@@ -2799,13 +2816,16 @@
         "domainProperties": {
           "status": "satisfied",
           "evidence": [
-            "src/__tests__/mindmap-gitgraph-citizenship.test.ts"
+            "src/__tests__/mindmap-gitgraph-citizenship.test.ts",
+            "src/__tests__/mindmap-gitgraph-content-corpus.test.ts"
           ]
         },
         "goldensEvidence": {
           "status": "satisfied",
           "evidence": [
-            "src/__tests__/mindmap-gitgraph-citizenship.test.ts"
+            "src/__tests__/mindmap-gitgraph-citizenship.test.ts",
+            "docs/design/families/gitgraph-content-gallery.png",
+            "eval/mindmap-gitgraph-content-corpus/gallery-receipt.json"
           ]
         },
         "generatedSite": {
@@ -2832,15 +2852,18 @@
           "evidence": [
             "docs/design/mermaid-family-fidelity-audit.md",
             "src/__tests__/closing-the-gap.test.ts",
-            "eval/mermaid-upstream-suite-bench/mindmap-gitgraph-f3dea583.json"
+            "eval/mermaid-upstream-suite-bench/mindmap-gitgraph-f3dea583.json",
+            "eval/mindmap-gitgraph-content-corpus/manifest.json",
+            "src/__tests__/mindmap-gitgraph-content-corpus.test.ts"
           ]
         },
         "familyVisualMetaphor": {
           "status": "satisfied",
           "evidence": [
             "docs/design/mermaid-family-fidelity-audit.md",
-            "docs/design/families/gitgraph-renderer-comparison.png",
-            "src/__tests__/gitgraph-agent-ops.test.ts"
+            "docs/design/families/gitgraph-content-gallery.png",
+            "eval/mindmap-gitgraph-content-corpus/gallery-receipt.json",
+            "src/__tests__/mindmap-gitgraph-content-corpus.test.ts"
           ]
         }
       },
@@ -2852,12 +2875,17 @@
         "syntaxEvidence": [
           "docs/design/mermaid-family-fidelity-audit.md",
           "src/__tests__/closing-the-gap.test.ts",
-          "eval/mermaid-upstream-suite-bench/mindmap-gitgraph-f3dea583.json"
+          "eval/mermaid-upstream-suite-bench/mindmap-gitgraph-f3dea583.json",
+          "eval/mindmap-gitgraph-content-corpus/manifest.json",
+          "src/__tests__/mindmap-gitgraph-content-corpus.test.ts"
         ],
-        "visualArtifact": "docs/design/families/gitgraph-renderer-comparison.png",
+        "visualArtifact": "docs/design/families/gitgraph-content-gallery.png",
         "visualEvidence": [
           "docs/design/mermaid-family-fidelity-audit.md",
-          "src/__tests__/gitgraph-agent-ops.test.ts"
+          "src/__tests__/gitgraph-agent-ops.test.ts",
+          "src/__tests__/mindmap-gitgraph-content-corpus.test.ts",
+          "docs/design/families/gitgraph-content-gallery.png",
+          "eval/mindmap-gitgraph-content-corpus/gallery-receipt.json"
         ]
       }
     }

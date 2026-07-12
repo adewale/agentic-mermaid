@@ -134,10 +134,21 @@ export function layoutFamilyToRendered(d: ValidDiagram, opts: { debug?: boolean 
 function mindmapToRendered(d: ValidDiagram): RenderedLayout {
   try {
     const normalized = normalizeMermaidSource(d.canonicalSource)
+    const wrapper = d.meta.frontmatter as Record<string, unknown> | undefined
+    const config: Record<string, unknown> = {
+      ...(((wrapper?.mindmap) as Record<string, unknown> | undefined) ?? {}),
+    }
+    let authoredLayout = wrapper?.layout
+    for (const directive of d.meta.initDirectives) {
+      const directiveConfig = directive.parsed?.mindmap
+      if (directiveConfig && typeof directiveConfig === 'object' && !Array.isArray(directiveConfig)) Object.assign(config, directiveConfig)
+      if (directive.parsed?.layout !== undefined) authoredLayout = directive.parsed.layout
+    }
     const diagram = d.body.kind === 'mindmap' ? d.body : parseMindmap(normalized.body)
     const positioned = layoutMindmap(diagram, {
-      padding: typeof normalized.config.mindmap?.padding === 'number' ? normalized.config.mindmap.padding : undefined,
-      maxNodeWidth: typeof normalized.config.mindmap?.maxNodeWidth === 'number' ? normalized.config.mindmap.maxNodeWidth : undefined,
+      padding: typeof config.padding === 'number' ? config.padding : undefined,
+      maxNodeWidth: typeof config.maxNodeWidth === 'number' ? config.maxNodeWidth : undefined,
+      layout: authoredLayout === 'tidy-tree' ? 'tidy-tree' : 'radial',
     })
     const nodes: RenderedLayoutNode[] = positioned.nodes.map(node => ({
       id: node.id, x: f(node.x), y: f(node.y),
@@ -154,16 +165,32 @@ function mindmapToRendered(d: ValidDiagram): RenderedLayout {
 function gitgraphToRendered(d: ValidDiagram): RenderedLayout {
   try {
     const normalized = normalizeMermaidSource(d.canonicalSource)
-    const config = normalized.config.gitGraph
-    const positioned = layoutGitGraph(parseGitGraph(normalized.body, {
-      mainBranchName: config?.mainBranchName,
-      mainBranchOrder: config?.mainBranchOrder,
-    }), {
-      showBranches: config?.showBranches,
-      showCommitLabel: config?.showCommitLabel,
-      rotateCommitLabel: config?.rotateCommitLabel,
-      parallelCommits: config?.parallelCommits,
-      commitLabelFontSize: resolveGitGraphCommitLabelFontSize(normalized.config.themeVariables),
+    const config: Record<string, unknown> = {
+      ...((((d.meta.frontmatter as Record<string, unknown> | undefined)?.gitGraph) as Record<string, unknown> | undefined) ?? {}),
+    }
+    const themeVariables: Record<string, unknown> = {
+      ...((((d.meta.frontmatter as Record<string, unknown> | undefined)?.themeVariables) as Record<string, unknown> | undefined) ?? {}),
+    }
+    for (const directive of d.meta.initDirectives) {
+      const directiveConfig = directive.parsed?.gitGraph
+      if (directiveConfig && typeof directiveConfig === 'object' && !Array.isArray(directiveConfig)) Object.assign(config, directiveConfig)
+      const directiveTheme = directive.parsed?.themeVariables
+      if (directiveTheme && typeof directiveTheme === 'object' && !Array.isArray(directiveTheme)) Object.assign(themeVariables, directiveTheme)
+    }
+    // Structured GitGraph bodies already carry the configured main-branch
+    // identity used during parse. Re-parsing canonicalSource alone loses the
+    // preserved wrapper config and can turn a valid custom-main history into
+    // a false 0×0 verification layout.
+    const diagram = d.body.kind === 'gitgraph' ? d.body : parseGitGraph(normalized.body, {
+      mainBranchName: typeof config.mainBranchName === 'string' ? config.mainBranchName : undefined,
+      mainBranchOrder: typeof config.mainBranchOrder === 'number' ? config.mainBranchOrder : undefined,
+    })
+    const positioned = layoutGitGraph(diagram, {
+      showBranches: typeof config.showBranches === 'boolean' ? config.showBranches : undefined,
+      showCommitLabel: typeof config.showCommitLabel === 'boolean' ? config.showCommitLabel : undefined,
+      rotateCommitLabel: typeof config.rotateCommitLabel === 'boolean' ? config.rotateCommitLabel : undefined,
+      parallelCommits: typeof config.parallelCommits === 'boolean' ? config.parallelCommits : undefined,
+      commitLabelFontSize: resolveGitGraphCommitLabelFontSize(themeVariables),
     })
     const nodes: RenderedLayoutNode[] = positioned.commits.map(commit => {
       const type = commit.customType ?? commit.type

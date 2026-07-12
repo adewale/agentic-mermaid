@@ -53,6 +53,14 @@ The wired family config fields are `mindmap.padding`, `mindmap.maxNodeWidth`, an
 
 `::icon(name)` is preserved structurally on every surface. Known curated names resolve to bounded local path pictograms; unknown packs render an explicit sanitized token fallback. Rendering never performs a network request or ambient filesystem lookup, and applications can inspect the typed `icon` field to provide an additional trusted local icon policy.
 
+## Real-content corpus
+
+The popularity-weighted follow-up corpus adds six same-source scenarios derived from Mermaid docs/specs, Mermaid issues, Beautiful Mermaid #85, Mermaid ASCII #74, and the highest-star sampled fork networks: official shapes/accessibility, a 40-node incident map with 13 root branches, deep work breakdown, multilingual long content, explicit tidy-tree, and organization/repository hierarchy.
+
+![Mindmap real-content gallery](./mindmap-content-gallery.png)
+
+Sources, fork weights, structural expectations, and fixtures live in [`eval/mindmap-gitgraph-content-corpus`](../../../eval/mindmap-gitgraph-content-corpus/). `mindmap-gitgraph-content-corpus.test.ts` proves parse/round-trip, central-vs-tidy geometry, deterministic safe SVG, truthful public layout, and hard-width terminal output for every case.
+
 ## Typed editing
 
 Use `asMindmap` before mutation. Operations cover add/remove/rename/move, label and shape changes, icon/class decoration, and accessibility title/description. Moves reject cycles; removal of a non-empty subtree requires `recursive: true`; default-shape nodes retain Mermaid's label-as-identity rule.

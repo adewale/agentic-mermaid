@@ -10,6 +10,8 @@ date; do not delete old ones — supersede them in place.
 
 ## 2026-07 — closing Mermaid 11.16 fidelity gaps (#149)
 
+**Popularity-weighted examples catch seams that official syntax cases miss.** The official GitGraph config tests proved `mainBranchName` parsing and the renderer honored it, yet a transit-map example showed `layoutMermaid` reparsing wrapper-less canonical source and reporting a false 0×0 layout. Explicit Mindmap `tidy-tree` had the same projection drift. Rule: supplement exact upstream oracles with diverse real-content scenarios selected from docs, issue demand, terminal corpora, and high-signal fork networks; run each through parse → verify/layout → serialize → SVG → terminal, not only the family renderer.
+
 **A family is not faithful when its labels merely survive.** Mindmap accepted rich syntax and rendered every node, yet a one-sided dendrogram missed the family’s central, radiating metaphor. Rule: audit syntax coverage, semantic preservation, and recognizable family appearance separately; terminal availability is a fourth, independent claim.
 
 **Promotion from opaque to native must close the serializer at the same time.** Flowchart icon/image and edge-presentation metadata could render before the agent body could reproduce it, so native parsing would have traded source fidelity for structure. Rule: remove an opaque fallback only after the typed model and canonical serializer reproduce every promoted key; keep dimensions or placement opaque until they are modeled too.

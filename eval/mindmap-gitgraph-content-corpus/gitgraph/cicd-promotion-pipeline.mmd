@@ -1,0 +1,21 @@
+---
+title: CI/CD promotion history
+---
+gitGraph LR:
+  accTitle: Build, test, canary, and production promotion
+  commit id:"source" msg:"Source accepted"
+  branch build order:2
+  commit id:"compile" msg:"Compile and package"
+  commit id:"scan" type:REVERSE msg:"Supply-chain scan"
+  checkout main
+  merge build id:"artifact" tag:"sha-7f31"
+  branch staging order:3
+  commit id:"integration" msg:"Integration suite"
+  commit id:"load" msg:"Load test"
+  checkout main
+  merge staging id:"candidate" type:HIGHLIGHT tag:"rc.4"
+  branch canary order:4
+  commit id:"one-percent" msg:"One percent traffic"
+  commit id:"ten-percent" msg:"Ten percent traffic"
+  checkout main
+  merge canary id:"production" type:HIGHLIGHT tag:"v4.2.0"

@@ -50,6 +50,14 @@ header: "gitGraph"`; no PNG is produced.
 
 Wired `gitGraph` config fields are `showBranches`, `showCommitLabel`, `mainBranchName`, `mainBranchOrder`, `parallelCommits`, and `rotateCommitLabel`. `mainBranchOrder` and authored `branch ... order:` values must be positive/zero as documented (`mainBranchOrder` may be zero; authored branch order must be positive). Unknown fields and invalid documented values produce named `INEFFECTIVE_CONFIG` diagnostics and have no effect. Frontmatter `title` is rendered as visible title text, independently of `accTitle`/`accDescr`.
 
+## Real-content corpus
+
+The popularity-weighted follow-up corpus adds seven scenarios derived from Mermaid docs/specs and issue/PR demand, with terminal priorities informed by Mermaid ASCII #74 and distribution/layout priorities from the highest-star Mermaid and Beautiful Mermaid forks: Gitflow release/hotfix, long labels/tags in TB, twelve ordered lanes, merge cherry-pick backports, Unicode/unusual branches in BT, transit-domain transfer, and CI/CD promotion.
+
+![GitGraph real-content gallery](./gitgraph-content-gallery.png)
+
+Sources, fork weights, structural expectations, and fixtures live in [`eval/mindmap-gitgraph-content-corpus`](../../../eval/mindmap-gitgraph-content-corpus/). `mindmap-gitgraph-content-corpus.test.ts` proves replay counts, branch/parent geometry, custom-main wrapper config, deterministic safe SVG, truthful public layout, and hard-width terminal output.
+
 ## Typed editing
 
 Use `asGitGraph`. Replay operations append commits, create/checkout branches, merge, and cherry-pick. Property operations set commit message/type/tags, rename a non-main branch, and edit accessibility title/description. Invalid replay state is rejected with a typed mutation error; history is never silently repaired. Cherry-pick validation walks the current head's complete ancestry: a commit inherited through branch creation or merge cannot be picked again. Parent relations are deduplicated, and length-prefixed/JSON-tuple semantic IDs remain injective even when authored IDs contain `->`, `:shape`, or `:label`. Semantic merge commits always retain `type: 'MERGE'`; an authored visual `type:` override is held separately as `customType`, and synthetic merge labels are not serialized as authored `msg:` text.

@@ -528,6 +528,12 @@ change, and availability is never treated as visual fidelity.
 5. **Independent acceptance:** a final multi-agent audit must find no open
    Blocker/P1/P2 finding before CG15 and this phase may be marked complete.
 
+### Post-completion real-content audit receipt (2026-07-12)
+
+The five phases and CG01–CG15 remain complete. A separate popularity-weighted content pass now exercises the two newly registered families against 13 additional scenarios derived from Mermaid 11.16 docs/specs, Mermaid issues/PRs, Beautiful Mermaid #85, Mermaid ASCII #74's 593-diagram RFC report, and the highest-star sampled fork graphs.
+
+The pass added six Mindmaps (broad, deep, multilingual, organization/folder, official-shape/accessibility, and explicit tidy-tree) plus seven GitGraphs (Gitflow, CI/CD, long labels/tags, twelve lanes, merge backports, Unicode/custom-main, transit-domain transfer). It found and fixed two verification-projection gaps: wrapper-only Mindmap `layout: tidy-tree` and GitGraph `mainBranchName` config were honored by SVG rendering but lost by `layoutMermaid`, causing false geometry or `empty_layout` reports. `mindmap-gitgraph-content-corpus.test.ts` and the two generated galleries are the retained receipt; this validation does not reopen a completed phase.
+
 ## Definition of done (every item)
 
 1. Red test from the provenance fixture, confirmed red, then green, then

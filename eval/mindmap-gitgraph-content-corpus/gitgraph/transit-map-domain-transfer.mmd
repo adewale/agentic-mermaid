@@ -1,0 +1,21 @@
+---
+title: Metro interchange map expressed as GitGraph
+config:
+  gitGraph:
+    mainBranchName: MetroLine1
+---
+gitGraph LR:
+  accTitle: Metro lines and interchange stations
+  commit id:"Central" msg:"Central station"
+  commit id:"Museum" msg:"Museum district"
+  branch MetroLine2 order:2
+  commit id:"Harbor" msg:"Harbor"
+  commit id:"Airport" type:HIGHLIGHT tag:"express" msg:"Airport terminal"
+  checkout MetroLine1
+  commit id:"University" msg:"University"
+  branch MetroLine3 order:3
+  commit id:"Stadium" msg:"Stadium"
+  checkout MetroLine1
+  commit id:"Gardens" msg:"Botanical gardens"
+  merge MetroLine2 id:"Union" tag:"interchange"
+  merge MetroLine3 id:"Civic" tag:"interchange"

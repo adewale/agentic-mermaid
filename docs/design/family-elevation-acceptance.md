@@ -8,7 +8,7 @@ This record prevents B18 from treating file presence or an old local run as rele
 
 | Surface | Command | Result |
 |---|---|---|
-| Unit | `bun test src/__tests__/` | 5,813 passed, 2 documented platform skips, 0 failed; 212,590 assertions across 306 files |
+| Unit | `bun test src/__tests__/` | 5,829 passed, 2 documented platform skips, 0 failed; 213,201 assertions across 307 files |
 | Browser + distribution E2E | `bun run test:browser` | 64 passed, 0 failed across 7 files; includes packed-package library, Node CLI, stdio MCP, Apache license delivery, single binary, and browser screenshots |
 | Build | `bun run build` | ESM and declaration bundles built successfully |
 | Types | `bunx tsc --noEmit` | passed |
@@ -18,7 +18,7 @@ This record prevents B18 from treating file presence or an old local run as rele
 | Terminal goldens | `bun run goldens:ascii:check` | 153 ASCII/Unicode fixtures in sync |
 | Characterization | `bun run characterization:check` | 16 general contact examples, 14 family rows, and 15 visual artifacts in sync |
 | Layout tracker | `bun run track` | 93 examples, 0 hard violations, 0 improvements, 0 regressions |
-| Packed contents | `npm pack --dry-run --json` | 520 files; Mindmap/GitGraph sources, `THIRD_PARTY_NOTICES.md`, and `LICENSES/Apache-2.0.txt` present (volatile compressed/unpacked byte counts intentionally omitted) |
+| Packed contents | `npm pack --dry-run --json` | 539 files; Mindmap/GitGraph sources, the 17-file real-content corpus and visual receipt, `THIRD_PARTY_NOTICES.md`, and `LICENSES/Apache-2.0.txt` present (volatile compressed/unpacked byte counts intentionally omitted) |
 | Upstream accounting | `bun test src/__tests__/mermaid-upstream-suite-bench.test.ts src/__tests__/mindmap-gitgraph-upstream-oracle.test.ts` | 1,265 blocks considered; 746 imported, 519 excluded/accounted, 0 deferred; all 26 Mindmap and 69 GitGraph blocks classified |
 | Diff hygiene | `git diff --check` and `git diff --cached --check` | passed |
 
