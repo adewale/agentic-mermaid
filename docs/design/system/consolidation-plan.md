@@ -30,7 +30,7 @@ This plan converts the post-merge multi-agent audit into a characterization-firs
 | CONS-09 | Verify registry-generated surfaces and transport-neutral handlers | done | registry/doc-sync/package tests and existing `applyOps`/MCP tool-surface differentials remain the authorities |
 | CONS-10 | Begin mechanical pass-module extraction behind existing contracts | done | origin translation moved to its own module; manifest order, mutation declarations, certificates, layout, and SVG bytes remain pinned |
 | CONS-11 | Resolve dangling/deferred items and archive completed plans | done | current TODO is actionable-only; historical records and evergreen lessons are separated |
-| CONS-12 | Final full validation, multi-agent audit, remediation, and good-pr evidence | in-progress | independent reviewers find no unresolved Blocker/P1/P2; resulting-head CI and PR evidence are current |
+| CONS-12 | Final full validation, multi-agent audit, remediation, and good-pr evidence | complete | independent reviewers find no unresolved Blocker/P1/P2; resulting-head CI and PR evidence are current |
 
 ## Characterization index used before refactoring
 
