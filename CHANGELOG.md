@@ -19,6 +19,7 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 - Added a pinned official Mermaid 11.16 documentation showcase for all 14 families and an exhaustive 4,200-render built-in Look × Palette × family compatibility gate.
 
 ### Changed
+- Configuration diagnostics now use fully qualified family paths consistently across source wrappers and explicit `mermaidConfig`; duplicate warnings are deterministically ordered and deduplicated.
 - Gantt calendar spans use the documented `(start, end]` exclusion boundary model and excluded-day shading is enabled by default; today markers remain caller-clocked.
 - Known command-inapplicable CLI flags and value-taking flags without values now exit 2 instead of being accepted as silent no-ops.
 - PNG coverage warnings now flow through local and hosted MCP renders; system-font mode reports qualified bundled-font uncertainty rather than suppressing it.
@@ -42,6 +43,7 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 - Replaced delimiter-concatenated Mindmap/GitGraph Scene IDs with injective semantic identities, rejected already-reachable GitGraph cherry-picks, and aligned equal-order branch lanes across SVG and terminal renderers.
 
 ### Breaking
+- Consumers matching `INEFFECTIVE_CONFIG.field` for family-section keys must use the qualified path (for example `journey.boxMargin` rather than `boxMargin`).
 - Gantt exclusion-boundary semantics and default shading may change existing rendered calendars; CLI scripts relying on ignored known flags now fail fast with exit 2.
 
 ## 0.1.1 — 2026-07-10

@@ -1,8 +1,8 @@
 # Style + Palette compatibility receipt
 
-Agentic Mermaid currently registers **15 Looks**, **20 Palettes**, and **14 diagram families**. Compatibility is checked exhaustively for one Look plus one Palette:
-
-> 15 × 20 × 14 = **4,200 rendered combinations**
+Compatibility is checked exhaustively for the Cartesian product of every
+registry-discovered Look, Palette, and diagram family. The executable registry
+and showcase manifest—not a copied prose total—define the current matrix.
 
 `src/__tests__/mermaid-doc-showcase.test.ts` discovers Looks and Palettes from the public style registry rather than maintaining a second list. For every combination it renders the family’s pinned official Mermaid 11.16 documentation example with a fixed seed and strict security, then asserts:
 

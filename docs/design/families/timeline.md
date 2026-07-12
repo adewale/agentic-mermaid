@@ -133,8 +133,8 @@ names each present field with the Tier-3 `INEFFECTIVE_CONFIG` lint
 
 ## Agent surface
 
-`asTimeline` narrows to a structured body; 15 ops
-(`MUTATION_OPS_BY_FAMILY.timeline`):
+`asTimeline` narrows to a structured body. The authoritative operation menu is
+`MUTATION_OPS_BY_FAMILY.timeline`:
 
 - `set_title`
 - `add_section(label, index?)` / `remove_section(index)` /
@@ -187,8 +187,8 @@ by construction (the outline is already vertical).
 - `src/__tests__/timeline-integration.test.ts` — end-to-end SVG incl.
   `disableMulticolor` with labeled sections
 - `src/__tests__/timeline-ascii.test.ts` — outline renderer incl. TD parity
-- `src/__tests__/agent-timeline.test.ts` — body parse/serialize/mutate, all
-  15 ops, differential vs the renderer parser, `INEFFECTIVE_CONFIG`
+- `src/__tests__/agent-timeline.test.ts` — body parse/serialize/mutate, full
+  registry operation menu, differential vs the renderer parser, `INEFFECTIVE_CONFIG`
 - `src/__tests__/property-layout-bounds.test.ts` — fast-check bounds over the
   positioned layout
 - corpus gates: `svg-equivalence` / `layout-equivalence` /

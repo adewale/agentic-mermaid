@@ -298,7 +298,7 @@ export function lowerPieScene(
     }
   }
 
-  parts.push(marks.raw({ id: 'svg-close', role: 'chrome' }, '</svg>'))
+  parts.push(marks.documentClose())
 
   return { family: 'pie', width: chart.width, height: chart.height, colors, parts }
 }

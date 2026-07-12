@@ -28,7 +28,7 @@ import { resolveTicks, packCompactLanes } from '../gantt/layout.ts'
 import type { GanttModel, GanttSchedule, ScheduledGanttTask, EpochMs } from '../gantt/types.ts'
 import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
 import { colorizeLine, DEFAULT_ASCII_THEME } from './ansi.ts'
-import { visualWidth } from './width.ts'
+import { padEndToVisualWidth, truncateToVisualWidth, visualWidth } from './width.ts'
 import type { AsciiConfig, AsciiTheme, CharRole, ColorMode } from './types.ts'
 
 interface StyledSegment { text: string; role: CharRole | null }
@@ -56,19 +56,9 @@ function fillGlyph(tags: readonly string[], g: GanttGlyphs): string {
   return g.bar
 }
 
-function padToWidth(text: string, width: number): string {
-  const w = visualWidth(text)
-  return w >= width ? text : text + ' '.repeat(width - w)
-}
-
 function truncateToWidth(text: string, width: number): string {
   if (visualWidth(text) <= width) return text
-  let out = ''
-  for (const ch of text) {
-    if (visualWidth(out + ch) > Math.max(1, width - 1)) break
-    out += ch
-  }
-  return out + '…'
+  return truncateToVisualWidth(text, Math.max(1, width - 1)) + '…'
 }
 
 function dateGutter(task: ScheduledGanttTask, schedule: GanttSchedule): string {
@@ -219,7 +209,7 @@ export function renderGanttAscii(
           for (let c = 0; c < plotWidth; c++) if (track[c] !== g.track) cells[c] = track[c]!
         }
         pushLine([
-          { text: padToWidth(TASK_INDENT + truncateToWidth(labels[li]!, labelWidth - 4), labelWidth), role: 'text' },
+          { text: padEndToVisualWidth(TASK_INDENT + truncateToWidth(labels[li]!, labelWidth - 4), labelWidth), role: 'text' },
           { text: '  ', role: null },
           { text: cells.join(''), role: 'line' },
         ])
@@ -227,7 +217,7 @@ export function renderGanttAscii(
     } else {
       for (const t of sectionTasks) {
         pushLine([
-          { text: padToWidth(TASK_INDENT + truncateToWidth(t.label, labelWidth - 4), labelWidth), role: 'text' },
+          { text: padEndToVisualWidth(TASK_INDENT + truncateToWidth(t.label, labelWidth - 4), labelWidth), role: 'text' },
           { text: '  ', role: null },
           { text: buildTrack(t), role: 'line' },
           { text: '  ', role: null },
@@ -240,7 +230,7 @@ export function renderGanttAscii(
   // ---- vert marker legend ------------------------------------------------------
   for (const v of vertTasks) {
     pushLine([
-      { text: padToWidth(TASK_INDENT + truncateToWidth(v.label, labelWidth - 4), labelWidth), role: 'text' },
+      { text: padEndToVisualWidth(TASK_INDENT + truncateToWidth(v.label, labelWidth - 4), labelWidth), role: 'text' },
       { text: '  ', role: null },
       { text: padForCol(Math.min(plotWidth - 1, colOf(v.start + (v.renderEnd - v.start) / 2)), g.vert), role: 'line' },
       { text: '  ', role: null },

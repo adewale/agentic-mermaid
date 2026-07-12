@@ -124,10 +124,10 @@ cross-family contracts that make the render surface usable and refactorable.
 
 | ID | Property | Statement | Scope |
 |----|----------|-----------|-------|
-| **F1** | Dispatch totality | Each of the 14 built-in families renders non-empty text/SVG and a valid PNG signature. | flowchart, state, sequence, class, ER, timeline, gantt, journey, xychart, pie, quadrant, architecture, mindmap, gitgraph |
-| **F2** | Sentinel label conservation | Representative labels survive on the text and SVG surfaces, proving family dispatch did not fall through to an empty/adjacent renderer. | all 14 families |
-| **F3** | Renderer determinism | Representative text, SVG, and PNG renders are byte-stable across repeated calls. | all 14 families |
-| **F4** | Output hygiene | Plain text has no ANSI escapes when color is disabled, and text/SVG do not leak `NaN`, `Infinity`, or `undefined`. | all 14 families |
+| **F1** | Dispatch totality | Every registry entry renders non-empty text/SVG and a valid PNG signature. | derived from `BUILTIN_FAMILY_METADATA` |
+| **F2** | Sentinel label conservation | Representative labels survive on the text and SVG surfaces, proving family dispatch did not fall through to an empty/adjacent renderer. | all registered families |
+| **F3** | Renderer determinism | Representative text, SVG, and PNG renders are byte-stable across repeated calls. | all registered families |
+| **F4** | Output hygiene | Plain text has no ANSI escapes when color is disabled, and text/SVG do not leak `NaN`, `Infinity`, or `undefined`. | all registered families |
 | **F5** | Text orthogonality / block-only output | Generated text renders contain no diagonal connector glyphs. | all non-grid families, with flowchart/state covered by P3 |
 | **F6** | Rectangularity boundary | Rectangular text output holds for box/graph families only; chart/list/architecture families are intentionally ragged. | sequence, class, ER are rectangular; pie pins the ragged boundary |
 

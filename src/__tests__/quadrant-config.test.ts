@@ -117,7 +117,7 @@ describe('quadrant unwired config keys emit INEFFECTIVE_CONFIG', () => {
     const src = withConfig('xAxisPosition: bottom\nyAxisPosition: right\nquadrantTextTopPadding: 9')
     const v = verifyMermaid(src)
     const fields = v.warnings.filter(w => w.code === 'INEFFECTIVE_CONFIG').map(w => (w as { field: string }).field)
-    expect(fields.sort()).toEqual(['quadrantTextTopPadding', 'xAxisPosition', 'yAxisPosition'])
+    expect(fields.sort()).toEqual(['quadrantChart.quadrantTextTopPadding', 'quadrantChart.xAxisPosition', 'quadrantChart.yAxisPosition'])
     // Tier-3 lint: never flips verify.ok.
     expect(v.ok).toBe(true)
   })
@@ -125,7 +125,7 @@ describe('quadrant unwired config keys emit INEFFECTIVE_CONFIG', () => {
   it('init-directive config also warns', () => {
     const src = `%%{init: {"quadrantChart": {"xAxisPosition": "bottom"}}}%%\n${BODY}`
     const v = verifyMermaid(src)
-    expect(v.warnings.some(w => w.code === 'INEFFECTIVE_CONFIG' && (w as { field: string }).field === 'xAxisPosition')).toBe(true)
+    expect(v.warnings.some(w => w.code === 'INEFFECTIVE_CONFIG' && (w as { field: string }).field === 'quadrantChart.xAxisPosition')).toBe(true)
   })
 
   it('wired keys never warn', () => {

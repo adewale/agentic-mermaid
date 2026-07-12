@@ -48,13 +48,13 @@ describe('flowchart INEFFECTIVE_CONFIG lint (fix stage, P4)', () => {
     ].join('\n')
     const warnings = verifyMermaid(source).warnings.filter(w => w.code === 'INEFFECTIVE_CONFIG')
     const fields = warnings.map(w => (w as { field?: string }).field).sort()
-    expect(fields).toEqual(['curve', 'htmlLabels', 'padding'])
+    expect(fields).toEqual(['flowchart.curve', 'flowchart.htmlLabels', 'flowchart.padding'])
   })
 
   it('also lints init-directive flowchart config', () => {
     const source = `%%{init: {"flowchart": {"curve": "basis"}}}%%\n${AB}`
     const warnings = verifyMermaid(source).warnings.filter(w => w.code === 'INEFFECTIVE_CONFIG')
-    expect(warnings).toContainEqual(expect.objectContaining({ code: 'INEFFECTIVE_CONFIG', field: 'curve' }))
+    expect(warnings).toContainEqual(expect.objectContaining({ code: 'INEFFECTIVE_CONFIG', field: 'flowchart.curve' }))
   })
 
   it('never lints the wired keys (nodeSpacing, rankSpacing, wrappingWidth)', () => {

@@ -82,6 +82,8 @@ export interface MarkPaint {
   opacity?: string
 }
 
+export type SceneTransform = { kind: 'rotate'; angle: number; cx: number; cy: number }
+
 export interface SceneNodeBase {
   /** Stable identifier for seeding and cross-references. Derived from source
    *  semantics (node id, edge endpoints, slice label...), never list position
@@ -93,6 +95,8 @@ export interface SceneNodeBase {
   /** Typed accessibility semantics mirrored into ARIA on relation marks. */
   accessibility?: SvgSemanticAccessibility
   channels?: SemanticChannels
+  /** Semantic geometry transform applied by every backend. */
+  transform?: SceneTransform
   /** The exact crisp SVG serialization of this mark (possibly multi-line,
    *  possibly '' for marks that draw nothing, e.g. invisible edges). */
   crisp: string
@@ -159,6 +163,13 @@ export interface RawMark extends SceneNodeBase {
 /** Document prelude parameters — everything svgOpenTag/buildStyleBlock were
  *  called with, so a styled backend can re-derive its own document shell
  *  (different palette, fonts, backdrop) without string-parsing the crisp one. */
+export interface DocumentMark extends SceneNodeBase {
+  kind: 'document'
+  element: 'title' | 'description' | 'definitions' | 'close'
+  text?: string
+  domId?: string
+}
+
 export interface PreludeMark extends SceneNodeBase {
   kind: 'prelude'
   prelude: {
@@ -173,7 +184,7 @@ export interface PreludeMark extends SceneNodeBase {
   }
 }
 
-export type SceneNode = ShapeMark | ConnectorMark | TextMark | GroupMark | RawMark | PreludeMark
+export type SceneNode = ShapeMark | ConnectorMark | TextMark | GroupMark | RawMark | DocumentMark | PreludeMark
 
 /** The lowered document: an ordered flat list of top-level marks. The crisp
  *  serialization is parts.map(crisp).join('\n') — exactly what the string

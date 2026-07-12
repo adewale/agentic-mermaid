@@ -95,7 +95,7 @@ export function lowerErScene(
   const shadowDefs = buildShadowDefs(colors)
   if (shadowDefs) defsParts.push(shadowDefs)
   defsParts.push('</defs>')
-  parts.push(marks.raw({ id: 'defs', role: 'defs' }, defsParts.join('\n')))
+  parts.push(marks.definitions({ id: 'defs' }, defsParts.join('\n')))
 
   if (diagram.accessibilityTitle) {
     parts.push(marks.raw({ id: 'acc-title', role: 'chrome' },
@@ -145,7 +145,7 @@ export function lowerErScene(
     parts.push(...renderRelationshipLabel(rel, style, `rel-label:${pairKey}#${k}`, labelPos.get(rel)))
   }
 
-  parts.push(marks.raw({ id: 'svg-close', role: 'chrome' }, '</svg>'))
+  parts.push(marks.documentClose())
 
   return { family: 'er', width: diagram.width, height: diagram.height, colors, parts }
 }

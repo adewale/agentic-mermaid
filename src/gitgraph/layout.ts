@@ -4,6 +4,7 @@ import type {
 } from './types.ts'
 import { measureTextWidth } from '../text-metrics.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
+import { rotateBoxBounds } from '../shared/transformed-bounds.ts'
 
 export interface GitGraphLayoutOptions {
   padding?: number
@@ -206,21 +207,12 @@ function measuredTextBounds(
   const left = anchor === 'middle' ? -width / 2 : 0
   const top = -fontSize
   const bottom = fontSize * 0.28
-  const radians = angle * Math.PI / 180
-  const cos = Math.cos(radians)
-  const sin = Math.sin(radians)
-  const points = [
-    [left, top], [left + width, top], [left, bottom], [left + width, bottom],
-  ].map(([offsetX, offsetY]) => ({
-    x: x + offsetX! * cos - offsetY! * sin,
-    y: baselineY + offsetX! * sin + offsetY! * cos,
-  }))
-  return {
-    minX: Math.min(...points.map(point => point.x)),
-    minY: Math.min(...points.map(point => point.y)),
-    maxX: Math.max(...points.map(point => point.x)),
-    maxY: Math.max(...points.map(point => point.y)),
-  }
+  const bounds = rotateBoxBounds(
+    { x0: x + left, y0: baselineY + top, x1: x + left + width, y1: baselineY + bottom },
+    { x, y: baselineY },
+    angle,
+  )
+  return { minX: bounds.x0, minY: bounds.y0, maxX: bounds.x1, maxY: bounds.y1 }
 }
 
 function finite(value: number | undefined, fallback: number): number {

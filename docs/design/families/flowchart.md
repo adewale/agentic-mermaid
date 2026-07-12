@@ -132,10 +132,10 @@ Upstream schema verified 2026-07-10
 - A direction-less `flowchart` header now defaults to `TD`, so the exact
   upstream markdown fixture renders and is imported into the executable bench.
 
-## Op menu (plan §Flowchart 8)
+## Mutation menu
 
-14 ops (was 6). New ops follow the journey/gantt conventions — prescriptive
-errors, registered in op-schema + mutation-ops + sdk-decl + types:
+Operations follow the shared prescriptive-error contract and are derived through
+the family registry into the schema, mutation dispatcher, SDK declaration, and types:
 
 - `set_shape(id, shape)` — geometry or v11 name/alias.
 - `set_direction(direction, subgraph?)` — diagram direction, or a subgraph's

@@ -21,6 +21,7 @@ import { isLegendWorthy, legendEntries } from '../xychart/legend.ts'
 import { graphemes } from '../shared/graphemes.ts'
 import { visualWidth, WIDE_CHAR_CONTINUATION } from './width.ts'
 import { wrapText } from './wrap.ts'
+import { drawTextWithRole, mkCanvas, mkRoleCanvas } from './canvas.ts'
 
 // ============================================================================
 // Constants
@@ -161,8 +162,8 @@ function renderVertical(
   const totalH = xAxisRow + 1 + (showXLabels ? 1 : 0) + (hasXTitle ? 1 : 0)
 
   // Create canvas
-  const canvas = createCanvas(totalW, totalH)
-  const roles = createRoleCanvas(totalW, totalH)
+  const canvas = mkCanvas(totalW - 1, totalH - 1)
+  const roles = mkRoleCanvas(totalW - 1, totalH - 1)
   const hexColors = createHexCanvas(totalW, totalH)
 
   // Series colors
@@ -338,8 +339,8 @@ function renderHorizontal(
   const totalH = plotTop + plotH + 1 + (showValueLabels ? 1 : 0) + (hasYTitle ? 1 : 0)
   const xAxisRow = plotTop + plotH
 
-  const canvas = createCanvas(totalW, totalH)
-  const roles = createRoleCanvas(totalW, totalH)
+  const canvas = mkCanvas(totalW - 1, totalH - 1)
+  const roles = mkRoleCanvas(totalW - 1, totalH - 1)
   const hexColors = createHexCanvas(totalW, totalH)
 
   // Series colors
@@ -721,14 +722,6 @@ function drawLegend(
 // Canvas utilities
 // ============================================================================
 
-function createCanvas(width: number, height: number): Canvas {
-  return Array.from({ length: width }, () => Array.from({ length: height }, () => ' '))
-}
-
-function createRoleCanvas(width: number, height: number): RoleCanvas {
-  return Array.from({ length: width }, () => Array.from<CharRole | null>({ length: height }).fill(null))
-}
-
 function createHexCanvas(width: number, height: number): HexCanvas {
   return Array.from({ length: width }, () => Array.from<string | null>({ length: height }).fill(null))
 }
@@ -753,14 +746,7 @@ function get(canvas: Canvas, row: number, col: number): string {
 }
 
 function writeText(canvas: Canvas, roles: RoleCanvas, row: number, startCol: number, text: string, role: CharRole): void {
-  let col = startCol
-  for (const cluster of graphemes(text)) {
-    const width = visualWidth(cluster)
-    if (width === 0) continue
-    set(canvas, roles, row, col, cluster, role)
-    for (let offset = 1; offset < width; offset++) set(canvas, roles, row, col + offset, WIDE_CHAR_CONTINUATION, role)
-    col += width
-  }
+  drawTextWithRole(canvas, roles, { x: startCol, y: row }, text, role)
 }
 
 function writeColoredText(

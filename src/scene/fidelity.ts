@@ -8,7 +8,7 @@
 // every divergence in a lowering.
 // ============================================================================
 
-import type { Geometry, SceneDoc, SceneNode } from './ir.ts'
+import type { Geometry, SceneDoc, SceneNode, SceneTransform } from './ir.ts'
 import { hasDomSvgIdentityRole } from './identity.ts'
 
 /** Parse the top-level SVG elements out of a crisp chunk (self-closed or
@@ -116,9 +116,39 @@ function unescapeXml(s: string): string {
   return s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&')
 }
 
+function parsedTransform(value: string | undefined): SceneTransform | undefined {
+  if (!value) return undefined
+  const match = /^rotate\(\s*([-+\d.eE]+)[,\s]+([-+\d.eE]+)[,\s]+([-+\d.eE]+)\s*\)$/.exec(value)
+  if (!match) return undefined
+  const [angle, cx, cy] = match.slice(1).map(Number)
+  if (![angle, cx, cy].every(Number.isFinite)) return undefined
+  return { kind: 'rotate', angle: angle!, cx: cx!, cy: cy! }
+}
+
+function transformProblems(node: SceneNode, attrs: Map<string, string> | undefined, path: string, problems: string[]): void {
+  const raw = attrs?.get('transform')
+  const crisp = parsedTransform(raw)
+  if (raw && !crisp) {
+    problems.push(`${path}(${node.kind}:${node.id}).transform: unsupported crisp transform ${raw}`)
+    return
+  }
+  if (!node.transform && crisp) {
+    problems.push(`${path}(${node.kind}:${node.id}).transform: crisp rotation is missing from semantic fields`)
+    return
+  }
+  if (node.transform && !crisp) {
+    problems.push(`${path}(${node.kind}:${node.id}).transform: semantic rotation is missing from crisp SVG`)
+    return
+  }
+  if (node.transform && crisp && (node.transform.kind !== crisp.kind || node.transform.angle !== crisp.angle || node.transform.cx !== crisp.cx || node.transform.cy !== crisp.cy)) {
+    problems.push(`${path}(${node.kind}:${node.id}).transform: semantic ${JSON.stringify(node.transform)} != crisp ${JSON.stringify(crisp)}`)
+  }
+}
+
 export function nodeProblems(node: SceneNode, path: string, problems: string[]): void {
   if (node.kind !== 'raw' && node.kind !== 'prelude') {
     const first = topLevelElements(node.kind === 'group' ? node.open : node.crisp)[0]
+    transformProblems(node, first?.attrs, path, problems)
     if (node.crisp !== '' && hasDomSvgIdentityRole(node.role)) {
       if (!node.identity) problems.push(`${path}(${node.kind}:${node.id}): missing typed identity`)
       if (!first) problems.push(`${path}(${node.kind}:${node.id}): no SVG element for identity`)
@@ -205,6 +235,14 @@ export function nodeProblems(node: SceneNode, path: string, problems: string[]):
       if (!node.crisp.startsWith(node.open)) problems.push(`${path}(group:${node.id}): crisp does not start with open tag`)
       if (!node.crisp.endsWith(node.close)) problems.push(`${path}(group:${node.id}): crisp does not end with close tag`)
       node.children.forEach((child, i) => nodeProblems(child.node, `${path}/${i}`, problems))
+      return
+    }
+    case 'document': {
+      if (node.element === 'title' || node.element === 'description') {
+        const tag = node.element === 'title' ? 'title' : 'desc'
+        if (!node.crisp.startsWith(`<${tag}`) || !node.crisp.endsWith(`</${tag}>`)) problems.push(`${path}(doc-mark:${node.id}): malformed ${tag}`)
+        if (node.text !== undefined && !unescapeXml(node.crisp).includes(node.text)) problems.push(`${path}(doc-mark:${node.id}): text drift`)
+      }
       return
     }
     case 'raw':

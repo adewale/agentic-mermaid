@@ -13,12 +13,13 @@
 // ============================================================================
 
 import type {
-  ConnectorMark, GroupMark, Geometry, MarkPaint, MarkerRef, PreludeMark,
-  RawMark, SceneNode, SceneRole, SemanticChannels, ShapeMark, TextMark,
+  ConnectorMark, DocumentMark, GroupMark, Geometry, MarkPaint, MarkerRef, PreludeMark,
+  RawMark, SceneNode, SceneRole, SceneTransform, SemanticChannels, ShapeMark, TextMark,
 } from './ir.ts'
 import type { DiagramColors } from '../theme.ts'
 import { ensureSvgIdentity, semanticIdentityForSvg } from './identity.ts'
 import { ensureSvgAccessibility, relationAccessibilityForSvg } from './accessibility.ts'
+import { escapeAttr, escapeXml } from '../multiline-utils.ts'
 
 export function shape(fields: {
   id: string
@@ -26,6 +27,7 @@ export function shape(fields: {
   geometry: Geometry
   paint: MarkPaint
   channels?: SemanticChannels
+  transform?: SceneTransform
 }, crisp: string): ShapeMark {
   const identity = semanticIdentityForSvg(crisp, fields)
   const accessibility = relationAccessibilityForSvg(crisp, identity)
@@ -42,6 +44,7 @@ export function connector(fields: {
   startMarker?: MarkerRef
   endMarker?: MarkerRef
   channels?: SemanticChannels
+  transform?: SceneTransform
 }, crisp: string): ConnectorMark {
   const identity = semanticIdentityForSvg(crisp, fields)
   const accessibility = relationAccessibilityForSvg(crisp, identity)
@@ -59,6 +62,7 @@ export function text(fields: {
   anchor: TextMark['anchor']
   paint: MarkPaint
   channels?: SemanticChannels
+  transform?: SceneTransform
 }, crisp: string): TextMark {
   const identity = semanticIdentityForSvg(crisp, fields)
   const accessibility = relationAccessibilityForSvg(crisp, identity)
@@ -72,6 +76,25 @@ export function raw(fields: {
   channels?: SemanticChannels
 }, crisp: string): RawMark {
   return { kind: 'raw', crisp, ...fields }
+}
+
+export function documentText(fields: {
+  id: string
+  element: 'title' | 'description'
+  text: string
+  domId?: string
+}): DocumentMark {
+  const tag = fields.element === 'title' ? 'title' : 'desc'
+  const idAttr = fields.domId ? ` id="${escapeAttr(fields.domId)}"` : ''
+  return { kind: 'document', role: 'chrome', crisp: `<${tag}${idAttr}>${escapeXml(fields.text)}</${tag}>`, ...fields }
+}
+
+export function definitions(fields: { id: string }, crisp: string): DocumentMark {
+  return { kind: 'document', role: 'defs', element: 'definitions', crisp, ...fields }
+}
+
+export function documentClose(): DocumentMark {
+  return { kind: 'document', id: 'svg-close', role: 'chrome', element: 'close', crisp: '</svg>' }
 }
 
 /** Indent every line of a serialized chunk by `n` spaces — the same transform

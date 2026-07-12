@@ -25,7 +25,7 @@ across several surfaces; this hub points at each.
 ## Generated visual evidence
 
 The `*-demo.mmd` fixtures in this directory drive captioned review PNGs. The
-original twelve-family before/after set belongs to
+pre-Mindmap/GitGraph before/after set belongs to
 [PR #142](https://github.com/adewale/agentic-mermaid/pull/142): “before”
 artifacts were rendered at `476e72f` (dense-loop follow-up `84b2ca95`,
 class-generics completion `fb220147`). Follow-on Mindmap/GitGraph evidence
@@ -41,13 +41,17 @@ bun run bin/am.ts render docs/design/families/<name>-demo.mmd --format png \
 
 The Gantt completion image additionally uses `ganttToday: '2024-01-08'`; the dependency image
 uses `{ gantt: { dependencyArrows: true, criticalPath: true } }` through `renderMermaidPNG`.
-The all-family Style + Palette sheet is generated and tested byte-for-byte:
+The all-family Style + Palette sheet and gallery evidence are generated and checked with:
 
 ```bash
 bun run scripts/pr-assets/family-elevation-style-palette.ts
+bun run gallery:mindmap-gitgraph
+bun run gallery:mindmap-gitgraph:check
+bun run gallery:mermaid-docs
+bun run gallery:mermaid-docs:check
 ```
 
-## Where every family is documented (all 14)
+## Where every registered family is documented
 
 - **Canonical registry:** `BUILTIN_FAMILY_METADATA` in `src/agent/families.ts` — and its generated roster table in [`abstraction-audit.md`](../system/abstraction-audit.md) §2.
 - **User-facing catalogue:** [`diagram-families.md`](../../diagram-families.md).

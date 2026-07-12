@@ -4,7 +4,7 @@ How the Agentic Mermaid engine fits together. This is the entry point the
 [abstraction audit](./abstraction-audit.md) identified as missing: a single top-down
 view of the whole system, distinct from the per-diagram-type design notes.
 
-![Agentic Mermaid abstraction architecture: one normalized source is routed through the FamilyPlugin registry into SVG, ASCII, and agent hooks over the same 14 diagram families and shared core types](./architecture.svg)
+![Agentic Mermaid abstraction architecture: one normalized source is routed through the FamilyPlugin registry into SVG, ASCII, and agent hooks over the same registry-backed diagram families and shared core types](./architecture.svg)
 
 One Mermaid source is normalized once, then processed by **three parallel stacks** —
 SVG (`renderMermaidSVG`), ASCII (`renderMermaidASCII`), and the agent IR

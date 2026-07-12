@@ -15,7 +15,7 @@ Current implementation decisions that differ from, or materially narrow, the bro
 
 - Product/docs, npm package name, and repository path are **Agentic Mermaid** / `agentic-mermaid` / `adewale/agentic-mermaid`. The agent surface ships as the `./agent` subpath.
 - `MermaidGraph` and `renderMermaidSVGAsync` remain for compatibility with existing renderer/tests/consumers.
-- ~~`state` diagrams currently share the flowchart body (`body.kind: 'flowchart'`)…~~ **Superseded by BUILD-19.** State diagrams now own a dedicated `StateBody` IR (`body.kind: 'state'`) with state-shaped ops and a real `asState` narrower. `asFlowchart` returns `null` on a state diagram (a breaking change within the unreleased agent surface). Verify still gets full Tier 1 + Tier 2 geometric coverage: the `StateBody` projects to a `MermaidGraph` via the legacy parser (`stateBodyToGraph`) and runs the identical flowchart `verifyGraph`. The modeled subset is simple states/transitions/`[*]` pseudostates/composites/`direction`; unmodeled syntax (`<<fork>>`/`<<choice>>`/`<<join>>`, history, concurrency `--`, notes, `classDef`/`class`/`:::`) falls back to a lossless opaque body. Corpus round-trip for state jumped 5% → 100%.
+- State diagrams own a dedicated `StateBody` IR with state-shaped operations and `asState`; `asFlowchart` returns `null`. Notes, pseudostates, history, concurrency, paint, composites, and direction are modeled. Unsupported extensions remain lossless through the structured-or-opaque boundary.
 
 ### Mutation surface is intentionally narrower than Mermaid syntax
 
@@ -27,15 +27,17 @@ Structured mutation is exposed for every built-in renderable family, but only wh
 - class;
 - ER;
 - journey (BUILD-15 pilot);
-- architecture (BUILD-17 — the modeled subset of groups/services/junctions/edges);
-- xychart (BUILD-16 — the modeled subset of title/axes/series);
+- architecture, including group-boundary semantics;
+- xychart;
 - pie;
 - quadrant;
-- gantt.
+- gantt;
+- mindmap;
+- gitgraph.
 
 Opaque/source-level bodies:
 
-- any known-family diagram that falls back to opaque because it contains unmodeled syntax (e.g. architecture `{group}` boundary modifiers, accTitle/accDescr, malformed pie entries, out-of-range quadrant coordinates, or un-segmentable sequence/gantt syntax).
+- any known-family diagram that falls back to opaque because it contains syntax its family model cannot preserve safely, such as malformed entries or un-segmentable blocks.
 
 For source-level bodies, agents may render, verify, describe, and round-trip preserved source. They do **not** get typed mutation ops. `am mutate` returns `UNSUPPORTED_FAMILY` for those bodies.
 
@@ -43,15 +45,15 @@ For source-level bodies, agents may render, verify, describe, and round-trip pre
 
 Known-family input must never be partially parsed and then re-emitted with unknown constructs dropped. If the structured parser cannot preserve a construct, the body stays opaque/source-preserved and serializes from `body.source`.
 
-BUILD-18 refines "opaque/source-preserved" for sequence into a finer grain: a sequence body now interleaves structured statements with **opaque-block segments** holding unmodeled lines verbatim, so the structured ops survive instead of being forfeited at the first unmodeled line. The never-lossy invariant is unchanged — the segment lines are byte-for-byte preserved — and whole-body opaque is still the fallback for un-segmentable input. Class/ER/timeline can adopt the same segment-preserving body as follow-up work.
+Sequence, Gantt, and ER refine "opaque/source-preserved" into ordered typed and **opaque-block segments**, so structured operations survive around unmodeled lines. Whole-body opaque remains the fallback for un-segmentable input. Class and Timeline are the remaining segment-preservation candidates tracked in `TODO.md`.
 
 This applies even when the diagram renders successfully. Render support is not the same as structured editing support.
 
-### Code Mode is local, synchronous, and lineage-checked
+### Code Mode has two checked runtimes
 
-- The MCP server exposes a Code Mode-style `execute(code)` tool backed by local `node:vm`; it is not Cloudflare Codemode and not a container/OS security boundary.
-- Code Mode is synchronous: no `async`/`await`, Promise jobs, dynamic import, finalizers, or blocking/realm-creating globals.
-- SDK-returned diagrams are read-only. Structured edits must go through `mermaid.mutate(...)` and must use trusted diagram lineage from parse/mutate/narrower outputs.
+- Local MCP uses synchronous `node:vm`; it is not a container/OS security boundary.
+- Hosted MCP uses per-request Cloudflare Dynamic Worker isolates with bounded CPU/subrequests and no outbound network. It deliberately differs from local execution in strict-module and CPU-time details; differential tests pin the shared contract and named divergences.
+- SDK-returned diagrams are read-only. Structured edits go through `mermaid.mutate(...)` and trusted lineage from parse/mutate/narrower outputs.
 
 ### Runtime surfaces are part of the contract
 

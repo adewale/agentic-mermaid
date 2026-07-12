@@ -453,7 +453,7 @@ timeline
   test('documented-but-unwired timeline config keys are named', () => {
     const r = verifyMermaid(withConfig('    noteMargin: 4\n    rightAngles: true'))
     const fields = r.warnings.filter(w => w.code === 'INEFFECTIVE_CONFIG').map(w => (w as { field?: string }).field)
-    expect(fields).toEqual(['noteMargin', 'rightAngles'])
+    expect(fields).toEqual(['timeline.noteMargin', 'timeline.rightAngles'])
     expect(r.ok).toBe(true) // lint only — never flips verify
   })
 

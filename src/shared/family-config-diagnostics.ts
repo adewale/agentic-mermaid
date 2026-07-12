@@ -8,6 +8,7 @@ import { PIE_NOOP_CONFIG_FIELDS } from '../pie/config.ts'
 import { QUADRANT_NOOP_CONFIG_FIELDS } from '../quadrant/config.ts'
 import { SEQUENCE_NOOP_CONFIG_FIELDS } from '../sequence/config.ts'
 import { stateConfigDiagnostics } from '../state/config.ts'
+import { compareCodePointStrings } from './deterministic-order.ts'
 
 export interface FamilyConfigSpec {
   section: string
@@ -188,9 +189,6 @@ export function familyConfigValueDiagnostics(kind: DiagramKind, root: unknown): 
   return diagnostics
 }
 
-/** Backward-compatible name retained for callers outside this module. */
-export const mindmapGitGraphValueDiagnostics = familyConfigValueDiagnostics
-
 export function familyNoopConfigDiagnostics(kind: DiagramKind, root: unknown): ConfigDiagnostic[] {
   const spec = FAMILY_CONFIG_SPECS[kind]
   const config = section(root, spec.section)
@@ -203,18 +201,35 @@ export function familyNoopConfigDiagnostics(kind: DiagramKind, root: unknown): C
   }))
 }
 
+function stableDiagnostics(diagnostics: ConfigDiagnostic[]): ConfigDiagnostic[] {
+  const seen = new Set<string>()
+  return diagnostics
+    .sort((a, b) => compareCodePointStrings(a.field, b.field) || compareCodePointStrings(a.message, b.message))
+    .filter(diagnostic => {
+      const key = `${diagnostic.code}\u0000${diagnostic.field}\u0000${diagnostic.message}`
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+}
+
+/** Schema-owned diagnostics for source wrappers or explicit config roots. */
+export function familyConfigDiagnostics(kind: DiagramKind, roots: readonly unknown[]): ConfigDiagnostic[] {
+  const spec = FAMILY_CONFIG_SPECS[kind]
+  const diagnostics = roots.flatMap(root => {
+    const unknown = familyUnknownConfigDiagnostics(kind, root)
+    const config = section(root, spec.section)
+    if (kind === 'state') return config ? stateConfigDiagnostics([config], true) : unknown
+    return [
+      ...unknown,
+      ...familyConfigValueDiagnostics(kind, root),
+      ...familyNoopConfigDiagnostics(kind, root),
+    ]
+  })
+  return stableDiagnostics(diagnostics)
+}
+
 /** Diagnostics for the explicit RenderOptions.mermaidConfig entry path. */
 export function explicitFamilyConfigDiagnostics(kind: DiagramKind, root: unknown): ConfigDiagnostic[] {
-  const spec = FAMILY_CONFIG_SPECS[kind]
-  const unknown = familyUnknownConfigDiagnostics(kind, root)
-  const config = section(root, spec.section)
-  const valueDiagnostics = familyConfigValueDiagnostics(kind, root)
-  if (!config) return [...unknown, ...valueDiagnostics]
-  if (kind === 'state') return stateConfigDiagnostics([config], true)
-
-  return [
-    ...unknown,
-    ...valueDiagnostics,
-    ...familyNoopConfigDiagnostics(kind, root),
-  ]
+  return familyConfigDiagnostics(kind, [root])
 }

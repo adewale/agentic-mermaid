@@ -86,10 +86,10 @@ import { buildGanttRenderPipeline } from '../gantt/pipeline.ts'
 import { layoutGantt } from '../gantt/layout.ts'
 import type { GanttEndExpr, GanttLayoutResult, GanttModel, GanttModelSection, GanttModelTask, GanttStartExpr, GanttTaskTag } from '../gantt/types.ts'
 import { parseMindmap } from '../mindmap/parser.ts'
-import { layoutMindmap } from '../mindmap/layout.ts'
+import { positionMindmap, resolveMindmapPositionConfig } from '../mindmap/position.ts'
 import { parseGitGraph } from '../gitgraph/parser.ts'
-import { layoutGitGraph } from '../gitgraph/layout.ts'
-import { resolveGitGraphCommitLabelFontSize } from '../gitgraph/renderer.ts'
+import { positionGitGraph, resolveGitGraphPositionConfig } from '../gitgraph/position.ts'
+
 
 function f(n: number): Finite { return toFinite(Math.round(n)) }
 
@@ -145,11 +145,7 @@ function mindmapToRendered(d: ValidDiagram): RenderedLayout {
       if (directive.parsed?.layout !== undefined) authoredLayout = directive.parsed.layout
     }
     const diagram = d.body.kind === 'mindmap' ? d.body : parseMindmap(normalized.body)
-    const positioned = layoutMindmap(diagram, {
-      padding: typeof config.padding === 'number' ? config.padding : undefined,
-      maxNodeWidth: typeof config.maxNodeWidth === 'number' ? config.maxNodeWidth : undefined,
-      layout: authoredLayout === 'tidy-tree' ? 'tidy-tree' : 'radial',
-    })
+    const positioned = positionMindmap(diagram, resolveMindmapPositionConfig(config, authoredLayout))
     const nodes: RenderedLayoutNode[] = positioned.nodes.map(node => ({
       id: node.id, x: f(node.x), y: f(node.y),
       w: f(node.width), h: f(node.height), shape: node.shape === 'circle' ? 'ellipse' : 'rectangle', label: node.label,
@@ -181,17 +177,12 @@ function gitgraphToRendered(d: ValidDiagram): RenderedLayout {
     // identity used during parse. Re-parsing canonicalSource alone loses the
     // preserved wrapper config and can turn a valid custom-main history into
     // a false 0×0 verification layout.
+    const resolved = resolveGitGraphPositionConfig(config, themeVariables)
     const diagram = d.body.kind === 'gitgraph' ? d.body : parseGitGraph(normalized.body, {
-      mainBranchName: typeof config.mainBranchName === 'string' ? config.mainBranchName : undefined,
-      mainBranchOrder: typeof config.mainBranchOrder === 'number' ? config.mainBranchOrder : undefined,
+      mainBranchName: resolved.mainBranchName,
+      mainBranchOrder: resolved.mainBranchOrder,
     })
-    const positioned = layoutGitGraph(diagram, {
-      showBranches: typeof config.showBranches === 'boolean' ? config.showBranches : undefined,
-      showCommitLabel: typeof config.showCommitLabel === 'boolean' ? config.showCommitLabel : undefined,
-      rotateCommitLabel: typeof config.rotateCommitLabel === 'boolean' ? config.rotateCommitLabel : undefined,
-      parallelCommits: typeof config.parallelCommits === 'boolean' ? config.parallelCommits : undefined,
-      commitLabelFontSize: resolveGitGraphCommitLabelFontSize(themeVariables),
-    })
+    const positioned = positionGitGraph(diagram, resolved)
     const nodes: RenderedLayoutNode[] = positioned.commits.map(commit => {
       const type = commit.customType ?? commit.type
       return {

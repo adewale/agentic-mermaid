@@ -1,6 +1,6 @@
 # Mermaid 11.16 family-fidelity audit
 
-Status: complete for all 14 registered families. Audited: 2026-07-10.
+Status: complete for every family in the checked registry. Audited: 2026-07-10.
 
 This is the compatibility and visual-metaphor half of the diagram-family citizenship contract. The ordinary citizenship matrix proves that a family reaches every product surface; this audit proves that the thing reaching those surfaces still means and looks like that family.
 

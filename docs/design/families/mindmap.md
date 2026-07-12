@@ -69,9 +69,6 @@ Use `asMindmap` before mutation. Operations cover add/remove/rename/move, label 
 
 `verifyMermaid` checks label overflow and projects real node/edge geometry into `RenderedLayout`. The focused citizenship suite proves parser/serializer stability, duplicate rejection, tree and route invariants, typed edits, Unicode/display-cell behavior, external-reference hygiene, deterministic SVG/layout, and property-generated sibling trees.
 
-See `src/__tests__/mindmap-gitgraph-citizenship.test.ts`, documentation/grammar parity in `src/__tests__/mindmap-gitgraph-doc-parity.test.ts`, and the exhaustive operation contract in `src/__tests__/mindmap-agent-ops.test.ts`. AlexanderGrooff/mermaid-ascii 1.4.0 currently exits 1 for this fixture with `unsupported graph type 'mindmap'`; its coverage request is [issue #74](https://github.com/AlexanderGrooff/mermaid-ascii/issues/74), so the comparison records capability honestly rather than fabricating equivalent output. The focused
-Stryker lane (`bun run mutation-test:mindmap`) killed 400/405 mutants
-(**98.77%**) in the latest 2026-07-10 local run; the gitignored report is not an
-immutable PR artifact and the committed break floor is 60%. The three survivors
-are equivalent correlated tuple guards plus an empty `catch` whose implicit
-`undefined` is the same falsy result as explicit `false`.
+See `src/__tests__/mindmap-gitgraph-citizenship.test.ts`, documentation/grammar parity in `src/__tests__/mindmap-gitgraph-doc-parity.test.ts`, and the exhaustive operation contract in `src/__tests__/mindmap-agent-ops.test.ts`. AlexanderGrooff/mermaid-ascii 1.4.0 currently exits 1 for this fixture with `unsupported graph type 'mindmap'`; its coverage request is [issue #74](https://github.com/AlexanderGrooff/mermaid-ascii/issues/74), so the comparison records capability honestly rather than fabricating equivalent output. The focused Stryker lane (`bun run mutation-test:mindmap`) enforces its committed
+break floor. Accepted equivalent survivors and current evidence live in
+`docs/mutation-testing.md`.

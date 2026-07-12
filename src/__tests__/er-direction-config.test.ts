@@ -124,7 +124,7 @@ describe('er config section — wire-or-warn', () => {
   it('documented-but-unwired er config keys emit INEFFECTIVE_CONFIG', () => {
     const v = verifyMermaid(withConfig('    stroke: gray\n    fill: honeydew\n    minEntityWidth: 100'))
     const fields = v.warnings.filter(w => w.code === 'INEFFECTIVE_CONFIG').map(w => (w as { field: string }).field)
-    expect(fields).toEqual(['fill', 'minEntityWidth', 'stroke'])
+    expect(fields).toEqual(['er.fill', 'er.minEntityWidth', 'er.stroke'])
     expect(v.ok).toBe(true)
   })
 

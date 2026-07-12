@@ -6,6 +6,7 @@
 //   TEXT-STRADDLE a label partially overlaps a primitive box (not contained, not its owner)
 //   BOX-BOX       two primitives interpenetrate (neither contains the other, different owners)
 import { measureTextWidth } from '../../src/text-metrics.ts'
+import { rotateBoxBounds } from '../../src/shared/transformed-bounds.ts'
 
 export interface Box { x0: number; y0: number; x1: number; y1: number }
 export interface TextBox extends Box { text: string; owner: string }
@@ -76,38 +77,7 @@ export function extract(svg: string): { texts: TextBox[]; prims: PrimBox[] } {
       let x0 = anchor === 'middle' ? ln.x - w / 2 : anchor === 'end' ? ln.x - w : ln.x
       // y is the baseline anchor (renderer centers with dy); approximate the em box
       let box: Box = { x0, y0: ln.y - fs * 0.55, x1: x0 + w, y1: ln.y + fs * 0.55 }
-      if (rot) {
-        const ang = ((num(rot[1]) % 360) + 360) % 360, cx = num(rot[2]), cy = num(rot[3])
-        if (Math.abs(ang - 90) < 1 || Math.abs(ang - 270) < 1) {
-          // Exact ±90° corner map about (cx,cy): (x,y) → (cx - s·(y-cy), cy + s·(x-cx))
-          // with s = +1 for 90° and -1 for 270°. The sign matters for anchored
-          // text — a start-anchored label extends to opposite sides under the
-          // two rotations (the 2026-07 audit's own false positive).
-          const sgn = Math.abs(ang - 90) < 1 ? 1 : -1
-          const xs = [cx - sgn * (box.y0 - cy), cx - sgn * (box.y1 - cy)]
-          const ys = [cy + sgn * (box.x0 - cx), cy + sgn * (box.x1 - cx)]
-          box = { x0: Math.min(...xs), y0: Math.min(...ys), x1: Math.max(...xs), y1: Math.max(...ys) }
-        } else if (ang !== 0) {
-          // Generic corner map for GitGraph's 45° commit labels and any future
-          // deterministic angle. The old auditor skipped arbitrary rotations,
-          // which made its zero-overlap claim blind exactly where dense history
-          // labels were hardest to read.
-          const rad = ang * Math.PI / 180
-          const cos = Math.cos(rad), sin = Math.sin(rad)
-          const corners = [
-            [box.x0, box.y0], [box.x1, box.y0], [box.x0, box.y1], [box.x1, box.y1],
-          ].map(([px, py]) => ({
-            x: cx + (px! - cx) * cos - (py! - cy) * sin,
-            y: cy + (px! - cx) * sin + (py! - cy) * cos,
-          }))
-          box = {
-            x0: Math.min(...corners.map(point => point.x)),
-            y0: Math.min(...corners.map(point => point.y)),
-            x1: Math.max(...corners.map(point => point.x)),
-            y1: Math.max(...corners.map(point => point.y)),
-          }
-        }
-      }
+      if (rot) box = rotateBoxBounds(box, { x: num(rot[2]), y: num(rot[3]) }, num(rot[1]))
       texts.push({ text: clean, owner, ...box })
     }
   }
@@ -125,13 +95,7 @@ export function extract(svg: string): { texts: TextBox[]; prims: PrimBox[] } {
     let box: Box = { x0: x, y0: y, x1: x + width, y1: y + height }
     const rot = /transform="rotate\((-?[\d.]+)[, ]+([\d.e+-]+)[, ]+([\d.e+-]+)\)"/.exec(attrs)
     if (rot && Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(width) && Number.isFinite(height)) {
-      const angle = num(rot[1]) * Math.PI / 180, cx = num(rot[2]), cy = num(rot[3])
-      const cos = Math.cos(angle), sin = Math.sin(angle)
-      const corners = [[box.x0, box.y0], [box.x1, box.y0], [box.x0, box.y1], [box.x1, box.y1]].map(([px, py]) => ({
-        x: cx + (px! - cx) * cos - (py! - cy) * sin,
-        y: cy + (px! - cx) * sin + (py! - cy) * cos,
-      }))
-      box = { x0: Math.min(...corners.map(p => p.x)), y0: Math.min(...corners.map(p => p.y)), x1: Math.max(...corners.map(p => p.x)), y1: Math.max(...corners.map(p => p.y)) }
+      box = rotateBoxBounds(box, { x: num(rot[2]), y: num(rot[3]) }, num(rot[1]))
     }
     push('rect', r.index!, box.x0, box.y0, box.x1, box.y1)
   }

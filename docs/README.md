@@ -49,11 +49,12 @@ The design docs split into two tiers — **system** (how the engine works, cross
 | [`design/system/`](./design/system/README.md) | **Start here.** Rendered three-stacks architecture overview (dogfooded, drift-proof) routing to the audit and design docs. |
 | [`design/system/abstraction-audit.md`](./design/system/abstraction-audit.md) | Whole-system abstraction audit: the three-stacks model and ranked issue list I1–I9. |
 | [`design/system/abstraction-recommendations.md`](./design/system/abstraction-recommendations.md) | Literature-grounded recommendations for I1–I9, with a prioritized roadmap. |
+| [`design/system/consolidation-plan.md`](./design/system/consolidation-plan.md) | Active characterization-first consolidation plan; replaces completed implementation ledgers as the current roadmap. |
 | [`design/system/route-contracts.md`](./design/system/route-contracts.md) | Route contracts: edge classification, direct-lane proofs, certifying straightener (issue #25). |
 | [`design/system/layout-rubric.md`](./design/system/layout-rubric.md) | Deterministic layout-quality rubric: metrics, CI gates, and property oracles. |
 | [`design/system/source-preservation-ladder.md`](./design/system/source-preservation-ladder.md) | The structured\|opaque family-adoption contract (levels L0–L4). |
-| [`design/mermaid-family-fidelity-audit.md`](./design/mermaid-family-fidelity-audit.md) | Mermaid 11.16 syntax accounting and Mermaid/Wikipedia visual-metaphor audit for all 14 families. |
-| [`design/style-palette-compatibility.md`](./design/style-palette-compatibility.md) | Executable 4,200-case Look × Palette × family compatibility receipt. |
+| [`design/mermaid-family-fidelity-audit.md`](./design/mermaid-family-fidelity-audit.md) | Mermaid 11.16 syntax accounting and Mermaid/Wikipedia visual-metaphor audit for every registered family. |
+| [`design/style-palette-compatibility.md`](./design/style-palette-compatibility.md) | Registry-derived exhaustive Look × Palette × family compatibility receipt. |
 | [`design/system/ugly-layouts.md`](./design/system/ugly-layouts.md) | Ugly-layout detector: catalogued failure shapes and heuristics. |
 
 ### Per-family design notes
@@ -80,8 +81,10 @@ The design docs split into two tiers — **system** (how the engine works, cross
 | [`contributing/harvesting-upstream-tests.md`](./contributing/harvesting-upstream-tests.md) | How to vendor upstream/fork test suites into an executable compatibility bench. |
 | [`contributing/releasing.md`](./contributing/releasing.md) | How to cut an npm release (GitHub Release → provenance publish) and flip the "published" copy. |
 | [`layout-characterization/README.md`](./layout-characterization/README.md) | Layout and visual testing approach: properties, contact sheets, raster contracts, and approval artifacts. |
+| [`svg-semantic-contract.md`](./svg-semantic-contract.md) | Typed Scene identity, geometry, references, and accessibility contract. |
+| [`mutation-testing.md`](./mutation-testing.md) | Mutation lanes, survivor handling, and adequacy evidence. |
 | [`project/divergences.md`](./project/divergences.md) | Deliberate divergences and guardrails. |
-| [`project/lessons-learned.md`](./project/lessons-learned.md) | Cumulative fork implementation narrative (loops 1–22). |
+| [`project/lessons-learned.md`](./project/lessons-learned.md) | Evergreen engineering lessons distilled from the archived fork narrative. |
 | [`contributing/lessons-learned.md`](./contributing/lessons-learned.md) | Dated contributor process lessons (newest first). |
 | [`project/dogfooding-docs-strategy.md`](./project/dogfooding-docs-strategy.md) | How we render and pin our own docs with our own tools. |
 | [`issue-derived-test-cases.md`](./issue-derived-test-cases.md) | Issue-derived regression coverage map. |

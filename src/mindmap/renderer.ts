@@ -1,6 +1,7 @@
 import type { RenderContext } from '../types.ts'
 import type { PositionedMindmapDiagram, PositionedMindmapNode } from './types.ts'
-import type { SceneDoc, SceneNode, Geometry } from '../scene/ir.ts'
+import type { SceneDoc, SceneNode } from '../scene/ir.ts'
+import { serializeGeometryShape, type SerializableShapeGeometry } from '../scene/svg-serialize.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs, resolveColors } from '../theme.ts'
@@ -48,8 +49,8 @@ export function lowerMindmapScene(ctx: RenderContext<PositionedMindmapDiagram>):
     transparent, font, hasMonoFont: false,
   }, head.join('\n'))]
   const title = diagram.accessibilityTitle ?? diagram.nodes[0]?.label
-  if (title) parts.push(marks.raw({ id: 'acc-title', role: 'chrome' }, `<title id="${titleId}">${escapeXml(title)}</title>`))
-  if (diagram.accessibilityDescription) parts.push(marks.raw({ id: 'acc-desc', role: 'chrome' }, `<desc id="${descId}">${escapeXml(diagram.accessibilityDescription)}</desc>`))
+  if (title) parts.push(marks.documentText({ id: 'acc-title', element: 'title', domId: titleId, text: title }))
+  if (diagram.accessibilityDescription) parts.push(marks.documentText({ id: 'acc-desc', element: 'description', domId: descId, text: diagram.accessibilityDescription }))
 
   for (const edge of diagram.edges) {
     const stroke = branchPaint(edge.to)
@@ -63,7 +64,7 @@ export function lowerMindmapScene(ctx: RenderContext<PositionedMindmapDiagram>):
     }, `<path class="mindmap-edge" data-from="${escapeAttr(edge.from)}" data-to="${escapeAttr(edge.to)}" data-branch-index="${branchByNode.get(edge.to) ?? 0}" d="${edge.d}" fill="none" stroke="${escapeAttr(stroke)}" stroke-width="2.5" stroke-linecap="round" />`))
   }
   for (const node of diagram.nodes) parts.push(renderNode(node, colors, branchByNode.get(node.id), branchPaint(node.id)))
-  parts.push(marks.raw({ id: 'svg-close', role: 'chrome' }, '</svg>'))
+  parts.push(marks.documentClose())
   return { family: 'mindmap', width: diagram.width, height: diagram.height, colors, parts }
 }
 
@@ -85,7 +86,7 @@ function renderNode(
     ? concretePalette ? ensureContrast(colors.bg, rootFill, 4.5, colors.fg) : 'var(--bg)'
     : concretePalette ? ensureContrast(colors.fg, branchFill, 4.5) : 'var(--_text)'
   const shape = nodeGeometry(node)
-  const shapeSvg = geometrySvg(shape, fill, stroke)
+  const shapeSvg = serializeGeometryShape(shape, { fill, stroke, strokeWidth: '1.5' })
   const children: Array<{ node: SceneNode; indent: number }> = [
     { node: marks.shape({ id: semanticChildId(node.id, 'shape'), role: 'chrome', geometry: shape, paint: { fill, stroke, strokeWidth: '1.5' } }, shapeSvg), indent: 2 },
   ]
@@ -124,7 +125,7 @@ function renderNode(
   })
 }
 
-function nodeGeometry(node: PositionedMindmapNode): Geometry {
+function nodeGeometry(node: PositionedMindmapNode): SerializableShapeGeometry {
   const { x, y, width, height } = node
   const point = (pointX: number, pointY: number) => ({ x: round(pointX), y: round(pointY) })
   if (node.shape === 'circle') return { kind: 'circle', cx: round(x + width / 2), cy: round(y + height / 2), r: round(Math.min(width, height) / 2) }
@@ -148,15 +149,6 @@ function nodeGeometry(node: PositionedMindmapNode): Geometry {
     rx: node.shape === 'rect' ? 0 : node.shape === 'rounded' ? 10 : 16,
     ry: node.shape === 'rect' ? 0 : node.shape === 'rounded' ? 10 : 16,
   }
-}
-
-function geometrySvg(geometry: Geometry, fill: string, stroke: string): string {
-  const paint = `fill="${fill}" stroke="${stroke}" stroke-width="1.5"`
-  if (geometry.kind === 'rect') return `<rect x="${round(geometry.x)}" y="${round(geometry.y)}" width="${round(geometry.width)}" height="${round(geometry.height)}" rx="${geometry.rx ?? 0}" ry="${geometry.ry ?? 0}" ${paint} />`
-  if (geometry.kind === 'circle') return `<circle cx="${round(geometry.cx)}" cy="${round(geometry.cy)}" r="${round(geometry.r)}" ${paint} />`
-  if (geometry.kind === 'ellipse') return `<ellipse cx="${round(geometry.cx)}" cy="${round(geometry.cy)}" rx="${round(geometry.rx)}" ry="${round(geometry.ry)}" ${paint} />`
-  if (geometry.kind === 'polygon') return `<polygon points="${geometry.points.map(point => `${round(point.x)},${round(point.y)}`).join(' ')}" ${paint} />`
-  return ''
 }
 
 function mindmapBranchIndices(diagram: PositionedMindmapDiagram): Map<string, number> {

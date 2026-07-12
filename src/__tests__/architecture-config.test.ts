@@ -143,7 +143,7 @@ architecture-beta
     const v = verifyMermaid(r.value)
     expect(v.ok).toBe(true)
     const named = v.warnings.filter(w => w.code === 'INEFFECTIVE_CONFIG').map(w => (w as { field: string }).field)
-    expect(named).toEqual(['edgeElasticity', 'numIter', 'randomize', 'seed'])
+    expect(named).toEqual(['architecture.edgeElasticity', 'architecture.numIter', 'architecture.randomize', 'architecture.seed'])
   })
 
   it('renderMermaidSVG honors the wired keys with real geometry changes', () => {

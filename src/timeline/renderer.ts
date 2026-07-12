@@ -181,7 +181,7 @@ export function lowerTimelineScene(
     ))
   }
 
-  parts.push(marks.raw({ id: 'svg-close', role: 'chrome' }, '</svg>'))
+  parts.push(marks.documentClose())
 
   return { family: 'timeline', width: diagram.width, height: diagram.height, colors, parts }
 }

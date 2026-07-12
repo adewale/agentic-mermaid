@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { renderMermaidASCII } from '../ascii/index.ts'
 import { maxLineWidth, visualWidth } from '../ascii/multiline-utils.ts'
+import { drawTextWithRole, mkCanvas, mkRoleCanvas } from '../ascii/canvas.ts'
 
 describe('ASCII CJK/fullwidth display width', () => {
   it('counts CJK, Hangul, and emoji by terminal column width', () => {
@@ -14,6 +15,18 @@ describe('ASCII CJK/fullwidth display width', () => {
   it('keeps East Asian ambiguous-width symbols stable as single-cell glyphs', () => {
     expect(visualWidth('Ω·±×')).toBe(4)
     expect(visualWidth('AΩ🙂Ｂ')).toBe(6)
+  })
+
+  it('bounded cell writes refuse a whole wide grapheme at either boundary', () => {
+    const rightCanvas = mkCanvas(1, 0)
+    const rightRoles = mkRoleCanvas(1, 0)
+    drawTextWithRole(rightCanvas, rightRoles, { x: 1, y: 0 }, '界', 'text')
+    expect(rightCanvas.map(column => column[0]).join('')).toBe('  ')
+
+    const leftCanvas = mkCanvas(1, 0)
+    const leftRoles = mkRoleCanvas(1, 0)
+    drawTextWithRole(leftCanvas, leftRoles, { x: -1, y: 0 }, '🙂', 'text')
+    expect(leftCanvas.map(column => column[0]).join('')).toBe('  ')
   })
 
   it('sizes unicode node boxes by visual width, not JavaScript string length', () => {

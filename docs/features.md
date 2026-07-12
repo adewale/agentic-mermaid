@@ -7,10 +7,9 @@ What Agentic Mermaid can do, organized by capability area. The npm import paths 
 - **Typed `ValidDiagram` IR** — parse Mermaid into a sealed, typed value.
 - **`parseMermaid(source)`** → `Result<ValidDiagram, ParseError[]>`. Never
   throws on malformed input; structured errors.
-- **`mutate(d, op)`** — family-overloaded typed mutation. Ops per family:
-  flowchart (14), state (18), sequence (7), timeline (15), class (15), ER (12),
-  journey (14), architecture (19), xychart (10), pie (7), quadrant (7), gantt (13),
-  mindmap (10), gitgraph (11): **172 total**.
+- **`mutate(d, op)`** — family-overloaded typed mutation. The generated
+  `am capabilities --json` response and SDK declaration expose the authoritative
+  operation menu for every registered family.
 - **`verifyMermaid(d, opts)`** — structural and geometric verification plus a
   strict render-parity gate, with deterministic semantic facts available for
   meaning-level checks.
@@ -23,24 +22,24 @@ What Agentic Mermaid can do, organized by capability area. The npm import paths 
   return `null` on a non-matching or source-level/opaque body (steers agents
   off the unsafe path).
 
-## Diagram families (14)
+## Diagram families
 
 | Family | Parse/render/round-trip | Structured mutation |
 |---|---|---|
-| Flowchart | ✅ | ✅ (14 ops) |
-| State | ✅ | ✅ (18 ops via `asState`; regions, notes, history, and paint are structured) |
-| Sequence | ✅ | ✅ (7 ops; alt/loop/note/box ride along verbatim as segments) |
-| Timeline | ✅ | ✅ (15 ops) |
-| Class | ✅ | ✅ (15 ops) |
-| ER | ✅ | ✅ (12 ops; aliases use stable ids plus display labels) |
-| Journey | ✅ | ✅ (14 ops via `asJourney`) |
-| XY chart | ✅ | ✅ (10 ops via `asXyChart`) |
-| Architecture | ✅ | ✅ (19 ops via `asArchitecture`) |
-| Pie | ✅ | ✅ (7 ops via `asPie`) |
-| Quadrant | ✅ | ✅ (7 ops via `asQuadrant`) |
-| Gantt | ✅ | ✅ (13 ops via `asGantt`; calendar directives/click/comments ride along verbatim as segments) |
-| Mindmap | ✅ | ✅ (10 ops via `asMindmap`) |
-| GitGraph | ✅ | ✅ (11 ops via `asGitGraph`) |
+| Flowchart | ✅ | `asFlowchart` |
+| State | ✅ | `asState` — regions, notes, history, and paint are structured |
+| Sequence | ✅ | `asSequence` — unsupported blocks ride along verbatim as segments |
+| Timeline | ✅ | `asTimeline` |
+| Class | ✅ | `asClass` |
+| ER | ✅ | `asEr` — aliases use stable ids plus display labels |
+| Journey | ✅ | `asJourney` |
+| XY chart | ✅ | `asXyChart` |
+| Architecture | ✅ | `asArchitecture` |
+| Pie | ✅ | `asPie` |
+| Quadrant | ✅ | `asQuadrant` |
+| Gantt | ✅ | `asGantt` — calendar directives, click lines, and comments remain ordered segments |
+| Mindmap | ✅ | `asMindmap` |
+| GitGraph | ✅ | `asGitGraph` |
 
 **Structured-or-opaque rule:** every family either has a structured body
 or preserves source verbatim. Constructs are never silently dropped.

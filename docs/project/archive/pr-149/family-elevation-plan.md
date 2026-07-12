@@ -21,7 +21,7 @@ generalizes to the other eleven families.
 Every item below carries a provenance tag naming the leg of the audit that
 surfaced it. The audit (2026-07-10, run against merged `main` after PR #141)
 had three legs, mirroring the Journey research method in
-[`families/journey-usage-research.md`](./families/journey-usage-research.md):
+[`families/journey-usage-research.md`](../../../design/families/journey-usage-research.md):
 
 1. **Local audit + render probes** (`probe:`) — per-family reading of the
    renderer parser, agent body, layout, renderer, ASCII path, tests, and

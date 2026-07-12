@@ -277,7 +277,8 @@ export function lowerQuadrantScene(
     const label = lines.join('\n')
     // y-axis labels sit in the left gutter and are rotated upright.
     const isYAxis = axis.x < plot.x
-    const transform = isYAxis ? ` transform="rotate(-90 ${axis.x} ${axis.y})"` : ''
+    const rotation = isYAxis ? { kind: 'rotate' as const, angle: -90, cx: axis.x, cy: axis.y } : undefined
+    const transform = rotation ? ` transform="rotate(${rotation.angle} ${rotation.cx} ${rotation.cy})"` : ''
     const textMarkup = lines.length === 1
       ? escapeXml(label)
       : lines.map((line, index) => `<tspan x="${axis.x}" dy="${index === 0 ? 0 : '1.1em'}">${escapeXml(line)}</tspan>`).join('')
@@ -291,6 +292,7 @@ export function lowerQuadrantScene(
         fontSize: axis.fontSize,
         anchor: axis.anchor,
         paint: { fill: style.edgeTextColor ?? 'var(--_text-muted)' },
+        transform: rotation,
       },
       `<text class="quadrant-axis-label" x="${axis.x}" y="${axis.y}" ` +
         `text-anchor="${axis.anchor}" font-size="${axis.fontSize}" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)}${transform}>` +
@@ -323,7 +325,7 @@ export function lowerQuadrantScene(
     ))
   }
 
-  parts.push(marks.raw({ id: 'svg-close', role: 'chrome' }, '</svg>'))
+  parts.push(marks.documentClose())
 
   return { family: 'quadrant', width: chart.width, height: chart.height, colors, parts }
 }

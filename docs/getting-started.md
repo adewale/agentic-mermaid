@@ -25,8 +25,8 @@ cd agentic-mermaid && bun install && bun run build
 ## Render to SVG
 
 `renderMermaidSVG` takes Mermaid source and returns a self-contained SVG string.
-It supports all 14 diagram families (flowchart, sequence, class, ER, state,
-gantt, mindmap, gitgraph, …) — just pass the source.
+It supports every registered diagram family (including flowchart, sequence,
+class, ER, state, Gantt, Mindmap, and GitGraph) — just pass the source.
 
 ```ts
 import { renderMermaidSVG } from 'agentic-mermaid'

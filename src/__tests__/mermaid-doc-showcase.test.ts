@@ -1,13 +1,14 @@
 import { describe, expect, test } from 'bun:test'
 import { createHash } from 'node:crypto'
-import { readFileSync, readdirSync } from 'node:fs'
-import { join, relative } from 'node:path'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 
 import { getStyle, knownStyles, renderMermaidSVG, verifyNoExternalRefs } from '../index.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { styleKind } from '../scene/style-registry.ts'
 import { parseMindmap } from '../mindmap/parser.ts'
 import { layoutMindmap } from '../mindmap/layout.ts'
+import { filesUnder, hashFileTree, sortRepositoryPaths } from '../../scripts/pr-assets/artifact-receipt.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const manifest = JSON.parse(readFileSync(join(ROOT, 'eval', 'mermaid-doc-showcase', 'manifest.json'), 'utf8')) as {
@@ -112,20 +113,16 @@ describe('official Mermaid documentation showcase', () => {
     }
     expect(receipt.schemaVersion).toBe(1)
     expect(receipt.generator).toBe('scripts/pr-assets/mermaid-doc-showcase-gallery.ts')
-    const tsFiles = (directory: string): string[] => readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
-      const path = join(directory, entry.name)
-      if (entry.isDirectory()) return tsFiles(path)
-      return entry.isFile() && entry.name.endsWith('.ts') ? [path] : []
-    })
-    const inputs = [
+    const inputs = sortRepositoryPaths(ROOT, [
       join(ROOT, 'eval', 'mermaid-doc-showcase', 'manifest.json'),
+      join(ROOT, 'package.json'),
+      join(ROOT, 'bun.lock'),
       join(ROOT, receipt.generator),
-      ...tsFiles(join(ROOT, 'src')),
-    ].sort((a, b) => relative(ROOT, a).replaceAll('\\', '/').localeCompare(relative(ROOT, b).replaceAll('\\', '/')))
-    const inputHash = createHash('sha256')
-    for (const path of inputs) inputHash.update(relative(ROOT, path).replaceAll('\\', '/')).update('\0').update(readFileSync(path)).update('\0')
+      join(ROOT, 'scripts/pr-assets/artifact-receipt.ts'),
+      ...filesUnder(join(ROOT, 'src'), path => path.endsWith('.ts')),
+    ])
     expect(receipt.inputCount).toBe(inputs.length)
-    expect(receipt.inputTreeSha256).toBe(inputHash.digest('hex'))
+    expect(receipt.inputTreeSha256).toBe(hashFileTree(ROOT, inputs))
     const output = readFileSync(join(ROOT, receipt.output))
     expect(createHash('sha256').update(output).digest('hex')).toBe(receipt.outputSha256)
   })

@@ -1,4 +1,6 @@
-# Remove role styling and replace it with Style + Palette
+# Archived: remove role styling and replace it with Style + Palette
+
+Status: completed. Retained as implementation history; current Style contracts live in `docs/style-authoring.md`.
 
 ## Decision
 

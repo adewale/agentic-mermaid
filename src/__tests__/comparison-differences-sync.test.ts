@@ -1,10 +1,7 @@
 // Drift guard for the diagram-family coverage facts.
 //
-// docs/comparison.md describes how many diagram families this fork renders and
-// which ones it adds on top of Beautiful Mermaid, in hand-authored prose that
-// can silently drift from the code. This test pins it to the runtime family
-// registry (BUILTIN_FAMILY_METADATA), the single source of truth: adding or
-// removing a renderable family fails CI unless docs/comparison.md is updated.
+// docs/comparison.md must route readers to the runtime family inventory rather
+// than copying counts or lists that silently drift from code.
 //
 // (The former scripts/site/differences.ts checks were retired with that Pages
 // generator. The Cloudflare site's family coverage is pinned elsewhere: the
@@ -27,7 +24,6 @@ const UPSTREAM_BASE = ['flowchart', 'state', 'sequence', 'class', 'er', 'xychart
 
 const registryIds = BUILTIN_FAMILY_METADATA.map(f => String(f.id))
 const forkAdded = registryIds.filter(id => !UPSTREAM_BASE.includes(id))
-const total = registryIds.length
 
 describe('comparison.md ↔ family registry sync', () => {
   test('UPSTREAM_BASE cleanly partitions the registry (guards this test premise)', () => {
@@ -35,12 +31,11 @@ describe('comparison.md ↔ family registry sync', () => {
     expect(asSet([...UPSTREAM_BASE, ...forkAdded])).toEqual(asSet(registryIds))
   })
 
-  test('docs/comparison.md count and fork-added list track the registry', () => {
+  test('docs/comparison.md delegates the current inventory to capabilities', () => {
     const md = read('docs/comparison.md')
-    expect(md).toContain(`${total} diagram families`)
-    expect(md).toContain(`beyond the ${total} here`)
-    const cellList = md.match(/those \d+ \+ ([^)|]+)\)/)?.[1]
-    if (cellList === undefined) throw new Error('comparison.md "Diagram types" cell missing the "those N + ..." list')
-    expect(asSet(cellList.split(','))).toEqual(asSet(forkAdded))
+    expect(md).toContain('am capabilities --json')
+    expect(md).toContain('every registered family')
+    expect(md).not.toMatch(/\b\d+ diagram families\b/)
+    expect(md).not.toMatch(/\bbeyond the \d+ here\b/)
   })
 })

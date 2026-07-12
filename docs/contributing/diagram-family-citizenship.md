@@ -8,7 +8,7 @@ A diagram family is a **good citizen** when it is faithful before it is ubiquito
 
 `BUILTIN_FAMILY_METADATA` in `src/agent/families.ts` is the canonical shipped-family registry. It records the family id, label, Mermaid headers, typed narrower, live-editor example id/type, and editor glyph. The registry has compile-time coverage against `DiagramKind`; tests then project it into CLI capabilities, MCP/Code Mode, docs, editor examples, eval fixtures, package keywords, and generated discovery docs.
 
-The checked citizenship matrix lives at [`diagram-family-citizenship.matrix.json`](./diagram-family-citizenship.matrix.json). It is intentionally separate from the registry: the registry says “this family ships”; the matrix says “these citizenship surfaces are satisfied, these Mermaid/Wikipedia fidelity claims are evidenced, and these remaining gaps are tracked.” The human-readable 14-family audit is [`mermaid-family-fidelity-audit.md`](../design/mermaid-family-fidelity-audit.md).
+The checked citizenship matrix lives at [`diagram-family-citizenship.matrix.json`](./diagram-family-citizenship.matrix.json). It is intentionally separate from the registry: the registry says “this family ships”; the matrix says “these citizenship surfaces are satisfied, these Mermaid/Wikipedia fidelity claims are evidenced, and these remaining gaps are tracked.” The human-readable registry-wide audit is [`mermaid-family-fidelity-audit.md`](../design/mermaid-family-fidelity-audit.md).
 
 ## Semantic correctness vs. system citizenship
 
