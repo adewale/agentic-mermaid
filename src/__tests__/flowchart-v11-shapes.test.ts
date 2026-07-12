@@ -177,25 +177,21 @@ describe('v11 shapes — verify contract', () => {
     }
   })
 
-  it('approximate mappings announce the substitution; exact ones stay silent', () => {
-    const cloud = verifyMermaid(metaSource('cloud'))
-    expect(cloud.ok).toBe(true)
-    expect(cloud.warnings).toContainEqual(expect.objectContaining({
-      code: 'UNSUPPORTED_SYNTAX',
-      syntax: 'flowchart_shape_substitution',
-    }))
-    const substitution = cloud.warnings.find(w => (w as { syntax?: string }).syntax === 'flowchart_shape_substitution') as { message?: string }
-    expect(substitution.message).toContain('cloud')
-
-    const diamond = verifyMermaid(metaSource('decision'))
-    expect(diamond.warnings).not.toContainEqual(expect.objectContaining({ syntax: 'flowchart_shape_substitution' }))
-    expect(diamond.warnings).not.toContainEqual(expect.objectContaining({ syntax: 'flowchart_node_metadata' }))
+  it('every documented semantic geometry is native and substitution-free', () => {
+    for (const canonical of Object.keys(DOCUMENTED)) {
+      const result = verifyMermaid(metaSource(canonical))
+      expect(result.ok, canonical).toBe(true)
+      expect(result.warnings, canonical).not.toContainEqual(expect.objectContaining({ syntax: 'flowchart_shape_substitution' }))
+    }
   })
 
-  it('two different substituted shapes are both reported', () => {
-    const source = 'flowchart TD\n  A@{ shape: cloud, label: "A" }\n  B@{ shape: doc, label: "B" }\n  A --> B\n'
-    const subs = verifyMermaid(source).warnings.filter(w => (w as { syntax?: string }).syntax === 'flowchart_shape_substitution')
-    expect(subs).toHaveLength(2)
+  it('formerly substituted cloud and document shapes now draw distinct semantic paths', () => {
+    const cloud = renderMermaidSVG(metaSource('cloud'))
+    const doc = renderMermaidSVG(metaSource('doc'))
+    const path = (svg: string) => svg.match(/<g class="node"[\s\S]*?<path d="([^"]+)"/)?.[1]
+    expect(path(cloud)).toBeDefined()
+    expect(path(doc)).toBeDefined()
+    expect(path(cloud)).not.toBe(path(doc))
   })
 })
 
@@ -226,11 +222,17 @@ describe('v11 shapes — structured agent body + authored round-trip', () => {
     expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({ syntax: 'flowchart_node_metadata' }))
   })
 
-  it('icon/img metadata stays opaque with the node-metadata lint', () => {
+  it('icon/img metadata is typed, canonically round-trips, and renders natively', () => {
     const source = 'flowchart TD\n  A@{ icon: "fa:user", form: "square", label: "User Icon" }\n'
     const diagram = parseAgent(source)
-    expect(diagram.body.kind).toBe('opaque')
-    expect(serializeMermaid(diagram)).toBe(source)
+    expect(diagram.body.kind).toBe('flowchart')
+    if (diagram.body.kind !== 'flowchart') return
+    expect(diagram.body.graph.nodes.get('A')).toMatchObject({ icon: 'fa:user', iconForm: 'square', label: 'User Icon' })
+    const canonical = 'flowchart TD\n  A@{ icon: "fa:user", form: square, label: "User Icon" }\n'
+    expect(serializeMermaid(diagram)).toBe(canonical)
+    expect(serializeMermaid(parseAgent(canonical))).toBe(canonical)
+    expect(renderMermaidSVG(source)).toContain('class="flowchart-icon')
+    expect(verifyMermaid(source).warnings).not.toContainEqual(expect.objectContaining({ syntax: 'flowchart_node_metadata' }))
   })
 })
 

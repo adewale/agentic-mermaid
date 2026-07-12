@@ -201,7 +201,7 @@ describe('non-graph adapters: debug certificates stay family-specific (#26/#38)'
     const layout = layoutMermaid(p.value, { debug: true })
     const edge = layout.edges[0]!
     expect(Number(edge.label?.x)).toBe(140)
-    expect(Number(edge.label?.y)).toBe(80)
+    expect(Number(edge.label?.y)).toBe(86)
     expect(edge.label?.text).toBe('hello')
   })
 

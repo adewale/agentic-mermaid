@@ -168,6 +168,31 @@ export function lowerXYChartScene(
     ))
   }
 
+  // Mermaid 11.16 line-point labels are semantic chart content, not hover
+  // chrome. A label therefore forces a visible point mark even when the
+  // interactive tooltip layer is disabled.
+  for (const line of chart.lines) {
+    line.points.forEach((point, pointIndex) => {
+      if (point.textLabel === undefined) return
+      const position = chart.horizontal ? 'right' : 'above'
+      const x = point.x + (chart.horizontal ? 8 : 0)
+      const y = point.y + (chart.horizontal ? 4 : -8)
+      const anchor = chart.horizontal ? 'start' : 'middle'
+      parts.push(marks.shape({
+        id: `point-label-dot:${line.seriesIndex}:${pointIndex}`, role: 'point',
+        geometry: { kind: 'circle', cx: rn(point.x), cy: rn(point.y), r: CHART_FONT.dotRadius },
+        paint: { fill: `var(--xychart-color-${line.colorIndex})`, stroke: 'var(--bg)', strokeWidth: '1' },
+        channels: { category: `line-${line.seriesIndex}`, value: normalized(point.value) },
+      }, `<circle cx="${r(point.x)}" cy="${r(point.y)}" r="${CHART_FONT.dotRadius}" class="xychart-dot xychart-color-${line.colorIndex}" data-value="${point.value}"/>`))
+      parts.push(marks.text({
+        id: `point-label:${line.seriesIndex}:${pointIndex}`, role: 'label', text: point.textLabel,
+        x, y, fontSize: 12, anchor,
+        paint: { fill: `var(--xychart-color-${line.colorIndex})` },
+        channels: { category: `line-${line.seriesIndex}`, value: normalized(point.value) },
+      }, `<text class="xychart-point-label xychart-color-${line.colorIndex}" data-label-position="${position}" x="${r(x)}" y="${r(y)}" text-anchor="${anchor}" font-size="12" fill="var(--xychart-color-${line.colorIndex})">${escapeXml(point.textLabel)}</text>`))
+    })
+  }
+
   const dotOverlay: SceneNode[] = []
   if (interactive) {
     for (const line of chart.lines) {

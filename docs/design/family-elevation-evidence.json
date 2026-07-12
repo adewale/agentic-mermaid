@@ -249,7 +249,7 @@
     {
       "id": "XY5",
       "file": "src/__tests__/agent-xychart.test.ts",
-      "title": "set_data_point edits exactly one value and serialize\u2192re-parse preserves"
+      "title": "set_data_point edits exactly one value and serialize→re-parse preserves"
     },
     {
       "id": "P1",
@@ -364,7 +364,7 @@
     {
       "id": "B01",
       "file": "src/__tests__/family-elevation-ledger.test.ts",
-      "title": "every numbered family item and X1\u2013X8 has exactly one checked status row"
+      "title": "every numbered family item and X1–X8 has exactly one checked status row"
     },
     {
       "id": "B02",
@@ -404,7 +404,7 @@
     {
       "id": "B09",
       "file": "src/__tests__/er-typed-segments.test.ts",
-      "title": "rejects identity edits that would stale an opaque segment reference"
+      "title": "typed subgraph membership survives identity edits without stale source references"
     },
     {
       "id": "B10",
@@ -450,6 +450,81 @@
       "id": "B18",
       "file": "src/__tests__/family-elevation-ledger.test.ts",
       "title": "B18 closure cites the stable final-head audit record"
+    },
+    {
+      "id": "CG01",
+      "file": "src/__tests__/closing-the-gap.test.ts",
+      "title": "flowchart metadata produces native icon/image marks and modeled edge presentation"
+    },
+    {
+      "id": "CG02",
+      "file": "src/__tests__/closing-the-gap.test.ts",
+      "title": "State retains choice, note, and terminal semantics from official syntax"
+    },
+    {
+      "id": "CG03",
+      "file": "src/__tests__/closing-the-gap.test.ts",
+      "title": "sequence uses closed actor and message-endpoint vocabularies for current official syntax"
+    },
+    {
+      "id": "CG04",
+      "file": "src/__tests__/closing-the-gap.test.ts",
+      "title": "Timeline retains rail, period, section, event, and terminal chronology semantics"
+    },
+    {
+      "id": "CG05",
+      "file": "src/__tests__/closing-the-gap.test.ts",
+      "title": "class diagrams render two-ended relations, lollipop interfaces, and notes"
+    },
+    {
+      "id": "CG06",
+      "file": "src/__tests__/closing-the-gap.test.ts",
+      "title": "ER preserves nested subgraph identity and renders Markdown labels"
+    },
+    {
+      "id": "CG07",
+      "file": "src/__tests__/closing-the-gap.test.ts",
+      "title": "Journey retains baseline, task, score, actor, and terminal projection semantics"
+    },
+    {
+      "id": "CG08",
+      "file": "src/__tests__/closing-the-gap.test.ts",
+      "title": "Architecture resolves bounded local icons and makes unknown-pack fallback explicit"
+    },
+    {
+      "id": "CG09",
+      "file": "src/__tests__/closing-the-gap.test.ts",
+      "title": "XYChart retains and renders Mermaid 11.16 per-point labels in both orientations and terminal output"
+    },
+    {
+      "id": "CG10",
+      "file": "src/__tests__/closing-the-gap.test.ts",
+      "title": "Pie highlightSlice is a static cross-format emphasis semantic"
+    },
+    {
+      "id": "CG11",
+      "file": "src/__tests__/closing-the-gap.test.ts",
+      "title": "Quadrant dense-label leaders are pairwise non-crossing by construction"
+    },
+    {
+      "id": "CG12",
+      "file": "src/__tests__/closing-the-gap.test.ts",
+      "title": "Gantt exposes safe href metadata while callbacks and unsafe schemes remain inert"
+    },
+    {
+      "id": "CG13",
+      "file": "src/__tests__/closing-the-gap.test.ts",
+      "title": "mindmap default is central and bilateral while tidy-tree remains an explicit one-sided alternate"
+    },
+    {
+      "id": "CG14",
+      "file": "src/__tests__/closing-the-gap.test.ts",
+      "title": "GitGraph gives branches distinct deterministic colors and honors documented theme variables"
+    },
+    {
+      "id": "CG15",
+      "file": "src/__tests__/closing-the-gap.test.ts",
+      "title": "all fourteen registered families have an explicit Closing The Gap contract"
     }
   ]
 }

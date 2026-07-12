@@ -1,4 +1,4 @@
-import type { MindmapDiagram, MindmapNode, PositionedMindmapDiagram, PositionedMindmapNode } from './types.ts'
+import type { MindmapDiagram, MindmapNode, PositionedMindmapDiagram, PositionedMindmapEdge, PositionedMindmapNode } from './types.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import { wrapLabelToWidth } from '../shared/label-wrap.ts'
 
@@ -7,6 +7,8 @@ export interface MindmapLayoutOptions {
   maxNodeWidth?: number
   nodeGap?: number
   layerGap?: number
+  /** Mermaid's force-directed default is represented by a deterministic bilateral tree. */
+  layout?: 'radial' | 'tidy-tree'
 }
 
 const FONT_SIZE = 13
@@ -17,37 +19,49 @@ export function layoutMindmap(diagram: MindmapDiagram, options: MindmapLayoutOpt
   const maxNodeWidth = finite(options.maxNodeWidth, 180)
   const nodeGap = finite(options.nodeGap, 22)
   const layerGap = finite(options.layerGap, 80)
-  const entries = new Map<string, PositionedMindmapNode>()
-  const sourceById = new Map<string, MindmapNode>()
+  const entries = measureNodes(diagram.root, maxNodeWidth)
 
-  const measure = (node: MindmapNode, depth: number, parentId?: string): PositionedMindmapNode => {
+  return options.layout === 'tidy-tree'
+    ? layoutTidy(diagram, entries, padding, nodeGap, layerGap)
+    : layoutBilateral(diagram, entries, padding, nodeGap, layerGap)
+}
+
+function measureNodes(root: MindmapNode, maxNodeWidth: number): Map<string, PositionedMindmapNode> {
+  const entries = new Map<string, PositionedMindmapNode>()
+  const measure = (node: MindmapNode, depth: number, parentId?: string): void => {
     const label = wrapLabelToWidth(node.label, maxNodeWidth, FONT_SIZE, FONT_WEIGHT)
     const metrics = measureMultilineText(label, FONT_SIZE, FONT_WEIGHT)
     let width = Math.max(56, metrics.width + 24)
     let height = Math.max(34, metrics.height + 18 + (node.icon ? 14 : 0))
-    if (node.shape === 'circle') { width = height = Math.max(width, height, 54) }
+    if (node.shape === 'circle') width = height = Math.max(width, height, 54)
     if (node.shape === 'bang' || node.shape === 'cloud') { width += 18; height += 10 }
-    const positioned: PositionedMindmapNode = {
+    entries.set(node.id, {
       id: node.id, label, shape: node.shape, markdown: node.markdown, icon: node.icon, className: node.className,
-      ...(parentId ? { parentId } : {}), depth, x: 0, y: 0, width, height,
-    }
-    entries.set(node.id, positioned)
-    sourceById.set(node.id, node)
+      ...(parentId ? { parentId } : {}), depth, side: depth === 0 ? 'root' : 'right', x: 0, y: 0, width, height,
+    })
     for (const child of node.children) measure(child, depth + 1, node.id)
-    return positioned
   }
-  measure(diagram.root, 0)
-  const maxWidthAtDepth = new Map<number, number>()
-  for (const node of entries.values()) maxWidthAtDepth.set(node.depth, Math.max(maxWidthAtDepth.get(node.depth) ?? 0, node.width))
+  measure(root, 0)
+  return entries
+}
+
+function layoutTidy(
+  diagram: MindmapDiagram,
+  entries: Map<string, PositionedMindmapNode>,
+  padding: number,
+  nodeGap: number,
+  layerGap: number,
+): PositionedMindmapDiagram {
+  const maxWidthAtDepth = widthsByDepth(entries)
   const xAtDepth = new Map<number, number>([[0, padding]])
   const maxDepth = Math.max(...entries.values().map(node => node.depth))
   for (let depth = 1; depth <= maxDepth; depth++) {
     xAtDepth.set(depth, xAtDepth.get(depth - 1)! + (maxWidthAtDepth.get(depth - 1) ?? 0) + layerGap)
   }
-
   let cursorY = padding
   const assignY = (node: MindmapNode): number => {
     const positioned = entries.get(node.id)!
+    positioned.side = positioned.depth === 0 ? 'root' : 'right'
     positioned.x = xAtDepth.get(positioned.depth)!
     if (node.children.length === 0) {
       positioned.y = cursorY
@@ -55,25 +69,145 @@ export function layoutMindmap(diagram: MindmapDiagram, options: MindmapLayoutOpt
       return positioned.y + positioned.height / 2
     }
     const childCenters = node.children.map(assignY)
-    const center = (childCenters[0]! + childCenters[childCenters.length - 1]!) / 2
+    const center = (childCenters[0]! + childCenters.at(-1)!) / 2
     positioned.y = Math.max(padding, center - positioned.height / 2)
     return positioned.y + positioned.height / 2
   }
   assignY(diagram.root)
+  normalizeY(entries, padding)
+  return finish(diagram, entries, padding)
+}
 
-  // If a tall root was clamped upward, keep every node non-negative and retain
-  // deterministic relative geometry.
+/**
+ * Deterministic central layout. First-level subtrees are greedily balanced by
+ * measured leaf-span, then each side is a tidy tree growing away from the root.
+ * The side is assigned once at the root boundary and inherited, making an
+ * impossible state (a subtree crossing through the root) unrepresentable.
+ */
+function layoutBilateral(
+  diagram: MindmapDiagram,
+  entries: Map<string, PositionedMindmapNode>,
+  padding: number,
+  nodeGap: number,
+  layerGap: number,
+): PositionedMindmapDiagram {
+  const root = entries.get(diagram.root.id)!
+  const widths = widthsByDepth(entries)
+  const maxDepth = Math.max(0, ...entries.values().map(node => node.depth))
+  const extentToDepth = (depth: number): number => {
+    let total = 0
+    for (let d = 1; d <= depth; d++) total += (widths.get(d) ?? 0) + layerGap
+    return total
+  }
+  const sideExtent = extentToDepth(maxDepth)
+  root.x = padding + sideExtent
+
+  const subtreeSpan = (node: MindmapNode): number => {
+    const own = entries.get(node.id)!.height
+    if (node.children.length === 0) return own
+    return Math.max(own, node.children.reduce((sum, child) => sum + subtreeSpan(child), 0) + nodeGap * (node.children.length - 1))
+  }
+  const left: MindmapNode[] = []
+  const right: MindmapNode[] = []
+  let leftWeight = 0
+  let rightWeight = 0
+  diagram.root.children.forEach((child, index) => {
+    const weight = subtreeSpan(child) + nodeGap
+    // Seed opposite sides, then greedily balance. Source order within each side
+    // remains unchanged, so geometry is deterministic and serializer-stable.
+    const chooseLeft = index === 1 || (index > 1 && leftWeight < rightWeight)
+    if (chooseLeft) { left.push(child); leftWeight += weight } else { right.push(child); rightWeight += weight }
+  })
+
+  const placeSide = (roots: MindmapNode[], side: 'left' | 'right'): { min: number; max: number } => {
+    let cursor = padding
+    const place = (node: MindmapNode): number => {
+      const positioned = entries.get(node.id)!
+      positioned.side = side
+      const offset = extentToDepth(positioned.depth - 1)
+      positioned.x = side === 'right'
+        ? root.x + root.width + layerGap + offset
+        : root.x - layerGap - offset - positioned.width
+      if (node.children.length === 0) {
+        positioned.y = cursor
+        cursor += positioned.height + nodeGap
+        return positioned.y + positioned.height / 2
+      }
+      const centers = node.children.map(place)
+      const center = (centers[0]! + centers.at(-1)!) / 2
+      positioned.y = center - positioned.height / 2
+      return center
+    }
+    roots.forEach(place)
+    return { min: padding, max: Math.max(padding, cursor - nodeGap) }
+  }
+
+  const leftBounds = placeSide(left, 'left')
+  const rightBounds = placeSide(right, 'right')
+  const contentHeight = Math.max(root.height, leftBounds.max - leftBounds.min, rightBounds.max - rightBounds.min)
+  root.y = padding + Math.max(0, (contentHeight - root.height) / 2)
+  const alignSide = (roots: MindmapNode[], bounds: { min: number; max: number }): void => {
+    if (roots.length === 0) return
+    const sideHeight = bounds.max - bounds.min
+    const delta = padding + (contentHeight - sideHeight) / 2 - bounds.min
+    const shift = (node: MindmapNode): void => {
+      entries.get(node.id)!.y += delta
+      node.children.forEach(shift)
+    }
+    roots.forEach(shift)
+  }
+  alignSide(left, leftBounds)
+  alignSide(right, rightBounds)
+  normalizeY(entries, padding)
+  return finish(diagram, entries, padding)
+}
+
+function widthsByDepth(entries: Map<string, PositionedMindmapNode>): Map<number, number> {
+  const widths = new Map<number, number>()
+  for (const node of entries.values()) widths.set(node.depth, Math.max(widths.get(node.depth) ?? 0, node.width))
+  return widths
+}
+
+function normalizeY(entries: Map<string, PositionedMindmapNode>, padding: number): void {
   const minY = Math.min(...entries.values().map(node => node.y))
   if (minY < padding) for (const node of entries.values()) node.y += padding - minY
+}
 
-  const edges = [...entries.values()].flatMap(node => {
+function finish(
+  diagram: MindmapDiagram,
+  entries: Map<string, PositionedMindmapNode>,
+  padding: number,
+): PositionedMindmapDiagram {
+  const edges: PositionedMindmapEdge[] = [...entries.values()].flatMap(node => {
     if (!node.parentId) return []
     const parent = entries.get(node.parentId)!
-    const start = { x: parent.x + parent.width, y: parent.y + parent.height / 2 }
-    const end = { x: node.x, y: node.y + node.height / 2 }
-    const middle = (start.x + end.x) / 2
-    return [{ from: parent.id, to: node.id, points: [start, { x: middle, y: start.y }, { x: middle, y: end.y }, end] }]
+    const leftward = node.side === 'left'
+    const start = {
+      x: leftward ? parent.x : parent.x + parent.width,
+      y: parent.y + parent.height / 2,
+    }
+    const end = {
+      x: leftward ? node.x + node.width : node.x,
+      y: node.y + node.height / 2,
+    }
+    const bend = Math.max(24, Math.abs(end.x - start.x) * 0.52)
+    const c1 = { x: start.x + (leftward ? -bend : bend), y: start.y }
+    const c2 = { x: end.x + (leftward ? bend : -bend), y: end.y }
+    return [{
+      from: parent.id, to: node.id, points: [start, c1, c2, end],
+      d: `M ${round(start.x)} ${round(start.y)} C ${round(c1.x)} ${round(c1.y)} ${round(c2.x)} ${round(c2.y)} ${round(end.x)} ${round(end.y)}`,
+    }]
   })
+  const minX = Math.min(...entries.values().map(node => node.x))
+  if (minX < padding) {
+    const delta = padding - minX
+    for (const node of entries.values()) node.x += delta
+    for (const edge of edges) {
+      edge.points.forEach(point => { point.x += delta })
+      const [start, c1, c2, end] = edge.points
+      edge.d = `M ${round(start!.x)} ${round(start!.y)} C ${round(c1!.x)} ${round(c1!.y)} ${round(c2!.x)} ${round(c2!.y)} ${round(end!.x)} ${round(end!.y)}`
+    }
+  }
   const width = Math.max(...entries.values().map(node => node.x + node.width)) + padding
   const height = Math.max(...entries.values().map(node => node.y + node.height)) + padding
   return {
@@ -87,3 +221,5 @@ export function layoutMindmap(diagram: MindmapDiagram, options: MindmapLayoutOpt
 function finite(value: number | undefined, fallback: number): number {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : fallback
 }
+
+function round(value: number): number { return Math.round(value * 1000) / 1000 }

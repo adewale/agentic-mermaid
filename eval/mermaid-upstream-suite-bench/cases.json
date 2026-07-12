@@ -1634,12 +1634,14 @@
       "expectStructured": true,
       "nodeCount": 2,
       "edgeCount": 0,
-      "groupCount": 0,
+      "groupCount": 1,
       "minNodes": 2,
       "labelsContain": [
         "A",
         "B"
-      ]
+      ],
+      "minEdges": 0,
+      "minGroups": 1
     }
   },
   {
@@ -1656,10 +1658,13 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 0,
       "edgeCount": 0,
-      "groupCount": 0
+      "groupCount": 1,
+      "minNodes": 0,
+      "minEdges": 0,
+      "minGroups": 1
     }
   },
   {
@@ -1933,17 +1938,18 @@
     },
     "assertions": {
       "expectStructured": true,
-      "nodeCount": 3,
+      "nodeCount": 2,
       "edgeCount": 1,
-      "groupCount": 0,
-      "minNodes": 3,
+      "groupCount": 1,
+      "minNodes": 2,
       "minEdges": 1,
       "labelsContain": [
         "A",
         "Group",
         "B",
         "relates to"
-      ]
+      ],
+      "minGroups": 1
     }
   },
   {
@@ -1963,14 +1969,15 @@
       "expectStructured": true,
       "nodeCount": 2,
       "edgeCount": 1,
-      "groupCount": 0,
+      "groupCount": 1,
       "minNodes": 2,
       "minEdges": 1,
       "labelsContain": [
         "A",
         "B",
         "relates to"
-      ]
+      ],
+      "minGroups": 1
     }
   },
   {
@@ -1990,11 +1997,13 @@
       "expectStructured": true,
       "nodeCount": 1,
       "edgeCount": 0,
-      "groupCount": 0,
+      "groupCount": 1,
       "minNodes": 1,
       "labelsContain": [
         "A"
-      ]
+      ],
+      "minEdges": 0,
+      "minGroups": 1
     }
   },
   {
@@ -2014,12 +2023,14 @@
       "expectStructured": true,
       "nodeCount": 2,
       "edgeCount": 0,
-      "groupCount": 0,
+      "groupCount": 1,
       "minNodes": 2,
       "labelsContain": [
         "A",
         "B"
-      ]
+      ],
+      "minEdges": 0,
+      "minGroups": 1
     }
   },
   {
@@ -2355,11 +2366,13 @@
       "expectStructured": true,
       "nodeCount": 1,
       "edgeCount": 0,
-      "groupCount": 0,
+      "groupCount": 1,
       "minNodes": 1,
       "labelsContain": [
         "A"
-      ]
+      ],
+      "minEdges": 0,
+      "minGroups": 1
     }
   },
   {
@@ -2379,14 +2392,15 @@
       "expectStructured": true,
       "nodeCount": 2,
       "edgeCount": 1,
-      "groupCount": 0,
+      "groupCount": 1,
       "minNodes": 2,
       "minEdges": 1,
       "labelsContain": [
         "A",
         "B",
         "relates to"
-      ]
+      ],
+      "minGroups": 1
     }
   },
   {
@@ -2520,12 +2534,14 @@
       "expectStructured": true,
       "nodeCount": 2,
       "edgeCount": 0,
-      "groupCount": 0,
+      "groupCount": 1,
       "minNodes": 2,
       "labelsContain": [
         "A",
         "B"
-      ]
+      ],
+      "minEdges": 0,
+      "minGroups": 1
     }
   },
   {
@@ -2545,12 +2561,14 @@
       "expectStructured": true,
       "nodeCount": 2,
       "edgeCount": 0,
-      "groupCount": 0,
+      "groupCount": 1,
       "minNodes": 2,
       "labelsContain": [
         "A",
         "B"
-      ]
+      ],
+      "minEdges": 0,
+      "minGroups": 1
     }
   },
   {
@@ -2567,7 +2585,12 @@
       ]
     },
     "assertions": {
-      "expectStructured": false
+      "expectStructured": false,
+      "nodeCount": 3,
+      "edgeCount": 0,
+      "groupCount": 0,
+      "minNodes": 3,
+      "minEdges": 0
     }
   },
   {
@@ -5567,7 +5590,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 6,
       "edgeCount": 3,
       "groupCount": 0,
@@ -9163,7 +9186,7 @@
       "minNodes": 2,
       "minEdges": 1,
       "labelsContain": [
-        "Alice<<",
+        "Alice",
         "Bob",
         "Hello Bob, how are you?"
       ],
@@ -9190,7 +9213,7 @@
       "minNodes": 2,
       "minEdges": 1,
       "labelsContain": [
-        "Alice<<",
+        "Alice",
         "Bob",
         "Hello Bob, how are you?"
       ],
@@ -11298,8 +11321,8 @@
       "minNodes": 2,
       "minEdges": 2,
       "labelsContain": [
-        "U",
-        "DB",
+        "End User",
+        "User Database",
         "Query",
         "Result"
       ],
@@ -11326,8 +11349,8 @@
       "minNodes": 2,
       "minEdges": 1,
       "labelsContain": [
-        "A",
-        "B",
+        "Database Server",
+        "Message Queue",
         "Send message"
       ],
       "expectStructured": true
@@ -11622,8 +11645,8 @@
       "minNodes": 2,
       "minEdges": 2,
       "labelsContain": [
-        "Alice",
-        "Bob",
+        "Public API",
+        "Controller",
         "Request",
         "Response"
       ],
@@ -11670,14 +11693,18 @@
       ]
     },
     "assertions": {
-      "nodeCount": 2,
+      "nodeCount": 6,
       "edgeCount": 2,
       "groupCount": 0,
-      "minNodes": 2,
+      "minNodes": 6,
       "minEdges": 2,
       "labelsContain": [
-        "Bob",
         "Alice",
+        "Bob",
+        "Carl",
+        "David",
+        "Eve",
+        "Favela",
         "Hi Alice",
         "Hi Bob"
       ],
@@ -11730,7 +11757,7 @@
       "minNodes": 1,
       "minEdges": 1,
       "labelsContain": [
-        "API",
+        "External Name",
         "test"
       ],
       "expectStructured": true
@@ -13873,7 +13900,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 3,
       "edgeCount": 0,
       "groupCount": 1,
@@ -13975,7 +14002,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 3,
       "edgeCount": 0,
       "groupCount": 1,
@@ -14002,7 +14029,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 2,
       "edgeCount": 0,
       "groupCount": 1,
@@ -14028,7 +14055,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 3,
       "edgeCount": 0,
       "groupCount": 1,
@@ -14055,7 +14082,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 3,
       "edgeCount": 0,
       "groupCount": 1,
@@ -14109,7 +14136,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 2,
       "edgeCount": 0,
       "groupCount": 1,

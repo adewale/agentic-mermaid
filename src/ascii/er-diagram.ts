@@ -441,5 +441,8 @@ export function renderErAscii(text: string, config: AsciiConfig, colorMode?: Col
     }
   }
 
-  return canvasToString(canvas, { roleCanvas: rc, colorMode, theme })
+  const rendered = canvasToString(canvas, { roleCanvas: rc, colorMode, theme })
+  if (diagram.groups.length === 0) return rendered
+  const groupLines = diagram.groups.map(group => `${group.parentId ? '  ' : ''}[${group.label}] (${group.entityIds.join(', ')})`)
+  return `${groupLines.join('\n')}\n${rendered}`
 }

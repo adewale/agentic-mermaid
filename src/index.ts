@@ -180,8 +180,10 @@ export function verifyNoExternalRefs(svg: string): { ok: boolean; refs: string[]
   for (const m of scan.matchAll(/@import\s*(?:url\()?\s*["']?\s*((?:https?:)?\/\/[^"')]+)/gi)) refs.push(`@import ${m[1]}`)
   for (const m of scan.matchAll(/@import\s*(?:url\()?\s*["']?\s*(javascript\s*:[^"')\s;]+)/gi)) refs.push(`@import ${m[1]}`)
   // href / *:href / src / data to http(s) or protocol-relative URLs (xmlns excluded — it's a declaration, not a ref)
-  for (const m of scan.matchAll(/(?<!xmlns:)\b(?:[^\s=<>]+:)?(?:href|src|data)\s*=\s*["']\s*((?:https?:)?\/\/[^"']+)["']/gi)) refs.push(m[1]!)
-  for (const m of scan.matchAll(/(?<!xmlns:)\b(?:[^\s=<>]+:)?(?:href|src|data)\s*=\s*((?:https?:)?\/\/[^\s>"']+)/gi)) refs.push(m[1]!)
+  // Attribute names begin after XML whitespace. A word boundary is too broad:
+  // it incorrectly treats inert `data-href` as an executable `href` sink.
+  for (const m of scan.matchAll(/(?<=\s)(?<!xmlns:)(?:[^\s=<>]+:)?(?:href|src|data)\s*=\s*["']\s*((?:https?:)?\/\/[^"']+)["']/gi)) refs.push(m[1]!)
+  for (const m of scan.matchAll(/(?<=\s)(?<!xmlns:)(?:[^\s=<>]+:)?(?:href|src|data)\s*=\s*((?:https?:)?\/\/[^\s>"']+)/gi)) refs.push(m[1]!)
   for (const m of scan.matchAll(XML_EXTERNAL_ATTR_QUOTED)) refs.push(m[0]!)
   for (const m of scan.matchAll(XML_EXTERNAL_ATTR_UNQUOTED)) refs.push(m[0]!)
   // url(http…) / url(//…) / url(javascript:…) inside style/attr values

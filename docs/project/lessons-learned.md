@@ -1136,6 +1136,45 @@ CLI flag rejection, and Scene-IR text geometry fidelity. Naming that boundary le
 phase become honestly complete while the mechanical backlog continues to show the
 remaining rendering and mutation work.
 
+## PR #149 Closing The Gap — visual-family semantics are part of compatibility
+
+The post-completion Mermaid 11.16 audit changed the question from “does every
+family render?” to three separate questions: does official syntax become typed
+semantics, does that meaning survive every output surface, and does the result
+still look like the diagram family an author selected? That distinction exposed
+Mindmap as the clearest miss. Its parser, serializer, mutation surface, SVG, and
+terminal output were all present, but the default one-sided tree did not preserve
+a mind map’s central, radiating structure. The correction made a deterministic
+bilateral center the default and retained `tidy-tree` as an explicit alternate.
+Compatibility includes the family’s characteristic spatial metaphor, not only
+its graph topology.
+
+The same audit showed why native promotion is a whole-pipeline operation.
+Flowchart icon/image and animation metadata already affected rendering, but the
+agent surface intentionally remained opaque because its serializer could not
+reproduce those keys. Closing the gap required closed fields, canonical emission,
+and parse→serialize→parse tests before removing that fallback. Metadata still
+outside the type—dimensions and placement—remains opaque. This is the safe
+promotion sequence: model, serialize, verify closure, then claim native support.
+
+Geometry verification also had to converge with rendered pixels. ER relationship
+labels were collision-separated in SVG while `RenderedLayout` continued to expose
+raw midpoints, making the public readability audit both stricter and less truthful
+than the renderer. Sharing final label positions, reserving cardinality-marker
+zones, and translating nested group geometry into canvas bounds removed the final
+readability findings. The global corpus-plus-fuzz ratchet could then move from 12
+to zero. A quality projection is useful only when it describes final presentation,
+not an earlier layout stage.
+
+Finally, pinned upstream tests needed semantic reclassification rather than blind
+preservation. Several expectations encoded former fallbacks—XY point labels were
+opaque, Sequence aliases displayed IDs, ER subgraphs flattened, and Flowchart
+metadata forced an opaque body. Their provenance remained pinned to official test
+titles and source, while expected structure changed to the newly implemented
+meaning. An old independent parser remains valuable as a differential oracle, but
+its lack of current v11 metadata support is a documented oracle boundary, not a
+reason to keep the product behind Mermaid.
+
 ## 2026-07 — contracts at output boundaries
 
 **Cross-surface primitives only count when every writer adopts them.** The

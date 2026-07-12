@@ -17,7 +17,8 @@ export function containsFlowchartOpaqueSyntax(source: string): boolean {
   if (/`/.test(source)) return true
   return flowchartStatements(source).some(({ text }) =>
     hasUnmodeledMetadata(text)
-    || isFlowchartInteractionDirective(text)
+    || hasRenderedButSourcePreservedMetadata(text)
+    || isUnsupportedFlowchartInteraction(text)
   )
 }
 
@@ -28,10 +29,13 @@ export function flowchartUnsupportedSyntaxWarnings(source: string): LayoutWarnin
       warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_edge_metadata', message: 'Flowchart edge metadata is preserved as source but ignored by the local renderer/layout.' })
     }
     if (hasUnmodeledNodeMetadata(text)) {
-      warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_node_metadata', message: 'Flowchart node metadata with an undocumented shape name or icon/img keys is preserved as source; its label renders on a rectangle fallback. Documented v11 shape/label metadata is modeled.' })
+      warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_node_metadata', message: 'Flowchart node metadata with an undocumented shape name is preserved as source. Documented v11 shape/label/icon/img metadata is modeled.' })
     }
-    if (isFlowchartInteractionDirective(text)) {
-      warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_interaction_directive', message: 'Flowchart click/href directives are preserved as source but ignored by the local renderer for security and layout.' })
+    if (hasImageMetadata(text)) {
+      warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_image_placeholder', message: 'Flowchart img metadata is typed and preserved, but static offline rendering uses a deterministic placeholder instead of fetching the authored URL.' })
+    }
+    if (isUnsupportedFlowchartInteraction(text)) {
+      warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_interaction_directive', message: 'Flowchart callbacks and unsafe href directives are preserved but never made executable; safe http(s)/mailto hrefs render as inert data-href metadata.' })
     }
     if (/`/.test(text)) {
       warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_markdown_string', message: 'Flowchart markdown strings render with bold/italic styled runs, explicit breaks, and wrapping, but remain source-preserved rather than structurally mutable. The source is preserved verbatim.' })
@@ -89,26 +93,42 @@ function findBalancedBraceEnd(text: string, start: number): number {
   return -1
 }
 
-/** Modeled = only shape/label keys, and any shape names a documented v11
- *  shape — via the SAME entry grammar (parser.parseMetadataEntries) and the
- *  ONE shape table (src/flowchart-shapes.ts) the render parser consumes. */
+/** Modeled node metadata has one closed key set shared with the renderer. */
 function isModeledNodeMetadata(metadata: string): boolean {
   const entries = parseMetadataEntries(metadata)
   if (entries.size === 0) return false
-  for (const key of entries.keys()) {
-    if (key !== 'shape' && key !== 'label') return false
-  }
+  const modeled = new Set(['shape', 'label', 'icon', 'img', 'form', 'pos', 'h', 'w', 'constraint'])
+  for (const key of entries.keys()) if (!modeled.has(key)) return false
   const shape = entries.get('shape')
   if (shape === undefined) return true
   return normalizeV11Shape(shape.trim()) !== null
 }
 
 function hasUnmodeledMetadata(statement: string): boolean {
-  return metadataObjects(statement).some(metadata => !isModeledNodeMetadata(metadata))
+  return metadataObjects(statement).some(metadata => !isModeledNodeMetadata(metadata) && !isRenderedEdgeMetadata(metadata))
+}
+
+/** Metadata remains opaque only when it carries dimensions/placement fields
+ * the typed node model cannot reproduce. Icon/image/form and edge
+ * animation/curve metadata are closed under the serializer. */
+function hasRenderedButSourcePreservedMetadata(statement: string): boolean {
+  return metadataObjects(statement).some(metadata => {
+    const entries = parseMetadataEntries(metadata)
+    return [...entries.keys()].some(key => ['pos', 'h', 'w', 'constraint'].includes(key))
+  })
+}
+
+function isRenderedEdgeMetadata(metadata: string): boolean {
+  const entries = parseMetadataEntries(metadata)
+  return entries.size > 0 && [...entries.keys()].every(key => key === 'animate' || key === 'animation' || key === 'curve')
 }
 
 /** Unmodeled metadata that is NODE metadata (shape/label/icon/img keys) —
  *  the flowchart_node_metadata lint; edge metadata has its own lint. */
+function hasImageMetadata(statement: string): boolean {
+  return metadataObjects(statement).some(metadata => parseMetadataEntries(metadata).has('img'))
+}
+
 function hasUnmodeledNodeMetadata(statement: string): boolean {
   return metadataObjects(statement).some(metadata => isNodeMetadata(metadata) && !isModeledNodeMetadata(metadata))
 }
@@ -212,13 +232,18 @@ function isFlowchartInteractionDirective(statement: string): boolean {
   return /^(?:click|href)\s+/i.test(statement.trim())
 }
 
+function isUnsupportedFlowchartInteraction(statement: string): boolean {
+  if (!isFlowchartInteractionDirective(statement)) return false
+  return !/^(?:click\s+)?[\w-]+\s+(?:href\s+)?(?:"(?:https?:|mailto:)[^"]*"|(?:https?:|mailto:)\S+)\s*$/i.test(statement.trim())
+}
+
 function isUnsupportedEdgeMetadataStatement(statement: string): boolean {
   const match = statement.trim().match(/^[\w-]+@\s*\{([\s\S]*)\}\s*$/)
   if (!match) return false
   const metadata = match[1]!
-  // Node metadata is source-preserved by the opaque fallback. Edge metadata
-  // has animate/curve semantics only Mermaid itself understands today.
-  return !isNodeMetadata(metadata)
+  if (isNodeMetadata(metadata)) return false
+  const entries = parseMetadataEntries(metadata)
+  return [...entries.keys()].some(key => key !== 'animate' && key !== 'animation' && key !== 'curve')
 }
 
 function isNodeMetadata(metadata: string): boolean {

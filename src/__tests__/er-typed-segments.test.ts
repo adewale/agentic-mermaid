@@ -56,7 +56,7 @@ describe('typed ER styling and ordered opaque segments (B09)', () => {
     expect(er(serializeMermaid(diagram)).body).toEqual(diagram.body)
   })
 
-  test('keeps tolerated subgraph boundaries ordered while inner ER statements stay typed', () => {
+  test('keeps typed subgraph boundaries and scoped direction ordered with inner ER statements', () => {
     let diagram = er(`erDiagram
       subgraph Domain
         direction RL
@@ -66,9 +66,10 @@ describe('typed ER styling and ordered opaque segments (B09)', () => {
         CUSTOMER ||--o{ ORDER : places
       end`)
     expect(diagram.body.statements?.map(statement => statement.kind)).toEqual([
-      'opaque', 'opaque', 'entity', 'relation', 'opaque',
+      'group-open', 'direction', 'entity', 'relation', 'group-close',
     ])
-    expect(diagram.body.entities.map(item => item.id)).toEqual(['CUSTOMER', 'ORDER'])
+    expect(diagram.body.groups).toEqual([{ id: 'Domain', label: 'Domain', direction: 'RL' }])
+    expect(diagram.body.entities.map(item => [item.id, item.groupId])).toEqual([['CUSTOMER', 'Domain'], ['ORDER', 'Domain']])
 
     diagram = apply(diagram, { kind: 'add_attribute', entity: 'ORDER', text: 'string number UK' })
     const serialized = serializeMermaid(diagram)
@@ -79,16 +80,18 @@ describe('typed ER styling and ordered opaque segments (B09)', () => {
     expect(parseErDiagram(serialized.split('\n').map(line => line.trim()).filter(Boolean)).entities.map(item => item.id)).toEqual(['CUSTOMER', 'ORDER'])
   })
 
-  test('rejects identity edits that would stale an opaque segment reference', () => {
+  test('typed subgraph membership survives identity edits without stale source references', () => {
     const diagram = er(`erDiagram
       subgraph Domain
-        CUSTOMER
-        unsupported CUSTOMER annotation
+        CUSTOMER ||--o{ ORDER : places
       end`)
     const result = mutate(diagram, { kind: 'rename_entity', from: 'CUSTOMER', to: 'CLIENT' })
-    expect(result.ok).toBe(false)
-    if (!result.ok) expect(result.error.message).toContain('opaque preserved ER segment references it')
-    expect(serializeMermaid(diagram)).toContain('unsupported CUSTOMER annotation')
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.value.body.entities.find(entity => entity.id === 'CLIENT')?.groupId).toBe('Domain')
+    const serialized = serializeMermaid(result.value)
+    expect(serialized).toContain('CLIENT ||--o{ ORDER')
+    expect(serialized).not.toContain('CUSTOMER')
   })
 
   test('models root direction and exposes a typed direction mutation', () => {

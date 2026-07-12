@@ -295,6 +295,8 @@ export interface GanttLayoutResult extends PositionedDiagram {
   rows: GanttRowLayout[]
   sections: GanttSectionBand[]
   bars: GanttBarLayout[]
+  /** Safe, inert href metadata keyed by task index; callbacks never enter output. */
+  links: Array<{ taskIndex: number; href: string }>
   verts: GanttVertLayout[]
   ticks: GanttTick[]
   /** Routed after/until connectors — always computed (deterministic, cheap);

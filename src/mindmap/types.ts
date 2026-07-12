@@ -29,6 +29,8 @@ export interface PositionedMindmapNode {
   className?: string
   parentId?: string
   depth: number
+  /** Root-relative side assigned at the first branch boundary. */
+  side: 'root' | 'left' | 'right'
   x: number
   y: number
   width: number
@@ -38,7 +40,9 @@ export interface PositionedMindmapNode {
 export interface PositionedMindmapEdge {
   from: string
   to: string
+  /** Cubic branch control points: start, control1, control2, end. */
   points: Array<{ x: number; y: number }>
+  d: string
 }
 
 export interface PositionedMindmapDiagram extends PositionedDiagram {

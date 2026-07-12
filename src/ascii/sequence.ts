@@ -10,7 +10,7 @@
 // ============================================================================
 
 import { parseSequenceDiagram, displayMessageLabel } from '../sequence/parser.ts'
-import type { SequenceDiagram, Block } from '../sequence/types.ts'
+import type { SequenceDiagram, Block, SequenceMessageHead } from '../sequence/types.ts'
 import type { ResolvedSequenceConfig } from '../sequence/config.ts'
 import type { Canvas, AsciiConfig, RoleCanvas, CharRole, AsciiTheme, ColorMode } from './types.ts'
 import { mkCanvas, mkRoleCanvas, canvasToString, increaseSize, increaseRoleCanvasSize, setRole, drawText } from './canvas.ts'
@@ -43,7 +43,9 @@ export function renderSequenceAscii(text: string, config: AsciiConfig, colorMode
 
   const labelBudget = targetWidth ? Math.max(1, Math.floor(targetWidth / 3)) : undefined
   const wrapDisplay = (value: string): string => wrapText(value, labelBudget).join('\n')
-  const actorLabels = diagram.actors.map(actor => wrapDisplay(actor.label))
+  const actorLabels = diagram.actors.map(actor => wrapDisplay(
+    actor.type === 'participant' || actor.type === 'actor' ? actor.label : `«${actor.type}»\n${actor.label}`,
+  ))
   // Display labels: the autonumber prefix ("1. label") is composed by the
   // same helper the SVG layout uses, so the two surfaces cannot drift.
   const msgLabels = diagram.messages.map(message => wrapDisplay(displayMessageLabel(message)))
@@ -383,17 +385,18 @@ export function renderSequenceAscii(text: string, config: AsciiConfig, colorMode
         writeDisplayText(labelStart, y, line)
       }
 
-      // Draw arrow line
+      // Draw arrow line and exact endpoint semantics.
       if (leftToRight) {
         for (let x = fromX + 1; x < toX; x++) setC(x, arrowY, lineChar, 'line')
-        // Arrowhead at destination
-        const ah = isFilled ? (useAscii ? '>' : '▶') : (useAscii ? '>' : '▷')
-        setC(toX, arrowY, ah, 'arrow')
       } else {
         for (let x = toX + 1; x < fromX; x++) setC(x, arrowY, lineChar, 'line')
-        const ah = isFilled ? (useAscii ? '<' : '◀') : (useAscii ? '<' : '◁')
-        setC(toX, arrowY, ah, 'arrow')
       }
+      const startHead = msg.startHead ?? 'none'
+      const endHead = msg.endHead ?? (isFilled ? 'filled' : 'open')
+      if (startHead !== 'none') setC(fromX, arrowY, sequenceHeadGlyph(startHead, !leftToRight, useAscii), 'arrow')
+      if (endHead !== 'none') setC(toX, arrowY, sequenceHeadGlyph(endHead, leftToRight, useAscii), 'arrow')
+      if (msg.centralStart) setC(fromX, arrowY, useAscii ? 'o' : '○', 'arrow')
+      if (msg.centralEnd) setC(toX, arrowY, useAscii ? 'o' : '○', 'arrow')
     }
   }
 
@@ -509,4 +512,12 @@ export function renderSequenceAscii(text: string, config: AsciiConfig, colorMode
   function isDashedH(): string {
     return useAscii ? '-' : '╌'
   }
+}
+
+function sequenceHeadGlyph(head: SequenceMessageHead, right: boolean, useAscii: boolean): string {
+  if (head === 'cross') return 'X'
+  if (head === 'half-top') return right ? (useAscii ? '/' : '◜') : (useAscii ? '\\' : '◝')
+  if (head === 'half-bottom') return right ? (useAscii ? '\\' : '◟') : (useAscii ? '/' : '◞')
+  if (head === 'filled') return right ? (useAscii ? '>' : '▶') : (useAscii ? '<' : '◀')
+  return right ? (useAscii ? '>' : '▷') : (useAscii ? '<' : '◁')
 }

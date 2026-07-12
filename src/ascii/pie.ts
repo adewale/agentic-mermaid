@@ -74,8 +74,10 @@ export function renderPieAscii(
     for (let lineIndex = 0; lineIndex < linesForEntry.length - 1; lineIndex++) {
       out.push(padEndToVisualWidth(linesForEntry[lineIndex]!, labelWidth))
     }
+    const highlighted = visual.highlightSlice === entry.label
+    const marker = highlighted ? '> ' : visual.highlightSlice !== undefined ? '  ' : ''
     const label = padEndToVisualWidth(linesForEntry.at(-1) ?? '', labelWidth)
-    out.push(`${label}  ${coloredBar}${barPad}${pct}${valuePart}`)
+    out.push(`${marker}${label}  ${coloredBar}${barPad}${pct}${valuePart}`)
   })
 
   return out.join('\n')

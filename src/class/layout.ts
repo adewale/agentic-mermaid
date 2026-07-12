@@ -342,6 +342,7 @@ function extractClassLayout(
           attrHeight: size.attrHeight,
           methodHeight: size.methodHeight,
           ...(cls.className ? { className: cls.className } : {}),
+          ...(cls.href ? { href: cls.href } : {}),
           ...((cls.className && diagram.classDefs.get(cls.className)) || cls.inlineStyle ? {
             inlineStyle: { ...(cls.className ? diagram.classDefs.get(cls.className) : {}), ...cls.inlineStyle },
           } : {}),
@@ -360,6 +361,8 @@ function extractClassLayout(
       to: rel.to,
       type: rel.type,
       markerAt: rel.markerAt,
+      fromType: rel.fromType,
+      toType: rel.toType,
       label: rel.label,
       fromCardinality: rel.fromCardinality,
       toCardinality: rel.toCardinality,
@@ -368,9 +371,43 @@ function extractClassLayout(
     })
   }
 
-  const width = result.width ?? 600
-  const height = result.height ?? 400
+  let width = result.width ?? 600
+  let height = result.height ?? 400
   placeClassCardinalityLabels(relationships, positionedClasses, style, width, height)
+
+  interface NoteBox { x: number; y: number; width: number; height: number }
+  const occupied: NoteBox[] = positionedClasses.map(cls => ({ x: cls.x, y: cls.y, width: cls.width, height: cls.height }))
+  const overlaps = (a: NoteBox, b: NoteBox, gap = 8): boolean =>
+    a.x < b.x + b.width + gap && a.x + a.width + gap > b.x
+    && a.y < b.y + b.height + gap && a.y + a.height + gap > b.y
+  let freestandingY = height + 16
+  const notes = diagram.notes.map(note => {
+    const metrics = measureMultilineText(note.text, 12, 400)
+    const noteWidth = Math.max(90, metrics.width + 24)
+    const noteHeight = Math.max(40, metrics.height + 18)
+    const target = note.for ? positionedClasses.find(cls => cls.id === note.for) : undefined
+    let placement: NoteBox & { targetX?: number; targetY?: number; noteX?: number; noteY?: number }
+    if (target) {
+      const candidates: Array<NoteBox & { targetX: number; targetY: number; noteX: number; noteY: number }> = []
+      for (let lane = 0; lane < Math.max(4, diagram.notes.length + 1); lane++) {
+        const offset = lane * (noteHeight + 12)
+        candidates.push(
+          { x: target.x + target.width + 24, y: target.y + offset, width: noteWidth, height: noteHeight, targetX: target.x + target.width, targetY: target.y + target.height / 2, noteX: target.x + target.width + 24, noteY: target.y + offset + noteHeight / 2 },
+          { x: target.x - noteWidth - 24, y: target.y + offset, width: noteWidth, height: noteHeight, targetX: target.x, targetY: target.y + target.height / 2, noteX: target.x - 24, noteY: target.y + offset + noteHeight / 2 },
+          { x: target.x, y: target.y + target.height + 24 + offset, width: noteWidth, height: noteHeight, targetX: target.x + target.width / 2, targetY: target.y + target.height, noteX: target.x + noteWidth / 2, noteY: target.y + target.height + 24 + offset },
+        )
+      }
+      placement = candidates.find(candidate => candidate.x >= CLS.padding && candidate.y >= CLS.padding && !occupied.some(box => overlaps(candidate, box)))
+        ?? { x: width + 24, y: target.y, width: noteWidth, height: noteHeight, targetX: target.x + target.width, targetY: target.y + target.height / 2, noteX: width + 24, noteY: target.y + noteHeight / 2 }
+    } else {
+      placement = { x: CLS.padding, y: freestandingY, width: noteWidth, height: noteHeight }
+      freestandingY += noteHeight + 12
+    }
+    occupied.push(placement)
+    width = Math.max(width, placement.x + noteWidth + CLS.padding)
+    height = Math.max(height, placement.y + noteHeight + CLS.padding)
+    return { text: note.text, ...(note.for ? { for: note.for } : {}), ...placement }
+  })
 
   return {
     width,
@@ -379,6 +416,7 @@ function extractClassLayout(
     accessibilityDescription: diagram.accessibilityDescription,
     classes: positionedClasses,
     relationships,
+    notes,
     namespaces: positionedNamespaces,
   }
 }
@@ -484,7 +522,7 @@ export function layoutClassDiagram(
   options: RenderOptions = {}
 ): PositionedClassDiagram {
   if (diagram.classes.length === 0) {
-    return { width: 0, height: 0, accessibilityTitle: diagram.accessibilityTitle, accessibilityDescription: diagram.accessibilityDescription, classes: [], relationships: [], namespaces: [] }
+    return { width: 0, height: 0, accessibilityTitle: diagram.accessibilityTitle, accessibilityDescription: diagram.accessibilityDescription, classes: [], relationships: [], notes: [], namespaces: [] }
   }
 
   const { elkGraph, classSizes } = buildClassElkGraph(diagram, options)

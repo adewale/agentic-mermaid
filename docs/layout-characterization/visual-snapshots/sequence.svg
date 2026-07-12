@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 280" width="420" height="280" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 286" width="420" height="286" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF">
 <style>
   text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
   svg {
@@ -24,25 +24,34 @@
   <marker id="char-sequence-seq-arrow-open" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto-start-reverse">
     <polyline points="0 0, 8 2.5, 0 5" fill="none" stroke="#47474a" stroke-width="1" />
   </marker>
+  <marker id="char-sequence-seq-arrow-cross" markerWidth="8" markerHeight="5" refX="4" refY="2.5" orient="auto">
+    <path d="M1 1 L7 4 M1 4 L7 1" fill="none" stroke="#47474a" stroke-width="1.5" />
+  </marker>
+  <marker id="char-sequence-seq-arrow-half-top" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto-start-reverse">
+    <path d="M0 0 L8 2.5" fill="none" stroke="#47474a" stroke-width="1" />
+  </marker>
+  <marker id="char-sequence-seq-arrow-half-bottom" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto-start-reverse">
+    <path d="M0 5 L8 2.5" fill="none" stroke="#47474a" stroke-width="1" />
+  </marker>
 </defs>
-<line class="lifeline" data-actor="Alice" x1="70" y1="70" x2="70" y2="250" stroke="#939395" stroke-width="0.75" stroke-dasharray="6 4" />
-<line class="lifeline" data-actor="Bob" x1="210" y1="70" x2="210" y2="250" stroke="#939395" stroke-width="0.75" stroke-dasharray="6 4" />
-<line class="lifeline" data-actor="DB" x1="350" y1="70" x2="350" y2="250" stroke="#939395" stroke-width="0.75" stroke-dasharray="6 4" />
-<g class="message" data-from="Alice" data-to="Bob" data-label="Request" data-line-style="solid" data-arrow-head="filled" data-self="false" data-id="message:Alice-&gt;Bob#0" data-role="message" role="graphics-symbol" aria-roledescription="relation" aria-label="Alice to Bob: Request">
-  <line x1="70" y1="90" x2="210" y2="90" stroke="#939395" stroke-width="1" marker-end="url(#char-sequence-seq-arrow)" data-id="message:Alice-&gt;Bob#0:line" data-role="message" />
-  <text x="140" y="80" font-size="11" text-anchor="middle" font-weight="400" fill="#707072" dy="3.8499999999999996">Request</text>
+<line class="lifeline" data-actor="Alice" x1="70" y1="70" x2="70" y2="256" stroke="#939395" stroke-width="0.75" stroke-dasharray="6 4" />
+<line class="lifeline" data-actor="Bob" x1="210" y1="70" x2="210" y2="256" stroke="#939395" stroke-width="0.75" stroke-dasharray="6 4" />
+<line class="lifeline" data-actor="DB" x1="350" y1="70" x2="350" y2="256" stroke="#939395" stroke-width="0.75" stroke-dasharray="6 4" />
+<g class="message" data-from="Alice" data-to="Bob" data-label="Request" data-line-style="solid" data-start-head="none" data-end-head="filled" data-central-start="false" data-central-end="false" data-self="false" data-id="message:Alice-&gt;Bob#0" data-role="message" role="graphics-symbol" aria-roledescription="relation" aria-label="Alice to Bob: Request">
+  <line x1="70" y1="96" x2="210" y2="96" stroke="#939395" stroke-width="1" marker-end="url(#char-sequence-seq-arrow)" data-id="message:Alice-&gt;Bob#0:line" data-role="message" />
+  <text x="140" y="86" font-size="11" text-anchor="middle" font-weight="400" fill="#707072" dy="3.8499999999999996">Request</text>
 </g>
-<g class="message" data-from="Bob" data-to="DB" data-label="Query" data-line-style="solid" data-arrow-head="filled" data-self="false" data-id="message:Bob-&gt;DB#0" data-role="message" role="graphics-symbol" aria-roledescription="relation" aria-label="Bob to DB: Query">
-  <line x1="210" y1="130" x2="350" y2="130" stroke="#939395" stroke-width="1" marker-end="url(#char-sequence-seq-arrow)" data-id="message:Bob-&gt;DB#0:line" data-role="message" />
-  <text x="280" y="120" font-size="11" text-anchor="middle" font-weight="400" fill="#707072" dy="3.8499999999999996">Query</text>
+<g class="message" data-from="Bob" data-to="DB" data-label="Query" data-line-style="solid" data-start-head="none" data-end-head="filled" data-central-start="false" data-central-end="false" data-self="false" data-id="message:Bob-&gt;DB#0" data-role="message" role="graphics-symbol" aria-roledescription="relation" aria-label="Bob to DB: Query">
+  <line x1="210" y1="136" x2="350" y2="136" stroke="#939395" stroke-width="1" marker-end="url(#char-sequence-seq-arrow)" data-id="message:Bob-&gt;DB#0:line" data-role="message" />
+  <text x="280" y="126" font-size="11" text-anchor="middle" font-weight="400" fill="#707072" dy="3.8499999999999996">Query</text>
 </g>
-<g class="message" data-from="DB" data-to="Bob" data-label="Rows" data-line-style="dashed" data-arrow-head="filled" data-self="false" data-id="message:DB-&gt;Bob#0" data-role="message" role="graphics-symbol" aria-roledescription="relation" aria-label="DB to Bob: Rows">
-  <line x1="350" y1="170" x2="210" y2="170" stroke="#939395" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#char-sequence-seq-arrow)" data-id="message:DB-&gt;Bob#0:line" data-role="message" />
-  <text x="280" y="160" font-size="11" text-anchor="middle" font-weight="400" fill="#707072" dy="3.8499999999999996">Rows</text>
+<g class="message" data-from="DB" data-to="Bob" data-label="Rows" data-line-style="dashed" data-start-head="none" data-end-head="filled" data-central-start="false" data-central-end="false" data-self="false" data-id="message:DB-&gt;Bob#0" data-role="message" role="graphics-symbol" aria-roledescription="relation" aria-label="DB to Bob: Rows">
+  <line x1="350" y1="176" x2="210" y2="176" stroke="#939395" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#char-sequence-seq-arrow)" data-id="message:DB-&gt;Bob#0:line" data-role="message" />
+  <text x="280" y="166" font-size="11" text-anchor="middle" font-weight="400" fill="#707072" dy="3.8499999999999996">Rows</text>
 </g>
-<g class="message" data-from="Bob" data-to="Alice" data-label="Response" data-line-style="dashed" data-arrow-head="filled" data-self="false" data-id="message:Bob-&gt;Alice#0" data-role="message" role="graphics-symbol" aria-roledescription="relation" aria-label="Bob to Alice: Response">
-  <line x1="210" y1="210" x2="70" y2="210" stroke="#939395" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#char-sequence-seq-arrow)" data-id="message:Bob-&gt;Alice#0:line" data-role="message" />
-  <text x="140" y="200" font-size="11" text-anchor="middle" font-weight="400" fill="#707072" dy="3.8499999999999996">Response</text>
+<g class="message" data-from="Bob" data-to="Alice" data-label="Response" data-line-style="dashed" data-start-head="none" data-end-head="filled" data-central-start="false" data-central-end="false" data-self="false" data-id="message:Bob-&gt;Alice#0" data-role="message" role="graphics-symbol" aria-roledescription="relation" aria-label="Bob to Alice: Response">
+  <line x1="210" y1="216" x2="70" y2="216" stroke="#939395" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#char-sequence-seq-arrow)" data-id="message:Bob-&gt;Alice#0:line" data-role="message" />
+  <text x="140" y="206" font-size="11" text-anchor="middle" font-weight="400" fill="#707072" dy="3.8499999999999996">Response</text>
 </g>
 <g class="actor" data-id="Alice" data-label="Alice" data-type="participant" data-role="actor">
   <rect x="30" y="30" width="80" height="40" rx="4" ry="4" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1" data-id="actor:Alice:box" data-role="actor" />

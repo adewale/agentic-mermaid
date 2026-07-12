@@ -16,6 +16,7 @@
 // ============================================================================
 
 import type { TextTransform } from '../types.ts'
+import { safeCssColor } from '../shared/css-color.ts'
 import { THEMES } from '../theme.ts'
 
 /** A partial, composable public description of how diagrams look. */
@@ -253,12 +254,22 @@ export function validateStyleSpec(value: unknown): string[] {
     if (!KNOWN_KEYS.has(key)) problems.push(`unknown field "${key}"`)
   }
   const str = (k: string) => spec[k] === undefined || typeof spec[k] === 'string' || problems.push(`"${k}" must be a string`)
-  const num = (k: string) => spec[k] === undefined || (typeof spec[k] === 'number' && Number.isFinite(spec[k] as number)) || problems.push(`"${k}" must be a finite number`)
+  const bounded = (k: string, valid: (value: number) => boolean, expected: string) => {
+    const value = spec[k]
+    if (value !== undefined && (typeof value !== 'number' || !Number.isFinite(value) || !valid(value))) problems.push(`"${k}" must be ${expected}`)
+  }
   const oneOf = (k: string, allowed: string[]) =>
     spec[k] === undefined || (typeof spec[k] === 'string' && allowed.includes(spec[k] as string)) || problems.push(`"${k}" must be one of ${allowed.join(' | ')}`)
   str('$schema'); str('name'); str('blurb'); str('font')
-  num('roughness'); num('bowing'); num('passes'); num('strokeWidth')
-  num('hachureAngle'); num('hachureGap'); num('fillWeight'); num('washOpacity'); num('washEdge')
+  bounded('roughness', value => value >= 0 && value <= 10, 'between 0 and 10')
+  bounded('bowing', value => value >= 0 && value <= 10, 'between 0 and 10')
+  bounded('passes', value => Number.isInteger(value) && value >= 1 && value <= 8, 'an integer from 1 through 8')
+  bounded('strokeWidth', value => value > 0 && value <= 20, 'greater than 0 and at most 20')
+  bounded('hachureAngle', value => value >= -360 && value <= 360, 'between -360 and 360')
+  bounded('hachureGap', value => value > 0 && value <= 100, 'greater than 0 and at most 100')
+  bounded('fillWeight', value => value > 0 && value <= 20, 'greater than 0 and at most 20')
+  bounded('washOpacity', value => value >= 0 && value <= 1, 'between 0 and 1')
+  bounded('washEdge', value => value >= 0 && value <= 1, 'between 0 and 1')
   oneOf('stroke', ['crisp', 'jittered', 'freehand'])
   oneOf('fill', ['none', 'hachure', 'solid', 'wash'])
   oneOf('backdrop', ['plain', 'paper-ruled', 'grid'])
@@ -272,6 +283,7 @@ export function validateStyleSpec(value: unknown): string[] {
       for (const [token, color] of Object.entries(spec.colors as Record<string, unknown>)) {
         if (!['bg', 'fg', 'line', 'accent', 'muted', 'surface', 'border'].includes(token)) problems.push(`unknown color token "${token}"`)
         else if (color !== undefined && typeof color !== 'string') problems.push(`color token "${token}" must be a string`)
+        else if (color !== undefined && safeCssColor(color) === undefined) problems.push(`color token "${token}" must be a safe non-fetching CSS color`)
       }
     }
   }

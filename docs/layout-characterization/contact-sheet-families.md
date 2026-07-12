@@ -490,11 +490,11 @@ mindmap
 Rendered:
 
 ```
-((Product))
-├─ Research
-│  ├─ Interviews
-│  └─ Evidence
-└─ Delivery
+◀── Product ──▶
+◀ └─ Delivery
+▶ └─ Research
+▶    ├─ Interviews
+▶    └─ Evidence
 ```
 
 ## <a id="gitgraph"></a>GitGraph

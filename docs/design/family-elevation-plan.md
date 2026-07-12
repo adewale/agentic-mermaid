@@ -1,6 +1,6 @@
 # Family Elevation Plan
 
-Status: implementation complete for all 72 family items and all 18 completion packages; final-head CI/review evidence is retained externally
+Status: Closing The Gap complete after the Mermaid 11.16 family-fidelity audit; the original 72 family items and 18 completion packages remain complete
 Last reviewed: 2026-07-10
 
 This document began as the plan of record and now records the implemented
@@ -482,6 +482,51 @@ do not override the full build/type/unit/E2E/website/tracker evidence. Mutation
 configs and nightly lanes are reproducible adequacy tools, while the 2026-07-10
 97–99% focused scores remain historical local measurements without retained
 CI artifacts and are not used as phase-completion proof.
+
+## Closing The Gap phase — Mermaid 11.16 syntax and visual-family fidelity
+
+The 2026-07-10 post-completion audit compared every registered family with the
+official Mermaid 11.16 documentation and inspected SVG/PNG/terminal output for
+the visual metaphor that distinguishes that family. This phase closes every
+gap from that audit. It applies P1–P7 unchanged: shared closed types and parsers
+make unsupported states unrepresentable, red/green/revert evidence proves each
+change, and availability is never treated as visual fidelity.
+
+<!-- family-elevation-closing-gap:start -->
+| ID | Phase | Status | Evidence or exact remainder |
+|---|---|---|---|
+| CG01 | Closing The Gap | done | Typed Flowchart icon/image metadata, edge presentation, v11 silhouettes, inert links, placeholder diagnostics, and strict security are covered by `closing-the-gap.test.ts`. |
+| CG02 | Closing The Gap | done | Official State choice, note, composite, signature, round-trip, and terminal contracts are covered by `closing-the-gap.test.ts` and the dedicated State suites. |
+| CG03 | Closing The Gap | done | Closed Sequence participant and endpoint vocabularies, aliases, menus, links, central connections, and canonical serialization are covered by `closing-the-gap.test.ts`. |
+| CG04 | Closing The Gap | done | Timeline rail, period, section, event, accessibility, layout, and terminal chronology composition is covered by `closing-the-gap.test.ts` and the Timeline suites. |
+| CG05 | Closing The Gap | done | All accepted two-ended Class relations, lollipops, collision-free notes, safe links, canonical round trips, and terminal projection are covered by `closing-the-gap.test.ts`. |
+| CG06 | Closing The Gap | done | Typed nested ER groups, empty group frames, group endpoints, scoped direction, Markdown labels, and orthogonal routing are covered by `closing-the-gap.test.ts`. |
+| CG07 | Closing The Gap | done | Journey baseline, task, score, actor, SVG composition, layout invariants, and terminal projection are covered by `closing-the-gap.test.ts`. |
+| CG08 | Closing The Gap | done | Architecture uses bounded offline icon resolution, sanitized deterministic fallback, attribution, configuration honesty, and package delivery covered by `closing-the-gap.test.ts`. |
+| CG09 | Closing The Gap | done | Typed XYChart value/label points render in both orientations and terminal output, with round-trip preservation covered by `closing-the-gap.test.ts`. |
+| CG10 | Closing The Gap | done | Pie `highlightSlice`, theme-variable title/legend styling, SVG emphasis, and terminal emphasis are covered by `closing-the-gap.test.ts`. |
+| CG11 | Closing The Gap | done | Quadrant leader routing rejects crossings, contacts, near-contacts, and region-label obstacles under non-vacuous independent checks in `closing-the-gap.test.ts`. |
+| CG12 | Closing The Gap | done | Gantt renders only sanitized inert href metadata, suppresses callbacks/unsafe schemes, and diagnoses all documented no-op/invalid config paths in `closing-the-gap.test.ts`. |
+| CG13 | Closing The Gap | done | Mindmap defaults to deterministic central bilateral layout with curved branches, local pictograms, explicit tidy-tree, and central-root terminal output in `closing-the-gap.test.ts`. |
+| CG14 | Closing The Gap | done | GitGraph branch palettes, documented theme variables, ANSI color, shared typography metrics, and large-font containment are covered by `closing-the-gap.test.ts`. |
+| CG15 | Closing The Gap | done | The 14-family contract, full local gates, package/website freshness, Lessons Learned, and a final five-reviewer zero-Blocker/P1/P2 audit are recorded by `closing-the-gap.test.ts` and `family-elevation-acceptance.md`. |
+<!-- family-elevation-closing-gap:end -->
+
+### Closing The Gap sequencing
+
+1. **Construction contracts:** replace lossy strings/booleans with closed
+   participant, endpoint, relation, point, group, icon, and emphasis types;
+   centralize grammar tables used by parser, serializer, SVG, ASCII, and agent.
+2. **Silent-loss fixes:** Sequence endpoints, Class notes/relations, ER groups,
+   XY point labels, and documented configuration values become typed or fail
+   loudly before any appearance-only work.
+3. **Signature layouts:** central Mindmap, branch-colored GitGraph, highlighted
+   Pie, obstacle-routed Quadrant leaders, and the remaining family composition
+   passes land with geometry invariants rather than snapshots alone.
+4. **Surface closure:** terminal, Scene IR, PNG, CLI/MCP/editor/website,
+   packaging, docs, generated comparisons, and revert probes are enrolled.
+5. **Independent acceptance:** a final multi-agent audit must find no open
+   Blocker/P1/P2 finding before CG15 and this phase may be marked complete.
 
 ## Definition of done (every item)
 

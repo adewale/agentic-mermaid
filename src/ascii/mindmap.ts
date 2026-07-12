@@ -36,7 +36,18 @@ export function renderMindmapAscii(
     const childPrefix = root ? '' : prefix + (last ? '   ' : (config.useAscii ? '|  ' : '│  '))
     node.children.forEach((child, index) => visit(child, childPrefix, index === node.children.length - 1))
   }
-  visit(diagram.root, '', true, true)
+  if (diagram.root.children.length >= 2) {
+    const left: MindmapNode[] = []
+    const right: MindmapNode[] = []
+    diagram.root.children.forEach((child, index) => (index % 2 === 1 ? left : right).push(child))
+    const rootLabel = plainTextFromInlineFormatting(diagram.root.label)
+    const central = config.useAscii ? `<-- ${rootLabel} -->` : `◀── ${rootLabel} ──▶`
+    rows.push({ prefix: '', text: central })
+    left.forEach((child, index) => visit(child, config.useAscii ? 'L ' : '◀ ', index === left.length - 1))
+    right.forEach((child, index) => visit(child, config.useAscii ? 'R ' : '▶ ', index === right.length - 1))
+  } else {
+    visit(diagram.root, '', true, true)
+  }
   const width = Math.max(1, ...rows.map(row => visualWidth(row.prefix) + visualWidth(row.text)))
   const canvas = mkCanvas(width - 1, Math.max(0, rows.length - 1))
   const roles = mkRoleCanvas(width - 1, Math.max(0, rows.length - 1))

@@ -31,9 +31,12 @@
   <marker id="char-class-cls-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto-start-reverse">
     <polyline points="0 0, 8 3, 0 6" fill="none" stroke="#47474a" stroke-width="1.5" />
   </marker>
+  <marker id="char-class-cls-lollipop" markerWidth="14" markerHeight="14" refX="7" refY="7" orient="auto">
+    <circle cx="7" cy="7" r="5" fill="#FFFFFF" stroke="#47474a" stroke-width="1.5" />
+  </marker>
 </defs>
-<polyline class="class-relationship" data-from="Animal" data-to="Dog" data-type="inheritance" data-marker-at="from" points="100,88.9 100,148.9" fill="none" stroke="#939395" stroke-width="1" marker-start="url(#char-class-cls-inherit)" data-id="rel:Animal-&gt;Dog#0" data-role="relationship" role="graphics-symbol" aria-roledescription="relation" aria-label="Animal to Dog" />
-<polyline class="class-relationship" data-from="Animal" data-to="Cat" data-type="inheritance" data-marker-at="from" points="140,88.9 140,98.9 260,98.9 260,148.9" fill="none" stroke="#939395" stroke-width="1" marker-start="url(#char-class-cls-inherit)" data-id="rel:Animal-&gt;Cat#0" data-role="relationship" role="graphics-symbol" aria-roledescription="relation" aria-label="Animal to Cat" />
+<polyline class="class-relationship" data-from="Animal" data-to="Dog" data-type="inheritance" data-relation-type="inheritance" data-marker-at="from" points="100,88.9 100,148.9" fill="none" stroke="#939395" stroke-width="1" marker-start="url(#char-class-cls-inherit)" data-id="rel:Animal-&gt;Dog#0" data-role="relationship" role="graphics-symbol" aria-roledescription="relation" aria-label="Animal to Dog" />
+<polyline class="class-relationship" data-from="Animal" data-to="Cat" data-type="inheritance" data-relation-type="inheritance" data-marker-at="from" points="140,88.9 140,98.9 260,98.9 260,148.9" fill="none" stroke="#939395" stroke-width="1" marker-start="url(#char-class-cls-inherit)" data-id="rel:Animal-&gt;Cat#0" data-role="relationship" role="graphics-symbol" aria-roledescription="relation" aria-label="Animal to Cat" />
 <g class="class-node" data-id="Animal" data-label="Animal" data-role="class-box">
   <rect x="60" y="40" width="120" height="48.900000000000006" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1" data-id="class:Animal:box" data-role="class-box" />
   <path d="M60,40 H180 V72.9 H60 Z" fill="#f4f4f4" stroke="#d4d4d4" stroke-width="1" />

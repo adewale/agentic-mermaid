@@ -68,6 +68,15 @@ export function parseClassReference(token: string): { id: string; generic?: stri
   }
 }
 
+/** Shared safe-link grammar for renderer and agent class parsers. */
+export function parseClassInteraction(line: string): { id: string; generic?: string; href: string } | null {
+  const link = line.match(/^(?:click|link)\s+(\S+)\s+(?:href\s+)?(?:"((?:\\.|[^"])*)"|(https?:\/\/\S+|mailto:\S+))/i)
+  if (!link) return null
+  const ref = parseClassReference(link[1]!)
+  const href = (link[2] ?? link[3] ?? '').replace(/\\(["\\])/g, '$1')
+  return ref && /^(?:https?:|mailto:)/i.test(href) ? { ...ref, href } : null
+}
+
 // ============================================================================
 // Class diagram parser
 //
@@ -100,6 +109,7 @@ export function parseClassDiagram(lines: string[]): ClassDiagram {
     classes: [],
     classDefs: new Map(),
     relationships: [],
+    notes: [],
     namespaces: [],
   }
 
@@ -200,6 +210,22 @@ export function parseClassDiagram(lines: string[]): ClassDiagram {
           currentClass.attributes.push(member.member)
         }
       }
+      continue
+    }
+
+    // --- Safe class links. Callback forms remain inert and unmodeled. ---
+    const interaction = parseClassInteraction(line)
+    if (interaction) {
+      ensureClass(classMap, interaction.id, interaction.generic).href = interaction.href
+      continue
+    }
+
+    // --- UML notes ---
+    const note = line.match(/^note(?:\s+for\s+(\S+))?\s+"((?:\\.|[^"\\])*)"\s*$/i)
+    if (note) {
+      const target = note[1] ? parseClassReference(note[1]) : null
+      if (note[1] && target) ensureClass(classMap, target.id, target.generic)
+      diagram.notes.push({ text: note[2]!.replace(/\\(["\\])/g, '$1'), ...(target ? { for: target.id } : {}) })
       continue
     }
 
@@ -321,7 +347,7 @@ export function parseClassDiagram(lines: string[]): ClassDiagram {
     // Pattern: [FROM] ["card"] ARROW ["card"] [TO] [: label]
     // Arrows: <|--, *--, o--, -->, ..|>, ..>
     // Can also be reversed: --o, --*, --|>
-    const rel = parseRelationship(line)
+    const rel = parseClassRelationship(line)
     if (rel) {
       // Ensure both classes exist
       ensureClass(classMap, rel.from, rel.fromGeneric)
@@ -438,9 +464,39 @@ function parseMember(line: string): { member: ClassMember; isMethod: boolean } |
 }
 
 /** Parse a relationship line into a ClassRelationship */
-function parseRelationship(line: string): (ClassRelationship & { fromGeneric?: string; toGeneric?: string }) | null {
-  // Relationship regex — handles all arrow types with optional cardinality and labels
-  // Pattern: FROM ["card"] ARROW ["card"] TO [: label]
+export function parseClassRelationship(line: string): (ClassRelationship & { fromGeneric?: string; toGeneric?: string }) | null {
+  // Lollipop interface endpoints are distinct UML semantics, not associations.
+  const lollipop = line.match(/^(\S+?)\s+(\(\)--|--\(\))\s+(\S+?)(?:\s*:\s*(.+))?$/)
+  if (lollipop) {
+    const fromRef = parseClassReference(lollipop[1]!)
+    const toRef = parseClassReference(lollipop[3]!)
+    if (!fromRef || !toRef) return null
+    return {
+      from: fromRef.id, to: toRef.id, type: 'lollipop', markerAt: lollipop[2] === '()--' ? 'from' : 'to',
+      ...(lollipop[4]?.trim() ? { label: normalizeBrTags(lollipop[4]!.trim()) } : {}),
+      ...(fromRef.generic ? { fromGeneric: fromRef.generic } : {}), ...(toRef.generic ? { toGeneric: toRef.generic } : {}),
+    }
+  }
+
+  // Two-ended Mermaid relations: [Relation Type][Link][Relation Type].
+  const twoWay = line.match(/^(\S+?)\s+(?:"([^"]*?)"\s+)?(<\||\*|o|<|>)(--|\.\.)(\|>|\*|o|>|<)\s+(?:"([^"]*?)"\s+)?(\S+?)(?:\s*:\s*(.+))?$/)
+  if (twoWay) {
+    const fromRef = parseClassReference(twoWay[1]!)
+    const toRef = parseClassReference(twoWay[7]!)
+    if (!fromRef || !toRef) return null
+    const dashed = twoWay[4] === '..'
+    const fromType = endpointRelationshipType(twoWay[3]!, dashed)
+    const toType = endpointRelationshipType(twoWay[5]!, dashed)
+    return {
+      from: fromRef.id, to: toRef.id, type: fromType, markerAt: 'both', fromType, toType,
+      ...(twoWay[2] ? { fromCardinality: normalizeBrTags(twoWay[2]!) } : {}),
+      ...(twoWay[6] ? { toCardinality: normalizeBrTags(twoWay[6]!) } : {}),
+      ...(twoWay[8]?.trim() ? { label: normalizeBrTags(twoWay[8]!.trim()) } : {}),
+      ...(fromRef.generic ? { fromGeneric: fromRef.generic } : {}), ...(toRef.generic ? { toGeneric: toRef.generic } : {}),
+    }
+  }
+
+  // Relationship regex — handles ordinary one-ended arrows.
   const match = line.match(
     /^(\S+?)\s+(?:"([^"]*?)"\s+)?(<\|--|<\|\.\.|\*--|o--|-->|--\*|--o|--\|>|\.\.>|\.\.\|>|<--|<\.\.?|--)\s+(?:"([^"]*?)"\s+)?(\S+?)(?:\s*:\s*(.+))?$/
   )
@@ -475,6 +531,13 @@ function parseRelationship(line: string): (ClassRelationship & { fromGeneric?: s
  * Prefix markers (`<|--`, `*--`, `o--`) place the UML shape at the 'from' end.
  * Suffix markers (`..|>`, `-->`, `..>`, `--*`, `--o`) place it at the 'to' end.
  */
+function endpointRelationshipType(token: string, dashed: boolean): RelationshipType {
+  if (token === '*' ) return 'composition'
+  if (token === 'o') return 'aggregation'
+  if (token.includes('|')) return dashed ? 'realization' : 'inheritance'
+  return dashed ? 'dependency' : 'association'
+}
+
 function parseArrow(arrow: string): { type: RelationshipType; markerAt: 'from' | 'to' } | null {
   // Trim whitespace that might be captured by the regex
   const a = arrow.trim()

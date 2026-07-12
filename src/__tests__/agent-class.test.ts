@@ -53,7 +53,7 @@ describe('class — parse', () => {
     const d = parse('classDiagram\n  Customer "1" --> "*" Ticket : buys')
     if (d.body.kind !== 'class') throw new Error()
     expect(d.body.relations[0]).toEqual({
-      from: 'Customer', to: 'Ticket', kind: 'association',
+      from: 'Customer', to: 'Ticket', kind: 'association', markerAt: 'to',
       label: 'buys', fromCardinality: '1', toCardinality: '*',
     })
   })

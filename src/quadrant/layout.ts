@@ -160,9 +160,11 @@ function labelCandidates(cx: number, cy: number, gap: number, w: number, h: numb
 }
 
 /** Leader line from the circle edge to the label edge for a far slot. */
+interface LeaderSegment { x1: number; y1: number; x2: number; y2: number }
+
 function leaderFor(
   cx: number, cy: number, radius: number, c: LabelCandidate,
-): { x1: number; y1: number; x2: number; y2: number } {
+): LeaderSegment {
   const dx = c.x - cx
   const dy = c.y - cy
   const len = Math.hypot(dx, dy) || 1
@@ -171,6 +173,55 @@ function leaderFor(
   const x2 = c.anchor === 'start' ? c.box.x0 - 2 : c.anchor === 'end' ? c.box.x1 + 2 : c.x
   const y2 = c.anchor === 'middle' ? (c.y > cy ? c.box.y0 - 1 : c.box.y1 + 1) : c.y
   return { x1: round(cx + ux * radius), y1: round(cy + uy * radius), x2: round(x2), y2: round(y2) }
+}
+
+function orient(ax: number, ay: number, bx: number, by: number, cx: number, cy: number): number {
+  return (bx - ax) * (cy - ay) - (by - ay) * (cx - ax)
+}
+
+function pointSegmentDistance(px: number, py: number, line: LeaderSegment): number {
+  const dx = line.x2 - line.x1, dy = line.y2 - line.y1
+  const denom = dx * dx + dy * dy
+  const t = denom === 0 ? 0 : Math.max(0, Math.min(1, ((px - line.x1) * dx + (py - line.y1) * dy) / denom))
+  return Math.hypot(px - (line.x1 + t * dx), py - (line.y1 + t * dy))
+}
+
+/** Inclusive intersection plus visual clearance. Proper-crossing-only tests
+ * miss T-junctions and collinear contacts, both of which read as one leader
+ * terminating on another. Leaders from the same plotted point may fan out. */
+function segmentsConflict(a: LeaderSegment, b: LeaderSegment): boolean {
+  if (Math.hypot(a.x1 - b.x1, a.y1 - b.y1) <= 0.5) return false
+  const epsilon = 0.01
+  const onSegment = (line: LeaderSegment, x: number, y: number): boolean =>
+    Math.abs(orient(line.x1, line.y1, line.x2, line.y2, x, y)) <= epsilon
+    && x >= Math.min(line.x1, line.x2) - epsilon && x <= Math.max(line.x1, line.x2) + epsilon
+    && y >= Math.min(line.y1, line.y2) - epsilon && y <= Math.max(line.y1, line.y2) + epsilon
+  const o1 = orient(a.x1, a.y1, a.x2, a.y2, b.x1, b.y1)
+  const o2 = orient(a.x1, a.y1, a.x2, a.y2, b.x2, b.y2)
+  const o3 = orient(b.x1, b.y1, b.x2, b.y2, a.x1, a.y1)
+  const o4 = orient(b.x1, b.y1, b.x2, b.y2, a.x2, a.y2)
+  if ((o1 * o2 < -epsilon && o3 * o4 < -epsilon)
+    || onSegment(a, b.x1, b.y1) || onSegment(a, b.x2, b.y2)
+    || onSegment(b, a.x1, a.y1) || onSegment(b, a.x2, a.y2)) return true
+  return Math.min(
+    pointSegmentDistance(a.x1, a.y1, b), pointSegmentDistance(a.x2, a.y2, b),
+    pointSegmentDistance(b.x1, b.y1, a), pointSegmentDistance(b.x2, b.y2, a),
+  ) < 3
+}
+
+function leaderCrossesBox(line: LeaderSegment, box: Box): boolean {
+  const expanded = { x0: box.x0 - 2, y0: box.y0 - 2, x1: box.x1 + 2, y1: box.y1 + 2 }
+  if (Math.max(line.x1, line.x2) < expanded.x0 || Math.min(line.x1, line.x2) > expanded.x1 ||
+      Math.max(line.y1, line.y2) < expanded.y0 || Math.min(line.y1, line.y2) > expanded.y1) return false
+  const inside = (x: number, y: number) => x >= expanded.x0 && x <= expanded.x1 && y >= expanded.y0 && y <= expanded.y1
+  if (inside(line.x1, line.y1) || inside(line.x2, line.y2)) return true
+  const edges: LeaderSegment[] = [
+    { x1: expanded.x0, y1: expanded.y0, x2: expanded.x1, y2: expanded.y0 },
+    { x1: expanded.x1, y1: expanded.y0, x2: expanded.x1, y2: expanded.y1 },
+    { x1: expanded.x1, y1: expanded.y1, x2: expanded.x0, y2: expanded.y1 },
+    { x1: expanded.x0, y1: expanded.y1, x2: expanded.x0, y2: expanded.y0 },
+  ]
+  return edges.some(edge => segmentsConflict(line, edge))
 }
 
 /**
@@ -287,6 +338,7 @@ export function layoutQuadrantChart(
     return { x0: cx - r, y0: cy - r, x1: cx + r, y1: cy + r }
   })
   const canvas: Box = { x0: 2, y0: 2, x1: width - 2, y1: height - 2 }
+  const routedLeaders: LeaderSegment[] = []
   const points: PositionedQuadrantPoint[] = chart.points.map((p, i) => {
     const vis = resolved[i]!
     const cx = round(plotX + p.x * size)
@@ -295,11 +347,16 @@ export function layoutQuadrantChart(
     const w = measureTextWidth(label, fs, fw)
     const h = fs * 1.1
     const gap = vis.radius + lineGap
-    const clear = (b: Box): boolean =>
-      b.x0 >= canvas.x0 && b.y0 >= canvas.y0 && b.x1 <= canvas.x1 && b.y1 <= canvas.y1 &&
-      !placedBoxes.some(o => intersects(b, o)) && !pointBoxes.some(o => intersects(b, o))
+    const clear = (candidate: LabelCandidate): boolean => {
+      const b = candidate.box
+      if (!(b.x0 >= canvas.x0 && b.y0 >= canvas.y0 && b.x1 <= canvas.x1 && b.y1 <= canvas.y1) ||
+          placedBoxes.some(o => intersects(b, o)) || pointBoxes.some(o => intersects(b, o))) return false
+      if (!candidate.far) return true
+      const leader = leaderFor(cx, cy, vis.radius, candidate)
+      return !placedBoxes.some(box => leaderCrossesBox(leader, box)) && !routedLeaders.some(existing => segmentsConflict(leader, existing))
+    }
     const candidates = labelCandidates(cx, cy, gap, w, h)
-    const chosen = candidates.find(c => clear(c.box))
+    const chosen = candidates.find(clear)
 
     const positioned: PositionedQuadrantPoint = {
       label,
@@ -324,7 +381,10 @@ export function layoutQuadrantChart(
         x1: round(chosen.box.x1), y1: round(chosen.box.y1),
       }
       positioned.labelBox = labelBox
-      if (chosen.far) positioned.leader = leaderFor(cx, cy, vis.radius, chosen)
+      if (chosen.far) {
+        positioned.leader = leaderFor(cx, cy, vis.radius, chosen)
+        routedLeaders.push(positioned.leader)
+      }
     } else {
       // Priority-based hiding: source order wins; the hidden label stays on
       // the model (data-label, tooltips, legends) — it is only not drawn.

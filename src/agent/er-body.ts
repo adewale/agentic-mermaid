@@ -17,36 +17,25 @@
 
 import { unknownOpMessage } from './mutation-ops.ts'
 import type {
-  ErBody, ErEntity, ErRelation, ErCardinality, ErAttribute, ErStatement,
+  ErBody, ErEntity, ErRelation, ErCardinality, ErAttribute, ErStatement, ErGroup,
   ErMutationOp, MutationError, Result, LayoutWarning, VerifyOptions,
 } from './types.ts'
 import { ok, err, DEFAULT_LABEL_CHAR_CAP } from './types.ts'
 import { labelOverflowWarning } from './label-metrics.ts'
 import {
-  erContainsSubgraphConstruct,
   parseErAttribute,
   parseErEntityId,
   parseErEntityReference,
+  parseErGroupHeader,
   parseErRelationshipSyntax,
 } from '../er/parser.ts'
-import { toMermaidLines } from '../mermaid-source.ts'
 import { parseDirectionStatement } from '../shared/direction-statement.ts'
 import { parseMutableStyleProps, parseStyleProps, serializeStyleProps } from '../shared/style-props.ts'
 
-/**
- * ER source-level UNSUPPORTED_SYNTAX warnings (repo #103): flowchart-style
- * `subgraph … direction … end` blocks are tolerated by the render parser —
- * the entities inside render, the grouping does not. Announce the dropped
- * construct by name (the flowchart sourceWarnings pattern); its presence also
- * suppresses the generic `er_opaque` double-flag in verify.
- */
-export function erUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarning[] {
-  if (!erContainsSubgraphConstruct(toMermaidLines(canonicalSource))) return []
-  return [{
-    code: 'UNSUPPORTED_SYNTAX',
-    syntax: 'er_subgraph',
-    message: 'This erDiagram uses flowchart-style subgraph blocks. The renderer tolerates them: entities and relationships inside render, but the subgraph grouping (and any direction scoped to it) is dropped. Typed statements remain editable, but identity edits that would stale preserved opaque lines are refused.',
-  }]
+/** ER subgraphs are rendered natively; ordered opaque segments keep their
+ * exact source on the mutation surface until group-specific operations exist. */
+export function erUnsupportedSyntaxWarnings(_canonicalSource: string): LayoutWarning[] {
+  return []
 }
 
 // ---- Parser ---------------------------------------------------------------
@@ -64,7 +53,7 @@ const RIGHT_CARD: Record<string, ErCardinality> = {
 
 export function parseErBody(lines: string[]): ErBody | null {
   const statements: ErStatement[] = []
-  const body: ErBody = { kind: 'er', entities: [], relations: [], statements }
+  const body: ErBody = { kind: 'er', entities: [], relations: [], groups: [], statements }
   const entityMap = new Map<string, ErEntity>()
   const upsert = (id: string, label?: string, className?: string): ErEntity => {
     let e = entityMap.get(id)
@@ -83,29 +72,36 @@ export function parseErBody(lines: string[]): ErBody | null {
     if (!declaredEntities.has(id)) { declaredEntities.add(id); statements.push({ kind: 'entity', id }) }
   }
 
-  let subgraphDepth = 0
+  const groupStack: ErGroup[] = []
+  const groupIds = new Set<string>()
   let i = 0
   while (i < lines.length) {
     const raw = lines[i]!.trim()
     i++
     if (!raw || raw.startsWith('%%')) continue
 
-    // Tolerated flowchart-style grouping is preserved as ordered opaque
-    // segments while its ER statements remain typed and editable.
-    if (/^subgraph\b/.test(raw)) {
-      subgraphDepth++
-      statements.push({ kind: 'opaque', lines: [raw] })
+    const groupHeader = parseErGroupHeader(raw)
+    if (groupHeader) {
+      if (groupIds.has(groupHeader.id)) return null
+      const parentId = groupStack.at(-1)?.id
+      const group: ErGroup = { ...groupHeader, ...(parentId ? { parentId } : {}) }
+      body.groups!.push(group)
+      groupIds.add(group.id)
+      groupStack.push(group)
+      statements.push({ kind: 'group-open', id: group.id })
       continue
     }
-    if (raw === 'end' && subgraphDepth > 0) {
-      subgraphDepth--
-      statements.push({ kind: 'opaque', lines: [raw] })
+    if (raw === 'end' && groupStack.length > 0) {
+      const group = groupStack.pop()!
+      statements.push({ kind: 'group-close', id: group.id })
       continue
     }
     const direction = parseDirectionStatement(raw)
     if (direction) {
-      if (subgraphDepth > 0) statements.push({ kind: 'opaque', lines: [raw] })
-      else { body.direction = direction; statements.push({ kind: 'direction' }) }
+      const group = groupStack.at(-1)
+      if (group) group.direction = direction
+      else body.direction = direction
+      statements.push({ kind: 'direction', ...(group ? { groupId: group.id } : {}) })
       continue
     }
 
@@ -150,8 +146,14 @@ export function parseErBody(lines: string[]): ErBody | null {
         dashed: !relation.identifying,
         label: relation.label || undefined,
       })
-      upsert(relation.entity1.id, relation.entity1.label, relation.entity1.className)
-      upsert(relation.entity2.id, relation.entity2.label, relation.entity2.className)
+      if (!groupIds.has(relation.entity1.id)) {
+        const entity = upsert(relation.entity1.id, relation.entity1.label, relation.entity1.className)
+        if (groupStack.length > 0 && !entity.groupId) entity.groupId = groupStack.at(-1)!.id
+      }
+      if (!groupIds.has(relation.entity2.id)) {
+        const entity = upsert(relation.entity2.id, relation.entity2.label, relation.entity2.className)
+        if (groupStack.length > 0 && !entity.groupId) entity.groupId = groupStack.at(-1)!.id
+      }
       statements.push({ kind: 'relation', ref: relationIndex })
       continue
     }
@@ -161,6 +163,7 @@ export function parseErBody(lines: string[]): ErBody | null {
       const reference = parseErEntityReference(raw.slice(0, -1).trim())
       if (reference) {
         const e = upsert(reference.id, reference.label, reference.className)
+        if (groupStack.length > 0) e.groupId = groupStack.at(-1)!.id
         declareEntityStatement(reference.id)
         let closed = false
         while (i < lines.length) {
@@ -179,26 +182,16 @@ export function parseErBody(lines: string[]): ErBody | null {
     // Bare or aliased entity declaration (no attributes).
     const bare = parseErEntityReference(raw)
     if (bare) {
-      upsert(bare.id, bare.label, bare.className)
+      const entity = upsert(bare.id, bare.label, bare.className)
+      if (groupStack.length > 0) entity.groupId = groupStack.at(-1)!.id
       declareEntityStatement(bare.id)
       continue
     }
 
-    if (subgraphDepth > 0) {
-      statements.push({ kind: 'opaque', lines: [raw] })
-      continue
-    }
     return null
   }
 
-  // Opaque-only tolerated blocks have no typed editing surface. Keep the
-  // whole-body fallback so an empty subgraph verifies as preserved Mermaid
-  // syntax rather than becoming a structured-but-empty diagram.
-  if (
-    body.entities.length === 0
-    && body.relations.length === 0
-    && body.statements?.some(statement => statement.kind === 'opaque')
-  ) return null
+  if (groupStack.length > 0) return null
   return body
 }
 
@@ -228,6 +221,7 @@ function normalizeErQuotedIdLabel(id: string): string {
 export function renderEr(body: ErBody): string {
   const lines: string[] = ['erDiagram']
   const entityById = new Map(body.entities.map(entity => [entity.id, entity]))
+  const groupById = new Map((body.groups ?? []).map(group => [group.id, group]))
   const pushEntity = (entity: ErEntity): void => {
     const reference = renderErEntityReference(entity)
     if (entity.attributes.length === 0) lines.push(`  ${reference}`)
@@ -258,7 +252,16 @@ export function renderEr(body: ErBody): string {
         const relation = body.relations[statement.ref]
         if (relation) pushRelation(relation)
       } else if (statement.kind === 'direction') {
-        if (body.direction) lines.push(`  direction ${body.direction}`)
+        const direction = statement.groupId ? groupById.get(statement.groupId)?.direction : body.direction
+        if (direction) lines.push(`  direction ${direction}`)
+      } else if (statement.kind === 'group-open') {
+        const group = groupById.get(statement.id)
+        if (group) {
+          const id = /\s/.test(group.id) ? quoteErText(group.id) : group.id
+          lines.push(`  subgraph ${id}${group.label !== group.id ? ` [${group.label}]` : ''}`)
+        }
+      } else if (statement.kind === 'group-close') {
+        lines.push('  end')
       } else {
         for (const line of statement.lines) lines.push(`  ${line}`)
       }
@@ -288,8 +291,10 @@ function cloneEr(body: ErBody): ErBody {
       attributes: e.attributes.map(a => ({ ...a })),
       ...(e.className ? { className: e.className } : {}),
       ...(e.style ? { style: { ...e.style } } : {}),
+      ...(e.groupId ? { groupId: e.groupId } : {}),
     })),
     relations: body.relations.map(r => ({ ...r })),
+    ...(body.groups ? { groups: body.groups.map(group => ({ ...group })) } : {}),
     ...(body.direction ? { direction: body.direction } : {}),
     ...(body.classDefs ? { classDefs: Object.fromEntries(Object.entries(body.classDefs).map(([name, style]) => [name, { ...style }])) } : {}),
     ...(body.statements ? { statements: body.statements.map(statement => statement.kind === 'opaque' ? { ...statement, lines: [...statement.lines] } : { ...statement }) } : {}),
@@ -486,15 +491,16 @@ export function mutateEr(body: ErBody, op: ErMutationOp): Result<ErBody, Mutatio
 export function verifyErBody(body: ErBody, opts: VerifyOptions): LayoutWarning[] {
   const warnings: LayoutWarning[] = []
   const cap = opts.labelCharCap ?? DEFAULT_LABEL_CHAR_CAP
-  if (body.entities.length === 0 && body.relations.length === 0) {
+  if (body.entities.length === 0 && body.relations.length === 0 && (body.groups?.length ?? 0) === 0) {
     warnings.push({ code: 'EMPTY_DIAGRAM' })
     return warnings
   }
-  const ids = new Set(body.entities.map(e => e.id))
+  const ids = new Set([...body.entities.map(e => e.id), ...(body.groups ?? []).map(group => group.id)])
   const overflow = (target: string, text: string) => {
     const w = labelOverflowWarning(target, text, cap)
     if (w) warnings.push(w)
   }
+  for (const group of body.groups ?? []) overflow(group.id, group.label)
   for (const e of body.entities) {
     if (e.label) overflow(e.id, e.label)
     for (let i = 0; i < e.attributes.length; i++) {

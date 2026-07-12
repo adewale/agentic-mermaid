@@ -96,15 +96,15 @@ describe('opaque bodies announce UNSUPPORTED_SYNTAX instead of falling silent', 
     expect(opaqueFlags).toEqual([])
   })
 
-  test('flowchart and quadrant keep their SPECIFIC warning (no generic double-flag)', () => {
-    // Flowchart interaction directive → flowchart_interaction_directive, not
-    // flowchart_opaque.
+  test('rendered-but-source-preserved flowchart metadata stays honest; quadrant keeps its specific warning', () => {
+    // A safe URL with an unmodeled target remains losslessly opaque and carries
+    // a construct-specific warning rather than silently dropping `_blank`.
     const flow = parseMermaid('flowchart TD\n  A --> B\n  click A "https://x" _blank')
     expect(flow.ok).toBe(true)
     if (flow.ok) {
       const codes = verifyMermaid(flow.value).warnings.filter(w => w.code === 'UNSUPPORTED_SYNTAX')
       expect(codes.some(w => 'syntax' in w && w.syntax === 'flowchart_opaque')).toBe(false)
-      expect(codes.length).toBeGreaterThanOrEqual(1)
+      expect(codes.some(w => 'syntax' in w && w.syntax === 'flowchart_interaction_directive')).toBe(true)
     }
     // Quadrant point-style metadata → quadrant_point_style_metadata, not
     // quadrant_opaque.

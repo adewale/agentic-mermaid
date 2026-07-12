@@ -237,6 +237,41 @@ function isFlowchartInteractionDirective(line: string): boolean {
   return /^(?:click|href)\s+/i.test(line.trim())
 }
 
+function applyFlowchartInteraction(graph: MermaidGraph, line: string): void {
+  const match = line.trim().match(/^(?:click\s+)?([\w-]+)\s+(?:href\s+)?(?:"((?:\\.|[^"])*)"|(https?:\/\/\S+|mailto:\S+))/i)
+  if (!match) return
+  const href = (match[2] ?? match[3] ?? '').replace(/\\(["\\])/g, '$1')
+  if (!/^(?:https?:|mailto:)/i.test(href)) return
+  const node = graph.nodes.get(match[1]!)
+  if (node) node.href = href
+}
+
+function metadataText(value: string | undefined): string | undefined {
+  if (value === undefined) return undefined
+  const trimmed = value.trim()
+  const unquoted = trimmed.length >= 2 && ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'")))
+    ? trimmed.slice(1, -1).replace(/\\(["'\\])/g, '$1')
+    : trimmed
+  return unquoted || undefined
+}
+
+function applyFlowchartEdgeMetadata(graph: MermaidGraph, line: string): void {
+  const match = line.trim().match(/^([\w-]+)@\s*\{([\s\S]*)\}\s*$/)
+  if (!match) return
+  const edge = graph.edges.find(candidate => candidate.id === match[1])
+  if (!edge) return
+  const entries = parseMetadataEntries(match[2]!)
+  const curve = metadataText(entries.get('curve'))
+  if (curve && /^[a-z][a-z0-9-]*$/i.test(curve)) edge.curve = curve
+  const animate = metadataText(entries.get('animate'))?.toLowerCase()
+  const animation = metadataText(entries.get('animation'))?.toLowerCase()
+  if (animate === 'true' || animate === 'fast' || animate === 'slow' || animation === 'fast' || animation === 'slow') {
+    edge.animate = true
+    const speed = animate === 'fast' || animate === 'slow' ? animate : animation
+    if (speed === 'fast' || speed === 'slow') edge.animation = speed
+  }
+}
+
 function isUnsupportedEdgeMetadataLine(line: string): boolean {
   const match = line.trim().match(/^[\w-]+@\s*\{([\s\S]*)\}\s*$/)
   if (!match) return false
@@ -276,7 +311,14 @@ function parseFlowchart(lines: string[]): MermaidGraph {
   for (let i = 1; i < lines.length; i++) {
     for (const line of splitFlowchartStatements(lines[i]!)) {
       // --- source-level directives that do not affect local layout ---
-      if (isFlowchartInteractionDirective(line) || isUnsupportedEdgeMetadataLine(line)) continue
+      if (isFlowchartInteractionDirective(line)) {
+        applyFlowchartInteraction(graph, line)
+        continue
+      }
+      if (isUnsupportedEdgeMetadataLine(line)) {
+        applyFlowchartEdgeMetadata(graph, line)
+        continue
+      }
 
       // --- classDef: `classDef name prop:val,prop:val` ---
       const classDefMatch = line.match(/^classDef\s+([\w,-]+)\s+(.+)$/)
@@ -1037,17 +1079,24 @@ function consumeMetadataNode(
   // v11 typed shapes (repo #44): documented `@{ shape: ... }` names normalize
   // through the ONE table in src/flowchart-shapes.ts to a semantic shape id +
   // rendering geometry; the authored spelling is preserved for round-trip.
-  // Undocumented names keep the #29 safety floor (labeled rectangle);
-  // icon/img/extra keys stay on the opaque agent path (flowchart-unsupported).
+  // Undocumented names keep the #29 safety floor (labeled rectangle).
   const shapeName = entries.get('shape')
   const v11 = shapeName !== undefined ? normalizeV11Shape(shapeName) : null
-  const shapeFields = v11 ? { shape: v11.geometry, semanticShape: v11.canonical, authoredShape: shapeName!.trim() } : {}
+  const icon = metadataText(entries.get('icon'))
+  const image = metadataText(entries.get('img'))
+  const form = metadataText(entries.get('form'))
+  const iconForm: MermaidNode['iconForm'] = form === 'circle' || form === 'rounded' || form === 'square' ? form : undefined
+  const shapeFields = v11 ? { shape: v11.geometry, semanticShape: v11.canonical, authoredShape: shapeName!.trim() }
+    : icon || image ? { shape: iconForm === 'circle' ? 'circle' as const : iconForm === 'rounded' ? 'rounded' as const : 'rectangle' as const, semanticShape: icon ? 'icon' : 'image' }
+    : {}
+  const mediaFields = { ...(icon ? { icon } : {}), ...(image ? { image } : {}), ...(iconForm ? { iconForm } : {}) }
   const existing = graph.nodes.get(id)
   if (existing) {
     graph.nodes.set(id, {
       ...existing,
       ...(parsedLabel !== undefined ? { label: parsedLabel.text, ...(parsedLabel.markdown ? { markdownLabel: true as const } : {}) } : {}),
       ...shapeFields,
+      ...mediaFields,
     })
     trackInSubgraph(subgraphStack, id)
   } else {
@@ -1057,6 +1106,7 @@ function consumeMetadataNode(
       shape: 'rectangle',
       ...(parsedLabel?.markdown ? { markdownLabel: true as const } : {}),
       ...shapeFields,
+      ...mediaFields,
     })
   }
   return { id, remaining: text.slice(objectEnd + 1) }

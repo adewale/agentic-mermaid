@@ -1,6 +1,6 @@
 # Family-elevation acceptance record
 
-Status: **B18 complete; local gates, final-head CI, and post-fix reviewer acceptance retained**.
+Status: **B18 complete and retained; Closing The Gap local gates and final five-reviewer acceptance complete**.
 
 This record prevents B18 from treating file presence or an old local run as release evidence. The complete matrix below was rerun after the compatibility/registry/evidence follow-up. The stable [PR audit record](https://github.com/adewale/agentic-mermaid/pull/149#issuecomment-4949151500) is the external, immutable-head binding: it names the resulting SHA, links every green GitHub Actions job, records the fresh reviewer ACCEPT and residual non-gating annotations, and can be updated after this documentation-only closeout without creating another repository head.
 
@@ -8,17 +8,17 @@ This record prevents B18 from treating file presence or an old local run as rele
 
 | Surface | Command | Result |
 |---|---|---|
-| Unit | `bun test src/__tests__/` | 5,792 passed, 2 documented platform skips, 0 failed; 210,998 assertions across 305 files |
+| Unit | `bun test src/__tests__/` | 5,812 passed, 2 documented platform skips, 0 failed; 212,028 assertions across 306 files |
 | Browser + distribution E2E | `bun run test:browser` | 64 passed, 0 failed across 7 files; includes packed-package library, Node CLI, stdio MCP, Apache license delivery, single binary, and browser screenshots |
 | Build | `bun run build` | ESM and declaration bundles built successfully |
 | Types | `bunx tsc --noEmit` | passed |
-| Test-quality/determinism lint | `bun run lint` | 62 passed, 0 failed |
+| Test-quality/determinism lint | `bun run lint` | 63 passed, 0 failed |
 | Website inputs | `bun run website` then `bun run website:check` | 13/13 committed `website/src/generated` inputs in sync |
 | README hero | `bun run hero:check` | committed `assets/hero.png` and fingerprint match the current renderer |
 | Terminal goldens | `bun run goldens:ascii:check` | 153 ASCII/Unicode fixtures in sync |
 | Characterization | `bun run characterization:check` | 16 general contact examples, 14 family rows, and 15 visual artifacts in sync |
 | Layout tracker | `bun run track` | 93 examples, 0 hard violations, 0 improvements, 0 regressions |
-| Packed contents | `npm pack --dry-run --json` | 518 files; Mindmap/GitGraph sources, `THIRD_PARTY_NOTICES.md`, and `LICENSES/Apache-2.0.txt` present (volatile compressed/unpacked byte counts intentionally omitted) |
+| Packed contents | `npm pack --dry-run --json` | 519 files; Mindmap/GitGraph sources, `THIRD_PARTY_NOTICES.md`, and `LICENSES/Apache-2.0.txt` present (volatile compressed/unpacked byte counts intentionally omitted) |
 | Upstream accounting | `bun test src/__tests__/mermaid-upstream-suite-bench.test.ts src/__tests__/mindmap-gitgraph-upstream-oracle.test.ts` | 1,265 blocks considered; 746 imported, 519 excluded/accounted, 0 deferred; all 26 Mindmap and 69 GitGraph blocks classified |
 | Diff hygiene | `git diff --check` and `git diff --cached --check` | passed |
 
@@ -72,6 +72,12 @@ The latest local narrow-lane reruns passed their committed 60% break floors:
 - GitGraph: 294/303 killed, 9 equivalent survivors, **97.03%**.
 
 Their JSON reports remain gitignored and have no retained CI URL, so these figures are historical local diagnostics. The committed configs and nightly workflow are the reproducibility surface; they do not enforce these measured scores. See [`../mutation-testing.md`](../mutation-testing.md).
+
+## Closing The Gap acceptance
+
+After the final source and generated-input refresh, five independent read-only reviewer passes returned **ACCEPT** with no remaining Blocker/P1/P2 findings. Their separate angles covered: core parser/model/serializer closure; State/Timeline/Journey/Architecture signature fidelity; cross-surface and package delivery; security/style/external-reference handling; and all-family configuration honesty. The last review found one misleading Gantt `tickInterval` example (`2weeks`); it was corrected to accepted Mermaid syntax (`2week`), guarded by an accept/reject regression test, and the same reviewer accepted the focused delta.
+
+The final clean rerun produced the matrix above, including 5,812 unit passes, 64 browser/distribution E2E passes, 21/21 causal revert probes, synchronized website inputs, 519 packed files, and zero tracker regressions. The upstream refresh command itself remains environment-dependent and was not rerun because the expected sibling Mermaid checkout was absent; pinned upstream accounting and oracle tests ran inside the unit suite and passed.
 
 ## B18 retained evidence
 

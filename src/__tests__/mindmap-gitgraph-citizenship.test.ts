@@ -73,15 +73,19 @@ describe('Mindmap full-family citizenship', () => {
     }
   })
 
-  test('lays out a deterministic, monotone hierarchy with one routed edge per non-root node', () => {
+  test('lays out a deterministic central hierarchy with side-monotone subtrees and one branch per non-root node', () => {
     const first = layoutMindmap(parseMindmap(MINDMAP))
     const second = layoutMindmap(parseMindmap(MINDMAP))
     expect(second).toEqual(first)
     expect(first.edges).toHaveLength(first.nodes.length - 1)
     const byId = new Map(first.nodes.map(node => [node.id, node]))
     for (const edge of first.edges) {
-      expect(byId.get(edge.to)!.x).toBeGreaterThan(byId.get(edge.from)!.x)
-      expect(edge.points[0]!.x).toBeLessThanOrEqual(edge.points.at(-1)!.x)
+      const parent = byId.get(edge.from)!
+      const child = byId.get(edge.to)!
+      expect(child.side).not.toBe('root')
+      if (child.side === 'right') expect(child.x).toBeGreaterThan(parent.x)
+      else expect(child.x + child.width).toBeLessThan(parent.x + parent.width)
+      expect(edge.d).toContain(' C ')
     }
   })
 

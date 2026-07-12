@@ -155,6 +155,9 @@ export function lowerPieScene(
     const slice = chart.slices[index]!
     const pct = formatPiePercent(slice.fraction)
     const fill = fills[index]!
+    const highlighted = visual.highlightSlice === slice.label
+    const hoverHighlight = visual.highlightSlice === 'hover'
+    const sliceClass = `pie-slice${highlighted ? ' highlighted' : ''}${hoverHighlight ? ' highlighted-on-hover' : ''}`
     parts.push(marks.shape(
       {
         id: occurrenceId('slice', slice.label),
@@ -169,8 +172,8 @@ export function lowerPieScene(
         },
         channels: { category: slice.label, value: slice.fraction },
       },
-      `<path class="pie-slice" d="${slice.path}" fill="${escapeXml(fill)}" ` +
-        `data-label="${escapeXml(slice.label)}" data-value="${slice.value}" data-percent="${pct}" />`,
+      `<path class="${sliceClass}" d="${slice.path}" fill="${escapeXml(fill)}" ` +
+        `data-label="${escapeXml(slice.label)}" data-value="${slice.value}" data-percent="${pct}"${highlighted ? ' data-highlighted="true"' : ''} />`,
     ))
   }
 
@@ -232,18 +235,18 @@ export function lowerPieScene(
         text,
         x: item.textX,
         y: item.textY,
-        fontSize: style.nodeLabelFontSize,
+        fontSize: visual.legendTextSize ?? style.nodeLabelFontSize,
         anchor: 'start',
         // Fill comes from the .pie-legend-text rule in pieStyles().
-        paint: { fill: style.nodeTextColor ?? 'var(--_text)' },
+        paint: { fill: visual.legendTextColor ?? style.nodeTextColor ?? 'var(--_text)' },
         channels: { category: item.label, value: item.fraction },
       },
       renderMultilineText(
         text,
         item.textX,
         item.textY,
-        style.nodeLabelFontSize,
-        `class="pie-legend-text" text-anchor="start" dominant-baseline="middle" font-size="${style.nodeLabelFontSize}" font-weight="${style.nodeLabelFontWeight}"${letterAttr(style.nodeLetterSpacing)}`,
+        visual.legendTextSize ?? style.nodeLabelFontSize,
+        `class="pie-legend-text" text-anchor="start" dominant-baseline="middle" font-size="${visual.legendTextSize ?? style.nodeLabelFontSize}" font-weight="${style.nodeLabelFontWeight}"${letterAttr(style.nodeLetterSpacing)}`,
       ),
     ))
   }
@@ -258,17 +261,17 @@ export function lowerPieScene(
         text: title,
         x: chart.title.x,
         y: chart.title.y,
-        fontSize: style.groupHeaderFontSize,
+        fontSize: visual.titleTextSize ?? style.groupHeaderFontSize,
         anchor: 'middle',
         // Fill comes from the .pie-title rule in pieStyles().
-        paint: { fill: style.groupTextColor ?? style.nodeTextColor ?? 'var(--_text)' },
+        paint: { fill: visual.titleTextColor ?? style.groupTextColor ?? style.nodeTextColor ?? 'var(--_text)' },
       },
       renderMultilineText(
         title,
         chart.title.x,
         chart.title.y,
-        style.groupHeaderFontSize,
-        `class="pie-title" text-anchor="middle" dominant-baseline="middle" font-size="${style.groupHeaderFontSize}" font-weight="${style.groupHeaderFontWeight}"${letterAttr(style.groupLetterSpacing)}`,
+        visual.titleTextSize ?? style.groupHeaderFontSize,
+        `class="pie-title" text-anchor="middle" dominant-baseline="middle" font-size="${visual.titleTextSize ?? style.groupHeaderFontSize}" font-weight="${style.groupHeaderFontWeight}"${letterAttr(style.groupLetterSpacing)}`,
       ),
     ))
   }
@@ -323,10 +326,12 @@ function pieStyles(style: ResolvedRenderStyle, visual: PieVisualConfig, interact
     : ''
   const tipRules = interactive ? tooltipCss('pie', ['pie-slice-group']) : ''
   return `<style>
-  .pie-slice { stroke: ${sliceStroke}; stroke-width: ${sliceStrokeWidth};${sliceOpacity} }${outerRule}
+  .pie-slice { stroke: ${sliceStroke}; stroke-width: ${sliceStrokeWidth};${sliceOpacity} transform-box: fill-box; transform-origin: center; }
+  .pie-slice.highlighted { transform: scale(1.05); opacity: 1; }
+  .pie-slice.highlighted-on-hover:hover { transform: scale(1.05); opacity: 1; }${outerRule}
   .pie-legend-swatch { stroke: ${style.nodeBorderColor ?? 'var(--_node-stroke)'}; stroke-width: ${style.nodeBorderColor ? Math.max(1, style.nodeLineWidth) : 1}; }
-  .pie-legend-text { fill: ${style.nodeTextColor ?? 'var(--_text)'}; }
-  .pie-title { fill: ${style.groupTextColor ?? style.nodeTextColor ?? 'var(--_text)'}; }${tipRules}
+  .pie-legend-text { fill: ${visual.legendTextColor ?? style.nodeTextColor ?? 'var(--_text)'}; }
+  .pie-title { fill: ${visual.titleTextColor ?? style.groupTextColor ?? style.nodeTextColor ?? 'var(--_text)'}; }${tipRules}
 </style>`
 }
 

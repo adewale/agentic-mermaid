@@ -56,7 +56,9 @@ import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
 import { parseClassDiagram } from '../class/parser.ts'
 import { layoutClassDiagram, resolveClassRenderOptions } from '../class/layout.ts'
 import { parseErDiagram } from '../er/parser.ts'
-import { layoutErDiagram, applyErFrontmatterConfig } from '../er/layout.ts'
+import { layoutErDiagram, applyErFrontmatterConfig, ER_STYLE_DEFAULTS } from '../er/layout.ts'
+import { separateRelationshipLabels } from '../er/renderer.ts'
+import { resolveRenderStyle } from '../styles.ts'
 import { layoutSequenceDiagram } from '../sequence/layout.ts'
 import { parseSequenceDiagram } from '../sequence/parser.ts'
 import { parseTimelineDiagram } from '../timeline/parser.ts'
@@ -87,6 +89,7 @@ import { parseMindmap } from '../mindmap/parser.ts'
 import { layoutMindmap } from '../mindmap/layout.ts'
 import { parseGitGraph } from '../gitgraph/parser.ts'
 import { layoutGitGraph } from '../gitgraph/layout.ts'
+import { resolveGitGraphCommitLabelFontSize } from '../gitgraph/renderer.ts'
 
 function f(n: number): Finite { return toFinite(Math.round(n)) }
 
@@ -160,6 +163,7 @@ function gitgraphToRendered(d: ValidDiagram): RenderedLayout {
       showCommitLabel: config?.showCommitLabel,
       rotateCommitLabel: config?.rotateCommitLabel,
       parallelCommits: config?.parallelCommits,
+      commitLabelFontSize: resolveGitGraphCommitLabelFontSize(normalized.config.themeVariables),
     })
     const nodes: RenderedLayoutNode[] = positioned.commits.map(commit => {
       const type = commit.customType ?? commit.type
@@ -233,13 +237,25 @@ function erToRendered(d: ValidDiagram, opts: { debug?: boolean } = {}): Rendered
       id: e.id, x: f(e.x), y: f(e.y), w: fSpan(e.x, e.width), h: fSpan(e.y, e.height), shape: 'rectangle', label: e.label,
     }))
     const boxById = new Map(positioned.entities.map(e => [e.id, { x: e.x, y: e.y, width: e.width, height: e.height }]))
-    const edges: RenderedLayoutEdge[] = positioned.relationships.map((r, i) => ({
-      id: `rel#${i}:${r.entity1}->${r.entity2}`, from: r.entity1, to: r.entity2,
-      path: r.points.map(p => [f(p.x), f(p.y)] as [Finite, Finite]),
-      label: r.label ? labelMidpoint(r.points, r.label) : undefined,
-      route: opts.debug ? boxRouteCertificate('er', i, r.points, boxById.get(r.entity1), boxById.get(r.entity2)) : undefined,
+    const labelPositions = separateRelationshipLabels(positioned, resolveRenderStyle({}, ER_STYLE_DEFAULTS))
+    const edges: RenderedLayoutEdge[] = positioned.relationships.map((r, i) => {
+      const at = labelPositions.get(r)
+      return {
+        id: `rel#${i}:${r.entity1}->${r.entity2}`, from: r.entity1, to: r.entity2,
+        path: r.points.map(p => [f(p.x), f(p.y)] as [Finite, Finite]),
+        label: r.label && at ? { x: f(at.x), y: f(at.y), text: r.label } : undefined,
+        route: opts.debug ? boxRouteCertificate('er', i, r.points, boxById.get(r.entity1), boxById.get(r.entity2)) : undefined,
+      }
+    })
+    const groups: RenderedLayoutGroup[] = positioned.groups.map(group => ({
+      id: group.id, x: f(group.x), y: f(group.y), w: fSpan(group.x, group.width), h: fSpan(group.y, group.height),
+      members: [
+        ...positioned.entities.filter(entity => entity.groupId === group.id).map(entity => entity.id),
+        ...positioned.groups.filter(child => child.parentId === group.id).map(child => child.id),
+      ],
+      label: group.label, parentId: group.parentId,
     }))
-    return { version: 1, kind: d.kind, nodes, edges, groups: [], bounds: { w: f(positioned.width), h: f(positioned.height) } }
+    return { version: 1, kind: d.kind, nodes, edges, groups, bounds: { w: f(positioned.width), h: f(positioned.height) } }
   } catch { return emptyRenderedLayout(d.kind) }
 }
 

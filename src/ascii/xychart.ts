@@ -20,6 +20,7 @@ import { getSeriesColor, CHART_ACCENT_FALLBACK, isValidHex } from '../xychart/co
 import { isLegendWorthy, legendEntries } from '../xychart/legend.ts'
 import { graphemes } from '../shared/graphemes.ts'
 import { visualWidth, WIDE_CHAR_CONTINUATION } from './width.ts'
+import { wrapText } from './wrap.ts'
 
 // ============================================================================
 // Constants
@@ -107,10 +108,15 @@ export function renderXYChartAscii(
   const chart = applyXYChartFrontmatterConfig(parseXYChart(lines), frontmatter)
   const ch = config.useAscii ? ASC : UNI
 
-  if (chart.horizontal) {
-    return renderHorizontal(chart, ch, colorMode, theme, targetWidth)
-  }
-  return renderVertical(chart, ch, colorMode, theme, targetWidth)
+  const rendered = chart.horizontal
+    ? renderHorizontal(chart, ch, colorMode, theme, targetWidth)
+    : renderVertical(chart, ch, colorMode, theme, targetWidth)
+  const labels = chart.series.flatMap((series, seriesIndex) =>
+    (series.pointLabels ?? []).flatMap((label, pointIndex) =>
+      label === undefined ? [] : [`line ${seriesIndex + 1}.${pointIndex + 1}: ${label}`]))
+  if (labels.length === 0) return rendered
+  const annotationLines = labels.flatMap(label => targetWidth ? wrapText(label, targetWidth) : [label])
+  return `${rendered}\n${annotationLines.join('\n')}`
 }
 
 // ============================================================================

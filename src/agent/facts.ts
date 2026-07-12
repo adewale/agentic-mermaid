@@ -213,8 +213,9 @@ function factsClass(out: string[], body: ClassBody): void {
 
 function factsEr(out: string[], body: ErBody): void {
   if (body.direction) add(out, `direction ${body.direction}`)
+  for (const group of body.groups ?? []) add(out, `er group ${clean(group.id)} label ${clean(group.label)}${group.parentId ? ` parent ${clean(group.parentId)}` : ''}${group.direction ? ` direction ${group.direction}` : ''}`)
   for (const e of body.entities) {
-    add(out, `entity ${clean(e.id)}${e.label ? ` label ${clean(e.label)}` : ''}`)
+    add(out, `entity ${clean(e.id)}${e.label ? ` label ${clean(e.label)}` : ''}${e.groupId ? ` group ${clean(e.groupId)}` : ''}`)
     if (e.className) add(out, `entity ${clean(e.id)} class ${clean(e.className)}`)
     if (e.style) add(out, `entity ${clean(e.id)} styled`)
     for (const attr of e.attributes) add(out, `attribute ${clean(e.id)} ${clean(attr.text)}`)

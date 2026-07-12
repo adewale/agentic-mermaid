@@ -40,7 +40,7 @@ import { parseTodayMarkerStyle, GANTT_TODAY_MARKER_STYLE_PROPS } from '../gantt/
 import { normalizeMermaidSource } from '../mermaid-source.ts'
 import { normalizeV11Shape } from '../flowchart-shapes.ts'
 import {
-  familyUnknownConfigDiagnostics, familyConfigValueDiagnostics,
+  familyUnknownConfigDiagnostics, familyConfigValueDiagnostics, familyNoopConfigDiagnostics,
   JOURNEY_NOOP_CONFIG_FIELDS, TIMELINE_NOOP_CONFIG_FIELDS,
 } from '../shared/family-config-diagnostics.ts'
 import './families-builtin.ts'  // registers built-in families at import time
@@ -52,6 +52,7 @@ function familyConfigShapeWarnings(d: ValidDiagram): LayoutWarning[] {
     : [
         ...familyUnknownConfigDiagnostics(d.kind, root),
         ...familyConfigValueDiagnostics(d.kind, root),
+        ...(d.kind === 'gantt' ? familyNoopConfigDiagnostics(d.kind, root) : []),
       ])
   const seen = new Set<string>()
   return warnings.filter(warning => {

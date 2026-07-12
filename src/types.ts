@@ -54,10 +54,15 @@ export interface MermaidNode {
   /** The authored v11 shape spelling (alias preserved verbatim, e.g.
    *  'manual-input') — the serializer re-emits exactly this. */
   authoredShape?: string
-  /** True when the label came from a Mermaid markdown string (backtick
-   *  label): emphasis markers are stripped at parse time and the label
-   *  auto-wraps at flowchart.wrappingWidth (upstream default 200). */
+  /** True when the label came from a Mermaid markdown string. */
   markdownLabel?: true
+  /** Safe local icon token from v11 node metadata. */
+  icon?: string
+  /** Authored image URL retained as inert data; the renderer never fetches it. */
+  image?: string
+  iconForm?: 'square' | 'circle' | 'rounded'
+  /** Safe inert interaction metadata; callbacks and unsafe schemes never enter SVG. */
+  href?: string
 }
 
 export type NodeShape =
@@ -106,6 +111,10 @@ export interface MermaidEdge {
   startMarker?: EdgeMarker
   /** Marker shape at end when hasArrowEnd=true. Defaults to 'arrow' if undefined. */
   endMarker?: EdgeMarker
+  /** Authored v11 edge presentation metadata. */
+  curve?: string
+  animate?: boolean
+  animation?: 'fast' | 'slow'
   /** Mermaid link length (rank-distance intent): 1 = base operator, 2 = one
    *  extra shaft unit (`--->`, `-..->`, `====>`, `~~~~`), etc. Undefined ≡ 1,
    *  so base-form edges serialize byte-identically. Preserved through
@@ -187,6 +196,10 @@ export interface PositionedNode {
   inlineStyle?: Record<string, string>
   /** User-assigned Mermaid class names (from `class X myClass` / `:::myClass`). Emitted as SVG CSS classes so external stylesheets can target them. */
   classNames?: string[]
+  icon?: string
+  image?: string
+  iconForm?: 'square' | 'circle' | 'rounded'
+  href?: string
 }
 
 export interface PositionedEdge {
@@ -210,6 +223,10 @@ export interface PositionedEdge {
   inlineStyle?: Record<string, string>
   /** Index into MermaidGraph.edges this positioned edge was extracted from */
   edgeIndex?: number
+  /** Authored edge presentation metadata. */
+  curve?: string
+  animate?: boolean
+  animation?: 'fast' | 'slow'
   /** Route contract certificate attached by the layout pipeline (docs/design/system/route-contracts.md) */
   routeCertificate?: RouteCertificate
 }

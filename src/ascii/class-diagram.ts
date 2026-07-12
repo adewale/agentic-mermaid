@@ -80,9 +80,9 @@ interface RelMarker {
  * Build the marker metadata for a relationship.
  * The actual marker character will be determined at placement time based on line direction.
  */
-function getRelMarker(type: RelationshipType, markerAt: 'from' | 'to'): RelMarker {
+function getRelMarker(type: RelationshipType, markerAt: 'from' | 'to' | 'both'): RelMarker {
   const dashed = type === 'dependency' || type === 'realization'
-  return { type, markerAt, dashed }
+  return { type, markerAt: markerAt === 'both' ? 'from' : markerAt, dashed }
 }
 
 /**
@@ -119,6 +119,8 @@ function getMarkerShape(
     case 'aggregation':
       // Hollow diamond - omnidirectional shape
       return useAscii ? 'o' : '◇'
+    case 'lollipop':
+      return useAscii ? 'O' : '○'
     case 'association':
     case 'dependency':
       // Directional arrow - rotate based on line direction
@@ -767,5 +769,49 @@ export function renderClassAscii(text: string, config: AsciiConfig, colorMode?: 
     }
   }
 
-  return canvasToString(canvas, { roleCanvas: rc, colorMode, theme })
+  // Notes are terminal geometry, not a prose appendix: place deterministic
+  // boxes below the class graph and connect attached notes to their class.
+  let noteY = (canvas[0]?.length ?? 0) + 1
+  for (const note of diagram.notes) {
+    const noteLines = note.text.split(/\r?\n/)
+    const noteWidth = Math.max(10, ...noteLines.map(line => visualWidth(line) + 4))
+    const noteHeight = noteLines.length + 2
+    const target = note.for ? placed.get(note.for) : undefined
+    const noteX = target ? target.x : 0
+    increaseSize(canvas, noteX + noteWidth + 1, noteY + noteHeight + 1)
+    increaseRoleCanvasSize(rc, noteX + noteWidth + 1, noteY + noteHeight + 1)
+    if (target) {
+      const connectorX = Math.max(noteX + 1, Math.min(noteX + noteWidth - 2, target.x + Math.floor(target.width / 2)))
+      for (let y = target.y + target.height; y < noteY; y++) setC(connectorX, y, useAscii ? '|' : '│', 'line')
+    }
+    for (let x = noteX + 1; x < noteX + noteWidth - 1; x++) {
+      setC(x, noteY, useAscii ? '-' : '─', 'border')
+      setC(x, noteY + noteHeight - 1, useAscii ? '-' : '─', 'border')
+    }
+    for (let y = noteY + 1; y < noteY + noteHeight - 1; y++) {
+      setC(noteX, y, useAscii ? '|' : '│', 'border')
+      setC(noteX + noteWidth - 1, y, useAscii ? '|' : '│', 'border')
+    }
+    setC(noteX, noteY, useAscii ? '+' : '┌', 'border'); setC(noteX + noteWidth - 1, noteY, useAscii ? '+' : '┐', 'border')
+    setC(noteX, noteY + noteHeight - 1, useAscii ? '+' : '└', 'border'); setC(noteX + noteWidth - 1, noteY + noteHeight - 1, useAscii ? '+' : '┘', 'border')
+    noteLines.forEach((line, index) => drawText(canvas, { x: noteX + 2, y: noteY + 1 + index }, line, true))
+    noteY += noteHeight + 1
+  }
+
+  const rendered = canvasToString(canvas, { roleCanvas: rc, colorMode, theme })
+  const semanticLines: string[] = []
+  for (const rel of diagram.relationships) {
+    if (rel.markerAt === 'both') semanticLines.push(`${rel.from} ${classEndpointToken(rel.fromType ?? rel.type, true)}--${classEndpointToken(rel.toType ?? rel.type, false)} ${rel.to}`)
+    else if (rel.type === 'lollipop') semanticLines.push(`${rel.from} ${rel.markerAt === 'from' ? '()--' : '--()'} ${rel.to}`)
+  }
+  for (const cls of diagram.classes) if (cls.href) semanticLines.push(`link ${cls.id}: ${cls.href}`)
+  return semanticLines.length ? `${rendered}\n${semanticLines.join('\n')}` : rendered
+}
+
+function classEndpointToken(type: RelationshipType, left: boolean): string {
+  if (type === 'inheritance' || type === 'realization') return left ? '<|' : '|>'
+  if (type === 'composition') return '*'
+  if (type === 'aggregation') return 'o'
+  if (type === 'lollipop') return '()'
+  return left ? '<' : '>'
 }

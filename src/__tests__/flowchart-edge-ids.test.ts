@@ -113,14 +113,16 @@ describe('flowchart edge IDs — verify contract', () => {
     expect(verify.warnings).not.toContainEqual(expect.objectContaining({ syntax: 'flowchart_edge_id' }))
   })
 
-  it('edge METADATA statements remain opaque and linted', () => {
+  it('edge METADATA statements are typed, round-trip, and render natively', () => {
     const source = 'flowchart LR\n  A e1@==> B\n  e1@{ animate: true }\n'
     const diagram = parseAgent(source)
-    expect(diagram.body.kind).toBe('opaque')
+    expect(diagram.body.kind).toBe('flowchart')
+    if (diagram.body.kind !== 'flowchart') return
+    expect(diagram.body.graph.edges[0]).toMatchObject({ id: 'e1', animate: true })
     expect(serializeMermaid(diagram)).toBe(source)
     const syntaxes = verifyMermaid(source).warnings
       .map(w => (w.code === 'UNSUPPORTED_SYNTAX' ? (w as { syntax?: string }).syntax : ''))
       .filter(Boolean)
-    expect(syntaxes).toContain('flowchart_edge_metadata')
+    expect(syntaxes).not.toContain('flowchart_edge_metadata')
   })
 })

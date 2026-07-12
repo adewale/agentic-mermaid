@@ -32,8 +32,8 @@ export function parseErEntityReference(value: string): ParsedErEntityReference |
   return {
     id,
     ...(alias !== undefined
-      ? { label: normalizeBrTags(alias) }
-      : quotedId ? { label: normalizeBrTags(id) } : {}),
+      ? { label: formatErMarkdown(alias) }
+      : quotedId ? { label: formatErMarkdown(id) } : {}),
     ...(match[4] ? { className: match[4] } : {}),
   }
 }
@@ -73,24 +73,37 @@ export function parseErEntityId(value: string): string | null {
  * Parse a Mermaid ER diagram.
  * Expects the first line to be "erDiagram".
  */
+function formatErMarkdown(value: string): string {
+  return normalizeBrTags(value)
+    .replace(/\*\*([\s\S]+?)\*\*/g, '<b>$1</b>')
+    .replace(/_([^_\n]+)_/g, '<i>$1</i>')
+    .replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, '<i>$1</i>')
+}
+
+export function parseErGroupHeader(line: string): { id: string; label: string } | null {
+  const explicit = line.match(/^subgraph\s+("(?:\\.|[^"])+"|\S+?)(?:\s*\[([^\]]+)\])?$/i)
+  if (!explicit) return null
+  const rawId = explicit[1]!
+  const quoted = rawId.startsWith('"')
+  const id = quoted ? rawId.slice(1, -1).replace(/\\(["\\])/g, '$1') : rawId
+  return { id, label: formatErMarkdown(explicit[2]?.trim() || id) }
+}
+
 export function parseErDiagram(lines: string[]): ErDiagram {
   const diagram: ErDiagram = {
     entities: [],
     classDefs: new Map(),
     relationships: [],
+    groups: [],
   }
 
   // Track entities by ID for deduplication
   const entityMap = new Map<string, ErEntity>()
-  // Track entity body parsing
+  // Track entity body parsing and typed nested subgraph ownership.
   let currentEntity: ErEntity | null = null
-  // Flowchart-style `subgraph … end` blocks are TOLERATED, not modeled
-  // (repo #103, option 2): the block delimiters and any `direction` scoped to
-  // them are ignored; entity/relationship lines inside still parse (without
-  // grouping). verify announces the dropped grouping via UNSUPPORTED_SYNTAX.
-  // Upstream's pinned test rides the opener on the header line
-  // (`erDiagram subgraph WithRL`), so that form opens a block too.
-  let subgraphDepth = /^erdiagram\s+subgraph\b/i.test(lines[0] ?? '') ? 1 : 0
+  const groupStack: string[] = []
+  const groupById = new Map<string, ErDiagram['groups'][number]>()
+  const currentGroup = () => groupStack.at(-1)
 
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i]!
@@ -130,22 +143,26 @@ export function parseErDiagram(lines: string[]): ErDiagram {
       continue
     }
 
-    // --- Tolerated flowchart-syntax block delimiters (repo #103) ---
-    if (/^subgraph\b/.test(line)) {
-      subgraphDepth++
+    // --- Mermaid 11.16 ER subgraphs: identity, nesting and scoped direction. ---
+    const groupHeader = parseErGroupHeader(line)
+    if (groupHeader) {
+      if (groupById.has(groupHeader.id)) throw new Error(`Duplicate ER subgraph id '${groupHeader.id}'`)
+      const group = { ...groupHeader, ...(currentGroup() ? { parentId: currentGroup() } : {}), entityIds: [] }
+      groupById.set(group.id, group)
+      diagram.groups.push(group)
+      groupStack.push(group.id)
       continue
     }
-    if (line === 'end' && subgraphDepth > 0) {
-      subgraphDepth--
+    if (line === 'end' && groupStack.length > 0) {
+      groupStack.pop()
       continue
     }
 
-    // --- Direction statement (upstream v11.4+) ---
-    // Inside a tolerated subgraph block the direction belongs to the dropped
-    // grouping and must not leak to the diagram level.
     const direction = parseDirectionStatement(line)
     if (direction) {
-      if (subgraphDepth === 0) diagram.direction = direction
+      const group = currentGroup() ? groupById.get(currentGroup()!) : undefined
+      if (group) group.direction = direction
+      else diagram.direction = direction
       continue
     }
 
@@ -178,7 +195,8 @@ export function parseErDiagram(lines: string[]): ErDiagram {
     if (entityBlockMatch) {
       const reference = parseErEntityReference(entityBlockMatch[1]!)
       if (!reference) continue
-      const entity = ensureEntity(entityMap, reference.id, reference.label, reference.className)
+      const entity = ensureEntity(entityMap, reference.id, reference.label, reference.className, currentGroup())
+      if (currentGroup()) groupById.get(currentGroup()!)?.entityIds.push(reference.id)
       currentEntity = entity
       continue
     }
@@ -186,9 +204,9 @@ export function parseErDiagram(lines: string[]): ErDiagram {
     // --- Relationship: `ENTITY1 cardinality1--cardinality2 ENTITY2 : label` ---
     const rel = parseRelationshipLine(line)
     if (rel) {
-      // Ensure both entities exist
-      ensureEntity(entityMap, rel.entity1, rel.entity1Label, rel.entity1Class)
-      ensureEntity(entityMap, rel.entity2, rel.entity2Label, rel.entity2Class)
+      // Group endpoints retain group identity instead of minting phantom entities.
+      if (!groupById.has(rel.entity1)) ensureEntity(entityMap, rel.entity1, rel.entity1Label, rel.entity1Class, currentGroup())
+      if (!groupById.has(rel.entity2)) ensureEntity(entityMap, rel.entity2, rel.entity2Label, rel.entity2Class, currentGroup())
       diagram.relationships.push(rel)
       continue
     }
@@ -197,7 +215,10 @@ export function parseErDiagram(lines: string[]): ErDiagram {
     // subgraph headers, and direction statements were consumed above, so this
     // branch cannot mint phantom `end` or direction entities.
     const bareEntity = parseErEntityReference(line)
-    if (bareEntity) ensureEntity(entityMap, bareEntity.id, bareEntity.label, bareEntity.className)
+    if (bareEntity) {
+      ensureEntity(entityMap, bareEntity.id, bareEntity.label, bareEntity.className, currentGroup())
+      if (currentGroup()) groupById.get(currentGroup()!)?.entityIds.push(bareEntity.id)
+    }
   }
 
   diagram.entities = [...entityMap.values()]
@@ -227,14 +248,15 @@ function collectAccessibilityBlock(initial: string, lines: string[], startIndex:
 }
 
 /** Ensure an entity exists in the map */
-function ensureEntity(entityMap: Map<string, ErEntity>, id: string, label?: string, className?: string): ErEntity {
+function ensureEntity(entityMap: Map<string, ErEntity>, id: string, label?: string, className?: string, groupId?: string): ErEntity {
   let entity = entityMap.get(id)
   if (!entity) {
-    entity = { id, label: label ?? id, attributes: [], ...(className ? { className } : {}) }
+    entity = { id, label: label ?? id, attributes: [], ...(className ? { className } : {}), ...(groupId ? { groupId } : {}) }
     entityMap.set(id, entity)
   } else {
     if (label !== undefined) entity.label = label
     if (className !== undefined) entity.className = className
+    if (groupId !== undefined && entity.groupId === undefined) entity.groupId = groupId
   }
   return entity
 }
@@ -309,7 +331,7 @@ export function parseErRelationshipSyntax(line: string): ParsedErRelationshipSyn
     leftToken: match[2]!,
     rightToken: match[4]!,
     identifying: match[3] === '--',
-    label: normalizeBrTags(rawLabel),
+    label: formatErMarkdown(rawLabel),
   }
 }
 

@@ -138,6 +138,19 @@ export interface JourneyRuntimeConfig extends MermaidConfigMap {
 
 export interface GanttRuntimeConfig extends MermaidConfigMap {
   displayMode?: string
+  barHeight?: number
+  topAxis?: boolean
+  tickInterval?: string
+  barGap?: number
+  topPadding?: number
+  leftPadding?: number
+  gridLineStartPadding?: number
+  fontSize?: number
+  sectionFontSize?: number
+  numberSectionStyles?: number
+  axisFormat?: string
+  todayMarker?: string
+  weekday?: string
 }
 
 /** Wired deterministic mindmap layout fields. */

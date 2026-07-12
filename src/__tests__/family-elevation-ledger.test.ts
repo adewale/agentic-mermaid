@@ -22,6 +22,7 @@ const EXPECTED_LEDGER_IDS = [
 ].sort()
 
 const EXPECTED_COMPLETION_PACKAGES = Array.from({ length: 18 }, (_, i) => `B${String(i + 1).padStart(2, '0')}`).sort()
+const EXPECTED_CLOSING_GAP_IDS = Array.from({ length: 15 }, (_, i) => `CG${String(i + 1).padStart(2, '0')}`).sort()
 const STATUS = new Set(['done', 'partial', 'not-started'])
 const FAMILY_ITEM_COUNTS: Record<string, number> = {
   Flowchart: 8, State: 7, Sequence: 7, Class: 6, ER: 6, Timeline: 5,
@@ -68,6 +69,10 @@ describe('family elevation plan is a mechanically complete ledger', () => {
     expectMechanicalRows(rows('family-elevation-backlog'), EXPECTED_COMPLETION_PACKAGES)
   })
 
+  test('Closing The Gap captures every audited family and cross-family acceptance', () => {
+    expectMechanicalRows(rows('family-elevation-closing-gap'), EXPECTED_CLOSING_GAP_IDS)
+  })
+
   test('every numbered work-plan item has a corresponding ordinal ledger ID', () => {
     const workPlan = PLAN.split('## Work plan by family')[1]?.split('## Cross-cutting workstreams')[0] ?? ''
     for (const [family, count] of Object.entries(FAMILY_ITEM_COUNTS)) {
@@ -83,6 +88,7 @@ describe('family elevation plan is a mechanically complete ledger', () => {
     const checked = [
       PLAN.split('<!-- family-elevation-ledger:start -->')[1]?.split('<!-- family-elevation-ledger:end -->')[0] ?? '',
       PLAN.split('<!-- family-elevation-backlog:start -->')[1]?.split('<!-- family-elevation-backlog:end -->')[0] ?? '',
+      PLAN.split('<!-- family-elevation-closing-gap:start -->')[1]?.split('<!-- family-elevation-closing-gap:end -->')[0] ?? '',
     ].join('\n')
     const names = [...checked.matchAll(/`([^`]+\.test\.ts)`/g)].map(match => match[1]!)
     expect(names.length).toBeGreaterThan(20)
@@ -94,7 +100,7 @@ describe('family elevation plan is a mechanically complete ledger', () => {
 
   test('every done claim resolves to an exact executable title in a cited test file', () => {
     expect(EVIDENCE.schemaVersion).toBe(1)
-    const allRows = [...rows('family-elevation-ledger'), ...rows('family-elevation-backlog')]
+    const allRows = [...rows('family-elevation-ledger'), ...rows('family-elevation-backlog'), ...rows('family-elevation-closing-gap')]
     const done = allRows.filter(row => row.status === 'done')
     expect(EVIDENCE.entries.map(entry => entry.id).sort()).toEqual(done.map(row => row.id).sort())
     expect(new Set(EVIDENCE.entries.map(entry => entry.id)).size).toBe(EVIDENCE.entries.length)

@@ -8,6 +8,18 @@ date; do not delete old ones — supersede them in place.
 > long-form fork narrative and major-PR retrospectives, see
 > [`../project/lessons-learned.md`](../project/lessons-learned.md).
 
+## 2026-07 — closing Mermaid 11.16 fidelity gaps (#149)
+
+**A family is not faithful when its labels merely survive.** Mindmap accepted rich syntax and rendered every node, yet a one-sided dendrogram missed the family’s central, radiating metaphor. Rule: audit syntax coverage, semantic preservation, and recognizable family appearance separately; terminal availability is a fourth, independent claim.
+
+**Promotion from opaque to native must close the serializer at the same time.** Flowchart icon/image and edge-presentation metadata could render before the agent body could reproduce it, so native parsing would have traded source fidelity for structure. Rule: remove an opaque fallback only after the typed model and canonical serializer reproduce every promoted key; keep dimensions or placement opaque until they are modeled too.
+
+**The public geometry projection must use the renderer’s final label placement.** ER SVG already separated some duplicate labels, while `RenderedLayout` reported raw route midpoints and therefore disagreed with the pixels its readability gate was meant to audit. Rule: compute collision-separated positions once and share them with SVG and verification; reserve endpoint-marker zones as obstacles, then ratchet the global readability count to zero.
+
+**Inert metadata is still sensitive in strict mode.** A safe Gantt URL in `data-href` could not fetch by itself, but strict security promises no external reference text at all. Rule: preserve safe inert interaction metadata in normal static output, strip it under `security: 'strict'`, and test callbacks and unsafe schemes remain absent in both modes.
+
+**An external oracle’s old limitation is not the product contract.** Promoting Mermaid 11.16 XY labels, Sequence aliases, ER groups, and Flowchart metadata made several pinned expectations fail because they described this renderer’s former fallback rather than upstream semantics. Rule: retain upstream source/title/order provenance, but update executable expectations to the newly modeled meaning and document when an independent parser is too old to recognize it.
+
 ## 2026-07 — the all-family elevation PR (#142)
 
 **A callback in an SDK declaration is not a callback across a sandbox boundary.** Code Mode cloned render options through JSON, which silently removed `onConfigDiagnostic` even though autocomplete advertised it. Rule: bridge callbacks explicitly—clone only data, collect host diagnostics, then invoke the hardened sandbox callback—and differential-test local and hosted harnesses.

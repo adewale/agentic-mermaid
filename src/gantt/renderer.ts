@@ -445,8 +445,13 @@ export function lowerGanttScene(
     taskIdOccurrence.set(key, k + 1)
     return k === 0 ? `task:${key}` : `task:${key}#${k}`
   }
+  const hrefByTask = new Map(layout.links.map(link => [link.taskIndex, link.href]))
   for (const bar of layout.bars) {
     const section = layout.sections[bar.sectionIndex]?.label
+    const safeHref = options.security === 'strict' ? undefined : hrefByTask.get(bar.taskIndex)
+    // Static output exposes sanitized inert metadata for downstream consumers;
+    // it must not claim keyboard-link semantics without an executable anchor.
+    const interactionAttrs = safeHref ? ` data-href="${escapeXml(safeHref)}"` : ''
     // Critical-path emphasis (opt-in): the analysis-backed stronger stroke.
     const onCriticalPath = criticalPathSet.has(bar.taskIndex)
     const criticalPathCls = onCriticalPath ? ' gantt-bar-critical-path' : ''
@@ -482,7 +487,7 @@ export function lowerGanttScene(
           ...(onCriticalPath ? { emphasis: true } : {}),
           ...(section !== undefined ? { category: section } : {}),
         },
-      }, `<path class="${cls}" d="${d}" data-task="${escapeXml(bar.id ?? bar.label)}" />`))
+      }, `<path class="${cls}" d="${d}" data-task="${escapeXml(bar.id ?? bar.label)}"${interactionAttrs} />`))
       continue
     }
     const status = statusChannel(bar.tags)
@@ -501,7 +506,7 @@ export function lowerGanttScene(
       },
     },
       `<rect class="${statusClass(bar.tags)}${criticalPathCls}" x="${r(bar.x)}" y="${r(bar.y)}" width="${r(Math.max(2, bar.w))}" height="${r(bar.h)}" ` +
-        `rx="${GS.barRadius}" ry="${GS.barRadius}" data-task="${escapeXml(bar.id ?? bar.label)}" />`,
+        `rx="${GS.barRadius}" ry="${GS.barRadius}" data-task="${escapeXml(bar.id ?? bar.label)}"${interactionAttrs} />`,
     ))
   }
 

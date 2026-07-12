@@ -26,10 +26,16 @@ export type DiagramKind =
 
 // ---- Sequence body --------------------------------------------------------
 
+export type SequenceParticipantKind = 'participant' | 'actor' | 'boundary' | 'control' | 'entity' | 'database' | 'collections' | 'queue'
+
 export interface SequenceParticipant {
   id: string
   label: string
-  kind: 'participant' | 'actor'
+  kind: SequenceParticipantKind
+  /** Declaration keyword remains distinct from the visual metadata type. */
+  declaration?: 'participant' | 'actor'
+  /** Sanitized inert actor-menu links. */
+  links?: Record<string, string>
 }
 
 export type SequenceMessageStyle =
@@ -40,11 +46,21 @@ export type SequenceMessageStyle =
   | 'lost'          // -x
   | 'lost-dashed'   // --x
 
+export type SequenceMessageArrow =
+  | '<<->>' | '<<-->>' | '->>' | '-->>' | '->' | '-->' | '-x' | '--x'
+  | '-)' | '--)' | '-|' | '--|' | '-/' | '--/' | '|-' | '|--' | '/-' | '/--'
+
 export interface SequenceMessage {
   from: string
   to: string
   text: string
   style: SequenceMessageStyle
+  /** Exact closed official endpoint operator when richer than legacy style. */
+  arrow?: SequenceMessageArrow
+  centralStart?: boolean
+  centralEnd?: boolean
+  activate?: boolean
+  deactivate?: boolean
 }
 
 // BUILD-18: ordered statement list. Refs index into the participants/messages
@@ -57,6 +73,7 @@ export interface SequenceMessage {
 export type SequenceStatement =
   | { kind: 'participant'; ref: number }   // index into participants
   | { kind: 'message'; ref: number }       // index into messages
+  | { kind: 'actor-links'; actorId: string; links: Record<string, string> }
   | { kind: 'opaque-block'; lines: string[] }
 
 export interface SequenceBody {
@@ -143,6 +160,7 @@ export type ClassRelationKind =
   | 'realization'    // ..|>
   | 'link-solid'     // --
   | 'link-dashed'    // ..
+  | 'lollipop'       // ()-- / --()
 
 export interface ClassNode {
   /** Stable bare class identity (e.g., `Box` for authored `Box~T~`). */
@@ -163,6 +181,8 @@ export interface ClassNode {
   className?: string
   /** Inline `style A ...` properties. */
   style?: Record<string, string>
+  /** Sanitized inert class interaction URL. */
+  href?: string
 }
 
 /** A declared namespace: dot path + optional display label (`namespace X["L"]`). */
@@ -183,6 +203,10 @@ export interface ClassRelation {
   fromCardinality?: string
   /** Optional cardinality on the `to` side. */
   toCardinality?: string
+  /** Marker ownership for two-ended and lollipop relations. */
+  markerAt?: 'from' | 'to' | 'both'
+  fromKind?: ClassRelationKind
+  toKind?: ClassRelationKind
 }
 
 export interface ClassNote {
@@ -227,6 +251,15 @@ export interface ErEntity {
   attributes: ErAttribute[]
   className?: string
   style?: Record<string, string>
+  /** Owning Mermaid 11.16 subgraph, if declared inside one. */
+  groupId?: string
+}
+
+export interface ErGroup {
+  id: string
+  label: string
+  parentId?: string
+  direction?: import('../types.ts').Direction
 }
 
 export interface ErRelation {
@@ -242,13 +275,16 @@ export interface ErRelation {
 export type ErStatement =
   | { kind: 'entity'; id: string }
   | { kind: 'relation'; ref: number }
-  | { kind: 'direction' }
+  | { kind: 'direction'; groupId?: string }
+  | { kind: 'group-open'; id: string }
+  | { kind: 'group-close'; id: string }
   | { kind: 'opaque'; lines: string[] }
 
 export interface ErBody {
   kind: 'er'
   entities: ErEntity[]
   relations: ErRelation[]
+  groups?: ErGroup[]
   direction?: import('../types.ts').Direction
   classDefs?: Record<string, Record<string, string>>
   /** Ordered typed/opaque source segments; parsed bodies always populate it. */
@@ -340,6 +376,8 @@ export interface XyChartSeries {
   name?: string
   /** Data values; all finite. */
   values: number[]
+  /** Mermaid 11.16 line point labels, index-aligned with values. */
+  pointLabels?: Array<string | undefined>
 }
 
 export interface XyChartBody {

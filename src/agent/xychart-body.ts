@@ -165,6 +165,23 @@ function parseAxis(rawValue: string, axisName: 'x' | 'y'): XyChartAxis | null {
 
 const SERIES_RE = /^(bar|line)(?:\s+(.+?))?\s+\[([^\[\]]*)\]$/
 
+function splitSeriesPoints(value: string): string[] {
+  const out: string[] = []
+  let token = ''
+  let quoted = false
+  let escaped = false
+  for (const char of value) {
+    if (escaped) { token += char; escaped = false; continue }
+    if (char === '\\' && quoted) { token += char; escaped = true; continue }
+    if (char === '"') { quoted = !quoted; token += char; continue }
+    if (char === ',' && !quoted) { if (!token.trim()) return []; out.push(token.trim()); token = ''; continue }
+    token += char
+  }
+  if (quoted || !token.trim()) return []
+  out.push(token.trim())
+  return out
+}
+
 function parseSeries(line: string, idx: number): XyChartSeries | null {
   const m = line.match(SERIES_RE)
   if (!m) return null
@@ -177,14 +194,17 @@ function parseSeries(line: string, idx: number): XyChartSeries | null {
     name = t
   }
   const values: number[] = []
-  for (const tok of m[3]!.split(',').map(t => t.trim())) {
-    if (tok.length === 0) return null
-    const n = parseNumber(tok)
+  const pointLabels: Array<string | undefined> = []
+  for (const tok of splitSeriesPoints(m[3]!)) {
+    const point = tok.match(new RegExp(`^(${NUMBER})(?:\\s+"((?:\\\\.|[^"\\\\])*)")?$`))
+    if (!point) return null
+    const n = parseNumber(point[1]!)
     if (n === null) return null
     values.push(n)
+    pointLabels.push(point[2]?.replace(/\\(["\\])/g, '$1'))
   }
   if (values.length === 0) return null
-  return { id: `series-${idx}`, kind, name, values }
+  return { id: `series-${idx}`, kind, name, values, ...(pointLabels.some(label => label !== undefined) ? { pointLabels } : {}) }
 }
 
 /**
@@ -268,7 +288,11 @@ export function renderXyChart(body: XyChartBody): string {
   if (body.yAxis) lines.push(renderAxis('y-axis', body.yAxis))
   for (const s of body.series) {
     const namePart = s.name !== undefined ? `${s.name} ` : ''
-    lines.push(`  ${s.kind} ${namePart}[${s.values.map(formatNumber).join(', ')}]`)
+    const values = s.values.map((value, index) => {
+      const label = s.pointLabels?.[index]
+      return `${formatNumber(value)}${label !== undefined ? ` "${label.replace(/(["\\])/g, '\\$1')}"` : ''}`
+    })
+    lines.push(`  ${s.kind} ${namePart}[${values.join(', ')}]`)
   }
   return lines.join('\n') + '\n'
 }
@@ -290,7 +314,7 @@ function cloneXyChart(b: XyChartBody): XyChartBody {
     horizontal: b.horizontal,
     xAxis: b.xAxis ? cloneAxis(b.xAxis) : undefined,
     yAxis: b.yAxis ? cloneAxis(b.yAxis) : undefined,
-    series: b.series.map(s => ({ id: s.id, kind: s.kind, name: s.name, values: [...s.values] })),
+    series: b.series.map(s => ({ id: s.id, kind: s.kind, name: s.name, values: [...s.values], ...(s.pointLabels ? { pointLabels: [...s.pointLabels] } : {}) })),
   }
 }
 
@@ -419,6 +443,10 @@ export function mutateXyChart(body: XyChartBody, op: XyChartMutationOp): Result<
       const values = validValues(op.values, 'series values')
       if (!values.ok) return values
       s.values = values.value
+      if (s.pointLabels) {
+        s.pointLabels = values.value.map((_, pointIndex) => s.pointLabels?.[pointIndex])
+        if (!s.pointLabels.some(label => label !== undefined)) delete s.pointLabels
+      }
       break
     }
     case 'set_series_name': {

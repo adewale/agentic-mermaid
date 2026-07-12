@@ -8,6 +8,7 @@ import { ensureContrast, isHexColor } from '../shared/color-math.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
 import { semanticChildId, semanticRelationId } from '../scene/identity.ts'
 import { escapeAttr, escapeXml, renderMultilineText } from '../multiline-utils.ts'
+import { resolveMindmapIcon } from './icons.ts'
 
 const FONT_SIZE = 13
 
@@ -43,16 +44,14 @@ export function lowerMindmapScene(ctx: RenderContext<PositionedMindmapDiagram>):
   if (diagram.accessibilityDescription) parts.push(marks.raw({ id: 'acc-desc', role: 'chrome' }, `<desc id="${descId}">${escapeXml(diagram.accessibilityDescription)}</desc>`))
 
   for (const edge of diagram.edges) {
-    const semanticPoints = edge.points.map(point => ({ x: round(point.x), y: round(point.y) }))
-    const points = semanticPoints.map(point => `${point.x},${point.y}`).join(' ')
     parts.push(marks.connector({
       id: semanticRelationId(edge.from, edge.to),
       role: 'edge',
-      geometry: { kind: 'polyline', points: semanticPoints },
+      geometry: { kind: 'path', d: edge.d, points: edge.points },
       lineStyle: 'solid',
-      paint: { fill: 'none', stroke: 'var(--_line)', strokeWidth: '1.5' },
+      paint: { fill: 'none', stroke: 'var(--_line)', strokeWidth: '2' },
       channels: { importance: 1 },
-    }, `<polyline class="mindmap-edge" data-from="${escapeAttr(edge.from)}" data-to="${escapeAttr(edge.to)}" points="${points}" fill="none" stroke="var(--_line)" stroke-width="1.5" />`))
+    }, `<path class="mindmap-edge" data-from="${escapeAttr(edge.from)}" data-to="${escapeAttr(edge.to)}" d="${edge.d}" fill="none" stroke="var(--_line)" stroke-width="2" stroke-linecap="round" />`))
   }
   for (const node of diagram.nodes) parts.push(renderNode(node, colors))
   parts.push(marks.raw({ id: 'svg-close', role: 'chrome' }, '</svg>'))
@@ -74,10 +73,22 @@ function renderNode(node: PositionedMindmapNode, colors: RenderContext<Positione
     { node: marks.shape({ id: semanticChildId(node.id, 'shape'), role: 'chrome', geometry: shape, paint: { fill, stroke, strokeWidth: '1.5' } }, shapeSvg), indent: 2 },
   ]
   if (node.icon) {
-    children.push({ node: marks.text({
-      id: semanticChildId(node.id, 'icon'), role: 'icon', text: node.icon, x: node.x + node.width / 2,
-      y: node.y + 11, fontSize: 9, anchor: 'middle', paint: { fill: textColor },
-    }, `<text class="mindmap-icon" x="${round(node.x + node.width / 2)}" y="${round(node.y + 11)}" text-anchor="middle" font-size="9" fill="${textColor}">${escapeXml(node.icon)}</text>`), indent: 2 })
+    const glyph = resolveMindmapIcon(node.icon)
+    if (glyph) {
+      const size = 14
+      const x = node.x + node.width / 2 - size / 2
+      const y = node.y + 4
+      const scale = size / 24
+      const paths = glyph.paths.map(path => `<path d="${path}" />`).join('')
+      children.push({ node: marks.raw({ id: semanticChildId(node.id, 'icon'), role: 'icon' },
+        `<g class="mindmap-icon-glyph" data-icon="${escapeAttr(node.icon)}" data-icon-source="${escapeAttr(glyph.source)}" transform="translate(${round(x)} ${round(y)}) scale(${round(scale)})" fill="${textColor}" stroke="${textColor}" stroke-width="0.8">${paths}</g>`), indent: 2 })
+    } else {
+      const token = node.icon.split(/[:\s/-]+/).filter(Boolean).at(-1)?.slice(0, 2).toUpperCase() || '?'
+      children.push({ node: marks.text({
+        id: semanticChildId(node.id, 'icon'), role: 'icon', text: token, x: node.x + node.width / 2,
+        y: node.y + 12, fontSize: 9, anchor: 'middle', paint: { fill: textColor },
+      }, `<text class="mindmap-icon-fallback" data-icon="${escapeAttr(node.icon)}" x="${round(node.x + node.width / 2)}" y="${round(node.y + 12)}" text-anchor="middle" font-size="9" fill="${textColor}">${escapeXml(token)}</text>`), indent: 2 })
+    }
   }
   const labelY = node.y + node.height / 2 + (node.icon ? 5 : 0)
   children.push({ node: marks.text({

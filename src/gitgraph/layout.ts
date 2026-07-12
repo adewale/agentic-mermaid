@@ -11,6 +11,8 @@ export interface GitGraphLayoutOptions {
   showCommitLabel?: boolean
   rotateCommitLabel?: boolean
   parallelCommits?: boolean
+  /** Resolved themeVariables.commitLabelFontSize; shared with the renderer. */
+  commitLabelFontSize?: number
 }
 
 export function layoutGitGraph(diagram: GitGraphDiagram, options: GitGraphLayoutOptions = {}): PositionedGitGraphDiagram {
@@ -18,6 +20,7 @@ export function layoutGitGraph(diagram: GitGraphDiagram, options: GitGraphLayout
   const showBranches = options.showBranches !== false
   const showCommitLabel = options.showCommitLabel !== false
   const rotateCommitLabel = options.rotateCommitLabel !== false
+  const commitLabelFontSize = finitePositive(options.commitLabelFontSize, 11)
   const titleHeight = diagram.title ? 40 : 0
   const orderedBranches = [...diagram.branches].sort((a, b) => a.order - b.order || a.sequence - b.sequence || compareCodePointStrings(a.name, b.name))
   const laneByBranch = new Map(orderedBranches.map((branch, lane) => [branch.name, lane]))
@@ -73,8 +76,8 @@ export function layoutGitGraph(diagram: GitGraphDiagram, options: GitGraphLayout
   let width: number
   let height: number
   if (diagram.direction === 'LR') {
-    width = Math.max(padding * 2 + branchLabelSpace + 80, ...commits.map(commit => commit.x + (showCommitLabel ? Math.max(26, measureTextWidth(commit.id, 11, 500) * 0.75) : 18))) + padding
-    height = padding * 2 + titleHeight + Math.max(1, orderedBranches.length) * laneGap + (showCommitLabel ? 48 : 0)
+    width = Math.max(padding * 2 + branchLabelSpace + 80, ...commits.map(commit => commit.x + (showCommitLabel ? Math.max(26, measureTextWidth(commit.message || commit.id, commitLabelFontSize, 500) * 0.75) : 18))) + padding
+    height = padding * 2 + titleHeight + Math.max(1, orderedBranches.length) * laneGap + (showCommitLabel ? commitLabelFontSize * 2 + 26 : 0)
   } else {
     width = padding * 2 + branchLabelSpace + Math.max(1, orderedBranches.length) * 150
     height = Math.max(padding * 2 + titleHeight + 80, ...commits.map(commit => commit.y + (showCommitLabel ? 38 : 18))) + padding
@@ -86,7 +89,7 @@ export function layoutGitGraph(diagram: GitGraphDiagram, options: GitGraphLayout
   // fallback to id), including LR's 45° rotation. The old id-only estimate
   // clipped long authored messages even though their commit marks were inside.
   const textBounds = commits.flatMap(commit => [
-    ...(showCommitLabel ? [commitLabelBounds(commit, diagram.direction, rotateCommitLabel)] : []),
+    ...(showCommitLabel ? [commitLabelBounds(commit, diagram.direction, rotateCommitLabel, commitLabelFontSize)] : []),
     ...commit.tags.map((tag, index) => measuredTextBounds(tag, commit.x + 14, commit.y - 14 - index * 14, 9, 600, 'start', 0)),
   ])
   if (textBounds.length > 0) {
@@ -121,11 +124,12 @@ function commitLabelBounds(
   commit: PositionedGitGraphCommit,
   direction: GitGraphDiagram['direction'],
   rotate: boolean,
+  fontSize: number,
 ): TextBounds {
   const label = commit.message || commit.id
   return direction === 'LR'
-    ? measuredTextBounds(label, commit.x, commit.y + 24, 11, 500, 'middle', rotate ? 45 : 0)
-    : measuredTextBounds(label, commit.x + 14, commit.y + 4, 11, 500, 'start', 0)
+    ? measuredTextBounds(label, commit.x, commit.y + 24, fontSize, 500, 'middle', rotate ? 45 : 0)
+    : measuredTextBounds(label, commit.x + 14, commit.y + 4, fontSize, 500, 'start', 0)
 }
 
 function measuredTextBounds(
@@ -160,4 +164,8 @@ function measuredTextBounds(
 
 function finite(value: number | undefined, fallback: number): number {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : fallback
+}
+
+function finitePositive(value: number | undefined, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : fallback
 }

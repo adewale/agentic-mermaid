@@ -106,8 +106,9 @@ interface StateTransition { from: string; to: string; label?: string }   // from
 interface StateNote { target: string; side: 'left' | 'right'; text: string }
 interface StateBody { kind: 'state'; states: StateNode[]; transitions: StateTransition[]; notes?: StateNote[]; direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }
 
-interface SeqParticipant { id: string; label: string; kind: 'participant' | 'actor' }
-interface SeqMessage { from: string; to: string; text: string; style: string }
+type SeqParticipantKind = 'participant' | 'actor' | 'boundary' | 'control' | 'entity' | 'database' | 'collections' | 'queue'
+interface SeqParticipant { id: string; label: string; kind: SeqParticipantKind; declaration?: 'participant' | 'actor'; links?: Record<string, string> }
+interface SeqMessage { from: string; to: string; text: string; style: string; arrow?: string; centralStart?: boolean; centralEnd?: boolean; activate?: boolean; deactivate?: boolean }
 // BUILD-18: ordered statement list. participant/message refs index into the
 // participants/messages arrays; opaque-block carries unmodeled lines verbatim.
 // Mutation ops only see top-level messages — messages inside an opaque block are
@@ -115,6 +116,7 @@ interface SeqMessage { from: string; to: string; text: string; style: string }
 type SequenceStatement =
   | { kind: 'participant'; ref: number }
   | { kind: 'message'; ref: number }
+  | { kind: 'actor-links'; actorId: string; links: Record<string, string> }
   | { kind: 'opaque-block'; lines: string[] }
 interface SequenceBody { kind: 'sequence'; participants: SeqParticipant[]; messages: SeqMessage[]; statements?: SequenceStatement[] }
 
@@ -124,9 +126,9 @@ interface TimelineSection { id: string; label?: string; periods: TimelinePeriod[
 // direction: explicit \`timeline TD\`/\`timeline LR\` header token (TD = vertical, upstream PR #7270); undefined = LR default.
 interface TimelineBody { kind: 'timeline'; direction?: 'LR' | 'TD'; title?: string; accessibilityTitle?: string; accessibilityDescription?: string; sections: TimelineSection[] }
 
-interface ClassNode { id: string; generic?: string; label?: string; members: string[]; namespace?: string }
-type ClassRelationKind = 'inheritance' | 'composition' | 'aggregation' | 'association' | 'dependency' | 'realization' | 'link-solid' | 'link-dashed'
-interface ClassRelation { from: string; to: string; kind: ClassRelationKind; label?: string; fromCardinality?: string; toCardinality?: string }
+interface ClassNode { id: string; generic?: string; label?: string; members: string[]; namespace?: string; href?: string }
+type ClassRelationKind = 'inheritance' | 'composition' | 'aggregation' | 'association' | 'dependency' | 'realization' | 'link-solid' | 'link-dashed' | 'lollipop'
+interface ClassRelation { from: string; to: string; kind: ClassRelationKind; label?: string; fromCardinality?: string; toCardinality?: string; markerAt?: 'from' | 'to' | 'both'; fromKind?: ClassRelationKind; toKind?: ClassRelationKind }
 interface ClassNote { text: string; for?: string }
 // namespace paths are dot-joined (e.g. 'Platform.Auth'); namespaces render as
 // compound boxes and serialize to "namespace path { ... }" blocks.
@@ -135,9 +137,10 @@ interface ClassBody { kind: 'class'; title?: string; classes: ClassNode[]; relat
 
 type ErCardinality = 'one-only' | 'zero-or-one' | 'zero-or-many' | 'one-or-many'
 interface ErAttribute { text: string }
-interface ErEntity { id: string; label?: string; attributes: ErAttribute[] }
+interface ErEntity { id: string; label?: string; attributes: ErAttribute[]; groupId?: string }
+interface ErGroup { id: string; label: string; parentId?: string; direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }
 interface ErRelation { from: string; to: string; leftCard: ErCardinality; rightCard: ErCardinality; dashed: boolean; label?: string }
-interface ErBody { kind: 'er'; entities: ErEntity[]; relations: ErRelation[] }
+interface ErBody { kind: 'er'; entities: ErEntity[]; relations: ErRelation[]; groups?: ErGroup[] }
 
 interface JourneyTask { id: string; text: string; score: number; actors: string[] }
 interface JourneySection { id: string; label?: string; tasks: JourneyTask[] }
@@ -156,7 +159,7 @@ interface ArchitectureAlignment { axis: 'row' | 'column'; members: string[] }
 interface ArchitectureBody { kind: 'architecture'; title?: string; groups: ArchitectureGroup[]; services: ArchitectureService[]; junctions: ArchitectureJunction[]; edges: ArchitectureEdge[]; alignments?: ArchitectureAlignment[] }
 
 interface XyChartAxis { name?: string; categories?: string[]; range?: { min: number; max: number } }
-interface XyChartSeries { id: string; kind: 'bar' | 'line'; name?: string; values: number[] }
+interface XyChartSeries { id: string; kind: 'bar' | 'line'; name?: string; values: number[]; pointLabels?: Array<string | undefined> }
 interface XyChartBody { kind: 'xychart'; title?: string; horizontal?: boolean; xAxis?: XyChartAxis; yAxis?: XyChartAxis; series: XyChartSeries[] }
 
 interface PieSlice { id: string; label: string; value: number }   // value > 0

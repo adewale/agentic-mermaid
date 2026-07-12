@@ -10,6 +10,7 @@ import type { Geometry, MarkerRef, SceneDoc, SceneNode, SemanticChannels } from 
 import * as marks from './scene/marks.ts'
 import { DefaultBackend } from './scene/backend.ts'
 import type { StateRenderOptions } from './state/config.ts'
+import { resolveMindmapIcon } from './mindmap/icons.ts'
 
 // ============================================================================
 // SVG renderer — converts a PositionedGraph into an SVG string.
@@ -465,7 +466,7 @@ function renderEdge(edge: PositionedEdge, style: ResolvedRenderStyle, sceneId: s
     }, '')
   }
 
-  const pathData = style.edgeBendRadius > 0 ? pointsToPathD(edge.points, style.edgeBendRadius) : pointsToPolylinePath(edge.points)
+  const pathData = edge.curve ? pointsToCurvePathD(edge.points) : style.edgeBendRadius > 0 ? pointsToPathD(edge.points, style.edgeBendRadius) : pointsToPolylinePath(edge.points)
   const dashArray = edge.style === 'dotted' ? ` stroke-dasharray="${FLOWCHART_DOTTED_DASH.dash} ${FLOWCHART_DOTTED_DASH.gap}"` : ''
   const baseStrokeWidth = edge.style === 'thick' ? style.lineWidth * 2 : style.lineWidth
   const markerColor = edge.inlineStyle?.stroke ?? style.edgeStrokeColor
@@ -508,9 +509,9 @@ function renderEdge(edge: PositionedEdge, style: ResolvedRenderStyle, sceneId: s
   ]
   if (edge.hasArrowStart) dataAttrs.push(`data-marker-start="${edge.startMarker ?? 'arrow'}"`)
   if (edge.hasArrowEnd) dataAttrs.push(`data-marker-end="${edge.endMarker ?? 'arrow'}"`)
-  if (edge.label) {
-    dataAttrs.push(`data-label="${escapeAttr(edge.label)}"`)
-  }
+  if (edge.label) dataAttrs.push(`data-label="${escapeAttr(edge.label)}"`)
+  if (edge.curve) dataAttrs.push(`data-curve="${escapeAttr(edge.curve)}"`)
+  if (edge.animate) dataAttrs.push(`data-animate="true"`, `data-animation="${edge.animation ?? 'slow'}"`)
 
   const paint = {
     stroke: markerColor ?? 'var(--_line)',
@@ -518,7 +519,7 @@ function renderEdge(edge: PositionedEdge, style: ResolvedRenderStyle, sceneId: s
     ...(edge.style === 'dotted' ? { strokeDasharray: `${FLOWCHART_DOTTED_DASH.dash} ${FLOWCHART_DOTTED_DASH.gap}` } : {}),
   }
 
-  if (style.edgeBendRadius > 0) {
+  if (style.edgeBendRadius > 0 || edge.curve) {
     return marks.connector({
       id: sceneId,
       role: 'edge',
@@ -529,7 +530,7 @@ function renderEdge(edge: PositionedEdge, style: ResolvedRenderStyle, sceneId: s
       endMarker,
     },
       `<path ${dataAttrs.join(' ')} d="${pathData}" fill="none" stroke="${strokeColor}" ` +
-      `stroke-width="${strokeWidth}"${dashArray}${markers} />`)
+      `stroke-width="${strokeWidth}"${dashArray}${edge.animate && edge.style !== 'dotted' ? ' stroke-dasharray="8 4"' : ''}${markers}>${edge.animate ? `<animate attributeName="stroke-dashoffset" from="12" to="0" dur="${edge.animation === 'fast' ? '0.5s' : '1.5s'}" repeatCount="indefinite" />` : ''}</path>`)
   }
 
   return marks.connector({
@@ -543,6 +544,18 @@ function renderEdge(edge: PositionedEdge, style: ResolvedRenderStyle, sceneId: s
   },
     `<polyline ${dataAttrs.join(' ')} points="${pathData}" fill="none" stroke="${strokeColor}" ` +
     `stroke-width="${strokeWidth}"${dashArray}${markers} />`)
+}
+
+function pointsToCurvePathD(points: Point[]): string {
+  const first = points[0]!
+  let d = `M ${first.x} ${first.y}`
+  for (let index = 1; index < points.length; index++) {
+    const previous = points[index - 1]!
+    const point = points[index]!
+    const mx = (previous.x + point.x) / 2
+    d += ` C ${mx} ${previous.y}, ${mx} ${point.y}, ${point.x} ${point.y}`
+  }
+  return d
 }
 
 /** Convert points to SVG polyline points attribute: "x1,y1 x2,y2 ..." */
@@ -812,6 +825,8 @@ function renderNode(node: PositionedNode, font: string, style: ResolvedRenderSty
     undefined
 
   const children: Array<{ node: SceneNode; indent: number }> = [{ indent: 2, node: shape }]
+  const media = renderFlowchartMedia(node, style)
+  if (media) children.push({ indent: 2, node: media })
   if (label) {
     children.push({ indent: 2, node: label })
   }
@@ -819,14 +834,92 @@ function renderNode(node: PositionedNode, font: string, style: ResolvedRenderSty
   // geometry is a mapping of it, so agents can explain the semantic shape
   // even when the geometry is approximate (repo #44).
   const semanticShape = node.semanticShape ? ` data-semantic-shape="${escapeAttr(node.semanticShape)}"` : ''
+  const interaction = node.href ? ` data-href="${escapeAttr(node.href)}" role="link" tabindex="0"` : ''
   return marks.group({
     id: `node:${node.id}`,
     role: 'node',
-    open: `<g class="${classAttr}" data-id="${escapeAttr(node.id)}" data-label="${escapeAttr(node.label)}" data-shape="${node.shape}"${semanticShape}>`,
+    open: `<g class="${classAttr}" data-id="${escapeAttr(node.id)}" data-label="${escapeAttr(node.label)}" data-shape="${node.shape}"${semanticShape}${interaction}>`,
     close: '</g>',
     children,
     channels,
   })
+}
+
+function renderFlowchartSemanticShape(node: PositionedNode, fill: string, stroke: string, sw: string): ShapePiece | null {
+  const { x, y, width: w, height: h } = node
+  const right = x + w, bottom = y + h, cx = x + w / 2, cy = y + h / 2
+  const path = (d: string, extra = ''): ShapePiece => ({
+    geometry: { kind: 'path', d },
+    crisp: `<path d="${d}" fill="${extra.includes('fill="none"') ? 'none' : fill}" stroke="${stroke}" stroke-width="${sw}" />`,
+  })
+  const polygon = (points: Array<{ x: number; y: number }>): ShapePiece => ({
+    geometry: { kind: 'polygon', points },
+    crisp: `<polygon points="${points.map(point => `${point.x},${point.y}`).join(' ')}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" />`,
+  })
+  switch (node.semanticShape) {
+    case 'bang': {
+      const points = Array.from({ length: 16 }, (_, index) => {
+        const angle = -Math.PI / 2 + index * Math.PI / 8
+        const radius = index % 2 === 0 ? 1 : 0.62
+        return { x: cx + Math.cos(angle) * w / 2 * radius, y: cy + Math.sin(angle) * h / 2 * radius }
+      })
+      return polygon(points)
+    }
+    case 'notch-rect': return polygon([{ x: x + 10, y }, { x: right, y }, { x: right, y: bottom }, { x, y: bottom }, { x, y: y + 10 }])
+    case 'cloud': return path(`M${x + w * .18} ${bottom}C${x - 4} ${bottom} ${x - 4} ${cy} ${x + w * .12} ${cy}C${x + w * .08} ${y + h * .15} ${x + w * .38} ${y - 4} ${x + w * .48} ${y + h * .18}C${x + w * .65} ${y - 5} ${right} ${y + h * .16} ${x + w * .88} ${cy}C${right + 5} ${cy} ${right + 5} ${bottom} ${x + w * .72} ${bottom}Z`)
+    case 'hourglass': return polygon([{ x, y }, { x: right, y }, { x: x + w * .62, y: cy }, { x: right, y: bottom }, { x, y: bottom }, { x: x + w * .38, y: cy }])
+    case 'bolt': return polygon([{ x: x + w * .55, y }, { x: x + w * .25, y: cy }, { x: x + w * .48, y: cy }, { x: x + w * .35, y: bottom }, { x: x + w * .78, y: y + h * .4 }, { x: x + w * .55, y: y + h * .4 }])
+    case 'brace': return path(`M${right} ${y}C${x + w * .4} ${y} ${x + w * .7} ${cy} ${x} ${cy}C${x + w * .7} ${cy} ${x + w * .4} ${bottom} ${right} ${bottom}`, ' fill="none"')
+    case 'brace-r': return path(`M${x} ${y}C${x + w * .6} ${y} ${x + w * .3} ${cy} ${right} ${cy}C${x + w * .3} ${cy} ${x + w * .6} ${bottom} ${x} ${bottom}`, ' fill="none"')
+    case 'braces': return path(`M${x + w * .25} ${y}C${x} ${y} ${x + w * .15} ${cy} ${x} ${cy}C${x + w * .15} ${cy} ${x} ${bottom} ${x + w * .25} ${bottom}M${x + w * .75} ${y}C${right} ${y} ${x + w * .85} ${cy} ${right} ${cy}C${x + w * .85} ${cy} ${right} ${bottom} ${x + w * .75} ${bottom}`, ' fill="none"')
+    case 'datastore': return path(`M${x + 8} ${y}H${right}V${bottom}H${x + 8}M${x + 8} ${y}C${x - 2} ${y + h * .2} ${x - 2} ${bottom - h * .2} ${x + 8} ${bottom}`, ' fill="none"')
+    case 'delay': return path(`M${x} ${y}H${right - h / 2}A${h / 2} ${h / 2} 0 0 1 ${right - h / 2} ${bottom}H${x}Z`)
+    case 'h-cyl': return path(`M${x + 10} ${y}H${right - 10}A10 ${h / 2} 0 0 1 ${right - 10} ${bottom}H${x + 10}A10 ${h / 2} 0 0 1 ${x + 10} ${y}Z M${right - 10} ${y}A10 ${h / 2} 0 0 0 ${right - 10} ${bottom}`)
+    case 'lin-cyl': return path(`M${x} ${y + 8}A${w / 2} 8 0 0 1 ${right} ${y + 8}V${bottom - 8}A${w / 2} 8 0 0 1 ${x} ${bottom - 8}Z M${x} ${y + 8}A${w / 2} 8 0 0 0 ${right} ${y + 8}M${x} ${bottom - 16}A${w / 2} 8 0 0 0 ${right} ${bottom - 16}`)
+    case 'curv-trap': return path(`M${x + 12} ${y}Q${cx} ${y + 8} ${right - 12} ${y}L${right} ${bottom}Q${cx} ${bottom - 8} ${x} ${bottom}Z`)
+    case 'div-rect': return path(`M${x} ${y}H${right}V${bottom}H${x}ZM${x} ${cy}H${right}`)
+    case 'doc': return path(`M${x} ${y}H${right}V${bottom - 8}Q${x + w * .75} ${bottom + 2} ${cx} ${bottom - 8}Q${x + w * .25} ${bottom - 18} ${x} ${bottom - 8}Z`)
+    case 'tri': return polygon([{ x: cx, y }, { x: right, y: bottom }, { x, y: bottom }])
+    case 'fork': return { geometry: { kind: 'rect', x, y: cy - 4, width: w, height: 8 }, crisp: `<rect x="${x}" y="${cy - 4}" width="${w}" height="8" fill="${stroke}" stroke="${stroke}" stroke-width="${sw}" />` }
+    case 'win-pane': return path(`M${x} ${y}H${right}V${bottom}H${x}ZM${x + w * .28} ${y}V${bottom}M${x} ${y + h * .32}H${right}`)
+    case 'f-circ': return { geometry: { kind: 'circle', cx, cy, r: Math.min(w, h) / 2 }, crisp: `<circle cx="${cx}" cy="${cy}" r="${Math.min(w, h) / 2}" fill="${stroke}" stroke="${stroke}" stroke-width="${sw}" />` }
+    case 'lin-doc': return path(`M${x} ${y}H${right}V${bottom - 8}Q${x + w * .75} ${bottom + 2} ${cx} ${bottom - 8}Q${x + w * .25} ${bottom - 18} ${x} ${bottom - 8}ZM${x + 8} ${y + 8}H${right - 8}`)
+    case 'lin-rect': return path(`M${x} ${y}H${right}V${bottom}H${x}ZM${x + 6} ${y}V${bottom}M${right - 6} ${y}V${bottom}`)
+    case 'notch-pent': return polygon([{ x, y }, { x: right - 10, y }, { x: right, y: cy }, { x: right - 10, y: bottom }, { x, y: bottom }, { x: x + 8, y: cy }])
+    case 'flip-tri': return polygon([{ x, y }, { x: right, y }, { x: cx, y: bottom }])
+    case 'docs': return path(`M${x + 8} ${y}H${right}V${bottom - 8}Q${x + w * .7} ${bottom} ${x + w * .45} ${bottom - 8}Q${x + w * .22} ${bottom - 16} ${x + 8} ${bottom - 8}ZM${x} ${y + 8}H${x + 8}M${x} ${y + 8}V${bottom}`)
+    case 'st-rect': return path(`M${x + 8} ${y}H${right}V${bottom - 8}H${x + 8}ZM${x} ${y + 8}H${right - 8}V${bottom}H${x}Z`)
+    case 'flag': return path(`M${x} ${y + 6}Q${x + w * .25} ${y - 4} ${cx} ${y + 6}Q${x + w * .75} ${y + 16} ${right} ${y + 6}V${bottom - 6}Q${x + w * .75} ${bottom + 4} ${cx} ${bottom - 6}Q${x + w * .25} ${bottom - 16} ${x} ${bottom - 6}Z`)
+    case 'sm-circ': return { geometry: { kind: 'circle', cx, cy, r: Math.min(w, h) * .22 }, crisp: `<circle cx="${cx}" cy="${cy}" r="${Math.min(w, h) * .22}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" />` }
+    case 'cross-circ': return path(`M${cx} ${y}A${w / 2} ${h / 2} 0 1 1 ${cx - .01} ${y}M${x + w * .28} ${y + h * .28}L${x + w * .72} ${y + h * .72}M${x + w * .72} ${y + h * .28}L${x + w * .28} ${y + h * .72}`)
+    case 'bow-rect': return path(`M${x} ${y}Q${x + 12} ${cy} ${x} ${bottom}H${right}Q${right - 12} ${cy} ${right} ${y}Z`)
+    case 'tag-doc': return path(`M${x + 10} ${y}H${right}V${bottom - 8}Q${x + w * .7} ${bottom} ${cx} ${bottom - 8}Q${x + w * .25} ${bottom - 16} ${x} ${bottom - 8}V${y + 10}ZM${x} ${y + 10}L${x + 10} ${y}`)
+    case 'tag-rect': return polygon([{ x: x + 10, y }, { x: right, y }, { x: right, y: bottom }, { x, y: bottom }, { x, y: y + 10 }])
+    case 'text': return { geometry: { kind: 'path', d: `M${x} ${y}` }, crisp: `<path d="M${x} ${y}" fill="none" stroke="none" />` }
+    default: return null
+  }
+}
+
+function renderFlowchartMedia(node: PositionedNode, style: ResolvedRenderStyle): SceneNode | null {
+  const color = escapeAttr(style.nodeTextColor ?? 'var(--_text)')
+  const size = Math.min(28, node.height * 0.4)
+  const cx = node.x + node.width / 2
+  const y = node.y + 6
+  if (node.icon) {
+    const glyph = resolveMindmapIcon(node.icon)
+    if (glyph) {
+      const scale = size / 24
+      const paths = glyph.paths.map(path => `<path d="${path}"/>`).join('')
+      return marks.raw({ id: `node:${node.id}:icon`, role: 'icon' }, `<g class="flowchart-icon" data-icon="${escapeAttr(node.icon)}" transform="translate(${cx - size / 2} ${y}) scale(${scale})" fill="${color}" stroke="${color}" stroke-width="0.8">${paths}</g>`)
+    }
+    const token = node.icon.split(/[:/\s-]+/).filter(Boolean).at(-1)?.slice(0, 2).toUpperCase() || '?'
+    return marks.text({ id: `node:${node.id}:icon`, role: 'icon', text: token, x: cx, y: y + size / 2, fontSize: 10, anchor: 'middle', paint: { fill: color } }, `<text class="flowchart-icon-fallback" data-icon="${escapeAttr(node.icon)}" x="${cx}" y="${y + size / 2}" text-anchor="middle" font-size="10" fill="${color}">${escapeXml(token)}</text>`)
+  }
+  if (node.image) {
+    const left = cx - size / 2
+    return marks.raw({ id: `node:${node.id}:image`, role: 'icon' }, `<g class="flowchart-image-placeholder" data-image-src="${escapeAttr(node.image)}" fill="none" stroke="${color}" stroke-width="1.2"><rect x="${left}" y="${y}" width="${size}" height="${size * 0.72}" rx="2"/><circle cx="${left + size * 0.72}" cy="${y + size * 0.2}" r="${size * 0.08}"/><path d="M${left + 2} ${y + size * 0.66}L${left + size * 0.36} ${y + size * 0.36}L${left + size * 0.52} ${y + size * 0.5}L${left + size * 0.7} ${y + size * 0.32}L${left + size - 2} ${y + size * 0.66}"/></g>`)
+  }
+  return null
 }
 
 function renderNodeShape(node: PositionedNode, style: ResolvedRenderStyle): SceneNode {
@@ -843,6 +936,8 @@ function renderNodeShape(node: PositionedNode, style: ResolvedRenderStyle): Scen
   const sw = escapeAttr(rawSw)
 
   const piece = ((): ShapePiece => {
+    const semantic = renderFlowchartSemanticShape(node, fill, stroke, sw)
+    if (semantic) return semantic
     switch (shape) {
       case 'service':
         return renderRect(x, y, width, height, fill, stroke, sw, style.cornerRadius ?? 0)

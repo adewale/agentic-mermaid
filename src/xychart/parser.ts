@@ -107,20 +107,24 @@ export function parseXYChart(lines: string[]): XYChart {
 
     const barMatch = line.match(/^bar(?:\s+(.+?))?\s+\[([^\]]+)\]\s*$/)
     if (barMatch) {
+      const points = parseNumericPoints(barMatch[2]!)
       series.push({
         type: 'bar',
         label: parseOptionalSeriesLabel(barMatch[1]),
-        data: parseNumericArray(barMatch[2]!),
+        data: points.values,
+        // Upstream accepts labels on bars but intentionally does not render them.
       })
       continue
     }
 
     const lineMatch = line.match(/^line(?:\s+(.+?))?\s+\[([^\]]+)\]\s*$/)
     if (lineMatch) {
+      const points = parseNumericPoints(lineMatch[2]!)
       series.push({
         type: 'line',
         label: parseOptionalSeriesLabel(lineMatch[1]),
-        data: parseNumericArray(lineMatch[2]!),
+        data: points.values,
+        ...(points.labels.some(label => label !== undefined) ? { pointLabels: points.labels } : {}),
       })
       continue
     }
@@ -173,8 +177,26 @@ export function applyXYChartFrontmatterConfig(
   }
 }
 
+// splitCommaList removes the quote delimiters while preserving their content.
+const LABELED_POINT_RE = /^([+-]?(?:\d+(?:\.\d+)?|\.\d+))(?:\s+(.+))?$/
+
+/** Full recognition prevents `parseFloat('25 typo')` from silently accepting a prefix. */
+function parseNumericPoints(str: string): { values: number[]; labels: Array<string | undefined> } {
+  const values: number[] = []
+  const labels: Array<string | undefined> = []
+  for (const token of splitCommaList(str)) {
+    const match = token.trim().match(LABELED_POINT_RE)
+    if (!match) throw new Error(`Invalid XYChart point: "${token.trim()}"`)
+    const value = Number(match[1])
+    if (!Number.isFinite(value)) throw new Error(`XYChart point must be finite: "${token.trim()}"`)
+    values.push(value)
+    labels.push(match[2]?.trim().replace(/\\(["\\])/g, '$1'))
+  }
+  return { values, labels }
+}
+
 function parseNumericArray(str: string): number[] {
-  return splitCommaList(str).map(s => parseFloat(s))
+  return parseNumericPoints(str).values
 }
 
 const NUMBER_PATTERN = String.raw`[+-]?(?:\d+(?:\.\d+)?|\.\d+)`

@@ -4,6 +4,9 @@ import { canvasToString, drawText, increaseRoleCanvasSize, increaseSize, mkCanva
 import { visualWidth } from './width.ts'
 import { wrapText } from './wrap.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
+import { colorizeText } from './ansi.ts'
+import { getSeriesColor } from '../xychart/colors.ts'
+import { safeCssColor } from '../shared/css-color.ts'
 
 export function renderGitGraphAscii(
   diagram: GitGraphDiagram,
@@ -11,6 +14,7 @@ export function renderGitGraphAscii(
   colorMode: ColorMode,
   theme: AsciiTheme,
   targetWidth?: number,
+  themeVariables?: Record<string, unknown>,
 ): string {
   const branches = [...diagram.branches].sort((a, b) => a.order - b.order || a.sequence - b.sequence || compareCodePointStrings(a.name, b.name))
   const lane = new Map(branches.map((branch, index) => [branch.name, index]))
@@ -82,5 +86,15 @@ export function renderGitGraphAscii(
       for (let col = x + visualWidth(glyph) + 1; col < x + visualWidth(glyph) + 1 + visualWidth(label); col++) setRole(roles, col, y + index, 'text')
     })
   }
-  return canvasToString(canvas, { roleCanvas: roles, colorMode, theme }).split('\n').map(line => line.trimEnd()).join('\n').trimEnd()
+  const plain = canvasToString(canvas, { roleCanvas: roles, colorMode: 'none', theme }).split('\n').map(line => line.trimEnd())
+  if (colorMode !== 'none') {
+    branches.forEach((branch, index) => {
+      const row = yFor(branch.name)
+      const override = safeCssColor(themeVariables?.[`git${index % 8}`])
+      const accent = /^#[0-9a-f]{6}$/i.test(theme.accent ?? '') ? theme.accent! : '#3b82f6'
+      const bg = /^#[0-9a-f]{6}$/i.test(theme.bg ?? '') ? theme.bg! : '#ffffff'
+      plain[row] = colorizeText(plain[row] ?? '', override ?? getSeriesColor(index, accent, bg), colorMode)
+    })
+  }
+  return plain.join('\n').trimEnd()
 }

@@ -37,13 +37,16 @@ import type {
 } from './types.ts'
 import { ok, err, DEFAULT_LABEL_CHAR_CAP } from './types.ts'
 import { labelOverflowWarning } from './label-metrics.ts'
-import { expandInlineNamespaceStatement, parseClassDeclaration, parseClassReference, parseNamespaceHeader } from '../class/parser.ts'
+import { expandInlineNamespaceStatement, parseClassDeclaration, parseClassInteraction, parseClassReference, parseClassRelationship, parseNamespaceHeader } from '../class/parser.ts'
 import { parseMutableStyleProps, parseStyleProps, serializeStyleProps } from '../shared/style-props.ts'
 
 // ---- Parser ---------------------------------------------------------------
 
-const RELATION_TOKENS: Array<{ pat: RegExp; kind: ClassRelationKind }> = [
-  // Order matters: more specific (4+ char) before shorter ones.
+const RELATION_TOKENS: Array<{ pat: RegExp; kind: ClassRelationKind; markerAt?: 'from' | 'to' | 'both'; fromKind?: ClassRelationKind; toKind?: ClassRelationKind }> = [
+  // Order matters: two-ended/lollipop forms before their one-ended prefixes.
+  { pat: /<\|--\|>/, kind: 'inheritance', markerAt: 'both', fromKind: 'inheritance', toKind: 'inheritance' },
+  { pat: /\(\)--/, kind: 'lollipop', markerAt: 'from' },
+  { pat: /--\(\)/, kind: 'lollipop', markerAt: 'to' },
   { pat: /<\|--/, kind: 'inheritance' },
   { pat: /--\|>/, kind: 'inheritance' },
   { pat: /\.\.\|>/, kind: 'realization' },
@@ -64,7 +67,21 @@ const NOTE_RE = /^note(?:\s+for\s+(\S+))?\s+"([^"]+)"\s*$/
 const TITLE_RE = /^title\s+(.+)$/i
 
 function parseRelation(line: string): (ClassRelation & { fromGeneric?: string; toGeneric?: string }) | null {
-  for (const { pat, kind } of RELATION_TOKENS) {
+  const shared = parseClassRelationship(line)
+  if (shared) {
+    return {
+      from: shared.from, to: shared.to, kind: shared.type as ClassRelationKind,
+      ...(shared.label ? { label: shared.label } : {}),
+      ...(shared.fromCardinality ? { fromCardinality: shared.fromCardinality } : {}),
+      ...(shared.toCardinality ? { toCardinality: shared.toCardinality } : {}),
+      markerAt: shared.markerAt,
+      ...(shared.fromType ? { fromKind: shared.fromType as ClassRelationKind } : {}),
+      ...(shared.toType ? { toKind: shared.toType as ClassRelationKind } : {}),
+      ...(shared.fromGeneric ? { fromGeneric: shared.fromGeneric } : {}),
+      ...(shared.toGeneric ? { toGeneric: shared.toGeneric } : {}),
+    }
+  }
+  for (const { pat, kind, markerAt, fromKind, toKind } of RELATION_TOKENS) {
     const m = line.match(new RegExp(`^(\\S+?)(?:\\s+"([^"]+)")?\\s*${pat.source}\\s*(?:"([^"]+)"\\s+)?(\\S+?)(?:\\s*:\\s*(.+))?$`))
     if (!m) continue
     const fromRef = parseClassReference(m[1]!)
@@ -77,6 +94,7 @@ function parseRelation(line: string): (ClassRelation & { fromGeneric?: string; t
     const label = m[5]?.trim()
     return {
       from, to, kind, label, fromCardinality, toCardinality,
+      ...(markerAt ? { markerAt } : {}), ...(fromKind ? { fromKind } : {}), ...(toKind ? { toKind } : {}),
       ...(fromRef.generic ? { fromGeneric: fromRef.generic } : {}),
       ...(toRef.generic ? { toGeneric: toRef.generic } : {}),
     }
@@ -183,6 +201,14 @@ export function parseClassBody(lines: string[]): ClassBody | null {
       continue
     }
 
+    const interaction = parseClassInteraction(raw)
+    if (interaction) {
+      const node = upsert(interaction.id, undefined, interaction.generic)
+      node.href = interaction.href
+      claimClass(node)
+      continue
+    }
+
     // Class declaration (with or without open brace)
     const declaration = parseClassDeclaration(raw)
     if (declaration) {
@@ -251,6 +277,24 @@ const ARROW_FOR: Record<ClassRelationKind, string> = {
   realization: '..|>',
   'link-solid': '--',
   'link-dashed': '..',
+  lollipop: '()--',
+}
+
+function arrowForRelation(relation: ClassRelation): string {
+  if (relation.kind === 'lollipop') return relation.markerAt === 'to' ? '--()' : '()--'
+  if (relation.markerAt === 'both') {
+    const fromKind = relation.fromKind ?? relation.kind
+    const toKind = relation.toKind ?? relation.kind
+    const endpoint = (kind: ClassRelationKind, left: boolean): string => {
+      if (kind === 'inheritance' || kind === 'realization') return left ? '<|' : '|>'
+      if (kind === 'composition') return '*'
+      if (kind === 'aggregation') return 'o'
+      return left ? '<' : '>'
+    }
+    const dashed = fromKind === 'dependency' || fromKind === 'realization' || toKind === 'dependency' || toKind === 'realization'
+    return `${endpoint(fromKind, true)}${dashed ? '..' : '--'}${endpoint(toKind, false)}`
+  }
+  return ARROW_FOR[relation.kind]
 }
 
 function quoteIfNeeded(id: string): string {
@@ -298,7 +342,7 @@ export function renderClass(body: ClassBody): string {
     pushClassLines(lines, c, '  ')
   }
   for (const r of body.relations) {
-    const arrow = ARROW_FOR[r.kind]
+    const arrow = arrowForRelation(r)
     const left = r.fromCardinality ? `${quoteIfNeeded(r.from)} "${r.fromCardinality}"` : quoteIfNeeded(r.from)
     const right = r.toCardinality ? `"${r.toCardinality}" ${quoteIfNeeded(r.to)}` : quoteIfNeeded(r.to)
     const label = r.label ? ` : ${r.label}` : ''
@@ -308,6 +352,7 @@ export function renderClass(body: ClassBody): string {
   for (const c of body.classes) {
     if (c.className) lines.push(`  class ${quoteIfNeeded(c.id)} ${c.className}`)
     if (c.style) lines.push(`  style ${quoteIfNeeded(c.id)} ${serializeStyleProps(c.style)}`)
+    if (c.href) lines.push(`  click ${quoteIfNeeded(c.id)} href "${c.href.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`)
   }
   return lines.join('\n') + '\n'
 }
@@ -322,6 +367,7 @@ function cloneClass(body: ClassBody): ClassBody {
       id: c.id, label: c.label, generic: c.generic, members: [...c.members], namespace: c.namespace,
       ...(c.className ? { className: c.className } : {}),
       ...(c.style ? { style: { ...c.style } } : {}),
+      ...(c.href ? { href: c.href } : {}),
     })),
     relations: body.relations.map(r => ({ ...r })),
     notes: body.notes.map(n => ({ ...n })),

@@ -554,7 +554,7 @@ function renderIconGlyph(
         cx,
         cy,
         Math.max(10, size * 0.56),
-        `class="architecture-icon-glyph" text-anchor="middle" font-size="${Math.max(10, size * 0.56)}" font-weight="700"`,
+        `class="architecture-icon-glyph architecture-icon-fallback" data-fallback="true" text-anchor="middle" font-size="${Math.max(10, size * 0.56)}" font-weight="700"`,
       )
     }
   }

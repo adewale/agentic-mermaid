@@ -1629,6 +1629,10 @@ function extractNodesAndGroups(
           height,
           inlineStyle,
           classNames,
+          ...(mNode.icon ? { icon: mNode.icon } : {}),
+          ...(mNode.image ? { image: mNode.image } : {}),
+          ...(mNode.iconForm ? { iconForm: mNode.iconForm } : {}),
+          ...(mNode.href ? { href: mNode.href } : {}),
         })
       }
 

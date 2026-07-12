@@ -36,6 +36,8 @@ export interface PieVisualConfig {
   donutHole: number
   /** Legend placement relative to the circle. Upstream default 'right'. */
   legendPosition: PieLegendPosition
+  /** Static slice label to emphasize, or `hover` for interactive-only emphasis. */
+  highlightSlice?: string
   /** pie1..pie12 fills, index = source order; unset entries use the derived palette. */
   paletteOverrides: Array<string | undefined>
   strokeColor?: string
@@ -45,6 +47,10 @@ export interface PieVisualConfig {
   opacity?: number
   sectionTextSize?: number
   sectionTextColor?: string
+  titleTextSize?: number
+  titleTextColor?: string
+  legendTextSize?: number
+  legendTextColor?: string
 }
 
 export const DEFAULT_PIE_VISUAL_CONFIG: PieVisualConfig = {
@@ -90,6 +96,9 @@ export function resolvePieVisualConfig(frontmatter: MermaidFrontmatterMap = {}):
   if (typeof legendPosition === 'string' && (LEGEND_POSITIONS as readonly string[]).includes(legendPosition)) {
     config.legendPosition = legendPosition as PieLegendPosition
   }
+  if (typeof pie.highlightSlice === 'string' && pie.highlightSlice.trim()) {
+    config.highlightSlice = pie.highlightSlice.trim()
+  }
 
   for (let i = 0; i < 12; i++) {
     const fill = safeCssColor(vars[`pie${i + 1}`])
@@ -112,17 +121,23 @@ export function resolvePieVisualConfig(frontmatter: MermaidFrontmatterMap = {}):
   if (sectionTextSize !== undefined) config.sectionTextSize = sectionTextSize
   const sectionTextColor = safeCssColor(vars.pieSectionTextColor)
   if (sectionTextColor !== undefined) config.sectionTextColor = sectionTextColor
+  const titleTextSize = cssSize(vars.pieTitleTextSize)
+  if (titleTextSize !== undefined) config.titleTextSize = titleTextSize
+  const titleTextColor = safeCssColor(vars.pieTitleTextColor)
+  if (titleTextColor !== undefined) config.titleTextColor = titleTextColor
+  const legendTextSize = cssSize(vars.pieLegendTextSize)
+  if (legendTextSize !== undefined) config.legendTextSize = legendTextSize
+  const legendTextColor = safeCssColor(vars.pieLegendTextColor)
+  if (legendTextColor !== undefined) config.legendTextColor = legendTextColor
 
   return config
 }
 
 /** Documented-but-unwired pie config section fields (Tier-3 INEFFECTIVE_CONFIG). */
-export const PIE_NOOP_CONFIG_FIELDS = ['highlightSlice', 'useMaxWidth', 'useWidth'] as const
+export const PIE_NOOP_CONFIG_FIELDS = ['useMaxWidth', 'useWidth'] as const
 
 /** Documented-but-unwired pie theme variables (Tier-3 INEFFECTIVE_CONFIG). */
-export const PIE_NOOP_THEME_VARIABLES = [
-  'pieLegendTextColor', 'pieLegendTextSize', 'pieTitleTextColor', 'pieTitleTextSize',
-] as const
+export const PIE_NOOP_THEME_VARIABLES = [] as const
 
 /**
  * Scan pie config sections and themeVariables maps for documented-but-unwired

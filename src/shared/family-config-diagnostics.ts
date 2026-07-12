@@ -20,6 +20,11 @@ export const JOURNEY_NOOP_CONFIG_FIELDS = [
   'bottomMarginAdj', 'rightAngles', 'activationWidth', 'textPlacement',
 ] as const
 
+export const GANTT_NOOP_CONFIG_FIELDS = [
+  'barGap', 'topPadding', 'leftPadding', 'gridLineStartPadding', 'fontSize',
+  'sectionFontSize', 'numberSectionStyles', 'todayMarker', 'weekday',
+] as const
+
 export const TIMELINE_NOOP_CONFIG_FIELDS = [
   'diagramMarginX', 'diagramMarginY', 'leftMargin', 'width', 'height', 'padding',
   'boxMargin', 'boxTextMargin', 'noteMargin', 'messageMargin', 'messageAlign',
@@ -40,7 +45,7 @@ export const FAMILY_CONFIG_SPECS: Record<DiagramKind, FamilyConfigSpec> = {
   xychart: { section: 'xyChart', keys: ['width', 'height', 'useMaxWidth', 'useWidth', 'titleFontSize', 'titlePadding', 'chartOrientation', 'plotReservedSpacePercent', 'showDataLabel', 'showTitle', 'showLegend', 'legendFontSize', 'legendPadding', 'xAxis', 'yAxis'] },
   pie: { section: 'pie', keys: ['textPosition', 'donutHole', 'legendPosition', 'highlightSlice', 'useMaxWidth', 'useWidth'], noopKeys: PIE_NOOP_CONFIG_FIELDS },
   quadrant: { section: 'quadrantChart', keys: ['chartWidth', 'chartHeight', 'titleFontSize', 'titlePadding', 'quadrantPadding', 'quadrantLabelFontSize', 'xAxisLabelFontSize', 'yAxisLabelFontSize', 'xAxisLabelPadding', 'yAxisLabelPadding', 'pointLabelFontSize', 'pointRadius', 'pointTextPadding', 'quadrantInternalBorderStrokeWidth', 'quadrantExternalBorderStrokeWidth', 'useMaxWidth', 'quadrantTextTopPadding', 'xAxisPosition', 'yAxisPosition', 'useWidth'], noopKeys: QUADRANT_NOOP_CONFIG_FIELDS },
-  gantt: { section: 'gantt', keys: ['displayMode'] },
+  gantt: { section: 'gantt', keys: ['displayMode', 'barHeight', 'topAxis', 'tickInterval', 'axisFormat', ...GANTT_NOOP_CONFIG_FIELDS], noopKeys: GANTT_NOOP_CONFIG_FIELDS },
   mindmap: { section: 'mindmap', keys: ['padding', 'maxNodeWidth'] },
   gitgraph: { section: 'gitGraph', keys: ['showBranches', 'showCommitLabel', 'mainBranchName', 'mainBranchOrder', 'parallelCommits', 'rotateCommitLabel'] },
 }
@@ -132,7 +137,11 @@ const FAMILY_VALUE_RULES: Partial<Record<DiagramKind, Record<string, ValueRule>>
     ...['titlePadding', 'quadrantPadding', 'xAxisLabelPadding', 'yAxisLabelPadding', 'pointTextPadding', 'quadrantInternalBorderStrokeWidth', 'quadrantExternalBorderStrokeWidth'].map(key => [key, nonNegative]),
     ['useMaxWidth', boolean],
   ]),
-  gantt: { displayMode: oneOfInsensitive('compact') },
+  gantt: {
+    displayMode: oneOfInsensitive('compact'), barHeight: positive, topAxis: boolean,
+    axisFormat: nonEmptyString,
+    tickInterval: rule('a positive Mermaid interval such as "1day" or "2week"', value => typeof value === 'string' && /^[1-9]\d*(?:millisecond|second|minute|hour|day|week|month)$/i.test(value.trim())),
+  },
   mindmap: { padding: nonNegative, maxNodeWidth: positive },
   gitgraph: {
     showBranches: boolean, showCommitLabel: boolean, parallelCommits: boolean, rotateCommitLabel: boolean,
@@ -158,7 +167,7 @@ export function familyConfigValueDiagnostics(kind: DiagramKind, root: unknown): 
   }
   if (kind === 'mindmap') {
     const rootRecord = root && typeof root === 'object' && !Array.isArray(root) ? root as Record<string, unknown> : undefined
-    if (rootRecord && 'layout' in rootRecord && rootRecord.layout !== 'tidy-tree') warn('layout', '"tidy-tree" for mindmap diagrams')
+    if (rootRecord && 'layout' in rootRecord && !['tidy-tree', 'cose-bilkent', 'radial'].includes(String(rootRecord.layout))) warn('layout', '"cose-bilkent", "radial", or "tidy-tree" for mindmap diagrams')
   }
   if (!config) return diagnostics
   for (const [key, valueRule] of Object.entries(FAMILY_VALUE_RULES[kind] ?? {})) {
@@ -182,6 +191,18 @@ export function familyConfigValueDiagnostics(kind: DiagramKind, root: unknown): 
 /** Backward-compatible name retained for callers outside this module. */
 export const mindmapGitGraphValueDiagnostics = familyConfigValueDiagnostics
 
+export function familyNoopConfigDiagnostics(kind: DiagramKind, root: unknown): ConfigDiagnostic[] {
+  const spec = FAMILY_CONFIG_SPECS[kind]
+  const config = section(root, spec.section)
+  if (!config) return []
+  const noop = new Set(spec.noopKeys ?? [])
+  return Object.keys(config).filter(key => noop.has(key)).sort().map(key => ({
+    code: 'INEFFECTIVE_CONFIG' as const,
+    field: `${spec.section}.${key}`,
+    message: `${kind} config field "${key}" is accepted for Mermaid compatibility but has no effect on this renderer.`,
+  }))
+}
+
 /** Diagnostics for the explicit RenderOptions.mermaidConfig entry path. */
 export function explicitFamilyConfigDiagnostics(kind: DiagramKind, root: unknown): ConfigDiagnostic[] {
   const spec = FAMILY_CONFIG_SPECS[kind]
@@ -191,17 +212,9 @@ export function explicitFamilyConfigDiagnostics(kind: DiagramKind, root: unknown
   if (!config) return [...unknown, ...valueDiagnostics]
   if (kind === 'state') return stateConfigDiagnostics([config], true)
 
-  const diagnostics = [
+  return [
     ...unknown,
     ...valueDiagnostics,
+    ...familyNoopConfigDiagnostics(kind, root),
   ]
-  const noop = new Set(spec.noopKeys ?? [])
-  for (const key of Object.keys(config).filter(key => noop.has(key)).sort()) {
-    diagnostics.push({
-      code: 'INEFFECTIVE_CONFIG',
-      field: `${spec.section}.${key}`,
-      message: `${kind} config field "${key}" is accepted for Mermaid compatibility but has no effect on this renderer.`,
-    })
-  }
-  return diagnostics
 }

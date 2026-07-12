@@ -46,7 +46,7 @@ import { layoutMindmap } from './mindmap/layout.ts'
 import { renderMindmapSvg, lowerMindmapScene } from './mindmap/renderer.ts'
 import { parseGitGraph } from './gitgraph/parser.ts'
 import { layoutGitGraph } from './gitgraph/layout.ts'
-import { renderGitGraphSvg, lowerGitGraphScene } from './gitgraph/renderer.ts'
+import { renderGitGraphSvg, lowerGitGraphScene, resolveGitGraphCommitLabelFontSize } from './gitgraph/renderer.ts'
 import { parseArchitectureDiagram } from './architecture/parser.ts'
 import { layoutArchitectureDiagram } from './architecture/layout.ts'
 import { renderArchitectureSvg, lowerArchitectureScene } from './architecture/renderer.ts'
@@ -314,7 +314,9 @@ registerRenderHooks('gantt', {
 registerRenderHooks('mindmap', {
   layout: ctx => {
     const config = resolveMindmapConfig(ctx.source.config.mindmap)
-    return layoutResult(layoutMindmap(parseMindmap(ctx.source.body), config.options), {
+    const authoredLayout = ctx.source.config.layout
+    const layout = authoredLayout === 'tidy-tree' ? 'tidy-tree' : 'radial'
+    return layoutResult(layoutMindmap(parseMindmap(ctx.source.body), { ...config.options, layout }), {
       injectAccessibility: false,
     })
   },
@@ -331,7 +333,10 @@ registerRenderHooks('gitgraph', {
       mainBranchOrder: config.parse.mainBranchOrder,
       title: typeof ctx.source.frontmatter.title === 'string' ? ctx.source.frontmatter.title : undefined,
     })
-    return layoutResult(layoutGitGraph(diagram, config.layout), {
+    return layoutResult(layoutGitGraph(diagram, {
+      ...config.layout,
+      commitLabelFontSize: resolveGitGraphCommitLabelFontSize(ctx.source.config.themeVariables),
+    }), {
       injectAccessibility: false,
     })
   },
@@ -341,7 +346,7 @@ registerRenderHooks('gitgraph', {
     mainBranchName: ctx.source.config.gitGraph?.mainBranchName,
     mainBranchOrder: ctx.source.config.gitGraph?.mainBranchOrder,
     title: typeof ctx.source.frontmatter.title === 'string' ? ctx.source.frontmatter.title : undefined,
-  }), ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth),
+  }), ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth, ctx.source.config.themeVariables),
 })
 
 function configDiagnostic(field: string, expected: string): ConfigDiagnostic {

@@ -18,7 +18,9 @@
   }
 </style>
 <style>
-  .pie-slice { stroke: #FFFFFF; stroke-width: 1.5; }
+  .pie-slice { stroke: #FFFFFF; stroke-width: 1.5; transform-box: fill-box; transform-origin: center; }
+  .pie-slice.highlighted { transform: scale(1.05); opacity: 1; }
+  .pie-slice.highlighted-on-hover:hover { transform: scale(1.05); opacity: 1; }
   .pie-legend-swatch { stroke: #d4d4d4; stroke-width: 1; }
   .pie-legend-text { fill: #27272A; }
   .pie-title { fill: #27272A; }
