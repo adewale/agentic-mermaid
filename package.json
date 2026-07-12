@@ -85,6 +85,7 @@
     "assets/hero.png",
     "docs/",
     "eval/mindmap-gitgraph-content-corpus/",
+    "eval/mermaid-doc-showcase/",
     "examples/styles/",
     "skills/",
     "skill-evals/",
@@ -160,6 +161,8 @@
     "contact:sheet": "bun run eval/visual-rubric/contact-sheet.ts",
     "gallery:mindmap-gitgraph": "bun run scripts/pr-assets/mindmap-gitgraph-content-gallery.ts",
     "gallery:mindmap-gitgraph:check": "bun run scripts/pr-assets/mindmap-gitgraph-content-gallery.ts --check",
+    "gallery:mermaid-docs": "bun run scripts/pr-assets/mermaid-doc-showcase-gallery.ts",
+    "gallery:mermaid-docs:check": "bun run scripts/pr-assets/mermaid-doc-showcase-gallery.ts --check",
     "track": "bun run eval/heuristic-tracker/run.ts",
     "audit:ugly": "bun run eval/ugly-detector/audit.ts"
   },

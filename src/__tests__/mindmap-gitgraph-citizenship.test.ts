@@ -288,6 +288,29 @@ describe('GitGraph full-family citizenship', () => {
     if (parsed.ok) expect(layoutMermaid(parsed.value, { regions: true }).regions!.filter(region => region.kind === 'node')).toHaveLength(6)
   })
 
+  test('branch and tag text remains WCAG AA against its badge in every built-in palette', () => {
+    for (const [name, theme] of Object.entries(THEMES)) {
+      const svg = renderMermaidSVG(GITGRAPH, { ...theme, embedFontImport: false })
+      const pairs = [
+        ...[...svg.matchAll(/<g class="git-branch"[^>]*>([\s\S]*?)<\/g>/g)].map(match => ({
+          background: match[1]!.match(/<rect class="git-branch-label-background"[^>]*\sfill="([^"]+)"/)?.[1],
+          text: match[1]!.match(/<text class="git-branch-label"[^>]*\sfill="([^"]+)"/)?.[1],
+        })),
+        ...[...svg.matchAll(/<g class="git-commit[^>]*>([\s\S]*?)<\/g>/g)].flatMap(match => {
+          const backgrounds = [...match[1]!.matchAll(/<rect class="git-tag-background"[^>]*\sfill="([^"]+)"/g)].map(item => item[1]!)
+          const texts = [...match[1]!.matchAll(/<text class="git-tag"[^>]*\sfill="([^"]+)"/g)].map(item => item[1]!)
+          return texts.map((text, index) => ({ text, background: backgrounds[index] }))
+        }),
+      ]
+      expect(pairs.length, `${name} branch/tag pairs`).toBeGreaterThan(0)
+      for (const [index, pair] of pairs.entries()) {
+        expect(pair.text, `${name} pair ${index} text`).toBeDefined()
+        expect(pair.background, `${name} pair ${index} background`).toBeDefined()
+        expect(contrastRatio(pair.text!, pair.background!), `${name} pair ${index} contrast`).toBeGreaterThanOrEqual(4.5)
+      }
+    }
+  })
+
   test('wires GitGraph display/replay config and emits diagnostics for invalid values', () => {
     const source = 'gitGraph\n  commit id:"base"\n  branch feature\n  commit id:"work"'
     const hidden = renderMermaidSVG(source, { embedFontImport: false, mermaidConfig: { gitGraph: { showBranches: false, showCommitLabel: false } } })

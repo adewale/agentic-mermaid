@@ -86,16 +86,21 @@ for (const family of ['mindmap', 'gitgraph'] as const) {
   const subtitle = family === 'mindmap'
     ? 'Official-doc shapes plus broad, deep, multilingual, organizational, and explicit tidy-tree content.'
     : 'Gitflow, CI/CD, long labels, many lanes, cherry-picks, Unicode, orientations, and transit-domain transfer.'
-  const page = await browser.newPage({ viewport: { width: 1840, height: 2400 }, deviceScaleFactor: 1 })
+  // Real-content evidence must remain legible at review scale. A two-column
+  // thumbnail grid made the 40-node Mindmap and 12-lane GitGraph look worse
+  // than their actual geometry and hid label defects from reviewers.
+  const columns = 1
+  const visualHeight = family === 'gitgraph' ? 950 : 900
+  const page = await browser.newPage({ viewport: { width: 1840, height: 7600 }, deviceScaleFactor: 1 })
   await page.setContent(`<!doctype html><meta charset="utf-8"><style>
     *{box-sizing:border-box}body{margin:0;background:#f4f4f5;color:#18181b;font-family:Arial,sans-serif}
     main{width:1800px;margin:20px;padding:26px;background:white;border:1px solid #d4d4d8;border-radius:18px}
     h1{margin:0 0 6px;font-size:30px}.subtitle{margin:0 0 20px;color:#52525b;font-size:15px}
-    .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-    article{border:1px solid #d4d4d8;border-radius:12px;overflow:hidden;background:#fff;display:grid;grid-template-rows:auto 300px auto}
+    .grid{display:grid;grid-template-columns:repeat(${columns},minmax(0,1fr));gap:16px}
+    article{border:1px solid #d4d4d8;border-radius:12px;overflow:hidden;background:#fff;display:grid;grid-template-rows:auto ${visualHeight}px auto}
     header{padding:14px 16px 8px;border-bottom:1px solid #e4e4e7}h2{margin:0 0 5px;text-transform:capitalize;font-size:17px}
     p{margin:0;color:#52525b;font-size:12px;line-height:1.35}.visual{display:flex;align-items:center;justify-content:center;padding:10px;overflow:hidden}
-    .visual svg{display:block;max-width:100%!important;width:100%!important;max-height:280px!important;height:auto!important}
+    .visual svg{display:block;max-width:100%!important;width:100%!important;max-height:${visualHeight - 20}px!important;height:auto!important}
     footer{border-top:1px solid #e4e4e7;padding:8px 14px;color:#3f3f46;background:#fafafa;font:11px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
   </style><main><h1>${title}</h1><p class="subtitle">${subtitle} Same-source public rendering; semantic range, not pixel equivalence.</p><div class="grid">${cards}</div></main>`)
   await page.locator('main').screenshot({ path: join(OUT, `${family}-content-gallery.png`) })

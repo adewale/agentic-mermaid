@@ -17,8 +17,8 @@ const FONT_WEIGHT = 500
 export function layoutMindmap(diagram: MindmapDiagram, options: MindmapLayoutOptions = {}): PositionedMindmapDiagram {
   const padding = finite(options.padding, 32)
   const maxNodeWidth = finite(options.maxNodeWidth, 180)
-  const nodeGap = finite(options.nodeGap, 22)
-  const layerGap = finite(options.layerGap, 80)
+  const nodeGap = finite(options.nodeGap, 40)
+  const layerGap = finite(options.layerGap, 20)
   const entries = measureNodes(diagram.root, maxNodeWidth)
 
   return options.layout === 'tidy-tree'
@@ -92,15 +92,6 @@ function layoutBilateral(
   layerGap: number,
 ): PositionedMindmapDiagram {
   const root = entries.get(diagram.root.id)!
-  const widths = widthsByDepth(entries)
-  const maxDepth = Math.max(0, ...entries.values().map(node => node.depth))
-  const extentToDepth = (depth: number): number => {
-    let total = 0
-    for (let d = 1; d <= depth; d++) total += (widths.get(d) ?? 0) + layerGap
-    return total
-  }
-  const sideExtent = extentToDepth(maxDepth)
-  root.x = padding + sideExtent
 
   const subtreeSpan = (node: MindmapNode): number => {
     const own = entries.get(node.id)!.height
@@ -119,15 +110,62 @@ function layoutBilateral(
     if (chooseLeft) { left.push(child); leftWeight += weight } else { right.push(child); rightWeight += weight }
   })
 
+  const assignSide = (node: MindmapNode, side: 'left' | 'right'): void => {
+    entries.get(node.id)!.side = side
+    node.children.forEach(child => assignSide(child, side))
+  }
+  left.forEach(node => assignSide(node, 'left'))
+  right.forEach(node => assignSide(node, 'right'))
+
+  // The former global width-per-depth table charged both sides for the widest
+  // label on either side and then added a full 80px at every layer. A single
+  // long right-hand label therefore created empty columns on the left and a
+  // very wide, very short diagram. Size each side independently and right-align
+  // left nodes / left-align right nodes within compact columns.
+  const widthsFor = (side: 'left' | 'right'): Map<number, number> => {
+    const widths = new Map<number, number>()
+    for (const node of entries.values()) {
+      if (node.side !== side) continue
+      widths.set(node.depth, Math.max(widths.get(node.depth) ?? 0, node.width))
+    }
+    return widths
+  }
+  const leftWidths = widthsFor('left')
+  const rightWidths = widthsFor('right')
+  const sideExtent = (widths: Map<number, number>): number =>
+    [...widths.values()].reduce((sum, width) => sum + width + layerGap, 0)
+  root.x = padding + sideExtent(leftWidths)
+
+  const xByDepth = (side: 'left' | 'right', widths: Map<number, number>): Map<number, number> => {
+    const result = new Map<number, number>()
+    let cursor = side === 'left' ? root.x : root.x + root.width
+    const maxDepth = Math.max(0, ...widths.keys())
+    for (let depth = 1; depth <= maxDepth; depth++) {
+      const width = widths.get(depth) ?? 0
+      if (side === 'left') {
+        cursor -= layerGap + width
+        result.set(depth, cursor)
+      } else {
+        cursor += layerGap
+        result.set(depth, cursor)
+        cursor += width
+      }
+    }
+    return result
+  }
+  const leftX = xByDepth('left', leftWidths)
+  const rightX = xByDepth('right', rightWidths)
+
   const placeSide = (roots: MindmapNode[], side: 'left' | 'right'): { min: number; max: number } => {
     let cursor = padding
+    const widths = side === 'left' ? leftWidths : rightWidths
+    const positions = side === 'left' ? leftX : rightX
     const place = (node: MindmapNode): number => {
       const positioned = entries.get(node.id)!
-      positioned.side = side
-      const offset = extentToDepth(positioned.depth - 1)
-      positioned.x = side === 'right'
-        ? root.x + root.width + layerGap + offset
-        : root.x - layerGap - offset - positioned.width
+      const columnX = positions.get(positioned.depth)!
+      positioned.x = side === 'left'
+        ? columnX + (widths.get(positioned.depth)! - positioned.width)
+        : columnX
       if (node.children.length === 0) {
         positioned.y = cursor
         cursor += positioned.height + nodeGap

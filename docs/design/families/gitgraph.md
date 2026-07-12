@@ -46,7 +46,7 @@ header: "gitGraph"`; no PNG is produced.
 
 ## Rendering and layout
 
-`src/gitgraph/layout.ts` gives each branch a stable lane, places commits in replay order (or deterministic generation levels under `parallelCommits`), and materializes every first-parent, merge-parent, and cherry-pick relation. `src/gitgraph/renderer.ts` lowers branch rails, relation polylines, commit types, tags, and labels through Scene IR. Commit groups expose source-facing `data-id`; relations expose typed `data-from`/`data-to`. `src/ascii/gitgraph.ts` draws spatial branch rails and merge topology before painting commit marks so routes cannot erase identities.
+`src/gitgraph/layout.ts` gives each branch a stable lane, places commits in replay order (or deterministic generation levels under `parallelCommits`), expands chronological slots from measured label/tag bounds, and materializes every first-parent, merge-parent, and cherry-pick relation. `src/gitgraph/renderer.ts` lowers colored branch rails, branch-tinted commit marks, relation polylines, commit types, contrast backplates, tag badges, and labels through Scene IR. Commit groups expose source-facing `data-id`; relations expose typed `data-from`/`data-to`. `src/ascii/gitgraph.ts` draws spatial branch rails and merge topology before painting commit marks so routes cannot erase identities.
 
 Wired `gitGraph` config fields are `showBranches`, `showCommitLabel`, `mainBranchName`, `mainBranchOrder`, `parallelCommits`, and `rotateCommitLabel`. `mainBranchOrder` and authored `branch ... order:` values must be positive/zero as documented (`mainBranchOrder` may be zero; authored branch order must be positive). Unknown fields and invalid documented values produce named `INEFFECTIVE_CONFIG` diagnostics and have no effect. Frontmatter `title` is rendered as visible title text, independently of `accTitle`/`accDescr`.
 
@@ -57,6 +57,8 @@ The popularity-weighted follow-up corpus adds seven scenarios derived from Merma
 ![GitGraph real-content gallery](./gitgraph-content-gallery.png)
 
 Sources, fork weights, structural expectations, and fixtures live in [`eval/mindmap-gitgraph-content-corpus`](../../../eval/mindmap-gitgraph-content-corpus/). `mindmap-gitgraph-content-corpus.test.ts` proves replay counts, branch/parent geometry, custom-main wrapper config, deterministic safe SVG, truthful public layout, and hard-width terminal output.
+
+The historical/domain research behind these choices is recorded in [`gitgraph-research.md`](./gitgraph-research.md): commit DAG semantics and `git log --graph` are the foundation; metro maps are an official Mermaid analogy, not an origin claim.
 
 ## Typed editing
 

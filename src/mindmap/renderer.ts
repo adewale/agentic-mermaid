@@ -4,11 +4,12 @@ import type { SceneDoc, SceneNode, Geometry } from '../scene/ir.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs, resolveColors } from '../theme.ts'
-import { ensureContrast, isHexColor } from '../shared/color-math.ts'
+import { ensureContrast, isHexColor, mixHex } from '../shared/color-math.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
 import { semanticChildId, semanticRelationId } from '../scene/identity.ts'
 import { escapeAttr, escapeXml, renderMultilineText } from '../multiline-utils.ts'
 import { resolveMindmapIcon } from './icons.ts'
+import { getSeriesColor } from '../xychart/colors.ts'
 
 const FONT_SIZE = 13
 
@@ -35,6 +36,13 @@ export function lowerMindmapScene(ctx: RenderContext<PositionedMindmapDiagram>):
   ]
   const shadow = buildShadowDefs(colors)
   if (shadow) head.push(`<defs>${shadow}</defs>`)
+  const branchByNode = mindmapBranchIndices(diagram)
+  const branchPaint = (nodeId: string): string => {
+    const index = branchByNode.get(nodeId) ?? 0
+    const accent = isHexColor(colors.accent ?? '') ? colors.accent! : '#3b82f6'
+    const bg = isHexColor(colors.bg) ? colors.bg : '#ffffff'
+    return getSeriesColor(index, accent, bg)
+  }
   const parts: SceneNode[] = [marks.prelude({
     id: 'prelude', width: diagram.width, height: diagram.height, colors,
     transparent, font, hasMonoFont: false,
@@ -44,29 +52,38 @@ export function lowerMindmapScene(ctx: RenderContext<PositionedMindmapDiagram>):
   if (diagram.accessibilityDescription) parts.push(marks.raw({ id: 'acc-desc', role: 'chrome' }, `<desc id="${descId}">${escapeXml(diagram.accessibilityDescription)}</desc>`))
 
   for (const edge of diagram.edges) {
+    const stroke = branchPaint(edge.to)
     parts.push(marks.connector({
       id: semanticRelationId(edge.from, edge.to),
       role: 'edge',
       geometry: { kind: 'path', d: edge.d, points: edge.points },
       lineStyle: 'solid',
-      paint: { fill: 'none', stroke: 'var(--_line)', strokeWidth: '2' },
-      channels: { importance: 1 },
-    }, `<path class="mindmap-edge" data-from="${escapeAttr(edge.from)}" data-to="${escapeAttr(edge.to)}" d="${edge.d}" fill="none" stroke="var(--_line)" stroke-width="2" stroke-linecap="round" />`))
+      paint: { fill: 'none', stroke, strokeWidth: '2.5' },
+      channels: { importance: 1, category: String(branchByNode.get(edge.to) ?? 0) },
+    }, `<path class="mindmap-edge" data-from="${escapeAttr(edge.from)}" data-to="${escapeAttr(edge.to)}" data-branch-index="${branchByNode.get(edge.to) ?? 0}" d="${edge.d}" fill="none" stroke="${escapeAttr(stroke)}" stroke-width="2.5" stroke-linecap="round" />`))
   }
-  for (const node of diagram.nodes) parts.push(renderNode(node, colors))
+  for (const node of diagram.nodes) parts.push(renderNode(node, colors, branchByNode.get(node.id), branchPaint(node.id)))
   parts.push(marks.raw({ id: 'svg-close', role: 'chrome' }, '</svg>'))
   return { family: 'mindmap', width: diagram.width, height: diagram.height, colors, parts }
 }
 
-function renderNode(node: PositionedMindmapNode, colors: RenderContext<PositionedMindmapDiagram>['colors']): SceneNode {
+function renderNode(
+  node: PositionedMindmapNode,
+  colors: RenderContext<PositionedMindmapDiagram>['colors'],
+  branchIndex: number | undefined,
+  branchColor: string,
+): SceneNode {
   const concretePalette = isHexColor(colors.bg) && isHexColor(colors.fg)
     && (colors.accent === undefined || isHexColor(colors.accent))
   const rootFill = concretePalette ? resolveColors(colors).arrow : 'var(--_arrow)'
-  const fill = node.depth === 0 ? rootFill : 'var(--_node-fill)'
-  const stroke = node.depth === 0 ? rootFill : 'var(--_node-stroke)'
+  const branchFill = concretePalette
+    ? mixHex(branchColor, colors.bg, node.depth === 1 ? 30 : node.depth === 2 ? 20 : 13)
+    : 'var(--_node-fill)'
+  const fill = node.depth === 0 ? rootFill : branchFill
+  const stroke = node.depth === 0 ? rootFill : branchColor
   const textColor = node.depth === 0
     ? concretePalette ? ensureContrast(colors.bg, rootFill, 4.5, colors.fg) : 'var(--bg)'
-    : 'var(--_text)'
+    : concretePalette ? ensureContrast(colors.fg, branchFill, 4.5) : 'var(--_text)'
   const shape = nodeGeometry(node)
   const shapeSvg = geometrySvg(shape, fill, stroke)
   const children: Array<{ node: SceneNode; indent: number }> = [
@@ -101,8 +118,8 @@ function renderNode(node: PositionedMindmapNode, colors: RenderContext<Positione
   return marks.group({
     id: node.id,
     role: 'node',
-    channels: { importance: Math.max(1, 5 - node.depth) },
-    open: `<g class="mindmap-node depth-${node.depth}${customClasses}" data-id="${escapeAttr(node.id)}" data-label="${escapeAttr(node.label)}"${node.parentId ? ` data-parent-id="${escapeAttr(node.parentId)}"` : ''}>`,
+    channels: { importance: Math.max(1, 5 - node.depth), ...(branchIndex === undefined ? {} : { category: String(branchIndex) }) },
+    open: `<g class="mindmap-node depth-${node.depth}${customClasses}" data-id="${escapeAttr(node.id)}" data-label="${escapeAttr(node.label)}"${branchIndex === undefined ? '' : ` data-branch-index="${branchIndex}"`}${node.parentId ? ` data-parent-id="${escapeAttr(node.parentId)}"` : ''}>`,
     close: '</g>', children,
   })
 }
@@ -140,6 +157,19 @@ function geometrySvg(geometry: Geometry, fill: string, stroke: string): string {
   if (geometry.kind === 'ellipse') return `<ellipse cx="${round(geometry.cx)}" cy="${round(geometry.cy)}" rx="${round(geometry.rx)}" ry="${round(geometry.ry)}" ${paint} />`
   if (geometry.kind === 'polygon') return `<polygon points="${geometry.points.map(point => `${round(point.x)},${round(point.y)}`).join(' ')}" ${paint} />`
   return ''
+}
+
+function mindmapBranchIndices(diagram: PositionedMindmapDiagram): Map<string, number> {
+  const branchByNode = new Map<string, number>()
+  const root = diagram.nodes.find(node => node.depth === 0)
+  if (!root) return branchByNode
+  let next = 0
+  for (const node of [...diagram.nodes].sort((a, b) => a.depth - b.depth)) {
+    if (node.depth === 0) continue
+    if (node.parentId === root.id) branchByNode.set(node.id, next++)
+    else if (node.parentId && branchByNode.has(node.parentId)) branchByNode.set(node.id, branchByNode.get(node.parentId)!)
+  }
+  return branchByNode
 }
 
 function round(value: number): number { return Math.round(value * 1000) / 1000 }

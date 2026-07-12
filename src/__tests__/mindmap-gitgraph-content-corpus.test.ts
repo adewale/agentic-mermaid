@@ -9,6 +9,7 @@ import type { MindmapNode, MindmapShape } from '../mindmap/types.ts'
 import { getStyle, renderMermaidASCII, renderMermaidSVG, verifyNoExternalRefs } from '../index.ts'
 import { asGitGraph, asMindmap, layoutMermaid, parseMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { visualWidth } from '../ascii/width.ts'
+import { audit as auditSvgOverlaps } from '../../eval/overlap-audit/audit.ts'
 
 const CORPUS = join(import.meta.dir, '..', '..', 'eval', 'mindmap-gitgraph-content-corpus')
 
@@ -235,6 +236,7 @@ describe('Mindmap/GitGraph popularity-weighted real-content corpus', () => {
       expect(svg).toContain('<svg')
       expect(renderMermaidSVG(source, { embedFontImport: false })).toBe(svg)
       expect(verifyNoExternalRefs(svg)).toEqual({ ok: true, refs: [] })
+      expect(auditSvgOverlaps(svg), `${entry.id}: rendered overlap audit`).toEqual([])
       const svgText = plainSvgText(svg)
       for (const sentinel of entry.expect.svgText ?? entry.expect.labels ?? []) {
         expect(svgText, `${entry.id}: SVG text ${sentinel}`).toContain(sentinel)

@@ -10,6 +10,10 @@ date; do not delete old ones — supersede them in place.
 
 ## 2026-07 — closing Mermaid 11.16 fidelity gaps (#149)
 
+**A zero-overlap claim is only as strong as the transforms the auditor understands.** GitGraph's hardest labels were rotated 45°, while the universal overlap auditor deliberately skipped arbitrary angles; its green result therefore said nothing about the visible collisions. Rule: audit final transformed corners for every emitted transform, add a discriminating rotated-label probe, and run the real-content corpus through the upgraded oracle before tuning spacing.
+
+**Evidence layout can manufacture ugliness.** Squeezing a twelve-lane history into a two-column 300px card made readable source geometry illegible, while Mindmap's shared max-width columns charged both sides for one long label and created empty horizontal bands. Rule: measure both renderer geometry and presentation scale; size bilateral columns independently, pack from authored text bounds, and never use a thumbnail grid as the sole readability proof.
+
 **A new family is not compatible with Style + Palette until composed rendering is tested.** Crisp family tests can stay green while a rough/hybrid look, palette CSS variables, strict security, or font metrics fail on the styled backend. Rule: enroll every family—and representative broad, deep, Unicode, long-label, and many-lane content—in deterministic look+palette stacks; assert palette precedence, finite geometry, semantic text, and reference safety rather than accepting a non-empty SVG.
 
 **A PR screenshot is current only when its generator and URL are current.** An image can remain visually unchanged after source work and still be weak evidence if nobody reran its generator or if the PR points at an older head. Rule: regenerate every described artifact, fail on byte/receipt drift, bind dependency-complete receipts where practical, and update PR image URLs to the resulting immutable head.

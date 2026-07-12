@@ -1192,6 +1192,18 @@ superset, and output PNGs makes staleness executable. PR image URLs then point t
 the resulting head rather than relying on mutable branch paths or historical
 screenshots whose relationship to the current implementation is implicit.
 
+A later visual review found that the generic quality system was green while the
+actual Mindmap and GitGraph evidence was still weak. Two different blind spots
+combined. Mindmap reused one maximum width per depth on both sides, so a long label
+created an empty mirror column and a 5.6:1 strip. GitGraph's 45-degree labels were
+explicitly skipped by the overlap auditor, and the evidence generator compressed a
+twelve-lane history into a two-column thumbnail. The correction attacked all three
+layers: side-specific Mindmap columns plus subtree colors, measured GitGraph text
+packing plus contrast backplates, and a one-column evidence scale. The overlap
+oracle now transforms arbitrary-angle corners and the seven real-content histories
+must produce zero final-SVG overlap findings. A green detector is meaningful only
+when its parser can see the geometry users are criticizing.
+
 ## 2026-07 — contracts at output boundaries
 
 **Cross-surface primitives only count when every writer adopts them.** The

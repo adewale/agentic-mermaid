@@ -12,9 +12,9 @@ across several surfaces; this hub points at each.
 | ER | [`er.md`](./er.md) | ordered typed/opaque segments and terminal clearance |
 | Flowchart | [`flowchart.md`](./flowchart.md) (+ [`flowchart-parser-conformance.md`](./flowchart-parser-conformance.md)) | routing in [`route-contracts.md`](../system/route-contracts.md) |
 | Gantt | [`gantt.md`](./gantt.md) (+ [`gantt-research.md`](./gantt-research.md)) | schedule resolver; citizenship worked example |
-| GitGraph | [`gitgraph.md`](./gitgraph.md) | replay semantics and deterministic identities |
+| GitGraph | [`gitgraph.md`](./gitgraph.md), [`gitgraph-research.md`](./gitgraph-research.md) | replay semantics, deterministic identities, history/use-case visual research |
 | Journey | [`journey.md`](./journey.md) (+ [`journey-migration-parity.md`](./journey-migration-parity.md), [`journey-usage-research.md`](./journey-usage-research.md)) | migration parity; classic visual mode; usage research |
-| Mindmap | [`mindmap.md`](./mindmap.md) | indentation-sensitive tree and spatial terminal output |
+| Mindmap | [`mindmap.md`](./mindmap.md) | indentation-sensitive tree, compact bilateral layout, and spatial terminal output |
 | Pie | [`pie.md`](./pie.md) | donut, labels, palette, and legend geometry |
 | Quadrant | [`quadrant.md`](./quadrant.md) | point paint and dense placement |
 | Sequence | [`sequence.md`](./sequence.md) | block/lifecycle semantics and containment |

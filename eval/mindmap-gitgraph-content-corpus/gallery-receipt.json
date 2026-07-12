@@ -64,7 +64,7 @@
     },
     {
       "path": "scripts/pr-assets/mindmap-gitgraph-content-gallery.ts",
-      "sha256": "f7d4a519d5e1062eb0e3012f3d4949d8a1b612d0e1a85da900d3cc0d58512908"
+      "sha256": "747e457db8f8075ce8b1e1e028b1431893f619623e10f8e1bdd0d173b60de652"
     },
     {
       "path": "src/__tests__/accessibility-relation-palette.test.ts",
@@ -816,7 +816,7 @@
     },
     {
       "path": "src/__tests__/label-overlap-gate.test.ts",
-      "sha256": "6adc2597c1b0352f9efc7c53a67717ec5ead11882656c98f162740ae4377e610"
+      "sha256": "c932fa2452d54080e664fee3514f6e4bbace58d422c850158592b5c1220a66ac"
     },
     {
       "path": "src/__tests__/label-placement.test.ts",
@@ -883,6 +883,10 @@
       "sha256": "a3cde4010119caaf0425153ea836f7a002a3b877b06040848a96059cec10de5a"
     },
     {
+      "path": "src/__tests__/mermaid-doc-showcase.test.ts",
+      "sha256": "839dc37c7086065fb5dec60959dbe613448bc296543a79d4594402db7875c40d"
+    },
+    {
       "path": "src/__tests__/mermaid-source.test.ts",
       "sha256": "79bc3e7b1930e0aa6ab2e003af3f494f21050eb00cdd9776d37ca4773911d1c6"
     },
@@ -900,11 +904,11 @@
     },
     {
       "path": "src/__tests__/mindmap-gitgraph-citizenship.test.ts",
-      "sha256": "f92e25e164f008018b9bd979e6973866a5d503e4f2076cbb3b1951489e0081c3"
+      "sha256": "8cbc3c5806761908b6dab771e36856e178db0718228d3e7e86f3d526fe3160b6"
     },
     {
       "path": "src/__tests__/mindmap-gitgraph-content-corpus.test.ts",
-      "sha256": "0116d6606e6e4864075af95d2e6fe4c978e80b2d8f451db53bb6d2457f2c69a4"
+      "sha256": "75b4356c083a5d600a1ed7582463b621c5971cb2b92f531c55133848068fcc22"
     },
     {
       "path": "src/__tests__/mindmap-gitgraph-doc-parity.test.ts",
@@ -1808,7 +1812,7 @@
     },
     {
       "path": "src/gitgraph/layout.ts",
-      "sha256": "bfb40cbdbd7706f2601e1de01f3f79dda54d5b989e7077308bdc330ea5bbfeb7"
+      "sha256": "10e13fa444354a950df1b00ed72b38f0229a6680389c8be3a5be02230bdc731a"
     },
     {
       "path": "src/gitgraph/parser.ts",
@@ -1816,7 +1820,7 @@
     },
     {
       "path": "src/gitgraph/renderer.ts",
-      "sha256": "3bffb5266a0cd75eb65e68bb3e70478bb9c4e5fd0d8f25a7bd3143684d410afb"
+      "sha256": "654ffddf20f8e2eb8ddfd07b4a8ef2a7442a915c56ea61476fcf0bcf6735471f"
     },
     {
       "path": "src/gitgraph/types.ts",
@@ -1928,7 +1932,7 @@
     },
     {
       "path": "src/mindmap/layout.ts",
-      "sha256": "152ca4ceeacb58dec851b330b5e86dc6553bd7aca594abb8375b81b0d6419269"
+      "sha256": "25a1ea1f9c9dd7a125524322b4bb4faa4df24f17a97331281277b63013079dd6"
     },
     {
       "path": "src/mindmap/parser.ts",
@@ -1936,7 +1940,7 @@
     },
     {
       "path": "src/mindmap/renderer.ts",
-      "sha256": "77436145c61cc3022c8d676a07417ed38bba09cbecfa05102643d75bbe777e1c"
+      "sha256": "cb431f44a2e4819e8c9c84339553f3ca22e50ea607283d7f9da3a67b3d3c10fd"
     },
     {
       "path": "src/mindmap/types.ts",
@@ -2242,11 +2246,11 @@
   "outputs": [
     {
       "path": "docs/design/families/mindmap-content-gallery.png",
-      "sha256": "9a30e1ce502df0b0c8e1b6e42d823b36ae2852ffabb80039777bed7a69396039"
+      "sha256": "45933bedf2b674446c126227991ed0c2242a41ec1a3b6300272ca2485163f43f"
     },
     {
       "path": "docs/design/families/gitgraph-content-gallery.png",
-      "sha256": "529bb05558d266c0cb13e9cb1da10882d8e34bc09189d5b8327b2a7b82646ff8"
+      "sha256": "292692d1a3c750d17790368b9e450d41d0627ba3b94aca97d67e14ead0a6850c"
     }
   ]
 }

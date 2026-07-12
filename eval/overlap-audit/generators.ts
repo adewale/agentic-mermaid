@@ -115,4 +115,25 @@ export const gen: Record<string, (i: number) => string> = {
     for (let p = 0; p < 2 + R(i, 7); p++) L.push(`  ${w(i * 3 + p)} ${p}: [0.${R(i * 5 + p, 10)}${R(i * 7 + p, 10)}, 0.${R(i * 11 + p, 10)}${R(i * 13 + p, 10)}]`)
     return L.join('\n')
   },
+  mindmap(i) {
+    const L = ['mindmap', `  root((Root ${i}))`]
+    for (let branch = 0; branch < 2 + R(i, 5); branch++) {
+      L.push(`    Branch ${branch} ${w(i + branch)}`)
+      for (let child = 0; child < 1 + R(i + branch, 3); child++) {
+        L.push(`      Item ${branch}.${child} ${w(i * 3 + branch + child)}`)
+      }
+    }
+    return L.join('\n')
+  },
+  gitgraph(i) {
+    const branches = 1 + R(i, 4)
+    const L = ['gitGraph LR:', `  commit id:"root-${i}" msg:"${w(i)}"`]
+    for (let branch = 0; branch < branches; branch++) {
+      L.push(`  branch b${branch} order:${branch + 1}`)
+      L.push(`  commit id:"b${branch}-${i}" msg:"${w(i * 3 + branch)}" tag:"v${i}.${branch}"`)
+      L.push('  checkout main')
+    }
+    L.push(`  merge b${branches - 1} id:"merge-${i}"`)
+    return L.join('\n')
+  },
 }
