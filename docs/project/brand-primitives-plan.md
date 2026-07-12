@@ -3,7 +3,7 @@
 ## Goal
 
 Discover the right primitives for corporate brands to express themselves across
-the **full family of diagrams** — all twelve families, one registration, SVG and
+the **full family of diagrams** — all fourteen families, one registration, SVG and
 PNG alike. Not "add an Apple-looking style": use real brands as probes, measure
 what the Style + Palette APIs can and cannot express, and derive the smallest
 set of composable primitives that closes the gap.
@@ -22,8 +22,8 @@ execution phases live in [`cupertino-style-plan.md`](./cupertino-style-plan.md)
 (this document is the umbrella that says *why those phases and which
 primitives*).
 
-Mocks: the full 3-brands × 12-families matrix is rendered live in the
-"Brand primitives — three brands, twelve families" artifact; the committed
+Mocks: the full 3-brands × 14-families matrix (42 renders) is rendered live in the
+"Brand primitives — three brands, fourteen families" artifact; the committed
 composite `docs/pr-assets/brand-primitives-three-brands.png` shows one source
 under all three brands. Everything regenerates from
 `bun run scripts/pr-assets/brand-primitives-probe.ts <out-dir>` — the probe
@@ -135,10 +135,14 @@ What we explicitly do **not** build: per-diagram-element styling (that was
 role styling, deliberately removed — the alphabet is per-*role*, not
 per-node), CSS/JS injection, or brand-specific spec fields.
 
-## Punted: animation and motion
+## Punted: cross-family diagram motion
 
-Animation and motion are **deliberately deferred, not forgotten**. Two of the
-three probe brands treat motion as identity: Vercel's fork made rank-by-rank
+The editor and website shell already have a motion system (`editor/js/motion.js`
+plus shared easing/duration tokens), and explicitly animated Mermaid flowchart
+edges retain their authored SVG animation. What is **deliberately deferred, not
+forgotten** is a brand-style motion vocabulary that applies across diagram
+families. Two of the three probe brands treat motion as identity: Vercel's
+fork made rank-by-rank
 SVG animation (CSS + SMIL, velocity-free, `prefers-reduced-motion`-aware) its
 signature, and the CF tokens ship easings and durations
 (`easeStandard cubic-bezier(0,0,0.2,1)`, 150/200/500ms). The apple-design
@@ -162,6 +166,11 @@ existence proof that it fits a no-runtime-JS SVG.
 - The vercel and cf-workers probes are not registered styles and add nothing
   to the registry, golden matrix, or website counts; they exist only as data
   in `scripts/pr-assets/brand-primitives-probe.ts`.
+- Mindmap and GitGraph accept the registered Style + Palette path, including
+  palette colors and the default font, but their current layout/render paths do
+  not consume `InternalStyleFace` role overrides. The 42-render matrix therefore
+  exposes a new cross-family wiring gap; it is not evidence that role-face
+  typography, spacing, and shape treatment already have fourteen-family fidelity.
 - `styleFace` is `@internal` and this plan does not promise it as public API —
   the public shape of B is the open decision (cupertino plan, Phase 5 / R5),
   now framed by the emergence rule above.

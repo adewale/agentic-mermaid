@@ -15,6 +15,7 @@ import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { Resvg } from '@resvg/resvg-js'
 import { renderMermaidSVG } from '../../src/index.ts'
+import { BUILTIN_FAMILY_METADATA } from '../../src/agent/families.ts'
 import { inlineFontVarForRaster } from '../../src/theme.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
@@ -163,6 +164,6 @@ mkdirSync(OUT_DIR, { recursive: true })
     height,
     body,
     'cupertino — one registration, every family',
-    'Six of the twelve families rendered with { style: "cupertino", shadow: true }.',
+    `Six of the ${BUILTIN_FAMILY_METADATA.length} families rendered with { style: "cupertino", shadow: true }.`,
   )
 }

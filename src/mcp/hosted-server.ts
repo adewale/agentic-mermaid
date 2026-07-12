@@ -14,7 +14,7 @@ import { configWarningsForMermaid, verifyMermaid } from '../agent/verify.ts'
 import { applyOps } from '../agent/apply.ts'
 import { MUTATION_OPS_BY_FAMILY } from '../agent/mutation-ops.ts'
 import { opSignatures, type OpFamily } from '../agent/op-schema.ts'
-import { validateStyleSpec } from '../scene/style-registry.ts'
+import { getStyle, knownStyles, styleKind, validateStyleSpec } from '../scene/style-registry.ts'
 import type { StyleInput } from '../scene/style-registry.ts'
 import { describeMermaidSource, describeMermaid } from '../agent/describe.ts'
 import { describeMermaidFacts } from '../agent/facts.ts'
@@ -76,6 +76,13 @@ const OP_MENU = Object.keys(MUTATION_OPS_BY_FAMILY)
   .map(family => `  ${family}: ${opSignatures(family as OpFamily).join(', ')}`)
   .join('\n')
 
+// Keep hosted discovery aligned with the style registry. This description is
+// the only built-in look menu available to clients that do not call execute.
+const BUILTIN_LOOK_NAMES = knownStyles().filter(name => {
+  const spec = getStyle(name)
+  return spec && styleKind(spec) === 'look'
+})
+
 export const HOSTED_TOOLS = [
   createExecuteTool({ sdkDeclaration: SDK_DECLARATION, hosted: true }),
   {
@@ -89,7 +96,7 @@ Layout is deterministic: identical input produces identical geometry.`,
         theme: { type: 'string', description: `Named theme (one of: ${Object.keys(THEMES).join(', ')}).` },
         bg: { type: 'string', description: 'Background CSS color (overrides theme).' },
         fg: { type: 'string', description: 'Foreground CSS color (overrides theme).' },
-        style: { description: 'Style: a name (hand-drawn, excalidraw, pen-and-ink, freehand, watercolor, blueprint, tufte, accessible-high-contrast, patent-drawing, status-dashboard, ops-schematic, chalkboard, risograph, architectural-plan, publication-figure, or any theme name), an inline style record, or an array stack merged left → right. A colors-only style is a theme.' },
+        style: { description: `Style: a name (one of: ${BUILTIN_LOOK_NAMES.join(', ')}; or any theme name), an inline style record, or an array stack merged left → right. A colors-only style is a theme.` },
         seed: { type: 'number', description: 'Re-rolls ink wobble of styled looks; never moves layout.' },
       },
       required: ['source'],

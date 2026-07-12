@@ -508,7 +508,7 @@
     },
     {
       "path": "src/__tests__/cli-llms-txt.test.ts",
-      "sha256": "9e88966ef71ba24d80ec24fcb6887c724f85b68ebd5c1f29b3f3a6364090a4ee"
+      "sha256": "7bcc8115fdefe41b103a24915c9f817c03017ce60e7ef1a149fb7ff52b6babbd"
     },
     {
       "path": "src/__tests__/cli-multi-input.test.ts",
@@ -788,7 +788,7 @@
     },
     {
       "path": "src/__tests__/hosted-mcp.test.ts",
-      "sha256": "22837a789c78b58b2b2386384edc09cad644195006ada4ba4e17c19d22d94a99"
+      "sha256": "727bf3dcfc39dfa1434c4f701e380fa0b813e280dc0d808927fe134c596d4216"
     },
     {
       "path": "src/__tests__/hosted-raster-budget.test.ts",
@@ -908,7 +908,7 @@
     },
     {
       "path": "src/__tests__/mermaid-doc-showcase.test.ts",
-      "sha256": "0ac969aef773d92a7efac801321bde0d3ef5ccf68b66b7955f99be6ac47eb3c1"
+      "sha256": "c7dbe3beeebe05be0c782e6520403264c87af8dd416ab5830bd888b3cca517c0"
     },
     {
       "path": "src/__tests__/mermaid-source.test.ts",
@@ -1224,7 +1224,7 @@
     },
     {
       "path": "src/__tests__/styled-output.test.ts",
-      "sha256": "862ef2d6239d851042de5c0370c2ee3694dfcf61cc0550e92660b087ab2f2059"
+      "sha256": "84298bd35ad7e33a8904374d27c75f7164e296847d4cf1377c697ec0b91428b9"
     },
     {
       "path": "src/__tests__/styles.test.ts",
@@ -1772,7 +1772,7 @@
     },
     {
       "path": "src/cli/index.ts",
-      "sha256": "a531842a788011326db87ab5cb970f3fd2d835af4d9bd8ab0f339885f6927286"
+      "sha256": "e28298d3f9e2cac6fed1848728dff82266237548424d786185912f901cc2d88a"
     },
     {
       "path": "src/cli/init-agent.ts",
@@ -1944,7 +1944,7 @@
     },
     {
       "path": "src/mcp/hosted-server.ts",
-      "sha256": "08d450a3b877709692825ad27be00962c9cec23655a2d5ef542f7a713603d81b"
+      "sha256": "30a08cb2124ad55b88c97213fb6b422f33ee7b1ee701540edfda9d37124ea197"
     },
     {
       "path": "src/mcp/mcp-bin.ts",
@@ -2112,7 +2112,7 @@
     },
     {
       "path": "src/scene/style-registry.ts",
-      "sha256": "7fa03aa66da7238a9d9e1880df9a66d41c1a400552d742f8a8134298f6b59a8f"
+      "sha256": "6bc3dc650a4178e3d3e37a36da553c79ff2cb47117df47046bb47596f27dbf34"
     },
     {
       "path": "src/scene/svg-serialize.ts",

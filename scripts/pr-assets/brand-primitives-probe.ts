@@ -22,12 +22,14 @@
 //
 // Writes the committed evidence composite (one flowchart, three brands):
 //   bun run scripts/pr-assets/brand-primitives-probe.ts
-// Also renders the full 3×12 matrix when given an output dir:
+// Also renders the full 3×14 matrix when given an output dir:
 //   bun run scripts/pr-assets/brand-primitives-probe.ts <svg-out-dir>
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { Resvg } from '@resvg/resvg-js'
 import { renderMermaidSVG } from '../../src/index.ts'
+import { BUILTIN_FAMILY_METADATA } from '../../src/agent/families.ts'
+import type { BuiltinFamilyId } from '../../src/agent/families.ts'
 import { inlineFontVarForRaster } from '../../src/theme.ts'
 import type { RenderOptions } from '../../src/types.ts'
 import type { InternalStyleFace } from '../../src/scene/style-registry.ts'
@@ -90,7 +92,13 @@ export const BRANDS: BrandProbe[] = [
   },
 ]
 
-export const FAMILY_SOURCES: Record<string, string> = {
+// `satisfies Record<BuiltinFamilyId, string>` makes this exhaustive over the
+// authoritative built-in registry: a new family cannot silently disappear
+// from the probe. Mindmap and GitGraph currently exercise palette, font, and
+// backend compatibility; unlike the other families, they do not yet consume
+// face-level role overrides. Keeping them here makes that additional gap
+// visible instead of understating the supported family matrix.
+export const FAMILY_SOURCES = {
   flowchart: `flowchart TD
   subgraph Client
     A[Open App] --> B{Signed in?}
@@ -197,11 +205,31 @@ export const FAMILY_SOURCES: Record<string, string> = {
   section Build
     Components :b1, after a2, 20d
     Migration :b2, after b1, 15d`,
-}
+  mindmap: `mindmap
+  root((Product Release))
+    Plan
+      Customer research
+      Interaction design
+    Build
+      Mobile app
+      Cloud sync
+    Ship
+      TestFlight
+      App Store`,
+  gitgraph: `gitGraph
+  commit id:"base" tag:"v1.0"
+  branch feature
+  commit id:"player"
+  commit id:"sync"
+  checkout main
+  commit id:"hotfix"
+  merge feature id:"merge"`,
+} as const satisfies Record<BuiltinFamilyId, string>
 
-export function renderBrand(brand: BrandProbe, family: string, idPrefix = ''): string {
+const FAMILY_IDS = BUILTIN_FAMILY_METADATA.map(family => family.id)
+
+export function renderBrand(brand: BrandProbe, family: BuiltinFamilyId, idPrefix = ''): string {
   const source = FAMILY_SOURCES[family]
-  if (!source) throw new Error(`unknown family ${family}`)
   return renderMermaidSVG(source, { ...brand.options, embedFontImport: false, idPrefix } as RenderOptions)
 }
 
@@ -223,14 +251,14 @@ if (import.meta.main) {
 
   const svgOutDir = process.argv[2]
   if (svgOutDir) {
-    // Full 3 × 12 matrix for the mock gallery.
+    // Full 3 × 14 matrix for the mock gallery.
     mkdirSync(svgOutDir, { recursive: true })
     for (const brand of BRANDS) {
-      for (const family of Object.keys(FAMILY_SOURCES)) {
+      for (const family of FAMILY_IDS) {
         writeFileSync(join(svgOutDir, `${brand.key}-${family}.svg`), renderBrand(brand, family, `${brand.key}-${family}-`))
       }
     }
-    console.log(`wrote ${BRANDS.length * Object.keys(FAMILY_SOURCES).length} SVGs to ${svgOutDir}`)
+    console.log(`wrote ${BRANDS.length * FAMILY_IDS.length} SVGs to ${svgOutDir}`)
   }
 
   // Committed evidence composite: one flowchart, three brands side by side.

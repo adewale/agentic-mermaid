@@ -12,7 +12,13 @@ and showcase manifest—not a copied prose total—define the current matrix.
 - no external reference survives strict mode;
 - rendering completes without family/backend exceptions.
 
-The existing styled-output suite separately hash-pins every registered Look over the layout fixture corpus, verifies deterministic seed behavior, exercises default/rough/hybrid backends, and tests user-color precedence. The real-content Mindmap/GitGraph corpus additionally renders three representative Look + Palette stacks twice and checks semantic text survives. Together these tests distinguish exhaustive compatibility from representative deterministic byte checks.
+The existing styled-output suite separately hash-pins every registered Look
+over the layout fixture corpus—including Cupertino—verifies deterministic seed
+behavior, exercises default/rough/hybrid backends, and tests user-color
+precedence. The real-content Mindmap/GitGraph corpus additionally renders three
+representative Look + Palette stacks twice and checks semantic text survives.
+Together these tests distinguish exhaustive compatibility from representative
+deterministic byte checks.
 
 Run:
 
@@ -30,3 +36,8 @@ Reviewer evidence:
 - `eval/mermaid-doc-showcase/gallery-receipt.json` — generator/source-tree/output freshness.
 
 “Works with every combination” means every built-in single-Look + single-Palette pair. Arbitrary stacks of multiple Looks or user-authored fragments are combinatorially unbounded; stack precedence and custom fragment validation are covered as algebraic/API contracts in `styled-output.test.ts` and `style-options.test.ts`.
+
+This is a render-compatibility receipt, not a role-face fidelity claim.
+Mindmap and GitGraph consume registered palette colors and font selection but
+do not currently consume built-in `InternalStyleFace` role overrides; the
+all-family matrix keeps that residual wiring gap visible.

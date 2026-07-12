@@ -147,6 +147,7 @@ const STYLE_LABELS: Record<string, string> = {
   'chalkboard': 'Chalkboard',
   'risograph': 'Riso Print',
   'architectural-plan': 'Plan Drafting',
+  'cupertino': 'Cupertino',
   'publication-figure': 'Report Figure',
 }
 

@@ -682,6 +682,7 @@ const STYLE_THEME_LABELS: Record<string, string> = {
   'accessible-high-contrast': 'Accessible Contrast',
   'architectural-plan': 'Plan Drafting',
   'catppuccin-latte': 'Catppuccin Latte',
+  'cupertino': 'Cupertino',
   'github-dark': 'GitHub Dark',
   'github-light': 'GitHub Light',
   'hand-drawn': 'Hand-drawn',
