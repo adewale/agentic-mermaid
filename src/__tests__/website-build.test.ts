@@ -814,6 +814,39 @@ describe('Workers Static Assets website contract', () => {
     expect(styles).not.toContain('.comparison-grid .comparison-panel[data-comparison-lightbox-panel]')
   })
 
+  test('rich gallery promotes the selected Mindmap and GitGraph corpus scenarios', () => {
+    const promotions = [
+      ['Mindmap', 'Mindmap: Incident Response Command Map', 'eval/mindmap-gitgraph-content-corpus/mindmap/wide-incident-response.mmd'],
+      ['Mindmap', 'Mindmap: Multilingual Global Launch', 'eval/mindmap-gitgraph-content-corpus/mindmap/multilingual-long-content.mmd'],
+      ['Mindmap', 'Mindmap: Explicit Tidy Tree', 'eval/mindmap-gitgraph-content-corpus/mindmap/tidy-tree-explicit.mmd'],
+      ['GitGraph', 'GitGraph: Monorepo Delivery Lanes', 'eval/mindmap-gitgraph-content-corpus/gitgraph/many-lanes-and-ordering.mmd'],
+      ['GitGraph', 'GitGraph: Merge Backports', 'eval/mindmap-gitgraph-content-corpus/gitgraph/merge-cherry-pick-backports.mmd'],
+      ['GitGraph', 'GitGraph: CI/CD Promotion', 'eval/mindmap-gitgraph-content-corpus/gitgraph/cicd-promotion-pipeline.mmd'],
+    ] as const
+    const expectedTitlesByCategory = new Map(['Mindmap', 'GitGraph'].map((category) => [
+      category,
+      promotions.filter(([candidate]) => candidate === category).map(([, title]) => title),
+    ]))
+
+    for (const [category, titles] of expectedTitlesByCategory) {
+      expect(RICH_EXAMPLES.filter((sample) => sample.category === category).map((sample) => sample.title)).toEqual(titles)
+    }
+
+    const examplesIndex = JSON.parse(read('examples/index.json'))
+    const examplesHtml = read('examples/index.html')
+    for (const [category, title, fixture] of promotions) {
+      const expectedSource = readRepo(fixture).trimEnd()
+      const sample = RICH_EXAMPLES.find((candidate) => candidate.title === title)
+      expect(sample, title).toEqual(expect.objectContaining({ category, title, source: expectedSource }))
+      expect(examplesIndex.richExamples.find((candidate: any) => candidate.title === title), `${title} catalog entry`).toEqual(
+        expect.objectContaining({ category, title, source: expectedSource }),
+      )
+      expect(examplesHtml, `${title} rendered article`).toContain(`<h4>${title}</h4>`)
+    }
+    expect(examplesHtml).toContain('<strong>Mindmap</strong><span>3 shared examples</span>')
+    expect(examplesHtml).toContain('<strong>GitGraph</strong><span>3 shared examples</span>')
+  })
+
   test('examples page carries an agent task, trace, and render anchor for every family', () => {
     const examples = read('examples/index.html')
     // Registry-exact: adding a family without a prompt/trace or supported render

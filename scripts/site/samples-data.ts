@@ -9,6 +9,7 @@
  * variant is exercised by at least one sample.
  */
 
+import { readFileSync } from 'node:fs'
 import type { RenderOptions } from '../../src/types.ts'
 
 export interface Sample {
@@ -24,6 +25,12 @@ const stylePaletteShowcaseOptions = {
   style: ['publication-figure', 'paper'],
   seed: 3,
 } satisfies RenderOptions
+
+const mindmapGitGraphCorpus = new URL('../../eval/mindmap-gitgraph-content-corpus/', import.meta.url)
+
+function promotedCorpusSource(relativePath: string) {
+  return readFileSync(new URL(relativePath, mindmapGitGraphCorpus), 'utf8').trimEnd()
+}
 
 export const samples: Sample[] = [
 
@@ -1606,6 +1613,52 @@ gantt
         Two   :b, 2024-01-03, 6d
         Three :c, 2024-01-08, 4d
         Four  :d, 2024-01-10, 3d`,
+  },
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  MINDMAP — promoted real-content corpus scenarios
+  // ══════════════════════════════════════════════════════════════════════════
+
+  {
+    title: 'Mindmap: Incident Response Command Map',
+    category: 'Mindmap',
+    description: 'A 40-node operational map with thirteen first-level branches for testing broad, real-world incident coordination.',
+    source: promotedCorpusSource('mindmap/wide-incident-response.mmd'),
+  },
+  {
+    title: 'Mindmap: Multilingual Global Launch',
+    category: 'Mindmap',
+    description: 'Long wrapped Markdown with CJK, Arabic, emoji grapheme clusters, ampersands, and comparison characters.',
+    source: promotedCorpusSource('mindmap/multilingual-long-content.mmd'),
+  },
+  {
+    title: 'Mindmap: Explicit Tidy Tree',
+    category: 'Mindmap',
+    description: 'A one-sided compiler dependency hierarchy using explicit tidy-tree layout instead of the central bilateral default.',
+    source: promotedCorpusSource('mindmap/tidy-tree-explicit.mmd'),
+  },
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  GITGRAPH — promoted real-content corpus scenarios
+  // ══════════════════════════════════════════════════════════════════════════
+
+  {
+    title: 'GitGraph: Monorepo Delivery Lanes',
+    category: 'GitGraph',
+    description: 'Twelve delivery lanes with explicit main placement, double-digit branch orders, and a tagged coordination commit.',
+    source: promotedCorpusSource('gitgraph/many-lanes-and-ordering.mmd'),
+  },
+  {
+    title: 'GitGraph: Merge Backports',
+    category: 'GitGraph',
+    description: 'A merge commit backported to a maintenance line with explicit immediate-parent ancestry.',
+    source: promotedCorpusSource('gitgraph/merge-cherry-pick-backports.mmd'),
+  },
+  {
+    title: 'GitGraph: CI/CD Promotion',
+    category: 'GitGraph',
+    description: 'Build, test, canary, and production promotion modeled through ordered branches, typed commits, tags, and merges.',
+    source: promotedCorpusSource('gitgraph/cicd-promotion-pipeline.mmd'),
   },
 
   // ══════════════════════════════════════════════════════════════════════════
