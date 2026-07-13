@@ -12,6 +12,7 @@ import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { resolveBuildGitSha } from '../../website/build-provenance.ts'
 import { AI_CATALOG_RESOURCES } from '../../website/agent-resource-inventory.ts'
 import { HOSTED_TOOLS } from '../mcp/hosted-server.ts'
+import { verifyMermaid } from '../agent/verify.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const SITE = join(REPO, 'website', 'public')
@@ -1156,6 +1157,12 @@ describe('Workers Static Assets website contract', () => {
     expect(duplicateEdge).toContain('Minimal reproducer')
     expect(duplicateEdge).toContain('Open this reproducer in the editor')
     expect(duplicateEdge).toContain('open a blank editor')
+    const advertisedWarnings = JSON.parse(read('capabilities.json')).warningCodes as Array<{ code: string; example?: string }>
+    for (const warning of advertisedWarnings.filter(warning => warning.example)) {
+      expect({ code: warning.code, fires: verifyMermaid(warning.example!).warnings.some(actual => actual.code === warning.code) })
+        .toEqual({ code: warning.code, fires: true })
+      expect(read(`warnings/${warning.code}/index.html`)).toContain('Minimal reproducer')
+    }
     const warningsIndex = read('warnings/index.html')
     expect(warningsIndex).toContain('class="tier-badge tier-structural"')
     expect(warningsIndex).toContain('class="sev-badge sev-warning"')

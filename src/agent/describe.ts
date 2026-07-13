@@ -280,21 +280,27 @@ function describeState(body: import('./types.ts').StateBody): string {
 
 function describeSequence(d: SequenceValidDiagram): string {
   const parts = d.body.participants
-  const contexts = sequenceMessageContexts(d.body)
   const partStr = parts.map(p => p.label || p.id).join(', ')
   let s = `A sequence diagram between ${partStr || '(no participants)'}.`
-  const topLevel = contexts.filter(context => context.scope === 'top-level').map(context => context.message)
-  if (topLevel.length > 0) s += ` Top-level messages in order: ${topLevel.map(m => `${m.from} -> ${m.to}: ${m.text}`).join('; ')}.`
-  const fragments = (d.body.statements ?? []).filter(statement => statement.kind === 'fragment')
-  fragments.forEach((statement, fragmentIndex) => {
-    if (statement.kind !== 'fragment') return
+  const statements = d.body.statements ?? d.body.messages.map((_, ref) => ({ kind: 'message' as const, ref }))
+  const interactions: string[] = []
+  let fragmentIndex = 0
+  for (const statement of statements) {
+    if (statement.kind === 'message') {
+      const message = d.body.messages[statement.ref]
+      if (message) interactions.push(`message ${message.from} -> ${message.to}: ${message.text}`)
+      continue
+    }
+    if (statement.kind !== 'fragment') continue
     const branches = statement.fragment.branches.map((branch, branchIndex) => {
       const label = branch.label ?? (branchIndex === 0 ? statement.fragment.label : undefined)
       const messages = branch.messages.map(m => `${m.from} -> ${m.to}: ${m.text}`).join('; ') || 'no messages'
       return `branch ${branchIndex}${label ? ` (${label})` : ''}: ${messages}`
     })
-    s += ` Fragment ${fragmentIndex} (${statement.fragment.fragmentKind}): ${branches.join(' | ')}.`
-  })
+    interactions.push(`fragment ${fragmentIndex} (${statement.fragment.fragmentKind}): ${branches.join(' | ')}`)
+    fragmentIndex++
+  }
+  if (interactions.length > 0) s += ` Interactions in source order: ${interactions.join('; ')}.`
   return s
 }
 

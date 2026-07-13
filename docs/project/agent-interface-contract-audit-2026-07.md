@@ -98,6 +98,29 @@ The reproduction work found and fixed issues beyond the original report:
 - generated AI resource inventories were partial rather than exact and one
   indexed warnings target did not exist.
 
+The independent multi-agent review of the completed first pass found another
+set of boundary counterexamples before publication:
+
+- sequence prose grouped every top-level message before every fragment, so a
+  message-fragment-message source lost chronological order even though facts
+  and layout were correct;
+- endpoint-typo diagnostics missed nodes declared with v11 `id@{...}` metadata
+  or the asymmetric `id>label]` shape;
+- the repaired hand-written JavaScript slash scanner still confused division
+  and regex literals after postfix/control-flow tokens. One form hid a dynamic
+  `import()` or banned global from the pre-screen; the opposite form rejected a
+  valid regex literal;
+- same-host Origin validation ignored the URL scheme, while HTTP content-type
+  checks accepted `application/jsonp` and malformed suffixes;
+- the exact-id codec still canonicalized numeric `-0` to `0`;
+- the website test preload fingerprint ignored Git HEAD/status even though
+  generated provenance depends on both, allowing stale artifacts after a
+  commit;
+- the first “exact” inventory assertion filtered unknown names and deduplicated
+  them, recreating a positive-subset test under a stronger label;
+- advertised warning examples and maintained cache prose had current witnesses
+  but no all-surface recurrence gate.
+
 ## Why the suite missed the cluster
 
 The defects were distributed, but the testing failure was systemic:
@@ -126,6 +149,12 @@ The defects were distributed, but the testing failure was systemic:
 7. **Large green totals obscured proof quality.** Thousands of render/layout
    cases did not exercise JSON lexemes, cache validation ordering, deployment
    provenance, or generated-resource completeness.
+8. **Hand-written lexical approximations were treated as validators.** Prefix
+   checks for media types and slash-state guesses for JavaScript appeared
+   exhaustive in example tests but did not implement the underlying grammars.
+9. **Test infrastructure had unmodeled inputs.** The generated-site cache keyed
+   source bytes but not Git state, so the fixture itself could serve evidence
+   for a different provenance state.
 
 ## Recurrence controls applied
 
@@ -137,20 +166,29 @@ They produced implementation changes rather than an additional checklist:
 
 - one exact JSON-RPC id codec is shared by hosted HTTP, local HTTP/SSE, and
   stdio, with properties over integer/decimal/exponent lexemes, batches, nested
-  data, sentinel collisions, and arbitrary malformed input;
+  data, negative zero, sentinel collisions, and arbitrary malformed input;
+- Code Mode uses a real ECMAScript parser/AST walk for forbidden executable
+  constructs; regex, division, postfix operators, templates, comments, and
+  dynamic import are covered as differential classes rather than slash guesses;
+- HTTP boundaries validate the full same-origin tuple and an exact JSON media
+  type grammar instead of comparing only hosts or string prefixes;
 - one positive-safe-integer timeout validator is shared by tool schema and both
   runtimes;
 - one branch-aware sequence message-context model feeds prose, facts, AX-tree,
-  layout, and typed fragment edits;
+  layout, and typed fragment edits; prose walks the ordered statement ledger
+  instead of regrouping messages and fragments;
 - cache eligibility is explicit, non-idempotent tools bypass, and cacheable
   calls retain complete raw arguments before dispatch;
 - real source-checkout and installed-tarball walking skeletons exercise the
   bins, with Bun auto-install disabled for the missing-dependency case;
 - socket tests fail rather than return, and byte/proxy tests use the real stream;
 - agent resources and tool inventories derive from canonical registries and are
-  checked for exact order, uniqueness, and existing targets;
+  checked for exact order, uniqueness, unknown names, and existing targets;
 - dirty/mismatched build provenance is rejected, and every CI/release/deploy
-  install uses the lockfile as a gate;
+  install uses the lockfile as a gate; generated-test fingerprints include the
+  same Git HEAD/status inputs as provenance;
+- every advertised warning example must fire its own code during the build,
+  and cache prose is checked across maintained and generated discovery surfaces;
 - each reported repair has a named regression assertion, while source-preserved
   sequence semantics that remain unmodeled emit `UNSUPPORTED_SYNTAX`.
 

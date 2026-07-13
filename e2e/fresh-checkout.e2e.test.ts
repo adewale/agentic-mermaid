@@ -1,8 +1,8 @@
 // Exercise the actual source-checkout entrypoints with dependencies absent.
 // This closes the gap where the formatter helper was unit-tested but the bins
 // still crashed before it could run because of top-level imports.
-import { describe, expect, test, beforeAll } from 'bun:test'
-import { cpSync, mkdtempSync } from 'node:fs'
+import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
+import { cpSync, mkdtempSync, rmSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -14,6 +14,10 @@ beforeAll(() => {
   checkout = mkdtempSync(join(tmpdir(), 'agentic-mermaid-fresh-'))
   for (const dir of ['bin', 'src']) cpSync(join(REPO, dir), join(checkout, dir), { recursive: true })
   for (const file of ['package.json', 'tsconfig.json', 'bunfig.toml']) cpSync(join(REPO, file), join(checkout, file))
+})
+
+afterAll(() => {
+  if (checkout) rmSync(checkout, { recursive: true, force: true })
 })
 
 describe('fresh source checkout without dependencies', () => {

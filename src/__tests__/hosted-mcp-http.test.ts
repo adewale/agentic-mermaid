@@ -249,6 +249,23 @@ describe('CORS Origin validation', () => {
     expect(executeCalls).toHaveLength(0)
   })
 
+  test('same host with a different or non-HTTP scheme is not same-origin', async () => {
+    const { handler } = makeHandler()
+    for (const origin of ['http://agentic-mermaid.dev', 'ftp://agentic-mermaid.dev']) {
+      const res = await handler(post(rpc('ping'), { origin, host: 'agentic-mermaid.dev' }))
+      expect({ origin, status: res.status, reflected: res.headers.get('access-control-allow-origin') })
+        .toEqual({ origin, status: 403, reflected: null })
+    }
+  })
+
+  test('invalid JSON media-type lookalikes are rejected', async () => {
+    const { handler } = makeHandler()
+    for (const contentType of ['application/jsonp', 'application/json-patch+json', 'application/json garbage']) {
+      const res = await handler(post(rpc('ping'), { 'content-type': contentType }))
+      expect({ contentType, status: res.status }).toEqual({ contentType, status: 415 })
+    }
+  })
+
   test('a disallowed Origin is refused on the OPTIONS preflight too (no ACAO granted)', async () => {
     const { handler } = makeHandler()
     const res = await handler(new Request('https://agentic-mermaid.dev/mcp', { method: 'OPTIONS', headers: { origin: 'https://evil.example' } }))

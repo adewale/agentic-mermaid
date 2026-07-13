@@ -14,7 +14,7 @@
 // default, which Cloudflare Workers Logs ingests as queryable fields.
 
 import { handleHostedRequest, cacheKeyFor, LOCAL_FALLBACK_HINT, SUPPORTED_PROTOCOL_VERSIONS, type HostedMcpContext } from '../../src/mcp/hosted-server.ts'
-import { preserveExactJsonRpcIds, reply, rpcError, stringifyJsonRpc, type ExactJsonRpcId, type JsonRpcRequest, type JsonRpcResponse } from '../../src/mcp/protocol.ts'
+import { isJsonContentType, preserveExactJsonRpcIds, reply, rpcError, stringifyJsonRpc, type ExactJsonRpcId, type JsonRpcRequest, type JsonRpcResponse } from '../../src/mcp/protocol.ts'
 import { readCapped } from './execute-loader.ts'
 
 export const MAX_MCP_BODY_BYTES = 128 * 1024
@@ -116,12 +116,12 @@ const CORS_BASE = {
 // (browser) caller is checked against this set plus same-origin and localhost.
 const STATIC_ALLOWED_ORIGINS = new Set(['https://agentic-mermaid.dev'])
 
-function isOriginAllowed(origin: string, host: string | null): boolean {
+function isOriginAllowed(origin: string, requestOrigin: string): boolean {
   if (STATIC_ALLOWED_ORIGINS.has(origin)) return true
   try {
     const o = new URL(origin)
-    if (o.hostname === 'localhost' || o.hostname === '127.0.0.1') return true
-    if (host !== null && o.host === host) return true
+    if ((o.protocol === 'http:' || o.protocol === 'https:') && (o.hostname === 'localhost' || o.hostname === '127.0.0.1')) return true
+    if (o.origin === requestOrigin) return true
   } catch { /* malformed Origin header → not allowed */ }
   return false
 }
@@ -139,7 +139,7 @@ function isOriginAllowed(origin: string, host: string | null): boolean {
 function corsHeadersFor(request: Request): Record<string, string> {
   const origin = request.headers.get('origin')
   if (origin === null) return { 'access-control-allow-origin': '*', ...CORS_BASE }
-  if (isOriginAllowed(origin, request.headers.get('host'))) {
+  if (isOriginAllowed(origin, new URL(request.url).origin)) {
     return { 'access-control-allow-origin': origin, vary: 'Origin', ...CORS_BASE }
   }
   return { vary: 'Origin', ...CORS_BASE }
@@ -305,7 +305,7 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
     // pass. Closes the "malicious site drives visitors' browsers against public
     // compute" vector that wildcard CORS leaves open.
     const origin = request.headers.get('origin')
-    if (origin !== null && !isOriginAllowed(origin, request.headers.get('host'))) {
+    if (origin !== null && !isOriginAllowed(origin, new URL(request.url).origin)) {
       return json(403, { jsonrpc: '2.0', id: null, error: { code: -32000, message: 'origin not allowed' } }, cors)
     }
     if (request.method !== 'POST') {
@@ -318,8 +318,7 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
     if (protocolVersion !== null && !SUPPORTED_PROTOCOL_VERSIONS.includes(protocolVersion)) {
       return json(400, { jsonrpc: '2.0', id: null, error: { code: -32000, message: `unsupported MCP-Protocol-Version: ${protocolVersion}` } }, cors)
     }
-    const contentType = (request.headers.get('content-type') ?? '').toLowerCase()
-    if (!contentType.startsWith('application/json')) {
+    if (!isJsonContentType(request.headers.get('content-type'))) {
       return json(415, { jsonrpc: '2.0', id: null, error: { code: -32000, message: 'content-type must be application/json' } }, cors)
     }
     const declared = Number(request.headers.get('content-length') ?? 0)

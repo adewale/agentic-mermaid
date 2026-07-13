@@ -65,12 +65,24 @@ export function preserveExactJsonRpcIds(body: string): { body: string; ids: Exac
 
 function isSafelyRoundTrippableInteger(token: string): boolean {
   if (!/^-?(?:0|[1-9]\d*)$/.test(token)) return false
+  // JSON.parse preserves the IEEE-754 negative-zero value, but JSON.stringify
+  // canonicalizes it to `0`; correlation requires retaining the request token.
+  if (token === '-0') return false
   try {
     const value = BigInt(token)
     return value <= BigInt(Number.MAX_SAFE_INTEGER) && value >= BigInt(Number.MIN_SAFE_INTEGER)
   } catch {
     return false
   }
+}
+
+/** Accept the JSON media type with optional syntactically valid parameters,
+ * but reject prefix lookalikes (`application/jsonp`) and malformed suffixes. */
+export function isJsonContentType(value: string | null | undefined): boolean {
+  if (!value) return false
+  const token = String.raw`[!#$%&'*+.^_\x60|~0-9A-Za-z-]+`
+  const quoted = String.raw`"(?:[^"\\]|\\.)*"`
+  return new RegExp(String.raw`^\s*application/json\s*(?:;\s*${token}\s*=\s*(?:${token}|${quoted}))*\s*$`, 'i').test(value)
 }
 
 /** Serialize a JSON-RPC response (or response batch) while restoring exact

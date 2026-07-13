@@ -272,7 +272,10 @@ function isUnsupportedEdgeMetadataStatement(statement: string, edgeIds: Set<stri
 
 function explicitlyDeclaredNodeIds(statements: FlowchartStatement[]): Set<string> {
   const ids = new Set<string>()
-  const shaped = /(?:^|\s)([A-Za-z_][\w-]*)\s*(?=\[|\(|\{)/g
+  // Cover every node-declaration opener accepted by Mermaid's closed grammar,
+  // including asymmetric nodes (`id>label]`) and v11 metadata (`id@{...}`).
+  // Edge ids use `id@-->` and deliberately do not match the metadata branch.
+  const shaped = /(?:^|\s)([A-Za-z_][\w-]*)\s*(?=\[|\(|\{|>|@\s*\{)/g
   for (const { text } of statements) {
     const bare = text.trim().match(/^([A-Za-z_][\w-]*)$/)
     if (bare) ids.add(bare[1]!)

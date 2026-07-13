@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { applyOps, buildChecked } from '../agent/apply.ts'
-import { describeMermaid } from '../agent/describe.ts'
+import { describeMermaid, describeMermaidSource } from '../agent/describe.ts'
 import { describeMermaidFacts } from '../agent/facts.ts'
 import { parseMermaid } from '../agent/parse.ts'
 import { verifyMermaid } from '../agent/verify.ts'
@@ -77,6 +77,8 @@ describe('reported contract regressions', () => {
       ['flowchart TD\n  A[Start] -->|go|', 'flowchart_dangling_edge'],
       ['flowchart TD\n  Server[Server]\n  Client[Client] --> Sevrer', 'flowchart_implicit_endpoint'],
       ['flowchart TD\n  Server\n  Client --> Sevrer', 'flowchart_implicit_endpoint'],
+      ['flowchart TD\n  Server@{ shape: rect, label: "Server" }\n  Client --> Sevrer', 'flowchart_implicit_endpoint'],
+      ['flowchart TD\n  Server>Server]\n  Client --> Sevrer', 'flowchart_implicit_endpoint'],
       ['flowchart TD\n  Customer[Customer]\n  Customer --> Customar', 'flowchart_implicit_endpoint'],
       ['xychart-beta\n  x-axis [Jan, Feb, Mar]\n  line [1, 2]', 'xychart_axis_series_length_mismatch'],
       ['xychart-beta\n  x-axis [Jan, Feb]\n  line [1, 2, 3]', 'xychart_axis_series_length_mismatch'],
@@ -94,6 +96,22 @@ describe('reported contract regressions', () => {
       expect(metadata.value.body.kind).toBe('opaque')
       expect(verifyMermaid(metadata.value).warnings).toContainEqual(expect.objectContaining({ syntax: 'flowchart_edge_metadata' }))
     }
+  })
+
+  test('sequence prose preserves source-order interleaving around fragments', () => {
+    const summary = describeMermaidSource([
+      'sequenceDiagram',
+      '  A->>B: before',
+      '  alt yes',
+      '    B-->>A: inside',
+      '  end',
+      '  A->>B: after',
+    ].join('\n'))
+    const before = summary.indexOf('message A -> B: before')
+    const fragment = summary.indexOf('fragment 0 (alt)')
+    const after = summary.indexOf('message A -> B: after')
+    expect({ includesAll: before >= 0 && fragment >= 0 && after >= 0, ordered: before < fragment && fragment < after })
+      .toEqual({ includesAll: true, ordered: true })
   })
 
   test('describe cannot report ok when verify reports RENDER_FAILED', async () => {
@@ -162,7 +180,7 @@ describe('hosted transport truthfulness', () => {
     expect(protectedBody.body).toContain('"params":{"id":9007199254740995}')
     expect(preserveUnsafeJsonRpcIds('{"jsonrpc":"2.0","id":9007199254740993.0,"method":"ping"}').ids.map(id => id.raw)).toEqual(['9007199254740993.0'])
     const handler = createMcpHandler({ context, cacheVersion: 'test', onEvent: () => {} })
-    for (const id of ['9007199254740993', '9007199254740993.0', '9007199254740993e0', '9.007199254740993e15']) {
+    for (const id of ['-0', '9007199254740993', '9007199254740993.0', '9007199254740993e0', '9.007199254740993e15']) {
       const body = `{"jsonrpc":"2.0","id":${id},"method":"ping"}`
       const response = await handler(new Request('https://agentic-mermaid.dev/mcp', { method: 'POST', headers: { 'content-type': 'application/json' }, body }))
       expect(await response.text()).toContain(`"id":${id}`)

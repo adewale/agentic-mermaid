@@ -6,6 +6,7 @@
       "name": "agentic-mermaid",
       "dependencies": {
         "@resvg/resvg-js": "2.6.2",
+        "acorn": "8.16.0",
         "elkjs": "^0.11.0",
         "entities": "^7.0.1",
         "mermaid-ast": "0.8.2",

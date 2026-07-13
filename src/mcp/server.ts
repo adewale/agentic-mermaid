@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { URL } from 'node:url'
 import { executeInSandbox } from './sandbox.ts'
-import { preserveExactJsonRpcIds, reply, rpcError as error, stringifyJsonRpc, type ExactJsonRpcId, type JsonRpcRequest, type JsonRpcResponse } from './protocol.ts'
+import { isJsonContentType, preserveExactJsonRpcIds, reply, rpcError as error, stringifyJsonRpc, type ExactJsonRpcId, type JsonRpcRequest, type JsonRpcResponse } from './protocol.ts'
 import { createDescribeTool, createExecuteTool, createRenderPngTool, dispatchMcpRequest, EXECUTE_TIMEOUT_ERROR, isValidExecuteTimeout, type McpServerSurface } from './tool-surface.ts'
 import { SDK_CORE_DECLARATION, createDescribeSdkTool, describeSdkPayload } from './sdk-discovery.ts'
 import { createArtifactStore, type ArtifactRecord, type ArtifactStore } from './artifacts.ts'
@@ -348,8 +348,7 @@ function authorizeHttpAccess(req: IncomingMessage, res: ServerResponse, baseUrl:
 
 function authorizeHttpRpc(req: IncomingMessage, res: ServerResponse, baseUrl: string, publicOrigin?: string, authToken?: string): boolean {
   if (!authorizeHttpAccess(req, res, baseUrl, publicOrigin, authToken)) return false
-  const contentType = String(req.headers['content-type'] ?? '').toLowerCase()
-  if (!contentType.startsWith('application/json')) {
+  if (!isJsonContentType(String(req.headers['content-type'] ?? ''))) {
     sendJson(res, 415, { ok: false, error: 'HTTP MCP JSON-RPC requires content-type application/json' })
     return false
   }

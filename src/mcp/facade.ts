@@ -6,6 +6,8 @@
 import * as mermaid from '../agent/core.ts'
 import type { DiagramKind } from '../agent/types.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
+import { parse as parseJavaScript } from 'acorn'
+import type { Node as AcornNode } from 'acorn'
 
 export type ExecutionTraceCall =
   | { verb: 'parse'; diagram?: number; source?: string }
@@ -580,114 +582,71 @@ export function expressionFirstWraps(code: string): string[] {
 }
 
 export function unsupportedCodeReason(code: string): string | undefined {
-  const scan = stripStringsAndComments(code)
-  if (/\b(?:async|await|Promise|AsyncDisposableStack|FinalizationRegistry|WeakRef|fromAsync)\b/.test(scan) || /\bqueueMicrotask\b/.test(scan) || /\bimport\s*\(/.test(scan)) {
+  const ast = parseCodeModeAst(code)
+  if (!ast) return undefined // Let the selected runtime return the syntax error.
+  let usesAsync = false
+  let usesRealm = false
+  walkJavaScriptAst(ast, node => {
+    if (node.type === 'ImportExpression' || node.type === 'AwaitExpression') usesAsync = true
+    if ('async' in node && node.async === true) usesAsync = true
+    if (node.type !== 'Identifier' || !('name' in node) || typeof node.name !== 'string') return
+    if (SYNC_UNSUPPORTED_IDENTIFIERS.has(node.name)) usesAsync = true
+    if (REALM_UNSUPPORTED_IDENTIFIERS.has(node.name)) usesRealm = true
+  })
+  if (usesAsync) {
     return 'Code Mode is synchronous; async/await, Promise jobs, finalizers, queueMicrotask, Array.fromAsync, and dynamic import are not supported'
   }
-  if (/\b(?:Atomics|SharedArrayBuffer|ShadowRealm|WebAssembly)\b/.test(scan)) {
+  if (usesRealm) {
     return 'Code Mode does not expose blocking or realm-creating globals'
   }
   return undefined
 }
 
-function stripStringsAndComments(code: string): string {
-  const out: string[] = Array.from(code, char => char === '\n' ? '\n' : ' ')
-  const copy = (index: number): void => { out[index] = code[index]! }
+const SYNC_UNSUPPORTED_IDENTIFIERS = new Set([
+  'async', 'await', 'Promise', 'AsyncDisposableStack', 'FinalizationRegistry',
+  'WeakRef', 'fromAsync', 'queueMicrotask',
+])
+const REALM_UNSUPPORTED_IDENTIFIERS = new Set(['Atomics', 'SharedArrayBuffer', 'ShadowRealm', 'WebAssembly'])
 
-  const skipQuoted = (start: number, quote: '"' | "'"): number => {
-    let i = start + 1
-    while (i < code.length) {
-      if (code[i] === '\\') { i += 2; continue }
-      if (code[i] === quote) return i + 1
-      i++
+/** Parse the same expression-first/statement-fallback language Code Mode runs.
+ * A real ECMAScript parser is intentional here: slash heuristics cannot
+ * distinguish regex literals from division safely and previously created both
+ * false positives and a dynamic-import screening bypass. */
+function parseCodeModeAst(code: string): AcornNode | undefined {
+  const stripped = code.trim().replace(/;\s*$/, '')
+  const candidates = [
+    `(${stripped})`,
+    `function __agent_code__(){\n${code}\n}`,
+    // Parse otherwise-invalid top-level await so it is rejected before an
+    // isolate/CPU budget is allocated and telemetry remains truthful.
+    `async function __agent_code__(){\n${code}\n}`,
+  ]
+  for (const candidate of candidates) {
+    try {
+      return parseJavaScript(candidate, { ecmaVersion: 'latest', sourceType: 'script' })
+    } catch {
+      // Try the statement body after expression parsing fails. If both fail,
+      // the runtime owns the syntax diagnostic.
     }
-    return i
   }
+  return undefined
+}
 
-  const skipRegex = (start: number): number => {
-    let i = start + 1
-    let inClass = false
-    while (i < code.length) {
-      if (code[i] === '\\') { i += 2; continue }
-      if (code[i] === '[') { inClass = true; i++; continue }
-      if (code[i] === ']' && inClass) { inClass = false; i++; continue }
-      if (code[i] === '/' && !inClass) {
-        i++
-        while (/[A-Za-z]/.test(code[i] ?? '')) i++
-        return i
-      }
-      if (code[i] === '\n' || code[i] === '\r') return i
-      i++
+function walkJavaScriptAst(node: AcornNode, visit: (node: AcornNode & Record<string, unknown>) => void): void {
+  const record = node as AcornNode & Record<string, unknown>
+  visit(record)
+  for (const [key, value] of Object.entries(record)) {
+    if (key === 'start' || key === 'end' || key === 'type') continue
+    if (Array.isArray(value)) {
+      for (const child of value) if (isAcornNode(child)) walkJavaScriptAst(child, visit)
+    } else if (isAcornNode(value)) {
+      walkJavaScriptAst(value, visit)
     }
-    return i
   }
+}
 
-  const scanCode = (start: number, stopAtTemplateBrace: boolean): number => {
-    let braces = 0
-    let i = start
-    let expectsExpression = true
-    while (i < code.length) {
-      const ch = code[i]!
-      const next = code[i + 1]
-      if (ch === '/' && next === '/') {
-        i += 2
-        while (i < code.length && code[i] !== '\n') i++
-        continue
-      }
-      if (ch === '/' && next === '*') {
-        i += 2
-        while (i < code.length && !(code[i] === '*' && code[i + 1] === '/')) i++
-        i = Math.min(code.length, i + 2)
-        continue
-      }
-      if (ch === '/' && expectsExpression) { i = skipRegex(i); expectsExpression = false; continue }
-      if (ch === '"' || ch === "'") { i = skipQuoted(i, ch); expectsExpression = false; continue }
-      if (ch === '`') { i = scanTemplate(i + 1); expectsExpression = false; continue }
-      if (ch === '{') { braces++; copy(i++); expectsExpression = true; continue }
-      if (ch === '}') {
-        if (stopAtTemplateBrace && braces === 0) return i + 1
-        braces = Math.max(0, braces - 1)
-        copy(i++)
-        expectsExpression = false
-        continue
-      }
-      if (/\s/.test(ch)) { copy(i++); continue }
-      if (/[A-Za-z_$]/.test(ch)) {
-        const begin = i
-        while (/[A-Za-z0-9_$]/.test(code[i] ?? '')) copy(i++)
-        const word = code.slice(begin, i)
-        expectsExpression = /^(?:return|throw|case|delete|void|typeof|new|in|of|yield|await|else|do)$/.test(word)
-        continue
-      }
-      if (/\d/.test(ch)) {
-        while (/[A-Za-z0-9_.]/.test(code[i] ?? '')) copy(i++)
-        expectsExpression = false
-        continue
-      }
-      copy(i++)
-      if (ch === ')' || ch === ']') expectsExpression = false
-      else if (ch === '.') expectsExpression = false
-      else if (ch === '/' || /[([{,;:?=+\-*%!&|^~<>]/.test(ch)) expectsExpression = true
-    }
-    return i
-  }
-
-  const scanTemplate = (start: number): number => {
-    let i = start
-    while (i < code.length) {
-      if (code[i] === '\\') { i += 2; continue }
-      if (code[i] === '`') return i + 1
-      if (code[i] === '$' && code[i + 1] === '{') {
-        i = scanCode(i + 2, true)
-        continue
-      }
-      i++
-    }
-    return i
-  }
-
-  scanCode(0, false)
-  return out.join('')
+function isAcornNode(value: unknown): value is AcornNode {
+  return Boolean(value && typeof value === 'object' && 'type' in value && typeof (value as { type?: unknown }).type === 'string')
 }
 function jsonReplacer(_k: string, v: unknown): unknown {
   if (v instanceof Map) return Object.fromEntries(v)

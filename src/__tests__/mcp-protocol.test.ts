@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
-import { preserveExactJsonRpcIds, stringifyJsonRpc } from '../mcp/protocol.ts'
+import { isJsonContentType, preserveExactJsonRpcIds, stringifyJsonRpc } from '../mcp/protocol.ts'
 
 const unsafeInteger = fc.oneof(
   fc.bigInt({ min: BigInt(Number.MAX_SAFE_INTEGER) + 1n, max: (BigInt(Number.MAX_SAFE_INTEGER) + 1n) * 1_000_000n }),
@@ -8,6 +8,7 @@ const unsafeInteger = fc.oneof(
 ).map(value => value.toString())
 
 const nonCanonicalNumber = fc.oneof(
+  fc.constant('-0'),
   fc.integer({ min: -1_000_000, max: 1_000_000 }).map(value => `${value}.0`),
   fc.integer({ min: -1_000_000, max: 1_000_000 }).map(value => `${value}e0`),
   fc.integer({ min: 1, max: 999_999 }).map(value => `${value / 10}e1`),
@@ -51,5 +52,16 @@ describe('exact JSON-RPC numeric id codec', () => {
     fc.assert(fc.property(fc.string(), raw => {
       expect(() => preserveExactJsonRpcIds(raw)).not.toThrow()
     }), { numRuns: 500 })
+  })
+})
+
+describe('JSON HTTP media type', () => {
+  test('accepts application/json parameters but rejects prefix and malformed lookalikes', () => {
+    for (const value of ['application/json', 'Application/JSON; charset=utf-8', 'application/json; profile="mcp v1"']) {
+      expect(isJsonContentType(value)).toBe(true)
+    }
+    for (const value of ['', 'application/jsonp', 'application/json-patch+json', 'application/json garbage', 'application/json; charset']) {
+      expect(isJsonContentType(value)).toBe(false)
+    }
   })
 })

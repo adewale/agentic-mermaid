@@ -2210,6 +2210,8 @@ Safe loop:
 - Prefer the local library, CLI, or MCP. The hosted /mcp endpoint covers the same core tools with 64KB input caps.
 - For straightforward edits, prefer mutate/build over execute. Reserve execute for logic the declarative ops do not express.
 
+Hosted successful deterministic pure-tool results may be reused by a private server-side compute cache for up to 24 hours. The HTTP response itself is always \`cache-control: no-store\`; \`x-agentic-mermaid-compute-cache\` reports private reuse.
+
 Styling: every render accepts style (a renderer treatment like hand-drawn, watercolor, or blueprint; a palette name; an inline JSON record; or a stack merged left-to-right) plus seed to re-roll styled ink. Layout never moves. A colors-only style is a palette.
 
 ## Start Here
@@ -2757,7 +2759,7 @@ await emitJson('capabilities.json', capabilities)
 function warningDemoHtml(code: string, example: string): string {
   let fired = false
   try { fired = verifyMermaid(example).warnings.some((w: any) => w.code === code) } catch { fired = false }
-  if (!fired) return ''
+  if (!fired) throw new Error(`warning example for ${code} does not fire its advertised code`)
   const editorHash = btoa(unescape(encodeURIComponent(example)))
   return `\n<h2>Minimal reproducer</h2>\n<p>This source triggers <code>${code}</code> — checked at build time against the same engine the editor runs.</p>\n<pre><code>${escapeHtml(example)}</code></pre>\n<p><a class="go" href="/editor/#${editorHash}">Open this reproducer in the editor</a></p>`
 }

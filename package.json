@@ -169,11 +169,12 @@
   },
   "dependencies": {
     "@resvg/resvg-js": "2.6.2",
-    "perfect-freehand": "1.2.3",
-    "roughjs": "4.6.6",
+    "acorn": "8.16.0",
     "elkjs": "^0.11.0",
     "entities": "^7.0.1",
     "mermaid-ast": "0.8.2",
+    "perfect-freehand": "1.2.3",
+    "roughjs": "4.6.6",
     "yaml": "^2.8.2"
   },
   "devDependencies": {

@@ -105,6 +105,13 @@ describe('MCP HTTP/SSE transport and managed artifacts', () => {
       body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'ping' }),
     })
     expect(plain.status).toBe(415)
+    for (const contentType of ['application/jsonp', 'application/json-patch+json', 'application/json garbage']) {
+      const invalid = await fetch(`${startedForType.url}/rpc`, {
+        method: 'POST', headers: { 'content-type': contentType },
+        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'ping' }),
+      })
+      expect({ contentType, status: invalid.status }).toEqual({ contentType, status: 415 })
+    }
 
     const notification = await fetch(`${startedForType.url}/rpc`, {
       method: 'POST',
@@ -131,7 +138,7 @@ describe('MCP HTTP/SSE transport and managed artifacts', () => {
   test('local HTTP preserves exact numeric JSON-RPC ids in every JSON number form', async () => {
     const started = await startHttpServer({ port: 0, artifactDir: tempDir() })
     servers.push(started)
-    for (const id of ['9007199254740993', '9007199254740993.0', '9007199254740993e0', '9.007199254740993e15']) {
+    for (const id of ['-0', '9007199254740993', '9007199254740993.0', '9007199254740993e0', '9.007199254740993e15']) {
       const response = await fetch(`${started.url}/rpc`, {
         method: 'POST', headers: { 'content-type': 'application/json' },
         body: `{"jsonrpc":"2.0","id":${id},"method":"ping"}`,
