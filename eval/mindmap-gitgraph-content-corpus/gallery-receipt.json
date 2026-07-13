@@ -1332,7 +1332,7 @@
     },
     {
       "path": "src/__tests__/website-browser-a11y.test.ts",
-      "sha256": "4689a5f81161f18eb24cf002daf70890800bb3d56694e8eb1680e7163d354661"
+      "sha256": "de594ea303304fe64f7ea83668a1dbfa72a17e20a92479a430dbfd8bebb448e0"
     },
     {
       "path": "src/__tests__/website-build.test.ts",

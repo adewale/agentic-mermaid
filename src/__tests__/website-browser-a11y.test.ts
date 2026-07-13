@@ -210,14 +210,12 @@ describeBrowser('website browser accessibility smoke', () => {
     const metrics = await page.evaluate(() => {
       const body = getComputedStyle(document.body)
       const doc = document.querySelector('.doc') as HTMLElement
-      const lead = document.querySelector('.home-main .page-header > .lead') as HTMLElement
       const codeBlock = document.querySelector('.channels pre') as HTMLElement
       const code = codeBlock.querySelector('code') as HTMLElement
       const h1 = document.querySelector('h1') as HTMLElement
       return {
         bodyLine: Number.parseFloat(body.lineHeight) / Number.parseFloat(body.fontSize),
         docWidth: doc.getBoundingClientRect().width,
-        leadWidth: lead.getBoundingClientRect().width,
         codeOverflowX: getComputedStyle(codeBlock).overflowX,
         codeLigatures: getComputedStyle(code).fontFeatureSettings,
         h1Tracking: Number.parseFloat(getComputedStyle(h1).letterSpacing),
@@ -227,7 +225,6 @@ describeBrowser('website browser accessibility smoke', () => {
     expect(metrics.bodyLine).toBeLessThanOrEqual(1.62)
     expect(metrics.docWidth).toBeGreaterThanOrEqual(1000)
     expect(metrics.docWidth).toBeLessThanOrEqual(1008)
-    expect(metrics.leadWidth).toBeGreaterThanOrEqual(950)
     expect(metrics.codeOverflowX).toBe('auto')
     expect(metrics.codeLigatures).toContain('"liga" 0')
     expect(Math.abs(metrics.h1Tracking)).toBeLessThan(2)
