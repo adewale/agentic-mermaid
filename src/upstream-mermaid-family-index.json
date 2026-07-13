@@ -1,0 +1,985 @@
+{
+  "schemaVersion": 1,
+  "provenance": {
+    "version": "11.16.0",
+    "commit": "5e3c88ea6d937a89078a5e8f1b2a6fd0ea391a5c",
+    "inventorySha256": "0991b33b1d1a9b86e52d95a7703cf14a17f1079d9a41316081bb623462b6c14c"
+  },
+  "families": [
+    {
+      "id": "flowchart",
+      "label": "Flowchart",
+      "source": "core",
+      "maturity": "stable",
+      "upstreamDetectorIds": [
+        "flowchart-v2",
+        "flowchart",
+        "flowchart-elk"
+      ],
+      "headers": [
+        {
+          "value": "flowchart",
+          "agenticStatus": "native"
+        },
+        {
+          "value": "graph",
+          "agenticStatus": "native"
+        },
+        {
+          "value": "flowchart-elk",
+          "agenticStatus": "unsupported"
+        }
+      ],
+      "officialSyntaxPage": {
+        "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/flowchart.md",
+        "url": "https://mermaid.ai/open-source/syntax/flowchart.html",
+        "artifact": "official-doc:flowchart"
+      },
+      "lifecycle": {
+        "introduction": {
+          "status": "not-declared"
+        },
+        "deprecation": {
+          "status": "not-declared"
+        }
+      }
+    },
+    {
+      "id": "swimlane",
+      "label": "Swimlanes",
+      "source": "core",
+      "maturity": "beta",
+      "upstreamDetectorIds": [
+        "swimlane"
+      ],
+      "headers": [
+        {
+          "value": "swimlane-beta",
+          "agenticStatus": "unsupported"
+        }
+      ],
+      "officialSyntaxPage": {
+        "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/swimlanes.md",
+        "url": "https://mermaid.ai/open-source/syntax/swimlanes.html",
+        "artifact": "official-doc:swimlane"
+      },
+      "lifecycle": {
+        "introduction": {
+          "status": "declared",
+          "version": "11.16.0",
+          "evidence": "official-title"
+        },
+        "deprecation": {
+          "status": "not-declared"
+        }
+      }
+    },
+    {
+      "id": "sequence",
+      "label": "Sequence",
+      "source": "core",
+      "maturity": "stable",
+      "upstreamDetectorIds": [
+        "sequence"
+      ],
+      "headers": [
+        {
+          "value": "sequenceDiagram",
+          "agenticStatus": "native"
+        }
+      ],
+      "officialSyntaxPage": {
+        "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/sequenceDiagram.md",
+        "url": "https://mermaid.ai/open-source/syntax/sequenceDiagram.html",
+        "artifact": "official-doc:sequence"
+      },
+      "lifecycle": {
+        "introduction": {
+          "status": "not-declared"
+        },
+        "deprecation": {
+          "status": "not-declared"
+        }
+      }
+    },
+    {
+      "id": "class",
+      "label": "Class",
+      "source": "core",
+      "maturity": "stable",
+      "upstreamDetectorIds": [
+        "classDiagram",
+        "class"
+      ],
+      "headers": [
+        {
+          "value": "classDiagram",
+          "agenticStatus": "native"
+        },
+        {
+          "value": "classDiagram-v2",
+          "agenticStatus": "unsupported"
+        }
+      ],
+      "officialSyntaxPage": {
+        "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/classDiagram.md",
+        "url": "https://mermaid.ai/open-source/syntax/classDiagram.html",
+        "artifact": "official-doc:class"
+      },
+      "lifecycle": {
+        "introduction": {
+          "status": "not-declared"
+        },
+        "deprecation": {
+          "status": "not-declared"
+        }
+      }
+    },
+    {
+      "id": "state",
+      "label": "State",
+      "source": "core",
+      "maturity": "stable",
+      "upstreamDetectorIds": [
+        "stateDiagram",
+        "state"
+      ],
+      "headers": [
+        {
+          "value": "stateDiagram",
+          "agenticStatus": "native"
+        },
+        {
+          "value": "stateDiagram-v2",
+          "agenticStatus": "native"
+        }
+      ],
+      "officialSyntaxPage": {
+        "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/stateDiagram.md",
+        "url": "https://mermaid.ai/open-source/syntax/stateDiagram.html",
+        "artifact": "official-doc:state"
+      },
+      "lifecycle": {
+        "introduction": {
+          "status": "not-declared"
+        },
+        "deprecation": {
+          "status": "not-declared"
+        }
+      }
+    },
+    {
+      "id": "er",
+      "label": "Entity Relationship",
+      "source": "core",
+      "maturity": "stable",
+      "upstreamDetectorIds": [
+        "er"
+      ],
+      "headers": [
+        {
+          "value": "erDiagram",
+          "agenticStatus": "native"
+        }
+      ],
+      "officialSyntaxPage": {
+        "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/entityRelationshipDiagram.md",
+        "url": "https://mermaid.ai/open-source/syntax/entityRelationshipDiagram.html",
+        "artifact": "official-doc:er"
+      },
+      "lifecycle": {
+        "introduction": {
+          "status": "not-declared"
+        },
+        "deprecation": {
+          "status": "not-declared"
+        }
+      }
+    },
+    {
+      "id": "journey",
+      "label": "User Journey",
+      "source": "core",
+      "maturity": "stable",
+      "upstreamDetectorIds": [
+        "journey"
+      ],
+      "headers": [
+        {
+          "value": "journey",
+          "agenticStatus": "native"
+        }
+      ],
+      "officialSyntaxPage": {
+        "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/userJourney.md",
+        "url": "https://mermaid.ai/open-source/syntax/userJourney.html",
+        "artifact": "official-doc:journey"
+      },
+      "lifecycle": {
+        "introduction": {
+          "status": "not-declared"
+        },
+        "deprecation": {
+          "status": "not-declared"
+        }
+      }
+    },
+    {
+      "id": "gantt",
+      "label": "Gantt",
+      "source": "core",
+      "maturity": "stable",
+      "upstreamDetectorIds": [
+        "gantt"
+      ],
+      "headers": [
+        {
+          "value": "gantt",
+          "agenticStatus": "native"
+        }
+      ],
+      "officialSyntaxPage": {
+        "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/gantt.md",
+        "url": "https://mermaid.ai/open-source/syntax/gantt.html",
+        "artifact": "official-doc:gantt"
+      },
+      "lifecycle": {
+        "introduction": {
+          "status": "not-declared"
+        },
+        "deprecation": {
+          "status": "not-declared"
+        }
+      }
+    },
+    {
+      "id": "pie",
+      "label": "Pie",
+      "source": "core",
+      "maturity": "stable",
+      "upstreamDetectorIds": [
+        "pie"
+      ],
+      "headers": [
+        {
+          "value": "pie",
+          "agenticStatus": "native"
+        }
+      ],
+      "officialSyntaxPage": {
+        "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/pie.md",
+        "url": "https://mermaid.ai/open-source/syntax/pie.html",
+        "artifact": "official-doc:pie"
+      },
+      "lifecycle": {
+        "introduction": {
+          "status": "not-declared"
+        },
+        "deprecation": {
+          "status": "not-declared"
+        }
+      }
+    },
+    {
+      "id": "quadrant",
+      "label": "Quadrant",
+      "source": "core",
+      "maturity": "stable",
+      "upstreamDetectorIds": [
+        "quadrantChart"
+      ],
+      "headers": [
+        {
+          "value": "quadrantChart",
+          "agenticStatus": "native"
+        }
+      ],
+      "officialSyntaxPage": {
+        "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/quadrantChart.md",
+        "url": "https://mermaid.ai/open-source/syntax/quadrantChart.html",
+        "artifact": "official-doc:quadrant"
+      },
+      "lifecycle": {
+        "introduction": {
+          "status": "not-declared"
+        },
+        "deprecation": {
+          "status": "not-declared"
+        }
+      }
+    },
+    {
+      "id": "requirement",
+      "label": "Requirement",
+      "source": "core",
+      "maturity": "stable",
+      "upstreamDetectorIds": [
+        "requirement"
+      ],
+      "headers": [
+        {
+          "value": "requirementDiagram",
+          "agenticStatus": "unsupported"
+        },
+        {
+          "value": "requirement",
+          "agenticStatus": "unsupported"
+        }
+      ],
+      "officialSyntaxPage": {
+        "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/requirementDiagram.md",
+        "url": "https://mermaid.ai/open-source/syntax/requirementDiagram.html",
+        "artifact": "official-doc:requirement"
+      },
+      "lifecycle": {
+        "introduction": {
+          "status": "not-declared"
+        },
+        "deprecation": {
+          "status": "not-declared"
+        }
+      }
+    },
+    {
+      "id": "gitgraph",
+      "label": "GitGraph",
+      "source": "core",
+      "maturity": "stable",
+      "upstreamDetectorIds": [
+        "gitGraph"
+      ],
+      "headers": [
+        {
+          "value": "gitGraph",
+          "agenticStatus": "native"
+        }
+      ],
+      "officialSyntaxPage": {
+        "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/gitgraph.md",
+        "url": "https://mermaid.ai/open-source/syntax/gitgraph.html",
+        "artifact": "official-doc:gitgraph"
+      },
+      "lifecycle": {
+        "introduction": {
+          "status": "not-declared"
+        },
+        "deprecation": {
+          "status": "not-declared"
+        }
+      }
+    },
+    {
+      "id": "c4",
+      "label": "C4",
+      "source": "core",
+      "maturity": "experimental",
+      "upstreamDetectorIds": [
+        "c4"
+      ],
+      "headers": [
+        {
+          "value": "C4Context",
+          "agenticStatus": "inventory-only"
+        },
+        {
+          "value": "C4Container",
+          "agenticStatus": "inventory-only"
+        },
+        {
+          "value": "C4Component",
+          "agenticStatus": "inventory-only"
+        },
+        {
+          "value": "C4Dynamic",
+          "agenticStatus": "inventory-only"
+        },
+        {
+          "value": "C4Deployment",
+          "agenticStatus": "inventory-only"
+        }
+      ],
+      "officialSyntaxPage": {
+        "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/c4.md",
+        "url": "https://mermaid.ai/open-source/syntax/c4.html",
+        "artifact": "official-doc:c4"
+      },
+      "lifecycle": {
+        "introduction": {
+          "status": "not-declared"
+        },
+        "deprecation": {
+          "status": "not-declared"
+        }
+      }
+    },
+    {
+      "id": "mindmap",
+      "label": "Mindmap",
+      "source": "core",
+      "maturity": "stable",
+      "upstreamDetectorIds": [
+        "mindmap"
+      ],
+      "headers": [
+        {
+          "value": "mindmap",
+          "agenticStatus": "native"
+        }
+      ],
+      "officialSyntaxPage": {
+        "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/mindmap.md",
+        "url": "https://mermaid.ai/open-source/syntax/mindmap.html",
+        "artifact": "official-doc:mindmap"
+      },
+      "lifecycle": {
+        "introduction": {
+          "status": "not-declared"
+        },
+        "deprecation": {
+          "status": "not-declared"
+        }
+      }
+    },
+    {
+      "id": "timeline",
+      "label": "Timeline",
+      "source": "core",
+      "maturity": "experimental",
+      "upstreamDetectorIds": [
+        "timeline"
+      ],
+      "headers": [
+        {
+          "value": "timeline",
+          "agenticStatus": "native"
+        }
+      ],
+      "officialSyntaxPage": {
+        "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/timeline.md",
+        "url": "https://mermaid.ai/open-source/syntax/timeline.html",
+        "artifact": "official-doc:timeline"
+      },
+      "lifecycle": {
+        "introduction": {
+          "status": "not-declared"
+        },
+        "deprecation": {
+          "status": "not-declared"
+        }
+      }
+    },
+    {
+      "id": "zenuml",
+      "label": "ZenUML",
+      "source": "external-first-party",
+      "maturity": "experimental",
+      "upstreamDetectorIds": [
+        "zenuml"
+      ],
+      "headers": [
+        {
+          "value": "zenuml",
+          "agenticStatus": "unsupported"
+        }
+      ],
+      "officialSyntaxPage": {
+        "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/zenuml.md",
+        "url": "https://mermaid.ai/open-source/syntax/zenuml.html",
+        "artifact": "official-doc:zenuml"
+      },
+      "lifecycle": {
+        "introduction": {
+          "status": "not-declared"
+        },
+        "deprecation": {
+          "status": "not-declared"
+        }
+      }
+    },
+    {
+      "id": "sankey",
+      "label": "Sankey",
+      "source": "core",
+      "maturity": "stable",
+      "upstreamDetectorIds": [
+        "sankey"
+      ],
+      "headers": [
+        {
+          "value": "sankey",
+          "agenticStatus": "unsupported"
+        },
+        {
+          "value": "sankey-beta",
+          "agenticStatus": "unsupported"
+        }
+      ],
+      "officialSyntaxPage": {
+        "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/sankey.md",
+        "url": "https://mermaid.ai/open-source/syntax/sankey.html",
+        "artifact": "official-doc:sankey"
+      },
+      "lifecycle": {
+        "introduction": {
+          "status": "declared",
+          "version": "10.3.0",
+          "evidence": "official-title"
+        },
+        "deprecation": {
+          "status": "not-declared"
+        }
+      }
+    },
+    {
+      "id": "xychart",
+      "label": "XY Chart",
+      "source": "core",
+      "maturity": "stable",
+      "upstreamDetectorIds": [
+        "xychart"
+      ],
+      "headers": [
+        {
+          "value": "xychart",
+          "agenticStatus": "native"
+        },
+        {
+          "value": "xychart-beta",
+          "agenticStatus": "native"
+        }
+      ],
+      "officialSyntaxPage": {
+        "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/xyChart.md",
+        "url": "https://mermaid.ai/open-source/syntax/xyChart.html",
+        "artifact": "official-doc:xychart"
+      },
+      "lifecycle": {
+        "introduction": {
+          "status": "not-declared"
+        },
+        "deprecation": {
+          "status": "not-declared"
+        }
+      }
+    },
+    {
+      "id": "block",
+      "label": "Block",
+      "source": "core",
+      "maturity": "stable",
+      "upstreamDetectorIds": [
+        "block"
+      ],
+      "headers": [
+        {
+          "value": "block",
+          "agenticStatus": "unsupported"
+        },
+        {
+          "value": "block-beta",
+          "agenticStatus": "unsupported"
+        }
+      ],
+      "officialSyntaxPage": {
+        "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/block.md",
+        "url": "https://mermaid.ai/open-source/syntax/block.html",
+        "artifact": "official-doc:block"
+      },
+      "lifecycle": {
+        "introduction": {
+          "status": "not-declared"
+        },
+        "deprecation": {
+          "status": "not-declared"
+        }
+      }
+    },
+    {
+      "id": "packet",
+      "label": "Packet",
+      "source": "core",
+      "maturity": "stable",
+      "upstreamDetectorIds": [
+        "packet"
+      ],
+      "headers": [
+        {
+          "value": "packet",
+          "agenticStatus": "unsupported"
+        },
+        {
+          "value": "packet-beta",
+          "agenticStatus": "unsupported"
+        }
+      ],
+      "officialSyntaxPage": {
+        "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/packet.md",
+        "url": "https://mermaid.ai/open-source/syntax/packet.html",
+        "artifact": "official-doc:packet"
+      },
+      "lifecycle": {
+        "introduction": {
+          "status": "declared",
+          "version": "11.0.0",
+          "evidence": "official-title"
+        },
+        "deprecation": {
+          "status": "not-declared"
+        }
+      }
+    },
+    {
+      "id": "kanban",
+      "label": "Kanban",
+      "source": "core",
+      "maturity": "stable",
+      "upstreamDetectorIds": [
+        "kanban"
+      ],
+      "headers": [
+        {
+          "value": "kanban",
+          "agenticStatus": "unsupported"
+        }
+      ],
+      "officialSyntaxPage": {
+        "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/kanban.md",
+        "url": "https://mermaid.ai/open-source/syntax/kanban.html",
+        "artifact": "official-doc:kanban"
+      },
+      "lifecycle": {
+        "introduction": {
+          "status": "not-declared"
+        },
+        "deprecation": {
+          "status": "not-declared"
+        }
+      }
+    },
+    {
+      "id": "architecture",
+      "label": "Architecture",
+      "source": "core",
+      "maturity": "stable",
+      "upstreamDetectorIds": [
+        "architecture"
+      ],
+      "headers": [
+        {
+          "value": "architecture",
+          "agenticStatus": "unsupported"
+        },
+        {
+          "value": "architecture-beta",
+          "agenticStatus": "native"
+        }
+      ],
+      "officialSyntaxPage": {
+        "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/architecture.md",
+        "url": "https://mermaid.ai/open-source/syntax/architecture.html",
+        "artifact": "official-doc:architecture"
+      },
+      "lifecycle": {
+        "introduction": {
+          "status": "declared",
+          "version": "11.1.0",
+          "evidence": "official-title"
+        },
+        "deprecation": {
+          "status": "not-declared"
+        }
+      }
+    },
+    {
+      "id": "radar",
+      "label": "Radar",
+      "source": "core",
+      "maturity": "beta",
+      "upstreamDetectorIds": [
+        "radar"
+      ],
+      "headers": [
+        {
+          "value": "radar-beta",
+          "agenticStatus": "unsupported"
+        }
+      ],
+      "officialSyntaxPage": {
+        "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/radar.md",
+        "url": "https://mermaid.ai/open-source/syntax/radar.html",
+        "artifact": "official-doc:radar"
+      },
+      "lifecycle": {
+        "introduction": {
+          "status": "declared",
+          "version": "11.6.0",
+          "evidence": "official-title"
+        },
+        "deprecation": {
+          "status": "not-declared"
+        }
+      }
+    },
+    {
+      "id": "eventmodeling",
+      "label": "Event Modeling",
+      "source": "core",
+      "maturity": "experimental",
+      "upstreamDetectorIds": [
+        "eventmodeling"
+      ],
+      "headers": [
+        {
+          "value": "eventmodeling",
+          "agenticStatus": "unsupported"
+        }
+      ],
+      "officialSyntaxPage": {
+        "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/eventmodeling.md",
+        "url": "https://mermaid.ai/open-source/syntax/eventmodeling.html",
+        "artifact": "official-doc:eventmodeling"
+      },
+      "lifecycle": {
+        "introduction": {
+          "status": "declared",
+          "version": "11.15.0",
+          "evidence": "official-title"
+        },
+        "deprecation": {
+          "status": "not-declared"
+        }
+      }
+    },
+    {
+      "id": "treemap",
+      "label": "Treemap",
+      "source": "core",
+      "maturity": "stable",
+      "upstreamDetectorIds": [
+        "treemap"
+      ],
+      "headers": [
+        {
+          "value": "treemap",
+          "agenticStatus": "unsupported"
+        },
+        {
+          "value": "treemap-beta",
+          "agenticStatus": "unsupported"
+        }
+      ],
+      "officialSyntaxPage": {
+        "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/treemap.md",
+        "url": "https://mermaid.ai/open-source/syntax/treemap.html",
+        "artifact": "official-doc:treemap"
+      },
+      "lifecycle": {
+        "introduction": {
+          "status": "not-declared"
+        },
+        "deprecation": {
+          "status": "not-declared"
+        }
+      }
+    },
+    {
+      "id": "venn",
+      "label": "Venn",
+      "source": "core",
+      "maturity": "beta",
+      "upstreamDetectorIds": [
+        "venn"
+      ],
+      "headers": [
+        {
+          "value": "venn-beta",
+          "agenticStatus": "unsupported"
+        }
+      ],
+      "officialSyntaxPage": {
+        "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/venn.md",
+        "url": "https://mermaid.ai/open-source/syntax/venn.html",
+        "artifact": "official-doc:venn"
+      },
+      "lifecycle": {
+        "introduction": {
+          "status": "declared",
+          "version": "11.12.3",
+          "evidence": "official-title"
+        },
+        "deprecation": {
+          "status": "not-declared"
+        }
+      }
+    },
+    {
+      "id": "ishikawa",
+      "label": "Ishikawa",
+      "source": "core",
+      "maturity": "stable",
+      "upstreamDetectorIds": [
+        "ishikawa"
+      ],
+      "headers": [
+        {
+          "value": "ishikawa",
+          "agenticStatus": "unsupported"
+        },
+        {
+          "value": "ishikawa-beta",
+          "agenticStatus": "unsupported"
+        }
+      ],
+      "officialSyntaxPage": {
+        "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/ishikawa.md",
+        "url": "https://mermaid.ai/open-source/syntax/ishikawa.html",
+        "artifact": "official-doc:ishikawa"
+      },
+      "lifecycle": {
+        "introduction": {
+          "status": "declared",
+          "version": "11.12.3",
+          "evidence": "official-title"
+        },
+        "deprecation": {
+          "status": "not-declared"
+        }
+      }
+    },
+    {
+      "id": "wardley",
+      "label": "Wardley",
+      "source": "core",
+      "maturity": "beta",
+      "upstreamDetectorIds": [
+        "wardley"
+      ],
+      "headers": [
+        {
+          "value": "wardley-beta",
+          "agenticStatus": "unsupported"
+        }
+      ],
+      "officialSyntaxPage": {
+        "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/wardley.md",
+        "url": "https://mermaid.ai/open-source/syntax/wardley.html",
+        "artifact": "official-doc:wardley"
+      },
+      "lifecycle": {
+        "introduction": {
+          "status": "declared",
+          "version": "11.14.0",
+          "evidence": "official-title"
+        },
+        "deprecation": {
+          "status": "not-declared"
+        }
+      }
+    },
+    {
+      "id": "cynefin",
+      "label": "Cynefin",
+      "source": "core",
+      "maturity": "beta",
+      "upstreamDetectorIds": [
+        "cynefin"
+      ],
+      "headers": [
+        {
+          "value": "cynefin-beta",
+          "agenticStatus": "unsupported"
+        }
+      ],
+      "officialSyntaxPage": {
+        "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/cynefin.md",
+        "url": "https://mermaid.ai/open-source/syntax/cynefin.html",
+        "artifact": "official-doc:cynefin"
+      },
+      "lifecycle": {
+        "introduction": {
+          "status": "declared",
+          "version": "11.16.0",
+          "evidence": "official-title"
+        },
+        "deprecation": {
+          "status": "not-declared"
+        }
+      }
+    },
+    {
+      "id": "treeview",
+      "label": "TreeView",
+      "source": "core",
+      "maturity": "beta",
+      "upstreamDetectorIds": [
+        "treeView"
+      ],
+      "headers": [
+        {
+          "value": "treeView-beta",
+          "agenticStatus": "unsupported"
+        }
+      ],
+      "officialSyntaxPage": {
+        "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/treeView.md",
+        "url": "https://mermaid.ai/open-source/syntax/treeView.html",
+        "artifact": "official-doc:treeview"
+      },
+      "lifecycle": {
+        "introduction": {
+          "status": "declared",
+          "version": "11.14.0",
+          "evidence": "official-title"
+        },
+        "deprecation": {
+          "status": "not-declared"
+        }
+      }
+    },
+    {
+      "id": "railroad",
+      "label": "Railroad",
+      "source": "core",
+      "maturity": "beta",
+      "upstreamDetectorIds": [
+        "railroad",
+        "railroadEbnf",
+        "railroadAbnf",
+        "railroadPeg"
+      ],
+      "headers": [
+        {
+          "value": "railroad-beta",
+          "agenticStatus": "unsupported"
+        },
+        {
+          "value": "railroad-ebnf-beta",
+          "agenticStatus": "unsupported"
+        },
+        {
+          "value": "railroad-abnf-beta",
+          "agenticStatus": "unsupported"
+        },
+        {
+          "value": "railroad-peg-beta",
+          "agenticStatus": "unsupported"
+        }
+      ],
+      "officialSyntaxPage": {
+        "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/railroad.md",
+        "url": "https://mermaid.ai/open-source/syntax/railroad.html",
+        "artifact": "official-doc:railroad"
+      },
+      "lifecycle": {
+        "introduction": {
+          "status": "declared",
+          "version": "11.16.0",
+          "evidence": "official-title"
+        },
+        "deprecation": {
+          "status": "not-declared"
+        }
+      }
+    }
+  ]
+}

@@ -82,6 +82,10 @@ export function lowerGitGraphScene(ctx: RenderContext<PositionedGitGraphDiagram>
       role: 'edge', geometry: { kind: 'polyline', points: edge.points },
       lineStyle: edge.kind === 'cherry-pick' ? 'dashed' : 'solid',
       paint: { fill: 'none', stroke: edgePaint, strokeWidth: edge.kind === 'parent' ? '2' : '2.5', ...(edge.kind === 'cherry-pick' ? { strokeDasharray: '4 3' } : {}) },
+      endpoints: { from: edge.from, to: edge.to },
+      relationship: { kind: edge.kind, direction: 'forward' },
+      route: { ownership: 'layout' },
+      projectAccessibilityToSvg: true,
       channels: { category: edge.kind },
     }, `<polyline class="git-edge git-edge-${edge.kind}" data-from="${escapeAttr(edge.from)}" data-to="${escapeAttr(edge.to)}" points="${points}" fill="none" stroke="${escapeAttr(edgePaint)}" stroke-width="${edge.kind === 'parent' ? 2 : 2.5}"${edge.kind === 'cherry-pick' ? ' stroke-dasharray="4 3"' : ''} />`))
   }

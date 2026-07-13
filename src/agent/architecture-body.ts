@@ -95,10 +95,13 @@ function parseEdge(line: string): ArchitectureEdge | null {
  * ids, every `in` parent and every edge endpoint resolves). Otherwise returns
  * null (opaque fallback).
  */
-export function parseArchitectureBody(lines: string[]): ArchitectureBody | null {
+export function parseArchitectureBody(
+  lines: string[],
+  accessibility: import('./types.ts').Accessibility = {},
+): ArchitectureBody | null {
   let title: string | undefined
-  let accessibilityTitle: string | undefined
-  let accessibilityDescription: string | undefined
+  let accessibilityTitle = accessibility.title
+  let accessibilityDescription = accessibility.descr
   const groups: ArchitectureGroup[] = []
   const services: ArchitectureService[] = []
   const junctions: ArchitectureJunction[] = []

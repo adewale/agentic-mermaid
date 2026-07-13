@@ -263,7 +263,6 @@ describe('style consolidation', () => {
     expect(inferBackend({ backdrop: 'grid' })).toBe('rough')
     expect(inferBackend({ stroke: 'freehand' })).toBe('hybrid')
     expect(inferBackend({ fill: 'wash' })).toBe('hybrid')
-    expect(inferBackend({ fill: 'wash', backend: 'rough' })).toBe('rough') // expert override
     for (const name of LOOKS_WITH_BACKENDS) {
       expect(inferBackend(getStyle(name.style)!)).toBe(name.backend)
     }
@@ -290,6 +289,7 @@ describe('style consolidation', () => {
     expect(validateStyleSpec({ edge: 'x' })).toContain('unknown field "edge"')
     expect(validateStyleSpec({ group: [] })).toContain('unknown field "group"')
     expect(validateStyleSpec({ text: { fontSize: 'large' } })).toContain('unknown field "text"')
+    expect(validateStyleSpec({ backend: 'rough' })).toContain('unknown field "backend"')
     expect(validateStyleSpec({ evil: '<script>' }).length).toBeGreaterThan(0)
     expect(validateStyleSpec('hand-drawn').length).toBeGreaterThan(0)
   })

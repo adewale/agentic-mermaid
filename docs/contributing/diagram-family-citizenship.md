@@ -6,7 +6,9 @@ A diagram family is a **good citizen** when it is faithful before it is ubiquito
 
 ## Source of truth
 
-`BUILTIN_FAMILY_METADATA` in `src/agent/families.ts` is the canonical shipped-family registry. It records the family id, label, Mermaid headers, typed narrower, live-editor example id/type, and editor glyph. The registry has compile-time coverage against `DiagramKind`; tests then project it into CLI capabilities, MCP/Code Mode, docs, editor examples, eval fixtures, package keywords, and generated discovery docs.
+The `FamilyDescriptor` registry in `src/agent/families.ts` is the canonical runtime authority for identity, detection, discovery metadata, and behavioral hooks. The built-in `DiagramKind` union stays closed and exhaustive; namespaced `family:<owner/name>` extensions are open and collision-checked. `BUILTIN_FAMILY_METADATA` is a frozen compatibility projection of the built-in descriptors, not a second registry. Tests project that authority into CLI capabilities, MCP/Code Mode, docs, editor examples, eval fixtures, package keywords, and generated discovery docs.
+
+The version-pinned upstream inventory lives at [`upstream-mermaid-manifest.json`](../project/upstream-mermaid-manifest.json). It records every public Mermaid family/header separately from native Agentic Mermaid support, including unsupported and inventory-only dialects. Every family owns exactly one hashed official syntax page, heading-level feature inventory, deduplicated official example inventory, and explicit introduction/deprecation accounting (`declared` or `not-declared`). Upgrade work must regenerate its provenance/hash and review the machine-readable diff before changing any native claim; an upstream header is never silently treated as Flowchart. Runtime detection imports only the generated compact family index, never the semantic corpus.
 
 The checked citizenship matrix lives at [`diagram-family-citizenship.matrix.json`](./diagram-family-citizenship.matrix.json). It is intentionally separate from the registry: the registry says “this family ships”; the matrix says “these citizenship surfaces are satisfied, these Mermaid/Wikipedia fidelity claims are evidenced, and these remaining gaps are tracked.” The human-readable registry-wide audit is [`mermaid-family-fidelity-audit.md`](../design/mermaid-family-fidelity-audit.md).
 
@@ -27,7 +29,7 @@ The matrix has one cell per family for each surface below. A cell is either `sat
 
 | Surface | Contract |
 |---|---|
-| `registryDiscovery` | Family appears in `BUILTIN_FAMILY_METADATA`, registered plugins, CLI capability metadata, and typed IDs. |
+| `registryDiscovery` | Family appears in the `FamilyDescriptor` authority, its derived built-in metadata projection, CLI capability metadata, and typed IDs. |
 | `detectionParse` | Shared detector, agent parse, SVG render, ASCII render, CLI, and MCP paths route consistently; state’s flowchart renderer split is the only documented exception. |
 | `semanticModel` | Modeled syntax subset and opaque/source-preservation ladder are explicit. |
 | `serializeRoundTrip` | Modeled syntax has parse → serialize → parse stability; opaque/segment-preserved syntax round-trips losslessly. |
@@ -79,9 +81,9 @@ This is the intended ratchet shape: historical gaps are either closed or represe
 
 When adding or changing a family:
 
-1. Add/update `BUILTIN_FAMILY_METADATA` first.
+1. Add/update the built-in `FamilyDescriptor` seed first; `BUILTIN_FAMILY_METADATA` derives automatically. External families use a validated `family:<owner/name>` id and `registerFamily`. Update the pinned upstream manifest only when the upstream inventory or support classification changes.
 2. Add/update parser, renderer, agent body, mutation ops, verify behavior, and examples.
-3. Inventory the pinned Mermaid syntax page and upstream specs. Add every stable construct to executable fixtures; do not count parse-only or opaque preservation as support.
+3. Map the family to exactly one pinned official Mermaid syntax page. The generator accounts for all headings/examples; promote every stable construct claimed native to executable fixtures, and do not count parse-only or opaque preservation as support.
 4. Cite Mermaid and a Wikipedia/domain reference, name the family hallmark, add an independent invariant, and commit a generated screenshot with a captioned PR Visual Evidence row.
 5. Update the citizenship matrix row—including `mermaidSyntaxParity`, `familyVisualMetaphor`, and its `fidelity` record—in the same PR. These two surfaces cannot be deferred for a newly registered family.
 6. Run `bun test src/__tests__/diagram-family-citizenship.test.ts src/__tests__/agent-doc-sync.test.ts src/__tests__/editor-examples.test.ts src/__tests__/cli-capabilities.test.ts` before wider validation.

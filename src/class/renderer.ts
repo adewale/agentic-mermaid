@@ -7,10 +7,11 @@ import { CLS, CLASS_STYLE_DEFAULTS } from './layout.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
 import { renderMultilineText, escapeAttr, escapeXml as escapeXmlUtil } from '../multiline-utils.ts'
 import { topRoundedRectPath } from '../svg-paths.ts'
-import type { MarkerRef, SceneDoc, SceneNode } from '../scene/ir.ts'
+import type { MarkerDescriptor, MarkerRef, SceneDoc, SceneNode } from '../scene/ir.ts'
 import { hashId } from '../scene/seed.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
+import { serializeMarkerResources } from '../scene/marker-resources.ts'
 
 // ============================================================================
 // Class diagram SVG renderer
@@ -85,11 +86,12 @@ export function lowerClassScene(
   ))
   const defsParts: string[] = []
   defsParts.push('<defs>')
-  defsParts.push(relationshipMarkerDefs(style))
+  const markerResources = classMarkerResources(style)
+  defsParts.push(serializeMarkerResources(markerResources))
   const shadowDefs = buildShadowDefs(colors)
   if (shadowDefs) defsParts.push(shadowDefs)
   defsParts.push('</defs>')
-  parts.push(marks.definitions({ id: 'defs' }, defsParts.join('\n')))
+  parts.push(marks.definitions({ id: 'defs', markerResources }, defsParts.join('\n')))
 
   if (diagram.accessibilityTitle) {
     parts.push(marks.raw({ id: 'title', role: 'chrome' }, `<title id="${titleId}">${escapeXml(diagram.accessibilityTitle)}</title>`))
@@ -152,29 +154,17 @@ export function lowerClassScene(
  *
  * Uses var(--_arrow) for fill/stroke and var(--bg) for hollow marker fills.
  */
-function relationshipMarkerDefs(style: ResolvedRenderStyle): string {
-  const edgeColor = escapeAttr(style.edgeStrokeColor ?? 'var(--_arrow)')
-  return (
-    // Hollow triangle (inheritance, realization) — points at target
-    `  <marker id="cls-inherit" markerWidth="12" markerHeight="10" refX="12" refY="5" orient="auto-start-reverse">` +
-    `\n    <polygon points="0 0, 12 5, 0 10" fill="var(--bg)" stroke="${edgeColor}" stroke-width="1.5" />` +
-    `\n  </marker>` +
-    // Filled diamond (composition) — points at source
-    `\n  <marker id="cls-composition" markerWidth="12" markerHeight="10" refX="0" refY="5" orient="auto-start-reverse">` +
-    `\n    <polygon points="6 0, 12 5, 6 10, 0 5" fill="${edgeColor}" stroke="${edgeColor}" stroke-width="1" />` +
-    `\n  </marker>` +
-    // Hollow diamond (aggregation) — points at source
-    `\n  <marker id="cls-aggregation" markerWidth="12" markerHeight="10" refX="0" refY="5" orient="auto-start-reverse">` +
-    `\n    <polygon points="6 0, 12 5, 6 10, 0 5" fill="var(--bg)" stroke="${edgeColor}" stroke-width="1.5" />` +
-    `\n  </marker>` +
-    // Open arrow (association, dependency)
-    `\n  <marker id="cls-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto-start-reverse">` +
-    `\n    <polyline points="0 0, 8 3, 0 6" fill="none" stroke="${edgeColor}" stroke-width="1.5" />` +
-    `\n  </marker>` +
-    `\n  <marker id="cls-lollipop" markerWidth="14" markerHeight="14" refX="7" refY="7" orient="auto">` +
-    `\n    <circle cx="7" cy="7" r="5" fill="var(--bg)" stroke="${edgeColor}" stroke-width="1.5" />` +
-    `\n  </marker>`
-  )
+function classMarkerResources(style: ResolvedRenderStyle): readonly MarkerDescriptor[] {
+  const edgeColor = style.edgeStrokeColor ?? 'var(--_arrow)'
+  const triangle = [{ x: 0, y: 0 }, { x: 12, y: 5 }, { x: 0, y: 10 }]
+  const diamond = [{ x: 6, y: 0 }, { x: 12, y: 5 }, { x: 6, y: 10 }, { x: 0, y: 5 }]
+  return [
+    { id: 'cls-inherit', shape: 'triangle', size: { width: 12, height: 10 }, ref: { x: 12, y: 5 }, orient: 'auto-start-reverse', geometry: { kind: 'polygon', points: triangle }, paint: { fill: 'var(--bg)', stroke: edgeColor, strokeWidth: '1.5' } },
+    { id: 'cls-composition', shape: 'diamond', size: { width: 12, height: 10 }, ref: { x: 0, y: 5 }, orient: 'auto-start-reverse', geometry: { kind: 'polygon', points: diamond }, paint: { fill: edgeColor, stroke: edgeColor, strokeWidth: '1' } },
+    { id: 'cls-aggregation', shape: 'diamond-open', size: { width: 12, height: 10 }, ref: { x: 0, y: 5 }, orient: 'auto-start-reverse', geometry: { kind: 'polygon', points: diamond }, paint: { fill: 'var(--bg)', stroke: edgeColor, strokeWidth: '1.5' } },
+    { id: 'cls-arrow', shape: 'open-arrow', size: { width: 8, height: 6 }, ref: { x: 8, y: 3 }, orient: 'auto-start-reverse', geometry: { kind: 'polyline', points: [{ x: 0, y: 0 }, { x: 8, y: 3 }, { x: 0, y: 6 }] }, paint: { fill: 'none', stroke: edgeColor, strokeWidth: '1.5' } },
+    { id: 'cls-lollipop', shape: 'circle', size: { width: 14, height: 14 }, ref: { x: 7, y: 7 }, orient: 'auto', geometry: { kind: 'circle', cx: 7, cy: 7, r: 5 }, paint: { fill: 'var(--bg)', stroke: edgeColor, strokeWidth: '1.5' } },
+  ]
 }
 
 // ============================================================================
@@ -497,6 +487,9 @@ function renderRelationship(rel: PositionedClassRelationship, style: ResolvedRen
       geometry: { kind: 'polyline', points: rel.points },
       lineStyle: 'invisible',
       paint: {},
+      endpoints: { from: rel.from, to: rel.to },
+      relationship: { kind: rel.type },
+      labels: rel.label ? [{ text: rel.label, ...(rel.labelPosition ? { anchor: rel.labelPosition } : {}) }] : [],
     }, '')
   }
 
@@ -509,8 +502,9 @@ function renderRelationship(rel: PositionedClassRelationship, style: ResolvedRen
   const endType = rel.markerAt === 'to' || rel.markerAt === 'both' ? rel.toType ?? rel.type : undefined
   const startId = startType ? getMarkerDefId(startType) : null
   const endId = endType ? getMarkerDefId(endType) : null
-  const startMarker: MarkerRef | undefined = startId ? { id: startId, shape: markerShapeFor(startId) } : undefined
-  const endMarker: MarkerRef | undefined = endId ? { id: endId, shape: markerShapeFor(endId) } : undefined
+  const markerResources = classMarkerResources(style)
+  const startMarker: MarkerRef | undefined = startId ? markerResources.find(marker => marker.id === startId) : undefined
+  const endMarker: MarkerRef | undefined = endId ? markerResources.find(marker => marker.id === endId) : undefined
   const markers = `${startId ? ` marker-start="url(#${startId})"` : ''}${endId ? ` marker-end="url(#${endId})"` : ''}`
 
   // Build semantic data attributes for relationship inspection:
@@ -544,6 +538,17 @@ function renderRelationship(rel: PositionedClassRelationship, style: ResolvedRen
     strokeWidth: String(style.lineWidth),
     ...(isDashed ? { strokeDasharray: '6 4' } : {}),
   }
+  const connectorSemantics = {
+    endpoints: { from: rel.from, to: rel.to },
+    relationship: { kind: rel.type },
+    route: {
+      ownership: 'layout',
+      bendRadius: style.edgeBendRadius,
+      labelAnchors: rel.labelPosition ? [rel.labelPosition] : [],
+    },
+    labels: rel.label ? [{ text: rel.label, ...(rel.labelPosition ? { anchor: rel.labelPosition } : {}) }] : [],
+    projectAccessibilityToSvg: true,
+  } as const
 
   if (style.edgeBendRadius > 0 && rel.points.length > 2) {
     const d = pointsToPathD(rel.points, style.edgeBendRadius)
@@ -555,6 +560,7 @@ function renderRelationship(rel: PositionedClassRelationship, style: ResolvedRen
       paint,
       startMarker,
       endMarker,
+      ...connectorSemantics,
     },
       `<path ${dataAttrs.join(' ')} d="${d}" fill="none" stroke="${escapeAttr(strokeColor)}" ` +
       `stroke-width="${style.lineWidth}"${dashArray}${markers} />`)
@@ -568,6 +574,7 @@ function renderRelationship(rel: PositionedClassRelationship, style: ResolvedRen
     paint,
     startMarker,
     endMarker,
+    ...connectorSemantics,
   },
     `<polyline ${dataAttrs.join(' ')} points="${pathData}" fill="none" stroke="${escapeAttr(strokeColor)}" ` +
     `stroke-width="${style.lineWidth}"${dashArray}${markers} />`)
@@ -605,22 +612,6 @@ function getMarkerDefId(type: RelationshipType): string | null {
       return 'cls-lollipop'
     default:
       return null
-  }
-}
-
-/** Map a marker def ID to its MarkerRef archetype for styled backends. */
-function markerShapeFor(markerId: string): MarkerRef['shape'] {
-  switch (markerId) {
-    case 'cls-inherit':
-      return 'triangle'
-    case 'cls-composition':
-      return 'diamond'
-    case 'cls-aggregation':
-      return 'diamond-open'
-    case 'cls-lollipop':
-      return 'circle'
-    default:
-      return 'open-arrow'
   }
 }
 

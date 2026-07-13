@@ -1,6 +1,8 @@
 import type { JourneyDiagram, JourneySection, JourneyTask } from './types.ts'
 import { syntaxError } from '../shared/syntax-error.ts'
 import { walkJourneyLines, type JourneyParseIssue } from './parse-core.ts'
+import type { MermaidSourceAccessibility } from '../mermaid-source.ts'
+import { accessibilityFields } from '../shared/accessibility-directives.ts'
 
 // ============================================================================
 // Journey diagram parser
@@ -25,8 +27,11 @@ import { walkJourneyLines, type JourneyParseIssue } from './parse-core.ts'
  * Parse a Mermaid user journey diagram.
  * Expects the first line to be "journey".
  */
-export function parseJourneyDiagram(lines: string[]): JourneyDiagram {
-  const diagram: JourneyDiagram = { sections: [] }
+export function parseJourneyDiagram(
+  lines: string[],
+  accessibility: MermaidSourceAccessibility = {},
+): JourneyDiagram {
+  const diagram: JourneyDiagram = { sections: [], ...accessibilityFields(accessibility) }
 
   let currentSection: JourneySection | undefined
   let sectionIndex = 0

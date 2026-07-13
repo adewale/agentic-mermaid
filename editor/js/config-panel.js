@@ -1,6 +1,62 @@
 var cfgColors = { bg: '', fg: '', accent: '', line: '', muted: '', surface: '' };
 var cfgFont = '';
 var cfgPadding = 24;
+var advancedOptionsInput = document.getElementById('cfg-advanced-options');
+var advancedOptionsApply = document.getElementById('cfg-advanced-apply');
+var advancedOptionsSchema = document.getElementById('cfg-advanced-schema');
+var advancedOptionsStatus = document.getElementById('cfg-advanced-status');
+
+function canonicalAdvancedSchema() {
+  var schema = window.__mermaid && window.__mermaid.SHARED_RENDER_OPTIONS_JSON_SCHEMA;
+  return schema && schema.properties && typeof schema.properties === 'object' ? schema : { properties: {} };
+}
+
+function setAdvancedOptionsStatus(message, kind) {
+  if (!advancedOptionsStatus) return;
+  advancedOptionsStatus.textContent = message || '';
+  advancedOptionsStatus.classList.toggle('is-error', kind === 'error');
+  advancedOptionsStatus.classList.toggle('is-ok', kind === 'ok');
+}
+
+function syncAdvancedOptionsEditor(config) {
+  if (!advancedOptionsInput) return;
+  advancedOptionsInput.value = JSON.stringify(config || {}, null, 2);
+  advancedOptionsInput.setAttribute('aria-invalid', 'false');
+}
+
+function applyAdvancedOptionsJson() {
+  if (!advancedOptionsInput) return false;
+  var parsed;
+  try {
+    parsed = JSON.parse(advancedOptionsInput.value || '{}');
+  } catch (error) {
+    advancedOptionsInput.setAttribute('aria-invalid', 'true');
+    setAdvancedOptionsStatus('Invalid JSON: ' + (error && error.message ? error.message : String(error)), 'error');
+    return false;
+  }
+  var validator = window.__mermaid && window.__mermaid.validateSerializableRenderOptions;
+  var problems = typeof validator === 'function' ? validator(parsed) : ['Canonical RenderOptions validator is unavailable.'];
+  if (problems.length) {
+    advancedOptionsInput.setAttribute('aria-invalid', 'true');
+    setAdvancedOptionsStatus(problems.join('; '), 'error');
+    return false;
+  }
+  state.config = parsed;
+  hydrateConfigControls(state.config);
+  readConfig();
+  if (typeof scheduleRender === 'function') scheduleRender(0);
+  setAdvancedOptionsStatus('Applied ' + Object.keys(parsed).length + ' canonical option' + (Object.keys(parsed).length === 1 ? '' : 's') + '.', 'ok');
+  return true;
+}
+
+(function initializeAdvancedOptionsSchema() {
+  var fields = Object.keys(canonicalAdvancedSchema().properties);
+  if (advancedOptionsSchema) {
+    advancedOptionsSchema.textContent = fields.length + ' canonical fields: ' + fields.join(', ');
+    advancedOptionsSchema.title = fields.join(', ');
+  }
+  if (advancedOptionsApply) advancedOptionsApply.addEventListener('click', applyAdvancedOptionsJson);
+})();
 
 var COLOR_PRESETS = [
   '#ffffff','#f5f5f5','#e0e0e0','#bdbdbd','#9e9e9e','#757575','#424242','#212121','#000000',
@@ -25,11 +81,8 @@ function readConfig() {
   else delete cfg.font;
   if (cfgPadding !== 24) cfg.padding = cfgPadding;
   else delete cfg.padding;
-  if (cfgEdgeStroke !== 1) cfg.editorEdgeStroke = cfgEdgeStroke;
-  else delete cfg.editorEdgeStroke;
-  if (cfgNodeStroke !== 1) cfg.editorNodeStroke = cfgNodeStroke;
-  else delete cfg.editorNodeStroke;
   state.config = cfg;
+  syncAdvancedOptionsEditor(state.config);
   // Per-diagram config rides along in the autosaved draft and share URL.
   if (typeof scheduleDraftSave === 'function') scheduleDraftSave();
   if (typeof updateHash === 'function') updateHash();
@@ -81,100 +134,24 @@ function fontLabelForValue(value) {
   return value;
 }
 
-function clampStroke(raw) {
-  var v = Math.max(0.25, Math.min(6, parseFloat(raw) || 1));
-  return Math.round(v * 4) / 4;
-}
-
 function hydrateConfigControls(config) {
   config = (config && typeof config === 'object') ? config : {};
   Object.keys(cfgColors).forEach(function(key) {
     cfgColors[key] = typeof config[key] === 'string' ? config[key] : '';
   });
   cfgFont = typeof config.font === 'string' ? config.font : '';
-  var parsedPadding = parseInt(config.padding, 10);
-  cfgPadding = Number.isFinite(parsedPadding) ? Math.max(0, Math.min(120, parsedPadding)) : 24;
-  cfgEdgeStroke = clampStroke(config.editorEdgeStroke);
-  cfgNodeStroke = clampStroke(config.editorNodeStroke);
+  var parsedPadding = Number(config.padding);
+  cfgPadding = Number.isFinite(parsedPadding) ? parsedPadding : 24;
   if (typeof fontSelectLabel !== 'undefined' && fontSelectLabel) fontSelectLabel.textContent = fontLabelForValue(cfgFont);
   if (typeof paddingNum !== 'undefined' && paddingNum) paddingNum.value = cfgPadding;
   if (typeof paddingSlider !== 'undefined' && paddingSlider) paddingSlider.value = cfgPadding;
-  if (typeof edgeStrokeNum !== 'undefined' && edgeStrokeNum) edgeStrokeNum.value = cfgEdgeStroke;
-  if (typeof edgeStrokeSlider !== 'undefined' && edgeStrokeSlider) edgeStrokeSlider.value = cfgEdgeStroke;
-  if (typeof nodeStrokeNum !== 'undefined' && nodeStrokeNum) nodeStrokeNum.value = cfgNodeStroke;
-  if (typeof nodeStrokeSlider !== 'undefined' && nodeStrokeSlider) nodeStrokeSlider.value = cfgNodeStroke;
   refreshAllColorUIs();
+  syncAdvancedOptionsEditor(config);
 }
 
 refreshAllColorUIs();
 
-var cfgEdgeStroke = 1;
-var cfgNodeStroke = 1;
-
-function applyStrokeOverrides(svgEl) {
-  if (!svgEl) return;
-  var defsEl = svgEl.querySelector('defs');
-
-  function inDefs(el) {
-    return defsEl && defsEl.contains(el);
-  }
-
-  if (cfgEdgeStroke !== 1) {
-    var ew = String(cfgEdgeStroke);
-    svgEl.querySelectorAll('line, path[fill="none"], polyline[fill="none"]').forEach(function(el) {
-      if (!inDefs(el)) el.setAttribute('stroke-width', ew);
-    });
-    var arrowFactor = Math.sqrt(cfgEdgeStroke);
-    svgEl.querySelectorAll('defs marker').forEach(function(marker) {
-      var origW = parseFloat(marker.getAttribute('markerWidth')  || '8');
-      var origH = parseFloat(marker.getAttribute('markerHeight') || '5');
-      marker.setAttribute('viewBox', '0 0 ' + origW + ' ' + origH);
-      marker.setAttribute('markerUnits', 'userSpaceOnUse');
-      marker.setAttribute('markerWidth',  String(origW * arrowFactor));
-      marker.setAttribute('markerHeight', String(origH * arrowFactor));
-    });
-  }
-
-  if (cfgNodeStroke !== 1) {
-    var nw = String(cfgNodeStroke);
-    svgEl.querySelectorAll('rect, ellipse, circle, polygon').forEach(function(el) {
-      if (!inDefs(el)) el.setAttribute('stroke-width', nw);
-    });
-  }
-}
-
-function makeStrokeSetter(numEl, sliderEl, getVal, setVal) {
-  return function(raw) {
-    var v = clampStroke(raw);
-    setVal(v);
-    numEl.value    = v;
-    sliderEl.value = v;
-    readConfig();
-    var svgEl = previewInner.querySelector('svg');
-    if (svgEl) applyStrokeOverrides(svgEl);
-  };
-}
-
-var edgeStrokeNum    = document.getElementById('cfg-edge-stroke');
-var edgeStrokeSlider = document.getElementById('cfg-edge-stroke-slider');
-var nodeStrokeNum    = document.getElementById('cfg-node-stroke');
-var nodeStrokeSlider = document.getElementById('cfg-node-stroke-slider');
-
-var setEdgeStroke = makeStrokeSetter(edgeStrokeNum, edgeStrokeSlider,
-  function() { return cfgEdgeStroke; },
-  function(v) { cfgEdgeStroke = v; }
-);
-var setNodeStroke = makeStrokeSetter(nodeStrokeNum, nodeStrokeSlider,
-  function() { return cfgNodeStroke; },
-  function(v) { cfgNodeStroke = v; }
-);
-
-edgeStrokeNum.addEventListener('input',    function() { setEdgeStroke(edgeStrokeNum.value); });
-edgeStrokeSlider.addEventListener('input', function() { setEdgeStroke(edgeStrokeSlider.value); });
-nodeStrokeNum.addEventListener('input',    function() { setNodeStroke(nodeStrokeNum.value); });
-nodeStrokeSlider.addEventListener('input', function() { setNodeStroke(nodeStrokeSlider.value); });
-
-// Clear every override (colors, font, padding, strokes) back to the active
+// Clear every override (colors, font, padding) back to the active
 // theme's defaults. setPadding / fontSelectLabel live in font-picker.js, which
 // loads later but shares scope; this only runs on click, by which point they
 // are defined.

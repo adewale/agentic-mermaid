@@ -22,6 +22,28 @@ describe('#7645/#7695 strict security mode', () => {
     expect(svg).toContain('--font')
   })
 
+  test('rejects style and root-paint values that can break out of CSS or SVG attributes', () => {
+    expect(() => renderMermaidSVG('flowchart TD\n A --> B', {
+      security: 'strict',
+      style: { font: 'Inter\" onload=\"alert(1)' },
+    })).toThrow('safe non-fetching CSS font family')
+    expect(() => renderMermaidSVG('flowchart TD\n A --> B', {
+      security: 'strict',
+      bg: '#fff\" onload=\"alert(1)',
+    })).toThrow('safe non-fetching CSS color')
+  })
+
+  test('keeps safe brand font stacks and custom-property paint references', () => {
+    const svg = renderMermaidSVG('flowchart TD\n A --> B', {
+      security: 'strict',
+      style: { font: "'Acme Sans', Inter, system-ui" },
+      bg: 'var(--brand-bg, #fff)',
+    })
+    expect(svg).toContain("--font:'Acme Sans', Inter, system-ui")
+    expect(svg).toContain('--bg:var(--brand-bg, #fff)')
+    expect(verifyNoExternalRefs(svg)).toEqual({ ok: true, refs: [] })
+  })
+
   test('strict mode strips external refs from user theme/config values', () => {
     const flow = renderMermaidSVG('flowchart TD\n A --> B', {
       security: 'strict',
@@ -31,7 +53,7 @@ describe('#7645/#7695 strict security mode', () => {
     expect(flow).not.toMatch(/javascript\s*:/i)
     expect(verifyNoExternalRefs(flow)).toEqual({ ok: true, refs: [] })
 
-    const chart = renderMermaidSVG(`---
+    expect(() => renderMermaidSVG(`---
 config:
   themeCSS: |
     @import url(https://evil.example/x.css);
@@ -43,27 +65,62 @@ config:
 ---
 xychart
   title Revenue
-  bar [10, 20]`, { security: 'strict' })
-    expect(chart).not.toContain('https://evil.example')
-    expect(chart).not.toContain('//evil.example')
-    expect(verifyNoExternalRefs(chart)).toEqual({ ok: true, refs: [] })
+  bar [10, 20]`, { security: 'strict' })).toThrow('Raw Mermaid themeCSS is not allowed in strict security mode')
   })
 
-  test('strict mode strips active-content tags injected through raw themeCSS', () => {
-    const svg = renderMermaidSVG(`---
+  test('strict mode rejects CSS fetches without protocol slashes and relative fetches', () => {
+    expect(() => renderMermaidSVG(`---
+config:
+  themeCSS: |
+    </style><style>
+    body { background-image: url(http:evil.example/theme-probe); }
+    .xychart-bar { fill: url(/root-relative.svg); stroke: url(relative.svg); }
+---
+xychart
+  bar [10, 20]`, { security: 'strict' })).toThrow('Raw Mermaid themeCSS is not allowed in strict security mode')
+
+    expect(verifyNoExternalRefs('<svg><style>rect{fill:url(http:evil.example/x)}</style></svg>').ok).toBe(false)
+    expect(verifyNoExternalRefs('<svg><style>rect{fill:url(relative.svg)}</style></svg>').ok).toBe(false)
+    expect(verifyNoExternalRefs('<svg><style>body{background:image-set("http:evil.example/x" 1x)}</style></svg>').ok).toBe(false)
+    expect(verifyNoExternalRefs('<svg><rect fill="url(#local-gradient)"/></svg>').ok).toBe(true)
+    expect(verifyNoExternalRefs('<svg><text>label url(relative.svg)</text></svg>').ok).toBe(true)
+  })
+
+  test('strict mode rejects even non-fetching raw themeCSS so selectors cannot escape into the host page', () => {
+    expect(() => renderMermaidSVG(`---
+config:
+  themeCSS: |
+    body { display: none !important; }
+---
+xychart
+  bar [1, 2]`, { security: 'strict' })).toThrow('Raw Mermaid themeCSS is not allowed in strict security mode')
+  })
+
+  test('strict validation preserves authored CSS-like text instead of rewriting the XML', () => {
+    const source = 'flowchart TD\n  A["\\41"]'
+    const ordinary = renderMermaidSVG(source, { embedFontImport: false })
+    const strict = renderMermaidSVG(source, { security: 'strict' })
+    expect(strict).toContain('\\41')
+    expect(strict).toBe(ordinary)
+    expect(() => verifyNoExternalRefs('<svg><script><script>x</script></script><rect/></svg>')).not.toThrow()
+    expect(() => renderMermaidSVG(`---
+config:
+  themeCSS: </style><script>x</script><style>
+---
+xychart
+  bar [1]`, { security: 'strict' })).toThrow('themeCSS is not allowed in strict security mode')
+  })
+
+  test('all modes reject active-content tags injected through raw themeCSS', () => {
+    const source = `---
 config:
   themeCSS: |
     </style><script src="//evil.example/x.js"/><svg:script xmlns:svg="http://www.w3.org/2000/svg">alert(1)</svg:script><_:script xmlns:_="http://www.w3.org/2000/svg">alert(1)</_:script><é:script xmlns:é="http://www.w3.org/2000/svg">alert(1)</é:script><foreignObject/><object data="//evil.example/x"></object><embed src="//evil.example/e"/><iframe src="//evil.example/i"></iframe><use xl:href="//evil.example/s.svg#x" xmlns:xl="http://www.w3.org/1999/xlink"/><use href="https:&amp;#x2f;&amp;#x2f;evil.example/entity.svg#x"/><rect onload="alert(1)"/><a href=//evil.example/x>bad</a><a href=" //evil.example/spaced">bad</a><a onclick='alert(2)' href="javascript:alert(3)">x</a>
 ---
 xychart
-  bar [10, 20]`, { security: 'strict' })
-    expect(svg).not.toMatch(/<(?:[^\s<>/:]+:)?script\b/i)
-    expect(svg).not.toMatch(/<foreignObject\b/i)
-    expect(svg).not.toMatch(/<object\b|<embed\b|<iframe\b/i)
-    expect(svg).not.toMatch(/\son[a-z][\w:.-]*\s*=/i)
-    expect(svg).not.toMatch(/javascript\s*:/i)
-    expect(svg).not.toContain('//evil.example')
-    expect(verifyNoExternalRefs(svg)).toEqual({ ok: true, refs: [] })
+  bar [10, 20]`
+    expect(() => renderMermaidSVG(source)).toThrow('themeCSS is not allowed in default security mode')
+    expect(() => renderMermaidSVG(source, { security: 'strict' })).toThrow('themeCSS is not allowed in strict security mode')
   })
 
   test('strict mode works across families', () => {
@@ -118,6 +175,19 @@ xychart
     expect(verifyNoExternalRefs('<svg><use href="https:&amp;#x2f;&amp;#x2f;evil.example/s.svg#x"/></svg>').ok).toBe(false)
     expect(verifyNoExternalRefs('<svg><rect onload="alert(1)"/></svg>').ok).toBe(false)
     expect(verifyNoExternalRefs('<svg><a href="javascript:alert(1)">x</a></svg>').ok).toBe(false)
+    expect(verifyNoExternalRefs('<svg><a href="javascript&amp;#x3a;alert(1)">x</a></svg>').ok).toBe(false)
+    expect(verifyNoExternalRefs('<svg><a href="data&amp;#x3a;text/html,x">x</a></svg>').ok).toBe(false)
+    expect(verifyNoExternalRefs('<svg><animate attributeName="href" values="#safe;javascript&amp;#x3a;alert(1)"/></svg>').ok).toBe(false)
+  })
+
+  test('strict mode rejects entity-obfuscated active URLs and SVG animation sinks', () => {
+    expect(() => renderMermaidSVG(`---
+config:
+  themeCSS: |
+    </style><a href="javascript&amp;#x3a;alert(1)">X</a><animate attributeName="href" values="#safe;javascript&amp;#x3a;alert(2)"/><style>
+---
+xychart
+  bar [10, 20]`, { security: 'strict' })).toThrow('Raw Mermaid themeCSS is not allowed in strict security mode')
   })
 
   test('a clean inline SVG passes', () => {

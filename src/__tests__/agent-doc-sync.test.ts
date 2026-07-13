@@ -16,9 +16,8 @@ import {
   asFlowchart, asState, asSequence, asTimeline, asClass, asEr,
   asJourney, asArchitecture, asXyChart, asPie, asQuadrant, asGantt, asMindmap, asGitGraph,
 } from '../agent/types.ts'
-import { BUILTIN_FAMILY_METADATA, BUILTIN_FAMILY_METADATA_COVERS_DIAGRAM_KIND, knownFamilies, getFamily } from '../agent/families.ts'
+import { BUILTIN_FAMILY_METADATA, BUILTIN_FAMILY_METADATA_COVERS_DIAGRAM_KIND, knownBuiltinFamilies, getFamily } from '../agent/families.ts'
 import type { DiagramKind, ValidDiagram } from '../agent/types.ts'
-import { THEMES } from '../theme.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
 import { lintAgentTrace, type SdkCall } from '../../eval/agent-usage/harness.ts'
 
@@ -221,7 +220,7 @@ describe('vocabulary doc-sync', () => {
     const metadataIds = new Set(BUILTIN_FAMILY_METADATA.map(f => f.id))
     const mutationFamilyIds = new Set(Object.keys(MUTATION_OPS_BY_FAMILY) as Array<keyof typeof MUTATION_OPS_BY_FAMILY>)
     expect(BUILTIN_FAMILY_METADATA_COVERS_DIAGRAM_KIND).toBe(true)
-    expect(metadataIds).toEqual(new Set(knownFamilies()))
+    expect(metadataIds).toEqual(new Set(knownBuiltinFamilies()))
     expect(metadataIds).toEqual(mutationFamilyIds)
 
     for (const family of BUILTIN_FAMILY_METADATA) {
@@ -231,22 +230,18 @@ describe('vocabulary doc-sync', () => {
     }
   })
 
-  test('human-facing capability docs mention every built-in family', () => {
+  test('summary capability docs delegate the live family roster', () => {
     const docs = [
       'README.md',
-      'docs/diagram-families.md',
       'docs/features.md',
       'docs/ascii.md',
-      'docs/fork-differences.md',
     ]
     for (const file of docs) {
-      const text = readFileSync(join(REPO, file), 'utf8').toLowerCase()
-      for (const family of BUILTIN_FAMILY_METADATA) {
-        const label = family.label.toLowerCase()
-        const header = family.headers[0]!.toLowerCase()
-        expect({ file, family: family.id, present: text.includes(label) || text.includes(header) })
-          .toEqual({ file, family: family.id, present: true })
-      }
+      const text = readFileSync(join(REPO, file), 'utf8')
+      expect({
+        file,
+        delegates: /am capabilities --json|section-a-capability-report|diagram-families/i.test(text),
+      }).toEqual({ file, delegates: true })
     }
   })
 
@@ -360,14 +355,10 @@ describe('vocabulary doc-sync', () => {
 
     for (const [family, ops] of Object.entries(MUTATION_OPS_BY_FAMILY) as Array<[keyof typeof MUTATION_OPS_BY_FAMILY, readonly string[]]>) {
       const { label, narrower, cliLabel } = MUTABLE_FAMILY_DOCS[family]
-      expect({ family, skillRow: new RegExp(`\\|[^\\n]*${escapeRegExp(label)}[^\\n]*\\|`).test(skill) })
-        .toEqual({ family, skillRow: true })
       expect({ family, cookbookRow: cookbook.includes(`| ${label} | \`${narrower}\``) })
         .toEqual({ family, cookbookRow: true })
       expect({ family, codeModeNarrower: codeMode.includes(`mermaid.${narrower}`) })
         .toEqual({ family, codeModeNarrower: true })
-      expect({ family, apiNarrower: api.includes(`\`${narrower}`) })
-        .toEqual({ family, apiNarrower: true })
       expect({ family, cliRef: cli.includes(cliLabel) })
         .toEqual({ family, cliRef: true })
 
@@ -387,6 +378,9 @@ describe('vocabulary doc-sync', () => {
           .toEqual({ family, op, cookbookOp: true })
       }
     }
+    expect(api).toContain('am capabilities --json')
+    expect(api).toContain('describeOps(family)')
+    expect(api).toContain('does not copy an exhaustive')
 
     for (const text of [skill, codeMode, SDK_DECLARATION]) {
       expect(text).toContain('ganttToday')
@@ -439,7 +433,7 @@ describe('vocabulary doc-sync', () => {
       mindmap: asMindmap, gitgraph: asGitGraph,
     }
     const FAIL = 'New families ship with typed mutation by default — see docs/contributing/adding-diagram-types.md.'
-    for (const kind of knownFamilies()) {
+    for (const kind of knownBuiltinFamilies()) {
       const plugin = getFamily(kind)!
       expect({ kind, hasMutate: typeof plugin.mutate === 'function', msg: FAIL })
         .toEqual({ kind, hasMutate: true, msg: FAIL })
@@ -451,7 +445,7 @@ describe('vocabulary doc-sync', () => {
         .toEqual({ kind, hasNarrower: true, msg: FAIL })
     }
     // Sanity: the narrower table covers every registered family kind exactly.
-    expect(new Set(Object.keys(NARROWERS))).toEqual(new Set(knownFamilies()))
+    expect(new Set(Object.keys(NARROWERS))).toEqual(new Set(knownBuiltinFamilies()))
   })
 
   test('state-narrows-via-asState is documented on every agent surface that claims state mutation', () => {
@@ -478,7 +472,7 @@ describe('start.md bootstrap claims stay true', () => {
   test('the family list it states is complete and valid', () => {
     const listed = START.match(/Families:\s*([^.\n]+)/)?.[1] ?? ''
     const named = new Set(listed.split(',').map(s => s.trim().toLowerCase()).filter(Boolean))
-    const known = new Set([...knownFamilies()].map(k => k.toLowerCase()))
+    const known = new Set([...knownBuiltinFamilies()].map(k => k.toLowerCase()))
     expect(named).toEqual(known)
   })
 
@@ -707,15 +701,15 @@ describe('root docs consistency', () => {
     ])
   })
 
-  test('theme and RenderOptions inventory is delegated to focused docs', () => {
+  test('theme and RenderOptions inventory is delegated to live discovery and focused docs', () => {
     const readme = readFileSync(join(REPO, 'README.md'), 'utf8')
     const theming = readFileSync(join(REPO, 'docs/theming.md'), 'utf8')
     const api = readFileSync(join(REPO, 'docs/api.md'), 'utf8')
     const config = readFileSync(join(REPO, 'docs/config.md'), 'utf8')
-    const themeNames = Object.keys(THEMES)
-    expect(readme).toContain(`${themeNames.length} built-in themes`)
-    expect(theming).toContain(`${themeNames.length} built-in themes`)
-    for (const name of themeNames) expect(theming).toContain(`\`${name}\``)
+    expect(readme).toContain('Discoverable palettes')
+    expect(theming).toContain('knownStyleDescriptors()')
+    expect(theming).toContain('does not copy the registry')
+    expect(theming).not.toMatch(/ships \*\*\d+ built-in themes/)
     for (const option of ['shadow', 'embedFontImport', 'compact', 'idPrefix', 'security', 'ganttToday']) {
       expect(api).toContain(`\`${option}\``)
     }
@@ -767,8 +761,8 @@ describe('spec honesty', () => {
   test('removed editor seed-shuffle affordance is not advertised as current UI', () => {
     const checks = [
       ['src/types.ts', 'editor "shuffle"'],
-      ['docs/design/system/styles-rollout.md', '🎲'],
-      ['docs/design/system/styles-rollout.md', 'style picker, 🎲 shuffle'],
+      ['docs/project/archive/styles-rollout.md', '🎲'],
+      ['docs/project/archive/styles-rollout.md', 'style picker, 🎲 shuffle'],
       ['scripts/sketch-prototype/SPEC.md', 'editor "shuffle"'],
     ] as const
     for (const [file, stale] of checks) {

@@ -16,8 +16,9 @@ That is necessary, but not sufficient for this repo. Agentic Mermaid also needs 
 ## 1. Confirm The Target
 
 - Verify the diagram is already supported by Mermaid.
-- Verify it is not already routed in `src/index.ts` or `src/ascii/index.ts`.
-- Add the family to the type-checked built-in family metadata manifest in `src/agent/families.ts` first. `BUILTIN_FAMILY_METADATA` is the reviewer-facing list for shipped families and has a compile-time coverage assertion against `DiagramKind`.
+- Verify it is not already represented by a `FamilyDescriptor` in `src/agent/families.ts`.
+- Reconcile the target with the version-pinned [`upstream-mermaid-manifest.json`](../project/upstream-mermaid-manifest.json). Map it to one official syntax page; the generator must account for every page, heading, example, lifecycle declaration, core detector, and first-party external family. Regenerate provenance/hash and review the upgrade diff if the pin changed; presence in this inventory is never a native-support claim.
+- Add a built-in `FamilyDescriptor` seed in `src/agent/families.ts` first. The reviewer-facing `BUILTIN_FAMILY_METADATA` list is a derived compatibility projection with compile-time coverage against the closed `DiagramKind` union. Host extensions instead use a collision-checked `family:<owner/name>` identity and `registerFamily`.
 - Update the [diagram-family citizenship matrix](./diagram-family-citizenship.md) in the same PR: every citizenship surface must be marked `satisfied` with evidence or `exception` with a tracked follow-up.
 - Prefer Mermaid's stable header if Mermaid supports both stable and beta forms.
 - Pin the Mermaid version and syntax page being implemented. Inventory every stable documented construct before coding; parser acceptance or source preservation alone does not count as rendered support.
@@ -52,8 +53,8 @@ Prefer the same shape used by the existing diagram families:
 - `src/<type>/layout.ts`
 - `src/<type>/renderer.ts`
 - `src/ascii/<type>.ts` when ASCII output is practical
-- routing in `src/index.ts` and `src/ascii/index.ts`
-- built-in family metadata in `src/agent/families.ts`
+- descriptor-driven detection plus SVG/ASCII hooks in the canonical family registry
+- built-in family descriptor metadata in `src/agent/families.ts`
 - structured hooks in `src/agent/families-builtin.ts`
 
 Follow these repo standards:
@@ -132,7 +133,12 @@ Typed mutation is part of the definition of done for a new family, not a follow-
 - A body module `src/agent/<type>-body.ts` with a structured-or-opaque parser, a canonical serializer, a mutator (per-family ops), and a `verify` hook. Follow an existing module — `src/agent/journey-body.ts` (pilot), `src/agent/pie-body.ts`, or `src/agent/quadrant-body.ts` are clean templates.
 - Body + op types in `src/agent/types.ts` (e.g. `PieBody`, `PieMutationOp`), added to the `DiagramBody`, `AnyMutationOp`, and `MutableValidDiagram` unions, plus a narrower `as<Type>` and its `<Type>ValidDiagram` alias.
 - Structured hooks registered in `src/agent/families-builtin.ts` (replace any source-level-only registration), the narrower exported from `src/agent/index.ts`, and a `mutate` overload in `src/agent/mutate.ts`.
-- The surface sync the doc-sync tests enforce: `BUILTIN_FAMILY_METADATA` (`src/agent/families.ts`), `MUTATION_OPS_BY_FAMILY` (`src/cli/index.ts`), `SDK_DECLARATION` (`src/mcp/sdk-decl.ts`) + sandbox narrower wiring, `AGENT_NATIVE.md` op list and workflow, the `Instructions_for_agents.md` mirror + `llms.txt` regeneration, `am init-agent` generated snippets, editor examples, fixture-backed `skill-evals/shared-benchmark.json` cases, and the per-family docs/skill tables.
+- One complete `FamilyDescriptor`, including its operation schemas, capability
+  evidence, example, and hooks. Run the family/SDK/report generators; CLI,
+  Code Mode, MCP discovery, the capability report, and SDK declarations are
+  projections of that descriptor. Add hand-written prose only for genuinely
+  family-specific semantics, plus editor and benchmark examples where useful;
+  do not copy the roster or operation menu into another table.
 - Tests: parse/narrow/mutate/verify/serialize, structured-or-opaque fallback cases (table-driven sad paths), a fast-check round-trip property test, and a differential test against the legacy renderer parser proving the canonical source you emit re-parses identically.
 
 **Structured-or-opaque law:** any line your parser does not model must be preserved verbatim (opaque fallback) — never silently dropped. Opaque bodies round-trip byte-verbatim; structured bodies serialize to canonical source and must be serialize-idempotent (parse → serialize → parse → serialize is byte-stable).

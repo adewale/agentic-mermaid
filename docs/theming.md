@@ -66,29 +66,9 @@ Because the generated SVG references variables directly, host pages can switch l
 
 ## Built-in themes
 
-Agentic Mermaid ships **21 built-in themes**:
-
-- `paper`
-- `dusk`
-- `zinc-light`
-- `zinc-dark`
-- `tokyo-night`
-- `tokyo-night-storm`
-- `tokyo-night-light`
-- `catppuccin-mocha`
-- `catppuccin-latte`
-- `nord`
-- `nord-light`
-- `dracula`
-- `github-light`
-- `github-dark`
-- `solarized-light`
-- `solarized-dark`
-- `one-dark`
-- `salmon`
-- `salmon-dark`
-- `tufte`
-- `tufte-dark`
+The canonical palette catalog generates the legacy `THEMES` compatibility
+view. Discover current palette identities with `knownStyleDescriptors()` or
+`am styles`; this guide deliberately does not copy the registry's roster.
 
 ```ts
 import { THEMES, renderMermaidSVG } from 'agentic-mermaid'
@@ -122,7 +102,7 @@ renderMermaidSVG(source, myTheme)
 
 Turn a Shiki or VS Code theme into a diagram palette:
 
-```ts
+```ts no-run
 import { fromShikiTheme, renderMermaidSVG } from 'agentic-mermaid'
 import githubDark from 'shiki/themes/github-dark.mjs'
 

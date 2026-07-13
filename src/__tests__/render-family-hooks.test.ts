@@ -19,11 +19,12 @@ const MINIMAL_DIAGRAMS = [
 ] as const
 
 describe('render FamilyPlugin hooks', () => {
-  test('all built-in families expose layout, SVG, and ASCII hooks', () => {
+  test('all built-ins use one Scene graphical waist and reserve renderSvg for extension fallback', () => {
     for (const { id } of BUILTIN_FAMILY_METADATA) {
       const family = getFamily(id)
       expect(family?.layout, id).toBeDefined()
-      expect(family?.renderSvg, id).toBeDefined()
+      expect(family?.lowerScene, id).toBeDefined()
+      expect(family?.renderSvg, id).toBeUndefined()
       expect(family?.renderAscii, id).toBeDefined()
     }
   })

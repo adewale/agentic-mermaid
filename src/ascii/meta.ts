@@ -27,10 +27,11 @@
 import { renderMermaidASCII, type AsciiRenderOptions } from './index.ts'
 import { parseMermaid } from '../agent/parse.ts'
 import { visualWidth } from './width.ts'
+import type { TerminalProjectionDiagnostic, TerminalProjectionDiagnosticCode } from '../terminal-style.ts'
 
 export type RegionKind = 'node' | 'edge' | 'label' | 'subgraph'
 
-export type AsciiWarningCode = 'ASCII_RENDER_FAILED' | 'ASCII_EDGE_REGION_UNMAPPED'
+export type AsciiWarningCode = 'ASCII_RENDER_FAILED' | 'ASCII_EDGE_REGION_UNMAPPED' | TerminalProjectionDiagnosticCode
 export interface AsciiWarning { code: AsciiWarningCode; message: string; severity: 'degraded' }
 
 export const ASCII_ROUTE_PARITY_CONTRACT = {
@@ -69,9 +70,21 @@ export function renderMermaidASCIIWithMeta(input: string, opts: AsciiRenderOptio
   // the source (parse failure), surface empty regions rather than throwing —
   // the meta API is read-only and shouldn't propagate parser errors.
   try {
-    const ascii = renderMermaidASCII(input, opts)
+    const projection: TerminalProjectionDiagnostic[] = []
+    const ascii = renderMermaidASCII(input, {
+      ...opts,
+      onProjectionDiagnostic: diagnostic => {
+        projection.push(diagnostic)
+        opts.onProjectionDiagnostic?.(diagnostic)
+      },
+    })
     const regions = deriveRegions(ascii, input)
-    return { ascii, regions, warnings: deriveWarnings(input, regions), routeParity: ASCII_ROUTE_PARITY_CONTRACT }
+    const projectionWarnings: AsciiWarning[] = projection.map(diagnostic => ({
+      code: diagnostic.code,
+      severity: 'degraded',
+      message: diagnostic.message,
+    }))
+    return { ascii, regions, warnings: [...deriveWarnings(input, regions), ...projectionWarnings], routeParity: ASCII_ROUTE_PARITY_CONTRACT }
   } catch {
     return { ascii: '', regions: [], warnings: [{ code: 'ASCII_RENDER_FAILED', severity: 'degraded', message: 'ASCII/Unicode renderer failed; no route parity evidence is available.' }], routeParity: ASCII_ROUTE_PARITY_CONTRACT }
   }

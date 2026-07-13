@@ -21,37 +21,36 @@
 // ============================================================================
 
 import { fileURLToPath } from 'node:url'
-import { join, dirname } from 'node:path'
-import { existsSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { basename, dirname, join } from 'node:path'
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { Resvg } from '@resvg/resvg-js'
 import type { ValidDiagram } from './types.ts'
-import type { StyleInput } from '../scene/style-registry.ts'
+import type { RenderOptions } from '../types.ts'
 import { serializeMermaid } from './serialize.ts'
-import { renderMermaidSVG } from '../index.ts'
+import type { RenderRequestReceipt } from '../render-contract.ts'
 import { inlineFontVarForRaster } from '../theme.ts'
 import { findUncoveredScripts } from './font-coverage.ts'
 import { buildPngFontWarnings } from '../shared/png-font-warnings.ts'
-import { getFrontmatterScalar, preprocessMermaidSource } from '../mermaid-source.ts'
 import { safeCssColor } from '../shared/css-color.ts'
 import type { PngFontWarning } from '../shared/png-font-warnings.ts'
+import { applyPngColorProfile } from '../output-color-profile.ts'
+import {
+  pngNapiRuntimeProvenance,
+  type PngRuntimeProvenance,
+} from '../png-contract.ts'
+import { renderPngGraphicalProjection } from '../png-graphical.ts'
+import { RESOURCE_MANIFEST } from '../font-manifest.ts'
+import { NodeResourceResolver } from '../node-resource-resolver.ts'
 export type { PngFontWarning } from '../shared/png-font-warnings.ts'
 
-export interface PngOptions {
+export interface PngOptions extends RenderOptions {
   /** Output scale multiplier (default 2 — retina). */
   scale?: number
-  /** Background color, any CSS color string (default 'white'). */
+  /** Background override. By default the final SVG background is used, then white. */
   background?: string
   /** Constrain output dimensions; otherwise honors scale on the SVG bounds. */
   fitTo?: { width?: number; height?: number }
-  /** Style name | spec | stack, same as RenderOptions.style. Faces referenced
-   *  by the built-in looks are bundled in assets/fonts/; other families use
-   *  Inter with DejaVu per-glyph fallback unless supplied via fontDirs. */
-  style?: StyleInput | StyleInput[]
-  /** Ink-wobble seed for styled looks, same as RenderOptions.seed. */
-  seed?: number
-  /** Explicit gantt "today" clock, same as RenderOptions.ganttToday (gantt
-   *  rendering never reads wall-clock time; without this the marker is absent). */
-  ganttToday?: string
   /** Extra font directories searched in addition to the bundled ones —
    *  the escape hatch for custom styles that reference unbundled families
    *  and for scripts the bundled fonts don't cover (CJK, emoji). */
@@ -67,27 +66,71 @@ export interface PngOptions {
 }
 
 /**
- * Resolve the bundled-fonts directory. Walks up from this module path until
- * it finds `assets/fonts/`. Caches the result so it's only resolved once.
+ * Locate and integrity-check the installed font manifest. Rasterization gets
+ * the exact verified file set rather than trusting every file in a directory.
  */
-let cachedFontDir: string | null = null
-function resolveFontDir(): string | null {
-  if (cachedFontDir !== null) return cachedFontDir
+interface BundledFonts {
+  readonly snapshotDirectory: string
+  readonly buffers: readonly Uint8Array[]
+  readonly files: readonly string[]
+}
+
+let cachedBundledFonts: BundledFonts | undefined
+let cleanupRegistered = false
+
+function materializeVerifiedFontSnapshot(
+  resources: ReturnType<NodeResourceResolver['verifyInstalled']>['resources'],
+): BundledFonts {
+  // resvg's synchronous N-API binding accepts paths rather than font buffers.
+  // Materialize private files from the verified snapshots, never from the
+  // original package paths; coverage continues to consume the buffers below.
+  const snapshotDirectory = mkdtempSync(join(tmpdir(), 'agentic-mermaid-fonts-'))
+  try {
+    const buffers = resources.map(resource => resource.readBytes())
+    const files = buffers.map((bytes, index) => {
+      const file = join(snapshotDirectory, `${index}-${basename(resources[index]!.entry.path)}`)
+      writeFileSync(file, bytes, { flag: 'wx', mode: 0o400 })
+      return file
+    })
+    return Object.freeze({
+      snapshotDirectory,
+      buffers: Object.freeze(buffers),
+      files: Object.freeze(files),
+    })
+  } catch (error) {
+    try { rmSync(snapshotDirectory, { recursive: true, force: true }) } catch { /* retain the original materialization error */ }
+    throw error
+  }
+}
+
+function resolveBundledFonts(): BundledFonts {
+  if (cachedBundledFonts) return cachedBundledFonts
   // import.meta.url works under Bun + Node ESM
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const here = typeof (import.meta as any).url === 'string' ? fileURLToPath((import.meta as any).url) : __filename
   let dir = dirname(here)
   for (let i = 0; i < 6; i++) {
     const candidate = join(dir, 'assets', 'fonts')
-    if (existsSync(candidate)) { cachedFontDir = candidate; return candidate }
+    if (existsSync(candidate)) {
+      const verified = new NodeResourceResolver(dir, RESOURCE_MANIFEST).verifyInstalled()
+      cachedBundledFonts = materializeVerifiedFontSnapshot(verified.resources)
+      if (!cleanupRegistered) {
+        cleanupRegistered = true
+        process.once('exit', () => {
+          try {
+            if (cachedBundledFonts) rmSync(cachedBundledFonts.snapshotDirectory, { recursive: true, force: true })
+          } catch {
+            // Process exit must not be made exceptional by best-effort cleanup.
+          }
+        })
+      }
+      return cachedBundledFonts
+    }
     const parent = dirname(dir)
     if (parent === dir) break
     dir = parent
   }
-  // Don't crash if not found — resvg will fall back to its default fonts.
-  // Cross-runtime determinism may weaken in that case; documented gap.
-  cachedFontDir = ''
-  return null
+  throw new Error('RESOURCE_MISSING: required bundled font manifest could not be located')
 }
 
 /**
@@ -100,55 +143,82 @@ function resolveFontDir(): string | null {
  * `Promise.resolve()` if they want async semantics.
  */
 export function renderMermaidPNG(input: ValidDiagram | string, opts: PngOptions = {}): Uint8Array {
+  return renderMermaidPNGWithReceipt(input, opts).png
+}
+
+export interface RenderedPng {
+  png: Uint8Array
+  receipt: RenderRequestReceipt
+  /** Artifact/runtime provenance; deliberately excluded from request digests. */
+  runtime: PngRuntimeProvenance
+}
+
+export function renderMermaidPNGWithReceipt(input: ValidDiagram | string, opts: PngOptions = {}): RenderedPng {
   // SVG input: embedFontImport=false so resvg doesn't try to fetch from
   // Google Fonts during rasterization. CSS-variable fonts (Loop 8 M2) means
   // the SVG still declares its font-family preference via --font.
   const source = typeof input === 'string' ? input : serializeMermaid(input)
-  const svg = inlineFontVarForRaster(
-    renderMermaidSVG(source, { embedFontImport: false, style: opts.style, seed: opts.seed, ganttToday: opts.ganttToday }),
-  )
+  const {
+    scale,
+    background,
+    fitTo,
+    fontDirs: callerFontDirs = [],
+    loadSystemFonts = false,
+    onWarning,
+    ...renderOptions
+  } = opts
+  const graphical = renderPngGraphicalProjection(source, renderOptions, {
+    scale,
+    background,
+    fitTo,
+    fontDirs: callerFontDirs,
+    loadSystemFonts,
+  })
+  const outputPolicy = graphical.outputPolicy
+  const svg = inlineFontVarForRaster(graphical.svg)
 
-  const scale = opts.scale ?? 2
-  const fontDir = resolveFontDir()
-  const loadSystemFonts = opts.loadSystemFonts ?? false
-  const fontDirs = [...(fontDir ? [fontDir] : []), ...(opts.fontDirs ?? [])]
+  const bundledFonts = resolveBundledFonts()
 
   // Surface known coverage/shaping uncertainty before bytes ship. System
   // fonts broaden the rasterizer's set but are machine-dependent, so they
   // qualify the warning rather than turning an unknown outcome into silence.
-  const emit = opts.onWarning ?? ((w: PngFontWarning) => process.stderr.write(`agentic-mermaid renderMermaidPNG: warning ${w.code}: ${w.message}\n`))
-  for (const warning of buildPngFontWarnings(findUncoveredScripts(svg, fontDirs), { systemFontsMayCover: loadSystemFonts })) emit(warning)
+  const emit = onWarning ?? ((w: PngFontWarning) => process.stderr.write(`agentic-mermaid renderMermaidPNG: warning ${w.code}: ${w.message}\n`))
+  for (const warning of buildPngFontWarnings(findUncoveredScripts(
+    svg,
+    outputPolicy.fonts.callerDirectories,
+    bundledFonts.buffers,
+  ), { systemFontsMayCover: outputPolicy.fonts.loadSystemFonts })) emit(warning)
 
-  const processed = preprocessMermaidSource(source)
-  const familyBackground = /^xychart(?:-beta)?\b/i.test(processed.lines[0] ?? '')
-    ? safeCssColor(getFrontmatterScalar(processed.frontmatter, ['themeVariables', 'xyChart', 'backgroundColor']))
-    : undefined
+  // Raster background follows the final graphical artifact, including any
+  // family projection. This is deliberately output-generic: PNG no longer
+  // reparses source or owns an XY-specific appearance resolver.
+  const artifactBackground = safeCssColor(svg.match(/--bg\s*:\s*([^;"']+)/i)?.[1]?.trim())
   const resvgOpts: ConstructorParameters<typeof Resvg>[1] = {
-    // XYChart's documented backgroundColor is part of the authored visual
-    // contract, not browser-only decoration. An explicit PNG option still wins.
-    background: opts.background ?? familyBackground ?? 'white',
-    fitTo: opts.fitTo?.width
-      ? { mode: 'width' as const, value: opts.fitTo.width }
-      : opts.fitTo?.height
-        ? { mode: 'height' as const, value: opts.fitTo.height }
-        : { mode: 'zoom' as const, value: scale },
+    background: outputPolicy.background.mode === 'explicit'
+      ? outputPolicy.background.value
+      : artifactBackground ?? outputPolicy.background.fallback,
+    fitTo: { ...outputPolicy.fitTo },
     font: {
-      loadSystemFonts,
-      // Bundled fonts (Inter + DejaVu Sans + the faces built-in styles
-      // reference) for cross-runtime determinism, plus caller-supplied
-      // directories. Falls back to resvg's built-in fonts if nothing is found.
-      fontDirs,
+      loadSystemFonts: outputPolicy.fonts.loadSystemFonts,
+      // These private files were materialized from the exact verified byte
+      // snapshots. Explicit caller directories remain a host-controlled input.
+      fontFiles: [...bundledFonts.files],
+      fontDirs: [...outputPolicy.fonts.callerDirectories],
       // Inter is the metrics font: src/text-metrics.ts is calibrated for it
       // and the SVG @import requests it, so rasterizing with anything else
       // (DejaVu is ~14% wider) pushes long labels outside their measured
       // boxes. resvg falls back per-glyph across every loaded font, so
       // DejaVu still covers glyphs Inter lacks (arrows, math, Armenian, …).
-      defaultFontFamily: 'Inter',
+      defaultFontFamily: outputPolicy.fonts.defaultFamily,
     },
   }
 
   const resvg = new Resvg(svg, resvgOpts)
-  const png = resvg.render().asPng()
+  const png = applyPngColorProfile(resvg.render().asPng())
   // resvg returns Buffer in Node; ensure we surface Uint8Array consistently.
-  return new Uint8Array(png.buffer, png.byteOffset, png.byteLength)
+  return {
+    png: new Uint8Array(png.buffer, png.byteOffset, png.byteLength),
+    receipt: graphical.receipt,
+    runtime: pngNapiRuntimeProvenance(outputPolicy.fonts),
+  }
 }

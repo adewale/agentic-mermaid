@@ -7,7 +7,7 @@
 //   - red-green per family: nodeCount > 0, finite bounds, whitespaceBalance ∈ (0,1]
 //   - property/table: every node on-canvas (0 ≤ x,y; x+w ≤ bounds.w + ε)
 //   - determinism: layoutMermaid twice → deep-equal
-//   - opaque/invalid renderable family → degrades to empty, never throws
+//   - opaque layout failures are explicit; renderable opaque bodies stay usable
 // ============================================================================
 
 import { describe, expect, it } from 'bun:test'
@@ -272,18 +272,29 @@ describe('non-graph adapters: debug certificates stay family-specific (#26/#38)'
   })
 })
 
-// ---- opaque / invalid renderable families must not throw -------------------
+// ---- opaque family layout outcomes stay explicit ---------------------------
 
-describe('QUAL-1: opaque/invalid renderable bodies degrade, never throw', () => {
-  const OPAQUE_OR_INVALID = [
-    // pie with an unmodeled line → opaque body; legacy pie parser rejects it.
-    'pie\n  "Dogs" : 40\n  total unmodeled junk line',
+describe('QUAL-1: opaque family layout outcomes stay explicit', () => {
+  it('an invalid opaque body throws from layout and fails verify instead of succeeding with 0x0 geometry', () => {
+    const parsed = parseMermaid('pie\n  "Dogs" : 40\n  total unmodeled junk line')
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(() => layoutMermaid(parsed.value)).toThrow(/Unrecognized pie chart line/)
+    const verified = verifyMermaid(parsed.value)
+    expect(verified.ok).toBe(false)
+    expect(verified.warnings).toContainEqual(expect.objectContaining({
+      code: 'RENDER_FAILED',
+      reason: expect.stringMatching(/pie.*layout hook failed.*Unrecognized pie chart line/i),
+    }))
+  })
+
+  const RENDERABLE_OPAQUE = [
     // quadrant header only (no points) → opaque; layout still must not throw.
     'quadrantChart\n  x-axis Low --> High',
     // class with a note keyword (unmodeled) → opaque body that still lays out.
     'classDiagram\n  Animal <|-- Dog\n  note "freestanding"',
   ]
-  for (const src of OPAQUE_OR_INVALID) {
+  for (const src of RENDERABLE_OPAQUE) {
     it(`does not throw: ${src.split('\n')[0]}…`, () => {
       const p = parseMermaid(src)
       expect(p.ok).toBe(true)

@@ -37,7 +37,7 @@ describe('Scene transforms are typed semantic geometry', () => {
       lineStyle: 'solid', paint: { fill: 'none', stroke: '#000', strokeWidth: '1' }, transform,
     }, '<line x1="0" y1="5" x2="20" y2="5" fill="none" stroke="#000" transform="rotate(45 10 5)" />')
     const group = marks.group({ id: 'group', role: 'group', open: '<g>', close: '</g>', children: [{ node: shape, indent: 2 }] })
-    const context = { seed: 1, style: { id: 'probe', backend: 'rough' as const } }
+    const context = { seed: 1, style: { name: 'look:probe', stroke: 'jittered' as const } }
     for (const node of [shape, connector, group]) {
       const output = RoughBackend.drawNode(node, context)
       expect(output).toContain('<g transform="rotate(45 10 5)"')

@@ -60,6 +60,11 @@ export function lowerMindmapScene(ctx: RenderContext<PositionedMindmapDiagram>):
       geometry: { kind: 'path', d: edge.d, points: edge.points },
       lineStyle: 'solid',
       paint: { fill: 'none', stroke, strokeWidth: '2.5' },
+      endpoints: { from: edge.from, to: edge.to },
+      relationship: { kind: 'mindmap-branch', direction: 'forward' },
+      route: { ownership: 'layout' },
+      stroke: { lineCap: 'round' },
+      projectAccessibilityToSvg: true,
       channels: { importance: 1, category: String(branchByNode.get(edge.to) ?? 0) },
     }, `<path class="mindmap-edge" data-from="${escapeAttr(edge.from)}" data-to="${escapeAttr(edge.to)}" data-branch-index="${branchByNode.get(edge.to) ?? 0}" d="${edge.d}" fill="none" stroke="${escapeAttr(stroke)}" stroke-width="2.5" stroke-linecap="round" />`))
   }

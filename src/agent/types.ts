@@ -6,7 +6,7 @@
 // nothing). The only verify knob is labelCharCap. See AGENT_NATIVE.md § (1).
 // ============================================================================
 
-import type { MermaidGraph, NodeShape, EdgeStyle, Direction, EdgeRouteCertificate, RegionContainmentCertificate, RouteCertificate, RouteClass } from '../types.ts'
+import type { MermaidGraph, NodeShape, EdgeStyle, Direction, EdgeRouteCertificate, RegionContainmentCertificate, RouteCertificate, RouteClass, RenderOptions } from '../types.ts'
 import type { MermaidFrontmatterMap, MermaidConfigMap } from '../mermaid-source.ts'
 import type { MindmapNode, MindmapShape } from '../mindmap/types.ts'
 import type { GitGraphDiagram, GitGraphCommitType } from '../gitgraph/types.ts'
@@ -23,6 +23,10 @@ export type DiagramKind =
   | 'flowchart' | 'state' | 'sequence' | 'class' | 'er'
   | 'timeline' | 'journey' | 'xychart' | 'architecture' | 'pie' | 'quadrant' | 'gantt'
   | 'mindmap' | 'gitgraph'
+
+/** Runtime extensions are open but must pass the registry's namespace validator. */
+export type ExternalFamilyId = `family:${string}`
+export type FamilyId = DiagramKind | ExternalFamilyId
 
 // ---- Sequence body --------------------------------------------------------
 
@@ -395,6 +399,8 @@ export interface XyChartSeries {
 
 export interface XyChartBody {
   kind: 'xychart'
+  accessibilityTitle?: string
+  accessibilityDescription?: string
   title?: string
   /** Header orientation: true = explicit horizontal, false = explicit vertical,
    *  absent = no header override (runtime config decides). */
@@ -417,6 +423,8 @@ export interface PieSlice {
 
 export interface PieBody {
   kind: 'pie'
+  accessibilityTitle?: string
+  accessibilityDescription?: string
   title?: string
   /** When true (`pie showData`), the legend shows each slice's numeric value. */
   showData: boolean
@@ -462,6 +470,8 @@ export interface QuadrantPoint {
 
 export interface QuadrantBody {
   kind: 'quadrant'
+  accessibilityTitle?: string
+  accessibilityDescription?: string
   title?: string
   xAxis?: QuadrantAxis
   yAxis?: QuadrantAxis
@@ -723,6 +733,17 @@ export type DiagramBody =
    */
   | { kind: 'opaque'; family: DiagramKind; source: string }
 
+/** Open, source-preserving body envelope owned by a namespaced family. */
+export interface ExtensionDiagramBody {
+  kind: 'extension'
+  family: ExternalFamilyId
+  source: string
+  /** Descriptor-owned structured value; core treats it as opaque data. */
+  data?: unknown
+}
+
+export type FamilyParsedBody = DiagramBody | ExtensionDiagramBody
+
 export interface ValidDiagram {
   readonly kind: DiagramKind
   readonly meta: ValidDiagramMeta
@@ -747,6 +768,16 @@ export interface ValidDiagram {
    */
   readonly canonicalSource: string
 }
+
+export interface ExtensionValidDiagram {
+  readonly kind: ExternalFamilyId
+  readonly meta: ValidDiagramMeta
+  readonly body: ExtensionDiagramBody
+  readonly source: SourceMap
+  readonly canonicalSource: string
+}
+
+export type ParsedDiagram = ValidDiagram | ExtensionValidDiagram
 
 export type FlowchartValidDiagram = ValidDiagram & { body: { kind: 'flowchart'; graph: MermaidGraph } }
 export type StateValidDiagram = ValidDiagram & { body: StateBody }
@@ -820,7 +851,25 @@ export function asGitGraph(d: ValidDiagram): GitGraphValidDiagram | null {
 
 // ---- Errors ---------------------------------------------------------------
 
-export interface ParseError { code: string; message: string; line?: number; col?: number }
+export interface SourcePreservationReceipt {
+  version: 1
+  classification: 'unsupported' | 'inventory-only' | 'unknown'
+  /** Exact authored bytes supplied to parseMermaid. */
+  source: string
+  header: string
+  upstreamFamilyId?: string
+  mermaidVersion: string
+}
+
+export interface ParseError {
+  code: string
+  message: string
+  line?: number
+  col?: number
+  /** Present when parsing cannot proceed but no authored bytes were discarded. */
+  preservation?: SourcePreservationReceipt
+  help?: string
+}
 
 export interface MutationError {
   code:
@@ -1250,6 +1299,8 @@ export const DEFAULT_LABEL_CHAR_CAP = 40
 export interface VerifyOptions {
   suppress?: WarningCode[]
   labelCharCap?: number
+  /** Shared source/config/geometry/appearance options used by render parity and layout evidence. */
+  renderOptions?: RenderOptions
 }
 
 export type RenderedRegionKind = 'node' | 'edge' | 'label' | 'group' | 'canvas'
@@ -1282,7 +1333,8 @@ export interface RenderedLayoutGroup {
 }
 export interface RenderedLayout {
   version: 1
-  kind: DiagramKind
+  /** Open family id so registered extensions can expose the same layout envelope. */
+  kind: FamilyId
   nodes: RenderedLayoutNode[]
   edges: RenderedLayoutEdge[]
   groups: RenderedLayoutGroup[]

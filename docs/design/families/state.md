@@ -107,8 +107,8 @@ that same state.
   the declared side" and "overlaps nothing" hold simultaneously and
   deterministically (upstream's own placement is broken: mermaid#3782).
   A note whose target sits inside a composite is pushed outside the
-  composite's border (the composite box is an obstacle); growing the
-  composite instead is future work.
+  composite's border (the composite box is an obstacle). Growing the composite
+  is outside the current placement contract and is not implied work.
 
 ## Self-loop arcs (state AND flowchart; plan §State 6)
 

@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
 import { spawnSync } from 'node:child_process'
 import { layoutMermaid, parseMermaid } from '../agent/index.ts'
-import { BUILTIN_FAMILY_METADATA, registerFamily } from '../agent/families.ts'
+import { BUILTIN_FAMILY_METADATA, registerFamily, replaceFamilyForTest } from '../agent/families.ts'
 import { layoutCertificateProof } from '../agent/certificates.ts'
 import { resolveDiagramColors } from '../color-resolver.ts'
 import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
@@ -22,6 +22,7 @@ import type {
 } from '../types.ts'
 import type { DiagramColors } from '../theme.ts'
 import { DEFAULTS } from '../theme.ts'
+import { DefaultBackend } from '../scene/backend.ts'
 import { METAMORPHIC_FAMILIES, type FamilyMetamorphic } from './helpers/metamorphic-families.ts'
 
 const RUNS = 24
@@ -41,7 +42,7 @@ function normalizeLayoutResult<TPositioned extends PositionedDiagram>(
   return 'positioned' in result ? result : { positioned: result }
 }
 
-function svgContext(source: string, options: RenderOptions = {}): {
+function sceneContext(source: string, options: RenderOptions = {}): {
   family: FamilyPlugin
   renderContext: RenderContext<PositionedDiagram>
 } {
@@ -50,7 +51,7 @@ function svgContext(source: string, options: RenderOptions = {}): {
   const renderOptions: RenderOptions = { ...options, mermaidConfig: normalized.config }
   const kind = Object.values(METAMORPHIC_FAMILIES).find(f => source.startsWith(headerFor(f.family)))?.family
   const family = getFamily(kind ?? 'flowchart')
-  if (!family?.layout || !family.renderSvg) throw new Error(`missing render hooks for ${kind ?? 'flowchart'}`)
+  if (!family?.layout || !family.lowerScene) throw new Error(`missing Scene hooks for ${kind ?? 'flowchart'}`)
   const layout = normalizeLayoutResult(family.layout({
     source: normalized,
     options,
@@ -114,22 +115,23 @@ describe('property: FamilyPlugin render waist', () => {
         const publicKind = detectDiagramTypeFromFirstLine(normalized.firstLine) ?? 'flowchart'
         const original = getFamily(publicKind)
         expect(original?.layout).toBeDefined()
-        expect(original?.renderSvg).toBeDefined()
+        expect(original?.lowerScene).toBeDefined()
+        expect(original?.renderSvg).toBeUndefined()
         expect(original?.renderAscii).toBeDefined()
-        if (!original?.layout || !original.renderSvg || !original.renderAscii) return
+        if (!original?.layout || !original.lowerScene || !original.renderAscii) return
 
         let layoutCalls = 0
-        let svgCalls = 0
+        let sceneCalls = 0
         let asciiCalls = 0
-        registerFamily({
+        const restore = replaceFamilyForTest(publicKind as DiagramKind, {
           ...original,
           layout: ctx => {
             layoutCalls++
             return original.layout!(ctx)
           },
-          renderSvg: ctx => {
-            svgCalls++
-            return original.renderSvg!(ctx)
+          lowerScene: ctx => {
+            sceneCalls++
+            return original.lowerScene!(ctx)
           },
           renderAscii: ctx => {
             asciiCalls++
@@ -148,28 +150,33 @@ describe('property: FamilyPlugin render waist', () => {
           assertUsableAscii(asciiA)
           expect(asciiB).toBe(asciiA)
 
-          expect(layoutCalls).toBe(2)
-          expect(svgCalls).toBe(2)
+          // Terminal connector projection runs the registered layout/lowering
+          // waist as well as the two graphical renders.
+          expect(layoutCalls).toBe(4)
+          // Both graphical renders and both terminal projections consume the
+          // same SceneGraph connector semantics.
+          expect(sceneCalls).toBe(4)
           expect(asciiCalls).toBe(2)
         } finally {
-          registerFamily(original)
+          restore()
         }
       }),
       { numRuns: RUNS },
     )
   })
 
-  test('family SVG render hooks are pure over a generated RenderContext', () => {
+  test('built-in Scene lowering and DefaultBackend are pure over a generated RenderContext', () => {
     fc.assert(
       fc.property(FAMILY, ({ family, k, tag }) => {
-        const { family: plugin, renderContext } = svgContext(buildSource(family, k, tag), {
+        const { family: plugin, renderContext } = sceneContext(buildSource(family, k, tag), {
           embedFontImport: false,
           idPrefix: `prop-${tag}`,
         })
+        expect(plugin.renderSvg).toBeUndefined()
         const before = JSON.stringify(renderContext)
-        const first = plugin.renderSvg!(renderContext)
+        const first = DefaultBackend.render(plugin.lowerScene!(renderContext), { seed: 0 })
         const after = JSON.stringify(renderContext)
-        const second = plugin.renderSvg!(renderContext)
+        const second = DefaultBackend.render(plugin.lowerScene!(renderContext), { seed: 0 })
 
         assertUsableSvg(first)
         expect(second).toBe(first)
@@ -189,14 +196,39 @@ describe('property: FamilyPlugin render waist', () => {
       const builtin = BUILTIN_FAMILY_METADATA.map(f => f.id)
       const seen = new Set()
       const idArb = fc.uniqueArray(
-        fc.array(fc.constantFrom(...chars), { minLength: 1, maxLength: 6 }).map(xs => 'x-' + xs.join('')),
+        fc.array(fc.constantFrom(...chars), { minLength: 1, maxLength: 6 }).map(xs => xs.join('')),
         { minLength: 1, maxLength: 6 },
       )
 
       fc.assert(fc.property(idArb, ids => {
         for (const id of ids) {
-          seen.add(id)
-          registerFamily({ id, detect: () => false })
+          const familyId = 'family:test/' + id
+          if (seen.has(familyId)) continue
+          seen.add(familyId)
+          registerFamily({
+            contractVersion: 1,
+            identity: { id: familyId, kind: 'family', version: '1.0.0', compatibility: { core: 'family-descriptor@1' }, provenance: { owner: 'property-test', source: 'test' } },
+            id: familyId,
+            label: familyId,
+            headers: ['test-' + id],
+            aliases: [],
+            maturity: 'experimental',
+            collisionPriority: 0,
+            detect: line => line === 'test-' + id,
+            semanticRoles: [],
+            capabilityEvidence: [
+              { capability: 'detection', state: 'native', evidence: ['src/__tests__/property-abstraction-waists.test.ts'] },
+              { capability: 'source-preservation', state: 'source-preserved', evidence: ['src/__tests__/property-abstraction-waists.test.ts'] },
+              { capability: 'parse', state: 'source-preserved', evidence: ['src/__tests__/property-abstraction-waists.test.ts'] },
+              { capability: 'serialize', state: 'source-preserved', evidence: ['src/__tests__/property-abstraction-waists.test.ts'] },
+              { capability: 'mutation', state: 'diagnosed', evidence: ['src/__tests__/property-abstraction-waists.test.ts'] },
+              { capability: 'verify', state: 'diagnosed', evidence: ['src/__tests__/property-abstraction-waists.test.ts'] },
+              { capability: 'layout', state: 'absent', evidence: ['src/__tests__/property-abstraction-waists.test.ts'] },
+              { capability: 'scene', state: 'absent', evidence: ['src/__tests__/property-abstraction-waists.test.ts'] },
+              { capability: 'svg', state: 'absent', evidence: ['src/__tests__/property-abstraction-waists.test.ts'] },
+              { capability: 'terminal', state: 'absent', evidence: ['src/__tests__/property-abstraction-waists.test.ts'] },
+            ],
+          })
         }
         const got = knownFamilies()
         const head = got.slice(0, builtin.length)

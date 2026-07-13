@@ -6,12 +6,17 @@ import { readFileSync, existsSync, writeFileSync, mkdtempSync, watch } from 'nod
 import { spawnSync } from 'node:child_process'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
-import { parseMermaid } from '../agent/parse.ts'
+import { parseMermaid, parseRegisteredMermaid } from '../agent/parse.ts'
 import { logToolInvocation } from '../agent/trace-log.ts'
 import { serializeMermaid, synthesizeFromGraph } from '../agent/serialize.ts'
 import { mutateChecked } from '../agent/mutate.ts'
 import { configWarningsForMermaid, verifyMermaid } from '../agent/verify.ts'
-import { renderMermaidSVG, renderMermaidASCII, renderMermaidPNG, layoutMermaid } from '../agent/index.ts'
+import {
+  renderMermaidSVG, renderMermaidSVGWithReceipt,
+  renderMermaidASCII, renderMermaidASCIIWithReceipt,
+  renderMermaidPNG, renderMermaidPNGWithReceipt,
+  layoutMermaidWithReceipt,
+} from '../agent/index.ts'
 import type { PngFontWarning } from '../agent/png.ts'
 import { describeMermaid } from '../agent/describe.ts'
 import { collectBatched } from '../shared/batched.ts'
@@ -20,9 +25,21 @@ import type {
   MutationError, Result, MutableValidDiagram, LayoutWarning,
 } from '../agent/types.ts'
 import { WARNING_SEVERITY, WARNING_TIER } from '../agent/types.ts'
-import { BUILTIN_FAMILY_METADATA, builtinFamilyMetadata, knownFamilies, getFamily } from '../agent/families.ts'
-import { knownStyles, getStyle, validateStyleSpec, inferBackend, resolveStyleStack, styleKind } from '../scene/style-registry.ts'
+import { BUILTIN_FAMILY_METADATA, builtinFamilyMetadata, isBuiltinFamilyId, knownFamilies, getFamily } from '../agent/families.ts'
+import { knownStyleDescriptors, validateStyleSpec, inferBackend, resolveStyleStack } from '../scene/style-registry.ts'
 import type { StyleInput, StyleSpec } from '../scene/style-registry.ts'
+import type { RenderOptions } from '../types.ts'
+import type { PngOptions } from '../agent/png.ts'
+import {
+  CLI_RENDER_FORMATS,
+  DEFAULT_CLI_RENDER_FORMAT,
+  cliRenderFormatHelpLines,
+  isCliRenderFormat,
+  renderOutputForCliFormat,
+  validateSerializableRenderOptions,
+} from '../render-contract.ts'
+import type { CliRenderFormat, RenderRequestReceipt } from '../render-contract.ts'
+import { createSectionACapabilityReport, type SectionACapabilityReport } from '../section-a-capability-report.ts'
 import type { BuiltinFamilyId } from '../agent/families.ts'
 import '../agent/families-builtin.ts'
 import { AGENT_INSTRUCTIONS } from './agent-instructions.ts'
@@ -67,7 +84,7 @@ export const FLAG_SPECS: Record<string, { arg?: string }> = {
   'jsonl': {}, 'watch': {}, 'open': {}, 'force': {}, 'canonical-wrapper': {}, 'system-fonts': {},
   // value flags (placeholder = what the usage shows after the flag)
   'suppress': { arg: 'CODES' }, 'label-cap': { arg: 'N' }, 'op': { arg: 'JSON' },
-  'style': { arg: 'NAMES|file' }, 'seed': { arg: 'N' },
+  'style': { arg: 'NAMES|file' }, 'seed': { arg: 'N' }, 'options': { arg: 'JSON|file' },
   'ops': { arg: 'JSON|file' }, 'output': { arg: 'FILE' }, 'format': { arg: 'fmt' },
   'security': { arg: 'mode' }, 'dir': { arg: 'DIR' }, 'font-dirs': { arg: 'DIRS' },
   'gantt-today': { arg: 'DATE' }, 'target-width': { arg: 'CELLS' },
@@ -81,7 +98,7 @@ export const BOOLEAN_FLAGS = new Set(Object.keys(FLAG_SPECS).filter(name => !FLA
 // Command ownership is the second half of the flag contract: recognizing a
 // name globally is not permission to ignore it on an unrelated command.
 const COMMAND_FLAGS: Record<string, readonly string[]> = {
-  render: ['help', 'json', 'ascii', 'certificates', 'watch', 'system-fonts', 'style', 'seed', 'output', 'format', 'security', 'font-dirs', 'gantt-today', 'target-width', 'scale', 'bg', 'o'],
+  render: ['help', 'json', 'ascii', 'certificates', 'watch', 'system-fonts', 'style', 'seed', 'options', 'output', 'format', 'security', 'font-dirs', 'gantt-today', 'target-width', 'scale', 'bg', 'o'],
   verify: ['help', 'json', 'suppress', 'label-cap'],
   parse: ['help', 'json'],
   serialize: ['help'],
@@ -135,7 +152,7 @@ function replacer(_k: string, v: unknown): unknown { return v instanceof Map ? O
 export const GLOBAL_USAGE = `Usage: am <command> [options] [file|-]
 
 Commands:
-  render <file|->        Render to SVG/ASCII/Unicode/layout JSON/PNG
+  render <file|->        Render through a registered output adapter
   verify <file|->        Verify; emits structured JSON warnings
   parse <file|->         Parse; emits ValidDiagram JSON
   serialize              Read ValidDiagram JSON from stdin; emit canonical source
@@ -158,8 +175,9 @@ Flags:
   --output <FILE>        Write render/preview output to FILE instead of stdout
   --open                 For preview: open generated HTML in browser
   --force                For init-agent: refresh generated skill/MCP files
-  --style <NAMES|file>   For render svg/png: style stack — comma-separated names and/or .json spec files
-  --seed <N>             For render svg/png: re-roll ink wobble of styled looks (never layout)
+  --style <NAMES|file>   Style stack — comma-separated names and/or .json spec files
+  --options <JSON|file>  Shared advanced render options across output adapters
+  --seed <N>             Re-roll ink wobble of styled looks (never layout)
   --font-dirs <DIRS>     For render png: extra font directories, comma-separated (CJK/emoji coverage)
   --system-fonts         For render png: also load OS fonts (coverage warnings then skipped)
   --suppress <CODES>     For verify: comma-separated WarningCodes to suppress
@@ -178,34 +196,33 @@ Exit codes:
 `
 
 export const COMMAND_HELP: Record<string, string> = {
-  render: `am render <file|-> [--format svg|ascii|unicode|json|png] [--ascii] [--json]
-Render a diagram. Default is SVG.
-  --format svg      SVG markup (default)
-  --format ascii    7-bit ASCII art (also via --ascii)
-  --format unicode  Unicode box-drawing ASCII art
-  --format json     Layout JSON (nodes, edges, groups, bounds)
+  render: `am render <file|-> [--format ${CLI_RENDER_FORMATS.join('|')}] [--ascii] [--json]
+Render a diagram. Default is ${DEFAULT_CLI_RENDER_FORMAT.toUpperCase()}.
+${cliRenderFormatHelpLines()}
   --certificates     With --format json, include route/family certificates
-  --format png      PNG bytes; requires --output <file.png>; no watch/multi-input
   --style <S>       Style stack: comma-separated names and/or .json spec files,
                     merged left → right (e.g. --style hand-drawn,dracula or
-                    --style ./brand.json). Applies to svg/png. See: am styles
+                    --style ./brand.json). Applies to graphical and terminal
+                    projection. See: am styles
+  --options <JSON|file> Shared advanced RenderOptions object; convenience
+                    flags override its fields
   --seed <N>        Re-roll ink wobble of styled looks; never moves layout
   --font-dirs <DIRS> PNG only: extra font directories (comma-separated) for
                     scripts the bundled Inter/DejaVu fonts don't cover (CJK,
                     emoji); uncovered characters warn on stderr
   --system-fonts    PNG only: also load OS-installed fonts (trades cross-machine
                     determinism for coverage; skips coverage warnings)
-  --security strict Remove external-fetch refs from SVG output
+  --security strict Enforce the strict SVG output-security policy
   --gantt-today <DATE> Gantt only: draw the today marker at DATE (in the
                     diagram's dateFormat or ISO YYYY-MM-DD); rendering never
                     reads the wall clock, so without this the marker is absent
   --target-width <CELLS> ASCII/Unicode only: hard output bound in display cells;
                     impossible geometry fails with ASCII_TARGET_WIDTH_IMPOSSIBLE
   --scale <N>       PNG only: output scale multiplier (default 2)
-  --bg <COLOR>      PNG only: background color (default white)
+  --bg <COLOR>      PNG only: override the diagram background (white fallback)
   --watch           Re-render one input file on change (non-PNG only)
 Multiple inputs emit a JSON results array for non-PNG formats.
-With --json, the svg/ascii/unicode forms wrap output as {"<format>": "..."}.`,
+With --json, textual forms wrap output as {"<format>": "..."}.`,
   styles: `am styles [--json]
 List every registered style. A style is a partial description of how diagrams
 look; a colors-only style is a theme, a full look sets stroke/fill/typography
@@ -254,7 +271,8 @@ it as {ok,text}. --format json emits the structured AX tree
 Emits a single JSON object describing the SDK's capability surface:
   { sdkVersion, families: [{ id, hasMutate, hasExtractLabels, mutationOps, editPolicy, example }],
     warningCodes: [{ code, tier, severity }],
-    outputFormats: ["svg", "ascii", "unicode", "png", "json"] }
+    outputFormats: ${JSON.stringify(CLI_RENDER_FORMATS)},
+    sectionA: { matrices: { request, backends, outputs, families, scene }, ... } }
 editPolicy is "structured-when-narrowed" or "source-level-only". Use this to
 introspect what the CLI can do without running every command.`,
   batch: `am batch  (reads JSONL from stdin)
@@ -357,33 +375,43 @@ export function runCli(argv: string[]): number {
 }
 
 function cmdRender(args: ParsedArgs, json: boolean): number {
-  const format = typeof args.flags.format === 'string' ? args.flags.format : (args.flags.ascii ? 'ascii' : 'svg')
-  const security = args.flags.security === 'strict' ? 'strict' as const : 'default' as const
+  const format = typeof args.flags.format === 'string' ? args.flags.format : (args.flags.ascii ? 'ascii' : DEFAULT_CLI_RENDER_FORMAT)
+  const security = args.flags.security === 'strict' ? 'strict' as const : undefined
   // Explicit gantt clock (rendering never reads wall-clock time).
   const ganttToday = typeof args.flags['gantt-today'] === 'string' ? args.flags['gantt-today'] : undefined
   const targetWidth = typeof args.flags['target-width'] === 'string' ? Number(args.flags['target-width']) : undefined
-  if (!['svg', 'ascii', 'unicode', 'json', 'png'].includes(format)) {
-    process.stderr.write(`am render: unsupported --format ${format}; expected svg, ascii, unicode, json, or png\n`)
+  if (!isCliRenderFormat(format)) {
+    process.stderr.write(`am render: unsupported --format ${format}; expected ${CLI_RENDER_FORMATS.join(', ')}\n`)
     return EXIT_ARG_ERROR
   }
+  const output = renderOutputForCliFormat(format)!
   if (args.flags.security !== undefined && args.flags.security !== 'strict') {
     process.stderr.write('am render --security accepts only strict\n')
     return EXIT_ARG_ERROR
+  }
+  let advancedOptions: RenderOptions = {}
+  if (typeof args.flags.options === 'string') {
+    try {
+      advancedOptions = parseRenderOptionsFlag(args.flags.options)
+    } catch (error) {
+      process.stderr.write(`am render --options: ${error instanceof Error ? error.message : String(error)}\n`)
+      return EXIT_ARG_ERROR
+    }
   }
   if (targetWidth !== undefined && (!Number.isInteger(targetWidth) || targetWidth <= 0)) {
     process.stderr.write('am render --target-width expects a positive integer number of terminal cells\n')
     return EXIT_ARG_ERROR
   }
-  if (targetWidth !== undefined && format !== 'ascii' && format !== 'unicode') {
+  if (targetWidth !== undefined && output.id !== 'ascii' && output.id !== 'unicode') {
     process.stderr.write('am render --target-width is valid only with --format ascii or unicode\n')
     return EXIT_ARG_ERROR
   }
   const pngOnly = ['scale', 'bg', 'font-dirs', 'system-fonts'].filter(name => args.flags[name] !== undefined)
-  if (format !== 'png' && pngOnly.length > 0) {
+  if (output.id !== 'png' && pngOnly.length > 0) {
     process.stderr.write(`am render: ${pngOnly.map(name => `--${name}`).join(', ')} ${pngOnly.length > 1 ? 'are' : 'is'} valid only with --format png\n`)
     return EXIT_ARG_ERROR
   }
-  if (args.flags.certificates && format !== 'json') {
+  if (args.flags.certificates && output.id !== 'layout') {
     process.stderr.write('am render: --certificates is valid only with --format json\n')
     return EXIT_ARG_ERROR
   }
@@ -403,17 +431,23 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
       process.stderr.write(`am render --style: ${e instanceof Error ? e.message : String(e)}\n`)
       return EXIT_ARG_ERROR
     }
-    if (format === 'ascii' || format === 'unicode' || format === 'json') {
-      process.stderr.write(`am render: --style applies to svg/png output; ignored for --format ${format}\n`)
-    }
   }
   const seed = typeof args.flags.seed === 'string' ? Number(args.flags.seed) : undefined
   if (seed !== undefined && !Number.isFinite(seed)) {
     process.stderr.write('am render --seed expects a finite number\n')
     return EXIT_ARG_ERROR
   }
+  const formatOptions: RenderFormatOptions = {
+    ...advancedOptions,
+    ...(security === undefined ? {} : { security }),
+    ...(style === undefined ? {} : { style }),
+    ...(seed === undefined ? {} : { seed }),
+    ...(ganttToday === undefined ? {} : { ganttToday }),
+    certificates: args.flags.certificates === true,
+    targetWidth,
+  }
 
-  if (args.positional.length > 1 && format === 'png') {
+  if (args.positional.length > 1 && output.id === 'png') {
     process.stderr.write('am render --format png accepts exactly one input; run once per file with a distinct --output path\n')
     return EXIT_ARG_ERROR
   }
@@ -428,8 +462,8 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
         const src = readSourceArg(file)
         const warnings = configWarningsForMermaid(src)
         emitConfigWarnings(warnings, `am render ${file}`)
-        const output = renderSourceToFormat(src, format, { security, certificates: args.flags.certificates === true, style, seed, ganttToday, targetWidth })
-        return { index, file, ok: true, output, warnings }
+        const rendered = renderSourceToFormatWithReceipt(src, format, formatOptions)
+        return { index, file, ok: true, output: rendered.output, receipt: rendered.receipt, warnings }
       } catch (e) {
         const parseEnvelope = e as { ok?: false; error?: { code?: string; message?: string; details?: unknown } }
         if (parseEnvelope?.ok === false && parseEnvelope.error?.code === 'PARSE_FAILED') {
@@ -443,16 +477,20 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
   }
 
   // #930: watch mode — re-render on file change.
-  if (args.flags.watch && format === 'png') {
+  if (args.flags.watch && output.id === 'png') {
     process.stderr.write('am render --format png does not support --watch; run non-watch PNG renders with --output <file.png>\n')
     return EXIT_ARG_ERROR
   }
   if (args.flags.watch && typeof args.positional[0] === 'string' && args.positional[0] !== '-') {
-    return cmdRenderWatch(args.positional[0], format, args, json, { security, certificates: args.flags.certificates === true, style, seed, ganttToday, targetWidth })
+    return cmdRenderWatch(args.positional[0], format, args, json, formatOptions)
   }
 
   const source = readSourceArg(args.positional[0])
-  const parsed = parseMermaid(source)
+  // The render surface is open to registered family descriptors. Keep the
+  // structured preflight envelope, but do not route it through the legacy
+  // built-in-only parser: that used to reject an installed extension before
+  // its SVG/PNG/terminal adapter could run.
+  const parsed = parseRegisteredMermaid(source)
   if (!parsed.ok) {
     process.stdout.write(JSON.stringify(parseErrorEnvelope(parsed.error)) + '\n')
     return EXIT_ARG_ERROR
@@ -460,32 +498,35 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
 
   const configWarnings = configWarningsForMermaid(source)
 
-  if (format === 'png') {    const outFile = typeof args.flags.o === 'string' ? args.flags.o : (typeof args.flags.output === 'string' ? args.flags.output : '')
+  if (output.id === 'png') {
+    const outFile = typeof args.flags.o === 'string' ? args.flags.o : (typeof args.flags.output === 'string' ? args.flags.output : '')
     if (!outFile) {
       process.stderr.write('am render --format png requires --output <file.png> (PNG bytes corrupt terminals if piped to stdout)\n')
       return EXIT_ARG_ERROR
     }
     const scale = typeof args.flags.scale === 'string' ? Number(args.flags.scale) : 2
-    const background = typeof args.flags.bg === 'string' ? args.flags.bg : 'white'
+    const background = typeof args.flags.bg === 'string' ? args.flags.bg : undefined
     const fontDirs = typeof args.flags['font-dirs'] === 'string'
       ? args.flags['font-dirs'].split(',').map(s => s.trim()).filter(Boolean)
       : undefined
     const loadSystemFonts = args.flags['system-fonts'] === true
     // PNG render is native-sync via resvg; keep bytes off stdout and write the
     // raster artifact explicitly to the requested output path.
-    return renderPngSync(source, { scale, background, style, seed, fontDirs, loadSystemFonts, ganttToday }, outFile, json, configWarnings)
+    const { certificates: _certificates, targetWidth: _targetWidth, ...sharedOptions } = formatOptions
+    return renderPngSync(source, { ...sharedOptions, scale, background, fontDirs, loadSystemFonts }, outFile, json, configWarnings)
   }
   // Loop 9 M3/M4, #7645: json = layout shape; unicode is the default text
-  // renderer; `--security strict` strips external-fetch refs from SVG.
+  // renderer; `--security strict` enforces the shared SVG output-security policy.
   emitConfigWarnings(configWarnings, 'am render')
-  const out = renderSourceToFormat(source, format, { security, certificates: args.flags.certificates === true, style, seed, ganttToday, targetWidth })
+  const rendered = renderSourceToFormatWithReceipt(source, format, formatOptions)
+  const out = rendered.output
   // --output writes the artifact for every single-shot format, matching the
   // documented `am render --format svg --output diagram.svg` (it was png-only,
   // silently ignored elsewhere — the docs' samples produced no file).
   const outFile = typeof args.flags.o === 'string' ? args.flags.o : (typeof args.flags.output === 'string' ? args.flags.output : '')
   const text = typeof out === 'string'
-    ? (json ? JSON.stringify({ [format]: out, warnings: configWarnings }) + '\n' : (out.endsWith('\n') ? out : out + '\n'))
-    : JSON.stringify(configWarnings.length > 0 ? { ...out, warnings: configWarnings } : out) + '\n'
+    ? (json ? JSON.stringify({ [format]: out, receipt: rendered.receipt, warnings: configWarnings }) + '\n' : (out.endsWith('\n') ? out : out + '\n'))
+    : JSON.stringify({ ...out, receipt: rendered.receipt, ...(configWarnings.length > 0 ? { warnings: configWarnings } : {}) }) + '\n'
   if (outFile) {
     writeFileSync(outFile, text)
     return EXIT_OK
@@ -494,21 +535,51 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
   return EXIT_OK
 }
 
-interface RenderFormatOptions { security?: 'default' | 'strict'; certificates?: boolean; style?: StyleInput[]; seed?: number; ganttToday?: string; targetWidth?: number }
+export interface RenderFormatOptions extends RenderOptions { certificates?: boolean; targetWidth?: number }
 
 /** The ONE format dispatch behind every render path — single-input,
  *  multi-input, and watch differ only in I/O and error envelopes, so they
  *  share this core instead of re-enumerating formats (the style/seed
  *  threading previously had to touch three copies). JSON parse failures
  *  throw the structured envelope; callers decide how to surface it. */
-function renderSourceToFormat(source: string, format: string, opts: RenderFormatOptions = {}): string | object {
-  if (format === 'ascii' || format === 'unicode') return renderMermaidASCII(source, { useAscii: format === 'ascii', ganttToday: opts.ganttToday, targetWidth: opts.targetWidth })
-  if (format === 'json') {
-    const parsed = parseMermaid(source)
-    if (!parsed.ok) throw parseErrorEnvelope(parsed.error)
-    return layoutMermaid(parsed.value, { debug: opts.certificates === true })
+export interface RenderFormatResult {
+  output: string | object
+  receipt: RenderRequestReceipt
+}
+
+export function renderSourceToFormatWithReceipt(source: string, format: string, opts: RenderFormatOptions = {}): RenderFormatResult {
+  const { certificates, targetWidth, ...sharedOptions } = opts
+  const descriptor = renderOutputForCliFormat(format)
+  if (!descriptor) throw new Error(`unsupported render format: ${format}`)
+  if (descriptor.id === 'ascii' || descriptor.id === 'unicode') {
+    const rendered = renderMermaidASCIIWithReceipt(source, { ...sharedOptions, useAscii: descriptor.id === 'ascii', targetWidth })
+    return { output: rendered.text, receipt: rendered.receipt }
   }
-  return renderMermaidSVG(source, { security: opts.security, style: opts.style, seed: opts.seed, ganttToday: opts.ganttToday })
+  if (descriptor.id === 'layout') {
+    // Layout is the structured JSON transport. Preserve its documented
+    // PARSE_FAILED envelope in multi-input mode instead of letting the layout
+    // implementation collapse parser diagnostics into a generic render Error.
+    // Use the open parser so installed family descriptors remain reachable.
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw parseErrorEnvelope(parsed.error)
+    // Delegate the original request after preflight so the CLI and library
+    // resolve the same source/configuration receipt. Passing the parsed value
+    // here re-serialized some families (notably timeline) before hashing.
+    const rendered = layoutMermaidWithReceipt(source, {
+      ...sharedOptions,
+      ...(certificates === true ? { debug: true } : {}),
+    })
+    return { output: rendered.layout, receipt: rendered.receipt }
+  }
+  if (descriptor.id === 'svg') {
+    const rendered = renderMermaidSVGWithReceipt(source, sharedOptions)
+    return { output: rendered.svg, receipt: rendered.receipt }
+  }
+  throw new Error(`unsupported render format: ${format}`)
+}
+
+function renderSourceToFormat(source: string, format: string, opts: RenderFormatOptions = {}): string | object {
+  return renderSourceToFormatWithReceipt(source, format, opts).output
 }
 
 /**
@@ -554,17 +625,18 @@ function emitConfigWarnings(warnings: LayoutWarning[], prefix: string): void {
   }
 }
 
-function renderPngSync(source: string, opts: { scale: number; background: string; style?: StyleInput[]; seed?: number; fontDirs?: string[]; loadSystemFonts?: boolean; ganttToday?: string }, outFile: string, json: boolean, configWarnings: LayoutWarning[] = []): number {
+function renderPngSync(source: string, opts: PngOptions, outFile: string, json: boolean, configWarnings: LayoutWarning[] = []): number {
   try {
     // Glyph-coverage warnings (CJK/emoji without a covering font) go to
     // stderr — the PNG itself can't show what silently became tofu — and
     // ride along in the --json envelope for programmatic callers.
     const fontWarnings: PngFontWarning[] = []
-    const png = renderMermaidPNG(source, { ...opts, onWarning: w => fontWarnings.push(w) })
+    const rendered = renderMermaidPNGWithReceipt(source, { ...opts, onWarning: w => fontWarnings.push(w) })
+    const png = rendered.png
     const warnings: Array<PngFontWarning | LayoutWarning> = [...configWarnings, ...fontWarnings]
     writeFileSync(outFile, png)
     for (const w of warnings) process.stderr.write(`am render --format png: warning ${w.code}: ${'message' in w ? w.message : 'configuration has no effect'}\n`)
-    if (json) process.stdout.write(JSON.stringify({ ok: true, path: outFile, bytes: png.length, warnings }) + '\n')
+    if (json) process.stdout.write(JSON.stringify({ ok: true, path: outFile, bytes: png.length, receipt: rendered.receipt, runtime: rendered.runtime, warnings }) + '\n')
     return EXIT_OK
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
@@ -845,7 +917,9 @@ interface CapabilitiesEnvelope {
   sdkVersion: string
   families: FamilyCapability[]
   warningCodes: WarningCodeCapability[]
-  outputFormats: string[]
+  outputFormats: CliRenderFormat[]
+  /** Registry-derived correctness/parity report; the library exports the same object. */
+  sectionA: SectionACapabilityReport
 }
 
 // Source of truth now lives in the agent layer (src/agent/mutation-ops.ts) so
@@ -870,6 +944,7 @@ export function buildCapabilities(): CapabilitiesEnvelope {
   const mutableFamilies = new Set(Object.keys(MUTATION_OPS_BY_FAMILY))
   const families: FamilyCapability[] = knownFamilies().map((id) => {
     const p = getFamily(id)!
+    const metadata = isBuiltinFamilyId(id) ? builtinFamilyMetadata(id) : undefined
     const mutationOps = id in MUTATION_OPS_BY_FAMILY ? [...MUTATION_OPS_BY_FAMILY[id as MutableFamilyId]] : []
     const editPolicy: FamilyEditPolicy = mutationOps.length > 0 ? 'structured-when-narrowed' : 'source-level-only'
     return {
@@ -885,9 +960,9 @@ export function buildCapabilities(): CapabilitiesEnvelope {
       mutationOps,
       opFields: hasOpSchema(id) ? describeOps(id) : undefined,
       editPolicy,
-      narrower: builtinFamilyMetadata(id)?.narrower,
-      headers: builtinFamilyMetadata(id)?.headers,
-      example: builtinFamilyMetadata(id)?.example,
+      narrower: metadata?.narrower,
+      headers: metadata?.headers,
+      example: metadata?.example,
     }
   })
   const warningCodes: WarningCodeCapability[] = (Object.keys(WARNING_SEVERITY) as WarningCode[]).map(code => ({
@@ -895,7 +970,13 @@ export function buildCapabilities(): CapabilitiesEnvelope {
     tier: WARNING_TIER[code],
     severity: WARNING_SEVERITY[code],
   }))
-  return { sdkVersion, families, warningCodes, outputFormats: ['svg', 'ascii', 'unicode', 'png', 'json'] }
+  return {
+    sdkVersion,
+    families,
+    warningCodes,
+    outputFormats: [...CLI_RENDER_FORMATS],
+    sectionA: createSectionACapabilityReport(),
+  }
 }
 
 /** Resolve the --style flag: comma-separated style names and/or .json spec
@@ -914,20 +995,27 @@ function parseStyleFlag(value: string): StyleInput[] {
   })
 }
 
+function parseRenderOptionsFlag(value: string): RenderOptions {
+  const raw = existsSync(value) ? readFileSync(value, 'utf8') : value
+  let parsed: unknown
+  try { parsed = JSON.parse(raw) } catch (error) {
+    throw new Error(`expected JSON object or JSON file: ${error instanceof Error ? error.message : String(error)}`)
+  }
+  const problems = validateSerializableRenderOptions(parsed)
+  if (problems.length > 0) throw new Error(problems.join('; '))
+  return parsed as RenderOptions
+}
+
 function cmdStyles(json: boolean): number {
-  const rows = knownStyles().map(name => {
-    if (name === 'crisp') {
-      return { name, kind: 'default' as const, backend: 'default' as const, blurb: 'The byte-identical default renderer (style unset).' }
-    }
-    const spec = getStyle(name)!
-    return {
-      name,
-      kind: styleKind(spec),
-      backend: inferBackend(spec),
-      ...(spec.intent ? { intent: spec.intent } : {}),
-      blurb: spec.blurb ?? '',
-    }
-  })
+  const rows = knownStyleDescriptors().map(descriptor => ({
+    name: descriptor.inputName,
+    canonicalId: descriptor.identity.id,
+    label: descriptor.displayLabel,
+    kind: descriptor.category,
+    backend: inferBackend(descriptor.spec),
+    ...(descriptor.spec.intent ? { intent: descriptor.spec.intent } : {}),
+    blurb: descriptor.spec.blurb ?? '',
+  }))
   if (json) {
     process.stdout.write(JSON.stringify(rows) + '\n')
     return EXIT_OK
@@ -959,14 +1047,13 @@ export function buildLlmsTxt(): string {
   const narrowers = BUILTIN_FAMILY_METADATA.map(f => f.narrower).join(', ')
   const formats = cap.outputFormats.join(', ')
   const codes = cap.warningCodes.map(w => `${w.code} (${w.tier}/${w.severity})`).join(', ')
-  const looks = knownStyles().filter(name => {
-    const spec = getStyle(name)
-    return spec && styleKind(spec) === 'look'
-  }).map(name => `'${name}'`).join(', ')
+  const looks = knownStyleDescriptors()
+    .filter(descriptor => descriptor.category === 'default' || descriptor.category === 'look')
+    .map(descriptor => `'${descriptor.inputName}'`).join(', ')
   return `# Agentic Mermaid
 
 > Agent-native Mermaid runtime: parse, verify, mutate, and round-trip
-> Mermaid diagrams with a typed IR. Deterministic ASCII / PNG / SVG. No
+> Mermaid diagrams with a typed IR. Deterministic render outputs. No
 > browser required. CLI + MCP + library.
 
 Version: ${cap.sdkVersion}
@@ -987,9 +1074,8 @@ you haven't inspected.
 
 ## CLI verbs (\`am <verb>\`)
 
-- render --format svg, ascii, unicode, json [--security strict] — render a diagram
-- render --format png --output file.png — render one input to PNG (no PNG bytes on stdout, no multi-input/watch)
-- render --style <names|file.json> --seed N — styled svg/png; comma-separate to stack (--style hand-drawn,dracula)
+- render --format ${CLI_RENDER_FORMATS.join(', ')} [--security strict] — render a diagram; PNG requires --output and does not support multi-input/watch
+- render --style <names|file.json> --seed N — styled graphical/terminal output; comma-separate to stack (--style hand-drawn,dracula)
 - styles [--json] — list registered styles (default + full looks + palette-only themes)
 - parse — diagram → ValidDiagram JSON
 - verify — structural validation (exit 3 if invalid)

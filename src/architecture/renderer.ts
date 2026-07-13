@@ -13,11 +13,12 @@ import { escapeAttr, renderMultilineText, renderMultilineTextWithBackground, esc
 import { measureMultilineText } from '../text-metrics.ts'
 import { applyTextTransform } from '../styles.ts'
 import { topRoundedRectPath } from '../svg-paths.ts'
-import type { MarkerRef, SceneDoc, SceneNode } from '../scene/ir.ts'
+import type { MarkerDescriptor, MarkerRef, SceneDoc, SceneNode } from '../scene/ir.ts'
 import { hashId } from '../scene/seed.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { resolveArchitectureIcon } from './icons.ts'
+import { serializeMarkerResources } from '../scene/marker-resources.ts'
 
 // ============================================================================
 // Architecture renderer — lowers a PositionedArchitectureDiagram to the
@@ -105,8 +106,8 @@ export function lowerArchitectureScene(
   }, preludeParts.join('\n')))
 
   parts.push(marks.definitions(
-    { id: 'defs' },
-    ['<defs>', arrowMarkerDefs(), '</defs>'].join('\n'),
+    { id: 'defs', markerResources: ARCHITECTURE_MARKERS },
+    ['<defs>', serializeMarkerResources(ARCHITECTURE_MARKERS), '</defs>'].join('\n'),
   ))
 
   if (diagram.title) {
@@ -384,11 +385,11 @@ function lowerEdge(edge: PositionedArchitectureEdge, visual: ArchitectureVisualC
   let startMarker: MarkerRef | undefined
   let endMarker: MarkerRef | undefined
   if (edge.hasArrowStart) {
-    startMarker = { id: 'architecture-arrow-start', shape: 'arrow' }
+    startMarker = ARCHITECTURE_MARKERS[1]
     markers += ' marker-start="url(#architecture-arrow-start)"'
   }
   if (edge.hasArrowEnd) {
-    endMarker = { id: 'architecture-arrow-end', shape: 'arrow' }
+    endMarker = ARCHITECTURE_MARKERS[0]
     markers += ' marker-end="url(#architecture-arrow-end)"'
   }
 
@@ -404,6 +405,17 @@ function lowerEdge(edge: PositionedArchitectureEdge, visual: ArchitectureVisualC
   if (edge.label) attrs.push(`data-label="${escapeAttr(edge.label)}"`)
 
   const paint = { stroke: 'var(--arch-edge-stroke, var(--_line))', strokeWidth: String(visual.edgeLineWidth) }
+  const connectorSemantics = {
+    endpoints: { from: edge.source.id, to: edge.target.id },
+    relationship: { kind: 'architecture-edge' },
+    route: {
+      ownership: 'layout',
+      bendRadius: visual.edgeBendRadius,
+      labelAnchors: edge.labelPosition ? [edge.labelPosition] : [],
+    },
+    labels: edge.label ? [{ text: edge.label, ...(edge.labelPosition ? { anchor: edge.labelPosition } : {}) }] : [],
+    projectAccessibilityToSvg: true,
+  } as const
 
   if (visual.edgeBendRadius > 0 && edge.points.length > 2) {
     const d = pointsToPathD(edge.points, visual.edgeBendRadius)
@@ -415,6 +427,7 @@ function lowerEdge(edge: PositionedArchitectureEdge, visual: ArchitectureVisualC
       paint,
       startMarker,
       endMarker,
+      ...connectorSemantics,
     }, `<path ${attrs.join(' ')} d="${d}"${markers} />`)
   }
   return marks.connector({
@@ -425,6 +438,7 @@ function lowerEdge(edge: PositionedArchitectureEdge, visual: ArchitectureVisualC
     paint,
     startMarker,
     endMarker,
+    ...connectorSemantics,
   }, `<polyline ${attrs.join(' ')} points="${points}"${markers} />`)
 }
 
@@ -569,16 +583,27 @@ function fallbackIconGlyph(icon: string): string {
   return (token[0] ?? '?').toUpperCase()
 }
 
-function arrowMarkerDefs(): string {
-  return [
-    '  <marker id="architecture-arrow-end" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto">',
-    '    <polygon points="0 0, 8 2.5, 0 5" fill="var(--arch-edge-stroke, var(--_arrow))" stroke="var(--arch-edge-stroke, var(--_arrow))" stroke-width="0.75" stroke-linejoin="round" />',
-    '  </marker>',
-    '  <marker id="architecture-arrow-start" markerWidth="8" markerHeight="5" refX="1" refY="2.5" orient="auto-start-reverse">',
-    '    <polygon points="8 0, 0 2.5, 8 5" fill="var(--arch-edge-stroke, var(--_arrow))" stroke="var(--arch-edge-stroke, var(--_arrow))" stroke-width="0.75" stroke-linejoin="round" />',
-    '  </marker>',
-  ].join('\n')
+const ARCHITECTURE_MARKER_PAINT = {
+  fill: 'var(--arch-edge-stroke, var(--_arrow))',
+  stroke: 'var(--arch-edge-stroke, var(--_arrow))',
+  strokeWidth: '0.75',
+  strokeLinejoin: 'round' as const,
 }
+
+const ARCHITECTURE_MARKERS: readonly MarkerDescriptor[] = [
+  {
+    id: 'architecture-arrow-end', shape: 'arrow',
+    size: { width: 8, height: 5 }, ref: { x: 7, y: 2.5 }, orient: 'auto',
+    geometry: { kind: 'polygon', points: [{ x: 0, y: 0 }, { x: 8, y: 2.5 }, { x: 0, y: 5 }] },
+    paint: ARCHITECTURE_MARKER_PAINT,
+  },
+  {
+    id: 'architecture-arrow-start', shape: 'arrow',
+    size: { width: 8, height: 5 }, ref: { x: 1, y: 2.5 }, orient: 'auto-start-reverse',
+    geometry: { kind: 'polygon', points: [{ x: 8, y: 0 }, { x: 0, y: 2.5 }, { x: 8, y: 5 }] },
+    paint: ARCHITECTURE_MARKER_PAINT,
+  },
+]
 
 function edgeMidpoint(points: Point[]): Point {
   if (points.length === 0) return { x: 0, y: 0 }
@@ -649,4 +674,3 @@ function pointToward(from: Point, to: Point, distance: number): Point {
 function letterAttr(value: number): string {
   return value !== 0 ? ` letter-spacing="${value}"` : ''
 }
-

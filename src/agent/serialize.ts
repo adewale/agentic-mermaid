@@ -4,13 +4,14 @@
 // ============================================================================
 
 import type {
-  ValidDiagram, ValidDiagramMeta, DiagramBody,
+  ValidDiagram, ParsedDiagram, ValidDiagramMeta, DiagramBody, FamilyParsedBody,
   ValidDiagramPayload, ParseError, Result,
 } from './types.ts'
 import { ok, err } from './types.ts'
 import YAML from 'yaml'
 import { getFamily, knownFamilies } from './families.ts'
 import './families-builtin.ts'  // registers built-in family serialize hooks
+import { ensureAccessibilityLines } from './accessibility-envelope.ts'
 
 // Re-export for callers that used the previous in-tree serializer home.
 export { renderTimeline } from './timeline-body.ts'
@@ -29,8 +30,8 @@ export interface SerializeOptions {
   wrapper?: 'verbatim' | 'canonical'
 }
 
-export function serializeMermaid(d: ValidDiagram, opts: SerializeOptions = {}): string {
-  return wrapperPrefix(d.meta, opts.wrapper ?? 'verbatim') + renderBody(d.body, d.kind)
+export function serializeMermaid(d: ParsedDiagram, opts: SerializeOptions = {}): string {
+  return wrapperPrefix(d.meta, opts.wrapper ?? 'verbatim') + renderBody(d.body, d.kind, d.meta)
 }
 
 /** The wrapper text to emit before the diagram body for the given policy. */
@@ -83,14 +84,22 @@ function frontmatterRepresents(map: Record<string, unknown> | undefined, sub: Re
   return true
 }
 
-function renderBody(body: DiagramBody, kind: ValidDiagram['kind']): string {
+function renderBody(
+  body: FamilyParsedBody,
+  kind: ParsedDiagram['kind'],
+  meta: ValidDiagramMeta,
+): string {
   // Opaque bodies re-emit preserved source verbatim. Every structured body
   // serializes through its FamilyPlugin hook — looked up by DIAGRAM kind,
   // not body kind. State diagrams (BUILD-19) own a dedicated StateBody and the
   // state plugin emits the stateDiagram-v2 header.
   if (body.kind === 'opaque') return body.source.endsWith('\n') ? body.source : body.source + '\n'
   const plugin = getFamily(kind)
-  if (plugin?.serialize) return plugin.serialize(body)
+  if (plugin?.serialize) {
+    const rendered = plugin.serialize(body)
+    return body.kind === 'extension' ? rendered : ensureAccessibilityLines(rendered, meta.accessibility)
+  }
+  if (body.kind === 'extension') return body.source.endsWith('\n') ? body.source : body.source + '\n'
   throw new Error(`No serializer registered for diagram kind "${kind}"`)
 }
 

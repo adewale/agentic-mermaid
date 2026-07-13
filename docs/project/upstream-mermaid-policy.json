@@ -1,0 +1,629 @@
+{
+  "schemaVersion": 2,
+  "pin": {
+    "version": "11.16.0",
+    "commit": "5e3c88ea6d937a89078a5e8f1b2a6fd0ea391a5c",
+    "inputs": [
+      "packages/mermaid/src/diagram-api/diagram-orchestration.ts",
+      "packages/mermaid/src/diagram-api/detectType.ts",
+      "packages/mermaid/src/diagrams/**/**Detector.ts",
+      "packages/mermaid/src/config.schema.yaml",
+      "https://mermaid.ai/open-source/syntax/",
+      "skills/agentic-mermaid-diagram-workflow/references/upstream/*.md",
+      "eval/mermaid-docs-corpus/corpus.json",
+      "eval/mermaid-doc-showcase/manifest.json",
+      "eval/mermaid-upstream-suite-bench/manifest.json",
+      "eval/mermaid-upstream-suite-bench/cases.json",
+      "eval/mermaid-upstream-suite-bench/exclusions.json",
+      "eval/mermaid-upstream-suite-bench/mindmap-gitgraph-f3dea583.json",
+      "eval/mermaid-gantt-bench/cases.json",
+      "eval/mermaid-gantt-bench/exclusions.json"
+    ]
+  },
+  "officialSyntaxPages": {
+    "flowchart": "flowchart.md",
+    "swimlane": "swimlanes.md",
+    "sequence": "sequenceDiagram.md",
+    "class": "classDiagram.md",
+    "state": "stateDiagram.md",
+    "er": "entityRelationshipDiagram.md",
+    "journey": "userJourney.md",
+    "gantt": "gantt.md",
+    "pie": "pie.md",
+    "quadrant": "quadrantChart.md",
+    "requirement": "requirementDiagram.md",
+    "gitgraph": "gitgraph.md",
+    "c4": "c4.md",
+    "mindmap": "mindmap.md",
+    "timeline": "timeline.md",
+    "zenuml": "zenuml.md",
+    "sankey": "sankey.md",
+    "xychart": "xyChart.md",
+    "block": "block.md",
+    "packet": "packet.md",
+    "kanban": "kanban.md",
+    "architecture": "architecture.md",
+    "radar": "radar.md",
+    "eventmodeling": "eventmodeling.md",
+    "treemap": "treemap.md",
+    "venn": "venn.md",
+    "ishikawa": "ishikawa.md",
+    "wardley": "wardley.md",
+    "cynefin": "cynefin.md",
+    "treeview": "treeView.md",
+    "railroad": "railroad.md"
+  },
+  "families": [
+    {
+      "id": "flowchart",
+      "label": "Flowchart",
+      "source": "core",
+      "maturity": "stable",
+      "upstreamDetectorIds": [
+        "flowchart-v2",
+        "flowchart",
+        "flowchart-elk"
+      ],
+      "headers": [
+        {
+          "value": "flowchart",
+          "agenticStatus": "native"
+        },
+        {
+          "value": "graph",
+          "agenticStatus": "native"
+        },
+        {
+          "value": "flowchart-elk",
+          "agenticStatus": "unsupported"
+        }
+      ]
+    },
+    {
+      "id": "swimlane",
+      "label": "Swimlanes",
+      "source": "core",
+      "maturity": "beta",
+      "upstreamDetectorIds": [
+        "swimlane"
+      ],
+      "headers": [
+        {
+          "value": "swimlane-beta",
+          "agenticStatus": "unsupported"
+        }
+      ]
+    },
+    {
+      "id": "sequence",
+      "label": "Sequence",
+      "source": "core",
+      "maturity": "stable",
+      "upstreamDetectorIds": [
+        "sequence"
+      ],
+      "headers": [
+        {
+          "value": "sequenceDiagram",
+          "agenticStatus": "native"
+        }
+      ]
+    },
+    {
+      "id": "class",
+      "label": "Class",
+      "source": "core",
+      "maturity": "stable",
+      "upstreamDetectorIds": [
+        "classDiagram",
+        "class"
+      ],
+      "headers": [
+        {
+          "value": "classDiagram",
+          "agenticStatus": "native"
+        },
+        {
+          "value": "classDiagram-v2",
+          "agenticStatus": "unsupported"
+        }
+      ]
+    },
+    {
+      "id": "state",
+      "label": "State",
+      "source": "core",
+      "maturity": "stable",
+      "upstreamDetectorIds": [
+        "stateDiagram",
+        "state"
+      ],
+      "headers": [
+        {
+          "value": "stateDiagram",
+          "agenticStatus": "native"
+        },
+        {
+          "value": "stateDiagram-v2",
+          "agenticStatus": "native"
+        }
+      ]
+    },
+    {
+      "id": "er",
+      "label": "Entity Relationship",
+      "source": "core",
+      "maturity": "stable",
+      "upstreamDetectorIds": [
+        "er"
+      ],
+      "headers": [
+        {
+          "value": "erDiagram",
+          "agenticStatus": "native"
+        }
+      ]
+    },
+    {
+      "id": "journey",
+      "label": "User Journey",
+      "source": "core",
+      "maturity": "stable",
+      "upstreamDetectorIds": [
+        "journey"
+      ],
+      "headers": [
+        {
+          "value": "journey",
+          "agenticStatus": "native"
+        }
+      ]
+    },
+    {
+      "id": "gantt",
+      "label": "Gantt",
+      "source": "core",
+      "maturity": "stable",
+      "upstreamDetectorIds": [
+        "gantt"
+      ],
+      "headers": [
+        {
+          "value": "gantt",
+          "agenticStatus": "native"
+        }
+      ]
+    },
+    {
+      "id": "pie",
+      "label": "Pie",
+      "source": "core",
+      "maturity": "stable",
+      "upstreamDetectorIds": [
+        "pie"
+      ],
+      "headers": [
+        {
+          "value": "pie",
+          "agenticStatus": "native"
+        }
+      ]
+    },
+    {
+      "id": "quadrant",
+      "label": "Quadrant",
+      "source": "core",
+      "maturity": "stable",
+      "upstreamDetectorIds": [
+        "quadrantChart"
+      ],
+      "headers": [
+        {
+          "value": "quadrantChart",
+          "agenticStatus": "native"
+        }
+      ]
+    },
+    {
+      "id": "requirement",
+      "label": "Requirement",
+      "source": "core",
+      "maturity": "stable",
+      "upstreamDetectorIds": [
+        "requirement"
+      ],
+      "headers": [
+        {
+          "value": "requirementDiagram",
+          "agenticStatus": "unsupported"
+        },
+        {
+          "value": "requirement",
+          "agenticStatus": "unsupported"
+        }
+      ]
+    },
+    {
+      "id": "gitgraph",
+      "label": "GitGraph",
+      "source": "core",
+      "maturity": "stable",
+      "upstreamDetectorIds": [
+        "gitGraph"
+      ],
+      "headers": [
+        {
+          "value": "gitGraph",
+          "agenticStatus": "native"
+        }
+      ]
+    },
+    {
+      "id": "c4",
+      "label": "C4",
+      "source": "core",
+      "maturity": "experimental",
+      "upstreamDetectorIds": [
+        "c4"
+      ],
+      "headers": [
+        {
+          "value": "C4Context",
+          "agenticStatus": "inventory-only"
+        },
+        {
+          "value": "C4Container",
+          "agenticStatus": "inventory-only"
+        },
+        {
+          "value": "C4Component",
+          "agenticStatus": "inventory-only"
+        },
+        {
+          "value": "C4Dynamic",
+          "agenticStatus": "inventory-only"
+        },
+        {
+          "value": "C4Deployment",
+          "agenticStatus": "inventory-only"
+        }
+      ]
+    },
+    {
+      "id": "mindmap",
+      "label": "Mindmap",
+      "source": "core",
+      "maturity": "stable",
+      "upstreamDetectorIds": [
+        "mindmap"
+      ],
+      "headers": [
+        {
+          "value": "mindmap",
+          "agenticStatus": "native"
+        }
+      ]
+    },
+    {
+      "id": "timeline",
+      "label": "Timeline",
+      "source": "core",
+      "maturity": "experimental",
+      "upstreamDetectorIds": [
+        "timeline"
+      ],
+      "headers": [
+        {
+          "value": "timeline",
+          "agenticStatus": "native"
+        }
+      ]
+    },
+    {
+      "id": "zenuml",
+      "label": "ZenUML",
+      "source": "external-first-party",
+      "maturity": "experimental",
+      "upstreamDetectorIds": [
+        "zenuml"
+      ],
+      "headers": [
+        {
+          "value": "zenuml",
+          "agenticStatus": "unsupported"
+        }
+      ]
+    },
+    {
+      "id": "sankey",
+      "label": "Sankey",
+      "source": "core",
+      "maturity": "stable",
+      "upstreamDetectorIds": [
+        "sankey"
+      ],
+      "headers": [
+        {
+          "value": "sankey",
+          "agenticStatus": "unsupported"
+        },
+        {
+          "value": "sankey-beta",
+          "agenticStatus": "unsupported"
+        }
+      ]
+    },
+    {
+      "id": "xychart",
+      "label": "XY Chart",
+      "source": "core",
+      "maturity": "stable",
+      "upstreamDetectorIds": [
+        "xychart"
+      ],
+      "headers": [
+        {
+          "value": "xychart",
+          "agenticStatus": "native"
+        },
+        {
+          "value": "xychart-beta",
+          "agenticStatus": "native"
+        }
+      ]
+    },
+    {
+      "id": "block",
+      "label": "Block",
+      "source": "core",
+      "maturity": "stable",
+      "upstreamDetectorIds": [
+        "block"
+      ],
+      "headers": [
+        {
+          "value": "block",
+          "agenticStatus": "unsupported"
+        },
+        {
+          "value": "block-beta",
+          "agenticStatus": "unsupported"
+        }
+      ]
+    },
+    {
+      "id": "packet",
+      "label": "Packet",
+      "source": "core",
+      "maturity": "stable",
+      "upstreamDetectorIds": [
+        "packet"
+      ],
+      "headers": [
+        {
+          "value": "packet",
+          "agenticStatus": "unsupported"
+        },
+        {
+          "value": "packet-beta",
+          "agenticStatus": "unsupported"
+        }
+      ]
+    },
+    {
+      "id": "kanban",
+      "label": "Kanban",
+      "source": "core",
+      "maturity": "stable",
+      "upstreamDetectorIds": [
+        "kanban"
+      ],
+      "headers": [
+        {
+          "value": "kanban",
+          "agenticStatus": "unsupported"
+        }
+      ]
+    },
+    {
+      "id": "architecture",
+      "label": "Architecture",
+      "source": "core",
+      "maturity": "stable",
+      "upstreamDetectorIds": [
+        "architecture"
+      ],
+      "headers": [
+        {
+          "value": "architecture",
+          "agenticStatus": "unsupported"
+        },
+        {
+          "value": "architecture-beta",
+          "agenticStatus": "native"
+        }
+      ]
+    },
+    {
+      "id": "radar",
+      "label": "Radar",
+      "source": "core",
+      "maturity": "beta",
+      "upstreamDetectorIds": [
+        "radar"
+      ],
+      "headers": [
+        {
+          "value": "radar-beta",
+          "agenticStatus": "unsupported"
+        }
+      ]
+    },
+    {
+      "id": "eventmodeling",
+      "label": "Event Modeling",
+      "source": "core",
+      "maturity": "experimental",
+      "upstreamDetectorIds": [
+        "eventmodeling"
+      ],
+      "headers": [
+        {
+          "value": "eventmodeling",
+          "agenticStatus": "unsupported"
+        }
+      ]
+    },
+    {
+      "id": "treemap",
+      "label": "Treemap",
+      "source": "core",
+      "maturity": "stable",
+      "upstreamDetectorIds": [
+        "treemap"
+      ],
+      "headers": [
+        {
+          "value": "treemap",
+          "agenticStatus": "unsupported"
+        },
+        {
+          "value": "treemap-beta",
+          "agenticStatus": "unsupported"
+        }
+      ]
+    },
+    {
+      "id": "venn",
+      "label": "Venn",
+      "source": "core",
+      "maturity": "beta",
+      "upstreamDetectorIds": [
+        "venn"
+      ],
+      "headers": [
+        {
+          "value": "venn-beta",
+          "agenticStatus": "unsupported"
+        }
+      ]
+    },
+    {
+      "id": "ishikawa",
+      "label": "Ishikawa",
+      "source": "core",
+      "maturity": "stable",
+      "upstreamDetectorIds": [
+        "ishikawa"
+      ],
+      "headers": [
+        {
+          "value": "ishikawa",
+          "agenticStatus": "unsupported"
+        },
+        {
+          "value": "ishikawa-beta",
+          "agenticStatus": "unsupported"
+        }
+      ]
+    },
+    {
+      "id": "wardley",
+      "label": "Wardley",
+      "source": "core",
+      "maturity": "beta",
+      "upstreamDetectorIds": [
+        "wardley"
+      ],
+      "headers": [
+        {
+          "value": "wardley-beta",
+          "agenticStatus": "unsupported"
+        }
+      ]
+    },
+    {
+      "id": "cynefin",
+      "label": "Cynefin",
+      "source": "core",
+      "maturity": "beta",
+      "upstreamDetectorIds": [
+        "cynefin"
+      ],
+      "headers": [
+        {
+          "value": "cynefin-beta",
+          "agenticStatus": "unsupported"
+        }
+      ]
+    },
+    {
+      "id": "treeview",
+      "label": "TreeView",
+      "source": "core",
+      "maturity": "beta",
+      "upstreamDetectorIds": [
+        "treeView"
+      ],
+      "headers": [
+        {
+          "value": "treeView-beta",
+          "agenticStatus": "unsupported"
+        }
+      ]
+    },
+    {
+      "id": "railroad",
+      "label": "Railroad",
+      "source": "core",
+      "maturity": "beta",
+      "upstreamDetectorIds": [
+        "railroad",
+        "railroadEbnf",
+        "railroadAbnf",
+        "railroadPeg"
+      ],
+      "headers": [
+        {
+          "value": "railroad-beta",
+          "agenticStatus": "unsupported"
+        },
+        {
+          "value": "railroad-ebnf-beta",
+          "agenticStatus": "unsupported"
+        },
+        {
+          "value": "railroad-abnf-beta",
+          "agenticStatus": "unsupported"
+        },
+        {
+          "value": "railroad-peg-beta",
+          "agenticStatus": "unsupported"
+        }
+      ]
+    }
+  ],
+  "watchEntries": [
+    {
+      "id": "error",
+      "kind": "pseudo",
+      "headers": [
+        "error"
+      ]
+    },
+    {
+      "id": "info",
+      "kind": "pseudo",
+      "headers": [
+        "info"
+      ]
+    },
+    {
+      "id": "frontmatter",
+      "kind": "internal",
+      "headers": [
+        "---"
+      ]
+    }
+  ]
+}

@@ -237,7 +237,7 @@ export function assessRenderedLayout(layout: RenderedLayout): FamilyRubricResult
   }
 
   // Group containment, honouring each family's guaranteed axes.
-  const axes = GROUP_CONTAINMENT_AXES[layout.kind] ?? 'both'
+  const axes = GROUP_CONTAINMENT_AXES[layout.kind as DiagramKind] ?? 'both'
   let groupBreaches = 0
   if (axes !== 'none') {
     const nodeById = new Map(layout.nodes.map(n => [n.id, n]))

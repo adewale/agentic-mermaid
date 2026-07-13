@@ -20,24 +20,26 @@ Two regeneration shapes, both gated by `UPDATE_GOLDEN=1 bun test <file>`:
 | Shape | Source of truth | Artifact | Test asserts |
 |---|---|---|---|
 | **Rendered figure** | a committed `.mmd` | a committed `.svg`, rendered by `renderMermaidSVG` | deterministic re-render + byte-match (normalized) |
-| **Projected table/list** | a code registry (e.g. `BUILTIN_FAMILY_METADATA`) | a marked region in a `.md` | rebuild from the registry + region match |
+| **Projected report/table** | a registry or checked manifest | a generated `.md` or marked region | regenerate from current authorities + exact match |
 
 ## Instances in the repo
 
 1. **The architecture figure** — `docs/design/system/architecture.{mmd,svg}`, pinned by
-   `src/__tests__/docs-architecture-diagram.test.ts`. The three-stacks diagram is authored as
-   Mermaid and rendered by our own engine; the test asserts the render is deterministic across
-   calls and matches the committed SVG. Docs *about* the system, produced *by* the system.
-2. **The family roster table** — the built-in-families table in
-   `docs/design/system/abstraction-audit.md` §2, pinned by `src/__tests__/audit-family-table.test.ts`.
-   It is generated from `BUILTIN_FAMILY_METADATA`; add or rename a family and the test fails until
-   the audit is regenerated.
+   `src/__tests__/docs-architecture-diagram.test.ts`. The current request, family, positioned-
+   artifact, and output-projection waists are authored as Mermaid and rendered by our own engine;
+   the test asserts that the render is deterministic and matches the committed SVG. Docs *about*
+   the system, produced *by* the system.
+2. **The Section A capability report** — `docs/project/section-a-capability-report.md`, generated
+   from the live family, output, Scene, and characterization contracts by
+   `scripts/generate-section-a-capability-report.ts`. Its tests check freshness and semantic
+   invariants without copying a family roster. The contradictory roster was removed from the
+   historical abstraction audit; that snapshot now links to this live projection.
 
 These join the repo's existing doc-sync guarantees, which already follow the same philosophy:
 
 - `Instructions_for_agents.md` is byte-identical to `am --agent-instructions` (doc-sync test).
-- `package.json` keywords, `llms.txt`, editor examples, and CLI capabilities are all projected from
-  `BUILTIN_FAMILY_METADATA` and checked (`doc-sync.test.ts`, `diagram-family-citizenship.test.ts`).
+- `package.json` keywords, `llms.txt`, editor examples, and CLI capabilities are checked projections
+  of the family descriptors (`doc-sync.test.ts`, `diagram-family-citizenship.test.ts`).
 - Every `LayoutWarning` code and `MutationOp` kind must appear in `AGENT_NATIVE.md` (doc-sync).
 
 ## How to add a dogfooded doc
@@ -48,17 +50,18 @@ These join the repo's existing doc-sync guarantees, which already follow the sam
    `renderMermaidSVG` and compares to `<name>.svg`, with an `UPDATE_GOLDEN` write path.
 3. Run `UPDATE_GOLDEN=1 bun test <test>` to materialize the artifact; commit both.
 
-**A projected table/list:**
-1. Wrap the region in the doc with `<!-- NAME:start -->` / `<!-- NAME:end -->` markers.
-2. Add a test modeled on `audit-family-table.test.ts` that rebuilds the region from the code
-   registry and compares, with an `UPDATE_GOLDEN` write path.
-3. Regenerate and commit.
+**A projected report/table:**
+1. Name the live registry or checked manifest from which the artifact derives.
+2. Add both an exact freshness check and a semantic invariant, modeled on the
+   Section A capability-report generator and tests.
+3. Regenerate the artifact through its normal script and commit it with the
+   authority change.
 
 ## Boundaries
 
 - **Pin what is *derivable*.** Prose judgement — the audit's analysis, the recommendations — is not
   mechanically generated; it is reviewed like code. Only the derivable parts (the figure, the
-  roster) are auto-pinned.
+  current report or table) are auto-pinned. Historical snapshots are never synchronized forward.
 - **Rendered-SVG snapshots carry the "within one ELK version" determinism assumption** of the
   existing `*-svg-snapshot` goldens (`AGENT_NATIVE.md` §1). They guard drift within the CI
   environment, not cross-version byte-equality.

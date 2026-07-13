@@ -8,6 +8,7 @@ import { samples as RICH_EXAMPLES } from '../../scripts/site/samples-data.ts'
 import { createWebsiteWorker } from '../../website/src/worker-core.ts'
 import { CLEAN_PAGE_ROUTES, DYNAMIC_CLEAN_REDIRECT_LINES, staticRedirectLines } from '../../website/src/site-routes.ts'
 import { HOSTED_FONT_FACES, HOSTED_FONT_FILES } from '../font-manifest.ts'
+import { PNG_WASM_RUNTIME } from '../png-contract.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { resolveBuildGitSha } from '../../website/build-provenance.ts'
 import { AI_CATALOG_RESOURCES } from '../../website/agent-resource-inventory.ts'
@@ -16,6 +17,7 @@ import { verifyMermaid } from '../agent/verify.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const SITE = join(REPO, 'website', 'public')
+const TEST_PNG_RECEIPT = { version: 1, output: 'png', sharedRequestDigest: 'test-shared', requestDigest: 'test-request', appearanceDigest: 'test-appearance' } as const
 
 function read(rel: string) {
   return readFileSync(join(SITE, rel), 'utf8')
@@ -86,7 +88,7 @@ function staticCleanRoutesFromGeneratedPages() {
 async function websiteWorker(): Promise<{ fetch: (request: Request, env: any) => Promise<Response> }> {
   return createWebsiteWorker({
     executeHarness: 'test-harness',
-    renderPng: async () => ({ png: new Uint8Array(), warnings: [] }),
+    renderPng: async () => ({ png: new Uint8Array(), warnings: [], receipt: TEST_PNG_RECEIPT, runtime: PNG_WASM_RUNTIME }),
     deployVersion: 'test-deploy',
   })
 }
@@ -899,7 +901,7 @@ describe('Workers Static Assets website contract', () => {
     expect(jump).not.toContain('examples-role-style-presets-jump')
     expect(jump).toContain('<p class="example-jump-title" id="examples-style-palette-combinations-jump">Style × palette combinations</p>')
     expect(jump).toContain('<p class="example-jump-title" id="examples-rich-gallery-jump">Rich shared example gallery</p>')
-    for (const id of ['flowchart', 'state', 'architecture', 'sequence', 'class', 'er', 'timeline', 'journey', 'xychart', 'pie', 'quadrant', 'gantt']) {
+    for (const { id } of BUILTIN_FAMILY_METADATA) {
       expect(examples).toContain(`<article class="example-sample" id="style-palette-${id}">`)
       expect(jump).toContain(`href="#style-palette-${id}"`)
     }
@@ -1135,7 +1137,9 @@ describe('Workers Static Assets website contract', () => {
     expect(editor).toContain('role="dialog" aria-modal="false" aria-labelledby="color-popup-title" aria-hidden="true"')
     expect(editor).toContain('class="status-left" role="status" aria-live="polite" aria-atomic="true"')
     expect(editor).toContain('id="verify-bar" role="status" aria-live="polite" aria-atomic="true"')
-    expect(editorAll).toContain('ensurePreviewSvgAccessibility')
+    expect(editorAll).toContain('insertStrictRenderedSvg')
+    expect(editorAll).toContain('new DOMParser().parseFromString(svg, "image/svg+xml")')
+    expect(editorAll).toContain('previewInner.replaceChildren(document.importNode(parsed.documentElement, true))')
     expect(editorAll).toContain('fitUnicodeOutput')
     expect(editorAll).toContain('ensureTextOutputs')
     expect(editorAll).toContain('markTextOutputsDirty')

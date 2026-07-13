@@ -15,7 +15,7 @@
 // checks (verify.ts adds the geometric Tier 2 pass via the graph projection).
 // ============================================================================
 
-import { registerFamily, extractLabelsGeneric, type ExtractedLabel, type FamilyPlugin } from './families.ts'
+import { augmentFamily, extractLabelsGeneric, type ExtractedLabel, type FamilyPlugin } from './families.ts'
 import type { DiagramBody, DiagramKind, AnyMutationOp, MutationError, Result, LayoutWarning, SourceMap, ClassBody, ErBody, XyChartBody, PieBody, QuadrantBody, GanttBody } from './types.ts'
 import { ok, err } from './types.ts'
 import { verifyClass, parseClassBody, renderClass, mutateClass } from './class-body.ts'
@@ -43,15 +43,20 @@ function structuredFamilyHooks<K extends DiagramBody['kind'] & DiagramKind>(
   kind: K,
   opts: {
     headerOk?: (header: string) => boolean
-    parseBody: (lines: string[]) => Extract<DiagramBody, { kind: K }> | null
+    parseBody: (
+      lines: string[],
+      accessibility: import('./types.ts').Accessibility,
+    ) => Extract<DiagramBody, { kind: K }> | null
     serialize: (body: Extract<DiagramBody, { kind: K }>) => string
     mutate: (body: Extract<DiagramBody, { kind: K }>, op: never) => Result<Extract<DiagramBody, { kind: K }>, MutationError>
   },
 ): Pick<FamilyPlugin, 'parse' | 'serialize' | 'mutate'> {
   return {
-    parse: (lines, opaqueSource) => {
+    parse: (ctx) => {
+      const lines = ctx.lines
+      const { opaqueSource } = ctx
       const headerOk = opts.headerOk?.(lines[0]?.trim() ?? '') ?? true
-      const body = headerOk ? opts.parseBody(lines.slice(1)) : null
+      const body = headerOk ? opts.parseBody(lines.slice(1), ctx.meta.accessibility) : null
       return ok(body ?? { kind: 'opaque', family: kind, source: opaqueSource })
     },
     serialize: body => {
@@ -91,9 +96,9 @@ function extractFlowchartLabels(source: string): ExtractedLabel[] {
 // plugin, which binds the flowchart header.
 function flowchartFamilyHooks(): Pick<FamilyPlugin, 'parse' | 'buildSourceMap' | 'serialize' | 'mutate'> {
   return {
-    parse: (_lines, opaqueSource, _meta, canonicalSource) => {
-      if (containsFlowchartOpaqueSyntax(canonicalSource)) return ok<DiagramBody>({ kind: 'opaque', family: 'flowchart', source: opaqueSource })
-      return parseFlowchartBody(canonicalSource)
+    parse: ({ source, opaqueSource }) => {
+      if (containsFlowchartOpaqueSyntax(source.familyText)) return ok<DiagramBody>({ kind: 'opaque', family: 'flowchart', source: opaqueSource })
+      return parseFlowchartBody(source.familyText)
     },
     buildSourceMap: (body, canonicalSource) =>
       body.kind === 'flowchart' ? buildFlowchartSourceMap(body as FlowchartBody, canonicalSource) : { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() },
@@ -108,9 +113,7 @@ function flowchartFamilyHooks(): Pick<FamilyPlugin, 'parse' | 'buildSourceMap' |
   }
 }
 
-registerFamily({
-  id: 'flowchart',
-  detect: l => l.startsWith('flowchart') || l.startsWith('graph'),
+augmentFamily('flowchart', {
   extractLabels: extractFlowchartLabels,
   ...flowchartFamilyHooks(),
 })
@@ -141,9 +144,7 @@ function extractStateLabels(source: string): ExtractedLabel[] {
   return out
 }
 
-registerFamily({
-  id: 'state',
-  detect: l => l.startsWith('statediagram') || l.startsWith('statediagram-v2'),
+augmentFamily('state', {
   extractLabels: extractStateLabels,
   // The verify hook covers body-level structural Tier 1 (EMPTY/MISANCHORED/
   // LABEL_OVERFLOW); verify.ts adds geometric Tier 2 via the graph projection.
@@ -185,13 +186,11 @@ function extractSequenceLabels(source: string): ExtractedLabel[] {
 // opaque-block segments round-trip verbatim. `opaqueSource` is the normalized
 // body INCLUDING the header line, with original indentation/blank lines/
 // comments intact — drop its header and pass alongside the trimmed lines.
-registerFamily({
-  id: 'sequence',
-  detect: l => l.startsWith('sequencediagram'),
+augmentFamily('sequence', {
   extractLabels: extractSequenceLabels,
-  parse: (lines, opaqueSource) => {
+  parse: ({ source, lines, opaqueSource }) => {
     const expandedLines = expandInlineSequenceStatements(lines)
-    const rawBodyLines = sequenceRawBodyLines(opaqueSource, expandedLines)
+    const rawBodyLines = sequenceRawBodyLines(source.familyBody, expandedLines)
     const body = parseSequenceBody(expandedLines.slice(1), rawBodyLines)
     return ok(body ?? { kind: 'opaque', family: 'sequence', source: opaqueSource })
   },
@@ -205,9 +204,9 @@ registerFamily({
   },
 })
 
-function expandInlineSequenceStatements(lines: string[]): string[] {
+function expandInlineSequenceStatements(lines: readonly string[]): string[] {
   const header = lines[0]?.trim() ?? ''
-  if (!/^sequenceDiagram\s*;/i.test(header)) return lines
+  if (!/^sequenceDiagram\s*;/i.test(header)) return [...lines]
   return [...header.split(';').map(part => part.trim()).filter(Boolean), ...lines.slice(1)]
 }
 
@@ -246,13 +245,11 @@ function extractTimelineLabels(source: string): ExtractedLabel[] {
 // convention, spelled out here because the hook needs the header line).
 const TIMELINE_BODY_HEADER_RE = /^timeline(?:\s+(LR|TD))?\s*$/i
 
-registerFamily({
-  id: 'timeline',
-  detect: l => l.startsWith('timeline'),
+augmentFamily('timeline', {
   extractLabels: extractTimelineLabels,
-  parse: (lines, opaqueSource) => {
+  parse: ({ lines, opaqueSource, meta }) => {
     const header = (lines[0]?.trim() ?? '').match(TIMELINE_BODY_HEADER_RE)
-    const body = header ? parseTimelineBody(lines.slice(1)) : null
+    const body = header ? parseTimelineBody(lines.slice(1), meta.accessibility) : null
     if (body && header?.[1]) body.direction = header[1].toUpperCase() as 'LR' | 'TD'
     return ok(body ?? { kind: 'opaque', family: 'timeline', source: opaqueSource })
   },
@@ -425,9 +422,7 @@ function extractClassLabels(source: string): ExtractedLabel[] {
   return out
 }
 
-registerFamily({
-  id: 'class',
-  detect: l => l.startsWith('classdiagram'),
+augmentFamily('class', {
   extractLabels: extractClassLabels,
   // Loop 8 A1: the structured class verifier IS the verify path — verifyMermaid
   // routes class diagrams through this plugin hook (Loop 9 M2 removed the
@@ -457,9 +452,7 @@ function extractErLabels(source: string): ExtractedLabel[] {
   return out
 }
 
-registerFamily({
-  id: 'er',
-  detect: l => l.startsWith('erdiagram'),
+augmentFamily('er', {
   extractLabels: extractErLabels,
   // Loop 8 A1: same as class — this hook is the verify path for ER (Loop 9 M2
   // removed the duplicate per-body branch in verify.ts).
@@ -537,17 +530,17 @@ function verifyOpaqueJourney(body: DiagramBody): LayoutWarning[] {
   return warnings
 }
 
-registerFamily({
-  id: 'journey',
-  detect: l => l.startsWith('journey'),
+augmentFamily('journey', {
   extractLabels: extractJourneyLabels,
   // BUILD-15: journey is structured-when-narrowed. The verify hook covers the
   // structured body; opaque fallbacks keep the universal label-extraction path.
-  verify: (body, opts) => body.kind === 'journey' ? verifyJourney(body, opts) : verifyOpaqueJourney(body),
+  verify: (body, opts) => body.kind === 'journey'
+    ? verifyJourney(body, opts)
+    : body.kind === 'opaque' ? verifyOpaqueJourney(body) : [],
   ...structuredFamilyHooks('journey', {
     headerOk: h => /^journey\s*$/i.test(h),
-    parseBody: lines => {
-      const outcome = parseJourneyBody(lines)
+    parseBody: (lines, accessibility) => {
+      const outcome = parseJourneyBody(lines, accessibility)
       return outcome.ok ? outcome.body : null
     },
     serialize: renderJourney, mutate: mutateJourney,
@@ -645,9 +638,7 @@ function splitXyLabelStatements(line: string): string[] {
   return statements
 }
 
-registerFamily({
-  id: 'xychart',
-  detect: l => l.startsWith('xychart'),
+augmentFamily('xychart', {
   extractLabels: extractXyChartLabels,
   // BUILD-16: xychart is structured-when-narrowed. The verify hook covers the
   // structured body; opaque fallbacks (accTitle/accDescr, quoted text,
@@ -660,7 +651,7 @@ registerFamily({
   // xychart needs the header to model the `horizontal` orientation suffix, so it
   // uses a tailored parse hook (not the shared structuredFamilyHooks) — but
   // serialize/mutate stay identical to every other structured family.
-  parse: (lines, opaqueSource) => {
+  parse: ({ lines, opaqueSource }) => {
     const header = lines[0]?.trim() ?? ''
     const hm = header.match(/^xychart(?:-beta)?(?:\s+(horizontal|vertical))?\s*$/i)
     const body = hm ? parseXyChartBody(lines.slice(1)) : null
@@ -724,9 +715,7 @@ function parsePieHeader(header: string): { showData: boolean; title?: string } |
   return { showData }
 }
 
-registerFamily({
-  id: 'pie',
-  detect: l => l.startsWith('pie'),
+augmentFamily('pie', {
   extractLabels: extractPieLabels,
   // Pie is structured-when-narrowed. The verify hook covers the structured
   // body; opaque fallbacks keep the universal label-extraction path. The header
@@ -734,7 +723,7 @@ registerFamily({
   // xychart) — serialize/mutate stay identical to every other structured family.
   verify: (body, opts) => body.kind === 'pie' ? verifyPie(body, opts) : [],
   buildSourceMap: buildChartSourceMap,
-  parse: (lines, opaqueSource) => {
+  parse: ({ lines, opaqueSource }) => {
     const header = parsePieHeader(lines[0]?.trim() ?? '')
     const body = header ? parsePieBody(lines.slice(1), header) : null
     return ok(body ?? { kind: 'opaque', family: 'pie', source: opaqueSource })
@@ -834,14 +823,14 @@ function verifyOpaqueQuadrant(body: DiagramBody): LayoutWarning[] {
   return warnings
 }
 
-registerFamily({
-  id: 'quadrant',
-  detect: l => /^quadrant(?:chart)?\b/.test(l),
+augmentFamily('quadrant', {
   extractLabels: extractQuadrantLabels,
   // Quadrant is structured-when-narrowed. The verify hook covers the structured
   // body; opaque fallbacks keep the universal label-extraction path and warn
   // when style-looking metadata is preserved on an opaque body.
-  verify: (body, opts) => body.kind === 'quadrant' ? verifyQuadrant(body, opts) : verifyOpaqueQuadrant(body),
+  verify: (body, opts) => body.kind === 'quadrant'
+    ? verifyQuadrant(body, opts)
+    : body.kind === 'opaque' ? verifyOpaqueQuadrant(body) : [],
   buildSourceMap: buildChartSourceMap,
   ...structuredFamilyHooks('quadrant', {
     headerOk: h => /^quadrant(?:chart)?\s*$/i.test(h),
@@ -892,17 +881,15 @@ function ganttRawBodyLines(opaqueSource: string): string[] {
   return headerAt >= 0 ? raw.slice(headerAt + 1) : raw.slice(1)
 }
 
-registerFamily({
-  id: 'gantt',
-  detect: l => l.startsWith('gantt'),
+augmentFamily('gantt', {
   extractLabels: extractGanttLabels,
   // Source-level structural checks (EMPTY/LABEL_OVERFLOW/EDGE_MISANCHORED on
   // after/until refs); see docs/design/families/gantt.md §Verification.
   verify: (body, opts) => body.kind === 'gantt' ? verifyGantt(body, opts) : [],
   buildSourceMap: buildGanttSourceMap,
-  parse: (lines, opaqueSource) => {
+  parse: ({ source, lines, opaqueSource }) => {
     const headerOk = /^gantt\s*$/i.test(lines[0]?.trim() ?? '')
-    const body = headerOk ? parseGanttBody(lines.slice(1), ganttRawBodyLines(opaqueSource)) : null
+    const body = headerOk ? parseGanttBody(lines.slice(1), ganttRawBodyLines(source.familyBody)) : null
     return ok(body ?? { kind: 'opaque', family: 'gantt', source: opaqueSource })
   },
   serialize: body => {
@@ -932,9 +919,7 @@ function extractArchitectureLabels(source: string): ExtractedLabel[] {
   return out
 }
 
-registerFamily({
-  id: 'architecture',
-  detect: l => l.startsWith('architecture'),
+augmentFamily('architecture', {
   extractLabels: extractArchitectureLabels,
   // BUILD-17: architecture is structured-when-narrowed. The verify hook covers
   // the structured body; opaque fallbacks (accTitle/accDescr, {group} boundary
@@ -949,12 +934,10 @@ registerFamily({
 })
 
 // ---- Mindmap ---------------------------------------------------------------
-registerFamily({
-  id: 'mindmap',
-  detect: line => /^mindmap\s*$/.test(line),
+augmentFamily('mindmap', {
   extractLabels: extractLabelsGeneric,
-  parse: (_lines, source) => {
-    try { return ok(parseMindmapBody(source)) }
+  parse: ({ source }) => {
+    try { return ok(parseMindmapBody(source.familyBody)) }
     catch (error) { return err([{ code: 'PARSE_FAILED', message: error instanceof Error ? error.message : String(error) }]) }
   },
   serialize: body => {
@@ -968,11 +951,9 @@ registerFamily({
 })
 
 // ---- GitGraph --------------------------------------------------------------
-registerFamily({
-  id: 'gitgraph',
-  detect: line => /^gitgraph(?:\s+(?:lr|tb|bt))?\s*:?\s*$/.test(line),
+augmentFamily('gitgraph', {
   extractLabels: extractLabelsGeneric,
-  parse: (_lines, source, meta) => {
+  parse: ({ source, meta }) => {
     try {
       const merged: Record<string, unknown> = {
         ...((meta.frontmatter?.gitGraph && typeof meta.frontmatter.gitGraph === 'object') ? meta.frontmatter.gitGraph : {}),
@@ -981,9 +962,10 @@ registerFamily({
         const section = directive.parsed?.gitGraph
         if (section && typeof section === 'object') Object.assign(merged, section)
       }
-      return ok(parseGitGraphBody(source, {
+      return ok(parseGitGraphBody(source.familyBody, {
         mainBranchName: typeof merged.mainBranchName === 'string' ? merged.mainBranchName : undefined,
         mainBranchOrder: typeof merged.mainBranchOrder === 'number' ? merged.mainBranchOrder : undefined,
+        title: typeof meta.frontmatter?.title === 'string' ? meta.frontmatter.title : undefined,
       }))
     } catch (error) { return err([{ code: 'PARSE_FAILED', message: error instanceof Error ? error.message : String(error) }]) }
   },

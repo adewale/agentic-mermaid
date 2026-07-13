@@ -6,5 +6,5 @@
 // ============================================================================
 
 export * from './core.ts'
-export { renderMermaidPNG } from './png.ts'
-export type { PngOptions } from './png.ts'
+export { renderMermaidPNG, renderMermaidPNGWithReceipt } from './png.ts'
+export type { PngOptions, RenderedPng } from './png.ts'

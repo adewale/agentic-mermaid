@@ -13,6 +13,7 @@ import {
   consumeMermaidIdentifier,
   parseClassShorthandStatement,
 } from './shared/mermaid-identifiers.ts'
+import { classifyMermaidFamilyFromFirstLine } from './family-detection.ts'
 
 // ============================================================================
 // Mermaid parser — flowcharts and state diagrams
@@ -40,13 +41,22 @@ export function parseMermaid(text: string): MermaidGraph {
   // Detect diagram type from header
   const header = lines[0]!
 
-  // State diagram: "stateDiagram-v2" or "stateDiagram"
-  if (/^stateDiagram(-v2)?\s*$/i.test(header)) {
-    return parseStateDiagram(lines)
+  const detection = classifyMermaidFamilyFromFirstLine(header, 'strict')
+  if (detection.kind !== 'registered') {
+    throw new Error(detection.kind === 'upstream'
+      ? `Unsupported Mermaid family "${detection.match.family.id}" (header: ${header})`
+      : `Unknown Mermaid diagram header: ${header}`)
   }
 
-  // Flowchart: "graph TD" or "flowchart LR"
-  return parseFlowchart(lines)
+  if (detection.familyId === 'state') {
+    return parseStateDiagram(lines)
+  }
+  if (detection.familyId === 'flowchart') return parseFlowchart(lines)
+
+  // This compatibility API returns a MermaidGraph and therefore cannot
+  // truthfully parse non-graph families. Family-neutral callers should use
+  // the agent parser instead of falling through to the flowchart grammar.
+  throw new Error(`Mermaid family "${detection.familyId}" is not a graph family; use the family-neutral agent parser`)
 }
 
 function expandInlineHeaderStatements(lines: string[]): string[] {

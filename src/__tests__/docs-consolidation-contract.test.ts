@@ -35,7 +35,8 @@ describe('maintained documentation is derived from current contracts', () => {
     const index = readFileSync(join(ROOT, 'docs', 'README.md'), 'utf8')
     expect(index).not.toContain('design/family-elevation-plan.md')
     expect(index).not.toContain('design/family-elevation-acceptance.md')
-    expect(index).toContain('design/system/consolidation-plan.md')
+    expect(index).not.toContain('design/system/consolidation-plan.md')
+    expect(index).toContain('project/archive/')
     expect(index).toContain('svg-semantic-contract.md')
     expect(index).toContain('mutation-testing.md')
   })
@@ -45,6 +46,7 @@ describe('maintained documentation is derived from current contracts', () => {
     const names = new Set(readdirSync(archive))
     expect(names).toEqual(new Set([
       'README.md',
+      'consolidation-plan.md',
       'family-elevation-acceptance.md',
       'family-elevation-evidence.json',
       'family-elevation-plan.md',
@@ -56,23 +58,24 @@ describe('maintained documentation is derived from current contracts', () => {
   test('the canonical backlog contains only actionable items', () => {
     const todo = readFileSync(join(ROOT, 'TODO.md'), 'utf8')
     expect(todo).not.toMatch(/^- \[x\]/m)
-    expect(readFileSync(join(ROOT, 'docs/project/archive/completed-backlog-pre-consolidation.md'), 'utf8')).toContain('BUILD-22')
+    expect(existsSync(join(ROOT, 'docs/project/archive/completed-backlog-pre-consolidation.md'))).toBe(false)
   })
 
   test('the refactor characterization index names every contract surface and an existing gate', () => {
     const manifest = JSON.parse(readFileSync(join(ROOT, 'docs/design/system/consolidation-characterization.json'), 'utf8')) as {
-      scopeAuthority: string
+      scopeProjection: string
       contracts: Array<{ surface: string; familyScope: string; evidence: string[] }>
     }
-    const [authorityPath, authoritySymbol, ...authorityRest] = manifest.scopeAuthority.split('#')
-    expect({ authorityPath, authoritySymbol, authorityRest }).toEqual({
-      authorityPath: 'src/agent/families.ts',
-      authoritySymbol: 'BUILTIN_FAMILY_METADATA',
-      authorityRest: [],
+    const [projectionPath, projectionSymbol, ...projectionRest] = manifest.scopeProjection.split('#')
+    expect({ projectionPath, projectionSymbol, projectionRest }).toEqual({
+      projectionPath: 'src/agent/families.ts',
+      projectionSymbol: 'knownFamilies',
+      projectionRest: [],
     })
-    expect(existsSync(join(ROOT, authorityPath!))).toBe(true)
-    const authoritySource = readFileSync(join(ROOT, authorityPath!), 'utf8')
-    expect(authoritySource).toMatch(new RegExp(`export\\s+const\\s+${authoritySymbol}\\b`))
+    expect(existsSync(join(ROOT, projectionPath!))).toBe(true)
+    const projectionSource = readFileSync(join(ROOT, projectionPath!), 'utf8')
+    expect(projectionSource).toMatch(new RegExp(`export\\s+function\\s+${projectionSymbol}\\b`))
+    expect(projectionSource).toContain('const REGISTRY = new Map<FamilyId, FamilyDescriptor>')
 
     expect(new Set(manifest.contracts.map(contract => contract.surface))).toEqual(new Set([
       'bytes', 'semantic identity', 'geometry', 'terminal cells', 'config diagnostics',

@@ -19,33 +19,8 @@
 
 import { EDITOR_EXAMPLES } from '../../editor/examples.ts'
 import { HOSTED_FONT_FACES, hostedFontFaceCss } from '../../src/font-manifest.ts'
-import { THEMES } from '../../src/theme.ts'
-import { knownStyles, getStyle, styleKind } from '../../src/scene/style-registry.ts'
+import { knownStyleDescriptors } from '../../src/scene/style-registry.ts'
 import { EDITOR_SUPPORTED_FAMILY_LIST, EDITOR_SUPPORTED_HEADER_TOKENS } from '../../src/editor-family-data.ts'
-
-const THEME_LABELS: Record<string, string> = {
-  'paper': 'Paper',
-  'dusk': 'Dusk',
-  'zinc-dark': 'Zinc Dark',
-  'tokyo-night': 'Tokyo Night',
-  'tokyo-night-storm': 'Tokyo Storm',
-  'tokyo-night-light': 'Tokyo Light',
-  'catppuccin-mocha': 'Catppuccin',
-  'catppuccin-latte': 'Latte',
-  'nord': 'Nord',
-  'nord-light': 'Nord Light',
-  'dracula': 'Dracula',
-  'github-light': 'GitHub',
-  'github-dark': 'GitHub Dark',
-  'solarized-light': 'Solarized',
-  'solarized-dark': 'Solar Dark',
-  'one-dark': 'One Dark',
-  'salmon': 'Salmon',
-  'salmon-dark': 'Salmon Dark',
-  'tufte': 'Tufte',
-  'tufte-dark': 'Tufte Dark',
-}
-
 
 // ── File helpers ──────────────────────────────────────────────────────────────
 
@@ -131,26 +106,6 @@ async function readJsFiles(): Promise<string> {
   return [copyFeedback, editorExamplesDataJs(), editorFamilyDataJs(), editorFontDataJs(), ...parts].join('\n\n')
 }
 
-const STYLE_LABELS: Record<string, string> = {
-  'crisp': 'Crisp',
-  'hand-drawn': 'Hand-drawn',
-  'excalidraw': 'Excalidraw',
-  'pen-and-ink': 'Pen & ink',
-  'freehand': 'Freehand',
-  'watercolor': 'Watercolor',
-  'blueprint': 'Blueprint',
-  'tufte': 'Tufte',
-  'accessible-high-contrast': 'Accessible Contrast',
-  'patent-drawing': 'Patent Hatching',
-  'status-dashboard': 'Dark Ops Dashboard',
-  'ops-schematic': 'Compact Trace Map',
-  'chalkboard': 'Chalkboard',
-  'risograph': 'Riso Print',
-  'architectural-plan': 'Plan Drafting',
-  'cupertino': 'Cupertino',
-  'publication-figure': 'Report Figure',
-}
-
 function escapeHtmlAttr(value: string): string {
   return value
     .replace(/&/g, '&amp;')
@@ -163,13 +118,28 @@ function escapeHtmlAttr(value: string): string {
  *  theme picker; the style picker chooses the LOOK, the theme picker the
  *  palette, and render-option precedence stacks them (theme colors win). */
 function styleItemsHtml(): string {
-  const looks = knownStyles().filter(name => name === 'crisp' || styleKind(getStyle(name)!) === 'look')
-  return looks.map((key, i) => {
-    const spec = key === 'crisp' ? undefined : getStyle(key)
-    const label = STYLE_LABELS[key] ?? key
-    const hint = spec?.blurb ? `${label}: ${spec.blurb}` : label
+  const looks = knownStyleDescriptors().filter(descriptor => descriptor.category === 'default' || descriptor.category === 'look')
+  return looks.map((descriptor, i) => {
+    const key = descriptor.inputName
+    const label = descriptor.displayLabel
+    const hint = descriptor.spec.blurb ? `${label}: ${descriptor.spec.blurb}` : label
     return `<button class="theme-dropdown-item${i === 0 ? ' active' : ''}" type="button" role="option" aria-selected="${i === 0 ? 'true' : 'false'}" data-style="${key}" title="${escapeHtmlAttr(hint)}" aria-label="${escapeHtmlAttr(hint)}">${label}</button>`
   }).join('\n      ')
+}
+
+function themeItemsHtml(): string {
+  const palettes = knownStyleDescriptors().filter(descriptor => descriptor.category === 'theme')
+  return [
+    `<button class="theme-dropdown-item active" type="button" role="option" aria-selected="true" data-theme="">Default</button>`,
+    ...palettes.map(descriptor => {
+      // The editor's theme state is the legacy color-options projection. Its
+      // key is derived from the canonical palette identity, never copied.
+      const key = descriptor.inputName
+      const label = descriptor.displayLabel
+      const swatch = descriptor.spec.colors?.bg ?? 'transparent'
+      return `<button class="theme-dropdown-item" type="button" role="option" aria-selected="false" data-theme="${key}"><span class="theme-swatch" style="background:${swatch}"></span>${label}</button>`
+    }),
+  ].join('\n      ')
 }
 
 async function readHtmlPartials(themeItems: string): Promise<{
@@ -206,13 +176,7 @@ async function generateEditorHtml(): Promise<string> {
   const bundleJs = await buildResult.outputs[0]!.text()
   console.log(`Browser bundle: ${(bundleJs.length / 1024).toFixed(1)} KB`)
 
-  const themeItems = [
-    `<button class="theme-dropdown-item active" type="button" role="option" aria-selected="true" data-theme="">Default</button>`,
-    ...Object.keys(THEMES).map((key) => {
-      const theme = THEMES[key]!
-      return `<button class="theme-dropdown-item" type="button" role="option" aria-selected="false" data-theme="${key}"><span class="theme-swatch" style="background:${theme.bg}"></span>${THEME_LABELS[key] ?? key}</button>`
-    }),
-  ].join('\n      ')
+  const themeItems = themeItemsHtml()
 
   const [css, appJs, html] = await Promise.all([
     readCssFiles(fontPrefix),

@@ -7,13 +7,16 @@
 // than silently dropping the unrecognized construct.
 // ============================================================================
 
-import { normalizeMermaidSource, detectLooseDiagramTypeFromFirstLine } from '../mermaid-source.ts'
-import { getFamily } from './families.ts'
+import { normalizeMermaidSource } from '../mermaid-source.ts'
+import { getFamily, isBuiltinFamilyId } from './families.ts'
+import { classifyMermaidFamilyFromFirstLine, familyDetectionDiagnostic } from '../family-detection.ts'
 import './families-builtin.ts'  // registers built-in family parse/serialize/mutate hooks
 import { serializeMermaid } from './serialize.ts'
+import { UPSTREAM_MERMAID_FAMILY_INDEX } from '../upstream-family-index.ts'
+import { attachAccessibilityToBody } from './accessibility-envelope.ts'
 import type {
-  ValidDiagram, ParseError, Result, DiagramKind, ValidDiagramMeta,
-  SourceMap, InitDirective, SourceComment,
+  ValidDiagram, ParsedDiagram, ExtensionValidDiagram, ParseError, Result, ValidDiagramMeta,
+  SourceMap, SourceComment,
 } from './types.ts'
 import { ok, err } from './types.ts'
 
@@ -21,19 +24,40 @@ import { ok, err } from './types.ts'
 export { parseSequenceBody } from './sequence-body.ts'
 export { parseTimelineBody } from './timeline-body.ts'
 
-const FRONTMATTER_REGEX = /^﻿?\s*---\s*\r?\n([\s\S]*?)\r?\n\s*---\s*(?:\r?\n|$)/
-const INIT_DIRECTIVE_REGEX = /^\s*%%\{\s*(?:init|initialize)\s*:\s*([\s\S]*?)\}\s*%%\s*(?:\r?\n|$)?/gm
 const COMMENT_LINE_REGEX = /^\s*%%(?!\{)\s*(.*)$/
-const ACC_TITLE_REGEX = /^\s*accTitle\s*:\s*(.+)$/i
-const ACC_DESCR_INLINE_REGEX = /^\s*accDescr\s*:\s*(.+)$/i
-const ACC_DESCR_BLOCK_START = /^\s*accDescr\s*\{\s*$/i
 
+/** Backward-compatible built-in parser. Use parseRegisteredMermaid for open family ids. */
 export function parseMermaid(source: string): Result<ValidDiagram, ParseError[]> {
+  const parsed = parseRegisteredMermaid(source)
+  if (!parsed.ok) return err(parsed.error)
+  if (isBuiltinParsedDiagram(parsed.value)) return ok(parsed.value)
+  return err([{
+    code: 'EXTENSION_PARSE_REQUIRES_OPEN_ENVELOPE',
+    message: `Installed family "${parsed.value.kind}" parsed successfully through its descriptor, but this compatibility entrypoint returns built-in bodies only`,
+    line: 1,
+    preservation: {
+      version: 1,
+      classification: 'unsupported',
+      source,
+      header: parsed.value.canonicalSource.split(/\r?\n/, 1)[0] ?? '',
+      upstreamFamilyId: parsed.value.kind,
+      mermaidVersion: UPSTREAM_MERMAID_FAMILY_INDEX.provenance.version,
+    },
+    help: 'Call parseRegisteredMermaid to receive the namespaced extension body envelope.',
+  }])
+}
+
+function isBuiltinParsedDiagram(diagram: ParsedDiagram): diagram is ValidDiagram {
+  return isBuiltinFamilyId(diagram.kind)
+}
+
+/** Descriptor-dispatched parser with a forward-compatible extension envelope. */
+export function parseRegisteredMermaid(source: string): Result<ParsedDiagram, ParseError[]> {
   const errors: ParseError[] = []
   // Normalize once and reuse its frontmatter in extractMeta, rather than
   // re-running the full preprocess a second time just for frontmatter.
   const normalized = normalizeMermaidSource(source)
-  const meta = extractMeta(source, normalized.frontmatter)
+  const meta = extractMeta(normalized)
   const canonicalSource = normalized.text
   // For opaque bodies, preserve original indentation/blank lines so the
   // serializer can re-emit the untouched body. canonicalSource at the
@@ -46,32 +70,78 @@ export function parseMermaid(source: string): Result<ValidDiagram, ParseError[]>
     return err(errors)
   }
 
-  const header = normalized.lines[0]!.toLowerCase()
-  const kind = detectKind(header)
-  if (!kind) {
-    errors.push({ code: 'UNKNOWN_HEADER', message: `Unrecognized header: "${normalized.lines[0]}"`, line: 1 })
+  const header = normalized.lines[0]!
+  const detection = classifyMermaidFamilyFromFirstLine(header, 'loose')
+  if (detection.kind !== 'registered') {
+    errors.push(familyDetectionDiagnostic(detection, source))
     return err(errors)
   }
+  const kind = detection.familyId
 
   // BUILD-3: every family dispatches through its FamilyPlugin.parse hook —
   // structured-or-opaque for the narrow families, error semantics for
   // flowchart/state. Families without a hook stay source-level.
   const plugin = getFamily(kind)
   if (plugin?.parse) {
-    const parsed = plugin.parse(normalized.lines, opaqueSource, meta, canonicalSource)
+    const parsed = plugin.parse({
+      source: normalized,
+      lines: normalized.familyLines,
+      envelopeLines: normalized.lines,
+      opaqueSource,
+      meta,
+      canonicalSource,
+    })
     if (!parsed.ok) {
       errors.push(...parsed.error)
       return err(errors)
     }
+    if (!isBuiltinFamilyId(kind)) {
+      if (parsed.value.kind !== 'extension' || parsed.value.family !== kind) {
+        return err([{
+          code: 'FAMILY_DESCRIPTOR_CONTRACT',
+          message: `Family "${kind}" parse hook must return an extension body for the same family`,
+          line: 1,
+        }])
+      }
+      const diagram: ExtensionValidDiagram = {
+        kind,
+        meta,
+        body: parsed.value,
+        source: emptySourceMap(),
+        canonicalSource,
+      }
+      return ok(diagram)
+    }
+    if (parsed.value.kind === 'extension') {
+      return err([{
+        code: 'FAMILY_DESCRIPTOR_CONTRACT',
+        message: `Built-in family "${kind}" cannot return an extension body`,
+        line: 1,
+      }])
+    }
+    attachUniversalAccessibility(parsed.value, meta)
     const sourceMap = plugin.buildSourceMap?.(parsed.value, canonicalSource) ?? emptySourceMap()
     const diagram: ValidDiagram = { kind, meta, body: parsed.value, source: sourceMap, canonicalSource }
     markDroppedComments(diagram, normalized.body)
     return ok(diagram)
   }
 
-  return ok<ValidDiagram>({
-    kind, meta, body: { kind: 'opaque', family: kind, source: opaqueSource }, source: emptySourceMap(), canonicalSource,
+  if (isBuiltinFamilyId(kind)) {
+    return ok<ParsedDiagram>({
+      kind, meta, body: { kind: 'opaque', family: kind, source: opaqueSource }, source: emptySourceMap(), canonicalSource,
+    })
+  }
+  return ok<ParsedDiagram>({
+    kind,
+    meta,
+    body: { kind: 'extension', family: kind, source: opaqueSource },
+    source: emptySourceMap(),
+    canonicalSource,
   })
+}
+
+function attachUniversalAccessibility(body: import('./types.ts').DiagramBody, meta: ValidDiagramMeta): void {
+  attachAccessibilityToBody(body, meta.accessibility)
 }
 
 /**
@@ -125,99 +195,20 @@ function longestCommonSubsequenceIndices(a: string[], b: string[]): number[] {
   return indices
 }
 
-// ---- Family detection ----------------------------------------------------
-// Use the shared renderer detector for routed families; the agent layer only
-// splits state diagrams out from the renderer's flowchart route because state
-// and flowchart share the same legacy graph body but remain distinct families.
-
-function detectKind(header: string): DiagramKind | null {
-  if (/^statediagram(?:-v2)?\s*$/i.test(header)) return 'state'
-  const routed = detectLooseDiagramTypeFromFirstLine(header)
-  if (!routed) return null
-  return routed
-}
-
 // ---- Meta extraction -----------------------------------------------------
 
-function extractMeta(rawSource: string, frontmatter?: Record<string, unknown>): ValidDiagramMeta {
-  const meta: ValidDiagramMeta = { initDirectives: [], comments: [], accessibility: {} }
-
-  const wrapperSource = extractWrapperSource(rawSource)
-  if (wrapperSource !== undefined) meta.wrapperSource = wrapperSource
-
-  if (frontmatter && Object.keys(frontmatter).length > 0) {
-    meta.frontmatter = frontmatter as ValidDiagramMeta['frontmatter']
-  }
-
-  const directiveRegex = new RegExp(INIT_DIRECTIVE_REGEX.source, 'gm')
-  let m: RegExpExecArray | null
-  while ((m = directiveRegex.exec(rawSource)) !== null) {
-    meta.initDirectives.push({ raw: m[0], parsed: tryParseInitObject((m[1] ?? '').trim()) as InitDirective['parsed'] })
-  }
-
-  const stripped = rawSource
-    .replace(FRONTMATTER_REGEX, '')
-    .replace(new RegExp(INIT_DIRECTIVE_REGEX.source, 'gm'), '')
-  const lines = stripped.split(/\r?\n/)
-  let inAccDescr = false
-  let buf: string[] = []
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]!
-    if (inAccDescr) {
-      if (/^\s*\}\s*$/.test(line)) { meta.accessibility.descr = buf.join('\n').trim(); inAccDescr = false; buf = [] }
-      else buf.push(line)
-      continue
-    }
-    if (ACC_DESCR_BLOCK_START.test(line)) { inAccDescr = true; continue }
-    const at = line.match(ACC_TITLE_REGEX)
-    if (at) { meta.accessibility.title = at[1]!.trim(); continue }
-    const ad = line.match(ACC_DESCR_INLINE_REGEX)
-    if (ad) { meta.accessibility.descr = ad[1]!.trim(); continue }
-    const cm = line.match(COMMENT_LINE_REGEX)
-    if (cm) meta.comments.push({ text: cm[1]!, line: i + 1 })
-  }
-
-  return meta
-}
-
-/**
- * The leading source wrapper, byte-verbatim: an optional frontmatter block
- * followed by any run of blank lines, `%%` comments, and `%%{init}%%`
- * directives, up to (excluding) the diagram header line. This is what
- * serializeMermaid re-emits untouched by default (1C wrapper policy).
- */
-function extractWrapperSource(rawSource: string): string | undefined {
-  let pos = 0
-  const fm = rawSource.match(FRONTMATTER_REGEX)
-  if (fm) pos = fm[0].length
-  const directiveAtStart = new RegExp(INIT_DIRECTIVE_REGEX.source)
-  for (;;) {
-    const rest = rawSource.slice(pos)
-    if (rest.length === 0) break
-    const dm = rest.match(directiveAtStart)
-    if (dm && dm.index === 0 && dm[0].length > 0) { pos += dm[0].length; continue }
-    const lineEnd = rest.indexOf('\n')
-    const line = lineEnd === -1 ? rest : rest.slice(0, lineEnd)
-    if (/^\s*$/.test(line) || COMMENT_LINE_REGEX.test(line)) {
-      pos += lineEnd === -1 ? rest.length : lineEnd + 1
-      continue
-    }
-    break
-  }
-  return pos > 0 ? rawSource.slice(0, pos) : undefined
-}
-
-function tryParseInitObject(inner: string): Record<string, unknown> {
-  try { return JSON.parse(inner) as Record<string, unknown> }
-  catch {
-    try {
-      const quoted = inner.replace(/([{,]\s*)([A-Za-z_$][\w$]*)\s*:/g, '$1"$2":')
-      return JSON.parse(quoted) as Record<string, unknown>
-    } catch { return {} }
+function extractMeta(normalized: ReturnType<typeof normalizeMermaidSource>): ValidDiagramMeta {
+  return {
+    initDirectives: normalized.initDirectives as ValidDiagramMeta['initDirectives'],
+    comments: normalized.comments,
+    accessibility: normalized.accessibility,
+    ...(normalized.wrapperSource !== undefined ? { wrapperSource: normalized.wrapperSource } : {}),
+    ...(Object.keys(normalized.frontmatter).length > 0
+      ? { frontmatter: normalized.frontmatter as ValidDiagramMeta['frontmatter'] }
+      : {}),
   }
 }
 
 function emptySourceMap(): SourceMap {
   return { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() }
 }
-

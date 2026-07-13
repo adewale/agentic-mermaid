@@ -1,14 +1,14 @@
-# Abstraction recommendations — academic-literature review
+# Issue #71 abstraction recommendations — historical literature review
 
 Status: historical recommendations and closure record from the academic-
 literature review. Drafted 2026-06-20; reappraised and updated 2026-06-21 after
 the issue #71 implementation. It is not an active roadmap; live work belongs
 only in root `TODO.md`.
-Companion to [`abstraction-audit.md`](./abstraction-audit.md) (the historical pre-implementation
+Companion to [`issue-71-abstraction-audit.md`](./issue-71-abstraction-audit.md) (the historical pre-implementation
 snapshot and the source of issue numbers **I1–I9**, referenced throughout). Reconciled with the pre-existing
 design docs it overlaps — [`AGENT_NATIVE.md`](../../../AGENT_NATIVE.md) (agent stack),
 [`contributing/diagram-family-citizenship.md`](../../contributing/diagram-family-citizenship.md)
-(family×surface CI ratchet), and [`source-preservation-ladder.md`](./source-preservation-ladder.md)
+(family×surface CI ratchet), and [`source-preservation-ladder.md`](../../design/system/source-preservation-ladder.md)
 (structured\|opaque levels); see the audit's §5 for the agreement and the I1/I3/I7 refinements.
 
 ## 2026-06-21 reappraisal

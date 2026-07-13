@@ -3,7 +3,7 @@
   "title": "AmCapabilitiesEnvelope",
   "description": "Shape emitted by `am capabilities`. Loop 7 / A3.1.",
   "type": "object",
-  "required": ["sdkVersion", "families", "warningCodes", "outputFormats"],
+  "required": ["sdkVersion", "families", "warningCodes", "outputFormats", "sectionA"],
   "properties": {
     "sdkVersion": {
       "type": "string",
@@ -44,6 +44,11 @@
     "outputFormats": {
       "type": "array",
       "items": { "type": "string", "enum": ["svg", "ascii", "unicode", "png", "json"] }
+    },
+    "sectionA": {
+      "type": "object",
+      "description": "Registry-derived Section A report. Its state vocabularies and semantic invariants are validated by validateSectionACapabilityReport rather than copied into this transport fixture.",
+      "required": ["schemaVersion", "contracts", "stateVocabularies", "summary", "matrices", "forwardCompatibility", "evidence", "retiredAuthorities", "digest"]
     }
   }
 }

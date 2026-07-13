@@ -18,12 +18,13 @@ import { JOURNEY_ACTOR_COLOR_LIMIT } from './parse-core.ts'
 import { escapeAttr, renderMultilineText, escapeXml } from '../multiline-utils.ts'
 import { applyTextTransform } from '../styles.ts'
 import type { ResolvedRenderStyle } from '../styles.ts'
-import type { SceneDoc, SceneNode, SemanticChannels } from '../scene/ir.ts'
+import type { MarkerDescriptor, SceneDoc, SceneNode, SemanticChannels } from '../scene/ir.ts'
 import { hashId } from '../scene/seed.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { getSeriesColor, hexToHsl, hslToHex, isDarkBackground } from '../xychart/colors.ts'
 import { isHexColor, wcagCssContrastRatio } from '../shared/color-math.ts'
+import { serializeMarkerResource } from '../scene/marker-resources.ts'
 
 // ============================================================================
 // Journey diagram SVG renderer
@@ -100,6 +101,7 @@ export function lowerJourneyScene(
   const accessibility = buildJourneyAccessibility(diagram)
   const uid = journeyNamespace(diagram)
   const arrowMarkerId = `${uid}-arrowhead`
+  const arrowMarker = journeyArrowMarker(arrowMarkerId, paints.arrow)
   const titleId = `${uid}-title`
   const descId = `${uid}-desc`
   const curveMarkers = options.journey?.experienceCurve !== false
@@ -131,10 +133,10 @@ export function lowerJourneyScene(
   }
   parts.push(marks.raw({ id: 'style', role: 'chrome' },
     buildStyleBlock(font, false, colors.shadow, colors.embedFontImport)))
-  parts.push(marks.definitions({ id: 'defs' }, buildJourneyDefs(colors, paints, arrowMarkerId)))
+  parts.push(marks.definitions({ id: 'defs', markerResources: [arrowMarker] }, buildJourneyDefs(colors, arrowMarker)))
   parts.push(marks.raw({ id: 'journey-style', role: 'chrome' }, journeyCss))
 
-  parts.push(renderScoreGuide(diagram.scoreGuide, style, arrowMarkerId))
+  parts.push(renderScoreGuide(diagram.scoreGuide, style, arrowMarker))
 
   if (diagram.actors.length > 0) {
     parts.push(renderActorLegend(diagram.actors, style, paints))
@@ -235,12 +237,17 @@ function openJourneySvgTag(
   })
 }
 
-function buildJourneyDefs(colors: DiagramColors, paints: JourneyPaints, arrowMarkerId: string): string {
+function journeyArrowMarker(id: string, color: string): MarkerDescriptor {
+  return {
+    id, shape: 'arrow', size: { width: 10, height: 8 }, ref: { x: 9, y: 4 }, orient: 'auto',
+    geometry: { kind: 'path', d: 'M0,0 L10,4 L0,8 Z' }, paint: { fill: color },
+  }
+}
+
+function buildJourneyDefs(colors: DiagramColors, arrowMarker: MarkerDescriptor): string {
   const defs = [
     buildShadowDefs(colors),
-    `  <marker id="${escapeAttr(arrowMarkerId)}" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
-    <path d="M0,0 L10,4 L0,8 Z" fill="${paints.arrow}" />
-  </marker>`,
+    serializeMarkerResource(arrowMarker),
   ].filter(Boolean)
 
   return `<defs>\n${defs.join('\n')}\n</defs>`
@@ -313,7 +320,7 @@ function smoothCurvePath(points: Array<{ x: number; y: number }>): string {
   return d
 }
 
-function renderScoreGuide(guide: PositionedJourneyScoreGuide, style: ResolvedRenderStyle, arrowMarkerId: string): SceneNode {
+function renderScoreGuide(guide: PositionedJourneyScoreGuide, style: ResolvedRenderStyle, arrowMarker: MarkerDescriptor): SceneNode {
   const children: Array<{ node: SceneNode; indent: number }> = []
 
   for (const tick of guide.ticks) {
@@ -373,9 +380,9 @@ function renderScoreGuide(guide: PositionedJourneyScoreGuide, style: ResolvedRen
           stroke: style.edgeStrokeColor ?? 'var(--_arrow)',
           strokeWidth: String(Math.max(2, style.lineWidth * 2)),
         },
-        endMarker: { id: arrowMarkerId, shape: 'arrow' },
+        endMarker: arrowMarker,
       },
-      `<line class="journey-baseline" x1="${baseline.x1}" y1="${baseline.y1}" x2="${baseline.x2}" y2="${baseline.y2}" marker-end="url(#${escapeAttr(arrowMarkerId)})" />`,
+      `<line class="journey-baseline" x1="${baseline.x1}" y1="${baseline.y1}" x2="${baseline.x2}" y2="${baseline.y2}" marker-end="url(#${escapeAttr(arrowMarker.id)})" />`,
     ),
   })
 

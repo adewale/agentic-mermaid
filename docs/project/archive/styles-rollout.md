@@ -1,4 +1,4 @@
-# Styles: the composable look system — historical rollout record
+# Style + Palette rollout — historical record
 
 Status: historical/as-built record of the Style + Palette work largely
 executed on PR #60. The engine, consolidated `style` primitive, and product
@@ -6,7 +6,7 @@ surfaces (CLI `--style`/`--seed` + `am styles`, MCP style args + typed SDK
 declaration, editor style picker with seed re-roll, and agent docs) landed from
 this design. This document preserves that rationale and rollout evidence; it is
 not the authority for future appearance or brand APIs. Those decisions live in
-the [brand-primitives plan](../../project/brand-primitives-plan.md), and
+the [brand-primitives plan](../brand-primitives-plan.md), and
 actionable work lives only in the root [TODO](../../../TODO.md).
 
 The engine work is done: every diagram family lowers to a SceneGraph of
@@ -107,8 +107,8 @@ was given, retrieved, or wrote itself.
    derivable from what it asks for: `stroke: 'freehand'` or `fill: 'wash'`
    ⇒ hybrid; any rough parameter or `stroke: 'jittered'` ⇒ rough; otherwise
    ⇒ default. Authors describe the *look*; the engine picks the machinery.
-   (An explicit `backend` override remains for code-backed extensions, but
-   it disappears from the tutorial path.)
+   Trusted code-backed extensions select registered machinery through an
+   in-process `HostBackendPolicy`; backend choice is never Style data.
 2. **No aesthetic/style/theme triage.** One word in the API, the CLI, the
    MCP schema, the docs. `THEMES` stays exported for compatibility of
    in-repo code but is defined *as* registered palette-only styles.
@@ -126,7 +126,7 @@ was given, retrieved, or wrote itself.
    only an array of named fragments and deliberately had no schema-version
    ceremony. That historical packaging choice is superseded by the versioned
    `BrandPack` decision in the
-   [brand-primitives plan](../../project/brand-primitives-plan.md#what-a-brandpack-is-and-why-it-exists).
+   [brand-primitives plan](../brand-primitives-plan.md#what-a-brandpack-is-and-why-it-exists).
 
 ## 4. Designed for emergence
 

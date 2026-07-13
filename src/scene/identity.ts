@@ -1,11 +1,12 @@
-import type { SceneRole } from './ir.ts'
+import type { SceneRole } from './roles.ts'
+import { sceneRoleTraits } from './roles.ts'
 import { escapeAttr } from '../multiline-utils.ts'
 
 /** Public semantic identity carried by every structured Scene mark. */
 export interface SvgSemanticIdentity {
   /** Stable within one rendered SVG and derived from source semantics. */
   id: string
-  /** Closed Scene role; consumers should not infer identity from CSS classes. */
+  /** Core or namespaced Scene role; consumers never infer it from CSS classes. */
   role: SceneRole
   /** Source endpoints when the mark is a relation. */
   from?: string
@@ -71,15 +72,8 @@ export function semanticIdentityForSvg(
   }
 }
 
-const DOM_IDENTITY_ROLES = new Set<SceneRole>([
-  'node', 'edge', 'group', 'actor', 'activation', 'message', 'block', 'note',
-  'class-box', 'member', 'entity', 'attribute', 'relationship', 'cardinality',
-  'pie-slice', 'bar', 'series', 'point', 'plate', 'section', 'task', 'milestone',
-  'period', 'event', 'service', 'junction', 'title',
-])
-
 export function hasDomSvgIdentityRole(role: SceneRole): boolean {
-  return DOM_IDENTITY_ROLES.has(role)
+  return sceneRoleTraits(role).domIdentity
 }
 
 /**
@@ -93,19 +87,21 @@ export function ensureSvgIdentity(svg: string, identity: SvgSemanticIdentity): s
   const opening = svg.match(/^\s*<([A-Za-z][\w:-]*)\b[^>]*>/)?.[0]
   if (!opening || opening.startsWith('<style') || opening.startsWith('<defs') || opening.startsWith('<svg')) return svg
 
-  const attrs: string[] = []
-  if (!/\sdata-id=/.test(opening)) attrs.push(`data-id="${escapeAttr(identity.id)}"`)
-  if (!/\sdata-role=/.test(opening)) attrs.push(`data-role="${escapeAttr(identity.role)}"`)
+  const set = (source: string, name: string, value: string): string => {
+    const encoded = escapeAttr(value)
+    const pattern = new RegExp(`\\s${name}="[^"]*"`)
+    if (pattern.test(source)) return source.replace(pattern, ` ${name}="${encoded}"`)
+    const close = source.endsWith('/>') ? '/>' : '>'
+    const body = source.slice(0, -close.length).trimEnd()
+    return `${body} ${name}="${encoded}"${close === '/>' ? ' /' : ''}>`
+  }
+  let authoritativeOpening = set(set(opening, 'data-id', identity.id), 'data-role', identity.role)
 
   const legacyFrom = opening.match(/\sdata-entity1="([^"]*)"/)?.[1]
   const legacyTo = opening.match(/\sdata-entity2="([^"]*)"/)?.[1]
   const from = identity.from ?? legacyFrom
   const to = identity.to ?? legacyTo
-  if (from !== undefined && !/\sdata-from=/.test(opening)) attrs.push(`data-from="${escapeAttr(from)}"`)
-  if (to !== undefined && !/\sdata-to=/.test(opening)) attrs.push(`data-to="${escapeAttr(to)}"`)
-  if (attrs.length === 0) return svg
-
-  const close = opening.endsWith('/>') ? '/>' : '>'
-  const body = opening.slice(0, -close.length).trimEnd()
-  return svg.replace(opening, `${body} ${attrs.join(' ')}${close === '/>' ? ' /' : ''}>`)
+  if (from !== undefined) authoritativeOpening = set(authoritativeOpening, 'data-from', from)
+  if (to !== undefined) authoritativeOpening = set(authoritativeOpening, 'data-to', to)
+  return authoritativeOpening === opening ? svg : svg.replace(opening, authoritativeOpening)
 }

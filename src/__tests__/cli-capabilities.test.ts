@@ -4,17 +4,29 @@ import { describe, it, expect } from 'bun:test'
 import { buildCapabilities, MUTATION_OPS_BY_FAMILY } from '../cli/index.ts'
 import { knownFamilies } from '../agent/families.ts'
 import { WARNING_SEVERITY } from '../agent/types.ts'
+import { createSectionACapabilityReport, validateSectionACapabilityReport } from '../section-a-capability-report.ts'
+import { CLI_RENDER_FORMATS, cliRenderFormatJsonSchema } from '../render-contract.ts'
 import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 
 describe('am capabilities', () => {
-  it('emits a JSON object with sdkVersion, families, warningCodes, outputFormats', () => {
+  it('emits a JSON object with the legacy discovery fields and Section A report', () => {
     const cap = buildCapabilities()
     expect(typeof cap.sdkVersion).toBe('string')
     expect(cap.sdkVersion.length).toBeGreaterThan(0)
     expect(Array.isArray(cap.families)).toBe(true)
     expect(Array.isArray(cap.warningCodes)).toBe(true)
-    expect(cap.outputFormats).toEqual(['svg', 'ascii', 'unicode', 'png', 'json'])
+    expect(cap.outputFormats).toEqual([...CLI_RENDER_FORMATS])
+    expect(cap.sectionA).toEqual(createSectionACapabilityReport())
+    expect(validateSectionACapabilityReport(cap.sectionA)).toEqual([])
+  })
+
+  it('Section A CLI discovery is the canonical registry projection, not a copied matrix', () => {
+    const sectionA = buildCapabilities().sectionA
+    expect(sectionA.summary.registeredFamilyCount).toBe(knownFamilies().length)
+    expect(sectionA.matrices.families.filter(row => row.registrationId !== undefined).length)
+      .toBe(sectionA.summary.registeredFamilyCount)
+    expect(sectionA.digest).toBe(createSectionACapabilityReport().digest)
   })
 
   it('includes every registered family in the families list', () => {
@@ -120,8 +132,13 @@ describe('am capabilities', () => {
       }
       expect(editPolicies.has(family.editPolicy)).toBe(true)
     }
+    expect(schema.properties.outputFormats.items).toEqual(cliRenderFormatJsonSchema())
     const outputFormats = new Set(schema.properties.outputFormats.items.enum)
     for (const format of cap.outputFormats) expect(outputFormats.has(format)).toBe(true)
+    for (const k of schema.properties.sectionA.required ?? []) {
+      expect(Object.prototype.hasOwnProperty.call(cap.sectionA, k)).toBe(true)
+    }
+    expect(validateSectionACapabilityReport(cap.sectionA)).toEqual([])
   })
 })
 

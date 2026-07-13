@@ -1,12 +1,12 @@
-# Post-family-elevation consolidation — completed record
+# PR #149 post-family-elevation consolidation — completed record
 
 Status: historical/as-built record of the bounded implementation pass, final
 audit remediation, and PR evidence completed from baseline merge `18979d1f`
 (PR #149). The package IDs below use the `POST149-*` namespace so they cannot
-collide with live `CONS-*` IDs in the root [TODO](../../../TODO.md). Broader
+collide with live `CONS-*` IDs in the root [TODO](../../../../TODO.md). Broader
 architectural migrations discovered during this pass were promoted there;
 future appearance and brand architecture is governed by the
-[brand-primitives plan](../../project/brand-primitives-plan.md).
+[brand-primitives plan](../../brand-primitives-plan.md).
 
 This record documents how the post-merge multi-agent audit became a
 characterization-first consolidation program. It deliberately avoided brittle
@@ -45,8 +45,10 @@ than copied into documentation.
 ## Characterization index used before refactoring
 
 `consolidation-characterization.json` is a reviewer navigation index, not a
-substitute for the cited executable gates. Those tests independently derive family
-scope from registries and cover these contract categories without copied totals:
+substitute for the cited executable gates. Its `scopeProjection` points to the
+built-in metadata compatibility view; the `FamilyDescriptor` registry remains the
+authority. The gates independently derive family scope from registries and cover
+these contract categories without copied totals:
 
 - source parse/serialize/mutate/verify laws;
 - configured positioning and `RenderedLayout` projection;

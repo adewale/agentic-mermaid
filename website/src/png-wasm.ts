@@ -20,43 +20,65 @@ import fontCaveat from './generated/Caveat.ttf'
 import fontEbGaramond from './generated/EBGaramond.ttf'
 import fontArchitectsDaughter from './generated/ArchitectsDaughter.ttf'
 import fontShareTechMono from './generated/ShareTechMono.ttf'
-import { renderMermaidSVG } from '../../src/index.ts'
 import { inlineFontVarForRaster } from '../../src/theme.ts'
 import { assertRasterBudget } from './raster-budget.ts'
 import { findUncoveredScriptsFromBuffers } from '../../src/agent/font-coverage-core.ts'
 import { buildPngFontWarnings, type PngRasterResult } from '../../src/shared/png-font-warnings.ts'
+import type { RenderOptions } from '../../src/types.ts'
+import { safeCssColor } from '../../src/shared/css-color.ts'
+import { applyPngColorProfile } from '../../src/output-color-profile.ts'
+import { PNG_WASM_RUNTIME } from '../../src/png-contract.ts'
+import { renderPngGraphicalProjection } from '../../src/png-graphical.ts'
+import { hostedFontResource } from '../../src/font-manifest.ts'
+import { verifyResourceBytes } from '../../src/resource-manifest.ts'
 
 let ready: Promise<void> | undefined
 
-export async function renderMermaidPNGWasm(source: string, opts: { scale?: number; background?: string; style?: unknown; seed?: number } = {}): Promise<PngRasterResult> {
-  // initWasm throws if called twice; keep a single init promise per isolate.
-  ready ??= Promise.resolve(initWasm(resvgWasmModule))
+const FONT_INPUTS = Object.freeze([
+  { entry: hostedFontResource('Inter-Regular.ttf'), bytes: new Uint8Array(fontInterRegular) },
+  { entry: hostedFontResource('Inter-Medium.ttf'), bytes: new Uint8Array(fontInterMedium) },
+  { entry: hostedFontResource('Inter-SemiBold.ttf'), bytes: new Uint8Array(fontInterSemiBold) },
+  { entry: hostedFontResource('Inter-Bold.ttf'), bytes: new Uint8Array(fontInterBold) },
+  { entry: hostedFontResource('DejaVuSans.ttf'), bytes: new Uint8Array(fontRegular) },
+  { entry: hostedFontResource('DejaVuSans-Bold.ttf'), bytes: new Uint8Array(fontBold) },
+  { entry: hostedFontResource('Caveat.ttf'), bytes: new Uint8Array(fontCaveat) },
+  { entry: hostedFontResource('EBGaramond.ttf'), bytes: new Uint8Array(fontEbGaramond) },
+  { entry: hostedFontResource('ArchitectsDaughter.ttf'), bytes: new Uint8Array(fontArchitectsDaughter) },
+  { entry: hostedFontResource('ShareTechMono.ttf'), bytes: new Uint8Array(fontShareTechMono) },
+])
+
+async function initializeRasterResources(): Promise<void> {
+  await Promise.all(FONT_INPUTS.map(({ entry, bytes }) => verifyResourceBytes(entry, bytes)))
+  await initWasm(resvgWasmModule)
+}
+
+export async function renderMermaidPNGWasm(source: string, opts: RenderOptions & { scale?: number; background?: string } = {}): Promise<PngRasterResult> {
+  // Integrity checks and initWasm each run once per isolate.
+  ready ??= initializeRasterResources()
   await ready
-  const svg = inlineFontVarForRaster(
-    renderMermaidSVG(source, { embedFontImport: false, style: opts.style as never, seed: opts.seed }),
-  )
-  assertRasterBudget(svg, opts.scale ?? 2)
-  const fontBuffers = [
-    new Uint8Array(fontInterRegular),
-    new Uint8Array(fontInterMedium),
-    new Uint8Array(fontInterSemiBold),
-    new Uint8Array(fontInterBold),
-    new Uint8Array(fontRegular),
-    new Uint8Array(fontBold),
-    new Uint8Array(fontCaveat),
-    new Uint8Array(fontEbGaramond),
-    new Uint8Array(fontArchitectsDaughter),
-    new Uint8Array(fontShareTechMono),
-  ]
+  const { scale, background, ...renderOptions } = opts
+  const graphical = renderPngGraphicalProjection(source, renderOptions, { scale, background })
+  const outputPolicy = graphical.outputPolicy
+  const svg = inlineFontVarForRaster(graphical.svg)
+  assertRasterBudget(svg, outputPolicy.scale)
+  const fontBuffers = FONT_INPUTS.map(({ bytes }) => bytes)
   const warnings = buildPngFontWarnings(findUncoveredScriptsFromBuffers(svg, fontBuffers))
+  const artifactBackground = safeCssColor(svg.match(/--bg\s*:\s*([^;"']+)/i)?.[1]?.trim())
   const resvg = new Resvg(svg, {
-    background: opts.background ?? 'white',
-    fitTo: { mode: 'zoom', value: opts.scale ?? 2 },
+    background: outputPolicy.background.mode === 'explicit'
+      ? outputPolicy.background.value
+      : artifactBackground ?? outputPolicy.background.fallback,
+    fitTo: { ...outputPolicy.fitTo },
     font: {
-      loadSystemFonts: false,
+      loadSystemFonts: outputPolicy.fonts.loadSystemFonts,
       fontBuffers,
-      defaultFontFamily: 'Inter',
+      defaultFontFamily: outputPolicy.fonts.defaultFamily,
     },
   })
-  return { png: resvg.render().asPng(), warnings }
+  return {
+    png: applyPngColorProfile(resvg.render().asPng()),
+    warnings,
+    receipt: graphical.receipt,
+    runtime: PNG_WASM_RUNTIME,
+  }
 }

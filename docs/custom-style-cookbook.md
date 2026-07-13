@@ -47,7 +47,7 @@ Use it when you want to test whether a style keeps connectors readable:
 ```json
 {
   "$schema": "https://agentic-mermaid.dev/schemas/style-spec.schema.json",
-  "name": "transit-route-map",
+  "name": "look:transit-route-map",
   "colors": {
     "bg": "#fbfbf8",
     "fg": "#171923",
@@ -79,7 +79,7 @@ technical connectors:
 ```json
 {
   "$schema": "https://agentic-mermaid.dev/schemas/style-spec.schema.json",
-  "name": "mid-century-report",
+  "name": "look:mid-century-report",
   "colors": {
     "bg": "#f4ead8",
     "fg": "#24211d",
@@ -110,7 +110,7 @@ Use it when you need a dark page style that still keeps labels readable:
 ```json
 {
   "$schema": "https://agentic-mermaid.dev/schemas/style-spec.schema.json",
-  "name": "star-chart-atlas",
+  "name": "look:star-chart-atlas",
   "colors": {
     "bg": "#0b1026",
     "fg": "#ece4c4",

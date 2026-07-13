@@ -552,6 +552,7 @@ describe('gantt UNRESOLVABLE_SCHEDULE (closes the verify-ok/render-throws seam)'
     const w = v.warnings.find(w => w.code === 'UNRESOLVABLE_SCHEDULE') as { code: string; reason: string } | undefined
     expect(w).toBeDefined()
     expect(w!.reason).toContain('GANTT_BAD_DATE')
+    expect(v.warnings.map(w => w.code)).toEqual(['UNRESOLVABLE_SCHEDULE'])
   })
 
   test('a dependency cycle among known ids surfaces (EDGE_MISANCHORED cannot catch it)', () => {
@@ -564,8 +565,7 @@ describe('gantt UNRESOLVABLE_SCHEDULE (closes the verify-ok/render-throws seam)'
   test('a task-less gantt maps to EMPTY_DIAGRAM, not UNRESOLVABLE_SCHEDULE', () => {
     const v = verifyMermaid(gantt('gantt\n  title Just a title\n  dateFormat YYYY-MM-DD'))
     expect(v.ok).toBe(false)
-    expect(v.warnings.map(w => w.code)).toContain('EMPTY_DIAGRAM')
-    expect(v.warnings.map(w => w.code)).not.toContain('UNRESOLVABLE_SCHEDULE')
+    expect(v.warnings.map(w => w.code)).toEqual(['EMPTY_DIAGRAM'])
   })
 
   test('healthy diagrams and the suppress knob behave', () => {
@@ -575,6 +575,7 @@ describe('gantt UNRESOLVABLE_SCHEDULE (closes the verify-ok/render-throws seam)'
       { suppress: ['UNRESOLVABLE_SCHEDULE'] },
     )
     expect(suppressed.ok).toBe(true)
+    expect(suppressed.warnings).toEqual([])
   })
 })
 

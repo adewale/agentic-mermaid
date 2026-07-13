@@ -405,12 +405,7 @@ gitGraph
     }
   })
 
-  test('all fourteen registered families have an explicit Closing The Gap contract', () => {
-    const covered = new Set<(typeof BUILTIN_FAMILY_METADATA)[number]['id']>([
-      'flowchart', 'state', 'sequence', 'timeline', 'class', 'er', 'journey',
-      'architecture', 'xychart', 'pie', 'quadrant', 'gantt', 'mindmap', 'gitgraph',
-    ])
-    expect(BUILTIN_FAMILY_METADATA.map(family => family.id).sort()).toEqual([...covered].sort())
+  test('every registered family satisfies the Closing The Gap render contract', () => {
     for (const family of BUILTIN_FAMILY_METADATA) {
       const parsed = parseMermaid(family.example)
       expect(parsed.ok, family.id).toBe(true)

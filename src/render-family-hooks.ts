@@ -1,56 +1,59 @@
 import './agent/families-builtin.ts'
-import { getFamily, registerFamily, knownFamilies } from './agent/families.ts'
-import type { AsciiContext, FamilyLayoutContext, FamilyLayoutResult, FamilyPlugin } from './agent/families.ts'
+import { augmentFamily, getFamily, knownFamilies } from './agent/families.ts'
+import type {
+  AsciiContext, FamilyLayoutContext, FamilyLayoutResult, FamilyPlugin,
+  FamilyPositionedProjectionContext, FamilyPositionedView,
+} from './agent/families.ts'
 import type { DiagramKind } from './agent/types.ts'
 import type { PositionedDiagram, RenderContext } from './types.ts'
-import type { DiagramColors } from './theme.ts'
 
 import { parseMermaid } from './parser.ts'
 import { layoutGraphSync } from './layout-engine.ts'
 import { resolveFlowchartRenderOptions, applyFlowchartLabelWrapping } from './flowchart-config.ts'
 import { resolveStateRenderOptions } from './state/config.ts'
-import { renderSvg, lowerGraphScene } from './renderer.ts'
+import { lowerGraphScene } from './renderer.ts'
 import type { SceneDoc } from './scene/ir.ts'
 
 import { parseSequenceDiagram } from './sequence/parser.ts'
 import { layoutSequenceDiagram } from './sequence/layout.ts'
 import { resolveSequenceConfig } from './sequence/config.ts'
-import { renderSequenceSvg, lowerSequenceScene } from './sequence/renderer.ts'
+import { lowerSequenceScene } from './sequence/renderer.ts'
 import { parseClassDiagram } from './class/parser.ts'
 import { layoutClassDiagram, resolveClassRenderOptions } from './class/layout.ts'
-import { renderClassSvg, lowerClassScene } from './class/renderer.ts'
+import { lowerClassScene } from './class/renderer.ts'
 import { parseErDiagram } from './er/parser.ts'
 import { layoutErDiagram, applyErFrontmatterConfig } from './er/layout.ts'
-import { renderErSvg, lowerErScene } from './er/renderer.ts'
+import { lowerErScene } from './er/renderer.ts'
 import { parseTimelineDiagram } from './timeline/parser.ts'
 import { layoutTimelineDiagram } from './timeline/layout.ts'
-import { renderTimelineSvg, lowerTimelineScene } from './timeline/renderer.ts'
+import { lowerTimelineScene } from './timeline/renderer.ts'
 import { parseJourneyDiagram } from './journey/parser.ts'
 import { layoutJourneyDiagram } from './journey/layout.ts'
-import { renderJourneySvg, lowerJourneyScene } from './journey/renderer.ts'
+import { lowerJourneyScene } from './journey/renderer.ts'
 import { applyXYChartFrontmatterConfig, parseXYChart } from './xychart/parser.ts'
 import { layoutXYChart } from './xychart/layout.ts'
-import { renderXYChartSvg, lowerXYChartScene } from './xychart/renderer.ts'
+import { lowerXYChartScene } from './xychart/renderer.ts'
 import { parsePieChart } from './pie/parser.ts'
 import { layoutPieChart } from './pie/layout.ts'
 import { resolvePieVisualConfig } from './pie/config.ts'
-import { renderPieSvg, lowerPieScene } from './pie/renderer.ts'
+import { lowerPieScene } from './pie/renderer.ts'
 import { parseQuadrantChart } from './quadrant/parser.ts'
 import { layoutQuadrantChart } from './quadrant/layout.ts'
 import { resolveQuadrantVisualConfig } from './quadrant/config.ts'
-import { renderQuadrantSvg, lowerQuadrantScene } from './quadrant/renderer.ts'
+import { lowerQuadrantScene } from './quadrant/renderer.ts'
 import { buildGanttRenderPipeline } from './gantt/pipeline.ts'
-import { renderGanttSvg, lowerGanttScene } from './gantt/renderer.ts'
+import { lowerGanttScene } from './gantt/renderer.ts'
 import { parseMindmap } from './mindmap/parser.ts'
 import { positionMindmap, resolveMindmapPositionConfig } from './mindmap/position.ts'
-import { renderMindmapSvg, lowerMindmapScene } from './mindmap/renderer.ts'
+import { lowerMindmapScene } from './mindmap/renderer.ts'
 import { parseGitGraph } from './gitgraph/parser.ts'
 import { positionGitGraph, resolveGitGraphPositionConfig } from './gitgraph/position.ts'
-import { renderGitGraphSvg, lowerGitGraphScene } from './gitgraph/renderer.ts'
+import { lowerGitGraphScene } from './gitgraph/renderer.ts'
 import { parseArchitectureDiagram } from './architecture/parser.ts'
 import { layoutArchitectureDiagram } from './architecture/layout.ts'
-import { renderArchitectureSvg, lowerArchitectureScene } from './architecture/renderer.ts'
+import { lowerArchitectureScene } from './architecture/renderer.ts'
 import { resolveArchitectureVisualConfig, resolveArchitectureRenderOptions } from './architecture/config.ts'
+import { withAccessibilityFields, withAccessibilityObject } from './shared/accessibility-directives.ts'
 
 import { convertToAsciiGraph } from './ascii/converter.ts'
 import { createMapping } from './ascii/grid.ts'
@@ -69,17 +72,34 @@ import { renderQuadrantAscii } from './ascii/quadrant.ts'
 import { renderArchitectureAscii } from './ascii/architecture.ts'
 import { renderMindmapAscii } from './ascii/mindmap.ts'
 import { renderGitGraphAscii } from './ascii/gitgraph.ts'
-import { diagramColorsToAsciiTheme } from './ascii/ansi.ts'
+import {
+  projectArchitecturePositioned,
+  projectClassPositioned,
+  projectErPositioned,
+  projectGanttPositioned,
+  projectGitGraphPositioned,
+  projectGraphPositioned,
+  projectJourneyPositioned,
+  projectMindmapPositioned,
+  projectPiePositioned,
+  projectQuadrantPositioned,
+  projectSequencePositioned,
+  projectTimelinePositioned,
+  projectXyChartPositioned,
+} from './agent/family-layouts.ts'
 
-type SvgRenderer<TPositioned extends PositionedDiagram> = (ctx: RenderContext<TPositioned>) => string
 type SceneLowerer<TPositioned extends PositionedDiagram> = (ctx: RenderContext<TPositioned>) => SceneDoc
-
-function svg<TPositioned extends PositionedDiagram>(renderer: SvgRenderer<TPositioned>): FamilyPlugin['renderSvg'] {
-  return (ctx) => renderer(ctx as RenderContext<TPositioned>)
-}
+type PositionedProjector<TPositioned extends PositionedDiagram> =
+  (ctx: FamilyPositionedProjectionContext<TPositioned>) => FamilyPositionedView
 
 function scene<TPositioned extends PositionedDiagram>(lowerer: SceneLowerer<TPositioned>): FamilyPlugin['lowerScene'] {
   return (ctx) => lowerer(ctx as RenderContext<TPositioned>)
+}
+
+function positionedView<TPositioned extends PositionedDiagram>(
+  projector: PositionedProjector<TPositioned>,
+): FamilyPlugin['projectPositioned'] {
+  return ctx => projector(ctx as FamilyPositionedProjectionContext<TPositioned>)
 }
 
 function layoutResult<TPositioned extends PositionedDiagram>(
@@ -91,16 +111,14 @@ function layoutResult<TPositioned extends PositionedDiagram>(
 
 function registerRenderHooks(
   id: DiagramKind,
-  hooks: Pick<FamilyPlugin, 'layout' | 'renderSvg' | 'renderAscii' | 'lowerScene'>,
+  hooks: Pick<FamilyPlugin, 'layout' | 'projectPositioned' | 'renderAscii' | 'lowerScene'>,
 ): void {
-  const base = getFamily(id)
-  if (!base) throw new Error(`Cannot register render hooks for unknown family ${id}`)
-  registerFamily({ ...base, ...hooks })
+  augmentFamily(id, hooks)
 }
 
 function layoutStateWithConfig(ctx: FamilyLayoutContext): FamilyLayoutResult {
   const options = resolveStateRenderOptions(ctx.source.frontmatter, ctx.options)
-  return layoutResult(layoutGraphSync(parseMermaid(ctx.source.text), options), { options })
+  return layoutResult(layoutGraphSync(parseMermaid(ctx.source.familyText), options), { options })
 }
 
 // Flowchart proper (not state) additionally wires the typed `flowchart`
@@ -110,13 +128,13 @@ function layoutStateWithConfig(ctx: FamilyLayoutContext): FamilyLayoutResult {
 // ELK sizing so layout, renderer, and SVG see the same lines.
 function layoutFlowchartWithConfig(ctx: FamilyLayoutContext): FamilyLayoutResult {
   const options = resolveFlowchartRenderOptions(ctx.source.frontmatter, ctx.options)
-  const graph = parseMermaid(ctx.source.text)
+  const graph = parseMermaid(ctx.source.familyText)
   applyFlowchartLabelWrapping(graph, options)
   return layoutResult(layoutGraphSync(graph, options))
 }
 
 function renderFlowchartAscii(ctx: AsciiContext): string {
-  const parsed = parseMermaid(ctx.source.text)
+  const parsed = parseMermaid(ctx.source.familyText)
   const config = { ...ctx.config }
 
   if (parsed.direction === 'LR' || parsed.direction === 'RL') {
@@ -142,7 +160,7 @@ function renderFlowchartAscii(ctx: AsciiContext): string {
 }
 
 function renderStateAsciiWithContext(ctx: AsciiContext): string {
-  const parsed = parseMermaid(ctx.source.text)
+  const parsed = parseMermaid(ctx.source.familyText)
   const config = { ...ctx.config }
   config.graphDirection = parsed.direction === 'LR' || parsed.direction === 'RL' ? 'LR' : 'TD'
   return renderStateAscii(parsed, config, ctx.colorMode, ctx.theme, ctx.options.targetWidth)
@@ -155,7 +173,10 @@ function layoutArchitecture(ctx: FamilyLayoutContext): FamilyLayoutResult {
   // RenderOptions win. The unwired fcose keys are named by verify's
   // INEFFECTIVE_CONFIG lint (src/architecture/config.ts).
   const archOptions = resolveArchitectureRenderOptions(ctx.source.frontmatter, ctx.options)
-  const diagram = parseArchitectureDiagram(ctx.source.lines)
+  const diagram = withAccessibilityFields(
+    parseArchitectureDiagram(ctx.source.familyLines),
+    ctx.source.accessibility,
+  )
   return layoutResult(layoutArchitectureDiagram(diagram, archOptions, archVisual.layout), {
     options: {
       ...ctx.renderOptions,
@@ -166,34 +187,30 @@ function layoutArchitecture(ctx: FamilyLayoutContext): FamilyLayoutResult {
 }
 
 function renderArchitectureAsciiWithContext(ctx: AsciiContext): string {
-  const vars = ctx.source.config.themeVariables
-  const archColors: DiagramColors = {
-    bg: (vars?.background as string) ?? '#ffffff',
-    fg: (vars?.primaryTextColor as string) ?? (vars?.textColor as string) ?? '#27272A',
-    line: vars?.lineColor as string | undefined,
-    accent: vars?.primaryColor as string | undefined,
-  }
-  const archTheme = { ...ctx.theme, ...diagramColorsToAsciiTheme(archColors) }
-  return renderArchitectureAscii(ctx.source.lines, ctx.config, ctx.colorMode, archTheme, ctx.options)
+  // The shared appearance resolver has already applied the documented
+  // precedence (explicit RenderOptions > source config > defaults) and the
+  // terminal projector has sanitized it. Re-reading raw themeVariables here
+  // created a second, unsafe color authority unique to Architecture.
+  return renderArchitectureAscii(ctx.source.familyLines, ctx.config, ctx.colorMode, ctx.theme, ctx.options)
 }
 
 registerRenderHooks('flowchart', {
   layout: layoutFlowchartWithConfig,
-  renderSvg: svg(renderSvg),
+  projectPositioned: positionedView(projectGraphPositioned),
   lowerScene: scene(lowerGraphScene),
   renderAscii: renderFlowchartAscii,
 })
 
 registerRenderHooks('state', {
   layout: layoutStateWithConfig,
-  renderSvg: svg(renderSvg),
+  projectPositioned: positionedView(projectGraphPositioned),
   lowerScene: scene(lowerGraphScene),
   renderAscii: renderStateAsciiWithContext,
 })
 
 registerRenderHooks('architecture', {
   layout: layoutArchitecture,
-  renderSvg: svg(renderArchitectureSvg),
+  projectPositioned: positionedView(projectArchitecturePositioned),
   lowerScene: scene(lowerArchitectureScene),
   renderAscii: renderArchitectureAsciiWithContext,
 })
@@ -206,23 +223,27 @@ registerRenderHooks('sequence', {
   // keeps default geometry byte-identical.
   layout: ctx => {
     const seqConfig = resolveSequenceConfig(ctx.source.frontmatter)
-    return layoutResult(layoutSequenceDiagram(parseSequenceDiagram(ctx.source.lines, seqConfig), ctx.options, seqConfig))
+    const diagram = withAccessibilityFields(
+      parseSequenceDiagram(ctx.source.familyLines, seqConfig),
+      ctx.source.accessibility,
+    )
+    return layoutResult(layoutSequenceDiagram(diagram, ctx.options, seqConfig))
   },
-  renderSvg: svg(renderSequenceSvg),
+  projectPositioned: positionedView(projectSequencePositioned),
   lowerScene: scene(lowerSequenceScene),
-  renderAscii: ctx => renderSequenceAscii(ctx.source.text, ctx.config, ctx.colorMode, ctx.theme, resolveSequenceConfig(ctx.source.frontmatter), ctx.options.targetWidth),
+  renderAscii: ctx => renderSequenceAscii(ctx.source.familyText, ctx.config, ctx.colorMode, ctx.theme, resolveSequenceConfig(ctx.source.frontmatter), ctx.options.targetWidth),
 })
 
 registerRenderHooks('class', {
   // Wire-or-warn config threading: the typed `class` frontmatter section's
   // nodeSpacing/rankSpacing fold into RenderOptions (explicit options win).
   layout: ctx => layoutResult(layoutClassDiagram(
-    parseClassDiagram(ctx.source.lines),
+    withAccessibilityFields(parseClassDiagram(ctx.source.familyLines), ctx.source.accessibility),
     resolveClassRenderOptions(ctx.source.frontmatter, ctx.options),
   )),
-  renderSvg: svg(renderClassSvg),
+  projectPositioned: positionedView(projectClassPositioned),
   lowerScene: scene(lowerClassScene),
-  renderAscii: ctx => renderClassAscii(ctx.source.text, ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth),
+  renderAscii: ctx => renderClassAscii(ctx.source.familyText, ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth),
 })
 
 registerRenderHooks('er', {
@@ -230,51 +251,64 @@ registerRenderHooks('er', {
   // rankSpacing fold into the parsed diagram/options (statement + explicit
   // options win over frontmatter).
   layout: ctx => {
-    const configured = applyErFrontmatterConfig(parseErDiagram(ctx.source.lines), ctx.source.frontmatter, ctx.options)
+    const configured = applyErFrontmatterConfig(
+      withAccessibilityFields(parseErDiagram(ctx.source.familyLines), ctx.source.accessibility),
+      ctx.source.frontmatter,
+      ctx.options,
+    )
     return layoutResult(layoutErDiagram(configured.diagram, configured.options))
   },
-  renderSvg: svg(renderErSvg),
+  projectPositioned: positionedView(projectErPositioned),
   lowerScene: scene(lowerErScene),
-  renderAscii: ctx => renderErAscii(ctx.source.text, ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth),
+  renderAscii: ctx => renderErAscii(ctx.source.familyText, ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth),
 })
 
 registerRenderHooks('timeline', {
-  layout: ctx => layoutResult(layoutTimelineDiagram(parseTimelineDiagram(ctx.source.lines), ctx.options)),
-  renderSvg: svg(renderTimelineSvg),
+  layout: ctx => layoutResult(layoutTimelineDiagram(
+    parseTimelineDiagram(ctx.source.familyLines, ctx.source.accessibility),
+    ctx.options,
+  )),
+  projectPositioned: positionedView(projectTimelinePositioned),
   lowerScene: scene(lowerTimelineScene),
-  renderAscii: ctx => renderTimelineAscii(ctx.source.lines, ctx.config, ctx.colorMode, ctx.theme, ctx.options.maxWidth),
+  renderAscii: ctx => renderTimelineAscii(ctx.source.familyLines, ctx.config, ctx.colorMode, ctx.theme, ctx.options.maxWidth),
 })
 
 registerRenderHooks('journey', {
-  layout: ctx => layoutResult(layoutJourneyDiagram(parseJourneyDiagram(ctx.source.lines), ctx.renderOptions)),
-  renderSvg: svg(renderJourneySvg),
+  layout: ctx => layoutResult(layoutJourneyDiagram(
+    parseJourneyDiagram(ctx.source.familyLines, ctx.source.accessibility),
+    ctx.renderOptions,
+  )),
+  projectPositioned: positionedView(projectJourneyPositioned),
   lowerScene: scene(lowerJourneyScene),
-  renderAscii: ctx => renderJourneyAscii(ctx.source.text, ctx.config, ctx.colorMode, ctx.theme, ctx.options.maxWidth),
+  renderAscii: ctx => renderJourneyAscii(ctx.source.familyText, ctx.config, ctx.colorMode, ctx.theme, ctx.options.maxWidth),
 })
 
 registerRenderHooks('xychart', {
   layout: ctx => {
-    const chart = applyXYChartFrontmatterConfig(parseXYChart(ctx.source.lines), ctx.source.frontmatter)
+    const chart = applyXYChartFrontmatterConfig(
+      withAccessibilityObject(parseXYChart(ctx.source.familyLines), ctx.source.accessibility),
+      ctx.source.frontmatter,
+    )
     const positioned = layoutXYChart(chart, ctx.options)
     const colors = !ctx.options.bg && chart.theme.backgroundColor
       ? { ...ctx.colors, bg: chart.theme.backgroundColor }
       : ctx.colors
     return layoutResult(positioned, { colors, injectAccessibility: false })
   },
-  renderSvg: svg(renderXYChartSvg),
+  projectPositioned: positionedView(projectXyChartPositioned),
   lowerScene: scene(lowerXYChartScene),
-  renderAscii: ctx => renderXYChartAscii(ctx.source.text, ctx.config, ctx.colorMode, ctx.theme, ctx.source.frontmatter, ctx.options.targetWidth),
+  renderAscii: ctx => renderXYChartAscii(ctx.source.familyText, ctx.config, ctx.colorMode, ctx.theme, ctx.source.frontmatter, ctx.options.targetWidth),
 })
 
 registerRenderHooks('pie', {
   layout: ctx => layoutResult(layoutPieChart(
-    parsePieChart(ctx.source.lines),
+    parsePieChart(ctx.source.familyLines),
     ctx.options,
     resolvePieVisualConfig(ctx.source.frontmatter),
   )),
-  renderSvg: svg(renderPieSvg),
+  projectPositioned: positionedView(projectPiePositioned),
   lowerScene: scene(lowerPieScene),
-  renderAscii: ctx => renderPieAscii(ctx.source.lines, ctx.config, ctx.colorMode, ctx.theme, ctx.source.frontmatter, ctx.options.targetWidth),
+  renderAscii: ctx => renderPieAscii(ctx.source.familyLines, ctx.config, ctx.colorMode, ctx.theme, ctx.source.frontmatter, ctx.options.targetWidth),
 })
 
 registerRenderHooks('quadrant', {
@@ -282,26 +316,26 @@ registerRenderHooks('quadrant', {
   // border widths, useMaxWidth) resolves from frontmatter/init directives and
   // rides on the positioned chart so layout and renderer read the SAME values.
   layout: ctx => layoutResult(layoutQuadrantChart(
-    parseQuadrantChart(ctx.source.lines),
+    withAccessibilityObject(parseQuadrantChart(ctx.source.familyLines), ctx.source.accessibility),
     ctx.options,
     resolveQuadrantVisualConfig(ctx.source.frontmatter),
   )),
-  renderSvg: svg(renderQuadrantSvg),
+  projectPositioned: positionedView(projectQuadrantPositioned),
   lowerScene: scene(lowerQuadrantScene),
-  renderAscii: ctx => renderQuadrantAscii(ctx.source.lines, ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth),
+  renderAscii: ctx => renderQuadrantAscii(ctx.source.familyLines, ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth),
 })
 
 registerRenderHooks('gantt', {
   layout: ctx => {
-    const pipeline = buildGanttRenderPipeline(ctx.source.lines, ctx.source.frontmatter, {
+    const pipeline = buildGanttRenderPipeline(ctx.source.familyLines, ctx.source.frontmatter, {
       clock: { today: ctx.options.ganttToday },
       layout: { renderOptions: ctx.options },
     })
     return layoutResult(pipeline.positioned)
   },
-  renderSvg: svg(renderGanttSvg),
+  projectPositioned: positionedView(projectGanttPositioned),
   lowerScene: scene(lowerGanttScene),
-  renderAscii: ctx => renderGanttAscii(ctx.source.lines, ctx.config, ctx.colorMode, ctx.theme, ctx.source.frontmatter, {
+  renderAscii: ctx => renderGanttAscii(ctx.source.familyLines, ctx.config, ctx.colorMode, ctx.theme, ctx.source.frontmatter, {
     maxWidth: ctx.options.maxWidth,
     today: ctx.options.ganttToday,
   }),
@@ -309,27 +343,27 @@ registerRenderHooks('gantt', {
 
 registerRenderHooks('mindmap', {
   layout: ctx => layoutResult(positionMindmap(
-    parseMindmap(ctx.source.body),
+    withAccessibilityFields(parseMindmap(ctx.source.familyBody), ctx.source.accessibility),
     resolveMindmapPositionConfig(ctx.source.config.mindmap, ctx.source.config.layout),
   ), { injectAccessibility: false }),
-  renderSvg: svg(renderMindmapSvg),
+  projectPositioned: positionedView(projectMindmapPositioned),
   lowerScene: scene(lowerMindmapScene),
-  renderAscii: ctx => renderMindmapAscii(parseMindmap(ctx.source.body), ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth),
+  renderAscii: ctx => renderMindmapAscii(parseMindmap(ctx.source.familyBody), ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth),
 })
 
 registerRenderHooks('gitgraph', {
   layout: ctx => {
     const config = resolveGitGraphPositionConfig(ctx.source.config.gitGraph, ctx.source.config.themeVariables)
-    const diagram = parseGitGraph(ctx.source.body, {
+    const diagram = withAccessibilityFields(parseGitGraph(ctx.source.familyBody, {
       mainBranchName: config.mainBranchName,
       mainBranchOrder: config.mainBranchOrder,
       title: typeof ctx.source.frontmatter.title === 'string' ? ctx.source.frontmatter.title : undefined,
-    })
+    }), ctx.source.accessibility)
     return layoutResult(positionGitGraph(diagram, config), { injectAccessibility: false })
   },
-  renderSvg: svg(renderGitGraphSvg),
+  projectPositioned: positionedView(projectGitGraphPositioned),
   lowerScene: scene(lowerGitGraphScene),
-  renderAscii: ctx => renderGitGraphAscii(parseGitGraph(ctx.source.body, {
+  renderAscii: ctx => renderGitGraphAscii(parseGitGraph(ctx.source.familyBody, {
     mainBranchName: ctx.source.config.gitGraph?.mainBranchName,
     mainBranchOrder: ctx.source.config.gitGraph?.mainBranchOrder,
     title: typeof ctx.source.frontmatter.title === 'string' ? ctx.source.frontmatter.title : undefined,

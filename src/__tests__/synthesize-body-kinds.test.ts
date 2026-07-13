@@ -9,10 +9,10 @@
 import { describe, it, expect } from 'bun:test'
 import { parseMermaid } from '../agent/parse.ts'
 import { synthesizeFromGraph } from '../agent/serialize.ts'
-import { builtinFamilyMetadata, knownFamilies } from '../agent/families.ts'
+import { builtinFamilyMetadata, knownBuiltinFamilies } from '../agent/families.ts'
 
 describe('synthesizeFromGraph accepts every declared body kind', () => {
-  for (const kind of knownFamilies()) {
+  for (const kind of knownBuiltinFamilies()) {
     const meta = builtinFamilyMetadata(kind)
     if (!meta) continue
 

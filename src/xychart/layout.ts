@@ -1,4 +1,4 @@
-import { styleFaceOf } from '../scene/style-registry.ts'
+import { resolvedStyleFaceOf } from '../render-contract.ts'
 import type {
   AxisTick,
   GridLine,
@@ -56,7 +56,7 @@ export function layoutXYChart(
 ): PositionedXYChart {
   const style = resolveRenderStyle(options, XY_STYLE_DEFAULTS)
   const config = resolveXYChartRenderConfig(chart.config)
-  const face = styleFaceOf(options.style)
+  const face = resolvedStyleFaceOf(options)
   if (face?.group?.fontSize != null || face?.text?.fontSize != null) {
     config.titleFontSize = style.groupHeaderFontSize
   }

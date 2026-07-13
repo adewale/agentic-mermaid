@@ -15,6 +15,8 @@ import { Buffer } from 'node:buffer'
 import { existsSync } from 'node:fs'
 import { extname, join, normalize } from 'node:path'
 import { chromium, type Browser, type Page } from 'playwright'
+import { DEFAULT_ARCHITECTURE_VISUAL } from '../architecture/config.ts'
+import { inspectPngColorProfile } from '../output-color-profile.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const SITE = join(REPO, 'website', 'public')
@@ -206,15 +208,18 @@ describeBrowser('editor style switcher restyles the artwork, never the chrome', 
     await page.goto(baseUrl + '/editor/?empty=1#' + legacyShareHash(RESTORED_CONFIG_SHARE), { waitUntil: 'networkidle' })
     await page.waitForFunction(() => {
       const svg = document.querySelector('.preview-inner svg') as SVGSVGElement | null
-      return svg && getComputedStyle(svg).getPropertyValue('--bg').trim().toUpperCase() === '#112233'
+      const preview = document.querySelector('.preview-inner') as HTMLElement | null
+      return svg
+        && getComputedStyle(svg).getPropertyValue('--bg').trim().toUpperCase() === '#112233'
+        && preview?.dataset.sharedRequestDigest
+        && preview.dataset.renderRequestDigest
+        && preview.dataset.appearanceDigest
     }, null, { timeout: 15_000 })
 
     await page.click('#settings-btn')
     expect((await page.locator('#cfg-bg-label').textContent())?.trim().toUpperCase()).toBe('#112233')
     expect((await page.locator('#font-select-label').textContent())?.trim()).toBe('Caveat')
     expect(await page.locator('#cfg-padding').inputValue()).toBe('48')
-    expect(await page.locator('#cfg-edge-stroke').inputValue()).toBe('2.5')
-    expect(await page.locator('#cfg-node-stroke').inputValue()).toBe('3')
 
     await page.locator('#cfg-padding').fill('36')
     await page.locator('#cfg-padding').dispatchEvent('input')
@@ -226,6 +231,136 @@ describeBrowser('editor style switcher restyles the artwork, never the chrome', 
     await page.close()
   }, 60_000)
 
+  test('advanced RenderOptions round-trip through the canonical schema and reject unknown fields', async () => {
+    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
+    await page.goto(baseUrl + '/editor/?empty=1', { waitUntil: 'networkidle' })
+    await page.locator('#code-editor').fill('flowchart TD\n  A[Alpha] --> B[Beta]')
+    await page.locator('#code-editor').dispatchEvent('input')
+    await page.waitForFunction(() => !!document.querySelector('.preview-inner svg'), null, { timeout: 15_000 })
+
+    await page.click('#settings-btn')
+    const schemaProjection = await page.evaluate(() => {
+      const schema = (window as any).__mermaid.SHARED_RENDER_OPTIONS_JSON_SCHEMA
+      const summary = document.getElementById('cfg-advanced-schema')
+      return {
+        runtime: Object.keys(schema.properties),
+        editor: String(summary?.getAttribute('title') || '').split(', ').filter(Boolean),
+      }
+    })
+    expect(schemaProjection.editor).toEqual(schemaProjection.runtime)
+
+    const advanced = {
+      border: '#123456',
+      nodeSpacing: 37,
+      gantt: { dependencyArrows: true, criticalPath: true },
+      architecture: { visual: { ...DEFAULT_ARCHITECTURE_VISUAL, serviceCornerRadius: 9 } },
+    }
+    await page.locator('#cfg-advanced-options').fill(JSON.stringify(advanced))
+    const hashBeforeApply = await page.evaluate(() => window.location.hash)
+    await page.click('#cfg-advanced-apply')
+    await expect(page.locator('#cfg-advanced-status').textContent()).resolves.toContain('Applied 4 canonical options')
+    expect(await page.locator('#cfg-advanced-options').getAttribute('aria-invalid')).toBe('false')
+    expect(JSON.parse(await page.locator('#cfg-advanced-options').inputValue())).toEqual(advanced)
+    await page.waitForFunction(previous => window.location.hash !== previous, hashBeforeApply, { timeout: 15_000 })
+    const appliedHash = await page.evaluate(() => window.location.hash)
+
+    await page.locator('#cfg-advanced-options').fill('{"notARealRenderOption":true}')
+    await page.click('#cfg-advanced-apply')
+    expect(await page.locator('#cfg-advanced-options').getAttribute('aria-invalid')).toBe('true')
+    expect(await page.locator('#cfg-advanced-status').textContent()).toContain('unknown render option')
+    expect(await page.evaluate(() => window.location.hash)).toBe(appliedHash)
+    await page.close()
+  }, 60_000)
+
+  test('browser PNG export passes its receipt gate, declares sRGB, and reports font failures', async () => {
+    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
+    await page.route('**/fonts/**', route => route.abort())
+    await page.goto(baseUrl + '/editor/', { waitUntil: 'networkidle' })
+    await page.waitForFunction(() => {
+      const preview = document.querySelector('.preview-inner') as HTMLElement | null
+      return !!document.querySelector('.preview-inner svg') && !!preview?.dataset.sharedRequestDigest
+    }, null, { timeout: 15_000 })
+
+    const digestBeforeFont = await page.locator('.preview-inner').getAttribute('data-shared-request-digest')
+    await page.click('#settings-btn')
+    await page.locator('#cfg-advanced-options').fill('{"font":"Caveat"}')
+    await page.click('#cfg-advanced-apply')
+    await expect(page.locator('#cfg-advanced-status').textContent()).resolves.toContain('Applied 1 canonical option')
+    await page.waitForFunction(previous => {
+      const preview = document.querySelector('.preview-inner') as HTMLElement | null
+      return !!preview?.dataset.sharedRequestDigest && preview.dataset.sharedRequestDigest !== previous
+    }, digestBeforeFont, { timeout: 15_000 })
+    await page.click('#settings-close-btn')
+
+    const downloadPromise = page.waitForEvent('download', { timeout: 15_000 })
+    await page.click('#export-main-btn')
+    let download
+    try {
+      download = await downloadPromise
+    } catch (error) {
+      throw new Error(`${error instanceof Error ? error.message : String(error)}; editor status: ${await page.locator('#toast').textContent()}`)
+    }
+    const path = await download.path()
+    expect(path).not.toBeNull()
+    const png = new Uint8Array(await Bun.file(path!).arrayBuffer())
+    expect(Array.from(png.slice(0, 8))).toEqual([137, 80, 78, 71, 13, 10, 26, 10])
+    const profile = inspectPngColorProfile(png)
+    expect(profile.profile).toBe('srgb')
+    expect(profile.cICP).toEqual([1, 13, 0, 1])
+    expect(profile.hasICC).toBe(false)
+    await expect(page.locator('#toast').textContent()).resolves.toContain('font warning')
+    await page.close()
+  }, 60_000)
+
+  test('browser and editor retain comparable SVG, Unicode, and ASCII receipts', async () => {
+    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
+    await page.goto(baseUrl + '/editor/?empty=1', { waitUntil: 'networkidle' })
+    await page.locator('#code-editor').fill('sequenceDiagram\n  Alice->>Bob: Hello\n  Bob-->>Alice: Ready')
+    await page.locator('#code-editor').dispatchEvent('input')
+    await page.waitForFunction(() => {
+      const api = (window as any).__mermaid
+      const preview = document.getElementById('preview-inner') as HTMLElement | null
+      return typeof api?.renderMermaidASCIIWithReceipt === 'function'
+        && typeof api?.renderMermaidUnicodeWithReceipt === 'function'
+        && !!preview?.dataset.sharedRequestDigest
+    }, null, { timeout: 15_000 })
+
+    await page.click('#format-unicode')
+    await page.waitForFunction(() => {
+      const preview = document.getElementById('preview-inner') as HTMLElement | null
+      return !!preview?.dataset.unicodeSharedRequestDigest
+        && !!preview.dataset.asciiSharedRequestDigest
+    }, null, { timeout: 15_000 })
+
+    const receipts = await page.evaluate(() => {
+      const preview = document.getElementById('preview-inner') as HTMLElement
+      return {
+        svg: {
+          shared: preview.dataset.sharedRequestDigest,
+          request: preview.dataset.renderRequestDigest,
+          appearance: preview.dataset.appearanceDigest,
+        },
+        unicode: {
+          shared: preview.dataset.unicodeSharedRequestDigest,
+          request: preview.dataset.unicodeRenderRequestDigest,
+          appearance: preview.dataset.unicodeAppearanceDigest,
+        },
+        ascii: {
+          shared: preview.dataset.asciiSharedRequestDigest,
+          request: preview.dataset.asciiRenderRequestDigest,
+          appearance: preview.dataset.asciiAppearanceDigest,
+        },
+      }
+    })
+    expect(new Set([receipts.svg.shared, receipts.unicode.shared, receipts.ascii.shared]).size).toBe(1)
+    expect(new Set([receipts.svg.appearance, receipts.unicode.appearance, receipts.ascii.appearance]).size).toBe(1)
+    expect(new Set([receipts.svg.request, receipts.unicode.request, receipts.ascii.request]).size).toBe(3)
+    await expect(page.locator('#unicode-output').textContent()).resolves.toContain('Alice')
+    await page.click('#format-ascii')
+    await expect(page.locator('#ascii-output').textContent()).resolves.toContain('Alice')
+    await page.close()
+  }, 60_000)
+
   test('newer renders win over slower in-flight renders', async () => {
     const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
     await page.addInitScript(() => {
@@ -234,12 +369,12 @@ describeBrowser('editor style switcher restyles the artwork, never the chrome', 
         configurable: true,
         get() { return mermaidValue },
         set(value) {
-          const original = value.renderMermaidSVGAsync
-          value.renderMermaidSVGAsync = async function(source: string, options: unknown) {
+          const original = value.renderMermaidSVGWithReceipt
+          value.renderMermaidSVGWithReceipt = async function(source: string, options: unknown) {
             if (source.includes('Slow')) {
               ;(window as any).__amSlowRenderStarted = true
               await new Promise((resolve) => { ;(window as any).__amReleaseSlowRender = resolve })
-              const svg = await original(source, options)
+              const svg = original(source, options)
               ;(window as any).__amSlowRenderReturned = true
               return svg
             }

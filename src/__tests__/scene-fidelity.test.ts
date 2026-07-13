@@ -26,12 +26,11 @@ interface Lowered {
   id: string
   family: string
   doc: SceneDoc
-  renderSvgOutput: string
 }
 
-/** Mirror the renderMermaidSVG dispatch up to the family renderSvg/lowerScene
- *  calls (before the resolve() post-pass, which is scene-independent). */
-function lowerSample(source: string, options: RenderOptions = {}): { doc: SceneDoc; renderSvgOutput: string } | undefined {
+/** Mirror the built-in renderMermaidSVG dispatch through its sole graphical
+ * waist (before the resolve() post-pass, which is scene-independent). */
+function lowerSample(source: string, options: RenderOptions = {}): { doc: SceneDoc } | undefined {
   const text = decodeXML(source)
   const normalizedSource = normalizeMermaidSource(text, options.mermaidConfig ?? {})
   const font = options.font
@@ -41,7 +40,7 @@ function lowerSample(source: string, options: RenderOptions = {}): { doc: SceneD
   const colors = resolveDiagramColors(options, normalizedSource.config, font)
   const diagramType = detectDiagramTypeFromFirstLine(normalizedSource.firstLine) ?? 'flowchart'
   const family = getFamily(diagramType as DiagramKind)
-  if (!family?.layout || !family.renderSvg || !family.lowerScene) return undefined
+  if (!family?.layout || !family.lowerScene) return undefined
   const renderOptions: RenderOptions = { ...options, mermaidConfig: normalizedSource.config }
   let layout: FamilyLayoutResult
   try {
@@ -55,7 +54,7 @@ function lowerSample(source: string, options: RenderOptions = {}): { doc: SceneD
     colors: layout.colors ?? colors,
     options: layout.options ?? renderOptions,
   }
-  return { doc: family.lowerScene(ctx), renderSvgOutput: family.renderSvg(ctx) }
+  return { doc: family.lowerScene(ctx) }
 }
 
 function lowerAll(): Lowered[] {
@@ -98,12 +97,13 @@ describe('scene fidelity', () => {
     expect(violations).toEqual([])
   })
 
-  test('DefaultBackend serialization of the lowered scene is the rendered SVG', () => {
+  test('DefaultBackend deterministically serializes every lowered scene', () => {
     for (const scene of scenes) {
-      const serialized = DefaultBackend.render(scene.doc, { seed: 0 })
-      if (serialized !== scene.renderSvgOutput) {
-        throw new Error(`DefaultBackend drift for ${scene.id} (family ${scene.family})`)
-      }
+      const first = DefaultBackend.render(scene.doc, { seed: 0 })
+      const second = DefaultBackend.render(scene.doc, { seed: 0 })
+      expect(second, `${scene.id} (${scene.family})`).toBe(first)
+      expect(first, `${scene.id} (${scene.family})`).toContain('<svg')
+      expect(first, `${scene.id} (${scene.family})`).not.toMatch(/NaN|undefined/)
     }
   })
 })

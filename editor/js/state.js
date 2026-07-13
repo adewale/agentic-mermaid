@@ -1,8 +1,10 @@
 var THEMES = window.__mermaid.THEMES;
-var renderMermaid = window.__mermaid.renderMermaidSVGAsync;
+var renderMermaidWithReceipt = window.__mermaid.renderMermaidSVGWithReceipt;
 var verifyNoExternalRefs = window.__mermaid.verifyNoExternalRefs;
 var verifyMermaid = window.__mermaid.verifyMermaid;
-var renderMermaidAscii = window.__mermaid.renderMermaidASCII;
+var renderMermaidAsciiWithReceipt = window.__mermaid.renderMermaidASCIIWithReceipt;
+var renderMermaidUnicodeWithReceipt = window.__mermaid.renderMermaidUnicodeWithReceipt;
+var renderMermaidPngInBrowserWithReceipt = window.__mermaid.renderMermaidPNGInBrowserWithReceipt;
 
 var DEFAULT_EDITOR_THEME = "paper";
 

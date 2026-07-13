@@ -1,7 +1,7 @@
 # Agentic Mermaid
 
 > Agent-native Mermaid runtime: parse, verify, mutate, and round-trip
-> Mermaid diagrams with a typed IR. Deterministic ASCII / PNG / SVG. No
+> Mermaid diagrams with a typed IR. Deterministic render outputs. No
 > browser required. CLI + MCP + library.
 
 Version: 0.1.1
@@ -22,9 +22,8 @@ you haven't inspected.
 
 ## CLI verbs (`am <verb>`)
 
-- render --format svg, ascii, unicode, json [--security strict] — render a diagram
-- render --format png --output file.png — render one input to PNG (no PNG bytes on stdout, no multi-input/watch)
-- render --style <names|file.json> --seed N — styled svg/png; comma-separate to stack (--style hand-drawn,dracula)
+- render --format svg, ascii, unicode, png, json [--security strict] — render a diagram; PNG requires --output and does not support multi-input/watch
+- render --style <names|file.json> --seed N — styled graphical/terminal output; comma-separate to stack (--style hand-drawn,dracula)
 - styles [--json] — list registered styles (default + full looks + palette-only themes)
 - parse — diagram → ValidDiagram JSON
 - verify — structural validation (exit 3 if invalid)
@@ -78,7 +77,7 @@ registerStyle, knownStyles, validateStyleSpec } from 'agentic-mermaid/agent'`
 
 ## Styles
 
-Every render call accepts style: a registered look name ('tufte', 'hand-drawn', 'excalidraw', 'pen-and-ink', 'freehand', 'watercolor', 'blueprint', 'accessible-high-contrast', 'patent-drawing', 'status-dashboard', 'ops-schematic', 'chalkboard', 'risograph', 'architectural-plan', 'cupertino', 'publication-figure'), any theme
+Every render call accepts style: a registered look name ('crisp', 'hand-drawn', 'excalidraw', 'pen-and-ink', 'freehand', 'watercolor', 'blueprint', 'tufte', 'accessible-high-contrast', 'patent-drawing', 'status-dashboard', 'ops-schematic', 'chalkboard', 'risograph', 'architectural-plan', 'cupertino', 'publication-figure'), any theme
 name (a theme is a palette-only style), an inline JSON spec, or a stack
 merged left → right ({ style: ['hand-drawn', 'dracula'] }). seed re-rolls
 ink wobble, never layout — (source, style, seed) reproduces an image

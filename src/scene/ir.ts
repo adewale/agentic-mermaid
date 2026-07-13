@@ -22,6 +22,16 @@
 import type { DiagramColors } from '../theme.ts'
 import type { SvgSemanticIdentity } from './identity.ts'
 import type { SvgSemanticAccessibility } from './accessibility.ts'
+import type { PrimitiveRealization } from './capabilities.ts'
+
+/** Version of the extension-facing Scene document/mark behavioral contract. */
+export const SCENE_CONTRACT_VERSION = 1 as const
+import type { SceneRole } from './roles.ts'
+
+export type {
+  BuiltinSceneRole, CoreSceneRole, NamespacedSceneRole, SceneRole,
+  SceneRoleTraits, SceneSketchPolicy,
+} from './roles.ts'
 
 /** Semantic channels preserved across the renderer boundary (SPEC §5).
  *  `tone`/hue are style-derived outputs, not stored here. */
@@ -41,23 +51,6 @@ export interface SemanticChannels {
   /** Author-flagged emphasis. */
   emphasis?: boolean
 }
-
-/** Mark roles. A closed set per family keeps backends role-aware ("don't
- *  hachure a lifeline; do hatch a node") without importing family modules. */
-export type SceneRole =
-  // shared / flowchart
-  | 'node' | 'edge' | 'edge-label' | 'group' | 'group-header' | 'label'
-  // sequence
-  | 'actor' | 'lifeline' | 'activation' | 'message' | 'block' | 'note'
-  // class / er
-  | 'class-box' | 'member' | 'entity' | 'attribute' | 'relationship' | 'cardinality'
-  // charts
-  | 'pie-slice' | 'legend' | 'bar' | 'series' | 'point' | 'axis' | 'grid'
-  | 'plate' | 'section' | 'task' | 'milestone' | 'marker-line'
-  // timeline / journey / architecture
-  | 'rail' | 'period' | 'event' | 'score' | 'actor-pill' | 'service' | 'junction' | 'icon'
-  // document furniture
-  | 'title' | 'defs' | 'prelude' | 'chrome'
 
 /** Geometry a styled backend can redraw. Numbers are in final user units.
  *  Paint strings may be CSS var()/color-mix() refs — they resolve later via
@@ -79,6 +72,12 @@ export interface MarkPaint {
   stroke?: string
   strokeWidth?: string
   strokeDasharray?: string
+  strokeDashoffset?: string
+  strokeLinecap?: 'butt' | 'round' | 'square'
+  strokeLinejoin?: 'arcs' | 'bevel' | 'miter' | 'miter-clip' | 'round'
+  strokeMiterlimit?: string
+  vectorEffect?: 'none' | 'non-scaling-stroke'
+  paintOrder?: string
   opacity?: string
 }
 
@@ -108,23 +107,181 @@ export interface ShapeMark extends SceneNodeBase {
   paint: MarkPaint
 }
 
-export interface MarkerRef {
+export interface ScenePoint {
+  x: number
+  y: number
+}
+
+export interface SceneBox {
+  x0: number
+  y0: number
+  x1: number
+  y1: number
+}
+
+export type MarkerShape = 'arrow' | 'open-arrow' | 'circle' | 'cross' | 'triangle' | 'diamond' | 'diamond-open'
+
+/** Complete marker resource description. Existing family renderers need only
+ * id/shape; extension renderers can provide geometry and bounds without
+ * requiring a backend to inspect SVG defs. */
+export interface MarkerDescriptor {
   /** Def id referenced via url(#...) — 'arrowhead', 'cls-inherit', ... */
   id: string
   /** Marker archetype so styled backends can redraw without parsing defs. */
-  shape: 'arrow' | 'open-arrow' | 'circle' | 'cross' | 'triangle' | 'diamond' | 'diamond-open'
+  shape: MarkerShape
+  geometry?: Geometry
+  /** Marker viewport emitted as markerWidth/markerHeight. */
+  size?: { width: number; height: number }
+  viewBox?: { x: number; y: number; width: number; height: number }
+  ref?: ScenePoint
+  bounds?: SceneBox
+  units?: 'strokeWidth' | 'userSpaceOnUse'
+  orient?: 'auto' | 'auto-start-reverse' | number
+  overflow?: 'hidden' | 'visible'
+  paint?: MarkPaint
+  /** Scalar relative to marker units; used for conservative bounds. */
+  scale?: number
+}
+
+/** Compatibility name used by existing family lowerings. */
+export type MarkerRef = MarkerDescriptor
+
+export type ConnectorGeometry =
+  | { kind: 'polyline'; points: Array<ScenePoint> }
+  /** Curved path plus its deterministic routed polyline projection. Requiring
+   * points keeps bounds, hit-testing, tangents and terminal projection total
+   * without asking consumers to reparse SVG path data. */
+  | { kind: 'path'; d: string; points: Array<ScenePoint> }
+  | { kind: 'line'; x1: number; y1: number; x2: number; y2: number }
+
+export type ConnectorDirection = 'forward' | 'reverse' | 'bidirectional' | 'undirected' | 'self'
+
+export interface ConnectorEndpointAnchor {
+  /** Semantic node/entity identifier. */
+  id?: string
+  /** Optional family-owned port/terminal identifier. */
+  portId?: string
+  /** Routed endpoint in final user units. */
+  point?: ScenePoint
+}
+
+export interface ConnectorEndpoints {
+  from?: string
+  to?: string
+  start?: ConnectorEndpointAnchor
+  end?: ConnectorEndpointAnchor
+}
+
+export interface ConnectorRelationship {
+  /** Family vocabulary, e.g. dependency, inheritance, parent, message. */
+  kind: string
+  direction: ConnectorDirection
+}
+
+export interface ConnectorRoute {
+  geometry: ConnectorGeometry
+  ownership: 'authored' | 'layout' | 'family' | 'projected'
+  closed: boolean
+  bendRadius: number
+  startTangent?: ScenePoint
+  endTangent?: ScenePoint
+  labelAnchors: readonly ScenePoint[]
+}
+
+export interface ConnectorDash {
+  array: string | readonly number[]
+  offset?: string | number
+}
+
+export interface ConnectorStroke {
+  color: string
+  width: string | number
+  opacity?: string | number
+  dash?: ConnectorDash
+  lineCap: 'butt' | 'round' | 'square'
+  lineJoin: 'arcs' | 'bevel' | 'miter' | 'miter-clip' | 'round'
+  miterLimit: number
+  pathLength?: number
+  paintOrder?: string
+  nonScaling: boolean
+}
+
+export interface ConnectorLabelDescriptor {
+  id?: string
+  text: string
+  anchor?: ScenePoint
+  bounds?: SceneBox
+  halo?: { color?: string; width: number }
+  clearance?: number
+}
+
+export interface ConnectorHitGeometry {
+  geometry: ConnectorGeometry
+  strokeWidth: number
+  pointerEvents: 'stroke' | 'none'
+}
+
+export type ConnectorTerminalStrokeLoss =
+  | 'continuous-geometry'
+  | 'bend-radius'
+  | 'stroke-width'
+  | 'stroke-opacity'
+  | 'stroke-cap'
+  | 'stroke-join'
+  | 'stroke-miter'
+  | 'dash-pattern'
+  | 'dash-offset'
+  | 'path-length'
+  | 'paint-order'
+  | 'non-scaling-stroke'
+
+export interface ConnectorTerminalMarkerProjection {
+  readonly id: string
+  readonly shape: MarkerShape
+}
+
+export interface ConnectorTerminalLabelProjection {
+  readonly id?: string
+  readonly text: string
+}
+
+export interface ConnectorTerminalProjection {
+  realization: PrimitiveRealization
+  topology: 'line' | 'polyline' | 'path'
+  direction: ConnectorDirection
+  relationship: string
+  markers: {
+    start?: ConnectorTerminalMarkerProjection
+    mid: readonly ConnectorTerminalMarkerProjection[]
+    end?: ConnectorTerminalMarkerProjection
+  }
+  labels: readonly ConnectorTerminalLabelProjection[]
+  lineStyle: ConnectorMark['lineStyle']
+  strokeLosses: readonly ConnectorTerminalStrokeLoss[]
+  diagnostics: readonly string[]
 }
 
 export interface ConnectorMark extends SceneNodeBase {
   kind: 'connector'
-  geometry:
-    | { kind: 'polyline'; points: Array<{ x: number; y: number }> }
-    | { kind: 'path'; d: string; points?: Array<{ x: number; y: number }> }
-    | { kind: 'line'; x1: number; y1: number; x2: number; y2: number }
+  /** Compatibility geometry; identical by reference to route.geometry. */
+  geometry: ConnectorGeometry
   lineStyle: 'solid' | 'dotted' | 'dashed' | 'thick' | 'invisible'
+  /** Compatibility paint; connector backends consume `stroke`, not crisp. */
   paint: MarkPaint
   startMarker?: MarkerRef
   endMarker?: MarkerRef
+  endpoints: ConnectorEndpoints
+  relationship: ConnectorRelationship
+  route: ConnectorRoute
+  stroke: ConnectorStroke
+  markers: {
+    start?: MarkerDescriptor
+    mid: readonly MarkerDescriptor[]
+    end?: MarkerDescriptor
+  }
+  labels: readonly ConnectorLabelDescriptor[]
+  hit: ConnectorHitGeometry
+  terminalProjection: ConnectorTerminalProjection
 }
 
 export interface TextMark extends SceneNodeBase {
@@ -168,6 +325,9 @@ export interface DocumentMark extends SceneNodeBase {
   element: 'title' | 'description' | 'definitions' | 'close'
   text?: string
   domId?: string
+  /** Typed marker resources owned by the definitions mark. Backends may
+   * reserialize these without inspecting the crisp SVG definition string. */
+  markerResources?: readonly MarkerDescriptor[]
 }
 
 export interface PreludeMark extends SceneNodeBase {

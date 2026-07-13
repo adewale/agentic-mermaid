@@ -3,9 +3,9 @@
 import { describe, test, expect } from 'bun:test'
 import { parseMermaid } from '../agent/parse.ts'
 import { verifyMermaid } from '../agent/verify.ts'
-import { BUILTIN_FAMILY_METADATA, knownFamilies, getFamily, registerFamily, extractLabelsGeneric } from '../agent/families.ts'
+import { layoutMermaid } from '../agent/core.ts'
+import { BUILTIN_FAMILY_METADATA, knownFamilies, getFamily, registerFamily, replaceFamilyForTest, extractLabelsGeneric } from '../agent/families.ts'
 import '../agent/families-builtin.ts'
-import type { DiagramKind } from '../agent/types.ts'
 
 describe('family registry', () => {
   test('every metadata-backed built-in family registers', () => {
@@ -23,16 +23,16 @@ describe('family registry', () => {
     }
   })
 
-  test('registerFamily accepts a new id and getFamily round-trips', () => {
+  test('built-in collisions fail unless the explicit test replacement seam is used', () => {
     const original = getFamily('flowchart')
     expect(original).toBeDefined()
-    const fake = { id: 'flowchart' as DiagramKind, detect: () => false, extractLabels: () => [{ text: 't', target: 't' }] }
-    // ID collision allowed — last write wins (caller intent: override)
+    const fake = { ...original!, extractLabels: () => [{ text: 't', target: 't' }] }
+    expect(() => registerFamily(fake)).toThrow(/already exists/)
+    const restore = replaceFamilyForTest('flowchart', fake)
     try {
-      registerFamily(fake)
       expect(getFamily('flowchart')?.extractLabels?.('')).toEqual([{ text: 't', target: 't' }])
     } finally {
-      registerFamily(original!)
+      restore()
     }
   })
 })
@@ -120,7 +120,7 @@ describe('FamilyPlugin.verify dispatcher', () => {
     expect(original).toBeDefined()
 
     const syntheticWarning = { code: 'UNKNOWN_SHAPE' as const, node: 'synthetic-verify-marker', shape: 'plugin-verify' }
-    registerFamily({
+    const restore = replaceFamilyForTest('journey', {
       ...original!,
       verify: () => [syntheticWarning],
     })
@@ -135,7 +135,7 @@ describe('FamilyPlugin.verify dispatcher', () => {
       expect(hit).toBeDefined()
     } finally {
       // Restore the built-in plugin so other tests see the original.
-      registerFamily(original!)
+      restore()
     }
   })
 
@@ -143,7 +143,7 @@ describe('FamilyPlugin.verify dispatcher', () => {
     const original = getFamily('xychart')
     expect(original).toBeDefined()
     // Re-register without verify; verifyMermaid must still return ok.
-    registerFamily({ ...original!, verify: undefined })
+    const restore = replaceFamilyForTest('xychart', { ...original!, verify: undefined })
     try {
       const src = 'xychart-beta\n  title "X"\n  x-axis [a, b, c]\n  y-axis "y" 0 --> 10\n  bar [1, 2, 3]'
       const p = parseMermaid(src)
@@ -153,7 +153,7 @@ describe('FamilyPlugin.verify dispatcher', () => {
       expect(v).toBeDefined()
       expect(Array.isArray(v.warnings)).toBe(true)
     } finally {
-      registerFamily(original!)
+      restore()
     }
   })
 
@@ -168,7 +168,7 @@ describe('FamilyPlugin.verify dispatcher', () => {
     expect(original!.verify).toBeDefined()  // confirms M4 wired it
 
     const sentinel = { code: 'UNKNOWN_SHAPE' as const, node: 'A1-sentinel', shape: 'class-plugin-verify' }
-    registerFamily({
+    const restore = replaceFamilyForTest('class', {
       ...original!,
       verify: () => [sentinel],
     })
@@ -182,7 +182,7 @@ describe('FamilyPlugin.verify dispatcher', () => {
       const hit = v.warnings.find(w => w.code === 'UNKNOWN_SHAPE' && (w as { node?: string }).node === 'A1-sentinel')
       expect(hit).toBeDefined()
     } finally {
-      registerFamily(original!)
+      restore()
     }
   })
 
@@ -192,7 +192,7 @@ describe('FamilyPlugin.verify dispatcher', () => {
     expect(original!.verify).toBeDefined()  // confirms M4 wired it
 
     const sentinel = { code: 'UNKNOWN_SHAPE' as const, node: 'A1-er-sentinel', shape: 'er-plugin-verify' }
-    registerFamily({
+    const restore = replaceFamilyForTest('er', {
       ...original!,
       verify: () => [sentinel],
     })
@@ -206,14 +206,14 @@ describe('FamilyPlugin.verify dispatcher', () => {
       const hit = v.warnings.find(w => w.code === 'UNKNOWN_SHAPE' && (w as { node?: string }).node === 'A1-er-sentinel')
       expect(hit).toBeDefined()
     } finally {
-      registerFamily(original!)
+      restore()
     }
   })
 
-  test('a faulty plugin verify hook does not crash verifyMermaid', () => {
+  test('a faulty plugin verify hook is isolated as an error instead of silently dropped', () => {
     const original = getFamily('architecture')
     expect(original).toBeDefined()
-    registerFamily({
+    const restore = replaceFamilyForTest('architecture', {
       ...original!,
       verify: () => { throw new Error('intentional plugin fault') },
     })
@@ -222,11 +222,37 @@ describe('FamilyPlugin.verify dispatcher', () => {
       const p = parseMermaid(src)
       expect(p.ok).toBe(true)
       if (!p.ok) return
-      // Must not throw — faulty plugin warnings are silently dropped.
       const v = verifyMermaid(p.value)
-      expect(v).toBeDefined()
+      expect(v.ok).toBe(false)
+      expect(v.warnings).toContainEqual(expect.objectContaining({
+        code: 'RENDER_FAILED',
+        reason: expect.stringMatching(/architecture.*verify hook failed: intentional plugin fault/i),
+      }))
     } finally {
-      registerFamily(original!)
+      restore()
+    }
+  })
+
+  test('a faulty layout hook throws publicly and fails verify instead of returning clean 0x0 geometry', () => {
+    const original = getFamily('class')
+    expect(original).toBeDefined()
+    const restore = replaceFamilyForTest('class', {
+      ...original!,
+      layout: () => { throw new Error('intentional layout fault') },
+    })
+    try {
+      const parsed = parseMermaid('classDiagram\n  class Example')
+      expect(parsed.ok).toBe(true)
+      if (!parsed.ok) return
+      expect(() => layoutMermaid(parsed.value)).toThrow(/class.*layout hook failed: intentional layout fault/i)
+      const verified = verifyMermaid(parsed.value)
+      expect(verified.ok).toBe(false)
+      expect(verified.warnings).toContainEqual(expect.objectContaining({
+        code: 'RENDER_FAILED',
+        reason: expect.stringMatching(/class.*layout hook failed: intentional layout fault/i),
+      }))
+    } finally {
+      restore()
     }
   })
 })

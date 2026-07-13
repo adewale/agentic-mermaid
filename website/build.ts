@@ -7,9 +7,10 @@ import { BUILTIN_FAMILY_METADATA } from '../src/agent/families.ts'
 import type { BuiltinFamilyId } from '../src/agent/families.ts'
 import { verifyMermaid } from '../src/agent/index.ts'
 import { buildCapabilities } from '../src/cli/index.ts'
-import { renderMermaidASCII, renderMermaidSVG } from '../src/index.ts'
-import { getStyle, knownStyles, styleKind } from '../src/scene/style-registry.ts'
-import { HOSTED_FONT_FILES, hostedFontFaceCss } from '../src/font-manifest.ts'
+import { renderWebsiteASCII as renderMermaidASCII, renderWebsiteSVG as renderMermaidSVG } from './src/rendering.ts'
+import { knownStyleDescriptors } from '../src/scene/style-registry.ts'
+import { HOSTED_FONT_RESOURCES, RESOURCE_MANIFEST, hostedFontFaceCss } from '../src/font-manifest.ts'
+import { NodeResourceResolver } from '../src/node-resource-resolver.ts'
 import { namespaceSvgIds } from '../src/renderer.ts'
 import { HOSTED_MCP_SERVER_NAME, HOSTED_TOOLS } from '../src/mcp/hosted-server.ts'
 import { MCP_SERVER_VERSION } from '../src/mcp/tool-surface.ts'
@@ -29,6 +30,10 @@ const SOURCE_DIAGRAMS = join(SOURCE, 'diagrams')
 const OUT = join(import.meta.dir, 'public')
 const CHECK = process.argv.includes('--check')
 const PUBLIC_ONLY = process.argv.includes('--public-only')
+const VERIFIED_FONT_BY_ID = new Map(
+  new NodeResourceResolver(ROOT, RESOURCE_MANIFEST).verifyInstalled().resources
+    .map(resource => [resource.entry.identity.id, resource] as const),
+)
 
 type FileContent = string | Buffer
 const generated = new Map<string, FileContent>()
@@ -580,11 +585,9 @@ const installNotice = npmPublished
   : 'The npm package is not yet published; install from source.'
 
 const familyByExampleId = new Map<string, any>(BUILTIN_FAMILY_METADATA.map((f) => [f.editorExampleId, f]))
-const familyByDiagramType: Record<string, string> = {
-  Flowchart: 'flowchart', State: 'state', Architecture: 'architecture', Sequence: 'sequence', Class: 'class', ER: 'er', Timeline: 'timeline', Journey: 'journey', 'XY Chart': 'xychart', Pie: 'pie', Quadrant: 'quadrant', Gantt: 'gantt',
-}
+const familyByDiagramType = new Map(BUILTIN_FAMILY_METADATA.map((family) => [family.editorDiagramType, family]))
 function familyForExample(example: any) {
-  return familyByExampleId.get(example.id) ?? BUILTIN_FAMILY_METADATA.find((family) => family.id === familyByDiagramType[example.diagramType])
+  return familyByExampleId.get(example.id) ?? familyByDiagramType.get(example.diagramType)
 }
 const WEBSITE_EXAMPLE_THEME = {
   bg: '#FFFFFF',
@@ -694,7 +697,7 @@ function exampleFamilyDescription(familyId: string, fallback: string) {
   return FAMILY_REFERENCE.find(([id]) => id === familyId)?.[2] ?? fallback
 }
 
-const STYLE_THEME_PAIR_BY_FAMILY: Record<string, { look: string; theme: string; seed: number }> = {
+const STYLE_THEME_PAIR_BY_FAMILY: Record<BuiltinFamilyId, { look: string; theme: string; seed: number }> = {
   flowchart: { look: 'watercolor', theme: 'paper', seed: 4 },
   state: { look: 'chalkboard', theme: 'dusk', seed: 2 },
   architecture: { look: 'blueprint', theme: 'nord', seed: 1 },
@@ -704,33 +707,15 @@ const STYLE_THEME_PAIR_BY_FAMILY: Record<string, { look: string; theme: string; 
   timeline: { look: 'hand-drawn', theme: 'catppuccin-latte', seed: 3 },
   journey: { look: 'status-dashboard', theme: 'github-dark', seed: 0 },
   xychart: { look: 'accessible-high-contrast', theme: 'zinc-light', seed: 0 },
-  pie: { look: 'pen-and-ink', theme: 'tufte', seed: 7 },
+  pie: { look: 'pen-and-ink', theme: 'palette:tufte', seed: 7 },
   quadrant: { look: 'ops-schematic', theme: 'nord-light', seed: 8 },
   gantt: { look: 'architectural-plan', theme: 'solarized-light', seed: 9 },
   mindmap: { look: 'hand-drawn', theme: 'paper', seed: 10 },
   gitgraph: { look: 'ops-schematic', theme: 'github-light', seed: 11 },
 }
 
-const STYLE_THEME_LABELS: Record<string, string> = {
-  'accessible-high-contrast': 'Accessible Contrast',
-  'architectural-plan': 'Plan Drafting',
-  'catppuccin-latte': 'Catppuccin Latte',
-  'cupertino': 'Cupertino',
-  'github-dark': 'GitHub Dark',
-  'github-light': 'GitHub Light',
-  'hand-drawn': 'Hand-drawn',
-  'ops-schematic': 'Compact Trace Map',
-  'patent-drawing': 'Patent Hatching',
-  'pen-and-ink': 'Pen & ink',
-  'publication-figure': 'Report Figure',
-  'risograph': 'Riso Print',
-  'solarized-light': 'Solarized Light',
-  'status-dashboard': 'Dark Ops Dashboard',
-  'zinc-light': 'Zinc Light',
-}
-
 function displayStyleName(name: string) {
-  return STYLE_THEME_LABELS[name] ?? name.split('-').map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ')
+  return knownStyleDescriptors().find(descriptor => descriptor.inputName === name || descriptor.identity.id === name)?.displayLabel ?? name
 }
 
 function styleThemeExamples(editorExamples: any[]) {
@@ -1181,7 +1166,7 @@ function comparisonsHtml() {
   return `<div class="comparison-summary">
 <p><strong>Read this page as evidence, not a shootout.</strong> Each row keeps the same Mermaid source visible, then shows what a browser Mermaid render, upstream Beautiful Mermaid, and Agentic Mermaid can produce locally.</p>
 <ul>
-<li>Agentic Mermaid covers every registered family shown here and exposes the same source to agents.</li>
+<li>Agentic Mermaid renders every comparison family shown here and exposes the same source to agents.</li>
 <li>Beautiful Mermaid panels appear only for families it supports; absent panels are labeled, not hidden.</li>
 <li>The runtime Mermaid panels are progressive enhancement: source stays visible even before the browser renderer loads.</li>
 </ul>
@@ -1818,19 +1803,20 @@ function injectHeroStyleFigure(html: string) {
 }
 // Fact-strip counts derived from the registries so the published numbers cannot
 // drift (the strip previously hard-coded "21 palettes" against 20 real ones).
-const STYLE_LOOK_COUNT = knownStyles().filter((name) => name !== 'crisp' && styleKind(getStyle(name)!) === 'look').length
-const STYLE_THEME_COUNT = knownStyles().filter((name) => name !== 'crisp' && styleKind(getStyle(name)!) === 'theme').length
+const STYLE_DESCRIPTORS = knownStyleDescriptors()
+const STYLE_LOOK_COUNT = STYLE_DESCRIPTORS.filter(descriptor => descriptor.category === 'look').length
+const STYLE_THEME_COUNT = STYLE_DESCRIPTORS.filter(descriptor => descriptor.category === 'theme').length
 // Human-readable reference for the product's headline feature: every style and
 // palette, with both the display name (what the editor menus show) and the API
 // id (what docs, CLI, and render options take) — the two vocabularies had no
 // visible mapping anywhere. Generated from the registry so it cannot drift.
 function themingReferenceHtml() {
-  const looks = knownStyles().filter((n) => n !== 'crisp' && styleKind(getStyle(n)!) === 'look')
-  const themes = knownStyles().filter((n) => n !== 'crisp' && styleKind(getStyle(n)!) === 'theme')
-  const lookRows = looks.map((n) => `<tr><td>${escapeHtml(displayStyleName(n))}</td><td><code>${escapeHtml(n)}</code></td><td>${escapeHtml(getStyle(n)!.blurb ?? '')}</td></tr>`).join('')
-  const themeCells = themes.map((n) => `<li><code>${escapeHtml(n)}</code></li>`).join('')
+  const looks = STYLE_DESCRIPTORS.filter(descriptor => descriptor.category === 'look')
+  const themes = STYLE_DESCRIPTORS.filter(descriptor => descriptor.category === 'theme')
+  const lookRows = looks.map(descriptor => `<tr><td>${escapeHtml(descriptor.displayLabel)}</td><td><code>${escapeHtml(descriptor.inputName)}</code></td><td>${escapeHtml(descriptor.spec.blurb ?? '')}</td></tr>`).join('')
+  const themeCells = themes.map(descriptor => `<li><code>${escapeHtml(descriptor.inputName)}</code></li>`).join('')
   return `<h2>Built-in styles</h2>
-<p>The editor menus show the display name; render options, the CLI, and MCP tools take the <code>id</code>. Stack a style with a palette: <code>--style ${escapeHtml(looks[0] ?? 'watercolor')},${escapeHtml(themes[0] ?? 'paper')}</code>.</p>
+<p>The editor menus show the display name; render options, the CLI, and MCP tools take the <code>id</code>. Stack a style with a palette: <code>--style ${escapeHtml(looks[0]?.inputName ?? 'watercolor')},${escapeHtml(themes[0]?.inputName ?? 'paper')}</code>.</p>
 <table class="warning-table styles-table"><thead><tr><th>Name</th><th>id</th><th>Best for</th></tr></thead><tbody>${lookRows}</tbody></table>
 <h2>Palettes</h2>
 <p>A palette is a colors-only style: pass its id alone for recoloring, or after a style id to recolor that style.</p>
@@ -1946,7 +1932,11 @@ await emitStylesheet()
 await emitThemeScript()
 for (const asset of ['favicon.svg', 'shader-mark.js']) await copySourceAsset(asset)
 for (const asset of ['favicon.ico', 'apple-touch-icon.png', 'og-image.png']) await copyFileFrom(join(ROOT, 'public', asset), asset)
-for (const font of HOSTED_FONT_FILES) await copyFileFrom(join(ROOT, 'assets', 'fonts', font), `fonts/${font}`)
+for (const font of HOSTED_FONT_RESOURCES) {
+  const verified = VERIFIED_FONT_BY_ID.get(font.identity.id)
+  if (!verified) throw new Error(`Required font was not verified: ${font.identity.id}`)
+  await emit(`fonts/${font.file}`, Buffer.from(verified.readBytes()))
+}
 for (const name of SUBSET_FONT_FILES) await copyFileFrom(join(SOURCE_ASSETS, 'fonts', `${name}.subset.woff2`), `fonts/${name}.subset.woff2`)
 await copyDir(SOURCE_DIAGRAMS, 'diagrams')
 await copyFileFrom(join(ROOT, 'docs', 'schemas', 'style-spec.schema.json'), 'schemas/style-spec.schema.json')
@@ -2303,25 +2293,28 @@ ${aboutDiagram('flowchart TD\n  M[Mermaid] --> BM[Beautiful Mermaid]\n  MA[merma
 `
 // Example-jump descriptions. This replaces the removed Diagram families page:
 // users choose a concrete example instead of landing on a second reference list.
-const FAMILY_REFERENCE: Array<[id: string, label: string, draws: string]> = [
-  ['flowchart', 'Flowchart', 'Decision flow with labeled branches.'],
-  ['state', 'State', 'Lifecycle using Mermaid stateDiagram-v2 syntax.'],
-  ['sequence', 'Sequence', 'Request/response messages between participants.'],
-  ['timeline', 'Timeline', 'Chronological milestones with sections.'],
-  ['class', 'Class', 'Classes with members and relationships.'],
-  ['er', 'ER', 'Entities, attributes, keys, and cardinality markers.'],
-  ['journey', 'Journey', 'Scored user tasks grouped by section.'],
-  ['architecture', 'Architecture', 'Services, groups, icons, and routed connections.'],
-  ['xychart', 'XY chart', 'Bar and line series using xychart syntax.'],
-  ['pie', 'Pie', 'Proportional slices with values shown in the legend.'],
-  ['quadrant', 'Quadrant', 'Two-axis priority map with labeled regions and points.'],
-  ['gantt', 'Gantt', 'Sections, dependencies, status tags, and a milestone.'],
-]
-// Number-word for the family count, derived from the registry so published
-// prose cannot drift from BUILTIN_FAMILY_METADATA.
-const FAMILY_COUNT_WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty']
-const familyCountWord = FAMILY_COUNT_WORDS[BUILTIN_FAMILY_METADATA.length] ?? String(BUILTIN_FAMILY_METADATA.length)
-const examplesLead = `${familyCountWord.charAt(0).toUpperCase()}${familyCountWord.slice(1)} diagram families with agent tasks, Style + Palette combinations, and the richer shared examples corpus used by project tooling.`
+const FAMILY_DESCRIPTION: Record<BuiltinFamilyId, string> = {
+  flowchart: 'Decision flow with labeled branches.',
+  state: 'Lifecycle using Mermaid stateDiagram-v2 syntax.',
+  sequence: 'Request/response messages between participants.',
+  timeline: 'Chronological milestones with sections.',
+  class: 'Classes with members and relationships.',
+  er: 'Entities, attributes, keys, and cardinality markers.',
+  journey: 'Scored user tasks grouped by section.',
+  architecture: 'Services, groups, icons, and routed connections.',
+  xychart: 'Bar and line series using xychart syntax.',
+  pie: 'Proportional slices with values shown in the legend.',
+  quadrant: 'Two-axis priority map with labeled regions and points.',
+  gantt: 'Sections, dependencies, status tags, and a milestone.',
+  mindmap: 'A rooted hierarchy with nested topics and shaped nodes.',
+  gitgraph: 'Branches, commits, merges, tags, and cherry-picks.',
+}
+// Labels and ordering come from the descriptor projection. The keyed prose map
+// is exhaustive, so a new built-in cannot silently disappear from the website.
+const FAMILY_REFERENCE: Array<[id: BuiltinFamilyId, label: string, draws: string]> = BUILTIN_FAMILY_METADATA.map(
+  family => [family.id, family.label, FAMILY_DESCRIPTION[family.id]],
+)
+const examplesLead = `${BUILTIN_FAMILY_METADATA.length} diagram families with agent tasks, Style + Palette combinations, and the richer shared examples corpus used by project tooling.`
 // The MCP config copy-card, same widget contract as the homepage prompt card
 // (data-copy-widget + data-copy-target + copy-prompt-btn, wired by theme.js).
 // Getting started is the canonical setup home for this config.
@@ -2577,7 +2570,7 @@ const docPages = [
   ['docs/theming/index.html', 'Styles and palettes', 'A style describes diagram rendering; a colors-only style is a palette.', '<p>One primitive covers visual rendering: a <strong>style</strong> is a partial, composable description of palette, typography, stroke character, and fills. A style that only sets colours is a palette. Styles such as <code>hand-drawn</code>, <code>watercolor</code>, and <code>blueprint</code> also change renderer treatment. Styles stack left \u2192 right (<code>{ style: [\'hand-drawn\', \'dracula\'] }</code> gives hand-drawn geometry with the dracula palette), the optional <code>seed</code> re-rolls styled ink without moving layout, and custom styles are plain JSON records. Use <a href="/docs/custom-styles/">Custom styles</a> for schema, complete JSON examples, and screenshots. The browser editor exposes both pickers: Style chooses renderer treatment; Palette chooses colors. SVG output can also inherit CSS variables for live palette swaps.</p>' + themingReferenceHtml() + docsIndex],
   ['docs/custom-styles/index.html', 'Custom styles', 'Author JSON style files, validate them with the schema, and compare cookbook screenshots.', customStylesBody + docsIndex],
   ['docs/quality/index.html', 'Quality', 'Determinism, verify warnings, and layout metrics make diagram edits reviewable.', '<p><code>verify.ok</code> is a gate, not a promise of visual perfection. Include SVG/PNG/ASCII artifacts for human review when the change is visual.</p>\n<p><strong>Warnings are tiered</strong> so an agent knows how to react: <em>structural</em> problems can block a safe return and should be fixed first; <em>geometric</em> warnings ask for visual review; <em>lint</em> warnings mean a smaller or cleaner edit. Every code has a page under <a href="/warnings/">warnings</a> with what triggers it and how to clear it.</p>\n<p><strong>Evidence is curated, not raw private prompts:</strong> rely on CI, deterministic layout metrics, and generated artifacts to review a change. Private eval prompts and holdbacks are not public site content.</p>' + docsIndex],
-  ['docs/fork-differences/index.html', 'Fork differences', 'Agentic Mermaid adds styled rendering, typed editing, deterministic verification, CLI, MCP, and more families.', `<p>Agentic Mermaid (<code>agentic-mermaid</code>) forks <a href="https://github.com/lukilabs/beautiful-mermaid">beautiful-mermaid</a> for a job the render-only original did not have: agents creating polished, branded diagrams that stay editable as Mermaid source.</p>\n<ul>\n<li><strong>Typed agent surface.</strong> A render-only library forces an agent to regenerate a whole diagram to change one node. Here new diagrams are authored as source then parsed/verified/rendered, and existing diagrams go parse → narrow → mutate → verify → serialize via <code>agentic-mermaid/agent</code>. All registered families are structured-when-narrowed; unmodeled syntax still round-trips losslessly as opaque fallback.</li>\n<li><strong>Deterministic, verifiable layout.</strong> Layout is byte-identical across processes, and <code>verifyMermaid</code> returns structured warnings in three tiers (structural, geometric, lint) plus perceptual quality metrics.</li>\n<li><strong>More families.</strong> Adds ${forkAddedFamilyList} beyond the original Beautiful Mermaid family set.</li>\n<li><strong>Tools.</strong> An <code>am</code> CLI, an <code>agentic-mermaid-mcp</code> Code Mode MCP server (stdio + opt-in HTTP/SSE), and a hosted MCP endpoint at <code>/mcp</code>. There is no REST render API.</li>\n<li><strong>Style + Palette rendering.</strong> Named looks and palette stacks keep appearance outside Mermaid source while preserving deterministic geometry.</li>\n</ul>\n<p>See <a href="/examples/">examples</a> for the family list and rendered source, and <a href="/about/">About</a> for the lineage.</p>` + docsIndex],
+  ['docs/fork-differences/index.html', 'Fork differences', 'Agentic Mermaid adds styled rendering, typed editing, deterministic verification, CLI, MCP, and more families.', `<p>Agentic Mermaid (<code>agentic-mermaid</code>) forks <a href="https://github.com/lukilabs/beautiful-mermaid">beautiful-mermaid</a> for a job the render-only original did not have: agents creating polished, branded diagrams that stay editable as Mermaid source.</p>\n<ul>\n<li><strong>Typed agent surface.</strong> A render-only library forces an agent to regenerate a whole diagram to change one node. Here new diagrams are authored as source then parsed/verified/rendered, and existing diagrams go parse → narrow → mutate → verify → serialize via <code>agentic-mermaid/agent</code>. Every registered built-in family is structured when narrowed; unmodeled syntax still round-trips losslessly as opaque fallback.</li>\n<li><strong>Deterministic, verifiable layout.</strong> Layout is byte-identical across processes, and <code>verifyMermaid</code> returns structured warnings in three tiers (structural, geometric, lint) plus perceptual quality metrics.</li>\n<li><strong>More families.</strong> Adds ${forkAddedFamilyList} beyond the original Beautiful Mermaid family set; that list is generated from the same descriptor projection that drives examples and capabilities.</li>\n<li><strong>Tools.</strong> An <code>am</code> CLI, an <code>agentic-mermaid-mcp</code> Code Mode MCP server (stdio + opt-in HTTP/SSE), and a hosted MCP endpoint at <code>/mcp</code>. There is no REST render API.</li>\n<li><strong>Style + Palette rendering.</strong> Named looks and palette stacks keep appearance outside Mermaid source while preserving deterministic geometry.</li>\n</ul>\n<p>See <a href="/examples/">examples</a> for the generated family list and rendered source, and <a href="/about/">About</a> for the lineage.</p>` + docsIndex],
   ['examples/index.html', 'Examples', examplesLead, examplesShowcaseHtml(EDITOR_EXAMPLES), '/examples/'],
   ['comparisons/index.html', 'Comparisons', 'One source per family, rendered three ways.', comparisonsHtml(), '/comparisons/'],
 ]
@@ -2974,12 +2967,11 @@ if (!PUBLIC_ONLY) {
   const harness = Buffer.from((await harnessBuild.outputs[0]!.text()).replace(/[ \t]+$/gm, ''))
   if (!harness.includes('import("./user.js")')) throw new Error('execute-harness bundle lost the ./user.js import')
   const resvgWasm = Buffer.from(await Bun.file(join(ROOT, 'node_modules', '@resvg', 'resvg-wasm', 'index_bg.wasm')).arrayBuffer())
-  const hostedFonts = await Promise.all(
-    HOSTED_FONT_FILES.map(async name => ({
-      name,
-      bytes: Buffer.from(await Bun.file(join(ROOT, 'assets', 'fonts', name)).arrayBuffer()),
-    })),
-  )
+  const hostedFonts = HOSTED_FONT_RESOURCES.map(resource => {
+    const verified = VERIFIED_FONT_BY_ID.get(resource.identity.id)
+    if (!verified) throw new Error(`Required font was not verified: ${resource.identity.id}`)
+    return { name: resource.file, bytes: Buffer.from(verified.readBytes()) }
+  })
   await emitWorkerArtifact('execute-harness.js.txt', harness)
   await emitWorkerArtifact('resvg.wasm', resvgWasm)
   for (const font of hostedFonts) await emitWorkerArtifact(font.name, font.bytes)

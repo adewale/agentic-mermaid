@@ -10,14 +10,15 @@
 // legends, and ALL text stay crisp so charts remain readable. Labels get a
 // page-colored paint-order halo (cartographic practice: text drawn last,
 // never perturbed — SPEC §7). Marker defs pass through with
-// markerUnits="userSpaceOnUse" injected so arrowheads don't scale with
+// markerUnits="userSpaceOnUse" projected from typed marker resources so arrowheads don't scale with
 // replacement stroke widths (the Phase 0 lesson). The original connector
 // element is kept as an invisible carrier (stroke-opacity="0"), preserving
 // markers, class/data-* attributes, and hit geometry under the sketch.
 //
-// Paint truth comes from the mark's own crisp element attributes (parsed with
-// the owned-format element parser, not blind regexes), with semantic MarkPaint
-// as the fallback for class-painted marks: a child with
+// Shape paint truth still comes from the mark's owned-format element attributes
+// with semantic MarkPaint as the fallback for class-painted marks. Connector
+// paint/stroke/route truth is wholly typed: styled backends never inspect a
+// connector's crisp serialization. A shape child with
 // stroke="none" — or an author-suppressed stroke-width of 0 — never grows a
 // synthesized outline, and fills keep their semantic colors (gantt status,
 // pie slices) unless the style's fill policy redraws them.
@@ -26,32 +27,17 @@
 import { RoughGenerator } from 'roughjs/bin/generator'
 import type { Geometry, SceneDoc, SceneNode, SceneTransform, ShapeMark, ConnectorMark, TextMark } from './ir.ts'
 import type { StyleBackend, StyleBackendContext } from './backend.ts'
-import { registerBackend, composeGroup, pageRectFor } from './backend.ts'
+import { registerBuiltInBackend, composeGroup, pageRectFor } from './backend.ts'
 import { nodeSeed } from './seed.ts'
 import { topLevelElements } from './fidelity.ts'
 import type { StyleSpec } from './style-registry.ts'
 import { ensureSvgIdentity } from './identity.ts'
+import { sceneRoleTraits } from './roles.ts'
+import { graphicalBackendCapabilityClaims } from './capabilities.ts'
+import { projectMarkerUnits } from './marker-resources.ts'
+import { escapeAttr } from '../multiline-utils.ts'
 
 const gen = new RoughGenerator()
-
-/** Roles whose shapes get redrawn as sketchy strokes. Everything else keeps
- *  its crisp serialization (role-aware restraint — SPEC §3.2). */
-const SKETCH_SHAPE_ROLES = new Set([
-  'node', 'group', 'group-header', 'actor', 'activation', 'block', 'note',
-  'entity', 'class-box', 'plate', 'section', 'task', 'milestone', 'bar',
-  'pie-slice', 'event', 'period', 'service', 'actor-pill',
-])
-
-/** Connector roles that get sketched. */
-const SKETCH_CONNECTOR_ROLES = new Set([
-  'edge', 'relationship', 'message', 'series', 'lifeline', 'rail',
-])
-
-/** Text roles that get the readability halo. Titles/axes keep plain crisp
- *  text (they sit on clean ground). */
-const HALO_TEXT_ROLES = new Set([
-  'label', 'member', 'attribute', 'cardinality', 'legend', 'axis', 'section', 'group-header',
-])
 
 export interface RoughParams {
   roughness: number
@@ -64,12 +50,36 @@ export interface RoughParams {
   fillWeight: number
 }
 
+/** SVG stroke fields that survive semantic connector lowering into a visible
+ * sketch path. Shape sketching leaves these unspecified and retains the
+ * long-standing round-cap/round-join defaults. */
+export interface SketchStrokeProjection {
+  dashArray?: string
+  dashOffset?: string | number
+  lineCap?: 'butt' | 'round' | 'square'
+  lineJoin?: 'arcs' | 'bevel' | 'miter' | 'miter-clip' | 'round'
+  miterLimit?: number
+  opacity?: string | number
+  pathLength?: number
+  paintOrder?: string
+  nonScaling?: boolean
+}
+
 /** A pluggable geometry renderer: return null to fall back to rough.js.
  *  HybridBackend supplies perfect-freehand ribbons and watercolor washes;
  *  RoughBackend uses pure rough.js. */
 export type GeometrySketcher = (
   geom: Geometry,
-  opts: { seed: number; stroke: string; width: number; fill: string | undefined; p: RoughParams; style: StyleSpec | undefined; dash: string | undefined },
+  opts: {
+    seed: number
+    stroke: string
+    width: number
+    fill: string | undefined
+    p: RoughParams
+    style: StyleSpec | undefined
+    dash: string | undefined
+    strokeProjection: SketchStrokeProjection | undefined
+  },
 ) => string | null
 
 /** Per-render walk state — threaded, never module-global, so backends can
@@ -106,14 +116,37 @@ function roughOptions(p: RoughParams, seed: number, stroke: string, strokeWidth:
   }
 }
 
+function projectedStrokeAttributes(projection: SketchStrokeProjection = {}): string {
+  const attrs = [
+    `stroke-linecap="${projection.lineCap ?? 'round'}"`,
+    `stroke-linejoin="${projection.lineJoin ?? 'round'}"`,
+    ...(projection.miterLimit !== undefined ? [`stroke-miterlimit="${escapeAttr(String(projection.miterLimit))}"`] : []),
+    ...(projection.dashArray !== undefined ? [`stroke-dasharray="${escapeAttr(projection.dashArray)}"`] : []),
+    ...(projection.dashOffset !== undefined ? [`stroke-dashoffset="${escapeAttr(String(projection.dashOffset))}"`] : []),
+    ...(projection.opacity !== undefined ? [`stroke-opacity="${escapeAttr(String(projection.opacity))}"`] : []),
+    ...(projection.pathLength !== undefined ? [`pathLength="${escapeAttr(String(projection.pathLength))}"`] : []),
+    ...(projection.paintOrder !== undefined ? [`paint-order="${escapeAttr(projection.paintOrder)}"`] : []),
+    ...(projection.nonScaling ? ['vector-effect="non-scaling-stroke"'] : []),
+  ]
+  return attrs.join(' ')
+}
+
 /** Serialize a rough Drawable's OpSets into <path> elements. */
-function opsToSvg(sets: Array<{ type: string; ops: unknown[] }>, stroke: string, strokeWidth: number, fill: string | undefined, p: RoughParams, extra = ''): string {
+function opsToSvg(
+  sets: Array<{ type: string; ops: unknown[] }>,
+  stroke: string,
+  strokeWidth: number,
+  fill: string | undefined,
+  p: RoughParams,
+  projection: SketchStrokeProjection = {},
+): string {
   const out: string[] = []
+  const strokeAttrs = projectedStrokeAttributes(projection)
   for (const set of sets) {
     const d = gen.opsToPath(set as Parameters<typeof gen.opsToPath>[0], 2)
     if (!d) continue
     if (set.type === 'path') {
-      out.push(`<path d="${d}" fill="none" stroke="${stroke}" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round"${extra} />`)
+      out.push(`<path d="${d}" fill="none" stroke="${stroke}" stroke-width="${strokeWidth}" ${strokeAttrs} />`)
     } else if (set.type === 'fillPath') {
       out.push(`<path d="${d}" fill="${fill}" fill-opacity="0.92" stroke="none" />`)
     } else if (set.type === 'fillSketch') {
@@ -130,34 +163,52 @@ function roundedRectPath(x: number, y: number, w: number, h: number, r: number):
 
 /** Draw one geometry with rough.js. `fill` undefined means outline-only.
  *  Exported for HybridBackend's fallback path. */
-export function sketchGeometryRough(geom: Geometry, seed: number, stroke: string, strokeWidth: number, fill: string | undefined, p: RoughParams, dash?: string): string {
-  return sketchGeometry(geom, seed, stroke, strokeWidth, fill, p, dash)
+export function sketchGeometryRough(
+  geom: Geometry,
+  seed: number,
+  stroke: string,
+  strokeWidth: number,
+  fill: string | undefined,
+  p: RoughParams,
+  dash?: string,
+  strokeProjection?: SketchStrokeProjection,
+): string {
+  return sketchGeometry(geom, seed, stroke, strokeWidth, fill, p, dash, strokeProjection)
 }
 
 /** Draw one geometry with rough.js. `fill` undefined means outline-only. */
-function sketchGeometry(geom: Geometry, seed: number, stroke: string, strokeWidth: number, fill: string | undefined, p: RoughParams, dash?: string): string {
-  const extra = dash ? ` stroke-dasharray="${dash}"` : ''
+function sketchGeometry(
+  geom: Geometry,
+  seed: number,
+  stroke: string,
+  strokeWidth: number,
+  fill: string | undefined,
+  p: RoughParams,
+  dash?: string,
+  strokeProjection?: SketchStrokeProjection,
+): string {
+  const projection = { ...strokeProjection, ...(dash !== undefined ? { dashArray: dash } : {}) }
   const opts = roughOptions(p, seed, stroke, strokeWidth, fill)
   try {
     switch (geom.kind) {
       case 'rect': {
         if ((geom.rx ?? 0) > 0.5) {
-          return opsToSvg(gen.path(roundedRectPath(geom.x, geom.y, geom.width, geom.height, geom.rx!), opts).sets, stroke, strokeWidth, fill, p, extra)
+          return opsToSvg(gen.path(roundedRectPath(geom.x, geom.y, geom.width, geom.height, geom.rx!), opts).sets, stroke, strokeWidth, fill, p, projection)
         }
-        return opsToSvg(gen.rectangle(geom.x, geom.y, geom.width, geom.height, opts).sets, stroke, strokeWidth, fill, p, extra)
+        return opsToSvg(gen.rectangle(geom.x, geom.y, geom.width, geom.height, opts).sets, stroke, strokeWidth, fill, p, projection)
       }
       case 'circle':
-        return opsToSvg(gen.circle(geom.cx, geom.cy, geom.r * 2, opts).sets, stroke, strokeWidth, fill, p, extra)
+        return opsToSvg(gen.circle(geom.cx, geom.cy, geom.r * 2, opts).sets, stroke, strokeWidth, fill, p, projection)
       case 'ellipse':
-        return opsToSvg(gen.ellipse(geom.cx, geom.cy, geom.rx * 2, geom.ry * 2, opts).sets, stroke, strokeWidth, fill, p, extra)
+        return opsToSvg(gen.ellipse(geom.cx, geom.cy, geom.rx * 2, geom.ry * 2, opts).sets, stroke, strokeWidth, fill, p, projection)
       case 'line':
-        return opsToSvg(gen.line(geom.x1, geom.y1, geom.x2, geom.y2, opts).sets, stroke, strokeWidth, undefined, p, extra)
+        return opsToSvg(gen.line(geom.x1, geom.y1, geom.x2, geom.y2, opts).sets, stroke, strokeWidth, undefined, p, projection)
       case 'polygon':
-        return opsToSvg(gen.polygon(geom.points.map(q => [q.x, q.y] as [number, number]), opts).sets, stroke, strokeWidth, fill, p, extra)
+        return opsToSvg(gen.polygon(geom.points.map(q => [q.x, q.y] as [number, number]), opts).sets, stroke, strokeWidth, fill, p, projection)
       case 'polyline':
-        return opsToSvg(gen.linearPath(geom.points.map(q => [q.x, q.y] as [number, number]), opts).sets, stroke, strokeWidth, undefined, p, extra)
+        return opsToSvg(gen.linearPath(geom.points.map(q => [q.x, q.y] as [number, number]), opts).sets, stroke, strokeWidth, undefined, p, projection)
       case 'path':
-        return opsToSvg(gen.path(geom.d, opts).sets, stroke, strokeWidth, fill, p, extra)
+        return opsToSvg(gen.path(geom.d, opts).sets, stroke, strokeWidth, fill, p, projection)
       case 'compound':
         // Callers handle compound per-child (per-child paint differs).
         return ''
@@ -167,12 +218,21 @@ function sketchGeometry(geom: Geometry, seed: number, stroke: string, strokeWidt
   }
 }
 
-function sketchGeometryVia(walk: Walk, geom: Geometry, seed: number, stroke: string, width: number, fill: string | undefined, dash?: string): string {
+function sketchGeometryVia(
+  walk: Walk,
+  geom: Geometry,
+  seed: number,
+  stroke: string,
+  width: number,
+  fill: string | undefined,
+  dash?: string,
+  strokeProjection?: SketchStrokeProjection,
+): string {
   if (walk.sketcher) {
-    const out = walk.sketcher(geom, { seed, stroke, width, fill, p: walk.p, style: walk.ctx.style, dash })
+    const out = walk.sketcher(geom, { seed, stroke, width, fill, p: walk.p, style: walk.ctx.style, dash, strokeProjection })
     if (out !== null) return out
   }
-  return sketchGeometry(geom, seed, stroke, width, fill, walk.p, dash)
+  return sketchGeometry(geom, seed, stroke, width, fill, walk.p, dash, strokeProjection)
 }
 
 /** Inject attributes right after the opening tag of an owned-format element.
@@ -186,9 +246,9 @@ function injectAttrs(element: string, tag: string, attrs: string): string {
  *  Number() gets wrong: unit suffixes ('4px' → 4) and an explicit 0 (an
  *  author-suppressed border must NOT fall back to 1 — return 0 so the caller
  *  skips outline synthesis entirely). */
-function strokeWidthRatio(attr: string | undefined): number {
+function strokeWidthRatio(attr: string | number | undefined): number {
   if (attr === undefined) return 1
-  const parsed = parseFloat(attr)
+  const parsed = typeof attr === 'number' ? attr : parseFloat(attr)
   if (Number.isNaN(parsed)) return 1
   return parsed
 }
@@ -275,34 +335,44 @@ function isBoxFill(fill: string): boolean {
 
 function sketchConnector(node: ConnectorMark, walk: Walk): string {
   if (node.lineStyle === 'invisible' || node.crisp === '') return node.crisp
-  const els = topLevelElements(node.crisp)
-  const el = els[0]
-  if (!el) return node.crisp
-  const stroke = attrOrPaint(el.attrs.get('stroke'), node.paint.stroke) ?? 'var(--_line)'
-  const widthRatio = strokeWidthRatio(attrOrPaint(el.attrs.get('stroke-width'), node.paint.strokeWidth))
+  const stroke = node.stroke.color
+  const widthRatio = strokeWidthRatio(node.stroke.width)
   if (widthRatio <= 0) return node.crisp // author-suppressed stroke stays suppressed
   const width = walk.p.strokeWidth * widthRatio
   const seed = nodeSeed(walk.ctx.seed, node.id, 'stroke') || 1
-  const dash = attrOrPaint(el.attrs.get('stroke-dasharray'), node.paint.strokeDasharray)
+  const dash = node.stroke.dash
+    ? typeof node.stroke.dash.array === 'string' ? node.stroke.dash.array : node.stroke.dash.array.join(' ')
+    : undefined
+  const strokeProjection: SketchStrokeProjection = {
+    ...(dash !== undefined ? { dashArray: dash } : {}),
+    ...(node.stroke.dash?.offset !== undefined ? { dashOffset: node.stroke.dash.offset } : {}),
+    lineCap: node.stroke.lineCap,
+    lineJoin: node.stroke.lineJoin,
+    miterLimit: node.stroke.miterLimit,
+    ...(node.stroke.opacity !== undefined ? { opacity: node.stroke.opacity } : {}),
+    ...(node.stroke.pathLength !== undefined ? { pathLength: node.stroke.pathLength } : {}),
+    ...(node.stroke.paintOrder !== undefined ? { paintOrder: node.stroke.paintOrder } : {}),
+    nonScaling: node.stroke.nonScaling,
+  }
   let sketched = ''
   const geom = node.geometry
   if (geom.kind === 'polyline') {
-    sketched = sketchGeometryVia(walk, { kind: 'polyline', points: geom.points }, seed, stroke, width, undefined, dash)
+    sketched = sketchGeometryVia(walk, { kind: 'polyline', points: geom.points }, seed, stroke, width, undefined, dash, strokeProjection)
   } else if (geom.kind === 'line') {
-    sketched = sketchGeometryVia(walk, geom, seed, stroke, width, undefined, dash)
+    sketched = sketchGeometryVia(walk, geom, seed, stroke, width, undefined, dash, strokeProjection)
   } else if (geom.points && geom.points.length > 1) {
     // Curved-bend paths carry their source polyline; freehand-capable
     // sketchers prefer the points, rough falls back to the path d.
-    sketched = sketchGeometryVia(walk, { kind: 'polyline', points: geom.points }, seed, stroke, width, undefined, dash)
-      || sketchGeometryVia(walk, { kind: 'path', d: geom.d }, seed, stroke, width, undefined, dash)
+    sketched = sketchGeometryVia(walk, { kind: 'polyline', points: geom.points }, seed, stroke, width, undefined, dash, strokeProjection)
+      || sketchGeometryVia(walk, { kind: 'path', d: geom.d }, seed, stroke, width, undefined, dash, strokeProjection)
   } else {
-    sketched = sketchGeometryVia(walk, { kind: 'path', d: geom.d }, seed, stroke, width, undefined, dash)
+    sketched = sketchGeometryVia(walk, { kind: 'path', d: geom.d }, seed, stroke, width, undefined, dash, strokeProjection)
   }
   if (!sketched) return node.crisp
   // Keep the original element as an invisible carrier: markers, class/data-*
   // attributes, and hit geometry survive (stroke-opacity 0 hides the crisp
   // stroke while markers still render at full opacity from markerUnits defs).
-  const carrier = injectAttrs(node.crisp, el.tag, 'stroke-opacity="0"')
+  const carrier = injectAttrs(node.crisp, node.geometry.kind, 'stroke-opacity="0"')
   return `${carrier}\n${transformedStyledGeometry(sketched, node.transform)}`
 }
 
@@ -338,21 +408,17 @@ function drawNodeStyled(node: SceneNode, walk: Walk): string {
     case 'prelude':
       return node.crisp
     case 'document':
-      return node.element === 'definitions'
-        ? node.crisp.replace(/<marker (?![^>]*markerUnits)/g, '<marker markerUnits="userSpaceOnUse" ')
+      return node.element === 'definitions' && node.markerResources?.length
+        ? projectMarkerUnits(node.crisp, node.markerResources, 'userSpaceOnUse')
         : node.crisp
     case 'raw':
-      if (node.role === 'defs') {
-        // Arrowheads must not scale with replacement stroke widths.
-        return node.crisp.replace(/<marker (?![^>]*markerUnits)/g, '<marker markerUnits="userSpaceOnUse" ')
-      }
       return node.crisp
     case 'shape':
-      return SKETCH_SHAPE_ROLES.has(node.role) ? sketchShape(node, walk) : node.crisp
+      return sceneRoleTraits(node.role).sketch === 'shape' ? sketchShape(node, walk) : node.crisp
     case 'connector':
-      return SKETCH_CONNECTOR_ROLES.has(node.role) ? sketchConnector(node, walk) : node.crisp
+      return sceneRoleTraits(node.role).sketch === 'connector' ? sketchConnector(node, walk) : node.crisp
     case 'text':
-      return HALO_TEXT_ROLES.has(node.role) ? haloText(node) : node.crisp
+      return sceneRoleTraits(node.role).textHalo ? haloText(node) : node.crisp
     case 'group':
       return composeGroup(
         node.open,
@@ -366,6 +432,7 @@ function drawNodeStyled(node: SceneNode, walk: Walk): string {
 export function createSketchBackend(id: string, sketcher?: GeometrySketcher): StyleBackend {
   return {
     id,
+    capabilities: graphicalBackendCapabilityClaims(`backend:${id}`, 'sketch', sketcher ? 'hybrid' : 'rough'),
     drawNode(node: SceneNode, ctx: StyleBackendContext): string {
       return drawNodeStyled(node, { ctx, p: paramsOf(ctx.style), sketcher })
     },
@@ -389,4 +456,4 @@ export function createSketchBackend(id: string, sketcher?: GeometrySketcher): St
 
 export const RoughBackend: StyleBackend = createSketchBackend('rough')
 
-registerBackend(RoughBackend)
+registerBuiltInBackend(RoughBackend)

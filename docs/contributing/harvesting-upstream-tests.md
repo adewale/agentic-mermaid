@@ -31,6 +31,15 @@ The contract that keeps it honest:
    README (state-reset tests, internal helper unit tests, renderer DOM
    assertions) so "the entirety of their suite" is fully accounted for.
 
+These committed benches and the docs corpus also feed the generated
+`docs/project/upstream-mermaid-manifest.json`. The manifest records stable
+feature/example identities and fingerprints alongside the installed Mermaid
+config-key and theme-variable schemas. `bun run upstream-manifest:check` keeps
+that projection fresh; `diffUpstreamMermaidManifests` reports added, removed,
+and changed semantic entries on an upgrade instead of only saying that a file
+hash changed. Do not hand-edit the generated manifest or copy its counts into
+another document.
+
 Templates to copy: `eval/mermaid-gantt-bench/` +
 `src/__tests__/gantt-upstream-bench.test.ts`, or the combined revision-bound
 inventory in `eval/mermaid-upstream-suite-bench/mindmap-gitgraph-f3dea583.json`

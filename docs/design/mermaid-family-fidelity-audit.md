@@ -2,6 +2,12 @@
 
 Status: complete for every family in the checked registry. Audited: 2026-07-10.
 
+This document is a human-reviewed visual-metaphor and fidelity evidence ledger,
+not a routing, capability, status, or roadmap authority. Registry-derived tests
+check that every built-in has a row; machine capability states live in the
+generated Section A capability report, and live work lives only in root
+`TODO.md`.
+
 This is the compatibility and visual-metaphor half of the diagram-family citizenship contract. The ordinary citizenship matrix proves that a family reaches every product surface; this audit proves that the thing reaching those surfaces still means and looks like that family.
 
 ## Claim boundary

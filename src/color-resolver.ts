@@ -3,6 +3,7 @@ import { tryParseHex, luma255 } from './shared/color-math.ts'
 import type { DiagramColors } from './theme.ts'
 import { DEFAULTS, THEMES } from './theme.ts'
 import type { MermaidRuntimeConfig, MermaidThemeVariables } from './mermaid-source.ts'
+import { safeCssPaint } from './shared/css-color.ts'
 
 const ZINC_DARK = THEMES['zinc-dark'] ?? { bg: '#18181B', fg: '#FAFAFA' }
 
@@ -43,18 +44,23 @@ export function resolveDiagramColors(
   options: RenderOptions,
   config: MermaidRuntimeConfig,
   font?: string,
+  preserveUnsafeThemePaints = false,
 ): DiagramColors {
   const theme = resolveThemeColors(config.theme)
   const vars = config.themeVariables
+  const themePaint = (...keys: string[]) => {
+    const value = readThemeValue(vars, ...keys)
+    return preserveUnsafeThemePaints ? value : safeCssPaint(value)
+  }
 
   return {
-    bg: options.bg ?? readThemeValue(vars, ...CHANNEL_THEME_KEYS.bg) ?? theme?.bg ?? DEFAULTS.bg,
-    fg: options.fg ?? readThemeValue(vars, ...CHANNEL_THEME_KEYS.fg) ?? theme?.fg ?? DEFAULTS.fg,
-    line: options.line ?? readThemeValue(vars, ...CHANNEL_THEME_KEYS.line) ?? theme?.line,
-    accent: options.accent ?? readThemeValue(vars, ...CHANNEL_THEME_KEYS.accent) ?? theme?.accent,
-    muted: options.muted ?? readThemeValue(vars, ...CHANNEL_THEME_KEYS.muted) ?? theme?.muted,
-    surface: options.surface ?? readThemeValue(vars, ...CHANNEL_THEME_KEYS.surface) ?? theme?.surface,
-    border: options.border ?? readThemeValue(vars, ...CHANNEL_THEME_KEYS.border) ?? theme?.border,
+    bg: options.bg ?? themePaint(...CHANNEL_THEME_KEYS.bg) ?? theme?.bg ?? DEFAULTS.bg,
+    fg: options.fg ?? themePaint(...CHANNEL_THEME_KEYS.fg) ?? theme?.fg ?? DEFAULTS.fg,
+    line: options.line ?? themePaint(...CHANNEL_THEME_KEYS.line) ?? theme?.line,
+    accent: options.accent ?? themePaint(...CHANNEL_THEME_KEYS.accent) ?? theme?.accent,
+    muted: options.muted ?? themePaint(...CHANNEL_THEME_KEYS.muted) ?? theme?.muted,
+    surface: options.surface ?? themePaint(...CHANNEL_THEME_KEYS.surface) ?? theme?.surface,
+    border: options.border ?? themePaint(...CHANNEL_THEME_KEYS.border) ?? theme?.border,
     shadow: options.shadow ?? theme?.shadow,
     font,
     embedFontImport: options.embedFontImport,

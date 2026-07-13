@@ -451,6 +451,24 @@ describe('MCP — JSON-RPC happy + sad', () => {
     const r = await handleRequest({ jsonrpc: '2.0', id: 5, method: 'tools/call', params: { name: 'execute', arguments: {} } })
     expect(r!.error).toBeDefined()
   })
+  test('tool schemas reject malformed local arguments before handlers run', async () => {
+    const malformed = [
+      { name: 'execute', arguments: { code: '1 + 1', timeoutMs: 'fast' } },
+      { name: 'describe', arguments: { source: 'flowchart LR\nA-->B', format: 'yaml' } },
+      { name: 'render_png', arguments: { source: 'flowchart LR\nA-->B', scale: 'large' } },
+      { name: 'render_png', arguments: { source: 'flowchart LR\nA-->B', scale: 0 } },
+      { name: 'render_png', arguments: { source: 'flowchart LR\nA-->B', background: 123 } },
+      { name: 'render_png', arguments: { source: 'flowchart LR\nA-->B', seed: 'bad' } },
+      { name: 'render_png', arguments: { source: 'flowchart LR\nA-->B', style: 'not-a-registered-style' } },
+      { name: 'render_png', arguments: { source: 'flowchart LR\nA-->B', options: { padding: 'wide' } } },
+      { name: 'render_png', arguments: { source: 'flowchart LR\nA-->B', unexpected: true } },
+    ]
+    for (const params of malformed) {
+      const response = await handleRequest({ jsonrpc: '2.0', id: 51, method: 'tools/call', params })
+      expect(response?.error?.code).toBe(-32602)
+      expect(response?.error?.message).toContain('Invalid arguments')
+    }
+  })
   test('unknown method → -32601', async () => {
     const r = await handleRequest({ jsonrpc: '2.0', id: 6, method: 'made/up' })
     expect(r!.error!.code).toBe(-32601)
@@ -577,9 +595,15 @@ describe('CLI — sad paths via runCli', () => {
     expect(payload.ok).toBe(true)
     expect(payload.source).toContain('line Mobile [3, 4]')
 
+    const accessibleTmp = `/tmp/cli-xychart-accessible-${Date.now()}.mmd`
+    require('node:fs').writeFileSync(accessibleTmp, 'xychart-beta\n  accTitle: Sales chart\n  bar [1, 2]\n')
+    const accessible = capture(() => runCli(['mutate', accessibleTmp, '--op', '{"kind":"set_title","title":"X"}', '--json']))
+    expect(accessible.code).toBe(0)
+    expect(JSON.parse(accessible.out).source).toContain('accTitle: Sales chart')
+
     const opaqueTmp = `/tmp/cli-xychart-opaque-${Date.now()}.mmd`
-    // accTitle is an unmodeled directive → opaque (quoted text now parses structured).
-    require('node:fs').writeFileSync(opaqueTmp, 'xychart-beta\n  accTitle: Quoted\n  bar [1, 2]\n')
+    // Embedded list delimiters remain outside the structured title grammar.
+    require('node:fs').writeFileSync(opaqueTmp, 'xychart-beta\n  title "Quoted [legacy-only]"\n  bar [1, 2]\n')
     const opaque = capture(() => runCli(['mutate', opaqueTmp, '--op', '{"kind":"set_title","title":"X"}', '--json']))
     expect(opaque.code).toBe(2)
     expect(JSON.parse(opaque.out).error.code).toBe('UNSUPPORTED_FAMILY')

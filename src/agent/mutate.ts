@@ -15,6 +15,7 @@ import { logToolInvocation } from './trace-log.ts'
 import { getFamily } from './families.ts'
 import { validateOp, hasOpSchema } from './op-schema.ts'
 import './families-builtin.ts'  // registers built-in family mutate hooks
+import { accessibilityFromBody, ensureAccessibilityLines } from './accessibility-envelope.ts'
 
 export function mutate(d: FlowchartValidDiagram, op: FlowchartMutationOp): Result<FlowchartValidDiagram, MutationError>
 export function mutate(d: StateValidDiagram, op: StateMutationOp): Result<StateValidDiagram, MutationError>
@@ -60,16 +61,14 @@ function applyOneMutation(
     if (!r.ok) return r
     // 1C wrapper policy: a mutated diagram keeps its leading wrapper
     // (frontmatter/directives/comments) byte-verbatim; only the body changes.
-    const canonicalSource = wrapperPrefix(d.meta) + plugin.serialize(r.value)
-    const meta = r.value.kind === 'journey'
-      ? {
-          ...d.meta,
-          accessibility: {
-            ...(r.value.accessibilityTitle !== undefined ? { title: r.value.accessibilityTitle } : {}),
-            ...(r.value.accessibilityDescription !== undefined ? { descr: r.value.accessibilityDescription } : {}),
-          },
-        }
-      : d.meta
+    const bodyAccessibility = accessibilityFromBody(r.value)
+    const meta = bodyAccessibility === undefined
+      ? d.meta
+      : { ...d.meta, accessibility: bodyAccessibility }
+    const canonicalSource = wrapperPrefix(meta) + ensureAccessibilityLines(
+      plugin.serialize(r.value),
+      meta.accessibility,
+    )
     return ok({ ...d, body: r.value, meta, canonicalSource } as MutableValidDiagram)
   }
   return err({ code: 'INVALID_OP', message: `Unsupported mutable diagram kind: ${d.kind}` })

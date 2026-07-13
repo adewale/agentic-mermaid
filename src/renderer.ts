@@ -6,11 +6,12 @@ import { measureMultilineText } from './text-metrics.ts'
 import { renderMultilineText, renderMultilineTextWithBackground, escapeAttr, escapeXml } from './multiline-utils.ts'
 import { topRoundedRectPath } from './svg-paths.ts'
 import { resolveInlineNodeTextColor } from './color-resolver.ts'
-import type { Geometry, MarkerRef, SceneDoc, SceneNode, SemanticChannels } from './scene/ir.ts'
+import type { Geometry, MarkerDescriptor, MarkerRef, SceneDoc, SceneNode, SemanticChannels } from './scene/ir.ts'
 import * as marks from './scene/marks.ts'
 import { DefaultBackend } from './scene/backend.ts'
 import type { StateRenderOptions } from './state/config.ts'
 import { resolveMindmapIcon } from './mindmap/icons.ts'
+import { serializeMarkerResources } from './scene/marker-resources.ts'
 
 // ============================================================================
 // SVG renderer — converts a PositionedGraph into an SVG string.
@@ -88,7 +89,6 @@ export function lowerGraphScene(
   ))
   const defsParts: string[] = []
   defsParts.push('<defs>')
-  defsParts.push(arrowMarkerDefs())
   const shadowDefs = buildShadowDefs(colors)
   if (shadowDefs) defsParts.push(shadowDefs)
   // Per-color arrow markers for edges with custom stroke via linkStyle
@@ -101,15 +101,10 @@ export function lowerGraphScene(
     if (edge.startMarker === 'circle' || edge.endMarker === 'circle') needsCircle = true
     if (edge.startMarker === 'cross' || edge.endMarker === 'cross') needsCross = true
   }
-  if (needsCircle) defsParts.push(circleMarkerDefs())
-  if (needsCross) defsParts.push(crossMarkerDefs())
-  for (const color of customStrokeColors) {
-    defsParts.push(arrowMarkerDefsForColor(color))
-    if (needsCircle) defsParts.push(circleMarkerDefs(color))
-    if (needsCross) defsParts.push(crossMarkerDefs(color))
-  }
+  const markerResources = flowchartMarkerResources(customStrokeColors, needsCircle, needsCross)
+  defsParts.splice(1, 0, serializeMarkerResources(markerResources))
   defsParts.push('</defs>')
-  parts.push(marks.definitions({ id: 'defs' }, defsParts.join('\n')))
+  parts.push(marks.definitions({ id: 'defs', markerResources }, defsParts.join('\n')))
 
   // 1. Subgraph backgrounds (group rectangles with header bands)
   for (const group of graph.groups) {
@@ -123,7 +118,7 @@ export function lowerGraphScene(
     const pairKey = `${edge.source}->${edge.target}`
     const k = edgeOccurrence.get(pairKey) ?? 0
     edgeOccurrence.set(pairKey, k + 1)
-    parts.push(renderEdge(edge, style, `edge:${pairKey}#${k}`))
+    parts.push(renderEdge(edge, style, `edge:${pairKey}#${k}`, markerResources))
   }
 
   // 3. Edge labels (positioned at midpoint of edge)
@@ -163,92 +158,69 @@ export function lowerGraphScene(
  * renderer-dependent auto-start-reverse behavior in SVG rasterizers.
  * Arrow color uses var(--_arrow) CSS variable.
  */
-function arrowMarkerDefs(): string {
+function arrowMarkerResources(color?: string): readonly MarkerDescriptor[] {
   const w = ARROW_HEAD.width
   const h = ARROW_HEAD.height
-  // Arrow polygons have both fill and a thin stroke for better definition at small sizes
-  const arrowStyle = 'fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round"'
-  // Pull arrowhead back slightly (refX = w - 1) to prevent clipping at node boundaries
   const refX = w - 1
-  return (
-    // Forward arrow (marker-end) — orient="auto" ensures arrow points along line direction
-    `  <marker id="arrowhead" markerWidth="${w}" markerHeight="${h}" refX="${refX}" refY="${h / 2}" orient="auto">` +
-    `\n    <polygon points="0 0, ${w} ${h / 2}, 0 ${h}" ${arrowStyle} />` +
-    `\n  </marker>` +
-    // Start arrow is explicitly pre-rotated: its tip is at x=0 and its body
-    // extends into the route, while refX=1 keeps the tip at the node boundary.
-    `\n  <marker id="arrowhead-start" markerWidth="${w}" markerHeight="${h}" refX="1" refY="${h / 2}" orient="auto">` +
-    `\n    <polygon points="${w} 0, 0 ${h / 2}, ${w} ${h}" ${arrowStyle} />` +
-    `\n  </marker>`
-  )
+  const stroke = color ?? 'var(--_arrow)'
+  const suffix = color ? `-${markerSuffix(color)}` : ''
+  const paint = { fill: stroke, stroke, strokeWidth: '0.75', strokeLinejoin: 'round' as const }
+  return [
+    { id: `arrowhead${suffix}`, shape: 'arrow', size: { width: w, height: h }, ref: { x: refX, y: h / 2 }, orient: 'auto', geometry: { kind: 'polygon', points: [{ x: 0, y: 0 }, { x: w, y: h / 2 }, { x: 0, y: h }] }, paint },
+    { id: `arrowhead-start${suffix}`, shape: 'arrow', size: { width: w, height: h }, ref: { x: 1, y: h / 2 }, orient: 'auto', geometry: { kind: 'polygon', points: [{ x: w, y: 0 }, { x: 0, y: h / 2 }, { x: w, y: h }] }, paint },
+  ]
 }
 
 /**
  * Generate arrow markers tinted to a specific color (for linkStyle stroke overrides).
  * IDs are suffixed with a sanitized color string to avoid collisions.
  */
-function arrowMarkerDefsForColor(color: string): string {
-  const w = ARROW_HEAD.width
-  const h = ARROW_HEAD.height
-  const escaped = escapeAttr(color)
-  const arrowStyle = `fill="${escaped}" stroke="${escaped}" stroke-width="0.75" stroke-linejoin="round"`
-  const refX = w - 1
-  const suffix = markerSuffix(color)
-  return (
-    `  <marker id="arrowhead-${suffix}" markerWidth="${w}" markerHeight="${h}" refX="${refX}" refY="${h / 2}" orient="auto">` +
-    `\n    <polygon points="0 0, ${w} ${h / 2}, 0 ${h}" ${arrowStyle} />` +
-    `\n  </marker>` +
-    `\n  <marker id="arrowhead-start-${suffix}" markerWidth="${w}" markerHeight="${h}" refX="1" refY="${h / 2}" orient="auto">` +
-    `\n    <polygon points="${w} 0, 0 ${h / 2}, ${w} ${h}" ${arrowStyle} />` +
-    `\n  </marker>`
-  )
-}
-
-function circleMarkerDefs(color?: string): string {
+function circleMarkerResources(color?: string): readonly MarkerDescriptor[] {
   const size = ARROW_HEAD.width
   const suffix = color ? `-${markerSuffix(color)}` : ''
-  const stroke = color ? escapeAttr(color) : 'var(--_arrow)'
+  const stroke = color ?? 'var(--_arrow)'
   const r = size / 2 - 0.75
-  return (
-    `  <marker id="circlehead${suffix}" markerWidth="${size}" markerHeight="${size}" refX="${size - 0.5}" refY="${size / 2}" orient="auto">` +
-    `\n    <circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke="${stroke}" stroke-width="1" />` +
-    `\n  </marker>` +
-    `\n  <marker id="circlehead-start${suffix}" markerWidth="${size}" markerHeight="${size}" refX="0.5" refY="${size / 2}" orient="auto">` +
-    `\n    <circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke="${stroke}" stroke-width="1" />` +
-    `\n  </marker>`
-  )
+  const common = { shape: 'circle' as const, size: { width: size, height: size }, orient: 'auto' as const, geometry: { kind: 'circle' as const, cx: size / 2, cy: size / 2, r }, paint: { fill: 'none', stroke, strokeWidth: '1' } }
+  return [
+    { ...common, id: `circlehead${suffix}`, ref: { x: size - 0.5, y: size / 2 } },
+    { ...common, id: `circlehead-start${suffix}`, ref: { x: 0.5, y: size / 2 } },
+  ]
 }
 
-function crossMarkerDefs(color?: string): string {
+function crossMarkerResources(color?: string): readonly MarkerDescriptor[] {
   const size = ARROW_HEAD.width
   const suffix = color ? `-${markerSuffix(color)}` : ''
-  const stroke = color ? escapeAttr(color) : 'var(--_arrow)'
+  const stroke = color ?? 'var(--_arrow)'
   const pad = 1.25
   const a = pad
   const b = size - pad
-  const style = `stroke="${stroke}" stroke-width="1.25" stroke-linecap="round"`
-  return (
-    `  <marker id="crosshead${suffix}" markerWidth="${size}" markerHeight="${size}" refX="${b}" refY="${size / 2}" orient="auto">` +
-    `\n    <line x1="${a}" y1="${a}" x2="${b}" y2="${b}" ${style} />` +
-    `\n    <line x1="${a}" y1="${b}" x2="${b}" y2="${a}" ${style} />` +
-    `\n  </marker>` +
-    `\n  <marker id="crosshead-start${suffix}" markerWidth="${size}" markerHeight="${size}" refX="${pad}" refY="${size / 2}" orient="auto">` +
-    `\n    <line x1="${a}" y1="${a}" x2="${b}" y2="${b}" ${style} />` +
-    `\n    <line x1="${a}" y1="${b}" x2="${b}" y2="${a}" ${style} />` +
-    `\n  </marker>`
-  )
+  const common = { shape: 'cross' as const, size: { width: size, height: size }, orient: 'auto' as const, geometry: { kind: 'compound' as const, children: [{ kind: 'line' as const, x1: a, y1: a, x2: b, y2: b }, { kind: 'line' as const, x1: a, y1: b, x2: b, y2: a }] }, paint: { stroke, strokeWidth: '1.25', strokeLinecap: 'round' as const } }
+  return [
+    { ...common, id: `crosshead${suffix}`, ref: { x: b, y: size / 2 } },
+    { ...common, id: `crosshead-start${suffix}`, ref: { x: pad, y: size / 2 } },
+  ]
+}
+
+function flowchartMarkerResources(
+  colors: ReadonlySet<string>,
+  needsCircle: boolean,
+  needsCross: boolean,
+): readonly MarkerDescriptor[] {
+  const resources: MarkerDescriptor[] = [...arrowMarkerResources()]
+  if (needsCircle) resources.push(...circleMarkerResources())
+  if (needsCross) resources.push(...crossMarkerResources())
+  for (const color of colors) {
+    resources.push(...arrowMarkerResources(color))
+    if (needsCircle) resources.push(...circleMarkerResources(color))
+    if (needsCross) resources.push(...crossMarkerResources(color))
+  }
+  return resources
 }
 
 function markerIdPrefix(marker: EdgeMarker): string {
   if (marker === 'circle') return 'circlehead'
   if (marker === 'cross') return 'crosshead'
   return 'arrowhead'
-}
-
-function markerShape(marker: EdgeMarker): MarkerRef['shape'] {
-  if (marker === 'circle') return 'circle'
-  if (marker === 'cross') return 'cross'
-  return 'arrow'
 }
 
 /** Sanitize a color value into a collision-free SVG ID suffix.
@@ -450,11 +422,33 @@ function renderStateNote(note: PositionedStateNote, font: string, style: Resolve
 // Edge rendering
 // ============================================================================
 
-function renderEdge(edge: PositionedEdge, style: ResolvedRenderStyle, sceneId: string): SceneNode {
+function renderEdge(
+  edge: PositionedEdge,
+  style: ResolvedRenderStyle,
+  sceneId: string,
+  markerResources: readonly MarkerDescriptor[],
+): SceneNode {
   const lineStyle = edge.style === 'dotted' ? 'dotted'
     : edge.style === 'thick' ? 'thick'
     : edge.style === 'invisible' ? 'invisible'
     : 'solid'
+  const connectorSemantics = {
+    identity: { id: edge.id ?? sceneId },
+    endpoints: { from: edge.source, to: edge.target },
+    relationship: {
+      kind: 'flowchart-edge',
+      direction: edge.source === edge.target ? 'self'
+        : edge.hasArrowStart && edge.hasArrowEnd ? 'bidirectional'
+          : edge.hasArrowStart ? 'reverse' : edge.hasArrowEnd ? 'forward' : 'undirected',
+    },
+    route: {
+      ownership: 'layout',
+      bendRadius: style.edgeBendRadius,
+      labelAnchors: edge.labelPosition ? [edge.labelPosition] : [],
+    },
+    labels: edge.label ? [{ text: edge.label, ...(edge.labelPosition ? { anchor: edge.labelPosition } : {}) }] : [],
+    projectAccessibilityToSvg: true,
+  } as const
   // Invisible links (~~~) shape the layout but draw no stroke or markers.
   if (edge.points.length < 2 || edge.style === 'invisible') {
     return marks.connector({
@@ -463,6 +457,7 @@ function renderEdge(edge: PositionedEdge, style: ResolvedRenderStyle, sceneId: s
       geometry: { kind: 'polyline', points: edge.points },
       lineStyle: 'invisible',
       paint: {},
+      ...connectorSemantics,
     }, '')
   }
 
@@ -481,12 +476,14 @@ function renderEdge(edge: PositionedEdge, style: ResolvedRenderStyle, sceneId: s
   let startMarker: MarkerRef | undefined
   if (edge.hasArrowEnd) {
     const prefix = markerIdPrefix(edge.endMarker ?? 'arrow')
-    endMarker = { id: `${prefix}${suffix}`, shape: markerShape(edge.endMarker ?? 'arrow') }
+    endMarker = markerResources.find(marker => marker.id === `${prefix}${suffix}`)
+    if (!endMarker) throw new Error(`Missing marker resource "${prefix}${suffix}"`)
     markers += ` marker-end="url(#${prefix}${suffix})"`
   }
   if (edge.hasArrowStart) {
     const prefix = markerIdPrefix(edge.startMarker ?? 'arrow')
-    startMarker = { id: `${prefix}-start${suffix}`, shape: markerShape(edge.startMarker ?? 'arrow') }
+    startMarker = markerResources.find(marker => marker.id === `${prefix}-start${suffix}`)
+    if (!startMarker) throw new Error(`Missing marker resource "${prefix}-start${suffix}"`)
     markers += ` marker-start="url(#${prefix}-start${suffix})"`
   }
 
@@ -525,9 +522,10 @@ function renderEdge(edge: PositionedEdge, style: ResolvedRenderStyle, sceneId: s
       role: 'edge',
       geometry: { kind: 'path', d: pathData, points: edge.points },
       lineStyle,
-      paint,
+      paint: edge.animate && edge.style !== 'dotted' ? { ...paint, strokeDasharray: '8 4' } : paint,
       startMarker,
       endMarker,
+      ...connectorSemantics,
     },
       `<path ${dataAttrs.join(' ')} d="${pathData}" fill="none" stroke="${strokeColor}" ` +
       `stroke-width="${strokeWidth}"${dashArray}${edge.animate && edge.style !== 'dotted' ? ' stroke-dasharray="8 4"' : ''}${markers}>${edge.animate ? `<animate attributeName="stroke-dashoffset" from="12" to="0" dur="${edge.animation === 'fast' ? '0.5s' : '1.5s'}" repeatCount="indefinite" />` : ''}</path>`)
@@ -541,6 +539,7 @@ function renderEdge(edge: PositionedEdge, style: ResolvedRenderStyle, sceneId: s
     paint,
     startMarker,
     endMarker,
+    ...connectorSemantics,
   },
     `<polyline ${dataAttrs.join(' ')} points="${pathData}" fill="none" stroke="${strokeColor}" ` +
     `stroke-width="${strokeWidth}"${dashArray}${markers} />`)

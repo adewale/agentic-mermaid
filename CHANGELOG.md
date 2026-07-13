@@ -5,6 +5,11 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 ## Unreleased
 
 ### Added
+- Completed Section A of the rendering-contract program: one immutable request
+  and appearance waist, descriptor-owned family/style/render-option discovery,
+  typed connector terminals and backend claims, explicit product/output parity,
+  a version-pinned Mermaid compatibility manifest, and versioned extension and
+  resource contracts.
 - Completed the family-elevation program across all fourteen families: 172 typed mutation operations, deterministic family layout rubrics/certificates, expanded semantic facts, exhaustive configuration wire-or-warn coverage, parser/serializer conformance, and a zero-exception 21-surface citizenship matrix.
 - Added Flowchart v11 shape metadata and edge IDs; State notes/pseudostates/history/concurrency/paint; Sequence box/autonumber/create/destroy/standalone activation behavior; Class namespaces/generics/paint/cardinality allocation; ER bare entities/paint/ordered segments; vertical Timeline layout; Gantt dependency/critical-path overlays; XYChart legends and explicit orientation mutation; Pie wedge labels/donut/legend controls; Quadrant accessibility/style functions; deterministic side-constrained Architecture routing and offline icons; and first-class Mindmap and GitGraph families.
 - Added measured bold/italic Flowchart markdown rendering and support for a bare `flowchart` header, which defaults to top-down layout while remaining source-preserved at the typed-edit boundary.
@@ -20,6 +25,10 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 - Added `cupertino` as the sixteenth built-in Look plus reproducible three-brand discovery evidence across all 14 families. The styled-output golden matrix now contains 23 fixtures × 16 Looks = 368 records, including 23 Cupertino rows; the Mindmap/GitGraph evidence deliberately records that those two families accept palette/font styling but do not yet consume internal role-face overrides.
 
 ### Changed
+- CLI, Code Mode, local/hosted MCP, editor, website, SVG, PNG, ASCII, and
+  Unicode now project shared options and capabilities from canonical
+  descriptors. Historical execution plans moved to the archive, copied family
+  and style menus were removed, and Section B branding work has one live owner.
 - Local MCP `render_png` now advertises managed-file side effects accurately, accepts `fontDirs`/`loadSystemFonts`, and returns deterministic configuration and font-coverage warnings in every output mode.
 - Agent evaluations, shipped-artifact fuzzing, website comparisons, fork documentation, and browser counts now cover all fourteen registry families; deployment catalogs carry the exact Git SHA and build time.
 - Configuration diagnostics now use fully qualified family paths consistently across source wrappers and explicit `mermaidConfig`; duplicate warnings are deterministically ordered and deduplicated.
@@ -34,7 +43,8 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 - **Output compatibility note:** semantic SVG identity/ARIA attributes, palette contrast normalization, corrected marker/routing geometry, and spatial terminal rendering intentionally change SVG/PNG/ASCII bytes and regenerated characterization hashes. Consumers that snapshot output bytes should review and re-pin; source parsing and deterministic repeatability remain stable.
 
 ### Fixed
-- Closed editor share-hash DOM XSS by whitelisting imported render configuration, forcing strict SVG rendering, externalizing executable scripts, and removing `unsafe-inline` from the production CSP. Hosted `render_svg` now forces strict security and rejects any output that still contains active content or external references.
+- Closed editor share/draft insertion, decompression, and share-hash DOM XSS risks; hardened imported render configuration and StyleSpec prototype/font/CSS boundaries; externalized executable scripts; and removed `unsafe-inline` from the production CSP. Editor and hosted SVG rendering now force strict security and reject active content or external references.
+- Closed unknown-family Flowchart fallthrough, connector-marker fidelity loss, and verified-resource time-of-check/time-of-use gaps. PNG/resource receipts now state whether bytes were verified, caller-supplied, system-provided, embedded, or unavailable.
 - Enforced JSON-RPC 2.0 envelopes and notification suppression across local and hosted MCP transports. Local bearer/Origin checks now cover SSE, messages, and artifacts, and SSE sessions have a fixed upper bound.
 - Rejected source-controlled Pie colors that could escape SVG attributes or styles; hardened cross-format color contrast and XML sinks.
 - Fixed successful-but-lossy Journey/State/Sequence/Class/ER/Architecture/Timeline/XYChart mutations and parser round trips, including accessibility metadata, history endpoints, boxed participants, labeled and generic classes, bare/aliased ER entities, post-alignment route anchors, event text containing clock-time colons, event-less Timeline periods, and explicit vertical orientation.

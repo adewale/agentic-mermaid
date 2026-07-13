@@ -295,7 +295,10 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
     checkMermaidSource: mermaid.checkMermaidSource,
     serializeMermaid: mermaid.serializeMermaid,
     renderMermaidSVG: mermaid.renderMermaidSVG,
+    renderMermaidSVGWithReceipt: mermaid.renderMermaidSVGWithReceipt,
     renderMermaidASCII: mermaid.renderMermaidASCII,
+    renderMermaidASCIIWithReceipt: mermaid.renderMermaidASCIIWithReceipt,
+    layoutMermaidWithReceipt: mermaid.layoutMermaidWithReceipt,
     // Read-only op discovery: field shapes / enum values / constraint notes and
     // compact signatures for a family's ops, so a Code Mode script can look up
     // exact op shapes at runtime instead of guessing (or triggering INVALID_OP).
@@ -441,21 +444,40 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
       push({ verb: 'serialize', diagram: idOf(d), source, fingerprint: fingerprint(d) })
       return source
     })
-    else if (prop === 'renderMermaidSVG' || prop === 'renderMermaidASCII') value = harden((input: any, opts?: any) => {
+    else if (
+      prop === 'renderMermaidSVG' || prop === 'renderMermaidSVGWithReceipt' ||
+      prop === 'renderMermaidASCII' || prop === 'renderMermaidASCIIWithReceipt' ||
+      prop === 'layoutMermaidWithReceipt'
+    ) value = harden((input: any, opts?: any) => {
       assertOpen()
       if (input && typeof input === 'object') requireTrustedDiagram(input, String(prop))
-      const callback = prop === 'renderMermaidSVG' ? opts?.onConfigDiagnostic : undefined
-      if (callback !== undefined && typeof callback !== 'function') {
-        throw sandboxError('Code Mode renderMermaidSVG onConfigDiagnostic must be a function')
+      const isSvg = prop === 'renderMermaidSVG' || prop === 'renderMermaidSVGWithReceipt'
+      const isAscii = prop === 'renderMermaidASCII' || prop === 'renderMermaidASCIIWithReceipt'
+      const configCallback = isSvg ? opts?.onConfigDiagnostic : undefined
+      const projectionCallback = isAscii ? opts?.onProjectionDiagnostic : undefined
+      if (configCallback !== undefined && typeof configCallback !== 'function') {
+        throw sandboxError(`Code Mode ${String(prop)} onConfigDiagnostic must be a function`)
       }
-      const cloned = jsonClone(opts) as Record<string, unknown> | undefined
-      const diagnostics: unknown[] = []
-      if (prop === 'renderMermaidSVG' && callback) {
-        if (cloned) cloned.onConfigDiagnostic = (diagnostic: unknown) => diagnostics.push(diagnostic)
+      if (projectionCallback !== undefined && typeof projectionCallback !== 'function') {
+        throw sandboxError(`Code Mode ${String(prop)} onProjectionDiagnostic must be a function`)
+      }
+      let cloned = jsonClone(opts) as Record<string, unknown> | undefined
+      const configDiagnostics: unknown[] = []
+      const projectionDiagnostics: unknown[] = []
+      if (configCallback || projectionCallback) cloned ??= {}
+      if (configCallback) {
+        cloned!.onConfigDiagnostic = (diagnostic: unknown) => configDiagnostics.push(diagnostic)
+      }
+      if (projectionCallback) {
+        cloned!.onProjectionDiagnostic = (diagnostic: unknown) => projectionDiagnostics.push(diagnostic)
       }
       const rendered = hostCall(() => ((target as any)[prop] as (diagram: any, options?: any) => unknown)(rawOf(input), cloned))
-      for (const diagnostic of diagnostics) callback(harden(jsonClone(diagnostic)))
-      return rendered
+      for (const diagnostic of configDiagnostics) configCallback(harden(jsonClone(diagnostic)))
+      for (const diagnostic of projectionDiagnostics) projectionCallback(harden(jsonClone(diagnostic)))
+      // Render artifacts/receipts are immutable host records. Clone to an
+      // extensible data envelope before hardening so Proxy descriptor
+      // invariants remain valid when Code Mode returns the artifact as JSON.
+      return jsonClone(rendered)
     })
     else if (prop === 'describeOps' || prop === 'opSignatures') value = harden((family: any) => {
       assertOpen()

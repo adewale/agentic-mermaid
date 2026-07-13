@@ -66,8 +66,6 @@ A May 2026 GitHub issue/PR search found recurring layout-quality themes in both 
   - Fixture status: `src/__tests__/aesthetic-issue-regressions.test.ts` renders repeated parallel labeled edges and asserts distinct edge paths, zero crossings, no hard defects, and separated label boxes.
 - [mermaid-js/mermaid#6046 — subgraph links should affect positioning more than inter-graph links](https://github.com/mermaid-js/mermaid/issues/6046)
   - Candidate fixture evidence: nested subgraphs with invisible/loose links; group order follows source intent and cross-group edges do not dominate internal layout.
-- [mermaid-js/mermaid#7492 — Mermaid C4 overlapping labels/text overflow/crossing arrows](https://github.com/mermaid-js/mermaid/issues/7492)
-  - Watch-only upstream evidence. Agentic Mermaid does not plan a native C4 renderer, so this is not a fixture commitment.
 - [mermaid-js/mermaid#2792 — graph lines sometimes overlap boxes](https://github.com/mermaid-js/mermaid/issues/2792)
   - Fixture status: `src/__tests__/aesthetic-issue-regressions.test.ts` renders a transitive route and asserts the ugly-detector reports no edge-through-node defect.
 - [lukilabs/beautiful-mermaid#83 — TD/TB flowchart layout flipping horizontal](https://github.com/lukilabs/beautiful-mermaid/issues/83)
@@ -107,10 +105,6 @@ deferred, and policy-out-of-scope cases remain recorded below.
   whitespace + aspect — `agent-quality.test.ts`), `#1301` (long-range Gantt
   axis labels stay clear of task bars — `gantt-layout.test.ts`), and `#1765` (activation/note/block
   clearance — `sequence-layout.test.ts`).
-- **`#7492` (Mermaid C4 overlapping labels/arrows)** — watch-only: Agentic
-  Mermaid does not render this upstream-experimental family and no local fixture
-  is planned. Any future separately promoted adoption would define its own
-  evidence; this ledger carries no deferred C4 action.
 - **`#3723` (same-rank constraint) and `#5420` (manual node positioning)** —
   documented **won't-do by policy**, no fixture. `#3723` is "watch-only"
   (adopt only if Mermaid core standardizes a `config:` key — see C6); `#5420`

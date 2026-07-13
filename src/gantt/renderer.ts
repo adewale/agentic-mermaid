@@ -35,9 +35,10 @@ import { escapeAttr, escapeXml } from '../multiline-utils.ts'
 import { hashId } from '../scene/seed.ts'
 import { applyTextTransform } from '../styles.ts'
 import type { ResolvedRenderStyle } from '../styles.ts'
-import type { MarkPaint, SceneDoc, SceneNode, SemanticChannels } from '../scene/ir.ts'
+import type { MarkerDescriptor, MarkPaint, SceneDoc, SceneNode, SemanticChannels } from '../scene/ir.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
+import { serializeMarkerResources } from '../scene/marker-resources.ts'
 
 const GS = {
   barRadius: 3,
@@ -296,18 +297,15 @@ export function lowerGanttScene(
   // pattern) so two different gantt SVGs inlined into one page cannot collide.
   const depMarkerId = `${ganttNamespace(layout)}-dep-arrow`
   const depMarkerCritId = `${depMarkerId}-crit`
+  const dependencyMarkers: readonly MarkerDescriptor[] = [
+    dependencyArrowMarker(depMarkerId, palette.edgeStroke),
+    ...(overlay.criticalArrows ? [dependencyArrowMarker(depMarkerCritId, palette.criticalStroke)] : []),
+  ]
   if (overlay.dependencyArrows) {
-    const markers = [
-      `  <marker id="${escapeAttr(depMarkerId)}" markerWidth="8" markerHeight="7" refX="8" refY="3.5" orient="auto">
-    <path d="M0,0 L8,3.5 L0,7 Z" fill="${palette.edgeStroke}" />
-  </marker>`,
-    ]
-    if (overlay.criticalArrows) {
-      markers.push(`  <marker id="${escapeAttr(depMarkerCritId)}" markerWidth="8" markerHeight="7" refX="8" refY="3.5" orient="auto">
-    <path d="M0,0 L8,3.5 L0,7 Z" fill="${palette.criticalStroke}" />
-  </marker>`)
-    }
-    parts.push(marks.definitions({ id: 'defs' }, `<defs>\n${markers.join('\n')}\n</defs>`))
+    parts.push(marks.definitions(
+      { id: 'defs', markerResources: dependencyMarkers },
+      `<defs>\n${serializeMarkerResources(dependencyMarkers)}\n</defs>`,
+    ))
   }
 
   const plot = layout.plot
@@ -535,7 +533,11 @@ export function lowerGanttScene(
         paint: critical
           ? { stroke: palette.criticalStroke, strokeWidth: String(Math.max(1.8, style.lineWidth * 1.5)), opacity: '0.95' }
           : { stroke: palette.edgeStroke, strokeWidth: String(Math.max(1.2, style.lineWidth)), opacity: '0.6' },
-        endMarker: { id: markerId, shape: 'arrow' },
+        endMarker: dependencyMarkers.find(marker => marker.id === markerId),
+        endpoints: { from: fromKey, to: toKey },
+        relationship: { kind: dep.kind, direction: 'forward' },
+        route: { ownership: 'layout' },
+        projectAccessibilityToSvg: true,
         channels: critical ? { status: 'crit', emphasis: true } : undefined,
       }, `<path class="${cls}" d="${d}" marker-end="url(#${escapeAttr(markerId)})" ` +
         `data-from="${escapeAttr(fromKey)}" data-to="${escapeAttr(toKey)}" />`))
@@ -605,6 +607,13 @@ function ganttNamespace(layout: GanttLayoutResult): string {
     ...layout.bars.map(b => `${b.taskIndex}:${b.id ?? b.label}`),
     ...layout.dependencies.map(d => `${d.fromTaskIndex}>${d.toTaskIndex}:${d.kind}`),
   )}`
+}
+
+function dependencyArrowMarker(id: string, color: string): MarkerDescriptor {
+  return {
+    id, shape: 'arrow', size: { width: 8, height: 7 }, ref: { x: 8, y: 3.5 }, orient: 'auto',
+    geometry: { kind: 'path', d: 'M0,0 L8,3.5 L0,7 Z' }, paint: { fill: color },
+  }
 }
 
 /** Stable task key for connector data attributes: the Mermaid task id when

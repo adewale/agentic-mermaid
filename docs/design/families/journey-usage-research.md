@@ -1,7 +1,12 @@
 # Journey Usage Research
 
-Status: research note
+Status: historical research evidence for the shipped
+[`journey-migration-parity.md`](./journey-migration-parity.md) contract, not a
+roadmap. Root `TODO.md` alone schedules new work.
 Last checked: 2026-07-09
+
+Prescriptive wording below records the 2026 interpretation that informed the
+shipped contract; it has no independent scheduling authority.
 
 This note captures online research into how people use Journey diagrams and what
 users have asked for in Mermaid, Mermaid ASCII, and Beautiful Mermaid issue/PR
@@ -24,7 +29,7 @@ Sources inspected:
 
 The 2026-07-09 pass used GitHub issue/PR search for `journey` in
 `mermaid-js/mermaid`, the full open/closed issue and PR lists for
-  `lukilabs/beautiful-mermaid`, and the Agentic Mermaid issue/PR list. A follow-up
+  `lukilabs/beautiful-mermaid`, and the Agentic Mermaid issue/PR list. A subsequent
 direct-fork pass used GitHub's forks API sorted by stargazers, then searched the
 ranked head of each direct-fork set for Journey issue/PR/code signal. The
 reusable helper is `scripts/research/fork-journey-crawl.ts`.
@@ -98,8 +103,8 @@ Implication for Agentic Mermaid:
 
 - Mermaid Journey should not be over-sold as a full UX journey-map canvas.
 - Scores are the only built-in emotional/satisfaction proxy.
-- Richer UX concepts should be future extensions, not blockers for Mermaid
-  migration parity.
+- Richer UX concepts are outside the Mermaid-compatible contract; this note does
+  not schedule extensions.
 
 ## Mermaid Journey Syntax: Small, Stable Model
 
@@ -364,10 +369,10 @@ Implication for Agentic Mermaid:
 - Use the ranked direct-fork pass to catch divergent implementation work and
   packaging or CLI expectations, not as a replacement for upstream issue/PR
   research.
-- Re-run the ranked crawl periodically; do not spend equal effort on the long
-  tail unless new stars, activity, or search hits justify it.
+- The ranked crawl is a repeatable method if a TODO-owned research refresh is
+  commissioned; no periodic rerun is scheduled here.
 
-## Product Conclusions
+## Historical product conclusions reflected in the shipped implementation
 
 1. Fix parser parity first.
 
@@ -407,8 +412,8 @@ Implication for Agentic Mermaid:
 6. Make score behavior strict and explainable.
 
    Baseline Mermaid syntax is 1..5. Invalid scores should receive targeted
-   diagnostics. Custom score scales can be considered later because Mermaid has
-   an open request for it, but it is not baseline compatibility.
+   diagnostics. Custom score scales are outside the shipped compatibility
+   contract and are not scheduled by this note.
 
 7. Keep Journey ASCII semantic and width-correct.
 
@@ -420,4 +425,5 @@ Implication for Agentic Mermaid:
 
    UX practice contains richer concepts, but Mermaid's public model is smaller.
    Extra lanes for emotions, touchpoints, pain points, opportunities, and
-   ownership should be a separate design, not part of Mermaid parity.
+   ownership are outside the shipped contract and are not scheduled by this
+   note.

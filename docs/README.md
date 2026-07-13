@@ -33,7 +33,6 @@ This directory holds the long-form documentation. The root README is intentional
 | [`mcp-code-mode-rationale.md`](./mcp-code-mode-rationale.md) | Why MCP is Code Mode first. |
 | [`code-mode-impact.md`](./code-mode-impact.md) | Measured client/server impact, comparison with Cloudflare and Anthropic, and operational costs. |
 | [`mcp-http-transport.md`](./mcp-http-transport.md) | Local HTTP/SSE MCP quickstart plus hosted `/mcp` call-shape notes. |
-| [`project/hosted-mcp-cloudflare-plan.md`](./project/hosted-mcp-cloudflare-plan.md) | As-built hosted MCP record: Dynamic Workers `execute`, pure tools, limits, cache, and non-goals. |
 | [`agent-workflow-examples.md`](./agent-workflow-examples.md) | Runnable MCP/CLI and improvement-loop examples. |
 | [`../skills/`](../skills/) | Agent-agnostic skill bundles. |
 | [`../skill-evals/`](../skill-evals/) | Skill eval manifest, fixtures, and benchmark instructions. |
@@ -49,11 +48,7 @@ The design docs split into two tiers — **system** (how the engine works, cross
 |---|---|
 | [`project/brand-primitives-plan.md`](./project/brand-primitives-plan.md) | Normative appearance/family-contract decision and A/B dependency/acceptance plan; live status is owned by root `TODO.md`. |
 | [`project/cupertino-style-plan.md`](./project/cupertino-style-plan.md) | Non-authoritative brand probe and acceptance-evidence record. |
-| [`design/system/`](./design/system/README.md) | **Start here.** Rendered three-stacks architecture overview (dogfooded, drift-proof) routing to the audit and design docs. |
-| [`design/system/abstraction-audit.md`](./design/system/abstraction-audit.md) | Whole-system abstraction audit: the three-stacks model and ranked issue list I1–I9. |
-| [`design/system/abstraction-recommendations.md`](./design/system/abstraction-recommendations.md) | Historical literature-grounded recommendations and implementation closure record for I1–I9. |
-| [`design/system/consolidation-plan.md`](./design/system/consolidation-plan.md) | Historical/as-built record of the completed PR #149 consolidation pass (`POST149-*`). |
-| [`design/system/styles-rollout.md`](./design/system/styles-rollout.md) | Historical/as-built record of the Style + Palette rollout; superseded for future brand decisions. |
+| [`design/system/`](./design/system/README.md) | **Start here.** Current resolved-request, family-descriptor, positioned-artifact, and output-security architecture overview (dogfooded, drift-proof). |
 | [`design/system/route-contracts.md`](./design/system/route-contracts.md) | Route contracts: edge classification, direct-lane proofs, certifying straightener (issue #25). |
 | [`design/system/layout-rubric.md`](./design/system/layout-rubric.md) | Deterministic layout-quality rubric: metrics, CI gates, and property oracles. |
 | [`design/system/source-preservation-ladder.md`](./design/system/source-preservation-ladder.md) | The structured\|opaque family-adoption contract (levels L0–L4). |
@@ -92,6 +87,7 @@ The design docs split into two tiers — **system** (how the engine works, cross
 | [`project/agent-interface-contract-audit-2026-07.md`](./project/agent-interface-contract-audit-2026-07.md) | PR #162 defect provenance, review of PRs #157/#160, testing root causes, and recurrence controls. |
 | [`contributing/lessons-learned.md`](./contributing/lessons-learned.md) | Dated contributor process lessons (newest first). |
 | [`project/dogfooding-docs-strategy.md`](./project/dogfooding-docs-strategy.md) | How we render and pin our own docs with our own tools. |
+| [`project/archive/`](./project/archive/) | Frozen implementation plans, audits, and completion evidence; never live backlog authority. |
 | [`issue-derived-test-cases.md`](./issue-derived-test-cases.md) | Issue-derived regression coverage map. |
 | [`mermaid-layout-complaints.md`](./mermaid-layout-complaints.md) | Mermaid layout complaint catalog, root causes, and coverage scorecard. |
 

@@ -6,7 +6,7 @@
 
 import type { PositionedGraph, PositionedNode, PositionedEdge, PositionedGroup } from '../types.ts'
 import type {
-  DiagramKind, Finite, RenderedLayout, RenderedLayoutNode, RenderedLayoutEdge, RenderedLayoutGroup,
+  FamilyId, Finite, RenderedLayout, RenderedLayoutNode, RenderedLayoutEdge, RenderedLayoutGroup,
 } from './types.ts'
 import { toFinite } from './types.ts'
 
@@ -28,9 +28,25 @@ function edge(e: PositionedEdge, debug: boolean): RenderedLayoutEdge {
   }
 }
 
-export function positionedToRenderedLayout(p: PositionedGraph, kind: DiagramKind, opts: { debug?: boolean } = {}): RenderedLayout {
+export function positionedToRenderedLayout(p: PositionedGraph, kind: FamilyId, opts: { debug?: boolean } = {}): RenderedLayout {
+  const view = positionedGraphToRenderedView(p, opts)
   return {
-    version: 1, kind,
+    version: view.version,
+    kind,
+    nodes: view.nodes,
+    edges: view.edges,
+    groups: view.groups,
+    bounds: view.bounds,
+  }
+}
+
+/** Pure family-neutral view used by descriptor `projectPositioned` hooks. */
+export function positionedGraphToRenderedView(
+  p: PositionedGraph,
+  opts: { debug?: boolean } = {},
+): Omit<RenderedLayout, 'kind' | 'regions' | 'actions'> {
+  return {
+    version: 1,
     nodes: p.nodes.map(node),
     edges: p.edges.map(e => edge(e, opts.debug === true)),
     groups: renderedGroups(p.groups, p.nodes),
@@ -58,6 +74,6 @@ function renderedGroups(groups: PositionedGroup[], nodes: PositionedNode[]): Ren
   return out
 }
 
-export function emptyRenderedLayout(kind: DiagramKind): RenderedLayout {
+export function emptyRenderedLayout(kind: FamilyId): RenderedLayout {
   return { version: 1, kind, nodes: [], edges: [], groups: [], bounds: { w: f(0), h: f(0) } }
 }

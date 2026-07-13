@@ -1,19 +1,32 @@
 # System architecture — start here
 
-How the Agentic Mermaid engine fits together. This is the entry point the
-[abstraction audit](./abstraction-audit.md) identified as missing: a single top-down
-view of the whole system, distinct from the per-diagram-type design notes.
+How the Agentic Mermaid engine fits together: a single top-down view of the
+whole system, distinct from the per-diagram-type design notes.
 
-![Agentic Mermaid abstraction architecture: one normalized source is routed through the FamilyPlugin registry into SVG, ASCII, and agent hooks over the same registry-backed diagram families and shared core types](./architecture.svg)
+![Agentic Mermaid architecture: normalized source and an immutable resolved render request route through the FamilyDescriptor registry, a positioned-artifact waist, graphical and terminal projections, and one strict output-security boundary](./architecture.svg)
 
-One Mermaid source is normalized once, then processed by **three parallel stacks** —
-SVG (`renderMermaidSVG`), ASCII (`renderMermaidASCII`), and the agent IR
-(`parseMermaid` / `mutate` / `verify`). All three route through the
-`FamilyPlugin` registry: SVG uses `layout` + `renderSvg` hooks, ASCII uses
-`renderAscii`, and the agent stack uses `parse` / `serialize` / `mutate` /
-`verify`. The stacks still keep their own geometry models where that is essential
-(float SVG layout vs. terminal grid layout), over a shared core vocabulary in
-`src/types.ts`.
+Mermaid source first becomes one lossless normalized envelope. Descriptor-driven
+detection then selects a registered `FamilyDescriptor`; unknown and unsupported
+headers produce a source-preserving diagnostic instead of falling through to a
+default family. The registry is the family authority. Built-in metadata, website
+examples, capability reports, and documentation tables are projections of it,
+not competing family lists.
+
+Every rendering adapter resolves an immutable `ResolvedRenderRequest` once. Its
+`ResolvedAppearance` owns the final palette, typography, style face, and backend
+identity, while receipts expose shared-request, output-request, and appearance
+digests for parity checks. A family layout hook produces one positioned artifact.
+`projectPositioned` derives layout JSON, bounds, and route certificates from that
+artifact without reparsing or laying out the source again.
+
+Graphical output then takes one of two explicit paths: the family crisp renderer,
+or typed `SceneDoc` lowering into a registered Scene backend. Both converge at the
+same reject-and-verify `OutputSecurityPolicy` before SVG leaves the engine;
+PNG rasterizes that secured SVG and declares the shared sRGB profile. Terminal
+outputs preserve their distinct grid geometry, but consume a named projection of
+the same resolved appearance and report losses rather than silently ignoring
+graphical style. Typed parse, serialize, mutate, and verify hooks remain on the
+same family descriptor identity.
 
 ## This figure is dogfooded and drift-proof
 
@@ -34,8 +47,6 @@ produced *by* the system, and pinned the same way we pin layout determinism.
 
 ## Read next
 
-- [`abstraction-audit.md`](./abstraction-audit.md) — the historical pre-implementation snapshot + ranked issue list **I1–I9**.
-- [`abstraction-recommendations.md`](./abstraction-recommendations.md) — literature-grounded fixes, 2026-06-21 reappraisal, and closure criteria for I1–I9.
 - [`route-contracts.md`](./route-contracts.md) — the flowchart routing engine (edge classification, direct-lane proofs, certifying straightener).
 - [`layout-rubric.md`](./layout-rubric.md) — the deterministic layout-quality rubric.
 - [`layout-guarantees-and-robustness.md`](./layout-guarantees-and-robustness.md) — literature + industry synthesis: which invariants we can guarantee by construction vs. only optimize-and-certify, and the path to fuzz-robustness.

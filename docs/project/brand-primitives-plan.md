@@ -1,16 +1,20 @@
 # Brand primitives and forward-compatible family support — plan
 
-Status: normative architecture, dependency and acceptance plan; root `TODO.md`
-owns execution status through `BUILD-30`, `BUILD-31`, and the reused IDs mapped
-below. The capability baseline is this PR after its 14-family-contract rebase,
-with Mermaid `11.16.0`. The current product has 14 native registered families.
-Mermaid 11.16 has 30 user-facing core families plus the first-party external
-ZenUML family: 31 families in the official public surface.
+Status: Section A is the completed rendering-contract baseline; Section B is
+the normative customization plan owned by `BUILD-31`. Root `TODO.md` owns live
+work. Section A closure evidence lives in its
+[completion record](./archive/section-a-rendering-contract-2026-07.md) and is
+projected from the registries into the [generated capability
+report](./section-a-capability-report.md). The upstream
+compatibility baseline is the version-pinned
+[`UpstreamMermaidManifest`](./upstream-mermaid-manifest.json), never a count or
+roster copied into prose.
 
 ## Decision
 
-The original direction still makes sense, but the scope and architecture need
-to be more precise before implementation:
+The original direction still makes sense. Section A made its correctness,
+parity, consolidation, and forward-compatibility foundation explicit; Section
+B now builds richer customization on that completed baseline:
 
 1. Keep **Look + Palette** as the low floor.
 2. Add a small public, semantic **Brand primitives** layer rather than restoring
@@ -156,13 +160,17 @@ Release claims state the parity level and output, never the unqualified phrase
 | `vercel` | vercel-labs/beautiful-mermaid and the Geist visual language | Brand defaults, deterministic fonts, hairlines, live retheming, and motion cannot be represented completely by the current public JSON surface. |
 | `cf-workers` | CF Workers design-system tokens | Real brands need surface/text ramps, strong+soft categories, status colors, sans+mono roles, scales, tinted layered shadows, signature treatments, and enforceable constraints. |
 
-The current public `StyleSpec` provides seven palette slots, one font, sketch
+The following findings describe the pre-Section-A baseline that motivated the
+correctness work; they are retained as historical design evidence, not as a
+current capability inventory. The live request, output, backend, family and
+role surfaces come from the generated capability report and runtime discovery.
+At that baseline, `StyleSpec` provided seven palette slots, one font, sketch
 stroke/fill controls, three backdrops, intent/mono metadata, and backend
-selection. `RenderOptions` adds explicit colors, global spacing, font, shadow,
+selection. `RenderOptions` added explicit colors, global spacing, font, shadow,
 security, interactivity, family options, config, and output controls. Mermaid
-source adds per-element `classDef`, `class`, `style`, `linkStyle`, metadata, and
-family-specific semantics. These are useful customization points, but they are
-not yet one portable brand record:
+source added per-element `classDef`, `class`, `style`, `linkStyle`, metadata,
+and family-specific semantics. They were useful customization points, but were
+not one portable brand record:
 
 - role typography, padding, radii, and role colors exist only in the private
   `InternalStyleFace` used by built-ins;
@@ -180,14 +188,15 @@ not yet one portable brand record:
   closed 14-member `DiagramKind` and core source routing also uses a closed
   union. It can replace an existing family more honestly than it can add one.
 
-These inconsistencies are plan inputs, not documentation footnotes.
+Section A addressed these inconsistencies; Section B builds on the resulting
+waists rather than reintroducing the baseline paths.
 
-### Current customization and extension inventory
+### Pre-Section-A customization and extension inventory (historical)
 
-This is the complete public customization inventory at the baseline. It records
-what exists, not what every transport exposes correctly.
+This frozen inventory records the implementation baseline used to make the
+decision. It must not be updated as a second current API reference.
 
-| Surface | Current customization points |
+| Surface | Baseline customization points |
 |---|---|
 | `StyleSpec` identity | `$schema`, `name`, `blurb` |
 | `StyleSpec.colors` | `bg`, `fg`, `line`, `accent`, `muted`, `surface`, `border` |
@@ -202,7 +211,7 @@ what exists, not what every transport exposes correctly.
 | `RenderOptions` visual/output | `transparent`, `interactive`, `shadow`, `embedFontImport`, `compact`, `idPrefix`, `security` |
 | `RenderOptions` family behavior | `class.hierarchicalNamespaces`, `architecture.visual`, `timeline.maxWidth`, `journey.experienceCurve`, `gantt.dependencyArrows`, `gantt.criticalPath`, `ganttToday` |
 | `RenderOptions` Mermaid config/diagnostics | `mermaidConfig`, `onConfigDiagnostic` |
-| `PngOptions` raster/font | `scale`, `background`, `fitTo`, `fontDirs`, `loadSystemFonts`, `onWarning`; only `style`, `seed`, and `ganttToday` currently forward into the SVG request |
+| `PngOptions` raster/font | `scale`, `background`, `fitTo`, `fontDirs`, `loadSystemFonts`, `onWarning`; only `style`, `seed`, and `ganttToday` forwarded into the SVG request at the baseline |
 | `AsciiRenderOptions` terminal | `useAscii`, `paddingX`, `paddingY`, `boxBorderPadding`, `colorMode`, `theme`, `mermaidConfig`, `maxWidth`, `targetWidth`, `ganttToday` |
 | Mermaid source | frontmatter and init config; title/accessibility; family syntax and metadata; `classDef`, `class`, `:::`, `style`, `linkStyle`; safe links/click metadata where supported; direction/layout/look/renderer settings; icons/images subject to family and security policy |
 | SVG post-render | documented CSS custom properties plus emitted class/data/semantic identity hooks allow live retheming and inspection; direct DOM rewrites are not portable brand configuration |
@@ -212,7 +221,7 @@ The public programmatic extension points are:
 | Extension point | Intended use | Baseline truth |
 |---|---|---|
 | `registerStyle(StyleSpec)` | reusable declarative Look or Palette | works, JSON-safe, and stackable; cannot register private face fields |
-| `registerBackend(StyleBackend)` | new compositor/drawing algorithm over Scene marks | registration works, but arbitrary IDs cannot currently be selected by valid public `StyleSpec` |
+| `registerBackend(StyleBackend)` | new compositor/drawing algorithm over Scene marks | registration runs a bounded deterministic/security/semantic SVG smoke; claims remain declarations, and arbitrary IDs cannot currently be selected by valid public `StyleSpec` |
 | `registerFamily(FamilyPlugin)` | parser/mutation/verification/layout/Scene/SVG/ASCII family hooks | hooks exist, but the closed `DiagramKind` and hard-coded routing prevent a truthful new typed family without core edits/casts |
 | `FamilyPlugin.lowerScene` + exported Scene types | semantic lowering consumed by styled backends | required for styled rendering, but “has a lowering” is too coarse while roles/features can remain raw or unconsumed |
 | custom style/font files | portable JSON fragments and caller font directories | style JSON works; SVG may name any font, while deterministic PNG requires bundled/caller-provided font coverage |
@@ -561,7 +570,7 @@ differences are host trust and installed resources, not private styling fields.
 | elevation and signature material effects | boolean shadow or whole backend work | renderer/private implementation | declarative elevation tokens; a typed Treatment only if B4 is promoted |
 | constraints | advisory `intent`/`mono` only | no enforcement advantage | resolver/Scene `warn | error` constraints |
 | distribution and design-token ingestion | style JSON, `fromShikiTheme`, caller fonts | repository registration and bundled fonts | namespaced packs, a DTCG-to-fragment importer, and installed resources |
-| new compositor | backend registration, but novel IDs are not valid style values | core can wire an ID | outside this branding roadmap; remove `StyleSpec.backend` and keep trusted host selection separate |
+| new compositor | backend registration; declarative style data cannot select host code | core can wire an ID | outside this branding roadmap; A1 removed `StyleSpec.backend` and kept trusted host selection separate |
 
 Promoting `InternalStyleFace` alone would close only part of rows two and three.
 It would not provide modes, semantic bindings, token ramps, constraints,
@@ -760,47 +769,22 @@ The composition laws are public API:
 
 ## Mermaid 11.16 family envelope
 
-The official Mermaid 11.16 core registry exposes 30 user-facing families. The
-official docs navigation lists 30 entries too, but it substitutes the first-party
-external ZenUML integration for the core Railroad family; their union is 31.
-The table records that full public surface, the current Agentic Mermaid baseline,
-and the syntax/brand pressure each family contributes. “Native” here means
-registered Agentic Mermaid family support; it does not claim every future
-upstream construct.
+The machine-readable upstream manifest records the full official public surface,
+including core, first-party external, compatibility aliases, maturity, and
+inventory-only entries. `FamilyDescriptor` and the generated capability report
+join that upstream identity to current Agentic Mermaid behavior. This plan does
+not repeat either roster or status table.
 
-| Mermaid family | Primary header(s) | Current status | Additional syntax and brand pressure |
-|---|---|---|---|
-| [Flowchart](https://mermaid.ai/open-source/syntax/flowchart.html) | `flowchart`, `graph`, `flowchart-elk` | native for `flowchart`/`graph`; explicit ELK declaration needs capability accounting | directions, renderer/layout variants, subgraphs, large shape catalog, edge IDs/types/animation, markdown/HTML labels, icons/images, metadata, classes/styles/clicks, layout/look selection |
-| [Swimlanes](https://mermaid.ai/open-source/syntax/swimlanes.html) | `swimlane-beta` | not native; currently at risk of Flowchart misrouting | Flowchart syntax plus lane ownership, cross-lane semantics, beta grammar |
-| [Sequence](https://mermaid.ai/open-source/syntax/sequenceDiagram.html) | `sequenceDiagram` | native | actor kinds, lifelines, activations, fragments, notes, autonumber, links/menus, create/destroy, rich arrow endpoints |
-| [Class](https://mermaid.ai/open-source/syntax/classDiagram.html) | `classDiagram`, `classDiagram-v2` | native for `classDiagram`; v2 alias is not routed | compartments, generics, annotations, namespaces, cardinality, relationship endpoints, classes/styles/clicks |
-| [State](https://mermaid.ai/open-source/syntax/stateDiagram.html) | `stateDiagram`, `stateDiagram-v2` | native | pseudostates, composite/concurrent regions, notes, direction, classes/styles/clicks |
-| [Entity Relationship](https://mermaid.ai/open-source/syntax/entityRelationshipDiagram.html) | `erDiagram` | native | entities/attributes/keys/comments, aliases, crow's-foot/cardinality and identifying semantics, direction |
-| [User Journey](https://mermaid.ai/open-source/syntax/userJourney.html) | `journey` | native | sections, actors, scores, task ownership and categorical/status color |
-| [Gantt](https://mermaid.ai/open-source/syntax/gantt.html) | `gantt` | native | date formats, exclusions, milestones, statuses, dependencies, sections, axes, today marker, compact/config |
-| [Pie](https://mermaid.ai/open-source/syntax/pie.html) | `pie` | native | values, labels, legend, donut/showData/config, categorical series |
-| [Quadrant](https://mermaid.ai/open-source/syntax/quadrantChart.html) | `quadrantChart` | native | normalized coordinates, quadrant labels, axes, points, per-point style/classes |
-| [Requirement](https://mermaid.ai/open-source/syntax/requirementDiagram.html) | `requirementDiagram`, `requirement` | not native | SysML requirement/element types, risk/method/status, relationship taxonomy, direct/class styling |
-| [GitGraph](https://mermaid.ai/open-source/syntax/gitgraph.html) | `gitGraph` | native | branch/checkout/merge/cherry-pick, commit types/tags, orientation and config |
-| [C4](https://mermaid.ai/open-source/syntax/c4.html) | `C4Context`, `C4Container`, `C4Component`, `C4Dynamic`, `C4Deployment` | inventory-only; upstream experimental; not currently recognized; native adoption not planned | `BUILD-30` must recognize and losslessly source-preserve all five headers with an explicit unsupported diagnostic; no native renderer roadmap |
-| [Mindmap](https://mermaid.ai/open-source/syntax/mindmap.html) | `mindmap` | native | indentation, shapes, icons/classes, hierarchy depth, branch/category palettes |
-| [Timeline](https://mermaid.ai/open-source/syntax/timeline.html) | `timeline` | native; upstream docs still call the family experimental | periods, sections, events, orientation and categorical cycling |
-| [ZenUML](https://mermaid.ai/open-source/syntax/zenuml.html) | `zenuml` through an official external diagram package | not native; upstream external/experimental loading | alternate nested sequence DSL, async rendering, loops/alt/try/comments, dependency/version negotiation |
-| [Sankey](https://mermaid.ai/open-source/syntax/sankey.html) | `sankey`, legacy `sankey-beta` | not native; graduated in source while docs still say experimental | CSV quoting, weighted flow bands, node/link palettes, quantitative width semantics |
-| [XY Chart](https://mermaid.ai/open-source/syntax/xyChart.html) | `xychart`, `xychart-beta` | native | horizontal/vertical bars and lines, numeric/category axes, ranges, legends, series styles/config |
-| [Block](https://mermaid.ai/open-source/syntax/block.html) | `block`, legacy `block-beta` | not native; graduated upstream | authored grid/columns/spans/space blocks, composites, shapes, edges, classes/styles |
-| [Packet](https://mermaid.ai/open-source/syntax/packet.html) | `packet`, legacy `packet-beta` | not native; graduated upstream | absolute and relative bit ranges, field labels, contiguous coverage, fixed grid typography |
-| [Kanban](https://mermaid.ai/open-source/syntax/kanban.html) | `kanban` | not native | indentation, columns/tasks, assignee/ticket/priority metadata, optional external links |
-| [Architecture](https://mermaid.ai/open-source/syntax/architecture.html) | `architecture`, legacy/documented `architecture-beta` | native for `architecture-beta`; upstream has graduated the header | groups/services/junctions, nesting, icons, side-aware edges, layout/config and asset registration |
-| [Radar](https://mermaid.ai/open-source/syntax/radar.html) | `radar-beta` | not native | axes, curves, min/max/ticks/graticules/legend, categorical colors and nested theme variables |
-| [Event Modeling](https://mermaid.ai/open-source/syntax/eventmodeling.html) | `eventmodeling` | not native | compact/relaxed DSL aliases, timeframes, swimlanes, entity taxonomy, inline/referenced data |
-| [Treemap](https://mermaid.ai/open-source/syntax/treemap.html) | `treemap`, legacy `treemap-beta` | not native; graduated in source while docs still warn syntax may evolve | indentation, parent/leaf distinction, values, class bindings, hierarchical surfaces and labels |
-| [Venn](https://mermaid.ai/open-source/syntax/venn.html) | `venn-beta` | not native; upstream warns syntax may evolve | sets, higher-arity unions, sizes, overlap-specific semantic fills/labels |
-| [Ishikawa](https://mermaid.ai/open-source/syntax/ishikawa.html) | `ishikawa`, legacy `ishikawa-beta` | not native; graduated in source while docs still warn syntax may evolve | indentation, cause hierarchy, spine/branch metaphor, head/cause roles |
-| [Wardley](https://mermaid.ai/open-source/syntax/wardley.html) | `wardley-beta` | not native; beta identifier | fixed coordinate semantics, components/anchors, flows, evolution, notes/annotations, inertia/strategy/pipelines |
-| [Cynefin](https://mermaid.ai/open-source/syntax/cynefin.html) | `cynefin-beta` | not native | fixed semantic domains, items, transitions, domain theme variables, deterministic wavy boundaries |
-| [TreeView](https://mermaid.ai/open-source/syntax/treeView.html) | `treeView-beta` | not native | indentation or box-drawing input, file/folder semantics, Unicode preservation, annotations and registered icons |
-| [Railroad](https://mermaid.ai/open-source/syntax/railroad.html) | `railroad-beta`, `railroad-ebnf-beta`, `railroad-abnf-beta`, `railroad-peg-beta` | not native; beta-only and omitted from docs navigation | four grammar front ends sharing terminal/nonterminal, sequence, choice, optional/repetition and annotation roles |
+Reviewing the complete upstream syntax surface established the reusable pressure
+set Section A must support consistently: graph and hierarchy semantics;
+sequence/UML relationships; authored grids and fixed coordinates; quantitative
+bands, areas, series, axes and legends; schedules and temporal markers;
+indentation, CSV and grammar dialects; icons, images and external resources;
+classes, inline styles and interaction metadata; universal config,
+accessibility and comments; beta/graduated aliases; and first-party external
+loading. Each pressure is represented by a typed primitive, a family-owned
+semantic adapter, explicit source preservation/diagnosis, or an advertised
+not-applicable state—never by routing an unfamiliar header to Flowchart.
 
 Mermaid's core detector registry also contains pseudo/internal inputs such as
 `info`, `error`, and the unparsed-frontmatter `---` detector. They belong in an
@@ -842,7 +826,13 @@ gates.
 Generate and commit an `UpstreamMermaidManifest` from the pinned Mermaid package,
 official docs navigation/pages (including pages missing from navigation), config
 schema, detector registry, beta policy, external first-party registrations, and
-harvested upstream fixtures. Store the Mermaid version and source commit/SHA. On
+harvested upstream fixtures. Assign every public family exactly one hashed
+official syntax page; derive heading-level feature and deduplicated example
+inventories for supported and unsupported families alike; record introduction
+and deprecation as either a cited version or explicitly `not-declared`; validate
+external first-party entries separately from the core detector registry. Store
+the Mermaid version and source commit/SHA. Runtime detection consumes a compact
+generated family projection, not this semantic audit corpus. On
 dependency upgrade, CI must report:
 
 - families or dialects added/removed;
@@ -858,15 +848,16 @@ Every claimed native cell still needs executable evidence.
 ### One family descriptor
 
 Evolve the existing `FamilyPlugin` plus `BUILTIN_FAMILY_METADATA` authority into
-one canonical `FamilyDescriptor`; do not layer a second registry over it. During
-migration the descriptor may be attached/generated, but the old metadata array
-and copied projections are deleted when parity is proved. It should declare:
+one canonical `FamilyDescriptor`; do not layer a second registry over it. The
+legacy metadata API may remain only as a generated compatibility projection of
+the descriptors; independently authored metadata and copied projections are
+deleted. The descriptor should declare:
 
 - stable internal ID, official upstream ID, headers/aliases, maturity/version;
 - detector and collision priority;
 - minimal example and official fixture references;
 - parser/preservation/mutation/verification hooks;
-- config schema and diagnostics;
+- config section/key/no-op inventory and the family diagnostic entry point;
 - layout and semantic Scene lowering;
 - semantic roles/channels and brand-consumption map;
 - accessibility/security/asset policies;
@@ -927,15 +918,22 @@ is used.
   plus treatment IDs only if B4 exists. Capability requirements are `required |
   preferred | optional` and may carry numeric limits; a closed enum must not
   make an unknown future ID unrepresentable.
-- If B4 is promoted, publish its versioned Treatment conformance suite; always
-  retain backend/Scene conformance for the existing backend API. Each report pins core/interface/
-  resource versions and hashes and proves routing, opaque behavior, mark/role
-  acceptance, style composition, pass order, deterministic SVG/PNG,
+- Retain the executable backend/Scene admission gate for the existing backend
+  API. Its versioned, frozen fixture directly proves deterministic `drawNode`
+  and document SVG, one safe SVG envelope, and representative document,
+  container, shape, text, connector, marker, accessibility and data-mark
+  preservation. The discoverable report pins Scene and output-security contract
+  versions. It is a smoke result, not certification of every declared primitive
+  claim or every family. PNG inherits admitted SVG through the separately tested
+  canonical secured rasterizer; registration does not pretend to test PNG pixels.
+- If B4 is promoted, publish its broader versioned Treatment conformance suite.
+  That suite should pin core/interface/resource versions and hashes and test
+  routing, opaque behavior, mark/role acceptance, style composition, pass order,
   accessibility, hit/bounds behavior, security, resource integrity, failure
-  isolation, unknown optional capabilities and discovery. Every
-  advertised capability cites passing fixture IDs and the pinned runtime/
-  environment; structural assertions are paired with reference renders and
-  explicit fuzzy thresholds where exact bytes are inappropriate.
+  isolation, unknown optional capabilities and discovery. Every advertised
+  capability cites passing fixture IDs and the pinned runtime/environment;
+  structural assertions are paired with reference renders and explicit fuzzy
+  thresholds where exact bytes are inappropriate.
 - Add greasing fixtures for unknown optional capability/config/role values and
   required-unknown failures so extension paths do not ossify around only today's
   registrations.
@@ -953,11 +951,13 @@ is used.
   path, media type, SHA-256 digest, byte size, license and required/optional
   status. Reject traversal, symlinks, MIME mismatch and declared limits; a
   readonly resolver exposes only verified resources.
-- Run every first- or third-party backend result through one
-  `OutputSecurityPolicy`: a secure-static SVG/HTML allowlist; no script/event
-  attributes, `foreignObject`, raw CSS, unapproved URL schemes or ambient
-  external references; approved resources embedded or integrity-checked; and
-  stable failure diagnostics. Backend trust never bypasses output validation.
+- Run every first- or third-party backend result through one fail-closed
+  `OutputSecurityPolicy`: active content is rejected in every mode and strict
+  mode additionally rejects every external reference. Raw Mermaid `themeCSS`
+  is diagnosed before rendering because selectors can escape an imported SVG;
+  declarative StyleSpec is the safe replacement. The gate validates without
+  rewriting XML, approved resources are embedded or integrity-checked, and
+  backend trust never bypasses it.
 
 #### Extension trust tiers
 
@@ -969,30 +969,15 @@ Trust is independent of capability and expressiveness:
 | Trusted in-process | Backends, and Treatments only if B4 is promoted, run after explicit host installation and allowlisting. They remain subject to typed input/output, resource, determinism, budget and output-security contracts. |
 | Future untrusted code | Requires a separate worker/process or WASI-style capability sandbox with explicit imports plus CPU, memory, time and output budgets. A runtime permission flag is not treated as a hostile-code sandbox. |
 
-### Adoption order for Mermaid's missing families
+### Native-family adoption boundary
 
-Native family growth follows Section A6 and is not a prerequisite for the first
-Section B customization PRs, but it consumes the same shared protocol:
-
-1. **Recognition floor:** account for all 31 official public families plus the
-   core pseudo/internal watch set in detection, opaque preservation,
-   capabilities, and diagnostics.
-2. **Stable high-leverage wave:** Requirement, Block, Packet, Kanban, and
-   TreeView. Together they exercise records/status, authored grids, fixed-width
-   fields, metadata, indentation/Unicode, icons, and terminal output.
-3. **Data-visualization wave:** Sankey, Radar, and then Treemap/Venn when their
-   pinned grammars are acceptable. This tests weighted flows, curves, areas,
-   overlaps, legends, scales, and strong/soft category tokens.
-4. **Domain-model wave:** Swimlanes, Event Modeling, and ZenUML. These test
-   shared grammar reuse, async/external dependencies, boundaries, and lane/domain
-   semantics.
-5. **Change-prone metaphor wave:** Ishikawa, Wardley, and Cynefin after explicit
-   pinned-version decisions. Preserve and watch them before claiming stability.
-
-The priority can change with demand, but every wave uses the same citizenship,
-syntax, brand, output, and extension contracts. Inventory-only families do not
-enter an adoption wave without a separately promoted, evidence-backed root TODO
-item.
+Section A6 supplies recognition, preservation, negotiation and conformance; it
+does not create a shadow adoption queue. Native-family growth is owned only by
+`BUILD-6` and each promoted family must pass the citizenship, syntax, primitive,
+backend, output and extension contracts then in force. Priority is decided from
+current demand, maturity and evidence when work is promoted. Inventory-only
+entries remain compatibility inputs unless a focused root TODO explicitly makes
+one product work.
 
 ## Internal-consistency contract
 
@@ -1003,11 +988,14 @@ One declaration should enter one registry-driven pipeline:
 ```
 detect -> lossless envelope -> family parse -> semantic normalize
   -> resolve request/appearance + token constraints -> layout -> PositionedScene
-  -> core positioned additions [plus selected Treatments only if B4]
   -> final bounds/viewBox + Scene constraints
   -> generic backend/output adapter
   -> OutputSecurityPolicy -> output validation/projection
 ```
+
+If B4's evidence gate is later passed, its single typed, post-positioning
+addition step is inserted between `PositionedScene` and final bounds. Section A
+deliberately ships no generic addition registry, selector, or pipeline.
 
 Capabilities and degradation decisions are recorded at those boundaries, not
 inferred afterwards from whether some output happened to be non-empty.
@@ -1039,8 +1027,10 @@ quality checks. The canonical `ConnectorMark` contract must carry:
   overflow, `markerUnits`, fill/stroke/context paint, scale, orientation, bounds
   and stable resource identity;
 - label paint/halo and the marker/label clearance required by layout;
-- a terminal projection and stable diagnostics for features a character grid
-  cannot represent.
+- a typed terminal evidence projection and stable diagnostics for features a
+  character grid cannot represent. Family cell-grid routing remains
+  family-owned; topology defects such as `TERM-1/2` are not disguised as
+  primitive parity.
 
 Bounds and hit testing include cap extension, half stroke width, acute miter
 spikes, marker bounds, filters/shadows, core positioned additions, and declared
@@ -1067,12 +1057,12 @@ testing, verification and accessibility all consume the same positioned mark.
 
 ### Remove ambiguous historical identities
 
-The current `tufte` name means both a palette in `THEMES` and a full Look in the
-style registry; built-in Look registration silently overwrites the palette
-entry. This is representative of the broader historical overlap between
-“theme,” “palette,” and “style.” Section A introduces explicit kinds and
+Before Section A, `tufte` meant both a palette in `THEMES` and a full Look in
+the style registry; built-in Look registration silently overwrote the palette
+entry. This represented the broader historical overlap between “theme,”
+“palette,” and “style.” Section A introduced explicit kinds and
 collision-safe names such as `palette:tufte` and `look:tufte`. The bare
-`tufte` alias continues to select the currently observable full Look during a
+`tufte` alias selects the historically observable full Look during a
 published compatibility window, with discovery showing its canonical ID and
 the formerly shadowed palette becoming directly addressable. New registrations
 must be namespaced and cannot silently replace another kind or owner.
@@ -1084,19 +1074,19 @@ institutionalize the same ambiguity at a larger scale.
 
 | Concern | Canonical authority | Derived consumers |
 |---|---|---|
-| upstream Mermaid inventory | `UpstreamMermaidManifest` | upgrade diff, family backlog, syntax fixtures, maturity labels |
+| upstream Mermaid inventory | `UpstreamMermaidManifest` | upgrade diff, compatibility/adoption review, syntax fixtures, maturity labels |
 | shipped family and capabilities | `FamilyDescriptor` registry | types/narrowers, routing, CLI/MCP/editor/site/docs, citizenship matrix |
 | public brand/style fields | one typed field manifest + JSON Schema | the single `style` stack, `StyleSpec` compatibility input, `BrandPack`, validator, docs, CLI/MCP/editor forms |
 | semantic roles/channels | core role registry + family adapter declarations | Scene types, brand consumption matrix, constraints, and Treatments only if B4 exists |
 | render request | one normalized `ResolvedRenderRequest`, shared-field manifest and output projection descriptors | SVG, PNG, ASCII/Unicode, CLI, MCP, editor, website |
 | appearance resolution | one pure `resolveAppearance` | measurement, layout, Scene lowering, all render backends |
-| Scene and primitives | versioned Scene/Connector schema plus positioned-addition/bounds invariants | layout, core positioned additions, backends, bounds/hit testing, accessibility and conformance suites; B4 reuses the invariants if promoted |
+| Scene and primitives | versioned Scene/Connector schema plus bounds, identity, hit-testing and ordering invariants | layout, backends, accessibility and conformance suites; B4 reuses the invariants if promoted |
 | extension identity | shared identity/namespacing helpers plus existing kind-specific family/backend/resource registries; a typed Treatment registry joins only if B4 is promoted | collision-safe registration, discovery, negotiation and frozen typed snapshots; no generic extension pipeline |
 | capability decisions | declarations on kind-specific descriptors plus existing conformance evidence | generated preflight result, diagnostics, fallback/error policy, matrices and product claims |
 | conformance evidence | the existing characterization catalog and citizenship/style/backend suites, extended with stable capability IDs | generated implementation reports and release claims without a second fixture catalog |
-| output security | one `OutputSecurityPolicy` replacing the current strip-only post-pass | every backend/output adapter and editor insertion path |
+| output security | one `OutputSecurityPolicy` | every backend/output adapter and editor insertion path |
 | examples | family descriptor minimal example + a shared example manifest | editor, website, docs, evals, contact sheets |
-| live work | root `TODO.md`, principally `BUILD-30` and `BUILD-31` | issues/PRs; this plan supplies dependency and acceptance evidence, not a second checklist |
+| live work | root `TODO.md`; completed work moves to `docs/project/archive/` | issues/PRs; this plan supplies dependency and acceptance evidence, not a second checklist |
 
 ### Consistency invariants
 
@@ -1104,8 +1094,11 @@ institutionalize the same ambiguity at a larger scale.
   uses the glossary above;
 - every declared family header routes identically through SDK, SVG, ASCII, CLI,
   MCP, and editor preprocessing;
-- every public field is accepted/rejected identically by TypeScript, runtime
-  validation, JSON Schema, CLI/MCP, editor, and docs;
+- every public field has one descriptor projected into TypeScript, runtime
+  validation, JSON Schema, CLI/MCP, editor, and docs. Runtime admission is
+  identical across transports; schemas encode every portable structural
+  constraint and name any recursive/security validator that cannot be expressed
+  exactly in standard JSON Schema rather than silently weakening it;
 - every render surface either forwards a field or exposes a stable unsupported
   diagnostic—never silent omission;
 - equivalent fixtures entering through the library, CLI, local/hosted MCP,
@@ -1116,8 +1109,10 @@ institutionalize the same ambiguity at a larger scale.
   values;
 - all family adapters account for every core role they emit and every public
   primitive they consume;
-- SVG and PNG preserve semantic identity, accessibility, security, and branded
-  appearance except explicitly raster-only concerns;
+- SVG preserves DOM identity and accessibility metadata. PNG rasterizes the
+  same secured semantic geometry and branded appearance and carries the same
+  logical request receipt, but DOM identity and ARIA are not representable in
+  pixels and are explicitly not claimed as PNG payload features;
 - every backend result passes the same output-security validator; trusted code
   has no direct route around the final security boundary;
 - ASCII/Unicode derives a `ResolvedTerminalStyle` from the same brand roles and
@@ -1147,27 +1142,29 @@ authorities only when their source manifest and semantic invariant are singular.
 |---|---|
 | A0–A1 | remove incorrect capability claims and copied discovery lists; remove `StyleSpec.backend` from declarative authoring; make legacy aliases diagnosed and time-bounded |
 | A2 | delete PNG's manual shared-field forwarding and source reparse; remove raw appearance re-resolution below the waist; reduce `THEMES` and legacy style/color records to generated compatibility projections |
-| A3–A4 | delete connector/marker reconstruction from SVG strings, parallel family detectors/metadata projections, duplicate universal-envelope parsing, and independent render/layout positioning paths as their typed replacements land |
+| A3–A4 | delete connector/marker reconstruction from SVG strings, parallel family detectors and independently-authored metadata, duplicate universal-envelope parsing, and independent render/layout positioning paths as their typed replacements land |
 | A5–A7 | replace—not supplement—the strip-only SVG security path; delete copied schemas/tables/counts and any second fixture/capability catalog; archive completed execution plans |
 | B0–B1 | add no `appearance` option or second stack; prove the public role surface with representative built-ins while private forms remain derived compatibility inputs |
 | B2–B4 | add no runtime DTCG alias engine, migration registry, mode-combination language, semantic/paint Treatment phases, or custom-backend packaging without separately promoted evidence |
 | B5 | migrate each built-in to the lowest sufficient public tier and delete the private path it formerly required |
 
-## Consolidation opportunities
+## Consolidation record and remaining opportunities
 
 ### In this plan and its documentation set
 
 1. Keep this document as the only active decision and dependency order for brand
    primitives. Keep Cupertino as a non-authoritative probe/evidence record.
-2. Treat [`styles-rollout.md`](../design/system/styles-rollout.md) as the executed
+2. Treat [`archive/styles-rollout.md`](./archive/styles-rollout.md) as the executed
    history of Style + Palette, not a second active brand roadmap.
 3. Keep
    [`archive/remove-role-styling-plan.md`](./archive/remove-role-styling-plan.md)
    as historical rationale. The new semantic brand-role layer is a redesigned
    global interface, not resurrection of arbitrary per-element role objects.
-4. Generate the 14-family native fidelity table in
+4. Keep the qualitative family hallmarks and visual evidence in
    [`mermaid-family-fidelity-audit.md`](../design/mermaid-family-fidelity-audit.md)
-   from the family/evidence manifests. Keep qualitative hallmark prose reviewed.
+   human-reviewed, while tests derive its required row presence from the family
+   registry. Machine capability claims live only in the generated capability
+   report.
 5. Extend the existing citizenship matrix instead of creating a second brand
    support matrix: add brand-role consumption and output parity as checked
    capability/evidence fields.
@@ -1177,40 +1174,40 @@ authorities only when their source manifest and semantic invariant are singular.
 
 ### In Agentic Mermaid
 
-| Priority | Consolidation | Current duplication/inconsistency | Target |
+Section A already consolidated family routing, render-request transport,
+positioned artifacts, StyleSpec and RenderOptions definitions, appearance
+resolution, universal source envelopes, extension identity, font/style/palette
+catalogues, CSS named colors, strict output security, and resource provenance.
+The compatibility names that remain are generated views, not alternate owners.
+
+Only the residual opportunities below remain live; this plan does not restate
+their acceptance detail.
+
+| Priority | Remaining consolidation | Sole status owner | Target authority |
 |---|---|---|---|
-| P0 | family identity and routing | `DiagramKind` in `src/agent/types.ts`, `RoutedDiagramType` and detectors in `src/mermaid-source.ts`, `detectKind` in `src/agent/parse.ts`, metadata/registry in `src/agent/families.ts`, plus surface projections | evolve `FamilyPlugin`/metadata in place into one `FamilyDescriptor` authority with a closed built-in union and open extension ID; delete the old array/projections after migration |
-| P0 | render request transport | `RenderOptions` in `src/types.ts`; smaller `PngOptions`; separate `AsciiRenderOptions`; CLI/MCP/editor/hosted subsets and family forwarding | one normalized shared request with declared output projections and capability diagnostics; PNG derives its SVG request and terminal output derives a semantic style projection rather than rebuilding disconnected subsets |
-| P0 | positioned artifact and verification | public SVG uses `src/render-family-hooks.ts`, while `src/agent/family-layouts.ts` and `src/agent/verify.ts` reparse/reproject geometry | one family artifact or `projectPositioned` path shared by SVG, PNG, layout JSON, verify, certificates, and quality checks |
-| P0 | style/brand field definition | `StyleSpec`, `KNOWN_KEYS`, validation, JSON Schema, docs field table, editor controls, CLI/MCP descriptions | one field manifest generates or checks all surfaces |
-| P0 | style resolution | stack/color/face merging in `src/scene/style-registry.ts`, theme precedence in `src/theme.ts`, style defaults in `src/styles.ts`, per-family projection | one immutable internal `ResolvedAppearance`; `THEMES` becomes a generated compatibility projection, raw-input reads below resolution disappear, and `InternalStyleFace` is deleted after B5 all-built-in equivalence |
-| P0 | truthful extension selection | arbitrary `registerBackend` IDs cannot pass `StyleSpec.backend`; `registerFamily` cannot add a typed ID | remove the misleading declarative backend field and keep backend selection host-only; make family IDs truthfully extensible through the evolved family authority |
-| P1 | semantic roles | closed `SceneRole` grows per family; family renderers choose mappings independently | stable core role registry, namespaced extensions with required fallback, generated role-consumption matrix |
-| P1 | family config capabilities | keys/value/no-op diagnostics in `src/shared/family-config-diagnostics.ts` remain separate from family hook/metadata declarations | family descriptor owns config schema, resolver, diagnostics, and capability projection |
-| P1 | universal Mermaid envelope | frontmatter/init/comments/accessibility are parsed in `src/mermaid-source.ts`, `src/agent/parse.ts`, `src/index.ts`, `src/shared/accessibility-directives.ts`, and family parsers | evolve `NormalizedMermaidSource`/`ValidDiagram` into one lossless envelope view rather than adding a third structure; family parsers receive the preserved body |
-| P1 | parser authority | agent `*-body.ts` parsers duplicate `src/<family>/parser.ts` grammars (existing `CONS-26`) | one grammar AST projected into agent bodies with source-preserved segments |
-| P1 | examples/discovery | minimal examples and labels are duplicated across metadata, editor, website, fixtures, SDK text (existing `CONS-27`) | descriptor example + shared example manifest; generated surfaces |
-| P1 | style and palette identity | Looks and palette-only styles share one name map; a full look can shadow a palette name | explicit kind/namespace/collision policy while preserving stack ergonomics |
-| P2 | conditional Treatment seam | one proved effect may otherwise jump to a whole backend | if B4 is promoted, one runtime-owned post-positioning addition pipeline reuses A3 invariants; otherwise add no registry or pipeline |
-| P2 | common family mechanics | accessibility directive scans, label extraction, IDs, title ops, hashes, color-mix strings, outline geometry recur (existing `CONS-11`, `CONS-16`, `CONS-30`) | shared pure helpers with property/model-gap tests |
-| P2 | positioned/rendered paths | several families independently resolve/parse for SVG and `layoutMermaid` (existing `CONS-42`) | one resolve -> position -> project result shared by outputs |
-| P2 | small duplicate registries | named CSS colors exist in both `src/shared/css-named-colors.ts` and `src/sequence/colors.ts`; style labels and font bundles are separately enumerated | import/generate from the existing shared color table, style metadata, and font manifest |
+| P0 | public brand roles and removal of private built-in face advantages | `BUILD-31` (B1/B5) | public brand primitives compile to the same `ResolvedAppearance` used by built-ins; delete private-only expressive paths after equivalence |
+| P1 | family config value rules and resolver diagnostics still sit beside descriptor-owned section/key/no-op inventories | `CONS-44` | descriptor-owned schema/diagnostic hook, then generated transport projections where duplication is proved |
+| P1 | agent and legacy family parsers re-encode the same grammar | `CONS-26` | one family grammar AST with source-preserving agent projections |
+| P1 | minimal examples remain duplicated across editor, website and fixtures | `CONS-27` | descriptor example plus generated shared fixtures |
+| P1 | remaining non-marker `RawMark` escapes | `CONS-41` | typed document, icon, interaction or explicitly classified escape contracts |
+| P2 | shape outlines, accessibility parsing and repeated body utilities | `CONS-11`, `CONS-16`, `CONS-30` | small shared pure helpers with characterization and property tests |
+| P2 | physical layout-pass files, mutation configs and terminal canvas/context mechanics | `CONS-40`, `CONS-43`, `CONS-45` | generated manifests or cohesive helpers without universalizing family semantics |
+| Conditional | a signature effect that demonstrably fits neither a primitive nor a backend | `BUILD-31` B4 evidence gate | one post-positioning Treatment seam only if the gate passes; otherwise no seam |
 
 Do not consolidate family parsers into a universal grammar, family layouts into a
 universal layout algorithm, or family palette semantics into one cycling rule.
 The reusable waist is protocol, roles, resolution, and mechanics; family meaning
 remains behind adapters.
 
-This work builds on the completed post-PR-149 consolidation pass and consumes
-the live `CONS-*` follow-ups in `TODO.md`; it does not reopen that historical
-roadmap. Add gates beside `consolidation-gate.test.ts` and
-`property-abstraction-waists.test.ts` for registry-owned detection, one
-positioned artifact, render-option/surface parity, named-style/resolved-style
-equivalence, and complete role-trait/brand-fallback consumption.
+This work builds on the completed post-PR-149 consolidation pass and leaves the
+remaining `CONS-*` work solely in `TODO.md`; it does not reopen that historical
+roadmap. Section A's registry, positioned-artifact, transport and authority
+gates remain regression contracts. Section B adds only named-style/public-style
+equivalence and complete brand-role fallback evidence.
 
 ## Execution plan: Section A before Section B
 
-The plan now has two product boundaries rather than interleaved “brand” and
+The plan has two product boundaries rather than interleaved “brand” and
 “family” tracks:
 
 - **Section A makes the existing system correct, coherent, explicit and
@@ -1240,8 +1237,8 @@ Mermaid family, but each newly registered family must use the Section A protocol
 and pass the current Section B sentinel contract available at that time.
 These are implementation prerequisites; public release of a B capability also
 requires its relevant A5 parity gates. `A6(protocol)` means recognition,
-version negotiation, namespaces and conformance—not completion of the native-
-family adoption backlog, which continues in parallel.
+version negotiation, namespaces and conformance—not completion of native-family
+adoption work, which remains solely owned by `BUILD-6`.
 “A before B” is dependency direction, not waterfall: holdout brands and real
 authoring work in B may reveal a recurring missing primitive, but promotion back
 into A requires cross-family evidence, a behavioral contract, compatibility
@@ -1249,28 +1246,29 @@ review and conformance tests rather than a brand-specific shortcut.
 
 ### Phase-to-TODO ownership
 
-`TODO.md` is the only status-bearing backlog. The phases below are dependency and
-acceptance boundaries for two root items, not another checklist; Cupertino and
-other brand documents supply probe evidence only.
+`TODO.md` is the only status-bearing backlog. The phases below are dependency
+and acceptance boundaries, not another checklist; Cupertino and other brand
+documents supply probe evidence only.
 
-| Plan phase | Umbrella owner | Existing owners/evidence consumed |
+| Plan boundary | Status owner | Independent scope retained |
 |---|---|---|
-| A0–A3 | `BUILD-30` | `CONS-11`, `CONS-41`, `CONS-44`, `CONS-45` |
-| A4 | `BUILD-30` | `CONS-16/26/27/42/44`, `SRC-1/2` |
-| A5 | `BUILD-30` | `BUILD-26`, `CONS-45`, `TERM-1/2`, `SEC-1/2/3` |
-| A6 recognition/extension protocol | `BUILD-30`; native-family adoption remains `BUILD-6` | `BUILD-26`, citizenship evidence; inventory-only exclusions are not adoption work |
-| A7 | `BUILD-30` | `CONS-30/40/43/44` plus the completed `POST149-*` evidence record |
-| B0–B5 | `BUILD-31` | the relevant `BUILD-30` parity gate; Cupertino/holdout acceptance evidence |
+| A0–A7 | completed; [`Section A completion record`](./archive/section-a-rendering-contract-2026-07.md) | referenced `CONS-*`, `SRC-*`, `TERM-*`, security, family-adoption and evidence items keep any work beyond Section A |
+| B0–B5 | active `BUILD-31` | Cupertino/holdout acceptance evidence; native-family adoption remains `BUILD-6` |
 
 The graph above defines hard phase dependencies. Reused IDs in the table retain
-their independent scope, status, and evidence; `BUILD-30/31` coordinate the
-umbrella program rather than absorbing or silently closing them.
+their independent scope, status, and evidence; `BUILD-31` coordinates Section B
+without absorbing or silently closing them.
 
 Newly shipped surfaces such as those proposed by `BUILD-27/28/29` join the A2/A5
 transport contract when they land; they do not create parallel brand inputs or
 block the current program.
 
-## Section A — correctness, parity, consolidation, and essential primitives
+## Section A — completed correctness, parity, consolidation, and essential primitives
+
+Section A is an enforced architectural baseline, not live work. The A0–A7
+bullets below retain the normative obligations that future changes must
+preserve; closure evidence, retired authorities, and verification commands are
+in the [completion record](./archive/section-a-rendering-contract-2026-07.md).
 
 ### A0 — truth and characterization floor
 
@@ -1346,8 +1344,10 @@ cannot read raw style/theme/config below the resolution boundary.
   role fallback protocol required by current families. Section A owns semantic
   identity, applicability and fallback; it does not assign brand values.
 - Make connector route geometry, bend radius, stroke cap/join/miter, dash,
-  markers, labels, hit geometry, identity, accessibility and terminal projection
-  typed rather than reconstructed from SVG strings.
+  markers, labels, hit geometry, identity and accessibility typed rather than
+  reconstructed from SVG strings. Supply a typed connector projection to
+  terminal adapters and receipt evidence; do not claim that this alone replaces
+  each family's cell-grid topology algorithm.
 - Separate authored semantic shape/relationship meaning from configurable paint
   and applicable geometry defaults.
 - Make measurement, layout, verification, crisp rendering, rough/hybrid
@@ -1363,7 +1363,9 @@ cannot read raw style/theme/config below the resolution boundary.
   claims against each actual target renderer, not only the format specification.
 
 Exit: every essential primitive has one typed contract, explicit consumers and
-an unsupported/projection diagnostic; connector semantics survive every path.
+an unsupported/projection diagnostic. Connector semantics survive every
+graphical backend and are present in terminal projection evidence; known
+cell-grid semantic defects remain explicitly owned by `TERM-1/2`.
 
 Deletion gate: applicable connectors/markers are no longer reconstructed from
 SVG strings or family-local marker XML, and A3 adds no dormant Treatment
@@ -1372,9 +1374,10 @@ registry, selector or pipeline.
 ### A4 — canonical family and positioned-artifact protocol
 
 - Evolve `FamilyPlugin` plus `BUILTIN_FAMILY_METADATA` into `FamilyDescriptor` as
-  the authority for identity, headers, detection, config schema/diagnostics,
-  examples, role maps, operations, layout, Scene lowering and capability
-  evidence; do not add a parallel family registry.
+  the authority for identity, headers, detection, config section/key/no-op
+  inventory, examples, role maps, operations, layout, Scene lowering and
+  capability evidence; do not add a parallel family registry. Richer config
+  value-rule consolidation remains independently owned by `CONS-44`.
 - Separate closed built-in IDs from open namespaced extension IDs.
 - Evolve `NormalizedMermaidSource`/`ValidDiagram` into one lossless envelope view;
   do not add a third envelope. Family parsers receive the preserved body rather
@@ -1391,7 +1394,7 @@ are removed as their descriptor projections land.
 
 ### A5 — first-party subsystem, backend and output parity
 
-- Gate all 14 current families with `family x role/primitive` consumption and
+- Gate every registered built-in family with `family x role/primitive` consumption and
   fallback evidence.
 - Gate `default`, `rough` and `hybrid` with `backend x Scene mark/primitive`
   conformance. Different drawing character is expected; semantic input,
@@ -1399,14 +1402,20 @@ are removed as their descriptor projections land.
   diagnostics must agree.
 - Gate library/CLI/MCP/editor/website transport receipt independently from
   backend rendering, then run a sentinel interaction cross-product.
-- Require SVG/PNG semantic and branded-appearance parity for current Styles,
-  deterministic fonts/resources and strict security. Cross-output fixtures prove
-  glyph coverage and metrics from the same locked font faces.
+- Require SVG/PNG semantic-input, geometry and branded-appearance parity for
+  current Styles, content-addressed bundled fonts/resources and strict
+  security. SVG retains inspectable identity/ARIA; PNG is the raster projection
+  and does not pretend those DOM semantics are embedded in its pixels.
+  Cross-output fixtures prove glyph coverage and metrics from the same locked font faces.
+  Caller directories and system fonts are opt-in host inputs: artifact
+  provenance marks them `host-dependent`, and a logical request receipt is not
+  misrepresented as a final-byte digest.
 - Convert typed colors through one declared output profile/gamut policy; assert
   identical SVG/PNG conversion and the expected PNG sRGB/ICC/cICP metadata and
   precedence. Extract/harden the existing SVG post-pass into one
-  `OutputSecurityPolicy` used by every result and editor insertion path; replace
-  the strip-only/unsafe paths rather than running another sanitizer beside them.
+  fail-closed `OutputSecurityPolicy` used by every result and editor insertion
+  path; delete the strip-only mutation paths rather than running another
+  sanitizer beside them.
 - Compile `ResolvedAppearance` into `ResolvedTerminalStyle` for no-color, ANSI
   16/256, truecolor and HTML; preserve role/hierarchy/emphasis/status semantics
   and diagnose radius, typography, elevation and other nonrepresentable paint.
@@ -1416,8 +1425,8 @@ are removed as their descriptor projections land.
   HTML styled text is an output encoding, not a terminal color capability.
 
 Exit: the existing graphical first-party system can claim contract, transport
-and semantic backend parity; terminal output can claim explicit semantic
-projection parity, never pixel parity.
+and semantic backend parity; terminal output can claim shared appearance and
+diagnostic projection parity, never pixel parity or blanket topology fidelity.
 
 Deletion gate: PNG, terminal and host adapters no longer hand-copy shared fields;
 the old SVG strip-only security path and unsafe editor `innerHTML` path are gone;
@@ -1425,8 +1434,10 @@ no surface-specific appearance schema remains.
 
 ### A6 — upstream and extension forward compatibility
 
-- Establish the version-pinned 31-family public manifest plus core
-  pseudo/internal watch entries and upgrade diffs.
+- Establish the version-pinned public-family manifest plus core
+  pseudo/internal watch entries and upgrade diffs. Its official-page, feature,
+  example and lifecycle accounting covers every inventoried family, while a
+  compact generated index is the only projection loaded by render runtimes.
 - Ensure unsupported official and unknown future headers are losslessly
   preserved or explicitly diagnosed and never fall through to Flowchart.
 - Version persisted/extension-facing Scene, family, capability and resource
@@ -1434,9 +1445,10 @@ no surface-specific appearance schema remains.
   B4 is promoted; retain diagnosed
   compatibility aliases for a published window without a speculative general
   migration engine.
-- Add native families through the adoption waves and citizenship ratchet. Each
-  family must pass the primitive, backend, output and discovery contracts in
-  force when it registers. Inventory-only exclusions do not enter these waves.
+- Keep native-family adoption outside this umbrella under `BUILD-6`. Whenever a
+  family is promoted there, require the primitive, backend, output, discovery
+  and citizenship contracts in force when it registers; inventory-only entries
+  remain compatibility evidence rather than an implicit queue.
 
 Exit: a Mermaid upgrade yields a reviewable manifest diff; every stable family
 is native at its advertised capability or explicitly preserved/diagnosed, and a
@@ -1636,14 +1648,18 @@ compatibility expiry.
   security, resource and diagnostic behavior; intentional visual projection is
   recorded rather than compared for pixel equality;
 - assert every connector preserves endpoints, direction, markers, label/hit
-  geometry, dash/cap/join/bend semantics and stable identity through positioned
-  layout, each first-party backend, SVG/PNG and terminal projection;
+  geometry and dash/cap/join/bend semantics through positioned layout, each
+  first-party backend, SVG/PNG and terminal projection; stable inspectable
+  identity remains an SVG/positioned-artifact contract rather than a PNG-pixel
+  claim;
 - cover multiple subpaths, `Z` versus an explicit final `L`, zero-length paths,
   odd/even dash arrays and offsets, acute miter bounds/clipping, mid and
   bidirectional markers, roughened-marker tangents, transforms, non-scaling
   stroke, marker overflow and SVG/PNG projection in connector conformance;
-- assert local/hosted SVG and PNG semantic and visual parity, deterministic
-  bytes, font fallback, strict security, identity, ARIA, and reference safety;
+- assert local/hosted SVG and PNG visual and logical-receipt parity, conditional
+  deterministic bytes, font fallback and strict security; assert identity,
+  ARIA and reference safety on SVG, and color-profile, raster integrity and
+  resource provenance on PNG;
 - assert ASCII/Unicode consumes the same semantic role/binding selections and
   returns the specified projection diagnostics for every non-representable
   primitive and color mode;
@@ -1682,14 +1698,13 @@ compatibility expiry.
   escape hatch.
 - No universal grammar, layout algorithm, router, or family palette rule.
 - No claim that ASCII/Unicode is pixel-, font-, or geometry-equivalent to
-  graphical output. A5 supplies a separately specified semantic projection from
-  the same resolved appearance; non-representable primitives remain diagnosed
-  rather than simulated misleadingly.
+  graphical output. A5 supplies a separately specified appearance/diagnostic
+  projection and typed connector evidence from the same resolved request;
+  family cell-grid topology remains independently tested, with known defects
+  owned by `TERM-1/2`. Non-representable primitives remain diagnosed rather
+  than simulated misleadingly.
 - No automatic native rendering of unstable families merely because Mermaid's
   detector recognizes their header.
-- No native Mermaid C4 adoption in `BUILD-6`, `BUILD-30`, or `BUILD-31` while it
-  remains upstream-experimental; recognition, byte preservation, and explicit
-  diagnostics remain required for forward compatibility.
 
 ## Deferred: cross-family motion
 

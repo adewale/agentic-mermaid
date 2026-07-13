@@ -1,29 +1,30 @@
 graph TD
-  SRC["Mermaid source text"] --> NORM["normalize source<br/>frontmatter · %%init%% · config"]
-  NORM --> DET{"detect diagram type"}
-  DET --> REG["FamilyPlugin registry<br/>detect · parse · layout · renderSvg · renderAscii<br/>serialize · mutate · verify"]
+  SRC["Mermaid source text"] --> NORM["normalized source envelope<br/>original text · wrappers · accessibility"]
+  NORM --> DET{"descriptor-driven family detection"}
+  DET --> REG["FamilyDescriptor registry<br/>registered built-ins · namespaced extensions<br/>detect · parse · layout · project · render"]
+  DET -->|"unknown or unsupported"| DIAG["source-preserved diagnostic<br/>no default-family fallback"]
 
-  subgraph SVGSTACK["SVG stack · renderMermaidSVG"]
+  NORM --> REQ["ResolvedRenderRequest<br/>immutable source · shared options · output · digests"]
+  REQ --> APP["ResolvedAppearance<br/>palette · typography · style face · backend identity"]
+  REQ -->|"registered family"| REG
+
+  subgraph FAMILY["registered-family waist"]
     direction TB
-    L1["source-context layout hook<br/>parse → config middleware → layout"] --> CTX["RenderContext<br/>positioned · colors · options"]
-    CTX --> O1["SVG string"]
+    REG --> POS["one layout hook → positioned artifact"]
+    POS --> PROJ["projectPositioned<br/>layout JSON · bounds · route certificates"]
+    REG --> AGENT["typed agent hooks under the same descriptor<br/>parse · serialize · mutate · verify"]
   end
 
-  subgraph ASCIISTACK["ASCII stack · renderMermaidASCII"]
+  subgraph OUTPUTS["output projections"]
     direction TB
-    L2["renderAscii hook"] --> GRID["grid geometry<br/>AsciiGraph · Canvas · A* pathfinder"]
-    GRID --> O2["text grid"]
+    POS --> GRAPHICAL["SceneDoc lowering (built-ins) or renderSvg extension fallback<br/>typed roles · connectors · registered Scene backend"]
+    APP --> GRAPHICAL
+    GRAPHICAL --> SECURITY["OutputSecurityPolicy<br/>reject · verify · preserve bytes"]
+    SECURITY --> IMAGE["SVG · PNG rasterization<br/>declared sRGB profile"]
+
+    APP --> TERMINAL["TerminalStyle projection → family terminal renderer<br/>explicit loss diagnostics"]
+    REG --> TERMINAL
+    TERMINAL --> TEXT["Unicode · ASCII · escaped HTML"]
   end
 
-  subgraph AGENTSTACK["Agent stack · parse / mutate / verify"]
-    direction TB
-    VD["ValidDiagram · DiagramBody<br/>structured | opaque"] --> RL["RenderedLayout"]
-  end
-
-  REG -->|"SVG hooks"| L1
-  REG -->|"ASCII / unicode hook"| L2
-  REG -->|"agent hooks"| VD
-
-  REG -.same registry.-> FAM
-  FAM["Registry-backed diagram families<br/>flowchart · state · sequence · timeline · class · er · journey<br/>architecture · xychart · pie · quadrant · gantt · mindmap · gitgraph"]
-  FAM --> CORE["shared core types · types.ts<br/>NodeShape · EdgeStyle · MermaidGraph · RouteClass"]
+  PROJ --> LAYOUTJSON["layout JSON"]

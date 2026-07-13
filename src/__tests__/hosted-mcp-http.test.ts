@@ -6,8 +6,10 @@
 import { describe, expect, test } from 'bun:test'
 import { createMcpHandler, MAX_MCP_BODY_BYTES, MAX_BATCH_ITEMS, type McpCache, type McpRequestEvent } from '../../website/src/mcp-handler.ts'
 import type { HostedMcpContext } from '../mcp/hosted-server.ts'
+import { PNG_WASM_RUNTIME } from '../png-contract.ts'
 
 const FLOW = 'flowchart LR\n  A --> B'
+const TEST_PNG_RECEIPT = { version: 1, output: 'png', sharedRequestDigest: 'test-shared', requestDigest: 'test-request', appearanceDigest: 'test-appearance' } as const
 
 function makeCache(): McpCache & { store: Map<string, string> } {
   const store = new Map<string, string>()
@@ -345,13 +347,16 @@ describe('deterministic-response caching', () => {
 })
 
 describe('cache eligibility and validation isolation', () => {
-  test('execute bypasses the response cache, including with unknown arguments', async () => {
+  test('invalid execute arguments are rejected and valid execute calls bypass the cache', async () => {
     const cache = makeCache()
     const { handler, executeCalls } = makeHandler({ cache })
-    await handler(post(call('execute', { code: '1 + 1', nonce: 'a' })))
-    await handler(post(call('execute', { code: '1 + 1', nonce: 'b' })))
+    const first = await handler(post(call('execute', { code: '1 + 1', nonce: 'a' })))
+    const second = await handler(post(call('execute', { code: '1 + 1', nonce: 'b' })))
+    expect(((await first.json()) as any).error.code).toBe(-32602)
+    expect(((await second.json()) as any).error.code).toBe(-32602)
     await handler(post(call('execute', { code: '1 + 1' })))
-    expect(executeCalls).toHaveLength(3)
+    await handler(post(call('execute', { code: '1 + 1' })))
+    expect(executeCalls).toHaveLength(2)
     expect(cache.store.size).toBe(0)
   })
 
@@ -365,17 +370,17 @@ describe('cache eligibility and validation isolation', () => {
     expect(((await invalid.json()) as any).error).toEqual(expect.objectContaining({ code: -32602 }))
   })
 
-  test('distinct raw scale inputs cannot share a pre-dispatch cache entry', async () => {
+  test('validated scale inputs that clamp identically share a cache entry', async () => {
     const cache = makeCache()
     const pngCalls: number[] = []
     const { handler } = makeHandler({
       cache,
-      context: { renderPng: async (_s, opts) => { pngCalls.push(opts.scale ?? -1); return { png: new Uint8Array([1]), warnings: [] } } },
+      context: { renderPng: async (_s, opts) => { pngCalls.push(opts.scale ?? -1); return { png: new Uint8Array([1]), warnings: [], receipt: TEST_PNG_RECEIPT, runtime: PNG_WASM_RUNTIME } } },
     })
     await handler(post(call('render_png', { source: FLOW, scale: 100 })))
     await handler(post(call('render_png', { source: FLOW, scale: 999 })))
-    expect(pngCalls).toEqual([8, 8])
-    expect(cache.store.size).toBe(2)
+    expect(pngCalls).toEqual([8])
+    expect(cache.store.size).toBe(1)
   })
 
   test('semantically distinct calls still get distinct entries', async () => {

@@ -89,15 +89,16 @@ to weakest:
 4. The resolved Style stack's `font` field.
 5. The default, Inter.
 
-`renderMermaidPNG` has no separate `font` option. Select its family through the
-Style or Mermaid configuration in the source; `fontDirs` makes faces available
-to the rasterizer but does not choose the family.
+`renderMermaidPNG` accepts the same shared `font` option and precedence as SVG.
+`fontDirs` makes faces available to the rasterizer but does not choose the
+family.
 
 Within a Style stack, later entries win. For example, `[style, 'dracula']`
 keeps the inline/file-loaded Style's font because `dracula` is a palette-only
 Style; a later Style that defines `font` would replace it. A file's `name`
-field does not register it automatically — call `registerStyle(style)` before
-using that name in a library stack.
+field does not register it automatically — give it a canonical `look:` or
+`palette:` name and call `registerStyle(style)` before using that identity in a
+library stack.
 
 `validateStyleSpec` checks that `font` is a string. It cannot prove that the
 family is installed, present under `fontDirs`, or available to a browser.
@@ -107,7 +108,7 @@ family is installed, present under `fontDirs`, or available to a browser.
 | Surface | Where the face comes from | Custom-font control |
 |---|---|---|
 | SVG library/CLI | Browser, viewing application, or host-page CSS | `font`, `embedFontImport`, `security` |
-| PNG library/CLI | Bundled faces, `fontDirs`, optionally OS fonts | `fontDirs`, `loadSystemFonts` / `--system-fonts` |
+| PNG library/CLI | Bundled faces, `fontDirs`, optionally OS fonts | `font`, `fontDirs`, `loadSystemFonts` / `--system-fonts` |
 | Live editor | Faces available to the editor page and browser | Font picker; no `fontDirs` |
 | Local MCP `render_png` | Bundled faces, `fontDirs`, optionally OS fonts | `fontDirs`, `loadSystemFonts` |
 | Hosted MCP `render_png` | Faces bundled into the Worker | No filesystem font input; use local MCP/library/CLI for custom directories |

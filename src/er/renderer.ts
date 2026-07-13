@@ -396,6 +396,13 @@ function renderAttribute(attr: ErAttribute, entityId: string, boxX: number, y: n
 function renderRelationshipLine(rel: PositionedErRelationship, style: ResolvedRenderStyle, sceneId: string): SceneNode {
   const lineStyle = rel.identifying ? 'solid' as const : 'dashed' as const
   const channels = { category: rel.identifying ? 'identifying' : 'non-identifying' }
+  const connectorSemantics = {
+    endpoints: { from: rel.entity1, to: rel.entity2 },
+    relationship: { kind: rel.identifying ? 'identifying' : 'non-identifying' },
+    route: { ownership: 'layout', bendRadius: style.edgeBendRadius },
+    labels: rel.label ? [{ text: rel.label }] : [],
+    projectAccessibilityToSvg: true,
+  } as const
 
   // Degenerate relationships draw nothing (empty crisp keeps the part slot).
   if (rel.points.length < 2) {
@@ -406,6 +413,7 @@ function renderRelationshipLine(rel: PositionedErRelationship, style: ResolvedRe
       lineStyle: 'invisible',
       paint: {},
       channels,
+      ...connectorSemantics,
     }, '')
   }
 
@@ -439,6 +447,7 @@ function renderRelationshipLine(rel: PositionedErRelationship, style: ResolvedRe
       lineStyle,
       paint,
       channels,
+      ...connectorSemantics,
     },
       `<path ${dataAttrs.join(' ')}${labelAttr} d="${d}" fill="none" stroke="${escapeAttr(strokeColor)}" ` +
       `stroke-width="${style.lineWidth}"${dashArray} />`)
@@ -451,6 +460,7 @@ function renderRelationshipLine(rel: PositionedErRelationship, style: ResolvedRe
     lineStyle,
     paint,
     channels,
+    ...connectorSemantics,
   },
     `<polyline ${dataAttrs.join(' ')}${labelAttr} points="${pathData}" fill="none" stroke="${escapeAttr(strokeColor)}" ` +
     `stroke-width="${style.lineWidth}"${dashArray} />`)

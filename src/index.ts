@@ -4,21 +4,8 @@
 // Renders Mermaid diagrams to styled SVG strings.
 // Framework-agnostic, no DOM required. Pure TypeScript.
 //
-// Supported diagram types:
-//   - Flowcharts (graph TD / flowchart LR)
-//   - State diagrams (stateDiagram-v2)
-//   - Architecture diagrams (architecture-beta)
-//   - Sequence diagrams (sequenceDiagram)
-//   - Class diagrams (classDiagram)
-//   - ER diagrams (erDiagram)
-//   - Timeline diagrams (timeline)
-//   - User Journey diagrams (journey)
-//   - XY charts (xychart / xychart-beta)
-//   - Pie charts (pie)
-//   - Quadrant charts (quadrantChart)
-//   - Gantt charts (gantt)
-//   - Mindmaps (mindmap)
-//   - Git graphs (gitGraph)
+// Supported families are projected from the FamilyDescriptor registry. Do not
+// duplicate that inventory here; see knownFamilyDescriptors()/capabilities.
 //
 // Theming uses CSS custom properties (--bg, --fg, + optional enrichment).
 // See src/theme.ts for the full variable system.
@@ -33,8 +20,23 @@ export type { DiagramColors, ThemeName, ResolvedColors } from './theme.ts'
 export { fromShikiTheme, THEMES, DEFAULTS, resolveColors, inlineResolvedColors } from './theme.ts'
 export { resolveDiagramColors } from './color-resolver.ts'
 export { parseMermaid } from './parser.ts'
-export { renderMermaidASCII, renderMermaidAscii, AsciiWidthError } from './ascii/index.ts'
-export type { AsciiRenderOptions, AsciiWidthErrorReason } from './ascii/index.ts'
+export { parseRegisteredMermaid } from './agent/parse.ts'
+export type { ParsedDiagram, ExtensionValidDiagram, ExtensionDiagramBody } from './agent/types.ts'
+export { renderMermaidASCII, renderMermaidASCIIWithReceipt, renderMermaidAscii, AsciiWidthError } from './ascii/index.ts'
+export type { AsciiRenderOptions, AsciiWidthErrorReason, RenderedAscii } from './ascii/index.ts'
+export { TERMINAL_STYLE_VERSION } from './terminal-style.ts'
+export type {
+  ResolvedTerminalStyle, TerminalProjectionDiagnostic, TerminalProjectionDiagnosticCode,
+  TerminalConnectorProjection, TerminalConnectorProjectionReceipt, TerminalProjectionSecurityContext,
+} from './terminal-style.ts'
+export {
+  TERMINAL_OUTPUT_POLICY_VERSION, TERMINAL_DEFAULT_PADDING_X, TERMINAL_BOUNDED_PADDING_X,
+  TERMINAL_DEFAULT_PADDING_Y, TERMINAL_DEFAULT_BOX_BORDER_PADDING,
+  TerminalOutputPolicyError, resolveTerminalOutputPolicy,
+} from './terminal-contract.ts'
+export type {
+  AsciiRenderColorMode, TerminalOutputPolicyInput, ResolvedTerminalOutputPolicy,
+} from './terminal-contract.ts'
 export type {
   MermaidRuntimeConfig, MermaidThemeVariables, TimelineRuntimeConfig,
   JourneyRuntimeConfig, StateRuntimeConfig, XyChartRuntimeConfig,
@@ -49,84 +51,139 @@ export { resolveArchitectureIcon, architectureIconManifest, ARCHITECTURE_ICON_LI
 export type { ResolvedArchitectureIcon } from './architecture/icons.ts'
 export { TEXT_MEASUREMENT_CONTRACT, measureText, measureTextWidth } from './text-metrics.ts'
 export type { TextMeasurementContract, TextMeasurementInput, TextMeasurementResult } from './text-metrics.ts'
+export { MermaidFamilyDetectionError, classifyMermaidFamilyFromFirstLine } from './family-detection.ts'
+export type { MermaidFamilyClassification, FamilyDetectionDiagnostic } from './family-detection.ts'
 
-import { decodeXML } from 'entities'
 import { compactSvg, namespaceSvgIds } from './renderer.ts'
 import type { PositionedDiagram, RenderContext, RenderOptions } from './types.ts'
 import type { DiagramColors } from './theme.ts'
 import { inlineResolvedColors } from './theme.ts'
-import { normalizeMermaidSource, detectDiagramTypeFromFirstLine } from './mermaid-source.ts'
-import { CHANNEL_THEME_KEYS, readThemeValue, resolveDiagramColors } from './color-resolver.ts'
-import { getFamily } from './render-family-hooks.ts'
-import type { FamilyLayoutResult } from './agent/families.ts'
-import type { DiagramKind } from './agent/types.ts'
-import { resolveStyleStack, isStyledSpec, inferBackend } from './scene/style-registry.ts'
-import type { StyleSpec } from './scene/style-registry.ts'
+import './render-family-hooks.ts'
+import { positionResolvedFamily } from './positioning.ts'
+import {
+  receiptOf,
+  renderContractDigest,
+  resolveRenderRequest,
+  resolveRenderRequestForExecution,
+  resolvedRenderExecutionPlanOf,
+  type RenderExecutionDecision,
+  type RenderRequestReceipt,
+  type ResolvedRenderRequest,
+} from './render-contract.ts'
 import { explicitFamilyConfigDiagnostics } from './shared/family-config-diagnostics.ts'
-import { getBackend } from './scene/backend.ts'
+import type { HostBackendPolicy } from './scene/backend.ts'
+import { applyOutputSecurityPolicy } from './output-security.ts'
+import type { OutputSecurityDiagnostic } from './output-security.ts'
 import './scene/rough-backend.ts'
 import './scene/hybrid-backend.ts'
 
-export { registerStyle, getStyle, knownStyles, validateStyleSpec, resolveStyleStack, inferBackend } from './scene/style-registry.ts'
-export type { StyleSpec, StyleInput } from './scene/style-registry.ts'
-export { registerBackend, getBackend, DefaultBackend } from './scene/backend.ts'
-export type { StyleBackend, StyleBackendContext } from './scene/backend.ts'
-export type { SceneDoc, SceneNode, SemanticChannels, SceneRole } from './scene/ir.ts'
+export {
+  registerStyle, getStyle, knownStyles, knownStyleDescriptors, resolveStyleReference,
+  validateStyleSpec, resolveStyleStack, inferBackend, TUFTE_STYLE_ALIAS, STYLE_SPEC_FORMAT_VERSION,
+  STYLE_SPEC_FIELD_DESCRIPTORS, STYLE_COLOR_TOKEN_DESCRIPTORS, styleSpecJsonSchema,
+} from './scene/style-registry.ts'
+export type {
+  StyleSpec, StyleColors, StyleInput, StyleDescriptor, StyleReferenceResolution,
+  StyleRegistrationOptions, StyleRegistryKind,
+} from './scene/style-registry.ts'
+export {
+  renderContractDigest, validateSerializableRenderOptions, RenderCapabilityError,
+  sharedRenderOptionsJsonSchema, styleInputJsonSchema, SHARED_RENDER_OPTION_FIELDS, RENDER_CONTRACT_VERSION,
+  RENDER_OUTPUTS, RENDER_OUTPUT_DESCRIPTORS,
+} from './render-contract.ts'
+export {
+  CAPABILITY_NEGOTIATION_VERSION, CORE_CAPABILITY_OFFERS,
+  negotiateCapabilities, negotiateRenderCapabilities, parseSemVer, semVerSatisfies,
+} from './capability-negotiation.ts'
+export type {
+  CapabilityId, CapabilityOffer, CapabilityRequirement, CapabilityRequirementLevel,
+  CapabilityResolution, CapabilityDecision,
+} from './capability-negotiation.ts'
+export type {
+  RenderOutput, RenderOutputDescriptor, RenderOutputTransports, LibraryRenderTransport,
+  CliRenderTransport, CodeModeRenderTransport, RenderRequestReceipt,
+} from './render-contract.ts'
+export { registerBackend, getBackend, knownBackendDescriptors, DefaultBackend } from './scene/backend.ts'
+export type {
+  StyleBackend, StyleBackendContext, BackendDescriptor, BackendRegistrationOptions,
+  HostBackendPolicy, HostBackendSelection,
+} from './scene/backend.ts'
+export {
+  BACKEND_CONFORMANCE_VERSION, BACKEND_CONFORMANCE_FIXTURE_ID,
+  BACKEND_CONFORMANCE_CHECK_IDS, runBackendConformance,
+} from './scene/backend-conformance.ts'
+export type {
+  BackendConformanceCheckId, BackendConformanceCheck, BackendConformanceReport,
+} from './scene/backend-conformance.ts'
+export { SCENE_CONTRACT_VERSION } from './scene/ir.ts'
+export type {
+  SceneDoc, SceneNode, SceneNodeBase, SemanticChannels, SceneRole, Geometry, MarkPaint,
+  ShapeMark, TextMark, GroupMark, RawMark, DocumentMark, PreludeMark, ConnectorMark,
+  ConnectorGeometry, ConnectorDirection, ConnectorEndpointAnchor, ConnectorEndpoints,
+  ConnectorRelationship, ConnectorRoute, ConnectorDash, ConnectorStroke,
+  ConnectorLabelDescriptor, ConnectorHitGeometry, ConnectorTerminalProjection,
+  ConnectorTerminalStrokeLoss, ConnectorTerminalMarkerProjection, ConnectorTerminalLabelProjection,
+  MarkerDescriptor, MarkerRef, MarkerShape, ScenePoint, SceneBox,
+} from './scene/ir.ts'
+export { connectorHitDistance, hitTestConnector, hitTestSceneConnectors } from './scene/hit-test.ts'
+export type { SceneConnectorHit } from './scene/hit-test.ts'
+export {
+  assertRenderableMarker, serializeMarkerResource, serializeMarkerResources,
+} from './scene/marker-resources.ts'
+export type { RenderableMarkerDescriptor, MarkerSerializationOptions } from './scene/marker-resources.ts'
+export {
+  BUILTIN_SCENE_ROLE_TRAITS, SCENE_ROLE_DESCRIPTORS, resolveSceneRoleTraits, sceneRoleTraits,
+} from './scene/roles.ts'
+export type {
+  CoreSceneRole, BuiltinSceneRole, NamespacedSceneRole, SceneRoleTraits,
+  ResolvedSceneRoleTraits, SceneRoleDescriptor, SceneMarkKind, SceneSketchPolicy,
+} from './scene/roles.ts'
+export {
+  CORE_SCENE_PRIMITIVES, CORE_SCENE_OPERATIONS, CORE_SCENE_FEATURES,
+  PRIMITIVE_REALIZATIONS, validatePrimitiveCapabilities,
+} from './scene/capabilities.ts'
+export type {
+  CoreScenePrimitive, ScenePrimitive, CoreSceneOperation, SceneOperation,
+  CoreSceneFeature, SceneFeature, PrimitiveRealization, PrimitiveCapabilityClaim,
+  CapabilityValidationResult,
+} from './scene/capabilities.ts'
+export {
+  canonicalExtensionId, parseExtensionId, createExtensionIdentity,
+  registerCompatibilityAlias, registerExtension, ExtensionCollisionError,
+} from './shared/extension-identity.ts'
+export {
+  HOSTED_FONT_RESOURCES, HOSTED_FONT_FACES, HOSTED_FONT_FILES,
+  RESOURCE_MANIFEST, hostedFontResource, validateResourceManifest,
+} from './font-manifest.ts'
+export { RESOURCE_MANIFEST_VERSION, snapshotResourceManifest, verifyResourceBytes } from './resource-manifest.ts'
+export type {
+  HostedFontResource, HostedFontFace, ResourceManifest, ResourceManifestEntry, ResourceLicense,
+} from './font-manifest.ts'
+export type {
+  ExtensionIdentity, ExtensionCompatibility, ExtensionProvenance, ExtensionRegistration,
+  CompatibilityAlias, CompatibilityAliasDiagnostic, CompatibilityRemoval,
+} from './shared/extension-identity.ts'
 export type { SvgSemanticIdentity } from './scene/identity.ts'
 export type { SvgSemanticAccessibility, SvgRelationSemantics } from './scene/accessibility.ts'
-
-/**
- * Compose a merged style's defaults UNDER the user's options (the stack is
- * one layer below Mermaid compatibility: defaults < style stack <
- * themeVariables < explicit color options). Runs BEFORE color resolution and
- * layout so fonts and paddings affect text metrics (SPEC §9).
- */
-function applyStyleDefaults(options: RenderOptions, spec: StyleSpec, themeVars?: Record<string, unknown>): RenderOptions {
-  const out: RenderOptions = { ...options }
-  // User-authored themeVariables beat the style's palette, same as explicit
-  // color options — CHANNEL_THEME_KEYS is the shared key map that
-  // resolveDiagramColors reads from.
-  const themed = (channel: keyof typeof CHANNEL_THEME_KEYS) => CHANNEL_THEME_KEYS[channel].some(k => themeVars?.[k] !== undefined)
-  const channels = ['bg', 'fg', 'line', 'accent', 'muted', 'surface', 'border'] as const
-  for (const channel of channels) {
-    if (out[channel] === undefined && !themed(channel) && spec.colors?.[channel] !== undefined) {
-      out[channel] = spec.colors[channel]
-    }
-  }
-  if (out.font === undefined && spec.font !== undefined) out.font = spec.font
-  return out
-}
-
-function normalizeFamilyLayoutResult(
-  result: FamilyLayoutResult | PositionedDiagram,
-): FamilyLayoutResult {
-  return 'positioned' in result ? result : { positioned: result }
-}
-
-/**
- * #7254/#7255: extract `accTitle:` and `accDescr:` (inline or `accDescr { … }`
- * block) from normalized source lines. These are Mermaid's accessibility
- * directives; we surface them as SVG <title>/<desc>.
- */
-function extractAccessibility(lines: string[]): { title?: string; descr?: string } {
-  const out: { title?: string; descr?: string } = {}
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]!.trim()
-    let m: RegExpMatchArray | null
-    if ((m = line.match(/^accTitle\s*:\s*(.+)$/i))) out.title = m[1]!.trim()
-    else if ((m = line.match(/^accDescr\s*:\s*(.+)$/i))) out.descr = m[1]!.trim()
-    else if (/^accDescr\s*\{\s*$/i.test(line)) {
-      const block: string[] = []
-      for (let j = i + 1; j < lines.length; j++) {
-        if (lines[j]!.trim() === '}') break
-        block.push(lines[j]!.trim())
-      }
-      out.descr = block.join(' ').trim()
-    }
-  }
-  return out
-}
-
+export { applyOutputSecurityPolicy, verifyNoExternalRefs, verifySvgDocumentEnvelope, OUTPUT_SECURITY_POLICY_VERSION } from './output-security.ts'
+export type { OutputSecurityMode, OutputSecurityDiagnostic, OutputSecurityResult } from './output-security.ts'
+export { OUTPUT_COLOR_PROFILE, applyPngColorProfile, inspectPngColorProfile } from './output-color-profile.ts'
+export type { PngColorProfileReceipt } from './output-color-profile.ts'
+export {
+  PNG_OUTPUT_POLICY_VERSION, PNG_DEFAULT_SCALE, PNG_DEFAULT_FONT_FAMILY,
+  PNG_FONT_SOURCES, PNG_NAPI_RUNTIME, PNG_WASM_RUNTIME,
+  pngNapiRuntimeProvenance, resolvePngOutputPolicy,
+} from './png-contract.ts'
+export type {
+  PngFitTo, PngOutputPolicyInput, ResolvedPngOutputPolicy,
+  PngFontSource, PngRuntimeProvenance,
+} from './png-contract.ts'
+export { renderMermaidPNGInBrowserWithReceipt, BROWSER_CANVAS_RUNTIME } from './browser-png.ts'
+export type {
+  BrowserPngDiagnostic, BrowserPngRasterContext, BrowserPngRasterResult,
+  BrowserPngRasterizer, RenderedBrowserPng, BrowserPngFontSource,
+  BrowserPngRuntimeProvenance,
+} from './browser-png.ts'
 function escapeXmlText(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
@@ -161,83 +218,6 @@ function injectAccessibility(svg: string, acc: { title?: string; descr?: string 
 }
 
 /**
- * #7645/#7695: scan an SVG for external-fetch references — `@import` URLs,
- * `<image href>`/`xlink:href` to http(s) or protocol-relative URLs,
- * `<use href>` to external, `url(http…)` / `url(//…)`
- * in styles, `<script>`, `<foreignObject>`. The `xmlns="http://www.w3.org/…"`
- * namespace declaration is NOT a fetch and is excluded. Returns the offending
- * references so it can serve as a CI gate and an agent self-check.
- */
-const XML_SLASH_REF = String.raw`(?:/|&(?:amp;)?#x0*2f;|&(?:amp;)?#0*47;|&(?:amp;)?sol;)`
-const XML_EXTERNAL_PREFIX = String.raw`(?:https?:)?${XML_SLASH_REF}${XML_SLASH_REF}`
-const XML_EXTERNAL_ATTR_QUOTED = new RegExp(String.raw`\s(?:[^\s=<>]+:)?(?:href|src|data)\s*=\s*["']\s*${XML_EXTERNAL_PREFIX}[^"']*["']`, 'gi')
-const XML_EXTERNAL_ATTR_UNQUOTED = new RegExp(String.raw`\s(?:[^\s=<>]+:)?(?:href|src|data)\s*=\s*${XML_EXTERNAL_PREFIX}[^\s>"']+`, 'gi')
-
-export function verifyNoExternalRefs(svg: string): { ok: boolean; refs: string[] } {
-  const scan = normalizeCssObfuscation(svg)
-  const refs: string[] = []
-  // @import url(...) or @import "..."
-  for (const m of scan.matchAll(/@import\s*(?:url\()?\s*["']?\s*((?:https?:)?\/\/[^"')]+)/gi)) refs.push(`@import ${m[1]}`)
-  for (const m of scan.matchAll(/@import\s*(?:url\()?\s*["']?\s*(javascript\s*:[^"')\s;]+)/gi)) refs.push(`@import ${m[1]}`)
-  // href / *:href / src / data to http(s) or protocol-relative URLs (xmlns excluded — it's a declaration, not a ref)
-  // Attribute names begin after XML whitespace. A word boundary is too broad:
-  // it incorrectly treats inert `data-href` as an executable `href` sink.
-  for (const m of scan.matchAll(/(?<=\s)(?<!xmlns:)(?:[^\s=<>]+:)?(?:href|src|data)\s*=\s*["']\s*((?:https?:)?\/\/[^"']+)["']/gi)) refs.push(m[1]!)
-  for (const m of scan.matchAll(/(?<=\s)(?<!xmlns:)(?:[^\s=<>]+:)?(?:href|src|data)\s*=\s*((?:https?:)?\/\/[^\s>"']+)/gi)) refs.push(m[1]!)
-  for (const m of scan.matchAll(XML_EXTERNAL_ATTR_QUOTED)) refs.push(m[0]!)
-  for (const m of scan.matchAll(XML_EXTERNAL_ATTR_UNQUOTED)) refs.push(m[0]!)
-  // url(http…) / url(//…) / url(javascript:…) inside style/attr values
-  for (const m of scan.matchAll(/url\(\s*["']?\s*((?:https?:)?\/\/[^"')]+)/gi)) refs.push(m[1]!)
-  for (const m of scan.matchAll(/url\(\s*["']?\s*(javascript\s*:[^"')]+)/gi)) refs.push(m[1]!)
-  // active content that can fetch/exfiltrate
-  if (/<(?:[^\s<>/:]+:)?script\b/i.test(scan)) refs.push('<script>')
-  if (/<(?:[^\s<>/:]+:)?foreignObject\b/i.test(scan)) refs.push('<foreignObject>')
-  if (/<(?:[^\s<>/:]+:)?image\b/i.test(scan)) refs.push('<image>')
-  if (/<(?:[^\s<>/:]+:)?object\b/i.test(scan)) refs.push('<object>')
-  if (/<(?:[^\s<>/:]+:)?embed\b/i.test(scan)) refs.push('<embed>')
-  if (/<(?:[^\s<>/:]+:)?iframe\b/i.test(scan)) refs.push('<iframe>')
-  if (/\son[a-z][\w:.-]*\s*=/i.test(scan)) refs.push('inline-event-handler')
-  if (/\s(?:[^\s=<>]+:)?(?:href|src|data)\s*=\s*["']?\s*javascript\s*:/i.test(scan)) refs.push('javascript-url')
-  return { ok: refs.length === 0, refs }
-}
-
-function normalizeCssObfuscation(svg: string): string {
-  return svg
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .replace(/\\([0-9a-fA-F]{1,6})\s?/g, (_, hex: string) => {
-      const cp = Number.parseInt(hex, 16)
-      return Number.isFinite(cp) ? String.fromCodePoint(cp) : ''
-    })
-    .replace(/\\([^\n\r\f])/g, '$1')
-}
-
-function stripExternalRefs(svg: string): string {
-  return normalizeCssObfuscation(svg)
-    .replace(/@import\s*(?:url\()?\s*["']?\s*(?:https?:)?\/\/[^\n;}]+[;)]?/gi, '')
-    .replace(/@import\s*(?:url\()?\s*["']?\s*javascript\s*:[^\n;}]+[;)]?/gi, '')
-    .replace(/url\(\s*["']?\s*(?:https?:)?\/\/[^"')]+["']?\s*\)/gi, 'none')
-    .replace(/url\(\s*["']?\s*javascript\s*:[^"')]+["']?\s*\)/gi, 'none')
-    .replace(XML_EXTERNAL_ATTR_QUOTED, '')
-    .replace(XML_EXTERNAL_ATTR_UNQUOTED, '')
-    .replace(/\s(?:[^\s=<>]+:)?(?:href|src|data)\s*=\s*["']\s*(?:https?:)?\/\/[^"']+["']/gi, '')
-    .replace(/\s(?:[^\s=<>]+:)?(?:href|src|data)\s*=\s*(?:https?:)?\/\/[^\s>"']+/gi, '')
-    .replace(/\s(?:[^\s=<>]+:)?(?:href|src|data)\s*=\s*["']\s*javascript\s*:[^"']*["']/gi, '')
-    .replace(/\s(?:[^\s=<>]+:)?(?:href|src|data)\s*=\s*javascript\s*:[^\s>]+/gi, '')
-    .replace(/\son[a-z][\w:.-]*\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
-    .replace(/<(?:[^\s<>/:]+:)?script\b[^>]*>[\s\S]*?<\/(?:[^\s<>/:]+:)?script>/gi, '')
-    .replace(/<(?:[^\s<>/:]+:)?script\b[^>]*\/?>/gi, '')
-    .replace(/<(?:[^\s<>/:]+:)?foreignObject\b[^>]*>[\s\S]*?<\/(?:[^\s<>/:]+:)?foreignObject>/gi, '')
-    .replace(/<(?:[^\s<>/:]+:)?foreignObject\b[^>]*\/?>/gi, '')
-    .replace(/<(?:[^\s<>/:]+:)?image\b[^>]*\/?>/gi, '')
-    .replace(/<(?:[^\s<>/:]+:)?object\b[^>]*>[\s\S]*?<\/(?:[^\s<>/:]+:)?object>/gi, '')
-    .replace(/<(?:[^\s<>/:]+:)?object\b[^>]*\/?>/gi, '')
-    .replace(/<(?:[^\s<>/:]+:)?embed\b[^>]*>[\s\S]*?<\/(?:[^\s<>/:]+:)?embed>/gi, '')
-    .replace(/<(?:[^\s<>/:]+:)?embed\b[^>]*\/?>/gi, '')
-    .replace(/<(?:[^\s<>/:]+:)?iframe\b[^>]*>[\s\S]*?<\/(?:[^\s<>/:]+:)?iframe>/gi, '')
-    .replace(/<(?:[^\s<>/:]+:)?iframe\b[^>]*\/?>/gi, '')
-}
-
-/**
  * Render Mermaid diagram text to an SVG string — synchronously.
  *
  * Uses elk.bundled.js with a direct FakeWorker bypass (no setTimeout(0) delay).
@@ -269,42 +249,117 @@ export function renderMermaidSVG(
   text: string,
   options: RenderOptions = {}
 ): string {
-  // Decode XML entities that may leak from markdown parsers (e.g. rehype-raw).
-  // Without this, escapeXml() double-encodes them: &lt; → &amp;lt; → literal "&lt;" in SVG.
-  text = decodeXML(text)
-  const normalizedSource = normalizeMermaidSource(text, options.mermaidConfig ?? {})
+  return renderMermaidSVGWithReceipt(text, options).svg
+}
 
-  // #7645/#7695: strict security mode disables the Google Fonts @import and
-  // strips any external-fetch refs introduced by user theme/config values. The
-  // --font CSS variable still declares the family; xmlns http:// is a namespace
-  // declaration, not a fetch.
-  let effectiveOptions: RenderOptions = options.security === 'strict'
-    ? { ...options, embedFontImport: false }
-    : options
-  // The style stack resolves BEFORE colors and layout: names come from the
-  // registry, fragments merge left → right, and the merged palette/font are
-  // defaults under the user's own options and themeVariables.
-  const mergedStyle = resolveStyleStack(options.style)
-  const styled = mergedStyle !== undefined && isStyledSpec(mergedStyle)
-  if (styled) {
-    effectiveOptions = applyStyleDefaults(effectiveOptions, mergedStyle, normalizedSource.config.themeVariables)
-  }
-  // Font precedence: explicit option > mermaid config/themeVariables >
-  // style default > 'Inter'. (applyStyleDefaults only fills
-  // effectiveOptions.font when options.font was unset.)
-  const font = options.font
-    ?? normalizedSource.config.fontFamily
-    ?? readThemeValue(normalizedSource.config.themeVariables, 'fontFamily')
-    ?? effectiveOptions.font
-    ?? 'Inter'
-  const colors = resolveDiagramColors(effectiveOptions, normalizedSource.config, font)
-  const diagramType = detectDiagramTypeFromFirstLine(normalizedSource.firstLine) ?? 'flowchart'
+export interface RenderedSvg {
+  svg: string
+  receipt: RenderRequestReceipt
+}
+
+/**
+ * Trusted host-only renderer construction options. These values are never
+ * copied into RenderOptions, receipts, CLI/MCP payloads, or editor state.
+ */
+export interface MermaidRendererHostOptions {
+  readonly backendPolicy?: HostBackendPolicy
+}
+
+/** A renderer bound to trusted in-process host policy. */
+export interface MermaidRenderer {
+  renderMermaidSVG(text: string, options?: RenderOptions): string
+  renderMermaidSVGWithReceipt(text: string, options?: RenderOptions): RenderedSvg
+}
+
+/**
+ * Construct a trusted in-process renderer. A custom backend is selectable only
+ * through this host object; serializable appearance data still describes the
+ * requested look and cannot name or smuggle executable backend machinery.
+ */
+export function createMermaidRenderer(hostOptions: MermaidRendererHostOptions = {}): MermaidRenderer {
+  const host = Object.freeze({ ...hostOptions })
+  return Object.freeze({
+    renderMermaidSVG(text: string, options: RenderOptions = {}): string {
+      return renderGraphicalSvgWithReceiptForHost(text, options, 'svg', undefined, host).svg
+    },
+    renderMermaidSVGWithReceipt(text: string, options: RenderOptions = {}): RenderedSvg {
+      return renderGraphicalSvgWithReceiptForHost(text, options, 'svg', undefined, host)
+    },
+  })
+}
+
+export function renderMermaidSVGWithReceipt(
+  text: string,
+  options: RenderOptions = {},
+): RenderedSvg {
+  return renderGraphicalSvgWithReceipt(text, options, 'svg')
+}
+
+/** Internal/publicly inspectable graphical waist used by PNG before rasterization. */
+export function renderGraphicalSvgWithReceipt(
+  text: string,
+  options: RenderOptions,
+  output: 'svg' | 'png',
+  outputOptions?: unknown,
+): RenderedSvg {
+  return renderGraphicalSvgWithReceiptForHost(text, options, output, outputOptions, {})
+}
+
+function renderGraphicalSvgWithReceiptForHost(
+  text: string,
+  options: RenderOptions,
+  output: 'svg' | 'png',
+  outputOptions: unknown,
+  hostOptions: MermaidRendererHostOptions,
+): RenderedSvg {
+  const request = resolveRenderRequestForExecution(text, options, output, outputOptions, {
+    backendPolicy: hostOptions.backendPolicy,
+  })
+  const executionPlan = resolvedRenderExecutionPlanOf(request)
   if (options.mermaidConfig) {
     const report = options.onConfigDiagnostic ?? ((diagnostic) => console.warn(diagnostic.message))
-    for (const diagnostic of explicitFamilyConfigDiagnostics(diagramType, options.mermaidConfig)) report(diagnostic)
+    for (const diagnostic of explicitFamilyConfigDiagnostics(executionPlan.family.id, options.mermaidConfig)) report(diagnostic)
   }
-  const lines = normalizedSource.lines
-  const renderOptions: RenderOptions = { ...effectiveOptions, mermaidConfig: normalizedSource.config }
+  const securityDiagnostics: OutputSecurityDiagnostic[] = []
+  const rendered = renderResolvedMermaidSVG(request, securityDiagnostics)
+  const baseReceipt = receiptOf(request, securityDiagnostics)
+  return {
+    svg: rendered.svg,
+    receipt: Object.freeze({
+      ...baseReceipt,
+      graphicalProjectionDigest: renderContractDigest(rendered.svg),
+      executionDecision: rendered.executionDecision,
+    }),
+  }
+}
+
+interface ResolvedGraphicalExecution {
+  readonly svg: string
+  readonly executionDecision: RenderExecutionDecision
+}
+
+function renderResolvedMermaidSVG(
+  request: ResolvedRenderRequest,
+  securityDiagnostics: OutputSecurityDiagnostic[],
+): ResolvedGraphicalExecution {
+  const executionPlan = resolvedRenderExecutionPlanOf(request)
+  if ((executionPlan.mode !== 'scene' && executionPlan.mode !== 'family-svg') || !executionPlan.executionDecision) {
+    throw new Error(`Resolved ${request.output} request has no graphical execution plan`)
+  }
+  const normalizedSource = request.source
+  const effectiveOptions = request.renderOptions as RenderOptions
+  const mergedStyle = request.appearance.style
+  const styled = request.appearance.styled
+  const appearanceColors = request.appearance.colors as DiagramColors
+  // PNG cannot consume a remote CSS @import. Treat that as an output
+  // projection, not a rewrite of the caller's shared request/appearance
+  // receipt, so SVG and PNG remain comparable under default options.
+  const colors = request.output === 'png' && appearanceColors.embedFontImport !== false
+    ? { ...appearanceColors, embedFontImport: false }
+    : appearanceColors
+  const family = executionPlan.family
+  const diagramType = family.id
+  const renderOptions = effectiveOptions
   const renderContext = <TPositioned extends PositionedDiagram>(
     positioned: TPositioned,
     c: DiagramColors = colors,
@@ -312,13 +367,16 @@ export function renderMermaidSVG(
   ): RenderContext<TPositioned> => ({ positioned, colors: c, options: opts })
   // resolve() inlines CSS variables for non-browser renderers (resvg).
   // When `compact` is on we additionally round coords and collapse whitespace.
-  const compact = options.compact ?? false
-  const idPrefix = options.idPrefix ?? ''
-  const finalizeSvg = (svg: string) => options.security === 'strict' ? stripExternalRefs(svg) : svg
-  // #7254/#7255: extract accTitle/accDescr from source for SVG <title>/<desc>
-  // + ARIA. The legacy SVG path doesn't carry these through the parser, so we
-  // extract here and inject as a post-pass (localized, no renderer threading).
-  const acc = extractAccessibility(lines)
+  const compact = effectiveOptions.compact ?? false
+  const idPrefix = effectiveOptions.idPrefix ?? ''
+  const finalizeSvg = (svg: string) => {
+    const secured = applyOutputSecurityPolicy(svg, effectiveOptions.security)
+    securityDiagnostics.push(...secured.diagnostics)
+    return secured.svg
+  }
+  // #7254/#7255: the universal source envelope owns accessibility parsing.
+  // Legacy family renderers receive it through this localized SVG post-pass.
+  const acc = normalizedSource.accessibility
   const resolve = (svg: string, c: DiagramColors = colors, injectAcc = true) => {
     let out = inlineResolvedColors(svg, c)
     // #7540: namespace def ids so multiple diagrams on one page don't collide.
@@ -331,38 +389,26 @@ export function renderMermaidSVG(
     return compact ? compactSvg(out) : out
   }
 
-  const family = getFamily(diagramType as DiagramKind)
-  if (!family?.layout || !family.renderSvg) {
-    throw new Error(`No SVG renderer registered for Mermaid family ${diagramType}`)
-  }
-
-  const layout = normalizeFamilyLayoutResult(family.layout({
-    source: normalizedSource,
-    options: effectiveOptions,
-    renderOptions,
-    colors,
-  }))
+  const layout = positionResolvedFamily(diagramType, request)
   const renderColors = layout.colors ?? colors
   const ctx = renderContext(layout.positioned, renderColors, layout.options ?? renderOptions)
   let rawSvg: string
-  if (styled && !family.lowerScene) {
-    // Capability gating (SPEC §13): partial coverage that silently falls back
-    // to crisp erodes trust — an unsupported family/style combo fails loud.
-    // Every built-in family registers a lowering; this guards external
-    // registerFamily plugins that haven't added one yet.
-    throw new Error(`Family "${diagramType}" does not support styled rendering (no SceneGraph lowering registered). Render without the style option, or register a lowerScene hook for the family.`)
-  }
-  if (styled && family.lowerScene) {
-    // Styled path: lower to the SceneGraph and serialize with the backend the
-    // merged style implies (authors describe the look, never the machinery).
-    const backendId = inferBackend(mergedStyle!)
-    const backend = getBackend(backendId)
-    if (!backend) throw new Error(`Style "${mergedStyle!.name ?? '(inline)'}" requires unregistered backend "${backendId}"`)
-    rawSvg = backend.render(family.lowerScene(ctx), { seed: effectiveOptions.seed ?? 0, style: mergedStyle })
+  if (executionPlan.mode === 'scene') {
+    // SceneGraph is the normal graphical waist, including crisp rendering.
+    // A descriptor that can lower a scene needs no parallel renderSvg hook;
+    // styled requests merely select a different serializer for the same scene.
+    const backend = executionPlan.backend!.backend
+    rawSvg = backend.render(family.lowerScene!(ctx), {
+      seed: effectiveOptions.seed ?? 0,
+      ...(styled ? { style: mergedStyle } : {}),
+    })
   } else {
-    rawSvg = family.renderSvg(ctx)
+    rawSvg = family.renderSvg!(ctx)
   }
-  return resolve(rawSvg, renderColors, layout.injectAccessibility ?? true)
+  return Object.freeze({
+    svg: resolve(rawSvg, renderColors, layout.injectAccessibility ?? true),
+    executionDecision: executionPlan.executionDecision,
+  })
 }
 
 /**

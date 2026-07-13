@@ -524,7 +524,7 @@
     {
       "id": "CG15",
       "file": "src/__tests__/closing-the-gap.test.ts",
-      "title": "all fourteen registered families have an explicit Closing The Gap contract"
+      "title": "every registered family satisfies the Closing The Gap render contract"
     }
   ]
 }

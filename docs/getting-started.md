@@ -85,7 +85,8 @@ See [`ascii.md`](./ascii.md) for supported families and cell-to-region metadata.
 
 ## Theming
 
-Theme from two colors, or spread one of the 21 built-in themes. Colors are applied
+Theme from two colors, or spread a palette discovered through `THEMES`,
+`knownStyleDescriptors()`, or `am styles`. Colors are applied
 as CSS variables, so the SVG stays self-contained.
 
 ```ts

@@ -15,7 +15,7 @@ import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 // parser does not model, so it lands on the opaque path.
 const OPAQUE_BY_FAMILY: Record<string, string> = {
   class: 'classDiagram\n  direction LR\n  class Box', // direction remains render-only
-  xychart: 'xychart-beta\n  accTitle: forces opaque\n  bar [1, 2, 3]', // accTitle directive
+  xychart: 'xychart-beta\n  curve basis\n  bar [1, 2, 3]', // unmodeled curve directive
   pie: 'pie\n  Dogs : 40\n  Cats : 30', // unquoted labels (Mermaid requires quotes)
   sequence: 'sequenceDiagram\n  A->>B: hi\n  end', // unmatched block terminator
   timeline: 'timeline EXTRA\n  2026 : Event', // unmodeled header suffix

@@ -8,15 +8,17 @@ import { join } from 'node:path'
 import { URL } from 'node:url'
 import { executeInSandbox } from './sandbox.ts'
 import { isJsonContentType, preserveExactJsonRpcIds, reply, rpcError as error, stringifyJsonRpc, type ExactJsonRpcId, type JsonRpcRequest, type JsonRpcResponse } from './protocol.ts'
-import { createDescribeTool, createExecuteTool, createRenderPngTool, dispatchMcpRequest, EXECUTE_TIMEOUT_ERROR, isValidExecuteTimeout, type McpServerSurface } from './tool-surface.ts'
+import { createDescribeTool, createExecuteTool, createRenderPngTool, dispatchMcpRequest, EXECUTE_TIMEOUT_ERROR, isValidExecuteTimeout, withClosedMcpInputSchema, type McpServerSurface } from './tool-surface.ts'
 import { SDK_CORE_DECLARATION, createDescribeSdkTool, describeSdkPayload } from './sdk-discovery.ts'
 import { createArtifactStore, type ArtifactRecord, type ArtifactStore } from './artifacts.ts'
-import { renderMermaidPNG } from '../agent/png.ts'
+import { renderMermaidPNG, renderMermaidPNGWithReceipt } from '../agent/png.ts'
 import { describeMermaidSource, describeMermaid } from '../agent/describe.ts'
 import { describeMermaidFacts } from '../agent/facts.ts'
 import { parseMermaid } from '../agent/parse.ts'
 import { configWarningsForMermaid, verifyMermaid } from '../agent/verify.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
+import type { RenderOptions } from '../types.ts'
+import { validateSerializableRenderOptions } from '../render-contract.ts'
 
 export type { JsonRpcRequest, JsonRpcResponse } from './protocol.ts'
 
@@ -56,7 +58,7 @@ class HttpStatusError extends Error {
 
 export const LOCAL_TOOLS = [
   createExecuteTool({ sdkDeclaration: SDK_CORE_DECLARATION }),
-  createDescribeSdkTool(),
+  withClosedMcpInputSchema(createDescribeSdkTool()),
   createRenderPngTool('local'),
   createDescribeTool(),
 ]
@@ -144,7 +146,13 @@ function handleRenderPng(id: number | string | null, args: Record<string, unknow
   const seed = (args as { seed?: number }).seed
   const rawFontDirs = (args as { fontDirs?: unknown }).fontDirs
   const loadSystemFonts = (args as { loadSystemFonts?: unknown }).loadSystemFonts
-  const output = String((args as { output?: string; outputMode?: string }).output ?? (args as { outputMode?: string }).outputMode ?? 'base64')
+  let renderOptions: RenderOptions = {}
+  if (args.options !== undefined) {
+    const problems = validateSerializableRenderOptions(args.options)
+    if (problems.length > 0) return error(id, -32602, `invalid render options: ${problems.join('; ')}`)
+    renderOptions = { ...(args.options as RenderOptions) }
+  }
+  const output = (args.output ?? 'base64') as 'base64' | 'file' | 'url'
   if (typeof source !== 'string') return error(id, -32602, 'render_png requires `source` (string)')
   if (!['base64', 'file', 'url'].includes(output)) return error(id, -32602, 'render_png output must be one of: base64, file, url')
   if (rawFontDirs !== undefined && (!Array.isArray(rawFontDirs) || rawFontDirs.some(dir => typeof dir !== 'string'))) {
@@ -155,11 +163,12 @@ function handleRenderPng(id: number | string | null, args: Record<string, unknow
   }
   try {
     const fontWarnings: Array<Record<string, unknown>> = []
-    const png = renderMermaidPNG(source, {
+    const rendered = renderMermaidPNGWithReceipt(source, {
+      ...renderOptions,
       scale,
       background,
-      style,
-      seed,
+      ...(style === undefined ? {} : { style }),
+      ...(seed === undefined ? {} : { seed }),
       fontDirs: rawFontDirs as string[] | undefined,
       loadSystemFonts: loadSystemFonts === true,
       onWarning: warning => fontWarnings.push(warning as unknown as Record<string, unknown>),
@@ -167,14 +176,14 @@ function handleRenderPng(id: number | string | null, args: Record<string, unknow
     const warnings = [...configWarningsForMermaid(source), ...fontWarnings]
       .filter((warning, index, all) => all.findIndex(candidate => JSON.stringify(candidate) === JSON.stringify(warning)) === index)
     if (output === 'base64') {
-      const png_base64 = Buffer.from(png).toString('base64')
-      const payload = { ok: true as const, png_base64, warnings }
+      const png_base64 = Buffer.from(rendered.png).toString('base64')
+      const payload = { ok: true as const, png_base64, receipt: rendered.receipt, runtime: rendered.runtime, warnings }
       return reply(id, { content: [{ type: 'text', text: JSON.stringify(payload) }], isError: false })
     }
     const store = context.artifactStore ?? getDefaultArtifactStore()
     if (output === 'url' && !store.hasBaseUrl()) return error(id, -32602, 'render_png output=url requires an HTTP/SSE artifact base URL')
-    const artifact = store.write(png, { extension: '.png', mimeType: 'image/png' })
-    const payload = { ok: true as const, artifact: artifactPayload(artifact, output as 'file' | 'url'), warnings }
+    const artifact = store.write(rendered.png, { extension: '.png', mimeType: 'image/png' })
+    const payload = { ok: true as const, artifact: artifactPayload(artifact, output as 'file' | 'url'), receipt: rendered.receipt, runtime: rendered.runtime, warnings }
     return reply(id, { content: [{ type: 'text', text: JSON.stringify(payload) }], isError: false })
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)

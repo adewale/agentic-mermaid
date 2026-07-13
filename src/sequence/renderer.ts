@@ -9,10 +9,11 @@ import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import { SEQUENCE_STYLE_DEFAULTS } from './layout.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
 import { renderMultilineText, escapeAttr, escapeXml as escapeXmlUtil } from '../multiline-utils.ts'
-import type { MarkerRef, SceneDoc, SceneNode } from '../scene/ir.ts'
+import type { MarkerDescriptor, MarkerRef, SceneDoc, SceneNode } from '../scene/ir.ts'
 import { hashId } from '../scene/seed.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
+import { serializeMarkerResources } from '../scene/marker-resources.ts'
 
 
 // ============================================================================
@@ -86,11 +87,12 @@ export function lowerSequenceScene(
   defsParts.push('<defs>')
 
   // Arrow marker definitions
-  defsParts.push(arrowMarkerDefs(style))
+  const markerResources = sequenceMarkerResources(style)
+  defsParts.push(serializeMarkerResources(markerResources))
   const shadowDefs = buildShadowDefs(colors)
   if (shadowDefs) defsParts.push(shadowDefs)
   defsParts.push('</defs>')
-  parts.push(marks.definitions({ id: 'defs' }, defsParts.join('\n')))
+  parts.push(marks.definitions({ id: 'defs', markerResources }, defsParts.join('\n')))
 
   if (diagram.accessibilityTitle) {
     parts.push(marks.raw({ id: 'a11y-title', role: 'chrome' },
@@ -169,28 +171,29 @@ export function lowerSequenceScene(
 // Arrow marker definitions
 // ============================================================================
 
-function arrowMarkerDefs(style: ResolvedRenderStyle): string {
+function sequenceMarkerResources(style: ResolvedRenderStyle): readonly MarkerDescriptor[] {
   const w = ARROW_HEAD.width
   const h = ARROW_HEAD.height
-  const edgeColor = escapeAttr(style.edgeStrokeColor ?? 'var(--_arrow)')
-  return (
-    `  <marker id="seq-arrow" markerWidth="${w}" markerHeight="${h}" refX="${w}" refY="${h / 2}" orient="auto-start-reverse">` +
-    `\n    <polygon points="0 0, ${w} ${h / 2}, 0 ${h}" fill="${edgeColor}" />` +
-    `\n  </marker>` +
-    // Open arrow head (just lines, no fill)
-    `\n  <marker id="seq-arrow-open" markerWidth="${w}" markerHeight="${h}" refX="${w}" refY="${h / 2}" orient="auto-start-reverse">` +
-    `\n    <polyline points="0 0, ${w} ${h / 2}, 0 ${h}" fill="none" stroke="${edgeColor}" stroke-width="1" />` +
-    `\n  </marker>` +
-    `\n  <marker id="seq-arrow-cross" markerWidth="${w}" markerHeight="${h}" refX="${w / 2}" refY="${h / 2}" orient="auto">` +
-    `\n    <path d="M1 1 L${w - 1} ${h - 1} M1 ${h - 1} L${w - 1} 1" fill="none" stroke="${edgeColor}" stroke-width="1.5" />` +
-    `\n  </marker>` +
-    `\n  <marker id="seq-arrow-half-top" markerWidth="${w}" markerHeight="${h}" refX="${w}" refY="${h / 2}" orient="auto-start-reverse">` +
-    `\n    <path d="M0 0 L${w} ${h / 2}" fill="none" stroke="${edgeColor}" stroke-width="1" />` +
-    `\n  </marker>` +
-    `\n  <marker id="seq-arrow-half-bottom" markerWidth="${w}" markerHeight="${h}" refX="${w}" refY="${h / 2}" orient="auto-start-reverse">` +
-    `\n    <path d="M0 ${h} L${w} ${h / 2}" fill="none" stroke="${edgeColor}" stroke-width="1" />` +
-    `\n  </marker>`
-  )
+  const edgeColor = style.edgeStrokeColor ?? 'var(--_arrow)'
+  const base = { size: { width: w, height: h }, orient: 'auto-start-reverse' as const }
+  const arrowPoints = [{ x: 0, y: 0 }, { x: w, y: h / 2 }, { x: 0, y: h }]
+  return [
+    { ...base, id: 'seq-arrow', shape: 'arrow', ref: { x: w, y: h / 2 }, geometry: { kind: 'polygon', points: arrowPoints }, paint: { fill: edgeColor } },
+    { ...base, id: 'seq-arrow-open', shape: 'open-arrow', ref: { x: w, y: h / 2 }, geometry: { kind: 'polyline', points: arrowPoints }, paint: { fill: 'none', stroke: edgeColor, strokeWidth: '1' } },
+    { ...base, id: 'seq-arrow-cross', shape: 'cross', ref: { x: w / 2, y: h / 2 }, orient: 'auto', geometry: { kind: 'path', d: `M1 1 L${w - 1} ${h - 1} M1 ${h - 1} L${w - 1} 1` }, paint: { fill: 'none', stroke: edgeColor, strokeWidth: '1.5' } },
+    { ...base, id: 'seq-arrow-half-top', shape: 'open-arrow', ref: { x: w, y: h / 2 }, geometry: { kind: 'path', d: `M0 0 L${w} ${h / 2}` }, paint: { fill: 'none', stroke: edgeColor, strokeWidth: '1' } },
+    { ...base, id: 'seq-arrow-half-bottom', shape: 'open-arrow', ref: { x: w, y: h / 2 }, geometry: { kind: 'path', d: `M0 ${h} L${w} ${h / 2}` }, paint: { fill: 'none', stroke: edgeColor, strokeWidth: '1' } },
+  ] satisfies readonly MarkerDescriptor[]
+}
+
+function sequenceMarkerFor(style: ResolvedRenderStyle, head: PositionedMessage['endHead']): MarkerRef | undefined {
+  if (head === 'none') return undefined
+  const id = head === 'filled' ? 'seq-arrow'
+    : head === 'cross' ? 'seq-arrow-cross'
+      : head === 'half-top' ? 'seq-arrow-half-top'
+        : head === 'half-bottom' ? 'seq-arrow-half-bottom'
+          : 'seq-arrow-open'
+  return sequenceMarkerResources(style).find(marker => marker.id === id)
 }
 
 // ============================================================================
@@ -374,16 +377,8 @@ function renderActivation(activation: Activation, style: ResolvedRenderStyle, sc
 function renderMessage(msg: PositionedMessage, style: ResolvedRenderStyle, sceneId: string): SceneNode {
   const children: Array<{ node: SceneNode; indent: number }> = []
   const dashArray = msg.lineStyle === 'dashed' ? ' stroke-dasharray="6 4"' : ''
-  const markerFor = (head: PositionedMessage['endHead']): MarkerRef | undefined => {
-    if (head === 'none') return undefined
-    if (head === 'filled') return { id: 'seq-arrow', shape: 'arrow' }
-    if (head === 'cross') return { id: 'seq-arrow-cross', shape: 'cross' }
-    if (head === 'half-top') return { id: 'seq-arrow-half-top', shape: 'open-arrow' }
-    if (head === 'half-bottom') return { id: 'seq-arrow-half-bottom', shape: 'open-arrow' }
-    return { id: 'seq-arrow-open', shape: 'open-arrow' }
-  }
-  const startMarker = markerFor(msg.startHead)
-  const endMarker = markerFor(msg.endHead)
+  const startMarker = sequenceMarkerFor(style, msg.startHead)
+  const endMarker = sequenceMarkerFor(style, msg.endHead)
   const markerAttrs = `${startMarker ? ` marker-start="url(#${startMarker.id})"` : ''}${endMarker ? ` marker-end="url(#${endMarker.id})"` : ''}`
   const rawStroke = style.edgeStrokeColor ?? 'var(--_line)'
   const rawTextColor = style.edgeTextColor ?? 'var(--_text-muted)'
@@ -393,6 +388,17 @@ function renderMessage(msg: PositionedMessage, style: ResolvedRenderStyle, scene
     strokeWidth: String(style.lineWidth),
     ...(msg.lineStyle === 'dashed' ? { strokeDasharray: '6 4' } : {}),
   }
+  const connectorSemantics = {
+    endpoints: { from: msg.from, to: msg.to },
+    relationship: {
+      kind: 'sequence-message',
+      direction: msg.isSelf ? 'self'
+        : startMarker && endMarker ? 'bidirectional'
+          : startMarker ? 'reverse' : endMarker ? 'forward' : 'undirected',
+    },
+    route: { ownership: 'layout' },
+    labels: msg.label ? [{ text: msg.label }] : [],
+  } as const
 
   // Semantic wrapper with message metadata
   const open =
@@ -424,6 +430,7 @@ function renderMessage(msg: PositionedMessage, style: ResolvedRenderStyle, scene
         paint: linePaint,
         ...(startMarker ? { startMarker } : {}),
         ...(endMarker ? { endMarker } : {}),
+        ...connectorSemantics,
       },
         `<polyline points="${msg.x1},${msg.y} ${msg.x1 + loopW},${msg.y} ${msg.x1 + loopW},${msg.y + loopH} ${msg.x2},${msg.y + loopH}" ` +
         `fill="none" stroke="${escapeAttr(rawStroke)}" stroke-width="${style.lineWidth}"${dashArray}${markerAttrs} />`),
@@ -455,6 +462,7 @@ function renderMessage(msg: PositionedMessage, style: ResolvedRenderStyle, scene
         paint: linePaint,
         ...(startMarker ? { startMarker } : {}),
         ...(endMarker ? { endMarker } : {}),
+        ...connectorSemantics,
       },
         `<line x1="${msg.x1}" y1="${msg.y}" x2="${msg.x2}" y2="${msg.y}" ` +
         `stroke="${escapeAttr(rawStroke)}" stroke-width="${style.lineWidth}"${dashArray}${markerAttrs} />`),

@@ -10,6 +10,7 @@
 // ============================================================================
 
 import YAML from 'yaml'
+import { detectRegisteredFamilyFromFirstLine, type FamilyId } from './agent/families.ts'
 
 export type MermaidConfigScalar = string | number | boolean | null
 export type MermaidConfigValue = MermaidConfigScalar | MermaidConfigValue[] | MermaidConfigMap
@@ -327,31 +328,218 @@ export interface ProcessedMermaidSource {
   frontmatter: MermaidFrontmatterMap
 }
 
+export interface MermaidSourceInitDirective {
+  raw: string
+  parsed: MermaidFrontmatterMap
+}
+
+export interface MermaidSourceComment {
+  text: string
+  line: number
+}
+
+export interface MermaidSourceAccessibility {
+  title?: string
+  descr?: string
+}
+
 export interface NormalizedMermaidSource {
+  /** Original bytes supplied at the public boundary. */
+  originalText: string
   text: string
   body: string
   lines: string[]
+  /** Line-preserving body presented to family grammars after universal
+   * accessibility directives have been removed. */
+  familyBody: string
+  /** Trimmed logical family grammar view. */
+  familyText: string
+  /** Family grammar view with universal accessibility directives removed. */
+  familyLines: string[]
   firstLine: string
   config: MermaidRuntimeConfig
   frontmatter: MermaidFrontmatterMap
+  /** Lossless universal wrapper before the family header, when present. */
+  wrapperSource?: string
+  initDirectives: MermaidSourceInitDirective[]
+  comments: MermaidSourceComment[]
+  accessibility: MermaidSourceAccessibility
 }
 
 const FRONTMATTER_REGEX = /^\uFEFF?\s*---\s*\r?\n([\s\S]*?)\r?\n\s*---\s*(?:\r?\n|$)/
 const INIT_DIRECTIVE_REGEX = /^\s*%%\{\s*(?:init|initialize)\s*:\s*([\s\S]*?)\}\s*%%\s*(?:\r?\n|$)?/gm
+const COMMENT_LINE_REGEX = /^\s*%%(?!\{)\s*(.*)$/
+const ACC_TITLE_REGEX = /^\s*accTitle(?:\s*:\s*|\s+)(.+)$/i
+const ACC_DESCR_INLINE_REGEX = /^\s*accDescr(?:\s*:\s*|\s+)(.+)$/i
+const ACC_DESCR_BLOCK_START = /^\s*accDescr\s*:?\s*\{(.*)$/i
+
+interface AccessibilityDescriptionBlock {
+  description: string
+  endIndex: number
+  /** Family statement following the closing brace, with its indentation. */
+  suffixLine?: string
+}
+
+/** Parse one universal accDescr block without consuming a statement that
+ * follows its closing brace. `undefined` means this is not a block opener;
+ * `null` means the opener is malformed/unclosed and must remain family-visible. */
+function accessibilityDescriptionBlockAt(
+  lines: readonly string[],
+  startIndex: number,
+): AccessibilityDescriptionBlock | null | undefined {
+  const opening = lines[startIndex]!.match(ACC_DESCR_BLOCK_START)
+  if (!opening) return undefined
+
+  const parts: string[] = []
+  for (let index = startIndex; index < lines.length; index++) {
+    const content = index === startIndex ? opening[1]! : lines[index]!
+    const closing = content.indexOf('}')
+    if (closing < 0) {
+      if (content.trim()) parts.push(content.trim())
+      continue
+    }
+    const beforeClosing = content.slice(0, closing).trim()
+    if (beforeClosing) parts.push(beforeClosing)
+    const suffix = content.slice(closing + 1)
+    const indent = lines[index]!.match(/^\s*/)?.[0] ?? ''
+    return {
+      description: parts.join('\n').trim(),
+      endIndex: index,
+      ...(suffix.trim() ? { suffixLine: indent + suffix.trimStart() } : {}),
+    }
+  }
+  return null
+}
 
 export function normalizeMermaidSource(
   text: string,
   baseConfig: MermaidRuntimeConfig = {},
 ): NormalizedMermaidSource {
   const processed = preprocessMermaidSource(text, runtimeConfigToFrontmatterMap(baseConfig))
+  const envelope = sourceEnvelopeMetadata(text)
+  const familyBody = withoutUniversalAccessibilityBody(processed.body)
+  const familyLines = toMermaidLines(familyBody)
 
   return {
+    originalText: text,
     text: processed.lines.join('\n'),
     body: processed.body,
     lines: processed.lines,
+    familyBody,
+    familyText: familyLines.join('\n'),
+    familyLines,
     firstLine: processed.lines[0]?.toLowerCase() ?? '',
     config: normalizeMermaidRuntimeConfig(processed.frontmatter),
     frontmatter: processed.frontmatter,
+    ...(envelope.wrapperSource !== undefined ? { wrapperSource: envelope.wrapperSource } : {}),
+    initDirectives: envelope.initDirectives,
+    comments: envelope.comments,
+    accessibility: envelope.accessibility,
+  }
+}
+
+function withoutUniversalAccessibilityBody(body: string): string {
+  const kept: string[] = []
+  const lines = body.split(/\r?\n/)
+  for (let index = 0; index < lines.length; index++) {
+    const line = lines[index]!
+    const block = accessibilityDescriptionBlockAt(lines, index)
+    if (block !== undefined) {
+      // A malformed universal block must remain visible to the family parser
+      // so it can fail or preserve the source. Hiding an unclosed block made a
+      // broken Gantt/Journey silently become a valid structured diagram.
+      if (block === null) {
+        kept.push(...lines.slice(index))
+        break
+      }
+      if (block.suffixLine) kept.push(block.suffixLine)
+      index = block.endIndex
+      continue
+    }
+    if (ACC_TITLE_REGEX.test(line) || ACC_DESCR_INLINE_REGEX.test(line)) continue
+    kept.push(line)
+  }
+  return kept.join('\n')
+}
+
+/** Normalize authored source once, then apply caller-owned runtime overrides.
+ * Source frontmatter/init directives merge with their historical precedence;
+ * explicit RenderOptions win at the public render boundary. */
+export function normalizeMermaidSourceWithOverrides(
+  text: string,
+  overrides: MermaidRuntimeConfig = {},
+): NormalizedMermaidSource {
+  const source = normalizeMermaidSource(text)
+  if (Object.keys(overrides).length === 0) return source
+  const frontmatter = mergeFrontmatterMaps(source.frontmatter, runtimeConfigToFrontmatterMap(overrides))
+  return {
+    ...source,
+    frontmatter,
+    config: normalizeMermaidRuntimeConfig(frontmatter),
+  }
+}
+
+function sourceEnvelopeMetadata(text: string): {
+  wrapperSource?: string
+  initDirectives: MermaidSourceInitDirective[]
+  comments: MermaidSourceComment[]
+  accessibility: MermaidSourceAccessibility
+} {
+  const initDirectives: MermaidSourceInitDirective[] = []
+  const directiveRegex = new RegExp(INIT_DIRECTIVE_REGEX.source, 'gm')
+  let match: RegExpExecArray | null
+  while ((match = directiveRegex.exec(text)) !== null) {
+    initDirectives.push({
+      raw: match[0],
+      parsed: canonicalizeFrontmatterMap(parseDirectiveMap((match[1] ?? '').trim()) ?? {}),
+    })
+  }
+
+  const frontmatter = text.match(FRONTMATTER_REGEX)
+  const withoutUniversalConfig = text
+    .replace(FRONTMATTER_REGEX, '')
+    .replace(new RegExp(INIT_DIRECTIVE_REGEX.source, 'gm'), '')
+  const comments: MermaidSourceComment[] = []
+  const accessibility: MermaidSourceAccessibility = {}
+  const lines = withoutUniversalConfig.split(/\r?\n/)
+  for (let index = 0; index < lines.length; index++) {
+    const line = lines[index]!
+    const block = accessibilityDescriptionBlockAt(lines, index)
+    if (block !== undefined) {
+      if (block === null) break
+      accessibility.descr = block.description
+      index = block.endIndex
+      continue
+    }
+    const title = line.match(ACC_TITLE_REGEX)
+    if (title) { accessibility.title = title[1]!.trim(); continue }
+    const description = line.match(ACC_DESCR_INLINE_REGEX)
+    if (description) { accessibility.descr = description[1]!.trim(); continue }
+    const comment = line.match(COMMENT_LINE_REGEX)
+    if (comment) comments.push({ text: comment[1]!, line: index + 1 })
+  }
+
+  let wrapperEnd = frontmatter?.[0].length ?? 0
+  const directiveAtStart = new RegExp(INIT_DIRECTIVE_REGEX.source)
+  for (;;) {
+    const rest = text.slice(wrapperEnd)
+    if (rest.length === 0) break
+    const directive = rest.match(directiveAtStart)
+    if (directive?.index === 0 && directive[0].length > 0) { wrapperEnd += directive[0].length; continue }
+    const lineEnd = rest.indexOf('\n')
+    const line = lineEnd === -1 ? rest : rest.slice(0, lineEnd)
+    if (/^\s*$/.test(line) || COMMENT_LINE_REGEX.test(line)) {
+      wrapperEnd += lineEnd === -1 ? rest.length : lineEnd + 1
+      continue
+    }
+    break
+  }
+
+  return {
+    ...(wrapperEnd > 0 ? { wrapperSource: text.slice(0, wrapperEnd) } : {}),
+    initDirectives,
+    comments,
+    accessibility,
   }
 }
 
@@ -836,7 +1024,8 @@ function unescapeQuotedString(valueText: string): string {
   }
 }
 
-export type RoutedDiagramType = 'flowchart' | 'state' | 'architecture' | 'sequence' | 'class' | 'er' | 'timeline' | 'journey' | 'xychart' | 'pie' | 'quadrant' | 'gantt' | 'mindmap' | 'gitgraph'
+/** Compatibility alias: routing now accepts installed, namespaced families too. */
+export type RoutedDiagramType = FamilyId
 
 /**
  * Return the logical Mermaid lines after frontmatter/init/comment normalization.
@@ -852,25 +1041,7 @@ export function preprocessMermaidLines(text: string): string[] {
  * Returns null for headers that are known not to be routed by this renderer.
  */
 export function detectDiagramTypeFromFirstLine(firstLine: string): RoutedDiagramType | null {
-  const line = firstLine.split(';')[0]?.trim().toLowerCase() ?? ''
-  if (/^architecture(?:-beta)?\s*$/.test(line)) return 'architecture'
-  if (/^mindmap\s*$/.test(line)) return 'mindmap'
-  if (/^gitgraph(?:\s+(?:lr|tb|bt))?\s*:?\s*$/.test(line)) return 'gitgraph'
-  if (/^xychart(-beta)?\b/.test(line)) return 'xychart'
-  if (/^pie\b/.test(line)) return 'pie'
-  if (/^quadrant(?:chart)?\s*$/.test(line)) return 'quadrant'
-  // Upstream accepts (and ignores) a direction token after the header.
-  if (/^timeline(?:\s+(?:td|tb|lr|bt|rl))?\s*$/.test(line)) return 'timeline'
-  if (/^gantt\s*$/.test(line)) return 'gantt'
-  if (/^journey\s*$/.test(line)) return 'journey'
-  if (/^sequencediagram\s*$/.test(line)) return 'sequence'
-  if (/^classdiagram\s*$/.test(line)) return 'class'
-  // Upstream's parser tolerates a flowchart-style subgraph clause riding the
-  // erDiagram header (repo #103); the ER parser ignores the grouping.
-  if (/^erdiagram(\s+subgraph\b.*)?\s*$/.test(line)) return 'er'
-  if (/^statediagram(?:-v2)?\s*$/.test(line)) return 'state'
-  if (/^(?:flowchart|graph|swimlane)\b/.test(line)) return 'flowchart'
-  return null
+  return detectRegisteredFamilyFromFirstLine(firstLine, 'strict')
 }
 
 /**
@@ -878,28 +1049,14 @@ export function detectDiagramTypeFromFirstLine(firstLine: string): RoutedDiagram
  * should become opaque round-trip bodies instead of UNKNOWN_HEADER errors.
  */
 export function detectLooseDiagramTypeFromFirstLine(firstLine: string): RoutedDiagramType | null {
-  const line = firstLine.split(';')[0]?.trim().toLowerCase() ?? ''
-  if (/^architecture(?:-beta)?\b/.test(line)) return 'architecture'
-  if (/^mindmap\b/.test(line)) return 'mindmap'
-  if (/^gitgraph\b/.test(line)) return 'gitgraph'
-  if (/^xychart(-beta)?\b/.test(line)) return 'xychart'
-  if (/^pie\b/.test(line)) return 'pie'
-  if (/^quadrant(?:chart)?\b/.test(line)) return 'quadrant'
-  if (/^timeline\b/.test(line)) return 'timeline'
-  if (/^gantt\b/.test(line)) return 'gantt'
-  if (/^journey\b/.test(line)) return 'journey'
-  if (/^sequencediagram\b/.test(line)) return 'sequence'
-  if (/^classdiagram\b/.test(line)) return 'class'
-  if (/^erdiagram\b/.test(line)) return 'er'
-  if (/^statediagram(?:-v2)?\b/.test(line)) return 'state'
-  if (/^(?:flowchart|graph|swimlane)\b/.test(line)) return 'flowchart'
-  return null
+  return detectRegisteredFamilyFromFirstLine(firstLine, 'loose')
 }
 
 /**
  * Detect the routed Mermaid diagram family from source text. Unknown headers
- * intentionally route to the legacy flowchart path for backwards compatibility.
+ * return null and must be classified or diagnosed by the caller; they are
+ * never coerced to Flowchart.
  */
-export function detectDiagramType(text: string): RoutedDiagramType {
-  return detectDiagramTypeFromFirstLine(preprocessMermaidLines(text)[0] ?? '') ?? 'flowchart'
+export function detectDiagramType(text: string): RoutedDiagramType | null {
+  return detectDiagramTypeFromFirstLine(preprocessMermaidLines(text)[0] ?? '')
 }

@@ -32,13 +32,13 @@ The agent workflow is the guardrail behind the polish: agents should not guess f
 
 ## Highlights
 
-- **Registry-backed diagram families** — flowchart, state, architecture, sequence, class, ER, timeline, journey, XY chart, pie, quadrant, Gantt, Mindmap, and GitGraph.
-- **SVG, PNG, ASCII, Unicode, JSON** — one deterministic layout foundation for docs, decks, terminals, and agent workflows.
+- **Descriptor-registered diagram families** — built-ins and namespaced extensions share one discovery and capability contract.
+- **SVG, PNG, ASCII, Unicode, JSON** — one resolved request with explicit graphical, terminal, and positioned-layout projections.
 - **Synchronous, zero-DOM SVG renderer** — no Puppeteer, no browser flash.
-- **Composable styles** — `{ style: ['hand-drawn', 'dracula'] }` stacks a look over a palette; 15 full looks cover sketch, watercolor, blueprint, accessibility, print, operational, physical-media, architecture, and editorial/report use cases. Custom styles are plain JSON records any agent can author (`docs/style-authoring.md`). `seed` re-rolls the ink, never the layout.
-- **21 built-in themes + Shiki compatibility** — a theme is a palette-only style: theme from two colors or a VS Code theme.
+- **Composable styles** — `{ style: ['hand-drawn', 'dracula'] }` stacks a look over a palette; discoverable full looks cover sketch, watercolor, blueprint, accessibility, print, operational, physical-media, architecture, and editorial/report use cases. Custom styles are plain JSON records any agent can author (`docs/style-authoring.md`). `seed` re-rolls the ink, never the layout.
+- **Discoverable palettes + Shiki compatibility** — a theme is a palette-only style: discover the canonical catalog at runtime, theme from two colors, or adapt a VS Code theme.
 - **Agent-native editing** — typed mutation for every registered renderable family; source-level round-trip only for opaque fallbacks containing unmodeled syntax.
-- **CLI + MCP + library** — `am`, `agentic-mermaid-mcp`, `agentic-mermaid`, and `agentic-mermaid/agent`.
+- **CLI + MCP + library** — `am`, `agentic-mermaid-mcp`, `agentic-mermaid`, `agentic-mermaid/agent`, the audit-only `agentic-mermaid/capabilities`, and the trusted Node-host `agentic-mermaid/resources` entry point.
 
 ## Installation
 
@@ -163,34 +163,22 @@ const source = serializeMermaid(next.value)
 
 Rules:
 
-- Use `asFlowchart` / `asState` / `asSequence` / `asTimeline` / `asClass` / `asEr` / `asJourney` / `asArchitecture` / `asXyChart` / `asPie` / `asQuadrant` / `asGantt` / `asMindmap` / `asGitGraph` before mutating existing diagrams.
+- Use the matching exported `as<Family>` narrower before mutating an existing structured diagram.
 - Mutation ops use `kind`, not `type`.
 - Run `verifyMermaid` before every commit point.
 - Do not call `mutate` on opaque fallback bodies; the narrower returns `null` for unmodeled syntax.
 
 ## Supported diagram families
 
-| Family | Parse | Verify | Render | Structured mutate |
-|---|---:|---:|---:|---:|
-| Flowchart / state | ✓ | ✓ | SVG/PNG/ASCII | ✓ |
-| Sequence | ✓ | ✓ | SVG/PNG/ASCII | simple messages/participants |
-| Timeline | ✓ | ✓ | SVG/PNG/ASCII | ✓ |
-| Class | ✓ | ✓ | SVG/PNG/ASCII | ✓ |
-| ER | ✓ | ✓ | SVG/PNG/ASCII | ✓ |
-| Journey | ✓ | ✓ | SVG/PNG/ASCII | modeled subset (BUILD-15) |
-| XY chart | ✓ | ✓ | SVG/PNG/ASCII | modeled subset (BUILD-16) |
-| Pie | ✓ | ✓ | SVG/PNG/ASCII | ✓ |
-| Quadrant | ✓ | ✓ | SVG/PNG/ASCII | ✓ |
-| Architecture | ✓ | ✓ | SVG/PNG/ASCII | modeled subset (BUILD-17) |
-| Gantt | ✓ | ✓ | SVG/PNG/ASCII | sections/tasks; calendar directives ride along verbatim |
-| Mindmap | ✓ | ✓ | SVG/PNG/ASCII | recursive tree, shapes/icons/classes |
-| GitGraph | ✓ | ✓ | SVG/PNG/ASCII | replayed commits, branches, merges, cherry-picks |
-
-See [diagram families](./docs/diagram-families.md) for examples and compatibility notes.
+Family support and its executable evidence are projected from the
+`FamilyDescriptor` registry into the generated
+[Section A capability report](./docs/project/section-a-capability-report.md).
+See [diagram families](./docs/diagram-families.md) for syntax examples and
+compatibility notes.
 
 ## More documentation
 
-- [System architecture](./docs/design/system/README.md) — **start here** for how the engine works: the rendered three-stacks overview (dogfooded, drift-proof) routing to the design and route-contract docs.
+- [System architecture](./docs/design/system/README.md) — **start here** for the rendered resolved-request, family-descriptor, positioned-artifact, and output-security overview (dogfooded, drift-proof).
 - [API reference](./docs/api.md) — renderers, agent API, options, CLI/MCP pointers.
 - [Agent API cookbook](./docs/agent-api-cookbook.md) — practical recipes for agents.
 - [Theming](./docs/theming.md) — two-color themes, built-ins, Shiki compatibility.

@@ -147,13 +147,12 @@ tsc + website:check green at every merge.
 
 ## Mechanically checked ledger
 
-This table is the authoritative status surface for every numbered family item
-and cross-cutting workstream below. Stable IDs make omissions and duplicate
-claims test failures in `family-elevation-ledger.test.ts`. Status has exactly
-three values: `done` means the named acceptance behavior and a discriminating
-or enrollment guard ship; `partial` names the remaining acceptance work;
-`not-started` means no implementation is claimed. The prose work plan remains
-the specification and provenance record.
+This table was the authoritative status surface for every numbered family item
+and cross-cutting workstream within PR #149. It is frozen review history, not a
+current backlog or roadmap; current work is owned only by root `TODO.md`. Stable
+IDs made omissions and duplicate claims test failures in the PR's
+`family-elevation-ledger.test.ts`. The historical status values and prose below
+remain provenance for that review, not live scheduling data.
 
 <!-- family-elevation-ledger:start -->
 | ID | Phase | Status | Evidence or exact remainder |
@@ -509,7 +508,7 @@ change, and availability is never treated as visual fidelity.
 | CG12 | Closing The Gap | done | Gantt renders only sanitized inert href metadata, suppresses callbacks/unsafe schemes, and diagnoses all documented no-op/invalid config paths in `closing-the-gap.test.ts`. |
 | CG13 | Closing The Gap | done | Mindmap defaults to deterministic central bilateral layout with curved branches, local pictograms, explicit tidy-tree, and central-root terminal output in `closing-the-gap.test.ts`. |
 | CG14 | Closing The Gap | done | GitGraph branch palettes, documented theme variables, ANSI color, shared typography metrics, and large-font containment are covered by `closing-the-gap.test.ts`. |
-| CG15 | Closing The Gap | done | The 14-family contract, full local gates, package/website freshness, Lessons Learned, and a final five-reviewer zero-Blocker/P1/P2 audit are recorded by `closing-the-gap.test.ts` and `family-elevation-acceptance.md`. |
+| CG15 | Closing The Gap | done | The registered-family contract, full local gates, package/website freshness, Lessons Learned, and a final multi-reviewer zero-Blocker/P1/P2 audit are recorded by `closing-the-gap.test.ts` and `family-elevation-acceptance.md`. |
 <!-- family-elevation-closing-gap:end -->
 
 ### Closing The Gap sequencing

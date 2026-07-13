@@ -1,11 +1,45 @@
 # API reference
 
-Agentic Mermaid exposes two library surfaces:
+Agentic Mermaid exposes four library surfaces:
 
 - `agentic-mermaid` — renderer-focused public API for SVG and ASCII/Unicode output.
 - `agentic-mermaid/agent` — agent-native API with parse/narrow/mutate/verify/serialize plus SVG, PNG, and ASCII output helpers.
+- `agentic-mermaid/capabilities` — audit/discovery reports and the full pinned upstream semantic manifest; intentionally separate from renderer bundles.
+- `agentic-mermaid/resources` — trusted Node-host verification/resolution for installed content-addressed resources; intentionally absent from browser bundles.
 
 Use `agentic-mermaid/agent` when you want one import path for agents.
+
+### Canonical requests and comparable receipts
+
+Every first-party renderer enters through the same immutable internal request
+boundary: source wrappers/config, the Style stack, colors, font, security, and
+shared options are normalized once. Receipt-bearing variants make that boundary
+observable without exporting its executable implementation types or changing
+the existing convenience return types:
+
+```ts
+import {
+  renderMermaidASCIIWithReceipt,
+  renderMermaidPNGWithReceipt,
+  renderMermaidSVGWithReceipt,
+} from 'agentic-mermaid/agent'
+
+const options = { style: 'hand-drawn', seed: 7, embedFontImport: false }
+const svg = renderMermaidSVGWithReceipt(source, options)
+const png = renderMermaidPNGWithReceipt(source, options)
+const text = renderMermaidASCIIWithReceipt(source, { ...options, colorMode: 'none' })
+
+console.assert(svg.receipt.sharedRequestDigest === png.receipt.sharedRequestDigest)
+console.assert(svg.receipt.appearanceDigest === text.receipt.appearanceDigest)
+```
+
+Each `RenderRequestReceipt` contains `version`, `output`,
+`sharedRequestDigest`, output-specific `requestDigest`, and
+`appearanceDigest`. CLI JSON results and local/hosted MCP render results expose
+the same receipt. Use `validateSerializableRenderOptions(value)` and
+`sharedRenderOptionsJsonSchema()` for untrusted advanced option objects, or
+`styleInputJsonSchema()` for a standalone convenience `style` field; unknown
+fields, `null`, functions, prototype keys, and non-finite values are rejected.
 
 ## Output helpers
 
@@ -37,15 +71,16 @@ writeFileSync('diagram.png', png)
 
 `renderMermaidPNG(input, options?)` accepts a Mermaid source string or `ValidDiagram` and returns `Uint8Array` PNG bytes.
 
-`PngOptions`:
+`PngOptions` extends the shared `RenderOptions` contract used by SVG. The
+canonical machine-readable field set is returned by
+`sharedRenderOptionsJsonSchema()`; the table below contains only PNG-specific
+controls:
 
 | Option | Type | Default | Meaning |
 |---|---|---:|---|
 | `scale` | `number` | `2` | Zoom multiplier when `fitTo` is not set. |
 | `background` | `string` | `'white'` | PNG background color. |
 | `fitTo` | `{ width?: number; height?: number }` | — | Constrain output to a width or height. |
-| `style` | `StyleInput \| StyleInput[]` | — | Style name \| spec \| stack, same as `RenderOptions.style`. |
-| `seed` | `number` | `0` | Ink-wobble seed for styled looks, same as `RenderOptions.seed`. |
 | `fontDirs` | `string[]` | — | Extra font directories: custom styles that reference unbundled families, and scripts the bundled fonts don't cover (CJK, emoji). CLI: `--font-dirs <dirs>` (comma-separated). |
 | `loadSystemFonts` | `boolean` | `false` | Also load OS-installed fonts. Trades cross-machine determinism for glyph coverage; coverage warnings are skipped (system coverage is unknown). CLI: `--system-fonts`. |
 | `onWarning` | `(w: PngFontWarning) => void` | stderr | Receives `PNG_FONT_COVERAGE` warnings (characters no loaded font covers, grouped per script). Without a handler they are written to stderr — tofu is never silent. |
@@ -70,6 +105,11 @@ your own pipeline.
 For complete custom-Style recipes using `font`, `fontDirs`, browser faces, and
 SVG font declarations, see [Fonts in custom styles](./custom-fonts.md).
 
+PNG output declares the shared sRGB policy with `sRGB` and `cICP` metadata,
+places `cICP` before image data, and deliberately emits no conflicting ICC
+profile. SVG and PNG consume the same resolved graphical colors before
+rasterization.
+
 ### ASCII / Unicode
 
 ```ts
@@ -83,6 +123,13 @@ const ascii = renderMermaidASCII(`flowchart LR
 
 `renderMermaidASCII(input, options?)` accepts a Mermaid source string or `ValidDiagram` and returns terminal text.
 
+`AsciiRenderOptions` also extends the same shared `RenderOptions` contract.
+Terminal-only controls and the explicit losses involved in projecting a
+graphical appearance onto terminal cells are documented in
+[`ascii.md`](./ascii.md).
+`colorMode: 'html'` returns an escaped terminal projection through this same
+function; it is not a separate CLI output format or a `renderMermaidHTML` API.
+
 `AsciiRenderOptions`:
 
 | Option | Type | Default | Meaning |
@@ -95,8 +142,6 @@ const ascii = renderMermaidASCII(`flowchart LR
 | `theme` | `Partial<AsciiTheme>` | — | Override ASCII colors. |
 | `targetWidth` | `number` | unset | Hard maximum line width in terminal display cells. Uses grapheme-safe fitting; impossible geometry throws `AsciiWidthError`. |
 | `maxWidth` | `number` | unset | Deprecated best-effort label wrapping. It does **not** guarantee the output width. Do not combine with `targetWidth`. |
-| `mermaidConfig` | `MermaidRuntimeConfig` | — | Mermaid-style runtime config. |
-| `ganttToday` | `string` | unset | Explicit "today" for the Gantt `todayMarker`; same deterministic clock behavior as SVG. |
 
 `AsciiWidthError` has code `ASCII_TARGET_WIDTH_IMPOSSIBLE` plus
 `requestedWidth`, `requiredWidth`, `family`, and `reason` (`MINIMUM_GEOMETRY`,
@@ -105,36 +150,52 @@ CLI JSON and hosted MCP errors. CLI: `am render diagram.mmd --format unicode
 --target-width 80`; hosted `render_ascii`: `{ source, targetWidth: 80 }`.
 Omitting both width options preserves the unconstrained output path.
 
-## SVG render options
+## Shared render options
 
-`renderMermaidSVG` accepts `RenderOptions`:
+SVG, PNG, ASCII, and Unicode adapters accept this serializable `RenderOptions`
+field set. The terminal column records whether text output consumes a field,
+projects it with an explicit diagnostic, or declares it inapplicable. Output-
+specific controls remain in their respective sections.
 
-| Option | Type | Default | Meaning |
-|---|---|---:|---|
-| `bg` | `string` | `#FFFFFF` | Background color or CSS variable. |
-| `fg` | `string` | `#27272A` | Foreground color or CSS variable. |
-| `line` | `string?` | — | Edge/connector color. |
-| `accent` | `string?` | — | Arrow heads and highlights. |
-| `muted` | `string?` | — | Secondary text/labels. |
-| `surface` | `string?` | — | Node fill tint. |
-| `border` | `string?` | — | Node stroke color. |
-| `font` | `string` | `Inter` | CSS font family or stack. See [Fonts in custom styles](./custom-fonts.md). |
-| `style` | `string \| StyleSpec \| (string \| StyleSpec)[]` | — | How the diagram looks: a registered style name (`'hand-drawn'`, `'tufte'`, any palette like `'dracula'`), an inline public `StyleSpec`, or a stack merged left→right (`['hand-drawn', 'dracula']`). See `docs/style-authoring.md`. |
-| `seed` | `number` | `0` | Deterministic re-roll for stochastic styles — shuffles ink wobble, never layout. |
-| `transparent` | `boolean` | `false` | Transparent SVG background. |
-| `padding` | `number` | `40` | Canvas padding. |
-| `nodeSpacing` | `number` | `24` | Horizontal sibling spacing. |
-| `layerSpacing` | `number` | `40` | Vertical layer spacing. |
-| `componentSpacing` | `number` | `24` | Disconnected component spacing. |
-| `interactive` | `boolean` | `false` | XY chart hover tooltips. |
-| `shadow` | `boolean` | `false` | Explicit drop shadows. |
-| `mermaidConfig` | `MermaidRuntimeConfig` | — | Runtime Mermaid config. |
-| `onConfigDiagnostic` | `(diagnostic: ConfigDiagnostic) => void` | console warning for explicit ineffective State config | Collect qualified warnings without changing SVG bytes. |
-| `embedFontImport` | `boolean` | `true` | Include Google Fonts imports for a single plain family and class/ER mono labels; set false for offline SVG. PNG disables imports internally. |
-| `compact` | `boolean` | `false` | Compact SVG output while preserving agent hooks. |
-| `idPrefix` | `string` | `''` | Namespace every declared SVG id and local marker/filter/clip-path/paint/href/ARIA reference. Semantic `data-id` values remain source-stable. |
-| `security` | `'default' | 'strict'` | `'default'` | `strict` disables external-fetch references. |
-| `ganttToday` | `string` | unset | Explicit "today" for the Gantt `todayMarker` (date in the diagram's `dateFormat` or ISO `YYYY-MM-DD`). Gantt never reads the wall clock; without this the marker is not drawn. |
+<!-- BEGIN GENERATED SHARED RENDER OPTIONS -->
+| Option | Type | Effective default | Meaning | Terminal |
+|---|---|---|---|---|
+| `bg` | `string` | `#FFFFFF` | Background color or CSS variable. | consumed |
+| `fg` | `string` | `#27272A` | Primary foreground and text color. | consumed |
+| `line` | `string` | derived | Connector and secondary-line color. | consumed |
+| `accent` | `string` | derived | Arrowhead, highlight, and data accent color. | consumed |
+| `muted` | `string` | derived | Secondary text and label color. | projected — terminal themes have no dedicated muted-text role |
+| `surface` | `string` | derived | Node and group surface color. | projected — terminal cells do not paint graphical surfaces |
+| `border` | `string` | derived | Node and group border color. | consumed |
+| `font` | `string` | `Inter` | CSS font family or stack. | projected — the host terminal owns the font face |
+| `style` | `StyleInput \| StyleInput[]` | `crisp` | Registered Style/Palette name, inline StyleSpec, or left-to-right stack. | consumed |
+| `padding` | `number` | `40` | Canvas padding in SVG user units. | not-applicable — terminal output uses paddingX, paddingY, and boxBorderPadding |
+| `nodeSpacing` | `number` | `24` | Horizontal spacing between sibling nodes. | not-applicable — terminal layout has a cell-grid spacing contract |
+| `layerSpacing` | `number` | `40` | Vertical spacing between graph layers. | not-applicable — terminal layout has a cell-grid spacing contract |
+| `wrappingWidth` | `number` | unset | Flowchart measured-label wrapping budget in pixels. | not-applicable — terminal output uses maxWidth or targetWidth |
+| `componentSpacing` | `number` | `nodeSpacing` (`24`) | Spacing between disconnected graph components. | not-applicable — terminal layout has a cell-grid spacing contract |
+| `transparent` | `boolean` | `false` | Omit the painted SVG canvas background. | projected — terminal output has no painted canvas background |
+| `interactive` | `boolean` | `false` | Enable hover tooltips for supported chart data points. | projected — terminal output is a static semantic projection |
+| `shadow` | `boolean` | `false` | Paint explicit drop shadows on node shapes. | projected — elevation projects to borders and labels |
+| `class` | `{ hierarchicalNamespaces?: boolean }` | `hierarchicalNamespaces: true` | Class-diagram rendering controls. | not-applicable — this option configures graphical class layout |
+| `architecture` | `{ visual?: ArchitectureVisualConfig }` | built-in metrics | Architecture renderer visual metrics and paint overrides. | not-applicable — this option configures graphical architecture rendering |
+| `timeline` | `{ maxWidth?: number }` | `maxWidth`: unset | Timeline layout controls. | not-applicable — terminal output uses maxWidth or targetWidth |
+| `journey` | `{ experienceCurve?: boolean }` | `experienceCurve: true` | User-journey graphical controls. | not-applicable — experience curves are graphical-only |
+| `gantt` | `{ dependencyArrows?: boolean; criticalPath?: boolean }` | both `false` | Gantt dependency and critical-path overlays. | not-applicable — graphical Gantt connector emphasis is not represented in cells |
+| `mermaidConfig` | `MermaidRuntimeConfig` | source config | Mermaid-style recursive runtime configuration. | consumed |
+| `embedFontImport` | `boolean` | `true` (SVG) | Embed the Google Fonts import in SVG styles; PNG forces this off for offline rasterization. | not-applicable — terminal output embeds no web-font import |
+| `compact` | `boolean` | `false` | Compact SVG serialization while preserving agent hooks. | not-applicable — compact controls SVG serialization |
+| `idPrefix` | `string` | `''` | Namespace generated SVG definition IDs and local references. | not-applicable — terminal output has no SVG definition ids |
+| `security` | `'default' \| 'strict'` | `default` | Active SVG content is rejected in every mode; strict additionally rejects every external reference. Raw Mermaid themeCSS is rejected in both modes. | not-applicable — terminal text has its own control-character and HTML-color safety projection |
+| `ganttToday` | `string` | unset | Explicit deterministic date for the Gantt today marker. | consumed |
+| `seed` | `number` | `0` | Deterministic re-roll seed for stochastic Styles. | not-applicable — terminal glyph geometry is deterministic and has no stochastic ink |
+<!-- END GENERATED SHARED RENDER OPTIONS -->
+
+`onConfigDiagnostic?: (diagnostic: ConfigDiagnostic) => void` is deliberately
+outside the serializable field set. Library callers can collect qualified
+`INEFFECTIVE_CONFIG` warnings without changing output bytes; CLI, MCP, editor,
+and JSON Schema surfaces return diagnostics as data instead of accepting a
+function.
 
 ### SVG semantic identity and accessibility
 
@@ -187,7 +248,7 @@ Core functions:
 | Function | Purpose |
 |---|---|
 | `parseMermaid(source)` | Parse Mermaid source to `Result<ValidDiagram, ParseError[]>`. |
-| `asFlowchart(d)` / `asState(d)` / `asSequence(d)` / `asTimeline(d)` / `asClass(d)` / `asEr(d)` / `asJourney(d)` / `asArchitecture(d)` / `asXyChart(d)` / `asPie(d)` / `asQuadrant(d)` / `asGantt(d)` / `asMindmap(d)` / `asGitGraph(d)` | Narrow to a mutable family or return `null`. |
+| Family narrower | Narrow to a mutable family or return `null`; obtain the current generated name from `am capabilities --json`. |
 | `mutate(d, op)` | Apply a kind-discriminated typed mutation. |
 | `verifyMermaid(d)` | Return structural warnings and layout evidence. |
 | `analyzeMermaid(d)` / `analyzeMermaidSource(source)` | Return deterministic non-rendering analysis: feedback edges, source-only action records, and Gantt critical-path/slack summary when available. |
@@ -197,26 +258,56 @@ Core functions:
 | `measureQuality(layout)` / `checkQuality(layout)` | Perceptual quality metrics. |
 | `describeMermaid(d, { format })` | Prose, AX-tree, or facts summary (`format: "text" | "json" | "facts"`). |
 
-Typed mutation families:
-
-| Family | Narrower | Common ops |
-|---|---|---|
-| Flowchart | `asFlowchart` | `add_node`, `remove_node`, `rename_node`, `set_label`, `add_edge`, `remove_edge` |
-| State | `asState` | `add_state`, `remove_state`, `rename_state`, `set_state_label`, `add_transition`, `remove_transition`, `set_transition_label`, `make_composite` |
-| Sequence | `asSequence` | `add_participant`, `remove_participant`, `add_message`, `remove_message`, `set_message_text` |
-| Timeline | `asTimeline` | `set_title`, `add_section`, `add_period`, `add_event`, remove/set variants |
-| Class | `asClass` | `add_class`, `remove_class`, `rename_class`, `add_member`, `add_relation`, notes |
-| ER | `asEr` | `add_entity`, `remove_entity`, `rename_entity`, `set_entity_label`, `add_attribute`, `remove_attribute`, `add_relation`, `remove_relation` |
-| Journey | `asJourney` | `set_title`, `add_section`, `add_task`, `set_task_score`, `set_task_actors`, `rename_actor`, … |
-| XY chart | `asXyChart` | `set_title`, `set_x_axis`, `set_y_axis`, `add_series`, `set_series_values`, `reorder_series`, … |
-| Architecture | `asArchitecture` | `add_service`, `move_service`, `add_group`, `add_edge`, `rename_service`, … |
-| Pie | `asPie` | `set_title`, `set_show_data`, `add_slice`, `remove_slice`, `rename_slice`, `set_slice_value`, `reorder_slice` |
-| Quadrant | `asQuadrant` | `set_title`, `set_axis_labels`, `set_quadrant_label`, `add_point`, `remove_point`, `move_point`, `rename_point` |
-| Gantt | `asGantt` | `set_title`, `add_section`, `rename_section`, `add_task`, `set_task_status`, `set_task_dates`, … |
-| Mindmap | `asMindmap` | `add_node`, `remove_node`, `rename_node`, `move_node`, `set_shape`, `set_icon`, … |
-| GitGraph | `asGitGraph` | `append_commit`, `create_branch`, `checkout_branch`, `merge_branch`, `cherry_pick`, … |
+The family registry is the operation authority. Use `am capabilities --json`
+for the current roster and field schemas, or call `describeOps(family)` and
+`opSignatures(family)` at runtime. The generated SDK declaration projects the
+same descriptors; this reference deliberately does not copy an exhaustive
+family/operation table.
 
 Opaque fallback bodies (any unmodeled syntax) are source-level-only: edit source deliberately, then parse and verify again.
+
+## Capability and extension discovery
+
+Import `createSectionACapabilityReport()` from
+`agentic-mermaid/capabilities`. It returns the JSON-safe, registry-derived
+request/backend/output/family/Scene matrix also exposed as
+`am capabilities --json` → `sectionA`. Validate a stored snapshot with
+`validateSectionACapabilityReport(report)`. The generated human projection is
+[`project/section-a-capability-report.md`](./project/section-a-capability-report.md).
+Keeping this audit surface on a separate entry point prevents the full
+characterization and upstream syntax corpora from entering renderer/browser
+bundles.
+
+Canonical extension identities are kind-qualified (`look:`, `palette:`,
+`backend:`, `family:`, `role:`, and `resource:`), versioned, provenance-bearing,
+and collision-safe. New graphical backends declare feature/operation-level
+Scene primitive capability claims; the registry rejects an empty, duplicate,
+cross-target, or otherwise invalid claim set.
+
+### Current customization and extension inventory
+
+This is the current authoritative inventory. Field-level `RenderOptions` and
+`StyleSpec` details remain in their generated tables above rather than being
+copied here.
+
+| Level | Public seam | What it can change | Boundary and availability |
+|---|---|---|---|
+| Mermaid-authored appearance | frontmatter/init config, theme variables, family style statements such as classes and link styles | Syntax-defined colors, labels, family geometry, and interaction metadata where the family advertises support | Source-level and family-dependent. Raw `themeCSS` is recognized but diagnosed at the render boundary because its selectors and markup can escape an imported SVG; use `StyleSpec` instead. |
+| One-off render overrides | `RenderOptions` | Palette channels, font family, spacing/geometry controls, deterministic seed, security, accessibility-related output options, and a Style stack | Serializable shared fields flow through library, CLI, Code Mode, MCP, editor, and website only where the generated transport matrix advertises them. Host callbacks are library-only and never enter receipts. |
+| One-off declarative style | inline `StyleSpec` or a left-to-right `StyleInput[]` stack | Safe palette, font, stroke/fill treatment, backdrop, and the other generated StyleSpec fields | JSON-safe and executable-code-free. This is the lowest-complexity custom Style path. |
+| Named palette/look | `registerStyle`, `getStyle`, `knownStyleDescriptors`, compatibility aliases | Installs a versioned `palette:` or `look:` name backed by exactly the same `StyleSpec` accepted inline | In-process host registry. A CLI/MCP/server sees it only when that host installs the registration at startup; serialized requests cannot install code or mutate registries. Built-in Styles use this registry too. |
+| Theme conversion | `fromShikiTheme` | Converts a Shiki-compatible editor theme into diagram colors | Pure library helper; the result is ordinary declarative color input. |
+| Fonts and installed resources | `font`, Node PNG `fontDirs`/`loadSystemFonts`, browser `BrowserPngRasterizer`, `ResourceManifest`, and `agentic-mermaid/resources` → `NodeResourceResolver` | Selects a safe font stack, supplies host-dependent raster fonts, or verifies bounded installed bytes | Font family names do not install fonts. Browser callbacks and Node directories are trusted host inputs and remain outside serializable options/digests; manifests require path, size, media-type, digest, and licence evidence and never fall back to network access. |
+| Graphical backend | `registerBackend`, `runBackendConformance`, `createMermaidRenderer({ backendPolicy })` | Serializes the typed Scene contract with a different drawing implementation | Trusted in-process host only. Registration must pass deterministic, semantic, well-formed, secure SVG smoke conformance. PNG support is inherited only through the canonical secured SVG raster path. Serializable styles cannot select arbitrary executable backends. |
+| Diagram family | `registerFamily`, `parseRegisteredMermaid`, `projectPositionedView` | Adds a namespaced language with detection, parse/preservation, verification, layout, Scene/SVG, terminal, and discovery claims | Versioned `family:<owner/name>` descriptor with collision and evidence checks. Built-in-only unions stay closed; extension bodies use the open envelope. Remote transports gain the family only when their trusted host installs it. |
+| Scene semantics | `SceneDoc`, typed connectors/markers/hit geometry, namespaced `SceneRole` | Lets a family/backend exchange identity, relationship, accessibility, geometry, and terminal-projection intent | This is a versioned typed contract, not a raw SVG hook. Unknown namespaced roles deliberately receive inert identity-only traits and cannot acquire core behavior by local-name collision. There is no public arbitrary primitive/trait mutation registry. |
+| Browser PNG host adapter | `renderMermaidPNGInBrowserWithReceipt(..., rasterize)` | Supplies Canvas/OffscreenCanvas rasterization and reports font provenance | Trusted callback receives only the secured canonical SVG; the library re-applies the PNG color-profile gate and retains a comparable request receipt. |
+| Identity and compatibility plumbing | `createExtensionIdentity`, `canonicalExtensionId`, `registerCompatibilityAlias` | Gives kind-specific registries stable names, versions, provenance, compatibility ranges, and time-bounded aliases | Low-level plumbing, not a stand-alone extension registry or rendering hook. Each kind-specific registry remains authoritative. |
+
+There is currently no BrandPack registry, semantic-binding API, public role-trait
+registration, arbitrary SVG/CSS hook, or Treatment hook. Those are Section B
+decisions; B4 adds a Treatment seam only if a concrete effect cannot be expressed
+as a primitive or backend.
 
 ## CLI
 

@@ -107,54 +107,24 @@
           value="24"
         />
       </div>
-      <div class="padding-field">
-        <div class="padding-row">
-          <label for="cfg-edge-stroke">Edge stroke</label>
-          <input
-            class="padding-num"
-            id="cfg-edge-stroke"
-            type="number"
-            min="0.25"
-            max="6"
-            step="0.25"
-            value="1"
-          />
-        </div>
-        <input
-          class="padding-slider"
-          id="cfg-edge-stroke-slider"
-          type="range"
-          aria-label="Edge stroke"
-          min="0.25"
-          max="6"
-          step="0.25"
-          value="1"
-        />
-      </div>
-      <div class="padding-field">
-        <div class="padding-row">
-          <label for="cfg-node-stroke">Node border</label>
-          <input
-            class="padding-num"
-            id="cfg-node-stroke"
-            type="number"
-            min="0.25"
-            max="6"
-            step="0.25"
-            value="1"
-          />
-        </div>
-        <input
-          class="padding-slider"
-          id="cfg-node-stroke-slider"
-          type="range"
-          aria-label="Node border"
-          min="0.25"
-          max="6"
-          step="0.25"
-          value="1"
-        />
-      </div>
+    </div>
+
+    <!-- Canonical advanced options: field discovery and validation both come
+         from the browser bundle generated from RenderOptions' one manifest. -->
+    <div class="config-section advanced-options-section">
+      <div class="config-section-title">Advanced RenderOptions</div>
+      <label class="advanced-options-label" for="cfg-advanced-options">JSON object</label>
+      <textarea
+        class="advanced-options-input"
+        id="cfg-advanced-options"
+        rows="8"
+        spellcheck="false"
+        autocomplete="off"
+        aria-describedby="cfg-advanced-schema cfg-advanced-status"
+      >{}</textarea>
+      <p class="advanced-options-schema" id="cfg-advanced-schema">Loading canonical fields…</p>
+      <p class="advanced-options-status" id="cfg-advanced-status" role="status" aria-live="polite"></p>
+      <button class="advanced-options-apply" id="cfg-advanced-apply" type="button">Apply JSON</button>
     </div>
 
     <div class="config-footer">
@@ -220,6 +190,7 @@
       <span id="status-text">Ready</span>
     </div>
     <div class="status-right">
+      <button class="draft-privacy-btn" id="draft-privacy-btn" type="button" aria-pressed="false">Autosave: this browser</button>
       <span id="cursor-pos">Ln 1, Col 1</span>
       <!-- Feedback affordance; deliberately no prefilled diagram source (privacy). -->
       <a class="report-issue-link" href="https://github.com/adewale/agentic-mermaid/issues/new" target="_blank" rel="noopener noreferrer">Report an issue</a>

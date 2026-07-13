@@ -30,6 +30,11 @@ function clearEditor() {
   updateLineNumbers();
   updateCursorPos();
   previewInner.innerHTML = emptyPreviewHtml();
+  delete previewInner.dataset.sharedRequestDigest;
+  delete previewInner.dataset.renderRequestDigest;
+  delete previewInner.dataset.appearanceDigest;
+  lastRenderedSvgArtifact = null;
+  if (typeof markTextOutputsDirty === 'function') markTextOutputsDirty();
   if (typeof setTextOutputs === 'function') setTextOutputs('', '');
   statusText.textContent = 'Ready';
   statusText.className = '';
@@ -100,9 +105,18 @@ if (copyTextOutputBtn) copyTextOutputBtn.addEventListener('click', function() {
     writeClipboardText(new XMLSerializer().serializeToString(svgEl), 'SVG markup copied.', 'Copy SVG failed.', copyTextOutputBtn);
     return;
   }
-  var el = document.getElementById(currentCanvasFormat + '-output');
   var name = currentCanvasFormat === 'ascii' ? 'ASCII' : 'Unicode';
-  writeClipboardText(el ? el.textContent : '', name + ' output copied.', 'Copy ' + name + ' failed.', copyTextOutputBtn);
+  var artifact = lastRenderedTextArtifacts && lastRenderedTextArtifacts[currentCanvasFormat];
+  if (artifact && artifact.receipt.sharedRequestDigest !== previewInner.dataset.sharedRequestDigest) {
+    setCopyFeedback(copyTextOutputBtn, 'err');
+    showToast(name + ' output no longer matches the current diagram.');
+    return;
+  }
+  // Oversize/error panes carry an explanatory string but no render artifact;
+  // preserve the historical ability to copy that message.
+  var el = document.getElementById(currentCanvasFormat + '-output');
+  var value = artifact ? artifact.text : (el ? el.textContent : '');
+  writeClipboardText(value, name + ' output copied.', 'Copy ' + name + ' failed.', copyTextOutputBtn);
 });
 
 document.addEventListener('click', function(e) {

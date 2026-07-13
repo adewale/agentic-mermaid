@@ -2,7 +2,7 @@
 
 > **Status: planned, not implemented; root backlog owner `SEC-4`.** Revised 2026-07-10 after a
 > Cloudflare Doctor audit of this plan, the hosted MCP implementation, and live
-> Cloudflare documentation. `hosted-mcp-cloudflare-plan.md` remains the
+> Cloudflare documentation. [`archive/hosted-mcp-cloudflare-plan.md`](./archive/hosted-mcp-cloudflare-plan.md) remains the
 > as-built record; this document specifies the next hardening change.
 > It supplies threat-model, dependency and acceptance detail but is not a second
 > status-bearing backlog; `TODO.md` is authoritative.

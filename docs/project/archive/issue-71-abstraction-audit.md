@@ -1,4 +1,4 @@
-# Abstraction audit — historical baseline and issue list
+# Issue #71 abstraction audit — historical baseline
 
 Status: historical audit snapshot. Captured 2026-06-20, before the issue #71
 implementation. Scope: the abstraction surfaces across
@@ -8,11 +8,11 @@ This document captures **what the code looked like on 2026-06-20** and the **lis
 kept as the historical baseline for issue #71, not as the current architecture reference.
 Literature-grounded
 recommendations are tracked separately in
-[`abstraction-recommendations.md`](./abstraction-recommendations.md).
+[`issue-71-abstraction-recommendations.md`](./issue-71-abstraction-recommendations.md).
 
 > 2026-06-21 note: this is now the **pre-implementation baseline**, not the
 > current architecture. The current closure spec and reappraisal are in
-> [`abstraction-recommendations.md`](./abstraction-recommendations.md#2026-06-21-reappraisal).
+> [`issue-71-abstraction-recommendations.md`](./issue-71-abstraction-recommendations.md#2026-06-21-reappraisal).
 > Line references and type names below are audit-time references.
 
 ---
@@ -41,29 +41,11 @@ the `RouteClass`/port vocabulary. Everything larger forks per stack.
 
 ## 2. Inventory of abstraction layers
 
-The 12 built-in families this inventory spans — the canonical roster, **generated from
-`BUILTIN_FAMILY_METADATA` (`src/agent/families.ts`)** and pinned by
-[`audit-family-table.test.ts`](../../../src/__tests__/audit-family-table.test.ts) so it cannot drift
-from the registry (regenerate with `UPDATE_GOLDEN=1 bun test src/__tests__/audit-family-table.test.ts`):
-
-<!-- FAMILY-TABLE:start -->
-| Family | `kind` | Mermaid header(s) | SDK narrower |
-|---|---|---|---|
-| Flowchart | `flowchart` | `flowchart`, `graph` | `asFlowchart` |
-| State | `state` | `stateDiagram`, `stateDiagram-v2` | `asState` |
-| Sequence | `sequence` | `sequenceDiagram` | `asSequence` |
-| Timeline | `timeline` | `timeline` | `asTimeline` |
-| Class | `class` | `classDiagram` | `asClass` |
-| ER | `er` | `erDiagram` | `asEr` |
-| Journey | `journey` | `journey` | `asJourney` |
-| Architecture | `architecture` | `architecture`, `architecture-beta` | `asArchitecture` |
-| XY chart | `xychart` | `xychart`, `xychart-beta` | `asXyChart` |
-| Pie | `pie` | `pie` | `asPie` |
-| Quadrant | `quadrant` | `quadrant`, `quadrantChart` | `asQuadrant` |
-| Gantt | `gantt` | `gantt` | `asGantt` |
-| Mindmap | `mindmap` | `mindmap` | `asMindmap` |
-| GitGraph | `gitgraph` | `gitGraph` | `asGitGraph` |
-<!-- FAMILY-TABLE:end -->
+This section records the audit-time layers. Its former registry-synchronized
+family table was removed because a historical snapshot must not be rewritten by
+changes to the current registry. The generated
+[Section A capability report](../section-a-capability-report.md) owns
+the live family scope and evidence.
 
 - **Domain IR (input):** `MermaidGraph` (flowchart, `types.ts:7`) + 10 family input types
   (`SequenceDiagram`, `ClassDiagram`, `ErDiagram`, `TimelineDiagram`, `JourneyDiagram`,
@@ -168,7 +150,7 @@ exist twice, so a parity change must be made in two places.
 ## 4. Preliminary convergence targets
 
 These are first-cut directions; the literature review refines and prioritizes them in
-[`abstraction-recommendations.md`](./abstraction-recommendations.md). The binding constraint is
+[`issue-71-abstraction-recommendations.md`](./issue-71-abstraction-recommendations.md). The binding constraint is
 **determinism** (CLAUDE.md: identical input must produce identical geometry), which makes any
 retrofit careful, family-by-family work behind snapshot tests rather than a sweeping rename.
 
@@ -197,7 +179,7 @@ architecture. Cross-checked against them, the findings **agree**; three earn an 
 |---|---|---|
 | [`AGENT_NATIVE.md`](../../../AGENT_NATIVE.md) | I3, I6, I7 | Agrees; refines I3 and I7 (below). The agent-stack design rationale. |
 | [`contributing/diagram-family-citizenship.md`](../../contributing/diagram-family-citizenship.md) | I1, I8 | Agrees; the family×surface drift is **already CI-guarded** (below). |
-| [`design/source-preservation-ladder.md`](./source-preservation-ladder.md) | I7 | Agrees; formalizes the structured\|opaque model as levels L0–L4. |
+| [`design/source-preservation-ladder.md`](../../design/system/source-preservation-ladder.md) | I7 | Agrees; formalizes the structured\|opaque model as levels L0–L4. |
 
 **I1 refinement — the drift was already test-guarded.** `diagram-family-citizenship.md` (issue #41)
 defines a family×surface matrix whose `detectionParse` row requires that "shared detector, agent parse,

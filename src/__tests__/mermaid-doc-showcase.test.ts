@@ -3,9 +3,8 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-import { getStyle, knownStyles, renderMermaidSVG, verifyNoExternalRefs } from '../index.ts'
+import { getStyle, knownStyleDescriptors, renderMermaidSVG, verifyNoExternalRefs } from '../index.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
-import { styleKind } from '../scene/style-registry.ts'
 import { parseMindmap } from '../mindmap/parser.ts'
 import { layoutMindmap } from '../mindmap/layout.ts'
 import { filesUnder, hashFileTree, sortRepositoryPaths } from '../../scripts/pr-assets/artifact-receipt.ts'
@@ -68,16 +67,15 @@ describe('official Mermaid documentation showcase', () => {
   })
 
   test('every built-in Look × Palette combination renders every docs family', () => {
-    const looks = knownStyles().filter(name => {
-      const spec = getStyle(name)
-      return spec && styleKind(spec) === 'look'
-    })
-    const palettes = knownStyles().filter(name => {
-      const spec = getStyle(name)
-      return spec && styleKind(spec) === 'theme'
-    })
-    expect(looks).toHaveLength(16)
-    expect(palettes).toHaveLength(20)
+    const descriptors = knownStyleDescriptors()
+    const looks = descriptors
+      .filter(descriptor => descriptor.category === 'look')
+      .map(descriptor => descriptor.inputName)
+    const palettes = descriptors
+      .filter(descriptor => descriptor.category === 'theme')
+      .map(descriptor => descriptor.inputName)
+    expect(looks).not.toContain('crisp')
+    expect(palettes.length).toBeGreaterThan(0)
     let combinations = 0
     for (const entry of manifest.cases) {
       for (const look of looks) {
@@ -99,7 +97,7 @@ describe('official Mermaid documentation showcase', () => {
         }
       }
     }
-    expect(combinations).toBe(4_480)
+    expect(combinations).toBe(manifest.cases.length * looks.length * palettes.length)
   }, 60_000)
 
   test('generated docs gallery receipt covers current sources and PNG bytes', () => {

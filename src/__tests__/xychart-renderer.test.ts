@@ -206,16 +206,18 @@ xychart
     expect(svg).not.toContain('max-width:')
   })
 
-  it('appends Mermaid themeCSS from frontmatter to the SVG styles', () => {
-    const svg = render(`---
+  it('diagnoses raw Mermaid themeCSS instead of importing host-page selectors', () => {
+    const source = `---
 config:
   themeCSS: |
     .xychart-title { letter-spacing: 0.08em; }
 ---
 xychart
   title Revenue
-  bar [10, 20]`)
-
-    expect(svg).toContain('.xychart-title { letter-spacing: 0.08em; }')
+  bar [10, 20]`
+    // The family adapter still accounts for Mermaid's syntax; the canonical
+    // public output boundary owns the security diagnosis.
+    expect(render(source)).toContain('.xychart-title { letter-spacing: 0.08em; }')
+    expect(() => renderMermaidSVG(source)).toThrow('themeCSS is not allowed in default security mode')
   })
 })

@@ -1,12 +1,12 @@
 import { describe, expect, test } from 'bun:test'
 
-import type { ConnectorMark, ShapeMark } from '../scene/ir.ts'
+import type { ShapeMark } from '../scene/ir.ts'
+import * as marks from '../scene/marks.ts'
 import { RoughBackend } from '../scene/rough-backend.ts'
 
 describe('styled backend paint fallback', () => {
   test('uses semantic stroke paint for class-only connectors', () => {
-    const connector: ConnectorMark = {
-      kind: 'connector',
+    const connector = marks.connector({
       id: 'series-line',
       role: 'series',
       geometry: {
@@ -22,8 +22,7 @@ describe('styled backend paint fallback', () => {
         stroke: '#ff0000',
         strokeWidth: '3',
       },
-      crisp: '<path d="M 0 0 L 50 50" class="series-line" />',
-    }
+    }, '<path d="M 0 0 L 50 50" class="series-line" />')
 
     const svg = RoughBackend.drawNode(connector, {
       seed: 7,

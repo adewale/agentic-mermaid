@@ -1,4 +1,4 @@
-# Hosted MCP on Cloudflare: plan
+# Hosted MCP on Cloudflare — shipped record
 
 > **Status: shipped (PR #94).** This began as a design plan and is now the
 > as-built record of the hosted MCP endpoint live at

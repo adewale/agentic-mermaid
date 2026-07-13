@@ -2,65 +2,167 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://agentic-mermaid.dev/schemas/style-spec.schema.json",
   "title": "Agentic Mermaid StyleSpec",
-  "description": "A declarative style record for Agentic Mermaid SVG/PNG rendering. A style can be a palette, a full renderer look, or a small treatment fragment.",
+  "description": "A partial declarative style record for Agentic Mermaid rendering. All fields, including formatVersion, are optional on input; resolved and registered specs normalize formatVersion to 1.",
   "type": "object",
   "additionalProperties": false,
   "properties": {
+    "formatVersion": {
+      "const": 1,
+      "description": "Persisted wire-format version. Optional on input and normalized to 1 on output."
+    },
     "$schema": {
       "type": "string",
-      "description": "Optional editor metadata. The renderer ignores it."
+      "description": "Optional JSON Schema pointer for file-backed styles; ignored while rendering."
     },
     "name": {
       "type": "string",
-      "description": "Required only when registering the style by name."
+      "description": "Canonical look:name or palette:name identity; required only when registering a style."
     },
     "blurb": {
-      "type": "string"
+      "type": "string",
+      "description": "Short human-readable description used by discovery surfaces."
     },
     "colors": {
       "type": "object",
       "additionalProperties": false,
+      "description": "Partial palette of safe, non-fetching CSS color tokens. Runtime validation applies the stricter safe-color policy.",
       "properties": {
-        "bg": { "type": "string" },
-        "fg": { "type": "string" },
-        "line": { "type": "string" },
-        "accent": { "type": "string" },
-        "muted": { "type": "string" },
-        "surface": { "type": "string" },
-        "border": { "type": "string" }
+        "bg": {
+          "type": "string",
+          "description": "Diagram page background. Must be a safe, non-fetching CSS color.",
+          "x-agentic-mermaid-runtime-validator": "safeCssColor"
+        },
+        "fg": {
+          "type": "string",
+          "description": "Primary text and foreground paint. Must be a safe, non-fetching CSS color.",
+          "x-agentic-mermaid-runtime-validator": "safeCssColor"
+        },
+        "line": {
+          "type": "string",
+          "description": "Connector and secondary line paint. Must be a safe, non-fetching CSS color.",
+          "x-agentic-mermaid-runtime-validator": "safeCssColor"
+        },
+        "accent": {
+          "type": "string",
+          "description": "Accent paint for emphasis and data series. Must be a safe, non-fetching CSS color.",
+          "x-agentic-mermaid-runtime-validator": "safeCssColor"
+        },
+        "muted": {
+          "type": "string",
+          "description": "Muted text and secondary data paint. Must be a safe, non-fetching CSS color.",
+          "x-agentic-mermaid-runtime-validator": "safeCssColor"
+        },
+        "surface": {
+          "type": "string",
+          "description": "Node and group surface fill. Must be a safe, non-fetching CSS color.",
+          "x-agentic-mermaid-runtime-validator": "safeCssColor"
+        },
+        "border": {
+          "type": "string",
+          "description": "Node and group border paint. Must be a safe, non-fetching CSS color.",
+          "x-agentic-mermaid-runtime-validator": "safeCssColor"
+        }
       }
     },
     "font": {
       "type": "string",
-      "description": "CSS font family name or stack. The Style references the family; the rendering environment supplies the font face."
+      "description": "Safe, non-fetching CSS font family or stack; the rendering environment supplies the font face.",
+      "x-agentic-mermaid-runtime-validator": "safeCssFontFamily"
     },
     "stroke": {
-      "enum": ["crisp", "jittered", "freehand"]
+      "type": "string",
+      "enum": [
+        "crisp",
+        "jittered",
+        "freehand"
+      ],
+      "description": "Stroke treatment; crisp is the default renderer."
     },
-    "roughness": { "type": "number" },
-    "bowing": { "type": "number" },
-    "passes": { "type": "number" },
-    "strokeWidth": { "type": "number" },
+    "roughness": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 10,
+      "description": "Rough.js stroke irregularity."
+    },
+    "bowing": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 10,
+      "description": "Rough.js line bowing."
+    },
+    "passes": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 8,
+      "description": "Number of sketch strokes; 1 is single-pass and 2 is the usual double stroke."
+    },
+    "strokeWidth": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "maximum": 20,
+      "description": "Base stroke width in SVG user units."
+    },
     "fill": {
-      "enum": ["none", "hachure", "solid", "wash"]
+      "type": "string",
+      "enum": [
+        "none",
+        "hachure",
+        "solid",
+        "wash"
+      ],
+      "description": "Fill treatment; sketch backends interpret hachure and wash."
     },
-    "hachureAngle": { "type": "number" },
-    "hachureGap": { "type": "number" },
-    "fillWeight": { "type": "number" },
-    "washOpacity": { "type": "number" },
-    "washEdge": { "type": "number" },
+    "hachureAngle": {
+      "type": "number",
+      "minimum": -360,
+      "maximum": 360,
+      "description": "Hachure line angle in degrees."
+    },
+    "hachureGap": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "maximum": 100,
+      "description": "Gap between hachure lines."
+    },
+    "fillWeight": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "maximum": 20,
+      "description": "Hachure line weight."
+    },
+    "washOpacity": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Watercolor glaze opacity."
+    },
+    "washEdge": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Watercolor edge-darkening opacity."
+    },
     "backdrop": {
-      "enum": ["plain", "paper-ruled", "grid"]
-    },
-    "backend": {
-      "enum": ["default", "rough", "hybrid"],
-      "description": "Expert override. Most styles should omit it and let the renderer infer the backend."
+      "type": "string",
+      "enum": [
+        "plain",
+        "paper-ruled",
+        "grid"
+      ],
+      "description": "Flat page furniture drawn behind the diagram."
     },
     "intent": {
-      "enum": ["premium", "draft", "lofi"]
+      "type": "string",
+      "enum": [
+        "premium",
+        "draft",
+        "lofi"
+      ],
+      "description": "Advisory intent metadata for pickers and quality tooling."
     },
     "mono": {
-      "type": "boolean"
+      "type": "boolean",
+      "description": "Advisory monochrome contract: express tone through shading and weight."
     }
   }
 }

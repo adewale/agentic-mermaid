@@ -6,10 +6,12 @@
 // for browser rendering.
 // ============================================================================
 
-import { parseHex, mixHex, luma255 } from '../shared/color-math.ts'
+import { parseHex, mixHex, luma255, toHex, tryParseCssColor } from '../shared/color-math.ts'
+import { safeCssColor } from '../shared/css-color.ts'
 import type { CharRole, AsciiTheme, ColorMode } from './types.ts'
 import type { DiagramColors } from '../theme.ts'
 import { MIX } from '../theme.ts'
+import { sanitizeTerminalText } from '../terminal-security.ts'
 
 declare const document: unknown
 
@@ -76,19 +78,31 @@ export function diagramColorsToAsciiTheme(colors: DiagramColors): AsciiTheme {
  * Browser: returns 'html' (uses <span> tags with inline styles).
  * Unknown/piped: returns 'none'.
  */
-export function detectColorMode(): ColorMode {
+export interface ColorEnvironment {
+  isTTY?: boolean
+  env?: Record<string, string | undefined>
+  browser?: boolean
+}
+
+export function detectColorMode(override?: ColorEnvironment): ColorMode {
   // Check if we're in a Node.js-like environment with process object
   // Use globalThis to safely check for process without TypeScript errors
   const proc = (globalThis as { process?: { stdout?: { isTTY?: boolean }, env?: Record<string, string | undefined> } }).process
+  const browserOverride = override?.browser === true
 
-  if (proc) {
+  if (proc || override) {
     // Check if stdout is a TTY (not piped/redirected)
-    if (!proc.stdout?.isTTY) {
+    const isTTY = override?.isTTY ?? proc?.stdout?.isTTY
+    if (!isTTY) {
       return 'none'
     }
 
-    const colorTerm = proc.env?.COLORTERM?.toLowerCase() ?? ''
-    const term = proc.env?.TERM?.toLowerCase() ?? ''
+    const env = override?.env ?? proc?.env ?? {}
+    const colorTerm = env.COLORTERM?.toLowerCase() ?? ''
+    const term = env.TERM?.toLowerCase() ?? ''
+
+    // Explicit terminal disable signals win over capability hints.
+    if (term === 'dumb' || env.NO_COLOR !== undefined) return 'none'
 
     // True color support
     if (colorTerm === 'truecolor' || colorTerm === '24bit') {
@@ -109,7 +123,7 @@ export function detectColorMode(): ColorMode {
   }
 
   // No process object → browser environment → use HTML color output
-  if (typeof document !== 'undefined') {
+  if (browserOverride || typeof document !== 'undefined') {
     return 'html'
   }
 
@@ -223,7 +237,17 @@ function escapeHtml(text: string): string {
 
 /** Wrap text in a <span> with an inline color style. */
 function htmlSpan(hex: string, text: string): string {
-  return `<span style="color:${hex}">${escapeHtml(text)}</span>`
+  const color = safeCssColor(hex)
+  return color
+    ? `<span style="color:${color}">${escapeHtml(text)}</span>`
+    : escapeHtml(text)
+}
+
+/** Defense in depth for direct per-series colors that do not use AsciiTheme. */
+function concreteTerminalHex(color: string): string | undefined {
+  const safe = safeCssColor(color)
+  const parsed = safe ? tryParseCssColor(safe) : null
+  return parsed ? toHex(parsed[0], parsed[1], parsed[2]) : undefined
 }
 
 // ============================================================================
@@ -251,7 +275,8 @@ function getRoleColor(role: CharRole, theme: AsciiTheme): string {
 export function getAnsiColor(role: CharRole, theme: AsciiTheme, mode: ColorMode): string {
   if (mode === 'none') return ''
 
-  const hex = getRoleColor(role, theme)
+  const hex = concreteTerminalHex(getRoleColor(role, theme))
+  if (!hex) return ''
 
   switch (mode) {
     case 'truecolor': return truecolorFg(hex)
@@ -277,6 +302,7 @@ export function colorizeChar(
   theme: AsciiTheme,
   mode: ColorMode,
 ): string {
+  char = sanitizeTerminalText(char)
   if (mode === 'none' || role === null || char === ' ') {
     return char
   }
@@ -295,6 +321,7 @@ export function colorizeLine(
   theme: AsciiTheme,
   mode: ColorMode,
 ): string {
+  chars = chars.map(char => sanitizeTerminalText(char))
   if (mode === 'none') {
     return chars.join('')
   }
@@ -410,13 +437,16 @@ function colorizeLineHtml(
  * Handles all output modes: ANSI (16/256/truecolor) and HTML.
  */
 export function colorizeText(text: string, hex: string, mode: ColorMode): string {
+  text = sanitizeTerminalText(text)
   if (mode === 'none' || text.length === 0) return text
   if (mode === 'html') return htmlSpan(hex, text)
+  const concrete = concreteTerminalHex(hex)
+  if (!concrete) return text
   let code: string
   switch (mode) {
-    case 'truecolor': code = truecolorFg(hex); break
-    case 'ansi256': code = ansi256Fg(hex); break
-    case 'ansi16': code = ansi16Fg(hex); break
+    case 'truecolor': code = truecolorFg(concrete); break
+    case 'ansi256': code = ansi256Fg(concrete); break
+    case 'ansi16': code = ansi16Fg(concrete); break
     default: return text
   }
   return `${code}${text}${RESET}`
