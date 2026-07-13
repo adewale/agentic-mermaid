@@ -1,6 +1,9 @@
 # Route Contracts: Principled Routing Without Hitches
 
-Status: implemented (Phases 0, 1 (complete), 3, and the first slice of Phase 4 of issue #25's rollout; see "Rollout status")
+Status: implemented contract/evidence record (Phases 0, 1, 3, and the first
+slice of Phase 4 of issue #25's rollout; see "Rollout status"). Rows described
+as deferred are unscheduled evidence, not a shadow backlog; implementation
+requires promotion to root `TODO.md`.
 Supersedes: the draft spec in issue #25, whose claims this document re-verified against the code.
 
 ## 1. The problem

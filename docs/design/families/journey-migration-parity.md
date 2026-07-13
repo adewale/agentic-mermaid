@@ -7,6 +7,9 @@ marker namespacing, ASCII width handling (grapheme-safe), style/palette/config
 coverage with WCAG-guarded section labels, and the Describe/Facts/Verify spec
 below. The elevation PR's description records why the first implementation's
 safeguards missed and what now enforces them.
+This is an as-built evidence record, not an active plan. Root `TODO.md` is the
+sole authority for scheduled work; candidate refinements and alternate-look
+ideas retained below are unscheduled unless promoted there.
 Last reviewed: 2026-07-10
 Issue: https://github.com/adewale/agentic-mermaid/issues/128
 Origin: https://github.com/adewale/agentic-mermaid/pull/6
@@ -120,7 +123,10 @@ Known remaining syntax/parity gaps and caveats:
 - Do not change the meaning of Mermaid Journey scores. Scores remain integers
   from 1 through 5.
 
-## Current Failure Modes
+## Historical failure analysis and residual evidence
+
+The landed corrections are described in the present tense below. Residual gaps
+are capability evidence only; this document does not schedule their resolution.
 
 ### Parser split
 
@@ -161,10 +167,10 @@ good, but migration tooling benefits when common malformed cases are separated:
 - parser drift between renderer and agent paths,
 - or genuinely unknown Journey extension.
 
-Invalid Journey scores now receive a Journey-specific diagnostic. Broader
-malformed-line taxonomy is still a useful future refinement.
+Invalid Journey scores now receive a Journey-specific diagnostic. A broader
+malformed-line taxonomy remains an unscheduled candidate refinement.
 
-### Incomplete semantic surfaces
+### Candidate semantic refinements (unscheduled evidence)
 
 Structured Journey output still has room to become richer:
 
@@ -229,9 +235,10 @@ It intentionally used Agentic Mermaid's house style:
 That model was useful for compact, scannable documents, but it was not visually
 compatible with Mermaid Journey examples found in the wild.
 
-## Visual Parity Strategy
+## Historical visual-parity decision
 
-Adopt Mermaid's Journey visual metaphor as the default public SVG renderer.
+The implementation adopted Mermaid's Journey visual metaphor as the default
+public SVG renderer.
 
 Prototype and visual evidence:
 
@@ -240,11 +247,13 @@ Prototype and visual evidence:
 - [`journey-mermaid-classic-prototype.png`](./journey-mermaid-classic-prototype.png)
 - [`journey-mermaid-classic-implementation.png`](./journey-mermaid-classic-implementation.png)
 
-The old card layout has been removed from the public SVG renderer. If it ever
-returns, it should be an explicitly named alternate look rather than the default.
-The public default should remain Mermaid-compatible.
+The old card layout has been removed from the public SVG renderer. The retained
+guardrail is that any separately promoted return would be an explicitly named
+alternate Look rather than the default. The public default remains
+Mermaid-compatible.
 
-Possible type if the alternate survives:
+The following historical sketch is illustrative candidate evidence only, not a
+public API commitment. Any alternate requires promotion to root `TODO.md`:
 
 ```ts
 type JourneyLook = "mermaid-classic" | "agentic-cards";
@@ -254,8 +263,8 @@ Default:
 
 - Use `"mermaid-classic"`.
 
-There is currently no public alternate card layout. If one survives later, its
-setting should live near other render style options rather than in the parser:
+There is currently no public alternate card layout. The historical sketch placed
+such a setting near other render style options rather than in the parser:
 
 ```ts
 render(source, {
@@ -371,27 +380,27 @@ honor width constraints:
 - preserve section order,
 - avoid lines longer than `maxWidth` when a width is provided and feasible.
 
-A Mermaid-classic ASCII mode is optional. The priority is making current ASCII
-output truthful to the structured model and width contract.
+A Mermaid-classic ASCII mode remains an unscheduled candidate requiring root
+`TODO.md` promotion. The current contract prioritizes truthful structured output
+and width handling.
 
-## Follow-up Implementation Plan
+## Historical implementation checklist (completed evidence)
 
-1. Introduce a shared Journey parse core or shared normalization helpers so
-   `src/journey/parser.ts` and `src/agent/journey-body.ts` cannot drift on
-   documented syntax.
-2. Extend `JourneyBody` and related JSON serializers for accessibility metadata
-   and full section/task ordering.
-3. Replace Journey opaque fallback with typed parse outcomes that carry a reason.
-4. Update `verify` to map Journey parse outcomes to specific diagnostics.
-5. Expand Journey facts and describe output.
-6. Add richer Journey facts and JSON describe summaries.
-7. Keep migration fixtures based on representative Mermaid Journey examples.
-8. Decide separately whether the old card layout is worth reintroducing as a
-   deliberately named alternate look.
+1. The shared Journey parse core prevents renderer and agent-body syntax drift.
+2. `JourneyBody` and related JSON serializers carry accessibility metadata and
+   full section/task ordering.
+3. Typed parse outcomes carry explicit opaque-fallback reasons.
+4. `verify` maps Journey parse outcomes to specific diagnostics.
+5. Journey facts and describe output expose the implemented summaries.
+6. JSON describe output carries the richer Journey facts.
+7. Migration fixtures retain representative Mermaid Journey examples.
+8. Reintroducing the old card layout as a deliberately named alternate Look is
+   an unscheduled candidate, not part of this completed checklist; it requires
+   promotion to root `TODO.md`.
 
-## Test Plan
+## Historical test matrix (landed acceptance evidence)
 
-Add fixtures covering:
+The implementation's acceptance matrix covered:
 
 - `accTitle: ...`
 - `accDescr: ...`
@@ -406,7 +415,7 @@ Add fixtures covering:
 - multiple actors per task,
 - repeated actors across sections.
 
-For each valid fixture, test:
+For each valid fixture, the acceptance evidence spans:
 
 - renderer parser output,
 - agent structured body output,
@@ -416,7 +425,7 @@ For each valid fixture, test:
 - SVG accessibility metadata,
 - ASCII output under a narrow `maxWidth`.
 
-For the public Journey renderer, add SVG structure tests that assert:
+For the public Journey renderer, SVG structure evidence asserts:
 
 - tasks advance horizontally,
 - section spans cover the expected task columns,
@@ -424,16 +433,15 @@ For the public Journey renderer, add SVG structure tests that assert:
 - actor dots are associated with the right tasks,
 - score positions are monotonic from 1 through 5.
 
-## Migration Decision
+## Historical migration decision
 
-The current Journey renderer should be treated as a supported Agentic Mermaid
+The earlier Journey renderer was treated as a supported Agentic Mermaid
 prototype that proved parser and renderer coverage, not as a public compatibility
-contract. The failure was that the implementation made Journey exist by adopting
-the library's card-layout house style instead of preserving Mermaid's Journey
-visual metaphor.
+contract. Its failure was adopting the library's card-layout house style instead
+of preserving Mermaid's Journey visual metaphor.
 
-The immediate fix for issue #128 should prioritize parser parity and diagnostics.
-Pre-launch, the visual fix should replace the default SVG layout with the
-Mermaid-style experience curve. The old card layout should be removed from the
-public renderer unless we later decide to reintroduce it as a deliberately named
-alternate look.
+The issue #128 fix prioritized parser parity and diagnostics, replaced the
+default SVG layout with the Mermaid-style experience curve, and removed the old
+card layout from the public renderer. Reintroducing it as a deliberately named
+alternate Look remains an unscheduled candidate requiring root `TODO.md`
+promotion.

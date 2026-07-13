@@ -1,7 +1,9 @@
 # Abstraction recommendations — academic-literature review
 
-Status: recommendations from academic-literature review. Drafted 2026-06-20;
-reappraised and updated 2026-06-21 after the issue #71 implementation.
+Status: historical recommendations and closure record from the academic-
+literature review. Drafted 2026-06-20; reappraised and updated 2026-06-21 after
+the issue #71 implementation. It is not an active roadmap; live work belongs
+only in root `TODO.md`.
 Companion to [`abstraction-audit.md`](./abstraction-audit.md) (the historical pre-implementation
 snapshot and the source of issue numbers **I1–I9**, referenced throughout). Reconciled with the pre-existing
 design docs it overlaps — [`AGENT_NATIVE.md`](../../../AGENT_NATIVE.md) (agent stack),
@@ -477,7 +479,7 @@ names once, not twice.
 
 ---
 
-## Closure Roadmap
+## Historical closure record
 
 This table supersedes the original issue roadmap. It records the implementation closure criteria after
 the 2026-06-21 reappraisal. Every behavior-affecting row is gated by the repo's snapshot,

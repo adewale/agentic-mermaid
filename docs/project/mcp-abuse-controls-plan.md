@@ -1,9 +1,11 @@
 # Hosted MCP abuse controls: plan
 
-> **Status: planned, not implemented.** Revised 2026-07-10 after a
+> **Status: planned, not implemented; root backlog owner `SEC-4`.** Revised 2026-07-10 after a
 > Cloudflare Doctor audit of this plan, the hosted MCP implementation, and live
 > Cloudflare documentation. `hosted-mcp-cloudflare-plan.md` remains the
 > as-built record; this document specifies the next hardening change.
+> It supplies threat-model, dependency and acceptance detail but is not a second
+> status-bearing backlog; `TODO.md` is authoritative.
 >
 > **Scope boundary.** This plan deliberately has no automated daily-budget
 > breaker, Analytics Engine dataset, KV control flag, cron, or Durable Object
