@@ -1762,7 +1762,6 @@ function heroStyleFigureHtml() {
       </div>
       ${panels}
     </div>
-    <figcaption>${slides.length} pre-chosen style × palette × family combinations, drawn at build time by the same renderer your agent calls. Slides 1–3 are one identical source — the layout never moves; only style and palette change.</figcaption>
   </figure>`
 }
 function injectHeroStyleFigure(html: string) {

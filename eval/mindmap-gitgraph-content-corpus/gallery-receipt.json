@@ -1332,11 +1332,11 @@
     },
     {
       "path": "src/__tests__/website-browser-a11y.test.ts",
-      "sha256": "4689a5f81161f18eb24cf002daf70890800bb3d56694e8eb1680e7163d354661"
+      "sha256": "de594ea303304fe64f7ea83668a1dbfa72a17e20a92479a430dbfd8bebb448e0"
     },
     {
       "path": "src/__tests__/website-build.test.ts",
-      "sha256": "359c88907727ad2fe2b41a370af46dc9cea0f7ddb2eb49daaa70de6ee91e202b"
+      "sha256": "69a4afaf6d1c4e4ee96dd3e15e0dfa1c5def9622208f54af5e43ad0c270e93d9"
     },
     {
       "path": "src/__tests__/website-public.preload.ts",
