@@ -60,9 +60,10 @@ Cloudflare's official agent setup prompt is <https://developers.cloudflare.com/a
 
 Both files register `cloudflare`, `cloudflare-docs`, `cloudflare-bindings`, `cloudflare-builds`, and `cloudflare-observability`. OAuth triggers on first authenticated Cloudflare tool use; `cloudflare-docs` is public.
 
-Direct Wrangler (this project intentionally uses `wrangler@latest`):
+Direct Wrangler (this project intentionally uses `wrangler@latest`). Build from the repository root before a manual deploy so public machine catalogs carry the checked-out commit rather than stale files:
 
 ```bash
+SITE_GIT_SHA="$(git rev-parse HEAD)" SITE_BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)" bun run website
 cd website
 WRANGLER_SEND_METRICS=false npx --yes wrangler@latest dev --port 9095 --ip 127.0.0.1
 WRANGLER_SEND_METRICS=false npx --yes wrangler@latest deploy

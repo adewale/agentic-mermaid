@@ -1,21 +1,8 @@
 import { executeInSandbox } from '../../src/mcp/sandbox.ts'
-import { parseMermaid, renderMermaidSVG, verifyMermaid, verifyNoExternalRefs, type DiagramKind } from '../../src/agent/index.ts'
+import { BUILTIN_FAMILY_METADATA, parseMermaid, renderMermaidSVG, verifyMermaid, verifyNoExternalRefs, type DiagramKind } from '../../src/agent/index.ts'
 import { DEFAULT_CASES, type AgentUsageEvalCase } from './run.ts'
 
-export const AGENT_USAGE_SUPPORTED_FAMILIES = [
-  'flowchart',
-  'state',
-  'sequence',
-  'timeline',
-  'class',
-  'er',
-  'journey',
-  'architecture',
-  'xychart',
-  'pie',
-  'quadrant',
-  'gantt',
-] as const satisfies readonly DiagramKind[]
+export const AGENT_USAGE_SUPPORTED_FAMILIES: readonly DiagramKind[] = BUILTIN_FAMILY_METADATA.map(family => family.id)
 
 export interface AgentUsageRenderQualityResult {
   id: string
@@ -59,6 +46,8 @@ const EXPECTED_VISIBLE_LABELS: Record<string, string[]> = {
   pie_add_docs_slice: ['Build', 'Test', 'Docs'],
   quadrant_add_docs_point: ['API', 'Docs'],
   gantt_add_docs_task: ['Core', 'Docs'],
+  mindmap_add_evidence_node: ['Product', 'Research', 'Evidence'],
+  gitgraph_add_release_commit: ['ROOT', 'RC', 'rc.1'],
   author_auth_flow_source: ['User', 'Login Page', 'Dashboard'],
   author_api_sequence_source: ['User', 'App', 'API', 'Render SVG', 'Download'],
 }

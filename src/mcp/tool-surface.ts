@@ -42,29 +42,51 @@ const SANDBOX_EXECUTE_ANNOTATIONS = {
   idempotentHint: false,
   openWorldHint: false,
 } as const
+const MANAGED_ARTIFACT_ANNOTATIONS = {
+  // output=file/url creates a managed file and repeated calls can create
+  // different time-addressed artifacts, so the tool as a whole is neither
+  // read-only nor idempotent even though output=base64 is pure.
+  readOnlyHint: false,
+  destructiveHint: false,
+  idempotentHint: false,
+  openWorldHint: false,
+} as const
 
 export async function dispatchMcpRequest<Context>(req: JsonRpcRequest, context: Context, surface: McpServerSurface<Context>): Promise<JsonRpcResponse | null> {
-  const id = req.id ?? null
+  const raw = req as unknown as Record<string, unknown> | null
+  const hasId = Boolean(raw && Object.prototype.hasOwnProperty.call(raw, 'id'))
+  const rawId = raw?.id
+  const validId = rawId === undefined || rawId === null || typeof rawId === 'string' || (typeof rawId === 'number' && Number.isFinite(rawId))
+  const valid = Boolean(raw && raw.jsonrpc === '2.0' && typeof raw.method === 'string' && validId)
+  const id = validId && rawId !== undefined ? rawId as number | string | null : null
+  // Only a valid Request object without `id` is a notification. Malformed
+  // envelopes still receive the spec's -32600 response with id:null.
+  if (!valid) return rpcError(null, -32600, 'invalid JSON-RPC request')
+  const notification = !hasId
+
+  let response: JsonRpcResponse | null
   switch (req.method) {
     case 'initialize': {
       const protocolVersion = typeof surface.protocolVersion === 'function'
         ? surface.protocolVersion(req.params)
         : surface.protocolVersion
-      return reply(id, {
+      response = reply(id, {
         protocolVersion,
         serverInfo: { name: surface.serverName ?? MCP_SERVER_NAME, version: MCP_SERVER_VERSION },
         capabilities: { tools: {} },
         instructions: surface.instructions,
       })
+      break
     }
-    case 'notifications/initialized': return null
-    case 'ping': return reply(id, {})
-    case 'tools/list': return reply(id, { tools: surface.tools })
-    case 'tools/call': return await surface.handleToolCall(id, req.params, context)
-    case 'prompts/list': return reply(id, { prompts: [] })
-    case 'resources/list': return reply(id, { resources: [] })
-    default: return rpcError(id, -32601, `Method not found: ${req.method}`)
+    case 'notifications/initialized': response = null; break
+    case 'ping': response = reply(id, {}); break
+    case 'tools/list': response = reply(id, { tools: surface.tools }); break
+    case 'tools/call': response = await surface.handleToolCall(id, req.params, context); break
+    case 'prompts/list': response = reply(id, { prompts: [] }); break
+    case 'resources/list': response = reply(id, { resources: [] }); break
+    default: response = rpcError(id, -32601, `Method not found: ${req.method}`)
   }
+  return notification ? null : response
 }
 
 export function createExecuteTool(options: { sdkDeclaration: string; hosted?: boolean }): McpToolDefinition {
@@ -124,11 +146,15 @@ Agentic Mermaid outputs SVG, PNG, ASCII, Unicode, and JSON layout. For non-PNG o
         background: { type: 'string', description: "CSS color string (default 'white')." },
         style: { description: hosted ? 'Style name | record | stack (same as render_svg). Hosted rasterization bundles the built-in style faces; custom unbundled fonts use Inter with DejaVu per-glyph fallback.' : 'Style: a name (hand-drawn, watercolor, …, or any theme name), an inline style record, or an array stack merged left → right.' },
         seed: { type: 'number', description: hosted ? 'Ink seed for styled looks.' : 'Re-rolls ink wobble of styled looks; never moves layout.' },
-        ...(hosted ? {} : { output: { type: 'string', enum: ['base64', 'file', 'url'], description: 'PNG return mode (default base64).' } }),
+        ...(hosted ? {} : {
+          output: { type: 'string', enum: ['base64', 'file', 'url'], description: 'PNG return mode (default base64).' },
+          fontDirs: { type: 'array', items: { type: 'string' }, description: 'Additional local font directories for CJK/emoji glyph coverage.' },
+          loadSystemFonts: { type: 'boolean', description: 'Also load operating-system fonts (default false).' },
+        }),
       },
       required: ['source'],
     },
-    annotations: PURE_COMPUTE_ANNOTATIONS,
+    annotations: hosted ? PURE_COMPUTE_ANNOTATIONS : MANAGED_ARTIFACT_ANNOTATIONS,
   }
 }
 

@@ -17,7 +17,7 @@ import { parseMermaid } from '../../src/agent/parse.ts'
 import { mutate, edgeIdOf } from '../../src/agent/mutate.ts'
 import { verifyMermaid } from '../../src/agent/verify.ts'
 import { serializeMermaid } from '../../src/agent/serialize.ts'
-import { asFlowchart, asSequence, asTimeline, asClass, asEr } from '../../src/agent/types.ts'
+import { asFlowchart, asSequence, asTimeline, asClass, asEr, type DiagramKind } from '../../src/agent/types.ts'
 
 // ---- Layer 2: anti-pattern linter -----------------------------------------
 
@@ -25,8 +25,8 @@ export type DiagramRef = number | string
 
 export type SdkCall =
   | { verb: 'parse'; diagram?: DiagramRef; source?: string }
-  | { verb: 'narrow'; family: 'flowchart' | 'state' | 'sequence' | 'timeline' | 'class' | 'er' | 'journey' | 'architecture' | 'xychart' | 'pie' | 'quadrant' | 'gantt'; input?: DiagramRef; ok: boolean }
-  | { verb: 'mutate'; body: 'flowchart' | 'state' | 'sequence' | 'timeline' | 'class' | 'er' | 'journey' | 'architecture' | 'xychart' | 'pie' | 'quadrant' | 'gantt' | 'opaque'; input?: DiagramRef; output?: DiagramRef; opKind?: string; fingerprint?: string }
+  | { verb: 'narrow'; family: DiagramKind; input?: DiagramRef; ok: boolean }
+  | { verb: 'mutate'; body: DiagramKind | 'opaque'; input?: DiagramRef; output?: DiagramRef; opKind?: string; fingerprint?: string }
   | { verb: 'verify'; diagram?: DiagramRef; ok?: boolean; inspected?: boolean; fingerprint?: string }
   | { verb: 'verify_inspect'; diagram?: DiagramRef; property: 'ok' | 'warnings' | 'layout' }
   | { verb: 'analyze'; diagram?: DiagramRef; source?: string; ok?: boolean; fingerprint?: string }

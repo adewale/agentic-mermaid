@@ -19,6 +19,7 @@ import { describeMermaidSource, describeMermaid } from '../agent/describe.ts'
 import { describeMermaidFacts } from '../agent/facts.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { renderMermaidSVG, renderMermaidASCII } from '../agent/core.ts'
+import { verifyNoExternalRefs } from '../index.ts'
 import { THEMES } from '../theme.ts'
 import { unsupportedCodeReason } from './facade.ts'
 import { rpcError, toolResult, type JsonRpcRequest, type JsonRpcResponse } from './protocol.ts'
@@ -205,11 +206,12 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
         return rpcError(id, -32602, e instanceof Error ? e.message : String(e))
       }
     }
-    case 'render_svg': return sourceTool(id, args, 'SVG_RENDER_FAILED', source => ({
-      ok: true as const,
-      svg: renderMermaidSVG(source, svgOptions(args)),
-      warnings: sourceConfigWarnings(source),
-    }))
+    case 'render_svg': return sourceTool(id, args, 'SVG_RENDER_FAILED', source => {
+      const svg = renderMermaidSVG(source, svgOptions(args))
+      const safety = verifyNoExternalRefs(svg)
+      if (!safety.ok) throw new Error(`strict SVG safety invariant failed: ${safety.refs.join(', ')}`)
+      return { ok: true as const, svg, warnings: sourceConfigWarnings(source) }
+    })
     case 'render_ascii': return sourceTool(id, args, 'ASCII_RENDER_FAILED', source => ({
       ok: true as const,
       text: renderMermaidASCII(source, {
@@ -282,7 +284,14 @@ function svgOptions(args: Record<string, unknown>): Record<string, unknown> {
   if (theme !== undefined && (typeof theme !== 'string' || !(theme in THEMES))) {
     throw new Error(`unknown theme; expected one of: ${Object.keys(THEMES).join(', ')}`)
   }
-  const opts: Record<string, unknown> = typeof theme === 'string' ? { ...THEMES[theme] } as unknown as Record<string, unknown> : {}
+  // Public MCP SVG is commonly embedded by downstream agent UIs. It must
+  // never carry active tags/event handlers or external fetches from Mermaid
+  // init/config payloads; unlike the local library, this direct tool exposes no
+  // caller-selectable security mode.
+  const opts: Record<string, unknown> = {
+    ...(typeof theme === 'string' ? { ...THEMES[theme] } as unknown as Record<string, unknown> : {}),
+    security: 'strict',
+  }
   if (typeof args.bg === 'string') opts.bg = args.bg
   if (typeof args.fg === 'string') opts.fg = args.fg
   const style = normalizeStyleArg(args.style)

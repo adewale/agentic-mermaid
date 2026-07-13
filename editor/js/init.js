@@ -219,8 +219,9 @@ function shouldOpenEmptyEditor() {
     var draft = typeof readEditorDraft === 'function' ? readEditorDraft() : null;
     if (draft) {
       editor.value = draft.source;
-      if (hasOwnConfig(draft.config)) state.config = draft.config;
-      if (draft.style) state.style = draft.style;
+      if (hasOwnConfig(draft.config)) state.config = sanitizeEditorConfig(draft.config);
+      var draftStyle = sanitizeEditorStyle(draft.style);
+      if (draftStyle) state.style = draftStyle;
       if (typeof draft.seed === 'number') state.seed = draft.seed;
       updateStyleButton();
       if (typeof hydrateConfigControls === 'function') hydrateConfigControls(state.config);

@@ -15,6 +15,7 @@ import { renderMermaidPNG } from '../agent/png.ts'
 import { describeMermaidSource, describeMermaid } from '../agent/describe.ts'
 import { describeMermaidFacts } from '../agent/facts.ts'
 import { parseMermaid } from '../agent/parse.ts'
+import { configWarningsForMermaid } from '../agent/verify.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 
 export type { JsonRpcRequest, JsonRpcResponse } from './protocol.ts'
@@ -34,6 +35,7 @@ export interface HttpMcpOptions {
   maxRpcBodyBytes?: number
   authToken?: string
   maxSandboxTimeoutMs?: number
+  maxSseSessions?: number
 }
 
 export interface HttpMcpServer {
@@ -46,6 +48,7 @@ export interface HttpMcpServer {
 const PROTOCOL_VERSION = '2024-11-05'
 const MAX_RPC_BODY_BYTES = 1024 * 1024
 const MAX_SANDBOX_TIMEOUT_MS = 30_000
+export const MAX_SSE_SESSIONS = 32
 
 class HttpStatusError extends Error {
   constructor(readonly status: number, message: string) { super(message) }
@@ -134,20 +137,39 @@ function handleRenderPng(id: number | string | null, args: Record<string, unknow
   const background = (args as { background?: string }).background
   const style = (args as { style?: import('../scene/style-registry.ts').StyleInput | import('../scene/style-registry.ts').StyleInput[] }).style
   const seed = (args as { seed?: number }).seed
+  const rawFontDirs = (args as { fontDirs?: unknown }).fontDirs
+  const loadSystemFonts = (args as { loadSystemFonts?: unknown }).loadSystemFonts
   const output = String((args as { output?: string; outputMode?: string }).output ?? (args as { outputMode?: string }).outputMode ?? 'base64')
   if (typeof source !== 'string') return error(id, -32602, 'render_png requires `source` (string)')
   if (!['base64', 'file', 'url'].includes(output)) return error(id, -32602, 'render_png output must be one of: base64, file, url')
+  if (rawFontDirs !== undefined && (!Array.isArray(rawFontDirs) || rawFontDirs.some(dir => typeof dir !== 'string'))) {
+    return error(id, -32602, 'render_png fontDirs must be an array of directory strings')
+  }
+  if (loadSystemFonts !== undefined && typeof loadSystemFonts !== 'boolean') {
+    return error(id, -32602, 'render_png loadSystemFonts must be a boolean')
+  }
   try {
-    const png = renderMermaidPNG(source, { scale, background, style, seed })
+    const fontWarnings: Array<Record<string, unknown>> = []
+    const png = renderMermaidPNG(source, {
+      scale,
+      background,
+      style,
+      seed,
+      fontDirs: rawFontDirs as string[] | undefined,
+      loadSystemFonts: loadSystemFonts === true,
+      onWarning: warning => fontWarnings.push(warning as unknown as Record<string, unknown>),
+    })
+    const warnings = [...configWarningsForMermaid(source), ...fontWarnings]
+      .filter((warning, index, all) => all.findIndex(candidate => JSON.stringify(candidate) === JSON.stringify(warning)) === index)
     if (output === 'base64') {
       const png_base64 = Buffer.from(png).toString('base64')
-      const payload = { ok: true as const, png_base64 }
+      const payload = { ok: true as const, png_base64, warnings }
       return reply(id, { content: [{ type: 'text', text: JSON.stringify(payload) }], isError: false })
     }
     const store = context.artifactStore ?? getDefaultArtifactStore()
     if (output === 'url' && !store.hasBaseUrl()) return error(id, -32602, 'render_png output=url requires an HTTP/SSE artifact base URL')
     const artifact = store.write(png, { extension: '.png', mimeType: 'image/png' })
-    const payload = { ok: true as const, artifact: artifactPayload(artifact, output as 'file' | 'url') }
+    const payload = { ok: true as const, artifact: artifactPayload(artifact, output as 'file' | 'url'), warnings }
     return reply(id, { content: [{ type: 'text', text: JSON.stringify(payload) }], isError: false })
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
@@ -222,13 +244,18 @@ export async function startHttpServer(options: HttpMcpOptions = {}): Promise<Htt
     ttlMs: options.artifactTtlMs,
   })
   const maxRpcBodyBytes = options.maxRpcBodyBytes ?? MAX_RPC_BODY_BYTES
+  const maxSseSessions = options.maxSseSessions ?? MAX_SSE_SESSIONS
+  if (!Number.isInteger(maxSseSessions) || maxSseSessions <= 0) throw new Error('maxSseSessions must be a positive integer')
   const context = { artifactStore, maxSandboxTimeoutMs: options.maxSandboxTimeoutMs }
 
   const server = createServer(async (req, res) => {
     try {
       const u = new URL(req.url ?? '/', baseUrl || `http://${host}:${port || 0}`)
       if (req.method === 'GET' && u.pathname === '/health') return sendJson(res, 200, { ok: true })
-      if (req.method === 'GET' && u.pathname === '/sse') return openSse(req, res, sessions, baseUrl)
+      if (req.method === 'GET' && u.pathname === '/sse') {
+        if (!authorizeHttpAccess(req, res, baseUrl, options.authToken)) return
+        return openSse(req, res, sessions, baseUrl, maxSseSessions)
+      }
       if (req.method === 'POST' && u.pathname === '/message') {
         if (!authorizeHttpRpc(req, res, baseUrl, options.authToken)) return
         return await postSseMessage(req, res, sessions, context, maxRpcBodyBytes)
@@ -237,7 +264,10 @@ export async function startHttpServer(options: HttpMcpOptions = {}): Promise<Htt
         if (!authorizeHttpRpc(req, res, baseUrl, options.authToken)) return
         return await postRpc(req, res, context, maxRpcBodyBytes)
       }
-      if (req.method === 'GET' && u.pathname.startsWith('/artifacts/')) return serveArtifact(res, artifactStore, decodeURIComponent(u.pathname.slice('/artifacts/'.length)))
+      if (req.method === 'GET' && u.pathname.startsWith('/artifacts/')) {
+        if (!authorizeHttpAccess(req, res, baseUrl, options.authToken)) return
+        return serveArtifact(res, artifactStore, decodeURIComponent(u.pathname.slice('/artifacts/'.length)))
+      }
       return sendJson(res, 404, { ok: false, error: 'not found' })
     } catch (e) {
       if (e instanceof HttpStatusError) return sendJson(res, e.status, { ok: false, error: e.message })
@@ -282,12 +312,7 @@ function isLoopbackHost(host: string): boolean {
   return host === '127.0.0.1' || host === 'localhost' || host === '::1'
 }
 
-function authorizeHttpRpc(req: IncomingMessage, res: ServerResponse, baseUrl: string, authToken?: string): boolean {
-  const contentType = String(req.headers['content-type'] ?? '').toLowerCase()
-  if (!contentType.startsWith('application/json')) {
-    sendJson(res, 415, { ok: false, error: 'HTTP MCP JSON-RPC requires content-type application/json' })
-    return false
-  }
+function authorizeHttpAccess(req: IncomingMessage, res: ServerResponse, baseUrl: string, authToken?: string): boolean {
   const origin = req.headers.origin
   if (origin && origin !== baseUrl) {
     sendJson(res, 403, { ok: false, error: 'origin not allowed' })
@@ -300,7 +325,21 @@ function authorizeHttpRpc(req: IncomingMessage, res: ServerResponse, baseUrl: st
   return true
 }
 
-function openSse(req: IncomingMessage, res: ServerResponse, sessions: Map<string, ServerResponse>, baseUrl: string): void {
+function authorizeHttpRpc(req: IncomingMessage, res: ServerResponse, baseUrl: string, authToken?: string): boolean {
+  if (!authorizeHttpAccess(req, res, baseUrl, authToken)) return false
+  const contentType = String(req.headers['content-type'] ?? '').toLowerCase()
+  if (!contentType.startsWith('application/json')) {
+    sendJson(res, 415, { ok: false, error: 'HTTP MCP JSON-RPC requires content-type application/json' })
+    return false
+  }
+  return true
+}
+
+function openSse(req: IncomingMessage, res: ServerResponse, sessions: Map<string, ServerResponse>, baseUrl: string, maxSessions: number): void {
+  if (sessions.size >= maxSessions) {
+    sendJson(res, 503, { ok: false, error: `SSE session limit reached (${maxSessions})` })
+    return
+  }
   const sessionId = randomUUID()
   sessions.set(sessionId, res)
   res.writeHead(200, {
@@ -326,8 +365,12 @@ async function postSseMessage(req: IncomingMessage, res: ServerResponse, session
   let parsed: JsonRpcRequest
   try { parsed = JSON.parse(body) as JsonRpcRequest } catch { throw new HttpStatusError(400, 'invalid JSON-RPC body') }
   const response = await handleRequest(parsed, context)
-  if (response) sse.write(`event: message\ndata: ${JSON.stringify(response)}\n\n`)
-  sendJson(res, 202, { ok: true })
+  if (response) {
+    sse.write(`event: message\ndata: ${JSON.stringify(response)}\n\n`)
+    return sendJson(res, 202, { ok: true })
+  }
+  res.writeHead(202)
+  res.end()
 }
 
 async function postRpc(req: IncomingMessage, res: ServerResponse, context: McpRequestContext, maxBytes: number): Promise<void> {
@@ -335,7 +378,11 @@ async function postRpc(req: IncomingMessage, res: ServerResponse, context: McpRe
   let parsed: JsonRpcRequest
   try { parsed = JSON.parse(body) as JsonRpcRequest } catch { throw new HttpStatusError(400, 'invalid JSON-RPC body') }
   const response = await handleRequest(parsed, context)
-  if (response === null) return sendJson(res, 202, { ok: true })
+  if (response === null) {
+    res.writeHead(202)
+    res.end()
+    return
+  }
   sendJson(res, 200, response)
 }
 

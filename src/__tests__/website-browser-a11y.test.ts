@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs'
 import { extname, join, normalize } from 'node:path'
 import { chromium, type Browser, type Page } from 'playwright'
 import { HOSTED_FONT_FACES } from '../font-manifest.ts'
+import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const SITE = join(REPO, 'website', 'public')
@@ -120,8 +121,8 @@ describeBrowser('website browser accessibility smoke', () => {
       expect({ route, overflow }).toEqual({ route, overflow: 0 })
       if (route === '/comparisons/') {
         // Panels render lazily as they approach the viewport (IntersectionObserver
-        // + sequential drain), so walk the page bottom-ward to queue all 13, then
-        // wait for the drain to finish.
+        // + sequential drain), so walk the page bottom-ward to queue every
+        // registered family, then wait for the drain to finish.
         await page.evaluate(async () => {
           const step = window.innerHeight
           for (let y = 0; y <= document.documentElement.scrollHeight; y += step) {
@@ -129,9 +130,13 @@ describeBrowser('website browser accessibility smoke', () => {
             await new Promise((resolve) => setTimeout(resolve, 50))
           }
         })
-        await page.waitForFunction(() => document.querySelectorAll('.comparison-mermaid[data-processed="true"]').length === 13, null, { timeout: 20_000 })
-        expect(await page.locator('.comparison-mermaid[data-processed="true"]').count()).toBe(13)
-        expect(await page.locator('.comparison-panel').count()).toBe(30)
+        await page.waitForFunction(
+          expected => document.querySelectorAll('.comparison-mermaid[data-processed="true"]').length === expected,
+          BUILTIN_FAMILY_METADATA.length + 1, // one per family + the style demo
+          { timeout: 20_000 },
+        )
+        expect(await page.locator('.comparison-mermaid[data-processed="true"]').count()).toBe(BUILTIN_FAMILY_METADATA.length + 1)
+        expect(await page.locator('.comparison-panel').count()).toBe(BUILTIN_FAMILY_METADATA.length * 2 + 6)
         await page.evaluate(() => window.scrollTo(0, 0))
         await page.locator('[data-comparison-lightbox-panel]').first().click()
         expect(await page.locator('.comparison-dialog[open]').count()).toBe(1)
@@ -279,6 +284,27 @@ describeBrowser('website browser accessibility smoke', () => {
       expect(result).toMatchObject({ fetchOk: true, checkOk: true })
       expect(result.loadedFaces.some((font) => font.family === result.family && font.status === 'loaded' && font.style === result.style)).toBe(true)
     }
+    await page.close()
+  }, 30_000)
+
+  test('editor share links cannot inject active SVG through render config', async () => {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+    const payload = {
+      source: 'xychart-beta\n  x-axis [A, B]\n  y-axis 0 --> 10\n  bar [1, 2]',
+      config: {
+        mermaidConfig: {
+          themeCSS: '</style><svg id="share-link-xss" onload="window.__shareLinkXss=1"></svg><style>',
+        },
+      },
+    }
+    const hash = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64')
+    await page.goto(baseUrl + '/editor/#' + hash, { waitUntil: 'networkidle' })
+    await page.locator('#preview-inner svg').waitFor({ state: 'visible', timeout: 10_000 })
+    const result = await page.evaluate(() => ({
+      executed: (window as any).__shareLinkXss ?? null,
+      marker: Boolean(document.querySelector('#share-link-xss')),
+    }))
+    expect(result).toEqual({ executed: null, marker: false })
     await page.close()
   }, 30_000)
 

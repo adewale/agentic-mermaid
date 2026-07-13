@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { gzipSync } from 'node:zlib'
+import { execFileSync } from 'node:child_process'
 import { EDITOR_EXAMPLES } from '../../editor/examples.ts'
 import { samples as RICH_EXAMPLES } from '../../scripts/site/samples-data.ts'
 import { createWebsiteWorker } from '../../website/src/worker-core.ts'
@@ -702,12 +703,15 @@ describe('Workers Static Assets website contract', () => {
   test('comparisons page renders available engines and omits unsupported Beautiful Mermaid panels', () => {
     const comparisons = read('comparisons/index.html')
     const mermaidRuntime = files().filter((f) => /^vendor\/mermaid-[a-f0-9]{12}\.min\.js$/.test(f))
+    const comparisonScriptRel = comparisons.match(/<script src="\/(generated\/inline-[a-f0-9]{12}\.js)"><\/script>/)?.[1]
+    expect(comparisonScriptRel).toBeDefined()
+    const comparisonScript = read(comparisonScriptRel!)
     expect(mermaidRuntime.length).toBe(1)
     expect(comparisons).toContain(`data-mermaid-runtime="/${mermaidRuntime[0]}"`)
-    expect(comparisons.match(/class="comparison-case(?: |")/g)?.length).toBe(12)
-    expect(comparisons.match(/class="comparison-panel"/g)?.length).toBe(30)
-    expect(comparisons.match(/class="comparison-grid" data-comparison-lightbox-panel/g)?.length).toBe(12)
-    expect(comparisons.match(/data-comparison-editor-href="\/editor\/#/g)?.length).toBe(12)
+    expect(comparisons.match(/class="comparison-case(?: |")/g)?.length).toBe(BUILTIN_FAMILY_METADATA.length)
+    expect(comparisons.match(/class="comparison-panel"/g)?.length).toBe(BUILTIN_FAMILY_METADATA.length * 2 + 6)
+    expect(comparisons.match(/class="comparison-grid" data-comparison-lightbox-panel/g)?.length).toBe(BUILTIN_FAMILY_METADATA.length)
+    expect(comparisons.match(/data-comparison-editor-href="\/editor\/#/g)?.length).toBe(BUILTIN_FAMILY_METADATA.length)
     expect(comparisons).not.toContain('comparison-source-actions')
     expect(comparisons).not.toContain('class="comparison-panel" data-comparison-engine="mermaid" data-comparison-lightbox-panel')
     expect(comparisons).not.toContain('comparison-focus')
@@ -715,7 +719,7 @@ describe('Workers Static Assets website contract', () => {
     expect(comparisons).not.toContain('Copy source')
     expect(comparisons).not.toContain('data-comparison-source-copy')
     expect(comparisons).not.toContain('data-copy-target="comparison-source-')
-    expect(comparisons.match(/class="comparison-takeaway"/g)?.length).toBe(12)
+    expect(comparisons.match(/class="comparison-takeaway"/g)?.length).toBe(BUILTIN_FAMILY_METADATA.length)
     expect(comparisons).toContain('Read this page as evidence, not a shootout')
     expect(comparisons).toContain('id="comparison-style-matrix-title"')
     expect(comparisons).toContain('Style and palette support')
@@ -729,38 +733,38 @@ describe('Workers Static Assets website contract', () => {
     expect(comparisons).toContain('Render-call palette options')
     expect(comparisons).toContain('Composable style stack')
     expect(comparisons).toContain('edit typed source, verify it, then pass style and palette render options')
-    expect(comparisons.indexOf('id="comparison-style-matrix-title"')).toBeGreaterThan(comparisons.lastIndexOf('id="gantt"'))
+    expect(comparisons.indexOf('id="comparison-style-matrix-title"')).toBeGreaterThan(comparisons.lastIndexOf('id="gitgraph"'))
     expect(comparisons).not.toContain('>Focus view</button>')
-    expect(comparisons).toContain('lightboxOpenLabel')
+    expect(comparisonScript).toContain('lightboxOpenLabel')
     expect(comparisons).toContain('data-comparison-dialog')
-    expect(comparisons).toContain('comparison-detail-controls')
-    expect(comparisons).toContain('comparison-pair-control')
-    expect(comparisons).toContain('comparison-zoom-control')
-    expect(comparisons).toContain('comparison-source-tools')
-    expect(comparisons).toContain('data-comparison-source-editor')
-    expect(comparisons).toContain('data-comparison-pair')
-    expect(comparisons).toContain('data-comparison-zoom')
-    expect(comparisons).toContain('data-zoom-step')
-    expect(comparisons).toContain('data-zoom-reset')
-    expect(comparisons).toContain('fitWidthForPanel')
-    expect(comparisons).toContain('shortLandscape')
-    expect(comparisons).toContain('editorHrefForSection')
-    expect(comparisons).toContain('updateSourceControls')
-    expect(comparisons).toContain('openComparison')
-    expect(comparisons).toContain('setLightboxTriggers')
-    expect(comparisons).toContain('data-comparison-open')
+    expect(comparisonScript).toContain('comparison-detail-controls')
+    expect(comparisonScript).toContain('comparison-pair-control')
+    expect(comparisonScript).toContain('comparison-zoom-control')
+    expect(comparisonScript).toContain('comparison-source-tools')
+    expect(comparisonScript).toContain('data-comparison-source-editor')
+    expect(comparisonScript).toContain('data-comparison-pair')
+    expect(comparisonScript).toContain('data-comparison-zoom')
+    expect(comparisonScript).toContain('data-zoom-step')
+    expect(comparisonScript).toContain('data-zoom-reset')
+    expect(comparisonScript).toContain('fitWidthForPanel')
+    expect(comparisonScript).toContain('shortLandscape')
+    expect(comparisonScript).toContain('editorHrefForSection')
+    expect(comparisonScript).toContain('updateSourceControls')
+    expect(comparisonScript).toContain('openComparison')
+    expect(comparisonScript).toContain('setLightboxTriggers')
+    expect(comparisonScript).toContain('data-comparison-open')
     expect(comparisons).toContain('Open larger comparison')
-    expect(comparisons).toContain("button.addEventListener('click'")
-    expect(comparisons).toContain("group.addEventListener('click'")
-    expect(comparisons).toContain("group.addEventListener('keydown'")
-    expect(comparisons).toContain("value: 'agentic-mermaid'")
-    expect(comparisons).toContain("value: 'agentic-beautiful'")
-    expect(comparisons).toContain("value: 'mermaid-beautiful'")
-    expect(comparisons).toContain("role: 'tab'")
-    expect(comparisons).toContain("'data-detail-tab': 'compare'")
-    expect(comparisons).toContain("'data-detail-tab': 'first'")
-    expect(comparisons).toContain("'data-detail-tab': 'second'")
-    for (const id of ['flowchart', 'state', 'sequence', 'class', 'er', 'xychart', 'timeline', 'journey', 'architecture', 'pie', 'quadrant', 'gantt']) {
+    expect(comparisonScript).toContain("button.addEventListener('click'")
+    expect(comparisonScript).toContain("group.addEventListener('click'")
+    expect(comparisonScript).toContain("group.addEventListener('keydown'")
+    expect(comparisonScript).toContain("value: 'agentic-mermaid'")
+    expect(comparisonScript).toContain("value: 'agentic-beautiful'")
+    expect(comparisonScript).toContain("value: 'mermaid-beautiful'")
+    expect(comparisonScript).toContain("role: 'tab'")
+    expect(comparisonScript).toContain("'data-detail-tab': 'compare'")
+    expect(comparisonScript).toContain("'data-detail-tab': 'first'")
+    expect(comparisonScript).toContain("'data-detail-tab': 'second'")
+    for (const { id } of BUILTIN_FAMILY_METADATA) {
       expect(comparisons).toContain(`id="${id}"`)
       expect(comparisons).toContain(`id="comparison-mermaid-${id}"`)
       expect(comparisons).toContain(`comparison-agentic-${id}-svg-title`)
@@ -780,18 +784,18 @@ describe('Workers Static Assets website contract', () => {
       expect(section).toContain('data-comparison-engine="beautiful"')
       expect(section).not.toContain('comparison-note')
     }
-    for (const id of ['timeline', 'journey', 'architecture', 'pie', 'quadrant', 'gantt']) {
+    for (const id of ['timeline', 'journey', 'architecture', 'pie', 'quadrant', 'gantt', 'mindmap', 'gitgraph']) {
       const section = comparisons.match(new RegExp(`<section[^>]*id="${id}"[\\s\\S]*?<\\/section>`))?.[0] ?? ''
       expect(section).not.toContain('<h3>Beautiful Mermaid</h3>')
       expect(section).toContain('comparison-note')
     }
     expect(comparisons).toContain('Beautiful Mermaid does not render this family')
-    expect(comparisons).toContain('loadMermaidRuntime')
+    expect(comparisonScript).toContain('loadMermaidRuntime')
     // Panels render one at a time as they near the viewport (IntersectionObserver
     // + sequential yield), never as one whole-page synchronous batch.
-    expect(comparisons).toContain('mermaid.run({ nodes: [panel] })')
-    expect(comparisons).toContain('IntersectionObserver')
-    expect(comparisons).not.toContain("mermaid.run({ querySelector: '.comparison-mermaid' })")
+    expect(comparisonScript).toContain('mermaid.run({ nodes: [panel] })')
+    expect(comparisonScript).toContain('IntersectionObserver')
+    expect(comparisonScript).not.toContain("mermaid.run({ querySelector: '.comparison-mermaid' })")
     expect(comparisons).not.toContain('comparison-empty')
     expect(comparisons).not.toContain('fonts.googleapis.com')
     expect(comparisons).not.toContain('@import url(')
@@ -894,6 +898,17 @@ describe('Workers Static Assets website contract', () => {
     expect(styles).not.toContain('.example-jump-more')
   })
 
+  test('fork-differences page derives family claims from the current registry', () => {
+    const page = read('docs/fork-differences/index.html')
+    expect(page).not.toMatch(/all twelve families|twelve in all/i)
+    expect(page).toContain('Mindmap')
+    expect(page).toContain('GitGraph')
+    const original = new Set(['flowchart', 'state', 'sequence', 'class', 'er', 'xychart'])
+    const additions = BUILTIN_FAMILY_METADATA.filter(family => !original.has(family.id)).map(family => family.label).join(', ')
+    expect(page).toContain(`Adds ${additions} beyond the original Beautiful Mermaid family set.`)
+    expect(page).toContain('All registered families are structured-when-narrowed')
+  })
+
   test('editor mode switch is not a pseudo-tabset', () => {
     const editor = read('editor/index.html')
     // Source is the permanent left workspace. The view switch is a mobile-only
@@ -924,10 +939,17 @@ describe('Workers Static Assets website contract', () => {
   })
 
   test('focused agent artifacts are generated and stale machine catalogs are absent', () => {
+    const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: REPO, encoding: 'utf8' }).trim()
     for (const rel of ['capabilities.json', 'examples/index.json', '.well-known/mcp.json', '.well-known/mcp/server-card.json', '.well-known/ai-catalog.json']) {
       const json = JSON.parse(read(rel))
       expect({ rel, generatedFrom: Boolean(json.generatedFrom) }).toEqual({ rel, generatedFrom: true })
+      expect({ rel, gitSha: json.generatedFrom.gitSha }).toEqual({ rel, gitSha: head })
+      expect({ rel, buildTime: json.generatedFrom.buildTime }).not.toEqual({ rel, buildTime: 'development' })
+      expect(Number.isNaN(Date.parse(json.generatedFrom.buildTime))).toBe(false)
     }
+    const deployWorkflow = readRepo('.github/workflows/deploy-cloudflare.yml')
+    expect(deployWorkflow).toContain('SITE_GIT_SHA="${{ github.event.workflow_run.head_sha || github.sha }}"')
+    expect(deployWorkflow).toContain('SITE_BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)" bun run website')
     for (const rel of ['agent-manifest.json', 'harnesses.json', 'recipes/index.json', 'skills/index.json', 'schemas/index.json']) {
       expect({ rel, exists: existsSync(join(SITE, rel)) }).toEqual({ rel, exists: false })
     }
@@ -995,7 +1017,8 @@ describe('Workers Static Assets website contract', () => {
     expect(page).toContain('/docs/assets/style-cookbook/transit-route-map.png')
     expect(page).toContain('<h2>Custom fonts</h2>')
     expect(page).toContain('--font-dirs ./fonts')
-    expect(page).toContain('MCP <code>render_png</code> tools do not accept font directories')
+    expect(page).toContain('Local MCP <code>render_png</code> accepts <code>fontDirs</code> and <code>loadSystemFonts</code>')
+    expect(page).toContain('Hosted MCP has no filesystem font input')
     for (const rel of [
       'examples/styles/transit-route-map.style.json',
       'examples/styles/mid-century-report.style.json',
@@ -1012,6 +1035,9 @@ describe('Workers Static Assets website contract', () => {
     expect(existsSync(join(SITE, 'harnesses.json'))).toBe(false)
     const publicText = files().filter((f) => /\.(html|json|md|txt)$/.test(f)).map(read).join('\n')
     expect(publicText).toContain('execute</code>, <code>describe_sdk</code>, <code>render_png</code>, and <code>describe</code>')
+    const mcpPage = read('docs/mcp/index.html')
+    expect(mcpPage).toContain('Hosted tools: <code>execute</code>, <code>describe_sdk</code>, <code>render_svg</code>')
+    expect(mcpPage).toContain('The local MCP tools are <code>execute</code>, <code>describe_sdk</code>, <code>render_png</code>, and <code>describe</code>')
     expect(publicText).toContain('https://agentic-mermaid.dev/mcp')
     expect(publicText).toContain('https://agentic-mermaid.dev/.well-known/mcp')
     expect(publicText).toContain('https://agentic-mermaid.dev/.well-known/mcp/server-card.json')
@@ -1149,6 +1175,21 @@ describe('Workers Static Assets website contract', () => {
     expect(text).not.toContain('TODO.md')
     expect(text).not.toContain('skill-evals/')
     expect(text).toContain('/capabilities.json')
+  })
+
+  test('production CSP forbids inline executable scripts and generated pages externalize them', () => {
+    const headers = read('_headers')
+    const workerCore = readFileSync(join(REPO, 'website/src/worker-core.ts'), 'utf8')
+    expect(headers).toContain("script-src 'self'")
+    expect(headers).not.toContain("script-src 'self' 'unsafe-inline'")
+    expect(workerCore).toContain("script-src 'self'")
+    expect(workerCore).not.toContain("script-src 'self' 'unsafe-inline'")
+    for (const rel of files().filter(candidate => candidate.endsWith('.html'))) {
+      expect({ rel, executableInlineScript: /<script(?![^>]*\bsrc=)(?![^>]*type="application\/ld\+json")[^>]*>/i.test(read(rel)) })
+        .toEqual({ rel, executableInlineScript: false })
+    }
+    expect(read('comparisons/index.html')).toMatch(/<script src="\/generated\/inline-[a-f0-9]{12}\.js"><\/script>/)
+    expect(read('warnings/index.html')).toMatch(/<script src="\/generated\/inline-[a-f0-9]{12}\.js"><\/script>/)
   })
 
   test('audit fixes give public proof diagrams accessible names and immutable editor assets', () => {

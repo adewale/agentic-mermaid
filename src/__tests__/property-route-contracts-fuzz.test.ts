@@ -1,9 +1,9 @@
 // Structural flowchart fuzz against the route-contract auditor — a STRONG
 // oracle on GENERATED structure.
 //
-// Why this exists: the rest of the property suite fuzzes thinly. Eleven of the
-// twelve families are driven by templated build(k, tag) generators that only
-// vary a node COUNT, and the largest oracle by assertion count (crash-freedom)
+// Why this exists: the rest of the property suite fuzzes thinly. Families
+// other than flowchart use templated build(k, tag) generators that mostly vary
+// a node COUNT, and the largest oracle by assertion count (crash-freedom)
 // only checks "does not throw". This test instead GENERATES varied flowchart
 // STRUCTURE — random direction, node shapes, label widths, chains + fan-out +
 // fan-in + cycles — and asserts the geometric CONTRACTS the 14 post-ELK passes

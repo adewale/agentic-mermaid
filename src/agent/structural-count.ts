@@ -10,8 +10,8 @@
 // This counter projects every renderable family onto a small {nodes, edges,
 // groups} tally drawn from the structured IR. Comparing the count of a source
 // against the count of its re-parsed serialization turns "did we drop a node or
-// edge on round-trip?" into a deterministic assertion across all twelve
-// families — without a golden image and without a human. It backs both the
+// edge on round-trip?" into a deterministic assertion across every registered
+// family — without a golden image and without a human. It backs both the
 // corpus count-oracle (eval) and the CONTENT_DROPPED_ON_ROUNDTRIP verify lint.
 //
 // Opaque bodies have no structured arrays to count, so they return null and the

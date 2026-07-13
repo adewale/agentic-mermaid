@@ -455,8 +455,21 @@ describe('MCP — JSON-RPC happy + sad', () => {
     const r = await handleRequest({ jsonrpc: '2.0', id: 6, method: 'made/up' })
     expect(r!.error!.code).toBe(-32601)
   })
-  test('notifications/initialized → null (no response)', async () => {
+  test('every JSON-RPC notification is processed without a response', async () => {
     expect(await handleRequest({ jsonrpc: '2.0', method: 'notifications/initialized' })).toBeNull()
+    expect(await handleRequest({ jsonrpc: '2.0', method: 'ping' })).toBeNull()
+    expect(await handleRequest({ jsonrpc: '2.0', method: 'made/up' })).toBeNull()
+  })
+  test('malformed JSON-RPC envelopes are rejected before dispatch', async () => {
+    const missingVersion = await handleRequest({ id: 8, method: 'ping' } as any)
+    expect(missingVersion).toMatchObject({ id: null, error: { code: -32600 } })
+    const wrongVersion = await handleRequest({ jsonrpc: '1.0', id: 9, method: 'ping' } as any)
+    expect(wrongVersion).toMatchObject({ id: null, error: { code: -32600 } })
+    const missingMethod = await handleRequest({ jsonrpc: '2.0', id: 10 } as any)
+    expect(missingMethod).toMatchObject({ id: null, error: { code: -32600 } })
+    const malformedWithoutId = await handleRequest({ method: 'ping' } as any)
+    expect(malformedWithoutId?.error?.code).toBe(-32600)
+    expect(malformedWithoutId?.id).toBeNull()
   })
   test('malformed params on tools/call do not throw', async () => {
     const r = await handleRequest({ jsonrpc: '2.0', id: 7, method: 'tools/call', params: null })

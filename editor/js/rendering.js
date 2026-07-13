@@ -105,7 +105,10 @@ function applyThemeToPage(themeKey) {
 }
 
 function buildOptions() {
-  var opts = { embedFontImport: false };
+  // The preview is inserted with innerHTML and share hashes are attacker-
+  // controlled. Strict mode strips active tags, event handlers, and external
+  // references even if a future config field reaches this boundary.
+  var opts = { embedFontImport: false, security: "strict" };
   if (state.theme && THEMES[state.theme]) {
     var t = THEMES[state.theme];
     opts.bg = t.bg;
@@ -135,6 +138,8 @@ function buildOptions() {
   if (styleStack.length === 1) opts.style = styleStack[0];
   else if (styleStack.length > 1) opts.style = styleStack;
   if (state.style && state.style !== "crisp") opts.seed = state.seed || 0;
+  // Never let imported example/share configuration weaken this sink.
+  opts.security = "strict";
   return opts;
 }
 
@@ -447,6 +452,8 @@ async function doRender(version) {
   try {
     var svg = await renderMermaid(source, buildOptions());
     if (!isCurrentRender(version, source)) return;
+    var svgSafety = verifyNoExternalRefs(svg);
+    if (!svgSafety.ok) throw new Error("Unsafe SVG output blocked: " + svgSafety.refs.join(", "));
     var renderMs = performance.now() - t0;
     var ms = renderMs.toFixed(0);
     lastSuccessfulRenderMs = renderMs;

@@ -13,6 +13,7 @@ import type { JsonRpcRequest } from '../mcp/protocol.ts'
 import pkg from '../../package.json'
 import { visualWidth } from '../ascii/width.ts'
 import { getStyle, knownStyles, styleKind } from '../scene/style-registry.ts'
+import { verifyNoExternalRefs } from '../index.ts'
 
 const FLOW = 'flowchart TD\n  A[Start] --> B{OK?}\n  B -->|yes| C[Done]'
 
@@ -129,6 +130,17 @@ describe('hosted pure tools', () => {
     const dark = payloadOf(await handleHostedRequest(call('render_svg', { source: FLOW, bg: '#101014', fg: '#e6e6f0' }), makeContext()))
     expect(dark.svg).toContain('#101014')
     expect(dark.svg).not.toBe(first.svg)
+  })
+
+  test('render_svg always strips active content and external references', async () => {
+    const injected = '@import url(https://evil.example/font.css);</style><svg id="hosted-xss" onload="globalThis.pwned=1"></svg><style>'
+    const source = `%%{init: ${JSON.stringify({ themeCSS: injected })}}%%\nxychart-beta\n  x-axis [A, B]\n  y-axis 0 --> 10\n  bar [1, 2]`
+    const payload = payloadOf(await handleHostedRequest(call('render_svg', { source }), makeContext()))
+    expect(payload.ok).toBe(true)
+    expect(payload.isError).toBe(false)
+    expect(payload.svg).not.toContain('onload=')
+    expect(payload.svg).not.toMatch(/evil\.example|fonts\.googleapis\.com/)
+    expect(verifyNoExternalRefs(payload.svg)).toEqual({ ok: true, refs: [] })
   })
 
   test('render tools expose source config diagnostics instead of dropping them', async () => {

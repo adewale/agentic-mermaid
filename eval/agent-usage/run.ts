@@ -1,7 +1,7 @@
 import { executeInSandbox } from '../../src/mcp/sandbox.ts'
 import { parseMermaid } from '../../src/agent/parse.ts'
 import { serializeMermaid } from '../../src/agent/serialize.ts'
-import { asFlowchart, asState, asSequence, asTimeline, asClass, asEr, asJourney, asArchitecture, asXyChart, asPie, asQuadrant, asGantt, type DiagramKind, type ValidDiagram } from '../../src/agent/types.ts'
+import { asFlowchart, asState, asSequence, asTimeline, asClass, asEr, asJourney, asArchitecture, asXyChart, asPie, asQuadrant, asGantt, asMindmap, asGitGraph, type DiagramKind, type ValidDiagram } from '../../src/agent/types.ts'
 import { checkMermaidSource, type CheckMermaidSpec } from '../../src/agent/facts.ts'
 import { lintAgentTrace, type SdkCall, type AntiPattern } from './harness.ts'
 import { buildHomepageAgentPromptTask } from './homepage-prompt.ts'
@@ -313,6 +313,54 @@ export const DEFAULT_CASES: AgentUsageEvalCase[] = [
     `,
   },
   {
+    id: 'mindmap_add_evidence_node',
+    family: 'mindmap',
+    prompt: promptTask(
+      'Add an Evidence child under Research using structured mutation, verify, then serialize.',
+      'The mindmap has a Product root and Research child. Preserve both and add Evidence directly under Research.',
+      'mindmap\n  Product\n    Research',
+    ),
+    input: 'mindmap\n  Product\n    Research',
+    script: `
+      const r0 = mermaid.parseMermaid('mindmap\\n  Product\\n    Research')
+      if (!r0.ok) return { error: 'parse' }
+      const mindmap = mermaid.asMindmap(r0.value)
+      if (!mindmap) return { error: 'not-mindmap' }
+      const r1 = mermaid.mutate(mindmap, { kind: 'add_node', id: 'Evidence', label: 'Evidence', parent: 'Research' })
+      if (!r1.ok) return { error: r1.error }
+      const verify = mermaid.verifyMermaid(r1.value)
+      if (!verify.ok) return { error: 'verify', warnings: verify.warnings }
+      const semantic = mermaid.checkMermaid(r1.value, ['edge Research -> Evidence'])
+      if (!semantic.ok) return { error: 'semantic', missing: semantic.missing }
+      return { source: mermaid.serializeMermaid(r1.value) }
+    `,
+  },
+  {
+    id: 'gitgraph_add_release_commit',
+    family: 'gitgraph',
+    prompt: promptTask(
+      'Create a release branch and append a tagged RC commit using structured mutation, verify, then serialize.',
+      'The GitGraph has one ROOT commit on main. Create branch release with order 2, then append commit RC tagged rc.1 on that branch.',
+      'gitGraph\n  commit id:"ROOT" msg:"Foundation"',
+    ),
+    input: 'gitGraph\n  commit id:"ROOT" msg:"Foundation"',
+    script: `
+      const r0 = mermaid.parseMermaid('gitGraph\\n  commit id:"ROOT" msg:"Foundation"')
+      if (!r0.ok) return { error: 'parse' }
+      const gitgraph = mermaid.asGitGraph(r0.value)
+      if (!gitgraph) return { error: 'not-gitgraph' }
+      const r1 = mermaid.mutate(gitgraph, { kind: 'create_branch', name: 'release', order: 2 })
+      if (!r1.ok) return { error: r1.error }
+      const r2 = mermaid.mutate(r1.value, { kind: 'append_commit', id: 'RC', message: 'Release candidate', type: 'HIGHLIGHT', tags: ['rc.1'] })
+      if (!r2.ok) return { error: r2.error }
+      const verify = mermaid.verifyMermaid(r2.value)
+      if (!verify.ok) return { error: 'verify', warnings: verify.warnings }
+      const semantic = mermaid.checkMermaid(r2.value, ['commit RC branch release', 'commit RC tag rc.1'])
+      if (!semantic.ok) return { error: 'semantic', missing: semantic.missing }
+      return { source: mermaid.serializeMermaid(r2.value) }
+    `,
+  },
+  {
     id: 'author_auth_flow_source',
     family: 'flowchart',
     prompt: promptTask(
@@ -361,8 +409,8 @@ const KNOWLEDGE_STRAY_END_SEQUENCE = 'sequenceDiagram\n  A->>B: hi\n  end\n  B--
 // New-diagram authoring, one per family: given only the prompt, author valid
 // Mermaid source directly (no mutation ceremony), parse, verify, return it.
 // Together with the structured mutate cases in DEFAULT_CASES (plus the two
-// author_* cases there for flowchart/sequence), these cover create for all 12
-// families. Kept OUT of DEFAULT_CASES so the deterministic baseline and the
+// author_* cases there for flowchart/sequence), these cover every registered
+// family. Kept OUT of DEFAULT_CASES so the deterministic baseline and the
 // committed all-family transcript still pin DEFAULT_CASES exactly; the subagent
 // eval pool includes them so live models can be graded on authoring.
 function authorCase(id: string, family: DiagramKind, task: string, context: string, source: string): AgentUsageEvalCase {
@@ -422,6 +470,14 @@ export const CREATE_CASES: AgentUsageEvalCase[] = [
     'Create a new architecture diagram from the context as Mermaid source, verify it, then return the source. Do not use mutate because there is no existing diagram to preserve.',
     'An architecture with an API server and a database, with the API connected to the DB.',
     'architecture-beta\n  service api(server)[API]\n  service db(database)[DB]\n  api:R --> L:db'),
+  authorCase('author_mindmap_source', 'mindmap',
+    'Create a new mindmap from the context as Mermaid source, verify it, then return the source. Do not use mutate because there is no existing diagram to preserve.',
+    'A Product root with Research and Delivery children; Research has an Evidence child.',
+    'mindmap\n  Product\n    Research\n      Evidence\n    Delivery'),
+  authorCase('author_gitgraph_source', 'gitgraph',
+    'Create a new GitGraph from the context as Mermaid source, verify it, then return the source. Do not use mutate because there is no existing diagram to preserve.',
+    'A ROOT commit on main, then a release branch with an RC commit tagged rc.1.',
+    'gitGraph\n  commit id:"ROOT" msg:"Foundation"\n  branch release order:2\n  commit id:"RC" tag:"rc.1" msg:"Release candidate"'),
 ]
 
 export const KNOWLEDGE_CASES: AgentUsageEvalCase[] = [
@@ -514,6 +570,8 @@ const STRUCTURED_CASES = new Set([
   'pie_add_docs_slice',
   'quadrant_add_docs_point',
   'gantt_add_docs_task',
+  'mindmap_add_evidence_node',
+  'gitgraph_add_release_commit',
 ])
 
 type MutableFamily = Extract<SdkCall, { verb: 'narrow' }>['family']
@@ -617,6 +675,8 @@ function checkTrace(id: string, input: string | undefined, trace: SdkCall[]): bo
   if (id === 'pie_add_docs_slice') return checkMutationTrace(id, input, 'pie', trace) && hasMutationOps(trace, input, ['add_slice'])
   if (id === 'quadrant_add_docs_point') return checkMutationTrace(id, input, 'quadrant', trace) && hasMutationOps(trace, input, ['add_point'])
   if (id === 'gantt_add_docs_task') return checkMutationTrace(id, input, 'gantt', trace) && hasMutationOps(trace, input, ['add_task'])
+  if (id === 'mindmap_add_evidence_node') return checkMutationTrace(id, input, 'mindmap', trace) && hasMutationOps(trace, input, ['add_node'])
+  if (id === 'gitgraph_add_release_commit') return checkMutationTrace(id, input, 'gitgraph', trace) && hasMutationOps(trace, input, ['create_branch', 'append_commit'])
   if (id === 'sequence_alt_add_message') return checkMutationTrace(id, input, 'sequence', trace) && hasMutationOps(trace, input, ['add_message'])
   return false
 }
@@ -757,6 +817,8 @@ const CREATE_ORACLES: Record<string, (source: string) => boolean> = {
     const ids = new Set(b?.services.map(x => x.id))
     return ids.has('api') && ids.has('db') && Boolean(b?.edges.some(e => e.source.id === 'api' && e.target.id === 'db'))
   },
+  author_mindmap_source: s => sourceSatisfiesFacts(s, ['edge Product -> Research', 'edge Research -> Evidence', 'edge Product -> Delivery']),
+  author_gitgraph_source: s => sourceSatisfiesFacts(s, ['commit ROOT branch main', 'commit RC branch release', 'commit RC tag rc.1']),
 }
 
 function checkTask(id: string, input: string | undefined, value: unknown, trace: SdkCall[]): boolean {
@@ -867,6 +929,14 @@ function checkTask(id: string, input: string | undefined, value: unknown, trace:
   if (id === 'gantt_add_docs_task') {
     const source = serializedSource(value, trace)
     return Boolean(source && sourceSatisfiesFacts(source, ['task Docs id docs', 'task Docs start after core', 'task Docs end 2d']))
+  }
+  if (id === 'mindmap_add_evidence_node') {
+    const source = serializedSource(value, trace)
+    return Boolean(source && sourceSatisfiesFacts(source, ['edge Research -> Evidence']))
+  }
+  if (id === 'gitgraph_add_release_commit') {
+    const source = serializedSource(value, trace)
+    return Boolean(source && sourceSatisfiesFacts(source, ['commit RC branch release', 'commit RC tag rc.1']))
   }
   if (id === 'sequence_alt_add_message') {
     const source = serializedSource(value, trace)

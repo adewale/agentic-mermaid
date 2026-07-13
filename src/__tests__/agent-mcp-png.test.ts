@@ -2,12 +2,38 @@
 
 import { describe, test, expect } from 'bun:test'
 import { join } from 'node:path'
-import { handleRequest } from '../mcp/server.ts'
+import { handleRequest, LOCAL_TOOLS } from '../mcp/server.ts'
 
 const PNG_MAGIC = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
 const REPO = join(import.meta.dir, '..', '..')
 
 describe('MCP — render_png tool', () => {
+  test('tool annotations reflect managed-file side effects and advertise the font remedy', () => {
+    const tool = LOCAL_TOOLS.find(candidate => candidate.name === 'render_png')!
+    expect(tool.annotations).toMatchObject({
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: false,
+    })
+    expect((tool.inputSchema as any).properties.fontDirs).toBeDefined()
+    expect((tool.inputSchema as any).properties.loadSystemFonts).toBeDefined()
+  })
+
+  test('returns deterministic configuration and font-coverage warnings', async () => {
+    const source = '---\nconfig:\n  state:\n    titleTopMargin: 10\n---\nstateDiagram-v2\n  東京 --> Done'
+    const r = await handleRequest({
+      jsonrpc: '2.0', id: 100, method: 'tools/call',
+      params: { name: 'render_png', arguments: { source } },
+    })
+    const result = r!.result as { content: Array<{ text: string }>; isError: boolean }
+    const payload = JSON.parse(result.content[0]!.text) as { ok: boolean; warnings?: Array<{ code: string; field?: string }> }
+    expect(payload.ok).toBe(true)
+    expect(result.isError).toBe(false)
+    expect(payload.warnings).toContainEqual(expect.objectContaining({ code: 'PNG_FONT_COVERAGE' }))
+    expect(payload.warnings).toContainEqual(expect.objectContaining({ code: 'INEFFECTIVE_CONFIG', field: 'state.titleTopMargin' }))
+  })
+
   test('happy path returns base64 PNG', async () => {
     const r = await handleRequest({
       jsonrpc: '2.0', id: 1, method: 'tools/call',

@@ -1,8 +1,8 @@
 // Shared metamorphic generators for every renderable family (Moves 4 + 5).
 //
 // Move 4 extracted the inline flowchart/sequence/class/ER builders into one
-// reusable place. Move 5 extends them to ALL twelve families and ties the set
-// to the central registry (BUILTIN_FAMILY_METADATA), so a NEW diagram family
+// reusable place. Move 5 extends them to every registered family and ties the
+// set to BUILTIN_FAMILY_METADATA, so a NEW diagram family
 // cannot be added without also declaring how to fuzz it — the citizenship test
 // in property-layout-metamorphic.test.ts fails until METAMORPHIC_FAMILIES has
 // an entry for it.

@@ -5,8 +5,8 @@
 // produce RELATED outputs — no ground truth required (Chen et al., ACM Comput.
 // Surv. 2018). The project's determinism and round-trip tests are already
 // metamorphic relations; this file formalizes the rest and — via the shared
-// registry in helpers/metamorphic-families.ts — applies them to ALL twelve
-// renderable families, with a citizenship guard so a new family must declare
+// registry in helpers/metamorphic-families.ts — applies them to every
+// renderable family, with a citizenship guard so a new family must declare
 // its generators or fail CI.
 //
 // Relations:

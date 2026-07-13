@@ -6,7 +6,7 @@
 // against fast-check-generated diagrams and checks two properties against the
 // source build (run in-process under Bun):
 //
-//   1. Crash parity (all 12 families): the artifact throws IFF the source does.
+//   1. Crash parity (every registered family): the artifact throws IFF the source does.
 //   2. Output equivalence (flowcharts): dist-under-Node produces byte-identical
 //      layout JSON / SVG / ASCII to src-under-Bun — the same cross-runtime
 //      determinism contract that agent-determinism.test.ts pins on 3 fixtures,
@@ -29,7 +29,7 @@ import fc from 'fast-check'
 import '../src/__tests__/fc-seed.preload.ts'
 // Source build (under Bun) — the reference oracle. Same public surface the
 // dist `./agent` entry exposes.
-import { verifyMermaid, renderMermaidSVG, renderMermaidASCII } from '../src/agent/index.ts'
+import { verifyMermaid, renderMermaidSVG, renderMermaidASCII, BUILTIN_FAMILY_METADATA } from '../src/agent/index.ts'
 
 const REPO = join(import.meta.dir, '..')
 const DIST = join(REPO, 'dist', 'agent.js')
@@ -99,10 +99,9 @@ const flowchartArb = fc.tuple(
 
 const SPECIAL_CHARS = ['[', ']', '{', '}', '(', ')', '|', ':', ';', '-', '=', '"', "'", '\\', '/', '\n', '\t', ' ', '​', '￿']
 const specialCharStringArb = fc.array(fc.constantFrom(...SPECIAL_CHARS), { maxLength: 60 }).map(c => c.join(''))
-const familyHeaderArb = fc.constantFrom(
-  'sequenceDiagram', 'stateDiagram-v2', 'classDiagram', 'erDiagram', 'timeline',
-  'journey', 'pie', 'quadrantChart', 'gantt', 'xychart-beta', 'architecture-beta',
-)
+// Registry-derived: a new family enters shipped-artifact crash parity without
+// waiting for another hand-maintained header list to notice it.
+const familyHeaderArb = fc.constantFrom(...BUILTIN_FAMILY_METADATA.map(family => family.headers[0]!))
 const mixedArb = fc.oneof(
   flowchartArb,
   fc.tuple(familyHeaderArb, fc.array(fc.string({ maxLength: 30 }), { maxLength: 6 })).map(([h, b]) => [h, ...b].join('\n')),
@@ -146,8 +145,11 @@ describe('dist artifact differential fuzz (built bundle, plain Node)', () => {
   fn('dist-under-Node matches src-under-Bun: crash parity (all families) + byte-equality (flowcharts)', () => {
     expect(haveDist).toBe(true)
     const flowInputs = fc.sample(flowchartArb, FLOW_N)
+    // Deterministic success control: fuzz frequency cannot decide whether a
+    // newly registered family reaches the shipped Node artifact at all.
+    const canonicalInputs = BUILTIN_FAMILY_METADATA.map(family => family.example)
     const mixedInputs = fc.sample(mixedArb, MIXED_N)
-    const inputs = [...flowInputs, ...mixedInputs]
+    const inputs = [...flowInputs, ...canonicalInputs, ...mixedInputs]
 
     const ref = inputs.map(evalOne)
     const dist = runDriver(inputs, PNG_SMOKE_N)
@@ -170,6 +172,13 @@ describe('dist artifact differential fuzz (built bundle, plain Node)', () => {
     }
     expect(crashParityViolations).toEqual([])
     expect(equivalenceViolations).toEqual([])
+    for (let i = FLOW_N; i < FLOW_N + canonicalInputs.length; i++) {
+      for (const channel of ['layout', 'svg', 'ascii'] as const) {
+        const family = BUILTIN_FAMILY_METADATA[i - FLOW_N]!.id
+        expect(ref[i]![channel], `source ${family} ${channel}`).not.toBe('THREW')
+        expect(dist[i]![channel], `dist ${family} ${channel}`).not.toBe('THREW')
+      }
+    }
 
     // (3) PNG crash-freedom of the artifact under Node (resvg native addon).
     for (let i = 0; i < PNG_SMOKE_N; i++) {

@@ -63,6 +63,33 @@ async function decodeSource(encoded) {
   return decodeSourceLegacy(encoded);
 }
 
+// Share hashes and localStorage are untrusted inputs. Keep only the editor's
+// public, data-only render controls; raw Mermaid config (especially themeCSS),
+// callbacks, and prototype keys must never reach renderMermaidSVG + innerHTML.
+var SHAREABLE_CONFIG_KEYS = new Set([
+  'accent', 'bg', 'border', 'editorEdgeStroke', 'editorNodeStroke', 'fg',
+  'font', 'interactive', 'line', 'muted', 'padding', 'seed', 'style',
+  'surface', 'transparent',
+]);
+
+function sanitizeEditorConfig(config) {
+  if (!config || typeof config !== 'object' || Array.isArray(config)) return {};
+  var safe = {};
+  Object.keys(config).forEach(function(key) {
+    if (!SHAREABLE_CONFIG_KEYS.has(key)) return;
+    var value = config[key];
+    if (value === undefined || typeof value === 'function') return;
+    try { safe[key] = JSON.parse(JSON.stringify(value)); } catch(e) {}
+  });
+  return safe;
+}
+
+function sanitizeEditorStyle(style) {
+  // The editor picker owns a named style, never an inline record. Full custom
+  // style data may still travel through validated config.style.
+  return typeof style === 'string' ? style : '';
+}
+
 function hasOwnConfig(config) {
   return !!config && typeof config === 'object' && Object.keys(config).length > 0;
 }
@@ -76,9 +103,10 @@ async function getHashSource() {
     var obj = JSON.parse(decoded);
     if (obj && obj.source) {
       if (obj.theme) { state.theme = obj.theme; }
-      if (obj.style) { state.style = obj.style; }
+      var importedStyle = sanitizeEditorStyle(obj.style);
+      if (importedStyle) { state.style = importedStyle; }
       if (typeof obj.seed === 'number') { state.seed = obj.seed; }
-      if (hasOwnConfig(obj.config)) { state.config = obj.config; }
+      if (hasOwnConfig(obj.config)) { state.config = sanitizeEditorConfig(obj.config); }
       return obj.source;
     }
   } catch(e) {}
