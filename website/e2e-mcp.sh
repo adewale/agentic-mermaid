@@ -65,7 +65,7 @@ check 'execute: expression form' '\"value\":42' \
 check 'execute: bare object literal stays an expression' '\"answer\":42' \
   "$(j '{"jsonrpc":"2.0","id":10,"method":"tools/call","params":{"name":"execute","arguments":{"code":"{ answer: 42 }"}}}')"
 
-check 'execute: user errors surface their message' '\"error\":\"boom\"' \
+check 'execute: user errors use the structured envelope' '\"error\":{\"code\":\"EXECUTE_FAILED\",\"message\":\"boom\"}' \
   "$(j '{"jsonrpc":"2.0","id":11,"method":"tools/call","params":{"name":"execute","arguments":{"code":"throw new Error(\"boom\")"}}}')"
 
 check 'execute: isolate has no fetch' '\"value\":\"undefined\"' \
