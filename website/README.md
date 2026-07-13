@@ -18,10 +18,10 @@ The MCP server core lives in `src/mcp/hosted-server.ts` (repo root `src/`), shar
 
 ## Routes
 
-- `/`, `/editor/`, `/examples/`, `/about/`, `/docs/`
-- `/docs/api/`, `/docs/source-level/`, `/docs/cli/`, `/docs/mcp/`, `/docs/ascii/`, `/docs/theming/`, `/docs/config/`, `/docs/react/`, `/docs/quality/`, `/docs/fork-differences/`, `/docs/vocabulary/`
+- `/`, `/editor/`, `/examples/`, `/comparisons/`, `/about/`, `/about/design/`, `/docs/`
+- `/docs/getting-started/`, `/docs/api/`, `/docs/cli/`, `/docs/mcp/`, `/docs/ascii/`, `/docs/theming/`, `/docs/custom-styles/`, `/docs/quality/`, `/docs/fork-differences/`
 - `/skills/agentic-mermaid-diagram-workflow/`
-- `/warnings/`, `/warnings/<CODE>/`, `/errors/`, `/errors/<kind>/`, `/examples/`, `/evidence/`, `/security/`, `/releases/`
+- `/warnings/`, `/warnings/<CODE>/`, `/errors/`, `/errors/<kind>/`
 - `/index.md`, `/llms.txt`, `/llms.md`, `/.well-known/llms.txt`, `/agent-instructions.md`, `/capabilities.json`, `/examples/index.json`
 - `/.well-known/mcp`, `/.well-known/mcp.json`, `/.well-known/mcp/server-card.json`, `/.well-known/ai-catalog.json`
 - raw `/skills/agentic-mermaid-diagram-workflow/SKILL.md`
