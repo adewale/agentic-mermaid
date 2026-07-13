@@ -1,10 +1,13 @@
-# Styles: the composable look system — naming, model, and rollout plan
+# Styles: the composable look system — historical rollout record
 
-Status: v2, largely executed on PR #60 — the engine, the consolidated
-`style` primitive, and the product surfaces (CLI `--style`/`--seed` +
-`am styles`, MCP style args + typed SDK declaration, editor style picker
-with seed re-roll, agent docs) have landed; steps below are annotated.
-Nothing has shipped to npm yet, so remaining decisions stay free.
+Status: historical/as-built record of the Style + Palette work largely
+executed on PR #60. The engine, consolidated `style` primitive, and product
+surfaces (CLI `--style`/`--seed` + `am styles`, MCP style args + typed SDK
+declaration, editor style picker with seed re-roll, and agent docs) landed from
+this design. This document preserves that rationale and rollout evidence; it is
+not the authority for future appearance or brand APIs. Those decisions live in
+the [brand-primitives plan](../../project/brand-primitives-plan.md), and
+actionable work lives only in the root [TODO](../../../TODO.md).
 
 The engine work is done: every diagram family lowers to a SceneGraph of
 semantic marks, and pluggable backends serialize those marks — crisp (the
@@ -119,8 +122,11 @@ was given, retrieved, or wrote itself.
    editor picker, and the poster harness — registering a style is the only
    step to appear in all three.
 6. **Fragments are the sharing unit.** A JSON file with three fields is a
-   complete, valid, shareable style. Packs are just arrays of named
-   fragments — no schemaVersion ceremony until a real need appears.
+   complete, valid, shareable style. At the time of this rollout, a "pack" was
+   only an array of named fragments and deliberately had no schema-version
+   ceremony. That historical packaging choice is superseded by the versioned
+   `BrandPack` decision in the
+   [brand-primitives plan](../../project/brand-primitives-plan.md#what-a-brandpack-is-and-why-it-exists).
 
 ## 4. Designed for emergence
 
@@ -178,11 +184,12 @@ byte-identical, corpus-gated):
 - **Docs in the box**: README leads with the matrix image, a one-string
   quick start, and a *custom fragment stack* example; `docs/api.md` gets the
   option + precedence line; CHANGELOG states the model in three sentences.
-- **Deferred**: styled PNG parity (blocked on bundling the OFL faces as
-  reviewed production assets — notices already exist); CLI/MCP surfaces
-  land in the rollout below.
+- **Deferred at PR #60 planning time**: styled PNG parity was blocked on
+  bundling the OFL faces as reviewed production assets; CLI/MCP surfaces were
+  scheduled in the rollout below. Current follow-up ownership is recorded in
+  the root [TODO](../../../TODO.md) and the brand-primitives plan.
 
-## 6. Rollout, emergence-first
+## 6. Historical rollout sequence, emergence-first
 
 1. **Collapse the primitives**: rename `aesthetic` → `style`; make all
    `StyleSpec` fields optional; implement the stack merge; register `THEMES`

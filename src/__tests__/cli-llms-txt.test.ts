@@ -4,6 +4,7 @@ import { describe, test, expect } from 'bun:test'
 import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { buildLlmsTxt, buildCapabilities } from '../cli/index.ts'
+import { getStyle, knownStyles, styleKind } from '../scene/style-registry.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 
@@ -27,6 +28,15 @@ describe('#6430 llms.txt', () => {
     for (const f of buildCapabilities().families) {
       expect(txt).toContain(f.id)
     }
+  })
+
+  test('lists every registered built-in look', () => {
+    const txt = buildLlmsTxt()
+    const looks = knownStyles().filter(name => {
+      const spec = getStyle(name)
+      return spec && styleKind(spec) === 'look'
+    })
+    for (const look of looks) expect(txt).toContain(`'${look}'`)
   })
 
   test('follows the llms.txt convention (H1 + blockquote summary)', () => {

@@ -1,6 +1,13 @@
-# Issue-derived test-case candidates
+# Issue-derived coverage evidence
 
-These are public Mermaid / Beautiful Mermaid issues worth turning into small, educational fixtures. The goal is not to clone every upstream bug; it is to keep representative examples that teach the renderer/agent surface what users actually expect.
+Status: evidence and coverage inventory, not a fixture backlog. Root `TODO.md` is
+the sole authority for scheduled work. Uncovered fixture and heuristic ideas
+below are unscheduled unless a stable root TODO item promotes them.
+
+These public Mermaid / Beautiful Mermaid issues explain what the existing
+fixtures cover and preserve candidate evidence for future decisions. The goal is
+not to clone every upstream bug; it is to retain representative examples that
+teach the renderer/agent surface what users actually expect.
 
 ## Already covered or newly covered
 
@@ -35,7 +42,7 @@ These are public Mermaid / Beautiful Mermaid issues worth turning into small, ed
   - Why it matters: ER/class ASCII labels and compartment text are semantic content, not decoration; long labels must not silently disappear when connectors are tight.
   - Current coverage: exact ASCII/Unicode golden files cover class compartments/relationship labels and ER relationship labels. ER same-row layout now widens the inter-entity gap to preserve full labels.
 
-## High-value future fixtures
+## Candidate fixture evidence (unscheduled)
 
 - [mermaid-js/mermaid#6271 — unexpected graph direction](https://github.com/mermaid-js/mermaid/issues/6271)
   - Suggested fixture: a graph whose author order implies a clear primary direction but whose cross/back edges tempt the layout engine to flip ranks. Assert source-order progression and bounded aspect ratio.
@@ -44,7 +51,7 @@ These are public Mermaid / Beautiful Mermaid issues worth turning into small, ed
 - [Mermaid v11.3+ `@{ shape: ... }` typed node metadata](https://mermaid.js.org/syntax/flowchart.html) — **safety floor fixed as BUILD-23 / [#29](https://github.com/adewale/agentic-mermaid/issues/29); full typed-shape vocabulary remains #44**
   - Why it matters: this syntax carries the ISO 5807/ANSI X3.5 flowchart symbol vocabulary (manual input, document, delay, preparation, …); Mermaid's docs use it extensively, so agent-generated sources will contain it.
   - Current behavior (June 2026): the three issue #29 repro classes are pinned by `src/__tests__/flowchart-metadata.test.ts`; they no longer silently drop targets/edges or fabricate `shape`/`label` phantom nodes. Unsupported forms preserve source opaquely; supported label metadata renders as a conservative rectangle fallback.
-  - Future fixtures: #44 should model the full Mermaid v11 typed-shape vocabulary without weakening the no-silent-loss safety floor.
+  - Candidate coverage: #44 records the full Mermaid v11 typed-shape vocabulary without weakening the no-silent-loss safety floor; this ledger does not schedule it.
 - [Mermaid frontmatter `config.layout`/`config.look`](https://mermaid.js.org/intro/syntax-reference.html) — **wrapper-fidelity gaps found by probing the official examples, fixed as BUILD-21**
   - Why it mattered: round-tripping a diagram through the editor flattened `config:`-nested frontmatter to top-level keys Mermaid ignores (silently killing the author's layout/look request on interop), duplicated `%%{init}%%` directives into synthesized frontmatter, and dropped leading comments.
   - Current coverage: `src/__tests__/agent-wrapper-fidelity.test.ts` pins byte-verbatim wrapper round-trip (frontmatter, directives incl. multiline, leading comments, combined), mutation wrapper preservation, canonical-mode config nesting + directive folding, and the `COMMENT_DROPPED` lint matrix.
@@ -58,19 +65,19 @@ A May 2026 GitHub issue/PR search found recurring layout-quality themes in both 
 - [mermaid-js/mermaid#5060 — Avoidable overlapping curves in flow-chart](https://github.com/mermaid-js/mermaid/issues/5060)
   - Fixture status: `src/__tests__/aesthetic-issue-regressions.test.ts` renders repeated parallel labeled edges and asserts distinct edge paths, zero crossings, no hard defects, and separated label boxes.
 - [mermaid-js/mermaid#6046 — subgraph links should affect positioning more than inter-graph links](https://github.com/mermaid-js/mermaid/issues/6046)
-  - Fixture idea: nested subgraphs with invisible/loose links. Assert group order follows source intent and cross-group edges do not dominate internal layout.
-- [mermaid-js/mermaid#7492 — C4 overlapping labels/text overflow/crossing arrows](https://github.com/mermaid-js/mermaid/issues/7492)
-  - Fixture idea: labels near containers. Assert text stays inside boxes and edge labels keep minimum clearance from unrelated nodes.
+  - Candidate fixture evidence: nested subgraphs with invisible/loose links; group order follows source intent and cross-group edges do not dominate internal layout.
+- [mermaid-js/mermaid#7492 — Mermaid C4 overlapping labels/text overflow/crossing arrows](https://github.com/mermaid-js/mermaid/issues/7492)
+  - Watch-only upstream evidence. Agentic Mermaid does not plan a native C4 renderer, so this is not a fixture commitment.
 - [mermaid-js/mermaid#2792 — graph lines sometimes overlap boxes](https://github.com/mermaid-js/mermaid/issues/2792)
   - Fixture status: `src/__tests__/aesthetic-issue-regressions.test.ts` renders a transitive route and asserts the ugly-detector reports no edge-through-node defect.
 - [lukilabs/beautiful-mermaid#83 — TD/TB flowchart layout flipping horizontal](https://github.com/lukilabs/beautiful-mermaid/issues/83)
-  - Fixture idea: vertical process with repeated feedback edges. Assert TD/TB diagrams remain height-dominant or within a bounded aspect ratio.
+  - Candidate fixture evidence: vertical process with repeated feedback edges; TD/TB diagrams remain height-dominant or within a bounded aspect ratio.
 - [lukilabs/beautiful-mermaid#68 — fan-in groups not target-aware](https://github.com/lukilabs/beautiful-mermaid/issues/68)
-  - Fixture idea: multiple roots feeding separate targets. Assert roots cluster by target and unrelated routes do not share misleading trunks.
+  - Candidate fixture evidence: multiple roots feeding separate targets; roots cluster by target and unrelated routes do not share misleading trunks.
 - [lukilabs/beautiful-mermaid#63 — misleading edge overlap in routing](https://github.com/lukilabs/beautiful-mermaid/pull/63)
-  - Fixture idea: two fan-in edges followed by two fan-out edges. Assert an outgoing branch does not visually reuse an unrelated incoming corridor.
+  - Candidate fixture evidence: two fan-in edges followed by two fan-out edges; an outgoing branch does not visually reuse an unrelated incoming corridor.
 - [lukilabs/beautiful-mermaid#89 — CJK subgraph title layout drift](https://github.com/lukilabs/beautiful-mermaid/issues/89)
-  - Fixture idea: fullwidth group labels. Assert group header bounds account for CJK width.
+  - Candidate fixture evidence: fullwidth group labels; group header bounds account for CJK width.
 - [lukilabs/beautiful-mermaid#121 — ER/class ASCII labels truncated/overlapping](https://github.com/lukilabs/beautiful-mermaid/issues/121)
   - Fixture status: representative class/ER golden files now assert labels survive and connectors remain attached; keep this theme in the generated matrix for longer label/attribute variants.
 
@@ -100,9 +107,10 @@ deferred, and policy-out-of-scope cases remain recorded below.
   whitespace + aspect — `agent-quality.test.ts`), `#1301` (long-range Gantt
   axis labels stay clear of task bars — `gantt-layout.test.ts`), and `#1765` (activation/note/block
   clearance — `sequence-layout.test.ts`).
-- **`#7492` (C4 overlapping labels/arrows)** — no fixture yet: the C4 family
-  is not rendered. Tracked under **BUILD-6** (new upstream families); add the
-  fixture when C4 lands.
+- **`#7492` (Mermaid C4 overlapping labels/arrows)** — watch-only: Agentic
+  Mermaid does not render this upstream-experimental family and no local fixture
+  is planned. Any future separately promoted adoption would define its own
+  evidence; this ledger carries no deferred C4 action.
 - **`#3723` (same-rank constraint) and `#5420` (manual node positioning)** —
   documented **won't-do by policy**, no fixture. `#3723` is "watch-only"
   (adopt only if Mermaid core standardizes a `config:` key — see C6); `#5420`
@@ -125,7 +133,7 @@ Current useful heuristics:
 - layout-quality heuristic tests for declared-direction progress (`TD`/`BT`/`LR`/`RL`), edge-vs-node collisions excluding attached endpoints, feedback-process cleanliness, root node vs top-level subgraph source order, and self-loop clearance;
 - PNG/SVG screenshot comparison for artifacts that layout JSON cannot see, such as rounded-fill raster artifacts.
 
-High-value next heuristics for layout-improvement corpora:
+Candidate heuristic evidence (unscheduled):
 
 - route corridor reuse by unrelated edge families;
 - target-aware fan-in/fan-out clustering score;
@@ -145,12 +153,17 @@ practitioner guides consistently name these as the top flowchart mistakes):
   fits issue #26 workstream 14 as an analysis fact alongside the existing
   graph entry/feedback-edge outputs, not as a hard error.
 
-These can drive a generated fixture matrix: vary direction, feedback-edge density, self-loops, parallel edges, label length, CJK labels, nested subgraphs, fan-in/fan-out shape, and styling. Each generated case should assert semantic preservation first, then one or more layout heuristics. Screenshot tests should be reserved for cases where the visual artifact is genuinely pixel/raster-level.
+If promoted through root `TODO.md`, these could drive a generated fixture matrix
+varying direction, feedback-edge density, self-loops, parallel edges, label
+length, CJK labels, nested subgraphs, fan-in/fan-out shape, and styling. Each
+case would assert semantic preservation first, then one or more layout
+heuristics; screenshot tests would be reserved for genuinely pixel/raster-level
+artifacts.
 
 ## Test-design rules for issue fixtures
 
 - Prefer smallest meaningful source examples over screenshots alone.
 - Assert semantics first: labels, edges, groups, source-preserved metadata.
-- Add screenshot/SVG regression only when geometry/visual polish is the bug.
+- Use screenshot/SVG regression only when geometry/visual polish is the bug.
 - For unsupported Mermaid syntax, assert opaque/source-preserved fallback rather than lossy normalization.
 - For security issues, assert both removal of dangerous refs and preservation of safe SVG output.

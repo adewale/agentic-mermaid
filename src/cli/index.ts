@@ -959,6 +959,10 @@ export function buildLlmsTxt(): string {
   const narrowers = BUILTIN_FAMILY_METADATA.map(f => f.narrower).join(', ')
   const formats = cap.outputFormats.join(', ')
   const codes = cap.warningCodes.map(w => `${w.code} (${w.tier}/${w.severity})`).join(', ')
+  const looks = knownStyles().filter(name => {
+    const spec = getStyle(name)
+    return spec && styleKind(spec) === 'look'
+  }).map(name => `'${name}'`).join(', ')
   return `# Agentic Mermaid
 
 > Agent-native Mermaid runtime: parse, verify, mutate, and round-trip
@@ -1035,9 +1039,8 @@ registerStyle, knownStyles, validateStyleSpec } from 'agentic-mermaid/agent'\`
 
 ## Styles
 
-Every render call accepts style: a name ('hand-drawn', 'excalidraw',
-'pen-and-ink', 'freehand', 'watercolor', 'blueprint', 'tufte', or any theme
-name — a theme is a palette-only style), an inline JSON spec, or a stack
+Every render call accepts style: a registered look name (${looks}), any theme
+name (a theme is a palette-only style), an inline JSON spec, or a stack
 merged left → right ({ style: ['hand-drawn', 'dracula'] }). seed re-rolls
 ink wobble, never layout — (source, style, seed) reproduces an image
 exactly. Custom styles are data: validateStyleSpec(json) checks untrusted

@@ -1,8 +1,14 @@
 # Gantt research appendix
 
-Status: evidence appendix for [`gantt.md`](./gantt.md). Snapshot date: 2026-06-11.
+Status: historical evidence appendix for the shipped [`gantt.md`](./gantt.md)
+contract. Snapshot date: 2026-06-11. This is not a roadmap or backlog; root
+`TODO.md` is the sole authority for scheduled work.
 
-This appendix records the wider research requested after the initial Gantt spec: a broad academic search, a commercial/product UX survey, and the changes those sources imply for Agentic Mermaid. The implementation contract remains Mermaid-compatible; this appendix identifies internal hooks and future UI features that should not leak into Mermaid syntax.
+This appendix records the wider research requested after the initial Gantt spec:
+a broad academic search, a commercial/product UX survey, and the implications
+considered during implementation. The shipped contract remains Mermaid-
+compatible. Any unimplemented hook or UI idea below is unscheduled evidence and
+must be promoted to root `TODO.md`; none should leak into Mermaid syntax.
 
 ## Method
 
@@ -90,9 +96,10 @@ Commercial tools converge on a small set of Gantt affordances. These are useful 
 | Frappe Gantt, [repository](https://github.com/frappe/gantt) | Open-source JS Gantt with dependencies, progress, drag interactions, view modes, popup/details, holidays/weekend handling. | View modes and popups are good editor ideas. Parser syntax remains Mermaid. |
 | Airtable Timeline, [docs](https://support.airtable.com/docs/timeline-view) | Timeline grouping/filtering/sharing, more database timeline than scheduling engine. | Useful contrast: not every timeline is a Gantt scheduler. Agentic Mermaid should not degrade Gantt into a generic timeline. |
 
-## Requirements added by the wider research
+## Research implications and current disposition
 
-These requirements refine the base spec.
+These points explain shipped boundaries and retain candidate evidence. They do
+not create follow-up work.
 
 1. **Keep scheduling pure.** `src/gantt/schedule.ts` should have no SVG, no canvas, no DOM, and no wall-clock calls. This matches scheduling-engine practice in commercial Gantt libraries and makes property tests possible.
 2. **Expose analysis without inventing syntax.** Critical path, slack, schedule range, entry tasks, terminal tasks, and dependency cycles can be computed from standard Mermaid source. They belong in `describe`, `verify`, optional overlays, or future editor UI.
@@ -102,9 +109,11 @@ These requirements refine the base spec.
 6. **Test by task, not by file only.** Gantt-specific tasks from the VIS taxonomy and commercial survey should become named fixtures: locate milestone, compare durations, inspect dependency chain, find critical path, detect crowded compact layout, inspect excluded weekend, verify top axis.
 7. **Keep accessibility semantic.** The AX tree should expose section/task/dependency/date-range information even when SVG bars are visually dense.
 
-## Proposed spec amendments
+## Historical amendment sketches
 
-The base [`gantt.md`](./gantt.md) should keep its syntax matrix unchanged, but implementation planning should add these follow-up hooks:
+These sketches informed the original implementation discussion. They are not
+current API commitments; [`gantt.md`](./gantt.md) and the code record what
+shipped, and any missing idea requires promotion to root `TODO.md`:
 
 - `GanttScheduleAnalysis`: `{ criticalPathTaskIds, slackByTaskId, projectStart, projectEnd, entryTaskIds, sinkTaskIds }`, computed only when the dependency graph is valid.
 - `GanttRenderedRegion`: stable regions for sections, task bars, milestones, vertical markers, axis ticks, and dependency references. This supports future TUI/editor click mapping.
@@ -120,9 +129,10 @@ The base [`gantt.md`](./gantt.md) should keep its syntax matrix unchanged, but i
 - Do not use a browser Gantt library as the implementation; it would violate Agentic Mermaid’s synchronous, DOM-free core.
 - Do not optimize for interactive drag editing in v1. Source remains the edit format.
 
-## Search artifacts to repeat before implementation
+## Historical repeatable research recipe
 
-Before coding Gantt, repeat these checks because Mermaid Gantt is active:
+If a separately promoted Gantt item needs a fresh upstream survey, these commands
+reproduce part of the 2026 research pass; running them is not scheduled here:
 
 ```bash
 gh search issues "gantt repo:mermaid-js/mermaid" --limit 100

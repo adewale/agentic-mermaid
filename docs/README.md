@@ -46,10 +46,13 @@ The design docs split into two tiers — **system** (how the engine works, cross
 
 | Doc | Purpose |
 |---|---|
+| [`project/brand-primitives-plan.md`](./project/brand-primitives-plan.md) | Normative appearance/family-contract decision and A/B dependency/acceptance plan; live status is owned by root `TODO.md`. |
+| [`project/cupertino-style-plan.md`](./project/cupertino-style-plan.md) | Non-authoritative brand probe and acceptance-evidence record. |
 | [`design/system/`](./design/system/README.md) | **Start here.** Rendered three-stacks architecture overview (dogfooded, drift-proof) routing to the audit and design docs. |
 | [`design/system/abstraction-audit.md`](./design/system/abstraction-audit.md) | Whole-system abstraction audit: the three-stacks model and ranked issue list I1–I9. |
-| [`design/system/abstraction-recommendations.md`](./design/system/abstraction-recommendations.md) | Literature-grounded recommendations for I1–I9, with a prioritized roadmap. |
-| [`design/system/consolidation-plan.md`](./design/system/consolidation-plan.md) | Active characterization-first consolidation plan; replaces completed implementation ledgers as the current roadmap. |
+| [`design/system/abstraction-recommendations.md`](./design/system/abstraction-recommendations.md) | Historical literature-grounded recommendations and implementation closure record for I1–I9. |
+| [`design/system/consolidation-plan.md`](./design/system/consolidation-plan.md) | Historical/as-built record of the completed PR #149 consolidation pass (`POST149-*`). |
+| [`design/system/styles-rollout.md`](./design/system/styles-rollout.md) | Historical/as-built record of the Style + Palette rollout; superseded for future brand decisions. |
 | [`design/system/route-contracts.md`](./design/system/route-contracts.md) | Route contracts: edge classification, direct-lane proofs, certifying straightener (issue #25). |
 | [`design/system/layout-rubric.md`](./design/system/layout-rubric.md) | Deterministic layout-quality rubric: metrics, CI gates, and property oracles. |
 | [`design/system/source-preservation-ladder.md`](./design/system/source-preservation-ladder.md) | The structured\|opaque family-adoption contract (levels L0–L4). |

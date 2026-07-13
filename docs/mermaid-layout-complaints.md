@@ -1,10 +1,15 @@
 # Mermaid layout complaints: catalog, root causes, and coverage
 
+Status: evidence and capability-coverage scorecard, not a roadmap or backlog.
+`TODO.md` is the sole authority for scheduled work. Historical issues and specs
+below retain candidate contract evidence only; they do not schedule
+implementation unless a stable root TODO item promotes them.
+
 This document maps what users actually complain about in Mermaid's layout →
 why those failures happen → which Agentic Mermaid work addresses each one
-(landed, specced, or deliberately out of scope). It is the durable version of
-a June 2026 research pass and should be updated when complaint-relevant work
-lands.
+(landed, retained as candidate evidence, or deliberately out of scope). It is
+the durable version of a June 2026 research pass and should be updated when
+complaint-relevant work lands.
 
 Companions:
 
@@ -35,7 +40,7 @@ Status legend used below:
 |---|---|
 | **landed** | shipped in this repo with tests |
 | **partial** | some of the complaint class is covered, the rest is not |
-| **specced** | designed in #25/#26/PR #24 with acceptance criteria, not implemented |
+| **candidate evidence** | described in a historical issue/spec, but unscheduled unless promoted to root `TODO.md` |
 | **out of scope** | deliberately not addressed; the reason is stated |
 
 ---
@@ -128,10 +133,13 @@ sibling clusters overlap.
   a Tier 1 `GROUP_BREACH` warning.
 - Status here: **landed** (PRs #17, #21, #22). Residual: cross-hierarchy and
   container-edge *route classes* — making the SVG router treat boundary
-  edges semantically rather than via representative children — are specced
-  (#25 §8.3, #26 workstream 2).
+  edges semantically rather than via representative children — remain candidate
+  contract evidence in #25 §8.3 and #26 workstream 2, not scheduled work.
 
 ### C4. Erratic edge routing: avoidable crossings, overlaps, doglegs
+
+Here and in the scorecard, **C4 means complaint category 4**, not Mermaid's C4
+diagram family.
 
 Edges cross when they obviously need not, overlap each other or pass through
 nodes, and acquire small unexplained doglegs ("hitches"). Users untangle by
@@ -168,15 +176,16 @@ trial-and-error reordering of source lines.
   tie-breaking in the ASCII pathfinder
   (`src/__tests__/ascii-pathfinder-determinism.test.ts`).
 - Status here: **partial today, with the route-contract core landed and the
-  broader program still specced.** #25 defines route classes
+  broader program retained as candidate evidence.** #25 defines route classes
   (`primary-forward`/`feedback`/fan trunks/…), the straight-primary and
   hitch invariants (§11.1–11.2), the certifying simplifier (§12), and the
   hard rule "no node-coordinate mutation after route extraction unless all
   incident routes are rerouted or recertified" (§9). The current tests now
   include route-certificate geometry and property coverage across dotted,
-  thick, bidirectional, marker, and labeled edge forms. Remaining work lives
-  in the still-open route/port issues (#32, #35, #38 and the #26 umbrella),
-  plus cross-renderer adoption.
+  thick, bidirectional, marker, and labeled edge forms. The still-open
+  route/port issues (#32, #35, #38 and the #26 umbrella) retain unscheduled
+  evidence; any implementation or cross-renderer adoption requires promotion
+  to root `TODO.md`.
 
 ### C5. Edge labels overlap edges, nodes, and each other
 
@@ -190,8 +199,10 @@ edge they describe.
   integrated-labeling concept yFiles ships, see R3),
   [mermaid#2131 mis-aligned state labels](https://github.com/mermaid-js/mermaid/issues/2131),
   [mermaid#2525 "messages appear with line through them"](https://github.com/mermaid-js/mermaid/issues/2525),
-  [mermaid#7492 C4 label/text/arrow chaos](https://github.com/mermaid-js/mermaid/issues/7492),
+  [mermaid#7492 Mermaid C4-family label/text/arrow chaos](https://github.com/mermaid-js/mermaid/issues/7492),
   [mermaid#1233](https://github.com/mermaid-js/mermaid/issues/1233).
+- Mermaid #7492 is watch-only upstream evidence for the unsupported Mermaid C4
+  family. It creates no local/native C4 fixture or adoption commitment.
 - Root cause: R1 (label placement is NP-hard and classically solved *after*
   layout; dagre models labels as mid-edge dummy nodes), R4/R5 (renderers do
   not collision-check label boxes afterwards).
@@ -297,7 +308,8 @@ at layout time, and no width budget for CJK/long words.
 - Status here: **landed**, with an honest gap: the 7px/char SVG heuristic is
   approximate (`docs/quality.md`), and the shared text-measurement contract
   that would unify SVG/ASCII/quality measurement (CJK, emoji, ambiguous
-  width) is specced as #26 workstream 8. Regression coverage now includes
+  width) remains candidate evidence in #26 workstream 8. Regression coverage
+  now includes
   emoji-presentation selectors and East Asian ambiguous-width symbols, so
   common Unicode labels cannot silently drift between SVG metrics and
   terminal-width assumptions.
@@ -343,8 +355,9 @@ take long unexplained detours.
   (Tier 2) and self-loop clearance heuristics
   (`layout-quality-heuristics.test.ts`) guard regressions. SVG self-loop
   port policy (N/S side by clearance) is #25 §8.1; mermaid#6049 is listed as
-  a future fixture in [`issue-derived-test-cases.md`](./issue-derived-test-cases.md).
-- Status here: **partial** (ASCII decent + guarded; SVG semantics specced).
+  candidate fixture evidence in [`issue-derived-test-cases.md`](./issue-derived-test-cases.md).
+- Status here: **partial** (ASCII decent + guarded; SVG semantics retained as
+  candidate evidence, not scheduled).
 
 ### C11. Unstable output across versions and renderers
 
@@ -396,14 +409,16 @@ titles, notes colliding with lifelines.
 ### C13. Chart families: hard-coded geometry breaks on real data
 
 Gantt axis dates overlap on long ranges, pie titles/labels clip, radar axis
-labels compress, C4 is widely considered the worst-layouted type. These are
+labels compress, and Mermaid's C4 family is widely considered the worst-layouted
+type. These are
 not dagre problems — each chart type has bespoke geometry with no collision
 handling.
 
 - Evidence: [mermaid#1301 gantt axis overlap](https://github.com/mermaid-js/mermaid/issues/1301)
   (23R), [mermaid#6232 pie title cut off](https://github.com/mermaid-js/mermaid/issues/6232),
   [mermaid#7683 radar labels clipped](https://github.com/mermaid-js/mermaid/issues/7683),
-  [mermaid#7492 C4](https://github.com/mermaid-js/mermaid/issues/7492).
+  and watch-only
+  [mermaid#7492 Mermaid C4-family evidence](https://github.com/mermaid-js/mermaid/issues/7492).
 - Root cause: R5 (per-family renderer-first geometry; semantics inferred at
   draw time — the exact anti-pattern #26's guiding principle names).
 - Fixture/test: pie and quadrant landed source-level with geometry tests
@@ -412,11 +427,12 @@ handling.
   pure, clock-free schedule resolver *before* layout, family validators
   (deterministic task intervals, milestone zero-width markers,
   non-overlapping compact rows) designed against precisely the mermaid#1301
-  class. Mindmap now has deterministic tree geometry; C4 and radar remain
-  unsupported.
-- Status here: **partial** (pie/quadrant/gantt/mindmap landed; C4/radar
-  absent — see [`comparison.md`](./comparison.md) for the current
-  family-coverage trade).
+  class. Mindmap now has deterministic tree geometry; Mermaid C4 and radar
+  remain unsupported. The #7492 C4-family report remains inventory/watch
+  evidence only, with no native fixture or adoption commitment.
+- Status here: **partial** (pie/quadrant/gantt/mindmap landed; Mermaid C4/radar
+  absent — see [`comparison.md`](./comparison.md) for the current family-coverage
+  trade).
 
 ---
 
@@ -449,7 +465,8 @@ directly:
    Harvard TR-05-91), and edge-label placement specifically is NP-hard
    ([Kakoulis & Tollis 2001](https://www.sciencedirect.com/science/article/pii/S0925772100000250),
    Comput. Geom. 18(1)). No engine "chooses" the avoidable crossing in
-   C4 — it fails to find the better optimum it cannot afford to search for.
+   complaint C4 — it fails to find the better optimum it cannot afford to
+   search for.
 2. **Phases cannot revisit earlier decisions.** Layering fixes ranks before
    crossing minimization sees them; coordinates are assigned before routing.
    A route that needs a node nudged one lane over cannot get it. This is
@@ -591,7 +608,8 @@ assignment is
 in `lib/position/bk.js`) and then stops: there is no routing phase at all —
 edges are interpolated through dummy-node points.
 [dagre-d3#291](https://github.com/dagrejs/dagre-d3/issues/291) is the
-user-visible result, and C4/C5 are the Mermaid-visible results. Cluster
+user-visible result, and complaint categories C4/C5 are the Mermaid-visible
+results. Cluster
 support follows Sander/Forster on paper (per
 [dagre's wiki](https://github.com/dagrejs/dagre/wiki)) but fails on nesting
 and compound edges in practice
@@ -626,8 +644,8 @@ docs) — selected via frontmatter `config.layout`, and per the
 edge-overlap ask
 [mermaid#1006](https://github.com/mermaid-js/mermaid/issues/1006) was
 closed *Wont Fix*. GitHub's native rendering still runs the dagre default —
-so most readers see the unfixed engine (C2, C3, C4, C9), and even opted-in
-users get the better engine for two of ~25 families. PlantUML made the
+so most readers see the unfixed engine (complaint categories C2, C3, C4, C9),
+and even opted-in users get the better engine for two of ~25 families. PlantUML made the
 opposite bet decades earlier: it
 [delegates class/state/component/usecase layout to Graphviz dot](https://plantuml.com/graphviz-dot),
 inheriting dot's router and rank constraints along with its weaknesses.
@@ -689,7 +707,10 @@ model, derive layout intent, compute geometry, certify, then render —
 with renderers as projections of shared intent rather than the place where
 intent is invented.
 
-### Root causes → issue #26 workstreams
+### Root causes → historical issue #26 workstream evidence
+
+This crosswalk preserves the research decomposition only. It does not make the
+issue workstreams an active schedule; root `TODO.md` must own any promoted work.
 
 | Root cause | #26 workstream(s) |
 |---|---|
@@ -701,7 +722,7 @@ intent is invented.
 | R4 rectangular/port-less model | WS3 semantic ports and shape-aware anchors |
 | R5 renderer-first semantics | WS5 Gantt resolver model (landed); WS7 class/ER contracts; WS10 region tree; WS13 preservation ladder |
 | Unreviewable visual change (meta) | WS12 reproducible before/after evidence |
-| Generic metrics miss failures (meta, C4 worked example) | WS11 family-specific validators |
+| Generic metrics miss failures (meta, complaint C4 worked example) | WS11 family-specific validators |
 
 ---
 
@@ -712,13 +733,13 @@ intent is invented.
 | C1 | Manual positioning | mermaid#5420 (47R), #270 (2016–) | **out of scope** by policy | #25 OQ2; agent loop as substitute |
 | C2 | Scale collapse | mermaid#1984 (39R) | **partial** (detection only) | `quality.ts` bands; `eval/layout-compare/` |
 | C3 | Subgraphs | mermaid#2509 (189R) | **landed** | `subgraph-direction.test.ts`; PRs #17/#21/#22 |
-| C4 | Erratic routing | mermaid#6476, #5601 | **partial**; fix **specced** | #25 §11–12; MFA worked example above |
-| C5 | Edge-label overlap | mermaid#2131, #7492 | **partial** | inline ELK labels; `labelEdgeProximity`; #25 §11.4 |
+| C4 | Erratic routing | mermaid#6476, #5601 | **partial**; candidate fix evidence only | #25 §11–12; MFA worked example above |
+| C5 | Edge-label overlap | mermaid#2131; #7492 watch-only C4-family evidence | **partial** | inline ELK labels; `labelEdgeProximity`; #25 §11.4 |
 | C6 | Order control / edit stability | mermaid#3723 (86R), #815 (45R) | **partial** | model-order ELK opts; `agent-auth-flow.test.ts`; edit-stability tests |
 | C7 | Default aesthetics | HN 30339032 | **landed** (upstream + fork) | theming; Style + Palette; contrast tests |
-| C8 | Text clipping | mermaid#2688 (24R) | **landed** | zero-DOM text; `LABEL_OVERFLOW`; CJK tests; WS8 specced |
+| C8 | Text clipping | mermaid#2688 (24R) | **landed** | zero-DOM text; `LABEL_OVERFLOW`; CJK tests; WS8 candidate evidence |
 | C9 | dagre stagnation | Mermaid docs' own ELK advice | **landed** structurally | `layout-engine.ts`; `elk-instance.ts`; #25 §10 |
-| C10 | Self-loops | mermaid#6336 (31R) | **partial** | clearance heuristics; #25 §8.1 specced |
+| C10 | Self-loops | mermaid#6336 (31R) | **partial** | clearance heuristics; #25 §8.1 candidate evidence |
 | C11 | Version/renderer instability | mermaid#5813 (28R) | **landed** | determinism suite; `eval/layout-compare/`; goldens |
 | C12 | Sequence alignment | mermaid#1765 (28R) | **partial**; first properties landed | #25 §14.2; #26 WS11; `sequence-layout.test.ts` |
 | C13 | Chart-family geometry | mermaid#1301 (23R) | **partial** | PR #24 (gantt); pie/quadrant/gantt geometry tests |
@@ -746,12 +767,14 @@ Stated plainly so the scorecard cannot oversell:
    [upstreaming strategy](./fork-differences.md#upstreaming-strategy).
 4. **Family coverage.** The checked registry is a focused subset of Mermaid's
    broader catalogue. Gantt, Mindmap, and GitGraph are rendered and characterized;
-   C4, radar, and other families remain outside the current engine.
+   Mermaid C4, radar, and other families remain outside the current engine.
+   Mermaid C4 is watch-only inventory/evidence here, with no local fixture or
+   native-adoption commitment.
 5. **Metric honesty.** Today's perceptual metrics pass diagrams whose
-   routing is visibly wrong (C4 worked example). Until #25 certificates and
-   #26 family validators land, `verify.ok` + `checkQuality` must not be
-   read as "looks right" — `docs/quality.md` already says this; the MFA
-   fixture proves it.
+   routing is visibly wrong (complaint C4 worked example). Unless and until the
+   #25 certificate and #26 family-validator candidates are promoted in root
+   `TODO.md` and land, `verify.ok` + `checkQuality` must not be read as "looks
+   right" — `docs/quality.md` already says this; the MFA fixture proves it.
 
 ---
 

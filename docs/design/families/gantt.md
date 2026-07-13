@@ -1,6 +1,8 @@
 # Gantt support specification
 
-Status: shipped as-built contract. This document records the implemented Gantt semantics and retained compatibility boundaries; active work belongs only in `TODO.md`.
+Status: shipped as-built contract and evidence record. This document records
+implemented Gantt semantics, the completed rollout sequence, and unscheduled
+research candidates. Root `TODO.md` is the sole authority for active work.
 
 ## Scope
 
@@ -357,31 +359,54 @@ Scheduler properties should use finite generated DAGs, not arbitrary line string
 - increasing font size changes row metrics but not resolved dates;
 - generated tick count stays under a fixed cap.
 
-### Mutation testing
+### Mutation-testing evidence
 
-Add a targeted Stryker config once Gantt lands:
+The landed `stryker.gantt.config.json` mutation lane:
 
-- include `src/gantt/parser.ts`, `src/gantt/schedule.ts`, `src/gantt/layout.ts`, `src/ascii/gantt.ts`;
-- run manually or on a scheduled workflow, not in normal PR CI;
-- treat surviving mutants in `schedule.ts` dependency resolution, exclusions, and duration parsing as release blockers.
+- includes `src/gantt/parser.ts`, `src/gantt/schedule.ts`, `src/gantt/layout.ts`,
+  `src/ascii/gantt.ts`, and `src/agent/gantt-body.ts`;
+- is invoked by `bun run mutation-test:gantt` outside normal PR CI;
+- treats surviving mutants in `schedule.ts` dependency resolution, exclusions,
+  and duration parsing as release-blocking adequacy evidence when the lane runs.
 
-## Rollout plan
+## Historical rollout sequence (completed)
 
-1. **Gantt detection and agent surface.** Add `gantt` kind, plugin registration with mutate/serialize hooks, label extractor, docs, and tests. The body parser lands here with its segmentation (typed ops on sections/tasks, opaque segments for everything else), since the parser is where segmentation lives anyway. `am render` may still error until the renderer lands, but parse/mutate/serialize work from this step.
-2. **Parser + scheduler with docs fixtures.** Implement syntax parser and deterministic resolver for supported Mermaid syntax. Differential-check against `mermaid-ast` and Mermaid docs examples.
-3. **ASCII renderer + goldens.** Land terminal output first because it makes date/layout regressions easy to review in diffs.
-4. **SVG renderer + PNG path.** Add role styling, accessibility, strict-security handling, status classes, and snapshots.
-5. **Quality/layout adapter.** Add `ganttToRendered` through PR #22’s `family-layouts.ts` and include Gantt in layout-compare fixtures.
-6. **Editor/showcase/docs.** Add one minimal example, one dense/compact example, and one milestone/vert example.
-7. **Release notes and capability sync.** Update `README`, `docs/features.md`, `docs/diagram-families.md`, `CHANGELOG.md`, `llms.txt`, skills, and MCP SDK declarations. Let doc-sync tests catch drift.
+This is the order in which the shipped surface was assembled, not a current
+implementation plan:
 
-## Research-driven improvements beyond parity
+1. **Gantt detection and agent surface.** Landed the `gantt` kind, plugin
+   registration with mutate/serialize hooks, label extraction, docs, tests, and
+   a segment-preserving body parser.
+2. **Parser + scheduler with docs fixtures.** Landed the syntax parser,
+   deterministic resolver, and compatibility fixtures.
+3. **ASCII renderer + goldens.** Landed terminal output and reviewable goldens.
+4. **SVG renderer + PNG path.** Landed role styling, accessibility,
+   strict-security handling, status classes, and snapshots.
+5. **Quality/layout adapter.** Landed `ganttToRendered` and layout-compare
+   fixtures.
+6. **Editor/showcase/docs.** Landed the examples and product-surface coverage.
+7. **Release notes and capability sync.** Landed capability documentation and
+   registry/doc-sync coverage.
 
-The wider literature and commercial-product survey lives in [`gantt-research.md`](./gantt-research.md). It adds four implementation requirements without changing the first-release syntax target:
+## Candidate improvements retained as evidence
 
-- Keep scheduling pure: `src/gantt/schedule.ts` should own date, dependency, calendar, critical-path, and slack computation, with no DOM/SVG/canvas or wall-clock calls.
-- Expose analysis without inventing syntax: critical path, slack, schedule range, dependency cycles, and entry/sink tasks belong in `describe`, `verify`, optional overlays, or future editor UI.
-- Leave resource, baseline, owner, workload, and uncertainty syntax out of v1: commercial Gantt tools use those features heavily, but Mermaid does not define portable source syntax for them.
-- Design for large schedules: overview/detail, zoom/filter, top axis, compact layout, bounded tick generation, and stable task regions should be planned from the first implementation even when only static SVG/ASCII is shipped.
+The wider literature and commercial-product survey lives in
+[`gantt-research.md`](./gantt-research.md). The points below are design evidence
+and compatibility boundaries, not scheduled follow-up work. Any implementation
+requires a stable owner in root `TODO.md`.
 
-The strongest improvement is not more syntax. It is a clean internal dependency/calendar model that can later power `describe`, critical-path overlays, row compaction, and editor details without changing Mermaid source.
+- Scheduling purity remains an as-built constraint: `src/gantt/schedule.ts` owns
+  date, dependency, calendar, critical-path, and slack computation without
+  DOM/SVG/canvas or ambient wall-clock calls.
+- Additional analysis such as critical path, slack, schedule range, dependency
+  cycles, and entry/sink tasks is candidate product evidence for `describe`,
+  `verify`, optional overlays, or editor UI; it is not scheduled here.
+- Resource, baseline, owner, workload, and uncertainty syntax remains outside
+  the compatibility contract because Mermaid does not define portable source
+  syntax for it.
+- Overview/detail, zoom/filter, top-axis, compact-layout, bounded-tick, and
+  stable-region work remains candidate large-schedule evidence.
+
+The retained architectural direction is a clean internal dependency/calendar
+model rather than new syntax; any expansion of `describe`, overlays, row
+compaction, or editor details must first be promoted to root `TODO.md`.

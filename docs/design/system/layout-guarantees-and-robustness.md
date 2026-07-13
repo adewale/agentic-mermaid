@@ -1,5 +1,8 @@
 # Layout guarantees and robustness — what we can promise, and how
 
+Status: evidence synthesis and implemented-contract guidance. The candidate
+sequence below is not an active roadmap; root `TODO.md` alone schedules work.
+
 A literature + industry synthesis answering one question: **which layout
 invariants can we guarantee in 100% of inputs and keep robust under fuzzing, and
 which are provably impossible to guarantee — so we must optimize-and-certify
@@ -190,7 +193,7 @@ upstream already owns:
 | No-label-on-shared-trunk | **Optimize-and-certify** (NP-hard) | duplicate-lane construction + veto-and-fallback |
 | Min crossings / bends / area | **Provably impossible to guarantee** | NP-hard; certify "no worse than input, count = N", never "minimum" |
 
-## Prioritized roadmap
+## Candidate sequence (not scheduled)
 
 1. **Minimal (recommended first):** extend duplicate-lane repair to labeled bent
    duplicates + veto-and-fallback → flip `APL_DECOUPLE_LABELS` to default-on; add
@@ -287,7 +290,7 @@ connection points; `mxParallelEdgeLayout` spacing).
 
 ## Empirical addendum — what we actually measured
 
-The roadmap above lists three theory-backed candidate fixes. We implemented and
+The candidate sequence above lists three theory-backed fixes. We implemented and
 measured each against our own rubric (`bun run track`, corpus-wide column totals;
 the bar is **HARD must stay 0** and a soft net-improvement). **All four levers we
 could test as bounded changes were neutral-or-regressive on this corpus** — the

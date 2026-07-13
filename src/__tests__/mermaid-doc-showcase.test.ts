@@ -76,7 +76,7 @@ describe('official Mermaid documentation showcase', () => {
       const spec = getStyle(name)
       return spec && styleKind(spec) === 'theme'
     })
-    expect(looks).toHaveLength(15)
+    expect(looks).toHaveLength(16)
     expect(palettes).toHaveLength(20)
     let combinations = 0
     for (const entry of manifest.cases) {
@@ -99,7 +99,7 @@ describe('official Mermaid documentation showcase', () => {
         }
       }
     }
-    expect(combinations).toBe(14 * 15 * 20)
+    expect(combinations).toBe(4_480)
   }, 60_000)
 
   test('generated docs gallery receipt covers current sources and PNG bytes', () => {

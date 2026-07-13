@@ -42,6 +42,13 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
 - [ ] **SEC-1 — Sanitize editor share/draft render config before SVG insertion** (`todo`). Audit on 2026-07-09 found that `/editor/` accepts hash/draft `config`, merges it into render options, and inserts rendered SVG with `innerHTML`; malicious color/font/style values can break out of the SVG root `style` attribute and create executable SVG markup under the current CSP. Fix by allowlisting editor-restorable config keys/values, escaping SVG root styles/attrs in `svgOpenTag`, sanitizing preview SVG before insertion, and adding hostile hash/draft/browser regression tests.
 - [ ] **SEC-2 — Cap editor share-link decompression and draft restore size** (`todo`). Deflated share links and localStorage drafts currently decode/read without a byte cap, so a crafted hash or stale draft can hang the browser. Add encoded/decoded size limits, streaming abort on overflow, visible too-large errors, and tests for corrupt/oversized links and missing `DecompressionStream`.
 - [ ] **SEC-3 — Make editor autosave privacy explicit** (`todo`). The editor persists diagram source, render config, style, and seed in plaintext `localStorage` by default. Add a visible disclosure plus a clear/private-mode option or switch persistent drafts to opt-in/session-only storage.
+- [ ] **SEC-4 — Implement and drill hosted MCP abuse controls** (`todo`; the
+  dashboard WAF prerequisite remains `DEC-2`). Execute the bounded admission,
+  payload-proportional CPU, per-item rate/fan-out, concurrency, disable-gate,
+  and redacted-observability contract in
+  `docs/project/mcp-abuse-controls-plan.md`. That document provides threat-model
+  and acceptance detail; this ID is the sole backlog owner. Do not add durable
+  coordination or metering infrastructure without observed demand.
 
 
 ## 2. Ready build backlog
@@ -74,6 +81,26 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   and privacy-policy URLs, screenshots, test prompts/responses, localization,
   and review notes. Submit through the plugin portal only when the live endpoint
   and UI are stable enough to preserve the reviewed metadata contract.
+- [ ] **BUILD-30 — Deletion-first rendering-contract consolidation** (`todo`).
+  Execute Section A of `docs/project/brand-primitives-plan.md`: replace the
+  duplicated family, request, appearance, positioned-artifact, source-envelope,
+  output-security, and capability authorities, and delete or time-bound each
+  superseded path before calling a phase complete. Reuse rather than duplicate
+  `BUILD-6`, `BUILD-26`, `CONS-11/16/26/27/30/40/41/42/43/44/45`, `SRC-1/2`,
+  `TERM-1/2`, and `SEC-1/2/3`. Section A's dependency order and exit evidence
+  live in the plan; this item is the sole umbrella owner of the combined
+  program, while the referenced IDs retain their independent slices, status,
+  and evidence.
+- [ ] **BUILD-31 — Progressive custom Styles and BrandPacks** (`todo`, after
+  the relevant BUILD-30 parity gates). Execute Section B of
+  `docs/project/brand-primitives-plan.md` through one public `style` stack:
+  inline fragments, semantic roles, minimal versioned BrandPacks, bindings and
+  constraints, the optional B4 post-positioning Treatment seam only if its
+  evidence gate passes, and built-in equivalence. Cupertino and other brand
+  documents are probes/acceptance evidence, not independent backlogs. Do not add
+  custom-backend packaging,
+  runtime design-token machinery, or another appearance resolver without a
+  separately promoted evidence-backed TODO item.
 - [ ] **BUILD-24 — Layout hints: rank/group pinning and edge-length
   preferences** (`todo`). Direct agent feedback (2026-07): an agent deleted a
   real edge because the auto-layout drew its feedback loop as a long,
@@ -133,23 +160,37 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
     `#68`, `#65`, `#64`, `#56`, `#32`, `#25`, `#11`, `#89`, `#43`, `#14`,
     `#115`, `#130`, `#100`, `#101`, `#80`, `#79`, `#18`, `#1`, `#20`, `#33`,
     `#45`, `#73`, `#76`).
-  - **Strategic new-family watchlist**: TreeView/filetree, C4/ArchiMate,
-    mindmap, swimlane, and newer requested families (Domain Storytelling,
-    Cynefin, DITAA, BPMN, RASCI, Data Pipeline, Use Case, PERT/CPM, Org Chart,
-    Info) are roadmap signals only. Route TreeView through BUILD-6 first;
-    do not expand family scope without a focused issue and evidence.
-- [ ] **BUILD-6 — New upstream Mermaid families (11.4–11.15)** (`todo`). Mermaid added kanban (11.4), radar (11.6), treemap
-  (~11.9), Venn (beta, 11.13), Ishikawa/fishbone (beta, 11.13), Wardley Maps
-  (beta, 11.14), TreeView (11.14), and Event Modeling (11.15). Upstream
-  syntax references for these already ship in the skill bundle. Prioritize
-  TreeView first: it is hierarchical, ASCII-friendly, and requested against
-  the upstream fork network (lukilabs/beautiful-mermaid#114). Treat
-  beta-grammar families (Venn, Ishikawa, Wardley) as watch-and-wait until
-  upstream syntax stabilizes. C4 belongs here too: the layout-aesthetic
-  complaint mermaid-js/mermaid#7492 (C4 overlapping labels/text overflow/
-  crossing arrows) cannot get a regression fixture until C4 is rendered — the
-  aesthetic-issue coverage audit
-  (`docs/issue-derived-test-cases.md`) defers it to this item.
+  - **Strategic family signals**: route official-but-not-native Mermaid inputs
+    such as TreeView, Swimlanes, and Cynefin through BUILD-6's manifest and
+    citizenship process. Mindmap is already native, so new Mindmap reports are
+    compatibility fixtures rather than family-scope expansion. ArchiMate and
+    requested non-Mermaid families (Domain Storytelling, DITAA, BPMN, RASCI,
+    Data Pipeline, Use Case, PERT/CPM, Org Chart, Info) remain roadmap signals
+    only; do not expand scope without a focused issue and evidence.
+- [ ] **BUILD-6 — Forward-compatible upstream Mermaid family adoption
+  (through 11.16)** (`todo`). Mermaid 11.16 exposes 30 user-facing core
+  families plus the first-party external ZenUML family; Agentic Mermaid
+  currently registers 14. The authoritative family/syntax inventory, maturity
+  caveats, adoption waves, and compatibility protocol live in
+  `docs/project/brand-primitives-plan.md`; do not maintain a second copied
+  roster here.
+  - First deliver a registry-driven recognition floor: every official public
+    header/alias is recognized and losslessly preserved or explicitly
+    diagnosed, and unknown/new headers never fall through to Flowchart.
+  - Then implement stable/high-leverage families through the citizenship
+    ratchet. TreeView remains a high-priority candidate because it is
+    hierarchical, ASCII-friendly, and requested against the fork network
+    (lukilabs/beautiful-mermaid#114); Requirement, Block, Packet, and Kanban
+    exercise complementary semantic roles and syntax forms.
+  - Treat maturity as manifest data, not a `-beta` spelling heuristic. Mermaid's
+    source has graduated Sankey, Block, Packet, Architecture, Treemap, and
+    Ishikawa while retaining legacy beta aliases; Radar, Venn, Wardley, Cynefin,
+    TreeView, and Railroad remain beta-only, Swimlanes is new with an evolving
+    syntax warning, and ZenUML uses an experimental external/lazy integration.
+  - Include 11.16's Swimlanes, Cynefin, and Railroad/EBNF/ABNF/PEG inputs in the
+    upstream-drift manifest even before native rendering. The official docs
+    navigation omits Railroad, so compare the docs, core detector registry,
+    beta policy, config schema, and first-party external registrations.
 - [ ] **BUILD-1 — Collapsible subgraphs (#7785)** (`todo`, after BUILD-23 metadata safety floor; independent of BUILD-20 harvest). Track Mermaid PR
   <https://github.com/mermaid-js/mermaid/pull/7785> (`@{ view: collapsed }`
   metadata syntax) and stay syntax-compatible. Large, but a real readability
@@ -186,7 +227,7 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   to the index. Separately document `npx skills add adewale/agentic-mermaid`;
   skills.sh has no submission API and gains visibility from real CLI installs.
 - [ ] **PARK-3 — Fork feature ports** (`parked`). Vercel themes,
-  browser/package export tweaks, C4, ArchiMate (upstream PR #34), and
+  browser/package export tweaks, ArchiMate (upstream PR #34), and
   animation remain fork-audit ideas. Promote one only with a focused issue
   and owner. (QuadrantChart was promoted to BUILD-11; fan-in grouping was
   PARK-1, promoted to BUILD-9.)
