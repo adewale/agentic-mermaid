@@ -13,7 +13,6 @@ import { parseMermaid } from '../agent/parse.ts'
 import { configWarningsForMermaid, verifyMermaid } from '../agent/verify.ts'
 import { applyOps } from '../agent/apply.ts'
 import { MUTATION_OPS_BY_FAMILY } from '../agent/mutation-ops.ts'
-import { opSignatures, type OpFamily } from '../agent/op-schema.ts'
 import { getStyle, knownStyles, styleKind, validateStyleSpec } from '../scene/style-registry.ts'
 import type { StyleInput } from '../scene/style-registry.ts'
 import { describeMermaidSource, describeMermaid } from '../agent/describe.ts'
@@ -23,8 +22,8 @@ import { renderMermaidSVG, renderMermaidASCII } from '../agent/core.ts'
 import { THEMES } from '../theme.ts'
 import { unsupportedCodeReason } from './facade.ts'
 import { rpcError, toolResult, type JsonRpcRequest, type JsonRpcResponse } from './protocol.ts'
-import { SDK_DECLARATION } from './sdk-decl.ts'
 import { PURE_COMPUTE_ANNOTATIONS, createDescribeTool, createExecuteTool, createRenderPngTool, dispatchMcpRequest, type McpServerSurface } from './tool-surface.ts'
+import { SDK_CORE_DECLARATION, createDescribeSdkTool, describeSdkPayload } from './sdk-discovery.ts'
 import type { ExecuteResult } from './sandbox.ts'
 import type { PngRasterResult } from '../shared/png-font-warnings.ts'
 
@@ -50,7 +49,7 @@ const DEFAULT_PROTOCOL_VERSION = '2025-03-26'
 
 // Hosted server identity, distinct from the local stdio server's
 // MCP_SERVER_NAME: registries and clients cache tool lists by server identity,
-// and this surface (8 tools) must never shadow the local one (3 tools).
+// and this surface (9 tools) must never shadow the local one (4 tools).
 export const HOSTED_MCP_SERVER_NAME = 'agentic-mermaid-hosted'
 
 export const MAX_SOURCE_BYTES = 64 * 1024
@@ -67,15 +66,6 @@ export const MAX_PNG_SCALE = 8
 export const LOCAL_FALLBACK_HINT = 'run the local agentic-mermaid CLI or stdio MCP server instead (see https://agentic-mermaid.dev/docs/mcp/)'
 const TOO_LARGE_HINT = `input exceeds the hosted size cap; ${LOCAL_FALLBACK_HINT}`
 
-// The structured op menu, family → op signatures with field names, embedded in
-// the declarative tool descriptions so a caller can fill an op correctly on the
-// first try (optional fields carry `?`). Enum vocabularies and exact types are
-// left to `am capabilities --json` (`families[].opFields`) and the prescriptive
-// INVALID_OP error, so the inline menu stays compact.
-const OP_MENU = Object.keys(MUTATION_OPS_BY_FAMILY)
-  .map(family => `  ${family}: ${opSignatures(family as OpFamily).join(', ')}`)
-  .join('\n')
-
 // Keep hosted discovery aligned with the style registry. This description is
 // the only built-in look menu available to clients that do not call execute.
 const BUILTIN_LOOK_NAMES = knownStyles().filter(name => {
@@ -84,7 +74,8 @@ const BUILTIN_LOOK_NAMES = knownStyles().filter(name => {
 })
 
 export const HOSTED_TOOLS = [
-  createExecuteTool({ sdkDeclaration: SDK_DECLARATION, hosted: true }),
+  createExecuteTool({ sdkDeclaration: SDK_CORE_DECLARATION, hosted: true }),
+  createDescribeSdkTool(),
   {
     name: 'render_svg',
     description: `Render a Mermaid source string to themeable SVG. Returns { ok, svg }.
@@ -149,8 +140,9 @@ Returns { ok, family, source, verify:{ ok, warnings } } on success, or
 and lists the valid ones — when an op is malformed or cannot apply. Ops apply in
 order and are all-or-nothing: the first failing op stops the batch (its position
 is \`opIndex\`) and the input is left untouched.
-Each op is { "kind": <op>, …fields }. Op kinds by family:
-${OP_MENU}`,
+Each op is { "kind": <op>, …fields }. Call \`describe_sdk\` for the detected
+family before authoring unfamiliar ops; it returns compact signatures or exact
+field types, enum values, defaults, and constraints.`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -167,8 +159,7 @@ ${OP_MENU}`,
 over an empty diagram of \`family\`. The declarative counterpart to hand-writing
 source. Returns the same envelope as \`mutate\`:
 { ok, family, source, verify } or { ok:false, family, opIndex, error }.
-Op kinds by family:
-${OP_MENU}`,
+Call \`describe_sdk\` for the family before authoring unfamiliar ops.`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -181,7 +172,7 @@ ${OP_MENU}`,
   },
 ]
 
-const INSTRUCTIONS = `agentic-mermaid hosted MCP server (stateless). Direct tools render_svg, render_ascii, render_png, verify, and describe cover plain render/verify calls cheaply and are edge-cached (layout is deterministic; there is no layout seed — the library's optional style seed only re-rolls ink of styled looks). Declarative mutate/build apply typed op lists and verify before emitting source; prefer them for straightforward structured edits. execute runs synchronous JavaScript against the typed mermaid.* SDK in an isolated on-demand sandbox for logic the ops don't express; async/await and Promise jobs are not supported, and network access is disabled. Inputs are capped at 64KB; for bigger diagrams, Code Mode artifacts, or file/URL PNG output, run the local stdio server (see https://agentic-mermaid.dev/docs/mcp/).`
+const INSTRUCTIONS = `agentic-mermaid hosted MCP server (stateless). Direct tools render_svg, render_ascii, render_png, verify, and describe cover plain render/verify calls cheaply and are edge-cached (layout is deterministic; there is no layout seed — the library's optional style seed only re-rolls ink of styled looks). describe_sdk progressively discloses one family's version-matched mutation schema. Declarative mutate/build apply typed op lists and verify before emitting source; prefer them for straightforward structured edits. execute runs synchronous JavaScript against the typed mermaid.* SDK in an isolated on-demand sandbox for logic the ops don't express; async/await and Promise jobs are not supported, and network access is disabled. Inputs are capped at 64KB; for bigger diagrams, Code Mode artifacts, or file/URL PNG output, run the local stdio server (see https://agentic-mermaid.dev/docs/mcp/).`
 
 function hostedProtocolVersion(params: unknown): string {
   const offered = (params as { protocolVersion?: unknown } | undefined)?.protocolVersion
@@ -207,6 +198,13 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
   const args = p?.arguments ?? {}
   switch (name) {
     case 'execute': return handleExecute(id, args, context)
+    case 'describe_sdk': {
+      try {
+        return toolResult(id, describeSdkPayload(args), false)
+      } catch (e) {
+        return rpcError(id, -32602, e instanceof Error ? e.message : String(e))
+      }
+    }
     case 'render_svg': return sourceTool(id, args, 'SVG_RENDER_FAILED', source => ({
       ok: true as const,
       svg: renderMermaidSVG(source, svgOptions(args)),
@@ -402,6 +400,14 @@ export function cacheKeyFor(name: string | undefined, args: Record<string, unkno
       return format === 'text' || format === 'json' || format === 'facts'
         ? { t: 'describe', source: args.source, format }
         : null
+    }
+    case 'describe_sdk': {
+      try {
+        const payload = describeSdkPayload(args) as { family: string; detail: string }
+        return { t: 'describe_sdk', family: payload.family, detail: payload.detail }
+      } catch {
+        return null
+      }
     }
     default:
       return null

@@ -942,7 +942,7 @@ describe('Workers Static Assets website contract', () => {
     expect(mcpCard.serverUrl).toBe('https://agentic-mermaid.dev/mcp')
     expect(mcpCard.wellKnownUrl).toBe('https://agentic-mermaid.dev/.well-known/mcp')
     expect(mcpCard.transport).toBe('streamable-http')
-    expect(mcpCard.tools.map((tool: any) => tool.name)).toEqual(['execute', 'render_svg', 'render_ascii', 'render_png', 'verify', 'describe', 'mutate', 'build'])
+    expect(mcpCard.tools.map((tool: any) => tool.name)).toEqual(['execute', 'describe_sdk', 'render_svg', 'render_ascii', 'render_png', 'verify', 'describe', 'mutate', 'build'])
     expect(mcpCard.tools.every((tool: any) => tool.annotations?.destructiveHint === false)).toBe(true)
     expect(mcpCard.tools.every((tool: any) => tool.parameters && typeof tool.parameters === 'object')).toBe(true)
     expect(read('.well-known/mcp.json')).toContain('"serverUrl": "https://agentic-mermaid.dev/mcp"')
@@ -1011,7 +1011,7 @@ describe('Workers Static Assets website contract', () => {
   test('MCP claims cover the hosted endpoint without a stale public harness manifest', () => {
     expect(existsSync(join(SITE, 'harnesses.json'))).toBe(false)
     const publicText = files().filter((f) => /\.(html|json|md|txt)$/.test(f)).map(read).join('\n')
-    expect(publicText).toContain('execute</code>, <code>render_png</code>, and <code>describe</code>')
+    expect(publicText).toContain('execute</code>, <code>describe_sdk</code>, <code>render_png</code>, and <code>describe</code>')
     expect(publicText).toContain('https://agentic-mermaid.dev/mcp')
     expect(publicText).toContain('https://agentic-mermaid.dev/.well-known/mcp')
     expect(publicText).toContain('https://agentic-mermaid.dev/.well-known/mcp/server-card.json')

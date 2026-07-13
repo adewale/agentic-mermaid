@@ -295,7 +295,7 @@ describe('homepage prompt eval contract', () => {
       result?: { tools: Array<{ name: string }> }
     }
     const names = new Set(list.result!.tools.map(t => t.name))
-    for (const tool of ['execute', 'render_svg', 'render_ascii', 'render_png', 'verify', 'describe']) {
+    for (const tool of ['execute', 'describe_sdk', 'render_svg', 'render_ascii', 'render_png', 'verify', 'describe']) {
       expect({ tool, listed: names.has(tool) }).toEqual({ tool, listed: true })
     }
   })

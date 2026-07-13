@@ -72,14 +72,14 @@ describe('hosted MCP handshake', () => {
 
   test('the hosted identity is distinct from the local stdio server', () => {
     // Registries and clients cache tool lists by server identity; the hosted
-    // surface (8 tools) must never shadow the local server's (3 tools).
+    // surface (9 tools) must never shadow the local server's (4 tools).
     expect(HOSTED_MCP_SERVER_NAME).not.toBe(MCP_SERVER_NAME)
   })
 
   test('tools/list exposes exactly the hosted tool surface', async () => {
     const res = await handleHostedRequest(rpc('tools/list'), makeContext())
     const names = (res?.result as any).tools.map((t: { name: string }) => t.name)
-    expect(names).toEqual(['execute', 'render_svg', 'render_ascii', 'render_png', 'verify', 'describe', 'mutate', 'build'])
+    expect(names).toEqual(['execute', 'describe_sdk', 'render_svg', 'render_ascii', 'render_png', 'verify', 'describe', 'mutate', 'build'])
     expect((res?.result as any).tools).toBe(HOSTED_TOOLS)
     for (const tool of (res?.result as any).tools) {
       expect(tool.annotations).toEqual(expect.objectContaining({
@@ -89,7 +89,7 @@ describe('hosted MCP handshake', () => {
       }))
     }
     expect((res?.result as any).tools.find((tool: any) => tool.name === 'execute').annotations.idempotentHint).toBe(false)
-    for (const name of ['render_svg', 'render_ascii', 'render_png', 'verify', 'describe', 'mutate', 'build']) {
+    for (const name of ['describe_sdk', 'render_svg', 'render_ascii', 'render_png', 'verify', 'describe', 'mutate', 'build']) {
       expect((res?.result as any).tools.find((tool: any) => tool.name === name).annotations.idempotentHint).toBe(true)
     }
   })
@@ -297,11 +297,29 @@ describe('hosted declarative mutate/build tools', () => {
     expect((await handleHostedRequest(call('build', { family: 'class' }), makeContext()))?.error?.code).toBe(-32602)
   })
 
-  test('tool descriptions embed the op menu WITH field signatures so ops are fillable first-try', () => {
+  test('tool descriptions defer family schemas to describe_sdk', () => {
+    const execute = HOSTED_TOOLS.find(t => t.name === 'execute')!
+    const mutate = HOSTED_TOOLS.find(t => t.name === 'mutate')!
     const build = HOSTED_TOOLS.find(t => t.name === 'build')!
-    // Field names inline (not just op names) — the discovery gap the eval surfaced.
-    expect(build.description).toContain('add_class(id, label?, generic?, members?, namespace?)')
-    expect(build.description).toContain('add_series(kind2, name?, values)')
+    expect(new TextEncoder().encode(execute.description).length).toBeLessThan(10_000)
+    expect(mutate.description).toContain('describe_sdk')
+    expect(build.description).toContain('describe_sdk')
+    expect(mutate.description).not.toContain('add_class(id, label?, generic?, members?, namespace?)')
+    expect(build.description).not.toContain('add_series(kind2, name?, values)')
+  })
+
+  test('describe_sdk returns compact signatures or exact family field schemas', async () => {
+    const signatures = payloadOf(await handleHostedRequest(call('describe_sdk', { family: 'xychart', detail: 'signatures' }), makeContext()))
+    expect(signatures).toEqual(expect.objectContaining({ ok: true, family: 'xychart', detail: 'signatures', isError: false }))
+    expect(signatures.signatures).toContain('add_series(kind2, name?, values)')
+
+    const fields = payloadOf(await handleHostedRequest(call('describe_sdk', { family: 'gantt' }), makeContext()))
+    expect(fields).toEqual(expect.objectContaining({ ok: true, family: 'gantt', detail: 'fields', isError: false }))
+    expect(fields.ops.add_task).toContainEqual(expect.objectContaining({ name: 'taskId', required: false, type: 'string' }))
+
+    const badFamily = await handleHostedRequest(call('describe_sdk', { family: 'nope' }), makeContext())
+    expect(badFamily?.error?.code).toBe(-32602)
+    expect(badFamily?.error?.message).toContain('family must be one of')
   })
 })
 
@@ -441,6 +459,15 @@ describe('hosted render_png', () => {
 })
 
 describe('cacheKeyFor (normalized, output-affecting arguments)', () => {
+  test('normalizes describe_sdk defaults and rejects invalid discovery requests', () => {
+    expect(cacheKeyFor('describe_sdk', { family: 'gantt' }))
+      .toEqual(cacheKeyFor('describe_sdk', { family: 'gantt', detail: 'fields', ignored: true }))
+    expect(cacheKeyFor('describe_sdk', { family: 'gantt', detail: 'signatures' }))
+      .not.toEqual(cacheKeyFor('describe_sdk', { family: 'gantt', detail: 'fields' }))
+    expect(cacheKeyFor('describe_sdk', { family: 'unknown' })).toBeNull()
+    expect(cacheKeyFor('describe_sdk', { family: 'gantt', detail: 'unknown' })).toBeNull()
+  })
+
   test('drops unknown keys so junk arguments map to the same key', () => {
     expect(cacheKeyFor('describe', { source: FLOW, nonce: 'x', foo: 1 }))
       .toEqual(cacheKeyFor('describe', { source: FLOW }))

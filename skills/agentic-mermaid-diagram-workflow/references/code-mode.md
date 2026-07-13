@@ -1,7 +1,11 @@
 # Code Mode (structured edit channel)
 
 `agentic-mermaid-mcp` exposes a primary Code Mode tool, `execute(code)`, plus
-narrow `render_png` and `describe` helpers. The server runs JavaScript in a
+narrow `describe_sdk`, `render_png`, and `describe` helpers. The initial
+`execute` declaration contains only the core SDK. Call
+`describe_sdk({ family, detail: 'fields' })` before an unfamiliar mutation to
+load that family's exact schema; use `detail: 'signatures'` for a compact menu.
+The server runs JavaScript in a
 `node:vm` sandbox with `mermaid.*` as a global; the TypeScript declaration in
 the MCP prompt is for guidance, not transpilation. SDK-returned diagrams are
 read-only in Code Mode; use `mermaid.mutate(...)` for structured edits instead

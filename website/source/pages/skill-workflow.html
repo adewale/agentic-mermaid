@@ -53,7 +53,7 @@ verify &rarr; { "ok": true, "warnings": [] }   <span class="ok">&#10003; shipped
 
   <hr>
 
-  <blockquote>The local stdio MCP exposes <code>execute</code>, <code>render_png</code>, and <code>describe</code>. The workflow skill performs <code>parse</code>, <code>narrow</code>, <code>mutate</code>, and <code>verify</code> inside trusted local Code Mode <code>execute</code>. The hosted MCP at <code>https://agentic-mermaid.dev/mcp</code> is a bounded zero-install surface: it includes <code>execute</code> in a networkless Dynamic Worker isolate, direct render/verify/describe tools, and declarative <code>mutate</code>/<code>build</code> tools for structured edits.</blockquote>
+  <blockquote>The local stdio MCP exposes <code>execute</code>, <code>describe_sdk</code>, <code>render_png</code>, and <code>describe</code>. The workflow skill performs <code>parse</code>, <code>narrow</code>, <code>mutate</code>, and <code>verify</code> inside trusted local Code Mode <code>execute</code>; <code>describe_sdk</code> supplies one family's mutation schema on demand. The hosted MCP at <code>https://agentic-mermaid.dev/mcp</code> is a bounded zero-install surface: it includes <code>execute</code> in a networkless Dynamic Worker isolate, the same schema-discovery tool, direct render/verify/describe tools, and declarative <code>mutate</code>/<code>build</code> tools for structured edits.</blockquote>
 </main>
 
 <script src="shader-mark.js"></script>

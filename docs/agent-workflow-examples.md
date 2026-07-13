@@ -16,7 +16,7 @@ What it demonstrates:
 - CLI path: `am mutate auth-flow.mmd --ops ops.json --json` applies the same mutation batch and verifies before emitting source.
 - The example asserts both channels produce byte-identical Mermaid source for multiple non-trivial cases: an Auth Flow with decisions/feedback loops and an Order Domain ER diagram.
 
-This is the intended local equivalence story: MCP Code Mode and CLI/library can create the same diagram. The local non-Code-Mode helpers remain narrow (`render_png`, `describe`); the hosted `/mcp` endpoint additionally offers direct pure render/verify/describe tools plus declarative `mutate`/`build` for bounded structured edits.
+This is the intended local equivalence story: MCP Code Mode and CLI/library can create the same diagram. The local non-Code-Mode helpers remain narrow (`describe_sdk`, `render_png`, `describe`); `describe_sdk` returns one family's version-matched mutation schema on demand. The hosted `/mcp` endpoint additionally offers direct pure render/verify/describe tools plus declarative `mutate`/`build` for bounded structured edits.
 
 ## Improve a diagram through an agent loop
 

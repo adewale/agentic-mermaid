@@ -8,8 +8,8 @@ import { join } from 'node:path'
 import { URL } from 'node:url'
 import { executeInSandbox } from './sandbox.ts'
 import { reply, rpcError as error, type JsonRpcRequest, type JsonRpcResponse } from './protocol.ts'
-import { SDK_DECLARATION } from './sdk-decl.ts'
 import { createDescribeTool, createExecuteTool, createRenderPngTool, dispatchMcpRequest, type McpServerSurface } from './tool-surface.ts'
+import { SDK_CORE_DECLARATION, createDescribeSdkTool, describeSdkPayload } from './sdk-discovery.ts'
 import { createArtifactStore, type ArtifactRecord, type ArtifactStore } from './artifacts.ts'
 import { renderMermaidPNG } from '../agent/png.ts'
 import { describeMermaidSource, describeMermaid } from '../agent/describe.ts'
@@ -52,7 +52,8 @@ class HttpStatusError extends Error {
 }
 
 export const LOCAL_TOOLS = [
-  createExecuteTool({ sdkDeclaration: SDK_DECLARATION }),
+  createExecuteTool({ sdkDeclaration: SDK_CORE_DECLARATION }),
+  createDescribeSdkTool(),
   createRenderPngTool('local'),
   createDescribeTool(),
 ]
@@ -60,7 +61,7 @@ export const LOCAL_TOOLS = [
 let defaultArtifactStore: ArtifactStore | undefined
 const MCP_NARROWERS = BUILTIN_FAMILY_METADATA.map(f => f.narrower).join('/')
 
-const LOCAL_INSTRUCTIONS = `agentic-mermaid Code Mode server. Primary tool execute runs synchronous JavaScript against the typed mermaid.* SDK in a sandbox; async/await and Promise jobs are not supported. render_png and describe are narrow helpers. render_png can return base64, managed file paths, or managed URLs when the transport config provides an artifact store. There is no mutate tool on this server: structured edits go through the SDK's mermaid.mutate(...) inside execute, which is overloaded by family; narrow via ${MCP_NARROWERS}. Every built-in renderable family ships a typed path when the body narrows; only opaque fallback bodies are source-level only. Layout is deterministic; there is no layout seed (the optional style seed only re-rolls ink of styled looks, never geometry).`
+const LOCAL_INSTRUCTIONS = `agentic-mermaid Code Mode server. Primary tool execute runs synchronous JavaScript against the typed mermaid.* SDK in a sandbox; async/await and Promise jobs are not supported. describe_sdk progressively discloses one family's version-matched mutation schema; call it before authoring unfamiliar ops. render_png and describe are narrow helpers. render_png can return base64, managed file paths, or managed URLs when the transport config provides an artifact store. There is no mutate tool on this server: structured edits go through the SDK's mermaid.mutate(...) inside execute; narrow via ${MCP_NARROWERS}. Every built-in renderable family ships a typed path when the body narrows; only opaque fallback bodies are source-level only. Layout is deterministic; there is no layout seed (the optional style seed only re-rolls ink of styled looks, never geometry).`
 
 const LOCAL_SURFACE: McpServerSurface<McpRequestContext> = {
   protocolVersion: PROTOCOL_VERSION,
@@ -78,6 +79,14 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
   const p = params as { name?: string; arguments?: Record<string, unknown> } | undefined
   const name = p?.name
   const args = p?.arguments ?? {}
+  if (name === 'describe_sdk') {
+    try {
+      const payload = describeSdkPayload(args)
+      return reply(id, { content: [{ type: 'text', text: JSON.stringify(payload) }], isError: false })
+    } catch (e) {
+      return error(id, -32602, e instanceof Error ? e.message : String(e))
+    }
+  }
   if (name === 'execute') {
     const code = (args as { code?: string }).code
     const requestedTimeoutMs = (args as { timeoutMs?: number }).timeoutMs
