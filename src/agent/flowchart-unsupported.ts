@@ -160,7 +160,7 @@ function malformedFlowchartStatement(statement: string): { syntax: string; messa
   // opaque; both already have dedicated warnings above — skip to avoid noise.
   if (/(?:^|[\s;&])[\w-]+@\s*\{/.test(statement) || /`/.test(statement)) return null
 
-  if (/[A-Za-z0-9_\]\)\}]\s*(?:-->|---|-\.->|==>|~~~|--o|--x)\s*$/.test(statement)) {
+  if (/[A-Za-z0-9_\]\)\}]\s*(?:-->|---|-\.->|==>|~~~|--o|--x)(?:\s*\|[^|]*\|)?\s*$/.test(statement)) {
     return { syntax: 'flowchart_dangling_edge', message: 'Dangling edge operator has no target; Mermaid drops the edge during tolerant parsing. Add the endpoint or remove the operator.' }
   }
 
@@ -272,8 +272,10 @@ function isUnsupportedEdgeMetadataStatement(statement: string, edgeIds: Set<stri
 
 function explicitlyDeclaredNodeIds(statements: FlowchartStatement[]): Set<string> {
   const ids = new Set<string>()
-  const shaped = /(?:^|(?:-->|---|-\.->|==>|~~~|--o|--x)\s*)([A-Za-z_][\w-]*)\s*(?=\[|\(|\{)/g
+  const shaped = /(?:^|\s)([A-Za-z_][\w-]*)\s*(?=\[|\(|\{)/g
   for (const { text } of statements) {
+    const bare = text.trim().match(/^([A-Za-z_][\w-]*)$/)
+    if (bare) ids.add(bare[1]!)
     let match: RegExpExecArray | null
     while ((match = shaped.exec(text)) !== null) ids.add(match[1]!)
   }
@@ -282,14 +284,17 @@ function explicitlyDeclaredNodeIds(statements: FlowchartStatement[]): Set<string
 
 function hasLikelyTypoEndpoint(statement: string, explicitNodeIds: Set<string>): boolean {
   const arrow = String.raw`(?:-->|---|-\.->|==>|~~~|--o|--x)`
-  const shaped = String.raw`[\w-]+\s*(?:\[[^\]]*\]|\([^)]*\)|\{[^}]*\})`
-  const bare = String.raw`[A-Za-z_][\w-]*`
-  const forward = statement.match(new RegExp(`^(${shaped})\\s*${arrow}\\s*(${bare})\\s*$`))
-  const reverse = statement.match(new RegExp(`^(${bare})\\s*${arrow}\\s*(${shaped})\\s*$`))
-  const candidate = forward?.[2] ?? reverse?.[1]
-  if (!candidate || candidate.length < 4) return false
-  const endpointId = (forward?.[1] ?? reverse?.[2] ?? '').match(/^[\w-]+/)?.[0]
-  return [...explicitNodeIds].some(id => id !== endpointId && oneEditApart(id.toLowerCase(), candidate.toLowerCase()))
+  const endpoint = String.raw`([A-Za-z_][\w-]*)(\s*(?:\[[^\]]*\]|\([^)]*\)|\{[^}]*\}))?`
+  const match = statement.match(new RegExp(`^\\s*${endpoint}\\s*${arrow}\\s*${endpoint}\\s*$`))
+  if (!match) return false
+  const endpoints = [
+    { id: match[1]!, shaped: Boolean(match[2]) },
+    { id: match[3]!, shaped: Boolean(match[4]) },
+  ]
+  return endpoints.some(({ id, shaped }) => {
+    if (shaped || id.length < 4 || explicitNodeIds.has(id)) return false
+    return [...explicitNodeIds].some(declared => oneEditApart(declared.toLowerCase(), id.toLowerCase()))
+  })
 }
 
 function oneEditApart(a: string, b: string): boolean {

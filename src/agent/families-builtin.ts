@@ -24,7 +24,7 @@ import { parseSequenceBody, renderSequence, mutateSequence } from './sequence-bo
 import { parseTimelineBody, renderTimeline, mutateTimeline } from './timeline-body.ts'
 import { parseJourneyBody, renderJourney, mutateJourney, verifyJourney } from './journey-body.ts'
 import { walkJourneyLines, type JourneyParseIssue } from '../journey/parse-core.ts'
-import { parseArchitectureBody, renderArchitecture, mutateArchitecture, verifyArchitecture } from './architecture-body.ts'
+import { parseArchitectureBody, renderArchitecture, mutateArchitecture, verifyArchitecture, verifyOpaqueArchitectureIcons } from './architecture-body.ts'
 import { parseXyChartBody, renderXyChart, mutateXyChart, verifyXyChart } from './xychart-body.ts'
 import { parsePieBody, renderPie, mutatePie, verifyPie } from './pie-body.ts'
 import { parseQuadrantBody, renderQuadrant, mutateQuadrant, verifyQuadrant } from './quadrant-body.ts'
@@ -939,7 +939,9 @@ registerFamily({
   // BUILD-17: architecture is structured-when-narrowed. The verify hook covers
   // the structured body; opaque fallbacks (accTitle/accDescr, {group} boundary
   // edges, unmodeled syntax) keep the universal label-extraction path.
-  verify: (body, opts) => body.kind === 'architecture' ? verifyArchitecture(body, opts) : [],
+  verify: (body, opts) => body.kind === 'architecture'
+    ? verifyArchitecture(body, opts)
+    : body.kind === 'opaque' ? verifyOpaqueArchitectureIcons(body.source) : [],
   ...structuredFamilyHooks('architecture', {
     headerOk: h => /^architecture(?:-beta)?\s*$/i.test(h),
     parseBody: parseArchitectureBody, serialize: renderArchitecture, mutate: mutateArchitecture,

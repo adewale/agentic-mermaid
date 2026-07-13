@@ -1,20 +1,20 @@
 // Stateless Streamable HTTP transport for the hosted MCP server.
 //
 // One endpoint: POST /mcp with a JSON-RPC request (or 2025-03-26 batch),
-// answered as application/json. No sessions, no SSE stream — every tool is a
-// pure function of its arguments. GET/DELETE return 405 as the Streamable
-// HTTP spec allows for servers that don't offer a server-initiated stream.
+// answered as application/json. No sessions and no SSE stream. GET/DELETE
+// return 405 as the Streamable HTTP spec allows for servers that don't offer
+// a server-initiated stream.
 //
-// Layout is deterministic, so successful tools/call results are cached in the
-// (injected) Cache API keyed on a hash of the canonicalized call — repeat
-// renders skip compute and repeat execute calls skip the dynamic isolate.
+// Successful deterministic pure-tool results are cached privately in the
+// injected Cache API. Code Mode execute is deliberately excluded because its
+// sandbox exposes time and randomness.
 //
 // Observability: every HTTP request emits exactly ONE structured wide event
 // (McpRequestEvent) through the injectable onEvent hook — console.log JSON by
 // default, which Cloudflare Workers Logs ingests as queryable fields.
 
 import { handleHostedRequest, cacheKeyFor, LOCAL_FALLBACK_HINT, SUPPORTED_PROTOCOL_VERSIONS, type HostedMcpContext } from '../../src/mcp/hosted-server.ts'
-import { reply, rpcError, type JsonRpcRequest, type JsonRpcResponse } from '../../src/mcp/protocol.ts'
+import { preserveExactJsonRpcIds, reply, rpcError, stringifyJsonRpc, type ExactJsonRpcId, type JsonRpcRequest, type JsonRpcResponse } from '../../src/mcp/protocol.ts'
 import { readCapped } from './execute-loader.ts'
 
 export const MAX_MCP_BODY_BYTES = 128 * 1024
@@ -54,6 +54,8 @@ export interface McpItemEvent {
   is_error: boolean
   /** Structured tool error code (e.g. SOURCE_TOO_LARGE) or JSON-RPC error code. */
   error_code: string | number | null
+  /** Whether this item had a deterministic private-cache key. */
+  cache_eligible: boolean
   cache_hit: boolean
   /** Dynamic Worker entrypoint calls made for this item; 0 if none started. */
   loader_attempts: 0 | 1 | 2
@@ -143,11 +145,8 @@ function corsHeadersFor(request: Request): Record<string, string> {
   return { vary: 'Origin', ...CORS_BASE }
 }
 
-interface ExactJsonRpcId { sentinel: string; raw: string }
-
 function json(status: number, payload: unknown, cors: Record<string, string>, exactIds: ExactJsonRpcId[] = [], extraHeaders: Record<string, string> = {}): Response {
-  let body = JSON.stringify(payload)
-  for (const id of exactIds) body = body.replaceAll(JSON.stringify(id.sentinel), id.raw)
+  const body = stringifyJsonRpc(payload, exactIds)
   return new Response(body, {
     status,
     headers: {
@@ -160,60 +159,9 @@ function json(status: number, payload: unknown, cors: Record<string, string>, ex
   })
 }
 
-/** Protect unsafe integer ids before JSON.parse coerces them through Number.
- * Only the top-level JSON-RPC id of a single request or direct batch item is
- * rewritten; identically named fields inside params remain ordinary data. */
-export function preserveUnsafeJsonRpcIds(body: string): { body: string; ids: ExactJsonRpcId[] } {
-  const replacements: Array<ExactJsonRpcId & { start: number; end: number }> = []
-  const stack: Array<'{' | '['> = []
-  let i = 0
-  const stringEnd = (start: number): number => {
-    let j = start + 1
-    while (j < body.length) {
-      if (body[j] === '\\') { j += 2; continue }
-      if (body[j] === '"') return j + 1
-      j++
-    }
-    return j
-  }
-  while (i < body.length) {
-    const ch = body[i]!
-    if (ch === '"') {
-      const end = stringEnd(i)
-      let key: unknown
-      try { key = JSON.parse(body.slice(i, end)) } catch { i = end; continue }
-      const rpcObject = stack.length === 1 && stack[0] === '{'
-        || stack.length === 2 && stack[0] === '[' && stack[1] === '{'
-      let cursor = end
-      while (/\s/.test(body[cursor] ?? '')) cursor++
-      if (rpcObject && key === 'id' && body[cursor] === ':') {
-        cursor++
-        while (/\s/.test(body[cursor] ?? '')) cursor++
-        const number = body.slice(cursor).match(/^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?/)?.[0]
-        if (number && /^-?\d+$/.test(number)) {
-          try {
-            const value = BigInt(number)
-            if (value > BigInt(Number.MAX_SAFE_INTEGER) || value < BigInt(Number.MIN_SAFE_INTEGER)) {
-              let sentinel = `__agentic_mermaid_exact_id_${replacements.length}__`
-              while (body.includes(sentinel)) sentinel += '_'
-              replacements.push({ sentinel, raw: number, start: cursor, end: cursor + number.length })
-            }
-          } catch { /* JSON.parse reports malformed numbers */ }
-        }
-      }
-      i = end
-      continue
-    }
-    if (ch === '{' || ch === '[') stack.push(ch)
-    else if (ch === '}' || ch === ']') stack.pop()
-    i++
-  }
-  let protectedBody = body
-  for (const replacement of replacements.slice().reverse()) {
-    protectedBody = protectedBody.slice(0, replacement.start) + JSON.stringify(replacement.sentinel) + protectedBody.slice(replacement.end)
-  }
-  return { body: protectedBody, ids: replacements.map(({ sentinel, raw }) => ({ sentinel, raw })) }
-}
+// Backward-compatible named export retained for the hosted transport tests and
+// any source consumers that imported the first implementation directly.
+export const preserveUnsafeJsonRpcIds = preserveExactJsonRpcIds
 
 function sortKeys(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(sortKeys)
@@ -233,6 +181,7 @@ function newItemEvent(): McpItemEvent {
     tool: null,
     is_error: false,
     error_code: null,
+    cache_eligible: false,
     cache_hit: false,
     loader_attempts: 0,
     configured_cpu_limit_ms: null,
@@ -318,13 +267,14 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
   }
 
   async function handleCachedToolCall(req: JsonRpcRequest, item: McpItemEvent, itemContext: HostedMcpContext): Promise<JsonRpcResponse | null> {
-    // Key on the normalized, output-affecting arguments (not raw params): junk
-    // or out-of-range args cannot bust the cache or force recompute. A null
-    // canonical form means "not cacheable" — run the request directly (it will
-    // error, and errors are not cached anyway).
+    // Key eligible pure tools on their complete raw argument object. Lookup is
+    // pre-dispatch, so dropping even an apparently ignored argument could let a
+    // later invalid request collide with a warm valid result and skip its
+    // validation. A null form means "not cacheable" (including execute).
     const p = req.params as { name?: string; arguments?: Record<string, unknown> } | undefined
     const canonical = cacheKeyFor(p?.name, p?.arguments ?? {})
     if (canonical === null) return handleHostedRequest(req, itemContext)
+    item.cache_eligible = true
     const key = new Request(`https://mcp-cache.agentic-mermaid.dev/${encodeURIComponent(cacheVersion)}/${await sha256Hex(JSON.stringify(sortKeys(canonical)))}`)
     try {
       const hit = await cache!.match(key)
@@ -391,7 +341,7 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
     }
     event.body_bytes = new TextEncoder().encode(body).length
     let parsed: unknown
-    const exact = preserveUnsafeJsonRpcIds(body)
+    const exact = preserveExactJsonRpcIds(body)
     try {
       parsed = JSON.parse(exact.body)
     } catch (e) {
@@ -464,10 +414,12 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
         : response.status < 400 ? 'success' : 'transport_error'
       const headers = new Headers(response.headers)
       const toolItems = event.items.filter(item => item.tool !== null)
+      const eligibleItems = toolItems.filter(item => item.cache_eligible)
       const cacheStatus = !cache ? 'disabled'
         : toolItems.length === 0 ? 'bypass'
-          : toolItems.every(item => item.cache_hit) ? 'hit'
-            : toolItems.some(item => item.cache_hit) ? 'mixed' : 'miss'
+          : eligibleItems.length === 0 ? 'bypass'
+            : eligibleItems.every(item => item.cache_hit) && eligibleItems.length === toolItems.length ? 'hit'
+              : eligibleItems.some(item => item.cache_hit) ? 'mixed' : 'miss'
       headers.set('x-agentic-mermaid-compute-cache', cacheStatus)
       return new Response(response.body, { status: response.status, statusText: response.statusText, headers })
     } catch (e) {

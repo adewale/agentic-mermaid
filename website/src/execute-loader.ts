@@ -6,8 +6,8 @@
 // expression wrap parse?" is answered by attempting to start the
 // expression-form isolate — a SyntaxError startup failure falls back to a
 // statement-form isolate. Statement-form code therefore costs one failed
-// isolate attempt; identical repeat requests are absorbed by the /mcp
-// response cache before reaching the loader at all.
+// isolate attempt. Execute responses deliberately bypass the /mcp compute
+// cache because Code Mode exposes time and randomness.
 //
 // Isolates are keyed by wrap variant + a hash of the code + a hash of the
 // harness itself: the Worker Loader contract is that one ID always maps to
@@ -45,8 +45,8 @@ async function sha256Hex(text: string): Promise<string> {
 
 /**
  * Identifies the deployed compute: package version + harness-content hash.
- * Used in isolate IDs and as the /mcp response-cache version so both
- * invalidate when the harness/SDK changes without a version bump.
+ * Used in isolate IDs so warm Dynamic Workers invalidate when the harness/SDK
+ * changes without a version bump.
  */
 export async function deployTag(harnessSource: string): Promise<string> {
   return `v${pkg.version}-${(await sha256Hex(harnessSource)).slice(0, 16)}`

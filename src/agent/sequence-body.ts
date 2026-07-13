@@ -217,19 +217,46 @@ function parseTypedFragment(lines: string[]): SequenceFragment | null {
   }
 }
 
-/** Messages in interaction order, including typed alt/opt/loop/par branches. */
-export function sequenceMessages(body: SequenceBody): SequenceMessage[] {
-  if (!body.statements) return [...body.messages]
-  const out: SequenceMessage[] = []
+export type SequenceMessageContext =
+  | { scope: 'top-level'; message: SequenceMessage }
+  | {
+    scope: 'fragment'
+    message: SequenceMessage
+    fragmentIndex: number
+    branchIndex: number
+    fragmentKind: SequenceFragment['fragmentKind']
+    fragmentLabel?: string
+    branchLabel?: string
+  }
+
+/** Preserve control-flow location while exposing messages for read-back. */
+export function sequenceMessageContexts(body: SequenceBody): SequenceMessageContext[] {
+  if (!body.statements) return body.messages.map(message => ({ scope: 'top-level', message }))
+  const out: SequenceMessageContext[] = []
+  let fragmentIndex = 0
   for (const statement of body.statements) {
     if (statement.kind === 'message') {
       const message = body.messages[statement.ref]
-      if (message) out.push(message)
+      if (message) out.push({ scope: 'top-level', message })
     } else if (statement.kind === 'fragment') {
-      for (const branch of statement.fragment.branches) out.push(...branch.messages)
+      statement.fragment.branches.forEach((branch, branchIndex) => {
+        for (const message of branch.messages) out.push({
+          scope: 'fragment', message, fragmentIndex, branchIndex,
+          fragmentKind: statement.fragment.fragmentKind,
+          ...(statement.fragment.label ? { fragmentLabel: statement.fragment.label } : {}),
+          ...(branch.label ? { branchLabel: branch.label } : {}),
+        })
+      })
+      fragmentIndex++
     }
   }
   return out
+}
+
+/** Messages in rendered interaction order. Use sequenceMessageContexts when
+ * branch/fragment semantics matter. */
+export function sequenceMessages(body: SequenceBody): SequenceMessage[] {
+  return sequenceMessageContexts(body).map(context => context.message)
 }
 
 
@@ -458,7 +485,13 @@ export function mutateSequence(body: SequenceBody, op: SequenceMutationOp): Resu
       const label = normalizeFragmentLabel(op.label)
       if (!label.ok) return label
       delete target.statement.fragment.rawLines
-      if (label.value) branch.value.label = label.value
+      if (op.branchIndex === 0) {
+        // Mermaid spells the first branch label on the fragment opener (`alt x`),
+        // not on an `else`/`and` continuation line.
+        if (label.value) target.statement.fragment.label = label.value
+        else delete target.statement.fragment.label
+        delete branch.value.label
+      } else if (label.value) branch.value.label = label.value
       else delete branch.value.label
       break
     }

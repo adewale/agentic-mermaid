@@ -604,9 +604,28 @@ function stripStringsAndComments(code: string): string {
     return i
   }
 
+  const skipRegex = (start: number): number => {
+    let i = start + 1
+    let inClass = false
+    while (i < code.length) {
+      if (code[i] === '\\') { i += 2; continue }
+      if (code[i] === '[') { inClass = true; i++; continue }
+      if (code[i] === ']' && inClass) { inClass = false; i++; continue }
+      if (code[i] === '/' && !inClass) {
+        i++
+        while (/[A-Za-z]/.test(code[i] ?? '')) i++
+        return i
+      }
+      if (code[i] === '\n' || code[i] === '\r') return i
+      i++
+    }
+    return i
+  }
+
   const scanCode = (start: number, stopAtTemplateBrace: boolean): number => {
     let braces = 0
     let i = start
+    let expectsExpression = true
     while (i < code.length) {
       const ch = code[i]!
       const next = code[i + 1]
@@ -621,16 +640,34 @@ function stripStringsAndComments(code: string): string {
         i = Math.min(code.length, i + 2)
         continue
       }
-      if (ch === '"' || ch === "'") { i = skipQuoted(i, ch); continue }
-      if (ch === '`') { i = scanTemplate(i + 1); continue }
-      if (ch === '{') { braces++; copy(i++); continue }
+      if (ch === '/' && expectsExpression) { i = skipRegex(i); expectsExpression = false; continue }
+      if (ch === '"' || ch === "'") { i = skipQuoted(i, ch); expectsExpression = false; continue }
+      if (ch === '`') { i = scanTemplate(i + 1); expectsExpression = false; continue }
+      if (ch === '{') { braces++; copy(i++); expectsExpression = true; continue }
       if (ch === '}') {
         if (stopAtTemplateBrace && braces === 0) return i + 1
         braces = Math.max(0, braces - 1)
         copy(i++)
+        expectsExpression = false
+        continue
+      }
+      if (/\s/.test(ch)) { copy(i++); continue }
+      if (/[A-Za-z_$]/.test(ch)) {
+        const begin = i
+        while (/[A-Za-z0-9_$]/.test(code[i] ?? '')) copy(i++)
+        const word = code.slice(begin, i)
+        expectsExpression = /^(?:return|throw|case|delete|void|typeof|new|in|of|yield|await|else|do)$/.test(word)
+        continue
+      }
+      if (/\d/.test(ch)) {
+        while (/[A-Za-z0-9_.]/.test(code[i] ?? '')) copy(i++)
+        expectsExpression = false
         continue
       }
       copy(i++)
+      if (ch === ')' || ch === ']') expectsExpression = false
+      else if (ch === '.') expectsExpression = false
+      else if (ch === '/' || /[([{,;:?=+\-*%!&|^~<>]/.test(ch)) expectsExpression = true
     }
     return i
   }

@@ -40,7 +40,7 @@ handling an unfamiliar family can request compact signatures or exact fields.
 
 The hosted endpoint puts the sandbox behind the MCP server, so an ordinary MCP
 client gets Code Mode without shipping its own execution environment. Each
-uncached `execute` runs in a Cloudflare Dynamic Worker configured with an empty
+hosted `execute` runs in a Cloudflare Dynamic Worker configured with an empty
 environment, `globalOutbound: null`, no subrequests, and a bounded CPU budget.
 The isolate configuration is the security boundary. The hardened SDK facade is
 kept for behavioural parity with the local server.
@@ -187,11 +187,13 @@ The local and hosted sandboxes have deliberate constraints:
   persistent workspace.
 - Local `node:vm` is hardened but is not an operating-system or container
   security boundary. It is a local tool for trusted use.
-- Hosted execution creates a billable Dynamic Worker for an uncached code
-  string. Direct tools and response caching keep routine work off that path.
-- Hosted `execute` caches by exact code. A script that reads time or randomness
-  can have its first result retained for the cache lifetime, so hosted Code
-  Mode is intended for deterministic SDK workflows.
+- Hosted execution contacts a billable Dynamic Worker on every call. Worker
+  Loader IDs are content-addressed so identical code can reuse a warm isolate,
+  while direct tools and their private compute cache keep routine work off that
+  path.
+- Hosted `execute` responses are never compute-cached: Code Mode exposes time
+  and randomness, so retaining the first result would violate its observable
+  contract.
 - Local timeouts use wall-clock time, while hosted limits use CPU time. Warm
   hosted isolates can retain module globals, hosted output is capped, and
   hosted PNG bytes are not part of the cross-runtime byte-determinism contract.

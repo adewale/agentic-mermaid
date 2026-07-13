@@ -51,7 +51,8 @@ The three hosted-only pure render/verify tools exist for cost, not philosophy:
 locally, `execute` is free, so Code Mode stays the single entry point
 (`docs/mcp-code-mode-rationale.md` still holds). Hosted, every `execute`
 spins/bills a dynamic Worker, so the common render/verify paths get direct
-tools that cost one ordinary Worker invocation and are edge-cacheable. The
+tools that cost one ordinary Worker invocation and are eligible for the private
+compute cache. The
 `mutate`/`build` tools are the deliberate structured-edit exception: they give
 weak clients a verified op-list path without asking them to write JavaScript,
 while still funneling through the same typed mutation core. The implementations
@@ -75,8 +76,8 @@ Design (API per <https://developers.cloudflare.com/dynamic-workers/api-reference
     `sandbox.ts` makes is decided by the loader itself: the parent starts the
     expression-form isolate first and falls back to a statement-form isolate
     when startup fails with a SyntaxError. Statement-form code costs one
-    failed isolate attempt; identical repeats never reach the loader thanks
-    to the response cache.
+    failed isolate attempt. Execute responses always reach the loader because
+    arbitrary Code Mode results are not deterministic.
   - `globalOutbound: null` — the isolate cannot `fetch()` or `connect()`
     at all; `env` is empty, so there is nothing to reach or leak.
   - `getEntrypoint(null, { limits: { cpuMs: min(timeoutMs, 30_000),
@@ -150,7 +151,7 @@ Post-review hardening (external audit, round 2):
 multi-agent verification found no correctness/poisoning bug; these are the
 low-severity refinements it surfaced):**
 
-- The normalization covers **arguments**, not the `source`/`code` payload,
+- Cache keys retain the complete **argument object** and the source payload
   which is keyed **verbatim by design**. Keying on the raw payload is what
   makes a cached response provably correspond to what that exact input
   renders; canonicalizing the payload (e.g. stripping Mermaid comments) is
@@ -160,11 +161,10 @@ low-severity refinements it surfaced):**
   insignificant payload bytes (comments/trailing whitespace). That residual is
   bounded by the **WAF rate limit** (the actual abuse backstop; see
   `website/README.md`), not by the cache.
-- `execute` is cached on `code` alone. Code Mode is intended for deterministic
-  SDK workflows; a non-deterministic body (`Date`/`Math.random`) has its first
-  result frozen for the cache TTL. This is pre-existing — `execute` results
-  were always cached — and inherent to caching arbitrary code; it is not a
-  cross-caller integrity issue (identical `code` → identical key by definition).
+- `execute` is not response-cache eligible. Code Mode exposes `Date` and
+  `Math.random`, so freezing the first result would violate the observable
+  runtime contract. Content-addressed Worker Loader IDs can still reuse a warm
+  isolate without reusing a prior response.
 - The response cache is a **cost optimization for legitimate repeat traffic**,
   not the abuse control. The WAF rate-limiting rule on `POST /mcp` is the
   primary defense against a determined attacker and remains a launch
@@ -233,7 +233,8 @@ target, `userModuleSources` rejection, the log cap).
 ## Transport: stateless Streamable HTTP
 
 Unchanged from the original plan and still the cheapest correct choice — the
-tools are pure functions of their inputs:
+transport is request/response and needs no server session; deterministic pure
+tools are cache eligible, while Code Mode is explicitly not assumed pure:
 
 - Single `POST /mcp` accepting JSON-RPC, responding `application/json`.
   No sessions, no SSE stream, `GET /mcp` → 405, notifications → 202.
@@ -241,7 +242,7 @@ tools are pure functions of their inputs:
 - Protocol version negotiated from a known-good list (the core currently pins
   `2024-11-05`; Streamable HTTP clients offer `2025-03-26`+).
 - **Response caching:** eligible deterministic `tools/call` responses
-  (`execute`, `describe_sdk`, render, verify, and describe) are cached in the
+  (`describe_sdk`, render, verify, and describe) are cached in the
   Workers Cache API keyed on SHA-256 of `(tool, canonicalized arguments)`;
   declarative `mutate`/`build` responses remain uncached. Repeat
   requests skip compute entirely; for `execute` they also skip the dynamic
@@ -257,9 +258,9 @@ tools are pure functions of their inputs:
 
 | Meter | Included | Overage | Our exposure |
 |---|---|---|---|
-| Worker requests | 10 M/month | $0.30/M | every `/mcp` call + one internal request per uncached `execute` |
+| Worker requests | 10 M/month | $0.30/M | every `/mcp` call + one internal request per `execute` |
 | CPU time | 30 M ms/month | $0.02/M ms | renders are ms-scale; `execute` capped at 30 s by `cpuMs` |
-| Unique dynamic Workers | 1,000/month | $0.002/Worker/day | one per **unique** `execute` code string per day (hash-keyed + private Workers Cache API compute cache; retries and repeats dedupe) |
+| Unique dynamic Workers | 1,000/month | $0.002/Worker/day | content-addressed by **unique** `execute` code string + wrapper + harness; repeat calls reuse the loader identity but still execute |
 
 Levers that keep this near the plan's $5/month floor: private server-side
 compute caching of deterministic results, code-hash isolate reuse, parent-side rejection of

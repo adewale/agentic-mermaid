@@ -89,6 +89,7 @@ The design docs split into two tiers — **system** (how the engine works, cross
 | [`mutation-testing.md`](./mutation-testing.md) | Mutation lanes, survivor handling, and adequacy evidence. |
 | [`project/divergences.md`](./project/divergences.md) | Deliberate divergences and guardrails. |
 | [`project/lessons-learned.md`](./project/lessons-learned.md) | Evergreen engineering lessons distilled from the archived fork narrative. |
+| [`project/agent-interface-contract-audit-2026-07.md`](./project/agent-interface-contract-audit-2026-07.md) | PR #162 defect provenance, review of PRs #157/#160, testing root causes, and recurrence controls. |
 | [`contributing/lessons-learned.md`](./contributing/lessons-learned.md) | Dated contributor process lessons (newest first). |
 | [`project/dogfooding-docs-strategy.md`](./project/dogfooding-docs-strategy.md) | How we render and pin our own docs with our own tools. |
 | [`issue-derived-test-cases.md`](./issue-derived-test-cases.md) | Issue-derived regression coverage map. |

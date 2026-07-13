@@ -348,6 +348,19 @@ describe('installed tarball — mcp bin', () => {
     })
   }, RUN_TIMEOUT_MS)
 
+  fn('stdio preserves unsafe numeric JSON-RPC id tokens exactly', () => {
+    expect(haveConsumer).toBe(true)
+    const ids = ['9007199254740993', '9007199254740993.0', '9.007199254740993e15']
+    const input = ids.map(id => `{"jsonrpc":"2.0","id":${id},"method":"ping"}`).join('\n') + '\n'
+    const r = spawnSync(NODE!, [mcpBin], {
+      cwd: work, input, encoding: 'utf8', timeout: RUN_TIMEOUT_MS,
+    })
+    expect({ status: r.status, stderr: r.stderr }).toEqual({ status: 0, stderr: '' })
+    const output = r.stdout.split('\n').filter(Boolean)
+    expect(output).toHaveLength(ids.length)
+    for (const id of ids) expect(output.some(line => line.includes(`"id":${id}`))).toBe(true)
+  }, RUN_TIMEOUT_MS)
+
   fn('generated JSON-RPC over stdio yields well-formed responses and never crashes', () => {
     expect(haveConsumer).toBe(true)
     const codes = fc.sample(codeArb, 18)

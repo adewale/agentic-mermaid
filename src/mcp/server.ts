@@ -7,8 +7,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { URL } from 'node:url'
 import { executeInSandbox } from './sandbox.ts'
-import { reply, rpcError as error, type JsonRpcRequest, type JsonRpcResponse } from './protocol.ts'
-import { createDescribeTool, createExecuteTool, createRenderPngTool, dispatchMcpRequest, type McpServerSurface } from './tool-surface.ts'
+import { preserveExactJsonRpcIds, reply, rpcError as error, stringifyJsonRpc, type ExactJsonRpcId, type JsonRpcRequest, type JsonRpcResponse } from './protocol.ts'
+import { createDescribeTool, createExecuteTool, createRenderPngTool, dispatchMcpRequest, EXECUTE_TIMEOUT_ERROR, isValidExecuteTimeout, type McpServerSurface } from './tool-surface.ts'
 import { SDK_CORE_DECLARATION, createDescribeSdkTool, describeSdkPayload } from './sdk-discovery.ts'
 import { createArtifactStore, type ArtifactRecord, type ArtifactStore } from './artifacts.ts'
 import { renderMermaidPNG } from '../agent/png.ts'
@@ -93,8 +93,8 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
   if (name === 'execute') {
     const code = (args as { code?: string }).code
     const requestedTimeoutMs = (args as { timeoutMs?: number }).timeoutMs
-    if (requestedTimeoutMs !== undefined && (typeof requestedTimeoutMs !== 'number' || !Number.isFinite(requestedTimeoutMs) || requestedTimeoutMs <= 0)) {
-      return error(id, -32602, 'execute timeoutMs must be a positive finite number')
+    if (requestedTimeoutMs !== undefined && !isValidExecuteTimeout(requestedTimeoutMs)) {
+      return error(id, -32602, EXECUTE_TIMEOUT_ERROR)
     }
     const timeoutMs = typeof requestedTimeoutMs === 'number' && Number.isFinite(requestedTimeoutMs)
       ? Math.min(requestedTimeoutMs, context.maxSandboxTimeoutMs ?? MAX_SANDBOX_TIMEOUT_MS)
@@ -223,8 +223,9 @@ export async function runStdio(options: { artifactDir?: string; maxArtifactBytes
       buf = buf.slice(nl + 1)
       if (!line) continue
       try {
-        const res = await handleRequest(JSON.parse(line) as JsonRpcRequest, { artifactStore })
-        if (res) process.stdout.write(JSON.stringify(res) + '\n')
+        const exact = preserveExactJsonRpcIds(line)
+        const res = await handleRequest(JSON.parse(exact.body) as JsonRpcRequest, { artifactStore })
+        if (res) process.stdout.write(stringifyJsonRpc(res, exact.ids) + '\n')
       } catch (e) {
         process.stdout.write(JSON.stringify(error(null, -32700, `parse error: ${(e as Error).message}`)) + '\n')
       }
@@ -260,7 +261,7 @@ export async function startHttpServer(options: HttpMcpOptions = {}): Promise<Htt
       if (req.method === 'GET' && u.pathname === '/health') return sendJson(res, 200, { ok: true })
       if (req.method === 'GET' && u.pathname === '/sse') {
         if (!authorizeHttpAccess(req, res, baseUrl, publicOrigin, options.authToken)) return
-        return openSse(req, res, sessions, baseUrl, maxSseSessions)
+        return openSse(req, res, sessions, publicOrigin ?? baseUrl, maxSseSessions)
       }
       if (req.method === 'POST' && u.pathname === '/message') {
         if (!authorizeHttpRpc(req, res, baseUrl, publicOrigin, options.authToken)) return
@@ -382,11 +383,12 @@ async function postSseMessage(req: IncomingMessage, res: ServerResponse, session
   const sse = sessions.get(sessionId)
   if (!sse) return sendJson(res, 404, { ok: false, error: 'unknown sessionId' })
   const body = await readRequestBody(req, maxBytes)
+  const exact = preserveExactJsonRpcIds(body)
   let parsed: JsonRpcRequest
-  try { parsed = JSON.parse(body) as JsonRpcRequest } catch { throw new HttpStatusError(400, 'invalid JSON-RPC body') }
+  try { parsed = JSON.parse(exact.body) as JsonRpcRequest } catch { throw new HttpStatusError(400, 'invalid JSON-RPC body') }
   const response = await handleRequest(parsed, context)
   if (response) {
-    sse.write(`event: message\ndata: ${JSON.stringify(response)}\n\n`)
+    sse.write(`event: message\ndata: ${stringifyJsonRpc(response, exact.ids)}\n\n`)
     return sendJson(res, 202, { ok: true })
   }
   res.writeHead(202)
@@ -395,15 +397,16 @@ async function postSseMessage(req: IncomingMessage, res: ServerResponse, session
 
 async function postRpc(req: IncomingMessage, res: ServerResponse, context: McpRequestContext, maxBytes: number): Promise<void> {
   const body = await readRequestBody(req, maxBytes)
+  const exact = preserveExactJsonRpcIds(body)
   let parsed: JsonRpcRequest
-  try { parsed = JSON.parse(body) as JsonRpcRequest } catch { throw new HttpStatusError(400, 'invalid JSON-RPC body') }
+  try { parsed = JSON.parse(exact.body) as JsonRpcRequest } catch { throw new HttpStatusError(400, 'invalid JSON-RPC body') }
   const response = await handleRequest(parsed, context)
   if (response === null) {
     res.writeHead(202)
     res.end()
     return
   }
-  sendJson(res, 200, response)
+  sendJson(res, 200, response, exact.ids)
 }
 
 function serveArtifact(res: ServerResponse, store: ArtifactStore, name: string): void {
@@ -417,22 +420,22 @@ function serveArtifact(res: ServerResponse, store: ArtifactStore, name: string):
   res.end(artifact.bytes)
 }
 
-function sendJson(res: ServerResponse, status: number, payload: unknown): void {
-  const body = JSON.stringify(payload)
+function sendJson(res: ServerResponse, status: number, payload: unknown, exactIds: ExactJsonRpcId[] = []): void {
+  const body = stringifyJsonRpc(payload, exactIds)
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Content-Length': Buffer.byteLength(body) })
   res.end(body)
 }
 
-async function readRequestBody(req: IncomingMessage, maxBytes = MAX_RPC_BODY_BYTES): Promise<string> {
+export async function readRequestBody(req: IncomingMessage, maxBytes = MAX_RPC_BODY_BYTES): Promise<string> {
   const declared = Number(req.headers['content-length'] ?? 0)
   if (Number.isFinite(declared) && declared > maxBytes) throw new HttpStatusError(413, `request body exceeds ${maxBytes} bytes`)
-  let body = ''
+  const chunks: Buffer[] = []
   let bytes = 0
   for await (const chunk of req) {
-    const s = Buffer.isBuffer(chunk) ? chunk.toString('utf8') : String(chunk)
-    bytes += Buffer.byteLength(s)
+    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk))
+    bytes += buffer.byteLength
     if (bytes > maxBytes) throw new HttpStatusError(413, `request body exceeds ${maxBytes} bytes`)
-    body += s
+    chunks.push(buffer)
   }
-  return body
+  return Buffer.concat(chunks).toString('utf8')
 }

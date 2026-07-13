@@ -7,7 +7,7 @@
 // (docs/mcp-code-mode-rationale.md): locally, `execute` is free and stays the
 // single entry point. Hosted, every `execute` spins a billable isolate, so the
 // common render/verify paths get direct pure tools that cost one ordinary
-// Worker invocation and are edge-cacheable.
+// Worker invocation and are eligible for the private compute cache.
 
 import { parseMermaid } from '../agent/parse.ts'
 import { configWarningsForMermaid, verifyMermaid } from '../agent/verify.ts'
@@ -23,7 +23,7 @@ import { verifyNoExternalRefs } from '../index.ts'
 import { THEMES } from '../theme.ts'
 import { unsupportedCodeReason } from './facade.ts'
 import { rpcError, toolResult, type JsonRpcRequest, type JsonRpcResponse } from './protocol.ts'
-import { PURE_COMPUTE_ANNOTATIONS, createDescribeTool, createExecuteTool, createRenderPngTool, dispatchMcpRequest, type McpServerSurface } from './tool-surface.ts'
+import { EXECUTE_TIMEOUT_ERROR, isValidExecuteTimeout, PURE_COMPUTE_ANNOTATIONS, createDescribeTool, createExecuteTool, createRenderPngTool, dispatchMcpRequest, type McpServerSurface } from './tool-surface.ts'
 import { SDK_CORE_DECLARATION, createDescribeSdkTool, describeSdkPayload } from './sdk-discovery.ts'
 import type { ExecuteResult } from './sandbox.ts'
 import type { PngRasterResult } from '../shared/png-font-warnings.ts'
@@ -173,7 +173,7 @@ Call \`describe_sdk\` for the family before authoring unfamiliar ops.`,
   },
 ]
 
-const INSTRUCTIONS = `agentic-mermaid hosted MCP server (stateless). Direct tools render_svg, render_ascii, render_png, verify, and describe cover plain render/verify calls cheaply. Successful deterministic tool results may be reused by a private server-side compute cache for up to 24 hours; HTTP /mcp responses themselves are cache-control: no-store, so clients must not infer response freshness from CDN headers. The x-agentic-mermaid-compute-cache response header reports hit, miss, mixed, bypass, or disabled. There is no layout seed — the library's optional style seed only re-rolls ink of styled looks. describe_sdk progressively discloses one family's version-matched mutation schema. Declarative mutate/build apply typed op lists and verify before emitting source; prefer them for straightforward structured edits. execute runs synchronous JavaScript against the typed mermaid.* SDK in an isolated on-demand sandbox for logic the ops don't express; async/await and Promise jobs are not supported, and network access is disabled. Inputs are capped at 64KB; for bigger diagrams, Code Mode artifacts, or file/URL PNG output, run the local stdio server (see https://agentic-mermaid.dev/docs/mcp/).`
+const INSTRUCTIONS = `agentic-mermaid hosted MCP server (stateless). Direct tools render_svg, render_ascii, render_png, verify, and describe cover plain render/verify calls cheaply. Successful deterministic pure-tool results may be reused by a private server-side compute cache for up to 24 hours; execute, mutate, and build bypass it. HTTP /mcp responses themselves are cache-control: no-store, so clients must not infer response freshness from CDN headers. The x-agentic-mermaid-compute-cache response header reports hit, miss, mixed, bypass, or disabled. There is no layout seed — the library's optional style seed only re-rolls ink of styled looks. describe_sdk progressively discloses one family's version-matched mutation schema. Declarative mutate/build apply typed op lists and verify before emitting source; prefer them for straightforward structured edits. execute runs synchronous JavaScript against the typed mermaid.* SDK in an isolated on-demand sandbox for logic the ops don't express; async/await and Promise jobs are not supported, and network access is disabled. Inputs are capped at 64KB; for bigger diagrams, Code Mode artifacts, or file/URL PNG output, run the local stdio server (see https://agentic-mermaid.dev/docs/mcp/).`
 
 function hostedProtocolVersion(params: unknown): string {
   const offered = (params as { protocolVersion?: unknown } | undefined)?.protocolVersion
@@ -318,9 +318,6 @@ function normalizeStyleArg(raw: unknown): StyleInput | StyleInput[] | undefined 
 }
 
 // ---- Effective (normalized) arguments -------------------------------------
-// The output of each tool depends only on these values. Handlers AND the cache
-// key derive from the same helpers so a cached response can never diverge from
-// what a recompute would produce.
 
 /** Clamp `scale` into the documented range; undefined when not a finite number. */
 export function effectivePngScale(args: Record<string, unknown>): number | undefined {
@@ -329,93 +326,48 @@ export function effectivePngScale(args: Record<string, unknown>): number | undef
     : undefined
 }
 
-/** Known, output-affecting SVG inputs only (string-typed). Theme *validity* is
- * checked in svgOptions at render time — an invalid theme errors (uncacheable),
- * so the key just needs to reflect the requested values, not validate them. */
-function effectiveSvgArgs(args: Record<string, unknown>): Record<string, string> {
-  const out: Record<string, string> = {}
-  if (typeof args.theme === 'string') out.theme = args.theme
-  if (typeof args.bg === 'string') out.bg = args.bg
-  if (typeof args.fg === 'string') out.fg = args.fg
-  // Output-affecting style knobs: key on the requested values verbatim
-  // (JSON-canonical); validity is checked at render time like theme.
-  if (args.style !== undefined) out.style = JSON.stringify(args.style)
-  if (typeof args.seed === 'number' && Number.isFinite(args.seed)) out.seed = String(args.seed)
-  return out
-}
-
-/** The scale the renderer actually uses: the clamped value, or the default 2
- * when absent/non-numeric (png-wasm applies `?? 2`). Keying on the *resolved*
- * value collapses an omitted `scale` and an explicit `scale: 2` — which render
- * identically — into one cache entry. */
-export const DEFAULT_PNG_SCALE = 2
-function keyPngScale(args: Record<string, unknown>): number {
-  return effectivePngScale(args) ?? DEFAULT_PNG_SCALE
-}
-
 /**
- * Canonical cache-key inputs for a tools/call: the normalized, output-affecting
- * inputs only. Non-output-affecting ARGUMENTS are dropped or normalized so that
- * semantically identical calls collapse to one cache entry — an extra `nonce`,
- * an out-of-range or omitted `scale`, a differing `timeoutMs` all share a key.
- * Returns null when the call must not be cached (unknown tool, a missing/ill-typed
- * required arg, or a non-base64 render_png output — all of which produce error
- * results, and errors are never cached).
+ * Cache-key inputs for a deterministic tools/call. The complete argument object
+ * is retained: cache lookup runs before tool dispatch, so dropping an argument
+ * can let an invalid request collide with a previously cached valid response
+ * and bypass validation. Correctness is more important than collapsing calls
+ * that differ only by ignored arguments; the WAF remains the abuse backstop.
+ * Returns null for non-idempotent execute, unknown tools, missing required
+ * arguments, invalid describe/describe_sdk selectors, and non-base64 PNG output.
  *
- * Scope of the cost-control guarantee: it covers ARGUMENTS, not the `source`/
- * `code` payload, which is keyed VERBATIM by design. Keying on the raw payload
- * is what makes a cached response provably correspond to what that exact input
- * renders — canonicalizing the payload (e.g. stripping Mermaid comments) is
- * deliberately avoided because two payloads that canonicalize alike are not
- * guaranteed to render byte-identically, and a wrong cached result is far worse
- * than a missed dedup. A caller can therefore still force recompute by varying
- * insignificant payload bytes (comments/whitespace); that residual is bounded
- * by the endpoint's WAF rate limit (the actual abuse backstop; see
- * website/README.md), not by the cache.
+ * Source payloads are likewise keyed verbatim. Canonicalizing source or
+ * arguments is deliberately avoided because a wrong cached result is worse
+ * than a missed dedup.
  */
 export function cacheKeyFor(name: string | undefined, args: Record<string, unknown>): unknown | null {
   switch (name) {
-    // timeoutMs is a compute budget, not an input: identical code is one entry.
-    // A cached success is the true deterministic result, returned regardless of
-    // the requested budget (free and correct); a call that would time out
-    // produces an error and is never cached, so it cannot poison this entry.
-    // (Code Mode is intended for deterministic SDK workflows; a non-deterministic
-    // body — Date/Math.random — has its first result frozen for the cache TTL,
-    // as it did before this change, since execute results were always cached.)
+    // Code Mode intentionally exposes time and randomness and is annotated
+    // non-idempotent. Never freeze its first result in the shared compute cache.
     case 'execute':
-      return typeof args.code === 'string' ? { t: 'execute', code: args.code } : null
+      return null
     case 'render_svg':
-      return typeof args.source === 'string' ? { t: 'render_svg', source: args.source, ...effectiveSvgArgs(args) } : null
+      return typeof args.source === 'string' ? { t: 'render_svg', args } : null
     case 'render_ascii':
-      return typeof args.source === 'string' ? {
-        t: 'render_ascii',
-        source: args.source,
-        useAscii: args.useAscii === true,
-        targetWidth: typeof args.targetWidth === 'number' ? args.targetWidth : undefined,
-      } : null
+      return typeof args.source === 'string' ? { t: 'render_ascii', args } : null
     case 'render_png': {
       if (typeof args.source !== 'string') return null
       const output = args.output ?? (args as { outputMode?: unknown }).outputMode
       if (output !== undefined && output !== 'base64') return null
-      const key: Record<string, unknown> = { t: 'render_png', source: args.source, scale: keyPngScale(args) }
-      if (typeof args.background === 'string') key.background = args.background
-      if (args.style !== undefined) key.style = JSON.stringify(args.style)
-      if (typeof args.seed === 'number' && Number.isFinite(args.seed)) key.seed = args.seed
-      return key
+      return { t: 'render_png', args }
     }
     case 'verify':
-      return typeof args.source === 'string' ? { t: 'verify', source: args.source } : null
+      return typeof args.source === 'string' ? { t: 'verify', args } : null
     case 'describe': {
       if (typeof args.source !== 'string') return null
       const format = args.format ?? 'text'
       return format === 'text' || format === 'json' || format === 'facts'
-        ? { t: 'describe', source: args.source, format }
+        ? { t: 'describe', args }
         : null
     }
     case 'describe_sdk': {
       try {
-        const payload = describeSdkPayload(args) as { family: string; detail: string }
-        return { t: 'describe_sdk', family: payload.family, detail: payload.detail }
+        describeSdkPayload(args)
+        return { t: 'describe_sdk', args }
       } catch {
         return null
       }
@@ -496,8 +448,8 @@ async function handleExecute(id: number | string | null, args: Record<string, un
   const reason = unsupportedCodeReason(code)
   if (reason) return toolResult(id, { ok: false as const, error: executeError(reason), logs: [] }, true)
   const requested = args.timeoutMs
-  if (requested !== undefined && (typeof requested !== 'number' || !Number.isFinite(requested) || requested <= 0)) {
-    return rpcError(id, -32602, 'execute timeoutMs must be a positive finite number')
+  if (requested !== undefined && !isValidExecuteTimeout(requested)) {
+    return rpcError(id, -32602, EXECUTE_TIMEOUT_ERROR)
   }
   const timeoutMs = typeof requested === 'number' && Number.isFinite(requested)
     ? Math.min(requested, MAX_EXECUTE_TIMEOUT_MS)

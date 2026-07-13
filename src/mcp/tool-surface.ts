@@ -52,6 +52,13 @@ const MANAGED_ARTIFACT_ANNOTATIONS = {
   openWorldHint: false,
 } as const
 
+export const EXECUTE_TIMEOUT_ERROR = 'execute timeoutMs must be a positive integer'
+
+/** One validation contract shared by hosted and local Code Mode. */
+export function isValidExecuteTimeout(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value > 0
+}
+
 export async function dispatchMcpRequest<Context>(req: JsonRpcRequest, context: Context, surface: McpServerSurface<Context>): Promise<JsonRpcResponse | null> {
   const raw = req as unknown as Record<string, unknown> | null
   const hasId = Boolean(raw && Object.prototype.hasOwnProperty.call(raw, 'id'))
@@ -115,7 +122,7 @@ ${options.sdkDeclaration}`,
       type: 'object',
       properties: {
         code: { type: 'string', description: 'JavaScript to execute; mermaid.* SDK is global.' },
-        timeoutMs: { type: 'number', description: timeoutDescription },
+        timeoutMs: { type: 'integer', minimum: 1, description: timeoutDescription },
       },
       required: ['code'],
     },

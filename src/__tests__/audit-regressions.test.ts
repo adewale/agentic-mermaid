@@ -6,6 +6,7 @@ import { parseMermaid } from '../agent/parse.ts'
 import { verifyMermaid } from '../agent/verify.ts'
 import { runBatchLine } from '../cli/index.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
+import { handleRequest as handleLocalRequest } from '../mcp/server.ts'
 import { handleHostedRequest } from '../mcp/hosted-server.ts'
 import { dependencyStartupMessage } from '../../bin/dependency-error.ts'
 import { createMcpHandler, preserveUnsafeJsonRpcIds, type McpCache } from '../../website/src/mcp-handler.ts'
@@ -27,18 +28,29 @@ describe('reported contract regressions', () => {
   alt accepted
     S-->>U: response
     U->>S: ack
+  else rejected
+    S-->>U: denied
   end`
     const parsed = parseMermaid(source)
     expect(parsed.ok).toBe(true)
     if (!parsed.ok || parsed.value.body.kind !== 'sequence') return
     expect(parsed.value.body.statements?.some(statement => statement.kind === 'fragment')).toBe(true)
-    expect(describeMermaid(parsed.value)).toContain('S -> U: response')
-    expect(describeMermaidFacts(parsed.value)).toContain('message U -> S : ack')
-    expect(verifyMermaid(parsed.value).layout.edges).toHaveLength(3)
+    const prose = describeMermaid(parsed.value)
+    expect(prose).toContain('branch 0 (accepted): S -> U: response; U -> S: ack')
+    expect(prose).toContain('branch 1 (rejected): S -> U: denied')
+    expect(prose).not.toContain('Messages in order')
+    const facts = describeMermaidFacts(parsed.value)
+    expect(facts).toContain('message#2 fragment#0 branch#0 U -> S : ack')
+    expect(facts).toContain('fragment#0 branch#1 : rejected')
+    expect(verifyMermaid(parsed.value).layout.edges).toHaveLength(4)
 
     const edited = applyOps({ source, ops: [{ kind: 'set_fragment_message_text', fragmentIndex: 0, index: 0, text: 'accepted response' }] })
     expect(edited.ok).toBe(true)
     if (edited.ok) expect(edited.source).toContain('S-->>U: accepted response')
+
+    const branchEdited = applyOps({ source, ops: [{ kind: 'set_fragment_branch_label', fragmentIndex: 0, branchIndex: 0, label: 'CHANGED' }] })
+    expect(branchEdited.ok).toBe(true)
+    if (branchEdited.ok) expect(branchEdited.source).toContain('alt CHANGED')
 
     const built = applyOps({ family: 'sequence', ops: [
       { kind: 'add_participant', id: 'A' },
@@ -50,10 +62,22 @@ describe('reported contract regressions', () => {
     if (built.ok) expect(built.source).toContain('loop retry\n  A->>B: again\n  end')
   })
 
+  test('opaque sequence semantics are explicit instead of silently absent from read-back', () => {
+    const source = 'sequenceDiagram\n  alt outer\n    loop retry\n      A->>B: hidden\n    end\n  end'
+    const result = verifyMermaid(source)
+    expect(result.layout.edges).toHaveLength(1)
+    expect(result.warnings).toContainEqual(expect.objectContaining({
+      code: 'UNSUPPORTED_SYNTAX', syntax: 'sequence_opaque_segment',
+    }))
+  })
+
   test('tolerant parser repairs always surface through warnings', () => {
     const cases = [
       ['flowchart TD\n  A[Start]\n  A -->', 'flowchart_dangling_edge'],
+      ['flowchart TD\n  A[Start] -->|go|', 'flowchart_dangling_edge'],
       ['flowchart TD\n  Server[Server]\n  Client[Client] --> Sevrer', 'flowchart_implicit_endpoint'],
+      ['flowchart TD\n  Server\n  Client --> Sevrer', 'flowchart_implicit_endpoint'],
+      ['flowchart TD\n  Customer[Customer]\n  Customer --> Customar', 'flowchart_implicit_endpoint'],
       ['xychart-beta\n  x-axis [Jan, Feb, Mar]\n  line [1, 2]', 'xychart_axis_series_length_mismatch'],
       ['xychart-beta\n  x-axis [Jan, Feb]\n  line [1, 2, 3]', 'xychart_axis_series_length_mismatch'],
     ] as const
@@ -62,6 +86,8 @@ describe('reported contract regressions', () => {
       expect({ syntax, warned: result.warnings.some(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.syntax === syntax) })
         .toEqual({ syntax, warned: true })
     }
+    expect(verifyMermaid('flowchart LR\n  Customer[Customer]\n  Custome[Custome]\n  A[Start] --> Custome').warnings)
+      .not.toContainEqual(expect.objectContaining({ syntax: 'flowchart_implicit_endpoint' }))
     const metadata = parseMermaid('flowchart LR\n  A e1@--> B\n  e1@{ label: "calls" }')
     expect(metadata.ok).toBe(true)
     if (metadata.ok) {
@@ -95,6 +121,9 @@ describe('reported contract regressions', () => {
     expect(await executeInSandbox('// ${ comment\nreturn 1')).toEqual(expect.objectContaining({ ok: true, value: 1 }))
     expect(await executeInSandbox('return `value ${1 + 1}`')).toEqual(expect.objectContaining({ ok: true, value: 'value 2' }))
     expect((await executeInSandbox('return `${Promise.resolve(1)}`')).ok).toBe(false)
+    expect(await executeInSandbox('return /Promise/.test("Promise")')).toEqual(expect.objectContaining({ ok: true, value: true }))
+    expect(await executeInSandbox('return /WebAssembly/.source')).toEqual(expect.objectContaining({ ok: true, value: 'WebAssembly' }))
+    expect((await executeInSandbox('const x = 8; return x / Promise / 2')).ok).toBe(false)
   })
 
   test('header aliases are consistent and unknown architecture icons are named', () => {
@@ -108,11 +137,17 @@ describe('reported contract regressions', () => {
     }
     expect(verifyMermaid('architecture-beta\n  service api(definitely-not-an-icon)[API]').warnings)
       .toContainEqual(expect.objectContaining({ code: 'UNKNOWN_SHAPE', node: 'api', shape: 'architecture-icon:definitely-not-an-icon' }))
+    expect(verifyMermaid('architecture-beta\n  title A\n  title B\n  service api(definitely-not-an-icon)[API]').warnings)
+      .toContainEqual(expect.objectContaining({ code: 'UNKNOWN_SHAPE', node: 'api', shape: 'architecture-icon:definitely-not-an-icon' }))
   })
 
   test('timeout zero is invalid and source-checkout dependency failures are prescriptive', async () => {
-    const response = await handleHostedRequest(toolCall('execute', { code: 'return 1', timeoutMs: 0 }), { execute: async () => ({ ok: true, value: null, logs: [] }) })
-    expect(response?.error).toEqual(expect.objectContaining({ code: -32602 }))
+    for (const timeoutMs of [0, -1, 0.5, 1.5, Number.POSITIVE_INFINITY, 'bad']) {
+      const response = await handleHostedRequest(toolCall('execute', { code: 'return 1', timeoutMs }), { execute: async () => ({ ok: true, value: null, logs: [] }) })
+      expect({ timeoutMs, error: response?.error }).toEqual({ timeoutMs, error: expect.objectContaining({ code: -32602 }) })
+      const local = await handleLocalRequest(toolCall('execute', { code: 'return 1', timeoutMs }) as any)
+      expect({ timeoutMs, error: local?.error }).toEqual({ timeoutMs, error: expect.objectContaining({ code: -32602 }) })
+    }
     expect(dependencyStartupMessage(new Error("Cannot find module 'entities'"))).toContain('bun install')
   })
 })
@@ -125,10 +160,13 @@ describe('hosted transport truthfulness', () => {
     const protectedBody = preserveUnsafeJsonRpcIds(raw)
     expect(protectedBody.ids.map(id => id.raw)).toEqual(['9007199254740993'])
     expect(protectedBody.body).toContain('"params":{"id":9007199254740995}')
-    expect(preserveUnsafeJsonRpcIds('{"jsonrpc":"2.0","id":9007199254740993.0,"method":"ping"}').body).toContain('9007199254740993.0')
+    expect(preserveUnsafeJsonRpcIds('{"jsonrpc":"2.0","id":9007199254740993.0,"method":"ping"}').ids.map(id => id.raw)).toEqual(['9007199254740993.0'])
     const handler = createMcpHandler({ context, cacheVersion: 'test', onEvent: () => {} })
-    const response = await handler(new Request('https://agentic-mermaid.dev/mcp', { method: 'POST', headers: { 'content-type': 'application/json' }, body: raw }))
-    expect(await response.text()).toContain('"id":9007199254740993')
+    for (const id of ['9007199254740993', '9007199254740993.0', '9007199254740993e0', '9.007199254740993e15']) {
+      const body = `{"jsonrpc":"2.0","id":${id},"method":"ping"}`
+      const response = await handler(new Request('https://agentic-mermaid.dev/mcp', { method: 'POST', headers: { 'content-type': 'application/json' }, body }))
+      expect(await response.text()).toContain(`"id":${id}`)
+    }
   })
 
   test('HTTP responses stay no-store while the private compute-cache status is observable', async () => {
@@ -147,6 +185,11 @@ describe('hosted transport truthfulness', () => {
     expect(miss.headers.get('cache-control')).toBe('no-store')
     expect(miss.headers.get('x-agentic-mermaid-compute-cache')).toBe('miss')
     expect(hit.headers.get('x-agentic-mermaid-compute-cache')).toBe('hit')
+    const execute = await handler(new Request('https://agentic-mermaid.dev/mcp', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(toolCall('execute', { code: 'return Date.now()' })),
+    }))
+    expect(execute.headers.get('x-agentic-mermaid-compute-cache')).toBe('bypass')
 
     const initialize = await handleHostedRequest({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} }, context)
     const instructions = (initialize?.result as any).instructions as string

@@ -276,6 +276,39 @@ table here, which would drift. In broad strokes:
 - **Manual / periodic:** `layout-compare` before/after, the benchmark vs
   competitors, and the real LLM-as-judge run.
 
+## Boundary-contract matrix — lessons applied from the 2026-07 agent audit
+
+The PR #162 audit exposed a blind spot that family/layout coverage did not
+address: a contract could be correct in one helper and false at another public
+boundary. The review of
+[`adewale/testing-best-practices`](https://github.com/adewale/testing-best-practices)
+led to four concrete changes in how this suite treats those seams:
+
+| Risk boundary | Previous false confidence | Required evidence now |
+|---|---|---|
+| JSON-RPC wire lexemes | hosted integer example only | one shared exact-id codec; property tests over unsafe integer, decimal, exponent, batch, nested-id, sentinel-collision, and malformed-text cases; real local HTTP and installed stdio-bin checks |
+| CLI bootstrap/package | formatter helper unit test | walking-skeleton E2E against the real `am` and MCP source entrypoints in a copied checkout with Bun auto-install explicitly disabled |
+| cache before dispatch | normalized-key examples | non-idempotent `execute` is uncacheable; remaining keys retain the complete raw argument object so a warm valid request cannot mask an invalid one; warm-cache regression tests inject the collision |
+| docs/catalog claims | selected-subset presence checks | ordered exact equality against runtime registries, uniqueness, and existence of every catalog target; public `llms.txt` is checked after generation |
+| sequence semantics | global message count | one shared branch-aware message-context model feeds describe, facts, verify/layout and typed edits; unsupported nested semantics must emit a warning |
+| sockets/proxies/chunks | helper could return early | socket tests fail when bind/startup fails, proxy-origin SSE is read from the real stream, and split UTF-8 chunks are exercised at the byte boundary |
+
+These follow the research's trust-boundary lens, walking-skeleton smoke tests,
+property-based parser contracts, exact doc-sync, fault injection, and
+correctness-by-construction guidance. Shared validators/codecs/context models
+replace repeated per-layer checks; tests remain at the untyped HTTP/stdio/CLI
+boundaries where TypeScript cannot enforce the wire contract.
+
+The dated provenance and prevention analysis, including the reviews of PRs
+#157 and #160, is recorded in
+[`project/agent-interface-contract-audit-2026-07.md`](./project/agent-interface-contract-audit-2026-07.md).
+
+The validation rule for future cross-surface changes is: enumerate every
+public consumer first, then require at least one non-vacuous proof at the
+lowest honest tier and one shipped-boundary proof where packaging, transport,
+or generation can change the result. A test that silently returns because its
+environment is unavailable is not evidence for a CI-required capability.
+
 ## Why the suite is shaped this way
 
 - **Cheap-and-deterministic gates per PR; expensive-and-noisy gates

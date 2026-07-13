@@ -32,11 +32,10 @@ variant (`website/src/execute-loader.ts`), so semantically irrelevant source
 changes can create new IDs. A configured `cpuMs` limit is an admission-cost
 proxy, **not** measured CPU usage or the complete bill.
 
-The existing response Cache API key includes `execute` code. That is not a
-correct determinism boundary: Code Mode can use `Date` or `Math.random`, and
-current source comments acknowledge that such a result is frozen for the
-cache TTL. This change removes `execute` from response-cache eligibility. The cheaper
-pure tools retain their existing cache path, subject to the gates below. There
+`execute` has been removed from response-cache eligibility because Code Mode
+can use `Date` or `Math.random`; freezing its first result was not a correct
+determinism boundary. The cheaper pure tools retain their cache path, subject
+to the gates below. There
 is intentionally no in-flight coalescer: its per-isolate/per-PoP benefit is
 not worth its memory and complexity for the expected traffic shape.
 
@@ -92,8 +91,8 @@ Worker version but needs no source build or CI run. It is a simple, reliable
 operator override once that version is active; there is intentionally no KV
 fast path or automated actuator.
 
-**Drill.** In a zero-user production window: warm an `execute` cache candidate,
-set the deploy-time disable flag, verify cached and uncached `execute` both
+**Drill.** In a zero-user production window: successfully run an `execute`, set
+the deploy-time disable flag, verify repeated and novel `execute` calls both
 return `EXECUTE_DISABLED` without a loader call, verify every non-execute tool
 stays 200, re-enable execute, measure recovery, and add the measured latency to
 the runbook. Re-run after gate/cache plumbing changes.
@@ -230,8 +229,8 @@ and [Dynamic Worker pricing](https://developers.cloudflare.com/dynamic-workers/p
 
 1. Establish production inputs: traffic/RPS, acceptable false-positive rate,
    Workers/Dynamic Workers/Logs usage, and dashboard WAF evidence.
-2. Implement and drill the upstream execute gate; remove `execute` cache
-   eligibility before relying on it.
+2. Implement and drill the upstream execute gate (`execute` cache eligibility
+   is already removed).
 3. Implement payload-proportional limits, per-item rate admission, per-batch
    render limits, and bounded dispatch concurrency.
 4. Add the small request-event fields, explicit log-sampling policy, and

@@ -577,10 +577,17 @@ describe('exact MCP inventories match the runtime registries', () => {
       ['website/README.md', /Hosted tools:([\s\S]*?)\. Tool inputs/],
       ['docs/api.md', /Hosted tools are ([^;]+);/],
       ['website/source/start.md', /Tools: ([^(]+) \(64 KB/],
+      ['README.md', /- \*\*Hosted\.\*\*([\s\S]*?)\n\nLocal-first/],
+      ['Instructions_for_agents.md', /A hosted MCP at ([\s\S]*?)all with 64KB input caps/],
+      ['skills/agentic-mermaid-diagram-workflow/SKILL.md', /No local install, network only([^\n]+)/],
+      ['docs/features.md', /It exposes nine bounded MCP JSON-RPC tools:([\s\S]*?)structured edits\./],
+      ['docs/fork-differences.md', /registry-checked tools:([\s\S]*?)structured-edit tools\./],
+      ['docs/mcp-http-transport.md', /Cloudflare-backed, tools ([\s\S]*?), inputs capped/],
     ] as const
     for (const [file, pattern] of exactHostedInventories) {
       const inventory = matchOrThrow(readFileSync(join(REPO, file), 'utf8'), pattern, file)
-      expect({ file, tools: names(inventory[1]!) }).toEqual({ file, tools: hosted })
+      const mentioned = names(inventory[1]!).filter((name, index, all) => hosted.includes(name) && all.indexOf(name) === index)
+      expect({ file, tools: mentioned }).toEqual({ file, tools: hosted })
     }
   })
 })

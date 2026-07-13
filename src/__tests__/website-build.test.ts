@@ -10,6 +10,8 @@ import { CLEAN_PAGE_ROUTES, DYNAMIC_CLEAN_REDIRECT_LINES, staticRedirectLines } 
 import { HOSTED_FONT_FACES, HOSTED_FONT_FILES } from '../font-manifest.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { resolveBuildGitSha } from '../../website/build-provenance.ts'
+import { AI_CATALOG_RESOURCES } from '../../website/agent-resource-inventory.ts'
+import { HOSTED_TOOLS } from '../mcp/hosted-server.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const SITE = join(REPO, 'website', 'public')
@@ -95,7 +97,10 @@ describe('Workers Static Assets website contract', () => {
     expect(resolveBuildGitSha({ head, status: ' M website/build.ts' })).toBe(`${head}-dirty`)
     expect(resolveBuildGitSha({ head })).toBe(`${head}-unverified`)
     expect(resolveBuildGitSha({ status: '' })).toBe('development')
-    expect(resolveBuildGitSha({ explicit: 'release-sha', head, status: ' M file' })).toBe('release-sha')
+    expect(resolveBuildGitSha({ explicit: head, head, status: '' })).toBe(head)
+    expect(() => resolveBuildGitSha({ explicit: 'release-sha', head, status: '' })).toThrow(/does not match/)
+    expect(() => resolveBuildGitSha({ explicit: head, head, status: ' M file' })).toThrow(/dirty checkout/)
+    expect(() => resolveBuildGitSha({ explicit: head, head })).toThrow(/cleanliness/)
   })
 
   test('Cloudflare MCP config follows the official agent setup endpoints', () => {
@@ -983,16 +988,14 @@ describe('Workers Static Assets website contract', () => {
     expect(mcpCard.tools.every((tool: any) => tool.parameters && typeof tool.parameters === 'object')).toBe(true)
     expect(read('.well-known/mcp.json')).toContain('"serverUrl": "https://agentic-mermaid.dev/mcp"')
     const aiCatalog = JSON.parse(read('.well-known/ai-catalog.json'))
-    expect(aiCatalog.entries.length).toBeGreaterThanOrEqual(10)
-    expect(aiCatalog.entries.map((entry: any) => entry.type)).toContain('application/mcp-server-card+json')
-    expect(aiCatalog.entries.map((entry: any) => entry.url)).toContain('https://agentic-mermaid.dev/.well-known/mcp/server-card.json')
-    expect(aiCatalog.entries.map((entry: any) => entry.url)).toEqual(expect.arrayContaining([
-      'https://agentic-mermaid.dev/capabilities.json',
-      'https://agentic-mermaid.dev/examples/index.json',
-      'https://agentic-mermaid.dev/start.md',
-      'https://agentic-mermaid.dev/agent-instructions.md',
-      'https://agentic-mermaid.dev/.well-known/mcp.json',
-    ]))
+    expect(aiCatalog.entries.map((entry: any) => ({
+      identifier: entry.identifier,
+      type: entry.type,
+      path: new URL(entry.url).pathname,
+    }))).toEqual(AI_CATALOG_RESOURCES)
+    expect(new Set(aiCatalog.entries.map((entry: any) => entry.identifier)).size).toBe(aiCatalog.entries.length)
+    expect(new Set(aiCatalog.entries.map((entry: any) => entry.url)).size).toBe(aiCatalog.entries.length)
+    for (const resource of AI_CATALOG_RESOURCES) expect(existsSync(join(SITE, resource.path.slice(1)))).toBe(true)
     const capabilities = JSON.parse(read('capabilities.json'))
     expect(capabilities.families.map((family: any) => family.id)).toContain('flowchart')
     expect(capabilities.warningCodes.map((warning: any) => warning.tier)).toContain('structural')
@@ -1197,7 +1200,8 @@ describe('Workers Static Assets website contract', () => {
     expect(text).not.toContain('TODO.md')
     expect(text).not.toContain('skill-evals/')
     expect(text).toContain('/capabilities.json')
-    expect(text).toContain('describe_sdk')
+    const hostedLine = text.match(/Hosted MCP endpoint[^\n]+with ([^.]+)\./)?.[1] ?? ''
+    expect(hostedLine.split(/,\s*/)).toEqual(HOSTED_TOOLS.map(tool => tool.name))
   })
 
   test('production CSP forbids inline executable scripts and generated pages externalize them', () => {
