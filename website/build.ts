@@ -2238,6 +2238,78 @@ function mcpConfigCardHtml(idPrefix: string) {
 <p class="copy-prompt-status" id="${idPrefix}-mcp-copy-status" role="status" aria-live="polite"></p>
 </div>`
 }
+const vocabularyGroups = [
+  {
+    heading: 'Capability verbs',
+    entries: [
+      ['references', 'Links to an upstream syntax description without claiming local behavior.'],
+      ['accepts', 'Recognizes the input and its family header; acceptance alone does not promise structured editing.'],
+      ['parses', 'Returns a ValidDiagram whose body is typed or whose unsupported source is preserved verbatim.'],
+      ['renders', 'Produces the requested artifact format; rendering does not imply typed edit authority.'],
+      ['verifies', 'Returns structured errors and warnings about source, geometry, or quality.'],
+      ['mutates', 'Applies a declared typed operation to the modeled diagram structure.'],
+      ['round-trips', 'Keeps typed facts equal after parse → serialize → parse; opaque source stays byte-preserved.'],
+    ],
+  },
+  {
+    heading: 'Source and edit authority',
+    entries: [
+      ['Mermaid source', 'The text the user wrote, including its family header, directives, comments, and frontmatter.'],
+      ['diagram family', 'A Mermaid grammar and visual form such as flowchart, sequence, Gantt, or architecture.'],
+      ['header', 'The first meaningful family token, such as flowchart, sequenceDiagram, or architecture-beta.'],
+      ['upstream syntax reference', 'Mermaid documentation used as authoring evidence, not as a local support claim.'],
+      ['host renderer', 'The Mermaid implementation and version used by GitHub, GitLab, Obsidian, or another host.'],
+      ['renderer support', 'The formats this product can produce for a source; consult capabilities rather than inferring host parity.'],
+      ['edit authority', 'The subset an agent may change safely through typed operations; it is narrower than parse or render support.'],
+      ['structured family', 'A family whose modeled body exposes family-specific typed operations.'],
+      ['narrow', 'Resolve a parsed diagram to its family-specific typed surface before mutation.'],
+      ['typed mutation', 'A schema-validated operation such as adding a node, message, entity, or task.'],
+      ['source-level-only', 'Content that may be preserved and deliberately text-edited but has no typed operation for that change.'],
+      ['opaque fallback', 'Lossless preservation used when partial modeling would drop or rewrite unsupported syntax.'],
+      ['modeled subset', 'The syntax represented structurally; syntax outside it remains segmented or opaque.'],
+      ['round-trip', 'A check that parsed facts survive serialization and reparsing, while opaque text survives unchanged.'],
+      ['receipt', 'Reproducible evidence naming inputs, command or tool, warnings, verification result, and generated artifact.'],
+    ],
+  },
+  {
+    heading: 'Outputs and evidence',
+    entries: [
+      ['SVG', 'Vector markup whose element identities, title/description wiring, and sanitized references are checked.'],
+      ['PNG', 'Raster output derived from SVG with explicit font-coverage and scale behavior.'],
+      ['ASCII', 'Seven-bit terminal drawing; do not use this name for Unicode box-drawing output.'],
+      ['Unicode text', 'Terminal drawing measured in display cells and allowed to use box-drawing and wide graphemes.'],
+      ['JSON layout', 'Machine-readable positioned nodes, edges, groups, warnings, and optional route evidence.'],
+      ['region metadata', 'Stable mappings from rendered text or geometry back to diagram objects.'],
+      ['structural warning', 'A model or source-structure problem, such as unsupported or inconsistent content.'],
+      ['geometric warning', 'A positioned-layout problem, such as overlap, clipping, or an invalid route.'],
+      ['lint warning', 'A non-fatal source or model finding, such as a duplicate edge or unreachable node.'],
+      ['warning code', 'A stable machine-readable identifier paired with severity, field, and message.'],
+      ['quality metric', 'A number such as overlap count or label clearance; it compares layouts but does not explain a fix by itself.'],
+      ['golden', 'Reviewed expected bytes or pixels used to detect deterministic output drift.'],
+      ['differential fixture', 'A case compared with upstream Mermaid, another renderer, or a previous implementation.'],
+    ],
+  },
+  {
+    heading: 'Configuration and layout',
+    entries: [
+      ['frontmatter', 'YAML configuration before the Mermaid body; preserve it across safe edits.'],
+      ['init directive', 'Source-level Mermaid configuration in a %%{init: ...}%% wrapper.'],
+      ['strict security', 'Static rendering mode that removes unsafe links, external references, and executable behavior.'],
+      ['source order', 'Declaration order in Mermaid source; preserve it unless a family’s canonical serializer defines another order.'],
+      ['subgraph / group', 'A container with member nodes and its own bounds; edges may attach to a member or to the container.'],
+      ['anchor', 'The side, port, or semantic endpoint where a route meets a node or group.'],
+      ['route', 'The positioned path connecting an edge’s source and target anchors.'],
+      ['trunk', 'A shared route segment used before fan-out branches or after fan-in branches converge.'],
+      ['fan-in / fan-out', 'Many incoming edges sharing a target, or many outgoing edges sharing a source.'],
+      ['label corridor', 'Reserved space that keeps a label attached to its route and clear of other geometry.'],
+      ['display-cell width', 'Terminal column width after grapheme and fullwidth rules, never JavaScript string length.'],
+    ],
+  },
+] as const
+const vocabularyBody = `<h2>Vocabulary</h2>
+<p><strong>Mermaid syntax support is not the same as Agentic Mermaid edit authority.</strong> Use the narrowest accurate verb, and inspect <code>am capabilities --json</code> before an agent claims it can edit or emit a format.</p>
+${vocabularyGroups.map(group => `<h3>${escapeHtml(group.heading)}</h3><dl class="faq-list vocabulary-list">${group.entries.map(([term, meaning]) => `<dt>${escapeHtml(term)}</dt><dd>${escapeHtml(meaning)}</dd>`).join('')}</dl>`).join('\n')}`
+
 const gettingStartedBody = `<p>Use this page to install the tool and render once yourself. When you hand work to an agent, do not copy a long prompt from this page. Give it three things: your task, the Mermaid source, and one bootstrap line that tells it to fetch the maintained instructions.</p>
 <ol class="start-rail">
 <li><strong>Install Agentic Mermaid.</strong><p>${escapeHtml(installNotice)}</p><pre><code>${escapeHtml(installCommand)}</code></pre></li>
@@ -2273,9 +2345,7 @@ bun run bin/am.ts render diagram.mmd --format svg --style ops-schematic,nord-lig
   "seed": 0
 }</code></pre>
 <p>A style name chooses stroke, fill, typography, and renderer treatment. A palette-only style such as <code>nord-light</code> supplies colors. In the editor those controls are Style and Palette; in API, CLI, and MCP calls, agents can send the stack directly.</p>
-<h2>Vocabulary</h2>
-<p>Shared terms for humans and agents, used across these docs.</p>
-<dl><dt>narrow</dt><dd>Resolve a parsed diagram to a family-specific typed surface.</dd><dt>verify</dt><dd>Return structural, geometric, and lint warnings before artifacts are trusted.</dd><dt>opaque fallback</dt><dd>Preserve unsupported syntax losslessly when structured mutation is unavailable.</dd></dl>
+${vocabularyBody}
 ${docsIndex}`
 
 // /about/design — the design-language reference. Specimens read the live CSS

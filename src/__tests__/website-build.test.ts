@@ -283,6 +283,30 @@ describe('Workers Static Assets website contract', () => {
     expect(existsSync(join(SITE, 'agents/workflow/index.html'))).toBe(false)
   })
 
+  test('getting started publishes the agent-facing vocabulary without reviving the removed route', () => {
+    const page = read('docs/getting-started/index.html')
+    const terms = [
+      'references', 'accepts', 'parses', 'renders', 'verifies', 'mutates', 'round-trips',
+      'Mermaid source', 'diagram family', 'header', 'upstream syntax reference', 'host renderer',
+      'renderer support', 'edit authority', 'structured family', 'narrow', 'typed mutation',
+      'source-level-only', 'opaque fallback', 'modeled subset', 'round-trip', 'receipt',
+      'SVG', 'PNG', 'ASCII', 'Unicode text', 'JSON layout', 'region metadata',
+      'structural warning', 'geometric warning', 'lint warning', 'warning code',
+      'quality metric', 'golden', 'differential fixture', 'frontmatter', 'init directive',
+      'strict security', 'source order', 'subgraph / group', 'anchor', 'route', 'trunk',
+      'fan-in / fan-out', 'label corridor', 'display-cell width',
+    ]
+    for (const term of terms) {
+      const count = page.split(`<dt>${term}</dt>`).length - 1
+      expect({ term, count }).toEqual({ term, count: 1 })
+    }
+    expect(page).toContain('Mermaid syntax support is not the same as Agentic Mermaid edit authority.')
+
+    const websiteReadme = readRepo('website/README.md')
+    expect(websiteReadme).not.toContain('`/docs/vocabulary/`')
+    expect(websiteReadme).toContain('`/docs/getting-started/`')
+  })
+
   test('sitemap.xml lists exactly the live HTML pages and no machine artifacts', () => {
     const locs = [...read('sitemap.xml').matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]!)
     expect(new Set(locs).size).toBe(locs.length)                  // no duplicate URLs

@@ -1336,7 +1336,7 @@
     },
     {
       "path": "src/__tests__/website-build.test.ts",
-      "sha256": "8bb325c9800191dbbd1f90d5ad2a6d79fb46f5d9c73c0a68701d2dd18c63b0f0"
+      "sha256": "d95c5329a02d67d7a46bdfd8d61fbb22e969fa04ce0cf796515e7570b5ca6e93"
     },
     {
       "path": "src/__tests__/website-public.preload.ts",
