@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { renderGraphicalSvgWithReceipt, renderMermaidSVGWithReceipt } from '../index.ts'
+import { renderMermaidSVGWithReceipt } from '../index.ts'
 import { renderMermaidPNGWithReceipt } from '../agent/png.ts'
 import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
 import { renderSourceToFormatWithReceipt, runCli } from '../cli/index.ts'
@@ -187,7 +187,7 @@ describe('Section A transport and backend parity receipts', () => {
 
   test('output projections do not rewrite the shared request receipt', () => {
     const svg = renderMermaidSVGWithReceipt(SOURCE).receipt
-    const pngSvg = renderGraphicalSvgWithReceipt(SOURCE, {}, 'png')
+    const pngSvg = renderPngGraphicalProjection(SOURCE, {})
     const terminal = renderMermaidASCIIWithReceipt(SOURCE, {
       targetWidth: 60,
       colorMode: 'none',
@@ -243,10 +243,14 @@ architecture-beta
     expect(hosted.receipt).toEqual(library.receipt)
   })
 
-  test('dark-style PNG defaults stay aligned across library, CLI, and hosted projection', async () => {
+  test('dark-style PNG defaults align while the hosted boundary remains strict', async () => {
     const style = ['dracula']
     const library = renderMermaidPNGWithReceipt(SOURCE, { style, scale: 0.1 })
-    const hostedProjection = renderPngGraphicalProjection(SOURCE, { style }, { scale: 0.1 })
+    const hostedProjection = renderPngGraphicalProjection(
+      SOURCE,
+      { style, security: 'strict' },
+      { scale: 0.1 },
+    )
     const hosted = payloadOf(await handleHostedRequest(call('render_png', {
       source: SOURCE,
       scale: 0.1,
@@ -275,8 +279,8 @@ architecture-beta
     expect(readFileSync(output)).toEqual(Buffer.from(library.png))
     expect([...decodePng(library.png).rgba.slice(0, 4)]).toEqual([40, 42, 54, 255])
     expect(payload.receipt).toEqual(library.receipt)
-    expect(hostedProjection.receipt).toEqual(library.receipt)
-    expect(hosted.receipt).toEqual(library.receipt)
+    expect(hosted.receipt).toEqual(hostedProjection.receipt)
+    expect(hosted.receipt).not.toEqual(library.receipt)
     expect(payload.runtime).toEqual(PNG_NAPI_RUNTIME)
     expect(hosted.runtime).toEqual(PNG_WASM_RUNTIME)
     expect(PNG_WASM_RUNTIME).not.toEqual(PNG_NAPI_RUNTIME)

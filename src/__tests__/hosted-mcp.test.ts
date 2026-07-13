@@ -19,9 +19,9 @@ import { PNG_WASM_RUNTIME } from '../png-contract.ts'
 const FLOW = 'flowchart TD\n  A[Start] --> B{OK?}\n  B -->|yes| C[Done]'
 const TEST_PNG_RECEIPT = { version: 1, output: 'png', sharedRequestDigest: 'test-shared', requestDigest: 'test-request', appearanceDigest: 'test-appearance' } as const
 
-function makeContext(overrides: Partial<HostedMcpContext> = {}): HostedMcpContext & { executeCalls: Array<{ code: string; timeoutMs: number }>; pngCalls: Array<{ source: string; scale?: number; background?: string }> } {
+function makeContext(overrides: Partial<HostedMcpContext> = {}): HostedMcpContext & { executeCalls: Array<{ code: string; timeoutMs: number }>; pngCalls: Array<{ source: string; scale?: number; background?: string; security?: 'default' | 'strict' }> } {
   const executeCalls: Array<{ code: string; timeoutMs: number }> = []
-  const pngCalls: Array<{ source: string; scale?: number; background?: string }> = []
+  const pngCalls: Array<{ source: string; scale?: number; background?: string; security?: 'default' | 'strict' }> = []
   return {
     executeCalls,
     pngCalls,
@@ -84,6 +84,10 @@ describe('hosted MCP handshake', () => {
     const names = (res?.result as any).tools.map((t: { name: string }) => t.name)
     expect(names).toEqual(['execute', 'describe_sdk', 'render_svg', 'render_ascii', 'render_png', 'verify', 'describe', 'mutate', 'build'])
     expect((res?.result as any).tools).toBe(HOSTED_TOOLS)
+    const execute = (res?.result as any).tools.find((tool: { name: string }) => tool.name === 'execute')
+    for (const signature of ['renderMermaidSVGWithReceipt(', 'renderMermaidASCIIWithReceipt(', 'layoutMermaidWithReceipt(']) {
+      expect(execute.description).toContain(signature)
+    }
     for (const tool of (res?.result as any).tools) {
       expect(tool.annotations).toEqual(expect.objectContaining({
         readOnlyHint: true,
@@ -455,7 +459,17 @@ describe('hosted render_png', () => {
     expect(p.ok).toBe(true)
     expect(atob(p.png_base64)).toBe('\x89PNG')
     expect(p.runtime).toEqual(PNG_WASM_RUNTIME)
-    expect(ctx.pngCalls).toEqual([{ source: FLOW, scale: 3, background: '#fff' }])
+    expect(ctx.pngCalls).toEqual([{ source: FLOW, scale: 3, background: '#fff', security: 'strict' }])
+  })
+
+  test('forces strict PNG security after caller-supplied advanced options', async () => {
+    const ctx = makeContext()
+    const payload = payloadOf(await handleHostedRequest(call('render_png', {
+      source: FLOW,
+      options: { security: 'default', seed: 4 },
+    }), ctx))
+    expect(payload.ok).toBe(true)
+    expect(ctx.pngCalls).toEqual([expect.objectContaining({ security: 'strict', seed: 4 })])
   })
 
   test('a PNG larger than one base64 chunk round-trips byte-for-byte', async () => {

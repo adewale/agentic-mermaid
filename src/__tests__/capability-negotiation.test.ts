@@ -6,7 +6,12 @@ import {
   semVerSatisfies,
   type CapabilityRequirement,
 } from '../capability-negotiation.ts'
-import { RenderCapabilityError, resolveRenderRequest, receiptOf } from '../render-contract.ts'
+import {
+  RenderCapabilityError,
+  receiptOf,
+  resolveRenderRequest,
+  resolveRenderRequestForExecution,
+} from '../render-contract.ts'
 import { createExtensionIdentity } from '../shared/extension-identity.ts'
 import { resolveStyleStack, STYLE_SPEC_FORMAT_VERSION, validateStyleSpec } from '../scene/style-registry.ts'
 import {
@@ -35,7 +40,7 @@ function extensionDescriptor(
       id,
       kind: 'family',
       version: options.version ?? '1.0.0',
-      compatibility: { core: 'family-descriptor@1' },
+      compatibility: { core: '^0.1.1' },
       provenance: { owner: 'capability-negotiation-test', source: 'test' },
     }),
     id,
@@ -46,6 +51,7 @@ function extensionDescriptor(
     collisionPriority: 0,
     detect: line => line === header.toLowerCase(),
     semanticRoles: [],
+    scenePrimitiveEvidence: [],
     capabilityEvidence: [
       { capability: 'detection', state: 'native', evidence: [EVIDENCE] },
       { capability: 'source-preservation', state: 'source-preserved', evidence: [EVIDENCE] },
@@ -263,6 +269,63 @@ describe('versioned capability negotiation', () => {
     } finally {
       unregisterV2?.()
       unregisterV1()
+    }
+  })
+
+  test('rejects a selected backend whose required connector rendering is entirely unsupported', () => {
+    const id = 'backend:test/unsupported-connectors'
+    const unregister = registerBackend({
+      ...DefaultBackend,
+      id,
+      capabilities: DefaultBackend.capabilities.map(claim => ({
+        ...claim,
+        target: id,
+        ...(claim.primitive === 'connector' && claim.operation === 'render'
+          ? {
+              realization: 'unsupported' as const,
+              diagnostic: 'The probe backend deliberately cannot render connectors.',
+            }
+          : {}),
+      })),
+    }, { provenance: { owner: 'capability-negotiation-test', source: 'test' } })
+    try {
+      let failure: unknown
+      try {
+        resolveRenderRequestForExecution(
+          'flowchart LR\n  A --> B',
+          {},
+          'svg',
+          undefined,
+          { backendPolicy: { selectBackend: () => id } },
+        )
+      } catch (error) {
+        failure = error
+      }
+      expect(failure).toBeInstanceOf(RenderCapabilityError)
+      const decision = (failure as RenderCapabilityError).decision
+      expect(decision.accepted).toBe(false)
+      expect(decision.resolutions).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          id: 'scene-primitive:connector/render',
+          level: 'required',
+          status: 'unsupported',
+        }),
+        expect.objectContaining({ id: 'output:svg', status: 'unsupported' }),
+      ]))
+
+      const connectorless = resolveRenderRequestForExecution(
+        'quadrantChart\n  A: [0.2, 0.8]',
+        {},
+        'svg',
+        undefined,
+        { backendPolicy: { selectBackend: () => id } },
+      )
+      expect(connectorless.capabilityDecision.accepted).toBe(true)
+      expect(connectorless.capabilityDecision.resolutions.some(
+        resolution => resolution.id === 'scene-primitive:connector/render',
+      )).toBe(false)
+    } finally {
+      unregister()
     }
   })
 

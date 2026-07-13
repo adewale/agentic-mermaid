@@ -363,10 +363,8 @@ host/package boundary; the declarative pack only names installed resources.
 ```ts
 interface BrandPack {
   $schema: string
-  id: NamespacedId
+  identity: ExtensionIdentity<'brand-pack'>
   displayName?: string
-  version: string
-  compatibility: { core: SemverRange }
   description?: string
   deprecated?: boolean | string
   fragments: AppearanceFragment[]
@@ -463,7 +461,7 @@ a parallel `appearance` option:
 
 ```ts
 interface BrandSelection {
-  pack: NamespacedId
+  pack: ExtensionIdentity<'brand-pack'>['id']
   version?: SemverRange
   modes?: Record<string, string>
 }
@@ -483,8 +481,10 @@ rule established by the Style rollout while keeping “make corners 8px” at th
 low floor. CLI, MCP, editor, and future surfaces project this same field.
 
 `validateBrandPack`, `registerBrandPack`, `getBrandPack`, and
-`knownBrandPacks` are typed views over the same canonical installed-appearance
-registry used by Style discovery; they do not create another uncoordinated map.
+`knownBrandPacks` own one kind-specific BrandPack registry and reuse the shared
+identity, collision, version and snapshot helpers. Style and BrandPack
+registries feed one generated installed-appearance discovery projection; they
+do not share a heterogeneous backing map or create uncoordinated discovery lists.
 Loading or validating JSON never registers executable code. The base B2 schema
 has no Treatment selector. If B4 is promoted, an additive schema revision adds
 one ordered `treatments?: TreatmentRef[]` leaf; a reference can select only code
@@ -545,8 +545,8 @@ The target contract is:
 - current private face values migrate to public core roles and brand primitives,
   not to an arbitrary per-element styling object;
 - a third-party installed package can bundle license-compatible fonts and, only
-  if B4 is promoted, trusted Treatments through the same typed registry views
-  and conformance suite used by first-party packages;
+  if B4 is promoted, trusted Treatments through the same kind-specific identity,
+  discovery and conformance conventions used by first-party packages;
 - standalone untrusted JSON remains intentionally unable to embed executable
   code, markup, callbacks, fonts, or arbitrary URLs. It may reference only
   installed, host-allowlisted resources and extensions.
@@ -680,7 +680,7 @@ existing-mark repainting, and raw-output rewriting in v1.
 ```ts
 registerTreatment({
   descriptor: {
-    id: 'acme/corner-brackets',
+    id: 'treatment:acme/corner-brackets',
     kind: 'treatment',
     version: '1.0.0',
     reads: ['role', 'channels', 'bounds'],
@@ -903,8 +903,9 @@ is used.
   best-effort.
 - Share only `ExtensionIdentity { id, kind, version, compatibility, provenance }`
   plus namespacing/collision helpers. `FamilyDescriptor`, `BackendDescriptor`,
-  and `ResourceManifest` remain kind-specific typed views backed by the existing
-  registries; `TreatmentDescriptor` joins them only if B4 is promoted. Families
+  `ResourceManifest`, and—once B2 exists—`BrandPack` remain
+  kind-specific typed views backed by separate registries;
+  `TreatmentDescriptor` joins them only if B4 is promoted. Families
   are keyed dispatch, resources are data, backends are selected compositors, and
   only an activated B4 Treatment set forms an ordered pipeline. Registration
   collisions fail; replacement is explicit; every render freezes the relevant
@@ -914,9 +915,9 @@ is used.
   structured error; a missing preferred capability follows one declared lossy/
   projected fallback with a diagnostic; optional unknown capabilities remain
   inert and discoverable.
-- Namespace family IDs, role IDs, config keys and open `CapabilityId` strings,
-  plus treatment IDs only if B4 exists. Capability requirements are `required |
-  preferred | optional` and may carry numeric limits; a closed enum must not
+- Namespace family IDs, role IDs, config keys and open `CapabilityId` strings;
+  add `brand-pack:` IDs with B2 and `treatment:` IDs only if B4 exists.
+  Capability requirements are `required | preferred | optional` and may carry numeric limits; a closed enum must not
   make an unknown future ID unrepresentable.
 - Retain the executable backend/Scene admission gate for the existing backend
   API. Its versioned, frozen fixture directly proves deterministic `drawNode`
@@ -1081,7 +1082,7 @@ institutionalize the same ambiguity at a larger scale.
 | render request | one normalized `ResolvedRenderRequest`, shared-field manifest and output projection descriptors | SVG, PNG, ASCII/Unicode, CLI, MCP, editor, website |
 | appearance resolution | one pure `resolveAppearance` | measurement, layout, Scene lowering, all render backends |
 | Scene and primitives | versioned Scene/Connector schema plus bounds, identity, hit-testing and ordering invariants | layout, backends, accessibility and conformance suites; B4 reuses the invariants if promoted |
-| extension identity | shared identity/namespacing helpers plus existing kind-specific family/backend/resource registries; a typed Treatment registry joins only if B4 is promoted | collision-safe registration, discovery, negotiation and frozen typed snapshots; no generic extension pipeline |
+| extension identity | shared identity/namespacing helpers plus the Style registry's typed Palette/Look views and separate family/backend/resource registries; B2 adds a separate BrandPack registry and B4 may add Treatment | collision-safe registration, one generated discovery projection, negotiation and frozen typed snapshots; no generic extension pipeline or cross-kind heterogeneous backing map |
 | capability decisions | declarations on kind-specific descriptors plus existing conformance evidence | generated preflight result, diagnostics, fallback/error policy, matrices and product claims |
 | conformance evidence | the existing characterization catalog and citizenship/style/backend suites, extended with stable capability IDs | generated implementation reports and release claims without a second fixture catalog |
 | output security | one `OutputSecurityPolicy` | every backend/output adapter and editor insertion path |
@@ -1290,9 +1291,11 @@ contract is introduced before the old receipt path is characterized.
 ### A1 — canonical identities, registries, and historical cleanup
 
 - Define a small shared identity/namespace/provenance/version/collision helper,
-  then apply it through existing kind-specific Palette/Look, backend, family,
-  role, resource and BrandPack registry views; apply it to a Treatment registry
-  only if B4 is promoted. Do not build one heterogeneous runtime registry.
+  then apply it through the existing Style registry's typed Palette/Look views
+  and the backend, family, role and resource registries. B2 must reuse it for a
+  separate BrandPack registry; B4 must reuse it for a separate Treatment
+  registry only if promoted.
+  Do not build one heterogeneous runtime registry.
 - Split the two meanings of `tufte` into canonical `palette:tufte` and
   `look:tufte`; retain the bare alias as a diagnosed compatibility mapping to
   the currently observable Look for a published window.
@@ -1388,9 +1391,11 @@ registry, selector or pipeline.
 Exit: current families no longer depend on copied routing switches or parallel
 positioning projections; a synthetic family registers atomically.
 
-Deletion gate: duplicate detectors, metadata/example lists, universal-wrapper
-parsers, family output switches, and independent SVG/layout positioning paths
-are removed as their descriptor projections land.
+Deletion gate: duplicate detectors, rendering/discovery metadata lists,
+universal-wrapper parsers, family output switches, and independent SVG/layout
+positioning paths are removed as their descriptor projections land. Product and
+test copies of the canonical minimal example remain independently owned by
+`CONS-27`; A4 does not claim that broader deduplication is complete.
 
 ### A5 — first-party subsystem, backend and output parity
 
@@ -1481,8 +1486,10 @@ Exit: Section A has independent release notes and measurable system benefits
 without relying on a custom BrandPack demo.
 
 Deletion gate: completed/historical plans are visibly non-authoritative, copied
-tables/counts and the duplicate fixture/capability catalogs are gone, and the
-repository reports the number of retired authorities alongside new contracts.
+tables/counts and Section A's duplicate capability-evidence catalogs are gone,
+and the repository reports the number of retired authorities alongside new
+contracts. Remaining product/test fixture duplication stays visible under its
+own `CONS-*` owner rather than being silently counted as Section A closure.
 
 ## Section B — richer custom Styles and branding
 
@@ -1528,8 +1535,10 @@ equivalence and final deletion of `InternalStyleFace`/`styleFaceOf`.
 
 ### B2 — BrandPacks, modes, resources, and token ingestion
 
-- Finalize and version the BrandPack envelope and namespaced registry/discovery
-  APIs after the fragment algebra and role consumption are proven.
+- Finalize and version the BrandPack envelope and its separate `brand-pack:`
+  registry after the fragment algebra and role consumption are proven; project
+  it into the shared installed-appearance discovery surface rather than the
+  Style registry's backing map.
 - Add an ordered array of orthogonal `colorScheme`, `contrast`, `density`, and
   `scale` axes with explicit selection; defer cross-axis combinations.
 - Add a pure DTCG importer that emits concrete Agentic Mermaid fragments plus
@@ -1712,7 +1721,8 @@ Motion remains a separate vocabulary after the static resolution and extension
 protocols are stable. Vercel and CF demonstrate that easing, duration, sequencing,
 and reduced-motion behavior can be brand identity, while current product value is
 primarily deterministic static SVG/PNG and terminal output. Future motion tokens
-must compile from the same semantic roles, preserve authored Flowchart animation,
+must compile from the same semantic roles, consume the authored Flowchart
+animation metadata that Section A preserves as a safe static projection,
 obey `prefers-reduced-motion`, avoid runtime JavaScript where possible, and use
 the same capability/forward-compatibility model. Nothing in the static brand
 schema should preclude that layer.

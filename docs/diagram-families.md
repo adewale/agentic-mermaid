@@ -2,24 +2,9 @@
 
 Agentic Mermaid supports Mermaid's common diagram families through a split pipeline: parse source, layout typed structures, render SVG/PNG/ASCII, and verify structural warnings.
 
-## Capability matrix
+## Capability authority
 
-| Family | Header(s) | Render | Structured mutation | Notes |
-|---|---|---|---|---|
-| Flowchart | `flowchart`, `graph` | SVG/PNG/ASCII | `asFlowchart` | Shapes, markdown labels, links, groups, and paint. |
-| State | `stateDiagram-v2` | SVG/PNG/ASCII | `asState` | Regions, notes, history, and paint are structured. |
-| Sequence | `sequenceDiagram` | SVG/PNG/ASCII | `asSequence` | `alt`/`opt`/`loop`/`par` are typed; other blocks are segment-preserving and un-segmentable syntax falls back to opaque. |
-| Timeline | `timeline` | SVG/PNG/ASCII | `asTimeline` | Sections, periods, events, titles, and direction. |
-| Class | `classDiagram` | SVG/PNG/ASCII | `asClass` | Classes, members, namespaces, relations, notes, and paint. |
-| ER | `erDiagram` | SVG/PNG/ASCII | `asEr` | Entities, attributes, relations, direction, paint, and ordered opaque segments. |
-| Journey | `journey` | SVG/PNG/ASCII | `asJourney` | Titles, accessibility, sections, scored tasks, and actors. |
-| XY chart | `xychart`, `xychart-beta` | SVG/PNG/ASCII | `asXyChart` | Vertical/horizontal bar, line, and mixed charts. |
-| Pie | `pie` | SVG/PNG/ASCII | `asPie` | Titles, `showData`, slices, and highlight configuration. |
-| Quadrant | `quadrantChart` | SVG/PNG/ASCII | `asQuadrant` | Axes, region labels, points, and supported paint. |
-| Architecture | `architecture-beta` | SVG/PNG/ASCII | `asArchitecture` | Accessibility, groups/services/junctions, boundary edges, and alignment. |
-| Gantt | `gantt` | SVG/PNG/ASCII | `asGantt` | Tasks are typed; calendar/click/comment statements remain ordered segments. |
-| Mindmap | `mindmap` | SVG/PNG/ASCII | `asMindmap` | Indented tree, shapes, icons, classes, and accessibility. |
-| GitGraph | `gitGraph` | SVG/PNG/ASCII | `asGitGraph` | Replayed commits, branches, merges, and cherry-picks. |
+The checked roster and per-family capability states are generated from `FamilyDescriptor` in the [Section A capability report](./project/section-a-capability-report.md). Agents can discover the live roster and operation shapes through `am capabilities --json`; its compact Section A summary links to the exhaustive audit. Library and Code Mode callers can use `describeOps(family)` for the exact mutation schema. This guide keeps examples and family-specific caveats, not a second inventory.
 
 Opaque fallback does not mean unsupported: those bodies parse, render, verify, and round-trip losslessly, but agents should edit preserved source deliberately instead of calling `mutate`.
 
@@ -41,7 +26,7 @@ stateDiagram-v2
   Idle --> Running
 ```
 
-State diagrams own a dedicated `StateBody` (BUILD-19): narrow with `asState` and apply the 8 typed ops (`add_state`, `remove_state`, `rename_state`, `set_state_label`, `add_transition`, `remove_transition`, `set_transition_label`, `make_composite`). The modeled subset is simple states, transitions, `[*]` start/end pseudostates, nestable composite blocks, and `direction`. Anything outside it — `<<fork>>`/`<<choice>>`/`<<join>>`, history states, concurrency `--`, notes, `classDef`/`class`/`:::` styling — falls back to a lossless opaque body and stays source-level. Verify still runs the full Tier 1 + Tier 2 geometric path by projecting the body to a graph.
+State diagrams own a dedicated `StateBody`: narrow with `asState`. States, transitions, start/end, composites, concurrency regions, fork/join/choice and history pseudostates, notes, declarations, direction, and paint are modeled. Use `describeOps('state')` for the current mutation schema; malformed or otherwise unmodeled syntax falls back losslessly and stays source-level. Verify runs the full Tier 1 + Tier 2 geometric path by projecting the body to a graph.
 
 ## Sequence
 
@@ -53,7 +38,7 @@ sequenceDiagram
   API-->>User: Session
 ```
 
-Simple participants/messages are structured. Rich Mermaid sequence blocks such as notes, `alt`, `loop`, and activation syntax are preserved as opaque source when not modeled.
+Participants and messages are structured. Rich statements such as notes, `alt`, `loop`, and activation syntax remain ordered verbatim segments while participant/message operations stay live; only un-segmentable input falls back to a whole opaque body.
 
 ## Timeline
 
@@ -100,7 +85,7 @@ journey
     Pay: 3: Customer, Gateway
 ```
 
-Journey diagrams narrow via `asJourney` and expose 10 structured ops (sections, tasks, scores, actors). Documented Mermaid accessibility directives (`accTitle`, inline `accDescr`, and block `accDescr { ... }`) stay structured and round-trip through canonical serialization. Malformed or unknown Journey syntax falls back to a lossless opaque body.
+Journey diagrams narrow via `asJourney`; discover the exact section, task, score, actor, ordering, and accessibility operation schema with `describeOps('journey')`. Documented Mermaid accessibility directives (`accTitle`, inline `accDescr`, and block `accDescr { ... }`) stay structured and round-trip through canonical serialization. Malformed or unknown Journey syntax falls back to a lossless opaque body.
 
 SVG rendering uses Mermaid's left-to-right Journey metaphor rather than the older Agentic card layout: sections span task columns, actors appear in a left legend, per-task actor dots show participation, and scores map to sentiment markers on a progression baseline. Mermaid `journey` config fields for actor colors, section fills/text colors, task/title fonts, task spacing, and actor label width are honored. Agentic Mermaid `style` and palette colors also reach Journey-specific surfaces such as section spans, actor dots, score markers, and the baseline.
 
@@ -114,7 +99,7 @@ xychart-beta
   line [50, 180, 420]
 ```
 
-The modeled subset (bare title, named/categorical/range axes, bar/line series with finite values) is structurally mutable: narrow with `asXyChart` and apply the 8 typed ops (`set_title`, `set_x_axis`, `set_y_axis`, `add_series`, `remove_series`, `set_series_values`, `set_series_name`, `reorder_series`). Quoted text, multi-statement `;` lines, and accTitle/accDescr fall back to opaque and stay source-level. See [`design/families/xychart.md`](./design/families/xychart.md) for compatibility details and layout notes.
+The modeled title, axes, orientation, and bar/line series are structurally mutable through `asXyChart`; use `describeOps('xychart')` for the exact schema. Unmodeled or malformed syntax falls back losslessly and stays source-level. See [`design/families/xychart.md`](./design/families/xychart.md) for compatibility details and layout notes.
 
 ## Pie
 
@@ -172,7 +157,7 @@ mindmap
     Delivery
 ```
 
-Mindmap uses indentation for parentage and supports Mermaid node shapes, `::icon(...)`, `:::class`, accessibility directives, deterministic tree layout, and 10 typed operations through `asMindmap`. Duplicate semantic ids are rejected. See [`design/families/mindmap.md`](./design/families/mindmap.md).
+Mindmap uses indentation for parentage and supports Mermaid node shapes, `::icon(...)`, `:::class`, accessibility directives, deterministic tree layout, and structured mutation through `asMindmap`. Duplicate semantic ids are rejected. Use `describeOps('mindmap')` for the exact operation schema; see [`design/families/mindmap.md`](./design/families/mindmap.md).
 
 ## GitGraph
 
@@ -185,7 +170,7 @@ gitGraph
   merge feature id:"merge"
 ```
 
-GitGraph replays commits and branch movement in source order; `asGitGraph` exposes 11 typed operations. Generated ids are deterministic `c<N>` values and duplicate custom ids are rejected. See [`design/families/gitgraph.md`](./design/families/gitgraph.md).
+GitGraph replays commits and branch movement in source order and exposes structured mutation through `asGitGraph`. Generated ids are deterministic `c<N>` values and duplicate custom ids are rejected. Use `describeOps('gitgraph')` for the exact operation schema; see [`design/families/gitgraph.md`](./design/families/gitgraph.md).
 
 ## Architecture
 

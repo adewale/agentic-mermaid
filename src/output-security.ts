@@ -21,11 +21,6 @@ export interface OutputSecurityResult {
   diagnostics: readonly OutputSecurityDiagnostic[]
 }
 
-const XML_SLASH_REF = String.raw`(?:/|&(?:amp;)?#x0*2f;|&(?:amp;)?#0*47;|&(?:amp;)?sol;)`
-const XML_EXTERNAL_PREFIX = String.raw`(?:https?:)?${XML_SLASH_REF}${XML_SLASH_REF}`
-const XML_EXTERNAL_ATTR_QUOTED = new RegExp(String.raw`\s(?:[^\s=<>]+:)?(?:href|src|data)\s*=\s*["']\s*${XML_EXTERNAL_PREFIX}[^"']*["']`, 'gi')
-const XML_EXTERNAL_ATTR_UNQUOTED = new RegExp(String.raw`\s(?:[^\s=<>]+:)?(?:href|src|data)\s*=\s*${XML_EXTERNAL_PREFIX}[^\s>"']+`, 'gi')
-
 function normalizeCssObfuscation(svg: string): string {
   return svg
     .replace(/\/\*[\s\S]*?\*\//g, '')
@@ -38,6 +33,32 @@ function normalizeCssObfuscation(svg: string): string {
 
 const ATTRIBUTE = /\s([^\s=<>]+)\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/g
 const ANIMATION_TAG = /<(?:[^\s<>/:]+:)?(?:animate(?:Motion|Transform)?|set)\b/i
+
+/** Return actual opening tags without treating escaped/textual `href=…` as
+ * attributes. The output gate already rejects unbalanced markup; this scanner
+ * only needs to respect quotes while finding each tag boundary. */
+function startTags(markup: string): string[] {
+  const tags: string[] = []
+  for (let start = markup.indexOf('<'); start >= 0; start = markup.indexOf('<', start + 1)) {
+    const first = markup[start + 1]
+    if (!first || first === '/' || first === '!' || first === '?') continue
+    if (!/[^\s<>]/.test(first)) continue
+    let quote: '"' | "'" | undefined
+    for (let cursor = start + 1; cursor < markup.length; cursor++) {
+      const char = markup[cursor]!
+      if (quote) {
+        if (char === quote) quote = undefined
+      } else if (char === '"' || char === "'") {
+        quote = char
+      } else if (char === '>') {
+        tags.push(markup.slice(start, cursor + 1))
+        start = cursor
+        break
+      }
+    }
+  }
+  return tags
+}
 
 /** Bounded structural gate shared by backend admission and every SVG result. */
 export function verifySvgDocumentEnvelope(svg: string): boolean {
@@ -160,64 +181,65 @@ export function validateRawThemeCss(value: unknown, mode: OutputSecurityMode): s
 
 function attributeSecurityFindings(svg: string): string[] {
   const refs: string[] = []
-  for (const match of svg.matchAll(new RegExp(ATTRIBUTE.source, 'g'))) {
-    const qualified = match[1]!
-    const name = qualified.slice(qualified.lastIndexOf(':') + 1).toLowerCase()
-    const value = unquoteAttribute(match[2]!)
-    if (/^on[a-z]/.test(name)) refs.push('inline-event-handler')
-    if ((name === 'href' || name === 'src' || name === 'data') && isUnsafeReference(value)) {
-      refs.push(normalizedReference(value).startsWith('javascript:') ? 'javascript-url' : value)
-    }
-    if ((CSS_VALUE_ATTRIBUTES.has(name) || name === 'values' || name === 'from' || name === 'to') && unsafeCssOrAnimatedValue(value)) {
-      refs.push(`${qualified}=${value}`)
+  for (const tag of startTags(svg)) {
+    for (const match of tag.matchAll(new RegExp(ATTRIBUTE.source, 'g'))) {
+      const qualified = match[1]!
+      const name = qualified.slice(qualified.lastIndexOf(':') + 1).toLowerCase()
+      const value = unquoteAttribute(match[2]!)
+      if (/^on[a-z]/.test(name)) refs.push('inline-event-handler')
+      if ((name === 'href' || name === 'src' || name === 'data') && isUnsafeReference(value)) {
+        refs.push(normalizedReference(value).startsWith('javascript:') ? 'javascript-url' : value)
+      }
+      if ((CSS_VALUE_ATTRIBUTES.has(name) || name === 'values' || name === 'from' || name === 'to') && unsafeCssOrAnimatedValue(value)) {
+        refs.push(`${qualified}=${value}`)
+      }
     }
   }
   return refs
 }
 
 function activeContentFindings(svg: string): string[] {
-  const scan = normalizeCssObfuscation(decodeXmlReferences(svg))
+  const markup = svg.replace(/<!--[\s\S]*?-->/g, '')
   const refs: string[] = []
-  for (const match of svg.matchAll(new RegExp(ATTRIBUTE.source, 'g'))) {
-    const qualified = match[1]!
-    const name = qualified.slice(qualified.lastIndexOf(':') + 1).toLowerCase()
-    const value = unquoteAttribute(match[2]!)
-    if (/^on[a-z]/.test(name)) refs.push('inline-event-handler')
-    if ((name === 'href' || name === 'src' || name === 'data') && isActiveReference(value)) refs.push(`${qualified}=${value}`)
-    if ((CSS_VALUE_ATTRIBUTES.has(name) || name === 'values' || name === 'from' || name === 'to') && unsafeActiveCss(value)) refs.push(`${qualified}=${value}`)
+  for (const tag of startTags(markup)) {
+    for (const match of tag.matchAll(new RegExp(ATTRIBUTE.source, 'g'))) {
+      const qualified = match[1]!
+      const name = qualified.slice(qualified.lastIndexOf(':') + 1).toLowerCase()
+      const value = unquoteAttribute(match[2]!)
+      if (/^on[a-z]/.test(name)) refs.push('inline-event-handler')
+      if ((name === 'href' || name === 'src' || name === 'data') && isActiveReference(value)) refs.push(`${qualified}=${value}`)
+      if ((CSS_VALUE_ATTRIBUTES.has(name) || name === 'values' || name === 'from' || name === 'to') && unsafeActiveCss(value)) refs.push(`${qualified}=${value}`)
+    }
   }
-  for (const style of scan.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)) {
+  // Character references are decoded inside attribute values and CSS, where
+  // the XML/CSS consumers interpret them. Do not decode the complete document:
+  // escaped label text such as `&lt;script&gt;` remains text in XML and must not
+  // be mistaken for a structural element.
+  for (const style of markup.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)) {
     if (unsafeActiveCss(style[1]!)) refs.push('active-css')
   }
-  if (/<(?:[^\s<>/:]+:)?script\b/i.test(scan)) refs.push('<script>')
-  if (/<(?:[^\s<>/:]+:)?foreignObject\b/i.test(scan)) refs.push('<foreignObject>')
-  if (/<(?:[^\s<>/:]+:)?object\b/i.test(scan)) refs.push('<object>')
-  if (/<(?:[^\s<>/:]+:)?embed\b/i.test(scan)) refs.push('<embed>')
-  if (/<(?:[^\s<>/:]+:)?iframe\b/i.test(scan)) refs.push('<iframe>')
-  if (ANIMATION_TAG.test(scan)) refs.push('<animation>')
+  if (/<(?:[^\s<>/:]+:)?script\b/i.test(markup)) refs.push('<script>')
+  if (/<(?:[^\s<>/:]+:)?foreignObject\b/i.test(markup)) refs.push('<foreignObject>')
+  if (/<(?:[^\s<>/:]+:)?object\b/i.test(markup)) refs.push('<object>')
+  if (/<(?:[^\s<>/:]+:)?embed\b/i.test(markup)) refs.push('<embed>')
+  if (/<(?:[^\s<>/:]+:)?iframe\b/i.test(markup)) refs.push('<iframe>')
+  if (ANIMATION_TAG.test(markup)) refs.push('<animation>')
   return refs
 }
 
 export function verifyNoExternalRefs(svg: string): { ok: boolean; refs: string[] } {
-  const scan = normalizeCssObfuscation(decodeXmlReferences(svg))
-  const refs: string[] = attributeSecurityFindings(svg)
-  for (const style of scan.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)) {
+  const markup = svg.replace(/<!--[\s\S]*?-->/g, '')
+  const refs: string[] = attributeSecurityFindings(markup)
+  for (const style of markup.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)) {
     refs.push(...unsafeCssReferences(style[1]!))
   }
-  for (const m of scan.matchAll(/(?<=\s)(?<!xmlns:)(?:[^\s=<>]+:)?(?:href|src|data)\s*=\s*["']\s*((?:https?:)?\/\/[^"']+)["']/gi)) refs.push(m[1]!)
-  for (const m of scan.matchAll(/(?<=\s)(?<!xmlns:)(?:[^\s=<>]+:)?(?:href|src|data)\s*=\s*((?:https?:)?\/\/[^\s>"']+)/gi)) refs.push(m[1]!)
-  for (const m of scan.matchAll(XML_EXTERNAL_ATTR_QUOTED)) refs.push(m[0]!)
-  for (const m of scan.matchAll(XML_EXTERNAL_ATTR_UNQUOTED)) refs.push(m[0]!)
-  if (/<(?:[^\s<>/:]+:)?script\b/i.test(scan)) refs.push('<script>')
-  if (/<(?:[^\s<>/:]+:)?foreignObject\b/i.test(scan)) refs.push('<foreignObject>')
-  if (/<(?:[^\s<>/:]+:)?image\b/i.test(scan)) refs.push('<image>')
-  if (/<(?:[^\s<>/:]+:)?object\b/i.test(scan)) refs.push('<object>')
-  if (/<(?:[^\s<>/:]+:)?embed\b/i.test(scan)) refs.push('<embed>')
-  if (/<(?:[^\s<>/:]+:)?iframe\b/i.test(scan)) refs.push('<iframe>')
-  if (ANIMATION_TAG.test(scan)) refs.push('<animation>')
-  if (/\son[a-z][\w:.-]*\s*=/i.test(scan)) refs.push('inline-event-handler')
-  if (/\s(?:[^\s=<>]+:)?(?:href|src|data)\s*=\s*["']?\s*javascript\s*:/i.test(scan)) refs.push('javascript-url')
-  if (/\s(?:[^\s=<>]+:)?(?:href|src|data)\s*=\s*["']?\s*(?:data|vbscript|file)\s*:/i.test(scan)) refs.push('active-url')
+  if (/<(?:[^\s<>/:]+:)?script\b/i.test(markup)) refs.push('<script>')
+  if (/<(?:[^\s<>/:]+:)?foreignObject\b/i.test(markup)) refs.push('<foreignObject>')
+  if (/<(?:[^\s<>/:]+:)?image\b/i.test(markup)) refs.push('<image>')
+  if (/<(?:[^\s<>/:]+:)?object\b/i.test(markup)) refs.push('<object>')
+  if (/<(?:[^\s<>/:]+:)?embed\b/i.test(markup)) refs.push('<embed>')
+  if (/<(?:[^\s<>/:]+:)?iframe\b/i.test(markup)) refs.push('<iframe>')
+  if (ANIMATION_TAG.test(markup)) refs.push('<animation>')
   return { ok: refs.length === 0, refs }
 }
 

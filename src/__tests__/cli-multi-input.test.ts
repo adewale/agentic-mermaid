@@ -104,4 +104,12 @@ describe('#930 watch re-render step (renderFileOnce)', () => {
     const code = runCli(['render', f, '--format', 'png', '--output', `${f}.png`, '--watch'])
     expect(code).toBe(2)
   })
+
+  test('PNG rejects non-positive and non-finite scales as argument errors', () => {
+    const f = tmp('flowchart TD\n A --> B')
+    const output = `${f}.png`
+    for (const scale of ['0', '-1', 'NaN', 'Infinity']) {
+      expect(runCli(['render', f, '--format', 'png', '--output', output, '--scale', scale])).toBe(2)
+    }
+  })
 })

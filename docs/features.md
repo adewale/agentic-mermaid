@@ -57,6 +57,11 @@ Agentic Mermaid outputs **SVG, PNG, ASCII, Unicode, and JSON layout** from the s
   errors; deprecated `maxWidth` remains best-effort only.
 - **PNG** — `renderMermaidPNG(source, { ...sharedRenderOptions, fitTo, background, fontDirs, loadSystemFonts, onWarning })` or `am render diagram.mmd --format png --output diagram.png` (offline `@resvg/resvg-js`; bundled Inter — the metrics font — with DejaVu fallback plus the built-in style faces,
   cross-runtime deterministic on same-machine x86_64/ARM64 where Node + built `dist/` are present; explicit sRGB + cICP metadata with no conflicting ICC profile). Characters without bundled coverage (CJK, emoji) warn loudly; supply `--font-dirs <dir>` / `fontDirs` or `--system-fonts` / `loadSystemFonts: true`.
+  Trusted hosts can bind one registered graphical backend across SVG, native
+  PNG, and browser PNG with `createMermaidRenderer`,
+  `createMermaidPNGRenderer`, and `createMermaidBrowserPNGRenderer`; backend
+  selection is host policy and cannot be smuggled through serializable render
+  options or Styles.
 - **JSON layout** — `layoutMermaid` / `am render --format json`; add `--certificates` (or `layoutMermaid(d, { debug: true })`) to include opt-in graph route certificates, family edge-route certificates (class/ER/architecture/sequence), region-containment certificates (timeline/charts), V1 region/action sidecars, exact ports, and side/slot/role assignments where applicable.
 - **ASCII with metadata** — `renderMermaidASCIIWithMeta` → `{ ascii, regions, warnings, routeParity }`
   for TUI click-mapping.

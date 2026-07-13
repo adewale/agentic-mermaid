@@ -13,6 +13,7 @@ import type { SceneDoc, SceneNode } from '../scene/ir.ts'
 import { hashId } from '../scene/seed.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
+import { resolvedFamilyAppearanceOf } from '../render-contract.ts'
 
 // ============================================================================
 // Timeline diagram SVG renderer
@@ -45,11 +46,16 @@ const TL = {
   markerInnerRadius: 4.5,
 } as const
 
-interface TimelineFamilyPalette {
+export interface TimelineFamilyPalette {
   accent: string
   fill: string
   label: string
   line: string
+}
+
+export interface TimelineRequestAppearance {
+  timelineConfig: TimelineRuntimeConfig
+  familyPalettes: readonly TimelineFamilyPalette[]
 }
 
 /**
@@ -71,14 +77,14 @@ export function lowerTimelineScene(
   const { positioned: diagram, colors, options } = ctx
   const font = colors.font ?? 'Inter'
   const transparent = options.transparent ?? false
-  const timelineConfig = options.mermaidConfig?.timeline ?? {}
-  const themeVariables = options.mermaidConfig?.themeVariables
+  const timelineAppearance = timelineRequestAppearanceOf(options)
+  const timelineConfig = timelineAppearance.timelineConfig
   const parts: SceneNode[] = []
   const style = resolveRenderStyle(options, TIMELINE_STYLE_DEFAULTS)
   const paints = timelinePaints(style)
   const accessibleTitle = diagram.accessibilityTitle ?? diagram.title?.text.replace(/\n+/g, ' ')
   const accessibleDescription = diagram.accessibilityDescription
-  const familyPalettes = getTimelineFamilyPalettes(timelineConfig, themeVariables)
+  const familyPalettes = timelineAppearance.familyPalettes
   // disableMulticolor collapses every color family to 0 — for per-period
   // families AND labeled per-section families (upstream semantics; the old
   // gate skipped labeled sections, plan §Timeline 3).
@@ -504,6 +510,19 @@ function renderFamilyAttr(familyIndex: number, familyPalettes: readonly Timeline
   return ` data-family="${family}" style="${escapeAttr(style)}"`
 }
 
+export function resolveTimelineRequestAppearance(options: RenderContext['options'] = {}): TimelineRequestAppearance {
+  const timelineConfig = options.mermaidConfig?.timeline ?? {}
+  return {
+    timelineConfig,
+    familyPalettes: getTimelineFamilyPalettes(timelineConfig, options.mermaidConfig?.themeVariables),
+  }
+}
+
+function timelineRequestAppearanceOf(options: RenderContext['options']): TimelineRequestAppearance {
+  return resolvedFamilyAppearanceOf<TimelineRequestAppearance>(options)
+    ?? resolveTimelineRequestAppearance(options)
+}
+
 function getTimelineFamilyPalettes(
   timelineConfig: TimelineRuntimeConfig,
   themeVariables?: MermaidThemeVariables,
@@ -539,4 +558,3 @@ function readTimelineScale(
   const value = themeVariables[`${prefix}${index}`]
   return typeof value === 'string' && value.length > 0 ? value : undefined
 }
-

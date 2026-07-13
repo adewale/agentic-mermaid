@@ -50,11 +50,13 @@ export type { QualityMetrics, QualityBounds, QualityVerdict, RankedViolation, Bo
 export { layoutCertificateProof } from './certificates.ts'
 export type { LayoutCertificateProof } from './certificates.ts'
 export type { RouteCertificate, EdgeRouteCertificate, FamilyEdgeRouteCertificate, RegionContainmentCertificate, FamilyRouteCertificate, LayoutRouteCertificate, LayoutRouteClass, RouteClass, RouteBlocker, RoutePortAssignment, PortSemanticRole, AnyPort, PortSide, DiamondFacet } from '../types.ts'
-export { registerFamily, getFamily, knownFamilies, knownBuiltinFamilies, detectRegisteredFamilyFromFirstLine, isBuiltinFamilyId, isExternalFamilyId, BUILTIN_FAMILY_METADATA, BUILTIN_FAMILY_METADATA_COVERS_DIAGRAM_KIND, builtinFamilyMetadata, FAMILY_CAPABILITY_COLUMNS } from './families.ts'
+export { registerFamily, getFamily, knownFamilies, knownBuiltinFamilies, detectRegisteredFamilyFromFirstLine, isBuiltinFamilyId, isExternalFamilyId, BUILTIN_FAMILY_METADATA, BUILTIN_FAMILY_METADATA_COVERS_DIAGRAM_KIND, builtinFamilyMetadata, FAMILY_CAPABILITY_COLUMNS, declareFamilyScenePrimitiveEvidence } from './families.ts'
 export type {
   FamilyDescriptor, FamilyPlugin, FamilyOperations, ExtensionIdentity,
   FamilyCapability, FamilyCapabilityState, FamilyCapabilityEvidence, ExtractedLabel, BuiltinFamilyMetadata, BuiltinFamilyId,
   FamilyPositionedView, FamilyPositionedProjectionContext, FamilyPositionedProjectionOptions,
+  FamilyScenePrimitiveApplicability, FamilyScenePrimitiveEvidence,
+  FamilyScenePositivePrimitive, FamilySceneRolePrimitiveDeclaration,
 } from './families.ts'
 export { projectPositionedView } from './family-layouts.ts'
 export { UPSTREAM_MERMAID_FAMILY_INDEX, findUpstreamFamilyByHeader } from '../upstream-family-index.ts'
@@ -102,6 +104,21 @@ export type {
   ConnectorLabelDescriptor, ConnectorHitGeometry, ConnectorTerminalProjection,
   ConnectorTerminalStrokeLoss, ConnectorTerminalMarkerProjection, ConnectorTerminalLabelProjection, MarkerDescriptor,
 } from '../scene/ir.ts'
+export {
+  EXTERNAL_SCENE_API_VERSION, buildExternalScene,
+} from '../scene/external-scene.ts'
+export type {
+  ExternalSceneGeometry, ExternalSceneNodeBase, ExternalSceneShape, ExternalSceneDataMark,
+  ExternalSceneText, ExternalSceneContainer, ExternalSceneConnector, ExternalSceneNode,
+  ExternalSceneMarker, ExternalSceneDocument, ExternalSceneInput,
+} from '../scene/external-scene.ts'
+export {
+  SCENE_VALIDATION_VERSION, SCENE_VALIDATION_LIMITS, validateSceneDoc, assertValidSceneDoc, SceneValidationError,
+} from '../scene/scene-validation.ts'
+export type {
+  SceneValidationDiagnosticCode, SceneValidationDiagnostic, SceneValidationResult,
+  SceneValidationOptions,
+} from '../scene/scene-validation.ts'
 export { BUILTIN_SCENE_ROLE_TRAITS, SCENE_ROLE_DESCRIPTORS, resolveSceneRoleTraits, sceneRoleTraits } from '../scene/roles.ts'
 export {
   HOSTED_FONT_RESOURCES, HOSTED_FONT_FACES, HOSTED_FONT_FILES,
@@ -109,6 +126,7 @@ export {
 } from '../font-manifest.ts'
 export { RESOURCE_MANIFEST_VERSION, verifyResourceBytes } from '../resource-manifest.ts'
 export { CORE_SCENE_PRIMITIVES, CORE_SCENE_OPERATIONS, CORE_SCENE_FEATURES, PRIMITIVE_REALIZATIONS, validatePrimitiveCapabilities } from '../scene/capabilities.ts'
+export { createExtensionIdentity } from '../shared/extension-identity.ts'
 export {
   RENDER_CONTRACT_VERSION, RENDER_OUTPUTS, RENDER_OUTPUT_DESCRIPTORS,
   SHARED_RENDER_OPTION_FIELDS, validateSerializableRenderOptions, RenderCapabilityError,

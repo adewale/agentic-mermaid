@@ -17,34 +17,10 @@ verify-before-commit loop is one round-trip.
 
 ```text
 mermaid.parseMermaid(source): Result<ValidDiagram, ParseError[]>
-mermaid.asFlowchart(d): FlowchartValidDiagram | null
-mermaid.asState(d):     StateValidDiagram | null
-mermaid.asSequence(d):  SequenceValidDiagram | null
-mermaid.asTimeline(d):  TimelineValidDiagram | null
-mermaid.asClass(d):     ClassValidDiagram | null
-mermaid.asEr(d):        ErValidDiagram | null
-mermaid.asJourney(d):   JourneyValidDiagram | null
-mermaid.asArchitecture(d): ArchitectureValidDiagram | null
-mermaid.asXyChart(d):   XyChartValidDiagram | null
-mermaid.asPie(d):       PieValidDiagram | null
-mermaid.asQuadrant(d):  QuadrantValidDiagram | null
-mermaid.asGantt(d):     GanttValidDiagram | null
-mermaid.asMindmap(d):   MindmapValidDiagram | null
-mermaid.asGitGraph(d):  GitGraphValidDiagram | null
-mermaid.mutate(flow,     FlowchartMutationOp): Result<FlowchartValidDiagram, MutationError>
-mermaid.mutate(state,    StateMutationOp):     Result<StateValidDiagram, MutationError>
-mermaid.mutate(seq,      SequenceMutationOp):  Result<SequenceValidDiagram, MutationError>
-mermaid.mutate(timeline, TimelineMutationOp):  Result<TimelineValidDiagram, MutationError>
-mermaid.mutate(klass,    ClassMutationOp):     Result<ClassValidDiagram, MutationError>
-mermaid.mutate(er,       ErMutationOp):        Result<ErValidDiagram, MutationError>
-mermaid.mutate(journey,  JourneyMutationOp):   Result<JourneyValidDiagram, MutationError>
-mermaid.mutate(arch,     ArchitectureMutationOp): Result<ArchitectureValidDiagram, MutationError>
-mermaid.mutate(xy,       XyChartMutationOp):   Result<XyChartValidDiagram, MutationError>
-mermaid.mutate(pie,      PieMutationOp):       Result<PieValidDiagram, MutationError>
-mermaid.mutate(quad,     QuadrantMutationOp):  Result<QuadrantValidDiagram, MutationError>
-mermaid.mutate(gantt,    GanttMutationOp):     Result<GanttValidDiagram, MutationError>
-mermaid.mutate(mindmap,  MindmapMutationOp):   Result<MindmapValidDiagram, MutationError>
-mermaid.mutate(gitgraph, GitGraphMutationOp):  Result<GitGraphValidDiagram, MutationError>
+mermaid.asFlowchart(d): FlowchartValidDiagram | null  // example narrower
+mermaid.mutate(narrowed, op): Result<ValidDiagram, MutationError> // concrete overload preserves the family
+// Call describe_sdk({ family, detail: 'fields' }) for the registry-derived
+// narrower and exact family operation overloads.
 mermaid.verifyMermaid(input, { suppress?, labelCharCap? }): VerifyResult
 mermaid.describeMermaidFacts(d): string[]
 mermaid.checkMermaid(d, spec): { ok: boolean; missing: string[]; unexpected: string[]; facts: string[] }

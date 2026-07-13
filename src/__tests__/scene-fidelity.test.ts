@@ -10,17 +10,13 @@
 // unfaithful mark, not just the first.
 
 import { describe, test, expect } from 'bun:test'
-import { decodeXML } from 'entities'
-import { getFamily } from '../render-family-hooks.ts'
-import type { DiagramKind } from '../agent/types.ts'
-import type { FamilyLayoutResult } from '../agent/families.ts'
-import type { PositionedDiagram, RenderOptions } from '../types.ts'
-import { normalizeMermaidSource, detectDiagramTypeFromFirstLine } from '../mermaid-source.ts'
-import { readThemeValue, resolveDiagramColors } from '../color-resolver.ts'
+import type { RenderOptions } from '../types.ts'
 import { sceneFidelityProblems } from '../scene/fidelity.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import type { SceneDoc } from '../scene/ir.ts'
 import { collectSamples } from '../../eval/layout-compare/run.ts'
+import { resolveRenderRequest, resolvedRenderExecutionPlanOf } from '../render-contract.ts'
+import { positionResolvedFamily } from '../positioning.ts'
 
 interface Lowered {
   id: string
@@ -31,28 +27,19 @@ interface Lowered {
 /** Mirror the built-in renderMermaidSVG dispatch through its sole graphical
  * waist (before the resolve() post-pass, which is scene-independent). */
 function lowerSample(source: string, options: RenderOptions = {}): { doc: SceneDoc } | undefined {
-  const text = decodeXML(source)
-  const normalizedSource = normalizeMermaidSource(text, options.mermaidConfig ?? {})
-  const font = options.font
-    ?? normalizedSource.config.fontFamily
-    ?? readThemeValue(normalizedSource.config.themeVariables, 'fontFamily')
-    ?? 'Inter'
-  const colors = resolveDiagramColors(options, normalizedSource.config, font)
-  const diagramType = detectDiagramTypeFromFirstLine(normalizedSource.firstLine) ?? 'flowchart'
-  const family = getFamily(diagramType as DiagramKind)
+  const request = resolveRenderRequest(source, options, 'svg')
+  const family = resolvedRenderExecutionPlanOf(request).family
   if (!family?.layout || !family.lowerScene) return undefined
-  const renderOptions: RenderOptions = { ...options, mermaidConfig: normalizedSource.config }
-  let layout: FamilyLayoutResult
+  let layout: ReturnType<typeof positionResolvedFamily>
   try {
-    const result = family.layout({ source: normalizedSource, options, renderOptions, colors })
-    layout = 'positioned' in result ? result as FamilyLayoutResult : { positioned: result as PositionedDiagram }
+    layout = positionResolvedFamily(family.id, request)
   } catch {
     return undefined // diagrams that legitimately fail are the equivalence gate's concern
   }
   const ctx = {
     positioned: layout.positioned,
-    colors: layout.colors ?? colors,
-    options: layout.options ?? renderOptions,
+    colors: request.appearance.colors,
+    options: request.renderOptions,
   }
   return { doc: family.lowerScene(ctx) }
 }

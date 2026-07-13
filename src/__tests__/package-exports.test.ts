@@ -34,6 +34,8 @@ describe('package exports', () => {
     expect(pkg.exports['./agent']).toBeDefined()
     expect(pkg.exports['./agent'].default).toBe('./dist/agent.js')
     expect(pkg.exports['./agent'].bun).toBe('./src/agent/index.ts')
+    expect(pkg.exports['./agent/core'].default).toBe('./dist/agent-core.js')
+    expect(pkg.exports['./agent/core'].bun).toBe('./src/agent/core.ts')
     expect(pkg.exports['./agent'].types).toBe('./dist/agent.d.ts')
   })
 

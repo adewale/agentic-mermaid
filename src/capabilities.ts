@@ -8,6 +8,7 @@ export {
   SECTION_A_CAPABILITY_STATE_VOCABULARIES,
   FAMILY_CAPABILITY_COLUMNS,
   createSectionACapabilityReport,
+  sectionACapabilityDiscoverySummary,
   validateSectionACapabilityReport,
   sectionACapabilityReportMarkdown,
 } from './section-a-capability-report.ts'
@@ -24,7 +25,23 @@ export type {
   SectionAEvidenceSystem,
   SectionARetiredAuthority,
   SectionACapabilityReport,
+  SectionACapabilityDiscoverySummary,
 } from './section-a-capability-report.ts'
+export {
+  FAMILY_SYNTAX_STATES,
+  SYNTAX_CAPABILITY_DIMENSIONS,
+  classifySyntaxFeatureDimension,
+  createSyntaxCapabilityLedger,
+  validateSyntaxCapabilityLedger,
+} from './syntax-capability-ledger.ts'
+export type {
+  FamilySyntaxState,
+  SyntaxCapabilityDimensionId,
+  SyntaxCapabilityEvidence,
+  SyntaxFeatureCapabilityRow,
+  SyntaxFamilyDimensionCapabilityRow,
+  SyntaxCapabilityLedger,
+} from './syntax-capability-ledger.ts'
 export {
   UPSTREAM_MERMAID_MANIFEST,
   canonicalUpstreamInventory,

@@ -14,6 +14,26 @@ export type CoreScenePrimitive = (typeof CORE_SCENE_PRIMITIVES)[number]
 
 export type ScenePrimitive = CoreScenePrimitive | `${string}:${string}`
 
+export interface EssentialScenePrimitiveOperation {
+  readonly primitive: CoreScenePrimitive
+  readonly operation: 'render' | 'serialize'
+}
+
+/** One authority for the minimum operation that makes each core primitive
+ * usable by a selected Scene backend. */
+export const ESSENTIAL_SCENE_PRIMITIVE_OPERATIONS: readonly EssentialScenePrimitiveOperation[] = Object.freeze(
+  CORE_SCENE_PRIMITIVES.map(primitive => Object.freeze({
+    primitive,
+    operation: primitive === 'document' ? 'serialize' as const : 'render' as const,
+  })),
+)
+
+export function essentialScenePrimitiveOperation(
+  primitive: CoreScenePrimitive,
+): EssentialScenePrimitiveOperation['operation'] {
+  return primitive === 'document' ? 'serialize' : 'render'
+}
+
 export const CORE_SCENE_OPERATIONS = [
   'measure',
   'layout',
@@ -68,6 +88,28 @@ export const PRIMITIVE_REALIZATIONS = [
 ] as const
 
 export type PrimitiveRealization = (typeof PRIMITIVE_REALIZATIONS)[number]
+
+import type { SceneNode } from './ir.ts'
+
+/**
+ * Project a concrete Scene node onto the stable primitive vocabulary. Raw,
+ * prelude, and document nodes are document-level serialization; marker
+ * resources are an additional marker primitive; quantitative shapes are also
+ * data marks. Keeping this projection here prevents conformance/report code
+ * from growing its own family-specific classifiers.
+ */
+export function sceneNodePrimitives(node: SceneNode): readonly CoreScenePrimitive[] {
+  switch (node.kind) {
+    case 'text': return ['text']
+    case 'shape': return node.channels?.value === undefined ? ['shape'] : ['shape', 'data-mark']
+    case 'group': return ['container']
+    case 'connector': return ['connector']
+    case 'document': return node.markerResources?.length ? ['document', 'marker'] : ['document']
+    case 'raw':
+    case 'prelude':
+      return ['document']
+  }
+}
 
 export interface PrimitiveCapabilityClaim {
   /** Stable implementation/backend identifier, e.g. `svg:rough`. */

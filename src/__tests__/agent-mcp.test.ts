@@ -424,6 +424,10 @@ describe('MCP — JSON-RPC happy + sad', () => {
       expect(tools[0].description).toContain(token)
     }
     expect(tools[0].description).not.toContain('TimelineMutationOp')
+    for (const signature of ['renderMermaidSVGWithReceipt(', 'renderMermaidASCIIWithReceipt(', 'layoutMermaidWithReceipt(']) {
+      expect(tools[0].description).toContain(signature)
+    }
+    expect(tools[0].description).toContain('interface RenderRequestReceipt')
     expect(new TextEncoder().encode(tools[0].description).length).toBeLessThan(10_000)
   })
   test('tools/call execute', async () => {

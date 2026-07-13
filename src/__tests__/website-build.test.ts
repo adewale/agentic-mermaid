@@ -924,8 +924,8 @@ describe('Workers Static Assets website contract', () => {
     expect(page).toContain('GitGraph')
     const original = new Set(['flowchart', 'state', 'sequence', 'class', 'er', 'xychart'])
     const additions = BUILTIN_FAMILY_METADATA.filter(family => !original.has(family.id)).map(family => family.label).join(', ')
-    expect(page).toContain(`Adds ${additions} beyond the original Beautiful Mermaid family set.`)
-    expect(page).toContain('All registered families are structured-when-narrowed')
+    expect(page).toContain(`Adds ${additions} beyond the original Beautiful Mermaid family set`)
+    expect(page).toContain('Every registered built-in family is structured when narrowed')
   })
 
   test('editor mode switch is not a pseudo-tabset', () => {

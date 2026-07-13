@@ -9,7 +9,7 @@ import { resolveInlineNodeTextColor } from './color-resolver.ts'
 import type { Geometry, MarkerDescriptor, MarkerRef, SceneDoc, SceneNode, SemanticChannels } from './scene/ir.ts'
 import * as marks from './scene/marks.ts'
 import { DefaultBackend } from './scene/backend.ts'
-import type { StateRenderOptions } from './state/config.ts'
+import { resolvedStateVisualOf } from './state/config.ts'
 import { resolveMindmapIcon } from './mindmap/icons.ts'
 import { serializeMarkerResources } from './scene/marker-resources.ts'
 
@@ -70,7 +70,7 @@ export function lowerGraphScene(
   const font = colors.font ?? 'Inter'
   const transparent = options.transparent ?? false
   const parts: SceneNode[] = []
-  const stateVisual = (options as StateRenderOptions).stateVisual
+  const stateVisual = resolvedStateVisualOf(options)
   const style = resolveRenderStyle(options, stateVisual?.styleDefaults)
 
   // SVG root with CSS variables + style block + defs
@@ -462,7 +462,13 @@ function renderEdge(
   }
 
   const pathData = edge.curve ? pointsToCurvePathD(edge.points) : style.edgeBendRadius > 0 ? pointsToPathD(edge.points, style.edgeBendRadius) : pointsToPolylinePath(edge.points)
-  const dashArray = edge.style === 'dotted' ? ` stroke-dasharray="${FLOWCHART_DOTTED_DASH.dash} ${FLOWCHART_DOTTED_DASH.gap}"` : ''
+  // Section A output is static and active SVG is rejected in every security
+  // mode. Preserve authored animation intent as typed metadata plus a stable
+  // dashed projection; a future motion layer can consume the same metadata.
+  const effectiveDashArray = edge.style === 'dotted'
+    ? `${FLOWCHART_DOTTED_DASH.dash} ${FLOWCHART_DOTTED_DASH.gap}`
+    : edge.animate ? '8 4' : undefined
+  const dashArray = effectiveDashArray ? ` stroke-dasharray="${effectiveDashArray}"` : ''
   const baseStrokeWidth = edge.style === 'thick' ? style.lineWidth * 2 : style.lineWidth
   const markerColor = edge.inlineStyle?.stroke ?? style.edgeStrokeColor
   const strokeColor = escapeAttr(markerColor ?? 'var(--_line)')
@@ -513,7 +519,7 @@ function renderEdge(
   const paint = {
     stroke: markerColor ?? 'var(--_line)',
     strokeWidth: edge.inlineStyle?.['stroke-width'] ?? String(baseStrokeWidth),
-    ...(edge.style === 'dotted' ? { strokeDasharray: `${FLOWCHART_DOTTED_DASH.dash} ${FLOWCHART_DOTTED_DASH.gap}` } : {}),
+    ...(effectiveDashArray ? { strokeDasharray: effectiveDashArray } : {}),
   }
 
   if (style.edgeBendRadius > 0 || edge.curve) {
@@ -522,13 +528,13 @@ function renderEdge(
       role: 'edge',
       geometry: { kind: 'path', d: pathData, points: edge.points },
       lineStyle,
-      paint: edge.animate && edge.style !== 'dotted' ? { ...paint, strokeDasharray: '8 4' } : paint,
+      paint,
       startMarker,
       endMarker,
       ...connectorSemantics,
     },
       `<path ${dataAttrs.join(' ')} d="${pathData}" fill="none" stroke="${strokeColor}" ` +
-      `stroke-width="${strokeWidth}"${dashArray}${edge.animate && edge.style !== 'dotted' ? ' stroke-dasharray="8 4"' : ''}${markers}>${edge.animate ? `<animate attributeName="stroke-dashoffset" from="12" to="0" dur="${edge.animation === 'fast' ? '0.5s' : '1.5s'}" repeatCount="indefinite" />` : ''}</path>`)
+      `stroke-width="${strokeWidth}"${dashArray}${markers} />`)
   }
 
   return marks.connector({

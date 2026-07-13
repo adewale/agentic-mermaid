@@ -2,7 +2,7 @@
 
 Status: living contract for the flowchart-family elevation
 (plan §Flowchart items 3, 6, 7, 8; repo issues #44 and #102).
-Last updated: 2026-07-10.
+Last updated: 2026-07-13.
 
 Flowchart is the flagship family: the legacy `src/parser.ts` grammar feeds the
 ELK layout engine (`src/layout-engine.ts`), the SceneGraph SVG renderer
@@ -72,9 +72,12 @@ Upstream schema verified 2026-07-10
   first, then the endpoint forms `from->to` / `from->to#k`
   (`findEdgeIndexById` in `src/agent/flowchart-body.ts`).
 - Edge IDs no longer force the opaque agent fallback and the
-  `flowchart_edge_id` UNSUPPORTED_SYNTAX lint is retired. Edge **metadata**
-  (`e1@{ animate: true }`) remains opaque + `flowchart_edge_metadata` lint —
-  animate/curve semantics are upstream-only.
+  `flowchart_edge_id` UNSUPPORTED_SYNTAX lint is retired. The closed edge
+  metadata vocabulary (`animate`, `animation`, and `curve`) is modeled and
+  serialized too. Static outputs preserve motion intent as `data-animate` /
+  `data-animation` plus a deterministic dashed stroke; active SVG animation is
+  never emitted because every output-security mode rejects active content.
+  Unknown edge-metadata keys remain source-preserved and warned.
 
 ## v11.3+ typed shapes (`@{ shape: ... }`) — repo #44
 

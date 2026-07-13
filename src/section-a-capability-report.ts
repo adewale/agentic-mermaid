@@ -22,6 +22,7 @@ import {
   type FamilyCapability,
   type FamilyCapabilityEvidence,
   type FamilyDescriptor,
+  type FamilyScenePrimitiveEvidence,
 } from './agent/families.ts'
 import {
   NON_SERIALIZABLE_RENDER_OPTION_FIELDS,
@@ -64,8 +65,14 @@ import {
   classifyMermaidFamilyFromFirstLine,
   familyDetectionDiagnostic,
 } from './family-detection.ts'
+import {
+  FAMILY_SYNTAX_STATES,
+  createSyntaxCapabilityLedger,
+  validateSyntaxCapabilityLedger,
+  type SyntaxCapabilityLedger,
+} from './syntax-capability-ledger.ts'
 
-export const SECTION_A_CAPABILITY_REPORT_SCHEMA_VERSION = 5 as const
+export const SECTION_A_CAPABILITY_REPORT_SCHEMA_VERSION = 7 as const
 
 export { FAMILY_CAPABILITY_COLUMNS }
 export type FamilyCapabilityColumn = FamilyCapability
@@ -87,6 +94,8 @@ export const SECTION_A_CAPABILITY_STATE_VOCABULARIES = Object.freeze({
   resourceNetwork: Object.freeze(['forbidden'] as const),
   familySupport: Object.freeze(['native', 'partial-native', 'unsupported', 'inventory-only', 'extension'] as const),
   familyCapability: Object.freeze(['native', 'source-preserved', 'diagnosed', 'not-applicable', 'absent'] as const),
+  familySceneApplicability: Object.freeze(['applicable', 'not-applicable'] as const),
+  familySyntax: FAMILY_SYNTAX_STATES,
 })
 
 export type FamilySupportState = (typeof SECTION_A_CAPABILITY_STATE_VOCABULARIES.familySupport)[number]
@@ -154,6 +163,7 @@ export interface SectionAFamilyCapabilityRow {
   headers: readonly SectionAFamilyHeaderRow[]
   aliases: readonly string[]
   semanticRoles: readonly string[]
+  scenePrimitiveEvidence: readonly FamilyScenePrimitiveEvidence[]
   capabilities: Readonly<Record<FamilyCapabilityColumn, FamilyCapabilityState>>
   evidence: readonly FamilyCapabilityEvidence[]
 }
@@ -206,6 +216,10 @@ export interface SectionACapabilityReport {
     upstreamInventoryOnlyHeaderCount: number
     scenePrimitiveCount: number
     sceneRoleCount: number
+    syntaxDimensionCount: number
+    syntaxFamilyDimensionCount: number
+    syntaxFeatureClassificationCount: number
+    syntaxAbsentCount: number
     evidenceSystemCount: number
     retiredAuthorityCount: number
   }
@@ -234,6 +248,7 @@ export interface SectionACapabilityReport {
     outputs: readonly SectionAOutputCapabilityRow[]
     resources: readonly SectionAResourceCapabilityRow[]
     families: readonly SectionAFamilyCapabilityRow[]
+    syntax: SyntaxCapabilityLedger
     scene: {
       primitives: readonly string[]
       operations: readonly string[]
@@ -255,6 +270,32 @@ export interface SectionACapabilityReport {
   }
   retiredAuthorities: readonly SectionARetiredAuthority[]
   digest: string
+}
+
+/**
+ * Small, stable projection for routine agent discovery. The exhaustive report
+ * deliberately stays on the audit-only package subpath and in its generated
+ * Markdown artifact; returning its evidence corpora from every
+ * `am capabilities` call makes ordinary discovery needlessly expensive.
+ */
+export interface SectionACapabilityDiscoverySummary {
+  projectionVersion: 1
+  reportSchemaVersion: typeof SECTION_A_CAPABILITY_REPORT_SCHEMA_VERSION
+  reportDigest: string
+  upstreamPin: {
+    package: string
+    version: string
+    commit: string
+    inventorySha256: string
+  }
+  counts: SectionACapabilityReport['summary']
+  noAbsentSyntaxCapabilities: boolean
+  fullReport: {
+    packageExport: 'agentic-mermaid/capabilities'
+    factory: 'createSectionACapabilityReport'
+    markdown: 'docs/project/section-a-capability-report.md'
+    regenerateCommand: 'bun run section-a-report'
+  }
 }
 
 interface CharacterizationIndex {
@@ -346,6 +387,7 @@ function familyRows(descriptors: readonly FamilyDescriptor[]): SectionAFamilyCap
       headers: family.headers.map(header => ({ value: header.value, status: header.agenticStatus })),
       aliases: descriptor ? [...descriptor.aliases].sort() : [],
       semanticRoles: descriptor ? [...descriptor.semanticRoles].sort() : [],
+      scenePrimitiveEvidence: descriptor ? descriptor.scenePrimitiveEvidence.map(cell => ({ ...cell, evidence: [...cell.evidence] })) : [],
       capabilities: descriptorCapabilities(descriptor),
       evidence: descriptor ? [...descriptor.capabilityEvidence] : [],
     } satisfies SectionAFamilyCapabilityRow
@@ -363,6 +405,7 @@ function familyRows(descriptors: readonly FamilyDescriptor[]): SectionAFamilyCap
       headers: descriptor.headers.map(value => ({ value, status: 'extension' as const })),
       aliases: [...descriptor.aliases].sort(),
       semanticRoles: [...descriptor.semanticRoles].sort(),
+      scenePrimitiveEvidence: descriptor.scenePrimitiveEvidence.map(cell => ({ ...cell, evidence: [...cell.evidence] })),
       capabilities: descriptorCapabilities(descriptor),
       evidence: [...descriptor.capabilityEvidence],
     }))
@@ -468,6 +511,12 @@ export function createSectionACapabilityReport(): SectionACapabilityReport {
     provenance: stringRecord(resource.identity.provenance),
   }))
   const families = familyRows(descriptors)
+  const syntax = createSyntaxCapabilityLedger(UPSTREAM_MERMAID_MANIFEST, descriptors)
+  const syntaxAbsentCount = syntax.features.filter(row => row.state === 'absent').length
+    + syntax.families.filter(row => row.state === 'absent').length
+    + syntax.families.reduce((count, row) => count + (row.processing
+      ? Object.values(row.processing).filter(state => state === 'absent').length
+      : 0), 0)
   const statuses = UPSTREAM_MERMAID_MANIFEST.families.flatMap(family => family.headers.map(header => header.agenticStatus))
   const familyDescriptorVersions = [...new Set(descriptors.map(descriptor => descriptor.contractVersion))].sort()
   const payload: Omit<SectionACapabilityReport, 'digest'> = {
@@ -497,6 +546,10 @@ export function createSectionACapabilityReport(): SectionACapabilityReport {
       upstreamInventoryOnlyHeaderCount: statuses.filter(status => status === 'inventory-only').length,
       scenePrimitiveCount: CORE_SCENE_PRIMITIVES.length,
       sceneRoleCount: roles.length,
+      syntaxDimensionCount: syntax.dimensions.length,
+      syntaxFamilyDimensionCount: syntax.families.length,
+      syntaxFeatureClassificationCount: syntax.features.length,
+      syntaxAbsentCount,
       evidenceSystemCount: CHARACTERIZATION.evidenceSystems.length,
       retiredAuthorityCount: CHARACTERIZATION.retiredAuthorities.length,
     },
@@ -525,6 +578,7 @@ export function createSectionACapabilityReport(): SectionACapabilityReport {
       outputs,
       resources,
       families,
+      syntax,
       scene: {
         primitives: [...CORE_SCENE_PRIMITIVES],
         operations: [...CORE_SCENE_OPERATIONS],
@@ -552,6 +606,31 @@ export function createSectionACapabilityReport(): SectionACapabilityReport {
   return deepFreeze({ ...payload, digest: renderContractDigest(payload) }) as SectionACapabilityReport
 }
 
+/** Project the full audit report into the bounded `am capabilities` envelope. */
+export function sectionACapabilityDiscoverySummary(
+  report: SectionACapabilityReport = createSectionACapabilityReport(),
+): SectionACapabilityDiscoverySummary {
+  return deepFreeze({
+    projectionVersion: 1,
+    reportSchemaVersion: report.schemaVersion,
+    reportDigest: report.digest,
+    upstreamPin: {
+      package: report.upstream.package,
+      version: report.upstream.version,
+      commit: report.upstream.commit,
+      inventorySha256: report.upstream.inventorySha256,
+    },
+    counts: { ...report.summary },
+    noAbsentSyntaxCapabilities: report.summary.syntaxAbsentCount === 0,
+    fullReport: {
+      packageExport: 'agentic-mermaid/capabilities',
+      factory: 'createSectionACapabilityReport',
+      markdown: 'docs/project/section-a-capability-report.md',
+      regenerateCommand: 'bun run section-a-report',
+    },
+  }) as SectionACapabilityDiscoverySummary
+}
+
 function unique(values: readonly string[]): boolean {
   return new Set(values).size === values.length
 }
@@ -569,7 +648,7 @@ export function validateSectionACapabilityReport(report: SectionACapabilityRepor
   if (validateUpstreamMermaidManifest().length > 0) diagnostics.push('pinned upstream manifest is invalid')
   if (validateResourceManifest().length > 0) diagnostics.push('installed resource manifest is invalid')
 
-  const { request, backends, outputs, resources, families, scene } = report.matrices
+  const { request, backends, outputs, resources, families, syntax, scene } = report.matrices
   if (!unique(request.map(row => row.field))) diagnostics.push('request matrix fields are not unique')
   if (!unique(backends.map(row => row.id))) diagnostics.push('backend matrix ids are not unique')
   if (!unique(outputs.map(row => row.id))) diagnostics.push('output matrix ids are not unique')
@@ -577,6 +656,11 @@ export function validateSectionACapabilityReport(report: SectionACapabilityRepor
   if (!unique(resources.map(row => row.path))) diagnostics.push('resource matrix paths are not unique')
   if (!unique(families.map(row => row.id))) diagnostics.push('family matrix ids are not unique')
   if (!unique(scene.roles.map(row => row.id))) diagnostics.push('Scene role ids are not unique')
+  diagnostics.push(...validateSyntaxCapabilityLedger(
+    syntax,
+    UPSTREAM_MERMAID_MANIFEST,
+    families.map(row => row.id),
+  ))
 
   for (const row of request) {
     if (!stateIn(row.kind, report.stateVocabularies.requestKind)) diagnostics.push(`request ${row.field} has invalid kind`)
@@ -661,6 +745,33 @@ export function validateSectionACapabilityReport(report: SectionACapabilityRepor
   for (const row of families) {
     if (!stateIn(row.support, report.stateVocabularies.familySupport)) diagnostics.push(`family ${row.id} has invalid support state`)
     if (!unique(row.semanticRoles)) diagnostics.push(`family ${row.id} has duplicate semantic roles`)
+    const sceneCells = new Set<string>()
+    for (const cell of row.scenePrimitiveEvidence) {
+      const key = `${cell.role}\u0000${cell.primitive}`
+      if (sceneCells.has(key)) diagnostics.push(`family ${row.id} repeats Scene cell ${cell.role}/${cell.primitive}`)
+      sceneCells.add(key)
+      if (!row.semanticRoles.includes(cell.role)) diagnostics.push(`family ${row.id} has Scene evidence for undeclared role ${cell.role}`)
+      if (!scene.primitives.includes(cell.primitive)) diagnostics.push(`family ${row.id} has Scene evidence for unknown primitive ${cell.primitive}`)
+      if (!stateIn(cell.applicability, report.stateVocabularies.familySceneApplicability)) {
+        diagnostics.push(`family ${row.id} has invalid applicability for ${cell.role}/${cell.primitive}`)
+      }
+      if (!scene.realizations.includes(cell.realization)) diagnostics.push(`family ${row.id} has invalid realization for ${cell.role}/${cell.primitive}`)
+      if (cell.evidence.length === 0 || cell.evidence.some(path => !path.trim())) {
+        diagnostics.push(`family ${row.id} has ungrounded Scene evidence for ${cell.role}/${cell.primitive}`)
+      }
+      if (!unique(cell.evidence)) diagnostics.push(`family ${row.id} repeats Scene evidence for ${cell.role}/${cell.primitive}`)
+      if (cell.applicability === 'applicable' && cell.realization === 'unsupported') {
+        diagnostics.push(`family ${row.id} marks applicable Scene cell ${cell.role}/${cell.primitive} unsupported`)
+      }
+      if (cell.applicability === 'not-applicable' && (cell.realization !== 'unsupported' || !cell.diagnostic?.trim())) {
+        diagnostics.push(`family ${row.id} does not explicitly diagnose negative Scene cell ${cell.role}/${cell.primitive}`)
+      }
+    }
+    for (const role of row.semanticRoles) {
+      for (const primitive of scene.primitives) {
+        if (!sceneCells.has(`${role}\u0000${primitive}`)) diagnostics.push(`family ${row.id} lacks Scene cell ${role}/${primitive}`)
+      }
+    }
     const evidenceCapabilities = row.evidence.map(claim => claim.capability)
     if (!unique(evidenceCapabilities)) diagnostics.push(`family ${row.id} has duplicate capability evidence`)
     for (const claim of row.evidence) {
@@ -692,6 +803,7 @@ export function validateSectionACapabilityReport(report: SectionACapabilityRepor
       diagnostics.push(`non-native upstream family ${row.id} is claimed by ${row.registrationId}`)
     }
     if (!row.registrationId && row.evidence.length > 0) diagnostics.push(`unregistered family ${row.id} has descriptor evidence`)
+    if (!row.registrationId && row.scenePrimitiveEvidence.length > 0) diagnostics.push(`unregistered family ${row.id} has Scene primitive evidence`)
   }
 
   const expectedCounts = {
@@ -707,6 +819,14 @@ export function validateSectionACapabilityReport(report: SectionACapabilityRepor
     upstreamInventoryOnlyHeaderCount: families.flatMap(row => row.headers).filter(header => header.status === 'inventory-only').length,
     scenePrimitiveCount: scene.primitives.length,
     sceneRoleCount: scene.roles.length,
+    syntaxDimensionCount: syntax.dimensions.length,
+    syntaxFamilyDimensionCount: syntax.families.length,
+    syntaxFeatureClassificationCount: syntax.features.length,
+    syntaxAbsentCount: syntax.features.filter(row => row.state === 'absent').length
+      + syntax.families.filter(row => row.state === 'absent').length
+      + syntax.families.reduce((count, row) => count + (row.processing
+        ? Object.values(row.processing).filter(state => state === 'absent').length
+        : 0), 0),
     evidenceSystemCount: report.evidence.systems.length,
     retiredAuthorityCount: report.retiredAuthorities.length,
   }
@@ -864,6 +984,60 @@ export function sectionACapabilityReportMarkdown(report: SectionACapabilityRepor
     out.push(`| ${md(row.id)} | ${row.support} | ${md(row.registrationId ?? '—')} | ${md(headers)} | ${c.detection} | ${c['source-preservation']} | ${c.parse} | ${c.serialize} | ${c.mutation} | ${c.verify} | ${c.layout} | ${c.scene} | ${c.svg} | ${c.terminal} |`)
   }
   out.push('')
+  out.push('### Family semantic-role / Scene-primitive evidence')
+  out.push('')
+  out.push('Each descriptor declares only its positive role/primitive realizations. The registry expands that authority across all core primitives, so every negative cell is explicit and diagnosed; conformance fixtures exercise the exact positive set.')
+  out.push('')
+  out.push('| Family | Role | Applicable realizations | Explicitly not applicable | Evidence |')
+  out.push('|---|---|---|---|---|')
+  for (const row of report.matrices.families) {
+    for (const role of row.semanticRoles) {
+      const cells = row.scenePrimitiveEvidence.filter(cell => cell.role === role)
+      const applicable = cells
+        .filter(cell => cell.applicability === 'applicable')
+        .map(cell => `${cell.primitive} (${cell.realization})`)
+      const negative = cells
+        .filter(cell => cell.applicability === 'not-applicable')
+        .map(cell => cell.primitive)
+      const evidence = [...new Set(cells.flatMap(cell => cell.evidence))]
+      out.push(`| ${md(row.id)} | ${md(role)} | ${md(applicable.join(', '))} | ${md(negative.join(', '))} | ${md(evidence.join(', '))} |`)
+    }
+  }
+  out.push('')
+  out.push('## Syntax capability ledger')
+  out.push('')
+  out.push('Stable feature IDs are projected from the pinned upstream manifest; stable dimension IDs come from the syntax contract. A native feature state is scoped to its one classified dimension and is not a blanket family-parity claim. Official-document-only constructs remain source-preserved until executable evidence promotes them. CI rejects every missing row and every `absent` state.')
+  out.push('')
+  out.push('### Stable syntax dimensions')
+  out.push('')
+  out.push('| Dimension ID | Label | Contract |')
+  out.push('|---|---|---|')
+  for (const dimension of report.matrices.syntax.dimensions) {
+    out.push(`| ${md(dimension.id)} | ${md(dimension.label)} | ${md(dimension.description)} |`)
+  }
+  out.push('')
+  out.push('### Family / syntax-dimension classifications')
+  out.push('')
+  out.push('| Family | Registration | Dimension | State | Features | Feature states | Processing projection | Evidence | Diagnostic |')
+  out.push('|---|---|---|---|---:|---|---|---|---|')
+  for (const row of report.matrices.syntax.families) {
+    const counts = row.featureStateCounts
+    const stateCounts = `native=${counts.native}, source-preserved=${counts['source-preserved']}, diagnosed=${counts.diagnosed}, not-applicable=${counts['not-applicable']}`
+    const processing = row.processing
+      ? FAMILY_CAPABILITY_COLUMNS.map(capability => `${capability}=${row.processing![capability]}`).join(', ')
+      : '—'
+    const evidence = row.evidence.map(item => `${item.source}#${item.locator}`).join(', ')
+    out.push(`| ${md(row.familyId)} | ${md(row.registrationId ?? '—')} | ${md(row.dimensionId)} | ${row.state} | ${row.featureCount} | ${md(stateCounts)} | ${md(processing)} | ${md(evidence)} | ${md(row.diagnostic ?? '—')} |`)
+  }
+  out.push('')
+  out.push('### Pinned syntax-feature classifications')
+  out.push('')
+  out.push('| Feature ID | Families | Dimension | State | Upstream status | Artifact | Rule | Evidence | Diagnostic |')
+  out.push('|---|---|---|---|---|---|---|---|---|')
+  for (const row of report.matrices.syntax.features) {
+    out.push(`| ${md(row.featureId)} | ${md(row.familyIds.join(', '))} | ${md(row.dimensionId)} | ${row.state} | ${row.upstreamStatus} | ${md(`${row.artifactId}@${row.fingerprint}`)} | ${md(row.classificationRuleId)} | ${md(row.evidence.join(', '))} | ${md(row.diagnostic ?? '—')} |`)
+  }
+  out.push('')
   out.push('## Scene declarations')
   out.push('')
   out.push(`Primitives: ${md(report.matrices.scene.primitives.join(', '))}.`)
@@ -885,7 +1059,7 @@ export function sectionACapabilityReportMarkdown(report: SectionACapabilityRepor
   out.push('| Dimension | Entries |')
   out.push('|---|---:|')
   out.push(`| syntax features and accounted divergences | ${report.upstream.semanticInventory.syntaxFeatureCount} |`)
-  out.push(`| official syntax examples | ${report.upstream.semanticInventory.exampleCount} |`)
+  out.push(`| harvested examples from official docs and pinned corpora | ${report.upstream.semanticInventory.exampleCount} |`)
   out.push(`| config key paths | ${report.upstream.semanticInventory.configKeyCount} |`)
   out.push(`| theme variables | ${report.upstream.semanticInventory.themeVariableCount} |`)
   out.push('')

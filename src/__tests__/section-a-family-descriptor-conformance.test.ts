@@ -8,14 +8,14 @@ import {
   getFamily,
   knownBuiltinFamilies,
   type BuiltinFamilyId,
-  type FamilyLayoutResult,
 } from '../agent/families.ts'
-import { normalizeMermaidSource } from '../mermaid-source.ts'
-import { resolveDiagramColors } from '../color-resolver.ts'
 import { BUILTIN_SCENE_ROLE_TRAITS } from '../scene/roles.ts'
+import { CORE_SCENE_PRIMITIVES, sceneNodePrimitives } from '../scene/capabilities.ts'
 import type { PositionedDiagram, RenderContext, RenderOptions } from '../types.ts'
 import type { SceneDoc, SceneNode } from '../scene/ir.ts'
 import { assertRenderableMarker, serializeMarkerResource } from '../scene/marker-resources.ts'
+import { resolveRenderRequest } from '../render-contract.ts'
+import { positionResolvedFamily } from '../positioning.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 
@@ -24,9 +24,10 @@ const ROOT = join(import.meta.dir, '..', '..')
 const RICH_SCENE_FIXTURES: Partial<Record<BuiltinFamilyId, string>> = {
   flowchart: `flowchart LR
   subgraph ops[Operations]
-    A[Start]
+    A@{ icon: "fa fa-book", form: "circle", label: "Start" }
+    U@{ icon: "acme:unknown", label: "Fallback" }
   end
-  A -->|go| B{Ready?}`,
+  U --> A -->|go| B{Ready?}`,
   state: `stateDiagram-v2
   state Work {
     [*] --> Draft
@@ -35,8 +36,11 @@ const RICH_SCENE_FIXTURES: Partial<Record<BuiltinFamilyId, string>> = {
   note right of Work : Review
   [*] --> Work`,
   sequence: `sequenceDiagram
-  participant A as Alice
-  participant B as Bob
+  box Aqua Team
+    actor A as Alice
+    participant B@{ "type": "database", "alias": "Bob" }
+  end
+  link A: profile @ https://example.com
   activate A
   A->>B: request
   alt accepted
@@ -44,7 +48,10 @@ const RICH_SCENE_FIXTURES: Partial<Record<BuiltinFamilyId, string>> = {
   else delayed
     Note over A,B: wait
   end
-  deactivate A`,
+  deactivate A
+  destroy B
+  A->>()B: publish
+  A-xB: done`,
   timeline: `timeline
   title Launch
   section Alpha
@@ -62,11 +69,13 @@ const RICH_SCENE_FIXTURES: Partial<Record<BuiltinFamilyId, string>> = {
   note for Account "Aggregate root"
   Account "1" o-- "*" Ledger : records`,
   er: `erDiagram
-  CUSTOMER ||--o{ ORDER : places
-  CUSTOMER {
-    string id PK
-    string name
-  }
+  subgraph Commerce
+    CUSTOMER ||--o{ ORDER : places
+    CUSTOMER {
+      string id PK
+      string name
+    }
+  end
   ORDER {
     string id PK
   }`,
@@ -84,7 +93,12 @@ const RICH_SCENE_FIXTURES: Partial<Record<BuiltinFamilyId, string>> = {
   junction bus in app
   api:R --> L:bus
   bus:R -[writes]-> L:db`,
-  xychart: `xychart-beta
+  xychart: `---
+config:
+  xyChart:
+    showDataLabel: true
+---
+xychart-beta
   title Revenue
   x-axis [Q1, Q2, Q3]
   y-axis USD 0 --> 100
@@ -112,11 +126,16 @@ const RICH_SCENE_FIXTURES: Partial<Record<BuiltinFamilyId, string>> = {
   mindmap: `mindmap
   root((Product))
     Research
+      ::icon(fa fa-book)
       Interviews
       Evidence
     Delivery
+      ::icon(acme:unknown)
       Launch`,
-  gitgraph: `gitGraph
+  gitgraph: `---
+title: Release train
+---
+gitGraph
   commit id:"base" tag:"v1"
   branch feature
   commit id:"work"
@@ -124,27 +143,20 @@ const RICH_SCENE_FIXTURES: Partial<Record<BuiltinFamilyId, string>> = {
   merge feature id:"merge"`,
 }
 
-function normalizedLayoutResult(result: FamilyLayoutResult | PositionedDiagram): FamilyLayoutResult {
-  return 'positioned' in result ? result : { positioned: result }
-}
-
 function lowerFixture(id: BuiltinFamilyId, sourceText: string): SceneDoc {
   const descriptor = getFamily(id)!
-  const source = normalizeMermaidSource(sourceText)
   const options: RenderOptions = {
-    mermaidConfig: source.config,
     interactive: true,
     shadow: true,
     ganttToday: '2026-01-08',
     gantt: { dependencyArrows: true, criticalPath: true },
   }
-  const font = typeof source.config.fontFamily === 'string' ? source.config.fontFamily : 'Inter'
-  const colors = resolveDiagramColors(options, source.config, font)
-  const result = normalizedLayoutResult(descriptor.layout!({ source, options, renderOptions: options, colors }))
+  const request = resolveRenderRequest(sourceText, options, 'svg')
+  const result = positionResolvedFamily(id, request)
   const context: RenderContext = {
     positioned: result.positioned,
-    colors: result.colors ?? colors,
-    options: result.options ?? options,
+    colors: request.appearance.colors,
+    options: request.renderOptions,
   }
   return descriptor.lowerScene!(context)
 }
@@ -165,6 +177,22 @@ describe('family descriptor capability authority', () => {
         .toEqual([...FAMILY_CAPABILITY_COLUMNS])
       expect(new Set(descriptor.semanticRoles).size, `${id} duplicate role declarations`)
         .toBe(descriptor.semanticRoles.length)
+      expect(descriptor.scenePrimitiveEvidence.length, `${id} complete role/primitive matrix`)
+        .toBe(descriptor.semanticRoles.length * CORE_SCENE_PRIMITIVES.length)
+      for (const role of descriptor.semanticRoles) {
+        for (const primitive of CORE_SCENE_PRIMITIVES) {
+          const cells = descriptor.scenePrimitiveEvidence.filter(cell => cell.role === role && cell.primitive === primitive)
+          expect(cells, `${id}/${role}/${primitive} unique evidence cell`).toHaveLength(1)
+          const cell = cells[0]!
+          expect(cell.evidence.length, `${id}/${role}/${primitive} evidence`).toBeGreaterThan(0)
+          if (cell.applicability === 'not-applicable') {
+            expect(cell.realization, `${id}/${role}/${primitive} explicit negative realization`).toBe('unsupported')
+            expect(cell.diagnostic?.trim().length, `${id}/${role}/${primitive} negative diagnostic`).toBeGreaterThan(0)
+          } else {
+            expect(cell.realization, `${id}/${role}/${primitive} positive realization`).not.toBe('unsupported')
+          }
+        }
+      }
       for (const claim of descriptor.capabilityEvidence) {
         expect(claim.evidence.length, `${id}/${claim.capability} evidence`).toBeGreaterThan(0)
         for (const path of claim.evidence) {
@@ -183,6 +211,7 @@ describe('family descriptor capability authority', () => {
       if (!descriptor.layout || !descriptor.lowerScene || !descriptor.example) continue
 
       const observed = new Set<string>()
+      const observedCells = new Set<string>()
       const sources = [descriptor.example, RICH_SCENE_FIXTURES[id]].filter((source): source is string => source !== undefined)
       for (const source of sources) {
         const scene = lowerFixture(id, source)
@@ -199,6 +228,13 @@ describe('family descriptor capability authority', () => {
         })
         visitScene(scene.parts, node => {
           observed.add(node.role)
+          for (const primitive of sceneNodePrimitives(node)) {
+            const key = `${node.role}:${primitive}`
+            observedCells.add(key)
+            expect(descriptor.scenePrimitiveEvidence, `${id} emitted undeclared primitive cell ${key}`).toContainEqual(
+              expect.objectContaining({ role: node.role, primitive, applicability: 'applicable' }),
+            )
+          }
           expect(descriptor.semanticRoles, `${id} emitted undeclared role ${node.role}`).toContain(node.role)
           const traits = (BUILTIN_SCENE_ROLE_TRAITS as Partial<Record<string, (typeof BUILTIN_SCENE_ROLE_TRAITS)[keyof typeof BUILTIN_SCENE_ROLE_TRAITS]>>)[node.role]
           expect(traits, `${id} emitted unknown built-in role ${node.role}`).toBeDefined()
@@ -212,6 +248,12 @@ describe('family descriptor capability authority', () => {
         })
       }
       expect(observed.size, `${id} emitted no semantic roles`).toBeGreaterThan(0)
+      const declaredPositiveCells = descriptor.scenePrimitiveEvidence
+        .filter(cell => cell.applicability === 'applicable')
+        .map(cell => `${cell.role}:${cell.primitive}`)
+        .sort()
+      expect([...observedCells].sort(), `${id} must exercise every declared positive cell`)
+        .toEqual(declaredPositiveCells)
     }
   })
 })

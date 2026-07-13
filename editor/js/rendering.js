@@ -24,9 +24,24 @@ function clearRenderSpinner() {
   spinner.classList.remove("visible");
 }
 
+function invalidateRenderedArtifacts() {
+  lastRenderedSvgArtifact = null;
+  markTextOutputsDirty();
+  delete previewInner.dataset.sharedRequestDigest;
+  delete previewInner.dataset.renderRequestDigest;
+  delete previewInner.dataset.appearanceDigest;
+  if (typeof lastRenderedPngArtifact !== "undefined") lastRenderedPngArtifact = null;
+  if (typeof lastRenderedSvgExportProjection !== "undefined") lastRenderedSvgExportProjection = null;
+  if (typeof updateExportAvailability === "function") updateExportAvailability();
+}
+
 function scheduleRender(delay) {
   var version = ++renderRequestVersion;
   if (renderTimer) clearTimeout(renderTimer);
+  // Keep the old picture visible until its replacement is ready, but revoke
+  // its authority immediately. Source, Style, theme, or config changes must
+  // never leave stale export buttons or receipts live during the debounce.
+  invalidateRenderedArtifacts();
   clearRenderSpinner();
   var nextDelay = delay == null ? EditorMotion.adaptiveRenderDelay(lastSuccessfulRenderMs) : delay;
   renderTimer = setTimeout(function() {

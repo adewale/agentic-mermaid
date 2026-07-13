@@ -75,6 +75,13 @@ describe('shared RenderOptions authority', () => {
       .toContain('render option "style.madeUp" is not allowed')
     expect(validateSerializableRenderOptions({ style: { colors: { accent: 'url(https://invalid.example)' } } }))
       .toContain('render option "style.colors.accent" must be a safe, non-fetching CSS color')
+    expect(validateSerializableRenderOptions({ bg: 'url(https://invalid.example)' }))
+      .toContain('render option "bg" must be a safe, non-fetching CSS paint')
+    expect(validateSerializableRenderOptions({ font: 'Inter" onload="alert(1)' }))
+      .toContain('render option "font" must be a safe, non-fetching CSS font family or stack')
+    expect(validateSerializableRenderOptions({
+      architecture: { visual: { ...DEFAULT_ARCHITECTURE_VISUAL, serviceSurface: 'url(https://invalid.example)' } },
+    })).toContain('render option "architecture.visual.serviceSurface" must be a safe, non-fetching CSS paint')
     expect(validateSerializableRenderOptions({ style: 'not-a-registered-style' }).join('\n'))
       .toContain('Unknown style "not-a-registered-style"')
     expect(validateSerializableRenderOptions({ mermaidConfig: { nested: () => true } }).length).toBeGreaterThan(0)

@@ -181,7 +181,15 @@ describe('typed Scene connector contract', () => {
       { id: 'defs', markerResources: [marker] },
       `<defs>\n${serializeMarkerResource(marker)}\n</defs>`,
     )
-    const output = RoughBackend.render({ family: 'test', width: 20, height: 20, colors: { bg: '#fff', fg: '#000' }, parts: [definitions] }, { seed: 1 })
+    const colors = { bg: '#fff', fg: '#000' }
+    const root = marks.prelude({
+      id: 'typed-marker-root', width: 20, height: 20, colors,
+      transparent: true, font: 'Inter', hasMonoFont: false,
+    }, '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">')
+    const output = RoughBackend.render({
+      family: 'test', width: 20, height: 20, colors,
+      parts: [root, definitions, marks.documentClose()],
+    }, { seed: 1 })
     expect(output).toContain('markerUnits="userSpaceOnUse"')
     expect(output).toContain('points="0 0, 8 2.5, 0 5"')
   })

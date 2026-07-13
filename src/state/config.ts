@@ -1,6 +1,7 @@
 import type { MermaidRuntimeConfig, StateRuntimeConfig } from '../mermaid-source.ts'
 import type { ConfigDiagnostic, RenderOptions } from '../types.ts'
 import { FLOWCHART_STYLE_DEFAULTS, type RenderStyleDefaults } from '../styles.ts'
+import { resolvedFamilyAppearanceOf } from '../render-contract.ts'
 
 /** State config fields with a faithful equivalent in this renderer. */
 export const STATE_WIRED_CONFIG_FIELDS = [
@@ -38,6 +39,13 @@ export interface ResolvedStateVisualConfig {
 /** @internal RenderOptions enriched after resolving the state config section. */
 export interface StateRenderOptions extends RenderOptions {
   stateVisual?: ResolvedStateVisualConfig
+}
+
+/** Canonical requests carry State visual metrics in ResolvedAppearance.
+ * Retain the enumerable property fallback for direct low-level renderer tests. */
+export function resolvedStateVisualOf(options: RenderOptions): ResolvedStateVisualConfig | undefined {
+  return resolvedFamilyAppearanceOf<{ visual?: ResolvedStateVisualConfig }>(options)?.visual
+    ?? (options as StateRenderOptions).stateVisual
 }
 
 const positive = (value: unknown): number | undefined =>

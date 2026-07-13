@@ -6,7 +6,14 @@
  * registries and share only naming, provenance, version, and collision rules.
  */
 
-import { parseSemVer } from '../capability-negotiation.ts'
+import {
+  isCapabilityId,
+  isSupportedSemVerRange,
+  parseSemVer,
+  semVerSatisfies,
+} from '../capability-negotiation.ts'
+import pkg from '../../package.json'
+import { SCENE_CONTRACT_SEMVER } from '../scene/version.ts'
 
 export interface ExtensionCompatibility {
   readonly [contract: string]: string | undefined
@@ -32,6 +39,77 @@ export interface ExtensionIdentity<Kind extends string = string> {
   readonly version: string
   readonly compatibility: ExtensionCompatibility
   readonly provenance: ExtensionProvenance
+}
+
+/** Host contract versions understood by this runtime. Requirements for other
+ * namespaced contracts are retained but deliberately deferred to their owner. */
+export const KNOWN_EXTENSION_CONTRACT_VERSIONS = Object.freeze({
+  core: pkg.version,
+  scene: SCENE_CONTRACT_SEMVER,
+} as const)
+
+export interface ExtensionCompatibilityResolution {
+  readonly contract: string
+  readonly range: string
+  readonly status: 'compatible' | 'incompatible' | 'deferred' | 'invalid'
+  readonly version?: string
+  readonly diagnostic?: string
+}
+
+export interface ExtensionCompatibilityDecision {
+  readonly accepted: boolean
+  readonly resolutions: readonly ExtensionCompatibilityResolution[]
+}
+
+/**
+ * Evaluate every identity kind through one compatibility policy. Known core
+ * and Scene ranges are enforced now; valid unknown namespaced requirements
+ * remain visible and deferred for forward-compatible hosts.
+ */
+export function evaluateExtensionCompatibility(
+  identity: Pick<ExtensionIdentity, 'id' | 'compatibility'>,
+): ExtensionCompatibilityDecision {
+  const resolutions: ExtensionCompatibilityResolution[] = []
+  for (const [contract, range] of Object.entries(identity.compatibility)) {
+    if (range === undefined) continue
+    const knownVersion = KNOWN_EXTENSION_CONTRACT_VERSIONS[contract as keyof typeof KNOWN_EXTENSION_CONTRACT_VERSIONS]
+    if (!isSupportedSemVerRange(range)) {
+      resolutions.push(Object.freeze({
+        contract,
+        range,
+        status: 'invalid',
+        diagnostic: `Compatibility requirement "${contract}" has invalid semantic-version range "${range}".`,
+      }))
+      continue
+    }
+    if (knownVersion !== undefined) {
+      const compatible = semVerSatisfies(knownVersion, range)
+      resolutions.push(Object.freeze({
+        contract,
+        range,
+        status: compatible ? 'compatible' : 'incompatible',
+        version: knownVersion,
+        ...(!compatible
+          ? { diagnostic: `Compatibility requirement "${contract}" range "${range}" does not include host version ${knownVersion}.` }
+          : {}),
+      }))
+      continue
+    }
+    if (!isCapabilityId(contract)) {
+      resolutions.push(Object.freeze({
+        contract,
+        range,
+        status: 'invalid',
+        diagnostic: `Unknown compatibility requirement "${contract}" must use a namespace.`,
+      }))
+      continue
+    }
+    resolutions.push(Object.freeze({ contract, range, status: 'deferred' }))
+  }
+  return Object.freeze({
+    accepted: resolutions.every(resolution => resolution.status === 'compatible' || resolution.status === 'deferred'),
+    resolutions: Object.freeze(resolutions),
+  })
 }
 
 export interface ExtensionRegistration<Value, Kind extends string = string> {
@@ -95,13 +173,21 @@ export function createExtensionIdentity<Kind extends string>(input: {
   if (input.provenance.owner.trim().length === 0) throw new Error(`Extension "${input.id}" requires a provenance owner`)
   if (input.provenance.source.trim().length === 0) throw new Error(`Extension "${input.id}" requires a provenance source`)
 
-  return Object.freeze({
+  const identity = Object.freeze({
     id: input.id as `${Kind}:${string}`,
     kind: input.kind,
     version: input.version,
     compatibility: Object.freeze({ ...(input.compatibility ?? {}) }),
     provenance: Object.freeze({ ...input.provenance }),
   })
+  const compatibility = evaluateExtensionCompatibility(identity)
+  if (!compatibility.accepted) {
+    throw new Error(`Extension "${input.id}" has incompatible requirements: ${compatibility.resolutions
+      .filter(resolution => resolution.status === 'incompatible' || resolution.status === 'invalid')
+      .map(resolution => resolution.diagnostic)
+      .join('; ')}`)
+  }
+  return identity
 }
 
 export class ExtensionCollisionError extends Error {

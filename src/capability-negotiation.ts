@@ -55,7 +55,7 @@ function compare(left: SemVer, right: SemVer): number {
   return left.major - right.major || left.minor - right.minor || left.patch - right.patch
 }
 
-function validRangeSyntax(range: unknown): range is string {
+export function isSupportedSemVerRange(range: unknown): boolean {
   if (typeof range !== 'string') return false
   const trimmed = range.trim()
   if (trimmed === '*' || /^(0|[1-9]\d*)\.(?:x|\*)$/i.test(trimmed)) return true
@@ -71,7 +71,7 @@ function validRangeSyntax(range: unknown): range is string {
 /** Deliberately small public range language: exact, ^, ~, >=, major.x, or *. */
 export function semVerSatisfies(version: string, range: string): boolean {
   const actual = parseSemVer(version)
-  if (!actual || !validRangeSyntax(range)) return false
+  if (!actual || !isSupportedSemVerRange(range)) return false
   const trimmed = range.trim()
   if (trimmed === '*') return actual.prerelease === undefined
   const wildcard = trimmed.match(/^(0|[1-9]\d*)\.(?:x|\*)$/i)
@@ -114,7 +114,7 @@ export function negotiateCapabilities(
     if (!CAPABILITY_REQUIREMENT_LEVELS.has(requirement.level)) {
       throw new Error(`Capability "${requirement.id}" has invalid requirement level "${String(requirement.level)}"`)
     }
-    if (!validRangeSyntax(requirement.range)) {
+    if (!isSupportedSemVerRange(requirement.range)) {
       throw new Error(`Capability "${requirement.id}" has invalid semantic-version range "${String(requirement.range)}"`)
     }
     if (seen.has(requirement.id)) throw new Error(`Duplicate capability requirement "${requirement.id}"`)

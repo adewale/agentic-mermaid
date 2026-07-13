@@ -178,7 +178,7 @@ export function resolveArchitectureVisualConfig(
   }
   const style = resolveRenderStyle(options, styleDefaults)
 
-  const visual: ArchitectureVisualConfig = {
+  const derivedVisual: ArchitectureVisualConfig = {
     groupHeaderHeight: Math.max(groupHeaderHeight, style.groupHeaderFontSize + 12),
     groupFontSize: style.groupHeaderFontSize,
     groupFontWeight: style.groupHeaderFontWeight,
@@ -217,6 +217,14 @@ export function resolveArchitectureVisualConfig(
     serviceText: style.nodeTextColor,
     edgeStroke: style.edgeStrokeColor,
     edgeText: style.edgeTextColor,
+  }
+  // The complete public `architecture.visual` record is the final explicit
+  // layer. It must affect the same metrics used for layout and Scene lowering;
+  // retaining it only in the request digest would make a validated option a
+  // no-op and break receipt/output coherence.
+  const visual: ArchitectureVisualConfig = {
+    ...derivedVisual,
+    ...options.architecture?.visual,
   }
 
   return {

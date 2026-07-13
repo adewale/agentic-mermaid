@@ -53,10 +53,10 @@ import { serializeMermaid } from './serialize.ts'
 import { getFamily } from './families.ts'
 import type {
   FamilyPositionedProjectionContext, FamilyPositionedProjectionOptions,
-  FamilyPositionedView,
+  FamilyPositionedView, FamilyLayoutResult,
 } from './families.ts'
 import { resolveRenderRequest, resolvedRenderExecutionPlanOf } from '../render-contract.ts'
-import type { ResolvedRenderRequest } from '../render-contract.ts'
+import type { RenderOutput, ResolvedRenderRequest } from '../render-contract.ts'
 import { positionResolvedFamily } from '../positioning.ts'
 
 import { normalizeMermaidSource } from '../mermaid-source.ts'
@@ -92,6 +92,10 @@ function f(n: number): Finite { return toFinite(Math.round(n)) }
 function fSpan(start: number, length: number): Finite { return toFinite(Math.round(start + length) - Math.round(start)) }
 
 export interface ProjectedFamilyArtifact {
+  /** Resolved request whose executable family/backend references stay private. */
+  request: ResolvedRenderRequest
+  /** Exact result, including accessibility ownership, consumed by SVG. */
+  layoutResult: FamilyLayoutResult
   /** Exact output of the descriptor-owned layout hook. */
   positioned: PositionedDiagram
   /** Family-neutral descriptor projection, stamped with the built-in id. */
@@ -101,6 +105,8 @@ export interface ProjectedFamilyArtifact {
 /** Projection controls plus the shared render options consumed by SVG/PNG. */
 export interface PositionFamilyArtifactOptions extends FamilyPositionedProjectionOptions {
   renderOptions?: RenderOptions
+  /** Internal adapter selection; public layout remains the default. */
+  output?: Extract<RenderOutput, 'layout' | 'svg'>
 }
 
 /** A descriptor layout/projection failure with enough context for public
@@ -141,7 +147,12 @@ export function positionResolvedFamilyArtifact(
   } catch (error) {
     throw new FamilyLayoutError(d.kind, 'projectPositioned', error)
   }
-  return { positioned: result.positioned, rendered: stampFamilyKind(d.kind, view) }
+  return {
+    request,
+    layoutResult: result,
+    positioned: result.positioned,
+    rendered: stampFamilyKind(d.kind, view),
+  }
 }
 
 function structuredBodyExpectsNodes(d: ParsedDiagram): boolean {
@@ -213,7 +224,13 @@ export function positionFamilyArtifact(
   const canRetryFromBody = structuredBodyExpectsNodes(d)
 
   const projectSource = (text: string): ProjectedFamilyArtifact => {
-    const request = resolveRenderRequest(text, options.renderOptions ?? {}, 'layout', projectionOptions)
+    const output = options.output ?? 'layout'
+    const request = resolveRenderRequest(
+      text,
+      options.renderOptions ?? {},
+      output,
+      output === 'layout' ? projectionOptions : undefined,
+    )
     return positionResolvedFamilyArtifact(d, request, projectionOptions)!
   }
 

@@ -19,6 +19,7 @@ import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { resolveArchitectureIcon } from './icons.ts'
 import { serializeMarkerResources } from '../scene/marker-resources.ts'
+import { resolvedFamilyAppearanceOf } from '../render-contract.ts'
 
 // ============================================================================
 // Architecture renderer — lowers a PositionedArchitectureDiagram to the
@@ -50,7 +51,9 @@ export function lowerArchitectureScene(
   const { positioned: diagram, colors, options } = ctx
   const font = colors.font ?? 'Inter'
   const transparent = options.transparent ?? false
-  const visual = options.architecture?.visual ?? DEFAULT_ARCHITECTURE_VISUAL
+  const visual = resolvedFamilyAppearanceOf<{ visual?: ArchitectureVisualConfig }>(options)?.visual
+    ?? options.architecture?.visual
+    ?? DEFAULT_ARCHITECTURE_VISUAL
   const parts: SceneNode[] = []
   const archVars = [
     visual.groupSurface ? `--arch-group-fill:${visual.groupSurface}` : '',

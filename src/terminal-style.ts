@@ -11,7 +11,6 @@ import { diagramColorsToAsciiTheme } from './ascii/ansi.ts'
 import type { DiagramColors } from './theme.ts'
 import type { ResolvedRenderRequest } from './render-contract.ts'
 import { renderContractDigest, SHARED_RENDER_OPTION_FIELD_DESCRIPTORS } from './render-contract.ts'
-import { CHANNEL_THEME_KEYS } from './color-resolver.ts'
 import { safeCssColor } from './shared/css-color.ts'
 import { toHex, tryParseCssColor } from './shared/color-math.ts'
 import { sanitizeTerminalText } from './terminal-security.ts'
@@ -100,19 +99,12 @@ export function projectTerminalStyle(
   // the shared appearance. Retain the rejection evidence at the terminal
   // projection boundary without putting unsafe values back into that shared
   // appearance or making its digest output-dependent.
-  const reportedUnsafeThemeKeys = new Set<string>()
-  for (const keys of Object.values(CHANNEL_THEME_KEYS)) {
-    for (const key of keys) {
-      if (reportedUnsafeThemeKeys.has(key)) continue
-      const raw = request.source.config.themeVariables?.[key]
-      if (typeof raw !== 'string' || raw.length === 0 || safeCssColor(raw) !== undefined) continue
-      reportedUnsafeThemeKeys.add(key)
-      diagnostics.push({
-        code: 'TERMINAL_UNSAFE_COLOR_REJECTED',
-        feature: `mermaid-theme.${key}`,
-        message: `Mermaid theme variable "${key}" was rejected because it is not a safe non-fetching CSS color.`,
-      })
-    }
+  for (const key of appearance.unsafeThemeColorKeys ?? []) {
+    diagnostics.push({
+      code: 'TERMINAL_UNSAFE_COLOR_REJECTED',
+      feature: `mermaid-theme.${key}`,
+      message: `Mermaid theme variable "${key}" was rejected because it is not a safe non-fetching CSS color.`,
+    })
   }
   for (const field of request.explicitOptionFields) {
     const descriptor = SHARED_RENDER_OPTION_FIELD_DESCRIPTORS[field]

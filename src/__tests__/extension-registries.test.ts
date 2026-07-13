@@ -5,6 +5,7 @@ import {
   ExtensionCollisionError,
   canonicalExtensionId,
   createExtensionIdentity,
+  evaluateExtensionCompatibility,
   registerExtension,
 } from '../shared/extension-identity.ts'
 import type { ExtensionRegistration } from '../shared/extension-identity.ts'
@@ -55,6 +56,31 @@ describe('shared extension identity', () => {
     expect(registry.get(first.id)?.value).toBe('first')
     expect(Object.isFrozen(first)).toBe(true)
   })
+
+  test('enforces known compatibility ranges while deferring unknown namespaced contracts', () => {
+    expect(() => createExtensionIdentity({
+      id: 'family:test/incompatible-core',
+      kind: 'family',
+      version: '1.0.0',
+      compatibility: { core: '^99.0.0' },
+      provenance: { owner: 'test', source: 'test' },
+    })).toThrow(/core.*\^99\.0\.0.*host version 0\.1\.1/i)
+
+    const forwardCompatible = createExtensionIdentity({
+      id: 'look:test/future-contract',
+      kind: 'look',
+      version: '1.0.0',
+      compatibility: { core: '^0.1.1', 'acme:future-scene': '^99.0.0' },
+      provenance: { owner: 'test', source: 'test' },
+    })
+    expect(evaluateExtensionCompatibility(forwardCompatible)).toEqual({
+      accepted: true,
+      resolutions: [
+        { contract: 'core', range: '^0.1.1', status: 'compatible', version: '0.1.1' },
+        { contract: 'acme:future-scene', range: '^99.0.0', status: 'deferred' },
+      ],
+    })
+  })
 })
 
 describe('canonical style identities', () => {
@@ -104,6 +130,29 @@ describe('canonical style identities', () => {
       { provenance: { owner: 'collision-probe', source: 'test' } },
     )).toThrow(ExtensionCollisionError)
     expect(getStyle('tufte')?.font).toBe('EB Garamond')
+    expect(() => registerStyle(
+      { name: 'look:test/incompatible-core', stroke: 'jittered' },
+      { compatibility: { core: '^99.0.0' } },
+    )).toThrow(/incompatible requirements.*core/i)
+  })
+
+  test('returns an identity-guarded disposer for plugin unload and HMR', () => {
+    const firstDispose = registerStyle({ name: 'look:dispose-probe', stroke: 'jittered' })
+    expect(getStyle('look:dispose-probe')).toBeDefined()
+    expect(firstDispose()).toBe(true)
+    expect(getStyle('look:dispose-probe')).toBeUndefined()
+
+    const replacementDispose = registerStyle({ name: 'look:dispose-probe', stroke: 'jittered', roughness: 2 })
+    expect(firstDispose()).toBe(false)
+    expect(getStyle('look:dispose-probe')?.roughness).toBe(2)
+    expect(replacementDispose()).toBe(true)
+  })
+
+  test('returns deeply immutable discovery specs', () => {
+    const descriptor = knownStyleDescriptors().find(candidate => candidate.identity.id === 'palette:tufte')!
+    expect(Object.isFrozen(descriptor)).toBe(true)
+    expect(Object.isFrozen(descriptor.spec)).toBe(true)
+    expect(Object.isFrozen(descriptor.spec.colors)).toBe(true)
   })
 
   test('skips nested undefined channels and rejects null or backend data', () => {
@@ -152,6 +201,15 @@ describe('backend registration and host policy', () => {
       { provenance: { owner: 'collision-probe', source: 'test' } },
     )).toThrow(ExtensionCollisionError)
     expect(getBackend('default')).toBe(DefaultBackend)
+    expect(() => registerBackend({
+      ...DefaultBackend,
+      id: 'backend:test/incompatible-scene',
+      capabilities: DefaultBackend.capabilities.map(claim => ({
+        ...claim,
+        target: 'backend:test/incompatible-scene',
+      })),
+    }, { compatibility: { core: '^0.1.1', scene: '^99.0.0' } }))
+      .toThrow(/scene.*\^99\.0\.0.*host version 1\.0\.0/i)
   })
 
   test('rejects missing, empty, and mis-targeted backend capability claims', () => {

@@ -4,6 +4,7 @@ export default defineConfig({
   entry: {
     index: 'src/index.ts',
     agent: 'src/agent/index.ts',
+    'agent-core': 'src/agent/core.ts',
     capabilities: 'src/capabilities.ts',
     resources: 'src/resources.ts',
     // Node-runnable bins for npm consumers (shebang preserved from source).
@@ -12,7 +13,7 @@ export default defineConfig({
   },
   format: ['esm'],
   // Type declarations only for importable library entries, not CLI bins.
-  dts: { entry: { index: 'src/index.ts', agent: 'src/agent/index.ts', capabilities: 'src/capabilities.ts', resources: 'src/resources.ts' } },
+  dts: { entry: { index: 'src/index.ts', agent: 'src/agent/index.ts', 'agent-core': 'src/agent/core.ts', capabilities: 'src/capabilities.ts', resources: 'src/resources.ts' } },
   splitting: false,
   sourcemap: true,
   clean: true,

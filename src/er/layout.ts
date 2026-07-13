@@ -64,20 +64,39 @@ export function applyErFrontmatterConfig(
   frontmatter: MermaidFrontmatterMap | undefined,
   options: RenderOptions,
 ): { diagram: ErDiagram; options: RenderOptions } {
-  if (!frontmatter) return { diagram, options }
+  return {
+    diagram: applyErFrontmatterDirection(diagram, frontmatter),
+    options: resolveErRenderOptions(frontmatter, options),
+  }
+}
+
+/** Resolve only the source-owned direction. Request-boundary option
+ * normalization is intentionally separate so layout never rewrites options. */
+export function applyErFrontmatterDirection(
+  diagram: ErDiagram,
+  frontmatter: MermaidFrontmatterMap | undefined,
+): ErDiagram {
+  if (!frontmatter) return diagram
   const rawDirection = getFrontmatterScalar<string>(frontmatter, ['er', 'layoutDirection'])
   const layoutDirection = typeof rawDirection === 'string' && /^(TB|TD|BT|LR|RL)$/i.test(rawDirection)
     ? rawDirection.toUpperCase() as Direction
     : undefined
-  const nodeSpacing = configSpacing(frontmatter, 'er', 'nodeSpacing')
-  const rankSpacing = configSpacing(frontmatter, 'er', 'rankSpacing')
-  const outDiagram = diagram.direction === undefined && layoutDirection !== undefined
+  return diagram.direction === undefined && layoutDirection !== undefined
     ? { ...diagram, direction: layoutDirection }
     : diagram
-  const outOptions = nodeSpacing === undefined && rankSpacing === undefined
+}
+
+/** Fold ER spacing into the canonical request once. */
+export function resolveErRenderOptions(
+  frontmatter: MermaidFrontmatterMap | undefined,
+  options: RenderOptions,
+): RenderOptions {
+  if (!frontmatter) return options
+  const nodeSpacing = configSpacing(frontmatter, 'er', 'nodeSpacing')
+  const rankSpacing = configSpacing(frontmatter, 'er', 'rankSpacing')
+  return nodeSpacing === undefined && rankSpacing === undefined
     ? options
     : { ...options, nodeSpacing: options.nodeSpacing ?? nodeSpacing, layerSpacing: options.layerSpacing ?? rankSpacing }
-  return { diagram: outDiagram, options: outOptions }
 }
 
 /**

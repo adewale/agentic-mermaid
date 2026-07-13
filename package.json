@@ -20,6 +20,12 @@
       "import": "./dist/agent.js",
       "default": "./dist/agent.js"
     },
+    "./agent/core": {
+      "types": "./dist/agent-core.d.ts",
+      "bun": "./src/agent/core.ts",
+      "import": "./dist/agent-core.js",
+      "default": "./dist/agent-core.js"
+    },
     "./capabilities": {
       "types": "./dist/capabilities.d.ts",
       "bun": "./src/capabilities.ts",

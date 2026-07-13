@@ -12,7 +12,9 @@ var exportRequiresSvgButtons = [
 ].filter(Boolean);
 
 function hasRenderedSvg() {
-  return previewInner.querySelector('svg') !== null;
+  return !!lastRenderedSvgArtifact
+    && previewInner.querySelector('svg') !== null
+    && previewInner.dataset.sharedRequestDigest === lastRenderedSvgArtifact.receipt.sharedRequestDigest;
 }
 
 function updateExportAvailability() {
@@ -247,10 +249,15 @@ function canonicalBrowserPng(scale) {
     return Promise.reject(new Error('Canonical browser PNG adapter is unavailable'));
   }
   var source = currentEditorSource();
-  return renderMermaidPngInBrowserWithReceipt(source, buildOptions(), scale, rasterizeCanonicalSvg).then(function(artifact) {
-    if (currentEditorSource() !== source) throw new Error('Diagram changed while PNG export was rendering; try again.');
+  var requestVersion = renderRequestVersion;
+  var previewDigest = previewInner.dataset.sharedRequestDigest;
+  var options = buildOptions();
+  return renderMermaidPngInBrowserWithReceipt(source, options, scale, rasterizeCanonicalSvg).then(function(artifact) {
+    if (renderRequestVersion !== requestVersion || currentEditorSource() !== source) {
+      throw new Error('Diagram changed while PNG export was rendering; try again.');
+    }
     if (artifact.receipt.output !== 'png') throw new Error('PNG export returned a non-PNG receipt');
-    if (!previewInner.dataset.sharedRequestDigest || artifact.receipt.sharedRequestDigest !== previewInner.dataset.sharedRequestDigest) {
+    if (!previewDigest || previewInner.dataset.sharedRequestDigest !== previewDigest || artifact.receipt.sharedRequestDigest !== previewDigest) {
       throw new Error('PNG bytes and preview receipt do not describe the same render request');
     }
     lastRenderedPngArtifact = artifact;
@@ -282,8 +289,12 @@ function exportPNG() {
 function exportSVG() {
   if (!lastRenderedSvgArtifact) return;
   var artifact = lastRenderedSvgArtifact;
+  var requestVersion = renderRequestVersion;
+  var previewDigest = previewInner.dataset.sharedRequestDigest;
   serializeCanonicalSvg(artifact.svg).then(function(projected) {
-    if (artifact.receipt.sharedRequestDigest !== previewInner.dataset.sharedRequestDigest) {
+    if (renderRequestVersion !== requestVersion || lastRenderedSvgArtifact !== artifact
+        || !previewDigest || previewInner.dataset.sharedRequestDigest !== previewDigest
+        || artifact.receipt.sharedRequestDigest !== previewDigest) {
       throw new Error('SVG bytes and preview receipt no longer match');
     }
     lastRenderedSvgExportProjection = { svg: projected.svg, receipt: artifact.receipt, diagnostics: projected.diagnostics };

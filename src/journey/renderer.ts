@@ -11,7 +11,7 @@ import type {
 import type { RenderContext } from '../types.ts'
 import type { DiagramColors } from '../theme.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs, resolveColors } from '../theme.ts'
-import { resolveJourneyStyle, resolveJourneyVisualConfig } from './layout.ts'
+import { journeyUsesMaxWidth, resolveJourneyStyle, resolveJourneyVisualConfig } from './layout.ts'
 import type { JourneyVisualConfig } from './layout.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
 import { JOURNEY_ACTOR_COLOR_LIMIT } from './parse-core.ts'
@@ -121,7 +121,7 @@ export function lowerJourneyScene(
       hasMonoFont: false,
       extraCss: journeyCss,
     },
-    openJourneySvgTag(diagram, colors, transparent, accessibility, titleId, descId, options.mermaidConfig?.journey?.useMaxWidth === true),
+    openJourneySvgTag(diagram, colors, transparent, accessibility, titleId, descId, journeyUsesMaxWidth(options)),
   ))
   if (accessibility.title) {
     parts.push(marks.raw({ id: 'a11y-title', role: 'chrome' },

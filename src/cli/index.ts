@@ -39,7 +39,11 @@ import {
   validateSerializableRenderOptions,
 } from '../render-contract.ts'
 import type { CliRenderFormat, RenderRequestReceipt } from '../render-contract.ts'
-import { createSectionACapabilityReport, type SectionACapabilityReport } from '../section-a-capability-report.ts'
+import {
+  createSectionACapabilityReport,
+  sectionACapabilityDiscoverySummary,
+  type SectionACapabilityDiscoverySummary,
+} from '../section-a-capability-report.ts'
 import type { BuiltinFamilyId } from '../agent/families.ts'
 import '../agent/families-builtin.ts'
 import { AGENT_INSTRUCTIONS } from './agent-instructions.ts'
@@ -249,9 +253,9 @@ Emits canonical Mermaid source. Accepts the JSON shape that 'am parse' emits;
 rebuilds the diagram via synthesizeFromGraph without re-parsing source.`,
   mutate: `am mutate <file|-> (--op '<JSON>' | --ops '<JSON array|file.json>') [--json]
 Applies one or more MutationOps, verifies the final diagram, then emits source.
-Flowchart/state, sequence, timeline, class, ER, journey, architecture, xychart,
-pie, quadrant, gantt, mindmap, and gitgraph have typed mutation ops; opaque-fallback diagrams (unmodeled
-syntax) return a structured UNSUPPORTED_FAMILY error (exit 2). Verify failures
+Registered families with mutationOps have typed mutation; discover the live roster,
+narrowers, and op names with 'am capabilities --json'. Opaque-fallback diagrams
+(unmodeled syntax) return a structured UNSUPPORTED_FAMILY error (exit 2). Verify failures
 exit 3 and omit source.`,
   preview: `am preview <file|-> [--output preview.html] [--open] [--json] [--security strict]
 Writes a standalone HTML preview containing strict-mode rendered SVG. Without
@@ -272,7 +276,8 @@ Emits a single JSON object describing the SDK's capability surface:
   { sdkVersion, families: [{ id, hasMutate, hasExtractLabels, mutationOps, editPolicy, example }],
     warningCodes: [{ code, tier, severity }],
     outputFormats: ${JSON.stringify(CLI_RENDER_FORMATS)},
-    sectionA: { matrices: { request, backends, outputs, families, scene }, ... } }
+    sectionA: { reportSchemaVersion, reportDigest, upstreamPin, counts,
+      noAbsentSyntaxCapabilities, fullReport } }
 editPolicy is "structured-when-narrowed" or "source-level-only". Use this to
 introspect what the CLI can do without running every command.`,
   batch: `am batch  (reads JSONL from stdin)
@@ -505,6 +510,10 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
       return EXIT_ARG_ERROR
     }
     const scale = typeof args.flags.scale === 'string' ? Number(args.flags.scale) : 2
+    if (!Number.isFinite(scale) || scale <= 0) {
+      process.stderr.write('am render --scale expects a positive finite number\n')
+      return EXIT_ARG_ERROR
+    }
     const background = typeof args.flags.bg === 'string' ? args.flags.bg : undefined
     const fontDirs = typeof args.flags['font-dirs'] === 'string'
       ? args.flags['font-dirs'].split(',').map(s => s.trim()).filter(Boolean)
@@ -918,8 +927,8 @@ interface CapabilitiesEnvelope {
   families: FamilyCapability[]
   warningCodes: WarningCodeCapability[]
   outputFormats: CliRenderFormat[]
-  /** Registry-derived correctness/parity report; the library exports the same object. */
-  sectionA: SectionACapabilityReport
+  /** Bounded projection of the audit-only Section A capability report. */
+  sectionA: SectionACapabilityDiscoverySummary
 }
 
 // Source of truth now lives in the agent layer (src/agent/mutation-ops.ts) so
@@ -975,7 +984,7 @@ export function buildCapabilities(): CapabilitiesEnvelope {
     families,
     warningCodes,
     outputFormats: [...CLI_RENDER_FORMATS],
-    sectionA: createSectionACapabilityReport(),
+    sectionA: sectionACapabilityDiscoverySummary(createSectionACapabilityReport()),
   }
 }
 
@@ -1228,6 +1237,15 @@ interface BatchLine {
   mutations?: AnyMutationOp[]
 }
 
+export interface BatchRenderOptions extends Record<string, unknown> {
+  /** Preferred output spelling; matches `am render --format`. */
+  format?: CliRenderFormat
+  /** Backward-compatible alias for `format: 'ascii'`. */
+  ascii?: boolean
+  certificates?: boolean
+  targetWidth?: number
+}
+
 interface BatchOutput {
   ok: boolean
   op?: string
@@ -1254,13 +1272,58 @@ export function runBatchLine(rawLine: string, lineIndex = 0): BatchOutput {
     switch (op) {
       case 'render': {
         const options = parsed.options ?? {}
-        const asAscii = Boolean((options as { ascii?: boolean }).ascii)
+        if (typeof options !== 'object' || options === null || Array.isArray(options)) {
+          return { ok: false, op, error: { code: 'INVALID_OPTIONS', message: 'batch render options must be a plain JSON object' } }
+        }
+        const {
+          format: requestedFormat,
+          ascii: legacyAscii,
+          certificates,
+          targetWidth,
+          ...sharedCandidate
+        } = options as BatchRenderOptions
+        if (legacyAscii !== undefined && typeof legacyAscii !== 'boolean') {
+          return { ok: false, op, error: { code: 'INVALID_OPTIONS', message: 'batch render option "ascii" must be a boolean' } }
+        }
+        if (requestedFormat !== undefined && typeof requestedFormat !== 'string') {
+          return { ok: false, op, error: { code: 'INVALID_OPTIONS', message: 'batch render option "format" must be a string' } }
+        }
+        const format = requestedFormat ?? (legacyAscii ? 'ascii' : DEFAULT_CLI_RENDER_FORMAT)
+        if (!isCliRenderFormat(format) || renderOutputForCliFormat(format)?.id === 'png') {
+          const supported = CLI_RENDER_FORMATS.filter(candidate => renderOutputForCliFormat(candidate)?.id !== 'png')
+          return { ok: false, op, error: { code: 'INVALID_OPTIONS', message: `batch render format must be one of ${supported.join(', ')}` } }
+        }
+        if (legacyAscii === true && requestedFormat !== undefined && requestedFormat !== 'ascii') {
+          return { ok: false, op, error: { code: 'INVALID_OPTIONS', message: 'batch render option "ascii" conflicts with the requested format' } }
+        }
+        const output = renderOutputForCliFormat(format)!
+        if (certificates !== undefined && typeof certificates !== 'boolean') {
+          return { ok: false, op, error: { code: 'INVALID_OPTIONS', message: 'batch render option "certificates" must be a boolean' } }
+        }
+        if (certificates === true && output.id !== 'layout') {
+          return { ok: false, op, error: { code: 'INVALID_OPTIONS', message: 'batch render option "certificates" is valid only with format "json"' } }
+        }
+        if (targetWidth !== undefined && (!Number.isInteger(targetWidth) || targetWidth <= 0)) {
+          return { ok: false, op, error: { code: 'INVALID_OPTIONS', message: 'batch render option "targetWidth" must be a positive integer' } }
+        }
+        if (targetWidth !== undefined && output.id !== 'ascii' && output.id !== 'unicode') {
+          return { ok: false, op, error: { code: 'INVALID_OPTIONS', message: 'batch render option "targetWidth" is valid only with format "ascii" or "unicode"' } }
+        }
+        const problems = validateSerializableRenderOptions(sharedCandidate)
+        if (problems.length > 0) {
+          return { ok: false, op, error: { code: 'INVALID_OPTIONS', message: problems.join('; ') } }
+        }
+        const sharedOptions = sharedCandidate as RenderOptions
         // #7540: auto-namespace SVG ids per batch line so the rendered
-        // diagrams can coexist on one HTML page without def-id collisions.
-        const out = asAscii
-          ? renderMermaidASCII(parsed.source, { useAscii: true })
-          : renderMermaidSVG(parsed.source, { idPrefix: `d${lineIndex}-` })
-        return { ok: true, op, data: asAscii ? { ascii: out } : { svg: out } }
+        // diagrams can coexist on one HTML page without def-id collisions,
+        // while retaining a caller-provided suffix.
+        const rendered = renderSourceToFormatWithReceipt(parsed.source, format, {
+          ...sharedOptions,
+          ...(output.id === 'svg' ? { idPrefix: `d${lineIndex}-${sharedOptions.idPrefix ?? ''}` } : {}),
+          ...(certificates === undefined ? {} : { certificates }),
+          ...(targetWidth === undefined ? {} : { targetWidth }),
+        })
+        return { ok: true, op, data: { [format]: rendered.output, receipt: rendered.receipt } }
       }
       case 'verify': {
         const options = parsed.options as { suppress?: WarningCode[]; labelCharCap?: number } | undefined

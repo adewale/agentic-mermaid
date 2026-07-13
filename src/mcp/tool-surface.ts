@@ -2,7 +2,7 @@ import { reply, rpcError, type JsonRpcRequest, type JsonRpcResponse } from './pr
 import pkg from '../../package.json'
 import { sharedRenderOptionsJsonSchema, styleInputJsonSchema } from '../render-contract.ts'
 import { resolveStyleStack } from '../scene/style-registry.ts'
-import { safeCssColor } from '../shared/css-color.ts'
+import { safeCssColor, safeCssPaint } from '../shared/css-color.ts'
 import { safeCssFontFamily } from '../shared/css-font.ts'
 
 export interface McpToolDefinition {
@@ -218,6 +218,9 @@ function validateSchemaValue(
   const runtimeValidator = schema['x-agentic-mermaid-runtime-validator']
   if (runtimeValidator === 'safeCssColor' && safeCssColor(value) === undefined) {
     return [{ path, message: 'must be a safe, non-fetching CSS color' }]
+  }
+  if (runtimeValidator === 'safeCssPaint' && safeCssPaint(value) === undefined) {
+    return [{ path, message: 'must be a safe, non-fetching CSS paint' }]
   }
   if (runtimeValidator === 'safeCssFontFamily' && safeCssFontFamily(value) === undefined) {
     return [{ path, message: 'must be a safe, non-fetching CSS font family or stack' }]

@@ -8,8 +8,7 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
 
 - [ ] **DEC-1 — Get one real external consumer** (`todo`). Validate
   `agentic-mermaid/agent`, `am`, or `agentic-mermaid-mcp` in a real agent,
-  TUI, CI gate, or editor integration outside this repo. Unblocked
-  substantially by BUILD-7 (remote MCP reachability).
+  TUI, CI gate, or editor integration outside this repo.
 - [ ] **DEC-2 — Add the WAF rate-limit rule on `POST /mcp` before broadly
   promoting the hosted endpoint** (`owner-decision`). The hosted MCP (`#94`,
   `https://agentic-mermaid.dev/mcp`) is public, unauthenticated compute. Body /
@@ -124,13 +123,11 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   already owns the recognition floor: official and unknown headers are
   preserved or diagnosed and never fall through to Flowchart. Maturity comes
   from manifest data rather than a `-beta` spelling heuristic.
-- [ ] **BUILD-1 — Collapsible subgraphs (#7785)** (`todo`, after BUILD-23 metadata safety floor; independent of BUILD-20 harvest). Track Mermaid PR
+- [ ] **BUILD-1 — Collapsible subgraphs (#7785)** (`todo`). Track Mermaid PR
   <https://github.com/mermaid-js/mermaid/pull/7785> (`@{ view: collapsed }`
   metadata syntax) and stay syntax-compatible. Large, but a real readability
   win for agent-generated architecture diagrams; pairs naturally with typed
-  `collapse`/`expand` mutation ops. Measure with BUILD-13. (BUILD-14, the
-  ASCII phantom-node bug that would have interfered with collapsed-subgraph
-  edge attachment, is now fixed.)
+  `collapse`/`expand` mutation ops.
 
 ## Agent-usage verification backlog
 
@@ -141,7 +138,8 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   footer. Verify it actually improves outcomes: run agent-usage cases with vs.
   without the skill loaded and compare on task success, verify-before-return
   discipline, Code-Mode vs. prose answers, and source-level-vs-structured edit
-  choice — reuse the EVAL-1/EVAL-2 sandbox, task oracle, and trace linter.
+  choice — reuse the existing `eval/agent-usage/` sandbox, task oracle, and
+  trace linter.
   Fold any skill gaps back into `SKILL.md`/`references/`; keep or cut the
   footer link based on whether it demonstrably helps.
 
@@ -162,8 +160,7 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
 - [ ] **PARK-3 — Fork feature ports** (`parked`). Vercel themes,
   browser/package export tweaks, ArchiMate (upstream PR #34), and
   animation remain fork-audit ideas. Promote one only with a focused issue
-  and owner. (QuadrantChart was promoted to BUILD-11; fan-in grouping was
-  PARK-1, promoted to BUILD-9.)
+  and owner.
 
 
 ## Consolidation / dedup backlog

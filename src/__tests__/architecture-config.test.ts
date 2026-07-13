@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { resolveArchitectureVisualConfig, architectureIneffectiveConfigFields } from '../architecture/config.ts'
+import { DEFAULT_ARCHITECTURE_VISUAL, resolveArchitectureVisualConfig, architectureIneffectiveConfigFields } from '../architecture/config.ts'
 import { preprocessMermaidSource } from '../mermaid-source.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { parseMermaid } from '../agent/parse.ts'
@@ -55,6 +55,22 @@ architecture-beta
     expect(resolved.visual.groupBorder).toBe('#a8a29e')
     expect(resolved.visual.serviceSurface).toBe('#e7e5e4')
     expect(resolved.visual.serviceBorder).toBe('#a8a29e')
+  })
+
+  it('applies the explicit complete visual record to layout and Scene paint', () => {
+    const visual = {
+      ...DEFAULT_ARCHITECTURE_VISUAL,
+      serviceCornerRadius: 17,
+      serviceSurface: '#AABBCC',
+    }
+    const resolved = resolveArchitectureVisualConfig({}, { bg: '#fff', fg: '#111' }, { architecture: { visual } })
+    expect(resolved.visual.serviceCornerRadius).toBe(17)
+    expect(resolved.layout.serviceCornerRadius).toBe(17)
+    expect(resolved.visual.serviceSurface).toBe('#AABBCC')
+
+    const svg = renderMermaidSVG('architecture-beta\n  service api(server)[API]', { architecture: { visual } })
+    expect(svg).toContain('rx="17" ry="17"')
+    expect(svg).toContain('--arch-service-fill:#AABBCC')
   })
 })
 

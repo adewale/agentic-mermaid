@@ -13,6 +13,7 @@ import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import { stripFormattingTags } from '../multiline-utils.ts'
 import { wrapLabelToWidth } from '../shared/label-wrap.ts'
 import type { JourneyRuntimeConfig } from '../mermaid-source.ts'
+import { resolvedFamilyAppearanceOf } from '../render-contract.ts'
 
 // ============================================================================
 // Journey diagram layout engine
@@ -81,6 +82,12 @@ export interface JourneyVisualConfig {
   sectionColours: string[]
 }
 
+export interface JourneyRequestAppearance {
+  visual: JourneyVisualConfig
+  styleDefaults: RenderStyleDefaults
+  useMaxWidth: boolean
+}
+
 /** Shared by layout (sizing) and renderer (drawing) — keep it single-sourced. */
 export const JOURNEY_STYLE_DEFAULTS: RenderStyleDefaults = {
   nodeLabelFontSize: JY.taskFontSize,
@@ -101,11 +108,11 @@ export const JOURNEY_STYLE_DEFAULTS: RenderStyleDefaults = {
   groupLineWidth: STROKE_WIDTHS.outerBox,
 }
 
-export function resolveJourneyVisualConfig(options: RenderOptions = {}): JourneyVisualConfig {
+function resolveJourneyRequestAppearanceRaw(options: RenderOptions): JourneyRequestAppearance {
   const config = options.mermaidConfig?.journey
   const titleFontSize = cssFontSizeToPx(config?.titleFontSize, JY.titleFontSize)
 
-  return {
+  const visual: JourneyVisualConfig = {
     paddingX: positiveConfigNumber(config?.diagramMarginX, JY.paddingX),
     paddingY: positiveConfigNumber(config?.diagramMarginY, JY.paddingY),
     legendMinWidth: positiveConfigNumber(config?.leftMargin, JY.legendMinWidth),
@@ -122,10 +129,33 @@ export function resolveJourneyVisualConfig(options: RenderOptions = {}): Journey
     sectionFills: config?.sectionFills ?? [],
     sectionColours: config?.sectionColours ?? [],
   }
+  return {
+    visual,
+    styleDefaults: journeyStyleDefaults(config),
+    useMaxWidth: config?.useMaxWidth === true,
+  }
+}
+
+/** Compile raw Journey config at the request boundary. */
+export function resolveJourneyRequestAppearance(options: RenderOptions = {}): JourneyRequestAppearance {
+  return resolveJourneyRequestAppearanceRaw(options)
+}
+
+function journeyRequestAppearanceOf(options: RenderOptions): JourneyRequestAppearance {
+  return resolvedFamilyAppearanceOf<JourneyRequestAppearance>(options)
+    ?? resolveJourneyRequestAppearanceRaw(options)
+}
+
+export function resolveJourneyVisualConfig(options: RenderOptions = {}): JourneyVisualConfig {
+  return journeyRequestAppearanceOf(options).visual
 }
 
 export function resolveJourneyStyle(options: RenderOptions = {}): ResolvedRenderStyle {
-  return resolveRenderStyle(options, journeyStyleDefaults(options.mermaidConfig?.journey))
+  return resolveRenderStyle(options, journeyRequestAppearanceOf(options).styleDefaults)
+}
+
+export function journeyUsesMaxWidth(options: RenderOptions = {}): boolean {
+  return journeyRequestAppearanceOf(options).useMaxWidth
 }
 
 function journeyStyleDefaults(config: JourneyRuntimeConfig | undefined): RenderStyleDefaults {

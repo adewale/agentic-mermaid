@@ -23,7 +23,7 @@ function extensionDescriptor(localId: string, header: string): FamilyDescriptor 
       id,
       kind: 'family',
       version: '1.0.0',
-      compatibility: { core: 'family-descriptor@1' },
+      compatibility: { core: '^0.1.1' },
       provenance: { owner: 'extension-public-api-test', source: 'test' },
     }),
     id,
@@ -34,6 +34,7 @@ function extensionDescriptor(localId: string, header: string): FamilyDescriptor 
     collisionPriority: 0,
     detect: line => line === header.toLowerCase(),
     semanticRoles: [],
+    scenePrimitiveEvidence: [],
     capabilityEvidence: [
       { capability: 'detection', state: 'native', evidence: [EVIDENCE] },
       { capability: 'source-preservation', state: 'source-preserved', evidence: [EVIDENCE] },

@@ -15,8 +15,13 @@ import { indentLines } from './marks.ts'
 import type { StyleSpec } from './style-registry.ts'
 import { runBackendConformance } from './backend-conformance.ts'
 import type { BackendConformanceReport } from './backend-conformance.ts'
-import { graphicalBackendCapabilityClaims, validatePrimitiveCapabilities } from './capabilities.ts'
+import {
+  ESSENTIAL_SCENE_PRIMITIVE_OPERATIONS,
+  graphicalBackendCapabilityClaims,
+  validatePrimitiveCapabilities,
+} from './capabilities.ts'
 import type { PrimitiveCapabilityClaim } from './capabilities.ts'
+import { assertValidSceneDoc } from './scene-validation.ts'
 import {
   canonicalExtensionId,
   createExtensionIdentity,
@@ -122,7 +127,7 @@ export const DefaultBackend: StyleBackend = {
 }
 
 const CORE_BACKEND_VERSION = '1.0.0'
-const CORE_BACKEND_COMPATIBILITY = Object.freeze({ core: '^0.1.1', scene: '1' })
+const CORE_BACKEND_COMPATIBILITY = Object.freeze({ core: '^0.1.1', scene: '^1.0.0' })
 const CORE_BACKEND_PROVENANCE = Object.freeze({
   owner: 'agentic-mermaid',
   source: 'built-in',
@@ -157,16 +162,7 @@ function validateBackendCapabilities(backend: StyleBackend, canonicalId: string)
   if (unevidenced) {
     throw new Error(`Backend "${backend.id}" capability ${unevidenced.primitive}/${unevidenced.feature}/${unevidenced.operation} must declare evidence`)
   }
-  const essentialClaims = [
-    ['document', 'serialize'],
-    ['text', 'render'],
-    ['shape', 'render'],
-    ['container', 'render'],
-    ['connector', 'render'],
-    ['marker', 'render'],
-    ['data-mark', 'render'],
-  ] as const
-  for (const [primitive, operation] of essentialClaims) {
+  for (const { primitive, operation } of ESSENTIAL_SCENE_PRIMITIVE_OPERATIONS) {
     if (!backend.capabilities.some(claim => claim.primitive === primitive && claim.operation === operation)) {
       throw new Error(`Backend "${backend.id}" must declare an evidenced essential ${primitive}/${operation} capability`)
     }
@@ -193,6 +189,7 @@ function snapshotBackend(backend: StyleBackend): StyleBackend {
       return drawNode.call(snapshot, node, ctx)
     },
     render(doc, ctx) {
+      assertValidSceneDoc(doc)
       return render.call(snapshot, doc, ctx)
     },
   }
@@ -202,8 +199,16 @@ function snapshotBackend(backend: StyleBackend): StyleBackend {
 /** Built-ins retain their historical object identity while receiving the same
  * frozen capability/method surface as host registrations. */
 function freezeBuiltInBackend(backend: StyleBackend): StyleBackend {
-  const mutable = backend as { capabilities: readonly PrimitiveCapabilityClaim[] }
+  const render = backend.render
+  const mutable = backend as {
+    capabilities: readonly PrimitiveCapabilityClaim[]
+    render: StyleBackend['render']
+  }
   mutable.capabilities = snapshotBackendCapabilities(backend.capabilities)
+  mutable.render = function renderValidatedScene(doc, ctx) {
+    assertValidSceneDoc(doc)
+    return render.call(backend, doc, ctx)
+  }
   return Object.freeze(backend)
 }
 

@@ -42,6 +42,7 @@ import {
 import { renderPngGraphicalProjection } from '../png-graphical.ts'
 import { RESOURCE_MANIFEST } from '../font-manifest.ts'
 import { NodeResourceResolver } from '../node-resource-resolver.ts'
+import type { HostBackendPolicy } from '../scene/backend.ts'
 export type { PngFontWarning } from '../shared/png-font-warnings.ts'
 
 export interface PngOptions extends RenderOptions {
@@ -154,6 +155,39 @@ export interface RenderedPng {
 }
 
 export function renderMermaidPNGWithReceipt(input: ValidDiagram | string, opts: PngOptions = {}): RenderedPng {
+  return renderMermaidPNGWithReceiptForHost(input, opts, {})
+}
+
+/** Trusted Node/Bun host policy; never copied into RenderOptions or receipts. */
+export interface MermaidPNGRendererHostOptions {
+  readonly backendPolicy?: HostBackendPolicy
+}
+
+export interface MermaidPNGRenderer {
+  renderMermaidPNG(input: ValidDiagram | string, opts?: PngOptions): Uint8Array
+  renderMermaidPNGWithReceipt(input: ValidDiagram | string, opts?: PngOptions): RenderedPng
+}
+
+/** Bind the native PNG adapter to a trusted in-process graphical backend. */
+export function createMermaidPNGRenderer(
+  hostOptions: MermaidPNGRendererHostOptions = {},
+): MermaidPNGRenderer {
+  const host = Object.freeze({ ...hostOptions })
+  return Object.freeze({
+    renderMermaidPNG(input: ValidDiagram | string, opts: PngOptions = {}): Uint8Array {
+      return renderMermaidPNGWithReceiptForHost(input, opts, host).png
+    },
+    renderMermaidPNGWithReceipt(input: ValidDiagram | string, opts: PngOptions = {}): RenderedPng {
+      return renderMermaidPNGWithReceiptForHost(input, opts, host)
+    },
+  })
+}
+
+function renderMermaidPNGWithReceiptForHost(
+  input: ValidDiagram | string,
+  opts: PngOptions,
+  hostOptions: MermaidPNGRendererHostOptions,
+): RenderedPng {
   // SVG input: embedFontImport=false so resvg doesn't try to fetch from
   // Google Fonts during rasterization. CSS-variable fonts (Loop 8 M2) means
   // the SVG still declares its font-family preference via --font.
@@ -173,7 +207,7 @@ export function renderMermaidPNGWithReceipt(input: ValidDiagram | string, opts: 
     fitTo,
     fontDirs: callerFontDirs,
     loadSystemFonts,
-  })
+  }, { backendPolicy: hostOptions.backendPolicy })
   const outputPolicy = graphical.outputPolicy
   const svg = inlineFontVarForRaster(graphical.svg)
 

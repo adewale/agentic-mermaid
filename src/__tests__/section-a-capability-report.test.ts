@@ -7,7 +7,7 @@ import {
   validateSectionACapabilityReport,
   type SectionACapabilityReport,
 } from '../section-a-capability-report.ts'
-import { registerFamily, type FamilyDescriptor } from '../agent/families.ts'
+import { registerFamily, type FamilyDescriptor, type FamilyScenePrimitiveEvidence } from '../agent/families.ts'
 import { createExtensionIdentity } from '../shared/extension-identity.ts'
 import { DefaultBackend, registerBackend } from '../scene/backend.ts'
 import { RENDER_OUTPUTS, RENDER_TRANSPORT_SURFACES } from '../render-contract.ts'
@@ -49,6 +49,10 @@ describe('Section A capability report', () => {
     expect(report.upstream.semanticInventory.configKeyCount).toBeGreaterThan(0)
     expect(report.upstream.semanticInventory.themeVariableCount).toBeGreaterThan(0)
     expect(report.upstream.semanticInventory.sourceArtifacts).not.toHaveLength(0)
+    expect(report.matrices.syntax.dimensions).toHaveLength(11)
+    expect(report.matrices.syntax.features).toHaveLength(report.upstream.semanticInventory.syntaxFeatureCount)
+    expect(report.matrices.syntax.families).toHaveLength(report.matrices.families.length * 11)
+    expect(report.summary.syntaxAbsentCount).toBe(0)
   })
 
   test('registered backends may add namespaced primitives while accounting for every core primitive', () => {
@@ -108,6 +112,23 @@ describe('Section A capability report', () => {
     ;(incompleteNative.evidence as unknown as Array<{ capability: string }>).pop()
     expect(validateSectionACapabilityReport(incomplete)).toContain('family flowchart lacks evidence for terminal')
 
+    const incompleteScene = JSON.parse(JSON.stringify(createSectionACapabilityReport())) as SectionACapabilityReport
+    const flowchartScene = incompleteScene.matrices.families.find(row => row.registrationId === 'flowchart')!
+    const removedCell = (flowchartScene.scenePrimitiveEvidence as FamilyScenePrimitiveEvidence[]).pop()!
+    expect(validateSectionACapabilityReport(incompleteScene)).toContain(
+      `family flowchart lacks Scene cell ${removedCell.role}/${removedCell.primitive}`,
+    )
+
+    const implicitNegative = JSON.parse(JSON.stringify(createSectionACapabilityReport())) as SectionACapabilityReport
+    const negative = implicitNegative.matrices.families
+      .find(row => row.registrationId === 'flowchart')!
+      .scenePrimitiveEvidence.find(cell => cell.applicability === 'not-applicable')!
+    ;(negative as { realization: string; diagnostic?: string }).realization = 'native'
+    delete (negative as { diagnostic?: string }).diagnostic
+    expect(validateSectionACapabilityReport(implicitNegative)).toContain(
+      `family flowchart does not explicitly diagnose negative Scene cell ${negative.role}/${negative.primitive}`,
+    )
+
     const wrongTransport = JSON.parse(JSON.stringify(createSectionACapabilityReport())) as SectionACapabilityReport
     const html = wrongTransport.matrices.outputs.find(row => row.id === 'html')!
     ;(html.transports.cli as { availability: string }).availability = 'direct'
@@ -122,6 +143,19 @@ describe('Section A capability report', () => {
       `backend ${uncertified.matrices.backends[0]!.id} did not pass registration SVG conformance`,
       'report does not match live contract authorities',
     ]))
+
+    const missingSyntaxFeature = JSON.parse(JSON.stringify(createSectionACapabilityReport())) as SectionACapabilityReport
+    ;(missingSyntaxFeature.matrices.syntax.features as unknown[]).pop()
+    expect(validateSectionACapabilityReport(missingSyntaxFeature)).toEqual(expect.arrayContaining([
+      'report digest does not match its payload',
+      'syntax feature classifications are missing: 1',
+      'report does not match live contract authorities',
+    ]))
+
+    const absentSyntax = JSON.parse(JSON.stringify(createSectionACapabilityReport())) as SectionACapabilityReport
+    const syntaxRow = absentSyntax.matrices.syntax.features[0]!
+    ;(syntaxRow as { state: string }).state = 'absent'
+    expect(validateSectionACapabilityReport(absentSyntax)).toContain(`syntax feature ${syntaxRow.featureId} is absent`)
   })
 
   test('a namespaced family appears without adding a copied family roster', () => {
@@ -132,7 +166,7 @@ describe('Section A capability report', () => {
         id: 'family:report-probe',
         kind: 'family',
         version: '1.0.0',
-        compatibility: { core: 'family-descriptor@1' },
+        compatibility: { core: '^0.1.1' },
         provenance: { owner: 'section-a-test', source: 'test' },
       }),
       id: 'family:report-probe',
@@ -145,6 +179,7 @@ describe('Section A capability report', () => {
       collisionPriority: 1,
       detect: line => /^requirementdiagram(?:\s|$)/.test(line),
       semanticRoles: [],
+      scenePrimitiveEvidence: [],
       capabilityEvidence: [
         { capability: 'detection', state: 'native', evidence: ['src/__tests__/section-a-capability-report.test.ts'] },
         { capability: 'source-preservation', state: 'source-preserved', evidence: ['src/__tests__/section-a-capability-report.test.ts'] },
@@ -168,6 +203,7 @@ describe('Section A capability report', () => {
         capabilities: Object.fromEntries(descriptor.capabilityEvidence.map(claim => [claim.capability, claim.state])),
       })
       expect(validateSectionACapabilityReport(report)).toEqual([])
+      expect(report.matrices.syntax.families.filter(row => row.familyId === 'requirement')).toHaveLength(11)
     } finally {
       unregister()
     }
@@ -192,11 +228,29 @@ describe('Section A capability report', () => {
         }
       }
     }
+    for (const family of report.matrices.families) {
+      for (const cell of family.scenePrimitiveEvidence) {
+        for (const path of cell.evidence) {
+          expect({ family: family.id, cell: `${cell.role}/${cell.primitive}`, path, exists: existsSync(join(ROOT, path)) })
+            .toEqual({ family: family.id, cell: `${cell.role}/${cell.primitive}`, path, exists: true })
+        }
+      }
+    }
     for (const resource of report.matrices.resources) {
       expect({ id: resource.id, path: resource.path, exists: existsSync(join(ROOT, resource.path)) })
         .toEqual({ id: resource.id, path: resource.path, exists: true })
       expect({ id: resource.id, notice: resource.license.noticePath, exists: existsSync(join(ROOT, resource.license.noticePath)) })
         .toEqual({ id: resource.id, notice: resource.license.noticePath, exists: true })
+    }
+    for (const row of report.matrices.syntax.families) {
+      for (const evidence of row.evidence) {
+        expect({ source: evidence.source, exists: existsSync(join(ROOT, evidence.source)) })
+          .toEqual({ source: evidence.source, exists: true })
+      }
+    }
+    for (const row of report.matrices.syntax.features) {
+      for (const source of row.evidence) expect({ source, exists: existsSync(join(ROOT, source)) })
+        .toEqual({ source, exists: true })
     }
     for (const system of report.evidence.systems) {
       expect({ id: system.id, authority: existsSync(join(ROOT, system.authority)), gate: existsSync(join(ROOT, system.freshnessGate)) })

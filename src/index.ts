@@ -54,28 +54,12 @@ export type { TextMeasurementContract, TextMeasurementInput, TextMeasurementResu
 export { MermaidFamilyDetectionError, classifyMermaidFamilyFromFirstLine } from './family-detection.ts'
 export type { MermaidFamilyClassification, FamilyDetectionDiagnostic } from './family-detection.ts'
 
-import { compactSvg, namespaceSvgIds } from './renderer.ts'
-import type { PositionedDiagram, RenderContext, RenderOptions } from './types.ts'
-import type { DiagramColors } from './theme.ts'
-import { inlineResolvedColors } from './theme.ts'
-import './render-family-hooks.ts'
-import { positionResolvedFamily } from './positioning.ts'
+import type { RenderOptions } from './types.ts'
 import {
-  receiptOf,
-  renderContractDigest,
-  resolveRenderRequest,
-  resolveRenderRequestForExecution,
-  resolvedRenderExecutionPlanOf,
-  type RenderExecutionDecision,
   type RenderRequestReceipt,
-  type ResolvedRenderRequest,
 } from './render-contract.ts'
-import { explicitFamilyConfigDiagnostics } from './shared/family-config-diagnostics.ts'
 import type { HostBackendPolicy } from './scene/backend.ts'
-import { applyOutputSecurityPolicy } from './output-security.ts'
-import type { OutputSecurityDiagnostic } from './output-security.ts'
-import './scene/rough-backend.ts'
-import './scene/hybrid-backend.ts'
+import { executeGraphicalRequest } from './graphical-render.ts'
 
 export {
   registerStyle, getStyle, knownStyles, knownStyleDescriptors, resolveStyleReference,
@@ -125,6 +109,21 @@ export type {
   ConnectorTerminalStrokeLoss, ConnectorTerminalMarkerProjection, ConnectorTerminalLabelProjection,
   MarkerDescriptor, MarkerRef, MarkerShape, ScenePoint, SceneBox,
 } from './scene/ir.ts'
+export {
+  EXTERNAL_SCENE_API_VERSION, buildExternalScene,
+} from './scene/external-scene.ts'
+export type {
+  ExternalSceneGeometry, ExternalSceneNodeBase, ExternalSceneShape, ExternalSceneDataMark,
+  ExternalSceneText, ExternalSceneContainer, ExternalSceneConnector, ExternalSceneNode,
+  ExternalSceneMarker, ExternalSceneDocument, ExternalSceneInput,
+} from './scene/external-scene.ts'
+export {
+  SCENE_VALIDATION_VERSION, SCENE_VALIDATION_LIMITS, validateSceneDoc, assertValidSceneDoc, SceneValidationError,
+} from './scene/scene-validation.ts'
+export type {
+  SceneValidationDiagnosticCode, SceneValidationDiagnostic, SceneValidationResult,
+  SceneValidationOptions,
+} from './scene/scene-validation.ts'
 export { connectorHitDistance, hitTestConnector, hitTestSceneConnectors } from './scene/hit-test.ts'
 export type { SceneConnectorHit } from './scene/hit-test.ts'
 export {
@@ -140,15 +139,17 @@ export type {
 } from './scene/roles.ts'
 export {
   CORE_SCENE_PRIMITIVES, CORE_SCENE_OPERATIONS, CORE_SCENE_FEATURES,
-  PRIMITIVE_REALIZATIONS, validatePrimitiveCapabilities,
+  ESSENTIAL_SCENE_PRIMITIVE_OPERATIONS, PRIMITIVE_REALIZATIONS,
+  essentialScenePrimitiveOperation, validatePrimitiveCapabilities,
 } from './scene/capabilities.ts'
 export type {
   CoreScenePrimitive, ScenePrimitive, CoreSceneOperation, SceneOperation,
   CoreSceneFeature, SceneFeature, PrimitiveRealization, PrimitiveCapabilityClaim,
-  CapabilityValidationResult,
+  CapabilityValidationResult, EssentialScenePrimitiveOperation,
 } from './scene/capabilities.ts'
 export {
-  canonicalExtensionId, parseExtensionId, createExtensionIdentity,
+  KNOWN_EXTENSION_CONTRACT_VERSIONS, canonicalExtensionId, parseExtensionId,
+  createExtensionIdentity, evaluateExtensionCompatibility,
   registerCompatibilityAlias, registerExtension, ExtensionCollisionError,
 } from './shared/extension-identity.ts'
 export {
@@ -161,6 +162,7 @@ export type {
 } from './font-manifest.ts'
 export type {
   ExtensionIdentity, ExtensionCompatibility, ExtensionProvenance, ExtensionRegistration,
+  ExtensionCompatibilityDecision, ExtensionCompatibilityResolution,
   CompatibilityAlias, CompatibilityAliasDiagnostic, CompatibilityRemoval,
 } from './shared/extension-identity.ts'
 export type { SvgSemanticIdentity } from './scene/identity.ts'
@@ -178,45 +180,17 @@ export type {
   PngFitTo, PngOutputPolicyInput, ResolvedPngOutputPolicy,
   PngFontSource, PngRuntimeProvenance,
 } from './png-contract.ts'
-export { renderMermaidPNGInBrowserWithReceipt, BROWSER_CANVAS_RUNTIME } from './browser-png.ts'
+export {
+  createMermaidBrowserPNGRenderer,
+  renderMermaidPNGInBrowserWithReceipt,
+  BROWSER_CANVAS_RUNTIME,
+} from './browser-png.ts'
 export type {
   BrowserPngDiagnostic, BrowserPngRasterContext, BrowserPngRasterResult,
   BrowserPngRasterizer, RenderedBrowserPng, BrowserPngFontSource,
-  BrowserPngRuntimeProvenance,
+  BrowserPngRuntimeProvenance, MermaidBrowserPNGRenderer,
+  MermaidBrowserPNGRendererHostOptions,
 } from './browser-png.ts'
-function escapeXmlText(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-}
-
-/**
- * #7254/#7255: inject `<title>`/`<desc>` + `role="img"` + `aria-labelledby`/
- * `aria-describedby` into the root <svg>. Localized post-pass (mirrors
- * namespaceSvgIds) so we don't thread accessibility through every family
- * renderer. Renderers that do thread it (sequence, class, er, timeline,
- * journey, xychart, architecture) already carry the aria wiring on the root,
- * which is how this pass knows to leave their output alone. The title/desc
- * ids carry the same idPrefix as the rest of the doc to stay collision-free.
- */
-function injectAccessibility(svg: string, acc: { title?: string; descr?: string }, idPrefix: string): string {
-  const titleId = `${idPrefix}svg-title`
-  const descId = `${idPrefix}svg-desc`
-  const rootAttrs: string[] = []
-  const children: string[] = []
-  if (acc.title) { rootAttrs.push(`aria-labelledby="${titleId}"`); children.push(`<title id="${titleId}">${escapeXmlText(acc.title)}</title>`) }
-  if (acc.descr) { rootAttrs.push(`aria-describedby="${descId}"`); children.push(`<desc id="${descId}">${escapeXmlText(acc.descr)}</desc>`) }
-  if (children.length === 0) return svg
-  // Add role + aria references to the opening <svg …> tag (once).
-  svg = svg.replace(/<svg\b([^>]*)>/, (full, attrs: string) => {
-    // The family renderer already wired accessibility on the root; injecting
-    // again would duplicate <title>/<desc> and root attributes (a duplicated
-    // attribute is not even well-formed XML).
-    if (/\baria-(?:labelledby|describedby)=/.test(attrs)) return full
-    const add = `${/\brole=/.test(attrs) ? '' : ' role="img"'} ${rootAttrs.join(' ')}`
-    return `<svg${attrs}${add}>${children.join('')}`
-  })
-  return svg
-}
-
 /**
  * Render Mermaid diagram text to an SVG string — synchronously.
  *
@@ -280,10 +254,10 @@ export function createMermaidRenderer(hostOptions: MermaidRendererHostOptions = 
   const host = Object.freeze({ ...hostOptions })
   return Object.freeze({
     renderMermaidSVG(text: string, options: RenderOptions = {}): string {
-      return renderGraphicalSvgWithReceiptForHost(text, options, 'svg', undefined, host).svg
+      return executeGraphicalRequest(text, options, 'svg', undefined, host).svg
     },
     renderMermaidSVGWithReceipt(text: string, options: RenderOptions = {}): RenderedSvg {
-      return renderGraphicalSvgWithReceiptForHost(text, options, 'svg', undefined, host)
+      return executeGraphicalRequest(text, options, 'svg', undefined, host)
     },
   })
 }
@@ -292,123 +266,7 @@ export function renderMermaidSVGWithReceipt(
   text: string,
   options: RenderOptions = {},
 ): RenderedSvg {
-  return renderGraphicalSvgWithReceipt(text, options, 'svg')
-}
-
-/** Internal/publicly inspectable graphical waist used by PNG before rasterization. */
-export function renderGraphicalSvgWithReceipt(
-  text: string,
-  options: RenderOptions,
-  output: 'svg' | 'png',
-  outputOptions?: unknown,
-): RenderedSvg {
-  return renderGraphicalSvgWithReceiptForHost(text, options, output, outputOptions, {})
-}
-
-function renderGraphicalSvgWithReceiptForHost(
-  text: string,
-  options: RenderOptions,
-  output: 'svg' | 'png',
-  outputOptions: unknown,
-  hostOptions: MermaidRendererHostOptions,
-): RenderedSvg {
-  const request = resolveRenderRequestForExecution(text, options, output, outputOptions, {
-    backendPolicy: hostOptions.backendPolicy,
-  })
-  const executionPlan = resolvedRenderExecutionPlanOf(request)
-  if (options.mermaidConfig) {
-    const report = options.onConfigDiagnostic ?? ((diagnostic) => console.warn(diagnostic.message))
-    for (const diagnostic of explicitFamilyConfigDiagnostics(executionPlan.family.id, options.mermaidConfig)) report(diagnostic)
-  }
-  const securityDiagnostics: OutputSecurityDiagnostic[] = []
-  const rendered = renderResolvedMermaidSVG(request, securityDiagnostics)
-  const baseReceipt = receiptOf(request, securityDiagnostics)
-  return {
-    svg: rendered.svg,
-    receipt: Object.freeze({
-      ...baseReceipt,
-      graphicalProjectionDigest: renderContractDigest(rendered.svg),
-      executionDecision: rendered.executionDecision,
-    }),
-  }
-}
-
-interface ResolvedGraphicalExecution {
-  readonly svg: string
-  readonly executionDecision: RenderExecutionDecision
-}
-
-function renderResolvedMermaidSVG(
-  request: ResolvedRenderRequest,
-  securityDiagnostics: OutputSecurityDiagnostic[],
-): ResolvedGraphicalExecution {
-  const executionPlan = resolvedRenderExecutionPlanOf(request)
-  if ((executionPlan.mode !== 'scene' && executionPlan.mode !== 'family-svg') || !executionPlan.executionDecision) {
-    throw new Error(`Resolved ${request.output} request has no graphical execution plan`)
-  }
-  const normalizedSource = request.source
-  const effectiveOptions = request.renderOptions as RenderOptions
-  const mergedStyle = request.appearance.style
-  const styled = request.appearance.styled
-  const appearanceColors = request.appearance.colors as DiagramColors
-  // PNG cannot consume a remote CSS @import. Treat that as an output
-  // projection, not a rewrite of the caller's shared request/appearance
-  // receipt, so SVG and PNG remain comparable under default options.
-  const colors = request.output === 'png' && appearanceColors.embedFontImport !== false
-    ? { ...appearanceColors, embedFontImport: false }
-    : appearanceColors
-  const family = executionPlan.family
-  const diagramType = family.id
-  const renderOptions = effectiveOptions
-  const renderContext = <TPositioned extends PositionedDiagram>(
-    positioned: TPositioned,
-    c: DiagramColors = colors,
-    opts: RenderOptions = renderOptions,
-  ): RenderContext<TPositioned> => ({ positioned, colors: c, options: opts })
-  // resolve() inlines CSS variables for non-browser renderers (resvg).
-  // When `compact` is on we additionally round coords and collapse whitespace.
-  const compact = effectiveOptions.compact ?? false
-  const idPrefix = effectiveOptions.idPrefix ?? ''
-  const finalizeSvg = (svg: string) => {
-    const secured = applyOutputSecurityPolicy(svg, effectiveOptions.security)
-    securityDiagnostics.push(...secured.diagnostics)
-    return secured.svg
-  }
-  // #7254/#7255: the universal source envelope owns accessibility parsing.
-  // Legacy family renderers receive it through this localized SVG post-pass.
-  const acc = normalizedSource.accessibility
-  const resolve = (svg: string, c: DiagramColors = colors, injectAcc = true) => {
-    let out = inlineResolvedColors(svg, c)
-    // #7540: namespace def ids so multiple diagrams on one page don't collide.
-    if (idPrefix) out = namespaceSvgIds(out, idPrefix)
-    // #7254/#7255: inject <title>/<desc>/role="img"/aria-labelledby for
-    // renderers that do not carry accessibility through their family-specific
-    // parser. Xychart does, so it opts out below to avoid duplicate ARIA attrs.
-    if (injectAcc && (acc.title || acc.descr)) out = injectAccessibility(out, acc, idPrefix)
-    out = finalizeSvg(out)
-    return compact ? compactSvg(out) : out
-  }
-
-  const layout = positionResolvedFamily(diagramType, request)
-  const renderColors = layout.colors ?? colors
-  const ctx = renderContext(layout.positioned, renderColors, layout.options ?? renderOptions)
-  let rawSvg: string
-  if (executionPlan.mode === 'scene') {
-    // SceneGraph is the normal graphical waist, including crisp rendering.
-    // A descriptor that can lower a scene needs no parallel renderSvg hook;
-    // styled requests merely select a different serializer for the same scene.
-    const backend = executionPlan.backend!.backend
-    rawSvg = backend.render(family.lowerScene!(ctx), {
-      seed: effectiveOptions.seed ?? 0,
-      ...(styled ? { style: mergedStyle } : {}),
-    })
-  } else {
-    rawSvg = family.renderSvg!(ctx)
-  }
-  return Object.freeze({
-    svg: resolve(rawSvg, renderColors, layout.injectAccessibility ?? true),
-    executionDecision: executionPlan.executionDecision,
-  })
+  return executeGraphicalRequest(text, options, 'svg')
 }
 
 /**

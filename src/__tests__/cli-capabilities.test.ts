@@ -4,29 +4,46 @@ import { describe, it, expect } from 'bun:test'
 import { buildCapabilities, MUTATION_OPS_BY_FAMILY } from '../cli/index.ts'
 import { knownFamilies } from '../agent/families.ts'
 import { WARNING_SEVERITY } from '../agent/types.ts'
-import { createSectionACapabilityReport, validateSectionACapabilityReport } from '../section-a-capability-report.ts'
+import {
+  createSectionACapabilityReport,
+  sectionACapabilityDiscoverySummary,
+} from '../section-a-capability-report.ts'
 import { CLI_RENDER_FORMATS, cliRenderFormatJsonSchema } from '../render-contract.ts'
+import { UPSTREAM_MERMAID_MANIFEST } from '../upstream-mermaid-manifest.ts'
 import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 
 describe('am capabilities', () => {
-  it('emits a JSON object with the legacy discovery fields and Section A report', () => {
+  it('emits a JSON object with the legacy discovery fields and bounded Section A summary', () => {
     const cap = buildCapabilities()
     expect(typeof cap.sdkVersion).toBe('string')
     expect(cap.sdkVersion.length).toBeGreaterThan(0)
     expect(Array.isArray(cap.families)).toBe(true)
     expect(Array.isArray(cap.warningCodes)).toBe(true)
     expect(cap.outputFormats).toEqual([...CLI_RENDER_FORMATS])
-    expect(cap.sectionA).toEqual(createSectionACapabilityReport())
-    expect(validateSectionACapabilityReport(cap.sectionA)).toEqual([])
+    expect(cap.sectionA).toEqual(sectionACapabilityDiscoverySummary())
+    expect(cap.sectionA.noAbsentSyntaxCapabilities).toBe(true)
   })
 
   it('Section A CLI discovery is the canonical registry projection, not a copied matrix', () => {
     const sectionA = buildCapabilities().sectionA
-    expect(sectionA.summary.registeredFamilyCount).toBe(knownFamilies().length)
-    expect(sectionA.matrices.families.filter(row => row.registrationId !== undefined).length)
-      .toBe(sectionA.summary.registeredFamilyCount)
-    expect(sectionA.digest).toBe(createSectionACapabilityReport().digest)
+    expect(sectionA.counts.registeredFamilyCount).toBe(knownFamilies().length)
+    expect(sectionA.reportDigest).toBe(createSectionACapabilityReport().digest)
+    expect(sectionA.upstreamPin.inventorySha256).toBe(createSectionACapabilityReport().upstream.inventorySha256)
+  })
+
+  it('keeps exhaustive syntax evidence out of the routine agent-discovery budget', () => {
+    const cap = buildCapabilities()
+    expect(cap.sectionA.counts.syntaxFeatureClassificationCount)
+      .toBe(UPSTREAM_MERMAID_MANIFEST.semanticInventory.syntaxFeatures.length)
+    expect('matrices' in cap.sectionA).toBe(false)
+    expect(cap.sectionA.fullReport).toEqual({
+      packageExport: 'agentic-mermaid/capabilities',
+      factory: 'createSectionACapabilityReport',
+      markdown: 'docs/project/section-a-capability-report.md',
+      regenerateCommand: 'bun run section-a-report',
+    })
+    expect(Buffer.byteLength(JSON.stringify(cap), 'utf8')).toBeLessThan(64 * 1024)
   })
 
   it('includes every registered family in the families list', () => {
@@ -138,7 +155,7 @@ describe('am capabilities', () => {
     for (const k of schema.properties.sectionA.required ?? []) {
       expect(Object.prototype.hasOwnProperty.call(cap.sectionA, k)).toBe(true)
     }
-    expect(validateSectionACapabilityReport(cap.sectionA)).toEqual([])
+    expect(cap.sectionA.noAbsentSyntaxCapabilities).toBe(true)
   })
 })
 

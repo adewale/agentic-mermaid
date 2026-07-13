@@ -22,6 +22,22 @@ interface ValidDiagram { readonly kind: DiagramKind }
 interface VerifyResult { ok: boolean; warnings: unknown[]; layout: { bounds: unknown; nodes: unknown[]; edges: unknown[] } }
 type CheckMermaidSpec = string[] | { include?: string[]; exclude?: string[]; exact?: boolean }
 interface CheckMermaidResult { ok: boolean; missing: string[]; unexpected: string[]; facts: string[] }
+interface RenderRequestReceipt {
+  version: 1
+  output: 'svg' | 'png' | 'ascii' | 'unicode' | 'html' | 'layout'
+  sharedRequestDigest: string
+  requestDigest: string
+  appearanceDigest: string
+  diagnostics?: readonly { code: string; message?: string; reference?: string; feature?: string }[]
+}
+interface RenderedSvg { svg: string; receipt: RenderRequestReceipt }
+interface RenderedAscii {
+  text: string
+  receipt: RenderRequestReceipt
+  terminalStyle: Record<string, unknown>
+  outputPolicy: Record<string, unknown>
+}
+interface RenderedLayoutArtifact { layout: Record<string, unknown>; receipt: RenderRequestReceipt }
 
 declare const mermaid: {
   parseMermaid(source: string): Result<ValidDiagram, { code: string; message: string }[]>
@@ -38,7 +54,10 @@ ${NARROWERS}
   checkMermaidSource(source: string, spec: CheckMermaidSpec): Result<CheckMermaidResult>
   serializeMermaid(diagram: ValidDiagram): string
   renderMermaidSVG(input: ValidDiagram | string, opts?: Record<string, unknown>): string
+  renderMermaidSVGWithReceipt(input: ValidDiagram | string, opts?: Record<string, unknown>): RenderedSvg
   renderMermaidASCII(input: ValidDiagram | string, opts?: { useAscii?: boolean; maxWidth?: number; targetWidth?: number; ganttToday?: string; mermaidConfig?: Record<string, unknown> }): string
+  renderMermaidASCIIWithReceipt(input: ValidDiagram | string, opts?: { useAscii?: boolean; maxWidth?: number; targetWidth?: number; ganttToday?: string; mermaidConfig?: Record<string, unknown> }): RenderedAscii
+  layoutMermaidWithReceipt(input: ValidDiagram | string, opts?: Record<string, unknown>): RenderedLayoutArtifact
   describeOps(family: DiagramKind): Record<string, { name: string; required: boolean; type: string; note?: string }[]>
   opSignatures(family: DiagramKind): string[]
 }

@@ -144,11 +144,11 @@ export const TUFTE_STYLE_ALIAS = Object.freeze({
 function stripInternalStyle(spec: InternalStyleSpec | undefined): StyleSpec | undefined {
   if (!spec) return undefined
   const { face: _face, displayLabel: _displayLabel, ...publicSpec } = spec
-  return {
+  return Object.freeze({
     ...publicSpec,
     formatVersion: STYLE_SPEC_FORMAT_VERSION,
-    ...(publicSpec.colors ? { colors: { ...publicSpec.colors } } : {}),
-  }
+    ...(publicSpec.colors ? { colors: Object.freeze({ ...publicSpec.colors }) } : {}),
+  })
 }
 
 function registryKindOf(spec: StyleSpec): StyleRegistryKind {
@@ -173,7 +173,7 @@ function registerCanonicalStyle(
   spec: InternalStyleSpec,
   kind: StyleRegistryKind,
   options: StyleRegistrationOptions,
-): void {
+): () => boolean {
   const id = spec.name!
   const stored: InternalStyleSpec = Object.freeze({
     ...spec,
@@ -181,10 +181,16 @@ function registerCanonicalStyle(
     ...(spec.colors ? { colors: Object.freeze({ ...spec.colors }) } : {}),
     ...(spec.face ? { face: Object.freeze({ ...spec.face }) } : {}),
   })
+  const identity = registrationIdentity(id, kind, options)
   registerExtension(STYLE_REGISTRY, {
-    identity: registrationIdentity(id, kind, options),
+    identity,
     value: stored,
   })
+  return () => {
+    const current = STYLE_REGISTRY.get(id)
+    if (current?.identity !== identity) return false
+    return STYLE_REGISTRY.delete(id)
+  }
 }
 
 /**
@@ -192,7 +198,7 @@ function registerCanonicalStyle(
  * `look:` or `palette:` identity; legacy bare built-in aliases remain inputs
  * but cannot be created by third-party registration.
  */
-export function registerStyle(spec: StyleSpec, options: StyleRegistrationOptions = {}): void {
+export function registerStyle(spec: StyleSpec, options: StyleRegistrationOptions = {}): () => boolean {
   const problems = validateStyleSpec(spec)
   if (problems.length) throw new Error(`Invalid style spec: ${problems.join('; ')}`)
   if (!spec.name) throw new Error('registerStyle requires a name (anonymous specs are for inline use)')
@@ -204,7 +210,7 @@ export function registerStyle(spec: StyleSpec, options: StyleRegistrationOptions
   if (parsed.kind !== inferred) {
     throw new Error(`Style "${spec.name}" is a ${inferred}; its name must use the "${inferred}:" namespace`)
   }
-  registerCanonicalStyle(spec, inferred, options)
+  return registerCanonicalStyle(spec, inferred, options)
 }
 
 function registerBuiltInStyle(
@@ -357,15 +363,34 @@ export function resolveStyleStack(input: StyleInput | StyleInput[] | undefined):
   return stripInternalStyle(resolveInternalStyleStack(input))
 }
 
-/** Private reader for renderer/layout defaults attached to built-in styles. */
-export function styleFaceOf(input: StyleInput | StyleInput[] | undefined): InternalStyleFace | undefined {
-  const spec = resolveInternalStyleStack(input)
-  if (spec === undefined) return undefined
+function internalStyleFace(spec: InternalStyleSpec): InternalStyleFace | undefined {
   const width = spec.strokeWidth
   const widthFace: InternalStyleFace | undefined = width !== undefined && width > 0 && inferBackend(spec) === 'default'
     ? { node: { lineWidth: width }, edge: { lineWidth: width }, group: { lineWidth: width } }
     : undefined
   return mergeFace(widthFace, spec.face)
+}
+
+/** Internal boundary helper: resolve mutable registry input once, then project
+ * its public StyleSpec and private renderer defaults from that same snapshot. */
+export function resolveStyleStackWithFace(
+  input: StyleInput | StyleInput[] | undefined,
+): { style?: StyleSpec; face?: InternalStyleFace } {
+  const internal = resolveInternalStyleStack(input)
+  if (internal === undefined) return {}
+  const style = stripInternalStyle(internal)
+  const face = internalStyleFace(internal)
+  return {
+    ...(style ? { style } : {}),
+    ...(face ? { face } : {}),
+  }
+}
+
+/** Private reader for renderer/layout defaults attached to built-in styles. */
+export function styleFaceOf(input: StyleInput | StyleInput[] | undefined): InternalStyleFace | undefined {
+  const spec = resolveInternalStyleStack(input)
+  if (spec === undefined) return undefined
+  return internalStyleFace(spec)
 }
 
 /** A palette-only spec is what people call a THEME; anything that also sets

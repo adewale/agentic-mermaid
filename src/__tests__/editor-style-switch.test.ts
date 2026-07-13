@@ -312,6 +312,27 @@ describeBrowser('editor style switcher restyles the artwork, never the chrome', 
     await page.close()
   }, 60_000)
 
+  test('scheduling a replacement render immediately revokes stale export authority', async () => {
+    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
+    await page.goto(baseUrl + '/editor/', { waitUntil: 'networkidle' })
+    await page.waitForFunction(() => {
+      const preview = document.getElementById('preview-inner') as HTMLElement | null
+      return !!preview?.dataset.sharedRequestDigest && !(document.getElementById('export-main-btn') as HTMLButtonElement).disabled
+    }, null, { timeout: 15_000 })
+    const state = await page.evaluate(() => {
+      ;(window as any).scheduleRender(10_000)
+      const preview = document.getElementById('preview-inner') as HTMLElement
+      return {
+        svgStillVisible: !!preview.querySelector('svg'),
+        digest: preview.dataset.sharedRequestDigest,
+        exportDisabled: (document.getElementById('export-main-btn') as HTMLButtonElement).disabled,
+        artifactRevoked: (window as any).lastRenderedSvgArtifact === null,
+      }
+    })
+    expect(state).toEqual({ svgStillVisible: true, digest: undefined, exportDisabled: true, artifactRevoked: true })
+    await page.close()
+  }, 60_000)
+
   test('browser and editor retain comparable SVG, Unicode, and ASCII receipts', async () => {
     const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
     await page.goto(baseUrl + '/editor/?empty=1', { waitUntil: 'networkidle' })

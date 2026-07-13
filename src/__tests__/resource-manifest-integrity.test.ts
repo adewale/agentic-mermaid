@@ -178,7 +178,17 @@ describe('content-addressed installed resource manifest', () => {
       }],
     }
     expect(validateResourceManifest(badProvenance).join('\n')).toContain('requires a provenance owner')
+    const incompatibleCore = {
+      version: 1,
+      resources: [{
+        ...entry,
+        identity: { ...entry.identity, compatibility: { core: '^99.0.0' } },
+      }],
+    }
+    expect(validateResourceManifest(incompatibleCore).join('\n'))
+      .toMatch(/incompatible requirements.*core.*\^99\.0\.0.*host version 0\.1\.1/i)
     expect(() => snapshotResourceManifest(badVersion)).toThrow('INVALID_RESOURCE_MANIFEST')
+    expect(() => snapshotResourceManifest(incompatibleCore)).toThrow('INVALID_RESOURCE_MANIFEST')
   })
 
   test('takes a deeply immutable manifest snapshot before filesystem resolution', () => {

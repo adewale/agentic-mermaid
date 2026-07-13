@@ -8,7 +8,9 @@
 // ============================================================================
 
 const SIMPLE_COLOR_RE = /^(?:#[0-9a-f]{3,4}|#[0-9a-f]{6}|#[0-9a-f]{8}|[a-z][a-z0-9-]*)$/i
-const SAFE_FUNCTION_CHARS_RE = /^[a-z0-9#(),.%+\-\s/]*$/i
+// Underscores are inert and valid in custom-property names (the Scene
+// contract's derived paints intentionally use names such as `--_line`).
+const SAFE_FUNCTION_CHARS_RE = /^[a-z0-9_#(),.%+\-\s/]*$/i
 const CSS_COLOR_FUNCTIONS = new Set([
   'color',
   'color-mix',
@@ -94,7 +96,12 @@ export function safeCssPaint(value: unknown): string | undefined {
     const fn = match[1]!.toLowerCase()
     if (fn !== 'var' && !CSS_COLOR_FUNCTIONS.has(fn)) return undefined
   }
-  return paint.slice(0, firstParen).trim().toLowerCase() === 'var' ? paint : undefined
+  const outer = paint.slice(0, firstParen).trim().toLowerCase()
+  // A safe color function may contain a safe custom-property reference, e.g.
+  // `color-mix(in srgb, var(--brand) 20%, #fff)`. Every nested function was
+  // allowlisted above, so accepting the color-function outer shell does not
+  // add a fetching or executable form.
+  return outer === 'var' || CSS_COLOR_FUNCTIONS.has(outer) ? paint : undefined
 }
 
 export function requireSafeCssPaint(value: string, field: string): string {

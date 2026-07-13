@@ -51,6 +51,7 @@ const CONNECTOR_OR_GROUP: readonly SceneMarkKind[] = ['connector', 'group']
 const RAW_OR_DOCUMENT: readonly SceneMarkKind[] = ['raw', 'document']
 const TEXT_OR_GROUP: readonly SceneMarkKind[] = ['text', 'group']
 const TEXT_OR_RAW: readonly SceneMarkKind[] = ['text', 'raw']
+const SHAPE_TEXT_OR_RAW: readonly SceneMarkKind[] = ['shape', 'text', 'raw']
 const PRELUDE: readonly SceneMarkKind[] = ['prelude']
 
 function traits(
@@ -85,7 +86,9 @@ export const BUILTIN_SCENE_ROLE_TRAITS: Readonly<Record<BuiltinSceneRole, SceneR
   'class-box': traits(SHAPE_OR_GROUP, { domIdentity: true, sketch: 'shape' }),
   member: traits(TEXT, { domIdentity: true, textHalo: true }),
   entity: traits(SHAPE_OR_GROUP, { domIdentity: true, sketch: 'shape' }),
-  attribute: traits(TEXT, { domIdentity: true, textHalo: true }),
+  // ER attributes may be emitted as a semantic wrapper containing the name,
+  // type, and key badge; the group carries the attribute identity.
+  attribute: traits(TEXT_OR_GROUP, { domIdentity: true, textHalo: true }),
   relationship: traits(CONNECTOR, { domIdentity: true, relation: true, sketch: 'connector' }),
   cardinality: traits(SHAPE_OR_TEXT, { domIdentity: true, textHalo: true }),
   'pie-slice': traits(SHAPE, { domIdentity: true, sketch: 'shape' }),
@@ -107,7 +110,7 @@ export const BUILTIN_SCENE_ROLE_TRAITS: Readonly<Record<BuiltinSceneRole, SceneR
   'actor-pill': traits(SHAPE, { sketch: 'shape' }),
   service: traits(SHAPE_OR_GROUP, { domIdentity: true, sketch: 'shape' }),
   junction: traits(SHAPE_OR_GROUP, { domIdentity: true }),
-  icon: traits(TEXT_OR_RAW),
+  icon: traits(SHAPE_TEXT_OR_RAW),
   title: traits(ANY_MARK, { domIdentity: true }),
   defs: traits(RAW_OR_DOCUMENT),
   prelude: traits(PRELUDE),
@@ -134,7 +137,7 @@ export const SCENE_ROLE_DESCRIPTORS: readonly SceneRoleDescriptor[] = Object.fre
       id: `role:${role}`,
       kind: 'role',
       version: '1.0.0',
-      compatibility: { core: 'scene-role@1', scene: 'scene@1' },
+      compatibility: { core: '^0.1.1', scene: '^1.0.0' },
       provenance: { owner: 'agentic-mermaid', source: 'built-in', reference: 'src/scene/roles.ts' },
     }),
     role: role as BuiltinSceneRole,

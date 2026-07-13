@@ -23,23 +23,6 @@ import { lintAgentTrace, type SdkCall } from '../../eval/agent-usage/harness.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 
-const MUTABLE_FAMILY_DOCS = {
-  flowchart: { label: 'Flowchart', narrower: 'asFlowchart', cliLabel: 'flowchart' },
-  state: { label: 'State', narrower: 'asState', cliLabel: 'state' },
-  sequence: { label: 'Sequence', narrower: 'asSequence', cliLabel: 'sequence' },
-  timeline: { label: 'Timeline', narrower: 'asTimeline', cliLabel: 'timeline' },
-  class: { label: 'Class', narrower: 'asClass', cliLabel: 'class' },
-  er: { label: 'ER', narrower: 'asEr', cliLabel: 'ER' },
-  journey: { label: 'Journey', narrower: 'asJourney', cliLabel: 'journey' },
-  architecture: { label: 'Architecture', narrower: 'asArchitecture', cliLabel: 'architecture' },
-  xychart: { label: 'XY chart', narrower: 'asXyChart', cliLabel: 'xychart' },
-  pie: { label: 'Pie', narrower: 'asPie', cliLabel: 'pie' },
-  quadrant: { label: 'Quadrant', narrower: 'asQuadrant', cliLabel: 'quadrant' },
-  gantt: { label: 'Gantt', narrower: 'asGantt', cliLabel: 'gantt' },
-  mindmap: { label: 'Mindmap', narrower: 'asMindmap', cliLabel: 'mindmap' },
-  gitgraph: { label: 'GitGraph', narrower: 'asGitGraph', cliLabel: 'gitgraph' },
-} satisfies Record<keyof typeof MUTATION_OPS_BY_FAMILY, { label: string; narrower: string; cliLabel: string }>
-
 function escapeRegExp(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
@@ -219,14 +202,17 @@ describe('vocabulary doc-sync', () => {
   test('built-in family metadata is the checked source for shipped family surfaces', () => {
     const metadataIds = new Set(BUILTIN_FAMILY_METADATA.map(f => f.id))
     const mutationFamilyIds = new Set(Object.keys(MUTATION_OPS_BY_FAMILY) as Array<keyof typeof MUTATION_OPS_BY_FAMILY>)
+    const capabilities = buildCapabilities()
     expect(BUILTIN_FAMILY_METADATA_COVERS_DIAGRAM_KIND).toBe(true)
     expect(metadataIds).toEqual(new Set(knownBuiltinFamilies()))
     expect(metadataIds).toEqual(mutationFamilyIds)
 
     for (const family of BUILTIN_FAMILY_METADATA) {
-      const docs = MUTABLE_FAMILY_DOCS[family.id]
-      expect({ family: family.id, narrower: docs.narrower }).toEqual({ family: family.id, narrower: family.narrower })
-      expect({ family: family.id, label: docs.label }).toEqual({ family: family.id, label: family.label })
+      const descriptor = getFamily(family.id)
+      const capability = capabilities.families.find(entry => entry.id === family.id)
+      expect(descriptor?.narrower).toBe(family.narrower)
+      expect(capability?.narrower).toBe(family.narrower)
+      expect(capability?.headers).toEqual(family.headers)
     }
   })
 
@@ -271,6 +257,37 @@ describe('vocabulary doc-sync', () => {
     expect(duplicates).toEqual([])
   })
 
+  test('TODO references only current backlog IDs', () => {
+    const todo = readFileSync(join(REPO, 'TODO.md'), 'utf8')
+    const defined = new Set([...todo.matchAll(/^- \[ \] \*\*([A-Z]+-\d+)\b/gm)].map(match => match[1]!))
+    const prefixes = new Set([...defined].map(id => id.split('-')[0]!))
+    const referenced = new Set(
+      [...todo.matchAll(/\b([A-Z]+-\d+)\b/g)]
+        .map(match => match[1]!)
+        .filter(id => prefixes.has(id.split('-')[0]!)),
+    )
+    expect([...referenced].filter(id => !defined.has(id)).sort()).toEqual([])
+  })
+
+  test('upstream syntax workflow verifies the reviewed pin without writing', () => {
+    const workflow = readFileSync(join(REPO, '.github/workflows/sync-mermaid-docs.yml'), 'utf8')
+    expect(workflow).toContain('docs/project/upstream-mermaid-policy.json')
+    expect(workflow).toContain('ref: ${{ steps.pin.outputs.commit }}')
+    expect(workflow).toContain('diff -ru "$expected" "$harvested"')
+    expect(workflow).toContain('contents: read')
+    expect(workflow).not.toContain('contents: write')
+    expect(workflow).not.toContain('git-auto-commit-action')
+  })
+
+  test('BrandPack and Treatment examples keep kind-specific registry identities', () => {
+    const plan = readFileSync(join(REPO, 'docs/project/brand-primitives-plan.md'), 'utf8')
+    expect(plan).toContain("identity: ExtensionIdentity<'brand-pack'>")
+    expect(plan).toContain("id: 'treatment:acme/corner-brackets'")
+    expect(plan).toContain('separate BrandPack registry')
+    expect(plan).not.toContain('NamespacedId')
+    expect(plan).not.toContain('same canonical installed-appearance registry')
+  })
+
   test('nightly route mutation workflow stays synced with documented commands', () => {
     const workflow = readFileSync(join(REPO, '.github/workflows/nightly-route-mutation.yml'), 'utf8')
     const docs = readFileSync(join(REPO, 'docs/mutation-testing.md'), 'utf8')
@@ -310,12 +327,11 @@ describe('vocabulary doc-sync', () => {
       expect(WARNING_TIER[code as keyof typeof WARNING_TIER]).toMatch(/^(structural|geometric|lint)$/)
     }
   })
-  test('public mutate help lists every registry-declared mutable family', () => {
+  test('public mutate help delegates the live family roster', () => {
     const help = COMMAND_HELP.mutate?.toLowerCase() ?? ''
     expect(help.length).toBeGreaterThan(0)
-    for (const [family, { cliLabel }] of Object.entries(MUTABLE_FAMILY_DOCS)) {
-      expect({ family, documented: help.includes(cliLabel.toLowerCase()) }).toEqual({ family, documented: true })
-    }
+    expect(help).toContain('am capabilities --json')
+    expect(help).not.toContain('flowchart/state, sequence')
   })
 
   test('every MutationOp kind is in spec, capabilities, and MCP SDK declaration', () => {
@@ -333,8 +349,8 @@ describe('vocabulary doc-sync', () => {
   })
 
   test('MCP SDK declaration exposes and describes all mutable families', () => {
-    for (const { narrower } of Object.values(MUTABLE_FAMILY_DOCS)) {
-      expect(SDK_DECLARATION).toContain(narrower)
+    for (const family of BUILTIN_FAMILY_METADATA) {
+      expect(SDK_DECLARATION).toContain(family.narrower)
     }
     const convention = SDK_DECLARATION.split('// 3. mutate works on')[1]?.split('//    State owns')[0] ?? ''
     for (const family of BUILTIN_FAMILY_METADATA) {
@@ -343,41 +359,47 @@ describe('vocabulary doc-sync', () => {
     }
   })
 
-  test('agent-facing crib sheets list every mutable family', () => {
+  test('agent-facing docs delegate family and operation discovery to generated surfaces', () => {
     const agentNative = readFileSync(join(REPO, 'AGENT_NATIVE.md'), 'utf8')
-    const guide = readFileSync(join(REPO, 'Instructions_for_agents.md'), 'utf8')
+    const familyGuide = readFileSync(join(REPO, 'docs/diagram-families.md'), 'utf8')
     const llms = readFileSync(join(REPO, 'llms.txt'), 'utf8')
     const skill = readFileSync(join(REPO, 'skills/agentic-mermaid-diagram-workflow/SKILL.md'), 'utf8')
     const codeMode = readFileSync(join(REPO, 'skills/agentic-mermaid-diagram-workflow/references/code-mode.md'), 'utf8')
-    const cli = readFileSync(join(REPO, 'skills/agentic-mermaid-diagram-workflow/references/cli.md'), 'utf8')
+    const cliReference = readFileSync(join(REPO, 'skills/agentic-mermaid-diagram-workflow/references/cli.md'), 'utf8')
+    const skillEvalReadme = readFileSync(join(REPO, 'skill-evals/README.md'), 'utf8')
     const cookbook = readFileSync(join(REPO, 'docs/agent-api-cookbook.md'), 'utf8')
     const api = readFileSync(join(REPO, 'docs/api.md'), 'utf8')
+    const capabilities = buildCapabilities()
 
     for (const [family, ops] of Object.entries(MUTATION_OPS_BY_FAMILY) as Array<[keyof typeof MUTATION_OPS_BY_FAMILY, readonly string[]]>) {
-      const { label, narrower, cliLabel } = MUTABLE_FAMILY_DOCS[family]
-      expect({ family, cookbookRow: cookbook.includes(`| ${label} | \`${narrower}\``) })
-        .toEqual({ family, cookbookRow: true })
-      expect({ family, codeModeNarrower: codeMode.includes(`mermaid.${narrower}`) })
-        .toEqual({ family, codeModeNarrower: true })
-      expect({ family, cliRef: cli.includes(cliLabel) })
-        .toEqual({ family, cliRef: true })
+      const descriptor = getFamily(family)!
+      const capability = capabilities.families.find(entry => entry.id === family)
+      expect(capability?.mutationOps).toEqual([...ops])
+      expect(capability?.narrower).toBe(descriptor.narrower)
+      expect(SDK_DECLARATION).toContain(descriptor.narrower!)
 
       for (const [file, text] of [
-        ['AGENT_NATIVE.md', agentNative],
-        ['Instructions_for_agents.md', guide],
         ['llms.txt', llms],
         ['init-agent AGENTS.md snippet', AGENTS_SNIPPET],
         ['init-agent skill bundle', INIT_SKILL_MD],
       ] as const) {
-        expect({ family, file, narrowerListed: text.includes(narrower) })
+        expect({ family, file, narrowerListed: text.includes(descriptor.narrower!) })
           .toEqual({ family, file, narrowerListed: true })
       }
-
-      for (const op of ops) {
-        expect({ family, op, cookbookOp: cookbook.includes(`\`${op}\``) })
-          .toEqual({ family, op, cookbookOp: true })
-      }
     }
+
+    expect(agentNative).toContain('section-a-capability-report.md')
+    expect(agentNative).not.toContain('| Family | Parse / verify / render / round-trip |')
+    expect(agentNative).not.toContain('asFlowchart/asState/asSequence')
+    expect(familyGuide).toContain('section-a-capability-report.md')
+    expect(familyGuide).not.toContain('| Family | Header(s) | Render | Structured mutation |')
+    expect(cookbook).toContain('## Mutation operation discovery')
+    expect(cookbook).toContain('describeOps(family)')
+    expect(cookbook).toContain('opSignatures(family)')
+    expect(cookbook).not.toContain('| Family | Narrower | Op kinds |')
+    expect(codeMode).not.toContain('mermaid.asState(d)')
+    expect(cliReference).not.toContain('flowchart, state, sequence')
+    expect(skillEvalReadme).toContain('rather than copied here')
     expect(api).toContain('am capabilities --json')
     expect(api).toContain('describeOps(family)')
     expect(api).toContain('does not copy an exhaustive')
@@ -477,7 +499,7 @@ describe('start.md bootstrap claims stay true', () => {
   })
 
   test('every as* narrower it names is a real narrower', () => {
-    const real = new Set(Object.values(MUTABLE_FAMILY_DOCS).map(d => d.narrower))
+    const real = new Set<string>(BUILTIN_FAMILY_METADATA.map(family => family.narrower))
     const named = [...START.matchAll(/\bas[A-Z][A-Za-z]*\b/g)].map(m => m[0])
     expect(named.length).toBeGreaterThan(0)
     for (const n of named) expect({ narrower: n, real: real.has(n) }).toEqual({ narrower: n, real: true })
@@ -712,6 +734,17 @@ describe('root docs consistency', () => {
     expect(theming).not.toMatch(/ships \*\*\d+ built-in themes/)
     for (const option of ['shadow', 'embedFontImport', 'compact', 'idPrefix', 'security', 'ganttToday']) {
       expect(api).toContain(`\`${option}\``)
+    }
+    for (const seam of [
+      'Live host retheming',
+      'AsciiRenderOptions',
+      'onProjectionDiagnostic',
+      'BrowserPngRasterizer',
+      'parseExtensionId',
+      'registerExtension',
+      'ExtensionCollisionError',
+    ]) {
+      expect({ seam, inventoried: api.includes(seam) }).toEqual({ seam, inventoried: true })
     }
     expect(config).toContain('gantt.displayMode')
     expect(SDK_DECLARATION).toContain('gantt?:')

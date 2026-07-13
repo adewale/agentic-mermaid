@@ -2,7 +2,7 @@
 // agent-generated diagram output.
 
 import { describe, test, expect } from 'bun:test'
-import { renderMermaidSVG, verifyNoExternalRefs } from '../index.ts'
+import { applyOutputSecurityPolicy, renderMermaidSVG, verifyNoExternalRefs } from '../index.ts'
 
 describe('#7645/#7695 strict security mode', () => {
   test('strict mode SVG has zero external-fetch references', () => {
@@ -30,7 +30,7 @@ describe('#7645/#7695 strict security mode', () => {
     expect(() => renderMermaidSVG('flowchart TD\n A --> B', {
       security: 'strict',
       bg: '#fff\" onload=\"alert(1)',
-    })).toThrow('safe non-fetching CSS color')
+    })).toThrow('safe, non-fetching CSS paint')
   })
 
   test('keeps safe brand font stacks and custom-property paint references', () => {
@@ -188,6 +188,16 @@ config:
 ---
 xychart
   bar [10, 20]`, { security: 'strict' })).toThrow('Raw Mermaid themeCSS is not allowed in strict security mode')
+  })
+
+  test('escaped tag-like label text stays text while real active elements fail closed', () => {
+    const escaped = '<svg><text>&lt;script&gt;alert(1)&lt;/script&gt; &lt;image href=&quot;//example.invalid/x&quot;/&gt;</text></svg>'
+    expect(applyOutputSecurityPolicy(escaped, 'strict')).toEqual({ svg: escaped, diagnostics: [] })
+    expect(verifyNoExternalRefs(escaped)).toEqual({ ok: true, refs: [] })
+    expect(applyOutputSecurityPolicy('<svg><!-- <script src="//example.invalid/x"/> --><text>safe</text></svg>', 'strict').diagnostics).toEqual([])
+    expect(() => applyOutputSecurityPolicy('<svg><script>alert(1)</script></svg>')).toThrow('rejected active content')
+    expect(() => applyOutputSecurityPolicy('<svg><animate attributeName="opacity" from="0" to="1"/></svg>')).toThrow('rejected active content')
+    expect(verifyNoExternalRefs('<svg><image href="#local"/></svg>').ok).toBe(false)
   })
 
   test('a clean inline SVG passes', () => {

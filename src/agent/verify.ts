@@ -11,7 +11,7 @@ import { parseMermaid as parseValidDiagram, parseRegisteredMermaid } from './par
 import { serializeMermaid } from './serialize.ts'
 import { logToolInvocation } from './trace-log.ts'
 import { countStructuralElements, faithfulnessWarning } from './structural-count.ts'
-import { renderMermaidSVG } from '../index.ts'
+import { renderPositionedMermaidSVG } from '../graphical-render.ts'
 import { auditRouteContracts, findRouteHitches } from '../route-contracts.ts'
 import type { PositionedGraph } from '../types.ts'
 import type {
@@ -20,7 +20,14 @@ import type {
 } from './types.ts'
 import { WARNING_SEVERITY, DEFAULT_LABEL_CHAR_CAP } from './types.ts'
 import { emptyRenderedLayout } from './layout-to-rendered.ts'
-import { FamilyLayoutError, layoutFamilyToRendered, positionFamilyArtifact, ganttGeometryWarnings, ganttScheduleWarning, layoutGeometryWarnings } from './family-layouts.ts'
+import {
+  FamilyLayoutError,
+  positionFamilyArtifact,
+  ganttGeometryWarnings,
+  ganttScheduleWarning,
+  layoutGeometryWarnings,
+  type ProjectedFamilyArtifact,
+} from './family-layouts.ts'
 import { getFamily, extractLabelsGeneric, builtinFamilyMetadata } from './families.ts'
 import { labelOverflowWarning } from './label-metrics.ts'
 import { stateBodyToGraph } from './state-body.ts'
@@ -91,8 +98,9 @@ export function verifyMermaid(input: ParsedDiagram | string, opts: VerifyOptions
   logToolInvocation('verify')
   const parsed = typeof input === 'string' ? parseRegisteredMermaid(input) : { ok: true as const, value: input }
   if (!parsed.ok) return finalize([{ code: 'EMPTY_DIAGRAM' }], emptyRenderedLayout('flowchart'), opts)
+  const positioned = memoizedVerificationArtifact(parsed.value, opts)
   try {
-    return withRenderParity(parsed.value, verifyStructure(parsed.value, opts), opts)
+    return withRenderParity(verifyStructure(parsed.value, opts, positioned), opts, positioned)
   } catch (error) {
     if (!(error instanceof FamilyLayoutError)) throw error
     return finalize(
@@ -101,6 +109,35 @@ export function verifyMermaid(input: ParsedDiagram | string, opts: VerifyOptions
       opts,
       false,
     )
+  }
+}
+
+type VerificationArtifact = () => ProjectedFamilyArtifact | null
+
+/** One lazy artifact per verify call; failures are memoized as well as values. */
+function memoizedVerificationArtifact(d: ParsedDiagram, opts: VerifyOptions): VerificationArtifact {
+  let attempted = false
+  let artifact: ProjectedFamilyArtifact | null = null
+  let failure: unknown
+  return () => {
+    if (attempted) {
+      if (failure !== undefined) throw failure
+      return artifact
+    }
+    attempted = true
+    try {
+      // Resolve the graphical plan up front, then project its exact positioned
+      // result for geometric verification. The renderability gate consumes
+      // this same request + result and therefore cannot parse or lay out again.
+      artifact = positionFamilyArtifact(d, {
+        renderOptions: opts.renderOptions,
+        output: 'svg',
+      })
+      return artifact
+    } catch (error) {
+      failure = error
+      throw error
+    }
   }
 }
 
@@ -118,11 +155,16 @@ export function verifyMermaid(input: ParsedDiagram | string, opts: VerifyOptions
  * failure under a different name (e.g. suppress UNRESOLVABLE_SCHEDULE on a
  * gantt whose render still throws for exactly that reason).
  */
-function withRenderParity(input: ParsedDiagram, result: VerifyResult, opts: VerifyOptions): VerifyResult {
+function withRenderParity(
+  result: VerifyResult,
+  opts: VerifyOptions,
+  positioned: VerificationArtifact,
+): VerifyResult {
   if (!result.ok || (opts.suppress ?? []).some(code => code === 'RENDER_FAILED' || WARNING_SEVERITY[code] === 'error')) return result
-  const source = serializeMermaid(input)
   try {
-    renderMermaidSVG(source, opts.renderOptions)
+    const artifact = positioned()
+    if (!artifact) throw new Error(`Mermaid family "${result.layout.kind}" has no positioned graphical artifact`)
+    renderPositionedMermaidSVG(artifact.request, artifact.layoutResult, [])
     return result
   } catch (e) {
     const reason = e instanceof Error ? e.message : String(e)
@@ -201,7 +243,11 @@ export function configWarningsForMermaid(source: string): LayoutWarning[] {
   return parsed.ok ? configWarningsForDiagram(parsed.value) : []
 }
 
-function verifyStructure(parsed: ParsedDiagram, opts: VerifyOptions = {}): VerifyResult {
+function verifyStructure(
+  parsed: ParsedDiagram,
+  opts: VerifyOptions,
+  positioned: VerificationArtifact,
+): VerifyResult {
   const cap = opts.labelCharCap ?? DEFAULT_LABEL_CHAR_CAP
 
   // Family-plugin verify dispatcher pass: every registered family's `verify`
@@ -216,7 +262,7 @@ function verifyStructure(parsed: ParsedDiagram, opts: VerifyOptions = {}): Verif
     : []
   const dispatchedWarnings = dispatchFamilyVerify(parsed, opts)
   if (parsed.body.kind === 'extension') {
-    return verifyExtension(parsed as ExtensionValidDiagram, cap, opts, dedupedConcat(metaWarnings, dispatchedWarnings))
+    return verifyExtension(parsed as ExtensionValidDiagram, cap, opts, dedupedConcat(metaWarnings, dispatchedWarnings), positioned)
   }
 
   const d = parsed as ValidDiagram
@@ -236,8 +282,8 @@ function verifyStructure(parsed: ParsedDiagram, opts: VerifyOptions = {}): Verif
     pluginWarnings = pluginWarnings.filter(warning => warning.code !== 'EMPTY_DIAGRAM')
   }
 
-  if (d.body.kind === 'sequence') return mergeFinalize(verifySequence(d as ValidDiagram & { body: SequenceBody }, cap, opts), pluginWarnings, opts)
-  if (d.body.kind === 'timeline') return mergeFinalize(verifyTimeline(d as ValidDiagram & { body: import('./types.ts').TimelineBody }, cap, opts), pluginWarnings, opts)
+  if (d.body.kind === 'sequence') return mergeFinalize(verifySequence(d as ValidDiagram & { body: SequenceBody }, cap, opts, positioned), pluginWarnings, opts)
+  if (d.body.kind === 'timeline') return mergeFinalize(verifyTimeline(d as ValidDiagram & { body: import('./types.ts').TimelineBody }, cap, opts, positioned), pluginWarnings, opts)
   // class + ER: the FamilyPlugin.verify hooks (registered in families-builtin.ts)
   // already produce the per-body warnings. Loop 9 M2 removes the duplicate
   // explicit branches; the dispatcher path + emptyRenderedLayout fall-through
@@ -265,7 +311,7 @@ function verifyStructure(parsed: ParsedDiagram, opts: VerifyOptions = {}): Verif
         false,
       )
     }
-    const layoutOutcome = familyLayoutForVerify(d, opts)
+    const layoutOutcome = familyLayoutForVerify(d, positioned)
     const layout = layoutOutcome.layout
     const geometric = dedupedConcat(
       ganttGeometryWarnings(layout),
@@ -279,7 +325,7 @@ function verifyStructure(parsed: ParsedDiagram, opts: VerifyOptions = {}): Verif
     // the family adapters (was emptyRenderedLayout). #33 adds zero-noise
     // class/ER semantic geometry tripwires: relationship endpoints must sit on
     // class/entity box boundaries and boxes must remain on-canvas/non-overlap.
-    const layoutOutcome = familyLayoutForVerify(d, opts)
+    const layoutOutcome = familyLayoutForVerify(d, positioned)
     const layout = layoutOutcome.layout
     const familyGeometry = (d.body.kind === 'class' || d.body.kind === 'er')
       // Class namespaces are groups whose members are the namespaced class
@@ -303,7 +349,7 @@ function verifyStructure(parsed: ParsedDiagram, opts: VerifyOptions = {}): Verif
   if (d.body.kind === 'state') {
     const graph = stateBodyToGraph(d.body)
     if (graph.nodes.size === 0) return finalize(dedupedConcat([{ code: 'EMPTY_DIAGRAM' }], pluginWarnings), emptyRenderedLayout(d.kind), opts)
-    const { warnings, layout } = verifyGraph(graph, d, cap, opts)
+    const { warnings, layout } = verifyGraph(graph, d, cap, positioned)
     return finalize(dedupedConcat(warnings, pluginWarnings), layout, opts)
   }
 
@@ -342,9 +388,9 @@ function verifyStructure(parsed: ParsedDiagram, opts: VerifyOptions = {}): Verif
     }
     // QUAL-1: opaque bodies of renderable families (pie/quadrant always, and
     // class/er/journey/architecture/xychart when unmodeled) still produce a
-    // real positioned layout from canonicalSource. layoutFamilyToRendered
-    // degrades to an empty layout on render-error, so this never throws.
-    const layoutOutcome = familyLayoutForVerify(d, opts)
+    // real positioned layout from canonicalSource. Descriptor failures become
+    // an explicit RENDER_FAILED result below rather than escaping verification.
+    const layoutOutcome = familyLayoutForVerify(d, positioned)
     const opaqueLayout = layoutOutcome.layout
     // Opaque bodies are preserved-not-rendered: an empty local layout means
     // the syntax is unmodeled, not that the diagram is empty — the isEmpty
@@ -354,7 +400,7 @@ function verifyStructure(parsed: ParsedDiagram, opts: VerifyOptions = {}): Verif
 
   const graph = d.body.graph
   if (graph.nodes.size === 0) return finalize([{ code: 'EMPTY_DIAGRAM' }], emptyRenderedLayout(d.kind), opts)
-  const { warnings: graphWarnings, layout: graphLayout } = verifyGraph(graph, d, cap, opts)
+  const { warnings: graphWarnings, layout: graphLayout } = verifyGraph(graph, d, cap, positioned)
   return finalize(dedupedConcat(graphWarnings, pluginWarnings), graphLayout, opts)
 }
 
@@ -365,6 +411,7 @@ function verifyExtension(
   cap: number,
   opts: VerifyOptions,
   initialWarnings: LayoutWarning[],
+  positioned: VerificationArtifact,
 ): VerifyResult {
   const warnings = [...initialWarnings]
   const descriptor = getFamily(d.kind)
@@ -379,18 +426,23 @@ function verifyExtension(
     warnings.push(warning)
   }
 
-  const layoutOutcome = familyLayoutForVerify(d, opts)
+  const layoutOutcome = familyLayoutForVerify(d, positioned)
   return finalize([...warnings, ...layoutOutcome.warnings], layoutOutcome.layout, opts, false)
 }
 
 function familyLayoutForVerify(
   d: ParsedDiagram,
-  opts: VerifyOptions,
+  positioned: VerificationArtifact,
 ): { layout: RenderedLayout; warnings: LayoutWarning[] } {
+  // Retain the historical public VerifyResult projection for source-preserved
+  // state bodies. The clean renderability gate still positions/renders once.
+  if (d.kind === 'state' && d.body.kind === 'opaque') {
+    return { layout: emptyRenderedLayout(d.kind), warnings: [] }
+  }
   try {
-    const layout = layoutFamilyToRendered(d, { renderOptions: opts.renderOptions })
-    return layout
-      ? { layout, warnings: [] }
+    const artifact = positioned()
+    return artifact
+      ? { layout: artifact.rendered, warnings: [] }
       : {
           layout: emptyRenderedLayout(d.kind),
           warnings: [{
@@ -413,10 +465,15 @@ function familyLayoutForVerify(
  * project to a graph via stateBodyToGraph). Returns warnings + the rendered
  * layout; the caller finalizes (suppress + ok flag).
  */
-function verifyGraph(graph: import('../types.ts').MermaidGraph, d: ValidDiagram, cap: number, opts: VerifyOptions): { warnings: LayoutWarning[]; layout: RenderedLayout } {
-  let artifact: ReturnType<typeof positionFamilyArtifact>
+function verifyGraph(
+  graph: import('../types.ts').MermaidGraph,
+  d: ValidDiagram,
+  cap: number,
+  positionedArtifact: VerificationArtifact,
+): { warnings: LayoutWarning[]; layout: RenderedLayout } {
+  let artifact: ProjectedFamilyArtifact | null
   try {
-    artifact = positionFamilyArtifact(d, { renderOptions: opts.renderOptions })
+    artifact = positionedArtifact()
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error)
     return { warnings: [{ code: 'RENDER_FAILED', reason }], layout: emptyRenderedLayout(d.kind) }
@@ -620,9 +677,14 @@ function lintFlowchartGraph(graph: import('../types.ts').MermaidGraph): LayoutWa
   return warnings
 }
 
-function verifyTimeline(d: ValidDiagram & { body: import('./types.ts').TimelineBody }, cap: number, opts: VerifyOptions): VerifyResult {
+function verifyTimeline(
+  d: ValidDiagram & { body: import('./types.ts').TimelineBody },
+  cap: number,
+  opts: VerifyOptions,
+  positioned: VerificationArtifact,
+): VerifyResult {
   const body = d.body
-  const layoutOutcome = familyLayoutForVerify(d, opts)
+  const layoutOutcome = familyLayoutForVerify(d, positioned)
   const layout = layoutOutcome.layout
   const warnings: LayoutWarning[] = []
   // Upstream parity (mirrors the journey furniture rule): a timeline with a
@@ -648,9 +710,14 @@ function verifyTimeline(d: ValidDiagram & { body: import('./types.ts').TimelineB
   return finalize(dedupedConcat(dedupedConcat(warnings, layoutGeometryWarnings(layout, { nodeOverlaps: true, groupContainment: true })), layoutOutcome.warnings), layout, opts)
 }
 
-function verifySequence(d: ValidDiagram & { body: SequenceBody }, cap: number, opts: VerifyOptions): VerifyResult {
+function verifySequence(
+  d: ValidDiagram & { body: SequenceBody },
+  cap: number,
+  opts: VerifyOptions,
+  positioned: VerificationArtifact,
+): VerifyResult {
   const body = d.body
-  const layoutOutcome = familyLayoutForVerify(d, opts)
+  const layoutOutcome = familyLayoutForVerify(d, positioned)
   const layout = layoutOutcome.layout
   const warnings: LayoutWarning[] = []
   // BUILD-18: a segment-preserving body may carry content only in opaque-block

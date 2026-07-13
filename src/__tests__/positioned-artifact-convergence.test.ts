@@ -5,15 +5,82 @@ import {
   measureQuality,
   parseMermaid,
   renderMermaidSVGWithReceipt,
+  parseRegisteredMermaid,
+  registerFamily,
   verifyMermaid,
+  type ExternalFamilyId,
+  type FamilyDescriptor,
 } from '../agent/index.ts'
 import {
   BUILTIN_FAMILY_METADATA,
   getFamily,
   replaceFamilyForTest,
 } from '../agent/families.ts'
+import { toFinite } from '../agent/types.ts'
+import { createExtensionIdentity } from '../shared/extension-identity.ts'
+
+const EVIDENCE = 'src/__tests__/positioned-artifact-convergence.test.ts'
+
+function extensionDescriptor(
+  localId: string,
+  header: string,
+  hooks: Pick<FamilyDescriptor, 'layout' | 'renderSvg'>,
+): FamilyDescriptor {
+  const id = `family:test/${localId}` as ExternalFamilyId
+  return {
+    contractVersion: 1,
+    identity: createExtensionIdentity({
+      id,
+      kind: 'family',
+      version: '1.0.0',
+      compatibility: { core: '^0.1.1' },
+      provenance: { owner: 'positioned-artifact-test', source: 'test' },
+    }),
+    id,
+    label: `Extension ${localId}`,
+    headers: [header],
+    aliases: [],
+    maturity: 'experimental',
+    collisionPriority: 0,
+    detect: line => line === header.toLowerCase(),
+    semanticRoles: [],
+    scenePrimitiveEvidence: [],
+    capabilityEvidence: [
+      { capability: 'detection', state: 'native', evidence: [EVIDENCE] },
+      { capability: 'source-preservation', state: 'source-preserved', evidence: [EVIDENCE] },
+      { capability: 'parse', state: 'source-preserved', evidence: [EVIDENCE] },
+      { capability: 'serialize', state: 'source-preserved', evidence: [EVIDENCE] },
+      { capability: 'mutation', state: 'diagnosed', evidence: [EVIDENCE] },
+      { capability: 'verify', state: 'native', evidence: [EVIDENCE] },
+      { capability: 'layout', state: 'native', evidence: [EVIDENCE] },
+      { capability: 'scene', state: 'absent', evidence: [EVIDENCE] },
+      { capability: 'svg', state: 'native', evidence: [EVIDENCE] },
+      { capability: 'terminal', state: 'absent', evidence: [EVIDENCE] },
+    ],
+    verify: () => [],
+    ...hooks,
+    projectPositioned: () => ({
+      version: 1,
+      nodes: [{
+        id: 'extension-node',
+        x: toFinite(8), y: toFinite(8), w: toFinite(104), h: toFinite(24),
+        shape: 'rectangle', label: 'Extension',
+      }],
+      edges: [],
+      groups: [],
+      bounds: { w: toFinite(120), h: toFinite(40) },
+    }),
+  }
+}
 
 describe('canonical positioned-artifact protocol', () => {
+  test('keeps positioned graphical execution behind internal module boundaries', async () => {
+    const publicRenderer = await import('../index.ts')
+    expect('renderGraphicalSvgWithReceipt' in publicRenderer).toBe(false)
+    expect('renderPositionedMermaidSVG' in publicRenderer).toBe(false)
+    expect('renderResolvedMermaidSVG' in publicRenderer).toBe(false)
+  })
+
   test('shared geometry options reach SVG and layout through the same resolved request', () => {
     const source = 'flowchart TD\n  A[Start] --> B[Finish]'
     const parsed = parseMermaid(source)
@@ -72,18 +139,74 @@ describe('canonical positioned-artifact protocol', () => {
         expect(layoutCalls, `${metadata.id} quality re-positioned`).toBe(1)
         expect(projectionCalls, `${metadata.id} quality re-projected`).toBe(1)
 
-        // Verification projects exactly one positioned artifact. Its separate
-        // render-parity gate may render (and therefore position) once more,
-        // but must not create a second RenderedLayout projection.
+        // Structural geometry and renderability consume the exact same
+        // positioned artifact: one descriptor layout, one pure projection.
         layoutCalls = 0
         projectionCalls = 0
         const verified = verifyMermaid(parsed.value)
         expect(verified.layout.kind).toBe(metadata.id)
-        expect(layoutCalls, `${metadata.id} verification never positioned`).toBeGreaterThanOrEqual(1)
+        expect(layoutCalls, `${metadata.id} verification layout count`).toBe(1)
         expect(projectionCalls, `${metadata.id} verification independently projected`).toBe(1)
       } finally {
         restore()
       }
+    }
+  })
+
+  test('a registered extension verifies and renders from one identical positioned artifact', () => {
+    let layoutCalls = 0
+    let renderCalls = 0
+    const positioned = { width: 120, height: 40 }
+    const descriptor = extensionDescriptor('single-positioning', 'singlePositioningDiagram', {
+      layout: () => {
+        layoutCalls++
+        return { positioned }
+      },
+      renderSvg: context => {
+        renderCalls++
+        expect(context.positioned).toBe(positioned)
+        return '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="40" viewBox="0 0 120 40"><text x="8" y="24">Extension</text></svg>'
+      },
+    })
+    const unregister = registerFamily(descriptor)
+    try {
+      const parsed = parseRegisteredMermaid('singlePositioningDiagram\n  payload')
+      expect(parsed.ok).toBe(true)
+      if (!parsed.ok) return
+      const verified = verifyMermaid(parsed.value)
+      expect(verified).toMatchObject({ ok: true, layout: { kind: descriptor.id } })
+      expect(layoutCalls).toBe(1)
+      expect(renderCalls).toBe(1)
+    } finally {
+      unregister()
+    }
+  })
+
+  test('positioned rendering failures retain the RENDER_FAILED verify contract without relayout', () => {
+    let layoutCalls = 0
+    let renderCalls = 0
+    const descriptor = extensionDescriptor('render-failure', 'positionedRenderFailureDiagram', {
+      layout: () => {
+        layoutCalls++
+        return { positioned: { width: 120, height: 40 } }
+      },
+      renderSvg: () => {
+        renderCalls++
+        throw new Error('positioned render exploded')
+      },
+    })
+    const unregister = registerFamily(descriptor)
+    try {
+      const verified = verifyMermaid('positionedRenderFailureDiagram\n  payload')
+      expect(verified.ok).toBe(false)
+      expect(verified.warnings).toContainEqual(expect.objectContaining({
+        code: 'RENDER_FAILED',
+        reason: expect.stringContaining('positioned render exploded'),
+      }))
+      expect(layoutCalls).toBe(1)
+      expect(renderCalls).toBe(1)
+    } finally {
+      unregister()
     }
   })
 })

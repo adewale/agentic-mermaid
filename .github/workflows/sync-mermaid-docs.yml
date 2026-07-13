@@ -1,37 +1,49 @@
-name: Sync upstream Mermaid syntax docs
+name: Verify pinned upstream Mermaid syntax docs
 
 on:
+  pull_request:
+    paths:
+      - ".github/workflows/sync-mermaid-docs.yml"
+      - "docs/project/upstream-mermaid-policy.json"
+      - "skills/agentic-mermaid-diagram-workflow/references/upstream/**"
   schedule:
     - cron: "0 0 * * 0"
   workflow_dispatch:
 
 jobs:
-  sync-docs:
+  verify-docs:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
     steps:
       - uses: actions/checkout@v4
+      - name: Read the reviewed upstream pin
+        id: pin
+        run: |
+          set -euo pipefail
+          commit="$(jq -r '.pin.commit' docs/project/upstream-mermaid-policy.json)"
+          test -n "$commit"
+          test "$commit" != "null"
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
       - name: Checkout upstream Mermaid docs
         uses: actions/checkout@v4
         with:
           repository: mermaid-js/mermaid
+          ref: ${{ steps.pin.outputs.commit }}
           path: mermaid-upstream
           sparse-checkout: |
             docs/syntax
           sparse-checkout-cone-mode: true
-      - name: Refresh upstream references
+      - name: Verify reviewed references match the pin
         run: |
-          DEST="skills/agentic-mermaid-diagram-workflow/references/upstream"
-          rm -rf "$DEST"; mkdir -p "$DEST"
-          if [ -d mermaid-upstream/docs/syntax ]; then
-            find mermaid-upstream/docs/syntax -maxdepth 1 -name '*.md' -exec cp {} "$DEST/" \;
-          else
-            echo "::warning::upstream docs/syntax path not found; layout may have changed"
-          fi
-          rm -rf mermaid-upstream
-      - name: Commit if changed
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "chore(skill): sync upstream Mermaid syntax references"
-          file_pattern: "skills/agentic-mermaid-diagram-workflow/references/upstream/**"
+          set -euo pipefail
+          actual="$(git -C mermaid-upstream rev-parse HEAD)"
+          test "$actual" = "${{ steps.pin.outputs.commit }}"
+
+          expected="skills/agentic-mermaid-diagram-workflow/references/upstream"
+          harvested="$(mktemp -d)"
+          find mermaid-upstream/docs/syntax -maxdepth 1 -type f -name '*.md' -exec cp {} "$harvested/" \;
+          diff -ru "$expected" "$harvested"
+
+          echo "Pinned syntax references are current at $actual"
+          echo "Upgrades must update the policy, references, generated manifest/index/report, and receipts together in a reviewed PR."

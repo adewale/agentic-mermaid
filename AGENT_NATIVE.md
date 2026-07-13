@@ -34,26 +34,9 @@ D2 has a better language than Mermaid. The Beautiful Mermaid renderer foundation
 
 ## Honest scope
 
-What the current Agentic Mermaid surface delivers and what it doesn't:
+The checked family roster, capability states, edit policies, narrowers, and mutation operations are generated from `FamilyDescriptor`: read [`docs/project/section-a-capability-report.md`](./docs/project/section-a-capability-report.md) or `am capabilities --json`, and use `describeOps(family)` for exact operation schemas. This rationale deliberately does not copy that live inventory.
 
-| Family | Parse / verify / render / round-trip | Structured mutation |
-|---|---|---|
-| Flowchart | Full — including v11.6 edge IDs and v11 shape metadata; markdown strings render but keep the body opaque losslessly | `asFlowchart` |
-| State | Structured round-trip for states/transitions/`[*]`, notes, stereotypes/history, concurrency regions, declarations, and paint | `asState` |
-| Sequence | Structured-with-segments: participant/message ops stay live while unsupported statements ride along verbatim; only un-segmentable input falls back to whole-body opaque | `asSequence` |
-| Timeline | Full — including the `timeline TD` vertical direction token | `asTimeline` |
-| Class | Structured namespaces, generics, direction, `classDef`, class assignment, and inline paint | `asClass` |
-| ER | Ordered typed/opaque segments for entities, attributes, relationships, direction, and paint; identity edits reject stale opaque references | `asEr` |
-| Journey | Full structured round-trip (title/sections/tasks) | `asJourney` |
-| Architecture | Structured round-trip for visible/accessibility titles, descriptions, groups/services/junctions, boundary edges, and `align` directives | `asArchitecture` |
-| XY chart | Structured orientation/title/axes/series; unsupported extensions fall back to opaque losslessly | `asXyChart` |
-| Pie | Structured round-trip for title/showData/slices; unsupported extensions fall back to opaque losslessly | `asPie` |
-| Quadrant | Structured round-trip for axes, region labels, points, and supported paint; malformed metadata falls back to opaque losslessly | `asQuadrant` |
-| Gantt | Structured-with-segments ([family contract](./docs/design/families/gantt.md)); deterministic caller-supplied `ganttToday` | `asGantt` |
-| Mindmap | Indentation-sensitive structured tree with shapes, icons, classes, accessibility, Scene/SVG/terminal rendering, and duplicate-id rejection | `asMindmap` |
-| GitGraph | Replayed commits/branches/checkout/merge/cherry-pick with deterministic generated ids and duplicate-id rejection | `asGitGraph` |
-
-The implication: for any opaque fallback, the agent's tool surface is *parse → verify → render → serialize*, not *parse → mutate → verify → serialize*. Cross-cutting edits on those bodies happen at the preserved source level (`body.source` for opaque bodies), not at the typed mutation layer. Code Mode opportunity #1 covers this for the cases where it matters.
+The generated edit policy decides where typed mutation is available. For an opaque fallback, the agent's tool surface is *parse → verify → render → serialize*, not *parse → mutate → verify → serialize*. Cross-cutting edits on those bodies happen at the preserved source level (`body.source` for opaque bodies), not at the typed mutation layer. Code Mode opportunity #1 covers this for the cases where it matters.
 
 ---
 
@@ -189,12 +172,7 @@ type DiagramBody =
   | MindmapBody | GitGraphBody
   | { kind: 'opaque'; family: DiagramKind; source: string }
 
-type MutableValidDiagram =
-  | FlowchartValidDiagram | StateValidDiagram | SequenceValidDiagram
-  | TimelineValidDiagram | ClassValidDiagram | ErValidDiagram
-  | JourneyValidDiagram | ArchitectureValidDiagram | XyChartValidDiagram
-  | PieValidDiagram | QuadrantValidDiagram | GanttValidDiagram
-  | MindmapValidDiagram | GitGraphValidDiagram
+type MutableValidDiagram = import('agentic-mermaid/agent').MutableValidDiagram
 ```
 
 ```ts
@@ -203,24 +181,12 @@ serializeMermaid(d: ValidDiagram):                           string
 synthesizeFromGraph(payload):                                Result<ValidDiagram, ParseError[]>
 createMermaid(kind, opts?):                                  MutableValidDiagram   // empty structured diagram; overloads narrow per kind
 buildMermaid(kind, ops, opts?):                              Result<MutableValidDiagram, MutationError & { opIndex: number }>
-mutate(d: FlowchartValidDiagram, op: FlowchartMutationOp):   Result<FlowchartValidDiagram, MutationError>
-mutate(d: StateValidDiagram,     op: StateMutationOp):       Result<StateValidDiagram, MutationError>
-mutate(d: SequenceValidDiagram,  op: SequenceMutationOp):    Result<SequenceValidDiagram, MutationError>
-mutate(d: TimelineValidDiagram,  op: TimelineMutationOp):    Result<TimelineValidDiagram, MutationError>
-mutate(d: ClassValidDiagram,     op: ClassMutationOp):       Result<ClassValidDiagram, MutationError>
-mutate(d: ErValidDiagram,        op: ErMutationOp):          Result<ErValidDiagram, MutationError>
-mutate(d: JourneyValidDiagram,   op: JourneyMutationOp):     Result<JourneyValidDiagram, MutationError>
-mutate(d: ArchitectureValidDiagram, op: ArchitectureMutationOp): Result<ArchitectureValidDiagram, MutationError>
-mutate(d: XyChartValidDiagram,   op: XyChartMutationOp):     Result<XyChartValidDiagram, MutationError>
-mutate(d: PieValidDiagram,       op: PieMutationOp):         Result<PieValidDiagram, MutationError>
-mutate(d: QuadrantValidDiagram,  op: QuadrantMutationOp):    Result<QuadrantValidDiagram, MutationError>
-mutate(d: GanttValidDiagram,     op: GanttMutationOp):       Result<GanttValidDiagram, MutationError>
-mutate(d: MindmapValidDiagram,   op: MindmapMutationOp):     Result<MindmapValidDiagram, MutationError>
-mutate(d: GitGraphValidDiagram,  op: GitGraphMutationOp):    Result<GitGraphValidDiagram, MutationError>
-asFlowchart/asState/asSequence/asTimeline/asClass/asEr/asJourney/asArchitecture/asXyChart/asPie/asQuadrant/asGantt/asMindmap/asGitGraph(d): narrowed diagram | null
+mutate(d, op):                                               Result<MutableValidDiagram, MutationError>
+// Concrete overloads preserve the narrowed family. Overloads and narrowers are
+// registry-derived; discover them with am capabilities --json and describeOps(family).
 ```
 
-**`mutate` is overloaded by family.** Flowchart/state, sequence, timeline, class, ER, journey, architecture, xychart, pie, quadrant, gantt, mindmap, and gitgraph diagrams have first-class structured editing. Opaque-fallback diagrams are not typed for mutation, so agents get a compile-time/null-narrower stop rather than a lossy edit path.
+**`mutate` is overloaded by family.** A registry-declared narrower returns the family-specific mutable type or `null`; the generated capability entry and `describeOps(family)` own the live operation contract. Opaque-fallback diagrams are not typed for mutation, so agents get a compile-time/null-narrower stop rather than a lossy edit path.
 
 Two contracts:
 
@@ -570,7 +536,7 @@ The canonical runtime guide lives in `Instructions_for_agents.md` and is emitted
 
 1. For new diagrams, `buildMermaid(kind, ops)` — or `createMermaid(kind)` then typed mutations — then `verifyMermaid` / render or return it. Author Mermaid source directly only for syntax the typed ops do not model.
 2. For existing diagrams, `parseMermaid(source)` → `ValidDiagram`.
-3. Narrow with `asFlowchart` / `asState` / `asSequence` / `asTimeline` / `asClass` / `asEr` / `asJourney` / `asArchitecture` / `asXyChart` / `asPie` / `asQuadrant` / `asGantt` / `asMindmap` / `asGitGraph`; `null` means no structured mutation for that body.
+3. Use the family entry's registry-advertised narrower; `null` means no structured mutation for that body.
 4. Apply typed `mutate` ops only to narrowed mutable bodies; Code Mode SDK-returned diagrams are read-only to block direct IR edits.
 5. Run `verifyMermaid(d)` at every commit point and inspect `ok` / `warnings` / `layout`.
 6. Only then `serializeMermaid(d)`.

@@ -47,8 +47,8 @@
     },
     "sectionA": {
       "type": "object",
-      "description": "Registry-derived Section A report. Its state vocabularies and semantic invariants are validated by validateSectionACapabilityReport rather than copied into this transport fixture.",
-      "required": ["schemaVersion", "contracts", "stateVocabularies", "summary", "matrices", "forwardCompatibility", "evidence", "retiredAuthorities", "digest"]
+      "description": "Bounded discovery summary of the audit-only Section A report.",
+      "required": ["projectionVersion", "reportSchemaVersion", "reportDigest", "upstreamPin", "counts", "noAbsentSyntaxCapabilities", "fullReport"]
     }
   }
 }

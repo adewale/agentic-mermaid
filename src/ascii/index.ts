@@ -232,8 +232,8 @@ export function renderMermaidASCIIWithReceipt(
     const layout = positionResolvedFamily(diagramType, request)
     connectorScene = family.lowerScene({
       positioned: layout.positioned,
-      colors: connectorSceneColors(layout.colors ?? request.appearance.colors),
-      options: layout.options ?? request.renderOptions,
+      colors: connectorSceneColors(request.appearance.colors),
+      options: request.renderOptions,
     })
   }
   const terminalStyle = projectTerminalStyle(
@@ -247,6 +247,9 @@ export function renderMermaidASCIIWithReceipt(
   const theme: AsciiTheme = terminalStyle.theme
   const output = family.renderAscii!({
     source: normalizedSource,
+    renderOptions: request.renderOptions,
+    ...(request.familyConfig ? { familyConfig: request.familyConfig } : {}),
+    ...(request.appearance.family ? { familyAppearance: request.appearance.family } : {}),
     config,
     colorMode,
     theme,

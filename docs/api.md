@@ -2,8 +2,11 @@
 
 Agentic Mermaid exposes four library surfaces:
 
-- `agentic-mermaid` — renderer-focused public API for SVG and ASCII/Unicode output.
-- `agentic-mermaid/agent` — agent-native API with parse/narrow/mutate/verify/serialize plus SVG, PNG, and ASCII output helpers.
+- `agentic-mermaid` — runtime-neutral renderer API for SVG, ASCII/Unicode,
+  and host-injected browser PNG output.
+- `agentic-mermaid/agent` — agent-native API with
+  parse/narrow/mutate/verify/serialize plus SVG, native Node/Bun PNG, and ASCII
+  output helpers.
 - `agentic-mermaid/capabilities` — audit/discovery reports and the full pinned upstream semantic manifest; intentionally separate from renderer bundles.
 - `agentic-mermaid/resources` — trusted Node-host verification/resolution for installed content-addressed resources; intentionally absent from browser bundles.
 
@@ -110,6 +113,38 @@ places `cICP` before image data, and deliberately emits no conflicting ICC
 profile. SVG and PNG consume the same resolved graphical colors before
 rasterization.
 
+#### Trusted host-selected graphical backends
+
+Executable backends are bound by the host, never selected by `RenderOptions` or
+serialized Style data. The three factories apply the same canonical request,
+Scene-admission, SVG-security, receipt, PNG-output-policy, and color-profile
+contracts as their default counterparts:
+
+```ts
+import {
+  createMermaidBrowserPNGRenderer,
+  createMermaidRenderer,
+} from 'agentic-mermaid'
+import { createMermaidPNGRenderer } from 'agentic-mermaid/agent'
+
+const backendPolicy = { selectBackend: () => 'backend:acme/renderer' }
+const svgRenderer = createMermaidRenderer({ backendPolicy })
+const nodePngRenderer = createMermaidPNGRenderer({ backendPolicy })
+const browserPngRenderer = createMermaidBrowserPNGRenderer({
+  backendPolicy,
+  rasterize: async (securedSvg, context) => ({
+    png: await rasterizeWithCanvas(securedSvg, context.scale),
+  }),
+})
+```
+
+Register and conformance-check the named backend before constructing these
+renderers. The Node/Bun factory reuses the built-in `@resvg/resvg-js` adapter;
+the browser factory wraps a trusted injected rasterizer, which receives only
+the admitted and secured SVG. `renderMermaidSVG`, `renderMermaidPNG`, and
+`renderMermaidPNGInBrowserWithReceipt` remain the compatible default-backend
+entry points.
+
 ### ASCII / Unicode
 
 ```ts
@@ -142,6 +177,7 @@ function; it is not a separate CLI output format or a `renderMermaidHTML` API.
 | `theme` | `Partial<AsciiTheme>` | — | Override ASCII colors. |
 | `targetWidth` | `number` | unset | Hard maximum line width in terminal display cells. Uses grapheme-safe fitting; impossible geometry throws `AsciiWidthError`. |
 | `maxWidth` | `number` | unset | Deprecated best-effort label wrapping. It does **not** guarantee the output width. Do not combine with `targetWidth`. |
+| `onProjectionDiagnostic` | `(diagnostic: TerminalProjectionDiagnostic) => void` | — | Host callback for explicit graphical-to-terminal projection losses; non-serializable and excluded from receipts. |
 
 `AsciiWidthError` has code `ASCII_TARGET_WIDTH_IMPOSSIBLE` plus
 `requestedWidth`, `requiredWidth`, `family`, and `reason` (`MINIMUM_GEOMETRY`,
@@ -270,8 +306,9 @@ Opaque fallback bodies (any unmodeled syntax) are source-level-only: edit source
 
 Import `createSectionACapabilityReport()` from
 `agentic-mermaid/capabilities`. It returns the JSON-safe, registry-derived
-request/backend/output/family/Scene matrix also exposed as
-`am capabilities --json` → `sectionA`. Validate a stored snapshot with
+request/backend/output/family/Scene matrix. `am capabilities --json` →
+`sectionA` intentionally exposes only its version, pin, digest, counts,
+no-absent status, and directions to this full report. Validate a stored snapshot with
 `validateSectionACapabilityReport(report)`. The generated human projection is
 [`project/section-a-capability-report.md`](./project/section-a-capability-report.md).
 Keeping this audit surface on a separate entry point prevents the full
@@ -297,12 +334,14 @@ copied here.
 | One-off declarative style | inline `StyleSpec` or a left-to-right `StyleInput[]` stack | Safe palette, font, stroke/fill treatment, backdrop, and the other generated StyleSpec fields | JSON-safe and executable-code-free. This is the lowest-complexity custom Style path. |
 | Named palette/look | `registerStyle`, `getStyle`, `knownStyleDescriptors`, compatibility aliases | Installs a versioned `palette:` or `look:` name backed by exactly the same `StyleSpec` accepted inline | In-process host registry. A CLI/MCP/server sees it only when that host installs the registration at startup; serialized requests cannot install code or mutate registries. Built-in Styles use this registry too. |
 | Theme conversion | `fromShikiTheme` | Converts a Shiki-compatible editor theme into diagram colors | Pure library helper; the result is ordinary declarative color input. |
-| Fonts and installed resources | `font`, Node PNG `fontDirs`/`loadSystemFonts`, browser `BrowserPngRasterizer`, `ResourceManifest`, and `agentic-mermaid/resources` → `NodeResourceResolver` | Selects a safe font stack, supplies host-dependent raster fonts, or verifies bounded installed bytes | Font family names do not install fonts. Browser callbacks and Node directories are trusted host inputs and remain outside serializable options/digests; manifests require path, size, media-type, digest, and licence evidence and never fall back to network access. |
-| Graphical backend | `registerBackend`, `runBackendConformance`, `createMermaidRenderer({ backendPolicy })` | Serializes the typed Scene contract with a different drawing implementation | Trusted in-process host only. Registration must pass deterministic, semantic, well-formed, secure SVG smoke conformance. PNG support is inherited only through the canonical secured SVG raster path. Serializable styles cannot select arbitrary executable backends. |
+| Live host retheming | CSS custom-property values in graphical color/font inputs | Lets a host page switch SVG palette and font values without re-rendering | SVG/browser-only and limited to safe property values; this is not a raw CSS rule or selector hook. Static outputs need values resolved under their rasterization environment to remain reproducible. |
+| Terminal output projection | `AsciiRenderOptions` (`useAscii`, `paddingX`, `paddingY`, `boxBorderPadding`, `colorMode`, `theme`, `targetWidth`/`maxWidth`, `onProjectionDiagnostic`) | Selects Unicode/ASCII encoding, cell spacing, width policy, ANSI/HTML colors, terminal-only theme overrides, and projection-loss reporting | Output-adapter customization, not a second shared Style system. Serializable fields have transport-specific availability; the diagnostic callback is host-only and remains outside receipts. |
+| Fonts and installed resources | `font`, Node PNG `fontDirs`/`loadSystemFonts`/`onWarning`, browser `BrowserPngRasterizer`, `ResourceManifest`, and `agentic-mermaid/resources` → `NodeResourceResolver` | Selects a safe font stack, supplies host-dependent raster fonts, reports missing glyph coverage, or verifies bounded installed bytes | Font family names do not install fonts. Browser callbacks, warning callbacks, and Node directories are trusted host inputs and remain outside serializable options/digests; manifests require path, size, media-type, digest, and licence evidence and never fall back to network access. |
+| Graphical backend | `registerBackend`, `runBackendConformance`, `createMermaidRenderer`, `createMermaidPNGRenderer`, `createMermaidBrowserPNGRenderer` (each with a host-only `backendPolicy`) | Serializes the typed Scene contract with a different drawing implementation for SVG, native Node/Bun PNG, and injected-rasterizer browser PNG | Trusted in-process host only. Registration must pass deterministic, semantic, well-formed, secure SVG smoke conformance. All three factories use the same admitted and secured graphical request; PNG adapters do not reparse or rerender source. Serializable styles and `RenderOptions` cannot select arbitrary executable backends. |
 | Diagram family | `registerFamily`, `parseRegisteredMermaid`, `projectPositionedView` | Adds a namespaced language with detection, parse/preservation, verification, layout, Scene/SVG, terminal, and discovery claims | Versioned `family:<owner/name>` descriptor with collision and evidence checks. Built-in-only unions stay closed; extension bodies use the open envelope. Remote transports gain the family only when their trusted host installs it. |
 | Scene semantics | `SceneDoc`, typed connectors/markers/hit geometry, namespaced `SceneRole` | Lets a family/backend exchange identity, relationship, accessibility, geometry, and terminal-projection intent | This is a versioned typed contract, not a raw SVG hook. Unknown namespaced roles deliberately receive inert identity-only traits and cannot acquire core behavior by local-name collision. There is no public arbitrary primitive/trait mutation registry. |
-| Browser PNG host adapter | `renderMermaidPNGInBrowserWithReceipt(..., rasterize)` | Supplies Canvas/OffscreenCanvas rasterization and reports font provenance | Trusted callback receives only the secured canonical SVG; the library re-applies the PNG color-profile gate and retains a comparable request receipt. |
-| Identity and compatibility plumbing | `createExtensionIdentity`, `canonicalExtensionId`, `registerCompatibilityAlias` | Gives kind-specific registries stable names, versions, provenance, compatibility ranges, and time-bounded aliases | Low-level plumbing, not a stand-alone extension registry or rendering hook. Each kind-specific registry remains authoritative. |
+| Browser PNG host adapter | `renderMermaidPNGInBrowserWithReceipt(..., rasterize)` or reusable `createMermaidBrowserPNGRenderer({ rasterize, backendPolicy? })` | Supplies Canvas/OffscreenCanvas rasterization and reports font provenance | Trusted callback receives only the admitted, secured canonical SVG; the library re-applies the PNG color-profile gate and retains the same logical receipt as the native PNG path. |
+| Identity and compatibility plumbing | `canonicalExtensionId`, `parseExtensionId`, `createExtensionIdentity`, `registerExtension`, `registerCompatibilityAlias`, `ExtensionCollisionError` | Gives kind-specific registries stable names, parsing, versions, provenance, compatibility ranges, collision rejection, and time-bounded aliases | Low-level plumbing, not a stand-alone extension registry or rendering hook. `registerExtension` operates on a caller-supplied kind-specific map; each public kind-specific registry remains authoritative. |
 
 There is currently no BrandPack registry, semantic-binding API, public role-trait
 registration, arbitrary SVG/CSS hook, or Treatment hook. Those are Section B

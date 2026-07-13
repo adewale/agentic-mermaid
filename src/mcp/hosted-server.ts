@@ -546,6 +546,9 @@ async function handleRenderPng(id: number | string | null, args: Record<string, 
       background,
       ...(style === undefined ? {} : { style }),
       ...(seed === undefined ? {} : { seed }),
+      // Hosted graphical artifacts share one non-negotiable boundary. The
+      // caller may request `default` in advanced options, but cannot weaken it.
+      security: 'strict',
     })
     const warnings = [...sourceConfigWarnings(source), ...result.warnings]
       .filter((warning, index, all) => all.findIndex(candidate => JSON.stringify(candidate) === JSON.stringify(warning)) === index)

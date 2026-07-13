@@ -37,7 +37,7 @@ import type {
 import { ARROW_HEAD, FLOWCHART_DOTTED_DASH, applyTextTransform, resolveRenderStyle } from './styles.ts'
 import type { ResolvedRenderStyle } from './styles.ts'
 import type { InternalStyleFace } from './scene/style-registry.ts'
-import type { ResolvedStateVisualConfig, StateRenderOptions } from './state/config.ts'
+import { resolvedStateVisualOf, type ResolvedStateVisualConfig } from './state/config.ts'
 import { measureMultilineText } from './text-metrics.ts'
 import { elkLayoutSync } from './elk-instance.ts'
 import { clipEdgeToShape } from './shape-clipping.ts'
@@ -94,6 +94,8 @@ interface LayoutEngineOptions extends RenderOptions {
   preserveSubgraphChildOrder?: boolean
   /** @internal Precomputed built-in style face for projected family layout. */
   styleFace?: InternalStyleFace
+  /** @internal Boundary-projected State metrics; never a public raw option. */
+  stateVisual?: ResolvedStateVisualConfig
 }
 
 type ElkConversionOptions = Required<Pick<RenderOptions, 'font' | 'padding' | 'nodeSpacing' | 'layerSpacing'>> &
@@ -1664,8 +1666,8 @@ export function layoutGraphSync(
   graph: MermaidGraph,
   options: LayoutEngineOptions = {}
 ): PositionedGraph {
-  const opts = { ...DEFAULTS, ...options }
-  const stateVisual = (options as StateRenderOptions).stateVisual
+  const stateVisual = resolvedStateVisualOf(options)
+  const opts = { ...DEFAULTS, ...options, ...(stateVisual ? { stateVisual } : {}) }
   const style = resolveRenderStyle(options, stateVisual?.styleDefaults)
   const elkGraph = mermaidToElk(graph, opts, style)
   // ELK's bundled (GWT-compiled) code can throw internal exceptions on rare
@@ -1738,8 +1740,8 @@ export function convertToElkFormat(
   graph: MermaidGraph,
   options: LayoutEngineOptions = {}
 ): ElkNode {
-  const opts = { ...DEFAULTS, ...options }
-  const stateVisual = (options as StateRenderOptions).stateVisual
+  const stateVisual = resolvedStateVisualOf(options)
+  const opts = { ...DEFAULTS, ...options, ...(stateVisual ? { stateVisual } : {}) }
   const style = resolveRenderStyle(options, stateVisual?.styleDefaults)
   return mermaidToElk(graph, opts, style)
 }

@@ -40,7 +40,7 @@ function syntheticFamily(localId: string, header: string): FamilyDescriptor {
       id,
       kind: 'family',
       version: '1.0.0',
-      compatibility: { core: 'family-descriptor@1' },
+      compatibility: { core: '^0.1.1' },
       provenance: { owner: localId.split('/')[0] ?? localId, source: 'test' },
     }),
     id,
@@ -52,6 +52,7 @@ function syntheticFamily(localId: string, header: string): FamilyDescriptor {
     detect: line => line === header.toLowerCase(),
     detectLoose: line => line.startsWith(header.toLowerCase()),
     semanticRoles: [],
+    scenePrimitiveEvidence: [],
     capabilityEvidence: [
       { capability: 'detection', state: 'native', evidence: ['src/__tests__/upstream-family-manifest.test.ts'] },
       { capability: 'source-preservation', state: 'source-preserved', evidence: ['src/__tests__/upstream-family-manifest.test.ts'] },

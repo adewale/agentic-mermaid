@@ -27,8 +27,6 @@ export function positionResolvedFamily(
   if (!descriptor.layout) throw new Error(`No layout registered for Mermaid family ${familyId}`)
   return normalizeFamilyLayoutResult(descriptor.layout({
     source: request.source,
-    options: request.renderOptions,
     renderOptions: request.renderOptions,
-    colors: request.appearance.colors,
   }))
 }

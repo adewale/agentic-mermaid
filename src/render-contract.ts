@@ -19,12 +19,13 @@ import {
   isStyledSpec,
   resolveStyleReference,
   resolveStyleStack,
-  styleFaceOf,
+  resolveStyleStackWithFace,
   type InternalStyleFace,
   type StyleSpec,
 } from './scene/style-registry.ts'
 import { styleSpecJsonSchema } from './scene/style-spec.ts'
-import { safeCssColor } from './shared/css-color.ts'
+import { safeCssColor, safeCssPaint } from './shared/css-color.ts'
+import { safeCssFontFamily } from './shared/css-font.ts'
 import { validateRawThemeCss } from './output-security.ts'
 import { negotiateRenderCapabilityTuple, type CapabilityDecision } from './capability-negotiation.ts'
 import type {
@@ -34,10 +35,18 @@ import type {
   CapabilityResolution,
 } from './capability-negotiation.ts'
 import { getFamily } from './agent/families.ts'
-import type { FamilyDescriptor } from './agent/families.ts'
+import type {
+  FamilyAppearanceNormalization,
+  FamilyDescriptor,
+  FamilyRequestNormalizationResult,
+} from './agent/families.ts'
 import { requireRegisteredMermaidFamily } from './family-detection.ts'
 import { getBackendDescriptor } from './scene/backend.ts'
 import type { BackendDescriptor, HostBackendPolicy } from './scene/backend.ts'
+import {
+  ESSENTIAL_SCENE_PRIMITIVE_OPERATIONS,
+  type EssentialScenePrimitiveOperation,
+} from './scene/capabilities.ts'
 import { RENDER_OUTPUTS, type RenderOutput } from './render-outputs.ts'
 export { RENDER_OUTPUTS } from './render-outputs.ts'
 export type { RenderOutput } from './render-outputs.ts'
@@ -288,6 +297,12 @@ const numberSchema = (description: string, defaultValue?: number): JsonSchemaNod
 const booleanSchema = (description: string, defaultValue?: boolean): JsonSchemaNode => ({
   type: 'boolean', description, ...(defaultValue === undefined ? {} : { default: defaultValue }),
 })
+const paintSchema = (description: string, defaultValue?: string): JsonSchemaNode => ({
+  ...stringSchema(description, defaultValue), 'x-agentic-mermaid-runtime-validator': 'safeCssPaint',
+})
+const fontFamilySchema = (description: string, defaultValue?: string): JsonSchemaNode => ({
+  ...stringSchema(description, defaultValue), 'x-agentic-mermaid-runtime-validator': 'safeCssFontFamily',
+})
 const closedObjectSchema = (
   properties: Readonly<Record<string, JsonSchemaNode>>,
   description: string,
@@ -309,14 +324,14 @@ const ARCHITECTURE_VISUAL_SCHEMA_PROPERTIES = {
   groupFontSize: numberSchema('Architecture group-label font size.'),
   groupFontWeight: numberSchema('Architecture group-label font weight.'),
   groupLetterSpacing: numberSchema('Architecture group-label letter spacing.'),
-  groupFont: stringSchema('Architecture group-label font family.'),
+  groupFont: fontFamilySchema('Architecture group-label font family.'),
   groupTextTransform: { ...TEXT_TRANSFORM_SCHEMA, description: 'Architecture group-label text transform.' },
   groupPaddingX: numberSchema('Horizontal padding inside architecture groups.'),
   groupPaddingY: numberSchema('Vertical padding inside architecture groups.'),
   groupLabelPaddingX: numberSchema('Horizontal padding around architecture group labels.'),
   groupCornerRadius: numberSchema('Architecture group corner radius.'),
   groupLineWidth: numberSchema('Architecture group border width.'),
-  groupText: stringSchema('Architecture group-label color.'),
+  groupText: paintSchema('Architecture group-label color.'),
   serviceFontSize: numberSchema('Architecture service-label font size.'),
   serviceFontWeight: numberSchema('Architecture service-label font weight.'),
   serviceLetterSpacing: numberSchema('Architecture service-label letter spacing.'),
@@ -325,24 +340,24 @@ const ARCHITECTURE_VISUAL_SCHEMA_PROPERTIES = {
   servicePaddingY: numberSchema('Vertical padding inside architecture services.'),
   serviceCornerRadius: numberSchema('Architecture service corner radius.'),
   serviceLineWidth: numberSchema('Architecture service border width.'),
-  serviceText: stringSchema('Architecture service-label color.'),
+  serviceText: paintSchema('Architecture service-label color.'),
   edgeFontSize: numberSchema('Architecture connector-label font size.'),
   edgeFontWeight: numberSchema('Architecture connector-label font weight.'),
   edgeLetterSpacing: numberSchema('Architecture connector-label letter spacing.'),
   edgeTextTransform: { ...TEXT_TRANSFORM_SCHEMA, description: 'Architecture connector-label text transform.' },
   edgeLineWidth: numberSchema('Architecture connector width.'),
   edgeBendRadius: numberSchema('Architecture connector bend radius.'),
-  edgeStroke: stringSchema('Architecture connector color.'),
-  edgeText: stringSchema('Architecture connector-label color.'),
+  edgeStroke: paintSchema('Architecture connector color.'),
+  edgeText: paintSchema('Architecture connector-label color.'),
   iconSize: numberSchema('Architecture group icon size.'),
   serviceIconSize: numberSchema('Architecture service icon size.'),
   junctionOuterRadius: numberSchema('Architecture junction outer radius.'),
   junctionInnerRadius: numberSchema('Architecture junction inner radius.'),
-  groupSurface: stringSchema('Architecture group surface color.'),
-  groupHeaderSurface: stringSchema('Architecture group-header surface color.'),
-  groupBorder: stringSchema('Architecture group border color.'),
-  serviceSurface: stringSchema('Architecture service surface color.'),
-  serviceBorder: stringSchema('Architecture service border color.'),
+  groupSurface: paintSchema('Architecture group surface color.'),
+  groupHeaderSurface: paintSchema('Architecture group-header surface color.'),
+  groupBorder: paintSchema('Architecture group border color.'),
+  serviceSurface: paintSchema('Architecture service surface color.'),
+  serviceBorder: paintSchema('Architecture service border color.'),
 } as const satisfies Readonly<Record<keyof ArchitectureVisualConfig, JsonSchemaNode>>
 
 type RequiredKeys<Value> = {
@@ -409,14 +424,14 @@ function deepFreeze<T>(value: T): T {
  * width/encoding), but must not re-declare or hand-forward this set.
  */
 export const SHARED_RENDER_OPTION_FIELD_DESCRIPTORS = deepFreeze({
-  bg: { typeScript: 'string', description: 'Background color or CSS variable.', defaultLabel: '`#FFFFFF`', validationExpectation: 'be a string', schema: stringSchema('Background color or CSS variable.', '#FFFFFF'), terminal: 'consumed' },
-  fg: { typeScript: 'string', description: 'Primary foreground and text color.', defaultLabel: '`#27272A`', validationExpectation: 'be a string', schema: stringSchema('Primary foreground and text color.', '#27272A'), terminal: 'consumed' },
-  line: { typeScript: 'string', description: 'Connector and secondary-line color.', defaultLabel: 'derived', validationExpectation: 'be a string', schema: stringSchema('Connector and secondary-line color.'), terminal: 'consumed' },
-  accent: { typeScript: 'string', description: 'Arrowhead, highlight, and data accent color.', defaultLabel: 'derived', validationExpectation: 'be a string', schema: stringSchema('Arrowhead, highlight, and data accent color.'), terminal: 'consumed' },
-  muted: { typeScript: 'string', description: 'Secondary text and label color.', defaultLabel: 'derived', validationExpectation: 'be a string', schema: stringSchema('Secondary text and label color.'), terminal: 'projected', terminalNote: 'terminal themes have no dedicated muted-text role' },
-  surface: { typeScript: 'string', description: 'Node and group surface color.', defaultLabel: 'derived', validationExpectation: 'be a string', schema: stringSchema('Node and group surface color.'), terminal: 'projected', terminalNote: 'terminal cells do not paint graphical surfaces' },
-  border: { typeScript: 'string', description: 'Node and group border color.', defaultLabel: 'derived', validationExpectation: 'be a string', schema: stringSchema('Node and group border color.'), terminal: 'consumed' },
-  font: { typeScript: 'string', description: 'CSS font family or stack.', defaultLabel: '`Inter`', validationExpectation: 'be a string', schema: stringSchema('CSS font family or stack.', 'Inter'), terminal: 'projected', terminalNote: 'the host terminal owns the font face' },
+  bg: { typeScript: 'string', description: 'Background color or CSS variable.', defaultLabel: '`#FFFFFF`', validationExpectation: 'be a safe non-fetching CSS paint', schema: paintSchema('Background color or CSS variable.', '#FFFFFF'), terminal: 'consumed' },
+  fg: { typeScript: 'string', description: 'Primary foreground and text color.', defaultLabel: '`#27272A`', validationExpectation: 'be a safe non-fetching CSS paint', schema: paintSchema('Primary foreground and text color.', '#27272A'), terminal: 'consumed' },
+  line: { typeScript: 'string', description: 'Connector and secondary-line color.', defaultLabel: 'derived', validationExpectation: 'be a safe non-fetching CSS paint', schema: paintSchema('Connector and secondary-line color.'), terminal: 'consumed' },
+  accent: { typeScript: 'string', description: 'Arrowhead, highlight, and data accent color.', defaultLabel: 'derived', validationExpectation: 'be a safe non-fetching CSS paint', schema: paintSchema('Arrowhead, highlight, and data accent color.'), terminal: 'consumed' },
+  muted: { typeScript: 'string', description: 'Secondary text and label color.', defaultLabel: 'derived', validationExpectation: 'be a safe non-fetching CSS paint', schema: paintSchema('Secondary text and label color.'), terminal: 'projected', terminalNote: 'terminal themes have no dedicated muted-text role' },
+  surface: { typeScript: 'string', description: 'Node and group surface color.', defaultLabel: 'derived', validationExpectation: 'be a safe non-fetching CSS paint', schema: paintSchema('Node and group surface color.'), terminal: 'projected', terminalNote: 'terminal cells do not paint graphical surfaces' },
+  border: { typeScript: 'string', description: 'Node and group border color.', defaultLabel: 'derived', validationExpectation: 'be a safe non-fetching CSS paint', schema: paintSchema('Node and group border color.'), terminal: 'consumed' },
+  font: { typeScript: 'string', description: 'CSS font family or stack.', defaultLabel: '`Inter`', validationExpectation: 'be a safe non-fetching CSS font family or stack', schema: fontFamilySchema('CSS font family or stack.', 'Inter'), terminal: 'projected', terminalNote: 'the host terminal owns the font face' },
   style: { typeScript: 'StyleInput | StyleInput[]', description: 'Registered Style/Palette name, inline StyleSpec, or left-to-right stack.', defaultLabel: '`crisp`', validationExpectation: 'be a registered Style name or StyleSpec, or an array of them', schema: STYLE_OPTION_SCHEMA, terminal: 'consumed' },
   padding: { typeScript: 'number', description: 'Canvas padding in SVG user units.', defaultLabel: '`40`', validationExpectation: 'be a finite number', schema: numberSchema('Canvas padding in SVG user units.', 40), terminal: 'not-applicable', terminalNote: 'terminal output uses paddingX, paddingY, and boxBorderPadding' },
   nodeSpacing: { typeScript: 'number', description: 'Horizontal spacing between sibling nodes.', defaultLabel: '`24`', validationExpectation: 'be a finite number', schema: numberSchema('Horizontal spacing between sibling nodes.', 24), terminal: 'not-applicable', terminalNote: 'terminal layout has a cell-grid spacing contract' },
@@ -650,6 +665,12 @@ function validateSchemaValue(
   if (runtimeValidator === 'safeCssColor' && safeCssColor(value) === undefined) {
     return [{ path, message: 'must be a safe, non-fetching CSS color', generic: false }]
   }
+  if (runtimeValidator === 'safeCssPaint' && safeCssPaint(value) === undefined) {
+    return [{ path, message: 'must be a safe, non-fetching CSS paint', generic: false }]
+  }
+  if (runtimeValidator === 'safeCssFontFamily' && safeCssFontFamily(value) === undefined) {
+    return [{ path, message: 'must be a safe, non-fetching CSS font family or stack', generic: false }]
+  }
   if (runtimeValidator === 'styleInput') {
     try {
       resolveStyleStack(value as RenderOptions['style'])
@@ -738,6 +759,8 @@ export function sharedRenderOptionsMarkdownTable(): string {
 }
 
 const RESOLVED_APPEARANCE = Symbol.for('agentic-mermaid.resolved-appearance.v1')
+const RESOLVED_FAMILY_CONFIG = Symbol.for('agentic-mermaid.resolved-family-config.v1')
+const RESOLVED_STYLE_FACE = Symbol.for('agentic-mermaid.resolved-style-face.v1')
 
 export interface ResolvedAppearance {
   readonly version: typeof RENDER_CONTRACT_VERSION
@@ -750,6 +773,11 @@ export interface ResolvedAppearance {
   readonly inferredBackend: string
   /** Canonical identities and compatibility diagnostics for named stack entries. */
   readonly styleReferences: readonly ResolvedStyleReference[]
+  /** Raw Mermaid theme keys rejected during the sole boundary resolution. */
+  readonly unsafeThemeColorKeys?: readonly string[]
+  /** Family-owned, serializable visual/config projection resolved at the same
+   * boundary as the shared palette. It is data, never an executable registry. */
+  readonly family?: Readonly<Record<string, unknown>>
   readonly digest: string
 }
 
@@ -770,6 +798,8 @@ export interface ResolvedRenderRequest {
   /** Normalized compatibility projection consumed by existing family code. */
   readonly renderOptions: Readonly<RenderOptions>
   readonly appearance: ResolvedAppearance
+  /** Family-owned normalized geometry/config data, kept separate from appearance. */
+  readonly familyConfig?: Readonly<Record<string, unknown>>
   /** Version/range decisions made at the request boundary. */
   readonly capabilityDecision: CapabilityDecision
   /** Authored public fields, retained so output projections diagnose only user intent. */
@@ -894,6 +924,8 @@ export function receiptOf(
 
 interface RenderOptionsWithResolution extends RenderOptions {
   [RESOLVED_APPEARANCE]?: ResolvedAppearance
+  [RESOLVED_FAMILY_CONFIG]?: Readonly<Record<string, unknown>>
+  [RESOLVED_STYLE_FACE]?: Readonly<InternalStyleFace>
 }
 
 function applyStyleDefaults(
@@ -921,6 +953,183 @@ function serializableOptions(options: RenderOptions): Record<string, unknown> {
     if (value !== undefined) out[field] = value
   }
   return out
+}
+
+const FAMILY_NORMALIZABLE_OPTION_FIELDS = new Set<SharedRenderOptionField>([
+  'padding', 'nodeSpacing', 'layerSpacing', 'wrappingWidth', 'class',
+])
+
+function serializableOptionCandidate(options: RenderOptions): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(options).filter(([field, value]) =>
+      value !== undefined
+      && !(NON_SERIALIZABLE_RENDER_OPTION_FIELDS as readonly string[]).includes(field)),
+  )
+}
+
+function capturedRequestFamily(source: NormalizedMermaidSource): FamilyDescriptor {
+  const familyId = requireRegisteredMermaidFamily(
+    source.lines[0] ?? source.firstLine,
+    source.originalText,
+  )
+  const family = getFamily(familyId)
+  if (!family) throw new Error(`Registered Mermaid family "${familyId}" has no immutable descriptor`)
+  return family
+}
+
+function assertFamilyGeometryOptions(
+  family: FamilyDescriptor,
+  before: RenderOptions,
+  after: RenderOptions,
+): void {
+  const problems = validateSerializableRenderOptions(serializableOptionCandidate(after))
+  if (problems.length > 0) {
+    throw new TypeError(`Family "${family.id}" returned invalid normalized RenderOptions: ${problems.join('; ')}`)
+  }
+  const beforeSerializable = serializableOptions(before)
+  const afterSerializable = serializableOptions(after)
+  for (const field of SHARED_RENDER_OPTION_FIELDS) {
+    if (FAMILY_NORMALIZABLE_OPTION_FIELDS.has(field)) continue
+    if (canonicalJson(beforeSerializable[field]) !== canonicalJson(afterSerializable[field])) {
+      throw new TypeError(`Family "${family.id}" request normalizer may not rewrite non-geometry option "${field}"`)
+    }
+  }
+}
+
+function normalizedFamilyColors(
+  family: FamilyDescriptor,
+  value: DiagramColors,
+  base: DiagramColors,
+): DiagramColors {
+  const allowed = new Set(['bg', 'fg', 'line', 'accent', 'muted', 'surface', 'border', 'shadow', 'font', 'embedFontImport'])
+  const unknown = Object.keys(value).find(key => !allowed.has(key))
+  if (unknown) throw new TypeError(`Family "${family.id}" returned unknown appearance color field "${unknown}"`)
+  const out: DiagramColors = {
+    bg: safeCssPaint(value.bg) ?? (() => { throw new TypeError(`Family "${family.id}" returned an unsafe bg paint`) })(),
+    fg: safeCssPaint(value.fg) ?? (() => { throw new TypeError(`Family "${family.id}" returned an unsafe fg paint`) })(),
+  }
+  for (const field of ['line', 'accent', 'muted', 'surface', 'border'] as const) {
+    const candidate = value[field]
+    if (candidate === undefined) continue
+    const safe = safeCssPaint(candidate)
+    if (safe === undefined) throw new TypeError(`Family "${family.id}" returned an unsafe ${field} paint`)
+    out[field] = safe
+  }
+  if (value.font !== undefined) {
+    const font = safeCssFontFamily(value.font)
+    if (font === undefined) throw new TypeError(`Family "${family.id}" returned an unsafe font family`)
+    out.font = font
+  }
+  if (value.shadow !== undefined) {
+    if (typeof value.shadow !== 'boolean') throw new TypeError(`Family "${family.id}" returned a non-boolean shadow value`)
+    out.shadow = value.shadow
+  }
+  if (value.embedFontImport !== undefined) {
+    if (typeof value.embedFontImport !== 'boolean') throw new TypeError(`Family "${family.id}" returned a non-boolean embedFontImport value`)
+    out.embedFontImport = value.embedFontImport
+  }
+  for (const field of ['font', 'shadow', 'embedFontImport'] as const) {
+    if (out[field] !== base[field]) {
+      throw new TypeError(`Family "${family.id}" request normalizer may not rewrite appearance field "${field}"`)
+    }
+  }
+  return out
+}
+
+function omitUndefinedObjectFields(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(item => omitUndefinedObjectFields(item))
+  if (!plainJsonObject(value)) return value
+  return Object.fromEntries(Object.entries(value)
+    .filter(([, child]) => child !== undefined)
+    .map(([key, child]) => [key, omitUndefinedObjectFields(child)]))
+}
+
+function normalizedFamilyData(
+  family: FamilyDescriptor,
+  value: Readonly<Record<string, unknown>> | undefined,
+  label: 'config' | 'appearance',
+): Readonly<Record<string, unknown>> | undefined {
+  if (value === undefined) return undefined
+  if (!plainJsonObject(value)) {
+    throw new TypeError(`Family "${family.id}" returned ${label} data that is not a plain object`)
+  }
+  const compact = omitUndefinedObjectFields(value)
+  const root: JsonSchemaNode = { ...JSON_VALUE_SCHEMA, $defs: { jsonValue: JSON_VALUE_SCHEMA } }
+  const problems = validateSchemaValue(compact, root, root, [`family${label === 'config' ? 'Config' : 'Appearance'}`], new Set())
+  if (problems.length > 0) {
+    const detail = problems.map(problem => `${problem.path.join('.')} ${problem.message}`).join('; ')
+    throw new TypeError(`Family "${family.id}" returned invalid ${label} data: ${detail}`)
+  }
+  return immutableSnapshot(compact as Readonly<Record<string, unknown>>)
+}
+
+function applyFamilyRequestNormalization(
+  family: FamilyDescriptor,
+  source: NormalizedMermaidSource,
+  renderOptions: RenderOptions,
+  colors: DiagramColors,
+  style: StyleSpec | undefined,
+  face: Readonly<InternalStyleFace> | undefined,
+): {
+  renderOptions: RenderOptions
+  colors: DiagramColors
+  familyConfig?: Readonly<Record<string, unknown>>
+  familyAppearance?: Readonly<Record<string, unknown>>
+} {
+  if (!family.normalizeRequest) return { renderOptions, colors }
+  const frozenOptions: RenderOptionsWithResolution = immutableSnapshot(renderOptions)
+  const bridgedOptions: RenderOptionsWithResolution = { ...frozenOptions }
+  if (face) {
+    Object.defineProperty(bridgedOptions, RESOLVED_STYLE_FACE, {
+      value: face,
+      enumerable: false,
+      configurable: false,
+      writable: false,
+    })
+  }
+  Object.freeze(bridgedOptions)
+  const context = Object.freeze({
+    source: immutableSnapshot(source),
+    renderOptions: bridgedOptions,
+    colors: immutableSnapshot(colors),
+    ...(style ? { style: immutableSnapshot(style) } : {}),
+  })
+  const raw = family.normalizeRequest(context)
+  if (raw === undefined) return { renderOptions, colors }
+  if (!plainJsonObject(raw)) {
+    throw new TypeError(`Family "${family.id}" request normalizer must return a plain object`)
+  }
+  const unknownResultKey = Object.keys(raw).find(key =>
+    !['renderOptions', 'familyConfig', 'appearance'].includes(key))
+  if (unknownResultKey) {
+    throw new TypeError(`Family "${family.id}" request normalizer returned unknown field "${unknownResultKey}"`)
+  }
+  const result = raw as FamilyRequestNormalizationResult
+  const appearance: FamilyAppearanceNormalization | undefined = result.appearance
+  if (appearance !== undefined) {
+    const appearanceValue: unknown = appearance
+    if (!plainJsonObject(appearanceValue)) {
+      throw new TypeError(`Family "${family.id}" request normalizer returned a non-object appearance`)
+    }
+    const unknownAppearanceKey = Object.keys(appearanceValue).find(key =>
+      !['colors', 'family'].includes(key))
+    if (unknownAppearanceKey) {
+      throw new TypeError(`Family "${family.id}" request normalizer returned unknown appearance field "${unknownAppearanceKey}"`)
+    }
+  }
+  const normalizedOptions = result.renderOptions ?? renderOptions
+  assertFamilyGeometryOptions(family, renderOptions, normalizedOptions)
+  const normalizedColors = appearance?.colors
+    ? normalizedFamilyColors(family, appearance.colors, colors)
+    : colors
+  const familyConfig = normalizedFamilyData(family, result.familyConfig, 'config')
+  const familyAppearance = normalizedFamilyData(family, appearance?.family, 'appearance')
+  return {
+    renderOptions: normalizedOptions,
+    colors: normalizedColors,
+    ...(familyConfig ? { familyConfig } : {}),
+    ...(familyAppearance ? { familyAppearance } : {}),
+  }
 }
 
 function canonicalJson(value: unknown): string {
@@ -975,6 +1184,17 @@ function namedStyleReferences(input: RenderOptions['style']): readonly ResolvedS
   }))
 }
 
+function unsafeThemeColorKeys(source: NormalizedMermaidSource): readonly string[] {
+  const rejected = new Set<string>()
+  for (const keys of Object.values(CHANNEL_THEME_KEYS)) {
+    for (const key of keys) {
+      const raw = source.config.themeVariables?.[key]
+      if (typeof raw === 'string' && raw.length > 0 && safeCssColor(raw) === undefined) rejected.add(key)
+    }
+  }
+  return Object.freeze([...rejected].sort())
+}
+
 const EXECUTION_CAPABILITY_VERSION = '1.0.0'
 
 function executionOffer(id: CapabilityId, available: boolean, version = EXECUTION_CAPABILITY_VERSION): CapabilityOffer[] {
@@ -983,6 +1203,29 @@ function executionOffer(id: CapabilityId, available: boolean, version = EXECUTIO
 
 function executionRequirement(id: CapabilityId, range = `^${EXECUTION_CAPABILITY_VERSION}`): CapabilityRequirement {
   return { id, range, level: 'required' }
+}
+
+function primitiveCapabilityId(
+  requirement: EssentialScenePrimitiveOperation,
+): CapabilityId {
+  return `scene-primitive:${requirement.primitive}/${requirement.operation}`
+}
+
+function requiredBackendPrimitives(family: FamilyDescriptor): readonly EssentialScenePrimitiveOperation[] {
+  const applicable = new Set(family.scenePrimitiveEvidence
+    .filter(cell => cell.applicability === 'applicable')
+    .map(cell => cell.primitive))
+  return ESSENTIAL_SCENE_PRIMITIVE_OPERATIONS.filter(requirement => applicable.has(requirement.primitive))
+}
+
+function backendSupportsPrimitive(
+  backend: BackendDescriptor,
+  requirement: EssentialScenePrimitiveOperation,
+): boolean {
+  return backend.capabilities.some(claim =>
+    claim.primitive === requirement.primitive
+    && claim.operation === requirement.operation
+    && claim.realization !== 'unsupported')
 }
 
 function unsatisfiedCapabilityIds(decision: CapabilityDecision): string {
@@ -1020,21 +1263,11 @@ function executionCapabilityError(
 }
 
 function resolveExecutionPlan(
-  source: NormalizedMermaidSource,
+  family: FamilyDescriptor,
   appearance: ResolvedAppearance,
   output: RenderOutput,
   resolutionOptions: RenderExecutionResolutionOptions,
 ): InternalRenderExecutionPlan {
-  // Capture the family before invoking host policy. A policy callback may
-  // mutate registries, but this request continues with the descriptor that
-  // supplied the capability offer negotiated below.
-  const familyId = requireRegisteredMermaidFamily(
-    source.lines[0] ?? source.firstLine,
-    source.originalText,
-  )
-  const family = getFamily(familyId)
-  if (!family) throw new Error(`Registered Mermaid family "${familyId}" has no immutable descriptor`)
-
   let mode: InternalRenderExecutionPlan['mode']
   let backend: BackendDescriptor | undefined
   let requestedBackendId: string | undefined
@@ -1050,6 +1283,16 @@ function resolveExecutionPlan(
     mode = 'terminal'
   }
 
+  const backendPrimitiveRequirements = mode === 'scene'
+    ? requiredBackendPrimitives(family)
+    : []
+  const backendPrimitiveOffers = backend
+    ? backendPrimitiveRequirements.flatMap(requirement => executionOffer(
+        primitiveCapabilityId(requirement),
+        backendSupportsPrimitive(backend, requirement),
+      ))
+    : []
+
   const offers: CapabilityOffer[] = [
     { id: family.identity.id, version: family.identity.version },
     ...executionOffer('operation:layout', family.layout !== undefined),
@@ -1059,6 +1302,7 @@ function resolveExecutionPlan(
     ...executionOffer('operation:render-terminal', family.renderAscii !== undefined),
     ...executionOffer('core:scene', mode === 'scene'),
     ...executionOffer('backend:scene-renderer', backend !== undefined, backend?.identity.version),
+    ...backendPrimitiveOffers,
   ]
   const requirements: CapabilityRequirement[] = [
     executionRequirement('core:family-descriptor'),
@@ -1072,8 +1316,14 @@ function resolveExecutionPlan(
         executionRequirement('operation:layout'),
         executionRequirement('operation:lower-scene'),
         executionRequirement('backend:scene-renderer', backend?.identity.version ?? EXECUTION_CAPABILITY_VERSION),
+        ...backendPrimitiveRequirements.map(requirement => executionRequirement(primitiveCapabilityId(requirement))),
       )
-      outputAvailable = Boolean(family.layout && family.lowerScene && backend)
+      outputAvailable = Boolean(
+        family.layout
+        && family.lowerScene
+        && backend
+        && backendPrimitiveRequirements.every(requirement => backendSupportsPrimitive(backend, requirement)),
+      )
       break
     case 'family-svg':
       requirements.push(
@@ -1140,6 +1390,7 @@ function isSharedCapabilityResolution(resolution: CapabilityResolution): boolean
   return !resolution.id.startsWith('output:')
     && !resolution.id.startsWith('operation:')
     && !resolution.id.startsWith('backend:')
+    && !resolution.id.startsWith('scene-primitive:')
     && resolution.id !== 'core:scene'
 }
 
@@ -1167,7 +1418,9 @@ export function resolveRenderRequestForExecution(
   // reported as `Invalid style spec` instead of being relabelled as a generic
   // RenderOptions failure. It also avoids resolving mutable registry state
   // twice while constructing one canonical request.
-  const style = resolveStyleStack(options.style)
+  const resolvedStyle = resolveStyleStackWithFace(options.style)
+  const style = resolvedStyle.style
+  const face = immutableSnapshot(resolvedStyle.face)
   const serializableOptionsCandidate = Object.fromEntries(
     Object.entries(options).filter(([field, value]) =>
       value !== undefined
@@ -1187,6 +1440,10 @@ export function resolveRenderRequestForExecution(
   // exact authored boundary bytes. Equivalent encodings may render alike but
   // must not collapse to the same request identity.
   const source: NormalizedMermaidSource = Object.freeze({ ...normalizedSource, originalText: text })
+  // Capture one immutable descriptor before any extension callback runs. The
+  // same object owns normalization, capability negotiation, layout and
+  // lowering for the lifetime of this request.
+  const family = capturedRequestFamily(source)
   const themeCssProblem = validateRawThemeCss(source.config.themeCSS, options.security ?? 'default')
   if (themeCssProblem) throw new TypeError(themeCssProblem)
   const explicitOptionFields = Object.freeze(SHARED_RENDER_OPTION_FIELDS.filter(field => options[field] !== undefined))
@@ -1202,11 +1459,28 @@ export function resolveRenderRequestForExecution(
     ?? readThemeValue(source.config.themeVariables, 'fontFamily')
     ?? effective.font
     ?? 'Inter'
+  const baseRenderOptions: RenderOptions = {
+    ...effective,
+    font,
+    mermaidConfig: source.config,
+  }
+  const baseColors = { ...resolveDiagramColors(baseRenderOptions, source.config, font) }
+  const normalized = applyFamilyRequestNormalization(
+    family,
+    source,
+    baseRenderOptions,
+    baseColors,
+    style,
+    face,
+  )
+
   // ResolvedAppearance is output-independent. Terminal-specific degradation
   // belongs to projectTerminalStyle and must never change the shared digest.
-  const colors = immutableSnapshot({ ...resolveDiagramColors(effective, source.config, font) })
-  const face = immutableSnapshot(styleFaceOf(options.style))
+  // The family projection is frozen into the same authority; lower layers do
+  // not get another raw theme/config resolution pass.
+  const colors = immutableSnapshot(normalized.colors)
   const styleReferences = namedStyleReferences(options.style)
+  const rejectedThemeColors = unsafeThemeColorKeys(source)
   const appearanceReceipt = {
     version: RENDER_CONTRACT_VERSION,
     colors,
@@ -1216,6 +1490,8 @@ export function resolveRenderRequestForExecution(
     styled,
     inferredBackend: style ? inferBackend(style) : 'default',
     styleReferences,
+    ...(rejectedThemeColors.length > 0 ? { unsafeThemeColorKeys: rejectedThemeColors } : {}),
+    ...(normalized.familyAppearance ? { family: normalized.familyAppearance } : {}),
   }
   const appearance: ResolvedAppearance = immutableSnapshot({
     ...appearanceReceipt,
@@ -1223,9 +1499,7 @@ export function resolveRenderRequestForExecution(
   })
 
   const renderOptions: RenderOptionsWithResolution = immutableSnapshot({
-    ...effective,
-    font,
-    mermaidConfig: immutableSnapshot(source.config),
+    ...normalized.renderOptions,
   })
   // immutableSnapshot has frozen the data. Rebuild only the shallow shell so
   // the non-enumerable resolved-appearance bridge can be installed before the
@@ -1237,9 +1511,17 @@ export function resolveRenderRequestForExecution(
     configurable: false,
     writable: false,
   })
+  if (normalized.familyConfig) {
+    Object.defineProperty(bridgedRenderOptions, RESOLVED_FAMILY_CONFIG, {
+      value: normalized.familyConfig,
+      enumerable: false,
+      configurable: false,
+      writable: false,
+    })
+  }
   Object.freeze(bridgedRenderOptions)
 
-  const executionPlan = resolveExecutionPlan(source, appearance, output, resolutionOptions)
+  const executionPlan = resolveExecutionPlan(family, appearance, output, resolutionOptions)
   const capabilityDecision = executionPlan.capabilityDecision
 
   // The shared receipt deliberately excludes the output-specific resolution:
@@ -1260,6 +1542,7 @@ export function resolveRenderRequestForExecution(
     source: source.text,
     options: serializableOptions(bridgedRenderOptions),
     appearance: appearance.digest,
+    ...(normalized.familyConfig ? { familyConfig: normalized.familyConfig } : {}),
     capabilities: sharedCapabilityDecision,
   }
   const sharedRequestDigest = renderContractDigest(sharedRequestReceipt)
@@ -1275,6 +1558,7 @@ export function resolveRenderRequestForExecution(
     source: immutableSnapshot(source),
     renderOptions: bridgedRenderOptions,
     appearance,
+    ...(normalized.familyConfig ? { familyConfig: normalized.familyConfig } : {}),
     capabilityDecision,
     explicitOptionFields,
     sharedRequestDigest,
@@ -1292,4 +1576,20 @@ export function resolvedAppearanceOf(options: RenderOptions): ResolvedAppearance
 /** Family style resolution must consume the boundary result, never re-merge raw input. */
 export function resolvedStyleFaceOf(options: RenderOptions): InternalStyleFace | undefined {
   return resolvedAppearanceOf(options)?.face
+    ?? (options as RenderOptionsWithResolution)[RESOLVED_STYLE_FACE]
+}
+
+/** Family modules consume their boundary-projected visual data through the
+ * same non-enumerable appearance bridge as style faces. */
+export function resolvedFamilyAppearanceOf<T = Readonly<Record<string, unknown>>>(
+  options: RenderOptions,
+): T | undefined {
+  return resolvedAppearanceOf(options)?.family as T | undefined
+}
+
+/** Family geometry/config data is projected independently from appearance. */
+export function resolvedFamilyConfigOf<T = Readonly<Record<string, unknown>>>(
+  options: RenderOptions,
+): T | undefined {
+  return (options as RenderOptionsWithResolution)[RESOLVED_FAMILY_CONFIG] as T | undefined
 }

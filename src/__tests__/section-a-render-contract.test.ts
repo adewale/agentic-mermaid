@@ -124,6 +124,34 @@ describe('Section A canonical render contracts', () => {
     expect(Object.isFrozen(svg.renderOptions)).toBe(true)
   })
 
+  test('family appearance and config are resolved once and retain cross-output receipt parity', () => {
+    const source = `---
+config:
+  themeVariables:
+    xyChart:
+      backgroundColor: "#123456"
+  xyChart:
+    width: 640
+---
+xychart-beta
+  x-axis [a, b]
+  y-axis 0 --> 5
+  bar [1, 2]`
+    const requests = (['svg', 'png', 'unicode', 'layout'] as const)
+      .map(output => resolveRenderRequest(source, {}, output))
+
+    expect(new Set(requests.map(request => request.sharedRequestDigest)).size).toBe(1)
+    expect(new Set(requests.map(request => request.appearance.digest)).size).toBe(1)
+    for (const request of requests) {
+      expect(request.appearance.colors.bg).toBe('#123456')
+      expect(request.appearance.family).toEqual({ theme: { backgroundColor: '#123456' } })
+      expect(request.familyConfig).toEqual({ config: { width: 640 } })
+      expect(Object.isFrozen(request.appearance.family)).toBe(true)
+      expect(Object.isFrozen(request.familyConfig)).toBe(true)
+    }
+    expect(resolveRenderRequest(source, { bg: '#abcdef' }, 'svg').appearance.colors.bg).toBe('#abcdef')
+  })
+
   test('entity normalization and Mermaid theme safety are shared across outputs', () => {
     const encoded = 'flowchart LR\n  A[Tom &amp; Jerry] --> B'
     const options = { mermaidConfig: { themeVariables: { primaryTextColor: 'url(https://evil.invalid/x)' } } }

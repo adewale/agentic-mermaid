@@ -20,6 +20,7 @@ import { parsePieChart } from '../pie/parser.ts'
 import { formatPieValue, formatPiePercent } from '../pie/layout.ts'
 import { pieSliceColors } from '../pie/palette.ts'
 import { resolvePieVisualConfig } from '../pie/config.ts'
+import type { PieVisualConfig } from '../pie/config.ts'
 import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
 import { colorizeText } from './ansi.ts'
@@ -36,6 +37,7 @@ export function renderPieAscii(
   theme: AsciiTheme,
   frontmatter: MermaidFrontmatterMap = {},
   targetWidth?: number,
+  resolvedVisual?: PieVisualConfig,
 ): string {
   const chart = parsePieChart(lines)
   const barChar = config.useAscii ? '#' : '█'
@@ -43,7 +45,7 @@ export function renderPieAscii(
   const total = chart.entries.reduce((sum, e) => sum + e.value, 0)
   if (total <= 0) return ''
 
-  const visual = resolvePieVisualConfig(frontmatter)
+  const visual = resolvedVisual ?? resolvePieVisualConfig(frontmatter)
   const colors = pieSliceColors(chart.entries.length, {
     accent: theme.accent,
     bg: theme.bg,

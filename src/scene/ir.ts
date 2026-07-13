@@ -25,7 +25,7 @@ import type { SvgSemanticAccessibility } from './accessibility.ts'
 import type { PrimitiveRealization } from './capabilities.ts'
 
 /** Version of the extension-facing Scene document/mark behavioral contract. */
-export const SCENE_CONTRACT_VERSION = 1 as const
+export { SCENE_CONTRACT_VERSION } from './version.ts'
 import type { SceneRole } from './roles.ts'
 
 export type {

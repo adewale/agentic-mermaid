@@ -14,6 +14,28 @@ import { getSeriesColor } from '../xychart/colors.ts'
 import { measureTextWidth } from '../text-metrics.ts'
 import { ensureContrast, isHexColor, mixHex } from '../shared/color-math.ts'
 import { resolveGitGraphCommitLabelFontSize } from './position.ts'
+import { resolvedFamilyAppearanceOf } from '../render-contract.ts'
+
+export type GitGraphThemeProjection = Record<string, string | number>
+
+/** Sanitize the GitGraph-specific theme subset once at request resolution. */
+export function resolveGitGraphThemeProjection(raw: unknown): GitGraphThemeProjection {
+  const vars = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw as Record<string, unknown> : {}
+  const projected: GitGraphThemeProjection = {
+    commitLabelFontSize: resolveGitGraphCommitLabelFontSize(vars),
+  }
+  for (let index = 0; index < 8; index++) {
+    for (const key of [`git${index}`, `gitBranchLabel${index}`, `gitInv${index}`]) {
+      const color = safeCssColor(vars[key])
+      if (color !== undefined) projected[key] = color
+    }
+  }
+  for (const key of ['commitLabelColor', 'commitLabelBackground'] as const) {
+    const color = safeCssColor(vars[key])
+    if (color !== undefined) projected[key] = color
+  }
+  return projected
+}
 
 export function renderGitGraphSvg(ctx: RenderContext<PositionedGitGraphDiagram>): string {
   return DefaultBackend.render(lowerGitGraphScene(ctx), { seed: 0 })
@@ -29,7 +51,9 @@ export function lowerGitGraphScene(ctx: RenderContext<PositionedGitGraphDiagram>
   const head = [svgOpenTag(diagram.width, diagram.height, colors, transparent, { attrs }), buildStyleBlock(font, false, colors.shadow, colors.embedFontImport)]
   const shadow = buildShadowDefs(colors)
   if (shadow) head.push(`<defs>${shadow}</defs>`)
-  const paints = gitGraphPaints(diagram, options.mermaidConfig?.themeVariables, colors)
+  const projectedTheme = resolvedFamilyAppearanceOf<{ themeVariables?: GitGraphThemeProjection }>(options)?.themeVariables
+    ?? resolveGitGraphThemeProjection(options.mermaidConfig?.themeVariables)
+  const paints = gitGraphPaints(diagram, projectedTheme, colors)
   const parts: SceneNode[] = [marks.prelude({ id: 'prelude', width: diagram.width, height: diagram.height, colors, transparent, font, hasMonoFont: false }, head.join('\n'))]
   parts.push(marks.documentText({ id: 'acc-title', element: 'title', domId: titleId, text: diagram.accessibilityTitle ?? 'Git graph' }))
   if (diagram.accessibilityDescription) parts.push(marks.documentText({ id: 'acc-desc', element: 'description', domId: descId, text: diagram.accessibilityDescription }))

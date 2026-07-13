@@ -5,9 +5,10 @@
 
 import { renderPngGraphicalProjection } from './png-graphical.ts'
 import { applyPngColorProfile, inspectPngColorProfile } from './output-color-profile.ts'
-import type { PngFontSource } from './png-contract.ts'
+import { PNG_DEFAULT_SCALE, type PngFontSource } from './png-contract.ts'
 import type { RenderRequestReceipt } from './render-contract.ts'
 import type { RenderOptions } from './types.ts'
+import type { HostBackendPolicy } from './scene/backend.ts'
 
 export interface BrowserPngDiagnostic {
   readonly code: string
@@ -58,6 +59,42 @@ export const BROWSER_CANVAS_RUNTIME: BrowserPngRuntimeProvenance = Object.freeze
   reproducibility: 'host-dependent',
 })
 
+/** Trusted browser host inputs; neither callback nor policy is serializable. */
+export interface MermaidBrowserPNGRendererHostOptions {
+  readonly rasterize: BrowserPngRasterizer
+  readonly backendPolicy?: HostBackendPolicy
+}
+
+export interface MermaidBrowserPNGRenderer {
+  renderMermaidPNG(source: string, options?: RenderOptions, scale?: number): Promise<Uint8Array>
+  renderMermaidPNGWithReceipt(source: string, options?: RenderOptions, scale?: number): Promise<RenderedBrowserPng>
+}
+
+/** Bind an injected browser rasterizer to one trusted graphical backend policy. */
+export function createMermaidBrowserPNGRenderer(
+  hostOptions: MermaidBrowserPNGRendererHostOptions,
+): MermaidBrowserPNGRenderer {
+  if (!hostOptions || typeof hostOptions !== 'object') throw new TypeError('browser PNG renderer host options are required')
+  if (typeof hostOptions.rasterize !== 'function') throw new TypeError('browser PNG rasterizer must be a function')
+  const host = Object.freeze({ ...hostOptions })
+  return Object.freeze({
+    async renderMermaidPNG(
+      source: string,
+      options: RenderOptions = {},
+      scale: number = PNG_DEFAULT_SCALE,
+    ): Promise<Uint8Array> {
+      return (await renderMermaidPNGInBrowserWithReceiptForHost(source, options, scale, host)).png
+    },
+    renderMermaidPNGWithReceipt(
+      source: string,
+      options: RenderOptions = {},
+      scale: number = PNG_DEFAULT_SCALE,
+    ): Promise<RenderedBrowserPng> {
+      return renderMermaidPNGInBrowserWithReceiptForHost(source, options, scale, host)
+    },
+  })
+}
+
 const BROWSER_FONT_SOURCES = new Set<BrowserPngFontSource>([
   'verified-buffers',
   'embedded-data-uri',
@@ -89,11 +126,25 @@ export async function renderMermaidPNGInBrowserWithReceipt(
   scale: number,
   rasterize: BrowserPngRasterizer,
 ): Promise<RenderedBrowserPng> {
+  return renderMermaidPNGInBrowserWithReceiptForHost(source, options, scale, { rasterize })
+}
+
+async function renderMermaidPNGInBrowserWithReceiptForHost(
+  source: string,
+  options: RenderOptions,
+  scale: number,
+  hostOptions: MermaidBrowserPNGRendererHostOptions,
+): Promise<RenderedBrowserPng> {
   if (!Number.isFinite(scale) || scale <= 0) throw new TypeError('browser PNG scale must be a positive finite number')
-  if (typeof rasterize !== 'function') throw new TypeError('browser PNG rasterizer must be a function')
-  const graphical = renderPngGraphicalProjection(source, options, { scale })
+  if (typeof hostOptions.rasterize !== 'function') throw new TypeError('browser PNG rasterizer must be a function')
+  const graphical = renderPngGraphicalProjection(
+    source,
+    options,
+    { scale },
+    { backendPolicy: hostOptions.backendPolicy },
+  )
   if (graphical.receipt.output !== 'png') throw new Error('browser PNG adapter received a non-PNG receipt')
-  const raster = await rasterize(graphical.svg, { scale, receipt: graphical.receipt })
+  const raster = await hostOptions.rasterize(graphical.svg, { scale, receipt: graphical.receipt })
   if (!(raster?.png instanceof Uint8Array)) throw new TypeError('browser PNG rasterizer must return Uint8Array bytes')
   const runtime = browserRuntimeProvenance(raster.fontSources)
   const png = applyPngColorProfile(raster.png)

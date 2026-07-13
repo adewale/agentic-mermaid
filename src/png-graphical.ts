@@ -1,12 +1,13 @@
-import { renderGraphicalSvgWithReceipt, type RenderedSvg } from './index.ts'
+import { executeGraphicalRequest, type GraphicalSvgArtifact } from './graphical-render.ts'
 import type { RenderOptions } from './types.ts'
+import type { RenderExecutionResolutionOptions } from './render-contract.ts'
 import {
   resolvePngOutputPolicy,
   type PngOutputPolicyInput,
   type ResolvedPngOutputPolicy,
 } from './png-contract.ts'
 
-export interface PngGraphicalProjection extends RenderedSvg {
+export interface PngGraphicalProjection extends GraphicalSvgArtifact {
   outputPolicy: ResolvedPngOutputPolicy
 }
 
@@ -15,10 +16,11 @@ export function renderPngGraphicalProjection(
   source: string,
   renderOptions: RenderOptions,
   outputOptions: PngOutputPolicyInput = {},
+  resolutionOptions: RenderExecutionResolutionOptions = {},
 ): PngGraphicalProjection {
   const outputPolicy = resolvePngOutputPolicy(outputOptions)
   return {
-    ...renderGraphicalSvgWithReceipt(source, renderOptions, 'png', outputPolicy),
+    ...executeGraphicalRequest(source, renderOptions, 'png', outputPolicy, resolutionOptions),
     outputPolicy,
   }
 }
