@@ -1,20 +1,20 @@
 // Stateless Streamable HTTP transport for the hosted MCP server.
 //
 // One endpoint: POST /mcp with a JSON-RPC request (or 2025-03-26 batch),
-// answered as application/json. No sessions, no SSE stream — every tool is a
-// pure function of its arguments. GET/DELETE return 405 as the Streamable
-// HTTP spec allows for servers that don't offer a server-initiated stream.
+// answered as application/json. No sessions and no SSE stream. GET/DELETE
+// return 405 as the Streamable HTTP spec allows for servers that don't offer
+// a server-initiated stream.
 //
-// Layout is deterministic, so successful tools/call results are cached in the
-// (injected) Cache API keyed on a hash of the canonicalized call — repeat
-// renders skip compute and repeat execute calls skip the dynamic isolate.
+// Successful deterministic pure-tool results are cached privately in the
+// injected Cache API. Code Mode execute is deliberately excluded because its
+// sandbox exposes time and randomness.
 //
 // Observability: every HTTP request emits exactly ONE structured wide event
 // (McpRequestEvent) through the injectable onEvent hook — console.log JSON by
 // default, which Cloudflare Workers Logs ingests as queryable fields.
 
 import { handleHostedRequest, cacheKeyFor, LOCAL_FALLBACK_HINT, SUPPORTED_PROTOCOL_VERSIONS, type HostedMcpContext } from '../../src/mcp/hosted-server.ts'
-import { reply, rpcError, type JsonRpcRequest, type JsonRpcResponse } from '../../src/mcp/protocol.ts'
+import { isJsonContentType, preserveExactJsonRpcIds, reply, rpcError, stringifyJsonRpc, type ExactJsonRpcId, type JsonRpcRequest, type JsonRpcResponse } from '../../src/mcp/protocol.ts'
 import { readCapped } from './execute-loader.ts'
 
 export const MAX_MCP_BODY_BYTES = 128 * 1024
@@ -54,6 +54,8 @@ export interface McpItemEvent {
   is_error: boolean
   /** Structured tool error code (e.g. SOURCE_TOO_LARGE) or JSON-RPC error code. */
   error_code: string | number | null
+  /** Whether this item had a deterministic private-cache key. */
+  cache_eligible: boolean
   cache_hit: boolean
   /** Dynamic Worker entrypoint calls made for this item; 0 if none started. */
   loader_attempts: 0 | 1 | 2
@@ -105,6 +107,7 @@ const CORS_BASE = {
   'access-control-allow-methods': 'POST, OPTIONS',
   'access-control-allow-headers': 'content-type, mcp-protocol-version, mcp-session-id',
   'access-control-max-age': '86400',
+  'access-control-expose-headers': 'x-agentic-mermaid-compute-cache',
 }
 
 // Browser Origins allowed to read this endpoint cross-origin. Non-browser
@@ -113,12 +116,12 @@ const CORS_BASE = {
 // (browser) caller is checked against this set plus same-origin and localhost.
 const STATIC_ALLOWED_ORIGINS = new Set(['https://agentic-mermaid.dev'])
 
-function isOriginAllowed(origin: string, host: string | null): boolean {
+function isOriginAllowed(origin: string, requestOrigin: string): boolean {
   if (STATIC_ALLOWED_ORIGINS.has(origin)) return true
   try {
     const o = new URL(origin)
-    if (o.hostname === 'localhost' || o.hostname === '127.0.0.1') return true
-    if (host !== null && o.host === host) return true
+    if ((o.protocol === 'http:' || o.protocol === 'https:') && (o.hostname === 'localhost' || o.hostname === '127.0.0.1')) return true
+    if (o.origin === requestOrigin) return true
   } catch { /* malformed Origin header → not allowed */ }
   return false
 }
@@ -136,23 +139,29 @@ function isOriginAllowed(origin: string, host: string | null): boolean {
 function corsHeadersFor(request: Request): Record<string, string> {
   const origin = request.headers.get('origin')
   if (origin === null) return { 'access-control-allow-origin': '*', ...CORS_BASE }
-  if (isOriginAllowed(origin, request.headers.get('host'))) {
+  if (isOriginAllowed(origin, new URL(request.url).origin)) {
     return { 'access-control-allow-origin': origin, vary: 'Origin', ...CORS_BASE }
   }
   return { vary: 'Origin', ...CORS_BASE }
 }
 
-function json(status: number, payload: unknown, cors: Record<string, string>): Response {
-  return new Response(JSON.stringify(payload), {
+function json(status: number, payload: unknown, cors: Record<string, string>, exactIds: ExactJsonRpcId[] = [], extraHeaders: Record<string, string> = {}): Response {
+  const body = stringifyJsonRpc(payload, exactIds)
+  return new Response(body, {
     status,
     headers: {
       'content-type': 'application/json; charset=utf-8',
       'cache-control': 'no-store',
       'x-content-type-options': 'nosniff',
       ...cors,
+      ...extraHeaders,
     },
   })
 }
+
+// Backward-compatible named export retained for the hosted transport tests and
+// any source consumers that imported the first implementation directly.
+export const preserveUnsafeJsonRpcIds = preserveExactJsonRpcIds
 
 function sortKeys(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(sortKeys)
@@ -172,6 +181,7 @@ function newItemEvent(): McpItemEvent {
     tool: null,
     is_error: false,
     error_code: null,
+    cache_eligible: false,
     cache_hit: false,
     loader_attempts: 0,
     configured_cpu_limit_ms: null,
@@ -257,13 +267,14 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
   }
 
   async function handleCachedToolCall(req: JsonRpcRequest, item: McpItemEvent, itemContext: HostedMcpContext): Promise<JsonRpcResponse | null> {
-    // Key on the normalized, output-affecting arguments (not raw params): junk
-    // or out-of-range args cannot bust the cache or force recompute. A null
-    // canonical form means "not cacheable" — run the request directly (it will
-    // error, and errors are not cached anyway).
+    // Key eligible pure tools on their complete raw argument object. Lookup is
+    // pre-dispatch, so dropping even an apparently ignored argument could let a
+    // later invalid request collide with a warm valid result and skip its
+    // validation. A null form means "not cacheable" (including execute).
     const p = req.params as { name?: string; arguments?: Record<string, unknown> } | undefined
     const canonical = cacheKeyFor(p?.name, p?.arguments ?? {})
     if (canonical === null) return handleHostedRequest(req, itemContext)
+    item.cache_eligible = true
     const key = new Request(`https://mcp-cache.agentic-mermaid.dev/${encodeURIComponent(cacheVersion)}/${await sha256Hex(JSON.stringify(sortKeys(canonical)))}`)
     try {
       const hit = await cache!.match(key)
@@ -294,11 +305,11 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
     // pass. Closes the "malicious site drives visitors' browsers against public
     // compute" vector that wildcard CORS leaves open.
     const origin = request.headers.get('origin')
-    if (origin !== null && !isOriginAllowed(origin, request.headers.get('host'))) {
+    if (origin !== null && !isOriginAllowed(origin, new URL(request.url).origin)) {
       return json(403, { jsonrpc: '2.0', id: null, error: { code: -32000, message: 'origin not allowed' } }, cors)
     }
     if (request.method !== 'POST') {
-      return json(405, { jsonrpc: '2.0', id: null, error: { code: -32000, message: 'use POST with a JSON-RPC body; this MCP endpoint is stateless and offers no server-initiated stream' } }, cors)
+      return json(405, { jsonrpc: '2.0', id: null, error: { code: -32000, message: 'use POST with a JSON-RPC body; this MCP endpoint is stateless and offers no server-initiated stream' } }, cors, [], { Allow: 'POST, OPTIONS' })
     }
     // MCP-Protocol-Version validation: an explicit unsupported version is 400
     // (a missing header stays permitted for pre-2025-06-18 clients that never
@@ -307,8 +318,7 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
     if (protocolVersion !== null && !SUPPORTED_PROTOCOL_VERSIONS.includes(protocolVersion)) {
       return json(400, { jsonrpc: '2.0', id: null, error: { code: -32000, message: `unsupported MCP-Protocol-Version: ${protocolVersion}` } }, cors)
     }
-    const contentType = (request.headers.get('content-type') ?? '').toLowerCase()
-    if (!contentType.startsWith('application/json')) {
+    if (!isJsonContentType(request.headers.get('content-type'))) {
       return json(415, { jsonrpc: '2.0', id: null, error: { code: -32000, message: 'content-type must be application/json' } }, cors)
     }
     const declared = Number(request.headers.get('content-length') ?? 0)
@@ -330,8 +340,9 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
     }
     event.body_bytes = new TextEncoder().encode(body).length
     let parsed: unknown
+    const exact = preserveExactJsonRpcIds(body)
     try {
-      parsed = JSON.parse(body)
+      parsed = JSON.parse(exact.body)
     } catch (e) {
       return json(400, rpcError(null, -32700, `parse error: ${e instanceof Error ? e.message : 'invalid JSON'}`), cors)
     }
@@ -343,13 +354,13 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
       // the header must send a single message. Older negotiated versions
       // (2024-11-05 / 2025-03-26, or no header) may still batch.
       if (protocolVersion === '2025-06-18') {
-        return json(400, { jsonrpc: '2.0', id: null, error: { code: -32600, message: 'JSON-RPC batching was removed in MCP 2025-06-18; send a single message' } }, cors)
+        return json(400, { jsonrpc: '2.0', id: null, error: { code: -32600, message: 'JSON-RPC batching was removed in MCP 2025-06-18; send a single message' } }, cors, exact.ids)
       }
-      if (parsed.length === 0) return json(400, rpcError(null, -32600, 'empty batch'), cors)
+      if (parsed.length === 0) return json(400, rpcError(null, -32600, 'empty batch'), cors, exact.ids)
       // Bound fan-out before running any item: a single request must not spin an
       // unbounded number of billable isolates/renders (see MAX_BATCH_ITEMS).
       if (parsed.length > MAX_BATCH_ITEMS) {
-        return json(400, { jsonrpc: '2.0', id: null, error: { code: -32600, message: `batch exceeds the ${MAX_BATCH_ITEMS}-request limit` } }, cors)
+        return json(400, { jsonrpc: '2.0', id: null, error: { code: -32600, message: `batch exceeds the ${MAX_BATCH_ITEMS}-request limit` } }, cors, exact.ids)
       }
       // execute is the one tool with its own per-item isolate CPU budget, so it
       // is the one batch amplifier: 20 executes × 30s cpuMs = 600 billable
@@ -360,18 +371,18 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
       // tools/call per request, so a 1-per-request execute cap costs nothing.
       const executeItems = parsed.filter((p) => isExecuteCall(p)).length
       if (executeItems > MAX_EXECUTE_ITEMS_PER_BATCH) {
-        return json(400, { jsonrpc: '2.0', id: null, error: { code: -32600, message: `a batch may contain at most ${MAX_EXECUTE_ITEMS_PER_BATCH} execute call (execute runs in its own CPU-budgeted isolate); send execute calls as separate requests` } }, cors)
+        return json(400, { jsonrpc: '2.0', id: null, error: { code: -32600, message: `a batch may contain at most ${MAX_EXECUTE_ITEMS_PER_BATCH} execute call (execute runs in its own CPU-budgeted isolate); send execute calls as separate requests` } }, cors, exact.ids)
       }
       // One event per request even for batches: each item gets an entry, not a line.
       event.items = parsed.map(() => newItemEvent())
       const responses = (await Promise.all(parsed.map((p, i) => handleOne(p, event.items[i]!)))).filter((r): r is JsonRpcResponse => r !== null)
-      return responses.length === 0 ? new Response(null, { status: 202, headers: cors }) : json(200, responses, cors)
+      return responses.length === 0 ? new Response(null, { status: 202, headers: { ...cors, 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' } }) : json(200, responses, cors, exact.ids)
     }
     event.method = typeof (parsed as { method?: unknown } | null)?.method === 'string' ? (parsed as { method: string }).method : null
     event.batch_size = 1
     event.items = [newItemEvent()]
     const response = await handleOne(parsed, event.items[0]!)
-    return response === null ? new Response(null, { status: 202, headers: cors }) : json(200, response, cors)
+    return response === null ? new Response(null, { status: 202, headers: { ...cors, 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' } }) : json(200, response, cors, exact.ids)
   }
 
   return async (request: Request): Promise<Response> => {
@@ -400,7 +411,16 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
       event.outcome = event.items.length > 0
         ? (event.items.some(i => i.is_error) ? 'tool_error' : 'success')
         : response.status < 400 ? 'success' : 'transport_error'
-      return response
+      const headers = new Headers(response.headers)
+      const toolItems = event.items.filter(item => item.tool !== null)
+      const eligibleItems = toolItems.filter(item => item.cache_eligible)
+      const cacheStatus = !cache ? 'disabled'
+        : toolItems.length === 0 ? 'bypass'
+          : eligibleItems.length === 0 ? 'bypass'
+            : eligibleItems.every(item => item.cache_hit) && eligibleItems.length === toolItems.length ? 'hit'
+              : eligibleItems.some(item => item.cache_hit) ? 'mixed' : 'miss'
+      headers.set('x-agentic-mermaid-compute-cache', cacheStatus)
+      return new Response(response.body, { status: response.status, statusText: response.statusText, headers })
     } catch (e) {
       // The event must survive an escaping exception without recording a
       // user-controlled message, stack, request body, or code string.

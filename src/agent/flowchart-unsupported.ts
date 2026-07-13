@@ -15,18 +15,27 @@ export interface FlowchartStatement {
 // but stay opaque so the authored quoting round-trips byte-verbatim.
 export function containsFlowchartOpaqueSyntax(source: string): boolean {
   if (/`/.test(source)) return true
-  return flowchartStatements(source).some(({ text }) =>
+  const statements = flowchartStatements(source)
+  const edgeIds = declaredEdgeIds(statements)
+  return statements.some(({ text }) =>
     hasUnmodeledMetadata(text)
     || hasRenderedButSourcePreservedMetadata(text)
+    || isUnsupportedEdgeMetadataStatement(text, edgeIds)
     || isUnsupportedFlowchartInteraction(text)
   )
 }
 
 export function flowchartUnsupportedSyntaxWarnings(source: string): LayoutWarning[] {
   const warnings: LayoutWarning[] = []
-  for (const { text, line } of flowchartStatements(source)) {
-    if (isUnsupportedEdgeMetadataStatement(text)) {
-      warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_edge_metadata', message: 'Flowchart edge metadata is preserved as source but ignored by the local renderer/layout.' })
+  const statements = flowchartStatements(source)
+  const edgeIds = declaredEdgeIds(statements)
+  const explicitNodeIds = explicitlyDeclaredNodeIds(statements)
+  for (const { text, line } of statements) {
+    if (isUnsupportedEdgeMetadataStatement(text, edgeIds)) {
+      warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_edge_metadata', message: 'Unsupported edge metadata is source-preserved and ignored by the local renderer/layout; a label key is not reinterpreted as a phantom node.' })
+    }
+    if (hasLikelyTypoEndpoint(text, explicitNodeIds)) {
+      warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_implicit_endpoint', message: 'A bare implicit edge endpoint closely matches another declared node id. Check it for a typo; Mermaid creates a new node instead of rejecting it.' })
     }
     if (hasUnmodeledNodeMetadata(text)) {
       warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_node_metadata', message: 'Flowchart node metadata with an undocumented shape name is preserved as source. Documented v11 shape/label/icon/img metadata is modeled.' })
@@ -151,6 +160,10 @@ function malformedFlowchartStatement(statement: string): { syntax: string; messa
   // opaque; both already have dedicated warnings above — skip to avoid noise.
   if (/(?:^|[\s;&])[\w-]+@\s*\{/.test(statement) || /`/.test(statement)) return null
 
+  if (/[A-Za-z0-9_\]\)\}]\s*(?:-->|---|-\.->|==>|~~~|--o|--x)(?:\s*\|[^|]*\|)?\s*$/.test(statement)) {
+    return { syntax: 'flowchart_dangling_edge', message: 'Dangling edge operator has no target; Mermaid drops the edge during tolerant parsing. Add the endpoint or remove the operator.' }
+  }
+
   let depth = 0
   let inQuote = false
   let pipes = 0
@@ -237,13 +250,73 @@ function isUnsupportedFlowchartInteraction(statement: string): boolean {
   return !/^(?:click\s+)?[\w-]+\s+(?:href\s+)?(?:"(?:https?:|mailto:)[^"]*"|(?:https?:|mailto:)\S+)\s*$/i.test(statement.trim())
 }
 
-function isUnsupportedEdgeMetadataStatement(statement: string): boolean {
-  const match = statement.trim().match(/^[\w-]+@\s*\{([\s\S]*)\}\s*$/)
+function declaredEdgeIds(statements: FlowchartStatement[]): Set<string> {
+  const ids = new Set<string>()
+  const pattern = /(?:^|\s)([A-Za-z_][\w-]*)@(?:-->|---|-\.->|==>|~~~|--o|--x|--)/g
+  for (const { text } of statements) {
+    let match: RegExpExecArray | null
+    while ((match = pattern.exec(text)) !== null) ids.add(match[1]!)
+  }
+  return ids
+}
+
+function isUnsupportedEdgeMetadataStatement(statement: string, edgeIds: Set<string>): boolean {
+  const match = statement.trim().match(/^([\w-]+)@\s*\{([\s\S]*)\}\s*$/)
   if (!match) return false
-  const metadata = match[1]!
-  if (isNodeMetadata(metadata)) return false
+  const metadata = match[2]!
   const entries = parseMetadataEntries(metadata)
+  if (edgeIds.has(match[1]!)) return [...entries.keys()].some(key => key !== 'animate' && key !== 'animation' && key !== 'curve')
+  if (isNodeMetadata(metadata)) return false
   return [...entries.keys()].some(key => key !== 'animate' && key !== 'animation' && key !== 'curve')
+}
+
+function explicitlyDeclaredNodeIds(statements: FlowchartStatement[]): Set<string> {
+  const ids = new Set<string>()
+  // Cover every node-declaration opener accepted by Mermaid's closed grammar,
+  // including asymmetric nodes (`id>label]`) and v11 metadata (`id@{...}`).
+  // Edge ids use `id@-->` and deliberately do not match the metadata branch.
+  const shaped = /(?:^|\s)([A-Za-z_][\w-]*)\s*(?=\[|\(|\{|>|@\s*\{)/g
+  for (const { text } of statements) {
+    const bare = text.trim().match(/^([A-Za-z_][\w-]*)$/)
+    if (bare) ids.add(bare[1]!)
+    let match: RegExpExecArray | null
+    while ((match = shaped.exec(text)) !== null) ids.add(match[1]!)
+  }
+  return ids
+}
+
+function hasLikelyTypoEndpoint(statement: string, explicitNodeIds: Set<string>): boolean {
+  const arrow = String.raw`(?:-->|---|-\.->|==>|~~~|--o|--x)`
+  const endpoint = String.raw`([A-Za-z_][\w-]*)(\s*(?:\[[^\]]*\]|\([^)]*\)|\{[^}]*\}))?`
+  const match = statement.match(new RegExp(`^\\s*${endpoint}\\s*${arrow}\\s*${endpoint}\\s*$`))
+  if (!match) return false
+  const endpoints = [
+    { id: match[1]!, shaped: Boolean(match[2]) },
+    { id: match[3]!, shaped: Boolean(match[4]) },
+  ]
+  return endpoints.some(({ id, shaped }) => {
+    if (shaped || id.length < 4 || explicitNodeIds.has(id)) return false
+    return [...explicitNodeIds].some(declared => oneEditApart(declared.toLowerCase(), id.toLowerCase()))
+  })
+}
+
+function oneEditApart(a: string, b: string): boolean {
+  if (a === b || Math.abs(a.length - b.length) > 1) return false
+  if (a.length === b.length) {
+    const mismatch: number[] = []
+    for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) mismatch.push(i)
+    return mismatch.length === 1
+      || (mismatch.length === 2 && mismatch[1] === mismatch[0]! + 1
+        && a[mismatch[0]!] === b[mismatch[1]!] && a[mismatch[1]!] === b[mismatch[0]!])
+  }
+  const [shorter, longer] = a.length < b.length ? [a, b] : [b, a]
+  let i = 0; let j = 0; let skipped = false
+  while (i < shorter.length && j < longer.length) {
+    if (shorter[i] === longer[j]) { i++; j++; continue }
+    if (skipped) return false
+    skipped = true; j++
+  }
+  return true
 }
 
 function isNodeMetadata(metadata: string): boolean {

@@ -10,6 +10,7 @@ import { AGENTS_SNIPPET, INIT_SKILL_MD } from '../cli/init-agent.ts'
 import { COMMAND_HELP, MUTATION_OPS_BY_FAMILY, buildCapabilities } from '../cli/index.ts'
 import { SDK_DECLARATION } from '../mcp/sdk-decl.ts'
 import { HOSTED_TOOLS } from '../mcp/hosted-server.ts'
+import { LOCAL_TOOLS } from '../mcp/server.ts'
 import { WARNING_SEVERITY, WARNING_TIER } from '../agent/types.ts'
 import {
   asFlowchart, asState, asSequence, asTimeline, asClass, asEr,
@@ -546,6 +547,72 @@ describe('hosted-tool enumeration does not rot', () => {
       }
     }
     expect(checked).toBeGreaterThanOrEqual(4) // start.md, agent guide, README, mcp-code-mode-rationale, …
+  })
+})
+
+describe('exact MCP inventories match the runtime registries', () => {
+  const names = (text: string): string[] => [...text.matchAll(/`([a-z_]+)`/g)].map(match => match[1]!)
+  // `source` and `family` are argument nouns inside two inventory descriptions.
+  // Everything else remains raw: no runtime-name filter and no deduplication,
+  // so an unknown or repeated advertised tool makes equality fail.
+  const scopedInventoryNames = (text: string): string[] => names(text).filter(name => name !== 'source' && name !== 'family')
+  const matchOrThrow = (text: string, pattern: RegExp, label: string): RegExpMatchArray => {
+    const match = text.match(pattern)
+    if (!match) throw new Error(`missing exact MCP inventory in ${label}`)
+    return match
+  }
+
+  test('inventory extraction preserves duplicates and unknown names for the equality guard', () => {
+    expect(scopedInventoryNames('`execute`, `execute`, `source`, and `not_a_tool`.')).toEqual(['execute', 'execute', 'not_a_tool'])
+  })
+
+  test('llms and maintained docs name every local and hosted tool exactly once', () => {
+    const local = LOCAL_TOOLS.map(tool => tool.name)
+    const hosted = HOSTED_TOOLS.map(tool => tool.name)
+
+    const llms = readFileSync(join(REPO, 'llms.txt'), 'utf8')
+    const llmsInventory = matchOrThrow(
+      llms,
+      /Local MCP exposes (\d+) tools:([\s\S]*?)\. Hosted MCP exposes (\d+) tools:([\s\S]*?)\.\n/,
+      'llms.txt',
+    )
+    expect({ count: Number(llmsInventory[1]), tools: names(llmsInventory[2]!) })
+      .toEqual({ count: local.length, tools: local })
+    expect({ count: Number(llmsInventory[3]), tools: names(llmsInventory[4]!) })
+      .toEqual({ count: hosted.length, tools: hosted })
+
+    const exactHostedInventories = [
+      ['website/README.md', /Hosted tools:([\s\S]*?)\. Tool inputs/],
+      ['docs/api.md', /Hosted tools are ([^;]+);/],
+      ['website/source/start.md', /Tools: ([^(]+) \(64 KB/],
+      ['README.md', /- \*\*Hosted\.\*\*[^\n]*?\(tools: ([^;]+); 64 KB/],
+      ['Instructions_for_agents.md', /A hosted MCP at ([\s\S]*?) — which apply/],
+      ['skills/agentic-mermaid-diagram-workflow/SKILL.md', /No local install, network only[\s\S]*?JSON-RPC; ([\s\S]*?) tools —/],
+      ['docs/features.md', /It exposes nine bounded MCP JSON-RPC tools:([\s\S]*?)structured edits\./],
+      ['docs/fork-differences.md', /registry-checked tools:([\s\S]*?)structured-edit tools\./],
+      ['docs/mcp-http-transport.md', /Cloudflare-backed, tools ([\s\S]*?), inputs capped/],
+    ] as const
+    for (const [file, pattern] of exactHostedInventories) {
+      const inventory = matchOrThrow(readFileSync(join(REPO, file), 'utf8'), pattern, file)
+      const mentioned = scopedInventoryNames(inventory[1]!)
+      expect({ file, tools: mentioned }).toEqual({ file, tools: hosted })
+    }
+  })
+
+  test('every maintained hosted-cache contract says private compute + no-store + observable status', () => {
+    const surfaces = [
+      'llms.txt',
+      'docs/mcp-http-transport.md',
+      'website/public/llms.txt',
+      'website/public/.well-known/llms.txt',
+    ]
+    for (const file of surfaces) {
+      const text = readFileSync(join(REPO, file), 'utf8')
+      expect({ file, privateCompute: /private[^\n.]*cache/i.test(text) }).toEqual({ file, privateCompute: true })
+      expect({ file, noStore: /cache-control:?`?\s*no-store|`cache-control: no-store`/i.test(text) }).toEqual({ file, noStore: true })
+      expect({ file, status: text.includes('x-agentic-mermaid-compute-cache') }).toEqual({ file, status: true })
+      expect({ file, falseEdgeClaim: /(?:responses?|results?) (?:are|is) edge-cached/i.test(text) }).toEqual({ file, falseEdgeClaim: false })
+    }
   })
 })
 

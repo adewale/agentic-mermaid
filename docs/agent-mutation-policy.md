@@ -34,7 +34,7 @@ When a particular body does not narrow, agents are not told it can be safely edi
 Structured mutation is exposed for every built-in renderable family when its modeled subset narrows:
 
 - flowchart/state;
-- sequence (BUILD-18 — segment-preserving: participant/message ops stay live even when the diagram has Note/alt/loop/par/activate/autonumber/title, which ride along verbatim as opaque-block segments. `remove_message`/`set_message_text` indexes address only top-level messages — messages inside an opaque block are never touched. Only un-segmentable input, e.g. an unbalanced `end`, falls back to whole-body opaque);
+- sequence (segment-preserving: `alt`/`opt`/`loop`/`par` are typed fragments with read-back and mutation ops; Note/box/critical/activate/autonumber/title ride along verbatim as opaque-block segments. Top-level message indices stay separate from fragment-message indices. Only un-segmentable input, e.g. an unbalanced `end`, falls back to whole-body opaque);
 - timeline;
 - class;
 - ER;

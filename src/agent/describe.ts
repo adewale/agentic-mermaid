@@ -21,6 +21,7 @@ import './families-builtin.ts'
 import { parseGanttModel } from '../gantt/parser.ts'
 import { resolveGanttSchedule, formatGanttInstant } from '../gantt/schedule.ts'
 import { toMermaidLines } from '../mermaid-source.ts'
+import { sequenceMessageContexts, sequenceMessages } from './sequence-body.ts'
 
 export interface DescribeOptions {
   /** 'text' (default): prose summary. 'json': structured AX tree (#7349). 'facts': deterministic semantic facts. */
@@ -31,7 +32,12 @@ export interface DescribeOptions {
 export interface DescribeTree {
   kind: string
   nodes: Array<{ id: string; label: string }>
-  edges: Array<{ from: string; to: string; label?: string }>
+  edges: Array<{
+    from: string
+    to: string
+    label?: string
+    sequence?: { fragmentIndex: number; branchIndex: number; fragmentKind: string; branchLabel?: string }
+  }>
   entryPoints: string[]
   sinks: string[]
 }
@@ -98,7 +104,22 @@ export function describeMermaidTree(d: ValidDiagram): DescribeTree {
     visit(d.body.states, d.body.transitions)
   } else if (d.body.kind === 'sequence') {
     for (const p of d.body.participants) tree.nodes.push({ id: p.id, label: p.label || p.id })
-    d.body.messages.forEach(m => tree.edges.push({ from: m.from, to: m.to, label: m.text || undefined }))
+    sequenceMessageContexts(d.body).forEach(context => {
+      const m = context.message
+      tree.edges.push({
+        from: m.from, to: m.to, label: m.text || undefined,
+        ...(context.scope === 'fragment' ? {
+          sequence: {
+            fragmentIndex: context.fragmentIndex,
+            branchIndex: context.branchIndex,
+            fragmentKind: context.fragmentKind,
+            ...((context.branchLabel ?? (context.branchIndex === 0 ? context.fragmentLabel : undefined))
+              ? { branchLabel: context.branchLabel ?? context.fragmentLabel }
+              : {}),
+          },
+        } : {}),
+      })
+    })
   } else if (d.body.kind === 'class') {
     for (const c of d.body.classes) tree.nodes.push({ id: c.id, label: c.label || c.id })
     for (const r of d.body.relations) tree.edges.push({ from: r.from, to: r.to, label: r.label || r.kind })
@@ -259,11 +280,27 @@ function describeState(body: import('./types.ts').StateBody): string {
 
 function describeSequence(d: SequenceValidDiagram): string {
   const parts = d.body.participants
-  const msgs = d.body.messages
   const partStr = parts.map(p => p.label || p.id).join(', ')
-  const msgStr = msgs.map(m => `${m.from} -> ${m.to}: ${m.text}`)
   let s = `A sequence diagram between ${partStr || '(no participants)'}.`
-  if (msgStr.length > 0) s += ` Messages in order: ${msgStr.join('; ')}.`
+  const statements = d.body.statements ?? d.body.messages.map((_, ref) => ({ kind: 'message' as const, ref }))
+  const interactions: string[] = []
+  let fragmentIndex = 0
+  for (const statement of statements) {
+    if (statement.kind === 'message') {
+      const message = d.body.messages[statement.ref]
+      if (message) interactions.push(`message ${message.from} -> ${message.to}: ${message.text}`)
+      continue
+    }
+    if (statement.kind !== 'fragment') continue
+    const branches = statement.fragment.branches.map((branch, branchIndex) => {
+      const label = branch.label ?? (branchIndex === 0 ? statement.fragment.label : undefined)
+      const messages = branch.messages.map(m => `${m.from} -> ${m.to}: ${m.text}`).join('; ') || 'no messages'
+      return `branch ${branchIndex}${label ? ` (${label})` : ''}: ${messages}`
+    })
+    interactions.push(`fragment ${fragmentIndex} (${statement.fragment.fragmentKind}): ${branches.join(' | ')}`)
+    fragmentIndex++
+  }
+  if (interactions.length > 0) s += ` Interactions in source order: ${interactions.join('; ')}.`
   return s
 }
 

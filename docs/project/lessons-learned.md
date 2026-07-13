@@ -116,6 +116,24 @@ family docs, and `TODO.md`.
   and evidence-coordinate defects. Partition reviews by failure domain, require
   exact reproductions, remediate all Blocker/P1/P2 findings, then rerun freshness
   and resulting-head gates instead of treating an earlier acceptance as durable.
+- **Boundary configuration is part of the contract.** Loopback-origin tests
+  proved the local MCP server rejected an attacker, but never exercised the
+  configured reverse-proxy origin. Test both halves of an allow-list: known-bad
+  input must fail and every configured public identity must succeed on each
+  protected route.
+- **Compare exact inventories with their registry.** Presence tests for selected
+  tools let `describe_sdk` disappear from `llms.txt` and `website/README.md`
+  while the runtime grew from eight to nine hosted tools. Any prose that claims
+  a complete inventory must parse back to the canonical runtime names and count;
+  subset prose should avoid claiming completeness.
+- **Build provenance describes bytes, not just Git HEAD.** `rev-parse HEAD`
+  identifies the parent commit but says nothing about uncommitted inputs. Manual
+  builds now qualify dirty or unverifiable checkouts, while trusted CI supplies
+  the immutable workflow revision explicitly.
+- **A passing test command is not a compiler gate.** Keep type checking as a
+  named package script shared by CI and release workflows, and run it after the
+  final test edit; transpile-only builds and Bun tests do not prove strict
+  TypeScript compilation.
 
 ## How to apply these lessons
 

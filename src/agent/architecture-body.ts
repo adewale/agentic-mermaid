@@ -27,6 +27,7 @@ import type {
 } from './types.ts'
 import { ok, err, DEFAULT_LABEL_CHAR_CAP } from './types.ts'
 import { labelOverflowWarning } from './label-metrics.ts'
+import { resolveArchitectureIcon } from '../architecture/icons.ts'
 
 // ---- Parser -----------------------------------------------------------------
 
@@ -745,6 +746,28 @@ export function mutateArchitecture(body: ArchitectureBody, op: ArchitectureMutat
 
 // ---- Verifier (FamilyPlugin.verify hook) ------------------------------------
 
+const NATIVE_ARCHITECTURE_ICONS = new Set(['cloud', 'database', 'disk', 'internet', 'server'])
+
+function unknownArchitectureIcon(target: string, icon?: string): LayoutWarning | null {
+  return icon && !NATIVE_ARCHITECTURE_ICONS.has(icon.trim().toLowerCase()) && resolveArchitectureIcon(icon) === null
+    ? { code: 'UNKNOWN_SHAPE', node: target, shape: `architecture-icon:${icon}` }
+    : null
+}
+
+/** Source-level diagnostic used when otherwise-renderable architecture syntax
+ * falls back to an opaque body. Verification must not lose icon safety merely
+ * because a different line was outside the structured subset. */
+export function verifyOpaqueArchitectureIcons(source: string): LayoutWarning[] {
+  const warnings: LayoutWarning[] = []
+  for (const line of source.split(/\r?\n/)) {
+    const match = line.trim().match(/^(?:service|group)\s+([A-Za-z_][\w-]*)\s*\(([^)]+)\)/i)
+    if (!match) continue
+    const warning = unknownArchitectureIcon(match[1]!, match[2]!.trim())
+    if (warning) warnings.push(warning)
+  }
+  return warnings
+}
+
 export function verifyArchitecture(body: ArchitectureBody, opts: VerifyOptions): LayoutWarning[] {
   const cap = opts.labelCharCap ?? DEFAULT_LABEL_CHAR_CAP
   const warnings: LayoutWarning[] = []
@@ -759,8 +782,12 @@ export function verifyArchitecture(body: ArchitectureBody, opts: VerifyOptions):
   if (body.title !== undefined) overflow('title', body.title)
   if (body.accessibilityTitle !== undefined) overflow('accessibility-title', body.accessibilityTitle)
   if (body.accessibilityDescription !== undefined) overflow('accessibility-description', body.accessibilityDescription)
-  for (const g of body.groups) overflow(g.id, g.label)
-  for (const s of body.services) overflow(s.id, s.label)
+  const checkIcon = (target: string, icon?: string): void => {
+    const warning = unknownArchitectureIcon(target, icon)
+    if (warning) warnings.push(warning)
+  }
+  for (const g of body.groups) { overflow(g.id, g.label); checkIcon(g.id, g.icon) }
+  for (const s of body.services) { overflow(s.id, s.label); checkIcon(s.id, s.icon) }
   body.edges.forEach((e, i) => {
     // Anchor any edge whose endpoints no longer resolve (defensive; mutate keeps
     // these consistent, but an externally-synthesized body might not).

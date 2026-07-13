@@ -12,6 +12,7 @@
 // the next run would skip the rebuild and test a half-built bundle. On failure
 // the partial output is removed so the next run rebuilds from scratch.
 import { createHash } from 'node:crypto'
+import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -86,6 +87,12 @@ function readSentinel(): string | null {
 
 function buildFingerprint(): string {
   const hash = createHash('sha256')
+  // Generated provenance changes when identical source bytes move from dirty
+  // to committed, or when HEAD advances without touching a website input.
+  for (const args of [['rev-parse', 'HEAD'], ['status', '--porcelain=v1', '--untracked-files=normal']]) {
+    try { hash.update(execFileSync('git', args, { cwd: ROOT, encoding: 'utf8' })) } catch { hash.update('git-unavailable') }
+    hash.update('\0')
+  }
   for (const rel of FINGERPRINT_PATHS) {
     addPathToHash(hash, join(ROOT, rel), rel)
   }

@@ -7,15 +7,15 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { URL } from 'node:url'
 import { executeInSandbox } from './sandbox.ts'
-import { reply, rpcError as error, type JsonRpcRequest, type JsonRpcResponse } from './protocol.ts'
-import { createDescribeTool, createExecuteTool, createRenderPngTool, dispatchMcpRequest, type McpServerSurface } from './tool-surface.ts'
+import { isJsonContentType, preserveExactJsonRpcIds, reply, rpcError as error, stringifyJsonRpc, type ExactJsonRpcId, type JsonRpcRequest, type JsonRpcResponse } from './protocol.ts'
+import { createDescribeTool, createExecuteTool, createRenderPngTool, dispatchMcpRequest, EXECUTE_TIMEOUT_ERROR, isValidExecuteTimeout, type McpServerSurface } from './tool-surface.ts'
 import { SDK_CORE_DECLARATION, createDescribeSdkTool, describeSdkPayload } from './sdk-discovery.ts'
 import { createArtifactStore, type ArtifactRecord, type ArtifactStore } from './artifacts.ts'
 import { renderMermaidPNG } from '../agent/png.ts'
 import { describeMermaidSource, describeMermaid } from '../agent/describe.ts'
 import { describeMermaidFacts } from '../agent/facts.ts'
 import { parseMermaid } from '../agent/parse.ts'
-import { configWarningsForMermaid } from '../agent/verify.ts'
+import { configWarningsForMermaid, verifyMermaid } from '../agent/verify.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 
 export type { JsonRpcRequest, JsonRpcResponse } from './protocol.ts'
@@ -93,8 +93,11 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
   if (name === 'execute') {
     const code = (args as { code?: string }).code
     const requestedTimeoutMs = (args as { timeoutMs?: number }).timeoutMs
+    if (requestedTimeoutMs !== undefined && !isValidExecuteTimeout(requestedTimeoutMs)) {
+      return error(id, -32602, EXECUTE_TIMEOUT_ERROR)
+    }
     const timeoutMs = typeof requestedTimeoutMs === 'number' && Number.isFinite(requestedTimeoutMs)
-      ? Math.max(1, Math.min(requestedTimeoutMs, context.maxSandboxTimeoutMs ?? MAX_SANDBOX_TIMEOUT_MS))
+      ? Math.min(requestedTimeoutMs, context.maxSandboxTimeoutMs ?? MAX_SANDBOX_TIMEOUT_MS)
       : undefined
     if (typeof code !== 'string') return error(id, -32602, 'execute requires `code` (string)')
     const r = await executeInSandbox(code, { timeoutMs })
@@ -124,11 +127,13 @@ function describeFormat(args: Record<string, unknown>): 'text' | 'json' | 'facts
 
 function describePayload(source: string, args: Record<string, unknown>): { ok: boolean } & Record<string, unknown> {
   const format = describeFormat(args)
-  if (format === 'text') return { ok: true as const, text: describeMermaidSource(source) }
   const parsed = parseMermaid(source)
   if (!parsed.ok) return { ok: false as const, errors: parsed.error }
-  if (format === 'facts') return { ok: true as const, facts: describeMermaidFacts(parsed.value) }
-  return { ok: true as const, tree: JSON.parse(describeMermaid(parsed.value, { format: 'json' })) }
+  const verify = verifyMermaid(parsed.value)
+  if (!verify.ok) return { ok: false as const, family: parsed.value.kind, warnings: verify.warnings }
+  if (format === 'text') return { ok: true as const, text: describeMermaidSource(source), warnings: verify.warnings }
+  if (format === 'facts') return { ok: true as const, facts: describeMermaidFacts(parsed.value), warnings: verify.warnings }
+  return { ok: true as const, tree: JSON.parse(describeMermaid(parsed.value, { format: 'json' })), warnings: verify.warnings }
 }
 
 function handleRenderPng(id: number | string | null, args: Record<string, unknown>, context: McpRequestContext): JsonRpcResponse {
@@ -218,8 +223,9 @@ export async function runStdio(options: { artifactDir?: string; maxArtifactBytes
       buf = buf.slice(nl + 1)
       if (!line) continue
       try {
-        const res = await handleRequest(JSON.parse(line) as JsonRpcRequest, { artifactStore })
-        if (res) process.stdout.write(JSON.stringify(res) + '\n')
+        const exact = preserveExactJsonRpcIds(line)
+        const res = await handleRequest(JSON.parse(exact.body) as JsonRpcRequest, { artifactStore })
+        if (res) process.stdout.write(stringifyJsonRpc(res, exact.ids) + '\n')
       } catch (e) {
         process.stdout.write(JSON.stringify(error(null, -32700, `parse error: ${(e as Error).message}`)) + '\n')
       }
@@ -245,6 +251,7 @@ export async function startHttpServer(options: HttpMcpOptions = {}): Promise<Htt
   })
   const maxRpcBodyBytes = options.maxRpcBodyBytes ?? MAX_RPC_BODY_BYTES
   const maxSseSessions = options.maxSseSessions ?? MAX_SSE_SESSIONS
+  const publicOrigin = httpOrigin(options.publicUrl, 'publicUrl')
   if (!Number.isInteger(maxSseSessions) || maxSseSessions <= 0) throw new Error('maxSseSessions must be a positive integer')
   const context = { artifactStore, maxSandboxTimeoutMs: options.maxSandboxTimeoutMs }
 
@@ -253,19 +260,19 @@ export async function startHttpServer(options: HttpMcpOptions = {}): Promise<Htt
       const u = new URL(req.url ?? '/', baseUrl || `http://${host}:${port || 0}`)
       if (req.method === 'GET' && u.pathname === '/health') return sendJson(res, 200, { ok: true })
       if (req.method === 'GET' && u.pathname === '/sse') {
-        if (!authorizeHttpAccess(req, res, baseUrl, options.authToken)) return
-        return openSse(req, res, sessions, baseUrl, maxSseSessions)
+        if (!authorizeHttpAccess(req, res, baseUrl, publicOrigin, options.authToken)) return
+        return openSse(req, res, sessions, publicOrigin ?? baseUrl, maxSseSessions)
       }
       if (req.method === 'POST' && u.pathname === '/message') {
-        if (!authorizeHttpRpc(req, res, baseUrl, options.authToken)) return
+        if (!authorizeHttpRpc(req, res, baseUrl, publicOrigin, options.authToken)) return
         return await postSseMessage(req, res, sessions, context, maxRpcBodyBytes)
       }
       if (req.method === 'POST' && u.pathname === '/rpc') {
-        if (!authorizeHttpRpc(req, res, baseUrl, options.authToken)) return
+        if (!authorizeHttpRpc(req, res, baseUrl, publicOrigin, options.authToken)) return
         return await postRpc(req, res, context, maxRpcBodyBytes)
       }
       if (req.method === 'GET' && u.pathname.startsWith('/artifacts/')) {
-        if (!authorizeHttpAccess(req, res, baseUrl, options.authToken)) return
+        if (!authorizeHttpAccess(req, res, baseUrl, publicOrigin, options.authToken)) return
         return serveArtifact(res, artifactStore, decodeURIComponent(u.pathname.slice('/artifacts/'.length)))
       }
       return sendJson(res, 404, { ok: false, error: 'not found' })
@@ -312,9 +319,23 @@ function isLoopbackHost(host: string): boolean {
   return host === '127.0.0.1' || host === 'localhost' || host === '::1'
 }
 
-function authorizeHttpAccess(req: IncomingMessage, res: ServerResponse, baseUrl: string, authToken?: string): boolean {
+function httpOrigin(value: string | undefined, label: string): string | undefined {
+  if (!value) return undefined
+  let parsed: URL
+  try {
+    parsed = new URL(value)
+  } catch {
+    throw new Error(`${label} must be an absolute http(s) URL`)
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new Error(`${label} must be an absolute http(s) URL`)
+  }
+  return parsed.origin
+}
+
+function authorizeHttpAccess(req: IncomingMessage, res: ServerResponse, baseUrl: string, publicOrigin?: string, authToken?: string): boolean {
   const origin = req.headers.origin
-  if (origin && origin !== baseUrl) {
+  if (origin && origin !== baseUrl && origin !== publicOrigin) {
     sendJson(res, 403, { ok: false, error: 'origin not allowed' })
     return false
   }
@@ -325,10 +346,9 @@ function authorizeHttpAccess(req: IncomingMessage, res: ServerResponse, baseUrl:
   return true
 }
 
-function authorizeHttpRpc(req: IncomingMessage, res: ServerResponse, baseUrl: string, authToken?: string): boolean {
-  if (!authorizeHttpAccess(req, res, baseUrl, authToken)) return false
-  const contentType = String(req.headers['content-type'] ?? '').toLowerCase()
-  if (!contentType.startsWith('application/json')) {
+function authorizeHttpRpc(req: IncomingMessage, res: ServerResponse, baseUrl: string, publicOrigin?: string, authToken?: string): boolean {
+  if (!authorizeHttpAccess(req, res, baseUrl, publicOrigin, authToken)) return false
+  if (!isJsonContentType(String(req.headers['content-type'] ?? ''))) {
     sendJson(res, 415, { ok: false, error: 'HTTP MCP JSON-RPC requires content-type application/json' })
     return false
   }
@@ -362,11 +382,12 @@ async function postSseMessage(req: IncomingMessage, res: ServerResponse, session
   const sse = sessions.get(sessionId)
   if (!sse) return sendJson(res, 404, { ok: false, error: 'unknown sessionId' })
   const body = await readRequestBody(req, maxBytes)
+  const exact = preserveExactJsonRpcIds(body)
   let parsed: JsonRpcRequest
-  try { parsed = JSON.parse(body) as JsonRpcRequest } catch { throw new HttpStatusError(400, 'invalid JSON-RPC body') }
+  try { parsed = JSON.parse(exact.body) as JsonRpcRequest } catch { throw new HttpStatusError(400, 'invalid JSON-RPC body') }
   const response = await handleRequest(parsed, context)
   if (response) {
-    sse.write(`event: message\ndata: ${JSON.stringify(response)}\n\n`)
+    sse.write(`event: message\ndata: ${stringifyJsonRpc(response, exact.ids)}\n\n`)
     return sendJson(res, 202, { ok: true })
   }
   res.writeHead(202)
@@ -375,15 +396,16 @@ async function postSseMessage(req: IncomingMessage, res: ServerResponse, session
 
 async function postRpc(req: IncomingMessage, res: ServerResponse, context: McpRequestContext, maxBytes: number): Promise<void> {
   const body = await readRequestBody(req, maxBytes)
+  const exact = preserveExactJsonRpcIds(body)
   let parsed: JsonRpcRequest
-  try { parsed = JSON.parse(body) as JsonRpcRequest } catch { throw new HttpStatusError(400, 'invalid JSON-RPC body') }
+  try { parsed = JSON.parse(exact.body) as JsonRpcRequest } catch { throw new HttpStatusError(400, 'invalid JSON-RPC body') }
   const response = await handleRequest(parsed, context)
   if (response === null) {
     res.writeHead(202)
     res.end()
     return
   }
-  sendJson(res, 200, response)
+  sendJson(res, 200, response, exact.ids)
 }
 
 function serveArtifact(res: ServerResponse, store: ArtifactStore, name: string): void {
@@ -397,22 +419,22 @@ function serveArtifact(res: ServerResponse, store: ArtifactStore, name: string):
   res.end(artifact.bytes)
 }
 
-function sendJson(res: ServerResponse, status: number, payload: unknown): void {
-  const body = JSON.stringify(payload)
+function sendJson(res: ServerResponse, status: number, payload: unknown, exactIds: ExactJsonRpcId[] = []): void {
+  const body = stringifyJsonRpc(payload, exactIds)
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Content-Length': Buffer.byteLength(body) })
   res.end(body)
 }
 
-async function readRequestBody(req: IncomingMessage, maxBytes = MAX_RPC_BODY_BYTES): Promise<string> {
+export async function readRequestBody(req: IncomingMessage, maxBytes = MAX_RPC_BODY_BYTES): Promise<string> {
   const declared = Number(req.headers['content-length'] ?? 0)
   if (Number.isFinite(declared) && declared > maxBytes) throw new HttpStatusError(413, `request body exceeds ${maxBytes} bytes`)
-  let body = ''
+  const chunks: Buffer[] = []
   let bytes = 0
   for await (const chunk of req) {
-    const s = Buffer.isBuffer(chunk) ? chunk.toString('utf8') : String(chunk)
-    bytes += Buffer.byteLength(s)
+    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk))
+    bytes += buffer.byteLength
     if (bytes > maxBytes) throw new HttpStatusError(413, `request body exceeds ${maxBytes} bytes`)
-    body += s
+    chunks.push(buffer)
   }
-  return body
+  return Buffer.concat(chunks).toString('utf8')
 }

@@ -42,8 +42,8 @@ export function parseArchitectureDiagram(lines: string[]): ArchitectureDiagram {
     throw new Error('Empty mermaid diagram')
   }
 
-  if (!/^architecture-beta\s*$/i.test(lines[0]!)) {
-    throw new Error(`Invalid mermaid header: "${lines[0]}". Expected "architecture-beta".`)
+  if (!/^architecture(?:-beta)?\s*$/i.test(lines[0]!)) {
+    throw new Error(`Invalid mermaid header: "${lines[0]}". Expected "architecture" or "architecture-beta".`)
   }
 
   const groups = new Map<string, ArchitectureGroup>()

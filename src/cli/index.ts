@@ -1007,9 +1007,13 @@ Exit codes: 0 ok, 2 arg error, 3 verify-failed, 4 internal.
 
 ## MCP tools
 
-Code Mode \`execute(code)\` (JavaScript in a node:vm sandbox with a typed
-mermaid.* SDK declaration) plus narrow helper tools: render_png and describe.
-render_png is offline.
+Local MCP exposes 4 tools: \`execute\`, \`describe_sdk\`, \`render_png\`, and
+\`describe\`. Hosted MCP exposes 9 tools: \`execute\`, \`describe_sdk\`, \`render_svg\`,
+\`render_ascii\`, \`render_png\`, \`verify\`, \`describe\`, \`mutate\`, and \`build\`.
+\`render_png\` is offline on the local server. Hosted successful deterministic
+results may be reused by a private server-side compute cache for up to 24 hours;
+the HTTP response is always \`cache-control: no-store\` and reports compute reuse
+through \`x-agentic-mermaid-compute-cache\`.
 
 ## Output formats
 
@@ -1168,7 +1172,7 @@ export function runBatchLine(rawLine: string, lineIndex = 0): BatchOutput {
         // #7540: auto-namespace SVG ids per batch line so the rendered
         // diagrams can coexist on one HTML page without def-id collisions.
         const out = asAscii
-          ? renderMermaidASCII(parsed.source)
+          ? renderMermaidASCII(parsed.source, { useAscii: true })
           : renderMermaidSVG(parsed.source, { idPrefix: `d${lineIndex}-` })
         return { ok: true, op, data: asAscii ? { ascii: out } : { svg: out } }
       }

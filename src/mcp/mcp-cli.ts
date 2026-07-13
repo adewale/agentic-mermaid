@@ -7,11 +7,11 @@ Options:
   --host <host>            HTTP/SSE bind host (default 127.0.0.1).
   --port <port>            HTTP/SSE bind port (default 3000, 0 = ephemeral).
   --artifact-dir <dir>     Managed artifact directory for file/url outputs.
-  --public-url <url>       Public URL prefix for managed artifacts.
+  --public-url <url>       Public artifact prefix; its origin is allowed by HTTP/SSE.
   --max-artifact-bytes <n> Max artifact size (default 20MiB).
   --artifact-ttl-ms <n>    Artifact cleanup TTL (default 1h).
   --max-rpc-body-bytes <n> Max HTTP JSON-RPC body size (default 1MiB).
-  --auth-token <token>     Bearer token required for HTTP /rpc and /message.
+  --auth-token <token>     Bearer token required for every non-health HTTP route.
   --max-sandbox-timeout-ms <n> Max execute timeout (default 30000).
 `
 

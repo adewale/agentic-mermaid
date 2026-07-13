@@ -9,6 +9,10 @@ import { createWebsiteWorker } from '../../website/src/worker-core.ts'
 import { CLEAN_PAGE_ROUTES, DYNAMIC_CLEAN_REDIRECT_LINES, staticRedirectLines } from '../../website/src/site-routes.ts'
 import { HOSTED_FONT_FACES, HOSTED_FONT_FILES } from '../font-manifest.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
+import { resolveBuildGitSha } from '../../website/build-provenance.ts'
+import { AI_CATALOG_RESOURCES } from '../../website/agent-resource-inventory.ts'
+import { HOSTED_TOOLS } from '../mcp/hosted-server.ts'
+import { verifyMermaid } from '../agent/verify.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const SITE = join(REPO, 'website', 'public')
@@ -88,6 +92,18 @@ async function websiteWorker(): Promise<{ fetch: (request: Request, env: any) =>
 }
 
 describe('Workers Static Assets website contract', () => {
+  test('build provenance never labels dirty or unverifiable bytes as exact HEAD', () => {
+    const head = '0123456789abcdef'
+    expect(resolveBuildGitSha({ head, status: '' })).toBe(head)
+    expect(resolveBuildGitSha({ head, status: ' M website/build.ts' })).toBe(`${head}-dirty`)
+    expect(resolveBuildGitSha({ head })).toBe(`${head}-unverified`)
+    expect(resolveBuildGitSha({ status: '' })).toBe('development')
+    expect(resolveBuildGitSha({ explicit: head, head, status: '' })).toBe(head)
+    expect(() => resolveBuildGitSha({ explicit: 'release-sha', head, status: '' })).toThrow(/does not match/)
+    expect(() => resolveBuildGitSha({ explicit: head, head, status: ' M file' })).toThrow(/dirty checkout/)
+    expect(() => resolveBuildGitSha({ explicit: head, head })).toThrow(/cleanliness/)
+  })
+
   test('Cloudflare MCP config follows the official agent setup endpoints', () => {
     const expected = {
       cloudflare: 'https://mcp.cloudflare.com/mcp',
@@ -346,8 +362,9 @@ describe('Workers Static Assets website contract', () => {
     const cap = JSON.parse(read('capabilities.json'))
     const sample = cap.warningCodes.find((w: { code: string }) => w.code === 'LABEL_OVERFLOW')
     expect(Boolean(sample)).toBe(true)
-    for (const field of ['what', 'triggers', 'fix'] as const) {
-      expect({ field, filled: typeof sample[field] === 'string' && sample[field].length > 20 }).toEqual({ field, filled: true })
+    for (const warning of cap.warningCodes) for (const field of ['what', 'triggers', 'fix'] as const) {
+      expect({ code: warning.code, field, filled: typeof warning[field] === 'string' && warning[field].length > 20 })
+        .toEqual({ code: warning.code, field, filled: true })
     }
     expect(sample.fix.includes('<code>')).toBe(false)             // Markdown, not page HTML
   })
@@ -940,16 +957,19 @@ describe('Workers Static Assets website contract', () => {
 
   test('focused agent artifacts are generated and stale machine catalogs are absent', () => {
     const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: REPO, encoding: 'utf8' }).trim()
+    const status = execFileSync('git', ['status', '--porcelain=v1', '--untracked-files=normal'], { cwd: REPO, encoding: 'utf8' })
+    const expectedGitSha = resolveBuildGitSha({ head, status })
     for (const rel of ['capabilities.json', 'examples/index.json', '.well-known/mcp.json', '.well-known/mcp/server-card.json', '.well-known/ai-catalog.json']) {
       const json = JSON.parse(read(rel))
       expect({ rel, generatedFrom: Boolean(json.generatedFrom) }).toEqual({ rel, generatedFrom: true })
-      expect({ rel, gitSha: json.generatedFrom.gitSha }).toEqual({ rel, gitSha: head })
+      expect({ rel, gitSha: json.generatedFrom.gitSha }).toEqual({ rel, gitSha: expectedGitSha })
       expect({ rel, buildTime: json.generatedFrom.buildTime }).not.toEqual({ rel, buildTime: 'development' })
       expect(Number.isNaN(Date.parse(json.generatedFrom.buildTime))).toBe(false)
     }
     const deployWorkflow = readRepo('.github/workflows/deploy-cloudflare.yml')
     expect(deployWorkflow).toContain('SITE_GIT_SHA="${{ github.event.workflow_run.head_sha || github.sha }}"')
     expect(deployWorkflow).toContain('SITE_BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)" bun run website')
+    expect(deployWorkflow).not.toContain('SITE_GIT_SHA="$(git rev-parse HEAD)"')
     for (const rel of ['agent-manifest.json', 'harnesses.json', 'recipes/index.json', 'skills/index.json', 'schemas/index.json']) {
       expect({ rel, exists: existsSync(join(SITE, rel)) }).toEqual({ rel, exists: false })
     }
@@ -969,8 +989,14 @@ describe('Workers Static Assets website contract', () => {
     expect(mcpCard.tools.every((tool: any) => tool.parameters && typeof tool.parameters === 'object')).toBe(true)
     expect(read('.well-known/mcp.json')).toContain('"serverUrl": "https://agentic-mermaid.dev/mcp"')
     const aiCatalog = JSON.parse(read('.well-known/ai-catalog.json'))
-    expect(aiCatalog.entries.map((entry: any) => entry.type)).toContain('application/mcp-server-card+json')
-    expect(aiCatalog.entries.map((entry: any) => entry.url)).toContain('https://agentic-mermaid.dev/.well-known/mcp/server-card.json')
+    expect(aiCatalog.entries.map((entry: any) => ({
+      identifier: entry.identifier,
+      type: entry.type,
+      path: new URL(entry.url).pathname,
+    }))).toEqual(AI_CATALOG_RESOURCES)
+    expect(new Set(aiCatalog.entries.map((entry: any) => entry.identifier)).size).toBe(aiCatalog.entries.length)
+    expect(new Set(aiCatalog.entries.map((entry: any) => entry.url)).size).toBe(aiCatalog.entries.length)
+    for (const resource of AI_CATALOG_RESOURCES) expect(existsSync(join(SITE, resource.path.slice(1)))).toBe(true)
     const capabilities = JSON.parse(read('capabilities.json'))
     expect(capabilities.families.map((family: any) => family.id)).toContain('flowchart')
     expect(capabilities.warningCodes.map((warning: any) => warning.tier)).toContain('structural')
@@ -1131,6 +1157,12 @@ describe('Workers Static Assets website contract', () => {
     expect(duplicateEdge).toContain('Minimal reproducer')
     expect(duplicateEdge).toContain('Open this reproducer in the editor')
     expect(duplicateEdge).toContain('open a blank editor')
+    const advertisedWarnings = JSON.parse(read('capabilities.json')).warningCodes as Array<{ code: string; example?: string }>
+    for (const warning of advertisedWarnings.filter(warning => warning.example)) {
+      expect({ code: warning.code, fires: verifyMermaid(warning.example!).warnings.some(actual => actual.code === warning.code) })
+        .toEqual({ code: warning.code, fires: true })
+      expect(read(`warnings/${warning.code}/index.html`)).toContain('Minimal reproducer')
+    }
     const warningsIndex = read('warnings/index.html')
     expect(warningsIndex).toContain('class="tier-badge tier-structural"')
     expect(warningsIndex).toContain('class="sev-badge sev-warning"')
@@ -1175,6 +1207,8 @@ describe('Workers Static Assets website contract', () => {
     expect(text).not.toContain('TODO.md')
     expect(text).not.toContain('skill-evals/')
     expect(text).toContain('/capabilities.json')
+    const hostedLine = text.match(/Hosted MCP endpoint[^\n]+with ([^.]+)\./)?.[1] ?? ''
+    expect(hostedLine.split(/,\s*/)).toEqual(HOSTED_TOOLS.map(tool => tool.name))
   })
 
   test('production CSP forbids inline executable scripts and generated pages externalize them', () => {

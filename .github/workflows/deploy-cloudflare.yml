@@ -51,7 +51,7 @@ jobs:
               echo "### Cloudflare deploy skipped"
               echo ""
               echo 'GitHub Actions is missing `CLOUDFLARE_API_TOKEN` and/or `CLOUDFLARE_ACCOUNT_ID`.'
-              echo 'Add those repository secrets to publish automatically, or deploy manually from the repository root with `SITE_GIT_SHA="$(git rev-parse HEAD)" SITE_BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)" bun run website && cd website && WRANGLER_SEND_METRICS=false npx --yes wrangler@latest deploy`.'
+              echo 'Add those repository secrets to publish automatically, or deploy manually from the repository root with `SITE_BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)" bun run website && cd website && WRANGLER_SEND_METRICS=false npx --yes wrangler@latest deploy`.'
             } >> "$GITHUB_STEP_SUMMARY"
           else
             echo "available=true" >> "$GITHUB_OUTPUT"
@@ -68,7 +68,7 @@ jobs:
           bun-version: 1.3.13
       - name: Install dependencies
         if: steps.cloudflare-secrets.outputs.available == 'true'
-        run: bun install
+        run: bun install --frozen-lockfile
       - name: Build the site bundle
         if: steps.cloudflare-secrets.outputs.available == 'true'
         # Stamp public machine catalogs with both the exact CI-validated commit

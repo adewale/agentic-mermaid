@@ -51,7 +51,8 @@ The three hosted-only pure render/verify tools exist for cost, not philosophy:
 locally, `execute` is free, so Code Mode stays the single entry point
 (`docs/mcp-code-mode-rationale.md` still holds). Hosted, every `execute`
 spins/bills a dynamic Worker, so the common render/verify paths get direct
-tools that cost one ordinary Worker invocation and are edge-cacheable. The
+tools that cost one ordinary Worker invocation and are eligible for the private
+compute cache. The
 `mutate`/`build` tools are the deliberate structured-edit exception: they give
 weak clients a verified op-list path without asking them to write JavaScript,
 while still funneling through the same typed mutation core. The implementations
@@ -75,8 +76,8 @@ Design (API per <https://developers.cloudflare.com/dynamic-workers/api-reference
     `sandbox.ts` makes is decided by the loader itself: the parent starts the
     expression-form isolate first and falls back to a statement-form isolate
     when startup fails with a SyntaxError. Statement-form code costs one
-    failed isolate attempt; identical repeats never reach the loader thanks
-    to the response cache.
+    failed isolate attempt. Execute responses always reach the loader because
+    arbitrary Code Mode results are not deterministic.
   - `globalOutbound: null` — the isolate cannot `fetch()` or `connect()`
     at all; `env` is empty, so there is nothing to reach or leak.
   - `getEntrypoint(null, { limits: { cpuMs: min(timeoutMs, 30_000),
@@ -98,9 +99,10 @@ Known, documented divergences from local `execute`:
    for pure synchronous compute these are close but not identical.
 2. A warm isolate can serve repeated identical code, so module-level global
    mutation (`globalThis.x = ...`) may be visible across calls with the same
-   code — locally every call gets a fresh vm context. Response caching (below)
-   makes identical requests return the first result anyway; the divergence is
-   only reachable when the edge cache misses but the isolate is warm.
+   code — locally every call gets a fresh vm context. The private Workers
+   Cache API compute cache (below) makes identical requests return the first
+   result anyway; the divergence is only reachable on a compute-cache miss
+   while the isolate is warm. The public `/mcp` response itself is `no-store`.
 3. Isolation authority differs: locally the proxy facade is the security
    boundary; hosted, the isolate + `globalOutbound: null` is, and the facade
    is kept for behavioral parity.
@@ -149,7 +151,7 @@ Post-review hardening (external audit, round 2):
 multi-agent verification found no correctness/poisoning bug; these are the
 low-severity refinements it surfaced):**
 
-- The normalization covers **arguments**, not the `source`/`code` payload,
+- Cache keys retain the complete **argument object** and the source payload
   which is keyed **verbatim by design**. Keying on the raw payload is what
   makes a cached response provably correspond to what that exact input
   renders; canonicalizing the payload (e.g. stripping Mermaid comments) is
@@ -159,11 +161,10 @@ low-severity refinements it surfaced):**
   insignificant payload bytes (comments/trailing whitespace). That residual is
   bounded by the **WAF rate limit** (the actual abuse backstop; see
   `website/README.md`), not by the cache.
-- `execute` is cached on `code` alone. Code Mode is intended for deterministic
-  SDK workflows; a non-deterministic body (`Date`/`Math.random`) has its first
-  result frozen for the cache TTL. This is pre-existing — `execute` results
-  were always cached — and inherent to caching arbitrary code; it is not a
-  cross-caller integrity issue (identical `code` → identical key by definition).
+- `execute` is not response-cache eligible. Code Mode exposes `Date` and
+  `Math.random`, so freezing the first result would violate the observable
+  runtime contract. Content-addressed Worker Loader IDs can still reuse a warm
+  isolate without reusing a prior response.
 - The response cache is a **cost optimization for legitimate repeat traffic**,
   not the abuse control. The WAF rate-limiting rule on `POST /mcp` is the
   primary defense against a determined attacker and remains a launch
@@ -232,7 +233,8 @@ target, `userModuleSources` rejection, the log cap).
 ## Transport: stateless Streamable HTTP
 
 Unchanged from the original plan and still the cheapest correct choice — the
-tools are pure functions of their inputs:
+transport is request/response and needs no server session; deterministic pure
+tools are cache eligible, while Code Mode is explicitly not assumed pure:
 
 - Single `POST /mcp` accepting JSON-RPC, responding `application/json`.
   No sessions, no SSE stream, `GET /mcp` → 405, notifications → 202.
@@ -240,7 +242,7 @@ tools are pure functions of their inputs:
 - Protocol version negotiated from a known-good list (the core currently pins
   `2024-11-05`; Streamable HTTP clients offer `2025-03-26`+).
 - **Response caching:** eligible deterministic `tools/call` responses
-  (`execute`, `describe_sdk`, render, verify, and describe) are cached in the
+  (`describe_sdk`, render, verify, and describe) are cached in the
   Workers Cache API keyed on SHA-256 of `(tool, canonicalized arguments)`;
   declarative `mutate`/`build` responses remain uncached. Repeat
   requests skip compute entirely; for `execute` they also skip the dynamic
@@ -256,12 +258,12 @@ tools are pure functions of their inputs:
 
 | Meter | Included | Overage | Our exposure |
 |---|---|---|---|
-| Worker requests | 10 M/month | $0.30/M | every `/mcp` call + one internal request per uncached `execute` |
+| Worker requests | 10 M/month | $0.30/M | every `/mcp` call + one internal request per `execute` |
 | CPU time | 30 M ms/month | $0.02/M ms | renders are ms-scale; `execute` capped at 30 s by `cpuMs` |
-| Unique dynamic Workers | 1,000/month | $0.002/Worker/day | one per **unique** `execute` code string per day (hash-keyed + edge-cached; retries and repeats dedupe) |
+| Unique dynamic Workers | 1,000/month | $0.002/Worker/day | content-addressed by **unique** `execute` code string + wrapper + harness; repeat calls reuse the loader identity but still execute |
 
-Levers that keep this near the plan's $5/month floor: edge caching of
-deterministic responses, code-hash isolate reuse, parent-side rejection of
+Levers that keep this near the plan's $5/month floor: private server-side
+compute caching of deterministic results, code-hash isolate reuse, parent-side rejection of
 unsupported code, `subRequests: 0`, size caps, and the WAF rate limit as the
 abuse backstop. The pure tools keep the high-volume paths (render/verify) off
 the dynamic-Worker meter entirely. No other billable primitives are used.

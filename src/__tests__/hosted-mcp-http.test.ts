@@ -249,6 +249,23 @@ describe('CORS Origin validation', () => {
     expect(executeCalls).toHaveLength(0)
   })
 
+  test('same host with a different or non-HTTP scheme is not same-origin', async () => {
+    const { handler } = makeHandler()
+    for (const origin of ['http://agentic-mermaid.dev', 'ftp://agentic-mermaid.dev']) {
+      const res = await handler(post(rpc('ping'), { origin, host: 'agentic-mermaid.dev' }))
+      expect({ origin, status: res.status, reflected: res.headers.get('access-control-allow-origin') })
+        .toEqual({ origin, status: 403, reflected: null })
+    }
+  })
+
+  test('invalid JSON media-type lookalikes are rejected', async () => {
+    const { handler } = makeHandler()
+    for (const contentType of ['application/jsonp', 'application/json-patch+json', 'application/json garbage']) {
+      const res = await handler(post(rpc('ping'), { 'content-type': contentType }))
+      expect({ contentType, status: res.status }).toEqual({ contentType, status: 415 })
+    }
+  })
+
   test('a disallowed Origin is refused on the OPTIONS preflight too (no ACAO granted)', async () => {
     const { handler } = makeHandler()
     const res = await handler(new Request('https://agentic-mermaid.dev/mcp', { method: 'OPTIONS', headers: { origin: 'https://evil.example' } }))
@@ -266,12 +283,12 @@ describe('CORS Origin validation', () => {
 })
 
 describe('deterministic-response caching', () => {
-  test('identical tools/call requests hit the cache; ids are re-stamped', async () => {
+  test('identical deterministic tools/call requests hit the cache; ids are re-stamped', async () => {
     const cache = makeCache()
     const { handler, executeCalls } = makeHandler({ cache })
-    const first = (await (await handler(post(call('execute', { code: '1 + 1' }, 'first')))).json()) as any
-    const second = (await (await handler(post(call('execute', { code: '1 + 1' }, 'second')))).json()) as any
-    expect(executeCalls).toHaveLength(1)
+    const first = (await (await handler(post(call('describe', { source: FLOW }, 'first')))).json()) as any
+    const second = (await (await handler(post(call('describe', { source: FLOW }, 'second')))).json()) as any
+    expect(executeCalls).toHaveLength(0)
     expect(cache.store.size).toBe(1)
     expect(first.id).toBe('first')
     expect(second.id).toBe('second')
@@ -327,26 +344,28 @@ describe('deterministic-response caching', () => {
   })
 })
 
-describe('cache-key normalization (cost control)', () => {
-  test('unknown arguments cannot bust the cache', async () => {
+describe('cache eligibility and validation isolation', () => {
+  test('execute bypasses the response cache, including with unknown arguments', async () => {
     const cache = makeCache()
     const { handler, executeCalls } = makeHandler({ cache })
     await handler(post(call('execute', { code: '1 + 1', nonce: 'a' })))
     await handler(post(call('execute', { code: '1 + 1', nonce: 'b' })))
     await handler(post(call('execute', { code: '1 + 1' })))
-    expect(executeCalls).toHaveLength(1)
-    expect(cache.store.size).toBe(1)
+    expect(executeCalls).toHaveLength(3)
+    expect(cache.store.size).toBe(0)
   })
 
-  test('a differing timeoutMs does not split the execute cache', async () => {
+  test('execute timeouts cannot be hidden by a warm response cache entry', async () => {
     const cache = makeCache()
     const { handler, executeCalls } = makeHandler({ cache })
     await handler(post(call('execute', { code: '1 + 1', timeoutMs: 1000 })))
-    await handler(post(call('execute', { code: '1 + 1', timeoutMs: 30000 })))
+    const invalid = await handler(post(call('execute', { code: '1 + 1', timeoutMs: 0 })))
     expect(executeCalls).toHaveLength(1)
+    expect(cache.store.size).toBe(0)
+    expect(((await invalid.json()) as any).error).toEqual(expect.objectContaining({ code: -32602 }))
   })
 
-  test('out-of-range scale values that clamp to the same effective scale share one entry', async () => {
+  test('distinct raw scale inputs cannot share a pre-dispatch cache entry', async () => {
     const cache = makeCache()
     const pngCalls: number[] = []
     const { handler } = makeHandler({
@@ -355,8 +374,8 @@ describe('cache-key normalization (cost control)', () => {
     })
     await handler(post(call('render_png', { source: FLOW, scale: 100 })))
     await handler(post(call('render_png', { source: FLOW, scale: 999 })))
-    expect(pngCalls).toEqual([8]) // both clamp to 8; second is a cache hit
-    expect(cache.store.size).toBe(1)
+    expect(pngCalls).toEqual([8, 8])
+    expect(cache.store.size).toBe(2)
   })
 
   test('semantically distinct calls still get distinct entries', async () => {
@@ -405,8 +424,8 @@ describe('wide-event canonical log lines', () => {
     expect(Number.isNaN(Date.parse(first.timestamp))).toBe(false)
     expect(first.body_bytes).toBeGreaterThan(0)
     expect(first.duration_ms).toBeGreaterThanOrEqual(0)
-    expect(first.items).toEqual([expect.objectContaining({ tool: 'verify', is_error: false, error_code: null, cache_hit: false })])
-    expect(second.items).toEqual([expect.objectContaining({ tool: 'verify', is_error: false, cache_hit: true })])
+    expect(first.items).toEqual([expect.objectContaining({ tool: 'verify', is_error: false, error_code: null, cache_eligible: true, cache_hit: false })])
+    expect(second.items).toEqual([expect.objectContaining({ tool: 'verify', is_error: false, cache_eligible: true, cache_hit: true })])
   })
 
   test('events carry sizes and codes, never the diagram payload', async () => {
@@ -423,7 +442,7 @@ describe('wide-event canonical log lines', () => {
     await handler(post(call('execute', { code, timeoutMs: 1234 })))
     expect(events).toHaveLength(1)
     expect(events[0]!.items).toEqual([expect.objectContaining({
-      tool: 'execute', cache_hit: false, loader_attempts: 1, configured_cpu_limit_ms: 1234,
+      tool: 'execute', cache_eligible: false, cache_hit: false, loader_attempts: 1, configured_cpu_limit_ms: 1234,
     })])
     expect(JSON.stringify(events)).not.toContain(code)
   })

@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createArtifactStore } from '../mcp/artifacts.ts'
-import { handleRequest, startHttpServer, type HttpMcpOptions, type HttpMcpServer } from '../mcp/server.ts'
+import { handleRequest, readRequestBody, startHttpServer, type HttpMcpServer } from '../mcp/server.ts'
 
 const PNG_MAGIC = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
 const textDecoder = new TextDecoder()
@@ -27,23 +27,21 @@ function parseToolPayload(r: Awaited<ReturnType<typeof handleRequest>>): any {
   return JSON.parse(result.content[0]!.text)
 }
 
-function isLocalSocketUnavailable(error: unknown): boolean {
-  const e = error as { code?: string; message?: string } | undefined
-  if (!e) return false
-  if (e.code === 'EPERM' || e.code === 'EACCES') return true
-  return e.code === 'EADDRINUSE' && /port 0|start server|listen/i.test(e.message ?? '')
-}
-
-async function startHttpServerIfAvailable(options: HttpMcpOptions): Promise<HttpMcpServer | null> {
-  try {
-    return await startHttpServer(options)
-  } catch (error) {
-    if (isLocalSocketUnavailable(error)) return null
-    throw error
-  }
-}
-
 describe('MCP HTTP/SSE transport and managed artifacts', () => {
+  test('request body decoding preserves UTF-8 split across transport chunks', async () => {
+    const raw = Buffer.from('{"source":"東🚀"}', 'utf8')
+    const splitAt = raw.indexOf(Buffer.from('東')[0]!) + 1
+    const request = {
+      headers: {},
+      async *[Symbol.asyncIterator]() {
+        yield raw.subarray(0, splitAt)
+        yield raw.subarray(splitAt, splitAt + 2)
+        yield raw.subarray(splitAt + 2)
+      },
+    }
+    expect(await readRequestBody(request as any)).toBe('{"source":"東🚀"}')
+  })
+
   test('render_png can write a managed file artifact', async () => {
     const store = createArtifactStore({ dir: tempDir() })
     const r = await handleRequest({
@@ -60,8 +58,7 @@ describe('MCP HTTP/SSE transport and managed artifacts', () => {
   })
 
   test('url artifacts are served back with PNG bytes', async () => {
-    const started = await startHttpServerIfAvailable({ port: 0, artifactDir: tempDir() })
-    if (!started) return
+    const started = await startHttpServer({ port: 0, artifactDir: tempDir() })
     servers.push(started)
     const rpc = await fetch(`${started.url}/rpc`, {
       method: 'POST',
@@ -100,8 +97,7 @@ describe('MCP HTTP/SSE transport and managed artifacts', () => {
   })
 
   test('HTTP RPC requires JSON content-type and bounds request bodies', async () => {
-    const startedForType = await startHttpServerIfAvailable({ port: 0, artifactDir: tempDir() })
-    if (!startedForType) return
+    const startedForType = await startHttpServer({ port: 0, artifactDir: tempDir() })
     servers.push(startedForType)
     const plain = await fetch(`${startedForType.url}/rpc`, {
       method: 'POST',
@@ -109,6 +105,13 @@ describe('MCP HTTP/SSE transport and managed artifacts', () => {
       body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'ping' }),
     })
     expect(plain.status).toBe(415)
+    for (const contentType of ['application/jsonp', 'application/json-patch+json', 'application/json garbage']) {
+      const invalid = await fetch(`${startedForType.url}/rpc`, {
+        method: 'POST', headers: { 'content-type': contentType },
+        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'ping' }),
+      })
+      expect({ contentType, status: invalid.status }).toEqual({ contentType, status: 415 })
+    }
 
     const notification = await fetch(`${startedForType.url}/rpc`, {
       method: 'POST',
@@ -121,8 +124,7 @@ describe('MCP HTTP/SSE transport and managed artifacts', () => {
     await startedForType.close()
     servers = servers.filter(s => s !== startedForType)
 
-    const started = await startHttpServerIfAvailable({ port: 0, artifactDir: tempDir(), maxRpcBodyBytes: 32 })
-    if (!started) return
+    const started = await startHttpServer({ port: 0, artifactDir: tempDir(), maxRpcBodyBytes: 32 })
     servers.push(started)
     const huge = 'x'.repeat(33)
     const res = await fetch(`${started.url}/rpc`, {
@@ -133,10 +135,21 @@ describe('MCP HTTP/SSE transport and managed artifacts', () => {
     expect(res.status).toBe(413)
   })
 
+  test('local HTTP preserves exact numeric JSON-RPC ids in every JSON number form', async () => {
+    const started = await startHttpServer({ port: 0, artifactDir: tempDir() })
+    servers.push(started)
+    for (const id of ['-0', '9007199254740993', '9007199254740993.0', '9007199254740993e0', '9.007199254740993e15']) {
+      const response = await fetch(`${started.url}/rpc`, {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: `{"jsonrpc":"2.0","id":${id},"method":"ping"}`,
+      })
+      expect(await response.text()).toContain(`"id":${id}`)
+    }
+  })
+
   test('remote HTTP bind requires a bearer auth token', async () => {
     await expect(startHttpServer({ host: '0.0.0.0', port: 0, artifactDir: tempDir() })).rejects.toThrow(/auth-token/)
-    const started = await startHttpServerIfAvailable({ host: '0.0.0.0', port: 0, artifactDir: tempDir(), authToken: 'secret' })
-    if (!started) return
+    const started = await startHttpServer({ host: '0.0.0.0', port: 0, artifactDir: tempDir(), authToken: 'secret' })
     servers.push(started)
     const unauthorized = await fetch(`${started.url}/rpc`, {
       method: 'POST',
@@ -176,9 +189,42 @@ describe('MCP HTTP/SSE transport and managed artifacts', () => {
     controller.abort()
   })
 
+  test('configured public origin can fetch artifacts and open SSE', async () => {
+    const publicUrl = 'https://proxy.example/artifacts'
+    const started = await startHttpServer({
+      port: 0,
+      artifactDir: tempDir(),
+      publicUrl,
+    })
+    servers.push(started)
+
+    const record = started.artifactStore.write(Buffer.from(PNG_MAGIC), {
+      extension: '.png',
+      mimeType: 'image/png',
+    })
+    expect(record.url).toBe(`${publicUrl}/${record.name}`)
+
+    const artifact = await fetch(`${started.url}/artifacts/${record.name}`, {
+      headers: { origin: 'https://proxy.example' },
+    })
+    expect(artifact.status).toBe(200)
+    expect(new Uint8Array(await artifact.arrayBuffer())).toEqual(new Uint8Array(PNG_MAGIC))
+
+    const controller = new AbortController()
+    const sse = await fetch(`${started.url}/sse`, {
+      headers: { origin: 'https://proxy.example' },
+      signal: controller.signal,
+    })
+    expect(sse.status).toBe(200)
+    const reader = sse.body!.getReader()
+    const first = textDecoder.decode((await reader.read()).value)
+    expect(first).toContain('data: https://proxy.example/message?sessionId=')
+    await reader.cancel()
+    controller.abort()
+  })
+
   test('SSE sessions are bounded', async () => {
-    const started = await startHttpServerIfAvailable({ port: 0, artifactDir: tempDir(), maxSseSessions: 1 })
-    if (!started) return
+    const started = await startHttpServer({ port: 0, artifactDir: tempDir(), maxSseSessions: 1 })
     servers.push(started)
     const firstController = new AbortController()
     const first = await fetch(`${started.url}/sse`, { signal: firstController.signal })
@@ -196,8 +242,7 @@ describe('MCP HTTP/SSE transport and managed artifacts', () => {
   })
 
   test('SSE endpoint dispatches JSON-RPC responses and closes sessions', async () => {
-    const started = await startHttpServerIfAvailable({ port: 0, artifactDir: tempDir() })
-    if (!started) return
+    const started = await startHttpServer({ port: 0, artifactDir: tempDir() })
     servers.push(started)
     const controller = new AbortController()
     const sse = await fetch(`${started.url}/sse`, { signal: controller.signal })

@@ -25,7 +25,7 @@ export interface McpServerSurface<Context> {
 // The LOCAL stdio/HTTP server identity. The hosted transport reports its own
 // name (HOSTED_MCP_SERVER_NAME in hosted-server.ts): registries and clients
 // cache tool lists by server identity, and the two surfaces expose different
-// tools (3 local vs 8 hosted), so they must not share one.
+// tool sets, so they must not share one.
 export const MCP_SERVER_NAME = 'agentic-mermaid-mcp'
 // Derived from package.json so every MCP handshake reports the same package
 // version as the published npm artifact.
@@ -51,6 +51,13 @@ const MANAGED_ARTIFACT_ANNOTATIONS = {
   idempotentHint: false,
   openWorldHint: false,
 } as const
+
+export const EXECUTE_TIMEOUT_ERROR = 'execute timeoutMs must be a positive integer'
+
+/** One validation contract shared by hosted and local Code Mode. */
+export function isValidExecuteTimeout(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value > 0
+}
 
 export async function dispatchMcpRequest<Context>(req: JsonRpcRequest, context: Context, surface: McpServerSurface<Context>): Promise<JsonRpcResponse | null> {
   const raw = req as unknown as Record<string, unknown> | null
@@ -115,7 +122,7 @@ ${options.sdkDeclaration}`,
       type: 'object',
       properties: {
         code: { type: 'string', description: 'JavaScript to execute; mermaid.* SDK is global.' },
-        timeoutMs: { type: 'number', description: timeoutDescription },
+        timeoutMs: { type: 'integer', minimum: 1, description: timeoutDescription },
       },
       required: ['code'],
     },

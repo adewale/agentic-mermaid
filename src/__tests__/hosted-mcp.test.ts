@@ -343,12 +343,13 @@ describe('hosted execute', () => {
     expect(ctx.executeCalls).toEqual([{ code: '1 + 1', timeoutMs: 5000 }])
   })
 
-  test('clamps the requested timeout into [1, 30000]', async () => {
+  test('caps positive timeouts and rejects nonpositive budgets', async () => {
     const ctx = makeContext()
     await handleHostedRequest(call('execute', { code: '1', timeoutMs: 90_000 }), ctx)
-    await handleHostedRequest(call('execute', { code: '1', timeoutMs: 0 }), ctx)
+    const invalid = await handleHostedRequest(call('execute', { code: '1', timeoutMs: 0 }), ctx)
     await handleHostedRequest(call('execute', { code: '1', timeoutMs: 250 }), ctx)
-    expect(ctx.executeCalls.map(c => c.timeoutMs)).toEqual([30_000, 1, 250])
+    expect(ctx.executeCalls.map(c => c.timeoutMs)).toEqual([30_000, 250])
+    expect(invalid?.error).toEqual(expect.objectContaining({ code: -32602 }))
   })
 
   test('screens sync-only violations before any isolate is involved', async () => {
@@ -470,34 +471,33 @@ describe('hosted render_png', () => {
   })
 })
 
-describe('cacheKeyFor (normalized, output-affecting arguments)', () => {
-  test('normalizes describe_sdk defaults and rejects invalid discovery requests', () => {
+describe('cacheKeyFor (validation-safe deterministic arguments)', () => {
+  test('keeps describe_sdk arguments validation-safe and rejects invalid discovery requests', () => {
     expect(cacheKeyFor('describe_sdk', { family: 'gantt' }))
-      .toEqual(cacheKeyFor('describe_sdk', { family: 'gantt', detail: 'fields', ignored: true }))
+      .not.toEqual(cacheKeyFor('describe_sdk', { family: 'gantt', detail: 'fields', ignored: true }))
+    expect(cacheKeyFor('describe_sdk', { family: 'gantt' }))
+      .not.toEqual(cacheKeyFor('describe_sdk', { family: 'gantt', detail: 'fields' }))
     expect(cacheKeyFor('describe_sdk', { family: 'gantt', detail: 'signatures' }))
       .not.toEqual(cacheKeyFor('describe_sdk', { family: 'gantt', detail: 'fields' }))
     expect(cacheKeyFor('describe_sdk', { family: 'unknown' })).toBeNull()
     expect(cacheKeyFor('describe_sdk', { family: 'gantt', detail: 'unknown' })).toBeNull()
   })
 
-  test('drops unknown keys so junk arguments map to the same key', () => {
+  test('retains unknown keys so pre-dispatch cache lookup cannot bypass validation', () => {
     expect(cacheKeyFor('describe', { source: FLOW, nonce: 'x', foo: 1 }))
-      .toEqual(cacheKeyFor('describe', { source: FLOW }))
+      .not.toEqual(cacheKeyFor('describe', { source: FLOW }))
   })
 
-  test('execute keys on code only — timeoutMs does not participate', () => {
-    expect(cacheKeyFor('execute', { code: '1 + 1', timeoutMs: 100 }))
-      .toEqual(cacheKeyFor('execute', { code: '1 + 1', timeoutMs: 30000 }))
-    expect(cacheKeyFor('execute', { code: '1 + 1' }))
-      .not.toEqual(cacheKeyFor('execute', { code: '2 + 2' }))
+  test('execute is never response-cached because it exposes time and randomness', () => {
+    expect(cacheKeyFor('execute', { code: '1 + 1', timeoutMs: 100 })).toBeNull()
+    expect(cacheKeyFor('execute', { code: 'Date.now()' })).toBeNull()
   })
 
-  test('render_png clamps scale into the key so out-of-range values collapse', () => {
+  test('render_png keeps raw scale values distinct before dispatch normalization', () => {
     expect(cacheKeyFor('render_png', { source: FLOW, scale: 100 }))
-      .toEqual(cacheKeyFor('render_png', { source: FLOW, scale: 999 }))
+      .not.toEqual(cacheKeyFor('render_png', { source: FLOW, scale: 999 }))
     expect(cacheKeyFor('render_png', { source: FLOW, scale: 100 }))
-      .toEqual(cacheKeyFor('render_png', { source: FLOW, scale: 8 }))
-    // a non-clamped in-range scale stays distinct
+      .not.toEqual(cacheKeyFor('render_png', { source: FLOW, scale: 8 }))
     expect(cacheKeyFor('render_png', { source: FLOW, scale: 2 }))
       .not.toEqual(cacheKeyFor('render_png', { source: FLOW, scale: 4 }))
   })
@@ -509,29 +509,21 @@ describe('cacheKeyFor (normalized, output-affecting arguments)', () => {
       .not.toEqual(cacheKeyFor('render_png', { source: 'flowchart TD\n  X --> Y' }))
   })
 
-  test('render_png omitted scale and explicit default scale collapse to one entry', () => {
-    // both render at scale 2 (png-wasm applies `?? 2`), so they must share a key
-    const absent = cacheKeyFor('render_png', { source: FLOW }) as Record<string, unknown>
-    expect(absent.scale).toBe(2)
-    expect(absent).toEqual(cacheKeyFor('render_png', { source: FLOW, scale: 2 }) as Record<string, unknown>)
-    // a non-numeric scale also resolves to the default 2
-    expect(cacheKeyFor('render_png', { source: FLOW, scale: 'big' }) as Record<string, unknown>)
-      .toEqual(cacheKeyFor('render_png', { source: FLOW, scale: 2 }) as Record<string, unknown>)
+  test('render_png omitted, explicit, and invalid scales cannot share a pre-validation entry', () => {
+    expect(cacheKeyFor('render_png', { source: FLOW }))
+      .not.toEqual(cacheKeyFor('render_png', { source: FLOW, scale: 2 }))
+    expect(cacheKeyFor('render_png', { source: FLOW, scale: 'big' }))
+      .not.toEqual(cacheKeyFor('render_png', { source: FLOW, scale: 2 }))
   })
 
-  test('the source/code payload is keyed verbatim (comment junk is NOT normalized)', () => {
-    // Documented scope limit: argument junk collapses, but insignificant source
-    // bytes do not — keying on raw source keeps a cached result provably correct
-    // for that exact input. The rate limit, not the cache, bounds this.
+  test('the source payload is keyed verbatim (comment junk is NOT normalized)', () => {
     expect(cacheKeyFor('render_svg', { source: 'flowchart LR\n  A --> B' }))
       .not.toEqual(cacheKeyFor('render_svg', { source: 'flowchart LR\n  A --> B\n%% c' }))
-    expect(cacheKeyFor('execute', { code: '1 + 1' }))
-      .not.toEqual(cacheKeyFor('execute', { code: '1 + 1 ' }))
   })
 
-  test('render_svg keeps only known theme/bg/fg inputs', () => {
+  test('render_svg retains the complete argument object', () => {
     expect(cacheKeyFor('render_svg', { source: FLOW, bg: '#000', junk: 1 }))
-      .toEqual({ t: 'render_svg', source: FLOW, bg: '#000' })
+      .toEqual({ t: 'render_svg', args: { source: FLOW, bg: '#000', junk: 1 } })
     expect(cacheKeyFor('render_svg', { source: FLOW, theme: 'a' }))
       .not.toEqual(cacheKeyFor('render_svg', { source: FLOW, theme: 'b' }))
   })
@@ -558,7 +550,7 @@ describe('cacheKeyFor (normalized, output-affecting arguments)', () => {
   })
 
   test('describe format participates in the cache key', () => {
-    expect(cacheKeyFor('describe', { source: FLOW })).toEqual(cacheKeyFor('describe', { source: FLOW, format: 'text' }))
+    expect(cacheKeyFor('describe', { source: FLOW })).not.toEqual(cacheKeyFor('describe', { source: FLOW, format: 'text' }))
     expect(cacheKeyFor('describe', { source: FLOW, format: 'facts' })).not.toEqual(cacheKeyFor('describe', { source: FLOW, format: 'json' }))
     expect(cacheKeyFor('describe', { source: FLOW, format: 'bad' })).toBeNull()
   })

@@ -109,14 +109,17 @@ interface StateBody { kind: 'state'; states: StateNode[]; transitions: StateTran
 type SeqParticipantKind = 'participant' | 'actor' | 'boundary' | 'control' | 'entity' | 'database' | 'collections' | 'queue'
 interface SeqParticipant { id: string; label: string; kind: SeqParticipantKind; declaration?: 'participant' | 'actor'; links?: Record<string, string> }
 interface SeqMessage { from: string; to: string; text: string; style: string; arrow?: string; centralStart?: boolean; centralEnd?: boolean; activate?: boolean; deactivate?: boolean }
+type SeqFragmentKind = 'alt' | 'opt' | 'loop' | 'par'
+interface SeqFragmentBranch { label?: string; messages: SeqMessage[] }
+interface SeqFragment { fragmentKind: SeqFragmentKind; label?: string; branches: SeqFragmentBranch[]; rawLines?: string[] }
 // BUILD-18: ordered statement list. participant/message refs index into the
-// participants/messages arrays; opaque-block carries unmodeled lines verbatim.
-// Mutation ops only see top-level messages — messages inside an opaque block are
-// never touched.
+// participants/messages arrays; direct-message common fragments are typed;
+// opaque-block carries all remaining unmodeled lines verbatim.
 type SequenceStatement =
   | { kind: 'participant'; ref: number }
   | { kind: 'message'; ref: number }
   | { kind: 'actor-links'; actorId: string; links: Record<string, string> }
+  | { kind: 'fragment'; fragment: SeqFragment }
   | { kind: 'opaque-block'; lines: string[] }
 interface SequenceBody { kind: 'sequence'; participants: SeqParticipant[]; messages: SeqMessage[]; statements?: SequenceStatement[] }
 
@@ -245,6 +248,14 @@ type SequenceMutationOp =
   | { kind: 'set_message_text'; index: number; text: string }
   | { kind: 'move_message'; from: number; to: number }   // top-level indices
   | { kind: 'set_participant_label'; id: string; label: string }
+  | { kind: 'add_fragment'; fragmentKind: SeqFragmentKind; label?: string; index?: number }
+  | { kind: 'remove_fragment'; index: number }
+  | { kind: 'set_fragment_label'; index: number; label: string | null }
+  | { kind: 'add_fragment_branch'; fragmentIndex: number; label?: string }
+  | { kind: 'set_fragment_branch_label'; fragmentIndex: number; branchIndex: number; label: string | null }
+  | { kind: 'add_fragment_message'; fragmentIndex: number; branchIndex?: number; from: string; to: string; text: string; style?: 'sync' | 'reply' | 'async' | 'async-dashed' | 'lost' | 'lost-dashed'; index?: number }
+  | { kind: 'remove_fragment_message'; fragmentIndex: number; branchIndex?: number; index: number }
+  | { kind: 'set_fragment_message_text'; fragmentIndex: number; branchIndex?: number; index: number; text: string }
 
 type TimelineMutationOp =
   | { kind: 'set_title'; title: string | null }

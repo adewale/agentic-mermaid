@@ -364,8 +364,12 @@ export function mutateEr(body: ErBody, op: ErMutationOp): Result<ErBody, Mutatio
       }
       const label = normalizeErEntityLabel(op.label, 'label')
       if (!label.ok) return label
+      // Materialize the ordering list before adding the entity. Calling this
+      // after the push would synthesize a statement for the new entity and
+      // then append the same statement a second time.
+      const statements = ensureErStatements(b)
       b.entities.push({ id: op.id, ...(label.value !== undefined ? { label: label.value } : {}), attributes: attributes.map(text => ({ text })) })
-      ensureErStatements(b).push({ kind: 'entity', id: op.id })
+      statements.push({ kind: 'entity', id: op.id })
       return ok(b)
     }
     case 'remove_entity': {

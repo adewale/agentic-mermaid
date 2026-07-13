@@ -272,12 +272,13 @@ function applyFlowchartEdgeMetadata(graph: MermaidGraph, line: string): void {
   }
 }
 
-function isUnsupportedEdgeMetadataLine(line: string): boolean {
-  const match = line.trim().match(/^[\w-]+@\s*\{([\s\S]*)\}\s*$/)
+function isEdgeMetadataLine(graph: MermaidGraph, line: string): boolean {
+  const match = line.trim().match(/^([\w-]+)@\s*\{([\s\S]*)\}\s*$/)
   if (!match) return false
+  if (graph.edges.some(edge => edge.id === match[1])) return true
   // Node metadata is modeled (documented shapes) or label-preserved; edge
   // metadata has animate/curve semantics only Mermaid itself understands.
-  const entries = parseMetadataEntries(match[1]!)
+  const entries = parseMetadataEntries(match[2]!)
   return !entries.has('shape') && !entries.has('label') && !entries.has('icon') && !entries.has('img')
 }
 
@@ -315,7 +316,7 @@ function parseFlowchart(lines: string[]): MermaidGraph {
         applyFlowchartInteraction(graph, line)
         continue
       }
-      if (isUnsupportedEdgeMetadataLine(line)) {
+      if (isEdgeMetadataLine(graph, line)) {
         applyFlowchartEdgeMetadata(graph, line)
         continue
       }

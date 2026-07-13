@@ -71,6 +71,7 @@ const NODE_SHAPES: readonly NodeShape[] = [
 const EDGE_STYLES: readonly EdgeStyle[] = ['solid', 'dotted', 'thick', 'invisible']
 const SEQUENCE_MESSAGE_STYLES: readonly SequenceMessageStyle[] = ['sync', 'reply', 'async', 'async-dashed', 'lost', 'lost-dashed']
 const PARTICIPANT_KINDS = ['participant', 'actor'] as const
+const SEQUENCE_FRAGMENT_KINDS = ['alt', 'opt', 'loop', 'par'] as const
 const CLASS_REL_KINDS: readonly ClassRelationKind[] = ['inheritance', 'composition', 'aggregation', 'association', 'dependency', 'realization', 'link-solid', 'link-dashed']
 const ER_CARDINALITIES: readonly ErCardinality[] = ['one-only', 'zero-or-one', 'zero-or-many', 'one-or-many']
 const ARCH_SIDES: readonly ArchitectureSide[] = ['L', 'R', 'T', 'B']
@@ -155,6 +156,14 @@ const SEQUENCE_SCHEMA: Record<string, OpSpec> = {
   set_message_text: { fields: { index: num(), text: str() } },
   move_message:     { fields: { from: withNote(num(), 'top-level message index'), to: withNote(num(), 'top-level target position') } },
   set_participant_label: { fields: { id: str(), label: str() } },
+  add_fragment:     { fields: { fragmentKind: oneOf(SEQUENCE_FRAGMENT_KINDS), label: str(false), index: withNote(num(false), 'fragment insert position; default: append') } },
+  remove_fragment:  { fields: { index: num() } },
+  set_fragment_label: { fields: { index: num(), label: strOrNull() } },
+  add_fragment_branch: { fields: { fragmentIndex: num(), label: str(false) } },
+  set_fragment_branch_label: { fields: { fragmentIndex: num(), branchIndex: num(), label: strOrNull() } },
+  add_fragment_message: { fields: { fragmentIndex: num(), branchIndex: withNote(num(false), 'default: 0'), from: str(), to: str(), text: str(), style: withNote(oneOf(SEQUENCE_MESSAGE_STYLES, false), 'default: sync'), index: withNote(num(false), 'message insert position; default: append') } },
+  remove_fragment_message: { fields: { fragmentIndex: num(), branchIndex: withNote(num(false), 'default: 0'), index: num() } },
+  set_fragment_message_text: { fields: { fragmentIndex: num(), branchIndex: withNote(num(false), 'default: 0'), index: num(), text: str() } },
 }
 
 const TIMELINE_SCHEMA: Record<string, OpSpec> = {

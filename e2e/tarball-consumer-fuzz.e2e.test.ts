@@ -56,6 +56,7 @@ const tag = (fn: () => string): string => { try { return sha(String(fn())) } cat
 const refLayout = (src: string) => tag(() => JSON.stringify(verifyMermaid(src).layout ?? null))
 const refSvg = (src: string) => tag(() => renderMermaidSVG(src))
 const refAscii = (src: string) => tag(() => renderMermaidASCII(src))
+const refAscii7Bit = (src: string) => tag(() => renderMermaidASCII(src, { useAscii: true }))
 
 // ---------------------------------------------------------------------------
 // Generators.
@@ -256,7 +257,7 @@ describe('installed tarball — am bin', () => {
         // can't let the differential pass vacuously.
         expect(res.ok).toBe(true)
         expect(typeof res.data?.ascii).toBe('string')
-        if (sha(res.data!.ascii!) !== refAscii(asciiAt.get(i)!)) mismatches.push({ i, src: asciiAt.get(i) })
+        if (sha(res.data!.ascii!) !== refAscii7Bit(asciiAt.get(i)!)) mismatches.push({ i, src: asciiAt.get(i) })
       }
     })
     expect(mismatches).toEqual([])
@@ -345,6 +346,19 @@ describe('installed tarball — mcp bin', () => {
         ascii: renderMermaidASCII(fixture.source),
       })
     })
+  }, RUN_TIMEOUT_MS)
+
+  fn('stdio preserves unsafe numeric JSON-RPC id tokens exactly', () => {
+    expect(haveConsumer).toBe(true)
+    const ids = ['9007199254740993', '9007199254740993.0', '9.007199254740993e15']
+    const input = ids.map(id => `{"jsonrpc":"2.0","id":${id},"method":"ping"}`).join('\n') + '\n'
+    const r = spawnSync(NODE!, [mcpBin], {
+      cwd: work, input, encoding: 'utf8', timeout: RUN_TIMEOUT_MS,
+    })
+    expect({ status: r.status, stderr: r.stderr }).toEqual({ status: 0, stderr: '' })
+    const output = r.stdout.split('\n').filter(Boolean)
+    expect(output).toHaveLength(ids.length)
+    for (const id of ids) expect(output.some(line => line.includes(`"id":${id}`))).toBe(true)
   }, RUN_TIMEOUT_MS)
 
   fn('generated JSON-RPC over stdio yields well-formed responses and never crashes', () => {

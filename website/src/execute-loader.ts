@@ -6,8 +6,8 @@
 // expression wrap parse?" is answered by attempting to start the
 // expression-form isolate — a SyntaxError startup failure falls back to a
 // statement-form isolate. Statement-form code therefore costs one failed
-// isolate attempt; identical repeat requests are absorbed by the /mcp
-// response cache before reaching the loader at all.
+// isolate attempt. Execute responses deliberately bypass the /mcp compute
+// cache because Code Mode exposes time and randomness.
 //
 // Isolates are keyed by wrap variant + a hash of the code + a hash of the
 // harness itself: the Worker Loader contract is that one ID always maps to
@@ -45,8 +45,8 @@ async function sha256Hex(text: string): Promise<string> {
 
 /**
  * Identifies the deployed compute: package version + harness-content hash.
- * Used in isolate IDs and as the /mcp response-cache version so both
- * invalidate when the harness/SDK changes without a version bump.
+ * Used in isolate IDs so warm Dynamic Workers invalidate when the harness/SDK
+ * changes without a version bump.
  */
 export async function deployTag(harnessSource: string): Promise<string> {
   return `v${pkg.version}-${(await sha256Hex(harnessSource)).slice(0, 16)}`
@@ -82,6 +82,7 @@ function isSyntaxStartupFailure(message: string): boolean {
     || /\bUnexpected token\b/i.test(message)
     || /\bInvalid or unexpected token\b/i.test(message)
     || /\bUnexpected end of input\b/i.test(message)
+    || /\bUnexpected strict mode reserved word\b/i.test(message)
 }
 
 // Extra wall-clock margin over the isolate's cpuMs budget before the parent
@@ -162,16 +163,19 @@ export function createLoaderExecute(loader: WorkerLoaderBinding, harnessSource: 
 }
 
 function failure(message: string, timeoutMs: number): ExecuteResult {
+  const lines = message.split('\n')
+  const primary = lines.find(line => isSyntaxStartupFailure(line)) ?? lines[0]!
+  const clean = primary.replace(/^Uncaught\s+/, '').replace(/\b(?:user|harness)\.js:\d+(?::\d+)?\b/g, '<sandbox>')
   // The loader surfaces a cpuMs overrun as a thrown exception on the call.
-  if (/cpu|exceeded|limit/i.test(message) && !/SyntaxError/i.test(message)) {
+  if (/cpu|exceeded|limit/i.test(clean) && !/SyntaxError/i.test(clean)) {
     return { ok: false, error: `Script execution exceeded its ${timeoutMs}ms CPU budget`, logs: [] }
   }
   // Strip workerd's startup preamble so syntax errors read like the sandbox's.
   // Production Worker Loader sometimes omits the `SyntaxError:` prefix and
   // throws the parser message directly, e.g. `Unexpected token 'const'`.
-  if (isSyntaxStartupFailure(message)) {
-    const syntax = message.match(/SyntaxError:\s*(.*)/)
-    return { ok: false, error: (syntax?.[1] ?? message).split('\n')[0]!, logs: [] }
+  if (isSyntaxStartupFailure(clean)) {
+    const syntax = clean.match(/SyntaxError:\s*(.*)/)
+    return { ok: false, error: syntax?.[1] ?? clean, logs: [] }
   }
-  return { ok: false, error: `sandbox error: ${message}`, logs: [] }
+  return { ok: false, error: `sandbox error: ${clean}`, logs: [] }
 }

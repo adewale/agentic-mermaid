@@ -54,8 +54,8 @@ export function parseQuadrantChart(lines: string[]): QuadrantChart {
   }
 
   const header = lines[0]!.trim()
-  if (!/^quadrantChart\b\s*$/i.test(header)) {
-    throw new Error(`Quadrant chart must start with "quadrantChart", got: "${header}"`)
+  if (!/^quadrant(?:Chart)?\b\s*$/i.test(header)) {
+    throw new Error(`Quadrant chart must start with "quadrant" or "quadrantChart", got: "${header}"`)
   }
 
   let title: string | undefined

@@ -15,6 +15,7 @@ import type {
   QuadrantBody, SequenceBody, StateBody, TimelineBody, XyChartBody,
   MindmapBody, GitGraphBody,
 } from './types.ts'
+import { sequenceMessageContexts } from './sequence-body.ts'
 
 export type MermaidFact = string
 
@@ -167,10 +168,20 @@ function factsSequence(out: string[], body: SequenceBody): void {
     add(out, `${p.kind} ${clean(p.id)} : ${clean(p.label || p.id)}`)
     add(out, `participant#${i} ${clean(p.id)} : ${clean(p.label || p.id)}`)
   })
-  body.messages.forEach((m, i) => {
+  sequenceMessageContexts(body).forEach((context, i) => {
+    const m = context.message
     add(out, `message ${clean(m.from)} -> ${clean(m.to)} : ${clean(m.text)}`)
-    add(out, `message#${i} ${clean(m.from)} -> ${clean(m.to)} : ${clean(m.text)}`)
+    add(out, `message#${i} ${context.scope === 'top-level' ? 'top-level' : `fragment#${context.fragmentIndex} branch#${context.branchIndex}`} ${clean(m.from)} -> ${clean(m.to)} : ${clean(m.text)}`)
     if (m.style !== 'sync') add(out, `message#${i} style ${m.style}`)
+  })
+  const fragments = (body.statements ?? []).filter(statement => statement.kind === 'fragment')
+  fragments.forEach((statement, index) => {
+    if (statement.kind !== 'fragment') return
+    add(out, `fragment#${index} ${statement.fragment.fragmentKind}`)
+    statement.fragment.branches.forEach((branch, branchIndex) => {
+      const label = branch.label ?? (branchIndex === 0 ? statement.fragment.label : undefined)
+      add(out, `fragment#${index} branch#${branchIndex}${label ? ` : ${clean(label)}` : ''}`)
+    })
   })
 }
 
