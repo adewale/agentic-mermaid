@@ -4,7 +4,7 @@
 
 > Looking for a zero-setup endpoint? A **hosted** MCP already runs at `https://agentic-mermaid.dev/mcp` (`claude mcp add --transport http agentic-mermaid https://agentic-mermaid.dev/mcp`). It is a different implementation — stateless Streamable HTTP, Cloudflare-backed, tools `execute`/`describe_sdk`/`render_svg`/`render_ascii`/`render_png`/`verify`/`describe`/`mutate`/`build`, inputs capped at 64KB, and no file/URL PNG artifacts (base64 only). See [`docs/project/hosted-mcp-cloudflare-plan.md`](./project/hosted-mcp-cloudflare-plan.md). Run the local server below when you need file/URL artifacts, larger inputs, offline use, or your own auth.
 >
-> **Privacy:** every hosted call (`execute`, `render_*`, `verify`, `describe`, `mutate`, `build`) sends your diagram source or code to the agentic-mermaid.dev server, and successful responses are edge-cached for up to a day. For diagrams that must not leave your machine, use the library, the CLI, or the local stdio/HTTP server on this page — the pipeline is fully local and needs no network.
+> **Privacy and caching:** every hosted call (`execute`, `render_*`, `verify`, `describe`, `mutate`, `build`) sends your diagram source or code to the agentic-mermaid.dev server. Successful deterministic tool results may be reused by a private server-side Workers Cache for up to 24 hours. The JSON-RPC HTTP response itself is always `cache-control: no-store`; `x-agentic-mermaid-compute-cache` reports `hit`, `miss`, `mixed`, `bypass`, or `disabled`. For diagrams that must not leave your machine, use the library, the CLI, or the local stdio/HTTP server on this page — the pipeline is fully local and needs no network.
 
 ## Which endpoint returns plain JSON?
 

@@ -173,7 +173,7 @@ Call \`describe_sdk\` for the family before authoring unfamiliar ops.`,
   },
 ]
 
-const INSTRUCTIONS = `agentic-mermaid hosted MCP server (stateless). Direct tools render_svg, render_ascii, render_png, verify, and describe cover plain render/verify calls cheaply and are edge-cached (layout is deterministic; there is no layout seed — the library's optional style seed only re-rolls ink of styled looks). describe_sdk progressively discloses one family's version-matched mutation schema. Declarative mutate/build apply typed op lists and verify before emitting source; prefer them for straightforward structured edits. execute runs synchronous JavaScript against the typed mermaid.* SDK in an isolated on-demand sandbox for logic the ops don't express; async/await and Promise jobs are not supported, and network access is disabled. Inputs are capped at 64KB; for bigger diagrams, Code Mode artifacts, or file/URL PNG output, run the local stdio server (see https://agentic-mermaid.dev/docs/mcp/).`
+const INSTRUCTIONS = `agentic-mermaid hosted MCP server (stateless). Direct tools render_svg, render_ascii, render_png, verify, and describe cover plain render/verify calls cheaply. Successful deterministic tool results may be reused by a private server-side compute cache for up to 24 hours; HTTP /mcp responses themselves are cache-control: no-store, so clients must not infer response freshness from CDN headers. The x-agentic-mermaid-compute-cache response header reports hit, miss, mixed, bypass, or disabled. There is no layout seed — the library's optional style seed only re-rolls ink of styled looks. describe_sdk progressively discloses one family's version-matched mutation schema. Declarative mutate/build apply typed op lists and verify before emitting source; prefer them for straightforward structured edits. execute runs synchronous JavaScript against the typed mermaid.* SDK in an isolated on-demand sandbox for logic the ops don't express; async/await and Promise jobs are not supported, and network access is disabled. Inputs are capped at 64KB; for bigger diagrams, Code Mode artifacts, or file/URL PNG output, run the local stdio server (see https://agentic-mermaid.dev/docs/mcp/).`
 
 function hostedProtocolVersion(params: unknown): string {
   const offered = (params as { protocolVersion?: unknown } | undefined)?.protocolVersion
@@ -272,11 +272,13 @@ function describeFormat(args: Record<string, unknown>): 'text' | 'json' | 'facts
 
 function describePayload(source: string, args: Record<string, unknown>): { ok: boolean } & Record<string, unknown> {
   const format = describeFormat(args)
-  if (format === 'text') return { ok: true as const, text: describeMermaidSource(source) }
   const parsed = parseMermaid(source)
   if (!parsed.ok) return { ok: false as const, errors: parsed.error }
-  if (format === 'facts') return { ok: true as const, facts: describeMermaidFacts(parsed.value) }
-  return { ok: true as const, tree: JSON.parse(describeMermaid(parsed.value, { format: 'json' })) }
+  const verify = verifyMermaid(parsed.value)
+  if (!verify.ok) return { ok: false as const, family: parsed.value.kind, warnings: verify.warnings }
+  if (format === 'text') return { ok: true as const, text: describeMermaidSource(source), warnings: verify.warnings }
+  if (format === 'facts') return { ok: true as const, facts: describeMermaidFacts(parsed.value), warnings: verify.warnings }
+  return { ok: true as const, tree: JSON.parse(describeMermaid(parsed.value, { format: 'json' })), warnings: verify.warnings }
 }
 
 function svgOptions(args: Record<string, unknown>): Record<string, unknown> {
@@ -494,8 +496,11 @@ async function handleExecute(id: number | string | null, args: Record<string, un
   const reason = unsupportedCodeReason(code)
   if (reason) return toolResult(id, { ok: false as const, error: executeError(reason), logs: [] }, true)
   const requested = args.timeoutMs
+  if (requested !== undefined && (typeof requested !== 'number' || !Number.isFinite(requested) || requested <= 0)) {
+    return rpcError(id, -32602, 'execute timeoutMs must be a positive finite number')
+  }
   const timeoutMs = typeof requested === 'number' && Number.isFinite(requested)
-    ? Math.max(1, Math.min(requested, MAX_EXECUTE_TIMEOUT_MS))
+    ? Math.min(requested, MAX_EXECUTE_TIMEOUT_MS)
     : DEFAULT_EXECUTE_TIMEOUT_MS
   try {
     const r = await context.execute(code, timeoutMs)

@@ -97,6 +97,16 @@ describe('hosted execute loader glue', () => {
     expect(requests.map(r => r.id.includes('-e-') ? 'e' : 's')).toEqual(['e', 's'])
   })
 
+  test('workerd reserved-word startup errors also fall back for leading let', async () => {
+    const { loader, requests } = makeLoader(req =>
+      req.id.includes('-e-')
+        ? new Error('Unexpected strict mode reserved word at user.js:2:1')
+        : okResponse({ ok: true, value: 1, logs: [] }))
+    const result = await createLoaderExecute(loader, 'H')('let x = 1; return x', 5000)
+    expect(result).toEqual({ ok: true, value: 1, logs: [] })
+    expect(requests.map(request => request.id.includes('-e-') ? 'e' : 's')).toEqual(['e', 's'])
+  })
+
   test('a double SyntaxError reports the statement attempt message, stripped of the startup preamble', async () => {
     const { loader } = makeLoader(() => new Error("Failed to start Worker:\nUncaught SyntaxError: Unexpected token ')'\n  at user.js:1"))
     const execute = createLoaderExecute(loader, 'H')
@@ -120,6 +130,14 @@ describe('hosted execute loader glue', () => {
     expect(result.ok).toBe(false)
     expect(result.error).toContain('loader unavailable')
     expect(requests).toHaveLength(1)
+  })
+
+  test('non-syntax loader failures omit stack lines and harness offsets', async () => {
+    const { loader } = makeLoader(() => new Error('loader failed at harness.js:812:33\n    at secret harness frame'))
+    const result = await createLoaderExecute(loader, 'H')('1 + 1', 5000)
+    expect(result.error).toBe('sandbox error: loader failed at <sandbox>')
+    expect(result.error).not.toContain('812')
+    expect(result.error).not.toContain('secret harness frame')
   })
 
   test('cpu-limit exceptions map to the CPU-budget error', async () => {

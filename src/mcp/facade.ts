@@ -580,7 +580,6 @@ export function expressionFirstWraps(code: string): string[] {
 }
 
 export function unsupportedCodeReason(code: string): string | undefined {
-  if (code.includes('${')) return 'Code Mode does not support template literal interpolation'
   const scan = stripStringsAndComments(code)
   if (/\b(?:async|await|Promise|AsyncDisposableStack|FinalizationRegistry|WeakRef|fromAsync)\b/.test(scan) || /\bqueueMicrotask\b/.test(scan) || /\bimport\s*\(/.test(scan)) {
     return 'Code Mode is synchronous; async/await, Promise jobs, finalizers, queueMicrotask, Array.fromAsync, and dynamic import are not supported'
@@ -592,40 +591,66 @@ export function unsupportedCodeReason(code: string): string | undefined {
 }
 
 function stripStringsAndComments(code: string): string {
-  let out = ''
-  for (let i = 0; i < code.length;) {
-    const ch = code[i]!
-    const next = code[i + 1]
-    if (ch === '/' && next === '/') {
-      out += '  '; i += 2
-      while (i < code.length && code[i] !== '\n') { out += ' '; i++ }
-      continue
+  const out = Array.from(code, char => char === '\n' ? '\n' : ' ')
+  const copy = (index: number): void => { out[index] = code[index]! }
+
+  const skipQuoted = (start: number, quote: '"' | "'"): number => {
+    let i = start + 1
+    while (i < code.length) {
+      if (code[i] === '\\') { i += 2; continue }
+      if (code[i] === quote) return i + 1
+      i++
     }
-    if (ch === '/' && next === '*') {
-      out += '  '; i += 2
-      while (i < code.length && !(code[i] === '*' && code[i + 1] === '/')) { out += code[i] === '\n' ? '\n' : ' '; i++ }
-      if (i < code.length) { out += '  '; i += 2 }
-      continue
-    }
-    if (ch === '"' || ch === "'" || ch === '`') {
-      const quote = ch
-      out += ' '; i++
-      while (i < code.length) {
-        const c = code[i]!
-        out += c === '\n' ? '\n' : ' '
-        i++
-        if (c === '\\') {
-          if (i < code.length) { out += code[i] === '\n' ? '\n' : ' '; i++ }
-          continue
-        }
-        if (c === quote) break
-      }
-      continue
-    }
-    out += ch
-    i++
+    return i
   }
-  return out
+
+  const scanCode = (start: number, stopAtTemplateBrace: boolean): number => {
+    let braces = 0
+    let i = start
+    while (i < code.length) {
+      const ch = code[i]!
+      const next = code[i + 1]
+      if (ch === '/' && next === '/') {
+        i += 2
+        while (i < code.length && code[i] !== '\n') i++
+        continue
+      }
+      if (ch === '/' && next === '*') {
+        i += 2
+        while (i < code.length && !(code[i] === '*' && code[i + 1] === '/')) i++
+        i = Math.min(code.length, i + 2)
+        continue
+      }
+      if (ch === '"' || ch === "'") { i = skipQuoted(i, ch); continue }
+      if (ch === '`') { i = scanTemplate(i + 1); continue }
+      if (ch === '{') { braces++; copy(i++); continue }
+      if (ch === '}') {
+        if (stopAtTemplateBrace && braces === 0) return i + 1
+        braces = Math.max(0, braces - 1)
+        copy(i++)
+        continue
+      }
+      copy(i++)
+    }
+    return i
+  }
+
+  const scanTemplate = (start: number): number => {
+    let i = start
+    while (i < code.length) {
+      if (code[i] === '\\') { i += 2; continue }
+      if (code[i] === '`') return i + 1
+      if (code[i] === '$' && code[i + 1] === '{') {
+        i = scanCode(i + 2, true)
+        continue
+      }
+      i++
+    }
+    return i
+  }
+
+  scanCode(0, false)
+  return out.join('')
 }
 function jsonReplacer(_k: string, v: unknown): unknown {
   if (v instanceof Map) return Object.fromEntries(v)

@@ -21,6 +21,7 @@
 
 import type { ValidDiagram, StateNode, LayoutWarning } from './types.ts'
 import type { MermaidSubgraph } from '../types.ts'
+import { sequenceMessages } from './sequence-body.ts'
 
 export interface StructuralCount {
   /** Primary entities: nodes, participants, states, classes, entities, slices… */
@@ -75,7 +76,7 @@ export function countStructuralElements(d: ValidDiagram): StructuralCount | null
       return { nodes: g.nodes.size, edges: g.edges.length, groups: countSubgraphs(g.subgraphs) }
     }
     case 'sequence':
-      return { nodes: body.participants.length, edges: body.messages.length, groups: 0 }
+      return { nodes: body.participants.length, edges: sequenceMessages(body).length, groups: 0 }
     case 'state': {
       const top = countStates(body.states)
       return { nodes: top.nodes, edges: top.edges + body.transitions.length, groups: 0 }

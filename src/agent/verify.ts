@@ -33,6 +33,7 @@ import { normalizeMermaidSource } from '../mermaid-source.ts'
 import { normalizeV11Shape } from '../flowchart-shapes.ts'
 import { familyConfigDiagnostics } from '../shared/family-config-diagnostics.ts'
 import './families-builtin.ts'  // registers built-in families at import time
+import { sequenceMessages } from './sequence-body.ts'
 
 function familyConfigShapeWarnings(d: ValidDiagram): LayoutWarning[] {
   const roots: unknown[] = [d.meta.frontmatter, ...d.meta.initDirectives.map(directive => directive.parsed)]
@@ -551,11 +552,12 @@ function verifySequence(d: ValidDiagram & { body: SequenceBody }, cap: number, o
   const hasOpaqueContent = (body.statements ?? []).some(
     s => s.kind === 'opaque-block' && s.lines.some(l => l.trim().length > 0),
   )
-  if (body.participants.length === 0 && body.messages.length === 0 && !hasOpaqueContent) {
+  const allMessages = sequenceMessages(body)
+  if (body.participants.length === 0 && allMessages.length === 0 && !hasOpaqueContent) {
     return finalize([{ code: 'EMPTY_DIAGRAM' }], layout, opts, false)
   }
   const ids = new Set(body.participants.map(p => p.id))
-  body.messages.forEach((m, i) => {
+  allMessages.forEach((m, i) => {
     if (!ids.has(m.from) || !ids.has(m.to)) {
       warnings.push({
         code: 'EDGE_MISANCHORED', edge: `msg#${i}:${m.from}->${m.to}`,
@@ -568,6 +570,16 @@ function verifySequence(d: ValidDiagram & { body: SequenceBody }, cap: number, o
   for (const p of body.participants) {
     const w = labelOverflowWarning(p.id, p.label, cap)
     if (w) warnings.push(w)
+  }
+  for (const statement of body.statements ?? []) if (statement.kind === 'fragment') {
+    if (statement.fragment.label) {
+      const w = labelOverflowWarning(`fragment:${statement.fragment.fragmentKind}`, statement.fragment.label, cap)
+      if (w) warnings.push(w)
+    }
+    for (const [index, branch] of statement.fragment.branches.entries()) if (branch.label) {
+      const w = labelOverflowWarning(`fragment:${statement.fragment.fragmentKind}:branch#${index}`, branch.label, cap)
+      if (w) warnings.push(w)
+    }
   }
   // BUILD-18: opaque-block segments (Note/alt/loop/par/title lines) still get
   // universal LABEL_OVERFLOW via the family's label extractor, so the safety
@@ -593,7 +605,7 @@ function verifySequence(d: ValidDiagram & { body: SequenceBody }, cap: number, o
   // like `Alice->>` renders a 0x0 canvas — announce it), whereas a sequence
   // WITH participants whose family layout degrades to empty (e.g.
   // semicolon-packed statements) is a renderer limitation, not emptiness.
-  const guardEmpty = body.participants.length === 0 && body.messages.length === 0
+  const guardEmpty = body.participants.length === 0 && allMessages.length === 0
   return finalize(dedupedConcat(warnings, layoutGeometryWarnings(layout, { nodeOverlaps: true })), layout, opts, guardEmpty)
 }
 

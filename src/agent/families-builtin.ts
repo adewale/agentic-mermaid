@@ -763,7 +763,7 @@ function extractQuadrantLabels(source: string): ExtractedLabel[] {
     const raw = lines[i]!.trim()
     if (!raw || raw.startsWith('%%')) continue
     const target = `line${i + 1}`
-    if (/^quadrantchart\b/i.test(raw)) continue
+    if (/^quadrant(?:chart)?\b/i.test(raw)) continue
     let m
     if ((m = raw.match(/^title\s+(.+)$/i))) {
       out.push({ text: m[1]!.trim(), target })
@@ -836,7 +836,7 @@ function verifyOpaqueQuadrant(body: DiagramBody): LayoutWarning[] {
 
 registerFamily({
   id: 'quadrant',
-  detect: l => l.startsWith('quadrantchart'),
+  detect: l => /^quadrant(?:chart)?\b/.test(l),
   extractLabels: extractQuadrantLabels,
   // Quadrant is structured-when-narrowed. The verify hook covers the structured
   // body; opaque fallbacks keep the universal label-extraction path and warn
@@ -844,7 +844,7 @@ registerFamily({
   verify: (body, opts) => body.kind === 'quadrant' ? verifyQuadrant(body, opts) : verifyOpaqueQuadrant(body),
   buildSourceMap: buildChartSourceMap,
   ...structuredFamilyHooks('quadrant', {
-    headerOk: h => /^quadrantchart\s*$/i.test(h),
+    headerOk: h => /^quadrant(?:chart)?\s*$/i.test(h),
     parseBody: parseQuadrantBody, serialize: renderQuadrant, mutate: mutateQuadrant,
   }),
 })
@@ -941,7 +941,7 @@ registerFamily({
   // edges, unmodeled syntax) keep the universal label-extraction path.
   verify: (body, opts) => body.kind === 'architecture' ? verifyArchitecture(body, opts) : [],
   ...structuredFamilyHooks('architecture', {
-    headerOk: h => /^architecture-beta\s*$/i.test(h),
+    headerOk: h => /^architecture(?:-beta)?\s*$/i.test(h),
     parseBody: parseArchitectureBody, serialize: renderArchitecture, mutate: mutateArchitecture,
   }),
 })

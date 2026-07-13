@@ -63,17 +63,30 @@ export interface SequenceMessage {
   deactivate?: boolean
 }
 
-// BUILD-18: ordered statement list. Refs index into the participants/messages
-// arrays (which remain the canonical views the SDK declaration, synthesize
-// payloads, describe, verify, and tests consume). Opaque-block segments carry
-// unmodeled lines (Note/alt/loop/par/activate/autonumber/title…) VERBATIM so
-// they ride along in their original position. Messages/participants INSIDE an
-// opaque-block are invisible to mutation ops and the messages/participants
-// arrays — only top-level structured statements are addressable.
+export type SequenceFragmentKind = 'alt' | 'opt' | 'loop' | 'par'
+export interface SequenceFragmentBranch {
+  /** `else` / `and` caption. The first branch normally omits it. */
+  label?: string
+  messages: SequenceMessage[]
+}
+export interface SequenceFragment {
+  fragmentKind: SequenceFragmentKind
+  label?: string
+  branches: SequenceFragmentBranch[]
+  /** Authored spelling retained until a typed fragment op changes the fragment. */
+  rawLines?: string[]
+}
+
+// Ordered statement list. Refs index into the top-level arrays. The four
+// common control fragments are typed so their messages participate in
+// describe/facts/verify and can be authored through mutation ops. Constructs
+// outside that closed model (notes, critical/break/rect/box, activations…)
+// remain lossless opaque segments.
 export type SequenceStatement =
   | { kind: 'participant'; ref: number }   // index into participants
   | { kind: 'message'; ref: number }       // index into messages
   | { kind: 'actor-links'; actorId: string; links: Record<string, string> }
+  | { kind: 'fragment'; fragment: SequenceFragment }
   | { kind: 'opaque-block'; lines: string[] }
 
 export interface SequenceBody {
@@ -867,8 +880,8 @@ export type SequenceMutationOp =
   | { kind: 'add_participant'; id: ParticipantId; label?: string; participantKind?: 'participant' | 'actor' }
   | { kind: 'remove_participant'; id: ParticipantId }
   // index = optional TOP-LEVEL insert position (same addressing as
-  // remove_message/set_message_text: messages inside opaque blocks are
-  // invisible); omitted = append.
+  // remove_message/set_message_text; fragment messages have their own
+  // explicit fragment-addressed ops); omitted = append.
   | { kind: 'add_message'; from: ParticipantId; to: ParticipantId; text: string; style?: SequenceMessageStyle; index?: number }
   | { kind: 'remove_message'; index: number }
   | { kind: 'set_message_text'; index: number; text: string }
@@ -876,6 +889,14 @@ export type SequenceMutationOp =
   // edit (journey move_task precedent); from/to are top-level indices.
   | { kind: 'move_message'; from: number; to: number }
   | { kind: 'set_participant_label'; id: ParticipantId; label: string }
+  | { kind: 'add_fragment'; fragmentKind: SequenceFragmentKind; label?: string; index?: number }
+  | { kind: 'remove_fragment'; index: number }
+  | { kind: 'set_fragment_label'; index: number; label: string | null }
+  | { kind: 'add_fragment_branch'; fragmentIndex: number; label?: string }
+  | { kind: 'set_fragment_branch_label'; fragmentIndex: number; branchIndex: number; label: string | null }
+  | { kind: 'add_fragment_message'; fragmentIndex: number; branchIndex?: number; from: ParticipantId; to: ParticipantId; text: string; style?: SequenceMessageStyle; index?: number }
+  | { kind: 'remove_fragment_message'; fragmentIndex: number; branchIndex?: number; index: number }
+  | { kind: 'set_fragment_message_text'; fragmentIndex: number; branchIndex?: number; index: number; text: string }
 
 export type TimelineMutationOp =
   | { kind: 'set_title'; title: string | null }

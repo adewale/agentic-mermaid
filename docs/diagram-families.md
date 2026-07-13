@@ -8,7 +8,7 @@ Agentic Mermaid supports Mermaid's common diagram families through a split pipel
 |---|---|---|---|---|
 | Flowchart | `flowchart`, `graph` | SVG/PNG/ASCII | `asFlowchart` | Shapes, markdown labels, links, groups, and paint. |
 | State | `stateDiagram-v2` | SVG/PNG/ASCII | `asState` | Regions, notes, history, and paint are structured. |
-| Sequence | `sequenceDiagram` | SVG/PNG/ASCII | `asSequence` | Unsupported blocks are segment-preserving; un-segmentable syntax falls back to opaque. |
+| Sequence | `sequenceDiagram` | SVG/PNG/ASCII | `asSequence` | `alt`/`opt`/`loop`/`par` are typed; other blocks are segment-preserving and un-segmentable syntax falls back to opaque. |
 | Timeline | `timeline` | SVG/PNG/ASCII | `asTimeline` | Sections, periods, events, titles, and direction. |
 | Class | `classDiagram` | SVG/PNG/ASCII | `asClass` | Classes, members, namespaces, relations, notes, and paint. |
 | ER | `erDiagram` | SVG/PNG/ASCII | `asEr` | Entities, attributes, relations, direction, paint, and ordered opaque segments. |

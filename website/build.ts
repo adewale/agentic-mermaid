@@ -2107,6 +2107,48 @@ const aiCatalog = {
         identityType: 'did',
       },
     },
+    {
+      identifier: 'urn:air:agentic-mermaid.dev:capabilities', displayName: 'Agentic Mermaid capabilities',
+      type: 'application/json', url: `${siteOrigin}/capabilities.json`,
+      description: 'Machine-readable families, mutation operations, warning contracts, and examples.',
+      tags: ['capabilities', 'mutation', 'warnings'], representativeQueries: ['what diagram families and typed edits are supported'],
+    },
+    {
+      identifier: 'urn:air:agentic-mermaid.dev:examples', displayName: 'Agentic Mermaid examples index',
+      type: 'application/json', url: `${siteOrigin}/examples/index.json`,
+      description: 'Indexed canonical examples for every supported diagram family.',
+      tags: ['examples', 'mermaid'], representativeQueries: ['show valid syntax for this Mermaid family'],
+    },
+    {
+      identifier: 'urn:air:agentic-mermaid.dev:start', displayName: 'Agentic Mermaid agent start guide',
+      type: 'text/markdown', url: `${siteOrigin}/start.md`,
+      description: 'Shortest safe path for an agent beginning an Agentic Mermaid task.',
+      tags: ['agent-docs', 'quickstart'], representativeQueries: ['how do I start using Agentic Mermaid safely'],
+    },
+    {
+      identifier: 'urn:air:agentic-mermaid.dev:instructions', displayName: 'Agentic Mermaid agent instructions',
+      type: 'text/markdown', url: `${siteOrigin}/agent-instructions.md`,
+      description: 'Complete verify-before-commit and mutation workflow instructions.',
+      tags: ['agent-docs', 'instructions'], representativeQueries: ['how should an agent edit and verify a Mermaid diagram'],
+    },
+    {
+      identifier: 'urn:air:agentic-mermaid.dev:mcp:manifest', displayName: 'Agentic Mermaid MCP manifest',
+      type: 'application/json', url: `${siteOrigin}/.well-known/mcp.json`,
+      description: 'Hosted MCP transport and tool discovery manifest.',
+      tags: ['mcp', 'discovery'], representativeQueries: ['connect to the hosted Agentic Mermaid MCP server'],
+    },
+    {
+      identifier: 'urn:air:agentic-mermaid.dev:warnings', displayName: 'Agentic Mermaid warnings index',
+      type: 'text/markdown', url: `${siteOrigin}/warnings/index.md`,
+      description: 'Machine-oriented index of structural, geometric, and lint warning codes.',
+      tags: ['warnings', 'verification'], representativeQueries: ['what does this verify warning mean'],
+    },
+    {
+      identifier: 'urn:air:agentic-mermaid.dev:style-schema', displayName: 'Agentic Mermaid style schema',
+      type: 'application/schema+json', url: `${siteOrigin}/schemas/style-spec.schema.json`,
+      description: 'JSON Schema for data-only diagram style specifications.',
+      tags: ['schema', 'styles'], representativeQueries: ['validate a custom Agentic Mermaid style'],
+    },
   ],
   generatedFrom,
 }
@@ -2152,7 +2194,7 @@ Styling: every render accepts style (a renderer treatment like hand-drawn, water
 ## Start Here
 
 - [Agent bootstrap](https://agentic-mermaid.dev/start.md): copy-and-follow workflow for one diagram task.
-- [Hosted MCP endpoint](https://agentic-mermaid.dev/mcp): stateless Streamable HTTP JSON-RPC with execute, render_svg, render_ascii, render_png, verify, describe, mutate, and build.
+- [Hosted MCP endpoint](https://agentic-mermaid.dev/mcp): stateless Streamable HTTP JSON-RPC with execute, describe_sdk, render_svg, render_ascii, render_png, verify, describe, mutate, and build.
 - [MCP server card](https://agentic-mermaid.dev/.well-known/mcp/server-card.json): pre-connection metadata for the hosted MCP server.
 - [MCP manifest](https://agentic-mermaid.dev/.well-known/mcp.json): compact tool manifest for agents and scanners.
 - [AI catalog](https://agentic-mermaid.dev/.well-known/ai-catalog.json): discovery index for the agent-facing resources on this domain.
@@ -2507,7 +2549,7 @@ const docPages = [
   ['docs/getting-started/index.html', 'Getting started', 'From a prompt and style choice to a verified local render, then to an agent-safe edit loop.', gettingStartedBody, '/docs/'],
   ['docs/api/index.html', 'Library API', 'Use agentic-mermaid and agentic-mermaid/agent from local JS or TS.', '<p>Import rendering helpers from <code>agentic-mermaid</code> and typed parse/mutate/verify helpers from <code>agentic-mermaid/agent</code>. Everything runs locally with no network.</p>\n<pre><code>import { renderMermaidSVG, renderMermaidASCII } from \'agentic-mermaid\'\nimport { parseMermaid, verifyMermaid } from \'agentic-mermaid/agent\'\n\nconst src = \'flowchart LR\\n  A[Idea] --&gt; B[Ship]\'\nconst svg = renderMermaidSVG(src)           // also renderMermaidASCII / unicode\nconst { ok, warnings } = verifyMermaid(src) // structured, tiered warnings</code></pre>\n<p>Render helpers return strings (SVG, ASCII, Unicode); the agent surface returns typed diagrams plus structured verify warnings. <strong>In React</strong>, call the same helpers in your component and inject the SVG — private diagrams never leave the browser or your own infrastructure. <strong>Config:</strong> supported Mermaid frontmatter and <code>init</code> directives are normalized before rendering; unsupported syntax is preserved or reported, never silently dropped.</p>' + docsIndex],
   ['docs/cli/index.html', 'CLI', 'Use the am CLI for local rendering, verification, batch checks, and Markdown rendering.', '<p>The <code>am</code> CLI wraps the library for local rendering, verification, and batch checks. In the cloned repo, <code>am</code> is <code>bun run bin/am.ts</code>.</p>\n<pre><code>am verify diagram.mmd                # structural + geometric + lint warnings\nam verify diagram.mmd --json         # machine-readable for agents\nam render diagram.mmd --format svg --output diagram.svg\nam render diagram.mmd --format png --output diagram.png\nam render diagram.mmd --format ascii # or --format unicode</code></pre>\n<p>Prefer <code>--json</code> in agent loops so you can branch on <code>verify.ok</code> and the stable warning codes instead of parsing prose.</p>' + docsIndex],
-  ['docs/mcp/index.html', 'MCP', 'Hosted MCP at /mcp, plus a local stdio server.', '<p>The hosted MCP endpoint is <code>https://agentic-mermaid.dev/mcp</code>: stateless streamable HTTP (JSON-RPC over POST, no sessions). Hosted tools: <code>execute</code>, <code>describe_sdk</code>, <code>render_svg</code>, <code>render_ascii</code>, <code>render_png</code>, <code>verify</code>, <code>describe</code>, <code>mutate</code>, and <code>build</code>. Call <code>describe_sdk</code> for one family\'s compact signatures or exact mutation fields; pass <code>format: &quot;facts&quot;</code> to <code>describe</code> for deterministic semantic read-back. Deterministic responses are edge-cached, inputs are capped at 64KB, and Code Mode <code>execute</code> runs in an isolated on-demand Worker with network access disabled and a CPU budget.</p><p>The local MCP tools are <code>execute</code>, <code>describe_sdk</code>, <code>render_png</code>, and <code>describe</code>. Multi-step parse/narrow/mutate/verify workflows run inside <code>execute(code)</code>; local <code>describe_sdk</code> returns version-matched mutation schemas and <code>describe</code> supports <code>format: &quot;facts&quot;</code>. For file/URL PNG artifacts, diagrams beyond the hosted caps, or offline use, run the stdio server from the repo: <code>bun run bin/agentic-mermaid-mcp.ts</code>.</p><p><strong>Privacy:</strong> every hosted tool call sends your diagram source (or Code Mode code) to this site\u2019s server, and successful responses are edge-cached for up to a day. For diagrams that must not leave your machine, use the library, the CLI, or the local stdio server \u2014 the pipeline is fully local and needs no network.</p><p><strong>Response framing:</strong> the hosted <code>/mcp</code> endpoint always replies with plain <code>application/json</code> \u2014 no SSE <code>data:</code> framing \u2014 so scripts can parse the body directly. The local HTTP transport\u2019s <code>/sse</code> + <code>/message</code> pair delivers responses as SSE events on the open stream; script writers who want unframed JSON should POST to its <code>/rpc</code> endpoint instead.</p>' + docsIndex],
+  ['docs/mcp/index.html', 'MCP', 'Hosted MCP at /mcp, plus a local stdio server.', '<p>The hosted MCP endpoint is <code>https://agentic-mermaid.dev/mcp</code>: stateless streamable HTTP (JSON-RPC over POST, no sessions). Hosted tools: <code>execute</code>, <code>describe_sdk</code>, <code>render_svg</code>, <code>render_ascii</code>, <code>render_png</code>, <code>verify</code>, <code>describe</code>, <code>mutate</code>, and <code>build</code>. Call <code>describe_sdk</code> for one family\'s compact signatures or exact mutation fields; pass <code>format: &quot;facts&quot;</code> to <code>describe</code> for deterministic semantic read-back. Successful deterministic tool results may be reused by a private server-side compute cache for up to 24 hours; the JSON-RPC response itself is always <code>cache-control: no-store</code>, and <code>x-agentic-mermaid-compute-cache</code> reports reuse. Inputs are capped at 64KB, and Code Mode <code>execute</code> runs in an isolated on-demand Worker with network access disabled and a CPU budget.</p><p>The local MCP tools are <code>execute</code>, <code>describe_sdk</code>, <code>render_png</code>, and <code>describe</code>. Multi-step parse/narrow/mutate/verify workflows run inside <code>execute(code)</code>; local <code>describe_sdk</code> returns version-matched mutation schemas and <code>describe</code> supports <code>format: &quot;facts&quot;</code>. For file/URL PNG artifacts, diagrams beyond the hosted caps, or offline use, run the stdio server from the repo: <code>bun run bin/agentic-mermaid-mcp.ts</code>.</p><p><strong>Privacy:</strong> every hosted tool call sends your diagram source (or Code Mode code) to this site\u2019s server. For diagrams that must not leave your machine, use the library, the CLI, or the local stdio server \u2014 the pipeline is fully local and needs no network.</p><p><strong>Response framing:</strong> the hosted <code>/mcp</code> endpoint always replies with plain <code>application/json</code> \u2014 no SSE <code>data:</code> framing \u2014 so scripts can parse the body directly. The local HTTP transport\u2019s <code>/sse</code> + <code>/message</code> pair delivers responses as SSE events on the open stream; script writers who want unframed JSON should POST to its <code>/rpc</code> endpoint instead.</p>' + docsIndex],
   ['docs/ascii/index.html', 'ASCII and Unicode', 'Text output is first-class for terminals, PR comments, and agent review.', '<p>Text output is first-class, not a fallback: ASCII (portable 7-bit) and Unicode (box-drawing) renders drop straight into terminals, PR comments, commit messages, and agent transcripts where an SVG cannot go.</p>\n<pre><code>am render diagram.mmd --format ascii    # portable, 7-bit\nam render diagram.mmd --format unicode  # sharper box-drawing glyphs</code></pre>\n<p>The text path is deterministic like the SVG path, so the same source always yields the same characters — reviewable in a plain diff. The ASCII engine is ported from mermaid-ascii; see <a href="/about/">About</a> for the lineage.</p>' + docsIndex],
   ['docs/theming/index.html', 'Styles and palettes', 'A style describes diagram rendering; a colors-only style is a palette.', '<p>One primitive covers visual rendering: a <strong>style</strong> is a partial, composable description of palette, typography, stroke character, and fills. A style that only sets colours is a palette. Styles such as <code>hand-drawn</code>, <code>watercolor</code>, and <code>blueprint</code> also change renderer treatment. Styles stack left \u2192 right (<code>{ style: [\'hand-drawn\', \'dracula\'] }</code> gives hand-drawn geometry with the dracula palette), the optional <code>seed</code> re-rolls styled ink without moving layout, and custom styles are plain JSON records. Use <a href="/docs/custom-styles/">Custom styles</a> for schema, complete JSON examples, and screenshots. The browser editor exposes both pickers: Style chooses renderer treatment; Palette chooses colors. SVG output can also inherit CSS variables for live palette swaps.</p>' + themingReferenceHtml() + docsIndex],
   ['docs/custom-styles/index.html', 'Custom styles', 'Author JSON style files, validate them with the schema, and compare cookbook screenshots.', customStylesBody + docsIndex],
@@ -2606,6 +2648,11 @@ const WARNING_DETAIL: Record<string, { what: string; triggers: string; fix: stri
     triggers: 'Fan-in/fan-out patterns where several labeled edges merge onto a shared trunk and a label pill lands on the shared piece rather than the edge’s own segment.',
     fix: 'Shorten the label with <code>set_label</code> so it fits the edge’s exclusive segment, or restructure the fan so the labeled edge has its own approach.',
   },
+  ROUTE_SELF_LOOP_OCCUPANCY: {
+    what: 'a self-loop cannot reserve a clear side, boundary span, route corridor, or label area without colliding with another loop or route.',
+    triggers: 'Several self-loops competing for the same node side, or a later route/label pass entering space already certified for a loop. The warning names the conflict kind and, when applicable, the other edge.',
+    fix: 'Move one relationship to a different endpoint or remove a redundant loop. If unchanged source fires nondeterministically, report it as a route-allocation defect.',
+  },
   ROUTE_CONTAINER_MISANCHOR: {
     what: 'an edge attached to a subgraph or group does not terminate on the container’s border.',
     triggers: 'Container-anchored edges must end exactly on the group rectangle; a miss means the border moved after routing. This is a tripwire over final geometry rather than a source mistake.',
@@ -2649,7 +2696,7 @@ const WARNING_DETAIL: Record<string, { what: string; triggers: string; fix: stri
     what: 'the source uses syntax or content the local structured model cannot faithfully express.',
     triggers: 'Flowchart <code>click</code>/<code>href</code> directives, edge IDs and edge metadata, v11 <code>@{ shape: … }</code> node metadata, markdown strings, unclosed delimiters that would silently drop content, or <code>syntax: "empty_layout"</code> when content-bearing source lays out to a 0×0 canvas with no nodes, edges, or groups.',
     fix: 'For preserved Mermaid syntax, remove the directive if local rendering fidelity matters, or keep it knowing the local renderer ignores it; edits touching those lines need source-level editing rather than typed mutations. For <code>empty_layout</code>, inspect the warning message and <code>verify.layout</code>, then repair the malformed or unsupported source before accepting the artifact.',
-    example: 'flowchart LR\n  A[Start] --> B[Docs]\n  click B "https://example.com"',
+    example: 'flowchart LR\n  A[Start] --> B[Docs]\n  click B callCallback',
   },
   CONTENT_DROPPED_ON_ROUNDTRIP: {
     what: 'a parse → serialize → re-parse cycle lost nodes, edges, or groups by count.',
@@ -2660,6 +2707,12 @@ const WARNING_DETAIL: Record<string, { what: string; triggers: string; fix: stri
     what: 'the diagram parsed, but rendering to the requested format threw before producing an artifact.',
     triggers: 'A construct that parses but the renderer cannot lay out or rasterize — an unsupported combination reaching the SVG/PNG path, or a size/raster budget hit on a very large diagram. Not reachable from small well-formed source in normal operation.',
     fix: 'Return the structured error and the source rather than a fabricated artifact; simplify or split the diagram, drop the construct named in the message, or fall back to a lighter format (SVG or ASCII before PNG). A reproducible failure on stable source is a renderer bug worth reporting.',
+  },
+  INEFFECTIVE_CONFIG: {
+    what: 'a recognized Mermaid config field was accepted for compatibility but has no effect on this family’s geometry or paint.',
+    triggers: 'Copying configuration between diagram families, using a documented upstream option that this deterministic renderer has not wired, or supplying an unknown field under a known family section. The warning names the exact field.',
+    fix: 'Remove the inert field, move the setting under the family that supports it, or use a wired render option. Do not rely on the accepted value until verify stops reporting it.',
+    example: '---\nconfig:\n  flowchart:\n    madeUpKey: 1\n---\nflowchart LR\n  A --> B',
   },
 }
 

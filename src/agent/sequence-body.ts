@@ -25,7 +25,7 @@
 import { unknownOpMessage } from './mutation-ops.ts'
 import type {
   SequenceBody, SequenceParticipant, SequenceMessage, SequenceMessageStyle,
-  SequenceStatement, SequenceMutationOp, MutationError, Result,
+  SequenceStatement, SequenceMutationOp, SequenceFragment, MutationError, Result,
 } from './types.ts'
 import { ok, err } from './types.ts'
 import { parseActorDeclaration, parseActorLinks, parseSequenceMessageLine } from '../sequence/parser.ts'
@@ -37,10 +37,12 @@ import { appendOpaqueSegment } from './opaque-segments.ts'
 // Keywords that OPEN a nestable block (closed by a matching `end`). `box`
 // belongs here: its `end` used to hit the stray-`end` rule below and collapse
 // EVERY boxed diagram to the whole-body opaque fallback; as a preserved
-// segment (like alt/loop) the box rides along verbatim while the rest of the
+// segment the box rides along verbatim while the rest of the
 // diagram keeps its typed ops. Participants declared inside a box are part of
-// the segment and stay invisible to ops, like messages inside alt/loop.
+// the segment and stay invisible to ops. Direct-message alt/opt/loop/par
+// blocks are promoted to typed fragments below.
 const BLOCK_OPEN_RE = /^(alt|opt|loop|par|critical|break|rect|box)\b/i
+const TYPED_FRAGMENT_RE = /^(alt|opt|loop|par)\b\s*(.*)$/i
 // Continuation keywords valid only INSIDE an open block — never open/close one.
 const BLOCK_CONT_RE = /^(else|and|option)\b/i
 const BLOCK_END_RE = /^end\b/i
@@ -123,12 +125,7 @@ export function parseSequenceBody(trimmedLines: string[], rawLines?: string[]): 
     if (msg) {
       ensureKnown(msg.from)
       ensureKnown(msg.to)
-      messages.push({
-        from: msg.from, to: msg.to, text: msg.label.trim(), style: styleForArrow(msg.arrow),
-        arrow: msg.arrow as import('./types.ts').SequenceMessageArrow,
-        ...(msg.centralStart ? { centralStart: true } : {}), ...(msg.centralEnd ? { centralEnd: true } : {}),
-        ...(msg.activationMark === '+' ? { activate: true } : {}), ...(msg.activationMark === '-' ? { deactivate: true } : {}),
-      })
+      messages.push(sequenceMessageFromParsed(msg))
       statements.push({ kind: 'message', ref: messages.length - 1 })
       i++
       continue
@@ -154,7 +151,16 @@ export function parseSequenceBody(trimmedLines: string[], rawLines?: string[]): 
         i++
       }
       if (depth !== 0) return null // unclosed block → opaque fallback
-      appendOpaqueSegment(statements, dropBlankEdges(blockLines), sequenceOpaqueBlock)
+      const fragment = parseTypedFragment(blockLines)
+      if (fragment) {
+        for (const branch of fragment.branches) for (const message of branch.messages) {
+          ensureKnown(message.from)
+          ensureKnown(message.to)
+        }
+        statements.push({ kind: 'fragment', fragment })
+      } else {
+        appendOpaqueSegment(statements, dropBlankEdges(blockLines), sequenceOpaqueBlock)
+      }
       continue
     }
 
@@ -168,6 +174,63 @@ export function parseSequenceBody(trimmedLines: string[], rawLines?: string[]): 
 }
 
 const sequenceOpaqueBlock = (lines: string[]): SequenceStatement => ({ kind: 'opaque-block', lines })
+
+function sequenceMessageFromParsed(msg: ReturnType<typeof parseSequenceMessageLine> & {}): SequenceMessage {
+  return {
+    from: msg.from, to: msg.to, text: msg.label.trim(), style: styleForArrow(msg.arrow),
+    arrow: msg.arrow as import('./types.ts').SequenceMessageArrow,
+    ...(msg.centralStart ? { centralStart: true } : {}), ...(msg.centralEnd ? { centralEnd: true } : {}),
+    ...(msg.activationMark === '+' ? { activate: true } : {}), ...(msg.activationMark === '-' ? { deactivate: true } : {}),
+  }
+}
+
+function parseTypedFragment(lines: string[]): SequenceFragment | null {
+  const opener = lines[0]?.trim().match(TYPED_FRAGMENT_RE)
+  if (!opener) return null
+  const fragmentKind = opener[1]!.toLowerCase() as SequenceFragment['fragmentKind']
+  const branches: SequenceFragment['branches'] = [{ messages: [] }]
+  for (let i = 1; i < lines.length - 1; i++) {
+    const line = lines[i]!.trim()
+    if (!line) continue
+    // Editing a fragment that carries comments would otherwise discard them.
+    // Keep the entire block opaque until comments gain their own typed model.
+    if (line.startsWith('%%')) return null
+    const continuation = line.match(/^(else|and)\b\s*(.*)$/i)
+    if (continuation) {
+      const allowed = fragmentKind === 'alt' ? continuation[1]!.toLowerCase() === 'else'
+        : fragmentKind === 'par' ? continuation[1]!.toLowerCase() === 'and'
+          : false
+      if (!allowed) return null
+      branches.push({ ...(continuation[2]!.trim() ? { label: continuation[2]!.trim() } : {}), messages: [] })
+      continue
+    }
+    if (BLOCK_OPEN_RE.test(line) || BLOCK_END_RE.test(line)) return null
+    const parsed = parseSequenceMessageLine(line)
+    if (!parsed) return null
+    branches.at(-1)!.messages.push(sequenceMessageFromParsed(parsed))
+  }
+  return {
+    fragmentKind,
+    ...(opener[2]!.trim() ? { label: opener[2]!.trim() } : {}),
+    branches,
+    rawLines: [...lines],
+  }
+}
+
+/** Messages in interaction order, including typed alt/opt/loop/par branches. */
+export function sequenceMessages(body: SequenceBody): SequenceMessage[] {
+  if (!body.statements) return [...body.messages]
+  const out: SequenceMessage[] = []
+  for (const statement of body.statements) {
+    if (statement.kind === 'message') {
+      const message = body.messages[statement.ref]
+      if (message) out.push(message)
+    } else if (statement.kind === 'fragment') {
+      for (const branch of statement.fragment.branches) out.push(...branch.messages)
+    }
+  }
+  return out
+}
 
 
 // Trim trailing blank lines from a captured block (the matching `end` is the
@@ -205,6 +268,8 @@ export function renderSequence(body: SequenceBody): string {
         if (p) lines.push(renderParticipant(p))
       } else if (st.kind === 'actor-links') {
         for (const [label, href] of Object.entries(st.links)) lines.push(`  link ${st.actorId}: ${label} @ ${href}`)
+      } else if (st.kind === 'fragment') {
+        lines.push(...renderFragment(st.fragment))
       } else {
         const m = body.messages[st.ref]
         if (m) lines.push(renderMessage(m))
@@ -219,6 +284,17 @@ export function renderSequence(body: SequenceBody): string {
   }
   for (const m of body.messages) lines.push(renderMessage(m))
   return lines.join('\n') + '\n'
+}
+
+function renderFragment(fragment: SequenceFragment): string[] {
+  if (fragment.rawLines) return [...fragment.rawLines]
+  const lines = [`  ${fragment.fragmentKind}${fragment.label ? ` ${fragment.label}` : ''}`]
+  fragment.branches.forEach((branch, index) => {
+    if (index > 0) lines.push(`  ${fragment.fragmentKind === 'par' ? 'and' : 'else'}${branch.label ? ` ${branch.label}` : ''}`)
+    for (const message of branch.messages) lines.push(`  ${renderMessage(message).trimStart()}`)
+  })
+  lines.push('  end')
+  return lines
 }
 
 function renderParticipant(p: SequenceParticipant): string {
@@ -337,6 +413,89 @@ export function mutateSequence(body: SequenceBody, op: SequenceMutationOp): Resu
       messages[op.index]!.text = op.text
       break
     }
+    case 'add_fragment': {
+      const label = normalizeFragmentLabel(op.label)
+      if (!label.ok) return label
+      const fragments = fragmentStatements(statements)
+      const index = op.index ?? fragments.length
+      if (!Number.isInteger(index) || index < 0 || index > fragments.length) return err({ code: 'INVALID_OP', message: `Sequence fragment index ${index} out of range (0..${fragments.length})` })
+      const statement: SequenceStatement = { kind: 'fragment', fragment: { fragmentKind: op.fragmentKind, ...(label.value ? { label: label.value } : {}), branches: [{ messages: [] }] } }
+      const position = index < fragments.length ? fragments[index]!.position : statements.length
+      statements.splice(position, 0, statement)
+      break
+    }
+    case 'remove_fragment': {
+      const target = fragmentStatements(statements)[op.index]
+      if (!target) return err({ code: 'INVALID_OP', message: `No sequence fragment at index ${op.index}` })
+      statements.splice(target.position, 1)
+      break
+    }
+    case 'set_fragment_label': {
+      const target = fragmentStatements(statements)[op.index]
+      if (!target) return err({ code: 'INVALID_OP', message: `No sequence fragment at index ${op.index}` })
+      const label = normalizeFragmentLabel(op.label)
+      if (!label.ok) return label
+      delete target.statement.fragment.rawLines
+      if (label.value) target.statement.fragment.label = label.value
+      else delete target.statement.fragment.label
+      break
+    }
+    case 'add_fragment_branch': {
+      const target = fragmentStatements(statements)[op.fragmentIndex]
+      if (!target) return err({ code: 'INVALID_OP', message: `No sequence fragment at index ${op.fragmentIndex}` })
+      if (target.statement.fragment.fragmentKind !== 'alt' && target.statement.fragment.fragmentKind !== 'par') return err({ code: 'INVALID_OP', message: 'Only alt and par fragments can have multiple branches' })
+      const label = normalizeFragmentLabel(op.label)
+      if (!label.ok) return label
+      delete target.statement.fragment.rawLines
+      target.statement.fragment.branches.push({ ...(label.value ? { label: label.value } : {}), messages: [] })
+      break
+    }
+    case 'set_fragment_branch_label': {
+      const target = fragmentStatements(statements)[op.fragmentIndex]
+      if (!target) return err({ code: 'INVALID_OP', message: `No sequence fragment at index ${op.fragmentIndex}` })
+      const branch = findFragmentBranch(statements, op.fragmentIndex, op.branchIndex)
+      if (!branch.ok) return branch
+      const label = normalizeFragmentLabel(op.label)
+      if (!label.ok) return label
+      delete target.statement.fragment.rawLines
+      if (label.value) branch.value.label = label.value
+      else delete branch.value.label
+      break
+    }
+    case 'add_fragment_message': {
+      const target = fragmentStatements(statements)[op.fragmentIndex]
+      if (!target) return err({ code: 'INVALID_OP', message: `No sequence fragment at index ${op.fragmentIndex}` })
+      const branch = findFragmentBranch(statements, op.fragmentIndex, op.branchIndex ?? 0)
+      if (!branch.ok) return branch
+      const index = op.index ?? branch.value.messages.length
+      if (!Number.isInteger(index) || index < 0 || index > branch.value.messages.length) return err({ code: 'INVALID_OP', message: `Sequence fragment message index ${index} out of range` })
+      ensureParticipant(participants, statements, op.from)
+      ensureParticipant(participants, statements, op.to)
+      delete target.statement.fragment.rawLines
+      branch.value.messages.splice(index, 0, { from: op.from, to: op.to, text: op.text, style: op.style ?? 'sync' })
+      break
+    }
+    case 'remove_fragment_message': {
+      const target = fragmentStatements(statements)[op.fragmentIndex]
+      if (!target) return err({ code: 'INVALID_OP', message: `No sequence fragment at index ${op.fragmentIndex}` })
+      const branch = findFragmentBranch(statements, op.fragmentIndex, op.branchIndex ?? 0)
+      if (!branch.ok) return branch
+      if (!branch.value.messages[op.index]) return err({ code: 'MESSAGE_NOT_FOUND', message: `No fragment message at index ${op.index}` })
+      delete target.statement.fragment.rawLines
+      branch.value.messages.splice(op.index, 1)
+      break
+    }
+    case 'set_fragment_message_text': {
+      const target = fragmentStatements(statements)[op.fragmentIndex]
+      if (!target) return err({ code: 'INVALID_OP', message: `No sequence fragment at index ${op.fragmentIndex}` })
+      const branch = findFragmentBranch(statements, op.fragmentIndex, op.branchIndex ?? 0)
+      if (!branch.ok) return branch
+      const message = branch.value.messages[op.index]
+      if (!message) return err({ code: 'MESSAGE_NOT_FOUND', message: `No fragment message at index ${op.index}` })
+      delete target.statement.fragment.rawLines
+      message.text = op.text
+      break
+    }
     default: {
       const _x: never = op
       return err({ code: 'INVALID_OP', message: unknownOpMessage('sequence', _x) })
@@ -349,13 +508,34 @@ function opaqueBlocksReference(statements: SequenceStatement[], id: string): boo
   const escaped = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   const token = new RegExp(`(^|[^A-Za-z0-9_])${escaped}(?=$|[^A-Za-z0-9_])`)
   return statements.some(statement =>
-    statement.kind === 'opaque-block' && statement.lines.some(line => token.test(line)))
+    (statement.kind === 'opaque-block' && statement.lines.some(line => token.test(line)))
+    || (statement.kind === 'fragment' && statement.fragment.branches.some(branch => branch.messages.some(message => message.from === id || message.to === id))))
 }
 
 function cloneStatement(s: SequenceStatement): SequenceStatement {
   if (s.kind === 'opaque-block') return { kind: 'opaque-block', lines: [...s.lines] }
   if (s.kind === 'actor-links') return { ...s, links: { ...s.links } }
+  if (s.kind === 'fragment') return { kind: 'fragment', fragment: { ...s.fragment, branches: s.fragment.branches.map(branch => ({ ...branch, messages: branch.messages.map(message => ({ ...message })) })) } }
   return { ...s }
+}
+
+function fragmentStatements(statements: SequenceStatement[]): Array<{ position: number; statement: Extract<SequenceStatement, { kind: 'fragment' }> }> {
+  const out: Array<{ position: number; statement: Extract<SequenceStatement, { kind: 'fragment' }> }> = []
+  statements.forEach((statement, position) => { if (statement.kind === 'fragment') out.push({ position, statement }) })
+  return out
+}
+
+function normalizeFragmentLabel(value: string | null | undefined): Result<string | undefined, MutationError> {
+  if (value === null || value === undefined) return ok(undefined)
+  if (typeof value !== 'string' || !value.trim() || /[\r\n]/.test(value)) return err({ code: 'INVALID_OP', message: 'Sequence fragment label must be a non-empty single line or null' })
+  return ok(value.trim())
+}
+
+function findFragmentBranch(statements: SequenceStatement[], fragmentIndex: number, branchIndex: number): Result<SequenceFragment['branches'][number], MutationError> {
+  const target = fragmentStatements(statements)[fragmentIndex]
+  if (!target) return err({ code: 'INVALID_OP', message: `No sequence fragment at index ${fragmentIndex}` })
+  const branch = target.statement.fragment.branches[branchIndex]
+  return branch ? ok(branch) : err({ code: 'INVALID_OP', message: `No branch ${branchIndex} in sequence fragment ${fragmentIndex}` })
 }
 
 // Build a default statements list (participants then messages) for a body that
@@ -435,6 +615,7 @@ function rebuildStatements(
   const out: SequenceStatement[] = []
   for (const s of statements) {
     if (s.kind === 'opaque-block') { out.push({ kind: 'opaque-block', lines: [...s.lines] }); continue }
+    if (s.kind === 'fragment') { out.push(cloneStatement(s)); continue }
     if (s.kind === 'participant') {
       if (s.ref === removedParticipantIdx) continue
       out.push({ kind: 'participant', ref: s.ref > removedParticipantIdx ? s.ref - 1 : s.ref })

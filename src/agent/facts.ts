@@ -15,6 +15,7 @@ import type {
   QuadrantBody, SequenceBody, StateBody, TimelineBody, XyChartBody,
   MindmapBody, GitGraphBody,
 } from './types.ts'
+import { sequenceMessages } from './sequence-body.ts'
 
 export type MermaidFact = string
 
@@ -167,10 +168,14 @@ function factsSequence(out: string[], body: SequenceBody): void {
     add(out, `${p.kind} ${clean(p.id)} : ${clean(p.label || p.id)}`)
     add(out, `participant#${i} ${clean(p.id)} : ${clean(p.label || p.id)}`)
   })
-  body.messages.forEach((m, i) => {
+  sequenceMessages(body).forEach((m, i) => {
     add(out, `message ${clean(m.from)} -> ${clean(m.to)} : ${clean(m.text)}`)
     add(out, `message#${i} ${clean(m.from)} -> ${clean(m.to)} : ${clean(m.text)}`)
     if (m.style !== 'sync') add(out, `message#${i} style ${m.style}`)
+  })
+  const fragments = (body.statements ?? []).filter(statement => statement.kind === 'fragment')
+  fragments.forEach((statement, index) => {
+    if (statement.kind === 'fragment') add(out, `fragment#${index} ${statement.fragment.fragmentKind}${statement.fragment.label ? ` : ${clean(statement.fragment.label)}` : ''}`)
   })
 }
 

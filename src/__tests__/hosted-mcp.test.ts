@@ -343,12 +343,13 @@ describe('hosted execute', () => {
     expect(ctx.executeCalls).toEqual([{ code: '1 + 1', timeoutMs: 5000 }])
   })
 
-  test('clamps the requested timeout into [1, 30000]', async () => {
+  test('caps positive timeouts and rejects nonpositive budgets', async () => {
     const ctx = makeContext()
     await handleHostedRequest(call('execute', { code: '1', timeoutMs: 90_000 }), ctx)
-    await handleHostedRequest(call('execute', { code: '1', timeoutMs: 0 }), ctx)
+    const invalid = await handleHostedRequest(call('execute', { code: '1', timeoutMs: 0 }), ctx)
     await handleHostedRequest(call('execute', { code: '1', timeoutMs: 250 }), ctx)
-    expect(ctx.executeCalls.map(c => c.timeoutMs)).toEqual([30_000, 1, 250])
+    expect(ctx.executeCalls.map(c => c.timeoutMs)).toEqual([30_000, 250])
+    expect(invalid?.error).toEqual(expect.objectContaining({ code: -32602 }))
   })
 
   test('screens sync-only violations before any isolate is involved', async () => {

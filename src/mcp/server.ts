@@ -15,7 +15,7 @@ import { renderMermaidPNG } from '../agent/png.ts'
 import { describeMermaidSource, describeMermaid } from '../agent/describe.ts'
 import { describeMermaidFacts } from '../agent/facts.ts'
 import { parseMermaid } from '../agent/parse.ts'
-import { configWarningsForMermaid } from '../agent/verify.ts'
+import { configWarningsForMermaid, verifyMermaid } from '../agent/verify.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 
 export type { JsonRpcRequest, JsonRpcResponse } from './protocol.ts'
@@ -93,8 +93,11 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
   if (name === 'execute') {
     const code = (args as { code?: string }).code
     const requestedTimeoutMs = (args as { timeoutMs?: number }).timeoutMs
+    if (requestedTimeoutMs !== undefined && (typeof requestedTimeoutMs !== 'number' || !Number.isFinite(requestedTimeoutMs) || requestedTimeoutMs <= 0)) {
+      return error(id, -32602, 'execute timeoutMs must be a positive finite number')
+    }
     const timeoutMs = typeof requestedTimeoutMs === 'number' && Number.isFinite(requestedTimeoutMs)
-      ? Math.max(1, Math.min(requestedTimeoutMs, context.maxSandboxTimeoutMs ?? MAX_SANDBOX_TIMEOUT_MS))
+      ? Math.min(requestedTimeoutMs, context.maxSandboxTimeoutMs ?? MAX_SANDBOX_TIMEOUT_MS)
       : undefined
     if (typeof code !== 'string') return error(id, -32602, 'execute requires `code` (string)')
     const r = await executeInSandbox(code, { timeoutMs })
@@ -124,11 +127,13 @@ function describeFormat(args: Record<string, unknown>): 'text' | 'json' | 'facts
 
 function describePayload(source: string, args: Record<string, unknown>): { ok: boolean } & Record<string, unknown> {
   const format = describeFormat(args)
-  if (format === 'text') return { ok: true as const, text: describeMermaidSource(source) }
   const parsed = parseMermaid(source)
   if (!parsed.ok) return { ok: false as const, errors: parsed.error }
-  if (format === 'facts') return { ok: true as const, facts: describeMermaidFacts(parsed.value) }
-  return { ok: true as const, tree: JSON.parse(describeMermaid(parsed.value, { format: 'json' })) }
+  const verify = verifyMermaid(parsed.value)
+  if (!verify.ok) return { ok: false as const, family: parsed.value.kind, warnings: verify.warnings }
+  if (format === 'text') return { ok: true as const, text: describeMermaidSource(source), warnings: verify.warnings }
+  if (format === 'facts') return { ok: true as const, facts: describeMermaidFacts(parsed.value), warnings: verify.warnings }
+  return { ok: true as const, tree: JSON.parse(describeMermaid(parsed.value, { format: 'json' })), warnings: verify.warnings }
 }
 
 function handleRenderPng(id: number | string | null, args: Record<string, unknown>, context: McpRequestContext): JsonRpcResponse {

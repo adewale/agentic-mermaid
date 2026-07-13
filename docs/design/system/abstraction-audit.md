@@ -56,10 +56,10 @@ from the registry (regenerate with `UPDATE_GOLDEN=1 bun test src/__tests__/audit
 | Class | `class` | `classDiagram` | `asClass` |
 | ER | `er` | `erDiagram` | `asEr` |
 | Journey | `journey` | `journey` | `asJourney` |
-| Architecture | `architecture` | `architecture-beta` | `asArchitecture` |
+| Architecture | `architecture` | `architecture`, `architecture-beta` | `asArchitecture` |
 | XY chart | `xychart` | `xychart`, `xychart-beta` | `asXyChart` |
 | Pie | `pie` | `pie` | `asPie` |
-| Quadrant | `quadrant` | `quadrantChart` | `asQuadrant` |
+| Quadrant | `quadrant` | `quadrant`, `quadrantChart` | `asQuadrant` |
 | Gantt | `gantt` | `gantt` | `asGantt` |
 | Mindmap | `mindmap` | `mindmap` | `asMindmap` |
 | GitGraph | `gitgraph` | `gitGraph` | `asGitGraph` |

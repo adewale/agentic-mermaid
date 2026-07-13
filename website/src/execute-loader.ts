@@ -82,6 +82,7 @@ function isSyntaxStartupFailure(message: string): boolean {
     || /\bUnexpected token\b/i.test(message)
     || /\bInvalid or unexpected token\b/i.test(message)
     || /\bUnexpected end of input\b/i.test(message)
+    || /\bUnexpected strict mode reserved word\b/i.test(message)
 }
 
 // Extra wall-clock margin over the isolate's cpuMs budget before the parent
@@ -162,16 +163,19 @@ export function createLoaderExecute(loader: WorkerLoaderBinding, harnessSource: 
 }
 
 function failure(message: string, timeoutMs: number): ExecuteResult {
+  const lines = message.split('\n')
+  const primary = lines.find(line => isSyntaxStartupFailure(line)) ?? lines[0]!
+  const clean = primary.replace(/^Uncaught\s+/, '').replace(/\b(?:user|harness)\.js:\d+(?::\d+)?\b/g, '<sandbox>')
   // The loader surfaces a cpuMs overrun as a thrown exception on the call.
-  if (/cpu|exceeded|limit/i.test(message) && !/SyntaxError/i.test(message)) {
+  if (/cpu|exceeded|limit/i.test(clean) && !/SyntaxError/i.test(clean)) {
     return { ok: false, error: `Script execution exceeded its ${timeoutMs}ms CPU budget`, logs: [] }
   }
   // Strip workerd's startup preamble so syntax errors read like the sandbox's.
   // Production Worker Loader sometimes omits the `SyntaxError:` prefix and
   // throws the parser message directly, e.g. `Unexpected token 'const'`.
-  if (isSyntaxStartupFailure(message)) {
-    const syntax = message.match(/SyntaxError:\s*(.*)/)
-    return { ok: false, error: (syntax?.[1] ?? message).split('\n')[0]!, logs: [] }
+  if (isSyntaxStartupFailure(clean)) {
+    const syntax = clean.match(/SyntaxError:\s*(.*)/)
+    return { ok: false, error: syntax?.[1] ?? clean, logs: [] }
   }
-  return { ok: false, error: `sandbox error: ${message}`, logs: [] }
+  return { ok: false, error: `sandbox error: ${clean}`, logs: [] }
 }

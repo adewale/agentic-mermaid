@@ -524,6 +524,14 @@ export function verifyXyChart(body: XyChartBody, opts: VerifyOptions): LayoutWar
   if (body.yAxis?.name !== undefined) overflow('y-axis', body.yAxis.name)
   for (const s of body.series) {
     if (s.name !== undefined) overflow(s.id, s.name)
+    const categoryCount = body.xAxis?.categories?.length
+    if (categoryCount !== undefined && s.values.length !== categoryCount) {
+      warnings.push({
+        code: 'UNSUPPORTED_SYNTAX',
+        syntax: 'xychart_axis_series_length_mismatch',
+        message: `XY chart series ${s.id} has ${s.values.length} values for ${categoryCount} x-axis categories; Mermaid tolerates the mismatch by dropping or synthesizing positions. Make the lengths equal.`,
+      })
+    }
   }
   return warnings
 }

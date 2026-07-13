@@ -27,6 +27,7 @@ import type {
 } from './types.ts'
 import { ok, err, DEFAULT_LABEL_CHAR_CAP } from './types.ts'
 import { labelOverflowWarning } from './label-metrics.ts'
+import { resolveArchitectureIcon } from '../architecture/icons.ts'
 
 // ---- Parser -----------------------------------------------------------------
 
@@ -759,8 +760,14 @@ export function verifyArchitecture(body: ArchitectureBody, opts: VerifyOptions):
   if (body.title !== undefined) overflow('title', body.title)
   if (body.accessibilityTitle !== undefined) overflow('accessibility-title', body.accessibilityTitle)
   if (body.accessibilityDescription !== undefined) overflow('accessibility-description', body.accessibilityDescription)
-  for (const g of body.groups) overflow(g.id, g.label)
-  for (const s of body.services) overflow(s.id, s.label)
+  const nativeIcons = new Set(['cloud', 'database', 'disk', 'internet', 'server'])
+  const checkIcon = (target: string, icon?: string): void => {
+    if (icon && !nativeIcons.has(icon.trim().toLowerCase()) && resolveArchitectureIcon(icon) === null) {
+      warnings.push({ code: 'UNKNOWN_SHAPE', node: target, shape: `architecture-icon:${icon}` })
+    }
+  }
+  for (const g of body.groups) { overflow(g.id, g.label); checkIcon(g.id, g.icon) }
+  for (const s of body.services) { overflow(s.id, s.label); checkIcon(s.id, s.icon) }
   body.edges.forEach((e, i) => {
     // Anchor any edge whose endpoints no longer resolve (defensive; mutate keeps
     // these consistent, but an externally-synthesized body might not).

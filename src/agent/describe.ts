@@ -21,6 +21,7 @@ import './families-builtin.ts'
 import { parseGanttModel } from '../gantt/parser.ts'
 import { resolveGanttSchedule, formatGanttInstant } from '../gantt/schedule.ts'
 import { toMermaidLines } from '../mermaid-source.ts'
+import { sequenceMessages } from './sequence-body.ts'
 
 export interface DescribeOptions {
   /** 'text' (default): prose summary. 'json': structured AX tree (#7349). 'facts': deterministic semantic facts. */
@@ -98,7 +99,7 @@ export function describeMermaidTree(d: ValidDiagram): DescribeTree {
     visit(d.body.states, d.body.transitions)
   } else if (d.body.kind === 'sequence') {
     for (const p of d.body.participants) tree.nodes.push({ id: p.id, label: p.label || p.id })
-    d.body.messages.forEach(m => tree.edges.push({ from: m.from, to: m.to, label: m.text || undefined }))
+    sequenceMessages(d.body).forEach(m => tree.edges.push({ from: m.from, to: m.to, label: m.text || undefined }))
   } else if (d.body.kind === 'class') {
     for (const c of d.body.classes) tree.nodes.push({ id: c.id, label: c.label || c.id })
     for (const r of d.body.relations) tree.edges.push({ from: r.from, to: r.to, label: r.label || r.kind })
@@ -259,7 +260,7 @@ function describeState(body: import('./types.ts').StateBody): string {
 
 function describeSequence(d: SequenceValidDiagram): string {
   const parts = d.body.participants
-  const msgs = d.body.messages
+  const msgs = sequenceMessages(d.body)
   const partStr = parts.map(p => p.label || p.id).join(', ')
   const msgStr = msgs.map(m => `${m.from} -> ${m.to}: ${m.text}`)
   let s = `A sequence diagram between ${partStr || '(no participants)'}.`

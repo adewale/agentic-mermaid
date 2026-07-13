@@ -853,12 +853,12 @@ export function preprocessMermaidLines(text: string): string[] {
  */
 export function detectDiagramTypeFromFirstLine(firstLine: string): RoutedDiagramType | null {
   const line = firstLine.split(';')[0]?.trim().toLowerCase() ?? ''
-  if (/^architecture-beta\s*$/.test(line)) return 'architecture'
+  if (/^architecture(?:-beta)?\s*$/.test(line)) return 'architecture'
   if (/^mindmap\s*$/.test(line)) return 'mindmap'
   if (/^gitgraph(?:\s+(?:lr|tb|bt))?\s*:?\s*$/.test(line)) return 'gitgraph'
   if (/^xychart(-beta)?\b/.test(line)) return 'xychart'
   if (/^pie\b/.test(line)) return 'pie'
-  if (/^quadrantchart\s*$/.test(line)) return 'quadrant'
+  if (/^quadrant(?:chart)?\s*$/.test(line)) return 'quadrant'
   // Upstream accepts (and ignores) a direction token after the header.
   if (/^timeline(?:\s+(?:td|tb|lr|bt|rl))?\s*$/.test(line)) return 'timeline'
   if (/^gantt\s*$/.test(line)) return 'gantt'
@@ -879,12 +879,12 @@ export function detectDiagramTypeFromFirstLine(firstLine: string): RoutedDiagram
  */
 export function detectLooseDiagramTypeFromFirstLine(firstLine: string): RoutedDiagramType | null {
   const line = firstLine.split(';')[0]?.trim().toLowerCase() ?? ''
-  if (/^architecture-beta\b/.test(line)) return 'architecture'
+  if (/^architecture(?:-beta)?\b/.test(line)) return 'architecture'
   if (/^mindmap\b/.test(line)) return 'mindmap'
   if (/^gitgraph\b/.test(line)) return 'gitgraph'
   if (/^xychart(-beta)?\b/.test(line)) return 'xychart'
   if (/^pie\b/.test(line)) return 'pie'
-  if (/^quadrantchart\b/.test(line)) return 'quadrant'
+  if (/^quadrant(?:chart)?\b/.test(line)) return 'quadrant'
   if (/^timeline\b/.test(line)) return 'timeline'
   if (/^gantt\b/.test(line)) return 'gantt'
   if (/^journey\b/.test(line)) return 'journey'

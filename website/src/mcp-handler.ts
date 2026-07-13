@@ -105,6 +105,7 @@ const CORS_BASE = {
   'access-control-allow-methods': 'POST, OPTIONS',
   'access-control-allow-headers': 'content-type, mcp-protocol-version, mcp-session-id',
   'access-control-max-age': '86400',
+  'access-control-expose-headers': 'x-agentic-mermaid-compute-cache',
 }
 
 // Browser Origins allowed to read this endpoint cross-origin. Non-browser
@@ -142,16 +143,76 @@ function corsHeadersFor(request: Request): Record<string, string> {
   return { vary: 'Origin', ...CORS_BASE }
 }
 
-function json(status: number, payload: unknown, cors: Record<string, string>): Response {
-  return new Response(JSON.stringify(payload), {
+interface ExactJsonRpcId { sentinel: string; raw: string }
+
+function json(status: number, payload: unknown, cors: Record<string, string>, exactIds: ExactJsonRpcId[] = [], extraHeaders: Record<string, string> = {}): Response {
+  let body = JSON.stringify(payload)
+  for (const id of exactIds) body = body.replaceAll(JSON.stringify(id.sentinel), id.raw)
+  return new Response(body, {
     status,
     headers: {
       'content-type': 'application/json; charset=utf-8',
       'cache-control': 'no-store',
       'x-content-type-options': 'nosniff',
       ...cors,
+      ...extraHeaders,
     },
   })
+}
+
+/** Protect unsafe integer ids before JSON.parse coerces them through Number.
+ * Only the top-level JSON-RPC id of a single request or direct batch item is
+ * rewritten; identically named fields inside params remain ordinary data. */
+export function preserveUnsafeJsonRpcIds(body: string): { body: string; ids: ExactJsonRpcId[] } {
+  const replacements: Array<ExactJsonRpcId & { start: number; end: number }> = []
+  const stack: Array<'{' | '['> = []
+  let i = 0
+  const stringEnd = (start: number): number => {
+    let j = start + 1
+    while (j < body.length) {
+      if (body[j] === '\\') { j += 2; continue }
+      if (body[j] === '"') return j + 1
+      j++
+    }
+    return j
+  }
+  while (i < body.length) {
+    const ch = body[i]!
+    if (ch === '"') {
+      const end = stringEnd(i)
+      let key: unknown
+      try { key = JSON.parse(body.slice(i, end)) } catch { i = end; continue }
+      const rpcObject = stack.length === 1 && stack[0] === '{'
+        || stack.length === 2 && stack[0] === '[' && stack[1] === '{'
+      let cursor = end
+      while (/\s/.test(body[cursor] ?? '')) cursor++
+      if (rpcObject && key === 'id' && body[cursor] === ':') {
+        cursor++
+        while (/\s/.test(body[cursor] ?? '')) cursor++
+        const number = body.slice(cursor).match(/^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?/)?.[0]
+        if (number && /^-?\d+$/.test(number)) {
+          try {
+            const value = BigInt(number)
+            if (value > BigInt(Number.MAX_SAFE_INTEGER) || value < BigInt(Number.MIN_SAFE_INTEGER)) {
+              let sentinel = `__agentic_mermaid_exact_id_${replacements.length}__`
+              while (body.includes(sentinel)) sentinel += '_'
+              replacements.push({ sentinel, raw: number, start: cursor, end: cursor + number.length })
+            }
+          } catch { /* JSON.parse reports malformed numbers */ }
+        }
+      }
+      i = end
+      continue
+    }
+    if (ch === '{' || ch === '[') stack.push(ch)
+    else if (ch === '}' || ch === ']') stack.pop()
+    i++
+  }
+  let protectedBody = body
+  for (const replacement of replacements.slice().reverse()) {
+    protectedBody = protectedBody.slice(0, replacement.start) + JSON.stringify(replacement.sentinel) + protectedBody.slice(replacement.end)
+  }
+  return { body: protectedBody, ids: replacements.map(({ sentinel, raw }) => ({ sentinel, raw })) }
 }
 
 function sortKeys(value: unknown): unknown {
@@ -298,7 +359,7 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
       return json(403, { jsonrpc: '2.0', id: null, error: { code: -32000, message: 'origin not allowed' } }, cors)
     }
     if (request.method !== 'POST') {
-      return json(405, { jsonrpc: '2.0', id: null, error: { code: -32000, message: 'use POST with a JSON-RPC body; this MCP endpoint is stateless and offers no server-initiated stream' } }, cors)
+      return json(405, { jsonrpc: '2.0', id: null, error: { code: -32000, message: 'use POST with a JSON-RPC body; this MCP endpoint is stateless and offers no server-initiated stream' } }, cors, [], { Allow: 'POST, OPTIONS' })
     }
     // MCP-Protocol-Version validation: an explicit unsupported version is 400
     // (a missing header stays permitted for pre-2025-06-18 clients that never
@@ -330,8 +391,9 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
     }
     event.body_bytes = new TextEncoder().encode(body).length
     let parsed: unknown
+    const exact = preserveUnsafeJsonRpcIds(body)
     try {
-      parsed = JSON.parse(body)
+      parsed = JSON.parse(exact.body)
     } catch (e) {
       return json(400, rpcError(null, -32700, `parse error: ${e instanceof Error ? e.message : 'invalid JSON'}`), cors)
     }
@@ -343,13 +405,13 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
       // the header must send a single message. Older negotiated versions
       // (2024-11-05 / 2025-03-26, or no header) may still batch.
       if (protocolVersion === '2025-06-18') {
-        return json(400, { jsonrpc: '2.0', id: null, error: { code: -32600, message: 'JSON-RPC batching was removed in MCP 2025-06-18; send a single message' } }, cors)
+        return json(400, { jsonrpc: '2.0', id: null, error: { code: -32600, message: 'JSON-RPC batching was removed in MCP 2025-06-18; send a single message' } }, cors, exact.ids)
       }
-      if (parsed.length === 0) return json(400, rpcError(null, -32600, 'empty batch'), cors)
+      if (parsed.length === 0) return json(400, rpcError(null, -32600, 'empty batch'), cors, exact.ids)
       // Bound fan-out before running any item: a single request must not spin an
       // unbounded number of billable isolates/renders (see MAX_BATCH_ITEMS).
       if (parsed.length > MAX_BATCH_ITEMS) {
-        return json(400, { jsonrpc: '2.0', id: null, error: { code: -32600, message: `batch exceeds the ${MAX_BATCH_ITEMS}-request limit` } }, cors)
+        return json(400, { jsonrpc: '2.0', id: null, error: { code: -32600, message: `batch exceeds the ${MAX_BATCH_ITEMS}-request limit` } }, cors, exact.ids)
       }
       // execute is the one tool with its own per-item isolate CPU budget, so it
       // is the one batch amplifier: 20 executes × 30s cpuMs = 600 billable
@@ -360,18 +422,18 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
       // tools/call per request, so a 1-per-request execute cap costs nothing.
       const executeItems = parsed.filter((p) => isExecuteCall(p)).length
       if (executeItems > MAX_EXECUTE_ITEMS_PER_BATCH) {
-        return json(400, { jsonrpc: '2.0', id: null, error: { code: -32600, message: `a batch may contain at most ${MAX_EXECUTE_ITEMS_PER_BATCH} execute call (execute runs in its own CPU-budgeted isolate); send execute calls as separate requests` } }, cors)
+        return json(400, { jsonrpc: '2.0', id: null, error: { code: -32600, message: `a batch may contain at most ${MAX_EXECUTE_ITEMS_PER_BATCH} execute call (execute runs in its own CPU-budgeted isolate); send execute calls as separate requests` } }, cors, exact.ids)
       }
       // One event per request even for batches: each item gets an entry, not a line.
       event.items = parsed.map(() => newItemEvent())
       const responses = (await Promise.all(parsed.map((p, i) => handleOne(p, event.items[i]!)))).filter((r): r is JsonRpcResponse => r !== null)
-      return responses.length === 0 ? new Response(null, { status: 202, headers: cors }) : json(200, responses, cors)
+      return responses.length === 0 ? new Response(null, { status: 202, headers: { ...cors, 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' } }) : json(200, responses, cors, exact.ids)
     }
     event.method = typeof (parsed as { method?: unknown } | null)?.method === 'string' ? (parsed as { method: string }).method : null
     event.batch_size = 1
     event.items = [newItemEvent()]
     const response = await handleOne(parsed, event.items[0]!)
-    return response === null ? new Response(null, { status: 202, headers: cors }) : json(200, response, cors)
+    return response === null ? new Response(null, { status: 202, headers: { ...cors, 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' } }) : json(200, response, cors, exact.ids)
   }
 
   return async (request: Request): Promise<Response> => {
@@ -400,7 +462,14 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
       event.outcome = event.items.length > 0
         ? (event.items.some(i => i.is_error) ? 'tool_error' : 'success')
         : response.status < 400 ? 'success' : 'transport_error'
-      return response
+      const headers = new Headers(response.headers)
+      const toolItems = event.items.filter(item => item.tool !== null)
+      const cacheStatus = !cache ? 'disabled'
+        : toolItems.length === 0 ? 'bypass'
+          : toolItems.every(item => item.cache_hit) ? 'hit'
+            : toolItems.some(item => item.cache_hit) ? 'mixed' : 'miss'
+      headers.set('x-agentic-mermaid-compute-cache', cacheStatus)
+      return new Response(response.body, { status: response.status, statusText: response.statusText, headers })
     } catch (e) {
       // The event must survive an escaping exception without recording a
       // user-controlled message, stack, request body, or code string.

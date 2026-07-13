@@ -91,15 +91,17 @@ describe('BUILD-18 segment-preserving sequence body (headline)', () => {
     '  A->>B: bye',
   ].join('\n')
 
-  test('alt block → structured (asSequence non-null), top-level messages visible, opaque alt invisible', () => {
+  test('alt block → typed fragment while top-level message addressing remains stable', () => {
     const d = parse(SRC)
     const s = asSequence(d)
     expect(s).not.toBeNull()
     if (!s) return
-    // Only the two top-level messages are addressable; the two inside the alt
-    // block are invisible to the message array.
+    // The top-level array remains backward-compatible; fragment messages have
+    // their own typed addressing and participate in read-back/verify.
     expect(s.body.messages.map(m => m.text)).toEqual(['ping', 'bye'])
-    expect(s.body.statements?.some(st => st.kind === 'opaque-block')).toBe(true)
+    const fragment = s.body.statements?.find(st => st.kind === 'fragment')
+    expect(fragment?.kind).toBe('fragment')
+    if (fragment?.kind === 'fragment') expect(fragment.fragment.branches.flatMap(branch => branch.messages.map(message => message.text))).toEqual(['ok', 'nope'])
   })
 
   test('add_message appends after the alt block and serialize keeps the block verbatim in position', () => {
@@ -246,13 +248,12 @@ describe('BUILD-18 sequence segmentation — sad paths', () => {
     expect(serializeMermaid(s).trimEnd()).toBe(src)
   })
 
-  test('message inside an opaque block does NOT auto-create a participant', () => {
-    // Z appears only inside the alt block — it must not leak into participants.
+  test('message inside a typed fragment creates participants for valid read-back', () => {
     const src = 'sequenceDiagram\n  A->>B: hi\n  alt ok\n    Z->>Q: secret\n  end'
     const s = sequence(src)
     const ids = s.body.participants.map(p => p.id)
     expect(ids).toContain('A'); expect(ids).toContain('B')
-    expect(ids).not.toContain('Z'); expect(ids).not.toContain('Q')
+    expect(ids).toContain('Z'); expect(ids).toContain('Q')
   })
 
   test('autonumber interleaving stays verbatim and messages remain addressable', () => {

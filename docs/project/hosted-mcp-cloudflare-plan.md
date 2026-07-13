@@ -98,9 +98,10 @@ Known, documented divergences from local `execute`:
    for pure synchronous compute these are close but not identical.
 2. A warm isolate can serve repeated identical code, so module-level global
    mutation (`globalThis.x = ...`) may be visible across calls with the same
-   code — locally every call gets a fresh vm context. Response caching (below)
-   makes identical requests return the first result anyway; the divergence is
-   only reachable when the edge cache misses but the isolate is warm.
+   code — locally every call gets a fresh vm context. The private Workers
+   Cache API compute cache (below) makes identical requests return the first
+   result anyway; the divergence is only reachable on a compute-cache miss
+   while the isolate is warm. The public `/mcp` response itself is `no-store`.
 3. Isolation authority differs: locally the proxy facade is the security
    boundary; hosted, the isolate + `globalOutbound: null` is, and the facade
    is kept for behavioral parity.
@@ -258,10 +259,10 @@ tools are pure functions of their inputs:
 |---|---|---|---|
 | Worker requests | 10 M/month | $0.30/M | every `/mcp` call + one internal request per uncached `execute` |
 | CPU time | 30 M ms/month | $0.02/M ms | renders are ms-scale; `execute` capped at 30 s by `cpuMs` |
-| Unique dynamic Workers | 1,000/month | $0.002/Worker/day | one per **unique** `execute` code string per day (hash-keyed + edge-cached; retries and repeats dedupe) |
+| Unique dynamic Workers | 1,000/month | $0.002/Worker/day | one per **unique** `execute` code string per day (hash-keyed + private Workers Cache API compute cache; retries and repeats dedupe) |
 
-Levers that keep this near the plan's $5/month floor: edge caching of
-deterministic responses, code-hash isolate reuse, parent-side rejection of
+Levers that keep this near the plan's $5/month floor: private server-side
+compute caching of deterministic results, code-hash isolate reuse, parent-side rejection of
 unsupported code, `subRequests: 0`, size caps, and the WAF rate limit as the
 abuse backstop. The pure tools keep the high-volume paths (render/verify) off
 the dynamic-Worker meter entirely. No other billable primitives are used.

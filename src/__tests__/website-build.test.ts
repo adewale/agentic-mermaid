@@ -346,8 +346,9 @@ describe('Workers Static Assets website contract', () => {
     const cap = JSON.parse(read('capabilities.json'))
     const sample = cap.warningCodes.find((w: { code: string }) => w.code === 'LABEL_OVERFLOW')
     expect(Boolean(sample)).toBe(true)
-    for (const field of ['what', 'triggers', 'fix'] as const) {
-      expect({ field, filled: typeof sample[field] === 'string' && sample[field].length > 20 }).toEqual({ field, filled: true })
+    for (const warning of cap.warningCodes) for (const field of ['what', 'triggers', 'fix'] as const) {
+      expect({ code: warning.code, field, filled: typeof warning[field] === 'string' && warning[field].length > 20 })
+        .toEqual({ code: warning.code, field, filled: true })
     }
     expect(sample.fix.includes('<code>')).toBe(false)             // Markdown, not page HTML
   })
@@ -969,8 +970,16 @@ describe('Workers Static Assets website contract', () => {
     expect(mcpCard.tools.every((tool: any) => tool.parameters && typeof tool.parameters === 'object')).toBe(true)
     expect(read('.well-known/mcp.json')).toContain('"serverUrl": "https://agentic-mermaid.dev/mcp"')
     const aiCatalog = JSON.parse(read('.well-known/ai-catalog.json'))
+    expect(aiCatalog.entries.length).toBeGreaterThanOrEqual(10)
     expect(aiCatalog.entries.map((entry: any) => entry.type)).toContain('application/mcp-server-card+json')
     expect(aiCatalog.entries.map((entry: any) => entry.url)).toContain('https://agentic-mermaid.dev/.well-known/mcp/server-card.json')
+    expect(aiCatalog.entries.map((entry: any) => entry.url)).toEqual(expect.arrayContaining([
+      'https://agentic-mermaid.dev/capabilities.json',
+      'https://agentic-mermaid.dev/examples/index.json',
+      'https://agentic-mermaid.dev/start.md',
+      'https://agentic-mermaid.dev/agent-instructions.md',
+      'https://agentic-mermaid.dev/.well-known/mcp.json',
+    ]))
     const capabilities = JSON.parse(read('capabilities.json'))
     expect(capabilities.families.map((family: any) => family.id)).toContain('flowchart')
     expect(capabilities.warningCodes.map((warning: any) => warning.tier)).toContain('structural')
@@ -1175,6 +1184,7 @@ describe('Workers Static Assets website contract', () => {
     expect(text).not.toContain('TODO.md')
     expect(text).not.toContain('skill-evals/')
     expect(text).toContain('/capabilities.json')
+    expect(text).toContain('describe_sdk')
   })
 
   test('production CSP forbids inline executable scripts and generated pages externalize them', () => {

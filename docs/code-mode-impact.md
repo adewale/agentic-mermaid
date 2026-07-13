@@ -47,7 +47,9 @@ kept for behavioural parity with the local server.
 
 Hosted execution has a per-call cost, so common pure operations do not enter
 the sandbox. `render_svg`, `render_ascii`, `render_png`, `verify`, `describe`,
-and `describe_sdk` run as ordinary Worker calls and can be edge-cached.
+and `describe_sdk` run as ordinary Worker calls whose successful deterministic
+results can be reused by the private server-side Workers Cache. The JSON-RPC
+HTTP responses remain `cache-control: no-store`.
 Declarative `mutate` and `build` apply typed operation lists through the same
 mutation core and verify before returning source. They give smaller models a
 direct path for routine edits while reserving `execute` for control flow that
