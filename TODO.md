@@ -1,28 +1,11 @@
 # Project Backlog
 
-`TODO.md` is the canonical root backlog. Design plans may carry a subordinate,
-mechanically checked execution ledger only when one explicit umbrella item
-below links it and this file remains the owner-facing priority surface. Docs map: `docs/features.md` = current capabilities;
-`docs/project/divergences.md` = implementation history;
-`docs/project/lessons-learned.md` = cumulative fork narrative (loops 1–22);
-`docs/contributing/lessons-learned.md` = dated contributor process lessons;
-`AGENT_NATIVE.md` = architecture/spec rationale; `Instructions_for_agents.md`
-= runtime guide; `CHANGELOG.md` = user-facing release notes; `docs/README.md`
-= documentation index; `docs/issue-derived-test-cases.md` = evidence
-inventory, not backlog; `docs/mcp-code-mode-rationale.md` = MCP surface
-rationale, not backlog; `docs/agent-workflow-examples.md` = runnable example
-index, not backlog.
+`TODO.md` is the canonical owner-facing backlog and contains only actionable items. Completed records live under `docs/project/archive/`; current capabilities live in `docs/features.md` and generated registry surfaces. IDs are stable names, not ordering.
 
-Status legend: `todo` | `blocked` | `owner-decision` | `parked` | `done`
-(checked items record recently completed backlog with their evidence; prune
-them once the next release ships).
-
-Items within each section are sorted by dependencies: prerequisites first,
-dependents after. IDs are stable names, not an ordering.
+Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
 
 ## 0. Release / owner decisions
 
-- [ ] **FAM-ELEVATION-RESIDUAL — Finish the family-elevation completion packages** (`blocked`). All 72 implementation items and B01–B17 are complete. B18 is intentionally partial until the final commit has retained GitHub Actions check URLs and post-fix reviewer acceptance; local green results and the explicit remainder are recorded in `docs/design/family-elevation-acceptance.md`. Mutation scores remain non-gating local measurements.
 - [ ] **DEC-1 — Get one real external consumer** (`todo`). Validate
   `agentic-mermaid/agent`, `am`, or `agentic-mermaid-mcp` in a real agent,
   TUI, CI gate, or editor integration outside this repo. Unblocked
@@ -35,12 +18,6 @@ dependents after. IDs are stable names, not an ordering.
   backstop is a **dashboard** WAF rate-limit rule (e.g. 60 req/min per IP) that
   cannot live in the repo. Don't market or broadly promote the endpoint until it
   is live. See the promotion checklist in `website/README.md`.
-- [x] **DEC-3 — Verify the `worker_loaders` (`LOADER`) binding resolves in
-  production** (`done`). Live probe against `https://agentic-mermaid.dev/mcp`
-  on 2026-07-07: `tools/call execute` with code `1 + 41` returned
-  `{ "ok": true, "value": 42, "logs": [] }`, proving the production Dynamic
-  Workers `LOADER` binding resolves for hosted Code Mode. The pure tools are no
-  longer the only production evidence.
 - [ ] **DEC-4 — Establish Google and Bing search visibility**
   (`owner-decision`). In ownership-verified Google Search Console and Bing
   Webmaster Tools, submit `https://agentic-mermaid.dev/sitemap.xml`, request
@@ -59,24 +36,16 @@ dependents after. IDs are stable names, not an ordering.
   and status with `curl` and both search consoles. The repo deliberately ships
   no competing `robots.txt`, so the dashboard remains the single source.
 
+
 ## 1. Security backlog
 
 - [ ] **SEC-1 — Sanitize editor share/draft render config before SVG insertion** (`todo`). Audit on 2026-07-09 found that `/editor/` accepts hash/draft `config`, merges it into render options, and inserts rendered SVG with `innerHTML`; malicious color/font/style values can break out of the SVG root `style` attribute and create executable SVG markup under the current CSP. Fix by allowlisting editor-restorable config keys/values, escaping SVG root styles/attrs in `svgOpenTag`, sanitizing preview SVG before insertion, and adding hostile hash/draft/browser regression tests.
 - [ ] **SEC-2 — Cap editor share-link decompression and draft restore size** (`todo`). Deflated share links and localStorage drafts currently decode/read without a byte cap, so a crafted hash or stale draft can hang the browser. Add encoded/decoded size limits, streaming abort on overflow, visible too-large errors, and tests for corrupt/oversized links and missing `DecompressionStream`.
 - [ ] **SEC-3 — Make editor autosave privacy explicit** (`todo`). The editor persists diagram source, render config, style, and seed in plaintext `localStorage` by default. Add a visible disclosure plus a clear/private-mode option or switch persistent drafts to opt-in/session-only storage.
 
+
 ## 2. Ready build backlog
 
-- [x] **BUILD-7 — MCP reachability: streamable-HTTP/SSE transport + file/URL
-  outputs** (`done`). Added opt-in HTTP/SSE transport with loopback-default
-  binding, `--transport http`, direct `/rpc` test endpoint, SSE `/sse` +
-  `/message` session flow, `/health`, JSON content-type/Origin gates,
-  remote-bind bearer token requirement, capped request/sandbox sizes, and
-  managed `/artifacts/<name>` serving. `render_png` now supports
-  `output: "base64"|"file"|"url"`; file/URL artifacts are generated under a
-  managed store with safe tracked names, MIME type, byte count, SHA-256, size
-  limit, and TTL checks. Tests cover file output, URL fetch-back, auth/body
-  gates, tracked artifact serving, and SSE session lifecycle.
 - [ ] **BUILD-27 — MCP Apps support** (`todo`). Expose an interactive
   in-agent diagram UI through MCP Apps: `ui://` resources, correct
   `text/html;profile=mcp-app` resource MIME type, tool `_meta.ui.resourceUri`
@@ -105,12 +74,6 @@ dependents after. IDs are stable names, not an ordering.
   and privacy-policy URLs, screenshots, test prompts/responses, localization,
   and review notes. Submit through the plugin portal only when the live endpoint
   and UI are stable enough to preserve the reviewed metadata contract.
-- [x] **BUILD-25 — Structured coverage for the last silent-opaque constructs**
-  (completed on PR #142; tracked as **#118**). Class generics and compound/block
-  namespaces, plus State notes, fork/join/choice pseudostates, and history states now pass
-  through shared render/agent grammars with typed mutation and canonical
-  round-trip coverage. Unquoted Pie labels remain intentionally invalid because
-  Mermaid's grammar requires quotes.
 - [ ] **BUILD-24 — Layout hints: rank/group pinning and edge-length
   preferences** (`todo`). Direct agent feedback (2026-07): an agent deleted a
   real edge because the auto-layout drew its feedback loop as a long,
@@ -131,10 +94,9 @@ dependents after. IDs are stable names, not an ordering.
   routing errors in docs/evals; then either implement as a thin, schema-tested
   wrapper or explicitly park/decline it. Independent of other items.
 - [ ] **BUILD-26 — Ecosystem issue harvest: Mermaid / Mermaid ASCII /
-  Beautiful Mermaid migration fixtures** (`todo`). Six-month issue harvest
-  (created since 2026-01-07) found 214 Mermaid issues, 10 Mermaid ASCII issues,
-  and 61 Beautiful Mermaid issues; capture them as **fixture seeds and parity
-  gaps**, not as blanket scope expansion. Priority is direct Agentic Mermaid
+  Beautiful Mermaid migration fixtures** (`todo`). Convert the pinned ecosystem
+  issue harvest into **fixture seeds and parity gaps**, not blanket scope
+  expansion; the harvest artifact, rather than prose totals, is authoritative. Priority is direct Agentic Mermaid
   relevance: supported-family syntax parity, ASCII semantic preservation,
   deterministic layout/text/theming/security, and workflow/API ergonomics.
   - **Flowchart syntax + subgraphs**: typed metadata/style interop and parser
@@ -176,113 +138,6 @@ dependents after. IDs are stable names, not an ordering.
     Cynefin, DITAA, BPMN, RASCI, Data Pipeline, Use Case, PERT/CPM, Org Chart,
     Info) are roadmap signals only. Route TreeView through BUILD-6 first;
     do not expand family scope without a focused issue and evidence.
-- [x] **BUILD-3 — Family-plugin consolidation** (`done`). parse/serialize/
-  mutate for sequence, timeline, class, ER, and journey now dispatch through
-  `FamilyPlugin` hooks registered in `src/agent/families-builtin.ts`; each
-  family lives in one body module (`sequence-body.ts`, `timeline-body.ts`,
-  `class-body.ts`, `er-body.ts`, `journey-body.ts`). Flowchart/state remain
-  registered via `flowchartFamilyHooks` (two plugins, one implementation,
-  header bound per kind) after the contract gained canonicalSource/
-  multi-error parse and a buildSourceMap hook — no in-tree exception
-  remains. Mutation rebuilds `canonicalSource` uniformly. Unblocks
-  BUILD-5/BUILD-6/BUILD-11 and the mutation roadmap.
-- [x] **BUILD-5 — Common-README family coverage: mindmap and gitgraph**
-  (`done`; Pie and Gantt were the earlier slices). Mindmap and GitGraph now
-  ship as first-class families with typed parsers/models, deterministic
-  layout, Scene/SVG/PNG and spatial terminal rendering, typed mutation,
-  config honesty, accessibility/security, and zero-exception citizenship.
-  Each addition
-  follows `docs/contributing/adding-diagram-types.md` and ships
-  parse/verify/render/round-trip (source-level body is acceptable; structured
-  mutation only where the IR can preserve semantics). The corpus count also
-  feeds BUILD-11.
-  - [x] Evidence step: `eval/family-usage/` counts fenced ` ```mermaid `
-    header families over a directory of markdown. Golden-fixture tested; smoke
-    run over the in-repo corpus recorded in `eval/family-usage/RESULTS.md`
-    with an explicit caveat that the decision-grade README corpus run needs
-    network (see `eval/family-usage/README.md`).
-  - [x] Pie family (cheapest target): `src/pie/` (types/parser/layout/SVG +
-    `src/ascii/pie.ts`), routing, agent surface (detect + extractLabels),
-    showcase samples, docs, and goldens. Now promoted to structured mutation —
-    `src/agent/pie-body.ts`, `asPie`, 7 ops (see Unreleased changelog).
-  - [x] Gantt family (per the [docs/design/families/gantt.md](./docs/design/families/gantt.md)
-    spec from PR #24): `src/gantt/` (types/parser/schedule/layout/SVG +
-    `src/ascii/gantt.ts`), routing, segment-preserving typed mutation from day
-    one (`src/agent/gantt-body.ts`, `asGantt`, 13 ops), pure wall-clock-free
-    scheduler with named `GANTT_*` errors, critical-path analysis in
-    `describe`, showcase samples, docs, ASCII/Unicode + SVG goldens,
-    fast-check properties, a `mermaid-ast` differential, and a targeted
-    Stryker config (`mutation-test:gantt`).
-  - [x] Mindmap and GitGraph: implemented in that order. Compatibility is
-    pinned to Mermaid commit `f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc`;
-    the focused oracle and divergences live in
-    `eval/mermaid-upstream-suite-bench/mindmap-gitgraph-f3dea583.json`.
-- [x] **BUILD-20 — Upstream test-suite harvests for every current renderable family.** Apply
-  [docs/contributing/harvesting-upstream-tests.md](./docs/contributing/harvesting-upstream-tests.md)
-  (the method piloted by `eval/mermaid-gantt-bench/`, which found one real
-  compat bug, one semantic boundary divergence, and the verify/render seam
-  that became `UNRESOLVABLE_SCHEDULE`) to the remaining current families. The
-  [`eval/mermaid-upstream-suite-bench/`](./eval/mermaid-upstream-suite-bench/)
-  bench now pins upstream Mermaid at `a2d9686451df7c4644a3eeca20535bbd4c5776b0`,
-  provides `bun run harvest:upstream` and `bun run harvest:upstream:refresh-check`,
-  records a family-by-family manifest for all 1,265 considered parser/DB
-  blocks, imports 747 blocks, accounts for 518 exclusions, and leaves 0
-  deferred blocks. The executable gate covers 737 cases including the 68-case
-  Gantt and 89-case Mindmap/GitGraph companion benches. Local compatibility exclusions carry BUILD-20
-  tracking metadata, exact case assertions are enforced, and `ratchet.json`
-  prevents imported coverage from falling or local-gap budgets from growing.
-  - [x] flowchart, state, sequence, class, ER, timeline, journey,
-    architecture, xychart, pie, quadrant, and gantt all have checked
-    cases/exclusions/manifest accounting.
-  - [x] Mindmap and GitGraph were harvested before implementation against
-    pinned Mermaid commit `f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc`. The checked oracle now accounts
-    for every direct official block (26 Mindmap, 69 GitGraph): 89 executable
-    portable/error cases, five source-inexpressible config-accessor exclusions,
-    and one executable duplicate-id divergence.
-- [x] **BUILD-22 — Diagram-family citizenship gap backfill** (`done`). The
-  checked matrix in
-  [`docs/contributing/diagram-family-citizenship.matrix.json`](./docs/contributing/diagram-family-citizenship.matrix.json)
-  now has **zero exceptions** across registered renderable families. The
-  docs-corpus citizenship backfill regenerated the official Mermaid syntax-doc
-  corpus (271 examples, now including pie/quadrant), added an executable
-  `eval/mermaid-docs-corpus/divergences.json` ledger, fixed the discovered
-  flowchart compact-target round-trip bug, and upgraded the matrix/test ratchet
-  so future gaps fail loudly.
-  - [x] Stable ASCII/TUI/editor region assertions for every family are pinned
-    in `src/__tests__/agent-ascii-meta.test.ts`; `src/ascii/meta.ts` now emits
-    regions for state, timeline, class, ER, journey, architecture, xychart,
-    pie, quadrant, and Gantt in addition to the earlier flowchart/sequence
-    coverage.
-  - [x] Targeted mutation lanes exist for state, sequence, timeline, class,
-    ER, journey, pie, and quadrant (`stryker.<family>.config.json` plus
-    `mutation-test:<family>` scripts). Flowchart/link routing,
-    xychart/architecture, and Gantt keep their existing focused lanes.
-  - [x] Executable docs-corpus divergence ledger exists for current known
-    non-Gantt Mermaid-docs divergences; the cross-family parser/DB bench now
-    accounts for every current renderable-family BUILD-20 upstream block.
-  - [x] Generated-site/sample family coverage is tied to
-    `BUILTIN_FAMILY_METADATA` by the existing property generator tests,
-    including explicit gallery affordance/prefix checks for Pie, Quadrant, and
-    Gantt.
-- [x] **BUILD-11 — QuadrantChart family** (`done`). Promoted
-  from the PARK-3 fork-audit list. Quadrant charts are missing across the
-  entire beautiful-mermaid fork network (no port exists upstream or in any
-  fork), so this is cheap differentiation. Axis/quadrant layout is closer to
-  xychart than to graph families; shipped as a render body, since promoted to
-  structured mutation (`src/agent/quadrant-body.ts`, `asQuadrant`, 7 ops).
-  Evidence: `src/quadrant/` (types/parser/layout/SVG renderer) +
-  `src/ascii/quadrant.ts`; routing in `src/mermaid-source.ts`, `src/index.ts`,
-  `src/ascii/index.ts`; agent surface in `src/agent/families-builtin.ts`
-  (`quadrant` detect + `extractQuadrantLabels`) and `DiagramKind` in
-  `src/agent/types.ts`. Quadrant numbering matches Mermaid core (upstream
-  `quadrantChart.md`: 1=top-right, 2=top-left, 3=bottom-left, 4=bottom-right).
-  Tests: `src/__tests__/quadrant.test.ts` (parser happy/sad, per-quadrant
-  geometry, deterministic SVG, fast-check property, agent surface) + 2 unicode
-  / 2 ascii goldens (`testdata/{unicode,ascii}/quadrant_*.txt`). Malformed
-  lines (out-of-range/non-numeric coords, missing brackets, duplicate labels,
-  `classDef`/`:::` styling) error loudly. Docs/showcase/CHANGELOG/llms.txt
-  updated; the then-current family count assertions and detector-drift case
-  were bumped.
 - [ ] **BUILD-6 — New upstream Mermaid families (11.4–11.15)** (`todo`). Mermaid added kanban (11.4), radar (11.6), treemap
   (~11.9), Venn (beta, 11.13), Ishikawa/fishbone (beta, 11.13), Wardley Maps
   (beta, 11.14), TreeView (11.14), and Event Modeling (11.15). Upstream
@@ -295,195 +150,6 @@ dependents after. IDs are stable names, not an ordering.
   crossing arrows) cannot get a regression fixture until C4 is rendered — the
   aesthetic-issue coverage audit
   (`docs/issue-derived-test-cases.md`) defers it to this item.
-- [x] **BUILD-15 — Journey structured mutation (pilot)** (`done`). Typed
-  `JourneyBody` (title/sections/tasks with 1..5 scores and actors), 10 ops,
-  `asJourney` narrower, verify hook, lossless opaque fallback for unmodeled
-  syntax, round-trip property tests (`agent-journey.test.ts`), and sync
-  across CLI capabilities, MCP SDK declaration, `Instructions_for_agents.md`,
-  llms.txt, the skill, and the spec. The per-family checklist it validated
-  is the template for BUILD-16/BUILD-17.
-- [x] **BUILD-16 — XY chart structured mutation** (`done`). Typed `XyChartBody`
-  (bare title, named/categorical/range x-axis, named/range y-axis, `bar`/`line`
-  series with optional names + finite values; `horizontal` orientation modeled
-  from the header), 8 ops (`set_title`, `set_x_axis`, `set_y_axis`, `add_series`,
-  `remove_series`, `set_series_values`, `set_series_name`, `reorder_series`),
-  `asXyChart` narrower, verify hook (EMPTY_DIAGRAM + LABEL_OVERFLOW on
-  title/axis-name/series-name), lossless opaque fallback for quoted text /
-  multi-statement `;` lines / accTitle/accDescr / `curve basis` / non-orientation
-  header suffixes, and the `SERIES_NOT_FOUND` error code. Number format is
-  `String(n)` (finite-only), proven byte-identical round-trip plus a
-  **differential test** that the canonical output re-parses identically under the
-  legacy `parseXYChart`. Category/series length mismatch is allowed (legacy
-  renderer accepts it) and tested. Evidence: `src/agent/xychart-body.ts`,
-  `src/__tests__/agent-xychart.test.ts` (29 tests, 216 assertions; sabotage check
-  flipped 19 of 29 red), plus sync across CLI capabilities, MCP SDK declaration,
-  `Instructions_for_agents.md` + mirror, llms.txt, SKILL.md, and the spec.
-  Followed the BUILD-15/BUILD-17 checklist verbatim.
-- [x] **BUILD-17 — Architecture structured mutation** (`done`). Typed
-  `ArchitectureBody` (groups/services/junctions + anchored `id:SIDE arrow SIDE:id`
-  edges), 10 ops (`add_service`, `remove_service` [cascades edges],
-  `rename_service` [updates edges], `set_service_label`, `set_service_icon`,
-  `move_service`, `add_group`, `remove_group` [refuses non-empty], `add_edge`,
-  `remove_edge` [by index or `from->to` id]), `asArchitecture` narrower, verify
-  hook (EMPTY_DIAGRAM + LABEL_OVERFLOW), lossless opaque fallback for the
-  `{group}` boundary modifier and accTitle/accDescr, round-trip + fast-check
-  property tests (`agent-architecture.test.ts`), and sync across CLI
-  capabilities, MCP SDK declaration, `Instructions_for_agents.md`, llms.txt, the
-  skill, and the spec. Followed the BUILD-15 journey checklist verbatim.
-- [x] **BUILD-18 — Segment-preserving structured body** (`done`, sequence). Ended the
-  structured-or-opaque cliff for sequence: one unmodeled construct (e.g. a
-  sequence `alt` block) no longer forces the whole diagram opaque. `SequenceBody`
-  now carries an ordered `statements: SequenceStatement[]` list that interleaves
-  structured `participant`/`message` statements (refs into the existing
-  `participants`/`messages` arrays) with verbatim `opaque-block` segments
-  preserved positionally, so participant/message ops stay available while
-  `Note`/`alt`/`loop`/`par`/`activate`/`autonumber`/`title` ride along untouched.
-  Block constructs are captured start→matching-`end` with nesting tracking;
-  `remove_message`/`set_message_text` indexes address only top-level messages
-  (messages inside an opaque block are never touched); un-segmentable input
-  (stray `end`, unclosed block) still falls back to whole-body opaque. Shipped a
-  segment-aware parser, order-preserving idempotent serializer, segment-respecting
-  ops, fast-check properties (interleave round-trip in order; `remove_message`
-  leaves opaque-block bytes unchanged; segments-or-opaque always lossless), and a
-  sabotage check on the nesting-depth tracker. MermaidSeqBench (132) and the
-  mermaid-docs sequence corpus stay 100% lossless.
-  - [ ] Follow-up: apply the same segment-preserving body to class/ER/timeline
-    unmodeled-syntax fallbacks. This is the path to "typed mutation for all
-    diagrams" without ever violating the no-loss guarantee. Also the 2A
-    destination for in-body `%%` comments in flowchart/state (BUILD-21 ships
-    the announced-drop interim via the `COMMENT_DROPPED` lint): comments
-    become positionally-anchored opaque segments that ride through mutations.
-- [x] **BUILD-19 — Dedicated `StateBody` IR for state diagrams** (`done`).
-  State diagrams now own a dedicated structured-or-opaque `StateBody`
-  (`body.kind: 'state'`) — states, transitions with `[*]` start/end
-  pseudostates (scoped per composite level), nestable composites, and
-  `direction` — replacing the flowchart projection. `src/agent/state-body.ts`
-  ships parse/serialize/mutate/verify; `families-builtin` registers state via
-  `structuredFamilyHooks('state', …)`. Evidence:
-  - **Modeled-vs-opaque, legacy-probed**: probed `parseStateDiagram` empirically
-    (definition-before-use label ordering, `[*]` → `_start`/`_end`, composite
-    `[\w\p{L}]+` ids reject hyphens, bare `stateId`/notes/`<<fork>>`/`--`/
-    `classDef`/`:::` are DROPPED by the legacy parser → modeled subset is exactly
-    what re-parses identically; everything else stays lossless-opaque).
-  - **8 ops** (`add_state`, `remove_state` [cascade + refuse non-empty composite],
-    `rename_state` [rewrites transitions], `set_state_label`, `add_transition`,
-    `remove_transition` [index or from/to], `set_transition_label`,
-    `make_composite`). New error codes `STATE_NOT_FOUND`, `TRANSITION_NOT_FOUND`,
-    `DUPLICATE_STATE`.
-  - **Verify-projection proof**: `verify.ts` projects `StateBody` → `MermaidGraph`
-    via `stateBodyToGraph` and runs the shared `verifyGraph` (Tier 1 + Tier 2);
-    differential test proves canonical source re-parses 1:1 under the legacy
-    parser (states ↔ nodes, transitions ↔ edges, composites ↔ subgraphs).
-  - **Corpus delta**: state round-trip 5% → 100% (all 20 mermaid-docs samples),
-    verify floor 0.70 → 0.80; floors raised in `agent-mermaid-corpus.test.ts`.
-  - `asState` narrower; `asFlowchart` now returns `null` on state (breaking flip,
-    documented across every agent surface + CHANGELOG breaking note). Tests:
-    `src/__tests__/agent-state.test.ts` (42 tests: parse, narrow, round-trip,
-    opaque-fallback table, error-path table, differential, fast-check, verify
-    projection); state pins in `agent.test.ts` and doc-sync guard flipped.
-- [x] **BUILD-13 — Layout before/after comparison harness** (`done`).
-  Prerequisite for all visual/layout work (BUILD-10, BUILD-9, BUILD-12,
-  BUILD-1): render the corpus + targeted fixtures on two git states and emit
-  a side-by-side HTML report with perceptual-metric deltas. Shipped as
-  `eval/layout-compare/run.ts` (snapshot/report subcommands, regression
-  exit code), fixtures in `eval/layout-compare/fixtures/`, tests in
-  `src/__tests__/layout-compare.test.ts`.
-- [x] **BUILD-10 — Fan-out trunk sharing / connector alignment** (`done`).
-  Upstream issue <https://github.com/lukilabs/beautiful-mermaid/issues/111>
-  (sibling edges from one source don't share a trunk; related connector
-  displacement is issue #112, upstream fix PR is #113).
-  The #112 box-start displacement was already fixed (connector anchored on the
-  node border via `getNodeAttachmentPoint`; `ascii-box-start.test.ts`). The
-  #111-class TB fan-out detour (a labelled sibling edge took an L-shaped wander
-  with its label on the horizontal run) is now fixed. Evidence: golden
-  `src/__tests__/testdata/unicode/td_fanout_labeled.txt` matches the upstream
-  shape exactly; charset-independent invariants in
-  `src/__tests__/ascii-fanout-trunk-labeled.test.ts` (single trunk with ┬ tees,
-  each label on its own vertical drop, no `─label─`, no stray `+`/`◢`).
-  Port outcome (the Loop 17 lesson, confirmed again): of upstream PR #113's four
-  parts, only TWO were load-bearing in this fork and only those shipped —
-  (1a) deterministic FIFO tie-breaking in the pathfinder MinHeap
-  (`src/ascii/pathfinder.ts`), and (3b) label placement preferring the
-  per-sibling vertical drop in TD (`determineLabelLine` in
-  `src/ascii/edge-routing.ts`). The other two — (1b) `preferredDir` A* neighbour
-  reordering and (2) explicit branch-point re-routing — DESTABILISED trunk
-  rendering here (stray `+`, `◢` arrowheads, regressed the LR box-start repro),
-  because this fork already has the trunk machinery upstream lacked
-  (edge-bundling for unlabelled siblings) plus FIFO determinism, so the reorder
-  fought the existing routing. `preferredDir` is kept as an unused pathfinder
-  capability (covered by `ascii-pathfinder-determinism.test.ts`); the re-routing
-  was dropped. Part (4) collinear-corner-skip in `drawCorners` shipped as a
-  defensive guard. Corpus delta (BUILD-13): 0 SVG / 0 ASCII / 0 metric changes
-  across 251 samples (the labelled-fan-out pattern isn't in the corpus). Sabotage
-  check: reversing the FIFO tie-break re-introduces the `─center*─` detour.
-- [x] **BUILD-9 — Fan-in grouping** (`done`). Promoted from PARK-1; upstream
-  PR <https://github.com/lukilabs/beautiful-mermaid/pull/69>. Implemented in
-  `src/ascii/grid.ts` `createMapping`: roots grouped contiguously by first
-  downstream target, fan-in targets aligned under their root group, with
-  self-loops and 2-cycle toggles excluded from the in-degree (a blanket
-  in-degree check regressed state-machine corpora — caught by BUILD-13).
-  Corpus impact: 1 sample improved, 0 regressed. Tests:
-  `src/__tests__/ascii-fan-in-grouping.test.ts`.
-- [x] **BUILD-12 — Subgraph `direction` support** (`done` — it was already
-  implemented; now pinned). Mermaid ignores `direction` inside a subgraph
-  when an inner node links outward
-  (<https://github.com/mermaid-js/mermaid/issues/2509>,
-  <https://github.com/mermaid-js/mermaid/issues/6438>); our ELK SEPARATE
-  hierarchy handling and the ASCII grid layout both honor it, including the
-  #2509 external-link case. Geometry tests pin the differentiator:
-  `src/__tests__/subgraph-direction.test.ts`.
-- [x] **BUILD-14 — ASCII: edges to a subgraph id create a phantom node**
-  (`done`). `Start --> Pipeline` where `Pipeline` is a subgraph used to render
-  a duplicate floating node box labeled `Pipeline` instead of attaching the
-  edge to the container. Fixed in the ASCII converter + draw layer: the
-  converter (`src/ascii/converter.ts` `resolveSubgraphEdges`) detects phantom
-  subgraph-id nodes, drops them, and retargets each touching edge onto a
-  representative container member for routing; the draw layer
-  (`src/ascii/draw.ts` `drawContainerEdge`) clips the visible polyline to the
-  container's border rectangle and draws the arrowhead on the border, so the
-  edge attaches to the container — matching the SVG/ELK hierarchical-port
-  behavior. Edge semantics are preserved (visible terminal is the container
-  border, never an arbitrary member node). Evidence: red→green repro suite
-  `src/__tests__/ascii-subgraph-edge.test.ts` (5 tests, incl. the mermaid#2509
-  case and an id-collision sad path), golden
-  `src/__tests__/testdata/unicode/subgraph_edge_to_container.txt`, and the
-  BUILD-13 layout-compare harness shows 4 ASCII-only changed corpus/fixture
-  samples (flowchart/96, flowchart/97, flowchart/98, subgraph-direction.mmd)
-  with 0 regressions / 0 faithfulness deltas. Repro:
-  `eval/layout-compare/fixtures/subgraph-direction.mmd`.
-- [x] **BUILD-21 — Source-wrapper fidelity (1C) + announced in-body comment
-  policy (2C)** (`done`). Probing the official Mermaid syntax-reference
-  examples through parse → serialize found three wrapper-fidelity gaps:
-  `config:`-nested frontmatter flattened to top-level keys Mermaid cannot
-  read back, `%%{init}%%` directives duplicated into a synthesized
-  frontmatter block, and leading `%%` comments dropped. Owner decisions:
-  **1C** (wrapper round-trips byte-verbatim by default — `meta.wrapperSource`
-  — with canonical config-nested synthesis opt-in via
-  `serializeMermaid(d, { wrapper: 'canonical' })` / `am format
-  --canonical-wrapper`) and **2C** (in-body comments remain canonicalized
-  away by structured bodies but the loss is announced via the new Tier 3
-  `COMMENT_DROPPED` lint computed by diffing parse comments against the
-  serialized output; wrapper comments and opaque bodies/segments preserve
-  comments and never warn). Evidence:
-  `src/__tests__/agent-wrapper-fidelity.test.ts` (14 tests: verbatim
-  round-trip per wrapper form incl. multiline directives, mutation keeps the
-  wrapper, canonical nesting/folding incl. the unparseable-directive raw
-  fallback, CLI flag e2e, lint fires/doesn't-fire matrix); wrapper law + 2C
-  policy stated in `docs/contributing/adding-diagram-types.md`; warning code
-  synced across types/capabilities/llms.txt/SDK declaration/agent guides.
-  The 2A destination (segment-preserving comment retention) is tracked under
-  the BUILD-18 follow-up below.
-- [x] **BUILD-23 — `@{ ... }` node metadata safety floor** (`done`). Issue
-  <https://github.com/adewale/agentic-mermaid/issues/29>. Mermaid v11.3+
-  typed-shape syntax no longer silently drops edges/targets or fabricates
-  phantom metadata-key nodes in the covered repros: parser/tokenization keeps
-  metadata attached to the intended node or preserves unsupported forms
-  opaquely; `src/__tests__/flowchart-metadata.test.ts` pins inline,
-  standalone, and multiline safety cases plus round-trip behavior. Modeled
-  support for the full v11 typed-shape vocabulary (ISO 5807/ANSI X3.5 symbols
-  mapped onto `NodeShape`) shipped in PR #142 and closes #44. BUILD-1 still needs
-  compatible `@{ view: collapsed }` semantics, but no longer starts from a
-  silent-loss parser floor.
 - [ ] **BUILD-1 — Collapsible subgraphs (#7785)** (`todo`, after BUILD-23 metadata safety floor; independent of BUILD-20 harvest). Track Mermaid PR
   <https://github.com/mermaid-js/mermaid/pull/7785> (`@{ view: collapsed }`
   metadata syntax) and stay syntax-compatible. Large, but a real readability
@@ -491,69 +157,9 @@ dependents after. IDs are stable names, not an ordering.
   `collapse`/`expand` mutation ops. Measure with BUILD-13. (BUILD-14, the
   ASCII phantom-node bug that would have interfered with collapsed-subgraph
   edge attachment, is now fixed.)
-- [x] **BUILD-8 — Tier 3 lint catalogue** (`done`). Added advisory
-  flowchart/state lint warnings for `DUPLICATE_EDGE` and `UNREACHABLE_NODE`,
-  exposed them through `WarningCode`, `WARNING_TIER`, `am capabilities`,
-  `llms.txt`, MCP SDK declarations, tests, and agent-facing docs. Candidates
-  came from EVAL-2's captured/curated real-agent failure corpus.
-- [x] **BUILD-4 — Cloudflare Workers website + hosted MCP** (`done`). The
-  canonical site runs from `website/` on Cloudflare Workers Static Assets with
-  `run_worker_first: true`, custom domains, and a stateless hosted MCP endpoint
-  at `https://agentic-mermaid.dev/mcp`. The MCP surface decision is now pinned:
-  no REST render API; local MCP stays Code Mode-first (`execute`, `render_png`,
-  `describe`); hosted MCP exposes eight bounded JSON-RPC tools — `execute`
-  inside a per-code Dynamic Worker isolate, pure `render_svg` / `render_ascii` /
-  `render_png` / `verify` / `describe`, and declarative structured-edit
-  `mutate` / `build`. Hosted file/URL artifacts, accounts, tokens, persistence,
-  outbound network access from `execute`, and arbitrary REST endpoints remain
-  non-goals. Remaining dashboard/ops work is tracked by DEC-2 (WAF rate limit);
-  DEC-3's production `LOADER`/Dynamic Workers execute probe and the shared MCP
-  code dedup work in CONS-23/CONS-24 are complete.
-
-- [x] **QUAL-1 — Perceptual-quality coverage for non-graph families**
-  (`done`). `layoutMermaid` now has `RenderedLayout` adapters for EVERY
-  renderable family — class, ER, journey, architecture, xychart, pie,
-  quadrant, and gantt join flowchart/state/sequence/timeline — so `measureQuality` /
-  `checkQuality` and the BUILD-13 harness see real geometry (not bytes-only)
-  for each. Adapters live in `src/agent/family-layouts.ts`; they parse
-  `d.canonicalSource` via the legacy per-family parser+layouter (the same
-  geometry the SVG renderer draws), so opaque-but-renderable bodies are still
-  measured and invalid opaque bodies degrade to an empty layout instead of
-  throwing. Wired into `layoutMermaid` (`src/agent/index.ts`) and `verify.ts`
-  (verify.layout is now truthful for these families). Evidence: red-green +
-  property + determinism + opaque-no-throw tests in
-  `src/__tests__/agent-family-layouts.test.ts`; the harness gained a fixture per
-  family (`eval/layout-compare/fixtures/`) — every fixture's metrics.nodeCount
-  > 0 — and `compareSample` now treats an empty→measured transition as an
-  improvement, not a regression (`src/__tests__/layout-compare.test.ts`). A
-  before/after run against the base commit shows 0 regressions, 57 improvements,
-  and zero SVG/ASCII byte changes on the 243 shared corpus samples (measurement
-  only, no rendering change). `docs/quality.md` honest-gap + LLM-judge grid
-  now covers all 14 families.
-  - [x] Mermaid-docs corpus regenerated from a real `mermaid-js/mermaid`
-    clone for the 12 then-registered docs families (271 examples total);
-    Mindmap/GitGraph use their separately pinned upstream-suite oracle. Corpus
-    entries are never fabricated.
-  - [x] Every current family has deterministic SVG visual snapshots,
-    advisory visual metrics, contact-sheet coverage, and generated Style +
-    Palette PNG evidence; browser screenshots are not required for
-    deterministic geometry approval.
 
 ## 3. Agent-usage verification backlog
 
-- [x] **EVAL-1 — Capture subagent-backed release-model transcripts** (`done`).
-  `eval/agent-usage/transcripts/pi-subagent-release-2026-06-10/` captures a
-  fresh subagent-backed release-model pass across the six default cases. The
-  committed transcript replay test gates every pi-subagent transcript directory
-  through the deterministic sandbox, task oracle, and trace linter. Direct
-  API-backed Anthropic/OpenAI-compatible captures remain available on demand via
-  `bun run eval:agent-live` when credentials are present.
-- [x] **EVAL-2 — Expand captured real-agent failure corpus** (`done`). Added
-  `eval/agent-usage/failure-corpus/` with captured pi-subagent failures and
-  curated executable regressions for markdown-only answers, whole-source
-  regeneration, CLI misuse, serialize-without-verify, ignored verify results,
-  and opaque mutation attempts. `agent-usage.test.ts` now classifies/replays
-  the corpus so known-bad paths stay failing. Fed BUILD-8 lint-code selection.
 - [ ] **EVAL-3 — Eval the `agentic-mermaid-diagram-workflow` skill for
   helpfulness** (`todo`). The public skill
   (`website/public/skills/agentic-mermaid-diagram-workflow/SKILL.md` +
@@ -565,9 +171,6 @@ dependents after. IDs are stable names, not an ordering.
   Fold any skill gaps back into `SKILL.md`/`references/`; keep or cut the
   footer link based on whether it demonstrably helps.
 
-## 4. Blocked / external resource needed
-
-_No active blocked items._
 
 ## 5. Parked / evidence-required ideas
 
@@ -588,13 +191,8 @@ _No active blocked items._
   and owner. (QuadrantChart was promoted to BUILD-11; fan-in grouping was
   PARK-1, promoted to BUILD-9.)
 
-## 6. Consolidation / dedup backlog
 
-Open items carried over from the 2026-07 consolidation audit (the audit doc has
-been retired; its landed items shipped, these remain). Each is a
-zero-behavior-change or bounded dedup with a red→green or byte-equivalence gate
-expected. `consolidation-gate.test.ts` pins the already-single-sourced
-invariants against recurrence.
+## 6. Consolidation / dedup backlog
 
 - [ ] **CONS-11 — One shape-outline module** (`todo`). Every non-rectangular
   flowchart silhouette is authored twice: the emitter in `src/renderer.ts` and
@@ -608,26 +206,14 @@ invariants against recurrence.
   scan is copy-pasted. Extend `src/shared/accessibility-directives.ts` with a
   modeling `parseAccessibilityDirective(lines, i)` used by all parsers; pick one
   colon rule consciously.
-- [x] **CONS-23 — Shared MCP tool descriptions/dispatch** (`done`). Extracted
-  `src/mcp/tool-surface.ts`: shared MCP server name/version, common JSON-RPC
-  method dispatch (`initialize`, notifications, `ping`, `tools/list`,
-  `tools/call`, empty prompts/resources), and shared `execute`, `render_png`,
-  and `describe` tool definition builders. Local and hosted servers now supply
-  only their intentional behavior differences and tool handlers.
-- [x] **CONS-24 — MCP bin shim** (`done`). Extracted `src/mcp/mcp-cli.ts` with
-  `runMcpCli(argv)`, shared help text, shared flag parsing, and parseable
-  `parseMcpCliOptions`; both `src/mcp/mcp-bin.ts` and
-  `bin/agentic-mermaid-mcp.ts` are thin shebang shims, matching the `am` bin
-  pattern while preserving stdio process-drain behavior.
 - [ ] **CONS-26 — Unify agent vs legacy per-family parsers** (`owner-decision`,
   architectural). The agent `*-body.ts` parsers re-encode grammars that
   `src/<family>/parser.ts` already owns, kept in sync only by differential
   tests. Build agent bodies as a projection of the legacy parser's AST so the
   legacy parser is the single grammar authority. Schedule separately.
 - [ ] **CONS-27 — Canonical minimal diagram per family** (`todo`). The
-  "minimal diagram" is authored in 5 places (`families.ts` `example`,
-  `editor/js/examples.js`, `website/build.ts` `COMPARISON_CASES`, two test
-  fixture helpers) and has drifted. Make `BUILTIN_FAMILY_METADATA[].example`
+  "minimal diagram" is duplicated across family metadata, editor examples,
+  website comparisons, and test fixture helpers, and has drifted. Make `BUILTIN_FAMILY_METADATA[].example`
   canonical and derive `COMPARISON_CASES` + fixtures from it.
 - [ ] **CONS-30 — `agent/body-utils.ts` extraction** (`todo`). Mechanical,
   high-confidence dedup inside `src/agent/`: the LABEL_OVERFLOW closure (×6), the
@@ -636,47 +222,42 @@ invariants against recurrence.
   Also FNV-1a hash re-rolled in 6 family renderers → import `seedFrom`
   (`scene/seed.ts`), and ~47 hand-built `color-mix(in srgb, …)` strings → a
   shared `cssMix`.
-- [ ] **CONS-40 — Generate the per-family stryker configs** (`todo`). The ~16
-  `stryker.<family>.config.json` lanes are pure `family → globs → tests` data.
+- [ ] **CONS-40 — Generate the per-family stryker configs** (`todo`). The
+  `stryker.<family>.config.json` lanes duplicate pure `family → globs → tests` data.
   Generate them from the citizenship matrix. Caveat: the citizenship test and
   matrix hard-code the config filenames, so a generator must keep on-disk names
   or update both in lockstep.
-- [x] **CONS-90 — Website pipelines: Cloudflare chosen as canonical** (`done`).
-  agentic-mermaid.dev (Cloudflare Workers, `website/build.ts`) is now the
-  canonical live site: homepage/links/`HOSTED_BASE` repointed,
-  `.github/workflows/deploy-cloudflare.yml` added (auto-deploys on `main`; needs
-  `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` repo secrets), and the GitHub
-  Pages deploy (`pages.yml`, `build:site`) retired. The `scripts/site/*`
-  generators stay as dev/preview tools (still used by `bun run dev` and
-  `e2e/browser.test.ts`). (Related audit Tier-4 items already resolved:
-  `mockups/` deleted, `evals/`→`skill-evals/` renamed, dead scripts +
-  `stryker.linkrank` removed, `pr11-reviewer-guide.md` retired.)
-- [x] **CONS-91b — Un-commit the `website/public` bundle** (`done`). The 6.8MB
-  Cloudflare bundle is now gitignored and built on demand: at deploy by
-  `deploy-cloudflare.yml`, and for the five tests that read it by the preload
-  `src/__tests__/website-public.preload.ts`. `website:check` now pins only the
-  committed `website/src/generated` worker inputs.
-- [x] **CONS-91a-partial — Delete the low-coupling Pages generators** (`done`).
-  Removed `scripts/site/differences.ts`, `xychart-test.ts`, and their exclusive
-  data (`xychart-samples-data.ts`, `upstream-layout-snapshots.json`,
-  `capture-upstream-layout.ts`); rewrote `comparison-differences-sync.test.ts`
-  to keep the `comparison.md`↔registry guard.
-- [x] **CONS-91c — Retire `scripts/site/generate.ts` (samples gallery)**
-  (`done`). Migrated `e2e/browser.test.ts` down to the editor-only suite (the
-  editor is built by `editor.ts`, which stays; the gallery-specific blocks were
-  removed — validated at 10 browser tests passing), pointed `bun run dev` at
-  `website:dev`, and deleted `generate.ts`, `client-color.ts`, `scripts/dev.ts`,
-  and `property-html-generator.test.ts` (+ the `samples` script). The
-  citizenship matrix's `generatedSite` evidence now cites `website/build.ts` +
-  `website-build.test.ts`. `samples-data.ts` stays (shared with eval tooling).
-  The GitHub Pages pipeline is fully retired.
+- [ ] **CONS-41 — Complete typed Scene leaf/marker migration** (`todo`). Extend
+  the characterized transform/serializer/document primitives beyond the Mindmap
+  and GitGraph pilot; replace family-local marker XML and classify every remaining
+  `RawMark` escape without changing default bytes.
+- [ ] **CONS-42 — Complete authoritative positioning for every family** (`todo`).
+  Generalize the Mindmap/GitGraph `resolve → position → project` pilot so SVG and
+  `layoutMermaid` never independently parse or resolve the same structured body.
+- [ ] **CONS-43 — Continue physical layout-pass extraction** (`todo`). Move
+  cohesive pass implementations out of `layout/passes/index.ts` one at a time
+  behind the checked manifest; preserve order, mutation declarations,
+  certificate reissue, layout bytes, and SVG bytes.
+- [ ] **CONS-44 — Generate remaining public declarations and adapters** (`todo`).
+  Derive SDK declarations and repeated CLI/MCP schemas from authoritative family
+  descriptors, while retaining transport-neutral `applyOps` and tool dispatch.
+- [ ] **CONS-45 — Finish terminal-context convergence** (`todo`). Move remaining
+  family-local cell writers and context argument lists onto shared grapheme-safe
+  canvas/context helpers without projecting pixel Scene geometry.
 
-## 7. Non-goals
+## Source-preservation defects
+
+- [ ] **SRC-1 — Segment-preserving Class and Timeline bodies** (`todo`). Preserve typed mutation around unmodeled statements without violating byte-for-byte opaque fallback. Add parser/serializer closure and adversarial reorder tests before promotion.
+- [ ] **SRC-2 — Positional comments for Flowchart and State** (`todo`). Replace announced `COMMENT_DROPPED` loss with positionally anchored opaque segments that survive typed mutation.
+
+## Terminal semantic defects
+
+- [ ] **TERM-1 — Preserve every node in a three-node graph containing a 2-cycle** (`todo`). The characterized terminal projection currently loses or corrupts content; add a failing semantic-conservation test before changing routing.
+- [ ] **TERM-2 — Make RL terminal direction honest** (`owner-decision`). Terminal rendering silently aliases RL to LR. Either implement a recognizably reversed projection or emit a named unsupported-direction diagnostic.
+
+## Non-goals
 
 - Do not port Vercel-specific package rename, committed `dist/`, `.vercel`, or Vercel branding.
-- Do not fold `zhenhuaa/mdv` wholesale into this package; terminal Markdown
-  viewing belongs in a separate tool or companion package.
-- Do not port old dagre-specific layout code directly; translate only ideas
-  that still apply to the current ELK/layout-engine architecture.
-- Do not treat historical `docs/project/divergences.md` or process notes as
-  backlog unless an item is promoted here with an ID.
+- Do not fold `zhenhuaa/mdv` wholesale into this package; terminal Markdown viewing belongs in a separate tool or companion package.
+- Do not port old dagre-specific layout code directly; translate only ideas that still apply to the current ELK/layout-engine architecture.
+- Do not treat historical archives or process notes as backlog unless an item is promoted here with an ID.

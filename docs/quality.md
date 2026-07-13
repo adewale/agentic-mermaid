@@ -31,12 +31,9 @@ A diagram is considered **good looking** when it satisfies, in order:
    `checkQuality(layout)`. They are **deterministic** and cheap — they
    run on every PR.
 
-4. **LLM-as-judge median ≥ 4.0** on a stratified sample of the
-   mermaid-docs corpus (5 diagrams × 14 families = 70 samples) across
-   three axes. Since QUAL-1 the perceptual metrics cover every renderable
-   family (flowchart, state, sequence, timeline, class, ER, journey,
-   architecture, xychart, pie, quadrant, gantt, mindmap, gitgraph), so judge sampling should now
-   include all fourteen — not just the graph families — across:
+4. **LLM-as-judge median ≥ 4.0** on the configured stratified sample of the
+   Mermaid-docs corpus across three axes. Since QUAL-1, perceptual metrics and
+   judge sampling cover every registered renderer rather than only graph families:
    - **Readability** — labels legible, arrows clear, no overlap chaos
    - **Faithfulness** — every node and edge from the source is present
    - **Aesthetics** — balanced layout, professional feel
@@ -191,10 +188,10 @@ critic pass:
   declares family preference for browser consumers.
 
 What's tested:
-- `agent-png.test.ts` (6 tests) — PNG magic bytes, scale proportionality,
-  ValidDiagram input, background variation.
-- `agent-png-determinism.test.ts` (3 tests) — 5x same-input SHA-256
-  stability with a warm-up render to factor out napi init differences.
+- `agent-png.test.ts` — PNG magic bytes, scale proportionality,
+  ValidDiagram input, and background variation.
+- `agent-png-determinism.test.ts` — repeated same-input SHA-256 stability
+  with a warm-up render to factor out napi initialization differences.
   Plus length-stable defence against partial-buffer truncation
   masquerading as a hash collision.
 - `agent-determinism.test.ts` "cross-runtime PNG" — renders in bun,

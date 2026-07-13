@@ -131,7 +131,7 @@ export function lowerJourneyScene(
   }
   parts.push(marks.raw({ id: 'style', role: 'chrome' },
     buildStyleBlock(font, false, colors.shadow, colors.embedFontImport)))
-  parts.push(marks.raw({ id: 'defs', role: 'defs' }, buildJourneyDefs(colors, paints, arrowMarkerId)))
+  parts.push(marks.definitions({ id: 'defs' }, buildJourneyDefs(colors, paints, arrowMarkerId)))
   parts.push(marks.raw({ id: 'journey-style', role: 'chrome' }, journeyCss))
 
   parts.push(renderScoreGuide(diagram.scoreGuide, style, arrowMarkerId))
@@ -182,7 +182,7 @@ export function lowerJourneyScene(
     ))
   }
 
-  parts.push(marks.raw({ id: 'svg-close', role: 'chrome' }, '</svg>'))
+  parts.push(marks.documentClose())
 
   return { family: 'journey', width: diagram.width, height: diagram.height, colors, parts }
 }

@@ -123,11 +123,11 @@ structured | opaque" data-shape="rectangle" data-role="node">
   <rect x="1158.4389999999999" y="765.6320000000001" width="142.726" height="36.900000000000006" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" data-id="node-shape:RL" data-role="node" />
   <text x="1229.802" y="784.0820000000001" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">RenderedLayout</text>
 </g>
-<g class="node" data-id="FAM" data-label="14 diagram families
+<g class="node" data-id="FAM" data-label="Registry-backed diagram families
 flowchart · state · sequence · timeline · class · er · journey
 architecture · xychart · pie · quadrant · gantt · mindmap · gitgraph" data-shape="rectangle" data-role="node">
   <rect x="40" y="40" width="430.23399999999987" height="70.7" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" data-id="node-shape:FAM" data-role="node" />
-  <text x="255.11699999999993" y="75.35" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A"><tspan x="255.11699999999993" dy="-12.350000000000001">14 diagram families</tspan><tspan x="255.11699999999993" dy="16.900000000000002">flowchart · state · sequence · timeline · class · er · journey</tspan><tspan x="255.11699999999993" dy="16.900000000000002">architecture · xychart · pie · quadrant · gantt · mindmap · gitgraph</tspan></text>
+  <text x="255.11699999999993" y="75.35" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A"><tspan x="255.11699999999993" dy="-12.350000000000001">Registry-backed diagram families</tspan><tspan x="255.11699999999993" dy="16.900000000000002">flowchart · state · sequence · timeline · class · er · journey</tspan><tspan x="255.11699999999993" dy="16.900000000000002">architecture · xychart · pie · quadrant · gantt · mindmap · gitgraph</tspan></text>
 </g>
 <g class="node" data-id="CORE" data-label="shared core types · types.ts
 NodeShape · EdgeStyle · MermaidGraph · RouteClass" data-shape="rectangle" data-role="node">

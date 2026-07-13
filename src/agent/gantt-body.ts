@@ -29,6 +29,7 @@ import type {
 import { ok, err } from './types.ts'
 import { labelOverflowWarning } from './label-metrics.ts'
 import { parseGanttTaskMeta, renderGanttTaskMeta, GANTT_TASK_TAGS, type ParsedTaskMeta } from '../gantt/parser.ts'
+import { appendOpaqueSegment } from './opaque-segments.ts'
 
 // Directive openers that are NEVER task lines even though they may contain `:`
 // (accTitle:/accDescr:). Everything matched here becomes an opaque segment.
@@ -70,7 +71,7 @@ export function parseGanttBody(trimmedLines: string[], rawLines?: string[]): Gan
     const line = rawLine.trim()
     if (!line || line.startsWith('%%')) {
       // Comments are unmodeled lines: preserve them verbatim in position.
-      if (line.startsWith('%%')) appendOpaque(statements, [rawLine])
+      if (line.startsWith('%%')) appendOpaqueSegment(statements, [rawLine], ganttOpaqueBlock)
       i++
       continue
     }
@@ -88,12 +89,12 @@ export function parseGanttBody(trimmedLines: string[], rawLines?: string[]): Gan
         if (/^\}\s*$/.test(inner.trim())) { closed = true; break }
       }
       if (!closed) return null
-      appendOpaque(statements, blockLines)
+      appendOpaqueSegment(statements, blockLines, ganttOpaqueBlock)
       continue
     }
 
     if (DIRECTIVE_LINE_RE.test(line)) {
-      appendOpaque(statements, [rawLine])
+      appendOpaqueSegment(statements, [rawLine], ganttOpaqueBlock)
       i++
       continue
     }
@@ -142,7 +143,7 @@ export function parseGanttBody(trimmedLines: string[], rawLines?: string[]): Gan
     }
 
     // Any other unmodeled line rides along verbatim.
-    appendOpaque(statements, [rawLine])
+    appendOpaqueSegment(statements, [rawLine], ganttOpaqueBlock)
     i++
   }
 
@@ -153,11 +154,8 @@ function canonicalTags(tags: GanttBodyTaskTag[]): GanttBodyTaskTag[] {
   return GANTT_TASK_TAGS.filter(t => tags.includes(t)) as GanttBodyTaskTag[]
 }
 
-function appendOpaque(statements: GanttStatement[], lines: string[]): void {
-  const last = statements[statements.length - 1]
-  if (last && last.kind === 'opaque-block') last.lines.push(...lines)
-  else statements.push({ kind: 'opaque-block', lines: [...lines] })
-}
+const ganttOpaqueBlock = (lines: string[]): GanttStatement => ({ kind: 'opaque-block', lines })
+
 
 // ---- Serializer ---------------------------------------------------------------
 

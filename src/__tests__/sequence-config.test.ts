@@ -158,10 +158,10 @@ config:
 ${SRC}`
     const v = verifyMermaid(src)
     const fields = v.warnings.filter(w => w.code === 'INEFFECTIVE_CONFIG').map(w => (w as { field: string }).field)
-    expect(fields).toContain('mirrorActors')
-    expect(fields).toContain('wrap')
-    expect(fields).toContain('rightAngles')
-    expect(fields).not.toContain('actorMargin')
+    expect(fields).toContain('sequence.mirrorActors')
+    expect(fields).toContain('sequence.wrap')
+    expect(fields).toContain('sequence.rightAngles')
+    expect(fields).not.toContain('sequence.actorMargin')
   })
 
   test('the NOOP table is disjoint from the wired keys and drives the lint', () => {

@@ -6,20 +6,20 @@ Agentic Mermaid supports Mermaid's common diagram families through a split pipel
 
 | Family | Header(s) | Render | Structured mutation | Notes |
 |---|---|---|---|---|
-| Flowchart | `flowchart`, `graph` | SVG/PNG/ASCII | ✓ | 14 ops; narrow with `asFlowchart`. |
-| State | `stateDiagram-v2` | SVG/PNG/ASCII | ✓ | 18 ops; concurrency regions and paint are structured. `asFlowchart` returns null. |
-| Sequence | `sequenceDiagram` | SVG/PNG/ASCII | structured (7 ops) | Notes/alt/loop bodies are segment-preserving; un-segmentable syntax falls back to opaque. |
-| Timeline | `timeline` | SVG/PNG/ASCII | ✓ | Supports sections, periods, events, title changes. |
-| Class | `classDiagram` | SVG/PNG/ASCII | structured (15 ops) | Classes, members, namespaces, relations, notes, and paint. |
-| ER | `erDiagram` | SVG/PNG/ASCII | structured (12 ops) | Entities, attributes, relations, direction, paint, and preserved opaque segments. |
-| Journey | `journey` | SVG/PNG/ASCII | structured (14 ops) | `asJourney` narrows documented Journey syntax: title, accTitle/accDescr, sections, scored tasks, and actors. |
-| XY chart | `xychart`, `xychart-beta` | SVG/PNG/ASCII | structured (10 ops) | Vertical/horizontal bar/line/mixed charts; modeled subset is structurally mutable via `asXyChart`. |
-| Pie | `pie` | SVG/PNG/ASCII | structured (7 ops) | `asPie` narrows title/showData/slices; malformed entries and accTitle/accDescr stay opaque. |
-| Quadrant | `quadrantChart` | SVG/PNG/ASCII | structured (7 ops) | `asQuadrant` narrows title/axes/quadrant labels/points; styling and out-of-range coords stay opaque. |
-| Architecture | `architecture-beta` | SVG/PNG/ASCII | structured (19 ops) | Titles/accessibility, groups/services/junctions, boundary edges, and `align` hints are typed. |
-| Gantt | `gantt` | SVG/PNG/ASCII | structured (13 ops) | `asGantt` narrows title/sections/tasks; calendar directives, `click` lines, and comments ride along verbatim as opaque segments. Deterministic: the today marker draws only from a caller-supplied `ganttToday`. See [design/families/gantt.md](./design/families/gantt.md). |
-| Mindmap | `mindmap` | SVG/PNG/ASCII | structured (10 ops) | Indented tree, shapes/icons/classes, accessibility; see [mindmap](./design/families/mindmap.md). |
-| GitGraph | `gitGraph` | SVG/PNG/ASCII | structured (11 ops) | Replayed commits, branches, merges, cherry-picks; see [gitgraph](./design/families/gitgraph.md). |
+| Flowchart | `flowchart`, `graph` | SVG/PNG/ASCII | `asFlowchart` | Shapes, markdown labels, links, groups, and paint. |
+| State | `stateDiagram-v2` | SVG/PNG/ASCII | `asState` | Regions, notes, history, and paint are structured. |
+| Sequence | `sequenceDiagram` | SVG/PNG/ASCII | `asSequence` | Unsupported blocks are segment-preserving; un-segmentable syntax falls back to opaque. |
+| Timeline | `timeline` | SVG/PNG/ASCII | `asTimeline` | Sections, periods, events, titles, and direction. |
+| Class | `classDiagram` | SVG/PNG/ASCII | `asClass` | Classes, members, namespaces, relations, notes, and paint. |
+| ER | `erDiagram` | SVG/PNG/ASCII | `asEr` | Entities, attributes, relations, direction, paint, and ordered opaque segments. |
+| Journey | `journey` | SVG/PNG/ASCII | `asJourney` | Titles, accessibility, sections, scored tasks, and actors. |
+| XY chart | `xychart`, `xychart-beta` | SVG/PNG/ASCII | `asXyChart` | Vertical/horizontal bar, line, and mixed charts. |
+| Pie | `pie` | SVG/PNG/ASCII | `asPie` | Titles, `showData`, slices, and highlight configuration. |
+| Quadrant | `quadrantChart` | SVG/PNG/ASCII | `asQuadrant` | Axes, region labels, points, and supported paint. |
+| Architecture | `architecture-beta` | SVG/PNG/ASCII | `asArchitecture` | Accessibility, groups/services/junctions, boundary edges, and alignment. |
+| Gantt | `gantt` | SVG/PNG/ASCII | `asGantt` | Tasks are typed; calendar/click/comment statements remain ordered segments. |
+| Mindmap | `mindmap` | SVG/PNG/ASCII | `asMindmap` | Indented tree, shapes, icons, classes, and accessibility. |
+| GitGraph | `gitGraph` | SVG/PNG/ASCII | `asGitGraph` | Replayed commits, branches, merges, and cherry-picks. |
 
 Opaque fallback does not mean unsupported: those bodies parse, render, verify, and round-trip losslessly, but agents should edit preserved source deliberately instead of calling `mutate`.
 
@@ -126,7 +126,7 @@ pie showData
   "Rats" : 15
 ```
 
-Pie charts accept the `pie` header with optional `showData`, an optional `title`, and `"label" : value` entries with positive numeric values. Slices render clockwise in source order. `showData` adds the raw value beside each legend label; the legend always shows the computed percentage. Malformed entries (negative/zero values, missing colon, unquoted labels) fall back to a lossless opaque body — never silently dropped — and the renderer still surfaces the loud error at render time. The ASCII renderer draws a proportional bar list. Pie is structured-when-narrowed: `asPie` exposes 7 ops (`set_title`, `set_show_data`, `add_slice`, `remove_slice`, `rename_slice`, `set_slice_value`, `reorder_slice`); slices are addressed by their unique label.
+Pie charts accept the `pie` header with optional `showData`, an optional `title`, and `"label" : value` entries with positive numeric values. Slices render clockwise in source order. `showData` adds the raw value beside each legend label; the legend always shows the computed percentage. Malformed entries (negative/zero values, missing colon, unquoted labels) fall back to a lossless opaque body — never silently dropped — and the renderer still surfaces the loud error at render time. The ASCII renderer draws a proportional bar list. Pie is structured when narrowed through `asPie`; slices are addressed by their unique label. The operation schema is generated from the registry rather than duplicated here.
 
 ## Quadrant
 
@@ -143,7 +143,7 @@ quadrantChart
   Campaign B: [0.45, 0.23]
 ```
 
-Quadrant charts accept the `quadrantChart` header, an optional `title`, `x-axis <left> --> <right>` and `y-axis <bottom> --> <top>` axis labels (the far side is optional), four `quadrant-1..quadrant-4 <label>` region labels, and `<Label>: [x, y]` points with coordinates in `[0, 1]`. Quadrant numbering follows Mermaid core: **1 = top-right, 2 = top-left, 3 = bottom-left, 4 = bottom-right**. The SVG renderer draws a square plot split into four theme-tinted quadrants with the points as circles; the ASCII renderer draws a bordered grid with a coordinate legend. Official point style metadata (`radius`, `color`, `stroke-color`, `stroke-width`) and `classDef` lines are accepted for render compatibility but are not modeled for typed mutation; the agent path preserves those charts as opaque source and emits `UNSUPPORTED_SYNTAX` as an advisory warning. Malformed lines — out-of-range/non-numeric coordinates, missing brackets, duplicate point labels, and unknown point style metadata — fall back to a lossless opaque body, never silently dropped, and the renderer still surfaces the loud error at render time. Quadrant is structured-when-narrowed: `asQuadrant` exposes 7 ops (`set_title`, `set_axis_labels`, `set_quadrant_label`, `add_point`, `remove_point`, `move_point`, `rename_point`); points are addressed by their unique label and coordinates stay in `[0, 1]`.
+Quadrant charts accept the `quadrantChart` header, an optional `title`, `x-axis <left> --> <right>` and `y-axis <bottom> --> <top>` axis labels (the far side is optional), four `quadrant-1..quadrant-4 <label>` region labels, and `<Label>: [x, y]` points with coordinates in `[0, 1]`. Quadrant numbering follows Mermaid core: **1 = top-right, 2 = top-left, 3 = bottom-left, 4 = bottom-right**. The SVG renderer draws a square plot split into four theme-tinted quadrants with the points as circles; the ASCII renderer draws a bordered grid with a coordinate legend. Official point style metadata (`radius`, `color`, `stroke-color`, `stroke-width`), `classDef` lines, and class assignments are modeled for rendering and typed mutation. Malformed lines — out-of-range/non-numeric coordinates, missing brackets, duplicate point labels, and unknown point style metadata — fall back to a lossless opaque body, never silently dropped, and the renderer still surfaces the loud error at render time. Quadrant is structured when narrowed through `asQuadrant`; points are addressed by their unique label and coordinates stay in `[0, 1]`. The operation schema is generated from the registry rather than duplicated here.
 
 ## Gantt
 
@@ -160,7 +160,7 @@ gantt
     another task    :24d
 ```
 
-Gantt charts accept the `gantt` header, `title`, calendar directives (`dateFormat`, `axisFormat`, `tickInterval`, `inclusiveEndDates`, `topAxis`, multiple `excludes`/`includes` lines, `weekend friday|saturday`, `weekday <day>`, `todayMarker`), `section` lines, and task lines `Label :[tags,] [id,] [start,] end` where tags are `active`/`done`/`crit`/`milestone`/`vert`, start is a date or `after id…`, and end is a date, a duration token (`ms s m h d w M y`, decimals allowed), or `until id…`. Dependencies resolve in a pure scheduler ([design/families/gantt.md](./design/families/gantt.md)): `after` starts at the latest referenced end, `until` ends at the earliest referenced start, working durations extend over excluded days, `includes` overrides `excludes`, and dependency cycles / unknown references / invalid dates are named structured errors (`GANTT_*`), never wall-clock fallbacks. Rendering is deterministic: the `todayMarker` draws only when the caller passes `ganttToday` (a date in the diagram's `dateFormat`), and `todayMarker off` always wins. `displayMode: compact` (frontmatter or `config.gantt`) packs non-overlapping tasks of a section into shared rows; `vert` markers draw a full-height line without consuming a task row. `click … href` is sanitized under strict security and `click … call` is parsed but never executed. Gantt is structured-when-narrowed AND segment-preserving: `asGantt` exposes 13 ops (including task flags/ids and task/section ordering) on title/sections/tasks while calendar directives, click lines, and comments ride along verbatim as opaque segments; duplicate task ids or an unclosed `accDescr` block fall back to a lossless whole-opaque body.
+Gantt charts accept the `gantt` header, `title`, calendar directives (`dateFormat`, `axisFormat`, `tickInterval`, `inclusiveEndDates`, `topAxis`, multiple `excludes`/`includes` lines, `weekend friday|saturday`, `weekday <day>`, `todayMarker`), `section` lines, and task lines `Label :[tags,] [id,] [start,] end` where tags are `active`/`done`/`crit`/`milestone`/`vert`, start is a date or `after id…`, and end is a date, a duration token (`ms s m h d w M y`, decimals allowed), or `until id…`. Dependencies resolve in a pure scheduler ([design/families/gantt.md](./design/families/gantt.md)): `after` starts at the latest referenced end, `until` ends at the earliest referenced start, working durations extend over excluded days, `includes` overrides `excludes`, and dependency cycles / unknown references / invalid dates are named structured errors (`GANTT_*`), never wall-clock fallbacks. Rendering is deterministic: the `todayMarker` draws only when the caller passes `ganttToday` (a date in the diagram's `dateFormat`), and `todayMarker off` always wins. `displayMode: compact` (frontmatter or `config.gantt`) packs non-overlapping tasks of a section into shared rows; `vert` markers draw a full-height line without consuming a task row. `click … href` is sanitized under strict security and `click … call` is parsed but never executed. Gantt is structured when narrowed and segment-preserving: `asGantt` edits title/sections/tasks while calendar directives, click lines, and comments ride along verbatim as opaque segments; duplicate task ids or an unclosed `accDescr` block fall back to a lossless whole-opaque body.
 
 ## Mindmap
 

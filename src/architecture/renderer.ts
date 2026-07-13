@@ -104,8 +104,8 @@ export function lowerArchitectureScene(
     extraCss: archCss,
   }, preludeParts.join('\n')))
 
-  parts.push(marks.raw(
-    { id: 'defs', role: 'defs' },
+  parts.push(marks.definitions(
+    { id: 'defs' },
     ['<defs>', arrowMarkerDefs(), '</defs>'].join('\n'),
   ))
 
@@ -161,7 +161,7 @@ export function lowerArchitectureScene(
     parts.push(lowerService(service, visual))
   }
 
-  parts.push(marks.raw({ id: 'svg-close', role: 'chrome' }, '</svg>'))
+  parts.push(marks.documentClose())
 
   return { family: 'architecture', width: diagram.width, height: diagram.height, colors, parts }
 }

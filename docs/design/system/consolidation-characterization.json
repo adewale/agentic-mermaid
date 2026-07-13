@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "scopeAuthority": "src/agent/families.ts#BUILTIN_FAMILY_METADATA",
+  "contracts": [
+    {
+      "id": "default-svg-bytes",
+      "surface": "bytes",
+      "familyScope": "registry",
+      "evidence": ["src/__tests__/svg-equivalence.test.ts", "src/__tests__/styled-output.test.ts"]
+    },
+    {
+      "id": "semantic-identity",
+      "surface": "semantic identity",
+      "familyScope": "registry",
+      "evidence": ["src/__tests__/svg-identity-contract.test.ts", "src/__tests__/svg-id-hygiene-all-families.test.ts"]
+    },
+    {
+      "id": "positioned-geometry",
+      "surface": "geometry",
+      "familyScope": "registry",
+      "evidence": ["src/__tests__/agent-family-layouts.test.ts", "src/__tests__/characterization-families.test.ts"]
+    },
+    {
+      "id": "terminal-cells",
+      "surface": "terminal cells",
+      "familyScope": "registry",
+      "evidence": ["src/__tests__/ascii-unicode-family-contract.test.ts", "src/__tests__/ascii-target-width.test.ts"]
+    },
+    {
+      "id": "config-diagnostics",
+      "surface": "config diagnostics",
+      "familyScope": "registry",
+      "evidence": ["src/__tests__/unknown-config-wire-or-warn.test.ts", "src/__tests__/config-diagnostic-parity.test.ts"]
+    },
+    {
+      "id": "strict-security",
+      "surface": "security",
+      "familyScope": "registry",
+      "evidence": ["src/__tests__/svg-id-hygiene-all-families.test.ts", "src/__tests__/visual-rendering-contracts.test.ts"]
+    },
+    {
+      "id": "installed-surfaces",
+      "surface": "packaging",
+      "familyScope": "registry",
+      "evidence": ["e2e/tarball-consumer-fuzz.e2e.test.ts", "e2e/cli-smoke.e2e.test.ts"]
+    },
+    {
+      "id": "generated-delivery",
+      "surface": "generated artifacts",
+      "familyScope": "registry",
+      "evidence": ["src/__tests__/characterization-generated-artifacts.test.ts", "src/__tests__/artifact-receipt.test.ts"]
+    }
+  ]
+}

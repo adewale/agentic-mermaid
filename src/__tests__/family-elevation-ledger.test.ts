@@ -2,8 +2,9 @@ import { describe, expect, test } from 'bun:test'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-const PLAN = readFileSync(join(import.meta.dir, '..', '..', 'docs/design/family-elevation-plan.md'), 'utf8')
-const ACCEPTANCE = readFileSync(join(import.meta.dir, '..', '..', 'docs/design/family-elevation-acceptance.md'), 'utf8')
+const ARCHIVE = join(import.meta.dir, '..', '..', 'docs/project/archive/pr-149')
+const PLAN = readFileSync(join(ARCHIVE, 'family-elevation-plan.md'), 'utf8')
+const ACCEPTANCE = readFileSync(join(ARCHIVE, 'family-elevation-acceptance.md'), 'utf8')
 const FINAL_AUDIT_URL = 'https://github.com/adewale/agentic-mermaid/pull/149#issuecomment-4949151500'
 
 const EXPECTED_LEDGER_IDS = [
@@ -31,7 +32,7 @@ const FAMILY_ITEM_COUNTS: Record<string, number> = {
 const PHASE_0_IDS = ['B01', 'X1', 'B02', 'X7', 'G3', 'Q3'] as const
 const ROOT = join(import.meta.dir, '..', '..')
 interface AcceptanceEvidence { id: string; file: string; title: string }
-const EVIDENCE = JSON.parse(readFileSync(join(ROOT, 'docs/design/family-elevation-evidence.json'), 'utf8')) as {
+const EVIDENCE = JSON.parse(readFileSync(join(ARCHIVE, 'family-elevation-evidence.json'), 'utf8')) as {
   schemaVersion: number
   entries: AcceptanceEvidence[]
 }

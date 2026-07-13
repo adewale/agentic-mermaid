@@ -206,8 +206,8 @@ This is where we approximate aesthetics deterministically:
 
 - **`measureQuality` / `checkQuality`** — edge crossings, label
   legibility, whitespace balance, label-edge proximity, aspect ratio,
-  gated by `QualityBounds`. Cheap and deterministic; covers all fourteen
-  renderable families via `RenderedLayout` adapters.
+  gated by `QualityBounds`. Cheap and deterministic; covers every registered
+  renderable family via `RenderedLayout` adapters.
 - **ugly-detector** (`eval/ugly-detector/`) — geometric defect detection:
   diagonal segments, floating endpoints, edges through nodes, hitches.
 - **layout rubric / visual-rubric** — hard violations (must be 0) plus soft

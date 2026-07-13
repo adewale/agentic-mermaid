@@ -68,10 +68,7 @@ Use `asGitGraph`. Replay operations append commits, create/checkout branches, me
 
 `verifyMermaid` checks commit-label overflow, parent anchoring, and the real projected layout. The focused citizenship suite proves stable replay/serialization, deterministic generated ids, duplicate and invalid-state rejection, parent cardinality, branch-lane geometry, typed mutation, SVG identity/accessibility/security, terminal topology, and property-generated linear histories.
 
-See `src/__tests__/mindmap-gitgraph-citizenship.test.ts`, documentation/identity parity in `src/__tests__/mindmap-gitgraph-doc-parity.test.ts`, and the exhaustive operation/replay contract in `src/__tests__/gitgraph-agent-ops.test.ts`. AlexanderGrooff/mermaid-ascii 1.4.0 currently exits 1 for this fixture with `unsupported graph type 'gitGraph'`; its coverage request is [issue #74](https://github.com/AlexanderGrooff/mermaid-ascii/issues/74), so the comparison records capability honestly rather than fabricating output. The
-focused Stryker lane (`bun run mutation-test:gitgraph`) killed 294/303 mutants
-(**97.03%**) in the latest 2026-07-10 local run; the gitignored report is not
-immutable PR evidence and the committed break floor is 60%. The nine survivors
-are canonical whitespace/`NORMAL` equivalents or merge/statement-kind guards
-implied by valid discriminated replay state. The broad nightly family lane
-additionally mutates parser, layout, and renderer cores.
+See `src/__tests__/mindmap-gitgraph-citizenship.test.ts`, documentation/identity parity in `src/__tests__/mindmap-gitgraph-doc-parity.test.ts`, and the exhaustive operation/replay contract in `src/__tests__/gitgraph-agent-ops.test.ts`. AlexanderGrooff/mermaid-ascii 1.4.0 currently exits 1 for this fixture with `unsupported graph type 'gitGraph'`; its coverage request is [issue #74](https://github.com/AlexanderGrooff/mermaid-ascii/issues/74), so the comparison records capability honestly rather than fabricating output. The focused Stryker lane (`bun run mutation-test:gitgraph`) enforces its committed
+break floor. Accepted equivalent survivors and current evidence live in
+`docs/mutation-testing.md`; the broad nightly family lane additionally mutates
+parser, layout, and renderer cores.

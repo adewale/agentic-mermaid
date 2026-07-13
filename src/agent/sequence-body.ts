@@ -29,6 +29,7 @@ import type {
 } from './types.ts'
 import { ok, err } from './types.ts'
 import { parseActorDeclaration, parseActorLinks, parseSequenceMessageLine } from '../sequence/parser.ts'
+import { appendOpaqueSegment } from './opaque-segments.ts'
 
 // ---- Parser -----------------------------------------------------------------
 
@@ -85,12 +86,12 @@ export function parseSequenceBody(trimmedLines: string[], rawLines?: string[]): 
     if (/^(participant|actor)\b/i.test(line)) {
       let part
       try { part = parseActorDeclaration(line) } catch {
-        appendOpaque(statements, [rawLine]); i++; continue
+        appendOpaqueSegment(statements, [rawLine], sequenceOpaqueBlock); i++; continue
       }
       // A metadata-looking declaration that does not match the closed grammar
       // remains losslessly opaque; never reinterpret `A@{` as an actor ID.
       if (!part || (line.includes('@{') && !/^\s*(?:participant|actor)\s+[^\s@]+@\{[\s\S]+\}(?:\s+as\s+.+)?$/i.test(line))) {
-        appendOpaque(statements, [rawLine]); i++; continue
+        appendOpaqueSegment(statements, [rawLine], sequenceOpaqueBlock); i++; continue
       }
       const declaration = line.toLowerCase().startsWith('actor ') ? 'actor' as const : 'participant' as const
       const { id, label, type: kind } = part
@@ -153,26 +154,21 @@ export function parseSequenceBody(trimmedLines: string[], rawLines?: string[]): 
         i++
       }
       if (depth !== 0) return null // unclosed block → opaque fallback
-      appendOpaque(statements, dropBlankEdges(blockLines))
+      appendOpaqueSegment(statements, dropBlankEdges(blockLines), sequenceOpaqueBlock)
       continue
     }
 
     // Any other unmodeled single line (Note…, activate/deactivate, autonumber,
     // title…) joins an adjacent opaque-block segment, kept verbatim.
-    appendOpaque(statements, [rawLine])
+    appendOpaqueSegment(statements, [rawLine], sequenceOpaqueBlock)
     i++
   }
 
   return { kind: 'sequence', participants, messages, statements }
 }
 
-// Append verbatim lines to the last statement if it's an opaque-block, else
-// start a new one. Coalescing keeps adjacent unmodeled lines in one segment.
-function appendOpaque(statements: SequenceStatement[], lines: string[]): void {
-  const last = statements[statements.length - 1]
-  if (last && last.kind === 'opaque-block') last.lines.push(...lines)
-  else statements.push({ kind: 'opaque-block', lines: [...lines] })
-}
+const sequenceOpaqueBlock = (lines: string[]): SequenceStatement => ({ kind: 'opaque-block', lines })
+
 
 // Trim trailing blank lines from a captured block (the matching `end` is the
 // real terminator); leading content already starts at the block keyword.

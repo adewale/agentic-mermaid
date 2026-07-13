@@ -398,7 +398,7 @@ describe('journey ineffective-config lint', () => {
     const verify = verifyMermaid(parsed.value)
     expect(verify.ok).toBe(true)
     const fields = verify.warnings.filter(w => w.code === 'INEFFECTIVE_CONFIG').map(w => (w as { field: string }).field)
-    expect(fields).toEqual(['boxMargin', 'rightAngles'])
+    expect(fields).toEqual(['journey.boxMargin', 'journey.rightAngles'])
   })
 
   test('journeys without no-op config stay lint-free', () => {

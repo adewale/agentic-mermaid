@@ -111,7 +111,7 @@ describe('class config section — wire-or-warn', () => {
   it('documented-but-unwired class config keys emit INEFFECTIVE_CONFIG', () => {
     const v = verifyMermaid(withConfig('    htmlLabels: true\n    dividerMargin: 12\n    hideEmptyMembersBox: true'))
     const fields = v.warnings.filter(w => w.code === 'INEFFECTIVE_CONFIG').map(w => (w as { field: string }).field)
-    expect(fields).toEqual(['dividerMargin', 'hideEmptyMembersBox', 'htmlLabels'])
+    expect(fields).toEqual(['class.dividerMargin', 'class.hideEmptyMembersBox', 'class.htmlLabels'])
     expect(v.ok).toBe(true) // Tier-3 lint never flips the verdict
   })
 

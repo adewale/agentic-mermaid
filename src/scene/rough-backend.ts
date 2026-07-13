@@ -24,7 +24,7 @@
 // ============================================================================
 
 import { RoughGenerator } from 'roughjs/bin/generator'
-import type { Geometry, SceneDoc, SceneNode, ShapeMark, ConnectorMark, TextMark } from './ir.ts'
+import type { Geometry, SceneDoc, SceneNode, SceneTransform, ShapeMark, ConnectorMark, TextMark } from './ir.ts'
 import type { StyleBackend, StyleBackendContext } from './backend.ts'
 import { registerBackend, composeGroup, pageRectFor } from './backend.ts'
 import { nodeSeed } from './seed.ts'
@@ -208,6 +208,12 @@ function suppressStroke(element: string, tag: string): string {
   return injectAttrs(element, tag, 'style="stroke:none"')
 }
 
+function transformedStyledGeometry(svg: string, transform: SceneTransform | undefined): string {
+  if (!transform || svg === '') return svg
+  if (transform.kind === 'rotate') return `<g transform="rotate(${transform.angle} ${transform.cx} ${transform.cy})">${svg}</g>`
+  return svg
+}
+
 function sketchShape(node: ShapeMark, walk: Walk): string {
   const p = walk.p
   const els = topLevelElements(node.crisp)
@@ -237,7 +243,7 @@ function sketchShape(node: ShapeMark, walk: Walk): string {
       if (wantFill) {
         const sketchedFill = sketchGeometryVia(walk, geoms[i]!, seed, 'none', 0, wantFill, dash)
         if (sketchedFill) {
-          out.push(sketchedFill)
+          out.push(transformedStyledGeometry(sketchedFill, node.transform))
           continue
         }
       }
@@ -253,7 +259,7 @@ function sketchShape(node: ShapeMark, walk: Walk): string {
     if (hasFill && p.fill === 'none' && !isBoxFill(fill!)) {
       out.push(suppressStroke(crispElementOf(i), el.tag))
     }
-    out.push(sketched)
+    out.push(transformedStyledGeometry(sketched, node.transform))
   }
   const serialized = out.filter(Boolean).join('\n')
   return node.identity && !/\sdata-id=/.test(serialized)
@@ -297,7 +303,7 @@ function sketchConnector(node: ConnectorMark, walk: Walk): string {
   // attributes, and hit geometry survive (stroke-opacity 0 hides the crisp
   // stroke while markers still render at full opacity from markerUnits defs).
   const carrier = injectAttrs(node.crisp, el.tag, 'stroke-opacity="0"')
-  return `${carrier}\n${sketched}`
+  return `${carrier}\n${transformedStyledGeometry(sketched, node.transform)}`
 }
 
 // Cartographic halo: knock the text out to the page so glyphs never sit
@@ -331,6 +337,10 @@ function drawNodeStyled(node: SceneNode, walk: Walk): string {
   switch (node.kind) {
     case 'prelude':
       return node.crisp
+    case 'document':
+      return node.element === 'definitions'
+        ? node.crisp.replace(/<marker (?![^>]*markerUnits)/g, '<marker markerUnits="userSpaceOnUse" ')
+        : node.crisp
     case 'raw':
       if (node.role === 'defs') {
         // Arrowheads must not scale with replacement stroke widths.

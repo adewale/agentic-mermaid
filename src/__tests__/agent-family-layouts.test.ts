@@ -27,6 +27,8 @@ const SOURCES: Record<string, string> = {
   pie: 'pie showData\n  title Pets\n  "Dogs" : 40\n  "Cats" : 35\n  "Birds" : 25',
   quadrant: 'quadrantChart\n  title Reach\n  x-axis Low --> High\n  y-axis Bad --> Good\n  quadrant-1 A\n  quadrant-2 B\n  quadrant-3 C\n  quadrant-4 D\n  Point One: [0.3, 0.6]\n  Point Two: [0.8, 0.2]',
   gantt: 'gantt\n  dateFormat YYYY-MM-DD\n  section Build\n    Core :core, 2024-01-01, 2d\n    Docs :docs, after core, 1d',
+  mindmap: 'mindmap\n  root((Plan))\n    Build\n    Ship',
+  gitgraph: 'gitGraph LR\n  commit id:"start"\n  branch feature\n  checkout feature\n  commit id:"work"',
 }
 
 function layoutOf(src: string): RenderedLayout {
@@ -118,6 +120,16 @@ describe('QUAL-1 adapters: structured bodies do not reparse canonicalSource', ()
       kind: 'gantt',
       source: 'gantt\n  section Build\n    Core :core, 2024-01-01, 2d\n    Docs :docs, after core, 1d',
       broken: 'gantt\n  Bad line without task metadata',
+    },
+    {
+      kind: 'mindmap',
+      source: SOURCES.mindmap!,
+      broken: 'mindmap\n  broken((different))',
+    },
+    {
+      kind: 'gitgraph',
+      source: SOURCES.gitgraph!,
+      broken: 'gitGraph\n  commit id:"different"',
     },
   ] as const
 

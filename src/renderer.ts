@@ -109,7 +109,7 @@ export function lowerGraphScene(
     if (needsCross) defsParts.push(crossMarkerDefs(color))
   }
   defsParts.push('</defs>')
-  parts.push(marks.raw({ id: 'defs', role: 'defs' }, defsParts.join('\n')))
+  parts.push(marks.definitions({ id: 'defs' }, defsParts.join('\n')))
 
   // 1. Subgraph backgrounds (group rectangles with header bands)
   for (const group of graph.groups) {
@@ -148,7 +148,7 @@ export function lowerGraphScene(
     parts.push(renderStateNote(note, font, style))
   }
 
-  parts.push(marks.raw({ id: 'svg-close', role: 'chrome' }, '</svg>'))
+  parts.push(marks.documentClose())
 
   return { family: 'flowchart', width: graph.width, height: graph.height, colors, parts }
 }

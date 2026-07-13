@@ -86,6 +86,18 @@ describe('scene fidelity', () => {
     }
   })
 
+  test('document furniture and definitions do not regress to RawMark', () => {
+    const violations: string[] = []
+    const visit = (node: SceneDoc['parts'][number], family: string): void => {
+      if (node.kind === 'raw' && (node.role === 'defs' || node.id === 'svg-close' || ((family === 'mindmap' || family === 'gitgraph') && (node.id === 'acc-title' || node.id === 'acc-desc')))) {
+        violations.push(`${family}:${node.id}`)
+      }
+      if (node.kind === 'group') for (const child of node.children) visit(child.node, family)
+    }
+    for (const scene of scenes) for (const part of scene.doc.parts) visit(part, scene.family)
+    expect(violations).toEqual([])
+  })
+
   test('DefaultBackend serialization of the lowered scene is the rendered SVG', () => {
     for (const scene of scenes) {
       const serialized = DefaultBackend.render(scene.doc, { seed: 0 })

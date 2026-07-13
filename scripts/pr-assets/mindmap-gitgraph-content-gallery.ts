@@ -1,11 +1,11 @@
 #!/usr/bin/env bun
-import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
-import { join, relative } from 'node:path'
+import { join } from 'node:path'
 import { chromium } from 'playwright'
 import { renderMermaidASCII, renderMermaidSVG } from '../../src/index.ts'
 import { parseMermaid, serializeMermaid, verifyMermaid } from '../../src/agent/index.ts'
 import { visualWidth } from '../../src/ascii/width.ts'
+import { fileReceiptEntries, filesUnder, repositoryPath, sortRepositoryPaths } from './artifact-receipt.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const CORPUS = join(ROOT, 'eval', 'mindmap-gitgraph-content-corpus')
@@ -13,30 +13,27 @@ const OUT = join(ROOT, 'docs', 'design', 'families')
 const RECEIPT = join(CORPUS, 'gallery-receipt.json')
 const localChrome = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 
-const repositoryPath = (absolute: string): string => relative(ROOT, absolute).replaceAll('\\', '/')
-const sha256 = (absolute: string): string => createHash('sha256').update(readFileSync(absolute)).digest('hex')
-const typescriptFilesUnder = (directory: string): string[] => readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
-  const path = join(directory, entry.name)
-  if (entry.isDirectory()) return typescriptFilesUnder(path)
-  return entry.isFile() && entry.name.endsWith('.ts') ? [path] : []
-})
-const inputPaths = (): string[] => [
+const repoPath = (absolute: string): string => repositoryPath(ROOT, absolute)
+const inputPaths = (): string[] => sortRepositoryPaths(ROOT, [
   join(CORPUS, 'manifest.json'),
   join(CORPUS, 'fork-snapshot.json'),
+  join(ROOT, 'package.json'),
+  join(ROOT, 'bun.lock'),
   import.meta.filename,
+  join(import.meta.dir, 'artifact-receipt.ts'),
   ...(['mindmap', 'gitgraph'] as const).flatMap(family =>
     readdirSync(join(CORPUS, family)).filter(name => name.endsWith('.mmd')).sort().map(name => join(CORPUS, family, name))),
   // Conservative by design: public render/verify/terminal APIs cross agent, ASCII,
   // Scene IR, theme, and shared helpers. Hash all TypeScript source so a transitive
   // renderer change can never leave a stale gallery receipt green.
-  ...typescriptFilesUnder(join(ROOT, 'src')),
-].sort((a, b) => repositoryPath(a).localeCompare(repositoryPath(b)))
+  ...filesUnder(join(ROOT, 'src'), path => path.endsWith('.ts')),
+])
 const outputPaths = (): string[] => (['mindmap', 'gitgraph'] as const).map(family => join(OUT, `${family}-content-gallery.png`))
 const receiptForCurrentFiles = () => ({
   schemaVersion: 1,
-  generator: repositoryPath(import.meta.filename),
-  inputs: inputPaths().map(path => ({ path: repositoryPath(path), sha256: sha256(path) })),
-  outputs: outputPaths().map(path => ({ path: repositoryPath(path), sha256: sha256(path) })),
+  generator: repoPath(import.meta.filename),
+  inputs: fileReceiptEntries(ROOT, inputPaths()),
+  outputs: fileReceiptEntries(ROOT, outputPaths()),
 })
 
 if (process.argv.includes('--check')) {

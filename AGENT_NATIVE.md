@@ -38,20 +38,20 @@ What the current Agentic Mermaid surface delivers and what it doesn't:
 
 | Family | Parse / verify / render / round-trip | Structured mutation |
 |---|---|---|
-| Flowchart | Full — including v11.6 edge IDs (`e1@-->`) and v11 `@{ shape: ... }` metadata (documented names/aliases parse structured); markdown strings (backtick labels) render but keep the body opaque losslessly | ✅ 14 ops |
-| State | Structured round-trip for states/transitions/`[*]`, notes, stereotypes/history, concurrency regions (`--`), bare declarations, and `classDef`/class/inline transition paint | 18 ops via `asState` |
-| Sequence | Structured-with-segments (BUILD-18): participant/message ops stay live while Note/alt/loop/par/box/activate/create/destroy/autonumber/title ride along verbatim as opaque-block segments; only un-segmentable input (unbalanced `end`) falls back to whole-body opaque | ✅ 7 ops when structured |
-| Timeline | Full — including the `timeline TD` vertical direction token | ✅ 15 ops |
-| Class | Structured namespaces, generics, direction, `classDef`, class assignment, and inline paint | ✅ 15 ops |
-| ER | Ordered typed/opaque segments for entities, attributes, relationships, direction, `classDef`, class assignment, and inline paint; identity edits reject stale opaque references | ✅ 12 ops |
-| Journey | Full structured round-trip (title/sections/tasks) | 14 ops via `asJourney` (BUILD-15 pilot) |
-| Architecture | Structured round-trip for visible/accessibility titles, descriptions, groups/services/junctions, item/group-boundary edges, and upstream `align row\|column` directives; endpoint sides constrain deterministic obstacle-free layout | 19 ops via `asArchitecture` |
-| XY chart | Structured round-trip for the modeled subset (orientation/title/axes/series; quoted text with bare content canonicalizes to unquoted form); embedded quotes/brackets, `;` multi-statement lines, accTitle/accDescr fall back to opaque losslessly | 10 ops via `asXyChart` (BUILD-16) |
-| Pie | Structured round-trip (title/showData/slices); accTitle/accDescr + malformed entries fall back to opaque losslessly | 7 ops via `asPie` |
-| Quadrant | Structured round-trip (title/axes/quadrant labels/points, per-point styling: direct `radius:`/`color:` tails, `classDef` tables, `:::` assignments); malformed style metadata + out-of-range coords fall back to opaque losslessly | 7 ops via `asQuadrant` |
-| Gantt | Structured-with-segments ([family contract](./docs/design/families/gantt.md)); deterministic caller-supplied `ganttToday` | 13 ops via `asGantt` |
-| Mindmap | Indentation-sensitive structured tree with shapes, icons, classes, accessibility, Scene/SVG/terminal rendering, and duplicate-id rejection | 10 ops via `asMindmap` |
-| GitGraph | Replayed commits/branches/checkout/merge/cherry-pick with deterministic `c<N>` generated ids and duplicate-id rejection | 11 ops via `asGitGraph` |
+| Flowchart | Full — including v11.6 edge IDs and v11 shape metadata; markdown strings render but keep the body opaque losslessly | `asFlowchart` |
+| State | Structured round-trip for states/transitions/`[*]`, notes, stereotypes/history, concurrency regions, declarations, and paint | `asState` |
+| Sequence | Structured-with-segments: participant/message ops stay live while unsupported statements ride along verbatim; only un-segmentable input falls back to whole-body opaque | `asSequence` |
+| Timeline | Full — including the `timeline TD` vertical direction token | `asTimeline` |
+| Class | Structured namespaces, generics, direction, `classDef`, class assignment, and inline paint | `asClass` |
+| ER | Ordered typed/opaque segments for entities, attributes, relationships, direction, and paint; identity edits reject stale opaque references | `asEr` |
+| Journey | Full structured round-trip (title/sections/tasks) | `asJourney` |
+| Architecture | Structured round-trip for visible/accessibility titles, descriptions, groups/services/junctions, boundary edges, and `align` directives | `asArchitecture` |
+| XY chart | Structured orientation/title/axes/series; unsupported extensions fall back to opaque losslessly | `asXyChart` |
+| Pie | Structured round-trip for title/showData/slices; unsupported extensions fall back to opaque losslessly | `asPie` |
+| Quadrant | Structured round-trip for axes, region labels, points, and supported paint; malformed metadata falls back to opaque losslessly | `asQuadrant` |
+| Gantt | Structured-with-segments ([family contract](./docs/design/families/gantt.md)); deterministic caller-supplied `ganttToday` | `asGantt` |
+| Mindmap | Indentation-sensitive structured tree with shapes, icons, classes, accessibility, Scene/SVG/terminal rendering, and duplicate-id rejection | `asMindmap` |
+| GitGraph | Replayed commits/branches/checkout/merge/cherry-pick with deterministic generated ids and duplicate-id rejection | `asGitGraph` |
 
 The implication: for any opaque fallback, the agent's tool surface is *parse → verify → render → serialize*, not *parse → mutate → verify → serialize*. Cross-cutting edits on those bodies happen at the preserved source level (`body.source` for opaque bodies), not at the typed mutation layer. Code Mode opportunity #1 covers this for the cases where it matters.
 
@@ -227,7 +227,7 @@ Two contracts:
 - `serializeMermaid(parseMermaid(s)) ≡ normalize(s)` for canonical input. For structured families this emits a fresh canonical form; for opaque families it emits preserved source with `meta` re-attached.
 - `parseMermaid(serializeMermaid(d)) ≡ d` for every `d` produced by `parseMermaid` or `mutate`.
 
-**Flowchart MutationOp kinds** (14 — the family elevation widened the menu from 6; `shape` fields accept the geometry names AND any documented v11 `@{ shape }` name/alias, and `set_label.target`/`remove_edge.id` accept an authored v11.6 edge ID or the endpoint forms `from->to` / `from->to#k`):
+**Flowchart MutationOp kinds** (the authoritative menu is generated from the registry; `shape` fields accept geometry names and documented v11 names/aliases, and edge targets accept authored edge IDs or endpoint forms):
 
 | Kind | Required | Optional | Inverse |
 |---|---|---|---|
@@ -338,7 +338,7 @@ Two contracts:
 | `set_entity_class`  | `entity`, `className \| null`                        | restore previous assignment |
 | `set_entity_style`  | `entity`, `style \| null`                            | restore previous style |
 
-**Journey MutationOp kinds** (14, BUILD-15 — the pilot promotion from opaque-only fallback semantics to structured mutation via the FamilyPlugin registry; ordering + accessibility ops added with the Mermaid-classic renderer elevation, since journey order IS the timeline):
+**Journey MutationOp kinds** (promoted from opaque-only fallback semantics through the FamilyPlugin registry; ordering and accessibility are typed because Journey order is the timeline):
 
 | Kind | Required | Inverse |
 |---|---|---|
@@ -526,7 +526,7 @@ There is no `LayoutContext`, no `SeededRNG`, no `Clock`, no font-metric table in
 - **Agent surface exposed via the `./agent` subpath export** on the `agentic-mermaid` package. Agentic Mermaid is the product/docs name, npm identity, and repository path (`adewale/agentic-mermaid`). The subpath export keeps renderer and agent surfaces side by side.
 - **Deterministic layout, verified.** Layout JSON is byte-identical across processes because ELK is configured for model-order layout with no random seed (see § (1)). No seed parameter is exposed because none affects output. Cross-machine byte equality across different CPU float behavior is not claimed; structural determinism within an ELK version is guaranteed and tested cross-process.
 - **IDs are content-hashed and stable** across runs (within an ELK version).
-- **`MermaidGraph` is kept** as an exported type — `ValidDiagram` wraps it in `body.graph` for flowchart, rather than replacing it. The original spec called for removal; the implementation showed it would break 61 test files and the Craft Agents consumer. The wrapping shape costs nothing.
+- **`MermaidGraph` is kept** as an exported type — `ValidDiagram` wraps it in `body.graph` for flowchart, rather than replacing it. The original spec called for removal; characterization showed it would break existing tests and the Craft Agents consumer. The wrapping shape costs nothing.
 - **`renderMermaidSVGAsync` is kept**. Removing it was a v1-aspiration that turned out to break consumers for no win at the agent surface.
 - **`mermaidConfig` precedence** is source frontmatter < init < explicit render options for supported family fields. Normalization merges source wrappers; family resolvers then reapply the original explicit section last. State has direct public-path precedence and geometry probes in `state-config.test.ts`.
 
@@ -539,7 +539,7 @@ Five artifacts, all derived from this doc:
 - **npm package** `agentic-mermaid` with the `agentic-mermaid/agent` subpath. The full TypeScript API, including ASCII, PNG, and SVG output helpers. Agents with shell access import the library directly and compose verbs in their own JS/TS runtime; no MCP wrapper required.
 - **`skills/agentic-mermaid-diagram-workflow/`** agent-agnostic skill bundle. Master `SKILL.md` routes by *both* diagram family and composition channel: it picks Code Mode when the MCP is connected, library import when the agent can run JS/TS with imports, the CLI for shell-only contexts. Per-family references (`flowchart.md`, `sequence.md`, etc.) describe syntax. Two channel references — `code-mode.md` (the canonical multi-step pattern) and `cli.md` (shell-only) — describe composition. Progressive disclosure means the LLM loads only what it needs. Family references sync from upstream Mermaid docs weekly via the shipped GitHub Action at `.github/workflows/sync-mermaid-docs.yml`, alongside our additions (LayoutWarning codes, MutationOp taxonomy).
 - **Substrate grep-lint** runs under `bun test` (not an uninstalled ESLint): `src/__tests__/agent-substrate-lint.test.ts` fails the build if `Math.random`, `Date.now`, or `performance.now` appear in `src/agent/**` or `src/layout-engine.ts`. This is real enforcement, executed in CI, not an aspirational config file.
-- **`agentic-mermaid-mcp`** Code Mode-style MCP server. The primary tool is `execute(code: string)`: the model writes JavaScript against the typed `mermaid.*` SDK declaration embedded in the system prompt; the server runs the code in a local `node:vm` sandbox with the library exposed as `mermaid` and the code's return value captured as the structured result. The server also exposes narrow `render_png` and `describe` helpers for binary output and summaries. The verify-before-commit loop becomes one round-trip rather than N. Hosting: local stdio launched by the MCP client (Claude Desktop, Claude Code, Cursor) — same deployment shape as filesystem-MCP, git-MCP, sqlite-MCP. No infrastructure on our side or the user's. The current MCP is not Cloudflare Codemode, not a Worker, not backed by `@cloudflare/codemode`, and not a drop-in Cloudflare integration. The `website/` Worker is a static Workers Static Assets deployment only; hosted MCP transport or a Cloudflare executor remain future options, not shipped artifacts.
+- **`agentic-mermaid-mcp`** Code Mode-style MCP server. The primary tool is `execute(code: string)`: the model writes JavaScript against the typed `mermaid.*` SDK declaration embedded in the system prompt. Local stdio/HTTP runs synchronous code in a `node:vm` sandbox. The hosted `/mcp` endpoint runs the same hardened facade in per-request Cloudflare Dynamic Worker isolates with bounded CPU/subrequests and no outbound network. Pure render/verify/describe helpers share transport-neutral behavior. Differential tests pin the common contract and explicitly name strict-module and CPU-time divergences; neither runtime depends on `@cloudflare/codemode`.
 - **`Instructions_for_agents.md`** at repo root, hard-capped under 100 lines. `am --agent-instructions` prints the same content at runtime; a doc-sync test asserts the two are byte-identical.
 
 No HTTP endpoint or editor WebSocket watch in v1. The skill teaches Code Mode for both paths: agents-with-shell write JS/TS against the imported library; agents-without-shell write JavaScript against the MCP's `mermaid.*` SDK. Same surface in both cases.
@@ -618,14 +618,14 @@ MermaidSeqBench is wired as an external corpus signal; live model transcript eva
 - **Determinism is empirical, not proven.** It's established by cross-process test over a corpus + the drift sentinel, plus reading ELK's config (`considerModelOrder: NODES_AND_EDGES`, no `randomSeed`). An ELK upgrade could in principle change this; the cross-process test and sentinel would catch it. There is no layout seed to fall back on because seeding never affected geometry. (The render option `seed` is a *style* seed: it re-rolls the ink wobble of styled looks and never moves layout.)
 - **Determinism claim, precisely.** Layout JSON is byte-identical (after structural parse) across processes AND across JS runtimes (bun, node) on the same machine and same ELK version; this is verified on same-machine x86_64 and ARM64 when Node + built `dist/` are present. Direct cross-architecture byte equality (x86_64 output compared to ARM64 output) is still not a separate claim.
 - **Sequence structured coverage is segment-preserving (BUILD-18).** Participant declarations + simple messages are the mutable structured surface; Note/alt/loop/par/activate/autonumber/title now ride along as verbatim opaque-block *segments* in the same body, so the structured ops survive instead of going whole-body opaque. Messages inside opaque blocks are deliberately not modeled (invisible to ops). Only un-segmentable input (unbalanced `end`, unclosed block) falls back to whole-body opaque. The honest tradeoff is unchanged — never lossy — it just no longer sacrifices the structured ops at the first unmodeled line. (Class/ER/timeline segment work is a follow-up.)
-- **All fourteen renderable families ship structured mutation; opaque fallbacks stay source-level only.** Pie and quadrant completed the promotion (7 ops each, via `asPie`/`asQuadrant`) and gantt ships segment-preserving structured mutation from its first release (13 ops via `asGantt`), so a narrower exists for every family kind; only opaque-fallback bodies (unmodeled syntax) remain deliberate, lossless source-level paths. (Journey was promoted by BUILD-15; architecture by BUILD-17; xychart by BUILD-16.)
+- **Every registered renderable family ships structured mutation; opaque fallbacks stay source-level only.** A typed narrower exists for every family kind; only opaque-fallback bodies for unmodeled syntax remain deliberate, lossless source-level paths.
 - **Live-model agent-usage eval is periodic, not PR CI.** Stored Code Mode scripts, sandbox traces, task oracles, and the committed pi-subagent transcript replay run in CI; API-backed release-model transcripts remain in `TODO.md` because they need model access and selected release tasks.
 - **Bloat in agent-facing docs.** `Instructions_for_agents.md` is hard-capped under 100 lines; doc-sync test enforces.
 
 ## What v4 delivers (vs. earlier drafts)
 
 - **Determinism is structural and verified cross-process** — not a seed apparatus. The seed/RNG/clock machinery and the font-metric table are *removed* (they did nothing).
-- **Mutation for all fourteen renderable families** (flowchart/state, sequence, timeline, class, ER, journey, architecture, xychart, pie, quadrant, gantt, mindmap, gitgraph), family-narrowed overloads, compile-time rejection of opaque/source-only fallback bodies.
+- **Mutation for every registered renderable family**, with family-narrowed overloads and compile-time rejection of opaque/source-only fallback bodies.
 - **Sequence parsing is lossless** — segment-preserving structured body (BUILD-18): Note/alt/loop/etc. ride along verbatim as opaque-block segments while the structured ops stay live; only un-segmentable input falls back to whole-body opaque; never silently drops constructs.
 - **Substrate enforcement is a real grep test** that runs under `bun test`, not an ESLint config that was never installed.
 - **`synthesizeFromGraph`** lets `am parse | am serialize` round-trip without `canonicalSource` on the wire.
@@ -649,7 +649,7 @@ Concrete consequences, in roughly descending impact:
 5. **No need to ship `diffDiagrams` or `explainDiagram`.** Already cut. Code Mode confirms the cut: an agent that wants structural diff writes it from `parse` + `ValidDiagram` inspection in JavaScript. Every "would be nice to have a verb for" becomes "write the code for it in `execute()`."
 6. **Library as the cross-tool agent interface for diagrams.** A Mermaid linter, a `mermaid → d2` converter, a `graphviz → mermaid` importer can each expose the same Code Mode shape. Any agent then writes one JavaScript snippet that composes across libraries. We've effectively defined the agent interface for diagrams in this language.
 7. **Benchmark eval at speed.** MermaidSeqBench (and any future eval) runs as one `execute()` per case rather than N round-trips. Internal velocity multiplier.
-8. **Potential future hosted-Worker path.** Cloudflare-hosted Agentic Mermaid is tracked as `TODO.md` BUILD-4. The repo now ships a static Workers Static Assets website under `website/`, but a hosted MCP/Code Mode wrapper remains separate. That wrapper could use `@cloudflare/codemode` + `DynamicWorkerExecutor` only after the security boundary, auth/rate limits, persistence, and CLI/MCP/library parity are scoped. The current repo does not ship that dependency or runtime; JavaScript snippets plus a TypeScript-shaped SDK declaration are the reusable design idea, not a current hosted execution deployment.
+8. **Hosted Worker path.** The shipped `/mcp` endpoint uses Cloudflare Dynamic Worker isolates through the platform loader binding, not `@cloudflare/codemode`. The runtime has explicit security/resource limits and differential parity with local Code Mode; remaining WAF and abuse-control operations are tracked separately in `TODO.md`.
 9. **The skill becomes runnable, not just descriptive.** `references/code-mode.md` ships canonical executable JavaScript snippets the agent copy-pastes into `execute()`. Skill stops being prose; starts being a library of executable patterns.
 10. **A future diagram REPL would be a thin transport.** An `am repl` could become an interactive Code Mode shell — paste JavaScript, get structured results, iterate. Same sandbox, different transport. It is not shipped and would need promotion to `TODO.md` before implementation.
 

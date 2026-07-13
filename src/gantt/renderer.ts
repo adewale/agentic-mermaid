@@ -290,7 +290,7 @@ export function lowerGanttScene(
   ))
 
   const shadowDefs = buildShadowDefs(colors)
-  if (shadowDefs) parts.push(marks.raw({ id: 'shadow-defs', role: 'defs' }, `<defs>${shadowDefs}</defs>`))
+  if (shadowDefs) parts.push(marks.definitions({ id: 'shadow-defs' }, `<defs>${shadowDefs}</defs>`))
 
   // Dependency arrowhead defs — content-hashed ids (the journey id-namespacing
   // pattern) so two different gantt SVGs inlined into one page cannot collide.
@@ -307,7 +307,7 @@ export function lowerGanttScene(
     <path d="M0,0 L8,3.5 L0,7 Z" fill="${palette.criticalStroke}" />
   </marker>`)
     }
-    parts.push(marks.raw({ id: 'defs', role: 'defs' }, `<defs>\n${markers.join('\n')}\n</defs>`))
+    parts.push(marks.definitions({ id: 'defs' }, `<defs>\n${markers.join('\n')}\n</defs>`))
   }
 
   const plot = layout.plot
@@ -591,7 +591,7 @@ export function lowerGanttScene(
     parts.push(textMark('title', 'title', layout.width / 2, ganttTitleY(style), title, 'gantt-title', ganttTitleFontSize(style), Math.max(style.groupHeaderFontWeight, 600), palette.titleFill, 'middle', style.groupLetterSpacing))
   }
 
-  parts.push(marks.raw({ id: 'svg-close', role: 'chrome' }, '</svg>'))
+  parts.push(marks.documentClose())
 
   return { family: 'gantt', width: layout.width, height: layout.height, colors, parts }
 }

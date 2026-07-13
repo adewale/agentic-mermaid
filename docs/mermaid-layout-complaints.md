@@ -744,9 +744,9 @@ Stated plainly so the scorecard cannot oversell:
    applies to diagrams rendered through this stack (agent pipelines, CI,
    terminals, the editor) plus whatever is upstreamed per the
    [upstreaming strategy](./fork-differences.md#upstreaming-strategy).
-4. **Family coverage.** 14 families vs Mermaid's ~25. Gantt, Mindmap, and
-   GitGraph are rendered and characterized in this fork; C4, radar, and many
-   other Mermaid families remain outside the current engine.
+4. **Family coverage.** The checked registry is a focused subset of Mermaid's
+   broader catalogue. Gantt, Mindmap, and GitGraph are rendered and characterized;
+   C4, radar, and other families remain outside the current engine.
 5. **Metric honesty.** Today's perceptual metrics pass diagrams whose
    routing is visibly wrong (C4 worked example). Until #25 certificates and
    #26 family validators land, `verify.ok` + `checkQuality` must not be

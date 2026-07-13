@@ -82,8 +82,8 @@ export function lowerXYChartScene(
     chartStyle,
   ))
   const shadowDefs = buildShadowDefs(colors)
-  if (shadowDefs) parts.push(marks.raw({ id: 'shadow-defs', role: 'defs' }, `<defs>${shadowDefs}</defs>`))
-  if (defs) parts.push(marks.raw({ id: 'defs', role: 'defs' }, defs))
+  if (shadowDefs) parts.push(marks.definitions({ id: 'shadow-defs' }, `<defs>${shadowDefs}</defs>`))
+  if (defs) parts.push(marks.definitions({ id: 'defs' }, defs))
   if (svgMeta.title) parts.push(marks.raw({ id: 'acc-title', role: 'chrome' }, svgMeta.title))
   if (svgMeta.description) parts.push(marks.raw({ id: 'acc-desc', role: 'chrome' }, svgMeta.description))
 
@@ -268,7 +268,8 @@ export function lowerXYChartScene(
   if (chart.xAxis.title) {
     const title = chart.xAxis.title
     const text = applyTextTransform(title.text, style.edgeTextTransform)
-    const transform = title.rotate ? ` transform="rotate(${title.rotate},${title.x},${title.y})"` : ''
+    const rotation = title.rotate ? { kind: 'rotate' as const, angle: title.rotate, cx: title.x, cy: title.y } : undefined
+    const transform = rotation ? ` transform="rotate(${rotation.angle},${rotation.cx},${rotation.cy})"` : ''
     parts.push(marks.text({
       id: 'axis:x:title',
       role: 'axis',
@@ -278,6 +279,7 @@ export function lowerXYChartScene(
       fontSize: chart.xAxis.config.titleFontSize,
       anchor: 'middle',
       paint: { fill: chartColors.xAxisTitleColor },
+      transform: rotation,
     },
       `<text x="${title.x}" y="${title.y}" text-anchor="middle"${transform} ` +
       `font-size="${chart.xAxis.config.titleFontSize}" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)} ` +
@@ -288,7 +290,8 @@ export function lowerXYChartScene(
   if (chart.yAxis.title) {
     const title = chart.yAxis.title
     const text = applyTextTransform(title.text, style.edgeTextTransform)
-    const transform = title.rotate ? ` transform="rotate(${title.rotate},${title.x},${title.y})"` : ''
+    const rotation = title.rotate ? { kind: 'rotate' as const, angle: title.rotate, cx: title.x, cy: title.y } : undefined
+    const transform = rotation ? ` transform="rotate(${rotation.angle},${rotation.cx},${rotation.cy})"` : ''
     parts.push(marks.text({
       id: 'axis:y:title',
       role: 'axis',
@@ -298,6 +301,7 @@ export function lowerXYChartScene(
       fontSize: chart.yAxis.config.titleFontSize,
       anchor: 'middle',
       paint: { fill: chartColors.yAxisTitleColor },
+      transform: rotation,
     },
       `<text x="${title.x}" y="${title.y}" text-anchor="middle"${transform} ` +
       `font-size="${chart.yAxis.config.titleFontSize}" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)} ` +
@@ -402,7 +406,7 @@ export function lowerXYChartScene(
   for (const group of barOverlay) parts.push(group)
   for (const group of dotOverlay) parts.push(group)
 
-  parts.push(marks.raw({ id: 'svg-close', role: 'chrome' }, '</svg>'))
+  parts.push(marks.documentClose())
 
   return { family: 'xychart', width: chart.width, height: chart.height, colors, parts }
 }

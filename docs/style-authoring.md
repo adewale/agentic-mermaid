@@ -4,7 +4,7 @@ A **style** is a partial description of how diagrams look. Every field is
 optional: a style that only sets colors is a palette; a style that sets
 stroke character, fills, typography, and a palette is a full look. Styles
 apply uniformly to **every** diagram family — registered once, they work for
-all fourteen types, including families added later.
+every registered type, including families added later.
 
 Styles compose by **stacking**: `RenderOptions.style` accepts a name, an
 inline spec, or an array of either, merged left → right (later fields win,
@@ -128,7 +128,7 @@ bun test src/__tests__/scene-fidelity.test.ts  # semantic/crisp agreement
 bun test src/__tests__/svg-equivalence.test.ts # crisp path untouched
 ```
 
-Then render your style across all fourteen diagram types and *look at it small*
+Then render your style across every registered diagram type and *look at it small*
 — the poster/contact-sheet harness in `scripts/sketch-prototype/` is the
 visual-review surface. A style ships when it is distinctive at a glance,
 legible at cell size, and honest to its intent.

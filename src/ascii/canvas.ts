@@ -413,6 +413,31 @@ export function drawText(
   }
 }
 
+/** Write grapheme-safe text and parallel roles into existing bounded cell grids. */
+export function drawTextWithRole(
+  canvas: Canvas,
+  roleCanvas: RoleCanvas,
+  start: DrawingCoord,
+  text: string,
+  role: CharRole,
+): void {
+  let x = start.x
+  const height = canvas[0]?.length ?? 0
+  for (const cluster of graphemes(text)) {
+    const clusterWidth = visualWidth(cluster)
+    if (clusterWidth === 0) continue
+    if (x >= 0 && x + clusterWidth <= canvas.length && start.y >= 0 && start.y < height) {
+      canvas[x]![start.y] = cluster
+      roleCanvas[x]![start.y] = role
+      for (let continuation = 1; continuation < clusterWidth && x + continuation < canvas.length; continuation++) {
+        canvas[x + continuation]![start.y] = WIDE_CHAR_CONTINUATION
+        roleCanvas[x + continuation]![start.y] = role
+      }
+    }
+    x += clusterWidth
+  }
+}
+
 /**
  * Set the canvas size to fit all grid columns and rows.
  * Called after layout to ensure the canvas covers the full drawing area.

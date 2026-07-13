@@ -99,8 +99,9 @@ so the only behavioral change vs. the old `toFixed(1)` is the floor.
   and quadrant) — hover group per slice, native `<title>`, styled tip
   anchored at the label point. Upstream pie has no tooltips outside the
   mermaid.live wrapper.
-- **`highlightSlice` is not implemented** (lint instead). Follow-up if
-  demanded: a class + CSS scale/opacity rule, cheap once wanted.
+- **`highlightSlice` is static cross-format emphasis.** The configured slice is
+  offset/emphasized in SVG and represented explicitly in terminal output; static
+  renderers do not add executable hover/click behavior.
 
 ## Verification surface
 

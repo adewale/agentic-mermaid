@@ -73,7 +73,7 @@ palette, preserving Mermaid compatibility.)
 Family-specific config is **wire-or-warn**: every accepted key either changes
 output or produces `INEFFECTIVE_CONFIG` naming the field. Unknown keys also
 warn, so spelling mistakes cannot disappear silently. This contract covers all
-14 families and both frontmatter and init directives.
+every registered family and both frontmatter and init directives.
 
 Notable wired sections include:
 

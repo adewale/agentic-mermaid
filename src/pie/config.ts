@@ -7,7 +7,7 @@
 //   pie.textPosition   number 0..1, default 0.75 — axial label position
 //   pie.donutHole      number, valid (0, 0.9], anything else resolves to 0
 //   pie.legendPosition 'top'|'bottom'|'left'|'right'|'center', default 'right'
-//   pie.highlightSlice string — NOT wired here (INEFFECTIVE_CONFIG)
+//   pie.highlightSlice string — static cross-format emphasis target
 // Theme variables (theming.html):
 //   pie1..pie12                      slice fills, honored in SOURCE order
 //                                    (upstream assigns after d3 sorts — #5314;

@@ -32,12 +32,12 @@ The agent workflow is the guardrail behind the polish: agents should not guess f
 
 ## Highlights
 
-- **14 diagram families** — flowchart, state, architecture, sequence, class, ER, timeline, journey, XY chart, pie, quadrant, Gantt, Mindmap, and GitGraph.
+- **Registry-backed diagram families** — flowchart, state, architecture, sequence, class, ER, timeline, journey, XY chart, pie, quadrant, Gantt, Mindmap, and GitGraph.
 - **SVG, PNG, ASCII, Unicode, JSON** — one deterministic layout foundation for docs, decks, terminals, and agent workflows.
 - **Synchronous, zero-DOM SVG renderer** — no Puppeteer, no browser flash.
 - **Composable styles** — `{ style: ['hand-drawn', 'dracula'] }` stacks a look over a palette; 15 full looks cover sketch, watercolor, blueprint, accessibility, print, operational, physical-media, architecture, and editorial/report use cases. Custom styles are plain JSON records any agent can author (`docs/style-authoring.md`). `seed` re-rolls the ink, never the layout.
 - **21 built-in themes + Shiki compatibility** — a theme is a palette-only style: theme from two colors or a VS Code theme.
-- **Agent-native editing** — typed mutation for all fourteen renderable families (flowchart/state, sequence, timeline, class, ER, journey, architecture, XY chart, pie, quadrant, Gantt, Mindmap, GitGraph); source-level round-trip only for opaque fallbacks (unmodeled syntax).
+- **Agent-native editing** — typed mutation for every registered renderable family; source-level round-trip only for opaque fallbacks containing unmodeled syntax.
 - **CLI + MCP + library** — `am`, `agentic-mermaid-mcp`, `agentic-mermaid`, and `agentic-mermaid/agent`.
 
 ## Installation

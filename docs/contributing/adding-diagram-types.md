@@ -83,7 +83,7 @@ Before merge, verify that it is **Visual-metaphor complete**:
 - a representative generated screenshot is committed and captioned in the PR's Visual Evidence table;
 - SVG and terminal output are reviewed separately: surface availability does not prove visual fidelity.
 
-See [`mermaid-family-fidelity-audit.md`](../design/mermaid-family-fidelity-audit.md) for the current 14-family standard.
+See [`mermaid-family-fidelity-audit.md`](../design/mermaid-family-fidelity-audit.md) for the current registry-derived standard.
 
 ## 5. Required Tests
 
@@ -120,8 +120,8 @@ Run the checks that fit the change:
 
 - `bun test src/__tests__/`
 - `bun run goldens:ascii:check` if you added or changed ASCII/Unicode fixtures
-- `npm run build`
-- `bun run samples` if you added or changed visual samples
+- `bun run build`
+- `bun run characterization:check` and `bun run gallery:mermaid-docs:check` if you added or changed visual evidence
 - `bun run bench` if the diagram type adds meaningful layout or rendering cost
 
 ## 7. Agent-Native Typed Mutation (Required)
