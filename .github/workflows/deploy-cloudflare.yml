@@ -51,7 +51,7 @@ jobs:
               echo "### Cloudflare deploy skipped"
               echo ""
               echo 'GitHub Actions is missing `CLOUDFLARE_API_TOKEN` and/or `CLOUDFLARE_ACCOUNT_ID`.'
-              echo 'Add those repository secrets to publish automatically, or deploy manually from the repository root with `SITE_GIT_SHA="$(git rev-parse HEAD)" SITE_BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)" bun run website && cd website && WRANGLER_SEND_METRICS=false npx --yes wrangler@latest deploy`.'
+              echo 'Add those repository secrets to publish automatically, or deploy manually from the repository root with `SITE_BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)" bun run website && cd website && WRANGLER_SEND_METRICS=false npx --yes wrangler@latest deploy`.'
             } >> "$GITHUB_STEP_SUMMARY"
           else
             echo "available=true" >> "$GITHUB_OUTPUT"

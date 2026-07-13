@@ -63,7 +63,7 @@ jobs:
         run: bun run sketch:check
 
       - name: Type check
-        run: bun x tsc --noEmit
+        run: bun run typecheck
 
       - name: Check README hero image is current with the renderer
         # Compares a deterministic fingerprint of the renderer output behind

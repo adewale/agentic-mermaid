@@ -170,7 +170,7 @@ Fetch the artifact:
 curl -L -o diagram.png 'http://127.0.0.1:3000/artifacts/<name>.png'
 ```
 
-If the server is behind a reverse proxy, set `--public-url https://example.com/artifacts` so returned URLs are externally reachable.
+If the server is behind a reverse proxy, set `--public-url https://example.com/artifacts` so returned URLs are externally reachable. The URL must be absolute HTTP(S); its origin (here `https://example.com`) is also accepted by the `/rpc`, `/sse`, `/message`, and `/artifacts/*` browser-origin guard. Other browser origins remain forbidden.
 
 ## Sample SSE flow
 
@@ -210,8 +210,8 @@ data: {"jsonrpc":"2.0","id":4,"result":{}}
 | `--host <host>` | `127.0.0.1` | HTTP bind host. Non-loopback hosts require `--auth-token`. |
 | `--port <port>` | `3000` | HTTP bind port. Use `0` for an ephemeral test port. |
 | `--artifact-dir <dir>` | OS temp dir | Directory for managed file/URL artifacts. Files use generated safe names. |
-| `--public-url <url>` | `http://<host>:<port>/artifacts` | URL prefix returned by `output: "url"`; useful behind reverse proxies. |
-| `--auth-token <token>` | unset | Bearer token required for `/rpc` and `/message` when binding non-loopback. Optional on loopback. |
+| `--public-url <url>` | `http://<host>:<port>/artifacts` | Absolute HTTP(S) prefix returned by `output: "url"`; its origin is accepted by the HTTP/SSE browser-origin guard. |
+| `--auth-token <token>` | unset | Bearer token required for every non-health HTTP route when binding non-loopback. Optional on loopback. |
 | `--max-artifact-bytes <n>` | `20971520` | Maximum bytes for a single managed artifact. |
 | `--artifact-ttl-ms <n>` | `3600000` | How long managed artifacts remain fetchable by this server process. |
 | `--max-rpc-body-bytes <n>` | `1048576` | Maximum HTTP JSON-RPC request body size. |
@@ -221,7 +221,7 @@ data: {"jsonrpc":"2.0","id":4,"result":{}}
 
 - HTTP binds to loopback by default.
 - Non-loopback binding requires `--auth-token`.
-- `/rpc` and `/message` reject non-JSON content types and cross-origin browser posts.
+- `/rpc` and `/message` reject non-JSON content types; every non-health route rejects browser origins other than the internal server or configured public origin.
 - Request bodies and artifact sizes are bounded.
 - URL/file artifacts are generated under a managed store, served only if the current process created and still tracks them, and checked against TTL on read.
 - `execute(code)` still runs in local `node:vm`, not an OS/container security boundary. Do not expose HTTP/SSE to hostile users without an outer isolation layer.

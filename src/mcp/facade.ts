@@ -591,7 +591,7 @@ export function unsupportedCodeReason(code: string): string | undefined {
 }
 
 function stripStringsAndComments(code: string): string {
-  const out = Array.from(code, char => char === '\n' ? '\n' : ' ')
+  const out: string[] = Array.from(code, char => char === '\n' ? '\n' : ' ')
   const copy = (index: number): void => { out[index] = code[index]! }
 
   const skipQuoted = (start: number, quote: '"' | "'"): number => {

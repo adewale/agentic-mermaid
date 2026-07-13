@@ -66,7 +66,7 @@ jobs:
         run: bun test src/__tests__/
 
       - name: Type check
-        run: bun x tsc --noEmit
+        run: bun run typecheck
 
       - name: Check README hero image is current with the renderer
         run: bun run hero:check

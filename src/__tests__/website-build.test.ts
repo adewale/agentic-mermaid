@@ -9,6 +9,7 @@ import { createWebsiteWorker } from '../../website/src/worker-core.ts'
 import { CLEAN_PAGE_ROUTES, DYNAMIC_CLEAN_REDIRECT_LINES, staticRedirectLines } from '../../website/src/site-routes.ts'
 import { HOSTED_FONT_FACES, HOSTED_FONT_FILES } from '../font-manifest.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
+import { resolveBuildGitSha } from '../../website/build-provenance.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const SITE = join(REPO, 'website', 'public')
@@ -88,6 +89,15 @@ async function websiteWorker(): Promise<{ fetch: (request: Request, env: any) =>
 }
 
 describe('Workers Static Assets website contract', () => {
+  test('build provenance never labels dirty or unverifiable bytes as exact HEAD', () => {
+    const head = '0123456789abcdef'
+    expect(resolveBuildGitSha({ head, status: '' })).toBe(head)
+    expect(resolveBuildGitSha({ head, status: ' M website/build.ts' })).toBe(`${head}-dirty`)
+    expect(resolveBuildGitSha({ head })).toBe(`${head}-unverified`)
+    expect(resolveBuildGitSha({ status: '' })).toBe('development')
+    expect(resolveBuildGitSha({ explicit: 'release-sha', head, status: ' M file' })).toBe('release-sha')
+  })
+
   test('Cloudflare MCP config follows the official agent setup endpoints', () => {
     const expected = {
       cloudflare: 'https://mcp.cloudflare.com/mcp',
@@ -941,16 +951,19 @@ describe('Workers Static Assets website contract', () => {
 
   test('focused agent artifacts are generated and stale machine catalogs are absent', () => {
     const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: REPO, encoding: 'utf8' }).trim()
+    const status = execFileSync('git', ['status', '--porcelain=v1', '--untracked-files=normal'], { cwd: REPO, encoding: 'utf8' })
+    const expectedGitSha = resolveBuildGitSha({ head, status })
     for (const rel of ['capabilities.json', 'examples/index.json', '.well-known/mcp.json', '.well-known/mcp/server-card.json', '.well-known/ai-catalog.json']) {
       const json = JSON.parse(read(rel))
       expect({ rel, generatedFrom: Boolean(json.generatedFrom) }).toEqual({ rel, generatedFrom: true })
-      expect({ rel, gitSha: json.generatedFrom.gitSha }).toEqual({ rel, gitSha: head })
+      expect({ rel, gitSha: json.generatedFrom.gitSha }).toEqual({ rel, gitSha: expectedGitSha })
       expect({ rel, buildTime: json.generatedFrom.buildTime }).not.toEqual({ rel, buildTime: 'development' })
       expect(Number.isNaN(Date.parse(json.generatedFrom.buildTime))).toBe(false)
     }
     const deployWorkflow = readRepo('.github/workflows/deploy-cloudflare.yml')
     expect(deployWorkflow).toContain('SITE_GIT_SHA="${{ github.event.workflow_run.head_sha || github.sha }}"')
     expect(deployWorkflow).toContain('SITE_BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)" bun run website')
+    expect(deployWorkflow).not.toContain('SITE_GIT_SHA="$(git rev-parse HEAD)"')
     for (const rel of ['agent-manifest.json', 'harnesses.json', 'recipes/index.json', 'skills/index.json', 'schemas/index.json']) {
       expect({ rel, exists: existsSync(join(SITE, rel)) }).toEqual({ rel, exists: false })
     }

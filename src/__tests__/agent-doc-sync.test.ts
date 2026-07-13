@@ -10,6 +10,7 @@ import { AGENTS_SNIPPET, INIT_SKILL_MD } from '../cli/init-agent.ts'
 import { COMMAND_HELP, MUTATION_OPS_BY_FAMILY, buildCapabilities } from '../cli/index.ts'
 import { SDK_DECLARATION } from '../mcp/sdk-decl.ts'
 import { HOSTED_TOOLS } from '../mcp/hosted-server.ts'
+import { LOCAL_TOOLS } from '../mcp/server.ts'
 import { WARNING_SEVERITY, WARNING_TIER } from '../agent/types.ts'
 import {
   asFlowchart, asState, asSequence, asTimeline, asClass, asEr,
@@ -546,6 +547,41 @@ describe('hosted-tool enumeration does not rot', () => {
       }
     }
     expect(checked).toBeGreaterThanOrEqual(4) // start.md, agent guide, README, mcp-code-mode-rationale, …
+  })
+})
+
+describe('exact MCP inventories match the runtime registries', () => {
+  const names = (text: string): string[] => [...text.matchAll(/`([a-z_]+)`/g)].map(match => match[1]!)
+  const matchOrThrow = (text: string, pattern: RegExp, label: string): RegExpMatchArray => {
+    const match = text.match(pattern)
+    if (!match) throw new Error(`missing exact MCP inventory in ${label}`)
+    return match
+  }
+
+  test('llms and maintained docs name every local and hosted tool exactly once', () => {
+    const local = LOCAL_TOOLS.map(tool => tool.name)
+    const hosted = HOSTED_TOOLS.map(tool => tool.name)
+
+    const llms = readFileSync(join(REPO, 'llms.txt'), 'utf8')
+    const llmsInventory = matchOrThrow(
+      llms,
+      /Local MCP exposes (\d+) tools:([\s\S]*?)\. Hosted MCP exposes (\d+) tools:([\s\S]*?)\.\n/,
+      'llms.txt',
+    )
+    expect({ count: Number(llmsInventory[1]), tools: names(llmsInventory[2]!) })
+      .toEqual({ count: local.length, tools: local })
+    expect({ count: Number(llmsInventory[3]), tools: names(llmsInventory[4]!) })
+      .toEqual({ count: hosted.length, tools: hosted })
+
+    const exactHostedInventories = [
+      ['website/README.md', /Hosted tools:([\s\S]*?)\. Tool inputs/],
+      ['docs/api.md', /Hosted tools are ([^;]+);/],
+      ['website/source/start.md', /Tools: ([^(]+) \(64 KB/],
+    ] as const
+    for (const [file, pattern] of exactHostedInventories) {
+      const inventory = matchOrThrow(readFileSync(join(REPO, file), 'utf8'), pattern, file)
+      expect({ file, tools: names(inventory[1]!) }).toEqual({ file, tools: hosted })
+    }
   })
 })
 

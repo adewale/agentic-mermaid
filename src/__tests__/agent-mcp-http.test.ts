@@ -176,6 +176,38 @@ describe('MCP HTTP/SSE transport and managed artifacts', () => {
     controller.abort()
   })
 
+  test('configured public origin can fetch artifacts and open SSE', async () => {
+    const publicUrl = 'https://proxy.example/artifacts'
+    const started = await startHttpServerIfAvailable({
+      port: 0,
+      artifactDir: tempDir(),
+      publicUrl,
+    })
+    if (!started) return
+    servers.push(started)
+
+    const record = started.artifactStore.write(Buffer.from(PNG_MAGIC), {
+      extension: '.png',
+      mimeType: 'image/png',
+    })
+    expect(record.url).toBe(`${publicUrl}/${record.name}`)
+
+    const artifact = await fetch(`${started.url}/artifacts/${record.name}`, {
+      headers: { origin: 'https://proxy.example' },
+    })
+    expect(artifact.status).toBe(200)
+    expect(new Uint8Array(await artifact.arrayBuffer())).toEqual(new Uint8Array(PNG_MAGIC))
+
+    const controller = new AbortController()
+    const sse = await fetch(`${started.url}/sse`, {
+      headers: { origin: 'https://proxy.example' },
+      signal: controller.signal,
+    })
+    expect(sse.status).toBe(200)
+    await sse.body?.cancel()
+    controller.abort()
+  })
+
   test('SSE sessions are bounded', async () => {
     const started = await startHttpServerIfAvailable({ port: 0, artifactDir: tempDir(), maxSseSessions: 1 })
     if (!started) return

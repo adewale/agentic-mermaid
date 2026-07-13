@@ -250,6 +250,7 @@ export async function startHttpServer(options: HttpMcpOptions = {}): Promise<Htt
   })
   const maxRpcBodyBytes = options.maxRpcBodyBytes ?? MAX_RPC_BODY_BYTES
   const maxSseSessions = options.maxSseSessions ?? MAX_SSE_SESSIONS
+  const publicOrigin = httpOrigin(options.publicUrl, 'publicUrl')
   if (!Number.isInteger(maxSseSessions) || maxSseSessions <= 0) throw new Error('maxSseSessions must be a positive integer')
   const context = { artifactStore, maxSandboxTimeoutMs: options.maxSandboxTimeoutMs }
 
@@ -258,19 +259,19 @@ export async function startHttpServer(options: HttpMcpOptions = {}): Promise<Htt
       const u = new URL(req.url ?? '/', baseUrl || `http://${host}:${port || 0}`)
       if (req.method === 'GET' && u.pathname === '/health') return sendJson(res, 200, { ok: true })
       if (req.method === 'GET' && u.pathname === '/sse') {
-        if (!authorizeHttpAccess(req, res, baseUrl, options.authToken)) return
+        if (!authorizeHttpAccess(req, res, baseUrl, publicOrigin, options.authToken)) return
         return openSse(req, res, sessions, baseUrl, maxSseSessions)
       }
       if (req.method === 'POST' && u.pathname === '/message') {
-        if (!authorizeHttpRpc(req, res, baseUrl, options.authToken)) return
+        if (!authorizeHttpRpc(req, res, baseUrl, publicOrigin, options.authToken)) return
         return await postSseMessage(req, res, sessions, context, maxRpcBodyBytes)
       }
       if (req.method === 'POST' && u.pathname === '/rpc') {
-        if (!authorizeHttpRpc(req, res, baseUrl, options.authToken)) return
+        if (!authorizeHttpRpc(req, res, baseUrl, publicOrigin, options.authToken)) return
         return await postRpc(req, res, context, maxRpcBodyBytes)
       }
       if (req.method === 'GET' && u.pathname.startsWith('/artifacts/')) {
-        if (!authorizeHttpAccess(req, res, baseUrl, options.authToken)) return
+        if (!authorizeHttpAccess(req, res, baseUrl, publicOrigin, options.authToken)) return
         return serveArtifact(res, artifactStore, decodeURIComponent(u.pathname.slice('/artifacts/'.length)))
       }
       return sendJson(res, 404, { ok: false, error: 'not found' })
@@ -317,9 +318,23 @@ function isLoopbackHost(host: string): boolean {
   return host === '127.0.0.1' || host === 'localhost' || host === '::1'
 }
 
-function authorizeHttpAccess(req: IncomingMessage, res: ServerResponse, baseUrl: string, authToken?: string): boolean {
+function httpOrigin(value: string | undefined, label: string): string | undefined {
+  if (!value) return undefined
+  let parsed: URL
+  try {
+    parsed = new URL(value)
+  } catch {
+    throw new Error(`${label} must be an absolute http(s) URL`)
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new Error(`${label} must be an absolute http(s) URL`)
+  }
+  return parsed.origin
+}
+
+function authorizeHttpAccess(req: IncomingMessage, res: ServerResponse, baseUrl: string, publicOrigin?: string, authToken?: string): boolean {
   const origin = req.headers.origin
-  if (origin && origin !== baseUrl) {
+  if (origin && origin !== baseUrl && origin !== publicOrigin) {
     sendJson(res, 403, { ok: false, error: 'origin not allowed' })
     return false
   }
@@ -330,8 +345,8 @@ function authorizeHttpAccess(req: IncomingMessage, res: ServerResponse, baseUrl:
   return true
 }
 
-function authorizeHttpRpc(req: IncomingMessage, res: ServerResponse, baseUrl: string, authToken?: string): boolean {
-  if (!authorizeHttpAccess(req, res, baseUrl, authToken)) return false
+function authorizeHttpRpc(req: IncomingMessage, res: ServerResponse, baseUrl: string, publicOrigin?: string, authToken?: string): boolean {
+  if (!authorizeHttpAccess(req, res, baseUrl, publicOrigin, authToken)) return false
   const contentType = String(req.headers['content-type'] ?? '').toLowerCase()
   if (!contentType.startsWith('application/json')) {
     sendJson(res, 415, { ok: false, error: 'HTTP MCP JSON-RPC requires content-type application/json' })

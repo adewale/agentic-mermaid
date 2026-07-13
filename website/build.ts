@@ -14,6 +14,7 @@ import { namespaceSvgIds } from '../src/renderer.ts'
 import { HOSTED_MCP_SERVER_NAME, HOSTED_TOOLS } from '../src/mcp/hosted-server.ts'
 import { MCP_SERVER_VERSION } from '../src/mcp/tool-surface.ts'
 import { computeDeployVersion } from './src/deploy-hash.ts'
+import { resolveBuildGitSha } from './build-provenance.ts'
 import { CLEAN_PAGE_ROUTES, DYNAMIC_CLEAN_REDIRECT_LINES, staticRedirectLines } from './src/site-routes.ts'
 import { HOMEPAGE_AGENT_POINTER } from '../eval/agent-usage/homepage-prompt.ts'
 import { EDITOR_EXAMPLES } from '../editor/examples.ts'
@@ -545,21 +546,27 @@ function inlineHtmlToMarkdown(s: string) {
 
 const packageJson = JSON.parse(await Bun.file(join(ROOT, 'package.json')).text())
 const rawCapabilities = buildCapabilities()
-function checkoutGitValue(args: string[]) {
+function checkoutGitValue(args: string[]): string | undefined {
   try {
     return execFileSync('git', args, { cwd: ROOT, encoding: 'utf8' }).trim()
   } catch {
-    return 'development'
+    return undefined
   }
 }
+const checkoutHead = checkoutGitValue(['rev-parse', 'HEAD'])
+const checkoutStatus = checkoutGitValue(['status', '--porcelain=v1', '--untracked-files=normal'])
 const generatedFrom = {
   packageVersion: packageJson.version,
-  // CI may pin the workflow-run head explicitly; manual deploys still derive
-  // the exact checked-out commit instead of publishing "development".
-  gitSha: process.env.SITE_GIT_SHA ?? checkoutGitValue(['rev-parse', 'HEAD']),
+  // CI pins the workflow-run head explicitly. Manual builds derive the checkout
+  // state and qualify dirty/unverifiable sources instead of claiming exact HEAD.
+  gitSha: resolveBuildGitSha({
+    explicit: process.env.SITE_GIT_SHA,
+    head: checkoutHead,
+    status: checkoutStatus,
+  }),
   // Commit time is a deterministic local-build fallback; deploy workflows set
   // the actual bundle build time explicitly.
-  buildTime: process.env.SITE_BUILD_TIME ?? checkoutGitValue(['show', '-s', '--format=%cI', 'HEAD']),
+  buildTime: process.env.SITE_BUILD_TIME ?? checkoutGitValue(['show', '-s', '--format=%cI', 'HEAD']) ?? 'development',
 }
 const npmPublished = process.env.SITE_NPM_STATUS === 'source'
   ? false

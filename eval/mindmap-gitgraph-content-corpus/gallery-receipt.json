@@ -68,7 +68,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "7edf609cb4f48e75a557de98dfbd56835fef32a6a985e4a5882dc96da6bfd599"
+      "sha256": "e6afd4f21f92b208ea19aacc959a786c544cbd2decfb6fc0c11659ed96fb6dfd"
     },
     {
       "path": "scripts/pr-assets/artifact-receipt.ts",
@@ -132,7 +132,7 @@
     },
     {
       "path": "src/__tests__/agent-doc-sync.test.ts",
-      "sha256": "bd2adb8beb00bc32580ae58a46509138cbee625f4214d6794239b1361cfb7946"
+      "sha256": "ccd921185c55aaecf0e37dc528a5347e6851e9d372ed8d2e84c434bb65e45164"
     },
     {
       "path": "src/__tests__/agent-er.test.ts",
@@ -172,7 +172,7 @@
     },
     {
       "path": "src/__tests__/agent-mcp-http.test.ts",
-      "sha256": "16f6c1e3a25db4704d01edbccc2ce79f52dd1f9306a65aa1bc01394dbb10897a"
+      "sha256": "f2878a86cb68c311ca09933ecb65166db3ad1fd33154c822a43e34fb9363d16f"
     },
     {
       "path": "src/__tests__/agent-mcp-png.test.ts",
@@ -1340,7 +1340,7 @@
     },
     {
       "path": "src/__tests__/website-build.test.ts",
-      "sha256": "94b59545c733f6d49ece535590b3a1b459210ccfb9609946562a99bf9bfd560e"
+      "sha256": "ed52aa8e75665c176d8c72ee5680dfef47e9f2a17c15de8cedea3f477e0595aa"
     },
     {
       "path": "src/__tests__/website-public.preload.ts",
@@ -1940,7 +1940,7 @@
     },
     {
       "path": "src/mcp/facade.ts",
-      "sha256": "f8bf521c1ac9088883a6fcc7cd53411dd0793dbc134646c3a293012c9d597c1e"
+      "sha256": "15f571c0005a6edfdc14a218978f0e27704e4272e885be84633847e04da37b79"
     },
     {
       "path": "src/mcp/harness-runtime.ts",
@@ -1956,7 +1956,7 @@
     },
     {
       "path": "src/mcp/mcp-cli.ts",
-      "sha256": "9d1b94144814c7d88a26e35e32afbc97cc33e263255e9562945d7735905d9687"
+      "sha256": "2de105067198ed0529bb11c495049a9ee63846756456c9bc88fc48fe5024d3b0"
     },
     {
       "path": "src/mcp/protocol.ts",
@@ -1976,11 +1976,11 @@
     },
     {
       "path": "src/mcp/server.ts",
-      "sha256": "e4092153bde0eaedba0bf06ad982def05a95639a4cae5879fd5ed50b9f1674a9"
+      "sha256": "9c955355a3921bb1d8820de5cc704ada52f5b88f48b4759be830fb8e93fb3127"
     },
     {
       "path": "src/mcp/tool-surface.ts",
-      "sha256": "1476cd3b3df25cdbab173cf738e0b00d6e66f3c11ff2e98b170130ed8c46f5ee"
+      "sha256": "3c9e648d48772520df9d6832a8f6ced2246c0f17f46db2bd085d3ab472de81a5"
     },
     {
       "path": "src/mermaid-source.ts",
