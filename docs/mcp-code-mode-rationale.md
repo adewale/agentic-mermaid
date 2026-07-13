@@ -1,8 +1,8 @@
 # MCP Code Mode rationale
 
-Local `agentic-mermaid-mcp` is intentionally Code Mode first. Its primary tool is `execute(code)`, which runs synchronous JavaScript against the typed `mermaid.*` SDK in a local `node:vm` sandbox. This is a local implementation inspired by Code Mode as a product shape; it is not Cloudflare Codemode, not backed by `@cloudflare/codemode`, and not an OS/container security boundary. The local helper tools (`render_png` and `describe`) are narrow conveniences, not a second full authoring API.
+Local `agentic-mermaid-mcp` is intentionally Code Mode first. Its primary tool is `execute(code)`, which runs synchronous JavaScript against the typed `mermaid.*` SDK in a local `node:vm` sandbox. This is a local implementation inspired by Code Mode as a product shape; it is not Cloudflare Codemode, not backed by `@cloudflare/codemode`, and not an OS/container security boundary. The local helper tools (`describe_sdk`, `render_png`, and `describe`) are narrow conveniences, not a second full authoring API.
 
-There is now also a **hosted** MCP at `https://agentic-mermaid.dev/mcp` (stateless Streamable HTTP; see [`docs/project/hosted-mcp-cloudflare-plan.md`](./project/hosted-mcp-cloudflare-plan.md)). It keeps `execute` but runs agent code in a per-request Cloudflare Dynamic Worker isolate (`globalOutbound: null`, empty env, `cpuMs` budget) instead of a local `node:vm` — there the isolate configuration *is* the security boundary — and adds direct `render_svg`/`render_ascii`/`render_png`/`verify`/`describe` tools so the common render/verify paths avoid a billable isolate, plus the declarative `mutate`/`build` tools (see below). Both share the same hardened `mermaid.*` facade; their semantics are pinned against each other by a differential test suite.
+There is now also a **hosted** MCP at `https://agentic-mermaid.dev/mcp` (stateless Streamable HTTP; see [`docs/project/hosted-mcp-cloudflare-plan.md`](./project/hosted-mcp-cloudflare-plan.md)). It keeps `execute` but runs agent code in a per-request Cloudflare Dynamic Worker isolate (`globalOutbound: null`, empty env, `cpuMs` budget) instead of a local `node:vm` — there the isolate configuration *is* the security boundary — and adds `describe_sdk` plus direct `render_svg`/`render_ascii`/`render_png`/`verify`/`describe` tools so schema discovery and common render/verify paths avoid a billable isolate, plus the declarative `mutate`/`build` tools (see below). Both share the same hardened `mermaid.*` facade; their semantics are pinned against each other by a differential test suite.
 
 ## Why the MCP server exists
 
@@ -41,12 +41,14 @@ gets wrong through `execute`. For everything richer, use `execute`, the CLI
 
 ## What the non-Code-Mode MCP tools are for
 
-Local MCP keeps only two helpers:
+Local MCP keeps only three helpers:
+
+- `describe_sdk({ family, detail })` returns version-matched mutation operations for one family without running Code Mode. `detail: "signatures"` returns a compact menu; `detail: "fields"` returns the exact field schema. The initial `execute` declaration stays limited to the core SDK, while `mermaid.describeOps` and `mermaid.opSignatures` expose the same registry inside an execution.
 
 - `render_png(source)` exists because PNG is binary output and returning base64 from a dedicated MCP tool is simpler than putting binary handling into Code Mode snippets. For clients that cannot comfortably carry large base64 payloads, `render_png({source, output:"file"})` writes a managed local artifact and `output:"url"` returns an HTTP-served artifact when the server runs with HTTP/SSE transport.
 - `describe(source)` exists because one-shot natural-language summaries are common for screen readers, docs, and context compaction.
 
-The hosted endpoint adds direct pure tools (`render_svg`, `render_ascii`, `render_png`, `verify`, `describe`) because every hosted `execute` spins a Dynamic Worker isolate; common render/verify calls should be ordinary Worker invocations and edge-cacheable. Hosted `mutate` and `build` are the only declarative authoring tools, and they exist to apply typed op lists with the verify-before-emit contract without asking a weaker model to write JavaScript. They do not introduce a separate mutation engine.
+The hosted endpoint adds the same direct discovery tool and direct pure tools (`render_svg`, `render_ascii`, `render_png`, `verify`, `describe`) because every hosted `execute` spins a Dynamic Worker isolate; schema discovery and common render/verify calls should be ordinary Worker invocations and edge-cacheable. Hosted `mutate` and `build` are the only declarative authoring tools, and they exist to apply typed op lists with the verify-before-emit contract without asking a weaker model to write JavaScript. They do not introduce a separate mutation engine.
 
 Local managed artifacts are generated under the server artifact directory with safe names, size limits, TTL cleanup, MIME type, byte count, and SHA-256 metadata; they are not arbitrary user-chosen file writes. Hosted `render_png` returns base64 only.
 

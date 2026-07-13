@@ -180,7 +180,7 @@
     },
     {
       "path": "src/__tests__/agent-mcp.test.ts",
-      "sha256": "ca651e1a902adcfd6152461524e999837c02f8a1d303a5b59ab95428b3449d63"
+      "sha256": "378e5d4a75f13dadc205189dd45427dc0a8cef09d1e9fc2907ed2e942d464f58"
     },
     {
       "path": "src/__tests__/agent-mermaid-corpus.test.ts",
@@ -268,7 +268,7 @@
     },
     {
       "path": "src/__tests__/agent-usage.test.ts",
-      "sha256": "a43d2e50e13c9bad8904d9024b958c4919cdfe1f36cf03cf3468acbba47cf811"
+      "sha256": "f904e3828893bfd2a5c426ed178dd09e23d7c4fa488631b9a1bd0f63a55e3bb4"
     },
     {
       "path": "src/__tests__/agent-wrapper-fidelity.test.ts",
@@ -788,7 +788,7 @@
     },
     {
       "path": "src/__tests__/hosted-mcp.test.ts",
-      "sha256": "727bf3dcfc39dfa1434c4f701e380fa0b813e280dc0d808927fe134c596d4216"
+      "sha256": "3cadc9c2dbf109a4be27c3562613ea2e7427544aa3128d1fd2fafbe7473d89d0"
     },
     {
       "path": "src/__tests__/hosted-raster-budget.test.ts",
@@ -1336,7 +1336,7 @@
     },
     {
       "path": "src/__tests__/website-build.test.ts",
-      "sha256": "69a4afaf6d1c4e4ee96dd3e15e0dfa1c5def9622208f54af5e43ad0c270e93d9"
+      "sha256": "7d2c55c2903512aa81f776911b82ec18741ee4202bac7643543634f13ddfb3d3"
     },
     {
       "path": "src/__tests__/website-public.preload.ts",
@@ -1760,7 +1760,7 @@
     },
     {
       "path": "src/cli/agent-instructions.ts",
-      "sha256": "378f4ad45fcb23dc1fa58dade422862eb4dca7ca17dcc5f98796444160cb377e"
+      "sha256": "62ecfe1171bfbcd80bd06937af418b3dcf67552969f496049624644524896d35"
     },
     {
       "path": "src/cli/am-bin.ts",
@@ -1944,7 +1944,7 @@
     },
     {
       "path": "src/mcp/hosted-server.ts",
-      "sha256": "30a08cb2124ad55b88c97213fb6b422f33ee7b1ee701540edfda9d37124ea197"
+      "sha256": "aab04e2d08d7b5cecfee6a48e9240a4df0ab35bc62ae9cad07c093685ca733ee"
     },
     {
       "path": "src/mcp/mcp-bin.ts",
@@ -1967,8 +1967,12 @@
       "sha256": "a51a32a64f277f428c27d08b82df1191fa411a1b4cd14603783e0048c204397f"
     },
     {
+      "path": "src/mcp/sdk-discovery.ts",
+      "sha256": "962e1e48e350018edbd422672260846a38596ea7c3ae7af7b34a2ad54dff179f"
+    },
+    {
       "path": "src/mcp/server.ts",
-      "sha256": "48a7611af427d1ab131e555e87ab161e408e0990c72c00302e5db8dfda0d564c"
+      "sha256": "24e8be5a3b9860b5a2d43be50fb558922f2d4ae2d3065fff11d1d853e6f511d3"
     },
     {
       "path": "src/mcp/tool-surface.ts",

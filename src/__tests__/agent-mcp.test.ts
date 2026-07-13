@@ -415,20 +415,16 @@ describe('MCP — JSON-RPC happy + sad', () => {
     for (const family of BUILTIN_FAMILY_METADATA) expect(instructions).toContain(family.narrower)
     expect(instructions).not.toContain('Journey, xychart, architecture')
   })
-  test('tools/list has execute with SDK', async () => {
+  test('tools/list has a compact execute SDK plus progressive family discovery', async () => {
     const r = await handleRequest({ jsonrpc: '2.0', id: 2, method: 'tools/list' })
     const tools = (r!.result as any).tools
-    // Loop 9 M1 + M12: render_png and describe joined execute.
     expect(tools).toBe(LOCAL_TOOLS)
-    expect(tools.map((t: any) => t.name)).toEqual(['execute', 'render_png', 'describe'])
-    for (const token of [
-      ...BUILTIN_FAMILY_METADATA.map(f => f.narrower),
-      'TimelineMutationOp',
-      'ClassMutationOp',
-      'ErMutationOp',
-    ]) {
+    expect(tools.map((t: any) => t.name)).toEqual(['execute', 'describe_sdk', 'render_png', 'describe'])
+    for (const token of [...BUILTIN_FAMILY_METADATA.map(f => f.narrower), 'MutationOp']) {
       expect(tools[0].description).toContain(token)
     }
+    expect(tools[0].description).not.toContain('TimelineMutationOp')
+    expect(new TextEncoder().encode(tools[0].description).length).toBeLessThan(10_000)
   })
   test('tools/call execute', async () => {
     const r = await handleRequest({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'execute', arguments: { code: 'return mermaid.verifyMermaid("flowchart TD\\n A --> B").ok' } } })
@@ -439,6 +435,13 @@ describe('MCP — JSON-RPC happy + sad', () => {
     const r = await handleRequest({ jsonrpc: '2.0', id: 30, method: 'tools/call', params: { name: 'describe', arguments: { source: 'classDiagram\n  class Duck {\n    +quack()\n  }', format: 'facts' } } })
     expect((r!.result as any).isError).toBe(false)
     expect(JSON.parse((r!.result as any).content[0].text).facts).toContain('member Duck +quack()')
+  })
+  test('tools/call describe_sdk exposes exact op fields without an execute call', async () => {
+    const r = await handleRequest({ jsonrpc: '2.0', id: 31, method: 'tools/call', params: { name: 'describe_sdk', arguments: { family: 'journey' } } })
+    expect((r!.result as any).isError).toBe(false)
+    const payload = JSON.parse((r!.result as any).content[0].text)
+    expect(payload).toEqual(expect.objectContaining({ ok: true, family: 'journey', detail: 'fields' }))
+    expect(payload.ops.add_task).toContainEqual(expect.objectContaining({ name: 'score', required: true, note: 'integer 1..5' }))
   })
   test('unknown tool → error', async () => {
     const r = await handleRequest({ jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'nope', arguments: {} } })

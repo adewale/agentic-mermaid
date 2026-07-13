@@ -22,7 +22,8 @@ dynamic Worker instead of being local-only.
 - The MCP server (`src/mcp/server.ts`) has a transport-agnostic JSON-RPC core,
   `handleRequest(req, context)`, plus stdio and node HTTP/SSE transports.
 - Tools today: `execute` (Code Mode in a hardened `node:vm` sandbox),
-  `render_png` (native `@resvg/resvg-js`), `describe`.
+  `describe_sdk` (one family's mutation schema on demand), `render_png`
+  (native `@resvg/resvg-js`), `describe`.
 - **Viability probe (done):** the pure SDK surface — parse, mutate, verify,
   analyze, serialize, describe, `renderMermaidSVG`, `renderMermaidASCII`, the
   Code Mode facade — bundles for the workerd target at 2.2 MB raw / 657 KB
@@ -37,6 +38,7 @@ dynamic Worker instead of being local-only.
 | Tool | Local implementation | Hosted implementation |
 |---|---|---|
 | `execute` | `node:vm` hardened sandbox | **Dynamic Worker** per code hash: harness module (SDK bundle + the same hardened facade) + agent code as a module, `globalOutbound: null`, `limits: { cpuMs, subRequests: 0 }` |
+| `describe_sdk` | pure, registry-backed | same code, unchanged; returns signatures or exact fields for one requested family |
 | `render_png` | native `@resvg/resvg-js` | `@resvg/resvg-wasm` + bundled DejaVu Sans and built-in style faces (convenience surface; wasm output is not covered by the byte-determinism contract) |
 | `describe` | pure | same code, unchanged |
 | `render_svg` | — (use execute) | pure, hosted-only |
@@ -237,9 +239,10 @@ tools are pure functions of their inputs:
 - No Durable Objects, agents SDK, KV, R2, or Queues.
 - Protocol version negotiated from a known-good list (the core currently pins
   `2024-11-05`; Streamable HTTP clients offer `2025-03-26`+).
-- **Response caching:** layout is deterministic, so `tools/call` responses
-  (except nothing — all eight tools are deterministic) are cached in the Workers
-  Cache API keyed on SHA-256 of `(tool, canonicalized arguments)`. Repeat
+- **Response caching:** eligible deterministic `tools/call` responses
+  (`execute`, `describe_sdk`, render, verify, and describe) are cached in the
+  Workers Cache API keyed on SHA-256 of `(tool, canonicalized arguments)`;
+  declarative `mutate`/`build` responses remain uncached. Repeat
   requests skip compute entirely; for `execute` they also skip the dynamic
   Worker, which is the biggest cost lever.
 - Hygiene: 128 KB body cap, 64 KB Mermaid-source/code caps with structured
@@ -308,7 +311,7 @@ instead of deleting the undeletable `self`).
    resvg into every graph). `server.ts`/`sandbox.ts` keep their exports and
    behavior; existing tests untouched.
 2. **Hosted core** `src/mcp/hosted-server.ts`: `handleHostedRequest(req,
-   context)` with the eight-tool surface; `execute` and `render_png` accept
+   context)` with the nine-tool surface; `execute` and `render_png` accept
    injected implementations so the core stays runtime-neutral and testable in
    `bun test`.
 3. **Harness** `src/mcp/dynamic-harness.ts` (entry compiled to a single text

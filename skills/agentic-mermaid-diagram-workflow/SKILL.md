@@ -12,7 +12,7 @@ An agent-agnostic typed editing surface for Mermaid. New diagrams can be authore
 - `agentic-mermaid-mcp` connected → **Code Mode** (`references/code-mode.md`). Multi-step edits in one round-trip.
 - Can run JS/TS with imports → **library** (`agentic-mermaid/agent`). Same SDK.
 - Shell only → **CLI** (`references/cli.md`).
-- No local install, network only → **hosted MCP** at `https://agentic-mermaid.dev/mcp` (stateless streamable HTTP JSON-RPC; the `execute` Code Mode tool plus `render_svg`/`render_ascii`/`render_png`/`verify`/`describe` and the declarative `mutate` (edit a `source`) / `build` (author from a `family`) tools — prefer `mutate`/`build` for structured edits; 64KB input caps).
+- No local install, network only → **hosted MCP** at `https://agentic-mermaid.dev/mcp` (stateless streamable HTTP JSON-RPC; `execute` Code Mode, `describe_sdk` for one family's mutation schema on demand, `render_svg`/`render_ascii`/`render_png`/`verify`/`describe`, and the declarative `mutate` (edit a `source`) / `build` (author from a `family`) tools — prefer `mutate`/`build` for structured edits; 64KB input caps).
 
 ## Capability matrix
 
