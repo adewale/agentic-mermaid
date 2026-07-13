@@ -133,23 +133,42 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
     `#68`, `#65`, `#64`, `#56`, `#32`, `#25`, `#11`, `#89`, `#43`, `#14`,
     `#115`, `#130`, `#100`, `#101`, `#80`, `#79`, `#18`, `#1`, `#20`, `#33`,
     `#45`, `#73`, `#76`).
-  - **Strategic new-family watchlist**: TreeView/filetree, C4/ArchiMate,
-    mindmap, swimlane, and newer requested families (Domain Storytelling,
-    Cynefin, DITAA, BPMN, RASCI, Data Pipeline, Use Case, PERT/CPM, Org Chart,
-    Info) are roadmap signals only. Route TreeView through BUILD-6 first;
-    do not expand family scope without a focused issue and evidence.
-- [ ] **BUILD-6 — New upstream Mermaid families (11.4–11.15)** (`todo`). Mermaid added kanban (11.4), radar (11.6), treemap
-  (~11.9), Venn (beta, 11.13), Ishikawa/fishbone (beta, 11.13), Wardley Maps
-  (beta, 11.14), TreeView (11.14), and Event Modeling (11.15). Upstream
-  syntax references for these already ship in the skill bundle. Prioritize
-  TreeView first: it is hierarchical, ASCII-friendly, and requested against
-  the upstream fork network (lukilabs/beautiful-mermaid#114). Treat
-  beta-grammar families (Venn, Ishikawa, Wardley) as watch-and-wait until
-  upstream syntax stabilizes. C4 belongs here too: the layout-aesthetic
-  complaint mermaid-js/mermaid#7492 (C4 overlapping labels/text overflow/
-  crossing arrows) cannot get a regression fixture until C4 is rendered — the
-  aesthetic-issue coverage audit
-  (`docs/issue-derived-test-cases.md`) defers it to this item.
+  - **Strategic family signals**: route official-but-not-native Mermaid inputs
+    such as TreeView, C4, Swimlanes, and Cynefin through BUILD-6's manifest and
+    citizenship process. Mindmap is already native, so new Mindmap reports are
+    compatibility fixtures rather than family-scope expansion. ArchiMate and
+    requested non-Mermaid families (Domain Storytelling, DITAA, BPMN, RASCI,
+    Data Pipeline, Use Case, PERT/CPM, Org Chart, Info) remain roadmap signals
+    only; do not expand scope without a focused issue and evidence.
+- [ ] **BUILD-6 — Forward-compatible upstream Mermaid family adoption
+  (through 11.16)** (`todo`). Mermaid 11.16 exposes 30 user-facing core
+  families plus the first-party external ZenUML family; Agentic Mermaid
+  currently registers 14. The authoritative family/syntax inventory, maturity
+  caveats, adoption waves, and compatibility protocol live in
+  `docs/project/brand-primitives-plan.md`; do not maintain a second copied
+  roster here.
+  - First deliver a registry-driven recognition floor: every official public
+    header/alias is recognized and losslessly preserved or explicitly
+    diagnosed, and unknown/new headers never fall through to Flowchart.
+  - Then implement stable/high-leverage families through the citizenship
+    ratchet. TreeView remains a high-priority candidate because it is
+    hierarchical, ASCII-friendly, and requested against the fork network
+    (lukilabs/beautiful-mermaid#114); Requirement, Block, Packet, and Kanban
+    exercise complementary semantic roles and syntax forms.
+  - Treat maturity as manifest data, not a `-beta` spelling heuristic. Mermaid's
+    source has graduated Sankey, Block, Packet, Architecture, Treemap, and
+    Ishikawa while retaining legacy beta aliases; Radar, Venn, Wardley, Cynefin,
+    TreeView, and Railroad remain beta-only, Swimlanes is new with an evolving
+    syntax warning, C4 is explicitly experimental, and ZenUML uses an
+    experimental external/lazy integration.
+  - Include 11.16's Swimlanes, Cynefin, and Railroad/EBNF/ABNF/PEG inputs in the
+    upstream-drift manifest even before native rendering. The official docs
+    navigation omits Railroad, so compare the docs, core detector registry,
+    beta policy, config schema, and first-party external registrations.
+  - C4 remains in scope: mermaid-js/mermaid#7492 (overlapping labels/text
+    overflow/crossing arrows) cannot get a local renderer regression fixture
+    until C4 is native. The aesthetic-issue coverage audit
+    (`docs/issue-derived-test-cases.md`) defers it to this item.
 - [ ] **BUILD-1 — Collapsible subgraphs (#7785)** (`todo`, after BUILD-23 metadata safety floor; independent of BUILD-20 harvest). Track Mermaid PR
   <https://github.com/mermaid-js/mermaid/pull/7785> (`@{ view: collapsed }`
   metadata syntax) and stay syntax-compatible. Large, but a real readability

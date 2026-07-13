@@ -1,9 +1,18 @@
 # Cupertino style — plan
 
 > Execution detail for one probe of the umbrella
-> [brand-primitives discovery plan](./brand-primitives-plan.md), which frames
-> the goal (the right primitives for brand expression across all families),
+> [brand-primitives plan](./brand-primitives-plan.md), which frames
+> the goal (the right primitives for brand expression across all registered
+> families and forward-compatible additions),
 > the three example brands, and the declarative–programmatic balance.
+
+This document retains the Cupertino findings and work-package labels. The
+umbrella plan is normative for the public API, vocabulary, capability claims,
+and implementation order. In particular, protocol truth and skip-undefined
+composition land before adding nested brand fields; the existing private
+`InternalStyleFace` is not promoted verbatim. References below use the umbrella
+plan's Section A (correctness/parity) and Section B (public customization)
+milestones.
 
 ## Decision
 
@@ -26,9 +35,9 @@ motion ethos survives only as geometry: the largest edge bend radius of any
 built-in, concentric corner radii.
 
 A working prototype is registered in `src/scene/style-registry.ts` on this
-branch, rendered across all fourteen families, and reviewed by a five-lens
-elevation pass (HIG fidelity, differentiation, engine feasibility, teaching,
-cold-eyes visual). The registered palette/font path reaches all fourteen;
+branch, rendered across all fourteen currently registered families, and reviewed
+by a five-lens elevation pass (HIG fidelity, differentiation, engine feasibility,
+teaching, cold-eyes visual). The registered palette/font path reaches all fourteen;
 Mindmap and GitGraph do not yet consume the internal role-face overrides, so
 their renders expose a residual fidelity gap rather than proving complete
 fourteen-family face coverage. The findings below are verified against code
@@ -87,7 +96,7 @@ Value provenance, and the two deliberate deviations from Apple's literal tokens:
 
 The repo's legibility gates win over literal HIG fidelity; the deviation is
 documented in the spec comments. White cards measure **1.12:1** against the
-page — separation is carried by the drop shadow, which is why Phase 1 below is
+page — separation is carried by the drop shadow, which is why Package C1 below is
 a hard prerequisite.
 
 ## What the mock + elevation review exposed
@@ -97,28 +106,41 @@ the five-lens review; ✅ = already resolved in the v0.2 prototype.
 
 | id | Finding | Where |
 |---|---|---|
-| E2 | `shadow` exists (`buildShadowDefs`, `src/theme.ts:302`) but is not a StyleSpec field, is not threaded into the SVG call made by `renderMermaidPNG` (`src/agent/png.ts:102-109`), and has no CLI flag. With cards at 1.12:1 the shadow is load-bearing: `style: 'cupertino'` alone cannot reproduce the mock, breaking the "(source, stack, seed) is complete" contract and making published screenshots unreproducible. | gates Phase 2 |
-| E6a | Mechanical stacking bug: THEMES registration writes explicitly-`undefined` color channels (`src/scene/style-registry.ts:300-312`); the nested colors merge (`:197-199`) can spread them over a look's declared channel. Cupertino's node face now has a defensive `var(--surface, var(--_node-fill))` fallback, but the composition protocol can still erase channels for consumers without one. | Phase 3 |
-| E6b | Dark needs design, not derivation: Apple dark *inverts* elevation (cards `#1c1c1e` lighter than a `#000` page, hairlines instead of shadows) while `buildShadowDefs` floods white glow on dark bg (`theme.ts:307-309`). | Phase 4 |
-| E1 | Edge-label chips are hardcoded (`rx="2" fill="var(--bg)" stroke="var(--_inner-stroke)"`, `src/renderer.ts:704-750`) — the most ubiquitous off-brand element across families. | Phase 3 |
-| E3 | `quadrantFill` emits `color-mix(in srgb, <rgba> …, var(--bg))` (`src/quadrant/renderer.ts:371-377`); `inlineResolvedColors` only reduces hex-input mixes (`src/theme.ts:662-668`), so this rgba form survives for resvg. srgb mix over rgba-on-hex is deterministic math — inline it at resolve time. | Phase 3 |
-| E4 | Quadrant points take `nodeFillColor` — surface-white points vanish on pale region fills. | Phase 3 |
-| E5/E9 | "No border" is not first-class: only `borderColor:'transparent'` (lineWidth must stay > 0), and Gantt treats any defined border value — including transparent — as bordered (`src/gantt/renderer.ts:141,183-184`), leaving white bars invisible outside section bands (1.07:1). | Phase 3 |
-| E7 | The accent still has no shared structural-role hook; state initial/final dots render in the heaviest ink on the canvas (`src/renderer.ts:1252-1280`, `var(--_text)`) — the cheapest, most on-brand accent home. | Phase 3 |
+| E2 | `shadow` exists (`buildShadowDefs`, `src/theme.ts:302`) but is not a StyleSpec field, is not threaded into the SVG call made by `renderMermaidPNG` (`src/agent/png.ts:102-109`), and has no CLI flag. With cards at 1.12:1 the shadow is load-bearing: `style: 'cupertino'` alone cannot reproduce the mock, breaking the "(source, stack, seed) is complete" contract and making published screenshots unreproducible. | gates Package C2 |
+| E6a | Mechanical stacking bug: THEMES registration writes explicitly-`undefined` color channels (`src/scene/style-registry.ts:300-312`); the nested colors merge (`:197-199`) can spread them over a look's declared channel. Cupertino's node face now has a defensive `var(--surface, var(--_node-fill))` fallback, but the composition protocol can still erase channels for consumers without one. | Package C3, first item; umbrella A0 prerequisite |
+| E6b | Dark needs design, not derivation: Apple dark *inverts* elevation (cards `#1c1c1e` lighter than a `#000` page, hairlines instead of shadows) while `buildShadowDefs` floods white glow on dark bg (`theme.ts:307-309`). | Package C4 |
+| E1 | Edge-label chips are hardcoded (`rx="2" fill="var(--bg)" stroke="var(--_inner-stroke)"`, `src/renderer.ts:704-750`) — the most ubiquitous off-brand element across families. | Package C3 |
+| E3 | `quadrantFill` emits `color-mix(in srgb, <rgba> …, var(--bg))` (`src/quadrant/renderer.ts:371-377`); `inlineResolvedColors` only reduces hex-input mixes (`src/theme.ts:662-668`), so this rgba form survives for resvg. srgb mix over rgba-on-hex is deterministic math — inline it at resolve time. | Package C3 |
+| E4 | Quadrant points take `nodeFillColor` — surface-white points vanish on pale region fills. | Package C3 |
+| E5/E9 | "No border" is not first-class: only `borderColor:'transparent'` (lineWidth must stay > 0), and Gantt treats any defined border value — including transparent — as bordered (`src/gantt/renderer.ts:141,183-184`), leaving white bars invisible outside section bands (1.07:1). | Package C3 |
+| E7 | The accent still has no shared structural-role hook; state initial/final dots render in the heaviest ink on the canvas (`src/renderer.ts:1252-1280`, `var(--_text)`) — the cheapest, most on-brand accent home. | Package C3 |
 | E8 ✅ | The section-band finding is closed across Timeline, Journey, and Architecture. Architecture now projects `style.groupHeaderFillColor` to `groupHeaderSurface` (`src/architecture/config.ts:179,212`) and emits it through `--arch-group-band` (`src/architecture/renderer.ts:56,172`). | done on main |
 | R1 ✅ | HIG grays failed the repo's own gates (`docs/style-authoring.md` rubric item 4). Resolved in v0.2 (values above). | done |
-| R2 | The old "all charts use one hue" finding is now only partly true. XYChart still derives a same-family accent ramp (`src/xychart/colors.ts:92-123`), while Pie uses explicit `pie1..pie12` overrides and switches high-count charts to a count-sized hue spread (`src/pie/palette.ts:21-23,44-80`). The remaining brand gap is a public StyleSpec categorical series palette that can seed Apple system colors once across chart families (light: `#007aff #34c759 #ff9500 #ff3b30 #af52de #5ac8fa`; dark variants shift accordingly). | Phase 4/5 |
-| R3 | Titles still have no dedicated face role. Pie now defaults its title to 18/600 but projects it through the group-header role (`src/pie/renderer.ts:41-64`); other families retain their own mappings. A shared brand title role remains the residual request: 17/600 in `fg`. | Phase 5 |
+| R2 | The old "all charts use one hue" finding is now only partly true. XYChart still derives a same-family accent ramp (`src/xychart/colors.ts:92-123`), while Pie uses explicit `pie1..pie12` overrides and switches high-count charts to a count-sized hue spread (`src/pie/palette.ts:21-23,44-80`). The remaining brand gap is a public AppearanceFragment categorical series palette that can seed Apple system colors once across chart families (light: `#007aff #34c759 #ff9500 #ff3b30 #af52de #5ac8fa`; dark-mode values shift accordingly). | Packages C4/C5; umbrella B1/B2 |
+| R3 | Titles still have no dedicated face role. Pie now defaults its title to 18/600 but projects it through the group-header role (`src/pie/renderer.ts:41-64`); other families retain their own mappings. A shared brand title role remains the residual request: 17/600 in `fg`. | Package C5; umbrella A3/B1 |
 | R4 ✅ | Registry drift was real, but is closed on this branch: hosted MCP and llms-txt derive their Look menus from `knownStyles()` + `styleKind`, with drift tests; editor membership was already registry-derived and now has the Cupertino display label. | done on branch |
-| R5 | The "teach brand styles" claim collides with `face` being internal-only (`KNOWN_KEYS`, `src/scene/style-registry.ts:237-242` — no `face`): a user following an "anatomy of cupertino" cookbook can reproduce only colors+font. | Phase 5 decision |
+| R5 | The "teach brand styles" claim collides with `face` being internal-only (`KNOWN_KEYS`, `src/scene/style-registry.ts:237-242` — no `face`): a user following an "anatomy of cupertino" cookbook can reproduce only colors+font. | Package C5; resolved by umbrella B1/B6 |
 | R6 | ER still splits attribute type/name to opposite card edges (`src/er/renderer.ts:340-370`, name `text-anchor="end"`), reading as label/value pairs on wide padded cards. | backlog |
 
-## Phases
+## Cupertino work packages and umbrella crosswalk
 
-Each phase is one PR-sized concern (good-pr: one concern, minimal diff,
-red→green tests stated).
+The C-numbers group findings; they are **not an execution order**. The umbrella
+plan's shared/Brand tracks own dependencies:
 
-### Phase 0 — registry-drift cleanup (complete on this branch)
+| Required order | Cupertino work |
+|---|---|
+| already complete | C0 registry discovery cleanup |
+| umbrella A0 | C3.1 skip-undefined merge and characterization |
+| umbrella A2/A3 | C1 normalized-request/effect plumbing plus C3 semantic-role and primitive fixes |
+| umbrella A5 | C2 first-party surface/backend/output parity gate |
+| umbrella B0/B1 | C1 public elevation/role values and custom-record equivalence; remaining C3 customization |
+| umbrella B2 | C4 `colorScheme: dark` mode packaged inside the BrandPack |
+| umbrella B6 | C2/C5 built-in equivalence, teaching and publication evidence |
+
+Each package remains one PR-sized concern with minimal diff and red -> green
+evidence, but no C package may bypass an earlier umbrella dependency.
+
+### Package C0 — registry-drift cleanup (complete on this branch)
 
 - Hosted MCP and llms-txt now derive their Look menus from `knownStyles()` +
   `styleKind`; the editor's option membership already followed the registry.
@@ -126,23 +148,30 @@ red→green tests stated).
   descriptions.
 - All 16 Looks, including Cupertino, now ship discoverable by construction.
 
-### Phase 1 — elevation becomes a style capability
+### Package C1 — elevation becomes a brand capability
 
-- Add `shadow?: boolean` to `StyleSpec`: `KNOWN_KEYS`, `validateStyleSpec`,
-  `docs/schemas/style-spec.schema.json`, field-reference row in
-  `docs/style-authoring.md`.
-- Thread it: styled scene path reads the resolved stack's `shadow`;
-  `renderMermaidPNG` passes it through; SVG path already has
+- Add elevation to the umbrella plan's versioned Brand primitives schema, with
+  layered/tinted tokens and a resolved role assignment. Do not make a lone
+  `shadow?: boolean` the final brand API. If the existing render-level `shadow`
+  flag remains for compatibility, resolve it to the default elevation token.
+- Thread the normalized resolved render request through SVG and PNG; do not add
+  another PNG-only subset. The SVG path already has
   `buildShadowDefs`/`buildStyleBlock` plumbing.
 - Dark-aware: on dark backgrounds emit hairline-over-lightening, not the white
-  glow (or suppress shadow entirely; decide in Phase 4 — until then keep the
+  glow (or suppress shadow entirely; decide in Package C4 — until then keep the
   existing luminance behavior).
 - Tests: crisp corpus byte-identity (field defaults absent), PNG renders with
   and without, red→green by asserting the filter def appears only when asked.
 
-### Phase 2 — ship the style
+### Package C2 — ship the style
 
-- The v0.2 spec above, plus `shadow: true` once Phase 1 lands.
+- The current built-in registration and goldens are probe/prototype evidence,
+  not completion of C2. Do not publish the style as a reproducible BrandPack
+  example until A0/A2/A3/A5 establish the shared path and B1/B2 migrate its
+  private face behavior and modes into public records.
+- The v0.2 spec above, with Cupertino's elevation role resolved by Package C1.
+  The existing render-level `shadow: true` remains only as a
+  compatibility/reproduction option until that migration lands.
 - Already done on this branch: golden matrix entry + regenerated
   `styled-output-baseline.json` (23 new Cupertino rows; 23 fixtures × 16 Looks
   = 368 records, with no unrelated drift),
@@ -161,7 +190,7 @@ red→green tests stated).
 - `docs/fork-differences.md`: extend the style examples sentence with the
   design-system category.
 
-### Phase 3 — the borderless axis (independent engine fixes, each style-gated)
+### Package C3 — the borderless axis (independent engine fixes, each style-gated)
 
 All default to today's exact output; crisp stays byte-identical. Each lands
 with a red→green test that fails when the fix is reverted.
@@ -169,15 +198,17 @@ with a red→green test that fails when the fix is reverted.
 1. **Colors merge drops undefined channels** (E6a): skip-undefined in the
    per-channel merge or filter at THEMES registration; test with
    `['cupertino','zinc-dark']` asserting `--surface` is emitted.
-2. **Edge-label chips** (E1): internal edge-face fields
-   (chip radius/fill/stroke) defaulting to the current hardcoded string;
-   cupertino sets pill radius (height/2), `var(--surface)` fill, no stroke.
+2. **Edge-label chips** (E1): route radius/fill/stroke through the umbrella
+   `edgeLabel` BrandRole or a typed Treatment, defaulting to today's output;
+   Cupertino selects pill radius (height/2), `var(--surface)` fill, no stroke.
+   Do not add a permanent private edge-face dialect.
 3. **Gantt bar stroke fallback** (E5/E9): when resolved `nodeBorderColor` is
    transparent/absent, stroke bars with `var(--border)`; follow-up: accent
    fills for `active`/`crit`.
-4. **State initial/final dot hook** (E7): fill resolved from a face field
-   defaulting to `var(--_text)`; cupertino sets `var(--accent)` — the style's
-   single deliberate color moment in structural diagrams.
+4. **State initial/final dot hook** (E7): emit a normalized start/end status and
+   resolve its semantic role/binding, defaulting to `var(--_text)`; Cupertino
+   binds it to `var(--accent)`—the style's single deliberate color moment in
+   structural diagrams. Do not add a permanent private face field.
 5. **color-mix numeric inlining** (E3): teach `inlineResolvedColors` to
    evaluate `color-mix(in srgb, …)` when both inputs resolve (rgba-over-hex
    compositing is closed-form); unblocks quadrant PNG for any translucent
@@ -186,22 +217,22 @@ with a red→green test that fails when the fix is reverted.
 7. ~~**Architecture header band** (E8 remainder).~~ **Resolved on main:**
    Architecture now projects `style.groupHeaderFillColor` into its visual config
    and `--arch-group-band`, matching Timeline and Journey. Retained here to close
-   the discovery trail; no Phase 3 work remains for E8.
+   the discovery trail; no Package C3 work remains for E8.
 
-### Phase 4 — cupertino-dark
+### Package C4 — dark mode
 
-Follow the tufte precedent (palette in `THEMES`, stackable by name), but the
-review is explicit that a palette alone cannot fix dark: group-fill alpha must
-roughly double (quaternary fill dark is `rgba(118,118,128,0.18)`) and hairlines
-replace shadows — face-level changes. Decide then: THEMES palette + documented
-`['cupertino','cupertino-dark']` stack as v1, full dark look if the palette
-residuals grate.
+Package the designed dark values as Cupertino's `colorScheme: dark` BrandPack mode;
+a palette alone cannot fix dark because group-fill alpha must roughly double
+(quaternary fill dark is `rgba(118,118,128,0.18)`) and hairlines replace
+shadows. If `cupertino-dark` remains for compatibility with the existing sibling
+naming convention, generate it as an alias/projection of that canonical mode;
+it is not a competing palette or full-look definition.
 
 Palette (Apple dark grouped tokens): bg `#000000`, surface `#1c1c1e`,
 fg `#ffffff`, muted `rgba(235,235,245,0.6)` (gate-check first), line `#98989d`
 (gate-check), accent `#0a84ff`, border `rgba(84,84,88,0.6)`.
 
-### Phase 5 — teaching
+### Package C5 — teaching
 
 - `docs/style-authoring.md`: a ~20-line "Design-system styles" section — the
   7-slot token-mapping table (page bg → `bg`, elevated card → `surface`,
@@ -210,18 +241,16 @@ fg `#ffffff`, muted `rgba(235,235,245,0.6)` (gate-check first), line `#98989d`
   rule, and "declare what the system forbids". Cupertino becomes worked
   example #2 beside Making Software: *a texture style captures how ink
   behaves; a design-system style captures how a company decides.*
-- Cookbook: decide R5 — either promote a minimal public face subset
-  (per-role size/weight/tracking, cornerRadius, fill/border colors, bendRadius)
-  into `StyleSpec` with full schema/docs treatment, or keep `face` internal and
-  teach the boundary honestly: a `brand-card.style.json` public-fields
-  approximation rendered beside the real built-in so the delta is visible.
-  This is the one genuinely open product decision in the plan — it re-treads
-  the deliberate role-styling removal
-  (`docs/project/remove-role-styling-plan.md`), so default to **keep face
-  internal** unless brand-style demand proves out.
-- Cross-family categorical series palette (R2) and title role (R3) ride
-  whichever of Phase 3/4 PRs touches the nearest renderer, or wait for demand.
-- Every published screenshot ships only after Phase 1 so the caption's
+- Cookbook: R5 is resolved by the umbrella plan: add a redesigned, minimal
+  semantic Brand primitives layer with role typography/geometry and family
+  adapters. Keep the existing `InternalStyleFace` private; do not restore
+  arbitrary per-element `style.node` / `style.edge` / `style.group` objects. The
+  historical removal rationale remains at
+  [`archive/remove-role-styling-plan.md`](./archive/remove-role-styling-plan.md).
+- Cross-family categorical series palettes (R2) and the title role (R3) belong
+  to the umbrella plan's semantic-role phase and consumption matrix. Do not
+  opportunistically attach them to an unrelated renderer PR.
+- Every published screenshot ships only after Package C1 so the caption's
   reproduction command actually reproduces it (cookbook `--check` contract).
 
 ## Testing strategy
@@ -229,7 +258,7 @@ fg `#ffffff`, muted `rgba(235,235,245,0.6)` (gate-check first), line `#98989d`
 - `bun test src/__tests__/` is the branch gate after the golden matrix addition
   (baseline +23 Cupertino rows; 368 records total, no unrelated drift) and the
   website count bump.
-- Crisp byte-identity and the svg-equivalence corpus gate every Phase 3 change;
+- Crisp byte-identity and the svg-equivalence corpus gate every Package C3 change;
   each fix defaults to current bytes and is exercised via cupertino goldens.
 - Contrast gates are now computed facts in this plan (2.92 → 3.82, 2.67 → 4.68);
   a follow-up could assert them in the style-rubric tracker.
@@ -246,9 +275,9 @@ fg `#ffffff`, muted `rgba(235,235,245,0.6)` (gate-check first), line `#98989d`
 - Mindmap and GitGraph consume Cupertino's public palette/font path but not its
   internal role-face typography, spacing, radii, or role colors. They remain in
   the all-family evidence to make that limitation visible, not to imply parity.
-- Without Phase 1, `style: 'cupertino'` renders flat borderless cards at
+- Without Package C1, `style: 'cupertino'` renders flat borderless cards at
   1.12:1 — legible but not the mock. Do not publish shadowed renders before
-  Phase 1 lands.
+  Package C1 lands.
 - HIG's own grays fail WCAG here; we ship gate-compliant approximations and
   say so. Dark stacks other than the blessed one are unsupported by design
   (edges route through `--line`, not `--fg` — a deliberate softness trade).
