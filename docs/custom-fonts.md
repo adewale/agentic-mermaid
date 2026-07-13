@@ -109,7 +109,8 @@ family is installed, present under `fontDirs`, or available to a browser.
 | SVG library/CLI | Browser, viewing application, or host-page CSS | `font`, `embedFontImport`, `security` |
 | PNG library/CLI | Bundled faces, `fontDirs`, optionally OS fonts | `fontDirs`, `loadSystemFonts` / `--system-fonts` |
 | Live editor | Faces available to the editor page and browser | Font picker; no `fontDirs` |
-| MCP `render_png` | Fonts built into that MCP runtime | No `fontDirs` input; use library/CLI for custom directories |
+| Local MCP `render_png` | Bundled faces, `fontDirs`, optionally OS fonts | `fontDirs`, `loadSystemFonts` |
+| Hosted MCP `render_png` | Faces bundled into the Worker | No filesystem font input; use local MCP/library/CLI for custom directories |
 | ASCII, Unicode, JSON layout | Terminal/layout output has no font face | Style fonts do not apply |
 
 ### SVG

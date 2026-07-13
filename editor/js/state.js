@@ -1,5 +1,6 @@
 var THEMES = window.__mermaid.THEMES;
 var renderMermaid = window.__mermaid.renderMermaidSVGAsync;
+var verifyNoExternalRefs = window.__mermaid.verifyNoExternalRefs;
 var verifyMermaid = window.__mermaid.verifyMermaid;
 var renderMermaidAscii = window.__mermaid.renderMermaidASCII;
 

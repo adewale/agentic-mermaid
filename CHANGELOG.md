@@ -20,6 +20,8 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 - Added `cupertino` as the sixteenth built-in Look plus reproducible three-brand discovery evidence across all 14 families. The styled-output golden matrix now contains 23 fixtures × 16 Looks = 368 records, including 23 Cupertino rows; the Mindmap/GitGraph evidence deliberately records that those two families accept palette/font styling but do not yet consume internal role-face overrides.
 
 ### Changed
+- Local MCP `render_png` now advertises managed-file side effects accurately, accepts `fontDirs`/`loadSystemFonts`, and returns deterministic configuration and font-coverage warnings in every output mode.
+- Agent evaluations, shipped-artifact fuzzing, website comparisons, fork documentation, and browser counts now cover all fourteen registry families; deployment catalogs carry the exact Git SHA and build time.
 - Configuration diagnostics now use fully qualified family paths consistently across source wrappers and explicit `mermaidConfig`; duplicate warnings are deterministically ordered and deduplicated.
 - Gantt calendar spans use the documented `(start, end]` exclusion boundary model and excluded-day shading is enabled by default; today markers remain caller-clocked.
 - Known command-inapplicable CLI flags and value-taking flags without values now exit 2 instead of being accepted as silent no-ops.
@@ -32,6 +34,8 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 - **Output compatibility note:** semantic SVG identity/ARIA attributes, palette contrast normalization, corrected marker/routing geometry, and spatial terminal rendering intentionally change SVG/PNG/ASCII bytes and regenerated characterization hashes. Consumers that snapshot output bytes should review and re-pin; source parsing and deterministic repeatability remain stable.
 
 ### Fixed
+- Closed editor share-hash DOM XSS by whitelisting imported render configuration, forcing strict SVG rendering, externalizing executable scripts, and removing `unsafe-inline` from the production CSP. Hosted `render_svg` now forces strict security and rejects any output that still contains active content or external references.
+- Enforced JSON-RPC 2.0 envelopes and notification suppression across local and hosted MCP transports. Local bearer/Origin checks now cover SSE, messages, and artifacts, and SSE sessions have a fixed upper bound.
 - Rejected source-controlled Pie colors that could escape SVG attributes or styles; hardened cross-format color contrast and XML sinks.
 - Fixed successful-but-lossy Journey/State/Sequence/Class/ER/Architecture/Timeline/XYChart mutations and parser round trips, including accessibility metadata, history endpoints, boxed participants, labeled and generic classes, bare/aliased ER entities, post-alignment route anchors, event text containing clock-time colons, event-less Timeline periods, and explicit vertical orientation.
 - Typed paint and Mindmap decoration/metadata edits now reject line/comment delimiters that would serialize into new semantic statements; empty Mindmap icon decorations are rejected instead of being accepted and dropped; successful edits are grammar-closed and round-trip stable. The pinned GitGraph oracle also AST-expands constant-loop variants, and SVG identity tests compare exact node, group, and relation tuples rather than counts/endpoints alone.

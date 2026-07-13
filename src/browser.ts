@@ -7,7 +7,7 @@
 // Bundled via `Bun.build({ target: 'browser' })` in scripts/site/editor.ts and website/build.ts.
 // ============================================================================
 
-import { renderMermaidSVGAsync } from './index.ts'
+import { renderMermaidSVGAsync, verifyNoExternalRefs } from './index.ts'
 import { verifyMermaid } from './agent/verify.ts'
 import { renderMermaidASCII, diagramColorsToAsciiTheme } from './ascii/index.ts'
 import { THEMES } from './theme.ts'
@@ -18,6 +18,7 @@ declare const window: unknown
 
 ;(window as Record<string, unknown>).__mermaid = {
   renderMermaidSVGAsync,
+  verifyNoExternalRefs,
   verifyMermaid,
   renderMermaidASCII,
   diagramColorsToAsciiTheme,

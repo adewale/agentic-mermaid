@@ -1,6 +1,6 @@
 /**
- * Widened flowchart op menu (plan §Flowchart 8 — thinnest menu of all 12
- * families). New ops, following the journey/gantt conventions (prescriptive
+ * Widened flowchart op menu (plan §Flowchart 8 — the thinnest family menu at
+ * the time). New ops, following the journey/gantt conventions (prescriptive
  * errors; op-schema + mutation-ops + sdk-decl + types registration):
  *
  *   subgraph ops — add_subgraph / remove_subgraph / move_node

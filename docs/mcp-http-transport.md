@@ -40,11 +40,11 @@ HTTP endpoints:
 |---|---|
 | `GET /health` | Readiness probe, returns `{ "ok": true }`. |
 | `GET /sse` | MCP SSE session endpoint. First event contains the `/message?sessionId=...` URL. |
-| `POST /message?sessionId=...` | JSON-RPC requests for an SSE session. The HTTP response is just `202 {"ok":true}`; the JSON-RPC response is emitted on the SSE stream as `event: message` / `data:` frames. |
+| `POST /message?sessionId=...` | JSON-RPC requests for an SSE session. Requests get `202 {"ok":true}` while the JSON-RPC response is emitted on the SSE stream; notifications get an empty `202` and no stream frame. |
 | `POST /rpc` | Direct JSON-RPC endpoint for tests/scripts/simple integrations. Replies with plain `application/json` (no SSE framing). |
 | `GET /artifacts/<name>` | Fetch managed artifacts returned by `render_png` `output: "url"`. |
 
-`/rpc` and `/message` require `content-type: application/json`; browser-simple `text/plain` form posts are rejected. Non-loopback hosts require `Authorization: Bearer <token>`.
+`/rpc` and `/message` require `content-type: application/json`; browser-simple `text/plain` form posts are rejected. Non-loopback hosts require `Authorization: Bearer <token>` on `/rpc`, `/sse`, `/message`, and `/artifacts/*`, and the same Origin check covers those routes. SSE sessions are capped (32 by default); an exhausted server returns `503` instead of retaining another session.
 
 ## Direct JSON-RPC examples: `render_png`
 
@@ -60,7 +60,9 @@ Request:
   "params": {
     "name": "render_png",
     "arguments": {
-      "source": "flowchart TD\n  A --> B"
+      "source": "flowchart TD\n  A --> B",
+      "fontDirs": ["./fonts"],
+      "loadSystemFonts": false
     }
   }
 }
@@ -84,13 +86,15 @@ Response shape:
     "content": [
       {
         "type": "text",
-        "text": "{\"ok\":true,\"png_base64\":\"iVBORw0KGgo...\"}"
+        "text": "{\"ok\":true,\"png_base64\":\"iVBORw0KGgo...\",\"warnings\":[]}"
       }
     ],
     "isError": false
   }
 }
 ```
+
+`warnings` always appears. `PNG_FONT_COVERAGE` names missing CJK/emoji coverage and points to `fontDirs`/`loadSystemFonts`; source configuration diagnostics use the same deterministic warning envelope.
 
 ### File output
 

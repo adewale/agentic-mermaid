@@ -1,32 +1,33 @@
 # Runbook — grading live agents on the homepage prompt
 
 How to measure whether a real agent, given only the agent-facing prompt, can
-create and mutate Mermaid diagrams across all 12 families. The harness is
+create and mutate Mermaid diagrams across all 14 registered families. The harness is
 agnostic: it emits one request file per case, **you** dispatch each to a fresh
 agent, save the raw response, then `finalize` grades every response against the
 deterministic Agentic Mermaid oracle.
 
 Three subcommands: `prepare` → (you dispatch) → `finalize`.
 
-## The 24 cases (create + mutate, one per family)
+## The 28 cases (create + mutate, one per family)
 
 ```
-# 12 mutate (edit an existing diagram):
+# 14 mutate (edit an existing diagram):
 cache_between_api_and_db state_add_done_transition sequence_alt_add_message
 timeline_add_event class_add_duck er_add_order journey_add_review_task
 architecture_add_cache xychart_add_forecast pie_add_docs_slice
-quadrant_add_docs_point gantt_add_docs_task
-# 12 create (author a new diagram):
+quadrant_add_docs_point gantt_add_docs_task mindmap_add_evidence_node
+gitgraph_add_release_commit
+# 14 create (author a new diagram):
 author_auth_flow_source author_api_sequence_source author_state_source
 author_class_source author_er_source author_journey_source author_timeline_source
 author_gantt_source author_pie_source author_quadrant_source author_xychart_source
-author_architecture_source
+author_architecture_source author_mindmap_source author_gitgraph_source
 ```
 
 ## Step 1 — Prepare a run (one per model)
 
 ```bash
-CASES="cache_between_api_and_db,state_add_done_transition,sequence_alt_add_message,timeline_add_event,class_add_duck,er_add_order,journey_add_review_task,architecture_add_cache,xychart_add_forecast,pie_add_docs_slice,quadrant_add_docs_point,gantt_add_docs_task,author_auth_flow_source,author_api_sequence_source,author_state_source,author_class_source,author_er_source,author_journey_source,author_timeline_source,author_gantt_source,author_pie_source,author_quadrant_source,author_xychart_source,author_architecture_source"
+CASES="cache_between_api_and_db,state_add_done_transition,sequence_alt_add_message,timeline_add_event,class_add_duck,er_add_order,journey_add_review_task,architecture_add_cache,xychart_add_forecast,pie_add_docs_slice,quadrant_add_docs_point,gantt_add_docs_task,mindmap_add_evidence_node,gitgraph_add_release_commit,author_auth_flow_source,author_api_sequence_source,author_state_source,author_class_source,author_er_source,author_journey_source,author_timeline_source,author_gantt_source,author_pie_source,author_quadrant_source,author_xychart_source,author_architecture_source,author_mindmap_source,author_gitgraph_source"
 
 bun run eval:agent-subagent -- prepare \
   --provider <provider> --model <model> \
@@ -34,7 +35,7 @@ bun run eval:agent-subagent -- prepare \
 ```
 
 Creates `eval/agent-usage/transcripts/<provider>-<timestamp>/` with
-`requests/<case>.md` (24 files, each the complete parent-visible task) and a
+`requests/<case>.md` (28 files, each the complete parent-visible task) and a
 manifest. Note the printed run directory.
 
 ## Step 2 — Dispatch each request to a **fresh** agent
@@ -135,12 +136,12 @@ Break it down by create vs mutate:
 ```bash
 bun -e '
 const fs=require("fs"), dir=process.argv[1];
-const mut=["cache_between_api_and_db","state_add_done_transition","sequence_alt_add_message","timeline_add_event","class_add_duck","er_add_order","journey_add_review_task","architecture_add_cache","xychart_add_forecast","pie_add_docs_slice","quadrant_add_docs_point","gantt_add_docs_task"];
-const cre=["author_auth_flow_source","author_api_sequence_source","author_state_source","author_class_source","author_er_source","author_journey_source","author_timeline_source","author_gantt_source","author_pie_source","author_quadrant_source","author_xychart_source","author_architecture_source"];
+const mut=["cache_between_api_and_db","state_add_done_transition","sequence_alt_add_message","timeline_add_event","class_add_duck","er_add_order","journey_add_review_task","architecture_add_cache","xychart_add_forecast","pie_add_docs_slice","quadrant_add_docs_point","gantt_add_docs_task","mindmap_add_evidence_node","gitgraph_add_release_commit"];
+const cre=["author_auth_flow_source","author_api_sequence_source","author_state_source","author_class_source","author_er_source","author_journey_source","author_timeline_source","author_gantt_source","author_pie_source","author_quadrant_source","author_xychart_source","author_architecture_source","author_mindmap_source","author_gitgraph_source"];
 const g=id=>{try{return JSON.parse(fs.readFileSync(dir+"/"+id+".json","utf8")).result}catch(e){return{}}};
 const t=ids=>ids.reduce((a,id)=>{const r=g(id);return{ok:a.ok+(r.ok?1:0),task:a.task+(r.taskOk?1:0)}},{ok:0,task:0});
 const m=t(mut),c=t(cre);
-console.log(`MUTATE ok ${m.ok}/12 (diagram-correct ${m.task}/12) | CREATE ok ${c.ok}/12 (diagram-correct ${c.task}/12)`);
+console.log(`MUTATE ok ${m.ok}/${mut.length} (diagram-correct ${m.task}/${mut.length}) | CREATE ok ${c.ok}/${cre.length} (diagram-correct ${c.task}/${cre.length})`);
 ' <run-dir>
 ```
 

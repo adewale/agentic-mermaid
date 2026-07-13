@@ -102,7 +102,11 @@ describe('method and header validation', () => {
   test('non-request shapes are -32600', async () => {
     const { handler } = makeHandler()
     const res = await handler(post({ id: 1, method: 'ping' })) // missing jsonrpc
-    expect(((await res.json()) as any).error.code).toBe(-32600)
+    expect(await res.json()).toMatchObject({ jsonrpc: '2.0', id: null, error: { code: -32600 } })
+    const noId = await handler(post({ method: 'ping' }))
+    expect(noId.status).toBe(200)
+    const noIdBody = (await noId.json()) as any
+    expect(noIdBody).toMatchObject({ jsonrpc: '2.0', id: null, error: { code: -32600 } })
   })
 
   test('HTTP-level error responses still carry CORS so a browser client can read them', async () => {
@@ -132,11 +136,12 @@ describe('JSON-RPC round trips', () => {
     expect(body.result.protocolVersion).toBe('2025-03-26')
   })
 
-  test('notifications get an empty 202', async () => {
+  test('every notification gets an empty 202', async () => {
     const { handler } = makeHandler()
-    const res = await handler(post({ jsonrpc: '2.0', method: 'notifications/initialized' }))
-    expect(res.status).toBe(202)
-    expect(await res.text()).toBe('')
+    for (const method of ['notifications/initialized', 'ping', 'made/up']) {
+      const res = await handler(post({ jsonrpc: '2.0', method }))
+      expect({ method, status: res.status, body: await res.text() }).toEqual({ method, status: 202, body: '' })
+    }
   })
 
   test('batches answer per-request and drop notification slots', async () => {

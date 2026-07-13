@@ -51,7 +51,7 @@ jobs:
               echo "### Cloudflare deploy skipped"
               echo ""
               echo 'GitHub Actions is missing `CLOUDFLARE_API_TOKEN` and/or `CLOUDFLARE_ACCOUNT_ID`.'
-              echo 'Add those repository secrets to publish automatically, or deploy manually with `cd website && WRANGLER_SEND_METRICS=false npx --yes wrangler@latest deploy`.'
+              echo 'Add those repository secrets to publish automatically, or deploy manually from the repository root with `SITE_GIT_SHA="$(git rev-parse HEAD)" SITE_BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)" bun run website && cd website && WRANGLER_SEND_METRICS=false npx --yes wrangler@latest deploy`.'
             } >> "$GITHUB_STEP_SUMMARY"
           else
             echo "available=true" >> "$GITHUB_OUTPUT"
@@ -71,12 +71,10 @@ jobs:
         run: bun install
       - name: Build the site bundle
         if: steps.cloudflare-secrets.outputs.available == 'true'
-        # SITE_GIT_SHA stamps capabilities.json with the deployed commit instead
-        # of the 'development' fallback (build.ts). SITE_BUILD_TIME is left
-        # unset on purpose: a per-build timestamp makes the bundle
-        # non-deterministic and breaks `website:check` (see the sitemap comment
-        # in build.ts), so the sha is the only provenance the deploy adds.
-        run: SITE_GIT_SHA="${{ github.event.workflow_run.head_sha || github.sha }}" bun run website
+        # Stamp public machine catalogs with both the exact CI-validated commit
+        # and this deployment bundle's build time. The deploy build is not the
+        # committed deterministic website:check artifact.
+        run: SITE_GIT_SHA="${{ github.event.workflow_run.head_sha || github.sha }}" SITE_BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)" bun run website
       - name: Deploy to Cloudflare Workers
         if: steps.cloudflare-secrets.outputs.available == 'true'
         run: cd website && npx --yes wrangler@latest deploy

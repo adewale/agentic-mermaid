@@ -48,13 +48,14 @@ describe('MCP HTTP/SSE transport and managed artifacts', () => {
     const store = createArtifactStore({ dir: tempDir() })
     const r = await handleRequest({
       jsonrpc: '2.0', id: 1, method: 'tools/call',
-      params: { name: 'render_png', arguments: { source: 'flowchart TD\n  A --> B', output: 'file' } },
+      params: { name: 'render_png', arguments: { source: 'flowchart TD\n  A[東京] --> B', output: 'file' } },
     }, { artifactStore: store })
     const payload = parseToolPayload(r)
     expect(payload.ok).toBe(true)
     expect(payload.artifact.mimeType).toBe('image/png')
     expect(payload.artifact.sha256).toMatch(/^[a-f0-9]{64}$/)
     expect(payload.artifact.bytes).toBeGreaterThan(100)
+    expect(payload.warnings).toContainEqual(expect.objectContaining({ code: 'PNG_FONT_COVERAGE' }))
     expect(statSync(payload.artifact.path).size).toBe(payload.artifact.bytes)
   })
 
@@ -67,7 +68,7 @@ describe('MCP HTTP/SSE transport and managed artifacts', () => {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         jsonrpc: '2.0', id: 2, method: 'tools/call',
-        params: { name: 'render_png', arguments: { source: 'flowchart TD\n  A --> B', output: 'url' } },
+        params: { name: 'render_png', arguments: { source: 'flowchart TD\n  A[東京] --> B', output: 'url' } },
       }),
     })
     expect(rpc.status).toBe(200)
@@ -76,6 +77,7 @@ describe('MCP HTTP/SSE transport and managed artifacts', () => {
     expect(payload.ok).toBe(true)
     expect(payload.artifact.url.startsWith(`${started.url}/artifacts/`)).toBe(true)
     expect(payload.artifact.path).toBeUndefined()
+    expect(payload.warnings).toContainEqual(expect.objectContaining({ code: 'PNG_FONT_COVERAGE' }))
 
     const artifact = await fetch(payload.artifact.url)
     expect(artifact.status).toBe(200)
@@ -108,6 +110,14 @@ describe('MCP HTTP/SSE transport and managed artifacts', () => {
     })
     expect(plain.status).toBe(415)
 
+    const notification = await fetch(`${startedForType.url}/rpc`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', method: 'ping' }),
+    })
+    expect(notification.status).toBe(202)
+    expect(await notification.text()).toBe('')
+
     await startedForType.close()
     servers = servers.filter(s => s !== startedForType)
 
@@ -134,6 +144,55 @@ describe('MCP HTTP/SSE transport and managed artifacts', () => {
       body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'ping' }),
     })
     expect(unauthorized.status).toBe(401)
+
+    const unauthorizedSse = await fetch(`${started.url}/sse`)
+    expect(unauthorizedSse.status).toBe(401)
+    const unauthorizedArtifact = await fetch(`${started.url}/artifacts/missing.png`)
+    expect(unauthorizedArtifact.status).toBe(401)
+    const unauthorizedMessage = await fetch(`${started.url}/message?sessionId=missing`, {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'ping' }),
+    })
+    expect(unauthorizedMessage.status).toBe(401)
+    const crossOriginSse = await fetch(`${started.url}/sse`, {
+      headers: { authorization: 'Bearer secret', origin: 'https://evil.example' },
+    })
+    expect(crossOriginSse.status).toBe(403)
+    const crossOriginArtifact = await fetch(`${started.url}/artifacts/missing.png`, {
+      headers: { authorization: 'Bearer secret', origin: 'https://evil.example' },
+    })
+    expect(crossOriginArtifact.status).toBe(403)
+    const authorizedMissingArtifact = await fetch(`${started.url}/artifacts/missing.png`, {
+      headers: { authorization: 'Bearer secret' },
+    })
+    expect(authorizedMissingArtifact.status).toBe(404)
+
+    const controller = new AbortController()
+    const authorizedSse = await fetch(`${started.url}/sse`, {
+      headers: { authorization: 'Bearer secret' },
+      signal: controller.signal,
+    })
+    expect(authorizedSse.status).toBe(200)
+    await authorizedSse.body?.cancel()
+    controller.abort()
+  })
+
+  test('SSE sessions are bounded', async () => {
+    const started = await startHttpServerIfAvailable({ port: 0, artifactDir: tempDir(), maxSseSessions: 1 })
+    if (!started) return
+    servers.push(started)
+    const firstController = new AbortController()
+    const first = await fetch(`${started.url}/sse`, { signal: firstController.signal })
+    expect(first.status).toBe(200)
+    const refused = await fetch(`${started.url}/sse`)
+    expect(refused.status).toBe(503)
+    await first.body?.cancel()
+    firstController.abort()
+    await new Promise(resolve => setTimeout(resolve, 10))
+    const replacementController = new AbortController()
+    const replacement = await fetch(`${started.url}/sse`, { signal: replacementController.signal })
+    expect(replacement.status).toBe(200)
+    await replacement.body?.cancel()
+    replacementController.abort()
   })
 
   test('SSE endpoint dispatches JSON-RPC responses and closes sessions', async () => {
@@ -149,6 +208,14 @@ describe('MCP HTTP/SSE transport and managed artifacts', () => {
     expect(endpointEvent).toContain('event: endpoint')
     const endpoint = endpointEvent.match(/data: (.+)\n/)![1]!
     expect(endpoint.startsWith(`${started.url}/message?sessionId=`)).toBe(true)
+
+    const notification = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', method: 'ping' }),
+    })
+    expect(notification.status).toBe(202)
+    expect(await notification.text()).toBe('')
 
     const posted = await fetch(endpoint, {
       method: 'POST',

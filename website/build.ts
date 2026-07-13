@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { execFileSync } from 'node:child_process'
 import { mkdir, readdir, rm, unlink, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { renderMermaidSVG as renderBeautifulMermaidSVG } from 'beautiful-mermaid'
@@ -507,8 +508,21 @@ ${siteFooterHtml()}
 
 // pageShell + emit with the page's own route wired through, so canonical/og:url
 // metadata can carry the exact path when SITE_ORIGIN is set.
+async function externalizeExecutableInlineScripts(html: string) {
+  let output = html
+  const scripts = [...html.matchAll(/<script>\n?([\s\S]*?)<\/script>/g)]
+  for (const match of scripts) {
+    const source = match[1]!.trim() + '\n'
+    const scriptRel = `generated/inline-${sha256(source).slice(0, 12)}.js`
+    await emit(scriptRel, source)
+    output = output.replace(match[0], `<script src="/${scriptRel}"></script>`)
+  }
+  return output
+}
+
 async function emitShell(rel: string, title: string, lead: string, body: string, currentHref = '', meta = '', actions = '') {
-  await emit(rel, pageShell(title, lead, body, currentHref, meta, actions, '/' + rel.replace(/index\.html$/, '')))
+  const html = pageShell(title, lead, body, currentHref, meta, actions, '/' + rel.replace(/index\.html$/, ''))
+  await emit(rel, await externalizeExecutableInlineScripts(html))
 }
 
 function escapeHtml(s: string) {
@@ -531,10 +545,21 @@ function inlineHtmlToMarkdown(s: string) {
 
 const packageJson = JSON.parse(await Bun.file(join(ROOT, 'package.json')).text())
 const rawCapabilities = buildCapabilities()
+function checkoutGitValue(args: string[]) {
+  try {
+    return execFileSync('git', args, { cwd: ROOT, encoding: 'utf8' }).trim()
+  } catch {
+    return 'development'
+  }
+}
 const generatedFrom = {
   packageVersion: packageJson.version,
-  gitSha: process.env.SITE_GIT_SHA ?? 'development',
-  buildTime: process.env.SITE_BUILD_TIME ?? 'development',
+  // CI may pin the workflow-run head explicitly; manual deploys still derive
+  // the exact checked-out commit instead of publishing "development".
+  gitSha: process.env.SITE_GIT_SHA ?? checkoutGitValue(['rev-parse', 'HEAD']),
+  // Commit time is a deterministic local-build fallback; deploy workflows set
+  // the actual bundle build time explicitly.
+  buildTime: process.env.SITE_BUILD_TIME ?? checkoutGitValue(['show', '-s', '--format=%cI', 'HEAD']),
 }
 const npmPublished = process.env.SITE_NPM_STATUS === 'source'
   ? false
@@ -998,6 +1023,20 @@ const COMPARISON_CASES: ComparisonCase[] = [
   section Ship
     Review        :crit, r1, after v1, 2d
     Release       :milestone, m1, after r1, 0d` },
+  { id: 'mindmap', family: 'Mindmap', source: `mindmap
+  root((Agent workflow))
+    Parse
+      Preserve source
+    Mutate
+      Typed operation
+    Verify
+      Inspect warnings` },
+  { id: 'gitgraph', family: 'GitGraph', source: `gitGraph LR:
+  commit id:"SOURCE" msg:"Parse source"
+  branch edit order:2
+  commit id:"MUTATE" type:HIGHLIGHT msg:"Apply typed op"
+  checkout main
+  merge edit id:"VERIFY" tag:"checked"` },
 ]
 
 function comparisonSvg(svg: string, id: string, engine: string, family: string) {
@@ -1035,6 +1074,8 @@ const COMPARISON_TAKEAWAYS: Record<string, string> = {
   pie: 'The slice labels and values come from the same local source model as SVG/PNG/text output.',
   quadrant: 'Points and axes remain inspectable source, not a static image pasted into docs.',
   gantt: 'Schedule resolution is verified locally so bad dependencies can fail before an agent returns source.',
+  mindmap: 'Compare the bilateral hierarchy, shaped root, and curved parent-child branches on the same source.',
+  gitgraph: 'Compare ordered lanes, typed commits, merge ancestry, and tag placement without flattening history into a flowchart.',
 }
 const COMPARISON_STYLE_DEMO_SOURCE = `flowchart LR
   Draft[Draft source] --> Verify{Verify}
@@ -1132,7 +1173,7 @@ function comparisonsHtml() {
   return `<div class="comparison-summary">
 <p><strong>Read this page as evidence, not a shootout.</strong> Each row keeps the same Mermaid source visible, then shows what a browser Mermaid render, upstream Beautiful Mermaid, and Agentic Mermaid can produce locally.</p>
 <ul>
-<li>Agentic Mermaid covers all twelve families shown here and exposes the same source to agents.</li>
+<li>Agentic Mermaid covers every registered family shown here and exposes the same source to agents.</li>
 <li>Beautiful Mermaid panels appear only for families it supports; absent panels are labeled, not hidden.</li>
 <li>The runtime Mermaid panels are progressive enhancement: source stays visible even before the browser renderer loads.</li>
 </ul>
@@ -1169,7 +1210,7 @@ ${comparisonStyleSupportHtml()}
   }
   // Render panels one at a time as they approach the viewport, yielding
   // between panels. The previous idle-callback batch parsed the 3.5MB runtime
-  // and rendered all 12 panels in one synchronous task (~7.6s of main-thread
+  // and rendered every panel in one synchronous task (~7.6s of main-thread
   // block at 6x CPU throttle) for every visitor, scrolled or not.
   var initialized = false;
   var queue = [];
@@ -2449,10 +2490,16 @@ const customStylesBody = [
   '<h2>Custom fonts</h2>',
   '<p>A Style\'s <code>font</code> field names a CSS family or stack; it does not load a font file. SVG declares the family, while local PNG rendering resolves bundled faces plus caller-provided directories. Use <code>--security strict</code> for an SVG with no external font request, or pass <code>--font-dirs</code> when rendering an unbundled family to PNG.</p>',
   '<pre><code>am render diagram.mmd --format svg --style brand.style.json --security strict --output diagram.svg\nam render diagram.mmd --format png --style brand.style.json --font-dirs ./fonts --output diagram.png</code></pre>',
-  '<p>Library callers use <code>renderMermaidPNG(source, { style, fontDirs: [\'./fonts\'] })</code>; <code>loadSystemFonts: true</code> opts into OS-installed faces at the cost of machine-dependent output. MCP <code>render_png</code> tools do not accept font directories, so use the library or CLI when a custom filesystem face is required.</p>',
+  '<p>Library callers use <code>renderMermaidPNG(source, { style, fontDirs: [\'./fonts\'] })</code>; <code>loadSystemFonts: true</code> opts into OS-installed faces at the cost of machine-dependent output. Local MCP <code>render_png</code> accepts <code>fontDirs</code> and <code>loadSystemFonts</code>. Hosted MCP has no filesystem font input, so use a local surface when a custom face is required.</p>',
   '<h2>Validation</h2>',
   '<p>The schema catches file shape in editors. Runtime code should still call <code>validateStyleSpec(json)</code>; the CLI does this for <code>.json</code> files passed through <code>--style</code>.</p>',
 ].join('\n')
+
+const BEAUTIFUL_MERMAID_ORIGINAL_FAMILY_IDS = new Set(['flowchart', 'state', 'sequence', 'class', 'er', 'xychart'])
+const forkAddedFamilyList = BUILTIN_FAMILY_METADATA
+  .filter(family => !BEAUTIFUL_MERMAID_ORIGINAL_FAMILY_IDS.has(family.id))
+  .map(family => family.label)
+  .join(', ')
 
 const docPages = [
   ['about/index.html', 'About Agentic Mermaid', aboutLead, aboutBody, '/about/'],
@@ -2460,12 +2507,12 @@ const docPages = [
   ['docs/getting-started/index.html', 'Getting started', 'From a prompt and style choice to a verified local render, then to an agent-safe edit loop.', gettingStartedBody, '/docs/'],
   ['docs/api/index.html', 'Library API', 'Use agentic-mermaid and agentic-mermaid/agent from local JS or TS.', '<p>Import rendering helpers from <code>agentic-mermaid</code> and typed parse/mutate/verify helpers from <code>agentic-mermaid/agent</code>. Everything runs locally with no network.</p>\n<pre><code>import { renderMermaidSVG, renderMermaidASCII } from \'agentic-mermaid\'\nimport { parseMermaid, verifyMermaid } from \'agentic-mermaid/agent\'\n\nconst src = \'flowchart LR\\n  A[Idea] --&gt; B[Ship]\'\nconst svg = renderMermaidSVG(src)           // also renderMermaidASCII / unicode\nconst { ok, warnings } = verifyMermaid(src) // structured, tiered warnings</code></pre>\n<p>Render helpers return strings (SVG, ASCII, Unicode); the agent surface returns typed diagrams plus structured verify warnings. <strong>In React</strong>, call the same helpers in your component and inject the SVG — private diagrams never leave the browser or your own infrastructure. <strong>Config:</strong> supported Mermaid frontmatter and <code>init</code> directives are normalized before rendering; unsupported syntax is preserved or reported, never silently dropped.</p>' + docsIndex],
   ['docs/cli/index.html', 'CLI', 'Use the am CLI for local rendering, verification, batch checks, and Markdown rendering.', '<p>The <code>am</code> CLI wraps the library for local rendering, verification, and batch checks. In the cloned repo, <code>am</code> is <code>bun run bin/am.ts</code>.</p>\n<pre><code>am verify diagram.mmd                # structural + geometric + lint warnings\nam verify diagram.mmd --json         # machine-readable for agents\nam render diagram.mmd --format svg --output diagram.svg\nam render diagram.mmd --format png --output diagram.png\nam render diagram.mmd --format ascii # or --format unicode</code></pre>\n<p>Prefer <code>--json</code> in agent loops so you can branch on <code>verify.ok</code> and the stable warning codes instead of parsing prose.</p>' + docsIndex],
-  ['docs/mcp/index.html', 'MCP', 'Hosted MCP at /mcp, plus a local stdio server.', '<p>The hosted MCP endpoint is <code>https://agentic-mermaid.dev/mcp</code>: stateless streamable HTTP (JSON-RPC over POST, no sessions). Hosted tools: <code>execute</code>, <code>render_svg</code>, <code>render_ascii</code>, <code>render_png</code>, <code>verify</code>, <code>describe</code>, <code>mutate</code>, and <code>build</code>. Pass <code>format: &quot;facts&quot;</code> to <code>describe</code> for deterministic semantic read-back. Deterministic responses are edge-cached, inputs are capped at 64KB, and Code Mode <code>execute</code> runs in an isolated on-demand Worker with network access disabled and a CPU budget.</p><p>The local MCP tools are <code>execute</code>, <code>render_png</code>, and <code>describe</code>. Multi-step parse/narrow/mutate/verify workflows run inside <code>execute(code)</code>; local <code>describe</code> also supports <code>format: &quot;facts&quot;</code>. For file/URL PNG artifacts, diagrams beyond the hosted caps, or offline use, run the stdio server from the repo: <code>bun run bin/agentic-mermaid-mcp.ts</code>.</p><p><strong>Privacy:</strong> every hosted tool call sends your diagram source (or Code Mode code) to this site\u2019s server, and successful responses are edge-cached for up to a day. For diagrams that must not leave your machine, use the library, the CLI, or the local stdio server \u2014 the pipeline is fully local and needs no network.</p><p><strong>Response framing:</strong> the hosted <code>/mcp</code> endpoint always replies with plain <code>application/json</code> \u2014 no SSE <code>data:</code> framing \u2014 so scripts can parse the body directly. The local HTTP transport\u2019s <code>/sse</code> + <code>/message</code> pair delivers responses as SSE events on the open stream; script writers who want unframed JSON should POST to its <code>/rpc</code> endpoint instead.</p>' + docsIndex],
+  ['docs/mcp/index.html', 'MCP', 'Hosted MCP at /mcp, plus a local stdio server.', '<p>The hosted MCP endpoint is <code>https://agentic-mermaid.dev/mcp</code>: stateless streamable HTTP (JSON-RPC over POST, no sessions). Hosted tools: <code>execute</code>, <code>describe_sdk</code>, <code>render_svg</code>, <code>render_ascii</code>, <code>render_png</code>, <code>verify</code>, <code>describe</code>, <code>mutate</code>, and <code>build</code>. Call <code>describe_sdk</code> for one family\'s compact signatures or exact mutation fields; pass <code>format: &quot;facts&quot;</code> to <code>describe</code> for deterministic semantic read-back. Deterministic responses are edge-cached, inputs are capped at 64KB, and Code Mode <code>execute</code> runs in an isolated on-demand Worker with network access disabled and a CPU budget.</p><p>The local MCP tools are <code>execute</code>, <code>describe_sdk</code>, <code>render_png</code>, and <code>describe</code>. Multi-step parse/narrow/mutate/verify workflows run inside <code>execute(code)</code>; local <code>describe_sdk</code> returns version-matched mutation schemas and <code>describe</code> supports <code>format: &quot;facts&quot;</code>. For file/URL PNG artifacts, diagrams beyond the hosted caps, or offline use, run the stdio server from the repo: <code>bun run bin/agentic-mermaid-mcp.ts</code>.</p><p><strong>Privacy:</strong> every hosted tool call sends your diagram source (or Code Mode code) to this site\u2019s server, and successful responses are edge-cached for up to a day. For diagrams that must not leave your machine, use the library, the CLI, or the local stdio server \u2014 the pipeline is fully local and needs no network.</p><p><strong>Response framing:</strong> the hosted <code>/mcp</code> endpoint always replies with plain <code>application/json</code> \u2014 no SSE <code>data:</code> framing \u2014 so scripts can parse the body directly. The local HTTP transport\u2019s <code>/sse</code> + <code>/message</code> pair delivers responses as SSE events on the open stream; script writers who want unframed JSON should POST to its <code>/rpc</code> endpoint instead.</p>' + docsIndex],
   ['docs/ascii/index.html', 'ASCII and Unicode', 'Text output is first-class for terminals, PR comments, and agent review.', '<p>Text output is first-class, not a fallback: ASCII (portable 7-bit) and Unicode (box-drawing) renders drop straight into terminals, PR comments, commit messages, and agent transcripts where an SVG cannot go.</p>\n<pre><code>am render diagram.mmd --format ascii    # portable, 7-bit\nam render diagram.mmd --format unicode  # sharper box-drawing glyphs</code></pre>\n<p>The text path is deterministic like the SVG path, so the same source always yields the same characters — reviewable in a plain diff. The ASCII engine is ported from mermaid-ascii; see <a href="/about/">About</a> for the lineage.</p>' + docsIndex],
   ['docs/theming/index.html', 'Styles and palettes', 'A style describes diagram rendering; a colors-only style is a palette.', '<p>One primitive covers visual rendering: a <strong>style</strong> is a partial, composable description of palette, typography, stroke character, and fills. A style that only sets colours is a palette. Styles such as <code>hand-drawn</code>, <code>watercolor</code>, and <code>blueprint</code> also change renderer treatment. Styles stack left \u2192 right (<code>{ style: [\'hand-drawn\', \'dracula\'] }</code> gives hand-drawn geometry with the dracula palette), the optional <code>seed</code> re-rolls styled ink without moving layout, and custom styles are plain JSON records. Use <a href="/docs/custom-styles/">Custom styles</a> for schema, complete JSON examples, and screenshots. The browser editor exposes both pickers: Style chooses renderer treatment; Palette chooses colors. SVG output can also inherit CSS variables for live palette swaps.</p>' + themingReferenceHtml() + docsIndex],
   ['docs/custom-styles/index.html', 'Custom styles', 'Author JSON style files, validate them with the schema, and compare cookbook screenshots.', customStylesBody + docsIndex],
   ['docs/quality/index.html', 'Quality', 'Determinism, verify warnings, and layout metrics make diagram edits reviewable.', '<p><code>verify.ok</code> is a gate, not a promise of visual perfection. Include SVG/PNG/ASCII artifacts for human review when the change is visual.</p>\n<p><strong>Warnings are tiered</strong> so an agent knows how to react: <em>structural</em> problems can block a safe return and should be fixed first; <em>geometric</em> warnings ask for visual review; <em>lint</em> warnings mean a smaller or cleaner edit. Every code has a page under <a href="/warnings/">warnings</a> with what triggers it and how to clear it.</p>\n<p><strong>Evidence is curated, not raw private prompts:</strong> rely on CI, deterministic layout metrics, and generated artifacts to review a change. Private eval prompts and holdbacks are not public site content.</p>' + docsIndex],
-  ['docs/fork-differences/index.html', 'Fork differences', 'Agentic Mermaid adds styled rendering, typed editing, deterministic verification, CLI, MCP, and more families.', '<p>Agentic Mermaid (<code>agentic-mermaid</code>) forks <a href="https://github.com/lukilabs/beautiful-mermaid">beautiful-mermaid</a> for a job the render-only original did not have: agents creating polished, branded diagrams that stay editable as Mermaid source.</p>\n<ul>\n<li><strong>Typed agent surface.</strong> A render-only library forces an agent to regenerate a whole diagram to change one node. Here new diagrams are authored as source then parsed/verified/rendered, and existing diagrams go parse → narrow → mutate → verify → serialize via <code>agentic-mermaid/agent</code>. All twelve families are structured-when-narrowed; unmodeled syntax still round-trips losslessly as opaque fallback.</li>\n<li><strong>Deterministic, verifiable layout.</strong> Layout is byte-identical across processes, and <code>verifyMermaid</code> returns structured warnings in three tiers (structural, geometric, lint) plus perceptual quality metrics.</li>\n<li><strong>More families.</strong> Adds timeline, journey, architecture, pie, quadrant, and Gantt on top of the upstream six (flowchart, state, sequence, class, ER, and XY chart) — twelve in all.</li>\n<li><strong>Tools.</strong> An <code>am</code> CLI, an <code>agentic-mermaid-mcp</code> Code Mode MCP server (stdio + opt-in HTTP/SSE), and a hosted MCP endpoint at <code>/mcp</code>. There is no REST render API.</li>\n<li><strong>Style + Palette rendering.</strong> Named looks and palette stacks keep appearance outside Mermaid source while preserving deterministic geometry.</li>\n</ul>\n<p>See <a href="/examples/">examples</a> for the family list and rendered source, and <a href="/about/">About</a> for the lineage.</p>' + docsIndex],
+  ['docs/fork-differences/index.html', 'Fork differences', 'Agentic Mermaid adds styled rendering, typed editing, deterministic verification, CLI, MCP, and more families.', `<p>Agentic Mermaid (<code>agentic-mermaid</code>) forks <a href="https://github.com/lukilabs/beautiful-mermaid">beautiful-mermaid</a> for a job the render-only original did not have: agents creating polished, branded diagrams that stay editable as Mermaid source.</p>\n<ul>\n<li><strong>Typed agent surface.</strong> A render-only library forces an agent to regenerate a whole diagram to change one node. Here new diagrams are authored as source then parsed/verified/rendered, and existing diagrams go parse → narrow → mutate → verify → serialize via <code>agentic-mermaid/agent</code>. All registered families are structured-when-narrowed; unmodeled syntax still round-trips losslessly as opaque fallback.</li>\n<li><strong>Deterministic, verifiable layout.</strong> Layout is byte-identical across processes, and <code>verifyMermaid</code> returns structured warnings in three tiers (structural, geometric, lint) plus perceptual quality metrics.</li>\n<li><strong>More families.</strong> Adds ${forkAddedFamilyList} beyond the original Beautiful Mermaid family set.</li>\n<li><strong>Tools.</strong> An <code>am</code> CLI, an <code>agentic-mermaid-mcp</code> Code Mode MCP server (stdio + opt-in HTTP/SSE), and a hosted MCP endpoint at <code>/mcp</code>. There is no REST render API.</li>\n<li><strong>Style + Palette rendering.</strong> Named looks and palette stacks keep appearance outside Mermaid source while preserving deterministic geometry.</li>\n</ul>\n<p>See <a href="/examples/">examples</a> for the family list and rendered source, and <a href="/about/">About</a> for the lineage.</p>` + docsIndex],
   ['examples/index.html', 'Examples', examplesLead, examplesShowcaseHtml(EDITOR_EXAMPLES), '/examples/'],
   ['comparisons/index.html', 'Comparisons', 'One source per family, rendered three ways.', comparisonsHtml(), '/comparisons/'],
 ]
@@ -2749,7 +2796,7 @@ const securityHeaders = [
   '  X-Content-Type-Options: nosniff',
   '  Referrer-Policy: strict-origin-when-cross-origin',
   '  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()',
-  `  Content-Security-Policy: default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; img-src 'self' data: blob:; font-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self'; worker-src 'self'; form-action 'none'`,
+  `  Content-Security-Policy: default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; img-src 'self' data: blob:; font-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; worker-src 'self'; form-action 'none'`,
   '',
   '/*.json',
   '  Access-Control-Allow-Origin: *',
@@ -2800,9 +2847,8 @@ await emit('_redirects', redirectLines)
 // ---- sitemap.xml -----------------------------------------------------------
 // Every page is emitted as <dir>/index.html, so its canonical URL is the clean
 // directory path. Derive the sitemap from the `generated` map rather than a
-// hand-kept list so new pages are picked up automatically. No <lastmod>: the
-// committed build uses buildTime='development', and a per-build timestamp would
-// make the bundle non-deterministic and break `website:check`.
+// hand-kept list so new pages are picked up automatically. No <lastmod>: deploy
+// build timestamps are provenance, not page-level content modification dates.
 const sitemapUrls = [...generated.keys()]
   .filter((rel) => rel === 'index.html' || rel.endsWith('/index.html'))
   .map((rel) => siteOrigin + '/' + rel.replace(/index\.html$/, ''))

@@ -240,7 +240,7 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
     const r = req as JsonRpcRequest | null
     let response: JsonRpcResponse | null
     if (!r || typeof r !== 'object' || r.jsonrpc !== '2.0' || typeof r.method !== 'string') {
-      response = rpcError((r as JsonRpcRequest | null)?.id ?? null, -32600, 'invalid JSON-RPC request')
+      response = rpcError(null, -32600, 'invalid JSON-RPC request')
     } else {
       if (r.method === 'tools/call') {
         const name = (r.params as { name?: unknown } | undefined)?.name

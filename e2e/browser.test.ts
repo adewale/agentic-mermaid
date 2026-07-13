@@ -698,6 +698,50 @@ describe('browser: live editor integration', () => {
     expect(await page.evaluate(() => localStorage.getItem('bm-editor-theme'))).toBe('dracula')
   }, 120_000)
 
+  it('treats shared hash configuration as untrusted and renders only inert SVG', async () => {
+    await context.addInitScript(() => { (window as any).__amAudit = 0 })
+    const externalRequests: string[] = []
+    const recordRequest = (request: { url(): string }) => {
+      if (request.url().startsWith('https://evil.example/')) externalRequests.push(request.url())
+    }
+    context.on('request', recordRequest as any)
+    try {
+      const hostileCss = '@import url(https://evil.example/font.css);</style><svg onload="window.__amAudit=123"><script>window.__amAudit=456</script>'
+      const source = `%%{init: ${JSON.stringify({ themeCSS: hostileCss })}}%%\nflowchart TD\n  A[Safe] --> B[Preview]`
+      const hash = editorHash(source, {
+        accent: '#123456',
+        security: 'loose',
+        themeCSS: hostileCss,
+      } as any, 'salmon')
+      const decoded = JSON.parse(Buffer.from(hash, 'base64').toString('utf8'))
+      decoded.style = { font: hostileCss }
+      const hostileHash = Buffer.from(JSON.stringify(decoded), 'utf8').toString('base64')
+      await gotoApp(`${BASE}/editor?empty=1#${hostileHash}`)
+      await waitForEditorRender(60_000)
+      await page.waitForFunction(() => location.hash.startsWith('#deflate:'), undefined, { timeout: 30_000 })
+
+      const result = await page.evaluate(async () => {
+        let b64 = location.hash.slice('#deflate:'.length).replace(/-/g, '+').replace(/_/g, '/')
+        while (b64.length % 4) b64 += '='
+        const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0))
+        const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'))
+        return {
+          audit: (window as any).__amAudit,
+          html: document.querySelector('#preview-inner svg')?.outerHTML ?? '',
+          shared: JSON.parse(await new Response(stream).text()),
+        }
+      })
+      expect(result.audit).toBe(0)
+      expect(result.html).not.toMatch(/<script|\sonload=|evil\.example/i)
+      expect(result.html).toContain('#123456')
+      expect(result.shared.config).toEqual({ accent: '#123456' })
+      expect(result.shared.style).toBeUndefined()
+      expect(externalRequests).toEqual([])
+    } finally {
+      context.off('request', recordRequest as any)
+    }
+  }, 120_000)
+
 })
 
 describe('browser: visual regression', () => {
