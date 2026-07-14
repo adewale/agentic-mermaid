@@ -1,5 +1,5 @@
 // ============================================================================
-// Sequence structured body: parse / serialize / mutate (FamilyPlugin hooks).
+// Sequence structured body: parse / serialize / mutate (FamilyDescriptor hooks).
 //
 // BUILD-18 — segment-preserving structured body. The v4 "all-or-nothing opaque
 // cliff" is gone: a sequence diagram with Note/alt/loop/par/activate/

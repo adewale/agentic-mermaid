@@ -15,12 +15,34 @@ import { measureTextWidth } from '../text-metrics.ts'
 import { ensureContrast, isHexColor, mixHex } from '../shared/color-math.ts'
 import { resolveGitGraphCommitLabelFontSize } from './position.ts'
 
+export type GitGraphThemeProjection = Record<string, string | number>
+
+/** Sanitize the GitGraph-specific theme subset once at request resolution. */
+export function resolveGitGraphThemeProjection(raw: unknown): GitGraphThemeProjection {
+  const vars = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw as Record<string, unknown> : {}
+  const projected: GitGraphThemeProjection = {
+    commitLabelFontSize: resolveGitGraphCommitLabelFontSize(vars),
+  }
+  for (let index = 0; index < 8; index++) {
+    for (const key of [`git${index}`, `gitBranchLabel${index}`, `gitInv${index}`]) {
+      const color = safeCssColor(vars[key])
+      if (color !== undefined) projected[key] = color
+    }
+  }
+  for (const key of ['commitLabelColor', 'commitLabelBackground'] as const) {
+    const color = safeCssColor(vars[key])
+    if (color !== undefined) projected[key] = color
+  }
+  return projected
+}
+
 export function renderGitGraphSvg(ctx: RenderContext<PositionedGitGraphDiagram>): string {
   return DefaultBackend.render(lowerGitGraphScene(ctx), { seed: 0 })
 }
 
 export function lowerGitGraphScene(ctx: RenderContext<PositionedGitGraphDiagram>): SceneDoc {
-  const { positioned: diagram, colors, options } = ctx
+  const { positioned: diagram, colors, resolved } = ctx
+  const options = resolved.renderOptions
   const font = colors.font ?? 'Inter'
   const transparent = options.transparent ?? false
   const titleId = 'gitgraph-title'
@@ -29,7 +51,10 @@ export function lowerGitGraphScene(ctx: RenderContext<PositionedGitGraphDiagram>
   const head = [svgOpenTag(diagram.width, diagram.height, colors, transparent, { attrs }), buildStyleBlock(font, false, colors.shadow, colors.embedFontImport)]
   const shadow = buildShadowDefs(colors)
   if (shadow) head.push(`<defs>${shadow}</defs>`)
-  const paints = gitGraphPaints(diagram, options.mermaidConfig?.themeVariables, colors)
+  const familyAppearance = resolved.familyAppearance as { themeVariables?: GitGraphThemeProjection } | undefined
+  if (!familyAppearance) throw new Error('GitGraph rendering requires request-boundary family appearance resolution')
+  const projectedTheme = familyAppearance.themeVariables
+  const paints = gitGraphPaints(diagram, projectedTheme, colors)
   const parts: SceneNode[] = [marks.prelude({ id: 'prelude', width: diagram.width, height: diagram.height, colors, transparent, font, hasMonoFont: false }, head.join('\n'))]
   parts.push(marks.documentText({ id: 'acc-title', element: 'title', domId: titleId, text: diagram.accessibilityTitle ?? 'Git graph' }))
   if (diagram.accessibilityDescription) parts.push(marks.documentText({ id: 'acc-desc', element: 'description', domId: descId, text: diagram.accessibilityDescription }))
@@ -82,6 +107,10 @@ export function lowerGitGraphScene(ctx: RenderContext<PositionedGitGraphDiagram>
       role: 'edge', geometry: { kind: 'polyline', points: edge.points },
       lineStyle: edge.kind === 'cherry-pick' ? 'dashed' : 'solid',
       paint: { fill: 'none', stroke: edgePaint, strokeWidth: edge.kind === 'parent' ? '2' : '2.5', ...(edge.kind === 'cherry-pick' ? { strokeDasharray: '4 3' } : {}) },
+      endpoints: { from: edge.from, to: edge.to },
+      relationship: { kind: edge.kind, direction: 'forward' },
+      route: { ownership: 'layout' },
+      projectAccessibilityToSvg: true,
       channels: { category: edge.kind },
     }, `<polyline class="git-edge git-edge-${edge.kind}" data-from="${escapeAttr(edge.from)}" data-to="${escapeAttr(edge.to)}" points="${points}" fill="none" stroke="${escapeAttr(edgePaint)}" stroke-width="${edge.kind === 'parent' ? 2 : 2.5}"${edge.kind === 'cherry-pick' ? ' stroke-dasharray="4 3"' : ''} />`))
   }

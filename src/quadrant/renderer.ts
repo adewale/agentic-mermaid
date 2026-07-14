@@ -55,11 +55,12 @@ export function renderQuadrantSvg(
 export function lowerQuadrantScene(
   ctx: RenderContext<PositionedQuadrantChart>,
 ): SceneDoc {
-  const { positioned: chart, colors, options } = ctx
+  const { positioned: chart, colors, resolved } = ctx
+  const options = resolved.renderOptions
   const font = colors.font ?? 'Inter'
   const transparent = options.transparent ?? false
   const interactive = options.interactive ?? false
-  const style = resolveRenderStyle(options, quadrantStyleDefaults(chart.visual))
+  const style = resolveRenderStyle(options, quadrantStyleDefaults(chart.visual), resolved.styleFace)
   const hasLeaders = chart.points.some(p => p.leader)
   const parts: SceneNode[] = []
   const accessibility = {

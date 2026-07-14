@@ -98,7 +98,6 @@ describe('quadrant differential vs legacy parseQuadrantChart', () => {
 
 describe('quadrant structured-or-opaque fallback', () => {
   const opaqueCases: Array<[string, string]> = [
-    ['accTitle line', 'quadrantChart\n  accTitle: Accessible\n  A: [0, 0]'],
     // Well-formed classDef/::: styling is STRUCTURED now (upstream #5173 is
     // modeled — see quadrant-style.test.ts); only MALFORMED styling falls
     // back to opaque, mirroring the legacy parser's loud error. Unknown keys
@@ -123,6 +122,18 @@ describe('quadrant structured-or-opaque fallback', () => {
       expect(serializeMermaid(r.value).trimEnd()).toBe(src)
     })
   }
+
+  test('universal accessibility stays structured and round-trips through the family serializer', () => {
+    const src = 'quadrantChart\n  accTitle: Accessible\n  accDescr: Two-axis map\n  A: [0, 0]'
+    const r = parseMermaid(src)
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(asQuadrant(r.value)?.body).toMatchObject({
+      accessibilityTitle: 'Accessible',
+      accessibilityDescription: 'Two-axis map',
+    })
+    expect(parseMermaid(serializeMermaid(r.value))).toMatchObject({ ok: true, value: { body: { kind: 'quadrant' } } })
+  })
 })
 
 describe('quadrant mutation ops', () => {

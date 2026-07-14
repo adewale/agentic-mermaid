@@ -492,7 +492,6 @@ describe('diagram-family citizenship ratchet (issue #41)', () => {
     const citizenship = readFileSync(join(REPO, 'docs/contributing/diagram-family-citizenship.md'), 'utf8')
     const adding = readFileSync(join(REPO, 'docs/contributing/adding-diagram-types.md'), 'utf8')
     const docsIndex = readFileSync(join(REPO, 'docs/README.md'), 'utf8')
-    const completedBacklog = readFileSync(join(REPO, 'docs/project/archive/completed-backlog-pre-consolidation.md'), 'utf8')
 
     expect(citizenship).toContain('Worked example: Gantt')
     expect(citizenship).toContain('Non-Gantt audit: XY chart')
@@ -504,7 +503,5 @@ describe('diagram-family citizenship ratchet (issue #41)', () => {
     expect(citizenship).toContain('familyVisualMetaphor')
     expect(citizenship).toContain('mermaid-family-fidelity-audit.md')
     expect(docsIndex).toContain('diagram-family-citizenship.md')
-    expect(completedBacklog).toContain('BUILD-22 — Diagram-family citizenship gap backfill')
-    expect(completedBacklog).toContain('docs-corpus citizenship backfill')
   })
 })

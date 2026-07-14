@@ -108,8 +108,6 @@ describe('xychart differential vs legacy parseXYChart', () => {
 
 describe('xychart structured-or-opaque fallback', () => {
   const opaqueCases: Array<[string, string]> = [
-    ['accTitle line', 'xychart-beta\n  accTitle: Accessible\n  bar [1, 2]'],
-    ['accDescr block', 'xychart-beta\n  accDescr {\n    desc\n  }\n  bar [1, 2]'],
     ['multi-statement semicolon', 'xychart-beta\n  title T; bar [1, 2]'],
     ['unmodeled token (curve)', 'xychart-beta\n  bar [1, 2]\n  curve basis'],
     ['non-numeric series value', 'xychart-beta\n  bar [1, two, 3]'],
@@ -126,6 +124,18 @@ describe('xychart structured-or-opaque fallback', () => {
       expect(serializeMermaid(r.value).trimEnd()).toBe(src)
     })
   }
+
+  test('universal accessibility stays structured and round-trips through the family serializer', () => {
+    const src = 'xychart-beta\n  accTitle: Accessible\n  accDescr {\n    first line\n    second line\n  }\n  bar [1, 2]'
+    const r = parseMermaid(src)
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(asXyChart(r.value)?.body).toMatchObject({
+      accessibilityTitle: 'Accessible',
+      accessibilityDescription: 'first line\nsecond line',
+    })
+    expect(parseMermaid(serializeMermaid(r.value))).toMatchObject({ ok: true, value: { body: { kind: 'xychart' } } })
+  })
 
   // Mermaid's xychart syntax quotes text, and the family's own example did too —
   // quoting must NOT drop the whole chart to opaque (it caused an eval failure).

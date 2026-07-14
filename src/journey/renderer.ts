@@ -11,19 +11,24 @@ import type {
 import type { RenderContext } from '../types.ts'
 import type { DiagramColors } from '../theme.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs, resolveColors } from '../theme.ts'
-import { resolveJourneyStyle, resolveJourneyVisualConfig } from './layout.ts'
-import type { JourneyVisualConfig } from './layout.ts'
+import type { JourneyRequestAppearance, JourneyVisualConfig } from './layout.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
 import { JOURNEY_ACTOR_COLOR_LIMIT } from './parse-core.ts'
 import { escapeAttr, renderMultilineText, escapeXml } from '../multiline-utils.ts'
-import { applyTextTransform } from '../styles.ts'
+import { applyTextTransform, resolveRenderStyle } from '../styles.ts'
 import type { ResolvedRenderStyle } from '../styles.ts'
-import type { SceneDoc, SceneNode, SemanticChannels } from '../scene/ir.ts'
+import type { MarkerDescriptor, SceneDoc, SceneNode, SemanticChannels } from '../scene/ir.ts'
 import { hashId } from '../scene/seed.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { getSeriesColor, hexToHsl, hslToHex, isDarkBackground } from '../xychart/colors.ts'
 import { isHexColor, wcagCssContrastRatio } from '../shared/color-math.ts'
+import { serializeMarkerResource } from '../scene/marker-resources.ts'
+import {
+  projectConnectorPath,
+  type ConnectorPathProjection,
+  type ConnectorPathProjectionSegment,
+} from '../scene/connector-geometry.ts'
 
 // ============================================================================
 // Journey diagram SVG renderer
@@ -86,12 +91,15 @@ export function renderJourneySvg(
 export function lowerJourneyScene(
   ctx: RenderContext<PositionedJourneyDiagram>,
 ): SceneDoc {
-  const { positioned: diagram, colors, options } = ctx
+  const { positioned: diagram, colors, resolved } = ctx
+  const options = resolved.renderOptions
   const font = colors.font ?? 'Inter'
   const transparent = options.transparent ?? false
   const parts: SceneNode[] = []
-  const style = resolveJourneyStyle(options)
-  const visual = resolveJourneyVisualConfig(options)
+  const appearance = resolved.familyAppearance as JourneyRequestAppearance | undefined
+  if (!appearance) throw new Error('Journey rendering requires request-boundary family appearance resolution')
+  const style = resolveRenderStyle(options, appearance.styleDefaults, resolved.styleFace)
+  const visual = appearance.visual
   const paints = journeyPaints(style, visual, colors, {
     sectionCount: diagram.sections.length,
     actorCount: diagram.actors.length,
@@ -100,6 +108,7 @@ export function lowerJourneyScene(
   const accessibility = buildJourneyAccessibility(diagram)
   const uid = journeyNamespace(diagram)
   const arrowMarkerId = `${uid}-arrowhead`
+  const arrowMarker = journeyArrowMarker(arrowMarkerId, paints.arrow)
   const titleId = `${uid}-title`
   const descId = `${uid}-desc`
   const curveMarkers = options.journey?.experienceCurve !== false
@@ -119,7 +128,7 @@ export function lowerJourneyScene(
       hasMonoFont: false,
       extraCss: journeyCss,
     },
-    openJourneySvgTag(diagram, colors, transparent, accessibility, titleId, descId, options.mermaidConfig?.journey?.useMaxWidth === true),
+    openJourneySvgTag(diagram, colors, transparent, accessibility, titleId, descId, appearance.useMaxWidth),
   ))
   if (accessibility.title) {
     parts.push(marks.raw({ id: 'a11y-title', role: 'chrome' },
@@ -131,10 +140,10 @@ export function lowerJourneyScene(
   }
   parts.push(marks.raw({ id: 'style', role: 'chrome' },
     buildStyleBlock(font, false, colors.shadow, colors.embedFontImport)))
-  parts.push(marks.definitions({ id: 'defs' }, buildJourneyDefs(colors, paints, arrowMarkerId)))
+  parts.push(marks.definitions({ id: 'defs', markerResources: [arrowMarker] }, buildJourneyDefs(colors, arrowMarker)))
   parts.push(marks.raw({ id: 'journey-style', role: 'chrome' }, journeyCss))
 
-  parts.push(renderScoreGuide(diagram.scoreGuide, style, arrowMarkerId))
+  parts.push(renderScoreGuide(diagram.scoreGuide, style, arrowMarker))
 
   if (diagram.actors.length > 0) {
     parts.push(renderActorLegend(diagram.actors, style, paints))
@@ -235,12 +244,17 @@ function openJourneySvgTag(
   })
 }
 
-function buildJourneyDefs(colors: DiagramColors, paints: JourneyPaints, arrowMarkerId: string): string {
+function journeyArrowMarker(id: string, color: string): MarkerDescriptor {
+  return {
+    id, shape: 'arrow', size: { width: 10, height: 8 }, ref: { x: 9, y: 4 }, orient: 'auto',
+    geometry: { kind: 'path', d: 'M0,0 L10,4 L0,8 Z' }, paint: { fill: color },
+  }
+}
+
+function buildJourneyDefs(colors: DiagramColors, arrowMarker: MarkerDescriptor): string {
   const defs = [
     buildShadowDefs(colors),
-    `  <marker id="${escapeAttr(arrowMarkerId)}" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
-    <path d="M0,0 L10,4 L0,8 Z" fill="${paints.arrow}" />
-  </marker>`,
+    serializeMarkerResource(arrowMarker),
   ].filter(Boolean)
 
   return `<defs>\n${defs.join('\n')}\n</defs>`
@@ -283,37 +297,42 @@ function renderExperienceCurve(
   paints: JourneyPaints,
 ): SceneNode {
   const points = markers.map(marker => ({ x: marker.cx, y: marker.cy }))
-  const d = smoothCurvePath(points)
+  const projection = smoothCurveProjection(points)
   return marks.connector(
     {
       id: 'experience-curve',
       role: 'series',
-      geometry: { kind: 'path', d, points },
+      geometry: projection.geometry,
       lineStyle: 'solid',
       paint: {
         stroke: `color-mix(in srgb, ${paints.arrow} 55%, var(--bg))`,
         strokeWidth: String(Math.max(2, style.lineWidth * 2)),
       },
+      route: { ownership: 'family', contours: projection.contours },
     },
-    `<path class="journey-curve" d="${d}" />`,
+    `<path class="journey-curve" d="${projection.geometry.d}" />`,
   )
 }
 
 /** Cubic segments with horizontal tangents at each marker: smooth, monotone
  * between neighbors (no overshoot past a score line), and deterministic. */
-function smoothCurvePath(points: Array<{ x: number; y: number }>): string {
+function smoothCurveProjection(points: Array<{ x: number; y: number }>): ConnectorPathProjection {
   const first = points[0]!
   let d = `M${first.x},${first.y}`
+  const segments: ConnectorPathProjectionSegment[] = []
   for (let i = 1; i < points.length; i++) {
     const from = points[i - 1]!
     const to = points[i]!
     const dx = (to.x - from.x) / 3
-    d += ` C${from.x + dx},${from.y} ${to.x - dx},${to.y} ${to.x},${to.y}`
+    const control1 = { x: from.x + dx, y: from.y }
+    const control2 = { x: to.x - dx, y: to.y }
+    d += ` C${control1.x},${control1.y} ${control2.x},${control2.y} ${to.x},${to.y}`
+    segments.push({ kind: 'cubic', control1, control2, end: to })
   }
-  return d
+  return projectConnectorPath(d, first, segments)
 }
 
-function renderScoreGuide(guide: PositionedJourneyScoreGuide, style: ResolvedRenderStyle, arrowMarkerId: string): SceneNode {
+function renderScoreGuide(guide: PositionedJourneyScoreGuide, style: ResolvedRenderStyle, arrowMarker: MarkerDescriptor): SceneNode {
   const children: Array<{ node: SceneNode; indent: number }> = []
 
   for (const tick of guide.ticks) {
@@ -373,9 +392,9 @@ function renderScoreGuide(guide: PositionedJourneyScoreGuide, style: ResolvedRen
           stroke: style.edgeStrokeColor ?? 'var(--_arrow)',
           strokeWidth: String(Math.max(2, style.lineWidth * 2)),
         },
-        endMarker: { id: arrowMarkerId, shape: 'arrow' },
+        endMarker: arrowMarker,
       },
-      `<line class="journey-baseline" x1="${baseline.x1}" y1="${baseline.y1}" x2="${baseline.x2}" y2="${baseline.y2}" marker-end="url(#${escapeAttr(arrowMarkerId)})" />`,
+      `<line class="journey-baseline" x1="${baseline.x1}" y1="${baseline.y1}" x2="${baseline.x2}" y2="${baseline.y2}" marker-end="url(#${escapeAttr(arrowMarker.id)})" />`,
     ),
   })
 

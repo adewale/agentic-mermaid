@@ -18,6 +18,12 @@ import { describe, expect, test } from 'bun:test'
 import { executeInSandbox, type ExecuteResult } from '../mcp/sandbox.ts'
 import { unsupportedCodeReason } from '../mcp/facade.ts'
 import { runUserCode, userModuleSources, formatHarnessError, MAX_LOG_ENTRIES, LOGS_TRUNCATED_MARKER } from '../mcp/harness-runtime.ts'
+import {
+  renderMermaidASCIIWithReceipt,
+  renderMermaidSVGWithReceipt,
+  verifyNoExternalRefs,
+} from '../index.ts'
+import { layoutMermaidWithReceipt } from '../agent/core.ts'
 
 // Memoized: re-importing an identical data: URL deadlocks under `bun test`
 // (fine in plain bun), and the loader caches per-id isolates anyway.
@@ -59,7 +65,7 @@ const EQUIVALENT_CASES: Array<[label: string, code: string]> = [
   ['SDK parse ok flag', `${PARSE}; return r.ok`],
   ['SDK parse → narrow → serialize round trip', `${PARSE}; const f = mermaid.asFlowchart(r.value); return mermaid.serializeMermaid(f)`],
   ['SDK mutate adds a node', `${PARSE}; const m = mermaid.mutate(r.value, { kind: 'add_node', id: 'C', label: 'New' }); return { ok: m.ok, source: m.ok ? mermaid.serializeMermaid(m.value) : null }`],
-  ['SDK render through execute', `${PARSE}; return mermaid.renderMermaidSVG(r.value).length`],
+  ['SDK render through execute', `${PARSE}; return mermaid.renderMermaidSVG(r.value, { security: 'strict', embedFontImport: false }).length`],
   ['SDK render config callback survives the façade', `const warnings = []; mermaid.renderMermaidSVG('stateDiagram-v2\\n  A --> B', { mermaidConfig: { state: { titleTopMargin: 10 } }, onConfigDiagnostic: d => warnings.push(d.field) }); return warnings`],
   ['SDK verify warnings shape', `${PARSE}; const v = mermaid.verifyMermaid(r.value); return { ok: v.ok, warnings: v.warnings.length }`],
   ['returning a diagram marshals to the canonical envelope', `${PARSE}; return r.value`],
@@ -142,6 +148,72 @@ describe('hosted execute ≡ vm sandbox', () => {
       expect(r.error).toContain('non-serializable')
       expect(r.error).toContain('return plain data')
     }
+  })
+})
+
+describe('hosted execute render policy', () => {
+  const source = 'flowchart LR\n  A[Start] --> B[Finish]'
+  const expected = renderMermaidSVGWithReceipt(source, {
+    security: 'strict',
+    embedFontImport: false,
+  })
+
+  test('both execute SVG APIs default to the host-owned strict projection', async () => {
+    const hosted = await executeHosted(`
+      const source = ${JSON.stringify(source)}
+      return {
+        plain: mermaid.renderMermaidSVG(source),
+        artifact: mermaid.renderMermaidSVGWithReceipt(source),
+      }
+    `)
+    expect(hosted.ok).toBe(true)
+    const value = hosted.value as { plain: string; artifact: typeof expected }
+    expect(value.plain).toBe(expected.svg)
+    expect(value.artifact).toEqual(expected)
+    expect(verifyNoExternalRefs(value.plain)).toEqual({ ok: true, refs: [] })
+    expect(verifyNoExternalRefs(value.artifact.svg)).toEqual({ ok: true, refs: [] })
+  })
+
+  test('caller options cannot weaken strict security or re-enable font imports', async () => {
+    const hosted = await executeHosted(`
+      const source = ${JSON.stringify(source)}
+      const weaker = { security: 'default', embedFontImport: true }
+      return {
+        plain: mermaid.renderMermaidSVG(source, weaker),
+        artifact: mermaid.renderMermaidSVGWithReceipt(source, weaker),
+      }
+    `)
+    expect(hosted.ok).toBe(true)
+    const value = hosted.value as { plain: string; artifact: typeof expected }
+    expect(value.plain).toBe(expected.svg)
+    expect(value.artifact).toEqual(expected)
+    expect(verifyNoExternalRefs(value.plain)).toEqual({ ok: true, refs: [] })
+    expect(verifyNoExternalRefs(value.artifact.svg)).toEqual({ ok: true, refs: [] })
+    expect(value.plain).not.toContain('@import')
+  })
+
+  test('ASCII and layout use the same host-owned request projection', async () => {
+    const hosted = await executeHosted(`
+      const source = ${JSON.stringify(source)}
+      const weaker = { security: 'default', embedFontImport: true }
+      return {
+        ascii: mermaid.renderMermaidASCIIWithReceipt(source, weaker),
+        layout: mermaid.layoutMermaidWithReceipt(source, weaker),
+      }
+    `)
+    expect(hosted.ok).toBe(true)
+    const value = hosted.value as {
+      ascii: ReturnType<typeof renderMermaidASCIIWithReceipt>
+      layout: ReturnType<typeof layoutMermaidWithReceipt>
+    }
+    const expectedAscii = renderMermaidASCIIWithReceipt(source, {
+      security: 'strict', embedFontImport: false,
+    })
+    const expectedLayout = layoutMermaidWithReceipt(source, {
+      security: 'strict', embedFontImport: false,
+    })
+    expect(value.ascii).toEqual(JSON.parse(JSON.stringify(expectedAscii)))
+    expect(value.layout).toEqual(JSON.parse(JSON.stringify(expectedLayout)))
   })
 })
 

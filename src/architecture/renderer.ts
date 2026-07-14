@@ -13,11 +13,13 @@ import { escapeAttr, renderMultilineText, renderMultilineTextWithBackground, esc
 import { measureMultilineText } from '../text-metrics.ts'
 import { applyTextTransform } from '../styles.ts'
 import { topRoundedRectPath } from '../svg-paths.ts'
-import type { MarkerRef, SceneDoc, SceneNode } from '../scene/ir.ts'
+import type { MarkerDescriptor, MarkerRef, SceneDoc, SceneNode } from '../scene/ir.ts'
 import { hashId } from '../scene/seed.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { resolveArchitectureIcon } from './icons.ts'
+import { serializeMarkerResources } from '../scene/marker-resources.ts'
+import { projectRoundedConnectorPath } from '../scene/connector-geometry.ts'
 
 // ============================================================================
 // Architecture renderer — lowers a PositionedArchitectureDiagram to the
@@ -46,10 +48,15 @@ export function renderArchitectureSvg(
 export function lowerArchitectureScene(
   ctx: RenderContext<PositionedArchitectureDiagram>,
 ): SceneDoc {
-  const { positioned: diagram, colors, options } = ctx
+  const { positioned: diagram, colors, resolved } = ctx
+  const options = resolved.renderOptions
   const font = colors.font ?? 'Inter'
   const transparent = options.transparent ?? false
-  const visual = options.architecture?.visual ?? DEFAULT_ARCHITECTURE_VISUAL
+  const visual: ArchitectureVisualConfig = {
+    ...DEFAULT_ARCHITECTURE_VISUAL,
+    ...((resolved.familyAppearance as { visual?: ArchitectureVisualConfig } | undefined)?.visual
+      ?? options.architecture?.visual),
+  }
   const parts: SceneNode[] = []
   const archVars = [
     visual.groupSurface ? `--arch-group-fill:${visual.groupSurface}` : '',
@@ -105,8 +112,8 @@ export function lowerArchitectureScene(
   }, preludeParts.join('\n')))
 
   parts.push(marks.definitions(
-    { id: 'defs' },
-    ['<defs>', arrowMarkerDefs(), '</defs>'].join('\n'),
+    { id: 'defs', markerResources: ARCHITECTURE_MARKERS },
+    ['<defs>', serializeMarkerResources(ARCHITECTURE_MARKERS), '</defs>'].join('\n'),
   ))
 
   if (diagram.title) {
@@ -384,11 +391,11 @@ function lowerEdge(edge: PositionedArchitectureEdge, visual: ArchitectureVisualC
   let startMarker: MarkerRef | undefined
   let endMarker: MarkerRef | undefined
   if (edge.hasArrowStart) {
-    startMarker = { id: 'architecture-arrow-start', shape: 'arrow' }
+    startMarker = ARCHITECTURE_MARKERS[1]
     markers += ' marker-start="url(#architecture-arrow-start)"'
   }
   if (edge.hasArrowEnd) {
-    endMarker = { id: 'architecture-arrow-end', shape: 'arrow' }
+    endMarker = ARCHITECTURE_MARKERS[0]
     markers += ' marker-end="url(#architecture-arrow-end)"'
   }
 
@@ -404,18 +411,34 @@ function lowerEdge(edge: PositionedArchitectureEdge, visual: ArchitectureVisualC
   if (edge.label) attrs.push(`data-label="${escapeAttr(edge.label)}"`)
 
   const paint = { stroke: 'var(--arch-edge-stroke, var(--_line))', strokeWidth: String(visual.edgeLineWidth) }
+  const connectorSemantics = {
+    endpoints: { from: edge.source.id, to: edge.target.id },
+    relationship: { kind: 'architecture-edge' },
+    route: {
+      ownership: 'layout',
+      bendRadius: visual.edgeBendRadius,
+      labelAnchors: edge.labelPosition ? [edge.labelPosition] : [],
+    },
+    labels: edge.label ? [{ text: edge.label, ...(edge.labelPosition ? { anchor: edge.labelPosition } : {}) }] : [],
+    projectAccessibilityToSvg: true,
+  } as const
 
   if (visual.edgeBendRadius > 0 && edge.points.length > 2) {
-    const d = pointsToPathD(edge.points, visual.edgeBendRadius)
+    const projection = projectRoundedConnectorPath(edge.points, visual.edgeBendRadius, {
+      metric: 'manhattan',
+      precision: 3,
+    })
     return marks.connector({
       id: sceneId,
       role: 'edge',
-      geometry: { kind: 'path', d, points: edge.points },
+      geometry: projection.geometry,
       lineStyle: 'solid',
       paint,
       startMarker,
       endMarker,
-    }, `<path ${attrs.join(' ')} d="${d}"${markers} />`)
+      ...connectorSemantics,
+      route: { ...connectorSemantics.route, contours: projection.contours },
+    }, `<path ${attrs.join(' ')} d="${projection.geometry.d}"${markers} />`)
   }
   return marks.connector({
     id: sceneId,
@@ -425,6 +448,7 @@ function lowerEdge(edge: PositionedArchitectureEdge, visual: ArchitectureVisualC
     paint,
     startMarker,
     endMarker,
+    ...connectorSemantics,
   }, `<polyline ${attrs.join(' ')} points="${points}"${markers} />`)
 }
 
@@ -569,16 +593,27 @@ function fallbackIconGlyph(icon: string): string {
   return (token[0] ?? '?').toUpperCase()
 }
 
-function arrowMarkerDefs(): string {
-  return [
-    '  <marker id="architecture-arrow-end" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto">',
-    '    <polygon points="0 0, 8 2.5, 0 5" fill="var(--arch-edge-stroke, var(--_arrow))" stroke="var(--arch-edge-stroke, var(--_arrow))" stroke-width="0.75" stroke-linejoin="round" />',
-    '  </marker>',
-    '  <marker id="architecture-arrow-start" markerWidth="8" markerHeight="5" refX="1" refY="2.5" orient="auto-start-reverse">',
-    '    <polygon points="8 0, 0 2.5, 8 5" fill="var(--arch-edge-stroke, var(--_arrow))" stroke="var(--arch-edge-stroke, var(--_arrow))" stroke-width="0.75" stroke-linejoin="round" />',
-    '  </marker>',
-  ].join('\n')
+const ARCHITECTURE_MARKER_PAINT = {
+  fill: 'var(--arch-edge-stroke, var(--_arrow))',
+  stroke: 'var(--arch-edge-stroke, var(--_arrow))',
+  strokeWidth: '0.75',
+  strokeLinejoin: 'round' as const,
 }
+
+const ARCHITECTURE_MARKERS: readonly MarkerDescriptor[] = [
+  {
+    id: 'architecture-arrow-end', shape: 'arrow',
+    size: { width: 8, height: 5 }, ref: { x: 7, y: 2.5 }, orient: 'auto',
+    geometry: { kind: 'polygon', points: [{ x: 0, y: 0 }, { x: 8, y: 2.5 }, { x: 0, y: 5 }] },
+    paint: ARCHITECTURE_MARKER_PAINT,
+  },
+  {
+    id: 'architecture-arrow-start', shape: 'arrow',
+    size: { width: 8, height: 5 }, ref: { x: 1, y: 2.5 }, orient: 'auto-start-reverse',
+    geometry: { kind: 'polygon', points: [{ x: 8, y: 0 }, { x: 0, y: 2.5 }, { x: 8, y: 5 }] },
+    paint: ARCHITECTURE_MARKER_PAINT,
+  },
+]
 
 function edgeMidpoint(points: Point[]): Point {
   if (points.length === 0) return { x: 0, y: 0 }
@@ -611,42 +646,6 @@ function segmentLength(a: Point, b: Point): number {
   return Math.abs(b.x - a.x) + Math.abs(b.y - a.y)
 }
 
-function pointsToPathD(points: Point[], radius: number): string {
-  if (points.length === 0) return ''
-  if (points.length === 1) return `M${points[0]!.x},${points[0]!.y}`
-  const parts = [`M${points[0]!.x},${points[0]!.y}`]
-  for (let i = 1; i < points.length - 1; i++) {
-    const prev = points[i - 1]!
-    const curr = points[i]!
-    const next = points[i + 1]!
-    const prevLen = segmentLength(prev, curr)
-    const nextLen = segmentLength(curr, next)
-    const r = Math.min(radius, prevLen / 2, nextLen / 2)
-    if (r <= 0) {
-      parts.push(`L${curr.x},${curr.y}`)
-      continue
-    }
-    const before = pointToward(curr, prev, r)
-    const after = pointToward(curr, next, r)
-    parts.push(`L${before.x},${before.y}`)
-    parts.push(`Q${curr.x},${curr.y} ${after.x},${after.y}`)
-  }
-  const last = points[points.length - 1]!
-  parts.push(`L${last.x},${last.y}`)
-  return parts.join(' ')
-}
-
-function pointToward(from: Point, to: Point, distance: number): Point {
-  const total = segmentLength(from, to)
-  if (total === 0) return { ...from }
-  const t = distance / total
-  return {
-    x: Math.round((from.x + (to.x - from.x) * t) * 1000) / 1000,
-    y: Math.round((from.y + (to.y - from.y) * t) * 1000) / 1000,
-  }
-}
-
 function letterAttr(value: number): string {
   return value !== 0 ? ` letter-spacing="${value}"` : ''
 }
-

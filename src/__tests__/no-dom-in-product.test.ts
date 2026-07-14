@@ -37,9 +37,9 @@ function stripNonCode(src: string): string {
   return src
     .replace(/\/\*[\s\S]*?\*\//g, blank)     // block comments
     .replace(/`(?:\\.|[^`\\])*`/g, blank)    // template literals (can span lines)
+    .replace(/'(?:\\.|[^'\\\n])*'/g, ' ')   // single-quoted strings
+    .replace(/"(?:\\.|[^"\\\n])*"/g, ' ')   // double-quoted strings
     .replace(/\/\/[^\n]*/g, blank)           // line comments
-    .replace(/'(?:\\.|[^'\\])*'/g, ' ')      // single-quoted strings
-    .replace(/"(?:\\.|[^"\\])*"/g, ' ')      // double-quoted strings
 }
 
 describe('product source stays DOM-free', () => {

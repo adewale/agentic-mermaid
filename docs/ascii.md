@@ -22,6 +22,12 @@ am render diagram.mmd --format unicode
 
 ## Options
 
+`AsciiRenderOptions` extends the canonical shared `RenderOptions` used by SVG
+and PNG, so Style stacks, colors, font choice, security policy, and other
+shared request fields enter through the same boundary. Call
+`sharedRenderOptionsJsonSchema()` for the machine-readable shared field set.
+The options below are terminal-specific.
+
 ```ts
 renderMermaidASCII(source, {
   useAscii: true,
@@ -41,9 +47,13 @@ renderMermaidASCII(source, {
 | `boxBorderPadding` | `number` | `1` | Padding inside node boxes. |
 | `colorMode` | `string` | `'auto'` | `'none'`, `'auto'`, `'ansi16'`, `'ansi256'`, `'truecolor'`, or `'html'`. |
 | `theme` | `Partial<AsciiTheme>` | — | Override terminal colors. |
-| `mermaidConfig` | `MermaidRuntimeConfig` | — | Mermaid-style runtime config. |
 | `maxWidth` | `number` | — | Deprecated best-effort label wrapping; the canvas may exceed it. |
 | `targetWidth` | `number` | — | Hard maximum in terminal display cells; impossible geometry throws `AsciiWidthError` with code `ASCII_TARGET_WIDTH_IMPOSSIBLE`. |
+
+HTML is an escaped terminal projection, selected programmatically with
+`renderMermaidASCII(source, { colorMode: 'html' })`. It is not a standalone
+`am render --format` value; CLI discovery advertises only directly supported
+artifact formats.
 
 ## ASCII with metadata
 
@@ -75,21 +85,16 @@ not for reconstructing arbitrary Mermaid source.
 
 ## Supported families
 
-ASCII/Unicode output is available from the public entrypoints for:
+Family support is registry-driven rather than maintained as a second list in
+this guide. Run `am capabilities --json` for live discovery; the generated
+[Section A capability matrix](./project/section-a-capability-report.md) records
+terminal projection support and named losses for every registered family.
 
-- flowchart/state
-- sequence
-- class
-- ER
-- timeline
-- journey
-- XY chart
-- architecture
-- pie
-- quadrant
-- gantt
-- mindmap
-- gitgraph
+Style appearance is projected to terminal colors and glyphs. Use a
+receipt-bearing render API to compare its `appearanceDigest` with graphical
+outputs, and inspect projection diagnostics when a graphical feature has no
+terminal equivalent. `colorMode: 'auto'` disables color for non-TTY output,
+`TERM=dumb`, and `NO_COLOR` before considering color-depth hints.
 
 PNG output is separate: use `renderMermaidPNG(source)` or `am render --format png --output file.png` when a raster artifact is required.
 

@@ -34,26 +34,9 @@ D2 has a better language than Mermaid. The Beautiful Mermaid renderer foundation
 
 ## Honest scope
 
-What the current Agentic Mermaid surface delivers and what it doesn't:
+The checked family roster, capability states, edit policies, narrowers, and mutation operations are generated from `FamilyDescriptor`: read [`docs/project/section-a-capability-report.md`](./docs/project/section-a-capability-report.md) or `am capabilities --json`, and use `describeOps(family)` for exact operation schemas. This rationale deliberately does not copy that live inventory.
 
-| Family | Parse / verify / render / round-trip | Structured mutation |
-|---|---|---|
-| Flowchart | Full — including v11.6 edge IDs and v11 shape metadata; markdown strings render but keep the body opaque losslessly | `asFlowchart` |
-| State | Structured round-trip for states/transitions/`[*]`, notes, stereotypes/history, concurrency regions, declarations, and paint | `asState` |
-| Sequence | Structured-with-segments: participant/message ops stay live while unsupported statements ride along verbatim; only un-segmentable input falls back to whole-body opaque | `asSequence` |
-| Timeline | Full — including the `timeline TD` vertical direction token | `asTimeline` |
-| Class | Structured namespaces, generics, direction, `classDef`, class assignment, and inline paint | `asClass` |
-| ER | Ordered typed/opaque segments for entities, attributes, relationships, direction, and paint; identity edits reject stale opaque references | `asEr` |
-| Journey | Full structured round-trip (title/sections/tasks) | `asJourney` |
-| Architecture | Structured round-trip for visible/accessibility titles, descriptions, groups/services/junctions, boundary edges, and `align` directives | `asArchitecture` |
-| XY chart | Structured orientation/title/axes/series; unsupported extensions fall back to opaque losslessly | `asXyChart` |
-| Pie | Structured round-trip for title/showData/slices; unsupported extensions fall back to opaque losslessly | `asPie` |
-| Quadrant | Structured round-trip for axes, region labels, points, and supported paint; malformed metadata falls back to opaque losslessly | `asQuadrant` |
-| Gantt | Structured-with-segments ([family contract](./docs/design/families/gantt.md)); deterministic caller-supplied `ganttToday` | `asGantt` |
-| Mindmap | Indentation-sensitive structured tree with shapes, icons, classes, accessibility, Scene/SVG/terminal rendering, and duplicate-id rejection | `asMindmap` |
-| GitGraph | Replayed commits/branches/checkout/merge/cherry-pick with deterministic generated ids and duplicate-id rejection | `asGitGraph` |
-
-The implication: for any opaque fallback, the agent's tool surface is *parse → verify → render → serialize*, not *parse → mutate → verify → serialize*. Cross-cutting edits on those bodies happen at the preserved source level (`body.source` for opaque bodies), not at the typed mutation layer. Code Mode opportunity #1 covers this for the cases where it matters.
+The generated edit policy decides where typed mutation is available. For an opaque fallback, the agent's tool surface is *parse → verify → render → serialize*, not *parse → mutate → verify → serialize*. Cross-cutting edits on those bodies happen at the preserved source level (`body.source` for opaque bodies), not at the typed mutation layer. Code Mode opportunity #1 covers this for the cases where it matters.
 
 ---
 
@@ -151,7 +134,7 @@ Tier 3 warnings are family-specific quality hints for "common LLM mistakes" that
 | `CONTENT_DROPPED_ON_ROUNDTRIP` | warning | The structured `{nodes, edges, groups}` tally changed across a parse → serialize → re-parse cycle, so canonical serialization is silently dropping or duplicating content even though the bytes may re-parse (payload carries `before`/`after` counts). The faithfulness analogue of `COMMENT_DROPPED` — "100% parse success is not faithfulness". Runs on every verify, for every family; opaque bodies (byte-verbatim) are exempt. |
 | `INEFFECTIVE_CONFIG` | warning | A Mermaid config field was accepted (for config-shape compatibility) but has no effect on this family's geometry or paint — e.g. Journey's sequence-era fields (`boxMargin`, `rightAngles`, …). Payload names the `field`. Accepting-and-ignoring silently misleads migrating users; this lint says so. |
 
-`FamilyPlugin.verify` hooks are wired and run today; built-ins use them for Tier 1 structural warnings for class/ER and the central flowchart verifier emits the initial Tier 3 lint catalogue. Future lint codes should be added deliberately to `WARNING_TIER`, documented here, and covered by doc-sync tests.
+`FamilyDescriptor.verify` hooks are wired and run today; built-ins use them for Tier 1 structural warnings for class/ER and the central flowchart verifier emits the initial Tier 3 lint catalogue. Future lint codes should be added deliberately to `WARNING_TIER`, documented here, and covered by doc-sync tests.
 
 **Branded coordinate types** (`Finite`) prevent NaN / Infinity from reaching the renderer. `toFinite()` is the only constructor; it throws on invalid input.
 
@@ -189,12 +172,7 @@ type DiagramBody =
   | MindmapBody | GitGraphBody
   | { kind: 'opaque'; family: DiagramKind; source: string }
 
-type MutableValidDiagram =
-  | FlowchartValidDiagram | StateValidDiagram | SequenceValidDiagram
-  | TimelineValidDiagram | ClassValidDiagram | ErValidDiagram
-  | JourneyValidDiagram | ArchitectureValidDiagram | XyChartValidDiagram
-  | PieValidDiagram | QuadrantValidDiagram | GanttValidDiagram
-  | MindmapValidDiagram | GitGraphValidDiagram
+type MutableValidDiagram = import('agentic-mermaid/agent').MutableValidDiagram
 ```
 
 ```ts
@@ -203,24 +181,12 @@ serializeMermaid(d: ValidDiagram):                           string
 synthesizeFromGraph(payload):                                Result<ValidDiagram, ParseError[]>
 createMermaid(kind, opts?):                                  MutableValidDiagram   // empty structured diagram; overloads narrow per kind
 buildMermaid(kind, ops, opts?):                              Result<MutableValidDiagram, MutationError & { opIndex: number }>
-mutate(d: FlowchartValidDiagram, op: FlowchartMutationOp):   Result<FlowchartValidDiagram, MutationError>
-mutate(d: StateValidDiagram,     op: StateMutationOp):       Result<StateValidDiagram, MutationError>
-mutate(d: SequenceValidDiagram,  op: SequenceMutationOp):    Result<SequenceValidDiagram, MutationError>
-mutate(d: TimelineValidDiagram,  op: TimelineMutationOp):    Result<TimelineValidDiagram, MutationError>
-mutate(d: ClassValidDiagram,     op: ClassMutationOp):       Result<ClassValidDiagram, MutationError>
-mutate(d: ErValidDiagram,        op: ErMutationOp):          Result<ErValidDiagram, MutationError>
-mutate(d: JourneyValidDiagram,   op: JourneyMutationOp):     Result<JourneyValidDiagram, MutationError>
-mutate(d: ArchitectureValidDiagram, op: ArchitectureMutationOp): Result<ArchitectureValidDiagram, MutationError>
-mutate(d: XyChartValidDiagram,   op: XyChartMutationOp):     Result<XyChartValidDiagram, MutationError>
-mutate(d: PieValidDiagram,       op: PieMutationOp):         Result<PieValidDiagram, MutationError>
-mutate(d: QuadrantValidDiagram,  op: QuadrantMutationOp):    Result<QuadrantValidDiagram, MutationError>
-mutate(d: GanttValidDiagram,     op: GanttMutationOp):       Result<GanttValidDiagram, MutationError>
-mutate(d: MindmapValidDiagram,   op: MindmapMutationOp):     Result<MindmapValidDiagram, MutationError>
-mutate(d: GitGraphValidDiagram,  op: GitGraphMutationOp):    Result<GitGraphValidDiagram, MutationError>
-asFlowchart/asState/asSequence/asTimeline/asClass/asEr/asJourney/asArchitecture/asXyChart/asPie/asQuadrant/asGantt/asMindmap/asGitGraph(d): narrowed diagram | null
+mutate(d, op):                                               Result<MutableValidDiagram, MutationError>
+// Concrete overloads preserve the narrowed family. Overloads and narrowers are
+// registry-derived; discover them with am capabilities --json and describeOps(family).
 ```
 
-**`mutate` is overloaded by family.** Flowchart/state, sequence, timeline, class, ER, journey, architecture, xychart, pie, quadrant, gantt, mindmap, and gitgraph diagrams have first-class structured editing. Opaque-fallback diagrams are not typed for mutation, so agents get a compile-time/null-narrower stop rather than a lossy edit path.
+**`mutate` is overloaded by family.** A registry-declared narrower returns the family-specific mutable type or `null`; the generated capability entry and `describeOps(family)` own the live operation contract. Opaque-fallback diagrams are not typed for mutation, so agents get a compile-time/null-narrower stop rather than a lossy edit path.
 
 Two contracts:
 
@@ -341,7 +307,7 @@ Two contracts:
 | `set_entity_class`  | `entity`, `className \| null`                        | restore previous assignment |
 | `set_entity_style`  | `entity`, `style \| null`                            | restore previous style |
 
-**Journey MutationOp kinds** (promoted from opaque-only fallback semantics through the FamilyPlugin registry; ordering and accessibility are typed because Journey order is the timeline):
+**Journey MutationOp kinds** (promoted from opaque-only fallback semantics through the family-descriptor registry; ordering and accessibility are typed because Journey order is the timeline):
 
 | Kind | Required | Inverse |
 |---|---|---|
@@ -384,7 +350,7 @@ Two contracts:
 | `update_edge` | `index` (+ any endpoint/side/boundary/label/arrow fields) | `update_edge(index, previous fields)` |
 | `remove_edge` | `index` or `id` (`from->to`) | `add_edge(...)` |
 
-**XY chart MutationOp kinds** (10, BUILD-16 — promoting the xychart family to structured mutation via the FamilyPlugin registry, following the BUILD-15 journey and BUILD-17 architecture pilots). Canonical number format is `String(n)` (shortest round-tripping decimal); all values must be finite. Modeled grammar covers bare titles/axis-names/series-names/categories — quoted text whose content is bare parses and canonicalizes to unquoted form; embedded quotes/brackets, multi-statement `;` lines, accTitle/accDescr, and any other unmodeled syntax fall back to opaque:
+**XY chart MutationOp kinds** (10, BUILD-16 — promoting the xychart family to structured mutation via the family-descriptor registry, following the BUILD-15 journey and BUILD-17 architecture pilots). Canonical number format is `String(n)` (shortest round-tripping decimal); all values must be finite. Modeled grammar covers bare titles/axis-names/series-names/categories — quoted text whose content is bare parses and canonicalizes to unquoted form; embedded quotes/brackets, multi-statement `;` lines, accTitle/accDescr, and any other unmodeled syntax fall back to opaque:
 
 | Kind | Required | Inverse |
 |---|---|---|
@@ -399,7 +365,7 @@ Two contracts:
 | `set_orientation`    | `horizontal: boolean` (`true` adds the `horizontal` header suffix; `false` drops it — vertical is the serialized default) | `set_orientation(prev)` |
 | `set_data_point`     | `seriesIndex`, `index`, `value` (finite; out-of-range indices name the valid ranges) | `set_data_point(seriesIndex, index, prev_value)` |
 
-**Pie MutationOp kinds** (7 — promoting the pie family to structured mutation via the FamilyPlugin registry, following the journey/architecture/xychart pilots). Slices are addressed by their (unique) label; values must be positive finite numbers. The header's `showData` flag and an optional `title` are modeled; any unmodeled line (accTitle/accDescr, malformed entry) falls back to opaque losslessly:
+**Pie MutationOp kinds** (7 — promoting the pie family to structured mutation via the family-descriptor registry, following the journey/architecture/xychart pilots). Slices are addressed by their (unique) label; values must be positive finite numbers. The header's `showData` flag and an optional `title` are modeled; any unmodeled line (accTitle/accDescr, malformed entry) falls back to opaque losslessly:
 
 | Kind | Required | Inverse |
 |---|---|---|
@@ -411,7 +377,7 @@ Two contracts:
 | `set_slice_value`    | `label`, `value` (> 0)                                   | `set_slice_value(label, prev_value)` |
 | `reorder_slice`      | `from`, `to`                                             | `reorder_slice(to, from)` |
 
-**Quadrant MutationOp kinds** (7 — promoting the quadrantChart family to structured mutation via the FamilyPlugin registry). Points are addressed by their (unique) label; coordinates must be in `[0, 1]`. Quadrant numbering follows Mermaid core (1=top-right, 2=top-left, 3=bottom-left, 4=bottom-right). Styling (`classDef`, `:::`), out-of-range coordinates, and any unmodeled line fall back to opaque losslessly:
+**Quadrant MutationOp kinds** (7 — promoting the quadrantChart family to structured mutation via the family-descriptor registry). Points are addressed by their (unique) label; coordinates must be in `[0, 1]`. Quadrant numbering follows Mermaid core (1=top-right, 2=top-left, 3=bottom-left, 4=bottom-right). Styling (`classDef`, `:::`), out-of-range coordinates, and any unmodeled line fall back to opaque losslessly:
 
 | Kind | Required | Inverse |
 |---|---|---|
@@ -451,7 +417,7 @@ Two contracts:
 
 **Structured-or-opaque rule (v4): never lossy.** The parser only produces a structured body when it fully understands every non-blank, non-comment line for most structured families. If the source contains *any* construct the parser doesn't model — `direction TB` in class, out-of-range scores in journey, duplicate Architecture title declarations, a `;`-joined multi-statement line in xychart, a malformed entry in pie, or out-of-range coordinates in quadrant, etc. — parsing **falls back to an opaque body**. The diagram still parses, renders, verifies (structurally), and round-trips losslessly via preserved `body.source`; it simply isn't offered for structured mutation (structured-family narrowers return `null` on opaque fallbacks). This guarantees the parser never silently drops information. Earlier drafts dropped unrecognized lines on the floor; v4 does not.
 
-**Segment-preserving bodies — sequence ends the all-or-nothing cliff.** Sequence carries an ordered `statements: SequenceStatement[]` list. `alt|opt|loop|par` are typed fragments: their branches/messages participate in describe/facts/verify and have dedicated mutation ops. Other block constructs (`critical|break|rect|box … end`) and `Note`/`activate`/`deactivate`/`create`/`destroy`/`autonumber`/`title` remain VERBATIM opaque segments. Top-level message indices stay backward-compatible and distinct from fragment indices. Only an un-segmentable body (a stray `end`, an unclosed block) falls back to whole-body opaque. Gantt adopts the same pattern for calendar directives/click/comments.
+**Segment-preserving bodies (BUILD-18) — sequence ends the all-or-nothing cliff.** Sequence carries an ordered `statements: SequenceStatement[]` list. `alt|opt|loop|par` are typed fragments: their branches/messages participate in describe/facts/verify and have dedicated mutation ops. Other block constructs (`critical|break|rect|box … end`) and `Note`/`activate`/`deactivate`/`create`/`destroy`/`autonumber`/`title` remain VERBATIM opaque segments. Top-level message indices stay backward-compatible and distinct from fragment indices. Only an un-segmentable body (a stray `end`, an unclosed block) falls back to whole-body opaque. Gantt adopts the same pattern for calendar directives/click/comments. ER also uses ordered typed and opaque-block segments; Class and Timeline are the remaining follow-up work.
 
 For any opaque fallback, cross-cutting edits are source-level only: operate against preserved source intentionally, then re-parse and verify before returning. Every renderable family now ships structured mutation; a new family follows the same pattern as its definition of done: narrowed type + body parser + serializer + per-family ops + verify hook + round-trip property tests + doc sync (most recently Mindmap and GitGraph). See `docs/contributing/adding-diagram-types.md`.
 
@@ -570,7 +536,7 @@ The canonical runtime guide lives in `Instructions_for_agents.md` and is emitted
 
 1. For new diagrams, `buildMermaid(kind, ops)` — or `createMermaid(kind)` then typed mutations — then `verifyMermaid` / render or return it. Author Mermaid source directly only for syntax the typed ops do not model.
 2. For existing diagrams, `parseMermaid(source)` → `ValidDiagram`.
-3. Narrow with `asFlowchart` / `asState` / `asSequence` / `asTimeline` / `asClass` / `asEr` / `asJourney` / `asArchitecture` / `asXyChart` / `asPie` / `asQuadrant` / `asGantt` / `asMindmap` / `asGitGraph`; `null` means no structured mutation for that body.
+3. Use the family entry's registry-advertised narrower; `null` means no structured mutation for that body.
 4. Apply typed `mutate` ops only to narrowed mutable bodies; Code Mode SDK-returned diagrams are read-only to block direct IR edits.
 5. Run `verifyMermaid(d)` at every commit point and inspect `ok` / `warnings` / `layout`.
 6. Only then `serializeMermaid(d)`.
@@ -620,7 +586,7 @@ MermaidSeqBench is wired as an external corpus signal; live model transcript eva
 
 - **Determinism is empirical, not proven.** It's established by cross-process test over a corpus + the drift sentinel, plus reading ELK's config (`considerModelOrder: NODES_AND_EDGES`, no `randomSeed`). An ELK upgrade could in principle change this; the cross-process test and sentinel would catch it. There is no layout seed to fall back on because seeding never affected geometry. (The render option `seed` is a *style* seed: it re-rolls the ink wobble of styled looks and never moves layout.)
 - **Determinism claim, precisely.** Layout JSON is byte-identical (after structural parse) across processes AND across JS runtimes (bun, node) on the same machine and same ELK version; this is verified on same-machine x86_64 and ARM64 when Node + built `dist/` are present. Direct cross-architecture byte equality (x86_64 output compared to ARM64 output) is still not a separate claim.
-- **Sequence structured coverage is segment-preserving (BUILD-18).** Participant declarations, top-level messages, and direct-message `alt`/`opt`/`loop`/`par` fragments are typed; fragment messages participate in describe/facts/verify and dedicated mutation ops. Note/critical/break/rect/box/activate/autonumber/title and nested or otherwise unmodeled fragment content ride along as verbatim opaque-block *segments*, so the structured ops survive instead of going whole-body opaque. Messages inside those remaining opaque blocks are deliberately not modeled. Only un-segmentable input (unbalanced `end`, unclosed block) falls back to whole-body opaque. The honest tradeoff is unchanged — never lossy — it just no longer sacrifices the structured ops at the first unmodeled line. (Class/ER/timeline segment work is a follow-up.)
+- **Sequence structured coverage is segment-preserving (BUILD-18).** Participant declarations, top-level messages, and direct-message `alt`/`opt`/`loop`/`par` fragments are typed; fragment messages participate in describe/facts/verify and dedicated mutation ops. Note/critical/break/rect/box/activate/autonumber/title and nested or otherwise unmodeled fragment content ride along as verbatim opaque-block *segments*, so the structured ops survive instead of going whole-body opaque. Messages inside those remaining opaque blocks are deliberately not modeled. Only un-segmentable input (unbalanced `end`, unclosed block) falls back to whole-body opaque. The honest tradeoff is unchanged — never lossy — it just no longer sacrifices the structured ops at the first unmodeled line. ER also has ordered typed and opaque-block segments; Class and Timeline are the remaining follow-up work.
 - **Every registered renderable family ships structured mutation; opaque fallbacks stay source-level only.** A typed narrower exists for every family kind; only opaque-fallback bodies for unmodeled syntax remain deliberate, lossless source-level paths.
 - **Live-model agent-usage eval is periodic, not PR CI.** Stored Code Mode scripts, sandbox traces, task oracles, and the committed pi-subagent transcript replay run in CI; API-backed release-model transcripts remain in `TODO.md` because they need model access and selected release tasks.
 - **Bloat in agent-facing docs.** `Instructions_for_agents.md` is hard-capped under 100 lines; doc-sync test enforces.

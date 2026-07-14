@@ -1,10 +1,10 @@
 // ============================================================================
 // Flowchart/state structured body: parse / serialize / mutate / source-map
-// (FamilyPlugin hooks — BUILD-3 stage 2, removing the in-tree exception).
+// (FamilyDescriptor hooks — BUILD-3 stage 2, removing the in-tree exception).
 //
 // Flowchart and state are two DiagramKinds sharing one body kind
 // ('flowchart', holding the legacy renderer's MermaidGraph). Both register
-// a plugin built by `flowchartFamilyHooks(headerKind)`, which binds the
+// a descriptor built by `flowchartFamilyHooks(headerKind)`, which binds the
 // serialized header (`flowchart <dir>` vs `stateDiagram-v2`).
 //
 // Contract differences from the narrow structured families, kept on purpose:

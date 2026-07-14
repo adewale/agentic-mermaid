@@ -19,7 +19,7 @@ Chat-only with no shell or sandbox: use the hosted MCP over HTTP. The website ex
 - **Operations, families, warning codes:** run `am capabilities --json` when the CLI is installed — it matches your exact version, so prefer it — otherwise fetch `https://agentic-mermaid.dev/capabilities.json`. Each family entry carries `headers` (the keyword to open with), `example` (canonical syntax for that family), and `opFields` (every op's exact field names, required-ness, and enum values) — read these before authoring or editing so you don't guess field shapes — several are not guessable (a series' type field is `kind2`, not `kind`; a gantt task `start` accepts `after <taskId>`).
 - **Full operating guide and authoring facts:** `https://agentic-mermaid.dev/agent-instructions.md`.
 
-Flowchart essentials: quote any label carrying punctuation (`id["HTTPS /api/sessions*"]`); `\n` inside a quoted label is a line break and canonicalizes to `<br>` on serialize; `subgraph id["Title"] … end` groups nodes; edges are `A -- "label" --> B`, `A -.-> B`, and `A -. "label" .-> B`. Families: flowchart, sequence, state, class, ER, journey, timeline, gantt, pie, quadrant, xychart, architecture, mindmap, gitgraph.
+Flowchart essentials: quote any label carrying punctuation (`id["HTTPS /api/sessions*"]`); `\n` inside a quoted label is a line break and canonicalizes to `<br>` on serialize; `subgraph id["Title"] … end` groups nodes; edges are `A -- "label" --> B`, `A -.-> B`, and `A -. "label" .-> B`. Discover the current family roster and each family's exact syntax through `am capabilities --json` or `capabilities.json`; do not rely on a copied list.
 
 ## Step 3 — Do the task (the one safe loop)
 

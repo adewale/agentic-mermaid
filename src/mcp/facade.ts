@@ -8,6 +8,9 @@ import type { DiagramKind } from '../agent/types.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { parse as parseJavaScript } from 'acorn'
 import type { Node as AcornNode } from 'acorn'
+import { ParsedDiagramFamilyMismatchError, RenderCapabilityError } from '../render-contract.ts'
+import type { CodeModeHostPolicy } from '../render-host-policy.ts'
+import { projectRenderErrorDiagnostic } from '../render-error-diagnostic.ts'
 
 export type ExecutionTraceCall =
   | { verb: 'parse'; diagram?: number; source?: string }
@@ -24,7 +27,12 @@ export type ExecutionTraceCall =
 type TraceMutationBody = Extract<ExecutionTraceCall, { verb: 'mutate' }>['body']
 type TraceNarrowFamily = Extract<ExecutionTraceCall, { verb: 'narrow' }>['family']
 
-export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxError?: (message: string) => Error, isClosed?: () => boolean): typeof mermaid {
+export function createTracingMermaid(
+  trace?: ExecutionTraceCall[],
+  makeSandboxError?: (message: string) => Error,
+  isClosed?: () => boolean,
+  hostPolicy?: CodeModeHostPolicy,
+): typeof mermaid {
   const diagramIds = new WeakMap<object, number>()
   const trusted = new WeakSet<object>()
   const hardened = new WeakMap<object, unknown>()
@@ -41,18 +49,70 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
   const rawOf = <T>(value: T): T => (value && (typeof value === 'object' || typeof value === 'function') && raw.has(value as object) ? raw.get(value as object) : value) as T
   const isMap = (value: unknown): value is Map<unknown, unknown> => value instanceof Map || Object.prototype.toString.call(value) === '[object Map]'
   const isSet = (value: unknown): value is Set<unknown> => value instanceof Set || Object.prototype.toString.call(value) === '[object Set]'
+  const structuredErrorMetadata = new WeakMap<object, Record<string, unknown>>()
+  /** Copy only documented structured-error data. The JSON round trip detaches
+   * nested records from the host before the read-only membrane exposes them to
+   * Code Mode; stacks, prototypes, accessors, and arbitrary error properties
+   * never cross the boundary. */
+  const structuredErrorFields = (error: unknown): Record<string, unknown> | undefined => {
+    if (typeof error !== 'object' || error === null) return undefined
+    const carried = structuredErrorMetadata.get(error)
+    if (carried) return carried
+    let fields: Record<string, unknown> | undefined
+    const renderDiagnostic = projectRenderErrorDiagnostic(error)
+    if (renderDiagnostic) {
+      fields = {
+        name: renderDiagnostic.code === 'ASCII_TARGET_WIDTH_IMPOSSIBLE'
+          ? 'AsciiWidthError'
+          : 'MermaidFamilyDetectionError',
+        ...renderDiagnostic,
+      }
+    } else if (error instanceof RenderCapabilityError) {
+      fields = {
+        name: error.name,
+        code: error.code,
+        output: error.output,
+        family: error.family,
+        decision: error.decision,
+      }
+    } else if (error instanceof ParsedDiagramFamilyMismatchError) {
+      fields = {
+        name: error.name,
+        code: error.code,
+        expectedFamilyId: error.expectedFamilyId,
+        detectedFamilyId: error.detectedFamilyId,
+      }
+    }
+    if (!fields) return undefined
+    const encoded = JSON.stringify(fields)
+    return encoded === undefined ? undefined : JSON.parse(encoded) as Record<string, unknown>
+  }
+  /** A proxy may not substitute hardened child proxies for non-configurable,
+   * non-writable properties on a frozen target. Move plain immutable data onto
+   * an extensible envelope first so nested parsed receipts remain both
+   * accessible and read-only through the Code Mode membrane. */
+  const extensibleDataEnvelope = (value: object): object => {
+    if (Object.isExtensible(value)) return value
+    if (Array.isArray(value)) return value.slice()
+    const prototype = Reflect.getPrototypeOf(value)
+    return prototype === Object.prototype || prototype === null
+      ? Object.assign(Object.create(prototype), value)
+      : value
+  }
   const hostCall = <T>(fn: () => T): T => {
     try { return fn() } catch (e) {
       const wrapped = sandboxError((e as Error).message)
-      if (typeof e === 'object' && e !== null && 'code' in e && e.code === 'ASCII_TARGET_WIDTH_IMPOSSIBLE') {
-        const widthError = e as { code: string; requestedWidth: number; requiredWidth: number; family: string; reason: string }
-        Object.assign(wrapped, {
-          code: widthError.code,
-          requestedWidth: widthError.requestedWidth,
-          requiredWidth: widthError.requiredWidth,
-          family: widthError.family,
-          reason: widthError.reason,
-        })
+      const fields = structuredErrorFields(e)
+      if (fields) {
+        structuredErrorMetadata.set(wrapped, fields)
+        for (const [field, value] of Object.entries(fields)) {
+          Object.defineProperty(wrapped, field, {
+            value: harden(value),
+            enumerable: true,
+            writable: false,
+            configurable: false,
+          })
+        }
       }
       throw wrapped
     }
@@ -97,7 +157,7 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
   const requireTrustedDiagram = (value: unknown, verb: string): void => {
     value = rawOf(value)
     if (value && (typeof value === 'object' || typeof value === 'function') && !trusted.has(value as object)) {
-      throw sandboxError(`Code Mode ${verb} input must come from mermaid.parseMermaid(...) or mermaid.mutate(...)`)
+      throw sandboxError(`Code Mode ${verb} input must come from mermaid.parseMermaid(...), mermaid.parseRegisteredMermaid(...), or mermaid.mutate(...)`)
     }
   }
   const rememberRaw = <T extends object>(proxy: T, target: object): T => {
@@ -189,8 +249,9 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
       return rememberRaw(proxy, value) as T
     }
 
+    const proxyTarget = extensibleDataEnvelope(value as object)
     let proxy: object
-    proxy = new Proxy(value as object, {
+    proxy = new Proxy(proxyTarget, {
       get(target, prop, receiver) {
         if (forbidden(prop)) return undefined
         if (Array.isArray(target)) {
@@ -258,6 +319,7 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
       getPrototypeOf(target) { return protoFor(target) },
     })
     hardened.set(obj, proxy)
+    if (proxyTarget !== obj) hardened.set(proxyTarget, proxy)
     return rememberRaw(proxy, value as object) as T
   }
 
@@ -269,6 +331,7 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
   const push = (call: ExecutionTraceCall) => { trace?.push(call) }
   const sdkTarget = {
     parseMermaid: mermaid.parseMermaid,
+    parseRegisteredMermaid: mermaid.parseRegisteredMermaid,
     createMermaid: mermaid.createMermaid,
     buildMermaid: mermaid.buildMermaid,
     asFlowchart: mermaid.asFlowchart,
@@ -295,7 +358,10 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
     checkMermaidSource: mermaid.checkMermaidSource,
     serializeMermaid: mermaid.serializeMermaid,
     renderMermaidSVG: mermaid.renderMermaidSVG,
+    renderMermaidSVGWithReceipt: mermaid.renderMermaidSVGWithReceipt,
     renderMermaidASCII: mermaid.renderMermaidASCII,
+    renderMermaidASCIIWithReceipt: mermaid.renderMermaidASCIIWithReceipt,
+    layoutMermaidWithReceipt: mermaid.layoutMermaidWithReceipt,
     // Read-only op discovery: field shapes / enum values / constraint notes and
     // compact signatures for a family's ops, so a Code Mode script can look up
     // exact op shapes at runtime instead of guessing (or triggering INVALID_OP).
@@ -309,10 +375,11 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
     if (forbidden(prop) || !sdkProps.has(prop)) return undefined
     if (sdkValues.has(prop)) return sdkValues.get(prop)
     let value: unknown
-    if (prop === 'parseMermaid') value = harden((source: string) => {
+    if (prop === 'parseMermaid' || prop === 'parseRegisteredMermaid') value = harden((source: string) => {
       assertOpen()
-      if (typeof source !== 'string') throw sandboxError('Code Mode parseMermaid source must be a string')
-      const r = hostCall(() => target.parseMermaid(source))
+      if (typeof source !== 'string') throw sandboxError(`Code Mode ${prop} source must be a string`)
+      const parse = prop === 'parseRegisteredMermaid' ? target.parseRegisteredMermaid : target.parseMermaid
+      const r = hostCall(() => parse(source))
       if (r.ok) trustDiagram(r.value)
       const diagram = r.ok ? idOf(r.value) : undefined
       push({ verb: 'parse', diagram, source: r.ok ? (r.value.body.kind === 'opaque' ? r.value.body.source : r.value.canonicalSource) : undefined })
@@ -441,21 +508,45 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
       push({ verb: 'serialize', diagram: idOf(d), source, fingerprint: fingerprint(d) })
       return source
     })
-    else if (prop === 'renderMermaidSVG' || prop === 'renderMermaidASCII') value = harden((input: any, opts?: any) => {
+    else if (
+      prop === 'renderMermaidSVG' || prop === 'renderMermaidSVGWithReceipt' ||
+      prop === 'renderMermaidASCII' || prop === 'renderMermaidASCIIWithReceipt' ||
+      prop === 'layoutMermaidWithReceipt'
+    ) value = harden((input: any, opts?: any) => {
       assertOpen()
       if (input && typeof input === 'object') requireTrustedDiagram(input, String(prop))
-      const callback = prop === 'renderMermaidSVG' ? opts?.onConfigDiagnostic : undefined
-      if (callback !== undefined && typeof callback !== 'function') {
-        throw sandboxError('Code Mode renderMermaidSVG onConfigDiagnostic must be a function')
+      const isSvg = prop === 'renderMermaidSVG' || prop === 'renderMermaidSVGWithReceipt'
+      const isAscii = prop === 'renderMermaidASCII' || prop === 'renderMermaidASCIIWithReceipt'
+      const configCallback = isSvg ? opts?.onConfigDiagnostic : undefined
+      const projectionCallback = isAscii ? opts?.onProjectionDiagnostic : undefined
+      if (configCallback !== undefined && typeof configCallback !== 'function') {
+        throw sandboxError(`Code Mode ${String(prop)} onConfigDiagnostic must be a function`)
       }
-      const cloned = jsonClone(opts) as Record<string, unknown> | undefined
-      const diagnostics: unknown[] = []
-      if (prop === 'renderMermaidSVG' && callback) {
-        if (cloned) cloned.onConfigDiagnostic = (diagnostic: unknown) => diagnostics.push(diagnostic)
+      if (projectionCallback !== undefined && typeof projectionCallback !== 'function') {
+        throw sandboxError(`Code Mode ${String(prop)} onProjectionDiagnostic must be a function`)
+      }
+      let cloned = jsonClone(opts) as Record<string, unknown> | undefined
+      // The host policy is applied after cloning caller data, so even an
+      // explicit weaker value cannot cross any hosted render/layout boundary.
+      // Local Code Mode supplies no policy and retains caller-selectable
+      // behavior.
+      if (hostPolicy) cloned = { ...(cloned ?? {}), ...hostPolicy.render }
+      const configDiagnostics: unknown[] = []
+      const projectionDiagnostics: unknown[] = []
+      if (configCallback || projectionCallback) cloned ??= {}
+      if (configCallback) {
+        cloned!.onConfigDiagnostic = (diagnostic: unknown) => configDiagnostics.push(diagnostic)
+      }
+      if (projectionCallback) {
+        cloned!.onProjectionDiagnostic = (diagnostic: unknown) => projectionDiagnostics.push(diagnostic)
       }
       const rendered = hostCall(() => ((target as any)[prop] as (diagram: any, options?: any) => unknown)(rawOf(input), cloned))
-      for (const diagnostic of diagnostics) callback(harden(jsonClone(diagnostic)))
-      return rendered
+      for (const diagnostic of configDiagnostics) configCallback(harden(jsonClone(diagnostic)))
+      for (const diagnostic of projectionDiagnostics) projectionCallback(harden(jsonClone(diagnostic)))
+      // Render artifacts/receipts are immutable host records. Clone to an
+      // extensible data envelope before hardening so Proxy descriptor
+      // invariants remain valid when Code Mode returns the artifact as JSON.
+      return jsonClone(rendered)
     })
     else if (prop === 'describeOps' || prop === 'opSignatures') value = harden((family: any) => {
       assertOpen()

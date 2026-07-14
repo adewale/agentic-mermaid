@@ -115,7 +115,6 @@ const MIXED_N = 120
 let haveDist = false
 
 beforeAll(() => {
-  if (!NODE) return // no Node → nothing to test the artifact under; tests skip.
   const build = spawnSync('bun', ['run', 'build'], { cwd: REPO, encoding: 'utf8', timeout: BUILD_TIMEOUT_MS })
   // A broken build must fail loudly, not skip — that is exactly what shipping
   // would break.
@@ -142,6 +141,17 @@ function runDriver(inputs: string[], pngN: number): Array<{ layout: string; svg:
 const fn = NODE ? test : test.skip
 
 describe('dist artifact differential fuzz (built bundle, plain Node)', () => {
+  test('public source and built declarations both hide internal Style aliases', () => {
+    expect(haveDist).toBe(true)
+    for (const [source, declaration] of [
+      ['src/index.ts', 'dist/index.d.ts'],
+      ['src/agent/core.ts', 'dist/agent-core.d.ts'],
+    ] as const) {
+      expect(readFileSync(join(REPO, source), 'utf8'), source).not.toContain('TUFTE_STYLE_ALIAS')
+      expect(readFileSync(join(REPO, declaration), 'utf8'), declaration).not.toContain('TUFTE_STYLE_ALIAS')
+    }
+  })
+
   fn('dist-under-Node matches src-under-Bun: crash parity (all families) + byte-equality (flowcharts)', () => {
     expect(haveDist).toBe(true)
     const flowInputs = fc.sample(flowchartArb, FLOW_N)

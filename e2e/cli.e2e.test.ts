@@ -153,10 +153,10 @@ describe('am batch', () => {
         { kind: 'add_edge', from: 'B', to: 'C' },
       ],
     })
-    // An opaque-fallback body (pie with an unmodeled accTitle line) exposes no
+    // A pie with an unquoted label has an opaque-fallback body and exposes no
     // structured mutation, so mutate returns UNSUPPORTED_FAMILY — and the batch
     // stream keeps going rather than aborting.
-    const unsupported = JSON.stringify({ op: 'mutate', source: 'pie\n  accTitle: x\n  "A" : 60\n  "B" : 40', mutation: { kind: 'add_node', id: 'X', label: 'X' } })
+    const unsupported = JSON.stringify({ op: 'mutate', source: 'pie\n  Dogs : 3', mutation: { kind: 'add_node', id: 'X', label: 'X' } })
     const stdin = [valid, unsupported].join('\n') + '\n'
 
     const { status, stdout } = runAm(['batch'], stdin)

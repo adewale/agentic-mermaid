@@ -9,24 +9,51 @@
 // common render/verify paths get direct pure tools that cost one ordinary
 // Worker invocation and are eligible for the private compute cache.
 
-import { parseMermaid } from '../agent/parse.ts'
+import { parseRegisteredMermaid } from '../agent/parse.ts'
 import { configWarningsForMermaid, verifyMermaid } from '../agent/verify.ts'
 import { applyOps } from '../agent/apply.ts'
 import { MUTATION_OPS_BY_FAMILY } from '../agent/mutation-ops.ts'
-import { getStyle, knownStyles, styleKind, validateStyleSpec } from '../scene/style-registry.ts'
-import type { StyleInput } from '../scene/style-registry.ts'
-import { describeMermaidSource, describeMermaid } from '../agent/describe.ts'
-import { describeMermaidFacts } from '../agent/facts.ts'
+import { knownStyleDescriptors } from '../scene/style-registry.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
-import { renderMermaidSVG, renderMermaidASCII } from '../agent/core.ts'
+import { renderMermaidSVGWithReceipt, renderMermaidASCIIWithReceipt } from '../agent/core.ts'
 import { verifyNoExternalRefs } from '../index.ts'
 import { THEMES } from '../theme.ts'
 import { unsupportedCodeReason } from './facade.ts'
 import { rpcError, toolResult, type JsonRpcRequest, type JsonRpcResponse } from './protocol.ts'
-import { EXECUTE_TIMEOUT_ERROR, isValidExecuteTimeout, PURE_COMPUTE_ANNOTATIONS, createDescribeTool, createExecuteTool, createRenderPngTool, dispatchMcpRequest, type McpServerSurface } from './tool-surface.ts'
+import {
+  EXECUTE_TIMEOUT_ERROR,
+  MCP_PNG_RENDER_OPTION_CONVENIENCES,
+  MCP_SVG_RENDER_OPTION_CONVENIENCES,
+  PURE_COMPUTE_ANNOTATIONS,
+  createDescribeTool,
+  createExecuteTool,
+  createRenderPngTool,
+  dispatchMcpRequest,
+  isValidExecuteTimeout,
+  mcpRenderOptionSchemaProperties,
+  projectMcpRenderOptions,
+  validateMcpToolArguments,
+  withClosedMcpInputSchema,
+  type McpServerSurface,
+} from './tool-surface.ts'
 import { SDK_CORE_DECLARATION, createDescribeSdkTool, describeSdkPayload } from './sdk-discovery.ts'
+import { mcpDescribePayload, mcpVerificationSummary } from './describe-payload.ts'
 import type { ExecuteResult } from './sandbox.ts'
 import type { PngRasterResult } from '../shared/png-font-warnings.ts'
+import type { RenderOptions } from '../types.ts'
+import { HOSTED_RENDER_OPTIONS } from '../render-host-policy.ts'
+import {
+  MAX_HOSTED_PNG_BYTES,
+  projectPortablePngOutputOptions,
+  resolvePortablePngOutputPolicy,
+  type PortablePngOutputOptions,
+} from '../png-contract.ts'
+import {
+  familyDetectionDiagnosticFromPreservedBody,
+  MermaidFamilyDetectionError,
+} from '../family-detection.ts'
+import { projectRenderErrorDiagnostic } from '../render-error-diagnostic.ts'
+import { boundedUtf8ByteLength } from '../shared/utf8.ts'
 
 export type { ExecuteResult }
 
@@ -40,7 +67,7 @@ export interface HostedMcpContext {
   /** Run Code Mode JavaScript. Hosted: a Dynamic Worker isolate. */
   execute(code: string, timeoutMs: number, onTelemetry?: (telemetry: HostedExecuteTelemetry) => void): Promise<ExecuteResult>
   /** Rasterize SVG to PNG bytes. Hosted: resvg-wasm. Absent → render_png reports unavailable. */
-  renderPng?(source: string, opts: { scale?: number; background?: string; style?: StyleInput | StyleInput[]; seed?: number }): Promise<PngRasterResult>
+  renderPng?(source: string, opts: RenderOptions & import('../png-contract.ts').PortablePngOutputOptions): Promise<PngRasterResult>
 }
 
 // Streamable HTTP clients negotiate 2025-03-26+; the node transports pin
@@ -57,10 +84,6 @@ export const MAX_SOURCE_BYTES = 64 * 1024
 export const MAX_CODE_BYTES = 64 * 1024
 const MAX_EXECUTE_TIMEOUT_MS = 30_000
 const DEFAULT_EXECUTE_TIMEOUT_MS = 5_000
-// Rasterization work grows with scale²; clamp so a tiny source cannot demand
-// unbounded output (the renderer additionally enforces a total pixel budget).
-export const MIN_PNG_SCALE = 0.1
-export const MAX_PNG_SCALE = 8
 
 // Shared with the transport's 413 (total-body cap) so every "too big" refusal
 // points at the same way out.
@@ -69,27 +92,46 @@ const TOO_LARGE_HINT = `input exceeds the hosted size cap; ${LOCAL_FALLBACK_HINT
 
 // Keep hosted discovery aligned with the style registry. This description is
 // the only built-in look menu available to clients that do not call execute.
-const BUILTIN_LOOK_NAMES = knownStyles().filter(name => {
-  const spec = getStyle(name)
-  return spec && styleKind(spec) === 'look'
+const BUILTIN_LOOK_NAMES = knownStyleDescriptors()
+  .filter(descriptor => descriptor.kind === 'look')
+  .map(descriptor => descriptor.inputName)
+const BUILTIN_PALETTE_NAMES = knownStyleDescriptors()
+  .filter(descriptor => descriptor.kind === 'palette')
+  .map(descriptor => descriptor.inputName)
+
+export const LEGACY_THEME_INPUT_DIAGNOSTIC = Object.freeze({
+  code: 'THEME_INPUT_DEPRECATED',
+  message: 'The render_svg theme field is a legacy compatibility input; use style with a Palette name instead.',
+  removal: Object.freeze({ release: '0.3.0', date: '2027-01-31' }),
 })
 
 export const HOSTED_TOOLS = [
   createExecuteTool({ sdkDeclaration: SDK_CORE_DECLARATION, hosted: true }),
-  createDescribeSdkTool(),
+  withClosedMcpInputSchema(createDescribeSdkTool()),
   {
     name: 'render_svg',
     description: `Render a Mermaid source string to themeable SVG. Returns { ok, svg }.
-Layout is deterministic: identical input produces identical geometry.`,
+Layout is deterministic: identical input produces identical geometry. The hosted
+boundary forces security:'strict' and embedFontImport:false.`,
     inputSchema: {
       type: 'object',
+      additionalProperties: false,
       properties: {
         source: { type: 'string', description: 'Mermaid source.' },
-        theme: { type: 'string', description: `Named theme (one of: ${Object.keys(THEMES).join(', ')}).` },
-        bg: { type: 'string', description: 'Background CSS color (overrides theme).' },
-        fg: { type: 'string', description: 'Foreground CSS color (overrides theme).' },
-        style: { description: `Style: a name (one of: ${BUILTIN_LOOK_NAMES.join(', ')}; or any theme name), an inline style record, or an array stack merged left → right. A colors-only style is a theme.` },
-        seed: { type: 'number', description: 'Re-rolls ink wobble of styled looks; never moves layout.' },
+        theme: {
+          type: 'string',
+          enum: Object.keys(THEMES),
+          deprecated: true,
+          'x-agentic-mermaid-diagnostic': LEGACY_THEME_INPUT_DIAGNOSTIC,
+          description: `Deprecated compatibility input (one of: ${Object.keys(THEMES).join(', ')}); use style with a Palette name.`,
+        },
+        ...mcpRenderOptionSchemaProperties(
+          MCP_SVG_RENDER_OPTION_CONVENIENCES,
+          `Shared advanced RenderOptions object; compatibility conveniences override matching values. Styles accept a registered Look (${BUILTIN_LOOK_NAMES.join(', ')}), Palette (${BUILTIN_PALETTE_NAMES.join(', ')}), inline record, or left-to-right stack.`,
+          {
+            style: `Style: a registered Look (${BUILTIN_LOOK_NAMES.join(', ')}), Palette (${BUILTIN_PALETTE_NAMES.join(', ')}), inline record, or left-to-right stack.`,
+          },
+        ),
       },
       required: ['source'],
     },
@@ -102,10 +144,12 @@ useAscii true → plain ASCII (+,-,|); false/absent → Unicode box drawing (┌
 targetWidth sets a hard terminal display-cell bound; impossible bounds return a typed error.`,
     inputSchema: {
       type: 'object',
+      additionalProperties: false,
       properties: {
         source: { type: 'string', description: 'Mermaid source.' },
         useAscii: { type: 'boolean', description: 'true = ASCII characters, false = Unicode (default).' },
         targetWidth: { type: 'integer', minimum: 1, description: 'Hard maximum line width in terminal display cells.' },
+        ...mcpRenderOptionSchemaProperties([], 'Shared advanced RenderOptions object, including style/palette/config/security.'),
       },
       required: ['source'],
     },
@@ -122,6 +166,7 @@ means the diagram is structurally valid, not that it is the kind you intended.
 Warnings use the layout-rubric codes.`,
     inputSchema: {
       type: 'object',
+      additionalProperties: false,
       properties: {
         source: { type: 'string', description: 'Mermaid source.' },
       },
@@ -146,6 +191,7 @@ family before authoring unfamiliar ops; it returns compact signatures or exact
 field types, enum values, defaults, and constraints.`,
     inputSchema: {
       type: 'object',
+      additionalProperties: false,
       properties: {
         source: { type: 'string', description: 'Mermaid source to edit.' },
         ops: { type: 'array', items: { type: 'object' }, description: 'Ordered list of edit ops; each is { kind, ...fields }.' },
@@ -163,6 +209,7 @@ source. Returns the same envelope as \`mutate\`:
 Call \`describe_sdk\` for the family before authoring unfamiliar ops.`,
     inputSchema: {
       type: 'object',
+      additionalProperties: false,
       properties: {
         family: { type: 'string', description: `Diagram family to author (one of: ${Object.keys(MUTATION_OPS_BY_FAMILY).join(', ')}).` },
         ops: { type: 'array', items: { type: 'object' }, description: 'Ordered list of ops; each is { kind, ...fields }.' },
@@ -207,22 +254,36 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
       }
     }
     case 'render_svg': return sourceTool(id, args, 'SVG_RENDER_FAILED', source => {
-      const svg = renderMermaidSVG(source, svgOptions(args))
-      const safety = verifyNoExternalRefs(svg)
+      const rendered = renderMermaidSVGWithReceipt(source, svgOptions(args))
+      const safety = verifyNoExternalRefs(rendered.svg)
       if (!safety.ok) throw new Error(`strict SVG safety invariant failed: ${safety.refs.join(', ')}`)
-      return { ok: true as const, svg, warnings: sourceConfigWarnings(source) }
+      return {
+        ok: true as const,
+        svg: rendered.svg,
+        receipt: rendered.receipt,
+        warnings: [...sourceConfigWarnings(source), ...legacyThemeInputWarnings(args)],
+      }
     })
-    case 'render_ascii': return sourceTool(id, args, 'ASCII_RENDER_FAILED', source => ({
-      ok: true as const,
-      text: renderMermaidASCII(source, {
+    case 'render_ascii': return sourceTool(id, args, 'ASCII_RENDER_FAILED', source => {
+      const projectionWarnings: unknown[] = []
+      const rendered = renderMermaidASCIIWithReceipt(source, {
+        ...projectMcpRenderOptions(args, []),
+        ...HOSTED_RENDER_OPTIONS,
         useAscii: args.useAscii === true,
         targetWidth: args.targetWidth as number | undefined,
-      }),
-      warnings: sourceConfigWarnings(source),
-    }))
+        colorMode: 'none',
+        onProjectionDiagnostic: diagnostic => projectionWarnings.push(diagnostic),
+      })
+      return {
+        ok: true as const,
+        text: rendered.text,
+        receipt: rendered.receipt,
+        warnings: [...sourceConfigWarnings(source), ...projectionWarnings],
+      }
+    })
     case 'render_png': return handleRenderPng(id, args, context)
     case 'verify': return sourceTool(id, args, 'VERIFY_FAILED', source => {
-      const parsed = parseMermaid(source)
+      const parsed = parseRegisteredMermaid(source)
       if (!parsed.ok) {
         // Self-describing tool: when the header names a known family, hand back
         // that family's canonical example so a failed authoring attempt gets the
@@ -230,15 +291,21 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
         const hint = familyExampleForSource(source)
         return { ok: false as const, errors: parsed.error, ...(hint ?? {}) }
       }
+      if (parsed.value.body.kind === 'preserved') {
+        throw new MermaidFamilyDetectionError(
+          familyDetectionDiagnosticFromPreservedBody(parsed.value.body),
+        )
+      }
       const v = verifyMermaid(parsed.value)
+      const summary = mcpVerificationSummary(parsed.value)
       // Echo the detected family + a one-line summary so `ok:true` is never a
       // silent pass on the wrong kind of diagram: an agent that asked for an
       // architecture diagram and reads `family:"flowchart"` here sees the
       // mismatch in the same result it was already going to read, without
       // having to know to call `describe` separately.
-      return { ok: v.ok, family: parsed.value.kind, summary: describeMermaid(parsed.value), warnings: v.warnings, layout: { bounds: v.layout.bounds, nodes: v.layout.nodes.length, edges: v.layout.edges.length } }
+      return { ok: v.ok, family: parsed.value.kind, summary, warnings: v.warnings, layout: { bounds: v.layout.bounds, nodes: v.layout.nodes.length, edges: v.layout.edges.length } }
     })
-    case 'describe': return sourceTool(id, args, 'DESCRIBE_FAILED', source => describePayload(source, args))
+    case 'describe': return sourceTool(id, args, 'DESCRIBE_FAILED', source => mcpDescribePayload(source, args))
     case 'mutate': return handleApplyOps(id, args, 'source')
     case 'build': return handleApplyOps(id, args, 'family')
     default: return rpcError(id, -32602, `Unknown tool: ${name ?? '<none>'}`)
@@ -255,6 +322,10 @@ function sourceConfigWarnings(source: string) {
   return configWarningsForMermaid(source)
 }
 
+function legacyThemeInputWarnings(args: Readonly<Record<string, unknown>>) {
+  return args.theme === undefined ? [] : [LEGACY_THEME_INPUT_DIAGNOSTIC]
+}
+
 function familyExampleForSource(source: string): { family: string; example: string } | undefined {
   const first = source.split('\n').map(l => l.trim()).find(l => l.length > 0) ?? ''
   const header = first.split(/\s+/)[0] ?? ''
@@ -264,24 +335,7 @@ function familyExampleForSource(source: string): { family: string; example: stri
   return undefined
 }
 
-function describeFormat(args: Record<string, unknown>): 'text' | 'json' | 'facts' {
-  const format = args.format ?? 'text'
-  if (format === 'text' || format === 'json' || format === 'facts') return format
-  throw new Error('describe format must be one of: text, json, facts')
-}
-
-function describePayload(source: string, args: Record<string, unknown>): { ok: boolean } & Record<string, unknown> {
-  const format = describeFormat(args)
-  const parsed = parseMermaid(source)
-  if (!parsed.ok) return { ok: false as const, errors: parsed.error }
-  const verify = verifyMermaid(parsed.value)
-  if (!verify.ok) return { ok: false as const, family: parsed.value.kind, warnings: verify.warnings }
-  if (format === 'text') return { ok: true as const, text: describeMermaidSource(source), warnings: verify.warnings }
-  if (format === 'facts') return { ok: true as const, facts: describeMermaidFacts(parsed.value), warnings: verify.warnings }
-  return { ok: true as const, tree: JSON.parse(describeMermaid(parsed.value, { format: 'json' })), warnings: verify.warnings }
-}
-
-function svgOptions(args: Record<string, unknown>): Record<string, unknown> {
+function svgOptions(args: Record<string, unknown>): RenderOptions {
   const theme = args.theme
   if (theme !== undefined && (typeof theme !== 'string' || !(theme in THEMES))) {
     throw new Error(`unknown theme; expected one of: ${Object.keys(THEMES).join(', ')}`)
@@ -290,84 +344,115 @@ function svgOptions(args: Record<string, unknown>): Record<string, unknown> {
   // never carry active tags/event handlers or external fetches from Mermaid
   // init/config payloads; unlike the local library, this direct tool exposes no
   // caller-selectable security mode.
-  const opts: Record<string, unknown> = {
-    ...(typeof theme === 'string' ? { ...THEMES[theme] } as unknown as Record<string, unknown> : {}),
-    security: 'strict',
-  }
-  if (typeof args.bg === 'string') opts.bg = args.bg
-  if (typeof args.fg === 'string') opts.fg = args.fg
-  const style = normalizeStyleArg(args.style)
-  if (style !== undefined) opts.style = style
-  if (typeof args.seed === 'number' && Number.isFinite(args.seed)) opts.seed = args.seed
-  return opts
-}
-
-/** Validate an untrusted style argument: names pass through (unknown names
- *  fail loudly inside resolveStyleStack with the known list), inline records
- *  and stacks are checked with validateStyleSpec so junk is a tool error,
- *  not a render throw. */
-function normalizeStyleArg(raw: unknown): StyleInput | StyleInput[] | undefined {
-  if (raw === undefined || raw === null) return undefined
-  const entries = Array.isArray(raw) ? raw : [raw]
-  for (const entry of entries) {
-    if (typeof entry === 'string') continue
-    const problems = validateStyleSpec(entry)
-    if (problems.length > 0) throw new Error(`invalid style record: ${problems.join('; ')}`)
-  }
-  return entries as StyleInput[]
+  const opts = projectMcpRenderOptions(
+    args,
+    MCP_SVG_RENDER_OPTION_CONVENIENCES,
+    typeof theme === 'string' ? THEMES[theme] : {},
+  )
+  // The hosted boundary owns this policy. An advanced options object cannot
+  // weaken it even though the same canonical request fields are accepted.
+  return { ...opts, ...HOSTED_RENDER_OPTIONS }
 }
 
 // ---- Effective (normalized) arguments -------------------------------------
 
-/** Clamp `scale` into the documented range; undefined when not a finite number. */
-export function effectivePngScale(args: Record<string, unknown>): number | undefined {
-  return typeof args.scale === 'number' && Number.isFinite(args.scale)
-    ? Math.min(Math.max(args.scale, MIN_PNG_SCALE), MAX_PNG_SCALE)
-    : undefined
+interface NormalizedHostedPngRequest {
+  readonly output: PortablePngOutputOptions
+  readonly render: RenderOptions
+}
+
+/** One normalized request projection shared by execution and cache identity. */
+function normalizedHostedPngRequest(args: Record<string, unknown>): NormalizedHostedPngRequest {
+  const requestedOutput = projectPortablePngOutputOptions(args)
+  const policy = resolvePortablePngOutputPolicy(requestedOutput)
+  const output: PortablePngOutputOptions = {
+    scale: policy.scale,
+    ...(policy.background.mode === 'explicit' ? { background: policy.background.value } : {}),
+    ...(policy.fitTo.mode === 'width'
+      ? { fitTo: { width: policy.fitTo.value } }
+      : policy.fitTo.mode === 'height'
+        ? { fitTo: { height: policy.fitTo.value } }
+        : {}),
+  }
+  return {
+    output,
+    render: {
+      ...projectMcpRenderOptions(args, MCP_PNG_RENDER_OPTION_CONVENIENCES),
+      ...HOSTED_RENDER_OPTIONS,
+    },
+  }
+}
+
+/** Cache identity is the normalized request projection, not another copied
+ * list of shared fields. */
+function effectiveSvgArgs(args: Record<string, unknown>): Record<string, unknown> {
+  return {
+    render: svgOptions(args),
+    // The legacy field can resolve to exactly the same RenderOptions as a
+    // canonical `options` object, but its response carries a deprecation
+    // warning. Keep that response-affecting distinction in cache identity so
+    // a canonical request cannot inherit the warning (or a legacy request
+    // lose it) through an otherwise equivalent cached render.
+    legacyThemeDiagnostic: args.theme !== undefined,
+  }
 }
 
 /**
- * Cache-key inputs for a deterministic tools/call. The complete argument object
- * is retained: cache lookup runs before tool dispatch, so dropping an argument
- * can let an invalid request collide with a previously cached valid response
- * and bypass validation. Correctness is more important than collapsing calls
- * that differ only by ignored arguments; the WAF remains the abuse backstop.
- * Returns null for non-idempotent execute, unknown tools, missing required
- * arguments, invalid describe/describe_sdk selectors, and non-base64 PNG output.
+ * Canonical cache-key inputs for a tools/call: validated, normalized,
+ * output-affecting inputs only. Validation against the exact advertised schema
+ * happens before any key is returned, so an invalid request cannot collide with
+ * a cached valid response and bypass dispatch. Semantically identical valid
+ * calls may then share an entry. Non-idempotent execute is never cached.
  *
  * Source payloads are likewise keyed verbatim. Canonicalizing source or
  * arguments is deliberately avoided because a wrong cached result is worse
  * than a missed dedup.
  */
 export function cacheKeyFor(name: string | undefined, args: Record<string, unknown>): unknown | null {
+  const tool = HOSTED_TOOLS.find(candidate => candidate.name === name)
+  if (!tool || validateMcpToolArguments(tool, args).length > 0) return null
   switch (name) {
     // Code Mode intentionally exposes time and randomness and is annotated
     // non-idempotent. Never freeze its first result in the shared compute cache.
     case 'execute':
       return null
     case 'render_svg':
-      return typeof args.source === 'string' ? { t: 'render_svg', args } : null
+      return typeof args.source === 'string' ? { t: 'render_svg', source: args.source, ...effectiveSvgArgs(args) } : null
     case 'render_ascii':
-      return typeof args.source === 'string' ? { t: 'render_ascii', args } : null
+      return typeof args.source === 'string' ? {
+        t: 'render_ascii',
+        source: args.source,
+        useAscii: args.useAscii === true,
+        targetWidth: typeof args.targetWidth === 'number' ? args.targetWidth : undefined,
+        render: { ...projectMcpRenderOptions(args, []), ...HOSTED_RENDER_OPTIONS },
+      } : null
     case 'render_png': {
       if (typeof args.source !== 'string') return null
-      const output = args.output ?? (args as { outputMode?: unknown }).outputMode
-      if (output !== undefined && output !== 'base64') return null
-      return { t: 'render_png', args }
+      try {
+        const normalized = normalizedHostedPngRequest(args)
+        return {
+          t: 'render_png',
+          source: args.source,
+          output: normalized.output,
+          render: normalized.render,
+        }
+      } catch {
+        return null
+      }
     }
     case 'verify':
-      return typeof args.source === 'string' ? { t: 'verify', args } : null
+      return typeof args.source === 'string' ? { t: 'verify', source: args.source } : null
     case 'describe': {
       if (typeof args.source !== 'string') return null
       const format = args.format ?? 'text'
       return format === 'text' || format === 'json' || format === 'facts'
-        ? { t: 'describe', args }
+        ? { t: 'describe', source: args.source, format }
         : null
     }
     case 'describe_sdk': {
       try {
-        describeSdkPayload(args)
-        return { t: 'describe_sdk', args }
+        const payload = describeSdkPayload(args) as { family: string; detail: string }
+        return { t: 'describe_sdk', family: payload.family, detail: payload.detail }
       } catch {
         return null
       }
@@ -386,13 +471,13 @@ function handleApplyOps(id: number | string | null, args: Record<string, unknown
   if (!Array.isArray(ops)) return rpcError(id, -32602, `${mode === 'source' ? 'mutate' : 'build'} requires \`ops\` (array)`)
   if (mode === 'source') {
     if (typeof args.source !== 'string') return rpcError(id, -32602, 'mutate requires `source` (string)')
-    if (utf8Bytes(args.source) > MAX_SOURCE_BYTES) {
+    if (boundedUtf8ByteLength(args.source, MAX_SOURCE_BYTES) > MAX_SOURCE_BYTES) {
       return toolResult(id, { ok: false as const, family: null, error: { code: 'SOURCE_TOO_LARGE', message: TOO_LARGE_HINT } }, true)
     }
   } else if (typeof args.family !== 'string') {
     return rpcError(id, -32602, 'build requires `family` (string)')
   }
-  if (utf8Bytes(JSON.stringify(ops)) > MAX_SOURCE_BYTES) {
+  if (boundedUtf8ByteLength(JSON.stringify(ops), MAX_SOURCE_BYTES) > MAX_SOURCE_BYTES) {
     return toolResult(id, { ok: false as const, family: null, error: { code: 'OPS_TOO_LARGE', message: TOO_LARGE_HINT } }, true)
   }
   const envelope = mode === 'source'
@@ -405,7 +490,7 @@ function handleApplyOps(id: number | string | null, args: Record<string, unknown
 function sourceTool(id: number | string | null, args: Record<string, unknown>, errorCode: string, run: (source: string) => { ok: boolean } & Record<string, unknown>): JsonRpcResponse {
   const source = args.source
   if (typeof source !== 'string') return rpcError(id, -32602, 'tool requires `source` (string)')
-  if (utf8Bytes(source) > MAX_SOURCE_BYTES) {
+  if (boundedUtf8ByteLength(source, MAX_SOURCE_BYTES) > MAX_SOURCE_BYTES) {
     return toolResult(id, { ok: false as const, error: { code: 'SOURCE_TOO_LARGE', message: TOO_LARGE_HINT } }, true)
   }
   try {
@@ -413,18 +498,10 @@ function sourceTool(id: number | string | null, args: Record<string, unknown>, e
     return toolResult(id, payload, !payload.ok)
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
-    if (typeof e === 'object' && e !== null && 'code' in e && e.code === 'ASCII_TARGET_WIDTH_IMPOSSIBLE') {
-      const widthError = e as { code: string; requestedWidth: number; requiredWidth: number; family: string; reason: string }
-      return toolResult(id, { ok: false as const, error: {
-        code: widthError.code,
-        message: msg,
-        requestedWidth: widthError.requestedWidth,
-        requiredWidth: widthError.requiredWidth,
-        family: widthError.family,
-        reason: widthError.reason,
-      } }, true)
-    }
-    return toolResult(id, { ok: false as const, error: { code: errorCode, message: msg } }, true)
+    return toolResult(id, {
+      ok: false as const,
+      error: projectRenderErrorDiagnostic(e) ?? { code: errorCode, message: msg },
+    }, true)
   }
 }
 
@@ -440,7 +517,7 @@ function executeError(message: string): { code: 'EXECUTE_FAILED' | 'EXECUTE_TIME
 async function handleExecute(id: number | string | null, args: Record<string, unknown>, context: HostedMcpContext): Promise<JsonRpcResponse> {
   const code = args.code
   if (typeof code !== 'string') return rpcError(id, -32602, 'execute requires `code` (string)')
-  if (utf8Bytes(code) > MAX_CODE_BYTES) {
+  if (boundedUtf8ByteLength(code, MAX_CODE_BYTES) > MAX_CODE_BYTES) {
     return toolResult(id, { ok: false as const, error: { code: 'CODE_TOO_LARGE', message: TOO_LARGE_HINT }, logs: [] }, true)
   }
   // Screen sync-only violations before any isolate exists: rejected code costs
@@ -467,42 +544,53 @@ async function handleExecute(id: number | string | null, args: Record<string, un
 async function handleRenderPng(id: number | string | null, args: Record<string, unknown>, context: HostedMcpContext): Promise<JsonRpcResponse> {
   const source = args.source
   if (typeof source !== 'string') return rpcError(id, -32602, 'render_png requires `source` (string)')
-  const output = args.output ?? (args as { outputMode?: unknown }).outputMode
-  if (output !== undefined && output !== 'base64') {
-    return rpcError(id, -32602, 'hosted render_png returns base64 only; file/URL artifacts require the local stdio server')
-  }
-  if (utf8Bytes(source) > MAX_SOURCE_BYTES) {
+  if (boundedUtf8ByteLength(source, MAX_SOURCE_BYTES) > MAX_SOURCE_BYTES) {
     return toolResult(id, { ok: false as const, error: { code: 'SOURCE_TOO_LARGE', message: TOO_LARGE_HINT } }, true)
   }
   if (!context.renderPng) {
     return toolResult(id, { ok: false as const, error: { code: 'PNG_UNAVAILABLE', message: 'PNG rendering is not enabled on this host' } }, true)
   }
   try {
-    const scale = effectivePngScale(args)
-    const background = typeof args.background === 'string' ? args.background : undefined
-    const style = normalizeStyleArg(args.style)
-    const seed = typeof args.seed === 'number' && Number.isFinite(args.seed) ? args.seed : undefined
-    const result = await context.renderPng(source, { scale, background, style, seed })
+    const normalized = normalizedHostedPngRequest(args)
+    const result = await context.renderPng(source, {
+      ...normalized.render,
+      ...normalized.output,
+    })
+    if (!(result.png instanceof Uint8Array)) throw new TypeError('hosted PNG rasterizer must return Uint8Array bytes')
+    if (result.png.byteLength > MAX_HOSTED_PNG_BYTES) {
+      return toolResult(id, { ok: false as const, error: {
+        code: 'PNG_OUTPUT_TOO_LARGE',
+        message: `hosted PNG output exceeds the ${MAX_HOSTED_PNG_BYTES}-byte response cap; ${LOCAL_FALLBACK_HINT}`,
+      } }, true)
+    }
     const warnings = [...sourceConfigWarnings(source), ...result.warnings]
       .filter((warning, index, all) => all.findIndex(candidate => JSON.stringify(candidate) === JSON.stringify(warning)) === index)
-    return toolResult(id, { ok: true as const, png_base64: base64Encode(result.png), warnings }, false)
+    return toolResult(id, {
+      ok: true as const,
+      png_base64: base64Encode(result.png),
+      receipt: result.receipt,
+      runtime: result.runtime,
+      warnings,
+    }, false)
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
-    return toolResult(id, { ok: false as const, error: { code: 'PNG_RENDER_FAILED', message: msg } }, true)
+    return toolResult(id, {
+      ok: false as const,
+      error: projectRenderErrorDiagnostic(e) ?? { code: 'PNG_RENDER_FAILED', message: msg },
+    }, true)
   }
-}
-
-function utf8Bytes(s: string): number {
-  return new TextEncoder().encode(s).length
 }
 
 // Buffer is unavailable in workerd; btoa takes a byte-string. Chunk to stay
 // under argument-length limits for large PNGs.
 function base64Encode(bytes: Uint8Array): string {
-  let binary = ''
-  const CHUNK = 0x8000
+  if (bytes.byteLength > MAX_HOSTED_PNG_BYTES) throw new RangeError('hosted PNG exceeds the base64 response cap')
+  const encoded: string[] = []
+  // A multiple of three keeps independently encoded chunks concatenable.
+  const CHUNK = 0x6000
   for (let i = 0; i < bytes.length; i += CHUNK) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK))
+    const binary = String.fromCharCode(...bytes.subarray(i, i + CHUNK))
+    encoded.push(btoa(binary))
   }
-  return btoa(binary)
+  return encoded.join('')
 }

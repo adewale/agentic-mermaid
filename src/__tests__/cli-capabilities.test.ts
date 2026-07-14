@@ -3,18 +3,48 @@
 import { describe, it, expect } from 'bun:test'
 import { buildCapabilities, MUTATION_OPS_BY_FAMILY } from '../cli/index.ts'
 import { knownFamilies } from '../agent/families.ts'
+import { getFamily, getFamilyConformanceReport } from '../agent/families.ts'
 import { WARNING_SEVERITY } from '../agent/types.ts'
+import {
+  createSectionACapabilityReport,
+  sectionACapabilityDiscoverySummary,
+} from '../section-a-capability-report.ts'
+import { CLI_RENDER_FORMATS, cliRenderFormatJsonSchema } from '../render-contract.ts'
+import { UPSTREAM_MERMAID_MANIFEST } from '../upstream-mermaid-manifest.ts'
 import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 
 describe('am capabilities', () => {
-  it('emits a JSON object with sdkVersion, families, warningCodes, outputFormats', () => {
+  it('emits a JSON object with the legacy discovery fields and bounded Section A summary', () => {
     const cap = buildCapabilities()
     expect(typeof cap.sdkVersion).toBe('string')
     expect(cap.sdkVersion.length).toBeGreaterThan(0)
     expect(Array.isArray(cap.families)).toBe(true)
     expect(Array.isArray(cap.warningCodes)).toBe(true)
-    expect(cap.outputFormats).toEqual(['svg', 'ascii', 'unicode', 'png', 'json'])
+    expect(cap.outputFormats).toEqual([...CLI_RENDER_FORMATS])
+    expect(cap.sectionA).toEqual(sectionACapabilityDiscoverySummary())
+    expect(cap.sectionA.noAbsentSyntaxCapabilities).toBe(true)
+  })
+
+  it('Section A CLI discovery is the canonical registry projection, not a copied matrix', () => {
+    const sectionA = buildCapabilities().sectionA
+    expect(sectionA.counts.registeredFamilyCount).toBe(knownFamilies().length)
+    expect(sectionA.reportDigest).toBe(createSectionACapabilityReport().digest)
+    expect(sectionA.upstreamPin.inventorySha256).toBe(createSectionACapabilityReport().upstream.inventorySha256)
+  })
+
+  it('keeps exhaustive syntax evidence out of the routine agent-discovery budget', () => {
+    const cap = buildCapabilities()
+    expect(cap.sectionA.counts.syntaxFeatureClassificationCount)
+      .toBe(UPSTREAM_MERMAID_MANIFEST.semanticInventory.syntaxFeatures.length)
+    expect('matrices' in cap.sectionA).toBe(false)
+    expect(cap.sectionA.fullReport).toEqual({
+      packageExport: 'agentic-mermaid/capabilities',
+      factory: 'createSectionACapabilityReport',
+      markdown: 'docs/project/section-a-capability-report.md',
+      regenerateCommand: 'bun run section-a-report',
+    })
+    expect(Buffer.byteLength(JSON.stringify(cap), 'utf8')).toBeLessThan(64 * 1024)
   })
 
   it('includes every registered family in the families list', () => {
@@ -29,7 +59,27 @@ describe('am capabilities', () => {
     const cap = buildCapabilities()
     const mutable = new Set(Object.keys(MUTATION_OPS_BY_FAMILY))
     for (const f of cap.families) {
+      const descriptor = getFamily(f.id)!
       expect(typeof f.id).toBe('string')
+      // Capability output is a JSON transport. Optional undefined identity
+      // fields are intentionally omitted rather than materialized as keys;
+      // the registry-only kind discriminator is not part of this projection.
+      expect(f.identity).toEqual({
+        id: descriptor.identity.id,
+        version: descriptor.identity.version,
+        compatibility: JSON.parse(JSON.stringify(descriptor.identity.compatibility)),
+        provenance: JSON.parse(JSON.stringify(descriptor.identity.provenance)),
+      })
+      expect('kind' in f.identity).toBe(false)
+      const fullConformance = getFamilyConformanceReport(f.id)!
+      expect(f.conformance).toEqual({
+        ...fullConformance,
+        capabilities: fullConformance.capabilities.map(({ witnessId: _witnessId, ...result }) => result),
+      })
+      expect(f.conformance).not.toBe(fullConformance)
+      expect(f.conformance.capabilities.every(result => !('witnessId' in result))).toBe(true)
+      expect(fullConformance.capabilities.every(result => result.status !== 'passed' || Boolean(result.witnessId))).toBe(true)
+      expect(f.conformance.passed).toBe(true)
       // hasParse/hasSerialize/hasVerify were dropped — they were true for every
       // family (dead info that read as a probe-me menu). Only varying fields remain.
       expect('hasParse' in f).toBe(false)
@@ -120,8 +170,13 @@ describe('am capabilities', () => {
       }
       expect(editPolicies.has(family.editPolicy)).toBe(true)
     }
+    expect(schema.properties.outputFormats.items).toEqual(cliRenderFormatJsonSchema())
     const outputFormats = new Set(schema.properties.outputFormats.items.enum)
     for (const format of cap.outputFormats) expect(outputFormats.has(format)).toBe(true)
+    for (const k of schema.properties.sectionA.required ?? []) {
+      expect(Object.prototype.hasOwnProperty.call(cap.sectionA, k)).toBe(true)
+    }
+    expect(cap.sectionA.noAbsentSyntaxCapabilities).toBe(true)
   })
 })
 

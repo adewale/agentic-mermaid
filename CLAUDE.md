@@ -12,7 +12,7 @@ editing surface. Source lives in `src/`; the layout pipeline is in
 ## Commands
 
 - `bun install` — install dependencies.
-- `bun test src/__tests__/` — run the full unit suite (the CI gate). fast-check
+- `bun run test` — run the full covered unit suite with the canonical timeout (the CI gate). fast-check
   seeds are pinned by a preload; `AM_FC_SEED=<int>` reproduces a roll,
   `AM_FC_SEED=random` is finder mode (see `docs/testing-strategy.md` §4).
 - `bunx tsc --noEmit` — typecheck.

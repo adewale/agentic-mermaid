@@ -23,6 +23,7 @@ import { getFrontmatterScalar } from '../mermaid-source.ts'
 import { ineffectiveFieldsPresent } from '../shared/config-wire-or-warn.ts'
 import { applyTextTransform, estimateTextWidth, estimateMonoTextWidth, FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
+import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import { elkLayoutSync } from '../elk-instance.ts'
 import { directionToElk } from '../layout-engine.ts'
@@ -136,9 +137,10 @@ function flattenNamespaces(namespaces: ClassNamespace[], parentPath?: string, hi
 /** Build ELK graph and size map from a class diagram. */
 function buildClassElkGraph(
   diagram: ClassDiagram,
-  options: RenderOptions
+  options: RenderOptions,
+  styleFace?: Readonly<InternalStyleFace>,
 ): { elkGraph: ElkNode; classSizes: ClassSizeMap } {
-  const style = resolveRenderStyle(options, CLASS_STYLE_DEFAULTS)
+  const style = resolveRenderStyle(options, CLASS_STYLE_DEFAULTS, styleFace)
   const classSizes: ClassSizeMap = new Map()
 
   for (const cls of diagram.classes) {
@@ -519,19 +521,20 @@ function placeClassCardinalityLabels(
  */
 export function layoutClassDiagram(
   diagram: ClassDiagram,
-  options: RenderOptions = {}
+  options: RenderOptions = {},
+  styleFace?: Readonly<InternalStyleFace>,
 ): PositionedClassDiagram {
   if (diagram.classes.length === 0) {
     return { width: 0, height: 0, accessibilityTitle: diagram.accessibilityTitle, accessibilityDescription: diagram.accessibilityDescription, classes: [], relationships: [], notes: [], namespaces: [] }
   }
 
-  const { elkGraph, classSizes } = buildClassElkGraph(diagram, options)
+  const { elkGraph, classSizes } = buildClassElkGraph(diagram, options, styleFace)
   const result = elkLayoutSync(elkGraph)
   return extractClassLayout(
     result,
     diagram,
     classSizes,
-    resolveRenderStyle(options, CLASS_STYLE_DEFAULTS),
+    resolveRenderStyle(options, CLASS_STYLE_DEFAULTS, styleFace),
     options.class?.hierarchicalNamespaces !== false,
   )
 }

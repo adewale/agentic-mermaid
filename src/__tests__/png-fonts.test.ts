@@ -16,6 +16,7 @@ import { createHash } from 'node:crypto'
 import { renderMermaidPNG, type PngFontWarning } from '../agent/png.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { runCli } from '../cli/index.ts'
+import { PNG_NAPI_RUNTIME, PNG_WASM_RUNTIME, pngNapiRuntimeProvenance } from '../png-contract.ts'
 import { decodePng, inkColumns } from './helpers/png-pixels.ts'
 
 const JOURNEY_LONG_LABEL = `journey
@@ -23,6 +24,23 @@ const JOURNEY_LONG_LABEL = `journey
   section Signup
     Complete the extremely long registration questionnaire form: 3: User
 `
+
+describe('PNG font provenance', () => {
+  test('distinguishes verified, caller-directory, system, and buffer inputs', () => {
+    expect(PNG_NAPI_RUNTIME.fontSources).toEqual(['verified-files'])
+    expect(PNG_WASM_RUNTIME.fontSources).toEqual(['verified-buffers'])
+    expect(PNG_NAPI_RUNTIME.reproducibility).toBe('content-addressed')
+    expect(PNG_WASM_RUNTIME.reproducibility).toBe('content-addressed')
+    expect(pngNapiRuntimeProvenance({ callerDirectories: ['/host/fonts'] }).fontSources)
+      .toEqual(['verified-files', 'caller-directories'])
+    expect(pngNapiRuntimeProvenance({ callerDirectories: ['/host/fonts'] }).reproducibility)
+      .toBe('host-dependent')
+    expect(pngNapiRuntimeProvenance({ loadSystemFonts: true }).fontSources)
+      .toEqual(['verified-files', 'system-fonts'])
+    expect(pngNapiRuntimeProvenance({ callerDirectories: ['/host/fonts'], loadSystemFonts: true }).fontSources)
+      .toEqual(['verified-files', 'caller-directories', 'system-fonts'])
+  })
+})
 
 /** The journey task box rect carries explicit geometry in the SVG output. */
 function taskBox(svg: string): { x: number; y: number; w: number; h: number } {
@@ -160,6 +178,23 @@ function tmpPngRun(source: string, extraFlags: string[] = []): { code: number; o
 }
 
 describe('am render --format png font flags', () => {
+  test('PNG-only controls are rejected for non-PNG formats', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'am-png-only-flags-'))
+    const input = join(dir, 'in.mmd')
+    writeFileSync(input, 'flowchart LR\n  A --> B')
+    for (const flag of [['--scale', '2'], ['--bg', '#fff'], ['--fit-width', '64'], ['--system-fonts']]) {
+      const { code, err } = captureCli(['render', input, '--format', 'svg', ...flag])
+      expect(code).toBe(2)
+      expect(err).toContain('valid only with --format png')
+    }
+  })
+
+  test('fit dimensions are integer pixels', () => {
+    const { code, err } = tmpPngRun('flowchart LR\n  A --> B', ['--fit-width', '96.5'])
+    expect(code).toBe(2)
+    expect(err).toContain('positive integer pixel value')
+  })
+
   test('CJK render warns on stderr and reports warnings in the --json envelope', () => {
     const { code, out, err, outFile } = tmpPngRun(CJK_SRC, ['--json'])
     expect(code).toBe(0)

@@ -6,7 +6,7 @@
 // nothing). The only verify knob is labelCharCap. See AGENT_NATIVE.md § (1).
 // ============================================================================
 
-import type { MermaidGraph, NodeShape, EdgeStyle, Direction, EdgeRouteCertificate, RegionContainmentCertificate, RouteCertificate, RouteClass } from '../types.ts'
+import type { MermaidGraph, NodeShape, EdgeStyle, Direction, EdgeRouteCertificate, RegionContainmentCertificate, RouteCertificate, RouteClass, RenderOptions } from '../types.ts'
 import type { MermaidFrontmatterMap, MermaidConfigMap } from '../mermaid-source.ts'
 import type { MindmapNode, MindmapShape } from '../mindmap/types.ts'
 import type { GitGraphDiagram, GitGraphCommitType } from '../gitgraph/types.ts'
@@ -23,6 +23,10 @@ export type DiagramKind =
   | 'flowchart' | 'state' | 'sequence' | 'class' | 'er'
   | 'timeline' | 'journey' | 'xychart' | 'architecture' | 'pie' | 'quadrant' | 'gantt'
   | 'mindmap' | 'gitgraph'
+
+/** Runtime extensions are open but must pass the registry's namespace validator. */
+export type ExternalFamilyId = `family:${string}`
+export type FamilyId = DiagramKind | ExternalFamilyId
 
 // ---- Sequence body --------------------------------------------------------
 
@@ -395,6 +399,8 @@ export interface XyChartSeries {
 
 export interface XyChartBody {
   kind: 'xychart'
+  accessibilityTitle?: string
+  accessibilityDescription?: string
   title?: string
   /** Header orientation: true = explicit horizontal, false = explicit vertical,
    *  absent = no header override (runtime config decides). */
@@ -417,6 +423,8 @@ export interface PieSlice {
 
 export interface PieBody {
   kind: 'pie'
+  accessibilityTitle?: string
+  accessibilityDescription?: string
   title?: string
   /** When true (`pie showData`), the legend shows each slice's numeric value. */
   showData: boolean
@@ -462,6 +470,8 @@ export interface QuadrantPoint {
 
 export interface QuadrantBody {
   kind: 'quadrant'
+  accessibilityTitle?: string
+  accessibilityDescription?: string
   title?: string
   xAxis?: QuadrantAxis
   yAxis?: QuadrantAxis
@@ -723,6 +733,58 @@ export type DiagramBody =
    */
   | { kind: 'opaque'; family: DiagramKind; source: string }
 
+/** Open, source-preserving body envelope owned by a namespaced family. */
+export interface ExtensionDiagramBody {
+  kind: 'extension'
+  family: ExternalFamilyId
+  source: string
+  /** Descriptor-owned structured value; core treats it as opaque data. */
+  data?: unknown
+}
+
+export interface SourceSpanPoint {
+  /** UTF-16 offset in the exact authored source string. */
+  readonly offset: number
+  readonly line: number
+  readonly col: number
+}
+
+export interface SourceSpan {
+  readonly start: SourceSpanPoint
+  readonly end: SourceSpanPoint
+}
+
+/** Exact spans retained when no installed family can claim the source. */
+export interface PreservedSourceSpans {
+  /** Exact span of the complete authored source. */
+  readonly source: SourceSpan
+  readonly wrapper?: SourceSpan
+  readonly header: SourceSpan
+  /** Authored payload after the header line. */
+  readonly body: SourceSpan
+}
+
+/**
+ * Lossless, non-renderable family envelope. Upstream-recognized sources use an
+ * opaque classification; wholly unknown headers use `unknown`. In both cases
+ * the original document and its source spans remain available for storage,
+ * serialization, later registration, and stable capability diagnostics.
+ */
+export interface PreservedDiagramBody {
+  readonly kind: 'preserved'
+  readonly representation: 'opaque' | 'unknown'
+  readonly source: string
+  readonly preservation: SourcePreservationReceipt
+  readonly spans: PreservedSourceSpans
+  readonly diagnostic: {
+    readonly code: 'UNSUPPORTED_FAMILY' | 'UNKNOWN_HEADER' | 'FAMILY_DESCRIPTOR_MISMATCH'
+    readonly message: string
+    readonly help: string
+  }
+}
+
+export type FamilyParsedBody = DiagramBody | ExtensionDiagramBody | PreservedDiagramBody
+
 export interface ValidDiagram {
   readonly kind: DiagramKind
   readonly meta: ValidDiagramMeta
@@ -747,6 +809,29 @@ export interface ValidDiagram {
    */
   readonly canonicalSource: string
 }
+
+export interface ExtensionValidDiagram {
+  readonly kind: ExternalFamilyId
+  /** Identity of the exact descriptor contract that produced `body.data`.
+   * Core uses it to keep an upgraded registration from consuming stale,
+   * descriptor-owned structured data. */
+  readonly descriptorIdentity: import('../shared/extension-identity.ts').ExtensionIdentity<'family'>
+  readonly meta: ValidDiagramMeta
+  readonly body: ExtensionDiagramBody
+  readonly source: SourceMap
+  readonly canonicalSource: string
+}
+
+export interface PreservedValidDiagram {
+  /** Namespaced non-registration identity; the upstream/header identity lives in `body.preservation`. */
+  readonly kind: ExternalFamilyId
+  readonly meta: ValidDiagramMeta
+  readonly body: PreservedDiagramBody
+  readonly source: SourceMap
+  readonly canonicalSource: string
+}
+
+export type ParsedDiagram = ValidDiagram | ExtensionValidDiagram | PreservedValidDiagram
 
 export type FlowchartValidDiagram = ValidDiagram & { body: { kind: 'flowchart'; graph: MermaidGraph } }
 export type StateValidDiagram = ValidDiagram & { body: StateBody }
@@ -820,7 +905,27 @@ export function asGitGraph(d: ValidDiagram): GitGraphValidDiagram | null {
 
 // ---- Errors ---------------------------------------------------------------
 
-export interface ParseError { code: string; message: string; line?: number; col?: number }
+export interface SourcePreservationReceipt {
+  version: 1
+  classification: 'unsupported' | 'inventory-only' | 'unknown'
+  /** Exact authored bytes supplied to parseMermaid. */
+  source: string
+  header: string
+  upstreamFamilyId?: string
+  mermaidVersion: string
+  /** Present for open preserved envelopes and family-detection errors emitted by this version. */
+  spans?: PreservedSourceSpans
+}
+
+export interface ParseError {
+  code: string
+  message: string
+  line?: number
+  col?: number
+  /** Present when parsing cannot proceed but no authored bytes were discarded. */
+  preservation?: SourcePreservationReceipt
+  help?: string
+}
 
 export interface MutationError {
   code:
@@ -835,7 +940,7 @@ export interface MutationError {
     | 'SLICE_NOT_FOUND' | 'POINT_NOT_FOUND'
     | 'STATE_NOT_FOUND' | 'TRANSITION_NOT_FOUND'
     | 'DUPLICATE_NODE' | 'DUPLICATE_PARTICIPANT' | 'DUPLICATE_CLASS' | 'DUPLICATE_ENTITY' | 'DUPLICATE_STATE' | 'DUPLICATE_TASK'
-    | 'INVALID_OP'
+    | 'INVALID_OP' | 'UNSUPPORTED_FAMILY' | 'UNKNOWN_HEADER'
   message: string
 }
 
@@ -1250,6 +1355,8 @@ export const DEFAULT_LABEL_CHAR_CAP = 40
 export interface VerifyOptions {
   suppress?: WarningCode[]
   labelCharCap?: number
+  /** Shared source/config/geometry/appearance options used by render parity and layout evidence. */
+  renderOptions?: RenderOptions
 }
 
 export type RenderedRegionKind = 'node' | 'edge' | 'label' | 'group' | 'canvas'
@@ -1282,7 +1389,8 @@ export interface RenderedLayoutGroup {
 }
 export interface RenderedLayout {
   version: 1
-  kind: DiagramKind
+  /** Open family id so registered extensions can expose the same layout envelope. */
+  kind: FamilyId
   nodes: RenderedLayoutNode[]
   edges: RenderedLayoutEdge[]
   groups: RenderedLayoutGroup[]

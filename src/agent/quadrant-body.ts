@@ -22,9 +22,11 @@
 //   1 = top-right, 2 = top-left, 3 = bottom-left, 4 = bottom-right.
 // Stored as a 0-based 4-tuple where index `n-1` holds quadrant-`n`.
 //
-// Structured-or-opaque: any other non-blank, non-comment line (accTitle,
-// accDescr, malformed style metadata, unmodeled syntax) returns null so the
-// caller falls back to a lossless opaque body. The serializer re-emits a
+// Structured-or-opaque: any other non-blank, non-comment family line
+// (malformed style metadata or unmodeled syntax) returns null. Universal
+// accTitle/accDescr directives are consumed and preserved by the source
+// envelope before this grammar runs.
+// Unmodeled family syntax falls back to a lossless opaque body. The serializer re-emits a
 // canonical form the legacy parser re-parses identically (differential-tested).
 // The legacy renderer ERRORS LOUDLY on malformed lines / out-of-range coords;
 // here those fall back to opaque (preserved verbatim) and still surface the
@@ -38,6 +40,7 @@ import type {
 } from './types.ts'
 import { ok, err, DEFAULT_LABEL_CHAR_CAP } from './types.ts'
 import { labelOverflowWarning } from './label-metrics.ts'
+import { appendAccessibilityLines } from './accessibility-envelope.ts'
 import {
   parsePointStyleEntries, parseClassDefTail, splitPointClassSuffix,
   renderPointStyleEntries,
@@ -170,6 +173,7 @@ function renderAxis(keyword: 'x-axis' | 'y-axis', axis: QuadrantAxis): string {
 
 export function renderQuadrant(body: QuadrantBody): string {
   const lines: string[] = ['quadrantChart']
+  appendAccessibilityLines(lines, body)
   if (body.title !== undefined) lines.push(`  title ${body.title}`)
   if (body.xAxis) lines.push(renderAxis('x-axis', body.xAxis))
   if (body.yAxis) lines.push(renderAxis('y-axis', body.yAxis))
@@ -208,6 +212,8 @@ function cloneStyle(s: QuadrantPointStyle): QuadrantPointStyle {
 function cloneQuadrant(b: QuadrantBody): QuadrantBody {
   const clone: QuadrantBody = {
     kind: 'quadrant',
+    accessibilityTitle: b.accessibilityTitle,
+    accessibilityDescription: b.accessibilityDescription,
     title: b.title,
     xAxis: b.xAxis ? cloneAxis(b.xAxis) : undefined,
     yAxis: b.yAxis ? cloneAxis(b.yAxis) : undefined,
@@ -363,7 +369,7 @@ export function mutateQuadrant(body: QuadrantBody, op: QuadrantMutationOp): Resu
   return ok(next)
 }
 
-// ---- Verifier (FamilyPlugin.verify hook) ------------------------------------
+// ---- Verifier (FamilyDescriptor.verify hook) --------------------------------
 
 export function verifyQuadrant(body: QuadrantBody, opts: VerifyOptions): LayoutWarning[] {
   const cap = opts.labelCharCap ?? DEFAULT_LABEL_CHAR_CAP

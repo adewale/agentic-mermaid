@@ -12,14 +12,17 @@ import { MCP_SERVER_NAME } from '../mcp/tool-surface.ts'
 import type { JsonRpcRequest } from '../mcp/protocol.ts'
 import pkg from '../../package.json'
 import { visualWidth } from '../ascii/width.ts'
-import { getStyle, knownStyles, styleKind } from '../scene/style-registry.ts'
+import { knownStyleDescriptors } from '../scene/style-registry.ts'
 import { verifyNoExternalRefs } from '../index.ts'
+import { MAX_HOSTED_PNG_BYTES, PNG_WASM_RUNTIME } from '../png-contract.ts'
+import { THEMES } from '../theme.ts'
 
 const FLOW = 'flowchart TD\n  A[Start] --> B{OK?}\n  B -->|yes| C[Done]'
+const TEST_PNG_RECEIPT = { version: 1, output: 'png', sharedRequestDigest: 'test-shared', requestDigest: 'test-request', appearanceDigest: 'test-appearance' } as const
 
-function makeContext(overrides: Partial<HostedMcpContext> = {}): HostedMcpContext & { executeCalls: Array<{ code: string; timeoutMs: number }>; pngCalls: Array<{ source: string; scale?: number; background?: string }> } {
+function makeContext(overrides: Partial<HostedMcpContext> = {}): HostedMcpContext & { executeCalls: Array<{ code: string; timeoutMs: number }>; pngCalls: Array<{ source: string; scale?: number; background?: string; security?: 'default' | 'strict'; embedFontImport?: boolean }> } {
   const executeCalls: Array<{ code: string; timeoutMs: number }> = []
-  const pngCalls: Array<{ source: string; scale?: number; background?: string }> = []
+  const pngCalls: Array<{ source: string; scale?: number; background?: string; security?: 'default' | 'strict'; embedFontImport?: boolean }> = []
   return {
     executeCalls,
     pngCalls,
@@ -29,7 +32,7 @@ function makeContext(overrides: Partial<HostedMcpContext> = {}): HostedMcpContex
     },
     async renderPng(source, opts) {
       pngCalls.push({ source, ...opts })
-      return { png: new Uint8Array([0x89, 0x50, 0x4e, 0x47]), warnings: [] }
+      return { png: new Uint8Array([0x89, 0x50, 0x4e, 0x47]), warnings: [], receipt: TEST_PNG_RECEIPT, runtime: PNG_WASM_RUNTIME }
     },
     ...overrides,
   }
@@ -82,6 +85,10 @@ describe('hosted MCP handshake', () => {
     const names = (res?.result as any).tools.map((t: { name: string }) => t.name)
     expect(names).toEqual(['execute', 'describe_sdk', 'render_svg', 'render_ascii', 'render_png', 'verify', 'describe', 'mutate', 'build'])
     expect((res?.result as any).tools).toBe(HOSTED_TOOLS)
+    const execute = (res?.result as any).tools.find((tool: { name: string }) => tool.name === 'execute')
+    for (const signature of ['renderMermaidSVGWithReceipt(', 'renderMermaidASCIIWithReceipt(', 'layoutMermaidWithReceipt(']) {
+      expect(execute.description).toContain(signature)
+    }
     for (const tool of (res?.result as any).tools) {
       expect(tool.annotations).toEqual(expect.objectContaining({
         readOnlyHint: true,
@@ -98,11 +105,11 @@ describe('hosted MCP handshake', () => {
   test('render_svg discovery lists every registered built-in look', () => {
     const renderSvg = HOSTED_TOOLS.find(tool => tool.name === 'render_svg')!
     const styleDescription = (renderSvg.inputSchema.properties as Record<string, { description?: string }>).style?.description ?? ''
-    const looks = knownStyles().filter(name => {
-      const spec = getStyle(name)
-      return spec && styleKind(spec) === 'look'
-    })
+    const looks = knownStyleDescriptors()
+      .filter(descriptor => descriptor.kind === 'look')
+      .map(descriptor => descriptor.inputName)
     for (const look of looks) expect(styleDescription).toContain(look)
+    expect(styleDescription.toLowerCase()).not.toContain('cupertino')
   })
 
   test('unknown methods and unknown tools are JSON-RPC errors', async () => {
@@ -119,28 +126,107 @@ describe('hosted MCP handshake', () => {
 })
 
 describe('hosted pure tools', () => {
+  test('dispatch rejects malformed convenience and advanced arguments as -32602', async () => {
+    const context = makeContext()
+    const malformed: JsonRpcRequest[] = [
+      rpc('tools/call', { name: 'render_svg', arguments: [] }),
+      call('render_svg', { source: FLOW, bg: 123 }),
+      call('render_svg', { source: FLOW, seed: 'bad' }),
+      call('render_svg', { source: FLOW, options: { padding: 'wide' } }),
+      call('render_svg', { source: FLOW, style: 'not-a-registered-style' }),
+      call('render_svg', { source: FLOW, bg: 'url(https://invalid.example)' }),
+      call('render_ascii', { source: FLOW, useAscii: 'yes' }),
+      call('render_ascii', { source: FLOW, targetWidth: 3.5 }),
+      call('render_ascii', { source: FLOW, targetWidth: 0 }),
+      call('render_png', { source: FLOW, scale: 'large' }),
+      call('render_png', { source: FLOW, background: 123 }),
+      call('render_png', { source: FLOW, seed: 'bad' }),
+      call('describe', { source: FLOW, format: 'yaml' }),
+      call('verify', { source: 42 }),
+      call('execute', { code: '1 + 1', timeoutMs: 'fast' }),
+      call('render_svg', { source: FLOW, unexpected: true }),
+    ]
+    for (const request of malformed) {
+      const response = await handleHostedRequest(request, context)
+      expect(response?.error?.code).toBe(-32602)
+      expect(response?.error?.message).toContain('Invalid')
+    }
+    expect(context.executeCalls).toEqual([])
+    expect(context.pngCalls).toEqual([])
+  })
+
+  test('dispatch rejects a below-64KB deeply nested advanced config without throwing', async () => {
+    let config: unknown = true
+    for (let index = 0; index < 8_000; index++) config = { a: config }
+    const args = { source: FLOW, options: { mermaidConfig: config } }
+    expect(JSON.stringify(args).length).toBeLessThan(64 * 1024)
+    const context = makeContext()
+    const response = await handleHostedRequest(call('render_svg', args), context)
+    expect(response?.error?.code).toBe(-32602)
+    expect(response?.error?.message).toContain('exceeds maximum nesting depth 64')
+    expect(context.executeCalls).toEqual([])
+    expect(context.pngCalls).toEqual([])
+  })
+
   test('render_svg renders deterministic themeable SVG', async () => {
     const first = payloadOf(await handleHostedRequest(call('render_svg', { source: FLOW }), makeContext()))
     expect(first.ok).toBe(true)
     expect(first.isError).toBe(false)
     expect(first.svg).toStartWith('<svg')
     expect(first.svg).toContain('Start')
+    expect(verifyNoExternalRefs(first.svg)).toEqual({ ok: true, refs: [] })
     const second = payloadOf(await handleHostedRequest(call('render_svg', { source: FLOW }), makeContext()))
     expect(second.svg).toBe(first.svg)
     const dark = payloadOf(await handleHostedRequest(call('render_svg', { source: FLOW, bg: '#101014', fg: '#e6e6f0' }), makeContext()))
     expect(dark.svg).toContain('#101014')
     expect(dark.svg).not.toBe(first.svg)
+    const weaker = payloadOf(await handleHostedRequest(call('render_svg', {
+      source: FLOW,
+      options: { security: 'default', embedFontImport: true },
+    }), makeContext()))
+    expect(weaker.svg).toBe(first.svg)
+    expect(verifyNoExternalRefs(weaker.svg)).toEqual({ ok: true, refs: [] })
+    expect(weaker.svg).not.toContain('@import')
   })
 
-  test('render_svg always strips active content and external references', async () => {
+  test('render_svg applies canonical options before top-level compatibility conveniences', async () => {
+    const direct = payloadOf(await handleHostedRequest(call('render_svg', {
+      source: FLOW,
+      bg: '#101014',
+      seed: 7,
+    }), makeContext()))
+    const overlaid = payloadOf(await handleHostedRequest(call('render_svg', {
+      source: FLOW,
+      options: { bg: '#ffffff', seed: 1 },
+      bg: '#101014',
+      seed: 7,
+    }), makeContext()))
+    expect(overlaid.svg).toBe(direct.svg)
+    expect(overlaid.receipt).toEqual(direct.receipt)
+  })
+
+  test('retains theme as a diagnosed legacy compatibility input', async () => {
+    const tool = HOSTED_TOOLS.find(candidate => candidate.name === 'render_svg')!
+    const themeSchema = (tool.inputSchema.properties as Record<string, any>).theme
+    expect(themeSchema.deprecated).toBe(true)
+    expect(themeSchema['x-agentic-mermaid-diagnostic']).toMatchObject({
+      code: 'THEME_INPUT_DEPRECATED',
+      removal: { release: '0.3.0', date: '2027-01-31' },
+    })
+    const payload = payloadOf(await handleHostedRequest(call('render_svg', { source: FLOW, theme: 'paper' }), makeContext()))
+    expect(payload.ok).toBe(true)
+    expect(payload.warnings).toContainEqual(expect.objectContaining({ code: 'THEME_INPUT_DEPRECATED' }))
+  })
+
+  test('render_svg rejects raw theme CSS instead of rewriting active content', async () => {
     const injected = '@import url(https://evil.example/font.css);</style><svg id="hosted-xss" onload="globalThis.pwned=1"></svg><style>'
     const source = `%%{init: ${JSON.stringify({ themeCSS: injected })}}%%\nxychart-beta\n  x-axis [A, B]\n  y-axis 0 --> 10\n  bar [1, 2]`
     const payload = payloadOf(await handleHostedRequest(call('render_svg', { source }), makeContext()))
-    expect(payload.ok).toBe(true)
-    expect(payload.isError).toBe(false)
-    expect(payload.svg).not.toContain('onload=')
-    expect(payload.svg).not.toMatch(/evil\.example|fonts\.googleapis\.com/)
-    expect(verifyNoExternalRefs(payload.svg)).toEqual({ ok: true, refs: [] })
+    expect(payload.ok).toBe(false)
+    expect(payload.isError).toBe(true)
+    expect(payload.error.code).toBe('SVG_RENDER_FAILED')
+    expect(payload.error.message).toContain('Raw Mermaid themeCSS is not allowed')
+    expect(payload).not.toHaveProperty('svg')
   })
 
   test('render tools expose source config diagnostics instead of dropping them', async () => {
@@ -154,12 +240,10 @@ describe('hosted pure tools', () => {
     }
   })
 
-  test('render_svg rejects unknown themes with the theme list', async () => {
-    const p = payloadOf(await handleHostedRequest(call('render_svg', { source: FLOW, theme: 'no-such-theme' }), makeContext()))
-    expect(p.ok).toBe(false)
-    expect(p.isError).toBe(true)
-    expect(p.error.code).toBe('SVG_RENDER_FAILED')
-    expect(p.error.message).toContain('unknown theme')
+  test('render_svg rejects unknown themes at the advertised schema boundary', async () => {
+    const response = await handleHostedRequest(call('render_svg', { source: FLOW, theme: 'no-such-theme' }), makeContext())
+    expect(response?.error?.code).toBe(-32602)
+    expect(response?.error?.message).toContain('arguments.theme')
   })
 
   test('render_ascii switches between Unicode and ASCII charsets', async () => {
@@ -169,6 +253,19 @@ describe('hosted pure tools', () => {
     const ascii = payloadOf(await handleHostedRequest(call('render_ascii', { source: 'flowchart LR\n  A --> B', useAscii: true }), makeContext()))
     expect(ascii.text).not.toContain('┌')
     expect(ascii.text).toContain('+')
+  })
+
+  test('render_ascii keeps security and font-import policy host-owned', async () => {
+    const source = 'flowchart LR\n  A --> B'
+    const baseline = payloadOf(await handleHostedRequest(call('render_ascii', { source }), makeContext()))
+    const weaker = payloadOf(await handleHostedRequest(call('render_ascii', {
+      source,
+      options: { security: 'default', embedFontImport: true },
+    }), makeContext()))
+    expect(weaker.text).toBe(baseline.text)
+    expect(weaker.receipt).toEqual(baseline.receipt)
+    expect(cacheKeyFor('render_ascii', { source, options: { security: 'default', embedFontImport: true } }))
+      .toEqual(cacheKeyFor('render_ascii', { source }))
   })
 
   test('render_ascii exposes targetWidth and typed impossible-width errors', async () => {
@@ -403,7 +500,7 @@ describe('hosted render_png', () => {
       chars: ['日', '本', '語'],
       message: 'known bundled-font coverage gap',
     }
-    const ctx = makeContext({ renderPng: async () => ({ png: new Uint8Array([0x89, 0x50, 0x4e, 0x47]), warnings: [warning] }) })
+    const ctx = makeContext({ renderPng: async () => ({ png: new Uint8Array([0x89, 0x50, 0x4e, 0x47]), warnings: [warning], receipt: TEST_PNG_RECEIPT, runtime: PNG_WASM_RUNTIME }) })
     const payload = payloadOf(await handleHostedRequest(call('render_png', { source: 'flowchart LR\n  A[日本語]' }), ctx))
     expect(payload.ok).toBe(true)
     expect(payload.png_base64).toBe('iVBORw==')
@@ -411,7 +508,7 @@ describe('hosted render_png', () => {
   })
   test('combines source config diagnostics with raster font warnings', async () => {
     const fontWarning = { code: 'PNG_FONT_COVERAGE' as const, script: 'CJK', chars: ['日'], message: 'font gap' }
-    const ctx = makeContext({ renderPng: async () => ({ png: new Uint8Array([0x89, 0x50, 0x4e, 0x47]), warnings: [fontWarning] }) })
+    const ctx = makeContext({ renderPng: async () => ({ png: new Uint8Array([0x89, 0x50, 0x4e, 0x47]), warnings: [fontWarning], receipt: TEST_PNG_RECEIPT, runtime: PNG_WASM_RUNTIME }) })
     const source = '---\nconfig:\n  state:\n    titleTopMargin: 10\n---\nstateDiagram-v2\n  A[日] --> B'
     const payload = payloadOf(await handleHostedRequest(call('render_png', { source }), ctx))
     expect(payload.ok).toBe(true)
@@ -424,7 +521,32 @@ describe('hosted render_png', () => {
     const p = payloadOf(await handleHostedRequest(call('render_png', { source: FLOW, scale: 3, background: '#fff' }), ctx))
     expect(p.ok).toBe(true)
     expect(atob(p.png_base64)).toBe('\x89PNG')
-    expect(ctx.pngCalls).toEqual([{ source: FLOW, scale: 3, background: '#fff' }])
+    expect(p.runtime).toEqual(PNG_WASM_RUNTIME)
+    expect(ctx.pngCalls).toEqual([{
+      source: FLOW, scale: 3, background: '#ffffff', security: 'strict', embedFontImport: false,
+    }])
+  })
+
+  test('forces strict PNG security after caller-supplied advanced options', async () => {
+    const ctx = makeContext()
+    const payload = payloadOf(await handleHostedRequest(call('render_png', {
+      source: FLOW,
+      options: { security: 'default', seed: 4 },
+    }), ctx))
+    expect(payload.ok).toBe(true)
+    expect(ctx.pngCalls).toEqual([expect.objectContaining({ security: 'strict', seed: 4 })])
+  })
+
+  test('PNG compatibility conveniences override the canonical options object', async () => {
+    const ctx = makeContext()
+    const payload = payloadOf(await handleHostedRequest(call('render_png', {
+      source: FLOW,
+      options: { style: 'hand-drawn', seed: 1 },
+      style: 'crisp',
+      seed: 7,
+    }), ctx))
+    expect(payload.ok).toBe(true)
+    expect(ctx.pngCalls).toEqual([expect.objectContaining({ style: 'crisp', seed: 7, security: 'strict' })])
   })
 
   test('a PNG larger than one base64 chunk round-trips byte-for-byte', async () => {
@@ -433,25 +555,40 @@ describe('hosted render_png', () => {
     // boundary joins. A wrong chunk stride would drop or duplicate bytes.
     const big = new Uint8Array(0x8000 * 2 + 123)
     for (let i = 0; i < big.length; i++) big[i] = i % 256
-    const ctx = makeContext({ renderPng: async () => ({ png: big, warnings: [] }) })
+    const ctx = makeContext({ renderPng: async () => ({ png: big, warnings: [], receipt: TEST_PNG_RECEIPT, runtime: PNG_WASM_RUNTIME }) })
     const p = payloadOf(await handleHostedRequest(call('render_png', { source: FLOW }), ctx))
     expect(p.ok).toBe(true)
     const decoded = Uint8Array.from(atob(p.png_base64), c => c.charCodeAt(0))
     expect(decoded).toEqual(big)
   })
 
-  test('scale is clamped into the documented 0.1-8 range before rasterizing', async () => {
+  test('rejects oversized hosted bytes before constructing a base64 response', async () => {
+    const oversized = new Uint8Array(MAX_HOSTED_PNG_BYTES + 1)
+    const ctx = makeContext({ renderPng: async () => ({
+      png: oversized,
+      warnings: [],
+      receipt: TEST_PNG_RECEIPT,
+      runtime: PNG_WASM_RUNTIME,
+    }) })
+    const payload = payloadOf(await handleHostedRequest(call('render_png', { source: FLOW }), ctx))
+    expect(payload.ok).toBe(false)
+    expect(payload.isError).toBe(true)
+    expect(payload.error.code).toBe('PNG_OUTPUT_TOO_LARGE')
+    expect(payload).not.toHaveProperty('png_base64')
+  })
+
+  test('preserves every positive finite portable scale before rasterizing', async () => {
     const ctx = makeContext()
     await handleHostedRequest(call('render_png', { source: FLOW, scale: 100 }), ctx)
     await handleHostedRequest(call('render_png', { source: FLOW, scale: 0.001 }), ctx)
     await handleHostedRequest(call('render_png', { source: FLOW, scale: 3 }), ctx)
-    expect(ctx.pngCalls.map(c => c.scale)).toEqual([8, 0.1, 3])
+    expect(ctx.pngCalls.map(c => c.scale)).toEqual([100, 0.001, 3])
   })
 
   test('file/url artifact modes are a local-server feature', async () => {
     const res = await handleHostedRequest(call('render_png', { source: FLOW, output: 'file' }), makeContext())
     expect(res?.error?.code).toBe(-32602)
-    expect(res?.error?.message).toContain('base64 only')
+    expect(res?.error?.message).toContain('arguments.output is not allowed')
   })
 
   test('reports unavailability when no rasterizer is wired', async () => {
@@ -471,21 +608,19 @@ describe('hosted render_png', () => {
   })
 })
 
-describe('cacheKeyFor (validation-safe deterministic arguments)', () => {
-  test('keeps describe_sdk arguments validation-safe and rejects invalid discovery requests', () => {
+describe('cacheKeyFor (validated, normalized, output-affecting arguments)', () => {
+  test('normalizes describe_sdk defaults and rejects invalid discovery requests', () => {
     expect(cacheKeyFor('describe_sdk', { family: 'gantt' }))
-      .not.toEqual(cacheKeyFor('describe_sdk', { family: 'gantt', detail: 'fields', ignored: true }))
-    expect(cacheKeyFor('describe_sdk', { family: 'gantt' }))
-      .not.toEqual(cacheKeyFor('describe_sdk', { family: 'gantt', detail: 'fields' }))
+      .toEqual(cacheKeyFor('describe_sdk', { family: 'gantt', detail: 'fields' }))
     expect(cacheKeyFor('describe_sdk', { family: 'gantt', detail: 'signatures' }))
       .not.toEqual(cacheKeyFor('describe_sdk', { family: 'gantt', detail: 'fields' }))
+    expect(cacheKeyFor('describe_sdk', { family: 'gantt', ignored: true })).toBeNull()
     expect(cacheKeyFor('describe_sdk', { family: 'unknown' })).toBeNull()
     expect(cacheKeyFor('describe_sdk', { family: 'gantt', detail: 'unknown' })).toBeNull()
   })
 
-  test('retains unknown keys so pre-dispatch cache lookup cannot bypass validation', () => {
-    expect(cacheKeyFor('describe', { source: FLOW, nonce: 'x', foo: 1 }))
-      .not.toEqual(cacheKeyFor('describe', { source: FLOW }))
+  test('does not cache arguments rejected by the advertised tool schema', () => {
+    expect(cacheKeyFor('describe', { source: FLOW, nonce: 'x', foo: 1 })).toBeNull()
   })
 
   test('execute is never response-cached because it exposes time and randomness', () => {
@@ -493,7 +628,7 @@ describe('cacheKeyFor (validation-safe deterministic arguments)', () => {
     expect(cacheKeyFor('execute', { code: 'Date.now()' })).toBeNull()
   })
 
-  test('render_png keeps raw scale values distinct before dispatch normalization', () => {
+  test('render_png keys on the exact requested portable scale', () => {
     expect(cacheKeyFor('render_png', { source: FLOW, scale: 100 }))
       .not.toEqual(cacheKeyFor('render_png', { source: FLOW, scale: 999 }))
     expect(cacheKeyFor('render_png', { source: FLOW, scale: 100 }))
@@ -507,25 +642,62 @@ describe('cacheKeyFor (validation-safe deterministic arguments)', () => {
       .not.toEqual(cacheKeyFor('render_png', { source: FLOW, background: 'black' }))
     expect(cacheKeyFor('render_png', { source: FLOW }))
       .not.toEqual(cacheKeyFor('render_png', { source: 'flowchart TD\n  X --> Y' }))
+    expect(cacheKeyFor('render_png', { source: FLOW, background: '#fff' }))
+      .toEqual(cacheKeyFor('render_png', { source: FLOW, background: '#ffffff' }))
   })
 
-  test('render_png omitted, explicit, and invalid scales cannot share a pre-validation entry', () => {
-    expect(cacheKeyFor('render_png', { source: FLOW }))
-      .not.toEqual(cacheKeyFor('render_png', { source: FLOW, scale: 2 }))
-    expect(cacheKeyFor('render_png', { source: FLOW, scale: 'big' }))
-      .not.toEqual(cacheKeyFor('render_png', { source: FLOW, scale: 2 }))
+  test('render_png omitted scale and explicit default scale collapse to one entry', () => {
+    // both render at scale 2 (png-wasm applies `?? 2`), so they must share a key
+    const absent = cacheKeyFor('render_png', { source: FLOW }) as Record<string, unknown>
+    expect(absent).toHaveProperty('output.scale', 2)
+    expect(absent).toEqual(cacheKeyFor('render_png', { source: FLOW, scale: 2 }) as Record<string, unknown>)
+    // An ill-typed scale is not cacheable because dispatch rejects it.
+    expect(cacheKeyFor('render_png', { source: FLOW, scale: 'big' })).toBeNull()
   })
 
-  test('the source payload is keyed verbatim (comment junk is NOT normalized)', () => {
+  test('render_png cache identity follows effective fit/style precedence', () => {
+    expect(cacheKeyFor('render_png', { source: FLOW, scale: 2, fitTo: { width: 64 } }))
+      .toEqual(cacheKeyFor('render_png', { source: FLOW, scale: 99, fitTo: { width: 64 } }))
+    expect(cacheKeyFor('render_png', {
+      source: FLOW,
+      style: 'crisp',
+      options: { style: 'hand-drawn', seed: 1 },
+    })).toEqual(cacheKeyFor('render_png', {
+      source: FLOW,
+      style: 'crisp',
+      options: { style: 'crisp', seed: 1 },
+    }))
+  })
+
+  test('the source/code payload is keyed verbatim (comment junk is NOT normalized)', () => {
+    // Documented scope limit: insignificant source bytes are not normalized —
+    // keying on raw source keeps a cached result provably correct
+    // for that exact input. The rate limit, not the cache, bounds this.
     expect(cacheKeyFor('render_svg', { source: 'flowchart LR\n  A --> B' }))
       .not.toEqual(cacheKeyFor('render_svg', { source: 'flowchart LR\n  A --> B\n%% c' }))
   })
 
-  test('render_svg retains the complete argument object', () => {
-    expect(cacheKeyFor('render_svg', { source: FLOW, bg: '#000', junk: 1 }))
-      .toEqual({ t: 'render_svg', args: { source: FLOW, bg: '#000', junk: 1 } })
-    expect(cacheKeyFor('render_svg', { source: FLOW, theme: 'a' }))
-      .not.toEqual(cacheKeyFor('render_svg', { source: FLOW, theme: 'b' }))
+  test('render_svg keys validated theme/bg/fg inputs and rejects junk', () => {
+    expect(cacheKeyFor('render_svg', { source: FLOW, bg: '#000' }))
+      .toEqual({
+        t: 'render_svg',
+        source: FLOW,
+        render: { bg: '#000', security: 'strict', embedFontImport: false },
+        legacyThemeDiagnostic: false,
+      })
+    expect(cacheKeyFor('render_svg', { source: FLOW, bg: '#000', junk: 1 })).toBeNull()
+    expect(cacheKeyFor('render_svg', { source: FLOW, theme: 'paper' }))
+      .not.toEqual(cacheKeyFor('render_svg', { source: FLOW, theme: 'dusk' }))
+  })
+
+  test('render_svg cache identity preserves the legacy-theme diagnostic', () => {
+    const legacy = cacheKeyFor('render_svg', { source: FLOW, theme: 'paper' }) as Record<string, unknown>
+    const canonical = cacheKeyFor('render_svg', { source: FLOW, options: THEMES.paper }) as Record<string, unknown>
+
+    expect(legacy.render).toEqual(canonical.render)
+    expect(legacy).toHaveProperty('legacyThemeDiagnostic', true)
+    expect(canonical).toHaveProperty('legacyThemeDiagnostic', false)
+    expect(legacy).not.toEqual(canonical)
   })
 
   test('render_ascii distinguishes charset and target width', () => {
@@ -550,7 +722,7 @@ describe('cacheKeyFor (validation-safe deterministic arguments)', () => {
   })
 
   test('describe format participates in the cache key', () => {
-    expect(cacheKeyFor('describe', { source: FLOW })).not.toEqual(cacheKeyFor('describe', { source: FLOW, format: 'text' }))
+    expect(cacheKeyFor('describe', { source: FLOW })).toEqual(cacheKeyFor('describe', { source: FLOW, format: 'text' }))
     expect(cacheKeyFor('describe', { source: FLOW, format: 'facts' })).not.toEqual(cacheKeyFor('describe', { source: FLOW, format: 'json' }))
     expect(cacheKeyFor('describe', { source: FLOW, format: 'bad' })).toBeNull()
   })

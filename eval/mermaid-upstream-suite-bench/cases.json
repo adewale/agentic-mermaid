@@ -412,7 +412,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 0,
       "edgeCount": 0,
       "groupCount": 0
@@ -2718,16 +2718,12 @@
       ]
     },
     "assertions": {
-      "nodeCount": 9,
+      "nodeCount": 5,
       "edgeCount": 4,
       "groupCount": 0,
-      "minNodes": 9,
+      "minNodes": 5,
       "minEdges": 4,
       "labelsContain": [
-        "accTitle",
-        "accDescr",
-        "Flow",
-        "with",
         "Hard",
         "Round",
         "Decision",
@@ -2750,14 +2746,12 @@
       ]
     },
     "assertions": {
-      "nodeCount": 7,
+      "nodeCount": 5,
       "edgeCount": 4,
       "groupCount": 0,
-      "minNodes": 7,
+      "minNodes": 5,
       "minEdges": 4,
       "labelsContain": [
-        "accTitle",
-        "accDescr",
         "Hard",
         "Round",
         "Decision",
@@ -7578,7 +7572,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 2,
       "edgeCount": 0,
       "groupCount": 0
@@ -7623,7 +7617,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 2,
       "edgeCount": 0,
       "groupCount": 0
@@ -7643,7 +7637,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 2,
       "edgeCount": 0,
       "groupCount": 0
@@ -13347,13 +13341,12 @@
       ]
     },
     "assertions": {
-      "nodeCount": 4,
+      "nodeCount": 3,
       "edgeCount": 2,
       "groupCount": 0,
-      "minNodes": 4,
+      "minNodes": 3,
       "minEdges": 2,
       "labelsContain": [
-        "a simple description of the diagram",
         "this is another string"
       ],
       "expectStructured": true
@@ -13373,13 +13366,12 @@
       ]
     },
     "assertions": {
-      "nodeCount": 4,
+      "nodeCount": 3,
       "edgeCount": 2,
       "groupCount": 0,
-      "minNodes": 4,
+      "minNodes": 3,
       "minEdges": 2,
       "labelsContain": [
-        "a simple description of the diagram",
         "this is another string"
       ],
       "expectStructured": true
@@ -13399,9 +13391,9 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
-      "nodeCount": 0,
-      "edgeCount": 0,
+      "expectStructured": true,
+      "nodeCount": 3,
+      "edgeCount": 2,
       "groupCount": 0
     }
   },
@@ -13419,13 +13411,12 @@
       ]
     },
     "assertions": {
-      "nodeCount": 4,
+      "nodeCount": 3,
       "edgeCount": 2,
       "groupCount": 0,
-      "minNodes": 4,
+      "minNodes": 3,
       "minEdges": 2,
       "labelsContain": [
-        "a simple title of the diagram",
         "this is another string"
       ],
       "expectStructured": true
@@ -13445,13 +13436,12 @@
       ]
     },
     "assertions": {
-      "nodeCount": 4,
+      "nodeCount": 3,
       "edgeCount": 2,
       "groupCount": 0,
-      "minNodes": 4,
+      "minNodes": 3,
       "minEdges": 2,
       "labelsContain": [
-        "a simple title of the diagram",
         "this is another string"
       ],
       "expectStructured": true
@@ -14687,7 +14677,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 2,
       "edgeCount": 0,
       "groupCount": 1,
@@ -14713,7 +14703,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 4,
       "edgeCount": 0,
       "groupCount": 1,
@@ -14741,7 +14731,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 2,
       "edgeCount": 0,
       "groupCount": 1,
@@ -14767,7 +14757,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 2,
       "edgeCount": 0,
       "groupCount": 1,

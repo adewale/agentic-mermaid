@@ -3,6 +3,12 @@ var renderSpinnerTimer = null;
 var renderRequestVersion = 0;
 var lastSuccessfulRenderMs = null;
 var autoFitPending = true;
+// Exact canonical artifact inserted into the preview. Export adapters derive
+// from this record/source, never from a host-mutated preview DOM.
+var lastRenderedSvgArtifact = null;
+// Text views and their copy/export action retain the same receipt-bearing
+// artifacts as SVG/PNG instead of reducing them to strings at render time.
+var lastRenderedTextArtifacts = { unicode: null, ascii: null };
 
 function currentEditorSource() {
   return editor.value.trim();
@@ -18,9 +24,24 @@ function clearRenderSpinner() {
   spinner.classList.remove("visible");
 }
 
+function invalidateRenderedArtifacts() {
+  lastRenderedSvgArtifact = null;
+  markTextOutputsDirty();
+  delete previewInner.dataset.sharedRequestDigest;
+  delete previewInner.dataset.renderRequestDigest;
+  delete previewInner.dataset.appearanceDigest;
+  if (typeof lastRenderedPngArtifact !== "undefined") lastRenderedPngArtifact = null;
+  if (typeof lastRenderedSvgExportProjection !== "undefined") lastRenderedSvgExportProjection = null;
+  if (typeof updateExportAvailability === "function") updateExportAvailability();
+}
+
 function scheduleRender(delay) {
   var version = ++renderRequestVersion;
   if (renderTimer) clearTimeout(renderTimer);
+  // Keep the old picture visible until its replacement is ready, but revoke
+  // its authority immediately. Source, Style, theme, or config changes must
+  // never leave stale export buttons or receipts live during the debounce.
+  invalidateRenderedArtifacts();
   clearRenderSpinner();
   var nextDelay = delay == null ? EditorMotion.adaptiveRenderDelay(lastSuccessfulRenderMs) : delay;
   renderTimer = setTimeout(function() {
@@ -90,12 +111,9 @@ function applyThemeToPage(themeKey) {
       ? previewInner.querySelector("svg")
       : null;
   if (svgEl) {
-    var themeColors =
-      themeKey && THEMES[themeKey]
-        ? THEMES[themeKey]
-        : { bg: "#FFFFFF", fg: "#27272A" };
+    var themeColors = editorPaletteColors(themeKey) || { bg: "#FFFFFF", fg: "#27272A" };
     var overrides = (typeof state !== "undefined" && state.config) || {};
-    var roles = ["bg", "fg", "line", "accent", "muted", "surface", "border"];
+    var roles = (window.__mermaid && window.__mermaid.STYLE_COLOR_TOKEN_FIELDS) || [];
     for (var i = 0; i < roles.length; i++) {
       var value = overrides[roles[i]] || themeColors[roles[i]];
       if (value) svgEl.style.setProperty("--" + roles[i], value);
@@ -105,42 +123,65 @@ function applyThemeToPage(themeKey) {
 }
 
 function buildOptions() {
-  // The preview is inserted with innerHTML and share hashes are attacker-
-  // controlled. Strict mode strips active tags, event handlers, and external
-  // references even if a future config field reaches this boundary.
+  // Share hashes are attacker-controlled. Strict mode strips active tags,
+  // event handlers, and external references even if a future config field
+  // reaches this boundary; insertion below additionally parses one SVG node.
   var opts = { embedFontImport: false, security: "strict" };
-  if (state.theme && THEMES[state.theme]) {
-    var t = THEMES[state.theme];
-    opts.bg = t.bg;
-    opts.fg = t.fg;
-    if (t.line) opts.line = t.line;
-    if (t.accent) opts.accent = t.accent;
-    if (t.muted) opts.muted = t.muted;
-    if (t.surface) opts.surface = t.surface;
-    if (t.border) opts.border = t.border;
-  }
 
-  var config = Object.assign({}, state.config);
+  // Restored/share-link config is untrusted JSON. Admit only fields from the
+  // library's canonical manifest and validate the same object CLI/MCP accept.
+  var config = Object.create(null);
+  var rawConfig = (state && state.config) || {};
+  var allowedFields = (window.__mermaid && window.__mermaid.SHARED_RENDER_OPTION_FIELDS) || [];
+  for (var fieldIndex = 0; fieldIndex < allowedFields.length; fieldIndex++) {
+    var field = allowedFields[fieldIndex];
+    if (Object.prototype.hasOwnProperty.call(rawConfig, field) && rawConfig[field] !== undefined) {
+      config[field] = rawConfig[field];
+    }
+  }
+  if (window.__mermaid && typeof window.__mermaid.validateSerializableRenderOptions === "function") {
+    var problems = window.__mermaid.validateSerializableRenderOptions(config);
+    if (problems.length) throw new Error("Invalid render options: " + problems.join("; "));
+  }
   var configStyle = config.style;
   delete config.style;
-  delete config.editorEdgeStroke;
-  delete config.editorNodeStroke;
   Object.assign(opts, config);
+  // Hosts cannot weaken editor preview policy through a saved draft/link.
+  opts.embedFontImport = false;
+  opts.security = "strict";
 
-  // Style picks renderer treatment; Palette picks colors. Shared example links
-  // can also carry a full RenderOptions.style stack in config, so combine the
-  // dropdown style with the config stack instead of letting one overwrite the
-  // other. Later stack entries win for public style fields.
+  // Style and Palette are two views over the one canonical style stack. Keep
+  // palette selection declarative so its precedence relative to source
+  // themeVariables is identical in the website, editor, CLI, and MCP.
+  // Explicit Settings colors remain RenderOptions overrides and therefore keep
+  // their documented higher precedence.
   var styleStack = [];
   if (state.style && state.style !== "crisp") styleStack.push(state.style);
   if (Array.isArray(configStyle)) styleStack = styleStack.concat(configStyle);
   else if (configStyle) styleStack.push(configStyle);
+  // The explicit editor Palette is the final color layer. Imported example or
+  // share-link style stacks may change treatment, but must not silently replace
+  // the Palette the user selected in the editor chrome.
+  var paletteInput = editorPaletteInput(state.palette);
+  if (paletteInput) styleStack.push(paletteInput);
   if (styleStack.length === 1) opts.style = styleStack[0];
   else if (styleStack.length > 1) opts.style = styleStack;
   if (state.style && state.style !== "crisp") opts.seed = state.seed || 0;
   // Never let imported example/share configuration weaken this sink.
   opts.security = "strict";
   return opts;
+}
+
+function insertStrictRenderedSvg(svg) {
+  if (window.__mermaid && typeof window.__mermaid.verifyNoExternalRefs === "function") {
+    var verification = window.__mermaid.verifyNoExternalRefs(svg);
+    if (!verification.ok) throw new Error("Unsafe SVG output: " + verification.refs.join(", "));
+  }
+  var parsed = new DOMParser().parseFromString(svg, "image/svg+xml");
+  if (parsed.querySelector("parsererror") || !parsed.documentElement || parsed.documentElement.localName !== "svg") {
+    throw new Error("Renderer returned malformed SVG");
+  }
+  previewInner.replaceChildren(document.importNode(parsed.documentElement, true));
 }
 
 function setTextOutputs(unicode, ascii) {
@@ -153,6 +194,33 @@ function setTextOutputs(unicode, ascii) {
 
 var textOutputCacheKey = "";
 
+function clearTextOutputReceipts() {
+  lastRenderedTextArtifacts.unicode = null;
+  lastRenderedTextArtifacts.ascii = null;
+  ["unicode", "ascii"].forEach(function(format) {
+    delete previewInner.dataset[format + "SharedRequestDigest"];
+    delete previewInner.dataset[format + "RenderRequestDigest"];
+    delete previewInner.dataset[format + "AppearanceDigest"];
+  });
+}
+
+function retainTextOutputArtifact(format, artifact) {
+  if (!artifact || !artifact.receipt) throw new Error(format + " renderer returned no receipt");
+  if (artifact.receipt.output !== format) throw new Error(format + " renderer returned a " + artifact.receipt.output + " receipt");
+  if (lastRenderedSvgArtifact) {
+    if (artifact.receipt.sharedRequestDigest !== lastRenderedSvgArtifact.receipt.sharedRequestDigest) {
+      throw new Error(format + " output and SVG preview do not describe the same render request");
+    }
+    if (artifact.receipt.appearanceDigest !== lastRenderedSvgArtifact.receipt.appearanceDigest) {
+      throw new Error(format + " output and SVG preview do not describe the same appearance");
+    }
+  }
+  lastRenderedTextArtifacts[format] = artifact;
+  previewInner.dataset[format + "SharedRequestDigest"] = artifact.receipt.sharedRequestDigest;
+  previewInner.dataset[format + "RenderRequestDigest"] = artifact.receipt.requestDigest;
+  previewInner.dataset[format + "AppearanceDigest"] = artifact.receipt.appearanceDigest;
+}
+
 function textOutputKey(source) {
   return source + "\n" + JSON.stringify(buildOptions());
 }
@@ -163,6 +231,7 @@ function activeCanvasFormat() {
 
 function markTextOutputsDirty() {
   textOutputCacheKey = "";
+  clearTextOutputReceipts();
 }
 
 var VERIFY_TIER_BY_CODE = {
@@ -327,31 +396,6 @@ function updateVerifyPanel(source) {
   }
 }
 
-function ensurePreviewSvgAccessibility(svgEl, source) {
-  if (!svgEl) return;
-  var title = svgEl.querySelector('title');
-  var desc = svgEl.querySelector('desc');
-  if (!title) {
-    title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
-    title.id = 'preview-svg-title';
-    var first = (source || '').trim().split(/\n/)[0] || 'Mermaid diagram';
-    title.textContent = 'Rendered ' + first.replace(/[^a-z0-9 _-]/gi, ' ').trim() + ' diagram';
-    svgEl.insertBefore(title, svgEl.firstChild);
-  } else if (!title.id) {
-    title.id = 'preview-svg-title';
-  }
-  if (!desc) {
-    desc = document.createElementNS('http://www.w3.org/2000/svg', 'desc');
-    desc.id = 'preview-svg-desc';
-    desc.textContent = 'Preview generated locally from the Mermaid source editor. Verify status and text output are shown below.';
-    title.insertAdjacentElement('afterend', desc);
-  } else if (!desc.id) {
-    desc.id = 'preview-svg-desc';
-  }
-  svgEl.setAttribute('role', 'img');
-  svgEl.setAttribute('aria-labelledby', title.id + ' ' + desc.id);
-}
-
 function fitUnicodeOutput() {
   if (!unicodeOutput) return;
   var wrap = document.getElementById('unicode-output-wrap');
@@ -375,7 +419,7 @@ function fitUnicodeOutput() {
 // when a text canvas view is actually active (doRender's activeCanvasFormat
 // check, or buttons.js calling ensureTextOutputs on view switch). Past the
 // line cap the pane shows a structured too-large message instead of running
-// renderMermaidAscii synchronously on a huge diagram.
+// the receipt-bearing terminal renderer synchronously on a huge diagram.
 var TEXT_RENDER_MAX_LINES = 300;
 
 function countSourceLines(source) {
@@ -386,7 +430,7 @@ function countSourceLines(source) {
 }
 
 function renderTextOutputs(source) {
-  if (!renderMermaidAscii) return;
+  if (!renderMermaidAsciiWithReceipt || !renderMermaidUnicodeWithReceipt) return;
   var key = textOutputKey(source);
   if (textOutputCacheKey === key) {
     if (activeCanvasFormat() === "unicode") fitUnicodeOutput();
@@ -403,14 +447,19 @@ function renderTextOutputs(source) {
   }
   try {
     var opts = Object.assign({}, buildOptions(), { colorMode: "none" });
+    var unicodeArtifact = renderMermaidUnicodeWithReceipt(source, opts);
+    var asciiArtifact = renderMermaidAsciiWithReceipt(source, Object.assign({}, opts, { useAscii: true }));
+    retainTextOutputArtifact("unicode", unicodeArtifact);
+    retainTextOutputArtifact("ascii", asciiArtifact);
     setTextOutputs(
-      renderMermaidAscii(source, Object.assign({}, opts, { useAscii: false })),
-      renderMermaidAscii(source, Object.assign({}, opts, { useAscii: true })),
+      unicodeArtifact.text,
+      asciiArtifact.text,
     );
     textOutputCacheKey = key;
     if (activeCanvasFormat() === "unicode") fitUnicodeOutput();
   } catch (err) {
     textOutputCacheKey = "";
+    clearTextOutputReceipts();
     setTextOutputs("Text output failed: " + String(err || "unknown error"), "Text output failed: " + String(err || "unknown error"));
   }
 }
@@ -439,6 +488,10 @@ async function doRender(version) {
     statusText.className = "";
     statusDot.className = "status-dot";
     renderTime.textContent = "";
+    delete previewInner.dataset.sharedRequestDigest;
+    delete previewInner.dataset.renderRequestDigest;
+    delete previewInner.dataset.appearanceDigest;
+    lastRenderedSvgArtifact = null;
     resetVerifyPanel("Waiting for source");
     if (typeof updateExportAvailability === "function") updateExportAvailability();
     return;
@@ -450,17 +503,19 @@ async function doRender(version) {
   }, 250);
 
   try {
-    var svg = await renderMermaid(source, buildOptions());
+    var rendered = await Promise.resolve(renderMermaidWithReceipt(source, buildOptions()));
+    var svg = rendered.svg;
     if (!isCurrentRender(version, source)) return;
     var svgSafety = verifyNoExternalRefs(svg);
     if (!svgSafety.ok) throw new Error("Unsafe SVG output blocked: " + svgSafety.refs.join(", "));
     var renderMs = performance.now() - t0;
     var ms = renderMs.toFixed(0);
     lastSuccessfulRenderMs = renderMs;
-    previewInner.innerHTML = svg;
-    var svgEl = previewInner.querySelector("svg");
-    ensurePreviewSvgAccessibility(svgEl, source);
-    applyStrokeOverrides(svgEl);
+    insertStrictRenderedSvg(svg);
+    lastRenderedSvgArtifact = rendered;
+    previewInner.dataset.sharedRequestDigest = rendered.receipt.sharedRequestDigest;
+    previewInner.dataset.renderRequestDigest = rendered.receipt.requestDigest;
+    previewInner.dataset.appearanceDigest = rendered.receipt.appearanceDigest;
     applyZoom(state.zoom);
     if (autoFitPending && typeof fitToView === 'function') { fitToView(); autoFitPending = false; }
     setEditorErrorLine(0);
@@ -477,6 +532,10 @@ async function doRender(version) {
     if (!isCurrentRender(version, source)) return;
     var ms = (performance.now() - t0).toFixed(0);
     previewInner.innerHTML = formatRenderErrorHtml(err);
+    delete previewInner.dataset.sharedRequestDigest;
+    delete previewInner.dataset.renderRequestDigest;
+    delete previewInner.dataset.appearanceDigest;
+    lastRenderedSvgArtifact = null;
     var errorLoc = extractErrorLocation(String(err || ""));
     setEditorErrorLine(errorLoc ? errorLoc.line : 0);
     statusText.textContent = "Error";

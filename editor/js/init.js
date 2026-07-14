@@ -4,11 +4,12 @@ var themeBtnSwatch = document.getElementById("theme-btn-swatch");
 var themeDropdownBtn = document.getElementById("theme-dropdown-btn");
 
 function updateThemeButton() {
-  var key = state.theme;
-  if (key && THEMES[key]) {
+  var key = state.palette;
+  var colors = editorPaletteColors(key);
+  if (key && colors) {
     themeBtnLabel.textContent =
       themeDropdownBtn.getAttribute("data-label-" + key) || key;
-    themeBtnSwatch.style.background = THEMES[key].bg;
+    themeBtnSwatch.style.background = colors.bg;
     themeBtnSwatch.style.display = "";
   } else {
     themeBtnLabel.textContent = "Default";
@@ -27,11 +28,13 @@ function updateThemeButton() {
 }
 
 function setTheme(key) {
-  state.theme = key;
+  state.palette = key ? editorPaletteInput(key) : "";
   diagramThemeIsAuto = false;
   if (key) {
-    localStorage.setItem("bm-editor-theme", key);
+    localStorage.setItem("bm-editor-palette", state.palette);
+    localStorage.removeItem("bm-editor-theme");
   } else {
+    localStorage.removeItem("bm-editor-palette");
     localStorage.removeItem("bm-editor-theme");
   }
   applyThemeToPage(key);
@@ -65,15 +68,18 @@ applyColorMode(isDark);
 
 // Restore saved theme, otherwise start on the brand Paper theme so the editor
 // opens with the same diagram palette the public site renders.
-var savedTheme = localStorage.getItem("bm-editor-theme") || "";
-if (savedTheme && THEMES[savedTheme]) {
-  state.theme = savedTheme;
+var savedPaletteInput = localStorage.getItem("bm-editor-palette") || localStorage.getItem("bm-editor-theme") || "";
+var savedPalette = editorPaletteInput(savedPaletteInput);
+if (savedPalette) {
+  state.palette = savedPalette;
+  localStorage.setItem("bm-editor-palette", savedPalette);
+  localStorage.removeItem("bm-editor-theme");
   diagramThemeIsAuto = false;
-} else if (!state.theme || !THEMES[state.theme]) {
-  state.theme = DEFAULT_EDITOR_THEME;
+} else if (!editorPaletteInput(state.palette)) {
+  state.palette = DEFAULT_EDITOR_PALETTE;
   diagramThemeIsAuto = true;
 }
-applyThemeToPage(state.theme);
+applyThemeToPage(state.palette);
 updateThemeButton();
 setThemeMenuOpen(false, false);
 
@@ -147,6 +153,7 @@ var DEFAULT_SOURCE = [
 // Draft restore notice: polite, transient, with an explicit way to discard.
 var draftNotice = document.getElementById("draft-notice");
 var draftDiscardBtn = document.getElementById("draft-discard-btn");
+var draftPrivacyBtn = document.getElementById("draft-privacy-btn");
 var draftNoticeTimer = null;
 
 function hideDraftNotice() {
@@ -176,6 +183,10 @@ function discardRestoredDraft() {
 }
 
 if (draftDiscardBtn) draftDiscardBtn.addEventListener("click", discardRestoredDraft);
+if (draftPrivacyBtn) draftPrivacyBtn.addEventListener("click", function() {
+  if (typeof toggleDraftStorageMode === "function") toggleDraftStorageMode();
+});
+if (typeof updateDraftPrivacyControl === "function") updateDraftPrivacyControl();
 
 function shouldOpenEmptyEditor() {
   try {
@@ -193,20 +204,31 @@ function shouldOpenEmptyEditor() {
   // them believe they are looking at what was shared.
   if (!hashSource && typeof hashDecodeFailure === 'string' && hashDecodeFailure && typeof showToast === 'function') {
     showToast(hashDecodeFailure === 'unsupported'
-      ? 'This share link needs a newer browser to open (missing DecompressionStream). Showing your own content instead.'
-      : 'This share link could not be decoded (truncated or damaged). Showing your own content instead.');
+      ? 'This share link needs a newer browser to open (missing DecompressionStream). Nothing was loaded.'
+      : hashDecodeFailure === 'too-large'
+        ? 'This share link is too large to open safely. Nothing was loaded.'
+        : 'This share link could not be decoded (truncated or damaged). Nothing was loaded.');
   }
   var queryExampleId = getQueryExampleId();
   var queryEmptyEditor = shouldOpenEmptyEditor();
   var loadedInitialExample = false;
   if (hashSource) {
     editor.value = hashSource;
-    applyThemeToPage(state.theme);
+    applyThemeToPage(state.palette);
     updateThemeButton();
     updateStyleButton();
     if (typeof hydrateConfigControls === 'function') hydrateConfigControls(state.config);
     else refreshAllColorUIs();
-  } else if (!hashDecodeFailure && queryExampleId && typeof loadEditorExample === 'function' && findEditorExample(queryExampleId)) {
+  } else if (hashDecodeFailure) {
+    // Fail closed: a broken shared URL must never be replaced by a local draft,
+    // query example, or plausible-looking default.  Clear the unopenable URL so
+    // the next edit starts a new share state rather than retrying it.
+    editor.value = '';
+    state.config = {};
+    if (typeof hydrateConfigControls === 'function') hydrateConfigControls(state.config);
+    else refreshAllColorUIs();
+    window.history.replaceState(null, '', window.location.pathname);
+  } else if (queryExampleId && typeof loadEditorExample === 'function' && findEditorExample(queryExampleId)) {
     loadEditorExample(queryExampleId);
     loadedInitialExample = true;
   } else if (queryEmptyEditor) {
@@ -234,6 +256,11 @@ function shouldOpenEmptyEditor() {
       }
     } else {
       editor.value = DEFAULT_SOURCE;
+      if (typeof draftRestoreFailure === 'string' && draftRestoreFailure && typeof showToast === 'function') {
+        showToast(draftRestoreFailure === 'too-large'
+          ? 'A saved draft was too large to restore safely and was cleared.'
+          : 'A saved draft was corrupt and was cleared.');
+      }
     }
   }
 

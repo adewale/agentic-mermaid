@@ -40,6 +40,12 @@ export interface StateRenderOptions extends RenderOptions {
   stateVisual?: ResolvedStateVisualConfig
 }
 
+/** Direct low-level layout compatibility; canonical requests pass appearance
+ * explicitly through ResolvedFamilyRenderContext instead. */
+export function resolvedStateVisualOf(options: RenderOptions): ResolvedStateVisualConfig | undefined {
+  return (options as StateRenderOptions).stateVisual
+}
+
 const positive = (value: unknown): number | undefined =>
   typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : undefined
 const nonNegative = (value: unknown): number | undefined =>

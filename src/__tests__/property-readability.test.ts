@@ -18,7 +18,7 @@ import { describe, test, expect } from 'bun:test'
 import fc from 'fast-check'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { parseMermaid, layoutMermaid } from '../agent/index.ts'
+import { parseMermaid, layoutMermaid, verifyMermaid } from '../agent/index.ts'
 import { auditReadability } from '../agent/readability-audit.ts'
 import { METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'
 import { toFinite } from '../agent/types.ts'
@@ -83,7 +83,21 @@ describe('node-link and edge-label readability ratchet (corpus + fuzzed families
       const p = parseMermaid(src)
       expect(p.ok, `${id}: source must parse; failed parsing cannot improve readability`).toBe(true)
       if (!p.ok) throw new Error(`${id}: parse failed`)
-      const n = auditReadability(layoutMermaid(p.value)).length
+      // This ratchet measures labels on successfully positioned artifacts;
+      // layout-equivalence separately owns the success/failure outcome. Some
+      // preserved upstream examples are deliberately non-renderable locally
+      // (for example the Gantt wall-clock-fallback divergences), and strict
+      // Section A layout now throws for those instead of returning a false
+      // 0x0 success.
+      let layout
+      try {
+        layout = layoutMermaid(p.value)
+      } catch (error) {
+        const codes = verifyMermaid(p.value).warnings.map(warning => warning.code)
+        if (codes.includes('EMPTY_DIAGRAM') || codes.includes('UNRESOLVABLE_SCHEDULE')) return
+        throw error
+      }
+      const n = auditReadability(layout).length
       if (n > 0) { total += n; offenders.push(`${id}×${n}`) }
     }
 

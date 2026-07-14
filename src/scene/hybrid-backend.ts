@@ -13,10 +13,10 @@
 
 import { getStroke } from 'perfect-freehand'
 import type { Geometry } from './ir.ts'
-import { registerBackend } from './backend.ts'
 import { createSketchBackend, sketchGeometryRough } from './rough-backend.ts'
 import type { GeometrySketcher } from './rough-backend.ts'
 import { makeRng } from './seed.ts'
+import { escapeAttr } from '../multiline-utils.ts'
 
 const r3 = (n: number) => Math.round(n * 1000) / 1000
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t
@@ -158,17 +158,30 @@ const hybridSketcher: GeometrySketcher = (geom, opts) => {
       if (poly) ribbon = freehandStroke(poly, rng, { width, closed: true })
     }
     if (ribbon) {
-      parts.push(`<path d="${ribbon}" fill="${opts.stroke}" stroke="none" />`)
+      const projectionAttrs = opts.strokeProjection
+        ? [
+            ...(opts.strokeProjection.opacity !== undefined ? [`opacity="${escapeAttr(String(opts.strokeProjection.opacity))}"`] : []),
+            ...(opts.strokeProjection.paintOrder !== undefined ? [`paint-order="${escapeAttr(opts.strokeProjection.paintOrder)}"`] : []),
+          ].join(' ')
+        : ''
+      parts.push(`<path d="${ribbon}" fill="${opts.stroke}" stroke="none"${projectionAttrs ? ` ${projectionAttrs}` : ''} />`)
       return parts.join('\n')
     }
   }
 
   // Outline falls back to rough (jittered); wash already drew the fill.
-  const outline = sketchGeometryRough(geom, opts.seed, opts.stroke, opts.width, wantsWash ? undefined : opts.fill, opts.p, opts.dash)
+  const outline = sketchGeometryRough(
+    geom,
+    opts.seed,
+    opts.stroke,
+    opts.width,
+    wantsWash ? undefined : opts.fill,
+    opts.p,
+    opts.dash,
+    opts.strokeProjection,
+  )
   if (outline) parts.push(outline)
   return parts.length > 0 ? parts.join('\n') : null
 }
 
 export const HybridBackend = createSketchBackend('hybrid', hybridSketcher)
-
-registerBackend(HybridBackend)

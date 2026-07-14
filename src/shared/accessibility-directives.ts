@@ -1,8 +1,60 @@
 // Mermaid-universal accessibility directives — accTitle / accDescr single
 // lines and accDescr { … } blocks — are legal in every diagram family.
-// Families that MODEL them (sequence, timeline) parse them into fields; the
-// rest accept-and-skip via this one helper so the tolerance can never drift
-// per family again (pie and quadrant each carried a hand-rolled copy).
+// Source normalization owns their grammar. Family parsers receive the
+// directive-free grammar view plus this typed projection; they must not scan
+// the source for the same metadata a second time.
+
+import type { MermaidSourceAccessibility } from '../mermaid-source.ts'
+
+export interface AccessibilityFieldProjection {
+  accessibilityTitle?: string
+  accessibilityDescription?: string
+}
+
+export interface AccessibilityObjectProjection {
+  accessibility?: { title?: string; description?: string }
+}
+
+/** Project the normalized universal envelope onto the field shape used by
+ * sequence/class/ER/timeline/journey/architecture/mindmap/gitgraph models. */
+export function accessibilityFields(
+  accessibility: MermaidSourceAccessibility,
+): AccessibilityFieldProjection {
+  return {
+    ...(accessibility.title !== undefined ? { accessibilityTitle: accessibility.title } : {}),
+    ...(accessibility.descr !== undefined ? { accessibilityDescription: accessibility.descr } : {}),
+  }
+}
+
+/** Return a model carrying the normalized universal accessibility fields.
+ * The original model is retained when the envelope is empty. */
+export function withAccessibilityFields<T extends object>(
+  value: T,
+  accessibility: MermaidSourceAccessibility,
+): T & AccessibilityFieldProjection {
+  if (accessibility.title === undefined && accessibility.descr === undefined) {
+    return value as T & AccessibilityFieldProjection
+  }
+  return { ...value, ...accessibilityFields(accessibility) }
+}
+
+/** Project the normalized universal envelope onto the object shape used by
+ * XYChart and Quadrant renderer models. */
+export function withAccessibilityObject<T extends object>(
+  value: T,
+  accessibility: MermaidSourceAccessibility,
+): T & AccessibilityObjectProjection {
+  if (accessibility.title === undefined && accessibility.descr === undefined) {
+    return value as T & AccessibilityObjectProjection
+  }
+  return {
+    ...value,
+    accessibility: {
+      ...(accessibility.title !== undefined ? { title: accessibility.title } : {}),
+      ...(accessibility.descr !== undefined ? { description: accessibility.descr } : {}),
+    },
+  }
+}
 
 /**
  * If `lines[i]` starts an accessibility directive, return the index of its

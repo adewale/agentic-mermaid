@@ -1,11 +1,11 @@
-// Family-plugin registry tests + Phase B universal LABEL_OVERFLOW gap closure.
+// FamilyDescriptor registry tests + Phase B universal LABEL_OVERFLOW gap closure.
 
 import { describe, test, expect } from 'bun:test'
 import { parseMermaid } from '../agent/parse.ts'
 import { verifyMermaid } from '../agent/verify.ts'
-import { BUILTIN_FAMILY_METADATA, knownFamilies, getFamily, registerFamily, extractLabelsGeneric } from '../agent/families.ts'
-import '../agent/families-builtin.ts'
-import type { DiagramKind } from '../agent/types.ts'
+import { layoutMermaid } from '../agent/core.ts'
+import { BUILTIN_FAMILY_METADATA, knownFamilies, getFamily, replaceFamilyForTest, extractLabelsGeneric } from '../agent/families.ts'
+import { registerFamily } from '../agent/family-registration.ts'
 
 describe('family registry', () => {
   test('every metadata-backed built-in family registers', () => {
@@ -23,16 +23,29 @@ describe('family registry', () => {
     }
   })
 
-  test('registerFamily accepts a new id and getFamily round-trips', () => {
+  test('direct registry import exposes only complete built-in descriptors', () => {
+    for (const id of knownFamilies()) {
+      const descriptor = getFamily(id)!
+      expect(descriptor.parse, `${id} parse`).toBeDefined()
+      expect(descriptor.serialize, `${id} serialize`).toBeDefined()
+      expect(descriptor.mutate, `${id} mutate`).toBeDefined()
+      expect(descriptor.layout, `${id} layout`).toBeDefined()
+      expect(descriptor.projectPositioned, `${id} positioned projection`).toBeDefined()
+      expect(descriptor.lowerScene, `${id} Scene lowering`).toBeDefined()
+      expect(descriptor.renderAscii, `${id} terminal renderer`).toBeDefined()
+    }
+  })
+
+  test('built-in collisions fail unless the explicit test replacement seam is used', () => {
     const original = getFamily('flowchart')
     expect(original).toBeDefined()
-    const fake = { id: 'flowchart' as DiagramKind, detect: () => false, extractLabels: () => [{ text: 't', target: 't' }] }
-    // ID collision allowed — last write wins (caller intent: override)
+    const fake = { ...original!, extractLabels: () => [{ text: 't', target: 't' }] }
+    expect(() => registerFamily(fake)).toThrow(/already exists/)
+    const restore = replaceFamilyForTest('flowchart', fake)
     try {
-      registerFamily(fake)
       expect(getFamily('flowchart')?.extractLabels?.('')).toEqual([{ text: 't', target: 't' }])
     } finally {
-      registerFamily(original!)
+      restore()
     }
   })
 })
@@ -112,15 +125,15 @@ describe('Phase B: universal LABEL_OVERFLOW on opaque bodies', () => {
   })
 })
 
-describe('FamilyPlugin.verify dispatcher', () => {
-  test('plugin verify hook is called and warnings surface in verifyMermaid result', () => {
-    // Pick a structured family to prove FamilyPlugin.verify fires independent
+describe('FamilyDescriptor.verify dispatcher', () => {
+  test('descriptor verify hook is called and warnings surface in verifyMermaid result', () => {
+    // Pick a structured family to prove FamilyDescriptor.verify fires independent
     // of whether a particular body is structured or opaque/source-preserved.
     const original = getFamily('journey')
     expect(original).toBeDefined()
 
     const syntheticWarning = { code: 'UNKNOWN_SHAPE' as const, node: 'synthetic-verify-marker', shape: 'plugin-verify' }
-    registerFamily({
+    const restore = replaceFamilyForTest('journey', {
       ...original!,
       verify: () => [syntheticWarning],
     })
@@ -135,26 +148,16 @@ describe('FamilyPlugin.verify dispatcher', () => {
       expect(hit).toBeDefined()
     } finally {
       // Restore the built-in plugin so other tests see the original.
-      registerFamily(original!)
+      restore()
     }
   })
 
-  test('a plugin without a verify hook is a no-op (does not throw)', () => {
+  test('a built-in cannot retain a native parse claim after removing its hook', () => {
     const original = getFamily('xychart')
     expect(original).toBeDefined()
-    // Re-register without verify; verifyMermaid must still return ok.
-    registerFamily({ ...original!, verify: undefined })
-    try {
-      const src = 'xychart-beta\n  title "X"\n  x-axis [a, b, c]\n  y-axis "y" 0 --> 10\n  bar [1, 2, 3]'
-      const p = parseMermaid(src)
-      expect(p.ok).toBe(true)
-      if (!p.ok) return
-      const v = verifyMermaid(p.value)
-      expect(v).toBeDefined()
-      expect(Array.isArray(v.warnings)).toBe(true)
-    } finally {
-      registerFamily(original!)
-    }
+    expect(() => replaceFamilyForTest('xychart', { ...original!, parse: undefined }))
+      .toThrow(/capability "source-preservation" claims "native" but its hooks require "source-preserved"/)
+    expect(getFamily('xychart')).toBe(original)
   })
 
   test('Loop 8 A1: built-in class plugin registers a verify hook that fires through the dispatcher', () => {
@@ -168,7 +171,7 @@ describe('FamilyPlugin.verify dispatcher', () => {
     expect(original!.verify).toBeDefined()  // confirms M4 wired it
 
     const sentinel = { code: 'UNKNOWN_SHAPE' as const, node: 'A1-sentinel', shape: 'class-plugin-verify' }
-    registerFamily({
+    const restore = replaceFamilyForTest('class', {
       ...original!,
       verify: () => [sentinel],
     })
@@ -182,7 +185,7 @@ describe('FamilyPlugin.verify dispatcher', () => {
       const hit = v.warnings.find(w => w.code === 'UNKNOWN_SHAPE' && (w as { node?: string }).node === 'A1-sentinel')
       expect(hit).toBeDefined()
     } finally {
-      registerFamily(original!)
+      restore()
     }
   })
 
@@ -192,7 +195,7 @@ describe('FamilyPlugin.verify dispatcher', () => {
     expect(original!.verify).toBeDefined()  // confirms M4 wired it
 
     const sentinel = { code: 'UNKNOWN_SHAPE' as const, node: 'A1-er-sentinel', shape: 'er-plugin-verify' }
-    registerFamily({
+    const restore = replaceFamilyForTest('er', {
       ...original!,
       verify: () => [sentinel],
     })
@@ -206,14 +209,14 @@ describe('FamilyPlugin.verify dispatcher', () => {
       const hit = v.warnings.find(w => w.code === 'UNKNOWN_SHAPE' && (w as { node?: string }).node === 'A1-er-sentinel')
       expect(hit).toBeDefined()
     } finally {
-      registerFamily(original!)
+      restore()
     }
   })
 
-  test('a faulty plugin verify hook does not crash verifyMermaid', () => {
+  test('a faulty descriptor verify hook is isolated as an error instead of silently dropped', () => {
     const original = getFamily('architecture')
     expect(original).toBeDefined()
-    registerFamily({
+    const restore = replaceFamilyForTest('architecture', {
       ...original!,
       verify: () => { throw new Error('intentional plugin fault') },
     })
@@ -222,11 +225,37 @@ describe('FamilyPlugin.verify dispatcher', () => {
       const p = parseMermaid(src)
       expect(p.ok).toBe(true)
       if (!p.ok) return
-      // Must not throw — faulty plugin warnings are silently dropped.
       const v = verifyMermaid(p.value)
-      expect(v).toBeDefined()
+      expect(v.ok).toBe(false)
+      expect(v.warnings).toContainEqual(expect.objectContaining({
+        code: 'RENDER_FAILED',
+        reason: expect.stringMatching(/architecture.*verify hook failed: intentional plugin fault/i),
+      }))
     } finally {
-      registerFamily(original!)
+      restore()
+    }
+  })
+
+  test('a faulty layout hook throws publicly and fails verify instead of returning clean 0x0 geometry', () => {
+    const original = getFamily('class')
+    expect(original).toBeDefined()
+    const restore = replaceFamilyForTest('class', {
+      ...original!,
+      layout: () => { throw new Error('intentional layout fault') },
+    })
+    try {
+      const parsed = parseMermaid('classDiagram\n  class Example')
+      expect(parsed.ok).toBe(true)
+      if (!parsed.ok) return
+      expect(() => layoutMermaid(parsed.value)).toThrow(/class.*layout hook failed: intentional layout fault/i)
+      const verified = verifyMermaid(parsed.value)
+      expect(verified.ok).toBe(false)
+      expect(verified.warnings).toContainEqual(expect.objectContaining({
+        code: 'RENDER_FAILED',
+        reason: expect.stringMatching(/class.*layout hook failed: intentional layout fault/i),
+      }))
+    } finally {
+      restore()
     }
   })
 })

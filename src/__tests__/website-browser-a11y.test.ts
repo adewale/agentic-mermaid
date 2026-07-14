@@ -1,7 +1,9 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import { existsSync } from 'node:fs'
 import { extname, join, normalize } from 'node:path'
+import { deflateRawSync } from 'node:zlib'
 import { chromium, type Browser, type Page } from 'playwright'
+import { serveWithAvailablePort } from '../../e2e/test-port.ts'
 import { HOSTED_FONT_FACES } from '../font-manifest.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 
@@ -12,17 +14,16 @@ let server: ReturnType<typeof Bun.serve>
 let browser: Browser
 let baseUrl = ''
 
-// This smoke suite needs a real Chromium. The CI `test` job runs the unit suite
-// without installing Playwright browsers (only the separate e2e job does), so
-// skip when none is installed — the same way the cross-runtime determinism tests
-// skip without node/resvg — rather than failing the suite on a missing browser.
+// This smoke suite needs a real Chromium and runs only in the explicit browser
+// lane. Keeping it out of the coverage unit lane prevents browser/server work
+// from becoming an opportunistic side effect of a locally installed Chromium.
 // executablePath() resolves to the bundled Chromium; its presence is the proxy
 // for "Playwright browsers are installed", since the headless shell that
 // launch({headless:true}) actually starts is installed alongside it.
 const haveBrowser = (() => {
   try { return existsSync(chromium.executablePath()) } catch { return false }
 })()
-const describeBrowser = haveBrowser ? describe : describe.skip
+const describeBrowser = haveBrowser && process.env.AM_BROWSER_TESTS === '1' ? describe : describe.skip
 
 const mime: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -35,6 +36,14 @@ const mime: Record<string, string> = {
   '.ttf': 'font/ttf',
   '.txt': 'text/plain; charset=utf-8',
   '.md': 'text/markdown; charset=utf-8',
+}
+
+function legacyEditorHash(payload: unknown) {
+  return Buffer.from(JSON.stringify(payload), 'utf8').toString('base64')
+}
+
+function deflatedEditorHash(payload: unknown) {
+  return 'deflate:' + deflateRawSync(Buffer.from(JSON.stringify(payload), 'utf8')).toString('base64url')
 }
 
 function fileForPath(pathname: string) {
@@ -89,8 +98,8 @@ describeBrowser('website browser accessibility smoke', () => {
   // skips them too — a file-level beforeAll runs even when its only describe is
   // skipped, and launching there is exactly what fails when Chromium is absent.
   beforeAll(async () => {
-    server = Bun.serve({
-      port: 0,
+    const served = serveWithAvailablePort({
+      preferredPort: 4720,
       fetch(req) {
         const url = new URL(req.url)
         const abs = fileForPath(url.pathname)
@@ -98,7 +107,8 @@ describeBrowser('website browser accessibility smoke', () => {
         return new Response(Bun.file(abs), { headers: { 'content-type': mime[extname(abs)] || 'application/octet-stream' } })
       },
     })
-    baseUrl = `http://${server.hostname}:${server.port}`
+    server = served.server
+    baseUrl = served.base
     browser = await chromium.launch({ headless: true })
   }, 30_000)
 
@@ -247,14 +257,117 @@ describeBrowser('website browser accessibility smoke', () => {
     await page.close()
   }, 30_000)
 
-  test('editor corrupt share hashes do not load stale query examples', async () => {
+  test('editor corrupt share hashes fail closed instead of loading plausible content', async () => {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
     await page.goto(baseUrl + '/editor/?example=flowchart-basic#deflate:bad', { waitUntil: 'networkidle' })
-    await page.waitForFunction(() => (document.querySelector('#code-editor') as HTMLTextAreaElement | null)?.value.length)
-    const source = await page.locator('#code-editor').inputValue()
-    expect(source).toContain('Parse source')
-    expect(source).not.toContain('Decision?')
-    await page.waitForFunction(() => location.search === '', null, { timeout: 10_000 })
+    await page.waitForFunction(() => document.querySelector('#toast')?.textContent?.includes('Nothing was loaded'))
+    expect(await page.locator('#code-editor').inputValue()).toBe('')
+    expect(await page.locator('#preview-placeholder .placeholder-title').textContent()).toContain('No diagram yet')
+    expect(await page.evaluate(() => ({ search: location.search, hash: location.hash }))).toEqual({ search: '', hash: '' })
+    await page.close()
+  }, 30_000)
+
+  test('editor aborts oversized expanded share links and reports the limit', async () => {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+    const hash = deflatedEditorHash({ source: 'flowchart TD\n  ' + 'A'.repeat(300 * 1024) })
+    expect(hash.length).toBeLessThan(1_000)
+    await page.goto(baseUrl + '/editor/#' + hash, { waitUntil: 'networkidle' })
+    await page.waitForFunction(() => document.querySelector('#toast')?.textContent?.includes('too large to open safely'))
+    expect(await page.locator('#code-editor').inputValue()).toBe('')
+    expect(await page.evaluate(() => location.hash)).toBe('')
+    await page.close()
+  }, 30_000)
+
+  test('editor reports a missing DecompressionStream without legacy fallback', async () => {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+    await page.addInitScript(() => {
+      Object.defineProperty(window, 'DecompressionStream', { configurable: true, value: undefined })
+    })
+    const hash = deflatedEditorHash({ source: 'flowchart TD\n  Shared --> Safely' })
+    await page.goto(baseUrl + '/editor/#' + hash, { waitUntil: 'networkidle' })
+    await page.waitForFunction(() => document.querySelector('#toast')?.textContent?.includes('missing DecompressionStream'))
+    expect(await page.locator('#code-editor').inputValue()).toBe('')
+    expect(await page.evaluate(() => location.hash)).toBe('')
+    await page.close()
+  }, 30_000)
+
+  test('editor rejects oversized saved drafts before parsing and clears them', async () => {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+    await page.goto(baseUrl + '/editor/?empty=1', { waitUntil: 'networkidle' })
+    await page.evaluate(() => {
+      localStorage.removeItem('bm-editor-draft-mode')
+      localStorage.setItem('bm-editor-draft', 'x'.repeat(256 * 1024 + 1))
+    })
+    await page.goto(baseUrl + '/editor/', { waitUntil: 'networkidle' })
+    await page.waitForFunction(() => document.querySelector('#toast')?.textContent?.includes('too large to restore safely'))
+    expect(await page.evaluate(() => localStorage.getItem('bm-editor-draft'))).toBeNull()
+    expect(await page.locator('#code-editor').inputValue()).toContain('Parse source')
+    await page.close()
+  }, 30_000)
+
+  test('editor exposes private autosave and moves draft content to session storage', async () => {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+    await page.goto(baseUrl + '/editor/?empty=1', { waitUntil: 'networkidle' })
+    const privacy = page.locator('#draft-privacy-btn')
+    expect((await privacy.textContent())?.trim()).toBe('Autosave: this browser')
+    expect(await privacy.getAttribute('aria-label')).toContain('stored in plaintext in this browser')
+
+    const source = 'flowchart TD\n  Private --> Session'
+    await page.locator('#code-editor').fill(source)
+    await page.locator('#code-editor').dispatchEvent('input')
+    await page.waitForFunction(() => localStorage.getItem('bm-editor-draft')?.includes('Private'))
+    await privacy.click()
+    await page.waitForFunction(() => sessionStorage.getItem('bm-editor-draft')?.includes('Private'))
+    expect(await privacy.getAttribute('aria-pressed')).toBe('true')
+    expect((await privacy.textContent())?.trim()).toBe('Autosave: private')
+    expect(await page.evaluate(() => ({
+      persistentDraft: localStorage.getItem('bm-editor-draft'),
+      mode: localStorage.getItem('bm-editor-draft-mode'),
+    }))).toEqual({ persistentDraft: null, mode: 'session' })
+
+    await page.evaluate(() => history.replaceState(null, '', '/editor/'))
+    await page.reload({ waitUntil: 'networkidle' })
+    await page.waitForFunction((expected) => (document.querySelector('#code-editor') as HTMLTextAreaElement | null)?.value === expected, source)
+    expect(await page.locator('#draft-privacy-btn').getAttribute('aria-pressed')).toBe('true')
+    expect(await page.evaluate(() => localStorage.getItem('bm-editor-draft'))).toBeNull()
+    await page.close()
+  }, 30_000)
+
+  test('editor share config cannot weaken strict SVG insertion', async () => {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+    const hash = legacyEditorHash({
+      source: 'flowchart TD\n  Safe --> Preview',
+      config: {
+        security: 'default',
+        embedFontImport: true,
+        unknownHostOption: '<script>window.__shareConfigRan = true</script>',
+        mermaidConfig: {
+          themeCSS: '</style><script>window.__shareConfigRan = true</script><image href="https://evil.invalid/x"/>',
+        },
+      },
+    })
+    await page.goto(baseUrl + '/editor/#' + hash, { waitUntil: 'networkidle' })
+    await page.waitForFunction(() => ['OK', 'Error'].includes(document.querySelector('#status-text')?.textContent || ''))
+    const result = await page.evaluate(() => {
+      const preview = document.querySelector('#preview-inner')!
+      const attributes = Array.from(preview.querySelectorAll('*')).flatMap((element) => Array.from(element.attributes))
+      return {
+        executed: (window as any).__shareConfigRan,
+        status: document.querySelector('#status-text')?.textContent,
+        hasSvg: !!preview.querySelector('svg'),
+        activeElements: preview.querySelectorAll('script, foreignObject, object, embed, iframe').length,
+        eventHandlers: attributes.filter((attribute) => /^on/i.test(attribute.name)).length,
+        html: preview.innerHTML,
+      }
+    })
+    expect(result.executed).toBeUndefined()
+    expect(result.activeElements).toBe(0)
+    expect(result.eventHandlers).toBe(0)
+    expect(result.status).toBe('Error')
+    expect(result.hasSvg).toBe(false)
+    expect(result.html).toContain('Raw Mermaid themeCSS is not allowed in strict security mode')
+    expect(result.html).not.toContain('evil.invalid')
+    expect(result.html).not.toContain('fonts.googleapis.com')
     await page.close()
   }, 30_000)
 
@@ -299,12 +412,16 @@ describeBrowser('website browser accessibility smoke', () => {
     }
     const hash = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64')
     await page.goto(baseUrl + '/editor/#' + hash, { waitUntil: 'networkidle' })
-    await page.locator('#preview-inner svg').waitFor({ state: 'visible', timeout: 10_000 })
+    await page.waitForFunction(() => ['OK', 'Error'].includes(document.querySelector('#status-text')?.textContent || ''))
     const result = await page.evaluate(() => ({
       executed: (window as any).__shareLinkXss ?? null,
       marker: Boolean(document.querySelector('#share-link-xss')),
+      hasSvg: Boolean(document.querySelector('#preview-inner svg')),
+      status: document.querySelector('#status-text')?.textContent,
+      html: document.querySelector('#preview-inner')?.innerHTML ?? '',
     }))
-    expect(result).toEqual({ executed: null, marker: false })
+    expect(result).toMatchObject({ executed: null, marker: false, hasSvg: false, status: 'Error' })
+    expect(result.html).toContain('Raw Mermaid themeCSS is not allowed in strict security mode')
     await page.close()
   }, 30_000)
 

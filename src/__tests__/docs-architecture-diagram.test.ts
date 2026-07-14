@@ -15,7 +15,6 @@ import { describe, it, expect } from 'bun:test'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { renderMermaidSVG } from '../index.ts'
-import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 
 const systemDir = join(import.meta.dir, '..', '..', 'docs', 'design', 'system')
 const sourcePath = join(systemDir, 'architecture.mmd')
@@ -33,13 +32,19 @@ function normalizeSvg(svg: string): string {
 describe('docs/design/system architecture figure', () => {
   const source = readFileSync(sourcePath, 'utf-8')
 
-  it('derives the exact family inventory from the runtime registry', () => {
-    expect(source).toContain('same registry')
-    const label = source.match(/FAM\["([^"]+)"\]/)?.[1]
-    expect(label).toBeDefined()
-    const [heading, ...familyLines] = label!.split('<br/>')
-    expect(heading).toBe('Registry-backed diagram families')
-    expect(familyLines.join(' · ').split(' · ')).toEqual(BUILTIN_FAMILY_METADATA.map(family => family.id))
+  it('documents the current waists without copying a family inventory', () => {
+    for (const contract of [
+      'FamilyDescriptor registry',
+      'ResolvedRenderRequest',
+      'ResolvedAppearance',
+      'positioned artifact',
+      'projectPositioned',
+      'SceneDoc lowering',
+      'OutputSecurityPolicy',
+      'TerminalStyle projection',
+    ]) expect(source).toContain(contract)
+    expect(source).toContain('registered built-ins · namespaced extensions')
+    expect(source).not.toContain('flowchart · state')
   })
 
   it('renders deterministically across calls', () => {

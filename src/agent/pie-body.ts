@@ -8,9 +8,11 @@
 //   showData                     — standalone show-data directive
 //   "<label>" : <positive number>
 //
-// Structured-or-opaque: any other non-blank, non-comment line (accTitle,
-// accDescr, unmodeled syntax) returns null so the caller falls back to a
-// lossless opaque body. We deliberately re-emit a canonical header
+// Structured-or-opaque: any other non-blank, non-comment family line returns
+// null so the caller falls back to a lossless opaque body. Universal
+// accTitle/accDescr directives are consumed and preserved by the source
+// envelope before this grammar runs.
+// We deliberately re-emit a canonical header
 // (`pie showData`) plus standalone `title` / entry lines; the legacy parser
 // re-parses that canonical output identically (differential-tested). Render
 // support is unchanged — the legacy renderer keeps parsing canonical source.
@@ -29,6 +31,7 @@ import type {
 } from './types.ts'
 import { ok, err, DEFAULT_LABEL_CHAR_CAP } from './types.ts'
 import { labelOverflowWarning } from './label-metrics.ts'
+import { appendAccessibilityLines } from './accessibility-envelope.ts'
 
 // ---- Number format ----------------------------------------------------------
 //
@@ -106,7 +109,7 @@ export function parsePieBody(lines: string[], header: { showData: boolean; title
       continue
     }
 
-    // Unmodeled line (accTitle/accDescr/malformed entry/anything else) → opaque.
+    // Unmodeled family line (malformed entry/anything else) → opaque.
     return null
   }
 
@@ -120,6 +123,7 @@ export function parsePieBody(lines: string[], header: { showData: boolean; title
 export function renderPie(body: PieBody): string {
   const header = body.showData ? 'pie showData' : 'pie'
   const lines: string[] = [header]
+  appendAccessibilityLines(lines, body)
   if (body.title !== undefined) lines.push(`  title ${body.title}`)
   for (const s of body.slices) {
     lines.push(`  "${encodeLabel(s.label)}" : ${formatNumber(s.value)}`)
@@ -132,6 +136,8 @@ export function renderPie(body: PieBody): string {
 function clonePie(b: PieBody): PieBody {
   return {
     kind: 'pie',
+    accessibilityTitle: b.accessibilityTitle,
+    accessibilityDescription: b.accessibilityDescription,
     title: b.title,
     showData: b.showData,
     slices: b.slices.map(s => ({ id: s.id, label: s.label, value: s.value })),
@@ -254,7 +260,7 @@ export function mutatePie(body: PieBody, op: PieMutationOp): Result<PieBody, Mut
   return ok(next)
 }
 
-// ---- Verifier (FamilyPlugin.verify hook) ------------------------------------
+// ---- Verifier (FamilyDescriptor.verify hook) --------------------------------
 
 export function verifyPie(body: PieBody, opts: VerifyOptions): LayoutWarning[] {
   const cap = opts.labelCharCap ?? DEFAULT_LABEL_CHAR_CAP

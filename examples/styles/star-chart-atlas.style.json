@@ -1,6 +1,7 @@
 {
   "$schema": "https://agentic-mermaid.dev/schemas/style-spec.schema.json",
-  "name": "star-chart-atlas",
+  "formatVersion": 1,
+  "name": "look:star-chart-atlas",
   "blurb": "Celestial atlas treatment: dark sky, faint grid, pale-gold labels, and quiet rough linework.",
   "colors": {
     "bg": "#0b1026",

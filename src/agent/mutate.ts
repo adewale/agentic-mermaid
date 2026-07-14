@@ -5,6 +5,7 @@
 import type {
   FlowchartValidDiagram, StateValidDiagram, SequenceValidDiagram, TimelineValidDiagram,
   ClassValidDiagram, ErValidDiagram, JourneyValidDiagram, ArchitectureValidDiagram, XyChartValidDiagram, PieValidDiagram, QuadrantValidDiagram, GanttValidDiagram, MutableValidDiagram,
+  ParsedDiagram,
   FlowchartMutationOp, StateMutationOp, SequenceMutationOp, TimelineMutationOp,
   ClassMutationOp, ErMutationOp, JourneyMutationOp, ArchitectureMutationOp, XyChartMutationOp, PieMutationOp, QuadrantMutationOp, GanttMutationOp, AnyMutationOp,
   MutationError, Result,
@@ -14,7 +15,7 @@ import { wrapperPrefix } from './serialize.ts'
 import { logToolInvocation } from './trace-log.ts'
 import { getFamily } from './families.ts'
 import { validateOp, hasOpSchema } from './op-schema.ts'
-import './families-builtin.ts'  // registers built-in family mutate hooks
+import { accessibilityFromBody, ensureAccessibilityLines } from './accessibility-envelope.ts'
 
 export function mutate(d: FlowchartValidDiagram, op: FlowchartMutationOp): Result<FlowchartValidDiagram, MutationError>
 export function mutate(d: StateValidDiagram, op: StateMutationOp): Result<StateValidDiagram, MutationError>
@@ -32,10 +33,11 @@ export function mutate(d: GanttValidDiagram, op: GanttMutationOp): Result<GanttV
 // registry at runtime either way, so kind-agnostic call sites don't need a
 // per-family narrowing cascade.
 export function mutate(d: MutableValidDiagram, op: AnyMutationOp): Result<MutableValidDiagram, MutationError>
+export function mutate(d: ParsedDiagram, op: AnyMutationOp): Result<ParsedDiagram, MutationError>
 export function mutate(
-  d: MutableValidDiagram,
+  d: ParsedDiagram,
   op: AnyMutationOp,
-): Result<MutableValidDiagram, MutationError> {
+): Result<ParsedDiagram, MutationError> {
   // Log the OUTCOME (not just the call): an `{ok:false}` trace line records a
   // failed op attempt — the observable signal the agent-usage eval reads to
   // measure a run's op-error rate directly, rather than inferring retries from
@@ -46,31 +48,41 @@ export function mutate(
 }
 
 function applyOneMutation(
-  d: MutableValidDiagram,
+  d: ParsedDiagram,
   op: AnyMutationOp,
-): Result<MutableValidDiagram, MutationError> {
-  // Every structured family mutates through its FamilyPlugin hook, then
+): Result<ParsedDiagram, MutationError> {
+  // Every structured family mutates through its FamilyDescriptor hook, then
   // rebuilds canonicalSource from the new body so a mutated diagram never
   // carries stale source. Lookup is by DIAGRAM kind, not body kind. State
   // diagrams (BUILD-19) own a dedicated StateBody and bind the stateDiagram-v2
-  // header through their own plugin registration.
+  // header through their own descriptor registration.
+  if (d.body.kind === 'preserved') {
+    return err({
+      code: d.body.diagnostic.code === 'UNKNOWN_HEADER' ? 'UNKNOWN_HEADER' : 'UNSUPPORTED_FAMILY',
+      message: `${d.body.diagnostic.message}; the exact source remains preserved and cannot accept structured mutation`,
+    })
+  }
+  if (d.body.kind === 'extension') {
+    return err({
+      code: 'INVALID_OP',
+      message: `Registered external family "${d.kind}" has no typed mutation contract in FamilyDescriptor v1`,
+    })
+  }
   const plugin = getFamily(d.kind)
   if (plugin?.mutate && plugin.serialize) {
     const r = plugin.mutate(d.body, op)
     if (!r.ok) return r
     // 1C wrapper policy: a mutated diagram keeps its leading wrapper
     // (frontmatter/directives/comments) byte-verbatim; only the body changes.
-    const canonicalSource = wrapperPrefix(d.meta) + plugin.serialize(r.value)
-    const meta = r.value.kind === 'journey'
-      ? {
-          ...d.meta,
-          accessibility: {
-            ...(r.value.accessibilityTitle !== undefined ? { title: r.value.accessibilityTitle } : {}),
-            ...(r.value.accessibilityDescription !== undefined ? { descr: r.value.accessibilityDescription } : {}),
-          },
-        }
-      : d.meta
-    return ok({ ...d, body: r.value, meta, canonicalSource } as MutableValidDiagram)
+    const bodyAccessibility = accessibilityFromBody(r.value)
+    const meta = bodyAccessibility === undefined
+      ? d.meta
+      : { ...d.meta, accessibility: bodyAccessibility }
+    const canonicalSource = wrapperPrefix(meta) + ensureAccessibilityLines(
+      plugin.serialize(r.value),
+      meta.accessibility,
+    )
+    return ok({ ...d, body: r.value, meta, canonicalSource } as ParsedDiagram)
   }
   return err({ code: 'INVALID_OP', message: `Unsupported mutable diagram kind: ${d.kind}` })
 }
@@ -90,7 +102,9 @@ function applyOneMutation(
  * runs second on a shape-proven op. Result shape is identical to `mutate`, so
  * this is a drop-in wherever the raw mutator was called with untyped ops.
  */
-export function mutateChecked(d: MutableValidDiagram, op: unknown): Result<MutableValidDiagram, MutationError> {
+export function mutateChecked(d: MutableValidDiagram, op: unknown): Result<MutableValidDiagram, MutationError>
+export function mutateChecked(d: ParsedDiagram, op: unknown): Result<ParsedDiagram, MutationError>
+export function mutateChecked(d: ParsedDiagram, op: unknown): Result<ParsedDiagram, MutationError> {
   if (hasOpSchema(d.kind)) {
     const invalid = validateOp(d.kind, op)
     // A shape rejection short-circuits before `mutate`, so record the failed

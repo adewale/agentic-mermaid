@@ -1,3 +1,6 @@
+import type { RenderRequestReceipt } from '../render-contract.ts'
+import type { PngRuntimeProvenance } from '../png-contract.ts'
+
 export interface PngFontWarning {
   code: 'PNG_FONT_COVERAGE'
   script: string
@@ -8,6 +11,10 @@ export interface PngFontWarning {
 export interface PngRasterResult {
   png: Uint8Array
   warnings: PngFontWarning[]
+  /** Receipt from the same resolved graphical request that produced the PNG. */
+  receipt: RenderRequestReceipt
+  /** Artifact/runtime provenance, separate from the logical request receipt. */
+  runtime: PngRuntimeProvenance
 }
 
 export function buildPngFontWarnings(

@@ -35,7 +35,8 @@ describe('maintained documentation is derived from current contracts', () => {
     const index = readFileSync(join(ROOT, 'docs', 'README.md'), 'utf8')
     expect(index).not.toContain('design/family-elevation-plan.md')
     expect(index).not.toContain('design/family-elevation-acceptance.md')
-    expect(index).toContain('design/system/consolidation-plan.md')
+    expect(index).not.toContain('design/system/consolidation-plan.md')
+    expect(index).toContain('project/archive/')
     expect(index).toContain('svg-semantic-contract.md')
     expect(index).toContain('mutation-testing.md')
   })
@@ -45,6 +46,7 @@ describe('maintained documentation is derived from current contracts', () => {
     const names = new Set(readdirSync(archive))
     expect(names).toEqual(new Set([
       'README.md',
+      'consolidation-plan.md',
       'family-elevation-acceptance.md',
       'family-elevation-evidence.json',
       'family-elevation-plan.md',
@@ -56,23 +58,57 @@ describe('maintained documentation is derived from current contracts', () => {
   test('the canonical backlog contains only actionable items', () => {
     const todo = readFileSync(join(ROOT, 'TODO.md'), 'utf8')
     expect(todo).not.toMatch(/^- \[x\]/m)
-    expect(readFileSync(join(ROOT, 'docs/project/archive/completed-backlog-pre-consolidation.md'), 'utf8')).toContain('BUILD-22')
+    expect(existsSync(join(ROOT, 'docs/project/archive/completed-backlog-pre-consolidation.md'))).toBe(false)
+  })
+
+  test('archive records are explicitly historical and cannot become shadow backlogs', () => {
+    const archive = markdownFiles(join(ROOT, 'docs', 'project', 'archive'))
+    const missingStatus: string[] = []
+    const uncheckedWork: string[] = []
+    for (const path of archive) {
+      const text = readFileSync(path, 'utf8')
+      if (!/^>? ?(?:\*\*)?Status:/m.test(text)) missingStatus.push(repoPath(path))
+      if (/^- \[ \]/m.test(text)) uncheckedWork.push(repoPath(path))
+    }
+    expect(missingStatus).toEqual([])
+    expect(uncheckedWork).toEqual([])
+  })
+
+  test('the active brand plan references only exact root-TODO IDs', () => {
+    const todo = readFileSync(join(ROOT, 'TODO.md'), 'utf8')
+    const plan = readFileSync(join(ROOT, 'docs/project/brand-primitives-plan.md'), 'utf8')
+    const todoIds = new Set(Array.from(todo.matchAll(/\*\*([A-Z]+-\d+)\s+—/g), match => match[1]!))
+    const planIds = new Set(Array.from(plan.matchAll(/\b[A-Z]+-\d+\b/g), match => match[0]))
+    const nonBacklogReferences = new Set(['SHA-256', 'PR-149'])
+    expect([...planIds].filter(id => !todoIds.has(id) && !nonBacklogReferences.has(id))).toEqual([])
+    expect(plan).not.toMatch(/\b[A-Z]+-\d+(?:\/\d+)+\b/)
+  })
+
+  test('prototype research cannot retain a shadow production spec or backlog', () => {
+    const prototype = readFileSync(join(ROOT, 'scripts/sketch-prototype/SPEC.md'), 'utf8')
+    expect(prototype).toContain('Status: non-authoritative research artifact')
+    for (const staleAuthority of ['StyleSpec.backend', 'PARTIALLY IMPLEMENTED', 'candidate backlog', 'This document specifies the production design']) {
+      expect({ staleAuthority, present: prototype.includes(staleAuthority) })
+        .toEqual({ staleAuthority, present: false })
+    }
   })
 
   test('the refactor characterization index names every contract surface and an existing gate', () => {
     const manifest = JSON.parse(readFileSync(join(ROOT, 'docs/design/system/consolidation-characterization.json'), 'utf8')) as {
-      scopeAuthority: string
+      scopeProjection: string
       contracts: Array<{ surface: string; familyScope: string; evidence: string[] }>
     }
-    const [authorityPath, authoritySymbol, ...authorityRest] = manifest.scopeAuthority.split('#')
-    expect({ authorityPath, authoritySymbol, authorityRest }).toEqual({
-      authorityPath: 'src/agent/families.ts',
-      authoritySymbol: 'BUILTIN_FAMILY_METADATA',
-      authorityRest: [],
+    const [projectionPath, projectionSymbol, ...projectionRest] = manifest.scopeProjection.split('#')
+    expect({ projectionPath, projectionSymbol, projectionRest }).toEqual({
+      projectionPath: 'src/agent/families.ts',
+      projectionSymbol: 'knownFamilies',
+      projectionRest: [],
     })
-    expect(existsSync(join(ROOT, authorityPath!))).toBe(true)
-    const authoritySource = readFileSync(join(ROOT, authorityPath!), 'utf8')
-    expect(authoritySource).toMatch(new RegExp(`export\\s+const\\s+${authoritySymbol}\\b`))
+    expect(existsSync(join(ROOT, projectionPath!))).toBe(true)
+    const projectionSource = readFileSync(join(ROOT, projectionPath!), 'utf8')
+    expect(projectionSource).toMatch(new RegExp(`export\\s+function\\s+${projectionSymbol}\\b`))
+    expect(projectionSource).toContain('const REGISTRY = buildBuiltinRegistry()')
+    expect(projectionSource).not.toContain('function augmentFamily')
 
     expect(new Set(manifest.contracts.map(contract => contract.surface))).toEqual(new Set([
       'bytes', 'semantic identity', 'geometry', 'terminal cells', 'config diagnostics',

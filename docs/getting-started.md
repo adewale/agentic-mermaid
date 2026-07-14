@@ -64,8 +64,11 @@ const png = renderMermaidPNG(`flowchart TD
 writeFileSync('diagram.png', png)
 ```
 
-`PngOptions`: `scale` (default `2`, for retina), `background`, and
-`fitTo: { width?, height? }`.
+Portable PNG controls are `scale` (default `2`, for retina), `background`, and
+the mutually exclusive `fitTo: { width? }` / `fitTo: { height? }`; the same
+controls are available through the browser adapter, CLI, and local/hosted MCP.
+Node/Bun additionally accepts trusted-host `fontDirs`, `loadSystemFonts`, and
+the library-only `onWarning` callback.
 
 ## Render to ASCII / Unicode
 
@@ -85,19 +88,20 @@ See [`ascii.md`](./ascii.md) for supported families and cell-to-region metadata.
 
 ## Theming
 
-Theme from two colors, or spread one of the 21 built-in themes. Colors are applied
+Build a palette from two colors, or spread one discovered through `THEMES`,
+`knownStyleDescriptors()`, or `am styles`. Colors are applied
 as CSS variables, so the SVG stays self-contained.
 
 ```ts
 import { renderMermaidSVG, THEMES } from 'agentic-mermaid'
 
-// Two-color theme
+// Two-color palette
 const dark = renderMermaidSVG('flowchart TD\n  A --> B', {
   bg: '#1a1b26',
   fg: '#a9b1d6',
 })
 
-// A built-in theme (zinc-light, tokyo-night, nord, dracula, catppuccin-mocha, …)
+// A built-in palette (zinc-light, tokyo-night, nord, dracula, catppuccin-mocha, …)
 const themed = renderMermaidSVG('flowchart TD\n  A --> B', {
   ...THEMES['tokyo-night'],
 })
@@ -109,7 +113,7 @@ const transparent = renderMermaidSVG('flowchart TD\n  A --> B', {
 ```
 
 Common `RenderOptions`: `bg`, `fg`, `font`, `transparent`, and `security`. See
-[`theming.md`](./theming.md) for custom themes and Shiki/VS Code theme import.
+[`theming.md`](./theming.md) for custom Palettes and Shiki/VS Code theme import.
 
 ### Untrusted input
 

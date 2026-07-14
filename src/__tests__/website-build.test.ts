@@ -8,14 +8,17 @@ import { samples as RICH_EXAMPLES } from '../../scripts/site/samples-data.ts'
 import { createWebsiteWorker } from '../../website/src/worker-core.ts'
 import { CLEAN_PAGE_ROUTES, DYNAMIC_CLEAN_REDIRECT_LINES, staticRedirectLines } from '../../website/src/site-routes.ts'
 import { HOSTED_FONT_FACES, HOSTED_FONT_FILES } from '../font-manifest.ts'
+import { PNG_WASM_RUNTIME } from '../png-contract.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { resolveBuildGitSha } from '../../website/build-provenance.ts'
 import { AI_CATALOG_RESOURCES } from '../../website/agent-resource-inventory.ts'
 import { HOSTED_TOOLS } from '../mcp/hosted-server.ts'
 import { verifyMermaid } from '../agent/verify.ts'
+import { knownStyleDescriptors } from '../scene/style-registry.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const SITE = join(REPO, 'website', 'public')
+const TEST_PNG_RECEIPT = { version: 1, output: 'png', sharedRequestDigest: 'test-shared', requestDigest: 'test-request', appearanceDigest: 'test-appearance' } as const
 
 function read(rel: string) {
   return readFileSync(join(SITE, rel), 'utf8')
@@ -86,7 +89,7 @@ function staticCleanRoutesFromGeneratedPages() {
 async function websiteWorker(): Promise<{ fetch: (request: Request, env: any) => Promise<Response> }> {
   return createWebsiteWorker({
     executeHarness: 'test-harness',
-    renderPng: async () => ({ png: new Uint8Array(), warnings: [] }),
+    renderPng: async () => ({ png: new Uint8Array(), warnings: [], receipt: TEST_PNG_RECEIPT, runtime: PNG_WASM_RUNTIME }),
     deployVersion: 'test-deploy',
   })
 }
@@ -551,7 +554,8 @@ describe('Workers Static Assets website contract', () => {
     expect(home).toContain('<li><span>Seed</span><code>8</code></li>')
     expect(home).toContain('home-style-watercolor-svg-title')
     expect(home).toContain('home-style-ops-schematic-svg-title')
-    expect(home).toContain('16</strong> built-in styles')
+    const builtInLookCount = knownStyleDescriptors().filter(descriptor => descriptor.kind === 'look').length
+    expect(home).toContain(`${builtInLookCount}</strong> built-in styles`)
     expect(home).toContain('JSON</strong> custom styles')
     expect(home).toContain('<strong>SVG, PNG, ASCII and Unicode</strong> output')
     expect(home).not.toContain('outputs per source')
@@ -899,7 +903,7 @@ describe('Workers Static Assets website contract', () => {
     expect(jump).not.toContain('examples-role-style-presets-jump')
     expect(jump).toContain('<p class="example-jump-title" id="examples-style-palette-combinations-jump">Style × palette combinations</p>')
     expect(jump).toContain('<p class="example-jump-title" id="examples-rich-gallery-jump">Rich shared example gallery</p>')
-    for (const id of ['flowchart', 'state', 'architecture', 'sequence', 'class', 'er', 'timeline', 'journey', 'xychart', 'pie', 'quadrant', 'gantt']) {
+    for (const { id } of BUILTIN_FAMILY_METADATA) {
       expect(examples).toContain(`<article class="example-sample" id="style-palette-${id}">`)
       expect(jump).toContain(`href="#style-palette-${id}"`)
     }
@@ -922,8 +926,8 @@ describe('Workers Static Assets website contract', () => {
     expect(page).toContain('GitGraph')
     const original = new Set(['flowchart', 'state', 'sequence', 'class', 'er', 'xychart'])
     const additions = BUILTIN_FAMILY_METADATA.filter(family => !original.has(family.id)).map(family => family.label).join(', ')
-    expect(page).toContain(`Adds ${additions} beyond the original Beautiful Mermaid family set.`)
-    expect(page).toContain('All registered families are structured-when-narrowed')
+    expect(page).toContain(`Adds ${additions} beyond the original Beautiful Mermaid family set`)
+    expect(page).toContain('Every registered built-in family is structured when narrowed')
   })
 
   test('editor mode switch is not a pseudo-tabset', () => {
@@ -1036,23 +1040,28 @@ describe('Workers Static Assets website contract', () => {
 
   test('custom style docs publish schema, examples, and screenshots', () => {
     const schema = JSON.parse(read('schemas/style-spec.schema.json'))
+    const catalog = JSON.parse(read('examples/styles/catalog.json')) as {
+      sample: string
+      examples: Array<{ style: string; screenshot: string }>
+    }
     expect(schema.$id).toBe('https://agentic-mermaid.dev/schemas/style-spec.schema.json')
     const page = read('docs/custom-styles/index.html')
     expect(page).toContain('/schemas/style-spec.schema.json')
     expect(page).toContain('/examples/styles/transit-route-map.style.json')
+    expect(page).toContain('/examples/styles/cupertino-prototype.style.json')
+    expect(page).toContain('not registered or advertised as a built-in Style')
     expect(page).toContain('/docs/assets/style-cookbook/transit-route-map.png')
+    expect(page).toContain('/docs/assets/style-cookbook/cupertino-prototype.png')
+    expect(page).toContain('not an Apple product')
     expect(page).toContain('<h2>Custom fonts</h2>')
     expect(page).toContain('--font-dirs ./fonts')
     expect(page).toContain('Local MCP <code>render_png</code> accepts <code>fontDirs</code> and <code>loadSystemFonts</code>')
     expect(page).toContain('Hosted MCP has no filesystem font input')
-    for (const rel of [
-      'examples/styles/transit-route-map.style.json',
-      'examples/styles/mid-century-report.style.json',
-      'examples/styles/star-chart-atlas.style.json',
-      'docs/assets/style-cookbook/transit-route-map.png',
-      'docs/assets/style-cookbook/mid-century-report.png',
-      'docs/assets/style-cookbook/star-chart-atlas.png',
-    ]) {
+    const catalogFiles = catalog.examples.flatMap(entry => [
+      `examples/styles/${entry.style}`,
+      `docs/assets/style-cookbook/${entry.screenshot}`,
+    ])
+    for (const rel of [`examples/styles/${catalog.sample}`, ...catalogFiles]) {
       expect({ rel, exists: existsSync(join(SITE, rel)) }).toEqual({ rel, exists: true })
     }
   })
@@ -1135,7 +1144,9 @@ describe('Workers Static Assets website contract', () => {
     expect(editor).toContain('role="dialog" aria-modal="false" aria-labelledby="color-popup-title" aria-hidden="true"')
     expect(editor).toContain('class="status-left" role="status" aria-live="polite" aria-atomic="true"')
     expect(editor).toContain('id="verify-bar" role="status" aria-live="polite" aria-atomic="true"')
-    expect(editorAll).toContain('ensurePreviewSvgAccessibility')
+    expect(editorAll).toContain('insertStrictRenderedSvg')
+    expect(editorAll).toContain('new DOMParser().parseFromString(svg, "image/svg+xml")')
+    expect(editorAll).toContain('previewInner.replaceChildren(document.importNode(parsed.documentElement, true))')
     expect(editorAll).toContain('fitUnicodeOutput')
     expect(editorAll).toContain('ensureTextOutputs')
     expect(editorAll).toContain('markTextOutputsDirty')

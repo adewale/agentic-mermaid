@@ -67,15 +67,14 @@ tricks. This is the loudest and oldest theme.
   diagram is visually laid out there's not really an easy way to change it"
   ([41262756](https://news.ycombinator.com/item?id=41262756)).
 - Root cause: R3 (missing control surface).
-- Status here: **out of scope, by policy.** Issue #25 (open question 2)
-  recommends against route/position hints: "Keep route intent inferred from
-  semantics and author order unless Mermaid core standardizes hints," and
-  syntax invention is a stated non-goal. The substitute is actuation through
-  the agent loop: deterministic layout (`measureQuality`, `checkQuality`,
-  `eval/layout-compare/`) makes bad layout *detectable*, typed mutation makes
-  source restructuring cheap, and #25's route certificates would make
-  detours *explained* — so a program can iterate where a human would drag a
-  node. This substitutes for manual positioning; it does not provide it.
+- Status here: **manual coordinates and post-hoc nudging remain out of scope.**
+  `BUILD-24` now owns a narrower response: typed, deterministic structural
+  constraints for rank/layer, adjacency, and edge-length preference. They are
+  render/mutation metadata, not Agentic-only Mermaid syntax, and therefore do
+  not contradict #25's rule against inventing route syntax. Deterministic
+  quality measurement and route certificates remain the feedback loop; the
+  hints let an agent state topology-preserving intent without deleting a real
+  edge. This still does not provide arbitrary node coordinates or dragging.
 
 ### C2. Layout collapses at scale
 
@@ -199,10 +198,7 @@ edge they describe.
   integrated-labeling concept yFiles ships, see R3),
   [mermaid#2131 mis-aligned state labels](https://github.com/mermaid-js/mermaid/issues/2131),
   [mermaid#2525 "messages appear with line through them"](https://github.com/mermaid-js/mermaid/issues/2525),
-  [mermaid#7492 Mermaid C4-family label/text/arrow chaos](https://github.com/mermaid-js/mermaid/issues/7492),
   [mermaid#1233](https://github.com/mermaid-js/mermaid/issues/1233).
-- Mermaid #7492 is watch-only upstream evidence for the unsupported Mermaid C4
-  family. It creates no local/native C4 fixture or adoption commitment.
 - Root cause: R1 (label placement is NP-hard and classically solved *after*
   layout; dagre models labels as mid-edge dummy nodes), R4/R5 (renderers do
   not collision-check label boxes afterwards).
@@ -408,17 +404,14 @@ titles, notes colliding with lifelines.
 
 ### C13. Chart families: hard-coded geometry breaks on real data
 
-Gantt axis dates overlap on long ranges, pie titles/labels clip, radar axis
-labels compress, and Mermaid's C4 family is widely considered the worst-layouted
-type. These are
+Gantt axis dates overlap on long ranges, pie titles/labels clip, and radar axis
+labels compress. These are
 not dagre problems — each chart type has bespoke geometry with no collision
 handling.
 
 - Evidence: [mermaid#1301 gantt axis overlap](https://github.com/mermaid-js/mermaid/issues/1301)
   (23R), [mermaid#6232 pie title cut off](https://github.com/mermaid-js/mermaid/issues/6232),
-  [mermaid#7683 radar labels clipped](https://github.com/mermaid-js/mermaid/issues/7683),
-  and watch-only
-  [mermaid#7492 Mermaid C4-family evidence](https://github.com/mermaid-js/mermaid/issues/7492).
+  and [mermaid#7683 radar labels clipped](https://github.com/mermaid-js/mermaid/issues/7683).
 - Root cause: R5 (per-family renderer-first geometry; semantics inferred at
   draw time — the exact anti-pattern #26's guiding principle names).
 - Fixture/test: pie and quadrant landed source-level with geometry tests
@@ -427,10 +420,8 @@ handling.
   pure, clock-free schedule resolver *before* layout, family validators
   (deterministic task intervals, milestone zero-width markers,
   non-overlapping compact rows) designed against precisely the mermaid#1301
-  class. Mindmap now has deterministic tree geometry; Mermaid C4 and radar
-  remain unsupported. The #7492 C4-family report remains inventory/watch
-  evidence only, with no native fixture or adoption commitment.
-- Status here: **partial** (pie/quadrant/gantt/mindmap landed; Mermaid C4/radar
+  class. Mindmap now has deterministic tree geometry; radar remains unsupported.
+- Status here: **partial** (pie/quadrant/gantt/mindmap landed; radar
   absent — see [`comparison.md`](./comparison.md) for the current family-coverage
   trade).
 
@@ -734,7 +725,7 @@ issue workstreams an active schedule; root `TODO.md` must own any promoted work.
 | C2 | Scale collapse | mermaid#1984 (39R) | **partial** (detection only) | `quality.ts` bands; `eval/layout-compare/` |
 | C3 | Subgraphs | mermaid#2509 (189R) | **landed** | `subgraph-direction.test.ts`; PRs #17/#21/#22 |
 | C4 | Erratic routing | mermaid#6476, #5601 | **partial**; candidate fix evidence only | #25 §11–12; MFA worked example above |
-| C5 | Edge-label overlap | mermaid#2131; #7492 watch-only C4-family evidence | **partial** | inline ELK labels; `labelEdgeProximity`; #25 §11.4 |
+| C5 | Edge-label overlap | mermaid#2131 | **partial** | inline ELK labels; `labelEdgeProximity`; #25 §11.4 |
 | C6 | Order control / edit stability | mermaid#3723 (86R), #815 (45R) | **partial** | model-order ELK opts; `agent-auth-flow.test.ts`; edit-stability tests |
 | C7 | Default aesthetics | HN 30339032 | **landed** (upstream + fork) | theming; Style + Palette; contrast tests |
 | C8 | Text clipping | mermaid#2688 (24R) | **landed** | zero-DOM text; `LABEL_OVERFLOW`; CJK tests; WS8 candidate evidence |
@@ -750,10 +741,11 @@ issue workstreams an active schedule; root `TODO.md` must own any promoted work.
 
 Stated plainly so the scorecard cannot oversell:
 
-1. **Manual positioning (C1).** The loudest single ask is answered with a
-   substitute (deterministic + measurable + explainable auto-layout for
-   editing programs), not a solution. If Mermaid core standardizes layout
-   hints, this fork follows; it will not invent them (#25 non-goals).
+1. **Manual positioning (C1).** Arbitrary coordinates and post-layout nudging
+   remain deliberately unsupported. `BUILD-24` schedules only typed structural
+   auto-layout constraints (rank, adjacency, short-edge preference), without
+   inventing Mermaid source syntax. If Mermaid core standardizes compatible
+   source hints, this fork can map them into the same typed contract.
 2. **Large-diagram compaction (C2).** Detection exists; no compaction work
    is scheduled. Source-order priority can make wide diagrams wider — the
    Auth Flow aspect band in `agent-auth-flow.test.ts` is widened to 7
@@ -767,9 +759,7 @@ Stated plainly so the scorecard cannot oversell:
    [upstreaming strategy](./fork-differences.md#upstreaming-strategy).
 4. **Family coverage.** The checked registry is a focused subset of Mermaid's
    broader catalogue. Gantt, Mindmap, and GitGraph are rendered and characterized;
-   Mermaid C4, radar, and other families remain outside the current engine.
-   Mermaid C4 is watch-only inventory/evidence here, with no local fixture or
-   native-adoption commitment.
+   radar and other families remain outside the current engine.
 5. **Metric honesty.** Today's perceptual metrics pass diagrams whose
    routing is visibly wrong (complaint C4 worked example). Unless and until the
    #25 certificate and #26 family-validator candidates are promoted in root

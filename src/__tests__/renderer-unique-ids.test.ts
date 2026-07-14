@@ -80,4 +80,16 @@ describe('#7540 unique SVG ids across diagrams', () => {
     expect(out).toContain('url(#z-arrowhead)')
     expect(out).toContain('url(#external)') // untouched — not a declared id
   })
+
+  test('namespaceSvgIds rewrites declared references only in SVG/CSS contexts, never authored text', () => {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg"><defs><marker id="arrowhead"/></defs>' +
+      '<style>.edge{marker-end:url(#arrowhead)}</style>' +
+      '<text data-note="url(#arrowhead)">url(#arrowhead)</text>' +
+      '<line marker-end="url(#arrowhead)"/></svg>'
+    const out = namespaceSvgIds(svg, 'safe-')
+    expect(out).toContain('id="safe-arrowhead"')
+    expect(out).toContain('.edge{marker-end:url(#safe-arrowhead)}')
+    expect(out).toContain('<text data-note="url(#arrowhead)">url(#arrowhead)</text>')
+    expect(out).toContain('marker-end="url(#safe-arrowhead)"')
+  })
 })

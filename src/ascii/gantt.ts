@@ -22,7 +22,12 @@
 // via the shared visualWidth helpers.
 // ============================================================================
 
-import { parseGanttModel, applyGanttFrontmatterConfig } from '../gantt/parser.ts'
+import {
+  applyResolvedGanttFrontmatterConfig,
+  parseGanttModel,
+  resolveGanttFrontmatterConfig,
+  type ResolvedGanttFrontmatterConfig,
+} from '../gantt/parser.ts'
 import { resolveGanttSchedule, formatGanttInstant } from '../gantt/schedule.ts'
 import { resolveTicks, packCompactLanes } from '../gantt/layout.ts'
 import type { GanttModel, GanttSchedule, ScheduledGanttTask, EpochMs } from '../gantt/types.ts'
@@ -81,9 +86,12 @@ export function renderGanttAscii(
   colorMode: ColorMode = 'none',
   theme: AsciiTheme = DEFAULT_ASCII_THEME,
   frontmatter?: MermaidFrontmatterMap,
-  options: { maxWidth?: number; today?: string } = {},
+  options: { maxWidth?: number; today?: string; resolvedConfig?: ResolvedGanttFrontmatterConfig } = {},
 ): string {
-  const model = applyGanttFrontmatterConfig(parseGanttModel(lines), frontmatter)
+  const model = applyResolvedGanttFrontmatterConfig(
+    parseGanttModel(lines),
+    options.resolvedConfig ?? resolveGanttFrontmatterConfig(frontmatter),
+  )
   const schedule = resolveGanttSchedule(model, { today: options.today })
   const g = glyphsFor(config.useAscii)
   const arrow = config.useAscii ? '->' : '→'

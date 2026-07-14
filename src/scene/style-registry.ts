@@ -16,51 +16,37 @@
 // ============================================================================
 
 import type { TextTransform } from '../types.ts'
-import { safeCssColor } from '../shared/css-color.ts'
-import { THEMES } from '../theme.ts'
+import {
+  STYLE_SPEC_FORMAT_VERSION,
+  validateStyleSpec,
+} from './style-spec.ts'
+import type { StyleSpec } from './style-spec.ts'
+import {
+  canonicalExtensionId,
+  createExtensionIdentity,
+  parseExtensionId,
+  registerCompatibilityAlias,
+  registerExtension,
+} from '../shared/extension-identity.ts'
+import type {
+  CompatibilityAlias,
+  CompatibilityAliasDiagnostic,
+  ExtensionCompatibility,
+  ExtensionIdentity,
+  ExtensionProvenance,
+  ExtensionRegistration,
+} from '../shared/extension-identity.ts'
+import { BUILTIN_PALETTE_DEFINITIONS, type BuiltinPaletteDefinition } from '../palette-catalog.ts'
 
-/** A partial, composable public description of how diagrams look. */
-export interface StyleSpec {
-  /** Optional JSON Schema pointer for file-backed styles. Ignored at render time. */
-  $schema?: string
-  // identity — optional; anonymous inline styles are fine
-  name?: string
-  blurb?: string
-
-  /** Palette — the seven tokens every mark references. A colors-only style
-   *  is a theme. User themeVariables/color options still win over these. */
-  colors?: { bg?: string; fg?: string; line?: string; accent?: string; muted?: string; surface?: string; border?: string }
-  /** Font family default (threaded through the --font CSS variable). PNG
-   *  export needs the family bundled or resolvable by the rasterizer. */
-  font?: string
-
-  // Mark treatment (what the sketch backends read).
-  /** Stroke rendering: 'crisp' (default), 'jittered' rough.js strokes, or
-   *  'freehand' pressure-ribbon strokes. */
-  stroke?: 'crisp' | 'jittered' | 'freehand'
-  roughness?: number
-  bowing?: number
-  /** 1 = single stroke (disableMultiStroke), 2 = sketchy double stroke. */
-  passes?: number
-  strokeWidth?: number
-  fill?: 'none' | 'hachure' | 'solid' | 'wash'
-  hachureAngle?: number
-  hachureGap?: number
-  fillWeight?: number
-  /** Wash fill glaze opacity / edge-darkening opacity (fill: 'wash'). */
-  washOpacity?: number
-  washEdge?: number
-  /** Flat page furniture drawn right after the document prelude. */
-  backdrop?: 'plain' | 'paper-ruled' | 'grid'
-
-  /** Expert override only — normally inferred by inferBackend(). */
-  backend?: 'default' | 'rough' | 'hybrid'
-
-  // Advisory metadata — documented, never read by the engine.
-  intent?: 'premium' | 'draft' | 'lofi'
-  /** §3.8 monochrome contract: tone via shading/weight, never extra hues. */
-  mono?: boolean
-}
+export {
+  STYLE_SPEC_FORMAT_VERSION,
+  STYLE_SPEC_FIELD_DESCRIPTORS,
+  STYLE_COLOR_TOKEN_DESCRIPTORS,
+  styleSpecJsonSchema,
+  styleSpecFieldReferenceMarkdown,
+  validateStyleSpec,
+} from './style-spec.ts'
+export type { StyleSpec, StyleColors } from './style-spec.ts'
 
 /** Private renderer defaults for built-in looks. This is intentionally not
  *  part of the public StyleSpec schema, registerStyle boundary, or docs. */
@@ -99,48 +85,334 @@ export interface InternalGroupFace extends InternalTextFace, InternalBoxFace {
 
 interface InternalStyleSpec extends StyleSpec {
   face?: InternalStyleFace
+  /** Registry discovery metadata; never accepted in public StyleSpec JSON. */
+  displayLabel?: string
 }
 
 /** What RenderOptions.style accepts: a registered name, an inline spec, or a
  *  stack of either (merged left → right). */
 export type StyleInput = string | StyleSpec
 
-const STYLE_REGISTRY = new Map<string, InternalStyleSpec>()
+export type StyleRegistryKind = 'look' | 'palette'
+
+export interface StyleRegistrationOptions {
+  readonly version?: string
+  readonly compatibility?: ExtensionCompatibility
+  readonly provenance?: ExtensionProvenance
+}
+
+export interface StyleDescriptor {
+  readonly identity: ExtensionIdentity<StyleRegistryKind>
+  readonly spec: StyleSpec
+  /** Stable preferred input. Compatibility aliases are never advertised here. */
+  readonly inputName: string
+  readonly aliases: readonly CompatibilityAlias[]
+  /** Stable label shared by CLI, editor, website, MCP, and generated docs. */
+  readonly displayLabel: string
+  readonly kind: StyleRegistryKind
+  readonly isDefault: boolean
+}
+
+export interface StyleReferenceResolution {
+  readonly canonicalId: string
+  readonly spec: StyleSpec
+  readonly diagnostic?: CompatibilityAliasDiagnostic
+}
+
+const CORE_STYLE_VERSION = '1.0.0'
+const CORE_STYLE_COMPATIBILITY = Object.freeze({ core: '^0.1.1' })
+const CORE_STYLE_PROVENANCE = Object.freeze({
+  owner: 'agentic-mermaid',
+  source: 'built-in',
+  reference: 'src/scene/style-registry.ts',
+})
+const HOST_STYLE_PROVENANCE = Object.freeze({ owner: 'host', source: 'in-process' })
+
+const STYLE_REGISTRY = new Map<string, ExtensionRegistration<InternalStyleSpec, StyleRegistryKind>>()
+/** Stable human-facing inputs are not compatibility aliases: they have no
+ * removal window and therefore live in their own projection. */
+const STYLE_INPUT_NAMES = new Map<string, string>()
+const STYLE_ALIASES = new Map<string, CompatibilityAlias>()
+
+/** Style admission reads caller-owned accessors while reducing a public
+ * StyleSpec to immutable declarative data. A getter must not be able to use a
+ * nested register/dispose call to leave the registry changed when the outer
+ * admission later fails. Resolution is synchronous, so one depth counter
+ * protects registration, inline stacks, and disposer callbacks without
+ * changing ordinary nested read-only resolution semantics. */
+let styleAdmissionDepth = 0
+
+function assertStyleRegistryMutationAllowed(): void {
+  if (styleAdmissionDepth > 0) {
+    throw new Error('Style registry mutation is forbidden while a Style input is undergoing admission')
+  }
+}
+
+function withStyleAdmission<T>(admit: () => T): T {
+  styleAdmissionDepth++
+  try {
+    return admit()
+  } finally {
+    styleAdmissionDepth--
+  }
+}
+
+const DEFAULT_STYLE_ALIAS = Object.freeze({
+  alias: 'default',
+  targetId: 'look:crisp',
+  diagnostic: Object.freeze({
+    code: 'STYLE_ALIAS_DEPRECATED',
+    message: 'Style alias "default" resolves to "look:crisp"; use the stable input "crisp".',
+    removal: Object.freeze({ release: '0.3.0', date: '2027-01-31' }),
+  }),
+}) satisfies CompatibilityAlias
+
+/** Published compatibility window for the historically ambiguous bare name. */
+const TUFTE_STYLE_ALIAS = Object.freeze({
+  alias: 'tufte',
+  targetId: 'look:tufte',
+  diagnostic: Object.freeze({
+    code: 'STYLE_ALIAS_DEPRECATED',
+    message: 'Style alias "tufte" resolves to "look:tufte"; use "palette:tufte" for the palette-only style.',
+    removal: Object.freeze({ release: '0.3.0', date: '2027-01-31' }),
+  }),
+}) satisfies CompatibilityAlias
+
+function plainDeclarativeRecord(value: unknown): value is Record<string, unknown> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
+  const prototype = Object.getPrototypeOf(value)
+  return prototype === Object.prototype || prototype === null
+}
+
+/**
+ * Materialize caller-owned declarative data once. Object.entries invokes each
+ * enumerable accessor once; recursive snapshots ensure nested colors (and any
+ * future object-valued StyleSpec field) cannot change after validation. A
+ * proxy that presents a plain-record surface is safely reduced to frozen data;
+ * other object kinds remain intact so the canonical validator rejects them.
+ */
+function snapshotDeclarativeStyleValue(
+  value: unknown,
+  snapshots: WeakMap<object, unknown> = new WeakMap(),
+): unknown {
+  if (!plainDeclarativeRecord(value)) return value
+  const existing = snapshots.get(value)
+  if (existing !== undefined) return existing
+
+  const snapshot = Object.create(null) as Record<string, unknown>
+  snapshots.set(value, snapshot)
+  // Capture all values before recursing so no later validation/storage phase
+  // ever returns to an accessor-backed caller object.
+  const entries = Object.entries(value)
+  for (const [key, child] of entries) {
+    Object.defineProperty(snapshot, key, {
+      value: snapshotDeclarativeStyleValue(child, snapshots),
+      enumerable: true,
+      writable: false,
+      configurable: false,
+    })
+  }
+  return Object.freeze(snapshot)
+}
+
+function validatedStyleSpecSnapshot(spec: StyleSpec): StyleSpec {
+  const snapshot = snapshotDeclarativeStyleValue(spec) as StyleSpec
+  const problems = validateStyleSpec(snapshot)
+  if (problems.length) throw new Error(`Invalid style spec: ${problems.join('; ')}`)
+  return snapshot
+}
+
+function styleRegistrationOptionsSnapshot(options: StyleRegistrationOptions): StyleRegistrationOptions {
+  const snapshot = snapshotDeclarativeStyleValue(options)
+  if (!plainDeclarativeRecord(snapshot)) {
+    throw new TypeError('registerStyle options must be a plain object')
+  }
+  return snapshot as StyleRegistrationOptions
+}
 
 function stripInternalStyle(spec: InternalStyleSpec | undefined): StyleSpec | undefined {
   if (!spec) return undefined
-  const { face: _face, ...publicSpec } = spec
-  return publicSpec
+  const { face: _face, displayLabel: _displayLabel, ...publicSpec } = spec
+  return Object.freeze({
+    ...publicSpec,
+    formatVersion: STYLE_SPEC_FORMAT_VERSION,
+    ...(publicSpec.colors ? { colors: Object.freeze({ ...publicSpec.colors }) } : {}),
+  })
 }
 
-export function registerStyle(spec: StyleSpec): void {
-  if (!spec.name) throw new Error('registerStyle requires a name (anonymous specs are for inline use)')
-  const problems = validateStyleSpec(spec)
-  if (problems.length) throw new Error(`Invalid style spec "${spec.name}": ${problems.join('; ')}`)
-  STYLE_REGISTRY.set(spec.name, spec)
+function registryKindOf(spec: StyleSpec): StyleRegistryKind {
+  return styleKind(spec)
 }
 
-function registerBuiltInStyle(spec: InternalStyleSpec): void {
+function registrationIdentity(
+  id: string,
+  kind: StyleRegistryKind,
+  options: StyleRegistrationOptions,
+): ExtensionIdentity<StyleRegistryKind> {
+  return createExtensionIdentity({
+    id,
+    kind,
+    version: options.version ?? CORE_STYLE_VERSION,
+    // An explicit empty/partial override must not erase the core baseline and
+    // manufacture an unversioned declarative extension.
+    compatibility: { ...CORE_STYLE_COMPATIBILITY, ...options.compatibility },
+    provenance: options.provenance ?? HOST_STYLE_PROVENANCE,
+  })
+}
+
+function registerCanonicalStyle(
+  spec: InternalStyleSpec,
+  kind: StyleRegistryKind,
+  options: StyleRegistrationOptions,
+  inputName?: string,
+): () => boolean {
+  const id = spec.name!
+  const stored: InternalStyleSpec = Object.freeze({
+    ...spec,
+    formatVersion: STYLE_SPEC_FORMAT_VERSION,
+    ...(spec.colors ? { colors: Object.freeze({ ...spec.colors }) } : {}),
+    ...(spec.face ? { face: Object.freeze({ ...spec.face }) } : {}),
+  })
+  const identity = registrationIdentity(id, kind, options)
+  registerExtension(STYLE_REGISTRY, {
+    identity,
+    value: stored,
+  })
+  if (inputName !== undefined) {
+    const existing = STYLE_INPUT_NAMES.get(inputName)
+    const canonicalOwner = STYLE_REGISTRY.has(inputName) && inputName !== id ? inputName : undefined
+    const aliasOwner = STYLE_ALIASES.get(inputName)?.targetId
+    if (existing !== undefined || canonicalOwner !== undefined || aliasOwner !== undefined) {
+      STYLE_REGISTRY.delete(id)
+      throw new Error(`Style input name "${inputName}" already selects "${existing ?? canonicalOwner ?? aliasOwner}"`)
+    }
+    STYLE_INPUT_NAMES.set(inputName, id)
+  }
+  return () => {
+    assertStyleRegistryMutationAllowed()
+    const current = STYLE_REGISTRY.get(id)
+    if (current?.identity !== identity) return false
+    const removed = STYLE_REGISTRY.delete(id)
+    if (removed && inputName !== undefined && STYLE_INPUT_NAMES.get(inputName) === id) {
+      STYLE_INPUT_NAMES.delete(inputName)
+    }
+    return removed
+  }
+}
+
+/**
+ * Register a reusable declarative style. New registrations use an explicit
+ * `look:` or `palette:` identity; legacy bare built-in aliases remain inputs
+ * but cannot be created by third-party registration.
+ */
+export function registerStyle(spec: StyleSpec, options: StyleRegistrationOptions = {}): () => boolean {
+  assertStyleRegistryMutationAllowed()
+  return withStyleAdmission(() => {
+    const snapshot = validatedStyleSpecSnapshot(spec)
+    const registrationOptions = styleRegistrationOptionsSnapshot(options)
+    if (!snapshot.name) throw new Error('registerStyle requires a name (anonymous specs are for inline use)')
+    const parsed = parseExtensionId(snapshot.name)
+    if (!parsed || (parsed.kind !== 'look' && parsed.kind !== 'palette')) {
+      throw new Error(`registerStyle name "${snapshot.name}" must use the "look:" or "palette:" namespace`)
+    }
+    const inferred = registryKindOf(snapshot)
+    if (parsed.kind !== inferred) {
+      throw new Error(`Style "${snapshot.name}" is a ${inferred}; its name must use the "${inferred}:" namespace`)
+    }
+    return registerCanonicalStyle(snapshot, inferred, registrationOptions)
+  })
+}
+
+function registerBuiltInStyle(
+  spec: InternalStyleSpec,
+  kind: StyleRegistryKind = 'look',
+  legacyAlias: CompatibilityAlias | null = null,
+  inputName: string = spec.name ?? '',
+): void {
   if (!spec.name) throw new Error('registerBuiltInStyle requires a name')
-  STYLE_REGISTRY.set(spec.name, spec)
+  const localName = spec.name
+  const canonicalId = canonicalExtensionId(kind, localName)
+  const publicProblems = validateStyleSpec(stripInternalStyle({ ...spec, name: canonicalId }))
+  if (publicProblems.length) throw new Error(`Invalid built-in style "${canonicalId}": ${publicProblems.join('; ')}`)
+  const unregister = registerCanonicalStyle(
+    { ...spec, name: canonicalId },
+    kind,
+    {
+      version: CORE_STYLE_VERSION,
+      compatibility: CORE_STYLE_COMPATIBILITY,
+      provenance: CORE_STYLE_PROVENANCE,
+    },
+    inputName,
+  )
+  if (legacyAlias) {
+    try {
+      const stableTarget = STYLE_INPUT_NAMES.get(legacyAlias.alias)
+      if (stableTarget !== undefined || STYLE_REGISTRY.has(legacyAlias.alias)) {
+        throw new Error(`Compatibility alias "${legacyAlias.alias}" conflicts with a stable Style input`)
+      }
+      registerCompatibilityAlias(STYLE_ALIASES, legacyAlias)
+    } catch (error) {
+      unregister()
+      throw error
+    }
+  }
+}
+
+function canonicalStyleId(name: string): { id: string; alias?: CompatibilityAlias } | undefined {
+  if (STYLE_REGISTRY.has(name)) return { id: name }
+  const inputTarget = STYLE_INPUT_NAMES.get(name)
+  if (inputTarget) return { id: inputTarget }
+  const alias = STYLE_ALIASES.get(name)
+  return alias ? { id: alias.targetId, alias } : undefined
+}
+
+/** Resolve a name while retaining compatibility diagnostics for host surfaces. */
+export function resolveStyleReference(name: string): StyleReferenceResolution | undefined {
+  const resolved = canonicalStyleId(name)
+  if (!resolved) return undefined
+  const spec = stripInternalStyle(STYLE_REGISTRY.get(resolved.id)?.value)
+  if (!spec) return undefined
+  return Object.freeze({
+    canonicalId: resolved.id,
+    spec,
+    ...(resolved.alias?.diagnostic ? { diagnostic: resolved.alias.diagnostic } : {}),
+  })
 }
 
 export function getStyle(name: string): StyleSpec | undefined {
-  return stripInternalStyle(STYLE_REGISTRY.get(name))
+  return resolveStyleReference(name)?.spec
 }
 
-function getInternalStyle(name: string): InternalStyleSpec | undefined {
-  return STYLE_REGISTRY.get(name)
-}
-
+/** Stable preferred inputs; deprecated compatibility aliases are intentionally omitted. */
 export function knownStyles(): string[] {
-  return ['crisp', ...STYLE_REGISTRY.keys()]
+  return knownStyleDescriptors().map(descriptor => descriptor.inputName)
+}
+
+export function knownStyleDescriptors(): readonly StyleDescriptor[] {
+  return Object.freeze(Array.from(STYLE_REGISTRY.values(), ({ identity, value }) => {
+    const aliases = Object.freeze(Array.from(STYLE_ALIASES.values()).filter(alias => alias.targetId === identity.id))
+    const inputName = Array.from(STYLE_INPUT_NAMES.entries()).find(([, target]) => target === identity.id)?.[0] ?? identity.id
+    const localName = identity.id.slice(identity.id.indexOf(':') + 1)
+    const displayLabel = value.displayLabel ?? localName
+      .split('-')
+      .filter(Boolean)
+      .map(word => word === 'ops' ? 'OPS' : word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ')
+    return Object.freeze({
+      identity,
+      spec: stripInternalStyle(value)!,
+      aliases,
+      inputName,
+      displayLabel,
+      kind: identity.kind,
+      isDefault: identity.id === 'look:crisp',
+    })
+  }))
 }
 
 /** Which backend a style needs, derived from what it asks for — authors
  *  describe the look, the engine picks the machinery. */
 export function inferBackend(spec: StyleSpec): 'default' | 'rough' | 'hybrid' {
-  if (spec.backend) return spec.backend
   if (spec.stroke === 'freehand' || spec.fill === 'wash') return 'hybrid'
   if (
     spec.stroke === 'jittered' ||
@@ -165,11 +437,6 @@ function mergeFace(left: InternalStyleFace | undefined, right: InternalStyleFace
   return merged
 }
 
-function assertValidInlineStyle(entry: StyleSpec): void {
-  const problems = validateStyleSpec(entry)
-  if (problems.length) throw new Error(`Invalid style spec: ${problems.join('; ')}`)
-}
-
 /** Merge a stack of styles left → right: later fields win; colors merge per
  *  channel. Names resolve through the registry; unknown names throw with the
  *  known list (fail loud — a silently-crisp fallback would erode trust in
@@ -180,22 +447,26 @@ function resolveInternalStyleStack(input: StyleInput | StyleInput[] | undefined)
   const specs: InternalStyleSpec[] = []
   for (const entry of stack) {
     if (typeof entry === 'string') {
-      if (entry === 'crisp' || entry === 'default') continue
-      const named = getInternalStyle(entry)
+      const resolved = canonicalStyleId(entry)
+      if (resolved?.id === 'look:crisp') continue
+      const named = resolved ? STYLE_REGISTRY.get(resolved.id)?.value : undefined
       if (!named) throw new Error(`Unknown style "${entry}". Known styles: ${knownStyles().join(', ')}`)
       specs.push(named)
     } else {
-      assertValidInlineStyle(entry)
-      specs.push(entry)
+      specs.push(validatedStyleSpecSnapshot(entry))
     }
   }
   if (specs.length === 0) return undefined
-  const merged: InternalStyleSpec = {}
+  const merged: InternalStyleSpec = { formatVersion: STYLE_SPEC_FORMAT_VERSION }
   for (const spec of specs) {
     for (const [key, value] of Object.entries(spec)) {
       if (value === undefined || key === 'face') continue
       if (key === 'colors') {
-        merged.colors = { ...merged.colors, ...spec.colors }
+        const colors = { ...merged.colors }
+        for (const [token, color] of Object.entries(spec.colors ?? {})) {
+          if (color !== undefined) (colors as Record<string, string>)[token] = color
+        }
+        merged.colors = colors
       } else {
         ;(merged as Record<string, unknown>)[key] = value
       }
@@ -206,13 +477,10 @@ function resolveInternalStyleStack(input: StyleInput | StyleInput[] | undefined)
 }
 
 export function resolveStyleStack(input: StyleInput | StyleInput[] | undefined): StyleSpec | undefined {
-  return stripInternalStyle(resolveInternalStyleStack(input))
+  return withStyleAdmission(() => stripInternalStyle(resolveInternalStyleStack(input)))
 }
 
-/** Private reader for renderer/layout defaults attached to built-in styles. */
-export function styleFaceOf(input: StyleInput | StyleInput[] | undefined): InternalStyleFace | undefined {
-  const spec = resolveInternalStyleStack(input)
-  if (spec === undefined) return undefined
+function internalStyleFace(spec: InternalStyleSpec): InternalStyleFace | undefined {
   const width = spec.strokeWidth
   const widthFace: InternalStyleFace | undefined = width !== undefined && width > 0 && inferBackend(spec) === 'default'
     ? { node: { lineWidth: width }, edge: { lineWidth: width }, group: { lineWidth: width } }
@@ -220,87 +488,94 @@ export function styleFaceOf(input: StyleInput | StyleInput[] | undefined): Inter
   return mergeFace(widthFace, spec.face)
 }
 
-/** A palette-only spec is what people call a THEME; anything that also sets
- *  stroke/fill/typography is a full LOOK. One predicate, shared by the CLI's
- *  `am styles` listing and the editor's style picker, so the two surfaces can
- *  never disagree about what counts as a look. */
-export function styleKind(spec: StyleSpec): 'look' | 'theme' {
-  return Object.keys(spec).every(k => k === '$schema' || k === 'name' || k === 'blurb' || k === 'colors') ? 'theme' : 'look'
+/** Validate dependencies only after composition: a fragment may deliberately
+ * supply hachure/wash parameters before another fragment selects that fill.
+ * The final stack, however, must not carry customization that merely changes
+ * receipt identity while producing no corresponding projection. */
+function assertRealizedStyleSpec(spec: InternalStyleSpec): void {
+  const hachureFields = ['hachureAngle', 'hachureGap', 'fillWeight'] as const
+  const inactiveHachure = hachureFields.filter(field => spec[field] !== undefined && spec.fill !== 'hachure')
+  if (inactiveHachure.length > 0) {
+    throw new Error(`Invalid style spec: ${inactiveHachure.map(field => `"${field}"`).join(', ')} require fill "hachure" in the final Style stack`)
+  }
+  const washFields = ['washOpacity', 'washEdge'] as const
+  const inactiveWash = washFields.filter(field => spec[field] !== undefined && spec.fill !== 'wash')
+  if (inactiveWash.length > 0) {
+    throw new Error(`Invalid style spec: ${inactiveWash.map(field => `"${field}"`).join(', ')} require fill "wash" in the final Style stack`)
+  }
+  if (spec.fill !== undefined && inferBackend(spec) === 'default') {
+    throw new Error('Invalid style spec: "fill" has no crisp/default backend projection; combine it with stroke "jittered"/"freehand" or another rough/hybrid backend field')
+  }
+}
+
+/** Internal boundary helper: resolve mutable registry input once, then project
+ * its public StyleSpec and private renderer defaults from that same snapshot. */
+export function resolveStyleStackWithFace(
+  input: StyleInput | StyleInput[] | undefined,
+): { style?: StyleSpec; face?: InternalStyleFace } {
+  return withStyleAdmission(() => {
+    const internal = resolveInternalStyleStack(input)
+    if (internal === undefined) return {}
+    assertRealizedStyleSpec(internal)
+    const style = stripInternalStyle(internal)
+    const face = internalStyleFace(internal)
+    return {
+      ...(style ? { style } : {}),
+      ...(face ? { face } : {}),
+    }
+  })
+}
+
+/** Private reader for renderer/layout defaults attached to built-in styles. */
+export function styleFaceOf(input: StyleInput | StyleInput[] | undefined): InternalStyleFace | undefined {
+  return withStyleAdmission(() => {
+    const spec = resolveInternalStyleStack(input)
+    if (spec === undefined) return undefined
+    return internalStyleFace(spec)
+  })
+}
+
+/** A colors-only style is a Palette; anything that also sets stroke, fill, or
+ * typography is a Look. "theme" remains prose and diagnosed legacy input,
+ * never a published registry kind. */
+export function styleKind(spec: StyleSpec): StyleRegistryKind {
+  return Object.keys(spec).every(k => k === 'formatVersion' || k === '$schema' || k === 'name' || k === 'blurb' || k === 'colors') ? 'palette' : 'look'
 }
 
 /** True when a merged spec changes anything beyond metadata — i.e. when
  *  rendering must go through the styled scene path. */
 export function isStyledSpec(spec: StyleSpec): boolean {
-  return inferBackend(spec) !== 'default' || spec.colors !== undefined || spec.font !== undefined
-}
-
-const KNOWN_KEYS = new Set([
-  '$schema', 'name', 'blurb', 'colors', 'font',
-  'stroke', 'roughness', 'bowing', 'passes', 'strokeWidth',
-  'fill', 'hachureAngle', 'hachureGap', 'fillWeight', 'washOpacity', 'washEdge',
-  'backdrop', 'backend', 'intent', 'mono',
-])
-
-/** Validate an untrusted (e.g. JSON) style record. Returns human-readable
- *  problems; [] means the record is a usable StyleSpec. Declarative-only by
- *  construction — there is no field that can carry markup or URLs. */
-export function validateStyleSpec(value: unknown): string[] {
-  const problems: string[] = []
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    return ['style spec must be a plain object']
-  }
-  const spec = value as Record<string, unknown>
-  for (const key of Object.keys(spec)) {
-    if (!KNOWN_KEYS.has(key)) problems.push(`unknown field "${key}"`)
-  }
-  const str = (k: string) => spec[k] === undefined || typeof spec[k] === 'string' || problems.push(`"${k}" must be a string`)
-  const bounded = (k: string, valid: (value: number) => boolean, expected: string) => {
-    const value = spec[k]
-    if (value !== undefined && (typeof value !== 'number' || !Number.isFinite(value) || !valid(value))) problems.push(`"${k}" must be ${expected}`)
-  }
-  const oneOf = (k: string, allowed: string[]) =>
-    spec[k] === undefined || (typeof spec[k] === 'string' && allowed.includes(spec[k] as string)) || problems.push(`"${k}" must be one of ${allowed.join(' | ')}`)
-  str('$schema'); str('name'); str('blurb'); str('font')
-  bounded('roughness', value => value >= 0 && value <= 10, 'between 0 and 10')
-  bounded('bowing', value => value >= 0 && value <= 10, 'between 0 and 10')
-  bounded('passes', value => Number.isInteger(value) && value >= 1 && value <= 8, 'an integer from 1 through 8')
-  bounded('strokeWidth', value => value > 0 && value <= 20, 'greater than 0 and at most 20')
-  bounded('hachureAngle', value => value >= -360 && value <= 360, 'between -360 and 360')
-  bounded('hachureGap', value => value > 0 && value <= 100, 'greater than 0 and at most 100')
-  bounded('fillWeight', value => value > 0 && value <= 20, 'greater than 0 and at most 20')
-  bounded('washOpacity', value => value >= 0 && value <= 1, 'between 0 and 1')
-  bounded('washEdge', value => value >= 0 && value <= 1, 'between 0 and 1')
-  oneOf('stroke', ['crisp', 'jittered', 'freehand'])
-  oneOf('fill', ['none', 'hachure', 'solid', 'wash'])
-  oneOf('backdrop', ['plain', 'paper-ruled', 'grid'])
-  oneOf('backend', ['default', 'rough', 'hybrid'])
-  oneOf('intent', ['premium', 'draft', 'lofi'])
-  if (spec.mono !== undefined && typeof spec.mono !== 'boolean') problems.push('"mono" must be a boolean')
-  if (spec.colors !== undefined) {
-    if (typeof spec.colors !== 'object' || spec.colors === null || Array.isArray(spec.colors)) {
-      problems.push('"colors" must be an object of color tokens')
-    } else {
-      for (const [token, color] of Object.entries(spec.colors as Record<string, unknown>)) {
-        if (!['bg', 'fg', 'line', 'accent', 'muted', 'surface', 'border'].includes(token)) problems.push(`unknown color token "${token}"`)
-        else if (color !== undefined && typeof color !== 'string') problems.push(`color token "${token}" must be a string`)
-        else if (color !== undefined && safeCssColor(color) === undefined) problems.push(`color token "${token}" must be a safe non-fetching CSS color`)
-      }
-    }
-  }
-  return problems
+  return inferBackend(spec) !== 'default'
+    || spec.colors !== undefined
+    || spec.font !== undefined
+    || spec.strokeWidth !== undefined
 }
 
 // ----------------------------------------------------------------------------
-// Themes register as palette-only styles: every THEMES entry is addressable
-// wherever a style name is accepted ('dracula', 'nord', 'zinc-dark', …).
-// Built-in full looks register AFTER, so a shared name ('tufte') resolves to
-// the full look; the bare palette stays reachable via explicit colors.
+// Palettes register as canonical palette:* styles. Most built-ins also have a
+// stable unqualified input. `tufte` is the diagnosed historical alias for the
+// Look, so both Tufte meanings advertise their canonical names instead.
 // ----------------------------------------------------------------------------
 
-for (const [name, palette] of Object.entries(THEMES)) {
-  registerStyle({
+// The byte-identical default is a real discoverable descriptor, not a picker-
+// local pseudo-style. Stack resolution still treats its aliases as the empty
+// treatment so selecting it cannot perturb the historical default path.
+registerBuiltInStyle({
+  name: 'crisp',
+  displayLabel: 'Crisp',
+  blurb: 'The byte-identical default renderer with precise SVG geometry.',
+  stroke: 'crisp',
+}, 'look', DEFAULT_STYLE_ALIAS)
+
+for (const definition of BUILTIN_PALETTE_DEFINITIONS as readonly BuiltinPaletteDefinition[]) {
+  const { legacyName: name, colors: palette } = definition
+  if (canonicalExtensionId('palette', name) !== definition.id) {
+    throw new Error(`Built-in palette identity mismatch: ${definition.id}`)
+  }
+  registerBuiltInStyle({
     name,
-    blurb: `Palette: ${name} (theme).`,
+    displayLabel: definition.displayLabel,
+    blurb: `Palette: ${name}.`,
     colors: {
       bg: palette.bg,
       fg: palette.fg,
@@ -310,7 +585,7 @@ for (const [name, palette] of Object.entries(THEMES)) {
       surface: palette.surface,
       border: palette.border,
     },
-  })
+  }, 'palette', null, name === 'tufte' ? 'palette:tufte' : name)
 }
 
 // ----------------------------------------------------------------------------
@@ -320,6 +595,7 @@ for (const [name, palette] of Object.entries(THEMES)) {
 
 registerBuiltInStyle({
   name: 'hand-drawn',
+  displayLabel: 'Hand-drawn',
   blurb: 'Black ink on ruled paper — wobbly double strokes, unfilled boxes.',
   intent: 'draft',
   colors: { bg: '#f7f5ef', fg: '#1a1a1e', line: '#26262b', accent: '#26262b', border: '#26262b' },
@@ -336,6 +612,7 @@ registerBuiltInStyle({
 
 registerBuiltInStyle({
   name: 'excalidraw',
+  displayLabel: 'Excalidraw',
   blurb: 'Virtual whiteboard style — rough strokes, pastel hachure fills.',
   intent: 'draft',
   colors: { bg: '#ffffff', fg: '#1e1e1e', line: '#1e1e1e', accent: '#4263eb', surface: '#f1f3f5' },
@@ -353,6 +630,7 @@ registerBuiltInStyle({
 
 registerBuiltInStyle({
   name: 'pen-and-ink',
+  displayLabel: 'Pen & ink',
   blurb: 'Fine single-pass linework on warm cream — no interior hatching.',
   intent: 'premium',
   colors: { bg: '#faf6ec', fg: '#241f1a', line: '#2b241d', accent: '#2b241d', border: '#2b241d' },
@@ -368,6 +646,7 @@ registerBuiltInStyle({
 
 registerBuiltInStyle({
   name: 'freehand',
+  displayLabel: 'Freehand',
   blurb: 'Pressure-sensitive marker ribbons — variable-width filled strokes.',
   intent: 'draft',
   colors: { bg: '#fbfaf7', fg: '#16161a', line: '#1d1d22', accent: '#1d1d22', border: '#1d1d22' },
@@ -382,6 +661,7 @@ registerBuiltInStyle({
 
 registerBuiltInStyle({
   name: 'watercolor',
+  displayLabel: 'Watercolor',
   blurb: 'Rough outlines over translucent glazes with pigment-pooled edges.',
   intent: 'premium',
   colors: { bg: '#fdfbf6', fg: '#31302c', line: '#4d4a44', accent: '#7a6a52', surface: '#ead9b9', border: '#5a564e' },
@@ -398,6 +678,7 @@ registerBuiltInStyle({
 
 registerBuiltInStyle({
   name: 'blueprint',
+  displayLabel: 'Blueprint',
   blurb: 'Cyanotype: white linework on Prussian blue with a drafting grid.',
   intent: 'premium',
   colors: { bg: '#123a63', fg: '#eaf2fb', line: '#dbe9f7', accent: '#ffffff', muted: '#b8cfe6', surface: '#1c4a78', border: '#dbe9f7' },
@@ -414,6 +695,7 @@ registerBuiltInStyle({
 
 registerBuiltInStyle({
   name: 'tufte',
+  displayLabel: 'Tufte',
   blurb: 'Maximal data-ink: crisp hairlines, warm paper, one red accent.',
   intent: 'premium',
   colors: { bg: '#fffff8', fg: '#111111', line: '#4a4a45', accent: '#a00000', muted: '#6b6b64', border: '#8a8a80' },
@@ -424,10 +706,11 @@ registerBuiltInStyle({
     group: { lineWidth: 0.8 },
   },
   mono: true,
-})
+}, 'look', TUFTE_STYLE_ALIAS, 'look:tufte')
 
 registerBuiltInStyle({
   name: 'accessible-high-contrast',
+  displayLabel: 'Accessible Contrast',
   blurb: 'Accessibility-first: large labels, heavy strokes, white ground, colorblind-safe blue accent.',
   intent: 'premium',
   colors: { bg: '#ffffff', fg: '#050505', line: '#111111', accent: '#005fcc', muted: '#333333', surface: '#ffffff', border: '#050505' },
@@ -440,6 +723,7 @@ registerBuiltInStyle({
 
 registerBuiltInStyle({
   name: 'patent-drawing',
+  displayLabel: 'Patent Hatching',
   blurb: 'Print-safe patent figure: uniform ink, strong outlines, tone via oblique hatching.',
   intent: 'premium',
   colors: { bg: '#ffffff', fg: '#111111', line: '#111111', accent: '#111111', muted: '#444444', surface: '#ffffff', border: '#111111' },
@@ -463,6 +747,7 @@ registerBuiltInStyle({
 
 registerBuiltInStyle({
   name: 'status-dashboard',
+  displayLabel: 'Dark Ops Dashboard',
   blurb: 'Operational dashboard: dark surface, rounded modules, bright status-friendly accent.',
   intent: 'premium',
   colors: { bg: '#08111f', fg: '#e6f4ff', line: '#5a7c99', accent: '#2dd4bf', muted: '#8aa6bf', surface: '#102033', border: '#2e4c63' },
@@ -475,6 +760,7 @@ registerBuiltInStyle({
 
 registerBuiltInStyle({
   name: 'ops-schematic',
+  displayLabel: 'Compact Trace Map',
   blurb: 'Dense operational schematic: compact mono labels, sturdy traces, theme-friendly geometry.',
   intent: 'lofi',
   colors: { bg: '#f8faf7', fg: '#17211c', line: '#24523b', accent: '#0f766e', muted: '#4f665a', surface: '#f0f5ef', border: '#24523b' },
@@ -494,6 +780,7 @@ registerBuiltInStyle({
 
 registerBuiltInStyle({
   name: 'chalkboard',
+  displayLabel: 'Chalkboard',
   blurb: 'Classroom chalkboard: dusty off-white strokes on green slate.',
   intent: 'draft',
   colors: { bg: '#17362f', fg: '#f5f1df', line: '#ece6cf', accent: '#ffe08a', muted: '#c7d2c4', surface: '#17362f', border: '#f3ecd5' },
@@ -514,6 +801,7 @@ registerBuiltInStyle({
 
 registerBuiltInStyle({
   name: 'risograph',
+  displayLabel: 'Riso Print',
   blurb: 'Two-ink poster print: warm stock, offset blue linework, coral accent, coarse hachure.',
   intent: 'premium',
   colors: { bg: '#fff5df', fg: '#2b2725', line: '#1f3d5a', accent: '#ff5a5f', muted: '#876a52', surface: '#ffd166', border: '#1f3d5a' },
@@ -536,6 +824,7 @@ registerBuiltInStyle({
 
 registerBuiltInStyle({
   name: 'architectural-plan',
+  displayLabel: 'Plan Drafting',
   blurb: 'Architectural plan: square technical linework, uppercase mono labels, room-like frames.',
   intent: 'premium',
   colors: { bg: '#fbf7ea', fg: '#202a2f', line: '#38535e', accent: '#1f6f8b', muted: '#60727a', surface: '#fffaf0', border: '#38535e' },
@@ -554,40 +843,8 @@ registerBuiltInStyle({
 })
 
 registerBuiltInStyle({
-  name: 'cupertino',
-  blurb: 'Apple-HIG product surface for app and system docs: borderless white cards on a grouped gray page, hierarchy from surface and weight; light-first.',
-  intent: 'premium',
-  // Apple grouped-surface tokens (HIG "Materials"/"Color"), gate-adjusted:
-  // bg = systemGroupedBackground, surface = systemBackground (pure white is
-  // the sourced token — cards read as elevation only because the page is
-  // tinted), fg = label, border = separator. line/muted start from systemGray
-  // (#8e8e93) and secondaryLabel but are darkened to clear this repo's
-  // legibility gates (3:1 strokes, 4.5:1 text) — HIG's own grays measure
-  // 2.7-2.9:1 here; the deviation is deliberate and documented.
-  colors: { bg: '#f2f2f7', fg: '#000000', line: '#7a7a80', accent: '#007aff', muted: '#66666b', surface: '#ffffff', border: 'rgba(60,60,67,0.29)' },
-  // Inter, not SF Pro — SF's license restricts it to Apple platforms; Inter
-  // is the bundled PNG-safe stand-in. Do not substitute.
-  font: 'Inter',
-  face: {
-    // Typography ("The Details of UI Typography", WWDC 2020): hierarchy from
-    // weight + size as a set; tracking is size-specific — 13px labels at 0,
-    // 11px edge labels get SF's small-size bump (~+6/1000em ≈ 0.07px).
-    // Borderless cards: separation comes from surface fill + elevation, so
-    // borderColor is transparent and the fill falls back to the derived node
-    // fill when a stacked palette drops --surface.
-    node: { fontSize: 13, fontWeight: 600, letterSpacing: 0, textColor: 'var(--fg)', paddingX: 24, paddingY: 12, cornerRadius: 10, lineWidth: 1, fillColor: 'var(--surface, var(--_node-fill))', borderColor: 'transparent' },
-    edge: { fontSize: 11, fontWeight: 500, letterSpacing: 0.07, lineWidth: 1.5, bendRadius: 16, strokeColor: 'var(--line, var(--_line))', textColor: 'var(--fg)' },
-    // Materials ("Designing Fluid Interfaces", WWDC 2018): material weight
-    // encodes hierarchy — groups are quaternary-fill surfaces (alpha, so they
-    // survive palette stacking), header bands one step heavier, no borders;
-    // grouping reads from proximity, never from 1px dividers. Corner
-    // concentricity: group radius 26 = node radius 10 + padding 16.
-    group: { fontSize: 12, fontWeight: 600, letterSpacing: 0, textColor: 'var(--muted, var(--_text-sec))', paddingX: 16, paddingY: 16, cornerRadius: 26, lineWidth: 1, fillColor: 'rgba(120,120,128,0.08)', headerFillColor: 'rgba(120,120,128,0.12)', borderColor: 'transparent' },
-  },
-})
-
-registerBuiltInStyle({
   name: 'publication-figure',
+  displayLabel: 'Report Figure',
   blurb: 'Polished publication figure: serif labels, confident rules, rounded boxes, one quiet accent.',
   intent: 'premium',
   colors: { bg: '#fffdf8', fg: '#171512', line: '#24211d', accent: '#1d4ed8', muted: '#5f5a52', surface: '#faf5ea', border: '#24211d' },

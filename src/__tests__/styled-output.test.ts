@@ -12,40 +12,20 @@ import { createHash } from 'node:crypto'
 import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { HOSTED_FONT_FACES, HOSTED_FONT_FILES } from '../font-manifest.ts'
-import { renderMermaidSVG, verifyNoExternalRefs, getStyle, inferBackend, knownStyles, resolveStyleStack, validateStyleSpec } from '../index.ts'
-import { styleKind } from '../scene/style-registry.ts'
+import { renderMermaidSVG, verifyNoExternalRefs, getStyle, inferBackend, knownStyleDescriptors, resolveStyleStack, validateStyleSpec } from '../index.ts'
 
 const FIXTURES = join(import.meta.dir, '..', '..', 'eval', 'layout-compare', 'fixtures')
 const BASELINE = join(import.meta.dir, 'testdata', 'styled-output-baseline.json')
 const UPDATE = process.env.UPDATE_STYLED_BASELINE === '1'
 
-// The built-in full looks (themes register too, but the golden matrix
-// pins the looks; palette-only styles are covered by the composition tests).
-const LOOKS = [
-  'hand-drawn',
-  'excalidraw',
-  'pen-and-ink',
-  'freehand',
-  'watercolor',
-  'blueprint',
-  'tufte',
-  'accessible-high-contrast',
-  'patent-drawing',
-  'status-dashboard',
-  'ops-schematic',
-  'chalkboard',
-  'risograph',
-  'architectural-plan',
-  'cupertino',
-  'publication-figure',
-]
-
-function registeredLooks() {
-  return knownStyles().filter((name) => name !== 'crisp' && styleKind(getStyle(name)!) === 'look')
-}
+// One registry projection owns both the golden matrix and hosted discovery.
+// Palette-only styles are covered by the composition tests.
+const LOOK_DESCRIPTORS = knownStyleDescriptors()
+  .filter(descriptor => descriptor.kind === 'look' && !descriptor.isDefault)
+const LOOKS = LOOK_DESCRIPTORS.map(descriptor => descriptor.inputName)
 
 function builtInLookFonts() {
-  return Array.from(new Set(LOOKS.map((name) => getStyle(name)?.font).filter((font): font is string => Boolean(font))))
+  return Array.from(new Set(LOOK_DESCRIPTORS.map(descriptor => descriptor.spec.font).filter((font): font is string => Boolean(font))))
 }
 
 function hostedFacesForFamily(family: string) {
@@ -62,8 +42,16 @@ function fixtureSources(): Array<{ name: string; source: string }> {
 describe('styled output', () => {
   const fixtures = fixtureSources()
 
-  test('the golden matrix includes every registered built-in look', () => {
-    expect(new Set(LOOKS)).toEqual(new Set(registeredLooks()))
+  test('the golden matrix derives from every registered non-default built-in look', () => {
+    expect(LOOKS.length).toBeGreaterThan(0)
+    expect(LOOKS).not.toContain('crisp')
+    expect(LOOKS).not.toContain('cupertino')
+  })
+
+  test('the Cupertino prototype remains documentation-only', () => {
+    expect(getStyle('cupertino')).toBeUndefined()
+    expect(() => renderMermaidSVG(fixtures[0]!.source, { style: 'cupertino' }))
+      .toThrow(/Unknown style "cupertino"/)
   })
 
   test('every style × fixture is hash-stable against the committed baseline', () => {
@@ -144,7 +132,7 @@ describe('styled output', () => {
     const source = 'graph TD\n  A[Start] -->|go| B{Choice}\n  B ==> C([End])'
     const svg = renderMermaidSVG(source, { style: 'hand-drawn' })
     expect(svg).toContain('marker-end')
-    expect(svg).toContain('markerUnits="userSpaceOnUse"')
+    expect(svg).not.toContain('markerUnits="userSpaceOnUse"')
     expect(svg).toContain('data-from="A"')
     expect(svg).toContain('class="edge-label-halo"')
     const strict = renderMermaidSVG(source, { style: 'hand-drawn', security: 'strict' })
@@ -263,7 +251,6 @@ describe('style consolidation', () => {
     expect(inferBackend({ backdrop: 'grid' })).toBe('rough')
     expect(inferBackend({ stroke: 'freehand' })).toBe('hybrid')
     expect(inferBackend({ fill: 'wash' })).toBe('hybrid')
-    expect(inferBackend({ fill: 'wash', backend: 'rough' })).toBe('rough') // expert override
     for (const name of LOOKS_WITH_BACKENDS) {
       expect(inferBackend(getStyle(name.style)!)).toBe(name.backend)
     }
@@ -282,6 +269,28 @@ describe('style consolidation', () => {
     expect(svg).toContain('stroke-width="2"')
   })
 
+  test('fails final Style fields that have no active backend projection', () => {
+    for (const fill of ['none', 'solid'] as const) {
+      expect(() => renderMermaidSVG(source, { style: { fill } }))
+        .toThrow(/"fill" has no crisp\/default backend projection/)
+    }
+    for (const field of ['hachureAngle', 'hachureGap', 'fillWeight'] as const) {
+      expect(() => renderMermaidSVG(source, { style: { [field]: 1 } }))
+        .toThrow(new RegExp(`"${field}".*require fill "hachure"`))
+    }
+    for (const field of ['washOpacity', 'washEdge'] as const) {
+      expect(() => renderMermaidSVG(source, { style: { [field]: 0.5 } }))
+        .toThrow(new RegExp(`"${field}".*require fill "wash"`))
+    }
+
+    expect(renderMermaidSVG(source, {
+      style: [{ hachureGap: 7 }, { fill: 'hachure' }],
+    })).toContain('<svg')
+    expect(renderMermaidSVG(source, {
+      style: [{ washOpacity: 0.4 }, { fill: 'wash' }],
+    })).toContain('<svg')
+  })
+
   test('validateStyleSpec accepts public fragments and rejects removed role keys plus junk', () => {
     expect(validateStyleSpec({ colors: { bg: '#fff' }, stroke: 'jittered' })).toEqual([])
     expect(validateStyleSpec({ stroke: 'wobbly' }).length).toBeGreaterThan(0)
@@ -290,6 +299,7 @@ describe('style consolidation', () => {
     expect(validateStyleSpec({ edge: 'x' })).toContain('unknown field "edge"')
     expect(validateStyleSpec({ group: [] })).toContain('unknown field "group"')
     expect(validateStyleSpec({ text: { fontSize: 'large' } })).toContain('unknown field "text"')
+    expect(validateStyleSpec({ backend: 'rough' })).toContain('unknown field "backend"')
     expect(validateStyleSpec({ evil: '<script>' }).length).toBeGreaterThan(0)
     expect(validateStyleSpec('hand-drawn').length).toBeGreaterThan(0)
   })
@@ -329,7 +339,7 @@ const LOOKS_WITH_BACKENDS = [
   { style: 'freehand', backend: 'hybrid' },
   { style: 'watercolor', backend: 'hybrid' },
   { style: 'blueprint', backend: 'rough' },
-  { style: 'tufte', backend: 'default' },
+  { style: 'look:tufte', backend: 'default' },
   { style: 'accessible-high-contrast', backend: 'default' },
   { style: 'patent-drawing', backend: 'rough' },
   { style: 'status-dashboard', backend: 'default' },

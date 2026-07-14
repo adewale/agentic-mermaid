@@ -16,9 +16,11 @@
 //   bar  [<n>, …]   /  bar  <name>  [<n>, …]
 //   line [<n>, …]   /  line <name> [<n>, …]
 //
-// Structured-or-opaque: any other non-blank, non-comment line (accTitle,
-// accDescr, multi-statement `;` lines, quoted text, weird tokens) returns null
-// so the caller falls back to a lossless opaque body. We deliberately model
+// Structured-or-opaque: any other non-blank, non-comment family line
+// (multi-statement `;` lines, quoted text, weird tokens) returns null.
+// Universal accTitle/accDescr directives are removed and preserved by the
+// source envelope before this family grammar runs.
+// Other unmodeled syntax falls back to a lossless opaque body. We deliberately model
 // ONLY bare (unquoted) text for titles, axis names, series names, and
 // categories so the serializer's canonical output re-parses identically under
 // the legacy parser (no quoting/escaping round-trip hazards). Render support is
@@ -32,6 +34,7 @@ import type {
 } from './types.ts'
 import { ok, err, DEFAULT_LABEL_CHAR_CAP } from './types.ts'
 import { labelOverflowWarning } from './label-metrics.ts'
+import { appendAccessibilityLines } from './accessibility-envelope.ts'
 
 // ---- Number format ----------------------------------------------------------
 //
@@ -255,7 +258,7 @@ export function parseXyChartBody(lines: string[]): XyChartBody | null {
       continue
     }
 
-    // Unmodeled line (accTitle/accDescr/quoted/`;`-joined/anything else) → opaque.
+    // Unmodeled family line (quoted/`;`-joined/anything else) → opaque.
     return null
   }
 
@@ -283,6 +286,7 @@ export function renderXyChart(body: XyChartBody): string {
       ? 'xychart-beta vertical'
       : 'xychart-beta'
   const lines: string[] = [header]
+  appendAccessibilityLines(lines, body)
   if (body.title !== undefined) lines.push(`  title ${body.title}`)
   if (body.xAxis) lines.push(renderAxis('x-axis', body.xAxis))
   if (body.yAxis) lines.push(renderAxis('y-axis', body.yAxis))
@@ -310,6 +314,8 @@ function cloneAxis(a: XyChartAxis): XyChartAxis {
 function cloneXyChart(b: XyChartBody): XyChartBody {
   return {
     kind: 'xychart',
+    accessibilityTitle: b.accessibilityTitle,
+    accessibilityDescription: b.accessibilityDescription,
     title: b.title,
     horizontal: b.horizontal,
     xAxis: b.xAxis ? cloneAxis(b.xAxis) : undefined,
@@ -508,7 +514,7 @@ export function mutateXyChart(body: XyChartBody, op: XyChartMutationOp): Result<
   return ok(next)
 }
 
-// ---- Verifier (FamilyPlugin.verify hook) ------------------------------------
+// ---- Verifier (FamilyDescriptor.verify hook) --------------------------------
 
 export function verifyXyChart(body: XyChartBody, opts: VerifyOptions): LayoutWarning[] {
   const cap = opts.labelCharCap ?? DEFAULT_LABEL_CHAR_CAP

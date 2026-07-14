@@ -88,4 +88,14 @@ Ship : Done`)
       disableMulticolor: true,
     }))
   })
+
+  it('rejects prototype keys and cyclic YAML aliases before config cloning', () => {
+    expect(() => normalizeMermaidSource(`%%{init: { "__proto__": { polluted: true } }}%%
+flowchart TD
+  A --> B`)).toThrow('uses a forbidden prototype key')
+
+    expect(() => normalizeMermaidSource(`%%{init: &root { safe: true, self: *root }}%%
+flowchart TD
+  A --> B`)).toThrow('must be acyclic')
+  })
 })

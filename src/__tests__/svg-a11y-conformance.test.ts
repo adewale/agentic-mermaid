@@ -13,7 +13,7 @@
  */
 import { describe, it, expect } from 'bun:test'
 import { renderMermaidSVG } from '../index.ts'
-import { builtinFamilyMetadata, knownFamilies } from '../agent/families.ts'
+import { builtinFamilyMetadata, knownBuiltinFamilies } from '../agent/families.ts'
 
 const ACC_TITLE = 'Conformance title'
 const ACC_DESCR = 'Conformance description'
@@ -25,7 +25,7 @@ function withAccessibility(example: string): string {
 }
 
 describe('SVG accessibility conformance (all families)', () => {
-  for (const kind of knownFamilies()) {
+  for (const kind of knownBuiltinFamilies()) {
     const meta = builtinFamilyMetadata(kind)
     if (!meta) continue
 

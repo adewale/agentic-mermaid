@@ -1,5 +1,5 @@
 // ============================================================================
-// Timeline structured body: parse / serialize / mutate (FamilyPlugin hooks).
+// Timeline structured body: parse / serialize / mutate (FamilyDescriptor hooks).
 //
 // Structured-or-null parse, same pattern as sequence: any unmodeled line
 // makes the caller fall back to a lossless opaque body.
@@ -8,7 +8,7 @@
 import { unknownOpMessage } from './mutation-ops.ts'
 import type {
   TimelineBody, TimelineSection, TimelinePeriod, TimelineEvent,
-  TimelineMutationOp, MutationError, Result,
+  TimelineMutationOp, MutationError, Result, Accessibility,
 } from './types.ts'
 import { ok, err } from './types.ts'
 import {
@@ -51,8 +51,13 @@ function parseTimelineEventSegments(raw: string): string[] | null {
   }
 }
 
-export function parseTimelineBody(lines: string[]): TimelineBody | null {
-  const body: TimelineBody = { kind: 'timeline', sections: [] }
+export function parseTimelineBody(lines: string[], accessibility: Accessibility = {}): TimelineBody | null {
+  const body: TimelineBody = {
+    kind: 'timeline',
+    sections: [],
+    ...(accessibility.title !== undefined ? { accessibilityTitle: accessibility.title } : {}),
+    ...(accessibility.descr !== undefined ? { accessibilityDescription: accessibility.descr } : {}),
+  }
   let currentSection: TimelineSection | undefined
   let currentPeriod: TimelinePeriod | undefined
   let sIdx = 0, pIdx = 0, eIdx = 0

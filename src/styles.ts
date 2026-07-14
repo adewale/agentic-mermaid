@@ -8,7 +8,6 @@
 // ============================================================================
 
 import { measureTextWidth } from './text-metrics'
-import { styleFaceOf } from './scene/style-registry.ts'
 import type { InternalStyleFace, StyleInput } from './scene/style-registry.ts'
 import type { TextTransform } from './types.ts'
 
@@ -268,8 +267,9 @@ export function applyTextTransform(text: string, transform: TextTransform | unde
 export function resolveRenderStyle(
   options: RenderStyleOptions = {},
   defaults: RenderStyleDefaults = FLOWCHART_STYLE_DEFAULTS,
+  resolvedFace?: Readonly<InternalStyleFace>,
 ): ResolvedRenderStyle {
-  const face = options.styleFace ?? styleFaceOf(options.style)
+  const face = resolvedFace ?? options.styleFace
   const text = face?.text
   const node = face?.node
   const edge = face?.edge

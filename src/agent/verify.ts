@@ -7,21 +7,27 @@
 // source chars — see label-metrics.ts.
 // ============================================================================
 
-import { parseMermaid as parseValidDiagram } from './parse.ts'
+import { parseMermaid as parseValidDiagram, parseRegisteredMermaid } from './parse.ts'
 import { serializeMermaid } from './serialize.ts'
 import { logToolInvocation } from './trace-log.ts'
 import { countStructuralElements, faithfulnessWarning } from './structural-count.ts'
-import { layoutGraphSync } from '../layout-engine.ts'
-import { renderMermaidSVG } from '../index.ts'
-import { parseMermaid as parseFlowchartLegacy } from '../parser.ts'
+import { renderPositionedMermaidSVG } from '../graphical-render.ts'
 import { auditRouteContracts, findRouteHitches } from '../route-contracts.ts'
+import type { PositionedGraph } from '../types.ts'
 import type {
-  ValidDiagram, VerifyOptions, VerifyResult, LayoutWarning, RenderedLayout,
+  ParsedDiagram, ExtensionValidDiagram, ValidDiagram, VerifyOptions, VerifyResult, LayoutWarning, RenderedLayout,
   WarningCode, SequenceBody,
 } from './types.ts'
 import { WARNING_SEVERITY, DEFAULT_LABEL_CHAR_CAP } from './types.ts'
-import { positionedToRenderedLayout, emptyRenderedLayout } from './layout-to-rendered.ts'
-import { layoutFamilyToRendered, ganttGeometryWarnings, ganttScheduleWarning, layoutGeometryWarnings } from './family-layouts.ts'
+import { emptyRenderedLayout } from './layout-to-rendered.ts'
+import {
+  FamilyLayoutError,
+  positionFamilyArtifact,
+  ganttGeometryWarnings,
+  ganttScheduleWarning,
+  layoutGeometryWarnings,
+  type ProjectedFamilyArtifact,
+} from './family-layouts.ts'
 import { getFamily, extractLabelsGeneric, builtinFamilyMetadata } from './families.ts'
 import { labelOverflowWarning } from './label-metrics.ts'
 import { stateBodyToGraph } from './state-body.ts'
@@ -32,8 +38,8 @@ import { parseTodayMarkerStyle, GANTT_TODAY_MARKER_STYLE_PROPS } from '../gantt/
 import { normalizeMermaidSource } from '../mermaid-source.ts'
 import { normalizeV11Shape } from '../flowchart-shapes.ts'
 import { familyConfigDiagnostics } from '../shared/family-config-diagnostics.ts'
-import './families-builtin.ts'  // registers built-in families at import time
 import { sequenceMessages } from './sequence-body.ts'
+import { sameExtensionIdentity } from '../shared/extension-identity.ts'
 
 function familyConfigShapeWarnings(d: ValidDiagram): LayoutWarning[] {
   const roots: unknown[] = [d.meta.frontmatter, ...d.meta.initDirectives.map(directive => directive.parsed)]
@@ -88,9 +94,60 @@ function roundtripFaithfulnessWarnings(d: ValidDiagram): LayoutWarning[] {
   }
 }
 
-export function verifyMermaid(input: ValidDiagram | string, opts: VerifyOptions = {}): VerifyResult {
+export function verifyMermaid(input: ParsedDiagram | string, opts: VerifyOptions = {}): VerifyResult {
   logToolInvocation('verify')
-  return withRenderParity(input, verifyStructure(input, opts), opts)
+  const parsed = typeof input === 'string' ? parseRegisteredMermaid(input) : { ok: true as const, value: input }
+  if (!parsed.ok) return finalize([{ code: 'EMPTY_DIAGRAM' }], emptyRenderedLayout('flowchart'), opts)
+  if (parsed.value.body.kind === 'preserved') {
+    const { diagnostic } = parsed.value.body
+    return finalize(
+      [{ code: 'RENDER_FAILED', reason: `${diagnostic.code}: ${diagnostic.message}` }],
+      emptyRenderedLayout(parsed.value.kind),
+      opts,
+      false,
+    )
+  }
+  const positioned = memoizedVerificationArtifact(parsed.value, opts)
+  try {
+    return withRenderParity(verifyStructure(parsed.value, opts, positioned), opts, positioned)
+  } catch (error) {
+    if (!(error instanceof FamilyLayoutError)) throw error
+    return finalize(
+      [{ code: 'RENDER_FAILED', reason: error.message }],
+      emptyRenderedLayout(parsed.value.kind),
+      opts,
+      false,
+    )
+  }
+}
+
+type VerificationArtifact = () => ProjectedFamilyArtifact | null
+
+/** One lazy artifact per verify call; failures are memoized as well as values. */
+function memoizedVerificationArtifact(d: ParsedDiagram, opts: VerifyOptions): VerificationArtifact {
+  let attempted = false
+  let artifact: ProjectedFamilyArtifact | null = null
+  let failure: unknown
+  return () => {
+    if (attempted) {
+      if (failure !== undefined) throw failure
+      return artifact
+    }
+    attempted = true
+    try {
+      // Resolve the graphical plan up front, then project its exact positioned
+      // result for geometric verification. The renderability gate consumes
+      // this same request + result and therefore cannot parse or lay out again.
+      artifact = positionFamilyArtifact(d, {
+        renderOptions: opts.renderOptions,
+        output: 'svg',
+      })
+      return artifact
+    } catch (error) {
+      failure = error
+      throw error
+    }
+  }
 }
 
 /**
@@ -107,11 +164,16 @@ export function verifyMermaid(input: ValidDiagram | string, opts: VerifyOptions 
  * failure under a different name (e.g. suppress UNRESOLVABLE_SCHEDULE on a
  * gantt whose render still throws for exactly that reason).
  */
-function withRenderParity(input: ValidDiagram | string, result: VerifyResult, opts: VerifyOptions): VerifyResult {
+function withRenderParity(
+  result: VerifyResult,
+  opts: VerifyOptions,
+  positioned: VerificationArtifact,
+): VerifyResult {
   if (!result.ok || (opts.suppress ?? []).some(code => code === 'RENDER_FAILED' || WARNING_SEVERITY[code] === 'error')) return result
-  const source = typeof input === 'string' ? input : serializeMermaid(input)
   try {
-    renderMermaidSVG(source)
+    const artifact = positioned()
+    if (!artifact) throw new Error(`Mermaid family "${result.layout.kind}" has no positioned graphical artifact`)
+    renderPositionedMermaidSVG(artifact.request, artifact.layoutResult, [])
     return result
   } catch (e) {
     const reason = e instanceof Error ? e.message : String(e)
@@ -190,47 +252,80 @@ export function configWarningsForMermaid(source: string): LayoutWarning[] {
   return parsed.ok ? configWarningsForDiagram(parsed.value) : []
 }
 
-function verifyStructure(input: ValidDiagram | string, opts: VerifyOptions = {}): VerifyResult {
-  const d = typeof input === 'string' ? unwrap(input) : input
-  if (!d) return finalize([{ code: 'EMPTY_DIAGRAM' }], emptyRenderedLayout('flowchart'), opts)
-
+function verifyStructure(
+  parsed: ParsedDiagram,
+  opts: VerifyOptions,
+  positioned: VerificationArtifact,
+): VerifyResult {
   const cap = opts.labelCharCap ?? DEFAULT_LABEL_CHAR_CAP
 
-  // Family-plugin verify dispatcher pass: every registered family's `verify`
+  // FamilyDescriptor verify dispatcher pass: every registered family's `verify`
   // hook gets a chance to contribute warnings. Runs ahead of per-body branches
-  // so plugins can hook into any body kind (structured or opaque). Closes the
-  // dead-code gap where `FamilyPlugin.verify` was declared but never invoked.
+  // so descriptors can hook into any body kind (structured or opaque). Closes the
+  // dead-code gap where `FamilyDescriptor.verify` was declared but never invoked.
   // 2C comment policy: in-body comments that structured serialization drops
   // (recorded at parse time) surface here as the Tier 3 COMMENT_DROPPED lint,
   // so the loss is announced rather than silent.
-  const metaWarnings: LayoutWarning[] = d.meta.droppedComments?.length
-    ? [{ code: 'COMMENT_DROPPED', count: d.meta.droppedComments.length, lines: d.meta.droppedComments.map(c => c.line) }]
+  const metaWarnings: LayoutWarning[] = parsed.meta.droppedComments?.length
+    ? [{ code: 'COMMENT_DROPPED', count: parsed.meta.droppedComments.length, lines: parsed.meta.droppedComments.map(c => c.line) }]
     : []
+  const dispatchedWarnings = dispatchFamilyVerify(parsed, opts)
+  if (parsed.body.kind === 'extension') {
+    return verifyExtension(parsed as ExtensionValidDiagram, cap, opts, dedupedConcat(metaWarnings, dispatchedWarnings), positioned)
+  }
+
+  const d = parsed as ValidDiagram
   const sourceWarnings = d.kind === 'flowchart'
     ? dedupedConcat(flowchartUnsupportedSyntaxWarnings(d.canonicalSource), flowchartShapeSubstitutionWarnings(d))
     : d.kind === 'er' ? erUnsupportedSyntaxWarnings(d.canonicalSource)
     : d.kind === 'quadrant' ? quadrantInertStyleWarnings(d) : []
   const faithfulnessWarnings = roundtripFaithfulnessWarnings(d)
   const configWarnings = configWarningsForDiagram(d)
-  const pluginWarnings = dedupedConcat(dedupedConcat(dedupedConcat(dedupedConcat(metaWarnings, dispatchFamilyVerify(d, opts)), sourceWarnings), faithfulnessWarnings), configWarnings)
+  let pluginWarnings = dedupedConcat(dedupedConcat(dedupedConcat(dedupedConcat(metaWarnings, dispatchedWarnings), sourceWarnings), faithfulnessWarnings), configWarnings)
+  // Mermaid treats universal accessibility metadata as renderable document
+  // furniture. A classDiagram containing only accTitle/accDescr therefore is
+  // not an empty source even though its structural layout has zero classes.
+  // The metadata lives in the normalized envelope, not in ClassBody, so remove
+  // only the body-local emptiness verdict here at their shared boundary.
+  if (d.body.kind === 'class' && (d.meta.accessibility.title !== undefined || d.meta.accessibility.descr !== undefined)) {
+    pluginWarnings = pluginWarnings.filter(warning => warning.code !== 'EMPTY_DIAGRAM')
+  }
 
-  if (d.body.kind === 'sequence') return mergeFinalize(verifySequence(d as ValidDiagram & { body: SequenceBody }, cap, opts), pluginWarnings, opts)
-  if (d.body.kind === 'timeline') return mergeFinalize(verifyTimeline(d as ValidDiagram & { body: import('./types.ts').TimelineBody }, cap, opts), pluginWarnings, opts)
-  // class + ER: the FamilyPlugin.verify hooks (registered in families-builtin.ts)
+  if (d.body.kind === 'sequence') return mergeFinalize(verifySequence(d as ValidDiagram & { body: SequenceBody }, cap, opts, positioned), pluginWarnings, opts)
+  if (d.body.kind === 'timeline') return mergeFinalize(verifyTimeline(d as ValidDiagram & { body: import('./types.ts').TimelineBody }, cap, opts, positioned), pluginWarnings, opts)
+  // class + ER: the FamilyDescriptor.verify hooks from the atomic registry
   // already produce the per-body warnings. Loop 9 M2 removes the duplicate
   // explicit branches; the dispatcher path + emptyRenderedLayout fall-through
   // does the work. Dedup is unnecessary now (single source of truth) so we
   // emit pluginWarnings directly.
-  // class + ER + journey + architecture: the FamilyPlugin.verify hooks produce
+  // class + ER + journey + architecture: the FamilyDescriptor.verify hooks produce
   // the per-body warnings (journey added by BUILD-15, architecture by BUILD-17).
   // Gantt adds geometric tripwires (OFF_CANVAS / GROUP_BREACH) over its real
   // layout and surfaces unresolvable schedules (UNRESOLVABLE_SCHEDULE),
-  // alongside the body-level plugin warnings — see docs/design/families/gantt.md
+  // alongside the body-level descriptor warnings — see docs/design/families/gantt.md
   // §Verification.
   if (d.body.kind === 'gantt') {
-    const layout = layoutFamilyToRendered(d) ?? emptyRenderedLayout(d.kind)
+    // Schedule resolution is the named render precondition for Gantt. If it
+    // fails, do not invoke layout merely to translate the same exception into
+    // a second, less-specific RENDER_FAILED warning (or an empty-layout lint).
+    // This also keeps the documented suppression knob meaningful: callers
+    // acknowledging UNRESOLVABLE_SCHEDULE do not have the same failure
+    // resurrected under a generic code.
     const schedFail = ganttScheduleWarning(d)
-    const geometric = dedupedConcat(ganttGeometryWarnings(layout), schedFail ? [schedFail] : [])
+    if (schedFail) {
+      return finalize(
+        dedupedConcat(pluginWarnings, [schedFail]),
+        emptyRenderedLayout(d.kind),
+        opts,
+        false,
+      )
+    }
+    const layoutOutcome = familyLayoutForVerify(d, positioned)
+    const layout = layoutOutcome.layout
+    const geometric = dedupedConcat(
+      ganttGeometryWarnings(layout),
+      layoutOutcome.warnings,
+    )
     return finalize(dedupedConcat(pluginWarnings, geometric), layout, opts)
   }
 
@@ -239,7 +334,8 @@ function verifyStructure(input: ValidDiagram | string, opts: VerifyOptions = {})
     // the family adapters (was emptyRenderedLayout). #33 adds zero-noise
     // class/ER semantic geometry tripwires: relationship endpoints must sit on
     // class/entity box boundaries and boxes must remain on-canvas/non-overlap.
-    const layout = layoutFamilyToRendered(d) ?? emptyRenderedLayout(d.kind)
+    const layoutOutcome = familyLayoutForVerify(d, positioned)
+    const layout = layoutOutcome.layout
     const familyGeometry = (d.body.kind === 'class' || d.body.kind === 'er')
       // Class namespaces are groups whose members are the namespaced class
       // boxes (family-layouts.ts), so containment is a reportable breach.
@@ -252,7 +348,7 @@ function verifyStructure(input: ValidDiagram | string, opts: VerifyOptions = {})
           ? 'center'
           : d.body.kind === 'journey',
       })
-    return finalize(dedupedConcat(pluginWarnings, familyGeometry), layout, opts)
+    return finalize(dedupedConcat(dedupedConcat(pluginWarnings, familyGeometry), layoutOutcome.warnings), layout, opts)
   }
 
   // State diagrams (BUILD-19): the StateBody projects to a MermaidGraph via the
@@ -262,7 +358,7 @@ function verifyStructure(input: ValidDiagram | string, opts: VerifyOptions = {})
   if (d.body.kind === 'state') {
     const graph = stateBodyToGraph(d.body)
     if (graph.nodes.size === 0) return finalize(dedupedConcat([{ code: 'EMPTY_DIAGRAM' }], pluginWarnings), emptyRenderedLayout(d.kind), opts)
-    const { warnings, layout } = verifyGraph(graph, d.kind, cap)
+    const { warnings, layout } = verifyGraph(graph, d, cap, positioned)
     return finalize(dedupedConcat(warnings, pluginWarnings), layout, opts)
   }
 
@@ -301,21 +397,75 @@ function verifyStructure(input: ValidDiagram | string, opts: VerifyOptions = {})
     }
     // QUAL-1: opaque bodies of renderable families (pie/quadrant always, and
     // class/er/journey/architecture/xychart when unmodeled) still produce a
-    // real positioned layout from canonicalSource. layoutFamilyToRendered
-    // degrades to an empty layout on render-error, so this never throws.
-    const opaqueLayout = d.kind === 'flowchart'
-      ? layoutOpaqueFlowchart(d)
-      : layoutFamilyToRendered(d) ?? emptyRenderedLayout(d.kind)
+    // real positioned layout from canonicalSource. Descriptor failures become
+    // an explicit RENDER_FAILED result below rather than escaping verification.
+    const layoutOutcome = familyLayoutForVerify(d, positioned)
+    const opaqueLayout = layoutOutcome.layout
     // Opaque bodies are preserved-not-rendered: an empty local layout means
     // the syntax is unmodeled, not that the diagram is empty — the isEmpty
     // header-only check above owns genuine emptiness here.
-    return finalize(dedupedConcat(warnings, pluginWarnings), opaqueLayout, opts, false)
+    return finalize(dedupedConcat(dedupedConcat(warnings, pluginWarnings), layoutOutcome.warnings), opaqueLayout, opts, false)
   }
 
   const graph = d.body.graph
   if (graph.nodes.size === 0) return finalize([{ code: 'EMPTY_DIAGRAM' }], emptyRenderedLayout(d.kind), opts)
-  const { warnings: graphWarnings, layout: graphLayout } = verifyGraph(graph, d.kind, cap)
+  const { warnings: graphWarnings, layout: graphLayout } = verifyGraph(graph, d, cap, positioned)
   return finalize(dedupedConcat(graphWarnings, pluginWarnings), graphLayout, opts)
+}
+
+/** Registered families use their own verify and positioned-projection hooks;
+ * core contributes only the family-neutral label cap and explicit failures. */
+function verifyExtension(
+  d: ExtensionValidDiagram,
+  cap: number,
+  opts: VerifyOptions,
+  initialWarnings: LayoutWarning[],
+  positioned: VerificationArtifact,
+): VerifyResult {
+  const warnings = [...initialWarnings]
+  const descriptor = getFamily(d.kind)
+  const labels = (descriptor?.extractLabels ?? extractLabelsGeneric)(d.body.source)
+  const seenLabels = new Set<string>()
+  for (const label of labels) {
+    const warning = labelOverflowWarning(label.target, label.text, cap)
+    if (!warning) continue
+    const key = `${label.target}:${label.text}`
+    if (seenLabels.has(key)) continue
+    seenLabels.add(key)
+    warnings.push(warning)
+  }
+
+  const layoutOutcome = familyLayoutForVerify(d, positioned)
+  return finalize([...warnings, ...layoutOutcome.warnings], layoutOutcome.layout, opts, false)
+}
+
+function familyLayoutForVerify(
+  d: ParsedDiagram,
+  positioned: VerificationArtifact,
+): { layout: RenderedLayout; warnings: LayoutWarning[] } {
+  // Retain the historical public VerifyResult projection for source-preserved
+  // state bodies. The clean renderability gate still positions/renders once.
+  if (d.kind === 'state' && d.body.kind === 'opaque') {
+    return { layout: emptyRenderedLayout(d.kind), warnings: [] }
+  }
+  try {
+    const artifact = positioned()
+    return artifact
+      ? { layout: artifact.rendered, warnings: [] }
+      : {
+          layout: emptyRenderedLayout(d.kind),
+          warnings: [{
+            code: 'RENDER_FAILED',
+            reason: `Mermaid family "${d.kind}" has no public layout projection registered`,
+          }],
+        }
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error)
+    return {
+      layout: emptyRenderedLayout(d.kind),
+      warnings: [{ code: 'RENDER_FAILED', reason }],
+    }
+  }
 }
 
 /**
@@ -324,9 +474,27 @@ function verifyStructure(input: ValidDiagram | string, opts: VerifyOptions = {})
  * project to a graph via stateBodyToGraph). Returns warnings + the rendered
  * layout; the caller finalizes (suppress + ok flag).
  */
-function verifyGraph(graph: import('../types.ts').MermaidGraph, kind: ValidDiagram['kind'], cap: number): { warnings: LayoutWarning[]; layout: RenderedLayout } {
-  const positioned = layoutGraphSync(graph, {})
-  const layout = positionedToRenderedLayout(positioned, kind)
+function verifyGraph(
+  graph: import('../types.ts').MermaidGraph,
+  d: ValidDiagram,
+  cap: number,
+  positionedArtifact: VerificationArtifact,
+): { warnings: LayoutWarning[]; layout: RenderedLayout } {
+  let artifact: ProjectedFamilyArtifact | null
+  try {
+    artifact = positionedArtifact()
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error)
+    return { warnings: [{ code: 'RENDER_FAILED', reason }], layout: emptyRenderedLayout(d.kind) }
+  }
+  if (!artifact || !isPositionedGraph(artifact.positioned)) {
+    return {
+      warnings: [{ code: 'UNSUPPORTED_SYNTAX', syntax: 'positioned_artifact', message: `The ${d.kind} family did not produce its declared positioned-graph artifact.` }],
+      layout: emptyRenderedLayout(d.kind),
+    }
+  }
+  const positioned = artifact.positioned
+  const layout = artifact.rendered
   const warnings: LayoutWarning[] = []
 
   // Tier 1 — structural
@@ -406,24 +574,44 @@ function dedupedConcat(a: LayoutWarning[], b: LayoutWarning[]): LayoutWarning[] 
 }
 
 /**
- * Run the registered FamilyPlugin.verify hook for this diagram's kind.
- * Returns the warnings the plugin produced, or [] when no plugin / no hook.
+ * Run the registered FamilyDescriptor.verify hook for this diagram's kind.
+ * Returns the warnings the descriptor produced. Registered extension families
+ * without a hook, and hooks that throw, become explicit verification errors.
  */
-function dispatchFamilyVerify(d: ValidDiagram, opts: VerifyOptions): LayoutWarning[] {
+function dispatchFamilyVerify(d: ParsedDiagram, opts: VerifyOptions): LayoutWarning[] {
   const plugin = getFamily(d.kind)
-  if (!plugin?.verify) return []
+  if (!plugin?.verify) return d.body.kind === 'extension'
+    ? [{ code: 'RENDER_FAILED', reason: `Mermaid family "${d.kind}" has no verify hook registered` }]
+    : []
   try {
-    return plugin.verify(d.body, opts)
-  } catch {
-    // A faulty plugin shouldn't blow up verifyMermaid. Silent skip is acceptable
-    // for an optional hook; the test suite catches bugs in built-in plugins.
-    return []
+    let body = d.body
+    if (d.body.kind === 'extension') {
+      const extension = d as ExtensionValidDiagram
+      if (!sameExtensionIdentity(extension.descriptorIdentity, plugin.identity)) {
+        // Descriptor-owned structured data is meaningful only to the exact
+        // registration that produced it. Serialize falls back to this same
+        // core-owned source on an identity mismatch; reparse that source under
+        // the current descriptor before invoking its verification hook.
+        const reparsed = parseRegisteredMermaid(serializeMermaid(d))
+        if (!reparsed.ok || reparsed.value.kind !== d.kind || reparsed.value.body.kind !== 'extension') {
+          return [{
+            code: 'RENDER_FAILED',
+            reason: `Mermaid family "${d.kind}" could not reparse source under its current descriptor before verification`,
+          }]
+        }
+        body = reparsed.value.body
+      }
+    }
+    return plugin.verify(body, opts)
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error)
+    return [{ code: 'RENDER_FAILED', reason: `Mermaid family "${d.kind}" verify hook failed: ${reason}` }]
   }
 }
 
 /** finalize() variant that merges an already-finalized result with extra warnings.
  *  Loop 9 M10: now delegates fully to dedupedConcat → finalize. Dedupes on
- *  (code, target/edge/node) so a plugin verify hook returning a warning
+ *  (code, target/edge/node) so a descriptor verify hook returning a warning
  *  identical to one the per-body verify already produced doesn't surface twice.
  *  The dispatcher has been live since Loop 7 M1, so this hazard remains real. */
 function mergeFinalize(prev: VerifyResult, extra: LayoutWarning[], opts: VerifyOptions): VerifyResult {
@@ -439,6 +627,7 @@ function warningKey(w: LayoutWarning): string {
   // node disambiguates per-node lints that share a syntax and carry no line
   // (flowchart_shape_substitution) so two substituted nodes both surface.
   if (w.code === 'UNSUPPORTED_SYNTAX') return `${w.code}:${w.syntax}:${w.line ?? ''}:${w.node ?? ''}`
+  if (w.code === 'RENDER_FAILED') return `${w.code}:${w.reason}`
   if ('target' in w) return `${w.code}:${w.target}`
   if ('edge' in w) return `${w.code}:${w.edge}`
   if ('node' in w) return `${w.code}:${w.node}`
@@ -515,9 +704,15 @@ function lintFlowchartGraph(graph: import('../types.ts').MermaidGraph): LayoutWa
   return warnings
 }
 
-function verifyTimeline(d: ValidDiagram & { body: import('./types.ts').TimelineBody }, cap: number, opts: VerifyOptions): VerifyResult {
+function verifyTimeline(
+  d: ValidDiagram & { body: import('./types.ts').TimelineBody },
+  cap: number,
+  opts: VerifyOptions,
+  positioned: VerificationArtifact,
+): VerifyResult {
   const body = d.body
-  const layout = layoutFamilyToRendered(d) ?? emptyRenderedLayout(d.kind)
+  const layoutOutcome = familyLayoutForVerify(d, positioned)
+  const layout = layoutOutcome.layout
   const warnings: LayoutWarning[] = []
   // Upstream parity (mirrors the journey furniture rule): a timeline with a
   // title, accessibility metadata, or sections — even period-less ones — still
@@ -539,12 +734,18 @@ function verifyTimeline(d: ValidDiagram & { body: import('./types.ts').TimelineB
       for (const e of p.events) overflow(e.id, e.text)
     }
   }
-  return finalize(dedupedConcat(warnings, layoutGeometryWarnings(layout, { nodeOverlaps: true, groupContainment: true })), layout, opts)
+  return finalize(dedupedConcat(dedupedConcat(warnings, layoutGeometryWarnings(layout, { nodeOverlaps: true, groupContainment: true })), layoutOutcome.warnings), layout, opts)
 }
 
-function verifySequence(d: ValidDiagram & { body: SequenceBody }, cap: number, opts: VerifyOptions): VerifyResult {
+function verifySequence(
+  d: ValidDiagram & { body: SequenceBody },
+  cap: number,
+  opts: VerifyOptions,
+  positioned: VerificationArtifact,
+): VerifyResult {
   const body = d.body
-  const layout = layoutFamilyToRendered(d) ?? emptyRenderedLayout(d.kind)
+  const layoutOutcome = familyLayoutForVerify(d, positioned)
+  const layout = layoutOutcome.layout
   const warnings: LayoutWarning[] = []
   // BUILD-18: a segment-preserving body may carry content only in opaque-block
   // segments (e.g. activation-shorthand messages `A->>+B`, blocks). That is
@@ -611,22 +812,14 @@ function verifySequence(d: ValidDiagram & { body: SequenceBody }, cap: number, o
   // WITH participants whose family layout degrades to empty (e.g.
   // semicolon-packed statements) is a renderer limitation, not emptiness.
   const guardEmpty = body.participants.length === 0 && allMessages.length === 0
-  return finalize(dedupedConcat(warnings, layoutGeometryWarnings(layout, { nodeOverlaps: true })), layout, opts, guardEmpty)
+  return finalize(dedupedConcat(dedupedConcat(warnings, layoutGeometryWarnings(layout, { nodeOverlaps: true })), layoutOutcome.warnings), layout, opts, guardEmpty)
 }
 
 // ---- helpers --------------------------------------------------------------
 
-function layoutOpaqueFlowchart(d: ValidDiagram): RenderedLayout {
-  try {
-    return positionedToRenderedLayout(layoutGraphSync(parseFlowchartLegacy(d.canonicalSource), {}), d.kind)
-  } catch {
-    return emptyRenderedLayout(d.kind)
-  }
-}
-
-function unwrap(source: string): ValidDiagram | null {
-  const r = parseValidDiagram(source)
-  return r.ok ? r.value : null
+function isPositionedGraph(positioned: import('../types.ts').PositionedDiagram): positioned is PositionedGraph {
+  const candidate = positioned as Partial<PositionedGraph>
+  return Array.isArray(candidate.nodes) && Array.isArray(candidate.edges) && Array.isArray(candidate.groups)
 }
 
 function finalize(warnings: LayoutWarning[], layout: RenderedLayout, opts: VerifyOptions, guardEmptyLayout = true): VerifyResult {

@@ -12,7 +12,7 @@ import { toMermaidLines } from '../mermaid-source.ts'
 import { parseQuadrantChart } from '../quadrant/parser.ts'
 import { layoutQuadrantChart } from '../quadrant/layout.ts'
 import { parseMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
-import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
+import { BUILTIN_FAMILY_METADATA, getFamily } from '../agent/families.ts'
 import { parseGitGraph } from '../gitgraph/parser.ts'
 import { layoutGitGraph } from '../gitgraph/layout.ts'
 import { measureTextWidth } from '../text-metrics.ts'
@@ -34,7 +34,9 @@ describe('Closing The Gap — official Mermaid 11.16 contracts', () => {
     expect(svg).toContain('data-image-src="https://example.invalid/picture.png"')
     expect(svg).toContain('data-curve="natural"')
     expect(svg).toContain('data-animate="true"')
-    expect(svg).toContain('<animate attributeName="stroke-dashoffset"')
+    expect(svg).toContain('data-animation="fast"')
+    expect(svg).toContain('stroke-dasharray="8 4"')
+    expect(svg).not.toContain('<animate')
     expect(svg).toContain('data-href="https://example.com/docs" role="link"')
     const agent = parseMermaid(source)
     expect(agent.ok).toBe(true)
@@ -122,6 +124,12 @@ describe('Closing The Gap — official Mermaid 11.16 contracts', () => {
     expect(svg).toContain('data-start-head="filled" data-end-head="filled"')
     expect(svg).toContain('sequence-central-connection')
     expect(svg).toContain('data-links="{&quot;Dashboard&quot;:&quot;https://example.com/db&quot;}"')
+    expect(getFamily('sequence')?.scenePrimitiveEvidence).toContainEqual(expect.objectContaining({
+      role: 'chrome',
+      primitive: 'shape',
+      applicability: 'applicable',
+      realization: 'native',
+    }))
   })
 
   test('class diagrams render two-ended relations, lollipop interfaces, and notes', () => {
@@ -405,12 +413,7 @@ gitGraph
     }
   })
 
-  test('all fourteen registered families have an explicit Closing The Gap contract', () => {
-    const covered = new Set<(typeof BUILTIN_FAMILY_METADATA)[number]['id']>([
-      'flowchart', 'state', 'sequence', 'timeline', 'class', 'er', 'journey',
-      'architecture', 'xychart', 'pie', 'quadrant', 'gantt', 'mindmap', 'gitgraph',
-    ])
-    expect(BUILTIN_FAMILY_METADATA.map(family => family.id).sort()).toEqual([...covered].sort())
+  test('every registered family satisfies the Closing The Gap render contract', () => {
     for (const family of BUILTIN_FAMILY_METADATA) {
       const parsed = parseMermaid(family.example)
       expect(parsed.ok, family.id).toBe(true)

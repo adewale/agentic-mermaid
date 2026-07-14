@@ -10,11 +10,13 @@ import {
   asGitGraph, asMindmap, layoutMermaid, mutate, parseMermaid, serializeMermaid, verifyMermaid,
 } from '../agent/index.ts'
 import { layoutMindmap } from '../mindmap/layout.ts'
+import { lowerMindmapScene } from '../mindmap/renderer.ts'
 import { layoutGitGraph } from '../gitgraph/layout.ts'
 import { visualWidth } from '../ascii/width.ts'
 import { measureTextWidth } from '../text-metrics.ts'
 import { contrastRatio } from '../shared/color-math.ts'
-import { THEMES } from '../theme.ts'
+import { DEFAULTS, THEMES } from '../theme.ts'
+import { connectorUnitTangent } from '../scene/connector-geometry.ts'
 
 const MINDMAP = `mindmap
   accTitle: Product map
@@ -56,7 +58,9 @@ describe('Mindmap full-family citizenship', () => {
     expect(parsed.root.children[0]!.children[1]!.icon).toBe('mdi:lightbulb')
     const serialized = serializeMindmap(parsed)
     expect(serializeMindmap(parseMindmap(serialized))).toBe(serialized)
-    expect(parseMindmap('mindmap\n  accDescr {\n    A multiline description\n  }\n  Root').accessibilityDescription).toBe('A multiline description')
+    const multilineA11y = parseMindmap('mindmap\n  accDescr {\n    A multiline description\n    across two lines\n  }\n  Root')
+    expect(multilineA11y.accessibilityDescription).toBe('A multiline description\nacross two lines')
+    expect(parseMindmap(serializeMindmap(multilineA11y))).toEqual(multilineA11y)
     const commented = parseMindmap('mindmap\n  root(Root)\n    child(Child) %% trailing comment')
     expect(commented.root.children[0]).toMatchObject({ id: 'child', label: 'Child', shape: 'rounded' })
     expect(parseMindmap('mindmap\n  root["100%% ready"]').root.label).toBe('100%% ready')
@@ -87,6 +91,25 @@ describe('Mindmap full-family citizenship', () => {
       else expect(child.x + child.width).toBeLessThan(parent.x + parent.width)
       expect(edge.d).toContain(' C ')
     }
+
+    const scene = lowerMindmapScene({
+      positioned: first,
+      colors: DEFAULTS,
+      resolved: { renderOptions: {} },
+    })
+    const connectors = scene.parts.filter(part => part.kind === 'connector')
+    expect(connectors).toHaveLength(first.edges.length)
+    first.edges.forEach((edge, index) => {
+      const connector = connectors[index]!
+      expect(connector.kind).toBe('connector')
+      if (connector.kind !== 'connector' || connector.geometry.kind !== 'path') return
+      const [start, control1, control2, end] = edge.points
+      expect(connector.geometry.points).not.toEqual(edge.points)
+      expect(connector.geometry.points[0]).toEqual(start)
+      expect(connector.geometry.points.at(-1)).toEqual(end)
+      expect(connector.route.startTangent).toEqual(connectorUnitTangent(start!, control1!))
+      expect(connector.route.endTangent).toEqual(connectorUnitTangent(control2!, end!))
+    })
   })
 
   test('supports typed tree edits with cycle and duplicate guards', () => {

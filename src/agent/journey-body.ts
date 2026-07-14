@@ -44,8 +44,13 @@ function formatJourneyInline(value: string): string {
  * 1..5 integer score. Otherwise returns the first JourneyParseIssue so the
  * opaque fallback can carry its reason.
  */
-export function parseJourneyBody(lines: string[]): JourneyBodyParse {
-  const body: JourneyBody = { kind: 'journey', sections: [] }
+export function parseJourneyBody(lines: string[], accessibility: import('./types.ts').Accessibility = {}): JourneyBodyParse {
+  const body: JourneyBody = {
+    kind: 'journey',
+    sections: [],
+    ...(accessibility.title !== undefined ? { accessibilityTitle: accessibility.title } : {}),
+    ...(accessibility.descr !== undefined ? { accessibilityDescription: accessibility.descr } : {}),
+  }
   let currentSection: JourneySection | undefined
   let sIdx = 0, tIdx = 0
   let firstIssue: JourneyParseIssue | undefined
@@ -371,7 +376,7 @@ function journeySemantics(body: JourneyBody): unknown {
   }
 }
 
-// ---- Verifier (FamilyPlugin.verify hook) ------------------------------------
+// ---- Verifier (FamilyDescriptor.verify hook) --------------------------------
 
 export function verifyJourney(body: JourneyBody, opts: VerifyOptions): LayoutWarning[] {
   const cap = opts.labelCharCap ?? DEFAULT_LABEL_CHAR_CAP

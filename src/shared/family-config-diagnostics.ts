@@ -1,54 +1,13 @@
-import type { DiagramKind } from '../agent/types.ts'
+import type { DiagramKind, FamilyId } from '../agent/types.ts'
 import type { ConfigDiagnostic } from '../types.ts'
-import { ARCHITECTURE_NOOP_CONFIG_FIELDS } from '../architecture/config.ts'
-import { CLASS_NOOP_CONFIG_FIELDS } from '../class/layout.ts'
-import { ER_NOOP_CONFIG_FIELDS } from '../er/layout.ts'
-import { FLOWCHART_NOOP_CONFIG_FIELDS } from '../flowchart-config.ts'
-import { PIE_NOOP_CONFIG_FIELDS } from '../pie/config.ts'
-import { QUADRANT_NOOP_CONFIG_FIELDS } from '../quadrant/config.ts'
-import { SEQUENCE_NOOP_CONFIG_FIELDS } from '../sequence/config.ts'
+import { getFamily, type FamilyConfigContract } from '../agent/families.ts'
 import { stateConfigDiagnostics } from '../state/config.ts'
 import { compareCodePointStrings } from './deterministic-order.ts'
 
-export interface FamilyConfigSpec {
-  section: string
-  keys: readonly string[]
-  noopKeys?: readonly string[]
-}
+export type FamilyConfigSpec = FamilyConfigContract
 
-export const JOURNEY_NOOP_CONFIG_FIELDS = [
-  'boxMargin', 'boxTextMargin', 'noteMargin', 'messageMargin', 'messageAlign',
-  'bottomMarginAdj', 'rightAngles', 'activationWidth', 'textPlacement',
-] as const
-
-export const GANTT_NOOP_CONFIG_FIELDS = [
-  'barGap', 'topPadding', 'leftPadding', 'gridLineStartPadding', 'fontSize',
-  'sectionFontSize', 'numberSectionStyles', 'todayMarker', 'weekday',
-] as const
-
-export const TIMELINE_NOOP_CONFIG_FIELDS = [
-  'diagramMarginX', 'diagramMarginY', 'leftMargin', 'width', 'height', 'padding',
-  'boxMargin', 'boxTextMargin', 'noteMargin', 'messageMargin', 'messageAlign',
-  'bottomMarginAdj', 'rightAngles', 'taskFontSize', 'taskFontFamily', 'taskMargin',
-  'activationWidth', 'textPlacement', 'actorColours', 'useMaxWidth', 'useWidth',
-] as const
-
-/** One exhaustive family-section inventory shared by source verification and explicit render config. */
-export const FAMILY_CONFIG_SPECS: Record<DiagramKind, FamilyConfigSpec> = {
-  flowchart: { section: 'flowchart', keys: ['nodeSpacing', 'rankSpacing', 'wrappingWidth', 'titleTopMargin', 'subGraphTitleMargin', 'arrowMarkerAbsolute', 'diagramPadding', 'htmlLabels', 'curve', 'padding', 'defaultRenderer', 'inheritDir'], noopKeys: FLOWCHART_NOOP_CONFIG_FIELDS },
-  state: { section: 'state', keys: ['arrowMarkerAbsolute', 'compositTitleSize', 'defaultRenderer', 'dividerMargin', 'edgeLengthFactor', 'fontSize', 'fontSizeFactor', 'forkHeight', 'forkWidth', 'labelHeight', 'miniPadding', 'nodeSpacing', 'noteMargin', 'padding', 'radius', 'rankSpacing', 'sizeUnit', 'textHeight', 'titleShift', 'titleTopMargin'] },
-  sequence: { section: 'sequence', keys: ['actorMargin', 'width', 'height', 'diagramMarginX', 'diagramMarginY', 'messageMargin', 'noteMargin', 'activationWidth', 'showSequenceNumbers', 'boxMargin', 'boxTextMargin', 'messageAlign', 'mirrorActors', 'bottomMarginAdj', 'rightAngles', 'wrap', 'wrapPadding', 'labelBoxWidth', 'labelBoxHeight', 'hideUnusedParticipants', 'forceMenus', 'arrowMarkerAbsolute', 'noteAlign', 'actorFontSize', 'actorFontFamily', 'actorFontWeight', 'noteFontSize', 'noteFontFamily', 'noteFontWeight', 'messageFontSize', 'messageFontFamily', 'messageFontWeight', 'useMaxWidth', 'useWidth'], noopKeys: SEQUENCE_NOOP_CONFIG_FIELDS },
-  timeline: { section: 'timeline', keys: ['disableMulticolor', 'sectionFills', 'sectionColours', 'diagramMarginX', 'diagramMarginY', 'leftMargin', 'width', 'height', 'padding', 'boxMargin', 'boxTextMargin', 'noteMargin', 'messageMargin', 'messageAlign', 'bottomMarginAdj', 'rightAngles', 'taskFontSize', 'taskFontFamily', 'taskMargin', 'activationWidth', 'textPlacement', 'actorColours', 'useMaxWidth', 'useWidth'], noopKeys: TIMELINE_NOOP_CONFIG_FIELDS },
-  journey: { section: 'journey', keys: ['diagramMarginX', 'diagramMarginY', 'leftMargin', 'maxLabelWidth', 'width', 'height', 'taskFontSize', 'taskFontFamily', 'taskMargin', 'actorColours', 'sectionFills', 'sectionColours', 'titleColor', 'titleFontFamily', 'titleFontSize', 'useMaxWidth', 'boxMargin', 'boxTextMargin', 'noteMargin', 'messageMargin', 'messageAlign', 'bottomMarginAdj', 'rightAngles', 'activationWidth', 'textPlacement'], noopKeys: JOURNEY_NOOP_CONFIG_FIELDS },
-  class: { section: 'class', keys: ['nodeSpacing', 'rankSpacing', 'titleTopMargin', 'arrowMarkerAbsolute', 'dividerMargin', 'padding', 'textHeight', 'defaultRenderer', 'diagramPadding', 'htmlLabels', 'hideEmptyMembersBox', 'hierarchicalNamespaces'], noopKeys: CLASS_NOOP_CONFIG_FIELDS },
-  er: { section: 'er', keys: ['layoutDirection', 'nodeSpacing', 'rankSpacing', 'titleTopMargin', 'diagramPadding', 'minEntityWidth', 'minEntityHeight', 'entityPadding', 'stroke', 'fill', 'fontSize'], noopKeys: ER_NOOP_CONFIG_FIELDS },
-  architecture: { section: 'architecture', keys: ['padding', 'iconSize', 'fontSize', 'nodeSeparation', 'idealEdgeLengthMultiplier', 'edgeElasticity', 'numIter', 'seed', 'randomize'], noopKeys: ARCHITECTURE_NOOP_CONFIG_FIELDS },
-  xychart: { section: 'xyChart', keys: ['width', 'height', 'useMaxWidth', 'useWidth', 'titleFontSize', 'titlePadding', 'chartOrientation', 'plotReservedSpacePercent', 'showDataLabel', 'showTitle', 'showLegend', 'legendFontSize', 'legendPadding', 'xAxis', 'yAxis'] },
-  pie: { section: 'pie', keys: ['textPosition', 'donutHole', 'legendPosition', 'highlightSlice', 'useMaxWidth', 'useWidth'], noopKeys: PIE_NOOP_CONFIG_FIELDS },
-  quadrant: { section: 'quadrantChart', keys: ['chartWidth', 'chartHeight', 'titleFontSize', 'titlePadding', 'quadrantPadding', 'quadrantLabelFontSize', 'xAxisLabelFontSize', 'yAxisLabelFontSize', 'xAxisLabelPadding', 'yAxisLabelPadding', 'pointLabelFontSize', 'pointRadius', 'pointTextPadding', 'quadrantInternalBorderStrokeWidth', 'quadrantExternalBorderStrokeWidth', 'useMaxWidth', 'quadrantTextTopPadding', 'xAxisPosition', 'yAxisPosition', 'useWidth'], noopKeys: QUADRANT_NOOP_CONFIG_FIELDS },
-  gantt: { section: 'gantt', keys: ['displayMode', 'barHeight', 'topAxis', 'tickInterval', 'axisFormat', ...GANTT_NOOP_CONFIG_FIELDS], noopKeys: GANTT_NOOP_CONFIG_FIELDS },
-  mindmap: { section: 'mindmap', keys: ['padding', 'maxNodeWidth'] },
-  gitgraph: { section: 'gitGraph', keys: ['showBranches', 'showCommitLabel', 'mainBranchName', 'mainBranchOrder', 'parallelCommits', 'rotateCommitLabel'] },
+function familyConfigSpec(kind: FamilyId | string): FamilyConfigContract | undefined {
+  return getFamily(kind)?.config
 }
 
 function section(root: unknown, key: string): Record<string, unknown> | undefined {
@@ -60,7 +19,8 @@ function section(root: unknown, key: string): Record<string, unknown> | undefine
 }
 
 export function familyUnknownConfigDiagnostics(kind: DiagramKind, root: unknown): ConfigDiagnostic[] {
-  const spec = FAMILY_CONFIG_SPECS[kind]
+  const spec = familyConfigSpec(kind)
+  if (!spec) return []
   const record = root && typeof root === 'object' && !Array.isArray(root) ? root as Record<string, unknown> : undefined
   const config = section(root, spec.section)
   if (!config) return record && spec.section in record ? [{
@@ -160,7 +120,8 @@ const XY_AXIS_VALUE_RULES: Record<string, ValueRule> = {
 /** Value-validity diagnostics for every wired family config key. */
 export function familyConfigValueDiagnostics(kind: DiagramKind, root: unknown): ConfigDiagnostic[] {
   if (kind === 'state') return [] // state/config.ts owns its richer value diagnostics
-  const spec = FAMILY_CONFIG_SPECS[kind]
+  const spec = familyConfigSpec(kind)
+  if (!spec) return []
   const config = section(root, spec.section)
   const diagnostics: ConfigDiagnostic[] = []
   const warn = (field: string, expected: string): void => {
@@ -190,7 +151,8 @@ export function familyConfigValueDiagnostics(kind: DiagramKind, root: unknown): 
 }
 
 export function familyNoopConfigDiagnostics(kind: DiagramKind, root: unknown): ConfigDiagnostic[] {
-  const spec = FAMILY_CONFIG_SPECS[kind]
+  const spec = familyConfigSpec(kind)
+  if (!spec) return []
   const config = section(root, spec.section)
   if (!config) return []
   const noop = new Set(spec.noopKeys ?? [])
@@ -215,7 +177,8 @@ function stableDiagnostics(diagnostics: ConfigDiagnostic[]): ConfigDiagnostic[] 
 
 /** Schema-owned diagnostics for source wrappers or explicit config roots. */
 export function familyConfigDiagnostics(kind: DiagramKind, roots: readonly unknown[]): ConfigDiagnostic[] {
-  const spec = FAMILY_CONFIG_SPECS[kind]
+  const spec = familyConfigSpec(kind)
+  if (!spec) return []
   const diagnostics = roots.flatMap(root => {
     const unknown = familyUnknownConfigDiagnostics(kind, root)
     const config = section(root, spec.section)
@@ -230,6 +193,24 @@ export function familyConfigDiagnostics(kind: DiagramKind, roots: readonly unkno
 }
 
 /** Diagnostics for the explicit RenderOptions.mermaidConfig entry path. */
-export function explicitFamilyConfigDiagnostics(kind: DiagramKind, root: unknown): ConfigDiagnostic[] {
-  return familyConfigDiagnostics(kind, [root])
+export function explicitFamilyConfigDiagnostics(kind: string, root: unknown): ConfigDiagnostic[] {
+  const descriptor = getFamily(kind)
+  const spec = descriptor?.config
+  if (!descriptor || !spec) return []
+  if (kind.includes(':')) {
+    const record = root && typeof root === 'object' && !Array.isArray(root) ? root as Record<string, unknown> : undefined
+    const config = section(root, spec.section)
+    if (!config) return record && spec.section in record ? [{
+      code: 'INEFFECTIVE_CONFIG', field: spec.section,
+      message: `${kind} config section "${spec.section}" must be an object; the invalid value has no effect.`,
+    }] : []
+    const known = new Set(spec.keys)
+    const noop = new Set(spec.noopKeys ?? [])
+    return stableDiagnostics(Object.keys(config).flatMap(key => {
+      if (!known.has(key)) return [{ code: 'INEFFECTIVE_CONFIG' as const, field: `${spec.section}.${key}`, message: `${kind} config field "${key}" is unknown and has no effect; check the spelling or remove it.` }]
+      if (noop.has(key)) return [{ code: 'INEFFECTIVE_CONFIG' as const, field: `${spec.section}.${key}`, message: `${kind} config field "${key}" is accepted for compatibility but has no effect on this renderer.` }]
+      return []
+    }))
+  }
+  return familyConfigDiagnostics(kind as DiagramKind, [root])
 }

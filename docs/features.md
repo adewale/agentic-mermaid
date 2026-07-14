@@ -1,6 +1,6 @@
 # Features — capability inventory
 
-What Agentic Mermaid can do, organized by capability area. The npm import paths are `agentic-mermaid` and `agentic-mermaid/agent`; implementation history lives in [`project/divergences.md`](./project/divergences.md); active backlog is only [`../TODO.md`](../TODO.md).
+What Agentic Mermaid can do, organized by capability area. The npm import paths are `agentic-mermaid`, `agentic-mermaid/agent`, the audit-only `agentic-mermaid/capabilities`, and the trusted Node-host `agentic-mermaid/resources`; implementation history lives in [`project/divergences.md`](./project/divergences.md); active backlog is only [`../TODO.md`](../TODO.md).
 
 ## Core IR & editing loop
 
@@ -16,30 +16,19 @@ What Agentic Mermaid can do, organized by capability area. The npm import paths 
 - **`serializeMermaid(d)`** — back to canonical source.
 - **Round-trip** — structured bodies serialize to canonical, idempotent
   source; opaque bodies preserve original indentation/comments verbatim.
-- **Narrowers** — `asFlowchart`/`asState`/`asSequence`/`asTimeline`/`asClass`/`asEr`/
-  `asJourney`/`asArchitecture`/`asXyChart`/`asPie`/`asQuadrant`/`asGantt`/
-  `asMindmap`/`asGitGraph`
-  return `null` on a non-matching or source-level/opaque body (steers agents
-  off the unsafe path).
+- **Narrowers** — each family descriptor owns its generated SDK narrower;
+  discover the current names through `am capabilities --json`. A narrower
+  returns `null` on a non-matching or source-level/opaque body, steering agents
+  off the unsafe path without maintaining a second family roster here.
 
 ## Diagram families
 
-| Family | Parse/render/round-trip | Structured mutation |
-|---|---|---|
-| Flowchart | ✅ | `asFlowchart` |
-| State | ✅ | `asState` — regions, notes, history, and paint are structured |
-| Sequence | ✅ | `asSequence` — unsupported blocks ride along verbatim as segments |
-| Timeline | ✅ | `asTimeline` |
-| Class | ✅ | `asClass` |
-| ER | ✅ | `asEr` — aliases use stable ids plus display labels |
-| Journey | ✅ | `asJourney` |
-| XY chart | ✅ | `asXyChart` |
-| Architecture | ✅ | `asArchitecture` |
-| Pie | ✅ | `asPie` |
-| Quadrant | ✅ | `asQuadrant` |
-| Gantt | ✅ | `asGantt` — calendar directives, click lines, and comments remain ordered segments |
-| Mindmap | ✅ | `asMindmap` |
-| GitGraph | ✅ | `asGitGraph` |
+The canonical `FamilyDescriptor` registry owns headers, discovery, examples,
+operations, rendering hooks, positioned projections, semantic roles, and
+capability evidence. Run `am capabilities --json` for the current roster and
+per-family operation shapes; the generated Section A matrix records native,
+source-preserved, diagnosed, and absent capabilities without a copied table:
+[`project/section-a-capability-report.md`](./project/section-a-capability-report.md).
 
 **Structured-or-opaque rule:** every family either has a structured body
 or preserves source verbatim. Constructs are never silently dropped.
@@ -48,12 +37,9 @@ or preserves source verbatim. Constructs are never silently dropped.
 
 Agentic Mermaid outputs **SVG, PNG, ASCII, Unicode, and JSON layout** from the same renderer foundation.
 
-- **Styles** — every SVG/PNG render accepts `style`: a full look
-  (`hand-drawn`, `excalidraw`, `pen-and-ink`, `freehand`, `watercolor`,
-  `blueprint`, `tufte`, `accessible-high-contrast`, `patent-drawing`,
-  `status-dashboard`, `ops-schematic`, `chalkboard`, `risograph`,
-  `architectural-plan`, `publication-figure`), any theme name (a theme is a
-  palette-only style), an inline JSON record, or a stack merged left → right
+- **Styles** — every SVG/PNG render accepts `style`: any registered Look or
+  Palette discovered through `knownStyleDescriptors()`, an inline JSON record,
+  or a stack merged left → right
   (`{ style: ['hand-drawn', 'dracula'] }`). `seed` re-rolls styled ink and
   never moves layout. CLI: `am render --style … --seed N`, `am styles`;
   MCP render tools take `style`/`seed`; RENDER_FAILED-gated verify means a
@@ -69,8 +55,13 @@ Agentic Mermaid outputs **SVG, PNG, ASCII, Unicode, and JSON layout** from the s
 - **ASCII / Unicode** — `renderMermaidASCII` uses grapheme/display-cell geometry
   across every family. `targetWidth` is a hard bound with typed impossible-width
   errors; deprecated `maxWidth` remains best-effort only.
-- **PNG** — `renderMermaidPNG(source, { fitTo, background, style, seed, fontDirs, loadSystemFonts, onWarning })` or `am render diagram.mmd --format png --output diagram.png` (offline `@resvg/resvg-js`; bundled Inter — the metrics font — with DejaVu fallback plus the built-in style faces,
-  cross-runtime deterministic on same-machine x86_64/ARM64 where Node + built `dist/` are present). Characters without bundled coverage (CJK, emoji) warn loudly; supply `--font-dirs <dir>` / `fontDirs` or `--system-fonts` / `loadSystemFonts: true`.
+- **PNG** — `renderMermaidPNG(source, { ...sharedRenderOptions, fitTo, background, fontDirs, loadSystemFonts, onWarning })` or `am render diagram.mmd --format png --output diagram.png` (offline `@resvg/resvg-js`; bundled Inter — the metrics font — with DejaVu fallback plus the built-in style faces,
+  cross-runtime deterministic on same-machine x86_64/ARM64 where Node + built `dist/` are present; explicit sRGB + cICP metadata with no conflicting ICC profile). Characters without bundled coverage (CJK, emoji) warn loudly; supply `--font-dirs <dir>` / `fontDirs` or `--system-fonts` / `loadSystemFonts: true`.
+  Trusted hosts can bind one registered graphical backend across SVG, native
+  PNG, and browser PNG with `createMermaidRenderer`,
+  `createMermaidPNGRenderer`, and `createMermaidBrowserPNGRenderer`; backend
+  selection is host policy and cannot be smuggled through serializable render
+  options or Styles.
 - **JSON layout** — `layoutMermaid` / `am render --format json`; add `--certificates` (or `layoutMermaid(d, { debug: true })`) to include opt-in graph route certificates, family edge-route certificates (class/ER/architecture/sequence), region-containment certificates (timeline/charts), V1 region/action sidecars, exact ports, and side/slot/role assignments where applicable.
 - **ASCII with metadata** — `renderMermaidASCIIWithMeta` → `{ ascii, regions, warnings, routeParity }`
   for TUI click-mapping.
@@ -98,7 +89,8 @@ Agentic Mermaid outputs **SVG, PNG, ASCII, Unicode, and JSON layout** from the s
 ## Security
 
 - **Strict mode** (`security:'strict'`) — zero external-fetch references in
-  the SVG (no Google Fonts `@import`).
+  the SVG (no Google Fonts `@import`) after one shared transform plus residual
+  verification policy.
 - **`verifyNoExternalRefs(svg)`** — scanner / CI gate / agent self-check.
 - No `<image>`/`<script>`/external-href injection; click directives
   sanitized. See [`../SECURITY.md`](../SECURITY.md).
@@ -108,7 +100,9 @@ Agentic Mermaid outputs **SVG, PNG, ASCII, Unicode, and JSON layout** from the s
 `render` (svg/ascii/unicode/json with multi-input results; png uses one
 input plus `--output`; `--security strict`, `--watch`), `render-markdown` (skip bad blocks),
 `parse`, `verify`, `mutate` (`--op` or `--ops`), `preview` (strict standalone HTML + optional `--open`), `format`, `describe` (text/json),
-`capabilities --json` (including `families[].editPolicy` + `families[].mutationOps`), `batch --jsonl` (including mutate),
+`capabilities --json` (including `families[].editPolicy`,
+`families[].mutationOps`, and the machine-readable `sectionA` contract matrix),
+`batch --jsonl` (including mutate),
 `llms-txt`, `init-agent`, `--agent-instructions`. `mutate` verifies before emitting source; `init-agent` writes a non-clobbering `AGENTS.md` section, root `skills/` bundle, and `.mcp.json` sample into a consumer repo.
 Exit codes 0/2/3/4; parse and verify-failure errors include structured `error.details` arrays.
 
@@ -132,7 +126,7 @@ endpoint is a convenience surface rather than a REST render API.
 
 ## Distribution
 
-- npm library (`agentic-mermaid` plus the `agentic-mermaid/agent` subpath) with Node-runnable bins (`am`, `agentic-mermaid`, `agentic-mermaid-mcp`).
+- npm library (`agentic-mermaid`, `agentic-mermaid/agent`, audit-only `agentic-mermaid/capabilities`, and trusted Node-host `agentic-mermaid/resources`) with Node-runnable bins (`am`, `agentic-mermaid`, `agentic-mermaid-mcp`).
 - **Single binary** — `bun run build:binary` → `dist/am`, standalone
   executable, no runtime dependency (#1018).
 - **llms.txt** agent-discovery digest, derived from capabilities.
@@ -143,8 +137,8 @@ endpoint is a convenience surface rather than a REST render API.
   SVG layout/ASCII; full-corpus ASCII repeated-run guard; cross-runtime guards
   exist for bun ≡ node on same-machine x86_64/ARM64 when Node + built `dist/`
   artifacts are present.
-- **Corpus gates** — 271-entry mermaid-js docs corpus + 132-case
-  MermaidSeqBench, gated in CI.
+- **Corpus gates** — pinned Mermaid documentation and MermaidSeqBench corpora,
+  gated in CI; their manifests, rather than this prose, own current counts.
 - **Benchmarks** — `eval/benchmark/RESULTS.md` (measured vs mmdc, termaid).
 - **Agent-usage validation** — `eval/agent-usage/` scenarios,
   anti-pattern linter, sandbox trace instrumentation, and stored Code Mode eval runner.

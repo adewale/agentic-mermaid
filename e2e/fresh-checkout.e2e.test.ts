@@ -12,7 +12,10 @@ let checkout = ''
 
 beforeAll(() => {
   checkout = mkdtempSync(join(tmpdir(), 'agentic-mermaid-fresh-'))
-  for (const dir of ['bin', 'src']) cpSync(join(REPO, dir), join(checkout, dir), { recursive: true })
+  // A fresh checkout still contains tracked runtime assets. Copy them so this
+  // fixture removes only installed dependencies, not the embedded-font
+  // resource closure required by the source CLI and compiled binary.
+  for (const dir of ['assets', 'bin', 'src']) cpSync(join(REPO, dir), join(checkout, dir), { recursive: true })
   for (const file of ['package.json', 'tsconfig.json', 'bunfig.toml']) cpSync(join(REPO, file), join(checkout, file))
 })
 

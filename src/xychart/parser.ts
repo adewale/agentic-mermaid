@@ -167,13 +167,22 @@ export function applyXYChartFrontmatterConfig(
   frontmatter: MermaidFrontmatterMap = {},
 ): XYChart {
   const config = resolveXYChartConfig(frontmatter)
+  return applyResolvedXYChartConfig(chart, config, resolveXYChartTheme(frontmatter))
+}
+
+/** Apply request-boundary projections without re-reading raw frontmatter. */
+export function applyResolvedXYChartConfig(
+  chart: XYChart,
+  config: XYChartConfig,
+  theme: XYChartTheme,
+): XYChart {
   return {
     ...chart,
     horizontal: chart.headerOrientation
       ? chart.horizontal
       : config.chartOrientation === 'horizontal',
     config,
-    theme: resolveXYChartTheme(frontmatter),
+    theme,
   }
 }
 

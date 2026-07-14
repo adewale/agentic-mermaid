@@ -108,7 +108,7 @@ function loadEditorExample(id) {
   if (typeof scheduleDraftSave === 'function') scheduleDraftSave();
 
   // Examples are source/config presets only; keep the user's selected theme.
-  if (typeof applyThemeToPage === 'function') applyThemeToPage(state.theme);
+  if (typeof applyThemeToPage === 'function') applyThemeToPage(state.palette);
   if (typeof updateThemeButton === 'function') updateThemeButton();
 
   updateLineNumbers();

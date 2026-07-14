@@ -1,14 +1,14 @@
 // ============================================================================
-// QUAL-1 — RenderedLayout adapters for the non-graph diagram families.
+// Canonical positioned-artifact → RenderedLayout projections.
 //
 // The perceptual-quality metrics (measureQuality / checkQuality) operate on a
-// RenderedLayout. Flowchart/state reuse the ELK geometric path; sequence and
-// timeline have bespoke adapters in index.ts. Everything else previously fell
-// through to emptyRenderedLayout, so those families showed nodeCount 0 — the
-// metrics were blind to them (TODO QUAL-1, docs/quality.md honest-gap).
+// RenderedLayout. Every projector in this module is deliberately pure over the
+// artifact supplied by its FamilyDescriptor: no projector parses source or
+// performs layout. SVG, PNG, layout JSON, verification, certificates, and
+// quality checks therefore share the same family-owned positioning path.
 //
 // This module closes that gap by projecting each family's REAL positioned
-// layout (the same geometry the SVG renderer draws) into a RenderedLayout:
+// layout (the same artifact type its SVG renderer draws) into RenderedLayout:
 //
 //   family        nodes                        edges                  groups
 //   ------------   --------------------------   --------------------   ------------------
@@ -23,18 +23,18 @@
 //   quadrant      points                       —                      quadrant regions
 //   gantt         tasks + milestones           —                      section bands
 //
-// Opaque-safe: every adapter parses d.canonicalSource via the legacy parser +
-// layouter (the exact path renderMermaidSVG uses) wrapped in try/catch. An
-// invalid opaque diagram of a renderable family must NOT make layoutMermaid
-// throw — it degrades to emptyRenderedLayout. All coordinates pass through
-// toFinite (throws on NaN/Infinity), so a garbage coordinate fails loudly
-// rather than silently poisoning the metrics.
+// The layout-JSON facade invokes a descriptor once for normal input. A narrow
+// structured-body fallback retains the pre-existing stale-source resilience;
+// descriptor failures otherwise propagate with family/operation context. All
+// projected coordinates pass through toFinite (throws on
+// NaN/Infinity), so a garbage artifact fails loudly rather than silently
+// poisoning the metrics.
 //
-// Determinism: every layouter here is deterministic (no RNG / clock), so
-// layoutMermaid(d) called twice is deep-equal.
+// Determinism: each view is a deterministic function of one positioned input.
 // ============================================================================
 
 import type {
+  ParsedDiagram,
   ValidDiagram,
   RenderedLayout,
   RenderedLayoutNode,
@@ -42,54 +42,45 @@ import type {
   RenderedLayoutGroup,
   LayoutWarning,
   Finite,
-  XyChartBody,
-  PieBody,
-  QuadrantBody,
-  GanttBody,
+  FamilyId,
 } from './types.ts'
-import type { FamilyEdgeRouteCertificate, Point, RegionContainmentCertificate } from '../types.ts'
+import type {
+  FamilyEdgeRouteCertificate, Point, PositionedDiagram, PositionedGraph, RegionContainmentCertificate, RenderOptions,
+} from '../types.ts'
 import { toFinite } from './types.ts'
-import { emptyRenderedLayout } from './layout-to-rendered.ts'
+import { emptyRenderedLayout, positionedGraphToRenderedView } from './layout-to-rendered.ts'
+import { serializeMermaid } from './serialize.ts'
+import { getFamily } from './families.ts'
+import type {
+  FamilyPositionedProjectionContext, FamilyPositionedProjectionOptions,
+  FamilyPositionedView, FamilyLayoutResult,
+} from './families.ts'
+import { resolveRenderRequest, resolvedRenderExecutionPlanOf } from '../render-contract.ts'
+import type { RenderOutput, ResolvedRenderRequest } from '../render-contract.ts'
+import { positionResolvedFamily } from '../positioning.ts'
 
-import { toMermaidLines, normalizeMermaidSource } from '../mermaid-source.ts'
-import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
-import { parseClassDiagram } from '../class/parser.ts'
-import { layoutClassDiagram, resolveClassRenderOptions } from '../class/layout.ts'
-import { parseErDiagram } from '../er/parser.ts'
-import { layoutErDiagram, applyErFrontmatterConfig, ER_STYLE_DEFAULTS } from '../er/layout.ts'
+import { normalizeMermaidSource } from '../mermaid-source.ts'
+import type { PositionedClassDiagram } from '../class/types.ts'
+import type { PositionedErDiagram } from '../er/types.ts'
+import { ER_STYLE_DEFAULTS } from '../er/layout.ts'
 import { separateRelationshipLabels } from '../er/renderer.ts'
 import { resolveRenderStyle } from '../styles.ts'
-import { layoutSequenceDiagram } from '../sequence/layout.ts'
-import { parseSequenceDiagram } from '../sequence/parser.ts'
-import { parseTimelineDiagram } from '../timeline/parser.ts'
-import { layoutTimelineDiagram } from '../timeline/layout.ts'
-import { parseJourneyDiagram } from '../journey/parser.ts'
-import { layoutJourneyDiagram } from '../journey/layout.ts'
-import { parseArchitectureDiagram } from '../architecture/parser.ts'
-import { layoutArchitectureDiagram } from '../architecture/layout.ts'
-import { resolveArchitectureRenderOptions } from '../architecture/config.ts'
-import { applyXYChartFrontmatterConfig, parseXYChart, resolveXYChartConfig, resolveXYChartTheme } from '../xychart/parser.ts'
-import { layoutXYChart } from '../xychart/layout.ts'
-import type { XYAxis, XYChart } from '../xychart/types.ts'
-import type { PositionedArchitectureEdge, PositionedArchitectureGroup, PositionedArchitectureJunction, PositionedArchitectureService } from '../architecture/types.ts'
-import { parsePieChart } from '../pie/parser.ts'
-import { layoutPieChart, formatPiePercent } from '../pie/layout.ts'
-import { resolvePieVisualConfig } from '../pie/config.ts'
-import type { PieChart } from '../pie/types.ts'
-import { parseQuadrantChart } from '../quadrant/parser.ts'
-import { layoutQuadrantChart } from '../quadrant/layout.ts'
-import { resolveQuadrantVisualConfig } from '../quadrant/config.ts'
-import type { QuadrantChart } from '../quadrant/types.ts'
-import { parseGanttModel, applyGanttFrontmatterConfig, GANTT_DURATION_RE } from '../gantt/parser.ts'
+import type { PositionedSequenceDiagram } from '../sequence/types.ts'
+import type { PositionedTimelineDiagram } from '../timeline/types.ts'
+import type { PositionedJourneyDiagram } from '../journey/types.ts'
+import type {
+  PositionedArchitectureDiagram, PositionedArchitectureEdge, PositionedArchitectureGroup,
+  PositionedArchitectureJunction, PositionedArchitectureService,
+} from '../architecture/types.ts'
+import type { PositionedXYChart } from '../xychart/types.ts'
+import type { PositionedPieChart } from '../pie/types.ts'
+import { formatPiePercent } from '../pie/layout.ts'
+import type { PositionedQuadrantChart } from '../quadrant/types.ts'
+import { parseGanttModel, applyGanttFrontmatterConfig } from '../gantt/parser.ts'
 import { resolveGanttSchedule } from '../gantt/schedule.ts'
-import { buildGanttRenderPipeline } from '../gantt/pipeline.ts'
-import { layoutGantt } from '../gantt/layout.ts'
-import type { GanttEndExpr, GanttLayoutResult, GanttModel, GanttModelSection, GanttModelTask, GanttStartExpr, GanttTaskTag } from '../gantt/types.ts'
-import { parseMindmap } from '../mindmap/parser.ts'
-import { positionMindmap, resolveMindmapPositionConfig } from '../mindmap/position.ts'
-import { parseGitGraph } from '../gitgraph/parser.ts'
-import { positionGitGraph, resolveGitGraphPositionConfig } from '../gitgraph/position.ts'
-
+import type { GanttLayoutResult } from '../gantt/types.ts'
+import type { PositionedMindmapDiagram } from '../mindmap/types.ts'
+import type { PositionedGitGraphDiagram } from '../gitgraph/types.ts'
 
 function f(n: number): Finite { return toFinite(Math.round(n)) }
 
@@ -100,181 +91,298 @@ function f(n: number): Finite { return toFinite(Math.round(n)) }
  *  an onboarding-probe ER diagram. Used where edgeAnchors checks run. */
 function fSpan(start: number, length: number): Finite { return toFinite(Math.round(start + length) - Math.round(start)) }
 
-/**
- * Family-aware RenderedLayout adapter. Dispatches on body kind; for the
- * renderable non-graph families it layouts from d.canonicalSource (which is
- * always populated for both structured and opaque bodies). Returns null for
- * families this module doesn't own (flowchart/state graph layouts and opaque
- * flowchart compatibility are handled in index.ts) so the caller can keep its
- * existing dispatch.
- */
-export function layoutFamilyToRendered(d: ValidDiagram, opts: { debug?: boolean } = {}): RenderedLayout | null {
-  // Each adapter is self-contained: it wraps the legacy parse+layout in
-  // try/catch and degrades to emptyRenderedLayout(d.kind) on render-error, so
-  // an invalid opaque body of a renderable family never makes this throw.
-  switch (d.kind) {
-    case 'class':        return classToRendered(d, opts)
-    case 'er':           return erToRendered(d, opts)
-    case 'sequence':     return sequenceToRendered(d, opts)
-    case 'timeline':     return timelineToRendered(d, opts)
-    case 'journey':      return journeyToRendered(d)
-    case 'architecture': return architectureToRendered(d, opts)
-    case 'xychart':      return xychartToRendered(d, opts)
-    case 'pie':          return pieToRendered(d, opts)
-    case 'quadrant':     return quadrantToRendered(d, opts)
-    case 'gantt':        return ganttToRendered(d, opts)
-    case 'mindmap':      return mindmapToRendered(d)
-    case 'gitgraph':     return gitgraphToRendered(d)
-    default:             return null
+export interface ProjectedFamilyArtifact {
+  /** Resolved request whose executable family/backend references stay private. */
+  request: ResolvedRenderRequest
+  /** Exact result, including accessibility ownership, consumed by SVG. */
+  layoutResult: FamilyLayoutResult
+  /** Exact output of the descriptor-owned layout hook. */
+  positioned: PositionedDiagram
+  /** Family-neutral descriptor projection, stamped with the built-in id. */
+  rendered: RenderedLayout
+}
+
+/** Projection controls plus the shared render options consumed by SVG/PNG. */
+export interface PositionFamilyArtifactOptions extends FamilyPositionedProjectionOptions {
+  renderOptions?: RenderOptions
+  /** Internal adapter selection; public layout remains the default. */
+  output?: Extract<RenderOutput, 'layout' | 'svg'>
+}
+
+/** A descriptor layout/projection failure with enough context for public
+ * adapters to distinguish it from verification and parsing failures. */
+export class FamilyLayoutError extends Error {
+  readonly family: FamilyId
+  readonly operation: 'layout' | 'projectPositioned'
+
+  constructor(family: FamilyId, operation: 'layout' | 'projectPositioned', cause: unknown) {
+    const reason = cause instanceof Error ? cause.message : String(cause)
+    super(`Mermaid family "${family}" ${operation} hook failed: ${reason}`, { cause })
+    this.name = 'FamilyLayoutError'
+    this.family = family
+    this.operation = operation
   }
+}
+
+/** Project one already-resolved request without re-reading raw public options. */
+export function positionResolvedFamilyArtifact(
+  d: ParsedDiagram,
+  request: ResolvedRenderRequest,
+  options: FamilyPositionedProjectionOptions = {},
+): ProjectedFamilyArtifact | null {
+  const descriptor = resolvedRenderExecutionPlanOf(request).family
+  if (descriptor.id !== d.kind) {
+    throw new Error(`Resolved request planned family ${descriptor.id}, not ${d.kind}`)
+  }
+  if (!descriptor.layout || !descriptor.projectPositioned) return null
+  let result: ReturnType<typeof positionResolvedFamily>
+  try {
+    result = positionResolvedFamily(d.kind, request)
+  } catch (error) {
+    throw new FamilyLayoutError(d.kind, 'layout', error)
+  }
+  let view: FamilyPositionedView
+  try {
+    view = descriptor.projectPositioned({ positioned: result.positioned, options })
+  } catch (error) {
+    throw new FamilyLayoutError(d.kind, 'projectPositioned', error)
+  }
+  return {
+    request,
+    layoutResult: result,
+    positioned: result.positioned,
+    rendered: stampFamilyKind(d.kind, view),
+  }
+}
+
+function structuredBodyExpectsNodes(d: ParsedDiagram): boolean {
+  switch (d.body.kind) {
+    case 'xychart': return d.body.series.length > 0
+    case 'pie': return d.body.slices.length > 0
+    case 'gantt': return d.body.sections.some(section => section.tasks.length > 0)
+    default: return false
+  }
+}
+
+/** Stamp the public family id without changing the established JSON field
+ * order. The layout-equivalence baseline deliberately treats that order as
+ * part of the byte-stable layout contract. */
+function stampFamilyKind(kind: FamilyId, view: FamilyPositionedView): RenderedLayout {
+  const rendered: RenderedLayout = {
+    version: view.version,
+    kind,
+    nodes: view.nodes,
+    edges: view.edges,
+    groups: view.groups,
+    bounds: view.bounds,
+  }
+  // Historically debug certificates were appended after the base layout.
+  // Assignment preserves that serialization order while keeping the view
+  // projector family-neutral.
+  if (view.certificates !== undefined) rendered.certificates = view.certificates
+  return rendered
+}
+
+/**
+ * Invoke a descriptor's pure positioned view without parsing or laying out.
+ * This open-id form is useful to extension conformance tests even though the
+ * current public `RenderedLayout` envelope remains a closed built-in union.
+ */
+export function projectPositionedView(
+  familyId: FamilyId,
+  positioned: PositionedDiagram,
+  options: FamilyPositionedProjectionOptions = {},
+): FamilyPositionedView | null {
+  const descriptor = getFamily(familyId)
+  if (!descriptor?.projectPositioned) return null
+  return descriptor.projectPositioned({ positioned, options })
+}
+
+/**
+ * Produce the one canonical positioned artifact used by every agent
+ * projection. Most descriptors receive `canonicalSource`, preserving the
+ * established RenderedLayout contract (including authored declaration order
+ * and its historical wrapper/config policy) while removing the independent
+ * family parsers and layouters that previously interpreted that source.
+ * Families whose former adapter was body/config based use their canonical
+ * serializer as the source-context bridge; the descriptor still owns all
+ * parsing and positioning.
+ */
+export function positionFamilyArtifact(
+  d: ParsedDiagram,
+  options: PositionFamilyArtifactOptions = {},
+): ProjectedFamilyArtifact | null {
+  const descriptor = getFamily(d.kind)
+  if (!descriptor?.layout || !descriptor.projectPositioned) return null
+  const projectionOptions: FamilyPositionedProjectionOptions = { debug: options.debug }
+
+  const sourceText = d.body.kind !== 'opaque' && (
+    d.kind === 'state' || d.kind === 'quadrant' || d.kind === 'mindmap' || d.kind === 'gitgraph'
+  )
+    ? serializeMermaid(d)
+    : d.canonicalSource
+  const canRetryFromBody = structuredBodyExpectsNodes(d)
+
+  const projectSource = (text: string): ProjectedFamilyArtifact => {
+    const output = options.output ?? 'layout'
+    const request = resolveRenderRequest(
+      text,
+      options.renderOptions ?? {},
+      output,
+      output === 'layout' ? projectionOptions : undefined,
+    )
+    return positionResolvedFamilyArtifact(d, request, projectionOptions)!
+  }
+
+  // Valid mutations rebuild canonicalSource, but callers can still construct
+  // a structurally valid object with stale source. Preserve the existing
+  // structured-body resilience by retrying through the canonical serializer
+  // only when the historical source projection has no semantic nodes (or
+  // cannot be positioned). Normal diagrams — including every built-in
+  // conformance example — invoke the descriptor exactly once.
+  let primary: ProjectedFamilyArtifact
+  try {
+    primary = projectSource(sourceText)
+  } catch (error) {
+    if (!canRetryFromBody) throw error
+    const serialized = serializeMermaid(d)
+    if (serialized === sourceText) throw error
+    return projectSource(serialized)
+  }
+  if (!canRetryFromBody || primary.rendered.nodes.length > 0) return primary
+  const serialized = serializeMermaid(d)
+  return serialized === sourceText ? primary : projectSource(serialized)
+}
+
+/** Layout-JSON facade. Descriptor failures propagate with family/operation context. */
+export function layoutFamilyToRendered(
+  d: ParsedDiagram,
+  options: PositionFamilyArtifactOptions = {},
+): RenderedLayout | null {
+  const descriptor = getFamily(d.kind)
+  if (!descriptor?.layout || !descriptor.projectPositioned) return null
+  // Before descriptor convergence, source-preserved state diagrams had no
+  // RenderedLayout adapter. Keep that observable 0x0 fallback stable; typed
+  // state bodies still use the descriptor-owned positioned graph below.
+  if (d.kind === 'state' && d.body.kind === 'opaque') return emptyRenderedLayout(d.kind)
+  return positionFamilyArtifact(d, options)?.rendered ?? null
+}
+
+/** Facade for adapters that already own a canonical request receipt. */
+export function layoutResolvedFamilyToRendered(
+  d: ParsedDiagram,
+  request: ResolvedRenderRequest,
+  options: FamilyPositionedProjectionOptions = {},
+): RenderedLayout | null {
+  if (d.kind === 'state' && d.body.kind === 'opaque') return emptyRenderedLayout(d.kind)
+  return positionResolvedFamilyArtifact(d, request, options)?.rendered ?? null
+}
+
+/** Flowchart and state share the canonical ELK positioned-graph view. */
+export function projectGraphPositioned(
+  { positioned, options }: FamilyPositionedProjectionContext<PositionedGraph>,
+): FamilyPositionedView {
+  return positionedGraphToRenderedView(positioned, options)
 }
 
 // ---- mindmap / gitgraph ---------------------------------------------------
 
-function mindmapToRendered(d: ValidDiagram): RenderedLayout {
-  try {
-    const normalized = normalizeMermaidSource(d.canonicalSource)
-    const wrapper = d.meta.frontmatter as Record<string, unknown> | undefined
-    const config: Record<string, unknown> = {
-      ...(((wrapper?.mindmap) as Record<string, unknown> | undefined) ?? {}),
-    }
-    let authoredLayout = wrapper?.layout
-    for (const directive of d.meta.initDirectives) {
-      const directiveConfig = directive.parsed?.mindmap
-      if (directiveConfig && typeof directiveConfig === 'object' && !Array.isArray(directiveConfig)) Object.assign(config, directiveConfig)
-      if (directive.parsed?.layout !== undefined) authoredLayout = directive.parsed.layout
-    }
-    const diagram = d.body.kind === 'mindmap' ? d.body : parseMindmap(normalized.body)
-    const positioned = positionMindmap(diagram, resolveMindmapPositionConfig(config, authoredLayout))
-    const nodes: RenderedLayoutNode[] = positioned.nodes.map(node => ({
-      id: node.id, x: f(node.x), y: f(node.y),
-      w: f(node.width), h: f(node.height), shape: node.shape === 'circle' ? 'ellipse' : 'rectangle', label: node.label,
-    }))
-    const edges: RenderedLayoutEdge[] = positioned.edges.map((edge, index) => ({
-      id: `edge#${index}:${edge.from}->${edge.to}`, from: edge.from, to: edge.to,
-      path: edge.points.map(point => [f(point.x), f(point.y)] as [Finite, Finite]),
-    }))
-    return { version: 1, kind: d.kind, nodes, edges, groups: [], bounds: { w: f(positioned.width), h: f(positioned.height) } }
-  } catch { return emptyRenderedLayout(d.kind) }
+export function projectMindmapPositioned(
+  { positioned }: FamilyPositionedProjectionContext<PositionedMindmapDiagram>,
+): FamilyPositionedView {
+  const nodes: RenderedLayoutNode[] = positioned.nodes.map(node => ({
+    id: node.id, x: f(node.x), y: f(node.y),
+    w: f(node.width), h: f(node.height), shape: node.shape === 'circle' ? 'ellipse' : 'rectangle', label: node.label,
+  }))
+  const edges: RenderedLayoutEdge[] = positioned.edges.map((edge, index) => ({
+    id: `edge#${index}:${edge.from}->${edge.to}`, from: edge.from, to: edge.to,
+    path: edge.points.map(point => [f(point.x), f(point.y)] as [Finite, Finite]),
+  }))
+  return { version: 1, nodes, edges, groups: [], bounds: { w: f(positioned.width), h: f(positioned.height) } }
 }
 
-function gitgraphToRendered(d: ValidDiagram): RenderedLayout {
-  try {
-    const normalized = normalizeMermaidSource(d.canonicalSource)
-    const config: Record<string, unknown> = {
-      ...((((d.meta.frontmatter as Record<string, unknown> | undefined)?.gitGraph) as Record<string, unknown> | undefined) ?? {}),
+export function projectGitGraphPositioned(
+  { positioned }: FamilyPositionedProjectionContext<PositionedGitGraphDiagram>,
+): FamilyPositionedView {
+  const nodes: RenderedLayoutNode[] = positioned.commits.map(commit => {
+    const type = commit.customType ?? commit.type
+    return {
+      id: commit.id, x: f(commit.x - 10), y: f(commit.y - 10), w: f(20), h: f(20),
+      shape: type === 'CHERRY_PICK' ? 'diamond' : type === 'HIGHLIGHT' ? 'rectangle' : 'ellipse',
+      label: commit.message || commit.id,
     }
-    const themeVariables: Record<string, unknown> = {
-      ...((((d.meta.frontmatter as Record<string, unknown> | undefined)?.themeVariables) as Record<string, unknown> | undefined) ?? {}),
+  })
+  const edges: RenderedLayoutEdge[] = positioned.edges.map((edge, index) => ({
+    id: `edge#${index}:${edge.from}->${edge.to}`, from: edge.from, to: edge.to,
+    path: edge.points.map(point => [f(point.x), f(point.y)] as [Finite, Finite]),
+  }))
+  const groups: RenderedLayoutGroup[] = positioned.showBranches ? positioned.branches.map(branch => {
+    const commits = positioned.commits.filter(commit => commit.branch === branch.name)
+    const minX = Math.min(branch.x1, branch.x2, ...commits.map(commit => commit.x - 10))
+    const minY = Math.min(branch.y1, branch.y2, ...commits.map(commit => commit.y - 10))
+    const maxX = Math.max(branch.x1, branch.x2, ...commits.map(commit => commit.x + 10))
+    const maxY = Math.max(branch.y1, branch.y2, ...commits.map(commit => commit.y + 10))
+    return {
+      id: `branch:${branch.name}`,
+      x: f(minX), y: f(minY), w: f(Math.max(1, maxX - minX)), h: f(Math.max(1, maxY - minY)),
+      members: commits.map(commit => commit.id), label: branch.name,
     }
-    for (const directive of d.meta.initDirectives) {
-      const directiveConfig = directive.parsed?.gitGraph
-      if (directiveConfig && typeof directiveConfig === 'object' && !Array.isArray(directiveConfig)) Object.assign(config, directiveConfig)
-      const directiveTheme = directive.parsed?.themeVariables
-      if (directiveTheme && typeof directiveTheme === 'object' && !Array.isArray(directiveTheme)) Object.assign(themeVariables, directiveTheme)
-    }
-    // Structured GitGraph bodies already carry the configured main-branch
-    // identity used during parse. Re-parsing canonicalSource alone loses the
-    // preserved wrapper config and can turn a valid custom-main history into
-    // a false 0×0 verification layout.
-    const resolved = resolveGitGraphPositionConfig(config, themeVariables)
-    const diagram = d.body.kind === 'gitgraph' ? d.body : parseGitGraph(normalized.body, {
-      mainBranchName: resolved.mainBranchName,
-      mainBranchOrder: resolved.mainBranchOrder,
-    })
-    const positioned = positionGitGraph(diagram, resolved)
-    const nodes: RenderedLayoutNode[] = positioned.commits.map(commit => {
-      const type = commit.customType ?? commit.type
-      return {
-        id: commit.id, x: f(commit.x - 10), y: f(commit.y - 10), w: f(20), h: f(20),
-        shape: type === 'CHERRY_PICK' ? 'diamond' : type === 'HIGHLIGHT' ? 'rectangle' : 'ellipse',
-        label: commit.message || commit.id,
-      }
-    })
-    const edges: RenderedLayoutEdge[] = positioned.edges.map((edge, index) => ({
-      id: `edge#${index}:${edge.from}->${edge.to}`, from: edge.from, to: edge.to,
-      path: edge.points.map(point => [f(point.x), f(point.y)] as [Finite, Finite]),
-    }))
-    const groups: RenderedLayoutGroup[] = positioned.showBranches ? positioned.branches.map(branch => {
-      const commits = positioned.commits.filter(commit => commit.branch === branch.name)
-      const minX = Math.min(branch.x1, branch.x2, ...commits.map(commit => commit.x - 10))
-      const minY = Math.min(branch.y1, branch.y2, ...commits.map(commit => commit.y - 10))
-      const maxX = Math.max(branch.x1, branch.x2, ...commits.map(commit => commit.x + 10))
-      const maxY = Math.max(branch.y1, branch.y2, ...commits.map(commit => commit.y + 10))
-      return {
-        id: `branch:${branch.name}`,
-        x: f(minX), y: f(minY), w: f(Math.max(1, maxX - minX)), h: f(Math.max(1, maxY - minY)),
-        members: commits.map(commit => commit.id), label: branch.name,
-      }
-    }) : []
-    return { version: 1, kind: d.kind, nodes, edges, groups, bounds: { w: f(positioned.width), h: f(positioned.height) } }
-  } catch { return emptyRenderedLayout(d.kind) }
+  }) : []
+  return { version: 1, nodes, edges, groups, bounds: { w: f(positioned.width), h: f(positioned.height) } }
 }
 
 // ---- class ----------------------------------------------------------------
 
-function classToRendered(d: ValidDiagram, opts: { debug?: boolean } = {}): RenderedLayout {
-  try {
-    // Same config threading the render hook applies (wired class.nodeSpacing/
-    // rankSpacing), so verify.layout stays truthful under config.
-    const normalized = normalizeMermaidSource(d.canonicalSource)
-    const positioned = layoutClassDiagram(
-      parseClassDiagram(normalized.lines),
-      resolveClassRenderOptions(normalized.frontmatter, {}),
-    )
-    const nodes: RenderedLayoutNode[] = positioned.classes.map(c => ({
-      id: c.id, x: f(c.x), y: f(c.y), w: fSpan(c.x, c.width), h: fSpan(c.y, c.height), shape: 'rectangle', label: c.label,
-    }))
-    const boxById = new Map(positioned.classes.map(c => [c.id, { x: c.x, y: c.y, width: c.width, height: c.height }]))
-    const edges: RenderedLayoutEdge[] = positioned.relationships.map((r, i) => ({
-      id: `rel#${i}:${r.from}->${r.to}`, from: r.from, to: r.to,
-      path: r.points.map(p => [f(p.x), f(p.y)] as [Finite, Finite]),
-      label: r.label && r.labelPosition ? { x: f(r.labelPosition.x), y: f(r.labelPosition.y), text: r.label } : undefined,
-      route: opts.debug ? boxRouteCertificate('class', i, r.points, boxById.get(r.from), boxById.get(r.to)) : undefined,
-    }))
-    // Namespaces are groups whose members are their directly-declared classes
-    // (the family rubric's group-containment axis judges them).
-    const groups: RenderedLayoutGroup[] = positioned.namespaces.map(ns => ({
-      id: ns.id, x: f(ns.x), y: f(ns.y), w: fSpan(ns.x, ns.width), h: fSpan(ns.y, ns.height),
-      members: [...ns.classIds], label: ns.label, parentId: ns.parentId,
-    }))
-    return { version: 1, kind: d.kind, nodes, edges, groups, bounds: { w: f(positioned.width), h: f(positioned.height) } }
-  } catch { return emptyRenderedLayout(d.kind) }
+export function projectClassPositioned(
+  { positioned, options }: FamilyPositionedProjectionContext<PositionedClassDiagram>,
+): FamilyPositionedView {
+  const nodes: RenderedLayoutNode[] = positioned.classes.map(c => ({
+    id: c.id, x: f(c.x), y: f(c.y), w: fSpan(c.x, c.width), h: fSpan(c.y, c.height), shape: 'rectangle', label: c.label,
+  }))
+  const boxById = new Map(positioned.classes.map(c => [c.id, { x: c.x, y: c.y, width: c.width, height: c.height }]))
+  const edges: RenderedLayoutEdge[] = positioned.relationships.map((r, i) => ({
+    id: `rel#${i}:${r.from}->${r.to}`, from: r.from, to: r.to,
+    path: r.points.map(p => [f(p.x), f(p.y)] as [Finite, Finite]),
+    label: r.label && r.labelPosition ? { x: f(r.labelPosition.x), y: f(r.labelPosition.y), text: r.label } : undefined,
+    route: options.debug ? boxRouteCertificate('class', i, r.points, boxById.get(r.from), boxById.get(r.to)) : undefined,
+  }))
+  // Namespaces are groups whose members are their directly-declared classes
+  // (the family rubric's group-containment axis judges them).
+  const groups: RenderedLayoutGroup[] = positioned.namespaces.map(ns => ({
+    id: ns.id, x: f(ns.x), y: f(ns.y), w: fSpan(ns.x, ns.width), h: fSpan(ns.y, ns.height),
+    members: [...ns.classIds], label: ns.label, parentId: ns.parentId,
+  }))
+  return { version: 1, nodes, edges, groups, bounds: { w: f(positioned.width), h: f(positioned.height) } }
 }
 
 // ---- er -------------------------------------------------------------------
 
-function erToRendered(d: ValidDiagram, opts: { debug?: boolean } = {}): RenderedLayout {
-  try {
-    // Same config threading the render hook applies (wired er.layoutDirection
-    // + nodeSpacing/rankSpacing), so verify.layout stays truthful under config.
-    const normalized = normalizeMermaidSource(d.canonicalSource)
-    const configured = applyErFrontmatterConfig(parseErDiagram(normalized.lines), normalized.frontmatter, {})
-    const positioned = layoutErDiagram(configured.diagram, configured.options)
-    const nodes: RenderedLayoutNode[] = positioned.entities.map(e => ({
-      id: e.id, x: f(e.x), y: f(e.y), w: fSpan(e.x, e.width), h: fSpan(e.y, e.height), shape: 'rectangle', label: e.label,
-    }))
-    const boxById = new Map(positioned.entities.map(e => [e.id, { x: e.x, y: e.y, width: e.width, height: e.height }]))
-    const labelPositions = separateRelationshipLabels(positioned, resolveRenderStyle({}, ER_STYLE_DEFAULTS))
-    const edges: RenderedLayoutEdge[] = positioned.relationships.map((r, i) => {
-      const at = labelPositions.get(r)
-      return {
-        id: `rel#${i}:${r.entity1}->${r.entity2}`, from: r.entity1, to: r.entity2,
-        path: r.points.map(p => [f(p.x), f(p.y)] as [Finite, Finite]),
-        label: r.label && at ? { x: f(at.x), y: f(at.y), text: r.label } : undefined,
-        route: opts.debug ? boxRouteCertificate('er', i, r.points, boxById.get(r.entity1), boxById.get(r.entity2)) : undefined,
-      }
-    })
-    const groups: RenderedLayoutGroup[] = positioned.groups.map(group => ({
-      id: group.id, x: f(group.x), y: f(group.y), w: fSpan(group.x, group.width), h: fSpan(group.y, group.height),
-      members: [
-        ...positioned.entities.filter(entity => entity.groupId === group.id).map(entity => entity.id),
-        ...positioned.groups.filter(child => child.parentId === group.id).map(child => child.id),
-      ],
-      label: group.label, parentId: group.parentId,
-    }))
-    return { version: 1, kind: d.kind, nodes, edges, groups, bounds: { w: f(positioned.width), h: f(positioned.height) } }
-  } catch { return emptyRenderedLayout(d.kind) }
+export function projectErPositioned(
+  { positioned, options }: FamilyPositionedProjectionContext<PositionedErDiagram>,
+): FamilyPositionedView {
+  const nodes: RenderedLayoutNode[] = positioned.entities.map(e => ({
+    id: e.id, x: f(e.x), y: f(e.y), w: fSpan(e.x, e.width), h: fSpan(e.y, e.height), shape: 'rectangle', label: e.label,
+  }))
+  const boxById = new Map(positioned.entities.map(e => [e.id, { x: e.x, y: e.y, width: e.width, height: e.height }]))
+  const labelPositions = separateRelationshipLabels(positioned, resolveRenderStyle({}, ER_STYLE_DEFAULTS))
+  const edges: RenderedLayoutEdge[] = positioned.relationships.map((r, i) => {
+    const at = labelPositions.get(r)
+    return {
+      id: `rel#${i}:${r.entity1}->${r.entity2}`, from: r.entity1, to: r.entity2,
+      path: r.points.map(p => [f(p.x), f(p.y)] as [Finite, Finite]),
+      label: r.label && at ? { x: f(at.x), y: f(at.y), text: r.label } : undefined,
+      route: options.debug ? boxRouteCertificate('er', i, r.points, boxById.get(r.entity1), boxById.get(r.entity2)) : undefined,
+    }
+  })
+  const groups: RenderedLayoutGroup[] = positioned.groups.map(group => ({
+    id: group.id, x: f(group.x), y: f(group.y), w: fSpan(group.x, group.width), h: fSpan(group.y, group.height),
+    members: [
+      ...positioned.entities.filter(entity => entity.groupId === group.id).map(entity => entity.id),
+      ...positioned.groups.filter(child => child.parentId === group.id).map(child => child.id),
+    ],
+    label: group.label, parentId: group.parentId,
+  }))
+  return { version: 1, nodes, edges, groups, bounds: { w: f(positioned.width), h: f(positioned.height) } }
 }
 
 function boxRouteCertificate(
@@ -336,7 +444,7 @@ type ElementCertificateInvariant = RegionContainmentCertificate['invariant']
 
 function elementCertificates(
   family: ElementCertificateFamily,
-  layout: RenderedLayout,
+  layout: FamilyPositionedView,
   invariant: ElementCertificateInvariant,
   referenceGroup?: RenderedLayoutGroup,
   containment: 'bounds' | 'center' = 'bounds',
@@ -363,7 +471,7 @@ function elementCertificates(
   })
 }
 
-function nodeWithinBounds(n: RenderedLayoutNode, bounds: RenderedLayout['bounds'], tol = 0.5): boolean {
+function nodeWithinBounds(n: RenderedLayoutNode, bounds: FamilyPositionedView['bounds'], tol = 0.5): boolean {
   return n.x >= -tol && n.y >= -tol && n.x + n.w <= bounds.w + tol && n.y + n.h <= bounds.h + tol
 }
 
@@ -379,39 +487,37 @@ function nodeCenterWithinGroup(n: RenderedLayoutNode, g: RenderedLayoutGroup, to
 
 // ---- sequence -------------------------------------------------------------
 
-function sequenceToRendered(d: ValidDiagram, opts: { debug?: boolean } = {}): RenderedLayout {
-  try {
-    if (d.kind !== 'sequence') return emptyRenderedLayout(d.kind)
-    const positioned = layoutSequenceDiagram(parseSequenceDiagram(toMermaidLines(d.canonicalSource)))
-    const lifelineByActor = new Map(positioned.lifelines.map(l => [l.actorId, l.x]))
-    const nodes: RenderedLayoutNode[] = [
-      ...positioned.actors.map(a => ({
-        id: a.id, x: f(a.x - a.width / 2), y: f(a.y), w: f(a.width), h: f(a.height),
-        shape: 'rectangle', label: a.label, role: 'box' as const,
-      })),
-      ...positioned.notes.map((n, i) => ({
-        id: `note#${i}`, x: f(n.x), y: f(n.y), w: f(n.width), h: f(n.height),
-        shape: 'note', label: n.text, role: 'box' as const,
-      })),
-    ]
-    return {
-      version: 1, kind: d.kind,
-      nodes,
-      edges: positioned.messages.map((m, i) => {
-        const path = sequenceMessagePath(m)
-        return {
-          id: `msg#${i}:${m.from}->${m.to}`, from: m.from, to: m.to,
-          path: path.map(p => [f(p.x), f(p.y)] as [Finite, Finite]),
-          label: m.label ? sequenceMessageLabel(m) : undefined,
-          route: opts.debug ? sequenceRouteCertificate(i, m, path, lifelineByActor) : undefined,
-        }
-      }),
-      groups: positioned.blocks.map((b, i) => ({
-        id: `block#${i}:${b.type}`, x: f(b.x), y: f(b.y), w: f(b.width), h: f(b.height), members: [], label: b.label,
-      })),
-      bounds: { w: f(positioned.width), h: f(positioned.height) },
-    }
-  } catch { return emptyRenderedLayout(d.kind) }
+export function projectSequencePositioned(
+  { positioned, options }: FamilyPositionedProjectionContext<PositionedSequenceDiagram>,
+): FamilyPositionedView {
+  const lifelineByActor = new Map(positioned.lifelines.map(l => [l.actorId, l.x]))
+  const nodes: RenderedLayoutNode[] = [
+    ...positioned.actors.map(a => ({
+      id: a.id, x: f(a.x - a.width / 2), y: f(a.y), w: f(a.width), h: f(a.height),
+      shape: 'rectangle', label: a.label, role: 'box' as const,
+    })),
+    ...positioned.notes.map((n, i) => ({
+      id: `note#${i}`, x: f(n.x), y: f(n.y), w: f(n.width), h: f(n.height),
+      shape: 'note', label: n.text, role: 'box' as const,
+    })),
+  ]
+  return {
+    version: 1,
+    nodes,
+    edges: positioned.messages.map((m, i) => {
+      const path = sequenceMessagePath(m)
+      return {
+        id: `msg#${i}:${m.from}->${m.to}`, from: m.from, to: m.to,
+        path: path.map(p => [f(p.x), f(p.y)] as [Finite, Finite]),
+        label: m.label ? sequenceMessageLabel(m) : undefined,
+        route: options.debug ? sequenceRouteCertificate(i, m, path, lifelineByActor) : undefined,
+      }
+    }),
+    groups: positioned.blocks.map((b, i) => ({
+      id: `block#${i}:${b.type}`, x: f(b.x), y: f(b.y), w: f(b.width), h: f(b.height), members: [], label: b.label,
+    })),
+    bounds: { w: f(positioned.width), h: f(positioned.height) },
+  }
 }
 
 function sequenceMessagePath(message: { x1: number; x2: number; y: number; isSelf: boolean }): Point[] {
@@ -460,109 +566,98 @@ function sequenceRouteCertificate(
 
 // ---- timeline -------------------------------------------------------------
 
-function timelineToRendered(d: ValidDiagram, opts: { debug?: boolean } = {}): RenderedLayout {
-  try {
-    const positioned = layoutTimelineDiagram(parseTimelineDiagram(toMermaidLines(d.canonicalSource)))
-    const nodes: RenderedLayoutNode[] = []
-    const groups: RenderedLayoutGroup[] = []
-    for (const section of positioned.sections) {
-      const members: string[] = []
-      for (const period of section.periods) {
-        const periodId = `${period.id}:period`
+export function projectTimelinePositioned(
+  { positioned, options }: FamilyPositionedProjectionContext<PositionedTimelineDiagram>,
+): FamilyPositionedView {
+  const nodes: RenderedLayoutNode[] = []
+  const groups: RenderedLayoutGroup[] = []
+  for (const section of positioned.sections) {
+    const members: string[] = []
+    for (const period of section.periods) {
+      const periodId = `${period.id}:period`
+      nodes.push({
+        id: periodId, x: f(period.pillX), y: f(period.pillY), w: f(period.pillWidth), h: f(period.pillHeight),
+        shape: 'rounded', label: period.label,
+      })
+      members.push(periodId)
+      for (const event of period.events) {
         nodes.push({
-          id: periodId, x: f(period.pillX), y: f(period.pillY), w: f(period.pillWidth), h: f(period.pillHeight),
-          shape: 'rounded', label: period.label,
+          id: event.id, x: f(event.x), y: f(event.y), w: f(event.width), h: f(event.height),
+          shape: 'rectangle', label: event.text,
         })
-        members.push(periodId)
-        for (const event of period.events) {
-          nodes.push({
-            id: event.id, x: f(event.x), y: f(event.y), w: f(event.width), h: f(event.height),
-            shape: 'rectangle', label: event.text,
-          })
-          members.push(event.id)
-        }
-      }
-      if (section.framed) {
-        groups.push({ id: section.id, x: f(section.x), y: f(section.y), w: f(section.width), h: f(section.height), members, label: section.label })
+        members.push(event.id)
       }
     }
-    const layout: RenderedLayout = { version: 1, kind: d.kind, nodes, edges: [], groups, bounds: { w: f(positioned.width), h: f(positioned.height) } }
-    if (opts.debug) layout.certificates = elementCertificates('timeline', layout, 'timeline-interval')
-    return layout
-  } catch { return emptyRenderedLayout(d.kind) }
+    if (section.framed) {
+      groups.push({ id: section.id, x: f(section.x), y: f(section.y), w: f(section.width), h: f(section.height), members, label: section.label })
+    }
+  }
+  const layout: FamilyPositionedView = { version: 1, nodes, edges: [], groups, bounds: { w: f(positioned.width), h: f(positioned.height) } }
+  if (options.debug) layout.certificates = elementCertificates('timeline', layout, 'timeline-interval')
+  return layout
 }
 
 // ---- journey --------------------------------------------------------------
 
-function journeyToRendered(d: ValidDiagram): RenderedLayout {
-  try {
-    const positioned = layoutJourneyDiagram(parseJourneyDiagram(toMermaidLines(d.canonicalSource)))
-    const nodes: RenderedLayoutNode[] = []
-    const groups: RenderedLayoutGroup[] = []
-    for (const s of positioned.sections) {
-      const memberIds: string[] = []
-      for (const t of s.tasks) {
-        nodes.push({ id: t.id, x: f(t.x), y: f(t.y), w: f(t.width), h: f(t.height), shape: 'rectangle', label: t.text })
-        memberIds.push(t.id)
-      }
-      // The group is the section COLUMN (header band down through its task
-      // boxes), not just the header rect — so groupContainment verifies the
-      // real invariant: every task sits inside its own section span.
-      const bottom = s.tasks.length > 0
-        ? Math.max(s.y + s.height, ...s.tasks.map(t => t.y + t.height))
-        : s.y + s.height
-      groups.push({ id: s.id, x: f(s.x), y: f(s.y), w: f(s.width), h: f(bottom - s.y), members: memberIds, label: s.label })
+export function projectJourneyPositioned(
+  { positioned }: FamilyPositionedProjectionContext<PositionedJourneyDiagram>,
+): FamilyPositionedView {
+  const nodes: RenderedLayoutNode[] = []
+  const groups: RenderedLayoutGroup[] = []
+  for (const s of positioned.sections) {
+    const memberIds: string[] = []
+    for (const t of s.tasks) {
+      nodes.push({ id: t.id, x: f(t.x), y: f(t.y), w: f(t.width), h: f(t.height), shape: 'rectangle', label: t.text })
+      memberIds.push(t.id)
     }
-    return { version: 1, kind: d.kind, nodes, edges: [], groups, bounds: { w: f(positioned.width), h: f(positioned.height) } }
-  } catch { return emptyRenderedLayout(d.kind) }
+    // The group is the section COLUMN (header band down through its task
+    // boxes), not just the header rect — so groupContainment verifies the
+    // real invariant: every task sits inside its own section span.
+    const bottom = s.tasks.length > 0
+      ? Math.max(s.y + s.height, ...s.tasks.map(t => t.y + t.height))
+      : s.y + s.height
+    groups.push({ id: s.id, x: f(s.x), y: f(s.y), w: f(s.width), h: f(bottom - s.y), members: memberIds, label: s.label })
+  }
+  return { version: 1, nodes, edges: [], groups, bounds: { w: f(positioned.width), h: f(positioned.height) } }
 }
 
 // ---- architecture ---------------------------------------------------------
 
-function architectureToRendered(d: ValidDiagram, opts: { debug?: boolean } = {}): RenderedLayout {
-  try {
-    // Same config threading the render hook applies (wired architecture
-    // padding/nodeSeparation/idealEdgeLengthMultiplier), so verify.layout
-    // stays truthful under config — and frontmatter no longer poisons the
-    // header check (toMermaidLines kept `---` lines; class/er precedent).
-    const normalized = normalizeMermaidSource(d.canonicalSource)
-    const positioned = layoutArchitectureDiagram(
-      parseArchitectureDiagram(normalized.lines),
-      resolveArchitectureRenderOptions(normalized.frontmatter, {}),
-    )
-    const nodes: RenderedLayoutNode[] = [
-      ...positioned.services.map(s => ({
-        id: s.id, x: f(s.x), y: f(s.y), w: f(s.width), h: f(s.height), shape: 'service', label: s.label, role: 'box' as const,
-      })),
-      ...positioned.junctions.map(j => ({
-        id: j.id, x: f(j.x), y: f(j.y), w: f(j.width), h: f(j.height), shape: 'circle' as const, label: undefined, role: 'mark' as const,
-      })),
-    ]
-    const flatGroups = new Map<string, PositionedArchitectureGroup>()
-    const groups: RenderedLayoutGroup[] = []
-    const flatten = (g: PositionedArchitectureGroup): void => {
-      flatGroups.set(g.id, g)
-      groups.push({
-        id: g.id, x: f(g.x), y: f(g.y), w: f(g.width), h: f(g.height),
-        members: [
-          ...positioned.services.filter(service => service.parentId === g.id).map(service => service.id),
-          ...positioned.junctions.filter(junction => junction.parentId === g.id).map(junction => junction.id),
-        ],
-        label: g.label, parentId: g.parentId,
-      })
-      for (const c of g.children) flatten(c)
-    }
-    for (const g of positioned.groups) flatten(g)
-    const serviceById = new Map(positioned.services.map(s => [s.id, s]))
-    const junctionById = new Map(positioned.junctions.map(j => [j.id, j]))
-    const edges: RenderedLayoutEdge[] = positioned.edges.map((e, i) => ({
-      id: `edge#${i}:${e.source.id}->${e.target.id}`, from: e.source.id, to: e.target.id,
-      path: e.points.map(p => [f(p.x), f(p.y)] as [Finite, Finite]),
-      label: e.label && e.labelPosition ? { x: f(e.labelPosition.x), y: f(e.labelPosition.y), text: e.label } : undefined,
-      route: opts.debug ? architectureRouteCertificate(i, e, serviceById, junctionById, flatGroups) : undefined,
-    }))
-    return { version: 1, kind: d.kind, nodes, edges, groups, bounds: { w: f(positioned.width), h: f(positioned.height) } }
-  } catch { return emptyRenderedLayout(d.kind) }
+export function projectArchitecturePositioned(
+  { positioned, options }: FamilyPositionedProjectionContext<PositionedArchitectureDiagram>,
+): FamilyPositionedView {
+  const nodes: RenderedLayoutNode[] = [
+    ...positioned.services.map(s => ({
+      id: s.id, x: f(s.x), y: f(s.y), w: f(s.width), h: f(s.height), shape: 'service', label: s.label, role: 'box' as const,
+    })),
+    ...positioned.junctions.map(j => ({
+      id: j.id, x: f(j.x), y: f(j.y), w: f(j.width), h: f(j.height), shape: 'circle' as const, label: undefined, role: 'mark' as const,
+    })),
+  ]
+  const flatGroups = new Map<string, PositionedArchitectureGroup>()
+  const groups: RenderedLayoutGroup[] = []
+  const flatten = (g: PositionedArchitectureGroup): void => {
+    flatGroups.set(g.id, g)
+    groups.push({
+      id: g.id, x: f(g.x), y: f(g.y), w: f(g.width), h: f(g.height),
+      members: [
+        ...positioned.services.filter(service => service.parentId === g.id).map(service => service.id),
+        ...positioned.junctions.filter(junction => junction.parentId === g.id).map(junction => junction.id),
+      ],
+      label: g.label, parentId: g.parentId,
+    })
+    for (const c of g.children) flatten(c)
+  }
+  for (const g of positioned.groups) flatten(g)
+  const serviceById = new Map(positioned.services.map(s => [s.id, s]))
+  const junctionById = new Map(positioned.junctions.map(j => [j.id, j]))
+  const edges: RenderedLayoutEdge[] = positioned.edges.map((e, i) => ({
+    id: `edge#${i}:${e.source.id}->${e.target.id}`, from: e.source.id, to: e.target.id,
+    path: e.points.map(p => [f(p.x), f(p.y)] as [Finite, Finite]),
+    label: e.label && e.labelPosition ? { x: f(e.labelPosition.x), y: f(e.labelPosition.y), text: e.label } : undefined,
+    route: options.debug ? architectureRouteCertificate(i, e, serviceById, junctionById, flatGroups) : undefined,
+  }))
+  return { version: 1, nodes, edges, groups, bounds: { w: f(positioned.width), h: f(positioned.height) } }
 }
 
 function architectureRouteCertificate(
@@ -622,218 +717,82 @@ function pointOnSide(
 
 // ---- xychart --------------------------------------------------------------
 
-function xychartToRendered(d: ValidDiagram, opts: { debug?: boolean } = {}): RenderedLayout {
-  try {
-    const positioned = layoutXYChart(xychartForRenderedLayout(d))
-    const nodes: RenderedLayoutNode[] = []
-    // Bars are the primary boxes.
-    positioned.bars.forEach((b, i) => {
-      nodes.push({ id: `bar#${i}`, x: f(b.x), y: f(b.y), w: f(b.width), h: f(b.height), shape: 'rectangle', label: b.label, role: 'labelled-mark' })
+export function projectXyChartPositioned(
+  { positioned, options }: FamilyPositionedProjectionContext<PositionedXYChart>,
+): FamilyPositionedView {
+  const nodes: RenderedLayoutNode[] = []
+  // Bars are the primary boxes.
+  positioned.bars.forEach((b, i) => {
+    nodes.push({ id: `bar#${i}`, x: f(b.x), y: f(b.y), w: f(b.width), h: f(b.height), shape: 'rectangle', label: b.label, role: 'labelled-mark' })
+  })
+  // Line series points become small marker boxes so line-only charts are
+  // still measured (whitespace/legibility care about node area).
+  positioned.lines.forEach((ln, li) => {
+    ln.points.forEach((p, pi) => {
+      nodes.push({ id: `line#${li}:pt#${pi}`, x: f(p.x - 3), y: f(p.y - 3), w: f(6), h: f(6), shape: 'circle', label: p.label, role: p.label ? 'labelled-mark' : 'mark' })
     })
-    // Line series points become small marker boxes so line-only charts are
-    // still measured (whitespace/legibility care about node area).
-    positioned.lines.forEach((ln, li) => {
-      ln.points.forEach((p, pi) => {
-        nodes.push({ id: `line#${li}:pt#${pi}`, x: f(p.x - 3), y: f(p.y - 3), w: f(6), h: f(6), shape: 'circle', label: p.label, role: p.label ? 'labelled-mark' : 'mark' })
-      })
-    })
-    // Plot area is the single group (the chart's content frame).
-    const groups: RenderedLayoutGroup[] = [{
-      id: 'plot', x: f(positioned.plotArea.x), y: f(positioned.plotArea.y),
-      w: f(positioned.plotArea.width), h: f(positioned.plotArea.height), members: nodes
-        .filter(node => node.x + node.w / 2 >= positioned.plotArea.x && node.x + node.w / 2 <= positioned.plotArea.x + positioned.plotArea.width &&
-          node.y + node.h / 2 >= positioned.plotArea.y && node.y + node.h / 2 <= positioned.plotArea.y + positioned.plotArea.height)
-        .map(node => node.id),
-    }]
-    const layout: RenderedLayout = { version: 1, kind: d.kind, nodes, edges: [], groups, bounds: { w: f(positioned.width), h: f(positioned.height) } }
-    if (opts.debug) layout.certificates = elementCertificates('xychart', layout, 'plot-contained', groups[0], 'center')
-    return layout
-  } catch { return emptyRenderedLayout(d.kind) }
-}
-
-function xychartForRenderedLayout(d: ValidDiagram): XYChart {
-  const normalized = normalizeMermaidSource(d.canonicalSource)
-  if (d.body.kind === 'xychart') return xychartFromBody(d.body, normalized.frontmatter)
-  return applyXYChartFrontmatterConfig(parseXYChart(normalized.lines), normalized.frontmatter)
-}
-
-function xychartFromBody(body: XyChartBody, frontmatter: ReturnType<typeof normalizeMermaidSource>['frontmatter']): XYChart {
-  const series = body.series.map((s): XYChart['series'][number] => ({
-    type: s.kind,
-    label: s.name,
-    data: [...s.values],
-  }))
-  const yAxis = xyAxisFromBody(body.yAxis)
-  if (!yAxis.range && series.length > 0) {
-    const allValues = series.flatMap(s => s.data)
-    let min = Math.min(...allValues)
-    let max = Math.max(...allValues)
-    const span = max - min || 1
-    min = min - span * 0.1
-    max = max + span * 0.1
-    if (min > 0 && min < span * 0.5) min = 0
-    yAxis.range = { min, max }
-  }
-  if (!yAxis.range) yAxis.range = { min: 0, max: 100 }
-
-  const chart: XYChart = {
-    horizontal: body.horizontal ?? false,
-    xAxis: xyAxisFromBody(body.xAxis),
-    yAxis,
-    series,
-    config: resolveXYChartConfig({}),
-    theme: resolveXYChartTheme({}),
-  }
-  if (body.title !== undefined) chart.title = body.title
-  if (body.horizontal !== undefined) chart.headerOrientation = body.horizontal ? 'horizontal' : 'vertical'
-  return applyXYChartFrontmatterConfig(chart, frontmatter)
-}
-
-function xyAxisFromBody(axis: XyChartBody['xAxis']): XYAxis {
-  const out: XYAxis = {}
-  if (!axis) return out
-  if (axis.name !== undefined) out.title = axis.name
-  if (axis.categories) out.categories = [...axis.categories]
-  if (axis.range) out.range = { ...axis.range }
-  return out
+  })
+  // Plot area is the single group (the chart's content frame).
+  const groups: RenderedLayoutGroup[] = [{
+    id: 'plot', x: f(positioned.plotArea.x), y: f(positioned.plotArea.y),
+    w: f(positioned.plotArea.width), h: f(positioned.plotArea.height), members: nodes
+      .filter(node => node.x + node.w / 2 >= positioned.plotArea.x && node.x + node.w / 2 <= positioned.plotArea.x + positioned.plotArea.width &&
+        node.y + node.h / 2 >= positioned.plotArea.y && node.y + node.h / 2 <= positioned.plotArea.y + positioned.plotArea.height)
+      .map(node => node.id),
+  }]
+  const layout: FamilyPositionedView = { version: 1, nodes, edges: [], groups, bounds: { w: f(positioned.width), h: f(positioned.height) } }
+  if (options.debug) layout.certificates = elementCertificates('xychart', layout, 'plot-contained', groups[0], 'center')
+  return layout
 }
 
 // ---- pie ------------------------------------------------------------------
 
-function pieToRendered(d: ValidDiagram, opts: { debug?: boolean } = {}): RenderedLayout {
-  try {
-    // Same visual config the render hook resolves, so verify.layout stays
-    // truthful under legendPosition / donutHole config.
-    const visual = resolvePieVisualConfig(normalizeMermaidSource(d.canonicalSource).frontmatter)
-    const positioned = layoutPieChart(pieChartForRenderedLayout(d), {}, visual)
-    // Pie has no structural nodes/edges — the slices are angular wedges. Use
-    // each slice's legend row as a label-anchored box (legend swatch top-left,
-    // approximate width from label length at the legend font baseline). This
-    // gives the metrics a positive node area + legible labels to measure.
-    const CHAR_PX = 7
-    const nodes: RenderedLayoutNode[] = positioned.legend.map((l, i) => {
-      const labelText = `${l.label} (${formatPiePercent(l.fraction)})`
-      const w = Math.max(l.swatchSize, labelText.length * CHAR_PX + l.swatchSize)
-      return { id: `slice#${i}:${l.label}`, x: f(l.x), y: f(l.y), w: f(w), h: f(l.swatchSize), shape: 'rectangle', label: labelText }
-    })
-    const layout: RenderedLayout = { version: 1, kind: d.kind, nodes, edges: [], groups: [], bounds: { w: f(positioned.width), h: f(positioned.height) } }
-    if (opts.debug) layout.certificates = elementCertificates('pie', layout, 'legend-contained')
-    return layout
-  } catch { return emptyRenderedLayout(d.kind) }
-}
-
-function pieChartForRenderedLayout(d: ValidDiagram): PieChart {
-  if (d.body.kind === 'pie') return pieChartFromBody(d.body)
-  return parsePieChart(toMermaidLines(d.canonicalSource))
-}
-
-function pieChartFromBody(body: PieBody): PieChart {
-  const chart: PieChart = {
-    showData: body.showData,
-    entries: body.slices.map(s => ({ label: s.label, value: s.value })),
-  }
-  if (body.title !== undefined) chart.title = body.title
-  return chart
+export function projectPiePositioned(
+  { positioned, options }: FamilyPositionedProjectionContext<PositionedPieChart>,
+): FamilyPositionedView {
+  // Pie has no structural nodes/edges — the slices are angular wedges. Use
+  // each slice's legend row as a label-anchored box (legend swatch top-left,
+  // approximate width from label length at the legend font baseline). This
+  // gives the metrics a positive node area + legible labels to measure.
+  const CHAR_PX = 7
+  const nodes: RenderedLayoutNode[] = positioned.legend.map((l, i) => {
+    const labelText = `${l.label} (${formatPiePercent(l.fraction)})`
+    const w = Math.max(l.swatchSize, labelText.length * CHAR_PX + l.swatchSize)
+    return { id: `slice#${i}:${l.label}`, x: f(l.x), y: f(l.y), w: f(w), h: f(l.swatchSize), shape: 'rectangle', label: labelText }
+  })
+  const layout: FamilyPositionedView = { version: 1, nodes, edges: [], groups: [], bounds: { w: f(positioned.width), h: f(positioned.height) } }
+  if (options.debug) layout.certificates = elementCertificates('pie', layout, 'legend-contained')
+  return layout
 }
 
 // ---- gantt ------------------------------------------------------------------
 
-function ganttToRendered(d: ValidDiagram, opts: { debug?: boolean } = {}): RenderedLayout {
-  try {
-    const positioned = ganttPositionedForRenderedLayout(d)
-    // Bars and milestones are the nodes; section bands are the groups. Verts
-    // and ticks are markers, not boxes — they carry no node area. Milestones
-    // report the diamond's true bounding box; the zero-width floor on bars is
-    // pulled back inside the plot so a range-edge task never fakes a breach.
-    const plotRight = positioned.plot.x + positioned.plot.w
-    const nodes: RenderedLayoutNode[] = positioned.bars.map(b => {
-      const id = b.id ?? `task#${b.taskIndex}`
-      if (b.milestoneX !== undefined) {
-        const r = b.h / 2
-        return { id, x: f(b.milestoneX - r), y: f(b.y), w: f(b.h), h: f(b.h), shape: 'diamond', label: b.label }
-      }
-      const w = Math.max(2, b.w)
-      const x = Math.min(b.x, plotRight - w)
-      return { id, x: f(x), y: f(b.y), w: f(w), h: f(b.h), shape: 'rectangle', label: b.label }
-    })
-    const groups: RenderedLayoutGroup[] = positioned.sections.map((s, i) => ({
-      id: `section#${i}`, x: f(positioned.plot.x), y: f(s.y), w: f(positioned.plot.w), h: f(s.h),
-      members: positioned.bars.filter(b => b.sectionIndex === i).map(b => b.id ?? `task#${b.taskIndex}`),
-      label: s.label,
-    }))
-    const layout: RenderedLayout = { version: 1, kind: d.kind, nodes, edges: [], groups, bounds: { w: f(positioned.width), h: f(positioned.height) } }
-    if (opts.debug) layout.certificates = elementCertificates('gantt', layout, 'section-contained')
-    return layout
-  } catch { return emptyRenderedLayout(d.kind) }
-}
-
-function ganttPositionedForRenderedLayout(d: ValidDiagram): GanttLayoutResult {
-  const normalized = normalizeMermaidSource(d.canonicalSource)
-  if (d.body.kind === 'gantt') {
-    const model = ganttModelFromBody(d.body)
-    if (model) {
-      const configured = applyGanttFrontmatterConfig(model, normalized.frontmatter)
-      const schedule = resolveGanttSchedule(configured)
-      return layoutGantt(configured, schedule, { today: schedule.today })
+export function projectGanttPositioned(
+  { positioned, options }: FamilyPositionedProjectionContext<GanttLayoutResult>,
+): FamilyPositionedView {
+  // Bars and milestones are the nodes; section bands are the groups. Verts
+  // and ticks are markers, not boxes — they carry no node area. Milestones
+  // report the diamond's true bounding box; the zero-width floor on bars is
+  // pulled back inside the plot so a range-edge task never fakes a breach.
+  const plotRight = positioned.plot.x + positioned.plot.w
+  const nodes: RenderedLayoutNode[] = positioned.bars.map(b => {
+    const id = b.id ?? `task#${b.taskIndex}`
+    if (b.milestoneX !== undefined) {
+      const r = b.h / 2
+      return { id, x: f(b.milestoneX - r), y: f(b.y), w: f(b.h), h: f(b.h), shape: 'diamond', label: b.label }
     }
-  }
-  return buildGanttRenderPipeline(normalized.lines, normalized.frontmatter).positioned
-}
-
-function ganttModelFromBody(body: GanttBody): GanttModel | null {
-  if (body.statements?.some(st => st.kind === 'opaque-block')) return null
-  const sections: GanttModelSection[] = body.sections.map((s, index) => {
-    const section: GanttModelSection = { taskIndexes: [], line: index + 1 }
-    if (s.label !== undefined) section.label = s.label
-    return section
+    const w = Math.max(2, b.w)
+    const x = Math.min(b.x, plotRight - w)
+    return { id, x: f(x), y: f(b.y), w: f(w), h: f(b.h), shape: 'rectangle', label: b.label }
   })
-  const model: GanttModel = {
-    dateFormat: 'YYYY-MM-DD',
-    inclusiveEndDates: false,
-    topAxis: false,
-    excludes: [],
-    includes: [],
-    weekendStart: 'saturday',
-    weekStart: 'sunday',
-    sections: sections.length > 0 ? sections : [{ taskIndexes: [] }],
-    tasks: [],
-    clicks: [],
-  }
-  if (body.title !== undefined) model.title = body.title
-
-  for (let sectionIndex = 0; sectionIndex < body.sections.length; sectionIndex++) {
-    const section = body.sections[sectionIndex]!
-    const modelSection = model.sections[sectionIndex]!
-    for (const task of section.tasks) {
-      const taskIndex = model.tasks.length
-      const modelTask: GanttModelTask = {
-        index: taskIndex,
-        label: task.label,
-        tags: [...task.tags] as GanttTaskTag[],
-        end: ganttEndExpr(task.end),
-        sectionIndex,
-        line: taskIndex + 1,
-      }
-      if (task.taskId !== undefined) modelTask.id = task.taskId
-      if (task.start !== undefined) modelTask.start = ganttStartExpr(task.start)
-      model.tasks.push(modelTask)
-      modelSection.taskIndexes.push(taskIndex)
-    }
-  }
-  return model
-}
-
-function ganttStartExpr(raw: string): GanttStartExpr {
-  const after = raw.match(/^after\s+(.+)$/)
-  if (after) return { kind: 'after', refs: after[1]!.split(/\s+/).filter(Boolean) }
-  return { kind: 'date', raw }
-}
-
-function ganttEndExpr(raw: string): GanttEndExpr {
-  const until = raw.match(/^until\s+(.+)$/)
-  if (until) return { kind: 'until', refs: until[1]!.split(/\s+/).filter(Boolean) }
-  if (GANTT_DURATION_RE.test(raw)) return { kind: 'duration', raw }
-  return { kind: 'date', raw }
+  const groups: RenderedLayoutGroup[] = positioned.sections.map((s, i) => ({
+    id: `section#${i}`, x: f(positioned.plot.x), y: f(s.y), w: f(positioned.plot.w), h: f(s.h),
+    members: positioned.bars.filter(b => b.sectionIndex === i).map(b => b.id ?? `task#${b.taskIndex}`),
+    label: s.label,
+  }))
+  const layout: FamilyPositionedView = { version: 1, nodes, edges: [], groups, bounds: { w: f(positioned.width), h: f(positioned.height) } }
+  if (options.debug) layout.certificates = elementCertificates('gantt', layout, 'section-contained')
+  return layout
 }
 
 /**
@@ -950,50 +909,21 @@ export function ganttGeometryWarnings(layout: RenderedLayout): LayoutWarning[] {
 
 // ---- quadrant -------------------------------------------------------------
 
-function quadrantToRendered(d: ValidDiagram, opts: { debug?: boolean } = {}): RenderedLayout {
-  try {
-    // Same wired config the render path resolves (chart size, point radius),
-    // so verify's layout matches what actually renders.
-    const visual = resolveQuadrantVisualConfig(d.meta.frontmatter as MermaidFrontmatterMap)
-    const positioned = layoutQuadrantChart(quadrantChartForRenderedLayout(d), {}, visual)
-    const nodes: RenderedLayoutNode[] = positioned.points.map((p, i) => ({
-      id: `point#${i}:${p.label}`, x: f(p.cx - p.radius), y: f(p.cy - p.radius),
-      w: f(p.radius * 2), h: f(p.radius * 2), shape: 'circle', label: p.label, role: 'labelled-mark' as const,
-    }))
-    const groups: RenderedLayoutGroup[] = positioned.regions.map(r => ({
-      id: `quadrant#${r.number}`, x: f(r.x), y: f(r.y), w: f(r.width), h: f(r.height),
-      members: positioned.points.map((point, index) => ({ point, index })).filter(({ point }) =>
-        r.number === (point.nx >= 0.5 ? (point.ny >= 0.5 ? 1 : 4) : (point.ny >= 0.5 ? 2 : 3)))
-        .map(({ point, index }) => `point#${index}:${point.label}`),
-      label: r.label,
-    }))
-    const layout: RenderedLayout = { version: 1, kind: d.kind, nodes, edges: [], groups, bounds: { w: f(positioned.width), h: f(positioned.height) } }
-    if (opts.debug) layout.certificates = elementCertificates('quadrant', layout, 'plot-contained')
-    return layout
-  } catch { return emptyRenderedLayout(d.kind) }
-}
-
-function quadrantChartForRenderedLayout(d: ValidDiagram): QuadrantChart {
-  if (d.body.kind === 'quadrant') return quadrantChartFromBody(d.body)
-  return parseQuadrantChart(toMermaidLines(d.canonicalSource))
-}
-
-function quadrantChartFromBody(body: QuadrantBody): QuadrantChart {
-  const chart: QuadrantChart = {
-    quadrants: [...body.quadrants] as QuadrantChart['quadrants'],
-    // Styles carry through so the verify layout sees resolved radii.
-    points: body.points.map(p => {
-      const point: QuadrantChart['points'][number] = { label: p.label, x: p.x, y: p.y }
-      if (p.className !== undefined) point.className = p.className
-      if (p.style !== undefined) point.style = { ...p.style }
-      return point
-    }),
-    classDefs: Object.fromEntries(
-      Object.entries(body.classDefs ?? {}).map(([name, style]) => [name, { ...style }]),
-    ),
-  }
-  if (body.title !== undefined) chart.title = body.title
-  if (body.xAxis) chart.xAxis = { ...body.xAxis }
-  if (body.yAxis) chart.yAxis = { ...body.yAxis }
-  return chart
+export function projectQuadrantPositioned(
+  { positioned, options }: FamilyPositionedProjectionContext<PositionedQuadrantChart>,
+): FamilyPositionedView {
+  const nodes: RenderedLayoutNode[] = positioned.points.map((p, i) => ({
+    id: `point#${i}:${p.label}`, x: f(p.cx - p.radius), y: f(p.cy - p.radius),
+    w: f(p.radius * 2), h: f(p.radius * 2), shape: 'circle', label: p.label, role: 'labelled-mark' as const,
+  }))
+  const groups: RenderedLayoutGroup[] = positioned.regions.map(r => ({
+    id: `quadrant#${r.number}`, x: f(r.x), y: f(r.y), w: f(r.width), h: f(r.height),
+    members: positioned.points.map((point, index) => ({ point, index })).filter(({ point }) =>
+      r.number === (point.nx >= 0.5 ? (point.ny >= 0.5 ? 1 : 4) : (point.ny >= 0.5 ? 2 : 3)))
+      .map(({ point, index }) => `point#${index}:${point.label}`),
+    label: r.label,
+  }))
+  const layout: FamilyPositionedView = { version: 1, nodes, edges: [], groups, bounds: { w: f(positioned.width), h: f(positioned.height) } }
+  if (options.debug) layout.certificates = elementCertificates('quadrant', layout, 'plot-contained')
+  return layout
 }

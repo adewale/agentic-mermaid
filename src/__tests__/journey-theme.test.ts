@@ -75,7 +75,7 @@ journey
   })
 
   it('uses Agentic palette/style colors for Journey-specific channels', () => {
-    const svg = renderMermaidSVG(source, { style: 'tufte' })
+    const svg = renderMermaidSVG(source, { style: 'look:tufte' })
 
     expect(svg).toContain('--accent:#a00000')
     expect(svg).not.toContain('#facc15')

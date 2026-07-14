@@ -153,6 +153,46 @@
   border: 2px solid var(--paper);
 }
 
+.advanced-options-section { gap: 0.45rem; }
+.advanced-options-label,
+.advanced-options-schema,
+.advanced-options-status {
+  display: block;
+  margin: 0;
+  color: var(--fg2);
+  font-size: var(--t-caption);
+  line-height: 1.4;
+}
+.advanced-options-input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 9rem;
+  resize: vertical;
+  padding: 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--control-bg);
+  color: var(--fg);
+  font: 0.72rem/1.45 var(--font-mono);
+  tab-size: 2;
+}
+.advanced-options-input:focus { border-color: var(--accent); outline: none; }
+.advanced-options-input[aria-invalid="true"] { border-color: var(--danger, #b42318); }
+.advanced-options-status.is-error { color: var(--danger, #b42318); }
+.advanced-options-status.is-ok { color: var(--success, #16794b); }
+.advanced-options-apply {
+  min-height: 34px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--control-bg);
+  color: var(--fg);
+  font: inherit;
+  font-size: var(--t-label);
+  font-weight: 600;
+  cursor: pointer;
+}
+.advanced-options-apply:hover { background: var(--control-bg-hover); }
+
 /* Reset overrides back to the active theme. Sits at the foot of the panel
    (margin-top:auto) so it claims the otherwise-empty space below the sections. */
 .config-footer {

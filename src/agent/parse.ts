@@ -7,71 +7,321 @@
 // than silently dropping the unrecognized construct.
 // ============================================================================
 
-import { normalizeMermaidSource, detectLooseDiagramTypeFromFirstLine } from '../mermaid-source.ts'
-import { getFamily } from './families.ts'
-import './families-builtin.ts'  // registers built-in family parse/serialize/mutate hooks
+import { normalizeMermaidSource } from '../mermaid-source.ts'
+import { decodeXML } from 'entities'
+import { isBuiltinFamilyId } from './families.ts'
+import {
+  classifyMermaidFamilyDescriptorFromFirstLine,
+  familyDetectionDiagnostic,
+  familyDetectionDiagnosticFromPreservedBody,
+} from '../family-detection.ts'
 import { serializeMermaid } from './serialize.ts'
+import { UPSTREAM_MERMAID_FAMILY_INDEX } from '../upstream-family-index.ts'
+import { attachAccessibilityToBody } from './accessibility-envelope.ts'
 import type {
-  ValidDiagram, ParseError, Result, DiagramKind, ValidDiagramMeta,
-  SourceMap, InitDirective, SourceComment,
+  ValidDiagram, ParsedDiagram, ExtensionValidDiagram, PreservedValidDiagram, ParseError, Result, ValidDiagramMeta,
+  SourceMap, SourceComment,
 } from './types.ts'
 import { ok, err } from './types.ts'
+import { assertJsonConfigAdmission } from '../shared/json-config-admission.ts'
 
 // Re-exports for callers/tests that used the previous in-tree parser homes.
 export { parseSequenceBody } from './sequence-body.ts'
 export { parseTimelineBody } from './timeline-body.ts'
 
-const FRONTMATTER_REGEX = /^﻿?\s*---\s*\r?\n([\s\S]*?)\r?\n\s*---\s*(?:\r?\n|$)/
-const INIT_DIRECTIVE_REGEX = /^\s*%%\{\s*(?:init|initialize)\s*:\s*([\s\S]*?)\}\s*%%\s*(?:\r?\n|$)?/gm
 const COMMENT_LINE_REGEX = /^\s*%%(?!\{)\s*(.*)$/
-const ACC_TITLE_REGEX = /^\s*accTitle\s*:\s*(.+)$/i
-const ACC_DESCR_INLINE_REGEX = /^\s*accDescr\s*:\s*(.+)$/i
-const ACC_DESCR_BLOCK_START = /^\s*accDescr\s*\{\s*$/i
 
+/** Copy descriptor-owned JSON into a core-owned graph without invoking
+ * accessors during the copy. Shared references remain shared; the admission
+ * pass rejects cycles before the snapshot is published. */
+function snapshotExtensionJson(value: unknown): unknown {
+  const clones = new WeakMap<object, object>()
+  const clone = (candidate: unknown): unknown => {
+    if (candidate === null || typeof candidate !== 'object') return candidate
+    const existing = clones.get(candidate)
+    if (existing) return existing
+
+    if (Array.isArray(candidate)) {
+      const output: unknown[] = new Array(candidate.length)
+      clones.set(candidate, output)
+      const descriptors = Object.getOwnPropertyDescriptors(candidate)
+      for (const key of Reflect.ownKeys(candidate)) {
+        if (key === 'length') continue
+        if (typeof key !== 'string' || !/^(?:0|[1-9]\d*)$/.test(key) || Number(key) >= candidate.length) {
+          throw new TypeError('extension data arrays must not define custom properties')
+        }
+      }
+      for (let index = 0; index < candidate.length; index++) {
+        const descriptor = descriptors[String(index)]
+        if (!descriptor || !('value' in descriptor) || !descriptor.enumerable) {
+          throw new TypeError('extension data arrays must contain only enumerable data properties')
+        }
+        output[index] = clone(descriptor.value)
+      }
+      return output
+    }
+
+    const output: Record<string, unknown> = {}
+    clones.set(candidate, output)
+    const descriptors = Object.getOwnPropertyDescriptors(candidate)
+    for (const key of Reflect.ownKeys(candidate)) {
+      if (typeof key !== 'string') throw new TypeError('extension data must not contain symbol keys')
+      const descriptor = descriptors[key]
+      if (!descriptor || !('value' in descriptor) || !descriptor.enumerable) {
+        throw new TypeError('extension data objects must contain only enumerable data properties')
+      }
+      Object.defineProperty(output, key, {
+        value: clone(descriptor.value),
+        enumerable: true,
+        configurable: true,
+        writable: true,
+      })
+    }
+    return output
+  }
+
+  const snapshot = clone(value)
+  // Re-admit the exact graph we will publish. This also catches a cycle copied
+  // through a shared reference and keeps the snapshot helper subordinate to
+  // the one public JSON admission authority.
+  assertJsonConfigAdmission(snapshot, 'Extension family parse body.data snapshot')
+  const freeze = (candidate: unknown, seen = new WeakSet<object>()): void => {
+    if (candidate === null || typeof candidate !== 'object' || seen.has(candidate)) return
+    seen.add(candidate)
+    for (const descriptor of Object.values(Object.getOwnPropertyDescriptors(candidate))) {
+      if ('value' in descriptor) freeze(descriptor.value, seen)
+    }
+    Object.freeze(candidate)
+  }
+  freeze(snapshot)
+  return snapshot
+}
+
+function admittedExtensionData(value: unknown, family: string): unknown {
+  assertJsonConfigAdmission(value, `Family "${family}" parse body.data`)
+  return snapshotExtensionJson(value)
+}
+
+/** Backward-compatible built-in parser. Use parseRegisteredMermaid for open family ids. */
 export function parseMermaid(source: string): Result<ValidDiagram, ParseError[]> {
+  const parsed = parseRegisteredMermaid(source)
+  if (!parsed.ok) return err(parsed.error)
+  if (isBuiltinParsedDiagram(parsed.value)) return ok(parsed.value)
+  if (parsed.value.body.kind === 'preserved') {
+    const diagnostic = familyDetectionDiagnosticFromPreservedBody(parsed.value.body)
+    return err([diagnostic])
+  }
+  return err([{
+    code: 'EXTENSION_PARSE_REQUIRES_OPEN_ENVELOPE',
+    message: `Installed family "${parsed.value.kind}" parsed successfully through its descriptor, but this compatibility entrypoint returns built-in bodies only`,
+    line: 1,
+    preservation: {
+      version: 1,
+      classification: 'unsupported',
+      source,
+      header: parsed.value.canonicalSource.split(/\r?\n/, 1)[0] ?? '',
+      upstreamFamilyId: parsed.value.kind,
+      mermaidVersion: UPSTREAM_MERMAID_FAMILY_INDEX.provenance.version,
+    },
+    help: 'Call parseRegisteredMermaid to receive the namespaced extension body envelope.',
+  }])
+}
+
+function isBuiltinParsedDiagram(diagram: ParsedDiagram): diagram is ValidDiagram {
+  return isBuiltinFamilyId(diagram.kind)
+}
+
+function semanticFamilyLineSource(
+  source: string,
+  familyLineBoundary: number,
+): { readonly source: string; readonly authoredHeader: string } {
+  const lineStart = Math.max(0, Math.min(source.length, familyLineBoundary))
+  const newline = source.indexOf('\n', lineStart)
+  const physicalEnd = newline < 0 ? source.length : newline
+  const lineEnd = source.charCodeAt(physicalEnd - 1) === 13 ? physicalEnd - 1 : physicalEnd
+  const line = source.slice(lineStart, lineEnd)
+  const authoredHeader = line.trim()
+  if (!authoredHeader) return { source, authoredHeader }
+  const relativeStart = line.indexOf(authoredHeader)
+  const headerStart = lineStart + relativeStart
+  const headerEnd = headerStart + authoredHeader.length
+  const semanticHeader = decodeXML(authoredHeader)
+  return {
+    source: semanticHeader === authoredHeader
+      ? source
+      : `${source.slice(0, headerStart)}${semanticHeader}${source.slice(headerEnd)}`,
+    authoredHeader,
+  }
+}
+
+/** Descriptor-dispatched parser with a forward-compatible extension envelope. */
+export function parseRegisteredMermaid(source: string): Result<ParsedDiagram, ParseError[]> {
   const errors: ParseError[] = []
   // Normalize once and reuse its frontmatter in extractMeta, rather than
   // re-running the full preprocess a second time just for frontmatter.
-  const normalized = normalizeMermaidSource(source)
-  const meta = extractMeta(source, normalized.frontmatter)
-  const canonicalSource = normalized.text
+  const authoredEnvelope = normalizeMermaidSource(source)
+  const familyLineBoundary = authoredEnvelope.wrapperSource?.length ?? 0
+  const familyLine = semanticFamilyLineSource(source, familyLineBoundary)
+  const normalizedSemanticSource = familyLine.source === source
+    ? authoredEnvelope
+    : normalizeMermaidSource(familyLine.source)
+  const semanticHeader = normalizedSemanticSource.lines[0] ?? normalizedSemanticSource.firstLine
+  // Public parsing historically preserves entities in labels, titles and
+  // accessibility text. Decode only the family line needed for routing and
+  // grammar selection; the render waist decodes the complete serialized
+  // source later. This gives `flowchart&#32;LR` parse/render parity without
+  // silently changing the parse/serialize data contract for diagram content.
+  const normalized = normalizedSemanticSource === authoredEnvelope
+    ? authoredEnvelope
+    : {
+        ...normalizedSemanticSource,
+        originalText: source,
+        ...(authoredEnvelope.wrapperSource !== undefined
+          ? { wrapperSource: authoredEnvelope.wrapperSource }
+          : { wrapperSource: undefined }),
+      }
+  const meta = extractMeta(authoredEnvelope)
+  const canonicalSource = authoredEnvelope.text
   // For opaque bodies, preserve original indentation/blank lines so the
   // serializer can re-emit the untouched body. canonicalSource at the
   // ValidDiagram level remains the normalized (line-trimmed) form for
   // back-compat with the existing flowchart/legacy paths.
-  const opaqueSource = normalized.body
+  const opaqueSource = authoredEnvelope.body
 
   if (normalized.lines.length === 0) {
     errors.push({ code: 'EMPTY', message: 'Empty diagram' })
     return err(errors)
   }
 
-  const header = normalized.lines[0]!.toLowerCase()
-  const kind = detectKind(header)
-  if (!kind) {
-    errors.push({ code: 'UNKNOWN_HEADER', message: `Unrecognized header: "${normalized.lines[0]}"`, line: 1 })
-    return err(errors)
+  const header = semanticHeader
+  const detection = classifyMermaidFamilyDescriptorFromFirstLine(header, 'loose')
+  if (detection.kind !== 'registered') {
+    const diagnostic = familyDetectionDiagnostic(
+      detection,
+      source,
+      familyLineBoundary,
+      familyLine.authoredHeader,
+    )
+    const preservation = diagnostic.preservation
+    const kind = (detection.kind === 'upstream'
+      ? `family:upstream/${detection.match.family.id}`
+      : 'family:unknown') as import('./types.ts').ExternalFamilyId
+    const diagram: PreservedValidDiagram = {
+      kind,
+      meta,
+      body: {
+        kind: 'preserved',
+        representation: preservation.classification === 'unknown' ? 'unknown' : 'opaque',
+        source,
+        preservation,
+        spans: preservation.spans!,
+        diagnostic: {
+          code: diagnostic.code,
+          message: diagnostic.message,
+          help: diagnostic.help,
+        },
+      },
+      source: emptySourceMap(),
+      canonicalSource,
+    }
+    return ok(diagram)
   }
+  const plugin = detection.family
+  const kind = plugin.id
 
-  // BUILD-3: every family dispatches through its FamilyPlugin.parse hook —
+  // BUILD-3: every family dispatches through its FamilyDescriptor.parse hook —
   // structured-or-opaque for the narrow families, error semantics for
   // flowchart/state. Families without a hook stay source-level.
-  const plugin = getFamily(kind)
-  if (plugin?.parse) {
-    const parsed = plugin.parse(normalized.lines, opaqueSource, meta, canonicalSource)
+  if (plugin.parse) {
+    const parsed = plugin.parse({
+      source: normalized,
+      lines: normalized.familyLines,
+      envelopeLines: normalized.lines,
+      opaqueSource,
+      meta,
+      canonicalSource,
+    })
     if (!parsed.ok) {
       errors.push(...parsed.error)
       return err(errors)
     }
+    if (parsed.value.kind === 'preserved') {
+      return err([{
+        code: 'FAMILY_DESCRIPTOR_CONTRACT',
+        message: `Registered family "${kind}" cannot return a core preserved-family envelope`,
+        line: 1,
+      }])
+    }
+    if (!isBuiltinFamilyId(kind)) {
+      if (parsed.value.kind !== 'extension' || parsed.value.family !== kind) {
+        return err([{
+          code: 'FAMILY_DESCRIPTOR_CONTRACT',
+          message: `Family "${kind}" parse hook must return an extension body for the same family`,
+          line: 1,
+        }])
+      }
+      let data: unknown
+      if (parsed.value.data !== undefined) {
+        try {
+          data = admittedExtensionData(parsed.value.data, kind)
+        } catch (error) {
+          const reason = error instanceof Error ? error.message : String(error)
+          return err([{
+            code: 'FAMILY_DESCRIPTOR_CONTRACT',
+            message: `Family "${kind}" parse hook returned invalid body.data: ${reason}`,
+            line: 1,
+          }])
+        }
+      }
+      const diagram: ExtensionValidDiagram = {
+        kind,
+        descriptorIdentity: plugin.identity,
+        meta,
+        // Exact authored post-wrapper source is core-owned. A descriptor may
+        // attach opaque structured data, but cannot silently weaken the
+        // source-preservation contract by returning a lossy source field.
+        body: Object.freeze({
+          kind: 'extension',
+          family: kind,
+          source: opaqueSource,
+          ...(data === undefined ? {} : { data }),
+        }),
+        source: emptySourceMap(),
+        canonicalSource,
+      }
+      return ok(diagram)
+    }
+    if (parsed.value.kind === 'extension') {
+      return err([{
+        code: 'FAMILY_DESCRIPTOR_CONTRACT',
+        message: `Built-in family "${kind}" cannot return an extension body`,
+        line: 1,
+      }])
+    }
+    attachUniversalAccessibility(parsed.value, meta)
     const sourceMap = plugin.buildSourceMap?.(parsed.value, canonicalSource) ?? emptySourceMap()
     const diagram: ValidDiagram = { kind, meta, body: parsed.value, source: sourceMap, canonicalSource }
     markDroppedComments(diagram, normalized.body)
     return ok(diagram)
   }
 
-  return ok<ValidDiagram>({
-    kind, meta, body: { kind: 'opaque', family: kind, source: opaqueSource }, source: emptySourceMap(), canonicalSource,
+  if (isBuiltinFamilyId(kind)) {
+    return ok<ParsedDiagram>({
+      kind, meta, body: { kind: 'opaque', family: kind, source: opaqueSource }, source: emptySourceMap(), canonicalSource,
+    })
+  }
+  return ok<ParsedDiagram>({
+    kind,
+    descriptorIdentity: plugin.identity,
+    meta,
+    body: { kind: 'extension', family: kind, source: opaqueSource },
+    source: emptySourceMap(),
+    canonicalSource,
   })
+}
+
+function attachUniversalAccessibility(body: import('./types.ts').DiagramBody, meta: ValidDiagramMeta): void {
+  attachAccessibilityToBody(body, meta.accessibility)
 }
 
 /**
@@ -125,99 +375,23 @@ function longestCommonSubsequenceIndices(a: string[], b: string[]): number[] {
   return indices
 }
 
-// ---- Family detection ----------------------------------------------------
-// Use the shared renderer detector for routed families; the agent layer only
-// splits state diagrams out from the renderer's flowchart route because state
-// and flowchart share the same legacy graph body but remain distinct families.
-
-function detectKind(header: string): DiagramKind | null {
-  if (/^statediagram(?:-v2)?\s*$/i.test(header)) return 'state'
-  const routed = detectLooseDiagramTypeFromFirstLine(header)
-  if (!routed) return null
-  return routed
-}
-
 // ---- Meta extraction -----------------------------------------------------
 
-function extractMeta(rawSource: string, frontmatter?: Record<string, unknown>): ValidDiagramMeta {
-  const meta: ValidDiagramMeta = { initDirectives: [], comments: [], accessibility: {} }
-
-  const wrapperSource = extractWrapperSource(rawSource)
-  if (wrapperSource !== undefined) meta.wrapperSource = wrapperSource
-
-  if (frontmatter && Object.keys(frontmatter).length > 0) {
-    meta.frontmatter = frontmatter as ValidDiagramMeta['frontmatter']
-  }
-
-  const directiveRegex = new RegExp(INIT_DIRECTIVE_REGEX.source, 'gm')
-  let m: RegExpExecArray | null
-  while ((m = directiveRegex.exec(rawSource)) !== null) {
-    meta.initDirectives.push({ raw: m[0], parsed: tryParseInitObject((m[1] ?? '').trim()) as InitDirective['parsed'] })
-  }
-
-  const stripped = rawSource
-    .replace(FRONTMATTER_REGEX, '')
-    .replace(new RegExp(INIT_DIRECTIVE_REGEX.source, 'gm'), '')
-  const lines = stripped.split(/\r?\n/)
-  let inAccDescr = false
-  let buf: string[] = []
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]!
-    if (inAccDescr) {
-      if (/^\s*\}\s*$/.test(line)) { meta.accessibility.descr = buf.join('\n').trim(); inAccDescr = false; buf = [] }
-      else buf.push(line)
-      continue
-    }
-    if (ACC_DESCR_BLOCK_START.test(line)) { inAccDescr = true; continue }
-    const at = line.match(ACC_TITLE_REGEX)
-    if (at) { meta.accessibility.title = at[1]!.trim(); continue }
-    const ad = line.match(ACC_DESCR_INLINE_REGEX)
-    if (ad) { meta.accessibility.descr = ad[1]!.trim(); continue }
-    const cm = line.match(COMMENT_LINE_REGEX)
-    if (cm) meta.comments.push({ text: cm[1]!, line: i + 1 })
-  }
-
-  return meta
-}
-
-/**
- * The leading source wrapper, byte-verbatim: an optional frontmatter block
- * followed by any run of blank lines, `%%` comments, and `%%{init}%%`
- * directives, up to (excluding) the diagram header line. This is what
- * serializeMermaid re-emits untouched by default (1C wrapper policy).
- */
-function extractWrapperSource(rawSource: string): string | undefined {
-  let pos = 0
-  const fm = rawSource.match(FRONTMATTER_REGEX)
-  if (fm) pos = fm[0].length
-  const directiveAtStart = new RegExp(INIT_DIRECTIVE_REGEX.source)
-  for (;;) {
-    const rest = rawSource.slice(pos)
-    if (rest.length === 0) break
-    const dm = rest.match(directiveAtStart)
-    if (dm && dm.index === 0 && dm[0].length > 0) { pos += dm[0].length; continue }
-    const lineEnd = rest.indexOf('\n')
-    const line = lineEnd === -1 ? rest : rest.slice(0, lineEnd)
-    if (/^\s*$/.test(line) || COMMENT_LINE_REGEX.test(line)) {
-      pos += lineEnd === -1 ? rest.length : lineEnd + 1
-      continue
-    }
-    break
-  }
-  return pos > 0 ? rawSource.slice(0, pos) : undefined
-}
-
-function tryParseInitObject(inner: string): Record<string, unknown> {
-  try { return JSON.parse(inner) as Record<string, unknown> }
-  catch {
-    try {
-      const quoted = inner.replace(/([{,]\s*)([A-Za-z_$][\w$]*)\s*:/g, '$1"$2":')
-      return JSON.parse(quoted) as Record<string, unknown>
-    } catch { return {} }
+function extractMeta(
+  normalized: ReturnType<typeof normalizeMermaidSource>,
+  authoredWrapperSource = normalized.wrapperSource,
+): ValidDiagramMeta {
+  return {
+    initDirectives: normalized.initDirectives as ValidDiagramMeta['initDirectives'],
+    comments: normalized.comments,
+    accessibility: normalized.accessibility,
+    ...(authoredWrapperSource !== undefined ? { wrapperSource: authoredWrapperSource } : {}),
+    ...(Object.keys(normalized.frontmatter).length > 0
+      ? { frontmatter: normalized.frontmatter as ValidDiagramMeta['frontmatter'] }
+      : {}),
   }
 }
 
 function emptySourceMap(): SourceMap {
   return { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() }
 }
-

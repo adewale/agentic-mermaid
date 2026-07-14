@@ -1,6 +1,105 @@
 {
-  "schemaVersion": 1,
-  "scopeAuthority": "src/agent/families.ts#BUILTIN_FAMILY_METADATA",
+  "schemaVersion": 2,
+  "scopeProjection": "src/agent/families.ts#knownFamilies",
+  "evidenceSystems": [
+    {
+      "id": "characterization",
+      "authority": "docs/layout-characterization/README.md",
+      "freshnessGate": "src/__tests__/characterization-generated-artifacts.test.ts"
+    },
+    {
+      "id": "citizenship",
+      "authority": "docs/contributing/diagram-family-citizenship.matrix.json",
+      "freshnessGate": "src/__tests__/diagram-family-citizenship.test.ts"
+    },
+    {
+      "id": "style",
+      "authority": "src/scene/style-registry.ts",
+      "freshnessGate": "src/__tests__/styled-output.test.ts"
+    },
+    {
+      "id": "backend",
+      "authority": "src/scene/backend.ts",
+      "freshnessGate": "src/__tests__/backend-capability-conformance.test.ts"
+    }
+  ],
+  "retiredAuthorities": [
+    {
+      "id": "declarative-style-backend-selection",
+      "replacement": "trusted host-only backend policy",
+      "evidence": ["src/scene/backend.ts", "src/__tests__/extension-registries.test.ts"]
+    },
+    {
+      "id": "unchecked-extension-map-overwrite",
+      "replacement": "shared ExtensionIdentity collision contracts",
+      "evidence": ["src/shared/extension-identity.ts", "src/__tests__/extension-registries.test.ts"]
+    },
+    {
+      "id": "closed-family-identity",
+      "replacement": "namespaced FamilyId descriptor registry",
+      "evidence": ["src/agent/families.ts", "src/__tests__/extension-registries.test.ts"]
+    },
+    {
+      "id": "parallel-family-header-switches",
+      "replacement": "family descriptor registry plus pinned upstream manifest",
+      "evidence": ["src/family-detection.ts", "src/__tests__/upstream-family-manifest.test.ts"]
+    },
+    {
+      "id": "png-shared-option-forwarding",
+      "replacement": "ResolvedRenderRequest shared-field waist",
+      "evidence": ["src/render-contract.ts", "src/__tests__/section-a-render-contract.test.ts"]
+    },
+    {
+      "id": "surface-specific-svg-strip-pass",
+      "replacement": "shared reject-and-verify OutputSecurityPolicy",
+      "evidence": ["src/output-security.ts", "src/__tests__/section-a-render-contract.test.ts"]
+    },
+    {
+      "id": "editor-svg-innerhtml-insertion",
+      "replacement": "strict XML parsing and node insertion",
+      "evidence": ["editor/js/rendering.js", "src/__tests__/section-a-render-contract.test.ts"]
+    },
+    {
+      "id": "manual-style-spec-schema-and-field-table",
+      "replacement": "immutable StyleSpec field descriptors with generated projections",
+      "evidence": ["src/scene/style-spec.ts", "src/__tests__/style-spec-authority.test.ts"]
+    },
+    {
+      "id": "copied-style-discovery-menus",
+      "replacement": "knownStyleDescriptors discovery projection",
+      "evidence": ["src/scene/style-registry.ts", "src/__tests__/style-spec-authority.test.ts"]
+    },
+    {
+      "id": "manual-render-option-schemas-and-doc-table",
+      "replacement": "shared RenderOptions field descriptors",
+      "evidence": ["src/render-contract.ts", "src/__tests__/render-options-authority.test.ts"]
+    },
+    {
+      "id": "manual-sdk-family-declarations",
+      "replacement": "FamilyDescriptor-generated SDK projection",
+      "evidence": ["src/mcp/sdk-decl.ts", "src/__tests__/agent-doc-sync.test.ts"]
+    },
+    {
+      "id": "independent-family-positioning-projections",
+      "replacement": "one positioned artifact with projectPositioned views",
+      "evidence": ["src/agent/families.ts", "src/__tests__/positioned-artifact-convergence.test.ts"]
+    },
+    {
+      "id": "family-local-connector-marker-xml",
+      "replacement": "typed connector terminals and marker resources",
+      "evidence": ["src/scene/ir.ts", "src/__tests__/scene-connector-contract.test.ts"]
+    },
+    {
+      "id": "dormant-positioned-additions-pipeline",
+      "replacement": "no extension seam until the Section B4 evidence gate passes",
+      "evidence": ["docs/project/brand-primitives-plan.md", "src/__tests__/positioned-artifact-convergence.test.ts"]
+    },
+    {
+      "id": "verified-path-resource-consumption",
+      "replacement": "immutable verified resource byte snapshots and truthful provenance",
+      "evidence": ["src/node-resource-resolver.ts", "src/__tests__/resource-manifest-integrity.test.ts"]
+    }
+  ],
   "contracts": [
     {
       "id": "default-svg-bytes",

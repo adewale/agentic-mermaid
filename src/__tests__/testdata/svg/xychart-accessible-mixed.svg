@@ -81,7 +81,7 @@ across two regions.</desc>
 <rect x="68.03" y="340.3" width="181.69" height="128.7" class="xychart-bar xychart-color-0" data-value="30" data-label="Q1" data-id="bar:0:Q1" data-role="bar" />
 <rect x="259.28" y="211.6" width="181.69" height="257.4" class="xychart-bar xychart-color-0" data-value="60" data-label="Q2 Growth" data-id="bar:0:Q2 Growth" data-role="bar" />
 <rect x="450.53" y="275.95" width="181.69" height="193.05" class="xychart-bar xychart-color-0" data-value="45" data-label="Q3" data-id="bar:0:Q3" data-role="bar" />
-<path d="M158.87,361.75 L350.12,233.05 L541.37,254.5" class="xychart-line xychart-color-1" data-id="series:line-0" data-role="series" />
+<path d="M158.87,361.75 L350.12,233.05 L541.37,254.5" class="xychart-line xychart-color-1" data-relationship="series" data-direction="undirected" data-id="series:line-0" data-role="series" />
 <text x="158.87" y="348.3" text-anchor="middle" dominant-baseline="hanging" font-size="16" font-weight="400" class="xychart-data-label">30</text>
 <text x="350.12" y="219.6" text-anchor="middle" dominant-baseline="hanging" font-size="16" font-weight="400" class="xychart-data-label">60</text>
 <text x="541.37" y="283.95" text-anchor="middle" dominant-baseline="hanging" font-size="16" font-weight="400" class="xychart-data-label">45</text>

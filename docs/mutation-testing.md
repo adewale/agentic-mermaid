@@ -68,9 +68,10 @@ canonical header, explicit `NORMAL`, and optional attribute whitespace),
 merge-field guards implied by the discriminated model, or widened
 statement-kind guards that serialize identically on valid replay state. Reports are generated at
 `reports/mutation/{mindmap,gitgraph}-mutation.json` (gitignored); the committed
-configs and nightly lanes make the runs reproducible. A future acceptance
-claim must cite retained CI artifacts or commit a content-addressed report; it
-must not infer the scores above from the 60% break floor.
+configs and nightly lanes make the runs reproducible. The measured scores above
+are not acceptance evidence: any separately owned acceptance claim must cite
+retained CI artifacts or a content-addressed report, never infer a score from
+the 60% break floor.
 
 ## Policy
 
@@ -88,19 +89,22 @@ documented, not killed with synthetic inputs.
 | converter.ts | 38.4% | 94 | 151 |
 | grid.ts | 70.1% | 421 | 180 |
 | layout/passes/index.ts:931-1165 (linkrank packing repair) | 49.86% → 65.07% after the geometry-characterization harvest (355 mutants; killed 176 → 230+1 timeout). The +54 kills were the repair's candidate ORDERING / ahead-node selection / push-delta arithmetic — invisible to HARD-metric assertions (a mutant picking a different clear lane still yields zero violations), pinned instead by per-repro geometry snapshots in `linkrank-packing.test.ts` (layout determinism makes them stable). | 355 | 124 — see classification below |
-| route-contracts.ts | 58.1% → 72.3% → 75.6% → 73.1% across the first three batches; 54.31% at 0b43c90, then 50.69% at 526d9cf after the slanted-family batch (shapePorts generalization, convex-polygon geometry: 2659 → 2740 mutants — absolute kills 1444 → 1381). The percentage fell purely on denominator growth (~3× since batch 3); a survivor-harvest batch is the documented next quality step. | 882 → 2740 | 50.69% (1381 killed) — survivor harvest pending |
+| route-contracts.ts | 58.1% → 72.3% → 75.6% → 73.1% across the first three batches; 54.31% at 0b43c90, then 50.69% at 526d9cf after the slanted-family batch (shapePorts generalization, convex-polygon geometry: 2659 → 2740 mutants — absolute kills 1444 → 1381). The percentage fell on denominator growth (~3× since batch 3); residuals from that run are classified below. | 882 → 2740 | 50.69% (1381 killed) — historical snapshot |
 
 (Numbers from the June 2026 runs; regenerate rather than trusting this
 table — the report lands in `reports/mutation/`.)
 
-## Survivor classification
+## Historical survivor classification
+
+This section explains the recorded run; it is not a secondary test backlog.
+Only root `TODO.md` can schedule a new fixture or survivor-harvest package.
 
 **linkrank lane residual (124 at the 65.07% run)**, classified:
 
-- **Real gap, next harvest**: the subgraph-scoped `separationUnit` branch (walk the
-  overlapped node's scope chain, push its outermost subgraph unit) never fires — the
-  degenerate repro set has no subgraphs. Killing these needs a subgraph + long-link
-  shove-overlap fixture.
+- **Unexercised branch in the recorded corpus**: the subgraph-scoped
+  `separationUnit` branch (walk the overlapped node's scope chain, push its
+  outermost subgraph unit) did not fire because the degenerate repro set had no
+  subgraphs. A subgraph + long-link shove-overlap fixture was not part of that run.
 - **Unexercised defensive fallbacks**: the `rungSource` feedback family and some
   min-lane branches fire only on inputs the deterministic enumeration no longer
   produces (0 residual signatures); every adopted route is still runtime-validated by
@@ -120,8 +124,8 @@ be preserved).
 **Accepted — performance guards, not behavior** (pathfinder): the #66
 bounded-search mutants (`next.x > boundX || next.y > boundY` weakenings,
 `maxIterations` arithmetic). They change how much work an unreachable-target
-search does before returning null, not what any reachable search returns. A
-test would need to time the search, which is flakier than the risk warrants.
+search does before returning null, not what any reachable search returns.
+Timing the search was judged less reliable than the risk warranted.
 
 **Accepted — unreachable via convention** (pathfinder): the `dy`-dominant
 fallback in `buildMoveDirs` (lines ~157–159). All nine 3×3 `Direction`
@@ -163,30 +167,29 @@ reachability verdicts, on the small graphs flowcharts produce.
 
 **Accepted — bounded-iteration guard** (route-contracts): the fixed-point
 loop's `round < 4` weakenings only change how many re-prove rounds run;
-the duplicate-edge regression pins one unblocking round, and constructing
-a graph that needs three chained rounds would be a synthetic-input test.
+the duplicate-edge regression pins one unblocking round, while three chained
+rounds were outside the recorded real-input corpus.
 
-**Open test gaps** (highest-value first):
+**Residual observations from that run** (not scheduled):
 - `directLaneBlockers` label-rect axis ternaries retain a few survivors on
-  rect width/height swaps for near-square pills; a multi-line (taller than
-  wide) label obstacle fixture would discriminate them.
+  rect width/height swaps for near-square pills; the corpus lacked a multi-line
+  (taller than wide) label obstacle.
 - `findLabelSlot`'s rect-overlap conjunction retains sign-variant survivors
-  for rects that only graze on one axis; corner-touching fixtures would
-  pin them.
+  for rects that only graze on one axis; corner-touching fixtures were absent.
 - The audit's pill-hit prefilter (`hitsPill`) retains inclusive-vs-strict
   comparison survivors for segments that exactly graze the pill border;
   they only widen the prefilter the collinearity check still gates.
-- The container repair's reversed-order gaps (target above / left of
-  source) lack fixtures; the gap arithmetic is symmetric with the two
+- The container repair's reversed-order gaps (target above / left of source)
+  were absent; the recorded classification relied on symmetry with the two
   covered directions.
 - `grid.ts` `ensureSubgraphSpacing` (~48 survivors): the overlap/min-spacing
   resolution between root subgraphs is never triggered by the corpus —
-  placement upstream appears to avoid overlaps already. Needs either a
-  corpus sample that genuinely overlaps or a dead-code verdict.
+  placement upstream appeared to avoid overlaps, so the run could not
+  distinguish reachable behavior from defensive dead code.
 - `converter.ts` entry/exit attachment roles and phantom still-used checks
   (`resolveSubgraphEdges` area): rendered-output invariants tolerate several
-  mutants because other mechanisms compensate. Needs assertions on the
-  resolved edge structure, not just the rendered text.
+  mutants because other mechanisms compensate; the run asserted rendered text,
+  not the intermediate resolved edge structure.
 - `edge-routing.ts` label segment filter (`width >= lenLabel && index > 1 &&
   orientationMatches`): the labeled-fanout invariants pin the TD vertical-drop
   case; LR orientation and the index>1 exclusion lack direct coverage.
@@ -208,7 +211,7 @@ accepted not chased:
   the `default` branch *also* returns `null`, so mutating the `opaque` case
   cannot change the result for any input.
 - `structural-count.ts:98` (`default:` exhaustiveness branch) — two mutants
-  (the branch condition + its block). Unreachable by construction: all fourteen
+  (the branch condition + its block). Unreachable by construction: all registered
   families are handled explicitly and the `const _never: never = body` assigns
   compile-time exhaustiveness, so the branch never executes at runtime.
 

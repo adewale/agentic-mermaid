@@ -1,5 +1,6 @@
 import type { SvgSemanticIdentity } from './identity.ts'
 import { escapeAttr } from '../multiline-utils.ts'
+import { sceneRoleTraits } from './roles.ts'
 
 export interface SvgRelationSemantics {
   from: string
@@ -24,18 +25,17 @@ function decodeAttr(value: string): string {
     .replace(/&amp;/g, '&')
 }
 
-export function relationAccessibilityForSvg(
-  svg: string,
+/** Build relation accessibility from typed Scene fields only. */
+export function relationAccessibility(
   identity: SvgSemanticIdentity,
+  label?: string,
 ): SvgSemanticAccessibility | undefined {
-  if (!['edge', 'message', 'relationship'].includes(identity.role)) return undefined
+  if (!sceneRoleTraits(identity.role).relation) return undefined
   if (identity.from === undefined || identity.to === undefined) return undefined
-  const opening = svg.match(/^\s*<[A-Za-z][\w:-]*\b[^>]*>/)?.[0] ?? ''
-  const sourceLabel = opening.match(/\sdata-label="([^"]*)"/)?.[1]
   const relation: SvgRelationSemantics = {
-    from: decodeAttr(identity.from),
-    to: decodeAttr(identity.to),
-    ...(sourceLabel ? { label: decodeAttr(sourceLabel) } : {}),
+    from: identity.from,
+    to: identity.to,
+    ...(label ? { label } : {}),
   }
   return {
     label: `${relation.from} to ${relation.to}${relation.label ? `: ${relation.label}` : ''}`,
@@ -43,6 +43,19 @@ export function relationAccessibilityForSvg(
     roleDescription: 'relation',
     relation,
   }
+}
+
+export function relationAccessibilityForSvg(
+  svg: string,
+  identity: SvgSemanticIdentity,
+): SvgSemanticAccessibility | undefined {
+  const opening = svg.match(/^\s*<[A-Za-z][\w:-]*\b[^>]*>/)?.[0] ?? ''
+  const sourceLabel = opening.match(/\sdata-label="([^"]*)"/)?.[1]
+  return relationAccessibility({
+    ...identity,
+    ...(identity.from !== undefined ? { from: decodeAttr(identity.from) } : {}),
+    ...(identity.to !== undefined ? { to: decodeAttr(identity.to) } : {}),
+  }, sourceLabel ? decodeAttr(sourceLabel) : undefined)
 }
 
 export function ensureSvgAccessibility(svg: string, accessibility: SvgSemanticAccessibility | undefined): string {

@@ -1,5 +1,5 @@
 // ============================================================================
-// Gantt structured body: parse / serialize / mutate / verify (FamilyPlugin
+// Gantt structured body: parse / serialize / mutate / verify (FamilyDescriptor
 // hooks) — docs/design/families/gantt.md §"First-release syntax matrix".
 //
 // Segment-preserving structured body (the BUILD-18 sequence pattern): typed

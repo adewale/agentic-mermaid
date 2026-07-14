@@ -24,7 +24,7 @@ function applyColorMode(dark, force) {
   // Page chrome follows the Kiln brand (Stone/Charcoal + Pine). The diagram theme
   // is controlled separately by the dropdown so color mode does not silently
   // rewrite diagrams.
-  applyThemeToPage(state.theme);
+  applyThemeToPage(state.palette);
   // These may not exist yet during initial load – guarded calls
   if (typeof updateThemeButton === "function") updateThemeButton();
   if (typeof refreshAllColorUIs === "function") refreshAllColorUIs();

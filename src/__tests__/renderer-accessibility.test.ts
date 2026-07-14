@@ -19,7 +19,9 @@ describe('#7254/#7255 SVG accessibility', () => {
   test('accDescr block form is captured', () => {
     const svg = renderMermaidSVG('flowchart TD\n accTitle: T\n accDescr {\n   multi line\n   description\n }\n A --> B')
     expect(svg).toContain('<title id="svg-title">T</title>')
-    expect(svg).toContain('multi line description')
+    expect(svg).toContain('multi line\ndescription')
+    expect(svg).not.toContain('data-id="accTitle"')
+    expect(svg).not.toContain('data-id="accDescr"')
   })
 
   test('sequence malformed accDescr opener does not prevent rendering valid messages', () => {

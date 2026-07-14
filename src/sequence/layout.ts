@@ -5,6 +5,7 @@ import { applyTextTransform, estimateTextWidth, FONT_SIZES, FONT_WEIGHTS, STROKE
 import type { RenderStyleDefaults } from '../styles.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import type { ResolvedSequenceConfig } from './config.ts'
+import type { InternalStyleFace } from '../scene/style-registry.ts'
 
 // ============================================================================
 // Sequence diagram layout engine
@@ -91,8 +92,9 @@ export function layoutSequenceDiagram(
   diagram: SequenceDiagram,
   options: RenderOptions = {},
   config: ResolvedSequenceConfig = {},
+  styleFace?: Readonly<InternalStyleFace>,
 ): PositionedSequenceDiagram {
-  const style = resolveRenderStyle(options, SEQUENCE_STYLE_DEFAULTS)
+  const style = resolveRenderStyle(options, SEQUENCE_STYLE_DEFAULTS, styleFace)
   const padX = config.diagramMarginX ?? SEQ.padding
   const padY = config.diagramMarginY ?? SEQ.padding
   const minActorWidth = config.width ?? 80

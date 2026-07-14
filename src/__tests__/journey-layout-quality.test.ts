@@ -11,13 +11,18 @@
 import { describe, it, expect } from 'bun:test'
 import { renderMermaidSVG } from '../index.ts'
 import { parseJourneyDiagram } from '../journey/parser.ts'
-import { layoutJourneyDiagram } from '../journey/layout.ts'
+import { layoutJourneyDiagram, resolveJourneyRequestAppearance } from '../journey/layout.ts'
+import type { RenderOptions } from '../types.ts'
 import { preprocessMermaidLines } from '../mermaid-source.ts'
 import { wcagContrastRatio, wcagCssContrastRatio } from '../shared/color-math.ts'
 import { verifyMermaid } from '../agent/verify.ts'
 
-function layout(text: string, options = {}) {
-  return layoutJourneyDiagram(parseJourneyDiagram(preprocessMermaidLines(text)), options)
+function layout(text: string, options: RenderOptions = {}) {
+  return layoutJourneyDiagram(
+    parseJourneyDiagram(preprocessMermaidLines(text)),
+    resolveJourneyRequestAppearance(options),
+    options,
+  )
 }
 
 const WIDE_LABEL_SOURCE = `journey

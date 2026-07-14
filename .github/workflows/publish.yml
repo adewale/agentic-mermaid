@@ -63,7 +63,9 @@ jobs:
         run: bun run website:check
 
       - name: Run tests
-        run: bun test src/__tests__/
+        # Use the same bounded covered suite as CI; a release must not have a
+        # weaker timeout or omit the under-tested-code finder.
+        run: bun run test
 
       - name: Type check
         run: bun run typecheck

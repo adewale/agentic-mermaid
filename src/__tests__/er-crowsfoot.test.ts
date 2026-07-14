@@ -27,7 +27,7 @@ function markerFor(glyphs: string): { lines: number; circles: number; category: 
   const scene = lowerErScene({
     positioned: layoutErDiagram(parseErDiagram(lines)),
     colors: { bg: '#ffffff', fg: '#27272A' },
-    options: {},
+    resolved: { renderOptions: {} },
   })
   const mark = scene.parts.find(p => p.kind === 'shape' && p.role === 'cardinality' && p.id.endsWith(':1'))
   if (!mark || mark.kind !== 'shape' || mark.geometry.kind !== 'compound') throw new Error('marker not found')

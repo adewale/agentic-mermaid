@@ -1,6 +1,8 @@
 import type { TimelineDiagram, TimelineSection, TimelinePeriod, TimelineEvent } from './types.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
 import { syntaxError } from '../shared/syntax-error.ts'
+import type { MermaidSourceAccessibility } from '../mermaid-source.ts'
+import { accessibilityFields } from '../shared/accessibility-directives.ts'
 import {
   TIMELINE_ACCESSIBILITY_DESCRIPTION_BLOCK_RE,
   TIMELINE_ACCESSIBILITY_DESCRIPTION_RE,
@@ -36,8 +38,11 @@ import {
  * Parse a Mermaid timeline diagram.
  * Expects the first line to be "timeline".
  */
-export function parseTimelineDiagram(lines: string[]): TimelineDiagram {
-  const diagram: TimelineDiagram = { sections: [] }
+export function parseTimelineDiagram(
+  lines: string[],
+  accessibility: MermaidSourceAccessibility = {},
+): TimelineDiagram {
+  const diagram: TimelineDiagram = { sections: [], ...accessibilityFields(accessibility) }
 
   const headerDirection = lines[0]?.trim().match(TIMELINE_HEADER_DIRECTION_RE)
   if (headerDirection) {

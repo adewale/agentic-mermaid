@@ -5,6 +5,11 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 ## Unreleased
 
 ### Added
+- Implemented Section A of the rendering-contract
+  program: one immutable request and appearance waist, descriptor-owned
+  family/style/render-option discovery, typed connector terminals and backend
+  claims, explicit product/output parity, a version-pinned Mermaid compatibility
+  manifest, and versioned extension and resource contracts.
 - Completed the family-elevation program across all fourteen families: 172 typed mutation operations, deterministic family layout rubrics/certificates, expanded semantic facts, exhaustive configuration wire-or-warn coverage, parser/serializer conformance, and a zero-exception 21-surface citizenship matrix.
 - Added Flowchart v11 shape metadata and edge IDs; State notes/pseudostates/history/concurrency/paint; Sequence box/autonumber/create/destroy/standalone activation behavior; Class namespaces/generics/paint/cardinality allocation; ER bare entities/paint/ordered segments; vertical Timeline layout; Gantt dependency/critical-path overlays; XYChart legends and explicit orientation mutation; Pie wedge labels/donut/legend controls; Quadrant accessibility/style functions; deterministic side-constrained Architecture routing and offline icons; and first-class Mindmap and GitGraph families.
 - Added measured bold/italic Flowchart markdown rendering and support for a bare `flowchart` header, which defaults to top-down layout while remaining source-preserved at the typed-edit boundary.
@@ -16,10 +21,17 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 - Added focused Mindmap/GitGraph mutation lanes and exhaustive operation contracts. The latest 2026-07-10 local runs killed 400/405 Mindmap mutants (98.77%) and 294/303 GitGraph mutants (97.03%); reports were gitignored and the committed break floors remain 60%, so these measurements are not represented as immutable acceptance evidence.
 - Added official Mermaid 11.16.0 comparison fixtures and reproducible SVG/terminal contact sheets for Mindmap and GitGraph. The evidence records AlexanderGrooff/mermaid-ascii 1.4.0's exact unsupported-family result instead of fabricating equivalent output.
 - Added exact executable-title evidence for every done family-elevation ledger row; CI now rejects uncited files, missing titles, duplicate IDs, empty evidence, and newly-done rows without a matching evidence entry.
-- Added a pinned official Mermaid 11.16 documentation showcase for all 14 families and an exhaustive 4,480-render built-in Look × Palette × family compatibility gate.
-- Added `cupertino` as the sixteenth built-in Look plus reproducible three-brand discovery evidence across all 14 families. The styled-output golden matrix now contains 23 fixtures × 16 Looks = 368 records, including 23 Cupertino rows; the Mindmap/GitGraph evidence deliberately records that those two families accept palette/font styling but do not yet consume internal role-face overrides.
+- Added a pinned official Mermaid 11.16 documentation showcase for all 14 families and a registry-derived exhaustive non-default Look × Palette × family compatibility gate.
 
 ### Changed
+- Removed the accidental `cupertino` built-in registration and its private-face evidence path. Cupertino now exists only as an explicitly loaded, documentation-only public `StyleSpec` prototype; no compatibility alias is retained.
+- CLI, Code Mode, local/hosted MCP, editor, website, SVG, PNG, ASCII, and
+  Unicode now project shared options and capabilities from canonical
+  descriptors. Historical execution plans moved to the archive, copied family
+  and style menus were removed, and Section B branding work has one live owner.
+- Connector terminal evidence now preserves exact endpoints, routed contours,
+  hit geometry, stroke fields, label visuals, marker descriptors, and every
+  per-subpath marker placement behind an executable per-feature manifest.
 - Local MCP `render_png` now advertises managed-file side effects accurately, accepts `fontDirs`/`loadSystemFonts`, and returns deterministic configuration and font-coverage warnings in every output mode.
 - Agent evaluations, shipped-artifact fuzzing, website comparisons, fork documentation, and browser counts now cover all fourteen registry families; deployment catalogs carry the exact Git SHA and build time.
 - Configuration diagnostics now use fully qualified family paths consistently across source wrappers and explicit `mermaidConfig`; duplicate warnings are deterministically ordered and deduplicated.
@@ -34,7 +46,12 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 - **Output compatibility note:** semantic SVG identity/ARIA attributes, palette contrast normalization, corrected marker/routing geometry, and spatial terminal rendering intentionally change SVG/PNG/ASCII bytes and regenerated characterization hashes. Consumers that snapshot output bytes should review and re-pin; source parsing and deterministic repeatability remain stable.
 
 ### Fixed
-- Closed editor share-hash DOM XSS by whitelisting imported render configuration, forcing strict SVG rendering, externalizing executable scripts, and removing `unsafe-inline` from the production CSP. Hosted `render_svg` now forces strict security and rejects any output that still contains active content or external references.
+- Closed editor share/draft insertion, decompression, and share-hash DOM XSS risks; hardened imported render configuration and StyleSpec prototype/font/CSS boundaries; externalized executable scripts; and removed `unsafe-inline` from the production CSP. Editor and hosted SVG rendering now force strict security and reject active content or external references.
+- Closed unknown-family Flowchart fallthrough, connector-marker fidelity loss, and verified-resource time-of-check/time-of-use gaps. PNG/resource receipts now state whether bytes were verified, caller-supplied, system-provided, embedded, or unavailable.
+- Closed connector topology now has one path-only invariant across SVG,
+  sketch, bounds, hit testing, endpoint anchors, and terminal evidence. Marker
+  bounds honor SVG's default `markerUnits="strokeWidth"`, use typed marker
+  viewports for path geometry, and no longer diverge in rough/hybrid output.
 - Enforced JSON-RPC 2.0 envelopes and notification suppression across local and hosted MCP transports. Local bearer/Origin checks now cover SSE, messages, and artifacts, and SSE sessions have a fixed upper bound.
 - Rejected source-controlled Pie colors that could escape SVG attributes or styles; hardened cross-format color contrast and XML sinks.
 - Fixed successful-but-lossy Journey/State/Sequence/Class/ER/Architecture/Timeline/XYChart mutations and parser round trips, including accessibility metadata, history endpoints, boxed participants, labeled and generic classes, bare/aliased ER entities, post-alignment route anchors, event text containing clock-time colons, event-less Timeline periods, and explicit vertical orientation.
@@ -50,6 +67,18 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 ### Breaking
 - Consumers matching `INEFFECTIVE_CONFIG.field` for family-section keys must use the qualified path (for example `journey.boxMargin` rather than `boxMargin`).
 - Gantt exclusion-boundary semantics and default shading may change existing rendered calendars; CLI scripts relying on ignored known flags now fail fast with exit 2.
+- The transitional `FamilyPlugin` type alias has been removed; extension hosts should import `FamilyDescriptor`, which is the canonical registration and discovery contract.
+- Extension registration is now collision-safe and versioned. External families
+  use `family:*` identities and complete descriptors; external Scene backends
+  use `backend:*` identities, declare feature/operation capability evidence,
+  and pass executable conformance at registration instead of silently replacing
+  a prior implementation.
+- Declarative `StyleSpec.backend` has been removed. Style data now selects only safe appearance; trusted hosts that install executable Scene backends select them through `createMermaidRenderer`, `createMermaidPNGRenderer`, or `createMermaidBrowserPNGRenderer` with a host-only `backendPolicy`.
+- External Scene v1 path connectors now accept only one linear `M`/`L`/`Z`
+  contour whose vertices exactly match typed points; use polyline or await a
+  future curve-flattening contract instead of supplying divergent SVG and hit
+  geometry. The serializer-only `MarkerSerializationOptions.markerUnits`
+  override was removed; set units on the marker descriptor, the sole authority.
 
 ## 0.1.1 — 2026-07-10
 

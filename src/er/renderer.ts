@@ -12,6 +12,7 @@ import type { Geometry, SceneDoc, SceneNode } from '../scene/ir.ts'
 import { hashId } from '../scene/seed.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
+import { projectRoundedConnectorPath } from '../scene/connector-geometry.ts'
 
 // ============================================================================
 // ER diagram SVG renderer
@@ -66,11 +67,12 @@ export function renderErSvg(
 export function lowerErScene(
   ctx: RenderContext<PositionedErDiagram>,
 ): SceneDoc {
-  const { positioned: diagram, colors, options } = ctx
+  const { positioned: diagram, colors, resolved } = ctx
+  const options = resolved.renderOptions
   const font = colors.font ?? 'Inter'
   const transparent = options.transparent ?? false
   const parts: SceneNode[] = []
-  const style = resolveRenderStyle(options, ER_STYLE_DEFAULTS)
+  const style = resolveRenderStyle(options, ER_STYLE_DEFAULTS, resolved.styleFace)
   const uid = `er-${hashId(diagram.width, diagram.height, diagram.entities.length, diagram.relationships.length)}`
   const titleId = `${uid}-title`
   const descId = `${uid}-desc`
@@ -396,6 +398,13 @@ function renderAttribute(attr: ErAttribute, entityId: string, boxX: number, y: n
 function renderRelationshipLine(rel: PositionedErRelationship, style: ResolvedRenderStyle, sceneId: string): SceneNode {
   const lineStyle = rel.identifying ? 'solid' as const : 'dashed' as const
   const channels = { category: rel.identifying ? 'identifying' : 'non-identifying' }
+  const connectorSemantics = {
+    endpoints: { from: rel.entity1, to: rel.entity2 },
+    relationship: { kind: rel.identifying ? 'identifying' : 'non-identifying' },
+    route: { ownership: 'layout', bendRadius: style.edgeBendRadius },
+    labels: rel.label ? [{ text: rel.label }] : [],
+    projectAccessibilityToSvg: true,
+  } as const
 
   // Degenerate relationships draw nothing (empty crisp keeps the part slot).
   if (rel.points.length < 2) {
@@ -406,6 +415,7 @@ function renderRelationshipLine(rel: PositionedErRelationship, style: ResolvedRe
       lineStyle: 'invisible',
       paint: {},
       channels,
+      ...connectorSemantics,
     }, '')
   }
 
@@ -431,16 +441,21 @@ function renderRelationshipLine(rel: PositionedErRelationship, style: ResolvedRe
   }
 
   if (style.edgeBendRadius > 0 && rel.points.length > 2) {
-    const d = pointsToPathD(rel.points, style.edgeBendRadius)
+    const projection = projectRoundedConnectorPath(rel.points, style.edgeBendRadius, {
+      metric: 'manhattan',
+      precision: 3,
+    })
     return marks.connector({
       id: sceneId,
       role: 'relationship',
-      geometry: { kind: 'path', d, points: rel.points },
+      geometry: projection.geometry,
       lineStyle,
       paint,
       channels,
+      ...connectorSemantics,
+      route: { ...connectorSemantics.route, contours: projection.contours },
     },
-      `<path ${dataAttrs.join(' ')}${labelAttr} d="${d}" fill="none" stroke="${escapeAttr(strokeColor)}" ` +
+      `<path ${dataAttrs.join(' ')}${labelAttr} d="${projection.geometry.d}" fill="none" stroke="${escapeAttr(strokeColor)}" ` +
       `stroke-width="${style.lineWidth}"${dashArray} />`)
   }
 
@@ -451,6 +466,7 @@ function renderRelationshipLine(rel: PositionedErRelationship, style: ResolvedRe
     lineStyle,
     paint,
     channels,
+    ...connectorSemantics,
   },
     `<polyline ${dataAttrs.join(' ')}${labelAttr} points="${pathData}" fill="none" stroke="${escapeAttr(strokeColor)}" ` +
     `stroke-width="${style.lineWidth}"${dashArray} />`)
@@ -540,8 +556,7 @@ export function separateRelationshipLabels(
  *  Emits the background pill and the text as separate marks (in old part order). */
 function renderRelationshipLabel(rel: PositionedErRelationship, style: ResolvedRenderStyle, sceneId: string, at?: { x: number; y: number }): SceneNode[] {
   if (!rel.label || rel.points.length < 2) {
-    // Old renderer pushed '' for label-less relationships — keep the empty slot.
-    return [marks.raw({ id: sceneId, role: 'label' }, '')]
+    return []
   }
 
   const mid = at ?? midpoint(rel.points)
@@ -758,41 +773,6 @@ function renderCrowsFoot(
   }
 
   return pieces
-}
-
-function pointsToPathD(points: Array<{ x: number; y: number }>, radius: number): string {
-  if (points.length === 0) return ''
-  if (points.length === 1) return `M${points[0]!.x},${points[0]!.y}`
-  const parts = [`M${points[0]!.x},${points[0]!.y}`]
-  for (let i = 1; i < points.length - 1; i++) {
-    const prev = points[i - 1]!
-    const curr = points[i]!
-    const next = points[i + 1]!
-    const prevLen = Math.abs(curr.x - prev.x) + Math.abs(curr.y - prev.y)
-    const nextLen = Math.abs(next.x - curr.x) + Math.abs(next.y - curr.y)
-    const r = Math.min(radius, prevLen / 2, nextLen / 2)
-    if (r <= 0) {
-      parts.push(`L${curr.x},${curr.y}`)
-      continue
-    }
-    const before = pointToward(curr, prev, r)
-    const after = pointToward(curr, next, r)
-    parts.push(`L${before.x},${before.y}`)
-    parts.push(`Q${curr.x},${curr.y} ${after.x},${after.y}`)
-  }
-  const last = points[points.length - 1]!
-  parts.push(`L${last.x},${last.y}`)
-  return parts.join(' ')
-}
-
-function pointToward(from: { x: number; y: number }, to: { x: number; y: number }, distance: number): { x: number; y: number } {
-  const total = Math.abs(to.x - from.x) + Math.abs(to.y - from.y)
-  if (total === 0) return { ...from }
-  const t = distance / total
-  return {
-    x: Math.round((from.x + (to.x - from.x) * t) * 1000) / 1000,
-    y: Math.round((from.y + (to.y - from.y) * t) * 1000) / 1000,
-  }
 }
 
 /** Compute the arc-length midpoint of a polyline path.

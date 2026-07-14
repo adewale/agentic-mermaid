@@ -1,6 +1,6 @@
 ---
 name: agentic-mermaid-diagram-workflow
-description: Agent-agnostic skill for authoring and editing Mermaid diagrams with structured verification, typed mutation, round-trip serialization, and SVG, PNG, ASCII, Unicode, and JSON layout outputs. Structured mutation for all fourteen renderable families (flowchart, state, sequence, timeline, class, ER, journey, architecture, xychart, pie, quadrant, gantt, mindmap, gitgraph); source-level parse-and-render only for opaque fallbacks (unmodeled syntax).
+description: Agent-agnostic skill for authoring and editing Mermaid diagrams with structured verification, typed mutation, round-trip serialization, and graphical, terminal, and layout outputs. The live capability registry identifies renderable and mutable families; unmodeled syntax remains source-preserved.
 ---
 
 # Agentic Mermaid — diagram workflow
@@ -14,24 +14,14 @@ An agent-agnostic typed editing surface for Mermaid. New diagrams can be authore
 - Shell only → **CLI** (`references/cli.md`).
 - No local install, network only → **hosted MCP** at `https://agentic-mermaid.dev/mcp` (stateless streamable HTTP JSON-RPC; `execute` Code Mode, `describe_sdk` for one family's mutation schema on demand, `render_svg`/`render_ascii`/`render_png`/`verify`/`describe`, and the declarative `mutate` (edit a `source`) / `build` (author from a `family`) tools — prefer `mutate`/`build` for structured edits; 64KB input caps).
 
-## Capability matrix
+## Capability discovery
 
-| Family | parse | verify | render | mutate | serialize |
-|---|---|---|---|---|---|
-| Flowchart | ✓ | full (Tier 1+2) | ✓ | 14 ops | structured |
-| State | ✓ | full (Tier 1+2) | ✓ | 18 ops | structured |
-| Sequence | ✓ | structural | ✓ | 7 ops | structured-with-segments |
-| Timeline | ✓ | structural | ✓ | 15 ops | structured |
-| Class | ✓ | structural | ✓ | 15 ops | structured |
-| ER | ✓ | structural | ✓ | 12 ops | ordered typed/opaque segments |
-| Journey | ✓ | structural | ✓ | 14 ops | structured |
-| Architecture | ✓ | structural | ✓ | 19 ops | structured |
-| XY chart | ✓ | structural | ✓ | 10 ops | structured |
-| Pie | ✓ | structural | ✓ | 7 ops | structured |
-| Quadrant | ✓ | structural | ✓ | 7 ops | structured |
-| Gantt | ✓ | structural + schedule | ✓ | 13 ops | structured-with-segments |
-| Mindmap | ✓ | structural | ✓ | 10 ops | structured tree |
-| GitGraph | ✓ | structural | ✓ | 11 ops | replayed structured history |
+Run `am capabilities --json` (or call the equivalent SDK capability API) before
+choosing a family or mutation. Its registry-derived family entries expose the
+current narrower, operation schema, edit policy, output support, and minimal
+source example; the generated Section A matrix supplies explicit native,
+source-preserved, diagnosed, and absent states. This skill intentionally does
+not maintain a second family or operation table.
 
 Any diagram with constructs we don't model falls back to an **opaque** body: it still parses, renders, verifies, and round-trips losslessly — it just isn't offered for structured mutation (the narrower returns null). The parser never silently drops anything.
 
@@ -46,7 +36,8 @@ Gantt diagrams are segment-preserving: `asGantt` keeps title/section/task ops li
 For new diagrams, author Mermaid source directly, then `parseMermaid` / `verifyMermaid` / render. For existing modeled diagrams:
 
 1. `parseMermaid(source)` → `ValidDiagram`.
-2. `asFlowchart(d)` / `asState(d)` / `asSequence(d)` / `asTimeline(d)` / `asClass(d)` / `asEr(d)` / `asJourney(d)` / `asArchitecture(d)` / `asXyChart(d)` / `asPie(d)` / `asQuadrant(d)` / `asGantt(d)` / `asMindmap(d)` / `asGitGraph(d)` to narrow before mutating.
+2. Use the family entry's advertised narrower (for example `asFlowchart(d)` or
+   `asState(d)`) before mutating.
 3. `mutate(d, op)` (typed per family).
 4. `verifyMermaid(d)` — structured warnings; inspect `ok` / `warnings` / `layout`.
 5. On `!ok`, revert to the previous `ValidDiagram`, try another op.

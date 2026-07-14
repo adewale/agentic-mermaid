@@ -40,6 +40,22 @@ function expectAbsoluteHttps(url: unknown) {
 }
 
 describe('agent-readiness standards syntax', () => {
+  test('local, CI, and release gates share one bounded covered-suite command', () => {
+    const packageJson = JSON.parse(readFileSync(join(REPO, 'package.json'), 'utf8'))
+    const ciWorkflow = readFileSync(join(REPO, '.github/workflows/ci.yml'), 'utf8')
+    const publishWorkflow = readFileSync(join(REPO, '.github/workflows/publish.yml'), 'utf8')
+    const strategy = readFileSync(join(REPO, 'docs/testing-strategy.md'), 'utf8')
+    const pullRequestTemplate = readFileSync(join(REPO, '.github/PULL_REQUEST_TEMPLATE.md'), 'utf8')
+    const agentGuide = readFileSync(join(REPO, 'CLAUDE.md'), 'utf8')
+
+    expect(packageJson.scripts.test).toBe('bun test --coverage --timeout 30000 src/__tests__/')
+    expect(ciWorkflow.match(/run: bun run test/g)?.length).toBe(1)
+    expect(publishWorkflow.match(/run: bun run test/g)?.length).toBe(1)
+    expect(strategy).toContain('`bun run test`')
+    expect(pullRequestTemplate).toContain('`bun run test`')
+    expect(agentGuide).toContain('`bun run test`')
+  })
+
   test('llms.txt follows the published parser-compatible Markdown shape', () => {
     const text = read('llms.txt')
     const lines = text.split(/\r?\n/)

@@ -4,7 +4,7 @@
 // lint that runs on every verifyMermaid, for every family, reusing the shared
 // structural counter. These tests pin: (a) faithful diagrams across families do
 // NOT emit it, (b) it is a lint that never flips verify.ok, and (c) it is wired
-// into the warning vocabulary as lint/warning.
+  // into the warning vocabulary as lint/warning.
 
 import { describe, test, expect } from 'bun:test'
 import { parseMermaid, verifyMermaid } from '../agent/index.ts'
@@ -46,9 +46,9 @@ describe('CONTENT_DROPPED_ON_ROUNDTRIP verify lint', () => {
   // Move 6: an OPAQUE body (the wrapper's `before === null` branch) must never
   // produce a faithfulness drop — its faithfulness contract is byte-verbatim,
   // owned by the round-trip-stability gate. Exercises that wrapper branch
-  // end-to-end through verify (an accTitle directive is unmodeled → opaque).
+  // end-to-end through verify (an unmodeled curve directive → opaque).
   test('an opaque body produces no faithfulness drop', () => {
-    const p = parseMermaid('xychart-beta\n  accTitle: forces opaque\n  bar [1, 2, 3]')
+    const p = parseMermaid('xychart-beta\n  curve basis\n  bar [1, 2, 3]')
     expect(p.ok).toBe(true)
     if (!p.ok) return
     expect(p.value.body.kind).toBe('opaque')

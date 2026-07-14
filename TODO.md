@@ -1,15 +1,14 @@
 # Project Backlog
 
-`TODO.md` is the canonical owner-facing backlog and contains only actionable items. Completed records live under `docs/project/archive/`; current capabilities live in `docs/features.md` and generated registry surfaces. IDs are stable names, not ordering.
+`TODO.md` is the canonical owner-facing backlog and contains only actionable items. Explicitly status-marked landing/completion evidence lives under `docs/project/archive/`; current capabilities live in `docs/features.md` and generated registry surfaces. IDs are stable names, not ordering.
 
 Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
 
-## 0. Release / owner decisions
+## Release / owner decisions
 
 - [ ] **DEC-1 — Get one real external consumer** (`todo`). Validate
   `agentic-mermaid/agent`, `am`, or `agentic-mermaid-mcp` in a real agent,
-  TUI, CI gate, or editor integration outside this repo. Unblocked
-  substantially by BUILD-7 (remote MCP reachability).
+  TUI, CI gate, or editor integration outside this repo.
 - [ ] **DEC-2 — Add the WAF rate-limit rule on `POST /mcp` before broadly
   promoting the hosted endpoint** (`owner-decision`). The hosted MCP (`#94`,
   `https://agentic-mermaid.dev/mcp`) is public, unauthenticated compute. Body /
@@ -35,13 +34,17 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   `Sitemap: https://agentic-mermaid.dev/sitemap.xml`. Then verify the live body
   and status with `curl` and both search consoles. The repo deliberately ships
   no competing `robots.txt`, so the dashboard remains the single source.
+- [ ] **COMPAT-1 — Remove deprecated bare Style aliases** (`todo`; earliest in
+  `0.3.0`, no earlier than 2027-01-31). Remove `default` and the historically
+  ambiguous bare `tufte` only after receipt diagnostics have shipped for the
+  published window, migration docs use `crisp`, `look:tufte`, and
+  `palette:tufte`, and regression tests prove discovery no longer advertises
+  either compatibility name. The release owner must confirm those gates before
+  deleting the aliases and their diagnostics.
 
 
-## 1. Security backlog
+## Security backlog
 
-- [ ] **SEC-1 — Sanitize editor share/draft render config before SVG insertion** (`todo`). Audit on 2026-07-09 found that `/editor/` accepts hash/draft `config`, merges it into render options, and inserts rendered SVG with `innerHTML`; malicious color/font/style values can break out of the SVG root `style` attribute and create executable SVG markup under the current CSP. Fix by allowlisting editor-restorable config keys/values, escaping SVG root styles/attrs in `svgOpenTag`, sanitizing preview SVG before insertion, and adding hostile hash/draft/browser regression tests.
-- [ ] **SEC-2 — Cap editor share-link decompression and draft restore size** (`todo`). Deflated share links and localStorage drafts currently decode/read without a byte cap, so a crafted hash or stale draft can hang the browser. Add encoded/decoded size limits, streaming abort on overflow, visible too-large errors, and tests for corrupt/oversized links and missing `DecompressionStream`.
-- [ ] **SEC-3 — Make editor autosave privacy explicit** (`todo`). The editor persists diagram source, render config, style, and seed in plaintext `localStorage` by default. Add a visible disclosure plus a clear/private-mode option or switch persistent drafts to opt-in/session-only storage.
 - [ ] **SEC-4 — Implement and drill hosted MCP abuse controls** (`todo`; the
   dashboard WAF prerequisite remains `DEC-2`). Execute the bounded admission,
   payload-proportional CPU, per-item rate/fan-out, concurrency, disable-gate,
@@ -51,7 +54,7 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   coordination or metering infrastructure without observed demand.
 
 
-## 2. Ready build backlog
+## Ready build backlog
 
 - [ ] **BUILD-27 — MCP Apps support** (`todo`). Expose an interactive
   in-agent diagram UI through MCP Apps: `ui://` resources, correct
@@ -81,23 +84,14 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   and privacy-policy URLs, screenshots, test prompts/responses, localization,
   and review notes. Submit through the plugin portal only when the live endpoint
   and UI are stable enough to preserve the reviewed metadata contract.
-- [ ] **BUILD-30 — Deletion-first rendering-contract consolidation** (`todo`).
-  Execute Section A of `docs/project/brand-primitives-plan.md`: replace the
-  duplicated family, request, appearance, positioned-artifact, source-envelope,
-  output-security, and capability authorities, and delete or time-bound each
-  superseded path before calling a phase complete. Reuse rather than duplicate
-  `BUILD-6`, `BUILD-26`, `CONS-11/16/26/27/30/40/41/42/43/44/45`, `SRC-1/2`,
-  `TERM-1/2`, and `SEC-1/2/3`. Section A's dependency order and exit evidence
-  live in the plan; this item is the sole umbrella owner of the combined
-  program, while the referenced IDs retain their independent slices, status,
-  and evidence.
 - [ ] **BUILD-31 — Progressive custom Styles and BrandPacks** (`todo`, after
-  the relevant BUILD-30 parity gates). Execute Section B of
+  the Section A landing PR merges). Execute Section B of
   `docs/project/brand-primitives-plan.md` through one public `style` stack:
   inline fragments, semantic roles, minimal versioned BrandPacks, bindings and
   constraints, the optional B4 post-positioning Treatment seam only if its
-  evidence gate passes, and built-in equivalence. Cupertino and other brand
-  documents are probes/acceptance evidence, not independent backlogs. Do not add
+  evidence gate passes, and built-in equivalence. The documentation-only
+  Cupertino prototype and other brand evidence are acceptance probes, not
+  built-ins or independent backlogs. Do not add
   custom-backend packaging,
   runtime design-token machinery, or another appearance resolver without a
   separately promoted evidence-backed TODO item.
@@ -108,9 +102,11 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   agents structural levers instead: per-node rank/layer pinning, "keep these
   nodes adjacent" grouping hints, and a "keep this edge short" preference,
   carried as typed metadata (not source hacks) and honored by the ELK
-  pipeline deterministically. Design questions: hint syntax in Mermaid source
-  (frontmatter? comment directives?) vs. render-option-only; interaction with
-  the determinism contract (hints must be part of the input, never ambient);
+  pipeline deterministically. This is not manual positioning and does not add
+  Agentic-only Mermaid syntax: the first contract is typed render/mutation
+  metadata, kept in the request digest and source-preservation receipt when an
+  agent workflow persists it. Design questions: interaction with
+  the determinism contract (hints must be explicit input, never ambient);
   which ELK knobs (`org.eclipse.elk.layered.layering.*`, `priority`,
   `desiredEdgeLength`) map cleanly. Scope the first slice to flowchart/state.
 - [ ] **BUILD-2 — `process --mode validate|canonicalize` triage** (`todo`).
@@ -120,86 +116,30 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   contract for `validate` and `canonicalize`; test whether it reduces agent
   routing errors in docs/evals; then either implement as a thin, schema-tested
   wrapper or explicitly park/decline it. Independent of other items.
-- [ ] **BUILD-26 — Ecosystem issue harvest: Mermaid / Mermaid ASCII /
-  Beautiful Mermaid migration fixtures** (`todo`). Convert the pinned ecosystem
-  issue harvest into **fixture seeds and parity gaps**, not blanket scope
-  expansion; the harvest artifact, rather than prose totals, is authoritative. Priority is direct Agentic Mermaid
-  relevance: supported-family syntax parity, ASCII semantic preservation,
-  deterministic layout/text/theming/security, and workflow/API ergonomics.
-  - **Flowchart syntax + subgraphs**: typed metadata/style interop and parser
-    safety (`mermaid-js/mermaid#7826`, `#7596`; `lukilabs/beautiful-mermaid#125`),
-    subgraph direction/order/limits (`mermaid-js/mermaid#7946`, `#7477`, `#7741`,
-    `#7848`; `lukilabs/beautiful-mermaid#55`). Feed #44 / BUILD-23 and the
-    subgraph-direction/layout fixture matrix.
-  - **ER/class/sequence/Gantt/chart parity**: ER aliases/directions/cardinality/
-    subgraphs (`mermaid-js/mermaid#7482`, `#7472`, `#7351`, `#7417`;
-    `lukilabs/beautiful-mermaid#131`, `#129`, `#124`); class generics/
-    namespaces/annotations (`mermaid-js/mermaid#7648`, `#7480`, `#7753`, `#7618`;
-    feeds BUILD-25/#118); sequence notes/fragments/async arrows (`AlexanderGrooff/mermaid-ascii#69`,
-    `#68`, `#62`; `mermaid-js/mermaid#7681`, `#7664`, `#7687`;
-    `lukilabs/beautiful-mermaid#107`, `#108`); Gantt scheduling/compact/
-    multiline/vertical-marker gaps (`mermaid-js/mermaid#7714`, `#7407`, `#7603`,
-    `#7602`, `#7564`, `#7339`, `#7300`); XY/pie/quadrant/architecture text or
-    feature gaps (`mermaid-js/mermaid#7650`, `#7599`, `#7392`, `#7607`, `#7325`,
-    `#7608`, `#7487`, `#7308`, `#7301`).
-  - **ASCII/Unicode semantic preservation**: import or reproduce terminal
-    fixtures for dropped labels, multiple edges, ID-vs-label parsing,
-    international/fullwidth text, arrowhead attachment, fan-out trunks, ER/class
-    labels, and semicolon/line-break parsing (`AlexanderGrooff/mermaid-ascii#70`,
-    `#63`, `#59`, `#56`, `#46`; `lukilabs/beautiful-mermaid#122`, `#121`,
-    `#119`, `#112`, `#111`, `#109`, `#61`, `#13`, `#12`, `#7`, `#5`). Treat
-    these as semantic-loss blockers before visual polish.
-  - **Layout/text/theming/security/workflow**: use Mermaid/Beautiful issues as
-    quality-rubric seeds for spacing, subgraph overflow, edge crossings, long
-    text/CJK/PNG clipping, html-label wrapping, consistent theme variables,
-    contrast, CSS class emission, CSP/Trusted Types, external image blocking,
-    CLI/API/package exports, minified/output options, and post-render mutation
-    signals (`mermaid-js/mermaid#7901`, `#7930`, `#7932`, `#7911`, `#7827`,
-    `#7505`, `#7496`, `#7354`, `#7341`, `#7359`, `#7565`, `#7555`, `#7794`,
-    `#7873`, `#7815`, `#7695`, `#7645`, `#7517`, `#7556`; `lukilabs/beautiful-mermaid#83`,
-    `#68`, `#65`, `#64`, `#56`, `#32`, `#25`, `#11`, `#89`, `#43`, `#14`,
-    `#115`, `#130`, `#100`, `#101`, `#80`, `#79`, `#18`, `#1`, `#20`, `#33`,
-    `#45`, `#73`, `#76`).
-  - **Strategic family signals**: route official-but-not-native Mermaid inputs
-    such as TreeView, Swimlanes, and Cynefin through BUILD-6's manifest and
-    citizenship process. Mindmap is already native, so new Mindmap reports are
-    compatibility fixtures rather than family-scope expansion. ArchiMate and
-    requested non-Mermaid families (Domain Storytelling, DITAA, BPMN, RASCI,
-    Data Pipeline, Use Case, PERT/CPM, Org Chart, Info) remain roadmap signals
-    only; do not expand scope without a focused issue and evidence.
-- [ ] **BUILD-6 — Forward-compatible upstream Mermaid family adoption
-  (through 11.16)** (`todo`). Mermaid 11.16 exposes 30 user-facing core
-  families plus the first-party external ZenUML family; Agentic Mermaid
-  currently registers 14. The authoritative family/syntax inventory, maturity
-  caveats, adoption waves, and compatibility protocol live in
-  `docs/project/brand-primitives-plan.md`; do not maintain a second copied
-  roster here.
-  - First deliver a registry-driven recognition floor: every official public
-    header/alias is recognized and losslessly preserved or explicitly
-    diagnosed, and unknown/new headers never fall through to Flowchart.
-  - Then implement stable/high-leverage families through the citizenship
-    ratchet. TreeView remains a high-priority candidate because it is
-    hierarchical, ASCII-friendly, and requested against the fork network
-    (lukilabs/beautiful-mermaid#114); Requirement, Block, Packet, and Kanban
-    exercise complementary semantic roles and syntax forms.
-  - Treat maturity as manifest data, not a `-beta` spelling heuristic. Mermaid's
-    source has graduated Sankey, Block, Packet, Architecture, Treemap, and
-    Ishikawa while retaining legacy beta aliases; Radar, Venn, Wardley, Cynefin,
-    TreeView, and Railroad remain beta-only, Swimlanes is new with an evolving
-    syntax warning, and ZenUML uses an experimental external/lazy integration.
-  - Include 11.16's Swimlanes, Cynefin, and Railroad/EBNF/ABNF/PEG inputs in the
-    upstream-drift manifest even before native rendering. The official docs
-    navigation omits Railroad, so compare the docs, core detector registry,
-    beta policy, config schema, and first-party external registrations.
-- [ ] **BUILD-1 — Collapsible subgraphs (#7785)** (`todo`, after BUILD-23 metadata safety floor; independent of BUILD-20 harvest). Track Mermaid PR
+- [ ] **BUILD-26 — Promote ecosystem issues into migration fixtures** (`todo`).
+  Upstream issue searches are research input, not a second queue. Promote an
+  issue only when a minimal, version-pinned reproduction exposes an Agentic
+  Mermaid gap in supported syntax, semantic preservation, determinism,
+  security, or workflow ergonomics. Each promotion must cite the source issue,
+  add a failing fixture or capability-evidence case, name its owning TODO ID,
+  and define the parity outcome. Unpromoted issue lists are deliberately not
+  retained in this backlog.
+- [ ] **BUILD-6 — Native upstream Mermaid family adoption** (`todo`). Select
+  work from the version-pinned upstream manifest and generated capability
+  report using current demand, maturity, syntax stability and semantic
+  leverage; do not copy their roster or pre-rank a shadow queue here. Each
+  promoted family passes the citizenship ratchet and the current source,
+  primitive, backend, output, transport and extension contracts. Section A
+  already owns the recognition floor: official and unknown headers are
+  preserved or diagnosed and never fall through to Flowchart. Maturity comes
+  from manifest data rather than a `-beta` spelling heuristic.
+- [ ] **BUILD-1 — Collapsible subgraphs (#7785)** (`todo`). Track Mermaid PR
   <https://github.com/mermaid-js/mermaid/pull/7785> (`@{ view: collapsed }`
   metadata syntax) and stay syntax-compatible. Large, but a real readability
   win for agent-generated architecture diagrams; pairs naturally with typed
-  `collapse`/`expand` mutation ops. Measure with BUILD-13. (BUILD-14, the
-  ASCII phantom-node bug that would have interfered with collapsed-subgraph
-  edge attachment, is now fixed.)
+  `collapse`/`expand` mutation ops.
 
-## 3. Agent-usage verification backlog
+## Agent-usage verification backlog
 
 - [ ] **EVAL-3 — Eval the `agentic-mermaid-diagram-workflow` skill for
   helpfulness** (`todo`). The public skill
@@ -208,12 +148,13 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   footer. Verify it actually improves outcomes: run agent-usage cases with vs.
   without the skill loaded and compare on task success, verify-before-return
   discipline, Code-Mode vs. prose answers, and source-level-vs-structured edit
-  choice — reuse the EVAL-1/EVAL-2 sandbox, task oracle, and trace linter.
+  choice — reuse the existing `eval/agent-usage/` sandbox, task oracle, and
+  trace linter.
   Fold any skill gaps back into `SKILL.md`/`references/`; keep or cut the
   footer link based on whether it demonstrably helps.
 
 
-## 5. Parked / evidence-required ideas
+## Parked / evidence-required ideas
 
 - [ ] **PARK-2 — Agent Skills discovery and skills.sh visibility** (`parked`,
   experimental draft). Reassess Cloudflare's Agent Skills Discovery draft when
@@ -229,11 +170,10 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
 - [ ] **PARK-3 — Fork feature ports** (`parked`). Vercel themes,
   browser/package export tweaks, ArchiMate (upstream PR #34), and
   animation remain fork-audit ideas. Promote one only with a focused issue
-  and owner. (QuadrantChart was promoted to BUILD-11; fan-in grouping was
-  PARK-1, promoted to BUILD-9.)
+  and owner.
 
 
-## 6. Consolidation / dedup backlog
+## Consolidation / dedup backlog
 
 - [ ] **CONS-11 — One shape-outline module** (`todo`). Every non-rectangular
   flowchart silhouette is authored twice: the emitter in `src/renderer.ts` and
@@ -256,32 +196,32 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   "minimal diagram" is duplicated across family metadata, editor examples,
   website comparisons, and test fixture helpers, and has drifted. Make `BUILTIN_FAMILY_METADATA[].example`
   canonical and derive `COMPARISON_CASES` + fixtures from it.
-- [ ] **CONS-30 — `agent/body-utils.ts` extraction** (`todo`). Mechanical,
-  high-confidence dedup inside `src/agent/`: the LABEL_OVERFLOW closure (×6), the
-  id allocator (×5), byte-identical `set_title` (×7), `pie-body` ≡ `quadrant-body`
-  collection ops, the source-map builders, and the `extractLabels` frame (~12×).
-  Also FNV-1a hash re-rolled in 6 family renderers → import `seedFrom`
-  (`scene/seed.ts`), and ~47 hand-built `color-mix(in srgb, …)` strings → a
-  shared `cssMix`.
+- [ ] **CONS-30 — `agent/body-utils.ts` extraction** (`todo`). Mechanically
+  deduplicate repeated LABEL_OVERFLOW, id-allocation, `set_title`, collection,
+  source-map, label-extraction, seeded-hash, and CSS-mix helpers. Characterize
+  semantics first and extract one proven cluster at a time.
 - [ ] **CONS-40 — Generate the per-family stryker configs** (`todo`). The
   `stryker.<family>.config.json` lanes duplicate pure `family → globs → tests` data.
   Generate them from the citizenship matrix. Caveat: the citizenship test and
   matrix hard-code the config filenames, so a generator must keep on-disk names
   or update both in lockstep.
-- [ ] **CONS-41 — Complete typed Scene leaf/marker migration** (`todo`). Extend
-  the characterized transform/serializer/document primitives beyond the Mindmap
-  and GitGraph pilot; replace family-local marker XML and classify every remaining
-  `RawMark` escape without changing default bytes.
-- [ ] **CONS-42 — Complete authoritative positioning for every family** (`todo`).
-  Generalize the Mindmap/GitGraph `resolve → position → project` pilot so SVG and
-  `layoutMermaid` never independently parse or resolve the same structured body.
+- [ ] **CONS-41 — Classify remaining non-marker `RawMark` escapes** (`todo`).
+  Connector terminals and marker resources are typed. Replace or explicitly
+  classify the remaining accessibility/prelude, CSS, icon/image, tooltip, and
+  hit-overlay escapes with typed document, icon, or interaction primitives,
+  preserving default bytes and strict-security evidence.
 - [ ] **CONS-43 — Continue physical layout-pass extraction** (`todo`). Move
   cohesive pass implementations out of `layout/passes/index.ts` one at a time
   behind the checked manifest; preserve order, mutation declarations,
   certificate reissue, layout bytes, and SVG bytes.
-- [ ] **CONS-44 — Generate remaining public declarations and adapters** (`todo`).
-  Derive SDK declarations and repeated CLI/MCP schemas from authoritative family
-  descriptors, while retaining transport-neutral `applyOps` and tool dispatch.
+- [ ] **CONS-44 — Finish config and residual adapter schema authority**
+  (`todo`). Family descriptors own config sections, keys and no-op declarations,
+  but built-in value rules and richer resolver diagnostics remain centralized in
+  `src/shared/family-config-diagnostics.ts`. Move those rules behind
+  descriptor-owned schemas or diagnostic hooks, then inventory repeated
+  transport schemas not already projected from the family, StyleSpec, or
+  RenderOptions descriptors. Generate only proven duplicates while retaining
+  transport-neutral `applyOps` and tool dispatch.
 - [ ] **CONS-45 — Finish terminal-context convergence** (`todo`). Move remaining
   family-local cell writers and context argument lists onto shared grapheme-safe
   canvas/context helpers without projecting pixel Scene geometry.

@@ -116,7 +116,15 @@ export function applyOps(input: ApplyOpsInput): OpEnvelope {
   if (typeof source === 'string' && source.trim().length > 0) {
     const parsed = parseMermaid(source)
     if (!parsed.ok) {
-      return { ok: false, family: null, error: { code: 'PARSE_ERROR', message: parsed.error.map(e => e.message).join('; ') || 'could not parse source' } }
+      const primary = parsed.error[0]
+      return {
+        ok: false,
+        family: null,
+        error: {
+          code: primary?.code ?? 'PARSE_ERROR',
+          message: parsed.error.map(e => e.message).join('; ') || 'could not parse source',
+        },
+      }
     }
     d = parsed.value as MutableValidDiagram
     if (!hasOpSchema(d.kind)) {

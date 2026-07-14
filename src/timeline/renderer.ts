@@ -1,5 +1,5 @@
 import type { PositionedTimelineDiagram, PositionedTimelineSection, PositionedTimelinePeriod, PositionedTimelineEvent } from './types.ts'
-import type { RenderContext } from '../types.ts'
+import type { RenderContext, RenderOptions } from '../types.ts'
 import type { DiagramColors } from '../theme.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
 import { TIMELINE_STYLE_DEFAULTS } from './layout.ts'
@@ -45,11 +45,16 @@ const TL = {
   markerInnerRadius: 4.5,
 } as const
 
-interface TimelineFamilyPalette {
+export interface TimelineFamilyPalette {
   accent: string
   fill: string
   label: string
   line: string
+}
+
+export interface TimelineRequestAppearance {
+  timelineConfig: TimelineRuntimeConfig
+  familyPalettes: readonly TimelineFamilyPalette[]
 }
 
 /**
@@ -68,17 +73,19 @@ export function renderTimelineSvg(
 export function lowerTimelineScene(
   ctx: RenderContext<PositionedTimelineDiagram>,
 ): SceneDoc {
-  const { positioned: diagram, colors, options } = ctx
+  const { positioned: diagram, colors, resolved } = ctx
+  const options = resolved.renderOptions
   const font = colors.font ?? 'Inter'
   const transparent = options.transparent ?? false
-  const timelineConfig = options.mermaidConfig?.timeline ?? {}
-  const themeVariables = options.mermaidConfig?.themeVariables
+  const timelineAppearance = resolved.familyAppearance as TimelineRequestAppearance | undefined
+  if (!timelineAppearance) throw new Error('Timeline rendering requires request-boundary family appearance resolution')
+  const timelineConfig = timelineAppearance.timelineConfig
   const parts: SceneNode[] = []
-  const style = resolveRenderStyle(options, TIMELINE_STYLE_DEFAULTS)
+  const style = resolveRenderStyle(options, TIMELINE_STYLE_DEFAULTS, resolved.styleFace)
   const paints = timelinePaints(style)
   const accessibleTitle = diagram.accessibilityTitle ?? diagram.title?.text.replace(/\n+/g, ' ')
   const accessibleDescription = diagram.accessibilityDescription
-  const familyPalettes = getTimelineFamilyPalettes(timelineConfig, themeVariables)
+  const familyPalettes = timelineAppearance.familyPalettes
   // disableMulticolor collapses every color family to 0 — for per-period
   // families AND labeled per-section families (upstream semantics; the old
   // gate skipped labeled sections, plan §Timeline 3).
@@ -504,6 +511,14 @@ function renderFamilyAttr(familyIndex: number, familyPalettes: readonly Timeline
   return ` data-family="${family}" style="${escapeAttr(style)}"`
 }
 
+export function resolveTimelineRequestAppearance(options: RenderOptions = {}): TimelineRequestAppearance {
+  const timelineConfig = options.mermaidConfig?.timeline ?? {}
+  return {
+    timelineConfig,
+    familyPalettes: getTimelineFamilyPalettes(timelineConfig, options.mermaidConfig?.themeVariables),
+  }
+}
+
 function getTimelineFamilyPalettes(
   timelineConfig: TimelineRuntimeConfig,
   themeVariables?: MermaidThemeVariables,
@@ -539,4 +554,3 @@ function readTimelineScale(
   const value = themeVariables[`${prefix}${index}`]
   return typeof value === 'string' && value.length > 0 ? value : undefined
 }
-

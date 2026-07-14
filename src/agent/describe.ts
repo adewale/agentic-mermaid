@@ -17,7 +17,6 @@ import type {
 } from './types.ts'
 import { getFamily, extractLabelsGeneric } from './families.ts'
 import { describeMermaidFacts } from './facts.ts'
-import './families-builtin.ts'
 import { parseGanttModel } from '../gantt/parser.ts'
 import { resolveGanttSchedule, formatGanttInstant } from '../gantt/schedule.ts'
 import { toMermaidLines } from '../mermaid-source.ts'

@@ -1,3 +1,208 @@
+import {
+  architectureVisualOverridesTypeScriptDeclaration,
+  RENDER_OUTPUT_DESCRIPTORS,
+  sharedRenderOptionsTypeScriptDeclaration,
+} from '../render-contract.ts'
+import { BUILTIN_FAMILY_METADATA, type BuiltinFamilyMetadata } from '../agent/families.ts'
+
+function sdkFamilyTypeStem(family: BuiltinFamilyMetadata): string {
+  return family.narrower.slice(2)
+}
+
+function sdkFamilyBodyType(family: BuiltinFamilyMetadata): string {
+  return family.id === 'flowchart'
+    ? `{ kind: 'flowchart'; graph: FlowchartGraph }`
+    : `${sdkFamilyTypeStem(family)}Body`
+}
+
+const SDK_DIAGRAM_KIND_DECLARATION = `type DiagramKind = ${BUILTIN_FAMILY_METADATA
+  .map(family => `'${family.id}'`).join(' | ')}`
+
+const SDK_DIAGRAM_BODY_MEMBERS = BUILTIN_FAMILY_METADATA
+  .map(family => `    | ${sdkFamilyBodyType(family)}`)
+  .join('\n')
+
+const SDK_VALID_DIAGRAM_ALIASES = BUILTIN_FAMILY_METADATA
+  .map(family => `type ${sdkFamilyTypeStem(family)}ValidDiagram = ValidDiagram & { body: ${sdkFamilyBodyType(family)} }`)
+  .join('\n')
+
+const SDK_NARROWER_METHOD_DECLARATIONS = BUILTIN_FAMILY_METADATA
+  .map(family => `  ${family.narrower}(d: ValidDiagram): ${sdkFamilyTypeStem(family)}ValidDiagram | null`)
+  .join('\n')
+
+const SDK_MUTATE_METHOD_DECLARATIONS = BUILTIN_FAMILY_METADATA
+  .map(family => {
+    const stem = sdkFamilyTypeStem(family)
+    return `  mutate(d: ${stem}ValidDiagram, op: ${stem}MutationOp): Result<${stem}ValidDiagram, { code: string; message: string }>`
+  })
+  .join('\n')
+
+const SDK_ANY_MUTATION_OP_DECLARATION = `type AnyMutationOp = ${BUILTIN_FAMILY_METADATA
+  .map(family => `${sdkFamilyTypeStem(family)}MutationOp`).join(' | ')}`
+
+const SDK_FAMILY_CONVENTION = `// 3. mutate works on ${BUILTIN_FAMILY_METADATA.map(family => family.id).join(', ')}. Narrow via\n//    ${BUILTIN_FAMILY_METADATA.map(family => family.narrower).join('/')}.`
+
+function codeModeRenderMethodDeclarations(): string {
+  const methods = new Map<string, {
+    optionsType: string
+    returnType: string
+    outputs: string[]
+  }>()
+  for (const descriptor of RENDER_OUTPUT_DESCRIPTORS) {
+    const transport = descriptor.transports.codeMode
+    if (transport.availability !== 'direct' && transport.availability !== 'projected') continue
+    const output = `${descriptor.id}: ${transport.selector ?? transport.availability}`
+    const existing = methods.get(transport.method)
+    if (existing) {
+      if (existing.optionsType !== transport.optionsType || existing.returnType !== transport.returnType) {
+        throw new Error(`Code Mode render contract for ${transport.method} has incompatible signatures`)
+      }
+      existing.outputs.push(output)
+    } else {
+      methods.set(transport.method, {
+        optionsType: transport.optionsType,
+        returnType: transport.returnType,
+        outputs: [output],
+      })
+    }
+  }
+  return [...methods].map(([method, declaration]) =>
+    `  // ${declaration.outputs.join('; ')}\n  ${method}(input: ParsedDiagram | string, opts?: ${declaration.optionsType}): ${declaration.returnType}`,
+  ).join('\n')
+}
+
+/** Generated once from the canonical render-option descriptors and embedded in
+ * both the compact tools/list declaration and the full SDK reference. */
+export const CODE_MODE_SHARED_RENDER_OPTIONS_DECLARATION = sharedRenderOptionsTypeScriptDeclaration()
+
+const CODE_MODE_OUTPUT_RENDER_OPTION_DECLARATIONS = `interface TerminalProjectionDiagnostic { code: string; feature: string; message: string }
+
+interface SvgRenderOptions extends SharedRenderOptions {
+  onConfigDiagnostic?: (diagnostic: { code: 'INEFFECTIVE_CONFIG'; field: string; message: string }) => void
+}
+
+interface AsciiRenderOptions extends SharedRenderOptions {
+  useAscii?: boolean
+  paddingX?: number
+  paddingY?: number
+  boxBorderPadding?: number
+  colorMode?: 'auto' | 'none' | 'ansi16' | 'ansi256' | 'truecolor' | 'html'
+  theme?: { fg?: string; border?: string; line?: string; arrow?: string; accent?: string; bg?: string; corner?: string; junction?: string }
+  maxWidth?: number
+  targetWidth?: number
+  onProjectionDiagnostic?: (diagnostic: TerminalProjectionDiagnostic) => void
+}
+
+interface LayoutRenderOptions extends SharedRenderOptions {
+  debug?: boolean
+  regions?: boolean
+  actions?: boolean
+}`
+
+const CODE_MODE_RENDER_RECEIPT_DECLARATIONS = `interface RenderArtifactDiagnostic { code: string; message?: string; reference?: string; feature?: string; input?: string; canonicalId?: string; removal?: { release: string; date: string } }
+interface CapabilityResolution { readonly id: \`\${string}:\${string}\`; readonly range: string; readonly level: 'required' | 'preferred' | 'optional'; readonly status: 'selected' | 'unsupported' | 'incompatible'; readonly version?: string }
+interface CapabilityDecision { readonly version: 1; readonly accepted: boolean; readonly resolutions: readonly CapabilityResolution[] }
+interface RenderExecutionDecision {
+  readonly family: { readonly id: string; readonly version: string }
+  readonly backend: { readonly mode: 'scene'; readonly requestedId: string; readonly selectedId: string; readonly version: string; readonly hostPolicy: boolean } | { readonly mode: 'family-svg' }
+  readonly digest: string
+}
+interface RenderRequestReceipt { version: 1; output: 'svg' | 'png' | 'ascii' | 'unicode' | 'html' | 'layout'; sharedRequestDigest: string; requestDigest: string; appearanceDigest: string; capabilityDecision?: CapabilityDecision; diagnostics?: readonly RenderArtifactDiagnostic[]; graphicalProjectionDigest?: string; executionDecision?: RenderExecutionDecision }`
+
+/** Lossless whitespace projection for the tools/list context budget. Every
+ * member remains generated by the same declarations used in the full SDK. */
+function compactInterfaceDeclarations(declaration: string): string {
+  let compact = ''
+  for (const sourceLine of declaration.split('\n')) {
+    const line = sourceLine.trim()
+    if (!line) continue
+    if (line.startsWith('interface ') && line.endsWith('}')) {
+      compact += `${line}\n`
+    } else if (line.endsWith('{')) {
+      compact += `${line} `
+    } else if (line === '}') {
+      compact += `}\n`
+    } else {
+      compact += `${line.replaceAll('?: ', '?:')};`
+    }
+  }
+  return compact.trimEnd()
+}
+
+const CODE_MODE_CORE_SHARED_RENDER_OPTIONS_DECLARATION = compactInterfaceDeclarations(
+  CODE_MODE_SHARED_RENDER_OPTIONS_DECLARATION,
+)
+const CODE_MODE_CORE_OUTPUT_RENDER_OPTION_DECLARATIONS = compactInterfaceDeclarations(
+  CODE_MODE_OUTPUT_RENDER_OPTION_DECLARATIONS,
+)
+const CODE_MODE_CORE_RENDER_RECEIPT_DECLARATIONS = compactInterfaceDeclarations(
+  CODE_MODE_RENDER_RECEIPT_DECLARATIONS,
+)
+
+export const CODE_MODE_RENDER_OPTION_DECLARATIONS = `type StyleInput = string | { [key: string]: unknown }
+
+${architectureVisualOverridesTypeScriptDeclaration()}
+
+${CODE_MODE_SHARED_RENDER_OPTIONS_DECLARATION}
+
+${CODE_MODE_OUTPUT_RENDER_OPTION_DECLARATIONS}
+
+${CODE_MODE_RENDER_RECEIPT_DECLARATIONS}
+
+interface TerminalConnectorProjection {
+  id: string
+  role: string
+  realization: 'native' | 'emulated' | 'projected' | 'lossy' | 'unsupported'
+  topology: 'line' | 'polyline' | 'path'
+  direction: 'forward' | 'reverse' | 'bidirectional' | 'undirected' | 'self'
+  relationship: string
+  markers: { start?: { id: string; shape: string }; mid: readonly { id: string; shape: string }[]; end?: { id: string; shape: string } }
+  labels: readonly { id?: string; text: string }[]
+  lineStyle: 'solid' | 'dotted' | 'dashed' | 'thick' | 'invisible'
+  strokeLosses: readonly string[]
+  diagnostics: readonly string[]
+}
+interface ResolvedTerminalStyle {
+  version: 1
+  colorMode: 'none' | 'ansi16' | 'ansi256' | 'truecolor' | 'html'
+  theme: Readonly<{ fg: string; border: string; line: string; arrow: string; accent?: string; bg?: string; corner?: string; junction?: string }>
+  diagnostics: readonly TerminalProjectionDiagnostic[]
+  connectorProjection: { evidence: 'scene' | 'unavailable' | 'not-evaluated'; count: number; topologies: Readonly<Record<'line' | 'polyline' | 'path', number>>; realizations: Readonly<Record<string, number>>; relationships: readonly string[]; directions: readonly string[]; markerPositions: Readonly<{ start: number; mid: number; end: number }>; labelCount: number; connectors: readonly TerminalConnectorProjection[]; digest: string }
+  digest: string
+}
+interface ResolvedTerminalOutputPolicy {
+  version: 1
+  useAscii: boolean
+  paddingX: number
+  paddingY: number
+  boxBorderPadding: number
+  colorMode: 'none' | 'ansi16' | 'ansi256' | 'truecolor' | 'html'
+  theme: Readonly<{ fg?: string; border?: string; line?: string; arrow?: string; accent?: string; bg?: string; corner?: string; junction?: string }>
+  maxWidth?: number
+  targetWidth?: number
+}
+interface RenderedSvg { svg: string; receipt: RenderRequestReceipt }
+interface RenderedAscii { text: string; receipt: RenderRequestReceipt; terminalStyle: ResolvedTerminalStyle; outputPolicy: ResolvedTerminalOutputPolicy }
+interface RenderedLayoutArtifact { layout: VerifyResult['layout']; receipt: RenderRequestReceipt }`
+
+/** Compact tools/list projection. It shares the exact generated public option
+ * fields, output-option interfaces, and receipt contract with the full SDK,
+ * while intentionally summarizing the full terminal evidence records. */
+export const CODE_MODE_CORE_RENDER_OPTION_DECLARATIONS = `type StyleInput = string | { [key: string]: unknown }
+type ArchitectureVisualOverrides = Readonly<Record<string, unknown>>
+
+${CODE_MODE_CORE_SHARED_RENDER_OPTIONS_DECLARATION}
+
+${CODE_MODE_CORE_OUTPUT_RENDER_OPTION_DECLARATIONS}
+
+${CODE_MODE_CORE_RENDER_RECEIPT_DECLARATIONS}
+
+interface RenderedSvg { svg: string; receipt: RenderRequestReceipt }
+interface RenderedAscii { text: string; receipt: RenderRequestReceipt; terminalStyle: Record<string, unknown>; outputPolicy: Record<string, unknown> }
+interface RenderedLayoutArtifact { layout: VerifyResult['layout']; receipt: RenderRequestReceipt }`
+
+const CODE_MODE_RENDER_METHOD_DECLARATIONS = codeModeRenderMethodDeclarations()
+
 export const SDK_DECLARATION = `// Mermaid agent SDK available as the global \`mermaid\`. All calls are
 // synchronous and pure. Compose multi-step edits in one execute() call.
 // Code Mode is synchronous: async/await, Promise jobs, and dynamic import are not supported.
@@ -37,11 +242,73 @@ type MermaidRuntimeConfig = {
   sequence?: { [key: string]: MermaidConfigValue | undefined; actorMargin?: number; width?: number; height?: number; diagramMarginX?: number; diagramMarginY?: number; messageMargin?: number; noteMargin?: number; activationWidth?: number; showSequenceNumbers?: boolean }
   useMaxWidth?: boolean
   useWidth?: number
+  /** Recognized for upstream accounting but public renderers reject raw CSS; use StyleSpec. */
   themeCSS?: string
 }
 
-type DiagramKind = 'flowchart' | 'state' | 'sequence' | 'class' | 'er'
-                 | 'timeline' | 'journey' | 'xychart' | 'architecture' | 'pie' | 'quadrant' | 'gantt' | 'mindmap' | 'gitgraph'
+${CODE_MODE_RENDER_OPTION_DECLARATIONS}
+
+${SDK_DIAGRAM_KIND_DECLARATION}
+type ExternalFamilyId = \`family:\${string}\`
+
+interface ExtensionCompatibility {
+  readonly [contract: string]: string | undefined
+  readonly core?: string
+  readonly scene?: string
+}
+
+interface ExtensionProvenance {
+  readonly owner: string
+  readonly source: string
+  readonly reference?: string
+}
+
+interface ExtensionIdentity<Kind extends string = string> {
+  readonly id: \`\${Kind}:\${string}\`
+  readonly kind: Kind
+  readonly version: string
+  readonly compatibility: ExtensionCompatibility
+  readonly provenance: ExtensionProvenance
+}
+
+interface SourceSpanPoint {
+  /** UTF-16 offset in the exact authored source; line and col are one-based. */
+  readonly offset: number
+  readonly line: number
+  readonly col: number
+}
+
+interface SourceSpan {
+  readonly start: SourceSpanPoint
+  readonly end: SourceSpanPoint
+}
+
+interface PreservedSourceSpans {
+  readonly source: SourceSpan
+  readonly wrapper?: SourceSpan
+  readonly header: SourceSpan
+  readonly body: SourceSpan
+}
+
+interface SourcePreservationReceipt {
+  readonly version: 1
+  readonly classification: 'unsupported' | 'inventory-only' | 'unknown'
+  /** Exact authored bytes supplied to the parser. */
+  readonly source: string
+  readonly header: string
+  readonly upstreamFamilyId?: string
+  readonly mermaidVersion: string
+  readonly spans?: PreservedSourceSpans
+}
+
+interface ParseError {
+  readonly code: string
+  readonly message: string
+  readonly line?: number
+  readonly col?: number
+  readonly preservation?: SourcePreservationReceipt
+  readonly help?: string
+}
 
 interface ValidDiagram {
   readonly kind: DiagramKind
@@ -52,38 +319,47 @@ interface ValidDiagram {
     accessibility: { title?: string; descr?: string }
   }
   readonly body:
-    | { kind: 'flowchart'; graph: FlowchartGraph }
-    | StateBody
-    | SequenceBody
-    | TimelineBody
-    | ClassBody
-    | ErBody
-    | JourneyBody
-    | ArchitectureBody
-    | XyChartBody
-    | PieBody
-    | QuadrantBody
-    | GanttBody
-    | MindmapBody
-    | GitGraphBody
+${SDK_DIAGRAM_BODY_MEMBERS}
     | { kind: 'opaque'; family: DiagramKind; source: string }
   readonly canonicalSource: string   // normalized renderer input; opaque fidelity uses body.source
 }
 
-type FlowchartValidDiagram = ValidDiagram & { body: { kind: 'flowchart'; graph: FlowchartGraph } }
-type StateValidDiagram     = ValidDiagram & { body: StateBody }
-type SequenceValidDiagram  = ValidDiagram & { body: SequenceBody }
-type TimelineValidDiagram  = ValidDiagram & { body: TimelineBody }
-type ClassValidDiagram     = ValidDiagram & { body: ClassBody }
-type ErValidDiagram        = ValidDiagram & { body: ErBody }
-type JourneyValidDiagram   = ValidDiagram & { body: JourneyBody }
-type ArchitectureValidDiagram = ValidDiagram & { body: ArchitectureBody }
-type XyChartValidDiagram   = ValidDiagram & { body: XyChartBody }
-type PieValidDiagram       = ValidDiagram & { body: PieBody }
-type QuadrantValidDiagram  = ValidDiagram & { body: QuadrantBody }
-type GanttValidDiagram     = ValidDiagram & { body: GanttBody }
-type MindmapValidDiagram   = ValidDiagram & { body: MindmapBody }
-type GitGraphValidDiagram  = ValidDiagram & { body: GitGraphBody }
+interface ExtensionDiagramBody {
+  readonly kind: 'extension'
+  readonly family: ExternalFamilyId
+  readonly source: string
+  readonly data?: unknown
+}
+
+interface ExtensionValidDiagram {
+  readonly kind: ExternalFamilyId
+  readonly descriptorIdentity: ExtensionIdentity<'family'>
+  readonly meta: ValidDiagram['meta']
+  readonly body: ExtensionDiagramBody
+  readonly canonicalSource: string
+}
+
+interface PreservedValidDiagram {
+  readonly kind: ExternalFamilyId
+  readonly meta: ValidDiagram['meta']
+  readonly body: {
+    readonly kind: 'preserved'
+    readonly representation: 'opaque' | 'unknown'
+    readonly source: string
+    readonly preservation: SourcePreservationReceipt
+    readonly spans: PreservedSourceSpans
+    readonly diagnostic: {
+      readonly code: 'UNSUPPORTED_FAMILY' | 'UNKNOWN_HEADER' | 'FAMILY_DESCRIPTOR_MISMATCH'
+      readonly message: string
+      readonly help: string
+    }
+  }
+  readonly canonicalSource: string
+}
+
+type ParsedDiagram = ValidDiagram | ExtensionValidDiagram | PreservedValidDiagram
+
+${SDK_VALID_DIAGRAM_ALIASES}
 
 interface FlowchartGraph {
   direction: 'TD' | 'TB' | 'LR' | 'BT' | 'RL'
@@ -445,7 +721,7 @@ type WarningCode =
 interface VerifyResult {
   ok: boolean
   warnings: { code: WarningCode; [field: string]: unknown }[]
-  layout: { version: 1; kind: DiagramKind; nodes: unknown[]; edges: unknown[]; groups: unknown[]; bounds: { w: number; h: number } }
+  layout: { version: 1; kind: DiagramKind | ExternalFamilyId; nodes: unknown[]; edges: unknown[]; groups: unknown[]; bounds: { w: number; h: number } }
 }
 
 interface DiagramAnalysis {
@@ -455,13 +731,13 @@ interface DiagramAnalysis {
   gantt?: { criticalPathTaskIds: string[]; slackByTaskId: Record<string, number>; projectStart: number; projectEnd: number; entryTaskIds: string[]; sinkTaskIds: string[] }
 }
 
-type AnyMutationOp = FlowchartMutationOp | StateMutationOp | SequenceMutationOp | TimelineMutationOp
-                   | ClassMutationOp | ErMutationOp | JourneyMutationOp | ArchitectureMutationOp
-                   | XyChartMutationOp | PieMutationOp | QuadrantMutationOp | GanttMutationOp
-                   | MindmapMutationOp | GitGraphMutationOp
+${SDK_ANY_MUTATION_OP_DECLARATION}
 
 declare const mermaid: {
-  parseMermaid(source: string): Result<ValidDiagram, { code: string; message: string }[]>
+  parseMermaid(source: string): Result<ValidDiagram, ParseError[]>
+  // Open parser for trusted hosts that install namespaced family descriptors;
+  // parseMermaid above deliberately retains its built-in-only compatibility type.
+  parseRegisteredMermaid(source: string): Result<ParsedDiagram, ParseError[]>
   // Blank-slate authoring: createMermaid returns an empty structured diagram
   // for any DiagramKind (already narrowed — pass it straight to mutate).
   // buildMermaid folds a typed op list over that empty diagram; on failure the
@@ -469,44 +745,21 @@ declare const mermaid: {
   // flowchart/state only.
   createMermaid(kind: DiagramKind, opts?: { direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }): ValidDiagram
   buildMermaid(kind: DiagramKind, ops: AnyMutationOp[], opts?: { direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }): Result<ValidDiagram, { code: string; message: string; opIndex: number }>
-  asFlowchart(d: ValidDiagram): FlowchartValidDiagram | null
-  asState(d: ValidDiagram):     StateValidDiagram | null
-  asSequence(d: ValidDiagram):  SequenceValidDiagram | null
-  asTimeline(d: ValidDiagram):  TimelineValidDiagram | null
-  asClass(d: ValidDiagram):     ClassValidDiagram | null
-  asEr(d: ValidDiagram):        ErValidDiagram | null
-  asJourney(d: ValidDiagram):   JourneyValidDiagram | null
-  asArchitecture(d: ValidDiagram): ArchitectureValidDiagram | null
-  asXyChart(d: ValidDiagram):   XyChartValidDiagram | null
-  asPie(d: ValidDiagram):       PieValidDiagram | null
-  asQuadrant(d: ValidDiagram):  QuadrantValidDiagram | null
-  asGantt(d: ValidDiagram):     GanttValidDiagram | null
-  asMindmap(d: ValidDiagram):   MindmapValidDiagram | null
-  asGitGraph(d: ValidDiagram):  GitGraphValidDiagram | null
-  mutate(d: FlowchartValidDiagram, op: FlowchartMutationOp): Result<FlowchartValidDiagram, { code: string; message: string }>
-  mutate(d: StateValidDiagram,     op: StateMutationOp):     Result<StateValidDiagram, { code: string; message: string }>
-  mutate(d: SequenceValidDiagram,  op: SequenceMutationOp):  Result<SequenceValidDiagram, { code: string; message: string }>
-  mutate(d: TimelineValidDiagram,  op: TimelineMutationOp):  Result<TimelineValidDiagram, { code: string; message: string }>
-  mutate(d: ClassValidDiagram,     op: ClassMutationOp):     Result<ClassValidDiagram, { code: string; message: string }>
-  mutate(d: ErValidDiagram,        op: ErMutationOp):        Result<ErValidDiagram, { code: string; message: string }>
-  mutate(d: JourneyValidDiagram,   op: JourneyMutationOp):   Result<JourneyValidDiagram, { code: string; message: string }>
-  mutate(d: ArchitectureValidDiagram, op: ArchitectureMutationOp): Result<ArchitectureValidDiagram, { code: string; message: string }>
-  mutate(d: XyChartValidDiagram,   op: XyChartMutationOp):   Result<XyChartValidDiagram, { code: string; message: string }>
-  mutate(d: PieValidDiagram,       op: PieMutationOp):       Result<PieValidDiagram, { code: string; message: string }>
-  mutate(d: QuadrantValidDiagram,  op: QuadrantMutationOp):  Result<QuadrantValidDiagram, { code: string; message: string }>
-  mutate(d: GanttValidDiagram,     op: GanttMutationOp):     Result<GanttValidDiagram, { code: string; message: string }>
-  mutate(d: MindmapValidDiagram,   op: MindmapMutationOp):   Result<MindmapValidDiagram, { code: string; message: string }>
-  mutate(d: GitGraphValidDiagram,  op: GitGraphMutationOp):  Result<GitGraphValidDiagram, { code: string; message: string }>
-  verifyMermaid(input: ValidDiagram | string, opts?: { suppress?: WarningCode[]; labelCharCap?: number }): VerifyResult
+${SDK_NARROWER_METHOD_DECLARATIONS}
+${SDK_MUTATE_METHOD_DECLARATIONS}
+  verifyMermaid(input: ParsedDiagram | string, opts?: { suppress?: WarningCode[]; labelCharCap?: number }): VerifyResult
   analyzeMermaid(d: ValidDiagram): DiagramAnalysis
   analyzeMermaidSource(source: string): Result<DiagramAnalysis, { code: string; message: string }[]>
   describeMermaidFacts(d: ValidDiagram): string[]
   describeMermaidFactsSource(source: string): Result<string[], { code: string; message: string }[]>
   checkMermaid(d: ValidDiagram, spec: CheckMermaidSpec): CheckMermaidResult
   checkMermaidSource(source: string, spec: CheckMermaidSpec): Result<CheckMermaidResult, { code: string; message: string }[]>
-  serializeMermaid(d: ValidDiagram): string
-  renderMermaidSVG(input: ValidDiagram | string, opts?: { security?: 'default' | 'strict'; idPrefix?: string; ganttToday?: string; mermaidConfig?: MermaidRuntimeConfig; style?: StyleInput | StyleInput[]; seed?: number; onConfigDiagnostic?: (diagnostic: { code: 'INEFFECTIVE_CONFIG'; field: string; message: string }) => void }): string
-  renderMermaidASCII(input: ValidDiagram | string, opts?: { useAscii?: boolean; maxWidth?: number; targetWidth?: number; ganttToday?: string; mermaidConfig?: MermaidRuntimeConfig }): string
+  serializeMermaid(d: ParsedDiagram): string
+  // Compatibility conveniences return only bytes/text; use the receipt-aware
+  // methods below for transport parity and projection/security evidence.
+  renderMermaidSVG(input: ParsedDiagram | string, opts?: SvgRenderOptions): string
+  renderMermaidASCII(input: ParsedDiagram | string, opts?: AsciiRenderOptions): string
+${CODE_MODE_RENDER_METHOD_DECLARATIONS}
   // Op discovery — look up exact op shapes at runtime instead of guessing.
   // describeOps returns every op's field names, required-ness, inlined enum
   // values, and constraint/default notes (e.g. score "integer 1..5", shape
@@ -522,11 +775,7 @@ declare const mermaid: {
 //    Mermaid source only for syntax the typed ops do not model.
 // 2. For existing structured diagrams, use mutate() + verify + serializeMermaid();
 //    do not regenerate/concatenate source when a typed op exists.
-// 3. mutate works on flowchart, state, simple sequence, timeline, class, ER,
-//    journey, architecture, xychart, pie, quadrant, gantt, mindmap, and
-//    gitgraph. Narrow via
-//    asFlowchart/asState/asSequence/asTimeline/asClass/asEr/asJourney/
-//    asArchitecture/asXyChart/asPie/asQuadrant/asGantt/asMindmap/asGitGraph.
+${SDK_FAMILY_CONVENTION}
 //    State owns a dedicated body (BUILD-19); asFlowchart returns null on it.
 //    Gantt bodies are segment-preserving: directives/click/comment lines ride
 //    along verbatim as opaque-block segments and are edited as source only.

@@ -60,7 +60,7 @@ citizenship matrix. For an agent-native product the docs, schemas, CLI
 help, and `llms.txt` *are* runtime surface (Loop 14), so they are tested
 like code, not treated as prose.
 
-**Runs:** every PR (`bun test src/__tests__/`).
+**Runs:** every PR (`bun run test`, including the canonical 30-second per-test budget).
 **Does not prove:** that the diagram is *visually* good. `verify.ok` is
 structural only — stated repeatedly because it has burned us (the Auth
 Flow episode, Loop 15).
@@ -154,7 +154,7 @@ pin the exact seed that exposed their bug, scoped via save/restore so the
 global policy survives them).
 
 - Reproduce a specific roll: `AM_FC_SEED=<int> bun test <file>`.
-- Finder mode (deliberate randomness): `AM_FC_SEED=random bun test src/__tests__/`.
+- Finder mode (deliberate randomness): `AM_FC_SEED=random bun run test`.
 - The policy is itself gated: `fc-seed-policy.test.ts` fails if the preload is
   unwired; `zzz-fc-seed-policy-epilogue.test.ts` (alphabetically last) fails if
   any suite wipes the pin instead of restoring it.
@@ -264,7 +264,7 @@ real judge run can.
 `ci.yml` is the source of truth for what gates each PR — read it rather than a
 table here, which would drift. In broad strokes:
 
-- **Per-PR (`ci.yml`):** the unit/property suite (`bun test src/__tests__/`) —
+- **Per-PR (`ci.yml`):** the unit/property suite (`bun run test`) —
   Tier-1 verify, goldens, the differential + faithfulness + metamorphic gates,
   `measureQuality`/ugly-detector/layout-rubric, the heuristic-tracker ratchet,
   the corpus/seqbench/upstream benches — plus type check, the hero check, the

@@ -55,17 +55,17 @@
   .journey-actor-4 { fill: #8d8d34; }
 </style>
 <g class="journey-score-guide" data-score-min="1" data-score-max="5">
-  <line class="journey-guide" x1="176" y1="273.20000000000005" x2="650" y2="273.20000000000005" />
+  <line class="journey-guide" x1="176" y1="273.20000000000005" x2="650" y2="273.20000000000005" data-relationship="grid" data-direction="undirected" />
   <text x="164" y="273.20000000000005" class="journey-score-label" text-anchor="end" font-size="11" font-weight="600" dy="3.8499999999999996">5</text>
-  <line class="journey-guide" x1="176" y1="313.20000000000005" x2="650" y2="313.20000000000005" />
+  <line class="journey-guide" x1="176" y1="313.20000000000005" x2="650" y2="313.20000000000005" data-relationship="grid" data-direction="undirected" />
   <text x="164" y="313.20000000000005" class="journey-score-label" text-anchor="end" font-size="11" font-weight="600" dy="3.8499999999999996">4</text>
-  <line class="journey-guide" x1="176" y1="353.20000000000005" x2="650" y2="353.20000000000005" />
+  <line class="journey-guide" x1="176" y1="353.20000000000005" x2="650" y2="353.20000000000005" data-relationship="grid" data-direction="undirected" />
   <text x="164" y="353.20000000000005" class="journey-score-label" text-anchor="end" font-size="11" font-weight="600" dy="3.8499999999999996">3</text>
-  <line class="journey-guide" x1="176" y1="393.20000000000005" x2="650" y2="393.20000000000005" />
+  <line class="journey-guide" x1="176" y1="393.20000000000005" x2="650" y2="393.20000000000005" data-relationship="grid" data-direction="undirected" />
   <text x="164" y="393.20000000000005" class="journey-score-label" text-anchor="end" font-size="11" font-weight="600" dy="3.8499999999999996">2</text>
-  <line class="journey-guide" x1="176" y1="433.20000000000005" x2="650" y2="433.20000000000005" />
+  <line class="journey-guide" x1="176" y1="433.20000000000005" x2="650" y2="433.20000000000005" data-relationship="grid" data-direction="undirected" />
   <text x="164" y="433.20000000000005" class="journey-score-label" text-anchor="end" font-size="11" font-weight="600" dy="3.8499999999999996">1</text>
-  <line class="journey-baseline" x1="176" y1="465.20000000000005" x2="650" y2="465.20000000000005" marker-end="url(#journey-1nl2g1i-arrowhead)" />
+  <line class="journey-baseline" x1="176" y1="465.20000000000005" x2="650" y2="465.20000000000005" marker-end="url(#journey-1nl2g1i-arrowhead)" data-relationship="rail" data-direction="forward" />
 </g>
 <g class="journey-actor-legend">
   <text x="32" y="118.4" class="journey-actor-legend-title" text-anchor="start" font-size="12" font-weight="600" dy="4.199999999999999">Actors</text>
@@ -90,9 +90,9 @@
   <rect class="journey-section-label-band journey-section-band-1" x="334" y="80.4" width="282" height="22" rx="6" ry="6" />
   <text x="475" y="91.4" class="journey-section-label journey-section-label-1" text-anchor="middle" font-size="12" font-weight="600" dy="4.199999999999999">Deliver</text>
 </g>
-<path class="journey-curve" d="M248,313.20000000000005 C298.6666666666667,313.20000000000005 349.3333333333333,353.20000000000005 400,353.20000000000005 C450,353.20000000000005 500,273.20000000000005 550,273.20000000000005" data-id="experience-curve" data-role="series" />
+<path class="journey-curve" d="M248,313.20000000000005 C298.6666666666667,313.20000000000005 349.3333333333333,353.20000000000005 400,353.20000000000005 C450,353.20000000000005 500,273.20000000000005 550,273.20000000000005" data-relationship="series" data-direction="undirected" data-id="experience-curve" data-role="series" />
 <g class="journey-task" data-id="task-0" data-score="4" data-section="Discover" data-actors="PM, Research" data-role="task">
-  <line class="journey-track" x1="248" y1="200.3" x2="248" y2="465.20000000000005" />
+  <line class="journey-track" x1="248" y1="200.3" x2="248" y2="465.20000000000005" data-relationship="marker-line" data-direction="undirected" />
   <rect class="journey-task-box" x="186" y="139.4" width="124" height="60.900000000000006" rx="5" ry="5" data-id="task-box:task-0" data-role="task" />
   <text x="248" y="159.85" class="journey-task-text" text-anchor="middle" font-size="13" font-weight="500" dy="4.55">Interview users</text>
   <circle class="journey-actor-dot journey-actor-0" data-actor="PM" cx="240" cy="184.3" r="4" data-id="actor-dot:task-0:PM" data-role="actor" />
@@ -105,7 +105,7 @@
   </g>
 </g>
 <g class="journey-task" data-id="task-1" data-score="3" data-section="Deliver" data-actors="Design, Eng" data-role="task">
-  <line class="journey-track" x1="400" y1="217.20000000000002" x2="400" y2="465.20000000000005" />
+  <line class="journey-track" x1="400" y1="217.20000000000002" x2="400" y2="465.20000000000005" data-relationship="marker-line" data-direction="undirected" />
   <rect class="journey-task-box" x="338" y="139.4" width="124" height="77.80000000000001" rx="5" ry="5" data-id="task-box:task-1" data-role="task" />
   <text x="400" y="168.3" class="journey-task-text" text-anchor="middle" font-size="13" font-weight="500"><tspan x="400" dy="-3.9000000000000012">Prototype</tspan><tspan x="400" dy="16.900000000000002">review</tspan></text>
   <circle class="journey-actor-dot journey-actor-2" data-actor="Design" cx="392" cy="201.20000000000002" r="4" data-id="actor-dot:task-1:Design" data-role="actor" />
@@ -118,7 +118,7 @@
   </g>
 </g>
 <g class="journey-task" data-id="task-2" data-score="5" data-section="Deliver" data-actors="Eng, QA" data-role="task">
-  <line class="journey-track" x1="550" y1="200.3" x2="550" y2="465.20000000000005" />
+  <line class="journey-track" x1="550" y1="200.3" x2="550" y2="465.20000000000005" data-relationship="marker-line" data-direction="undirected" />
   <rect class="journey-task-box" x="488" y="139.4" width="124" height="60.900000000000006" rx="5" ry="5" data-id="task-box:task-2" data-role="task" />
   <text x="550" y="159.85" class="journey-task-text" text-anchor="middle" font-size="13" font-weight="500" dy="4.55">Ship</text>
   <circle class="journey-actor-dot journey-actor-3" data-actor="Eng" cx="542" cy="184.3" r="4" data-id="actor-dot:task-2:Eng" data-role="actor" />

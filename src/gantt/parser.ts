@@ -261,22 +261,50 @@ export function parseGanttModel(lines: string[]): GanttModel {
  * `config:` root into the top-level map.
  */
 export function applyGanttFrontmatterConfig(model: GanttModel, frontmatter: MermaidFrontmatterMap | undefined): GanttModel {
-  if (!frontmatter) return model
+  return applyResolvedGanttFrontmatterConfig(model, resolveGanttFrontmatterConfig(frontmatter))
+}
+
+/** Serializable Gantt config compiled once at the render-request boundary. */
+export interface ResolvedGanttFrontmatterConfig {
+  displayMode?: 'compact'
+  barHeight?: number
+  topAxis?: true
+  axisFormat?: string
+  tickInterval?: { count: number; unit: GanttTickUnit }
+}
+
+export function resolveGanttFrontmatterConfig(
+  frontmatter: MermaidFrontmatterMap | undefined,
+): ResolvedGanttFrontmatterConfig {
+  if (!frontmatter) return {}
+  const resolved: ResolvedGanttFrontmatterConfig = {}
   const topLevelMode = getFrontmatterScalar<string>(frontmatter, ['displayMode'])
   const ganttMap = getFrontmatterMap(frontmatter, ['gantt'])
   const ganttMode = ganttMap ? getFrontmatterScalar<string>(frontmatter, ['gantt', 'displayMode']) : undefined
   const mode = ganttMode ?? topLevelMode
-  if (typeof mode === 'string' && mode.toLowerCase() === 'compact') model.displayMode = 'compact'
+  if (typeof mode === 'string' && mode.toLowerCase() === 'compact') resolved.displayMode = 'compact'
   const barHeight = getFrontmatterScalar<number>(frontmatter, ['gantt', 'barHeight'])
-  if (typeof barHeight === 'number' && Number.isFinite(barHeight) && barHeight > 0) model.barHeight = barHeight
+  if (typeof barHeight === 'number' && Number.isFinite(barHeight) && barHeight > 0) resolved.barHeight = barHeight
   const topAxis = getFrontmatterScalar<boolean>(frontmatter, ['gantt', 'topAxis'])
-  if (topAxis === true) model.topAxis = true
+  if (topAxis === true) resolved.topAxis = true
   const axisFormat = getFrontmatterScalar<string>(frontmatter, ['gantt', 'axisFormat'])
-  if (typeof axisFormat === 'string' && model.axisFormat === undefined) model.axisFormat = axisFormat
+  if (typeof axisFormat === 'string') resolved.axisFormat = axisFormat
   const tickInterval = getFrontmatterScalar<string>(frontmatter, ['gantt', 'tickInterval'])
-  if (typeof tickInterval === 'string' && model.tickInterval === undefined) {
+  if (typeof tickInterval === 'string') {
     const tm = tickInterval.match(TICK_INTERVAL_RE)
-    if (tm) model.tickInterval = { count: Number(tm[1]), unit: tm[2] as GanttTickUnit }
+    if (tm) resolved.tickInterval = { count: Number(tm[1]), unit: tm[2] as GanttTickUnit }
   }
+  return resolved
+}
+
+export function applyResolvedGanttFrontmatterConfig(
+  model: GanttModel,
+  resolved: ResolvedGanttFrontmatterConfig,
+): GanttModel {
+  if (resolved.displayMode) model.displayMode = resolved.displayMode
+  if (resolved.barHeight !== undefined) model.barHeight = resolved.barHeight
+  if (resolved.topAxis) model.topAxis = true
+  if (resolved.axisFormat !== undefined && model.axisFormat === undefined) model.axisFormat = resolved.axisFormat
+  if (resolved.tickInterval !== undefined && model.tickInterval === undefined) model.tickInterval = resolved.tickInterval
   return model
 }

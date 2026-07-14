@@ -53,7 +53,7 @@ bun run gallery:mermaid-docs:check
 
 ## Where every registered family is documented
 
-- **Canonical registry:** `BUILTIN_FAMILY_METADATA` in `src/agent/families.ts` — and its generated roster table in [`abstraction-audit.md`](../system/abstraction-audit.md) §2.
+- **Canonical registry:** `FamilyDescriptor` registrations in `src/agent/families.ts`; use `am capabilities --json` for the generated roster.
 - **User-facing catalogue:** [`diagram-families.md`](../../diagram-families.md).
 - **Mutation ops + structured/opaque scope:** [`AGENT_NATIVE.md`](../../../AGENT_NATIVE.md).
 - **Source-preservation level (L0–L4):** [`source-preservation-ladder.md`](../system/source-preservation-ladder.md).

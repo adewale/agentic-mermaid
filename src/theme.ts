@@ -15,6 +15,8 @@
 // Types
 // ============================================================================
 
+import { svgCssText, transformSvgCssValues } from './svg-structure.ts'
+
 /**
  * Diagram color configuration.
  *
@@ -24,6 +26,9 @@
  * derivation from bg + fg if not set.
  */
 import { parseHex, toHex, mixHex, isHexColor, luma255, ensureContrast } from './shared/color-math.ts'
+import { BUILTIN_PALETTE_DEFINITIONS } from './palette-catalog.ts'
+import { requireSafeCssFontFamily } from './shared/css-font.ts'
+import { requireSafeCssPaint } from './shared/css-color.ts'
 
 export interface DiagramColors {
   /** Background color → CSS variable --bg */
@@ -125,97 +130,14 @@ export const MIX = {
 // Users can also extract from Shiki theme objects via fromShikiTheme().
 // ============================================================================
 
-export const THEMES: Record<string, DiagramColors> = {
-  // Brand palette — the Paper / Dusk pair the marketing site and editor chrome
-  // are built on. Specified as bg/fg/accent only (no line/muted/surface/border
-  // overrides) so the derived tiers come straight from the MIX weights, making
-  // these diagrams identical to the ones the public site renders from its page
-  // tokens. `paper` is the editor's default theme.
-  'paper': {
-    bg: '#F5F0E4', fg: '#221E16', accent: '#9A4A24',
-  },
-  'dusk': {
-    bg: '#2A2521', fg: '#E9DFCC', accent: '#CC8A57',
-  },
-  'zinc-light': {
-    bg: '#FFFFFF', fg: '#27272A',
-  },
-  'zinc-dark': {
-    bg: '#18181B', fg: '#FAFAFA',
-  },
-  'tokyo-night': {
-    bg: '#1a1b26', fg: '#a9b1d6',
-    line: '#3d59a1', accent: '#7aa2f7', muted: '#565f89',
-  },
-  'tokyo-night-storm': {
-    bg: '#24283b', fg: '#a9b1d6',
-    line: '#3d59a1', accent: '#7aa2f7', muted: '#565f89',
-  },
-  'tokyo-night-light': {
-    bg: '#d5d6db', fg: '#343b58',
-    line: '#34548a', accent: '#34548a', muted: '#9699a3',
-  },
-  'catppuccin-mocha': {
-    bg: '#1e1e2e', fg: '#cdd6f4',
-    line: '#585b70', accent: '#cba6f7', muted: '#6c7086',
-  },
-  'catppuccin-latte': {
-    bg: '#eff1f5', fg: '#4c4f69',
-    line: '#9ca0b0', accent: '#8839ef', muted: '#9ca0b0',
-  },
-  'nord': {
-    bg: '#2e3440', fg: '#d8dee9',
-    line: '#4c566a', accent: '#88c0d0', muted: '#616e88',
-  },
-  'nord-light': {
-    bg: '#eceff4', fg: '#2e3440',
-    line: '#aab1c0', accent: '#5e81ac', muted: '#7b88a1',
-  },
-  'dracula': {
-    bg: '#282a36', fg: '#f8f8f2',
-    line: '#6272a4', accent: '#bd93f9', muted: '#6272a4',
-  },
-  'github-light': {
-    bg: '#ffffff', fg: '#1f2328',
-    line: '#d1d9e0', accent: '#0969da', muted: '#59636e',
-  },
-  'github-dark': {
-    bg: '#0d1117', fg: '#e6edf3',
-    line: '#3d444d', accent: '#4493f8', muted: '#9198a1',
-  },
-  'solarized-light': {
-    bg: '#fdf6e3', fg: '#657b83',
-    line: '#93a1a1', accent: '#268bd2', muted: '#93a1a1',
-  },
-  'solarized-dark': {
-    bg: '#002b36', fg: '#839496',
-    line: '#586e75', accent: '#268bd2', muted: '#586e75',
-  },
-  'one-dark': {
-    bg: '#282c34', fg: '#abb2bf',
-    line: '#4b5263', accent: '#c678dd', muted: '#5c6370',
-  },
-  'salmon': {
-    bg: '#FFFBF5', fg: '#521000',
-    line: '#C9A88A', accent: '#FF4801', muted: '#85532E',
-    surface: '#FFFDFB', border: '#D4B89E',
-  },
-  'salmon-dark': {
-    bg: '#1F1008', fg: '#F5DCC8',
-    line: '#6B4A2E', accent: '#FF6B35', muted: '#A07858',
-    surface: '#2A1810', border: '#5A3A22',
-  },
-  'tufte': {
-    bg: '#FFFFF8', fg: '#111111',
-    line: '#AAAAAA', accent: '#7A0000', muted: '#888888',
-    surface: '#F5F0E8', border: '#CCCCCC',
-  },
-  'tufte-dark': {
-    bg: '#1C1C1A', fg: '#E8E4DC',
-    line: '#666660', accent: '#C87070', muted: '#908880',
-    surface: '#2A2926', border: '#444440',
-  },
-} as const
+/** Legacy theme-name projection generated from the canonical built-in palette
+ * catalog. New discovery and registration code must use Style descriptors. */
+export const THEMES: Readonly<Record<string, DiagramColors>> = Object.freeze(
+  Object.fromEntries(BUILTIN_PALETTE_DEFINITIONS.map(definition => [
+    definition.legacyName,
+    Object.freeze({ ...definition.colors }),
+  ])),
+)
 
 export type ThemeName = keyof typeof THEMES
 
@@ -372,6 +294,10 @@ function resolveRasterFontFamily(fallback: string): string {
  * (napi and wasm) share this one workaround.
  */
 export function inlineFontVarForRaster(svg: string): string {
+  return transformSvgCssValues(svg, inlineFontVarInCss)
+}
+
+function inlineFontVarInCss(svg: string): string {
   const marker = 'var(--font,'
   let out = ''
   let i = 0
@@ -394,6 +320,7 @@ export function inlineFontVarForRaster(svg: string): string {
 }
 
 export function buildStyleBlock(font: string, hasMonoFont: boolean, shadow?: boolean, embedFontImport: boolean = true): string {
+  font = requireSafeCssFontFamily(font)
   // CLI / PNG path sets embedFontImport=false explicitly to render offline /
   // CSP-friendly; library default preserves wire compatibility (existing SVG
   // fixtures and consumer snapshots assert the @import is present). The family
@@ -478,6 +405,11 @@ export function svgOpenTag(
     attrs?: Record<string, string | undefined>
   },
 ): string {
+  if (colors.font !== undefined) requireSafeCssFontFamily(colors.font)
+  for (const field of ['bg', 'fg', 'line', 'accent', 'muted', 'surface', 'border'] as const) {
+    const value = colors[field]
+    if (value !== undefined) requireSafeCssPaint(value, field)
+  }
   // Build the style string with only the provided color variables.
   // `--font` is emitted alongside the colors so consumers can swap the family
   // post-render via `style="--font:Roboto"` on the SVG root.
@@ -607,7 +539,7 @@ export function inlineResolvedColors(svg: string, colors: DiagramColors): string
   // var(--family-token, fallback) prefers the authored token over fallback.
   const cssDefRegex = /--([\w-]+)\s*:\s*(#[0-9a-fA-F]{3,8})\s*;?/g
   let initialDefMatch
-  while ((initialDefMatch = cssDefRegex.exec(svg)) !== null) {
+  while ((initialDefMatch = cssDefRegex.exec(svgCssText(svg))) !== null) {
     vars.set(initialDefMatch[1]!, initialDefMatch[2]!)
   }
 
@@ -625,8 +557,6 @@ export function inlineResolvedColors(svg: string, colors: DiagramColors): string
   vars.set('_inner-stroke', rc.innerStroke)
   vars.set('_key-badge', rc.keyBadge)
 
-  let text = svg
-
   // `--font` is intentionally left as a live CSS variable so consumers can
   // swap the family post-render. Skip it from the color-resolution phase
   // (which exists to make non-browser SVG renderers like resvg work; resvg
@@ -643,55 +573,50 @@ export function inlineResolvedColors(svg: string, colors: DiagramColors): string
     }
   }
 
-  // Phase 1: Iteratively resolve var() and color-mix() from innermost outward
-  for (let pass = 0; pass < 10; pass++) {
-    const prev = text
-
-    // Replace var(--name) without fallback
-    text = text.replace(/var\(--([\w-]+)\)/g, (match, name) => {
-      if (SKIP_VARS.has(name)) return match
-      return vars.get(name) ?? match
-    })
-
-    // Replace var(--name, fallback) where fallback has no nested parens
-    text = text.replace(/var\(--([\w-]+),\s*([^()]+)\)/g, (match, name, fallback) => {
-      if (SKIP_VARS.has(name)) return match
-      return vars.get(name) ?? fallback.trim()
-    })
-
-    // Resolve color-mix(in srgb, #hex P%, #hex|transparent)
-    text = text.replace(
-      /color-mix\(in srgb,\s*(#[0-9a-fA-F]{3,8})\s+(\d+(?:\.\d+)?)%,\s*(#[0-9a-fA-F]{3,8}|transparent)\)/g,
-      (_match, c1, pct, c2) => {
-        const cc2 = c2 === 'transparent' ? rc.bg : c2
-        return mixHex(c1, cc2, parseFloat(pct))
-      },
-    )
-
-    if (text === prev) break
+  const resolveCss = (input: string, definitions: ReadonlyMap<string, string>, passes: number): string => {
+    let text = input
+    for (let pass = 0; pass < passes; pass++) {
+      const prev = text
+      text = text.replace(/var\(--([\w-]+)\)/g, (match, name) => {
+        if (SKIP_VARS.has(name)) return match
+        return definitions.get(name) ?? match
+      })
+      text = text.replace(/var\(--([\w-]+),\s*([^()]+)\)/g, (match, name, fallback) => {
+        if (SKIP_VARS.has(name)) return match
+        return definitions.get(name) ?? fallback.trim()
+      })
+      text = text.replace(
+        /color-mix\(in srgb,\s*(#[0-9a-fA-F]{3,8})\s+(\d+(?:\.\d+)?)%,\s*(#[0-9a-fA-F]{3,8}|transparent)\)/g,
+        (_match, c1, pct, c2) => {
+          const cc2 = c2 === 'transparent' ? rc.bg : c2
+          return mixHex(c1, cc2, parseFloat(pct))
+        },
+      )
+      if (text === prev) break
+    }
+    return text
   }
+
+  // Resolve only actual CSS-bearing contexts. Text/title/desc and ordinary
+  // data attributes are authored content, even when they happen to contain a
+  // string such as `var(--fg)` or `color-mix(...)`.
+  let text = transformSvgCssValues(svg, css => resolveCss(css, vars, 10))
 
   // Phase 2: Extract CSS variable definitions from <style> blocks and resolve
   // any remaining var() references (e.g. --xychart-color-0 defined in style)
   const cssDefs = new Map<string, string>()
   const defRegex = /--([\w-]+)\s*:\s*(#[0-9a-fA-F]{3,8})\s*;/g
+  const cssText = svgCssText(text)
   let defMatch
-  while ((defMatch = defRegex.exec(text)) !== null) {
+  while ((defMatch = defRegex.exec(cssText)) !== null) {
     cssDefs.set(defMatch[1]!, defMatch[2]!)
   }
 
   if (cssDefs.size > 0) {
     for (let pass = 0; pass < 5; pass++) {
-      const prev = text
-      text = text.replace(/var\(--([\w-]+)\)/g, (match, name) => {
-        if (SKIP_VARS.has(name)) return match
-        return cssDefs.get(name) ?? match
-      })
-      text = text.replace(/var\(--([\w-]+),\s*([^()]+)\)/g, (match, name, fallback) => {
-        if (SKIP_VARS.has(name)) return match
-        return cssDefs.get(name) ?? fallback.trim()
-      })
-      if (text === prev) break
+      const resolved = transformSvgCssValues(text, css => resolveCss(css, cssDefs, 1))
+      if (resolved === text) break
+      text = resolved
     }
   }
 

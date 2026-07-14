@@ -9,9 +9,9 @@
 // ============================================================================
 
 export type {
-  Result, ValidDiagram, FlowchartValidDiagram, StateValidDiagram, SequenceValidDiagram, TimelineValidDiagram,
+  Result, ValidDiagram, ParsedDiagram, ExtensionValidDiagram, ExtensionDiagramBody, PreservedValidDiagram, PreservedDiagramBody, PreservedSourceSpans, SourceSpan, SourceSpanPoint, FamilyParsedBody, FlowchartValidDiagram, StateValidDiagram, SequenceValidDiagram, TimelineValidDiagram,
   ClassValidDiagram, ErValidDiagram, JourneyValidDiagram, ArchitectureValidDiagram, XyChartValidDiagram, PieValidDiagram, QuadrantValidDiagram, GanttValidDiagram, MindmapValidDiagram, GitGraphValidDiagram, MutableValidDiagram,
-  ValidDiagramMeta, ValidDiagramPayload, SerializedFlowchartGraph, DiagramBody, DiagramKind,
+  ValidDiagramMeta, ValidDiagramPayload, SerializedFlowchartGraph, DiagramBody, DiagramKind, FamilyId, ExternalFamilyId,
   StateBody, StateNode, StateTransition,
   SequenceBody, SequenceParticipant, SequenceMessage, SequenceMessageStyle,
   TimelineBody, TimelineSection, TimelinePeriod, TimelineEvent,
@@ -24,7 +24,7 @@ export type {
   GanttBody, GanttBodySection, GanttBodyTask, GanttBodyTaskTag, GanttStatement,
   MindmapBody, GitGraphBody,
   SourceMap, SourceComment, InitDirective, Accessibility,
-  ParseError, MutationError, MutationOp, FlowchartMutationOp, StateMutationOp, SequenceMutationOp, TimelineMutationOp,
+  ParseError, SourcePreservationReceipt, MutationError, MutationOp, FlowchartMutationOp, StateMutationOp, SequenceMutationOp, TimelineMutationOp,
   ClassMutationOp, ErMutationOp, JourneyMutationOp, ArchitectureMutationOp, XyChartMutationOp, PieMutationOp, QuadrantMutationOp, GanttMutationOp, MindmapMutationOp, GitGraphMutationOp, AnyMutationOp,
   NodeId, EdgeId, GroupId, ParticipantId,
   LayoutWarning, WarningCode, Tier1WarningCode, Tier2WarningCode, WarningSeverity, WarningTier,
@@ -35,7 +35,7 @@ export type {
 export type { MermaidFact, CheckMermaidSpec, CheckMermaidObjectSpec, CheckMermaidResult } from './facts.ts'
 
 export { WARNING_SEVERITY, WARNING_TIER, DEFAULT_LABEL_CHAR_CAP, ok, err, toFinite, asFlowchart, asState, asSequence, asTimeline, asClass, asEr, asJourney, asArchitecture, asXyChart, asPie, asQuadrant, asGantt, asMindmap, asGitGraph } from './types.ts'
-export { parseMermaid } from './parse.ts'
+export { parseMermaid, parseRegisteredMermaid } from './parse.ts'
 export { serializeMermaid, synthesizeFromGraph } from './serialize.ts'
 export { createMermaid, buildMermaid } from './create.ts'
 export type { CreateMermaidOptions, BuildError } from './create.ts'
@@ -50,8 +50,22 @@ export type { QualityMetrics, QualityBounds, QualityVerdict, RankedViolation, Bo
 export { layoutCertificateProof } from './certificates.ts'
 export type { LayoutCertificateProof } from './certificates.ts'
 export type { RouteCertificate, EdgeRouteCertificate, FamilyEdgeRouteCertificate, RegionContainmentCertificate, FamilyRouteCertificate, LayoutRouteCertificate, LayoutRouteClass, RouteClass, RouteBlocker, RoutePortAssignment, PortSemanticRole, AnyPort, PortSide, DiamondFacet } from '../types.ts'
-export { registerFamily, getFamily, knownFamilies, BUILTIN_FAMILY_METADATA, BUILTIN_FAMILY_METADATA_COVERS_DIAGRAM_KIND, builtinFamilyMetadata } from './families.ts'
-export type { FamilyPlugin, ExtractedLabel, BuiltinFamilyMetadata, BuiltinFamilyId } from './families.ts'
+export { registerFamily, FamilyConformanceError } from './family-registration.ts'
+export { getFamily, getFamilyConformanceReport, effectiveFamilyCapabilityState, knownFamilies, knownBuiltinFamilies, detectRegisteredFamilyFromFirstLine, isBuiltinFamilyId, isExternalFamilyId, BUILTIN_FAMILY_METADATA, BUILTIN_FAMILY_METADATA_COVERS_DIAGRAM_KIND, builtinFamilyMetadata, FAMILY_CAPABILITY_COLUMNS, FAMILY_CONFORMANCE_VERSION, FAMILY_CONFORMANCE_MAX_EXAMPLE_BYTES, UNREGISTERED_FAMILY_CAPABILITY_STATES, declareFamilyScenePrimitiveEvidence } from './families.ts'
+export type {
+  FamilyDescriptor, FamilyOperations, ExtensionIdentity,
+  FamilyCapability, FamilyCapabilityState, FamilyCapabilityEvidence, ExtractedLabel, BuiltinFamilyMetadata, BuiltinFamilyId,
+  FamilyConformanceStatus, FamilyCapabilityConformanceResult, FamilyConformanceReport,
+  FamilyPositionedView, FamilyPositionedProjectionContext, FamilyPositionedProjectionOptions,
+  FamilyScenePrimitiveApplicability, FamilyScenePrimitiveEvidence,
+  FamilyScenePositivePrimitive, FamilySceneRolePrimitiveDeclaration,
+} from './families.ts'
+export { projectPositionedView } from './family-layouts.ts'
+export { UPSTREAM_MERMAID_FAMILY_INDEX, findUpstreamFamilyByHeader } from '../upstream-family-index.ts'
+export type { UpstreamMermaidFamilyIndex, UpstreamHeaderMatch } from '../upstream-family-index.ts'
+export type { UpstreamMermaidManifest, UpstreamFamilyDescriptor, UpstreamHeaderDescriptor, UpstreamManifestDiff } from '../upstream-mermaid-manifest.ts'
+export { MermaidFamilyDetectionError, classifyMermaidFamilyFromFirstLine } from '../family-detection.ts'
+export type { MermaidFamilyClassification, FamilyDetectionDiagnostic } from '../family-detection.ts'
 export { renderMermaidASCIIWithMeta, ASCII_ROUTE_PARITY_CONTRACT } from '../ascii/meta.ts'
 export type { AsciiRegion, AsciiWithMeta, RegionKind, AsciiWarning, AsciiWarningCode } from '../ascii/meta.ts'
 export { describeMermaid, describeMermaidSource, describeMermaidTree } from './describe.ts'
@@ -63,60 +77,189 @@ export type { DescribeTree } from './describe.ts'
 export type { DescribeOptions } from './describe.ts'
 export { asciiToMermaid } from '../ascii/reverse.ts'
 export { AsciiWidthError } from '../ascii/index.ts'
-export type { AsciiRenderOptions, AsciiWidthErrorReason } from '../ascii/index.ts'
+export type { AsciiRenderOptions, AsciiWidthErrorReason, RenderedAscii } from '../ascii/index.ts'
 
-import { renderMermaidSVG as _svg } from '../index.ts'
+import { renderMermaidSVG as _svg, renderMermaidSVGWithReceipt as _svgWithReceipt } from '../index.ts'
 export { verifyNoExternalRefs } from '../index.ts'
 // Style system — agents reach the library through this entry, so the style
 // registry must be importable here too, not only from the main entry.
-export { registerStyle, getStyle, knownStyles, validateStyleSpec, resolveStyleStack, inferBackend } from '../scene/style-registry.ts'
-export type { StyleSpec, StyleInput } from '../scene/style-registry.ts'
-import { renderMermaidASCII as _ascii } from '../ascii/index.ts'
-import { layoutGraphSync } from '../layout-engine.ts'
-import { parseMermaid as parseFlowchartLegacy } from '../parser.ts'
-import { stateBodyToGraph } from './state-body.ts'
-import { serializeMermaid as _serialize } from './serialize.ts'
-import type { ValidDiagram, RenderedLayout, RenderedRegion } from './types.ts'
-import { positionedToRenderedLayout, emptyRenderedLayout } from './layout-to-rendered.ts'
-import { layoutFamilyToRendered } from './family-layouts.ts'
+export {
+  registerStyle, getStyle, knownStyles, knownStyleDescriptors, resolveStyleReference,
+  validateStyleSpec, resolveStyleStack, inferBackend,
+  STYLE_SPEC_FORMAT_VERSION, STYLE_SPEC_FIELD_DESCRIPTORS, STYLE_COLOR_TOKEN_DESCRIPTORS,
+  styleSpecJsonSchema,
+} from '../scene/style-registry.ts'
+export type { StyleSpec, StyleColors, StyleInput, StyleDescriptor, StyleReferenceResolution, StyleRegistrationOptions } from '../scene/style-registry.ts'
+export type { ArchitectureVisualOverrides } from '../architecture/config.ts'
+export { registerBackend, getBackend, knownBackendDescriptors, DefaultBackend } from '../scene/backend.ts'
+export type { StyleBackend, StyleBackendContext, BackendDescriptor, BackendRegistrationOptions, HostBackendPolicy } from '../scene/backend.ts'
+export {
+  BACKEND_CONFORMANCE_VERSION, BACKEND_CONFORMANCE_FIXTURE_ID,
+  BACKEND_CONFORMANCE_CHECK_IDS, runBackendConformance,
+} from '../scene/backend-conformance.ts'
+export type {
+  BackendConformanceCheckId, BackendConformanceCheck, BackendConformanceReport,
+  BackendCapabilityConformanceStatus, BackendCapabilityConformanceResult,
+} from '../scene/backend-conformance.ts'
+export { SCENE_CONTRACT_VERSION } from '../scene/ir.ts'
+export type {
+  SceneDoc, SceneNode, SceneRole, SemanticChannels, ConnectorMark, ConnectorGeometry, ConnectorSubpath,
+  ConnectorRoute, ConnectorContourSemantics, ConnectorStroke, ConnectorEndpoints, ConnectorRelationship,
+  ConnectorLabelDescriptor, ConnectorHitGeometry, ConnectorTerminalProjection,
+  ConnectorTerminalStrokeLoss, ConnectorTerminalMarkerProjection, ConnectorTerminalMarkerPlacement, ConnectorTerminalLabelProjection, MarkerDescriptor,
+} from '../scene/ir.ts'
+export {
+  EXTERNAL_SCENE_API_VERSION, buildExternalScene,
+} from '../scene/external-scene.ts'
+export type {
+  ExternalSceneGeometry, ExternalSceneConnectorGeometry, ExternalSceneNodeBase, ExternalSceneShape, ExternalSceneDataMark,
+  ExternalSceneText, ExternalSceneContainer, ExternalSceneConnector, ExternalSceneConnectorLabel, ExternalSceneNode,
+  ExternalSceneMarker, ExternalSceneDocument, ExternalSceneInput,
+} from '../scene/external-scene.ts'
+export {
+  SCENE_VALIDATION_VERSION, SCENE_VALIDATION_LIMITS, validateSceneDoc, assertValidSceneDoc, SceneValidationError,
+} from '../scene/scene-validation.ts'
+export type {
+  SceneValidationDiagnosticCode, SceneValidationDiagnostic, SceneValidationResult,
+  SceneValidationOptions,
+} from '../scene/scene-validation.ts'
+export { BUILTIN_SCENE_ROLE_TRAITS, SCENE_ROLE_DESCRIPTORS, resolveSceneRoleTraits, sceneRoleTraits } from '../scene/roles.ts'
+export {
+  HOSTED_FONT_RESOURCES, HOSTED_FONT_FACES, HOSTED_FONT_FILES,
+  RESOURCE_MANIFEST, hostedFontResource, validateResourceManifest,
+} from '../font-manifest.ts'
+export { RESOURCE_MANIFEST_VERSION, verifyResourceBytes } from '../resource-manifest.ts'
+export { CORE_SCENE_PRIMITIVES, CORE_SCENE_OPERATIONS, CORE_SCENE_FEATURES, PRIMITIVE_REALIZATIONS, terminalConnectorCapabilityClaims, validatePrimitiveCapabilities } from '../scene/capabilities.ts'
+export { createExtensionIdentity } from '../shared/extension-identity.ts'
+export {
+  RENDER_CONTRACT_VERSION, RENDER_OUTPUTS, RENDER_OUTPUT_DESCRIPTORS,
+  SHARED_RENDER_OPTION_FIELDS, validateSerializableRenderOptions, RenderCapabilityError,
+  sharedRenderOptionsJsonSchema, styleInputJsonSchema,
+} from '../render-contract.ts'
+export {
+  CAPABILITY_NEGOTIATION_VERSION, CORE_CAPABILITY_OFFERS,
+  negotiateCapabilities, negotiateRenderCapabilities, parseSemVer, semVerSatisfies,
+} from '../capability-negotiation.ts'
+export type {
+  CapabilityId, CapabilityOffer, CapabilityRequirement, CapabilityRequirementLevel,
+  CapabilityResolution, CapabilityDecision,
+} from '../capability-negotiation.ts'
+export {
+  PNG_OUTPUT_POLICY_VERSION, PNG_DEFAULT_SCALE, PNG_DEFAULT_FONT_FAMILY,
+  PNG_FONT_SOURCES, PNG_NAPI_RUNTIME, PNG_WASM_RUNTIME,
+  MAX_PNG_PIXELS, MAX_PNG_RASTER_DIMENSION, MAX_HOSTED_PNG_PIXELS, MAX_HOSTED_PNG_BYTES,
+  MAX_PNG_FONT_DIRECTORIES, MAX_PNG_FONT_DIRECTORY_LENGTH,
+  pngRasterDimensions, assertPngRasterBudget, assertHostedPngRasterBudget,
+  svgIntrinsicDimensions, prepareSvgForPngRasterization,
+  PNG_OUTPUT_OPTION_FIELD_DESCRIPTORS, PNG_OUTPUT_OPTION_FIELDS,
+  PORTABLE_PNG_OUTPUT_OPTION_FIELDS, NATIVE_PNG_OUTPUT_POLICY_FIELDS,
+  NATIVE_PNG_HOST_ONLY_OPTION_FIELDS, pngOutputOptionsJsonSchema,
+  normalizePortablePngBackground, projectPortablePngOutputOptions,
+  projectNativePngOutputPolicyInput, omitPngOutputOptions,
+  pngNapiRuntimeProvenance, resolvePngOutputPolicy, resolvePortablePngOutputPolicy,
+} from '../png-contract.ts'
+export type {
+  PngFitTo, PngOutputPolicyInput, PortablePngOutputOptions,
+  PngOutputOptionFieldDescriptor, PngOutputOptionField, PortablePngOutputOptionField,
+  NativePngOutputPolicyField, NativePngHostOnlyOptionField,
+  PngOutputOptionScope, PngOutputOptionInputKind, PngOutputOptionPolicyState,
+  PngOutputOptionReceiptState, PngFontSource, ResolvedPngOutputPolicy, PngRuntimeProvenance,
+  PngRasterDimensions,
+} from '../png-contract.ts'
+export {
+  TERMINAL_OUTPUT_POLICY_VERSION, TERMINAL_DEFAULT_PADDING_X, TERMINAL_BOUNDED_PADDING_X,
+  TERMINAL_DEFAULT_PADDING_Y, TERMINAL_DEFAULT_BOX_BORDER_PADDING,
+  TerminalOutputPolicyError, resolveTerminalOutputPolicy,
+} from '../terminal-contract.ts'
+export type {
+  AsciiRenderColorMode, TerminalOutputPolicyInput, ResolvedTerminalOutputPolicy,
+} from '../terminal-contract.ts'
+export type {
+  RenderRequestReceipt,
+  RenderOutputDescriptor, RenderOutputTransports, LibraryRenderTransport,
+  CliRenderTransport, CodeModeRenderTransport,
+} from '../render-contract.ts'
+import { renderMermaidASCII as _ascii, renderMermaidASCIIWithReceipt as _asciiWithReceipt } from '../ascii/index.ts'
+import { parseRegisteredMermaid as _parse } from './parse.ts'
+import { prepareRenderInput } from './render-input.ts'
+import type { ParsedDiagram, ValidDiagram, RenderedLayout, RenderedRegion } from './types.ts'
+import type { RenderOptions } from '../types.ts'
+import { receiptOf as _receiptOf, resolveRenderRequestForExecution as _resolveRenderRequest } from '../render-contract.ts'
+import { layoutFamilyToRendered, layoutResolvedFamilyToRendered } from './family-layouts.ts'
 import { collectActionRecords as collectRenderedActionRecords } from './analyze.ts'
 import { toFinite } from './types.ts'
+import {
+  familyDetectionDiagnosticFromPreservedBody,
+  MermaidFamilyDetectionError,
+} from '../family-detection.ts'
 
-export function renderMermaidSVG(input: ValidDiagram | string, opts: Parameters<typeof _svg>[1] = {}): string {
-  return _svg(typeof input === 'string' ? input : _serialize(input), opts)
+export function renderMermaidSVG(input: ParsedDiagram | string, opts: Parameters<typeof _svg>[1] = {}): string {
+  return _svg(input, opts)
 }
-export function renderMermaidASCII(input: ValidDiagram | string, opts: Parameters<typeof _ascii>[1] = {}): string {
-  return _ascii(typeof input === 'string' ? input : _serialize(input), opts)
+export function renderMermaidSVGWithReceipt(input: ParsedDiagram | string, opts: Parameters<typeof _svg>[1] = {}) {
+  return _svgWithReceipt(input, opts)
+}
+export function renderMermaidASCII(input: ParsedDiagram | string, opts: Parameters<typeof _ascii>[1] = {}): string {
+  return _ascii(input, opts)
+}
+export function renderMermaidASCIIWithReceipt(input: ParsedDiagram | string, opts: Parameters<typeof _ascii>[1] = {}) {
+  return _asciiWithReceipt(input, opts)
 }
 
-export interface LayoutMermaidOptions { debug?: boolean; regions?: boolean; actions?: boolean }
+export interface LayoutMermaidOptions extends RenderOptions {
+  debug?: boolean
+  regions?: boolean
+  actions?: boolean
+}
 
-export function layoutMermaid(d: ValidDiagram, opts: LayoutMermaidOptions = {}): RenderedLayout {
-  if (d.body.kind === 'flowchart') {
-    return enrichRenderedLayout(d, positionedToRenderedLayout(layoutGraphSync(d.body.graph, {}), d.kind, opts), opts)
+export type LayoutRenderOptions = LayoutMermaidOptions
+
+export interface RenderedLayoutArtifact {
+  layout: RenderedLayout
+  receipt: import('../render-contract.ts').RenderRequestReceipt
+}
+
+/** Canonical layout transport for Code Mode and other receipt-aware adapters. */
+export function layoutMermaidWithReceipt(
+  input: ParsedDiagram | string,
+  opts: LayoutRenderOptions = {},
+): RenderedLayoutArtifact {
+  const { debug, regions, actions, ...renderOptions } = opts
+  const layoutOptions = { debug, regions, actions }
+  const preparedInput = prepareRenderInput(input)
+  const source = preparedInput.source
+  const request = _resolveRenderRequest(source, renderOptions, 'layout', layoutOptions, {
+    expectedFamilyId: preparedInput.expectedFamilyId,
+  })
+  let diagram: ParsedDiagram
+  if (typeof input === 'string') {
+    const parsed = _parse(source)
+    if (!parsed.ok) throw new Error(parsed.error.map(error => error.message).join('; '))
+    diagram = parsed.value
+  } else {
+    diagram = input
   }
-  // State diagrams (BUILD-19) project to a MermaidGraph via the legacy parser,
-  // so layout reuses the flowchart geometric path.
-  if (d.body.kind === 'state') {
-    return enrichRenderedLayout(d, positionedToRenderedLayout(layoutGraphSync(stateBodyToGraph(d.body), {}), d.kind, opts), opts)
+  const familyLayout = layoutResolvedFamilyToRendered(diagram, request, { debug })
+  if (!familyLayout) throw new Error(`No public layout projection registered for Mermaid family "${diagram.kind}"`)
+  return {
+    layout: enrichRenderedLayout(diagram, familyLayout, layoutOptions),
+    receipt: _receiptOf(request),
   }
-  if (d.body.kind === 'opaque' && d.kind === 'flowchart') {
-    try {
-      return enrichRenderedLayout(d, positionedToRenderedLayout(layoutGraphSync(parseFlowchartLegacy(d.canonicalSource), {}), d.kind, opts), opts)
-    } catch {
-      return emptyRenderedLayout(d.kind)
-    }
+}
+
+export function layoutMermaid(d: ParsedDiagram, opts: LayoutMermaidOptions = {}): RenderedLayout {
+  if (d.body.kind === 'preserved') {
+    throw new MermaidFamilyDetectionError(familyDetectionDiagnosticFromPreservedBody(d.body))
   }
-  // QUAL-1: renderable non-graph families project their real positioned
-  // layout (parsed from d.canonicalSource — works for both structured and
-  // opaque bodies) so the perceptual-quality metrics see them. Debug mode
-  // includes family-specific route/layout certificates where available.
-  const familyLayout = layoutFamilyToRendered(d, opts)
+  // Every family now reaches layout JSON, certificates, regions and quality
+  // through its descriptor's view of the same artifact used by SVG.
+  const { debug, regions, actions, ...renderOptions } = opts
+  const familyLayout = layoutFamilyToRendered(d, { debug, renderOptions })
   if (familyLayout) return enrichRenderedLayout(d, familyLayout, opts)
-  return enrichRenderedLayout(d, emptyRenderedLayout(d.kind), opts)
+  throw new Error(`No public layout projection registered for Mermaid family "${d.kind}"`)
 }
 
-function enrichRenderedLayout(d: ValidDiagram, layout: RenderedLayout, opts: LayoutMermaidOptions): RenderedLayout {
+function enrichRenderedLayout(d: ParsedDiagram, layout: RenderedLayout, opts: LayoutMermaidOptions): RenderedLayout {
   const wantRegions = opts.debug || opts.regions
   const wantActions = opts.debug || opts.actions
   if (!wantRegions && !wantActions) return layout
@@ -124,14 +267,16 @@ function enrichRenderedLayout(d: ValidDiagram, layout: RenderedLayout, opts: Lay
   if (wantRegions) next.regions = buildRenderedRegions(d, layout)
   if (wantActions) {
     const nodeIds = new Set<string>(layout.nodes.map(n => n.id))
-    next.actions = collectRenderedActionRecords(d)
+    next.actions = (d.body.kind === 'extension' || d.body.kind === 'preserved'
+      ? []
+      : collectRenderedActionRecords(d as ValidDiagram))
       .filter(a => nodeIds.has(a.target))
       .map(a => ({ ...a, regionId: a.regionId ?? `node:${a.target}` }))
   }
   return next
 }
 
-function buildRenderedRegions(d: ValidDiagram, layout: RenderedLayout): RenderedRegion[] {
+function buildRenderedRegions(d: ParsedDiagram, layout: RenderedLayout): RenderedRegion[] {
   const regions: RenderedRegion[] = [{
     id: 'canvas',
     kind: 'canvas',
@@ -191,10 +336,10 @@ function buildRenderedRegions(d: ValidDiagram, layout: RenderedLayout): Rendered
   return regions
 }
 
-function sourceLineHints(d: ValidDiagram): { nodes: Map<string, number>; groups: Map<string, number> } {
+function sourceLineHints(d: ParsedDiagram): { nodes: Map<string, number>; groups: Map<string, number> } {
   const nodes = new Map<string, number>()
   const groups = new Map<string, number>()
-  const source = d.body.kind === 'opaque' ? d.body.source : d.canonicalSource
+  const source = d.body.kind === 'opaque' || d.body.kind === 'extension' ? d.body.source : d.canonicalSource
   const lines = source.split(/\r?\n/)
   for (let i = 0; i < lines.length; i++) {
     const text = lines[i]!

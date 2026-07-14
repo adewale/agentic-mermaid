@@ -1,0 +1,10 @@
+flowchart LR
+  subgraph Core["Routing core"]
+    Intake["Intake"] --> Validate{"Valid?"}
+    Validate -- yes --> Render["Render SVG"]
+    Validate -- no --> Repair["Repair source"]
+    Repair --> Validate
+  end
+  Render --> Export["Export PNG"]
+  Render --> Audit["Contrast audit"]
+  Audit --> Export

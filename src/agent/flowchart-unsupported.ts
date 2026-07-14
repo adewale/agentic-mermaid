@@ -9,10 +9,10 @@ export interface FlowchartStatement {
 
 // Edge IDs (`e1@-->`) are MODELED structured edge identity (plan §Flowchart 7)
 // and no longer force the opaque fallback or a lint. Node metadata with only
-// documented `shape`/`label` keys is modeled too (repo #44); everything else
-// under `@{ ... }` (icon/img/animate/undocumented shapes) keeps the lossless
-// opaque fallback. Markdown strings render with styled emphasis (repo #102)
-// but stay opaque so the authored quoting round-trips byte-verbatim.
+// documented node metadata and the closed animate/animation/curve edge set are
+// modeled too. Placement/dimension metadata and undocumented shapes keep the
+// lossless opaque fallback. Markdown strings render with styled emphasis but
+// stay opaque so the authored quoting round-trips byte-verbatim.
 export function containsFlowchartOpaqueSyntax(source: string): boolean {
   if (/`/.test(source)) return true
   const statements = flowchartStatements(source)
@@ -32,7 +32,7 @@ export function flowchartUnsupportedSyntaxWarnings(source: string): LayoutWarnin
   const explicitNodeIds = explicitlyDeclaredNodeIds(statements)
   for (const { text, line } of statements) {
     if (isUnsupportedEdgeMetadataStatement(text, edgeIds)) {
-      warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_edge_metadata', message: 'Unsupported edge metadata is source-preserved and ignored by the local renderer/layout; a label key is not reinterpreted as a phantom node.' })
+      warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_edge_metadata', message: 'Unsupported edge metadata is source-preserved and ignored by the local renderer/layout; animate, animation, and curve are modeled, and an unknown label key is not reinterpreted as a phantom node.' })
     }
     if (hasLikelyTypoEndpoint(text, explicitNodeIds)) {
       warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_implicit_endpoint', message: 'A bare implicit edge endpoint closely matches another declared node id. Check it for a typo; Mermaid creates a new node instead of rejecting it.' })
@@ -132,8 +132,7 @@ function isRenderedEdgeMetadata(metadata: string): boolean {
   return entries.size > 0 && [...entries.keys()].every(key => key === 'animate' || key === 'animation' || key === 'curve')
 }
 
-/** Unmodeled metadata that is NODE metadata (shape/label/icon/img keys) —
- *  the flowchart_node_metadata lint; edge metadata has its own lint. */
+/** Image metadata is modeled, but offline output announces its placeholder. */
 function hasImageMetadata(statement: string): boolean {
   return metadataObjects(statement).some(metadata => parseMetadataEntries(metadata).has('img'))
 }

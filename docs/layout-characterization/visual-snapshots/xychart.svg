@@ -78,7 +78,7 @@
 <rect x="60.53" y="340.3" width="184.08" height="128.7" class="xychart-bar xychart-color-0" data-value="3" data-label="Jan" data-id="bar:0:Jan" data-role="bar" />
 <rect x="254.3" y="168.7" width="184.08" height="300.3" class="xychart-bar xychart-color-0" data-value="7" data-label="Feb" data-id="bar:0:Feb" data-role="bar" />
 <rect x="448.07" y="254.5" width="184.08" height="214.5" class="xychart-bar xychart-color-0" data-value="5" data-label="Mar" data-id="bar:0:Mar" data-role="bar" />
-<path d="M152.57,383.2 L346.34,211.6 L540.11,125.8" class="xychart-line xychart-color-1" data-id="series:line-0" data-role="series" />
+<path d="M152.57,383.2 L346.34,211.6 L540.11,125.8" class="xychart-line xychart-color-1" data-relationship="series" data-direction="undirected" data-id="series:line-0" data-role="series" />
 <text x="152.57" y="495" text-anchor="middle" font-size="14" font-weight="400" dy="0.35em" class="xychart-label xychart-x-label">Jan</text>
 <text x="346.342" y="495" text-anchor="middle" font-size="14" font-weight="400" dy="0.35em" class="xychart-label xychart-x-label">Feb</text>
 <text x="540.114" y="495" text-anchor="middle" font-size="14" font-weight="400" dy="0.35em" class="xychart-label xychart-x-label">Mar</text>

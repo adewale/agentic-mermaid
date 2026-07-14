@@ -79,7 +79,7 @@ function drawBoxWithGridDimensions(node: AsciiNode, graph: AsciiGraph): Canvas {
   // State-end uses double border to differentiate from state-start
   const isDoubleBox = node.shape === 'state-end'
   const hChar = useAscii ? (isDoubleBox ? '=' : '-') : (isDoubleBox ? '═' : '─')
-  const vChar = useAscii ? (isDoubleBox ? '‖' : '|') : (isDoubleBox ? '║' : '│')
+  const vChar = useAscii ? '|' : (isDoubleBox ? '║' : '│')
 
   // Double-box corners (for state-end)
   const doubleCorners = useAscii
@@ -239,7 +239,10 @@ const LINE_CHARS = {
   },
   thick: {
     h: { unicode: '━', ascii: '=' },
-    v: { unicode: '┃', ascii: '‖' },
+    // ASCII mode is a strict 7-bit projection. A single-cell vertical stroke
+    // cannot encode a doubled line, so preserve topology with `|` while the
+    // horizontal `=` continues to carry the thick-style distinction.
+    v: { unicode: '┃', ascii: '|' },
   },
 } as const
 

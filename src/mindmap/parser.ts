@@ -60,7 +60,7 @@ export function parseMindmap(source: string): MindmapDiagram {
         rest = rawLines[index]!.trim()
       }
       if (!closed) throw new MindmapParseError('Unclosed accDescr block', index + 1)
-      accessibilityDescription = normalizeBrTags(parts.join(' ').trim())
+      accessibilityDescription = normalizeBrTags(parts.join('\n').trim())
       continue
     }
     if (/^::icon\b/i.test(trimmed)) {
@@ -181,7 +181,15 @@ function looksLikeMalformedShape(value: string): boolean {
 export function serializeMindmap(diagram: MindmapDiagram): string {
   const lines = ['mindmap']
   if (diagram.accessibilityTitle) lines.push(`  accTitle: ${diagram.accessibilityTitle}`)
-  if (diagram.accessibilityDescription) lines.push(`  accDescr: ${diagram.accessibilityDescription}`)
+  if (diagram.accessibilityDescription) {
+    if (diagram.accessibilityDescription.includes('\n')) {
+      lines.push('  accDescr {')
+      for (const line of diagram.accessibilityDescription.split(/\r?\n/)) lines.push(`    ${line.trim()}`)
+      lines.push('  }')
+    } else {
+      lines.push(`  accDescr: ${diagram.accessibilityDescription}`)
+    }
+  }
   const visit = (node: MindmapNode, depth: number): void => {
     const indent = '  '.repeat(depth + 1)
     const label = node.markdown || HAS_FORMAT_TAGS.test(node.label)

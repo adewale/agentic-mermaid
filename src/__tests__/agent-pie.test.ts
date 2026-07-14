@@ -97,8 +97,6 @@ describe('pie differential vs legacy parsePieChart', () => {
 
 describe('pie structured-or-opaque fallback', () => {
   const opaqueCases: Array<[string, string]> = [
-    ['accTitle line', 'pie\n  accTitle: Accessible\n  "A" : 1'],
-    ['accDescr block', 'pie\n  accDescr {\n    desc\n  }\n  "A" : 1'],
     ['unquoted label', 'pie\n  Dogs : 3'],
     ['negative value', 'pie\n  "A" : -3'],
     ['zero value', 'pie\n  "A" : 0'],
@@ -116,6 +114,18 @@ describe('pie structured-or-opaque fallback', () => {
       expect(serializeMermaid(r.value).trimEnd()).toBe(src)
     })
   }
+
+  test('universal accessibility stays structured and round-trips through the family serializer', () => {
+    const src = 'pie\n  accTitle: Accessible\n  accDescr {\n    first line\n    second line\n  }\n  "A" : 1'
+    const r = parseMermaid(src)
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(asPie(r.value)?.body).toMatchObject({
+      accessibilityTitle: 'Accessible',
+      accessibilityDescription: 'first line\nsecond line',
+    })
+    expect(parseMermaid(serializeMermaid(r.value))).toMatchObject({ ok: true, value: { body: { kind: 'pie' } } })
+  })
 })
 
 describe('pie mutation ops', () => {

@@ -1,24 +1,28 @@
-type ServeOptions = Parameters<typeof Bun.serve>[0]
+type FetchHandler = (
+  request: Request,
+  server: Bun.Server<unknown>,
+) => Response | Promise<Response>
 
 export function serveWithAvailablePort(
-  options: ServeOptions & {
+  options: {
     preferredPort: number
     hostname?: string
     maxAttempts?: number
+    fetch: FetchHandler
   },
 ): { server: ReturnType<typeof Bun.serve>; base: string } {
   const {
     preferredPort,
     hostname = '127.0.0.1',
     maxAttempts = 50,
-    ...serveOptions
+    fetch,
   } = options
   let lastError: unknown
 
   for (let offset = 0; offset < maxAttempts; offset++) {
     const port = preferredPort + offset
     try {
-      const server = Bun.serve({ ...serveOptions, hostname, port })
+      const server = Bun.serve({ hostname, port, fetch })
       return { server, base: `http://${hostname}:${port}` }
     } catch (error) {
       lastError = error

@@ -10,52 +10,43 @@
 // unfaithful mark, not just the first.
 
 import { describe, test, expect } from 'bun:test'
-import { decodeXML } from 'entities'
-import { getFamily } from '../render-family-hooks.ts'
-import type { DiagramKind } from '../agent/types.ts'
-import type { FamilyLayoutResult } from '../agent/families.ts'
-import type { PositionedDiagram, RenderOptions } from '../types.ts'
-import { normalizeMermaidSource, detectDiagramTypeFromFirstLine } from '../mermaid-source.ts'
-import { readThemeValue, resolveDiagramColors } from '../color-resolver.ts'
+import type { RenderOptions } from '../types.ts'
 import { sceneFidelityProblems } from '../scene/fidelity.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import type { SceneDoc } from '../scene/ir.ts'
 import { collectSamples } from '../../eval/layout-compare/run.ts'
+import { resolveRenderRequest, resolvedRenderExecutionPlanOf } from '../render-contract.ts'
+import { positionResolvedFamily } from '../positioning.ts'
 
 interface Lowered {
   id: string
   family: string
   doc: SceneDoc
-  renderSvgOutput: string
 }
 
-/** Mirror the renderMermaidSVG dispatch up to the family renderSvg/lowerScene
- *  calls (before the resolve() post-pass, which is scene-independent). */
-function lowerSample(source: string, options: RenderOptions = {}): { doc: SceneDoc; renderSvgOutput: string } | undefined {
-  const text = decodeXML(source)
-  const normalizedSource = normalizeMermaidSource(text, options.mermaidConfig ?? {})
-  const font = options.font
-    ?? normalizedSource.config.fontFamily
-    ?? readThemeValue(normalizedSource.config.themeVariables, 'fontFamily')
-    ?? 'Inter'
-  const colors = resolveDiagramColors(options, normalizedSource.config, font)
-  const diagramType = detectDiagramTypeFromFirstLine(normalizedSource.firstLine) ?? 'flowchart'
-  const family = getFamily(diagramType as DiagramKind)
-  if (!family?.layout || !family.renderSvg || !family.lowerScene) return undefined
-  const renderOptions: RenderOptions = { ...options, mermaidConfig: normalizedSource.config }
-  let layout: FamilyLayoutResult
+/** Mirror the built-in renderMermaidSVG dispatch through its sole graphical
+ * waist (before the resolve() post-pass, which is scene-independent). */
+function lowerSample(source: string, options: RenderOptions = {}): { doc: SceneDoc } | undefined {
+  const request = resolveRenderRequest(source, options, 'svg')
+  const family = resolvedRenderExecutionPlanOf(request).family
+  if (!family?.layout || !family.lowerScene) return undefined
+  let layout: ReturnType<typeof positionResolvedFamily>
   try {
-    const result = family.layout({ source: normalizedSource, options, renderOptions, colors })
-    layout = 'positioned' in result ? result as FamilyLayoutResult : { positioned: result as PositionedDiagram }
+    layout = positionResolvedFamily(family.id, request)
   } catch {
     return undefined // diagrams that legitimately fail are the equivalence gate's concern
   }
   const ctx = {
     positioned: layout.positioned,
-    colors: layout.colors ?? colors,
-    options: layout.options ?? renderOptions,
+    colors: request.appearance.colors,
+    resolved: {
+      renderOptions: request.renderOptions,
+      ...(request.appearance.face ? { styleFace: request.appearance.face } : {}),
+      ...(request.familyConfig ? { familyConfig: request.familyConfig } : {}),
+      ...(request.appearance.family ? { familyAppearance: request.appearance.family } : {}),
+    },
   }
-  return { doc: family.lowerScene(ctx), renderSvgOutput: family.renderSvg(ctx) }
+  return { doc: family.lowerScene(ctx) }
 }
 
 function lowerAll(): Lowered[] {
@@ -98,12 +89,14 @@ describe('scene fidelity', () => {
     expect(violations).toEqual([])
   })
 
-  test('DefaultBackend serialization of the lowered scene is the rendered SVG', () => {
+  test('DefaultBackend deterministically serializes every lowered scene', () => {
     for (const scene of scenes) {
-      const serialized = DefaultBackend.render(scene.doc, { seed: 0 })
-      if (serialized !== scene.renderSvgOutput) {
-        throw new Error(`DefaultBackend drift for ${scene.id} (family ${scene.family})`)
-      }
+      const first = DefaultBackend.render(scene.doc, { seed: 0 })
+      const second = DefaultBackend.render(scene.doc, { seed: 0 })
+      expect(second, `${scene.id} (${scene.family})`).toBe(first)
+      expect(first, `${scene.id} (${scene.family})`).toBe(scene.doc.parts.map(part => part.crisp).join('\n'))
+      expect(first, `${scene.id} (${scene.family})`).toContain('<svg')
+      expect(first, `${scene.id} (${scene.family})`).not.toMatch(/NaN|undefined/)
     }
   })
 })

@@ -1,6 +1,6 @@
 # Agentic Mermaid website
 
-Cloudflare Workers Static Assets site for `agentic-mermaid.dev`, generated from website-owned source files and aligned to the website spec in PR #27, plus the hosted MCP endpoint at `/mcp` (design: `docs/project/hosted-mcp-cloudflare-plan.md`).
+Cloudflare Workers Static Assets site for `agentic-mermaid.dev`, generated from website-owned source files and aligned to the website spec in PR #27, plus the hosted MCP endpoint at `/mcp` (as-built record: `docs/project/archive/hosted-mcp-cloudflare-plan.md`).
 
 ## Shape
 

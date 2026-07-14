@@ -8,7 +8,9 @@
 // ============================================================================
 
 const SIMPLE_COLOR_RE = /^(?:#[0-9a-f]{3,4}|#[0-9a-f]{6}|#[0-9a-f]{8}|[a-z][a-z0-9-]*)$/i
-const SAFE_FUNCTION_CHARS_RE = /^[a-z0-9#(),.%+\-\s/]*$/i
+// Underscores are inert and valid in custom-property names (the Scene
+// contract's derived paints intentionally use names such as `--_line`).
+const SAFE_FUNCTION_CHARS_RE = /^[a-z0-9_#(),.%+\-\s/]*$/i
 const CSS_COLOR_FUNCTIONS = new Set([
   'color',
   'color-mix',
@@ -64,4 +66,46 @@ export function safeCssColor(value: unknown): string | undefined {
 
 export function isSafeCssColor(value: string): boolean {
   return safeCssColor(value) !== undefined
+}
+
+/**
+ * RenderOptions additionally permits a non-fetching CSS custom-property
+ * reference such as `var(--diagram-bg, #fff)`. The same character, balance,
+ * and function allowlist prevents that compatibility form from becoming a
+ * style/XML injection or URL-fetching channel.
+ */
+export function safeCssPaint(value: unknown): string | undefined {
+  const direct = safeCssColor(value)
+  if (direct !== undefined) return direct
+  if (typeof value !== 'string') return undefined
+  const paint = value.trim()
+  if (paint.length === 0 || paint.length > 256 || !SAFE_FUNCTION_CHARS_RE.test(paint)) return undefined
+
+  const firstParen = paint.indexOf('(')
+  if (firstParen <= 0 || !paint.endsWith(')')) return undefined
+  let depth = 0
+  for (const char of paint) {
+    if (char === '(') depth++
+    else if (char === ')') {
+      depth--
+      if (depth < 0) return undefined
+    }
+  }
+  if (depth !== 0) return undefined
+  for (const match of paint.matchAll(/([a-z][a-z0-9-]*)\s*\(/gi)) {
+    const fn = match[1]!.toLowerCase()
+    if (fn !== 'var' && !CSS_COLOR_FUNCTIONS.has(fn)) return undefined
+  }
+  const outer = paint.slice(0, firstParen).trim().toLowerCase()
+  // A safe color function may contain a safe custom-property reference, e.g.
+  // `color-mix(in srgb, var(--brand) 20%, #fff)`. Every nested function was
+  // allowlisted above, so accepting the color-function outer shell does not
+  // add a fetching or executable form.
+  return outer === 'var' || CSS_COLOR_FUNCTIONS.has(outer) ? paint : undefined
+}
+
+export function requireSafeCssPaint(value: string, field: string): string {
+  const safe = safeCssPaint(value)
+  if (safe === undefined) throw new Error(`${field} must be a safe non-fetching CSS color or var() reference`)
+  return safe
 }

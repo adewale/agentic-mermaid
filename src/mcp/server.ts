@@ -8,15 +8,26 @@ import { join } from 'node:path'
 import { URL } from 'node:url'
 import { executeInSandbox } from './sandbox.ts'
 import { isJsonContentType, preserveExactJsonRpcIds, reply, rpcError as error, stringifyJsonRpc, type ExactJsonRpcId, type JsonRpcRequest, type JsonRpcResponse } from './protocol.ts'
-import { createDescribeTool, createExecuteTool, createRenderPngTool, dispatchMcpRequest, EXECUTE_TIMEOUT_ERROR, isValidExecuteTimeout, type McpServerSurface } from './tool-surface.ts'
+import {
+  MCP_PNG_RENDER_OPTION_CONVENIENCES,
+  EXECUTE_TIMEOUT_ERROR,
+  createDescribeTool,
+  createExecuteTool,
+  createRenderPngTool,
+  dispatchMcpRequest,
+  isValidExecuteTimeout,
+  projectMcpRenderOptions,
+  withClosedMcpInputSchema,
+  type McpServerSurface,
+} from './tool-surface.ts'
 import { SDK_CORE_DECLARATION, createDescribeSdkTool, describeSdkPayload } from './sdk-discovery.ts'
+import { mcpDescribePayload } from './describe-payload.ts'
 import { createArtifactStore, type ArtifactRecord, type ArtifactStore } from './artifacts.ts'
-import { renderMermaidPNG } from '../agent/png.ts'
-import { describeMermaidSource, describeMermaid } from '../agent/describe.ts'
-import { describeMermaidFacts } from '../agent/facts.ts'
-import { parseMermaid } from '../agent/parse.ts'
-import { configWarningsForMermaid, verifyMermaid } from '../agent/verify.ts'
+import { renderMermaidPNG, renderMermaidPNGWithReceipt } from '../agent/png.ts'
+import { configWarningsForMermaid } from '../agent/verify.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
+import { projectNativePngOutputPolicyInput } from '../png-contract.ts'
+import { projectRenderErrorDiagnostic } from '../render-error-diagnostic.ts'
 
 export type { JsonRpcRequest, JsonRpcResponse } from './protocol.ts'
 
@@ -56,7 +67,7 @@ class HttpStatusError extends Error {
 
 export const LOCAL_TOOLS = [
   createExecuteTool({ sdkDeclaration: SDK_CORE_DECLARATION }),
-  createDescribeSdkTool(),
+  withClosedMcpInputSchema(createDescribeSdkTool()),
   createRenderPngTool('local'),
   createDescribeTool(),
 ]
@@ -108,7 +119,7 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
     const source = (args as { source?: string }).source
     if (typeof source !== 'string') return error(id, -32602, 'describe requires `source` (string)')
     try {
-      const payload = describePayload(source, args)
+      const payload = mcpDescribePayload(source, args)
       return reply(id, { content: [{ type: 'text', text: JSON.stringify(payload) }], isError: !payload.ok })
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
@@ -119,66 +130,37 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
   return error(id, -32602, `Unknown tool: ${name ?? '<none>'}`)
 }
 
-function describeFormat(args: Record<string, unknown>): 'text' | 'json' | 'facts' {
-  const format = args.format ?? 'text'
-  if (format === 'text' || format === 'json' || format === 'facts') return format
-  throw new Error('describe format must be one of: text, json, facts')
-}
-
-function describePayload(source: string, args: Record<string, unknown>): { ok: boolean } & Record<string, unknown> {
-  const format = describeFormat(args)
-  const parsed = parseMermaid(source)
-  if (!parsed.ok) return { ok: false as const, errors: parsed.error }
-  const verify = verifyMermaid(parsed.value)
-  if (!verify.ok) return { ok: false as const, family: parsed.value.kind, warnings: verify.warnings }
-  if (format === 'text') return { ok: true as const, text: describeMermaidSource(source), warnings: verify.warnings }
-  if (format === 'facts') return { ok: true as const, facts: describeMermaidFacts(parsed.value), warnings: verify.warnings }
-  return { ok: true as const, tree: JSON.parse(describeMermaid(parsed.value, { format: 'json' })), warnings: verify.warnings }
-}
-
 function handleRenderPng(id: number | string | null, args: Record<string, unknown>, context: McpRequestContext): JsonRpcResponse {
   const source = (args as { source?: string }).source
-  const scale = (args as { scale?: number }).scale
-  const background = (args as { background?: string }).background
-  const style = (args as { style?: import('../scene/style-registry.ts').StyleInput | import('../scene/style-registry.ts').StyleInput[] }).style
-  const seed = (args as { seed?: number }).seed
-  const rawFontDirs = (args as { fontDirs?: unknown }).fontDirs
-  const loadSystemFonts = (args as { loadSystemFonts?: unknown }).loadSystemFonts
-  const output = String((args as { output?: string; outputMode?: string }).output ?? (args as { outputMode?: string }).outputMode ?? 'base64')
+  const output = (args.output ?? 'base64') as 'base64' | 'file' | 'url'
   if (typeof source !== 'string') return error(id, -32602, 'render_png requires `source` (string)')
   if (!['base64', 'file', 'url'].includes(output)) return error(id, -32602, 'render_png output must be one of: base64, file, url')
-  if (rawFontDirs !== undefined && (!Array.isArray(rawFontDirs) || rawFontDirs.some(dir => typeof dir !== 'string'))) {
-    return error(id, -32602, 'render_png fontDirs must be an array of directory strings')
-  }
-  if (loadSystemFonts !== undefined && typeof loadSystemFonts !== 'boolean') {
-    return error(id, -32602, 'render_png loadSystemFonts must be a boolean')
-  }
   try {
     const fontWarnings: Array<Record<string, unknown>> = []
-    const png = renderMermaidPNG(source, {
-      scale,
-      background,
-      style,
-      seed,
-      fontDirs: rawFontDirs as string[] | undefined,
-      loadSystemFonts: loadSystemFonts === true,
+    const pngOutput = projectNativePngOutputPolicyInput(args)
+    const rendered = renderMermaidPNGWithReceipt(source, {
+      ...projectMcpRenderOptions(args, MCP_PNG_RENDER_OPTION_CONVENIENCES),
+      ...pngOutput,
       onWarning: warning => fontWarnings.push(warning as unknown as Record<string, unknown>),
     })
     const warnings = [...configWarningsForMermaid(source), ...fontWarnings]
       .filter((warning, index, all) => all.findIndex(candidate => JSON.stringify(candidate) === JSON.stringify(warning)) === index)
     if (output === 'base64') {
-      const png_base64 = Buffer.from(png).toString('base64')
-      const payload = { ok: true as const, png_base64, warnings }
+      const png_base64 = Buffer.from(rendered.png).toString('base64')
+      const payload = { ok: true as const, png_base64, receipt: rendered.receipt, runtime: rendered.runtime, warnings }
       return reply(id, { content: [{ type: 'text', text: JSON.stringify(payload) }], isError: false })
     }
     const store = context.artifactStore ?? getDefaultArtifactStore()
     if (output === 'url' && !store.hasBaseUrl()) return error(id, -32602, 'render_png output=url requires an HTTP/SSE artifact base URL')
-    const artifact = store.write(png, { extension: '.png', mimeType: 'image/png' })
-    const payload = { ok: true as const, artifact: artifactPayload(artifact, output as 'file' | 'url'), warnings }
+    const artifact = store.write(rendered.png, { extension: '.png', mimeType: 'image/png' })
+    const payload = { ok: true as const, artifact: artifactPayload(artifact, output as 'file' | 'url'), receipt: rendered.receipt, runtime: rendered.runtime, warnings }
     return reply(id, { content: [{ type: 'text', text: JSON.stringify(payload) }], isError: false })
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
-    const payload = { ok: false as const, error: { code: 'PNG_RENDER_FAILED', message: msg } }
+    const payload = {
+      ok: false as const,
+      error: projectRenderErrorDiagnostic(e) ?? { code: 'PNG_RENDER_FAILED', message: msg },
+    }
     return reply(id, { content: [{ type: 'text', text: JSON.stringify(payload) }], isError: true })
   }
 }

@@ -20,6 +20,24 @@
       "import": "./dist/agent.js",
       "default": "./dist/agent.js"
     },
+    "./agent/core": {
+      "types": "./dist/agent-core.d.ts",
+      "bun": "./src/agent/core.ts",
+      "import": "./dist/agent-core.js",
+      "default": "./dist/agent-core.js"
+    },
+    "./capabilities": {
+      "types": "./dist/capabilities.d.ts",
+      "bun": "./src/capabilities.ts",
+      "import": "./dist/capabilities.js",
+      "default": "./dist/capabilities.js"
+    },
+    "./resources": {
+      "types": "./dist/resources.d.ts",
+      "bun": "./src/resources.ts",
+      "import": "./dist/resources.js",
+      "default": "./dist/resources.js"
+    },
     "./style-spec.schema.json": "./docs/schemas/style-spec.schema.json",
     "./package.json": "./package.json"
   },
@@ -109,9 +127,9 @@
     "!docs/pr-assets/**"
   ],
   "scripts": {
-    "test": "bun test --coverage src/__tests__/",
+    "test": "bun test --coverage --timeout 30000 src/__tests__/",
     "typecheck": "tsc --noEmit",
-    "test:browser": "cd e2e && bun test . --timeout 600000",
+    "test:browser": "cd e2e && AM_BROWSER_TESTS=1 bun test . ../src/__tests__/editor-theme-switch.test.ts ../src/__tests__/editor-style-switch.test.ts ../src/__tests__/website-browser-a11y.test.ts --timeout 600000",
     "editor": "bun run scripts/site/editor.ts",
     "dev": "bun run website:dev",
     "bench": "bun run eval/benchmark/sample-bench.ts",
@@ -133,6 +151,16 @@
     "style:audit": "bun test src/__tests__/style-role-audit.test.ts",
     "sketch:check": "bun test scripts/sketch-prototype/styles.test.ts && bun run scripts/sketch-prototype/contrast-audit.ts",
     "characterization:check": "bun run scripts/characterization/contact-sheet.ts --check && bun run scripts/characterization/contact-sheet-families.ts --check && bun run scripts/characterization/visual-quality.ts --check",
+    "agent-doc-artifacts": "bun run scripts/generate-agent-doc-artifacts.ts",
+    "agent-doc-artifacts:check": "bun run scripts/generate-agent-doc-artifacts.ts --check",
+    "section-a-report": "bun run scripts/generate-section-a-capability-report.ts",
+    "section-a-report:check": "bun run scripts/generate-section-a-capability-report.ts --check",
+    "render-options-docs": "bun run scripts/generate-render-options-docs.ts",
+    "render-options-docs:check": "bun run scripts/generate-render-options-docs.ts --check",
+    "style-spec-artifacts": "bun run scripts/generate-style-spec-artifacts.ts",
+    "style-spec-artifacts:check": "bun run scripts/generate-style-spec-artifacts.ts --check",
+    "upstream-manifest": "bun run scripts/generate-upstream-mermaid-manifest.ts",
+    "upstream-manifest:check": "bun run scripts/generate-upstream-mermaid-manifest.ts --check",
     "mutation-test": "npx stryker run",
     "mutation-test:incremental": "npx stryker run stryker.incremental.config.json",
     "mutation-test:characterization": "npx stryker run stryker.characterization.config.json",

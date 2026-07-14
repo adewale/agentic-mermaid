@@ -1,0 +1,19 @@
+{
+  "$schema": "https://agentic-mermaid.dev/schemas/style-spec.schema.json",
+  "formatVersion": 1,
+  "name": "look:cupertino-prototype",
+  "blurb": "Documentation-only Cupertino-inspired prototype using only the current public StyleSpec.",
+  "colors": {
+    "bg": "#f2f2f7",
+    "fg": "#000000",
+    "line": "#7a7a80",
+    "accent": "#007aff",
+    "muted": "#66666b",
+    "surface": "#ffffff",
+    "border": "rgba(60,60,67,0.29)"
+  },
+  "font": "Inter",
+  "stroke": "crisp",
+  "strokeWidth": 1,
+  "intent": "premium"
+}

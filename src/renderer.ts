@@ -1,4 +1,4 @@
-import type { PositionedGraph, PositionedNode, PositionedEdge, PositionedGroup, PositionedStateNote, Point, EdgeMarker, RenderContext } from './types.ts'
+import type { PositionedGraph, PositionedNode, PositionedEdge, PositionedGroup, PositionedStateNote, Point, EdgeMarker, RenderContext, RenderOptions } from './types.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from './theme.ts'
 import { STROKE_WIDTHS, ARROW_HEAD, FLOWCHART_DOTTED_DASH, applyTextTransform, resolveRenderStyle } from './styles.ts'
 import type { ResolvedRenderStyle } from './styles.ts'
@@ -6,11 +6,19 @@ import { measureMultilineText } from './text-metrics.ts'
 import { renderMultilineText, renderMultilineTextWithBackground, escapeAttr, escapeXml } from './multiline-utils.ts'
 import { topRoundedRectPath } from './svg-paths.ts'
 import { resolveInlineNodeTextColor } from './color-resolver.ts'
-import type { Geometry, MarkerRef, SceneDoc, SceneNode, SemanticChannels } from './scene/ir.ts'
+import type { ConnectorLabelDescriptor, Geometry, MarkerDescriptor, MarkerRef, SceneDoc, SceneNode, SemanticChannels } from './scene/ir.ts'
 import * as marks from './scene/marks.ts'
 import { DefaultBackend } from './scene/backend.ts'
-import type { StateRenderOptions } from './state/config.ts'
+import type { ResolvedStateVisualConfig } from './state/config.ts'
 import { resolveMindmapIcon } from './mindmap/icons.ts'
+import { serializeMarkerResources } from './scene/marker-resources.ts'
+import {
+  projectConnectorPath,
+  projectRoundedConnectorPath,
+  type ConnectorPathProjection,
+  type ConnectorPathProjectionSegment,
+} from './scene/connector-geometry.ts'
+import { scanSvgStartTags, transformSvgAttributes, transformSvgCssValues } from './svg-structure.ts'
 
 // ============================================================================
 // SVG renderer — converts a PositionedGraph into an SVG string.
@@ -65,12 +73,14 @@ export function renderSvg(
 export function lowerGraphScene(
   ctx: RenderContext<PositionedGraph>,
 ): SceneDoc {
-  const { positioned: graph, colors, options } = ctx
+  const { positioned: graph, colors, resolved } = ctx
+  const options = resolved.renderOptions
   const font = colors.font ?? 'Inter'
   const transparent = options.transparent ?? false
   const parts: SceneNode[] = []
-  const stateVisual = (options as StateRenderOptions).stateVisual
-  const style = resolveRenderStyle(options, stateVisual?.styleDefaults)
+  const stateVisual = (resolved.familyAppearance as { visual?: ResolvedStateVisualConfig } | undefined)?.visual
+    ?? (options as RenderOptions & { stateVisual?: ResolvedStateVisualConfig }).stateVisual
+  const style = resolveRenderStyle(options, stateVisual?.styleDefaults, resolved.styleFace)
 
   // SVG root with CSS variables + style block + defs
   parts.push(marks.prelude(
@@ -88,7 +98,6 @@ export function lowerGraphScene(
   ))
   const defsParts: string[] = []
   defsParts.push('<defs>')
-  defsParts.push(arrowMarkerDefs())
   const shadowDefs = buildShadowDefs(colors)
   if (shadowDefs) defsParts.push(shadowDefs)
   // Per-color arrow markers for edges with custom stroke via linkStyle
@@ -101,15 +110,10 @@ export function lowerGraphScene(
     if (edge.startMarker === 'circle' || edge.endMarker === 'circle') needsCircle = true
     if (edge.startMarker === 'cross' || edge.endMarker === 'cross') needsCross = true
   }
-  if (needsCircle) defsParts.push(circleMarkerDefs())
-  if (needsCross) defsParts.push(crossMarkerDefs())
-  for (const color of customStrokeColors) {
-    defsParts.push(arrowMarkerDefsForColor(color))
-    if (needsCircle) defsParts.push(circleMarkerDefs(color))
-    if (needsCross) defsParts.push(crossMarkerDefs(color))
-  }
+  const markerResources = flowchartMarkerResources(customStrokeColors, needsCircle, needsCross)
+  defsParts.splice(1, 0, serializeMarkerResources(markerResources))
   defsParts.push('</defs>')
-  parts.push(marks.definitions({ id: 'defs' }, defsParts.join('\n')))
+  parts.push(marks.definitions({ id: 'defs', markerResources }, defsParts.join('\n')))
 
   // 1. Subgraph backgrounds (group rectangles with header bands)
   for (const group of graph.groups) {
@@ -119,23 +123,22 @@ export function lowerGraphScene(
   // 2. Edges (polylines — rendered behind nodes)
   // Each edge is a <polyline> with semantic data-* attributes
   const edgeOccurrence = new Map<string, number>()
+  const edgeSceneIds = new Map<PositionedEdge, string>()
   for (const edge of graph.edges) {
+    if (edge.points.length < 2) continue
     const pairKey = `${edge.source}->${edge.target}`
     const k = edgeOccurrence.get(pairKey) ?? 0
     edgeOccurrence.set(pairKey, k + 1)
-    parts.push(renderEdge(edge, style, `edge:${pairKey}#${k}`))
+    const sceneId = `edge:${pairKey}#${k}`
+    edgeSceneIds.set(edge, sceneId)
+    parts.push(renderEdge(edge, style, sceneId, markerResources))
   }
 
   // 3. Edge labels (positioned at midpoint of edge)
   // Each label is wrapped in <g class="edge-label">
-  const labelOccurrence = new Map<string, number>()
   for (const edge of graph.edges) {
-    if (edge.label) {
-      const pairKey = `${edge.source}->${edge.target}`
-      const k = labelOccurrence.get(pairKey) ?? 0
-      labelOccurrence.set(pairKey, k + 1)
-      parts.push(renderEdgeLabel(edge, font, style, `edge-label:${pairKey}#${k}`))
-    }
+    const connectorSceneId = edgeSceneIds.get(edge)
+    if (edge.label && connectorSceneId) parts.push(renderEdgeLabel(edge, font, style, connectorLabelSceneId(connectorSceneId)))
   }
 
   // 4. Nodes (shape + label wrapped in <g class="node">)
@@ -163,92 +166,69 @@ export function lowerGraphScene(
  * renderer-dependent auto-start-reverse behavior in SVG rasterizers.
  * Arrow color uses var(--_arrow) CSS variable.
  */
-function arrowMarkerDefs(): string {
+function arrowMarkerResources(color?: string): readonly MarkerDescriptor[] {
   const w = ARROW_HEAD.width
   const h = ARROW_HEAD.height
-  // Arrow polygons have both fill and a thin stroke for better definition at small sizes
-  const arrowStyle = 'fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round"'
-  // Pull arrowhead back slightly (refX = w - 1) to prevent clipping at node boundaries
   const refX = w - 1
-  return (
-    // Forward arrow (marker-end) — orient="auto" ensures arrow points along line direction
-    `  <marker id="arrowhead" markerWidth="${w}" markerHeight="${h}" refX="${refX}" refY="${h / 2}" orient="auto">` +
-    `\n    <polygon points="0 0, ${w} ${h / 2}, 0 ${h}" ${arrowStyle} />` +
-    `\n  </marker>` +
-    // Start arrow is explicitly pre-rotated: its tip is at x=0 and its body
-    // extends into the route, while refX=1 keeps the tip at the node boundary.
-    `\n  <marker id="arrowhead-start" markerWidth="${w}" markerHeight="${h}" refX="1" refY="${h / 2}" orient="auto">` +
-    `\n    <polygon points="${w} 0, 0 ${h / 2}, ${w} ${h}" ${arrowStyle} />` +
-    `\n  </marker>`
-  )
+  const stroke = color ?? 'var(--_arrow)'
+  const suffix = color ? `-${markerSuffix(color)}` : ''
+  const paint = { fill: stroke, stroke, strokeWidth: '0.75', strokeLinejoin: 'round' as const }
+  return [
+    { id: `arrowhead${suffix}`, shape: 'arrow', size: { width: w, height: h }, ref: { x: refX, y: h / 2 }, orient: 'auto', geometry: { kind: 'polygon', points: [{ x: 0, y: 0 }, { x: w, y: h / 2 }, { x: 0, y: h }] }, paint },
+    { id: `arrowhead-start${suffix}`, shape: 'arrow', size: { width: w, height: h }, ref: { x: 1, y: h / 2 }, orient: 'auto', geometry: { kind: 'polygon', points: [{ x: w, y: 0 }, { x: 0, y: h / 2 }, { x: w, y: h }] }, paint },
+  ]
 }
 
 /**
  * Generate arrow markers tinted to a specific color (for linkStyle stroke overrides).
  * IDs are suffixed with a sanitized color string to avoid collisions.
  */
-function arrowMarkerDefsForColor(color: string): string {
-  const w = ARROW_HEAD.width
-  const h = ARROW_HEAD.height
-  const escaped = escapeAttr(color)
-  const arrowStyle = `fill="${escaped}" stroke="${escaped}" stroke-width="0.75" stroke-linejoin="round"`
-  const refX = w - 1
-  const suffix = markerSuffix(color)
-  return (
-    `  <marker id="arrowhead-${suffix}" markerWidth="${w}" markerHeight="${h}" refX="${refX}" refY="${h / 2}" orient="auto">` +
-    `\n    <polygon points="0 0, ${w} ${h / 2}, 0 ${h}" ${arrowStyle} />` +
-    `\n  </marker>` +
-    `\n  <marker id="arrowhead-start-${suffix}" markerWidth="${w}" markerHeight="${h}" refX="1" refY="${h / 2}" orient="auto">` +
-    `\n    <polygon points="${w} 0, 0 ${h / 2}, ${w} ${h}" ${arrowStyle} />` +
-    `\n  </marker>`
-  )
-}
-
-function circleMarkerDefs(color?: string): string {
+function circleMarkerResources(color?: string): readonly MarkerDescriptor[] {
   const size = ARROW_HEAD.width
   const suffix = color ? `-${markerSuffix(color)}` : ''
-  const stroke = color ? escapeAttr(color) : 'var(--_arrow)'
+  const stroke = color ?? 'var(--_arrow)'
   const r = size / 2 - 0.75
-  return (
-    `  <marker id="circlehead${suffix}" markerWidth="${size}" markerHeight="${size}" refX="${size - 0.5}" refY="${size / 2}" orient="auto">` +
-    `\n    <circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke="${stroke}" stroke-width="1" />` +
-    `\n  </marker>` +
-    `\n  <marker id="circlehead-start${suffix}" markerWidth="${size}" markerHeight="${size}" refX="0.5" refY="${size / 2}" orient="auto">` +
-    `\n    <circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke="${stroke}" stroke-width="1" />` +
-    `\n  </marker>`
-  )
+  const common = { shape: 'circle' as const, size: { width: size, height: size }, orient: 'auto' as const, geometry: { kind: 'circle' as const, cx: size / 2, cy: size / 2, r }, paint: { fill: 'none', stroke, strokeWidth: '1' } }
+  return [
+    { ...common, id: `circlehead${suffix}`, ref: { x: size - 0.5, y: size / 2 } },
+    { ...common, id: `circlehead-start${suffix}`, ref: { x: 0.5, y: size / 2 } },
+  ]
 }
 
-function crossMarkerDefs(color?: string): string {
+function crossMarkerResources(color?: string): readonly MarkerDescriptor[] {
   const size = ARROW_HEAD.width
   const suffix = color ? `-${markerSuffix(color)}` : ''
-  const stroke = color ? escapeAttr(color) : 'var(--_arrow)'
+  const stroke = color ?? 'var(--_arrow)'
   const pad = 1.25
   const a = pad
   const b = size - pad
-  const style = `stroke="${stroke}" stroke-width="1.25" stroke-linecap="round"`
-  return (
-    `  <marker id="crosshead${suffix}" markerWidth="${size}" markerHeight="${size}" refX="${b}" refY="${size / 2}" orient="auto">` +
-    `\n    <line x1="${a}" y1="${a}" x2="${b}" y2="${b}" ${style} />` +
-    `\n    <line x1="${a}" y1="${b}" x2="${b}" y2="${a}" ${style} />` +
-    `\n  </marker>` +
-    `\n  <marker id="crosshead-start${suffix}" markerWidth="${size}" markerHeight="${size}" refX="${pad}" refY="${size / 2}" orient="auto">` +
-    `\n    <line x1="${a}" y1="${a}" x2="${b}" y2="${b}" ${style} />` +
-    `\n    <line x1="${a}" y1="${b}" x2="${b}" y2="${a}" ${style} />` +
-    `\n  </marker>`
-  )
+  const common = { shape: 'cross' as const, size: { width: size, height: size }, orient: 'auto' as const, geometry: { kind: 'compound' as const, children: [{ kind: 'line' as const, x1: a, y1: a, x2: b, y2: b }, { kind: 'line' as const, x1: a, y1: b, x2: b, y2: a }] }, paint: { stroke, strokeWidth: '1.25', strokeLinecap: 'round' as const } }
+  return [
+    { ...common, id: `crosshead${suffix}`, ref: { x: b, y: size / 2 } },
+    { ...common, id: `crosshead-start${suffix}`, ref: { x: pad, y: size / 2 } },
+  ]
+}
+
+function flowchartMarkerResources(
+  colors: ReadonlySet<string>,
+  needsCircle: boolean,
+  needsCross: boolean,
+): readonly MarkerDescriptor[] {
+  const resources: MarkerDescriptor[] = [...arrowMarkerResources()]
+  if (needsCircle) resources.push(...circleMarkerResources())
+  if (needsCross) resources.push(...crossMarkerResources())
+  for (const color of colors) {
+    resources.push(...arrowMarkerResources(color))
+    if (needsCircle) resources.push(...circleMarkerResources(color))
+    if (needsCross) resources.push(...crossMarkerResources(color))
+  }
+  return resources
 }
 
 function markerIdPrefix(marker: EdgeMarker): string {
   if (marker === 'circle') return 'circlehead'
   if (marker === 'cross') return 'crosshead'
   return 'arrowhead'
-}
-
-function markerShape(marker: EdgeMarker): MarkerRef['shape'] {
-  if (marker === 'circle') return 'circle'
-  if (marker === 'cross') return 'cross'
-  return 'arrow'
 }
 
 /** Sanitize a color value into a collision-free SVG ID suffix.
@@ -450,24 +430,70 @@ function renderStateNote(note: PositionedStateNote, font: string, style: Resolve
 // Edge rendering
 // ============================================================================
 
-function renderEdge(edge: PositionedEdge, style: ResolvedRenderStyle, sceneId: string): SceneNode {
+function renderEdge(
+  edge: PositionedEdge,
+  style: ResolvedRenderStyle,
+  sceneId: string,
+  markerResources: readonly MarkerDescriptor[],
+): SceneNode {
   const lineStyle = edge.style === 'dotted' ? 'dotted'
     : edge.style === 'thick' ? 'thick'
     : edge.style === 'invisible' ? 'invisible'
     : 'solid'
+  const labelSceneId = connectorLabelSceneId(sceneId)
+  const labelAnchor = edge.labelPosition ?? edgeMidpoint(edge.points)
+  const labelTextColor = style.edgeTextColor ?? 'var(--_text-sec)'
+  const labels: readonly ConnectorLabelDescriptor[] = edge.label ? [{
+    id: `${sceneId}:label`,
+    text: edge.label,
+    anchor: labelAnchor,
+    paint: { fill: labelTextColor },
+    fontSize: style.edgeLabelFontSize,
+    textAnchor: 'middle',
+    visual: { kind: 'companion', markId: `${labelSceneId}:text` },
+  }] : []
+  const connectorSemantics = {
+    identity: { id: edge.id ?? sceneId },
+    endpoints: { from: edge.source, to: edge.target },
+    relationship: {
+      kind: 'flowchart-edge',
+      direction: edge.source === edge.target ? 'self'
+        : edge.hasArrowStart && edge.hasArrowEnd ? 'bidirectional'
+          : edge.hasArrowStart ? 'reverse' : edge.hasArrowEnd ? 'forward' : 'undirected',
+    },
+    route: {
+      ownership: 'layout',
+      bendRadius: style.edgeBendRadius,
+      labelAnchors: edge.labelPosition ? [edge.labelPosition] : [],
+    },
+    labels,
+    projectAccessibilityToSvg: true,
+  } as const
   // Invisible links (~~~) shape the layout but draw no stroke or markers.
-  if (edge.points.length < 2 || edge.style === 'invisible') {
+  if (edge.style === 'invisible') {
     return marks.connector({
       id: sceneId,
       role: 'edge',
       geometry: { kind: 'polyline', points: edge.points },
       lineStyle: 'invisible',
       paint: {},
+      ...connectorSemantics,
     }, '')
   }
 
-  const pathData = edge.curve ? pointsToCurvePathD(edge.points) : style.edgeBendRadius > 0 ? pointsToPathD(edge.points, style.edgeBendRadius) : pointsToPolylinePath(edge.points)
-  const dashArray = edge.style === 'dotted' ? ` stroke-dasharray="${FLOWCHART_DOTTED_DASH.dash} ${FLOWCHART_DOTTED_DASH.gap}"` : ''
+  const pathProjection = edge.curve
+    ? pointsToCurveProjection(edge.points)
+    : style.edgeBendRadius > 0
+      ? projectRoundedConnectorPath(edge.points, style.edgeBendRadius, { precision: 3 })
+      : undefined
+  const pathData = pathProjection?.geometry.d ?? pointsToPolylinePath(edge.points)
+  // Section A output is static and active SVG is rejected in every security
+  // mode. Preserve authored animation intent as typed metadata plus a stable
+  // dashed projection; a future motion layer can consume the same metadata.
+  const effectiveDashArray = edge.style === 'dotted'
+    ? `${FLOWCHART_DOTTED_DASH.dash} ${FLOWCHART_DOTTED_DASH.gap}`
+    : edge.animate ? '8 4' : undefined
+  const dashArray = effectiveDashArray ? ` stroke-dasharray="${effectiveDashArray}"` : ''
   const baseStrokeWidth = edge.style === 'thick' ? style.lineWidth * 2 : style.lineWidth
   const markerColor = edge.inlineStyle?.stroke ?? style.edgeStrokeColor
   const strokeColor = escapeAttr(markerColor ?? 'var(--_line)')
@@ -481,12 +507,14 @@ function renderEdge(edge: PositionedEdge, style: ResolvedRenderStyle, sceneId: s
   let startMarker: MarkerRef | undefined
   if (edge.hasArrowEnd) {
     const prefix = markerIdPrefix(edge.endMarker ?? 'arrow')
-    endMarker = { id: `${prefix}${suffix}`, shape: markerShape(edge.endMarker ?? 'arrow') }
+    endMarker = markerResources.find(marker => marker.id === `${prefix}${suffix}`)
+    if (!endMarker) throw new Error(`Missing marker resource "${prefix}${suffix}"`)
     markers += ` marker-end="url(#${prefix}${suffix})"`
   }
   if (edge.hasArrowStart) {
     const prefix = markerIdPrefix(edge.startMarker ?? 'arrow')
-    startMarker = { id: `${prefix}-start${suffix}`, shape: markerShape(edge.startMarker ?? 'arrow') }
+    startMarker = markerResources.find(marker => marker.id === `${prefix}-start${suffix}`)
+    if (!startMarker) throw new Error(`Missing marker resource "${prefix}-start${suffix}"`)
     markers += ` marker-start="url(#${prefix}-start${suffix})"`
   }
 
@@ -516,21 +544,24 @@ function renderEdge(edge: PositionedEdge, style: ResolvedRenderStyle, sceneId: s
   const paint = {
     stroke: markerColor ?? 'var(--_line)',
     strokeWidth: edge.inlineStyle?.['stroke-width'] ?? String(baseStrokeWidth),
-    ...(edge.style === 'dotted' ? { strokeDasharray: `${FLOWCHART_DOTTED_DASH.dash} ${FLOWCHART_DOTTED_DASH.gap}` } : {}),
+    ...(effectiveDashArray ? { strokeDasharray: effectiveDashArray } : {}),
   }
 
   if (style.edgeBendRadius > 0 || edge.curve) {
+    if (!pathProjection) throw new Error(`Missing path projection for flowchart edge "${sceneId}"`)
     return marks.connector({
       id: sceneId,
       role: 'edge',
-      geometry: { kind: 'path', d: pathData, points: edge.points },
+      geometry: pathProjection.geometry,
       lineStyle,
       paint,
       startMarker,
       endMarker,
+      ...connectorSemantics,
+      route: { ...connectorSemantics.route, contours: pathProjection.contours },
     },
       `<path ${dataAttrs.join(' ')} d="${pathData}" fill="none" stroke="${strokeColor}" ` +
-      `stroke-width="${strokeWidth}"${dashArray}${edge.animate && edge.style !== 'dotted' ? ' stroke-dasharray="8 4"' : ''}${markers}>${edge.animate ? `<animate attributeName="stroke-dashoffset" from="12" to="0" dur="${edge.animation === 'fast' ? '0.5s' : '1.5s'}" repeatCount="indefinite" />` : ''}</path>`)
+      `stroke-width="${strokeWidth}"${dashArray}${markers} />`)
   }
 
   return marks.connector({
@@ -541,21 +572,35 @@ function renderEdge(edge: PositionedEdge, style: ResolvedRenderStyle, sceneId: s
     paint,
     startMarker,
     endMarker,
+    ...connectorSemantics,
   },
     `<polyline ${dataAttrs.join(' ')} points="${pathData}" fill="none" stroke="${strokeColor}" ` +
     `stroke-width="${strokeWidth}"${dashArray}${markers} />`)
 }
 
-function pointsToCurvePathD(points: Point[]): string {
+function connectorLabelSceneId(connectorSceneId: string): string {
+  return connectorSceneId.startsWith('edge:')
+    ? `edge-label:${connectorSceneId.slice('edge:'.length)}`
+    : `${connectorSceneId}:label`
+}
+
+function pointsToCurveProjection(points: Point[]): ConnectorPathProjection {
   const first = points[0]!
   let d = `M ${first.x} ${first.y}`
+  const segments: ConnectorPathProjectionSegment[] = []
   for (let index = 1; index < points.length; index++) {
     const previous = points[index - 1]!
     const point = points[index]!
     const mx = (previous.x + point.x) / 2
     d += ` C ${mx} ${previous.y}, ${mx} ${point.y}, ${point.x} ${point.y}`
+    segments.push({
+      kind: 'cubic',
+      control1: { x: mx, y: previous.y },
+      control2: { x: mx, y: point.y },
+      end: point,
+    })
   }
-  return d
+  return projectConnectorPath(d, first, segments)
 }
 
 /** Convert points to SVG polyline points attribute: "x1,y1 x2,y2 ..." */
@@ -563,109 +608,40 @@ function pointsToPolylinePath(points: Point[]): string {
   return points.map(p => `${p.x},${p.y}`).join(' ')
 }
 
-function pointsToPathD(points: Point[], radius: number): string {
-  if (points.length === 0) return ''
-  if (points.length === 1) return `M${points[0]!.x},${points[0]!.y}`
-  if (radius <= 0 || points.length < 3) {
-    return `M${points.map(p => `${p.x},${p.y}`).join(' L')}`
-  }
-
-  const parts: string[] = [`M${points[0]!.x},${points[0]!.y}`]
-
-  for (let i = 1; i < points.length - 1; i++) {
-    const prev = points[i - 1]!
-    const curr = points[i]!
-    const next = points[i + 1]!
-    const prevLen = dist(prev, curr)
-    const nextLen = dist(curr, next)
-    const r = Math.min(radius, prevLen / 2, nextLen / 2)
-
-    if (r <= 0) {
-      parts.push(`L${curr.x},${curr.y}`)
-      continue
-    }
-
-    const before = pointAlong(curr, prev, r)
-    const after = pointAlong(curr, next, r)
-    parts.push(`L${before.x},${before.y}`)
-    parts.push(`Q${curr.x},${curr.y} ${after.x},${after.y}`)
-  }
-
-  const last = points[points.length - 1]!
-  parts.push(`L${last.x},${last.y}`)
-  return parts.join(' ')
-}
-
-function pointAlong(from: Point, to: Point, distance: number): Point {
-  const total = dist(from, to)
-  if (total === 0) return { ...from }
-  const t = distance / total
-  return {
-    x: roundCoord(from.x + (to.x - from.x) * t),
-    y: roundCoord(from.y + (to.y - from.y) * t),
-  }
-}
-
-/**
- * Round a coordinate to 3 decimal places (sub-pixel precision).
- * Exported for the compact-SVG post-processor and any external renderer that
- * wants to emit identical wire bytes to the built-in path.
- * (Renamed from `roundPathCoord` per the Loop 7 audit consolidation note.)
- */
-export function roundCoord(value: number): number {
-  return Math.round(value * 1000) / 1000
-}
-
 /**
  * Post-process an SVG string into compact form:
- *  - Numbers with 3+ fractional digits get rounded via `roundCoord` (so
- *    e.g. "123.456789" → "123.457", "100.0001" → "100"). This shrinks ELK-
- *    produced layouts where floats hit 13-digit precision.
- *  - Newlines between elements collapse to nothing — EXCEPT inside <style>
- *    blocks, where CSS line breaks are load-bearing (some CSS parsers tolerate
- *    everything but conservatively we leave the style block formatted).
+ *  - Whitespace containing a newline between complete element tags collapses
+ *    load-bearing, and inside text-bearing/accessibility elements. Newlines
+ *    inside tags, attributes, quoted values, and authored text are retained;
+ *    compaction changes serialization only, never geometry or semantic data.
  *  - `data-*` attributes and `class=` attributes survive — they're agent
- *    inspection hooks (Loop 7 audit). The number-rounding regex only
- *    touches floating-point literals, not identifier strings.
+ *    inspection hooks (Loop 7 audit).
  *
  * Determinism: pure function of the input string. Safe to apply to any SVG
  * the renderer produces; idempotent on already-compact input.
  */
 export function compactSvg(svg: string): string {
-  // Split into segments alternating non-style and style; only collapse
-  // whitespace in non-style segments. Style segments keep their formatting
-  // so we don't accidentally break CSS rules that span lines.
-  const STYLE_BLOCK_RE = /<style\b[\s\S]*?<\/style>/gi
-  const segments: { kind: 'plain' | 'style'; text: string }[] = []
+  // Protect every XML region where whitespace is data. Text descendants cover
+  // tspans/textPaths; title/desc are the accessibility payload; metadata and
+  // style may contain arbitrary formats. Only indentation between tags in the
+  // remaining structural segments is removable.
+  const PROTECTED_BLOCK_RE = /<((?:[A-Za-z_][\w.-]*:)?(?:style|text|title|desc|metadata))\b[\s\S]*?<\/\1>/gi
+  const segments: { kind: 'plain' | 'protected'; text: string }[] = []
   let last = 0
   let m: RegExpExecArray | null
-  while ((m = STYLE_BLOCK_RE.exec(svg)) !== null) {
+  while ((m = PROTECTED_BLOCK_RE.exec(svg)) !== null) {
     if (m.index > last) segments.push({ kind: 'plain', text: svg.slice(last, m.index) })
-    segments.push({ kind: 'style', text: m[0] })
+    segments.push({ kind: 'protected', text: m[0] })
     last = m.index + m[0].length
   }
   if (last < svg.length) segments.push({ kind: 'plain', text: svg.slice(last) })
 
   return segments.map(seg => {
-    if (seg.kind === 'style') return seg.text
-    // Round numeric literals with 3+ fractional digits.
-    //
-    // The lookbehind allows SVG path command letters (MLHVCSQTAZ + lowercase)
-    // and structural punctuation as valid prefixes — they're how the renderer
-    // emits coords (`M78.6115`, `L 202.94`, `cx="50.5"`). It rejects word/
-    // dash chars otherwise so we don't touch identifier-like literals
-    // (e.g. `data-version="1.0.1234"`).
-    let out = seg.text.replace(/(?<=[MLHVCSQTAZmlhvcsqtaz\s,"'(=])(\d+\.\d{3,})/g, (_, num) => {
-      const n = parseFloat(num)
-      return String(roundCoord(n))
-    })
-    // Also catch the very first character of the string segment (no prefix).
-    out = out.replace(/^(\d+\.\d{3,})/, (_, num) => String(roundCoord(parseFloat(num))))
-    // Collapse newlines (the indentation `\n  ` produced by string templates).
-    // Tabs and runs of spaces inside attribute values are not affected because
-    // attribute values are quoted and don't contain newlines in this renderer.
-    out = out.replace(/\n\s*/g, '')
-    return out
+    if (seg.kind === 'protected') return seg.text
+    // Collapse only indentation between complete tags. A broad `\n\s*`
+    // replacement can turn an inert `on\n load` pair into an `onload`
+    // attribute after the security gate, or alter quoted/text content.
+    return seg.text.replace(/>\s*\r?\n\s*</g, '><')
   }).join('')
 }
 
@@ -687,18 +663,25 @@ export function namespaceSvgIds(svg: string, prefix: string): string {
   // Collect declared ids so we only rewrite refs that point at our defs
   // (never an accidental `url(#…)` inside escaped label text).
   const declared = new Set<string>()
-  for (const m of svg.matchAll(/\sid="([^"]+)"/g)) declared.add(m[1]!)
+  for (const tag of scanSvgStartTags(svg)) {
+    for (const attribute of tag.attributes) {
+      if (attribute.name === 'id') declared.add(attribute.value)
+    }
+  }
   const namespaced = (id: string) => id.startsWith(prefix) ? id : `${prefix}${id}`
-  let out = svg.replace(/(\sid=")([^"]+)(")/g, (_full, pre, id: string, post) => `${pre}${namespaced(id)}${post}`)
-  out = out.replace(/url\(#([^)]+)\)/g, (full, id: string) => declared.has(id) ? `url(#${namespaced(id)})` : full)
-  out = out.replace(/(\saria-(?:labelledby|describedby)=")([^"]+)(")/g, (_full, pre, value: string, post) => {
-    const refs = value.split(/\s+/).map(id => declared.has(id) ? namespaced(id) : id)
-    return `${pre}${refs.join(' ')}${post}`
+  const attributes = transformSvgAttributes(svg, attribute => {
+    if (attribute.name === 'id') return namespaced(attribute.value)
+    if (attribute.name === 'aria-labelledby' || attribute.name === 'aria-describedby') {
+      return attribute.value.split(/\s+/).map(id => declared.has(id) ? namespaced(id) : id).join(' ')
+    }
+    if ((attribute.name === 'href' || attribute.name === 'xlink:href') && attribute.value.startsWith('#')) {
+      const id = attribute.value.slice(1)
+      return declared.has(id) ? `#${namespaced(id)}` : attribute.value
+    }
+    return undefined
   })
-  out = out.replace(/(\s(?:xlink:)?href=")#([^"]+)(")/g, (full, pre, id: string, post) =>
-    declared.has(id) ? `${pre}#${namespaced(id)}${post}` : full,
-  )
-  return out
+  return transformSvgCssValues(attributes, css =>
+    css.replace(/url\(#([^)]+)\)/g, (full, id: string) => declared.has(id) ? `url(#${namespaced(id)})` : full))
 }
 
 function renderEdgeLabel(edge: PositionedEdge, font: string, style: ResolvedRenderStyle, sceneId: string): SceneNode {

@@ -23,7 +23,7 @@ import { shapePorts, diamondFacetPorts } from '../../src/route-contracts.ts'
 import { parseMermaid as parseAgentMermaid, layoutMermaid } from '../../src/agent/index.ts'
 import { assessRenderedLayout, assessJourneyLayout, familyHardViolations } from '../../src/family-rubric.ts'
 import { parseJourneyDiagram } from '../../src/journey/parser.ts'
-import { layoutJourneyDiagram } from '../../src/journey/layout.ts'
+import { layoutJourneyDiagram, resolveJourneyRequestAppearance } from '../../src/journey/layout.ts'
 import { toMermaidLines } from '../../src/mermaid-source.ts'
 import type { DiagramKind } from '../../src/agent/types.ts'
 import { trackedExamples } from './catalog.ts'
@@ -104,7 +104,10 @@ export function scoreFamily(source: string, family: DiagramKind): ScoreResult {
   let journeyScore: number | null = null
   if (family === 'journey') {
     try {
-      const j = assessJourneyLayout(layoutJourneyDiagram(parseJourneyDiagram(toMermaidLines(source))))
+      const j = assessJourneyLayout(layoutJourneyDiagram(
+        parseJourneyDiagram(toMermaidLines(source)),
+        resolveJourneyRequestAppearance(),
+      ))
       journeyScore = j.score
       hard += j.violations.length // every journey metric is HARD
     } catch (e) { return { error: String(e).slice(0, 60) } }

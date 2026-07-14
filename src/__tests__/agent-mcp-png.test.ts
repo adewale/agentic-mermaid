@@ -77,6 +77,28 @@ describe('MCP — render_png tool', () => {
     expect(a.png_base64).not.toBe(b.png_base64)
   })
 
+  test('top-level style and seed override the canonical options object', async () => {
+    const source = 'flowchart TD\n  A --> B'
+    const render = async (arguments_: Record<string, unknown>) => {
+      const response = await handleRequest({
+        jsonrpc: '2.0', id: 50, method: 'tools/call',
+        params: { name: 'render_png', arguments: { source, scale: 0.1, ...arguments_ } },
+      })
+      return JSON.parse((response!.result as { content: Array<{ text: string }> }).content[0]!.text) as {
+        png_base64: string
+        receipt: unknown
+      }
+    }
+    const direct = await render({ style: 'crisp', seed: 7 })
+    const overlaid = await render({
+      options: { style: 'hand-drawn', seed: 1 },
+      style: 'crisp',
+      seed: 7,
+    })
+    expect(overlaid.png_base64).toBe(direct.png_base64)
+    expect(overlaid.receipt).toEqual(direct.receipt)
+  })
+
   test('missing source → -32602', async () => {
     const r = await handleRequest({
       jsonrpc: '2.0', id: 6, method: 'tools/call',
@@ -86,23 +108,25 @@ describe('MCP — render_png tool', () => {
     expect(r!.error!.code).toBe(-32602)
   })
 
-  test('invalid source surfaces ok:false envelope', async () => {
+  test('invalid source surfaces the canonical family diagnostic', async () => {
     const r = await handleRequest({
       jsonrpc: '2.0', id: 7, method: 'tools/call',
       params: { name: 'render_png', arguments: { source: '' } },
     })
     const result = r!.result as { content: Array<{ text: string }>; isError: boolean }
-    // Empty source renders an empty SVG; resvg will either render a blank
-    // PNG or error — both shapes are acceptable. If it errors, isError must
-    // be true and the envelope must contain ok:false.
-    if (result.isError) {
-      const payload = JSON.parse(result.content[0]!.text) as { ok: boolean; error?: { code: string } }
-      expect(payload.ok).toBe(false)
-      expect(payload.error?.code).toBe('PNG_RENDER_FAILED')
-    } else {
-      const payload = JSON.parse(result.content[0]!.text) as { ok: boolean }
-      expect(payload.ok).toBe(true)
+    // Empty source is diagnosed before rasterization. Keep the canonical
+    // unknown-header diagnostic instead of relabelling it as a PNG failure.
+    expect(result.isError).toBe(true)
+    const payload = JSON.parse(result.content[0]!.text) as {
+      ok: boolean
+      error?: { code: string; help?: string; preservation?: { source: string } }
     }
+    expect(payload.ok).toBe(false)
+    expect(payload.error).toMatchObject({
+      code: 'UNKNOWN_HEADER',
+      preservation: { source: '' },
+      help: expect.stringContaining('source was preserved unchanged'),
+    })
   })
 
   // Regression: a real client session that runs Code Mode `execute` (a node:vm

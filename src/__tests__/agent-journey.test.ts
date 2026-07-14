@@ -80,6 +80,13 @@ describe('journey structured parse', () => {
     expect(journey(out).body).toEqual(d.body)
   })
 
+  test('accepts the universal spaced accessibility form before family parsing', () => {
+    const d = journey('journey\n  accTitle Accessible journey\n  accDescr Spaced description\n  Wake: 3: Me')
+    expect(d.body.accessibilityTitle).toBe('Accessible journey')
+    expect(d.body.accessibilityDescription).toBe('Spaced description')
+    expect(serializeMermaid(d)).toContain('accTitle: Accessible journey')
+  })
+
   test('models title-only journeys as renderable header furniture', () => {
     const d = journey('journey\n  title Only a title')
     expect(d.body.title).toBe('Only a title')
@@ -148,7 +155,6 @@ describe('journey structured-or-opaque fallback', () => {
     ['no modeled content', 'journey\n  %% comment only'],
     ['unknown colonless body line', 'journey\n  section S\n  nonsense\n  Task: 3: Me'],
     ['section label with colon', 'journey\n  section A:B\n  Task: 3: Me'],
-    ['accTitle without colon', 'journey\n  accTitle Missing colon\n  Task: 3: Me'],
   ]
   for (const [name, src] of opaqueCases) {
     test(`${name} falls back to opaque and round-trips verbatim`, () => {

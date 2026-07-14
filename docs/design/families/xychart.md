@@ -95,7 +95,9 @@ Current SVG rendering decisions:
 - line dots only for interactive output
 - `showDataLabel` applies to bars only, matching Mermaid behavior
 - `useMaxWidth` / `useWidth` control responsive root SVG sizing
-- `themeCSS` is appended to the chart style block instead of being reinterpreted
+- `themeCSS` remains accounted for by the parser but is diagnosed at the public
+  render boundary; raw selectors can escape an imported SVG, so authors use a
+  declarative `StyleSpec` instead
 - series colors come from the shared theme accent unless Mermaid frontmatter provides `plotColorPalette`
 
 ## Compatibility Notes

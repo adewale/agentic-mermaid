@@ -76,7 +76,7 @@ describe('parseMermaid – graph header', () => {
   })
 
   it('throws on invalid header', () => {
-    expect(() => parseMermaid('sequenceDiagram\n  A ->> B')).toThrow('Invalid mermaid header')
+    expect(() => parseMermaid('sequenceDiagram\n  A ->> B')).toThrow('is not a graph family')
   })
 
   it('throws on header without direction', () => {

@@ -97,12 +97,12 @@ describe('wrapper fidelity (1C): canonical synthesis on demand', () => {
   })
 
   test('a directive whose payload cannot be parsed is preserved raw in canonical mode', () => {
-    // Single-quoted value: tryParseInitObject fails, parsed = {} — unfoldable.
-    const src = "%%{init: {\"theme\": 'dark'}}%%\nflowchart TD\n  A --> B"
+    // A scalar is not a config map, so it cannot be folded into frontmatter.
+    const src = '%%{init: definitely-not-an-object}%%\nflowchart TD\n  A --> B'
     const p = parseMermaid(src)
     if (!p.ok) throw new Error('parse failed')
     const out = serializeMermaid(p.value, { wrapper: 'canonical' })
-    expect(out).toContain("%%{init: {\"theme\": 'dark'}}%%")
+    expect(out).toContain('%%{init: definitely-not-an-object}%%')
   })
 
   test('am format defaults to verbatim; --canonical-wrapper opts into synthesis', () => {
