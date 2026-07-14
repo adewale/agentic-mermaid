@@ -180,9 +180,11 @@ native capability twice through the canonical parse/serialize, layout, strict
 SVG, portable PNG pre-raster, terminal, Scene and verification paths. It rolls
 the candidate back if a hook throws, changes output between runs, mutates the
 registry reentrantly, emits an invalid raster envelope, or fails to witness a
-positive Scene role/primitive declaration. `getFamilyConformanceReport` and
-`am capabilities --json` expose the immutable evidence; a declaration without
-a passed witness is never projected as `native`.
+positive Scene role/primitive declaration. `getFamilyConformanceReport`
+exposes the complete immutable evidence. The bounded `am capabilities --json`
+discovery projection keeps every declared state, status, and diagnostic but
+omits stable witness identifiers; a declaration without a passed witness is
+never projected as `native`.
 
 Each admission report is deliberately bounded. Backend admission directly proves SVG behavior
 for the named document and exact core claim witnesses; it does not certify a

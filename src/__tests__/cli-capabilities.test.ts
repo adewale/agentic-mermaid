@@ -71,7 +71,14 @@ describe('am capabilities', () => {
         provenance: JSON.parse(JSON.stringify(descriptor.identity.provenance)),
       })
       expect('kind' in f.identity).toBe(false)
-      expect(f.conformance).toBe(getFamilyConformanceReport(f.id)!)
+      const fullConformance = getFamilyConformanceReport(f.id)!
+      expect(f.conformance).toEqual({
+        ...fullConformance,
+        capabilities: fullConformance.capabilities.map(({ witnessId: _witnessId, ...result }) => result),
+      })
+      expect(f.conformance).not.toBe(fullConformance)
+      expect(f.conformance.capabilities.every(result => !('witnessId' in result))).toBe(true)
+      expect(fullConformance.capabilities.every(result => result.status !== 'passed' || Boolean(result.witnessId))).toBe(true)
       expect(f.conformance.passed).toBe(true)
       // hasParse/hasSerialize/hasVerify were dropped — they were true for every
       // family (dead info that read as a probe-me menu). Only varying fields remain.

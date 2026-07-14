@@ -984,7 +984,10 @@ interface FamilyCapability {
     compatibility: Readonly<Record<string, string>>
     provenance: Readonly<Record<string, string>>
   }
-  conformance: FamilyConformanceReport
+  /** Bounded discovery projection. Stable witness ids remain available from
+   * `getFamilyConformanceReport`; routine discovery retains every field needed
+   * for capability negotiation and diagnostics. */
+  conformance: FamilyConformanceDiscovery
   hasMutate: boolean
   hasExtractLabels: boolean
   mutationOps: string[]
@@ -1035,6 +1038,20 @@ function boundedStringRecord(value: object): Readonly<Record<string, string>> {
   return Object.fromEntries(Object.entries(value).filter((entry): entry is [string, string] => typeof entry[1] === 'string'))
 }
 
+type FamilyConformanceDiscovery = Omit<FamilyConformanceReport, 'capabilities'> & {
+  readonly capabilities: readonly Omit<FamilyConformanceReport['capabilities'][number], 'witnessId'>[]
+}
+
+/** Keep routine capability negotiation bounded without weakening the full
+ * public conformance report. The rest projection deliberately carries future
+ * result fields forward; only the audit-oriented witness locator is omitted. */
+function familyConformanceDiscovery(report: FamilyConformanceReport): FamilyConformanceDiscovery {
+  return {
+    ...report,
+    capabilities: report.capabilities.map(({ witnessId: _witnessId, ...result }) => result),
+  }
+}
+
 export function buildCapabilities(): CapabilitiesEnvelope {
   const sdkVersion = (() => {
     try {
@@ -1057,7 +1074,7 @@ export function buildCapabilities(): CapabilitiesEnvelope {
         compatibility: boundedStringRecord(p.identity.compatibility),
         provenance: boundedStringRecord(p.identity.provenance),
       },
-      conformance: getFamilyConformanceReport(id)!,
+      conformance: familyConformanceDiscovery(getFamilyConformanceReport(id)!),
       // Capabilities describe the public agent surface, not whether the
       // implementation currently lives in a FamilyDescriptor hook or central
       // dispatch. Every registered family parses, serializes, verifies, and
