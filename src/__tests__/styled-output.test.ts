@@ -103,7 +103,7 @@ describe('styled output', () => {
     if (stale.length > 0) {
       throw new Error(`styled-output: ${stale.length} stale baseline records (e.g. ${stale[0]}) — regenerate with UPDATE_STYLED_BASELINE=1`)
     }
-  }, 20_000) // Complete look × fixture matrix under coverage.
+  })
 
   test('no styled render throws on any fixture', () => {
     for (const fixture of fixtures) {
@@ -111,7 +111,7 @@ describe('styled output', () => {
         renderMermaidSVG(fixture.source, { style }) // throws = fail
       }
     }
-  }, 20_000) // Repeats the complete matrix without the baseline catch path.
+  })
 
   test('seed re-rolls geometry deterministically', () => {
     const source = fixtures.find(f => f.name === 'flowchart-basic.mmd')!.source

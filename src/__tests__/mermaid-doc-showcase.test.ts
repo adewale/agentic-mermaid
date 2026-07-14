@@ -100,8 +100,8 @@ describe('official Mermaid documentation showcase', () => {
     expect(combinations).toBe(manifest.cases.length * looks.length * palettes.length)
   // This is the deliberately exhaustive family × Look × Palette gate (tens
   // of thousands of assertions), not a unit-test timeout sentinel. Coverage
-  // instrumentation pushes the stable local runtime beyond one minute.
-  }, 120_000)
+  // instrumentation takes roughly 2.5 minutes on the covered Linux runner.
+  }, 300_000)
 
   test('generated docs gallery receipt covers current sources and PNG bytes', () => {
     const receipt = JSON.parse(readFileSync(join(ROOT, 'eval', 'mermaid-doc-showcase', 'gallery-receipt.json'), 'utf8')) as {

@@ -101,5 +101,5 @@ describe('svg output equivalence', () => {
         'Regenerate with UPDATE_SVG_BASELINE=1.'
       )
     }
-  }, 20_000) // Full corpus × output profiles; preserve a bounded CI budget above the 5 s default.
+  })
 })

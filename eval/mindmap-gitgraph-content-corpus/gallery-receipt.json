@@ -340,7 +340,7 @@
     },
     {
       "path": "src/__tests__/ascii-determinism.test.ts",
-      "sha256": "78e3365ef4812319ed14b130e2ef45f3f618dd3c5ba087995373bffa5152481d"
+      "sha256": "516fd833aaec8b9a079db64fe373d6d4c796bf6aa07a8e6c7365ef3001514657"
     },
     {
       "path": "src/__tests__/ascii-edge-styles.test.ts",
@@ -688,7 +688,7 @@
     },
     {
       "path": "src/__tests__/external-scene-public-api.test.ts",
-      "sha256": "e6417be9568bb35b87168279e5a79000a73dbb4001d3a5a2066f44f4d95a2ec9"
+      "sha256": "de0f6b0ab09b4853448d96fd0b5112cf905991e687ba3373231f3bcbc7b0b726"
     },
     {
       "path": "src/__tests__/family-elevation-ledger.test.ts",
@@ -988,7 +988,7 @@
     },
     {
       "path": "src/__tests__/mermaid-doc-showcase.test.ts",
-      "sha256": "6c7a8b41cd660ed9751c98d8c4dde5e0d04985dc5d8c80797dae89dadb687a10"
+      "sha256": "ff151e734e030845aa65793e1129fd64591f81c5e4d4ca12d4456a4a4e1c7686"
     },
     {
       "path": "src/__tests__/mermaid-source.test.ts",
@@ -1348,7 +1348,7 @@
     },
     {
       "path": "src/__tests__/styled-output.test.ts",
-      "sha256": "2ee3048e342f9a959c3bd28e970ddbf8c4181f6bd1ad292b41e14f35bcce91c1"
+      "sha256": "8a88c088b94c237b951a956ccf94b6e41705c1f8ba39fabcd979151be276d52e"
     },
     {
       "path": "src/__tests__/styles.test.ts",
@@ -1368,7 +1368,7 @@
     },
     {
       "path": "src/__tests__/svg-equivalence.test.ts",
-      "sha256": "4775755e19c6c9f533672d7248f89f96f321a318aeba4b08bd856978be133b0b"
+      "sha256": "f0beb47d4989b914dbc60899683766111b151a49a3493a035bf64e9dd2e91b78"
     },
     {
       "path": "src/__tests__/svg-id-hygiene-all-families.test.ts",

@@ -100,7 +100,7 @@ describe('ASCII full-corpus determinism', () => {
     expect(rendered).toBe(EXPECTED_CORPUS_RENDERED)
     expect(errors.sort()).toEqual(EXPECTED_CORPUS_ASCII_ERRORS)
     expect(unstable).toEqual([])
-  }, 20_000) // Full corpus × three renders; slower covered CI runners exceed Bun's 5 s default.
+  })
 })
 
 describe('ASCII pathfinder determinism', () => {

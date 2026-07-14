@@ -879,7 +879,7 @@ describe('public external Scene construction and admission', () => {
       .toHaveLength(SCENE_VALIDATION_LIMITS.maxPoints + 4)
     expect(buildExternalScene(make('circle')).parts)
       .toHaveLength(SCENE_VALIDATION_LIMITS.maxPoints + 4)
-  }, 20_000) // Constructs two maxPoints+1 typed collections under coverage.
+  })
 
   test('rejects undeclared primitives and malformed manual connector semantics before rendering', () => {
     const roles = ROLES.map(row => row.role === 'bar' ? { role: 'bar' as const, primitives: ['shape' as const] } : row)
