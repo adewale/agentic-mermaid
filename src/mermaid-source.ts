@@ -91,6 +91,22 @@ export interface PieRuntimeConfig extends MermaidConfigMap {
   useWidth?: number
 }
 
+export interface RadarRuntimeConfig extends MermaidConfigMap {
+  width?: number
+  height?: number
+  marginTop?: number
+  marginRight?: number
+  marginBottom?: number
+  marginLeft?: number
+  axisScaleFactor?: number
+  axisLabelFactor?: number
+  curveTension?: number
+  useMaxWidth?: boolean
+  useWidth?: number
+  /** Agentic extension: draw the ring value labels (default off). */
+  tickLabels?: boolean
+}
+
 export interface QuadrantRuntimeConfig extends MermaidConfigMap {
   chartWidth?: number
   chartHeight?: number
@@ -315,6 +331,7 @@ export interface MermaidRuntimeConfig extends MermaidConfigMap {
   xyChart?: XyChartRuntimeConfig
   pie?: PieRuntimeConfig
   quadrantChart?: QuadrantRuntimeConfig
+  radar?: RadarRuntimeConfig
   gantt?: GanttRuntimeConfig
   sequence?: SequenceRuntimeConfig
   class?: ClassRuntimeConfig

@@ -39,4 +39,6 @@ export const FAMILY_COUNT_FIXTURES: FamilyCountFixture[] = [
   { family: 'architecture', source: 'architecture-beta\n  group g(cloud)[G]\n  service a(server)[A] in g\n  junction jx in g\n  a:R -- L:jx', count: { nodes: 2, edges: 1, groups: 1 } },
   { family: 'mindmap', source: 'mindmap\n  root((Product))\n    Research\n    Delivery', count: { nodes: 3, edges: 2, groups: 0 } },
   { family: 'gitgraph', source: 'gitGraph\n  commit id:"a"\n  commit id:"b"\n  commit id:"c"', count: { nodes: 3, edges: 2, groups: 1 } },
+  // Radar: nodes = curves × axes vertices (2 × 3 = 6), groups = axes (3).
+  { family: 'radar', source: 'radar-beta\n  axis a, b, c\n  curve x{1, 2, 3}\n  curve y{3, 2, 1}\n  max 5', count: { nodes: 6, edges: 0, groups: 3 } },
 ]

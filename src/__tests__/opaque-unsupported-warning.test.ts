@@ -22,6 +22,7 @@ const OPAQUE_BY_FAMILY: Record<string, string> = {
   journey: 'journey EXTRA\n  Wake: 3: Me', // unmodeled header suffix
   architecture: 'architecture-beta\n  title First\n  title Second\n  service api(server)[API]',
   gantt: 'gantt LR\n  Task :t1, 2026-01-01, 1d', // unmodeled header suffix
+  radar: 'radar-beta\n  axis a, b, c\n  curve x{1,2,3}\n  frobnicate every axis', // unmodeled statement
 }
 
 // These fixtures are valid Mermaid syntax that the public renderer supports;

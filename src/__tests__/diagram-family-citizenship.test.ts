@@ -62,6 +62,7 @@ const MUTATION_CONFIG_NEEDLES = {
   gantt: ['src/gantt/parser.ts'],
   mindmap: ['src/mindmap/parser.ts', 'src/agent/mindmap-body.ts'],
   gitgraph: ['src/gitgraph/parser.ts', 'src/agent/gitgraph-body.ts'],
+  radar: ['src/agent/radar-body.ts', 'src/radar/parser.ts'],
 } satisfies Record<BuiltinFamilyId, readonly string[]>
 
 const REQUIRED_FAMILY_EVIDENCE = {
@@ -200,6 +201,17 @@ const REQUIRED_FAMILY_EVIDENCE = {
     upstreamHarvest: ['eval/mermaid-upstream-suite-bench/mindmap-gitgraph-f3dea583.json'],
     divergenceLedger: ['eval/mermaid-upstream-suite-bench/mindmap-gitgraph-f3dea583.json'],
     goldensEvidence: ['src/__tests__/mindmap-gitgraph-citizenship.test.ts', 'docs/design/families/gitgraph-content-gallery.png', 'eval/mindmap-gitgraph-content-corpus/gallery-receipt.json'],
+    mutationLane: ['stryker.families.config.json'],
+  },
+  radar: {
+    semanticModel: ['src/radar/types.ts', 'src/agent/radar-body.ts'],
+    serializeRoundTrip: ['src/__tests__/agent-radar.test.ts'],
+    domainProperties: ['src/__tests__/radar-integration.test.ts'],
+    evalFixture: ['eval/mermaid-radar-bench/harvest.json'],
+    stableRegions: ['src/__tests__/radar-integration.test.ts'],
+    upstreamHarvest: ['eval/mermaid-radar-bench/harvest.json'],
+    divergenceLedger: ['eval/mermaid-radar-bench/harvest.json'],
+    goldensEvidence: ['src/__tests__/radar-renderer.test.ts', 'docs/design/families/radar-demo.png'],
     mutationLane: ['stryker.families.config.json'],
   },
 } satisfies Record<BuiltinFamilyId, Partial<Record<SurfaceId, readonly string[]>>>
@@ -428,6 +440,7 @@ describe('diagram-family citizenship ratchet (issue #41)', () => {
       journey: 'mutation-test:journey', xychart: 'mutation-test:families', architecture: 'mutation-test:families',
       pie: 'mutation-test:pie', quadrant: 'mutation-test:quadrant', gantt: 'mutation-test:gantt',
       mindmap: 'mutation-test:families', gitgraph: 'mutation-test:families',
+      radar: 'mutation-test:families',
     }
     const matrix = loadMatrix()
     for (const family of BUILTIN_FAMILY_METADATA) {

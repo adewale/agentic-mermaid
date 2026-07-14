@@ -335,6 +335,21 @@
         }
       ],
       "companionBench": "src/__tests__/mindmap-gitgraph-upstream-oracle.test.ts"
+    },
+    {
+      "family": "radar",
+      "status": "full-harvest-accounted",
+      "consideredBlocks": 19,
+      "importedCases": 7,
+      "importedBlocks": 7,
+      "excludedBlocks": 12,
+      "deferredBlocks": 0,
+      "files": [
+        {
+          "path": "packages/mermaid/src/diagrams/radar/radar.spec.ts",
+          "testBlocks": 19
+        }
+      ]
     }
   ]
 }

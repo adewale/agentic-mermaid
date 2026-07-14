@@ -533,6 +533,11 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
     detectLoose: (line: string) => /^gitgraph(?:\s|:|$)/.test(line),
     sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('title', 'text'), nativeSceneRole('group', 'container'), nativeSceneRole('rail', 'shape'), nativeSceneRole('edge', 'connector'), nativeSceneRole('node', 'container'), nativeSceneRole('label', 'text')],
     example: 'gitGraph\n  commit id:"base"\n  branch feature\n  commit id:"work"\n  checkout main\n  commit id:"release"\n  merge feature id:"merge"' },
+  { id: 'radar', upstreamId: 'radar', maturity: 'experimental', label: 'Radar', headers: ['radar-beta'], narrower: 'asRadar', editorDiagramType: 'Radar', editorExampleId: 'radar-basic', editorGlyph: 'R',
+    config: { section: 'radar', keys: ['width', 'height', 'marginTop', 'marginRight', 'marginBottom', 'marginLeft', 'axisScaleFactor', 'axisLabelFactor', 'curveTension', 'useMaxWidth', 'tickLabels', 'useWidth'], noopKeys: ['useWidth'] },
+    detect: (line: string) => /^radar-beta(?:\s|:|$)/.test(line),
+    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('chrome', 'document'), nativeSceneRole('grid', 'shape'), nativeSceneRole('pie-slice', 'shape'), nativeSceneRole('point', 'shape'), nativeSceneRole('axis', 'text'), nativeSceneRole('legend', 'shape', 'text'), nativeSceneRole('title', 'text')],
+    example: 'radar-beta\n  title Skills\n  axis speed["Speed"], power["Power"], range["Range"]\n  curve now["Current"]{4, 3, 5}\n  curve goal["Target"]{5, 5, 4}\n  max 5' },
 ] as const satisfies readonly BuiltinFamilyDescriptorSeed[]
 
 export type BuiltinFamilyId = typeof BUILTIN_FAMILY_DESCRIPTOR_SEEDS[number]['id']

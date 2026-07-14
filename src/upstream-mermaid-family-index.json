@@ -3,7 +3,7 @@
   "provenance": {
     "version": "11.16.0",
     "commit": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
-    "inventorySha256": "5dc63de4bf954cc8c7cbeec4643e737bcf3ac917f650c5a32c844f38e0da5697"
+    "inventorySha256": "476b332ad4d73b7fd9c54bd36e6fa385801ecae12f8821d1a2263b4110108ab9"
   },
   "families": [
     {
@@ -701,7 +701,7 @@
       "headers": [
         {
           "value": "radar-beta",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         }
       ],
       "officialSyntaxPage": {

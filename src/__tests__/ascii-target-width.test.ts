@@ -25,6 +25,7 @@ const LONG_FEASIBLE_SOURCE: Record<DiagramKind, string> = {
   gantt: 'gantt\n  dateFormat YYYY-MM-DD\n  section Delivery\n  A very descriptive gantt task with several words :a, 2026-01-01, 1d',
   mindmap: 'mindmap\n  root[A very descriptive mindmap root label with several words]',
   gitgraph: 'gitGraph\n  commit id:"base" msg:"A very descriptive commit message with several words"',
+  radar: 'radar-beta\n  title A descriptive radar comparison\n  axis quality["A descriptive quality axis"], speed["Speed"], cost["Cost"]\n  curve now["A descriptive current curve"]{4, 3, 2}\n  max 5',
 }
 
 describe('targetWidth hard terminal contract', () => {

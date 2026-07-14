@@ -130,6 +130,19 @@ quadrantChart
 
 Quadrant charts accept the `quadrantChart` header, an optional `title`, `x-axis <left> --> <right>` and `y-axis <bottom> --> <top>` axis labels (the far side is optional), four `quadrant-1..quadrant-4 <label>` region labels, and `<Label>: [x, y]` points with coordinates in `[0, 1]`. Quadrant numbering follows Mermaid core: **1 = top-right, 2 = top-left, 3 = bottom-left, 4 = bottom-right**. The SVG renderer draws a square plot split into four theme-tinted quadrants with the points as circles; the ASCII renderer draws a bordered grid with a coordinate legend. Official point style metadata (`radius`, `color`, `stroke-color`, `stroke-width`), `classDef` lines, and class assignments are modeled for rendering and typed mutation. Malformed lines — out-of-range/non-numeric coordinates, missing brackets, duplicate point labels, and unknown point style metadata — fall back to a lossless opaque body, never silently dropped, and the renderer still surfaces the loud error at render time. Quadrant is structured when narrowed through `asQuadrant`; points are addressed by their unique label and coordinates stay in `[0, 1]`. The operation schema is generated from the registry rather than duplicated here.
 
+## Radar
+
+```mermaid
+radar-beta
+  title Skills
+  axis speed["Speed"], power["Power"], range["Range"]
+  curve now["Current"]{4, 3, 5}
+  curve goal["Target"]{5, 5, 4}
+  max 5
+```
+
+Radar (spider) chart — multivariate profiles compared across equi-angular axes from a shared center; one closed translucent area per entity. The `radar-beta` header takes an optional `title`, `axis <id>["Label"], …` declarations, one `curve <id>["Label"]{v1, v2, …}` per entity (one value per axis, in axis order), and optional `max`/`min`/config lines. The SVG renderer draws the axis spokes, concentric grid, and per-curve polygons; the ASCII renderer draws a grouped proportional-bar table like pie. Malformed lines fall back to a lossless opaque body, never silently dropped. Radar is structured when narrowed through `asRadar`; axes and curves are addressed by their unique id. The operation schema is generated from the registry rather than duplicated here.
+
 ## Gantt
 
 ```mermaid

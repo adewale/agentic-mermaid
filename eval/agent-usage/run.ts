@@ -1,7 +1,7 @@
 import { executeInSandbox } from '../../src/mcp/sandbox.ts'
 import { parseMermaid } from '../../src/agent/parse.ts'
 import { serializeMermaid } from '../../src/agent/serialize.ts'
-import { asFlowchart, asState, asSequence, asTimeline, asClass, asEr, asJourney, asArchitecture, asXyChart, asPie, asQuadrant, asGantt, asMindmap, asGitGraph, type DiagramKind, type ValidDiagram } from '../../src/agent/types.ts'
+import { asFlowchart, asState, asSequence, asTimeline, asClass, asEr, asJourney, asArchitecture, asXyChart, asPie, asQuadrant, asGantt, asMindmap, asGitGraph, asRadar, type DiagramKind, type ValidDiagram } from '../../src/agent/types.ts'
 import { checkMermaidSource, type CheckMermaidSpec } from '../../src/agent/facts.ts'
 import { lintAgentTrace, type SdkCall, type AntiPattern } from './harness.ts'
 import { buildHomepageAgentPromptTask } from './homepage-prompt.ts'
@@ -361,6 +361,27 @@ export const DEFAULT_CASES: AgentUsageEvalCase[] = [
     `,
   },
   {
+    id: 'radar_add_beta_curve',
+    family: 'radar',
+    prompt: promptTask(
+      'Add a Beta curve with values 3, 5, 4 using structured mutation, verify, then serialize.',
+      'The radar has Speed, Power, Range axes and an Alpha curve. Add Beta with one value per axis and preserve the existing axes and Alpha curve.',
+      'radar-beta\n  axis Speed, Power, Range\n  curve alpha["Alpha"]{4, 3, 5}\n  max 5',
+    ),
+    input: 'radar-beta\n  axis Speed, Power, Range\n  curve alpha["Alpha"]{4, 3, 5}\n  max 5',
+    script: `
+      const r0 = mermaid.parseMermaid('radar-beta\\n  axis Speed, Power, Range\\n  curve alpha["Alpha"]{4, 3, 5}\\n  max 5')
+      if (!r0.ok) return { error: 'parse' }
+      const radar = mermaid.asRadar(r0.value)
+      if (!radar) return { error: 'not-radar' }
+      const r1 = mermaid.mutate(radar, { kind: 'add_curve', id: 'beta', label: 'Beta', values: [3, 5, 4] })
+      if (!r1.ok) return { error: r1.error }
+      const verify = mermaid.verifyMermaid(r1.value)
+      if (!verify.ok) return { error: 'verify', warnings: verify.warnings }
+      return { source: mermaid.serializeMermaid(r1.value) }
+    `,
+  },
+  {
     id: 'author_auth_flow_source',
     family: 'flowchart',
     prompt: promptTask(
@@ -478,6 +499,10 @@ export const CREATE_CASES: AgentUsageEvalCase[] = [
     'Create a new GitGraph from the context as Mermaid source, verify it, then return the source. Do not use mutate because there is no existing diagram to preserve.',
     'A ROOT commit on main, then a release branch with an RC commit tagged rc.1.',
     'gitGraph\n  commit id:"ROOT" msg:"Foundation"\n  branch release order:2\n  commit id:"RC" tag:"rc.1" msg:"Release candidate"'),
+  authorCase('author_radar_source', 'radar',
+    'Create a new radar chart from the context as Mermaid source, verify it, then return the source. Do not use mutate because there is no existing diagram to preserve.',
+    'A team-skills radar with axes Design, Code, Comms; one curve Alice with values 4, 5, 3 (one per axis).',
+    'radar-beta\n  axis Design, Code, Comms\n  curve alice["Alice"]{4, 5, 3}\n  max 5'),
 ]
 
 export const KNOWLEDGE_CASES: AgentUsageEvalCase[] = [
@@ -572,6 +597,7 @@ const STRUCTURED_CASES = new Set([
   'gantt_add_docs_task',
   'mindmap_add_evidence_node',
   'gitgraph_add_release_commit',
+  'radar_add_beta_curve',
 ])
 
 type MutableFamily = Extract<SdkCall, { verb: 'narrow' }>['family']
@@ -678,6 +704,7 @@ function checkTrace(id: string, input: string | undefined, trace: SdkCall[]): bo
   if (id === 'mindmap_add_evidence_node') return checkMutationTrace(id, input, 'mindmap', trace) && hasMutationOps(trace, input, ['add_node'])
   if (id === 'gitgraph_add_release_commit') return checkMutationTrace(id, input, 'gitgraph', trace) && hasMutationOps(trace, input, ['create_branch', 'append_commit'])
   if (id === 'sequence_alt_add_message') return checkMutationTrace(id, input, 'sequence', trace) && hasMutationOps(trace, input, ['add_message'])
+  if (id === 'radar_add_beta_curve') return checkMutationTrace(id, input, 'radar', trace) && hasMutationOps(trace, input, ['add_curve'])
   return false
 }
 
@@ -819,6 +846,12 @@ const CREATE_ORACLES: Record<string, (source: string) => boolean> = {
   },
   author_mindmap_source: s => sourceSatisfiesFacts(s, ['edge Product -> Research', 'edge Research -> Evidence', 'edge Product -> Delivery']),
   author_gitgraph_source: s => sourceSatisfiesFacts(s, ['commit ROOT branch main', 'commit RC branch release', 'commit RC tag rc.1']),
+  author_radar_source: s => {
+    const b = narrow(s, asRadar)?.body
+    const axes = new Set(b?.axes.map(a => a.id))
+    const alice = b?.curves.find(c => c.id === 'alice')
+    return Boolean(['Design', 'Code', 'Comms'].every(x => axes.has(x)) && alice && alice.values.join(',') === '4,5,3')
+  },
 }
 
 function checkTask(id: string, input: string | undefined, value: unknown, trace: SdkCall[]): boolean {
@@ -937,6 +970,13 @@ function checkTask(id: string, input: string | undefined, value: unknown, trace:
   if (id === 'gitgraph_add_release_commit') {
     const source = serializedSource(value, trace)
     return Boolean(source && sourceSatisfiesFacts(source, ['commit RC branch release', 'commit RC tag rc.1']))
+  }
+  if (id === 'radar_add_beta_curve') {
+    const source = serializedSource(value, trace)
+    const body = source ? narrow(source, asRadar)?.body : undefined
+    const beta = body?.curves.find(c => c.id === 'beta')
+    // The Beta curve landed with one value per axis and Alpha survives.
+    return Boolean(beta && beta.values.join(',') === '3,5,4' && body!.curves.some(c => c.id === 'alpha'))
   }
   if (id === 'sequence_alt_add_message') {
     const source = serializedSource(value, trace)

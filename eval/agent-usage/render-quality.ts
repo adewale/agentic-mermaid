@@ -48,6 +48,7 @@ const EXPECTED_VISIBLE_LABELS: Record<string, string[]> = {
   gantt_add_docs_task: ['Core', 'Docs'],
   mindmap_add_evidence_node: ['Product', 'Research', 'Evidence'],
   gitgraph_add_release_commit: ['ROOT', 'RC', 'rc.1'],
+  radar_add_beta_curve: ['Speed', 'Alpha', 'Beta'],
   author_auth_flow_source: ['User', 'Login Page', 'Dashboard'],
   author_api_sequence_source: ['User', 'App', 'API', 'Render SVG', 'Download'],
 }

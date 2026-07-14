@@ -9307,5 +9307,35 @@
       ]
     },
     "summary": "The upstream block exercises parser database helper state, renderer DOM details, mocks, shape factories, or generated/table-driven inputs rather than a direct portable Mermaid source string."
+  },
+  {
+    "id": "radar-excluded-radar-spec-renderer-and-db-state-blocks",
+    "families": [
+      "radar"
+    ],
+    "reason": "api-internal",
+    "disposition": "WONTFIX",
+    "blockCount": 12,
+    "upstream": {
+      "repo": "mermaid-js/mermaid",
+      "files": [
+        "packages/mermaid/src/diagrams/radar/radar.spec.ts"
+      ],
+      "blocks": [
+        "packages/mermaid/src/diagrams/radar/radar.spec.ts :: should handle a radar diagram with options",
+        "packages/mermaid/src/diagrams/radar/radar.spec.ts :: should calculate relative radius",
+        "packages/mermaid/src/diagrams/radar/radar.spec.ts :: should handle min value",
+        "packages/mermaid/src/diagrams/radar/radar.spec.ts :: should handle max value",
+        "packages/mermaid/src/diagrams/radar/radar.spec.ts :: should clip values below min",
+        "packages/mermaid/src/diagrams/radar/radar.spec.ts :: should clip values above max",
+        "packages/mermaid/src/diagrams/radar/radar.spec.ts :: should handle negative min",
+        "packages/mermaid/src/diagrams/radar/radar.spec.ts :: should construct a polygon if tension is 0",
+        "packages/mermaid/src/diagrams/radar/radar.spec.ts :: should construct a simple round curve",
+        "packages/mermaid/src/diagrams/radar/radar.spec.ts :: should construct a closed round curve",
+        "packages/mermaid/src/diagrams/radar/radar.spec.ts :: should draw a simple radar diagram",
+        "packages/mermaid/src/diagrams/radar/radar.spec.ts :: should draw a complex radar diagram"
+      ]
+    },
+    "summary": "These upstream blocks exercise private renderer helpers (relativeRadius, closedRoundCurve), the draw() DOM path, and DB option-getter state (options with no axis) rather than a portable structured Mermaid source string."
   }
 ]

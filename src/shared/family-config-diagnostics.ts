@@ -1,8 +1,10 @@
 import type { DiagramKind, FamilyId } from '../agent/types.ts'
 import type { ConfigDiagnostic } from '../types.ts'
 import { getFamily, type FamilyConfigContract } from '../agent/families.ts'
+import { RADAR_THEME_FIELDS } from '../radar/config.ts'
 import { stateConfigDiagnostics } from '../state/config.ts'
 import { compareCodePointStrings } from './deterministic-order.ts'
+import { safeCssColor } from './css-color.ts'
 
 export type FamilyConfigSpec = FamilyConfigContract
 
@@ -77,6 +79,12 @@ const FAMILY_VALUE_RULES: Partial<Record<DiagramKind, Record<string, ValueRule>>
     ...['actorColours', 'sectionFills', 'sectionColours'].map(key => [key, stringArray]),
     ['useMaxWidth', boolean],
   ]),
+  radar: {
+    width: positive, height: positive,
+    marginTop: nonNegative, marginRight: nonNegative, marginBottom: nonNegative, marginLeft: nonNegative,
+    axisScaleFactor: positive, axisLabelFactor: positive, curveTension: range(0, 1),
+    useMaxWidth: boolean, tickLabels: boolean,
+  },
   class: { nodeSpacing: nonNegative, rankSpacing: nonNegative, hierarchicalNamespaces: boolean },
   er: { layoutDirection: oneOfInsensitive('TB', 'TD', 'BT', 'LR', 'RL'), nodeSpacing: nonNegative, rankSpacing: nonNegative },
   architecture: {
@@ -117,13 +125,43 @@ const XY_AXIS_VALUE_RULES: Record<string, ValueRule> = {
   showAxisLine: boolean, axisLineWidth: positive,
 }
 
+function radarThemeDiagnostics(root: unknown): ConfigDiagnostic[] {
+  const themeVariables = section(root, 'themeVariables')
+  if (!themeVariables || !('radar' in themeVariables)) return []
+  const radar = section(themeVariables, 'radar')
+  if (!radar) return [{
+    code: 'INEFFECTIVE_CONFIG',
+    field: 'themeVariables.radar',
+    message: 'themeVariables.radar must be an object; the invalid value has no effect.',
+  }]
+  const known = new Set<string>(RADAR_THEME_FIELDS)
+  const diagnostics: ConfigDiagnostic[] = []
+  const positiveFields = new Set(['axisStrokeWidth', 'axisLabelFontSize', 'curveStrokeWidth', 'graticuleStrokeWidth', 'legendBoxSize', 'legendFontSize'])
+  const opacityFields = new Set(['curveOpacity', 'graticuleOpacity'])
+  const colorFields = new Set(['axisColor', 'graticuleColor'])
+  for (const key of Object.keys(radar).sort(compareCodePointStrings)) {
+    const value = radar[key]
+    let expected: string | undefined
+    if (!known.has(key)) expected = 'a documented radar theme field'
+    else if (positiveFields.has(key) && !positive.valid(value)) expected = positive.expected
+    else if (opacityFields.has(key) && !range(0, 1).valid(value)) expected = 'a finite number from 0 through 1'
+    else if (colorFields.has(key) && !safeCssColor(value)) expected = 'a safe CSS color without url(), variables, or context-breaking characters'
+    if (expected) diagnostics.push({
+      code: 'INEFFECTIVE_CONFIG',
+      field: `themeVariables.radar.${key}`,
+      message: `themeVariables.radar.${key} must be ${expected}; the invalid value has no effect.`,
+    })
+  }
+  return diagnostics
+}
+
 /** Value-validity diagnostics for every wired family config key. */
 export function familyConfigValueDiagnostics(kind: DiagramKind, root: unknown): ConfigDiagnostic[] {
   if (kind === 'state') return [] // state/config.ts owns its richer value diagnostics
   const spec = familyConfigSpec(kind)
   if (!spec) return []
   const config = section(root, spec.section)
-  const diagnostics: ConfigDiagnostic[] = []
+  const diagnostics: ConfigDiagnostic[] = kind === 'radar' ? radarThemeDiagnostics(root) : []
   const warn = (field: string, expected: string): void => {
     diagnostics.push({ code: 'INEFFECTIVE_CONFIG', field, message: `${field} must be ${expected}; the invalid value has no effect.` })
   }

@@ -22,7 +22,7 @@ export function err<E, T = never>(error: E): Result<T, E> { return { ok: false, 
 export type DiagramKind =
   | 'flowchart' | 'state' | 'sequence' | 'class' | 'er'
   | 'timeline' | 'journey' | 'xychart' | 'architecture' | 'pie' | 'quadrant' | 'gantt'
-  | 'mindmap' | 'gitgraph'
+  | 'mindmap' | 'gitgraph' | 'radar'
 
 /** Runtime extensions are open but must pass the registry's namespace validator. */
 export type ExternalFamilyId = `family:${string}`
@@ -488,6 +488,43 @@ export interface QuadrantBody {
   classDefs?: Record<string, QuadrantPointStyle>
 }
 
+// ---- Radar body --------------------------------------------------------------
+
+/** A radial axis (spoke). */
+export interface RadarBodyAxis {
+  /** Axis identifier (resolves keyed curve entries). */
+  id: string
+  /** Display label; defaults to `id` when no `["Label"]` was given. */
+  label: string
+}
+
+/** A plotted curve (series). Values are in axis-declaration order. */
+export interface RadarBodyCurve {
+  id: string
+  label: string
+  /** One value per axis, in axis order. Non-negative (grammar has no sign). */
+  values: number[]
+}
+
+export interface RadarBody {
+  kind: 'radar'
+  title?: string
+  /** Axes (spokes) in declaration order. */
+  axes: RadarBodyAxis[]
+  /** Curves (series) in declaration order. */
+  curves: RadarBodyCurve[]
+  /** Lower scale bound (default 0). */
+  min: number
+  /** Upper scale bound; undefined = auto (max of all curve values). */
+  max?: number
+  /** Concentric ring count (default 5). */
+  ticks: number
+  /** Ring + curve-edge style (default 'circle'). */
+  graticule: 'circle' | 'polygon'
+  /** Whether the legend is drawn (default true). */
+  showLegend: boolean
+}
+
 // ---- Gantt body --------------------------------------------------------------
 
 export type GanttBodyTaskTag = 'active' | 'done' | 'crit' | 'milestone' | 'vert'
@@ -724,6 +761,7 @@ export type DiagramBody =
   | GanttBody
   | MindmapBody
   | GitGraphBody
+  | RadarBody
   /**
    * Opaque body — the parser understood the family header but encountered
    * unmodeled syntax. `source` is the ORIGINAL body with indentation, blank
@@ -847,7 +885,8 @@ export type QuadrantValidDiagram = ValidDiagram & { body: QuadrantBody }
 export type GanttValidDiagram = ValidDiagram & { body: GanttBody }
 export type MindmapValidDiagram = ValidDiagram & { body: MindmapBody }
 export type GitGraphValidDiagram = ValidDiagram & { body: GitGraphBody }
-export type MutableValidDiagram = FlowchartValidDiagram | StateValidDiagram | SequenceValidDiagram | TimelineValidDiagram | ClassValidDiagram | ErValidDiagram | JourneyValidDiagram | ArchitectureValidDiagram | XyChartValidDiagram | PieValidDiagram | QuadrantValidDiagram | GanttValidDiagram | MindmapValidDiagram | GitGraphValidDiagram
+export type RadarValidDiagram = ValidDiagram & { body: RadarBody }
+export type MutableValidDiagram = FlowchartValidDiagram | StateValidDiagram | SequenceValidDiagram | TimelineValidDiagram | ClassValidDiagram | ErValidDiagram | JourneyValidDiagram | ArchitectureValidDiagram | XyChartValidDiagram | PieValidDiagram | QuadrantValidDiagram | GanttValidDiagram | MindmapValidDiagram | GitGraphValidDiagram | RadarValidDiagram
 
 export function asFlowchart(d: ValidDiagram): FlowchartValidDiagram | null {
   return d.body.kind === 'flowchart' ? (d as FlowchartValidDiagram) : null
@@ -889,6 +928,10 @@ export function asPie(d: ValidDiagram): PieValidDiagram | null {
 
 export function asQuadrant(d: ValidDiagram): QuadrantValidDiagram | null {
   return d.body.kind === 'quadrant' ? (d as QuadrantValidDiagram) : null
+}
+
+export function asRadar(d: ValidDiagram): RadarValidDiagram | null {
+  return d.body.kind === 'radar' ? (d as RadarValidDiagram) : null
 }
 
 export function asGantt(d: ValidDiagram): GanttValidDiagram | null {
@@ -937,6 +980,7 @@ export interface MutationError {
     | 'ENTITY_NOT_FOUND' | 'ATTRIBUTE_NOT_FOUND'
     | 'SERVICE_NOT_FOUND' | 'GROUP_NOT_FOUND'
     | 'SERIES_NOT_FOUND'
+    | 'AXIS_NOT_FOUND' | 'CURVE_NOT_FOUND'
     | 'SLICE_NOT_FOUND' | 'POINT_NOT_FOUND'
     | 'STATE_NOT_FOUND' | 'TRANSITION_NOT_FOUND'
     | 'DUPLICATE_NODE' | 'DUPLICATE_PARTICIPANT' | 'DUPLICATE_CLASS' | 'DUPLICATE_ENTITY' | 'DUPLICATE_STATE' | 'DUPLICATE_TASK'
@@ -1186,6 +1230,25 @@ export type QuadrantMutationOp =
   | { kind: 'move_point'; label: string; x: number; y: number }
   | { kind: 'rename_point'; from: string; to: string }
 
+export type RadarMutationOp =
+  | { kind: 'set_title'; title: string | null }
+  // axes (spokes) — ordered; add/remove/rename re-shape every curve's values
+  | { kind: 'add_axis'; id: string; label?: string | null; index?: number; fill?: number }
+  | { kind: 'remove_axis'; id: string }
+  | { kind: 'rename_axis'; from: string; to: string }
+  | { kind: 'set_axis_label'; id: string; label: string | null }
+  | { kind: 'reorder_axis'; from: number; to: number }
+  // curves (series)
+  | { kind: 'add_curve'; id: string; label?: string | null; values: number[]; index?: number }
+  | { kind: 'remove_curve'; id: string }
+  | { kind: 'set_curve_values'; id: string; values: number[] }
+  | { kind: 'set_curve_value'; curve: string; axis: string; value: number }
+  | { kind: 'set_curve_label'; id: string; label: string | null }
+  | { kind: 'rename_curve'; from: string; to: string }
+  | { kind: 'reorder_curve'; from: number; to: number }
+  // scale + display config
+  | { kind: 'set_config'; max?: number | null; min?: number | null; ticks?: number | null; graticule?: 'circle' | 'polygon' | null; showLegend?: boolean | null }
+
 export type GanttMutationOp =
   | { kind: 'set_title'; title: string | null }
   | { kind: 'add_section'; label: string }
@@ -1208,7 +1271,7 @@ export type GanttMutationOp =
   | { kind: 'move_task'; fromSection: number; fromIndex: number; toSection: number; toIndex: number }
   | { kind: 'move_section'; from: number; to: number }
 
-export type AnyMutationOp = FlowchartMutationOp | StateMutationOp | SequenceMutationOp | TimelineMutationOp | ClassMutationOp | ErMutationOp | JourneyMutationOp | ArchitectureMutationOp | XyChartMutationOp | PieMutationOp | QuadrantMutationOp | GanttMutationOp | MindmapMutationOp | GitGraphMutationOp
+export type AnyMutationOp = FlowchartMutationOp | StateMutationOp | SequenceMutationOp | TimelineMutationOp | ClassMutationOp | ErMutationOp | JourneyMutationOp | ArchitectureMutationOp | XyChartMutationOp | PieMutationOp | QuadrantMutationOp | GanttMutationOp | MindmapMutationOp | GitGraphMutationOp | RadarMutationOp
 export type MutationOp = FlowchartMutationOp // legacy alias
 
 // ---- Branded Finite -------------------------------------------------------

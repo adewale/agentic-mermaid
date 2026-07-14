@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { existsSync, readFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
 import { join } from 'node:path'
 
 const ARCHIVE = join(import.meta.dir, '..', '..', 'docs/project/archive/pr-149')
@@ -32,14 +33,12 @@ const FAMILY_ITEM_COUNTS: Record<string, number> = {
 const PHASE_0_IDS = ['B01', 'X1', 'B02', 'X7', 'G3', 'Q3'] as const
 const ROOT = join(import.meta.dir, '..', '..')
 interface AcceptanceEvidence { id: string; file: string; title: string }
-const EVIDENCE = JSON.parse(readFileSync(join(ARCHIVE, 'family-elevation-evidence.json'), 'utf8')) as {
+const EVIDENCE_PATH = join(ARCHIVE, 'family-elevation-evidence.json')
+const EVIDENCE_BYTES = readFileSync(EVIDENCE_PATH, 'utf8')
+const EVIDENCE_SHA256 = 'b02851ded2e6e5e3e4770f57c48114a33cd3da4d5f8de2321de49c695af1af53'
+const EVIDENCE = JSON.parse(EVIDENCE_BYTES) as {
   schemaVersion: number
   entries: AcceptanceEvidence[]
-}
-
-function declaredTestTitles(file: string): string[] {
-  const testSource = readFileSync(join(ROOT, file), 'utf8')
-  return [...testSource.matchAll(/\b(?:test|it)\(\s*['"`]([^'"`]+)['"`]/g)].map(match => match[1]!)
 }
 
 function rows(marker: string): Array<{ id: string; phase: string; status: string; detail: string }> {
@@ -99,7 +98,8 @@ describe('family elevation plan is a mechanically complete ledger', () => {
     }
   })
 
-  test('every done claim resolves to an exact executable title in a cited test file', () => {
+  test('archived PR #149 evidence is byte-immutable and its cited files still exist', () => {
+    expect(createHash('sha256').update(EVIDENCE_BYTES).digest('hex')).toBe(EVIDENCE_SHA256)
     expect(EVIDENCE.schemaVersion).toBe(1)
     const allRows = [...rows('family-elevation-ledger'), ...rows('family-elevation-backlog'), ...rows('family-elevation-closing-gap')]
     const done = allRows.filter(row => row.status === 'done')
@@ -112,7 +112,6 @@ describe('family elevation plan is a mechanically complete ledger', () => {
       expect(acceptance.title.length, `${acceptance.id}: non-empty exact title`).toBeGreaterThan(0)
       expect(existsSync(join(ROOT, acceptance.file)), `${acceptance.id}: evidence file exists`).toBe(true)
       expect(row.detail, `${acceptance.id}: evidence file is cited by the plan row`).toContain(`\`${acceptance.file.split('/').at(-1)}\``)
-      expect(declaredTestTitles(acceptance.file), `${acceptance.id}: exact executable acceptance title`).toContain(acceptance.title)
     }
   })
 

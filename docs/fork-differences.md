@@ -37,6 +37,7 @@ This fork renders a wider set of Mermaid families in both the gallery and editor
 - Gantt charts (`gantt`) with date axes, sections, dependencies, milestones, exclusions, and vertical markers
 - Mindmaps (`mindmap`) with indentation-sensitive hierarchy, shapes, icons, and classes
 - Git graphs (`gitGraph`) with deterministic replayed commits, branches, merges, and cherry-picks
+- Radar charts (`radar-beta`) — spider/star charts plotting multivariate profiles across equi-angular axes from a shared center
 
 The live editor has registry-backed example coverage for every built-in family
 (`src/__tests__/editor-examples.test.ts`). Browser E2E still spot-checks several

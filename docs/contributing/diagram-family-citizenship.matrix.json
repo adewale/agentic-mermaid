@@ -2888,6 +2888,183 @@
           "eval/mindmap-gitgraph-content-corpus/gallery-receipt.json"
         ]
       }
+    },
+    "radar": {
+      "label": "Radar",
+      "auditLevel": "audited",
+      "role": "multivariate profile comparison across shared axes",
+      "workedExample": false,
+      "cells": {
+        "registryDiscovery": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/families.ts"
+          ]
+        },
+        "detectionParse": {
+          "status": "satisfied",
+          "evidence": [
+            "src/radar/parser.ts",
+            "src/__tests__/radar-parser.test.ts"
+          ]
+        },
+        "semanticModel": {
+          "status": "satisfied",
+          "evidence": [
+            "src/radar/types.ts",
+            "src/agent/radar-body.ts"
+          ]
+        },
+        "serializeRoundTrip": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/radar-body.ts",
+            "src/__tests__/agent-radar.test.ts"
+          ]
+        },
+        "typedMutation": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/radar-body.ts",
+            "src/__tests__/agent-radar.test.ts"
+          ]
+        },
+        "verifyRenderSeam": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/verify.ts",
+            "src/__tests__/radar-integration.test.ts"
+          ]
+        },
+        "determinism": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/radar-integration.test.ts",
+            "src/__tests__/radar-renderer.test.ts"
+          ]
+        },
+        "svgRender": {
+          "status": "satisfied",
+          "evidence": [
+            "src/radar/renderer.ts",
+            "src/__tests__/radar-renderer.test.ts"
+          ]
+        },
+        "asciiUnicodeRender": {
+          "status": "satisfied",
+          "evidence": [
+            "src/ascii/radar.ts",
+            "src/__tests__/radar-ascii.test.ts"
+          ]
+        },
+        "layoutProjection": {
+          "status": "satisfied",
+          "evidence": [
+            "src/radar/layout.ts",
+            "src/agent/family-layouts.ts"
+          ]
+        },
+        "stableRegions": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/radar-integration.test.ts"
+          ]
+        },
+        "editorExample": {
+          "status": "satisfied",
+          "evidence": [
+            "editor/examples.ts"
+          ]
+        },
+        "docsAgentSurfaces": {
+          "status": "satisfied",
+          "evidence": [
+            "docs/design/families/radar.md",
+            "docs/agent-api-cookbook.md"
+          ]
+        },
+        "evalFixture": {
+          "status": "satisfied",
+          "evidence": [
+            "eval/mermaid-radar-bench/harvest.json"
+          ]
+        },
+        "upstreamHarvest": {
+          "status": "satisfied",
+          "evidence": [
+            "eval/mermaid-radar-bench/harvest.json"
+          ]
+        },
+        "divergenceLedger": {
+          "status": "satisfied",
+          "evidence": [
+            "eval/mermaid-radar-bench/harvest.json"
+          ]
+        },
+        "mermaidSyntaxParity": {
+          "status": "satisfied",
+          "evidence": [
+            "docs/design/mermaid-family-fidelity-audit.md",
+            "src/__tests__/closing-the-gap.test.ts",
+            "eval/mermaid-radar-bench/harvest.json"
+          ]
+        },
+        "domainProperties": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/radar-integration.test.ts"
+          ]
+        },
+        "familyVisualMetaphor": {
+          "status": "satisfied",
+          "evidence": [
+            "docs/design/mermaid-family-fidelity-audit.md",
+            "docs/design/families/radar-demo.png"
+          ]
+        },
+        "goldensEvidence": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/radar-renderer.test.ts",
+            "docs/design/families/radar-demo.png"
+          ]
+        },
+        "generatedSite": {
+          "status": "satisfied",
+          "evidence": [
+            "website/build.ts"
+          ]
+        },
+        "distributionPackage": {
+          "status": "satisfied",
+          "evidence": [
+            "package.json",
+            "src/index.ts"
+          ]
+        },
+        "mutationLane": {
+          "status": "satisfied",
+          "evidence": [
+            "stryker.families.config.json"
+          ]
+        }
+      },
+      "fidelity": {
+        "target": "Mermaid 11.16.0",
+        "officialDocs": "https://mermaid.js.org/syntax/radar.html",
+        "wikipedia": "https://en.wikipedia.org/wiki/Radar_chart",
+        "signature": "equi-angular spokes radiating from a shared center with one closed translucent area per entity, dot vertices on the data points, and radial axis labels",
+        "syntaxEvidence": [
+          "docs/design/mermaid-family-fidelity-audit.md",
+          "src/__tests__/closing-the-gap.test.ts",
+          "eval/mermaid-radar-bench/harvest.json"
+        ],
+        "visualArtifact": "docs/design/families/radar-demo.png",
+        "visualEvidence": [
+          "docs/design/families/radar-demo.png",
+          "docs/design/families/radar-polygon-demo.png"
+        ]
+      }
     }
   }
 }

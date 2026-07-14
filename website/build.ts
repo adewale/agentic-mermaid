@@ -680,6 +680,7 @@ const FAMILY_AGENT_TASK: Record<BuiltinFamilyId, { prompt: string; trace: string
   gantt:        { prompt: 'Add a verification milestone before release and resolve the schedule.', trace: 'asGantt · mutate(add_task) · verify' },
   mindmap:      { prompt: 'Add an Evidence child under Research and verify the hierarchy before returning source.', trace: 'asMindmap · mutate(add_node) · verify' },
   gitgraph:     { prompt: 'Add a release branch and merge it back with a tagged commit.', trace: 'asGitGraph · mutate(create_branch/merge_branch) · verify' },
+  radar:        { prompt: 'Add a Reliability axis (filling existing curves) and a target curve, then verify.', trace: 'asRadar · mutate(add_axis/add_curve) · verify' },
 }
 // One-per-family supported examples are the canonical render for their family, so
 // anchor them by family id — old /gallery/#<family> deep links resolve here after
@@ -713,6 +714,7 @@ const STYLE_THEME_PAIR_BY_FAMILY: Record<BuiltinFamilyId, { look: string; theme:
   gantt: { look: 'architectural-plan', theme: 'solarized-light', seed: 9 },
   mindmap: { look: 'hand-drawn', theme: 'paper', seed: 10 },
   gitgraph: { look: 'ops-schematic', theme: 'github-light', seed: 11 },
+  radar: { look: 'watercolor', theme: 'catppuccin-latte', seed: 12 },
 }
 
 function displayStyleName(name: string) {
@@ -1031,6 +1033,13 @@ const COMPARISON_CASES: ComparisonCase[] = [
   commit id:"MUTATE" type:HIGHLIGHT msg:"Apply typed op"
   checkout main
   merge edit id:"VERIFY" tag:"checked"` },
+  { id: 'radar', family: 'Radar', source: `radar-beta
+  title Agent capability
+  axis parse["Parse"], mutate["Mutate"], verify["Verify"]
+  axis render["Render"], ascii["ASCII"], types["Types"]
+  curve agentic["Agentic"]{5, 5, 5, 4, 5, 5}
+  curve baseline["Baseline"]{3, 1, 2, 4, 1, 2}
+  max 5` },
 ]
 
 function comparisonSvg(svg: string, id: string, engine: string, family: string) {
@@ -1070,6 +1079,7 @@ const COMPARISON_TAKEAWAYS: Record<string, string> = {
   gantt: 'Schedule resolution is verified locally so bad dependencies can fail before an agent returns source.',
   mindmap: 'Compare the bilateral hierarchy, shaped root, and curved parent-child branches on the same source.',
   gitgraph: 'Compare ordered lanes, typed commits, merge ancestry, and tag placement without flattening history into a flowchart.',
+  radar: 'Agentic Mermaid renders this supported family locally; Beautiful Mermaid has no panel for it. Compare the multivariate silhouette per curve on the same source.',
 }
 const COMPARISON_STYLE_DEMO_SOURCE = `flowchart LR
   Draft[Draft source] --> Verify{Verify}

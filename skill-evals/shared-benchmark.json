@@ -10,7 +10,10 @@
     "skills/agentic-mermaid-diagram-workflow",
     "skills/agentic-mermaid-live-editor"
   ],
-  "variants": ["with_skill", "without_skill"],
+  "variants": [
+    "with_skill",
+    "without_skill"
+  ],
   "run_policy": {
     "minimum_runs_per_variant": 3,
     "recommended_runs_per_variant": 5,
@@ -33,13 +36,53 @@
         "Name ASCII, PNG, and SVG outputs."
       ],
       "assertions": [
-        {"name": "core-loop", "type": "contains_all", "values": ["parseMermaid", "asFlowchart", "mutate", "verifyMermaid", "serializeMermaid"]},
-        {"name": "outputs", "type": "contains_all", "values": ["ASCII", "PNG", "SVG"]},
-        {"name": "avoid-source-splice", "type": "contains_any", "values": ["source concatenation", "concatenate", "typed op", "typed mutation"]},
-        {"name": "op-discriminator", "type": "contains", "value": "kind"},
-        {"name": "result-unwrapping", "type": "contains", "value": ".value"}
+        {
+          "name": "core-loop",
+          "type": "contains_all",
+          "values": [
+            "parseMermaid",
+            "asFlowchart",
+            "mutate",
+            "verifyMermaid",
+            "serializeMermaid"
+          ]
+        },
+        {
+          "name": "outputs",
+          "type": "contains_all",
+          "values": [
+            "ASCII",
+            "PNG",
+            "SVG"
+          ]
+        },
+        {
+          "name": "avoid-source-splice",
+          "type": "contains_any",
+          "values": [
+            "source concatenation",
+            "concatenate",
+            "typed op",
+            "typed mutation"
+          ]
+        },
+        {
+          "name": "op-discriminator",
+          "type": "contains",
+          "value": "kind"
+        },
+        {
+          "name": "result-unwrapping",
+          "type": "contains",
+          "value": ".value"
+        }
       ],
-      "tags": ["diagram-workflow", "flowchart", "library", "positive"]
+      "tags": [
+        "diagram-workflow",
+        "flowchart",
+        "library",
+        "positive"
+      ]
     },
     {
       "id": "pos-live-editor-source-of-truth",
@@ -52,18 +95,42 @@
         "Mention SVG/PNG editor exports and the broader ASCII, PNG, SVG output story."
       ],
       "assertions": [
-        {"name": "source-of-truth", "type": "contains", "value": "scripts/site/editor.ts"},
-        {"name": "generated-artifact-rule", "type": "contains_all", "values": ["editor.html", "rebuild"]},
-        {"name": "outputs", "type": "contains_all", "values": ["ASCII", "PNG", "SVG"]}
+        {
+          "name": "source-of-truth",
+          "type": "contains",
+          "value": "scripts/site/editor.ts"
+        },
+        {
+          "name": "generated-artifact-rule",
+          "type": "contains_all",
+          "values": [
+            "editor.html",
+            "rebuild"
+          ]
+        },
+        {
+          "name": "outputs",
+          "type": "contains_all",
+          "values": [
+            "ASCII",
+            "PNG",
+            "SVG"
+          ]
+        }
       ],
-      "tags": ["editor", "positive"]
+      "tags": [
+        "editor",
+        "positive"
+      ]
     },
     {
       "id": "pos-family-flowchart-library-fixture",
       "split": "tune",
       "kind": "positive",
       "prompt": "Use the attached Mermaid fixture. With the Agentic Mermaid library channel, edit the existing flowchart so Cache sits between API and DB. Produce artifact files under outputs/flowchart-cache/final.mmd and outputs/flowchart-cache/verify.json, include their contents in your final answer, and show the exact verification evidence from verifyMermaid. Do not edit by source concatenation when a typed op exists.",
-      "files": ["fixtures/flowchart-cache/input.mmd"],
+      "files": [
+        "fixtures/flowchart-cache/input.mmd"
+      ],
       "expected_behavior": [
         "Reads the fixture source.",
         "Uses parseMermaid -> asFlowchart -> mutate -> verifyMermaid -> serializeMermaid.",
@@ -71,254 +138,727 @@
         "Produces changed source and verify evidence."
       ],
       "assertions": [
-        {"name": "artifact-final", "type": "file_exists", "path": "outputs/flowchart-cache/final.mmd"},
-        {"name": "artifact-verify", "type": "file_exists", "path": "outputs/flowchart-cache/verify.json"},
-        {"name": "library-loop", "type": "contains_all", "values": ["parseMermaid", "asFlowchart", "mutate", "verifyMermaid", "serializeMermaid"]},
-        {"name": "cache-path", "type": "contains_all", "values": ["API", "Cache", "DB"]},
-        {"name": "kind-op", "type": "contains", "value": "kind"}
+        {
+          "name": "artifact-final",
+          "type": "file_exists",
+          "path": "outputs/flowchart-cache/final.mmd"
+        },
+        {
+          "name": "artifact-verify",
+          "type": "file_exists",
+          "path": "outputs/flowchart-cache/verify.json"
+        },
+        {
+          "name": "library-loop",
+          "type": "contains_all",
+          "values": [
+            "parseMermaid",
+            "asFlowchart",
+            "mutate",
+            "verifyMermaid",
+            "serializeMermaid"
+          ]
+        },
+        {
+          "name": "cache-path",
+          "type": "contains_all",
+          "values": [
+            "API",
+            "Cache",
+            "DB"
+          ]
+        },
+        {
+          "name": "kind-op",
+          "type": "contains",
+          "value": "kind"
+        }
       ],
-      "tags": ["family:flowchart", "channel:library", "fixture", "artifact", "positive"]
+      "tags": [
+        "family:flowchart",
+        "channel:library",
+        "fixture",
+        "artifact",
+        "positive"
+      ]
     },
     {
       "id": "pos-family-sequence-code-mode-fixture",
       "split": "tune",
       "kind": "positive",
       "prompt": "Use the attached Mermaid fixture. In MCP Code Mode style, show one execute(code) payload that parses the existing sequence diagram, narrows it, adds an API retry message before the final response, verifies, and serializes. Produce outputs/sequence-retry/final.mmd and outputs/sequence-retry/verify.json, include both contents in the final answer, and include the verification result. Use typed mutation where supported.",
-      "files": ["fixtures/sequence-retry/input.mmd"],
+      "files": [
+        "fixtures/sequence-retry/input.mmd"
+      ],
       "expected_behavior": [
         "Chooses Code Mode execute(code).",
         "Uses parseMermaid, asSequence, mutate add_message, verifyMermaid, serializeMermaid.",
         "Produces artifacts and verification evidence."
       ],
       "assertions": [
-        {"name": "artifact-final", "type": "file_exists", "path": "outputs/sequence-retry/final.mmd"},
-        {"name": "artifact-verify", "type": "file_exists", "path": "outputs/sequence-retry/verify.json"},
-        {"name": "code-mode", "type": "contains_any", "values": ["execute(code)", "execute(", "Code Mode"]},
-        {"name": "sequence-loop", "type": "contains_all", "values": ["parseMermaid", "asSequence", "add_message", "verifyMermaid", "serializeMermaid"]},
-        {"name": "retry", "type": "contains_any", "values": ["Retry", "retry"]}
+        {
+          "name": "artifact-final",
+          "type": "file_exists",
+          "path": "outputs/sequence-retry/final.mmd"
+        },
+        {
+          "name": "artifact-verify",
+          "type": "file_exists",
+          "path": "outputs/sequence-retry/verify.json"
+        },
+        {
+          "name": "code-mode",
+          "type": "contains_any",
+          "values": [
+            "execute(code)",
+            "execute(",
+            "Code Mode"
+          ]
+        },
+        {
+          "name": "sequence-loop",
+          "type": "contains_all",
+          "values": [
+            "parseMermaid",
+            "asSequence",
+            "add_message",
+            "verifyMermaid",
+            "serializeMermaid"
+          ]
+        },
+        {
+          "name": "retry",
+          "type": "contains_any",
+          "values": [
+            "Retry",
+            "retry"
+          ]
+        }
       ],
-      "tags": ["family:sequence", "channel:mcp-code-mode", "fixture", "artifact", "positive"]
+      "tags": [
+        "family:sequence",
+        "channel:mcp-code-mode",
+        "fixture",
+        "artifact",
+        "positive"
+      ]
     },
     {
       "id": "pos-family-timeline-cli-fixture",
       "split": "tune",
       "kind": "positive",
       "prompt": "Use the attached Mermaid fixture. Use the CLI channel to add a Ship period under the Build section with an artifact event, verify it, and render at least one text or image output. Include the exact am mutate/am render command sketch, write outputs/timeline-release/final.mmd and outputs/timeline-release/verify.json, and include their contents in your final answer.",
-      "files": ["fixtures/timeline-release/input.mmd"],
+      "files": [
+        "fixtures/timeline-release/input.mmd"
+      ],
       "expected_behavior": [
         "Chooses CLI commands for shell-only workflow.",
         "Uses am mutate with --op or --ops and kind-discriminated timeline ops.",
         "Uses verify evidence and mentions render formats."
       ],
       "assertions": [
-        {"name": "artifact-final", "type": "file_exists", "path": "outputs/timeline-release/final.mmd"},
-        {"name": "artifact-verify", "type": "file_exists", "path": "outputs/timeline-release/verify.json"},
-        {"name": "cli", "type": "contains_all", "values": ["am mutate", "am render"]},
-        {"name": "timeline-op", "type": "contains_any", "values": ["add_period", "add_event"]},
-        {"name": "formats", "type": "contains_all", "values": ["ASCII", "PNG", "SVG"]}
+        {
+          "name": "artifact-final",
+          "type": "file_exists",
+          "path": "outputs/timeline-release/final.mmd"
+        },
+        {
+          "name": "artifact-verify",
+          "type": "file_exists",
+          "path": "outputs/timeline-release/verify.json"
+        },
+        {
+          "name": "cli",
+          "type": "contains_all",
+          "values": [
+            "am mutate",
+            "am render"
+          ]
+        },
+        {
+          "name": "timeline-op",
+          "type": "contains_any",
+          "values": [
+            "add_period",
+            "add_event"
+          ]
+        },
+        {
+          "name": "formats",
+          "type": "contains_all",
+          "values": [
+            "ASCII",
+            "PNG",
+            "SVG"
+          ]
+        }
       ],
-      "tags": ["family:timeline", "channel:cli", "fixture", "artifact", "positive"]
+      "tags": [
+        "family:timeline",
+        "channel:cli",
+        "fixture",
+        "artifact",
+        "positive"
+      ]
     },
     {
       "id": "pos-family-class-library-fixture",
       "split": "tune",
       "kind": "positive",
       "prompt": "Use the attached Mermaid fixture. With the library channel, add a Receipt class and a relation from PaymentService to Receipt, then verify and serialize. Write outputs/class-payment/final.mmd and outputs/class-payment/verify.json, include both contents in the final answer, and show Result.value handling.",
-      "files": ["fixtures/class-payment/input.mmd"],
+      "files": [
+        "fixtures/class-payment/input.mmd"
+      ],
       "expected_behavior": [
         "Uses asClass before mutation.",
         "Uses add_class and add_relation with relKind, not source splicing.",
         "Verifies before serializing."
       ],
       "assertions": [
-        {"name": "artifact-final", "type": "file_exists", "path": "outputs/class-payment/final.mmd"},
-        {"name": "artifact-verify", "type": "file_exists", "path": "outputs/class-payment/verify.json"},
-        {"name": "class-loop", "type": "contains_all", "values": ["asClass", "add_class", "add_relation", "verifyMermaid", "serializeMermaid"]},
-        {"name": "relkind", "type": "contains", "value": "relKind"},
-        {"name": "receipt", "type": "contains", "value": "Receipt"}
+        {
+          "name": "artifact-final",
+          "type": "file_exists",
+          "path": "outputs/class-payment/final.mmd"
+        },
+        {
+          "name": "artifact-verify",
+          "type": "file_exists",
+          "path": "outputs/class-payment/verify.json"
+        },
+        {
+          "name": "class-loop",
+          "type": "contains_all",
+          "values": [
+            "asClass",
+            "add_class",
+            "add_relation",
+            "verifyMermaid",
+            "serializeMermaid"
+          ]
+        },
+        {
+          "name": "relkind",
+          "type": "contains",
+          "value": "relKind"
+        },
+        {
+          "name": "receipt",
+          "type": "contains",
+          "value": "Receipt"
+        }
       ],
-      "tags": ["family:class", "channel:library", "fixture", "artifact", "positive"]
+      "tags": [
+        "family:class",
+        "channel:library",
+        "fixture",
+        "artifact",
+        "positive"
+      ]
     },
     {
       "id": "pos-family-er-library-fixture",
       "split": "tune",
       "kind": "positive",
       "prompt": "Use the attached Mermaid fixture. With the library channel, add a PRODUCT entity with id/name attributes and relate ORDER to PRODUCT. Verify and serialize. Write outputs/er-orders/final.mmd and outputs/er-orders/verify.json, include both contents, and show the exact typed ops.",
-      "files": ["fixtures/er-orders/input.mmd"],
+      "files": [
+        "fixtures/er-orders/input.mmd"
+      ],
       "expected_behavior": [
         "Uses asEr before mutation.",
         "Uses add_entity/add_attribute/add_relation with cardinalities.",
         "Verifies before serializing."
       ],
       "assertions": [
-        {"name": "artifact-final", "type": "file_exists", "path": "outputs/er-orders/final.mmd"},
-        {"name": "artifact-verify", "type": "file_exists", "path": "outputs/er-orders/verify.json"},
-        {"name": "er-loop", "type": "contains_all", "values": ["asEr", "add_entity", "add_relation", "verifyMermaid", "serializeMermaid"]},
-        {"name": "product", "type": "contains", "value": "PRODUCT"},
-        {"name": "cards", "type": "contains_any", "values": ["leftCard", "rightCard", "||", "o{"]}
+        {
+          "name": "artifact-final",
+          "type": "file_exists",
+          "path": "outputs/er-orders/final.mmd"
+        },
+        {
+          "name": "artifact-verify",
+          "type": "file_exists",
+          "path": "outputs/er-orders/verify.json"
+        },
+        {
+          "name": "er-loop",
+          "type": "contains_all",
+          "values": [
+            "asEr",
+            "add_entity",
+            "add_relation",
+            "verifyMermaid",
+            "serializeMermaid"
+          ]
+        },
+        {
+          "name": "product",
+          "type": "contains",
+          "value": "PRODUCT"
+        },
+        {
+          "name": "cards",
+          "type": "contains_any",
+          "values": [
+            "leftCard",
+            "rightCard",
+            "||",
+            "o{"
+          ]
+        }
       ],
-      "tags": ["family:er", "channel:library", "fixture", "artifact", "positive"]
+      "tags": [
+        "family:er",
+        "channel:library",
+        "fixture",
+        "artifact",
+        "positive"
+      ]
     },
     {
       "id": "pos-family-journey-library-fixture",
       "split": "tune",
       "kind": "positive",
       "prompt": "Use the attached Mermaid fixture. With the library channel, add a Review order task in the Pay section of the existing journey diagram, then verify and serialize. Write outputs/journey-checkout/final.mmd and outputs/journey-checkout/verify.json, include both contents, and show the typed Journey mutation path.",
-      "files": ["fixtures/journey-checkout/input.mmd"],
+      "files": [
+        "fixtures/journey-checkout/input.mmd"
+      ],
       "expected_behavior": [
         "Uses asJourney before mutation.",
         "Uses add_task rather than source splicing.",
         "Verifies before serializing."
       ],
       "assertions": [
-        {"name": "artifact-final", "type": "file_exists", "path": "outputs/journey-checkout/final.mmd"},
-        {"name": "artifact-verify", "type": "file_exists", "path": "outputs/journey-checkout/verify.json"},
-        {"name": "journey-loop", "type": "contains_all", "values": ["asJourney", "add_task", "verifyMermaid", "serializeMermaid"]},
-        {"name": "review-order", "type": "contains", "value": "Review order"}
+        {
+          "name": "artifact-final",
+          "type": "file_exists",
+          "path": "outputs/journey-checkout/final.mmd"
+        },
+        {
+          "name": "artifact-verify",
+          "type": "file_exists",
+          "path": "outputs/journey-checkout/verify.json"
+        },
+        {
+          "name": "journey-loop",
+          "type": "contains_all",
+          "values": [
+            "asJourney",
+            "add_task",
+            "verifyMermaid",
+            "serializeMermaid"
+          ]
+        },
+        {
+          "name": "review-order",
+          "type": "contains",
+          "value": "Review order"
+        }
       ],
-      "tags": ["family:journey", "channel:library", "fixture", "artifact", "positive"]
+      "tags": [
+        "family:journey",
+        "channel:library",
+        "fixture",
+        "artifact",
+        "positive"
+      ]
     },
     {
       "id": "pos-family-xychart-library-fixture",
       "split": "tune",
       "kind": "positive",
       "prompt": "Use the attached Mermaid fixture. With the library channel, add Apr with value 90 to the existing XY chart, then verify and serialize. Write outputs/xychart-growth/final.mmd and outputs/xychart-growth/verify.json, include both contents, and show the typed XY chart mutation path.",
-      "files": ["fixtures/xychart-growth/input.mmd"],
+      "files": [
+        "fixtures/xychart-growth/input.mmd"
+      ],
       "expected_behavior": [
         "Uses asXyChart before mutation.",
         "Updates axis categories and series values with typed ops.",
         "Verifies before serializing."
       ],
       "assertions": [
-        {"name": "artifact-final", "type": "file_exists", "path": "outputs/xychart-growth/final.mmd"},
-        {"name": "artifact-verify", "type": "file_exists", "path": "outputs/xychart-growth/verify.json"},
-        {"name": "xychart-loop", "type": "contains_all", "values": ["asXyChart", "set_x_axis", "set_series_values", "verifyMermaid", "serializeMermaid"]},
-        {"name": "apr", "type": "contains_all", "values": ["Apr", "90"]},
-        {"name": "formats", "type": "contains_all", "values": ["ASCII", "PNG", "SVG"]}
+        {
+          "name": "artifact-final",
+          "type": "file_exists",
+          "path": "outputs/xychart-growth/final.mmd"
+        },
+        {
+          "name": "artifact-verify",
+          "type": "file_exists",
+          "path": "outputs/xychart-growth/verify.json"
+        },
+        {
+          "name": "xychart-loop",
+          "type": "contains_all",
+          "values": [
+            "asXyChart",
+            "set_x_axis",
+            "set_series_values",
+            "verifyMermaid",
+            "serializeMermaid"
+          ]
+        },
+        {
+          "name": "apr",
+          "type": "contains_all",
+          "values": [
+            "Apr",
+            "90"
+          ]
+        },
+        {
+          "name": "formats",
+          "type": "contains_all",
+          "values": [
+            "ASCII",
+            "PNG",
+            "SVG"
+          ]
+        }
       ],
-      "tags": ["family:xychart", "channel:library", "fixture", "artifact", "positive"]
+      "tags": [
+        "family:xychart",
+        "channel:library",
+        "fixture",
+        "artifact",
+        "positive"
+      ]
     },
     {
       "id": "pos-family-architecture-library-fixture",
       "split": "tune",
       "kind": "positive",
       "prompt": "Use the attached Mermaid fixture. With the library channel, add a Cache service between API and Database in the existing architecture diagram, then verify and serialize. Write outputs/architecture-cache/final.mmd and outputs/architecture-cache/verify.json, include both contents, and show the typed Architecture mutation path.",
-      "files": ["fixtures/architecture-cache/input.mmd"],
+      "files": [
+        "fixtures/architecture-cache/input.mmd"
+      ],
       "expected_behavior": [
         "Uses asArchitecture before mutation.",
         "Uses add_service and add_edge rather than source splicing.",
         "Verifies before serializing."
       ],
       "assertions": [
-        {"name": "artifact-final", "type": "file_exists", "path": "outputs/architecture-cache/final.mmd"},
-        {"name": "artifact-verify", "type": "file_exists", "path": "outputs/architecture-cache/verify.json"},
-        {"name": "architecture-loop", "type": "contains_all", "values": ["asArchitecture", "add_service", "add_edge", "verifyMermaid", "serializeMermaid"]},
-        {"name": "cache", "type": "contains", "value": "Cache"},
-        {"name": "formats", "type": "contains_all", "values": ["ASCII", "PNG", "SVG"]}
+        {
+          "name": "artifact-final",
+          "type": "file_exists",
+          "path": "outputs/architecture-cache/final.mmd"
+        },
+        {
+          "name": "artifact-verify",
+          "type": "file_exists",
+          "path": "outputs/architecture-cache/verify.json"
+        },
+        {
+          "name": "architecture-loop",
+          "type": "contains_all",
+          "values": [
+            "asArchitecture",
+            "add_service",
+            "add_edge",
+            "verifyMermaid",
+            "serializeMermaid"
+          ]
+        },
+        {
+          "name": "cache",
+          "type": "contains",
+          "value": "Cache"
+        },
+        {
+          "name": "formats",
+          "type": "contains_all",
+          "values": [
+            "ASCII",
+            "PNG",
+            "SVG"
+          ]
+        }
       ],
-      "tags": ["family:architecture", "channel:library", "fixture", "artifact", "positive"]
+      "tags": [
+        "family:architecture",
+        "channel:library",
+        "fixture",
+        "artifact",
+        "positive"
+      ]
     },
     {
       "id": "pos-family-state-library-fixture",
       "split": "tune",
       "kind": "positive",
       "prompt": "Use the attached Mermaid fixture. With the library channel, add a Failed state and a Processing -> Failed transition labeled error, then verify and serialize. Write outputs/state-lifecycle/final.mmd and outputs/state-lifecycle/verify.json, include both contents, and show the typed State mutation path.",
-      "files": ["fixtures/state-lifecycle/input.mmd"],
+      "files": [
+        "fixtures/state-lifecycle/input.mmd"
+      ],
       "expected_behavior": [
         "Uses asState before mutation.",
         "Uses add_state and add_transition with kind-discriminated ops.",
         "Verifies before serializing."
       ],
       "assertions": [
-        {"name": "artifact-final", "type": "file_exists", "path": "outputs/state-lifecycle/final.mmd"},
-        {"name": "artifact-verify", "type": "file_exists", "path": "outputs/state-lifecycle/verify.json"},
-        {"name": "state-loop", "type": "contains_all", "values": ["asState", "add_state", "add_transition", "verifyMermaid", "serializeMermaid"]},
-        {"name": "failed", "type": "contains_all", "values": ["Failed", "error"]}
+        {
+          "name": "artifact-final",
+          "type": "file_exists",
+          "path": "outputs/state-lifecycle/final.mmd"
+        },
+        {
+          "name": "artifact-verify",
+          "type": "file_exists",
+          "path": "outputs/state-lifecycle/verify.json"
+        },
+        {
+          "name": "state-loop",
+          "type": "contains_all",
+          "values": [
+            "asState",
+            "add_state",
+            "add_transition",
+            "verifyMermaid",
+            "serializeMermaid"
+          ]
+        },
+        {
+          "name": "failed",
+          "type": "contains_all",
+          "values": [
+            "Failed",
+            "error"
+          ]
+        }
       ],
-      "tags": ["family:state", "channel:library", "fixture", "artifact", "positive"]
+      "tags": [
+        "family:state",
+        "channel:library",
+        "fixture",
+        "artifact",
+        "positive"
+      ]
     },
     {
       "id": "pos-family-pie-library-fixture",
       "split": "tune",
       "kind": "positive",
       "prompt": "Use the attached Mermaid fixture. With the library channel, add a PDF slice with value 10 to the existing pie chart, then verify and serialize. Write outputs/pie-exports/final.mmd and outputs/pie-exports/verify.json, include both contents, and show the typed Pie mutation path.",
-      "files": ["fixtures/pie-exports/input.mmd"],
+      "files": [
+        "fixtures/pie-exports/input.mmd"
+      ],
       "expected_behavior": [
         "Uses asPie before mutation.",
         "Uses add_slice with a positive finite value.",
         "Verifies before serializing."
       ],
       "assertions": [
-        {"name": "artifact-final", "type": "file_exists", "path": "outputs/pie-exports/final.mmd"},
-        {"name": "artifact-verify", "type": "file_exists", "path": "outputs/pie-exports/verify.json"},
-        {"name": "pie-loop", "type": "contains_all", "values": ["asPie", "add_slice", "verifyMermaid", "serializeMermaid"]},
-        {"name": "pdf", "type": "contains_all", "values": ["PDF", "10"]}
+        {
+          "name": "artifact-final",
+          "type": "file_exists",
+          "path": "outputs/pie-exports/final.mmd"
+        },
+        {
+          "name": "artifact-verify",
+          "type": "file_exists",
+          "path": "outputs/pie-exports/verify.json"
+        },
+        {
+          "name": "pie-loop",
+          "type": "contains_all",
+          "values": [
+            "asPie",
+            "add_slice",
+            "verifyMermaid",
+            "serializeMermaid"
+          ]
+        },
+        {
+          "name": "pdf",
+          "type": "contains_all",
+          "values": [
+            "PDF",
+            "10"
+          ]
+        }
       ],
-      "tags": ["family:pie", "channel:library", "fixture", "artifact", "positive"]
+      "tags": [
+        "family:pie",
+        "channel:library",
+        "fixture",
+        "artifact",
+        "positive"
+      ]
     },
     {
       "id": "pos-family-quadrant-library-fixture",
       "split": "tune",
       "kind": "positive",
       "prompt": "Use the attached Mermaid fixture. With the library channel, move the MCP setup point to [0.70, 0.40], then verify and serialize. Write outputs/quadrant-priorities/final.mmd and outputs/quadrant-priorities/verify.json, include both contents, and show the typed Quadrant mutation path.",
-      "files": ["fixtures/quadrant-priorities/input.mmd"],
+      "files": [
+        "fixtures/quadrant-priorities/input.mmd"
+      ],
       "expected_behavior": [
         "Uses asQuadrant before mutation.",
         "Uses move_point with coordinates inside [0, 1].",
         "Verifies before serializing."
       ],
       "assertions": [
-        {"name": "artifact-final", "type": "file_exists", "path": "outputs/quadrant-priorities/final.mmd"},
-        {"name": "artifact-verify", "type": "file_exists", "path": "outputs/quadrant-priorities/verify.json"},
-        {"name": "quadrant-loop", "type": "contains_all", "values": ["asQuadrant", "move_point", "verifyMermaid", "serializeMermaid"]},
-        {"name": "mcp", "type": "contains_all", "values": ["MCP setup", "0.7", "0.4"]}
+        {
+          "name": "artifact-final",
+          "type": "file_exists",
+          "path": "outputs/quadrant-priorities/final.mmd"
+        },
+        {
+          "name": "artifact-verify",
+          "type": "file_exists",
+          "path": "outputs/quadrant-priorities/verify.json"
+        },
+        {
+          "name": "quadrant-loop",
+          "type": "contains_all",
+          "values": [
+            "asQuadrant",
+            "move_point",
+            "verifyMermaid",
+            "serializeMermaid"
+          ]
+        },
+        {
+          "name": "mcp",
+          "type": "contains_all",
+          "values": [
+            "MCP setup",
+            "0.7",
+            "0.4"
+          ]
+        }
       ],
-      "tags": ["family:quadrant", "channel:library", "fixture", "artifact", "positive"]
+      "tags": [
+        "family:quadrant",
+        "channel:library",
+        "fixture",
+        "artifact",
+        "positive"
+      ]
     },
     {
       "id": "pos-family-gantt-library-fixture",
       "split": "tune",
       "kind": "positive",
       "prompt": "Use the attached Mermaid fixture. With the library channel, add a Docs task after the build task and before release, then verify and serialize. Write outputs/gantt-release/final.mmd and outputs/gantt-release/verify.json, include both contents, and show the typed Gantt mutation path.",
-      "files": ["fixtures/gantt-release/input.mmd"],
+      "files": [
+        "fixtures/gantt-release/input.mmd"
+      ],
       "expected_behavior": [
         "Uses asGantt before mutation.",
         "Uses add_task or set_task_dates with deterministic date/dependency semantics.",
         "Verifies before serializing."
       ],
       "assertions": [
-        {"name": "artifact-final", "type": "file_exists", "path": "outputs/gantt-release/final.mmd"},
-        {"name": "artifact-verify", "type": "file_exists", "path": "outputs/gantt-release/verify.json"},
-        {"name": "gantt-loop", "type": "contains_all", "values": ["asGantt", "add_task", "verifyMermaid", "serializeMermaid"]},
-        {"name": "docs", "type": "contains", "value": "Docs"}
+        {
+          "name": "artifact-final",
+          "type": "file_exists",
+          "path": "outputs/gantt-release/final.mmd"
+        },
+        {
+          "name": "artifact-verify",
+          "type": "file_exists",
+          "path": "outputs/gantt-release/verify.json"
+        },
+        {
+          "name": "gantt-loop",
+          "type": "contains_all",
+          "values": [
+            "asGantt",
+            "add_task",
+            "verifyMermaid",
+            "serializeMermaid"
+          ]
+        },
+        {
+          "name": "docs",
+          "type": "contains",
+          "value": "Docs"
+        }
       ],
-      "tags": ["family:gantt", "channel:library", "fixture", "artifact", "positive"]
+      "tags": [
+        "family:gantt",
+        "channel:library",
+        "fixture",
+        "artifact",
+        "positive"
+      ]
     },
     {
       "id": "pos-family-mindmap-library-fixture",
       "split": "tune",
       "kind": "positive",
       "prompt": "Use the attached Mindmap fixture. Add a Validation child under Research with the typed library API, verify, and serialize. Write outputs/mindmap-product/final.mmd and outputs/mindmap-product/verify.json.",
-      "files": ["fixtures/mindmap-product/input.mmd"],
-      "expected_behavior": ["Uses asMindmap and add_node.", "Verifies before serializing."],
-      "assertions": [
-        {"name": "mindmap-loop", "type": "contains_all", "values": ["asMindmap", "add_node", "verifyMermaid", "serializeMermaid"]},
-        {"name": "validation", "type": "contains", "value": "Validation"}
+      "files": [
+        "fixtures/mindmap-product/input.mmd"
       ],
-      "tags": ["family:mindmap", "channel:library", "fixture", "artifact", "positive"]
+      "expected_behavior": [
+        "Uses asMindmap and add_node.",
+        "Verifies before serializing."
+      ],
+      "assertions": [
+        {
+          "name": "mindmap-loop",
+          "type": "contains_all",
+          "values": [
+            "asMindmap",
+            "add_node",
+            "verifyMermaid",
+            "serializeMermaid"
+          ]
+        },
+        {
+          "name": "validation",
+          "type": "contains",
+          "value": "Validation"
+        }
+      ],
+      "tags": [
+        "family:mindmap",
+        "channel:library",
+        "fixture",
+        "artifact",
+        "positive"
+      ]
     },
     {
       "id": "pos-family-gitgraph-library-fixture",
       "split": "tune",
       "kind": "positive",
       "prompt": "Use the attached GitGraph fixture. Create a docs branch, append a commit, return to main, merge it, verify, and serialize with the typed library API. Write outputs/gitgraph-release/final.mmd and outputs/gitgraph-release/verify.json.",
-      "files": ["fixtures/gitgraph-release/input.mmd"],
-      "expected_behavior": ["Uses asGitGraph and replay mutation ops.", "Verifies before serializing."],
-      "assertions": [
-        {"name": "gitgraph-loop", "type": "contains_all", "values": ["asGitGraph", "create_branch", "append_commit", "merge_branch", "verifyMermaid", "serializeMermaid"]},
-        {"name": "docs", "type": "contains", "value": "docs"}
+      "files": [
+        "fixtures/gitgraph-release/input.mmd"
       ],
-      "tags": ["family:gitgraph", "channel:library", "fixture", "artifact", "positive"]
+      "expected_behavior": [
+        "Uses asGitGraph and replay mutation ops.",
+        "Verifies before serializing."
+      ],
+      "assertions": [
+        {
+          "name": "gitgraph-loop",
+          "type": "contains_all",
+          "values": [
+            "asGitGraph",
+            "create_branch",
+            "append_commit",
+            "merge_branch",
+            "verifyMermaid",
+            "serializeMermaid"
+          ]
+        },
+        {
+          "name": "docs",
+          "type": "contains",
+          "value": "docs"
+        }
+      ],
+      "tags": [
+        "family:gitgraph",
+        "channel:library",
+        "fixture",
+        "artifact",
+        "positive"
+      ]
     },
     {
       "id": "pos-channel-mcp-code-mode-batch",
@@ -331,12 +871,42 @@
         "Returns source and SVG using renderMermaidSVG."
       ],
       "assertions": [
-        {"name": "execute", "type": "contains_any", "values": ["execute(code)", "execute("]},
-        {"name": "sdk", "type": "contains_all", "values": ["mermaid.parseMermaid", "mermaid.mutate", "mermaid.verifyMermaid"]},
-        {"name": "svg", "type": "contains", "value": "renderMermaidSVG"},
-        {"name": "verify-before-commit", "type": "contains_any", "values": ["verify-before-commit", "before serializing", "commit point"]}
+        {
+          "name": "execute",
+          "type": "contains_any",
+          "values": [
+            "execute(code)",
+            "execute("
+          ]
+        },
+        {
+          "name": "sdk",
+          "type": "contains_all",
+          "values": [
+            "mermaid.parseMermaid",
+            "mermaid.mutate",
+            "mermaid.verifyMermaid"
+          ]
+        },
+        {
+          "name": "svg",
+          "type": "contains",
+          "value": "renderMermaidSVG"
+        },
+        {
+          "name": "verify-before-commit",
+          "type": "contains_any",
+          "values": [
+            "verify-before-commit",
+            "before serializing",
+            "commit point"
+          ]
+        }
       ],
-      "tags": ["channel:mcp-code-mode", "positive"]
+      "tags": [
+        "channel:mcp-code-mode",
+        "positive"
+      ]
     },
     {
       "id": "adv-reject-source-concat-existing-flowchart",
@@ -349,11 +919,37 @@
         "Allows direct source authoring only for new diagrams or opaque fallback bodies."
       ],
       "assertions": [
-        {"name": "reject-concat", "type": "contains_any", "values": ["Do not", "don't", "avoid", "reject"]},
-        {"name": "typed-loop", "type": "contains_all", "values": ["asFlowchart", "mutate", "verifyMermaid", "serializeMermaid"]},
-        {"name": "kind", "type": "contains", "value": "kind"}
+        {
+          "name": "reject-concat",
+          "type": "contains_any",
+          "values": [
+            "Do not",
+            "don't",
+            "avoid",
+            "reject"
+          ]
+        },
+        {
+          "name": "typed-loop",
+          "type": "contains_all",
+          "values": [
+            "asFlowchart",
+            "mutate",
+            "verifyMermaid",
+            "serializeMermaid"
+          ]
+        },
+        {
+          "name": "kind",
+          "type": "contains",
+          "value": "kind"
+        }
       ],
-      "tags": ["adversarial", "flowchart", "source-concat"]
+      "tags": [
+        "adversarial",
+        "flowchart",
+        "source-concat"
+      ]
     },
     {
       "id": "adv-require-verify-before-serialize",
@@ -366,11 +962,39 @@
         "Says verify.ok/warnings/layout must be inspected."
       ],
       "assertions": [
-        {"name": "verify-before-serialize", "type": "contains_all", "values": ["verifyMermaid", "serializeMermaid"]},
-        {"name": "inspection", "type": "contains_any", "values": ["inspect", "verify.ok", "warnings", "layout"]},
-        {"name": "reject-skip", "type": "contains_any", "values": ["Do not skip", "don't skip", "never serialize", "before serializing"]}
+        {
+          "name": "verify-before-serialize",
+          "type": "contains_all",
+          "values": [
+            "verifyMermaid",
+            "serializeMermaid"
+          ]
+        },
+        {
+          "name": "inspection",
+          "type": "contains_any",
+          "values": [
+            "inspect",
+            "verify.ok",
+            "warnings",
+            "layout"
+          ]
+        },
+        {
+          "name": "reject-skip",
+          "type": "contains_any",
+          "values": [
+            "Do not skip",
+            "don't skip",
+            "never serialize",
+            "before serializing"
+          ]
+        }
       ],
-      "tags": ["adversarial", "verify"]
+      "tags": [
+        "adversarial",
+        "verify"
+      ]
     },
     {
       "id": "adv-reject-editor-html-direct-edit",
@@ -383,11 +1007,29 @@
         "Requires rebuilding generated editor.html."
       ],
       "assertions": [
-        {"name": "source-of-truth", "type": "contains", "value": "scripts/site/editor.ts"},
-        {"name": "generated", "type": "contains_all", "values": ["editor.html", "generated"]},
-        {"name": "rebuild", "type": "contains", "value": "rebuild"}
+        {
+          "name": "source-of-truth",
+          "type": "contains",
+          "value": "scripts/site/editor.ts"
+        },
+        {
+          "name": "generated",
+          "type": "contains_all",
+          "values": [
+            "editor.html",
+            "generated"
+          ]
+        },
+        {
+          "name": "rebuild",
+          "type": "contains",
+          "value": "rebuild"
+        }
       ],
-      "tags": ["adversarial", "editor"]
+      "tags": [
+        "adversarial",
+        "editor"
+      ]
     },
     {
       "id": "adv-use-kind-not-type",
@@ -400,11 +1042,31 @@
         "Shows a Result.value-aware mutate example."
       ],
       "assertions": [
-        {"name": "kind", "type": "contains", "value": "kind"},
-        {"name": "not-type", "type": "contains_any", "values": ["not `type`", "not type", "instead of `type`", "uses `kind`"]},
-        {"name": "value", "type": "contains", "value": ".value"}
+        {
+          "name": "kind",
+          "type": "contains",
+          "value": "kind"
+        },
+        {
+          "name": "not-type",
+          "type": "contains_any",
+          "values": [
+            "not `type`",
+            "not type",
+            "instead of `type`",
+            "uses `kind`"
+          ]
+        },
+        {
+          "name": "value",
+          "type": "contains",
+          "value": ".value"
+        }
       ],
-      "tags": ["adversarial", "mutation-op"]
+      "tags": [
+        "adversarial",
+        "mutation-op"
+      ]
     },
     {
       "id": "neg-unrelated-typescript-helper",
@@ -416,62 +1078,130 @@
         "Does not mention parseMermaid/mutate/verifyMermaid unless explaining non-applicability."
       ],
       "assertions": [
-        {"name": "no-diagram-api", "type": "excludes_any", "values": ["parseMermaid", "verifyMermaid", "serializeMermaid", "asFlowchart"]},
-        {"name": "typescript-sort", "type": "contains_any", "values": ["lastLogin", "sort", "Date"]}
+        {
+          "name": "no-diagram-api",
+          "type": "excludes_any",
+          "values": [
+            "parseMermaid",
+            "verifyMermaid",
+            "serializeMermaid",
+            "asFlowchart"
+          ]
+        },
+        {
+          "name": "typescript-sort",
+          "type": "contains_any",
+          "values": [
+            "lastLogin",
+            "sort",
+            "Date"
+          ]
+        }
       ],
-      "tags": ["negative", "no-trigger"]
+      "tags": [
+        "negative",
+        "no-trigger"
+      ]
     },
     {
       "id": "trigger-diagram-workflow-positive",
       "split": "tune",
       "kind": "trigger",
       "prompt": "I need to safely edit an existing Mermaid sequence diagram and verify the result before returning source.",
-      "expected_behavior": ["TRIGGER: should load the diagram workflow skill."],
+      "expected_behavior": [
+        "TRIGGER: should load the diagram workflow skill."
+      ],
       "assertions": [],
-      "tags": ["trigger", "positive", "diagram-workflow"]
+      "tags": [
+        "trigger",
+        "positive",
+        "diagram-workflow"
+      ]
     },
     {
       "id": "trigger-live-editor-positive",
       "split": "tune",
       "kind": "trigger",
       "prompt": "I need to modify Agentic Mermaid's live editor export behavior and avoid changing generated artifacts incorrectly.",
-      "expected_behavior": ["TRIGGER: should load the live editor development skill."],
+      "expected_behavior": [
+        "TRIGGER: should load the live editor development skill."
+      ],
       "assertions": [],
-      "tags": ["trigger", "positive", "editor"]
+      "tags": [
+        "trigger",
+        "positive",
+        "editor"
+      ]
     },
     {
       "id": "neg-trigger-unrelated-python-helper",
       "split": "tune",
       "kind": "trigger",
       "prompt": "Write a Python helper that groups log entries by status code. No diagrams, no Mermaid, no editor work.",
-      "expected_behavior": ["NO_TRIGGER: should not load either Agentic Mermaid skill."],
+      "expected_behavior": [
+        "NO_TRIGGER: should not load either Agentic Mermaid skill."
+      ],
       "assertions": [],
-      "tags": ["trigger", "negative", "no-trigger"]
+      "tags": [
+        "trigger",
+        "negative",
+        "no-trigger"
+      ]
     },
     {
       "id": "neg-trigger-mermaid-mythology",
       "split": "tune",
       "kind": "trigger",
       "prompt": "Write a short paragraph about mermaids in mythology. Do not discuss Mermaid.js diagrams or this repository.",
-      "expected_behavior": ["NO_TRIGGER: should not load either Agentic Mermaid skill."],
+      "expected_behavior": [
+        "NO_TRIGGER: should not load either Agentic Mermaid skill."
+      ],
       "assertions": [],
-      "tags": ["trigger", "negative", "no-trigger"]
+      "tags": [
+        "trigger",
+        "negative",
+        "no-trigger"
+      ]
     },
     {
       "id": "pos-holdout-flowchart-fixture-artifact",
       "split": "holdout",
       "kind": "positive",
       "prompt_ref": "private/holdout/flowchart-fixture-artifact.prompt.md",
-      "files": ["fixtures/flowchart-cache/input.mmd"],
+      "files": [
+        "fixtures/flowchart-cache/input.mmd"
+      ],
       "expected_behavior": [
         "Hidden prompt: existing structured flowchart edit requiring artifact output and verifyMermaid evidence."
       ],
       "assertions": [
-        {"name": "artifact-final", "type": "file_exists", "path": "outputs/holdout-flowchart/final.mmd"},
-        {"name": "artifact-verify", "type": "file_exists", "path": "outputs/holdout-flowchart/verify.json"},
-        {"name": "core-loop", "type": "contains_all", "values": ["asFlowchart", "mutate", "verifyMermaid", "serializeMermaid"]}
+        {
+          "name": "artifact-final",
+          "type": "file_exists",
+          "path": "outputs/holdout-flowchart/final.mmd"
+        },
+        {
+          "name": "artifact-verify",
+          "type": "file_exists",
+          "path": "outputs/holdout-flowchart/verify.json"
+        },
+        {
+          "name": "core-loop",
+          "type": "contains_all",
+          "values": [
+            "asFlowchart",
+            "mutate",
+            "verifyMermaid",
+            "serializeMermaid"
+          ]
+        }
       ],
-      "tags": ["holdout", "family:flowchart", "fixture", "artifact"]
+      "tags": [
+        "holdout",
+        "family:flowchart",
+        "fixture",
+        "artifact"
+      ]
     },
     {
       "id": "adv-holdout-editor-generated-artifact",
@@ -482,10 +1212,25 @@
         "Hidden prompt: adversarial live-editor request that tries to force direct editor.html edits."
       ],
       "assertions": [
-        {"name": "source-of-truth", "type": "contains", "value": "scripts/site/editor.ts"},
-        {"name": "generated", "type": "contains_all", "values": ["editor.html", "rebuild"]}
+        {
+          "name": "source-of-truth",
+          "type": "contains",
+          "value": "scripts/site/editor.ts"
+        },
+        {
+          "name": "generated",
+          "type": "contains_all",
+          "values": [
+            "editor.html",
+            "rebuild"
+          ]
+        }
       ],
-      "tags": ["holdout", "adversarial", "editor"]
+      "tags": [
+        "holdout",
+        "adversarial",
+        "editor"
+      ]
     },
     {
       "id": "pos-holdback-channel-selection",
@@ -496,41 +1241,114 @@
         "Hidden prompt: choose library vs CLI vs MCP Code Mode correctly for a constrained task."
       ],
       "assertions": [
-        {"name": "channels", "type": "contains_all", "values": ["library", "CLI", "Code Mode"]},
-        {"name": "narrowest", "type": "contains_any", "values": ["narrowest", "best", "choose"]}
+        {
+          "name": "channels",
+          "type": "contains_all",
+          "values": [
+            "library",
+            "CLI",
+            "Code Mode"
+          ]
+        },
+        {
+          "name": "narrowest",
+          "type": "contains_any",
+          "values": [
+            "narrowest",
+            "best",
+            "choose"
+          ]
+        }
       ],
-      "tags": ["holdback", "channel-selection"]
+      "tags": [
+        "holdback",
+        "channel-selection"
+      ]
     },
     {
       "id": "neg-holdback-no-trigger",
       "split": "holdback",
       "kind": "trigger",
       "prompt_ref": "private/holdback/no-trigger.prompt.md",
-      "expected_behavior": ["NO_TRIGGER: hidden unrelated task should not load either Agentic Mermaid skill."],
+      "expected_behavior": [
+        "NO_TRIGGER: hidden unrelated task should not load either Agentic Mermaid skill."
+      ],
       "assertions": [],
-      "tags": ["holdback", "trigger", "negative", "no-trigger"]
+      "tags": [
+        "holdback",
+        "trigger",
+        "negative",
+        "no-trigger"
+      ]
+    },
+    {
+      "id": "pos-family-radar-profile-fixture",
+      "split": "tune",
+      "kind": "positive",
+      "prompt": "Use the attached Mermaid radar fixture. With the library channel, add a Safety axis (filling existing curves with 0) and a second curve b[\"Model B\"] with values 5,3,4,2, then verify and serialize. Write outputs/radar-profile/final.mmd and outputs/radar-profile/verify.json, include both contents, and show the typed Radar mutation path.",
+      "files": [
+        "fixtures/radar-profile/input.mmd"
+      ],
+      "tags": [
+        "family:radar",
+        "channel:library"
+      ],
+      "expected_behavior": [
+        "Uses asRadar before mutation.",
+        "Uses add_axis (which reshapes every curve's value vector) and add_curve with one value per axis.",
+        "Verifies before serializing."
+      ],
+      "assertions": [
+        {
+          "name": "artifact-final",
+          "type": "file_exists",
+          "path": "outputs/radar-profile/final.mmd"
+        },
+        {
+          "name": "artifact-verify",
+          "type": "file_exists",
+          "path": "outputs/radar-profile/verify.json"
+        },
+        {
+          "name": "radar-loop",
+          "type": "contains_all",
+          "values": [
+            "asRadar",
+            "add_axis",
+            "add_curve"
+          ]
+        }
+      ]
     }
   ],
   "ablations": [
     {
       "id": "no-verify-before-serialize",
       "removed_component": "verify-before-commit rule",
-      "expected_regressions": ["May serialize or emit edited Mermaid without inspecting verifyMermaid results."]
+      "expected_regressions": [
+        "May serialize or emit edited Mermaid without inspecting verifyMermaid results."
+      ]
     },
     {
       "id": "no-editor-source-of-truth",
       "removed_component": "live editor source-of-truth file guidance",
-      "expected_regressions": ["May tell agents to edit generated editor.html instead of scripts/site/editor.ts."]
+      "expected_regressions": [
+        "May tell agents to edit generated editor.html instead of scripts/site/editor.ts."
+      ]
     },
     {
       "id": "no-source-level-family-boundary",
       "removed_component": "opaque-fallback boundary guidance",
-      "expected_regressions": ["May concatenate existing structured diagrams or falsely claim an opaque fallback body has a structured narrower."]
+      "expected_regressions": [
+        "May concatenate existing structured diagrams or falsely claim an opaque fallback body has a structured narrower."
+      ]
     },
     {
       "id": "no-channel-picker",
       "removed_component": "library vs CLI vs MCP Code Mode channel selection",
-      "expected_regressions": ["May choose slow multi-call workflows or emit CLI when Code Mode/library is the safer fit."]
+      "expected_regressions": [
+        "May choose slow multi-call workflows or emit CLI when Code Mode/library is the safer fit."
+      ]
     }
   ]
 }

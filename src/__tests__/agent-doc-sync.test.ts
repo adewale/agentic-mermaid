@@ -14,7 +14,7 @@ import { LOCAL_TOOLS } from '../mcp/server.ts'
 import { WARNING_SEVERITY, WARNING_TIER } from '../agent/types.ts'
 import {
   asFlowchart, asState, asSequence, asTimeline, asClass, asEr,
-  asJourney, asArchitecture, asXyChart, asPie, asQuadrant, asGantt, asMindmap, asGitGraph,
+  asJourney, asArchitecture, asXyChart, asPie, asQuadrant, asGantt, asMindmap, asGitGraph, asRadar,
 } from '../agent/types.ts'
 import { BUILTIN_FAMILY_METADATA, BUILTIN_FAMILY_METADATA_COVERS_DIAGRAM_KIND, knownBuiltinFamilies, getFamily } from '../agent/families.ts'
 import type { DiagramKind, ValidDiagram } from '../agent/types.ts'
@@ -430,6 +430,7 @@ describe('vocabulary doc-sync', () => {
       asGantt: 'gantt\\n  Task A :a1, 2024-01-01, 3d',
       asMindmap: 'mindmap\\n  root\\n    child',
       asGitGraph: 'gitGraph\\n  commit',
+      asRadar: 'radar-beta\\n  axis a, b, c\\n  curve x{1, 2, 3}',
     }
     for (const narrower of advertised) {
       const source = SOURCES[narrower]
@@ -452,7 +453,7 @@ describe('vocabulary doc-sync', () => {
       flowchart: asFlowchart, state: asState, sequence: asSequence, timeline: asTimeline,
       class: asClass, er: asEr, journey: asJourney, architecture: asArchitecture,
       xychart: asXyChart, pie: asPie, quadrant: asQuadrant, gantt: asGantt,
-      mindmap: asMindmap, gitgraph: asGitGraph,
+      mindmap: asMindmap, gitgraph: asGitGraph, radar: asRadar,
     }
     const FAIL = 'New families ship with typed mutation by default — see docs/contributing/adding-diagram-types.md.'
     for (const kind of knownBuiltinFamilies()) {
@@ -856,6 +857,7 @@ describe('detector drift guard (agent vs shared router)', () => {
       ['gantt\n  Task A :a1, 2024-01-01, 3d', 'gantt'],
       ['mindmap\n  root\n    child', 'mindmap'],
       ['gitGraph\n  commit', 'gitgraph'],
+      ['radar-beta\n  axis a, b\n  curve x{1,2}', 'radar'],
     ]
     // `detectDiagramType` is the shared renderer router: state diagrams still
     // route through the flowchart renderer path, then agent parsing splits

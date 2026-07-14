@@ -139,6 +139,14 @@ const gitgraphArb = fc.integer({ min: 1, max: 8 }).map(length =>
   ['gitGraph', ...Array.from({ length }, (_, index) => `  commit id:"c${index}"`)].join('\n'),
 )
 
+const radarArb = fc
+  .array(fc.array(fc.integer({ min: 1, max: 5 }), { minLength: 3, maxLength: 3 }), { minLength: 1, maxLength: 3 })
+  .map((curves) =>
+    ['radar-beta', '  axis a, b, c',
+      ...curves.map((vals, i) => `  curve c${i}["C${i}"]{${vals.join(', ')}}`),
+      '  max 5'].join('\n'),
+  )
+
 const RENDERER_CASES = [
   {
     family: 'flowchart',
@@ -211,6 +219,11 @@ const RENDERER_CASES = [
     source: 'gitGraph\n  commit id:"base"\n  branch feature\n  commit id:"work"\n  checkout main\n  merge feature id:"merge"',
     labels: ['main', 'feature', 'base', 'work', 'merge'],
   },
+  {
+    family: 'radar',
+    source: 'radar-beta\n  title Skills\n  axis speed["Speed"], power["Power"], range["Range"]\n  curve now["Current"]{4, 3, 5}\n  curve goal["Target"]{5, 5, 4}\n  max 5',
+    labels: ['Skills', 'Speed', 'Power', 'Range', 'Current', 'Target'],
+  },
 ] as const
 
 // ---------------------------------------------------------------------------
@@ -254,6 +267,7 @@ const ALL_FAMILIES: Array<[string, fc.Arbitrary<string>]> = [
   ['architecture', architectureArb],
   ['mindmap', mindmapArb],
   ['gitgraph', gitgraphArb],
+  ['radar', radarArb],
 ]
 
 const BOX_FAMILIES: Array<[string, fc.Arbitrary<string>]> = [

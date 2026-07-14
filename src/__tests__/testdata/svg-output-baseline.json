@@ -577,6 +577,8 @@
   "fixture/pie-basic.mmd#postpass": "0e0cfe7f59d0594e48f7b027378044471224e32b60d64b1fdd8f5138f4761a95",
   "fixture/quadrant-basic.mmd#default": "f526d88dee43dfe93af760c25f7d2756a73e96d564279a5129d9605670a8a123",
   "fixture/quadrant-basic.mmd#postpass": "4eefd4f494ae8ed9ed6679937f7d56a3c995c5c13fd7ab39cb79341e566c2384",
+  "fixture/radar-basic.mmd#default": "8771c3cebb086d5041e5b76c6e50f5e5bd9b76265094d76dc70aa5c6cb8adc88",
+  "fixture/radar-basic.mmd#postpass": "0b92b9277a8db66db37053759b3a4c0bde762cdd1ac4d153c4166b83ea0da821",
   "fixture/sequence-basic.mmd#default": "6aa31a467dd5603c79bbff2b0e86c59fc3e8171dc5387cf923e8e67c08bd77a8",
   "fixture/sequence-basic.mmd#postpass": "15a8661f6387a2ea2d96c3b02b23eae1708c8ecfe636aca44232e6e10201004f",
   "fixture/state-basic.mmd#default": "aae28184dfa945a576d143ef6d6c22f2f204baff7a856e619a8610fd35d237d0",

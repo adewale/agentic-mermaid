@@ -76,6 +76,7 @@ function headerFor(kind: DiagramKind): string {
     case 'gantt': return 'gantt'
     case 'mindmap': return 'mindmap'
     case 'gitgraph': return 'gitGraph'
+    case 'radar': return 'radar-beta'
     default: {
       const _exhaustive: never = kind
       return _exhaustive

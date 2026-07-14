@@ -21,6 +21,7 @@ export const MUTATION_OPS_BY_FAMILY = {
   gantt: ['set_title', 'add_section', 'rename_section', 'remove_section', 'add_task', 'remove_task', 'rename_task', 'set_task_status', 'set_task_dates', 'set_task_flags', 'set_task_id', 'move_task', 'move_section'],
   mindmap: ['add_node', 'remove_node', 'rename_node', 'set_label', 'move_node', 'set_shape', 'set_icon', 'set_node_class', 'set_accessibility_title', 'set_accessibility_description'],
   gitgraph: ['append_commit', 'create_branch', 'checkout_branch', 'merge_branch', 'cherry_pick', 'set_commit_message', 'set_commit_type', 'set_commit_tags', 'rename_branch', 'set_accessibility_title', 'set_accessibility_description'],
+  radar: ['set_title', 'add_axis', 'remove_axis', 'rename_axis', 'set_axis_label', 'reorder_axis', 'add_curve', 'remove_curve', 'set_curve_values', 'set_curve_value', 'set_curve_label', 'rename_curve', 'reorder_curve', 'set_config'],
 } as const satisfies Record<BuiltinFamilyId, readonly string[]>
 
 export type MutableFamilyId = keyof typeof MUTATION_OPS_BY_FAMILY

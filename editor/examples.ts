@@ -251,5 +251,19 @@ gitGraph LR:
   section Ship
     Crit review    :crit, rev1, after des3, 2d
     Release        :milestone, m1, after rev1, 0d`,
+  },
+  {
+    id: 'radar-basic',
+    label: 'Radar chart',
+    category: 'Supported diagrams',
+    diagramType: 'Radar',
+    description: 'Multivariate profiles compared across shared axes — the silhouette is the message.',
+    source: `radar-beta
+  title Model comparison
+  axis speed["Speed"], accuracy["Accuracy"], cost["Cost"]
+  axis latency["Latency"], context["Context"], safety["Safety"]
+  curve a["Model A"]{4, 5, 3, 4, 4, 5}
+  curve b["Model B"]{5, 3, 4, 3, 5, 3}
+  max 5`,
   }
 ];

@@ -93,6 +93,13 @@ export function describeMermaidFacts(d: ValidDiagram): string[] {
     case 'gantt': factsGantt(out, d.body); break
     case 'mindmap': factsMindmap(out, d.body); break
     case 'gitgraph': factsGitGraph(out, d.body); break
+    case 'radar': {
+      if (d.body.title !== undefined) add(out, `title ${clean(d.body.title)}`)
+      d.body.axes.forEach((a, i) => add(out, `axis#${i} ${clean(a.id)} : ${clean(a.label)}`))
+      d.body.curves.forEach((c, i) => add(out, `curve#${i} ${clean(c.id)} : ${clean(c.label)} {${c.values.join(',')}}`))
+      add(out, `scale ${d.body.min}..${d.body.max ?? 'auto'} ticks ${d.body.ticks} graticule ${d.body.graticule}`)
+      break
+    }
     case 'opaque': {
       add(out, `opaque ${d.body.family}`)
       const plugin = getFamily(d.kind)

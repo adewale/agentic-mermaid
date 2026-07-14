@@ -27,6 +27,7 @@ import type {
 } from './types.ts'
 import { unknownOpMessage } from './mutation-ops.ts'
 import type { MutableFamilyId } from './mutation-ops.ts'
+import { MAX_RADAR_TICKS } from '../radar/parser.ts'
 
 export type OpFamily = MutableFamilyId
 
@@ -36,6 +37,8 @@ type FieldType =
   | { type: 'string' }
   | { type: 'number' }
   | { type: 'boolean' }
+  | { type: 'number-or-null' }
+  | { type: 'boolean-or-null' }
   | { type: 'string-or-null' }
   | { type: 'enum'; values: readonly string[]; nullable?: boolean }
   | { type: 'string-array' }
@@ -81,12 +84,15 @@ const AXIS_KINDS = ['x', 'y'] as const
 const GANTT_STATUSES = ['active', 'done', 'crit'] as const
 const MINDMAP_SHAPES = ['default', 'rect', 'rounded', 'circle', 'cloud', 'bang', 'hexagon'] as const
 const GIT_COMMIT_TYPES = ['NORMAL', 'REVERSE', 'HIGHLIGHT'] as const
+const GRATICULE_KINDS = ['circle', 'polygon'] as const
 const _GANTT_TAGS: readonly GanttBodyTaskTag[] = ['active', 'done', 'crit', 'milestone', 'vert'] // tags are shape-checked as string[]; deep enum check stays in the mutator
 
 // Field-spec shorthands.
 const str = (required = true): FieldSpec => ({ type: 'string', required })
 const num = (required = true): FieldSpec => ({ type: 'number', required })
 const bool = (required = true): FieldSpec => ({ type: 'boolean', required })
+const numOrNull = (required = true): FieldSpec => ({ type: 'number-or-null', required })
+const boolOrNull = (required = true): FieldSpec => ({ type: 'boolean-or-null', required })
 const strOrNull = (required = true): FieldSpec => ({ type: 'string-or-null', required })
 const strArr = (required = true): FieldSpec => ({ type: 'string-array', required })
 const numArr = (required = true): FieldSpec => ({ type: 'number-array', required })
@@ -332,6 +338,23 @@ const GITGRAPH_SCHEMA: Record<string, OpSpec> = {
   set_accessibility_description: { fields: { description: strOrNull() } },
 }
 
+const RADAR_SCHEMA: Record<string, OpSpec> = {
+  set_title:        { fields: { title: strOrNull() } },
+  add_axis:         { fields: { id: str(), label: strOrNull(false), index: withNote(num(false), 'insert position; omit to append'), fill: withNote(num(false), 'value written to every existing curve for the new axis; default: min') } },
+  remove_axis:      { fields: { id: str() } },
+  rename_axis:      { fields: { from: str(), to: str() } },
+  set_axis_label:   { fields: { id: str(), label: strOrNull() } },
+  reorder_axis:     { fields: { from: num(), to: withNote(num(), 'permutes every curve\'s value vector identically') } },
+  add_curve:        { fields: { id: str(), label: strOrNull(false), values: withNote(numArr(), 'one value per axis, in axis order'), index: num(false) } },
+  remove_curve:     { fields: { id: str() } },
+  set_curve_values: { fields: { id: str(), values: withNote(numArr(), 'length must equal the axis count') } },
+  set_curve_value:  { fields: { curve: str(), axis: str(), value: withNote(num(), 'non-negative, finite') } },
+  set_curve_label:  { fields: { id: str(), label: strOrNull() } },
+  rename_curve:     { fields: { from: str(), to: str() } },
+  reorder_curve:    { fields: { from: num(), to: num() } },
+  set_config:       { fields: { max: withNote(numOrNull(false), '> min; null resets auto-max'), min: withNote(numOrNull(false), 'null resets 0'), ticks: withNote(numOrNull(false), `integer 1..${MAX_RADAR_TICKS}; null resets 5`), graticule: oneOf(GRATICULE_KINDS, false, true), showLegend: withNote(boolOrNull(false), 'null resets true') } },
+}
+
 const SCHEMAS: Record<OpFamily, Record<string, OpSpec>> = {
   flowchart: FLOWCHART_SCHEMA,
   state: STATE_SCHEMA,
@@ -347,6 +370,7 @@ const SCHEMAS: Record<OpFamily, Record<string, OpSpec>> = {
   gantt: GANTT_SCHEMA,
   mindmap: MINDMAP_SCHEMA,
   gitgraph: GITGRAPH_SCHEMA,
+  radar: RADAR_SCHEMA,
 }
 
 /** True when `family` has a shape schema (i.e. is a mutable structured family). */
@@ -404,6 +428,8 @@ function typeName(f: FieldType): string {
     case 'string': return 'string'
     case 'number': return 'number'
     case 'boolean': return 'boolean'
+    case 'number-or-null': return 'number | null'
+    case 'boolean-or-null': return 'boolean | null'
     case 'string-or-null': return 'string | null'
     case 'string-array': return 'string[]'
     case 'number-array': return 'number[]'
@@ -417,6 +443,8 @@ function matchesType(spec: FieldType, value: unknown): boolean {
     case 'string': return typeof value === 'string'
     case 'number': return typeof value === 'number' && Number.isFinite(value)
     case 'boolean': return typeof value === 'boolean'
+    case 'number-or-null': return value === null || (typeof value === 'number' && Number.isFinite(value))
+    case 'boolean-or-null': return value === null || typeof value === 'boolean'
     case 'string-or-null': return value === null || typeof value === 'string'
     case 'string-array': return Array.isArray(value) && value.every(v => typeof v === 'string')
     case 'number-array': return Array.isArray(value) && value.every(v => typeof v === 'number' && Number.isFinite(v))

@@ -96,6 +96,7 @@ describe('diagram type coverage — all documented types render to SVG', () => {
     gantt: { source: 'gantt\n  dateFormat YYYY-MM-DD\n  section Build\n    Spec :spec, 2024-01-01, 2d', marker: 'Spec' },
     mindmap: { source: 'mindmap\n  root((Product))\n    Research\n    Delivery', marker: 'Product' },
     gitgraph: { source: 'gitGraph\n  commit id:"base" msg:"Base"', marker: 'Base' },
+    radar: { source: 'radar-beta\n  title Skills\n  axis a["Alpha"], b["Beta"], c["Gamma"]\n  curve x["Series"]{3, 5, 4}\n  max 5', marker: 'Alpha' },
   } satisfies Record<BuiltinFamilyId, { source: string; marker: string }>
 
   it('has a render case for every built-in family', () => {
@@ -209,6 +210,7 @@ describe('package.json keywords — cover all supported diagram types', () => {
     gantt: 'gantt-chart',
     mindmap: 'mindmap',
     gitgraph: 'git-graph',
+    radar: 'radar-chart',
   } satisfies Record<BuiltinFamilyId, string>
 
   it('keywords array exists and is non-empty', () => {

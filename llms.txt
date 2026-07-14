@@ -56,9 +56,9 @@ references — safe for untrusted/agent-generated diagrams. See SECURITY.md.
 
 ## Diagram families
 
-All families parse, verify, render, round-trip: flowchart, state, sequence, timeline, class, er, journey, architecture, xychart, pie, quadrant, gantt, mindmap, gitgraph.
-Structured mutation (structured-when-narrowed): flowchart, state, sequence, timeline, class, er, journey, architecture, xychart, pie, quadrant, gantt, mindmap, gitgraph.
-Narrowers: asFlowchart, asState, asSequence, asTimeline, asClass, asEr, asJourney, asArchitecture, asXyChart, asPie, asQuadrant, asGantt, asMindmap, asGitGraph.
+All families parse, verify, render, round-trip: flowchart, state, sequence, timeline, class, er, journey, architecture, xychart, pie, quadrant, gantt, mindmap, gitgraph, radar.
+Structured mutation (structured-when-narrowed): flowchart, state, sequence, timeline, class, er, journey, architecture, xychart, pie, quadrant, gantt, mindmap, gitgraph, radar.
+Narrowers: asFlowchart, asState, asSequence, asTimeline, asClass, asEr, asJourney, asArchitecture, asXyChart, asPie, asQuadrant, asGantt, asMindmap, asGitGraph, asRadar.
 State diagrams own a dedicated body (BUILD-19): narrow with asState; state-shaped ops apply (asFlowchart returns null on them).
 Source-level-only: none — every renderable family ships structured mutation.
 Opaque-fallback bodies (unmodeled syntax) round-trip losslessly via preserved source (never silently dropped) and stay source-level only.

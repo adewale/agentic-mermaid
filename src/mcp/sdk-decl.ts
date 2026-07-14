@@ -237,6 +237,7 @@ type MermaidRuntimeConfig = {
   gantt?: { [key: string]: MermaidConfigValue | undefined; displayMode?: string }
   mindmap?: { [key: string]: MermaidConfigValue | undefined; padding?: number; maxNodeWidth?: number }
   gitGraph?: { [key: string]: MermaidConfigValue | undefined; showBranches?: boolean; showCommitLabel?: boolean; mainBranchName?: string; mainBranchOrder?: number; parallelCommits?: boolean; rotateCommitLabel?: boolean }
+  radar?: { [key: string]: MermaidConfigValue | undefined; width?: number; height?: number; marginTop?: number; marginRight?: number; marginBottom?: number; marginLeft?: number; axisScaleFactor?: number; axisLabelFactor?: number; curveTension?: number; useMaxWidth?: boolean; tickLabels?: boolean }
   // Wired sequence keys (unlisted documented keys are accepted and named by
   // verify's INEFFECTIVE_CONFIG lint — see src/sequence/config.ts).
   sequence?: { [key: string]: MermaidConfigValue | undefined; actorMargin?: number; width?: number; height?: number; diagramMarginX?: number; diagramMarginY?: number; messageMargin?: number; noteMargin?: number; activationWidth?: number; showSequenceNumbers?: boolean }
@@ -453,6 +454,11 @@ interface QuadrantPoint { label: string; x: number; y: number; className?: strin
 // quadrants indexed 0-based; index n-1 holds Mermaid quadrant-n
 // (1=top-right, 2=top-left, 3=bottom-left, 4=bottom-right)
 interface QuadrantBody { kind: 'quadrant'; title?: string; xAxis?: QuadrantAxis; yAxis?: QuadrantAxis; quadrants: [string?, string?, string?, string?]; points: QuadrantPoint[]; classDefs?: Record<string, QuadrantPointStyle> }
+
+// Radar (spider) chart: axes = spokes; curves = one value per axis (axis order).
+interface RadarBodyAxis { id: string; label: string }
+interface RadarBodyCurve { id: string; label: string; values: number[] }
+interface RadarBody { kind: 'radar'; title?: string; axes: RadarBodyAxis[]; curves: RadarBodyCurve[]; min: number; max?: number; ticks: number; graticule: 'circle' | 'polygon'; showLegend: boolean }
 
 type GanttTaskTag = 'active' | 'done' | 'crit' | 'milestone' | 'vert'
 // start: a date in the diagram's dateFormat or 'after id…'; undefined = previous task's end.
@@ -675,6 +681,22 @@ type GitGraphMutationOp =
   | { kind: 'rename_branch'; from: string; to: string }
   | { kind: 'set_accessibility_title'; title: string | null }
   | { kind: 'set_accessibility_description'; description: string | null }
+
+type RadarMutationOp =
+  | { kind: 'set_title'; title: string | null }
+  | { kind: 'add_axis'; id: string; label?: string | null; index?: number; fill?: number }
+  | { kind: 'remove_axis'; id: string }
+  | { kind: 'rename_axis'; from: string; to: string }
+  | { kind: 'set_axis_label'; id: string; label: string | null }
+  | { kind: 'reorder_axis'; from: number; to: number }
+  | { kind: 'add_curve'; id: string; label?: string | null; values: number[]; index?: number }
+  | { kind: 'remove_curve'; id: string }
+  | { kind: 'set_curve_values'; id: string; values: number[] }
+  | { kind: 'set_curve_value'; curve: string; axis: string; value: number }
+  | { kind: 'set_curve_label'; id: string; label: string | null }
+  | { kind: 'rename_curve'; from: string; to: string }
+  | { kind: 'reorder_curve'; from: number; to: number }
+  | { kind: 'set_config'; max?: number | null; min?: number | null; ticks?: number | null; graticule?: 'circle' | 'polygon' | null; showLegend?: boolean | null }
 
 type GanttMutationOp =
   | { kind: 'set_title'; title: string | null }

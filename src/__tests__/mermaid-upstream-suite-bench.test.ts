@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import {
-  asArchitecture, asClass, asEr, asFlowchart, asGantt, asJourney, asPie, asQuadrant, asSequence, asState, asTimeline, asXyChart, asMindmap, asGitGraph,
+  asArchitecture, asClass, asEr, asFlowchart, asGantt, asJourney, asPie, asQuadrant, asSequence, asState, asTimeline, asXyChart, asMindmap, asGitGraph, asRadar,
   layoutMermaid, parseMermaid, serializeMermaid, verifyMermaid,
 } from '../agent/index.ts'
 import type { DiagramKind, ValidDiagram } from '../agent/types.ts'
@@ -124,6 +124,7 @@ const narrowerByFamily: Record<DiagramKind, (d: ValidDiagram) => ValidDiagram | 
   gantt: asGantt,
   mindmap: asMindmap,
   gitgraph: asGitGraph,
+  radar: asRadar,
 }
 
 function layoutLabels(layout: ReturnType<typeof layoutMermaid>): string[] {

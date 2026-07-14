@@ -8,7 +8,7 @@
     "commit": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
     "npmIntegrity": "sha512-Zvm3kbstgdpvIJPPItlL7fppIZ3kibvc1oZIGxdvk9t6UFz6flv+Jw7FtRGKwfcI8OckmH04LqG6LlS6X4B1pA==",
     "packageJsonSha256": "88ea12cf87bb2616d3ed68b1f0d3202a0ab1ad5a1eed82f8471dfd8f9dc8d1cb",
-    "inventorySha256": "5dc63de4bf954cc8c7cbeec4643e737bcf3ac917f650c5a32c844f38e0da5697",
+    "inventorySha256": "476b332ad4d73b7fd9c54bd36e6fa385801ecae12f8821d1a2263b4110108ab9",
     "inputs": [
       "packages/mermaid/src/diagram-api/diagram-orchestration.ts",
       "packages/mermaid/src/diagram-api/detectType.ts",
@@ -722,7 +722,7 @@
       "headers": [
         {
           "value": "radar-beta",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         }
       ],
       "officialSyntaxPage": {
@@ -1216,7 +1216,7 @@
         "kind": "examples",
         "scope": "repository",
         "path": "eval/mermaid-doc-showcase/manifest.json",
-        "sha256": "9bc893f9d035e149f1a0296e312011c21e3e41955caf557f5f6affecae8759f5",
+        "sha256": "d1b6144b816dba4b7d8063d7f35512e6f79ca7cc095d01dc0b0f81f8917d7d24",
         "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc"
       },
       {
@@ -1494,7 +1494,7 @@
         "kind": "accounting",
         "scope": "repository",
         "path": "eval/mermaid-upstream-suite-bench/manifest.json",
-        "sha256": "e440b5eba8fefc6ed596a7467917f052e407341bbfbd5ce30482e6361ab27b28",
+        "sha256": "bec621dfccb95e18d265a8fbdb33a0f3cc3858fa15dec210572e2a29a6f6939d",
         "upstreamRevision": "a2d9686451df7c4644a3eeca20535bbd4c5776b0"
       },
       {
@@ -1502,7 +1502,7 @@
         "kind": "syntax-features",
         "scope": "repository",
         "path": "eval/mermaid-upstream-suite-bench/cases.json",
-        "sha256": "3604ae245e4e60306a0d8f5f60327d83bcdad5679a434e602508577f52175b92",
+        "sha256": "3d955b88cbb4fa572ab6b262138c19b3caf0ee417326620aa82b0c40ca47ffaa",
         "upstreamRevision": "a2d9686451df7c4644a3eeca20535bbd4c5776b0"
       },
       {
@@ -1510,7 +1510,7 @@
         "kind": "syntax-features",
         "scope": "repository",
         "path": "eval/mermaid-upstream-suite-bench/exclusions.json",
-        "sha256": "19d3666825df7c6e726d55415f3464939b5813af6e1096922281fa60ade94103",
+        "sha256": "9bdab1bc5822d86f53fb04aca528cd6ce37a4afa61a6abb04dd0b0fe7649f5cd",
         "upstreamRevision": "a2d9686451df7c4644a3eeca20535bbd4c5776b0"
       },
       {
@@ -13182,6 +13182,76 @@
         "sourceSha256": "d38a20870b0e22725ad64d1a21b2d0a736cb6f3506a74a185b104c41805e840f"
       },
       {
+        "id": "suite-cases:radar-upstream-comments",
+        "artifact": "suite-cases",
+        "families": [
+          "radar"
+        ],
+        "status": "executable",
+        "fingerprint": "f07a2f3892bb8b63fdac02c8dd6446a5728027ebe75f2450f31029a32394e2d3",
+        "sourceSha256": "c39e863716e4703e818815ecc27a1dcf7b10da2a0fb2f1d6c8b669e1c581d7ce"
+      },
+      {
+        "id": "suite-cases:radar-upstream-config-override",
+        "artifact": "suite-cases",
+        "families": [
+          "radar"
+        ],
+        "status": "executable",
+        "fingerprint": "c9adf123f9f8005c6f47a1d833bcfd31576bf7c3cf79ffeae7bc624923424bf5",
+        "sourceSha256": "ae0add60b11c4b34fe4f1709299662668bcc8b4bd8ab79d25e572134e3a813b2"
+      },
+      {
+        "id": "suite-cases:radar-upstream-keyed-data-any-order",
+        "artifact": "suite-cases",
+        "families": [
+          "radar"
+        ],
+        "status": "executable",
+        "fingerprint": "c0fc2584baf2958125c4f02282cfb17c254e472a7867e006f0123188da4f0ef2",
+        "sourceSha256": "9538238e762eb312b880522a7c647952313a5a6cbea651e330e99c14bcd77499"
+      },
+      {
+        "id": "suite-cases:radar-upstream-simple-definition",
+        "artifact": "suite-cases",
+        "families": [
+          "radar"
+        ],
+        "status": "executable",
+        "fingerprint": "0b8344876c9a11900b4cfe2cce776183ad69cf534c394351bbeb092ad63b0963",
+        "sourceSha256": "b86db6420ef711ca8d9ce190f4c6e5fa03a681cb25edc3691ebc01fe3fbfa1ad"
+      },
+      {
+        "id": "suite-cases:radar-upstream-style-override",
+        "artifact": "suite-cases",
+        "families": [
+          "radar"
+        ],
+        "status": "executable",
+        "fingerprint": "c1ce76d6adfcebdf8f9edee8517f09ff335f14386e31592ce092be26c3cf21d2",
+        "sourceSha256": "267914b2347133c0583051a81dc0e37be0ea172e59118e0405f64f5a3d90427a"
+      },
+      {
+        "id": "suite-cases:radar-upstream-theme-override",
+        "artifact": "suite-cases",
+        "families": [
+          "radar"
+        ],
+        "status": "executable",
+        "fingerprint": "7d217f0bb3e2c835cfb451a01b1660f8c82b735c45523b7cb2fc3c078923dfeb",
+        "sourceSha256": "476ca9b02f829b566a3a55f2cbe5d60cb807e8d39b5d15ae84e2ca18015a2ca6"
+      },
+      {
+        "id": "suite-cases:radar-upstream-title-and-accessibility",
+        "artifact": "suite-cases",
+        "families": [
+          "radar"
+        ],
+        "status": "executable",
+        "fingerprint": "f54f6cd3c99aa6eca327b5614a3b09ea5b45895e2d4d0035bf3f67a64f208ee0",
+        "sourceSha256": "f779964030de763e528aaf4bd22b020e27b1ce25ce124bdaace8c8d919fc3821"
+      },
+      {
         "id": "suite-cases:sequence-upstream-1-should-parse",
         "artifact": "suite-cases",
         "families": [
@@ -19030,6 +19100,16 @@
         "status": "excluded",
         "fingerprint": "bbffe23479f333bd2c30e0098092197ca4b9afa2e32580e07ddcb8f5c8a7c7f8",
         "reason": "upstream-negative"
+      },
+      {
+        "id": "suite-exclusions:radar-excluded-radar-spec-renderer-and-db-state-blocks",
+        "artifact": "suite-exclusions",
+        "families": [
+          "radar"
+        ],
+        "status": "excluded",
+        "fingerprint": "171c3457d7d4d398723b0e755f48ff07d7b908eedc39fdeb7446d9abbd620dde",
+        "reason": "api-internal"
       },
       {
         "id": "suite-exclusions:sequence-excluded-sequencediagram-spec-should-allow-s-as-an-actor-name",
@@ -24951,6 +25031,17 @@
           "official-doc:radar"
         ],
         "officialDocs": "https://mermaid.ai/open-source/syntax/radar.html"
+      },
+      {
+        "id": "radar:syntax/radar.md#0",
+        "family": "radar",
+        "origin": "syntax/radar.md",
+        "index": 0,
+        "sourceSha256": "d5c316755ef729d8179b47440f20682784a492e67ffcd9389c1a6702146dd941",
+        "artifacts": [
+          "docs-showcase"
+        ],
+        "officialDocs": "https://mermaid.js.org/syntax/radar.html"
       },
       {
         "id": "railroad:official-syntax/railroad.md#0",

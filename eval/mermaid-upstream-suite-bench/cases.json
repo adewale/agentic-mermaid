@@ -14836,5 +14836,186 @@
         "The rat in the mat"
       ]
     }
+  },
+  {
+    "id": "radar-upstream-simple-definition",
+    "family": "radar",
+    "source": "radar-beta\n  axis A,B,C\n  curve mycurve{1,2,3}",
+    "upstream": {
+      "repo": "mermaid-js/mermaid",
+      "files": [
+        "packages/mermaid/src/diagrams/radar/radar.spec.ts"
+      ],
+      "blocks": [
+        "packages/mermaid/src/diagrams/radar/radar.spec.ts :: should handle a simple radar definition"
+      ]
+    },
+    "assertions": {
+      "nodeCount": 8,
+      "edgeCount": 0,
+      "groupCount": 5,
+      "minNodes": 6,
+      "labelsContain": [
+        "A",
+        "B",
+        "C"
+      ],
+      "expectStructured": true
+    }
+  },
+  {
+    "id": "radar-upstream-title-and-accessibility",
+    "family": "radar",
+    "source": "radar-beta\n  title Radar diagram\n  accTitle: Radar accTitle\n  accDescr: Radar accDescription\n  axis A[\"Axis A\"], B[\"Axis B\"] ,C[\"Axis C\"]\n  curve mycurve[\"My Curve\"]{1,2,3}",
+    "upstream": {
+      "repo": "mermaid-js/mermaid",
+      "files": [
+        "packages/mermaid/src/diagrams/radar/radar.spec.ts"
+      ],
+      "blocks": [
+        "packages/mermaid/src/diagrams/radar/radar.spec.ts :: should handle diagram with data and title"
+      ]
+    },
+    "assertions": {
+      "nodeCount": 9,
+      "edgeCount": 0,
+      "groupCount": 5,
+      "labelsContain": [
+        "Axis A",
+        "Axis B",
+        "Axis C"
+      ],
+      "expectStructured": true
+    }
+  },
+  {
+    "id": "radar-upstream-keyed-data-any-order",
+    "family": "radar",
+    "source": "radar-beta\n  axis A,B,C\n  curve mycurve{ C: 3, A: 1, B: 2 }",
+    "upstream": {
+      "repo": "mermaid-js/mermaid",
+      "files": [
+        "packages/mermaid/src/diagrams/radar/radar.spec.ts"
+      ],
+      "blocks": [
+        "packages/mermaid/src/diagrams/radar/radar.spec.ts :: should handle curve with detailed data in any order"
+      ]
+    },
+    "assertions": {
+      "nodeCount": 8,
+      "edgeCount": 0,
+      "groupCount": 5,
+      "minNodes": 6,
+      "labelsContain": [
+        "A",
+        "B",
+        "C"
+      ],
+      "expectStructured": true
+    }
+  },
+  {
+    "id": "radar-upstream-comments",
+    "family": "radar",
+    "source": "radar-beta\n  %% This is a comment\n  axis A,B,C\n  %% This is another comment\n  curve mycurve{1,2,3}",
+    "upstream": {
+      "repo": "mermaid-js/mermaid",
+      "files": [
+        "packages/mermaid/src/diagrams/radar/radar.spec.ts"
+      ],
+      "blocks": [
+        "packages/mermaid/src/diagrams/radar/radar.spec.ts :: should handle radar diagram with comments"
+      ]
+    },
+    "assertions": {
+      "nodeCount": 8,
+      "edgeCount": 0,
+      "groupCount": 5,
+      "minNodes": 6,
+      "labelsContain": [
+        "A",
+        "B",
+        "C"
+      ],
+      "expectStructured": true
+    }
+  },
+  {
+    "id": "radar-upstream-config-override",
+    "family": "radar",
+    "source": "%%{init: {'radar': {'marginTop': 80, 'axisLabelFactor': 1.25}}}%%\nradar-beta\n  axis A,B,C\n  curve mycurve{1,2,3}",
+    "upstream": {
+      "repo": "mermaid-js/mermaid",
+      "files": [
+        "packages/mermaid/src/diagrams/radar/radar.spec.ts"
+      ],
+      "blocks": [
+        "packages/mermaid/src/diagrams/radar/radar.spec.ts :: should handle radar diagram with config override"
+      ]
+    },
+    "assertions": {
+      "nodeCount": 8,
+      "edgeCount": 0,
+      "groupCount": 5,
+      "minNodes": 6,
+      "labelsContain": [
+        "A",
+        "B",
+        "C"
+      ],
+      "expectStructured": true
+    }
+  },
+  {
+    "id": "radar-upstream-theme-override",
+    "family": "radar",
+    "source": "%%{init: { \"theme\": \"base\", \"themeVariables\": {'fontSize': 80, 'cScale0': '#123456' }}}%%\nradar-beta:\n  axis A,B,C\n  curve mycurve{1,2,3}",
+    "upstream": {
+      "repo": "mermaid-js/mermaid",
+      "files": [
+        "packages/mermaid/src/diagrams/radar/radar.spec.ts"
+      ],
+      "blocks": [
+        "packages/mermaid/src/diagrams/radar/radar.spec.ts :: should parse radar diagram with theme override"
+      ]
+    },
+    "assertions": {
+      "nodeCount": 8,
+      "edgeCount": 0,
+      "groupCount": 5,
+      "minNodes": 6,
+      "labelsContain": [
+        "A",
+        "B",
+        "C"
+      ],
+      "expectStructured": true
+    }
+  },
+  {
+    "id": "radar-upstream-style-override",
+    "family": "radar",
+    "source": "%%{init: { \"theme\": \"base\", \"themeVariables\": {'fontSize': 10, 'radar': { 'axisColor': '#FF0000' }}}}%%\nradar-beta\n  axis A,B,C\n  curve mycurve{1,2,3}",
+    "upstream": {
+      "repo": "mermaid-js/mermaid",
+      "files": [
+        "packages/mermaid/src/diagrams/radar/radar.spec.ts"
+      ],
+      "blocks": [
+        "packages/mermaid/src/diagrams/radar/radar.spec.ts :: should handle radar diagram with radar style override"
+      ]
+    },
+    "assertions": {
+      "nodeCount": 8,
+      "edgeCount": 0,
+      "groupCount": 5,
+      "minNodes": 6,
+      "labelsContain": [
+        "A",
+        "B",
+        "C"
+      ],
+      "expectStructured": true
+    }
   }
 ]
