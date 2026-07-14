@@ -8,7 +8,7 @@ import type {
 import type { RenderOptions } from '../types.ts'
 import type { PieVisualConfig } from './config.ts'
 import { DEFAULT_PIE_VISUAL_CONFIG } from './config.ts'
-import { measureTextWidth } from '../text-metrics.ts'
+import { measureSystemFontSafeTextWidth, measureTextWidth } from '../text-metrics.ts'
 
 // ============================================================================
 // Pie chart layout engine
@@ -46,10 +46,7 @@ const PIE = {
   legendSwatch: 14,
   legendRowGap: 8,
   legendSwatchToText: 8,
-  /**
-   * Browser/system-font bold glyphs can exceed the Inter-calibrated estimator.
-   * Reserve a bounded fallback-font margin only for the selected 700-weight row.
-   */
+  /** General 700-weight fallback allowance, composed with safe W/M metrics. */
   legendHighlightWidthScale: 1.1,
   sliceLabelFontSize: 12,
   sliceLabelFontWeight: 500,
@@ -194,7 +191,7 @@ export function layoutPieChart(
       ? PIE_LEGEND_HIGHLIGHT_FONT_WEIGHT
       : PIE.legendFontWeight
     const measuredTextWidth = Math.max(...lines.map(line =>
-      measureTextWidth(line, legendFontSize, fontWeight)))
+      measureSystemFontSafeTextWidth(line, legendFontSize, fontWeight)))
     const textWidth = fontWeight === PIE_LEGEND_HIGHLIGHT_FONT_WEIGHT
       ? measuredTextWidth * PIE.legendHighlightWidthScale
       : measuredTextWidth

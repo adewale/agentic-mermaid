@@ -1060,7 +1060,7 @@
     },
     {
       "path": "src/__tests__/pie-elevation.test.ts",
-      "sha256": "7af054f8ac31e1b4faaa2671d7d488292dcd018fbff705b57fefef9c9e54e773"
+      "sha256": "333cded2f7654c1001a5a78728e8f89f8187c05947cf9dcd088813cc677ed4a6"
     },
     {
       "path": "src/__tests__/pie.test.ts",
@@ -1432,7 +1432,7 @@
     },
     {
       "path": "src/__tests__/text-metrics.test.ts",
-      "sha256": "bf7c4a96cf8987cda9e936ec459b60747fb098d61c932344b8b3ebb95324d6e7"
+      "sha256": "fddf091053bd95b4f914dfaa33390327544f60fca51eee35e1f7f8ae66956982"
     },
     {
       "path": "src/__tests__/theme-contrast-wcag.test.ts",
@@ -2268,7 +2268,7 @@
     },
     {
       "path": "src/pie/layout.ts",
-      "sha256": "90f5e89bd88de99a1c898a0925b73e3628154535e3752b165f8f17af9d8104c3"
+      "sha256": "d95bccdfd3a80936de3a27688c204112d4f71b54d98485fa46657b0fe702884b"
     },
     {
       "path": "src/pie/palette.ts",
@@ -2660,7 +2660,7 @@
     },
     {
       "path": "src/text-metrics.ts",
-      "sha256": "87137156445b570893676e926dd603f5405462cc5ddf2a00acd88c183ce178c9"
+      "sha256": "4617b3c176b7e337c94fa3acb10a1add585638b498e02044d4766060ed77f4bd"
     },
     {
       "path": "src/theme.ts",
@@ -2738,7 +2738,7 @@
   "outputs": [
     {
       "path": "docs/design/families/gitgraph-content-gallery.png",
-      "sha256": "292692d1a3c750d17790368b9e450d41d0627ba3b94aca97d67e14ead0a6850c"
+      "sha256": "fee85816198f90166bde90c0199364341223ed8d7cb20d36eea9d0e4e1c5c524"
     },
     {
       "path": "docs/design/families/mindmap-content-gallery.png",

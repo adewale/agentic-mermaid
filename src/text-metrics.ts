@@ -194,6 +194,21 @@ export function measureTextWidth(text: string, fontSize: number, fontWeight: num
   return measureText({ text, fontSize, fontWeight }).width
 }
 
+/**
+ * Measure text that must remain contained when an offline/CSP-safe SVG falls
+ * back from Inter to a wider system font. Inter and DejaVu browser probes put
+ * W/M at up to 1.10em at weight 700; 1.85 width units reserve 1.11em while
+ * leaving the shared Inter-calibrated contract unchanged for other families.
+ */
+export function measureSystemFontSafeTextWidth(text: string, fontSize: number, fontWeight: number): number {
+  const measured = measureText({ text, fontSize, fontWeight })
+  let extraVeryWideUnits = 0
+  for (const char of text) {
+    if (VERY_WIDE_CHARS.has(char)) extraVeryWideUnits += 1.85 - 1.5
+  }
+  return measured.width + extraVeryWideUnits * fontSize * measured.baseRatio
+}
+
 /** Measure normalized inline formatting with the actual weight of each run.
  * Italic/decorations do not materially change this estimator's advance width;
  * bold runs use at least weight 700. */

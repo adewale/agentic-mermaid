@@ -2,7 +2,13 @@
  * Tests for text-metrics module — variable-width character measurement.
  */
 import { describe, it, expect } from 'bun:test'
-import { getCharWidth, measureText, measureTextWidth, TEXT_MEASUREMENT_CONTRACT } from '../text-metrics'
+import {
+  getCharWidth,
+  measureSystemFontSafeTextWidth,
+  measureText,
+  measureTextWidth,
+  TEXT_MEASUREMENT_CONTRACT,
+} from '../text-metrics'
 
 // ============================================================================
 // Shared contract
@@ -200,6 +206,13 @@ describe('measureTextWidth', () => {
     // "Will" = W(1.5) + i(0.4) + l(0.4) + l(0.4) = 2.7
     const width = measureTextWidth('Will', fontSize, fontWeight)
     expect(width).toBeCloseTo(2.7 * fontSize * baseRatio + minPadding, 1)
+  })
+
+  it('offers a wider W/M measurement for system-font fallback containment', () => {
+    const ordinary = measureTextWidth('WWMix', fontSize, 700)
+    const fallbackSafe = measureSystemFontSafeTextWidth('WWMix', fontSize, 700)
+    expect(fallbackSafe).toBeGreaterThan(ordinary)
+    expect(fallbackSafe - ordinary).toBeCloseTo(3 * 0.35 * fontSize * 0.60, 8)
   })
 
   it('handles spaces correctly', () => {

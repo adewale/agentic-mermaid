@@ -250,28 +250,50 @@ afterAll(async () => {
 // ---------------------------------------------------------------------------
 
 describe('browser: live editor integration', () => {
-  it('contains a long highlighted pie legend row using actual browser glyph bounds', async () => {
+  it('contains long regular and highlighted pie legend rows across fallback fonts', async () => {
     const label = 'W'.repeat(48)
-    const svg = renderMermaidSVG(`---
-config:
-  pie:
-    highlightSlice: ${label}
----
-pie showData
+    const cases = [
+      { file: 'Inter-Regular.ttf', family: 'E2E Inter Regular', weight: 500, highlighted: false },
+      { file: 'DejaVuSans.ttf', family: 'E2E DejaVu Regular', weight: 500, highlighted: false },
+      { file: 'Inter-Bold.ttf', family: 'E2E Inter Bold', weight: 700, highlighted: true },
+      { file: 'DejaVuSans-Bold.ttf', family: 'E2E DejaVu Bold', weight: 700, highlighted: true },
+    ] as const
+
+    for (const testCase of cases) {
+      const frontmatter = testCase.highlighted
+        ? `---\nconfig:\n  pie:\n    highlightSlice: ${label}\n---\n`
+        : ''
+      const svg = renderMermaidSVG(`${frontmatter}pie showData
   "${label}" : 2
   "Other" : 1`, { embedFontImport: false })
-    await page.setContent(svg)
-    const bounds = await page.locator('.pie-legend-text').first().evaluate((text: SVGGraphicsElement) => {
-      const box = text.getBBox()
-      const viewBox = text.ownerSVGElement!.viewBox.baseVal
-      return {
-        textRight: box.x + box.width,
-        canvasRight: viewBox.x + viewBox.width,
-        remaining: viewBox.x + viewBox.width - box.x - box.width,
-      }
-    })
-    expect(bounds.textRight).toBeLessThanOrEqual(bounds.canvasRight)
-    expect(bounds.remaining).toBeGreaterThanOrEqual(1)
+      const fontBytes = await Bun.file(join(ROOT, 'assets', 'fonts', testCase.file)).arrayBuffer()
+      const fontUrl = `data:font/ttf;base64,${Buffer.from(fontBytes).toString('base64')}`
+      await page.setContent(svg)
+      await page.addStyleTag({ content: `
+        @font-face {
+          font-family: "${testCase.family}";
+          src: url("${fontUrl}") format("truetype");
+          font-weight: ${testCase.weight};
+        }
+        svg text { font-family: "${testCase.family}" !important; }
+      ` })
+      await page.evaluate(async ({ family, weight }) => {
+        await document.fonts.load(`${weight} 13px "${family}"`)
+        await document.fonts.ready
+      }, { family: testCase.family, weight: testCase.weight })
+
+      const bounds = await page.locator('.pie-legend-text').first().evaluate((text: SVGGraphicsElement) => {
+        const box = text.getBBox()
+        const viewBox = text.ownerSVGElement!.viewBox.baseVal
+        return {
+          textRight: box.x + box.width,
+          canvasRight: viewBox.x + viewBox.width,
+          remaining: viewBox.x + viewBox.width - box.x - box.width,
+        }
+      })
+      expect(bounds.textRight).toBeLessThanOrEqual(bounds.canvasRight)
+      expect(bounds.remaining).toBeGreaterThanOrEqual(1)
+    }
   })
 
   it('pie hover emphasis remains reachable when interactive tooltips add a hit target', async () => {

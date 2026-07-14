@@ -43,7 +43,7 @@ import { wcagContrastRatio, wcagCssContrastRatio } from '../shared/color-math.ts
 import { renderMermaidSVG, renderMermaidASCII } from '../index.ts'
 import { parseMermaid } from '../agent/parse.ts'
 import { verifyMermaid } from '../agent/verify.ts'
-import { measureTextWidth } from '../text-metrics.ts'
+import { measureSystemFontSafeTextWidth, measureTextWidth } from '../text-metrics.ts'
 import { toMermaidLines } from '../mermaid-source.ts'
 import { filesUnder, hashFileTree, sortRepositoryPaths } from '../../scripts/pr-assets/artifact-receipt.ts'
 
@@ -454,14 +454,23 @@ pie showData
     }
   })
 
-  it('measures the selected legend row at the bold weight it renders', () => {
+  it('measures bold and ordinary legend rows with the fallback-safe glyph estimator', () => {
     const label = 'W'.repeat(48)
-    const chart = layout(`pie showData\n  "${label}" : 2\n  "Other" : 1`, { highlightSlice: label })
-    const item = chart.legend[0]!
-    const renderedTextWidth = Math.max(...item.lines.map(line =>
-      measureTextWidth(line, LEGEND_FONT.size, PIE_LEGEND_HIGHLIGHT_FONT_WEIGHT)))
-    expect(item.textX + renderedTextWidth).toBeLessThanOrEqual(chart.width + 0.01)
-    expect(chart.width - item.textX - renderedTextWidth).toBeGreaterThan(renderedTextWidth * 0.09)
+    const source = `pie showData\n  "${label}" : 2\n  "Other" : 1`
+    for (const [visual, weight] of [
+      [{ highlightSlice: label }, PIE_LEGEND_HIGHLIGHT_FONT_WEIGHT],
+      [{}, LEGEND_FONT.weight],
+    ] as const) {
+      const chart = layout(source, visual)
+      const item = chart.legend[0]!
+      const renderedTextWidth = Math.max(...item.lines.map(line =>
+        measureSystemFontSafeTextWidth(line, LEGEND_FONT.size, weight)))
+      expect(item.textX + renderedTextWidth).toBeLessThanOrEqual(chart.width + 0.01)
+      const expectedMargin = weight === PIE_LEGEND_HIGHLIGHT_FONT_WEIGHT
+        ? renderedTextWidth * 0.09 + 23.99
+        : 23.99
+      expect(chart.width - item.textX - renderedTextWidth).toBeGreaterThanOrEqual(expectedMargin)
+    }
   })
 
   it('dims nothing when the highlight target matches no slice', () => {
