@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 
-import { renderMarkdownBlocks } from '../cli/index.ts'
+import { renderMarkdownBlocks, runBatchLine } from '../cli/index.ts'
 import { handleRequest } from '../mcp/server.ts'
 import {
   handleHostedRequest,
@@ -85,6 +85,21 @@ describe('family diagnostic transport parity', () => {
         const [block] = renderMarkdownBlocks(markdown, format)
         expect(block).toMatchObject({ index: 0, ok: false })
         expectFamilyDiagnostic(block!.error, fixture)
+      }
+    }
+  })
+
+  test('am batch render preserves unknown and unsupported diagnostics (not a generic INTERNAL)', () => {
+    for (const fixture of FIXTURES) {
+      for (const format of ['svg', 'ascii'] as const) {
+        const line = JSON.stringify({ op: 'render', format, source: fixture.source })
+        const result = runBatchLine(line, 0) as { ok: boolean; error?: any }
+        expect(result.ok).toBe(false)
+        // The regression: the batch catch used to collapse family-detection throws to
+        // { code: 'INTERNAL' } instead of projecting the documented diagnostic like every
+        // other CLI render transport.
+        expect(result.error.code).not.toBe('INTERNAL')
+        expectFamilyDiagnostic(result.error, fixture)
       }
     }
   })
