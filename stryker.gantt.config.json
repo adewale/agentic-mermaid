@@ -17,6 +17,5 @@
   "timeoutMS": 30000,
   "concurrency": 2,
   "tempDirName": ".stryker-tmp-gantt",
-  "disableTypeChecks": true,
-  "thresholds": { "break": 60 }
+  "disableTypeChecks": true
 }

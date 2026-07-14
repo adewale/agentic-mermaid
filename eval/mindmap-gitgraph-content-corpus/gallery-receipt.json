@@ -68,7 +68,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "26e2a57c3f49b14c91d7721b6323060d119be1e59b8cdcf2495a46b9b40645ff"
+      "sha256": "afcbe753d724980adce316d88847b03679504a2e399f74febe2ca2f8f044b90e"
     },
     {
       "path": "scripts/pr-assets/artifact-receipt.ts",
@@ -132,7 +132,7 @@
     },
     {
       "path": "src/__tests__/agent-doc-sync.test.ts",
-      "sha256": "bdb71afb939441174ce0425baddb1f13a7ddfd01ba0b191648d1035a054a0e61"
+      "sha256": "e46169bf46d09892eab0310bd671d4e13380989387a68f76cf27559988be1b82"
     },
     {
       "path": "src/__tests__/agent-er.test.ts",
@@ -592,7 +592,7 @@
     },
     {
       "path": "src/__tests__/diagram-family-citizenship.test.ts",
-      "sha256": "cfa467a9da01dcd8e39f2c207208e5e8ba6746b1b988c4a47bf6daf7989108cf"
+      "sha256": "b2db613e517d2225ad893a72fe4aa5fe6237e0afd2abedee0be7aee7155e39a8"
     },
     {
       "path": "src/__tests__/differential-mermaid-ast.test.ts",
@@ -808,7 +808,7 @@
     },
     {
       "path": "src/__tests__/helpers/family-count-fixtures.ts",
-      "sha256": "18a6ea24c7e3d00769c5a1f96d6424fec58f1693e2495330196a11ca6180daf9"
+      "sha256": "b42810990f2feb56826697d5e9fc788fe3f0e46e29ee54aa2e01fd91843fdf63"
     },
     {
       "path": "src/__tests__/helpers/layout-runner.ts",
@@ -1031,6 +1031,10 @@
       "sha256": "d624e450191bc5d19ced283684ad4e17e22fd6550672a1bc2526fb5899576d1d"
     },
     {
+      "path": "src/__tests__/mutation-config.test.ts",
+      "sha256": "f5f3f6e6e4c2ee70ba10bb68e5280547c48d384f81d7484f73c13a990076323c"
+    },
+    {
       "path": "src/__tests__/no-dom-in-product.test.ts",
       "sha256": "cf2ed3b9c184385fb853df67288d1da01391c47c77ace55d641e7fc6d8166b02"
     },
@@ -1244,7 +1248,7 @@
     },
     {
       "path": "src/__tests__/route-contracts.test.ts",
-      "sha256": "abf5c42920ecd7537bf8d8cf62f5310230c8bbda9e77c2d9a40155bbae672197"
+      "sha256": "d9e4f411e87a9c284c335f8751838af823a6cb973d973a0bdcfaefab6c5918b4"
     },
     {
       "path": "src/__tests__/scene-connector-contract.test.ts",
@@ -1348,7 +1352,7 @@
     },
     {
       "path": "src/__tests__/structural-count.test.ts",
-      "sha256": "497dfa03cfd8838e3c032c6b73918abeb19c8a1c9bc6878e25cbe33409ce2dd2"
+      "sha256": "6693decbef693159d765ea650cd787c0ddf4157ebbe7a561a26dc23407eac9f3"
     },
     {
       "path": "src/__tests__/style-defaults-consistency.test.ts",
@@ -2124,7 +2128,7 @@
     },
     {
       "path": "src/layout-engine.ts",
-      "sha256": "e4ddd088183644635baa9abfe3abc6bc6896b422800f2734d0ec0a3aaad8f1cb"
+      "sha256": "f50fe37668608bebe781813998fae2c159d4f4928a36ac0d0ef544615496e188"
     },
     {
       "path": "src/layout-rubric.ts",
@@ -2256,7 +2260,7 @@
     },
     {
       "path": "src/parser.ts",
-      "sha256": "ac967b482c72c4e601f0775cc4a9a8e6590a529ea19d4ba439871a8cf6e243dc"
+      "sha256": "5ed5920171b3e6e02729de8625cfbadc5c999029a9ae92e89b8ca986d7ea653f"
     },
     {
       "path": "src/pie/config.ts",
@@ -2380,7 +2384,7 @@
     },
     {
       "path": "src/route-contracts.ts",
-      "sha256": "fb380467febf092dc677942191a12c87eb9dcd86871a3bcd816e7db33855d127"
+      "sha256": "5c677b13700f86c21240d24e692e61370c8e0fc1f2e4e25811e4fe47cd7d0537"
     },
     {
       "path": "src/scene/accessibility.ts",

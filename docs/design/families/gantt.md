@@ -359,15 +359,12 @@ Scheduler properties should use finite generated DAGs, not arbitrary line string
 - increasing font size changes row metrics but not resolved dates;
 - generated tick count stays under a fixed cap.
 
-### Mutation-testing evidence
+### Mutation-testing diagnostic
 
-The landed `stryker.gantt.config.json` mutation lane:
-
-- includes `src/gantt/parser.ts`, `src/gantt/schedule.ts`, `src/gantt/layout.ts`,
-  `src/ascii/gantt.ts`, and `src/agent/gantt-body.ts`;
-- is invoked by `bun run mutation-test:gantt` outside normal PR CI;
-- treats surviving mutants in `schedule.ts` dependency resolution, exclusions,
-  and duration parsing as release-blocking adequacy evidence when the lane runs.
+`bun run mutation-test:gantt` remains an opt-in survivor harvest over the Gantt
+parser, scheduler, layout, terminal renderer, and agent body. It has no break
+floor or release authority; any acceptance claim needs separately retained and
+reviewed evidence.
 
 ## Historical rollout sequence (completed)
 

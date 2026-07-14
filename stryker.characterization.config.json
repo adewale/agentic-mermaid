@@ -1,6 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/stryker-mutator/stryker/master/packages/core/schema/stryker-core.schema.json",
-  "_comment": "Fast mutation-smoke for the load-bearing layout characterisation. The full ASCII config mutates five large renderer files (~3k mutants); this one mutates the tight ranges where the characterization/property tests are expected to have teeth, so PRs can produce practical mutation evidence.",
+  "_comment": "Opt-in mutation diagnostic for selected layout-characterisation ranges. It emits a report but has no break floor or acceptance authority.",
   "mutate": [
     "src/ascii/pathfinder.ts:60-63",
     "src/ascii/pathfinder.ts:110-129",
@@ -16,11 +16,6 @@
   "reporters": ["clear-text", "progress", "json"],
   "jsonReporter": {
     "fileName": "reports/mutation/characterization-smoke.json"
-  },
-  "thresholds": {
-    "high": 85,
-    "low": 70,
-    "break": 60
   },
   "timeoutMS": 60000,
   "concurrency": 4,

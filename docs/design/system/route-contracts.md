@@ -819,8 +819,9 @@ in sync by `src/__tests__/layout-pass-docsync.test.ts` (regenerate with
 - **Goldens**: ASCII goldens must not change (`goldens:ascii:check`); SVG
   changes are reviewed via the corpus comparison harness
   (`eval/layout-compare`) — regressions-first verdicts, not eyeball-only.
-- **Mutation testing**: the route-contracts module joins the scoped Stryker
-  lane so a deleted proof check cannot survive.
+- **Fault sensitivity**: `bun run mutation-test:routes` remains an opt-in
+  survivor harvest; the bounded `sabotage:routes` PR gate proves five named
+  route/link regressions still make their focused tests fail.
 
 ## 10. Rollout status vs issue #25
 
@@ -837,7 +838,7 @@ in sync by `src/__tests__/layout-pass-docsync.test.ts` (regenerate with
 
 1. MFA/login renders straight forward edges when lanes are clear, in SVG **and** ASCII (longest-path ASCII layering put the fan-in join after its deepest parent; regression tests on both renderers + regenerated visual evidence).
 2. Feedback retry edges emit feedback-route certificates — straight-with-proof (labeled ones park their pill in the open canvas beside the lane), `feedback-detour` with blockers otherwise — unit + regression test.
-3. Disabling the direct-lane proof reintroduces a failing test — `ROUTE_HITCH` tripwire + straightener unit tests + mutation lane.
+3. Disabling the direct-lane proof reintroduces a failing test — `ROUTE_HITCH` tripwire + straightener unit tests + the `sabotage:routes` PR gate.
 4. A blocker node prevents straightening with an explained-detour certificate — blocked-lane regression.
 5. Diamond endpoints land on the diamond polygon, not bbox corners — ray-intersection re-anchoring + property test + `ROUTE_SHAPE_MISANCHOR` tripwire.
 6. No node movement after the route pass — pipeline placement + `ROUTE_STALE_AFTER_NODE_MOVE` tripwire.

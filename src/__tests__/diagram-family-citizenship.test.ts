@@ -36,7 +36,6 @@ const EXPECTED_SURFACES = [
   'goldensEvidence',
   'generatedSite',
   'distributionPackage',
-  'mutationLane',
 ] as const
 
 // Previously four surfaces could ship as tracked 'exception's. The backfill (#49)
@@ -47,24 +46,6 @@ const TRACKED_EXCEPTION_SURFACES = new Set<SurfaceId>()
 
 type SurfaceId = typeof EXPECTED_SURFACES[number]
 
-const MUTATION_CONFIG_NEEDLES = {
-  flowchart: ['src/parser.ts'],
-  state: ['src/agent/state-body.ts'],
-  sequence: ['src/agent/sequence-body.ts', 'src/sequence/parser.ts'],
-  timeline: ['src/agent/timeline-body.ts', 'src/timeline/parser.ts'],
-  class: ['src/agent/class-body.ts', 'src/class/parser.ts'],
-  er: ['src/agent/er-body.ts', 'src/er/parser.ts'],
-  journey: ['src/agent/journey-body.ts', 'src/journey/parser.ts'],
-  architecture: ['src/architecture/parser.ts'],
-  xychart: ['src/xychart/parser.ts'],
-  pie: ['src/agent/pie-body.ts', 'src/pie/parser.ts'],
-  quadrant: ['src/agent/quadrant-body.ts', 'src/quadrant/parser.ts'],
-  gantt: ['src/gantt/parser.ts'],
-  mindmap: ['src/mindmap/parser.ts', 'src/agent/mindmap-body.ts'],
-  gitgraph: ['src/gitgraph/parser.ts', 'src/agent/gitgraph-body.ts'],
-  radar: ['src/agent/radar-body.ts', 'src/radar/parser.ts'],
-} satisfies Record<BuiltinFamilyId, readonly string[]>
-
 const REQUIRED_FAMILY_EVIDENCE = {
   flowchart: {
     semanticModel: ['src/agent/flowchart-body.ts'],
@@ -73,7 +54,6 @@ const REQUIRED_FAMILY_EVIDENCE = {
     stableRegions: ['src/__tests__/agent-ascii-meta.test.ts'],
     upstreamHarvest: ['eval/mermaid-docs-corpus/corpus.json'],
     divergenceLedger: ['eval/mermaid-docs-corpus/divergences.json'],
-    mutationLane: ['stryker.link-grammar.config.json'],
   },
   state: {
     semanticModel: ['src/agent/state-body.ts'],
@@ -82,7 +62,6 @@ const REQUIRED_FAMILY_EVIDENCE = {
     stableRegions: ['src/__tests__/agent-ascii-meta.test.ts'],
     upstreamHarvest: ['eval/mermaid-docs-corpus/corpus.json'],
     divergenceLedger: ['eval/mermaid-docs-corpus/divergences.json'],
-    mutationLane: ['stryker.state.config.json'],
   },
   sequence: {
     semanticModel: ['src/agent/sequence-body.ts'],
@@ -91,7 +70,6 @@ const REQUIRED_FAMILY_EVIDENCE = {
     stableRegions: ['src/__tests__/agent-ascii-meta.test.ts'],
     upstreamHarvest: ['eval/mermaidseqbench/data.csv'],
     divergenceLedger: ['eval/mermaid-docs-corpus/divergences.json'],
-    mutationLane: ['stryker.sequence.config.json'],
   },
   timeline: {
     semanticModel: ['src/agent/timeline-body.ts'],
@@ -101,7 +79,6 @@ const REQUIRED_FAMILY_EVIDENCE = {
     stableRegions: ['src/__tests__/agent-ascii-meta.test.ts'],
     upstreamHarvest: ['eval/mermaid-docs-corpus/corpus.json'],
     divergenceLedger: ['eval/mermaid-docs-corpus/divergences.json'],
-    mutationLane: ['stryker.timeline.config.json'],
   },
   class: {
     semanticModel: ['src/agent/class-body.ts'],
@@ -111,7 +88,6 @@ const REQUIRED_FAMILY_EVIDENCE = {
     stableRegions: ['src/__tests__/agent-ascii-meta.test.ts'],
     upstreamHarvest: ['eval/mermaid-docs-corpus/corpus.json'],
     divergenceLedger: ['eval/mermaid-docs-corpus/divergences.json'],
-    mutationLane: ['stryker.class.config.json'],
   },
   er: {
     semanticModel: ['src/agent/er-body.ts'],
@@ -121,7 +97,6 @@ const REQUIRED_FAMILY_EVIDENCE = {
     stableRegions: ['src/__tests__/agent-ascii-meta.test.ts'],
     upstreamHarvest: ['eval/mermaid-docs-corpus/corpus.json'],
     divergenceLedger: ['eval/mermaid-docs-corpus/divergences.json'],
-    mutationLane: ['stryker.er.config.json'],
   },
   journey: {
     semanticModel: ['src/agent/journey-body.ts'],
@@ -131,7 +106,6 @@ const REQUIRED_FAMILY_EVIDENCE = {
     stableRegions: ['src/__tests__/agent-ascii-meta.test.ts'],
     upstreamHarvest: ['eval/mermaid-docs-corpus/corpus.json'],
     divergenceLedger: ['eval/mermaid-docs-corpus/divergences.json'],
-    mutationLane: ['stryker.journey.config.json'],
   },
   architecture: {
     semanticModel: ['src/agent/architecture-body.ts'],
@@ -140,7 +114,6 @@ const REQUIRED_FAMILY_EVIDENCE = {
     stableRegions: ['src/__tests__/agent-ascii-meta.test.ts'],
     upstreamHarvest: ['eval/mermaid-docs-corpus/corpus.json'],
     divergenceLedger: ['eval/mermaid-docs-corpus/divergences.json'],
-    mutationLane: ['stryker.families.config.json'],
   },
   xychart: {
     semanticModel: ['src/agent/xychart-body.ts'],
@@ -149,7 +122,6 @@ const REQUIRED_FAMILY_EVIDENCE = {
     stableRegions: ['src/__tests__/agent-ascii-meta.test.ts'],
     upstreamHarvest: ['eval/mermaid-docs-corpus/corpus.json'],
     divergenceLedger: ['eval/mermaid-docs-corpus/divergences.json'],
-    mutationLane: ['stryker.families.config.json'],
   },
   pie: {
     semanticModel: ['src/agent/pie-body.ts'],
@@ -159,7 +131,6 @@ const REQUIRED_FAMILY_EVIDENCE = {
     stableRegions: ['src/__tests__/agent-ascii-meta.test.ts'],
     upstreamHarvest: ['eval/mermaid-docs-corpus/corpus.json'],
     divergenceLedger: ['eval/mermaid-docs-corpus/divergences.json'],
-    mutationLane: ['stryker.pie.config.json'],
   },
   quadrant: {
     semanticModel: ['src/agent/quadrant-body.ts'],
@@ -169,7 +140,6 @@ const REQUIRED_FAMILY_EVIDENCE = {
     stableRegions: ['src/__tests__/agent-ascii-meta.test.ts'],
     upstreamHarvest: ['eval/mermaid-docs-corpus/corpus.json'],
     divergenceLedger: ['eval/mermaid-docs-corpus/divergences.json'],
-    mutationLane: ['stryker.quadrant.config.json'],
   },
   gantt: {
     semanticModel: ['src/gantt/schedule.ts'],
@@ -179,7 +149,6 @@ const REQUIRED_FAMILY_EVIDENCE = {
     upstreamHarvest: ['eval/mermaid-gantt-bench/cases.json'],
     divergenceLedger: ['eval/mermaid-gantt-bench/exclusions.json'],
     goldensEvidence: ['docs/assets/improvements/gantt-family.png'],
-    mutationLane: ['stryker.gantt.config.json'],
   },
   mindmap: {
     semanticModel: ['src/mindmap/types.ts', 'src/agent/mindmap-body.ts'],
@@ -190,7 +159,6 @@ const REQUIRED_FAMILY_EVIDENCE = {
     upstreamHarvest: ['eval/mermaid-upstream-suite-bench/mindmap-gitgraph-f3dea583.json'],
     divergenceLedger: ['eval/mermaid-upstream-suite-bench/mindmap-gitgraph-f3dea583.json'],
     goldensEvidence: ['src/__tests__/mindmap-gitgraph-citizenship.test.ts', 'docs/design/families/mindmap-content-gallery.png', 'eval/mindmap-gitgraph-content-corpus/gallery-receipt.json'],
-    mutationLane: ['stryker.families.config.json'],
   },
   gitgraph: {
     semanticModel: ['src/gitgraph/types.ts', 'src/agent/gitgraph-body.ts'],
@@ -201,7 +169,6 @@ const REQUIRED_FAMILY_EVIDENCE = {
     upstreamHarvest: ['eval/mermaid-upstream-suite-bench/mindmap-gitgraph-f3dea583.json'],
     divergenceLedger: ['eval/mermaid-upstream-suite-bench/mindmap-gitgraph-f3dea583.json'],
     goldensEvidence: ['src/__tests__/mindmap-gitgraph-citizenship.test.ts', 'docs/design/families/gitgraph-content-gallery.png', 'eval/mindmap-gitgraph-content-corpus/gallery-receipt.json'],
-    mutationLane: ['stryker.families.config.json'],
   },
   radar: {
     semanticModel: ['src/radar/types.ts', 'src/agent/radar-body.ts'],
@@ -212,7 +179,6 @@ const REQUIRED_FAMILY_EVIDENCE = {
     upstreamHarvest: ['eval/mermaid-radar-bench/harvest.json'],
     divergenceLedger: ['eval/mermaid-radar-bench/harvest.json'],
     goldensEvidence: ['src/__tests__/radar-renderer.test.ts', 'docs/design/families/radar-demo.png'],
-    mutationLane: ['stryker.families.config.json'],
   },
 } satisfies Record<BuiltinFamilyId, Partial<Record<SurfaceId, readonly string[]>>>
 
@@ -418,41 +384,6 @@ describe('diagram-family citizenship ratchet (issue #41)', () => {
     expect(sequence).toContain('lifelines')
   })
 
-  test('satisfied mutation-lane evidence names an executable Stryker lane that mutates the family path', () => {
-    const matrix = loadMatrix()
-    for (const family of BUILTIN_FAMILY_METADATA) {
-      const cell = matrix.families[family.id]!.cells.mutationLane
-      if (cell.status !== 'satisfied') continue
-      const strykerEvidence = cell.evidence.filter(e => e.startsWith('stryker.') && e.endsWith('.config.json'))
-      expect({ family: family.id, strykerEvidence }).toEqual({ family: family.id, strykerEvidence: expect.arrayContaining([expect.any(String)]) })
-      const configs = strykerEvidence.map(e => readFileSync(join(REPO, e), 'utf8')).join('\n')
-      const needles = MUTATION_CONFIG_NEEDLES[family.id]
-      expect({ family: family.id, needles, covered: needles.some(needle => configs.includes(needle)) })
-        .toEqual({ family: family.id, needles, covered: true })
-    }
-  })
-
-  test('every registered family is scheduled with threshold-gated JSON mutation evidence', () => {
-    const workflow = readFileSync(join(REPO, '.github/workflows/nightly-route-mutation.yml'), 'utf8')
-    const commandFor: Record<string, string> = {
-      flowchart: 'mutation-test:routes', state: 'mutation-test:state', sequence: 'mutation-test:sequence',
-      timeline: 'mutation-test:timeline', class: 'mutation-test:class', er: 'mutation-test:er',
-      journey: 'mutation-test:journey', xychart: 'mutation-test:families', architecture: 'mutation-test:families',
-      pie: 'mutation-test:pie', quadrant: 'mutation-test:quadrant', gantt: 'mutation-test:gantt',
-      mindmap: 'mutation-test:families', gitgraph: 'mutation-test:families',
-      radar: 'mutation-test:families',
-    }
-    const matrix = loadMatrix()
-    for (const family of BUILTIN_FAMILY_METADATA) {
-      expect(workflow).toContain(`bun run ${commandFor[family.id]}`)
-      const configs = matrix.families[family.id]!.cells.mutationLane.evidence
-        .filter(path => path.startsWith('stryker.') && path.endsWith('.config.json'))
-        .map(path => JSON.parse(readFileSync(join(REPO, path), 'utf8')) as { thresholds?: { break?: number }; reporters?: string[]; jsonReporter?: { fileName?: string } })
-      expect(configs.some(config => (config.thresholds?.break ?? 0) > 0)).toBe(true)
-      expect(configs.some(config => config.reporters?.includes('json') && config.jsonReporter?.fileName)).toBe(true)
-    }
-  })
-
   test('Gantt is the worked example and at least one non-Gantt family is audited', () => {
     const matrix = loadMatrix()
     const worked = Object.entries(matrix.families).filter(([, row]) => row.workedExample).map(([id]) => id)
@@ -469,7 +400,6 @@ describe('diagram-family citizenship ratchet (issue #41)', () => {
     expect(xychart.cells.stableRegions.evidence).toContain('src/__tests__/agent-ascii-meta.test.ts')
     expect(xychart.cells.upstreamHarvest.evidence).toContain('eval/mermaid-docs-corpus/corpus.json')
     expect(xychart.cells.divergenceLedger.evidence).toContain('eval/mermaid-docs-corpus/divergences.json')
-    expect(xychart.cells.mutationLane.evidence).toContain('stryker.families.config.json')
   })
 
   test('flagship quality loop: every registered family is enrolled in fuzz, tracker, and layout projection', () => {

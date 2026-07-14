@@ -1,6 +1,6 @@
-# Mutation testing (ASCII layout core)
+# Mutation testing
 
-Stryker mutation testing is scoped to the five ASCII layout modules where a
+The original ASCII Stryker lane is scoped to the five layout modules where a
 silent logic regression is most expensive: `src/ascii/pathfinder.ts`,
 `src/ascii/edge-routing.ts`, `src/ascii/converter.ts`, `src/ascii/grid.ts`,
 `src/ascii/draw.ts`.
@@ -18,8 +18,10 @@ npx stryker run stryker.ascii.config.json
 ```
 
 (`stryker.families.config.json` / `bun run mutation-test:families` covers the
-agent family parsers, and `stryker.routes.config.json` / `bun run
-mutation-test:routes` covers the route-contracts module
+shared Architecture, XYChart, Mindmap, GitGraph, and Radar parser/layout/renderer
+cores plus Radar's structured editing body, and `stryker.routes.config.json` /
+`bun run mutation-test:routes` covers
+the route-contracts module
 (`docs/design/system/route-contracts.md`), all with the same policy.)
 
 Narrow lanes for PR-scale survivor harvests:
@@ -31,26 +33,67 @@ bun run mutation-test:routes:subgraph  # subgraph endpoint/LCA routing
 bun run sabotage:routes                # one-line revert checks against committed HEAD; expects focused tests to fail
 ```
 
-The JSON report lands in `reports/mutation/` (gitignored). Beyond the lanes
-documented here, `stryker.*.config.json` also covers every family through a
-named package script: flowchart uses the route lane; XYChart and Architecture
-share `mutation-test:families`; State, Sequence, Timeline, Class, ER, Journey,
-Pie, Quadrant, Gantt, Mindmap, and GitGraph each have a focused command. The
-Mindmap/GitGraph focused lanes mutate typed editing/replay bodies; the broad
-family lane also mutates their parser/layout/renderer cores. Every family lane emits a
-uniquely named JSON report and has a `thresholds.break: 60` adequacy floor.
-`.github/workflows/nightly-route-mutation.yml` schedules all of those lanes,
-plus route certificates/subgraph routing and `sabotage:routes`, nightly and on
-manual `workflow_dispatch`, uploading reports as artifacts. Broad mutation
-runs remain outside the PR gate; run the narrow lane locally
-when you touch ASCII/route core logic and want immediate proof the tests bite.
+JSON reports land in `reports/mutation/` (gitignored). Stryker configs may be
+static `.json` files or executable `.mjs` files. The route-certificate,
+subgraph-routing, and link-grammar configs use `.mjs` so source-adjacent marker
+pairs resolve their narrow mutation ranges at load time; inserting code above
+the behavior cannot silently move those lanes onto unrelated lines.
+
+Beyond the lanes documented here, configs exist for every built-in renderable
+family through named package scripts: flowchart uses `mutation-test:routes`;
+XYChart, Architecture, and Radar share `mutation-test:families`; State, Sequence,
+Timeline, Class, ER, Journey, Pie, Quadrant, Gantt, Mindmap, and GitGraph each
+have a focused command. These are **opt-in diagnostic survivor harvests**. They
+emit scores and JSON reports, but have no `thresholds.break` and are neither
+scheduled nor acceptance gates.
+
+Two bounded checks run automatically on each PR:
+
+- `mutation-test:incremental` mutates one small, pure module in about one minute
+  and enforces its measured score.
+- `sabotage:routes` injects five named one-line regressions and requires the
+  focused behavioral tests to fail.
+
+This distinction is deliberate. Mutation testing is useful when it challenges
+a specific test or design assumption; family membership alone is not a reason
+to enroll code in an expensive recurring sweep. A local mutation score without
+a retained report is diagnostic evidence, not a repository acceptance claim.
+
+## Why broad scheduled mutation was retired (2026-07-14)
+
+The nightly workflow, its sharder, mutant-set oracle, aggregate verifier, and
+orchestration tests were retired and deleted. The operational evidence did
+not support maintaining them:
+
+- all 26 scheduled runs from 19 June through 14 July failed or were cancelled;
+- the workflow expanded from four route checks to every family while it was
+  still unable to produce a successful retained run;
+- the final repair grew to 39 coverage workers (41 jobs total), yet long lanes
+  still timed out and hosted runners disappeared before producing reports; and
+- rerunning unchanged mutation-relevant code consumed runner-hours without
+  adding information.
+
+The [last scheduled baseline](https://github.com/adewale/agentic-mermaid/actions/runs/29309167850),
+[calibration diagnostic](https://github.com/adewale/agentic-mermaid/actions/runs/29327418603),
+and [cancelled 41-job repair](https://github.com/adewale/agentic-mermaid/actions/runs/29340333016)
+are retained as historical evidence, not as acceptance authority. The focused
+configs, marker-based scopes, survivor classifications, incremental gate, and
+sabotage probes remain because they are independently useful.
+
+The causal record is in
+[`project/archive/mutation-infrastructure-postmortem-2026-07.md`](./project/archive/mutation-infrastructure-postmortem-2026-07.md).
+The durable stop rule is: after three consecutive scheduled failures, an owner
+must fix, narrow, disable, or delete the diagnostic before adding scope. Any new
+recurring lane also needs a demonstrated fault class, one complete retained
+baseline, a runner-minute budget, an owner, and a removal criterion. No single
+proxy—coverage, mutation score, assertion count, or matrix enrollment—is “the”
+adequacy signal.
 
 ## Focused Mindmap/GitGraph historical local measurement (2026-07-10)
 
 These figures came from local runs. Their JSON reports are gitignored and no
 immutable CI artifact URL is committed, so they are diagnostic history—not a
-PR acceptance gate. The reproducible configs enforce only `thresholds.break:
-60`; they do not enforce the measured 97–99% scores.
+PR acceptance gate or a current break floor.
 
 | Lane | Mutants | Killed | Survived | Score |
 |---|---:|---:|---:|---:|
@@ -66,12 +109,11 @@ non-gating test gap). GitGraph's nine
 survivors are canonical serialization equivalents (trimming an already
 canonical header, explicit `NORMAL`, and optional attribute whitespace),
 merge-field guards implied by the discriminated model, or widened
-statement-kind guards that serialize identically on valid replay state. Reports are generated at
-`reports/mutation/{mindmap,gitgraph}-mutation.json` (gitignored); the committed
-configs and nightly lanes make the runs reproducible. The measured scores above
-are not acceptance evidence: any separately owned acceptance claim must cite
-retained CI artifacts or a content-addressed report, never infer a score from
-the 60% break floor.
+statement-kind guards that serialize identically on valid replay state. Reports
+are generated at `reports/mutation/{mindmap,gitgraph}-mutation.json`
+(gitignored); the committed configs make the runs reproducible. The measured
+scores above are not acceptance evidence: any separately owned acceptance claim
+must cite retained CI artifacts or a content-addressed report.
 
 ## Policy
 
@@ -197,28 +239,32 @@ rounds were outside the recorded real-input corpus.
 ## Incremental per-PR lane (`stryker.incremental.config.json`)
 
 A fast lane gates the small, pure faithfulness counter on every PR (the
-`mutation-incremental` CI job), separate from the broad nightly lanes. It
+`mutation-incremental` CI job), separate from the opt-in diagnostic configs. It
 mutates `src/agent/structural-count.ts` (the counter + `faithfulnessWarning` +
 `isDrop`), run by the sub-second `structural-count.test.ts` unit runner. A full
 run is ~1 min, so it runs in full each PR.
 
-Score is ~96% (regenerate to confirm; the report lands in `reports/mutation/`),
-gated by `thresholds.break: 90`. The few survivors are all equivalent mutants,
-accepted not chased:
+The 2026-07-14 post-Radar run scored **97.01%** (130 killed / 134 valid; regenerate to
+confirm, with the report in `reports/mutation/`), gated by
+`thresholds.break: 90`. The retained floor deliberately remains below the
+measured score; this result for one small pure module is not a repository policy
+or a reason to expand mutation scope.
 
-- `structural-count.ts:96` (`case 'opaque': return null`) — two mutants
-  (the case label + its string). Equivalent: an opaque body returns `null`, and
-  the `default` branch *also* returns `null`, so mutating the `opaque` case
-  cannot change the result for any input.
-- `structural-count.ts:98` (`default:` exhaustiveness branch) — two mutants
-  (the branch condition + its block). Unreachable by construction: all registered
-  families are handled explicitly and the `const _never: never = body` assigns
-  compile-time exhaustiveness, so the branch never executes at runtime.
+The survivor review found real valid-domain gaps rather than accepting a score:
+the State counter needed both a doubly nested composite and concurrent-region
+fixtures; ER needed a semantic-subgraph fixture and the public empty body with
+its optional `groups` field absent; and `nodes = services + junctions` needed an
+Architecture fixture containing a junction. These cases remain because they
+pin real behavior, not because they improve a metric.
 
-What earlier survivors taught us (now killed, kept as regression fixtures): the
-recursive `edges += inner.edges` state accumulation needed a *doubly-nested*
-composite-state fixture, and `nodes = services + junctions` needed an
-architecture fixture that actually contains a junction.
+Four survivors are classified rather than killed with invalid inputs or by
+weakening the code's forward-compatibility tripwire:
+
+- two mutations to `case 'opaque': return null` are equivalent because the
+  exhaustive default also returns `null`; and
+- two mutations to the `default` branch are unreachable for the valid
+  discriminated union. Its `const _never: never = body` assignment is retained
+  so adding a family without a count remains a compile-time error.
 
 ### Why `verify.ts`'s faithfulness wrapper is NOT in the gated mutate set
 
@@ -229,8 +275,10 @@ the `catch` — which no *real* diagram exercises: a structured diagram's
 serialization always re-parses, and re-parses structured (not opaque), and never
 throws. Those branches are therefore unkillable through real `verifyMermaid`
 inputs without a synthetic drop, and the *decision logic* they guard already
-lives in `faithfulnessWarning`, which the incremental lane gates at 96%+. Adding
-the wrapper to the gated `mutate` would crater the score to ~27% and force either
+lives in `faithfulnessWarning`, which the incremental lane currently measures
+at 97.01%. Adding the wrapper to the gated `mutate` would crater the score to
+~27% and force either
 a meaningless break threshold or a pile of accepted survivors. So the wrapper
 stays out of the gated set and is recorded here as I/O-glue equivalents; its
-logic is covered where it actually lives.
+logic is covered where it actually lives, where the current measured score is
+97.01%.

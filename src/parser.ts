@@ -1380,6 +1380,7 @@ function textArrowStyleFromOps(openOp: string, closeOp: string): EdgeStyle {
  * written on either side; serialize them through the single MermaidEdge length
  * field so round-tripping does not collapse rank distance.
  */
+// mutation-scope:text-embedded-link-length:start
 function textArrowLengthFromOps(openOp: string, closeOp: string): number | undefined {
   const style = textArrowStyleFromOps(openOp, closeOp)
   const count = (s: string, ch: string) => (s.match(new RegExp(`\\${ch}`, 'g')) ?? []).length
@@ -1398,6 +1399,7 @@ function textArrowLengthFromOps(openOp: string, closeOp: string): number | undef
   const extra = Math.max(extraOpen, extraClose)
   return extra > 0 ? extra + 1 : undefined
 }
+// mutation-scope:text-embedded-link-length:end
 
 function startMarkerForOp(op: string, hasLeftAngle: boolean): EdgeMarker | undefined {
   if (hasLeftAngle) return 'arrow'

@@ -25,8 +25,13 @@ export const FAMILY_COUNT_FIXTURES: FamilyCountFixture[] = [
   // Doubly-nested composite: pins the recursive `edges += inner.edges` accumulation
   // (a nested transition must propagate up). Kills the AssignmentOperator mutant.
   { family: 'state', source: 'stateDiagram-v2\n  [*] --> Outer\n  state Outer {\n    state Mid {\n      a --> b\n    }\n  }', count: { nodes: 4, edges: 2, groups: 0 } },
+  // Concurrent regions take a distinct recursive branch. Both region-local
+  // states and transitions must contribute to the structural count.
+  { family: 'state', source: 'stateDiagram-v2\n  state Parallel {\n    [*] --> Left\n    --\n    Right --> [*]\n  }', count: { nodes: 3, edges: 2, groups: 0 } },
   { family: 'class', source: 'classDiagram\n  class A\n  class B\n  A-->B', count: { nodes: 2, edges: 1, groups: 0 } },
   { family: 'er', source: 'erDiagram\n  A ||--o{ B : r\n  B ||--o{ C : r', count: { nodes: 3, edges: 2, groups: 0 } },
+  // Native ER subgraphs are semantic containers, not opaque tolerated text.
+  { family: 'er', source: 'erDiagram\n  subgraph Domain\n    A ||--o{ B : r\n  end', count: { nodes: 2, edges: 1, groups: 1 } },
   { family: 'pie', source: 'pie title P\n  "X" : 1\n  "Y" : 2\n  "Z" : 3', count: { nodes: 3, edges: 0, groups: 0 } },
   { family: 'quadrant', source: 'quadrantChart\n  x-axis Low --> High\n  y-axis Bad --> Good\n  A: [0.3, 0.6]\n  B: [0.7, 0.2]', count: { nodes: 2, edges: 0, groups: 0 } },
   { family: 'journey', source: 'journey\n  title J\n  section S\n    T0: 5: Me\n    T1: 3: Me', count: { nodes: 2, edges: 0, groups: 1 } },
