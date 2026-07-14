@@ -1,12 +1,11 @@
 # Section A rendering contract — landing candidate record
 
-Status: open landing candidate, implemented and under final verification in
+Status: open landing candidate in PR #163, implemented and locally verified in
 July 2026 on the Section A landing branch after PR #148 landed. This record must
-name the exact landing PR before publication and must not claim completion or
-`main` until that PR merges. Live follow-up work remains owned only by root
-`TODO.md`.
+not claim completion or `main` until PR #163 merges. Live follow-up work remains
+owned only by root `TODO.md`.
 
-Once its final gates pass, this record closes Section A of
+If PR #163's landing gates pass and it merges, this record closes Section A of
 [`brand-primitives-plan.md`](../brand-primitives-plan.md). It does not close
 independent family-adoption, source-preservation, terminal, or remaining
 non-marker `RawMark` work.
