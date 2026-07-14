@@ -1,11 +1,11 @@
 #!/usr/bin/env bun
 /**
- * Lightweight sabotage checks for high-value PR #30 regressions.
+ * Lightweight sabotage checks for high-value route and link regressions.
  *
  * Each sabotage creates a detached git worktree, applies a one-line revert of
  * a previously fixed bug, then runs the focused regression tests and expects
- * them to fail. This is deliberately opt-in (`bun run sabotage:routes`): it is
- * a confidence/survivor-harvest lane, not normal PR CI.
+ * them to fail. `bun run sabotage:routes` is the bounded PR fault-injection
+ * gate, unlike the retired broad mutation sweep.
  */
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
@@ -44,12 +44,15 @@ const cases: SabotageCase[] = [
     expectedFailure: /non-incident node moved onto a certified route|ROUTE_STALE_AFTER_NODE_MOVE/,
   },
   {
-    name: 'downgraded detours cannot keep stale straightened metadata',
+    name: 'final detours cannot expose stale straightened metadata',
     file: 'src/route-contracts.ts',
     oldText: "    return { ...base, invariant: draft.invariant === 'straight' ? 'explained-detour' : draft.invariant }\n",
-    newText: "    return { ...base, invariant: draft.invariant === 'straight' ? 'explained-detour' : draft.invariant, ...(draft.straightened ? { straightened: true as const } : {}) } as RouteCertificate\n",
+    // Inject the impossible public state unconditionally. The old sabotage
+    // copied draft.straightened, but newer layout balancing means this fixture
+    // can be a detour throughout and therefore made that mutation a no-op.
+    newText: "    return { ...base, invariant: draft.invariant === 'straight' ? 'explained-detour' : draft.invariant, straightened: true as const } as RouteCertificate\n",
     command: ['bun', 'test', 'src/__tests__/route-contracts.test.ts', '--timeout', '120000'],
-    expectedFailure: /clears the straightened bit when a fixed-point retry downgrades to a detour|straightened/,
+    expectedFailure: /does not expose straightened on a final detour|clears the straightened bit|straightened/,
   },
   {
     name: 'subgraph IDs are classified as container endpoints',
@@ -66,8 +69,8 @@ const cases: SabotageCase[] = [
     // lanes then keep their doglegs and the criterion-1 straightness test fails.
     name: 'disabling the direct-lane straightening proof reintroduces MFA hitches',
     file: 'src/route-contracts.ts',
-    oldText: '  if (!srcSpan || !tgtSpan) return { applied: false, blockers: [] }\n',
-    newText: '  if (true || !srcSpan || !tgtSpan) return { applied: false, blockers: [] }\n',
+    oldText: '  if (!search) return { applied: false, blockers: [] }\n',
+    newText: '  if (true) return { applied: false, blockers: [] }\n',
     command: ['bun', 'test', 'src/__tests__/route-contracts.test.ts', '--timeout', '120000'],
     expectedFailure: /MFA\/login regression.*straight horizontal lane|isStraightHorizontal/,
   },

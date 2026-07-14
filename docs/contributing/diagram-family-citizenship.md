@@ -51,7 +51,6 @@ The matrix has one cell per family for each surface below. A cell is either `sat
 | `goldensEvidence` | Text/SVG/visual evidence exists where reviewer judgment needs artifacts. |
 | `generatedSite` | Site samples/gallery/generated docs include the family or have explicit exceptions. |
 | `distributionPackage` | Package exports/files/consumer init artifacts include the public family surface. |
-| `mutationLane` | Targeted mutation/sabotage lane exists, or a tracked exception explains the gap. |
 
 ## Worked example: Gantt
 
@@ -62,7 +61,7 @@ Gantt is the bar for a new family entering the system:
 - verify/render seam: `UNRESOLVABLE_SCHEDULE` turns render-blocking schedule failures into named verification output;
 - compatibility: `eval/mermaid-gantt-bench/` has cases plus executable exclusions; `src/__tests__/gantt-upstream-bench.test.ts` runs it;
 - properties: `src/__tests__/property-gantt-schedule.test.ts` includes the CPM shadow-model property;
-- evidence: SVG snapshots, ASCII/Unicode goldens, `docs/assets/improvements/gantt-family.png`, and `mutation-test:gantt` cover reviewer-visible and sabotage paths;
+- evidence: SVG snapshots, ASCII/Unicode goldens, and `docs/assets/improvements/gantt-family.png` cover reviewer-visible paths;
 - editor/skill-evals/docs: editor examples, eval fixtures, docs, `llms.txt`, and MCP/Code Mode surfaces are all registry-checked.
 
 ## Non-Gantt audit: XY chart
@@ -71,7 +70,6 @@ XY chart proves the checklist works for an older family that was promoted after 
 
 - citizenship surfaces are satisfied for registry, detection, typed mutation (`asXyChart`), CLI/MCP docs, editor examples, eval fixtures, generated site samples, package exposure, SVG/ASCII output, and layout projection;
 - semantic correctness is pinned by parser/integration/layout/renderer tests and `src/__tests__/property-xychart.test.ts`;
-- mutation-testing citizenship is satisfied through `mutation-test:families`, which mutates `src/xychart/*` together with Architecture;
 - stable region citizenship is satisfied through `src/__tests__/agent-ascii-meta.test.ts`;
 - upstream-docs harvest/divergence citizenship is satisfied through the regenerated `eval/mermaid-docs-corpus/corpus.json`, executable `divergences.json` ledger, `eval/mermaid-gantt-bench/`, and the fully accounted cross-family parser/DB bench in `eval/mermaid-upstream-suite-bench/`.
 

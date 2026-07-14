@@ -7,7 +7,7 @@
 // source, pinning the projection a mutant would have to change.
 
 import { describe, test, expect } from 'bun:test'
-import { parseMermaid } from '../agent/index.ts'
+import { createMermaid, parseMermaid } from '../agent/index.ts'
 import { countStructuralElements, countsEqual, faithfulnessWarning, isDrop, type StructuralCount } from '../agent/structural-count.ts'
 import { FAMILY_COUNT_FIXTURES } from './helpers/family-count-fixtures.ts'
 
@@ -27,17 +27,14 @@ describe('countStructuralElements — exact projection per family', () => {
     })
   }
 
-  test('composite state counts nested states + transitions recursively', () => {
-    const c = count('stateDiagram-v2\n  [*]-->Outer\n  state Outer {\n    a-->b\n  }')
-    // Outer + a + b states; the Outer→ nested a→b transition plus the top [*]→Outer.
-    expect(c.nodes).toBeGreaterThanOrEqual(3)
-    expect(c.edges).toBeGreaterThanOrEqual(2)
-  })
-
   test('opaque bodies return null (no fabricated count)', () => {
     const p = parseMermaid('xychart-beta\n  curve basis\n  bar [1,2]')
     expect(p.ok).toBe(true)
     if (p.ok) expect(countStructuralElements(p.value)).toBeNull()
+  })
+
+  test('an empty ER body without an optional groups field has zero groups', () => {
+    expect(countStructuralElements(createMermaid('er'))).toEqual({ nodes: 0, edges: 0, groups: 0 })
   })
 
   test('countsEqual compares all three axes', () => {

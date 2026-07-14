@@ -40,7 +40,7 @@ audit-clean").
 | **Derived (golden)** | Output matches a previously-blessed artifact | ASCII goldens, SVG snapshots, contact sheets, screenshot baselines |
 | **Derived (differential)** | Our output agrees with an external reference corpus | mermaid-docs corpus, MermaidSeqBench, upstream-suite bench |
 | **Metamorphic** | Related inputs produce related outputs (no ground truth needed) | round-trip idempotence, cross-process/cross-runtime determinism |
-| **Pseudo / adequacy** | The *tests themselves* are strong enough | Stryker mutation lanes, sabotage suite |
+| **Pseudo / fault sensitivity** | Selected seeded faults make the intended tests fail | incremental Stryker gate, sabotage suite |
 | **Heuristic / perceptual** | Geometry falls inside human-plausible bounds | `measureQuality`/`checkQuality`, ugly-detector, layout rubric, heuristic-tracker |
 | **Human / model** | Subjective quality on the axis nothing else covers | LLM-as-judge (periodic), manual visual review |
 
@@ -168,37 +168,37 @@ swept across 48/24/12 seeds (scaled by runtime; 1,368 suite-runs total) with
 zero failures — the pin does not freeze a known-bad ticket, and the sweep is
 repeatable from the same knob.
 
-## 5. Pseudo-oracles — is the suite itself strong enough?
+## 5. Pseudo-oracles — do selected seeded faults make the suite fail?
 
-Tests can be green and still worthless. Two gates test the tests:
+Tests can be green while missing faults. Two bounded gates challenge selected
+behaviors:
 
-- **Mutation testing (Stryker)** — scoped to the high-value ASCII/route
-  core, ~20 named lanes (`stryker.*.config.json`). A *survived* mutant is a
-  test gap until classified. Documented baseline kill rates are 38–75%,
-  with a written survivor catalog and explicit "accepted" classifications
-  (performance guards, unreachable-by-convention). Mutation testing has
-  earned its keep: it falsified an audit assumption and found dead code the
-  unit tests couldn't.
+- **Incremental mutation testing (Stryker)** — mutates the small, pure
+  faithfulness counter on every PR. A full run takes about one minute and its
+  measured floor is enforced. Broader ASCII, route, and family configs remain
+  available as opt-in survivor harvests, not scheduled gates. A *survived*
+  mutant is a test gap until classified; the historical catalogs record
+  reviewed performance guards and unreachable-by-convention cases. Mutation
+  testing has earned its keep when focused: it falsified an audit assumption
+  and found dead code the unit tests couldn't.
 - **Sabotage suite** (`eval/sabotage/route-regressions.ts`) — deliberately
   reverts a fixed bug in a detached worktree and asserts the suite goes
-  **red**, proving the regression test actually bites.
+  **red**, proving five named route/link regression tests actually bite.
 
-**Runs:** the broad route lanes are **scheduled nightly**
-(`nightly-route-mutation.yml`: routes, route-certificates, subgraph-routing,
-sabotage-routes — the ascii lane is manual-only), but every scheduled run since
-2026-06-19 has been cancelled at the 90-minute cap before producing a score
-(the unsharded routes lane alone exceeds it; PR #63 carries the sharding fix) —
-until that lands, regenerate scores locally. A narrow module takes 5–15 minutes
-locally; the full routes lane substantially longer. A **fast
-incremental lane** (`stryker.incremental.config.json`, the `mutation-incremental`
-CI job) mutates only the small pure faithfulness counter
-(`src/agent/structural-count.ts`) with a sub-second unit runner, so it gates
-**per-PR** (~1 min, measured 96% kill / break-threshold 90).
+The broad scheduled mutation matrix was retired after 26 consecutive scheduled
+runs produced no success and its final repair grew to 39 coverage workers (41
+jobs total). The configs still
+emit useful local scores and JSON reports, but have no break floors and carry no
+acceptance authority. `docs/mutation-testing.md` records the commands, survivor
+history, retained operational evidence, and re-enrollment criteria.
+
 **Why this matters:** line coverage is reported per-PR but is a weak
 adequacy signal — coverage is not strongly correlated with fault detection
 once suite size is controlled (Inozemtseva & Holmes, ICSE 2014), whereas
 mutant detection *is* correlated with real-fault detection (Just et al.,
-FSE 2014). The mutation score is the truer number; today it comes from local runs (the nightly lane times out — see above).
+FSE 2014). That supports focused mutation as one useful instrument, not mutation
+score as a universal truth. Behavioral, property, differential, sabotage,
+coverage, and mutation evidence answer different questions.
 
 ## 6. Heuristic / perceptual oracles — geometry inside human bounds
 
@@ -268,13 +268,11 @@ table here, which would drift. In broad strokes:
   Tier-1 verify, goldens, the differential + faithfulness + metamorphic gates,
   `measureQuality`/ugly-detector/layout-rubric, the heuristic-tracker ratchet,
   the corpus/seqbench/upstream benches — plus type check, the hero check, the
-  golden-drift gate, the browser/CLI/binary e2e job, and the fast incremental
-  mutation lane.
-- **Nightly (`nightly-route-mutation.yml`):** the broad Stryker route lanes
-  and the sabotage suite (scheduled; currently cancelled at the timeout every
-  run — see §5).
-- **Manual / periodic:** `layout-compare` before/after, the benchmark vs
-  competitors, and the real LLM-as-judge run.
+  golden-drift gate, the browser/CLI/binary e2e job, the fast incremental
+  mutation lane, and the focused sabotage suite.
+- **Manual / periodic:** opt-in broad Stryker survivor harvests,
+  `layout-compare` before/after, the benchmark vs competitors, and the real
+  LLM-as-judge run.
 
 ## Boundary-contract matrix — lessons applied from the 2026-07 agent audit
 
@@ -335,11 +333,11 @@ gates rather than adding new machinery:
    admittedly rough. The CI LLM mock's readability/aesthetics axes remain
    metric-derived (only its faithfulness axis is now independent), so it
    cannot validate those metrics — only a real periodic judge run can.
-2. The *broad* mutation lanes and sabotage are scheduled nightly but the
-   schedule has never completed a run (timeout — see §5); a fast incremental
-   lane gates the faithfulness counter per-PR, so most core modules' adequacy
-   is currently measured only by local runs. Line coverage is no
-   longer the per-PR headline (it is framed as a finder).
+2. Automatic mutation assurance is deliberately narrow: PR feedback uses the
+   fast incremental faithfulness-counter lane plus five focused sabotage probes.
+   Broad mutation configs are manual diagnostics because the retired scheduled
+   matrix did not justify its runner and maintenance cost. Line coverage is
+   framed as a finder, not a headline score.
 3. The benchmark is not on the PR gate (timing variance). Browser/screenshot
    e2e and the heuristic-tracker ratchet now are.
 4. Determinism is proven Bun↔Node on one architecture; cross-architecture

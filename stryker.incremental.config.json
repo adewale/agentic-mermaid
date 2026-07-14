@@ -1,6 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/stryker-mutator/stryker/master/packages/core/schema/stryker-core.schema.json",
-  "_comment": "Fast per-PR mutation lane over the small, pure faithfulness counter, so a full run is quick enough to gate every PR (the broad route/ascii lanes stay nightly). Gates via thresholds.break.",
+  "_comment": "Fast per-PR mutation lane over the small, pure faithfulness counter. It is the only mutation score enforced automatically; broad configs are opt-in diagnostics. Gates via thresholds.break.",
   "mutate": [
     "src/agent/structural-count.ts"
   ],
@@ -17,6 +17,6 @@
   "concurrency": 4,
   "tempDirName": ".stryker-tmp-incremental",
   "disableTypeChecks": true,
-  "thresholds_comment": "Mutates the structural-count counter (countStructuralElements + faithfulnessWarning + isDrop). The few survivors are equivalent mutants on the opaque/default null-returning branches (see docs/mutation-testing.md §incremental). Regenerate to confirm the score; break=90 fails any real regression.",
+  "thresholds_comment": "Mutates the structural-count counter (countStructuralElements + faithfulnessWarning + isDrop). Measured 97.01% (130/134) on 2026-07-14 after valid State-region and ER cases exposed real gaps and after rebasing the Radar family; four opaque/default mutants are equivalent or unreachable. break=90 fails a material regression without turning the score into a universal policy.",
   "thresholds": { "high": 97, "low": 92, "break": 90 }
 }

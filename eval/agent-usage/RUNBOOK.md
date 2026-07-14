@@ -1,33 +1,34 @@
 # Runbook — grading live agents on the homepage prompt
 
 How to measure whether a real agent, given only the agent-facing prompt, can
-create and mutate Mermaid diagrams across all 14 registered families. The harness is
+create and mutate Mermaid diagrams across all 15 registered families. The harness is
 agnostic: it emits one request file per case, **you** dispatch each to a fresh
 agent, save the raw response, then `finalize` grades every response against the
 deterministic Agentic Mermaid oracle.
 
 Three subcommands: `prepare` → (you dispatch) → `finalize`.
 
-## The 28 cases (create + mutate, one per family)
+## The 30 cases (create + mutate, one per family)
 
 ```
-# 14 mutate (edit an existing diagram):
+# 15 mutate (edit an existing diagram):
 cache_between_api_and_db state_add_done_transition sequence_alt_add_message
 timeline_add_event class_add_duck er_add_order journey_add_review_task
 architecture_add_cache xychart_add_forecast pie_add_docs_slice
 quadrant_add_docs_point gantt_add_docs_task mindmap_add_evidence_node
-gitgraph_add_release_commit
-# 14 create (author a new diagram):
+gitgraph_add_release_commit radar_add_beta_curve
+# 15 create (author a new diagram):
 author_auth_flow_source author_api_sequence_source author_state_source
 author_class_source author_er_source author_journey_source author_timeline_source
 author_gantt_source author_pie_source author_quadrant_source author_xychart_source
 author_architecture_source author_mindmap_source author_gitgraph_source
+author_radar_source
 ```
 
 ## Step 1 — Prepare a run (one per model)
 
 ```bash
-CASES="cache_between_api_and_db,state_add_done_transition,sequence_alt_add_message,timeline_add_event,class_add_duck,er_add_order,journey_add_review_task,architecture_add_cache,xychart_add_forecast,pie_add_docs_slice,quadrant_add_docs_point,gantt_add_docs_task,mindmap_add_evidence_node,gitgraph_add_release_commit,author_auth_flow_source,author_api_sequence_source,author_state_source,author_class_source,author_er_source,author_journey_source,author_timeline_source,author_gantt_source,author_pie_source,author_quadrant_source,author_xychart_source,author_architecture_source,author_mindmap_source,author_gitgraph_source"
+CASES="cache_between_api_and_db,state_add_done_transition,sequence_alt_add_message,timeline_add_event,class_add_duck,er_add_order,journey_add_review_task,architecture_add_cache,xychart_add_forecast,pie_add_docs_slice,quadrant_add_docs_point,gantt_add_docs_task,mindmap_add_evidence_node,gitgraph_add_release_commit,radar_add_beta_curve,author_auth_flow_source,author_api_sequence_source,author_state_source,author_class_source,author_er_source,author_journey_source,author_timeline_source,author_gantt_source,author_pie_source,author_quadrant_source,author_xychart_source,author_architecture_source,author_mindmap_source,author_gitgraph_source,author_radar_source"
 
 bun run eval:agent-subagent -- prepare \
   --provider <provider> --model <model> \
@@ -35,7 +36,7 @@ bun run eval:agent-subagent -- prepare \
 ```
 
 Creates `eval/agent-usage/transcripts/<provider>-<timestamp>/` with
-`requests/<case>.md` (28 files, each the complete parent-visible task) and a
+`requests/<case>.md` (30 files, each the complete parent-visible task) and a
 manifest. Note the printed run directory.
 
 ## Step 2 — Dispatch each request to a **fresh** agent

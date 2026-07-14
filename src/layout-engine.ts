@@ -451,6 +451,7 @@ function mermaidToElk(
   // subgraph-internal, cross-hierarchy).
   const balancingLabels = corankFanInBalancingLabels(graph, style)
 
+  // mutation-scope:subgraph-edge-classification:start
   // Build node-to-subgraph mapping for edge distribution
   const nodeToSubgraph = buildNodeToSubgraphMap(graph.subgraphs)
   const nodeToRootSubgraph = buildNodeToRootSubgraphMap(graph.subgraphs)
@@ -518,6 +519,7 @@ function mermaidToElk(
       crossHierarchyEdges.push({ index: i, edge, sourceSubgraph, targetSubgraph, hostSubgraph })
     }
   }
+  // mutation-scope:subgraph-edge-classification:end
 
   // Build the root ELK graph
   const elkGraph: ElkGraphNode = {
@@ -1132,6 +1134,7 @@ function buildSubgraphAncestorsMap(subgraphs: MermaidSubgraph[]): Map<string, st
   return map
 }
 
+// mutation-scope:subgraph-lowest-common-ancestor:start
 function deepestCommonAncestor(a: string[], b: string[]): string | undefined {
   let common: string | undefined
   for (let i = 0; i < Math.min(a.length, b.length); i++) {
@@ -1140,6 +1143,7 @@ function deepestCommonAncestor(a: string[], b: string[]): string | undefined {
   }
   return common
 }
+// mutation-scope:subgraph-lowest-common-ancestor:end
 
 function rootChildOrder(
   graph: MermaidGraph,

@@ -69,11 +69,11 @@ route gates pass, rather than add duplicate route-contract assertions here.
 
 For future layout changes:
 
-| If this changes | Use this gate | Review action |
+| If this changes | Use this evidence | Review action |
 |-----------------|---------------|---------------|
 | Flowchart/state/architecture routing geometry | `bun test src/__tests__/contact-sheet.test.ts src/__tests__/layout-rubric.test.ts` and `bun run track` | Hard rubric violations must stay zero; baseline deltas must be explained as improvement or intended drift. |
 | Generated characterisation artifacts | `bun run characterization:check` | Regenerate the contact sheets / visual snapshots only after reviewing the visual diff. |
-| ASCII grid mechanics | `bun test src/__tests__/characterization-layout.test.ts` plus `bun run mutation-test:characterization` | Update P-properties only when the algorithm deliberately changes. |
+| ASCII grid mechanics | `bun test src/__tests__/characterization-layout.test.ts`; optionally probe selected ranges with `bun run mutation-test:characterization` | Update P-properties only when the algorithm deliberately changes. |
 | Renderer-family dispatch/output surfaces | `bun test src/__tests__/characterization-families.test.ts` | Drift outside the PR's claimed layout surface is suspicious and needs a separate explanation. |
 
 ## Coverage across renderers
@@ -132,10 +132,11 @@ This project has **two** distinct layout engines:
 "ours" algorithm (the ELK one delegates placement), it is pure / synchronous /
 deterministic / dependency-free, and it is the surface the project already
 mutation-tests (`stryker.ascii.config.json`). It is therefore the ideal
-characterisation subject. The flowchart and `stateDiagram-v2` families share
-this exact pipeline (`src/ascii/index.ts`); the other families (sequence, class,
-ER, pie, quadrant, xychart, timeline, journey, architecture) have their own
-renderers and are out of scope here.
+characterisation subject. The Flowchart and State families share this exact
+pipeline (`src/ascii/index.ts`). Every other registered family has its own
+terminal projection and participates in the registry-complete family
+characterization suite; those renderers are outside this focused grid-engine
+study.
 
 ### The pipeline in one line
 
@@ -189,15 +190,15 @@ informed `properties.md`; the citations are inlined there.
 - **Property-based testing** (fast-check): the kernel asserts **invariants** and
   **metamorphic relations** rather than exact outputs, so it generalises across
   thousands of generated graphs instead of a handful of fixtures.
-- **Mutation testing** (Stryker, already configured): the oracle for *which*
-  properties are load-bearing — a property is kept only if it kills a mutant no
-  other test kills. See the minimality argument in `properties.md`.
+- **Mutation testing** (Stryker, already configured): one diagnostic for which
+  properties discriminate selected mutants. See the minimality argument in
+  `properties.md`.
 - **Visual approval / metric drift:** `visual-quality.md` keeps the literature's
   aesthetic objectives visible (crossings, bends, area, label overlap) without
   turning them into brittle universal laws.
 
-Together: **goldens characterise, properties generalise, mutation proves which
-assertions do work, visual snapshots make quality drift reviewable.**
+Together: **goldens characterise, properties generalise, mutation probes
+assertion sensitivity, visual snapshots make quality drift reviewable.**
 
 ---
 

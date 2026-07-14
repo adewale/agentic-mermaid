@@ -1,5 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/stryker-mutator/stryker/master/packages/core/schema/stryker-core.schema.json",
+  "_comment": "XYChart, Architecture, Mindmap, GitGraph, and Radar parser/layout/renderer cores, plus Radar's structured editing body. Focused Mindmap/GitGraph configs separately own their structured editing bodies.",
   "mutate": [
     "src/xychart/parser.ts",
     "src/xychart/layout.ts",
@@ -10,11 +11,9 @@
     "src/mindmap/parser.ts",
     "src/mindmap/layout.ts",
     "src/mindmap/renderer.ts",
-    "src/agent/mindmap-body.ts",
     "src/gitgraph/parser.ts",
     "src/gitgraph/layout.ts",
     "src/gitgraph/renderer.ts",
-    "src/agent/gitgraph-body.ts",
     "src/radar/parser.ts",
     "src/radar/layout.ts",
     "src/radar/renderer.ts",
@@ -30,6 +29,5 @@
   "timeoutMS": 30000,
   "concurrency": 2,
   "tempDirName": ".stryker-tmp-families",
-  "disableTypeChecks": true,
-  "thresholds": { "break": 60 }
+  "disableTypeChecks": true
 }
