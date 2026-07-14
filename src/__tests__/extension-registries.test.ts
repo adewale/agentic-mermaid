@@ -812,7 +812,11 @@ describe('backend registration and host policy', () => {
     const descriptor = knownBackendDescriptors().find(entry => entry.identity.id === 'backend:default')!
     expect(descriptor.inputName).toBe('default')
     expect(descriptor.identity.provenance.owner).toBe('agentic-mermaid')
-    expect(descriptor.conformance).toMatchObject({
+    // Match a structural clone: toMatchObject with an arrayContaining matcher
+    // rewrites the received array into an object in place, and descriptor.conformance
+    // is the registry's shared authority — mutating it here would poison every
+    // later capability-report projection.
+    expect(structuredClone(descriptor.conformance)).toMatchObject({
       backendId: 'backend:default',
       directOutputs: ['svg'],
       passed: true,

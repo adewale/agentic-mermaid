@@ -10,7 +10,7 @@
 
 export type {
   Result, ValidDiagram, ParsedDiagram, ExtensionValidDiagram, ExtensionDiagramBody, PreservedValidDiagram, PreservedDiagramBody, PreservedSourceSpans, SourceSpan, SourceSpanPoint, FamilyParsedBody, FlowchartValidDiagram, StateValidDiagram, SequenceValidDiagram, TimelineValidDiagram,
-  ClassValidDiagram, ErValidDiagram, JourneyValidDiagram, ArchitectureValidDiagram, XyChartValidDiagram, PieValidDiagram, QuadrantValidDiagram, GanttValidDiagram, MindmapValidDiagram, GitGraphValidDiagram, MutableValidDiagram,
+  ClassValidDiagram, ErValidDiagram, JourneyValidDiagram, ArchitectureValidDiagram, XyChartValidDiagram, PieValidDiagram, QuadrantValidDiagram, GanttValidDiagram, MindmapValidDiagram, GitGraphValidDiagram, RadarValidDiagram, MutableValidDiagram,
   ValidDiagramMeta, ValidDiagramPayload, SerializedFlowchartGraph, DiagramBody, DiagramKind, FamilyId, ExternalFamilyId,
   StateBody, StateNode, StateTransition,
   SequenceBody, SequenceParticipant, SequenceMessage, SequenceMessageStyle,
@@ -22,10 +22,10 @@ export type {
   XyChartBody, XyChartAxis, XyChartSeries, XyChartAxisSpec,
   PieBody, PieSlice, QuadrantBody, QuadrantAxis, QuadrantPoint,
   GanttBody, GanttBodySection, GanttBodyTask, GanttBodyTaskTag, GanttStatement,
-  MindmapBody, GitGraphBody,
+  MindmapBody, GitGraphBody, RadarBody, RadarBodyAxis, RadarBodyCurve,
   SourceMap, SourceComment, InitDirective, Accessibility,
   ParseError, SourcePreservationReceipt, MutationError, MutationOp, FlowchartMutationOp, StateMutationOp, SequenceMutationOp, TimelineMutationOp,
-  ClassMutationOp, ErMutationOp, JourneyMutationOp, ArchitectureMutationOp, XyChartMutationOp, PieMutationOp, QuadrantMutationOp, GanttMutationOp, MindmapMutationOp, GitGraphMutationOp, AnyMutationOp,
+  ClassMutationOp, ErMutationOp, JourneyMutationOp, ArchitectureMutationOp, XyChartMutationOp, PieMutationOp, QuadrantMutationOp, GanttMutationOp, MindmapMutationOp, GitGraphMutationOp, RadarMutationOp, AnyMutationOp,
   NodeId, EdgeId, GroupId, ParticipantId,
   LayoutWarning, WarningCode, Tier1WarningCode, Tier2WarningCode, WarningSeverity, WarningTier,
   VerifyOptions, VerifyResult, RenderedLayout, RenderedLayoutNode, RenderedLayoutEdge, RenderedLayoutGroup, RenderedRegion, RenderedRegionKind,
@@ -34,7 +34,7 @@ export type {
 } from './types.ts'
 export type { MermaidFact, CheckMermaidSpec, CheckMermaidObjectSpec, CheckMermaidResult } from './facts.ts'
 
-export { WARNING_SEVERITY, WARNING_TIER, DEFAULT_LABEL_CHAR_CAP, ok, err, toFinite, asFlowchart, asState, asSequence, asTimeline, asClass, asEr, asJourney, asArchitecture, asXyChart, asPie, asQuadrant, asGantt, asMindmap, asGitGraph } from './types.ts'
+export { WARNING_SEVERITY, WARNING_TIER, DEFAULT_LABEL_CHAR_CAP, ok, err, toFinite, asFlowchart, asState, asSequence, asTimeline, asClass, asEr, asJourney, asArchitecture, asXyChart, asPie, asQuadrant, asGantt, asMindmap, asGitGraph, asRadar } from './types.ts'
 export { parseMermaid, parseRegisteredMermaid } from './parse.ts'
 export { serializeMermaid, synthesizeFromGraph } from './serialize.ts'
 export { createMermaid, buildMermaid } from './create.ts'

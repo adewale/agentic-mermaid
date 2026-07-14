@@ -11,7 +11,8 @@ const ROOT = join(import.meta.dir, '..', '..')
 const CORPUS = join(ROOT, 'eval', 'mindmap-gitgraph-content-corpus')
 const OUT = join(ROOT, 'docs', 'design', 'families')
 const RECEIPT = join(CORPUS, 'gallery-receipt.json')
-const localChrome = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+// macOS Chrome, else the managed-CI pre-installed Chromium; else Playwright's default.
+const chromePath = ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/opt/pw-browsers/chromium'].find(existsSync)
 
 const repoPath = (absolute: string): string => repositoryPath(ROOT, absolute)
 const inputPaths = (): string[] => sortRepositoryPaths(ROOT, [
@@ -50,7 +51,7 @@ type Entry = { id: string; family: 'mindmap' | 'gitgraph'; file: string; scenari
 const manifest = JSON.parse(readFileSync(join(CORPUS, 'manifest.json'), 'utf8')) as { cases: Entry[] }
 const browser = await chromium.launch({
   headless: true,
-  ...(existsSync(localChrome) ? { executablePath: localChrome } : {}),
+  ...(chromePath ? { executablePath: chromePath } : {}),
 })
 
 const escapeHtml = (value: string): string => value

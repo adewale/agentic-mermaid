@@ -1781,4 +1781,80 @@ gantt
   line [18, 35, 52, 70, 95]`,
     options: { ...stylePaletteShowcaseOptions, interactive: true },
   },
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  RADAR
+  // ══════════════════════════════════════════════════════════════════════════
+
+  {
+    title: 'Radar: Model comparison (circle)',
+    category: 'Radar',
+    description: 'The default `graticule circle`: circular rings and smooth closed Catmull-Rom curves. Two model profiles compared across six shared axes — the silhouette is the message.',
+    source: `radar-beta
+  title Model comparison
+  axis speed["Speed"], accuracy["Accuracy"], cost["Cost"]
+  axis latency["Latency"], context["Context"], safety["Safety"]
+  curve a["Model A"]{4, 5, 3, 4, 4, 5}
+  curve b["Model B"]{5, 3, 4, 3, 5, 3}
+  max 5`,
+  },
+  {
+    title: 'Radar: Student grades (keyed values)',
+    category: 'Radar',
+    description: 'Keyed curve values (`{ english: 4, math: 5, … }`, colon optional) are reordered to axis order, so authoring order does not matter.',
+    source: `radar-beta
+  title Student grades
+  axis math["Math"], science["Science"], english["English"], history["History"]
+  curve alice["Alice"]{ english: 4, math: 5, history: 3, science: 4 }
+  curve bob["Bob"]{ math: 3, science: 5, english: 4, history: 5 }
+  max 5`,
+  },
+  {
+    title: 'Radar: Incident response (polygon triangle)',
+    category: 'Radar',
+    description: '`graticule polygon` with three axes draws a triangular graticule and straight polygon edges.',
+    source: `radar-beta
+  title Incident response
+  axis detect["Detect"], respond["Respond"], recover["Recover"]
+  curve q3["Q3"]{3, 2, 4}
+  curve q4["Q4"]{4, 4, 3}
+  graticule polygon
+  max 5`,
+  },
+  {
+    title: 'Radar: Restaurant (polygon square)',
+    category: 'Radar',
+    description: 'Four axes under `graticule polygon` draw a square (diamond) graticule.',
+    source: `radar-beta
+  title Restaurant comparison
+  axis food["Food Quality"], service["Service"], price["Price"], ambiance["Ambiance"]
+  curve a["Restaurant A"]{4, 3, 2, 4}
+  curve b["Restaurant B"]{3, 4, 3, 3}
+  graticule polygon
+  max 5`,
+  },
+  {
+    title: 'Radar: Team skills (polygon pentagon)',
+    category: 'Radar',
+    description: 'Five axes under `graticule polygon` draw a pentagonal graticule — the polygon shape always follows the axis count.',
+    source: `radar-beta
+  title Team skills
+  axis design["Design"], code["Code"], comms["Comms"], ops["Ops"], data["Data"]
+  curve alice["Alice"]{4, 5, 3, 2, 4}
+  curve bob["Bob"]{3, 3, 5, 4, 3}
+  graticule polygon
+  max 5`,
+  },
+  {
+    title: 'Radar: Seasonal wind rose (polygon octagon)',
+    category: 'Radar',
+    description: 'Eight compass axes under `graticule polygon` draw an octagonal graticule — a natural fit for directional data.',
+    source: `radar-beta
+  title Seasonal wind rose
+  axis n["N"], ne["NE"], e["E"], se["SE"], s["S"], sw["SW"], w["W"], nw["NW"]
+  curve winter["Winter"]{5, 3, 2, 1, 2, 4, 5, 4}
+  curve summer["Summer"]{2, 4, 5, 4, 3, 2, 1, 2}
+  graticule polygon
+  max 5`,
+  },
 ]

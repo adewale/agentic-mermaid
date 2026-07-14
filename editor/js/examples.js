@@ -42,6 +42,7 @@ function exampleGlyph(example) {
     Gantt: 'G',
     Mindmap: 'M',
     GitGraph: 'Git',
+    Radar: 'R',
   };
   return glyphs[type] || type.slice(0, 2).toUpperCase();
 }

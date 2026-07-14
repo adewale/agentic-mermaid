@@ -129,8 +129,9 @@ geometry assertions, screenshot/PNG review, or human inspection.
   | gantt         | task bars + milestone diamonds     | —            | section bands        |
   | mindmap       | hierarchy nodes                    | parent links | —                    |
   | gitgraph      | commits                            | parent links | —                    |
+  | radar         | curve vertices (one ring per axis) | —            | axis spokes/grid     |
 
-  Families with no structural relations (pie/quadrant/xychart/journey/gantt) carry an
+  Families with no structural relations (pie/quadrant/xychart/journey/gantt/radar) carry an
   honestly-empty `edges` array. Bounds is the family layout's canvas size.
 - **No font-substitution check.** Different OSes render different
   default fonts. Our `labelLegibility` heuristic uses a 7 px-per-char

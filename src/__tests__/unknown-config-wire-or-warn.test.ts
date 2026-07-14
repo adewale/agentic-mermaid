@@ -20,6 +20,7 @@ const CASES: Array<{ family: string; section: string; source: string; invalidKey
   { family: 'gantt', section: 'gantt', source: 'gantt\n  dateFormat YYYY-MM-DD\n  A :a, 2026-01-01, 1d', invalidKey: 'displayMode', invalidValue: 'wide' },
   { family: 'mindmap', section: 'mindmap', source: 'mindmap\n  Root\n    Child', invalidKey: 'padding', invalidValue: 'bad' },
   { family: 'gitgraph', section: 'gitGraph', source: 'gitGraph\n  commit', invalidKey: 'showBranches', invalidValue: 'bad' },
+  { family: 'radar', section: 'radar', source: 'radar-beta\n  axis a, b, c\n  curve x{1, 2, 3}\n  max 5', invalidKey: 'curveTension', invalidValue: 5 },
 ]
 
 function configured(section: string, source: string): string {

@@ -129,6 +129,7 @@ const hybridSketcher: GeometrySketcher = (geom, opts) => {
   const fillKind = opts.style?.fill ?? 'none'
   const wantsWash = fillKind === 'wash' && opts.fill !== undefined
   const wantsFreehand = strokeKind === 'freehand'
+  const semanticOpacity = opts.opacity === undefined ? undefined : Number(opts.opacity)
   if (!wantsWash && !wantsFreehand) return null
 
   const parts: string[] = []
@@ -136,10 +137,10 @@ const hybridSketcher: GeometrySketcher = (geom, opts) => {
     const rng = makeRng((opts.seed ^ 0x9e3779b9) >>> 0)
     const poly = geom.kind === 'path' ? null : polygonize(geom)
     if (poly) {
-      parts.push(watercolorWash(poly, rng, opts.fill!, opts.style?.washOpacity ?? 0.3, opts.style?.washEdge ?? 0.34))
+      parts.push(watercolorWash(poly, rng, opts.fill!, semanticOpacity ?? opts.style?.washOpacity ?? 0.3, opts.style?.washEdge ?? 0.34))
     } else if (geom.kind === 'path') {
       // Arbitrary paths (pie wedges): translucent glaze on the exact path.
-      parts.push(`<path d="${geom.d}" fill="${opts.fill}" fill-opacity="${opts.style?.washOpacity ?? 0.3}" stroke="${opts.fill}" stroke-width="1.4" stroke-opacity="${opts.style?.washEdge ?? 0.34}" />`)
+      parts.push(`<path d="${geom.d}" fill="${opts.fill}" fill-opacity="${semanticOpacity ?? opts.style?.washOpacity ?? 0.3}" stroke="${opts.fill}" stroke-width="1.4" stroke-opacity="${opts.style?.washEdge ?? 0.34}" />`)
     }
   }
 
@@ -164,7 +165,8 @@ const hybridSketcher: GeometrySketcher = (geom, opts) => {
             ...(opts.strokeProjection.paintOrder !== undefined ? [`paint-order="${escapeAttr(opts.strokeProjection.paintOrder)}"`] : []),
           ].join(' ')
         : ''
-      parts.push(`<path d="${ribbon}" fill="${opts.stroke}" stroke="none"${projectionAttrs ? ` ${projectionAttrs}` : ''} />`)
+      const fillOpacity = semanticOpacity === undefined ? '' : ` fill-opacity="${escapeAttr(String(semanticOpacity))}"`
+      parts.push(`<path d="${ribbon}" fill="${opts.stroke}" stroke="none"${fillOpacity}${projectionAttrs ? ` ${projectionAttrs}` : ''} />`)
       return parts.join('\n')
     }
   }
@@ -179,6 +181,7 @@ const hybridSketcher: GeometrySketcher = (geom, opts) => {
     opts.p,
     opts.dash,
     opts.strokeProjection,
+    opts.opacity,
   )
   if (outline) parts.push(outline)
   return parts.length > 0 ? parts.join('\n') : null

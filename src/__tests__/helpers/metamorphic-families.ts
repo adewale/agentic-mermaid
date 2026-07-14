@@ -210,4 +210,17 @@ export const METAMORPHIC_FAMILIES: Record<DiagramKind, FamilyMetamorphic> = {
     addPrimary: null,
     addRelation: null,
   },
+  radar: {
+    family: 'radar',
+    // Fixed 3 axes; k curves ⇒ nodes = 3·k (vertices), groups = 3 (axes).
+    build: (k, t) => lines(
+      'radar-beta',
+      '  axis a, b, c',
+      ...range(k).map(i => `  curve ${t}${i}["C${i}"]{${(i % 5) + 1},${((i + 2) % 5) + 1},${((i + 4) % 5) + 1}}`),
+      '  max 5',
+    ),
+    kRange: [1, 5],
+    addPrimary: { snippet: (_k, t) => `\n  curve ${t}x["Cx"]{1,2,3}`, nodeDelta: 3 },
+    addRelation: null,
+  },
 }

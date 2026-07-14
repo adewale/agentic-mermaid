@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 531.12 378.5" width="531.12" height="378.5" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" id="radar-1l4t1yr" aria-roledescription="radar chart" role="img" aria-labelledby="radar-1l4t1yr-title">
+<title id="radar-1l4t1yr-title">Model Comparison</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap');
+  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<style>
+  .radar-ring { stroke: #939395; stroke-width: 1; stroke-opacity: 0.7; fill: none; }
+  .radar-ring-outer { stroke-width: 1.4; stroke-opacity: 1; }
+  .radar-axis-line { stroke: #939395; stroke-width: 1; }
+  .radar-area { stroke-width: 2.2; fill-opacity: 0.5; stroke-linejoin: round; }
+  .radar-dot { stroke: #FFFFFF; stroke-width: 1.2; }
+  .radar-axis-label { fill: #707072; }
+  .radar-tick-label { fill: #707072; opacity: 0.85; }
+  .radar-legend-swatch { stroke: #d4d4d4; stroke-width: 1; }
+  .radar-legend-text { fill: #27272A; }
+  .radar-title { fill: #27272A; }
+</style>
+<circle class="radar-ring" cx="214.88" cy="206.25" r="24" fill="none" />
+<circle class="radar-ring" cx="214.88" cy="206.25" r="48" fill="none" />
+<circle class="radar-ring" cx="214.88" cy="206.25" r="72" fill="none" />
+<circle class="radar-ring" cx="214.88" cy="206.25" r="96" fill="none" />
+<circle class="radar-ring radar-ring-outer" cx="214.88" cy="206.25" r="120" fill="none" />
+<line class="radar-axis-line" x1="214.88" y1="206.25" x2="214.88" y2="86.25" />
+<line class="radar-axis-line" x1="214.88" y1="206.25" x2="318.8" y2="146.25" />
+<line class="radar-axis-line" x1="214.88" y1="206.25" x2="318.8" y2="266.25" />
+<line class="radar-axis-line" x1="214.88" y1="206.25" x2="214.88" y2="326.25" />
+<line class="radar-axis-line" x1="214.88" y1="206.25" x2="110.95" y2="266.25" />
+<line class="radar-axis-line" x1="214.88" y1="206.25" x2="110.95" y2="146.25" />
+<path class="radar-area" d="M 214.88 110.25 C 250.21 110.25 308.2 123.81 318.8 146.25 C 329.4 168.69 294.9 215.73 277.23 242.25 C 259.56 268.77 239.61 300.21 214.88 302.25 C 190.15 304.29 149.41 280.77 131.74 254.25 C 114.07 227.73 96.82 170.73 110.95 146.25 C 125.08 121.77 179.55 110.25 214.88 110.25 Z" fill="#3b82f6" stroke="#3b82f6" fill-opacity="0.5" data-curve="Model A" data-id="curve:a" data-role="pie-slice" />
+<path class="radar-area" d="M 214.88 86.25 C 236.08 86.25 263.1 141.69 277.23 170.25 C 291.36 198.81 308.61 235.89 298.01 254.25 C 287.41 272.61 246.68 276.21 214.88 278.25 C 183.08 280.29 121.55 284.61 110.95 266.25 C 100.35 247.89 134.85 200.85 152.52 170.25 C 170.19 139.65 193.68 86.25 214.88 86.25 Z" fill="#0d5ba5" stroke="#0d5ba5" fill-opacity="0.5" data-curve="Model B" data-id="curve:b" data-role="pie-slice" />
+<path class="radar-area" d="M 214.88 134.25 C 243.15 134.25 280.34 135.81 298.01 158.25 C 315.68 180.69 332.93 241.77 318.8 266.25 C 304.67 290.73 243.15 306.33 214.88 302.25 C 186.61 298.17 166.65 266.73 152.52 242.25 C 138.39 217.77 121.14 176.61 131.74 158.25 C 142.34 139.89 186.61 134.25 214.88 134.25 Z" fill="#5f79f2" stroke="#5f79f2" fill-opacity="0.5" data-curve="Model C" data-id="curve:c" data-role="pie-slice" />
+<circle class="radar-dot" cx="214.88" cy="110.25" r="3" fill="#3b82f6" data-id="dot:a:0" data-role="point" />
+<circle class="radar-dot" cx="318.8" cy="146.25" r="3" fill="#3b82f6" data-id="dot:a:1" data-role="point" />
+<circle class="radar-dot" cx="277.23" cy="242.25" r="3" fill="#3b82f6" data-id="dot:a:2" data-role="point" />
+<circle class="radar-dot" cx="214.88" cy="302.25" r="3" fill="#3b82f6" data-id="dot:a:3" data-role="point" />
+<circle class="radar-dot" cx="131.74" cy="254.25" r="3" fill="#3b82f6" data-id="dot:a:4" data-role="point" />
+<circle class="radar-dot" cx="110.95" cy="146.25" r="3" fill="#3b82f6" data-id="dot:a:5" data-role="point" />
+<circle class="radar-dot" cx="214.88" cy="86.25" r="3" fill="#0d5ba5" data-id="dot:b:0" data-role="point" />
+<circle class="radar-dot" cx="277.23" cy="170.25" r="3" fill="#0d5ba5" data-id="dot:b:1" data-role="point" />
+<circle class="radar-dot" cx="298.01" cy="254.25" r="3" fill="#0d5ba5" data-id="dot:b:2" data-role="point" />
+<circle class="radar-dot" cx="214.88" cy="278.25" r="3" fill="#0d5ba5" data-id="dot:b:3" data-role="point" />
+<circle class="radar-dot" cx="110.95" cy="266.25" r="3" fill="#0d5ba5" data-id="dot:b:4" data-role="point" />
+<circle class="radar-dot" cx="152.52" cy="170.25" r="3" fill="#0d5ba5" data-id="dot:b:5" data-role="point" />
+<circle class="radar-dot" cx="214.88" cy="134.25" r="3" fill="#5f79f2" data-id="dot:c:0" data-role="point" />
+<circle class="radar-dot" cx="298.01" cy="158.25" r="3" fill="#5f79f2" data-id="dot:c:1" data-role="point" />
+<circle class="radar-dot" cx="318.8" cy="266.25" r="3" fill="#5f79f2" data-id="dot:c:2" data-role="point" />
+<circle class="radar-dot" cx="214.88" cy="302.25" r="3" fill="#5f79f2" data-id="dot:c:3" data-role="point" />
+<circle class="radar-dot" cx="152.52" cy="242.25" r="3" fill="#5f79f2" data-id="dot:c:4" data-role="point" />
+<circle class="radar-dot" cx="131.74" cy="158.25" r="3" fill="#5f79f2" data-id="dot:c:5" data-role="point" />
+<text class="radar-axis-label" x="214.88" y="72.25" text-anchor="middle" dominant-baseline="middle" font-size="12.5" font-weight="500"><tspan x="214.88" dy="0em">Speed</tspan></text>
+<text class="radar-axis-label" x="330.92" y="139.25" text-anchor="start" dominant-baseline="middle" font-size="12.5" font-weight="500"><tspan x="330.92" dy="0em">Accuracy</tspan></text>
+<text class="radar-axis-label" x="330.92" y="273.25" text-anchor="start" dominant-baseline="middle" font-size="12.5" font-weight="500"><tspan x="330.92" dy="0em">Cost</tspan></text>
+<text class="radar-axis-label" x="214.88" y="340.25" text-anchor="middle" dominant-baseline="middle" font-size="12.5" font-weight="500"><tspan x="214.88" dy="0em">Latency</tspan></text>
+<text class="radar-axis-label" x="98.83" y="273.25" text-anchor="end" dominant-baseline="middle" font-size="12.5" font-weight="500"><tspan x="98.83" dy="0em">Context</tspan></text>
+<text class="radar-axis-label" x="98.83" y="139.25" text-anchor="end" dominant-baseline="middle" font-size="12.5" font-weight="500"><tspan x="98.83" dy="0em">Safety</tspan></text>
+<rect class="radar-legend-swatch" x="437.75" y="176.25" width="14" height="14" rx="2" ry="2" fill="#3b82f6" />
+<text class="radar-legend-text" x="459.75" y="183.25" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500">Model A</text>
+<rect class="radar-legend-swatch" x="437.75" y="199.25" width="14" height="14" rx="2" ry="2" fill="#0d5ba5" />
+<text class="radar-legend-text" x="459.75" y="206.25" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500">Model B</text>
+<rect class="radar-legend-swatch" x="437.75" y="222.25" width="14" height="14" rx="2" ry="2" fill="#5f79f2" />
+<text class="radar-legend-text" x="459.75" y="229.25" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500">Model C</text>
+<text class="radar-title" x="214.88" y="31" text-anchor="middle" dominant-baseline="middle" font-size="18" font-weight="600" data-id="title" data-role="title">Model Comparison</text>
+</svg>

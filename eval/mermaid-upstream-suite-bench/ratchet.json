@@ -2,34 +2,22 @@
   "version": 1,
   "upstreamRevision": "a2d9686451df7c4644a3eeca20535bbd4c5776b0",
   "budgets": {
-    "importedCaseFloor": 736,
-    "importedBlockFloor": 746,
+    "importedCaseFloor": 746,
+    "importedBlockFloor": 756,
     "localGaps": {
-      "totalBlocks": 3,
-      "byReason": {
-        "local-verify-gap": 3
-      },
-      "byFamily": {
-        "architecture": 1,
-        "er": 1,
-        "flowchart": 1
-      },
+      "totalBlocks": 0,
+      "byReason": {},
+      "byFamily": {},
       "byFamilyReason": {
-        "architecture": {
-          "local-verify-gap": 1
-        },
-        "er": {
-          "local-verify-gap": 1
-        },
-        "flowchart": {
-          "local-verify-gap": 1
-        }
+        "architecture": {},
+        "er": {},
+        "flowchart": {}
       }
     }
   },
   "observed": {
-    "importedCases": 736,
-    "importedBlocks": 746,
+    "importedCases": 746,
+    "importedBlocks": 756,
     "localGaps": {
       "totalBlocks": 0,
       "byReason": {},

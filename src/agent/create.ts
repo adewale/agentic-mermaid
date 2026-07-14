@@ -12,11 +12,11 @@ import type {
   FlowchartValidDiagram, StateValidDiagram, SequenceValidDiagram, TimelineValidDiagram,
   ClassValidDiagram, ErValidDiagram, JourneyValidDiagram, ArchitectureValidDiagram,
   XyChartValidDiagram, PieValidDiagram, QuadrantValidDiagram, GanttValidDiagram,
-  MindmapValidDiagram, GitGraphValidDiagram,
+  MindmapValidDiagram, GitGraphValidDiagram, RadarValidDiagram,
   FlowchartMutationOp, StateMutationOp, SequenceMutationOp, TimelineMutationOp,
   ClassMutationOp, ErMutationOp, JourneyMutationOp, ArchitectureMutationOp,
   XyChartMutationOp, PieMutationOp, QuadrantMutationOp, GanttMutationOp,
-  MindmapMutationOp, GitGraphMutationOp, AnyMutationOp,
+  MindmapMutationOp, GitGraphMutationOp, RadarMutationOp, AnyMutationOp,
   MutationError, Result,
 } from './types.ts'
 import { ok, err } from './types.ts'
@@ -58,6 +58,7 @@ function emptyBody(kind: DiagramKind, opts: CreateMermaidOptions): Exclude<Diagr
       kind: 'gitgraph', direction: 'LR', mainBranchName: 'main', commits: [],
       branches: [{ name: 'main', order: 0, sequence: 0 }], statements: [],
     }
+    case 'radar': return { kind: 'radar', axes: [], curves: [], min: 0, ticks: 5, graticule: 'circle', showLegend: true }
   }
 }
 
@@ -75,6 +76,7 @@ export function createMermaid(kind: 'quadrant', opts?: CreateMermaidOptions): Qu
 export function createMermaid(kind: 'gantt', opts?: CreateMermaidOptions): GanttValidDiagram
 export function createMermaid(kind: 'mindmap', opts?: CreateMermaidOptions): MindmapValidDiagram
 export function createMermaid(kind: 'gitgraph', opts?: CreateMermaidOptions): GitGraphValidDiagram
+export function createMermaid(kind: 'radar', opts?: CreateMermaidOptions): RadarValidDiagram
 export function createMermaid(kind: DiagramKind, opts?: CreateMermaidOptions): MutableValidDiagram
 export function createMermaid(kind: DiagramKind, opts: CreateMermaidOptions = {}): MutableValidDiagram {
   logToolInvocation('build') // also covers buildMermaid/buildChecked, which route through here
@@ -105,6 +107,7 @@ export function buildMermaid(kind: 'quadrant', ops: QuadrantMutationOp[], opts?:
 export function buildMermaid(kind: 'gantt', ops: GanttMutationOp[], opts?: CreateMermaidOptions): Result<GanttValidDiagram, BuildError>
 export function buildMermaid(kind: 'mindmap', ops: MindmapMutationOp[], opts?: CreateMermaidOptions): Result<MindmapValidDiagram, BuildError>
 export function buildMermaid(kind: 'gitgraph', ops: GitGraphMutationOp[], opts?: CreateMermaidOptions): Result<GitGraphValidDiagram, BuildError>
+export function buildMermaid(kind: 'radar', ops: RadarMutationOp[], opts?: CreateMermaidOptions): Result<RadarValidDiagram, BuildError>
 export function buildMermaid(kind: DiagramKind, ops: AnyMutationOp[], opts?: CreateMermaidOptions): Result<MutableValidDiagram, BuildError>
 export function buildMermaid(kind: DiagramKind, ops: AnyMutationOp[], opts: CreateMermaidOptions = {}): Result<MutableValidDiagram, BuildError> {
   let d = createMermaid(kind, opts)

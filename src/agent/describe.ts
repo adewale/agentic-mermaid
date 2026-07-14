@@ -71,6 +71,12 @@ export function describeMermaid(d: ValidDiagram, opts: DescribeOptions = {}): st
   if (d.body.kind === 'quadrant') return describeQuadrant(d.body)
   if (d.body.kind === 'mindmap') return describeMindmap(d.body)
   if (d.body.kind === 'gitgraph') return describeGitGraph(d.body)
+  if (d.body.kind === 'radar') {
+    const axes = d.body.axes.map(a => a.label).join(', ')
+    const curves = d.body.curves.map(c => c.label).join(', ')
+    const title = d.body.title ? `"${d.body.title}" ` : ''
+    return `A radar chart ${title}comparing ${d.body.curves.length} curve(s)${curves ? ` (${curves})` : ''} across ${d.body.axes.length} axis/axes${axes ? ` (${axes})` : ''}.`
+  }
   if (d.body.kind === 'opaque') return describeOpaque(d.kind, d.body.source)
   // Exhaustiveness guard: a new family must declare its prose here. This is why
   // pie/quadrant silently fell through to a "not yet supported" line for months.
@@ -180,6 +186,10 @@ export function describeMermaidTree(d: ValidDiagram): DescribeTree {
       tree.nodes.push({ id: commit.id, label: commit.message || commit.id })
       commit.parents.forEach(parent => tree.edges.push({ from: parent, to: commit.id, label: commit.source === 'commit' ? undefined : commit.source }))
     }
+  } else if (d.body.kind === 'radar') {
+    // Axes and curves are the nodes of a radar AX tree; charts have no edges.
+    d.body.axes.forEach((a, i) => tree.nodes.push({ id: `axis-${i}`, label: a.label }))
+    d.body.curves.forEach((c, i) => tree.nodes.push({ id: `curve-${i}`, label: c.label }))
   } else if (d.body.kind === 'opaque') {
     const plugin = getFamily(d.kind)
     const labels = (plugin?.extractLabels ?? extractLabelsGeneric)(d.body.source)

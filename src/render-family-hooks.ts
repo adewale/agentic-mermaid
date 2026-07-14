@@ -44,6 +44,10 @@ import { parseQuadrantChart } from './quadrant/parser.ts'
 import { layoutQuadrantChart } from './quadrant/layout.ts'
 import { resolveQuadrantVisualConfig } from './quadrant/config.ts'
 import { lowerQuadrantScene } from './quadrant/renderer.ts'
+import { parseRadarChart } from './radar/parser.ts'
+import { layoutRadarChart } from './radar/layout.ts'
+import { resolveRadarVisualConfig } from './radar/config.ts'
+import { lowerRadarScene } from './radar/renderer.ts'
 import { buildGanttRenderPipelineFromConfig } from './gantt/pipeline.ts'
 import { resolveGanttFrontmatterConfig } from './gantt/parser.ts'
 import { lowerGanttScene } from './gantt/renderer.ts'
@@ -73,6 +77,7 @@ import { renderJourneyAscii } from './ascii/journey.ts'
 import { renderXYChartAscii } from './ascii/xychart.ts'
 import { renderPieAscii } from './ascii/pie.ts'
 import { renderQuadrantAscii } from './ascii/quadrant.ts'
+import { renderRadarAscii } from './ascii/radar.ts'
 import { renderArchitectureAscii } from './ascii/architecture.ts'
 import { renderMindmapAscii } from './ascii/mindmap.ts'
 import { renderGitGraphAscii } from './ascii/gitgraph.ts'
@@ -87,6 +92,7 @@ import {
   projectMindmapPositioned,
   projectPiePositioned,
   projectQuadrantPositioned,
+  projectRadarPositioned,
   projectSequencePositioned,
   projectTimelinePositioned,
   projectXyChartPositioned,
@@ -426,6 +432,28 @@ const QUADRANT_RENDER_HOOKS = {
   renderAscii: ctx => renderQuadrantAscii(ctx.source.familyLines, ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth),
 } satisfies BuiltinRenderHooks
 
+const RADAR_RENDER_HOOKS = {
+  // The wired radar config section (frame size, margins, axisScaleFactor,
+  // axisLabelFactor, curveTension, tickLabels, safe radar theme variables, and
+  // cScale overrides) resolves from frontmatter/init directives once and rides
+  // on the positioned chart so layout and renderer read the SAME values.
+  normalizeRequest: ctx => ({
+    familyConfig: { visual: resolveRadarVisualConfig(ctx.source.frontmatter) },
+  }),
+  layout: ctx => layoutResult(layoutRadarChart(
+    parseRadarChart(ctx.source.lines, {
+      title: typeof ctx.source.frontmatter.title === 'string' ? ctx.source.frontmatter.title : undefined,
+    }),
+    ctx.renderOptions,
+    (ctx.familyConfig as { visual?: ReturnType<typeof resolveRadarVisualConfig> } | undefined)?.visual
+      ?? resolveRadarVisualConfig(ctx.source.frontmatter),
+    ctx.styleFace,
+  ), { injectAccessibility: false }),
+  projectPositioned: positionedView(projectRadarPositioned),
+  lowerScene: scene(lowerRadarScene),
+  renderAscii: ctx => renderRadarAscii(ctx.source.lines, ctx.config, ctx.colorMode, ctx.theme, ctx.source.frontmatter, ctx.options.targetWidth),
+} satisfies BuiltinRenderHooks
+
 const GANTT_RENDER_HOOKS = {
   normalizeRequest: ctx => ({
     familyConfig: { config: resolveGanttFrontmatterConfig(ctx.source.frontmatter) },
@@ -523,6 +551,7 @@ export const BUILTIN_RENDER_HOOKS = Object.freeze({
   architecture: ARCHITECTURE_RENDER_HOOKS,
   pie: PIE_RENDER_HOOKS,
   quadrant: QUADRANT_RENDER_HOOKS,
+  radar: RADAR_RENDER_HOOKS,
   gantt: GANTT_RENDER_HOOKS,
   mindmap: MINDMAP_RENDER_HOOKS,
   gitgraph: GITGRAPH_RENDER_HOOKS,

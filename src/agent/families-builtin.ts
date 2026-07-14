@@ -19,7 +19,7 @@
 
 import type { ExtractedLabel, FamilyOperations } from './families.ts'
 import { extractLabelsGeneric } from './family-labels.ts'
-import type { DiagramBody, DiagramKind, AnyMutationOp, MutationError, Result, LayoutWarning, SourceMap, ClassBody, ErBody, XyChartBody, PieBody, QuadrantBody, GanttBody } from './types.ts'
+import type { DiagramBody, DiagramKind, AnyMutationOp, MutationError, Result, LayoutWarning, SourceMap, ClassBody, ErBody, XyChartBody, PieBody, QuadrantBody, GanttBody, RadarBody } from './types.ts'
 import { ok, err } from './types.ts'
 import { verifyClass, parseClassBody, renderClass, mutateClass } from './class-body.ts'
 import { verifyErBody, parseErBody, renderEr, mutateEr } from './er-body.ts'
@@ -37,6 +37,7 @@ import { parseFlowchartBody, renderFlowchart, mutateFlowchart, buildFlowchartSou
 import { containsFlowchartOpaqueSyntax } from './flowchart-unsupported.ts'
 import { parseMindmapBody, renderMindmapBody, mutateMindmap, verifyMindmap } from './mindmap-body.ts'
 import { parseGitGraphBody, renderGitGraphBody, mutateGitGraph, verifyGitGraph } from './gitgraph-body.ts'
+import { parseRadarBody, renderRadar, mutateRadar, verifyRadar } from './radar-body.ts'
 
 // Build the structured-or-opaque hook set shared by every structured family
 // that is not flowchart/state. `headerOk` gates structured parsing: families
@@ -376,6 +377,16 @@ function buildChartSourceMap(body: DiagramBody, canonicalSource: string): Source
     ;(body as QuadrantBody).points.forEach((point, index) => {
       const lineIndex = lines.findIndex(line => line.includes(point.label))
       if (lineIndex >= 0) map.labels.set(`quadrant:point#${index}`, loc(lineIndex + 1, firstIndex(lines[lineIndex]!, point.label)))
+    })
+  } else if (body.kind === 'radar') {
+    const b = body as RadarBody
+    b.axes.forEach((axis, index) => {
+      const lineIndex = lines.findIndex(line => /^\s*axis\b/i.test(line) && line.includes(axis.id))
+      if (lineIndex >= 0) map.labels.set(`radar:axis#${index}`, loc(lineIndex + 1, firstIndex(lines[lineIndex]!, axis.id)))
+    })
+    b.curves.forEach((curve, index) => {
+      const lineIndex = lines.findIndex(line => /^\s*curve\b/i.test(line) && line.includes(curve.id))
+      if (lineIndex >= 0) map.labels.set(`radar:curve#${index}`, loc(lineIndex + 1, firstIndex(lines[lineIndex]!, curve.id)))
     })
   }
   return map
@@ -982,6 +993,40 @@ const GITGRAPH_AGENT_HOOKS = {
   verify: (body, opts) => body.kind === 'gitgraph' ? verifyGitGraph(body, opts) : [],
 } satisfies FamilyOperations
 
+// ---- Radar -----------------------------------------------------------------
+// radar-beta header; `title`; `axis id["Label"], …`; `curve id["Label"]{…}`;
+// `min/max/ticks/graticule/showLegend`. Radar is structured-when-narrowed: the
+// body parses to a RadarBody or falls back to opaque (accTitle/accDescr,
+// malformed lines, zero axes). Labels are the title, axis labels, and curve
+// labels.
+function extractRadarLabels(source: string): ExtractedLabel[] {
+  const out: ExtractedLabel[] = []
+  const lines = source.split(/\r?\n/)
+  for (let i = 0; i < lines.length; i++) {
+    const raw = lines[i]!.trim()
+    if (!raw || raw.startsWith('%%')) continue
+    const target = `line${i + 1}`
+    let m
+    if ((m = raw.match(/^title\s+(.+)$/i))) { out.push({ text: m[1]!.trim(), target }); continue }
+    if (/^radar-beta\b/i.test(raw)) continue
+    // axis / curve quoted labels: id["Label"] …
+    for (const q of raw.matchAll(/\[\s*["']([^"'\]]+)["']\s*\]/g)) out.push({ text: q[1]!, target })
+  }
+  return out
+}
+
+const RADAR_AGENT_HOOKS = {
+  extractLabels: extractRadarLabels,
+  // Radar is structured-when-narrowed. The verify hook covers the structured
+  // body; opaque fallbacks keep the universal label-extraction path.
+  verify: (body, opts) => body.kind === 'radar' ? verifyRadar(body, opts) : [],
+  buildSourceMap: buildChartSourceMap,
+  ...structuredFamilyHooks('radar', {
+    headerOk: h => /^radar-beta\s*:?\s*$/i.test(h),
+    parseBody: parseRadarBody, serialize: renderRadar, mutate: mutateRadar,
+  }),
+} satisfies FamilyOperations
+
 export const BUILTIN_AGENT_HOOKS = Object.freeze({
   flowchart: FLOWCHART_AGENT_HOOKS,
   state: STATE_AGENT_HOOKS,
@@ -997,4 +1042,5 @@ export const BUILTIN_AGENT_HOOKS = Object.freeze({
   architecture: ARCHITECTURE_AGENT_HOOKS,
   mindmap: MINDMAP_AGENT_HOOKS,
   gitgraph: GITGRAPH_AGENT_HOOKS,
+  radar: RADAR_AGENT_HOOKS,
 }) satisfies Readonly<Record<DiagramKind, FamilyOperations>>

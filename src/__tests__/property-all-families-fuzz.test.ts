@@ -147,6 +147,24 @@ function structuredBodyInventory(d: ValidDiagram): SemanticInventory {
       edges: sorted(body.commits.flatMap(commit => commit.parents.map(parent => edge(parent, commit.id)))),
       groups: sorted(body.branches.map(branch => group(`branch:${branch.name}`, branch.name, body.commits.filter(commit => commit.branch === branch.name).map(commit => commit.id)))),
     }
+    case 'radar': {
+      // Complete public projection: labels, marks, furniture, and ring bounds.
+      const n = body.axes.length
+      return {
+        nodes: sorted([
+          ...body.axes.map((axis, i) => item(`axis#${i}:${axis.id}`, axis.label)),
+          ...body.curves.flatMap(curve => curve.values.length === n
+            ? curve.values.map((_v, vertexIndex) => item(`dot:${curve.id}:${vertexIndex}`))
+            : []),
+          ...(body.showLegend ? body.curves.flatMap((curve, index) => [
+            item(`legend-swatch#${index}`), item(`legend-label#${index}`, curve.label),
+          ]) : []),
+          ...(body.title === undefined ? [] : [item('title', body.title)]),
+        ]),
+        edges: [],
+        groups: sorted(Array.from({ length: body.ticks }, (_, index) => group(`ring:${index}`, undefined, []))),
+      }
+    }
     default: throw new Error(`structured inventory unavailable for ${body.kind}`)
   }
 }

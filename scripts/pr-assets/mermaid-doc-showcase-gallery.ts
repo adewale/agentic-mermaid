@@ -9,7 +9,8 @@ const ROOT = join(import.meta.dir, '..', '..')
 const MANIFEST = join(ROOT, 'eval', 'mermaid-doc-showcase', 'manifest.json')
 const RECEIPT = join(ROOT, 'eval', 'mermaid-doc-showcase', 'gallery-receipt.json')
 const OUTPUT = join(ROOT, 'docs', 'design', 'families', 'mermaid-doc-examples-all-families.png')
-const localChrome = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+// macOS Chrome, else the managed-CI pre-installed Chromium; else Playwright's default.
+const chromePath = ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/opt/pw-browsers/chromium'].find(existsSync)
 
 type Entry = { family: string; title: string; officialDocs: string; origin: string; index: number; source: string }
 const manifest = JSON.parse(readFileSync(MANIFEST, 'utf8')) as { mermaidVersion: string; cases: Entry[] }
@@ -45,7 +46,7 @@ const cards = manifest.cases.map(entry => {
   </article>`
 }).join('')
 
-const browser = await chromium.launch({ headless: true, ...(existsSync(localChrome) ? { executablePath: localChrome } : {}) })
+const browser = await chromium.launch({ headless: true, ...(chromePath ? { executablePath: chromePath } : {}) })
 const page = await browser.newPage({ viewport: { width: 1840, height: 3800 }, deviceScaleFactor: 1 })
 await page.setContent(`<!doctype html><meta charset="utf-8"><style>
   *{box-sizing:border-box}body{margin:0;background:#f4f4f5;color:#18181b;font-family:Arial,sans-serif}

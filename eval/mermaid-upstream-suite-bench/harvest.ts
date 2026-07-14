@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { basename, join, relative, resolve } from 'node:path'
 import { execFileSync } from 'node:child_process'
+import { plainTextFromInlineFormatting } from '../../src/shared/inline-format.ts'
 import {
   asArchitecture,
   asClass,
@@ -10,6 +11,7 @@ import {
   asJourney,
   asPie,
   asQuadrant,
+  asRadar,
   asSequence,
   asState,
   asTimeline,
@@ -235,6 +237,13 @@ const FAMILY_CONFIGS: FamilyConfig[] = [
       { path: 'packages/mermaid/src/diagrams/quadrant-chart/quadrantDb.spec.ts', testBlocks: 5 },
     ],
   },
+  {
+    family: 'radar',
+    consideredBlocks: 19,
+    files: [
+      { path: 'packages/mermaid/src/diagrams/radar/radar.spec.ts', testBlocks: 19 },
+    ],
+  },
 ]
 
 const narrowers: Record<Family, (d: ValidDiagram) => ValidDiagram | null> = {
@@ -249,10 +258,11 @@ const narrowers: Record<Family, (d: ValidDiagram) => ValidDiagram | null> = {
   xychart: asXyChart,
   pie: asPie,
   quadrant: asQuadrant,
+  radar: asRadar,
   gantt: asGantt,
 }
 
-const headerPattern = /\b(?:graph|flowchart|stateDiagram(?:-v2)?|sequenceDiagram|classDiagram|erDiagram|timeline|journey|architecture-beta|xychart(?:-beta)?|pie|quadrantChart|swimlane)\b/i
+const headerPattern = /\b(?:graph|flowchart|stateDiagram(?:-v2)?|sequenceDiagram|classDiagram|erDiagram|timeline|journey|architecture-beta|xychart(?:-beta)?|pie|quadrantChart|radar-beta|swimlane)\b/i
 const LOCAL_GAP_REASONS = new Set(['local-parse-gap', 'local-verify-gap', 'local-layout-gap', 'local-roundtrip-gap', 'unsupported-header', 'unsupported-syntax', 'unsupported-structured-syntax'])
 
 function main(): void {
@@ -286,7 +296,7 @@ function main(): void {
               source: classification.source,
               upstream: { repo: UPSTREAM_REPO, files: [block.file], blocks: [blockLabel(block)] },
               assertions: {
-                ...(classification.structured ? {} : { expectStructured: false }),
+                expectStructured: classification.structured,
                 nodeCount: classification.nodes,
                 edgeCount: classification.edges,
                 groupCount: classification.groups,
@@ -682,9 +692,9 @@ function isDeclarationOnlyFlowchartSource(source: string, diagram: ValidDiagram)
 
 function caseLabels(layout: ReturnType<typeof layoutMermaid>): string[] {
   const labels: string[] = []
-  for (const node of layout.nodes) if (node.label) labels.push(node.label)
-  for (const edge of layout.edges) if (edge.label?.text) labels.push(edge.label.text)
-  for (const group of layout.groups) if (group.label) labels.push(group.label)
+  for (const node of layout.nodes) if (node.label) labels.push(plainTextFromInlineFormatting(node.label))
+  for (const edge of layout.edges) if (edge.label?.text) labels.push(plainTextFromInlineFormatting(edge.label.text))
+  for (const group of layout.groups) if (group.label) labels.push(plainTextFromInlineFormatting(group.label))
   return [...new Set(labels)].slice(0, 8)
 }
 

@@ -26,7 +26,7 @@ D2 has a better language than Mermaid. The Beautiful Mermaid renderer foundation
 
 1. **Deterministic layout** — same input → structurally identical layout JSON across runs with the same ELK version. (Not "byte-identical SVG across versions" — that's a stronger claim that needs a forked ELK to actually deliver.)
 2. **Verifiable rendering** — structured "did this render cleanly?" check. Structural warnings (anchors, bounds, emptiness, group containment) are reliable; metric warnings (label fit, overlap) are best-effort because they depend on font-measurement parity with ELK.
-3. **Round-trippable** — `parseMermaid` produces a `ValidDiagram` that carries source needed to re-emit the diagram. For flowchart/state, sequence, timeline, class, ER, journey, architecture, xychart, pie, quadrant, gantt, mindmap, and gitgraph, `mutate` operates on structured bodies; for opaque-fallback bodies, preserved source is the round-trip mechanism.
+3. **Round-trippable** — `parseMermaid` produces a `ValidDiagram` that carries source needed to re-emit the diagram. For flowchart/state, sequence, timeline, class, ER, journey, architecture, xychart, pie, quadrant, gantt, mindmap, gitgraph, and radar, `mutate` operates on structured bodies; for opaque-fallback bodies, preserved source is the round-trip mechanism.
 
 (Composition — `@include`, templates, layered scenarios — was the fourth in earlier drafts and is deferred. Agents do not currently reach for composition; they paste and edit. Add when evidence demands.)
 
@@ -169,7 +169,7 @@ type DiagramBody =
   | { kind: 'flowchart'; graph: MermaidGraph }
   | StateBody | SequenceBody | TimelineBody | ClassBody | ErBody
   | JourneyBody | ArchitectureBody | XyChartBody | PieBody | QuadrantBody | GanttBody
-  | MindmapBody | GitGraphBody
+  | MindmapBody | GitGraphBody | RadarBody
   | { kind: 'opaque'; family: DiagramKind; source: string }
 
 type MutableValidDiagram = import('agentic-mermaid/agent').MutableValidDiagram
@@ -415,6 +415,25 @@ Two contracts:
 
 `append_commit`, `create_branch`, `checkout_branch`, `merge_branch`, `cherry_pick`, `set_commit_message`, `set_commit_type`, `set_commit_tags`, `rename_branch`, `set_accessibility_title`, `set_accessibility_description`.
 
+**Radar MutationOp kinds** (14 — promoting the `radar-beta` family to structured mutation via the FamilyPlugin registry). Axes and curves are addressed by unique ids; each curve carries exactly one finite value per axis, in axis order. The header keyword is `radar-beta`; order-independent and multiline `title`, `axis`/`curve`, and option declarations are modeled. Duplicate identities, vector mismatches, accessibility directives, and any unmodeled line fall back to opaque losslessly rather than weakening the typed invariant:
+
+| Kind | Required | Inverse |
+|---|---|---|
+| `set_title`         | `title \| null`                                        | `set_title(prev_title)` |
+| `add_axis`          | `id` (+ optional `label`, insert `index`, `fill`)      | `remove_axis(id)` |
+| `remove_axis`       | `id`                                                   | `add_axis(...)` |
+| `rename_axis`       | `from`, `to`                                           | `rename_axis(to, from)` |
+| `set_axis_label`    | `id`, `label \| null`                                  | `set_axis_label(id, prev_label)` |
+| `reorder_axis`      | `from`, `to` (permutes every curve's value vector)     | `reorder_axis(to, from)` |
+| `add_curve`         | `id`, `values` (one per axis) (+ optional `label`, insert `index`) | `remove_curve(id)` |
+| `remove_curve`      | `id`                                                   | `add_curve(...)` |
+| `set_curve_values`  | `id`, `values` (one per axis)                          | `set_curve_values(id, prev_values)` |
+| `set_curve_value`   | `curve`, `axis`, `value` (finite)                      | `set_curve_value(curve, axis, prev_value)` |
+| `set_curve_label`   | `id`, `label \| null`                                  | `set_curve_label(id, prev_label)` |
+| `rename_curve`      | `from`, `to`                                           | `rename_curve(to, from)` |
+| `reorder_curve`     | `from`, `to`                                           | `reorder_curve(to, from)` |
+| `set_config`        | optional `max`, `min`, `ticks` (`1..64`), `graticule`, `showLegend`; `null` resets each field | `set_config(prev_fields)` |
+
 **Structured-or-opaque rule (v4): never lossy.** The parser only produces a structured body when it fully understands every non-blank, non-comment line for most structured families. If the source contains *any* construct the parser doesn't model — `direction TB` in class, out-of-range scores in journey, duplicate Architecture title declarations, a `;`-joined multi-statement line in xychart, a malformed entry in pie, or out-of-range coordinates in quadrant, etc. — parsing **falls back to an opaque body**. The diagram still parses, renders, verifies (structurally), and round-trips losslessly via preserved `body.source`; it simply isn't offered for structured mutation (structured-family narrowers return `null` on opaque fallbacks). This guarantees the parser never silently drops information. Earlier drafts dropped unrecognized lines on the floor; v4 does not.
 
 **Segment-preserving bodies (BUILD-18) — sequence ends the all-or-nothing cliff.** Sequence carries an ordered `statements: SequenceStatement[]` list. `alt|opt|loop|par` are typed fragments: their branches/messages participate in describe/facts/verify and have dedicated mutation ops. Other block constructs (`critical|break|rect|box … end`) and `Note`/`activate`/`deactivate`/`create`/`destroy`/`autonumber`/`title` remain VERBATIM opaque segments. Top-level message indices stay backward-compatible and distinct from fragment indices. Only an un-segmentable body (a stray `end`, an unclosed block) falls back to whole-body opaque. Gantt adopts the same pattern for calendar directives/click/comments. ER also uses ordered typed and opaque-block segments; Class and Timeline are the remaining follow-up work.
@@ -453,6 +472,7 @@ mutate(d: QuadrantValidDiagram,  op: QuadrantMutationOp):  Result<QuadrantValidD
 mutate(d: GanttValidDiagram,     op: GanttMutationOp):     Result<GanttValidDiagram, MutationError>
 mutate(d: MindmapValidDiagram,   op: MindmapMutationOp):   Result<MindmapValidDiagram, MutationError>
 mutate(d: GitGraphValidDiagram,  op: GitGraphMutationOp):  Result<GitGraphValidDiagram, MutationError>
+mutate(d: RadarValidDiagram,     op: RadarMutationOp):     Result<RadarValidDiagram, MutationError>
 
 // Narrowing helpers; null when the diagram isn't of that family or is opaque/source-level.
 asFlowchart(d: ValidDiagram): FlowchartValidDiagram | null
@@ -469,6 +489,7 @@ asQuadrant(d: ValidDiagram):  QuadrantValidDiagram | null
 asGantt(d: ValidDiagram):     GanttValidDiagram | null
 asMindmap(d: ValidDiagram):   MindmapValidDiagram | null
 asGitGraph(d: ValidDiagram):  GitGraphValidDiagram | null
+asRadar(d: ValidDiagram):     RadarValidDiagram | null
 
 // Build a ValidDiagram from a JSON-safe graph payload without re-parsing
 // source. Used by `am parse | am serialize` shell pipelines.

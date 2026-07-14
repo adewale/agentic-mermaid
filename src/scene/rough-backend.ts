@@ -80,6 +80,8 @@ export type GeometrySketcher = (
     style: StyleSpec | undefined
     dash: string | undefined
     strokeProjection: SketchStrokeProjection | undefined
+    /** Semantic MarkPaint.opacity for shape replacement geometry. */
+    opacity: string | number | undefined
   },
 ) => string | null
 
@@ -140,18 +142,24 @@ function opsToSvg(
   fill: string | undefined,
   p: RoughParams,
   projection: SketchStrokeProjection = {},
+  opacity?: string | number,
 ): string {
   const out: string[] = []
   const strokeAttrs = projectedStrokeAttributes(projection)
+  // Preserve the historical whitespace for projection-free paths; only add
+  // the missing separator when projected attributes and semantic opacity
+  // are both present.
+  const projectedAttrs = strokeAttrs ? ` ${strokeAttrs}` : ' '
+  const opacityAttr = opacity === undefined ? '' : ` stroke-opacity="${escapeAttr(String(opacity))}"`
   for (const set of sets) {
     const d = gen.opsToPath(set as Parameters<typeof gen.opsToPath>[0], 2)
     if (!d) continue
     if (set.type === 'path') {
-      out.push(`<path d="${d}" fill="none" stroke="${stroke}" stroke-width="${strokeWidth}" ${strokeAttrs} />`)
+      out.push(`<path d="${d}" fill="none" stroke="${stroke}" stroke-width="${strokeWidth}"${projectedAttrs}${opacityAttr} />`)
     } else if (set.type === 'fillPath') {
-      out.push(`<path d="${d}" fill="${fill}" fill-opacity="0.92" stroke="none" />`)
+      out.push(`<path d="${d}" fill="${fill}" fill-opacity="${escapeAttr(String(opacity ?? 0.92))}" stroke="none" />`)
     } else if (set.type === 'fillSketch') {
-      out.push(`<path d="${d}" fill="none" stroke="${fill}" stroke-width="${p.fillWeight}" />`)
+      out.push(`<path d="${d}" fill="none" stroke="${fill}" stroke-width="${p.fillWeight}"${opacityAttr} />`)
     }
   }
   return out.join('\n')
@@ -173,8 +181,9 @@ export function sketchGeometryRough(
   p: RoughParams,
   dash?: string,
   strokeProjection?: SketchStrokeProjection,
+  opacity?: string | number,
 ): string {
-  return sketchGeometry(geom, seed, stroke, strokeWidth, fill, p, dash, strokeProjection)
+  return sketchGeometry(geom, seed, stroke, strokeWidth, fill, p, dash, strokeProjection, opacity)
 }
 
 /** Draw one geometry with rough.js. `fill` undefined means outline-only. */
@@ -187,6 +196,7 @@ function sketchGeometry(
   p: RoughParams,
   dash?: string,
   strokeProjection?: SketchStrokeProjection,
+  opacity?: string | number,
 ): string {
   const projection = { ...strokeProjection, ...(dash !== undefined ? { dashArray: dash } : {}) }
   const opts = roughOptions(p, seed, stroke, strokeWidth, fill)
@@ -194,22 +204,22 @@ function sketchGeometry(
     switch (geom.kind) {
       case 'rect': {
         if ((geom.rx ?? 0) > 0.5) {
-          return opsToSvg(gen.path(roundedRectPath(geom.x, geom.y, geom.width, geom.height, geom.rx!), opts).sets, stroke, strokeWidth, fill, p, projection)
+          return opsToSvg(gen.path(roundedRectPath(geom.x, geom.y, geom.width, geom.height, geom.rx!), opts).sets, stroke, strokeWidth, fill, p, projection, opacity)
         }
-        return opsToSvg(gen.rectangle(geom.x, geom.y, geom.width, geom.height, opts).sets, stroke, strokeWidth, fill, p, projection)
+        return opsToSvg(gen.rectangle(geom.x, geom.y, geom.width, geom.height, opts).sets, stroke, strokeWidth, fill, p, projection, opacity)
       }
       case 'circle':
-        return opsToSvg(gen.circle(geom.cx, geom.cy, geom.r * 2, opts).sets, stroke, strokeWidth, fill, p, projection)
+        return opsToSvg(gen.circle(geom.cx, geom.cy, geom.r * 2, opts).sets, stroke, strokeWidth, fill, p, projection, opacity)
       case 'ellipse':
-        return opsToSvg(gen.ellipse(geom.cx, geom.cy, geom.rx * 2, geom.ry * 2, opts).sets, stroke, strokeWidth, fill, p, projection)
+        return opsToSvg(gen.ellipse(geom.cx, geom.cy, geom.rx * 2, geom.ry * 2, opts).sets, stroke, strokeWidth, fill, p, projection, opacity)
       case 'line':
-        return opsToSvg(gen.line(geom.x1, geom.y1, geom.x2, geom.y2, opts).sets, stroke, strokeWidth, undefined, p, projection)
+        return opsToSvg(gen.line(geom.x1, geom.y1, geom.x2, geom.y2, opts).sets, stroke, strokeWidth, undefined, p, projection, opacity)
       case 'polygon':
-        return opsToSvg(gen.polygon(geom.points.map(q => [q.x, q.y] as [number, number]), opts).sets, stroke, strokeWidth, fill, p, projection)
+        return opsToSvg(gen.polygon(geom.points.map(q => [q.x, q.y] as [number, number]), opts).sets, stroke, strokeWidth, fill, p, projection, opacity)
       case 'polyline':
-        return opsToSvg(gen.linearPath(geom.points.map(q => [q.x, q.y] as [number, number]), opts).sets, stroke, strokeWidth, undefined, p, projection)
+        return opsToSvg(gen.linearPath(geom.points.map(q => [q.x, q.y] as [number, number]), opts).sets, stroke, strokeWidth, undefined, p, projection, opacity)
       case 'path':
-        return opsToSvg(gen.path(geom.d, opts).sets, stroke, strokeWidth, fill, p, projection)
+        return opsToSvg(gen.path(geom.d, opts).sets, stroke, strokeWidth, fill, p, projection, opacity)
       case 'compound':
         // Callers handle compound per-child (per-child paint differs).
         return ''
@@ -228,12 +238,13 @@ function sketchGeometryVia(
   fill: string | undefined,
   dash?: string,
   strokeProjection?: SketchStrokeProjection,
+  opacity?: string | number,
 ): string {
   if (walk.sketcher) {
-    const out = walk.sketcher(geom, { seed, stroke, width, fill, p: walk.p, style: walk.ctx.style, dash, strokeProjection })
+    const out = walk.sketcher(geom, { seed, stroke, width, fill, p: walk.p, style: walk.ctx.style, dash, strokeProjection, opacity })
     if (out !== null) return out
   }
-  return sketchGeometry(geom, seed, stroke, width, fill, walk.p, dash, strokeProjection)
+  return sketchGeometry(geom, seed, stroke, width, fill, walk.p, dash, strokeProjection, opacity)
 }
 
 /** Inject attributes right after the opening tag of an owned-format element.
@@ -302,7 +313,7 @@ function sketchShape(node: ShapeMark, walk: Walk): string {
       // Stroke-less element (gantt bands, halo chips, state-start dots,
       // width-0 borders): never synthesize an outline (Phase 0 lesson b).
       if (wantFill) {
-        const sketchedFill = sketchGeometryVia(walk, geoms[i]!, seed, 'none', 0, wantFill, dash)
+        const sketchedFill = sketchGeometryVia(walk, geoms[i]!, seed, 'none', 0, wantFill, dash, undefined, node.paint.opacity)
         if (sketchedFill) {
           out.push(transformedStyledGeometry(sketchedFill, node.transform))
           continue
@@ -312,7 +323,7 @@ function sketchShape(node: ShapeMark, walk: Walk): string {
       continue
     }
     const width = Math.max(0.6, Math.min(p.strokeWidth * widthRatio, p.strokeWidth * 4))
-    const sketched = sketchGeometryVia(walk, geoms[i]!, seed, stroke!, width, wantFill, dash)
+    const sketched = sketchGeometryVia(walk, geoms[i]!, seed, stroke!, width, wantFill, dash, undefined, node.paint.opacity)
     if (!sketched) { out.push(crispElementOf(i)); continue }
     // Value-colored solid fills stay: when the style suppresses sketch fills
     // but the element carries a non-default fill, under-paint it crisply so

@@ -129,6 +129,9 @@ export function countStructuralElements(d: ValidDiagram): StructuralCount | null
         edges: body.commits.reduce((sum, commit) => sum + commit.parents.length, 0),
         groups: body.branches.length,
       }
+    case 'radar':
+      // Vertices (curves × axes) are the marks; axes are the reference groups.
+      return { nodes: body.curves.reduce((sum, c) => sum + c.values.length, 0), edges: 0, groups: body.axes.length }
     case 'opaque':
       return null
     default: {

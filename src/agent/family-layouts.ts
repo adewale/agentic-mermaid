@@ -21,6 +21,7 @@
 //   pie           slice label boxes (legend    —                      —
 //                 anchor + approx bbox)
 //   quadrant      points                       —                      quadrant regions
+//   radar        axes/data/legend/title       —                      graticule rings
 //   gantt         tasks + milestones           —                      section bands
 //
 // The layout-JSON facade invokes a descriptor once for normal input. A narrow
@@ -76,6 +77,8 @@ import type { PositionedXYChart } from '../xychart/types.ts'
 import type { PositionedPieChart } from '../pie/types.ts'
 import { formatPiePercent } from '../pie/layout.ts'
 import type { PositionedQuadrantChart } from '../quadrant/types.ts'
+import type { PositionedRadarChart } from '../radar/types.ts'
+import { measureTextWidth } from '../text-metrics.ts'
 import { parseGanttModel, applyGanttFrontmatterConfig } from '../gantt/parser.ts'
 import { resolveGanttSchedule } from '../gantt/schedule.ts'
 import type { GanttLayoutResult } from '../gantt/types.ts'
@@ -217,7 +220,7 @@ export function positionFamilyArtifact(
   const projectionOptions: FamilyPositionedProjectionOptions = { debug: options.debug }
 
   const sourceText = d.body.kind !== 'opaque' && (
-    d.kind === 'state' || d.kind === 'quadrant' || d.kind === 'mindmap' || d.kind === 'gitgraph'
+    d.kind === 'state' || d.kind === 'quadrant' || d.kind === 'mindmap' || d.kind === 'gitgraph' || d.kind === 'radar'
   )
     ? serializeMermaid(d)
     : d.canonicalSource
@@ -926,4 +929,83 @@ export function projectQuadrantPositioned(
   const layout: FamilyPositionedView = { version: 1, nodes, edges: [], groups, bounds: { w: f(positioned.width), h: f(positioned.height) } }
   if (options.debug) layout.certificates = elementCertificates('quadrant', layout, 'plot-contained')
   return layout
+}
+
+// ---- radar -----------------------------------------------------------------
+
+export function projectRadarPositioned(
+  { positioned }: FamilyPositionedProjectionContext<PositionedRadarChart>,
+): FamilyPositionedView {
+  // The positioned chart carries the exact resolved typography it was laid
+  // out with, including named Style-face metrics.
+  const typography = positioned.typography
+  const nodes: RenderedLayoutNode[] = []
+  // Concentric graticule rings are the (member-less) grouping frames.
+  const groups: RenderedLayoutGroup[] = positioned.rings.map((ring, index) => ({
+    id: `ring:${index}`,
+    x: f(positioned.cx - ring.r), y: f(positioned.cy - ring.r),
+    w: f(ring.r * 2), h: f(ring.r * 2), members: [],
+  }))
+
+  positioned.axes.forEach((axis, index) => {
+    const label = axis.lines.join(' ')
+    let width = 8
+    for (const line of axis.lines) width = Math.max(width, measureTextWidth(line, typography.axisFontSize, typography.axisFontWeight))
+    const height = Math.max(typography.axisFontSize, axis.lines.length * typography.axisFontSize * 1.2)
+    const x = axis.anchor === 'start' ? axis.labelX : axis.anchor === 'end' ? axis.labelX - width : axis.labelX - width / 2
+    nodes.push({
+      id: `axis#${index}:${axis.id}`,
+      x: f(x), y: f(axis.labelY - height / 2), w: f(width), h: f(height),
+      shape: 'rectangle', label, role: 'labelled-mark',
+    })
+  })
+
+  positioned.tickLabels.forEach((tick, index) => {
+    const width = measureTextWidth(tick.text, typography.tickFontSize, typography.tickFontWeight)
+    const height = typography.tickFontSize * 1.2
+    nodes.push({
+      id: `tick:${index}`,
+      x: f(tick.x - width / 2), y: f(tick.y - height / 2), w: f(width), h: f(height),
+      shape: 'rectangle', label: tick.text, role: 'labelled-mark',
+    })
+  })
+
+  const curveIdCounts = new Map<string, number>()
+  for (const curve of positioned.curves) curveIdCounts.set(curve.id, (curveIdCounts.get(curve.id) ?? 0) + 1)
+  const curveIdOccurrences = new Map<string, number>()
+  positioned.curves.forEach(curve => {
+    const occurrence = curveIdOccurrences.get(curve.id) ?? 0
+    curveIdOccurrences.set(curve.id, occurrence + 1)
+    const identity = (curveIdCounts.get(curve.id) ?? 0) > 1 ? `${curve.id}#${occurrence}` : curve.id
+    curve.vertices.forEach((vertex, vertexIndex) => {
+      nodes.push({ id: `dot:${identity}:${vertexIndex}`, x: f(vertex.x - 3), y: f(vertex.y - 3), w: f(6), h: f(6), shape: 'circle', role: 'mark' })
+    })
+  })
+
+  for (const [index, item] of positioned.legend.entries()) {
+    nodes.push({
+      id: `legend-swatch#${index}`,
+      x: f(item.x), y: f(item.y), w: f(item.swatchSize), h: f(item.swatchSize),
+      shape: 'rectangle', role: 'mark',
+    })
+    const width = measureTextWidth(item.label, typography.legendFontSize, typography.legendFontWeight)
+    const height = typography.legendFontSize * 1.2
+    nodes.push({
+      id: `legend-label#${index}`,
+      x: f(item.textX), y: f(item.textY - height / 2), w: f(width), h: f(height),
+      shape: 'rectangle', label: item.label, role: 'labelled-mark',
+    })
+  }
+
+  if (positioned.title) {
+    const width = measureTextWidth(positioned.title.text, positioned.title.fontSize, typography.titleFontWeight)
+    const height = positioned.title.fontSize * 1.2
+    nodes.push({
+      id: 'title',
+      x: f(positioned.title.x - width / 2), y: f(positioned.title.y - height / 2), w: f(width), h: f(height),
+      shape: 'rectangle', label: positioned.title.text, role: 'labelled-mark',
+    })
+  }
+
+  return { version: 1, nodes, edges: [], groups, bounds: { w: f(positioned.width), h: f(positioned.height) } }
 }

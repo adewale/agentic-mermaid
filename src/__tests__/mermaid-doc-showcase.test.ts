@@ -42,7 +42,9 @@ describe('official Mermaid documentation showcase', () => {
     for (const entry of manifest.cases) {
       expect(entry.officialDocs).toMatch(/^https:\/\/mermaid\.js\.org\/syntax\//)
       expect(sha256(entry.source), entry.family).toBe(entry.sourceSha256)
-      if (entry.family !== 'mindmap' && entry.family !== 'gitgraph') {
+      // mindmap/gitgraph/radar were added after the legacy 12-family docs corpus
+      // was frozen; their showcase source lives only in this manifest.
+      if (entry.family !== 'mindmap' && entry.family !== 'gitgraph' && entry.family !== 'radar') {
         const corpusEntry = docsCorpus.find(candidate => candidate.family === entry.family && candidate.index === entry.index)
         expect(corpusEntry, `${entry.family} docs corpus row`).toBeDefined()
         expect(corpusEntry?.origin).toBe(entry.origin)

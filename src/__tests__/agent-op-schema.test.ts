@@ -179,6 +179,7 @@ describe('schema covers every mutable family (§11)', () => {
     gantt: { kind: 'add_section', label: 'S' },
     mindmap: { kind: 'add_node', id: 'child', label: 'child', parent: 'root' },
     gitgraph: { kind: 'append_commit', id: 'first' },
+    radar: { kind: 'add_axis', id: 'a' },
   }
 
   test('every family in MUTATION_OPS_BY_FAMILY has a schema and builds a valid op', () => {

@@ -35,6 +35,7 @@ function primaryNodeIdentities(family: DiagramKind, tuples: IdentityTuple[]): Id
     if (family === 'journey') return role === 'task' && /^task-\d+$/.test(id)
     if (family === 'timeline') return (role === 'period' && /^period-\d+$/.test(id)) || (role === 'event' && /^event-\d+$/.test(id))
     if (family === 'gantt') return role === 'task'
+    if (family === 'radar') return role === 'point'
     return role === 'node'
   })
 }
@@ -54,6 +55,10 @@ function primaryGroupIdentities(family: DiagramKind, tuples: IdentityTuple[]): I
 interface IdentityPair { id: string; role: string }
 const sortedPairs = (pairs: IdentityPair[]): IdentityPair[] => pairs.sort((a, b) => `${a.role}\0${a.id}`.localeCompare(`${b.role}\0${b.id}`))
 function expectedNodePairs(family: DiagramKind, layout: ReturnType<typeof layoutMermaid>): IdentityPair[] {
+  // Radar's primary data marks are the curve vertex dots (role 'point'); its
+  // layout also projects axis-label boxes (role 'labelled-mark') for the rubric,
+  // which the identity contract does not enroll — filter to the dots.
+  if (family === 'radar') return sortedPairs(layout.nodes.filter(node => node.role === 'mark' && node.id.startsWith('dot:')).map(node => ({ id: node.id, role: 'point' })))
   return sortedPairs(layout.nodes.map((node, index) => {
     if (family === 'sequence') return { id: node.id, role: 'actor' }
     if (family === 'class') return { id: node.id, role: 'class-box' }
@@ -71,7 +76,7 @@ function expectedNodePairs(family: DiagramKind, layout: ReturnType<typeof layout
   }))
 }
 function expectedGroupPairs(family: DiagramKind, layout: ReturnType<typeof layoutMermaid>): IdentityPair[] {
-  if (family === 'xychart') return []
+  if (family === 'xychart' || family === 'radar') return []
   return sortedPairs(layout.groups.map((group, index) => {
     if (family === 'quadrant') return { id: `plate:${group.id.slice(group.id.indexOf('#') + 1)}`, role: 'plate' }
     if (family === 'journey') return { id: group.id, role: 'section' }

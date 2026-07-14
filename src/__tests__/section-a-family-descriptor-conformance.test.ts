@@ -167,6 +167,7 @@ const CAPABILITY_MUTATIONS: Readonly<Record<BuiltinFamilyId, AnyMutationOp>> = {
   gantt: { kind: 'set_title', title: 'Capability witness' },
   mindmap: { kind: 'set_accessibility_title', title: 'Capability witness' },
   gitgraph: { kind: 'set_accessibility_title', title: 'Capability witness' },
+  radar: { kind: 'set_title', title: 'Capability witness' },
 }
 
 function lowerFixture(id: BuiltinFamilyId, sourceText: string): SceneDoc {

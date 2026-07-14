@@ -348,6 +348,7 @@ export function createTracingMermaid(
     asGantt: mermaid.asGantt,
     asMindmap: mermaid.asMindmap,
     asGitGraph: mermaid.asGitGraph,
+    asRadar: mermaid.asRadar,
     mutate: mermaid.mutate,
     verifyMermaid: mermaid.verifyMermaid,
     analyzeMermaid: mermaid.analyzeMermaid,
