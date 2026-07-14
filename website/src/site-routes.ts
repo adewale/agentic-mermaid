@@ -4,6 +4,8 @@
 export const LEGACY_REDIRECTS: ReadonlyArray<readonly [from: string, to: string]> = [
   ['/why', '/about/'], ['/why/', '/about/'],
   ['/gallery', '/examples/'], ['/gallery/', '/examples/'],
+  ['/getting-started', '/docs/getting-started/'], ['/getting-started/', '/docs/getting-started/'],
+  ['/warnings/index.md', '/warning-codes.md'], ['/warnings/index.md/', '/warning-codes.md'],
 ]
 
 export const CLEAN_PAGE_ROUTES: readonly string[] = [

@@ -6,6 +6,7 @@
 import { createMcpHandler, type McpCache } from './mcp-handler.ts'
 import { createLoaderExecute, type WorkerLoaderBinding } from './execute-loader.ts'
 import type { HostedMcpContext } from '../../src/mcp/hosted-server.ts'
+import { CLEAN_ROUTE_PATHS, LEGACY_REDIRECTS } from './site-routes.ts'
 
 export interface Env {
   ASSETS: { fetch(request: Request): Promise<Response> }
@@ -20,18 +21,10 @@ export interface WebsiteWorkerRuntime {
   deployVersion: string
 }
 
-// Renamed/consolidated routes. Examples absorbed the gallery; Why became
-// About. Mirrors the static _redirects file.
-const redirects = new Map([
-  ['/why', '/about/'], ['/why/', '/about/'],
-  ['/gallery', '/examples/'], ['/gallery/', '/examples/'],
-])
-
-const cleanRoutes = new Set([
-  '/about', '/about/design', '/comparisons', '/docs', '/editor', '/errors', '/examples', '/warnings',
-  '/docs/getting-started', '/docs/api', '/docs/cli', '/docs/mcp', '/docs/ascii', '/docs/theming', '/docs/custom-styles',
-  '/docs/quality', '/docs/fork-differences', '/skills/agentic-mermaid-diagram-workflow',
-])
+// Keep Worker-first redirects and clean-route canonicalization identical to
+// the generated Static Assets manifest.
+const redirects = new Map(LEGACY_REDIRECTS)
+const cleanRoutes = new Set(CLEAN_ROUTE_PATHS)
 
 const csp = [
   "default-src 'self'",

@@ -14,6 +14,7 @@ import { resolveBuildGitSha } from '../../website/build-provenance.ts'
 import { AI_CATALOG_RESOURCES } from '../../website/agent-resource-inventory.ts'
 import { HOSTED_TOOLS } from '../mcp/hosted-server.ts'
 import { verifyMermaid } from '../agent/verify.ts'
+import { sharedRenderOptionsJsonSchema } from '../render-contract.ts'
 import { knownStyleDescriptors } from '../scene/style-registry.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
@@ -172,6 +173,24 @@ describe('Workers Static Assets website contract', () => {
     expect(aboutSlash.status).toBe(308)
     expect(aboutSlash.headers.get('location')).toBe('https://agentic-mermaid.dev/about/')
 
+    for (const legacy of ['/getting-started', '/getting-started/']) {
+      const response = await worker.fetch(new Request(`https://agentic-mermaid.dev${legacy}?ref=old#install`), env(() => new Response('not found', { status: 404 })))
+      expect({ legacy, status: response.status, location: response.headers.get('location') }).toEqual({
+        legacy,
+        status: 308,
+        location: 'https://agentic-mermaid.dev/docs/getting-started/?ref=old#install',
+      })
+    }
+
+    for (const legacy of ['/warnings/index.md', '/warnings/index.md/']) {
+      const response = await worker.fetch(new Request(`https://agentic-mermaid.dev${legacy}`), env(() => new Response('not found', { status: 404 })))
+      expect({ legacy, status: response.status, location: response.headers.get('location') }).toEqual({
+        legacy,
+        status: 308,
+        location: 'https://agentic-mermaid.dev/warning-codes.md',
+      })
+    }
+
     assetFetches = 0
     for (const gone of ['/families', '/families/', '/docs/families', '/docs/source-level', '/docs/config', '/docs/react', '/docs/vocabulary', '/security', '/skills', '/evidence', '/releases']) {
       const removedRedirect = await worker.fetch(new Request(`https://agentic-mermaid.dev${gone}`), env(() => new Response('not found', { status: 404 })))
@@ -285,7 +304,7 @@ describe('Workers Static Assets website contract', () => {
       'docs/mcp/index.html', 'docs/ascii/index.html', 'docs/theming/index.html',
       'docs/custom-styles/index.html', 'docs/quality/index.html', 'docs/fork-differences/index.html',
       'warnings/index.html', 'errors/index.html', 'examples/index.html', 'comparisons/index.html',
-      'index.md', 'llms.txt', 'llms.md', '.well-known/llms.txt', 'agent-instructions.md', 'capabilities.json', 'examples/index.json', 'schemas/style-spec.schema.json',
+      'index.md', 'llms.txt', 'llms.md', '.well-known/llms.txt', 'agent-instructions.md', 'capabilities.json', 'examples/index.json', 'schemas/style-spec.schema.json', 'schemas/render-options.schema.json',
       '.well-known/mcp.json', '.well-known/mcp/server-card.json', '.well-known/ai-catalog.json',
       'sitemap.xml',
       'skills/agentic-mermaid-diagram-workflow/SKILL.md', '_headers', '_redirects',
@@ -675,6 +694,10 @@ describe('Workers Static Assets website contract', () => {
     for (const route of CLEAN_PAGE_ROUTES) expect(existsSync(join(SITE, route, 'index.html'))).toBe(true)
     expect(read('_redirects')).toContain('/why /about/ 308')
     expect(read('_redirects')).toContain('/gallery /examples/ 308')
+    expect(read('_redirects')).toContain('/getting-started /docs/getting-started/ 308')
+    expect(read('_redirects')).toContain('/getting-started/ /docs/getting-started/ 308')
+    expect(read('_redirects')).toContain('/warnings/index.md /warning-codes.md 308')
+    expect(read('_redirects')).toContain('/warnings/index.md/ /warning-codes.md 308')
     expect(read('_redirects')).not.toContain('/docs/families /examples/ 308')
     expect(read('_redirects')).not.toContain('/docs/families/ /examples/ 308')
     expect(read('_redirects')).not.toContain('/families /examples/ 308')
@@ -992,7 +1015,14 @@ describe('Workers Static Assets website contract', () => {
     expect(mcpCard.tools.every((tool: any) => tool.annotations?.destructiveHint === false)).toBe(true)
     expect(mcpCard.tools.every((tool: any) => tool.parameters && typeof tool.parameters === 'object')).toBe(true)
     expect(read('.well-known/mcp.json')).toContain('"serverUrl": "https://agentic-mermaid.dev/mcp"')
+    expect(JSON.parse(read('schemas/render-options.schema.json'))).toEqual(sharedRenderOptionsJsonSchema())
     const aiCatalog = JSON.parse(read('.well-known/ai-catalog.json'))
+    expect(aiCatalog.entries.find((entry: any) => entry.identifier === 'urn:air:agentic-mermaid.dev:warnings')).toMatchObject({
+      type: 'text/markdown',
+      url: 'https://agentic-mermaid.dev/warning-codes.md',
+    })
+    expect(existsSync(join(SITE, 'warning-codes.md'))).toBe(true)
+    expect(existsSync(join(SITE, 'warnings/index.md'))).toBe(false)
     expect(aiCatalog.entries.map((entry: any) => ({
       identifier: entry.identifier,
       type: entry.type,
