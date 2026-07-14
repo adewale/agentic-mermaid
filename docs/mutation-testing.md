@@ -18,8 +18,9 @@ npx stryker run stryker.ascii.config.json
 ```
 
 (`stryker.families.config.json` / `bun run mutation-test:families` covers the
-agent family parsers, and `stryker.routes.config.json` / `bun run
-mutation-test:routes` covers the route-contracts module
+shared Architecture, XYChart, Mindmap, and GitGraph parser/layout/renderer
+cores, and `stryker.routes.config.json` / `bun run mutation-test:routes` covers
+the route-contracts module
 (`docs/design/system/route-contracts.md`), all with the same policy.)
 
 Narrow lanes for PR-scale survivor harvests:
