@@ -72,12 +72,51 @@ After the retention window, rerun the whole workflow rather than only failed
 jobs. Broad mutation runs remain outside the PR gate; run a narrow lane locally
 when you touch ASCII/route core logic and want immediate proof the tests bite.
 
+## Retained nightly calibration diagnostic (2026-07-14)
+
+[GitHub Actions run 29327418603](https://github.com/adewale/agentic-mermaid/actions/runs/29327418603)
+at commit `8a7c8e44a06ca5c28bc5c5fc369c519af3a68d21` is the retained
+diagnostic used to replace placeholder and historically assumed floors with
+measured floors. The candidate is the aggregate score truncated down to two
+decimal places, never the rounded display value.
+
+| Complete lane | Detected | Valid | Precise score | Candidate floor |
+|---|---:|---:|---:|---:|
+| Routes | 1,804 | 5,443 | 33.1435% | 33.14% |
+| Route certificates | 63 | 91 | 69.2308% | 69.23% |
+| Subgraph routing | 57 | 66 | 86.3636% | 86.36% |
+| Timeline | 574 | 984 | 58.3333% | 58.33% |
+| Class | 620 | 2,358 | 26.2935% | 26.29% |
+| ER | 570 | 1,893 | 30.1109% | 30.11% |
+| Journey | 1,417 | 2,012 | 70.4274% | 70.42% |
+| Pie | 358 | 748 | 47.8610% | 47.86% |
+| Gantt | 2,229 | 3,724 | 59.8550% | 59.85% |
+| Mindmap | 401 | 405 | 99.0123% | 99.01% |
+| GitGraph | 294 | 303 | 97.0297% | 97.02% |
+
+This was intentionally a diagnostic run, not a passing acceptance run. The old
+90-minute jobs reproduced timeouts for State, Sequence, and Quadrant, while one
+broad-family shard received GitHub's runner-shutdown signal before it could
+write a report. The aggregate verifier rejected all four incomplete lanes and
+reported their exact missing-mutant counts; no partial score was accepted or
+used for calibration. The revised schedule splits State, Sequence, and
+Quadrant into three shards each, rebalances Gantt across five shards, and
+rebalances the broad-family lane across nine shards. The next complete run
+calibrates the four omitted lanes and proves every measured floor together.
+
+Some one-time corrections above lower an inherited, unmeasured floor that the
+diagnostic proved false. That is evidence-backed baseline repair, not automatic
+threshold decay. Once a lane has a complete retained calibration, its floor is
+a ratchet and may be lowered only through a reviewed change citing new retained
+evidence.
+
 ## Focused Mindmap/GitGraph historical local measurement (2026-07-10)
 
 These figures came from local runs. Their JSON reports are gitignored and no
 immutable CI artifact URL is committed, so they are diagnostic history—not a
-PR acceptance gate. The reproducible configs enforce only `thresholds.break:
-60`; they do not enforce the measured 97–99% scores.
+PR acceptance gate. The retained nightly calibration above supersedes these
+local figures as acceptance evidence and now enforces the measured 97–99%
+floors.
 
 | Lane | Mutants | Killed | Survived | Score |
 |---|---:|---:|---:|---:|
@@ -97,8 +136,8 @@ statement-kind guards that serialize identically on valid replay state. Reports 
 `reports/mutation/{mindmap,gitgraph}-mutation.json` (gitignored); the committed
 configs and nightly lanes make the runs reproducible. The measured scores above
 are not acceptance evidence: any separately owned acceptance claim must cite
-retained CI artifacts or a content-addressed report, never infer a score from
-the 60% break floor.
+retained CI artifacts or a content-addressed report, never infer a score from a
+configured break floor.
 
 ## Policy
 

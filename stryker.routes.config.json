@@ -17,5 +17,5 @@
   "concurrency": 4,
   "tempDirName": ".stryker-tmp-routes",
   "disableTypeChecks": true,
-  "thresholds": { "break": 1 }
+  "thresholds": { "break": 33.14 }
 }

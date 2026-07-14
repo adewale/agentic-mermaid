@@ -30,5 +30,5 @@
   "concurrency": 2,
   "tempDirName": ".stryker-tmp-journey",
   "disableTypeChecks": true,
-  "thresholds": { "break": 60 }
+  "thresholds": { "break": 70.42 }
 }

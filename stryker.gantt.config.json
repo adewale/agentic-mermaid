@@ -18,5 +18,5 @@
   "concurrency": 2,
   "tempDirName": ".stryker-tmp-gantt",
   "disableTypeChecks": true,
-  "thresholds": { "break": 1 }
+  "thresholds": { "break": 59.85 }
 }
