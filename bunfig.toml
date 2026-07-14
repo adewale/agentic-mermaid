@@ -2,10 +2,6 @@
 # Determinism: pin the fast-check global seed for every property suite
 # (AM_FC_SEED=random rolls fresh seeds; see docs/testing-strategy.md).
 preload = ["./src/__tests__/fc-seed.preload.ts", "./src/__tests__/website-public.preload.ts"]
-# Coverage makes the corpus and adversarial suites several times slower on
-# shared CI runners. Keep one bounded project-wide default instead of adding a
-# new timeout to whichever heavy test happens to cross Bun's 5 s default next.
-timeout = 30000
 coverage = true
 # lcov only: the text reporter's giant padded table intermittently kills
 # bun's stdout writer (`error: An internal error occurred (WriteFailed)`,

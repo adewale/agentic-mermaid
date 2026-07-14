@@ -51,7 +51,10 @@ jobs:
         # intermittently kills bun's stdout writer with `error: An internal
         # error occurred (WriteFailed)`, exiting 1 with zero test failures
         # (runs 28576001032, 28576303182). The pass/fail summary still prints.
-        run: bun test --coverage src/__tests__/
+        # Coverage makes corpus and adversarial tests several times slower on
+        # shared runners. Keep their one bounded default here; passing it on
+        # the command line is effective across the Bun versions used by CI.
+        run: bun test --coverage --timeout 30000 src/__tests__/
 
       - name: Adequacy signal reminder
         # Surface where the trustworthy adequacy number lives so a green
