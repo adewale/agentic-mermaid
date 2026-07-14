@@ -415,18 +415,30 @@ function num(value: number): string {
   return Number.isInteger(value) ? String(value) : String(Number(value.toPrecision(12)))
 }
 
+/** Coerce an alias field to a string list without ever throwing. A well-typed spec always
+ *  supplies string arrays; agents and the untrusted Code-Mode boundary may pass a non-array
+ *  (a number, an object, null) — treat those as "no facts" rather than spreading a
+ *  non-iterable, which used to surface as an uncaught TypeError from a "safe" API. */
+function toFactList(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  return value.map(item => (typeof item === 'string' ? item : String(item)))
+}
+
 function specRequired(spec: CheckMermaidSpec): string[] {
-  if (!isObjectSpec(spec)) return [...spec]
-  return unique([...(spec.include ?? []), ...(spec.expected ?? []), ...(spec.require ?? []), ...(spec.required ?? [])])
+  if (Array.isArray(spec)) return toFactList(spec)
+  if (!isObjectSpec(spec)) return []
+  return unique([...toFactList(spec.include), ...toFactList(spec.expected), ...toFactList(spec.require), ...toFactList(spec.required)])
 }
 
 function specForbidden(spec: CheckMermaidSpec): string[] {
   if (!isObjectSpec(spec)) return []
-  return unique([...(spec.exclude ?? []), ...(spec.absent ?? []), ...(spec.forbid ?? []), ...(spec.forbidden ?? []), ...(spec.unexpected ?? [])])
+  return unique([...toFactList(spec.exclude), ...toFactList(spec.absent), ...toFactList(spec.forbid), ...toFactList(spec.forbidden), ...toFactList(spec.unexpected)])
 }
 
+/** A spec is object-shaped only when it is a non-null, non-array object; null/undefined and
+ *  primitives fall through to the empty-constraint path instead of being dereferenced. */
 function isObjectSpec(spec: CheckMermaidSpec): spec is CheckMermaidObjectSpec {
-  return !Array.isArray(spec)
+  return spec !== null && typeof spec === 'object' && !Array.isArray(spec)
 }
 
 function unique(values: readonly string[]): string[] {

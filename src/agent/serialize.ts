@@ -122,6 +122,26 @@ function renderBody(
 // ---- synthesizeFromGraph --------------------------------------------------
 
 export function synthesizeFromGraph(payload: ValidDiagramPayload): Result<ValidDiagram, ParseError[]> {
+  // This is an untrusted-JSON boundary (`am serialize`, batch `serialize`, Code Mode): the
+  // declared Result type promises err-not-throw for ANY payload. Guard the top-level shape for
+  // a clean message, then net any deeper malformed-graph throw (e.g. `new Map` on a non-tuple
+  // array) into INVALID_PAYLOAD instead of letting it escape as an unhandled crash — which used
+  // to surface as `am serialize` exit 4 (and exit 0 on `null`), bypassing the `!ok` error path.
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    return err([{ code: 'INVALID_PAYLOAD', message: 'payload must be a diagram object' }])
+  }
+  const bodyPayload = (payload as { body?: unknown }).body
+  if (!bodyPayload || typeof bodyPayload !== 'object' || typeof (bodyPayload as { kind?: unknown }).kind !== 'string') {
+    return err([{ code: 'INVALID_PAYLOAD', message: 'payload.body.kind must be a string' }])
+  }
+  try {
+    return rebuildFromPayload(payload)
+  } catch (e) {
+    return err([{ code: 'INVALID_PAYLOAD', message: `could not rebuild diagram from payload: ${(e as Error).message}` }])
+  }
+}
+
+function rebuildFromPayload(payload: ValidDiagramPayload): Result<ValidDiagram, ParseError[]> {
   const meta: ValidDiagramMeta = {
     initDirectives: payload.meta?.initDirectives ?? [],
     comments: payload.meta?.comments ?? [],
@@ -133,7 +153,11 @@ export function synthesizeFromGraph(payload: ValidDiagramPayload): Result<ValidD
   let body: DiagramBody
   if (payload.body.kind === 'flowchart') {
     const sg = payload.body.graph
-    const nodesMap = Array.isArray(sg.nodes) ? new Map(sg.nodes) : new Map(Object.entries(sg.nodes))
+    // A flowchart payload with a missing/empty node map is malformed but not fatal: default to
+    // an empty map. Exotic shapes (a non-tuple array) fall through to the boundary's error net.
+    const nodesMap = Array.isArray(sg?.nodes)
+      ? new Map(sg.nodes)
+      : (sg?.nodes ? new Map(Object.entries(sg.nodes)) : new Map())
     body = {
       kind: 'flowchart',
       graph: {
