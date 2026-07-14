@@ -31,7 +31,7 @@ import {
 } from './external-projection.ts'
 import * as marks from './marks.ts'
 import { connectorInlineLabelVisualBounds } from './bounds.ts'
-import { serializeMarkerResources } from './marker-resources.ts'
+import { assertRenderableMarker, serializeMarkerResources } from './marker-resources.ts'
 import {
   SCENE_VALIDATION_LIMITS,
   assertValidSceneDoc,
@@ -165,7 +165,156 @@ function admitBoundedPlainExternalInput(value: unknown): ExternalSceneInput {
   if (input.markers !== undefined && !Array.isArray(input.markers)) {
     throw new TypeError('External Scene markers must be a plain array')
   }
+  assertExternalSceneInputShape(input)
   return snapshot as ExternalSceneInput
+}
+
+function externalRecord(value: unknown, path: string): Record<string, unknown> {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    throw new TypeError(`External Scene ${path} must be a plain object`)
+  }
+  return value as Record<string, unknown>
+}
+
+function externalArray(value: unknown, path: string): readonly unknown[] {
+  if (!Array.isArray(value)) throw new TypeError(`External Scene ${path} must be a plain array`)
+  return value
+}
+
+function externalString(value: unknown, path: string): asserts value is string {
+  if (typeof value !== 'string') throw new TypeError(`External Scene ${path} must be a string`)
+}
+
+function externalFinite(value: unknown, path: string): asserts value is number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    throw new TypeError(`External Scene ${path} must be a finite number`)
+  }
+}
+
+function assertExternalPoint(value: unknown, path: string): void {
+  const point = externalRecord(value, path)
+  externalFinite(point.x, `${path}.x`)
+  externalFinite(point.y, `${path}.y`)
+}
+
+function assertExternalGeometry(
+  value: unknown,
+  path: string,
+  allowedKinds: readonly string[],
+  connectorPath = false,
+): void {
+  const geometry = externalRecord(value, path)
+  externalString(geometry.kind, `${path}.kind`)
+  if (!allowedKinds.includes(geometry.kind)) {
+    throw new TypeError(`External Scene ${path}.kind must be one of: ${allowedKinds.join(', ')}`)
+  }
+  const numbers = (...fields: string[]) => {
+    for (const field of fields) externalFinite(geometry[field], `${path}.${field}`)
+  }
+  switch (geometry.kind) {
+    case 'rect':
+      numbers('x', 'y', 'width', 'height')
+      if (geometry.rx !== undefined) externalFinite(geometry.rx, `${path}.rx`)
+      if (geometry.ry !== undefined) externalFinite(geometry.ry, `${path}.ry`)
+      return
+    case 'circle': numbers('cx', 'cy', 'r'); return
+    case 'ellipse': numbers('cx', 'cy', 'rx', 'ry'); return
+    case 'line': numbers('x1', 'y1', 'x2', 'y2'); return
+    case 'polygon':
+    case 'polyline': {
+      const points = externalArray(geometry.points, `${path}.points`)
+      for (let index = 0; index < points.length; index++) assertExternalPoint(points[index], `${path}.points[${index}]`)
+      return
+    }
+    case 'path': {
+      externalString(geometry.d, `${path}.d`)
+      if (connectorPath) {
+        const points = externalArray(geometry.points, `${path}.points`)
+        for (let index = 0; index < points.length; index++) assertExternalPoint(points[index], `${path}.points[${index}]`)
+      }
+      return
+    }
+    case 'compound': {
+      const children = externalArray(geometry.children, `${path}.children`)
+      for (let index = 0; index < children.length; index++) {
+        assertExternalGeometry(children[index], `${path}.children[${index}]`, [
+          'rect', 'circle', 'ellipse', 'line', 'polygon', 'polyline', 'path', 'compound',
+        ])
+      }
+    }
+  }
+}
+
+function assertExternalNode(value: unknown, path: string): void {
+  const node = externalRecord(value, path)
+  externalString(node.kind, `${path}.kind`)
+  externalString(node.id, `${path}.id`)
+  externalString(node.role, `${path}.role`)
+  if (!['shape', 'data-mark', 'text', 'container', 'connector'].includes(node.kind)) {
+    throw new TypeError(`External Scene ${path}.kind must be one of: shape, data-mark, text, container, connector`)
+  }
+  if (node.kind === 'shape' || node.kind === 'data-mark') {
+    assertExternalGeometry(node.geometry, `${path}.geometry`, [
+      'rect', 'circle', 'ellipse', 'line', 'polygon', 'polyline',
+    ])
+    if (node.kind === 'data-mark') externalFinite(node.value, `${path}.value`)
+    return
+  }
+  if (node.kind === 'text') {
+    externalString(node.text, `${path}.text`)
+    externalFinite(node.x, `${path}.x`)
+    externalFinite(node.y, `${path}.y`)
+    externalFinite(node.fontSize, `${path}.fontSize`)
+    return
+  }
+  if (node.kind === 'container') {
+    const children = externalArray(node.children, `${path}.children`)
+    for (let index = 0; index < children.length; index++) assertExternalNode(children[index], `${path}.children[${index}]`)
+    return
+  }
+  assertExternalGeometry(node.geometry, `${path}.geometry`, ['line', 'polyline', 'path'], true)
+  if (typeof node.from !== 'string') {
+    throw new TypeError(`External Scene ${path}.from is required for external connectors and must be a string`)
+  }
+  if (typeof node.to !== 'string') {
+    throw new TypeError(`External Scene ${path}.to is required for external connectors and must be a string`)
+  }
+  if (node.labels !== undefined) {
+    const labels = externalArray(node.labels, `${path}.labels`)
+    for (let index = 0; index < labels.length; index++) {
+      const label = externalRecord(labels[index], `${path}.labels[${index}]`)
+      externalString(label.text, `${path}.labels[${index}].text`)
+    }
+  }
+}
+
+function assertExternalSceneInputShape(input: Record<string, unknown>): void {
+  externalFinite(input.width, 'input.width')
+  externalFinite(input.height, 'input.height')
+  externalString(input.family, 'input.family')
+  const colors = externalRecord(input.colors, 'input.colors')
+  externalString(colors.bg, 'input.colors.bg')
+  externalString(colors.fg, 'input.colors.fg')
+  const metadata = externalRecord(input.metadata, 'input.metadata')
+  externalString(metadata.title, 'input.metadata.title')
+  if (metadata.description !== undefined) externalString(metadata.description, 'input.metadata.description')
+  if (metadata.transparent !== undefined && typeof metadata.transparent !== 'boolean') {
+    throw new TypeError('External Scene input.metadata.transparent must be boolean')
+  }
+  const parts = externalArray(input.parts, 'input.parts')
+  for (let index = 0; index < parts.length; index++) assertExternalNode(parts[index], `input.parts[${index}]`)
+  if (input.markers !== undefined) {
+    const markers = externalArray(input.markers, 'input.markers')
+    for (let index = 0; index < markers.length; index++) {
+      const path = `input.markers[${index}]`
+      const marker = externalRecord(markers[index], path)
+      externalString(marker.id, `${path}.id`)
+      assertExternalGeometry(marker.geometry, `${path}.geometry`, [
+        'rect', 'circle', 'ellipse', 'line', 'polygon', 'polyline', 'path', 'compound',
+      ])
+      assertRenderableMarker(marker as unknown as MarkerDescriptor)
+    }
+  }
 }
 
 function connectorPaint(input: ExternalSceneConnector): MarkPaint {

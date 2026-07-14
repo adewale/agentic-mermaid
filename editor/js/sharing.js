@@ -12,6 +12,20 @@ var MAX_SHARE_DECODED_BYTES = 256 * 1024;
 var MAX_SHARE_ENCODED_BYTES = 384 * 1024;
 var MAX_DRAFT_BYTES = 256 * 1024;
 
+// Browser privacy settings and embedded contexts may expose Storage but throw
+// on every operation. Chrome preferences must never make the editor fail boot.
+function safeLocalStorageGet(key) {
+  try { return localStorage.getItem(key); } catch (error) { return null; }
+}
+
+function safeLocalStorageSet(key, value) {
+  try { localStorage.setItem(key, value); return true; } catch (error) { return false; }
+}
+
+function safeLocalStorageRemove(key) {
+  try { localStorage.removeItem(key); return true; } catch (error) { return false; }
+}
+
 function utf8ByteLength(value) {
   return new TextEncoder().encode(String(value)).byteLength;
 }
@@ -165,7 +179,13 @@ function sanitizeEditorConfig(config) {
 function sanitizeEditorStyle(style) {
   // The editor picker owns a named style, never an inline record. Full custom
   // style data may still travel through validated config.style.
-  return typeof style === 'string' ? style : '';
+  if (style === 'crisp') return style;
+  var descriptorReader = window.__mermaid && window.__mermaid.knownStyleDescriptors;
+  if (typeof style !== 'string' || typeof descriptorReader !== 'function') return '';
+  var descriptors = descriptorReader();
+  return descriptors.some(function(descriptor) {
+    return descriptor && descriptor.kind === 'look' && descriptor.inputName === style;
+  }) ? style : '';
 }
 
 function hasOwnConfig(config) {
@@ -184,14 +204,26 @@ async function getHashSource() {
         hashDecodeFailure = 'corrupt';
         return null;
       }
-      var sharedPalette = obj.palette || obj.theme;
-      if (sharedPalette) {
-        var importedPalette = editorPaletteInput(sharedPalette);
-        if (importedPalette) state.palette = importedPalette;
+      // A share payload is a complete per-diagram snapshot. Reset omitted
+      // legacy fields before projection so recipient browser preferences cannot
+      // silently alter crisp/default links.
+      state.palette = DEFAULT_EDITOR_PALETTE;
+      state.style = 'crisp';
+      state.seed = 0;
+      state.config = {};
+      var hasPalette = Object.prototype.hasOwnProperty.call(obj, 'palette');
+      var hasTheme = Object.prototype.hasOwnProperty.call(obj, 'theme');
+      var sharedPalette = hasPalette ? obj.palette : obj.theme;
+      if (hasPalette || hasTheme) {
+        if (sharedPalette === '') state.palette = '';
+        else {
+          var importedPalette = editorPaletteInput(sharedPalette);
+          if (importedPalette) state.palette = importedPalette;
+        }
       }
       var importedStyle = sanitizeEditorStyle(obj.style);
       if (importedStyle) { state.style = importedStyle; }
-      if (typeof obj.seed === 'number') { state.seed = obj.seed; }
+      if (typeof obj.seed === 'number' && Number.isFinite(obj.seed)) { state.seed = obj.seed; }
       if (hasOwnConfig(obj.config)) { state.config = sanitizeEditorConfig(obj.config); }
       return obj.source;
     }
@@ -207,24 +239,36 @@ function getQueryExampleId() {
 var hashUpdateToken = 0;
 
 function updateHash() {
-  var obj = { source: editor.value };
-  if (state.palette) obj.palette = state.palette;
-  if (state.style && state.style !== 'crisp') obj.style = state.style;
-  if (state.seed) obj.seed = state.seed;
+  if (typeof hasCurrentVerifiedSvgArtifact !== 'function' || !hasCurrentVerifiedSvgArtifact()) {
+    if (typeof showToast === 'function') showToast('Render and verify this diagram before copying a share link.');
+    return Promise.resolve(false);
+  }
+  var source = editor.value;
+  var obj = {
+    source: source,
+    palette: state.palette || '',
+    style: state.style || 'crisp',
+    seed: typeof state.seed === 'number' && Number.isFinite(state.seed) ? state.seed : 0,
+  };
   if (hasOwnConfig(state.config)) obj.config = state.config;
   // Compression is async; the token drops stale writes when edits overlap.
   var token = ++hashUpdateToken;
   return encodeSourceCompressed(JSON.stringify(obj)).then(function(encoded) {
-    if (token !== hashUpdateToken) return;
+    if (token !== hashUpdateToken
+      || typeof hasCurrentVerifiedSvgArtifact !== 'function'
+      || !hasCurrentVerifiedSvgArtifact()
+      || editor.value !== source) return false;
     window.history.replaceState(null, '', window.location.pathname + '#' + encoded);
+    return true;
   }).catch(function(error) {
-    if (token !== hashUpdateToken) return;
+    if (token !== hashUpdateToken) return false;
     // Never leave an older, valid hash in place for newer content it does not
     // represent.  A stale URL is more dangerous than no share URL at all.
     window.history.replaceState(null, '', window.location.pathname);
     if (error && error.code === 'too-large' && typeof showToast === 'function') {
       showToast('This diagram is too large for a share URL. Export or copy the source instead.');
     }
+    return false;
   });
 }
 

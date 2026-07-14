@@ -455,13 +455,89 @@ function matchesType(spec: FieldType, value: unknown): boolean {
   }
 }
 
+type AdmittedOpRecord =
+  | { ok: true; value: unknown }
+  | { ok: false; message: string }
+
+/**
+ * Snapshot JSON-shaped operation data without invoking accessors in the
+ * mutator. Direct library callers are untrusted too: custom prototypes,
+ * symbols, accessors, cycles, sparse arrays, and proxy trap failures are not
+ * plain JSON and are rejected at this one choke point.
+ */
+export function admitOpRecord(value: unknown): AdmittedOpRecord {
+  const seen = new Set<object>()
+  const snapshot = (input: unknown): unknown => {
+    if (input === null || input === undefined
+      || typeof input === 'string' || typeof input === 'boolean' || typeof input === 'number') return input
+    if (typeof input !== 'object') throw new TypeError('operation values must be plain JSON data')
+    if (seen.has(input)) throw new TypeError('operation data must not contain cycles')
+    seen.add(input)
+    try {
+      if (Array.isArray(input)) {
+        const prototype = Object.getPrototypeOf(input)
+        if (prototype !== Array.prototype) throw new TypeError('operation arrays must use the standard array prototype')
+        const descriptors = Object.getOwnPropertyDescriptors(input) as Record<string, PropertyDescriptor>
+        const length = descriptors.length?.value
+        if (!Number.isSafeInteger(length) || length < 0) throw new TypeError('operation arrays must have a readable length')
+        const keys = Reflect.ownKeys(input)
+        if (keys.some(key => typeof key === 'symbol'
+          || (key !== 'length' && !/^(0|[1-9]\d*)$/.test(key)))) {
+          throw new TypeError('operation arrays must not carry symbols or named properties')
+        }
+        const output: unknown[] = []
+        for (let index = 0; index < length; index++) {
+          const descriptor = descriptors[String(index)]
+          if (!descriptor || !('value' in descriptor) || descriptor.enumerable !== true) {
+            throw new TypeError('operation arrays must be dense own-data arrays')
+          }
+          output.push(snapshot(descriptor.value))
+        }
+        return output
+      }
+      const prototype = Object.getPrototypeOf(input)
+      if (prototype !== Object.prototype && prototype !== null) {
+        throw new TypeError('operation records must be plain objects')
+      }
+      const descriptors = Object.getOwnPropertyDescriptors(input) as Record<string, PropertyDescriptor>
+      const output: Record<string, unknown> = Object.create(null)
+      for (const key of Reflect.ownKeys(input)) {
+        if (typeof key === 'symbol') throw new TypeError('operation records must not carry symbol keys')
+        const descriptor = descriptors[key]
+        if (!descriptor || !('value' in descriptor) || descriptor.enumerable !== true) {
+          throw new TypeError('operation records must contain enumerable own data fields')
+        }
+        output[key] = snapshot(descriptor.value)
+      }
+      return output
+    } finally {
+      seen.delete(input)
+    }
+  }
+  try {
+    return { ok: true, value: snapshot(value) }
+  } catch {
+    return { ok: false, message: 'operation must be a plain own-data JSON object' }
+  }
+}
+
+function unreadableOp(family: OpFamily, message: string): OpValidationError {
+  return {
+    code: 'INVALID_OP',
+    reason: 'unreadable_op',
+    family,
+    message,
+    validFields: Object.keys(SCHEMAS[family]),
+  }
+}
+
 /**
  * Validate one op's SHAPE against its family schema. Returns null when valid.
  * The one and only shape choke point: every untyped edit path (declarative
  * applyOps / buildChecked and the Code Mode facade) calls this — through
  * mutateChecked — before touching a mutator.
  */
-export function validateOp(family: OpFamily, op: unknown): OpValidationError | null {
+function validateAdmittedOp(family: OpFamily, op: unknown): OpValidationError | null {
   const schema = SCHEMAS[family]
   // An op array is the common "apply these ops" slip — give it a dedicated
   // reason so a caller can branch on it, and a message that names the batch fix.
@@ -543,10 +619,23 @@ export function validateOp(family: OpFamily, op: unknown): OpValidationError | n
   return null
 }
 
+export function validateOp(family: OpFamily, op: unknown): OpValidationError | null {
+  const admitted = admitOpRecord(op)
+  if (!admitted.ok) return unreadableOp(family, admitted.message)
+  try {
+    return validateAdmittedOp(family, admitted.value)
+  } catch {
+    return unreadableOp(family, 'operation could not be validated as plain JSON data')
+  }
+}
+
 /** Machine-readable op menu for a family — { opKind: [fieldName, …] } — the
  *  basis for tool-discovery output. Optional fields are marked with a trailing
  *  `?`; the op's `kind` is implicit and omitted. */
 export function opMenu(family: OpFamily): Record<string, string[]> {
+  if (!hasOpSchema(family)) {
+    throw new RangeError(`family must be one of: ${Object.keys(SCHEMAS).join(', ')}`)
+  }
   const out: Record<string, string[]> = {}
   for (const [kind, spec] of Object.entries(SCHEMAS[family])) {
     out[kind] = Object.entries(spec.fields).map(([n, f]) => (f.required ? n : `${n}?`))
@@ -565,6 +654,9 @@ export interface OpFieldDoc { name: string; required: boolean; type: string; not
  *  the declarative MCP tool descriptions so field names, required-ness, and enum
  *  vocabularies are discoverable up front. */
 export function describeOps(family: OpFamily): Record<string, OpFieldDoc[]> {
+  if (!hasOpSchema(family)) {
+    throw new RangeError(`family must be one of: ${Object.keys(SCHEMAS).join(', ')}`)
+  }
   const out: Record<string, OpFieldDoc[]> = {}
   for (const [kind, spec] of Object.entries(SCHEMAS[family])) {
     out[kind] = Object.entries(spec.fields).map(([name, f]) => ({ name, required: f.required, type: typeName(f), ...(f.note !== undefined ? { note: f.note } : {}) }))

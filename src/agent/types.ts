@@ -1489,7 +1489,9 @@ export interface SerializedFlowchartGraph {
 }
 
 export interface ValidDiagramPayload {
-  kind: DiagramKind
+  kind: DiagramKind | ExternalFamilyId
+  descriptorIdentity?: import('../shared/extension-identity.ts').ExtensionIdentity<'family'>
+  canonicalSource?: string
   meta?: Partial<ValidDiagramMeta>
   body:
     | { kind: 'flowchart'; graph: SerializedFlowchartGraph }
@@ -1507,5 +1509,6 @@ export interface ValidDiagramPayload {
     | MindmapBody
     | GitGraphBody
     | RadarBody
+    | ExtensionDiagramBody
     | { kind: 'opaque'; family: DiagramKind; source: string }
 }

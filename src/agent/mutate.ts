@@ -14,7 +14,7 @@ import { ok, err } from './types.ts'
 import { wrapperPrefix } from './serialize.ts'
 import { logToolInvocation } from './trace-log.ts'
 import { getFamily } from './families.ts'
-import { validateOp, hasOpSchema } from './op-schema.ts'
+import { admitOpRecord, validateOp, hasOpSchema } from './op-schema.ts'
 import { accessibilityFromBody, ensureAccessibilityLines } from './accessibility-envelope.ts'
 
 export function mutate(d: FlowchartValidDiagram, op: FlowchartMutationOp): Result<FlowchartValidDiagram, MutationError>
@@ -107,11 +107,14 @@ export function mutateChecked(d: MutableValidDiagram, op: unknown): Result<Mutab
 export function mutateChecked(d: ParsedDiagram, op: unknown): Result<ParsedDiagram, MutationError>
 export function mutateChecked(d: ParsedDiagram, op: unknown): Result<ParsedDiagram, MutationError> {
   if (hasOpSchema(d.kind)) {
-    const invalid = validateOp(d.kind, op)
+    const admitted = admitOpRecord(op)
+    const checkedOp = admitted.ok ? admitted.value : op
+    const invalid = validateOp(d.kind, checkedOp)
     // A shape rejection short-circuits before `mutate`, so record the failed
     // attempt here — otherwise checked-path errors (e.g. the op-array slip)
     // would go uncounted in the op-error rate.
     if (invalid) { logToolInvocation('mutate', false); return err(invalid) }
+    return mutate(d, checkedOp as AnyMutationOp)
   }
   return mutate(d, op as AnyMutationOp)
 }

@@ -106,9 +106,9 @@ function normalizeTheme(value: unknown): Readonly<Partial<AsciiTheme>> {
   if (!plainObject(value)) {
     throw new TerminalOutputPolicyError('INVALID_FIELD', 'terminal theme must be a plain object')
   }
-  const unknownFields = Object.keys(value).filter(field => !THEME_FIELD_SET.has(field))
+  const unknownFields = Reflect.ownKeys(value).filter(field => typeof field !== 'string' || !THEME_FIELD_SET.has(field))
   if (unknownFields.length > 0) {
-    throw new TerminalOutputPolicyError('INVALID_FIELD', `terminal theme has unknown field "${unknownFields[0]}"`)
+    throw new TerminalOutputPolicyError('INVALID_FIELD', `terminal theme has unknown field "${String(unknownFields[0])}"`)
   }
   const theme: Partial<AsciiTheme> = {}
   for (const field of THEME_FIELDS) {
@@ -129,9 +129,9 @@ export function resolveTerminalOutputPolicy(
   if (!plainObject(input)) {
     throw new TerminalOutputPolicyError('INVALID_INPUT', 'terminal output policy must be a plain object')
   }
-  const unknownFields = Object.keys(input).filter(field => !INPUT_FIELDS.has(field))
+  const unknownFields = Reflect.ownKeys(input).filter(field => typeof field !== 'string' || !INPUT_FIELDS.has(field))
   if (unknownFields.length > 0) {
-    throw new TerminalOutputPolicyError('INVALID_FIELD', `terminal output policy has unknown field "${unknownFields[0]}"`)
+    throw new TerminalOutputPolicyError('INVALID_FIELD', `terminal output policy has unknown field "${String(unknownFields[0])}"`)
   }
 
   const rawUseAscii = optionalField(input, 'useAscii')

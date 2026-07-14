@@ -25,6 +25,37 @@ describe('Code Mode preservation declarations', () => {
       expect(declaration).toContain('readonly provenance: ExtensionProvenance')
       expect(declaration).toContain('parseRegisteredMermaid(source: string): Result<ParsedDiagram, ParseError[]>')
     }
+    expect(SDK_DECLARATION).toContain('wrapperSource?: string')
+    expect(SDK_DECLARATION).toContain('droppedComments?: { text: string; line: number }[]')
+  })
+
+  test('keeps parser-populated mindmap and gitgraph read-back fields recursively visible', () => {
+    const declaration = ts.createSourceFile('code-mode-sdk.d.ts', SDK_DECLARATION, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
+    const source = (path: string) => ts.createSourceFile(path, require('node:fs').readFileSync(path, 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
+    const root = require('node:path').join(import.meta.dir, '..')
+    const mindmap = source(require('node:path').join(root, 'mindmap/types.ts'))
+    const gitgraph = source(require('node:path').join(root, 'gitgraph/types.ts'))
+    const fields = (file: ts.SourceFile, name: string) => {
+      const node = file.statements.find(statement => ts.isInterfaceDeclaration(statement) && statement.name.text === name)
+      expect(node && ts.isInterfaceDeclaration(node)).toBe(true)
+      if (!node || !ts.isInterfaceDeclaration(node)) return []
+      return node.members.flatMap(member => member.name ? [member.name.getText(file)] : []).sort()
+    }
+    expect(fields(declaration, 'MindmapNode')).toEqual(fields(mindmap, 'MindmapNode'))
+    expect(fields(declaration, 'GitGraphCommit')).toEqual(fields(gitgraph, 'GitGraphCommit'))
+    expect(fields(declaration, 'GitGraphBranch')).toEqual(fields(gitgraph, 'GitGraphBranch'))
+    expect(fields(declaration, 'GitGraphBody').filter(field => field !== 'kind'))
+      .toEqual(fields(gitgraph, 'GitGraphDiagram'))
+
+    const unionFields = (file: ts.SourceFile, name: string) => {
+      const alias = file.statements.find(statement => ts.isTypeAliasDeclaration(statement) && statement.name.text === name)
+      expect(alias && ts.isTypeAliasDeclaration(alias)).toBe(true)
+      if (!alias || !ts.isTypeAliasDeclaration(alias) || !ts.isUnionTypeNode(alias.type)) return []
+      return alias.type.types.map(member => ts.isTypeLiteralNode(member)
+        ? member.members.flatMap(field => field.name ? [field.name.getText(file)] : []).sort().join(',')
+        : '').sort()
+    }
+    expect(unionFields(declaration, 'GitGraphStatement')).toEqual(unionFields(gitgraph, 'GitGraphStatement'))
   })
 
   test('uses one complete render-options and receipt authority in both declarations', () => {
@@ -39,6 +70,7 @@ describe('Code Mode preservation declarations', () => {
         expect(declaration).toContain(`${field}?:`)
       }
       expect(declaration).toContain('capabilityDecision?: CapabilityDecision')
+      expect(declaration).toMatch(/verifyMermaid\(input: ParsedDiagram \| string, opts\?: \{[^}]*renderOptions\?: SharedRenderOptions[^}]*\}\): VerifyResult/)
       expect(declaration).toContain('graphicalProjectionDigest?: string')
       expect(declaration).toContain('executionDecision?: RenderExecutionDecision')
       expect(declaration).toContain("readonly status: 'selected' | 'unsupported' | 'incompatible'")
@@ -49,6 +81,32 @@ describe('Code Mode preservation declarations', () => {
       expect(declaration).toContain('layoutMermaidWithReceipt(input: ParsedDiagram | string, opts?: LayoutRenderOptions): RenderedLayoutArtifact')
       const parsed = ts.createSourceFile('code-mode-sdk.d.ts', declaration, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
       expect((parsed as ts.SourceFile & { parseDiagnostics: readonly ts.Diagnostic[] }).parseDiagnostics).toEqual([])
+    }
+  })
+
+  test('declares structured fields populated by advertised mutation operations', () => {
+    const parsed = ts.createSourceFile('code-mode-sdk.d.ts', SDK_DECLARATION, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
+    const fields = (interfaceName: string): Set<string> => {
+      const declaration = parsed.statements.find(statement =>
+        ts.isInterfaceDeclaration(statement) && statement.name.text === interfaceName)
+      expect(declaration && ts.isInterfaceDeclaration(declaration)).toBe(true)
+      if (!declaration || !ts.isInterfaceDeclaration(declaration)) return new Set()
+      return new Set(declaration.members.flatMap(member => member.name ? [member.name.getText(parsed)] : []))
+    }
+    const expected: Record<string, string[]> = {
+      FlowchartGraph: ['classDefs', 'classAssignments', 'nodeStyles', 'linkStyles'],
+      StateNode: ['declaredBare', 'regions', 'className', 'style'],
+      StateTransition: ['style'],
+      StateBody: ['classDefs', 'defaultTransitionStyle'],
+      ClassNode: ['className', 'style'],
+      ClassBody: ['classDefs'],
+      ErEntity: ['className', 'style'],
+      ErBody: ['direction', 'classDefs', 'statements'],
+      ArchitectureEndpoint: ['boundary'],
+      ArchitectureBody: ['accessibilityTitle', 'accessibilityDescription'],
+    }
+    for (const [interfaceName, requiredFields] of Object.entries(expected)) {
+      expect([...fields(interfaceName)]).toEqual(expect.arrayContaining(requiredFields))
     }
   })
 })

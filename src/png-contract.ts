@@ -229,6 +229,7 @@ export interface PngRasterDimensions {
 type PngRasterBudgetPolicy = number | Pick<ResolvedPngOutputPolicy, 'scale' | 'fitTo'>
 
 function svgRootTag(svg: string): SvgStartTagToken {
+  if (typeof svg !== 'string') throw new RangeError('SVG input must be a string for PNG rasterization')
   const root = svgRootStartTag(svg)
   if (!root) throw new RangeError('could not determine the SVG root for PNG rasterization')
   return root
@@ -297,6 +298,20 @@ export function svgIntrinsicDimensions(svg: string): { readonly width: number; r
 /** Compute conservative final integer dimensions before a rasterizer allocates. */
 export function pngRasterDimensions(svg: string, output: PngRasterBudgetPolicy): PngRasterDimensions {
   const bounds = svgIntrinsicDimensions(svg)
+  if (typeof output !== 'number' && !isPlainObject(output)) {
+    throw new RangeError('PNG raster policy must be a positive scale or resolved policy object')
+  }
+  if (typeof output === 'number' && (!Number.isFinite(output) || output <= 0)) {
+    throw new RangeError('PNG raster scale must be a positive finite number')
+  }
+  if (typeof output !== 'number') {
+    if (typeof output.scale !== 'number' || !Number.isFinite(output.scale) || output.scale <= 0
+      || !isPlainObject(output.fitTo)
+      || !['zoom', 'width', 'height'].includes(String(output.fitTo.mode))
+      || typeof output.fitTo.value !== 'number' || !Number.isFinite(output.fitTo.value) || output.fitTo.value <= 0) {
+      throw new RangeError('PNG raster policy must contain a positive finite scale and fitTo mode/value')
+    }
+  }
   const fitTo = typeof output === 'number'
     ? { mode: 'zoom' as const, value: output }
     : output.fitTo
@@ -382,15 +397,22 @@ export function assertPngRasterBudget(svg: string, output: PngRasterBudgetPolicy
 
 /** Hosted pre-allocation gate layered over the substrate-neutral dimensions. */
 export function assertHostedPngRasterBudget(dimensions: PngRasterDimensions): PngRasterDimensions {
-  if (!Number.isSafeInteger(dimensions.width) || dimensions.width <= 0
-    || !Number.isSafeInteger(dimensions.height) || dimensions.height <= 0
-    || !Number.isSafeInteger(dimensions.pixels)
-    || dimensions.pixels <= 0
-    || dimensions.pixels !== dimensions.width * dimensions.height
-    || dimensions.pixels > MAX_HOSTED_PNG_PIXELS) {
+  const admitted = isPlainObject(dimensions)
+  const width = admitted ? dimensions.width : Number.NaN
+  const height = admitted ? dimensions.height : Number.NaN
+  const pixels = admitted ? dimensions.pixels : Number.NaN
+  if (!admitted
+    || !Number.isSafeInteger(width) || width <= 0
+    || !Number.isSafeInteger(height) || height <= 0
+    || !Number.isSafeInteger(pixels)
+    || pixels <= 0
+    || pixels !== width * height
+    || width > MAX_PNG_RASTER_DIMENSION
+    || height > MAX_PNG_RASTER_DIMENSION
+    || pixels > MAX_HOSTED_PNG_PIXELS) {
     throw new RangeError(
-      `hosted PNG raster budget exceeded: ${dimensions.width}×${dimensions.height}; `
-      + `hosted pixel cap is ${Math.ceil(MAX_HOSTED_PNG_PIXELS / 1_000_000)}MP`,
+      `hosted PNG raster budget exceeded: ${String(width)}×${String(height)}; `
+      + `maximum dimension is ${MAX_PNG_RASTER_DIMENSION}px and hosted pixel cap is ${Math.ceil(MAX_HOSTED_PNG_PIXELS / 1_000_000)}MP`,
     )
   }
   return dimensions

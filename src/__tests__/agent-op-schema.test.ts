@@ -160,11 +160,23 @@ describe('canonical output envelope (§7)', () => {
     expect(env.source).toContain('class Animal')
     expect(env.source).toContain('class Dog')
   })
+
+  test('rejects ambiguous and empty declarative batches consistently', () => {
+    expect(applyOps({ source: 'classDiagram\n  class Animal', ops: [] })).toMatchObject({
+      ok: false,
+      error: { code: 'INVALID_OP' },
+    })
+    expect(applyOps({
+      source: 'classDiagram\n  class Animal',
+      family: 'class',
+      ops: [{ kind: 'add_class', id: 'Dog' }],
+    })).toMatchObject({ ok: false, error: { code: 'INVALID_OP' } })
+  })
 })
 
 describe('schema covers every mutable family (§11)', () => {
   // A representative op per family that must pass shape validation and build.
-  const REPRESENTATIVE: Record<string, Record<string, unknown>> = {
+  const REPRESENTATIVE: Record<string, Record<string, unknown> | Record<string, unknown>[]> = {
     flowchart: { kind: 'add_node', id: 'a', label: 'A' },
     state: { kind: 'add_state', id: 's' },
     sequence: { kind: 'add_participant', id: 'A' },
@@ -176,7 +188,10 @@ describe('schema covers every mutable family (§11)', () => {
     xychart: { kind: 'add_series', kind2: 'bar', values: [1, 2] },
     pie: { kind: 'add_slice', label: 'A', value: 1 },
     quadrant: { kind: 'add_point', label: 'P', x: 0.1, y: 0.2 },
-    gantt: { kind: 'add_section', label: 'S' },
+    gantt: [
+      { kind: 'add_section', label: 'S' },
+      { kind: 'add_task', sectionIndex: 0, label: 'Task', start: '2026-01-01', end: '1d' },
+    ],
     mindmap: { kind: 'add_node', id: 'child', label: 'child', parent: 'root' },
     gitgraph: { kind: 'append_commit', id: 'first' },
     radar: { kind: 'add_axis', id: 'a' },
@@ -187,7 +202,7 @@ describe('schema covers every mutable family (§11)', () => {
       expect({ family, hasSchema: hasOpSchema(family) }).toEqual({ family, hasSchema: true })
       const op = REPRESENTATIVE[family]
       expect({ family, hasRep: Boolean(op) }).toEqual({ family, hasRep: true })
-      const r = applyOps({ family, ops: [op!] })
+      const r = applyOps({ family, ops: Array.isArray(op) ? op : [op!] })
       expect({ family, ok: r.ok }).toEqual({ family, ok: true })
     }
   })

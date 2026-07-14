@@ -194,7 +194,7 @@ field types, enum values, defaults, and constraints.`,
       additionalProperties: false,
       properties: {
         source: { type: 'string', description: 'Mermaid source to edit.' },
-        ops: { type: 'array', items: { type: 'object' }, description: 'Ordered list of edit ops; each is { kind, ...fields }.' },
+        ops: { type: 'array', minItems: 1, items: { type: 'object' }, description: 'Non-empty ordered list of edit ops; each is { kind, ...fields }.' },
       },
       required: ['source', 'ops'],
     },
@@ -212,7 +212,7 @@ Call \`describe_sdk\` for the family before authoring unfamiliar ops.`,
       additionalProperties: false,
       properties: {
         family: { type: 'string', description: `Diagram family to author (one of: ${Object.keys(MUTATION_OPS_BY_FAMILY).join(', ')}).` },
-        ops: { type: 'array', items: { type: 'object' }, description: 'Ordered list of ops; each is { kind, ...fields }.' },
+        ops: { type: 'array', minItems: 1, items: { type: 'object' }, description: 'Non-empty ordered list of ops; each is { kind, ...fields }.' },
       },
       required: ['family', 'ops'],
     },
@@ -469,6 +469,7 @@ export function cacheKeyFor(name: string | undefined, args: Record<string, unkno
 function handleApplyOps(id: number | string | null, args: Record<string, unknown>, mode: 'source' | 'family'): JsonRpcResponse {
   const ops = args.ops
   if (!Array.isArray(ops)) return rpcError(id, -32602, `${mode === 'source' ? 'mutate' : 'build'} requires \`ops\` (array)`)
+  if (ops.length === 0) return rpcError(id, -32602, `${mode === 'source' ? 'mutate' : 'build'} requires at least one op`)
   if (mode === 'source') {
     if (typeof args.source !== 'string') return rpcError(id, -32602, 'mutate requires `source` (string)')
     if (boundedUtf8ByteLength(args.source, MAX_SOURCE_BYTES) > MAX_SOURCE_BYTES) {

@@ -1,10 +1,11 @@
 import { describe, expect, test } from 'bun:test'
+import { rmSync, writeFileSync } from 'node:fs'
 import { applyOps, buildChecked } from '../agent/apply.ts'
 import { describeMermaid, describeMermaidSource } from '../agent/describe.ts'
 import { describeMermaidFacts } from '../agent/facts.ts'
 import { parseMermaid } from '../agent/parse.ts'
 import { verifyMermaid } from '../agent/verify.ts'
-import { runBatchLine } from '../cli/index.ts'
+import { runBatchLine, runCli } from '../cli/index.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
 import { handleRequest as handleLocalRequest } from '../mcp/server.ts'
 import { handleHostedRequest } from '../mcp/hosted-server.ts'
@@ -17,6 +18,28 @@ const toolCall = (name: string, args: Record<string, unknown>, id: number | stri
 
 function payload(response: Awaited<ReturnType<typeof handleHostedRequest>>): any {
   return JSON.parse((response?.result as any).content[0].text)
+}
+
+function captureCli(run: () => number): { code: number; output: string; stdout: string; stderr: string } {
+  const stdout: string[] = []
+  const stderr: string[] = []
+  const original = process.stdout.write
+  const originalError = process.stderr.write
+  process.stdout.write = ((chunk: string | Uint8Array) => {
+    stdout.push(typeof chunk === 'string' ? chunk : new TextDecoder().decode(chunk))
+    return true
+  }) as typeof process.stdout.write
+  process.stderr.write = ((chunk: string | Uint8Array) => {
+    stderr.push(typeof chunk === 'string' ? chunk : new TextDecoder().decode(chunk))
+    return true
+  }) as typeof process.stderr.write
+  try {
+    const code = run()
+    return { code, output: stdout.join(''), stdout: stdout.join(''), stderr: stderr.join('') }
+  } finally {
+    process.stdout.write = original
+    process.stderr.write = originalError
+  }
 }
 
 describe('reported contract regressions', () => {
@@ -124,6 +147,34 @@ describe('reported contract regressions', () => {
     for (const response of responses) {
       expect((response?.result as any).isError).toBe(true)
       expect(payload(response)).toEqual(expect.objectContaining({ ok: false, warnings: expect.arrayContaining([expect.objectContaining({ code: 'RENDER_FAILED' })]) }))
+    }
+  })
+
+  test('CLI describe cannot exit successfully when verify reports RENDER_FAILED', () => {
+    const source = 'pie\n  "A" : notanumber'
+    const path = `/tmp/agentic-mermaid-describe-${process.pid}-${Date.now()}.mmd`
+    writeFileSync(path, source)
+    for (const format of ['text', 'json', 'facts']) {
+      const result = captureCli(() => runCli(['describe', path, '--format', format, '--json']))
+      expect(result.code).toBe(3)
+      expect(JSON.parse(result.output)).toEqual(expect.objectContaining({
+        ok: false,
+        family: 'pie',
+        warnings: expect.arrayContaining([expect.objectContaining({ code: 'RENDER_FAILED' })]),
+      }))
+    }
+  })
+
+  test('CLI describe keeps verify failures human-readable outside JSON mode', () => {
+    const path = `/tmp/agentic-mermaid-describe-text-${process.pid}-${Date.now()}.mmd`
+    writeFileSync(path, 'pie\n  "A" : notanumber\n')
+    try {
+      const result = captureCli(() => runCli(['describe', path, '--format', 'text']))
+      expect(result.code).toBe(3)
+      expect(result.stdout).toBe('')
+      expect(result.stderr).toContain('describe: verify failed:')
+    } finally {
+      rmSync(path, { force: true })
     }
   })
 

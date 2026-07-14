@@ -9,6 +9,8 @@ export type { ExecutionTraceCall } from './facade.ts'
 export interface ExecuteOptions { timeoutMs?: number; trace?: boolean }
 export interface ExecuteResult { ok: boolean; value?: unknown; logs?: string[]; error?: string; trace?: ExecutionTraceCall[] }
 
+const MIN_BUN_SDK_TIMEOUT_MS = 1_000
+
 // Do not inject host constructors (Object, Function, Array, etc.) into the
 // context: host constructors can pierce node:vm via `.constructor.constructor`.
 // The context gets its own standard intrinsics from vm.createContext; we expose
@@ -31,6 +33,8 @@ export async function executeInSandbox(code: string, opts: ExecuteOptions = {}):
 
 function runInSandbox(code: string, opts: ExecuteOptions = {}): ExecuteResult {
   const timeoutMs = opts.timeoutMs ?? 5000
+  const startedAt = performance.now()
+  const remainingBudgetMs = () => Math.floor(timeoutMs - (performance.now() - startedAt))
   const trace: ExecutionTraceCall[] = []
   const early = (error: string): ExecuteResult => opts.trace ? { ok: false, error, logs: [], trace } : { ok: false, error, logs: [] }
   const unsupported = unsupportedCodeReason(code)
@@ -124,7 +128,25 @@ function runInSandbox(code: string, opts: ExecuteOptions = {}): ExecuteResult {
   `, context)
   const makeSandboxError = vm.runInContext(`(message) => new Error(String(message))`, context) as (message: string) => Error
   let sdkClosed = false
-  sandbox.mermaid = createTracingMermaid(opts.trace ? trace : undefined, makeSandboxError, () => sdkClosed)
+  let sdkCallOccurred = false
+  // Bun's node:vm watchdog can fire while a sandbox call is executing a host
+  // SDK function, wedging the source-checkout MCP instead of returning a tagged
+  // timeout. Gate the actual SDK call rather than source spelling: ordinary
+  // strings remain valid and computed access cannot bypass the budget check.
+  sandbox.mermaid = createTracingMermaid(
+    opts.trace ? trace : undefined,
+    makeSandboxError,
+    () => sdkClosed,
+    undefined,
+    () => {
+      sdkCallOccurred = true
+      if (typeof Bun === 'undefined') return undefined
+      const remaining = remainingBudgetMs()
+      return remaining < MIN_BUN_SDK_TIMEOUT_MS
+        ? `Code Mode SDK calls under Bun require at least ${MIN_BUN_SDK_TIMEOUT_MS}ms of remaining timeout budget (timeoutMs >= ${MIN_BUN_SDK_TIMEOUT_MS})`
+        : undefined
+    },
+  )
   const readLogs = (): string[] => {
     try {
       const encoded = vm.runInContext(`__pi_read_logs()`, context, { timeout: 50 })
@@ -155,7 +177,9 @@ function runInSandbox(code: string, opts: ExecuteOptions = {}): ExecuteResult {
     try { script = new vm.Script(wrapped, { filename: 'codemode.ts' }) }
     catch (e) { runErr = e; break }
     try {
-      result = script.runInContext(context, { timeout: timeoutMs })
+      const remainingMs = remainingBudgetMs()
+      if (remainingMs <= 0) throw new Error(`Code Mode execution timed out after ${timeoutMs}ms`)
+      result = script.runInContext(context, { timeout: remainingMs })
       runErr = null
       break
     } catch (e) {
@@ -177,11 +201,68 @@ function runInSandbox(code: string, opts: ExecuteOptions = {}): ExecuteResult {
   sdkClosed = true
   // Marshal a returned SDK diagram to the canonical plain-JSON envelope before
   // serialization (host-side, on the raw object). Non-SDK values pass through.
-  const marshalled = marshalCodeModeResult(sandbox.mermaid, result)
+  // This is still part of execute's hard deadline: verification/layout can be
+  // substantially more expensive than parsing a large trusted diagram.
+  let marshalled: unknown = result
+  const resultMayContainSdkValue = sdkCallOccurred
+    && result !== null
+    && (typeof result === 'object' || typeof result === 'function')
+  if (resultMayContainSdkValue) {
+    const remainingMs = remainingBudgetMs()
+    if (remainingMs <= 0 || (typeof Bun !== 'undefined' && remainingMs < MIN_BUN_SDK_TIMEOUT_MS)) {
+      return withTrace({ ok: false, error: `Code Mode execution timed out after ${timeoutMs}ms while committing the result`, logs: readLogs() })
+    }
+    const marshalKey = `__pi_marshal_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`
+    const marshalTarget = () => marshalCodeModeResult(sandbox.mermaid, result)
+    // Never expose a raw host function to the vm realm: inherited bind/call or
+    // constructor access would pierce node:vm. The callable proxy has no visible
+    // prototype or function-valued properties; it exists only for this one
+    // controlled post-close invocation.
+    const safeMarshal = new Proxy(marshalTarget, {
+      apply: target => Reflect.apply(target, undefined, []),
+      get(target, prop, receiver) {
+        if (prop === 'constructor' || prop === '__proto__' || prop === 'prototype') return undefined
+        return Object.prototype.hasOwnProperty.call(target, prop)
+          ? Reflect.get(target, prop, receiver)
+          : undefined
+      },
+      getPrototypeOf: () => null,
+      has: (target, prop) => Object.prototype.hasOwnProperty.call(target, prop)
+        && prop !== 'constructor' && prop !== '__proto__' && prop !== 'prototype',
+      set: () => false,
+      defineProperty: () => false,
+      deleteProperty: () => false,
+      setPrototypeOf: () => false,
+    })
+    try {
+      if (!Reflect.defineProperty(sandbox, marshalKey, {
+        value: safeMarshal,
+        enumerable: false,
+        writable: false,
+        configurable: true,
+      })) throw new Error('could not install the result commit guard')
+      marshalled = vm.runInContext(`globalThis[${JSON.stringify(marshalKey)}]()`, context, { timeout: remainingMs })
+    } catch (e) {
+      const message = errorMessage(e)
+      return withTrace({
+        ok: false,
+        error: /timed out/i.test(message)
+          ? `Code Mode execution timed out after ${timeoutMs}ms while committing the result`
+          : `could not commit Code Mode result: ${message}`,
+        logs: readLogs(),
+      })
+    } finally {
+      try { Reflect.deleteProperty(sandbox, marshalKey) } catch {}
+    }
+  }
   let stringified: string | undefined
   try {
+    const stringifyTimeoutMs = remainingBudgetMs()
+    if (stringifyTimeoutMs <= 0) {
+      return withTrace({ ok: false, error: `Code Mode execution timed out after ${timeoutMs}ms while serializing the result`, logs: readLogs() })
+    }
     sandbox.__pi_result = marshalled
-    stringified = vm.runInContext('__pi_stringify_result(__pi_result)', context, { timeout: timeoutMs }) as string | undefined
+    stringified = vm.runInContext('__pi_stringify_result(__pi_result)', context, { timeout: stringifyTimeoutMs }) as string | undefined
   } catch (e) {
     return withTrace({ ok: false, error: `non-serializable: ${errorMessage(e)} — ${CODE_MODE_RETURN_HINT}`, logs: readLogs() })
   } finally {
@@ -192,4 +273,3 @@ function runInSandbox(code: string, opts: ExecuteOptions = {}): ExecuteResult {
   try { return withTrace({ ok: true, value: JSON.parse(stringified), logs: readLogs() }) }
   catch (e) { return withTrace({ ok: false, error: `non-serializable: ${e instanceof Error ? e.message : 'invalid JSON'}`, logs: readLogs() }) }
 }
-

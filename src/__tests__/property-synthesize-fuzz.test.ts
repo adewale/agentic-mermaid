@@ -50,8 +50,13 @@ describe('synthesize fuzz: synthesizeFromGraph is total and deterministic', () =
       const r = synthesizeFromGraph(payload as never)
       expect(typeof r.ok).toBe('boolean')
       if (r.ok) {
-        // A successful rebuild must serialize to a string (no half-built body).
-        expect(typeof serializeMermaid(r.value)).toBe('string')
+        // A successful rebuild must publish a parseable, family-consistent
+        // source rather than a half-built body that merely did not throw.
+        const source = serializeMermaid(r.value)
+        expect(typeof source).toBe('string')
+        const reparsed = parseMermaid(source)
+        expect(reparsed.ok).toBe(true)
+        if (reparsed.ok) expect(reparsed.value.kind).toBe(r.value.kind)
       } else {
         expect(Array.isArray(r.error)).toBe(true)
         expect(r.error.length).toBeGreaterThan(0)
@@ -74,6 +79,26 @@ describe('synthesize fuzz: synthesizeFromGraph is total and deterministic', () =
 const ROUND_TRIP_PAYLOADS = REAL_PAYLOADS.filter(p => synthesizeFromGraph(p as never).ok)
 
 describe('synthesize fuzz: real payloads round-trip', () => {
+  it('rejects malformed and family-inconsistent payloads instead of emitting invalid source', () => {
+    for (const payload of [
+      { kind: 'flowchart', body: { kind: 'flowchart', graph: { nodes: {} } } },
+      { kind: 'flowchart', body: { kind: 'opaque', family: 'pie', source: 'pie\n  "A" : 1\n' } },
+      { kind: 'constructor', body: { kind: 'opaque', family: 'pie', source: 'pie\n  "A" : 1\n' } },
+      { kind: 'pie', body: { kind: 'pie', title: '', showData: false, slices: [{ label: 'A', value: 'oops' }] } },
+    ]) {
+      expect(synthesizeFromGraph(payload as never)).toMatchObject({ ok: false })
+    }
+  })
+
+  it('publishes the parser-admitted metadata snapshot, not malformed retained JSON', () => {
+    const payload = JSON.parse(JSON.stringify(createMermaid('flowchart')))
+    payload.body.graph.nodes = { A: { id: 'A', label: 'A', shape: 'rectangle' } }
+    payload.meta.comments = null
+    const result = synthesizeFromGraph(payload)
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(Array.isArray(result.value.meta.comments)).toBe(true)
+  })
+
   it('a parsed diagram survives parse -> JSON -> synthesizeFromGraph -> serialize', () => {
     // Guard against silently dropping the whole corpus: at least the graph families must synthesize.
     expect(ROUND_TRIP_PAYLOADS.length).toBeGreaterThanOrEqual(FAMILIES.length - 1)

@@ -335,6 +335,12 @@ describe('content-addressed installed resource manifest', () => {
     const installed = new NodeResourceResolver(join(import.meta.dir, '..', '..'), RESOURCE_MANIFEST).resolve(entry.identity.id)
     const bytes = installed.readBytes()
     await expect(verifyResourceBytes(entry, bytes, { digest: async value => digest(value) })).resolves.toBeUndefined()
+    await expect(verifyResourceBytes(null as never, bytes)).rejects.toThrow(/^INVALID_RESOURCE_ENTRY:/)
+    await expect(verifyResourceBytes(entry, null as never)).rejects.toThrow('INVALID_RESOURCE_BYTES')
+    await expect(verifyResourceBytes(entry, bytes, null as never)).rejects.toThrow('INVALID_RESOURCE_VERIFY_OPTIONS')
+    const symbolOptions = { digest: async (value: Uint8Array) => digest(value) } as Record<PropertyKey, unknown>
+    symbolOptions[Symbol('extra')] = true
+    await expect(verifyResourceBytes(entry, bytes, symbolOptions as never)).rejects.toThrow('unknown option Symbol(extra)')
 
     const changed = bytes.slice()
     changed[changed.length - 1] = changed[changed.length - 1]! ^ 0xff

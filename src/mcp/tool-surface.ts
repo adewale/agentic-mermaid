@@ -256,6 +256,9 @@ function validateSchemaValue(
   }
 
   if (Array.isArray(value) && type === 'array') {
+    if (typeof schema.minItems === 'number' && value.length < schema.minItems) {
+      return [{ path, message: `must contain at least ${schema.minItems} item${schema.minItems === 1 ? '' : 's'}` }]
+    }
     if (typeof schema.maxItems === 'number' && value.length > schema.maxItems) {
       return [{ path, message: `must contain at most ${schema.maxItems} items` }]
     }

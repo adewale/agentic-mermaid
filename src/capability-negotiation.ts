@@ -36,23 +36,38 @@ const CAPABILITY_ID_RE = /^[a-z][a-z0-9.-]*:[a-z0-9][a-z0-9._/-]*$/
 const SEMVER_RE = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/
 const CAPABILITY_REQUIREMENT_LEVELS = new Set<unknown>(['required', 'preferred', 'optional'])
 
-interface SemVer { major: number; minor: number; patch: number; prerelease?: string }
+interface SemVer { major: string; minor: string; patch: string; prerelease?: string }
 
 export function isCapabilityId(value: string): value is CapabilityId {
   return CAPABILITY_ID_RE.test(value)
 }
 
 export function parseSemVer(value: string): SemVer | undefined {
+  if (typeof value !== 'string') return undefined
   const match = value.match(SEMVER_RE)
   if (!match) return undefined
+  const prerelease = match[4]
+  if (prerelease?.split('.').some(identifier => /^\d+$/.test(identifier) && identifier.length > 1 && identifier.startsWith('0'))) {
+    return undefined
+  }
   return {
-    major: Number(match[1]), minor: Number(match[2]), patch: Number(match[3]),
-    ...(match[4] ? { prerelease: match[4] } : {}),
+    // SemVer numeric identifiers have arbitrary precision. Keep their canonical
+    // digit spelling instead of passing through Number and aliasing distinct
+    // versions above Number.MAX_SAFE_INTEGER.
+    major: match[1]!, minor: match[2]!, patch: match[3]!,
+    ...(prerelease ? { prerelease } : {}),
   }
 }
 
+function compareNumericIdentifier(left: string, right: string): number {
+  if (left.length !== right.length) return left.length < right.length ? -1 : 1
+  return left === right ? 0 : left < right ? -1 : 1
+}
+
 function compare(left: SemVer, right: SemVer): number {
-  return left.major - right.major || left.minor - right.minor || left.patch - right.patch
+  return compareNumericIdentifier(left.major, right.major)
+    || compareNumericIdentifier(left.minor, right.minor)
+    || compareNumericIdentifier(left.patch, right.patch)
 }
 
 export function isSupportedSemVerRange(range: unknown): boolean {
@@ -75,7 +90,7 @@ export function semVerSatisfies(version: string, range: string): boolean {
   const trimmed = range.trim()
   if (trimmed === '*') return actual.prerelease === undefined
   const wildcard = trimmed.match(/^(0|[1-9]\d*)\.(?:x|\*)$/i)
-  if (wildcard) return actual.prerelease === undefined && actual.major === Number(wildcard[1])
+  if (wildcard) return actual.prerelease === undefined && actual.major === wildcard[1]
   const operator = trimmed.match(/^(\^|~|>=)?(.+)$/)
   const expected = parseSemVer(operator?.[2] ?? '')
   if (!operator || !expected) return false
@@ -90,9 +105,9 @@ export function semVerSatisfies(version: string, range: string): boolean {
     case '~': return relation >= 0 && actual.major === expected.major && actual.minor === expected.minor
     case '^':
       if (relation < 0) return false
-      if (expected.major > 0) return actual.major === expected.major
-      if (expected.minor > 0) return actual.major === 0 && actual.minor === expected.minor
-      return actual.major === 0 && actual.minor === 0 && actual.patch === expected.patch
+      if (expected.major !== '0') return actual.major === expected.major
+      if (expected.minor !== '0') return actual.major === '0' && actual.minor === expected.minor
+      return actual.major === '0' && actual.minor === '0' && actual.patch === expected.patch
     default: return relation === 0
   }
 }
@@ -101,15 +116,26 @@ export function negotiateCapabilities(
   offers: readonly CapabilityOffer[],
   requirements: readonly CapabilityRequirement[],
 ): CapabilityDecision {
+  if (!Array.isArray(offers)) throw new TypeError('Capability offers must be an array')
+  if (!Array.isArray(requirements)) throw new TypeError('Capability requirements must be an array')
   const offered = new Map<CapabilityId, string>()
-  for (const offer of offers) {
+  for (const [index, offer] of offers.entries()) {
+    if (!offer || typeof offer !== 'object' || Array.isArray(offer)) {
+      throw new TypeError(`Capability offer at index ${index} must be an object`)
+    }
+    if (typeof offer.id !== 'string') throw new Error(`Invalid capability id "${String(offer.id)}"`)
     if (!isCapabilityId(offer.id)) throw new Error(`Invalid capability id "${offer.id}"`)
+    if (typeof offer.version !== 'string') throw new Error(`Capability "${offer.id}" has invalid semantic version "${String(offer.version)}"`)
     if (!parseSemVer(offer.version)) throw new Error(`Capability "${offer.id}" has invalid semantic version "${offer.version}"`)
     if (offered.has(offer.id)) throw new Error(`Duplicate capability offer "${offer.id}"`)
     offered.set(offer.id, offer.version)
   }
   const seen = new Set<CapabilityId>()
-  const resolutions = requirements.map(requirement => {
+  const resolutions = requirements.map((requirement, index) => {
+    if (!requirement || typeof requirement !== 'object' || Array.isArray(requirement)) {
+      throw new TypeError(`Capability requirement at index ${index} must be an object`)
+    }
+    if (typeof requirement.id !== 'string') throw new Error(`Invalid capability id "${String(requirement.id)}"`)
     if (!isCapabilityId(requirement.id)) throw new Error(`Invalid capability id "${requirement.id}"`)
     if (!CAPABILITY_REQUIREMENT_LEVELS.has(requirement.level)) {
       throw new Error(`Capability "${requirement.id}" has invalid requirement level "${String(requirement.level)}"`)
@@ -123,7 +149,13 @@ export function negotiateCapabilities(
     const status: CapabilityResolution['status'] = version === undefined
       ? 'unsupported'
       : semVerSatisfies(version, requirement.range) ? 'selected' : 'incompatible'
-    return Object.freeze({ ...requirement, status, ...(version ? { version } : {}) })
+    return Object.freeze({
+      id: requirement.id,
+      range: requirement.range,
+      level: requirement.level,
+      status,
+      ...(version !== undefined ? { version } : {}),
+    })
   })
   const accepted = resolutions.every(result => result.level !== 'required' || result.status === 'selected')
   return Object.freeze({

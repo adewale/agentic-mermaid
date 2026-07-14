@@ -31,11 +31,11 @@ function setTheme(key) {
   state.palette = key ? editorPaletteInput(key) : "";
   diagramThemeIsAuto = false;
   if (key) {
-    localStorage.setItem("bm-editor-palette", state.palette);
-    localStorage.removeItem("bm-editor-theme");
+    safeLocalStorageSet("bm-editor-palette", state.palette);
+    safeLocalStorageRemove("bm-editor-theme");
   } else {
-    localStorage.removeItem("bm-editor-palette");
-    localStorage.removeItem("bm-editor-theme");
+    safeLocalStorageRemove("bm-editor-palette");
+    safeLocalStorageRemove("bm-editor-theme");
   }
   applyThemeToPage(key);
   updateThemeButton();
@@ -68,12 +68,12 @@ applyColorMode(isDark);
 
 // Restore saved theme, otherwise start on the brand Paper theme so the editor
 // opens with the same diagram palette the public site renders.
-var savedPaletteInput = localStorage.getItem("bm-editor-palette") || localStorage.getItem("bm-editor-theme") || "";
+var savedPaletteInput = safeLocalStorageGet("bm-editor-palette") || safeLocalStorageGet("bm-editor-theme") || "";
 var savedPalette = editorPaletteInput(savedPaletteInput);
 if (savedPalette) {
   state.palette = savedPalette;
-  localStorage.setItem("bm-editor-palette", savedPalette);
-  localStorage.removeItem("bm-editor-theme");
+  safeLocalStorageSet("bm-editor-palette", savedPalette);
+  safeLocalStorageRemove("bm-editor-theme");
   diagramThemeIsAuto = false;
 } else if (!editorPaletteInput(state.palette)) {
   state.palette = DEFAULT_EDITOR_PALETTE;
@@ -105,9 +105,9 @@ function updateStyleButton() {
 function setStyle(key) {
   state.style = key || "crisp";
   if (state.style !== "crisp") {
-    localStorage.setItem("bm-editor-style", state.style);
+    safeLocalStorageSet("bm-editor-style", state.style);
   } else {
-    localStorage.removeItem("bm-editor-style");
+    safeLocalStorageRemove("bm-editor-style");
   }
   updateStyleButton();
   scheduleRender(0);
@@ -132,7 +132,7 @@ styleMenu.querySelectorAll(".theme-dropdown-item").forEach(function (item) {
   styleDropdownBtn.setAttribute("data-label-" + key, item.textContent.trim());
 });
 
-var savedStyle = localStorage.getItem("bm-editor-style") || "";
+var savedStyle = sanitizeEditorStyle(safeLocalStorageGet("bm-editor-style") || "");
 if (savedStyle) state.style = savedStyle;
 updateStyleButton();
 setStyleMenuOpen(false, false);
@@ -241,10 +241,10 @@ function shouldOpenEmptyEditor() {
     var draft = typeof readEditorDraft === 'function' ? readEditorDraft() : null;
     if (draft) {
       editor.value = draft.source;
-      if (hasOwnConfig(draft.config)) state.config = sanitizeEditorConfig(draft.config);
+      state.config = hasOwnConfig(draft.config) ? sanitizeEditorConfig(draft.config) : {};
       var draftStyle = sanitizeEditorStyle(draft.style);
-      if (draftStyle) state.style = draftStyle;
-      if (typeof draft.seed === 'number') state.seed = draft.seed;
+      state.style = draftStyle || 'crisp';
+      state.seed = typeof draft.seed === 'number' && Number.isFinite(draft.seed) ? draft.seed : 0;
       updateStyleButton();
       if (typeof hydrateConfigControls === 'function') hydrateConfigControls(state.config);
       else refreshAllColorUIs();

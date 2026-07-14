@@ -32,6 +32,7 @@ export function createTracingMermaid(
   makeSandboxError?: (message: string) => Error,
   isClosed?: () => boolean,
   hostPolicy?: CodeModeHostPolicy,
+  beforeSdkCall?: () => string | undefined,
 ): typeof mermaid {
   const diagramIds = new WeakMap<object, number>()
   const trusted = new WeakSet<object>()
@@ -42,7 +43,11 @@ export function createTracingMermaid(
   const forbidden = (prop: string | symbol): boolean => prop === 'constructor' || prop === '__proto__' || prop === 'prototype'
   const protoFor = (target: object): object | null => Object.isExtensible(target) ? null : Reflect.getPrototypeOf(target)
   const sandboxError = (message: string): Error => makeSandboxError ? makeSandboxError(message) : new Error(message)
-  const assertOpen = () => { if (isClosed?.()) throw sandboxError('Code Mode SDK calls are not allowed while returning results') }
+  const assertOpen = () => {
+    if (isClosed?.()) throw sandboxError('Code Mode SDK calls are not allowed while returning results')
+    const blocked = beforeSdkCall?.()
+    if (blocked) throw sandboxError(blocked)
+  }
   const readonly = () => { throw sandboxError('Code Mode SDK results are read-only; use mermaid.mutate(...) for structured edits') }
   const arrayMutators = new Set(['copyWithin', 'fill', 'pop', 'push', 'reverse', 'shift', 'sort', 'splice', 'unshift'])
   const arrayCallbackMethods = new Set(['forEach', 'map', 'filter', 'find', 'findIndex', 'findLast', 'findLastIndex', 'some', 'every', 'flatMap'])
@@ -552,6 +557,10 @@ export function createTracingMermaid(
     else if (prop === 'describeOps' || prop === 'opSignatures') value = harden((family: any) => {
       assertOpen()
       if (typeof family !== 'string') throw sandboxError(`Code Mode ${String(prop)} family must be a string`)
+      if (!mermaid.hasOpSchema(family)) {
+        const families = mermaid.knownBuiltinFamilies().filter(mermaid.hasOpSchema)
+        throw sandboxError(`Code Mode ${String(prop)} family must be one of: ${families.join(', ')}`)
+      }
       // Pure lookup over static op schemas — no diagram, no trace, read-only.
       return harden(hostCall(() => ((target as any)[prop] as (f: string) => unknown)(family)))
     })
@@ -579,7 +588,20 @@ export function createTracingMermaid(
         : rawObj
       if (isDiagramLike(candidate) && trusted.has(candidate as object)) {
         const d = candidate as unknown as Parameters<typeof mermaid.serializeMermaid>[0] & { kind: DiagramKind }
-        return { ok: true, family: d.kind, source: mermaid.serializeMermaid(d), verify: mermaid.verifySummary(mermaid.verifyMermaid(d)) }
+        const verification = mermaid.verifyMermaid(d)
+        const summary = mermaid.verifySummary(verification)
+        if (!verification.ok) {
+          return {
+            ok: false,
+            family: d.kind,
+            error: {
+              code: 'VERIFY_FAILED',
+              message: 'returned diagram failed verify; source was not emitted',
+              details: summary.warnings,
+            },
+          }
+        }
+        return { ok: true, family: d.kind, source: mermaid.serializeMermaid(d), verify: summary }
       }
     } catch {
       // A returned value whose inspection trips a post-close proxy guard (e.g. a
@@ -678,10 +700,19 @@ export function unsupportedCodeReason(code: string): string | undefined {
   if (!ast) return undefined // Let the selected runtime return the syntax error.
   let usesAsync = false
   let usesRealm = false
-  walkJavaScriptAst(ast, node => {
+  walkJavaScriptAst(ast, (node, parent, parentKey) => {
     if (node.type === 'ImportExpression' || node.type === 'AwaitExpression') usesAsync = true
     if ('async' in node && node.async === true) usesAsync = true
     if (node.type !== 'Identifier' || !('name' in node) || typeof node.name !== 'string') return
+    // Identifier spellings used only as object/member property names do not
+    // reference the corresponding global. Preserve the explicit Array.fromAsync
+    // rejection because that is the actual disabled async intrinsic.
+    const propertyNameOnly = (parentKey === 'key' && parent?.computed !== true)
+      || (parent?.type === 'MemberExpression' && parentKey === 'property' && parent.computed === false)
+    if (propertyNameOnly
+      && !(node.name === 'fromAsync' && parent?.type === 'MemberExpression'
+        && (parent.object as { type?: unknown; name?: unknown } | undefined)?.type === 'Identifier'
+        && (parent.object as { name?: unknown }).name === 'Array')) return
     if (SYNC_UNSUPPORTED_IDENTIFIERS.has(node.name)) usesAsync = true
     if (REALM_UNSUPPORTED_IDENTIFIERS.has(node.name)) usesRealm = true
   })
@@ -724,15 +755,24 @@ function parseCodeModeAst(code: string): AcornNode | undefined {
   return undefined
 }
 
-function walkJavaScriptAst(node: AcornNode, visit: (node: AcornNode & Record<string, unknown>) => void): void {
+function walkJavaScriptAst(
+  node: AcornNode,
+  visit: (
+    node: AcornNode & Record<string, unknown>,
+    parent?: AcornNode & Record<string, unknown>,
+    parentKey?: string,
+  ) => void,
+  parent?: AcornNode & Record<string, unknown>,
+  parentKey?: string,
+): void {
   const record = node as AcornNode & Record<string, unknown>
-  visit(record)
+  visit(record, parent, parentKey)
   for (const [key, value] of Object.entries(record)) {
     if (key === 'start' || key === 'end' || key === 'type') continue
     if (Array.isArray(value)) {
-      for (const child of value) if (isAcornNode(child)) walkJavaScriptAst(child, visit)
+      for (const child of value) if (isAcornNode(child)) walkJavaScriptAst(child, visit, record, key)
     } else if (isAcornNode(value)) {
-      walkJavaScriptAst(value, visit)
+      walkJavaScriptAst(value, visit, record, key)
     }
   }
 }

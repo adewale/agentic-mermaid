@@ -15,6 +15,8 @@ import {
 import { registerFamily } from '../agent/family-registration.ts'
 import { createExtensionIdentity } from '../shared/extension-identity.ts'
 import { toFinite } from '../agent/types.ts'
+import { parseRegisteredMermaid } from '../agent/parse.ts'
+import { serializeMermaid, synthesizeFromGraph } from '../agent/serialize.ts'
 
 const FAMILY = 'family:test/mcp-forward' as ExternalFamilyId
 const HEADER = 'mcpForwardDiagram'
@@ -98,6 +100,24 @@ function hostedContext(): HostedMcpContext {
 }
 
 describe('registered external family MCP parity', () => {
+  test('registered parse JSON survives the public synthesize/serialize pipe', () => {
+    const unregister = registerFamily(descriptor())
+    try {
+      const parsed = parseRegisteredMermaid(SOURCE)
+      expect(parsed.ok).toBe(true)
+      if (!parsed.ok) return
+      const expected = serializeMermaid(parsed.value)
+      const payload = JSON.parse(JSON.stringify(parsed.value))
+      const synthesized = synthesizeFromGraph(payload)
+      expect(synthesized.ok).toBe(true)
+      if (!synthesized.ok) return
+      expect(String(synthesized.value.kind)).toBe(FAMILY)
+      expect(serializeMermaid(synthesized.value)).toBe(expected)
+    } finally {
+      unregister()
+    }
+  })
+
   test('hosted direct verify executes the installed descriptor instead of the closed compatibility parser', async () => {
     let verifyCalls = 0
     const unregister = registerFamily(descriptor(() => { verifyCalls++ }))

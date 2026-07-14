@@ -15,9 +15,7 @@ var exportRequiresSvgButtons = [
 ].filter(Boolean);
 
 function hasRenderedSvg() {
-  return !!lastRenderedSvgArtifact
-    && previewInner.querySelector('svg') !== null
-    && previewInner.dataset.sharedRequestDigest === lastRenderedSvgArtifact.receipt.sharedRequestDigest;
+  return typeof hasCurrentVerifiedSvgArtifact === 'function' && hasCurrentVerifiedSvgArtifact();
 }
 
 function updateExportAvailability() {
@@ -325,7 +323,7 @@ function exportPNG() {
 }
 
 function exportSVG() {
-  if (!lastRenderedSvgArtifact) return;
+  if (!hasRenderedSvg()) return;
   var artifact = lastRenderedSvgArtifact;
   var requestVersion = renderRequestVersion;
   var previewDigest = previewInner.dataset.sharedRequestDigest;
@@ -383,7 +381,11 @@ function copyPNG() {
 
 function copyURL(sourceBtn) {
   // updateHash compresses asynchronously; wait so the copied URL is current.
-  Promise.resolve(updateHash()).then(function() {
+  Promise.resolve(updateHash()).then(function(updated) {
+    if (!updated) {
+      setCopyFeedback(sourceBtn, 'err');
+      return;
+    }
     writeClipboardText(window.location.href, 'Share link copied.', 'Copy link failed.', sourceBtn);
   });
 }

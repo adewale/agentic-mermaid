@@ -172,6 +172,13 @@ export function parseArgs(argv: string[]): ParsedArgs {
   let i = 0
   while (i < argv.length) {
     const arg = argv[i]!
+    if (arg === '--') {
+      for (const positional of argv.slice(i + 1)) {
+        if (!out.command) out.command = positional
+        else out.positional.push(positional)
+      }
+      break
+    }
     if (arg.startsWith('--')) {
       const eq = arg.indexOf('=')
       if (eq !== -1) out.flags[arg.slice(2, eq)] = arg.slice(eq + 1)
@@ -735,9 +742,34 @@ function renderPngSync(source: string, opts: PngOptions, outFile: string, json: 
 
 function cmdVerify(args: ParsedArgs): number {
   const source = readSourceArg(args.positional[0])
-  const suppressRaw = typeof args.flags.suppress === 'string' ? args.flags.suppress : ''
-  const suppress = suppressRaw ? (suppressRaw.split(',').map(s => s.trim()).filter(Boolean) as WarningCode[]) : undefined
-  const labelCharCap = typeof args.flags['label-cap'] === 'string' ? parseInt(args.flags['label-cap'], 10) : undefined
+  const suppressFlag = args.flags.suppress
+  let suppress: WarningCode[] | undefined
+  if (suppressFlag !== undefined) {
+    if (typeof suppressFlag !== 'string') {
+      process.stderr.write('am verify --suppress requires a comma-separated list of warning codes\n')
+      return EXIT_ARG_ERROR
+    }
+    const values = suppressFlag.split(',').map(value => value.trim()).filter(Boolean)
+    const known = new Set(Object.keys(WARNING_SEVERITY))
+    if (values.length === 0 || values.some(value => !known.has(value))) {
+      process.stderr.write('am verify --suppress accepts only known warning codes\n')
+      return EXIT_ARG_ERROR
+    }
+    suppress = values as WarningCode[]
+  }
+  const labelCapFlag = args.flags['label-cap']
+  let labelCharCap: number | undefined
+  if (labelCapFlag !== undefined) {
+    if (typeof labelCapFlag !== 'string' || !/^[1-9]\d*$/.test(labelCapFlag.trim())) {
+      process.stderr.write('am verify --label-cap must be a positive safe integer\n')
+      return EXIT_ARG_ERROR
+    }
+    labelCharCap = Number(labelCapFlag)
+    if (!Number.isSafeInteger(labelCharCap)) {
+      process.stderr.write('am verify --label-cap must be a positive safe integer\n')
+      return EXIT_ARG_ERROR
+    }
+  }
   const r = verifyMermaid(source, { suppress, labelCharCap })
   process.stdout.write(JSON.stringify(r, replacer) + '\n')
   return r.ok ? EXIT_OK : EXIT_VERIFY_FAILED
@@ -956,6 +988,21 @@ function cmdDescribe(args: ParsedArgs, json: boolean): number {
     if (json || format === 'json') process.stdout.write(JSON.stringify(env) + '\n')
     else process.stderr.write(`describe: parse failed: ${env.error.message}\n`)
     return EXIT_ARG_ERROR
+  }
+  // Describe is a read surface, but a successful description is still a
+  // commit point: it must not certify source that the canonical verifier says
+  // cannot render. Keep the failure envelope aligned with the local/hosted MCP
+  // describe tools and use the documented verify-failed exit status.
+  const verification = verifyMermaid(parsed.value)
+  if (!verification.ok) {
+    const env = {
+      ok: false,
+      family: parsed.value.kind,
+      warnings: verification.warnings,
+    }
+    if (json || format === 'json') process.stdout.write(JSON.stringify(env, replacer) + '\n')
+    else process.stderr.write(`describe: verify failed: ${verification.warnings.map(warning => warning.code).join(', ')}\n`)
+    return EXIT_VERIFY_FAILED
   }
   const described = describeMermaid(parsed.value, { format })
   if (format === 'json') {
@@ -1376,7 +1423,8 @@ interface BatchOutput {
   ok: boolean
   op?: string
   data?: unknown
-  error?: { code: string; message: string }
+  verify?: unknown
+  error?: { code: string; message: string; details?: unknown }
 }
 
 /**
@@ -1394,10 +1442,13 @@ export function runBatchLine(rawLine: string, lineIndex = 0): BatchOutput {
     return { ok: false, error: { code: 'INVALID_PAYLOAD', message: 'missing op string' } }
   }
   const op = parsed.op
+  if (['render', 'verify', 'parse', 'serialize', 'mutate'].includes(op) && typeof parsed.source !== 'string') {
+    return { ok: false, op, error: { code: 'INVALID_PAYLOAD', message: 'missing source string' } }
+  }
   try {
     switch (op) {
       case 'render': {
-        const options = parsed.options ?? {}
+        const options = parsed.options === undefined ? {} : parsed.options
         if (typeof options !== 'object' || options === null || Array.isArray(options)) {
           return { ok: false, op, error: { code: 'INVALID_OPTIONS', message: 'batch render options must be a plain JSON object' } }
         }
@@ -1452,8 +1503,39 @@ export function runBatchLine(rawLine: string, lineIndex = 0): BatchOutput {
         return { ok: true, op, data: { [format]: rendered.output, receipt: rendered.receipt } }
       }
       case 'verify': {
-        const options = parsed.options as { suppress?: WarningCode[]; labelCharCap?: number } | undefined
-        const r = verifyMermaid(parsed.source, options ?? {})
+        const options = parsed.options === undefined ? {} : parsed.options
+        if (typeof options !== 'object' || options === null || Array.isArray(options)) {
+          return { ok: false, op, error: { code: 'INVALID_OPTIONS', message: 'batch verify options must be a plain JSON object' } }
+        }
+        const unknown = Object.keys(options).filter(key => key !== 'suppress' && key !== 'labelCharCap')
+        if (unknown.length > 0) {
+          return { ok: false, op, error: { code: 'INVALID_OPTIONS', message: `unknown batch verify option: ${unknown.join(', ')}` } }
+        }
+        const candidate = options as { suppress?: unknown; labelCharCap?: unknown }
+        const warningCodes = new Set(Object.keys(WARNING_SEVERITY))
+        if (candidate.suppress !== undefined
+          && (!Array.isArray(candidate.suppress)
+            || candidate.suppress.some(code => typeof code !== 'string' || !warningCodes.has(code)))) {
+          return { ok: false, op, error: { code: 'INVALID_OPTIONS', message: 'batch verify option "suppress" must be an array of known warning-code strings' } }
+        }
+        if (candidate.labelCharCap !== undefined
+          && (!Number.isSafeInteger(candidate.labelCharCap) || (candidate.labelCharCap as number) <= 0)) {
+          return { ok: false, op, error: { code: 'INVALID_OPTIONS', message: 'batch verify option "labelCharCap" must be a positive safe integer' } }
+        }
+        const r = verifyMermaid(parsed.source, options as { suppress?: WarningCode[]; labelCharCap?: number })
+        if (!r.ok) {
+          const verify = JSON.parse(JSON.stringify(r, replacer))
+          return {
+            ok: false,
+            op,
+            error: {
+              code: 'VERIFY_FAILED',
+              message: 'diagram failed verify',
+              details: verify.warnings,
+            },
+            verify,
+          }
+        }
         return { ok: true, op, data: JSON.parse(JSON.stringify(r, replacer)) }
       }
       case 'parse': {
@@ -1477,14 +1559,27 @@ export function runBatchLine(rawLine: string, lineIndex = 0): BatchOutput {
         return { ok: true, op, data: { source: serializeMermaid(r.value) } }
       }
       case 'mutate': {
-        const ops = Array.isArray(parsed.mutations)
-          ? parsed.mutations
-          : parsed.mutation
-            ? [parsed.mutation]
-            : []
-        if (ops.length === 0) return { ok: false, op, error: { code: 'INVALID_OP', message: 'mutate batch line requires mutation or mutations[]' } }
+        const hasMutation = Object.hasOwn(parsed, 'mutation')
+        const hasMutations = Object.hasOwn(parsed, 'mutations')
+        if (hasMutation === hasMutations) {
+          return { ok: false, op, error: { code: 'INVALID_OP', message: 'mutate batch line requires exactly one of mutation or mutations[]' } }
+        }
+        if (hasMutations && !Array.isArray(parsed.mutations)) {
+          return { ok: false, op, error: { code: 'INVALID_OP', message: 'mutate batch line mutations must be a non-empty array' } }
+        }
+        const ops = (hasMutations ? parsed.mutations : [parsed.mutation]) as Parameters<typeof mutateSource>[1]
+        if (ops.length === 0) return { ok: false, op, error: { code: 'INVALID_OP', message: 'mutate batch line mutations must be a non-empty array' } }
         const r = mutateSource(parsed.source, ops)
-        if (!r.ok) return { ok: false, op, error: { code: r.error.code, message: r.error.message } }
+        if (!r.ok) return {
+          ok: false,
+          op,
+          error: {
+            code: r.error.code,
+            message: r.error.message,
+            ...('details' in r.error && r.error.details !== undefined ? { details: r.error.details } : {}),
+          },
+          ...(r.verify ? { verify: JSON.parse(JSON.stringify(r.verify, replacer)) } : {}),
+        }
         return { ok: true, op, data: { source: r.source, verify: JSON.parse(JSON.stringify(r.verify, replacer)) } }
       }
       default:

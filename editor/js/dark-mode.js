@@ -3,7 +3,7 @@
 var darkSchemeQuery = window.matchMedia
   ? window.matchMedia("(prefers-color-scheme: dark)")
   : null;
-var storedColorMode = localStorage.getItem("bm-editor-dark");
+var storedColorMode = safeLocalStorageGet("bm-editor-dark");
 var isDark = storedColorMode === null
   ? !!(darkSchemeQuery && darkSchemeQuery.matches)
   : storedColorMode === "true";
@@ -19,7 +19,7 @@ function applyColorMode(dark, force) {
   }
   // Persist only explicit choices so a system-derived default keeps tracking
   // prefers-color-scheme instead of freezing on first load.
-  if (force) localStorage.setItem("bm-editor-dark", dark ? "true" : "false");
+  if (force) safeLocalStorageSet("bm-editor-dark", dark ? "true" : "false");
 
   // Page chrome follows the Kiln brand (Stone/Charcoal + Pine). The diagram theme
   // is controlled separately by the dropdown so color mode does not silently
@@ -39,6 +39,6 @@ document
 
 if (darkSchemeQuery && typeof darkSchemeQuery.addEventListener === "function") {
   darkSchemeQuery.addEventListener("change", function (e) {
-    if (localStorage.getItem("bm-editor-dark") === null) applyColorMode(e.matches);
+    if (safeLocalStorageGet("bm-editor-dark") === null) applyColorMode(e.matches);
   });
 }
