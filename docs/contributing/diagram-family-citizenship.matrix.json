@@ -268,7 +268,7 @@
           "evidence": [
             "stryker.routes.config.json",
             "stryker.link-grammar.config.json",
-            "stryker.route-certificates.config.json",
+            "stryker.route-certificates.config.mjs",
             "package.json"
           ]
         },

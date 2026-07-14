@@ -292,9 +292,11 @@ describe('vocabulary doc-sync', () => {
     const workflow = readFileSync(join(REPO, '.github/workflows/nightly-route-mutation.yml'), 'utf8')
     const docs = readFileSync(join(REPO, 'docs/mutation-testing.md'), 'utf8')
     for (const command of ['bun run mutation-test:routes', 'bun run mutation-test:routes:certs', 'bun run mutation-test:routes:subgraph', 'bun run sabotage:routes']) {
-      expect(workflow).toContain(command)
       expect(docs).toContain(command.replace('bun run ', ''))
     }
+    expect(workflow).toContain('scripts/quality/nightly-mutation.ts matrix')
+    expect(workflow).toContain('scripts/quality/nightly-mutation.ts verify')
+    expect(workflow).toContain('bun run sabotage:routes')
   })
 
   test('every warning code in Instructions_for_agents.md and spec', () => {

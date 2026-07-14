@@ -1,9 +1,10 @@
-name: Nightly route mutation
+name: Nightly mutation
 
 on:
   schedule:
-    # Broad Stryker route lanes are intentionally off the PR gate; run them
-    # nightly so mutation survivors are visible without blocking normal CI.
+    # Broad Stryker lanes are intentionally off the PR gate. The plan shards
+    # large configs, then the final job recombines their scores against each
+    # config's single aggregate regression floor.
     - cron: '17 3 * * *'
   workflow_dispatch:
 
@@ -11,67 +12,35 @@ permissions:
   contents: read
 
 jobs:
-  route-mutation:
+  plan:
+    name: Plan complete mutation coverage
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: 1.3.13
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - id: matrix
+        name: Derive source-relative shards
+        run: bun run scripts/quality/nightly-mutation.ts matrix >> "$GITHUB_OUTPUT"
+
+  mutation:
     name: ${{ matrix.name }}
+    needs: plan
     runs-on: ubuntu-latest
     timeout-minutes: ${{ matrix.timeout }}
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - name: routes
-            command: bun run mutation-test:routes
-            timeout: 90
-          - name: route-certificates
-            command: bun run mutation-test:routes:certs
-            timeout: 45
-          - name: subgraph-routing
-            command: bun run mutation-test:routes:subgraph
-            timeout: 60
-          - name: sabotage-routes
-            command: bun run sabotage:routes
-            timeout: 30
-          # Every registered family has a scheduled mutation lane. Flowchart
-          # is covered by routes; XYChart + Architecture plus Mindmap/GitGraph
-          # parser/layout/render cores are covered by families. The two focused
-          # lanes below mutate their typed editing/replay bodies.
-          - name: state
-            command: bun run mutation-test:state
-            timeout: 90
-          - name: sequence
-            command: bun run mutation-test:sequence
-            timeout: 90
-          - name: timeline
-            command: bun run mutation-test:timeline
-            timeout: 90
-          - name: class
-            command: bun run mutation-test:class
-            timeout: 90
-          - name: er
-            command: bun run mutation-test:er
-            timeout: 90
-          - name: journey
-            command: bun run mutation-test:journey
-            timeout: 90
-          - name: pie
-            command: bun run mutation-test:pie
-            timeout: 90
-          - name: quadrant
-            command: bun run mutation-test:quadrant
-            timeout: 90
-          - name: gantt
-            command: bun run mutation-test:gantt
-            timeout: 120
-          - name: mindmap
-            command: bun run mutation-test:mindmap
-            timeout: 90
-          - name: gitgraph
-            command: bun run mutation-test:gitgraph
-            timeout: 90
-          - name: families
-            command: bun run mutation-test:families
-            timeout: 120
-
+      max-parallel: 12
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
 
@@ -84,14 +53,62 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Run ${{ matrix.name }}
-        run: ${{ matrix.command }}
+        # Each shard runs with break=0 so it can emit its report. The verify job
+        # applies the config's aggregate floor only after every shard is joined.
+        env:
+          MUTATION_PLAN_ITEM: ${{ matrix.name }}
+        run: bun run scripts/quality/nightly-mutation.ts run "$MUTATION_PLAN_ITEM"
 
-      - name: Upload mutation reports
+      - name: Upload mutation report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: route-mutation-${{ matrix.name }}
-          path: |
-            reports/mutation/**
-            .stryker-tmp*/reports/**
-          if-no-files-found: ignore
+          name: nightly-mutation-${{ matrix.name }}
+          path: reports/mutation/${{ matrix.name }}-mutation.json
+          if-no-files-found: error
+          overwrite: true
+
+  sabotage-routes:
+    name: sabotage-routes
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: 1.3.13
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Prove focused route tests detect deliberate regressions
+        run: bun run sabotage:routes
+
+  verify:
+    name: Verify aggregate mutation floors
+    if: ${{ !cancelled() }}
+    needs: [plan, mutation, sabotage-routes]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: 1.3.13
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Download every mutation report
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          pattern: nightly-mutation-*
+          path: reports/nightly
+          merge-multiple: true
+
+      - name: Recombine shards and enforce regression floors
+        run: bun run scripts/quality/nightly-mutation.ts verify reports/nightly

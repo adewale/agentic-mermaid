@@ -4,7 +4,7 @@
   "inputs": [
     {
       "path": "bun.lock",
-      "sha256": "08008fb85e84578cec54dec3ed2bd7dd755d65b15e99bea6947a49fd29a94d32"
+      "sha256": "9cc122ff29243e62dd298240c7ce4d6e91782ef28d6ad9748cd803fa8308c239"
     },
     {
       "path": "eval/mindmap-gitgraph-content-corpus/fork-snapshot.json",
@@ -68,7 +68,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "9ba3f73f396820aa302d3082113b951cb2470ace94753609336add21aaae4df2"
+      "sha256": "3691bd62882600e98eadc3eeec7e8332fa0cce06a5f7d18551da6acd8dddb6e8"
     },
     {
       "path": "scripts/pr-assets/artifact-receipt.ts",
@@ -132,7 +132,7 @@
     },
     {
       "path": "src/__tests__/agent-doc-sync.test.ts",
-      "sha256": "9a565b86f26456c4ad7dd999d4bade6d613a0bd6cff150366627955162f4193c"
+      "sha256": "b9d504bffe87e63d7e5488bbd0cdfe95d89419cc88df8df56969a6eff889eb18"
     },
     {
       "path": "src/__tests__/agent-er.test.ts",
@@ -588,7 +588,7 @@
     },
     {
       "path": "src/__tests__/diagram-family-citizenship.test.ts",
-      "sha256": "5f05e07fa358a038026675f6856e7a687b3f4aae6141b7b09e65b76eb1b5af07"
+      "sha256": "0960897f81f84391aa3c5850bb60da27586cf0b1d28f7b9f1b24af7aa2257f67"
     },
     {
       "path": "src/__tests__/differential-mermaid-ast.test.ts",
@@ -1027,6 +1027,10 @@
       "sha256": "d624e450191bc5d19ced283684ad4e17e22fd6550672a1bc2526fb5899576d1d"
     },
     {
+      "path": "src/__tests__/nightly-mutation.test.ts",
+      "sha256": "d4f714565d7e7e48cf950edac77a464fd001a34e383079a223dde207f9b7421f"
+    },
+    {
       "path": "src/__tests__/no-dom-in-product.test.ts",
       "sha256": "cf2ed3b9c184385fb853df67288d1da01391c47c77ace55d641e7fc6d8166b02"
     },
@@ -1220,7 +1224,7 @@
     },
     {
       "path": "src/__tests__/route-contracts.test.ts",
-      "sha256": "abf5c42920ecd7537bf8d8cf62f5310230c8bbda9e77c2d9a40155bbae672197"
+      "sha256": "d9e4f411e87a9c284c335f8751838af823a6cb973d973a0bdcfaefab6c5918b4"
     },
     {
       "path": "src/__tests__/scene-connector-contract.test.ts",
@@ -2092,7 +2096,7 @@
     },
     {
       "path": "src/layout-engine.ts",
-      "sha256": "e4ddd088183644635baa9abfe3abc6bc6896b422800f2734d0ec0a3aaad8f1cb"
+      "sha256": "f50fe37668608bebe781813998fae2c159d4f4928a36ac0d0ef544615496e188"
     },
     {
       "path": "src/layout-rubric.ts",
@@ -2324,7 +2328,7 @@
     },
     {
       "path": "src/route-contracts.ts",
-      "sha256": "fb380467febf092dc677942191a12c87eb9dcd86871a3bcd816e7db33855d127"
+      "sha256": "5c677b13700f86c21240d24e692e61370c8e0fc1f2e4e25811e4fe47cd7d0537"
     },
     {
       "path": "src/scene/accessibility.ts",

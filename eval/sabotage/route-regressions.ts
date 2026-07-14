@@ -44,12 +44,15 @@ const cases: SabotageCase[] = [
     expectedFailure: /non-incident node moved onto a certified route|ROUTE_STALE_AFTER_NODE_MOVE/,
   },
   {
-    name: 'downgraded detours cannot keep stale straightened metadata',
+    name: 'final detours cannot expose stale straightened metadata',
     file: 'src/route-contracts.ts',
     oldText: "    return { ...base, invariant: draft.invariant === 'straight' ? 'explained-detour' : draft.invariant }\n",
-    newText: "    return { ...base, invariant: draft.invariant === 'straight' ? 'explained-detour' : draft.invariant, ...(draft.straightened ? { straightened: true as const } : {}) } as RouteCertificate\n",
+    // Inject the impossible public state unconditionally. The old sabotage
+    // copied draft.straightened, but newer layout balancing means this fixture
+    // can be a detour throughout and therefore made that mutation a no-op.
+    newText: "    return { ...base, invariant: draft.invariant === 'straight' ? 'explained-detour' : draft.invariant, straightened: true as const } as RouteCertificate\n",
     command: ['bun', 'test', 'src/__tests__/route-contracts.test.ts', '--timeout', '120000'],
-    expectedFailure: /clears the straightened bit when a fixed-point retry downgrades to a detour|straightened/,
+    expectedFailure: /does not expose straightened on a final detour|straightened/,
   },
   {
     name: 'subgraph IDs are classified as container endpoints',

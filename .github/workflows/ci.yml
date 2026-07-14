@@ -42,10 +42,11 @@ jobs:
         # locate under-tested files — it is deliberately NOT a quality target:
         # line coverage is weakly correlated with fault detection once suite
         # size is controlled (Inozemtseva & Holmes, ICSE 2014). The real
-        # adequacy signal is the mutation score. The nightly broad lane
-        # (nightly-route-mutation.yml) currently times out before producing it
-        # (every run cancelled at the 90-min cap since 2026-06-19; the sharding
-        # fix is PR #63) — regenerate scores locally per docs/mutation-testing.md.
+        # adequacy signal is the mutation score. Broad mutation lanes run
+        # outside the PR gate: nightly-route-mutation.yml derives AST-safe
+        # shards from one checked schedule, then recombines their reports and
+        # enforces each config's aggregate regression floor. See
+        # docs/mutation-testing.md.
         # Coverage is lcov-only (see bunfig.toml [test].coverageReporter —
         # bunfig overrides any --coverage-reporter CLI flag): the text table
         # intermittently kills bun's stdout writer with `error: An internal
@@ -60,7 +61,7 @@ jobs:
         # Surface where the trustworthy adequacy number lives so a green
         # coverage column is not mistaken for a strong suite.
         run: |
-          echo "::notice title=Adequacy signal::Line coverage above is a finder, not a target. The mutation score is the adequacy signal — but the nightly lane currently times out (PR #63 has the sharding fix); regenerate locally per docs/mutation-testing.md."
+          echo "::notice title=Adequacy signal::Line coverage above is a finder, not a target. Mutation scores are enforced per lane after nightly shard aggregation; see docs/mutation-testing.md."
 
       - name: Run sketch prototype style checks
         run: bun run sketch:check

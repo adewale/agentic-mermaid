@@ -167,8 +167,8 @@
     "mutation-test:ascii": "npx stryker run stryker.ascii.config.json",
     "mutation-test:families": "npx stryker run stryker.families.config.json",
     "mutation-test:routes": "npx stryker run stryker.routes.config.json",
-    "mutation-test:routes:certs": "npx stryker run stryker.route-certificates.config.json",
-    "mutation-test:routes:subgraph": "npx stryker run stryker.subgraph-routing.config.json",
+    "mutation-test:routes:certs": "npx stryker run stryker.route-certificates.config.mjs",
+    "mutation-test:routes:subgraph": "npx stryker run stryker.subgraph-routing.config.mjs",
     "mutation-test:links": "npx stryker run stryker.link-grammar.config.json",
     "mutation-test:state": "npx stryker run stryker.state.config.json",
     "mutation-test:sequence": "npx stryker run stryker.sequence.config.json",
@@ -208,6 +208,7 @@
   "devDependencies": {
     "@resvg/resvg-wasm": "2.6.2",
     "@stryker-mutator/core": "^9.6.1",
+    "@stryker-mutator/instrumenter": "^9.6.1",
     "@types/bun": "^1.3.9",
     "beautiful-mermaid": "1.1.3",
     "fast-check": "^4.6.0",

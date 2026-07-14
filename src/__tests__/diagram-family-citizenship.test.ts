@@ -8,10 +8,12 @@ import { parseMermaid, verifyMermaid, serializeMermaid, renderMermaidSVG, render
 import { FAMILY_COUNT_FIXTURES } from './helpers/family-count-fixtures.ts'
 import { METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'
 import { trackedExamples } from '../../eval/heuristic-tracker/catalog.ts'
+import { NIGHTLY_MUTATION_LANES, loadStrykerConfig } from '../../scripts/quality/nightly-mutation.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const MATRIX_PATH = join(REPO, 'docs/contributing/diagram-family-citizenship.matrix.json')
 const FIDELITY_AUDIT_PATH = join(REPO, 'docs/design/mermaid-family-fidelity-audit.md')
+const isStrykerConfig = (path: string) => /^stryker\..+\.config\.(?:json|mjs)$/.test(path)
 
 const EXPECTED_SURFACES = [
   'registryDiscovery',
@@ -411,7 +413,7 @@ describe('diagram-family citizenship ratchet (issue #41)', () => {
     for (const family of BUILTIN_FAMILY_METADATA) {
       const cell = matrix.families[family.id]!.cells.mutationLane
       if (cell.status !== 'satisfied') continue
-      const strykerEvidence = cell.evidence.filter(e => e.startsWith('stryker.') && e.endsWith('.config.json'))
+      const strykerEvidence = cell.evidence.filter(isStrykerConfig)
       expect({ family: family.id, strykerEvidence }).toEqual({ family: family.id, strykerEvidence: expect.arrayContaining([expect.any(String)]) })
       const configs = strykerEvidence.map(e => readFileSync(join(REPO, e), 'utf8')).join('\n')
       const needles = MUTATION_CONFIG_NEEDLES[family.id]
@@ -420,21 +422,20 @@ describe('diagram-family citizenship ratchet (issue #41)', () => {
     }
   })
 
-  test('every registered family is scheduled with threshold-gated JSON mutation evidence', () => {
+  test('every registered family is scheduled with threshold-gated mutation evidence', async () => {
     const workflow = readFileSync(join(REPO, '.github/workflows/nightly-route-mutation.yml'), 'utf8')
-    const commandFor: Record<string, string> = {
-      flowchart: 'mutation-test:routes', state: 'mutation-test:state', sequence: 'mutation-test:sequence',
-      timeline: 'mutation-test:timeline', class: 'mutation-test:class', er: 'mutation-test:er',
-      journey: 'mutation-test:journey', xychart: 'mutation-test:families', architecture: 'mutation-test:families',
-      pie: 'mutation-test:pie', quadrant: 'mutation-test:quadrant', gantt: 'mutation-test:gantt',
-      mindmap: 'mutation-test:families', gitgraph: 'mutation-test:families',
-    }
+    expect(workflow).toContain('scripts/quality/nightly-mutation.ts matrix')
+    expect(workflow).toContain('scripts/quality/nightly-mutation.ts verify')
+    const scheduledConfigs = new Set(NIGHTLY_MUTATION_LANES.map(lane => lane.config))
+    const scheduledFamilies = new Set(NIGHTLY_MUTATION_LANES.flatMap(lane => [...lane.families]))
     const matrix = loadMatrix()
     for (const family of BUILTIN_FAMILY_METADATA) {
-      expect(workflow).toContain(`bun run ${commandFor[family.id]}`)
-      const configs = matrix.families[family.id]!.cells.mutationLane.evidence
-        .filter(path => path.startsWith('stryker.') && path.endsWith('.config.json'))
-        .map(path => JSON.parse(readFileSync(join(REPO, path), 'utf8')) as { thresholds?: { break?: number }; reporters?: string[]; jsonReporter?: { fileName?: string } })
+      expect({ family: family.id, scheduled: scheduledFamilies.has(family.id) }).toEqual({ family: family.id, scheduled: true })
+      const evidence = matrix.families[family.id]!.cells.mutationLane.evidence
+        .filter(isStrykerConfig)
+      expect({ family: family.id, scheduledEvidence: evidence.some(path => scheduledConfigs.has(path)) })
+        .toEqual({ family: family.id, scheduledEvidence: true })
+      const configs = await Promise.all(evidence.map(path => loadStrykerConfig(path, REPO)))
       expect(configs.some(config => (config.thresholds?.break ?? 0) > 0)).toBe(true)
       expect(configs.some(config => config.reporters?.includes('json') && config.jsonReporter?.fileName)).toBe(true)
     }

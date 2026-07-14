@@ -1,6 +1,6 @@
-# Mutation testing (ASCII layout core)
+# Mutation testing
 
-Stryker mutation testing is scoped to the five ASCII layout modules where a
+The original ASCII Stryker lane is scoped to the five layout modules where a
 silent logic regression is most expensive: `src/ascii/pathfinder.ts`,
 `src/ascii/edge-routing.ts`, `src/ascii/converter.ts`, `src/ascii/grid.ts`,
 `src/ascii/draw.ts`.
@@ -31,19 +31,38 @@ bun run mutation-test:routes:subgraph  # subgraph endpoint/LCA routing
 bun run sabotage:routes                # one-line revert checks against committed HEAD; expects focused tests to fail
 ```
 
-The JSON report lands in `reports/mutation/` (gitignored). Beyond the lanes
-documented here, `stryker.*.config.json` also covers every family through a
-named package script: flowchart uses the route lane; XYChart and Architecture
-share `mutation-test:families`; State, Sequence, Timeline, Class, ER, Journey,
-Pie, Quadrant, Gantt, Mindmap, and GitGraph each have a focused command. The
-Mindmap/GitGraph focused lanes mutate typed editing/replay bodies; the broad
-family lane also mutates their parser/layout/renderer cores. Every family lane emits a
-uniquely named JSON report and has a `thresholds.break: 60` adequacy floor.
-`.github/workflows/nightly-route-mutation.yml` schedules all of those lanes,
-plus route certificates/subgraph routing and `sabotage:routes`, nightly and on
-manual `workflow_dispatch`, uploading reports as artifacts. Broad mutation
-runs remain outside the PR gate; run the narrow lane locally
-when you touch ASCII/route core logic and want immediate proof the tests bite.
+JSON reports land in `reports/mutation/` (gitignored). Stryker configs may be
+static `.json` files or executable `.mjs` files. The route-certificate and
+subgraph-routing configs use `.mjs` so source-adjacent marker pairs resolve
+their narrow mutation ranges at load time; inserting code above the behavior
+cannot silently move those lanes onto unrelated lines.
+
+Beyond the lanes documented here, the configs cover every built-in renderable
+family through a named package script: flowchart uses the route lane; XYChart
+and Architecture share `mutation-test:families`; State, Sequence, Timeline,
+Class, ER, Journey, Pie, Quadrant, Gantt, Mindmap, and GitGraph each have a
+focused command. The Mindmap/GitGraph focused lanes mutate typed editing/replay
+bodies; the broad family lane mutates their parser/layout/renderer cores.
+
+`.github/workflows/nightly-route-mutation.yml` schedules those lanes, the two
+narrow route lanes, and `sabotage:routes` nightly and through manual
+`workflow_dispatch`. `scripts/quality/nightly-mutation.ts` is the single
+schedule authority. It partitions large whole-file targets only between
+complete top-level TypeScript statements. The checked
+`scripts/quality/mutation-shard-oracle.mjs` instruments the full targets and
+their shards and requires the mutant multisets to match exactly, preventing a
+range boundary from silently omitting or duplicating a spanning AST mutant.
+
+Each shard temporarily runs with `thresholds.break: 0` only so it can emit its
+partial JSON report. The final verifier validates the reports, recombines every
+shard for its lane, and applies the original config's single aggregate
+`thresholds.break` floor. That per-lane floor is a measured regression ratchet;
+60% is the improvement target, not a baseline assumed for every lane. Raise a
+floor when retained evidence supports it rather than assigning an unmeasured
+lane the target. Reports have unique names and are uploaded as workflow
+artifacts. Broad mutation runs remain outside the PR gate; run a narrow lane
+locally when you touch ASCII/route core logic and want immediate proof the
+tests bite.
 
 ## Focused Mindmap/GitGraph historical local measurement (2026-07-10)
 
