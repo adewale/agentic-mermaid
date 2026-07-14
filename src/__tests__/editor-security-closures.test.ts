@@ -20,7 +20,7 @@ function sharingHarness(options: { decompression?: typeof DecompressionStream | 
   const localStorage = memoryStorage()
   const sessionStorage = memoryStorage()
   const editor = { value: 'flowchart TD\n  A --> B' }
-  const state = { theme: 'paper', style: 'crisp', seed: 0, config: {} as Record<string, unknown> }
+  const state = { palette: 'paper', style: 'crisp', seed: 0, config: {} as Record<string, unknown> }
   const toasts: string[] = []
   const replacedUrls: string[] = []
   const window = {
@@ -74,6 +74,15 @@ function sharingHarness(options: { decompression?: typeof DecompressionStream | 
 }
 
 describe('editor share-link resource limits', () => {
+  test('new share links emit Palette vocabulary while legacy theme links remain decodable', async () => {
+    const { api, replacedUrls } = sharingHarness()
+    await api.updateHash()
+    const encoded = replacedUrls.at(-1)!.split('#')[1]!
+    const payload = JSON.parse(await api.decodeSource(encoded))
+    expect(payload).toMatchObject({ palette: 'paper' })
+    expect(payload).not.toHaveProperty('theme')
+  })
+
   test('round-trips accepted compressed payloads and reports corrupt input', async () => {
     const { api } = sharingHarness()
     const source = JSON.stringify({ source: 'flowchart TD\n  Alpha --> Beta', config: { bg: '#fff' } })
@@ -162,6 +171,8 @@ describe('editor SEC-1 insertion choke point', () => {
     expect(rendering).toContain('validateSerializableRenderOptions(config)')
     expect(rendering).toContain('opts.embedFontImport = false')
     expect(rendering).toContain('opts.security = "strict"')
+    expect(sharingSource).toContain('new Set(["embedFontImport", "security"])')
+    expect(sharingSource).toContain('!allowed.has(key) || editorOwned.has(key)')
   })
 
   test('SVG insertion verifies, parses, and imports a single SVG node without an HTML sink', () => {
@@ -190,7 +201,18 @@ describe('editor SEC-1 insertion choke point', () => {
   test('PNG export uses the canonical browser request/receipt adapter and reports font failures', () => {
     const exporting = readFileSync(join(ROOT, 'editor/js/export.js'), 'utf8')
     const rendering = readFileSync(join(ROOT, 'editor/js/rendering.js'), 'utf8')
-    expect(exporting).toContain('renderMermaidPngInBrowserWithReceipt(source, options, scale, rasterizeCanonicalSvg)')
+    expect(exporting).toContain('renderMermaidPngInBrowserWithReceipt(source, options, outputOptions, rasterizeCanonicalSvg)')
+    expect(exporting).toContain("var pngScaleControls = document.getElementById('size-pills')")
+    expect(exporting).toContain('var exportScale = Number(pngScaleControls.dataset.defaultScale)')
+    expect(exporting).not.toMatch(/var exportScale = \d/)
+    const topbar = readFileSync(join(ROOT, 'editor/html/topbar.html'), 'utf8')
+    expect(topbar).toContain('data-default-scale="{{PNG_DEFAULT_SCALE}}"')
+    expect(topbar).toContain('{{PNG_SCALE_ITEMS}}')
+    expect(exporting).toContain('function currentPngOutputOptions()')
+    expect(exporting).toContain('output.fitTo =')
+    expect(exporting).toContain('output.background = pngBackgroundColor.value')
+    expect(exporting).toContain('context.rasterDimensions.width')
+    expect(exporting).toContain('context.rasterBackground')
     expect(exporting).toContain("artifact.receipt.output !== 'png'")
     expect(exporting).toContain('artifact.receipt.sharedRequestDigest !== previewDigest')
     expect(exporting).toContain('renderRequestVersion !== requestVersion')
@@ -198,6 +220,7 @@ describe('editor SEC-1 insertion choke point', () => {
     expect(exporting).toContain("code: 'EDITOR_FONT_FETCH_FAILED'")
     expect(exporting).toContain("fontSources.push('embedded-data-uri')")
     expect(exporting).toContain("fontSources.push('unavailable')")
+    expect(exporting).toContain('browser/system')
     expect(exporting).toContain('fontSources: serialized.fontSources')
     expect(exporting).not.toContain('function svgToPngBlob')
     expect(rendering).toContain('lastRenderedSvgArtifact = rendered')

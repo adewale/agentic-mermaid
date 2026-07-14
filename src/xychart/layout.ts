@@ -1,4 +1,3 @@
-import { resolvedStyleFaceOf } from '../render-contract.ts'
 import type {
   AxisTick,
   GridLine,
@@ -12,6 +11,7 @@ import type {
   XYChart,
 } from './types.ts'
 import type { RenderOptions } from '../types.ts'
+import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { estimateTextWidth, STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults } from '../styles.ts'
 import { resolveXYChartRenderConfig } from './config.ts'
@@ -53,10 +53,11 @@ export const XY_STYLE_DEFAULTS: RenderStyleDefaults = {
 export function layoutXYChart(
   chart: XYChart,
   options: RenderOptions = {},
+  styleFace?: Readonly<InternalStyleFace>,
 ): PositionedXYChart {
-  const style = resolveRenderStyle(options, XY_STYLE_DEFAULTS)
+  const style = resolveRenderStyle(options, XY_STYLE_DEFAULTS, styleFace)
   const config = resolveXYChartRenderConfig(chart.config)
-  const face = resolvedStyleFaceOf(options)
+  const face = styleFace
   if (face?.group?.fontSize != null || face?.text?.fontSize != null) {
     config.titleFontSize = style.groupHeaderFontSize
   }

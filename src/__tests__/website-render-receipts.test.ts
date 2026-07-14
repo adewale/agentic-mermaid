@@ -7,31 +7,18 @@ import {
   renderWebsiteSVG,
   renderWebsiteSVGWithReceipt,
 } from '../../website/src/rendering.ts'
-
-const REPRESENTATIVE_FAMILIES = [
-  'flowchart',
-  'sequence',
-  'architecture',
-  'pie',
-  'gantt',
-  'mindmap',
-] as const
+import { SECTION_A_TRANSPORT_FIXTURE } from './helpers/section-a-transport-fixture.ts'
 
 describe('website receipt-bearing render boundary', () => {
   test('string projections are derived from receipt-bearing artifacts', () => {
-    const source = 'flowchart LR\n  A[Start] --> B[Finish]'
-    const options = { security: 'strict' as const, embedFontImport: false }
+    const { source, options } = SECTION_A_TRANSPORT_FIXTURE
     expect(renderWebsiteSVG(source, options)).toBe(renderWebsiteSVGWithReceipt(source, options).svg)
     expect(renderWebsiteASCII(source, { ...options, useAscii: true, colorMode: 'none' }))
       .toBe(renderWebsiteASCIIWithReceipt(source, { ...options, useAscii: true, colorMode: 'none' }).text)
   })
 
-  test('representative families share request and appearance identity across website SVG and text fixtures', () => {
-    const selected = BUILTIN_FAMILY_METADATA.filter(family =>
-      (REPRESENTATIVE_FAMILIES as readonly string[]).includes(family.id))
-    expect(selected.map(family => family.id)).toEqual([...REPRESENTATIVE_FAMILIES])
-
-    for (const family of selected) {
+  test('every registered built-in family shares request and appearance identity across website SVG and text fixtures', () => {
+    for (const family of BUILTIN_FAMILY_METADATA) {
       const fixture = renderWebsiteRepresentationFixture(family.example, {
         style: ['publication-figure', 'github-light'],
         padding: 19,

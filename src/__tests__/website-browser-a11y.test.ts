@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs'
 import { extname, join, normalize } from 'node:path'
 import { deflateRawSync } from 'node:zlib'
 import { chromium, type Browser, type Page } from 'playwright'
+import { serveWithAvailablePort } from '../../e2e/test-port.ts'
 import { HOSTED_FONT_FACES } from '../font-manifest.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 
@@ -13,17 +14,16 @@ let server: ReturnType<typeof Bun.serve>
 let browser: Browser
 let baseUrl = ''
 
-// This smoke suite needs a real Chromium. The CI `test` job runs the unit suite
-// without installing Playwright browsers (only the separate e2e job does), so
-// skip when none is installed — the same way the cross-runtime determinism tests
-// skip without node/resvg — rather than failing the suite on a missing browser.
+// This smoke suite needs a real Chromium and runs only in the explicit browser
+// lane. Keeping it out of the coverage unit lane prevents browser/server work
+// from becoming an opportunistic side effect of a locally installed Chromium.
 // executablePath() resolves to the bundled Chromium; its presence is the proxy
 // for "Playwright browsers are installed", since the headless shell that
 // launch({headless:true}) actually starts is installed alongside it.
 const haveBrowser = (() => {
   try { return existsSync(chromium.executablePath()) } catch { return false }
 })()
-const describeBrowser = haveBrowser ? describe : describe.skip
+const describeBrowser = haveBrowser && process.env.AM_BROWSER_TESTS === '1' ? describe : describe.skip
 
 const mime: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -98,8 +98,8 @@ describeBrowser('website browser accessibility smoke', () => {
   // skips them too — a file-level beforeAll runs even when its only describe is
   // skipped, and launching there is exactly what fails when Chromium is absent.
   beforeAll(async () => {
-    server = Bun.serve({
-      port: 0,
+    const served = serveWithAvailablePort({
+      preferredPort: 4720,
       fetch(req) {
         const url = new URL(req.url)
         const abs = fileForPath(url.pathname)
@@ -107,7 +107,8 @@ describeBrowser('website browser accessibility smoke', () => {
         return new Response(Bun.file(abs), { headers: { 'content-type': mime[extname(abs)] || 'application/octet-stream' } })
       },
     })
-    baseUrl = `http://${server.hostname}:${server.port}`
+    server = served.server
+    baseUrl = served.base
     browser = await chromium.launch({ headless: true })
   }, 30_000)
 
@@ -362,14 +363,11 @@ describeBrowser('website browser accessibility smoke', () => {
     expect(result.executed).toBeUndefined()
     expect(result.activeElements).toBe(0)
     expect(result.eventHandlers).toBe(0)
-    if (result.hasSvg) {
-      expect(result.status).toBe('OK')
-      expect(result.html).not.toContain('evil.invalid')
-      expect(result.html).not.toContain('fonts.googleapis.com')
-    } else {
-      expect(result.status).toBe('Error')
-      expect(result.html).toContain('Unsafe SVG output')
-    }
+    expect(result.status).toBe('Error')
+    expect(result.hasSvg).toBe(false)
+    expect(result.html).toContain('Raw Mermaid themeCSS is not allowed in strict security mode')
+    expect(result.html).not.toContain('evil.invalid')
+    expect(result.html).not.toContain('fonts.googleapis.com')
     await page.close()
   }, 30_000)
 
@@ -414,12 +412,16 @@ describeBrowser('website browser accessibility smoke', () => {
     }
     const hash = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64')
     await page.goto(baseUrl + '/editor/#' + hash, { waitUntil: 'networkidle' })
-    await page.locator('#preview-inner svg').waitFor({ state: 'visible', timeout: 10_000 })
+    await page.waitForFunction(() => ['OK', 'Error'].includes(document.querySelector('#status-text')?.textContent || ''))
     const result = await page.evaluate(() => ({
       executed: (window as any).__shareLinkXss ?? null,
       marker: Boolean(document.querySelector('#share-link-xss')),
+      hasSvg: Boolean(document.querySelector('#preview-inner svg')),
+      status: document.querySelector('#status-text')?.textContent,
+      html: document.querySelector('#preview-inner')?.innerHTML ?? '',
     }))
-    expect(result).toEqual({ executed: null, marker: false })
+    expect(result).toMatchObject({ executed: null, marker: false, hasSvg: false, status: 'Error' })
+    expect(result.html).toContain('Raw Mermaid themeCSS is not allowed in strict security mode')
     await page.close()
   }, 30_000)
 

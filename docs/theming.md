@@ -1,9 +1,9 @@
-# Theming
+# Palettes and theming
 
 Agentic Mermaid themes start from a two-color contract (`bg`, `fg`) and can be enriched with optional semantic slots. This keeps diagrams usable in live editors, documentation pages, and agent-generated artifacts without requiring a large design-token object.
 
-> **Themes are styles.** Every built-in theme also registers as a
-> palette-only *style*, so its name works anywhere a style is accepted and
+> **Palette is the registry kind.** Every built-in theme registers as a
+> palette-only *style*, so its stable input name works anywhere a style is accepted and
 > composes with full looks by stacking: `{ style: ['hand-drawn', 'dracula'] }`
 > renders hand-drawn geometry with the Dracula palette. See
 > [docs/style-authoring.md](./style-authoring.md) for the full model.
@@ -64,11 +64,12 @@ const svg = renderMermaidSVG(source, {
 
 Because the generated SVG references variables directly, host pages can switch light/dark themes without re-rendering the diagram.
 
-## Built-in themes
+## Built-in Palettes
 
-The canonical palette catalog generates the legacy `THEMES` compatibility
-view. Discover current palette identities with `knownStyleDescriptors()` or
-`am styles`; this guide deliberately does not copy the registry's roster.
+The canonical Palette catalog generates the legacy `THEMES` compatibility
+view. `theme` is not a registry kind; discovery returns `kind: "palette"`.
+Discover current identities and stable input names with
+`knownStyleDescriptors()` or `am styles`; this guide does not copy the registry.
 
 ```ts
 import { THEMES, renderMermaidSVG } from 'agentic-mermaid'

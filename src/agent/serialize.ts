@@ -10,8 +10,9 @@ import type {
 import { ok, err } from './types.ts'
 import YAML from 'yaml'
 import { getFamily, knownFamilies } from './families.ts'
-import './families-builtin.ts'  // registers built-in family serialize hooks
 import { ensureAccessibilityLines } from './accessibility-envelope.ts'
+import type { ExtensionIdentity } from '../shared/extension-identity.ts'
+import { sameExtensionIdentity } from '../shared/extension-identity.ts'
 
 // Re-export for callers that used the previous in-tree serializer home.
 export { renderTimeline } from './timeline-body.ts'
@@ -31,7 +32,13 @@ export interface SerializeOptions {
 }
 
 export function serializeMermaid(d: ParsedDiagram, opts: SerializeOptions = {}): string {
-  return wrapperPrefix(d.meta, opts.wrapper ?? 'verbatim') + renderBody(d.body, d.kind, d.meta)
+  if (d.body.kind === 'preserved') return d.body.source
+  return wrapperPrefix(d.meta, opts.wrapper ?? 'verbatim') + renderBody(
+    d.body,
+    d.kind,
+    d.meta,
+    d.body.kind === 'extension' && 'descriptorIdentity' in d ? d.descriptorIdentity : undefined,
+  )
 }
 
 /** The wrapper text to emit before the diagram body for the given policy. */
@@ -88,20 +95,28 @@ function renderBody(
   body: FamilyParsedBody,
   kind: ParsedDiagram['kind'],
   meta: ValidDiagramMeta,
+  parsedDescriptorIdentity?: ExtensionIdentity<'family'>,
 ): string {
   // Opaque bodies re-emit preserved source verbatim. Every structured body
-  // serializes through its FamilyPlugin hook — looked up by DIAGRAM kind,
+  // serializes through its FamilyDescriptor hook — looked up by DIAGRAM kind,
   // not body kind. State diagrams (BUILD-19) own a dedicated StateBody and the
-  // state plugin emits the stateDiagram-v2 header.
+  // state descriptor emits the stateDiagram-v2 header.
   if (body.kind === 'opaque') return body.source.endsWith('\n') ? body.source : body.source + '\n'
+  if (body.kind === 'preserved') return body.source
   const plugin = getFamily(kind)
-  if (plugin?.serialize) {
+  // Descriptor-owned `data` is meaningful only to the exact registration
+  // contract that parsed it. After an extension upgrade, preserve/reparse the
+  // core-owned source instead of passing stale data into a new serializer.
+  const descriptorMatches = body.kind !== 'extension'
+    || sameExtensionIdentity(parsedDescriptorIdentity, plugin?.identity)
+  if (plugin?.serialize && descriptorMatches) {
     const rendered = plugin.serialize(body)
     return body.kind === 'extension' ? rendered : ensureAccessibilityLines(rendered, meta.accessibility)
   }
   if (body.kind === 'extension') return body.source.endsWith('\n') ? body.source : body.source + '\n'
   throw new Error(`No serializer registered for diagram kind "${kind}"`)
 }
+
 
 // ---- synthesizeFromGraph --------------------------------------------------
 

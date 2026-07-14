@@ -93,8 +93,8 @@ async function gotoApp(url: string): Promise<void> {
   }
 }
 
-function editorHash(source: string, config = ROUNDED_FILL_CONFIG, theme = 'salmon'): string {
-  return Buffer.from(JSON.stringify({ source, theme, config }), 'utf8').toString('base64')
+function editorHash(source: string, config = ROUNDED_FILL_CONFIG, palette = 'salmon'): string {
+  return Buffer.from(JSON.stringify({ source, palette, config }), 'utf8').toString('base64')
 }
 
 async function gotoEditorWithWarmFonts(query: string, hash: string): Promise<void> {
@@ -235,6 +235,7 @@ afterAll(async () => {
   try {
     await page.evaluate(() => {
       localStorage.removeItem('mermaid-theme')
+      localStorage.removeItem('bm-editor-palette')
       localStorage.removeItem('bm-editor-theme')
     })
   } catch {}
@@ -261,7 +262,7 @@ describe('browser: live editor integration', () => {
     // Chrome is the Kiln Stone brand (light), independent of the diagram theme.
     expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim())).toBe('#F8F4F0')
     // The default diagram theme is applied automatically, so nothing is persisted.
-    expect(await page.evaluate(() => localStorage.getItem('bm-editor-theme'))).toBeNull()
+    expect(await page.evaluate(() => localStorage.getItem('bm-editor-palette'))).toBeNull()
   }, 60_000)
 
   it('mobile editor uses pane tabs instead of clipping the workspace', async () => {
@@ -526,7 +527,7 @@ describe('browser: live editor integration', () => {
     )
     await waitForEditorRender(60_000)
 
-    expect(await page.evaluate(() => localStorage.getItem('bm-editor-theme'))).toBe('salmon')
+    expect(await page.evaluate(() => localStorage.getItem('bm-editor-palette'))).toBe('salmon')
     expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim())).toBe('#F8F4F0')
   }, 120_000)
 
@@ -585,7 +586,7 @@ describe('browser: live editor integration', () => {
     expect(await page.inputValue('#code-editor')).toContain('stateDiagram-v2')
     // Chrome stays Kiln Stone; the example kept the salmon diagram theme (not overridden).
     expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim())).toBe('#F8F4F0')
-    expect(await page.evaluate(() => localStorage.getItem('bm-editor-theme'))).toBe('salmon')
+    expect(await page.evaluate(() => localStorage.getItem('bm-editor-palette'))).toBe('salmon')
 
     // Selecting the example closed the sidebar; re-open it to reach the blank reset.
     await page.click('#examples-sidebar-btn')
@@ -660,7 +661,7 @@ describe('browser: live editor integration', () => {
     await page.waitForFunction(async () => {
       try {
         const hash = window.location.hash.slice(1)
-        let state: { config?: { interactive?: boolean } | null; theme?: string }
+        let state: { config?: { interactive?: boolean } | null; palette?: string }
         if (hash.startsWith('deflate:')) {
           let b64 = hash.slice('deflate:'.length).replace(/-/g, '+').replace(/_/g, '/')
           while (b64.length % 4) b64 += '='
@@ -670,7 +671,7 @@ describe('browser: live editor integration', () => {
         } else {
           state = JSON.parse(decodeURIComponent(escape(atob(hash))))
         }
-        return state.config?.interactive === true && state.theme === 'dracula'
+        return state.config?.interactive === true && state.palette === 'dracula'
       } catch {
         return false
       }
@@ -692,10 +693,10 @@ describe('browser: live editor integration', () => {
 
     expect(hashState.config).toMatchObject({ interactive: true })
     expect(hashState.config.style).toBeUndefined()
-    expect(hashState.theme).toBe('dracula')
+    expect(hashState.palette).toBe('dracula')
     // The diagram keeps the dracula theme; the editor chrome is unchanged by it.
     expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim())).toBe(chromeBg)
-    expect(await page.evaluate(() => localStorage.getItem('bm-editor-theme'))).toBe('dracula')
+    expect(await page.evaluate(() => localStorage.getItem('bm-editor-palette'))).toBe('dracula')
   }, 120_000)
 
   it('treats shared hash configuration as untrusted and renders only inert SVG', async () => {
@@ -707,7 +708,7 @@ describe('browser: live editor integration', () => {
     context.on('request', recordRequest as any)
     try {
       const hostileCss = '@import url(https://evil.example/font.css);</style><svg onload="window.__amAudit=123"><script>window.__amAudit=456</script>'
-      const source = `%%{init: ${JSON.stringify({ themeCSS: hostileCss })}}%%\nflowchart TD\n  A[Safe] --> B[Preview]`
+      const source = 'flowchart TD\n  A[Safe] --> B[Preview]'
       const hash = editorHash(source, {
         accent: '#123456',
         security: 'loose',
@@ -717,7 +718,18 @@ describe('browser: live editor integration', () => {
       decoded.style = { font: hostileCss }
       const hostileHash = Buffer.from(JSON.stringify(decoded), 'utf8').toString('base64')
       await gotoApp(`${BASE}/editor?empty=1#${hostileHash}`)
-      await waitForEditorRender(60_000)
+      await page.waitForFunction(
+        () => ['OK', 'Error'].includes(document.querySelector('#status-text')?.textContent ?? ''),
+        undefined,
+        { timeout: 60_000 },
+      )
+      const settled = await page.evaluate(() => ({
+        status: document.querySelector('#status-text')?.textContent ?? '',
+        html: document.querySelector('#preview-inner')?.innerHTML ?? '',
+      }))
+      if (settled.status !== 'OK') {
+        throw new Error(`untrusted share config did not render safely: ${settled.html}`)
+      }
       await page.waitForFunction(() => location.hash.startsWith('#deflate:'), undefined, { timeout: 30_000 })
 
       const result = await page.evaluate(async () => {
@@ -727,15 +739,18 @@ describe('browser: live editor integration', () => {
         const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'))
         return {
           audit: (window as any).__amAudit,
+          hasSvg: document.querySelector('#preview-inner svg') !== null,
           html: document.querySelector('#preview-inner svg')?.outerHTML ?? '',
           shared: JSON.parse(await new Response(stream).text()),
         }
       })
       expect(result.audit).toBe(0)
+      expect(result.hasSvg).toBe(true)
       expect(result.html).not.toMatch(/<script|\sonload=|evil\.example/i)
       expect(result.html).toContain('#123456')
       expect(result.shared.config).toEqual({ accent: '#123456' })
       expect(result.shared.style).toBeUndefined()
+      expect(result.shared.palette).toBe('salmon')
       expect(externalRequests).toEqual([])
     } finally {
       context.off('request', recordRequest as any)
@@ -763,6 +778,9 @@ describe('browser: visual regression', () => {
     await page.evaluate(() => document.fonts?.ready)
 
     const svgHtml = await page.locator('#preview-inner svg').evaluate(el => el.outerHTML)
+    // The hash supplies the status-dashboard Look, but the explicitly selected
+    // Salmon Palette remains the final color layer.
+    expect(svgHtml).toContain('--bg: #FFFBF5')
     expect(svgHtml).toContain('<path class="architecture-group-band"')
     expect(svgHtml).toContain('<rect class="architecture-group-outline"')
     expect(svgHtml).toContain('<rect class="architecture-service-outline"')

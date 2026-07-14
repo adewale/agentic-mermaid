@@ -1,4 +1,5 @@
-import type { ConnectorGeometry, ConnectorMark, SceneDoc, SceneNode, ScenePoint } from './ir.ts'
+import type { ConnectorMark, SceneDoc, SceneNode, ScenePoint } from './ir.ts'
+import { connectorSegments } from './connector-geometry.ts'
 
 export interface SceneConnectorHit {
   readonly id: string
@@ -14,14 +15,6 @@ function distanceToSegment(point: ScenePoint, start: ScenePoint, end: ScenePoint
   if (lengthSquared === 0) return Math.hypot(point.x - start.x, point.y - start.y)
   const t = Math.max(0, Math.min(1, ((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared))
   return Math.hypot(point.x - (start.x + t * dx), point.y - (start.y + t * dy))
-}
-
-function geometryPoints(geometry: ConnectorGeometry): readonly ScenePoint[] | undefined {
-  if (geometry.kind === 'line') return [
-    { x: geometry.x1, y: geometry.y1 },
-    { x: geometry.x2, y: geometry.y2 },
-  ]
-  return geometry.points
 }
 
 function localPoint(connector: ConnectorMark, point: ScenePoint): ScenePoint {
@@ -40,12 +33,12 @@ function localPoint(connector: ConnectorMark, point: ScenePoint): ScenePoint {
  * that failed to provide the point projection required by the Scene contract. */
 export function connectorHitDistance(connector: ConnectorMark, point: ScenePoint): number | undefined {
   if (connector.hit.pointerEvents === 'none') return undefined
-  const points = geometryPoints(connector.hit.geometry)
-  if (!points || points.length < 2) return undefined
+  const segments = connectorSegments(connector.hit.geometry, connector.hit.closed)
+  if (segments.length === 0) return undefined
   const local = localPoint(connector, point)
   let distance = Number.POSITIVE_INFINITY
-  for (let index = 1; index < points.length; index++) {
-    distance = Math.min(distance, distanceToSegment(local, points[index - 1]!, points[index]!))
+  for (const segment of segments) {
+    distance = Math.min(distance, distanceToSegment(local, segment.start, segment.end))
   }
   return distance
 }

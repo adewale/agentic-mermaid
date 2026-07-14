@@ -9,7 +9,7 @@ import { layoutSequenceDiagram } from '../sequence/layout.ts'
 import { parseTimelineDiagram } from '../timeline/parser.ts'
 import { layoutTimelineDiagram } from '../timeline/layout.ts'
 import { parseJourneyDiagram } from '../journey/parser.ts'
-import { layoutJourneyDiagram } from '../journey/layout.ts'
+import { layoutJourneyDiagram, resolveJourneyRequestAppearance } from '../journey/layout.ts'
 
 const PROPERTY_RUNS = 50
 
@@ -607,7 +607,7 @@ describe('property-based journey layout bounds', () => {
         )
 
         const diagram = parseJourneyDiagram(lines)
-        const positioned = layoutJourneyDiagram(diagram)
+        const positioned = layoutJourneyDiagram(diagram, resolveJourneyRequestAppearance())
 
         expect(positioned.width > 0).toBe(true)
         expect(positioned.height > 0).toBe(true)
@@ -687,7 +687,7 @@ describe('property-based journey layout bounds', () => {
         )
 
         const diagram = parseJourneyDiagram(lines)
-        const positioned = layoutJourneyDiagram(diagram)
+        const positioned = layoutJourneyDiagram(diagram, resolveJourneyRequestAppearance())
 
         for (const section of positioned.sections) {
           expect(section.width > 0).toBe(true)

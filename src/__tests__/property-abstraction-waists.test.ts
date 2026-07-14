@@ -2,13 +2,12 @@ import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
 import { spawnSync } from 'node:child_process'
 import { layoutMermaid, parseMermaid } from '../agent/index.ts'
-import { replaceFamilyForTest } from '../agent/families.ts'
+import { getFamily, replaceFamilyForTest } from '../agent/families.ts'
 import { layoutCertificateProof } from '../agent/certificates.ts'
 import { resolveDiagramColors } from '../color-resolver.ts'
 import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
 import { detectDiagramTypeFromFirstLine, normalizeMermaidSource } from '../mermaid-source.ts'
-import { getFamily } from '../render-family-hooks.ts'
-import type { FamilyPlugin } from '../agent/families.ts'
+import type { FamilyDescriptor } from '../agent/families.ts'
 import type { DiagramKind } from '../agent/types.ts'
 import type {
   EdgeRouteCertificate,
@@ -38,7 +37,7 @@ const FAMILY = fc.constantFrom(...Object.values(METAMORPHIC_FAMILIES)).chain(fam
 const HEX = fc.constantFrom('#111827', '#f8fafc', '#ef4444', '#22c55e', '#2563eb', '#f59e0b', '#9333ea')
 
 function sceneContext(source: string, options: RenderOptions = {}): {
-  family: FamilyPlugin
+  family: FamilyDescriptor
   renderContext: RenderContext<PositionedDiagram>
 } {
   const kind = Object.values(METAMORPHIC_FAMILIES).find(f => source.startsWith(headerFor(f.family)))?.family
@@ -51,7 +50,12 @@ function sceneContext(source: string, options: RenderOptions = {}): {
     renderContext: {
       positioned: layout.positioned,
       colors: request.appearance.colors,
-      options: request.renderOptions,
+      resolved: {
+        renderOptions: request.renderOptions,
+        ...(request.appearance.face ? { styleFace: request.appearance.face } : {}),
+        ...(request.familyConfig ? { familyConfig: request.familyConfig } : {}),
+        ...(request.appearance.family ? { familyAppearance: request.appearance.family } : {}),
+      },
     },
   }
 }
@@ -94,7 +98,7 @@ function assertUsableAscii(ascii: string): void {
   expect(ascii).not.toMatch(/undefined/)
 }
 
-describe('property: FamilyPlugin render waist', () => {
+describe('property: FamilyDescriptor render waist', () => {
   test('public SVG and ASCII renderers dispatch through the registered family hooks', () => {
     fc.assert(
       fc.property(FAMILY, ({ family, k, tag }) => {
@@ -166,7 +170,7 @@ describe('property: FamilyPlugin render waist', () => {
 
   test('request normalizers cannot smuggle mutable, executable, or second appearance authorities below the waist', () => {
     const original = getFamily('flowchart')!
-    const reject = (normalizeRequest: NonNullable<FamilyPlugin['normalizeRequest']>, message: string): void => {
+    const reject = (normalizeRequest: NonNullable<FamilyDescriptor['normalizeRequest']>, message: string): void => {
       const restore = replaceFamilyForTest('flowchart', { ...original, normalizeRequest })
       try {
         expect(() => resolveRenderRequest('flowchart LR\n  A --> B', {}, 'svg')).toThrow(message)
@@ -178,6 +182,71 @@ describe('property: FamilyPlugin render waist', () => {
     reject(() => ({ appearance: { family: { callback: () => true } as never } }), 'invalid appearance data')
     reject(ctx => ({ appearance: { colors: { ...ctx.colors, font: 'A Different Font' } } }), 'may not rewrite appearance field "font"')
     reject(() => ({ legacyOptions: {} } as never), 'unknown field "legacyOptions"')
+
+    const cyclic: Record<string, unknown> = {}
+    cyclic.self = cyclic
+    reject(() => ({ familyConfig: cyclic }), 'data must be acyclic')
+
+    let deep: Record<string, unknown> = { leaf: true }
+    for (let depth = 0; depth < 66; depth++) deep = { child: deep }
+    reject(() => ({ appearance: { family: deep } }), 'data exceeds maximum depth 64')
+    reject(() => ({ familyConfig: { values: new Array(100_001).fill(null) } }), 'data array exceeds the 100000-entry limit')
+    reject(() => ({ familyConfig: { value: 'x'.repeat(2_000_001) } }), 'data exceeds the 2000000-character aggregate limit')
+
+    let resultReads = 0
+    let nestedOptionReads = 0
+    const restoreAccessorResult = replaceFamilyForTest('flowchart', {
+      ...original,
+      normalizeRequest: ctx => {
+        const classOptions: Record<string, unknown> = {}
+        Object.defineProperty(classOptions, 'hierarchicalNamespaces', {
+          enumerable: true,
+          get() {
+            nestedOptionReads++
+            return nestedOptionReads === 1 ? false : 'changed after validation'
+          },
+        })
+        const result: Record<string, unknown> = {}
+        Object.defineProperty(result, 'renderOptions', {
+          enumerable: true,
+          get() {
+            resultReads++
+            return resultReads === 1
+              ? { ...ctx.renderOptions, class: classOptions }
+              : { ...ctx.renderOptions, class: { hierarchicalNamespaces: 'changed after validation' } }
+          },
+        })
+        return result as never
+      },
+    })
+    try {
+      const request = resolveRenderRequest('flowchart LR\n  A --> B', {}, 'svg')
+      expect(resultReads).toBe(1)
+      expect(nestedOptionReads).toBe(1)
+      expect(request.renderOptions.class).toEqual({ hierarchicalNamespaces: false })
+      expect(Object.isFrozen(request.renderOptions.class)).toBe(true)
+    } finally {
+      restoreAccessorResult()
+    }
+
+    let baseColors: ReturnType<typeof resolveDiagramColors> | undefined
+    const restorePalettePatch = replaceFamilyForTest('flowchart', {
+      ...original,
+      normalizeRequest: ctx => {
+        baseColors = { ...ctx.colors }
+        return { appearance: { colors: { bg: '#123456' } } }
+      },
+    })
+    try {
+      const request = resolveRenderRequest('flowchart LR\n  A --> B', {}, 'svg')
+      if (!baseColors) throw new Error('normalizer did not receive the base palette')
+      const { bg: _baseBg, ...baseRest } = baseColors
+      const { bg, ...requestRest } = request.appearance.colors
+      expect(bg).toBe('#123456')
+      expect(requestRest).toEqual(baseRest)
+    } finally {
+      restorePalettePatch()
+    }
 
     let calls = 0
     const restore = replaceFamilyForTest('flowchart', {
@@ -198,7 +267,12 @@ describe('property: FamilyPlugin render waist', () => {
       family.lowerScene!({
         positioned: positioned.positioned,
         colors: request.appearance.colors,
-        options: request.renderOptions,
+        resolved: {
+          renderOptions: request.renderOptions,
+          ...(request.appearance.face ? { styleFace: request.appearance.face } : {}),
+          ...(request.familyConfig ? { familyConfig: request.familyConfig } : {}),
+          ...(request.appearance.family ? { familyAppearance: request.appearance.family } : {}),
+        },
       })
       expect(calls).toBe(1)
       expect(request.renderOptions.padding).toBe(31)
@@ -237,11 +311,18 @@ describe('property: FamilyPlugin render waist', () => {
   test('external plugins sort after metadata-ordered built-ins in an isolated registry process', () => {
     const script = String.raw`
       import fc from 'fast-check'
-      import { BUILTIN_FAMILY_METADATA, knownFamilies, registerFamily } from './src/agent/families.ts'
-      import './src/agent/families-builtin.ts'
+      import { BUILTIN_FAMILY_METADATA, getFamily, knownFamilies } from './src/agent/families.ts'
+      import { registerFamily } from './src/agent/family-registration.ts'
 
       const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'.split('')
       const builtin = BUILTIN_FAMILY_METADATA.map(f => f.id)
+      if (knownFamilies().some(id => !builtin.includes(id))) throw new Error('unexpected preinstalled extension')
+      for (const id of builtin) {
+        const family = getFamily(id)
+        for (const hook of ['parse', 'serialize', 'mutate', 'layout', 'projectPositioned', 'lowerScene', 'renderAscii']) {
+          if (typeof family?.[hook] !== 'function') throw new Error(id + ' exposed partial hook state: ' + hook)
+        }
+      }
       const seen = new Set()
       const idArb = fc.uniqueArray(
         fc.array(fc.constantFrom(...chars), { minLength: 1, maxLength: 6 }).map(xs => xs.join('')),
@@ -258,6 +339,7 @@ describe('property: FamilyPlugin render waist', () => {
             identity: { id: familyId, kind: 'family', version: '1.0.0', compatibility: { core: '^0.1.1' }, provenance: { owner: 'property-test', source: 'test' } },
             id: familyId,
             label: familyId,
+            example: 'test-' + id + '\n  example payload',
             headers: ['test-' + id],
             aliases: [],
             maturity: 'experimental',

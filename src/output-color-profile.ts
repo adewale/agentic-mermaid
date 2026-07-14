@@ -107,6 +107,18 @@ export interface PngColorProfileReceipt {
   profile: typeof OUTPUT_COLOR_PROFILE.id
 }
 
+export interface PngDimensions {
+  readonly width: number
+  readonly height: number
+}
+
+/** Read validated PNG IHDR dimensions. The whole stream is checked first. */
+export function inspectPngDimensions(bytes: Uint8Array): PngDimensions {
+  const ihdr = chunksOf(bytes)[0]!
+  const view = new DataView(ihdr.data.buffer, ihdr.data.byteOffset, ihdr.data.byteLength)
+  return Object.freeze({ width: view.getUint32(0), height: view.getUint32(4) })
+}
+
 export function inspectPngColorProfile(bytes: Uint8Array): PngColorProfileReceipt {
   const chunks = chunksOf(bytes)
   const srgb = chunks.find(entry => entry.type === 'sRGB')

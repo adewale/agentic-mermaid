@@ -21,6 +21,8 @@ import type {
   SceneNode,
   SceneRole,
 } from './scene/ir.ts'
+import { terminalConnectorCapabilityClaims } from './scene/capabilities.ts'
+import type { PrimitiveCapabilityClaim } from './scene/capabilities.ts'
 
 export const TERMINAL_STYLE_VERSION = 1 as const
 
@@ -30,6 +32,7 @@ export type TerminalProjectionDiagnosticCode =
   | 'TERMINAL_ELEVATION_PROJECTED'
   | 'TERMINAL_STROKE_CHARACTER_PROJECTED'
   | 'TERMINAL_FILL_PROJECTED'
+  | 'TERMINAL_ROLE_PAINT_PROJECTED'
   | 'TERMINAL_RENDER_OPTION_PROJECTED'
   | 'TERMINAL_RENDER_OPTION_NOT_APPLICABLE'
   | 'TERMINAL_UNSAFE_COLOR_REJECTED'
@@ -68,6 +71,7 @@ export interface TerminalConnectorProjectionReceipt {
   readonly labelCount: number
   /** Typed semantic projection supplied to the family terminal renderer. */
   readonly connectors: readonly TerminalConnectorProjection[]
+  readonly capabilities: readonly PrimitiveCapabilityClaim[]
   readonly digest: string
 }
 
@@ -79,6 +83,8 @@ export interface TerminalConnectorProjection extends ConnectorTerminalProjection
 export interface TerminalProjectionSecurityContext {
   /** User-derived C0/C1 controls replaced before terminal layout/emission. */
   readonly controlsReplaced?: boolean
+  /** Optional graphical connector projection failed; terminal rendering remains independent. */
+  readonly connectorProjectionFailed?: boolean
 }
 
 function hasPositive(...values: Array<number | undefined>): boolean {
@@ -136,11 +142,18 @@ export function projectTerminalStyle(
       message: 'Terminal output preserves text, hierarchy and emphasis but projects font family, size, weight and tracking to terminal cells.',
     })
   }
-  if (appearance.colors.shadow === true) {
+  const faceSurfacePaint = face?.node?.fillColor !== undefined
+    || face?.group?.fillColor !== undefined
+    || face?.group?.headerFillColor !== undefined
+  const faceRolePaint = face?.text?.textColor !== undefined
+    || face?.node?.textColor !== undefined || face?.node?.borderColor !== undefined
+    || face?.edge?.textColor !== undefined || face?.edge?.strokeColor !== undefined
+    || face?.group?.textColor !== undefined || face?.group?.borderColor !== undefined
+  if (appearance.colors.shadow === true || faceSurfacePaint) {
     diagnostics.push({
       code: 'TERMINAL_ELEVATION_PROJECTED',
       feature: 'elevation',
-      message: 'Terminal output does not render graphical shadow/elevation; grouping remains explicit in borders and labels.',
+      message: 'Terminal output does not render graphical shadow or layered surface elevation; grouping remains explicit in borders and labels.',
     })
   }
   if (appearance.style?.stroke && appearance.style.stroke !== 'crisp') {
@@ -155,6 +168,20 @@ export function projectTerminalStyle(
       code: 'TERMINAL_FILL_PROJECTED',
       feature: 'fill-treatment',
       message: 'Graphical fill texture projects to category/status labels and terminal symbols.',
+    })
+  }
+  if (faceSurfacePaint) {
+    diagnostics.push({
+      code: 'TERMINAL_FILL_PROJECTED',
+      feature: 'role-surface-fill',
+      message: 'Per-role node, group, and header surface fills project to terminal labels, symbols, and borders.',
+    })
+  }
+  if (faceRolePaint) {
+    diagnostics.push({
+      code: 'TERMINAL_ROLE_PAINT_PROJECTED',
+      feature: 'role-paint',
+      message: 'Per-role text, border, and connector paints project through the smaller terminal theme palette.',
     })
   }
   // Normalize every public color source before terminal math or HTML emission.
@@ -203,7 +230,11 @@ export function projectTerminalStyle(
     projected[field] = normalize(value, fallback, `terminal-theme.${field}`)
   }
   const theme = Object.freeze(projected)
-  const connectorProjection = projectConnectorScene(connectorScene, diagnostics)
+  const connectorProjection = projectConnectorScene(
+    connectorScene,
+    diagnostics,
+    security.connectorProjectionFailed === true,
+  )
   const semanticFallbacks = ['labels', 'symbols', 'markers', 'line-patterns'] as const
   const receipt = { version: TERMINAL_STYLE_VERSION, colorMode, theme, diagnostics, semanticFallbacks, connectorProjection }
   return Object.freeze({ ...receipt, diagnostics: Object.freeze(diagnostics), digest: renderContractDigest(receipt) })
@@ -230,6 +261,7 @@ function connectorMarks(nodes: readonly SceneNode[]): ConnectorMark[] {
 function projectConnectorScene(
   scene: SceneDoc | null | undefined,
   diagnostics: TerminalProjectionDiagnostic[],
+  projectionFailed = false,
 ): TerminalConnectorProjectionReceipt {
   const connectors = scene ? connectorMarks(scene.parts) : []
   const topologies = { line: 0, polyline: 0, path: 0 }
@@ -246,39 +278,28 @@ function projectConnectorScene(
     if (sanitized !== value) connectorControlsReplaced = true
     return sanitized
   }
-  const cleanMarker = (marker: ConnectorMark['terminalProjection']['markers']['start']) => marker === undefined
-    ? undefined
-    : Object.freeze({ ...marker, id: clean(marker.id) })
+  const cleanProjectionValue = (value: unknown): unknown => {
+    if (typeof value === 'string') return clean(value)
+    if (Array.isArray(value)) return Object.freeze(value.map(cleanProjectionValue))
+    if (value === null || typeof value !== 'object') return value
+    const entries = Object.entries(value).map(([key, child]) => [key, cleanProjectionValue(child)] as const)
+    return Object.freeze(Object.fromEntries(entries))
+  }
   for (const connector of connectors) {
     const projection = connector.terminalProjection
-    const startMarker = cleanMarker(projection.markers.start)
-    const endMarker = cleanMarker(projection.markers.end)
     const projected: TerminalConnectorProjection = Object.freeze({
       id: clean(connector.id),
       role: connector.role,
-      ...projection,
-      relationship: clean(projection.relationship),
-      markers: Object.freeze({
-        ...(startMarker ? { start: startMarker } : {}),
-        mid: Object.freeze(projection.markers.mid.map(marker => cleanMarker(marker)!)),
-        ...(endMarker ? { end: endMarker } : {}),
-      }),
-      labels: Object.freeze(projection.labels.map(label => Object.freeze({
-        ...label,
-        ...(label.id === undefined ? {} : { id: clean(label.id) }),
-        text: clean(label.text),
-      }))),
-      strokeLosses: Object.freeze([...projection.strokeLosses]),
-      diagnostics: Object.freeze(projection.diagnostics.map(clean)),
+      ...(cleanProjectionValue(projection) as ConnectorMark['terminalProjection']),
     })
     projectedConnectors.push(projected)
     topologies[projection.topology]++
     realizations[projection.realization] = (realizations[projection.realization] ?? 0) + 1
     relationships.add(clean(connector.relationship.kind))
     directions.add(connector.relationship.direction)
-    if (projection.markers.start) markerPositions.start++
-    markerPositions.mid += projection.markers.mid.length
-    if (projection.markers.end) markerPositions.end++
+    markerPositions.start += projection.markerPlacements.start.length
+    markerPositions.mid += projection.markerPlacements.mid.length
+    markerPositions.end += projection.markerPlacements.end.length
     labelCount += projection.labels.length
     const key = `${projection.realization}:${projection.topology}`
     const current = signatures.get(key)
@@ -297,7 +318,9 @@ function projectConnectorScene(
     diagnostics.push({
       code: 'TERMINAL_CONNECTOR_PROJECTION_UNAVAILABLE',
       feature: 'connectors',
-      message: 'The family renders terminal output but exposes no Scene connector projection evidence.',
+      message: projectionFailed
+        ? 'Optional Scene connector projection failed; native terminal rendering continued independently.'
+        : 'The family renders terminal output but exposes no Scene connector projection evidence.',
     })
   }
   for (const signature of [...signatures.values()].sort((left, right) =>
@@ -320,6 +343,7 @@ function projectConnectorScene(
     markerPositions: Object.freeze(markerPositions),
     labelCount,
     connectors: Object.freeze(projectedConnectors),
+    capabilities: terminalConnectorCapabilityClaims(),
   }
   return Object.freeze({ ...body, digest: renderContractDigest(body) })
 }

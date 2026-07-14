@@ -19,6 +19,7 @@ import { applyTextTransform, estimateTextWidth, resolveRenderStyle, STROKE_WIDTH
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import { wrapLabelToWidth } from '../shared/label-wrap.ts'
 import type { RenderOptions } from '../types.ts'
+import type { InternalStyleFace } from '../scene/style-registry.ts'
 
 export const GANTT_MAX_TICKS = 120
 
@@ -46,6 +47,8 @@ export interface GanttLayoutOptions {
   today?: EpochMs
   /** Render options whose style roles affect label and axis geometry. */
   renderOptions?: RenderOptions
+  /** Request-boundary face metrics, kept separate from public RenderOptions. */
+  styleFace?: Readonly<InternalStyleFace>
 }
 
 const GL = {
@@ -110,8 +113,11 @@ interface TickPlan {
 
 const INLINE_FORMAT_TAG = /<\/?(?:b|strong|i|em|u|s|del)\s*>/gi
 
-export function resolveGanttRenderStyle(options: RenderOptions = {}): ResolvedRenderStyle {
-  return resolveRenderStyle(options, GANTT_STYLE_DEFAULTS)
+export function resolveGanttRenderStyle(
+  options: RenderOptions = {},
+  styleFace?: Readonly<InternalStyleFace>,
+): ResolvedRenderStyle {
+  return resolveRenderStyle(options, GANTT_STYLE_DEFAULTS, styleFace)
 }
 
 export function ganttTitleFontSize(style: ResolvedRenderStyle): number {
@@ -534,7 +540,7 @@ function wrapColumnLabel(
 }
 
 export function layoutGantt(model: GanttModel, schedule: GanttSchedule, options: GanttLayoutOptions = {}): GanttLayoutResult {
-  const style = resolveGanttRenderStyle(options.renderOptions)
+  const style = resolveGanttRenderStyle(options.renderOptions, options.styleFace)
   const compact = options.compact ?? (model.displayMode === 'compact')
   const barHeight = options.barHeight ?? model.barHeight ?? GL.barHeight
   const rowH = ganttRowHeight(style, barHeight)

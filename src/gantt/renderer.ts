@@ -246,10 +246,11 @@ export function renderGanttSvg(
 export function lowerGanttScene(
   ctx: RenderContext<GanttLayoutResult>,
 ): SceneDoc {
-  const { positioned: layout, colors, options } = ctx
+  const { positioned: layout, colors, resolved } = ctx
+  const options = resolved.renderOptions
   const font = colors.font ?? 'Inter'
   const transparent = options.transparent ?? false
-  const style = resolveGanttRenderStyle(options)
+  const style = resolveGanttRenderStyle(options, resolved.styleFace)
   const palette = ganttPalette(style)
   const parts: SceneNode[] = []
 

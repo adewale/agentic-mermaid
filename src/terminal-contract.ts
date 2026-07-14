@@ -8,9 +8,18 @@ export const TERMINAL_BOUNDED_PADDING_X = 1 as const
 export const TERMINAL_DEFAULT_PADDING_Y = 5 as const
 export const TERMINAL_DEFAULT_BOX_BORDER_PADDING = 1 as const
 
-const COLOR_MODES = Object.freeze([
-  'auto', 'none', 'ansi16', 'ansi256', 'truecolor', 'html',
-] as const)
+/** Resolved modes form the executable terminal contract. Registration
+ * conformance imports this roster, so adding a ColorMode cannot silently skip
+ * its external-family witness. */
+export const RESOLVED_TERMINAL_COLOR_MODES = Object.freeze([
+  'none', 'ansi16', 'ansi256', 'truecolor', 'html',
+] as const satisfies readonly ColorMode[])
+type MissingResolvedTerminalColorMode = Exclude<ColorMode, typeof RESOLVED_TERMINAL_COLOR_MODES[number]>
+const resolvedTerminalColorModesAreExhaustive:
+  MissingResolvedTerminalColorMode extends never ? true : never = true
+void resolvedTerminalColorModesAreExhaustive
+
+const COLOR_MODES = Object.freeze(['auto', ...RESOLVED_TERMINAL_COLOR_MODES] as const)
 const COLOR_MODE_SET = new Set<AsciiRenderColorMode>(COLOR_MODES)
 const THEME_FIELDS = Object.freeze([
   'fg', 'border', 'line', 'arrow', 'accent', 'bg', 'corner', 'junction',

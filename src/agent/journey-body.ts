@@ -376,7 +376,7 @@ function journeySemantics(body: JourneyBody): unknown {
   }
 }
 
-// ---- Verifier (FamilyPlugin.verify hook) ------------------------------------
+// ---- Verifier (FamilyDescriptor.verify hook) --------------------------------
 
 export function verifyJourney(body: JourneyBody, opts: VerifyOptions): LayoutWarning[] {
   const cap = opts.labelCharCap ?? DEFAULT_LABEL_CHAR_CAP

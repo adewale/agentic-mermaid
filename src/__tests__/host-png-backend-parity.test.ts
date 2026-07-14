@@ -5,6 +5,7 @@ import {
   createMermaidBrowserPNGRenderer,
   createMermaidRenderer,
   registerBackend,
+  renderMermaidASCIIWithReceipt,
   verifyNoExternalRefs,
 } from '../index.ts'
 import { createMermaidPNGRenderer } from '../agent/index.ts'
@@ -13,11 +14,7 @@ import { inspectPngColorProfile } from '../output-color-profile.ts'
 import type { HostBackendPolicy } from '../scene/backend.ts'
 import type { SceneRole } from '../scene/roles.ts'
 import type { RenderOptions } from '../types.ts'
-
-const ONE_PIXEL_PNG = new Uint8Array(Buffer.from(
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
-  'base64',
-))
+import { pngFixture } from './helpers/png-fixture.ts'
 
 function registerProbeBackend(id: string, rendered: () => void): () => void {
   return registerBackend({
@@ -29,7 +26,10 @@ function registerProbeBackend(id: string, rendered: () => void): () => void {
       return DefaultBackend.render(document, context)
         .replace('<svg ', `<svg data-host-backend="${id}" `)
     },
-  }, { provenance: { owner: 'host-png-parity-test', source: 'test' } })
+  }, {
+    compatibility: { core: '^0.1.1', scene: '^1.0.0' },
+    provenance: { owner: 'host-png-parity-test', source: 'test' },
+  })
 }
 
 describe('host-selected graphical backend parity', () => {
@@ -47,7 +47,10 @@ describe('host-selected graphical backend parity', () => {
         expect(context.receipt.executionDecision?.backend).toMatchObject({
           mode: 'scene', selectedId: id, hostPolicy: true,
         })
-        return { png: ONE_PIXEL_PNG, fontSources: ['embedded-data-uri'] }
+        return {
+          png: pngFixture(context.rasterDimensions.width, context.rasterDimensions.height),
+          fontSources: ['embedded-data-uri'],
+        }
       },
     })
     const svg = createMermaidRenderer({ backendPolicy })
@@ -64,9 +67,15 @@ describe('host-selected graphical backend parity', () => {
       const nativeArtifact = native.renderMermaidPNGWithReceipt(source, {
         ...options,
         scale: 0.1,
+        background: '#fefefe',
+        fitTo: { width: 64 },
         onWarning: () => {},
       })
-      const browserArtifact = await browser.renderMermaidPNGWithReceipt(source, options, 0.1)
+      const browserArtifact = await browser.renderMermaidPNGWithReceipt(source, options, {
+        scale: 0.1,
+        background: '#fefefe',
+        fitTo: { width: 64 },
+      })
 
       expect(backendRenders).toBe(3)
       expect(svgArtifact.svg).toContain(`data-host-backend="${id}"`)
@@ -94,7 +103,7 @@ describe('host-selected graphical backend parity', () => {
     }
   })
 
-  test('Scene admission rejects undeclared lowering before every host-selected backend and rasterizer', async () => {
+  test('Scene admission rejects undeclared graphical lowering while native terminal remains independent', async () => {
     const id = 'backend:test/host-png-admission'
     let backendRenders = 0
     let browserRasters = 0
@@ -120,12 +129,17 @@ describe('host-selected graphical backend parity', () => {
       backendPolicy,
       async rasterize() {
         browserRasters++
-        return { png: ONE_PIXEL_PNG }
+        return { png: pngFixture(1, 1) }
       },
     })
     const source = 'flowchart LR\n  A --> B'
     const options = { style: 'hand-drawn', security: 'strict' } as const satisfies RenderOptions
     try {
+      const terminal = renderMermaidASCIIWithReceipt(source)
+      expect(terminal.text).toContain('A')
+      expect(terminal.terminalStyle.diagnostics).toContainEqual(expect.objectContaining({
+        code: 'TERMINAL_CONNECTOR_PROJECTION_UNAVAILABLE',
+      }))
       expect(() => svg.renderMermaidSVG(source, options)).toThrow(/undeclared role/i)
       expect(() => native.renderMermaidPNG(source, { ...options, scale: 0.1, onWarning: () => {} }))
         .toThrow(/undeclared role/i)

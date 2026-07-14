@@ -191,6 +191,58 @@ describe('content-addressed installed resource manifest', () => {
     expect(() => snapshotResourceManifest(incompatibleCore)).toThrow('INVALID_RESOURCE_MANIFEST')
   })
 
+  test('checks duplicate identities and paths from admitted snapshots, never re-read caller records', () => {
+    const accessorEntry = (index: number) => {
+      const reads = { id: 0, path: 0 }
+      const identity: Record<string, unknown> = {
+        kind: 'resource',
+        version: '1.0.0',
+        compatibility: { core: '^0.1.1' },
+        provenance: { owner: 'test', source: 'getter-sabotage' },
+      }
+      Object.defineProperty(identity, 'id', {
+        enumerable: true,
+        get() {
+          reads.id++
+          return reads.id === 1 ? 'resource:test/shared.ttf' : `resource:test/bookkeeping-${index}.ttf`
+        },
+      })
+      const entry: Record<string, unknown> = {
+        identity,
+        mediaType: 'font/ttf',
+        sha256: '0'.repeat(64),
+        bytes: 4,
+        license: { spdx: 'OFL-1.1', noticePath: 'LICENSE.txt' },
+        required: true,
+        network: 'forbidden',
+      }
+      Object.defineProperty(entry, 'path', {
+        enumerable: true,
+        get() {
+          reads.path++
+          return reads.path === 1 ? 'assets/fonts/shared.ttf' : `assets/fonts/bookkeeping-${index}.ttf`
+        },
+      })
+      return { entry, reads }
+    }
+    const first = accessorEntry(1)
+    const second = accessorEntry(2)
+    const candidate = { version: 1, resources: [first.entry, second.entry] }
+
+    expect(validateResourceManifest(candidate)).toEqual([
+      'duplicate resource id: resource:test/shared.ttf',
+      'duplicate resource path: assets/fonts/shared.ttf',
+    ])
+    expect(first.reads).toEqual({ id: 1, path: 1 })
+    expect(second.reads).toEqual({ id: 1, path: 1 })
+    const snapshotFirst = accessorEntry(1)
+    const snapshotSecond = accessorEntry(2)
+    expect(() => snapshotResourceManifest({
+      version: 1,
+      resources: [snapshotFirst.entry, snapshotSecond.entry],
+    })).toThrow(/duplicate resource id: resource:test\/shared\.ttf/)
+  })
+
   test('takes a deeply immutable manifest snapshot before filesystem resolution', () => {
     const root = fixtureRoot()
     const bytes = trueTypeFixture(7, 8)

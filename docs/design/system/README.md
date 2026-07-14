@@ -8,9 +8,11 @@ whole system, distinct from the per-diagram-type design notes.
 Mermaid source first becomes one lossless normalized envelope. Descriptor-driven
 detection then selects a registered `FamilyDescriptor`; unknown and unsupported
 headers produce a source-preserving diagnostic instead of falling through to a
-default family. The registry is the family authority. Built-in metadata, website
-examples, capability reports, and documentation tables are projections of it,
-not competing family lists.
+default family. The registry is the family authority. Built-in metadata and the
+generated capability/documentation tables are projections of it, not competing
+family lists. Website example registries still enroll explicit fixture data and
+are checked against the family authority; `CONS-27` owns the remaining
+minimal-example consolidation.
 
 Every rendering adapter resolves an immutable `ResolvedRenderRequest` once. Its
 `ResolvedAppearance` owns the final palette, typography, style face, and backend

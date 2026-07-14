@@ -260,12 +260,27 @@
           <line x1="3" y1="21" x2="10" y2="14" />
         </svg>
         <span class="export-item-label">Scale</span>
-        <div class="size-pills" id="size-pills" role="group" aria-label="PNG export scale">
-          <button class="size-pill" type="button" data-scale="1" aria-pressed="false">1&times;</button>
-          <button class="size-pill" type="button" data-scale="2" aria-pressed="false">2&times;</button>
-          <button class="size-pill active" type="button" data-scale="4" aria-pressed="true">4&times;</button>
+        <div class="size-pills" id="size-pills" role="group" aria-label="PNG export scale" data-default-scale="{{PNG_DEFAULT_SCALE}}">
+          {{PNG_SCALE_ITEMS}}
         </div>
       </div>
+      <label class="export-option-row" for="png-fit-mode">
+        <span>Fit</span>
+        <select id="png-fit-mode">
+          <option value="scale">Use scale</option>
+          <option value="width">Exact width</option>
+          <option value="height">Exact height</option>
+        </select>
+        <input id="png-fit-value" type="number" inputmode="numeric" min="1" step="1" value="1024" aria-label="PNG fit size in pixels" disabled>
+      </label>
+      <label class="export-option-row" for="png-background-mode">
+        <span>Background</span>
+        <select id="png-background-mode">
+          <option value="artifact">Diagram</option>
+          <option value="explicit">Custom</option>
+        </select>
+        <input id="png-background-color" type="color" value="#ffffff" aria-label="PNG background color" disabled>
+      </label>
     </div>
   </div>
 

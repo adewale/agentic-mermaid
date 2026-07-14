@@ -146,12 +146,29 @@ export interface MarkerDescriptor {
 /** Compatibility name used by existing family lowerings. */
 export type MarkerRef = MarkerDescriptor
 
+/** One continuous path contour. `closed` is semantic topology: callers must
+ * not infer it from a repeated endpoint or reparse SVG `d`. */
+export interface ConnectorSubpath {
+  points: Array<ScenePoint>
+  closed: boolean
+}
+
 export type ConnectorGeometry =
   | { kind: 'polyline'; points: Array<ScenePoint> }
   /** Curved path plus its deterministic routed polyline projection. Requiring
    * points keeps bounds, hit-testing, tangents and terminal projection total
-   * without asking consumers to reparse SVG path data. */
-  | { kind: 'path'; d: string; points: Array<ScenePoint> }
+   * without asking consumers to reparse SVG path data. Multiple SVG subpaths
+   * require explicit contour boundaries so backends never draw across `M`. */
+  | {
+      kind: 'path'
+      d: string
+      points: Array<ScenePoint>
+      subpaths?: Array<ConnectorSubpath>
+      /** Exact SVG marker-mid vertices in document order. Routed points may
+       * include curve controls or sampling points, so they are never treated
+       * as marker vertices for path geometry. */
+      markerMidpoints?: Array<ScenePoint>
+    }
   | { kind: 'line'; x1: number; y1: number; x2: number; y2: number }
 
 export type ConnectorDirection = 'forward' | 'reverse' | 'bidirectional' | 'undirected' | 'self'
@@ -183,9 +200,20 @@ export interface ConnectorRoute {
   ownership: 'authored' | 'layout' | 'family' | 'projected'
   closed: boolean
   bendRadius: number
+  /** Per-contour endpoint semantics. Multi-subpath connectors must not
+   * collapse marker anchors or tangents into one overall start/end pair. */
+  contours: readonly ConnectorContourSemantics[]
   startTangent?: ScenePoint
   endTangent?: ScenePoint
   labelAnchors: readonly ScenePoint[]
+}
+
+export interface ConnectorContourSemantics {
+  start: ScenePoint
+  end: ScenePoint
+  closed: boolean
+  startTangent?: ScenePoint
+  endTangent?: ScenePoint
 }
 
 export interface ConnectorDash {
@@ -213,10 +241,19 @@ export interface ConnectorLabelDescriptor {
   bounds?: SceneBox
   halo?: { color?: string; width: number }
   clearance?: number
+  /** Resolved visual styling when the connector owns its label artwork. */
+  paint?: MarkPaint
+  fontSize?: number
+  textAnchor?: 'start' | 'middle' | 'end'
+  /** `inline` is serialized by the connector constructor; `companion`
+   * records the separately emitted TextMark that owns the artwork. */
+  visual?: { kind: 'inline' } | { kind: 'companion'; markId: string }
 }
 
 export interface ConnectorHitGeometry {
   geometry: ConnectorGeometry
+  /** Closes the compatibility single contour when geometry has no subpaths. */
+  closed: boolean
   strokeWidth: number
   pointerEvents: 'stroke' | 'none'
 }
@@ -235,19 +272,31 @@ export type ConnectorTerminalStrokeLoss =
   | 'paint-order'
   | 'non-scaling-stroke'
 
-export interface ConnectorTerminalMarkerProjection {
-  readonly id: string
-  readonly shape: MarkerShape
+export type ConnectorTerminalMarkerProjection = Readonly<MarkerDescriptor>
+
+export interface ConnectorTerminalMarkerPlacement {
+  readonly markerId: string
+  readonly point: ScenePoint
+  readonly contourIndex: number
 }
 
 export interface ConnectorTerminalLabelProjection {
   readonly id?: string
   readonly text: string
+  readonly anchor?: ScenePoint
+  readonly bounds?: SceneBox
+  readonly halo?: { readonly color?: string; readonly width: number }
+  readonly clearance?: number
+  readonly paint?: MarkPaint
+  readonly fontSize?: number
+  readonly textAnchor?: 'start' | 'middle' | 'end'
+  readonly visual?: { readonly kind: 'inline' } | { readonly kind: 'companion'; readonly markId: string }
 }
 
 export interface ConnectorTerminalProjection {
   realization: PrimitiveRealization
   topology: 'line' | 'polyline' | 'path'
+  geometry: ConnectorGeometry
   direction: ConnectorDirection
   relationship: string
   markers: {
@@ -255,6 +304,17 @@ export interface ConnectorTerminalProjection {
     mid: readonly ConnectorTerminalMarkerProjection[]
     end?: ConnectorTerminalMarkerProjection
   }
+  /** Actual SVG attachment sites. Start/end repeat for every subpath. */
+  markerPlacements: {
+    start: readonly ConnectorTerminalMarkerPlacement[]
+    mid: readonly ConnectorTerminalMarkerPlacement[]
+    end: readonly ConnectorTerminalMarkerPlacement[]
+  }
+  endpoints: ConnectorEndpoints
+  route: Omit<ConnectorRoute, 'geometry'>
+  stroke: ConnectorStroke
+  hit: ConnectorHitGeometry
+  transform?: SceneTransform
   labels: readonly ConnectorTerminalLabelProjection[]
   lineStyle: ConnectorMark['lineStyle']
   strokeLosses: readonly ConnectorTerminalStrokeLoss[]

@@ -20,7 +20,7 @@
     {
       "id": "backend",
       "authority": "src/scene/backend.ts",
-      "freshnessGate": "src/__tests__/styled-backend-paint.test.ts"
+      "freshnessGate": "src/__tests__/backend-capability-conformance.test.ts"
     }
   ],
   "retiredAuthorities": [

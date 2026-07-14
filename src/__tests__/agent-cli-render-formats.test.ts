@@ -69,7 +69,7 @@ describe('am render --format json', () => {
     expect(payload.nodes.map(n => n.id)).toContain('B')
   })
   test('parse-fail surfaces structured error', () => {
-    const f = tmpFile('not a real diagram')
+    const f = tmpFile('flowchart XX\n  A --> B')
     const { code, out } = capture(() => runCli(['render', '--format', 'json', f]))
     expect(code).toBe(2)
     const payload = JSON.parse(out) as { ok: boolean; error?: { code: string } }

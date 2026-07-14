@@ -73,7 +73,7 @@ function makeDiagram(overrides: Partial<PositionedArchitectureDiagram> = {}): Po
 
 describe('renderArchitectureSvg', () => {
   it('escapes labels and data attributes safely', () => {
-    const svg = renderArchitectureSvg({ positioned: makeDiagram(), colors: lightColors, options: {} })
+    const svg = renderArchitectureSvg({ positioned: makeDiagram(), colors: lightColors, resolved: { renderOptions: {} } })
 
     expect(svg).toContain('Application &lt;Zone&gt;')
     expect(svg).toContain('API &amp; &lt;Gateway&gt;')
@@ -83,7 +83,7 @@ describe('renderArchitectureSvg', () => {
   })
 
   it('emits architecture-specific markers, classes, and theme tokens', () => {
-    const svg = renderArchitectureSvg({ positioned: makeDiagram(), colors: lightColors, options: {} })
+    const svg = renderArchitectureSvg({ positioned: makeDiagram(), colors: lightColors, resolved: { renderOptions: {} } })
 
     expect(svg).toContain('id="architecture-arrow-end"')
     expect(svg).toContain('class="architecture-service"')
@@ -96,12 +96,14 @@ describe('renderArchitectureSvg', () => {
     const svg = renderArchitectureSvg({
       positioned: makeDiagram(),
       colors: lightColors,
-      options: {
-        architecture: {
-          visual: {
-            ...DEFAULT_ARCHITECTURE_VISUAL,
-            groupCornerRadius: 18,
-            serviceCornerRadius: 16,
+      resolved: {
+        renderOptions: {
+          architecture: {
+            visual: {
+              ...DEFAULT_ARCHITECTURE_VISUAL,
+              groupCornerRadius: 18,
+              serviceCornerRadius: 16,
+            },
           },
         },
       },

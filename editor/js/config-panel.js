@@ -91,8 +91,8 @@ function readConfig() {
 var THEME_COLOR_MAP = { bg: 'bg', fg: 'fg', accent: 'accent', line: 'line', muted: 'muted', surface: 'surface' };
 
 function getThemeColor(key) {
-  if (!state.theme || !THEMES[state.theme]) return null;
-  return THEMES[state.theme][THEME_COLOR_MAP[key]] || null;
+  var colors = editorPaletteColors(state.palette);
+  return colors ? colors[THEME_COLOR_MAP[key]] || null : null;
 }
 
 function updateColorUI(key) {

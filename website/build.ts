@@ -1804,29 +1804,29 @@ function injectHeroStyleFigure(html: string) {
 // Fact-strip counts derived from the registries so the published numbers cannot
 // drift (the strip previously hard-coded "21 palettes" against 20 real ones).
 const STYLE_DESCRIPTORS = knownStyleDescriptors()
-const STYLE_LOOK_COUNT = STYLE_DESCRIPTORS.filter(descriptor => descriptor.category === 'look').length
-const STYLE_THEME_COUNT = STYLE_DESCRIPTORS.filter(descriptor => descriptor.category === 'theme').length
+const STYLE_LOOK_COUNT = STYLE_DESCRIPTORS.filter(descriptor => descriptor.kind === 'look').length
+const STYLE_PALETTE_COUNT = STYLE_DESCRIPTORS.filter(descriptor => descriptor.kind === 'palette').length
 // Human-readable reference for the product's headline feature: every style and
 // palette, with both the display name (what the editor menus show) and the API
 // id (what docs, CLI, and render options take) — the two vocabularies had no
 // visible mapping anywhere. Generated from the registry so it cannot drift.
 function themingReferenceHtml() {
-  const looks = STYLE_DESCRIPTORS.filter(descriptor => descriptor.category === 'look')
-  const themes = STYLE_DESCRIPTORS.filter(descriptor => descriptor.category === 'theme')
+  const looks = STYLE_DESCRIPTORS.filter(descriptor => descriptor.kind === 'look')
+  const palettes = STYLE_DESCRIPTORS.filter(descriptor => descriptor.kind === 'palette')
   const lookRows = looks.map(descriptor => `<tr><td>${escapeHtml(descriptor.displayLabel)}</td><td><code>${escapeHtml(descriptor.inputName)}</code></td><td>${escapeHtml(descriptor.spec.blurb ?? '')}</td></tr>`).join('')
-  const themeCells = themes.map(descriptor => `<li><code>${escapeHtml(descriptor.inputName)}</code></li>`).join('')
+  const paletteCells = palettes.map(descriptor => `<li><code>${escapeHtml(descriptor.inputName)}</code></li>`).join('')
   return `<h2>Built-in styles</h2>
-<p>The editor menus show the display name; render options, the CLI, and MCP tools take the <code>id</code>. Stack a style with a palette: <code>--style ${escapeHtml(looks[0]?.inputName ?? 'watercolor')},${escapeHtml(themes[0]?.inputName ?? 'paper')}</code>.</p>
+<p>The editor menus show the display name; render options, the CLI, and MCP tools take the stable input name. Stack a style with a palette: <code>--style ${escapeHtml(looks[0]?.inputName ?? 'watercolor')},${escapeHtml(palettes[0]?.inputName ?? 'paper')}</code>.</p>
 <table class="warning-table styles-table"><thead><tr><th>Name</th><th>id</th><th>Best for</th></tr></thead><tbody>${lookRows}</tbody></table>
 <h2>Palettes</h2>
 <p>A palette is a colors-only style: pass its id alone for recoloring, or after a style id to recolor that style.</p>
-<ul class="palette-list">${themeCells}</ul>`
+<ul class="palette-list">${paletteCells}</ul>`
 }
 function injectFactStrip(html: string) {
   return html
     .replaceAll('{{FACT_FAMILIES}}', String(BUILTIN_FAMILY_METADATA.length))
     .replaceAll('{{FACT_STYLES}}', String(STYLE_LOOK_COUNT))
-    .replaceAll('{{FACT_PALETTES}}', String(STYLE_THEME_COUNT))
+    .replaceAll('{{FACT_PALETTES}}', String(STYLE_PALETTE_COUNT))
     .replaceAll('{{FACT_OUTPUTS}}', String(rawCapabilities.outputFormats.length))
 }
 // Quick-start figure: the shell-palette edit-loop diagram, small, where the

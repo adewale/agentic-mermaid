@@ -13,7 +13,6 @@
 
 import { getStroke } from 'perfect-freehand'
 import type { Geometry } from './ir.ts'
-import { registerBuiltInBackend } from './backend.ts'
 import { createSketchBackend, sketchGeometryRough } from './rough-backend.ts'
 import type { GeometrySketcher } from './rough-backend.ts'
 import { makeRng } from './seed.ts'
@@ -186,5 +185,3 @@ const hybridSketcher: GeometrySketcher = (geom, opts) => {
 }
 
 export const HybridBackend = createSketchBackend('hybrid', hybridSketcher)
-
-registerBuiltInBackend(HybridBackend)

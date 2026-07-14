@@ -104,12 +104,13 @@ export interface StyleRegistrationOptions {
 export interface StyleDescriptor {
   readonly identity: ExtensionIdentity<StyleRegistryKind>
   readonly spec: StyleSpec
-  readonly aliases: readonly CompatibilityAlias[]
-  /** Preferred accepted spelling for human-facing inputs. */
+  /** Stable preferred input. Compatibility aliases are never advertised here. */
   readonly inputName: string
+  readonly aliases: readonly CompatibilityAlias[]
   /** Stable label shared by CLI, editor, website, MCP, and generated docs. */
   readonly displayLabel: string
-  readonly category: 'default' | 'look' | 'theme'
+  readonly kind: StyleRegistryKind
+  readonly isDefault: boolean
 }
 
 export interface StyleReferenceResolution {
@@ -128,10 +129,46 @@ const CORE_STYLE_PROVENANCE = Object.freeze({
 const HOST_STYLE_PROVENANCE = Object.freeze({ owner: 'host', source: 'in-process' })
 
 const STYLE_REGISTRY = new Map<string, ExtensionRegistration<InternalStyleSpec, StyleRegistryKind>>()
+/** Stable human-facing inputs are not compatibility aliases: they have no
+ * removal window and therefore live in their own projection. */
+const STYLE_INPUT_NAMES = new Map<string, string>()
 const STYLE_ALIASES = new Map<string, CompatibilityAlias>()
 
+/** Style admission reads caller-owned accessors while reducing a public
+ * StyleSpec to immutable declarative data. A getter must not be able to use a
+ * nested register/dispose call to leave the registry changed when the outer
+ * admission later fails. Resolution is synchronous, so one depth counter
+ * protects registration, inline stacks, and disposer callbacks without
+ * changing ordinary nested read-only resolution semantics. */
+let styleAdmissionDepth = 0
+
+function assertStyleRegistryMutationAllowed(): void {
+  if (styleAdmissionDepth > 0) {
+    throw new Error('Style registry mutation is forbidden while a Style input is undergoing admission')
+  }
+}
+
+function withStyleAdmission<T>(admit: () => T): T {
+  styleAdmissionDepth++
+  try {
+    return admit()
+  } finally {
+    styleAdmissionDepth--
+  }
+}
+
+const DEFAULT_STYLE_ALIAS = Object.freeze({
+  alias: 'default',
+  targetId: 'look:crisp',
+  diagnostic: Object.freeze({
+    code: 'STYLE_ALIAS_DEPRECATED',
+    message: 'Style alias "default" resolves to "look:crisp"; use the stable input "crisp".',
+    removal: Object.freeze({ release: '0.3.0', date: '2027-01-31' }),
+  }),
+}) satisfies CompatibilityAlias
+
 /** Published compatibility window for the historically ambiguous bare name. */
-export const TUFTE_STYLE_ALIAS = Object.freeze({
+const TUFTE_STYLE_ALIAS = Object.freeze({
   alias: 'tufte',
   targetId: 'look:tufte',
   diagnostic: Object.freeze({
@@ -140,6 +177,58 @@ export const TUFTE_STYLE_ALIAS = Object.freeze({
     removal: Object.freeze({ release: '0.3.0', date: '2027-01-31' }),
   }),
 }) satisfies CompatibilityAlias
+
+function plainDeclarativeRecord(value: unknown): value is Record<string, unknown> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
+  const prototype = Object.getPrototypeOf(value)
+  return prototype === Object.prototype || prototype === null
+}
+
+/**
+ * Materialize caller-owned declarative data once. Object.entries invokes each
+ * enumerable accessor once; recursive snapshots ensure nested colors (and any
+ * future object-valued StyleSpec field) cannot change after validation. A
+ * proxy that presents a plain-record surface is safely reduced to frozen data;
+ * other object kinds remain intact so the canonical validator rejects them.
+ */
+function snapshotDeclarativeStyleValue(
+  value: unknown,
+  snapshots: WeakMap<object, unknown> = new WeakMap(),
+): unknown {
+  if (!plainDeclarativeRecord(value)) return value
+  const existing = snapshots.get(value)
+  if (existing !== undefined) return existing
+
+  const snapshot = Object.create(null) as Record<string, unknown>
+  snapshots.set(value, snapshot)
+  // Capture all values before recursing so no later validation/storage phase
+  // ever returns to an accessor-backed caller object.
+  const entries = Object.entries(value)
+  for (const [key, child] of entries) {
+    Object.defineProperty(snapshot, key, {
+      value: snapshotDeclarativeStyleValue(child, snapshots),
+      enumerable: true,
+      writable: false,
+      configurable: false,
+    })
+  }
+  return Object.freeze(snapshot)
+}
+
+function validatedStyleSpecSnapshot(spec: StyleSpec): StyleSpec {
+  const snapshot = snapshotDeclarativeStyleValue(spec) as StyleSpec
+  const problems = validateStyleSpec(snapshot)
+  if (problems.length) throw new Error(`Invalid style spec: ${problems.join('; ')}`)
+  return snapshot
+}
+
+function styleRegistrationOptionsSnapshot(options: StyleRegistrationOptions): StyleRegistrationOptions {
+  const snapshot = snapshotDeclarativeStyleValue(options)
+  if (!plainDeclarativeRecord(snapshot)) {
+    throw new TypeError('registerStyle options must be a plain object')
+  }
+  return snapshot as StyleRegistrationOptions
+}
 
 function stripInternalStyle(spec: InternalStyleSpec | undefined): StyleSpec | undefined {
   if (!spec) return undefined
@@ -152,7 +241,7 @@ function stripInternalStyle(spec: InternalStyleSpec | undefined): StyleSpec | un
 }
 
 function registryKindOf(spec: StyleSpec): StyleRegistryKind {
-  return styleKind(spec) === 'theme' ? 'palette' : 'look'
+  return styleKind(spec)
 }
 
 function registrationIdentity(
@@ -164,7 +253,9 @@ function registrationIdentity(
     id,
     kind,
     version: options.version ?? CORE_STYLE_VERSION,
-    compatibility: options.compatibility ?? CORE_STYLE_COMPATIBILITY,
+    // An explicit empty/partial override must not erase the core baseline and
+    // manufacture an unversioned declarative extension.
+    compatibility: { ...CORE_STYLE_COMPATIBILITY, ...options.compatibility },
     provenance: options.provenance ?? HOST_STYLE_PROVENANCE,
   })
 }
@@ -173,6 +264,7 @@ function registerCanonicalStyle(
   spec: InternalStyleSpec,
   kind: StyleRegistryKind,
   options: StyleRegistrationOptions,
+  inputName?: string,
 ): () => boolean {
   const id = spec.name!
   const stored: InternalStyleSpec = Object.freeze({
@@ -186,10 +278,25 @@ function registerCanonicalStyle(
     identity,
     value: stored,
   })
+  if (inputName !== undefined) {
+    const existing = STYLE_INPUT_NAMES.get(inputName)
+    const canonicalOwner = STYLE_REGISTRY.has(inputName) && inputName !== id ? inputName : undefined
+    const aliasOwner = STYLE_ALIASES.get(inputName)?.targetId
+    if (existing !== undefined || canonicalOwner !== undefined || aliasOwner !== undefined) {
+      STYLE_REGISTRY.delete(id)
+      throw new Error(`Style input name "${inputName}" already selects "${existing ?? canonicalOwner ?? aliasOwner}"`)
+    }
+    STYLE_INPUT_NAMES.set(inputName, id)
+  }
   return () => {
+    assertStyleRegistryMutationAllowed()
     const current = STYLE_REGISTRY.get(id)
     if (current?.identity !== identity) return false
-    return STYLE_REGISTRY.delete(id)
+    const removed = STYLE_REGISTRY.delete(id)
+    if (removed && inputName !== undefined && STYLE_INPUT_NAMES.get(inputName) === id) {
+      STYLE_INPUT_NAMES.delete(inputName)
+    }
+    return removed
   }
 }
 
@@ -199,31 +306,35 @@ function registerCanonicalStyle(
  * but cannot be created by third-party registration.
  */
 export function registerStyle(spec: StyleSpec, options: StyleRegistrationOptions = {}): () => boolean {
-  const problems = validateStyleSpec(spec)
-  if (problems.length) throw new Error(`Invalid style spec: ${problems.join('; ')}`)
-  if (!spec.name) throw new Error('registerStyle requires a name (anonymous specs are for inline use)')
-  const parsed = parseExtensionId(spec.name)
-  if (!parsed || (parsed.kind !== 'look' && parsed.kind !== 'palette')) {
-    throw new Error(`registerStyle name "${spec.name}" must use the "look:" or "palette:" namespace`)
-  }
-  const inferred = registryKindOf(spec)
-  if (parsed.kind !== inferred) {
-    throw new Error(`Style "${spec.name}" is a ${inferred}; its name must use the "${inferred}:" namespace`)
-  }
-  return registerCanonicalStyle(spec, inferred, options)
+  assertStyleRegistryMutationAllowed()
+  return withStyleAdmission(() => {
+    const snapshot = validatedStyleSpecSnapshot(spec)
+    const registrationOptions = styleRegistrationOptionsSnapshot(options)
+    if (!snapshot.name) throw new Error('registerStyle requires a name (anonymous specs are for inline use)')
+    const parsed = parseExtensionId(snapshot.name)
+    if (!parsed || (parsed.kind !== 'look' && parsed.kind !== 'palette')) {
+      throw new Error(`registerStyle name "${snapshot.name}" must use the "look:" or "palette:" namespace`)
+    }
+    const inferred = registryKindOf(snapshot)
+    if (parsed.kind !== inferred) {
+      throw new Error(`Style "${snapshot.name}" is a ${inferred}; its name must use the "${inferred}:" namespace`)
+    }
+    return registerCanonicalStyle(snapshot, inferred, registrationOptions)
+  })
 }
 
 function registerBuiltInStyle(
   spec: InternalStyleSpec,
   kind: StyleRegistryKind = 'look',
-  legacyAlias: CompatibilityAlias | string | null = spec.name ?? null,
+  legacyAlias: CompatibilityAlias | null = null,
+  inputName: string = spec.name ?? '',
 ): void {
   if (!spec.name) throw new Error('registerBuiltInStyle requires a name')
   const localName = spec.name
   const canonicalId = canonicalExtensionId(kind, localName)
   const publicProblems = validateStyleSpec(stripInternalStyle({ ...spec, name: canonicalId }))
   if (publicProblems.length) throw new Error(`Invalid built-in style "${canonicalId}": ${publicProblems.join('; ')}`)
-  registerCanonicalStyle(
+  const unregister = registerCanonicalStyle(
     { ...spec, name: canonicalId },
     kind,
     {
@@ -231,17 +342,26 @@ function registerBuiltInStyle(
       compatibility: CORE_STYLE_COMPATIBILITY,
       provenance: CORE_STYLE_PROVENANCE,
     },
+    inputName,
   )
   if (legacyAlias) {
-    const alias = typeof legacyAlias === 'string'
-      ? { alias: legacyAlias, targetId: canonicalId }
-      : legacyAlias
-    registerCompatibilityAlias(STYLE_ALIASES, alias)
+    try {
+      const stableTarget = STYLE_INPUT_NAMES.get(legacyAlias.alias)
+      if (stableTarget !== undefined || STYLE_REGISTRY.has(legacyAlias.alias)) {
+        throw new Error(`Compatibility alias "${legacyAlias.alias}" conflicts with a stable Style input`)
+      }
+      registerCompatibilityAlias(STYLE_ALIASES, legacyAlias)
+    } catch (error) {
+      unregister()
+      throw error
+    }
   }
 }
 
 function canonicalStyleId(name: string): { id: string; alias?: CompatibilityAlias } | undefined {
   if (STYLE_REGISTRY.has(name)) return { id: name }
+  const inputTarget = STYLE_INPUT_NAMES.get(name)
+  if (inputTarget) return { id: inputTarget }
   const alias = STYLE_ALIASES.get(name)
   return alias ? { id: alias.targetId, alias } : undefined
 }
@@ -263,12 +383,7 @@ export function getStyle(name: string): StyleSpec | undefined {
   return resolveStyleReference(name)?.spec
 }
 
-function getInternalStyle(name: string): InternalStyleSpec | undefined {
-  const resolved = canonicalStyleId(name)
-  return resolved ? STYLE_REGISTRY.get(resolved.id)?.value : undefined
-}
-
-/** Legacy-compatible names; use knownStyleDescriptors for canonical discovery. */
+/** Stable preferred inputs; deprecated compatibility aliases are intentionally omitted. */
 export function knownStyles(): string[] {
   return knownStyleDescriptors().map(descriptor => descriptor.inputName)
 }
@@ -276,15 +391,22 @@ export function knownStyles(): string[] {
 export function knownStyleDescriptors(): readonly StyleDescriptor[] {
   return Object.freeze(Array.from(STYLE_REGISTRY.values(), ({ identity, value }) => {
     const aliases = Object.freeze(Array.from(STYLE_ALIASES.values()).filter(alias => alias.targetId === identity.id))
-    const inputName = aliases[0]?.alias ?? identity.id
+    const inputName = Array.from(STYLE_INPUT_NAMES.entries()).find(([, target]) => target === identity.id)?.[0] ?? identity.id
     const localName = identity.id.slice(identity.id.indexOf(':') + 1)
     const displayLabel = value.displayLabel ?? localName
       .split('-')
       .filter(Boolean)
       .map(word => word === 'ops' ? 'OPS' : word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ')
-    const category = identity.id === 'look:crisp' ? 'default' : identity.kind === 'palette' ? 'theme' : 'look'
-    return Object.freeze({ identity, spec: stripInternalStyle(value)!, aliases, inputName, displayLabel, category })
+    return Object.freeze({
+      identity,
+      spec: stripInternalStyle(value)!,
+      aliases,
+      inputName,
+      displayLabel,
+      kind: identity.kind,
+      isDefault: identity.id === 'look:crisp',
+    })
   }))
 }
 
@@ -315,11 +437,6 @@ function mergeFace(left: InternalStyleFace | undefined, right: InternalStyleFace
   return merged
 }
 
-function assertValidInlineStyle(entry: StyleSpec): void {
-  const problems = validateStyleSpec(entry)
-  if (problems.length) throw new Error(`Invalid style spec: ${problems.join('; ')}`)
-}
-
 /** Merge a stack of styles left → right: later fields win; colors merge per
  *  channel. Names resolve through the registry; unknown names throw with the
  *  known list (fail loud — a silently-crisp fallback would erode trust in
@@ -330,13 +447,13 @@ function resolveInternalStyleStack(input: StyleInput | StyleInput[] | undefined)
   const specs: InternalStyleSpec[] = []
   for (const entry of stack) {
     if (typeof entry === 'string') {
-      if (entry === 'crisp' || entry === 'default') continue
-      const named = getInternalStyle(entry)
+      const resolved = canonicalStyleId(entry)
+      if (resolved?.id === 'look:crisp') continue
+      const named = resolved ? STYLE_REGISTRY.get(resolved.id)?.value : undefined
       if (!named) throw new Error(`Unknown style "${entry}". Known styles: ${knownStyles().join(', ')}`)
       specs.push(named)
     } else {
-      assertValidInlineStyle(entry)
-      specs.push(entry)
+      specs.push(validatedStyleSpecSnapshot(entry))
     }
   }
   if (specs.length === 0) return undefined
@@ -360,7 +477,7 @@ function resolveInternalStyleStack(input: StyleInput | StyleInput[] | undefined)
 }
 
 export function resolveStyleStack(input: StyleInput | StyleInput[] | undefined): StyleSpec | undefined {
-  return stripInternalStyle(resolveInternalStyleStack(input))
+  return withStyleAdmission(() => stripInternalStyle(resolveInternalStyleStack(input)))
 }
 
 function internalStyleFace(spec: InternalStyleSpec): InternalStyleFace | undefined {
@@ -371,46 +488,73 @@ function internalStyleFace(spec: InternalStyleSpec): InternalStyleFace | undefin
   return mergeFace(widthFace, spec.face)
 }
 
+/** Validate dependencies only after composition: a fragment may deliberately
+ * supply hachure/wash parameters before another fragment selects that fill.
+ * The final stack, however, must not carry customization that merely changes
+ * receipt identity while producing no corresponding projection. */
+function assertRealizedStyleSpec(spec: InternalStyleSpec): void {
+  const hachureFields = ['hachureAngle', 'hachureGap', 'fillWeight'] as const
+  const inactiveHachure = hachureFields.filter(field => spec[field] !== undefined && spec.fill !== 'hachure')
+  if (inactiveHachure.length > 0) {
+    throw new Error(`Invalid style spec: ${inactiveHachure.map(field => `"${field}"`).join(', ')} require fill "hachure" in the final Style stack`)
+  }
+  const washFields = ['washOpacity', 'washEdge'] as const
+  const inactiveWash = washFields.filter(field => spec[field] !== undefined && spec.fill !== 'wash')
+  if (inactiveWash.length > 0) {
+    throw new Error(`Invalid style spec: ${inactiveWash.map(field => `"${field}"`).join(', ')} require fill "wash" in the final Style stack`)
+  }
+  if (spec.fill !== undefined && inferBackend(spec) === 'default') {
+    throw new Error('Invalid style spec: "fill" has no crisp/default backend projection; combine it with stroke "jittered"/"freehand" or another rough/hybrid backend field')
+  }
+}
+
 /** Internal boundary helper: resolve mutable registry input once, then project
  * its public StyleSpec and private renderer defaults from that same snapshot. */
 export function resolveStyleStackWithFace(
   input: StyleInput | StyleInput[] | undefined,
 ): { style?: StyleSpec; face?: InternalStyleFace } {
-  const internal = resolveInternalStyleStack(input)
-  if (internal === undefined) return {}
-  const style = stripInternalStyle(internal)
-  const face = internalStyleFace(internal)
-  return {
-    ...(style ? { style } : {}),
-    ...(face ? { face } : {}),
-  }
+  return withStyleAdmission(() => {
+    const internal = resolveInternalStyleStack(input)
+    if (internal === undefined) return {}
+    assertRealizedStyleSpec(internal)
+    const style = stripInternalStyle(internal)
+    const face = internalStyleFace(internal)
+    return {
+      ...(style ? { style } : {}),
+      ...(face ? { face } : {}),
+    }
+  })
 }
 
 /** Private reader for renderer/layout defaults attached to built-in styles. */
 export function styleFaceOf(input: StyleInput | StyleInput[] | undefined): InternalStyleFace | undefined {
-  const spec = resolveInternalStyleStack(input)
-  if (spec === undefined) return undefined
-  return internalStyleFace(spec)
+  return withStyleAdmission(() => {
+    const spec = resolveInternalStyleStack(input)
+    if (spec === undefined) return undefined
+    return internalStyleFace(spec)
+  })
 }
 
-/** A palette-only spec is what people call a THEME; anything that also sets
- *  stroke/fill/typography is a full LOOK. One predicate, shared by the CLI's
- *  `am styles` listing and the editor's style picker, so the two surfaces can
- *  never disagree about what counts as a look. */
-export function styleKind(spec: StyleSpec): 'look' | 'theme' {
-  return Object.keys(spec).every(k => k === 'formatVersion' || k === '$schema' || k === 'name' || k === 'blurb' || k === 'colors') ? 'theme' : 'look'
+/** A colors-only style is a Palette; anything that also sets stroke, fill, or
+ * typography is a Look. "theme" remains prose and diagnosed legacy input,
+ * never a published registry kind. */
+export function styleKind(spec: StyleSpec): StyleRegistryKind {
+  return Object.keys(spec).every(k => k === 'formatVersion' || k === '$schema' || k === 'name' || k === 'blurb' || k === 'colors') ? 'palette' : 'look'
 }
 
 /** True when a merged spec changes anything beyond metadata — i.e. when
  *  rendering must go through the styled scene path. */
 export function isStyledSpec(spec: StyleSpec): boolean {
-  return inferBackend(spec) !== 'default' || spec.colors !== undefined || spec.font !== undefined
+  return inferBackend(spec) !== 'default'
+    || spec.colors !== undefined
+    || spec.font !== undefined
+    || spec.strokeWidth !== undefined
 }
 
 // ----------------------------------------------------------------------------
-// Themes register as canonical palette:* styles. Existing unqualified names
-// remain compatibility inputs. `tufte` is reserved for the historical Look
-// mapping, so the formerly shadowed palette is `palette:tufte`.
+// Palettes register as canonical palette:* styles. Most built-ins also have a
+// stable unqualified input. `tufte` is the diagnosed historical alias for the
+// Look, so both Tufte meanings advertise their canonical names instead.
 // ----------------------------------------------------------------------------
 
 // The byte-identical default is a real discoverable descriptor, not a picker-
@@ -421,7 +565,7 @@ registerBuiltInStyle({
   displayLabel: 'Crisp',
   blurb: 'The byte-identical default renderer with precise SVG geometry.',
   stroke: 'crisp',
-})
+}, 'look', DEFAULT_STYLE_ALIAS)
 
 for (const definition of BUILTIN_PALETTE_DEFINITIONS as readonly BuiltinPaletteDefinition[]) {
   const { legacyName: name, colors: palette } = definition
@@ -431,7 +575,7 @@ for (const definition of BUILTIN_PALETTE_DEFINITIONS as readonly BuiltinPaletteD
   registerBuiltInStyle({
     name,
     displayLabel: definition.displayLabel,
-    blurb: `Palette: ${name} (theme).`,
+    blurb: `Palette: ${name}.`,
     colors: {
       bg: palette.bg,
       fg: palette.fg,
@@ -441,7 +585,7 @@ for (const definition of BUILTIN_PALETTE_DEFINITIONS as readonly BuiltinPaletteD
       surface: palette.surface,
       border: palette.border,
     },
-  }, 'palette', name === 'tufte' ? null : name)
+  }, 'palette', null, name === 'tufte' ? 'palette:tufte' : name)
 }
 
 // ----------------------------------------------------------------------------
@@ -562,7 +706,7 @@ registerBuiltInStyle({
     group: { lineWidth: 0.8 },
   },
   mono: true,
-}, 'look', TUFTE_STYLE_ALIAS)
+}, 'look', TUFTE_STYLE_ALIAS, 'look:tufte')
 
 registerBuiltInStyle({
   name: 'accessible-high-contrast',

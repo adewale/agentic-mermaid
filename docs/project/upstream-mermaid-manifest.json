@@ -8,7 +8,7 @@
     "commit": "5e3c88ea6d937a89078a5e8f1b2a6fd0ea391a5c",
     "npmIntegrity": "sha512-Zvm3kbstgdpvIJPPItlL7fppIZ3kibvc1oZIGxdvk9t6UFz6flv+Jw7FtRGKwfcI8OckmH04LqG6LlS6X4B1pA==",
     "packageJsonSha256": "88ea12cf87bb2616d3ed68b1f0d3202a0ab1ad5a1eed82f8471dfd8f9dc8d1cb",
-    "inventorySha256": "0991b33b1d1a9b86e52d95a7703cf14a17f1079d9a41316081bb623462b6c14c",
+    "inventorySha256": "9ebde3550b6a9d51769fa3b68b0565b13be45df3ddf8e8752d432675b38a1209",
     "inputs": [
       "packages/mermaid/src/diagram-api/diagram-orchestration.ts",
       "packages/mermaid/src/diagram-api/detectType.ts",
@@ -688,7 +688,7 @@
       "headers": [
         {
           "value": "architecture",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         },
         {
           "value": "architecture-beta",

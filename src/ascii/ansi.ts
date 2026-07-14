@@ -75,7 +75,8 @@ export function diagramColorsToAsciiTheme(colors: DiagramColors): AsciiTheme {
  * 2. TERM contains "256color" → ansi256
  * 3. TERM is set and not "dumb" → ansi16
  *
- * Browser: returns 'html' (uses <span> tags with inline styles).
+ * An explicit browser probe returns 'html'. Ambient browser auto-detection
+ * remains colorless because HTML is an output encoding, not a color depth.
  * Unknown/piped: returns 'none'.
  */
 export interface ColorEnvironment {
@@ -88,7 +89,7 @@ export function detectColorMode(override?: ColorEnvironment): ColorMode {
   // Check if we're in a Node.js-like environment with process object
   // Use globalThis to safely check for process without TypeScript errors
   const proc = (globalThis as { process?: { stdout?: { isTTY?: boolean }, env?: Record<string, string | undefined> } }).process
-  const browserOverride = override?.browser === true
+  if (override?.browser === true) return 'html'
 
   if (proc || override) {
     // Check if stdout is a TTY (not piped/redirected)
@@ -123,10 +124,6 @@ export function detectColorMode(override?: ColorEnvironment): ColorMode {
   }
 
   // No process object → browser environment → use HTML color output
-  if (browserOverride || typeof document !== 'undefined') {
-    return 'html'
-  }
-
   return 'none'
 }
 

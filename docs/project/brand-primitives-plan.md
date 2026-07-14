@@ -1,9 +1,10 @@
 # Brand primitives and forward-compatible family support — plan
 
-Status: Section A is the completed rendering-contract baseline; Section B is
-the normative customization plan owned by `BUILD-31`. Root `TODO.md` owns live
-work. Section A closure evidence lives in its
-[completion record](./archive/section-a-rendering-contract-2026-07.md) and is
+Status: Section A is implemented on its landing branch and remains an open
+landing candidate until its final gates pass and its landing PR merges; Section
+B is the normative customization plan owned by `BUILD-31`. Root `TODO.md` owns
+live work. Section A candidate evidence lives in its
+[landing record](./archive/section-a-rendering-contract-2026-07.md) and is
 projected from the registries into the [generated capability
 report](./section-a-capability-report.md). The upstream
 compatibility baseline is the version-pinned
@@ -12,9 +13,10 @@ roster copied into prose.
 
 ## Decision
 
-The original direction still makes sense. Section A made its correctness,
-parity, consolidation, and forward-compatibility foundation explicit; Section
-B now builds richer customization on that completed baseline:
+The original direction still makes sense. The Section A landing candidate makes
+its correctness, parity, consolidation, and forward-compatibility foundation
+explicit; after it lands, Section B builds richer customization on that
+baseline:
 
 1. Keep **Look + Palette** as the low floor.
 2. Add a small public, semantic **Brand primitives** layer rather than restoring
@@ -47,6 +49,7 @@ Use these terms consistently in code, docs, tests, and product copy:
 
 | Term | Meaning |
 |---|---|
+| **Style** | The umbrella appearance input accepted by the current APIs: a named or inline partial record that may be a Look, a Palette, or a composition of both. |
 | **Look** | Geometry or material treatment such as crisp, hand-drawn, watercolor, or publication. |
 | **Palette** | Semantic color values. A colors-only style is a palette. |
 | **Brand primitives** | Role typography, spacing, shape, border, elevation, semantic status/category slots, and non-color visual cues. |
@@ -116,13 +119,17 @@ levels:
 
 1. **Contract parity:** every shared public field has the same name, type,
    validation, precedence, default, and diagnostic meaning in the library,
-   CLI, local and hosted MCP, editor, and website. A curated UI may hide advanced
-   fields behind JSON import or an advanced panel, but it may not make them
-   unreachable.
-2. **Transport parity:** equivalent input through each entry point produces the
-   same canonical `ResolvedRenderRequest` and `ResolvedAppearance` digests after
-   excluding declared output-only fields. No adapter silently drops or rewrites
-   a shared field.
+   CLI, Code Mode, local and hosted MCP, editor, and website. A host may enforce a stricter
+   security/resource value only when the generated field×surface matrix marks
+   that cell `host-enforced` and the effective receipt reflects the constraint.
+   A curated UI may hide advanced fields behind JSON import or an advanced
+   panel, but it may not make them unreachable without an `unavailable` cell.
+2. **Transport parity:** equivalent forwarded input through each entry point
+   produces the same canonical `ResolvedRenderRequest` and
+   `ResolvedAppearance` digests after excluding declared output-only fields.
+   Host-enforced input is constrained before request resolution and produces the
+   declared constrained receipt; unavailable input is explicit. No adapter
+   silently drops or rewrites a shared field.
 3. **Output parity:** SVG and PNG preserve the same branded geometry, paint,
    semantic identity, accessibility, security decisions, and deterministic
    resources, subject only to declared raster concerns. ASCII/Unicode preserves
@@ -139,14 +146,15 @@ primitive into its drawing language; it may not silently ignore it.
 Parity evidence is factored rather than hidden in one impossible Cartesian
 golden suite:
 
-- transport x shared field proves request receipt and resolution;
+- transport x shared field records `forwarded`, `host-enforced`, or
+  `unavailable` and proves the resulting request receipt and resolution;
 - family x role/primitive proves semantic consumption and fallback;
 - first-party backend x Scene mark/primitive proves rendering-contract parity;
 - output x semantic/security contract proves SVG, PNG, ASCII and Unicode
   projection behavior;
 - a small sentinel cross-product catches interactions between those dimensions.
 
-Each matrix declares which of those two schemas it uses. `diagnosed` is an
+Each matrix declares its state vocabulary. `diagnosed` or `unavailable` is an
 accountable inventory state, not permission for a shared field to remain missing
 indefinitely: the matrix must record an owner or an explicit product decision.
 Release claims state the parity level and output, never the unqualified phrase
@@ -297,7 +305,7 @@ fonts, and outputs usually costs more than writing the record.
 |---|---|---:|---|
 | 0. Preset | choose a named Look or Palette | seconds | nontechnical user; no file or code |
 | 1. Composition | stack Look + Palette and change a few fields in the editor or inline request | minutes | global colors, font, stroke, fill, backdrop and deterministic seed |
-| 2. Custom Look | save and validate a reusable JSON fragment | tens of minutes; hours with visual review | the current `StyleSpec` low floor, without registration or family knowledge |
+| 2. Custom style fragment | save and validate a reusable JSON fragment | tens of minutes; hours with visual review | the current `StyleSpec` low floor, without registration or family knowledge |
 | 3. Brand pack | map existing design tokens, roles and modes into versioned JSON | hours to days depending on token quality | designer/design-system owner; portable typography, geometry, elevation and modes |
 | 4. Semantic policy | add class/tag/status/category bindings and constraints | hours plus cross-family QA | domain-aware branding without selectors or renderer code |
 | 5. Treatment (conditional) | if B4 is promoted, publish a trusted TypeScript decoration and pass conformance | days | proved signature ornaments or material effects over positioned typed Scene marks |
@@ -317,7 +325,7 @@ bindings/constraints inline. A BrandPack packages fragments, modes and policy fo
 reuse; it is not required to unlock those semantics.
 
 The author-effort gate is therefore not merely “the schema validates.” An
-unfamiliar user must be able to create a palette-only Look, a role-rich brand,
+unfamiliar user must be able to create a Palette, a role-rich brand,
 and a status-bound brand without editing a family adapter. Advanced UI may be
 progressively disclosed, but the same JSON must remain usable through every
 public entry point.
@@ -560,7 +568,7 @@ differences are host trust and installed resources, not private styling fields.
 
 | Capability | Public custom style now | Built-in style now | Target custom API |
 |---|---|---|---|
-| seven colors, global font, stroke/fill/backdrop | native | native | preserved as the Level 2 compatibility floor |
+| generated palette channels, global font, stroke/fill/backdrop | native | native | preserved as the Level 2 compatibility floor |
 | node/edge/group typography and paint | unavailable | private `InternalStyleFace` | public stable core roles |
 | role padding, radii, widths and edge bend | only coarse global render options | private face scalars | public role geometry using shared measurement/render values |
 | title, legend, axis, technical and future-family roles | family-specific or unavailable | no universal built-in contract | core plus namespaced roles with required fallback |
@@ -590,10 +598,10 @@ syntax. Family adapters map concrete marks into this core vocabulary:
 
 Family nouns such as `actor`, `service`, `task`, `event`, `message`, `lifeline`,
 `bar`, `slice`, `lane`, and `domain` remain namespaced roles unless independent
-brand evidence proves a stable cross-family distinction. Every namespaced role
-declares one core fallback. The current closed `SceneRole` union therefore
-evolves into a small stable core plus a namespaced identifier, not an inventory
-of every Mermaid concept.
+brand evidence proves a stable cross-family distinction. Section A already
+admits stable built-in roles plus namespaced `SceneRole` identifiers. Section B
+adds one core fallback and brand-slot semantics to each namespaced role; it does
+not turn the core vocabulary into an inventory of every Mermaid concept.
 
 This is not the removed arbitrary role-style API in another spelling. Core
 roles are stable cross-family semantics, never element IDs or selectors;
@@ -657,65 +665,20 @@ for an output/profile combination that passes these gates. Brand policy may set
 stricter thresholds or additional constraints, never redefine contrast math or
 turn a core failure into success.
 
-### Conditional Treatment protocol
+### Conditional Treatment evidence gate
 
-This section is a bounded contract for B4 to activate only after its evidence
-gate passes. Until then there is no public Treatment field, descriptor,
-registry, selection path, pipeline, or conformance claim; Section A defines only
-the positioned-addition and bounds invariants already useful to core code.
+A **Treatment** is the name reserved for trusted, host-installed code that adds
+one proved signature decoration to an already positioned Scene. It exists only
+to avoid forcing a genuinely decorative long-tail effect into either a universal
+primitive or a replacement backend.
 
-#### What a Treatment is and why it exists
-
-A **Treatment** is trusted registered code for one narrow v1 job: add typed
-decoration to an already positioned Scene before final bounds/viewBox and backend
-projection. Examples include corner brackets, registration marks, status chrome,
-material grain, and ruled-paper ornament. A primitive remains broadly meaningful
-data; a Treatment is a signature decoration; a backend remains a genuinely
-different compositor outside this branding roadmap.
-
-Without this seam, one-off effects either bloat the declarative schema or replace
-the whole compositor. The seam stays small by refusing pre-layout mutation,
-existing-mark repainting, and raw-output rewriting in v1.
-
-```ts
-registerTreatment({
-  descriptor: {
-    id: 'treatment:acme/corner-brackets',
-    kind: 'treatment',
-    version: '1.0.0',
-    reads: ['role', 'channels', 'bounds'],
-    emits: ['ornament'],
-    bounds: 'monotonic-expand',
-    preserves: ['existingMarks', 'semanticIdentity', 'accessibility', 'hitGeometry'],
-  },
-  apply(positionedScene, ctx) {
-    return { additions: ctx.mapMarks(positionedScene, addCornerBrackets), diagnostics: [] }
-  },
-})
-```
-
-If B4 is promoted, core freezes the typed Treatment registry view, validates the
-selected ordered list, and invokes each pass exactly once. Treatments receive no `next` callback
-and cannot skip, duplicate, reorder, or re-enter downstream work. They may emit
-only typed additions and monotonically expand declared local bounds; they may not
-change intrinsic measurement, existing mark geometry/paint, layout anchors,
-obstacle topology, connector routes, semantic endpoints, authored hit geometry,
-or existing identity. Any effect requiring those powers is evidence for a core
-primitive or a separately promoted future protocol—not an optional v1 phase.
-
-The context contains family identity, selected modes, output, a partitioned seed,
-readonly installed resources, and negotiated capabilities. Core validates emitted
-mark/trait acceptance, z-order, generated IDs, semantic parents, bounds,
-accessibility, clipping, failure isolation, and backend/output support. A
-Treatment that dispatches across many families is evidence that the role or
-primitive vocabulary is incomplete.
-
-Execution is deterministic and immutable-input/pure-output. Allowed randomness
-is partitioned by document seed + Treatment ID/version + semantic mark ID + pass
-index. Wall clock, environment, network, ambient filesystem, global mutable
-state, shared PRNGs, raw CSS/SVG/HTML, JavaScript, callbacks, and unapproved URLs
-are forbidden. A host must install and allowlist a Treatment before a pack can
-select it; loading untrusted JSON never registers or activates code.
+B4 is not an API commitment. Until a concrete effect passes B4's primitive-
+versus-backend evidence gate, there is no public Treatment field, descriptor,
+registry, selection path, pipeline, or conformance claim. If the gate passes,
+B4 must preserve positioned geometry, semantic identity, accessibility, hit
+geometry, determinism, strict output security, and monotonic final bounds; the
+smallest protocol that proves those invariants is designed then. The B4 phase
+below is the sole owner of that decision and its acceptance criteria.
 
 ### One resolved appearance
 
@@ -767,7 +730,7 @@ The composition laws are public API:
 12. **JSON safety:** declarative records contain no executable code, markup, or
     unapproved resource URLs.
 
-## Mermaid 11.16 family envelope
+## Pinned Mermaid family envelope
 
 The machine-readable upstream manifest records the full official public surface,
 including core, first-party external, compatibility aliases, maturity, and
@@ -823,17 +786,17 @@ gates.
 
 ### One upstream manifest
 
-Generate and commit an `UpstreamMermaidManifest` from the pinned Mermaid package,
-official docs navigation/pages (including pages missing from navigation), config
-schema, detector registry, beta policy, external first-party registrations, and
-harvested upstream fixtures. Assign every public family exactly one hashed
-official syntax page; derive heading-level feature and deduplicated example
-inventories for supported and unsupported families alike; record introduction
-and deprecation as either a cited version or explicitly `not-declared`; validate
-external first-party entries separately from the core detector registry. Store
-the Mermaid version and source commit/SHA. Runtime detection consumes a compact
-generated family projection, not this semantic audit corpus. On
-dependency upgrade, CI must report:
+The committed `UpstreamMermaidManifest` is generated from the pinned Mermaid
+package, official docs navigation/pages (including pages missing from navigation),
+config schema, detector registry, beta policy, external first-party registrations,
+and harvested upstream fixtures. Every public family owns exactly one hashed
+official syntax page; generated heading-level feature and deduplicated example
+inventories cover supported and unsupported families alike; introduction and
+deprecation are either a cited version or explicitly `not-declared`; external
+first-party entries are validated separately from the core detector registry.
+The manifest records the Mermaid version and source commit/SHA. Runtime detection
+consumes a compact generated family projection, not this semantic audit corpus.
+On dependency upgrade, CI reports:
 
 - families or dialects added/removed;
 - new or changed headers and aliases;
@@ -847,11 +810,11 @@ Every claimed native cell still needs executable evidence.
 
 ### One family descriptor
 
-Evolve the existing `FamilyPlugin` plus `BUILTIN_FAMILY_METADATA` authority into
-one canonical `FamilyDescriptor`; do not layer a second registry over it. The
-legacy metadata API may remain only as a generated compatibility projection of
-the descriptors; independently authored metadata and copied projections are
-deleted. The descriptor should declare:
+One canonical `FamilyDescriptor` subsumes the former `FamilyPlugin` plus
+`BUILTIN_FAMILY_METADATA` authority; no second registry is layered over it. The
+legacy metadata API is only a generated compatibility projection of descriptors;
+independently authored metadata and copied projections are deleted. Each
+descriptor declares:
 
 - stable internal ID, official upstream ID, headers/aliases, maturity/version;
 - detector and collision priority;
@@ -892,17 +855,18 @@ is used.
 
 ### Extension versioning and conformance
 
-- Version persisted authoring formats (`StyleSpec` compatibility input and
-  `BrandPack`) plus the small readonly interfaces exposed to installed
-  extensions. `ResolvedAppearance` remains internal and is not independently
-  negotiated.
-- Treat human-friendly names and version ranges as authoring inputs. A
+- Persisted authoring formats are versioned: the `StyleSpec` compatibility input
+  now, and `BrandPack` once B2 exists. The small readonly interfaces exposed to
+  installed extensions are versioned too. `ResolvedAppearance` remains internal
+  and is not independently negotiated.
+- Human-friendly names and version ranges are authoring inputs. A
   reproducibility record locks the exact pack, backend, core/Scene/config
   contracts, resources/content hashes, frozen capability decision, and—when B4
   exists—selected Treatment identities. Replaying without that snapshot is
   best-effort.
-- Share only `ExtensionIdentity { id, kind, version, compatibility, provenance }`
-  plus namespacing/collision helpers. `FamilyDescriptor`, `BackendDescriptor`,
+- Extension kinds share only
+  `ExtensionIdentity { id, kind, version, compatibility, provenance }` plus
+  namespacing/collision helpers. `FamilyDescriptor`, `BackendDescriptor`,
   `ResourceManifest`, and—once B2 exists—`BrandPack` remain
   kind-specific typed views backed by separate registries;
   `TreatmentDescriptor` joins them only if B4 is promoted. Families
@@ -910,23 +874,25 @@ is used.
   only an activated B4 Treatment set forms an ordered pipeline. Registration
   collisions fail; replacement is explicit; every render freezes the relevant
   typed snapshots.
-- Negotiate the family + backend + output + host-policy capability set before
-  layout/render, plus the Treatment stack only when B4 exists. Missing required capability is a
-  structured error; a missing preferred capability follows one declared lossy/
-  projected fallback with a diagnostic; optional unknown capabilities remain
-  inert and discoverable.
-- Namespace family IDs, role IDs, config keys and open `CapabilityId` strings;
-  add `brand-pack:` IDs with B2 and `treatment:` IDs only if B4 exists.
-  Capability requirements are `required | preferred | optional` and may carry numeric limits; a closed enum must not
-  make an unknown future ID unrepresentable.
-- Retain the executable backend/Scene admission gate for the existing backend
-  API. Its versioned, frozen fixture directly proves deterministic `drawNode`
-  and document SVG, one safe SVG envelope, and representative document,
-  container, shape, text, connector, marker, accessibility and data-mark
-  preservation. The discoverable report pins Scene and output-security contract
-  versions. It is a smoke result, not certification of every declared primitive
-  claim or every family. PNG inherits admitted SVG through the separately tested
-  canonical secured rasterizer; registration does not pretend to test PNG pixels.
+- The family + backend + output + host-policy capability set is negotiated before
+  layout/render. The Treatment stack joins that negotiation only when B4 exists.
+  A missing required capability is a structured error; a missing preferred
+  capability follows one declared lossy/projected fallback with a diagnostic;
+  optional unknown capabilities remain inert and discoverable.
+- Family IDs, role IDs, config keys and open `CapabilityId` strings are
+  namespaced; B2 adds `brand-pack:` IDs and B4 adds `treatment:` IDs only if
+  promoted. Capability requirements are `required | preferred | optional` and
+  may carry numeric limits; a closed enum must not make an unknown future ID
+  unrepresentable.
+- The existing backend API retains its executable backend/Scene admission gate.
+  Its versioned, frozen matrix directly proves deterministic `drawNode`
+  and document SVG, one safe SVG envelope, and one exact witness for every
+  first-party core primitive/feature/operation claim. The discoverable report
+  pins Scene and output-security contract versions and marks namespaced extension
+  claims explicitly unverified when no core witness exists. This is bounded SVG
+  conformance, not family-scale visual, bounds, hit-testing, performance, or PNG
+  pixel certification. PNG inherits admitted SVG through separately tested
+  canonical secured rasterizers.
 - If B4 is promoted, publish its broader versioned Treatment conformance suite.
   That suite should pin core/interface/resource versions and hashes and test
   routing, opaque behavior, mark/role acceptance, style composition, pass order,
@@ -935,10 +901,10 @@ is used.
   capability cites passing fixture IDs and the pinned runtime/environment;
   structural assertions are paired with reference renders and explicit fuzzy
   thresholds where exact bytes are inappropriate.
-- Add greasing fixtures for unknown optional capability/config/role values and
-  required-unknown failures so extension paths do not ossify around only today's
-  registrations.
-- Preserve unknown namespaced capability IDs in discovery/negotiation; unknown
+- Conformance includes greasing fixtures for unknown optional capability/config/
+  role values and required-unknown failures so extension paths do not ossify
+  around only today's registrations.
+- Discovery and negotiation preserve unknown namespaced capability IDs; unknown
   required features fail with one structured unsupported list. Declarative v1
   schemas reject all unknown fields, including would-be extension payloads, so a
   typo cannot become inert configuration. A future extension field requires a
@@ -952,7 +918,7 @@ is used.
   path, media type, SHA-256 digest, byte size, license and required/optional
   status. Reject traversal, symlinks, MIME mismatch and declared limits; a
   readonly resolver exposes only verified resources.
-- Run every first- or third-party backend result through one fail-closed
+- Every first- or third-party backend result passes through one fail-closed
   `OutputSecurityPolicy`: active content is rejected in every mode and strict
   mode additionally rejects every external reference. Raw Mermaid `themeCSS`
   is diagnosed before rendering because selectors can escape an imported SVG;
@@ -1018,7 +984,8 @@ quality checks. The canonical `ConnectorMark` contract must carry:
 - semantic endpoints, direction, relationship kind, identity, accessibility,
   status/category/emphasis channels and safe interaction metadata;
 - positioned route geometry with explicit routing ownership, preserved
-  subpaths/closedness, stable marker anchors and endpoint tangents, label
+  subpaths/closedness, exact path marker-mid vertices distinct from routed or
+  curve-control points, per-contour marker anchors and endpoint tangents, label
   anchors and hit geometry;
 - bend geometry (`bendRadius`) separately from stroke-corner paint;
 - stroke width, color/opacity, dash array/offset, `lineCap`, `lineJoin`,
@@ -1027,15 +994,16 @@ quality checks. The canonical `ConnectorMark` contract must carry:
 - typed start/mid/end marker archetypes or geometry, `viewBox`, `refX`/`refY`,
   overflow, `markerUnits`, fill/stroke/context paint, scale, orientation, bounds
   and stable resource identity;
-- label paint/halo and the marker/label clearance required by layout;
+- label paint, typography, visual ownership, halo and the marker/label
+  clearance required by layout;
 - a typed terminal evidence projection and stable diagnostics for features a
   character grid cannot represent. Family cell-grid routing remains
-  family-owned; topology defects such as `TERM-1/2` are not disguised as
+  family-owned; topology defects such as `TERM-1` and `TERM-2` are not disguised as
   primitive parity.
 
 Bounds and hit testing include cap extension, half stroke width, acute miter
-spikes, marker bounds, filters/shadows, core positioned additions, and declared
-Treatment displacement only when B4 exists.
+spikes, marker bounds, filters/shadows, and declared Treatment displacement only
+when B4 exists.
 Closing a path and drawing an explicit final segment remain distinct because
 their cap/join and marker semantics differ. Roughening a connector may alter its
 shaft but must preserve semantic topology, marker anchors/tangents and dash
@@ -1077,9 +1045,9 @@ institutionalize the same ambiguity at a larger scale.
 |---|---|---|
 | upstream Mermaid inventory | `UpstreamMermaidManifest` | upgrade diff, compatibility/adoption review, syntax fixtures, maturity labels |
 | shipped family and capabilities | `FamilyDescriptor` registry | types/narrowers, routing, CLI/MCP/editor/site/docs, citizenship matrix |
-| public brand/style fields | one typed field manifest + JSON Schema | the single `style` stack, `StyleSpec` compatibility input, `BrandPack`, validator, docs, CLI/MCP/editor forms |
+| public brand/style fields | one typed field manifest + JSON Schema | the single `style` stack, `StyleSpec` compatibility input, `BrandPack`, validator, docs, and generated controls for every enrolled surface |
 | semantic roles/channels | core role registry + family adapter declarations | Scene types, brand consumption matrix, constraints, and Treatments only if B4 exists |
-| render request | one normalized `ResolvedRenderRequest`, shared-field manifest and output projection descriptors | SVG, PNG, ASCII/Unicode, CLI, MCP, editor, website |
+| render request | one normalized `ResolvedRenderRequest`, shared-field manifest and output projection descriptors | SVG, PNG, ASCII/Unicode, CLI, Code Mode, MCP, editor, website |
 | appearance resolution | one pure `resolveAppearance` | measurement, layout, Scene lowering, all render backends |
 | Scene and primitives | versioned Scene/Connector schema plus bounds, identity, hit-testing and ordering invariants | layout, backends, accessibility and conformance suites; B4 reuses the invariants if promoted |
 | extension identity | shared identity/namespacing helpers plus the Style registry's typed Palette/Look views and separate family/backend/resource registries; B2 adds a separate BrandPack registry and B4 may add Treatment | collision-safe registration, one generated discovery projection, negotiation and frozen typed snapshots; no generic extension pipeline or cross-kind heterogeneous backing map |
@@ -1087,25 +1055,28 @@ institutionalize the same ambiguity at a larger scale.
 | conformance evidence | the existing characterization catalog and citizenship/style/backend suites, extended with stable capability IDs | generated implementation reports and release claims without a second fixture catalog |
 | output security | one `OutputSecurityPolicy` | every backend/output adapter and editor insertion path |
 | examples | family descriptor minimal example + a shared example manifest | editor, website, docs, evals, contact sheets |
-| live work | root `TODO.md`; completed work moves to `docs/project/archive/` | issues/PRs; this plan supplies dependency and acceptance evidence, not a second checklist |
+| live work | root `TODO.md`; landing/completion evidence may enter `docs/project/archive/` only with explicit status and no unchecked work | issues/PRs; this plan supplies dependency and acceptance evidence, not a second checklist |
 
 ### Consistency invariants
 
 - vocabulary in this plan, public docs, types, diagnostics, and capability JSON
   uses the glossary above;
-- every declared family header routes identically through SDK, SVG, ASCII, CLI,
-  MCP, and editor preprocessing;
+- every declared family header routes identically through every enrolled
+  parsing/render surface;
 - every public field has one descriptor projected into TypeScript, runtime
-  validation, JSON Schema, CLI/MCP, editor, and docs. Runtime admission is
+  validation, JSON Schema, docs, and every enrolled surface. Runtime admission is
   identical across transports; schemas encode every portable structural
   constraint and name any recursive/security validator that cannot be expressed
   exactly in standard JSON Schema rather than silently weakening it;
-- every render surface either forwards a field or exposes a stable unsupported
-  diagnostic—never silent omission;
-- equivalent fixtures entering through the library, CLI, local/hosted MCP,
-  editor and website adapters produce the same shared resolved-request and
-  resolved-appearance digests; output-only fields are excluded by a checked manifest,
-  not hand-picked by each test;
+- every render surface records each shared field as `forwarded`,
+  `host-enforced`, or `unavailable`; the latter has a stable diagnostic and
+  host enforcement is visible in the effective receipt—never silent omission
+  or rewriting;
+- equivalent forwarded fixtures entering through the library, CLI, Code Mode,
+  local/hosted MCP, editor and website adapters produce the same shared
+  resolved-request and resolved-appearance digests; host-enforced fixtures
+  produce the declared constrained digests, and output-only fields are excluded
+  by a checked manifest, not hand-picked by each test;
 - layout and rendering consume identical resolved typography/spacing/shape
   values;
 - all family adapters account for every core role they emit and every public
@@ -1181,19 +1152,12 @@ resolution, universal source envelopes, extension identity, font/style/palette
 catalogues, CSS named colors, strict output security, and resource provenance.
 The compatibility names that remain are generated views, not alternate owners.
 
-Only the residual opportunities below remain live; this plan does not restate
-their acceptance detail.
-
-| Priority | Remaining consolidation | Sole status owner | Target authority |
-|---|---|---|---|
-| P0 | public brand roles and removal of private built-in face advantages | `BUILD-31` (B1/B5) | public brand primitives compile to the same `ResolvedAppearance` used by built-ins; delete private-only expressive paths after equivalence |
-| P1 | family config value rules and resolver diagnostics still sit beside descriptor-owned section/key/no-op inventories | `CONS-44` | descriptor-owned schema/diagnostic hook, then generated transport projections where duplication is proved |
-| P1 | agent and legacy family parsers re-encode the same grammar | `CONS-26` | one family grammar AST with source-preserving agent projections |
-| P1 | minimal examples remain duplicated across editor, website and fixtures | `CONS-27` | descriptor example plus generated shared fixtures |
-| P1 | remaining non-marker `RawMark` escapes | `CONS-41` | typed document, icon, interaction or explicitly classified escape contracts |
-| P2 | shape outlines, accessibility parsing and repeated body utilities | `CONS-11`, `CONS-16`, `CONS-30` | small shared pure helpers with characterization and property tests |
-| P2 | physical layout-pass files, mutation configs and terminal canvas/context mechanics | `CONS-40`, `CONS-43`, `CONS-45` | generated manifests or cohesive helpers without universalizing family semantics |
-| Conditional | a signature effect that demonstrably fits neither a primitive nor a backend | `BUILD-31` B4 evidence gate | one post-positioning Treatment seam only if the gate passes; otherwise no seam |
+Residual implementation opportunities and their priorities live only in root
+[`TODO.md`](../../TODO.md): Section B is owned by `BUILD-31`, and proven
+mechanical duplication is owned under
+[Consolidation / dedup backlog](../../TODO.md#consolidation--dedup-backlog).
+This plan retains dependency and acceptance invariants, not another ranked work
+queue.
 
 Do not consolidate family parsers into a universal grammar, family layouts into a
 universal layout algorithm, or family palette semantics into one cycling rule.
@@ -1253,243 +1217,51 @@ documents supply probe evidence only.
 
 | Plan boundary | Status owner | Independent scope retained |
 |---|---|---|
-| A0–A7 | completed; [`Section A completion record`](./archive/section-a-rendering-contract-2026-07.md) | referenced `CONS-*`, `SRC-*`, `TERM-*`, security, family-adoption and evidence items keep any work beyond Section A |
+| A0–A7 | implementation candidate under final gates; [`Section A landing record`](./archive/section-a-rendering-contract-2026-07.md) | referenced `CONS-*`, `SRC-*`, `TERM-*`, security, family-adoption and evidence items keep any work beyond Section A |
 | B0–B5 | active `BUILD-31` | Cupertino/holdout acceptance evidence; native-family adoption remains `BUILD-6` |
 
 The graph above defines hard phase dependencies. Reused IDs in the table retain
 their independent scope, status, and evidence; `BUILD-31` coordinates Section B
 without absorbing or silently closing them.
 
-Newly shipped surfaces such as those proposed by `BUILD-27/28/29` join the A2/A5
+Newly shipped surfaces such as those proposed by `BUILD-27`, `BUILD-28`, and
+`BUILD-29` join the A2/A5
 transport contract when they land; they do not create parallel brand inputs or
 block the current program.
 
-## Section A — completed correctness, parity, consolidation, and essential primitives
+## Section A — correctness, parity, consolidation, and essential primitives
 
-Section A is an enforced architectural baseline, not live work. The A0–A7
-bullets below retain the normative obligations that future changes must
-preserve; closure evidence, retired authorities, and verification commands are
-in the [completion record](./archive/section-a-rendering-contract-2026-07.md).
+Section A is implemented as a landing candidate, not yet an architectural
+baseline. It becomes authoritative only after the final gates pass and its PR
+merges. Until then, the
+[landing record](./archive/section-a-rendering-contract-2026-07.md) owns
+candidate evidence and execution history.
 
-### A0 — truth and characterization floor
+Root `TODO.md` is the sole status-bearing backlog. This table preserves the
+permanent contract and names executable evidence; it does not create phase
+checklists or imply that independently owned work is complete.
 
-- Correct claims about registered versus upstream families, `registerFamily`,
-  `registerBackend`, SVG/PNG parity and terminal projection.
-- Characterize current precedence, routing, family/backend/output behavior and
-  public-surface receipt before changing it.
-- Fix skip-undefined stack merging and distinguish omission from rejected JSON
-  `null` before adding nested records.
-- Define the capability/parity vocabulary and quantify tests over registries
-  rather than copied counts.
+### Permanent Section A contract
 
-Exit: current behavior and known divergence are machine-readable; a change
-cannot improve one path by silently changing another.
+| Boundary | Permanent invariant | Generated or machine-evidence authority | Ongoing TODO owner and independent scope |
+|---|---|---|---|
+| A0 — truth and characterization | Claims use the applicable checked state vocabulary for their dimension; family syntax, transport, output, backend and realization states are never mixed into one ambiguous scale. Registries, current precedence, routing, fields and capability behavior are characterized before they change. | Generated Section A capability report; `section-a-capability-report.test.ts`; `section-a-render-contract.test.ts`. | New gaps are promoted only in `TODO.md`; characterization evidence in the landing archive is not a backlog. |
+| A1 — identities and registries | Shared `ExtensionIdentity` rules feed typed, kind-specific family, backend, resource, Palette and Look registries; external executable families and backends declare compatible core ranges before hooks run, Scene consumers also declare Scene ranges, and deterministic discovery exposes only committed registrations. Compatibility aliases such as bare `tufte` are diagnosed and time-bounded rather than silently shadowing canonical names. | Registry descriptors and generated discovery projections; `extension-registries.test.ts`; `style-spec-authority.test.ts`; `family-registration-conformance.test.ts`. | Alias removal is owned by `COMPAT-1`; future extension work remains root-TODO work; BrandPack and conditional Treatment registries belong to Section B. |
+| A2 — request and appearance waist | One immutable `ResolvedRenderRequest` and one internal `ResolvedAppearance` normalize precedence once; checked shared/output field descriptors project validation and receipts into every transport and output adapter, with every shared-field×surface cell declared `forwarded`, `host-enforced`, or `unavailable`. Family-specific fields also declare applicability: a supplied field must affect that family or emit a stable `RENDER_OPTION_NOT_APPLICABLE` diagnostic instead of changing identity silently. | RenderOptions/StyleSpec generated artifacts, the generated shared-field×surface matrix, applicability diagnostics, and request/appearance digests; `render-options-authority.test.ts`; `section-a-transport-parity.test.ts`. | New surfaces from `BUILD-27`, `BUILD-28`, and `BUILD-29` must enroll in this contract when they land; they do not reopen or block Section A. |
+| A3 — essential primitives | Versioned typed Scene marks make connectors, routes, markers, hit geometry, identity and accessibility semantic inputs; terminal projections declare each lossy or unsupported feature instead of reconstructing graphical output. | Scene/Connector schema, capability report and conformance fixtures; `scene-connector-contract.test.ts`; `terminal-projection-security.test.ts`. | Family cell-grid topology remains solely owned by `TERM-1` and `TERM-2`; Section A does not claim terminal pixel or topology parity. |
+| A4 — families and positioned artifacts | `FamilyDescriptor` is the open, namespaced family authority for detection, parsing, examples, roles, capabilities and lowering; built-ins and extensions use one lossless envelope and one positioned artifact/projection without core switches. A native layout claim must prove finite positive positioned/projected bounds and at least one semantic item on its canonical example. | Descriptor registry and generated family projections; `section-a-family-descriptor-conformance.test.ts`; `family-registration-conformance.test.ts`; `positioned-artifact-convergence.test.ts`. | Native adoption remains `BUILD-6`; config-rule consolidation remains `CONS-44`; minimal-example deduplication remains `CONS-27`. |
+| A5 — subsystem, backend and output parity | Every generated shared-field×surface and output×transport classification cell has an explicit evidence-linked state; every available forwarded or host-enforced request path has a comparable effective receipt. Every registered family and backend has separate registry-wide conformance evidence. External families are staged against one bounded example, run native claims twice through canonical parse/serialize, meaningful layout, strict SVG, portable PNG pre-raster, every terminal encoding/color mode, Scene and verify paths, and roll back on failure, reentrancy or nondeterminism; `native` requires a passed witness. Backend witnesses and browser callback outputs are allocation-bounded before parsing or rewriting. Hosted security and font-import policy is host-owned across SVG, PNG, ASCII and Code Mode layout. Graphical outputs share geometry, one output-security policy, fonts/resources and color policy, while admitted external terminal output reports projection limits rather than claiming pixel parity. | Generated capability/parity report; transport, backend, family-registration, hosted-execute render-policy, browser-PNG, website-receipt and editor-security conformance suites. | Each new surface, backend, family or output must enroll before advertising parity; `TERM-1`, `TERM-2`, and host-dependent font inputs retain their narrower scopes. |
+| A6 — upstream and extension evolution | A pinned upstream manifest recognizes and losslessly preserves pinned-but-unsupported syntax; the open parser preserves unknown future headers and avoids Flowchart fallback. Namespaced identities/capabilities remain forward-compatible with structured unknown-feature diagnostics. | Upstream manifest/diff and compact generated runtime index; `upstream-family-manifest.test.ts`; `extension-registries.test.ts`; claim-keyed backend witnesses. | Native implementation remains solely `BUILD-6`; inventory or preservation never creates a shadow adoption queue. |
+| A7 — subtraction and evidence | Generated projections replace copied rosters, schemas, counts and routing authorities; one evidence catalogue and the landing archive preserve proof, while actionable status exists only in `TODO.md`. | Machine-readable Section A report, docs-consolidation contract and artifact freshness checks. | Remaining `CONS-11`, `CONS-16`, `CONS-26`, `CONS-30`, `CONS-40`, `CONS-41`, `CONS-43`, and `CONS-45` work keeps its independent TODO scope; Section A does not silently close it. |
 
-Deletion gate: copied prose counts/claims are removed or generated, and no new
-contract is introduced before the old receipt path is characterized.
+The evidence column identifies authorities that future changes must keep fresh;
+the landing record may retain exact commands, retired-authority evidence and PR
+provenance, but it may not acquire unchecked work.
 
-### A1 — canonical identities, registries, and historical cleanup
-
-- Define a small shared identity/namespace/provenance/version/collision helper,
-  then apply it through the existing Style registry's typed Palette/Look views
-  and the backend, family, role and resource registries. B2 must reuse it for a
-  separate BrandPack registry; B4 must reuse it for a separate Treatment
-  registry only if promoted.
-  Do not build one heterogeneous runtime registry.
-- Split the two meanings of `tufte` into canonical `palette:tufte` and
-  `look:tufte`; retain the bare alias as a diagnosed compatibility mapping to
-  the currently observable Look for a published window.
-- Derive discovery order, labels, editor choices, CLI/MCP schemas, website copy
-  and docs from registry metadata instead of separate lists.
-- Consolidate style labels, font resources, named colors and aliases behind
-  their existing or new canonical registries.
-- Remove `StyleSpec.backend` from declarative authoring; built-in machinery is
-  inferred. Define the remaining escape hatch as an in-process
-  `HostBackendPolicy` supplied by renderer construction/host integration, never
-  as serializable Style/BrandPack data or a remote CLI/MCP/editor input.
-
-Exit: no registration silently shadows another meaning or owner, and legacy
-aliases have deterministic compatibility mappings and removal windows.
-
-Deletion gate: copied discovery lists and silent `Map.set` replacement paths are
-gone; the old `tufte` alias has a removal release/date; no second descriptor map
-exists beside the evolved authorities.
-
-### A2 — one render request and one resolved appearance
-
-- Introduce one `ResolvedRenderRequest`, a checked shared-field/output-only
-  manifest, and one immutable `ResolvedAppearance` consumed below the boundary.
-- Keep the waist factored into cohesive request, capability and Scene contracts;
-  `ResolvedAppearance` remains an internal ADT rather than an independently
-  negotiated schema or universal object.
-- Normalize current `StyleSpec`, named Looks/Palettes, Mermaid theme/config and
-  explicit render overrides once with one documented precedence model.
-- Make PNG call the shared graphical render path and then rasterize, rather than
-  rebuilding a subset; delete its manual shared-field list and XY-specific source
-  reparse. Define terminal projection as an output adapter rather than a separate
-  styling system.
-- Make library, CLI, local/hosted MCP, editor and website adapters expose
-  comparable request/appearance digests in tests and diagnose unavailable
-  resources or output capabilities.
-
-Exit: the same current-style fixture produces the same shared digests through
-every entry point; no layout, family or backend re-merges raw inputs.
-
-Deletion gate: `THEMES` and family render-style records are compatibility/output
-projections only; PNG and terminal have no parallel appearance resolver; renderers
-cannot read raw style/theme/config below the resolution boundary.
-
-### A3 — essential Scene primitives, with connectors first
-
-- Finalize the core document, text, shape, container/group, connector, marker
-  and chart/data-mark contracts using the criteria above.
-- Define the minimal stable core Scene-role/trait registry and the namespaced-
-  role fallback protocol required by current families. Section A owns semantic
-  identity, applicability and fallback; it does not assign brand values.
-- Make connector route geometry, bend radius, stroke cap/join/miter, dash,
-  markers, labels, hit geometry, identity and accessibility typed rather than
-  reconstructed from SVG strings. Supply a typed connector projection to
-  terminal adapters and receipt evidence; do not claim that this alone replaces
-  each family's cell-grid topology algorithm.
-- Separate authored semantic shape/relationship meaning from configurable paint
-  and applicable geometry defaults.
-- Make measurement, layout, verification, crisp rendering, rough/hybrid
-  rendering and output projection consume the same positioned marks.
-- Define reusable invariants for core post-positioning additions over the
-  existing Scene IR: typed emitted marks, monotonic bounds expansion, ordering,
-  generated identity, determinism, resources, security and failure isolation.
-  Do not add a generic registry or pipeline in A3; B4 reuses these invariants if
-  promoted. Do not add pre-layout or paint-mutation Scene IRs.
-- Record primitive support per feature and operation (`native | emulated |
-  projected | lossy | unsupported`), not coarse flags such as `connectors:
-  true`; validate
-  claims against each actual target renderer, not only the format specification.
-
-Exit: every essential primitive has one typed contract, explicit consumers and
-an unsupported/projection diagnostic. Connector semantics survive every
-graphical backend and are present in terminal projection evidence; known
-cell-grid semantic defects remain explicitly owned by `TERM-1/2`.
-
-Deletion gate: applicable connectors/markers are no longer reconstructed from
-SVG strings or family-local marker XML, and A3 adds no dormant Treatment
-registry, selector or pipeline.
-
-### A4 — canonical family and positioned-artifact protocol
-
-- Evolve `FamilyPlugin` plus `BUILTIN_FAMILY_METADATA` into `FamilyDescriptor` as
-  the authority for identity, headers, detection, config section/key/no-op
-  inventory, examples, role maps, operations, layout, Scene lowering and
-  capability evidence; do not add a parallel family registry. Richer config
-  value-rule consolidation remains independently owned by `CONS-44`.
-- Separate closed built-in IDs from open namespaced extension IDs.
-- Evolve `NormalizedMermaidSource`/`ValidDiagram` into one lossless envelope view;
-  do not add a third envelope. Family parsers receive the preserved body rather
-  than rescanning universal metadata independently.
-- Converge SVG, PNG, layout JSON, verify, certificates and quality checks on one
-  positioned artifact or explicit `projectPositioned` view.
-
-Exit: current families no longer depend on copied routing switches or parallel
-positioning projections; a synthetic family registers atomically.
-
-Deletion gate: duplicate detectors, rendering/discovery metadata lists,
-universal-wrapper parsers, family output switches, and independent SVG/layout
-positioning paths are removed as their descriptor projections land. Product and
-test copies of the canonical minimal example remain independently owned by
-`CONS-27`; A4 does not claim that broader deduplication is complete.
-
-### A5 — first-party subsystem, backend and output parity
-
-- Gate every registered built-in family with `family x role/primitive` consumption and
-  fallback evidence.
-- Gate `default`, `rough` and `hybrid` with `backend x Scene mark/primitive`
-  conformance. Different drawing character is expected; semantic input,
-  geometry requirements, identity, accessibility, security, resources and
-  diagnostics must agree.
-- Gate library/CLI/MCP/editor/website transport receipt independently from
-  backend rendering, then run a sentinel interaction cross-product.
-- Require SVG/PNG semantic-input, geometry and branded-appearance parity for
-  current Styles, content-addressed bundled fonts/resources and strict
-  security. SVG retains inspectable identity/ARIA; PNG is the raster projection
-  and does not pretend those DOM semantics are embedded in its pixels.
-  Cross-output fixtures prove glyph coverage and metrics from the same locked font faces.
-  Caller directories and system fonts are opt-in host inputs: artifact
-  provenance marks them `host-dependent`, and a logical request receipt is not
-  misrepresented as a final-byte digest.
-- Convert typed colors through one declared output profile/gamut policy; assert
-  identical SVG/PNG conversion and the expected PNG sRGB/ICC/cICP metadata and
-  precedence. Extract/harden the existing SVG post-pass into one
-  fail-closed `OutputSecurityPolicy` used by every result and editor insertion
-  path; delete the strip-only mutation paths rather than running another
-  sanitizer beside them.
-- Compile `ResolvedAppearance` into `ResolvedTerminalStyle` for no-color, ANSI
-  16/256, truecolor and HTML; preserve role/hierarchy/emphasis/status semantics
-  and diagnose radius, typography, elevation and other nonrepresentable paint.
-  `auto` resolves from caller override first, then TTY capability, `TERM=dumb`
-  and `NO_COLOR`, and the decision enters the request digest. No-color output
-  preserves status/category through labels, symbols, markers or line patterns;
-  HTML styled text is an output encoding, not a terminal color capability.
-
-Exit: the existing graphical first-party system can claim contract, transport
-and semantic backend parity; terminal output can claim shared appearance and
-diagnostic projection parity, never pixel parity or blanket topology fidelity.
-
-Deletion gate: PNG, terminal and host adapters no longer hand-copy shared fields;
-the old SVG strip-only security path and unsafe editor `innerHTML` path are gone;
-no surface-specific appearance schema remains.
-
-### A6 — upstream and extension forward compatibility
-
-- Establish the version-pinned public-family manifest plus core
-  pseudo/internal watch entries and upgrade diffs. Its official-page, feature,
-  example and lifecycle accounting covers every inventoried family, while a
-  compact generated index is the only projection loaded by render runtimes.
-- Ensure unsupported official and unknown future headers are losslessly
-  preserved or explicitly diagnosed and never fall through to Flowchart.
-- Version persisted/extension-facing Scene, family, capability and resource
-  contracts through kind-specific descriptors, plus Treatment contracts only if
-  B4 is promoted; retain diagnosed
-  compatibility aliases for a published window without a speculative general
-  migration engine.
-- Keep native-family adoption outside this umbrella under `BUILD-6`. Whenever a
-  family is promoted there, require the primitive, backend, output, discovery
-  and citizenship contracts in force when it registers; inventory-only entries
-  remain compatibility evidence rather than an implicit queue.
-
-Exit: a Mermaid upgrade yields a reviewable manifest diff; every stable family
-is native at its advertised capability or explicitly preserved/diagnosed, and a
-synthetic future family needs no new core switch.
-
-Deletion gate: copied upstream rosters and header switches are generated from or
-replaced by the manifest/descriptor authority; unsupported headers cannot reach a
-Flowchart fallback.
-
-### A7 — consolidation and correctness evidence
-
-- Replace duplicated tables/counts with generated registry projections and
-  semantic invariants.
-- Consolidate repeated parsers/helpers only where the abstraction preserves
-  family meaning; do not create a universal grammar, layout or palette rule.
-- Publish request/backend/output/family capability matrices and archive
-  superseded execution plans; keep actionable work in `TODO.md`.
-- Run characterization, property, model-gap, conformance, security,
-  accessibility, deterministic-resource and visual-regression gates.
-- Keep exhaustive one-dimensional conformance for every registered field, role,
-  primitive, family, backend and output; use constrained t-way covering arrays
-  plus targeted high-order security/font/layout cases for interactions, rather
-  than pretending the full Cartesian product is testable.
-- Deliver four normative artifacts: the Scene/Connector schema and invariants;
-  shared `ExtensionIdentity` plus kind-specific descriptor rules; the generated
-  capability/fallback/error-policy matrix; and a machine-readable report over
-  the existing characterization/citizenship/style/backend fixture systems.
-
-Exit: Section A has independent release notes and measurable system benefits
-without relying on a custom BrandPack demo.
-
-Deletion gate: completed/historical plans are visibly non-authoritative, copied
-tables/counts and Section A's duplicate capability-evidence catalogs are gone,
-and the repository reports the number of retired authorities alongside new
-contracts. Remaining product/test fixture duplication stays visible under its
-own `CONS-*` owner rather than being silently counted as Section A closure.
+The detailed A0–A7 execution narrative was deliberately removed from this active
+plan. Permanent invariants already live in the canonical-authority,
+internal-consistency and deletion-first sections above; candidate history lives
+only in the landing archive, and future work lives only in `TODO.md`.
 
 ## Section B — richer custom Styles and branding
 
@@ -1503,8 +1275,8 @@ own `CONS-*` owner rather than being silently counted as Section A closure.
 - Expose common shape/container corner radius and connector bend/cap/join/width/
   dash/marker defaults at this level, subject to semantic applicability and
   authored-source precedence.
-- Generate TypeScript, validator, JSON Schema, docs, CLI/MCP advanced input and
-  editor import/advanced controls from one field manifest.
+- Generate TypeScript, validator, JSON Schema, docs, and controls for every
+  enrolled surface in the generated field×surface matrix from one field manifest.
 
 Exit: changing global sharp/rounded shape and connector character is a small
 inline customization, not a versioned BrandPack project.
@@ -1547,9 +1319,9 @@ equivalence and final deletion of `InternalStyleFace`/`styleFaceOf`.
   and host allowlists. Declarative JSON never installs dependencies, embeds code,
   or performs ambient fetches. Defer migrations until an observed schema break.
 
-Exit: a BrandPack is portable and reproducible through library, CLI, local/
-hosted MCP, editor and website wherever installed-resource capability permits;
-unavailable host resources produce the same structured diagnostics.
+Exit: a BrandPack is portable and reproducible through every enrolled surface in
+the generated field×surface matrix wherever installed-resource capability
+permits; unavailable host resources produce the same structured diagnostics.
 
 Deletion gate: v1 contains no dependency solver, migration registry, general
 token-definition graph, `$extensions` payload, or second BrandPack inheritance
@@ -1576,6 +1348,9 @@ automatic paint/geometry rewriter is introduced.
 
 - Proceed only when a concrete signature effect cannot be expressed as a B0–B3
   primitive/binding and does not justify a backend.
+- If that gate passes, keep a separate, kind-specific Treatment registry; an
+  illustrative descriptor identity is `id: 'treatment:acme/corner-brackets'`.
+  This naming rule does not pre-create the registry or commit v1 to B4.
 - Add the trusted, host-allowlisted ordered addition pipeline over the existing
   positioned Scene, including monotonic bounds expansion, z-order, generated
   identity, hit geometry, failure isolation, and seed partitioning.
@@ -1649,16 +1424,17 @@ compatibility expiry.
   behaviorally equivalent, including private implementation defaults;
 - assert all current family headers route identically on every entry point;
 - assert layout and Scene geometry agree after typography/spacing overrides;
-- submit one serialized fixture through library, CLI, local MCP, hosted MCP,
-  editor and website adapters; compare shared resolved-request digest, resolved-
-  appearance digest, diagnostics and capability decisions;
-- assert `default`, `rough` and `hybrid` consume every applicable Scene
+- submit one serialized fixture through every enrolled transport surface; compare
+  shared resolved-request digest, resolved-appearance digest, diagnostics and
+  capability decisions;
+- assert every first-party registered backend consumes every applicable Scene
   mark/primitive with equal semantic, geometry, identity, accessibility,
   security, resource and diagnostic behavior; intentional visual projection is
   recorded rather than compared for pixel equality;
 - assert every connector preserves endpoints, direction, markers, label/hit
-  geometry and dash/cap/join/bend semantics through positioned layout, each
-  first-party backend, SVG/PNG and terminal projection; stable inspectable
+  geometry and dash/cap/join/bend semantics through positioned layout and every
+  graphical backend/output; terminal projection records each graphical trait as
+  represented, lossy, or unsupported with a stable diagnostic. Stable inspectable
   identity remains an SVG/positioned-artifact contract rather than a PNG-pixel
   claim;
 - cover multiple subpaths, `Z` versus an explicit final `L`, zero-length paths,
@@ -1710,7 +1486,7 @@ compatibility expiry.
   graphical output. A5 supplies a separately specified appearance/diagnostic
   projection and typed connector evidence from the same resolved request;
   family cell-grid topology remains independently tested, with known defects
-  owned by `TERM-1/2`. Non-representable primitives remain diagnosed rather
+  owned by `TERM-1` and `TERM-2`. Non-representable primitives remain diagnosed rather
   than simulated misleadingly.
 - No automatic native rendering of unstable families merely because Mermaid's
   detector recognizes their header.
@@ -1729,7 +1505,7 @@ schema should preclude that layer.
 
 ## Sources
 
-- Mermaid 11.16 documentation navigation and family list —
+- Pinned Mermaid documentation navigation and family list —
   <https://mermaid.ai/open-source/intro/getting-started.html>
 - Mermaid syntax and configuration model —
   <https://mermaid.ai/open-source/intro/syntax-reference.html>
@@ -1742,7 +1518,7 @@ schema should preclude that layer.
   <https://mermaid.ai/open-source/config/accessibility.html>
 - Mermaid source diagram registry —
   <https://github.com/mermaid-js/mermaid/tree/develop/packages/mermaid/src/diagrams>
-- Mermaid 11.16 core registration and detector orchestration —
+- Pinned Mermaid core registration and detector orchestration —
   <https://github.com/mermaid-js/mermaid/blob/f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc/packages/mermaid/src/diagram-api/diagram-orchestration.ts>
 - Mermaid Railroad syntax —
   <https://mermaid.ai/open-source/syntax/railroad.html>

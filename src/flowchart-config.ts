@@ -25,6 +25,7 @@
 import type { MermaidFrontmatterMap } from './mermaid-source.ts'
 import { getFrontmatterScalar } from './mermaid-source.ts'
 import type { MermaidGraph, RenderOptions } from './types.ts'
+import type { InternalStyleFace } from './scene/style-registry.ts'
 import { resolveRenderStyle } from './styles.ts'
 import { wrapLabelToWidth } from './shared/label-wrap.ts'
 
@@ -93,9 +94,13 @@ function configNumber(frontmatter: MermaidFrontmatterMap, key: string): number |
  * Uses the shared measured-pixel wrap (src/shared/label-wrap.ts) with the
  * node-label font the layout measures with — no second wrap implementation.
  */
-export function applyFlowchartLabelWrapping(graph: MermaidGraph, options: RenderOptions): void {
+export function applyFlowchartLabelWrapping(
+  graph: MermaidGraph,
+  options: RenderOptions,
+  styleFace?: Readonly<InternalStyleFace>,
+): void {
   const explicit = options.wrappingWidth
-  const style = resolveRenderStyle(options)
+  const style = resolveRenderStyle(options, undefined, styleFace)
   for (const node of graph.nodes.values()) {
     const budget = explicit ?? (node.markdownLabel ? FLOWCHART_DEFAULT_WRAPPING_WIDTH : undefined)
     if (budget === undefined || !node.label) continue

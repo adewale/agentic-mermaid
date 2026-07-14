@@ -13,6 +13,7 @@ import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
 import { getFrontmatterScalar } from '../mermaid-source.ts'
 import { applyTextTransform, estimateTextWidth, estimateMonoTextWidth, FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults } from '../styles.ts'
+import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import { elkLayoutSync } from '../elk-instance.ts'
 import { directionToElk } from '../layout-engine.ts'
@@ -120,9 +121,10 @@ type EntitySizeMap = Map<string, { width: number; height: number; headerHeight: 
 /** Build ELK graph and size map from an ER diagram. */
 function buildErElkGraph(
   diagram: ErDiagram,
-  options: RenderOptions
+  options: RenderOptions,
+  styleFace?: Readonly<InternalStyleFace>,
 ): { elkGraph: ElkNode; entitySizes: EntitySizeMap } {
-  const style = resolveRenderStyle(options, ER_STYLE_DEFAULTS)
+  const style = resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace)
   const entitySizes: EntitySizeMap = new Map()
 
   for (const entity of diagram.entities) {
@@ -394,14 +396,15 @@ function layoutErGroupsOnly(diagram: ErDiagram): PositionedErDiagram {
  */
 export function layoutErDiagram(
   diagram: ErDiagram,
-  options: RenderOptions = {}
+  options: RenderOptions = {},
+  styleFace?: Readonly<InternalStyleFace>,
 ): PositionedErDiagram {
   if (diagram.entities.length === 0) {
     if (diagram.groups.length > 0) return layoutErGroupsOnly(diagram)
     return { width: 0, height: 0, accessibilityTitle: diagram.accessibilityTitle, accessibilityDescription: diagram.accessibilityDescription, entities: [], relationships: [], groups: [] }
   }
 
-  const { elkGraph, entitySizes } = buildErElkGraph(diagram, options)
+  const { elkGraph, entitySizes } = buildErElkGraph(diagram, options, styleFace)
   const result = elkLayoutSync(elkGraph)
   return extractErLayout(result, diagram, entitySizes)
 }

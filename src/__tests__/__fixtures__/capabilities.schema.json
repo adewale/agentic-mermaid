@@ -13,9 +13,17 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["id", "hasMutate", "hasExtractLabels", "mutationOps", "editPolicy"],
+        "required": ["id", "identity", "conformance", "hasMutate", "hasExtractLabels", "mutationOps", "editPolicy"],
         "properties": {
           "id": { "type": "string" },
+          "identity": {
+            "type": "object",
+            "required": ["id", "version", "compatibility", "provenance"]
+          },
+          "conformance": {
+            "type": "object",
+            "required": ["version", "familyId", "example", "passed", "capabilities"]
+          },
           "hasMutate": { "type": "boolean" },
           "hasExtractLabels": { "type": "boolean" },
           "mutationOps": {

@@ -62,7 +62,7 @@ describe('quadrant lowering is text-faithful', () => {
     return lowerQuadrantScene({
       positioned,
       colors: { bg: '#FFFFFF', fg: '#27272A', font: 'Inter' },
-      options: {},
+      resolved: { renderOptions: {} },
     })
   }
 

@@ -1,9 +1,12 @@
 import { describe, expect, test } from 'bun:test'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
-import '../agent/families-builtin.ts'
-import '../render-family-hooks.ts'
-import { getFamily, knownFamilies, type FamilyDescriptor } from '../agent/families.ts'
+import {
+  UNREGISTERED_FAMILY_CAPABILITY_STATES,
+  getFamily,
+  knownFamilies,
+  type FamilyDescriptor,
+} from '../agent/families.ts'
 import {
   FAMILY_SYNTAX_STATES,
   SYNTAX_CAPABILITY_DIMENSIONS,
@@ -52,6 +55,9 @@ describe('generated Mermaid syntax capability ledger', () => {
     expect(ledger.features.some(row => row.state === 'absent')).toBe(false)
     expect(ledger.families.some(row => row.state === 'absent')).toBe(false)
     expect(ledger.families.some(row => Object.values(row.processing ?? {}).includes('absent'))).toBe(false)
+    for (const row of ledger.families.filter(row => row.dimensionId === 'processing' && !row.registrationId)) {
+      expect(row.processing).toEqual(UNREGISTERED_FAMILY_CAPABILITY_STATES)
+    }
     expect(validateSyntaxCapabilityLedger(ledger, UPSTREAM_MERMAID_MANIFEST, familyIds(ledger))).toEqual([])
   })
 
@@ -63,14 +69,14 @@ describe('generated Mermaid syntax capability ledger', () => {
         expect({ source: evidence.source, exists: existsSync(join(ROOT, evidence.source)), locator: evidence.locator.length > 0 })
           .toEqual({ source: evidence.source, exists: true, locator: true })
       }
-      if (row.state !== 'native') expect(row.diagnostic).toBeTruthy()
+      if (row.state !== 'native') expect(row.diagnostic?.length).toBeGreaterThan(0)
     }
     for (const row of ledger.features) {
       expect(row.evidence.length).toBeGreaterThan(0)
-      expect(row.artifactId).toBeTruthy()
+      expect(row.artifactId.length).toBeGreaterThan(0)
       expect(row.fingerprint).toMatch(/^[0-9a-f]{64}$/)
       for (const source of row.evidence) expect(existsSync(join(ROOT, source))).toBe(true)
-      if (row.state !== 'native') expect(row.diagnostic).toBeTruthy()
+      if (row.state !== 'native') expect(row.diagnostic?.length).toBeGreaterThan(0)
     }
   })
 
@@ -117,6 +123,25 @@ describe('generated Mermaid syntax capability ledger', () => {
       UPSTREAM_MERMAID_MANIFEST,
       expectedFamilies,
     )).toContain(`syntax family ${absentFamily.families[0]!.familyId}/${absentFamily.families[0]!.dimensionId} is absent`)
+
+    const driftedOpenFamily = structuredClone(original) as unknown as {
+      families: Array<{
+        familyId: string
+        dimensionId: string
+        registrationId?: string
+        processing?: Record<string, string>
+      }>
+    }
+    const openProcessing = driftedOpenFamily.families.find(row =>
+      row.dimensionId === 'processing' && !row.registrationId)!
+    openProcessing.processing!.serialize = 'diagnosed'
+    expect(validateSyntaxCapabilityLedger(
+      driftedOpenFamily as unknown as SyntaxCapabilityLedger,
+      UPSTREAM_MERMAID_MANIFEST,
+      expectedFamilies,
+    )).toContain(
+      `syntax family ${openProcessing.familyId}/processing does not match the canonical unregistered-family contract`,
+    )
   })
 
   test('automatically accounts for a synthetic next-version feature without descriptor copies', () => {

@@ -18,13 +18,17 @@ xychart
   title Revenue
   bar [10, 20]`
 
+const SAFE_SOURCE = `xychart
+  title Revenue
+  bar [10, 20]`
+
 let server: ReturnType<typeof Bun.serve>
 let browser: Browser
 let page: Page
 let strictSvg = ''
 
 beforeAll(async () => {
-  strictSvg = renderMermaidSVG(HOSTILE_SOURCE, { security: 'strict' })
+  strictSvg = renderMermaidSVG(SAFE_SOURCE, { security: 'strict' })
   const served = serveWithAvailablePort({
     preferredPort: PREFERRED_PORT,
     fetch() {
@@ -78,6 +82,11 @@ afterAll(async () => {
 })
 
 describe('Trusted Types + strict CSP browser verification', () => {
+  it('rejects raw Mermaid themeCSS before producing strict SVG', () => {
+    expect(() => renderMermaidSVG(HOSTILE_SOURCE, { security: 'strict' }))
+      .toThrow('Raw Mermaid themeCSS is not allowed in strict security mode')
+  })
+
   it('strict SVG can be inserted with a TrustedHTML policy and makes no external requests', async () => {
     const externalRequests: string[] = []
     page.on('request', req => {

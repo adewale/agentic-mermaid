@@ -19,7 +19,7 @@ function renderSvg(
   return renderSvgWithContext({
     positioned,
     colors: { ...colors, font },
-    options: { ...options, transparent },
+    resolved: { renderOptions: { ...options, transparent } },
   })
 }
 
@@ -531,44 +531,34 @@ describe('renderSvg – XML escaping', () => {
 // ============================================================================
 
 describe('renderSvg – inline style XSS prevention', () => {
-  it('escapes attribute injection in inline style fill', () => {
+  it('rejects attribute injection in inline style fill', () => {
     const node = makeNode({ inlineStyle: { fill: 'red" onmouseover="alert(1)' } })
     const graph = makeGraph({ nodes: [node] })
-    const svg = renderSvg(graph, lightColors)
-    expect(svg).not.toContain('onmouseover="alert')
-    expect(svg).toContain('red&quot; onmouseover=&quot;alert(1)')
+    expect(() => renderSvg(graph, lightColors)).toThrow(/safe non-fetching CSS paint/)
   })
 
-  it('escapes element injection in inline style fill', () => {
+  it('rejects element injection in inline style fill', () => {
     const node = makeNode({ inlineStyle: { fill: 'red"/><svg onload="alert(1)"><rect fill="x' } })
     const graph = makeGraph({ nodes: [node] })
-    const svg = renderSvg(graph, lightColors)
-    expect(svg).not.toContain('<svg onload')
-    expect(svg).toContain('&lt;svg onload=')
+    expect(() => renderSvg(graph, lightColors)).toThrow(/safe non-fetching CSS paint/)
   })
 
-  it('escapes injection in inline style stroke', () => {
+  it('rejects injection in inline style stroke', () => {
     const node = makeNode({ inlineStyle: { stroke: 'blue" onclick="alert(1)' } })
     const graph = makeGraph({ nodes: [node] })
-    const svg = renderSvg(graph, lightColors)
-    expect(svg).not.toContain('onclick="alert')
-    expect(svg).toContain('blue&quot; onclick=&quot;alert(1)')
+    expect(() => renderSvg(graph, lightColors)).toThrow(/safe non-fetching CSS paint/)
   })
 
-  it('escapes injection in inline style stroke-width', () => {
+  it('rejects injection in inline style stroke-width', () => {
     const node = makeNode({ inlineStyle: { 'stroke-width': '2" onmouseover="alert(1)' } })
     const graph = makeGraph({ nodes: [node] })
-    const svg = renderSvg(graph, lightColors)
-    expect(svg).not.toContain('onmouseover="alert')
-    expect(svg).toContain('2&quot; onmouseover=&quot;alert(1)')
+    expect(() => renderSvg(graph, lightColors)).toThrow(/finite number or safe numeric custom-property reference/)
   })
 
-  it('escapes injection in inline style color', () => {
+  it('rejects injection in inline style color', () => {
     const node = makeNode({ inlineStyle: { color: 'green" onfocus="alert(1)' } })
     const graph = makeGraph({ nodes: [node] })
-    const svg = renderSvg(graph, lightColors)
-    expect(svg).not.toContain('onfocus="alert')
-    expect(svg).toContain('green&quot; onfocus=&quot;alert(1)')
+    expect(() => renderSvg(graph, lightColors)).toThrow(/safe non-fetching CSS paint/)
   })
 })
 

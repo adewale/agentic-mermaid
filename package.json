@@ -129,7 +129,7 @@
   "scripts": {
     "test": "bun test --coverage src/__tests__/",
     "typecheck": "tsc --noEmit",
-    "test:browser": "cd e2e && bun test . --timeout 600000",
+    "test:browser": "cd e2e && AM_BROWSER_TESTS=1 bun test . ../src/__tests__/editor-theme-switch.test.ts ../src/__tests__/editor-style-switch.test.ts ../src/__tests__/website-browser-a11y.test.ts --timeout 600000",
     "editor": "bun run scripts/site/editor.ts",
     "dev": "bun run website:dev",
     "bench": "bun run eval/benchmark/sample-bench.ts",

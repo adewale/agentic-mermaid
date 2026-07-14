@@ -23,7 +23,7 @@ import {
   type AsciiRenderOptions,
 } from './ascii/index.ts'
 import { THEMES } from './theme.ts'
-import { knownStyles, getStyle } from './scene/style-registry.ts'
+import { STYLE_COLOR_TOKEN_DESCRIPTORS, knownStyles, knownStyleDescriptors, getStyle } from './scene/style-registry.ts'
 import { getSeriesColor, CHART_ACCENT_FALLBACK } from './xychart/colors.ts'
 import { renderMermaidPNGInBrowserWithReceipt } from './browser-png.ts'
 
@@ -40,6 +40,7 @@ function renderMermaidUnicodeWithReceipt(text: string, options: AsciiRenderOptio
   renderMermaidSVGAsync,
   renderMermaidSVGWithReceipt,
   SHARED_RENDER_OPTION_FIELDS,
+  STYLE_COLOR_TOKEN_FIELDS: Object.freeze(Object.keys(STYLE_COLOR_TOKEN_DESCRIPTORS)),
   SHARED_RENDER_OPTIONS_JSON_SCHEMA: sharedRenderOptionsJsonSchema(),
   validateSerializableRenderOptions,
   verifyNoExternalRefs,
@@ -51,6 +52,7 @@ function renderMermaidUnicodeWithReceipt(text: string, options: AsciiRenderOptio
   diagramColorsToAsciiTheme,
   THEMES,
   knownStyles,
+  knownStyleDescriptors,
   getStyle,
   getSeriesColor,
   CHART_ACCENT_FALLBACK,

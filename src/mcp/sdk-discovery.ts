@@ -1,5 +1,6 @@
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { describeOps, opSignatures, type OpFamily } from '../agent/op-schema.ts'
+import { CODE_MODE_CORE_RENDER_OPTION_DECLARATIONS } from './sdk-decl.ts'
 import { PURE_COMPUTE_ANNOTATIONS, type McpToolDefinition } from './tool-surface.ts'
 
 export const SDK_FAMILIES = BUILTIN_FAMILY_METADATA.map(family => family.id)
@@ -19,52 +20,100 @@ type DiagramKind = ${DIAGRAM_KIND}
 type MutationOp = { kind: string; [field: string]: unknown }
 type Result<T, E = { code: string; message: string }> = { ok: true; value: T } | { ok: false; error: E }
 interface ValidDiagram { readonly kind: DiagramKind }
+type ExternalFamilyId = \`family:\${string}\`
+interface ExtensionCompatibility {
+  readonly [contract: string]: string | undefined
+  readonly core?: string
+  readonly scene?: string
+}
+interface ExtensionProvenance { readonly owner: string; readonly source: string; readonly reference?: string }
+interface ExtensionIdentity<Kind extends string = string> {
+  readonly id: \`\${Kind}:\${string}\`
+  readonly kind: Kind
+  readonly version: string
+  readonly compatibility: ExtensionCompatibility
+  readonly provenance: ExtensionProvenance
+}
+interface SourceSpanPoint { readonly offset: number; readonly line: number; readonly col: number }
+interface SourceSpan { readonly start: SourceSpanPoint; readonly end: SourceSpanPoint }
+interface PreservedSourceSpans {
+  readonly source: SourceSpan
+  readonly wrapper?: SourceSpan
+  readonly header: SourceSpan
+  readonly body: SourceSpan
+}
+interface SourcePreservationReceipt {
+  readonly version: 1
+  readonly classification: 'unsupported' | 'inventory-only' | 'unknown'
+  readonly source: string
+  readonly header: string
+  readonly upstreamFamilyId?: string
+  readonly mermaidVersion: string
+  readonly spans?: PreservedSourceSpans
+}
+interface ParseError {
+  readonly code: string
+  readonly message: string
+  readonly line?: number
+  readonly col?: number
+  readonly preservation?: SourcePreservationReceipt
+  readonly help?: string
+}
+interface ExtensionValidDiagram {
+  readonly kind: ExternalFamilyId
+  readonly descriptorIdentity: ExtensionIdentity<'family'>
+}
+interface PreservedValidDiagram {
+  readonly kind: ExternalFamilyId
+  readonly body: {
+    readonly kind: 'preserved'
+    readonly representation: 'opaque' | 'unknown'
+    readonly source: string
+    readonly preservation: SourcePreservationReceipt
+    readonly spans: PreservedSourceSpans
+    readonly diagnostic: {
+      readonly code: 'UNSUPPORTED_FAMILY' | 'UNKNOWN_HEADER' | 'FAMILY_DESCRIPTOR_MISMATCH'
+      readonly message: string
+      readonly help: string
+    }
+  }
+}
+type ParsedDiagram = ValidDiagram | ExtensionValidDiagram | PreservedValidDiagram
 interface VerifyResult { ok: boolean; warnings: unknown[]; layout: { bounds: unknown; nodes: unknown[]; edges: unknown[] } }
 type CheckMermaidSpec = string[] | { include?: string[]; exclude?: string[]; exact?: boolean }
 interface CheckMermaidResult { ok: boolean; missing: string[]; unexpected: string[]; facts: string[] }
-interface RenderRequestReceipt {
-  version: 1
-  output: 'svg' | 'png' | 'ascii' | 'unicode' | 'html' | 'layout'
-  sharedRequestDigest: string
-  requestDigest: string
-  appearanceDigest: string
-  diagnostics?: readonly { code: string; message?: string; reference?: string; feature?: string }[]
-}
-interface RenderedSvg { svg: string; receipt: RenderRequestReceipt }
-interface RenderedAscii {
-  text: string
-  receipt: RenderRequestReceipt
-  terminalStyle: Record<string, unknown>
-  outputPolicy: Record<string, unknown>
-}
-interface RenderedLayoutArtifact { layout: Record<string, unknown>; receipt: RenderRequestReceipt }
+type MermaidConfigScalar = string | number | boolean | null
+type MermaidConfigValue = MermaidConfigScalar | MermaidConfigValue[] | { [key: string]: MermaidConfigValue | undefined }
+type MermaidRuntimeConfig = { [key: string]: MermaidConfigValue | undefined }
+
+${CODE_MODE_CORE_RENDER_OPTION_DECLARATIONS}
 
 declare const mermaid: {
-  parseMermaid(source: string): Result<ValidDiagram, { code: string; message: string }[]>
+  parseMermaid(source: string): Result<ValidDiagram, ParseError[]>
+  // Open parser for installed families; built-in authoring ops remain ValidDiagram-only.
+  parseRegisteredMermaid(source: string): Result<ParsedDiagram, ParseError[]>
   createMermaid(kind: DiagramKind, opts?: { direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }): ValidDiagram
   buildMermaid(kind: DiagramKind, ops: MutationOp[], opts?: { direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }): Result<ValidDiagram, { code: string; message: string; opIndex: number }>
 ${NARROWERS}
   mutate(diagram: ValidDiagram, op: MutationOp): Result<ValidDiagram>
-  verifyMermaid(input: ValidDiagram | string, opts?: { suppress?: string[]; labelCharCap?: number }): VerifyResult
+  verifyMermaid(input: ParsedDiagram | string, opts?: { suppress?: string[]; labelCharCap?: number }): VerifyResult
   analyzeMermaid(diagram: ValidDiagram): Record<string, unknown>
   analyzeMermaidSource(source: string): Result<Record<string, unknown>>
   describeMermaidFacts(diagram: ValidDiagram): string[]
   describeMermaidFactsSource(source: string): Result<string[]>
   checkMermaid(diagram: ValidDiagram, spec: CheckMermaidSpec): CheckMermaidResult
   checkMermaidSource(source: string, spec: CheckMermaidSpec): Result<CheckMermaidResult>
-  serializeMermaid(diagram: ValidDiagram): string
-  renderMermaidSVG(input: ValidDiagram | string, opts?: Record<string, unknown>): string
-  renderMermaidSVGWithReceipt(input: ValidDiagram | string, opts?: Record<string, unknown>): RenderedSvg
-  renderMermaidASCII(input: ValidDiagram | string, opts?: { useAscii?: boolean; maxWidth?: number; targetWidth?: number; ganttToday?: string; mermaidConfig?: Record<string, unknown> }): string
-  renderMermaidASCIIWithReceipt(input: ValidDiagram | string, opts?: { useAscii?: boolean; maxWidth?: number; targetWidth?: number; ganttToday?: string; mermaidConfig?: Record<string, unknown> }): RenderedAscii
-  layoutMermaidWithReceipt(input: ValidDiagram | string, opts?: Record<string, unknown>): RenderedLayoutArtifact
+  serializeMermaid(diagram: ParsedDiagram): string
+  renderMermaidSVG(input: ParsedDiagram | string, opts?: SvgRenderOptions): string
+  renderMermaidSVGWithReceipt(input: ParsedDiagram | string, opts?: SvgRenderOptions): RenderedSvg
+  renderMermaidASCII(input: ParsedDiagram | string, opts?: AsciiRenderOptions): string
+  renderMermaidASCIIWithReceipt(input: ParsedDiagram | string, opts?: AsciiRenderOptions): RenderedAscii
+  layoutMermaidWithReceipt(input: ParsedDiagram | string, opts?: LayoutRenderOptions): RenderedLayoutArtifact
   describeOps(family: DiagramKind): Record<string, { name: string; required: boolean; type: string; note?: string }[]>
   opSignatures(family: DiagramKind): string[]
 }
 
-// For unfamiliar MutationOp objects, call the direct MCP describe_sdk tool before execute/build/mutate.
-// Inside execute, mermaid.describeOps and mermaid.opSignatures expose the same version-matched data.
-// Existing diagrams: parse, narrow, mutate, verify, serialize. New diagrams: buildMermaid, or author source for syntax the typed ops do not model, then parse and verify.`
+// Use describe_sdk or describeOps/opSignatures for unfamiliar MutationOp shapes.`
 
 export type DescribeSdkDetail = 'signatures' | 'fields'
 

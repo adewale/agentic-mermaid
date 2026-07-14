@@ -1,11 +1,11 @@
-// Family-plugin registry tests + Phase B universal LABEL_OVERFLOW gap closure.
+// FamilyDescriptor registry tests + Phase B universal LABEL_OVERFLOW gap closure.
 
 import { describe, test, expect } from 'bun:test'
 import { parseMermaid } from '../agent/parse.ts'
 import { verifyMermaid } from '../agent/verify.ts'
 import { layoutMermaid } from '../agent/core.ts'
-import { BUILTIN_FAMILY_METADATA, knownFamilies, getFamily, registerFamily, replaceFamilyForTest, extractLabelsGeneric } from '../agent/families.ts'
-import '../agent/families-builtin.ts'
+import { BUILTIN_FAMILY_METADATA, knownFamilies, getFamily, replaceFamilyForTest, extractLabelsGeneric } from '../agent/families.ts'
+import { registerFamily } from '../agent/family-registration.ts'
 
 describe('family registry', () => {
   test('every metadata-backed built-in family registers', () => {
@@ -20,6 +20,19 @@ describe('family registry', () => {
     for (const id of knownFamilies()) {
       const p = getFamily(id)
       expect(p?.extractLabels).toBeDefined()
+    }
+  })
+
+  test('direct registry import exposes only complete built-in descriptors', () => {
+    for (const id of knownFamilies()) {
+      const descriptor = getFamily(id)!
+      expect(descriptor.parse, `${id} parse`).toBeDefined()
+      expect(descriptor.serialize, `${id} serialize`).toBeDefined()
+      expect(descriptor.mutate, `${id} mutate`).toBeDefined()
+      expect(descriptor.layout, `${id} layout`).toBeDefined()
+      expect(descriptor.projectPositioned, `${id} positioned projection`).toBeDefined()
+      expect(descriptor.lowerScene, `${id} Scene lowering`).toBeDefined()
+      expect(descriptor.renderAscii, `${id} terminal renderer`).toBeDefined()
     }
   })
 
@@ -112,9 +125,9 @@ describe('Phase B: universal LABEL_OVERFLOW on opaque bodies', () => {
   })
 })
 
-describe('FamilyPlugin.verify dispatcher', () => {
-  test('plugin verify hook is called and warnings surface in verifyMermaid result', () => {
-    // Pick a structured family to prove FamilyPlugin.verify fires independent
+describe('FamilyDescriptor.verify dispatcher', () => {
+  test('descriptor verify hook is called and warnings surface in verifyMermaid result', () => {
+    // Pick a structured family to prove FamilyDescriptor.verify fires independent
     // of whether a particular body is structured or opaque/source-preserved.
     const original = getFamily('journey')
     expect(original).toBeDefined()
@@ -139,22 +152,12 @@ describe('FamilyPlugin.verify dispatcher', () => {
     }
   })
 
-  test('a plugin without a verify hook is a no-op (does not throw)', () => {
+  test('a built-in cannot retain a native parse claim after removing its hook', () => {
     const original = getFamily('xychart')
     expect(original).toBeDefined()
-    // Re-register without verify; verifyMermaid must still return ok.
-    const restore = replaceFamilyForTest('xychart', { ...original!, verify: undefined })
-    try {
-      const src = 'xychart-beta\n  title "X"\n  x-axis [a, b, c]\n  y-axis "y" 0 --> 10\n  bar [1, 2, 3]'
-      const p = parseMermaid(src)
-      expect(p.ok).toBe(true)
-      if (!p.ok) return
-      const v = verifyMermaid(p.value)
-      expect(v).toBeDefined()
-      expect(Array.isArray(v.warnings)).toBe(true)
-    } finally {
-      restore()
-    }
+    expect(() => replaceFamilyForTest('xychart', { ...original!, parse: undefined }))
+      .toThrow(/capability "source-preservation" claims "native" but its hooks require "source-preserved"/)
+    expect(getFamily('xychart')).toBe(original)
   })
 
   test('Loop 8 A1: built-in class plugin registers a verify hook that fires through the dispatcher', () => {
@@ -210,7 +213,7 @@ describe('FamilyPlugin.verify dispatcher', () => {
     }
   })
 
-  test('a faulty plugin verify hook is isolated as an error instead of silently dropped', () => {
+  test('a faulty descriptor verify hook is isolated as an error instead of silently dropped', () => {
     const original = getFamily('architecture')
     expect(original).toBeDefined()
     const restore = replaceFamilyForTest('architecture', {

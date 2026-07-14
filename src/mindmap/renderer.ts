@@ -11,6 +11,7 @@ import { semanticChildId, semanticRelationId } from '../scene/identity.ts'
 import { escapeAttr, escapeXml, renderMultilineText } from '../multiline-utils.ts'
 import { resolveMindmapIcon } from './icons.ts'
 import { getSeriesColor } from '../xychart/colors.ts'
+import { projectConnectorPath } from '../scene/connector-geometry.ts'
 
 const FONT_SIZE = 13
 
@@ -19,7 +20,8 @@ export function renderMindmapSvg(ctx: RenderContext<PositionedMindmapDiagram>): 
 }
 
 export function lowerMindmapScene(ctx: RenderContext<PositionedMindmapDiagram>): SceneDoc {
-  const { positioned: diagram, colors, options } = ctx
+  const { positioned: diagram, colors, resolved } = ctx
+  const options = resolved.renderOptions
   const font = colors.font ?? 'Inter'
   const transparent = options.transparent ?? false
   const titleId = 'mindmap-title'
@@ -54,15 +56,25 @@ export function lowerMindmapScene(ctx: RenderContext<PositionedMindmapDiagram>):
 
   for (const edge of diagram.edges) {
     const stroke = branchPaint(edge.to)
+    const [start, control1, control2, end] = edge.points
+    if (!start || !control1 || !control2 || !end) {
+      throw new Error(`Mindmap edge "${edge.from}" -> "${edge.to}" requires four cubic control points`)
+    }
+    const projection = projectConnectorPath(edge.d, start, [{
+      kind: 'cubic', control1, control2, end,
+    }])
     parts.push(marks.connector({
       id: semanticRelationId(edge.from, edge.to),
       role: 'edge',
-      geometry: { kind: 'path', d: edge.d, points: edge.points },
+      geometry: projection.geometry,
       lineStyle: 'solid',
       paint: { fill: 'none', stroke, strokeWidth: '2.5' },
       endpoints: { from: edge.from, to: edge.to },
       relationship: { kind: 'mindmap-branch', direction: 'forward' },
-      route: { ownership: 'layout' },
+      route: {
+        ownership: 'layout',
+        contours: projection.contours,
+      },
       stroke: { lineCap: 'round' },
       projectAccessibilityToSvg: true,
       channels: { importance: 1, category: String(branchByNode.get(edge.to) ?? 0) },

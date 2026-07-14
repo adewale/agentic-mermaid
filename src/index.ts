@@ -16,12 +16,22 @@
 // ============================================================================
 
 export type { RenderOptions, RenderContext, ConfigDiagnostic, MermaidGraph, PositionedDiagram, PositionedGraph, RouteCertificate, EdgeRouteCertificate, FamilyEdgeRouteCertificate, RegionContainmentCertificate, FamilyRouteCertificate, LayoutRouteCertificate, LayoutRouteClass, RouteClass, RouteBlocker, RoutePortAssignment, PortSemanticRole, AnyPort, PortSide, DiamondFacet } from './types.ts'
+export type { ArchitectureVisualOverrides } from './architecture/config.ts'
 export type { DiagramColors, ThemeName, ResolvedColors } from './theme.ts'
 export { fromShikiTheme, THEMES, DEFAULTS, resolveColors, inlineResolvedColors } from './theme.ts'
 export { resolveDiagramColors } from './color-resolver.ts'
 export { parseMermaid } from './parser.ts'
 export { parseRegisteredMermaid } from './agent/parse.ts'
-export type { ParsedDiagram, ExtensionValidDiagram, ExtensionDiagramBody } from './agent/types.ts'
+export type {
+  ParsedDiagram,
+  ExtensionValidDiagram,
+  ExtensionDiagramBody,
+  PreservedValidDiagram,
+  PreservedDiagramBody,
+  PreservedSourceSpans,
+  SourceSpan,
+  SourceSpanPoint,
+} from './agent/types.ts'
 export { renderMermaidASCII, renderMermaidASCIIWithReceipt, renderMermaidAscii, AsciiWidthError } from './ascii/index.ts'
 export type { AsciiRenderOptions, AsciiWidthErrorReason, RenderedAscii } from './ascii/index.ts'
 export { TERMINAL_STYLE_VERSION } from './terminal-style.ts'
@@ -55,6 +65,8 @@ export { MermaidFamilyDetectionError, classifyMermaidFamilyFromFirstLine } from 
 export type { MermaidFamilyClassification, FamilyDetectionDiagnostic } from './family-detection.ts'
 
 import type { RenderOptions } from './types.ts'
+import type { ParsedDiagram } from './agent/types.ts'
+import { prepareRenderInput } from './agent/render-input.ts'
 import {
   type RenderRequestReceipt,
 } from './render-contract.ts'
@@ -63,7 +75,7 @@ import { executeGraphicalRequest } from './graphical-render.ts'
 
 export {
   registerStyle, getStyle, knownStyles, knownStyleDescriptors, resolveStyleReference,
-  validateStyleSpec, resolveStyleStack, inferBackend, TUFTE_STYLE_ALIAS, STYLE_SPEC_FORMAT_VERSION,
+  validateStyleSpec, resolveStyleStack, inferBackend, STYLE_SPEC_FORMAT_VERSION,
   STYLE_SPEC_FIELD_DESCRIPTORS, STYLE_COLOR_TOKEN_DESCRIPTORS, styleSpecJsonSchema,
 } from './scene/style-registry.ts'
 export type {
@@ -71,7 +83,7 @@ export type {
   StyleRegistrationOptions, StyleRegistryKind,
 } from './scene/style-registry.ts'
 export {
-  renderContractDigest, validateSerializableRenderOptions, RenderCapabilityError,
+  renderContractDigest, validateSerializableRenderOptions, RenderCapabilityError, ParsedDiagramFamilyMismatchError,
   sharedRenderOptionsJsonSchema, styleInputJsonSchema, SHARED_RENDER_OPTION_FIELDS, RENDER_CONTRACT_VERSION,
   RENDER_OUTPUTS, RENDER_OUTPUT_DESCRIPTORS,
 } from './render-contract.ts'
@@ -98,23 +110,24 @@ export {
 } from './scene/backend-conformance.ts'
 export type {
   BackendConformanceCheckId, BackendConformanceCheck, BackendConformanceReport,
+  BackendCapabilityConformanceStatus, BackendCapabilityConformanceResult,
 } from './scene/backend-conformance.ts'
 export { SCENE_CONTRACT_VERSION } from './scene/ir.ts'
 export type {
   SceneDoc, SceneNode, SceneNodeBase, SemanticChannels, SceneRole, Geometry, MarkPaint,
   ShapeMark, TextMark, GroupMark, RawMark, DocumentMark, PreludeMark, ConnectorMark,
-  ConnectorGeometry, ConnectorDirection, ConnectorEndpointAnchor, ConnectorEndpoints,
-  ConnectorRelationship, ConnectorRoute, ConnectorDash, ConnectorStroke,
+  ConnectorGeometry, ConnectorSubpath, ConnectorDirection, ConnectorEndpointAnchor, ConnectorEndpoints,
+  ConnectorRelationship, ConnectorRoute, ConnectorContourSemantics, ConnectorDash, ConnectorStroke,
   ConnectorLabelDescriptor, ConnectorHitGeometry, ConnectorTerminalProjection,
-  ConnectorTerminalStrokeLoss, ConnectorTerminalMarkerProjection, ConnectorTerminalLabelProjection,
+  ConnectorTerminalStrokeLoss, ConnectorTerminalMarkerProjection, ConnectorTerminalMarkerPlacement, ConnectorTerminalLabelProjection,
   MarkerDescriptor, MarkerRef, MarkerShape, ScenePoint, SceneBox,
 } from './scene/ir.ts'
 export {
   EXTERNAL_SCENE_API_VERSION, buildExternalScene,
 } from './scene/external-scene.ts'
 export type {
-  ExternalSceneGeometry, ExternalSceneNodeBase, ExternalSceneShape, ExternalSceneDataMark,
-  ExternalSceneText, ExternalSceneContainer, ExternalSceneConnector, ExternalSceneNode,
+  ExternalSceneGeometry, ExternalSceneConnectorGeometry, ExternalSceneNodeBase, ExternalSceneShape, ExternalSceneDataMark,
+  ExternalSceneText, ExternalSceneContainer, ExternalSceneConnector, ExternalSceneConnectorLabel, ExternalSceneNode,
   ExternalSceneMarker, ExternalSceneDocument, ExternalSceneInput,
 } from './scene/external-scene.ts'
 export {
@@ -139,13 +152,13 @@ export type {
 } from './scene/roles.ts'
 export {
   CORE_SCENE_PRIMITIVES, CORE_SCENE_OPERATIONS, CORE_SCENE_FEATURES,
-  ESSENTIAL_SCENE_PRIMITIVE_OPERATIONS, PRIMITIVE_REALIZATIONS,
-  essentialScenePrimitiveOperation, validatePrimitiveCapabilities,
+  ESSENTIAL_SCENE_PRIMITIVE_OPERATIONS, ESSENTIAL_SCENE_PRIMITIVE_CAPABILITIES, PRIMITIVE_REALIZATIONS,
+  essentialScenePrimitiveOperation, terminalConnectorCapabilityClaims, validatePrimitiveCapabilities,
 } from './scene/capabilities.ts'
 export type {
   CoreScenePrimitive, ScenePrimitive, CoreSceneOperation, SceneOperation,
   CoreSceneFeature, SceneFeature, PrimitiveRealization, PrimitiveCapabilityClaim,
-  CapabilityValidationResult, EssentialScenePrimitiveOperation,
+  CapabilityValidationResult, EssentialScenePrimitiveOperation, EssentialScenePrimitiveCapability,
 } from './scene/capabilities.ts'
 export {
   KNOWN_EXTENSION_CONTRACT_VERSIONS, canonicalExtensionId, parseExtensionId,
@@ -169,16 +182,29 @@ export type { SvgSemanticIdentity } from './scene/identity.ts'
 export type { SvgSemanticAccessibility, SvgRelationSemantics } from './scene/accessibility.ts'
 export { applyOutputSecurityPolicy, verifyNoExternalRefs, verifySvgDocumentEnvelope, OUTPUT_SECURITY_POLICY_VERSION } from './output-security.ts'
 export type { OutputSecurityMode, OutputSecurityDiagnostic, OutputSecurityResult } from './output-security.ts'
-export { OUTPUT_COLOR_PROFILE, applyPngColorProfile, inspectPngColorProfile } from './output-color-profile.ts'
-export type { PngColorProfileReceipt } from './output-color-profile.ts'
+export { OUTPUT_COLOR_PROFILE, applyPngColorProfile, inspectPngColorProfile, inspectPngDimensions } from './output-color-profile.ts'
+export type { PngColorProfileReceipt, PngDimensions } from './output-color-profile.ts'
 export {
   PNG_OUTPUT_POLICY_VERSION, PNG_DEFAULT_SCALE, PNG_DEFAULT_FONT_FAMILY,
   PNG_FONT_SOURCES, PNG_NAPI_RUNTIME, PNG_WASM_RUNTIME,
-  pngNapiRuntimeProvenance, resolvePngOutputPolicy,
+  MAX_PNG_PIXELS, MAX_PNG_RASTER_DIMENSION, MAX_HOSTED_PNG_PIXELS, MAX_HOSTED_PNG_BYTES,
+  MAX_PNG_FONT_DIRECTORIES, MAX_PNG_FONT_DIRECTORY_LENGTH,
+  pngRasterDimensions, assertPngRasterBudget, assertHostedPngRasterBudget,
+  svgIntrinsicDimensions, prepareSvgForPngRasterization,
+  PNG_OUTPUT_OPTION_FIELD_DESCRIPTORS, PNG_OUTPUT_OPTION_FIELDS,
+  PORTABLE_PNG_OUTPUT_OPTION_FIELDS, NATIVE_PNG_OUTPUT_POLICY_FIELDS,
+  NATIVE_PNG_HOST_ONLY_OPTION_FIELDS, pngOutputOptionsJsonSchema,
+  normalizePortablePngBackground, projectPortablePngOutputOptions,
+  projectNativePngOutputPolicyInput, omitPngOutputOptions,
+  pngNapiRuntimeProvenance, resolvePngOutputPolicy, resolvePortablePngOutputPolicy,
 } from './png-contract.ts'
 export type {
-  PngFitTo, PngOutputPolicyInput, ResolvedPngOutputPolicy,
-  PngFontSource, PngRuntimeProvenance,
+  PngFitTo, PngOutputPolicyInput, PortablePngOutputOptions, ResolvedPngOutputPolicy,
+  PngOutputOptionFieldDescriptor, PngOutputOptionField, PortablePngOutputOptionField,
+  NativePngOutputPolicyField, NativePngHostOnlyOptionField,
+  PngOutputOptionScope, PngOutputOptionInputKind, PngOutputOptionPolicyState,
+  PngOutputOptionReceiptState, PngFontSource, PngRuntimeProvenance,
+  PngRasterDimensions,
 } from './png-contract.ts'
 export {
   createMermaidBrowserPNGRenderer,
@@ -220,7 +246,7 @@ export type {
  * ```
  */
 export function renderMermaidSVG(
-  text: string,
+  text: ParsedDiagram | string,
   options: RenderOptions = {}
 ): string {
   return renderMermaidSVGWithReceipt(text, options).svg
@@ -241,8 +267,8 @@ export interface MermaidRendererHostOptions {
 
 /** A renderer bound to trusted in-process host policy. */
 export interface MermaidRenderer {
-  renderMermaidSVG(text: string, options?: RenderOptions): string
-  renderMermaidSVGWithReceipt(text: string, options?: RenderOptions): RenderedSvg
+  renderMermaidSVG(text: ParsedDiagram | string, options?: RenderOptions): string
+  renderMermaidSVGWithReceipt(text: ParsedDiagram | string, options?: RenderOptions): RenderedSvg
 }
 
 /**
@@ -253,20 +279,23 @@ export interface MermaidRenderer {
 export function createMermaidRenderer(hostOptions: MermaidRendererHostOptions = {}): MermaidRenderer {
   const host = Object.freeze({ ...hostOptions })
   return Object.freeze({
-    renderMermaidSVG(text: string, options: RenderOptions = {}): string {
-      return executeGraphicalRequest(text, options, 'svg', undefined, host).svg
+    renderMermaidSVG(text: ParsedDiagram | string, options: RenderOptions = {}): string {
+      const input = prepareRenderInput(text)
+      return executeGraphicalRequest(input.source, options, 'svg', undefined, { ...host, expectedFamilyId: input.expectedFamilyId }).svg
     },
-    renderMermaidSVGWithReceipt(text: string, options: RenderOptions = {}): RenderedSvg {
-      return executeGraphicalRequest(text, options, 'svg', undefined, host)
+    renderMermaidSVGWithReceipt(text: ParsedDiagram | string, options: RenderOptions = {}): RenderedSvg {
+      const input = prepareRenderInput(text)
+      return executeGraphicalRequest(input.source, options, 'svg', undefined, { ...host, expectedFamilyId: input.expectedFamilyId })
     },
   })
 }
 
 export function renderMermaidSVGWithReceipt(
-  text: string,
+  text: ParsedDiagram | string,
   options: RenderOptions = {},
 ): RenderedSvg {
-  return executeGraphicalRequest(text, options, 'svg')
+  const input = prepareRenderInput(text)
+  return executeGraphicalRequest(input.source, options, 'svg', undefined, { expectedFamilyId: input.expectedFamilyId })
 }
 
 /**
@@ -276,7 +305,7 @@ export function renderMermaidSVGWithReceipt(
  * Useful in async contexts (server handlers, data loaders, etc.)
  */
 export async function renderMermaidSVGAsync(
-  text: string,
+  text: ParsedDiagram | string,
   options: RenderOptions = {}
 ): Promise<string> {
   return renderMermaidSVG(text, options)

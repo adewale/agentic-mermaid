@@ -67,15 +67,14 @@ tricks. This is the loudest and oldest theme.
   diagram is visually laid out there's not really an easy way to change it"
   ([41262756](https://news.ycombinator.com/item?id=41262756)).
 - Root cause: R3 (missing control surface).
-- Status here: **out of scope, by policy.** Issue #25 (open question 2)
-  recommends against route/position hints: "Keep route intent inferred from
-  semantics and author order unless Mermaid core standardizes hints," and
-  syntax invention is a stated non-goal. The substitute is actuation through
-  the agent loop: deterministic layout (`measureQuality`, `checkQuality`,
-  `eval/layout-compare/`) makes bad layout *detectable*, typed mutation makes
-  source restructuring cheap, and #25's route certificates would make
-  detours *explained* — so a program can iterate where a human would drag a
-  node. This substitutes for manual positioning; it does not provide it.
+- Status here: **manual coordinates and post-hoc nudging remain out of scope.**
+  `BUILD-24` now owns a narrower response: typed, deterministic structural
+  constraints for rank/layer, adjacency, and edge-length preference. They are
+  render/mutation metadata, not Agentic-only Mermaid syntax, and therefore do
+  not contradict #25's rule against inventing route syntax. Deterministic
+  quality measurement and route certificates remain the feedback loop; the
+  hints let an agent state topology-preserving intent without deleting a real
+  edge. This still does not provide arbitrary node coordinates or dragging.
 
 ### C2. Layout collapses at scale
 
@@ -742,10 +741,11 @@ issue workstreams an active schedule; root `TODO.md` must own any promoted work.
 
 Stated plainly so the scorecard cannot oversell:
 
-1. **Manual positioning (C1).** The loudest single ask is answered with a
-   substitute (deterministic + measurable + explainable auto-layout for
-   editing programs), not a solution. If Mermaid core standardizes layout
-   hints, this fork follows; it will not invent them (#25 non-goals).
+1. **Manual positioning (C1).** Arbitrary coordinates and post-layout nudging
+   remain deliberately unsupported. `BUILD-24` schedules only typed structural
+   auto-layout constraints (rank, adjacency, short-edge preference), without
+   inventing Mermaid source syntax. If Mermaid core standardizes compatible
+   source hints, this fork can map them into the same typed contract.
 2. **Large-diagram compaction (C2).** Detection exists; no compaction work
    is scheduled. Source-order priority can make wide diagrams wider — the
    Auth Flow aspect band in `agent-auth-flow.test.ts` is widened to 7

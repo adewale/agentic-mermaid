@@ -42,7 +42,7 @@ Recurring user pressure in Mermaid core:
 
 - [`lukilabs/beautiful-mermaid#59`](https://github.com/lukilabs/beautiful-mermaid/issues/59) requests “All Mermaid v11 diagrams” and includes a concrete Gantt sample with `interactive: true`.
 - [`lukilabs/beautiful-mermaid` `phase1-charts`](https://github.com/lukilabs/beautiful-mermaid/tree/phase1-charts) contains branch-only Gantt code: `src/gantt/parser.ts`, `src/gantt/layout.ts`, `src/gantt/renderer.ts`, `src/ascii/gantt.ts`, and `src/__tests__/gantt.test.ts`. It is useful prior art, but it predates Agentic Mermaid’s current source normalization, strict-security pass, agent surface, golden fixtures, and deterministic-output requirements.
-- Agentic Mermaid implemented Gantt on the family-plugin, structured-or-opaque, quality-adapter, and registry contracts established by earlier work. Historical sequencing is preserved in Git history and the PR #149 archive.
+- Agentic Mermaid implemented Gantt on the family-descriptor, structured-or-opaque, quality-adapter, and registry contracts established by earlier work. Historical sequencing is preserved in Git history and the PR #149 archive.
 
 ### Mermaid ASCII and terminal-renderer forks
 
@@ -189,7 +189,7 @@ Files to touch after PR #22:
 - `src/agent/family-layouts.ts`: add `ganttToRendered` so `measureQuality`, `checkQuality`, `verify.layout`, and layout-compare see Gantt geometry.
 - `src/mcp/sdk-decl.ts`, `src/mcp/server.ts`, `src/cli/index.ts`, `Instructions_for_agents.md`, `llms.txt`, and skills: sync capability docs through the existing doc-sync tests.
 
-The `FamilyPlugin` registers with `mutate` and `serialize` hooks from the start (the enforcement test fails CI otherwise): detect, label extraction, and a segment-preserving structured body whose serialization re-emits opaque segments verbatim. Unmodeled or unparseable bodies fall back whole-opaque, preserving source byte-for-byte.
+The `FamilyDescriptor` registers with `mutate` and `serialize` hooks from the start (the enforcement test fails CI otherwise): detect, label extraction, and a segment-preserving structured body whose serialization re-emits opaque segments verbatim. Unmodeled or unparseable bodies fall back whole-opaque, preserving source byte-for-byte.
 
 ### 2. Syntax parser
 
@@ -374,7 +374,7 @@ The landed `stryker.gantt.config.json` mutation lane:
 This is the order in which the shipped surface was assembled, not a current
 implementation plan:
 
-1. **Gantt detection and agent surface.** Landed the `gantt` kind, plugin
+1. **Gantt detection and agent surface.** Landed the `gantt` kind, descriptor
    registration with mutate/serialize hooks, label extraction, docs, tests, and
    a segment-preserving body parser.
 2. **Parser + scheduler with docs fixtures.** Landed the syntax parser,

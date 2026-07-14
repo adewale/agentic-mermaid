@@ -59,11 +59,12 @@ export function renderSequenceSvg(
 export function lowerSequenceScene(
   ctx: RenderContext<PositionedSequenceDiagram>,
 ): SceneDoc {
-  const { positioned: diagram, colors, options } = ctx
+  const { positioned: diagram, colors, resolved } = ctx
+  const options = resolved.renderOptions
   const font = colors.font ?? 'Inter'
   const transparent = options.transparent ?? false
   const parts: SceneNode[] = []
-  const style = resolveRenderStyle(options, SEQUENCE_STYLE_DEFAULTS)
+  const style = resolveRenderStyle(options, SEQUENCE_STYLE_DEFAULTS, resolved.styleFace)
   const uid = `seq-${hashId(diagram.width, diagram.height, diagram.actors.length, diagram.messages.length)}`
   const titleId = `${uid}-title`
   const descId = `${uid}-desc`
@@ -398,6 +399,9 @@ function renderMessage(msg: PositionedMessage, style: ResolvedRenderStyle, scene
     },
     route: { ownership: 'layout' },
     labels: msg.label ? [{ text: msg.label }] : [],
+    // The message wrapper is the public relation identity because it owns the
+    // connector, label, and optional central-connection marks as one message.
+    projectEndpointIdentityToSvg: false,
   } as const
 
   // Semantic wrapper with message metadata

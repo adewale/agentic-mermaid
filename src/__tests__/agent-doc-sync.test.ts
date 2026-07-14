@@ -444,7 +444,7 @@ describe('vocabulary doc-sync', () => {
   test('every registered renderable family ships typed mutation (default-by-default enforcement)', () => {
     // Typed mutation is the enforced default: a new family cannot register
     // source-level-only. Every registered family must (a) expose mutate +
-    // serialize FamilyPlugin hooks, (b) declare its ops in MUTATION_OPS_BY_FAMILY,
+    // serialize FamilyDescriptor hooks, (b) declare its ops in MUTATION_OPS_BY_FAMILY,
     // and (c) have a narrower returning non-null on its own structured body. This
     // closes the loophole where a family could ship without a structured editing
     // surface (as pie/quadrant once did).
@@ -487,15 +487,17 @@ describe('start.md bootstrap claims stay true', () => {
   // it does NOT enumerate every narrower/warning code (it points at
   // capabilities.json for those), so it does not belong in the exhaustive
   // reference-doc loops above. Instead, pin every claim it DOES make: whatever
-  // families, narrowers, warning codes, and tools it names must be real, and the
-  // family list (which it states in full) must stay complete.
+  // families, narrowers, warning codes, and tools it names must be real. Family
+  // discovery delegates to generated capabilities instead of retaining another
+  // manually synchronized roster here.
   const START = readFileSync(join(REPO, 'website/source/start.md'), 'utf8')
 
-  test('the family list it states is complete and valid', () => {
-    const listed = START.match(/Families:\s*([^.\n]+)/)?.[1] ?? ''
-    const named = new Set(listed.split(',').map(s => s.trim().toLowerCase()).filter(Boolean))
-    const known = new Set([...knownBuiltinFamilies()].map(k => k.toLowerCase()))
-    expect(named).toEqual(known)
+  test('delegates family discovery instead of copying the roster', () => {
+    const copiedRoster = [...knownBuiltinFamilies()].map(kind => kind.toLowerCase()).join(', ')
+    expect(START).not.toMatch(/Families:\s*/)
+    expect(START.toLowerCase()).not.toContain(copiedRoster)
+    expect(START).toContain('am capabilities --json')
+    expect(START).toContain('capabilities.json')
   })
 
   test('every as* narrower it names is a real narrower', () => {

@@ -8,6 +8,8 @@ import { resolveSceneRoleTraits, sceneRoleTraits } from '../scene/roles.ts'
 import { validatePrimitiveCapabilities } from '../scene/capabilities.ts'
 import { hitTestConnector, hitTestSceneConnectors } from '../scene/hit-test.ts'
 import { serializeMarkerResource } from '../scene/marker-resources.ts'
+import { validateSceneDoc } from '../scene/scene-validation.ts'
+import { lowerGraphScene } from '../renderer.ts'
 
 describe('typed Scene connector contract', () => {
   const crisp = '<line data-id="typed-id" data-role="edge" data-from="typed-a" data-to="typed-b" x1="0" y1="2" x2="10" y2="2" stroke="#00aa55" stroke-width="4" stroke-opacity="0" stroke-dasharray="9 2" stroke-dashoffset="0" stroke-linecap="square" stroke-linejoin="bevel" stroke-miterlimit="7" pathLength="40" paint-order="stroke fill" vector-effect="non-scaling-stroke" marker-end="url(#typed-arrow)" />'
@@ -60,7 +62,17 @@ describe('typed Scene connector contract', () => {
     expect(connector.terminalProjection).toMatchObject({
       realization: 'projected', topology: 'line', direction: 'forward', relationship: 'dependency',
       markers: { mid: [], end: { id: 'typed-arrow', shape: 'arrow' } },
-      labels: [{ id: 'edge-label', text: 'ships' }], lineStyle: 'dashed',
+      markerPlacements: { start: [], mid: [], end: [{ markerId: 'typed-arrow', point: { x: 10, y: 2 }, contourIndex: 0 }] },
+      endpoints: { from: 'typed-a', to: 'typed-b', start: { point: { x: 0, y: 2 } }, end: { point: { x: 10, y: 2 } } },
+      route: { ownership: 'layout', closed: false, bendRadius: 3, labelAnchors: [{ x: 5, y: 0 }] },
+      stroke: {
+        color: '#00aa55', width: '4', opacity: 0, dash: { array: '9 2', offset: 0 },
+        lineCap: 'square', lineJoin: 'bevel', miterLimit: 7, pathLength: 40,
+        paintOrder: 'stroke fill', nonScaling: true,
+      },
+      hit: { geometry: { kind: 'line' }, closed: false, strokeWidth: 6, pointerEvents: 'stroke' },
+      labels: [{ id: 'edge-label', text: 'ships', anchor: { x: 5, y: 0 }, halo: { width: 3 } }],
+      lineStyle: 'dashed',
     })
     expect(connector.terminalProjection.strokeLosses).toEqual(expect.arrayContaining([
       'continuous-geometry', 'bend-radius', 'stroke-width', 'stroke-opacity',
@@ -107,10 +119,141 @@ describe('typed Scene connector contract', () => {
       },
       labels: [{ id: 'label', text: 'relates' }],
     })
+    for (const backend of [DefaultBackend, RoughBackend, HybridBackend]) {
+      const output = backend.drawNode(projected, { seed: 7, style: { name: 'look:marker-projection', stroke: 'jittered' } })
+      expect(output, backend.id).toContain('marker-start="url(#start)"')
+      expect(output, backend.id).toContain('marker-mid="url(#middle)"')
+      expect(output, backend.id).toContain('marker-end="url(#end)"')
+    }
   })
 
-  test('default is byte-exact while rough and hybrid consume typed stroke', () => {
-    expect(DefaultBackend.drawNode(connector, { seed: 1 })).toBe(crisp)
+  test('a built-in flowchart connector associates its separately emitted visual label', () => {
+    const scene = lowerGraphScene({
+      positioned: {
+        width: 120,
+        height: 60,
+        nodes: [],
+        groups: [],
+        edges: [{
+          source: 'A', target: 'B', label: 'ships', style: 'solid',
+          hasArrowStart: false, hasArrowEnd: true,
+          points: [{ x: 10, y: 30 }, { x: 110, y: 30 }],
+          labelPosition: { x: 60, y: 24 },
+        }],
+      },
+      colors: { bg: '#fff', fg: '#111' },
+      resolved: { renderOptions: {} },
+    })
+    const edge = scene.parts.find(node => node.kind === 'connector')
+    const labelGroup = scene.parts.find(node => node.kind === 'group' && node.role === 'edge-label')
+    expect(edge?.kind).toBe('connector')
+    expect(labelGroup?.kind).toBe('group')
+    if (edge?.kind !== 'connector' || labelGroup?.kind !== 'group') return
+    const text = labelGroup.children.map(child => child.node).find(node => node.kind === 'text')
+    expect(text?.kind).toBe('text')
+    if (text?.kind !== 'text') return
+    expect(edge.labels).toEqual([expect.objectContaining({
+      text: 'ships',
+      anchor: { x: 60, y: 24 },
+      paint: { fill: 'var(--_text-sec)' },
+      fontSize: expect.any(Number),
+      textAnchor: 'middle',
+      visual: { kind: 'companion', markId: text.id },
+    })])
+    expect(edge.terminalProjection.labels[0]?.visual).toEqual({ kind: 'companion', markId: text.id })
+
+    expect(validateSceneDoc(scene).valid).toBe(true)
+    const edgeIndex = scene.parts.indexOf(edge)
+    for (const [markId, message] of [
+      ['missing-label', /unknown companion Text mark/],
+      [edge.id, /must reference a Text mark/],
+    ] as const) {
+      const forged = {
+        ...scene,
+        parts: scene.parts.map((part, index) => index === edgeIndex
+          ? {
+              ...edge,
+              labels: edge.labels.map(label => ({ ...label, visual: { kind: 'companion' as const, markId } })),
+            }
+          : part),
+      }
+      expect(validateSceneDoc(forged).diagnostics).toContainEqual(expect.objectContaining({
+        code: 'SCENE_REFERENCE',
+        path: `scene.parts[${edgeIndex}].labels[0].visual.markId`,
+        message: expect.stringMatching(message),
+      }))
+    }
+
+    const forgedRouteGeometry = {
+      ...scene,
+      parts: scene.parts.map((part, index) => index === edgeIndex
+        ? { ...edge, route: { ...edge.route, geometry: { kind: 'line' as const, x1: 0, y1: 0, x2: 1, y2: 1 } } }
+        : part),
+    }
+    expect(validateSceneDoc(forgedRouteGeometry).diagnostics).toContainEqual(expect.objectContaining({
+      code: 'SCENE_FIDELITY',
+      path: `scene.parts[${edgeIndex}].route.geometry`,
+    }))
+
+    const forgedContourTangent = {
+      ...scene,
+      parts: scene.parts.map((part, index) => index === edgeIndex
+        ? {
+            ...edge,
+            route: {
+              ...edge.route,
+              contours: edge.route.contours.map((contour, contourIndex) => contourIndex === 0
+                ? { ...contour, startTangent: { x: 0, y: 1 } }
+                : contour),
+            },
+          }
+        : part),
+    }
+    expect(validateSceneDoc(forgedContourTangent).diagnostics).toContainEqual(expect.objectContaining({
+      code: 'SCENE_FIDELITY',
+      path: `scene.parts[${edgeIndex}].route.contours[0].startTangent`,
+      message: expect.stringMatching(/linear route geometry/),
+    }))
+
+    const forgedTerminalProjection = {
+      ...scene,
+      parts: scene.parts.map((part, index) => index === edgeIndex
+        ? { ...edge, terminalProjection: { ...edge.terminalProjection, direction: 'reverse' as const } }
+        : part),
+    }
+    expect(validateSceneDoc(forgedTerminalProjection).diagnostics).toContainEqual(expect.objectContaining({
+      code: 'SCENE_FIDELITY',
+      path: `scene.parts[${edgeIndex}].terminalProjection`,
+      message: expect.stringMatching(/canonical projection/),
+    }))
+    for (const backend of [DefaultBackend, RoughBackend, HybridBackend]) {
+      expect(() => backend.render(forgedTerminalProjection, { seed: 0 }))
+        .toThrow(/canonical projection/)
+    }
+  })
+
+  test('rejects mid-marker configurations a single SVG carrier cannot realize', () => {
+    const base = {
+      id: 'invalid-mid-markers',
+      role: 'edge' as const,
+      geometry: { kind: 'polyline' as const, points: [{ x: 0, y: 0 }, { x: 5, y: 2 }, { x: 8, y: 2 }, { x: 10, y: 0 }] },
+      lineStyle: 'solid' as const,
+      paint: { stroke: '#111', strokeWidth: '1' },
+    }
+    expect(() => marks.connector({
+      ...base,
+      markers: { mid: [{ id: 'one', shape: 'circle' }, { id: 'two', shape: 'cross' }] },
+    }, '<polyline points="0,0 5,2 8,2 10,0" />')).toThrow('distinct mid markers')
+    expect(() => marks.connector({
+      ...base,
+      markers: { mid: [{ id: 'one', shape: 'circle' }, { id: 'one', shape: 'circle' }, { id: 'one', shape: 'circle' }] },
+    }, '<polyline points="0,0 5,2 8,2 10,0" />')).toThrow('one repeated descriptor or one descriptor per interior route point')
+  })
+
+  test('default preserves the canonical semantic carrier while rough and hybrid consume typed stroke', () => {
+    expect(DefaultBackend.drawNode(connector, { seed: 1 })).toBe(connector.crisp)
+    expect(connector.crisp).toContain('data-relationship="dependency"')
+    expect(connector.crisp).toContain('data-direction="forward"')
     for (const backend of [RoughBackend, HybridBackend]) {
       const output = backend.drawNode(connector, {
         seed: 11,
@@ -139,9 +282,45 @@ describe('typed Scene connector contract', () => {
     expect(bounds).toEqual({ x0: -2, y0: -6, x1: 18, y1: 10 })
   })
 
-  test('path points make tangents, mid-marker bounds, and hit testing total', () => {
-    const path = marks.connector({
-      id: 'typed-path',
+  test('path marker bounds fall back to size and SVG default strokeWidth units', () => {
+    const sizedPathMarker = {
+      id: 'sized-path-marker', shape: 'arrow' as const,
+      geometry: { kind: 'path' as const, d: 'M0 0 L8 3 L0 6 Z' },
+      size: { width: 8, height: 6 }, ref: { x: 8, y: 3 },
+    }
+    const node = marks.connector({
+      id: 'marker-size-bounds', role: 'edge',
+      geometry: { kind: 'line', x1: 0, y1: 0, x2: 10, y2: 0 },
+      lineStyle: 'solid', paint: { stroke: '#111', strokeWidth: '2' },
+      markers: { end: sizedPathMarker },
+    }, '<line x1="0" y1="0" x2="10" y2="0" stroke="#111" stroke-width="2" />')
+    // The 0..8 viewport is radius 8 around refX=8, then scales by width 2.
+    expect(nodeWorldBounds(node)).toEqual({ x0: -6, y0: -16, x1: 26, y1: 16 })
+    expect(() => marks.connector({
+      id: 'unbounded-path-marker', role: 'edge',
+      geometry: { kind: 'line', x1: 0, y1: 0, x2: 10, y2: 0 },
+      lineStyle: 'solid', paint: { stroke: '#111', strokeWidth: '2' },
+      markers: { end: { id: 'unbounded', shape: 'arrow', geometry: { kind: 'path', d: 'M0 0 L8 3 L0 6 Z' } } },
+    }, '<line x1="0" y1="0" x2="10" y2="0" stroke="#111" stroke-width="2" />')).toThrow(/requires bounds, viewBox, or size/)
+  })
+
+  test('inline connector label halo defaults to the canonical page background variable', () => {
+    const node = marks.connector({
+      id: 'inline-label-halo', role: 'edge',
+      geometry: { kind: 'line', x1: 0, y1: 0, x2: 10, y2: 0 },
+      lineStyle: 'solid', paint: { stroke: '#111', strokeWidth: '1' },
+      labels: [{
+        text: 'label', anchor: { x: 5, y: 0 }, paint: { fill: '#111' },
+        fontSize: 10, textAnchor: 'middle', halo: { width: 3 }, visual: { kind: 'inline' },
+      }],
+    }, '<line x1="0" y1="0" x2="10" y2="0" stroke="#111" stroke-width="1" />')
+    expect(node.crisp).toContain('stroke="var(--bg)"')
+    expect(node.crisp).not.toContain('var(--_bg)')
+  })
+
+  test('path route points and exact marker vertices keep independent semantics', () => {
+    expect(() => marks.connector({
+      id: 'ambiguous-path-mid-marker',
       role: 'edge',
       geometry: {
         kind: 'path',
@@ -150,13 +329,34 @@ describe('typed Scene connector contract', () => {
       },
       lineStyle: 'solid',
       paint: { stroke: '#111', strokeWidth: '2' },
+      markers: { mid: [{ id: 'mid', shape: 'circle' }] },
+    }, '<path d="M0,0 Q5,10 10,0" stroke="#111" stroke-width="2" />')).toThrow('no typed interior route points')
+
+    const path = marks.connector({
+      id: 'typed-path',
+      role: 'edge',
+      geometry: {
+        kind: 'path',
+        d: 'M0,0 Q5,10 10,0 L15,5',
+        points: [{ x: 0, y: 0 }, { x: 5, y: 10 }, { x: 10, y: 0 }, { x: 15, y: 5 }],
+        markerMidpoints: [{ x: 10, y: 0 }],
+      },
+      lineStyle: 'solid',
+      paint: { stroke: '#111', strokeWidth: '2' },
       markers: {
         mid: [{ id: 'mid', shape: 'circle', bounds: { x0: -10, y0: -10, x1: 10, y1: 10 } }],
       },
-    }, '<path d="M0,0 Q5,10 10,0" stroke="#111" stroke-width="2" />')
+    }, '<path d="M0,0 Q5,10 10,0 L15,5" stroke="#111" stroke-width="2" />')
     expect(path.route.startTangent).toEqual({ x: 0.4472135954999579, y: 0.8944271909999159 })
-    expect(path.route.endTangent).toEqual({ x: 0.4472135954999579, y: -0.8944271909999159 })
-    expect(nodeWorldBounds(path)).toEqual({ x0: -5, y0: -4, x1: 15, y1: 20 })
+    expect(path.route.endTangent).toEqual({ x: 0.7071067811865475, y: 0.7071067811865475 })
+    expect(path.terminalProjection.markerPlacements.mid).toEqual([
+      { markerId: 'mid', point: { x: 10, y: 0 }, contourIndex: 0 },
+    ])
+    // The quadratic control/routing point at (5,10) is not an SVG marker
+    // vertex; only the exact marker midpoint at (10,0) expands marker bounds.
+    // Omitted markerUnits has SVG's strokeWidth semantics, so the 20×20
+    // marker bounds scale by the connector's authored width of 2.
+    expect(nodeWorldBounds(path)).toEqual({ x0: -10, y0: -20, x1: 30, y1: 20 })
     expect(hitTestConnector(path, { x: 5, y: 10 })).toBe(true)
   })
 
@@ -170,7 +370,7 @@ describe('typed Scene connector contract', () => {
     expect(hits[0]?.connector).toBe(connector)
   })
 
-  test('rough marker projection reserializes typed resources without marker XML parsing', () => {
+  test('rough marker projection preserves the shared authored marker-unit authority', () => {
     const marker = {
       id: 'typed-resource', shape: 'arrow' as const,
       size: { width: 8, height: 5 }, ref: { x: 7, y: 2.5 }, orient: 'auto' as const,
@@ -190,7 +390,7 @@ describe('typed Scene connector contract', () => {
       family: 'test', width: 20, height: 20, colors,
       parts: [root, definitions, marks.documentClose()],
     }, { seed: 1 })
-    expect(output).toContain('markerUnits="userSpaceOnUse"')
+    expect(output).not.toContain('markerUnits=')
     expect(output).toContain('points="0 0, 8 2.5, 0 5"')
   })
 
@@ -241,6 +441,10 @@ describe('role traits and primitive capabilities', () => {
     )
     const rough = claims(RoughBackend)
     const hybrid = claims(HybridBackend)
+    for (const feature of ['geometry', 'topology'] as const) {
+      expect(rough.get(feature)).toMatchObject({ realization: 'lossy', diagnostic: expect.any(String), evidence: expect.any(String) })
+      expect(hybrid.get(feature)).toMatchObject({ realization: 'lossy', diagnostic: expect.any(String), evidence: expect.any(String) })
+    }
     expect(rough.get('dash-offset')).toMatchObject({ realization: 'emulated', evidence: expect.any(String) })
     expect(rough.get('dash-restart')).toMatchObject({ realization: 'lossy', diagnostic: expect.any(String), evidence: expect.any(String) })
     expect(rough.get('stroke-cap')).toMatchObject({ realization: 'emulated', evidence: expect.any(String) })

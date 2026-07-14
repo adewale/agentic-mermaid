@@ -10,6 +10,7 @@ import type { MarkPaint, SceneDoc, SceneNode } from '../scene/ir.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { tooltipMarkup, tooltipCss } from '../shared/svg-tooltip.ts'
+import type { InternalStyleFace } from '../scene/style-registry.ts'
 
 // ============================================================================
 // XY Chart SVG renderer
@@ -52,12 +53,13 @@ export function renderXYChartSvg(
 export function lowerXYChartScene(
   ctx: RenderContext<PositionedXYChart>,
 ): SceneDoc {
-  const { positioned: chart, colors, options } = ctx
+  const { positioned: chart, colors, resolved } = ctx
+  const options = resolved.renderOptions
   const font = colors.font ?? 'Inter'
   const transparent = options.transparent ?? false
   const interactive = options.interactive ?? false
   const parts: SceneNode[] = []
-  const style = resolveRenderStyle(options, XY_STYLE_DEFAULTS)
+  const style = resolveRenderStyle(options, XY_STYLE_DEFAULTS, resolved.styleFace)
   const chartColors = resolveChartColors(chart, style)
 
   const maxColorIdx = Math.max(0, ...chart.bars.map(bar => bar.colorIndex), ...chart.lines.map(line => line.colorIndex))
@@ -65,7 +67,7 @@ export function lowerXYChartScene(
   const svgTag = svgOpenTag(chart.width, chart.height, colors, transparent, svgMeta.openTag)
     .replace('<svg ', `<svg data-xychart-colors="${maxColorIdx}" `)
 
-  const { style: chartStyle, defs } = chartStyles(chart, interactive, colors.accent, colors.bg, options)
+  const { style: chartStyle, defs } = chartStyles(chart, interactive, colors.accent, colors.bg, options, resolved.styleFace)
   parts.push(marks.prelude(
     {
       id: 'prelude',
@@ -154,7 +156,11 @@ export function lowerXYChartScene(
   }
 
   for (const line of chart.lines) {
-    if (line.points.length === 0) continue
+    // A single sample has no relationship to route.  The graphical SVG has
+    // historically treated its one-command path as invisible, while the
+    // terminal renderer still draws the sample directly from the semantic
+    // series.  Do not manufacture an invalid one-point Scene connector.
+    if (line.points.length < 2) continue
     const d = polylinePath(line.points)
     parts.push(marks.connector({
       id: `series:line-${line.seriesIndex}`,
@@ -518,8 +524,9 @@ function chartStyles(
   themeAccent?: string,
   bgColor?: string,
   options: RenderOptions = {},
+  styleFace?: Readonly<InternalStyleFace>,
 ): { style: string; defs: string } {
-  const renderStyle = resolveRenderStyle(options, XY_STYLE_DEFAULTS)
+  const renderStyle = resolveRenderStyle(options, XY_STYLE_DEFAULTS, styleFace)
   const cc = resolveChartColors(chart, renderStyle)
   const accentHex = themeAccent ?? CHART_ACCENT_FALLBACK
   const themeOverrides = chart.theme

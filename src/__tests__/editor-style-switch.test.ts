@@ -7,16 +7,22 @@
  * palette). Like the theme switcher, a style change re-renders the artwork
  * only — the Kiln chrome never moves.
  *
- * Serves website/public and skips the same way as editor-theme-switch.test.ts
- * when Playwright's Chromium is not installed (AM_CHROMIUM overrides).
+ * Serves website/public in the explicit `test:browser` lane and skips the
+ * coverage unit lane. AM_CHROMIUM overrides the pinned browser executable.
  */
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import { Buffer } from 'node:buffer'
 import { existsSync } from 'node:fs'
 import { extname, join, normalize } from 'node:path'
 import { chromium, type Browser, type Page } from 'playwright'
+import { serveWithAvailablePort } from '../../e2e/test-port.ts'
 import { DEFAULT_ARCHITECTURE_VISUAL } from '../architecture/config.ts'
-import { inspectPngColorProfile } from '../output-color-profile.ts'
+import { inspectPngColorProfile, inspectPngDimensions } from '../output-color-profile.ts'
+import { renderMermaidSVGWithReceipt } from '../index.ts'
+import {
+  SECTION_A_TRANSPORT_FIXTURE,
+  sectionATransportReceiptProjection,
+} from './helpers/section-a-transport-fixture.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const SITE = join(REPO, 'website', 'public')
@@ -33,7 +39,9 @@ const chromiumExecutable = (() => {
   }
   try { return existsSync(chromium.executablePath()) ? undefined : null } catch { return null }
 })()
-const describeBrowser = chromiumExecutable === null ? describe.skip : describe
+const describeBrowser = chromiumExecutable !== null && process.env.AM_BROWSER_TESTS === '1'
+  ? describe
+  : describe.skip
 
 const mime: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -55,17 +63,17 @@ function fileForPath(pathname: string) {
   return null
 }
 
-/** The styled scene shell is the observable "a look is active" signal: the
- *  hand-drawn look draws its paper-ruled backdrop, crisp never does. */
+/** Look-specific furniture is the observable treatment signal. A Palette-only
+ *  crisp render may still carry the common page backdrop. */
 async function waitForBackdrop(page: Page, want: string | null) {
   await page.waitForFunction(
     (backdrop) => {
       const svg = document.querySelector('.preview-inner svg')
       if (!svg) return false
-      // Styled renders carry several data-backdrop elements (the page rect is
-      // "page"); match the specific furniture, or assert none exists at all.
+      // Styled renders carry a common page rect. Match the requested furniture,
+      // or assert no look-specific furniture exists.
       return backdrop === null
-        ? svg.querySelector('[data-backdrop]') === null
+        ? svg.querySelector('[data-backdrop]:not([data-backdrop="page"])') === null
         : svg.querySelector(`[data-backdrop="${backdrop}"]`) !== null
     },
     want,
@@ -109,7 +117,7 @@ const STYLE_STACK_SHARE = {
   y-axis "Renders" 0 --> 100
   bar [25, 42, 58, 74, 88]
   line [18, 35, 52, 70, 95]`,
-  theme: 'zinc-light',
+  palette: 'zinc-light',
   style: 'publication-figure',
   config: {
     // Shared rich-example links can carry RenderOptions.style in config. It
@@ -137,8 +145,8 @@ const RESTORED_CONFIG_SHARE = {
 
 describeBrowser('editor style switcher restyles the artwork, never the chrome', () => {
   beforeAll(async () => {
-    server = Bun.serve({
-      port: 0,
+    const served = serveWithAvailablePort({
+      preferredPort: 4660,
       fetch(req) {
         const url = new URL(req.url)
         const abs = fileForPath(url.pathname)
@@ -146,7 +154,8 @@ describeBrowser('editor style switcher restyles the artwork, never the chrome', 
         return new Response(Bun.file(abs), { headers: { 'content-type': mime[extname(abs)] || 'application/octet-stream' } })
       },
     })
-    baseUrl = `http://${server.hostname}:${server.port}`
+    server = served.server
+    baseUrl = served.base
     browser = await chromium.launch({ headless: true, executablePath: chromiumExecutable ?? undefined })
   }, 30_000)
 
@@ -269,6 +278,34 @@ describeBrowser('editor style switcher restyles the artwork, never the chrome', 
     expect(await page.locator('#cfg-advanced-options').getAttribute('aria-invalid')).toBe('true')
     expect(await page.locator('#cfg-advanced-status').textContent()).toContain('unknown render option')
     expect(await page.evaluate(() => window.location.hash)).toBe(appliedHash)
+
+    // The share hash is a transport, not a write-only cache: reloading must
+    // retain every canonical field, including nested family options that the
+    // old editor-local allowlist silently dropped.
+    await page.reload({ waitUntil: 'networkidle' })
+    await page.waitForFunction(() => {
+      const preview = document.getElementById('preview-inner') as HTMLElement | null
+      return Boolean(preview?.dataset.sharedRequestDigest && preview.dataset.appearanceDigest)
+    }, null, { timeout: 15_000 })
+    await page.click('#settings-btn')
+    expect(JSON.parse(await page.locator('#cfg-advanced-options').inputValue())).toEqual(advanced)
+    const reloadedReceipt = await page.evaluate(() => {
+      const preview = document.getElementById('preview-inner') as HTMLElement
+      return {
+        sharedRequestDigest: preview.dataset.sharedRequestDigest,
+        appearanceDigest: preview.dataset.appearanceDigest,
+      }
+    })
+    const expected = renderMermaidSVGWithReceipt('flowchart TD\n  A[Alpha] --> B[Beta]', {
+      ...advanced,
+      style: 'paper',
+      embedFontImport: false,
+      security: 'strict',
+    }).receipt
+    expect(reloadedReceipt).toEqual({
+      sharedRequestDigest: expected.sharedRequestDigest,
+      appearanceDigest: expected.appearanceDigest,
+    })
     await page.close()
   }, 60_000)
 
@@ -292,8 +329,15 @@ describeBrowser('editor style switcher restyles the artwork, never the chrome', 
     }, digestBeforeFont, { timeout: 15_000 })
     await page.click('#settings-close-btn')
 
+    expect(await page.locator('.size-pill.active').getAttribute('data-scale')).toBe('2')
+    await page.click('#export-chevron-btn')
+    await page.selectOption('#png-fit-mode', 'width')
+    await page.locator('#png-fit-value').fill('96')
+    await page.selectOption('#png-background-mode', 'explicit')
+    await page.locator('#png-background-color').fill('#123456')
+
     const downloadPromise = page.waitForEvent('download', { timeout: 15_000 })
-    await page.click('#export-main-btn')
+    await page.click('#export-png-btn')
     let download
     try {
       download = await downloadPromise
@@ -304,6 +348,7 @@ describeBrowser('editor style switcher restyles the artwork, never the chrome', 
     expect(path).not.toBeNull()
     const png = new Uint8Array(await Bun.file(path!).arrayBuffer())
     expect(Array.from(png.slice(0, 8))).toEqual([137, 80, 78, 71, 13, 10, 26, 10])
+    expect(inspectPngDimensions(png).width).toBe(96)
     const profile = inspectPngColorProfile(png)
     expect(profile.profile).toBe('srgb')
     expect(profile.cICP).toEqual([1, 13, 0, 1])
@@ -317,19 +362,21 @@ describeBrowser('editor style switcher restyles the artwork, never the chrome', 
     await page.goto(baseUrl + '/editor/', { waitUntil: 'networkidle' })
     await page.waitForFunction(() => {
       const preview = document.getElementById('preview-inner') as HTMLElement | null
-      return !!preview?.dataset.sharedRequestDigest && !(document.getElementById('export-main-btn') as HTMLButtonElement).disabled
+      return !!preview?.dataset.sharedRequestDigest
+        && !(document.getElementById('export-main-btn') as HTMLButtonElement).disabled
     }, null, { timeout: 15_000 })
     const state = await page.evaluate(() => {
-      ;(window as any).scheduleRender(10_000)
+      const editor = document.getElementById('code-editor') as HTMLTextAreaElement
+      editor.value += '\n%% authority-revocation probe'
+      editor.dispatchEvent(new Event('input', { bubbles: true }))
       const preview = document.getElementById('preview-inner') as HTMLElement
       return {
         svgStillVisible: !!preview.querySelector('svg'),
         digest: preview.dataset.sharedRequestDigest,
         exportDisabled: (document.getElementById('export-main-btn') as HTMLButtonElement).disabled,
-        artifactRevoked: (window as any).lastRenderedSvgArtifact === null,
       }
     })
-    expect(state).toEqual({ svgStillVisible: true, digest: undefined, exportDisabled: true, artifactRevoked: true })
+    expect(state).toEqual({ svgStillVisible: true, digest: undefined, exportDisabled: true })
     await page.close()
   }, 60_000)
 
@@ -379,6 +426,51 @@ describeBrowser('editor style switcher restyles the artwork, never the chrome', 
     await expect(page.locator('#unicode-output').textContent()).resolves.toContain('Alice')
     await page.click('#format-ascii')
     await expect(page.locator('#ascii-output').textContent()).resolves.toContain('Alice')
+    await page.close()
+  }, 60_000)
+
+  test('the canonical six-surface sentinel retains the complete receipt through the editor adapter', async () => {
+    const { source, options } = SECTION_A_TRANSPORT_FIXTURE
+    const library = renderMermaidSVGWithReceipt(source, options)
+    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
+    await page.addInitScript(() => {
+      let mermaidValue: any
+      Object.defineProperty(window, '__mermaid', {
+        configurable: true,
+        get() { return mermaidValue },
+        set(value) {
+          const original = value.renderMermaidSVGWithReceipt
+          value.renderMermaidSVGWithReceipt = function(source: string, options: unknown) {
+            const artifact = original(source, options)
+            ;(window as any).__sectionAEditorRender = { source, options, artifact }
+            return artifact
+          }
+          mermaidValue = value
+        },
+      })
+    })
+    const share = legacyShareHash({
+      source,
+      theme: 'paper',
+      style: 'hand-drawn',
+      seed: options.seed,
+      config: { padding: options.padding },
+    })
+    await page.goto(baseUrl + '/editor/#' + share, { waitUntil: 'networkidle' })
+    await page.waitForFunction((expectedSource) => {
+      const rendered = (window as any).__sectionAEditorRender
+      return rendered?.source === expectedSource
+        && rendered.artifact?.receipt?.graphicalProjectionDigest
+        && document.getElementById('preview-inner')?.querySelector('svg')
+    }, source, { timeout: 15_000 })
+
+    const editorRender = await page.evaluate(() => (window as any).__sectionAEditorRender)
+    expect(editorRender.source).toBe(source)
+    expect(editorRender.options).toEqual(options)
+    const editorArtifact = editorRender.artifact
+    expect(editorArtifact.svg).toBe(library.svg)
+    expect(sectionATransportReceiptProjection(editorArtifact.receipt))
+      .toEqual(sectionATransportReceiptProjection(library.receipt))
     await page.close()
   }, 60_000)
 

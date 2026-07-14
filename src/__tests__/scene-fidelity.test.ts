@@ -39,7 +39,12 @@ function lowerSample(source: string, options: RenderOptions = {}): { doc: SceneD
   const ctx = {
     positioned: layout.positioned,
     colors: request.appearance.colors,
-    options: request.renderOptions,
+    resolved: {
+      renderOptions: request.renderOptions,
+      ...(request.appearance.face ? { styleFace: request.appearance.face } : {}),
+      ...(request.familyConfig ? { familyConfig: request.familyConfig } : {}),
+      ...(request.appearance.family ? { familyAppearance: request.appearance.family } : {}),
+    },
   }
   return { doc: family.lowerScene(ctx) }
 }
@@ -89,6 +94,7 @@ describe('scene fidelity', () => {
       const first = DefaultBackend.render(scene.doc, { seed: 0 })
       const second = DefaultBackend.render(scene.doc, { seed: 0 })
       expect(second, `${scene.id} (${scene.family})`).toBe(first)
+      expect(first, `${scene.id} (${scene.family})`).toBe(scene.doc.parts.map(part => part.crisp).join('\n'))
       expect(first, `${scene.id} (${scene.family})`).toContain('<svg')
       expect(first, `${scene.id} (${scene.family})`).not.toMatch(/NaN|undefined/)
     }

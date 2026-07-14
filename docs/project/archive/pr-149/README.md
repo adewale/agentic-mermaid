@@ -1,5 +1,7 @@
 # PR #149 family-elevation archive
 
+Status: historical archive index; not an active specification or backlog.
+
 Historical plan, evidence map, and acceptance record for the completed family-elevation program merged in PR #149.
 
 These files preserve review provenance; they are not active specifications or the owner-facing backlog. Current contracts live in:

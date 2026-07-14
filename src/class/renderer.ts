@@ -12,6 +12,7 @@ import { hashId } from '../scene/seed.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { serializeMarkerResources } from '../scene/marker-resources.ts'
+import { projectRoundedConnectorPath } from '../scene/connector-geometry.ts'
 
 // ============================================================================
 // Class diagram SVG renderer
@@ -60,11 +61,12 @@ export function renderClassSvg(
 export function lowerClassScene(
   ctx: RenderContext<PositionedClassDiagram>,
 ): SceneDoc {
-  const { positioned: diagram, colors, options } = ctx
+  const { positioned: diagram, colors, resolved } = ctx
+  const options = resolved.renderOptions
   const font = colors.font ?? 'Inter'
   const transparent = options.transparent ?? false
   const parts: SceneNode[] = []
-  const style = resolveRenderStyle(options, CLASS_STYLE_DEFAULTS)
+  const style = resolveRenderStyle(options, CLASS_STYLE_DEFAULTS, resolved.styleFace)
   const uid = `class-${hashId(diagram.width, diagram.height, diagram.classes.length, diagram.relationships.length)}`
   const titleId = `${uid}-title`
   const descId = `${uid}-desc`
@@ -551,18 +553,22 @@ function renderRelationship(rel: PositionedClassRelationship, style: ResolvedRen
   } as const
 
   if (style.edgeBendRadius > 0 && rel.points.length > 2) {
-    const d = pointsToPathD(rel.points, style.edgeBendRadius)
+    const projection = projectRoundedConnectorPath(rel.points, style.edgeBendRadius, {
+      metric: 'manhattan',
+      precision: 3,
+    })
     return marks.connector({
       id: sceneId,
       role: 'relationship',
-      geometry: { kind: 'path', d, points: rel.points },
+      geometry: projection.geometry,
       lineStyle,
       paint,
       startMarker,
       endMarker,
       ...connectorSemantics,
+      route: { ...connectorSemantics.route, contours: projection.contours },
     },
-      `<path ${dataAttrs.join(' ')} d="${d}" fill="none" stroke="${escapeAttr(strokeColor)}" ` +
+      `<path ${dataAttrs.join(' ')} d="${projection.geometry.d}" fill="none" stroke="${escapeAttr(strokeColor)}" ` +
       `stroke-width="${style.lineWidth}"${dashArray}${markers} />`)
   }
 
@@ -681,41 +687,6 @@ function renderRelationshipLabels(rel: PositionedClassRelationship, style: Resol
   }
 
   return out
-}
-
-function pointsToPathD(points: Array<{ x: number; y: number }>, radius: number): string {
-  if (points.length === 0) return ''
-  if (points.length === 1) return `M${points[0]!.x},${points[0]!.y}`
-  const parts = [`M${points[0]!.x},${points[0]!.y}`]
-  for (let i = 1; i < points.length - 1; i++) {
-    const prev = points[i - 1]!
-    const curr = points[i]!
-    const next = points[i + 1]!
-    const prevLen = Math.abs(curr.x - prev.x) + Math.abs(curr.y - prev.y)
-    const nextLen = Math.abs(next.x - curr.x) + Math.abs(next.y - curr.y)
-    const r = Math.min(radius, prevLen / 2, nextLen / 2)
-    if (r <= 0) {
-      parts.push(`L${curr.x},${curr.y}`)
-      continue
-    }
-    const before = pointToward(curr, prev, r)
-    const after = pointToward(curr, next, r)
-    parts.push(`L${before.x},${before.y}`)
-    parts.push(`Q${curr.x},${curr.y} ${after.x},${after.y}`)
-  }
-  const last = points[points.length - 1]!
-  parts.push(`L${last.x},${last.y}`)
-  return parts.join(' ')
-}
-
-function pointToward(from: { x: number; y: number }, to: { x: number; y: number }, distance: number): { x: number; y: number } {
-  const total = Math.abs(to.x - from.x) + Math.abs(to.y - from.y)
-  if (total === 0) return { ...from }
-  const t = distance / total
-  return {
-    x: Math.round((from.x + (to.x - from.x) * t) * 1000) / 1000,
-    y: Math.round((from.y + (to.y - from.y) * t) * 1000) / 1000,
-  }
 }
 
 /** Get the midpoint of a point array */

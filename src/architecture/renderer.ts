@@ -19,7 +19,7 @@ import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { resolveArchitectureIcon } from './icons.ts'
 import { serializeMarkerResources } from '../scene/marker-resources.ts'
-import { resolvedFamilyAppearanceOf } from '../render-contract.ts'
+import { projectRoundedConnectorPath } from '../scene/connector-geometry.ts'
 
 // ============================================================================
 // Architecture renderer — lowers a PositionedArchitectureDiagram to the
@@ -48,12 +48,15 @@ export function renderArchitectureSvg(
 export function lowerArchitectureScene(
   ctx: RenderContext<PositionedArchitectureDiagram>,
 ): SceneDoc {
-  const { positioned: diagram, colors, options } = ctx
+  const { positioned: diagram, colors, resolved } = ctx
+  const options = resolved.renderOptions
   const font = colors.font ?? 'Inter'
   const transparent = options.transparent ?? false
-  const visual = resolvedFamilyAppearanceOf<{ visual?: ArchitectureVisualConfig }>(options)?.visual
-    ?? options.architecture?.visual
-    ?? DEFAULT_ARCHITECTURE_VISUAL
+  const visual: ArchitectureVisualConfig = {
+    ...DEFAULT_ARCHITECTURE_VISUAL,
+    ...((resolved.familyAppearance as { visual?: ArchitectureVisualConfig } | undefined)?.visual
+      ?? options.architecture?.visual),
+  }
   const parts: SceneNode[] = []
   const archVars = [
     visual.groupSurface ? `--arch-group-fill:${visual.groupSurface}` : '',
@@ -421,17 +424,21 @@ function lowerEdge(edge: PositionedArchitectureEdge, visual: ArchitectureVisualC
   } as const
 
   if (visual.edgeBendRadius > 0 && edge.points.length > 2) {
-    const d = pointsToPathD(edge.points, visual.edgeBendRadius)
+    const projection = projectRoundedConnectorPath(edge.points, visual.edgeBendRadius, {
+      metric: 'manhattan',
+      precision: 3,
+    })
     return marks.connector({
       id: sceneId,
       role: 'edge',
-      geometry: { kind: 'path', d, points: edge.points },
+      geometry: projection.geometry,
       lineStyle: 'solid',
       paint,
       startMarker,
       endMarker,
       ...connectorSemantics,
-    }, `<path ${attrs.join(' ')} d="${d}"${markers} />`)
+      route: { ...connectorSemantics.route, contours: projection.contours },
+    }, `<path ${attrs.join(' ')} d="${projection.geometry.d}"${markers} />`)
   }
   return marks.connector({
     id: sceneId,
@@ -637,41 +644,6 @@ function edgeMidpoint(points: Point[]): Point {
 
 function segmentLength(a: Point, b: Point): number {
   return Math.abs(b.x - a.x) + Math.abs(b.y - a.y)
-}
-
-function pointsToPathD(points: Point[], radius: number): string {
-  if (points.length === 0) return ''
-  if (points.length === 1) return `M${points[0]!.x},${points[0]!.y}`
-  const parts = [`M${points[0]!.x},${points[0]!.y}`]
-  for (let i = 1; i < points.length - 1; i++) {
-    const prev = points[i - 1]!
-    const curr = points[i]!
-    const next = points[i + 1]!
-    const prevLen = segmentLength(prev, curr)
-    const nextLen = segmentLength(curr, next)
-    const r = Math.min(radius, prevLen / 2, nextLen / 2)
-    if (r <= 0) {
-      parts.push(`L${curr.x},${curr.y}`)
-      continue
-    }
-    const before = pointToward(curr, prev, r)
-    const after = pointToward(curr, next, r)
-    parts.push(`L${before.x},${before.y}`)
-    parts.push(`Q${curr.x},${curr.y} ${after.x},${after.y}`)
-  }
-  const last = points[points.length - 1]!
-  parts.push(`L${last.x},${last.y}`)
-  return parts.join(' ')
-}
-
-function pointToward(from: Point, to: Point, distance: number): Point {
-  const total = segmentLength(from, to)
-  if (total === 0) return { ...from }
-  const t = distance / total
-  return {
-    x: Math.round((from.x + (to.x - from.x) * t) * 1000) / 1000,
-    y: Math.round((from.y + (to.y - from.y) * t) * 1000) / 1000,
-  }
 }
 
 function letterAttr(value: number): string {

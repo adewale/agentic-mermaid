@@ -53,8 +53,10 @@ check 'build authors with structured ops' 'class Duck' \
 check 'mutate edits with structured ops' 'class Dog' \
   "$(j '{"jsonrpc":"2.0","id":"mutate","method":"tools/call","params":{"name":"mutate","arguments":{"source":"classDiagram\n  class Animal","ops":[{"kind":"add_class","id":"Dog"}]}}}')"
 
-check 'render_png returns base64 PNG (wasm)' '\"png_base64\":\"iVBOR' \
-  "$(j '{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"render_png","arguments":{"source":"flowchart LR\n  A --> B"}}}')"
+png_response="$(j '{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"render_png","arguments":{"source":"flowchart LR\n  A[Start 漢] --> B[Finish]","scale":0.75,"background":"#123456","fitTo":{"width":96},"style":["watercolor","paper"],"seed":13,"options":{"padding":19,"security":"strict"}}}}')"
+check 'render_png returns base64 PNG (wasm)' '\"png_base64\":\"iVBOR' "$png_response"
+printf '%s' "$png_response" | bun run scripts/verify-hosted-png-e2e.ts
+pass=$((pass + 1))
 
 check 'execute: statement-form SDK mutate workflow' 'C[New]' \
   "$(j '{"jsonrpc":"2.0","id":8,"method":"tools/call","params":{"name":"execute","arguments":{"code":"const r = mermaid.parseMermaid(\"flowchart TD\\n  A --> B\"); const m = mermaid.mutate(r.value, { kind: \"add_node\", id: \"C\", label: \"New\" }); return { ok: m.ok, source: mermaid.serializeMermaid(m.value) }"}}}')"

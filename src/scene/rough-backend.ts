@@ -10,8 +10,8 @@
 // legends, and ALL text stay crisp so charts remain readable. Labels get a
 // page-colored paint-order halo (cartographic practice: text drawn last,
 // never perturbed — SPEC §7). Marker defs pass through with
-// markerUnits="userSpaceOnUse" projected from typed marker resources so arrowheads don't scale with
-// replacement stroke widths (the Phase 0 lesson). The original connector
+// their authored markerUnits (including SVG's strokeWidth default). The
+// original connector
 // element is kept as an invisible carrier (stroke-opacity="0"), preserving
 // markers, class/data-* attributes, and hit geometry under the sketch.
 //
@@ -26,15 +26,16 @@
 
 import { RoughGenerator } from 'roughjs/bin/generator'
 import type { Geometry, SceneDoc, SceneNode, SceneTransform, ShapeMark, ConnectorMark, TextMark } from './ir.ts'
+import { connectorSubpaths } from './connector-geometry.ts'
 import type { StyleBackend, StyleBackendContext } from './backend.ts'
-import { registerBuiltInBackend, composeGroup, pageRectFor } from './backend.ts'
+import { composeGroup, pageRectFor } from './backend.ts'
 import { nodeSeed } from './seed.ts'
 import { topLevelElements } from './fidelity.ts'
 import type { StyleSpec } from './style-registry.ts'
 import { ensureSvgIdentity } from './identity.ts'
 import { sceneRoleTraits } from './roles.ts'
 import { graphicalBackendCapabilityClaims } from './capabilities.ts'
-import { projectMarkerUnits } from './marker-resources.ts'
+import { admitBackendSceneDocument } from './external-data-snapshot.ts'
 import { escapeAttr } from '../multiline-utils.ts'
 
 const gen = new RoughGenerator()
@@ -360,19 +361,49 @@ function sketchConnector(node: ConnectorMark, walk: Walk): string {
     sketched = sketchGeometryVia(walk, { kind: 'polyline', points: geom.points }, seed, stroke, width, undefined, dash, strokeProjection)
   } else if (geom.kind === 'line') {
     sketched = sketchGeometryVia(walk, geom, seed, stroke, width, undefined, dash, strokeProjection)
-  } else if (geom.points && geom.points.length > 1) {
-    // Curved-bend paths carry their source polyline; freehand-capable
-    // sketchers prefer the points, rough falls back to the path d.
-    sketched = sketchGeometryVia(walk, { kind: 'polyline', points: geom.points }, seed, stroke, width, undefined, dash, strokeProjection)
-      || sketchGeometryVia(walk, { kind: 'path', d: geom.d }, seed, stroke, width, undefined, dash, strokeProjection)
   } else {
-    sketched = sketchGeometryVia(walk, { kind: 'path', d: geom.d }, seed, stroke, width, undefined, dash, strokeProjection)
+    const subpaths = connectorSubpaths(geom, node.route.closed)
+    if (subpaths.length === 1) {
+      // Preserve the authored curve exactly when there is no multi-contour
+      // bridge risk. The typed routed polyline remains the authority for
+      // bounds and hit testing, not a replacement drawing path.
+      sketched = sketchGeometryVia(walk, { kind: 'path', d: geom.d }, seed, stroke, width, undefined, dash, strokeProjection)
+    }
+    if (!sketched && geom.points.length > 1) {
+      // Sketch multiple typed contours independently so an SVG `M` can never
+      // become a visible bridge. This also provides a bounded fallback when
+      // rough.js cannot consume a supported single-contour path command.
+      const projected = subpaths.map((subpath, index) => {
+        const first = subpath.points[0]
+        const last = subpath.points.at(-1)
+        const points = subpath.closed && first && last && (first.x !== last.x || first.y !== last.y)
+          ? [...subpath.points, first]
+          : subpath.points
+        return sketchGeometryVia(
+          walk,
+          { kind: 'polyline', points: [...points] },
+          seed + index,
+          stroke,
+          width,
+          undefined,
+          dash,
+          strokeProjection,
+        )
+      })
+      sketched = projected.every(Boolean) ? projected.join('\n') : ''
+    }
   }
   if (!sketched) return node.crisp
   // Keep the original element as an invisible carrier: markers, class/data-*
   // attributes, and hit geometry survive (stroke-opacity 0 hides the crisp
   // stroke while markers still render at full opacity from markerUnits defs).
-  const carrier = injectAttrs(node.crisp, node.geometry.kind, 'stroke-opacity="0"')
+  const hidden = node.crisp.replace(
+    /\sstroke-opacity=(?:"[^"]*"|'[^']*')/,
+    ' stroke-opacity="0"',
+  )
+  const carrier = hidden === node.crisp
+    ? injectAttrs(node.crisp, node.geometry.kind, 'stroke-opacity="0"')
+    : hidden
   return `${carrier}\n${transformedStyledGeometry(sketched, node.transform)}`
 }
 
@@ -408,9 +439,7 @@ function drawNodeStyled(node: SceneNode, walk: Walk): string {
     case 'prelude':
       return node.crisp
     case 'document':
-      return node.element === 'definitions' && node.markerResources?.length
-        ? projectMarkerUnits(node.crisp, node.markerResources, 'userSpaceOnUse')
-        : node.crisp
+      return node.crisp
     case 'raw':
       return node.crisp
     case 'shape':
@@ -437,15 +466,16 @@ export function createSketchBackend(id: string, sketcher?: GeometrySketcher): St
       return drawNodeStyled(node, { ctx, p: paramsOf(ctx.style), sketcher })
     },
     render(doc: SceneDoc, ctx: StyleBackendContext): string {
+      const admitted = admitBackendSceneDocument(doc)
       const walk: Walk = { ctx, p: paramsOf(ctx.style), sketcher }
       const out: string[] = []
-      for (let i = 0; i < doc.parts.length; i++) {
-        const part = doc.parts[i]!
+      for (let i = 0; i < admitted.parts.length; i++) {
+        const part = admitted.parts[i]!
         out.push(drawNodeStyled(part, walk))
         if (i === 0 && part.kind === 'prelude') {
-          const pageRect = pageRectFor(doc, ctx)
+          const pageRect = pageRectFor(admitted, ctx)
           if (pageRect) out.push(pageRect)
-          const backdrop = backdropFor(ctx.style, doc)
+          const backdrop = backdropFor(ctx.style, admitted)
           if (backdrop) out.push(backdrop)
         }
       }
@@ -455,5 +485,3 @@ export function createSketchBackend(id: string, sketcher?: GeometrySketcher): St
 }
 
 export const RoughBackend: StyleBackend = createSketchBackend('rough')
-
-registerBuiltInBackend(RoughBackend)

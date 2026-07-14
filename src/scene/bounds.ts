@@ -1,6 +1,7 @@
 import { measureTextWidth } from '../text-metrics.ts'
 import { rotateBoxBounds, type AxisAlignedBox } from '../shared/transformed-bounds.ts'
-import type { ConnectorMark, Geometry, MarkerDescriptor, SceneNode, ScenePoint } from './ir.ts'
+import type { ConnectorLabelDescriptor, ConnectorMark, Geometry, MarkerDescriptor, SceneNode, ScenePoint } from './ir.ts'
+import { connectorEndpointAnchors, connectorMidpoints } from './connector-geometry.ts'
 
 function pointsBounds(points: Array<{ x: number; y: number }>): AxisAlignedBox | undefined {
   if (points.length === 0) return undefined
@@ -51,21 +52,6 @@ export function geometryBounds(geometry: Geometry): AxisAlignedBox | undefined {
   }
 }
 
-function connectorAnchorPoints(node: ConnectorMark): { start?: ScenePoint; end?: ScenePoint } {
-  const start = node.endpoints.start?.point
-  const end = node.endpoints.end?.point
-  if (start || end) return { ...(start ? { start } : {}), ...(end ? { end } : {}) }
-  if (node.geometry.kind === 'line') {
-    return {
-      start: { x: node.geometry.x1, y: node.geometry.y1 },
-      end: { x: node.geometry.x2, y: node.geometry.y2 },
-    }
-  }
-  const points = node.geometry.points
-  if (!points || points.length === 0) return {}
-  return { start: points[0], end: points[points.length - 1] }
-}
-
 function markerBoundsAt(
   marker: MarkerDescriptor | undefined,
   anchor: ScenePoint | undefined,
@@ -80,16 +66,36 @@ function markerBoundsAt(
       x1: marker.viewBox.x + marker.viewBox.width,
       y1: marker.viewBox.y + marker.viewBox.height,
     } : undefined)
+    // Path marker geometry is intentionally not reparsed for bounds. Its
+    // required marker viewport is the conservative local authority instead.
+    ?? (marker.size ? { x0: 0, y0: 0, x1: marker.size.width, y1: marker.size.height } : undefined)
   if (!local) return undefined
-  const refX = marker.ref?.x ?? 0
-  const refY = marker.ref?.y ?? 0
-  const unitScale = marker.units === 'strokeWidth' ? strokeWidth : 1
+  let refX = marker.ref?.x ?? 0
+  let refY = marker.ref?.y ?? 0
+  let viewportLocal = local
+  if (marker.viewBox && marker.size) {
+    // SVG's default preserveAspectRatio is xMidYMid meet. Normalize marker
+    // coordinates into the marker viewport before applying markerUnits.
+    const scale = Math.min(
+      marker.size.width / marker.viewBox.width,
+      marker.size.height / marker.viewBox.height,
+    )
+    const offsetX = (marker.size.width - marker.viewBox.width * scale) / 2
+    const offsetY = (marker.size.height - marker.viewBox.height * scale) / 2
+    const x = (value: number) => offsetX + (value - marker.viewBox!.x) * scale
+    const y = (value: number) => offsetY + (value - marker.viewBox!.y) * scale
+    viewportLocal = { x0: x(local.x0), y0: y(local.y0), x1: x(local.x1), y1: y(local.y1) }
+    refX = x(refX)
+    refY = y(refY)
+  }
+  // SVG's omitted markerUnits default is strokeWidth.
+  const unitScale = (marker.units ?? 'strokeWidth') === 'strokeWidth' ? strokeWidth : 1
   const scale = Math.max(0, marker.scale ?? 1) * unitScale
   // Auto orientation may rotate around the marker ref. A radial square is a
   // conservative AABB for every tangent and avoids path parsing.
   const radius = Math.max(
-    Math.abs(local.x0 - refX), Math.abs(local.x1 - refX),
-    Math.abs(local.y0 - refY), Math.abs(local.y1 - refY),
+    Math.abs(viewportLocal.x0 - refX), Math.abs(viewportLocal.x1 - refX),
+    Math.abs(viewportLocal.y0 - refY), Math.abs(viewportLocal.y1 - refY),
   ) * scale
   return {
     x0: anchor.x - radius,
@@ -117,13 +123,10 @@ function connectorLocalBounds(node: ConnectorMark): AxisAlignedBox | undefined {
     : halfWidth
   local = expandSceneBounds(local, joinExtent)
 
-  const anchors = connectorAnchorPoints(node)
-  local = unionSceneBounds(local, markerBoundsAt(node.markers.start, anchors.start, width))!
-  local = unionSceneBounds(local, markerBoundsAt(node.markers.end, anchors.end, width))!
-  const routePoints = node.geometry.kind === 'line'
-    ? [{ x: node.geometry.x1, y: node.geometry.y1 }, { x: node.geometry.x2, y: node.geometry.y2 }]
-    : node.geometry.points
-  const interior = routePoints.slice(1, -1)
+  const anchors = connectorEndpointAnchors(node.geometry, node.route.closed)
+  for (const anchor of anchors.starts) local = unionSceneBounds(local, markerBoundsAt(node.markers.start, anchor, width))!
+  for (const anchor of anchors.ends) local = unionSceneBounds(local, markerBoundsAt(node.markers.end, anchor, width))!
+  const interior = connectorMidpoints(node.geometry, node.route.closed)
   if (node.markers.mid.length === 1) {
     for (const anchor of interior) local = unionSceneBounds(local, markerBoundsAt(node.markers.mid[0], anchor, width))!
   } else {
@@ -133,8 +136,30 @@ function connectorLocalBounds(node: ConnectorMark): AxisAlignedBox | undefined {
   }
   for (const label of node.labels) {
     if (label.bounds) local = unionSceneBounds(local, label.bounds)!
+    local = unionSceneBounds(local, connectorInlineLabelVisualBounds(label))!
   }
   return local
+}
+
+/** Conservative visual box for connector-owned inline label artwork. Shared
+ * with External Scene admission so a declared box cannot under-report the
+ * SVG that will actually be emitted. */
+export function connectorInlineLabelVisualBounds(
+  label: ConnectorLabelDescriptor,
+): AxisAlignedBox | undefined {
+  if (label.visual?.kind !== 'inline' || !label.anchor || label.fontSize === undefined || label.textAnchor === undefined) return undefined
+  const labelWidth = measureTextWidth(label.text, label.fontSize, 500)
+  const x0 = label.textAnchor === 'middle'
+    ? label.anchor.x - labelWidth / 2
+    : label.textAnchor === 'end' ? label.anchor.x - labelWidth : label.anchor.x
+  const y = label.anchor.y - Math.max(0, label.clearance ?? 0)
+  const halo = Math.max(0, label.halo?.width ?? 0) / 2
+  return expandSceneBounds({
+    x0,
+    y0: y - label.fontSize,
+    x1: x0 + labelWidth,
+    y1: y + label.fontSize * 0.28,
+  }, halo)
 }
 
 /** World-space visual bounds for typed Scene geometry. Connector paths use

@@ -244,7 +244,7 @@ export const STYLES: Style[] = [
     fill: 'scribble', fillColor: '#b8bcc2', baseTone: 0.16, toneFromLuminance: true, keepHue: false, hachureAngle: -45,
     backdrop: 'plain', boxShadow: true, mono: true,
   },
-  // ---- candidate backlog (deep-search), added as data-only styles ----
+  // ---- additional historical research fixtures ----
   {
     // ★ Terminal / TUI: phosphor-green monospace on black, crisp thin lines.
     name: 'terminal', label: 'Terminal / TUI',

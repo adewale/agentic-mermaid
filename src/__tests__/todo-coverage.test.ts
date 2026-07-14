@@ -56,7 +56,7 @@ describe('TODO coverage – sequence renderer and ASCII regressions', () => {
   it('renders semantic sequence SVG components directly', () => {
     const parsed = parseSequenceDiagram(['sequenceDiagram', 'participant A as Alice', 'participant B as Bob', 'A->>B: Hello'])
     const positioned = layoutSequenceDiagram(parsed)
-    const svg = renderSequenceSvg({ positioned, colors: githubLight, options: {} })
+    const svg = renderSequenceSvg({ positioned, colors: githubLight, resolved: { renderOptions: {} } })
     expect(svg).toContain('class="actor" data-id="A"')
     expect(svg).toContain('class="message" data-from="A" data-to="B"')
     expect(svg).toContain('Hello')
@@ -87,7 +87,7 @@ describe('TODO coverage – class and ER layout/renderer units', () => {
 
   it('renders class SVG compartments and relationship markers directly', () => {
     const positioned = layoutClassDiagram(parseClassDiagram(['classDiagram', 'Animal <|-- Dog', 'class Animal {', '+eat() void', '}']))
-    const svg = renderClassSvg({ positioned, colors: githubLight, options: {} })
+    const svg = renderClassSvg({ positioned, colors: githubLight, resolved: { renderOptions: {} } })
     expect(svg).toContain('class="class-node"')
     expect(svg).toContain('marker-start="url(#cls-inherit)"')
     expect(svg).toContain('eat()')
@@ -112,7 +112,7 @@ describe('TODO coverage – class and ER layout/renderer units', () => {
       'string id PK "primary key"',
       '}',
     ]))
-    const svg = renderErSvg({ positioned, colors: githubLight, options: {} })
+    const svg = renderErSvg({ positioned, colors: githubLight, resolved: { renderOptions: {} } })
     expect(svg).toContain('class="entity" data-id="CUSTOMER"')
     expect(svg).toContain('class="er-relationship"')
     expect(svg).toContain('places')

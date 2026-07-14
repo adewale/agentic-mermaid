@@ -4,7 +4,7 @@
 
 import { describe, test, expect } from 'bun:test'
 import { spawnSync } from 'node:child_process'
-import { existsSync, writeFileSync, mkdtempSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync, mkdtempSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 
@@ -46,9 +46,17 @@ describe('#1018 single-binary distribution', () => {
 
   fn('binary renders PNG (resvg native addon embeds)', () => {
     const out = join(work, 'd.png')
-    const r = spawnSync(BIN, ['render', '--format', 'png', fixture, '--output', out], { encoding: 'utf8', timeout: RUN_TIMEOUT_MS })
-    expect(r.status).toBe(0)
+    // An unrelated cwd proves the executable is not rediscovering this repo's
+    // installed assets. Its complete required resource closure must be inside
+    // the binary and still pass the normal manifest verifier.
+    const r = spawnSync(BIN, ['render', '--format', 'png', fixture, '--output', out], {
+      cwd: work,
+      encoding: 'utf8',
+      timeout: RUN_TIMEOUT_MS,
+    })
+    expect(r.status, r.stderr).toBe(0)
     expect(existsSync(out)).toBe(true)
+    expect([...readFileSync(out).subarray(0, 8)]).toEqual([137, 80, 78, 71, 13, 10, 26, 10])
   })
 
   fn('binary cold-start is under 1s (improvement over bun-run TS source)', () => {

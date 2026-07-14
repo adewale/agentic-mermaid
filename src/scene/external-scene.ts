@@ -10,7 +10,6 @@
 
 import type { DiagramColors } from '../theme.ts'
 import { buildStyleBlock, svgOpenTag } from '../theme.ts'
-import { escapeAttr, escapeXml } from '../multiline-utils.ts'
 import { parseExtensionId } from '../shared/extension-identity.ts'
 import type {
   ConnectorDirection,
@@ -20,13 +19,28 @@ import type {
   MarkPaint,
   MarkerDescriptor,
   SceneDoc,
-  ScenePoint,
+  SceneNode,
   SceneRole,
   SemanticChannels,
 } from './ir.ts'
+import {
+  assertExternalConnectorTopology,
+  externalConnectorSvg,
+  externalShapeSvg,
+  externalTextSvg,
+} from './external-projection.ts'
 import * as marks from './marks.ts'
+import { connectorInlineLabelVisualBounds } from './bounds.ts'
 import { serializeMarkerResources } from './marker-resources.ts'
-import { SCENE_VALIDATION_LIMITS, assertValidSceneDoc } from './scene-validation.ts'
+import {
+  SCENE_VALIDATION_LIMITS,
+  assertValidSceneDoc,
+} from './scene-validation.ts'
+import { boundedUtf8ByteLength } from '../shared/utf8.ts'
+import {
+  EXTERNAL_SCENE_INPUT_SNAPSHOT_LIMITS,
+  snapshotBoundedExternalData,
+} from './external-data-snapshot.ts'
 
 /** Version of the declarative external Scene builder input contract. */
 export const EXTERNAL_SCENE_API_VERSION = 1 as const
@@ -34,6 +48,15 @@ export const EXTERNAL_SCENE_API_VERSION = 1 as const
 export type ExternalSceneGeometry = Extract<Geometry, {
   kind: 'rect' | 'circle' | 'ellipse' | 'line' | 'polygon' | 'polyline'
 }>
+
+/** External Scene v1 keeps connector paths to one explicitly routed linear
+ * M/L[/Z] contour whose vertices exactly equal `points`.
+ * Core Scene may carry richer multi-subpath topology, but exposing it here
+ * requires a future version whose declarative input can prove `d`/topology
+ * agreement rather than creating two geometry authorities. */
+export type ExternalSceneConnectorGeometry =
+  | Extract<ConnectorGeometry, { kind: 'line' | 'polyline' }>
+  | Omit<Extract<ConnectorGeometry, { kind: 'path' }>, 'subpaths' | 'markerMidpoints'>
 
 export interface ExternalSceneNodeBase {
   readonly id: string
@@ -73,19 +96,25 @@ export interface ExternalSceneContainer extends ExternalSceneNodeBase {
 
 export interface ExternalSceneConnector extends ExternalSceneNodeBase {
   readonly kind: 'connector'
-  readonly geometry: ConnectorGeometry
+  readonly geometry: ExternalSceneConnectorGeometry
   readonly from: string
   readonly to: string
   readonly lineStyle?: 'solid' | 'dotted' | 'dashed' | 'thick' | 'invisible'
   readonly paint?: MarkPaint
+  /** Typed topology for the one path contour exposed by external Scene v1. */
+  readonly closed?: boolean
   readonly startMarker?: string
+  /** One marker resource repeated at every typed interior route point. */
+  readonly midMarker?: string
   readonly endMarker?: string
   readonly relationship?: {
     readonly kind: string
     readonly direction?: ConnectorDirection
   }
-  readonly labels?: readonly ConnectorLabelDescriptor[]
+  readonly labels?: readonly ExternalSceneConnectorLabel[]
 }
+
+export type ExternalSceneConnectorLabel = Omit<ConnectorLabelDescriptor, 'visual'>
 
 export type ExternalSceneNode =
   | ExternalSceneShape
@@ -117,57 +146,26 @@ export interface ExternalSceneInput {
   readonly parts: readonly ExternalSceneNode[]
 }
 
-function number(value: number): string {
-  return String(value)
-}
-
-function pointList(points: readonly ScenePoint[]): string {
-  return points.map(point => `${number(point.x)},${number(point.y)}`).join(' ')
-}
-
-function paintAttributes(paint: MarkPaint): string {
-  const attributes: string[] = []
-  if (paint.fill !== undefined) attributes.push(`fill="${escapeAttr(paint.fill)}"`)
-  if (paint.stroke !== undefined) attributes.push(`stroke="${escapeAttr(paint.stroke)}"`)
-  if (paint.strokeWidth !== undefined) attributes.push(`stroke-width="${escapeAttr(paint.strokeWidth)}"`)
-  if (paint.strokeDasharray !== undefined) attributes.push(`stroke-dasharray="${escapeAttr(paint.strokeDasharray)}"`)
-  if (paint.strokeDashoffset !== undefined) attributes.push(`stroke-dashoffset="${escapeAttr(paint.strokeDashoffset)}"`)
-  if (paint.strokeLinecap !== undefined) attributes.push(`stroke-linecap="${paint.strokeLinecap}"`)
-  if (paint.strokeLinejoin !== undefined) attributes.push(`stroke-linejoin="${paint.strokeLinejoin}"`)
-  if (paint.strokeMiterlimit !== undefined) attributes.push(`stroke-miterlimit="${escapeAttr(paint.strokeMiterlimit)}"`)
-  if (paint.vectorEffect !== undefined) attributes.push(`vector-effect="${paint.vectorEffect}"`)
-  if (paint.paintOrder !== undefined) attributes.push(`paint-order="${escapeAttr(paint.paintOrder)}"`)
-  if (paint.opacity !== undefined) attributes.push(`opacity="${escapeAttr(paint.opacity)}"`)
-  return attributes.length > 0 ? ` ${attributes.join(' ')}` : ''
-}
-
-function shapeSvg(geometry: ExternalSceneGeometry, paint: MarkPaint): string {
-  const attributes = paintAttributes(paint)
-  switch (geometry.kind) {
-    case 'rect':
-      return `<rect x="${number(geometry.x)}" y="${number(geometry.y)}" width="${number(geometry.width)}" height="${number(geometry.height)}"${geometry.rx === undefined ? '' : ` rx="${number(geometry.rx)}"`}${geometry.ry === undefined ? '' : ` ry="${number(geometry.ry)}"`}${attributes} />`
-    case 'circle':
-      return `<circle cx="${number(geometry.cx)}" cy="${number(geometry.cy)}" r="${number(geometry.r)}"${attributes} />`
-    case 'ellipse':
-      return `<ellipse cx="${number(geometry.cx)}" cy="${number(geometry.cy)}" rx="${number(geometry.rx)}" ry="${number(geometry.ry)}"${attributes} />`
-    case 'line':
-      return `<line x1="${number(geometry.x1)}" y1="${number(geometry.y1)}" x2="${number(geometry.x2)}" y2="${number(geometry.y2)}"${attributes} />`
-    case 'polygon':
-      return `<polygon points="${pointList(geometry.points)}"${attributes} />`
-    case 'polyline':
-      return `<polyline points="${pointList(geometry.points)}"${attributes} />`
+/** External Scene is a declarative JSON-like boundary. Admit the complete
+ * object graph into a bounded data-property snapshot before any map, spread,
+ * iterator, recursive compiler, or marker serializer can run. Compilation
+ * must consume this snapshot rather than reading an untrusted Proxy a second
+ * time after validation. */
+function admitBoundedPlainExternalInput(value: unknown): ExternalSceneInput {
+  const snapshot = snapshotBoundedExternalData(
+    value,
+    EXTERNAL_SCENE_INPUT_SNAPSHOT_LIMITS,
+    'input',
+  )
+  if (snapshot === null || typeof snapshot !== 'object' || Array.isArray(snapshot)) {
+    throw new TypeError('External Scene input must be a plain object')
   }
-}
-
-function connectorGeometryAttributes(geometry: ConnectorGeometry): string {
-  switch (geometry.kind) {
-    case 'line':
-      return `x1="${number(geometry.x1)}" y1="${number(geometry.y1)}" x2="${number(geometry.x2)}" y2="${number(geometry.y2)}"`
-    case 'polyline':
-      return `points="${pointList(geometry.points)}"`
-    case 'path':
-      return `d="${escapeAttr(geometry.d)}"`
+  const input = snapshot as Record<string, unknown>
+  if (!Array.isArray(input.parts)) throw new TypeError('External Scene parts must be a plain array')
+  if (input.markers !== undefined && !Array.isArray(input.markers)) {
+    throw new TypeError('External Scene markers must be a plain array')
   }
+  return snapshot as ExternalSceneInput
 }
 
 function connectorPaint(input: ExternalSceneConnector): MarkPaint {
@@ -184,35 +182,36 @@ function connectorPaint(input: ExternalSceneConnector): MarkPaint {
   }
 }
 
-function connectorSvg(
-  input: ExternalSceneConnector,
-  paint: MarkPaint,
-  startMarker: MarkerDescriptor | undefined,
-  endMarker: MarkerDescriptor | undefined,
-): string {
-  if ((input.lineStyle ?? 'solid') === 'invisible') return ''
-  const markerAttributes = [
-    ...(startMarker ? [`marker-start="url(#${escapeAttr(startMarker.id)})"`] : []),
-    ...(endMarker ? [`marker-end="url(#${escapeAttr(endMarker.id)})"`] : []),
-  ]
-  return `<${input.geometry.kind} ${connectorGeometryAttributes(input.geometry)}${paintAttributes(paint)}${markerAttributes.length ? ` ${markerAttributes.join(' ')}` : ''} />`
+interface ExternalCompileState {
+  count: number
+  crispBytes: number
+}
+
+function accountCompiledNode<T extends SceneNode>(node: T, state: ExternalCompileState): T {
+  if (++state.count > SCENE_VALIDATION_LIMITS.maxNodes) {
+    throw new Error(`External Scene compilation exceeds maximum node count ${SCENE_VALIDATION_LIMITS.maxNodes}`)
+  }
+  const remaining = Math.max(0, SCENE_VALIDATION_LIMITS.maxAggregateCrispBytes - state.crispBytes)
+  const bytes = boundedUtf8ByteLength(node.crisp, remaining)
+  if (bytes > remaining) {
+    throw new Error(`External Scene crisp projections exceed the aggregate ${SCENE_VALIDATION_LIMITS.maxAggregateCrispBytes}-byte limit`)
+  }
+  state.crispBytes += bytes
+  return node
 }
 
 function compileNode(
   input: ExternalSceneNode,
   markerById: ReadonlyMap<string, MarkerDescriptor>,
-  state: { count: number },
+  state: ExternalCompileState,
   depth: number,
-): import('./ir.ts').SceneNode {
+): readonly import('./ir.ts').SceneNode[] {
   if (depth > SCENE_VALIDATION_LIMITS.maxDepth) {
     throw new Error(`External Scene parts exceed maximum depth ${SCENE_VALIDATION_LIMITS.maxDepth}`)
   }
-  if (++state.count > SCENE_VALIDATION_LIMITS.maxNodes) {
-    throw new Error(`External Scene parts exceed maximum node count ${SCENE_VALIDATION_LIMITS.maxNodes}`)
-  }
   if (input.kind === 'shape' || input.kind === 'data-mark') {
     const paint: MarkPaint = { fill: 'none', stroke: 'var(--_line)', strokeWidth: '1', ...(input.paint ?? {}) }
-    return marks.shape({
+    return [accountCompiledNode(marks.shape({
       id: input.id,
       role: input.role,
       geometry: input.geometry,
@@ -223,13 +222,13 @@ function compileNode(
           : input.channels
         return channels ? { channels } : {}
       })(),
-    }, shapeSvg(input.geometry, paint))
+    }, externalShapeSvg(input.geometry, paint)), state)]
   }
   if (input.kind === 'text') {
     const anchor = input.anchor ?? 'start'
     const paint: MarkPaint = { fill: 'var(--_text)', ...(input.paint ?? {}) }
-    const crisp = `<text x="${number(input.x)}" y="${number(input.y)}" text-anchor="${anchor}" font-size="${number(input.fontSize)}"${paintAttributes(paint)}>${escapeXml(input.text)}</text>`
-    return marks.text({
+    const crisp = externalTextSvg({ ...input, anchor, paint })
+    return [accountCompiledNode(marks.text({
       id: input.id,
       role: input.role,
       text: input.text,
@@ -239,24 +238,63 @@ function compileNode(
       anchor,
       paint,
       ...(input.channels ? { channels: input.channels } : {}),
-    }, crisp)
+    }, crisp), state)]
   }
   if (input.kind === 'container') {
-    return marks.group({
+    return [accountCompiledNode(marks.group({
       id: input.id,
       role: input.role,
       open: '<g>',
       close: '</g>',
-      children: input.children.map(child => ({ node: compileNode(child, markerById, state, depth + 1), indent: 2 })),
+      children: input.children.flatMap(child => compileNode(child, markerById, state, depth + 1).map(node => ({ node, indent: 2 }))),
       ...(input.channels ? { channels: input.channels } : {}),
-    })
+    }), state)]
   }
   const startMarker = input.startMarker === undefined ? undefined : markerById.get(input.startMarker)
+  const midMarker = input.midMarker === undefined ? undefined : markerById.get(input.midMarker)
   const endMarker = input.endMarker === undefined ? undefined : markerById.get(input.endMarker)
   if (input.startMarker !== undefined && !startMarker) throw new Error(`Unknown external Scene marker "${input.startMarker}"`)
+  if (input.midMarker !== undefined && !midMarker) throw new Error(`Unknown external Scene marker "${input.midMarker}"`)
   if (input.endMarker !== undefined && !endMarker) throw new Error(`Unknown external Scene marker "${input.endMarker}"`)
+  if (input.closed !== undefined && typeof input.closed !== 'boolean') {
+    throw new TypeError(`External Scene connector "${input.id}" closed must be boolean`)
+  }
+  if (input.geometry.kind !== 'path' && input.closed !== undefined) {
+    throw new TypeError(`External Scene connector "${input.id}" closed is only valid for path geometry`)
+  }
+  const closed = input.closed ?? false
+  assertExternalConnectorTopology(input.geometry, closed)
+  if (midMarker && input.geometry.kind === 'path') {
+    throw new TypeError(`External Scene v1 connector "${input.id}" cannot attach marker-mid to path geometry because v1 does not expose exact SVG marker vertices`)
+  }
   const paint = connectorPaint(input)
-  return marks.connector({
+  const routePoints = input.geometry.kind === 'line'
+    ? [{ x: input.geometry.x1, y: input.geometry.y1 }, { x: input.geometry.x2, y: input.geometry.y2 }]
+    : input.geometry.points
+  const first = routePoints[0]
+  const last = routePoints.at(-1)
+  const defaultAnchor = first && last
+    ? { x: (first.x + last.x) / 2, y: (first.y + last.y) / 2 }
+    : { x: 0, y: 0 }
+  const labels: ConnectorLabelDescriptor[] = (input.labels ?? []).map(label => ({
+    ...label,
+    anchor: label.anchor ?? defaultAnchor,
+    paint: { fill: 'var(--_text)', ...(label.paint ?? {}) },
+    fontSize: label.fontSize ?? 12,
+    textAnchor: label.textAnchor ?? 'middle',
+    visual: { kind: 'inline' },
+  }))
+  for (const [index, label] of labels.entries()) {
+    if (!label.bounds) continue
+    const visual = connectorInlineLabelVisualBounds(label)
+    if (visual && (
+      label.bounds.x0 > visual.x0 || label.bounds.y0 > visual.y0
+      || label.bounds.x1 < visual.x1 || label.bounds.y1 < visual.y1
+    )) {
+      throw new RangeError(`External Scene connector "${input.id}" label ${index + 1} bounds must cover its inline visual geometry`)
+    }
+  }
+  const connectorNode = accountCompiledNode(marks.connector({
     id: input.id,
     role: input.role,
     geometry: input.geometry,
@@ -264,40 +302,33 @@ function compileNode(
     paint,
     endpoints: { from: input.from, to: input.to },
     relationship: input.relationship,
-    markers: { ...(startMarker ? { start: startMarker } : {}), mid: [], ...(endMarker ? { end: endMarker } : {}) },
-    labels: input.labels ?? [],
+    route: { closed },
+    markers: { ...(startMarker ? { start: startMarker } : {}), mid: midMarker ? [midMarker] : [], ...(endMarker ? { end: endMarker } : {}) },
+    labels,
     projectAccessibilityToSvg: true,
     ...(input.channels ? { channels: input.channels } : {}),
-  }, connectorSvg(input, paint, startMarker, endMarker))
+  }, externalConnectorSvg({
+    geometry: input.geometry,
+    lineStyle: input.lineStyle ?? 'solid',
+    paint,
+  }, startMarker, midMarker, endMarker)), state)
+
+  return [connectorNode]
 }
 
 /** Compile declarative external primitives into the one canonical SceneDoc. */
-export function buildExternalScene(input: ExternalSceneInput): SceneDoc {
+export function buildExternalScene(untrustedInput: ExternalSceneInput): SceneDoc {
+  const input = admitBoundedPlainExternalInput(untrustedInput)
   if (input.version !== EXTERNAL_SCENE_API_VERSION) {
     throw new Error(`Unsupported external Scene API version ${String(input.version)}`)
   }
   const family = parseExtensionId(input.family)
   if (!family || family.kind !== 'family') throw new Error('External Scene family must use a valid "family:" id')
 
-  // Construction happens before whole-Scene validation, so reject cyclic
-  // input graphs up front rather than allowing recursive compilation or marker
-  // serialization to overflow. This is only a graph-safety guard; the single
-  // semantic authority remains assertValidSceneDoc below.
-  const active = new WeakSet<object>()
-  let inputObjects = 0
-  const assertAcyclicInput = (value: unknown, depth: number): void => {
-    if ((typeof value !== 'object' && typeof value !== 'function') || value === null) return
-    if (depth > SCENE_VALIDATION_LIMITS.maxDepth * 4) throw new Error('External Scene input object graph is too deeply nested')
-    if (++inputObjects > SCENE_VALIDATION_LIMITS.maxNodes * 4) throw new Error('External Scene input object graph is too large')
-    const object = value as object
-    if (active.has(object)) throw new Error('External Scene input must be acyclic')
-    active.add(object)
-    for (const child of Array.isArray(value) ? value : Object.values(value)) assertAcyclicInput(child, depth + 1)
-    active.delete(object)
+  const markerResources: ExternalSceneMarker[] = []
+  if (input.markers) {
+    for (let index = 0; index < input.markers.length; index++) markerResources.push(input.markers[index]!)
   }
-  assertAcyclicInput(input, 0)
-
-  const markerResources = [...(input.markers ?? [])]
   const markerById = new Map(markerResources.map(marker => [marker.id, marker] as const))
   if (markerById.size !== markerResources.length) throw new Error('External Scene marker ids must be unique')
 
@@ -339,8 +370,11 @@ export function buildExternalScene(input: ExternalSceneInput): SceneDoc {
       `<defs>\n${serializeMarkerResources(markerResources)}\n</defs>`,
     ))
   }
-  const compileState = { count: 0 }
-  parts.push(...input.parts.map(part => compileNode(part, markerById, compileState, 0)), marks.documentClose())
+  const compileState: ExternalCompileState = { count: 0, crispBytes: 0 }
+  for (let index = 0; index < input.parts.length; index++) {
+    parts.push(...compileNode(input.parts[index]!, markerById, compileState, 0))
+  }
+  parts.push(marks.documentClose())
 
   const scene: SceneDoc = { family: input.family, width: input.width, height: input.height, colors, parts }
   assertValidSceneDoc(scene, { mode: 'external' })

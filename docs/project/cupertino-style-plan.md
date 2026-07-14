@@ -12,7 +12,7 @@ C0–C5 package labels so their evidence remains traceable. Those labels are
 evidence groups, not PRs, milestones, or an execution order. Protocol truth and
 skip-undefined composition precede nested brand fields under the umbrella plan;
 the existing private `InternalStyleFace` is not promoted verbatim. References
-below point to the completed Section A rendering contract and Section B (public
+below point to the implemented Section A landing candidate and Section B (public
 customization). Section A disposition is recorded in
 [`archive/section-a-rendering-contract-2026-07.md`](./archive/section-a-rendering-contract-2026-07.md);
 admitted Section B work maps to root `BUILD-31`, and only genuinely
@@ -119,11 +119,11 @@ independent implementation status.
 
 | id | Finding | Authoritative ownership |
 |---|---|---|
-| E2 ✅ / B remains | Section A closed the transport defect: `shadow` and the other shared fields now travel through one graphical request into SVG and PNG. A Cupertino Look still needs B1's public semantic elevation primitive before `style: 'cupertino'` alone reproduces the mock. | Section A completion record; B1/B5 under `BUILD-31`. |
-| E6a ✅ | Section A's skip-undefined stack semantics prevent an omitted palette channel from erasing a prior Look value. | Section A completion record. |
+| E2 ✅ / B remains | Section A closed the transport defect: `shadow` and the other shared fields now travel through one graphical request into SVG and PNG. A Cupertino Look still needs B1's public semantic elevation primitive before `style: 'cupertino'` alone reproduces the mock. | Section A landing record; B1/B5 under `BUILD-31`. |
+| E6a ✅ | Section A's skip-undefined stack semantics prevent an omitted palette channel from erasing a prior Look value. | Section A landing record. |
 | E6b | Dark needs design, not derivation: Apple dark *inverts* elevation (cards `#1c1c1e` lighter than a `#000` page, hairlines instead of shadows) while `buildShadowDefs` floods white glow on dark bg (`theme.ts:307-309`). | Umbrella B2 mode semantics and B5 evidence; the dark-mode evidence below records the probe; root `BUILD-31`. |
 | E1 | Section A typed connector/label semantics and backend support. Brand-selectable chip shape, surface and border remain B1 work; B4 is available only if the primitive evidence gate fails. | B1 or conditional B4 under `BUILD-31`. |
-| E3 ✅ | Section A established one color/output-profile contract and SVG/PNG parity evidence; helper-only dedup remains independently owned by `CONS-30`. | Section A completion record; `CONS-30` only for residual mechanics. |
+| E3 ✅ | Section A established one color/output-profile contract and SVG/PNG parity evidence; helper-only dedup remains independently owned by `CONS-30`. | Section A landing record; `CONS-30` only for residual mechanics. |
 | E4 | Core data-mark roles are explicit; the public brand binding for Quadrant point fill remains. | B1/B3 under `BUILD-31`. |
 | E5/E9 | Core shape/border semantics are explicit; a public borderless brand primitive and Gantt-specific fallback evidence remain. | B0/B1 under `BUILD-31`. |
 | E7 | Core semantic-role identity is explicit; selecting accent for start/end status is a public binding decision. | B1/B3 under `BUILD-31`. |
@@ -131,7 +131,7 @@ independent implementation status.
 | R1 ✅ | HIG grays failed the repo's own gates (`docs/style-authoring.md` rubric item 4). Resolved in v0.2 (values above). | done |
 | R2 | The remaining brand gap is a public categorical series palette shared across chart families and modes. | B1/B2 under `BUILD-31`. |
 | R3 | The remaining request is a public title typography role with family applicability evidence. | B1 under `BUILD-31`. |
-| R4 ✅ | Every discovery consumer now projects canonical IDs, preferred inputs, labels and categories from `knownStyleDescriptors()`. | Section A completion record. |
+| R4 ✅ | Every discovery consumer now projects canonical IDs, preferred inputs, labels and categories from `knownStyleDescriptors()`. | Section A landing record. |
 | R5 | The "teach brand styles" claim still collides with built-in `face` data being internal-only: the generated public StyleSpec manifest exposes palette/font/sketch fields but not semantic face records, so an "anatomy of cupertino" cookbook can reproduce only the public subset. | Umbrella B1/B5 public-record equivalence and teaching evidence; root `BUILD-31`. |
 | R6 | ER still splits attribute type/name to opposite card edges (`src/er/renderer.ts:340-370`, name `text-anchor="end"`), reading as label/value pairs on wide padded cards. | Family-specific ER evidence outside this brand probe. It is unscheduled unless promoted to root TODO; this document does not own it. |
 
@@ -195,7 +195,7 @@ scheduled here.
 
 ### Evidence package C3 — the borderless axis
 
-These findings retain their completed Section A disposition and remain
+These findings retain their implemented Section A candidate disposition and remain
 acceptance cases for B0/B1/conditional B4 under root `BUILD-31`. Implementation
 must preserve today's default
 crisp bytes and gain discriminating evidence, but this record does not prescribe
@@ -291,9 +291,9 @@ this evidence package carries no separate schedule.
   approximations and records the deviation. Its dark-stack evidence covers only
   the specified stack (edges route through `--line`, not `--fg` — a deliberate
   softness trade).
-- Skill-§ citations were removed from code comments: bare `§N` in this repo
-  resolves to `scripts/sketch-prototype/SPEC.md` (where §12 is "Risks"), so
-  comments cite Apple token names and WWDC session titles instead.
+- Skill-section citations were removed from code comments. The numbered
+  prototype specification has since been retired, so comments cite Apple token
+  names and WWDC session titles directly.
 
 ## Mock
 

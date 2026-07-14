@@ -4,11 +4,12 @@ var themeBtnSwatch = document.getElementById("theme-btn-swatch");
 var themeDropdownBtn = document.getElementById("theme-dropdown-btn");
 
 function updateThemeButton() {
-  var key = state.theme;
-  if (key && THEMES[key]) {
+  var key = state.palette;
+  var colors = editorPaletteColors(key);
+  if (key && colors) {
     themeBtnLabel.textContent =
       themeDropdownBtn.getAttribute("data-label-" + key) || key;
-    themeBtnSwatch.style.background = THEMES[key].bg;
+    themeBtnSwatch.style.background = colors.bg;
     themeBtnSwatch.style.display = "";
   } else {
     themeBtnLabel.textContent = "Default";
@@ -27,11 +28,13 @@ function updateThemeButton() {
 }
 
 function setTheme(key) {
-  state.theme = key;
+  state.palette = key ? editorPaletteInput(key) : "";
   diagramThemeIsAuto = false;
   if (key) {
-    localStorage.setItem("bm-editor-theme", key);
+    localStorage.setItem("bm-editor-palette", state.palette);
+    localStorage.removeItem("bm-editor-theme");
   } else {
+    localStorage.removeItem("bm-editor-palette");
     localStorage.removeItem("bm-editor-theme");
   }
   applyThemeToPage(key);
@@ -65,15 +68,18 @@ applyColorMode(isDark);
 
 // Restore saved theme, otherwise start on the brand Paper theme so the editor
 // opens with the same diagram palette the public site renders.
-var savedTheme = localStorage.getItem("bm-editor-theme") || "";
-if (savedTheme && THEMES[savedTheme]) {
-  state.theme = savedTheme;
+var savedPaletteInput = localStorage.getItem("bm-editor-palette") || localStorage.getItem("bm-editor-theme") || "";
+var savedPalette = editorPaletteInput(savedPaletteInput);
+if (savedPalette) {
+  state.palette = savedPalette;
+  localStorage.setItem("bm-editor-palette", savedPalette);
+  localStorage.removeItem("bm-editor-theme");
   diagramThemeIsAuto = false;
-} else if (!state.theme || !THEMES[state.theme]) {
-  state.theme = DEFAULT_EDITOR_THEME;
+} else if (!editorPaletteInput(state.palette)) {
+  state.palette = DEFAULT_EDITOR_PALETTE;
   diagramThemeIsAuto = true;
 }
-applyThemeToPage(state.theme);
+applyThemeToPage(state.palette);
 updateThemeButton();
 setThemeMenuOpen(false, false);
 
@@ -208,7 +214,7 @@ function shouldOpenEmptyEditor() {
   var loadedInitialExample = false;
   if (hashSource) {
     editor.value = hashSource;
-    applyThemeToPage(state.theme);
+    applyThemeToPage(state.palette);
     updateThemeButton();
     updateStyleButton();
     if (typeof hydrateConfigControls === 'function') hydrateConfigControls(state.config);

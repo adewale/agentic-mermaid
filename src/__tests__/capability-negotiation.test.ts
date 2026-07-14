@@ -1,5 +1,4 @@
 import { describe, expect, test } from 'bun:test'
-import '../render-family-hooks.ts'
 import {
   negotiateCapabilities,
   negotiateRenderCapabilities,
@@ -16,16 +15,17 @@ import { createExtensionIdentity } from '../shared/extension-identity.ts'
 import { resolveStyleStack, STYLE_SPEC_FORMAT_VERSION, validateStyleSpec } from '../scene/style-registry.ts'
 import {
   getFamily,
-  registerFamily,
   replaceFamilyForTest,
   type FamilyDescriptor,
 } from '../agent/families.ts'
+import { registerFamily } from '../agent/family-registration.ts'
 import type { ExternalFamilyId } from '../agent/types.ts'
 import { createMermaidRenderer, renderMermaidSVGWithReceipt } from '../index.ts'
 import * as publicAgentApi from '../agent/index.ts'
 import { DefaultBackend, knownBackendDescriptors, registerBackend } from '../scene/backend.ts'
 
 const EVIDENCE = 'src/__tests__/capability-negotiation.test.ts'
+const BACKEND_COMPATIBILITY = Object.freeze({ core: '^0.1.1', scene: '^1.0.0' })
 
 function extensionDescriptor(
   localId: string,
@@ -45,6 +45,7 @@ function extensionDescriptor(
     }),
     id,
     label: `Capability ${localId}`,
+    example: `${header}\n  example payload`,
     headers: [header],
     aliases: [],
     maturity: 'experimental',
@@ -59,7 +60,9 @@ function extensionDescriptor(
       { capability: 'serialize', state: 'source-preserved', evidence: [EVIDENCE] },
       { capability: 'mutation', state: 'diagnosed', evidence: [EVIDENCE] },
       { capability: 'verify', state: 'diagnosed', evidence: [EVIDENCE] },
-      { capability: 'layout', state: 'native', evidence: [EVIDENCE] },
+      // The hook can position family SVG, but this descriptor intentionally has
+      // no projectPositioned hook and therefore no public layout projection.
+      { capability: 'layout', state: 'diagnosed', evidence: [EVIDENCE] },
       { capability: 'scene', state: 'absent', evidence: [EVIDENCE] },
       { capability: 'svg', state: hasSvg ? 'native' : 'absent', evidence: [EVIDENCE] },
       { capability: 'terminal', state: 'absent', evidence: [EVIDENCE] },
@@ -162,6 +165,13 @@ describe('versioned capability negotiation', () => {
     })
     expect(() => registerFamily({
       ...descriptor,
+      identity: createExtensionIdentity({
+        id: descriptor.identity.id,
+        kind: 'family',
+        version: descriptor.identity.version,
+        compatibility: { ...descriptor.identity.compatibility, scene: '^1.0.0' },
+        provenance: descriptor.identity.provenance,
+      }),
       lowerScene: () => { throw new Error('unreachable') },
     })).toThrow(/one graphical waist.*extension fallback/i)
     const unregister = registerFamily(descriptor)
@@ -235,6 +245,7 @@ describe('versioned capability negotiation', () => {
     })
     const unregisterV1 = registerBackend(backend('v1'), {
       version: '1.0.0',
+      compatibility: BACKEND_COMPATIBILITY,
       provenance: { owner: 'frozen-plan-test', source: 'test-v1' },
     })
     let unregisterV2: (() => void) | undefined
@@ -245,6 +256,7 @@ describe('versioned capability negotiation', () => {
             unregisterV1()
             unregisterV2 = registerBackend(backend('v2'), {
               version: '2.0.0',
+              compatibility: BACKEND_COMPATIBILITY,
               provenance: { owner: 'frozen-plan-test', source: 'test-v2' },
             })
             return id
@@ -272,22 +284,37 @@ describe('versioned capability negotiation', () => {
     }
   })
 
-  test('rejects a selected backend whose required connector rendering is entirely unsupported', () => {
-    const id = 'backend:test/unsupported-connectors'
+  test('rejects a backend that supports connector geometry but not the required marker feature', () => {
+    const id = 'backend:test/unsupported-connector-markers'
     const unregister = registerBackend({
       ...DefaultBackend,
       id,
       capabilities: DefaultBackend.capabilities.map(claim => ({
         ...claim,
         target: id,
-        ...(claim.primitive === 'connector' && claim.operation === 'render'
+        ...(claim.primitive === 'connector'
+          && (claim.feature === 'markers'
+            || claim.feature === 'marker-orientation'
+            || claim.feature === 'marker-overflow')
+          && claim.operation === 'render'
           ? {
               realization: 'unsupported' as const,
-              diagnostic: 'The probe backend deliberately cannot render connectors.',
+              diagnostic: 'The probe backend deliberately cannot attach or orient connector markers.',
             }
           : {}),
       })),
-    }, { provenance: { owner: 'capability-negotiation-test', source: 'test' } })
+      drawNode(node, context) {
+        return DefaultBackend.drawNode(node, context)
+          .replace(/\smarker-(?:start|mid|end)="url\(#[^"]+\)"/g, '')
+      },
+      render(document, context) {
+        return DefaultBackend.render(document, context)
+          .replace(/\smarker-(?:start|mid|end)="url\(#[^"]+\)"/g, '')
+      },
+    }, {
+      compatibility: BACKEND_COMPATIBILITY,
+      provenance: { owner: 'capability-negotiation-test', source: 'test' },
+    })
     try {
       let failure: unknown
       try {
@@ -306,7 +333,7 @@ describe('versioned capability negotiation', () => {
       expect(decision.accepted).toBe(false)
       expect(decision.resolutions).toEqual(expect.arrayContaining([
         expect.objectContaining({
-          id: 'scene-primitive:connector/render',
+          id: 'scene-primitive:connector/markers/render',
           level: 'required',
           status: 'unsupported',
         }),
@@ -322,14 +349,14 @@ describe('versioned capability negotiation', () => {
       )
       expect(connectorless.capabilityDecision.accepted).toBe(true)
       expect(connectorless.capabilityDecision.resolutions.some(
-        resolution => resolution.id === 'scene-primitive:connector/render',
+        resolution => resolution.id.startsWith('scene-primitive:connector/'),
       )).toBe(false)
     } finally {
       unregister()
     }
   })
 
-  test('keeps built-in augmentation and test replacement out of the public agent barrel', () => {
+  test('keeps internal test replacement out of the public agent barrel and exposes no augmentation API', () => {
     expect('augmentFamily' in publicAgentApi).toBe(false)
     expect('replaceFamilyForTest' in publicAgentApi).toBe(false)
     expect('registerFamily' in publicAgentApi).toBe(true)

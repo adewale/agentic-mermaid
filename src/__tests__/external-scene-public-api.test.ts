@@ -5,9 +5,12 @@ import { describe, expect, test } from 'bun:test'
 // compatibility lowering helper.
 import {
   EXTERNAL_SCENE_API_VERSION,
+  SCENE_VALIDATION_LIMITS,
+  DefaultBackend,
   buildExternalScene,
   createExtensionIdentity,
   declareFamilyScenePrimitiveEvidence,
+  getBackend,
   registerFamily,
   renderMermaidSVG,
   validateSceneDoc,
@@ -103,7 +106,10 @@ function sceneInput(family: string, colors: Parameters<typeof buildExternalScene
         to: 'right-bar',
         endMarker: ARROW.id,
         relationship: { kind: 'dependency', direction: 'forward' },
-        labels: [{ id: 'external-edge-label', text: 'feeds' }],
+        labels: [{
+          id: 'external-edge-label', text: 'feeds', clearance: 4,
+          halo: { color: '#ffffff', width: 2 }, paint: { fill: '#172033' }, fontSize: 13,
+        }],
       },
     ],
   }
@@ -127,6 +133,7 @@ function descriptor(
     }),
     id,
     label: `External Scene ${localId}`,
+    example: `${header}\n  example payload`,
     headers: [header],
     aliases: [],
     maturity: 'experimental',
@@ -140,8 +147,11 @@ function descriptor(
       { capability: 'parse', state: 'source-preserved', evidence: [EVIDENCE] },
       { capability: 'serialize', state: 'source-preserved', evidence: [EVIDENCE] },
       { capability: 'mutation', state: 'diagnosed', evidence: [EVIDENCE] },
-      { capability: 'verify', state: 'native', evidence: [EVIDENCE] },
-      { capability: 'layout', state: 'native', evidence: [EVIDENCE] },
+      // This fixture exercises the public graphical Scene tuple only. Without a
+      // projectPositioned hook, layout JSON and render-backed verification are
+      // deliberately diagnosed rather than advertised as native.
+      { capability: 'verify', state: 'diagnosed', evidence: [EVIDENCE] },
+      { capability: 'layout', state: 'diagnosed', evidence: [EVIDENCE] },
       { capability: 'scene', state: 'native', evidence: [EVIDENCE] },
       { capability: 'svg', state: 'native', evidence: [EVIDENCE] },
       { capability: 'terminal', state: 'absent', evidence: [EVIDENCE] },
@@ -153,6 +163,47 @@ function descriptor(
 }
 
 describe('public external Scene construction and admission', () => {
+  test('requires an explicit Scene range for an external family with lowerScene', () => {
+    const base = descriptor(
+      'missing-scene-range',
+      'missingSceneRange',
+      ROLES,
+      ctx => buildExternalScene(sceneInput('family:test/missing-scene-range', ctx.colors)),
+    )
+    const missingSceneRange: FamilyDescriptor = {
+      ...base,
+      identity: createExtensionIdentity({
+        id: base.identity.id,
+        kind: 'family',
+        version: base.identity.version,
+        compatibility: { core: '^0.1.1' },
+        provenance: base.identity.provenance,
+      }),
+    }
+
+    expect(() => registerFamily(missingSceneRange))
+      .toThrow(/must declare an explicit compatible "scene" range/i)
+  })
+
+  test('rejects a Scene lowering that has no executable positioning hook', () => {
+    const base = descriptor(
+      'scene-without-layout',
+      'sceneWithoutLayout',
+      ROLES,
+      ctx => buildExternalScene(sceneInput('family:test/scene-without-layout', ctx.colors)),
+    )
+    const partial: FamilyDescriptor = {
+      ...base,
+      layout: undefined,
+      capabilityEvidence: base.capabilityEvidence.map(claim => {
+        if (claim.capability === 'layout' || claim.capability === 'svg') return { ...claim, state: 'absent' }
+        if (claim.capability === 'scene') return { ...claim, state: 'diagnosed' }
+        return claim
+      }),
+    }
+    expect(() => registerFamily(partial)).toThrow(/cannot lower Scene without a layout hook/)
+  })
+
   test('one public-only family renders through default, rough, and hybrid backends', () => {
     const family = descriptor('safe-scene', 'safeScene', ROLES, ctx => sceneInput('family:test/safe-scene', ctx.colors) && buildExternalScene(sceneInput('family:test/safe-scene', ctx.colors)))
     const unregister = registerFamily(family)
@@ -166,6 +217,13 @@ describe('public external Scene construction and admission', () => {
         expect(svg).toStartWith('<svg')
         expect(svg).toContain('data-id="left-node"')
         expect(svg).toContain('data-role="edge"')
+        expect(svg).toContain('data-id="external-edge-label"')
+        expect(svg).toContain('data-connector-label-for="external-edge"')
+        expect(svg).toContain('x="120" y="54"')
+        expect(svg).toContain('font-size="13"')
+        expect(svg).toContain('fill="#172033"')
+        expect(svg).toContain('stroke="#ffffff"')
+        expect(svg).toContain('>feeds</text>')
         expect(svg).not.toContain('<script')
         expect(verifyNoExternalRefs(svg)).toEqual({ ok: true, refs: [] })
       }
@@ -217,17 +275,616 @@ describe('public external Scene construction and admission', () => {
     }))
   })
 
-  test('rejects undeclared primitives and malformed manual connector semantics before rendering', () => {
-    const roles = ROLES.map(row => row.role === 'bar' ? { role: 'bar' as const, primitives: ['shape' as const] } : row)
-    const family = descriptor('undeclared-scene', 'undeclaredScene', roles, ctx => buildExternalScene(sceneInput('family:test/undeclared-scene', ctx.colors)))
+  test('rejects every unvalidated paint escape and unknown paint fields', () => {
+    const safe = sceneInput('family:test/paint-containment', { bg: '#fff', fg: '#111' })
+    const data = safe.parts[1] as Extract<ExternalSceneNode, { kind: 'data-mark' }>
+    const hostilePaints: Array<[Record<string, string>, string]> = [
+      [{ strokeLinecap: 'round" /><text>FORGED</text><rect stroke-linecap="round' }, 'strokeLinecap'],
+      [{ strokeLinejoin: 'round" /><style>*{display:none}</style><rect stroke-linejoin="round' }, 'strokeLinejoin'],
+      [{ vectorEffect: 'none" /><text>FORGED</text><rect vector-effect="none' }, 'vectorEffect'],
+      [{ paintOrder: 'stroke url(https://evil.invalid/x)' }, 'paintOrder'],
+      [{ unknownPaintEscape: '<style>*{display:none}</style>' }, 'unknownPaintEscape'],
+    ]
+    for (const [hostile, field] of hostilePaints) {
+      expect(() => buildExternalScene({
+        ...safe,
+        parts: [safe.parts[0]!, { ...data, paint: { ...data.paint, ...hostile } }, ...safe.parts.slice(2)],
+      })).toThrow(new RegExp(field))
+    }
+  })
+
+  test('parses external SVG path data semantically before projection', () => {
+    const safe = sceneInput('family:test/path-admission', { bg: '#fff', fg: '#111' })
+    const edge = safe.parts[2]
+    expect(edge?.kind).toBe('connector')
+    if (!edge || edge.kind !== 'connector') return
+    const points = [{ x: 75, y: 58 }, { x: 165, y: 58 }]
+
+    for (const d of [
+      'M',
+      'Z',
+      'M 0 0 L',
+      'M 1e999 0 L 1 1',
+      'M 0 0 A 1 1 999 9 9 2 2',
+    ]) {
+      expect(() => buildExternalScene({
+        ...safe,
+        parts: [...safe.parts.slice(0, 2), { ...edge, geometry: { kind: 'path', d, points } }],
+      })).toThrow(/semantic SVG path data|exactly one SVG subpath|closed must exactly match|canonical M\/L|supports only absolute M\/L\/Z/)
+    }
+    expect(() => buildExternalScene({
+      ...safe,
+      parts: [
+        ...safe.parts.slice(0, 2),
+        { ...edge, geometry: { kind: 'path', d: 'M 75 58 L 100 58 M 120 58 L 165 58', points } },
+      ],
+    })).toThrow(/exactly one SVG subpath|typed subpath geometry/)
+
+    expect(() => buildExternalScene({
+      ...safe,
+      parts: [
+        ...safe.parts.slice(0, 2),
+        { ...edge, geometry: { kind: 'path', d: 'M 75 58 A 45 20 0 01 165 58', points } },
+      ],
+    })).toThrow(/supports only absolute M\/L\/Z/)
+
+    expect(() => buildExternalScene({
+      ...safe,
+      parts: [
+        ...safe.parts.slice(0, 2),
+        { ...edge, geometry: { kind: 'path', d: 'M 75 58 L 165 58', points: [{ x: 75, y: 58 }, { x: 180, y: 58 }] } },
+      ],
+    })).toThrow(/vertices must exactly match typed connector points/)
+
+    expect(() => buildExternalScene({
+      ...safe,
+      parts: [
+        ...safe.parts.slice(0, 2),
+        {
+          ...edge,
+          geometry: {
+            kind: 'path',
+            d: 'M 75 58 L 165 58',
+            points,
+            subpaths: [{ points, closed: false }],
+          },
+        },
+      ],
+    } as unknown as ExternalSceneInput)).toThrow(/does not expose typed connector subpaths/)
+
+    const closedScene = buildExternalScene({
+      ...safe,
+      parts: [
+        ...safe.parts.slice(0, 2),
+        {
+          ...edge,
+          geometry: {
+            kind: 'path',
+            d: 'M 75 58 L 120 38 L 165 58 Z',
+            points: [{ x: 75, y: 58 }, { x: 120, y: 38 }, { x: 165, y: 58 }],
+          },
+          closed: true,
+        },
+      ],
+    })
+    const closedConnector = closedScene.parts.find(part => part.kind === 'connector')
+    expect(closedConnector?.kind).toBe('connector')
+    if (closedConnector?.kind === 'connector') {
+      expect(closedConnector.route.closed).toBe(true)
+      expect(closedConnector.hit.closed).toBe(true)
+    }
+    for (const candidate of [
+      { d: 'M 75 58 L 165 58 Z', closed: false },
+      { d: 'M 75 58 L 165 58', closed: true },
+    ]) {
+      expect(() => buildExternalScene({
+        ...safe,
+        parts: [
+          ...safe.parts.slice(0, 2),
+          { ...edge, geometry: { kind: 'path', d: candidate.d, points }, closed: candidate.closed },
+        ],
+      })).toThrow(/closed must exactly match/)
+    }
+
+    const openScene = buildExternalScene({
+      ...safe,
+      parts: [
+        ...safe.parts.slice(0, 2),
+        { ...edge, geometry: { kind: 'path', d: 'M 75 58 L 165 58', points } },
+      ],
+    })
+    const openIndex = openScene.parts.findIndex(part => part.kind === 'connector')
+    const openConnector = openScene.parts[openIndex]
+    expect(openConnector?.kind).toBe('connector')
+    if (openConnector?.kind === 'connector') {
+      const forgedTopology = {
+        ...openScene,
+        parts: openScene.parts.map((part, index) => index === openIndex
+          ? { ...openConnector, route: { ...openConnector.route, closed: true }, hit: { ...openConnector.hit, closed: true } }
+          : part),
+      }
+      expect(validateSceneDoc(forgedTopology, { mode: 'external' })).toMatchObject({
+        valid: false,
+        diagnostics: expect.arrayContaining([expect.objectContaining({
+          code: 'SCENE_FIDELITY',
+          message: expect.stringMatching(/closed must exactly match/),
+        })]),
+      })
+
+      const forgedTangent = {
+        ...openScene,
+        parts: openScene.parts.map((part, index) => index === openIndex
+          ? { ...openConnector, route: { ...openConnector.route, startTangent: { x: 2, y: 0 } } }
+          : part),
+      }
+      expect(validateSceneDoc(forgedTangent, { mode: 'external' })).toMatchObject({
+        valid: false,
+        diagnostics: expect.arrayContaining([expect.objectContaining({
+          code: 'SCENE_FINITE',
+          path: `scene.parts[${openIndex}].route.startTangent`,
+          message: 'must be a finite unit vector',
+        })]),
+      })
+    }
+  })
+
+  test('projects one external mid marker repeatedly through SVG and terminal semantics', () => {
+    const base = sceneInput('family:test/mid-marker', { bg: '#fff', fg: '#111' })
+    const edge = base.parts[2]
+    expect(edge?.kind).toBe('connector')
+    if (!edge || edge.kind !== 'connector') return
+    const withMidMarker: ExternalSceneInput = {
+      ...base,
+      parts: [
+        ...base.parts.slice(0, 2),
+        {
+          ...edge,
+          geometry: {
+            kind: 'polyline',
+            points: [{ x: 75, y: 58 }, { x: 120, y: 38 }, { x: 165, y: 58 }],
+          },
+          midMarker: ARROW.id,
+        },
+      ],
+    }
+
+    const scene = buildExternalScene(withMidMarker)
+    const connector = scene.parts.find(part => part.kind === 'connector')
+    expect(connector?.kind).toBe('connector')
+    if (!connector || connector.kind !== 'connector') return
+    expect(connector.crisp).toContain('marker-mid="url(#external-arrow)"')
+    expect(connector.markers.mid).toEqual([expect.objectContaining({ id: ARROW.id })])
+    expect(connector.terminalProjection.markers.mid).toEqual([expect.objectContaining({ id: ARROW.id })])
+    expect(validateSceneDoc(scene, { mode: 'external' }).valid).toBe(true)
+
+    expect(() => buildExternalScene({
+      ...base,
+      parts: [...base.parts.slice(0, 2), { ...edge, midMarker: 'missing-marker' }],
+    })).toThrow(/Unknown external Scene marker/)
+    expect(() => buildExternalScene({
+      ...base,
+      parts: [...base.parts.slice(0, 2), { ...edge, midMarker: ARROW.id }],
+    })).toThrow(/no typed interior route points/)
+    expect(() => buildExternalScene({
+      ...base,
+      parts: [...base.parts.slice(0, 2), {
+        ...edge,
+        geometry: {
+          kind: 'path', d: 'M 75 58 L 120 38 L 165 58',
+          points: [{ x: 75, y: 58 }, { x: 120, y: 38 }, { x: 165, y: 58 }],
+        },
+        midMarker: ARROW.id,
+      }],
+    })).toThrow(/does not expose exact SVG marker vertices/)
+  })
+
+  test('closes marker enums and keys, DOM ids, connector endpoints, and color booleans', () => {
+    const base = sceneInput('family:test/typed-admission', { bg: '#fff', fg: '#111' })
+    const edge = base.parts[2]
+    expect(edge?.kind).toBe('connector')
+    if (!edge || edge.kind !== 'connector') return
+
+    for (const marker of [
+      { ...ARROW, shape: 'forged' },
+      { ...ARROW, units: 'forged' },
+      { ...ARROW, orient: 'forged' },
+      { ...ARROW, overflow: 'forged' },
+      { ...ARROW, unknownMarkerField: true },
+      { ...ARROW, size: { ...ARROW.size, unknownSizeField: true } },
+    ]) {
+      expect(() => buildExternalScene({ ...base, markers: [marker] } as unknown as ExternalSceneInput)).toThrow()
+    }
+
+    const collidingMarker = { ...ARROW, id: 'external-scene-title' }
+    expect(() => buildExternalScene({
+      ...base,
+      markers: [collidingMarker],
+      parts: [...base.parts.slice(0, 2), { ...edge, endMarker: collidingMarker.id }],
+    })).toThrow(/collides with DOM id/)
+
+    const { from: _from, to: _to, ...missingEndpoints } = edge
+    expect(() => buildExternalScene({
+      ...base,
+      parts: [...base.parts.slice(0, 2), missingEndpoints],
+    } as unknown as ExternalSceneInput)).toThrow(/required for external connectors/)
+    expect(() => buildExternalScene({
+      ...base,
+      colors: { ...base.colors, shadow: 'forged' },
+    } as unknown as ExternalSceneInput)).toThrow(/scene\.colors\.shadow: must be boolean/)
+
+    for (const bounds of [
+      { x0: Number.NaN, y0: 0, x1: 1, y1: 1 },
+      { x0: 2, y0: 0, x1: 1, y1: 1 },
+      { x0: 0, y0: 2, x1: 1, y1: 1 },
+      { x0: 0, y0: 0, x1: 1, y1: 1 },
+    ]) {
+      expect(() => buildExternalScene({
+        ...base,
+        parts: [...base.parts.slice(0, 2), { ...edge, labels: [{ text: 'unsafe bounds', bounds }] }],
+      })).toThrow(/bounds/)
+    }
+  })
+
+  test('rejects oversized, sparse, accessor-backed, and custom-iterated arrays before iteration', () => {
+    const base = sceneInput('family:test/input-preflight', { bg: '#fff', fg: '#111' })
+    const oversized = new Array<ExternalSceneNode>(SCENE_VALIDATION_LIMITS.maxNodes + 1)
+    expect(() => buildExternalScene({ ...base, parts: oversized })).toThrow(/too many entries/)
+
+    const sparse = new Array<ExternalSceneNode>(1)
+    expect(() => buildExternalScene({ ...base, parts: sparse })).toThrow(/must not be sparse/)
+
+    let getterCalls = 0
+    const accessorBacked: ExternalSceneNode[] = []
+    Object.defineProperty(accessorBacked, '0', {
+      enumerable: true,
+      get() {
+        getterCalls++
+        return base.parts[0]
+      },
+    })
+    expect(() => buildExternalScene({ ...base, parts: accessorBacked })).toThrow(/data property/)
+    expect(getterCalls).toBe(0)
+
+    const customIterated = [...base.parts]
+    Object.defineProperty(customIterated, Symbol.iterator, {
+      value: function* () {
+        while (true) yield base.parts[0]!
+      },
+    })
+    expect(() => buildExternalScene({ ...base, parts: customIterated })).toThrow(/custom array properties or iterators/)
+  })
+
+  test('bounds object property counts and property-key bytes before schema walking', () => {
+    const base = sceneInput('family:test/object-preflight', { bg: '#fff', fg: '#111' })
+    const propertyFlood = Object.fromEntries(
+      Array.from({ length: 65 }, (_, index) => [`unknown${index}`, index]),
+    )
+    expect(() => buildExternalScene({ ...base, ...propertyFlood } as unknown as ExternalSceneInput))
+      .toThrow(/contains too many properties/)
+
+    const longKeyColors = { ...base.colors, ['x'.repeat(257)]: '#fff' }
+    expect(() => buildExternalScene({ ...base, colors: longKeyColors } as unknown as ExternalSceneInput))
+      .toThrow(/property key longer than 256 bytes/)
+
+    const sharedLargeArray = Array.from({ length: SCENE_VALIDATION_LIMITS.maxNodes }, () => 0)
+    const multipliedEntries = Array.from({ length: 17 }, () => new Proxy(sharedLargeArray, {}))
+    expect(() => buildExternalScene({
+      ...base,
+      ignoredAggregateArrayPayload: multipliedEntries,
+    } as unknown as ExternalSceneInput)).toThrow(/aggregate .*array-entry limit/)
+  })
+
+  test('compiles exactly the admitted descriptor snapshot rather than rereading a root Proxy', () => {
+    const base = sceneInput('family:test/proxy-snapshot', { bg: '#fff', fg: '#111' })
+    let liveGetCalls = 0
+    const input = new Proxy(base, {
+      get(target, property, receiver) {
+        liveGetCalls++
+        if (property === 'metadata') {
+          return { ...target.metadata, title: 'FORGED LIVE TITLE' }
+        }
+        return Reflect.get(target, property, receiver)
+      },
+    })
+
+    const scene = buildExternalScene(input)
+    const svg = scene.parts.map(part => part.crisp).join('\n')
+    expect(svg).toContain('Safe external Scene')
+    expect(svg).not.toContain('FORGED LIVE TITLE')
+    expect(liveGetCalls).toBe(0)
+  })
+
+  test('admits only own Scene input data and never inherits metadata or parts', () => {
+    const base = sceneInput('family:test/inherited-input', { bg: '#fff', fg: '#111' })
+    Object.defineProperty(Object.prototype, 'title', {
+      value: 'INHERITED TITLE',
+      enumerable: false,
+      configurable: true,
+    })
+    try {
+      expect(() => buildExternalScene({
+        ...base,
+        metadata: {} as ExternalSceneInput['metadata'],
+      })).toThrow()
+    } finally {
+      delete (Object.prototype as { title?: unknown }).title
+    }
+
+    let inheritedPartReads = 0
+    const inheritedParts: ExternalSceneNode[] = []
+    Object.defineProperty(inheritedParts, '0', {
+      enumerable: true,
+      configurable: true,
+      get() {
+        inheritedPartReads++
+        return base.parts[0]
+      },
+    })
+    Object.defineProperty(Object.prototype, 'parts', {
+      value: inheritedParts,
+      enumerable: false,
+      configurable: true,
+    })
+    try {
+      const { parts: _parts, ...withoutOwnParts } = base
+      expect(() => buildExternalScene(withoutOwnParts as ExternalSceneInput))
+        .toThrow(/parts must be a plain array/)
+      expect(inheritedPartReads).toBe(0)
+    } finally {
+      delete (Object.prototype as { parts?: unknown }).parts
+    }
+  })
+
+  test('serializes the immutable admitted Scene rather than a late-swapping lowerScene Proxy', () => {
+    const id = 'family:test/late-swap-scene'
+    let armed = false
+    let livePartsReads = 0
+    const family = descriptor('late-swap-scene', 'lateSwapScene', ROLES, ctx => {
+      const safe = buildExternalScene(sceneInput(id, ctx.colors))
+      if (!armed) return safe
+      const forged = [{
+        crisp: '<svg xmlns="http://www.w3.org/2000/svg" width="220" height="120"><image href="https://audit.invalid/fetch"/></svg>',
+      }]
+      let scenePartsReads = 0
+      return new Proxy(safe, {
+        get(target, property, receiver) {
+          if (property === 'parts') {
+            livePartsReads++
+            scenePartsReads++
+            // Before snapshot admission, the family gate and DefaultBackend
+            // completed 70 validation reads and serialized the 71st value.
+            if (scenePartsReads >= 71) return forged as typeof safe.parts
+          }
+          return Reflect.get(target, property, receiver)
+        },
+      })
+    })
     const unregister = registerFamily(family)
     try {
-      for (const style of [undefined, { stroke: 'jittered' as const }, { stroke: 'freehand' as const }]) {
-        expect(() => renderMermaidSVG('undeclaredScene', style ? { style } : {})).toThrow(/undeclared bar\/data-mark primitive/)
+      armed = true
+      for (const style of [
+        undefined,
+        { stroke: 'jittered' as const, roughness: 0.5 },
+        { stroke: 'freehand' as const, strokeWidth: 1.4 },
+      ]) {
+        const svg = renderMermaidSVG(
+          'lateSwapScene\n  opaque extension payload',
+          style === undefined ? {} : { style },
+        )
+        expect(svg).toContain('data-id="left-node"')
+        expect(svg).not.toContain('audit.invalid')
+        expect(verifyNoExternalRefs(svg)).toEqual({ ok: true, refs: [] })
       }
+      // Descriptor-based snapshotting never invokes the live root get trap.
+      expect(livePartsReads).toBe(0)
     } finally {
       unregister()
     }
+  })
+
+  test('direct exported backends serialize their admitted snapshot rather than a late-swapping Scene Proxy', () => {
+    const safe = buildExternalScene(sceneInput('family:test/direct-backend-snapshot', { bg: '#fff', fg: '#111' }))
+    let validationPartsReads = 0
+    const measuring = new Proxy(safe, {
+      get(target, property, receiver) {
+        if (property === 'parts') validationPartsReads++
+        return Reflect.get(target, property, receiver)
+      },
+    })
+    expect(validateSceneDoc(measuring, { mode: 'external' }).valid).toBe(true)
+    expect(validationPartsReads).toBeGreaterThan(0)
+
+    const forgedParts = [{
+      kind: 'raw',
+      crisp: '<svg xmlns="http://www.w3.org/2000/svg"><image href="https://audit.invalid/fetch"/></svg>',
+    }]
+    const backends = [DefaultBackend, getBackend('rough'), getBackend('hybrid')]
+    for (const backend of backends) {
+      expect(backend).toBeDefined()
+      if (!backend) continue
+      let livePartsReads = 0
+      const swapping = new Proxy(safe, {
+        get(target, property, receiver) {
+          if (property === 'parts' && ++livePartsReads > validationPartsReads) {
+            return forgedParts as unknown as typeof safe.parts
+          }
+          return Reflect.get(target, property, receiver)
+        },
+      })
+      const svg = backend.render(swapping, { seed: 0 })
+      expect(svg, backend.id).toContain('Safe external Scene')
+      expect(svg, backend.id).not.toContain('audit.invalid')
+      expect(livePartsReads, backend.id).toBe(0)
+    }
+  })
+
+  test('rejects forged sibling, style, and container crisp projections', () => {
+    const scene = buildExternalScene(sceneInput('family:test/canonical-projection', { bg: '#fff', fg: '#111' }))
+    const shapeIndex = scene.parts.findIndex(part => part.kind === 'shape')
+    const shape = scene.parts[shapeIndex]!
+    expect(shape.kind).toBe('shape')
+    if (shape.kind !== 'shape') return
+
+    for (const suffix of [
+      '<text x="1" y="2">FORGED</text>',
+      '<style>body{display:none}</style>',
+    ]) {
+      const forged = {
+        ...scene,
+        parts: scene.parts.map((part, index) => index === shapeIndex ? { ...shape, crisp: shape.crisp + suffix } : part),
+      }
+      expect(validateSceneDoc(forged, { mode: 'external' })).toMatchObject({
+        valid: false,
+        diagnostics: expect.arrayContaining([expect.objectContaining({
+          code: 'SCENE_FIDELITY',
+          path: expect.stringContaining('.crisp'),
+        })]),
+      })
+    }
+
+    const groupIndex = scene.parts.findIndex(part => part.kind === 'group')
+    const group = scene.parts[groupIndex]!
+    expect(group.kind).toBe('group')
+    if (group.kind !== 'group') return
+    const forgedOpen = `${group.open}<style>body{display:none}</style>`
+    const forgedGroup = {
+      ...scene,
+      parts: scene.parts.map((part, index) => index === groupIndex
+        ? { ...group, open: forgedOpen, crisp: group.crisp.replace(group.open, forgedOpen) }
+        : part),
+    }
+    expect(validateSceneDoc(forgedGroup, { mode: 'external' })).toMatchObject({
+      valid: false,
+      diagnostics: expect.arrayContaining([expect.objectContaining({ code: 'SCENE_FIDELITY' })]),
+    })
+  })
+
+  test('bounds aggregate text, points, crisp projections, and final SVG before concatenation', () => {
+    const textBase = sceneInput('family:test/text-budget', { bg: '#fff', fg: '#111' })
+    const textChunk = 'x'.repeat(Math.floor(SCENE_VALIDATION_LIMITS.maxTextBytes / 3) + 1)
+    expect(() => buildExternalScene({
+      ...textBase,
+      parts: [0, 1, 2].map(index => ({
+        kind: 'text' as const,
+        id: `large-text-${index}`,
+        role: 'label' as const,
+        text: textChunk,
+        x: 10,
+        y: 10 + index * 10,
+        fontSize: 8,
+      })),
+    })).toThrow(/aggregate .*byte limit/)
+
+    const pointBase = sceneInput('family:test/point-budget', { bg: '#fff', fg: '#111' })
+    const sharedPoint = { x: 1, y: 1 }
+    expect(() => buildExternalScene({
+      ...pointBase,
+      parts: [{
+        kind: 'shape',
+        id: 'too-many-points',
+        role: 'node',
+        geometry: {
+          kind: 'polyline',
+          points: Array.from({ length: SCENE_VALIDATION_LIMITS.maxPoints + 1 }, () => sharedPoint),
+        },
+      }],
+    })).toThrow(/aggregate .*point limit/)
+
+    const valid = buildExternalScene(sceneInput('family:test/svg-budget', { bg: '#fff', fg: '#111' }))
+    const groupIndex = valid.parts.findIndex(part => part.kind === 'group')
+    const group = valid.parts[groupIndex]
+    expect(group?.kind).toBe('group')
+    if (!group || group.kind !== 'group') return
+    const text = group.children.map(child => child.node).find(node => node.kind === 'text')
+    expect(text?.kind).toBe('text')
+    if (!text || text.kind !== 'text') return
+    const close = valid.parts.at(-1)!
+    const furniture = valid.parts.slice(0, groupIndex)
+    const textTooLarge = validateSceneDoc({
+      ...valid,
+      parts: [
+        ...furniture,
+        ...[0, 1, 2].map(index => ({ ...text, id: `manual-large-text-${index}`, text: textChunk })),
+        close,
+      ],
+    }, { mode: 'external' })
+    expect(textTooLarge.diagnostics).toContainEqual(expect.objectContaining({
+      code: 'SCENE_BOUNDS',
+      message: expect.stringContaining('Scene text values exceed the aggregate'),
+    }))
+
+    const shape = valid.parts.find(part => part.kind === 'shape')
+    expect(shape?.kind).toBe('shape')
+    if (!shape || shape.kind !== 'shape') return
+    const pointsTooLarge = validateSceneDoc({
+      ...valid,
+      parts: [
+        ...furniture,
+        {
+          ...shape,
+          id: 'manual-large-polyline',
+          geometry: {
+            kind: 'polyline',
+            points: Array.from({ length: SCENE_VALIDATION_LIMITS.maxPoints + 1 }, () => sharedPoint),
+          },
+        },
+        close,
+      ],
+    }, { mode: 'external' })
+    expect(pointsTooLarge.diagnostics).toContainEqual(expect.objectContaining({
+      code: 'SCENE_BOUNDS',
+      message: expect.stringContaining('Scene points exceed the aggregate'),
+    }))
+
+    const largeCrisp = `${shape.crisp}${' '.repeat(Math.floor(SCENE_VALIDATION_LIMITS.maxFinalSvgBytes / 2) + 100)}`
+    const prefix = valid.parts.slice(0, -1).filter(part => part !== shape)
+    const copy = (index: number) => ({
+      ...shape,
+      id: `large-shape-${index}`,
+      crisp: largeCrisp,
+    })
+
+    const finalTooLarge = validateSceneDoc({ ...valid, parts: [...prefix, copy(0), copy(1), close] }, { mode: 'external' })
+    expect(finalTooLarge.diagnostics).toContainEqual(expect.objectContaining({
+      code: 'SCENE_BOUNDS',
+      message: expect.stringContaining('serialized SVG exceeds the aggregate'),
+    }))
+
+    const crispTooLarge = validateSceneDoc({ ...valid, parts: [...prefix, copy(0), copy(1), copy(2), copy(3), close] }, { mode: 'external' })
+    expect(crispTooLarge.diagnostics).toContainEqual(expect.objectContaining({
+      code: 'SCENE_BOUNDS',
+      message: expect.stringContaining('crisp projections exceed the aggregate'),
+    }))
+  })
+
+  test('applies the point limit to typed point collections rather than x/y-bearing shapes', () => {
+    const make = (kind: 'rect' | 'circle'): ExternalSceneInput => ({
+      version: EXTERNAL_SCENE_API_VERSION,
+      family: 'family:test/point-accounting',
+      width: 10,
+      height: 10,
+      colors: { bg: '#fff', fg: '#111' },
+      metadata: { title: 'Point accounting' },
+      parts: Array.from({ length: SCENE_VALIDATION_LIMITS.maxPoints + 1 }, (_, index) => ({
+        kind: 'shape' as const,
+        id: `n${index}`,
+        role: 'node' as const,
+        geometry: kind === 'rect'
+          ? { kind: 'rect' as const, x: 1, y: 1, width: 0, height: 0 }
+          : { kind: 'circle' as const, cx: 1, cy: 1, r: 0 },
+      })),
+    })
+
+    expect(buildExternalScene(make('rect')).parts)
+      .toHaveLength(SCENE_VALIDATION_LIMITS.maxPoints + 4)
+    expect(buildExternalScene(make('circle')).parts)
+      .toHaveLength(SCENE_VALIDATION_LIMITS.maxPoints + 4)
+  })
+
+  test('rejects undeclared primitives and malformed manual connector semantics before rendering', () => {
+    const roles = ROLES.map(row => row.role === 'bar' ? { role: 'bar' as const, primitives: ['shape' as const] } : row)
+    const family = descriptor('undeclared-scene', 'undeclaredScene', roles, ctx => buildExternalScene(sceneInput('family:test/undeclared-scene', ctx.colors)))
+    expect(() => registerFamily(family)).toThrow(/undeclared bar\/data-mark primitive/)
 
     const valid = buildExternalScene(sceneInput('family:test/manual-scene', { bg: '#fff', fg: '#111' }))
     const edgeIndex = valid.parts.findIndex(part => part.kind === 'connector')

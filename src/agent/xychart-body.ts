@@ -514,7 +514,7 @@ export function mutateXyChart(body: XyChartBody, op: XyChartMutationOp): Result<
   return ok(next)
 }
 
-// ---- Verifier (FamilyPlugin.verify hook) ------------------------------------
+// ---- Verifier (FamilyDescriptor.verify hook) --------------------------------
 
 export function verifyXyChart(body: XyChartBody, opts: VerifyOptions): LayoutWarning[] {
   const cap = opts.labelCharCap ?? DEFAULT_LABEL_CHAR_CAP

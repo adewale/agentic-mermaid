@@ -2,7 +2,7 @@
  * Golden-file regression test for journey SVG rendering.
  */
 import { describe, it, expect } from 'bun:test'
-import { readFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { renderMermaidSVG } from '../index.ts'
 
@@ -27,7 +27,9 @@ describe('renderMermaidSVG – journey snapshots', () => {
       Prototype<br>review: 3: Design, Eng
       Ship: 5: Eng, QA`)
 
-    const expected = readFileSync(join(snapshotDir, 'journey-representative.svg'), 'utf-8')
+    const snapshot = join(snapshotDir, 'journey-representative.svg')
+    if (process.env.UPDATE_GOLDEN) writeFileSync(snapshot, actual)
+    const expected = readFileSync(snapshot, 'utf-8')
 
     expect(normalizeSvg(actual)).toBe(normalizeSvg(expected))
   })
@@ -43,7 +45,9 @@ describe('renderMermaidSVG – journey snapshots', () => {
       Go downstairs: 5: Me
       Sit down: 3: Me`)
 
-    const expected = readFileSync(join(snapshotDir, 'journey-mermaid-docs-example.svg'), 'utf-8')
+    const snapshot = join(snapshotDir, 'journey-mermaid-docs-example.svg')
+    if (process.env.UPDATE_GOLDEN) writeFileSync(snapshot, actual)
+    const expected = readFileSync(snapshot, 'utf-8')
 
     expect(normalizeSvg(actual)).toBe(normalizeSvg(expected))
   })

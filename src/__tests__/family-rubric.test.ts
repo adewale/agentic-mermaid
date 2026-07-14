@@ -11,7 +11,7 @@ import {
 } from '../family-rubric.ts'
 import type { RenderedLayout } from '../agent/types.ts'
 import { parseJourneyDiagram } from '../journey/parser.ts'
-import { layoutJourneyDiagram } from '../journey/layout.ts'
+import { layoutJourneyDiagram, resolveJourneyRequestAppearance } from '../journey/layout.ts'
 import { preprocessMermaidLines } from '../mermaid-source.ts'
 
 // The rubric is defense-in-depth BEHIND the Finite brand, so these synthetic
@@ -123,7 +123,10 @@ describe('family rubric hard metrics discriminate', () => {
 })
 
 describe('journey assessor', () => {
-  const positioned = (src: string) => layoutJourneyDiagram(parseJourneyDiagram(preprocessMermaidLines(src)))
+  const positioned = (src: string) => layoutJourneyDiagram(
+    parseJourneyDiagram(preprocessMermaidLines(src)),
+    resolveJourneyRequestAppearance(),
+  )
 
   it('scores the docs example 100 with zero violations', () => {
     const r = assessJourneyLayout(positioned(`journey

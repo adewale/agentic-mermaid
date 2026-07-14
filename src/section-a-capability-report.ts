@@ -8,38 +8,52 @@
 // from the same JSON-safe object and guarded by a freshness test.
 // ============================================================================
 
-import './agent/families-builtin.ts'
-import './render-family-hooks.ts'
-import './scene/rough-backend.ts'
-import './scene/hybrid-backend.ts'
+import './scene/builtin-backends.ts'
 
 import characterizationIndex from '../docs/design/system/consolidation-characterization.json'
 import {
   FAMILY_CAPABILITY_COLUMNS,
+  FAMILY_CONFORMANCE_VERSION,
+  UNREGISTERED_FAMILY_CAPABILITY_STATES,
+  effectiveFamilyCapabilityState,
   getFamily,
+  getFamilyConformanceReport,
   isBuiltinFamilyId,
   knownFamilies,
   type FamilyCapability,
   type FamilyCapabilityEvidence,
   type FamilyDescriptor,
+  type FamilyConformanceReport,
   type FamilyScenePrimitiveEvidence,
 } from './agent/families.ts'
 import {
+  FAMILY_SCOPED_RENDER_OPTION_FIELDS,
   NON_SERIALIZABLE_RENDER_OPTION_FIELDS,
   RENDER_CONTRACT_VERSION,
   RENDER_OUTPUT_DESCRIPTORS,
   RENDER_TRANSPORT_SURFACES,
   SHARED_RENDER_OPTION_FIELDS,
+  applicableFamilyScopedRenderOptions,
   renderContractDigest,
   sharedRenderOptionsJsonSchema,
+  type FamilyScopedRenderOptionField,
   type RenderOutputTransports,
+  type RenderTransportSurface,
+  type SharedRenderOptionField,
 } from './render-contract.ts'
+import {
+  SHARED_RENDER_OPTION_SURFACE_CLAIMS,
+  SHARED_RENDER_OPTION_SURFACE_EVIDENCE,
+  SHARED_RENDER_OPTION_SURFACE_STATES,
+  type SharedRenderOptionSurfaceClaim,
+} from './render-surface-policy.ts'
 import { RESOURCE_MANIFEST, validateResourceManifest } from './font-manifest.ts'
 import { RESOURCE_MANIFEST_VERSION } from './resource-manifest.ts'
-import { knownBackendDescriptors } from './scene/backend.ts'
+import { knownBackendDescriptors, type BackendDescriptor } from './scene/backend.ts'
 import {
   BACKEND_CONFORMANCE_CHECK_IDS,
   BACKEND_CONFORMANCE_VERSION,
+  type BackendCapabilityConformanceResult,
   type BackendConformanceReport,
 } from './scene/backend-conformance.ts'
 import {
@@ -47,14 +61,23 @@ import {
   CORE_SCENE_OPERATIONS,
   CORE_SCENE_PRIMITIVES,
   PRIMITIVE_REALIZATIONS,
+  primitiveCapabilityClaimKey,
   validatePrimitiveCapabilities,
 } from './scene/capabilities.ts'
-import type { PrimitiveCapabilityClaim } from './scene/capabilities.ts'
 import { SCENE_CONTRACT_VERSION } from './scene/ir.ts'
 import { BUILTIN_SCENE_ROLE_TRAITS } from './scene/roles.ts'
 import { OUTPUT_COLOR_PROFILE } from './output-color-profile.ts'
 import { OUTPUT_SECURITY_POLICY_VERSION } from './output-security.ts'
+import {
+  NATIVE_PNG_HOST_ONLY_OPTION_FIELDS,
+  PNG_OUTPUT_POLICY_VERSION,
+  PNG_OUTPUT_OPTION_FIELDS,
+  PNG_OUTPUT_OPTION_FIELD_DESCRIPTORS,
+  PORTABLE_PNG_OUTPUT_OPTION_FIELDS,
+  pngOutputOptionsJsonSchema,
+} from './png-contract.ts'
 import { TERMINAL_STYLE_VERSION } from './terminal-style.ts'
+import { TERMINAL_OUTPUT_POLICY_VERSION } from './terminal-contract.ts'
 import {
   UPSTREAM_MERMAID_MANIFEST,
   validateUpstreamMermaidManifest,
@@ -72,9 +95,9 @@ import {
   type SyntaxCapabilityLedger,
 } from './syntax-capability-ledger.ts'
 
-export const SECTION_A_CAPABILITY_REPORT_SCHEMA_VERSION = 7 as const
+export const SECTION_A_CAPABILITY_REPORT_SCHEMA_VERSION = 12 as const
 
-export { FAMILY_CAPABILITY_COLUMNS }
+export { FAMILY_CAPABILITY_COLUMNS, UNREGISTERED_FAMILY_CAPABILITY_STATES }
 export type FamilyCapabilityColumn = FamilyCapability
 export type FamilyCapabilityState = FamilyCapabilityEvidence['state']
 
@@ -83,9 +106,13 @@ export const SECTION_A_CAPABILITY_STATE_VOCABULARIES = Object.freeze({
   requestTransport: Object.freeze(['accepted', 'excluded'] as const),
   requestReceipt: Object.freeze(['included', 'excluded'] as const),
   requestSchema: Object.freeze(['declared', 'not-applicable'] as const),
+  requestSurface: SHARED_RENDER_OPTION_SURFACE_STATES,
+  outputOptionScope: Object.freeze(['portable', 'native-host-only'] as const),
+  outputOptionInput: Object.freeze(['serializable', 'callback'] as const),
+  outputOptionPolicy: Object.freeze(['included', 'excluded'] as const),
   backend: Object.freeze(['registered', 'scene-contracted'] as const),
-  backendClaims: Object.freeze(['declared'] as const),
-  backendConformance: Object.freeze(['registration-svg-smoke'] as const),
+  backendClaims: Object.freeze(['executable', 'executable-core-with-unverified-extensions'] as const),
+  backendConformance: Object.freeze(['claim-keyed-svg-matrix'] as const),
   outputAvailability: Object.freeze(['public', 'internal', 'reserved'] as const),
   outputSecurity: Object.freeze(['enforced', 'not-applicable', 'reserved'] as const),
   outputColor: Object.freeze(['srgb', 'terminal-projected', 'not-applicable', 'reserved'] as const),
@@ -94,6 +121,7 @@ export const SECTION_A_CAPABILITY_STATE_VOCABULARIES = Object.freeze({
   resourceNetwork: Object.freeze(['forbidden'] as const),
   familySupport: Object.freeze(['native', 'partial-native', 'unsupported', 'inventory-only', 'extension'] as const),
   familyCapability: Object.freeze(['native', 'source-preserved', 'diagnosed', 'not-applicable', 'absent'] as const),
+  familyConformance: Object.freeze(['passed', 'failed', 'unverified-extension'] as const),
   familySceneApplicability: Object.freeze(['applicable', 'not-applicable'] as const),
   familySyntax: FAMILY_SYNTAX_STATES,
 })
@@ -106,12 +134,23 @@ export interface SectionARequestCapabilityRow {
   transport: (typeof SECTION_A_CAPABILITY_STATE_VOCABULARIES.requestTransport)[number]
   receipt: (typeof SECTION_A_CAPABILITY_STATE_VOCABULARIES.requestReceipt)[number]
   schema: (typeof SECTION_A_CAPABILITY_STATE_VOCABULARIES.requestSchema)[number]
+  /** Present only for serializable shared fields. */
+  surfaces?: Readonly<Record<RenderTransportSurface, SharedRenderOptionSurfaceClaim>>
+}
+
+export interface SectionAOutputOptionCapabilityRow {
+  output: 'png'
+  field: string
+  scope: (typeof SECTION_A_CAPABILITY_STATE_VOCABULARIES.outputOptionScope)[number]
+  input: (typeof SECTION_A_CAPABILITY_STATE_VOCABULARIES.outputOptionInput)[number]
+  policy: (typeof SECTION_A_CAPABILITY_STATE_VOCABULARIES.outputOptionPolicy)[number]
+  receipt: (typeof SECTION_A_CAPABILITY_STATE_VOCABULARIES.requestReceipt)[number]
+  schema: (typeof SECTION_A_CAPABILITY_STATE_VOCABULARIES.requestSchema)[number]
 }
 
 export interface SectionABackendCapabilityRow {
   id: string
   version: string
-  aliases: readonly string[]
   registration: 'registered'
   sceneInput: 'scene-contracted'
   claimStatus: (typeof SECTION_A_CAPABILITY_STATE_VOCABULARIES.backendClaims)[number]
@@ -119,7 +158,7 @@ export interface SectionABackendCapabilityRow {
   conformance: BackendConformanceReport
   primitiveIds: readonly string[]
   rolePolicyIds: readonly string[]
-  claims: readonly PrimitiveCapabilityClaim[]
+  claims: readonly BackendCapabilityConformanceResult[]
   compatibility: Readonly<Record<string, string>>
   provenance: Readonly<Record<string, string>>
 }
@@ -160,12 +199,22 @@ export interface SectionAFamilyCapabilityRow {
   maturity: string
   support: FamilySupportState
   registrationId?: string
+  identity?: {
+    id: string
+    version: string
+    compatibility: Readonly<Record<string, string>>
+    provenance: Readonly<Record<string, string>>
+  }
   headers: readonly SectionAFamilyHeaderRow[]
   aliases: readonly string[]
+  /** Effective family-scoped shared options. Built-ins derive from the render
+   * field manifest; extensions expose their explicit descriptor declaration. */
+  applicableRenderOptions: readonly FamilyScopedRenderOptionField[]
   semanticRoles: readonly string[]
   scenePrimitiveEvidence: readonly FamilyScenePrimitiveEvidence[]
   capabilities: Readonly<Record<FamilyCapabilityColumn, FamilyCapabilityState>>
   evidence: readonly FamilyCapabilityEvidence[]
+  conformance?: FamilyConformanceReport
 }
 
 export interface SectionASceneRoleRow {
@@ -195,17 +244,23 @@ export interface SectionACapabilityReport {
     renderRequest: number
     scene: number
     outputSecurity: number
+    pngOutputPolicy: number
+    terminalOutputPolicy: number
     backendConformance: number
     outputColor: number
     terminalStyle: number
     resourceManifest: number
     upstreamManifest: number
+    familyConformance: number
     familyDescriptorVersions: readonly number[]
   }
   stateVocabularies: typeof SECTION_A_CAPABILITY_STATE_VOCABULARIES
   summary: {
     sharedRequestFieldCount: number
+    sharedRequestSurfaceCellCount: number
     hostOnlyRequestFieldCount: number
+    portableOutputOptionFieldCount: number
+    nativeHostOnlyOutputOptionFieldCount: number
     registeredBackendCount: number
     outputCount: number
     resourceCount: number
@@ -244,6 +299,7 @@ export interface SectionACapabilityReport {
   }
   matrices: {
     request: readonly SectionARequestCapabilityRow[]
+    outputOptions: readonly SectionAOutputOptionCapabilityRow[]
     backends: readonly SectionABackendCapabilityRow[]
     outputs: readonly SectionAOutputCapabilityRow[]
     resources: readonly SectionAResourceCapabilityRow[]
@@ -265,12 +321,29 @@ export interface SectionACapabilityReport {
   evidence: {
     authority: string
     schemaVersion: number
+    requestSurfaces: Readonly<Record<RenderTransportSurface, readonly string[]>>
     systems: readonly SectionAEvidenceSystem[]
     contracts: readonly { id: string; surface: string; familyScope: string; evidence: readonly string[] }[]
   }
   retiredAuthorities: readonly SectionARetiredAuthority[]
   digest: string
 }
+
+type ExactKeySet<Expected extends PropertyKey, Actual extends PropertyKey> =
+  [Exclude<Expected, Actual>, Exclude<Actual, Expected>] extends [never, never]
+    ? true
+    : never
+
+/** Compile-time tripwires: the ordering authorities must cover the complete
+ * report records, not merely contain valid members of those records. */
+export const ALL_RENDER_TRANSPORT_KEYS_ORDERED: ExactKeySet<
+  keyof RenderOutputTransports,
+  RenderTransportSurface
+> = true
+export const ALL_FAMILY_CAPABILITY_KEYS_ORDERED: ExactKeySet<
+  keyof SectionAFamilyCapabilityRow['capabilities'],
+  FamilyCapability
+> = true
 
 /**
  * Small, stable projection for routine agent discovery. The exhaustive report
@@ -329,25 +402,49 @@ function transportSnapshot(transports: RenderOutputTransports): RenderOutputTran
   })) as unknown as RenderOutputTransports
 }
 
+function requestSurfaceSnapshot(
+  field: SharedRenderOptionField,
+): Readonly<Record<RenderTransportSurface, SharedRenderOptionSurfaceClaim>> {
+  const claims = SHARED_RENDER_OPTION_SURFACE_CLAIMS[field]
+  return Object.fromEntries(
+    RENDER_TRANSPORT_SURFACES.map(surface => [surface, { ...claims[surface] }]),
+  ) as unknown as Readonly<Record<RenderTransportSurface, SharedRenderOptionSurfaceClaim>>
+}
+
+function pngOutputOptionRows(): SectionAOutputOptionCapabilityRow[] {
+  const portableSchema = pngOutputOptionsJsonSchema('portable') as { properties?: Record<string, unknown> }
+  const nativeSchema = pngOutputOptionsJsonSchema('native') as { properties?: Record<string, unknown> }
+  return PNG_OUTPUT_OPTION_FIELDS.map(field => {
+    const descriptor = PNG_OUTPUT_OPTION_FIELD_DESCRIPTORS[field]
+    const schema = descriptor.scope === 'portable' ? portableSchema : nativeSchema
+    const schemaDeclared = 'schema' in descriptor
+      && Object.prototype.hasOwnProperty.call(schema.properties ?? {}, field)
+    return {
+      output: 'png',
+      field,
+      scope: descriptor.scope,
+      input: descriptor.input,
+      policy: descriptor.policy,
+      receipt: descriptor.receipt,
+      schema: schemaDeclared ? 'declared' : 'not-applicable',
+    }
+  })
+}
+
 function descriptorCapabilities(descriptor?: FamilyDescriptor): Readonly<Record<FamilyCapabilityColumn, FamilyCapabilityState>> {
-  if (!descriptor) {
-    return Object.freeze({
-      detection: 'diagnosed',
-      'source-preservation': 'source-preserved',
-      parse: 'absent',
-      serialize: 'absent',
-      mutation: 'absent',
-      verify: 'absent',
-      layout: 'absent',
-      scene: 'absent',
-      svg: 'absent',
-      terminal: 'absent',
-    })
-  }
-  const declared = new Map(descriptor.capabilityEvidence.map(claim => [claim.capability, claim.state]))
+  if (!descriptor) return UNREGISTERED_FAMILY_CAPABILITY_STATES
   return Object.freeze(Object.fromEntries(
-    FAMILY_CAPABILITY_COLUMNS.map(capability => [capability, declared.get(capability)!]),
+    FAMILY_CAPABILITY_COLUMNS.map(capability => [capability, effectiveFamilyCapabilityState(descriptor, capability)]),
   )) as Readonly<Record<FamilyCapabilityColumn, FamilyCapabilityState>>
+}
+
+function familyIdentity(descriptor: FamilyDescriptor): NonNullable<SectionAFamilyCapabilityRow['identity']> {
+  return {
+    id: descriptor.identity.id,
+    version: descriptor.identity.version,
+    compatibility: stringRecord(descriptor.identity.compatibility),
+    provenance: stringRecord(descriptor.identity.provenance),
+  }
 }
 
 function supportState(family: UpstreamFamilyDescriptor): FamilySupportState {
@@ -360,20 +457,82 @@ function supportState(family: UpstreamFamilyDescriptor): FamilySupportState {
 function registeredDescriptors(): FamilyDescriptor[] {
   return knownFamilies()
     .map(id => getFamily(id))
-    .filter((descriptor): descriptor is FamilyDescriptor => descriptor !== undefined)
+    // A descriptor is public report state only after its executable evidence
+    // commits. Conformance temporarily stages the candidate in the routing
+    // registry so its own hooks can run; exposing that half-state here can
+    // poison the immutable report cache with an evidence-free registration.
+    .filter((descriptor): descriptor is FamilyDescriptor =>
+      descriptor !== undefined && getFamilyConformanceReport(descriptor.id) !== undefined)
 }
 
 function descriptorForUpstreamFamily(
   family: UpstreamFamilyDescriptor,
   descriptors: readonly FamilyDescriptor[],
 ): FamilyDescriptor | undefined {
-  const upstreamHeaders = new Set(family.headers.map(header => header.value.trim().toLowerCase()))
-  return descriptors.find(descriptor =>
-    descriptor.headers.some(header => upstreamHeaders.has(header.trim().toLowerCase())))
+  return descriptors.find(descriptor => primaryUpstreamFamilyId(descriptor) === family.id)
+}
+
+function normalizedFamilyHeader(value: string): string {
+  return value.trim().toLowerCase()
+}
+
+function primaryUpstreamFamilyId(descriptor: FamilyDescriptor): string | undefined {
+  const claimedHeaders = new Set(descriptor.headers.map(normalizedFamilyHeader))
+  const declaredUpstream = descriptor.upstreamId
+    ? UPSTREAM_MERMAID_MANIFEST.families.find(family => family.id === descriptor.upstreamId)
+    : undefined
+  // Treat upstreamId as a checked hint, not routing authority. An extension
+  // cannot use an unrelated but valid id to hide its descriptor-only headers
+  // from the upstream family actually established by its official claim.
+  if (declaredUpstream?.headers.some(header => claimedHeaders.has(normalizedFamilyHeader(header.value)))) {
+    return declaredUpstream.id
+  }
+  return UPSTREAM_MERMAID_MANIFEST.families.find(family =>
+    family.headers.some(header => claimedHeaders.has(normalizedFamilyHeader(header.value))))?.id
+}
+
+/**
+ * Join the pinned upstream inventory to the live descriptor. An installed
+ * extension changes only headers it actually claims; unclaimed aliases retain
+ * their pinned unsupported/inventory status. Descriptor-only headers belong on
+ * the descriptor's primary upstream row so discovery never drops its dialect.
+ */
+function liveFamilyHeaders(
+  family: UpstreamFamilyDescriptor,
+  descriptor: FamilyDescriptor | undefined,
+  owners: ReadonlyMap<string, FamilyDescriptor>,
+): SectionAFamilyHeaderRow[] {
+  const claimed = new Set(descriptor?.headers.map(normalizedFamilyHeader) ?? [])
+  const upstream = new Set(family.headers.map(header => normalizedFamilyHeader(header.value)))
+  const extension = descriptor !== undefined && !isBuiltinFamilyId(descriptor.id)
+  const rows: SectionAFamilyHeaderRow[] = family.headers.flatMap(header => {
+    const normalized = normalizedFamilyHeader(header.value)
+    const owner = owners.get(normalized)
+    // A public upstream family can have aliases adopted by separate extension
+    // descriptors. Keep each claimed header on its owner's single row instead
+    // of repeating it on the upstream row with contradictory status.
+    if (owner && owner.id !== descriptor?.id) return []
+    return [{
+      value: header.value,
+      status: extension && claimed.has(normalized) ? 'extension' : header.agenticStatus,
+    }]
+  })
+  if (descriptor && primaryUpstreamFamilyId(descriptor) === family.id) {
+    for (const header of descriptor.headers) {
+      if (!upstream.has(normalizedFamilyHeader(header))) {
+        rows.push({ value: header, status: extension ? 'extension' : 'native' })
+      }
+    }
+  }
+  return rows
 }
 
 function familyRows(descriptors: readonly FamilyDescriptor[]): SectionAFamilyCapabilityRow[] {
   const matched = new Set<string>()
+  const owners = new Map<string, FamilyDescriptor>()
+  for (const descriptor of descriptors) {
+    for (const header of descriptor.headers) owners.set(normalizedFamilyHeader(header), descriptor)
+  }
   const upstreamRows = UPSTREAM_MERMAID_MANIFEST.families.map(family => {
     const descriptor = descriptorForUpstreamFamily(family, descriptors)
     if (descriptor) matched.add(descriptor.id)
@@ -384,12 +543,15 @@ function familyRows(descriptors: readonly FamilyDescriptor[]): SectionAFamilyCap
       maturity: family.maturity,
       support: descriptor && !isBuiltinFamilyId(descriptor.id) ? 'extension' : supportState(family),
       ...(descriptor ? { registrationId: descriptor.id } : {}),
-      headers: family.headers.map(header => ({ value: header.value, status: header.agenticStatus })),
+      ...(descriptor ? { identity: familyIdentity(descriptor) } : {}),
+      headers: liveFamilyHeaders(family, descriptor, owners),
       aliases: descriptor ? [...descriptor.aliases].sort() : [],
+      applicableRenderOptions: descriptor ? [...applicableFamilyScopedRenderOptions(descriptor)] : [],
       semanticRoles: descriptor ? [...descriptor.semanticRoles].sort() : [],
       scenePrimitiveEvidence: descriptor ? descriptor.scenePrimitiveEvidence.map(cell => ({ ...cell, evidence: [...cell.evidence] })) : [],
       capabilities: descriptorCapabilities(descriptor),
       evidence: descriptor ? [...descriptor.capabilityEvidence] : [],
+      ...(descriptor ? { conformance: getFamilyConformanceReport(descriptor.id)! } : {}),
     } satisfies SectionAFamilyCapabilityRow
   })
   const extensionRows = descriptors
@@ -402,12 +564,15 @@ function familyRows(descriptors: readonly FamilyDescriptor[]): SectionAFamilyCap
       maturity: descriptor.maturity,
       support: 'extension' as const,
       registrationId: descriptor.id,
+      identity: familyIdentity(descriptor),
       headers: descriptor.headers.map(value => ({ value, status: 'extension' as const })),
       aliases: [...descriptor.aliases].sort(),
+      applicableRenderOptions: [...applicableFamilyScopedRenderOptions(descriptor)],
       semanticRoles: [...descriptor.semanticRoles].sort(),
       scenePrimitiveEvidence: descriptor.scenePrimitiveEvidence.map(cell => ({ ...cell, evidence: [...cell.evidence] })),
       capabilities: descriptorCapabilities(descriptor),
       evidence: [...descriptor.capabilityEvidence],
+      conformance: getFamilyConformanceReport(descriptor.id)!,
     }))
   return [...upstreamRows, ...extensionRows]
 }
@@ -442,9 +607,37 @@ function withoutDigest(report: SectionACapabilityReport): Omit<SectionACapabilit
   return payload
 }
 
-/** Build a fresh, deterministic and JSON-serializable snapshot of live authorities. */
+interface CapabilityReportCache {
+  readonly families: readonly FamilyDescriptor[]
+  readonly backends: readonly BackendDescriptor[]
+  readonly report: SectionACapabilityReport
+}
+
+let capabilityReportCache: CapabilityReportCache | undefined
+
+function sameLiveRegistrations(
+  cache: CapabilityReportCache,
+  families: readonly FamilyDescriptor[],
+  backends: readonly BackendDescriptor[],
+): boolean {
+  return cache.families.length === families.length
+    && cache.families.every((descriptor, index) => descriptor === families[index])
+    && cache.backends.length === backends.length
+    // knownBackendDescriptors creates projection wrappers on every call, but
+    // registration identities/backends are immutable and retain object identity.
+    && cache.backends.every((descriptor, index) =>
+      descriptor.identity === backends[index]?.identity
+      && descriptor.backend === backends[index]?.backend
+      && descriptor.conformance === backends[index]?.conformance)
+}
+
+/** Build a deterministic JSON snapshot, reusing it until a live registry changes. */
 export function createSectionACapabilityReport(): SectionACapabilityReport {
   const descriptors = registeredDescriptors()
+  const backendDescriptors = knownBackendDescriptors()
+  if (capabilityReportCache && sameLiveRegistrations(capabilityReportCache, descriptors, backendDescriptors)) {
+    return capabilityReportCache.report
+  }
   const roles = Object.entries(BUILTIN_SCENE_ROLE_TRAITS)
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([id, traits]) => ({ id, ...traits }))
@@ -458,6 +651,7 @@ export function createSectionACapabilityReport(): SectionACapabilityReport {
       schema: Object.prototype.hasOwnProperty.call(schema.properties ?? {}, field)
         ? 'declared' as const
         : 'not-applicable' as const,
+      surfaces: requestSurfaceSnapshot(field),
     })),
     ...NON_SERIALIZABLE_RENDER_OPTION_FIELDS.map(field => ({
       field,
@@ -467,17 +661,20 @@ export function createSectionACapabilityReport(): SectionACapabilityReport {
       schema: 'not-applicable' as const,
     })),
   ]
-  const backends: SectionABackendCapabilityRow[] = knownBackendDescriptors()
+  const outputOptions = pngOutputOptionRows()
+  const backends: SectionABackendCapabilityRow[] = backendDescriptors
     .map(descriptor => {
-      const claims = descriptor.capabilities.map(claim => ({ ...claim }))
+      const claims = descriptor.conformance.claims.map(claim => ({ ...claim }))
+      const hasUnverifiedExtensions = claims.some(claim => claim.status === 'unverified-extension')
       return {
         id: descriptor.identity.id,
         version: descriptor.identity.version,
-        aliases: [...descriptor.aliases].sort(),
         registration: 'registered' as const,
         sceneInput: 'scene-contracted' as const,
-        claimStatus: 'declared' as const,
-        conformanceKind: 'registration-svg-smoke' as const,
+        claimStatus: hasUnverifiedExtensions
+          ? 'executable-core-with-unverified-extensions' as const
+          : 'executable' as const,
+        conformanceKind: 'claim-keyed-svg-matrix' as const,
         // Registration reports are already deeply frozen, JSON-safe snapshots.
         conformance: descriptor.conformance,
         primitiveIds: [...new Set(claims.map(claim => claim.primitive))].sort(),
@@ -517,7 +714,6 @@ export function createSectionACapabilityReport(): SectionACapabilityReport {
     + syntax.families.reduce((count, row) => count + (row.processing
       ? Object.values(row.processing).filter(state => state === 'absent').length
       : 0), 0)
-  const statuses = UPSTREAM_MERMAID_MANIFEST.families.flatMap(family => family.headers.map(header => header.agenticStatus))
   const familyDescriptorVersions = [...new Set(descriptors.map(descriptor => descriptor.contractVersion))].sort()
   const payload: Omit<SectionACapabilityReport, 'digest'> = {
     schemaVersion: SECTION_A_CAPABILITY_REPORT_SCHEMA_VERSION,
@@ -525,25 +721,31 @@ export function createSectionACapabilityReport(): SectionACapabilityReport {
       renderRequest: RENDER_CONTRACT_VERSION,
       scene: SCENE_CONTRACT_VERSION,
       outputSecurity: OUTPUT_SECURITY_POLICY_VERSION,
+      pngOutputPolicy: PNG_OUTPUT_POLICY_VERSION,
+      terminalOutputPolicy: TERMINAL_OUTPUT_POLICY_VERSION,
       backendConformance: BACKEND_CONFORMANCE_VERSION,
       outputColor: OUTPUT_COLOR_PROFILE.version,
       terminalStyle: TERMINAL_STYLE_VERSION,
       resourceManifest: RESOURCE_MANIFEST_VERSION,
       upstreamManifest: UPSTREAM_MERMAID_MANIFEST.schemaVersion,
+      familyConformance: FAMILY_CONFORMANCE_VERSION,
       familyDescriptorVersions,
     },
     stateVocabularies: SECTION_A_CAPABILITY_STATE_VOCABULARIES,
     summary: {
       sharedRequestFieldCount: SHARED_RENDER_OPTION_FIELDS.length,
+      sharedRequestSurfaceCellCount: SHARED_RENDER_OPTION_FIELDS.length * RENDER_TRANSPORT_SURFACES.length,
       hostOnlyRequestFieldCount: NON_SERIALIZABLE_RENDER_OPTION_FIELDS.length,
+      portableOutputOptionFieldCount: PORTABLE_PNG_OUTPUT_OPTION_FIELDS.length,
+      nativeHostOnlyOutputOptionFieldCount: NATIVE_PNG_HOST_ONLY_OPTION_FIELDS.length,
       registeredBackendCount: backends.length,
       outputCount: outputs.length,
       resourceCount: resources.length,
       registeredFamilyCount: descriptors.length,
       upstreamPublicFamilyCount: UPSTREAM_MERMAID_MANIFEST.families.length,
-      upstreamNativeHeaderCount: statuses.filter(status => status === 'native').length,
-      upstreamUnsupportedHeaderCount: statuses.filter(status => status === 'unsupported').length,
-      upstreamInventoryOnlyHeaderCount: statuses.filter(status => status === 'inventory-only').length,
+      upstreamNativeHeaderCount: families.flatMap(row => row.headers).filter(header => header.status === 'native').length,
+      upstreamUnsupportedHeaderCount: families.flatMap(row => row.headers).filter(header => header.status === 'unsupported').length,
+      upstreamInventoryOnlyHeaderCount: families.flatMap(row => row.headers).filter(header => header.status === 'inventory-only').length,
       scenePrimitiveCount: CORE_SCENE_PRIMITIVES.length,
       sceneRoleCount: roles.length,
       syntaxDimensionCount: syntax.dimensions.length,
@@ -574,6 +776,7 @@ export function createSectionACapabilityReport(): SectionACapabilityReport {
     },
     matrices: {
       request,
+      outputOptions,
       backends,
       outputs,
       resources,
@@ -595,6 +798,10 @@ export function createSectionACapabilityReport(): SectionACapabilityReport {
     evidence: {
       authority: CHARACTERIZATION.scopeProjection,
       schemaVersion: CHARACTERIZATION.schemaVersion,
+      requestSurfaces: Object.fromEntries(RENDER_TRANSPORT_SURFACES.map(surface => [
+        surface,
+        [...SHARED_RENDER_OPTION_SURFACE_EVIDENCE[surface]],
+      ])) as unknown as Readonly<Record<RenderTransportSurface, readonly string[]>>,
       systems: CHARACTERIZATION.evidenceSystems.map(system => ({ ...system })),
       contracts: CHARACTERIZATION.contracts.map(contract => ({ ...contract, evidence: [...contract.evidence] })),
     },
@@ -603,7 +810,9 @@ export function createSectionACapabilityReport(): SectionACapabilityReport {
       evidence: [...authority.evidence],
     })),
   }
-  return deepFreeze({ ...payload, digest: renderContractDigest(payload) }) as SectionACapabilityReport
+  const report = deepFreeze({ ...payload, digest: renderContractDigest(payload) }) as SectionACapabilityReport
+  capabilityReportCache = { families: descriptors, backends: backendDescriptors, report }
+  return report
 }
 
 /** Project the full audit report into the bounded `am capabilities` envelope. */
@@ -635,6 +844,14 @@ function unique(values: readonly string[]): boolean {
   return new Set(values).size === values.length
 }
 
+function hasExactKeys(value: object | undefined, expected: readonly string[]): boolean {
+  if (!value) return false
+  const actual = Object.keys(value).sort()
+  const orderedExpected = [...expected].sort()
+  return actual.length === orderedExpected.length
+    && actual.every((key, index) => key === orderedExpected[index])
+}
+
 function stateIn(state: string, vocabulary: readonly string[]): boolean {
   return vocabulary.includes(state)
 }
@@ -648,19 +865,51 @@ export function validateSectionACapabilityReport(report: SectionACapabilityRepor
   if (validateUpstreamMermaidManifest().length > 0) diagnostics.push('pinned upstream manifest is invalid')
   if (validateResourceManifest().length > 0) diagnostics.push('installed resource manifest is invalid')
 
-  const { request, backends, outputs, resources, families, syntax, scene } = report.matrices
+  const { request, outputOptions, backends, outputs, resources, families, syntax, scene } = report.matrices
+  const liveDescriptorById = new Map(registeredDescriptors().map(descriptor => [descriptor.id, descriptor] as const))
   if (!unique(request.map(row => row.field))) diagnostics.push('request matrix fields are not unique')
+  if (!unique(outputOptions.map(row => `${row.output}.${row.field}`))) diagnostics.push('output-option matrix fields are not unique')
   if (!unique(backends.map(row => row.id))) diagnostics.push('backend matrix ids are not unique')
   if (!unique(outputs.map(row => row.id))) diagnostics.push('output matrix ids are not unique')
   if (!unique(resources.map(row => row.id))) diagnostics.push('resource matrix ids are not unique')
   if (!unique(resources.map(row => row.path))) diagnostics.push('resource matrix paths are not unique')
   if (!unique(families.map(row => row.id))) diagnostics.push('family matrix ids are not unique')
   if (!unique(scene.roles.map(row => row.id))) diagnostics.push('Scene role ids are not unique')
+  const versionedOutputEvidence = new Map<string, number>([
+    ['render-contract', report.contracts.renderRequest],
+    ['output-security', report.contracts.outputSecurity],
+    ['output-color-profile', report.contracts.outputColor],
+    ['png-output-policy', report.contracts.pngOutputPolicy],
+    ['terminal-output-policy', report.contracts.terminalOutputPolicy],
+    ['terminal-style', report.contracts.terminalStyle],
+  ])
+  for (const row of outputs) {
+    for (const evidence of row.evidence) {
+      const match = /^([a-z][a-z0-9-]*)@(\d+)$/.exec(evidence)
+      if (!match) continue
+      const expected = versionedOutputEvidence.get(match[1]!)
+      if (expected !== undefined && Number(match[2]) !== expected) {
+        diagnostics.push(`output ${row.id} evidence ${evidence} does not match contract version ${expected}`)
+      }
+    }
+  }
   diagnostics.push(...validateSyntaxCapabilityLedger(
     syntax,
     UPSTREAM_MERMAID_MANIFEST,
     families.map(row => row.id),
   ))
+  for (const descriptor of registeredDescriptors()) {
+    for (const declaredHeader of descriptor.headers) {
+      const occurrences = families.flatMap(row => row.headers
+        .filter(header => normalizedFamilyHeader(header.value) === normalizedFamilyHeader(declaredHeader))
+        .map(() => row))
+      if (occurrences.length !== 1) {
+        diagnostics.push(`registered header ${declaredHeader} for ${descriptor.id} appears ${occurrences.length} times in the family matrix`)
+      } else if (occurrences[0]?.registrationId !== descriptor.id) {
+        diagnostics.push(`registered header ${declaredHeader} is projected under ${occurrences[0]?.registrationId ?? 'an unregistered family'} instead of ${descriptor.id}`)
+      }
+    }
+  }
 
   for (const row of request) {
     if (!stateIn(row.kind, report.stateVocabularies.requestKind)) diagnostics.push(`request ${row.field} has invalid kind`)
@@ -670,16 +919,77 @@ export function validateSectionACapabilityReport(report: SectionACapabilityRepor
     if (row.kind === 'shared' && (row.transport !== 'accepted' || row.receipt !== 'included' || row.schema !== 'declared')) {
       diagnostics.push(`shared request field ${row.field} is not accepted, receipted and schema-declared`)
     }
+    if (row.kind === 'shared') {
+      if (!hasExactKeys(row.surfaces, RENDER_TRANSPORT_SURFACES)) {
+        diagnostics.push(`shared request field ${row.field} surface keys do not exactly match the product-surface authority`)
+      }
+      for (const surface of RENDER_TRANSPORT_SURFACES) {
+        const claim = row.surfaces?.[surface]
+        if (!claim || !stateIn(claim.state, report.stateVocabularies.requestSurface)) {
+          diagnostics.push(`shared request field ${row.field} has an invalid ${surface} surface state`)
+          continue
+        }
+        if (claim.state === 'host-enforced' && claim.enforcedValue === undefined) {
+          diagnostics.push(`shared request field ${row.field} ${surface} does not declare its enforced value`)
+        }
+        if (claim.state === 'unavailable' && !claim.reason?.trim()) {
+          diagnostics.push(`shared request field ${row.field} ${surface} does not explain unavailability`)
+        }
+        if (claim.state === 'unavailable' && claim.enforcedValue !== undefined) {
+          diagnostics.push(`shared request field ${row.field} ${surface} declares a value for an unavailable field`)
+        }
+        if (claim.state === 'forwarded' && (claim.enforcedValue !== undefined || claim.reason !== undefined)) {
+          diagnostics.push(`shared request field ${row.field} ${surface} attaches host policy to a forwarded field`)
+        }
+      }
+      const canonical = SHARED_RENDER_OPTION_SURFACE_CLAIMS[row.field as SharedRenderOptionField]
+      if (!canonical || JSON.stringify(row.surfaces) !== JSON.stringify(canonical)) {
+        diagnostics.push(`shared request field ${row.field} surface policy does not match the canonical authority`)
+      }
+    }
     if (row.kind === 'host-only' && (row.transport !== 'excluded' || row.receipt !== 'excluded')) {
       diagnostics.push(`host-only request field ${row.field} leaked into a transport or receipt`)
     }
+    if (row.kind === 'host-only' && row.surfaces !== undefined) {
+      diagnostics.push(`host-only request field ${row.field} leaked into the shared-field surface matrix`)
+    }
+  }
+  if (!hasExactKeys(report.evidence.requestSurfaces, RENDER_TRANSPORT_SURFACES)) {
+    diagnostics.push('shared request surface evidence keys do not exactly match the product-surface authority')
+  }
+  for (const surface of RENDER_TRANSPORT_SURFACES) {
+    const evidence = report.evidence.requestSurfaces[surface]
+    if (!evidence || evidence.length === 0 || evidence.some(path => !path.trim())) {
+      diagnostics.push(`shared request surface ${surface} has no policy evidence`)
+    }
+  }
+  if (JSON.stringify(report.evidence.requestSurfaces) !== JSON.stringify(SHARED_RENDER_OPTION_SURFACE_EVIDENCE)) {
+    diagnostics.push('shared request surface evidence does not match the canonical authority')
+  }
+  for (const row of outputOptions) {
+    if (!stateIn(row.scope, report.stateVocabularies.outputOptionScope)) diagnostics.push(`output option ${row.output}.${row.field} has invalid scope`)
+    if (!stateIn(row.input, report.stateVocabularies.outputOptionInput)) diagnostics.push(`output option ${row.output}.${row.field} has invalid input kind`)
+    if (!stateIn(row.policy, report.stateVocabularies.outputOptionPolicy)) diagnostics.push(`output option ${row.output}.${row.field} has invalid policy state`)
+    if (!stateIn(row.receipt, report.stateVocabularies.requestReceipt)) diagnostics.push(`output option ${row.output}.${row.field} has invalid receipt state`)
+    if (!stateIn(row.schema, report.stateVocabularies.requestSchema)) diagnostics.push(`output option ${row.output}.${row.field} has invalid schema state`)
+    if (row.scope === 'portable'
+      && (row.input !== 'serializable' || row.policy !== 'included' || row.receipt !== 'included' || row.schema !== 'declared')) {
+      diagnostics.push(`portable output option ${row.output}.${row.field} is not serializable, policy-included, receipted and schema-declared`)
+    }
+    if (row.input === 'callback'
+      && (row.scope !== 'native-host-only' || row.policy !== 'excluded' || row.receipt !== 'excluded' || row.schema !== 'not-applicable')) {
+      diagnostics.push(`callback output option ${row.output}.${row.field} leaked into policy, receipt or schema`)
+    }
+  }
+  if (JSON.stringify(outputOptions) !== JSON.stringify(pngOutputOptionRows())) {
+    diagnostics.push('PNG output-option matrix does not match the canonical PNG option authority')
   }
   for (const row of backends) {
     if (!stateIn(row.registration, report.stateVocabularies.backend) || !stateIn(row.sceneInput, report.stateVocabularies.backend)) {
       diagnostics.push(`backend ${row.id} has an invalid contract state`)
     }
     if (!stateIn(row.claimStatus, report.stateVocabularies.backendClaims)) {
-      diagnostics.push(`backend ${row.id} does not identify capability claims as declarations`)
+      diagnostics.push(`backend ${row.id} has an invalid executable-claim state`)
     }
     if (!stateIn(row.conformanceKind, report.stateVocabularies.backendConformance)) {
       diagnostics.push(`backend ${row.id} has an invalid conformance kind`)
@@ -695,15 +1005,34 @@ export function validateSectionACapabilityReport(report: SectionACapabilityRepor
     if (JSON.stringify(row.conformance.directOutputs) !== JSON.stringify(['svg'])) {
       diagnostics.push(`backend ${row.id} conformance overstates directly tested outputs`)
     }
-    if (JSON.stringify(row.conformance.inheritedOutputs) !== JSON.stringify([
-      { output: 'png', via: 'canonical-secured-svg-rasterizer', directlyTested: false },
-    ])) {
-      diagnostics.push(`backend ${row.id} conformance does not describe PNG inheritance honestly`)
+    if (JSON.stringify(row.claims) !== JSON.stringify(row.conformance.claims)) {
+      diagnostics.push(`backend ${row.id} claim rows do not match executable conformance results`)
     }
-    const claimValidation = validatePrimitiveCapabilities(row.claims)
+    const declarations = row.claims.map(claim => ({
+      target: claim.target,
+      primitive: claim.primitive,
+      feature: claim.feature,
+      operation: claim.operation,
+      realization: claim.realization,
+      ...(claim.witnessId ? { evidence: claim.witnessId } : {}),
+      ...(claim.limitation ? { diagnostic: claim.limitation } : {}),
+    }))
+    const claimValidation = validatePrimitiveCapabilities(declarations)
     if (!claimValidation.valid) diagnostics.push(`backend ${row.id} has invalid primitive claims: ${claimValidation.diagnostics.join('; ')}`)
     if (row.claims.some(claim => claim.target !== row.id)) diagnostics.push(`backend ${row.id} has a claim for another target`)
-    if (row.claims.some(claim => !claim.evidence)) diagnostics.push(`backend ${row.id} has an unevidenced primitive claim`)
+    if (row.claims.some(claim => claim.claimKey !== primitiveCapabilityClaimKey(claim))) {
+      diagnostics.push(`backend ${row.id} has a stale executable claim key`)
+    }
+    if (row.claims.some(claim => claim.status === 'failed')) diagnostics.push(`backend ${row.id} exposes a failed executable claim`)
+    if (row.claims.some(claim => claim.status === 'passed' && !claim.witnessId)) {
+      diagnostics.push(`backend ${row.id} has a passing claim without an executable witness`)
+    }
+    const unverified = row.claims.filter(claim => claim.status === 'unverified-extension')
+    const expectedClaimStatus = unverified.length > 0 ? 'executable-core-with-unverified-extensions' : 'executable'
+    if (row.claimStatus !== expectedClaimStatus) diagnostics.push(`backend ${row.id} executable-claim state is stale`)
+    if (row.provenance.owner === 'agentic-mermaid' && unverified.length > 0) {
+      diagnostics.push(`first-party backend ${row.id} has unverified capability claims`)
+    }
     if (scene.primitives.some(primitive => !row.primitiveIds.includes(primitive))) {
       diagnostics.push(`backend ${row.id} does not account for every Scene primitive`)
     }
@@ -715,8 +1044,8 @@ export function validateSectionACapabilityReport(report: SectionACapabilityRepor
     if (!stateIn(row.color, report.stateVocabularies.outputColor)) diagnostics.push(`output ${row.id} has invalid color state`)
     if (!stateIn(row.terminal, report.stateVocabularies.outputTerminal)) diagnostics.push(`output ${row.id} has invalid terminal state`)
     if (row.evidence.length === 0) diagnostics.push(`output ${row.id} has no evidence contract`)
-    if (Object.keys(row.transports).length !== RENDER_TRANSPORT_SURFACES.length) {
-      diagnostics.push(`output ${row.id} does not account for every product transport`)
+    if (!hasExactKeys(row.transports, RENDER_TRANSPORT_SURFACES)) {
+      diagnostics.push(`output ${row.id} transport keys do not exactly match the product-surface authority`)
     }
     for (const surface of RENDER_TRANSPORT_SURFACES) {
       const transport = row.transports[surface]
@@ -744,6 +1073,85 @@ export function validateSectionACapabilityReport(report: SectionACapabilityRepor
   }
   for (const row of families) {
     if (!stateIn(row.support, report.stateVocabularies.familySupport)) diagnostics.push(`family ${row.id} has invalid support state`)
+    if (!Array.isArray(row.applicableRenderOptions)
+      || !unique(row.applicableRenderOptions)
+      || row.applicableRenderOptions.some(field => !FAMILY_SCOPED_RENDER_OPTION_FIELDS.includes(field))) {
+      diagnostics.push(`family ${row.id} has an invalid family-scoped RenderOptions declaration`)
+    }
+    if (row.registrationId) {
+      if (!row.identity || !row.identity.id.trim() || !row.identity.version.trim()) {
+        diagnostics.push(`registered family ${row.id} has no versioned identity snapshot`)
+      } else {
+        const expectedIdentity = row.registrationId.startsWith('family:')
+          ? row.registrationId
+          : `family:${row.registrationId}`
+        if (row.identity.id !== expectedIdentity) {
+          diagnostics.push(`registered family ${row.id} identity does not match ${row.registrationId}`)
+        }
+        if (!row.identity.compatibility.core?.trim()) {
+          diagnostics.push(`registered family ${row.id} has no core compatibility range`)
+        }
+        if (!row.identity.provenance.owner?.trim() || !row.identity.provenance.source?.trim()) {
+          diagnostics.push(`registered family ${row.id} has incomplete provenance`)
+        }
+      }
+      if (!row.conformance || row.conformance.familyId !== row.registrationId) {
+        diagnostics.push(`registered family ${row.id} has no matching conformance report`)
+      } else {
+        if (row.conformance.version !== report.contracts.familyConformance) {
+          diagnostics.push(`registered family ${row.id} conformance version does not match the report contract`)
+        }
+        if (!row.conformance.passed) diagnostics.push(`registered family ${row.id} exposes failed conformance`)
+        const resultCapabilities = row.conformance.capabilities.map(result => result.capability)
+        if (!unique(resultCapabilities) || resultCapabilities.length !== FAMILY_CAPABILITY_COLUMNS.length) {
+          diagnostics.push(`registered family ${row.id} has incomplete conformance cells`)
+        }
+        for (const result of row.conformance.capabilities) {
+          if (!FAMILY_CAPABILITY_COLUMNS.includes(result.capability)) {
+            diagnostics.push(`family ${row.id} has conformance for unknown capability ${String(result.capability)}`)
+          }
+          if (!stateIn(result.status, report.stateVocabularies.familyConformance)) {
+            diagnostics.push(`family ${row.id} has invalid conformance status for ${result.capability}`)
+          }
+          if (result.status === 'passed' && !result.witnessId?.trim()) {
+            diagnostics.push(`family ${row.id} has a passing ${result.capability} cell without a witness`)
+          }
+          const witnessVersion = result.witnessId
+            ? /^family-(?:example|builtin-suite)@(\d+)\//.exec(result.witnessId)?.[1]
+            : undefined
+          if (result.status === 'passed' && Number(witnessVersion) !== report.contracts.familyConformance) {
+            diagnostics.push(`family ${row.id} ${result.capability} witness does not match the conformance contract`)
+          }
+          if (result.status !== 'passed' && !result.diagnostic?.trim()) {
+            diagnostics.push(`family ${row.id} has an unexplained ${result.capability} conformance cell`)
+          }
+          const claim = row.evidence.find(candidate => candidate.capability === result.capability)
+          if (claim && result.declaredState !== claim.state) {
+            diagnostics.push(`family ${row.id} ${result.capability} conformance disagrees with its declaration`)
+          }
+          if (claim?.state === 'native' && result.status !== 'passed') {
+            diagnostics.push(`family ${row.id} ${result.capability} native declaration has no passed witness`)
+          }
+          if (claim?.state !== 'native' && result.status !== 'unverified-extension') {
+            diagnostics.push(`family ${row.id} ${result.capability} non-native declaration has an executable result`)
+          }
+        }
+      }
+      const liveDescriptor = liveDescriptorById.get(row.registrationId as FamilyDescriptor['id'])
+      const expectedRenderOptions = liveDescriptor
+        ? applicableFamilyScopedRenderOptions(liveDescriptor)
+        : []
+      if (JSON.stringify(row.applicableRenderOptions) !== JSON.stringify(expectedRenderOptions)) {
+        diagnostics.push(`registered family ${row.id} family-scoped RenderOptions do not match its descriptor authority`)
+      }
+    } else if (row.identity || row.conformance) {
+      diagnostics.push(`unregistered family ${row.id} exposes registration identity or conformance`)
+    }
+    if (!row.registrationId
+      && Array.isArray(row.applicableRenderOptions)
+      && row.applicableRenderOptions.length > 0) {
+      diagnostics.push(`unregistered family ${row.id} exposes family-scoped RenderOptions`)
+    }
     if (!unique(row.semanticRoles)) diagnostics.push(`family ${row.id} has duplicate semantic roles`)
     const sceneCells = new Set<string>()
     for (const cell of row.scenePrimitiveEvidence) {
@@ -786,14 +1194,31 @@ export function validateSectionACapabilityReport(report: SectionACapabilityRepor
       }
       if (!unique(claim.evidence)) diagnostics.push(`family ${row.id} repeats evidence for ${claim.capability}`)
     }
+    if (!hasExactKeys(row.capabilities, FAMILY_CAPABILITY_COLUMNS)) {
+      diagnostics.push(`family ${row.id} capability keys do not exactly match the family-capability authority`)
+    }
     for (const column of FAMILY_CAPABILITY_COLUMNS) {
       if (!stateIn(row.capabilities[column], report.stateVocabularies.familyCapability)) {
         diagnostics.push(`family ${row.id} has invalid ${column} state`)
       }
       const claim = row.evidence.find(candidate => candidate.capability === column)
       if (row.registrationId && !claim) diagnostics.push(`family ${row.id} lacks evidence for ${column}`)
-      if (claim && row.capabilities[column] !== claim.state) {
-        diagnostics.push(`family ${row.id} ${column} state does not match descriptor evidence`)
+      const conformance = row.conformance?.capabilities.find(result => result.capability === column)
+      const expectedState = claim?.state === 'native' && conformance?.status !== 'passed'
+        ? 'diagnosed'
+        : claim?.state
+      if (claim && row.capabilities[column] !== expectedState) {
+        diagnostics.push(`family ${row.id} ${column} state does not match declaration plus conformance`)
+      }
+    }
+    if (!row.registrationId) {
+      if (JSON.stringify(row.capabilities) !== JSON.stringify(UNREGISTERED_FAMILY_CAPABILITY_STATES)) {
+        diagnostics.push(`unregistered family ${row.id} does not match the canonical processing capability contract`)
+      }
+      const syntaxProcessing = syntax.families.find(candidate =>
+        candidate.familyId === row.id && candidate.dimensionId === 'processing')?.processing
+      if (JSON.stringify(syntaxProcessing) !== JSON.stringify(row.capabilities)) {
+        diagnostics.push(`unregistered family ${row.id} disagrees with the syntax processing projection`)
       }
     }
     if ((row.support === 'native' || row.support === 'partial-native' || row.support === 'extension') && !row.registrationId) {
@@ -808,7 +1233,12 @@ export function validateSectionACapabilityReport(report: SectionACapabilityRepor
 
   const expectedCounts = {
     sharedRequestFieldCount: request.filter(row => row.kind === 'shared').length,
+    sharedRequestSurfaceCellCount: request
+      .filter(row => row.kind === 'shared')
+      .reduce((count, row) => count + Object.keys(row.surfaces ?? {}).length, 0),
     hostOnlyRequestFieldCount: request.filter(row => row.kind === 'host-only').length,
+    portableOutputOptionFieldCount: outputOptions.filter(row => row.scope === 'portable').length,
+    nativeHostOnlyOutputOptionFieldCount: outputOptions.filter(row => row.scope === 'native-host-only').length,
     registeredBackendCount: backends.length,
     outputCount: outputs.length,
     resourceCount: resources.length,
@@ -875,10 +1305,47 @@ function md(value: unknown): string {
   return String(value).replaceAll('|', '\\|').replaceAll('\n', ' ')
 }
 
+const RENDER_TRANSPORT_SURFACE_MARKDOWN_LABELS = Object.freeze({
+  library: 'Library',
+  cli: 'CLI',
+  codeMode: 'Code Mode',
+  localMcp: 'Local MCP',
+  hostedMcp: 'Hosted MCP',
+  editor: 'Editor',
+  website: 'Website build',
+} as const satisfies Readonly<Record<RenderTransportSurface, string>>)
+
+const FAMILY_CAPABILITY_MARKDOWN_LABELS = Object.freeze({
+  detection: 'Detect',
+  'source-preservation': 'Preserve',
+  parse: 'Parse',
+  serialize: 'Serialize',
+  mutation: 'Mutate',
+  verify: 'Verify',
+  layout: 'Layout',
+  scene: 'Scene',
+  svg: 'SVG',
+  terminal: 'Terminal',
+} as const satisfies Readonly<Record<FamilyCapability, string>>)
+
+function markdownTableRow(cells: readonly unknown[]): string {
+  return `| ${cells.map(md).join(' | ')} |`
+}
+
+function markdownTableDivider(columnCount: number): string {
+  return `|${Array.from({ length: columnCount }, () => '---').join('|')}|`
+}
+
 function outputTransportSummary(transport: RenderOutputTransports[keyof RenderOutputTransports]): string {
   const selection = transport.selector ? ` (${transport.selector})` : ''
   const reason = transport.reason ? ` — ${transport.reason}` : ''
   return `${transport.availability}: ${transport.entrypoint}${selection}${reason}`
+}
+
+function requestSurfaceSummary(claim: SharedRenderOptionSurfaceClaim): string {
+  if (claim.state === 'host-enforced') return `${claim.state} (= ${String(claim.enforcedValue)})`
+  if (claim.state === 'unavailable') return `${claim.state} — ${claim.reason}`
+  return claim.state
 }
 
 /** Human projection of the exact machine-readable report. */
@@ -886,7 +1353,7 @@ export function sectionACapabilityReportMarkdown(report: SectionACapabilityRepor
   const out: string[] = []
   out.push('# Section A capability report')
   out.push('')
-  out.push('> Generated from live registries and manifests by `sectionACapabilityReportMarkdown`. Do not edit by hand.')
+  out.push('> Generated by `sectionACapabilityReportMarkdown` from live registries and manifests plus the curated consolidation-characterization evidence named in the machine report. Do not edit by hand.')
   out.push('')
   out.push(`Report digest: \`${report.digest}\`.`)
   out.push('')
@@ -914,34 +1381,67 @@ export function sectionACapabilityReportMarkdown(report: SectionACapabilityRepor
   out.push('|---|---|---|---|---|')
   for (const row of report.matrices.request) out.push(`| ${md(row.field)} | ${row.kind} | ${row.transport} | ${row.receipt} | ${row.schema} |`)
   out.push('')
-  out.push('## Backend matrix')
+  out.push('### Shared-field × surface policy')
   out.push('')
-  out.push('Primitive capability rows are declarations. The admission column is a bounded executable SVG smoke, while PNG inherits the admitted secured SVG through the canonical rasterizer.')
+  out.push('A state applies where the field is meaningful to an available output; output and terminal applicability remain in their own matrices. `host-enforced` means the product accepts the canonical field but replaces weaker caller input with a stricter host-owned value. One evidence list per surface grounds the matrix without repeating identical paths in every cell.')
   out.push('')
-  out.push('| Backend | Version | Aliases | Registration | Scene input | Claim status | SVG admission | Primitives | Claims | Roles |')
-  out.push('|---|---|---|---|---|---|---|---:|---:|---:|')
-  for (const row of report.matrices.backends) {
-    out.push(`| ${md(row.id)} | ${md(row.version)} | ${md(row.aliases.join(', ') || '—')} | ${row.registration} | ${row.sceneInput} | ${row.claimStatus} | ${row.conformance.passed ? `${row.conformanceKind} passed` : `${row.conformanceKind} failed`} | ${row.primitiveIds.length} | ${row.claims.length} | ${row.rolePolicyIds.length} |`)
+  const requestSurfaceHeaders = [
+    'Field',
+    ...RENDER_TRANSPORT_SURFACES.map(surface => RENDER_TRANSPORT_SURFACE_MARKDOWN_LABELS[surface]),
+  ]
+  out.push(markdownTableRow(requestSurfaceHeaders))
+  out.push(markdownTableDivider(requestSurfaceHeaders.length))
+  for (const row of report.matrices.request.filter(row => row.kind === 'shared')) {
+    out.push(markdownTableRow([
+      row.field,
+      ...RENDER_TRANSPORT_SURFACES.map(surface => requestSurfaceSummary(row.surfaces![surface])),
+    ]))
   }
   out.push('')
-  out.push('### Backend registration conformance')
+  out.push('#### Surface-policy evidence')
   out.push('')
-  out.push('| Backend | Fixture | Direct output | Inherited output | Checks |')
-  out.push('|---|---|---|---|---|')
+  out.push('| Product | Evidence |')
+  out.push('|---|---|')
+  for (const surface of RENDER_TRANSPORT_SURFACES) {
+    out.push(`| ${surface} | ${md(report.evidence.requestSurfaces[surface].join(', '))} |`)
+  }
+  out.push('')
+  out.push('## Output-option matrix')
+  out.push('')
+  out.push('| Output | Field | Scope | Input | Policy | Receipt | Schema |')
+  out.push('|---|---|---|---|---|---|---|')
+  for (const row of report.matrices.outputOptions) {
+    out.push(`| ${row.output} | ${md(row.field)} | ${row.scope} | ${row.input} | ${row.policy} | ${row.receipt} | ${row.schema} |`)
+  }
+  out.push('')
+  out.push('## Backend matrix')
+  out.push('')
+  out.push('Every first-party primitive row below is the result of an exact executable claim witness against the registered backend. StyleBackend ends at secured SVG; native and browser PNG projection are downstream adapter gates, not inferred backend claims.')
+  out.push('')
+  out.push('| Backend | Version | Registration | Scene input | Claim status | SVG conformance | Primitives | Claims | Roles |')
+  out.push('|---|---|---|---|---|---|---:|---:|---:|')
   for (const row of report.matrices.backends) {
-    const inherited = row.conformance.inheritedOutputs
-      .map(output => `${output.output} via ${output.via} (directly tested: ${output.directlyTested})`)
-      .join(', ')
-    out.push(`| ${md(row.id)} | ${md(row.conformance.fixtureId)} | ${md(row.conformance.directOutputs.join(', '))} | ${md(inherited)} | ${md(row.conformance.checks.map(check => `${check.id}:${check.passed ? 'pass' : 'fail'}`).join(', '))} |`)
+    out.push(`| ${md(row.id)} | ${md(row.version)} | ${row.registration} | ${row.sceneInput} | ${row.claimStatus} | ${row.conformance.passed ? `${row.conformanceKind} passed` : `${row.conformanceKind} failed`} | ${row.primitiveIds.length} | ${row.claims.length} | ${row.rolePolicyIds.length} |`)
+  }
+  out.push('')
+  out.push('### Backend executable conformance')
+  out.push('')
+  out.push('| Backend | Fixture | Direct output | Passed claims | Unverified extension claims | Checks |')
+  out.push('|---|---|---|---:|---:|---|')
+  for (const row of report.matrices.backends) {
+    const passed = row.claims.filter(claim => claim.status === 'passed').length
+    const unverified = row.claims.filter(claim => claim.status === 'unverified-extension').length
+    out.push(`| ${md(row.id)} | ${md(row.conformance.fixtureId)} | ${md(row.conformance.directOutputs.join(', '))} | ${passed}/${row.claims.length} | ${unverified} | ${md(row.conformance.checks.map(check => `${check.id}:${check.passed ? 'pass' : 'fail'}`).join(', '))} |`)
   }
   out.push('')
   out.push('### Backend primitive claims')
   out.push('')
-  out.push('| Backend | Primitive | Feature | Operation | Realization | Evidence |')
-  out.push('|---|---|---|---|---|---|')
+  out.push('| Backend | Primitive | Feature | Operation | Realization | Result | Executable witness | Observation / limitation |')
+  out.push('|---|---|---|---|---|---|---|---|')
   for (const row of report.matrices.backends) {
     for (const claim of row.claims) {
-      out.push(`| ${md(row.id)} | ${md(claim.primitive)} | ${md(claim.feature)} | ${md(claim.operation)} | ${md(claim.realization)} | ${md(claim.evidence ?? '—')} |`)
+      const detail = [claim.observation, claim.limitation, claim.diagnostic].filter(Boolean).join(' — ')
+      out.push(`| ${md(row.id)} | ${md(claim.primitive)} | ${md(claim.feature)} | ${md(claim.operation)} | ${md(claim.realization)} | ${md(claim.status)} | ${md(claim.witnessId ?? '—')} | ${md(detail || '—')} |`)
     }
   }
   out.push('')
@@ -949,10 +1449,27 @@ export function sectionACapabilityReportMarkdown(report: SectionACapabilityRepor
   out.push('')
   out.push('This matrix covers render outputs only; hosted non-render tools such as `mutate` and `build` remain in the MCP tool registry.')
   out.push('')
-  out.push('| Output | Availability | Library | CLI | Code Mode | Local MCP | Hosted MCP | Editor | Website build | Security | Color | Terminal | Evidence |')
-  out.push('|---|---|---|---|---|---|---|---|---|---|---|---|---|')
+  const outputHeaders = [
+    'Output',
+    'Availability',
+    ...RENDER_TRANSPORT_SURFACES.map(surface => RENDER_TRANSPORT_SURFACE_MARKDOWN_LABELS[surface]),
+    'Security',
+    'Color',
+    'Terminal',
+    'Evidence',
+  ]
+  out.push(markdownTableRow(outputHeaders))
+  out.push(markdownTableDivider(outputHeaders.length))
   for (const row of report.matrices.outputs) {
-    out.push(`| ${row.id} | ${row.availability} | ${md(outputTransportSummary(row.transports.library))} | ${md(outputTransportSummary(row.transports.cli))} | ${md(outputTransportSummary(row.transports.codeMode))} | ${md(outputTransportSummary(row.transports.localMcp))} | ${md(outputTransportSummary(row.transports.hostedMcp))} | ${md(outputTransportSummary(row.transports.editor))} | ${md(outputTransportSummary(row.transports.website))} | ${row.security} | ${row.color} | ${row.terminal} | ${md(row.evidence.join(', '))} |`)
+    out.push(markdownTableRow([
+      row.id,
+      row.availability,
+      ...RENDER_TRANSPORT_SURFACES.map(surface => outputTransportSummary(row.transports[surface])),
+      row.security,
+      row.color,
+      row.terminal,
+      row.evidence.join(', '),
+    ]))
   }
   out.push('')
   out.push('### Output transport evidence')
@@ -976,12 +1493,46 @@ export function sectionACapabilityReportMarkdown(report: SectionACapabilityRepor
   out.push('')
   out.push('## Family matrix')
   out.push('')
-  out.push('| Family | Support | Registration | Headers | Detect | Preserve | Parse | Serialize | Mutate | Verify | Layout | Scene | SVG | Terminal |')
-  out.push('|---|---|---|---|---|---|---|---|---|---|---|---|---|---|')
+  const familyHeaders = [
+    'Family',
+    'Support',
+    'Registration',
+    'Version',
+    'Compatibility',
+    'Headers',
+    'Family-scoped RenderOptions',
+    ...FAMILY_CAPABILITY_COLUMNS.map(capability => FAMILY_CAPABILITY_MARKDOWN_LABELS[capability]),
+  ]
+  out.push(markdownTableRow(familyHeaders))
+  out.push(markdownTableDivider(familyHeaders.length))
   for (const row of report.matrices.families) {
     const c = row.capabilities
     const headers = row.headers.map(header => `${header.value} (${header.status})`).join(', ')
-    out.push(`| ${md(row.id)} | ${row.support} | ${md(row.registrationId ?? '—')} | ${md(headers)} | ${c.detection} | ${c['source-preservation']} | ${c.parse} | ${c.serialize} | ${c.mutation} | ${c.verify} | ${c.layout} | ${c.scene} | ${c.svg} | ${c.terminal} |`)
+    const compatibility = row.identity
+      ? Object.entries(row.identity.compatibility).map(([contract, range]) => `${contract}:${range}`).join(', ')
+      : '—'
+    out.push(markdownTableRow([
+      row.id,
+      row.support,
+      row.registrationId ?? '—',
+      row.identity?.version ?? '—',
+      compatibility,
+      headers,
+      row.applicableRenderOptions.join(', ') || '—',
+      ...FAMILY_CAPABILITY_COLUMNS.map(capability => c[capability]),
+    ]))
+  }
+  out.push('')
+  out.push('### Family executable conformance')
+  out.push('')
+  out.push('A `native` family cell requires both a native descriptor declaration and a passed canonical-example witness. Extensions are staged and rolled back if any native witness fails or changes across the two deterministic runs.')
+  out.push('')
+  out.push('| Family | Capability | Declaration | Result | Witness / diagnostic |')
+  out.push('|---|---|---|---|---|')
+  for (const row of report.matrices.families) {
+    for (const result of row.conformance?.capabilities ?? []) {
+      out.push(`| ${md(row.id)} | ${result.capability} | ${result.declaredState} | ${result.status} | ${md(result.witnessId ?? result.diagnostic ?? '—')} |`)
+    }
   }
   out.push('')
   out.push('### Family semantic-role / Scene-primitive evidence')

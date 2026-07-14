@@ -1,5 +1,5 @@
 // ============================================================================
-// Timeline structured body: parse / serialize / mutate (FamilyPlugin hooks).
+// Timeline structured body: parse / serialize / mutate (FamilyDescriptor hooks).
 //
 // Structured-or-null parse, same pattern as sequence: any unmodeled line
 // makes the caller fall back to a lossless opaque body.

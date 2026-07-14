@@ -9,6 +9,7 @@
 
 import {
   FAMILY_CAPABILITY_COLUMNS,
+  UNREGISTERED_FAMILY_CAPABILITY_STATES,
   type FamilyCapability,
   type FamilyDescriptor,
 } from './agent/families.ts'
@@ -274,20 +275,7 @@ function descriptorState(descriptor: FamilyDescriptor, capability: FamilyCapabil
 }
 
 function processingProjection(descriptor?: FamilyDescriptor): Readonly<Record<FamilyCapability, FamilySyntaxState>> {
-  if (!descriptor) {
-    return Object.freeze({
-      detection: 'diagnosed',
-      'source-preservation': 'source-preserved',
-      parse: 'diagnosed',
-      serialize: 'source-preserved',
-      mutation: 'diagnosed',
-      verify: 'diagnosed',
-      layout: 'diagnosed',
-      scene: 'diagnosed',
-      svg: 'diagnosed',
-      terminal: 'diagnosed',
-    })
-  }
+  if (!descriptor) return UNREGISTERED_FAMILY_CAPABILITY_STATES
   return Object.freeze(Object.fromEntries(FAMILY_CAPABILITY_COLUMNS.map(capability => [
     capability,
     descriptorState(descriptor, capability),
@@ -544,6 +532,9 @@ export function validateSyntaxCapabilityLedger(
         diagnostics.push(`syntax family ${row.familyId}/processing lacks the complete operation projection`)
       } else if (Object.values(row.processing).includes('absent')) {
         diagnostics.push(`syntax family ${row.familyId}/processing contains an absent operation`)
+      } else if (!row.registrationId
+        && JSON.stringify(row.processing) !== JSON.stringify(UNREGISTERED_FAMILY_CAPABILITY_STATES)) {
+        diagnostics.push(`syntax family ${row.familyId}/processing does not match the canonical unregistered-family contract`)
       }
     } else if (row.processing) {
       diagnostics.push(`syntax family ${row.familyId}/${row.dimensionId} has an unexpected processing projection`)

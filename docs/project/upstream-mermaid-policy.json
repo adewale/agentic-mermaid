@@ -436,7 +436,7 @@
       "headers": [
         {
           "value": "architecture",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         },
         {
           "value": "architecture-beta",

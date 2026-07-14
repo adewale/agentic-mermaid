@@ -142,27 +142,27 @@ export const STYLE_SPEC_FIELD_DESCRIPTORS = deepFreeze({
     kind: 'enum',
     values: ['none', 'hachure', 'solid', 'wash'],
     group: 'fill',
-    description: 'Fill treatment; sketch backends interpret hachure and wash.',
+    description: 'Fill policy for rough/hybrid rendering; none and solid require a final stack that activates one of those backends.',
   },
   hachureAngle: {
     kind: 'number', minimum: -360, maximum: 360, expected: 'between -360 and 360',
-    group: 'fill', description: 'Hachure line angle in degrees.',
+    group: 'fill', description: 'Hachure line angle in degrees; requires fill hachure in the final stack.',
   },
   hachureGap: {
     kind: 'number', exclusiveMinimum: 0, maximum: 100, expected: 'greater than 0 and at most 100',
-    group: 'fill', description: 'Gap between hachure lines.',
+    group: 'fill', description: 'Gap between hachure lines; requires fill hachure in the final stack.',
   },
   fillWeight: {
     kind: 'number', exclusiveMinimum: 0, maximum: 20, expected: 'greater than 0 and at most 20',
-    group: 'fill', description: 'Hachure line weight.',
+    group: 'fill', description: 'Hachure line weight; requires fill hachure in the final stack.',
   },
   washOpacity: {
     kind: 'number', minimum: 0, maximum: 1, expected: 'between 0 and 1',
-    group: 'fill', description: 'Watercolor glaze opacity.',
+    group: 'fill', description: 'Watercolor glaze opacity; requires fill wash in the final stack.',
   },
   washEdge: {
     kind: 'number', minimum: 0, maximum: 1, expected: 'between 0 and 1',
-    group: 'fill', description: 'Watercolor edge-darkening opacity.',
+    group: 'fill', description: 'Watercolor edge-darkening opacity; requires fill wash in the final stack.',
   },
   backdrop: {
     kind: 'enum',

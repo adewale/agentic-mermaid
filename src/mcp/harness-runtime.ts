@@ -9,6 +9,7 @@
 
 import { createTracingMermaid, marshalCodeModeResult, CODE_MODE_RETURN_HINT } from './facade.ts'
 import type { ExecuteResult } from './sandbox.ts'
+import { HOSTED_CODE_MODE_HOST_POLICY } from '../render-host-policy.ts'
 
 // Hosted output bounds, enforced at the source (inside the isolate) so a
 // log-spamming or huge-result run never builds an unbounded response body;
@@ -167,7 +168,12 @@ export function runUserCode(fn: unknown): ExecuteResult {
     warn: (...a: unknown[]) => { append(a) },
   })
   let closed = false
-  const mermaid = createTracingMermaid(undefined, message => new Error(String(message)), () => closed)
+  const mermaid = createTracingMermaid(
+    undefined,
+    message => new Error(String(message)),
+    () => closed,
+    HOSTED_CODE_MODE_HOST_POLICY,
+  )
   if (typeof fn !== 'function') return { ok: false, error: 'sandbox error: user module did not export a function', logs }
 
   let result: unknown

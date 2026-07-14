@@ -2,9 +2,9 @@
  * Loop 8 M3 — SVG `compact` mode.
  *
  * Asserts:
- *  - Compact output has no decimals with 3+ fractional digits (rounded via
- *    roundCoord).
- *  - Compact output has no newlines outside <style> blocks (collapsed).
+ *  - Structural indentation between non-text elements is collapsed.
+ *  - Geometry, authored text, accessibility, and XML attribute boundaries are
+ *    never rewritten.
  *  - `data-*` attribute set is IDENTICAL between compact and non-compact —
  *    they're agent inspection hooks per Loop 7 audit.
  *  - `class=` attribute set is IDENTICAL between compact and non-compact.
@@ -13,8 +13,8 @@
  *  - `compactSvg` is idempotent on already-compact input.
  */
 import { describe, it, expect } from 'bun:test'
-import { renderMermaidSVG } from '../index.ts'
-import { compactSvg, roundCoord } from '../renderer.ts'
+import { applyOutputSecurityPolicy, renderMermaidSVG, verifyNoExternalRefs } from '../index.ts'
+import { compactSvg } from '../renderer.ts'
 
 // A small but realistic flowchart that exercises curves (ELK produces floats),
 // labels, edge styles, and subgraphs.
@@ -46,39 +46,38 @@ function extractClassAttrs(svg: string): Set<string> {
 }
 
 describe('Loop 8 M3 — SVG compact mode', () => {
-  it('roundCoord rounds to 3 decimal places', () => {
-    expect(roundCoord(1.2345678)).toBe(1.235)
-    expect(roundCoord(100.0001)).toBe(100)
-    expect(roundCoord(0)).toBe(0)
-    expect(roundCoord(-3.14159)).toBe(-3.142)
-  })
-
   it('compactSvg is a pure function and idempotent', () => {
     const svg = renderMermaidSVG(SRC, { compact: true })
     expect(compactSvg(svg)).toBe(svg)
   })
 
-  it('compact output has no decimals with 4+ fractional digits (rounded to 3)', () => {
-    const svg = renderMermaidSVG(SRC, { compact: true })
-    // Pull out style blocks (CSS may legitimately have e.g. 100.000% — none today, but safe).
-    const noStyle = svg.replace(/<style\b[\s\S]*?<\/style>/gi, '')
-    // The plan calls for "no `\.\d{3,}` digits" — meaning 3-or-more isn't
-    // strictly correct because roundCoord produces up to 3 fractional digits.
-    // The intent (catch unrounded float spam) is satisfied by checking 4+ digits.
-    expect(noStyle).not.toMatch(/\d+\.\d{4,}/)
+  it('preserves authored decimal-looking text and generated geometry exactly', () => {
+    const source = 'flowchart TD\n  A["A123.456789"] --> B["B987.654321"]'
+    const plain = renderMermaidSVG(source, { compact: false })
+    const compact = renderMermaidSVG(source, { compact: true })
+    expect(compact).toContain('A123.456789')
+    expect(compact).toContain('B987.654321')
+    expect(compact.match(/\bd="[^"]+"/g)).toEqual(plain.match(/\bd="[^"]+"/g))
   })
 
-  it('non-compact output DOES have long-decimal coords from ELK (sanity check on the SRC)', () => {
-    // This is a guard rail: if ELK suddenly starts rounding internally, the
-    // "compact is strictly smaller" assertion would become a coincidence.
-    const plain = renderMermaidSVG(SRC, { compact: false })
-    expect(plain).toMatch(/\d+\.\d{4,}/)
+  it('never joins XML attributes or rewrites quoted and accessible text', () => {
+    const inert = '<svg xmlns="http://www.w3.org/2000/svg">\n  <title>A123.456789\n title</title>\n  <rect on\n load="alert(1)" data-note="line\n value" />\n</svg>'
+    const compact = compactSvg(inert)
+    expect(compact).toContain('on\n load=')
+    expect(compact).not.toContain('onload=')
+    expect(compact).toContain('A123.456789\n title')
+    expect(compact).toContain('data-note="line\n value"')
+    // Preserving the split keeps compaction from manufacturing an `onload`
+    // attribute, but the original fragment is still malformed XML (`on` has
+    // no value) and must fail the shared SVG document-envelope gate.
+    expect(() => applyOutputSecurityPolicy(compact, 'strict'))
+      .toThrow(/invalid SVG document envelope/i)
+    expect(verifyNoExternalRefs(compact)).toEqual({ ok: true, refs: [] })
   })
 
-  it('compact output has no newlines outside <style> blocks', () => {
-    const svg = renderMermaidSVG(SRC, { compact: true })
-    const noStyle = svg.replace(/<style\b[\s\S]*?<\/style>/gi, '')
-    expect(noStyle).not.toContain('\n')
+  it('removes structural indentation between non-text elements', () => {
+    expect(compactSvg('<svg>\n  <g>\n    <rect />\n  </g>\n</svg>'))
+      .toBe('<svg><g><rect /></g></svg>')
   })
 
   it('data-* attribute set is IDENTICAL between compact and non-compact', () => {

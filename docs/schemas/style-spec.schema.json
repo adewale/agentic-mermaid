@@ -110,37 +110,37 @@
         "solid",
         "wash"
       ],
-      "description": "Fill treatment; sketch backends interpret hachure and wash."
+      "description": "Fill policy for rough/hybrid rendering; none and solid require a final stack that activates one of those backends."
     },
     "hachureAngle": {
       "type": "number",
       "minimum": -360,
       "maximum": 360,
-      "description": "Hachure line angle in degrees."
+      "description": "Hachure line angle in degrees; requires fill hachure in the final stack."
     },
     "hachureGap": {
       "type": "number",
       "exclusiveMinimum": 0,
       "maximum": 100,
-      "description": "Gap between hachure lines."
+      "description": "Gap between hachure lines; requires fill hachure in the final stack."
     },
     "fillWeight": {
       "type": "number",
       "exclusiveMinimum": 0,
       "maximum": 20,
-      "description": "Hachure line weight."
+      "description": "Hachure line weight; requires fill hachure in the final stack."
     },
     "washOpacity": {
       "type": "number",
       "minimum": 0,
       "maximum": 1,
-      "description": "Watercolor glaze opacity."
+      "description": "Watercolor glaze opacity; requires fill wash in the final stack."
     },
     "washEdge": {
       "type": "number",
       "minimum": 0,
       "maximum": 1,
-      "description": "Watercolor edge-darkening opacity."
+      "description": "Watercolor edge-darkening opacity; requires fill wash in the final stack."
     },
     "backdrop": {
       "type": "string",

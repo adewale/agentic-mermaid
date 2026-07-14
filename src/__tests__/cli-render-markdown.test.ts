@@ -31,7 +31,7 @@ describe('#543 render-markdown skip-bad-diagrams', () => {
     expect(blocks[0]!.ok).toBe(true)
     expect(blocks[1]!.ok).toBe(false)          // the invalid diagram
     expect(blocks[2]!.ok).toBe(true)           // continues past the failure
-    expect(blocks[1]!.error!.code).toBe('RENDER_FAILED')
+    expect(blocks[1]!.error!.code).toBe('UNKNOWN_HEADER')
   })
 
   test('valid blocks carry rendered output + format', () => {

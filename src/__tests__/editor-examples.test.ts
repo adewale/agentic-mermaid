@@ -5,7 +5,6 @@ import { runInNewContext } from 'node:vm'
 import { EDITOR_EXAMPLES } from '../../editor/examples.ts'
 import { parseMermaid, renderMermaidSVG } from '../agent/index.ts'
 import { BUILTIN_FAMILY_METADATA, knownFamilies } from '../agent/families.ts'
-import '../agent/families-builtin.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 

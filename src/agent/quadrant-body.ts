@@ -369,7 +369,7 @@ export function mutateQuadrant(body: QuadrantBody, op: QuadrantMutationOp): Resu
   return ok(next)
 }
 
-// ---- Verifier (FamilyPlugin.verify hook) ------------------------------------
+// ---- Verifier (FamilyDescriptor.verify hook) --------------------------------
 
 export function verifyQuadrant(body: QuadrantBody, opts: VerifyOptions): LayoutWarning[] {
   const cap = opts.labelCharCap ?? DEFAULT_LABEL_CHAR_CAP

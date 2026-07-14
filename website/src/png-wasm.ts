@@ -21,14 +21,20 @@ import fontEbGaramond from './generated/EBGaramond.ttf'
 import fontArchitectsDaughter from './generated/ArchitectsDaughter.ttf'
 import fontShareTechMono from './generated/ShareTechMono.ttf'
 import { inlineFontVarForRaster } from '../../src/theme.ts'
-import { assertRasterBudget } from './raster-budget.ts'
 import { findUncoveredScriptsFromBuffers } from '../../src/agent/font-coverage-core.ts'
 import { buildPngFontWarnings, type PngRasterResult } from '../../src/shared/png-font-warnings.ts'
 import type { RenderOptions } from '../../src/types.ts'
-import { safeCssColor } from '../../src/shared/css-color.ts'
-import { applyPngColorProfile } from '../../src/output-color-profile.ts'
-import { PNG_WASM_RUNTIME } from '../../src/png-contract.ts'
-import { renderPngGraphicalProjection } from '../../src/png-graphical.ts'
+import { applyPngColorProfile, inspectPngDimensions } from '../../src/output-color-profile.ts'
+import {
+  MAX_HOSTED_PNG_BYTES,
+  assertHostedPngRasterBudget,
+  omitPngOutputOptions,
+  PNG_WASM_RUNTIME,
+  prepareSvgForPngRasterization,
+  projectPortablePngOutputOptions,
+  type PortablePngOutputOptions,
+} from '../../src/png-contract.ts'
+import { renderPortablePngGraphicalProjection } from '../../src/png-graphical.ts'
 import { hostedFontResource } from '../../src/font-manifest.ts'
 import { verifyResourceBytes } from '../../src/resource-manifest.ts'
 
@@ -52,31 +58,44 @@ async function initializeRasterResources(): Promise<void> {
   await initWasm(resvgWasmModule)
 }
 
-export async function renderMermaidPNGWasm(source: string, opts: RenderOptions & { scale?: number; background?: string } = {}): Promise<PngRasterResult> {
+export async function renderMermaidPNGWasm(source: string, opts: RenderOptions & PortablePngOutputOptions = {}): Promise<PngRasterResult> {
   // Integrity checks and initWasm each run once per isolate.
   ready ??= initializeRasterResources()
   await ready
-  const { scale, background, ...renderOptions } = opts
-  const graphical = renderPngGraphicalProjection(source, renderOptions, { scale, background })
+  const outputOptions = projectPortablePngOutputOptions(opts as Readonly<Record<string, unknown>>)
+  const renderOptions = omitPngOutputOptions(opts as Readonly<Record<string, unknown>>) as RenderOptions
+  const graphical = renderPortablePngGraphicalProjection(source, renderOptions, outputOptions)
+  assertHostedPngRasterBudget(graphical.rasterDimensions)
   const outputPolicy = graphical.outputPolicy
-  const svg = inlineFontVarForRaster(graphical.svg)
-  assertRasterBudget(svg, outputPolicy.scale)
+  const svg = prepareSvgForPngRasterization(
+    inlineFontVarForRaster(graphical.svg),
+    graphical.rasterDimensions,
+  )
   const fontBuffers = FONT_INPUTS.map(({ bytes }) => bytes)
   const warnings = buildPngFontWarnings(findUncoveredScriptsFromBuffers(svg, fontBuffers))
-  const artifactBackground = safeCssColor(svg.match(/--bg\s*:\s*([^;"']+)/i)?.[1]?.trim())
   const resvg = new Resvg(svg, {
-    background: outputPolicy.background.mode === 'explicit'
-      ? outputPolicy.background.value
-      : artifactBackground ?? outputPolicy.background.fallback,
-    fitTo: { ...outputPolicy.fitTo },
+    background: graphical.rasterBackground,
+    fitTo: { mode: 'zoom', value: 1 },
     font: {
       loadSystemFonts: outputPolicy.fonts.loadSystemFonts,
       fontBuffers,
       defaultFontFamily: outputPolicy.fonts.defaultFamily,
     },
   })
+  const png = applyPngColorProfile(resvg.render().asPng())
+  if (png.byteLength > MAX_HOSTED_PNG_BYTES) {
+    throw new RangeError(`hosted PNG output exceeds the ${MAX_HOSTED_PNG_BYTES}-byte response cap`)
+  }
+  const actualDimensions = inspectPngDimensions(png)
+  if (actualDimensions.width !== graphical.rasterDimensions.width
+    || actualDimensions.height !== graphical.rasterDimensions.height) {
+    throw new Error(
+      `hosted PNG rasterizer returned ${actualDimensions.width}×${actualDimensions.height}; `
+      + `expected ${graphical.rasterDimensions.width}×${graphical.rasterDimensions.height}`,
+    )
+  }
   return {
-    png: applyPngColorProfile(resvg.render().asPng()),
+    png,
     warnings,
     receipt: graphical.receipt,
     runtime: PNG_WASM_RUNTIME,

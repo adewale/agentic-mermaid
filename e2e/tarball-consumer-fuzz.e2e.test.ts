@@ -55,8 +55,8 @@ const sha = (s: string) => createHash('sha256').update(s).digest('hex')
 const tag = (fn: () => string): string => { try { return sha(String(fn())) } catch { return 'THREW' } }
 const refLayout = (src: string) => tag(() => JSON.stringify(verifyMermaid(src).layout ?? null))
 const refSvg = (src: string) => tag(() => renderMermaidSVG(src))
-const refAscii = (src: string) => tag(() => renderMermaidASCII(src))
-const refAscii7Bit = (src: string) => tag(() => renderMermaidASCII(src, { useAscii: true }))
+const refTerminalDefault = (src: string) => tag(() => renderMermaidASCII(src))
+const refAscii = (src: string) => tag(() => renderMermaidASCII(src, { useAscii: true }))
 
 // ---------------------------------------------------------------------------
 // Generators.
@@ -191,7 +191,7 @@ describe('installed tarball — library', () => {
     const crashParity: unknown[] = []
     const equivalence: unknown[] = []
     for (let i = 0; i < inputs.length; i++) {
-      const ref = { layout: refLayout(inputs[i]!), svg: refSvg(inputs[i]!), ascii: refAscii(inputs[i]!) }
+      const ref = { layout: refLayout(inputs[i]!), svg: refSvg(inputs[i]!), ascii: refTerminalDefault(inputs[i]!) }
       for (const ch of ['layout', 'svg', 'ascii'] as const) {
         const refThrew = ref[ch] === 'THREW'
         const gotThrew = results[i]![ch] === 'THREW'
@@ -257,7 +257,7 @@ describe('installed tarball — am bin', () => {
         // can't let the differential pass vacuously.
         expect(res.ok).toBe(true)
         expect(typeof res.data?.ascii).toBe('string')
-        if (sha(res.data!.ascii!) !== refAscii7Bit(asciiAt.get(i)!)) mismatches.push({ i, src: asciiAt.get(i) })
+        if (sha(res.data!.ascii!) !== refAscii(asciiAt.get(i)!)) mismatches.push({ i, src: asciiAt.get(i) })
       }
     })
     expect(mismatches).toEqual([])

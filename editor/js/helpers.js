@@ -266,33 +266,11 @@ function setEditorErrorLine(line) {
   if (typeof updateLineNumbers === 'function') updateLineNumbers();
 }
 
-// Headers that are valid Mermaid but outside this renderer's supported
-// families (the supported list is detectDiagramTypeFromFirstLine in
-// src/mermaid-source.ts; unknown headers fall through to the flowchart parser,
-// whose "Invalid mermaid header" would otherwise call valid Mermaid invalid).
-// Keys are the lowercased first token of the header line.
-var UNSUPPORTED_MERMAID_HEADERS = {
-  c4context: 'C4Context',
-  c4container: 'C4Container',
-  c4component: 'C4Component',
-  c4dynamic: 'C4Dynamic',
-  c4deployment: 'C4Deployment',
-  sankey: 'sankey-beta', 'sankey-beta': 'sankey-beta',
-  requirement: 'requirementDiagram', requirementdiagram: 'requirementDiagram',
-  kanban: 'kanban',
-  block: 'block-beta', 'block-beta': 'block-beta',
-  packet: 'packet-beta', 'packet-beta': 'packet-beta',
-  zenuml: 'zenuml',
-  radar: 'radar-beta', 'radar-beta': 'radar-beta',
-  treemap: 'treemap-beta', 'treemap-beta': 'treemap-beta',
-};
-
 function unsupportedFamilyFromError(detail) {
-  var m = String(detail || '').match(/Invalid mermaid header: "([^"]*)"/);
-  if (!m) return null;
-  var token = (m[1].trim().match(/^[A-Za-z0-9-]+/) || [''])[0].toLowerCase();
-  if (SUPPORTED_FAMILY_HEADERS.indexOf(token) !== -1) return null;
-  return UNSUPPORTED_MERMAID_HEADERS[token] || null;
+  var text = String(detail || '');
+  var m = text.match(/Unsupported Mermaid family "([^"]+)"/i)
+    || text.match(/Mermaid [^\n"]+ family "([^"]+)" is (?:unsupported|inventory-only) in Agentic Mermaid/i);
+  return m ? m[1] : null;
 }
 
 function formatRenderErrorHtml(err) {

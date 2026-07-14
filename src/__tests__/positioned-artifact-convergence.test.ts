@@ -38,6 +38,7 @@ function extensionDescriptor(
     }),
     id,
     label: `Extension ${localId}`,
+    example: `${header}\n  example payload`,
     headers: [header],
     aliases: [],
     maturity: 'experimental',
@@ -169,6 +170,10 @@ describe('canonical positioned-artifact protocol', () => {
       },
     })
     const unregister = registerFamily(descriptor)
+    // Registration proves the bounded example twice. Runtime convergence
+    // counts begin after that admission work has completed.
+    layoutCalls = 0
+    renderCalls = 0
     try {
       const parsed = parseRegisteredMermaid('singlePositioningDiagram\n  payload')
       expect(parsed.ok).toBe(true)
@@ -182,7 +187,7 @@ describe('canonical positioned-artifact protocol', () => {
     }
   })
 
-  test('positioned rendering failures retain the RENDER_FAILED verify contract without relayout', () => {
+  test('positioned rendering failures reject registration and roll back the candidate', () => {
     let layoutCalls = 0
     let renderCalls = 0
     const descriptor = extensionDescriptor('render-failure', 'positionedRenderFailureDiagram', {
@@ -195,18 +200,9 @@ describe('canonical positioned-artifact protocol', () => {
         throw new Error('positioned render exploded')
       },
     })
-    const unregister = registerFamily(descriptor)
-    try {
-      const verified = verifyMermaid('positionedRenderFailureDiagram\n  payload')
-      expect(verified.ok).toBe(false)
-      expect(verified.warnings).toContainEqual(expect.objectContaining({
-        code: 'RENDER_FAILED',
-        reason: expect.stringContaining('positioned render exploded'),
-      }))
-      expect(layoutCalls).toBe(1)
-      expect(renderCalls).toBe(1)
-    } finally {
-      unregister()
-    }
+    expect(() => registerFamily(descriptor)).toThrow(/failed executable registration conformance.*positioned render exploded/i)
+    expect(getFamily(descriptor.id)).toBeUndefined()
+    expect(layoutCalls).toBeGreaterThan(0)
+    expect(renderCalls).toBeGreaterThan(0)
   })
 })

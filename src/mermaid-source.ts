@@ -11,6 +11,11 @@
 
 import YAML from 'yaml'
 import { detectRegisteredFamilyFromFirstLine, type FamilyId } from './agent/families.ts'
+import {
+  assertJsonConfigAdmission,
+  assertJsonConfigSourceTextAdmission,
+  JsonConfigAdmissionError,
+} from './shared/json-config-admission.ts'
 
 export type MermaidConfigScalar = string | number | boolean | null
 export type MermaidConfigValue = MermaidConfigScalar | MermaidConfigValue[] | MermaidConfigMap
@@ -585,6 +590,13 @@ export function mergeFrontmatterMaps(
   base: MermaidFrontmatterMap,
   override: MermaidFrontmatterMap,
 ): MermaidFrontmatterMap {
+  return mergeFrontmatterMapsUnchecked(base, override)
+}
+
+function mergeFrontmatterMapsUnchecked(
+  base: MermaidFrontmatterMap,
+  override: MermaidFrontmatterMap,
+): MermaidFrontmatterMap {
   const merged = cloneFrontmatterMap(base)
 
   for (const [key, value] of Object.entries(override)) {
@@ -592,7 +604,7 @@ export function mergeFrontmatterMaps(
 
     const existing = merged[key]
     if (isFrontmatterMap(existing) && isFrontmatterMap(value)) {
-      merged[key] = mergeFrontmatterMaps(existing, value)
+      merged[key] = mergeFrontmatterMapsUnchecked(existing, value)
       continue
     }
 
@@ -641,6 +653,7 @@ export function getFrontmatterList<T extends MermaidFrontmatterValue = MermaidFr
 }
 
 function runtimeConfigToFrontmatterMap(config: MermaidRuntimeConfig): MermaidFrontmatterMap {
+  assertJsonConfigAdmission(config, 'Mermaid runtime configuration')
   return canonicalizeFrontmatterMap(toFrontmatterMap(config) ?? {})
 }
 
@@ -765,6 +778,7 @@ function mergeInto(target: MermaidFrontmatterMap, source: MermaidFrontmatterMap 
 }
 
 function canonicalizeFrontmatterMap(raw: MermaidFrontmatterMap): MermaidFrontmatterMap {
+  assertJsonConfigAdmission(raw, 'Mermaid configuration')
   const topLevel = cloneFrontmatterMap(raw)
   const configRoot = isFrontmatterMap(topLevel.config) ? topLevel.config : undefined
   delete topLevel.config
@@ -773,9 +787,13 @@ function canonicalizeFrontmatterMap(raw: MermaidFrontmatterMap): MermaidFrontmat
 }
 
 function parseYamlDocument(text: string): MermaidFrontmatterMap {
+  assertJsonConfigSourceTextAdmission(text, 'Mermaid frontmatter')
   try {
-    return toFrontmatterMap(YAML.parse(text)) ?? {}
-  } catch {
+    const parsed: unknown = YAML.parse(text)
+    assertJsonConfigAdmission(parsed, 'Mermaid frontmatter')
+    return toFrontmatterMap(parsed) ?? {}
+  } catch (error) {
+    if (error instanceof JsonConfigAdmissionError) throw error
     return {}
   }
 }
@@ -793,10 +811,16 @@ function extractInitDirectives(text: string): { body: string; frontmatter: Merma
 }
 
 function parseDirectiveMap(text: string): MermaidFrontmatterMap | undefined {
+  assertJsonConfigSourceTextAdmission(text, 'Mermaid init directive', { trackFlowDepth: true })
   try {
-    return toFrontmatterMap(YAML.parse(text))
-  } catch {
-    return parseLooseObjectLiteral(text)
+    const parsed: unknown = YAML.parse(text)
+    assertJsonConfigAdmission(parsed, 'Mermaid init directive')
+    return toFrontmatterMap(parsed)
+  } catch (error) {
+    if (error instanceof JsonConfigAdmissionError) throw error
+    const parsed = parseLooseObjectLiteral(text)
+    if (parsed !== undefined) assertJsonConfigAdmission(parsed, 'Mermaid init directive')
+    return parsed
   }
 }
 

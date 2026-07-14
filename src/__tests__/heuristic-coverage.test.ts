@@ -297,6 +297,10 @@ describe('ELK degradation ladder — layoutGraphSync crash-freedom', () => {
     expect(() => assertValidLayout(src)).not.toThrow()
   })
 
+  it('degrades a nominal ELK success with NaN geometry for a disconnected self-loop', () => {
+    assertValidLayout('flowchart TD\n  N0[N0]\n  N1[N1]\n  N0 --> N0')
+  })
+
   it('a large cyclic graph with self-loops lays out without throwing', () => {
     // Cycle of 20 with a self-loop on every node — feedback-heavy.
     let src = 'flowchart TD\n'

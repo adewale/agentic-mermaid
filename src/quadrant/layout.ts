@@ -13,6 +13,7 @@ import { wrapLabelToWidth } from '../shared/label-wrap.ts'
 import { graphemes } from '../shared/graphemes.ts'
 import { applyTextTransform, resolveRenderStyle, STROKE_WIDTHS } from '../styles.ts'
 import type { RenderStyleDefaults } from '../styles.ts'
+import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { resolvePointVisual } from './point-style.ts'
 
 // ============================================================================
@@ -231,8 +232,9 @@ export function layoutQuadrantChart(
   chart: QuadrantChart,
   options: RenderOptions = {},
   visual: QuadrantVisualConfig = {},
+  styleFace?: Readonly<InternalStyleFace>,
 ): PositionedQuadrantChart {
-  const style = resolveRenderStyle(options, quadrantStyleDefaults(visual))
+  const style = resolveRenderStyle(options, quadrantStyleDefaults(visual), styleFace)
   const paddingX = visual.quadrantPadding ?? Q.paddingX
   const paddingY = visual.quadrantPadding ?? Q.paddingY
   const titleFontSize = visual.titleFontSize ?? Q.titleFontSize

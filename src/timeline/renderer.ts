@@ -1,5 +1,5 @@
 import type { PositionedTimelineDiagram, PositionedTimelineSection, PositionedTimelinePeriod, PositionedTimelineEvent } from './types.ts'
-import type { RenderContext } from '../types.ts'
+import type { RenderContext, RenderOptions } from '../types.ts'
 import type { DiagramColors } from '../theme.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
 import { TIMELINE_STYLE_DEFAULTS } from './layout.ts'
@@ -13,7 +13,6 @@ import type { SceneDoc, SceneNode } from '../scene/ir.ts'
 import { hashId } from '../scene/seed.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
-import { resolvedFamilyAppearanceOf } from '../render-contract.ts'
 
 // ============================================================================
 // Timeline diagram SVG renderer
@@ -74,13 +73,15 @@ export function renderTimelineSvg(
 export function lowerTimelineScene(
   ctx: RenderContext<PositionedTimelineDiagram>,
 ): SceneDoc {
-  const { positioned: diagram, colors, options } = ctx
+  const { positioned: diagram, colors, resolved } = ctx
+  const options = resolved.renderOptions
   const font = colors.font ?? 'Inter'
   const transparent = options.transparent ?? false
-  const timelineAppearance = timelineRequestAppearanceOf(options)
+  const timelineAppearance = resolved.familyAppearance as TimelineRequestAppearance | undefined
+  if (!timelineAppearance) throw new Error('Timeline rendering requires request-boundary family appearance resolution')
   const timelineConfig = timelineAppearance.timelineConfig
   const parts: SceneNode[] = []
-  const style = resolveRenderStyle(options, TIMELINE_STYLE_DEFAULTS)
+  const style = resolveRenderStyle(options, TIMELINE_STYLE_DEFAULTS, resolved.styleFace)
   const paints = timelinePaints(style)
   const accessibleTitle = diagram.accessibilityTitle ?? diagram.title?.text.replace(/\n+/g, ' ')
   const accessibleDescription = diagram.accessibilityDescription
@@ -510,17 +511,12 @@ function renderFamilyAttr(familyIndex: number, familyPalettes: readonly Timeline
   return ` data-family="${family}" style="${escapeAttr(style)}"`
 }
 
-export function resolveTimelineRequestAppearance(options: RenderContext['options'] = {}): TimelineRequestAppearance {
+export function resolveTimelineRequestAppearance(options: RenderOptions = {}): TimelineRequestAppearance {
   const timelineConfig = options.mermaidConfig?.timeline ?? {}
   return {
     timelineConfig,
     familyPalettes: getTimelineFamilyPalettes(timelineConfig, options.mermaidConfig?.themeVariables),
   }
-}
-
-function timelineRequestAppearanceOf(options: RenderContext['options']): TimelineRequestAppearance {
-  return resolvedFamilyAppearanceOf<TimelineRequestAppearance>(options)
-    ?? resolveTimelineRequestAppearance(options)
 }
 
 function getTimelineFamilyPalettes(

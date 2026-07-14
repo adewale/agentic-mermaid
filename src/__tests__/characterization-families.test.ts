@@ -29,6 +29,7 @@ import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 
 const RUNS = 60
 const U = { colorMode: 'none', useAscii: false } as const
+const A = { colorMode: 'none', useAscii: true } as const
 
 // ---------------------------------------------------------------------------
 // Per-family generators (bounded, always valid)
@@ -226,7 +227,8 @@ function assertTotalDeterministicNoDiagonals(src: string): string {
 
 function renderAll(src: string) {
   return {
-    ascii: renderMermaidASCII(src, U),
+    unicode: renderMermaidASCII(src, U),
+    ascii: renderMermaidASCII(src, A),
     svg: renderMermaidSVG(src, { security: 'strict' }),
     png: renderMermaidPNG(src, { scale: 1 }),
   }
@@ -270,9 +272,10 @@ describe('characterisation · families · universal invariants', () => {
     expect(ALL_FAMILIES.map(([family]) => family).sort()).toEqual(BUILTIN_FAMILY_METADATA.map(entry => entry.id).sort())
   })
 
-  it('all registered families render through ASCII, SVG, and PNG surfaces', () => {
+  it('all registered families render through Unicode, ASCII, SVG, and PNG surfaces', () => {
     for (const { source } of RENDERER_CASES) {
-      const { ascii, svg, png } = renderAll(source)
+      const { unicode, ascii, svg, png } = renderAll(source)
+      expect(unicode.length).toBeGreaterThan(0)
       expect(ascii.length).toBeGreaterThan(0)
       expect(svg).toContain('<svg')
       expect(svg).toContain('</svg>')
@@ -282,8 +285,9 @@ describe('characterisation · families · universal invariants', () => {
 
   it('all registered families preserve sentinel labels on text renderers', () => {
     for (const { source, labels } of RENDERER_CASES) {
-      const { ascii, svg } = renderAll(source)
+      const { unicode, ascii, svg } = renderAll(source)
       for (const label of labels) {
+        expect(unicode).toContain(label)
         expect(ascii).toContain(label)
         expect(svg).toContain(label)
       }
@@ -294,17 +298,21 @@ describe('characterisation · families · universal invariants', () => {
     for (const { source } of RENDERER_CASES) {
       const first = renderAll(source)
       const second = renderAll(source)
+      expect(second.unicode).toBe(first.unicode)
       expect(second.ascii).toBe(first.ascii)
       expect(second.svg).toBe(first.svg)
       expect(second.png).toEqual(first.png)
     }
   })
 
-  it('all registered families emit clean SVG and plain ASCII', () => {
+  it('all registered families emit clean SVG, Unicode, and 7-bit ASCII', () => {
     for (const { source } of RENDERER_CASES) {
-      const { ascii, svg } = renderAll(source)
+      const { unicode, ascii, svg } = renderAll(source)
+      expect(unicode).not.toMatch(/\x1b\[[0-9;]*m/)
+      expect(unicode).not.toMatch(/\b(?:NaN|Infinity|undefined)\b/)
       expect(ascii).not.toMatch(/\x1b\[[0-9;]*m/)
       expect(ascii).not.toMatch(/\b(?:NaN|Infinity|undefined)\b/)
+      expect(ascii).toMatch(/^[\x09\x0a\x0d\x20-\x7e]*$/)
       expect(svg).not.toMatch(/="[^"]*\b(?:NaN|Infinity|undefined)\b[^"]*"/)
     }
   })

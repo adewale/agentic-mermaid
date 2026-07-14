@@ -59,7 +59,6 @@ export function layoutArchitectureDiagram(
     padding: options.padding ?? 40,
     nodeSpacing: options.nodeSpacing ?? ARCHITECTURE_DEFAULT_NODE_SPACING,
     layerSpacing: options.layerSpacing ?? ARCHITECTURE_DEFAULT_LAYER_SPACING,
-    componentSpacing: options.componentSpacing,
     preserveSubgraphChildOrder: true,
     styleFace: metrics ? {
       node: {

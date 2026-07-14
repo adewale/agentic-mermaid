@@ -25,41 +25,31 @@ import { tmpdir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { Resvg } from '@resvg/resvg-js'
-import type { ValidDiagram } from './types.ts'
+import type { ParsedDiagram } from './types.ts'
 import type { RenderOptions } from '../types.ts'
-import { serializeMermaid } from './serialize.ts'
+import { prepareRenderInput } from './render-input.ts'
 import type { RenderRequestReceipt } from '../render-contract.ts'
 import { inlineFontVarForRaster } from '../theme.ts'
 import { findUncoveredScripts } from './font-coverage.ts'
 import { buildPngFontWarnings } from '../shared/png-font-warnings.ts'
-import { safeCssColor } from '../shared/css-color.ts'
 import type { PngFontWarning } from '../shared/png-font-warnings.ts'
-import { applyPngColorProfile } from '../output-color-profile.ts'
+import { applyPngColorProfile, inspectPngDimensions } from '../output-color-profile.ts'
 import {
+  omitPngOutputOptions,
   pngNapiRuntimeProvenance,
+  prepareSvgForPngRasterization,
+  projectNativePngOutputPolicyInput,
+  type PngOutputPolicyInput,
   type PngRuntimeProvenance,
 } from '../png-contract.ts'
 import { renderPngGraphicalProjection } from '../png-graphical.ts'
 import { RESOURCE_MANIFEST } from '../font-manifest.ts'
 import { NodeResourceResolver } from '../node-resource-resolver.ts'
+import { verifyRegisteredEmbeddedFontResources } from './embedded-font-resources.ts'
 import type { HostBackendPolicy } from '../scene/backend.ts'
 export type { PngFontWarning } from '../shared/png-font-warnings.ts'
 
-export interface PngOptions extends RenderOptions {
-  /** Output scale multiplier (default 2 — retina). */
-  scale?: number
-  /** Background override. By default the final SVG background is used, then white. */
-  background?: string
-  /** Constrain output dimensions; otherwise honors scale on the SVG bounds. */
-  fitTo?: { width?: number; height?: number }
-  /** Extra font directories searched in addition to the bundled ones —
-   *  the escape hatch for custom styles that reference unbundled families
-   *  and for scripts the bundled fonts don't cover (CJK, emoji). */
-  fontDirs?: string[]
-  /** Also load the OS's installed fonts (default false). Opting in trades
-   *  cross-machine determinism for coverage. Known bundled/caller-font gaps
-   *  still warn, qualified because an installed face may cover them. */
-  loadSystemFonts?: boolean
+export interface PngOptions extends RenderOptions, PngOutputPolicyInput {
   /** Receives glyph-coverage warnings instead of the default stderr write.
    *  Warnings never change the PNG bytes; identical inputs render
    *  identically whether or not a handler is installed. */
@@ -115,27 +105,32 @@ function resolveBundledFonts(): BundledFonts {
     if (existsSync(candidate)) {
       const verified = new NodeResourceResolver(dir, RESOURCE_MANIFEST).verifyInstalled()
       cachedBundledFonts = materializeVerifiedFontSnapshot(verified.resources)
-      if (!cleanupRegistered) {
-        cleanupRegistered = true
-        process.once('exit', () => {
-          try {
-            if (cachedBundledFonts) rmSync(cachedBundledFonts.snapshotDirectory, { recursive: true, force: true })
-          } catch {
-            // Process exit must not be made exceptional by best-effort cleanup.
-          }
-        })
-      }
-      return cachedBundledFonts
+      break
     }
     const parent = dirname(dir)
     if (parent === dir) break
     dir = parent
   }
-  throw new Error('RESOURCE_MISSING: required bundled font manifest could not be located')
+  if (!cachedBundledFonts) {
+    const embedded = verifyRegisteredEmbeddedFontResources(RESOURCE_MANIFEST)
+    if (embedded) cachedBundledFonts = materializeVerifiedFontSnapshot(embedded.resources)
+  }
+  if (!cachedBundledFonts) throw new Error('RESOURCE_MISSING: required bundled font manifest could not be located')
+  if (!cleanupRegistered) {
+    cleanupRegistered = true
+    process.once('exit', () => {
+      try {
+        if (cachedBundledFonts) rmSync(cachedBundledFonts.snapshotDirectory, { recursive: true, force: true })
+      } catch {
+        // Process exit must not be made exceptional by best-effort cleanup.
+      }
+    })
+  }
+  return cachedBundledFonts
 }
 
 /**
- * Render a Mermaid diagram (source string or ValidDiagram) to a PNG byte array.
+ * Render a Mermaid diagram (source string or ParsedDiagram) to a PNG byte array.
  * Deterministic within one runtime; cross-runtime parity is guarded for
  * same-machine Bun ≡ Node on x86_64/ARM64 when Node + built dist are present.
  *
@@ -143,7 +138,7 @@ function resolveBundledFonts(): BundledFonts {
  * the CLI/MCP integration straightforward. Library consumers can wrap in
  * `Promise.resolve()` if they want async semantics.
  */
-export function renderMermaidPNG(input: ValidDiagram | string, opts: PngOptions = {}): Uint8Array {
+export function renderMermaidPNG(input: ParsedDiagram | string, opts: PngOptions = {}): Uint8Array {
   return renderMermaidPNGWithReceipt(input, opts).png
 }
 
@@ -154,7 +149,7 @@ export interface RenderedPng {
   runtime: PngRuntimeProvenance
 }
 
-export function renderMermaidPNGWithReceipt(input: ValidDiagram | string, opts: PngOptions = {}): RenderedPng {
+export function renderMermaidPNGWithReceipt(input: ParsedDiagram | string, opts: PngOptions = {}): RenderedPng {
   return renderMermaidPNGWithReceiptForHost(input, opts, {})
 }
 
@@ -164,8 +159,8 @@ export interface MermaidPNGRendererHostOptions {
 }
 
 export interface MermaidPNGRenderer {
-  renderMermaidPNG(input: ValidDiagram | string, opts?: PngOptions): Uint8Array
-  renderMermaidPNGWithReceipt(input: ValidDiagram | string, opts?: PngOptions): RenderedPng
+  renderMermaidPNG(input: ParsedDiagram | string, opts?: PngOptions): Uint8Array
+  renderMermaidPNGWithReceipt(input: ParsedDiagram | string, opts?: PngOptions): RenderedPng
 }
 
 /** Bind the native PNG adapter to a trusted in-process graphical backend. */
@@ -174,42 +169,42 @@ export function createMermaidPNGRenderer(
 ): MermaidPNGRenderer {
   const host = Object.freeze({ ...hostOptions })
   return Object.freeze({
-    renderMermaidPNG(input: ValidDiagram | string, opts: PngOptions = {}): Uint8Array {
+    renderMermaidPNG(input: ParsedDiagram | string, opts: PngOptions = {}): Uint8Array {
       return renderMermaidPNGWithReceiptForHost(input, opts, host).png
     },
-    renderMermaidPNGWithReceipt(input: ValidDiagram | string, opts: PngOptions = {}): RenderedPng {
+    renderMermaidPNGWithReceipt(input: ParsedDiagram | string, opts: PngOptions = {}): RenderedPng {
       return renderMermaidPNGWithReceiptForHost(input, opts, host)
     },
   })
 }
 
 function renderMermaidPNGWithReceiptForHost(
-  input: ValidDiagram | string,
+  input: ParsedDiagram | string,
   opts: PngOptions,
   hostOptions: MermaidPNGRendererHostOptions,
 ): RenderedPng {
   // SVG input: embedFontImport=false so resvg doesn't try to fetch from
   // Google Fonts during rasterization. CSS-variable fonts (Loop 8 M2) means
   // the SVG still declares its font-family preference via --font.
-  const source = typeof input === 'string' ? input : serializeMermaid(input)
-  const {
-    scale,
-    background,
-    fitTo,
-    fontDirs: callerFontDirs = [],
-    loadSystemFonts = false,
-    onWarning,
-    ...renderOptions
-  } = opts
-  const graphical = renderPngGraphicalProjection(source, renderOptions, {
-    scale,
-    background,
-    fitTo,
-    fontDirs: callerFontDirs,
-    loadSystemFonts,
-  }, { backendPolicy: hostOptions.backendPolicy })
+  const preparedInput = prepareRenderInput(input)
+  const source = preparedInput.source
+  const onWarning = opts.onWarning
+  if (onWarning !== undefined && typeof onWarning !== 'function') {
+    throw new TypeError('PNG onWarning must be a function')
+  }
+  const outputOptions = projectNativePngOutputPolicyInput(opts as unknown as Readonly<Record<string, unknown>>)
+  const renderOptions = omitPngOutputOptions(opts as unknown as Readonly<Record<string, unknown>>) as RenderOptions
+  const graphical = renderPngGraphicalProjection(
+    source,
+    renderOptions,
+    outputOptions,
+    { backendPolicy: hostOptions.backendPolicy, expectedFamilyId: preparedInput.expectedFamilyId },
+  )
   const outputPolicy = graphical.outputPolicy
-  const svg = inlineFontVarForRaster(graphical.svg)
+  const svg = prepareSvgForPngRasterization(
+    inlineFontVarForRaster(graphical.svg),
+    graphical.rasterDimensions,
+  )
 
   const bundledFonts = resolveBundledFonts()
 
@@ -223,15 +218,11 @@ function renderMermaidPNGWithReceiptForHost(
     bundledFonts.buffers,
   ), { systemFontsMayCover: outputPolicy.fonts.loadSystemFonts })) emit(warning)
 
-  // Raster background follows the final graphical artifact, including any
-  // family projection. This is deliberately output-generic: PNG no longer
-  // reparses source or owns an XY-specific appearance resolver.
-  const artifactBackground = safeCssColor(svg.match(/--bg\s*:\s*([^;"']+)/i)?.[1]?.trim())
   const resvgOpts: ConstructorParameters<typeof Resvg>[1] = {
-    background: outputPolicy.background.mode === 'explicit'
-      ? outputPolicy.background.value
-      : artifactBackground ?? outputPolicy.background.fallback,
-    fitTo: { ...outputPolicy.fitTo },
+    background: graphical.rasterBackground,
+    // The shared contract already projected and pinned exact integer root
+    // dimensions. Rendering at zoom 1 avoids resvg-specific ratio rounding.
+    fitTo: { mode: 'zoom', value: 1 },
     font: {
       loadSystemFonts: outputPolicy.fonts.loadSystemFonts,
       // These private files were materialized from the exact verified byte
@@ -249,6 +240,14 @@ function renderMermaidPNGWithReceiptForHost(
 
   const resvg = new Resvg(svg, resvgOpts)
   const png = applyPngColorProfile(resvg.render().asPng())
+  const actualDimensions = inspectPngDimensions(png)
+  if (actualDimensions.width !== graphical.rasterDimensions.width
+    || actualDimensions.height !== graphical.rasterDimensions.height) {
+    throw new Error(
+      `native PNG rasterizer returned ${actualDimensions.width}×${actualDimensions.height}; `
+      + `expected ${graphical.rasterDimensions.width}×${graphical.rasterDimensions.height}`,
+    )
+  }
   // resvg returns Buffer in Node; ensure we surface Uint8Array consistently.
   return {
     png: new Uint8Array(png.buffer, png.byteOffset, png.byteLength),

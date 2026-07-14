@@ -3,7 +3,7 @@
   "provenance": {
     "version": "11.16.0",
     "commit": "5e3c88ea6d937a89078a5e8f1b2a6fd0ea391a5c",
-    "inventorySha256": "0991b33b1d1a9b86e52d95a7703cf14a17f1079d9a41316081bb623462b6c14c"
+    "inventorySha256": "9ebde3550b6a9d51769fa3b68b0565b13be45df3ddf8e8752d432675b38a1209"
   },
   "families": [
     {
@@ -667,7 +667,7 @@
       "headers": [
         {
           "value": "architecture",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         },
         {
           "value": "architecture-beta",

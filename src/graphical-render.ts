@@ -5,9 +5,7 @@
 // verification prove renderability from the exact artifact it already
 // inspected, without serializing, parsing, or laying out again.
 
-import './render-family-hooks.ts'
-import './scene/rough-backend.ts'
-import './scene/hybrid-backend.ts'
+import './scene/builtin-backends.ts'
 
 import { compactSvg, namespaceSvgIds } from './renderer.ts'
 import type { FamilyLayoutResult } from './agent/families.ts'
@@ -19,6 +17,7 @@ import {
   receiptOf,
   renderContractDigest,
   resolveRenderRequestForExecution,
+  resolvedFamilyRenderContextOf,
   resolvedRenderExecutionPlanOf,
   type RenderExecutionDecision,
   type RenderExecutionResolutionOptions,
@@ -27,8 +26,11 @@ import {
 } from './render-contract.ts'
 import { applyOutputSecurityPolicy } from './output-security.ts'
 import type { OutputSecurityDiagnostic } from './output-security.ts'
+import { replaceSvgRootStartTag, svgAttribute, svgRootStartTag } from './svg-structure.ts'
 import { explicitFamilyConfigDiagnostics } from './shared/family-config-diagnostics.ts'
 import { admitFamilyScene } from './scene/admission.ts'
+import { assertFinalSvgByteBudget } from './scene/scene-validation.ts'
+import type { SceneDoc } from './scene/ir.ts'
 
 export interface ResolvedGraphicalExecution {
   readonly svg: string
@@ -39,6 +41,37 @@ export interface ResolvedGraphicalExecution {
 export interface GraphicalSvgArtifact {
   readonly svg: string
   readonly receipt: RenderRequestReceipt
+}
+
+function renderContextForPositionedFamily(
+  request: ResolvedRenderRequest,
+  layout: FamilyLayoutResult,
+): RenderContext<PositionedDiagram> {
+  const appearanceColors = request.appearance.colors as DiagramColors
+  // PNG cannot consume a remote CSS @import. This output-only projection does
+  // not alter the shared request or appearance receipt.
+  const colors = request.output === 'png' && appearanceColors.embedFontImport !== false
+    ? { ...appearanceColors, embedFontImport: false }
+    : appearanceColors
+  return {
+    positioned: layout.positioned,
+    colors,
+    resolved: resolvedFamilyRenderContextOf(request),
+  }
+}
+
+/** Internal canonical Scene witness used by rendering and family registration
+ * conformance. Keeping admission here prevents a second context/lowering path. */
+export function lowerPositionedFamilyScene(
+  request: ResolvedRenderRequest,
+  layout: FamilyLayoutResult,
+): SceneDoc {
+  const executionPlan = resolvedRenderExecutionPlanOf(request)
+  if (executionPlan.mode !== 'scene') {
+    throw new Error(`Resolved ${request.output} request has no Scene execution plan`)
+  }
+  const family = executionPlan.family
+  return admitFamilyScene(family, family.lowerScene!(renderContextForPositionedFamily(request, layout)))
 }
 
 function escapeXmlText(value: string): string {
@@ -63,11 +96,12 @@ function injectAccessibility(
     children.push(`<desc id="${descId}">${escapeXmlText(accessibility.descr)}</desc>`)
   }
   if (children.length === 0) return svg
-  return svg.replace(/<svg\b([^>]*)>/, (full, attrs: string) => {
-    if (/\baria-(?:labelledby|describedby)=/.test(attrs)) return full
-    const add = `${/\brole=/.test(attrs) ? '' : ' role="img"'} ${rootAttrs.join(' ')}`
-    return `<svg${attrs}${add}>${children.join('')}`
-  })
+  const root = svgRootStartTag(svg)
+  if (!root) return svg
+  if (svgAttribute(root, 'aria-labelledby') || svgAttribute(root, 'aria-describedby')) return svg
+  const add = `${svgAttribute(root, 'role') ? '' : ' role="img"'} ${rootAttrs.join(' ')}`
+  const open = svg.slice(root.start, root.end)
+  return replaceSvgRootStartTag(svg, root, `${open.slice(0, -1)}${add}>${children.join('')}`)
 }
 
 /** Render an exact descriptor layout result; this function never positions. */
@@ -81,21 +115,11 @@ export function renderPositionedMermaidSVG(
     throw new Error(`Resolved ${request.output} request has no graphical execution plan`)
   }
   const effectiveOptions = request.renderOptions as RenderOptions
-  const appearanceColors = request.appearance.colors as DiagramColors
-  // PNG cannot consume a remote CSS @import. This output-only projection does
-  // not alter the shared request or appearance receipt.
-  const colors = request.output === 'png' && appearanceColors.embedFontImport !== false
-    ? { ...appearanceColors, embedFontImport: false }
-    : appearanceColors
   const family = executionPlan.family
-  const context: RenderContext<PositionedDiagram> = {
-    positioned: layout.positioned,
-    colors,
-    options: effectiveOptions,
-  }
+  const context = renderContextForPositionedFamily(request, layout)
   let rawSvg: string
   if (executionPlan.mode === 'scene') {
-    const scene = admitFamilyScene(family, family.lowerScene!(context))
+    const scene = lowerPositionedFamilyScene(request, layout)
     rawSvg = executionPlan.backend!.backend.render(scene, {
       seed: effectiveOptions.seed ?? 0,
       ...(request.appearance.styled ? { style: request.appearance.style } : {}),
@@ -103,17 +127,37 @@ export function renderPositionedMermaidSVG(
   } else {
     rawSvg = family.renderSvg!(context)
   }
+  assertFinalSvgByteBudget(rawSvg, 'backend/family SVG output')
 
-  let svg = inlineResolvedColors(rawSvg, colors)
+  let svg = inlineResolvedColors(rawSvg, context.colors)
+  assertFinalSvgByteBudget(svg, 'color-resolved SVG output')
   const idPrefix = effectiveOptions.idPrefix ?? ''
-  if (idPrefix) svg = namespaceSvgIds(svg, idPrefix)
+  if (idPrefix) {
+    svg = namespaceSvgIds(svg, idPrefix)
+    assertFinalSvgByteBudget(svg, 'namespaced SVG output')
+  }
   const accessibility = request.source.accessibility
   if ((layout.injectAccessibility ?? true) && (accessibility.title || accessibility.descr)) {
     svg = injectAccessibility(svg, accessibility, idPrefix)
+    assertFinalSvgByteBudget(svg, 'accessibility-projected SVG output')
   }
-  const secured = applyOutputSecurityPolicy(svg, effectiveOptions.security)
+  // Every byte-changing projection must run before the final output-security
+  // gate. In particular, compaction must never be able to join an inert split
+  // attribute (for example `on\n load`) into executable active content after
+  // validation.
+  if (effectiveOptions.compact) {
+    svg = compactSvg(svg)
+    assertFinalSvgByteBudget(svg, 'compacted SVG output')
+  }
+  // Raster outputs are offline artifacts in every caller mode. This is an
+  // output-only projection: the shared request receipt retains authored
+  // security intent, while no native/WASM/browser rasterizer can receive a
+  // fetching reference from a conditional host backend.
+  const outputSecurity = request.output === 'png' ? 'strict' : effectiveOptions.security
+  const secured = applyOutputSecurityPolicy(svg, outputSecurity)
   securityDiagnostics.push(...secured.diagnostics)
-  svg = effectiveOptions.compact ? compactSvg(secured.svg) : secured.svg
+  svg = secured.svg
+  assertFinalSvgByteBudget(svg, 'final SVG output')
   return Object.freeze({
     svg,
     executionDecision: executionPlan.executionDecision,
@@ -153,9 +197,12 @@ export function executeGraphicalRequest(
     resolutionOptions,
   )
   const executionPlan = resolvedRenderExecutionPlanOf(request)
-  if (options.mermaidConfig) {
-    const report = options.onConfigDiagnostic ?? ((diagnostic) => console.warn(diagnostic.message))
-    for (const diagnostic of explicitFamilyConfigDiagnostics(executionPlan.family.id, options.mermaidConfig)) report(diagnostic)
+  if (executionPlan.explicitMermaidConfig) {
+    const report = executionPlan.onConfigDiagnostic ?? ((diagnostic) => console.warn(diagnostic.message))
+    for (const diagnostic of explicitFamilyConfigDiagnostics(
+      executionPlan.family.id,
+      executionPlan.explicitMermaidConfig,
+    )) report(diagnostic)
   }
   const securityDiagnostics: OutputSecurityDiagnostic[] = []
   const rendered = renderResolvedMermaidSVG(request, securityDiagnostics)

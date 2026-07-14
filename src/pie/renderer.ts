@@ -79,11 +79,12 @@ export function renderPieSvg(
 export function lowerPieScene(
   ctx: RenderContext<PositionedPieChart>,
 ): SceneDoc {
-  const { positioned: chart, colors, options } = ctx
+  const { positioned: chart, colors, resolved } = ctx
+  const options = resolved.renderOptions
   const font = colors.font ?? 'Inter'
   const transparent = options.transparent ?? false
   const interactive = options.interactive ?? false
-  const style = resolveRenderStyle(options, PIE_STYLE_DEFAULTS)
+  const style = resolveRenderStyle(options, PIE_STYLE_DEFAULTS, resolved.styleFace)
   const visual = chart.visual
   const parts: SceneNode[] = []
 

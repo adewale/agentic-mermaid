@@ -260,7 +260,7 @@ export function mutatePie(body: PieBody, op: PieMutationOp): Result<PieBody, Mut
   return ok(next)
 }
 
-// ---- Verifier (FamilyPlugin.verify hook) ------------------------------------
+// ---- Verifier (FamilyDescriptor.verify hook) --------------------------------
 
 export function verifyPie(body: PieBody, opts: VerifyOptions): LayoutWarning[] {
   const cap = opts.labelCharCap ?? DEFAULT_LABEL_CHAR_CAP

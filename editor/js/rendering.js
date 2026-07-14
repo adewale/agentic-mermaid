@@ -111,12 +111,9 @@ function applyThemeToPage(themeKey) {
       ? previewInner.querySelector("svg")
       : null;
   if (svgEl) {
-    var themeColors =
-      themeKey && THEMES[themeKey]
-        ? THEMES[themeKey]
-        : { bg: "#FFFFFF", fg: "#27272A" };
+    var themeColors = editorPaletteColors(themeKey) || { bg: "#FFFFFF", fg: "#27272A" };
     var overrides = (typeof state !== "undefined" && state.config) || {};
-    var roles = ["bg", "fg", "line", "accent", "muted", "surface", "border"];
+    var roles = (window.__mermaid && window.__mermaid.STYLE_COLOR_TOKEN_FIELDS) || [];
     for (var i = 0; i < roles.length; i++) {
       var value = overrides[roles[i]] || themeColors[roles[i]];
       if (value) svgEl.style.setProperty("--" + roles[i], value);
@@ -130,16 +127,6 @@ function buildOptions() {
   // event handlers, and external references even if a future config field
   // reaches this boundary; insertion below additionally parses one SVG node.
   var opts = { embedFontImport: false, security: "strict" };
-  if (state.theme && THEMES[state.theme]) {
-    var t = THEMES[state.theme];
-    opts.bg = t.bg;
-    opts.fg = t.fg;
-    if (t.line) opts.line = t.line;
-    if (t.accent) opts.accent = t.accent;
-    if (t.muted) opts.muted = t.muted;
-    if (t.surface) opts.surface = t.surface;
-    if (t.border) opts.border = t.border;
-  }
 
   // Restored/share-link config is untrusted JSON. Admit only fields from the
   // library's canonical manifest and validate the same object CLI/MCP accept.
@@ -163,14 +150,20 @@ function buildOptions() {
   opts.embedFontImport = false;
   opts.security = "strict";
 
-  // Style picks renderer treatment; Palette picks colors. Shared example links
-  // can also carry a full RenderOptions.style stack in config, so combine the
-  // dropdown style with the config stack instead of letting one overwrite the
-  // other. Later stack entries win for public style fields.
+  // Style and Palette are two views over the one canonical style stack. Keep
+  // palette selection declarative so its precedence relative to source
+  // themeVariables is identical in the website, editor, CLI, and MCP.
+  // Explicit Settings colors remain RenderOptions overrides and therefore keep
+  // their documented higher precedence.
   var styleStack = [];
   if (state.style && state.style !== "crisp") styleStack.push(state.style);
   if (Array.isArray(configStyle)) styleStack = styleStack.concat(configStyle);
   else if (configStyle) styleStack.push(configStyle);
+  // The explicit editor Palette is the final color layer. Imported example or
+  // share-link style stacks may change treatment, but must not silently replace
+  // the Palette the user selected in the editor chrome.
+  var paletteInput = editorPaletteInput(state.palette);
+  if (paletteInput) styleStack.push(paletteInput);
   if (styleStack.length === 1) opts.style = styleStack[0];
   else if (styleStack.length > 1) opts.style = styleStack;
   if (state.style && state.style !== "crisp") opts.seed = state.seed || 0;

@@ -1,7 +1,9 @@
 // ============================================================================
-// Built-in family registrations.
+// Built-in family agent-operation definitions.
 //
-// Registers all built-in families with the plugin registry. Structured families own
+// Defines all built-in structured operations. The registry combines these
+// hooks with each family's render hooks and metadata, validates the complete
+// descriptor, and only then makes it discoverable. Structured families own
 // their parse/serialize/mutate here (BUILD-3 consolidation): parseMermaid,
 // serializeMermaid, and mutate dispatch through these hooks, so adding a
 // family means one registration plus a body module — no core edits.
@@ -15,7 +17,8 @@
 // checks (verify.ts adds the geometric Tier 2 pass via the graph projection).
 // ============================================================================
 
-import { augmentFamily, extractLabelsGeneric, type ExtractedLabel, type FamilyPlugin } from './families.ts'
+import type { ExtractedLabel, FamilyOperations } from './families.ts'
+import { extractLabelsGeneric } from './family-labels.ts'
 import type { DiagramBody, DiagramKind, AnyMutationOp, MutationError, Result, LayoutWarning, SourceMap, ClassBody, ErBody, XyChartBody, PieBody, QuadrantBody, GanttBody } from './types.ts'
 import { ok, err } from './types.ts'
 import { verifyClass, parseClassBody, renderClass, mutateClass } from './class-body.ts'
@@ -50,7 +53,7 @@ function structuredFamilyHooks<K extends DiagramBody['kind'] & DiagramKind>(
     serialize: (body: Extract<DiagramBody, { kind: K }>) => string
     mutate: (body: Extract<DiagramBody, { kind: K }>, op: never) => Result<Extract<DiagramBody, { kind: K }>, MutationError>
   },
-): Pick<FamilyPlugin, 'parse' | 'serialize' | 'mutate'> {
+): Pick<FamilyOperations, 'parse' | 'serialize' | 'mutate'> {
   return {
     parse: (ctx) => {
       const lines = ctx.lines
@@ -93,8 +96,8 @@ function extractFlowchartLabels(source: string): ExtractedLabel[] {
 }
 
 // Flowchart owns the legacy MermaidGraph body: the diagram kind selects the
-// plugin, which binds the flowchart header.
-function flowchartFamilyHooks(): Pick<FamilyPlugin, 'parse' | 'buildSourceMap' | 'serialize' | 'mutate'> {
+// descriptor, which binds the flowchart header.
+function flowchartFamilyHooks(): Pick<FamilyOperations, 'parse' | 'buildSourceMap' | 'serialize' | 'mutate'> {
   return {
     parse: ({ source, opaqueSource }) => {
       if (containsFlowchartOpaqueSyntax(source.familyText)) return ok<DiagramBody>({ kind: 'opaque', family: 'flowchart', source: opaqueSource })
@@ -113,10 +116,10 @@ function flowchartFamilyHooks(): Pick<FamilyPlugin, 'parse' | 'buildSourceMap' |
   }
 }
 
-augmentFamily('flowchart', {
+const FLOWCHART_AGENT_HOOKS = {
   extractLabels: extractFlowchartLabels,
   ...flowchartFamilyHooks(),
-})
+} satisfies FamilyOperations
 
 // ---- State ----------------------------------------------------------------
 // BUILD-19: state owns a dedicated StateBody IR (no longer the flowchart body).
@@ -144,7 +147,7 @@ function extractStateLabels(source: string): ExtractedLabel[] {
   return out
 }
 
-augmentFamily('state', {
+const STATE_AGENT_HOOKS = {
   extractLabels: extractStateLabels,
   // The verify hook covers body-level structural Tier 1 (EMPTY/MISANCHORED/
   // LABEL_OVERFLOW); verify.ts adds geometric Tier 2 via the graph projection.
@@ -153,7 +156,7 @@ augmentFamily('state', {
     headerOk: h => /^statediagram(?:-v2)?\s*$/i.test(h),
     parseBody: parseStateBody, serialize: renderState, mutate: mutateState,
   }),
-})
+} satisfies FamilyOperations
 
 // ---- Sequence -------------------------------------------------------------
 // Sequence labels: messages (`A->>B: text`), participants (`participant X as Label`,
@@ -186,7 +189,7 @@ function extractSequenceLabels(source: string): ExtractedLabel[] {
 // opaque-block segments round-trip verbatim. `opaqueSource` is the normalized
 // body INCLUDING the header line, with original indentation/blank lines/
 // comments intact — drop its header and pass alongside the trimmed lines.
-augmentFamily('sequence', {
+const SEQUENCE_AGENT_HOOKS = {
   extractLabels: extractSequenceLabels,
   parse: ({ source, lines, opaqueSource }) => {
     const expandedLines = expandInlineSequenceStatements(lines)
@@ -202,7 +205,7 @@ augmentFamily('sequence', {
     if (body.kind !== 'sequence') return err<MutationError>({ code: 'INVALID_OP', message: `sequence mutator received body kind ${body.kind}` })
     return mutateSequence(body, op as never)
   },
-})
+} satisfies FamilyOperations
 
 function expandInlineSequenceStatements(lines: readonly string[]): string[] {
   const header = lines[0]?.trim() ?? ''
@@ -245,7 +248,7 @@ function extractTimelineLabels(source: string): ExtractedLabel[] {
 // convention, spelled out here because the hook needs the header line).
 const TIMELINE_BODY_HEADER_RE = /^timeline(?:\s+(LR|TD))?\s*$/i
 
-augmentFamily('timeline', {
+const TIMELINE_AGENT_HOOKS = {
   extractLabels: extractTimelineLabels,
   parse: ({ lines, opaqueSource, meta }) => {
     const header = (lines[0]?.trim() ?? '').match(TIMELINE_BODY_HEADER_RE)
@@ -261,7 +264,7 @@ augmentFamily('timeline', {
     if (body.kind !== 'timeline') return err<MutationError>({ code: 'INVALID_OP', message: `timeline mutator received body kind ${body.kind}` })
     return mutateTimeline(body, op as never)
   },
-})
+} satisfies FamilyOperations
 
 // ---- Class ---------------------------------------------------------------
 // class Name { +member ... }, Class : +member, class A as "Display Label"
@@ -422,15 +425,15 @@ function extractClassLabels(source: string): ExtractedLabel[] {
   return out
 }
 
-augmentFamily('class', {
+const CLASS_AGENT_HOOKS = {
   extractLabels: extractClassLabels,
   // Loop 8 A1: the structured class verifier IS the verify path — verifyMermaid
-  // routes class diagrams through this plugin hook (Loop 9 M2 removed the
+  // routes class diagrams through this descriptor hook (Loop 9 M2 removed the
   // duplicate per-body branch). Single source of truth.
   verify: (body, opts) => body.kind === 'class' ? verifyClass(body, opts) : [],
   buildSourceMap: buildClassSourceMap,
   ...structuredFamilyHooks('class', { parseBody: parseClassBody, serialize: renderClass, mutate: mutateClass }),
-})
+} satisfies FamilyOperations
 
 // ---- ER -------------------------------------------------------------------
 // CUSTOMER ||--o{ ORDER : places, attributes inside braces.
@@ -452,7 +455,7 @@ function extractErLabels(source: string): ExtractedLabel[] {
   return out
 }
 
-augmentFamily('er', {
+const ER_AGENT_HOOKS = {
   extractLabels: extractErLabels,
   // Loop 8 A1: same as class — this hook is the verify path for ER (Loop 9 M2
   // removed the duplicate per-body branch in verify.ts).
@@ -465,7 +468,7 @@ augmentFamily('er', {
     headerOk: h => /^erdiagram\s*$/i.test(h),
     parseBody: parseErBody, serialize: renderEr, mutate: mutateEr,
   }),
-})
+} satisfies FamilyOperations
 
 // ---- Journey --------------------------------------------------------------
 // title T, section S, task: 3: Me — label extraction rides the shared parse
@@ -530,7 +533,7 @@ function verifyOpaqueJourney(body: DiagramBody): LayoutWarning[] {
   return warnings
 }
 
-augmentFamily('journey', {
+const JOURNEY_AGENT_HOOKS = {
   extractLabels: extractJourneyLabels,
   // BUILD-15: journey is structured-when-narrowed. The verify hook covers the
   // structured body; opaque fallbacks keep the universal label-extraction path.
@@ -545,7 +548,7 @@ augmentFamily('journey', {
     },
     serialize: renderJourney, mutate: mutateJourney,
   }),
-})
+} satisfies FamilyOperations
 
 // ---- XY chart -------------------------------------------------------------
 // title "T", x-axis [a,b,c], y-axis "label"
@@ -638,7 +641,7 @@ function splitXyLabelStatements(line: string): string[] {
   return statements
 }
 
-augmentFamily('xychart', {
+const XYCHART_AGENT_HOOKS = {
   extractLabels: extractXyChartLabels,
   // BUILD-16: xychart is structured-when-narrowed. The verify hook covers the
   // structured body; opaque fallbacks (accTitle/accDescr, quoted text,
@@ -666,7 +669,7 @@ augmentFamily('xychart', {
     if (body.kind !== 'xychart') return err<MutationError>({ code: 'INVALID_OP', message: `xychart mutator received body kind ${body.kind}` })
     return mutateXyChart(body, op as never)
   },
-})
+} satisfies FamilyOperations
 
 // ---- Pie ------------------------------------------------------------------
 // pie [showData] [title T], optional `title T`, `"label" : number` entries.
@@ -715,7 +718,7 @@ function parsePieHeader(header: string): { showData: boolean; title?: string } |
   return { showData }
 }
 
-augmentFamily('pie', {
+const PIE_AGENT_HOOKS = {
   extractLabels: extractPieLabels,
   // Pie is structured-when-narrowed. The verify hook covers the structured
   // body; opaque fallbacks keep the universal label-extraction path. The header
@@ -736,7 +739,7 @@ augmentFamily('pie', {
     if (body.kind !== 'pie') return err<MutationError>({ code: 'INVALID_OP', message: `pie mutator received body kind ${body.kind}` })
     return mutatePie(body, op as never)
   },
-})
+} satisfies FamilyOperations
 
 // ---- Quadrant -------------------------------------------------------------
 // quadrantChart header; `title T`; `x-axis a --> b`; `y-axis a --> b`;
@@ -823,7 +826,7 @@ function verifyOpaqueQuadrant(body: DiagramBody): LayoutWarning[] {
   return warnings
 }
 
-augmentFamily('quadrant', {
+const QUADRANT_AGENT_HOOKS = {
   extractLabels: extractQuadrantLabels,
   // Quadrant is structured-when-narrowed. The verify hook covers the structured
   // body; opaque fallbacks keep the universal label-extraction path and warn
@@ -836,7 +839,7 @@ augmentFamily('quadrant', {
     headerOk: h => /^quadrant(?:chart)?\s*$/i.test(h),
     parseBody: parseQuadrantBody, serialize: renderQuadrant, mutate: mutateQuadrant,
   }),
-})
+} satisfies FamilyOperations
 
 // ---- Gantt ------------------------------------------------------------------
 // title T, section S, task lines `Label : meta`, plus directive labels that
@@ -881,7 +884,7 @@ function ganttRawBodyLines(opaqueSource: string): string[] {
   return headerAt >= 0 ? raw.slice(headerAt + 1) : raw.slice(1)
 }
 
-augmentFamily('gantt', {
+const GANTT_AGENT_HOOKS = {
   extractLabels: extractGanttLabels,
   // Source-level structural checks (EMPTY/LABEL_OVERFLOW/EDGE_MISANCHORED on
   // after/until refs); see docs/design/families/gantt.md §Verification.
@@ -900,7 +903,7 @@ augmentFamily('gantt', {
     if (body.kind !== 'gantt') return err<MutationError>({ code: 'INVALID_OP', message: `gantt mutator received body kind ${body.kind}` })
     return mutateGantt(body, op as never)
   },
-})
+} satisfies FamilyOperations
 
 // ---- Architecture ---------------------------------------------------------
 // group api(cloud)[API], service db(database)[DB] in api
@@ -919,7 +922,7 @@ function extractArchitectureLabels(source: string): ExtractedLabel[] {
   return out
 }
 
-augmentFamily('architecture', {
+const ARCHITECTURE_AGENT_HOOKS = {
   extractLabels: extractArchitectureLabels,
   // BUILD-17: architecture is structured-when-narrowed. The verify hook covers
   // the structured body; opaque fallbacks (accTitle/accDescr, {group} boundary
@@ -931,10 +934,10 @@ augmentFamily('architecture', {
     headerOk: h => /^architecture(?:-beta)?\s*$/i.test(h),
     parseBody: parseArchitectureBody, serialize: renderArchitecture, mutate: mutateArchitecture,
   }),
-})
+} satisfies FamilyOperations
 
 // ---- Mindmap ---------------------------------------------------------------
-augmentFamily('mindmap', {
+const MINDMAP_AGENT_HOOKS = {
   extractLabels: extractLabelsGeneric,
   parse: ({ source }) => {
     try { return ok(parseMindmapBody(source.familyBody)) }
@@ -948,10 +951,10 @@ augmentFamily('mindmap', {
     ? mutateMindmap(body, op as never)
     : err({ code: 'INVALID_OP', message: `mindmap mutator received body kind ${body.kind}` }),
   verify: (body, opts) => body.kind === 'mindmap' ? verifyMindmap(body, opts) : [],
-})
+} satisfies FamilyOperations
 
 // ---- GitGraph --------------------------------------------------------------
-augmentFamily('gitgraph', {
+const GITGRAPH_AGENT_HOOKS = {
   extractLabels: extractLabelsGeneric,
   parse: ({ source, meta }) => {
     try {
@@ -977,8 +980,21 @@ augmentFamily('gitgraph', {
     ? mutateGitGraph(body, op as never)
     : err({ code: 'INVALID_OP', message: `gitgraph mutator received body kind ${body.kind}` }),
   verify: (body, opts) => body.kind === 'gitgraph' ? verifyGitGraph(body, opts) : [],
-})
+} satisfies FamilyOperations
 
-// Re-export so importing this module is the only thing needed to populate
-// the registry.
-export { registerFamily, getFamily, knownFamilies, extractLabelsGeneric } from './families.ts'
+export const BUILTIN_AGENT_HOOKS = Object.freeze({
+  flowchart: FLOWCHART_AGENT_HOOKS,
+  state: STATE_AGENT_HOOKS,
+  sequence: SEQUENCE_AGENT_HOOKS,
+  timeline: TIMELINE_AGENT_HOOKS,
+  class: CLASS_AGENT_HOOKS,
+  er: ER_AGENT_HOOKS,
+  journey: JOURNEY_AGENT_HOOKS,
+  xychart: XYCHART_AGENT_HOOKS,
+  pie: PIE_AGENT_HOOKS,
+  quadrant: QUADRANT_AGENT_HOOKS,
+  gantt: GANTT_AGENT_HOOKS,
+  architecture: ARCHITECTURE_AGENT_HOOKS,
+  mindmap: MINDMAP_AGENT_HOOKS,
+  gitgraph: GITGRAPH_AGENT_HOOKS,
+}) satisfies Readonly<Record<DiagramKind, FamilyOperations>>

@@ -178,6 +178,23 @@ function tmpPngRun(source: string, extraFlags: string[] = []): { code: number; o
 }
 
 describe('am render --format png font flags', () => {
+  test('PNG-only controls are rejected for non-PNG formats', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'am-png-only-flags-'))
+    const input = join(dir, 'in.mmd')
+    writeFileSync(input, 'flowchart LR\n  A --> B')
+    for (const flag of [['--scale', '2'], ['--bg', '#fff'], ['--fit-width', '64'], ['--system-fonts']]) {
+      const { code, err } = captureCli(['render', input, '--format', 'svg', ...flag])
+      expect(code).toBe(2)
+      expect(err).toContain('valid only with --format png')
+    }
+  })
+
+  test('fit dimensions are integer pixels', () => {
+    const { code, err } = tmpPngRun('flowchart LR\n  A --> B', ['--fit-width', '96.5'])
+    expect(code).toBe(2)
+    expect(err).toContain('positive integer pixel value')
+  })
+
   test('CJK render warns on stderr and reports warnings in the --json envelope', () => {
     const { code, out, err, outFile } = tmpPngRun(CJK_SRC, ['--json'])
     expect(code).toBe(0)

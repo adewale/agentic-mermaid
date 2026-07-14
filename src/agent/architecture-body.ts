@@ -747,7 +747,7 @@ export function mutateArchitecture(body: ArchitectureBody, op: ArchitectureMutat
   return ok(next)
 }
 
-// ---- Verifier (FamilyPlugin.verify hook) ------------------------------------
+// ---- Verifier (FamilyDescriptor.verify hook) --------------------------------
 
 const NATIVE_ARCHITECTURE_ICONS = new Set(['cloud', 'database', 'disk', 'internet', 'server'])
 

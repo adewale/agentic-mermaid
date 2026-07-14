@@ -13,9 +13,9 @@
 // ============================================================================
 
 import type {
-  ConnectorDash, ConnectorEndpointAnchor, ConnectorEndpoints, ConnectorGeometry,
+  ConnectorContourSemantics, ConnectorDash, ConnectorEndpointAnchor, ConnectorEndpoints, ConnectorGeometry,
   ConnectorHitGeometry, ConnectorLabelDescriptor, ConnectorMark, ConnectorRelationship,
-  ConnectorRoute, ConnectorStroke, ConnectorTerminalProjection, ConnectorTerminalStrokeLoss, DocumentMark, GroupMark,
+  ConnectorRoute, ConnectorStroke, ConnectorTerminalProjection, DocumentMark, GroupMark,
   Geometry, MarkPaint, MarkerDescriptor, MarkerRef, PreludeMark,
   RawMark, SceneNode, SceneRole, SceneTransform, SemanticChannels, ShapeMark, TextMark,
 } from './ir.ts'
@@ -24,6 +24,15 @@ import type { SvgSemanticIdentity } from './identity.ts'
 import { ensureSvgIdentity, semanticIdentityForSvg } from './identity.ts'
 import { ensureSvgAccessibility, relationAccessibility, relationAccessibilityForSvg } from './accessibility.ts'
 import { escapeAttr, escapeXml } from '../multiline-utils.ts'
+import {
+  connectorContourSemantics,
+  connectorGeometryHasCurves,
+  connectorMidpoints,
+  connectorSubpaths,
+  pathMoveCount,
+  sameConnectorPoint,
+} from './connector-geometry.ts'
+import { deriveConnectorTerminalProjection } from './connector-terminal.ts'
 
 export function shape(fields: {
   id: string
@@ -63,11 +72,15 @@ export interface ConnectorFields {
   terminalProjection?: Partial<Pick<ConnectorTerminalProjection, 'diagnostics'>>
   /** Preserve legacy ARIA projection only where a family already emitted it. */
   projectAccessibilityToSvg?: boolean
+  /** A composite wrapper may own the public data-from/data-to tuple while the
+   * typed connector remains authoritative internally. This suppresses only
+   * the duplicate SVG endpoint attributes, never connector semantics. */
+  projectEndpointIdentityToSvg?: boolean
   channels?: SemanticChannels
   transform?: SceneTransform
 }
 
-function connectorGeometryEndpoints(geometry: ConnectorGeometry): {
+function connectorGeometryEndpoints(geometry: ConnectorGeometry, closed: boolean): {
   start?: ConnectorEndpointAnchor
   end?: ConnectorEndpointAnchor
 } {
@@ -77,11 +90,13 @@ function connectorGeometryEndpoints(geometry: ConnectorGeometry): {
       end: { point: { x: geometry.x2, y: geometry.y2 } },
     }
   }
-  const points = geometry.points
-  if (!points || points.length === 0) return {}
+  const subpaths = connectorSubpaths(geometry, closed)
+  const start = subpaths[0]?.points[0]
+  const finalContour = subpaths.at(-1)
+  const end = finalContour?.closed ? finalContour.points[0] : finalContour?.points.at(-1)
   return {
-    start: { point: { ...points[0]! } },
-    end: { point: { ...points[points.length - 1]! } },
+    ...(start ? { start: { point: { ...start } } } : {}),
+    ...(end ? { end: { point: { ...end } } } : {}),
   }
 }
 
@@ -102,54 +117,6 @@ function connectorDirection(
   return 'undirected'
 }
 
-function routePoints(geometry: ConnectorGeometry): readonly { x: number; y: number }[] {
-  if (geometry.kind === 'line') return [
-    { x: geometry.x1, y: geometry.y1 },
-    { x: geometry.x2, y: geometry.y2 },
-  ]
-  return geometry.points
-}
-
-function endpointTangents(geometry: ConnectorGeometry): { start?: { x: number; y: number }; end?: { x: number; y: number } } {
-  const points = routePoints(geometry)
-  const tangent = (from: { x: number; y: number }, to: { x: number; y: number }) => {
-    const dx = to.x - from.x
-    const dy = to.y - from.y
-    const length = Math.hypot(dx, dy)
-    return length > 0 ? { x: dx / length, y: dy / length } : undefined
-  }
-  let start
-  for (let index = 1; index < points.length && !start; index++) start = tangent(points[0]!, points[index]!)
-  let end
-  for (let index = points.length - 2; index >= 0 && !end; index--) end = tangent(points[index]!, points[points.length - 1]!)
-  return { ...(start ? { start } : {}), ...(end ? { end } : {}) }
-}
-
-function terminalMarker(marker: MarkerDescriptor | undefined) {
-  return marker ? { id: marker.id, shape: marker.shape } : undefined
-}
-
-function terminalStrokeLosses(
-  route: ConnectorRoute,
-  stroke: ConnectorStroke,
-): ConnectorTerminalStrokeLoss[] {
-  const losses: ConnectorTerminalStrokeLoss[] = [
-    'continuous-geometry',
-    'stroke-width',
-    'stroke-cap',
-    'stroke-join',
-  ]
-  if (route.bendRadius > 0) losses.push('bend-radius')
-  if (stroke.opacity !== undefined) losses.push('stroke-opacity')
-  if (stroke.lineJoin === 'miter' || stroke.lineJoin === 'miter-clip') losses.push('stroke-miter')
-  if (stroke.dash) losses.push('dash-pattern')
-  if (stroke.dash?.offset !== undefined) losses.push('dash-offset')
-  if (stroke.pathLength !== undefined) losses.push('path-length')
-  if (stroke.paintOrder !== undefined) losses.push('paint-order')
-  if (stroke.nonScaling) losses.push('non-scaling-stroke')
-  return losses
-}
-
 function decodedAttribute(value: string): string {
   return value
     .replace(/&quot;/g, '"')
@@ -163,10 +130,111 @@ function decodedAttribute(value: string): string {
     .replace(/&amp;/g, '&')
 }
 
+function projectedMidMarkerId(id: string, geometry: ConnectorGeometry, closed: boolean, markers: readonly MarkerDescriptor[]): string | undefined {
+  if (markers.length === 0) return undefined
+  const interiorCount = connectorMidpoints(geometry, closed).length
+  if (interiorCount === 0) {
+    throw new RangeError(`Connector "${id}" has mid markers but no typed interior route points`)
+  }
+  if (markers.length !== 1 && markers.length !== interiorCount) {
+    throw new RangeError(`Connector "${id}" mid markers must contain one repeated descriptor or one descriptor per interior route point`)
+  }
+  const markerIds = new Set(markers.map(marker => marker.id))
+  if (markerIds.size !== 1) {
+    throw new RangeError(`Connector "${id}" uses distinct mid markers that one SVG marker-mid carrier cannot represent`)
+  }
+  return markers[0]!.id
+}
+
+/** Add a missing typed marker attachment to the crisp compatibility carrier.
+ * Existing family bytes stay untouched; extension-authored typed markers can
+ * no longer survive bounds/terminal projection while disappearing graphically. */
+function ensureConnectorMarkerProjection(
+  crisp: string,
+  markerIds: Readonly<{ start?: string; mid?: string; end?: string }>,
+): string {
+  if (crisp === '') return crisp
+  let projected = crisp
+  for (const [position, markerId] of Object.entries(markerIds)) {
+    if (!markerId) continue
+    const attribute = `marker-${position}`
+    const opening = projected.match(/^\s*<(?:line|polyline|path)\b[^>]*>/)?.[0]
+    if (!opening || new RegExp(`\\s${attribute}=`).test(opening)) continue
+    projected = projected.replace(opening, opening.replace(/\s*\/?>$/, ending => ` ${attribute}="url(#${escapeAttr(markerId)})"${ending}`))
+  }
+  return projected
+}
+
+function ensureConnectorTransformProjection(crisp: string, transform: SceneTransform | undefined): string {
+  if (crisp === '' || !transform) return crisp
+  const opening = crisp.match(/^\s*<(?:line|polyline|path)\b[^>]*>/)?.[0]
+  if (!opening || /\stransform=/.test(opening)) return crisp
+  const value = `rotate(${transform.angle} ${transform.cx} ${transform.cy})`
+  return crisp.replace(opening, opening.replace(/\s*\/?>$/, ending => ` transform="${value}"${ending}`))
+}
+
+function ensureConnectorRelationshipProjection(
+  crisp: string,
+  relationship: ConnectorRelationship,
+): string {
+  if (crisp === '') return crisp
+  const opening = crisp.match(/^\s*<(?:line|polyline|path)\b[^>]*>/)?.[0]
+  if (!opening) return crisp
+  let projected = opening
+  for (const [name, value] of [
+    ['data-relationship', relationship.kind],
+    ['data-direction', relationship.direction],
+  ] as const) {
+    if (!new RegExp(`\\s${name}=`).test(projected)) {
+      projected = projected.replace(/\s*\/?>$/, ending => ` ${name}="${escapeAttr(value)}"${ending}`)
+    }
+  }
+  return crisp.replace(opening, projected)
+}
+
+function connectorInlineLabelSvg(
+  connectorId: string,
+  label: ConnectorLabelDescriptor,
+  index: number,
+  transform: SceneTransform | undefined,
+): string | undefined {
+  if (label.visual?.kind !== 'inline') return undefined
+  if (!label.anchor || !label.paint || label.fontSize === undefined || label.textAnchor === undefined) {
+    throw new TypeError(`Connector "${connectorId}" inline label ${index + 1} requires anchor, paint, fontSize, and textAnchor`)
+  }
+  const attrs: string[] = [
+    `data-id="${escapeAttr(label.id ?? `${connectorId}-label-${index + 1}`)}"`,
+    'data-role="label"',
+    `data-connector-label-for="${escapeAttr(connectorId)}"`,
+    `x="${label.anchor.x}"`,
+    `y="${label.anchor.y - Math.max(0, label.clearance ?? 0)}"`,
+    `font-size="${label.fontSize}"`,
+    `text-anchor="${label.textAnchor}"`,
+  ]
+  if (transform?.kind === 'rotate') attrs.push(`transform="rotate(${transform.angle} ${transform.cx} ${transform.cy})"`)
+  const paint: MarkPaint = {
+    ...label.paint,
+    ...(label.halo ? {
+      stroke: label.halo.color ?? 'var(--bg)',
+      strokeWidth: String(label.halo.width),
+      paintOrder: 'stroke fill',
+    } : {}),
+  }
+  const paintFields = [
+    ['fill', paint.fill], ['stroke', paint.stroke], ['stroke-width', paint.strokeWidth],
+    ['stroke-dasharray', paint.strokeDasharray], ['stroke-dashoffset', paint.strokeDashoffset],
+    ['stroke-linecap', paint.strokeLinecap], ['stroke-linejoin', paint.strokeLinejoin],
+    ['stroke-miterlimit', paint.strokeMiterlimit], ['vector-effect', paint.vectorEffect],
+    ['paint-order', paint.paintOrder], ['opacity', paint.opacity],
+  ] as const
+  for (const [name, value] of paintFields) if (value !== undefined) attrs.push(`${name}="${escapeAttr(value)}"`)
+  return `<text ${attrs.join(' ')}>${escapeXml(label.text)}</text>`
+}
+
 /** Crisp SVG is a checked compatibility projection, never a second connector
  * authority. Built-in lowerings remain byte-exact, but any disagreement with
  * the typed route/stroke/marker fields fails at construction. */
-function assertConnectorCrispProjection(mark: Pick<ConnectorMark, 'id' | 'geometry' | 'stroke' | 'markers'>, crisp: string): void {
+function assertConnectorCrispProjection(mark: Pick<ConnectorMark, 'id' | 'geometry' | 'stroke' | 'markers' | 'relationship' | 'transform'>, crisp: string): void {
   if (crisp === '') return
   const openingMatch = crisp.match(/^\s*<(line|polyline|path)\b[^>]*>/)
   if (!openingMatch) throw new Error(`Connector "${mark.id}" crisp projection must start with line, polyline, or path`)
@@ -226,17 +294,84 @@ function assertConnectorCrispProjection(mark: Pick<ConnectorMark, 'id' | 'geomet
   sameText('paint-order', mark.stroke.paintOrder)
   sameText('vector-effect', mark.stroke.nonScaling ? 'non-scaling-stroke' : undefined)
   sameText('marker-start', mark.markers.start ? `url(#${mark.markers.start.id})` : undefined)
+  sameText('marker-mid', mark.markers.mid.length > 0 ? `url(#${mark.markers.mid[0]!.id})` : undefined)
   sameText('marker-end', mark.markers.end ? `url(#${mark.markers.end.id})` : undefined)
+  sameText('data-relationship', mark.relationship.kind)
+  sameText('data-direction', mark.relationship.direction)
+  if (mark.transform) {
+    const actual = attr('transform')?.replaceAll(',', ' ').replace(/\s+/g, ' ').trim()
+    const expected = `rotate(${mark.transform.angle} ${mark.transform.cx} ${mark.transform.cy})`
+    if (actual !== expected) throw new Error(`Connector "${mark.id}" crisp transform disagrees with typed connector transform`)
+  }
 }
 
 export function connector(fields: ConnectorFields, crisp: string): ConnectorMark {
+  if (fields.geometry.kind !== 'path' && fields.route?.closed === true) {
+    throw new TypeError(`Connector "${fields.id}" closed route topology requires path geometry`)
+  }
+  if (fields.geometry.kind === 'path') {
+    const pathGeometry = fields.geometry
+    const subpaths = pathGeometry.subpaths
+    const moves = pathMoveCount(pathGeometry.d)
+    if (moves > 1 && !subpaths) {
+      throw new TypeError(`Connector "${fields.id}" path has multiple SVG subpaths but no typed subpaths`)
+    }
+    if (subpaths) {
+      if (subpaths.length === 0 || subpaths.some(subpath => subpath.points.length < 2)) {
+        throw new TypeError(`Connector "${fields.id}" typed subpaths must each contain at least two points`)
+      }
+      if (moves !== subpaths.length) {
+        throw new TypeError(`Connector "${fields.id}" typed subpath count disagrees with SVG path moves`)
+      }
+      const flattened = subpaths.flatMap(subpath => subpath.points)
+      if (flattened.length !== pathGeometry.points.length || flattened.some((point, index) => {
+        const expected = pathGeometry.points[index]
+        return !expected || expected.x !== point.x || expected.y !== point.y
+      })) {
+        throw new TypeError(`Connector "${fields.id}" typed subpaths disagree with the compatibility point projection`)
+      }
+    }
+  }
+  const subpaths = connectorSubpaths(fields.geometry, fields.route?.closed ?? false)
+  const derivedClosed = subpaths.length === 1 && subpaths[0]!.closed
+  if (fields.geometry.kind === 'path' && fields.geometry.subpaths && fields.route?.closed !== undefined && fields.route.closed !== derivedClosed) {
+    throw new TypeError(`Connector "${fields.id}" route.closed disagrees with typed subpath topology`)
+  }
+  const routeClosed = fields.geometry.kind === 'path' && fields.geometry.subpaths ? derivedClosed : fields.route?.closed ?? false
+  if (fields.geometry.kind === 'path') {
+    const closeCommands = fields.geometry.d.match(/[Zz]/g)?.length ?? 0
+    const closedContours = fields.geometry.subpaths
+      ? fields.geometry.subpaths.filter(subpath => subpath.closed).length
+      : routeClosed ? 1 : 0
+    if (closeCommands !== closedContours) {
+      throw new TypeError(`Connector "${fields.id}" SVG close commands disagree with typed closed-contour semantics`)
+    }
+  }
   const markerStart = fields.markers?.start ?? fields.startMarker
   const markerEnd = fields.markers?.end ?? fields.endMarker
-  const geometryEndpoints = connectorGeometryEndpoints(fields.geometry)
+  const midMarkers = fields.markers?.mid ?? []
+  for (const marker of [markerStart, ...midMarkers, markerEnd]) {
+    if (marker?.geometry?.kind === 'path' && !marker.bounds && !marker.viewBox && !marker.size) {
+      throw new TypeError(`Connector "${fields.id}" path marker "${marker.id}" requires bounds, viewBox, or size`)
+    }
+  }
+  const midMarkerId = projectedMidMarkerId(fields.id, fields.geometry, routeClosed, midMarkers)
+  const geometryEndpoints = connectorGeometryEndpoints(fields.geometry, routeClosed)
+  for (const position of ['start', 'end'] as const) {
+    const supplied = fields.endpoints?.[position]?.point
+    const derived = geometryEndpoints[position]?.point
+    if (supplied && derived && !sameConnectorPoint(supplied, derived)) {
+      throw new TypeError(`Connector "${fields.id}" endpoints.${position}.point disagrees with typed route geometry`)
+    }
+  }
   const endpoints: ConnectorEndpoints = {
     ...(fields.endpoints ?? {}),
     start: { ...geometryEndpoints.start, ...fields.endpoints?.start },
     end: { ...geometryEndpoints.end, ...fields.endpoints?.end },
+  }
+  const relationship: ConnectorRelationship = {
+    kind: fields.relationship?.kind ?? fields.role,
+    direction: fields.relationship?.direction ?? connectorDirection(endpoints, markerStart, markerEnd),
   }
   const labels = fields.labels ?? []
   const identity: SvgSemanticIdentity = {
@@ -247,15 +382,22 @@ export function connector(fields: ConnectorFields, crisp: string): ConnectorMark
     ...(fields.identity?.to ?? endpoints.to ? { to: fields.identity?.to ?? endpoints.to } : {}),
   }
   const accessibility = relationAccessibility(identity, labels[0]?.text)
-  // Deliberately project only id/role. Existing endpoint attributes in crisp
-  // remain byte-for-byte; typed endpoints never silently change crisp SVG.
-  const domIdentity: SvgSemanticIdentity = {
-    id: identity.id,
-    role: identity.role,
-    ...(identity.classNames ? { classNames: identity.classNames } : {}),
-  }
-  let decorated = ensureSvgIdentity(crisp, fields.projectAccessibilityToSvg ? identity : domIdentity)
+  const projectedMarkers = ensureConnectorMarkerProjection(crisp, {
+    ...(markerStart ? { start: markerStart.id } : {}),
+    ...(midMarkerId ? { mid: midMarkerId } : {}),
+    ...(markerEnd ? { end: markerEnd.id } : {}),
+  })
+  const projectedRelationship = ensureConnectorRelationshipProjection(projectedMarkers, relationship)
+  const projectedCrisp = ensureConnectorTransformProjection(projectedRelationship, fields.transform)
+  const projectedIdentity = fields.projectEndpointIdentityToSvg === false
+    ? (({ from: _from, to: _to, ...rest }) => rest)(identity)
+    : identity
+  let decorated = ensureSvgIdentity(projectedCrisp, projectedIdentity)
   if (fields.projectAccessibilityToSvg) decorated = ensureSvgAccessibility(decorated, accessibility)
+  const inlineLabels = labels
+    .map((label, index) => connectorInlineLabelSvg(fields.id, label, index, fields.transform))
+    .filter((label): label is string => label !== undefined)
+  if (inlineLabels.length > 0) decorated = [decorated, ...inlineLabels].join('\n')
 
   const width = fields.stroke?.width ?? fields.paint.strokeWidth ?? '1'
   const dash = fields.stroke?.dash
@@ -277,13 +419,79 @@ export function connector(fields: ConnectorFields, crisp: string): ConnectorMark
     ...(paintOrder !== undefined ? { paintOrder } : {}),
     nonScaling: fields.stroke?.nonScaling ?? fields.paint.vectorEffect === 'non-scaling-stroke',
   }
+  const derivedContours = connectorContourSemantics(fields.geometry, routeClosed)
+  const suppliedContours = fields.route?.contours
+  if (suppliedContours && (suppliedContours.length !== derivedContours.length || suppliedContours.some((contour, index) => {
+    const derived = derivedContours[index]
+    return !derived
+      || contour.start.x !== derived.start.x || contour.start.y !== derived.start.y
+      || contour.end.x !== derived.end.x || contour.end.y !== derived.end.y
+      || contour.closed !== derived.closed
+  }))) {
+    throw new TypeError(`Connector "${fields.id}" route contours disagree with typed subpath endpoint topology`)
+  }
+  const linearGeometry = !connectorGeometryHasCurves(fields.geometry)
+  if (linearGeometry && suppliedContours) {
+    for (const [index, supplied] of suppliedContours.entries()) {
+      const derived = derivedContours[index]!
+      for (const field of ['startTangent', 'endTangent'] as const) {
+        const actual = supplied[field]
+        const expected = derived[field]
+        if (actual && (!expected || !sameConnectorPoint(actual, expected, 1e-9))) {
+          throw new TypeError(`Connector "${fields.id}" route.contours[${index}].${field} disagrees with linear route geometry`)
+        }
+      }
+    }
+  }
+  // Fill omitted tangent fields from geometry. Curved projections retain any
+  // exact derivative supplied by their lowering over the flattened chord.
+  const contours: ConnectorContourSemantics[] = derivedContours.map((derived, index) => {
+    const supplied = suppliedContours?.[index]
+    const startTangent = supplied?.startTangent ?? derived.startTangent
+    const endTangent = supplied?.endTangent ?? derived.endTangent
+    return {
+      start: { ...derived.start },
+      end: { ...derived.end },
+      closed: derived.closed,
+      ...(startTangent ? { startTangent } : {}),
+      ...(endTangent ? { endTangent } : {}),
+    }
+  })
+  for (const contour of contours) {
+    for (const tangent of [contour.startTangent, contour.endTangent]) {
+      if (!tangent) continue
+      const length = Math.hypot(tangent.x, tangent.y)
+      if (!Number.isFinite(length) || Math.abs(length - 1) > 1e-9) {
+        throw new TypeError(`Connector "${fields.id}" contour tangents must be finite unit vectors`)
+      }
+    }
+  }
+  for (const tangent of [fields.route?.startTangent, fields.route?.endTangent]) {
+    if (!tangent) continue
+    const length = Math.hypot(tangent.x, tangent.y)
+    if (!Number.isFinite(length) || Math.abs(length - 1) > 1e-9) {
+      throw new TypeError(`Connector "${fields.id}" route tangents must be finite unit vectors`)
+    }
+  }
+  for (const [field, supplied, derived] of [
+    ['startTangent', fields.route?.startTangent, contours[0]?.startTangent],
+    ['endTangent', fields.route?.endTangent, contours.at(-1)?.endTangent],
+  ] as const) {
+    if (supplied && derived && !sameConnectorPoint(supplied, derived, 1e-9)) {
+      throw new TypeError(`Connector "${fields.id}" route.${field} disagrees with its contour tangent authority`)
+    }
+  }
   const route: ConnectorRoute = {
     geometry: fields.geometry,
     ownership: fields.route?.ownership ?? 'family',
-    closed: fields.route?.closed ?? false,
+    closed: routeClosed,
     bendRadius: fields.route?.bendRadius ?? 0,
+    contours,
     ...(() => {
-      const derived = endpointTangents(fields.geometry)
+      const derived = {
+        start: contours[0]?.startTangent,
+        end: contours.at(-1)?.endTangent,
+      }
       return {
         ...(fields.route?.startTangent ?? derived.start ? { startTangent: fields.route?.startTangent ?? derived.start } : {}),
         ...(fields.route?.endTangent ?? derived.end ? { endTangent: fields.route?.endTangent ?? derived.end } : {}),
@@ -291,38 +499,28 @@ export function connector(fields: ConnectorFields, crisp: string): ConnectorMark
     })(),
     labelAnchors: fields.route?.labelAnchors ?? labels.flatMap(label => label.anchor ? [label.anchor] : []),
   }
+  if (fields.hit?.closed !== undefined && fields.hit.closed !== routeClosed) {
+    throw new TypeError(`Connector "${fields.id}" hit.closed must match route.closed topology`)
+  }
   const hit: ConnectorHitGeometry = {
     geometry: fields.hit?.geometry ?? fields.geometry,
+    closed: fields.hit?.closed ?? routeClosed,
     strokeWidth: fields.hit?.strokeWidth ?? Math.max(6, numericStrokeWidth(width)),
     pointerEvents: fields.hit?.pointerEvents ?? (fields.lineStyle === 'invisible' ? 'none' : 'stroke'),
   }
-  const relationship: ConnectorRelationship = {
-    kind: fields.relationship?.kind ?? fields.role,
-    direction: fields.relationship?.direction ?? connectorDirection(endpoints, markerStart, markerEnd),
-  }
-  const strokeLosses = terminalStrokeLosses(route, stroke)
-  const terminalProjection: ConnectorTerminalProjection = {
-    realization: fields.lineStyle === 'invisible'
-      ? 'unsupported'
-      : 'projected',
-    topology: fields.geometry.kind,
-    direction: relationship.direction,
-    relationship: relationship.kind,
-    markers: {
-      ...(markerStart ? { start: terminalMarker(markerStart) } : {}),
-      mid: (fields.markers?.mid ?? []).map(marker => terminalMarker(marker)!),
-      ...(markerEnd ? { end: terminalMarker(markerEnd) } : {}),
-    },
-    labels: labels.map(label => ({ ...(label.id !== undefined ? { id: label.id } : {}), text: label.text })),
+  const terminalProjection = deriveConnectorTerminalProjection({
+    geometry: fields.geometry,
     lineStyle: fields.lineStyle,
-    strokeLosses,
-    diagnostics: [
-      fields.lineStyle === 'invisible'
-        ? 'This connector affects layout but is intentionally absent from terminal output.'
-        : `The terminal grid preserves connector semantics while projecting continuous stroke fields: ${strokeLosses.join(', ')}.`,
-      ...(fields.terminalProjection?.diagnostics ?? []),
-    ],
-  }
+    endpoints,
+    relationship,
+    route,
+    stroke,
+    markers: { ...(markerStart ? { start: markerStart } : {}), mid: midMarkers, ...(markerEnd ? { end: markerEnd } : {}) },
+    labels,
+    hit,
+    ...(fields.transform ? { transform: fields.transform } : {}),
+    additionalDiagnostics: fields.terminalProjection?.diagnostics,
+  })
 
   const result: ConnectorMark = {
     kind: 'connector',
@@ -338,7 +536,7 @@ export function connector(fields: ConnectorFields, crisp: string): ConnectorMark
     relationship,
     route,
     stroke,
-    markers: { ...(markerStart ? { start: markerStart } : {}), mid: fields.markers?.mid ?? [], ...(markerEnd ? { end: markerEnd } : {}) },
+    markers: { ...(markerStart ? { start: markerStart } : {}), mid: midMarkers, ...(markerEnd ? { end: markerEnd } : {}) },
     labels,
     hit,
     terminalProjection,

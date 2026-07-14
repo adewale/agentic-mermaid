@@ -1668,7 +1668,7 @@ export function layoutGraphSync(
 ): PositionedGraph {
   const stateVisual = resolvedStateVisualOf(options)
   const opts = { ...DEFAULTS, ...options, ...(stateVisual ? { stateVisual } : {}) }
-  const style = resolveRenderStyle(options, stateVisual?.styleDefaults)
+  const style = resolveRenderStyle(options, stateVisual?.styleDefaults, options.styleFace)
   const elkGraph = mermaidToElk(graph, opts, style)
   // ELK's bundled (GWT-compiled) code can throw internal exceptions on rare
   // dense multigraphs — observed with feedbackEdges routing, and pre-existing
@@ -1694,7 +1694,16 @@ export function layoutGraphSync(
       attempt.layoutOptions = { ...attempt.layoutOptions, ...overrides }
     }
     try {
-      result = elkLayoutSync(attempt)
+      const candidate = elkLayoutSync(attempt)
+      // ELK can occasionally return a nominally successful graph containing
+      // NaN geometry (notably a disconnected node beside a self-loop). Treat
+      // that exactly like an ELK exception so the existing deterministic
+      // degradation ladder gets a chance to produce usable geometry.
+      if (containsNonFiniteNumber(candidate)) {
+        lastError = new Error('ELK returned non-finite layout geometry')
+        continue
+      }
+      result = candidate
       break
     } catch (err) {
       lastError = err
@@ -1733,6 +1742,16 @@ export function layoutGraphSync(
   return positioned
 }
 
+function containsNonFiniteNumber(value: unknown, seen = new Set<object>()): boolean {
+  if (typeof value === 'number') return !Number.isFinite(value)
+  if (value === null || typeof value !== 'object') return false
+  if (seen.has(value)) return false
+  seen.add(value)
+  if (Array.isArray(value)) return value.some(child => containsNonFiniteNumber(child, seen))
+  return Object.values(value as Record<string, unknown>)
+    .some(child => containsNonFiniteNumber(child, seen))
+}
+
 /**
  * Convert MermaidGraph to ELK format (for benchmarking conversion overhead).
  */
@@ -1742,6 +1761,6 @@ export function convertToElkFormat(
 ): ElkNode {
   const stateVisual = resolvedStateVisualOf(options)
   const opts = { ...DEFAULTS, ...options, ...(stateVisual ? { stateVisual } : {}) }
-  const style = resolveRenderStyle(options, stateVisual?.styleDefaults)
+  const style = resolveRenderStyle(options, stateVisual?.styleDefaults, options.styleFace)
   return mermaidToElk(graph, opts, style)
 }

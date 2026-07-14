@@ -742,7 +742,48 @@ export interface ExtensionDiagramBody {
   data?: unknown
 }
 
-export type FamilyParsedBody = DiagramBody | ExtensionDiagramBody
+export interface SourceSpanPoint {
+  /** UTF-16 offset in the exact authored source string. */
+  readonly offset: number
+  readonly line: number
+  readonly col: number
+}
+
+export interface SourceSpan {
+  readonly start: SourceSpanPoint
+  readonly end: SourceSpanPoint
+}
+
+/** Exact spans retained when no installed family can claim the source. */
+export interface PreservedSourceSpans {
+  /** Exact span of the complete authored source. */
+  readonly source: SourceSpan
+  readonly wrapper?: SourceSpan
+  readonly header: SourceSpan
+  /** Authored payload after the header line. */
+  readonly body: SourceSpan
+}
+
+/**
+ * Lossless, non-renderable family envelope. Upstream-recognized sources use an
+ * opaque classification; wholly unknown headers use `unknown`. In both cases
+ * the original document and its source spans remain available for storage,
+ * serialization, later registration, and stable capability diagnostics.
+ */
+export interface PreservedDiagramBody {
+  readonly kind: 'preserved'
+  readonly representation: 'opaque' | 'unknown'
+  readonly source: string
+  readonly preservation: SourcePreservationReceipt
+  readonly spans: PreservedSourceSpans
+  readonly diagnostic: {
+    readonly code: 'UNSUPPORTED_FAMILY' | 'UNKNOWN_HEADER' | 'FAMILY_DESCRIPTOR_MISMATCH'
+    readonly message: string
+    readonly help: string
+  }
+}
+
+export type FamilyParsedBody = DiagramBody | ExtensionDiagramBody | PreservedDiagramBody
 
 export interface ValidDiagram {
   readonly kind: DiagramKind
@@ -771,13 +812,26 @@ export interface ValidDiagram {
 
 export interface ExtensionValidDiagram {
   readonly kind: ExternalFamilyId
+  /** Identity of the exact descriptor contract that produced `body.data`.
+   * Core uses it to keep an upgraded registration from consuming stale,
+   * descriptor-owned structured data. */
+  readonly descriptorIdentity: import('../shared/extension-identity.ts').ExtensionIdentity<'family'>
   readonly meta: ValidDiagramMeta
   readonly body: ExtensionDiagramBody
   readonly source: SourceMap
   readonly canonicalSource: string
 }
 
-export type ParsedDiagram = ValidDiagram | ExtensionValidDiagram
+export interface PreservedValidDiagram {
+  /** Namespaced non-registration identity; the upstream/header identity lives in `body.preservation`. */
+  readonly kind: ExternalFamilyId
+  readonly meta: ValidDiagramMeta
+  readonly body: PreservedDiagramBody
+  readonly source: SourceMap
+  readonly canonicalSource: string
+}
+
+export type ParsedDiagram = ValidDiagram | ExtensionValidDiagram | PreservedValidDiagram
 
 export type FlowchartValidDiagram = ValidDiagram & { body: { kind: 'flowchart'; graph: MermaidGraph } }
 export type StateValidDiagram = ValidDiagram & { body: StateBody }
@@ -859,6 +913,8 @@ export interface SourcePreservationReceipt {
   header: string
   upstreamFamilyId?: string
   mermaidVersion: string
+  /** Present for open preserved envelopes and family-detection errors emitted by this version. */
+  spans?: PreservedSourceSpans
 }
 
 export interface ParseError {
@@ -884,7 +940,7 @@ export interface MutationError {
     | 'SLICE_NOT_FOUND' | 'POINT_NOT_FOUND'
     | 'STATE_NOT_FOUND' | 'TRANSITION_NOT_FOUND'
     | 'DUPLICATE_NODE' | 'DUPLICATE_PARTICIPANT' | 'DUPLICATE_CLASS' | 'DUPLICATE_ENTITY' | 'DUPLICATE_STATE' | 'DUPLICATE_TASK'
-    | 'INVALID_OP'
+    | 'INVALID_OP' | 'UNSUPPORTED_FAMILY' | 'UNKNOWN_HEADER'
   message: string
 }
 

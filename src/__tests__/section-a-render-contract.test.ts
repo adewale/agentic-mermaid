@@ -6,25 +6,73 @@ import {
   RENDER_TRANSPORT_SURFACES,
   SHARED_RENDER_OPTION_FIELD_DESCRIPTORS,
   SHARED_RENDER_OPTION_FIELDS,
+  receiptOf,
+  resolveAppearance,
   resolveRenderRequest,
+  resolvedFamilyRenderContextOf,
+  resolvedRenderExecutionPlanOf,
   sharedRenderOptionsJsonSchema,
   styleInputJsonSchema,
+  type SharedRenderOptionField,
   validateSerializableRenderOptions,
 } from '../render-contract.ts'
 import { SDK_DECLARATION } from '../mcp/sdk-decl.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { HOSTED_TOOLS } from '../mcp/hosted-server.ts'
 import { LOCAL_TOOLS } from '../mcp/server.ts'
+import {
+  MCP_PNG_RENDER_OPTION_CONVENIENCES,
+  MCP_SVG_RENDER_OPTION_CONVENIENCES,
+  projectMcpRenderOptions,
+} from '../mcp/tool-surface.ts'
 import { applyOutputSecurityPolicy, verifyNoExternalRefs } from '../output-security.ts'
 import { detectColorMode } from '../ascii/ansi.ts'
-import { renderMermaidASCII } from '../ascii/index.ts'
+import { renderMermaidASCII, renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
 import { projectTerminalStyle } from '../terminal-style.ts'
 import { renderMermaidPNG } from '../agent/png.ts'
 import { inspectPngColorProfile, OUTPUT_COLOR_PROFILE } from '../output-color-profile.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
 import { renderMermaidSVGWithReceipt } from '../index.ts'
+import { DEFAULT_ARCHITECTURE_VISUAL } from '../architecture/config.ts'
+import type { RenderOptions } from '../types.ts'
+import type { DiagramKind } from '../agent/types.ts'
 
 const SOURCE = 'flowchart LR\n  A[Start] --> B[Finish]'
+
+const EXPECTED_BUILTIN_OPTION_APPLICABILITY = {
+  padding: ['flowchart', 'state', 'architecture'],
+  nodeSpacing: ['flowchart', 'state', 'class', 'er', 'architecture'],
+  layerSpacing: ['flowchart', 'state', 'class', 'er', 'architecture'],
+  wrappingWidth: ['flowchart'],
+  componentSpacing: [],
+  interactive: ['xychart', 'pie', 'quadrant'],
+  shadow: [
+    'flowchart', 'state', 'sequence', 'timeline', 'class', 'er', 'journey',
+    'xychart', 'pie', 'quadrant', 'gantt', 'mindmap', 'gitgraph',
+  ],
+  class: ['class'],
+  architecture: ['architecture'],
+  timeline: ['timeline'],
+  journey: ['journey'],
+  gantt: ['gantt'],
+  ganttToday: ['gantt'],
+} as const satisfies Partial<Record<SharedRenderOptionField, readonly DiagramKind[]>>
+
+const FAMILY_SCOPED_OPTION_VALUES = {
+  padding: 12,
+  nodeSpacing: 77,
+  layerSpacing: 91,
+  wrappingWidth: 120,
+  componentSpacing: 66,
+  interactive: true,
+  shadow: true,
+  class: { hierarchicalNamespaces: false },
+  architecture: { visual: { groupCornerRadius: 12 } },
+  timeline: { maxWidth: 300 },
+  journey: { experienceCurve: false },
+  gantt: { dependencyArrows: true, criticalPath: true },
+  ganttToday: '2026-01-08',
+} as const satisfies Record<keyof typeof EXPECTED_BUILTIN_OPTION_APPLICABILITY, unknown>
 
 describe('Section A canonical render contracts', () => {
   test('the manifest accounts for every RenderOptions field and generates the adapter schema', () => {
@@ -34,12 +82,110 @@ describe('Section A canonical render contracts', () => {
     expect(Object.keys(schema.properties)).toEqual(expect.arrayContaining(['style', 'mermaidConfig', 'security', 'idPrefix']))
   })
 
+  test('family-limited options publish one applicability authority and diagnose unsupported built-ins', () => {
+    const schema = sharedRenderOptionsJsonSchema() as {
+      properties: Record<string, Record<string, unknown>>
+    }
+    const scopedFields = SHARED_RENDER_OPTION_FIELDS.filter(field =>
+      'applicableBuiltinFamilies' in SHARED_RENDER_OPTION_FIELD_DESCRIPTORS[field])
+    const expectedFields = Object.keys(EXPECTED_BUILTIN_OPTION_APPLICABILITY) as Array<keyof typeof EXPECTED_BUILTIN_OPTION_APPLICABILITY>
+    expect(scopedFields).toEqual(expectedFields)
+
+    for (const field of SHARED_RENDER_OPTION_FIELDS) {
+      const descriptor = SHARED_RENDER_OPTION_FIELD_DESCRIPTORS[field]
+      if (!('applicableBuiltinFamilies' in descriptor)) {
+        expect(schema.properties[field]).not.toHaveProperty('x-agentic-mermaid-applicable-builtin-families')
+        continue
+      }
+      const applicable: readonly DiagramKind[] = descriptor.applicableBuiltinFamilies
+      const scopedField = field as keyof typeof EXPECTED_BUILTIN_OPTION_APPLICABILITY
+      const expected = EXPECTED_BUILTIN_OPTION_APPLICABILITY[scopedField]
+      expect(applicable, field).toEqual(expected)
+      expect(Object.isFrozen(applicable), field).toBe(true)
+      expect(new Set(applicable).size, field).toBe(applicable.length)
+      expect(applicable.every(id => BUILTIN_FAMILY_METADATA.some(family => family.id === id)), field).toBe(true)
+      expect(schema.properties[field]?.['x-agentic-mermaid-applicable-builtin-families'], field)
+        .toEqual([...applicable])
+      const applicability = applicable.length === 0
+        ? 'No built-in family currently consumes this option.'
+        : `Applicable built-in families: ${applicable.join(', ')}.`
+
+      for (const family of BUILTIN_FAMILY_METADATA) {
+        const request = resolveRenderRequest(family.example, {
+          [field]: FAMILY_SCOPED_OPTION_VALUES[scopedField],
+        } as RenderOptions)
+        const diagnostics = (receiptOf(request).diagnostics ?? []).filter(diagnostic =>
+          diagnostic.code === 'RENDER_OPTION_NOT_APPLICABLE'
+          && diagnostic.feature === `render-option:${field}`)
+        if (applicable.includes(family.id)) {
+          expect(diagnostics, `${field}/${family.id}`).toEqual([])
+          expect(request.resolutionDiagnostics, `${field}/${family.id}`).toBeUndefined()
+          continue
+        }
+        expect(diagnostics, `${field}/${family.id}`).toEqual([{
+          code: 'RENDER_OPTION_NOT_APPLICABLE',
+          feature: `render-option:${field}`,
+          message: `Render option "${field}" does not apply to built-in Mermaid family "${family.id}". ${applicability}`,
+        }])
+        expect(Object.isFrozen(request.resolutionDiagnostics), `${field}/${family.id}`).toBe(true)
+        expect(Object.isFrozen(request.resolutionDiagnostics?.[0]), `${field}/${family.id}`).toBe(true)
+      }
+    }
+  })
+
+  test('idPrefix schema and runtime admission enforce the same SVG-id alphabet', () => {
+    const schema = sharedRenderOptionsJsonSchema() as { properties: { idPrefix: { pattern?: string } } }
+    expect(schema.properties.idPrefix.pattern).toBe('^[A-Za-z0-9_.:-]*$')
+    expect(validateSerializableRenderOptions({ idPrefix: '' })).toEqual([])
+    expect(validateSerializableRenderOptions({ idPrefix: 'diagram_1.2:-' })).toEqual([])
+    expect(validateSerializableRenderOptions({ idPrefix: 'bad" onload="x-' }))
+      .toEqual([expect.stringContaining('ASCII letters, digits, underscore, hyphen, dot, and colon')])
+  })
+
+  test('geometry schemas reject impossible shared and architecture metrics at admission', () => {
+    for (const options of [
+      { padding: -1 },
+      { nodeSpacing: -1 },
+      { layerSpacing: -1 },
+      { componentSpacing: -1 },
+      { wrappingWidth: 0 },
+      { timeline: { maxWidth: 0 } },
+    ]) {
+      expect(validateSerializableRenderOptions(options).join(' '), JSON.stringify(options))
+        .toMatch(/non-negative|positive|greater than 0/)
+    }
+
+    expect(validateSerializableRenderOptions({
+      architecture: { visual: { groupHeaderHeight: 28 } },
+    })).toEqual([])
+    expect(validateSerializableRenderOptions({
+      architecture: {
+        visual: { serviceCornerRadius: -1 },
+      },
+    }).join(' ')).toMatch(/at least 0/)
+    expect(validateSerializableRenderOptions({
+      architecture: {
+        visual: { groupFontWeight: 1_001 },
+      },
+    }).join(' ')).toMatch(/at most 1000/)
+    expect(validateSerializableRenderOptions({
+      architecture: {
+        visual: {
+          ...DEFAULT_ARCHITECTURE_VISUAL,
+          junctionOuterRadius: 4,
+          junctionInnerRadius: 5,
+        },
+      },
+    }).join(' ')).toMatch(/must not exceed junctionOuterRadius/)
+  })
+
   test('output descriptors derive CLI aliases and the Code Mode render declaration', () => {
     expect(CLI_RENDER_FORMATS).toEqual(['svg', 'ascii', 'unicode', 'png', 'json'])
     const html = RENDER_OUTPUT_DESCRIPTORS.find(descriptor => descriptor.id === 'html')!
     const layout = RENDER_OUTPUT_DESCRIPTORS.find(descriptor => descriptor.id === 'layout')!
     expect(html.transports.library).toMatchObject({ availability: 'projected', entrypoint: 'renderMermaidASCII' })
-    expect(html.transports.cli).toMatchObject({ availability: 'unavailable', entrypoint: 'none', reason: expect.any(String) })
+    expect(html.transports.cli).toMatchObject({ availability: 'unavailable', entrypoint: 'none' })
+    expect(typeof html.transports.cli.reason).toBe('string')
     expect(html.transports.codeMode).toMatchObject({ availability: 'projected', method: 'renderMermaidASCIIWithReceipt' })
     expect(html.transports.hostedMcp).toMatchObject({ availability: 'indirect', entrypoint: 'execute' })
     expect(html.transports.editor).toMatchObject({ availability: 'unavailable', entrypoint: 'none' })
@@ -67,8 +213,8 @@ describe('Section A canonical render contracts', () => {
     for (const field of SHARED_RENDER_OPTION_FIELDS) {
       expect(SDK_DECLARATION).toContain(`  ${field}?:`)
     }
-    expect(SDK_DECLARATION).toContain('interface ArchitectureVisualConfig {')
-    expect(SDK_DECLARATION).toContain('  groupHeaderHeight: number')
+    expect(SDK_DECLARATION).toContain('interface ArchitectureVisualOverrides {')
+    expect(SDK_DECLARATION).toContain('  groupHeaderHeight?: number')
     expect(SDK_DECLARATION).toContain('  groupFont?: string')
   })
 
@@ -96,12 +242,15 @@ describe('Section A canonical render contracts', () => {
     }
   })
 
-  test('MCP convenience style fields reuse the canonical StyleInput schema', () => {
+  test('MCP convenience style fields project the canonical shared-field schema', () => {
     const withoutDescription = (schema: Record<string, unknown>) => {
       const { description: _description, ...rest } = schema
       return rest
     }
-    const expected = withoutDescription(styleInputJsonSchema())
+    const sharedProperties = (sharedRenderOptionsJsonSchema() as {
+      properties: Record<string, Record<string, unknown>>
+    }).properties
+    const expected = withoutDescription(sharedProperties.style!)
     expect(styleInputJsonSchema()).toEqual(SHARED_RENDER_OPTION_FIELD_DESCRIPTORS.style.schema)
     for (const tool of [...HOSTED_TOOLS, ...LOCAL_TOOLS].filter(tool =>
       (tool.name === 'render_svg' || tool.name === 'render_png')
@@ -109,6 +258,35 @@ describe('Section A canonical render contracts', () => {
       const properties = tool.inputSchema.properties as Record<string, Record<string, unknown>>
       expect(withoutDescription(properties.style!), tool.name).toEqual(expected)
     }
+  })
+
+  test('MCP compatibility conveniences derive schema and precedence from one projection', () => {
+    const canonical = (sharedRenderOptionsJsonSchema() as {
+      properties: Record<string, Record<string, unknown>>
+    }).properties
+    const profiles = [
+      [HOSTED_TOOLS.find(tool => tool.name === 'render_svg')!, MCP_SVG_RENDER_OPTION_CONVENIENCES],
+      [HOSTED_TOOLS.find(tool => tool.name === 'render_png')!, MCP_PNG_RENDER_OPTION_CONVENIENCES],
+      [LOCAL_TOOLS.find(tool => tool.name === 'render_png')!, MCP_PNG_RENDER_OPTION_CONVENIENCES],
+    ] as const
+    for (const [tool, fields] of profiles) {
+      const properties = tool.inputSchema.properties as Record<string, Record<string, unknown>>
+      for (const field of fields) {
+        const withoutDescription = ({ description: _description, ...schema }: Record<string, unknown>) => schema
+        expect(withoutDescription(properties[field]!), `${tool.name}.${field}`)
+          .toEqual(withoutDescription(canonical[field]!))
+      }
+    }
+
+    expect(projectMcpRenderOptions({
+      options: { bg: '#ffffff', fg: '#111111', seed: 1 },
+      bg: '#000000',
+      seed: 3,
+    }, MCP_SVG_RENDER_OPTION_CONVENIENCES, { fg: '#222222' })).toEqual({
+      bg: '#000000',
+      fg: '#222222',
+      seed: 3,
+    })
   })
 
   test('one appearance receipt survives graphical and terminal output choices', () => {
@@ -122,6 +300,45 @@ describe('Section A canonical render contracts', () => {
     expect(Object.isFrozen(svg)).toBe(true)
     expect(Object.isFrozen(svg.appearance)).toBe(true)
     expect(Object.isFrozen(svg.renderOptions)).toBe(true)
+  })
+
+  test('deprecated Style aliases emit one structured, time-bounded receipt diagnostic', () => {
+    const { receipt } = renderMermaidSVGWithReceipt(SOURCE, { style: ['tufte', 'tufte'] })
+    const diagnostics = receipt.diagnostics ?? []
+    expect(diagnostics).toContainEqual({
+      code: 'STYLE_ALIAS_DEPRECATED',
+      message: 'Style alias "tufte" resolves to "look:tufte"; use "palette:tufte" for the palette-only style.',
+      input: 'tufte',
+      canonicalId: 'look:tufte',
+      removal: { release: '0.3.0', date: '2027-01-31' },
+    })
+    expect(diagnostics.filter(diagnostic => diagnostic.code === 'STYLE_ALIAS_DEPRECATED')).toHaveLength(1)
+    expect(Object.isFrozen(diagnostics)).toBe(true)
+    expect(Object.isFrozen(diagnostics.find(diagnostic => diagnostic.code === 'STYLE_ALIAS_DEPRECATED')?.removal)).toBe(true)
+  })
+
+  test('appearance is a pure projection and family code receives one explicit resolved context', () => {
+    const options = Object.freeze({ style: 'accessible-high-contrast' as const, seed: 4 })
+    const request = resolveRenderRequest(SOURCE, options, 'svg')
+    const family = resolvedRenderExecutionPlanOf(request).family
+    const direct = resolveAppearance({
+      family,
+      source: request.source,
+      options,
+      style: request.appearance.style,
+      styleFace: request.appearance.face,
+    })
+    expect(direct.appearance.digest).toBe(request.appearance.digest)
+    expect(direct.renderOptions).toEqual(request.renderOptions)
+    expect(options).toEqual({ style: 'accessible-high-contrast', seed: 4 })
+
+    const context = resolvedFamilyRenderContextOf(request)
+    expect(context).toEqual({
+      renderOptions: request.renderOptions,
+      styleFace: request.appearance.face,
+    })
+    expect(Object.isFrozen(context)).toBe(true)
+    expect(Object.getOwnPropertySymbols(request.renderOptions)).toEqual([])
   })
 
   test('family appearance and config are resolved once and retain cross-output receipt parity', () => {
@@ -188,11 +405,14 @@ xychart-beta
     const unsafe = '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script><image href="https://evil.invalid/x"/><rect onclick="x()" style="fill:url(javascript:boom)"/></svg>'
     expect(() => applyOutputSecurityPolicy(unsafe, 'default')).toThrow('rejected active content')
     expect(() => applyOutputSecurityPolicy(unsafe, 'strict')).toThrow('rejected active content')
-    expect(() => applyOutputSecurityPolicy('<svg><image href="https://evil.invalid/x"/></svg>', 'strict'))
+    expect(() => applyOutputSecurityPolicy('<svg xmlns="http://www.w3.org/2000/svg"><image href="https://evil.invalid/x"/></svg>', 'strict'))
       .toThrow('strict verification failed')
     expect(() => applyOutputSecurityPolicy('<svg><g></svg>', 'strict'))
       .toThrow('invalid SVG document envelope')
-    expect(() => applyOutputSecurityPolicy('<svg><script><script>x</script></script><rect/></svg>', 'strict'))
+    expect(() => applyOutputSecurityPolicy(
+      '<svg xmlns="http://www.w3.org/2000/svg"><script><script>x</script></script><rect/></svg>',
+      'strict',
+    ))
       .toThrow('rejected active content')
   })
 
@@ -209,6 +429,7 @@ xychart-beta
     expect(detectColorMode({ isTTY: true, env: { TERM: 'dumb', COLORTERM: 'truecolor' } })).toBe('none')
     expect(detectColorMode({ isTTY: true, env: { TERM: 'xterm-256color', NO_COLOR: '' } })).toBe('none')
     expect(detectColorMode({ isTTY: true, env: { TERM: 'xterm-256color' } })).toBe('ansi256')
+    expect(detectColorMode({ browser: true })).toBe('html')
   })
 
   test('terminal projection carries the graphical palette and names losses', () => {
@@ -220,6 +441,15 @@ xychart-beta
     const observed: string[] = []
     expect(renderMermaidASCII(SOURCE, { style: 'hand-drawn', colorMode: 'none', onProjectionDiagnostic: d => observed.push(d.code) })).toContain('Start')
     expect(observed).toContain('TERMINAL_STROKE_CHARACTER_PROJECTED')
+  })
+
+  test('terminal receipts diagnose built-in face paints and surface elevation', () => {
+    const rendered = renderMermaidASCIIWithReceipt(SOURCE, { style: 'cupertino', colorMode: 'none' })
+    const codes = rendered.receipt.diagnostics?.map(diagnostic => diagnostic.code) ?? []
+    expect(codes).toContain('TERMINAL_FILL_PROJECTED')
+    expect(codes).toContain('TERMINAL_ROLE_PAINT_PROJECTED')
+    expect(codes).toContain('TERMINAL_ELEVATION_PROJECTED')
+    expect(rendered.receipt.diagnostics).toEqual(rendered.terminalStyle.diagnostics)
   })
 
   test('PNG declares one sRGB policy with cICP precedence and no conflicting ICC chunk', () => {

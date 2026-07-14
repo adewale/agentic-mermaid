@@ -1,7 +1,5 @@
-import './agent/families-builtin.ts'
-import { augmentFamily, getFamily, knownFamilies } from './agent/families.ts'
 import type {
-  AsciiContext, FamilyLayoutContext, FamilyLayoutResult, FamilyPlugin,
+  AsciiContext, FamilyDescriptor, FamilyLayoutContext, FamilyLayoutResult,
   FamilyPositionedProjectionContext, FamilyPositionedView,
 } from './agent/families.ts'
 import type { DiagramKind } from './agent/types.ts'
@@ -10,8 +8,7 @@ import type { PositionedDiagram, RenderContext } from './types.ts'
 import { parseMermaid } from './parser.ts'
 import { layoutGraphSync } from './layout-engine.ts'
 import { resolveFlowchartRenderOptions, applyFlowchartLabelWrapping } from './flowchart-config.ts'
-import { resolveStateRenderOptions } from './state/config.ts'
-import { resolvedFamilyAppearanceOf, resolvedFamilyConfigOf } from './render-contract.ts'
+import { resolveStateRenderOptions, type ResolvedStateVisualConfig } from './state/config.ts'
 import { lowerGraphScene } from './renderer.ts'
 import type { SceneDoc } from './scene/ir.ts'
 
@@ -99,13 +96,13 @@ type SceneLowerer<TPositioned extends PositionedDiagram> = (ctx: RenderContext<T
 type PositionedProjector<TPositioned extends PositionedDiagram> =
   (ctx: FamilyPositionedProjectionContext<TPositioned>) => FamilyPositionedView
 
-function scene<TPositioned extends PositionedDiagram>(lowerer: SceneLowerer<TPositioned>): FamilyPlugin['lowerScene'] {
+function scene<TPositioned extends PositionedDiagram>(lowerer: SceneLowerer<TPositioned>): FamilyDescriptor['lowerScene'] {
   return (ctx) => lowerer(ctx as RenderContext<TPositioned>)
 }
 
 function positionedView<TPositioned extends PositionedDiagram>(
   projector: PositionedProjector<TPositioned>,
-): FamilyPlugin['projectPositioned'] {
+): FamilyDescriptor['projectPositioned'] {
   return ctx => projector(ctx as FamilyPositionedProjectionContext<TPositioned>)
 }
 
@@ -116,15 +113,20 @@ function layoutResult<TPositioned extends PositionedDiagram>(
   return { positioned, ...extra }
 }
 
-function registerRenderHooks(
-  id: DiagramKind,
-  hooks: Pick<FamilyPlugin, 'normalizeRequest' | 'layout' | 'projectPositioned' | 'renderAscii' | 'lowerScene'>,
-): void {
-  augmentFamily(id, hooks)
-}
+type BuiltinRenderHooks = Pick<
+  FamilyDescriptor,
+  'normalizeRequest' | 'layout' | 'projectPositioned' | 'renderAscii' | 'lowerScene'
+>
 
 function layoutStateWithConfig(ctx: FamilyLayoutContext): FamilyLayoutResult {
-  return layoutResult(layoutGraphSync(parseMermaid(ctx.source.familyText), ctx.renderOptions))
+  const stateVisual = (ctx.familyAppearance as {
+    visual?: ResolvedStateVisualConfig
+  } | undefined)?.visual
+  return layoutResult(layoutGraphSync(parseMermaid(ctx.source.familyText), {
+    ...ctx.renderOptions,
+    ...(ctx.styleFace ? { styleFace: ctx.styleFace } : {}),
+    ...(stateVisual ? { stateVisual } : {}),
+  }))
 }
 
 // Flowchart proper (not state) additionally wires the typed `flowchart`
@@ -134,8 +136,11 @@ function layoutStateWithConfig(ctx: FamilyLayoutContext): FamilyLayoutResult {
 // ELK sizing so layout, renderer, and SVG see the same lines.
 function layoutFlowchartWithConfig(ctx: FamilyLayoutContext): FamilyLayoutResult {
   const graph = parseMermaid(ctx.source.familyText)
-  applyFlowchartLabelWrapping(graph, ctx.renderOptions)
-  return layoutResult(layoutGraphSync(graph, ctx.renderOptions))
+  applyFlowchartLabelWrapping(graph, ctx.renderOptions, ctx.styleFace)
+  return layoutResult(layoutGraphSync(graph, {
+    ...ctx.renderOptions,
+    ...(ctx.styleFace ? { styleFace: ctx.styleFace } : {}),
+  }))
 }
 
 function renderFlowchartAscii(ctx: AsciiContext): string {
@@ -172,7 +177,9 @@ function renderStateAsciiWithContext(ctx: AsciiContext): string {
 }
 
 function layoutArchitecture(ctx: FamilyLayoutContext): FamilyLayoutResult {
-  const familyConfig = resolvedFamilyConfigOf<{ layout: ReturnType<typeof resolveArchitectureVisualConfig>['layout'] }>(ctx.renderOptions)
+  const familyConfig = ctx.familyConfig as {
+    layout: ReturnType<typeof resolveArchitectureVisualConfig>['layout']
+  } | undefined
   const diagram = withAccessibilityFields(
     parseArchitectureDiagram(ctx.source.familyLines),
     ctx.source.accessibility,
@@ -190,7 +197,7 @@ function renderArchitectureAsciiWithContext(ctx: AsciiContext): string {
   return renderArchitectureAscii(ctx.source.familyLines, ctx.config, ctx.colorMode, ctx.theme, ctx.options)
 }
 
-registerRenderHooks('flowchart', {
+const FLOWCHART_RENDER_HOOKS = {
   normalizeRequest: ctx => ({
     renderOptions: resolveFlowchartRenderOptions(ctx.source.frontmatter, ctx.renderOptions),
   }),
@@ -198,9 +205,9 @@ registerRenderHooks('flowchart', {
   projectPositioned: positionedView(projectGraphPositioned),
   lowerScene: scene(lowerGraphScene),
   renderAscii: renderFlowchartAscii,
-})
+} satisfies BuiltinRenderHooks
 
-registerRenderHooks('state', {
+const STATE_RENDER_HOOKS = {
   normalizeRequest: ctx => {
     const resolved = resolveStateRenderOptions(ctx.source.frontmatter, ctx.renderOptions)
     const { stateVisual, ...renderOptions } = resolved
@@ -213,11 +220,11 @@ registerRenderHooks('state', {
   projectPositioned: positionedView(projectGraphPositioned),
   lowerScene: scene(lowerGraphScene),
   renderAscii: renderStateAsciiWithContext,
-})
+} satisfies BuiltinRenderHooks
 
-registerRenderHooks('architecture', {
+const ARCHITECTURE_RENDER_HOOKS = {
   normalizeRequest: ctx => {
-    const resolved = resolveArchitectureVisualConfig(ctx.source.frontmatter, ctx.colors, ctx.renderOptions)
+    const resolved = resolveArchitectureVisualConfig(ctx.source.frontmatter, ctx.colors, ctx.renderOptions, ctx.styleFace)
     const renderOptions = {
       ...ctx.renderOptions,
       padding: ctx.renderOptions.padding ?? resolved.padding,
@@ -234,9 +241,9 @@ registerRenderHooks('architecture', {
   projectPositioned: positionedView(projectArchitecturePositioned),
   lowerScene: scene(lowerArchitectureScene),
   renderAscii: renderArchitectureAsciiWithContext,
-})
+} satisfies BuiltinRenderHooks
 
-registerRenderHooks('sequence', {
+const SEQUENCE_RENDER_HOOKS = {
   // Wire-or-warn config threading (src/sequence/config.ts): the typed
   // `sequence` frontmatter/init section's wired keys reach the parser
   // (showSequenceNumbers) and layout (margins/sizes); unwired keys are named
@@ -246,12 +253,14 @@ registerRenderHooks('sequence', {
     familyConfig: { sequence: resolveSequenceConfig(ctx.source.frontmatter) },
   }),
   layout: ctx => {
-    const seqConfig = resolvedFamilyConfigOf<{ sequence: ReturnType<typeof resolveSequenceConfig> }>(ctx.renderOptions)?.sequence ?? {}
+    const seqConfig = (ctx.familyConfig as {
+      sequence?: ReturnType<typeof resolveSequenceConfig>
+    } | undefined)?.sequence ?? {}
     const diagram = withAccessibilityFields(
       parseSequenceDiagram(ctx.source.familyLines, seqConfig),
       ctx.source.accessibility,
     )
-    return layoutResult(layoutSequenceDiagram(diagram, ctx.renderOptions, seqConfig))
+    return layoutResult(layoutSequenceDiagram(diagram, ctx.renderOptions, seqConfig, ctx.styleFace))
   },
   projectPositioned: positionedView(projectSequencePositioned),
   lowerScene: scene(lowerSequenceScene),
@@ -263,9 +272,9 @@ registerRenderHooks('sequence', {
     (ctx.familyConfig as { sequence?: ReturnType<typeof resolveSequenceConfig> } | undefined)?.sequence ?? {},
     ctx.options.targetWidth,
   ),
-})
+} satisfies BuiltinRenderHooks
 
-registerRenderHooks('class', {
+const CLASS_RENDER_HOOKS = {
   normalizeRequest: ctx => ({
     renderOptions: resolveClassRenderOptions(ctx.source.frontmatter, ctx.renderOptions),
   }),
@@ -274,13 +283,14 @@ registerRenderHooks('class', {
   layout: ctx => layoutResult(layoutClassDiagram(
     withAccessibilityFields(parseClassDiagram(ctx.source.familyLines), ctx.source.accessibility),
     ctx.renderOptions,
+    ctx.styleFace,
   )),
   projectPositioned: positionedView(projectClassPositioned),
   lowerScene: scene(lowerClassScene),
   renderAscii: ctx => renderClassAscii(ctx.source.familyText, ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth),
-})
+} satisfies BuiltinRenderHooks
 
-registerRenderHooks('er', {
+const ER_RENDER_HOOKS = {
   normalizeRequest: ctx => ({
     renderOptions: resolveErRenderOptions(ctx.source.frontmatter, ctx.renderOptions),
   }),
@@ -292,40 +302,44 @@ registerRenderHooks('er', {
       withAccessibilityFields(parseErDiagram(ctx.source.familyLines), ctx.source.accessibility),
       ctx.source.frontmatter,
     )
-    return layoutResult(layoutErDiagram(diagram, ctx.renderOptions))
+    return layoutResult(layoutErDiagram(diagram, ctx.renderOptions, ctx.styleFace))
   },
   projectPositioned: positionedView(projectErPositioned),
   lowerScene: scene(lowerErScene),
   renderAscii: ctx => renderErAscii(ctx.source.familyText, ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth),
-})
+} satisfies BuiltinRenderHooks
 
-registerRenderHooks('timeline', {
+const TIMELINE_RENDER_HOOKS = {
   normalizeRequest: ctx => ({
     appearance: { family: { ...resolveTimelineRequestAppearance(ctx.renderOptions) } },
   }),
   layout: ctx => layoutResult(layoutTimelineDiagram(
     parseTimelineDiagram(ctx.source.familyLines, ctx.source.accessibility),
     ctx.renderOptions,
+    ctx.styleFace,
   )),
   projectPositioned: positionedView(projectTimelinePositioned),
   lowerScene: scene(lowerTimelineScene),
   renderAscii: ctx => renderTimelineAscii(ctx.source.familyLines, ctx.config, ctx.colorMode, ctx.theme, ctx.options.maxWidth),
-})
+} satisfies BuiltinRenderHooks
 
-registerRenderHooks('journey', {
+const JOURNEY_RENDER_HOOKS = {
   normalizeRequest: ctx => ({
     appearance: { family: resolveJourneyRequestAppearance(ctx.renderOptions) as unknown as Record<string, unknown> },
   }),
   layout: ctx => layoutResult(layoutJourneyDiagram(
     parseJourneyDiagram(ctx.source.familyLines, ctx.source.accessibility),
+    (ctx.familyAppearance as ReturnType<typeof resolveJourneyRequestAppearance> | undefined)
+      ?? resolveJourneyRequestAppearance(ctx.renderOptions),
     ctx.renderOptions,
+    ctx.styleFace,
   )),
   projectPositioned: positionedView(projectJourneyPositioned),
   lowerScene: scene(lowerJourneyScene),
   renderAscii: ctx => renderJourneyAscii(ctx.source.familyText, ctx.config, ctx.colorMode, ctx.theme, ctx.options.maxWidth),
-})
+} satisfies BuiltinRenderHooks
 
-registerRenderHooks('xychart', {
+const XYCHART_RENDER_HOOKS = {
   normalizeRequest: ctx => {
     const config = resolveXYChartConfig(ctx.source.frontmatter)
     const theme = resolveXYChartTheme(ctx.source.frontmatter)
@@ -333,21 +347,25 @@ registerRenderHooks('xychart', {
       familyConfig: { config },
       appearance: {
         ...(ctx.renderOptions.bg === undefined && theme.backgroundColor
-          ? { colors: { ...ctx.colors, bg: theme.backgroundColor } }
+          ? { colors: { bg: theme.backgroundColor } }
           : {}),
         family: { theme },
       },
     }
   },
   layout: ctx => {
-    const familyConfig = resolvedFamilyConfigOf<{ config: ReturnType<typeof resolveXYChartConfig> }>(ctx.renderOptions)
-    const familyAppearance = resolvedFamilyAppearanceOf<{ theme: ReturnType<typeof resolveXYChartTheme> }>(ctx.renderOptions)
+    const familyConfig = ctx.familyConfig as {
+      config: ReturnType<typeof resolveXYChartConfig>
+    } | undefined
+    const familyAppearance = ctx.familyAppearance as {
+      theme: ReturnType<typeof resolveXYChartTheme>
+    } | undefined
     const chart = applyResolvedXYChartConfig(
       withAccessibilityObject(parseXYChart(ctx.source.familyLines), ctx.source.accessibility),
       familyConfig?.config ?? resolveXYChartConfig({}),
       familyAppearance?.theme ?? resolveXYChartTheme({}),
     )
-    return layoutResult(layoutXYChart(chart, ctx.renderOptions), { injectAccessibility: false })
+    return layoutResult(layoutXYChart(chart, ctx.renderOptions, ctx.styleFace), { injectAccessibility: false })
   },
   projectPositioned: positionedView(projectXyChartPositioned),
   lowerScene: scene(lowerXYChartScene),
@@ -364,16 +382,16 @@ registerRenderHooks('xychart', {
       config && theme ? { config, theme } : undefined,
     )
   },
-})
+} satisfies BuiltinRenderHooks
 
-registerRenderHooks('pie', {
+const PIE_RENDER_HOOKS = {
   normalizeRequest: ctx => ({
     familyConfig: { visual: resolvePieVisualConfig(ctx.source.frontmatter) },
   }),
   layout: ctx => layoutResult(layoutPieChart(
     parsePieChart(ctx.source.familyLines),
     ctx.renderOptions,
-    resolvedFamilyConfigOf<{ visual: ReturnType<typeof resolvePieVisualConfig> }>(ctx.renderOptions)?.visual
+    (ctx.familyConfig as { visual?: ReturnType<typeof resolvePieVisualConfig> } | undefined)?.visual
       ?? resolvePieVisualConfig(),
   )),
   projectPositioned: positionedView(projectPiePositioned),
@@ -387,9 +405,9 @@ registerRenderHooks('pie', {
     ctx.options.targetWidth,
     (ctx.familyConfig as { visual?: ReturnType<typeof resolvePieVisualConfig> } | undefined)?.visual,
   ),
-})
+} satisfies BuiltinRenderHooks
 
-registerRenderHooks('quadrant', {
+const QUADRANT_RENDER_HOOKS = {
   normalizeRequest: ctx => ({
     familyConfig: { visual: resolveQuadrantVisualConfig(ctx.source.frontmatter) },
   }),
@@ -399,25 +417,29 @@ registerRenderHooks('quadrant', {
   layout: ctx => layoutResult(layoutQuadrantChart(
     withAccessibilityObject(parseQuadrantChart(ctx.source.familyLines), ctx.source.accessibility),
     ctx.renderOptions,
-    resolvedFamilyConfigOf<{ visual: ReturnType<typeof resolveQuadrantVisualConfig> }>(ctx.renderOptions)?.visual
+    (ctx.familyConfig as { visual?: ReturnType<typeof resolveQuadrantVisualConfig> } | undefined)?.visual
       ?? resolveQuadrantVisualConfig(),
+    ctx.styleFace,
   )),
   projectPositioned: positionedView(projectQuadrantPositioned),
   lowerScene: scene(lowerQuadrantScene),
   renderAscii: ctx => renderQuadrantAscii(ctx.source.familyLines, ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth),
-})
+} satisfies BuiltinRenderHooks
 
-registerRenderHooks('gantt', {
+const GANTT_RENDER_HOOKS = {
   normalizeRequest: ctx => ({
     familyConfig: { config: resolveGanttFrontmatterConfig(ctx.source.frontmatter) },
   }),
   layout: ctx => {
-    const config = resolvedFamilyConfigOf<{
+    const config = (ctx.familyConfig as {
       config: ReturnType<typeof resolveGanttFrontmatterConfig>
-    }>(ctx.renderOptions)?.config ?? resolveGanttFrontmatterConfig(undefined)
+    } | undefined)?.config ?? resolveGanttFrontmatterConfig(undefined)
     const pipeline = buildGanttRenderPipelineFromConfig(ctx.source.familyLines, config, {
       clock: { today: ctx.renderOptions.ganttToday },
-      layout: { renderOptions: ctx.renderOptions },
+      layout: {
+        renderOptions: ctx.renderOptions,
+        ...(ctx.styleFace ? { styleFace: ctx.styleFace } : {}),
+      },
     })
     return layoutResult(pipeline.positioned)
   },
@@ -430,9 +452,9 @@ registerRenderHooks('gantt', {
       config?: ReturnType<typeof resolveGanttFrontmatterConfig>
     } | undefined)?.config,
   }),
-})
+} satisfies BuiltinRenderHooks
 
-registerRenderHooks('mindmap', {
+const MINDMAP_RENDER_HOOKS = {
   normalizeRequest: ctx => ({
     familyConfig: {
       position: resolveMindmapPositionConfig(ctx.source.config.mindmap, ctx.source.config.layout),
@@ -440,15 +462,15 @@ registerRenderHooks('mindmap', {
   }),
   layout: ctx => layoutResult(positionMindmap(
     withAccessibilityFields(parseMindmap(ctx.source.familyBody), ctx.source.accessibility),
-    resolvedFamilyConfigOf<{ position: ReturnType<typeof resolveMindmapPositionConfig> }>(ctx.renderOptions)?.position
+    (ctx.familyConfig as { position?: ReturnType<typeof resolveMindmapPositionConfig> } | undefined)?.position
       ?? resolveMindmapPositionConfig(undefined, undefined),
   ), { injectAccessibility: false }),
   projectPositioned: positionedView(projectMindmapPositioned),
   lowerScene: scene(lowerMindmapScene),
   renderAscii: ctx => renderMindmapAscii(parseMindmap(ctx.source.familyBody), ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth),
-})
+} satisfies BuiltinRenderHooks
 
-registerRenderHooks('gitgraph', {
+const GITGRAPH_RENDER_HOOKS = {
   normalizeRequest: ctx => ({
     familyConfig: {
       position: resolveGitGraphPositionConfig(ctx.source.config.gitGraph, ctx.source.config.themeVariables),
@@ -461,10 +483,10 @@ registerRenderHooks('gitgraph', {
     },
   }),
   layout: ctx => {
-    const familyConfig = resolvedFamilyConfigOf<{
+    const familyConfig = ctx.familyConfig as {
       position: ReturnType<typeof resolveGitGraphPositionConfig>
       title?: string
-    }>(ctx.renderOptions)
+    } | undefined
     const config = familyConfig?.position ?? resolveGitGraphPositionConfig(undefined)
     const diagram = withAccessibilityFields(parseGitGraph(ctx.source.familyBody, {
       mainBranchName: config.mainBranchName,
@@ -487,6 +509,21 @@ registerRenderHooks('gitgraph', {
     }), ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth,
     (ctx.familyAppearance as { themeVariables?: Record<string, unknown> } | undefined)?.themeVariables)
   },
-})
+} satisfies BuiltinRenderHooks
 
-export { getFamily, knownFamilies }
+export const BUILTIN_RENDER_HOOKS = Object.freeze({
+  flowchart: FLOWCHART_RENDER_HOOKS,
+  state: STATE_RENDER_HOOKS,
+  sequence: SEQUENCE_RENDER_HOOKS,
+  timeline: TIMELINE_RENDER_HOOKS,
+  class: CLASS_RENDER_HOOKS,
+  er: ER_RENDER_HOOKS,
+  journey: JOURNEY_RENDER_HOOKS,
+  xychart: XYCHART_RENDER_HOOKS,
+  architecture: ARCHITECTURE_RENDER_HOOKS,
+  pie: PIE_RENDER_HOOKS,
+  quadrant: QUADRANT_RENDER_HOOKS,
+  gantt: GANTT_RENDER_HOOKS,
+  mindmap: MINDMAP_RENDER_HOOKS,
+  gitgraph: GITGRAPH_RENDER_HOOKS,
+}) satisfies Readonly<Record<DiagramKind, BuiltinRenderHooks>>

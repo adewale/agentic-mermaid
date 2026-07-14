@@ -77,8 +77,8 @@ registerStyle, knownStyles, validateStyleSpec } from 'agentic-mermaid/agent'`
 
 ## Styles
 
-Every render call accepts style: a registered look name ('crisp', 'hand-drawn', 'excalidraw', 'pen-and-ink', 'freehand', 'watercolor', 'blueprint', 'tufte', 'accessible-high-contrast', 'patent-drawing', 'status-dashboard', 'ops-schematic', 'chalkboard', 'risograph', 'architectural-plan', 'cupertino', 'publication-figure'), any theme
-name (a theme is a palette-only style), an inline JSON spec, or a stack
+Every render call accepts style: a registered look name ('crisp', 'hand-drawn', 'excalidraw', 'pen-and-ink', 'freehand', 'watercolor', 'blueprint', 'look:tufte', 'accessible-high-contrast', 'patent-drawing', 'status-dashboard', 'ops-schematic', 'chalkboard', 'risograph', 'architectural-plan', 'cupertino', 'publication-figure'), any palette
+name, an inline JSON spec, or a stack
 merged left → right ({ style: ['hand-drawn', 'dracula'] }). seed re-rolls
 ink wobble, never layout — (source, style, seed) reproduces an image
 exactly. Custom styles are data: validateStyleSpec(json) checks untrusted
@@ -94,7 +94,7 @@ Authoring guide + quality rubric: docs/style-authoring.md.
 - docs/api.md — library/CLI/MCP API reference, including SVG/PNG/ASCII output
 - docs/diagram-families.md — family examples and edit policy
 - docs/theming.md — themes, CSS variables, and Shiki compatibility
-- docs/style-authoring.md — styles: the composable look system (a theme is a palette-only style; stack names/specs; author custom styles as data records with the quality rubric)
+- docs/style-authoring.md — styles: the composable Look + Palette system (stack names/specs; author custom styles as data records with the quality rubric)
 - docs/quality.md — determinism + "good looking" rubric
 - TODO.md — only active backlog
 - SECURITY.md — threat model + strict-mode guarantee

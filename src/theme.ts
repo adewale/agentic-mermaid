@@ -15,6 +15,8 @@
 // Types
 // ============================================================================
 
+import { svgCssText, transformSvgCssValues } from './svg-structure.ts'
+
 /**
  * Diagram color configuration.
  *
@@ -292,6 +294,10 @@ function resolveRasterFontFamily(fallback: string): string {
  * (napi and wasm) share this one workaround.
  */
 export function inlineFontVarForRaster(svg: string): string {
+  return transformSvgCssValues(svg, inlineFontVarInCss)
+}
+
+function inlineFontVarInCss(svg: string): string {
   const marker = 'var(--font,'
   let out = ''
   let i = 0
@@ -533,7 +539,7 @@ export function inlineResolvedColors(svg: string, colors: DiagramColors): string
   // var(--family-token, fallback) prefers the authored token over fallback.
   const cssDefRegex = /--([\w-]+)\s*:\s*(#[0-9a-fA-F]{3,8})\s*;?/g
   let initialDefMatch
-  while ((initialDefMatch = cssDefRegex.exec(svg)) !== null) {
+  while ((initialDefMatch = cssDefRegex.exec(svgCssText(svg))) !== null) {
     vars.set(initialDefMatch[1]!, initialDefMatch[2]!)
   }
 
@@ -551,8 +557,6 @@ export function inlineResolvedColors(svg: string, colors: DiagramColors): string
   vars.set('_inner-stroke', rc.innerStroke)
   vars.set('_key-badge', rc.keyBadge)
 
-  let text = svg
-
   // `--font` is intentionally left as a live CSS variable so consumers can
   // swap the family post-render. Skip it from the color-resolution phase
   // (which exists to make non-browser SVG renderers like resvg work; resvg
@@ -569,55 +573,50 @@ export function inlineResolvedColors(svg: string, colors: DiagramColors): string
     }
   }
 
-  // Phase 1: Iteratively resolve var() and color-mix() from innermost outward
-  for (let pass = 0; pass < 10; pass++) {
-    const prev = text
-
-    // Replace var(--name) without fallback
-    text = text.replace(/var\(--([\w-]+)\)/g, (match, name) => {
-      if (SKIP_VARS.has(name)) return match
-      return vars.get(name) ?? match
-    })
-
-    // Replace var(--name, fallback) where fallback has no nested parens
-    text = text.replace(/var\(--([\w-]+),\s*([^()]+)\)/g, (match, name, fallback) => {
-      if (SKIP_VARS.has(name)) return match
-      return vars.get(name) ?? fallback.trim()
-    })
-
-    // Resolve color-mix(in srgb, #hex P%, #hex|transparent)
-    text = text.replace(
-      /color-mix\(in srgb,\s*(#[0-9a-fA-F]{3,8})\s+(\d+(?:\.\d+)?)%,\s*(#[0-9a-fA-F]{3,8}|transparent)\)/g,
-      (_match, c1, pct, c2) => {
-        const cc2 = c2 === 'transparent' ? rc.bg : c2
-        return mixHex(c1, cc2, parseFloat(pct))
-      },
-    )
-
-    if (text === prev) break
+  const resolveCss = (input: string, definitions: ReadonlyMap<string, string>, passes: number): string => {
+    let text = input
+    for (let pass = 0; pass < passes; pass++) {
+      const prev = text
+      text = text.replace(/var\(--([\w-]+)\)/g, (match, name) => {
+        if (SKIP_VARS.has(name)) return match
+        return definitions.get(name) ?? match
+      })
+      text = text.replace(/var\(--([\w-]+),\s*([^()]+)\)/g, (match, name, fallback) => {
+        if (SKIP_VARS.has(name)) return match
+        return definitions.get(name) ?? fallback.trim()
+      })
+      text = text.replace(
+        /color-mix\(in srgb,\s*(#[0-9a-fA-F]{3,8})\s+(\d+(?:\.\d+)?)%,\s*(#[0-9a-fA-F]{3,8}|transparent)\)/g,
+        (_match, c1, pct, c2) => {
+          const cc2 = c2 === 'transparent' ? rc.bg : c2
+          return mixHex(c1, cc2, parseFloat(pct))
+        },
+      )
+      if (text === prev) break
+    }
+    return text
   }
+
+  // Resolve only actual CSS-bearing contexts. Text/title/desc and ordinary
+  // data attributes are authored content, even when they happen to contain a
+  // string such as `var(--fg)` or `color-mix(...)`.
+  let text = transformSvgCssValues(svg, css => resolveCss(css, vars, 10))
 
   // Phase 2: Extract CSS variable definitions from <style> blocks and resolve
   // any remaining var() references (e.g. --xychart-color-0 defined in style)
   const cssDefs = new Map<string, string>()
   const defRegex = /--([\w-]+)\s*:\s*(#[0-9a-fA-F]{3,8})\s*;/g
+  const cssText = svgCssText(text)
   let defMatch
-  while ((defMatch = defRegex.exec(text)) !== null) {
+  while ((defMatch = defRegex.exec(cssText)) !== null) {
     cssDefs.set(defMatch[1]!, defMatch[2]!)
   }
 
   if (cssDefs.size > 0) {
     for (let pass = 0; pass < 5; pass++) {
-      const prev = text
-      text = text.replace(/var\(--([\w-]+)\)/g, (match, name) => {
-        if (SKIP_VARS.has(name)) return match
-        return cssDefs.get(name) ?? match
-      })
-      text = text.replace(/var\(--([\w-]+),\s*([^()]+)\)/g, (match, name, fallback) => {
-        if (SKIP_VARS.has(name)) return match
-        return cssDefs.get(name) ?? fallback.trim()
-      })
-      if (text === prev) break
+      const resolved = transformSvgCssValues(text, css => resolveCss(css, cssDefs, 1))
+      if (resolved === text) break
+      text = resolved
     }
   }
 

@@ -370,7 +370,7 @@ describe('cache eligibility and validation isolation', () => {
     expect(((await invalid.json()) as any).error).toEqual(expect.objectContaining({ code: -32602 }))
   })
 
-  test('validated scale inputs that clamp identically share a cache entry', async () => {
+  test('distinct positive scales remain distinct cache entries', async () => {
     const cache = makeCache()
     const pngCalls: number[] = []
     const { handler } = makeHandler({
@@ -379,8 +379,8 @@ describe('cache eligibility and validation isolation', () => {
     })
     await handler(post(call('render_png', { source: FLOW, scale: 100 })))
     await handler(post(call('render_png', { source: FLOW, scale: 999 })))
-    expect(pngCalls).toEqual([8])
-    expect(cache.store.size).toBe(1)
+    expect(pngCalls).toEqual([100, 999])
+    expect(cache.store.size).toBe(2)
   })
 
   test('semantically distinct calls still get distinct entries', async () => {

@@ -14,6 +14,7 @@ import { resolveBuildGitSha } from '../../website/build-provenance.ts'
 import { AI_CATALOG_RESOURCES } from '../../website/agent-resource-inventory.ts'
 import { HOSTED_TOOLS } from '../mcp/hosted-server.ts'
 import { verifyMermaid } from '../agent/verify.ts'
+import { knownStyleDescriptors } from '../scene/style-registry.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const SITE = join(REPO, 'website', 'public')
@@ -553,7 +554,8 @@ describe('Workers Static Assets website contract', () => {
     expect(home).toContain('<li><span>Seed</span><code>8</code></li>')
     expect(home).toContain('home-style-watercolor-svg-title')
     expect(home).toContain('home-style-ops-schematic-svg-title')
-    expect(home).toContain('16</strong> built-in styles')
+    const builtInLookCount = knownStyleDescriptors().filter(descriptor => descriptor.kind === 'look').length
+    expect(home).toContain(`${builtInLookCount}</strong> built-in styles`)
     expect(home).toContain('JSON</strong> custom styles')
     expect(home).toContain('<strong>SVG, PNG, ASCII and Unicode</strong> output')
     expect(home).not.toContain('outputs per source')

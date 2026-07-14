@@ -20,7 +20,7 @@ const lightColors: DiagramColors = { bg: '#FFFFFF', fg: '#27272A' }
 function render(text: string, interactive: boolean = false) {
   const processed = preprocessMermaidSource(text)
   const chart = layoutXYChart(applyXYChartFrontmatterConfig(parseXYChart(processed.lines), processed.frontmatter))
-  return renderXYChartSvg({ positioned: chart, colors: { ...lightColors, font: 'Inter' }, options: { interactive } })
+  return renderXYChartSvg({ positioned: chart, colors: { ...lightColors, font: 'Inter' }, resolved: { renderOptions: { interactive } } })
 }
 
 describe('renderXYChartSvg – structure', () => {

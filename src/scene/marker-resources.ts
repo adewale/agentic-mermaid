@@ -7,7 +7,6 @@ export type RenderableMarkerDescriptor = MarkerDescriptor & Required<Pick<Marker
 
 export interface MarkerSerializationOptions {
   readonly indent?: number
-  readonly markerUnits?: MarkerDescriptor['units']
 }
 
 function finite(value: number, field: string): number {
@@ -62,6 +61,9 @@ function geometryElements(geometry: Geometry, paint: MarkPaint | undefined, inde
 
 export function assertRenderableMarker(marker: MarkerDescriptor): asserts marker is RenderableMarkerDescriptor {
   if (typeof marker.id !== 'string' || marker.id.trim() === '') throw new Error('Marker id must not be empty')
+  if (!['arrow', 'open-arrow', 'circle', 'cross', 'triangle', 'diamond', 'diamond-open'].includes(String(marker.shape))) {
+    throw new Error(`Marker "${marker.id}" has an unknown shape`)
+  }
   if (!marker.geometry) throw new Error(`Marker "${marker.id}" must declare geometry`)
   if (!marker.size) throw new Error(`Marker "${marker.id}" must declare marker size`)
   if (!marker.ref) throw new Error(`Marker "${marker.id}" must declare a reference point`)
@@ -70,7 +72,16 @@ export function assertRenderableMarker(marker: MarkerDescriptor): asserts marker
   finite(marker.size.height, 'size.height')
   finite(marker.ref.x, 'ref.x')
   finite(marker.ref.y, 'ref.y')
+  if (marker.units !== undefined && marker.units !== 'strokeWidth' && marker.units !== 'userSpaceOnUse') {
+    throw new Error(`Marker "${marker.id}" units must be strokeWidth or userSpaceOnUse`)
+  }
   if (typeof marker.orient === 'number') finite(marker.orient, 'orient')
+  else if (marker.orient !== undefined && marker.orient !== 'auto' && marker.orient !== 'auto-start-reverse') {
+    throw new Error(`Marker "${marker.id}" orient must be auto, auto-start-reverse, or a finite angle`)
+  }
+  if (marker.overflow !== undefined && marker.overflow !== 'hidden' && marker.overflow !== 'visible') {
+    throw new Error(`Marker "${marker.id}" overflow must be hidden or visible`)
+  }
   if (marker.viewBox) {
     finite(marker.viewBox.x, 'viewBox.x')
     finite(marker.viewBox.y, 'viewBox.y')
@@ -87,7 +98,7 @@ export function serializeMarkerResource(
   assertRenderableMarker(marker)
   const outerIndent = ' '.repeat(options.indent ?? 2)
   const innerIndent = `${outerIndent}  `
-  const units = options.markerUnits ?? marker.units
+  const units = marker.units
   const orient = marker.orient ?? 'auto'
   const attrs = [
     `id="${escapeAttr(marker.id)}"`,
@@ -117,21 +128,4 @@ export function serializeMarkerResources(
     ids.add(marker.id)
   }
   return markers.map(marker => serializeMarkerResource(marker, options)).join('\n')
-}
-
-/** Reserialize a definitions mark from typed marker resources without parsing
- * marker XML. Non-marker definition chunks remain byte-preserved. */
-export function projectMarkerUnits(
-  crisp: string,
-  markers: readonly MarkerDescriptor[],
-  markerUnits: NonNullable<MarkerDescriptor['units']>,
-): string {
-  let projected = crisp
-  for (const marker of markers) {
-    const authored = serializeMarkerResource(marker)
-    const replacement = serializeMarkerResource(marker, { markerUnits })
-    if (!projected.includes(authored)) throw new Error(`Definitions mark does not contain typed marker "${marker.id}"`)
-    projected = projected.replace(authored, replacement)
-  }
-  return projected
 }

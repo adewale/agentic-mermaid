@@ -15,15 +15,17 @@
 import { detectColorMode, DEFAULT_ASCII_THEME, diagramColorsToAsciiTheme } from './ansi.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
 import { normalizeMermaidSource, toMermaidLines, type NormalizedMermaidSource } from '../mermaid-source.ts'
-import '../render-family-hooks.ts'
-import type { FamilyId } from '../agent/types.ts'
+import type { FamilyId, ParsedDiagram } from '../agent/types.ts'
+import { prepareRenderInput } from '../agent/render-input.ts'
+import { isBuiltinFamilyId } from '../agent/families.ts'
 import { requireRegisteredMermaidFamily } from '../family-detection.ts'
 import type { RenderOptions } from '../types.ts'
 import {
   NON_SERIALIZABLE_RENDER_OPTION_FIELDS,
   SHARED_RENDER_OPTION_FIELDS,
   receiptOf,
-  resolveRenderRequest,
+  resolveRenderRequestForExecution,
+  resolvedFamilyRenderContextOf,
   resolvedRenderExecutionPlanOf,
   type RenderRequestReceipt,
 } from '../render-contract.ts'
@@ -33,6 +35,7 @@ import { graphemes } from '../shared/graphemes.ts'
 import { wrapText } from './wrap.ts'
 import { positionResolvedFamily } from '../positioning.ts'
 import type { SceneDoc } from '../scene/ir.ts'
+import { admitFamilyScene } from '../scene/admission.ts'
 import type { DiagramColors } from '../theme.ts'
 import { safeCssPaint } from '../shared/css-color.ts'
 import { safeCssFontFamily } from '../shared/css-font.ts'
@@ -42,7 +45,12 @@ import {
   type ResolvedTerminalOutputPolicy,
   type TerminalOutputPolicyInput,
 } from '../terminal-contract.ts'
-import { sanitizeTerminalText } from '../terminal-security.ts'
+import {
+  admitExternalTerminalOutput,
+  sanitizeTerminalText,
+  secureTerminalHtmlOutput,
+  terminalOutputLineWidth,
+} from '../terminal-security.ts'
 
 // Re-export types for external use
 export type { AsciiTheme, ColorMode }
@@ -149,7 +157,7 @@ export class AsciiWidthError extends Error {
 }
 
 export function renderMermaidASCII(
-  text: string,
+  text: ParsedDiagram | string,
   options: AsciiRenderOptions = {},
 ): string {
   return renderMermaidASCIIWithReceipt(text, options).text
@@ -163,9 +171,11 @@ export interface RenderedAscii {
 }
 
 export function renderMermaidASCIIWithReceipt(
-  text: string,
+  input: ParsedDiagram | string,
   options: AsciiRenderOptions = {},
 ): RenderedAscii {
+  const preparedInput = prepareRenderInput(input)
+  const text = preparedInput.source
   let outputPolicy: ResolvedTerminalOutputPolicy
   try {
     outputPolicy = resolveTerminalOutputPolicy({
@@ -183,7 +193,12 @@ export function renderMermaidASCIIWithReceipt(
     // while keeping the policy resolver as the sole validation authority.
     if (error instanceof TerminalOutputPolicyError && error.code === 'WIDTH_CONFLICT') {
       const normalized = normalizeMermaidSource(text)
-      const family = requireRegisteredMermaidFamily(normalized.lines[0] ?? normalized.firstLine, text)
+      const family = requireRegisteredMermaidFamily(
+        normalized.lines[0] ?? normalized.firstLine,
+        text,
+        'strict',
+        normalized.wrapperSource?.length ?? 0,
+      )
       throw new AsciiWidthError(options.targetWidth!, 1, family, 'INVALID_WIDTH')
     }
     throw error
@@ -211,7 +226,9 @@ export function renderMermaidASCIIWithReceipt(
       .filter(field => options[field] !== undefined)
       .map(field => [field, options[field]]),
   ) as RenderOptions
-  const request = resolveRenderRequest(text, sharedOptions, outputKind, outputPolicy)
+  const request = resolveRenderRequestForExecution(text, sharedOptions, outputKind, outputPolicy, {
+    expectedFamilyId: preparedInput.expectedFamilyId,
+  })
   // Sanitize user-derived text before layout, cell measurement, or trusted
   // ANSI/HTML wrappers are introduced. A visible one-cell replacement keeps
   // renderer geometry and emitted geometry coherent.
@@ -226,30 +243,43 @@ export function renderMermaidASCIIWithReceipt(
     : terminalSource.source
   const executionPlan = resolvedRenderExecutionPlanOf(request)
   const family = executionPlan.family
+  const familyContext = resolvedFamilyRenderContextOf(request)
   const diagramType = family.id
   let connectorScene: SceneDoc | null = null
+  let connectorProjectionFailed = false
   if (family.lowerScene && family.layout) {
-    const layout = positionResolvedFamily(diagramType, request)
-    connectorScene = family.lowerScene({
-      positioned: layout.positioned,
-      colors: connectorSceneColors(request.appearance.colors),
-      options: request.renderOptions,
-    })
+    try {
+      const layout = positionResolvedFamily(diagramType, request, terminalSource.source)
+      connectorScene = admitFamilyScene(family, family.lowerScene({
+        positioned: layout.positioned,
+        colors: connectorSceneColors(request.appearance.colors),
+        resolved: familyContext,
+      }))
+    } catch {
+      // Scene evidence enriches terminal connector semantics, but renderAscii
+      // is the complete negotiated terminal tuple. Optional graphical hooks
+      // must never become an undeclared runtime prerequisite.
+      connectorProjectionFailed = true
+    }
   }
   const terminalStyle = projectTerminalStyle(
     request,
     colorMode,
     outputPolicy.theme,
     connectorScene,
-    { controlsReplaced: terminalSource.controlsReplaced },
+    {
+      controlsReplaced: terminalSource.controlsReplaced,
+      connectorProjectionFailed,
+    },
   )
   for (const diagnostic of terminalStyle.diagnostics) options.onProjectionDiagnostic?.(diagnostic)
   const theme: AsciiTheme = terminalStyle.theme
-  const output = family.renderAscii!({
+  const renderedOutput = family.renderAscii!({
     source: normalizedSource,
-    renderOptions: request.renderOptions,
-    ...(request.familyConfig ? { familyConfig: request.familyConfig } : {}),
-    ...(request.appearance.family ? { familyAppearance: request.appearance.family } : {}),
+    // Forward the canonical family context as one unit. Enumerating today's
+    // fields here previously dropped styleFace and made the terminal hook a
+    // narrower contract than layout and Scene lowering.
+    ...familyContext,
     config,
     colorMode,
     theme,
@@ -257,16 +287,29 @@ export function renderMermaidASCIIWithReceipt(
     options: {
       maxWidth: widthBudget,
       targetWidth: outputPolicy.targetWidth,
-      ganttToday: request.renderOptions.ganttToday,
+      ganttToday: familyContext.renderOptions.ganttToday,
     },
   })
+  // HTML is an output encoding, not permission for family renderers to emit
+  // authored markup. Secure the completed artifact at the common boundary so
+  // raw labels are escaped even in renderers that concatenate them beside
+  // trusted color spans.
+  const output = isBuiltinFamilyId(family.id)
+    ? colorMode === 'html'
+      ? secureTerminalHtmlOutput(renderedOutput)
+      : renderedOutput
+    : admitExternalTerminalOutput(renderedOutput, colorMode)
+  const receipt = receiptOf(request, terminalStyle.diagnostics)
 
   const targetWidth = outputPolicy.targetWidth
   if (targetWidth === undefined) {
-    return { text: output, receipt: receiptOf(request), terminalStyle, outputPolicy }
+    return { text: output, receipt, terminalStyle, outputPolicy }
   }
   const boundedOutput = output.split('\n').map(line => line.trimEnd()).join('\n').trimEnd()
-  const requiredWidth = Math.max(0, ...boundedOutput.split('\n').map(terminalLineWidth))
+  const requiredWidth = Math.max(
+    0,
+    ...boundedOutput.split('\n').map(line => terminalOutputLineWidth(line, colorMode)),
+  )
   if (requiredWidth > targetWidth) {
     const hasTooWideGrapheme = graphemes(normalizedSource.body).some(cluster => visualWidth(cluster) > targetWidth)
     throw new AsciiWidthError(
@@ -276,7 +319,7 @@ export function renderMermaidASCIIWithReceipt(
       hasTooWideGrapheme ? 'UNBREAKABLE_GRAPHEME' : 'MINIMUM_GEOMETRY',
     )
   }
-  return { text: boundedOutput, receipt: receiptOf(request), terminalStyle, outputPolicy }
+  return { text: boundedOutput, receipt, terminalStyle, outputPolicy }
 }
 
 interface TerminalSafeSourceProjection {
@@ -354,20 +397,6 @@ function projectLabelsInNormalizedSource(
     familyLines: Object.freeze(projected.familyLines) as unknown as string[],
     firstLine: lines[0]?.toLowerCase() ?? '',
   })
-}
-
-/** Remove renderer-owned ANSI/HTML wrappers before measuring terminal cells. */
-function terminalLineWidth(line: string): number {
-  const plain = line
-    .replace(/\x1b\[[0-9;]*m/g, '')
-    .replace(/<\/?span(?:\s[^>]*)?>/g, '')
-    // HTML mode escapes renderer text once. Decode exactly that one layer so
-    // `&`, `<`, and `>` occupy the same cells as plain/ANSI output while an
-    // authored literal `&amp;` still measures as five displayed characters.
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&amp;/g, '&')
-  return visualWidth(plain)
 }
 
 /** @deprecated Use `renderMermaidASCII` */

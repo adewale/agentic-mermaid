@@ -16,21 +16,20 @@ import type { StyleSpec } from './style-registry.ts'
 import { runBackendConformance } from './backend-conformance.ts'
 import type { BackendConformanceReport } from './backend-conformance.ts'
 import {
-  ESSENTIAL_SCENE_PRIMITIVE_OPERATIONS,
+  ESSENTIAL_SCENE_PRIMITIVE_CAPABILITIES,
   graphicalBackendCapabilityClaims,
   validatePrimitiveCapabilities,
 } from './capabilities.ts'
 import type { PrimitiveCapabilityClaim } from './capabilities.ts'
-import { assertValidSceneDoc } from './scene-validation.ts'
+import { admitBackendSceneDocument } from './external-data-snapshot.ts'
 import {
   canonicalExtensionId,
   createExtensionIdentity,
   parseExtensionId,
-  registerCompatibilityAlias,
   registerExtension,
+  requireExtensionContractCompatibility,
 } from '../shared/extension-identity.ts'
 import type {
-  CompatibilityAlias,
   ExtensionCompatibility,
   ExtensionIdentity,
   ExtensionProvenance,
@@ -56,18 +55,20 @@ export interface StyleBackend {
 
 export interface BackendRegistrationOptions {
   readonly version?: string
-  readonly compatibility?: ExtensionCompatibility
+  readonly compatibility: ExtensionCompatibility & {
+    readonly core: string
+    readonly scene: string
+  }
   readonly provenance?: ExtensionProvenance
 }
 
 export interface BackendDescriptor {
   readonly identity: ExtensionIdentity<'backend'>
   readonly backend: StyleBackend
-  readonly aliases: readonly string[]
-  /** Executed registration smoke. Capability claims remain declarations; this
-   * report proves only its named frozen SVG fixture and checks. */
+  /** Stable preferred input for first-party backends. */
+  readonly inputName: string
+  /** Claim-keyed executable SVG conformance captured at registration. */
   readonly conformance: BackendConformanceReport
-  readonly capabilities: readonly PrimitiveCapabilityClaim[]
 }
 
 export interface HostBackendSelection {
@@ -118,9 +119,10 @@ export const DefaultBackend: StyleBackend = {
     return node.crisp
   },
   render(doc: SceneDoc, ctx: StyleBackendContext): string {
-    const pageRect = pageRectFor(doc, ctx)
-    if (!pageRect) return doc.parts.map(part => part.crisp).join('\n')
-    return doc.parts
+    const admitted = admitBackendSceneDocument(doc)
+    const pageRect = pageRectFor(admitted, ctx)
+    if (!pageRect) return admitted.parts.map(part => part.crisp).join('\n')
+    return admitted.parts
       .map((part, i) => (i === 0 ? `${part.crisp}\n${pageRect}` : part.crisp))
       .join('\n')
   },
@@ -136,15 +138,28 @@ const CORE_BACKEND_PROVENANCE = Object.freeze({
 const HOST_BACKEND_PROVENANCE = Object.freeze({ owner: 'host', source: 'in-process' })
 
 const BACKENDS = new Map<string, ExtensionRegistration<StyleBackend, 'backend'>>()
-const BACKEND_ALIASES = new Map<string, CompatibilityAlias>()
+const BACKEND_INPUT_NAMES = new Map<string, string>()
 const BACKEND_CONFORMANCE = new Map<string, BackendConformanceReport>()
+
+/** Registration executes caller-owned methods. Keep every registry mutation
+ * outside that executable window so a callback cannot install/uninstall a
+ * sibling backend or observe a half-committed candidate. */
+let backendConformanceCandidate: string | null = null
+
+function assertBackendRegistryMutationAllowed(): void {
+  if (backendConformanceCandidate !== null) {
+    throw new Error(`Backend registry mutation is forbidden while candidate "${backendConformanceCandidate}" is undergoing conformance`)
+  }
+}
 
 function backendIdentity(id: string, options: BackendRegistrationOptions): ExtensionIdentity<'backend'> {
   return createExtensionIdentity({
     id,
     kind: 'backend',
     version: options.version ?? CORE_BACKEND_VERSION,
-    compatibility: options.compatibility ?? CORE_BACKEND_COMPATIBILITY,
+    // Host extensions must state the wire contracts they consume. Only the
+    // internal built-in enrollment path supplies first-party defaults.
+    compatibility: options.compatibility,
     provenance: options.provenance ?? HOST_BACKEND_PROVENANCE,
   })
 }
@@ -162,9 +177,9 @@ function validateBackendCapabilities(backend: StyleBackend, canonicalId: string)
   if (unevidenced) {
     throw new Error(`Backend "${backend.id}" capability ${unevidenced.primitive}/${unevidenced.feature}/${unevidenced.operation} must declare evidence`)
   }
-  for (const { primitive, operation } of ESSENTIAL_SCENE_PRIMITIVE_OPERATIONS) {
-    if (!backend.capabilities.some(claim => claim.primitive === primitive && claim.operation === operation)) {
-      throw new Error(`Backend "${backend.id}" must declare an evidenced essential ${primitive}/${operation} capability`)
+  for (const { primitive, feature, operation } of ESSENTIAL_SCENE_PRIMITIVE_CAPABILITIES) {
+    if (!backend.capabilities.some(claim => claim.primitive === primitive && claim.feature === feature && claim.operation === operation)) {
+      throw new Error(`Backend "${backend.id}" must declare an evidenced essential ${primitive}/${feature}/${operation} capability`)
     }
   }
 }
@@ -172,25 +187,77 @@ function validateBackendCapabilities(backend: StyleBackend, canonicalId: string)
 function snapshotBackendCapabilities(
   capabilities: readonly PrimitiveCapabilityClaim[],
 ): readonly PrimitiveCapabilityClaim[] {
-  return Object.freeze(capabilities.map(claim => Object.freeze({ ...claim })))
+  const fields = [
+    'target',
+    'primitive',
+    'feature',
+    'operation',
+    'realization',
+    'evidence',
+    'diagnostic',
+  ] as const satisfies readonly (keyof PrimitiveCapabilityClaim)[]
+  return Object.freeze(capabilities.map(claim => {
+    const isObject = (typeof claim === 'object' || typeof claim === 'function') && claim !== null
+    const source = isObject ? claim as unknown as object : undefined
+    const captured = source
+      ? { ...(source as Record<PropertyKey, unknown>) } as Record<PropertyKey, unknown>
+      : {} as Record<PropertyKey, unknown>
+    // Claim fields may legally arrive through a prototype or a non-enumerable
+    // property. Capture those once too; validation still decides whether the
+    // resulting values satisfy the capability contract.
+    if (source) {
+      for (const field of fields) {
+        if (!Object.prototype.hasOwnProperty.call(captured, field)) {
+          captured[field] = Reflect.get(source, field)
+        }
+      }
+    }
+    return Object.freeze(captured as unknown as PrimitiveCapabilityClaim)
+  }))
 }
 
-/** Capture the registration surface once. Methods execute with the frozen
- * snapshot as `this`, so replacing methods or scalar fields on the caller's
- * original object cannot change registered rendering behavior. */
+function capturedBackendField(
+  captured: Readonly<Record<PropertyKey, unknown>>,
+  source: object,
+  key: keyof StyleBackend,
+): unknown {
+  return Object.prototype.hasOwnProperty.call(captured, key)
+    ? captured[key]
+    : Reflect.get(source, key)
+}
+
+/** Capture every enumerable field and each required inherited/non-enumerable
+ * field exactly once. Validation and conformance must never return to the
+ * caller-owned object: accessor-backed candidates could otherwise present one
+ * value while being checked and publish another value afterward. Methods
+ * execute with the frozen snapshot as `this`, so later caller mutation cannot
+ * change registered rendering behavior. */
 function snapshotBackend(backend: StyleBackend): StyleBackend {
-  const drawNode = backend.drawNode
-  const render = backend.render
+  if ((typeof backend !== 'object' && typeof backend !== 'function') || backend === null) {
+    throw new TypeError('registerBackend requires a backend object')
+  }
+  const source = backend as unknown as object
+  // Object spread materializes accessor values as data properties. Read a
+  // required field from the source only when it was not an enumerable own
+  // property and therefore was not captured by the spread.
+  const captured = { ...(source as Record<PropertyKey, unknown>) } as Record<PropertyKey, unknown>
+  const idValue = capturedBackendField(captured, source, 'id')
+  if (typeof idValue !== 'string') throw new TypeError('registerBackend id must be a string')
+  const capabilitiesValue = capturedBackendField(captured, source, 'capabilities')
+  if (!Array.isArray(capabilitiesValue)) {
+    throw new Error(`Backend "${idValue}" must declare capability claims`)
+  }
+  const drawNode = capturedBackendField(captured, source, 'drawNode') as StyleBackend['drawNode']
+  const render = capturedBackendField(captured, source, 'render') as StyleBackend['render']
   const snapshot: StyleBackend = {
-    ...backend,
-    id: backend.id,
-    capabilities: snapshotBackendCapabilities(backend.capabilities),
+    ...captured,
+    id: idValue,
+    capabilities: snapshotBackendCapabilities(capabilitiesValue),
     drawNode(node, ctx) {
       return drawNode.call(snapshot, node, ctx)
     },
     render(doc, ctx) {
-      assertValidSceneDoc(doc)
-      return render.call(snapshot, doc, ctx)
+      return render.call(snapshot, admitBackendSceneDocument(doc), ctx)
     },
   }
   return Object.freeze(snapshot)
@@ -199,83 +266,101 @@ function snapshotBackend(backend: StyleBackend): StyleBackend {
 /** Built-ins retain their historical object identity while receiving the same
  * frozen capability/method surface as host registrations. */
 function freezeBuiltInBackend(backend: StyleBackend): StyleBackend {
-  const render = backend.render
   const mutable = backend as {
     capabilities: readonly PrimitiveCapabilityClaim[]
-    render: StyleBackend['render']
   }
   mutable.capabilities = snapshotBackendCapabilities(backend.capabilities)
-  mutable.render = function renderValidatedScene(doc, ctx) {
-    assertValidSceneDoc(doc)
-    return render.call(backend, doc, ctx)
-  }
+  // Built-ins admit documents at their own public render boundary. Preserve
+  // that behavior for direct imports and avoid a second validation pass after
+  // registry selection; host backends remain wrapped by snapshotBackend().
   return Object.freeze(backend)
 }
 
 /** Register a host backend by canonical `backend:*` identity. */
-export function registerBackend(backend: StyleBackend, options: BackendRegistrationOptions = {}): () => void {
-  const parsed = parseExtensionId(backend.id)
-  if (!parsed || parsed.kind !== 'backend') {
-    throw new Error(`registerBackend id "${backend.id}" must use the "backend:" namespace`)
-  }
-  validateBackendCapabilities(backend, backend.id)
-  const id = backend.id
-  const snapshot = snapshotBackend(backend)
-  const conformance = runBackendConformance(snapshot, id)
-  if (!conformance.passed) {
-    const failures = conformance.checks
-      .filter(check => !check.passed)
-      .map(check => `${check.id}${check.diagnostic ? `: ${check.diagnostic}` : ''}`)
-    throw new Error(`Backend "${backend.id}" failed registration SVG conformance: ${failures.join('; ')}`)
-  }
-  registerExtension(BACKENDS, {
-    identity: backendIdentity(id, options),
-    value: snapshot,
-  })
-  BACKEND_CONFORMANCE.set(id, conformance)
-  const registration = BACKENDS.get(id)!
-  return () => {
-    // An old token must not remove a later registration that reused the id
-    // after this registration was explicitly removed.
-    if (BACKENDS.get(id) !== registration) return
-    BACKENDS.delete(id)
-    BACKEND_CONFORMANCE.delete(id)
+export function registerBackend(backend: StyleBackend, options: BackendRegistrationOptions): () => void {
+  assertBackendRegistryMutationAllowed()
+  backendConformanceCandidate = '<unread>'
+  try {
+    if (!options || typeof options !== 'object') {
+      throw new TypeError('registerBackend options with explicit core and Scene compatibility ranges are required')
+    }
+    const snapshot = snapshotBackend(backend)
+    const id = snapshot.id
+    backendConformanceCandidate = id
+    const parsed = parseExtensionId(id)
+    if (!parsed || parsed.kind !== 'backend') {
+      throw new Error(`registerBackend id "${id}" must use the "backend:" namespace`)
+    }
+    const identity = backendIdentity(id, options)
+    requireExtensionContractCompatibility(identity, 'core')
+    requireExtensionContractCompatibility(identity, 'scene')
+    validateBackendCapabilities(snapshot, id)
+    const conformance = runBackendConformance(snapshot, id)
+    if (!conformance.passed) {
+      const failures = conformance.checks
+        .filter(check => !check.passed)
+        .map(check => `${check.id}${check.diagnostic ? `: ${check.diagnostic}` : ''}`)
+      throw new Error(`Backend "${id}" failed registration SVG conformance: ${failures.join('; ')}`)
+    }
+    // No caller-owned code runs after this point. Publish the immutable value
+    // and its proof together during the same synchronous mutation window.
+    registerExtension(BACKENDS, { identity, value: snapshot })
+    BACKEND_CONFORMANCE.set(id, conformance)
+    const registration = BACKENDS.get(id)!
+    return () => {
+      assertBackendRegistryMutationAllowed()
+      // An old token must not remove a later registration that reused the id
+      // after this registration was explicitly removed.
+      if (BACKENDS.get(id) !== registration) return
+      BACKENDS.delete(id)
+      BACKEND_CONFORMANCE.delete(id)
+    }
+  } finally {
+    backendConformanceCandidate = null
   }
 }
 
-/** Internal built-in enrollment retains the legacy short runtime id as alias. */
+/** Internal built-in enrollment publishes the short runtime id as a stable
+ * input name. Stable names are deliberately not compatibility aliases. */
 export function registerBuiltInBackend(backend: StyleBackend): void {
-  const id = canonicalExtensionId('backend', backend.id)
-  validateBackendCapabilities(backend, id)
-  const frozen = freezeBuiltInBackend(backend)
-  const conformance = runBackendConformance(frozen, id)
-  if (!conformance.passed) {
-    const failures = conformance.checks
-      .filter(check => !check.passed)
-      .map(check => `${check.id}${check.diagnostic ? `: ${check.diagnostic}` : ''}`)
-    throw new Error(`Built-in backend "${backend.id}" failed registration SVG conformance: ${failures.join('; ')}`)
+  assertBackendRegistryMutationAllowed()
+  backendConformanceCandidate = '<built-in>'
+  try {
+    const inputName = backend.id
+    const id = canonicalExtensionId('backend', inputName)
+    backendConformanceCandidate = id
+    const existingInput = BACKEND_INPUT_NAMES.get(inputName)
+    if (existingInput !== undefined) throw new Error(`Backend input name "${inputName}" already selects "${existingInput}"`)
+    validateBackendCapabilities(backend, id)
+    const frozen = freezeBuiltInBackend(backend)
+    const conformance = runBackendConformance(frozen, id)
+    if (!conformance.passed) {
+      const failures = conformance.checks
+        .filter(check => !check.passed)
+        .map(check => `${check.id}${check.diagnostic ? `: ${check.diagnostic}` : ''}`)
+      throw new Error(`Built-in backend "${inputName}" failed registration SVG conformance: ${failures.join('; ')}`)
+    }
+    registerExtension(BACKENDS, {
+      identity: backendIdentity(id, {
+        version: CORE_BACKEND_VERSION,
+        compatibility: CORE_BACKEND_COMPATIBILITY,
+        provenance: CORE_BACKEND_PROVENANCE,
+      }),
+      value: frozen,
+    })
+    BACKEND_CONFORMANCE.set(id, conformance)
+    BACKEND_INPUT_NAMES.set(inputName, id)
+  } finally {
+    backendConformanceCandidate = null
   }
-  registerExtension(BACKENDS, {
-    identity: backendIdentity(id, {
-      version: CORE_BACKEND_VERSION,
-      compatibility: CORE_BACKEND_COMPATIBILITY,
-      provenance: CORE_BACKEND_PROVENANCE,
-    }),
-    value: frozen,
-  })
-  BACKEND_CONFORMANCE.set(id, conformance)
-  registerCompatibilityAlias(BACKEND_ALIASES, { alias: backend.id, targetId: id })
 }
 
 export function knownBackendDescriptors(): readonly BackendDescriptor[] {
   return Object.freeze(Array.from(BACKENDS.values(), ({ identity, value }) => Object.freeze({
     identity,
     backend: value,
-    aliases: Object.freeze(Array.from(BACKEND_ALIASES.values())
-      .filter(alias => alias.targetId === identity.id)
-      .map(alias => alias.alias)),
+    inputName: Array.from(BACKEND_INPUT_NAMES.entries()).find(([, target]) => target === identity.id)?.[0] ?? identity.id,
     conformance: BACKEND_CONFORMANCE.get(identity.id)!,
-    capabilities: Object.freeze(value.capabilities.map(claim => Object.freeze({ ...claim }))),
   })))
 }
 
@@ -284,7 +369,8 @@ function backendDescriptorFromSnapshot(
   id: string,
 ): BackendDescriptor | undefined {
   return registered.find(descriptor =>
-    descriptor.identity.id === id || descriptor.aliases.includes(id))
+    descriptor.identity.id === id
+    || descriptor.inputName === id)
 }
 
 /**
@@ -316,5 +402,3 @@ export function getBackendDescriptor(
 export function getBackend(id: string, policy?: HostBackendPolicy): StyleBackend | undefined {
   return getBackendDescriptor(id, policy)?.backend
 }
-
-registerBuiltInBackend(DefaultBackend)

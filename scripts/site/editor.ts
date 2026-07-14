@@ -20,7 +20,8 @@
 import { EDITOR_EXAMPLES } from '../../editor/examples.ts'
 import { HOSTED_FONT_FACES, hostedFontFaceCss } from '../../src/font-manifest.ts'
 import { knownStyleDescriptors } from '../../src/scene/style-registry.ts'
-import { EDITOR_SUPPORTED_FAMILY_LIST, EDITOR_SUPPORTED_HEADER_TOKENS } from '../../src/editor-family-data.ts'
+import { EDITOR_SUPPORTED_FAMILY_LIST } from '../../src/editor-family-data.ts'
+import { PNG_DEFAULT_SCALE } from '../../src/png-contract.ts'
 
 // ── File helpers ──────────────────────────────────────────────────────────────
 
@@ -58,10 +59,7 @@ function editorExamplesDataJs(): string {
 }
 
 function editorFamilyDataJs(): string {
-  return [
-    `var SUPPORTED_FAMILY_LIST = ${JSON.stringify(EDITOR_SUPPORTED_FAMILY_LIST)};`,
-    `var SUPPORTED_FAMILY_HEADERS = ${JSON.stringify(EDITOR_SUPPORTED_HEADER_TOKENS)};`,
-  ].join('\n')
+  return `var SUPPORTED_FAMILY_LIST = ${JSON.stringify(EDITOR_SUPPORTED_FAMILY_LIST)};`
 }
 
 function editorFontDataJs(): string {
@@ -118,28 +116,36 @@ function escapeHtmlAttr(value: string): string {
  *  theme picker; the style picker chooses the LOOK, the theme picker the
  *  palette, and render-option precedence stacks them (theme colors win). */
 function styleItemsHtml(): string {
-  const looks = knownStyleDescriptors().filter(descriptor => descriptor.category === 'default' || descriptor.category === 'look')
-  return looks.map((descriptor, i) => {
+  const looks = knownStyleDescriptors().filter(descriptor => descriptor.kind === 'look')
+  return looks.map((descriptor) => {
     const key = descriptor.inputName
     const label = descriptor.displayLabel
     const hint = descriptor.spec.blurb ? `${label}: ${descriptor.spec.blurb}` : label
-    return `<button class="theme-dropdown-item${i === 0 ? ' active' : ''}" type="button" role="option" aria-selected="${i === 0 ? 'true' : 'false'}" data-style="${key}" title="${escapeHtmlAttr(hint)}" aria-label="${escapeHtmlAttr(hint)}">${label}</button>`
+    return `<button class="theme-dropdown-item${descriptor.isDefault ? ' active' : ''}" type="button" role="option" aria-selected="${descriptor.isDefault ? 'true' : 'false'}" data-style="${key}" title="${escapeHtmlAttr(hint)}" aria-label="${escapeHtmlAttr(hint)}">${label}</button>`
   }).join('\n      ')
 }
 
 function themeItemsHtml(): string {
-  const palettes = knownStyleDescriptors().filter(descriptor => descriptor.category === 'theme')
+  const palettes = knownStyleDescriptors().filter(descriptor => descriptor.kind === 'palette')
   return [
     `<button class="theme-dropdown-item active" type="button" role="option" aria-selected="true" data-theme="">Default</button>`,
     ...palettes.map(descriptor => {
-      // The editor's theme state is the legacy color-options projection. Its
-      // key is derived from the canonical palette identity, never copied.
+      // The editor stores this stable palette input and contributes it to the
+      // same style stack used by every other surface.
       const key = descriptor.inputName
       const label = descriptor.displayLabel
       const swatch = descriptor.spec.colors?.bg ?? 'transparent'
       return `<button class="theme-dropdown-item" type="button" role="option" aria-selected="false" data-theme="${key}"><span class="theme-swatch" style="background:${swatch}"></span>${label}</button>`
     }),
   ].join('\n      ')
+}
+
+function pngScaleItemsHtml(): string {
+  const scales = Array.from(new Set([1, PNG_DEFAULT_SCALE, 4])).sort((left, right) => left - right)
+  return scales.map(scale => {
+    const active = scale === PNG_DEFAULT_SCALE
+    return `<button class="size-pill${active ? ' active' : ''}" type="button" data-scale="${scale}" aria-pressed="${active ? 'true' : 'false'}">${scale}&times;</button>`
+  }).join('\n          ')
 }
 
 async function readHtmlPartials(themeItems: string): Promise<{
@@ -153,7 +159,11 @@ async function readHtmlPartials(themeItems: string): Promise<{
     readFile('html/right-panel.html'),
   ])
   return {
-    topbar: topbar.replace('{{THEME_ITEMS}}', themeItems).replace('{{STYLE_ITEMS}}', styleItemsHtml()),
+    topbar: topbar
+      .replace('{{THEME_ITEMS}}', themeItems)
+      .replace('{{STYLE_ITEMS}}', styleItemsHtml())
+      .replace('{{PNG_DEFAULT_SCALE}}', String(PNG_DEFAULT_SCALE))
+      .replace('{{PNG_SCALE_ITEMS}}', pngScaleItemsHtml()),
     leftPanel,
     rightPanel,
   }

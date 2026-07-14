@@ -3,6 +3,7 @@
 import { describe, it, expect } from 'bun:test'
 import { buildCapabilities, MUTATION_OPS_BY_FAMILY } from '../cli/index.ts'
 import { knownFamilies } from '../agent/families.ts'
+import { getFamily, getFamilyConformanceReport } from '../agent/families.ts'
 import { WARNING_SEVERITY } from '../agent/types.ts'
 import {
   createSectionACapabilityReport,
@@ -58,7 +59,20 @@ describe('am capabilities', () => {
     const cap = buildCapabilities()
     const mutable = new Set(Object.keys(MUTATION_OPS_BY_FAMILY))
     for (const f of cap.families) {
+      const descriptor = getFamily(f.id)!
       expect(typeof f.id).toBe('string')
+      // Capability output is a JSON transport. Optional undefined identity
+      // fields are intentionally omitted rather than materialized as keys;
+      // the registry-only kind discriminator is not part of this projection.
+      expect(f.identity).toEqual({
+        id: descriptor.identity.id,
+        version: descriptor.identity.version,
+        compatibility: JSON.parse(JSON.stringify(descriptor.identity.compatibility)),
+        provenance: JSON.parse(JSON.stringify(descriptor.identity.provenance)),
+      })
+      expect('kind' in f.identity).toBe(false)
+      expect(f.conformance).toBe(getFamilyConformanceReport(f.id)!)
+      expect(f.conformance.passed).toBe(true)
       // hasParse/hasSerialize/hasVerify were dropped — they were true for every
       // family (dead info that read as a probe-me menu). Only varying fields remain.
       expect('hasParse' in f).toBe(false)

@@ -7,12 +7,12 @@
 // lowering, graphical backends, rasterization, and terminal projection share.
 // ============================================================================
 
-import type { RenderOptions } from './types.ts'
+import type { RenderOptions, ResolvedFamilyRenderContext } from './types.ts'
 import { decodeXML } from 'entities'
 import type { ArchitectureVisualConfig } from './architecture/config.ts'
 import type { DiagramColors } from './theme.ts'
 import type { NormalizedMermaidSource } from './mermaid-source.ts'
-import { normalizeMermaidSourceWithOverrides } from './mermaid-source.ts'
+import { normalizeMermaidSource, normalizeMermaidSourceWithOverrides } from './mermaid-source.ts'
 import { CHANNEL_THEME_KEYS, readThemeValue, resolveDiagramColors } from './color-resolver.ts'
 import {
   inferBackend,
@@ -26,6 +26,11 @@ import {
 import { styleSpecJsonSchema } from './scene/style-spec.ts'
 import { safeCssColor, safeCssPaint } from './shared/css-color.ts'
 import { safeCssFontFamily } from './shared/css-font.ts'
+import {
+  assertJsonConfigAdmission,
+  limitJsonConfigDiagnostics,
+  validateJsonConfigAdmission,
+} from './shared/json-config-admission.ts'
 import { validateRawThemeCss } from './output-security.ts'
 import { negotiateRenderCapabilityTuple, type CapabilityDecision } from './capability-negotiation.ts'
 import type {
@@ -34,20 +39,22 @@ import type {
   CapabilityRequirement,
   CapabilityResolution,
 } from './capability-negotiation.ts'
-import { getFamily } from './agent/families.ts'
 import type {
   FamilyAppearanceNormalization,
   FamilyDescriptor,
   FamilyRequestNormalizationResult,
 } from './agent/families.ts'
-import { requireRegisteredMermaidFamily } from './family-detection.ts'
+import type { DiagramKind, FamilyId } from './agent/types.ts'
+import { requireRegisteredMermaidFamilyDescriptor } from './family-detection.ts'
 import { getBackendDescriptor } from './scene/backend.ts'
 import type { BackendDescriptor, HostBackendPolicy } from './scene/backend.ts'
 import {
-  ESSENTIAL_SCENE_PRIMITIVE_OPERATIONS,
-  type EssentialScenePrimitiveOperation,
+  ESSENTIAL_SCENE_PRIMITIVE_CAPABILITIES,
+  type EssentialScenePrimitiveCapability,
 } from './scene/capabilities.ts'
 import { RENDER_OUTPUTS, type RenderOutput } from './render-outputs.ts'
+import { PNG_OUTPUT_POLICY_VERSION } from './png-contract.ts'
+import { TERMINAL_OUTPUT_POLICY_VERSION } from './terminal-contract.ts'
 export { RENDER_OUTPUTS } from './render-outputs.ts'
 export type { RenderOutput } from './render-outputs.ts'
 
@@ -126,7 +133,12 @@ const OUTPUT_DESCRIPTOR_BY_ID = {
   png: {
     availability: 'public', security: 'enforced', color: 'srgb', terminal: 'not-applicable',
     transports: {
-      library: { availability: 'direct', entrypoint: 'renderMermaidPNG', evidence: ['src/agent/png.ts'] },
+      library: {
+        availability: 'direct',
+        entrypoint: 'renderMermaidPNG / createMermaidBrowserPNGRenderer',
+        selector: 'native Node/Bun or injected browser rasterizer',
+        evidence: ['src/agent/png.ts', 'src/browser-png.ts', 'src/index.ts'],
+      },
       cli: { availability: 'direct', entrypoint: 'am render', selector: '--format png', evidence: ['src/cli/index.ts'], format: 'png', order: 3, help: 'PNG bytes; requires --output <file.png>; no watch/multi-input' },
       codeMode: { availability: 'unavailable', entrypoint: 'none', reason: 'PNG rasterization is a host tool, not a sandbox SDK method', evidence: ['src/mcp/sdk-decl.ts', 'src/mcp/facade.ts'] },
       localMcp: { availability: 'direct', entrypoint: 'render_png', evidence: ['src/mcp/server.ts'] },
@@ -134,7 +146,7 @@ const OUTPUT_DESCRIPTOR_BY_ID = {
       editor: { availability: 'direct', entrypoint: 'Save PNG / Copy PNG', selector: 'renderMermaidPNGInBrowserWithReceipt', evidence: ['editor/js/export.js', 'src/browser-png.ts'] },
       website: { availability: 'unavailable', entrypoint: 'none', reason: 'The site build copies curated PNG assets but exposes no PNG render adapter', evidence: ['website/build.ts'] },
     },
-    evidence: ['output-security@2', 'output-color-profile@1', 'png-output-policy@1', 'render-contract@1'],
+    evidence: ['output-security@2', 'output-color-profile@1', `png-output-policy@${PNG_OUTPUT_POLICY_VERSION}`, 'render-contract@1'],
   },
   ascii: {
     availability: 'public', security: 'enforced', color: 'terminal-projected', terminal: 'projected',
@@ -147,7 +159,7 @@ const OUTPUT_DESCRIPTOR_BY_ID = {
       editor: { availability: 'direct', entrypoint: 'ASCII canvas tab', selector: 'renderMermaidASCII({ useAscii: true })', evidence: ['editor/js/rendering.js', 'editor/html/right-panel.html'] },
       website: { availability: 'unavailable', entrypoint: 'none', reason: 'The site build emits one Unicode diagram asset but no 7-bit ASCII output', evidence: ['website/build.ts'] },
     },
-    evidence: ['terminal-style@1', 'terminal-output-policy@1', 'terminal-control-sanitization', 'render-contract@1'],
+    evidence: ['terminal-style@1', `terminal-output-policy@${TERMINAL_OUTPUT_POLICY_VERSION}`, 'terminal-control-sanitization', 'render-contract@1'],
   },
   unicode: {
     availability: 'public', security: 'enforced', color: 'terminal-projected', terminal: 'projected',
@@ -160,7 +172,7 @@ const OUTPUT_DESCRIPTOR_BY_ID = {
       editor: { availability: 'direct', entrypoint: 'Unicode canvas tab', selector: 'renderMermaidASCII({ useAscii: false })', evidence: ['editor/js/rendering.js', 'editor/html/right-panel.html'] },
       website: { availability: 'direct', entrypoint: 'website build-time renderMermaidASCII', selector: 'diagrams/workflow.txt; useAscii: false', evidence: ['website/build.ts'] },
     },
-    evidence: ['terminal-style@1', 'terminal-output-policy@1', 'terminal-control-sanitization', 'render-contract@1'],
+    evidence: ['terminal-style@1', `terminal-output-policy@${TERMINAL_OUTPUT_POLICY_VERSION}`, 'terminal-control-sanitization', 'render-contract@1'],
   },
   html: {
     availability: 'public', security: 'enforced', color: 'terminal-projected', terminal: 'projected',
@@ -173,7 +185,7 @@ const OUTPUT_DESCRIPTOR_BY_ID = {
       editor: { availability: 'unavailable', entrypoint: 'none', reason: 'The editor exposes diagram, Unicode and ASCII canvas tabs only', evidence: ['editor/js/buttons.js', 'editor/html/right-panel.html'] },
       website: { availability: 'unavailable', entrypoint: 'none', reason: 'The site does not emit terminal-HTML diagram artifacts', evidence: ['website/build.ts'] },
     },
-    evidence: ['terminal-style@1', 'terminal-output-policy@1', 'terminal-control-sanitization', 'html-text-escaping', 'render-contract@1'],
+    evidence: ['terminal-style@1', `terminal-output-policy@${TERMINAL_OUTPUT_POLICY_VERSION}`, 'terminal-control-sanitization', 'html-text-escaping', 'render-contract@1'],
   },
   layout: {
     availability: 'public', security: 'not-applicable', color: 'not-applicable', terminal: 'not-applicable',
@@ -200,6 +212,8 @@ function freezeTransport<T extends RenderTransportClaim>(transport: T): T {
 export const RENDER_TRANSPORT_SURFACES = Object.freeze([
   'library', 'cli', 'codeMode', 'localMcp', 'hostedMcp', 'editor', 'website',
 ] as const satisfies readonly (keyof RenderOutputTransports)[])
+
+export type RenderTransportSurface = typeof RENDER_TRANSPORT_SURFACES[number]
 
 /** Output capability authority in the same deterministic order as RENDER_OUTPUTS. */
 export const RENDER_OUTPUT_DESCRIPTORS: readonly RenderOutputDescriptor[] = Object.freeze(
@@ -286,14 +300,27 @@ export interface SharedRenderOptionFieldDescriptor {
   /** Canonical terminal projection decision; adapters must not infer this independently. */
   readonly terminal: TerminalFieldApplicability
   readonly terminalNote?: string
+  /** Built-in families whose implementations consume this field. External
+   * descriptors declare adoption through `applicableRenderOptions`. */
+  readonly applicableBuiltinFamilies?: readonly DiagramKind[]
 }
 
 const stringSchema = (description: string, defaultValue?: string): JsonSchemaNode => ({
   type: 'string', description, ...(defaultValue === undefined ? {} : { default: defaultValue }),
 })
-const numberSchema = (description: string, defaultValue?: number): JsonSchemaNode => ({
-  type: 'number', description, ...(defaultValue === undefined ? {} : { default: defaultValue }),
+const numberSchema = (
+  description: string,
+  defaultValue?: number,
+  bounds: Readonly<{ minimum?: number; exclusiveMinimum?: number; maximum?: number }> = {},
+): JsonSchemaNode => ({
+  type: 'number', description, ...(defaultValue === undefined ? {} : { default: defaultValue }), ...bounds,
 })
+const nonNegativeNumberSchema = (description: string, defaultValue?: number): JsonSchemaNode =>
+  numberSchema(description, defaultValue, { minimum: 0 })
+const positiveNumberSchema = (description: string, defaultValue?: number): JsonSchemaNode =>
+  numberSchema(description, defaultValue, { exclusiveMinimum: 0 })
+const fontWeightSchema = (description: string): JsonSchemaNode =>
+  numberSchema(description, undefined, { minimum: 1, maximum: 1_000 })
 const booleanSchema = (description: string, defaultValue?: boolean): JsonSchemaNode => ({
   type: 'boolean', description, ...(defaultValue === undefined ? {} : { default: defaultValue }),
 })
@@ -320,39 +347,39 @@ const TEXT_TRANSFORM_SCHEMA = {
 } as const satisfies JsonSchemaNode
 
 const ARCHITECTURE_VISUAL_SCHEMA_PROPERTIES = {
-  groupHeaderHeight: numberSchema('Architecture group-header height.'),
-  groupFontSize: numberSchema('Architecture group-label font size.'),
-  groupFontWeight: numberSchema('Architecture group-label font weight.'),
+  groupHeaderHeight: positiveNumberSchema('Architecture group-header height.'),
+  groupFontSize: positiveNumberSchema('Architecture group-label font size.'),
+  groupFontWeight: fontWeightSchema('Architecture group-label font weight.'),
   groupLetterSpacing: numberSchema('Architecture group-label letter spacing.'),
   groupFont: fontFamilySchema('Architecture group-label font family.'),
   groupTextTransform: { ...TEXT_TRANSFORM_SCHEMA, description: 'Architecture group-label text transform.' },
-  groupPaddingX: numberSchema('Horizontal padding inside architecture groups.'),
-  groupPaddingY: numberSchema('Vertical padding inside architecture groups.'),
-  groupLabelPaddingX: numberSchema('Horizontal padding around architecture group labels.'),
-  groupCornerRadius: numberSchema('Architecture group corner radius.'),
-  groupLineWidth: numberSchema('Architecture group border width.'),
+  groupPaddingX: nonNegativeNumberSchema('Horizontal padding inside architecture groups.'),
+  groupPaddingY: nonNegativeNumberSchema('Vertical padding inside architecture groups.'),
+  groupLabelPaddingX: nonNegativeNumberSchema('Horizontal padding around architecture group labels.'),
+  groupCornerRadius: nonNegativeNumberSchema('Architecture group corner radius.'),
+  groupLineWidth: nonNegativeNumberSchema('Architecture group border width.'),
   groupText: paintSchema('Architecture group-label color.'),
-  serviceFontSize: numberSchema('Architecture service-label font size.'),
-  serviceFontWeight: numberSchema('Architecture service-label font weight.'),
+  serviceFontSize: positiveNumberSchema('Architecture service-label font size.'),
+  serviceFontWeight: fontWeightSchema('Architecture service-label font weight.'),
   serviceLetterSpacing: numberSchema('Architecture service-label letter spacing.'),
   serviceTextTransform: { ...TEXT_TRANSFORM_SCHEMA, description: 'Architecture service-label text transform.' },
-  servicePaddingX: numberSchema('Horizontal padding inside architecture services.'),
-  servicePaddingY: numberSchema('Vertical padding inside architecture services.'),
-  serviceCornerRadius: numberSchema('Architecture service corner radius.'),
-  serviceLineWidth: numberSchema('Architecture service border width.'),
+  servicePaddingX: nonNegativeNumberSchema('Horizontal padding inside architecture services.'),
+  servicePaddingY: nonNegativeNumberSchema('Vertical padding inside architecture services.'),
+  serviceCornerRadius: nonNegativeNumberSchema('Architecture service corner radius.'),
+  serviceLineWidth: nonNegativeNumberSchema('Architecture service border width.'),
   serviceText: paintSchema('Architecture service-label color.'),
-  edgeFontSize: numberSchema('Architecture connector-label font size.'),
-  edgeFontWeight: numberSchema('Architecture connector-label font weight.'),
+  edgeFontSize: positiveNumberSchema('Architecture connector-label font size.'),
+  edgeFontWeight: fontWeightSchema('Architecture connector-label font weight.'),
   edgeLetterSpacing: numberSchema('Architecture connector-label letter spacing.'),
   edgeTextTransform: { ...TEXT_TRANSFORM_SCHEMA, description: 'Architecture connector-label text transform.' },
-  edgeLineWidth: numberSchema('Architecture connector width.'),
-  edgeBendRadius: numberSchema('Architecture connector bend radius.'),
+  edgeLineWidth: nonNegativeNumberSchema('Architecture connector width.'),
+  edgeBendRadius: nonNegativeNumberSchema('Architecture connector bend radius.'),
   edgeStroke: paintSchema('Architecture connector color.'),
   edgeText: paintSchema('Architecture connector-label color.'),
-  iconSize: numberSchema('Architecture group icon size.'),
-  serviceIconSize: numberSchema('Architecture service icon size.'),
-  junctionOuterRadius: numberSchema('Architecture junction outer radius.'),
-  junctionInnerRadius: numberSchema('Architecture junction inner radius.'),
+  iconSize: positiveNumberSchema('Architecture group icon size.'),
+  serviceIconSize: positiveNumberSchema('Architecture service icon size.'),
+  junctionOuterRadius: positiveNumberSchema('Architecture junction outer radius.'),
+  junctionInnerRadius: nonNegativeNumberSchema('Architecture junction inner radius.'),
   groupSurface: paintSchema('Architecture group surface color.'),
   groupHeaderSurface: paintSchema('Architecture group-header surface color.'),
   groupBorder: paintSchema('Architecture group border color.'),
@@ -360,22 +387,13 @@ const ARCHITECTURE_VISUAL_SCHEMA_PROPERTIES = {
   serviceBorder: paintSchema('Architecture service border color.'),
 } as const satisfies Readonly<Record<keyof ArchitectureVisualConfig, JsonSchemaNode>>
 
-type RequiredKeys<Value> = {
-  [Key in keyof Value]-?: Record<string, never> extends Pick<Value, Key> ? never : Key
-}[keyof Value]
-type RequiredArchitectureVisualField = RequiredKeys<ArchitectureVisualConfig>
-
-const ARCHITECTURE_VISUAL_REQUIRED_FIELDS = Object.freeze([
-  'groupHeaderHeight', 'groupFontSize', 'groupFontWeight', 'groupLetterSpacing',
-  'groupPaddingX', 'groupPaddingY', 'groupLabelPaddingX', 'groupCornerRadius', 'groupLineWidth',
-  'serviceFontSize', 'serviceFontWeight', 'serviceLetterSpacing', 'servicePaddingX', 'servicePaddingY',
-  'serviceCornerRadius', 'serviceLineWidth', 'edgeFontSize', 'edgeFontWeight', 'edgeLetterSpacing',
-  'edgeLineWidth', 'edgeBendRadius', 'iconSize', 'serviceIconSize', 'junctionOuterRadius', 'junctionInnerRadius',
-] as const satisfies readonly RequiredArchitectureVisualField[])
-
-type MissingRequiredArchitectureVisualField = Exclude<RequiredArchitectureVisualField, typeof ARCHITECTURE_VISUAL_REQUIRED_FIELDS[number]>
-const ALL_REQUIRED_ARCHITECTURE_VISUAL_FIELDS_ACCOUNTED_FOR: MissingRequiredArchitectureVisualField extends never ? true : never = true
-void ALL_REQUIRED_ARCHITECTURE_VISUAL_FIELDS_ACCOUNTED_FOR
+const ARCHITECTURE_VISUAL_SCHEMA = {
+  ...closedObjectSchema(
+    ARCHITECTURE_VISUAL_SCHEMA_PROPERTIES,
+    'Sparse architecture visual overrides merged over resolved defaults.',
+  ),
+  'x-agentic-mermaid-runtime-validator': 'architectureVisual',
+} as const satisfies JsonSchemaNode
 
 const STYLE_SPEC_SCHEMA = (() => {
   const { $schema: _dialect, $id: _id, title: _title, ...fragment } = styleSpecJsonSchema()
@@ -418,6 +436,15 @@ function deepFreeze<T>(value: T): T {
   return Object.freeze(value)
 }
 
+const GRAPH_LAYOUT_OPTION_FAMILIES = [
+  'flowchart', 'state', 'class', 'er', 'architecture',
+] as const satisfies readonly DiagramKind[]
+
+const SHADOW_OPTION_FAMILIES = [
+  'flowchart', 'state', 'sequence', 'timeline', 'class', 'er', 'journey',
+  'xychart', 'pie', 'quadrant', 'gantt', 'mindmap', 'gitgraph',
+] as const satisfies readonly DiagramKind[]
+
 /**
  * The single checked manifest for fields shared by first-party adapters.
  * Output adapters may add their own fields (PNG scale/fontDirs, terminal
@@ -433,25 +460,25 @@ export const SHARED_RENDER_OPTION_FIELD_DESCRIPTORS = deepFreeze({
   border: { typeScript: 'string', description: 'Node and group border color.', defaultLabel: 'derived', validationExpectation: 'be a safe non-fetching CSS paint', schema: paintSchema('Node and group border color.'), terminal: 'consumed' },
   font: { typeScript: 'string', description: 'CSS font family or stack.', defaultLabel: '`Inter`', validationExpectation: 'be a safe non-fetching CSS font family or stack', schema: fontFamilySchema('CSS font family or stack.', 'Inter'), terminal: 'projected', terminalNote: 'the host terminal owns the font face' },
   style: { typeScript: 'StyleInput | StyleInput[]', description: 'Registered Style/Palette name, inline StyleSpec, or left-to-right stack.', defaultLabel: '`crisp`', validationExpectation: 'be a registered Style name or StyleSpec, or an array of them', schema: STYLE_OPTION_SCHEMA, terminal: 'consumed' },
-  padding: { typeScript: 'number', description: 'Canvas padding in SVG user units.', defaultLabel: '`40`', validationExpectation: 'be a finite number', schema: numberSchema('Canvas padding in SVG user units.', 40), terminal: 'not-applicable', terminalNote: 'terminal output uses paddingX, paddingY, and boxBorderPadding' },
-  nodeSpacing: { typeScript: 'number', description: 'Horizontal spacing between sibling nodes.', defaultLabel: '`24`', validationExpectation: 'be a finite number', schema: numberSchema('Horizontal spacing between sibling nodes.', 24), terminal: 'not-applicable', terminalNote: 'terminal layout has a cell-grid spacing contract' },
-  layerSpacing: { typeScript: 'number', description: 'Vertical spacing between graph layers.', defaultLabel: '`40`', validationExpectation: 'be a finite number', schema: numberSchema('Vertical spacing between graph layers.', 40), terminal: 'not-applicable', terminalNote: 'terminal layout has a cell-grid spacing contract' },
-  wrappingWidth: { typeScript: 'number', description: 'Flowchart measured-label wrapping budget in pixels.', defaultLabel: 'unset', validationExpectation: 'be a finite number', schema: numberSchema('Flowchart measured-label wrapping budget in pixels.'), terminal: 'not-applicable', terminalNote: 'terminal output uses maxWidth or targetWidth' },
-  componentSpacing: { typeScript: 'number', description: 'Spacing between disconnected graph components.', defaultLabel: '`nodeSpacing` (`24`)', validationExpectation: 'be a finite number', schema: numberSchema('Spacing between disconnected graph components; defaults to nodeSpacing (24).'), terminal: 'not-applicable', terminalNote: 'terminal layout has a cell-grid spacing contract' },
+  padding: { typeScript: 'number', description: 'Canvas padding in SVG user units.', defaultLabel: '`40`', validationExpectation: 'be a non-negative finite number', schema: nonNegativeNumberSchema('Canvas padding in SVG user units.', 40), terminal: 'not-applicable', terminalNote: 'terminal output uses paddingX, paddingY, and boxBorderPadding', applicableBuiltinFamilies: ['flowchart', 'state', 'architecture'] },
+  nodeSpacing: { typeScript: 'number', description: 'Horizontal spacing between sibling nodes.', defaultLabel: '`24`', validationExpectation: 'be a non-negative finite number', schema: nonNegativeNumberSchema('Horizontal spacing between sibling nodes.', 24), terminal: 'not-applicable', terminalNote: 'terminal layout has a cell-grid spacing contract', applicableBuiltinFamilies: GRAPH_LAYOUT_OPTION_FAMILIES },
+  layerSpacing: { typeScript: 'number', description: 'Vertical spacing between graph layers.', defaultLabel: '`40`', validationExpectation: 'be a non-negative finite number', schema: nonNegativeNumberSchema('Vertical spacing between graph layers.', 40), terminal: 'not-applicable', terminalNote: 'terminal layout has a cell-grid spacing contract', applicableBuiltinFamilies: GRAPH_LAYOUT_OPTION_FAMILIES },
+  wrappingWidth: { typeScript: 'number', description: 'Flowchart measured-label wrapping budget in pixels.', defaultLabel: 'unset', validationExpectation: 'be a positive finite number', schema: positiveNumberSchema('Flowchart measured-label wrapping budget in pixels.'), terminal: 'not-applicable', terminalNote: 'terminal output uses maxWidth or targetWidth', applicableBuiltinFamilies: ['flowchart'] },
+  componentSpacing: { typeScript: 'number', description: 'Spacing between disconnected graph components for compatible extension families; no built-in family currently consumes it.', defaultLabel: 'extension-defined', validationExpectation: 'be a non-negative finite number', schema: nonNegativeNumberSchema('Spacing between disconnected graph components for compatible extension families; no built-in family currently consumes it.'), terminal: 'not-applicable', terminalNote: 'terminal layout has a cell-grid spacing contract', applicableBuiltinFamilies: [] },
   transparent: { typeScript: 'boolean', description: 'Omit the painted SVG canvas background.', defaultLabel: '`false`', validationExpectation: 'be a boolean', schema: booleanSchema('Omit the painted SVG canvas background.', false), terminal: 'projected', terminalNote: 'terminal output has no painted canvas background' },
-  interactive: { typeScript: 'boolean', description: 'Enable hover tooltips for supported chart data points.', defaultLabel: '`false`', validationExpectation: 'be a boolean', schema: booleanSchema('Enable hover tooltips for supported chart data points.', false), terminal: 'projected', terminalNote: 'terminal output is a static semantic projection' },
-  shadow: { typeScript: 'boolean', description: 'Paint explicit drop shadows on node shapes.', defaultLabel: '`false`', validationExpectation: 'be a boolean', schema: booleanSchema('Paint explicit drop shadows on node shapes.', false), terminal: 'projected', terminalNote: 'elevation projects to borders and labels' },
-  class: { typeScript: '{ hierarchicalNamespaces?: boolean }', description: 'Class-diagram rendering controls.', defaultLabel: '`hierarchicalNamespaces: true`', validationExpectation: 'be a class options object', schema: closedObjectSchema({ hierarchicalNamespaces: booleanSchema('Nest namespace compounds.', true) }, 'Class-diagram rendering controls.'), terminal: 'not-applicable', terminalNote: 'this option configures graphical class layout' },
-  architecture: { typeScript: '{ visual?: ArchitectureVisualConfig }', description: 'Architecture renderer visual metrics and paint overrides.', defaultLabel: 'built-in metrics', validationExpectation: 'be an architecture options object', schema: closedObjectSchema({ visual: closedObjectSchema(ARCHITECTURE_VISUAL_SCHEMA_PROPERTIES, 'Complete architecture visual configuration.', ARCHITECTURE_VISUAL_REQUIRED_FIELDS) }, 'Architecture renderer visual metrics and paint overrides.'), terminal: 'not-applicable', terminalNote: 'this option configures graphical architecture rendering' },
-  timeline: { typeScript: '{ maxWidth?: number }', description: 'Timeline layout controls.', defaultLabel: '`maxWidth`: unset', validationExpectation: 'be a timeline options object', schema: closedObjectSchema({ maxWidth: numberSchema('Best-effort width budget for horizontal timelines.') }, 'Timeline layout controls.'), terminal: 'not-applicable', terminalNote: 'terminal output uses maxWidth or targetWidth' },
-  journey: { typeScript: '{ experienceCurve?: boolean }', description: 'User-journey graphical controls.', defaultLabel: '`experienceCurve: true`', validationExpectation: 'be a journey options object', schema: closedObjectSchema({ experienceCurve: booleanSchema('Connect journey score markers with an experience curve.', true) }, 'User-journey graphical controls.'), terminal: 'not-applicable', terminalNote: 'experience curves are graphical-only' },
-  gantt: { typeScript: '{ dependencyArrows?: boolean; criticalPath?: boolean }', description: 'Gantt dependency and critical-path overlays.', defaultLabel: 'both `false`', validationExpectation: 'be a Gantt options object', schema: closedObjectSchema({ dependencyArrows: booleanSchema('Draw scheduled dependency connectors.', false), criticalPath: booleanSchema('Emphasize critical-path tasks and connectors.', false) }, 'Gantt dependency and critical-path overlays.'), terminal: 'not-applicable', terminalNote: 'graphical Gantt connector emphasis is not represented in cells' },
+  interactive: { typeScript: 'boolean', description: 'Enable hover tooltips for supported chart data points.', defaultLabel: '`false`', validationExpectation: 'be a boolean', schema: booleanSchema('Enable hover tooltips for supported chart data points.', false), terminal: 'projected', terminalNote: 'terminal output is a static semantic projection', applicableBuiltinFamilies: ['xychart', 'pie', 'quadrant'] },
+  shadow: { typeScript: 'boolean', description: 'Paint explicit drop shadows on node shapes.', defaultLabel: '`false`', validationExpectation: 'be a boolean', schema: booleanSchema('Paint explicit drop shadows on node shapes.', false), terminal: 'projected', terminalNote: 'elevation projects to borders and labels', applicableBuiltinFamilies: SHADOW_OPTION_FAMILIES },
+  class: { typeScript: '{ hierarchicalNamespaces?: boolean }', description: 'Class-diagram rendering controls.', defaultLabel: '`hierarchicalNamespaces: true`', validationExpectation: 'be a class options object', schema: closedObjectSchema({ hierarchicalNamespaces: booleanSchema('Nest namespace compounds.', true) }, 'Class-diagram rendering controls.'), terminal: 'not-applicable', terminalNote: 'this option configures graphical class layout', applicableBuiltinFamilies: ['class'] },
+  architecture: { typeScript: '{ visual?: ArchitectureVisualOverrides }', description: 'Sparse architecture renderer visual metric and paint overrides.', defaultLabel: 'built-in metrics', validationExpectation: 'be an architecture options object', schema: closedObjectSchema({ visual: ARCHITECTURE_VISUAL_SCHEMA }, 'Architecture renderer visual metric and paint overrides.'), terminal: 'not-applicable', terminalNote: 'this option configures graphical architecture rendering', applicableBuiltinFamilies: ['architecture'] },
+  timeline: { typeScript: '{ maxWidth?: number }', description: 'Timeline layout controls.', defaultLabel: '`maxWidth`: unset', validationExpectation: 'be a timeline options object', schema: closedObjectSchema({ maxWidth: positiveNumberSchema('Best-effort width budget for horizontal timelines.') }, 'Timeline layout controls.'), terminal: 'not-applicable', terminalNote: 'terminal output uses maxWidth or targetWidth', applicableBuiltinFamilies: ['timeline'] },
+  journey: { typeScript: '{ experienceCurve?: boolean }', description: 'User-journey graphical controls.', defaultLabel: '`experienceCurve: true`', validationExpectation: 'be a journey options object', schema: closedObjectSchema({ experienceCurve: booleanSchema('Connect journey score markers with an experience curve.', true) }, 'User-journey graphical controls.'), terminal: 'not-applicable', terminalNote: 'experience curves are graphical-only', applicableBuiltinFamilies: ['journey'] },
+  gantt: { typeScript: '{ dependencyArrows?: boolean; criticalPath?: boolean }', description: 'Gantt dependency and critical-path overlays.', defaultLabel: 'both `false`', validationExpectation: 'be a Gantt options object', schema: closedObjectSchema({ dependencyArrows: booleanSchema('Draw scheduled dependency connectors.', false), criticalPath: booleanSchema('Emphasize critical-path tasks and connectors.', false) }, 'Gantt dependency and critical-path overlays.'), terminal: 'not-applicable', terminalNote: 'graphical Gantt connector emphasis is not represented in cells', applicableBuiltinFamilies: ['gantt'] },
   mermaidConfig: { typeScript: 'MermaidRuntimeConfig', description: 'Mermaid-style recursive runtime configuration.', defaultLabel: 'source config', validationExpectation: 'be a plain JSON object', schema: { type: 'object', description: 'Mermaid-style recursive runtime configuration.', additionalProperties: { $ref: '#/$defs/jsonValue' } }, terminal: 'consumed' },
   embedFontImport: { typeScript: 'boolean', description: 'Embed the Google Fonts import in SVG styles; PNG forces this off for offline rasterization.', defaultLabel: '`true` (SVG)', validationExpectation: 'be a boolean', schema: booleanSchema('Embed the Google Fonts import in SVG styles; PNG forces this off for offline rasterization.', true), terminal: 'not-applicable', terminalNote: 'terminal output embeds no web-font import' },
   compact: { typeScript: 'boolean', description: 'Compact SVG serialization while preserving agent hooks.', defaultLabel: '`false`', validationExpectation: 'be a boolean', schema: booleanSchema('Compact SVG serialization while preserving agent hooks.', false), terminal: 'not-applicable', terminalNote: 'compact controls SVG serialization' },
-  idPrefix: { typeScript: 'string', description: 'Namespace generated SVG definition IDs and local references.', defaultLabel: "`''`", validationExpectation: 'be a string', schema: stringSchema('Namespace generated SVG definition IDs and local references.', ''), terminal: 'not-applicable', terminalNote: 'terminal output has no SVG definition ids' },
+  idPrefix: { typeScript: 'string', description: 'Namespace generated SVG definition IDs and local references.', defaultLabel: "`''`", validationExpectation: 'contain only ASCII letters, digits, underscore, hyphen, dot, and colon', schema: { ...stringSchema('Namespace generated SVG definition IDs and local references.', ''), pattern: '^[A-Za-z0-9_.:-]*$' }, terminal: 'not-applicable', terminalNote: 'terminal output has no SVG definition ids' },
   security: { typeScript: "'default' | 'strict'", description: 'Active SVG content is rejected in every mode; strict additionally rejects every external reference. Raw Mermaid themeCSS is rejected in both modes.', defaultLabel: '`default`', validationExpectation: 'be default or strict', schema: { type: 'string', enum: ['default', 'strict'], description: 'Active SVG content is rejected in every mode; strict additionally rejects every external reference. Raw Mermaid themeCSS is rejected in both modes.', default: 'default' }, terminal: 'not-applicable', terminalNote: 'terminal text has its own control-character and HTML-color safety projection' },
-  ganttToday: { typeScript: 'string', description: 'Explicit deterministic date for the Gantt today marker.', defaultLabel: 'unset', validationExpectation: 'be a string', schema: stringSchema('Explicit deterministic date for the Gantt today marker.'), terminal: 'consumed' },
+  ganttToday: { typeScript: 'string', description: 'Explicit deterministic date for the Gantt today marker.', defaultLabel: 'unset', validationExpectation: 'be a string', schema: stringSchema('Explicit deterministic date for the Gantt today marker.'), terminal: 'consumed', applicableBuiltinFamilies: ['gantt'] },
   seed: { typeScript: 'number', description: 'Deterministic re-roll seed for stochastic Styles.', defaultLabel: '`0`', validationExpectation: 'be a finite number', schema: numberSchema('Deterministic re-roll seed for stochastic Styles.', 0), terminal: 'not-applicable', terminalNote: 'terminal glyph geometry is deterministic and has no stochastic ink' },
 } as const satisfies Readonly<Record<SerializableRenderOptionField, SharedRenderOptionFieldDescriptor>>)
 
@@ -460,6 +487,65 @@ export type SharedRenderOptionField = keyof typeof SHARED_RENDER_OPTION_FIELD_DE
 export const SHARED_RENDER_OPTION_FIELDS: readonly SharedRenderOptionField[] = Object.freeze(
   Object.keys(SHARED_RENDER_OPTION_FIELD_DESCRIPTORS) as SharedRenderOptionField[],
 )
+
+/** Shared fields whose effect depends on the selected family implementation. */
+export type FamilyScopedRenderOptionField = {
+  [Field in SharedRenderOptionField]:
+    (typeof SHARED_RENDER_OPTION_FIELD_DESCRIPTORS)[Field] extends {
+      readonly applicableBuiltinFamilies: readonly DiagramKind[]
+    }
+      ? Field
+      : never
+}[SharedRenderOptionField]
+
+/** Canonical family-scoped field manifest. Built-in and extension
+ * applicability decisions must project from this exact list. */
+export const FAMILY_SCOPED_RENDER_OPTION_FIELDS: readonly FamilyScopedRenderOptionField[] = Object.freeze(
+  SHARED_RENDER_OPTION_FIELDS.filter((field): field is FamilyScopedRenderOptionField =>
+    'applicableBuiltinFamilies' in SHARED_RENDER_OPTION_FIELD_DESCRIPTORS[field]),
+)
+
+/** Validate the declarative extension adoption list after the family registry
+ * has snapshotted it, but before any executable conformance callback runs. */
+export function assertFamilyScopedRenderOptionDeclaration(
+  family: Pick<FamilyDescriptor, 'id' | 'applicableRenderOptions'>,
+): void {
+  const declared = family.applicableRenderOptions
+  if (declared === undefined) return
+  if (!Array.isArray(declared)) {
+    throw new TypeError(`Family "${family.id}" applicableRenderOptions must be an array`)
+  }
+  const seen = new Set<string>()
+  for (const field of declared as readonly unknown[]) {
+    if (typeof field !== 'string'
+      || !FAMILY_SCOPED_RENDER_OPTION_FIELDS.includes(field as FamilyScopedRenderOptionField)) {
+      throw new Error(
+        `Family "${family.id}" applicableRenderOptions contains unknown family-scoped field "${String(field)}"`,
+      )
+    }
+    if (seen.has(field)) {
+      throw new Error(`Family "${family.id}" applicableRenderOptions repeats "${field}"`)
+    }
+    seen.add(field)
+  }
+}
+
+/** Effective family-scoped applicability used by runtime diagnostics and
+ * capability reporting. Built-ins derive from the field manifest; extensions
+ * opt in explicitly and otherwise consume none of these fields. */
+export function applicableFamilyScopedRenderOptions(
+  family: Pick<FamilyDescriptor, 'id' | 'applicableRenderOptions'>,
+): readonly FamilyScopedRenderOptionField[] {
+  if (family.id.startsWith('family:')) {
+    return Object.freeze([...(family.applicableRenderOptions ?? [])])
+  }
+  const builtInFamily = family.id as DiagramKind
+  return Object.freeze(FAMILY_SCOPED_RENDER_OPTION_FIELDS.filter(field => {
+    const applicable: readonly DiagramKind[] =
+      SHARED_RENDER_OPTION_FIELD_DESCRIPTORS[field].applicableBuiltinFamilies
+    return applicable.includes(builtInFamily)
+  }))
+}
 
 type AllRenderFieldsAccountedFor = Exclude<keyof RenderOptions, SharedRenderOptionField | typeof NON_SERIALIZABLE_RENDER_OPTION_FIELDS[number]> extends never
   ? true
@@ -483,12 +569,11 @@ function schemaTypeScript(schema: JsonSchemaNode): string {
   return 'unknown'
 }
 
-/** Code Mode declaration projected from the nested architecture schema authority. */
-export function architectureVisualConfigTypeScriptDeclaration(): string {
-  const required = new Set<string>(ARCHITECTURE_VISUAL_REQUIRED_FIELDS)
+/** Code Mode declaration projected from the nested sparse-override authority. */
+export function architectureVisualOverridesTypeScriptDeclaration(): string {
   const fields = Object.entries(ARCHITECTURE_VISUAL_SCHEMA_PROPERTIES).map(([field, schema]) =>
-    `  ${field}${required.has(field) ? '' : '?'}: ${schemaTypeScript(schema)}`)
-  return `interface ArchitectureVisualConfig {\n${fields.join('\n')}\n}`
+    `  ${field}?: ${schemaTypeScript(schema)}`)
+  return `interface ArchitectureVisualOverrides {\n${fields.join('\n')}\n}`
 }
 
 function plainJsonObject(value: unknown): value is Record<string, unknown> {
@@ -523,6 +608,13 @@ function optionPath(path: readonly (string | number)[]): string {
   let result = String(path[0] ?? '')
   for (const part of path.slice(1)) result += typeof part === 'number' ? `[${part}]` : `.${part}`
   return `render option "${result}"`
+}
+
+function renderOptionsAdmissionMessages(value: unknown): string[] {
+  return limitJsonConfigDiagnostics(validateJsonConfigAdmission(value).map(problem =>
+    problem.path.length > 0
+      ? `${optionPath(problem.path)} ${problem.message}`
+      : `render options ${problem.message}`), 'render options')
 }
 
 function dereferenceSchema(schema: JsonSchemaNode, root: JsonSchemaNode): JsonSchemaNode | undefined {
@@ -614,6 +706,16 @@ function validateSchemaValue(
     if (typeof schema.maximum === 'number' && value > schema.maximum) return [{ path, message: `must be at most ${schema.maximum}`, generic: true }]
   }
 
+  if (typeof value === 'string' && typeof schema.pattern === 'string') {
+    let matches = false
+    try {
+      matches = new RegExp(schema.pattern).test(value)
+    } catch {
+      return [{ path, message: 'uses an invalid schema pattern', generic: false }]
+    }
+    if (!matches) return [{ path, message: `must match ${schema.pattern}`, generic: true }]
+  }
+
   if (Array.isArray(value) && type === 'array') {
     if (ancestors.has(value)) return [{ path, message: 'must be acyclic', generic: false }]
     const items = schemaRecord(schema.items)
@@ -678,12 +780,28 @@ function validateSchemaValue(
       return [{ path, message: `is invalid: ${error instanceof Error ? error.message : String(error)}`, generic: false }]
     }
   }
+  if (runtimeValidator === 'architectureVisual' && plainJsonObject(value)) {
+    const outer = value.junctionOuterRadius
+    const inner = value.junctionInnerRadius
+    // A sparse input can be checked here only when both sides are explicit.
+    // resolveArchitectureVisualConfig repeats the invariant after merging the
+    // actual request-derived defaults.
+    if (typeof outer === 'number' && typeof inner === 'number' && inner > outer) {
+      return [{
+        path: [...path, 'junctionInnerRadius'],
+        message: 'must not exceed junctionOuterRadius',
+        generic: false,
+      }]
+    }
+  }
   return []
 }
 
 /** Validate the shared advanced JSON object used by CLI/MCP/editor adapters. */
 export function validateSerializableRenderOptions(value: unknown): string[] {
   if (!plainJsonObject(value)) return ['render options must be a plain JSON object']
+  const admissionProblems = renderOptionsAdmissionMessages(value)
+  if (admissionProblems.length > 0) return admissionProblems
   const problems: string[] = []
   const allowed = new Set<string>(SHARED_RENDER_OPTION_FIELDS)
   const rootSchema = sharedRenderOptionsJsonSchema()
@@ -704,7 +822,7 @@ export function validateSerializableRenderOptions(value: unknown): string[] {
       problems.push(...schemaProblems.map(problem => `${optionPath(problem.path)} ${problem.message}`))
     }
   }
-  return problems
+  return limitJsonConfigDiagnostics(problems, 'render options')
 }
 
 /** JSON Schema projection generated from the same field manifest. */
@@ -713,10 +831,16 @@ export function sharedRenderOptionsJsonSchema(): Record<string, unknown> {
   for (const field of SHARED_RENDER_OPTION_FIELDS) {
     const descriptor = SHARED_RENDER_OPTION_FIELD_DESCRIPTORS[field]
     const terminalNote = 'terminalNote' in descriptor ? descriptor.terminalNote : undefined
+    const applicableBuiltinFamilies = 'applicableBuiltinFamilies' in descriptor
+      ? descriptor.applicableBuiltinFamilies
+      : undefined
     properties[field] = {
       ...cloneSchema(descriptor.schema),
       'x-agentic-mermaid-terminal': descriptor.terminal,
       ...(terminalNote === undefined ? {} : { 'x-agentic-mermaid-terminal-note': terminalNote }),
+      ...(applicableBuiltinFamilies === undefined
+        ? {}
+        : { 'x-agentic-mermaid-applicable-builtin-families': [...applicableBuiltinFamilies] }),
     }
   }
   return {
@@ -749,18 +873,19 @@ export function sharedRenderOptionsMarkdownTable(): string {
     const terminal = descriptor.terminal === 'consumed'
       ? 'consumed'
       : `${descriptor.terminal}${terminalNote ? ` — ${terminalNote}` : ''}`
-    return `| \`${field}\` | \`${markdownCell(descriptor.typeScript)}\` | ${descriptor.defaultLabel} | ${markdownCell(descriptor.description)} | ${markdownCell(terminal)} |`
+    const builtInFamilies = !('applicableBuiltinFamilies' in descriptor)
+      ? 'all'
+      : descriptor.applicableBuiltinFamilies.length === 0
+        ? 'none — extension-defined'
+        : descriptor.applicableBuiltinFamilies.join(', ')
+    return `| \`${field}\` | \`${markdownCell(descriptor.typeScript)}\` | ${descriptor.defaultLabel} | ${markdownCell(descriptor.description)} | ${markdownCell(builtInFamilies)} | ${markdownCell(terminal)} |`
   })
   return [
-    '| Option | Type | Effective default | Meaning | Terminal |',
-    '|---|---|---|---|---|',
+    '| Option | Type | Effective default | Meaning | Built-in families | Terminal |',
+    '|---|---|---|---|---|---|',
     ...rows,
   ].join('\n')
 }
-
-const RESOLVED_APPEARANCE = Symbol.for('agentic-mermaid.resolved-appearance.v1')
-const RESOLVED_FAMILY_CONFIG = Symbol.for('agentic-mermaid.resolved-family-config.v1')
-const RESOLVED_STYLE_FACE = Symbol.for('agentic-mermaid.resolved-style-face.v1')
 
 export interface ResolvedAppearance {
   readonly version: typeof RENDER_CONTRACT_VERSION
@@ -804,6 +929,8 @@ export interface ResolvedRenderRequest {
   readonly capabilityDecision: CapabilityDecision
   /** Authored public fields, retained so output projections diagnose only user intent. */
   readonly explicitOptionFields: readonly SharedRenderOptionField[]
+  /** Stable diagnostics produced while resolving the shared request boundary. */
+  readonly resolutionDiagnostics?: readonly RenderArtifactDiagnostic[]
   /** Output-agnostic digest used for transport-parity comparisons. */
   readonly sharedRequestDigest: string
   /** Full digest including output adapter and normalized output-only controls. */
@@ -818,7 +945,7 @@ export interface RenderRequestReceipt {
   appearanceDigest: string
   /** Present on receipts emitted by this version; optional for host-supplied compatibility fixtures. */
   capabilityDecision?: CapabilityDecision
-  /** Output-policy decisions made after request resolution. */
+  /** Request-resolution, compatibility, and output-policy decisions. */
   diagnostics?: readonly RenderArtifactDiagnostic[]
   /** Digest of the secured graphical projection emitted by this execution. */
   graphicalProjectionDigest?: string
@@ -837,6 +964,21 @@ export interface RenderExecutionDecision {
 /** Trusted, non-serializable inputs used while freezing an execution plan. */
 export interface RenderExecutionResolutionOptions {
   readonly backendPolicy?: HostBackendPolicy
+  /** Internal identity assertion carried by ParsedDiagram adapters. */
+  readonly expectedFamilyId?: FamilyId
+}
+
+/** A ParsedDiagram serializer must reproduce source for that same family. */
+export class ParsedDiagramFamilyMismatchError extends Error {
+  readonly name = 'ParsedDiagramFamilyMismatchError'
+  readonly code = 'PARSED_DIAGRAM_FAMILY_MISMATCH'
+
+  constructor(
+    readonly expectedFamilyId: FamilyId,
+    readonly detectedFamilyId: FamilyId,
+  ) {
+    super(`Parsed Mermaid family "${expectedFamilyId}" serialized as family "${detectedFamilyId}"`)
+  }
 }
 
 /**
@@ -850,6 +992,13 @@ export interface InternalRenderExecutionPlan {
   readonly family: FamilyDescriptor
   readonly backend?: BackendDescriptor
   readonly requestedBackendId?: string
+  /** Exact admitted explicit config used for diagnostics. Family
+   * normalization may remove ineffective values from renderOptions, so
+   * warning generation must retain this pre-normalization snapshot. */
+  readonly explicitMermaidConfig?: NonNullable<RenderOptions['mermaidConfig']>
+  /** Captured separately from the serializable request. The callback is a
+   * trusted in-process observer, never receipt or family-normalizer data. */
+  readonly onConfigDiagnostic?: NonNullable<RenderOptions['onConfigDiagnostic']>
   readonly capabilityDecision: CapabilityDecision
   readonly executionDecision?: RenderExecutionDecision
 }
@@ -903,6 +1052,77 @@ export interface RenderArtifactDiagnostic {
   readonly message?: string
   readonly reference?: string
   readonly feature?: string
+  /** Compatibility input that caused this diagnostic, when applicable. */
+  readonly input?: string
+  /** Canonical extension identity selected for a compatibility input. */
+  readonly canonicalId?: string
+  /** Published compatibility-removal boundary, when applicable. */
+  readonly removal?: { readonly release: string; readonly date: string }
+}
+
+function renderOptionApplicabilityDiagnostics(
+  family: FamilyDescriptor,
+  explicitOptionFields: readonly SharedRenderOptionField[],
+): readonly RenderArtifactDiagnostic[] {
+  if (family.id.startsWith('family:')) {
+    const applicable = new Set(family.applicableRenderOptions ?? [])
+    return Object.freeze(explicitOptionFields.flatMap(field => {
+      if (!FAMILY_SCOPED_RENDER_OPTION_FIELDS.includes(field as FamilyScopedRenderOptionField)
+        || applicable.has(field as FamilyScopedRenderOptionField)) return []
+      return [Object.freeze({
+        code: 'RENDER_OPTION_NOT_APPLICABLE',
+        feature: `render-option:${field}`,
+        message: `Render option "${field}" does not apply to extension family "${family.id}". Its FamilyDescriptor does not list the field in applicableRenderOptions.`,
+      } satisfies RenderArtifactDiagnostic)]
+    }))
+  }
+  const builtInFamily = family.id as DiagramKind
+  return Object.freeze(explicitOptionFields.flatMap(field => {
+    const descriptor = SHARED_RENDER_OPTION_FIELD_DESCRIPTORS[field]
+    if (!('applicableBuiltinFamilies' in descriptor)) return []
+    const applicableBuiltinFamilies: readonly DiagramKind[] = descriptor.applicableBuiltinFamilies
+    if (applicableBuiltinFamilies.includes(builtInFamily)) return []
+    const applicability = applicableBuiltinFamilies.length === 0
+      ? 'No built-in family currently consumes this option.'
+      : `Applicable built-in families: ${applicableBuiltinFamilies.join(', ')}.`
+    return [Object.freeze({
+      code: 'RENDER_OPTION_NOT_APPLICABLE',
+      feature: `render-option:${field}`,
+      message: `Render option "${field}" does not apply to built-in Mermaid family "${builtInFamily}". ${applicability}`,
+    } satisfies RenderArtifactDiagnostic)]
+  }))
+}
+
+function receiptDiagnostics(
+  request: ResolvedRenderRequest,
+  diagnostics: readonly RenderArtifactDiagnostic[],
+): readonly RenderArtifactDiagnostic[] {
+  const compatibilityDiagnostics = request.appearance.styleReferences.flatMap(reference =>
+    reference.diagnostic
+      ? [{
+          code: reference.diagnostic.code,
+          message: reference.diagnostic.message,
+          input: reference.input,
+          canonicalId: reference.canonicalId,
+          removal: reference.diagnostic.removal,
+        } satisfies RenderArtifactDiagnostic]
+      : [])
+  const seen = new Set<string>()
+  return Object.freeze([
+    ...compatibilityDiagnostics,
+    ...(request.resolutionDiagnostics ?? []),
+    ...diagnostics,
+  ].flatMap(diagnostic => {
+    const key = canonicalJson(diagnostic)
+    if (seen.has(key)) return []
+    seen.add(key)
+    return [Object.freeze({
+      ...diagnostic,
+      ...(diagnostic.removal
+        ? { removal: Object.freeze({ ...diagnostic.removal }) }
+        : {}),
+    })]
+  }))
 }
 
 export function receiptOf(
@@ -917,15 +1137,21 @@ export function receiptOf(
     requestDigest: request.requestDigest,
     appearanceDigest: request.appearance.digest,
     capabilityDecision: request.capabilityDecision,
-    diagnostics: Object.freeze(diagnostics.map(diagnostic => Object.freeze({ ...diagnostic }))),
+    diagnostics: receiptDiagnostics(request, diagnostics),
     ...(executionDecision ? { executionDecision } : {}),
   })
 }
 
-interface RenderOptionsWithResolution extends RenderOptions {
-  [RESOLVED_APPEARANCE]?: ResolvedAppearance
-  [RESOLVED_FAMILY_CONFIG]?: Readonly<Record<string, unknown>>
-  [RESOLVED_STYLE_FACE]?: Readonly<InternalStyleFace>
+/** One explicit projection consumed by every family layout/render adapter. */
+export function resolvedFamilyRenderContextOf(
+  request: ResolvedRenderRequest,
+): ResolvedFamilyRenderContext {
+  return Object.freeze({
+    renderOptions: request.renderOptions,
+    ...(request.appearance.face ? { styleFace: request.appearance.face } : {}),
+    ...(request.familyConfig ? { familyConfig: request.familyConfig } : {}),
+    ...(request.appearance.family ? { familyAppearance: request.appearance.family } : {}),
+  })
 }
 
 function applyStyleDefaults(
@@ -967,14 +1193,17 @@ function serializableOptionCandidate(options: RenderOptions): Record<string, unk
   )
 }
 
-function capturedRequestFamily(source: NormalizedMermaidSource): FamilyDescriptor {
-  const familyId = requireRegisteredMermaidFamily(
+function capturedRequestFamily(
+  source: NormalizedMermaidSource,
+  authoredEnvelope: NormalizedMermaidSource = source,
+): FamilyDescriptor {
+  return requireRegisteredMermaidFamilyDescriptor(
     source.lines[0] ?? source.firstLine,
     source.originalText,
+    'strict',
+    authoredEnvelope.wrapperSource?.length ?? 0,
+    authoredEnvelope.lines[0] ?? authoredEnvelope.firstLine,
   )
-  const family = getFamily(familyId)
-  if (!family) throw new Error(`Registered Mermaid family "${familyId}" has no immutable descriptor`)
-  return family
 }
 
 function assertFamilyGeometryOptions(
@@ -982,6 +1211,9 @@ function assertFamilyGeometryOptions(
   before: RenderOptions,
   after: RenderOptions,
 ): void {
+  if (after.onConfigDiagnostic !== undefined) {
+    throw new TypeError(`Family "${family.id}" request normalizer may not return executable option "onConfigDiagnostic"`)
+  }
   const problems = validateSerializableRenderOptions(serializableOptionCandidate(after))
   if (problems.length > 0) {
     throw new TypeError(`Family "${family.id}" returned invalid normalized RenderOptions: ${problems.join('; ')}`)
@@ -998,17 +1230,14 @@ function assertFamilyGeometryOptions(
 
 function normalizedFamilyColors(
   family: FamilyDescriptor,
-  value: DiagramColors,
+  value: Readonly<Partial<DiagramColors>>,
   base: DiagramColors,
 ): DiagramColors {
   const allowed = new Set(['bg', 'fg', 'line', 'accent', 'muted', 'surface', 'border', 'shadow', 'font', 'embedFontImport'])
   const unknown = Object.keys(value).find(key => !allowed.has(key))
   if (unknown) throw new TypeError(`Family "${family.id}" returned unknown appearance color field "${unknown}"`)
-  const out: DiagramColors = {
-    bg: safeCssPaint(value.bg) ?? (() => { throw new TypeError(`Family "${family.id}" returned an unsafe bg paint`) })(),
-    fg: safeCssPaint(value.fg) ?? (() => { throw new TypeError(`Family "${family.id}" returned an unsafe fg paint`) })(),
-  }
-  for (const field of ['line', 'accent', 'muted', 'surface', 'border'] as const) {
+  const out: DiagramColors = { ...base }
+  for (const field of ['bg', 'fg', 'line', 'accent', 'muted', 'surface', 'border'] as const) {
     const candidate = value[field]
     if (candidate === undefined) continue
     const safe = safeCssPaint(candidate)
@@ -1018,30 +1247,86 @@ function normalizedFamilyColors(
   if (value.font !== undefined) {
     const font = safeCssFontFamily(value.font)
     if (font === undefined) throw new TypeError(`Family "${family.id}" returned an unsafe font family`)
-    out.font = font
+    if (font !== base.font) {
+      throw new TypeError(`Family "${family.id}" request normalizer may not rewrite appearance field "font"`)
+    }
   }
   if (value.shadow !== undefined) {
     if (typeof value.shadow !== 'boolean') throw new TypeError(`Family "${family.id}" returned a non-boolean shadow value`)
-    out.shadow = value.shadow
+    if (value.shadow !== base.shadow) {
+      throw new TypeError(`Family "${family.id}" request normalizer may not rewrite appearance field "shadow"`)
+    }
   }
   if (value.embedFontImport !== undefined) {
     if (typeof value.embedFontImport !== 'boolean') throw new TypeError(`Family "${family.id}" returned a non-boolean embedFontImport value`)
-    out.embedFontImport = value.embedFontImport
-  }
-  for (const field of ['font', 'shadow', 'embedFontImport'] as const) {
-    if (out[field] !== base[field]) {
-      throw new TypeError(`Family "${family.id}" request normalizer may not rewrite appearance field "${field}"`)
+    if (value.embedFontImport !== base.embedFontImport) {
+      throw new TypeError(`Family "${family.id}" request normalizer may not rewrite appearance field "embedFontImport"`)
     }
   }
   return out
 }
 
-function omitUndefinedObjectFields(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(item => omitUndefinedObjectFields(item))
+const FAMILY_DATA_MAX_DEPTH = 64
+const FAMILY_DATA_MAX_NODES = 100_000
+const FAMILY_DATA_MAX_CHARS = 2_000_000
+
+interface FamilyDataNormalizationBudget {
+  nodes: number
+  chars: number
+}
+
+/** Compact JSON-like family data under explicit recursion and aggregate-size
+ * limits. This guard runs before the recursive schema validator and immutable
+ * snapshot, so a buggy extension cannot trigger an unbounded stack walk first. */
+function omitUndefinedObjectFields(
+  value: unknown,
+  path = '$',
+  depth = 0,
+  ancestors = new Set<object>(),
+  budget: FamilyDataNormalizationBudget = { nodes: 0, chars: 0 },
+): unknown {
+  if (typeof value === 'string') {
+    budget.chars += value.length
+    if (budget.chars > FAMILY_DATA_MAX_CHARS) throw new TypeError(`data exceeds the ${FAMILY_DATA_MAX_CHARS}-character aggregate limit at ${path}`)
+    return value
+  }
+  if (value === null || typeof value !== 'object') return value
+  if (depth > FAMILY_DATA_MAX_DEPTH) throw new TypeError(`data exceeds maximum depth ${FAMILY_DATA_MAX_DEPTH} at ${path}`)
+  if (++budget.nodes > FAMILY_DATA_MAX_NODES) throw new TypeError(`data exceeds the ${FAMILY_DATA_MAX_NODES}-node aggregate limit at ${path}`)
+  if (ancestors.has(value)) throw new TypeError(`data must be acyclic at ${path}`)
+
+  if (Array.isArray(value)) {
+    if (value.length > FAMILY_DATA_MAX_NODES) throw new TypeError(`data array exceeds the ${FAMILY_DATA_MAX_NODES}-entry limit at ${path}`)
+    ancestors.add(value)
+    try {
+      const result: unknown[] = []
+      for (let index = 0; index < value.length; index++) {
+        if (!Object.prototype.hasOwnProperty.call(value, index)) throw new TypeError(`data must not contain a sparse array at ${path}[${index}]`)
+        result.push(omitUndefinedObjectFields(value[index], `${path}[${index}]`, depth + 1, ancestors, budget))
+      }
+      return result
+    } finally {
+      ancestors.delete(value)
+    }
+  }
   if (!plainJsonObject(value)) return value
-  return Object.fromEntries(Object.entries(value)
-    .filter(([, child]) => child !== undefined)
-    .map(([key, child]) => [key, omitUndefinedObjectFields(child)]))
+
+  ancestors.add(value)
+  try {
+    // A null-prototype staging object keeps `__proto__` as ordinary data.
+    // Using `{}` here can either mutate the clone's prototype or silently
+    // discard a `__proto__: null` field before the admission validator names
+    // and rejects it.
+    const result: Record<string, unknown> = Object.create(null) as Record<string, unknown>
+    for (const [key, child] of Object.entries(value)) {
+      budget.chars += key.length
+      if (budget.chars > FAMILY_DATA_MAX_CHARS) throw new TypeError(`data exceeds the ${FAMILY_DATA_MAX_CHARS}-character aggregate limit at ${path}.${key}`)
+      if (child !== undefined) result[key] = omitUndefinedObjectFields(child, `${path}.${key}`, depth + 1, ancestors, budget)
+    }
+    return result
+  } finally {
+    ancestors.delete(value)
+  }
 }
 
 function normalizedFamilyData(
@@ -1053,7 +1338,12 @@ function normalizedFamilyData(
   if (!plainJsonObject(value)) {
     throw new TypeError(`Family "${family.id}" returned ${label} data that is not a plain object`)
   }
-  const compact = omitUndefinedObjectFields(value)
+  let compact: unknown
+  try {
+    compact = omitUndefinedObjectFields(value)
+  } catch (error) {
+    throw new TypeError(`Family "${family.id}" returned invalid ${label} data: ${error instanceof Error ? error.message : String(error)}`)
+  }
   const root: JsonSchemaNode = { ...JSON_VALUE_SCHEMA, $defs: { jsonValue: JSON_VALUE_SCHEMA } }
   const problems = validateSchemaValue(compact, root, root, [`family${label === 'config' ? 'Config' : 'Appearance'}`], new Set())
   if (problems.length > 0) {
@@ -1077,34 +1367,32 @@ function applyFamilyRequestNormalization(
   familyAppearance?: Readonly<Record<string, unknown>>
 } {
   if (!family.normalizeRequest) return { renderOptions, colors }
-  const frozenOptions: RenderOptionsWithResolution = immutableSnapshot(renderOptions)
-  const bridgedOptions: RenderOptionsWithResolution = { ...frozenOptions }
-  if (face) {
-    Object.defineProperty(bridgedOptions, RESOLVED_STYLE_FACE, {
-      value: face,
-      enumerable: false,
-      configurable: false,
-      writable: false,
-    })
-  }
-  Object.freeze(bridgedOptions)
   const context = Object.freeze({
     source: immutableSnapshot(source),
-    renderOptions: bridgedOptions,
+    renderOptions: immutableSnapshot(renderOptions),
     colors: immutableSnapshot(colors),
     ...(style ? { style: immutableSnapshot(style) } : {}),
+    ...(face ? { styleFace: immutableSnapshot(face) } : {}),
   })
   const raw = family.normalizeRequest(context)
   if (raw === undefined) return { renderOptions, colors }
-  if (!plainJsonObject(raw)) {
+  let admitted: unknown
+  try {
+    admitted = boundedImmutableJsonSnapshot(raw, `Family "${family.id}" request normalizer result`)
+  } catch (error) {
+    throw new TypeError(
+      `Family "${family.id}" request normalizer returned invalid data: ${error instanceof Error ? error.message : String(error)}`,
+    )
+  }
+  if (!plainJsonObject(admitted)) {
     throw new TypeError(`Family "${family.id}" request normalizer must return a plain object`)
   }
-  const unknownResultKey = Object.keys(raw).find(key =>
+  const unknownResultKey = Object.keys(admitted).find(key =>
     !['renderOptions', 'familyConfig', 'appearance'].includes(key))
   if (unknownResultKey) {
     throw new TypeError(`Family "${family.id}" request normalizer returned unknown field "${unknownResultKey}"`)
   }
-  const result = raw as FamilyRequestNormalizationResult
+  const result = admitted as FamilyRequestNormalizationResult
   const appearance: FamilyAppearanceNormalization | undefined = result.appearance
   if (appearance !== undefined) {
     const appearanceValue: unknown = appearance
@@ -1141,7 +1429,22 @@ function canonicalJson(value: unknown): string {
 
 /** Stable, browser-safe FNV-1a-64 receipt (not a security primitive). */
 export function renderContractDigest(value: unknown): string {
-  const text = canonicalJson(value)
+  // Public digest callers may supply accessor-backed values. Materialize that
+  // graph once under the request-data bounds, then validate and canonicalize
+  // only the immutable snapshot. Otherwise a getter can present valid data to
+  // admission and a cycle to canonicalJson's later recursive read.
+  let snapshot: unknown
+  try {
+    snapshot = boundedImmutableJsonSnapshot(value, 'render contract digest input')
+  } catch (error) {
+    const message = (error instanceof Error ? error.message : String(error))
+      .replace('data exceeds maximum depth', 'data exceeds maximum nesting depth')
+    throw new TypeError(message)
+  }
+  assertJsonConfigAdmission(snapshot, 'render contract digest input', {
+    allowUndefinedObjectProperties: true,
+  })
+  const text = canonicalJson(snapshot)
   let hash = 0xcbf29ce484222325n
   for (let i = 0; i < text.length; i++) {
     hash ^= BigInt(text.charCodeAt(i))
@@ -1168,6 +1471,59 @@ function immutableSnapshot<T>(value: T, path = '$', ancestors = new Set<object>(
         [key, immutableSnapshot(child, `${path}.${key}`, ancestors)]))
   ancestors.delete(value)
   return Object.freeze(clone) as T
+}
+
+/** Materialize a caller-owned JSON-like graph once under the same finite
+ * recursion/aggregate guard used for family data, then freeze only that fresh
+ * value. Validation must consume this snapshot: validating a live accessor
+ * graph and cloning it later would permit a different value at execution. */
+function boundedImmutableJsonSnapshot<T>(value: T, context: string): T {
+  try {
+    return immutableSnapshot(omitUndefinedObjectFields(value) as T)
+  } catch (error) {
+    throw new TypeError(`${context} could not be snapshotted: ${error instanceof Error ? error.message : String(error)}`)
+  }
+}
+
+interface AdmittedRenderOptions {
+  readonly serializable: Readonly<RenderOptions>
+  readonly onConfigDiagnostic?: NonNullable<RenderOptions['onConfigDiagnostic']>
+}
+
+/** Capture the complete enumerable RenderOptions surface once. The sole
+ * executable field is split from declarative data before the latter is
+ * recursively snapshotted, validated, normalized, and receipted. */
+function admitRenderOptionsInput(untrusted: RenderOptions): AdmittedRenderOptions {
+  if ((typeof untrusted !== 'object' && typeof untrusted !== 'function') || untrusted === null) {
+    throw new TypeError('Invalid RenderOptions: render options must be an object')
+  }
+  const serializableEntries: Array<[string, unknown]> = []
+  let onConfigDiagnostic: unknown
+  for (const [field, value] of Object.entries(untrusted)) {
+    if (field === 'onConfigDiagnostic') {
+      onConfigDiagnostic = value
+    } else if (value !== undefined) {
+      serializableEntries.push([field, value])
+    }
+  }
+  if (onConfigDiagnostic !== undefined && typeof onConfigDiagnostic !== 'function') {
+    throw new TypeError('Invalid RenderOptions: onConfigDiagnostic must be a function')
+  }
+  const candidate = Object.fromEntries(serializableEntries)
+  let serializable: Readonly<RenderOptions>
+  try {
+    serializable = boundedImmutableJsonSnapshot(candidate, 'RenderOptions') as Readonly<RenderOptions>
+  } catch (error) {
+    const message = (error instanceof Error ? error.message : String(error))
+      .replace('data exceeds maximum depth', 'render option tree exceeds maximum nesting depth')
+    throw new TypeError(`Invalid RenderOptions: ${message}`)
+  }
+  return Object.freeze({
+    serializable,
+    ...(onConfigDiagnostic === undefined
+      ? {}
+      : { onConfigDiagnostic: onConfigDiagnostic as NonNullable<RenderOptions['onConfigDiagnostic']> }),
+  })
 }
 
 function namedStyleReferences(input: RenderOptions['style']): readonly ResolvedStyleReference[] {
@@ -1206,24 +1562,25 @@ function executionRequirement(id: CapabilityId, range = `^${EXECUTION_CAPABILITY
 }
 
 function primitiveCapabilityId(
-  requirement: EssentialScenePrimitiveOperation,
+  requirement: EssentialScenePrimitiveCapability,
 ): CapabilityId {
-  return `scene-primitive:${requirement.primitive}/${requirement.operation}`
+  return `scene-primitive:${requirement.primitive}/${requirement.feature}/${requirement.operation}`
 }
 
-function requiredBackendPrimitives(family: FamilyDescriptor): readonly EssentialScenePrimitiveOperation[] {
+function requiredBackendCapabilities(family: FamilyDescriptor): readonly EssentialScenePrimitiveCapability[] {
   const applicable = new Set(family.scenePrimitiveEvidence
     .filter(cell => cell.applicability === 'applicable')
     .map(cell => cell.primitive))
-  return ESSENTIAL_SCENE_PRIMITIVE_OPERATIONS.filter(requirement => applicable.has(requirement.primitive))
+  return ESSENTIAL_SCENE_PRIMITIVE_CAPABILITIES.filter(requirement => applicable.has(requirement.primitive))
 }
 
-function backendSupportsPrimitive(
+function backendSupportsCapability(
   backend: BackendDescriptor,
-  requirement: EssentialScenePrimitiveOperation,
+  requirement: EssentialScenePrimitiveCapability,
 ): boolean {
-  return backend.capabilities.some(claim =>
+  return backend.backend.capabilities.some(claim =>
     claim.primitive === requirement.primitive
+    && claim.feature === requirement.feature
     && claim.operation === requirement.operation
     && claim.realization !== 'unsupported')
 }
@@ -1267,6 +1624,8 @@ function resolveExecutionPlan(
   appearance: ResolvedAppearance,
   output: RenderOutput,
   resolutionOptions: RenderExecutionResolutionOptions,
+  explicitMermaidConfig?: NonNullable<RenderOptions['mermaidConfig']>,
+  onConfigDiagnostic?: NonNullable<RenderOptions['onConfigDiagnostic']>,
 ): InternalRenderExecutionPlan {
   let mode: InternalRenderExecutionPlan['mode']
   let backend: BackendDescriptor | undefined
@@ -1283,13 +1642,13 @@ function resolveExecutionPlan(
     mode = 'terminal'
   }
 
-  const backendPrimitiveRequirements = mode === 'scene'
-    ? requiredBackendPrimitives(family)
+  const backendCapabilityRequirements = mode === 'scene'
+    ? requiredBackendCapabilities(family)
     : []
-  const backendPrimitiveOffers = backend
-    ? backendPrimitiveRequirements.flatMap(requirement => executionOffer(
+  const backendCapabilityOffers = backend
+    ? backendCapabilityRequirements.flatMap(requirement => executionOffer(
         primitiveCapabilityId(requirement),
-        backendSupportsPrimitive(backend, requirement),
+        backendSupportsCapability(backend, requirement),
       ))
     : []
 
@@ -1302,7 +1661,7 @@ function resolveExecutionPlan(
     ...executionOffer('operation:render-terminal', family.renderAscii !== undefined),
     ...executionOffer('core:scene', mode === 'scene'),
     ...executionOffer('backend:scene-renderer', backend !== undefined, backend?.identity.version),
-    ...backendPrimitiveOffers,
+    ...backendCapabilityOffers,
   ]
   const requirements: CapabilityRequirement[] = [
     executionRequirement('core:family-descriptor'),
@@ -1316,13 +1675,13 @@ function resolveExecutionPlan(
         executionRequirement('operation:layout'),
         executionRequirement('operation:lower-scene'),
         executionRequirement('backend:scene-renderer', backend?.identity.version ?? EXECUTION_CAPABILITY_VERSION),
-        ...backendPrimitiveRequirements.map(requirement => executionRequirement(primitiveCapabilityId(requirement))),
+        ...backendCapabilityRequirements.map(requirement => executionRequirement(primitiveCapabilityId(requirement))),
       )
       outputAvailable = Boolean(
         family.layout
         && family.lowerScene
         && backend
-        && backendPrimitiveRequirements.every(requirement => backendSupportsPrimitive(backend, requirement)),
+        && backendCapabilityRequirements.every(requirement => backendSupportsCapability(backend, requirement)),
       )
       break
     case 'family-svg':
@@ -1381,6 +1740,8 @@ function resolveExecutionPlan(
     family,
     ...(backend ? { backend } : {}),
     ...(requestedBackendId ? { requestedBackendId } : {}),
+    ...(explicitMermaidConfig === undefined ? {} : { explicitMermaidConfig }),
+    ...(onConfigDiagnostic ? { onConfigDiagnostic } : {}),
     capabilityDecision,
     ...(executionDecision ? { executionDecision } : {}),
   })
@@ -1394,59 +1755,31 @@ function isSharedCapabilityResolution(resolution: CapabilityResolution): boolean
     && resolution.id !== 'core:scene'
 }
 
-export function resolveRenderRequest(
-  text: string,
-  options: RenderOptions = {},
-  output: RenderOutput = 'svg',
-  outputOptions?: unknown,
-): ResolvedRenderRequest {
-  return resolveRenderRequestForExecution(text, options, output, outputOptions)
+export interface ResolveAppearanceInput {
+  /** Descriptor captured once before any extension callback executes. */
+  readonly family: FamilyDescriptor
+  readonly source: NormalizedMermaidSource
+  /** Already-admitted public options; this function never reads ambient host state. */
+  readonly options: RenderOptions
+  /** Style and private face resolved together from one registry snapshot. */
+  readonly style?: Readonly<StyleSpec>
+  readonly styleFace?: Readonly<InternalStyleFace>
 }
 
-/** Internal trusted-host variant. Public barrels expose only the four-argument
- * resolver above, keeping executable host policy outside serializable APIs. */
-export function resolveRenderRequestForExecution(
-  text: string,
-  options: RenderOptions = {},
-  output: RenderOutput = 'svg',
-  outputOptions?: unknown,
-  resolutionOptions: RenderExecutionResolutionOptions = {},
-): ResolvedRenderRequest {
-  // Keep StyleInput's established public error boundary. The shared options
-  // schema still validates the field below (and every host surface uses that
-  // validator), but resolving it first means an invalid inline StyleSpec is
-  // reported as `Invalid style spec` instead of being relabelled as a generic
-  // RenderOptions failure. It also avoids resolving mutable registry state
-  // twice while constructing one canonical request.
-  const resolvedStyle = resolveStyleStackWithFace(options.style)
-  const style = resolvedStyle.style
-  const face = immutableSnapshot(resolvedStyle.face)
-  const serializableOptionsCandidate = Object.fromEntries(
-    Object.entries(options).filter(([field, value]) =>
-      value !== undefined
-      && !(NON_SERIALIZABLE_RENDER_OPTION_FIELDS as readonly string[]).includes(field)),
-  )
-  const optionProblems = validateSerializableRenderOptions(serializableOptionsCandidate)
-  if (optionProblems.length > 0) {
-    throw new TypeError(`Invalid RenderOptions: ${optionProblems.join('; ')}`)
-  }
+export interface ResolvedAppearanceContext {
+  readonly renderOptions: Readonly<RenderOptions>
+  readonly appearance: ResolvedAppearance
+  readonly familyConfig?: Readonly<Record<string, unknown>>
+}
 
-  // Markdown/HTML parsers commonly hand renderers entity-encoded Mermaid.
-  // Decode at the shared request waist so SVG, PNG, layout and terminal
-  // transports agree on semantic text; retain authored bytes separately.
-  const decodedText = decodeXML(text)
-  const normalizedSource = normalizeMermaidSourceWithOverrides(decodedText, options.mermaidConfig ?? {})
-  // Parsing consumes decoded semantic text, while provenance retains the
-  // exact authored boundary bytes. Equivalent encodings may render alike but
-  // must not collapse to the same request identity.
-  const source: NormalizedMermaidSource = Object.freeze({ ...normalizedSource, originalText: text })
-  // Capture one immutable descriptor before any extension callback runs. The
-  // same object owns normalization, capability negotiation, layout and
-  // lowering for the lifetime of this request.
-  const family = capturedRequestFamily(source)
-  const themeCssProblem = validateRawThemeCss(source.config.themeCSS, options.security ?? 'default')
-  if (themeCssProblem) throw new TypeError(themeCssProblem)
-  const explicitOptionFields = Object.freeze(SHARED_RENDER_OPTION_FIELDS.filter(field => options[field] !== undefined))
+/**
+ * Pure request-boundary appearance projection. All mutable registry lookups,
+ * source parsing, and host policy decisions happen before this function. Its
+ * result is the explicit internal context shared by layout, graphical, and
+ * terminal projections; public RenderOptions remain geometry/input data only.
+ */
+export function resolveAppearance(input: ResolveAppearanceInput): ResolvedAppearanceContext {
+  const { family, source, options, style, styleFace } = input
   let effective: RenderOptions = options.security === 'strict'
     ? { ...options, embedFontImport: false }
     : { ...options }
@@ -1471,13 +1804,9 @@ export function resolveRenderRequestForExecution(
     baseRenderOptions,
     baseColors,
     style,
-    face,
+    styleFace,
   )
 
-  // ResolvedAppearance is output-independent. Terminal-specific degradation
-  // belongs to projectTerminalStyle and must never change the shared digest.
-  // The family projection is frozen into the same authority; lower layers do
-  // not get another raw theme/config resolution pass.
   const colors = immutableSnapshot(normalized.colors)
   const styleReferences = namedStyleReferences(options.style)
   const rejectedThemeColors = unsafeThemeColorKeys(source)
@@ -1486,7 +1815,7 @@ export function resolveRenderRequestForExecution(
     colors,
     font,
     style: immutableSnapshot(style),
-    face,
+    face: immutableSnapshot(styleFace),
     styled,
     inferredBackend: style ? inferBackend(style) : 'default',
     styleReferences,
@@ -1497,31 +1826,93 @@ export function resolveRenderRequestForExecution(
     ...appearanceReceipt,
     digest: renderContractDigest(appearanceReceipt),
   })
+  return immutableSnapshot({
+    renderOptions: immutableSnapshot(normalized.renderOptions),
+    appearance,
+    ...(normalized.familyConfig ? { familyConfig: normalized.familyConfig } : {}),
+  })
+}
 
-  const renderOptions: RenderOptionsWithResolution = immutableSnapshot({
-    ...normalized.renderOptions,
-  })
-  // immutableSnapshot has frozen the data. Rebuild only the shallow shell so
-  // the non-enumerable resolved-appearance bridge can be installed before the
-  // final freeze without exposing mutable nested values.
-  const bridgedRenderOptions: RenderOptionsWithResolution = { ...renderOptions }
-  Object.defineProperty(bridgedRenderOptions, RESOLVED_APPEARANCE, {
-    value: appearance,
-    enumerable: false,
-    configurable: false,
-    writable: false,
-  })
-  if (normalized.familyConfig) {
-    Object.defineProperty(bridgedRenderOptions, RESOLVED_FAMILY_CONFIG, {
-      value: normalized.familyConfig,
-      enumerable: false,
-      configurable: false,
-      writable: false,
-    })
+export function resolveRenderRequest(
+  text: string,
+  options: RenderOptions = {},
+  output: RenderOutput = 'svg',
+  outputOptions?: unknown,
+): ResolvedRenderRequest {
+  return resolveRenderRequestForExecution(text, options, output, outputOptions)
+}
+
+/** Internal trusted-host variant. Public barrels expose only the four-argument
+ * resolver above, keeping executable host policy outside serializable APIs. */
+export function resolveRenderRequestForExecution(
+  text: string,
+  options: RenderOptions = {},
+  output: RenderOutput = 'svg',
+  outputOptions?: unknown,
+  resolutionOptions: RenderExecutionResolutionOptions = {},
+): ResolvedRenderRequest {
+  const admitted = admitRenderOptionsInput(options)
+  const admittedOptions = admitted.serializable as RenderOptions
+  const serializableOptionsCandidate = admittedOptions as Readonly<Record<string, unknown>>
+  // Enforce aggregate/depth bounds before Style resolution or any other
+  // request-specific walker. Full schema validation remains below so the
+  // established StyleInput error boundary is preserved for bounded values.
+  const admissionProblems = renderOptionsAdmissionMessages(serializableOptionsCandidate)
+  if (admissionProblems.length > 0) {
+    throw new TypeError(`Invalid RenderOptions: ${admissionProblems.join('; ')}`)
   }
-  Object.freeze(bridgedRenderOptions)
+  // Keep StyleInput's established public error boundary. The shared options
+  // schema still validates the field below (and every host surface uses that
+  // validator), but resolving it first means an invalid inline StyleSpec is
+  // reported as `Invalid style spec` instead of being relabelled as a generic
+  // RenderOptions failure. It also avoids resolving mutable registry state
+  // twice while constructing one canonical request.
+  const resolvedStyle = resolveStyleStackWithFace(admittedOptions.style)
+  const style = resolvedStyle.style
+  const face = immutableSnapshot(resolvedStyle.face)
+  const optionProblems = validateSerializableRenderOptions(serializableOptionsCandidate)
+  if (optionProblems.length > 0) {
+    throw new TypeError(`Invalid RenderOptions: ${optionProblems.join('; ')}`)
+  }
 
-  const executionPlan = resolveExecutionPlan(family, appearance, output, resolutionOptions)
+  // Markdown/HTML parsers commonly hand renderers entity-encoded Mermaid.
+  // Decode at the shared request waist so SVG, PNG, layout and terminal
+  // transports agree on semantic text; retain authored bytes separately.
+  const decodedText = decodeXML(text)
+  const normalizedSource = normalizeMermaidSourceWithOverrides(decodedText, admittedOptions.mermaidConfig ?? {})
+  const authoredEnvelope = decodedText === text ? normalizedSource : normalizeMermaidSource(text)
+  // Parsing consumes decoded semantic text, while provenance retains the
+  // exact authored boundary bytes. Equivalent encodings may render alike but
+  // must not collapse to the same request identity.
+  const source: NormalizedMermaidSource = Object.freeze({ ...normalizedSource, originalText: text })
+  // Capture one immutable descriptor before any extension callback runs. The
+  // same object owns normalization, capability negotiation, layout and
+  // lowering for the lifetime of this request.
+  const family = capturedRequestFamily(source, authoredEnvelope)
+  if (resolutionOptions.expectedFamilyId !== undefined && family.id !== resolutionOptions.expectedFamilyId) {
+    throw new ParsedDiagramFamilyMismatchError(resolutionOptions.expectedFamilyId, family.id)
+  }
+  const themeCssProblem = validateRawThemeCss(source.config.themeCSS, admittedOptions.security ?? 'default')
+  if (themeCssProblem) throw new TypeError(themeCssProblem)
+  const explicitOptionFields = Object.freeze(SHARED_RENDER_OPTION_FIELDS.filter(field => admittedOptions[field] !== undefined))
+  const resolutionDiagnostics = renderOptionApplicabilityDiagnostics(family, explicitOptionFields)
+  const resolvedContext = resolveAppearance({
+    family,
+    source,
+    options: admittedOptions,
+    ...(style ? { style } : {}),
+    ...(face ? { styleFace: face } : {}),
+  })
+  const { appearance, renderOptions, familyConfig } = resolvedContext
+
+  const executionPlan = resolveExecutionPlan(
+    family,
+    appearance,
+    output,
+    resolutionOptions,
+    admittedOptions.mermaidConfig,
+    admitted.onConfigDiagnostic,
+  )
   const capabilityDecision = executionPlan.capabilityDecision
 
   // The shared receipt deliberately excludes the output-specific resolution:
@@ -1540,9 +1931,9 @@ export function resolveRenderRequestForExecution(
     version: RENDER_CONTRACT_VERSION,
     authoredSource: source.originalText,
     source: source.text,
-    options: serializableOptions(bridgedRenderOptions),
+    options: serializableOptions(renderOptions),
     appearance: appearance.digest,
-    ...(normalized.familyConfig ? { familyConfig: normalized.familyConfig } : {}),
+    ...(familyConfig ? { familyConfig } : {}),
     capabilities: sharedCapabilityDecision,
   }
   const sharedRequestDigest = renderContractDigest(sharedRequestReceipt)
@@ -1556,40 +1947,15 @@ export function resolveRenderRequestForExecution(
     version: RENDER_CONTRACT_VERSION,
     output,
     source: immutableSnapshot(source),
-    renderOptions: bridgedRenderOptions,
+    renderOptions,
     appearance,
-    ...(normalized.familyConfig ? { familyConfig: normalized.familyConfig } : {}),
+    ...(familyConfig ? { familyConfig } : {}),
     capabilityDecision,
     explicitOptionFields,
+    ...(resolutionDiagnostics.length === 0 ? {} : { resolutionDiagnostics }),
     sharedRequestDigest,
     requestDigest: renderContractDigest(requestReceipt),
   })
   EXECUTION_PLAN_BY_REQUEST.set(request, executionPlan)
   return request
-}
-
-/** Internal bridge for family modules while RenderOptions remains public. */
-export function resolvedAppearanceOf(options: RenderOptions): ResolvedAppearance | undefined {
-  return (options as RenderOptionsWithResolution)[RESOLVED_APPEARANCE]
-}
-
-/** Family style resolution must consume the boundary result, never re-merge raw input. */
-export function resolvedStyleFaceOf(options: RenderOptions): InternalStyleFace | undefined {
-  return resolvedAppearanceOf(options)?.face
-    ?? (options as RenderOptionsWithResolution)[RESOLVED_STYLE_FACE]
-}
-
-/** Family modules consume their boundary-projected visual data through the
- * same non-enumerable appearance bridge as style faces. */
-export function resolvedFamilyAppearanceOf<T = Readonly<Record<string, unknown>>>(
-  options: RenderOptions,
-): T | undefined {
-  return resolvedAppearanceOf(options)?.family as T | undefined
-}
-
-/** Family geometry/config data is projected independently from appearance. */
-export function resolvedFamilyConfigOf<T = Readonly<Record<string, unknown>>>(
-  options: RenderOptions,
-): T | undefined {
-  return (options as RenderOptionsWithResolution)[RESOLVED_FAMILY_CONFIG] as T | undefined
 }

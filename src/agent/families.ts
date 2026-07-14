@@ -7,17 +7,22 @@
 // bodies) and offers a forward path for full per-family ownership.
 //
 // Identity, detection, discovery metadata and behavioral hooks live in the
-// same descriptor. Built-in modules augment their seeded descriptors at import
-// time (see ./families-builtin.ts); namespaced extensions register atomically.
+// same descriptor. Built-ins are assembled and validated as complete values;
+// namespaced extensions register through the same atomic validation boundary.
 // ============================================================================
 
 import type {
   DiagramKind, DiagramBody, FamilyParsedBody, ValidDiagramMeta, ParseError, SourceMap, FamilyId, ExternalFamilyId,
   AnyMutationOp, MutationError, LayoutWarning, VerifyOptions, Result, RenderedLayout,
 } from './types.ts'
-import type { PositionedDiagram, RenderContext, RenderOptions } from '../types.ts'
+import type {
+  PositionedDiagram,
+  RenderContext,
+  RenderOptions,
+  ResolvedFamilyRenderContext,
+} from '../types.ts'
 import type { DiagramColors } from '../theme.ts'
-import type { StyleSpec } from '../scene/style-registry.ts'
+import type { InternalStyleFace, StyleSpec } from '../scene/style-registry.ts'
 import type { SceneDoc } from '../scene/ir.ts'
 import { BUILTIN_SCENE_ROLE_TRAITS, type SceneRole } from '../scene/roles.ts'
 import {
@@ -27,14 +32,21 @@ import {
   type PrimitiveRealization,
 } from '../scene/capabilities.ts'
 import type { NormalizedMermaidSource } from '../mermaid-source.ts'
+import type { FamilyScopedRenderOptionField } from '../render-contract.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode } from '../ascii/types.ts'
 import type { TerminalConnectorProjection } from '../terminal-style.ts'
 import {
   ExtensionCollisionError,
   createExtensionIdentity,
   parseExtensionId,
+  requireExtensionContractCompatibility,
   type ExtensionIdentity,
 } from '../shared/extension-identity.ts'
+import { BUILTIN_AGENT_HOOKS } from './families-builtin.ts'
+import { BUILTIN_RENDER_HOOKS } from '../render-family-hooks.ts'
+import { UPSTREAM_MERMAID_FAMILY_INDEX } from '../upstream-family-index.ts'
+import { boundedUtf8ByteLength } from '../shared/utf8.ts'
+export { extractLabelsGeneric } from './family-labels.ts'
 
 export interface ExtractedLabel {
   /** The label text, with quotes stripped. */
@@ -43,10 +55,8 @@ export interface ExtractedLabel {
   target: string
 }
 
-export interface FamilyLayoutContext {
+export interface FamilyLayoutContext extends ResolvedFamilyRenderContext {
   source: NormalizedMermaidSource
-  /** Final immutable options produced at the public request boundary. */
-  renderOptions: RenderOptions
 }
 
 export interface FamilyLayoutResult<TPositioned extends PositionedDiagram = PositionedDiagram> {
@@ -55,10 +65,9 @@ export interface FamilyLayoutResult<TPositioned extends PositionedDiagram = Posi
   injectAccessibility?: boolean
 }
 
-/** Public, serializable inputs available to a descriptor's one request-boundary
- * normalizer. Internal style faces deliberately do not cross this extension
- * contract: built-ins may derive their legacy face from the already-resolved
- * public StyleSpec inside the hook. */
+/** Inputs available to a descriptor's one request-boundary normalizer. Public
+ * source/options/style data remains serializable; the optional internal face is
+ * an immutable, already-resolved view and cannot be returned as a new authority. */
 export interface FamilyRequestNormalizationContext {
   source: NormalizedMermaidSource
   /** Options after shared security and Style defaults, before the final freeze. */
@@ -67,11 +76,13 @@ export interface FamilyRequestNormalizationContext {
   colors: Readonly<DiagramColors>
   /** Resolved public Style stack, never a registry name or unresolved input. */
   style?: Readonly<StyleSpec>
+  /** Internal face paired with the resolved Style stack. */
+  styleFace?: Readonly<InternalStyleFace>
 }
 
 export interface FamilyAppearanceNormalization {
-  /** Final family-specific adjustment to the shared palette. */
-  colors?: DiagramColors
+  /** Sparse family-specific adjustment merged over the shared palette. */
+  colors?: Readonly<Partial<DiagramColors>>
   /** Serializable family-owned visual/config projection shared by layout and renderers. */
   family?: Readonly<Record<string, unknown>>
 }
@@ -109,14 +120,8 @@ export interface FamilyPositionedProjectionContext<
   options: Readonly<FamilyPositionedProjectionOptions>
 }
 
-export interface AsciiContext {
+export interface AsciiContext extends ResolvedFamilyRenderContext {
   source: NormalizedMermaidSource
-  /** Same immutable graphical/request options received by layout. */
-  renderOptions: RenderOptions
-  /** Boundary-projected family geometry/config data. */
-  familyConfig?: Readonly<Record<string, unknown>>
-  /** Boundary-projected family appearance data. */
-  familyAppearance?: Readonly<Record<string, unknown>>
   config: AsciiConfig
   colorMode: ColorMode
   theme: AsciiTheme
@@ -162,13 +167,60 @@ export const FAMILY_CAPABILITY_COLUMNS = [
   'terminal',
 ] as const
 
+/** Registration witnesses stay small enough to execute twice synchronously. */
+export const FAMILY_CONFORMANCE_MAX_EXAMPLE_BYTES = 64 * 1024
+
 export type FamilyCapability = (typeof FAMILY_CAPABILITY_COLUMNS)[number]
 export type FamilyCapabilityState = 'native' | 'source-preserved' | 'diagnosed' | 'not-applicable' | 'absent'
+export const FAMILY_CONFORMANCE_VERSION = 1 as const
+
+/**
+ * Canonical processing contract for a Mermaid family that is recognized by
+ * the open parser but has no installed descriptor. The source envelope and
+ * its serializer remain lossless; operations that require family semantics
+ * fail through the preserved family diagnostic instead of disappearing from
+ * discovery as an unaccounted `absent` capability.
+ */
+export const UNREGISTERED_FAMILY_CAPABILITY_STATES = Object.freeze({
+  detection: 'diagnosed',
+  'source-preservation': 'source-preserved',
+  parse: 'diagnosed',
+  serialize: 'source-preserved',
+  mutation: 'diagnosed',
+  verify: 'diagnosed',
+  layout: 'diagnosed',
+  scene: 'diagnosed',
+  svg: 'diagnosed',
+  terminal: 'diagnosed',
+} satisfies Readonly<Record<FamilyCapability, Exclude<FamilyCapabilityState, 'absent'>>>)
 
 export interface FamilyCapabilityEvidence {
   capability: FamilyCapability
   state: FamilyCapabilityState
   evidence: readonly string[]
+}
+
+/** Executable registration evidence is deliberately separate from a
+ * descriptor's declaration. A descriptor says what it intends to support;
+ * this report records what its bounded canonical example actually proved. */
+export type FamilyConformanceStatus = 'passed' | 'failed' | 'unverified-extension'
+
+export interface FamilyCapabilityConformanceResult {
+  capability: FamilyCapability
+  declaredState: FamilyCapabilityState
+  status: FamilyConformanceStatus
+  /** Stable id for the canonical example witness, present for passed checks. */
+  witnessId?: string
+  /** Required for failed and deliberately-unverified extension cells. */
+  diagnostic?: string
+}
+
+export interface FamilyConformanceReport {
+  readonly version: typeof FAMILY_CONFORMANCE_VERSION
+  readonly familyId: FamilyId
+  readonly example: string
+  readonly passed: boolean
+  readonly capabilities: readonly FamilyCapabilityConformanceResult[]
 }
 
 export type FamilyScenePrimitiveApplicability = 'applicable' | 'not-applicable'
@@ -253,7 +305,7 @@ export interface FamilyOperations {
   ) => FamilyRequestNormalizationResult | void
   /**
    * Source-based label extractor for universal Tier 1 LABEL_OVERFLOW on opaque
-   * bodies. Each plugin should extract everything an agent would consider a
+   * bodies. Each descriptor should extract everything an agent would consider a
    * label — node text, edge text, message text, axis names, section titles.
    * The generic fallback (extractLabelsGeneric) is used when a family doesn't
    * provide its own.
@@ -278,9 +330,12 @@ export interface FamilyOperations {
   serialize?: (body: FamilyParsedBody) => string
   /** Optional: family-specific structured mutation. */
   mutate?: (body: DiagramBody, op: AnyMutationOp) => Result<DiagramBody, MutationError>
-  /** Optional: family-specific verify (Tier 1 + Tier 2). Returns warnings only. */
+  /** Optional: family-specific verify (Tier 1 + Tier 2). Returns warnings only.
+   * The hook alone does not make public verification native: verification also
+   * consumes the family's executable SVG and positioned-layout projections. */
   verify?: (body: FamilyParsedBody, opts: VerifyOptions) => LayoutWarning[]
-  /** Optional: family-specific source-to-positioned layout for public SVG rendering. */
+  /** Optional: family-specific source-to-positioned layout for graphical output.
+   * Public layout JSON additionally requires projectPositioned. */
   layout?: (ctx: FamilyLayoutContext) => FamilyLayoutResult | PositionedDiagram
   /**
    * Optional typed projection of that same positioned artifact for layout
@@ -344,6 +399,10 @@ export interface FamilyDescriptor extends FamilyOperations {
   /** Agent parser detector for malformed-but-recognizable native headers. */
   readonly detectLoose?: (firstLineLower: string) => boolean
   readonly config?: FamilyConfigContract
+  /** Family-scoped shared RenderOptions consumed by this implementation.
+   * External families opt in explicitly; omission means none. Built-in
+   * applicability remains derived from the canonical render-field manifest. */
+  readonly applicableRenderOptions?: readonly FamilyScopedRenderOptionField[]
   readonly semanticRoles: readonly string[]
   /** Complete role x core-primitive matrix. Positive cells name their
    * realization; negative cells are explicit and diagnosed. */
@@ -354,11 +413,8 @@ export interface FamilyDescriptor extends FamilyOperations {
   readonly editorDiagramType?: string
   readonly editorExampleId?: string
   readonly editorGlyph?: string
-  readonly example?: string
+  readonly example: string
 }
-
-/** Compatibility name retained while callers migrate to FamilyDescriptor. */
-export type FamilyPlugin = FamilyDescriptor
 
 interface BuiltinFamilyDescriptorSeed extends BuiltinFamilyMetadata {
   upstreamId: string
@@ -371,18 +427,18 @@ interface BuiltinFamilyDescriptorSeed extends BuiltinFamilyMetadata {
 }
 
 function builtinFamilyCapabilityEvidence(): readonly FamilyCapabilityEvidence[] {
-  const lifecycleEvidence = ['src/__tests__/property-all-families-fuzz.test.ts'] as const
+  const executableWitness = ['src/__tests__/section-a-family-descriptor-conformance.test.ts'] as const
   return [
-    { capability: 'detection', state: 'native', evidence: ['src/__tests__/upstream-family-manifest.test.ts'] },
-    { capability: 'source-preservation', state: 'native', evidence: lifecycleEvidence },
-    { capability: 'parse', state: 'native', evidence: lifecycleEvidence },
-    { capability: 'serialize', state: 'native', evidence: lifecycleEvidence },
-    { capability: 'mutation', state: 'native', evidence: lifecycleEvidence },
-    { capability: 'verify', state: 'native', evidence: lifecycleEvidence },
-    { capability: 'layout', state: 'native', evidence: ['src/__tests__/positioned-artifact-convergence.test.ts'] },
-    { capability: 'scene', state: 'native', evidence: ['src/__tests__/section-a-family-descriptor-conformance.test.ts'] },
-    { capability: 'svg', state: 'native', evidence: ['src/__tests__/svg-equivalence.test.ts'] },
-    { capability: 'terminal', state: 'native', evidence: ['src/__tests__/render-family-hooks.test.ts'] },
+    { capability: 'detection', state: 'native', evidence: executableWitness },
+    { capability: 'source-preservation', state: 'native', evidence: executableWitness },
+    { capability: 'parse', state: 'native', evidence: executableWitness },
+    { capability: 'serialize', state: 'native', evidence: executableWitness },
+    { capability: 'mutation', state: 'native', evidence: executableWitness },
+    { capability: 'verify', state: 'native', evidence: executableWitness },
+    { capability: 'layout', state: 'native', evidence: executableWitness },
+    { capability: 'scene', state: 'native', evidence: executableWitness },
+    { capability: 'svg', state: 'native', evidence: executableWitness },
+    { capability: 'terminal', state: 'native', evidence: executableWitness },
   ]
 }
 
@@ -428,7 +484,7 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
     config: { section: 'er', keys: ['layoutDirection', 'nodeSpacing', 'rankSpacing', 'titleTopMargin', 'diagramPadding', 'minEntityWidth', 'minEntityHeight', 'entityPadding', 'stroke', 'fill', 'fontSize'], noopKeys: ['diagramPadding', 'entityPadding', 'fill', 'fontSize', 'minEntityHeight', 'minEntityWidth', 'stroke', 'titleTopMargin'] },
     detect: (line: string) => /^erdiagram(?:\s+subgraph\b.*)?\s*$/.test(line),
     detectLoose: (line: string) => /^erdiagram(?:\s|$)/.test(line),
-    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('defs', 'document'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('group', 'container', 'shape'), nativeSceneRole('group-header', 'shape'), nativeSceneRole('entity', 'container', 'shape'), nativeSceneRole('attribute', 'text'), nativeSceneRole('relationship', 'connector'), nativeSceneRole('cardinality', 'shape'), nativeSceneRole('label', 'text')],
+    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('defs', 'document'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('group', 'container', 'shape'), nativeSceneRole('group-header', 'shape'), nativeSceneRole('entity', 'container', 'shape'), nativeSceneRole('attribute', 'container', 'text'), nativeSceneRole('relationship', 'connector'), nativeSceneRole('cardinality', 'shape'), nativeSceneRole('label', 'text')],
     example: 'erDiagram\n  CUSTOMER ||--o{ ORDER : places\n  ORDER {\n    string id\n  }' },
   { id: 'journey', upstreamId: 'journey', maturity: 'stable', label: 'Journey', headers: ['journey'], narrower: 'asJourney', editorDiagramType: 'Journey', editorExampleId: 'journey-basic', editorGlyph: 'J',
     config: { section: 'journey', keys: ['diagramMarginX', 'diagramMarginY', 'leftMargin', 'maxLabelWidth', 'width', 'height', 'taskFontSize', 'taskFontFamily', 'taskMargin', 'actorColours', 'sectionFills', 'sectionColours', 'titleColor', 'titleFontFamily', 'titleFontSize', 'useMaxWidth', 'boxMargin', 'boxTextMargin', 'noteMargin', 'messageMargin', 'messageAlign', 'bottomMarginAdj', 'rightAngles', 'activationWidth', 'textPlacement'], noopKeys: ['boxMargin', 'boxTextMargin', 'noteMargin', 'messageMargin', 'messageAlign', 'bottomMarginAdj', 'rightAngles', 'activationWidth', 'textPlacement'] },
@@ -436,9 +492,8 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
     detectLoose: (line: string) => /^journey(?:\s|$)/.test(line),
     sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('defs', 'document', 'marker'), nativeSceneRole('chrome', 'document'), nativeSceneRole('title', 'text'), nativeSceneRole('series', 'connector'), nativeSceneRole('grid', 'container', 'connector'), nativeSceneRole('axis', 'text'), nativeSceneRole('rail', 'connector'), nativeSceneRole('legend', 'container', 'text'), nativeSceneRole('actor', 'shape'), nativeSceneRole('section', 'container', 'shape'), nativeSceneRole('group-header', 'text', 'shape'), nativeSceneRole('task', 'container', 'shape', 'data-mark'), nativeSceneRole('marker-line', 'connector'), nativeSceneRole('label', 'text'), nativeSceneRole('score', 'container', 'shape', 'data-mark')],
     example: 'journey\n  title Checkout\n  section Browse\n    Find product: 4: Shopper\n  section Buy\n    Pay: 3: Shopper' },
-  { id: 'architecture', upstreamId: 'architecture', maturity: 'stable', label: 'Architecture', headers: ['architecture-beta'], narrower: 'asArchitecture', editorDiagramType: 'Architecture', editorExampleId: 'architecture-basic', editorGlyph: 'A',
+  { id: 'architecture', upstreamId: 'architecture', maturity: 'stable', label: 'Architecture', headers: ['architecture', 'architecture-beta'], narrower: 'asArchitecture', editorDiagramType: 'Architecture', editorExampleId: 'architecture-basic', editorGlyph: 'A',
     config: { section: 'architecture', keys: ['padding', 'iconSize', 'fontSize', 'nodeSeparation', 'idealEdgeLengthMultiplier', 'edgeElasticity', 'numIter', 'seed', 'randomize'], noopKeys: ['edgeElasticity', 'numIter', 'randomize', 'seed'] },
-    aliases: ['architecture'],
     detect: (line: string) => /^architecture(?:-beta)?\s*$/.test(line),
     detectLoose: (line: string) => /^architecture(?:-beta)?(?:\s|$)/.test(line),
     sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('defs', 'document', 'marker'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('title', 'text'), nativeSceneRole('group', 'container', 'shape'), nativeSceneRole('group-header', 'shape'), nativeSceneRole('icon', 'document'), nativeSceneRole('label', 'text'), nativeSceneRole('service', 'container', 'shape'), nativeSceneRole('junction', 'container', 'shape'), nativeSceneRole('edge', 'connector')],
@@ -451,7 +506,7 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
   { id: 'pie', upstreamId: 'pie', maturity: 'stable', label: 'Pie', headers: ['pie'], narrower: 'asPie', editorDiagramType: 'Pie', editorExampleId: 'pie-basic', editorGlyph: 'P',
     config: { section: 'pie', keys: ['textPosition', 'donutHole', 'legendPosition', 'highlightSlice', 'useMaxWidth', 'useWidth'], noopKeys: ['useMaxWidth', 'useWidth'] },
     detect: (line: string) => /^pie(?:\s|$)/.test(line),
-    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('chrome', 'document'), nativeSceneRole('pie-slice', 'shape', 'data-mark'), nativeSceneRole('legend', 'text', 'shape', 'data-mark'), nativeSceneRole('title', 'text'), nativeSceneRole('label', 'text')],
+    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('pie-slice', 'shape', 'data-mark'), nativeSceneRole('legend', 'text', 'shape', 'data-mark'), nativeSceneRole('title', 'text'), nativeSceneRole('label', 'text')],
     example: 'pie title Plans\n  "Free" : 60\n  "Pro" : 30\n  "Enterprise" : 10' },
   { id: 'quadrant', upstreamId: 'quadrantChart', maturity: 'stable', label: 'Quadrant', headers: ['quadrantChart'], narrower: 'asQuadrant', editorDiagramType: 'Quadrant', editorExampleId: 'quadrant-basic', editorGlyph: '4Q',
     config: { section: 'quadrantChart', keys: ['chartWidth', 'chartHeight', 'titleFontSize', 'titlePadding', 'quadrantPadding', 'quadrantLabelFontSize', 'xAxisLabelFontSize', 'yAxisLabelFontSize', 'xAxisLabelPadding', 'yAxisLabelPadding', 'pointLabelFontSize', 'pointRadius', 'pointTextPadding', 'quadrantInternalBorderStrokeWidth', 'quadrantExternalBorderStrokeWidth', 'useMaxWidth', 'quadrantTextTopPadding', 'xAxisPosition', 'yAxisPosition', 'useWidth'], noopKeys: ['quadrantTextTopPadding', 'xAxisPosition', 'yAxisPosition', 'useWidth'] },
@@ -482,11 +537,13 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
 
 export type BuiltinFamilyId = typeof BUILTIN_FAMILY_DESCRIPTOR_SEEDS[number]['id']
 
-function seedBuiltinDescriptor(seed: BuiltinFamilyDescriptorSeed): FamilyDescriptor {
+function completeBuiltinDescriptor(seed: BuiltinFamilyDescriptorSeed): FamilyDescriptor {
   const { sceneRoles, ...descriptor } = seed
   const semanticRoles = sceneRoles.map(row => row.role)
   return freezeDescriptor({
     ...descriptor,
+    ...BUILTIN_AGENT_HOOKS[seed.id],
+    ...BUILTIN_RENDER_HOOKS[seed.id],
     contractVersion: 1 as const,
     identity: createExtensionIdentity({
       id: `family:${seed.id}`,
@@ -507,11 +564,6 @@ function seedBuiltinDescriptor(seed: BuiltinFamilyDescriptorSeed): FamilyDescrip
   })
 }
 
-/** The only mutable family authority; metadata below is a compatibility view. */
-const REGISTRY = new Map<FamilyId, FamilyDescriptor>(
-  BUILTIN_FAMILY_DESCRIPTOR_SEEDS.map(seed => [seed.id, seedBuiltinDescriptor(seed)]),
-)
-
 export const BUILTIN_FAMILY_METADATA: readonly BuiltinFamilyMetadata[] = Object.freeze(
   BUILTIN_FAMILY_DESCRIPTOR_SEEDS.map(({ id, label, headers, narrower, editorDiagramType, editorExampleId, editorGlyph, example }) =>
     Object.freeze({ id, label, headers, narrower, editorDiagramType, editorExampleId, editorGlyph, example })),
@@ -529,10 +581,6 @@ export function builtinFamilyMetadata(kind: DiagramKind): BuiltinFamilyMetadata 
 }
 
 const BUILTIN_IDS = new Set<string>(BUILTIN_FAMILY_DESCRIPTOR_SEEDS.map(seed => seed.id))
-const OPERATION_KEYS = new Set<keyof FamilyOperations>([
-  'normalizeRequest', 'extractLabels', 'parse', 'buildSourceMap', 'serialize', 'mutate', 'verify',
-  'layout', 'projectPositioned', 'renderSvg', 'lowerScene', 'renderAscii',
-])
 
 export function isBuiltinFamilyId(id: string): id is BuiltinFamilyId {
   return BUILTIN_IDS.has(id)
@@ -546,39 +594,214 @@ function normalizedHeader(header: string): string {
   return header.trim().toLowerCase()
 }
 
-function freezeDescriptor(descriptor: FamilyDescriptor): FamilyDescriptor {
-  return Object.freeze({
-    ...descriptor,
-    identity: createExtensionIdentity({
-      id: descriptor.identity.id,
-      kind: descriptor.identity.kind,
-      version: descriptor.identity.version,
-      compatibility: descriptor.identity.compatibility,
-      provenance: descriptor.identity.provenance,
-    }),
-    headers: Object.freeze([...descriptor.headers]),
-    aliases: Object.freeze([...descriptor.aliases]),
-    semanticRoles: Object.freeze([...descriptor.semanticRoles]),
-    scenePrimitiveEvidence: Object.freeze(descriptor.scenePrimitiveEvidence.map(item => Object.freeze({
-      ...item,
-      evidence: Object.freeze([...item.evidence]),
-    }))),
-    capabilityEvidence: Object.freeze(descriptor.capabilityEvidence.map(item => Object.freeze({
-      ...item,
-      evidence: Object.freeze([...item.evidence]),
-    }))),
-    ...(descriptor.config
-      ? { config: Object.freeze({
-          ...descriptor.config,
-          keys: Object.freeze([...descriptor.config.keys]),
-          ...(descriptor.config.noopKeys ? { noopKeys: Object.freeze([...descriptor.config.noopKeys]) } : {}),
-        }) }
-      : {}),
+function validDeclaredHeader(header: unknown): header is string {
+  return typeof header === 'string'
+    && header !== ''
+    && header === header.trim()
+    && !/[;\u0000-\u001f\u007f]/.test(header)
+}
+
+const UPSTREAM_HEADER_OWNERS = new Map<string, string>(
+  UPSTREAM_MERMAID_FAMILY_INDEX.families.flatMap(family =>
+    family.headers.map(header => [normalizedHeader(header.value), family.id] as const)),
+)
+
+const FAMILY_DESCRIPTOR_FIELDS = Object.freeze([
+  'contractVersion',
+  'identity',
+  'id',
+  'upstreamId',
+  'label',
+  'headers',
+  'aliases',
+  'maturity',
+  'collisionPriority',
+  'detect',
+  'detectLoose',
+  'config',
+  'applicableRenderOptions',
+  'semanticRoles',
+  'scenePrimitiveEvidence',
+  'capabilityEvidence',
+  'narrower',
+  'editorDiagramType',
+  'editorExampleId',
+  'editorGlyph',
+  'example',
+  'normalizeRequest',
+  'extractLabels',
+  'parse',
+  'buildSourceMap',
+  'serialize',
+  'mutate',
+  'verify',
+  'layout',
+  'projectPositioned',
+  'renderSvg',
+  'lowerScene',
+  'renderAscii',
+] as const satisfies readonly (keyof FamilyDescriptor)[])
+
+type UncapturedFamilyDescriptorField = Exclude<
+  keyof FamilyDescriptor,
+  (typeof FAMILY_DESCRIPTOR_FIELDS)[number]
+>
+/** Compile-time tripwire: a future descriptor field must make an explicit
+ * snapshot decision before it can participate in registration. */
+const ALL_FAMILY_DESCRIPTOR_FIELDS_CAPTURED: UncapturedFamilyDescriptorField extends never ? true : never = true
+
+const MAX_FAMILY_DESCRIPTOR_ARRAY_ITEMS = 100_000
+
+/** Read a fixed record surface once. The returned plain object is the only
+ * value that later snapshot/validation code may inspect, so an accessor-backed
+ * candidate cannot present one value during validation and another at commit. */
+function captureFields(
+  value: unknown,
+  fields: readonly string[],
+): Record<string, unknown> | undefined {
+  if ((typeof value !== 'object' && typeof value !== 'function') || value === null) return undefined
+  const source = value as object
+  return Object.fromEntries(fields.map(field => [field, Reflect.get(source, field)]))
+}
+
+/** Descriptor arrays are declarative dense tuples/lists. Snapshot indices
+ * without consulting a caller-provided iterator and reject pathological or
+ * sparse containers before validation performs any further walks. */
+function snapshotDescriptorArray<T, U>(
+  value: unknown,
+  label: string,
+  project: (item: T, index: number) => U,
+): readonly U[] | unknown {
+  if (!Array.isArray(value)) return value
+  const length = Reflect.get(value, 'length') as unknown
+  if (!Number.isSafeInteger(length) || (length as number) < 0) {
+    throw new TypeError(`Family descriptor ${label} must have a non-negative integer length`)
+  }
+  if ((length as number) > MAX_FAMILY_DESCRIPTOR_ARRAY_ITEMS) {
+    throw new RangeError(`Family descriptor ${label} exceeds the ${MAX_FAMILY_DESCRIPTOR_ARRAY_ITEMS}-item limit`)
+  }
+  const result: U[] = []
+  for (let index = 0; index < (length as number); index++) {
+    if (!Object.prototype.hasOwnProperty.call(value, index)) {
+      throw new TypeError(`Family descriptor ${label} must not be sparse`)
+    }
+    result.push(project(Reflect.get(value, String(index)) as T, index))
+  }
+  return Object.freeze(result)
+}
+
+/** Capture an open string-keyed identity record once. Compatibility may carry
+ * forward-compatible namespaced contracts, so its key set cannot be closed. */
+function snapshotIdentityRecord(value: unknown): Readonly<Record<string, unknown>> | unknown {
+  if ((typeof value !== 'object' && typeof value !== 'function') || value === null) return value
+  return Object.freeze(Object.fromEntries(Object.entries(value)))
+}
+
+function snapshotFamilyIdentity(value: unknown): FamilyDescriptor['identity'] | unknown {
+  const captured = captureFields(value, ['id', 'kind', 'version', 'compatibility', 'provenance'])
+  if (!captured) return value
+  const compatibility = snapshotIdentityRecord(captured.compatibility)
+  const provenanceFields = captureFields(captured.provenance, ['owner', 'source', 'reference'])
+  const provenance = provenanceFields ? Object.freeze(provenanceFields) : captured.provenance
+  return createExtensionIdentity({
+    id: captured.id as string,
+    kind: captured.kind as 'family',
+    version: captured.version as string,
+    compatibility: compatibility as ExtensionIdentity<'family'>['compatibility'],
+    provenance: provenance as ExtensionIdentity<'family'>['provenance'],
   })
+}
+
+function snapshotFamilyConfig(value: unknown): FamilyConfigContract | unknown {
+  const captured = captureFields(value, ['section', 'keys', 'noopKeys'])
+  if (!captured) return value
+  const keys = snapshotDescriptorArray<string, string>(captured.keys, 'config.keys', item => item)
+  const noopKeys = captured.noopKeys === undefined
+    ? undefined
+    : snapshotDescriptorArray<string, string>(captured.noopKeys, 'config.noopKeys', item => item)
+  return Object.freeze({
+    section: captured.section,
+    keys,
+    ...(noopKeys === undefined ? {} : { noopKeys }),
+  }) as unknown as FamilyConfigContract
+}
+
+function snapshotScenePrimitiveCell(value: unknown, index: number): FamilyScenePrimitiveEvidence {
+  const captured = captureFields(value, [
+    'role', 'primitive', 'applicability', 'realization', 'evidence', 'diagnostic',
+  ])
+  if (!captured) return value as FamilyScenePrimitiveEvidence
+  return Object.freeze({
+    role: captured.role,
+    primitive: captured.primitive,
+    applicability: captured.applicability,
+    realization: captured.realization,
+    evidence: snapshotDescriptorArray<string, string>(
+      captured.evidence,
+      `scenePrimitiveEvidence[${index}].evidence`,
+      item => item,
+    ),
+    ...(captured.diagnostic === undefined ? {} : { diagnostic: captured.diagnostic }),
+  }) as unknown as FamilyScenePrimitiveEvidence
+}
+
+function snapshotCapabilityCell(value: unknown, index: number): FamilyCapabilityEvidence {
+  const captured = captureFields(value, ['capability', 'state', 'evidence'])
+  if (!captured) return value as FamilyCapabilityEvidence
+  return Object.freeze({
+    capability: captured.capability,
+    state: captured.state,
+    evidence: snapshotDescriptorArray<string, string>(
+      captured.evidence,
+      `capabilityEvidence[${index}].evidence`,
+      item => item,
+    ),
+  }) as unknown as FamilyCapabilityEvidence
+}
+
+/** Materialize the complete public descriptor surface exactly once, then
+ * recursively snapshot every declarative nested value used by validation,
+ * conformance, routing, discovery, and commit. Executable hooks are captured
+ * as references once and thereafter execute from this frozen descriptor. */
+function freezeDescriptor(untrusted: FamilyDescriptor): FamilyDescriptor {
+  void ALL_FAMILY_DESCRIPTOR_FIELDS_CAPTURED
+  const captured = captureFields(untrusted, FAMILY_DESCRIPTOR_FIELDS)
+  if (!captured) throw new TypeError('Family descriptor must be an object')
+  // Match ordinary object-spread semantics for absent optional fields without
+  // returning to the source to distinguish absent from explicitly undefined.
+  const defined = Object.fromEntries(Object.entries(captured).filter(([, value]) => value !== undefined))
+  return Object.freeze({
+    ...defined,
+    identity: snapshotFamilyIdentity(captured.identity),
+    headers: snapshotDescriptorArray<string, string>(captured.headers, 'headers', item => item),
+    aliases: snapshotDescriptorArray<string, string>(captured.aliases, 'aliases', item => item),
+    semanticRoles: snapshotDescriptorArray<string, string>(captured.semanticRoles, 'semanticRoles', item => item),
+    scenePrimitiveEvidence: snapshotDescriptorArray<unknown, FamilyScenePrimitiveEvidence>(
+      captured.scenePrimitiveEvidence,
+      'scenePrimitiveEvidence',
+      snapshotScenePrimitiveCell,
+    ),
+    capabilityEvidence: snapshotDescriptorArray<unknown, FamilyCapabilityEvidence>(
+      captured.capabilityEvidence,
+      'capabilityEvidence',
+      snapshotCapabilityCell,
+    ),
+    ...(captured.config === undefined ? {} : { config: snapshotFamilyConfig(captured.config) }),
+    ...(captured.applicableRenderOptions === undefined
+      ? {}
+      : {
+          applicableRenderOptions: snapshotDescriptorArray<string, string>(
+            captured.applicableRenderOptions,
+            'applicableRenderOptions',
+            item => item,
+          ),
+        }),
+  }) as FamilyDescriptor
 }
 
 function detectorClaims(descriptor: FamilyDescriptor, header: string): boolean {
   const normalized = normalizedHeader(header)
+  if (!descriptorOwnsDetectionLine(descriptor, normalized)) return false
   return descriptor.detect(normalized) || Boolean(descriptor.detectLoose?.(normalized))
 }
 
@@ -591,7 +814,24 @@ function validSceneRoleDeclaration(role: string): boolean {
   return /^[a-z0-9][a-z0-9._/-]*:[a-z0-9][a-z0-9._/-]*$/i.test(role)
 }
 
-function expectedExtensionCapabilityState(
+function hasPublicLayoutProjection(descriptor: FamilyDescriptor): boolean {
+  return descriptor.layout !== undefined && descriptor.projectPositioned !== undefined
+}
+
+function hasPublicSceneExecution(descriptor: FamilyDescriptor): boolean {
+  return descriptor.layout !== undefined && descriptor.lowerScene !== undefined
+}
+
+function hasPublicSvgExecution(descriptor: FamilyDescriptor): boolean {
+  return descriptor.layout !== undefined
+    && (descriptor.lowerScene !== undefined || descriptor.renderSvg !== undefined)
+}
+
+function hasPublicVerificationProjection(descriptor: FamilyDescriptor): boolean {
+  return hasPublicLayoutProjection(descriptor) && hasPublicSvgExecution(descriptor)
+}
+
+function expectedCapabilityState(
   descriptor: FamilyDescriptor,
   capability: FamilyCapability,
 ): FamilyCapabilityState {
@@ -600,21 +840,43 @@ function expectedExtensionCapabilityState(
     case 'source-preservation': return descriptor.parse ? 'native' : 'source-preserved'
     case 'parse': return descriptor.parse ? 'native' : 'source-preserved'
     case 'serialize': return descriptor.serialize ? 'native' : 'source-preserved'
-    // The public mutation verbs remain a closed, built-in-only union. Merely
-    // registering a callback cannot make an extension mutation reachable.
-    case 'mutation': return 'diagnosed'
-    case 'verify': return descriptor.verify ? 'native' : 'diagnosed'
-    case 'layout': return descriptor.layout ? 'native' : 'absent'
-    case 'scene': return descriptor.lowerScene ? 'native' : 'absent'
-    case 'svg': return descriptor.layout && (descriptor.lowerScene || descriptor.renderSvg) ? 'native' : 'absent'
+    // Extension mutation verbs remain a closed built-in union. Built-ins, on
+    // the other hand, must carry the hook that their native claim advertises.
+    case 'mutation': return isBuiltinFamilyId(descriptor.id) && descriptor.mutate ? 'native' : 'diagnosed'
+    // Built-ins pass through the family-neutral verifier; extensions also need
+    // their family hook. Both paths require the same executable SVG + public
+    // positioned-layout tuple that verifyMermaid consumes at runtime.
+    case 'verify': return hasPublicVerificationProjection(descriptor)
+      && (isBuiltinFamilyId(descriptor.id) || descriptor.verify !== undefined)
+      ? 'native'
+      : 'diagnosed'
+    // A layout hook can legitimately serve SVG/Scene without exposing layout
+    // JSON. That partial tuple is diagnosed rather than advertised as native.
+    case 'layout': return hasPublicLayoutProjection(descriptor)
+      ? 'native'
+      : descriptor.layout || descriptor.projectPositioned ? 'diagnosed' : 'absent'
+    case 'scene': return hasPublicSceneExecution(descriptor)
+      ? 'native'
+      : descriptor.lowerScene ? 'diagnosed' : 'absent'
+    case 'svg': return hasPublicSvgExecution(descriptor) ? 'native' : 'absent'
     case 'terminal': return descriptor.renderAscii ? 'native' : 'absent'
   }
 }
 
-function validateDescriptor(descriptor: FamilyDescriptor, replacingId?: FamilyId): void {
+function validateDescriptor(
+  descriptor: FamilyDescriptor,
+  replacingId?: FamilyId,
+  registry: ReadonlyMap<FamilyId, FamilyDescriptor> = REGISTRY,
+): void {
   if (!descriptor || typeof descriptor !== 'object') throw new TypeError('Family descriptor must be an object')
   if (!isBuiltinFamilyId(descriptor.id) && !isExternalFamilyId(descriptor.id)) {
     throw new Error(`External family id "${descriptor.id}" must use the "family:" namespace`)
+  }
+  if (!isBuiltinFamilyId(descriptor.id)
+    && (descriptor.id === 'family:unknown'
+      || descriptor.id.startsWith('family:upstream/')
+      || BUILTIN_IDS.has(descriptor.id.slice('family:'.length)))) {
+    throw new Error(`External family id "${descriptor.id}" is reserved by the core family/preservation envelope`)
   }
   const expectedIdentityId = isBuiltinFamilyId(descriptor.id) ? `family:${descriptor.id}` : descriptor.id
   if (descriptor.identity?.id !== expectedIdentityId || descriptor.identity.kind !== 'family') {
@@ -630,16 +892,47 @@ function validateDescriptor(descriptor: FamilyDescriptor, replacingId?: FamilyId
     compatibility: descriptor.identity.compatibility,
     provenance: descriptor.identity.provenance,
   })
+  if (!isBuiltinFamilyId(descriptor.id)) {
+    // Every extension executes inside the core parse/render/receipt lifecycle,
+    // even when it does not lower through Scene. Refuse unversioned core
+    // coupling up front so future core changes remain negotiable rather than
+    // silently reinterpreting an older extension.
+    requireExtensionContractCompatibility(descriptor.identity, 'core')
+    if (descriptor.lowerScene) requireExtensionContractCompatibility(descriptor.identity, 'scene')
+  }
   if (!descriptor.label) {
     throw new Error(`Family "${descriptor.id}" must declare version, provenance, and label`)
   }
-  if (!Array.isArray(descriptor.headers) || descriptor.headers.length === 0 || descriptor.headers.some(header => !normalizedHeader(header))) {
-    throw new Error(`Family "${descriptor.id}" must declare at least one non-empty header`)
+  if (!Array.isArray(descriptor.headers) || descriptor.headers.length === 0 || descriptor.headers.some(header => !validDeclaredHeader(header))) {
+    throw new Error(`Family "${descriptor.id}" must declare at least one canonical header without surrounding whitespace, controls, or semicolons`)
   }
   if (typeof descriptor.detect !== 'function') throw new Error(`Family "${descriptor.id}" must declare a detector`)
   if (!Number.isSafeInteger(descriptor.collisionPriority)) throw new Error(`Family "${descriptor.id}" must declare an integer collisionPriority`)
 
-  if (!Array.isArray(descriptor.aliases)) throw new Error(`Family "${descriptor.id}" must declare an aliases array`)
+  if (!Array.isArray(descriptor.aliases)
+    || descriptor.aliases.some(alias => !validDeclaredHeader(alias))) {
+    throw new Error(`Family "${descriptor.id}" must declare canonical aliases without surrounding whitespace, controls, or semicolons`)
+  }
+  const claimedHeaders = new Set([...descriptor.headers, ...descriptor.aliases].map(normalizedHeader))
+  for (const [id, existing] of registry) {
+    if (id === replacingId) continue
+    const collision = [...existing.headers, ...existing.aliases]
+      .map(normalizedHeader)
+      .find(header => claimedHeaders.has(header))
+    if (collision) throw new Error(`Family header "${collision}" is already owned by "${id}"`)
+  }
+  const upstreamAlias = descriptor.aliases.find(alias => UPSTREAM_HEADER_OWNERS.has(normalizedHeader(alias)))
+  if (upstreamAlias) {
+    throw new Error(
+      `Family "${descriptor.id}" alias "${upstreamAlias}" is an upstream public header and must be declared in headers`,
+    )
+  }
+  const declaredUpstreamFamilies = new Set(descriptor.headers
+    .map(header => UPSTREAM_HEADER_OWNERS.get(normalizedHeader(header)))
+    .filter((id): id is string => id !== undefined))
+  if (declaredUpstreamFamilies.size > 1) {
+    throw new Error(`Family "${descriptor.id}" cannot claim upstream headers from multiple Mermaid families`)
+  }
   if (descriptor.config) {
     if (!descriptor.config.section.trim()) throw new Error(`Family "${descriptor.id}" config contract requires a section`)
     if (!Array.isArray(descriptor.config.keys) || descriptor.config.keys.some(key => typeof key !== 'string' || !key.trim())) {
@@ -665,10 +958,10 @@ function validateDescriptor(descriptor: FamilyDescriptor, replacingId?: FamilyId
   if (descriptor.lowerScene && descriptor.renderSvg) {
     throw new Error(`Family "${descriptor.id}" must declare one graphical waist: lowerScene, or renderSvg as an extension fallback, not both`)
   }
-  if (isExternalFamilyId(descriptor.id) && descriptor.lowerScene && descriptor.semanticRoles.length === 0) {
+  if (descriptor.lowerScene && descriptor.semanticRoles.length === 0) {
     throw new Error(`Family "${descriptor.id}" has a Scene lowering but declares no Scene roles`)
   }
-  if (isExternalFamilyId(descriptor.id) && !descriptor.lowerScene && descriptor.semanticRoles.length > 0) {
+  if (!descriptor.lowerScene && descriptor.semanticRoles.length > 0) {
     throw new Error(`Family "${descriptor.id}" declares Scene roles without a Scene lowering`)
   }
 
@@ -736,22 +1029,44 @@ function validateDescriptor(descriptor: FamilyDescriptor, replacingId?: FamilyId
   if (descriptor.projectPositioned && !descriptor.layout) {
     throw new Error(`Family "${descriptor.id}" cannot project a positioned artifact without a layout hook`)
   }
-  if (isExternalFamilyId(descriptor.id)) {
-    for (const capability of FAMILY_CAPABILITY_COLUMNS) {
-      const declared = evidenceByCapability.get(capability)!.state
-      const expected = expectedExtensionCapabilityState(descriptor, capability)
-      if (declared !== expected) {
-        throw new Error(`Family "${descriptor.id}" capability "${capability}" claims "${declared}" but its hooks require "${expected}"`)
-      }
+  if (descriptor.renderSvg && !descriptor.layout) {
+    throw new Error(`Family "${descriptor.id}" cannot render SVG without a layout hook`)
+  }
+  if (descriptor.lowerScene && !descriptor.layout) {
+    throw new Error(`Family "${descriptor.id}" cannot lower Scene without a layout hook`)
+  }
+  for (const capability of FAMILY_CAPABILITY_COLUMNS) {
+    const declared = evidenceByCapability.get(capability)!.state
+    const expected = expectedCapabilityState(descriptor, capability)
+    if (declared !== expected) {
+      throw new Error(`Family "${descriptor.id}" capability "${capability}" claims "${declared}" but its hooks require "${expected}"`)
+    }
+  }
+  if (!isBuiltinFamilyId(descriptor.id)
+    && descriptor.capabilityEvidence.some(claim => claim.state === 'native')) {
+    if (typeof descriptor.example !== 'string' || descriptor.example.trim() === '') {
+      throw new Error(`External family "${descriptor.id}" must declare a canonical example for executable native conformance`)
+    }
+    if (boundedUtf8ByteLength(descriptor.example, FAMILY_CONFORMANCE_MAX_EXAMPLE_BYTES) > FAMILY_CONFORMANCE_MAX_EXAMPLE_BYTES) {
+      throw new Error(`External family "${descriptor.id}" example exceeds the ${FAMILY_CONFORMANCE_MAX_EXAMPLE_BYTES}-byte conformance limit`)
     }
   }
   const ownHeaders = [...descriptor.headers, ...descriptor.aliases].map(normalizedHeader)
   if (new Set(ownHeaders).size !== ownHeaders.length) throw new Error(`Family "${descriptor.id}" declares duplicate headers`)
   const unrecognized = ownHeaders.find(header => !descriptor.detect(header))
   if (unrecognized) throw new Error(`Family detector for "${descriptor.id}" does not recognize its declared header "${unrecognized}"`)
+  const looselyUnrecognized = descriptor.detectLoose
+    ? ownHeaders.find(header => !descriptor.detectLoose!(header))
+    : undefined
+  if (looselyUnrecognized) {
+    throw new Error(`Family loose detector for "${descriptor.id}" does not recognize its declared header "${looselyUnrecognized}"`)
+  }
   const claimed = new Set(ownHeaders)
-  for (const [id, existing] of REGISTRY) {
+  for (const [id, existing] of registry) {
     if (id === replacingId) continue
+    if (existing.identity.id === descriptor.identity.id) {
+      throw new ExtensionCollisionError(descriptor.identity, existing.identity)
+    }
     const existingHeaders = [...existing.headers, ...existing.aliases].map(normalizedHeader)
     const collision = existingHeaders.find(header => claimed.has(header))
     if (collision) throw new Error(`Family header "${collision}" is already owned by "${id}"`)
@@ -766,49 +1081,158 @@ function validateDescriptor(descriptor: FamilyDescriptor, replacingId?: FamilyId
   }
 }
 
-/** Register a new namespaced extension. Validation completes before mutation. */
-export function registerFamily(descriptor: FamilyDescriptor): () => void {
-  if (isBuiltinFamilyId(descriptor.id)) {
-    throw new Error(`Built-in family "${descriptor.id}" already exists; use augmentFamily or replaceFamilyForTest explicitly`)
+/** Validate every complete built-in against the same rules used for
+ * extensions before exposing any of them through the registry. */
+function buildBuiltinRegistry(): Map<FamilyId, FamilyDescriptor> {
+  const candidate = new Map<FamilyId, FamilyDescriptor>()
+  for (const seed of BUILTIN_FAMILY_DESCRIPTOR_SEEDS) {
+    const descriptor = completeBuiltinDescriptor(seed)
+    validateDescriptor(descriptor, undefined, candidate)
+    candidate.set(descriptor.id, descriptor)
   }
-  const id = descriptor.id
-  const existing = REGISTRY.get(id)
-  if (existing) throw new ExtensionCollisionError(descriptor.identity, existing.identity)
-  validateDescriptor(descriptor)
-  const installed = freezeDescriptor(descriptor)
-  REGISTRY.set(id, installed)
-  let removed = false
-  return () => {
-    if (removed) return
-    if (REGISTRY.get(id) === installed) REGISTRY.delete(id)
-    removed = true
+  return candidate
+}
+
+/** The only mutable family authority. Built-ins enter it as complete values;
+ * later mutations are limited to atomic extension install/uninstall and the
+ * explicit test-only replacement seam. */
+const REGISTRY = buildBuiltinRegistry()
+
+function freezeFamilyConformanceReport(report: FamilyConformanceReport): FamilyConformanceReport {
+  return Object.freeze({
+    ...report,
+    capabilities: Object.freeze(report.capabilities.map(result => Object.freeze({ ...result }))),
+  })
+}
+
+function builtinFamilyConformanceReport(descriptor: FamilyDescriptor): FamilyConformanceReport {
+  return freezeFamilyConformanceReport({
+    version: FAMILY_CONFORMANCE_VERSION,
+    familyId: descriptor.id,
+    example: descriptor.example,
+    passed: true,
+    capabilities: FAMILY_CAPABILITY_COLUMNS.map(capability => ({
+      capability,
+      declaredState: descriptor.capabilityEvidence.find(claim => claim.capability === capability)!.state,
+      status: 'passed',
+      witnessId: `family-builtin-suite@${FAMILY_CONFORMANCE_VERSION}/${descriptor.id}/${capability}`,
+    })),
+  })
+}
+
+/** Executable proof authority paired with each immutable registry entry. */
+const CONFORMANCE = new Map<FamilyId, FamilyConformanceReport>(
+  Array.from(REGISTRY.values(), descriptor => [descriptor.id, builtinFamilyConformanceReport(descriptor)] as const),
+)
+
+/** While a candidate's callbacks execute, no callback may change the registry
+ * it is being judged against. This also protects existing unregister tokens
+ * and the explicit test replacement seam from detector/hook reentrancy. */
+let stagedMutation: { readonly id: FamilyId; readonly token: symbol } | null = null
+
+function assertRegistryMutationAllowed(): void {
+  if (stagedMutation) {
+    throw new Error(`Family registry mutation is forbidden while candidate "${stagedMutation.id}" is undergoing conformance`)
   }
 }
 
-export type FamilyAugmentation = Partial<FamilyOperations>
+export interface StagedFamilyCandidate {
+  readonly descriptor: FamilyDescriptor
+  commit(report: FamilyConformanceReport): () => void
+  rollback(): void
+}
 
-/** Add or replace only behavioral hooks; identity and routing stay immutable. */
-export function augmentFamily(id: FamilyId, operations: FamilyAugmentation): void {
-  const current = REGISTRY.get(id)
-  if (!current) throw new Error(`Cannot augment unknown family "${id}"`)
-  for (const key of Object.keys(operations)) {
-    if (!OPERATION_KEYS.has(key as keyof FamilyOperations)) throw new Error(`Cannot augment family descriptor field "${key}"`)
+/** @internal Higher-level registration owns executable conformance. This seam
+ * only validates, freezes, stages and atomically commits/rolls back a value;
+ * importing a renderer here would invert the registry dependency. */
+export function stageFamilyCandidateForConformance(
+  descriptor: FamilyDescriptor,
+  validateSnapshot?: (descriptor: FamilyDescriptor) => void,
+): StagedFamilyCandidate {
+  assertRegistryMutationAllowed()
+  const token = Symbol('family-candidate')
+  // Descriptor accessors are caller-owned code too. Enter the mutation guard
+  // before the first field read, then replace the placeholder with the one
+  // captured id without changing this staging token.
+  stagedMutation = { id: 'family:unread-candidate' as ExternalFamilyId, token }
+  try {
+    // Snapshot before the first field read. Validation, staging, executable
+    // conformance, and commit must all observe this exact descriptor value.
+    const installed = freezeDescriptor(descriptor)
+    const id = installed.id
+    stagedMutation = { id, token }
+    if (isBuiltinFamilyId(id)) {
+      throw new Error(`Built-in family "${id}" already exists; use replaceFamilyForTest explicitly in tests`)
+    }
+    const existing = REGISTRY.get(id)
+    if (existing) throw new ExtensionCollisionError(installed.identity, existing.identity)
+    validateSnapshot?.(installed)
+    validateDescriptor(installed)
+    REGISTRY.set(id, installed)
+    let settled = false
+    const settle = (): void => {
+      if (stagedMutation?.token !== token) throw new Error(`Family candidate "${id}" lost its staging authority`)
+      stagedMutation = null
+      settled = true
+    }
+    return Object.freeze({
+      descriptor: installed,
+      commit(report: FamilyConformanceReport): () => void {
+        if (settled) throw new Error(`Family candidate "${id}" is already settled`)
+        if (report.familyId !== id) throw new Error(`Family conformance report for "${report.familyId}" cannot commit "${id}"`)
+        if (report.capabilities.length !== FAMILY_CAPABILITY_COLUMNS.length
+          || FAMILY_CAPABILITY_COLUMNS.some(capability => !report.capabilities.some(result => result.capability === capability))) {
+          throw new Error(`Family conformance report for "${id}" is incomplete`)
+        }
+        const frozenReport = freezeFamilyConformanceReport(report)
+        CONFORMANCE.set(id, frozenReport)
+        settle()
+        let removed = false
+        return () => {
+          if (removed) return
+          assertRegistryMutationAllowed()
+          if (REGISTRY.get(id) === installed) {
+            REGISTRY.delete(id)
+            CONFORMANCE.delete(id)
+          }
+          removed = true
+        }
+      },
+      rollback(): void {
+        if (settled) return
+        if (REGISTRY.get(id) === installed) REGISTRY.delete(id)
+        CONFORMANCE.delete(id)
+        settle()
+      },
+    })
+  } catch (error) {
+    if (stagedMutation?.token === token) stagedMutation = null
+    throw error
   }
-  const next = { ...current, ...operations }
-  validateDescriptor(next, id)
-  REGISTRY.set(id, freezeDescriptor(next))
 }
 
 /** Explicit replacement seam for characterization tests; returns an idempotent restore. */
 export function replaceFamilyForTest(id: FamilyId, replacement: FamilyDescriptor): () => void {
+  assertRegistryMutationAllowed()
   const previous = REGISTRY.get(id)
   if (!previous) throw new Error(`Cannot replace unknown family "${id}"`)
-  if (replacement.id !== id) throw new Error(`Replacement id "${replacement.id}" does not match "${id}"`)
-  validateDescriptor(replacement, id)
-  REGISTRY.set(id, freezeDescriptor(replacement))
+  const token = Symbol(`replace:${id}`)
+  stagedMutation = { id, token }
+  try {
+    const installed = freezeDescriptor(replacement)
+    if (installed.id !== id) throw new Error(`Replacement id "${installed.id}" does not match "${id}"`)
+    validateDescriptor(installed, id)
+    REGISTRY.set(id, installed)
+  } catch (error) {
+    if (stagedMutation?.token === token) stagedMutation = null
+    throw error
+  }
+  if (stagedMutation?.token !== token) throw new Error(`Family replacement "${id}" lost its mutation authority`)
+  stagedMutation = null
   let restored = false
   return () => {
     if (restored) return
+    assertRegistryMutationAllowed()
     REGISTRY.set(id, previous)
     restored = true
   }
@@ -816,6 +1240,23 @@ export function replaceFamilyForTest(id: FamilyId, replacement: FamilyDescriptor
 
 export function getFamily(kind: FamilyId | string): FamilyDescriptor | undefined {
   return REGISTRY.get(kind as FamilyId)
+}
+
+/** Immutable executable evidence for one exact registered descriptor. */
+export function getFamilyConformanceReport(kind: FamilyId | string): FamilyConformanceReport | undefined {
+  return CONFORMANCE.get(kind as FamilyId)
+}
+
+/** Report-facing state projection. A declaration alone can never manufacture
+ * a native capability; native appears only beside a passed executable cell. */
+export function effectiveFamilyCapabilityState(
+  descriptor: FamilyDescriptor,
+  capability: FamilyCapability,
+): FamilyCapabilityState {
+  const declared = descriptor.capabilityEvidence.find(claim => claim.capability === capability)?.state ?? 'absent'
+  if (declared !== 'native') return declared
+  const result = CONFORMANCE.get(descriptor.id)?.capabilities.find(cell => cell.capability === capability)
+  return result?.status === 'passed' ? 'native' : 'diagnosed'
 }
 
 export function knownFamilies(): FamilyId[] {
@@ -834,60 +1275,42 @@ function normalizeDetectionLine(firstLine: string): string {
   return (firstLine.split(';')[0] ?? '').trim().toLowerCase()
 }
 
+/** A detector refines the grammar of a declared header; it does not create a
+ * second, invisible header authority. The boundary rule admits Mermaid's
+ * ordinary header arguments and gitGraph's colon form while preventing a
+ * broad extension predicate from swallowing future headers such as
+ * `auditDiagramV2` or an unrelated upstream family. */
+function descriptorOwnsDetectionLine(descriptor: FamilyDescriptor, line: string): boolean {
+  return [...descriptor.headers, ...descriptor.aliases].some(candidate => {
+    const header = normalizedHeader(candidate)
+    if (!line.startsWith(header)) return false
+    const boundary = line[header.length]
+    return boundary === undefined || boundary === ':' || /\s/.test(boundary)
+  })
+}
+
 /** Descriptor-driven routing for built-ins and installed extensions. */
-export function detectRegisteredFamilyFromFirstLine(firstLine: string, mode: 'strict' | 'loose' = 'strict'): FamilyId | null {
+export function detectRegisteredFamilyDescriptorFromFirstLine(
+  firstLine: string,
+  mode: 'strict' | 'loose' = 'strict',
+): FamilyDescriptor | null {
   const line = normalizeDetectionLine(firstLine)
   const descriptors = Array.from(REGISTRY.values()).sort((a, b) =>
     b.collisionPriority - a.collisionPriority || a.id.localeCompare(b.id))
   for (const descriptor of descriptors) {
+    if (!descriptorOwnsDetectionLine(descriptor, line)) continue
     const detector = mode === 'loose' ? descriptor.detectLoose ?? descriptor.detect : descriptor.detect
-    if (detector(line)) return descriptor.id
+    // Return the immutable descriptor from this exact registry snapshot. A
+    // detector is executable extension code and may mutate registry state; a
+    // later id lookup would otherwise switch or lose the request's owner.
+    if (detector(line)) return descriptor
   }
   return null
 }
 
+export function detectRegisteredFamilyFromFirstLine(firstLine: string, mode: 'strict' | 'loose' = 'strict'): FamilyId | null {
+  return detectRegisteredFamilyDescriptorFromFirstLine(firstLine, mode)?.id ?? null
+}
+
 export type { FamilyId, ExternalFamilyId } from './types.ts'
 export type { ExtensionIdentity } from '../shared/extension-identity.ts'
-
-// ---- Generic label extractor ----------------------------------------------
-//
-// Catches the common Mermaid label idioms used across families:
-//   - quoted strings: "Foo", 'Foo'
-//   - bracketed text: [Foo], (Foo), {Foo}, [[Foo]], [(Foo)], [/Foo/], etc.
-//   - colon-separated text: `A->>B: Foo`, `2020 : Foo`, `title Foo`
-//
-// Best-effort by design — used as a fallback when a family doesn't ship its
-// own extractor. Over-counting (some matches are syntax, not labels) is
-// acceptable because LABEL_OVERFLOW only fires on text exceeding the cap.
-// ---------------------------------------------------------------------------
-
-export function extractLabelsGeneric(source: string): ExtractedLabel[] {
-  const out: ExtractedLabel[] = []
-  const lines = source.split(/\r?\n/)
-  let i = 0
-  for (const raw of lines) {
-    i++
-    const line = raw.trim()
-    if (!line || line.startsWith('%%')) continue
-    // Quoted strings first (highest precedence — they're explicit labels).
-    for (const m of line.matchAll(/"([^"\\]*(?:\\.[^"\\]*)*)"|'([^'\\]*(?:\\.[^'\\]*)*)'/g)) {
-      const text = m[1] ?? m[2] ?? ''
-      if (text) out.push({ text, target: `line${i}` })
-    }
-    // Bracketed text (square, paren, curly — any nesting depth handled flatly).
-    for (const m of line.matchAll(/[\[\(\{]+([^\[\]\(\)\{\}]+?)[\]\)\}]+/g)) {
-      const text = (m[1] ?? '').trim()
-      if (text && !text.match(/^[A-Za-z_][\w-]*$/)) out.push({ text, target: `line${i}` })
-    }
-    // Colon-separated suffix (`A->>B: text`, `2020 : text`, `title: text`).
-    const colon = line.indexOf(':')
-    if (colon >= 0 && colon < line.length - 1) {
-      const after = line.slice(colon + 1).trim()
-      // Filter: not a CSS-ish value, not another keyword
-      if (after && !after.match(/^[\d.]+$/) && after.length >= 2) {
-        out.push({ text: after, target: `line${i}` })
-      }
-    }
-  }
-  return out
-}

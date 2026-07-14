@@ -4,9 +4,9 @@ A **style** is a partial description of how diagrams look. Every field is
 optional: a style that only sets colors is a palette; a style that sets
 stroke character, fills, typography, and a palette is a full look. Styles
 apply uniformly to every built-in family. An extension gets the same contract
-when its `FamilyDescriptor` advertises native Scene lowering (`lowerScene` /
-the `scene` capability); discovery reports extensions without that capability
-instead of promising style support they cannot render.
+when its `FamilyDescriptor` advertises native Scene execution (`layout` +
+`lowerScene`, exposed as the `scene` capability); discovery reports extensions
+without that capability instead of promising style support they cannot render.
 
 Styles compose by **stacking**: `RenderOptions.style` accepts a name, an
 inline spec, or an array of either, merged left → right (later fields win,
@@ -18,7 +18,7 @@ import { renderMermaidSVG, registerStyle } from 'agentic-mermaid'
 // a built-in look
 renderMermaidSVG(source, { style: 'hand-drawn' })
 
-// hand-drawn geometry × the dracula palette — themes are just styles
+// hand-drawn geometry × the dracula Palette
 renderMermaidSVG(source, { style: ['hand-drawn', 'dracula'] })
 
 // an inline custom style — no registration needed
@@ -43,15 +43,29 @@ backend (pressure ribbons, watercolor); `stroke: 'jittered'`, hachure fills,
 sketch parameters, or a page backdrop engage rough.js; anything else renders
 on the crisp default backend with your palette and font.
 
+Every field is optional in a reusable fragment, but the resolved final stack
+must make each renderer parameter applicable. `hachureAngle`, `hachureGap`,
+and `fillWeight` require `fill: 'hachure'`; `washOpacity` and `washEdge`
+require `fill: 'wash'`. Crisp/default rendering does not reinterpret
+`fill: 'none'` or `fill: 'solid'`, so those values must be combined with a
+field that selects the rough or hybrid backend. Rendering fails with a stable
+`Invalid style spec` dependency diagnostic when a final stack would otherwise
+change request identity without realizing that customization.
+
 Canonical registered identities say what is being named: `look:hand-drawn`
-and `palette:dracula`. Existing built-in short names remain compatibility
-inputs. The historically ambiguous short name `tufte` continues to mean
-`look:tufte`; it may be removed in release 0.3.0 after 2027-01-31. Use
-`palette:tufte` to select the palette-only entry.
+and `palette:dracula`. Discovery exposes exactly one `kind` (`look` or
+`palette`), an explicit `isDefault`, and a stable `inputName`. Stable short
+inputs such as `hand-drawn` and `dracula` are not deprecation aliases.
+`aliases` contains only temporary compatibility spellings, each with a
+diagnostic and removal release/date. The historically ambiguous `tufte` alias
+continues to mean `look:tufte` until release 0.3.0 after 2027-01-31; discovery
+advertises `look:tufte` and `palette:tufte` so neither meaning is implicit.
+Likewise, use the stable `crisp` input instead of the diagnosed `default`
+compatibility alias.
 
 ## The contract you get for free
 
-- **Any stack × any theme.** Your `colors` are *defaults*: anything the user
+- **Any Look × any Palette.** Your `colors` are *defaults*: anything the user
   sets via `RenderOptions` colors or Mermaid `themeVariables` wins. The full
   precedence is one line: `defaults < style stack (left→right) <
   themeVariables < explicit color options`.
@@ -86,12 +100,12 @@ inputs. The historically ambiguous short name `tufte` continues to mean
 | stroke | `bowing` | `number`; minimum 0; maximum 10 | Rough.js line bowing. |
 | stroke | `passes` | `integer`; minimum 1; maximum 8 | Number of sketch strokes; 1 is single-pass and 2 is the usual double stroke. |
 | stroke | `strokeWidth` | `number`; greater than 0; maximum 20 | Base stroke width in SVG user units. |
-| fill | `fill` | `none` \| `hachure` \| `solid` \| `wash` | Fill treatment; sketch backends interpret hachure and wash. |
-| fill | `hachureAngle` | `number`; minimum -360; maximum 360 | Hachure line angle in degrees. |
-| fill | `hachureGap` | `number`; greater than 0; maximum 100 | Gap between hachure lines. |
-| fill | `fillWeight` | `number`; greater than 0; maximum 20 | Hachure line weight. |
-| fill | `washOpacity` | `number`; minimum 0; maximum 1 | Watercolor glaze opacity. |
-| fill | `washEdge` | `number`; minimum 0; maximum 1 | Watercolor edge-darkening opacity. |
+| fill | `fill` | `none` \| `hachure` \| `solid` \| `wash` | Fill policy for rough/hybrid rendering; none and solid require a final stack that activates one of those backends. |
+| fill | `hachureAngle` | `number`; minimum -360; maximum 360 | Hachure line angle in degrees; requires fill hachure in the final stack. |
+| fill | `hachureGap` | `number`; greater than 0; maximum 100 | Gap between hachure lines; requires fill hachure in the final stack. |
+| fill | `fillWeight` | `number`; greater than 0; maximum 20 | Hachure line weight; requires fill hachure in the final stack. |
+| fill | `washOpacity` | `number`; minimum 0; maximum 1 | Watercolor glaze opacity; requires fill wash in the final stack. |
+| fill | `washEdge` | `number`; minimum 0; maximum 1 | Watercolor edge-darkening opacity; requires fill wash in the final stack. |
 | page | `backdrop` | `plain` \| `paper-ruled` \| `grid` | Flat page furniture drawn behind the diagram. |
 | advisory | `intent` | `premium` \| `draft` \| `lofi` | Advisory intent metadata for pickers and quality tooling. |
 | advisory | `mono` | `boolean` | Advisory monochrome contract: express tone through shading and weight. |
@@ -104,9 +118,11 @@ style's `font`; PNG resolves verified bundled faces plus caller-supplied
 [Fonts in custom styles](./custom-fonts.md).
 
 JSON style records are first-class: `validateStyleSpec(json)` returns a list
-of problems (`[]` = usable). Renderer-consumed fields are declarative-only and
-cannot carry markup, scripts, or fetching URLs, so validated records are safe
-to load from files and prompts and compatible with `security: 'strict'`.
+of problems (`[]` means the value is structurally admissible as a fragment;
+final-stack applicability is checked during resolution). Renderer-consumed
+fields are declarative-only and cannot carry markup, scripts, or fetching URLs,
+so validated records are safe to load from files and prompts and compatible with
+`security: 'strict'`.
 `$schema` is ignored metadata and may, intentionally, be a schema URL.
 
 For file-backed styles, use the schema at
@@ -132,18 +148,49 @@ semantic scene marks and paint channels. A registered backend also declares
 feature/operation-level `PrimitiveCapabilityClaim`s for every core Scene
 primitive; registration rejects empty, duplicate, or cross-target claims so an
 extension cannot imply support it has not described. Registration then executes
-one frozen Scene smoke fixture twice. It rejects a backend that varies identical
-`drawNode`/`render` calls, emits unsafe or malformed SVG, or drops the fixture's
-document, container, shape, text, connector, marker, accessibility, or data-mark
-sentinels. `runBackendConformance` exposes the immutable report and
+a frozen document fixture plus one exact witness for each declared first-party
+core primitive/feature/operation claim. It rejects a backend that varies
+identical `drawNode`/`render` calls, emits unsafe or malformed SVG, drops the
+document sentinels, or fails any claim-keyed witness. Namespaced extension claims
+with no core witness remain explicitly `unverified-extension`.
+`runBackendConformance` exposes the immutable report and
 `knownBackendDescriptors()` retains it for discovery.
 
-That admission report is deliberately bounded. It directly proves SVG behavior
-only for the named fixture; capability claims remain declarations, and extension
-authors still need family-scale, visual, bounds, hit-testing, and performance
-tests for what they advertise. PNG is not a second backend conformance target:
-it inherits the admitted secured SVG through the canonical rasterizer, whose
-own parity and color-profile suites are separate.
+Host backends must opt into both the versioned core lifecycle and Scene wire
+contract explicitly; no built-in compatibility default is borrowed by
+`registerBackend`:
+
+```ts
+registerBackend(backend, {
+  version: '1.0.0',
+  compatibility: { core: '^0.1.1', scene: '^1.0.0' },
+  provenance: { owner: 'acme-diagrams', source: 'application-startup' },
+})
+```
+
+The host validates this identity and both ranges before executing any
+conformance witness. Every external `FamilyDescriptor` declares a compatible
+`core` range; one that provides `lowerScene` must additionally include
+`scene: '^1.0.0'` in `identity.compatibility`. A family that remains
+source-only or uses the direct-SVG extension fallback does not consume Scene.
+
+Every external family supplies one bounded canonical `example`.
+`registerFamily` stages the immutable descriptor and runs every declared
+native capability twice through the canonical parse/serialize, layout, strict
+SVG, portable PNG pre-raster, terminal, Scene and verification paths. It rolls
+the candidate back if a hook throws, changes output between runs, mutates the
+registry reentrantly, emits an invalid raster envelope, or fails to witness a
+positive Scene role/primitive declaration. `getFamilyConformanceReport` and
+`am capabilities --json` expose the immutable evidence; a declaration without
+a passed witness is never projected as `native`.
+
+Each admission report is deliberately bounded. Backend admission directly proves SVG behavior
+for the named document and exact core claim witnesses; it does not certify a
+namespaced extension claim or family-scale visual, bounds, hit-testing, and
+performance behavior. Extension authors still need those tests for what they
+advertise. PNG is not a second backend conformance target: it inherits the
+admitted secured SVG through canonical rasterizers, whose own parity and
+color-profile suites are separate.
 
 ## The quality rubric — what makes a style GOOD
 

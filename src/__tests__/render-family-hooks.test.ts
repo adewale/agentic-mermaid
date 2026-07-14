@@ -1,7 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
-import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
-import { getFamily } from '../render-family-hooks.ts'
+import { BUILTIN_FAMILY_METADATA, getFamily } from '../agent/families.ts'
 
 const MINIMAL_DIAGRAMS = [
   ['flowchart', 'graph TD\n  A[Start] --> B[End]'],
@@ -18,7 +17,7 @@ const MINIMAL_DIAGRAMS = [
   ['gantt', 'gantt\n  dateFormat YYYY-MM-DD\n  title Plan\n  section Work\n  Task :a1, 2024-01-01, 1d'],
 ] as const
 
-describe('render FamilyPlugin hooks', () => {
+describe('render FamilyDescriptor hooks', () => {
   test('all built-ins use one Scene graphical waist and reserve renderSvg for extension fallback', () => {
     for (const { id } of BUILTIN_FAMILY_METADATA) {
       const family = getFamily(id)

@@ -4,6 +4,9 @@
 import { describe, test, expect } from 'bun:test'
 import { applyOutputSecurityPolicy, renderMermaidSVG, verifyNoExternalRefs } from '../index.ts'
 
+const svgDocument = (body: string, attributes = '') =>
+  `<svg xmlns="http://www.w3.org/2000/svg"${attributes}>${body}</svg>`
+
 describe('#7645/#7695 strict security mode', () => {
   test('strict mode SVG has zero external-fetch references', () => {
     const svg = renderMermaidSVG('flowchart TD\n A[Start] --> B[End]', { security: 'strict' })
@@ -123,6 +126,19 @@ xychart
     expect(() => renderMermaidSVG(source, { security: 'strict' })).toThrow('themeCSS is not allowed in strict security mode')
   })
 
+  test('all modes reject active CSS schemes split by a CSS line continuation', () => {
+    const continuedScheme = `jav${'\\'}\nascript:alert(1)`
+    const documents = [
+      svgDocument(`<rect style="fill:url(${continuedScheme})"/>`),
+      svgDocument(`<style>rect { fill:url(${continuedScheme}) }</style>`),
+    ]
+    for (const document of documents) {
+      for (const mode of ['default', 'strict'] as const) {
+        expect(() => applyOutputSecurityPolicy(document, mode)).toThrow(/active content/i)
+      }
+    }
+  })
+
   test('strict mode works across families', () => {
     for (const src of [
       'sequenceDiagram\n A->>B: hi',
@@ -173,6 +189,12 @@ xychart
     expect(verifyNoExternalRefs('<svg><use xl:href="//evil.example/s.svg#x" xmlns:xl="http://www.w3.org/1999/xlink"/></svg>').ok).toBe(false)
     expect(verifyNoExternalRefs('<svg><use href="https:&#x2f;&#x2f;evil.example/s.svg#x"/></svg>').ok).toBe(false)
     expect(verifyNoExternalRefs('<svg><use href="https:&amp;#x2f;&amp;#x2f;evil.example/s.svg#x"/></svg>').ok).toBe(false)
+    expect(verifyNoExternalRefs('<svg xml:base="https://evil.example/s.svg"><use href="#x"/></svg>')).toEqual({
+      ok: false,
+      refs: ['xml:base=https://evil.example/s.svg'],
+    })
+    expect(() => applyOutputSecurityPolicy(svgDocument('<use href="#x"/>', ' xml:base="https://evil.example/s.svg"'), 'strict'))
+      .toThrow('strict verification failed')
     expect(verifyNoExternalRefs('<svg><rect onload="alert(1)"/></svg>').ok).toBe(false)
     expect(verifyNoExternalRefs('<svg><a href="javascript:alert(1)">x</a></svg>').ok).toBe(false)
     expect(verifyNoExternalRefs('<svg><a href="javascript&amp;#x3a;alert(1)">x</a></svg>').ok).toBe(false)
@@ -191,12 +213,12 @@ xychart
   })
 
   test('escaped tag-like label text stays text while real active elements fail closed', () => {
-    const escaped = '<svg><text>&lt;script&gt;alert(1)&lt;/script&gt; &lt;image href=&quot;//example.invalid/x&quot;/&gt;</text></svg>'
+    const escaped = svgDocument('<text>&lt;script&gt;alert(1)&lt;/script&gt; &lt;image href=&quot;//example.invalid/x&quot;/&gt;</text>')
     expect(applyOutputSecurityPolicy(escaped, 'strict')).toEqual({ svg: escaped, diagnostics: [] })
     expect(verifyNoExternalRefs(escaped)).toEqual({ ok: true, refs: [] })
-    expect(applyOutputSecurityPolicy('<svg><!-- <script src="//example.invalid/x"/> --><text>safe</text></svg>', 'strict').diagnostics).toEqual([])
-    expect(() => applyOutputSecurityPolicy('<svg><script>alert(1)</script></svg>')).toThrow('rejected active content')
-    expect(() => applyOutputSecurityPolicy('<svg><animate attributeName="opacity" from="0" to="1"/></svg>')).toThrow('rejected active content')
+    expect(applyOutputSecurityPolicy(svgDocument('<!-- <script src="//example.invalid/x"/> --><text>safe</text>'), 'strict').diagnostics).toEqual([])
+    expect(() => applyOutputSecurityPolicy(svgDocument('<script>alert(1)</script>'))).toThrow('rejected active content')
+    expect(() => applyOutputSecurityPolicy(svgDocument('<animate attributeName="opacity" from="0" to="1"/>'))).toThrow('rejected active content')
     expect(verifyNoExternalRefs('<svg><image href="#local"/></svg>').ok).toBe(false)
   })
 

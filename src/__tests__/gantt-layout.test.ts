@@ -8,7 +8,7 @@ import { parseGanttModel, applyGanttFrontmatterConfig } from '../gantt/parser.ts
 import { resolveGanttSchedule } from '../gantt/schedule.ts'
 import { layoutGantt, resolveTicks, GANTT_MAX_TICKS } from '../gantt/layout.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
-import { resolveRenderRequest } from '../render-contract.ts'
+import { resolveRenderRequest, resolvedFamilyRenderContextOf } from '../render-contract.ts'
 
 function layoutOf(src: string, options: Parameters<typeof layoutGantt>[2] = {}) {
   const n = normalizeMermaidSource(src)
@@ -48,8 +48,8 @@ describe('gantt layout — plot geometry', () => {
         follow up review :b, after a, 7d
     `
     const base = layoutOf(src).layout
-    const styledOptions = resolveRenderRequest(src, { style: 'accessible-high-contrast' }).renderOptions
-    const styled = layoutOf(src, { renderOptions: styledOptions }).layout
+    const styledRequest = resolveRenderRequest(src, { style: 'accessible-high-contrast' }, 'layout')
+    const styled = layoutOf(src, resolvedFamilyRenderContextOf(styledRequest)).layout
 
     expect(styled.labelColumnWidth).toBeGreaterThan(base.labelColumnWidth)
     expect(styled.plot.x).toBeGreaterThan(base.plot.x)

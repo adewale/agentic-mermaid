@@ -4,11 +4,11 @@
 import { describe, it, expect } from 'bun:test'
 import { preprocessMermaidLines } from '../mermaid-source.ts'
 import { parseJourneyDiagram } from '../journey/parser.ts'
-import { layoutJourneyDiagram } from '../journey/layout.ts'
+import { layoutJourneyDiagram, resolveJourneyRequestAppearance } from '../journey/layout.ts'
 
 function layout(text: string) {
   const parsed = parseJourneyDiagram(preprocessMermaidLines(text))
-  return layoutJourneyDiagram(parsed)
+  return layoutJourneyDiagram(parsed, resolveJourneyRequestAppearance())
 }
 
 describe('layoutJourneyDiagram', () => {

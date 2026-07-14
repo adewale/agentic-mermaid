@@ -1,6 +1,6 @@
 # Project Backlog
 
-`TODO.md` is the canonical owner-facing backlog and contains only actionable items. Completed records live under `docs/project/archive/`; current capabilities live in `docs/features.md` and generated registry surfaces. IDs are stable names, not ordering.
+`TODO.md` is the canonical owner-facing backlog and contains only actionable items. Explicitly status-marked landing/completion evidence lives under `docs/project/archive/`; current capabilities live in `docs/features.md` and generated registry surfaces. IDs are stable names, not ordering.
 
 Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
 
@@ -34,6 +34,13 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   `Sitemap: https://agentic-mermaid.dev/sitemap.xml`. Then verify the live body
   and status with `curl` and both search consoles. The repo deliberately ships
   no competing `robots.txt`, so the dashboard remains the single source.
+- [ ] **COMPAT-1 — Remove deprecated bare Style aliases** (`todo`; earliest in
+  `0.3.0`, no earlier than 2027-01-31). Remove `default` and the historically
+  ambiguous bare `tufte` only after receipt diagnostics have shipped for the
+  published window, migration docs use `crisp`, `look:tufte`, and
+  `palette:tufte`, and regression tests prove discovery no longer advertises
+  either compatibility name. The release owner must confirm those gates before
+  deleting the aliases and their diagnostics.
 
 
 ## Security backlog
@@ -78,7 +85,7 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   and review notes. Submit through the plugin portal only when the live endpoint
   and UI are stable enough to preserve the reviewed metadata contract.
 - [ ] **BUILD-31 — Progressive custom Styles and BrandPacks** (`todo`, after
-  the archived Section A rendering contract). Execute Section B of
+  the Section A landing PR merges). Execute Section B of
   `docs/project/brand-primitives-plan.md` through one public `style` stack:
   inline fragments, semantic roles, minimal versioned BrandPacks, bindings and
   constraints, the optional B4 post-positioning Treatment seam only if its
@@ -94,9 +101,11 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   agents structural levers instead: per-node rank/layer pinning, "keep these
   nodes adjacent" grouping hints, and a "keep this edge short" preference,
   carried as typed metadata (not source hacks) and honored by the ELK
-  pipeline deterministically. Design questions: hint syntax in Mermaid source
-  (frontmatter? comment directives?) vs. render-option-only; interaction with
-  the determinism contract (hints must be part of the input, never ambient);
+  pipeline deterministically. This is not manual positioning and does not add
+  Agentic-only Mermaid syntax: the first contract is typed render/mutation
+  metadata, kept in the request digest and source-preservation receipt when an
+  agent workflow persists it. Design questions: interaction with
+  the determinism contract (hints must be explicit input, never ambient);
   which ELK knobs (`org.eclipse.elk.layered.layering.*`, `priority`,
   `desiredEdgeLength`) map cleanly. Scope the first slice to flowchart/state.
 - [ ] **BUILD-2 — `process --mode validate|canonicalize` triage** (`todo`).

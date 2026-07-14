@@ -87,11 +87,14 @@ function inspectExtensionIdentity(
     return undefined
   }
 
-  const id = typeof value.id === 'string' ? value.id : fallbackId
+  const idValue = value.id
   const kind = value.kind
   const version = value.version
+  const compatibilityValue = value.compatibility
+  const provenanceValue = value.provenance
+  const id = typeof idValue === 'string' ? idValue : fallbackId
   let valid = rejectUnknownFields(value, IDENTITY_FIELDS, 'resource identity', errors)
-  if (typeof value.id !== 'string') {
+  if (typeof idValue !== 'string') {
     errors.push(`invalid resource identity id: ${fallbackId}`)
     valid = false
   }
@@ -105,12 +108,12 @@ function inspectExtensionIdentity(
   }
 
   const compatibility: Record<string, string | undefined> = {}
-  if (value.compatibility !== undefined) {
-    if (!isPlainRecord(value.compatibility)) {
+  if (compatibilityValue !== undefined) {
+    if (!isPlainRecord(compatibilityValue)) {
       errors.push(`invalid resource compatibility: ${id}`)
       valid = false
     } else {
-      for (const [contract, range] of Object.entries(value.compatibility)) {
+      for (const [contract, range] of Object.entries(compatibilityValue)) {
         if (range !== undefined && typeof range !== 'string') {
           errors.push(`invalid resource compatibility range "${contract}": ${id}`)
           valid = false
@@ -122,12 +125,14 @@ function inspectExtensionIdentity(
   }
 
   let provenance: ExtensionProvenance | undefined
-  if (!isPlainRecord(value.provenance)) {
+  if (!isPlainRecord(provenanceValue)) {
     errors.push(`missing resource provenance: ${id}`)
     valid = false
   } else {
-    if (!rejectUnknownFields(value.provenance, PROVENANCE_FIELDS, 'resource provenance', errors)) valid = false
-    const { owner, source, reference } = value.provenance
+    if (!rejectUnknownFields(provenanceValue, PROVENANCE_FIELDS, 'resource provenance', errors)) valid = false
+    const owner = provenanceValue.owner
+    const source = provenanceValue.source
+    const reference = provenanceValue.reference
     if (typeof owner !== 'string' || typeof source !== 'string' || (reference !== undefined && typeof reference !== 'string')) {
       errors.push(`invalid resource provenance: ${id}`)
       valid = false
@@ -158,8 +163,9 @@ function inspectResourceEntry(value: unknown, index: number, errors: string[]): 
     return undefined
   }
 
-  const identity = inspectExtensionIdentity(value.identity, fallbackId, errors)
-  const id = identity?.id ?? (isPlainRecord(value.identity) && typeof value.identity.id === 'string' ? value.identity.id : fallbackId)
+  const identityValue = value.identity
+  const identity = inspectExtensionIdentity(identityValue, fallbackId, errors)
+  const id = identity?.id ?? fallbackId
   const path = value.path
   const mediaType = value.mediaType
   const sha256 = value.sha256
@@ -225,9 +231,11 @@ function inspectResourceEntry(value: unknown, index: number, errors: string[]): 
 function inspectResourceManifest(manifest: unknown): ResourceManifestInspection {
   const errors: string[] = []
   if (!isPlainRecord(manifest)) return { errors: Object.freeze(['resource manifest must be a plain object']) }
+  const version = manifest.version
+  const resourcesValue = manifest.resources
   rejectUnknownFields(manifest, MANIFEST_FIELDS, 'resource manifest', errors)
-  if (manifest.version !== RESOURCE_MANIFEST_VERSION) errors.push(`unsupported resource manifest version: ${String(manifest.version)}`)
-  if (!Array.isArray(manifest.resources)) {
+  if (version !== RESOURCE_MANIFEST_VERSION) errors.push(`unsupported resource manifest version: ${String(version)}`)
+  if (!Array.isArray(resourcesValue)) {
     errors.push('resource manifest resources must be an array')
     return { errors: Object.freeze(errors) }
   }
@@ -235,12 +243,10 @@ function inspectResourceManifest(manifest: unknown): ResourceManifestInspection 
   const ids = new Set<string>()
   const paths = new Set<string>()
   const resources: ResourceManifestEntry[] = []
-  for (const [index, value] of manifest.resources.entries()) {
+  for (const [index, value] of Array.from(resourcesValue).entries()) {
     const resource = inspectResourceEntry(value, index, errors)
-    const record = isPlainRecord(value) ? value : undefined
-    const identity = record && isPlainRecord(record.identity) ? record.identity : undefined
-    const id = typeof identity?.id === 'string' ? identity.id : `resource[${index}]`
-    const path = typeof record?.path === 'string' ? record.path : undefined
+    const id = resource?.identity.id ?? `resource[${index}]`
+    const path = resource?.path
     if (ids.has(id)) errors.push(`duplicate resource id: ${id}`)
     if (path !== undefined && paths.has(path)) errors.push(`duplicate resource path: ${path}`)
     ids.add(id)

@@ -28,7 +28,7 @@ const LOOKS = [
   'freehand',
   'watercolor',
   'blueprint',
-  'tufte',
+  'look:tufte',
   'accessible-high-contrast',
   'patent-drawing',
   'status-dashboard',
@@ -144,7 +144,7 @@ describe('styled output', () => {
     const source = 'graph TD\n  A[Start] -->|go| B{Choice}\n  B ==> C([End])'
     const svg = renderMermaidSVG(source, { style: 'hand-drawn' })
     expect(svg).toContain('marker-end')
-    expect(svg).toContain('markerUnits="userSpaceOnUse"')
+    expect(svg).not.toContain('markerUnits="userSpaceOnUse"')
     expect(svg).toContain('data-from="A"')
     expect(svg).toContain('class="edge-label-halo"')
     const strict = renderMermaidSVG(source, { style: 'hand-drawn', security: 'strict' })
@@ -281,6 +281,28 @@ describe('style consolidation', () => {
     expect(svg).toContain('stroke-width="2"')
   })
 
+  test('fails final Style fields that have no active backend projection', () => {
+    for (const fill of ['none', 'solid'] as const) {
+      expect(() => renderMermaidSVG(source, { style: { fill } }))
+        .toThrow(/"fill" has no crisp\/default backend projection/)
+    }
+    for (const field of ['hachureAngle', 'hachureGap', 'fillWeight'] as const) {
+      expect(() => renderMermaidSVG(source, { style: { [field]: 1 } }))
+        .toThrow(new RegExp(`"${field}".*require fill "hachure"`))
+    }
+    for (const field of ['washOpacity', 'washEdge'] as const) {
+      expect(() => renderMermaidSVG(source, { style: { [field]: 0.5 } }))
+        .toThrow(new RegExp(`"${field}".*require fill "wash"`))
+    }
+
+    expect(renderMermaidSVG(source, {
+      style: [{ hachureGap: 7 }, { fill: 'hachure' }],
+    })).toContain('<svg')
+    expect(renderMermaidSVG(source, {
+      style: [{ washOpacity: 0.4 }, { fill: 'wash' }],
+    })).toContain('<svg')
+  })
+
   test('validateStyleSpec accepts public fragments and rejects removed role keys plus junk', () => {
     expect(validateStyleSpec({ colors: { bg: '#fff' }, stroke: 'jittered' })).toEqual([])
     expect(validateStyleSpec({ stroke: 'wobbly' }).length).toBeGreaterThan(0)
@@ -329,7 +351,7 @@ const LOOKS_WITH_BACKENDS = [
   { style: 'freehand', backend: 'hybrid' },
   { style: 'watercolor', backend: 'hybrid' },
   { style: 'blueprint', backend: 'rough' },
-  { style: 'tufte', backend: 'default' },
+  { style: 'look:tufte', backend: 'default' },
   { style: 'accessible-high-contrast', backend: 'default' },
   { style: 'patent-drawing', backend: 'rough' },
   { style: 'status-dashboard', backend: 'default' },

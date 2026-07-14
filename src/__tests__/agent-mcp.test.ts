@@ -550,7 +550,7 @@ describe('CLI — sad paths via runCli', () => {
 
   test('render parse failures exit 2 with PARSE_FAILED, not INTERNAL', () => {
     const tmp = `/tmp/cli-render-invalid-${Date.now()}.mmd`
-    require('node:fs').writeFileSync(tmp, 'notmermaid\n')
+    require('node:fs').writeFileSync(tmp, 'flowchart XX\n  A --> B\n')
     const { code, out } = capture(() => runCli(['render', tmp, '--format', 'svg', '--json']))
     expect(code).toBe(2)
     expect(out).toContain('PARSE_FAILED')

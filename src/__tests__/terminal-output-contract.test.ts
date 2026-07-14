@@ -5,6 +5,13 @@ import {
   TerminalOutputPolicyError,
 } from '../terminal-contract.ts'
 import { RENDER_OUTPUT_DESCRIPTORS } from '../render-contract.ts'
+import {
+  getFamily,
+  knownBuiltinFamilies,
+  replaceFamilyForTest,
+} from '../agent/families.ts'
+import { colorizeText } from '../ascii/ansi.ts'
+import { secureTerminalHtmlOutput } from '../terminal-security.ts'
 
 const SOURCE = 'flowchart LR\n  A[Start] --> B[Finish]'
 const OSC52 = '\u001b]52;c;dGVybWluYWwtZXhmaWx0cmF0aW9u\u0007'
@@ -42,9 +49,108 @@ describe('terminal text security boundary', () => {
     expect(containsTerminalControl(serializedProjection)).toBe(false)
     expect(serializedProjection).not.toContain('\\u001b')
   })
+
+  test('escapes authored HTML in family renderers that concatenate plain labels', () => {
+    const payload = '<img src=x onerror=alert(1)>'
+    const pie = renderMermaidASCIIWithReceipt(`pie\n  "${payload}" : 5`, { colorMode: 'html' })
+    const quadrant = renderMermaidASCIIWithReceipt(`quadrantChart\n  title ${payload}\n  P: [0.2, 0.8]`, { colorMode: 'html' })
+
+    for (const rendered of [pie, quadrant]) {
+      expect(rendered.text).not.toContain(payload)
+      expect(rendered.text).not.toContain('<img')
+      expect(rendered.text).toContain('&lt;img src=x onerror=alert(1)&gt;')
+    }
+  })
+
+  test('does not mistake an active or attribute-bearing authored span for an internal color span', () => {
+    const payload = '<span style="color:#123456"><img src=x onerror=alert(1)></span>'
+    const attributePayload = '<span style="color:#123456" onmouseover="alert(1)">hover</span>'
+    const rendered = secureTerminalHtmlOutput(`${payload}${attributePayload}`)
+
+    expect(rendered).not.toContain('<img')
+    expect(rendered).not.toContain('<span')
+    expect(rendered).toContain('&lt;span style="color:#123456"&gt;')
+    expect(rendered).toContain('&lt;span style="color:#123456" onmouseover="alert(1)"&gt;')
+  })
+
+  test('every registered terminal family crosses the final HTML boundary without double-escaping trusted spans', () => {
+    const payload = '<img src=x onerror=alert(1)>'
+    const trusted = colorizeText('<trusted>', '#123456', 'html')
+
+    for (const id of knownBuiltinFamilies()) {
+      const descriptor = getFamily(id)!
+      expect(descriptor.example, `${id} example`).toBeDefined()
+      expect(descriptor.renderAscii, `${id} terminal renderer`).toBeDefined()
+      if (!descriptor.example || !descriptor.renderAscii) continue
+      const original = descriptor.renderAscii
+      const restore = replaceFamilyForTest(id, {
+        ...descriptor,
+        renderAscii(context) {
+          return `${original(context)}\n${trusted}\n${payload}`
+        },
+      })
+      try {
+        const rendered = renderMermaidASCIIWithReceipt(descriptor.example, { colorMode: 'html' })
+        expect(rendered.text, id).toContain('<span style="color:#123456">&lt;trusted&gt;</span>')
+        expect(rendered.text, id).not.toContain('&lt;span style=')
+        expect(rendered.text, id).not.toContain('<img')
+        expect(rendered.text, id).toContain('&lt;img src=x onerror=alert(1)&gt;')
+      } finally {
+        restore()
+      }
+    }
+  })
 })
 
 describe('canonical terminal output policy', () => {
+  test('native terminal rendering does not depend on optional graphical hooks', () => {
+    const descriptor = getFamily('flowchart')!
+    const originalAscii = descriptor.renderAscii!
+    const restore = replaceFamilyForTest('flowchart', {
+      ...descriptor,
+      lowerScene() {
+        throw new Error('optional Scene projection unavailable')
+      },
+      renderAscii(context) {
+        return originalAscii(context)
+      },
+    })
+    try {
+      const rendered = renderMermaidASCIIWithReceipt(SOURCE, { useAscii: true, colorMode: 'none' })
+      expect(rendered.text).toContain('Start')
+      expect(rendered.terminalStyle.diagnostics).toContainEqual({
+        code: 'TERMINAL_CONNECTOR_PROJECTION_UNAVAILABLE',
+        feature: 'connectors',
+        message: 'Optional Scene connector projection failed; native terminal rendering continued independently.',
+      })
+      expect(rendered.terminalStyle.connectorProjection.evidence).toBe('unavailable')
+    } finally {
+      restore()
+    }
+  })
+
+  test('every registered family preserves terminal semantics in every color mode', () => {
+    const plain = (value: string) => value
+      .replace(/\u001b\[[0-9;]*m/g, '')
+      .replace(/<span style="color:[^"]+">/g, '')
+      .replace(/<\/span>/g, '')
+      .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')
+    for (const id of knownBuiltinFamilies()) {
+      const descriptor = getFamily(id)!
+      if (!descriptor.example || !descriptor.renderAscii) continue
+      for (const useAscii of [false, true]) {
+        const baseline = renderMermaidASCIIWithReceipt(descriptor.example, { useAscii, colorMode: 'none' })
+        for (const colorMode of ['none', 'ansi16', 'ansi256', 'truecolor', 'html'] as const) {
+          const rendered = renderMermaidASCIIWithReceipt(descriptor.example, { useAscii, colorMode })
+          expect(plain(rendered.text), `${id}/${useAscii ? 'ascii' : 'unicode'}/${colorMode}`).toBe(baseline.text)
+          expect(rendered.receipt.diagnostics, `${id}/${colorMode}`).toEqual(rendered.terminalStyle.diagnostics)
+          expect(rendered.terminalStyle.connectorProjection.digest, `${id}/${colorMode}`)
+            .toBe(baseline.terminalStyle.connectorProjection.digest)
+        }
+      }
+    }
+  })
+
   test('the output registry records the terminal security gate', () => {
     for (const id of ['ascii', 'unicode', 'html'] as const) {
       const descriptor = RENDER_OUTPUT_DESCRIPTORS.find(output => output.id === id)!

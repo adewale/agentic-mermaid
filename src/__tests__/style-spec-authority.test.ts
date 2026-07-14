@@ -67,14 +67,17 @@ describe('StyleSpec has one projected field authority', () => {
     const descriptors = knownStyleDescriptors()
     const crisp = descriptors.find(descriptor => descriptor.identity.id === 'look:crisp')
     expect(crisp?.identity.kind).toBe('look')
-    expect(crisp?.aliases.map(alias => alias.alias)).toContain('crisp')
+    expect(crisp?.inputName).toBe('crisp')
+    expect(crisp?.isDefault).toBe(true)
+    expect(crisp?.aliases.map(alias => alias.alias)).toContain('default')
     expect(knownStyles().filter(name => name === 'crisp')).toHaveLength(1)
 
     const tuftePalette = descriptors.find(descriptor => descriptor.identity.id === 'palette:tufte')
     expect(tuftePalette).toMatchObject({
       inputName: 'palette:tufte',
       displayLabel: 'Tufte',
-      category: 'theme',
+      kind: 'palette',
+      isDefault: false,
     })
 
     const editorGenerator = readFileSync(join(ROOT, 'scripts', 'site', 'editor.ts'), 'utf8')
@@ -89,5 +92,25 @@ describe('StyleSpec has one projected field authority', () => {
       expect({ relative, legacy: consumer.includes('knownStyles()') }).toEqual({ relative, legacy: false })
     }
     expect(readFileSync(join(ROOT, 'website', 'build.ts'), 'utf8')).not.toContain('STYLE_THEME_LABELS')
+  })
+
+  test('deprecated alias metadata stays discoverable without becoming public API', () => {
+    for (const relative of ['src/index.ts', 'src/agent/core.ts']) {
+      expect(readFileSync(join(ROOT, relative), 'utf8')).not.toContain('TUFTE_STYLE_ALIAS')
+    }
+    const tufte = knownStyleDescriptors().find(descriptor => descriptor.identity.id === 'look:tufte')!
+    expect(tufte.aliases).toContainEqual(expect.objectContaining({
+      alias: 'tufte',
+      diagnostic: expect.objectContaining({ code: 'STYLE_ALIAS_DEPRECATED' }),
+    }))
+  })
+
+  test('CLI discovery publishes only Look/Palette kind plus explicit default state', () => {
+    const result = Bun.spawnSync(['bun', 'run', join(ROOT, 'bin/am.ts'), 'styles', '--json'], { cwd: ROOT })
+    expect(result.exitCode).toBe(0)
+    const rows = JSON.parse(result.stdout.toString()) as Array<{ kind: string; isDefault: boolean; canonicalId: string }>
+    expect(new Set(rows.map(row => row.kind))).toEqual(new Set(['look', 'palette']))
+    expect(rows.find(row => row.canonicalId === 'look:crisp')).toMatchObject({ kind: 'look', isDefault: true })
+    expect(rows.filter(row => row.isDefault)).toHaveLength(1)
   })
 })

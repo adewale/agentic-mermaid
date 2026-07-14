@@ -105,11 +105,11 @@ deferred, and policy-out-of-scope cases remain recorded below.
   whitespace + aspect — `agent-quality.test.ts`), `#1301` (long-range Gantt
   axis labels stay clear of task bars — `gantt-layout.test.ts`), and `#1765` (activation/note/block
   clearance — `sequence-layout.test.ts`).
-- **`#3723` (same-rank constraint) and `#5420` (manual node positioning)** —
-  documented **won't-do by policy**, no fixture. `#3723` is "watch-only"
-  (adopt only if Mermaid core standardizes a `config:` key — see C6); `#5420`
-  is out of scope (the agent loop is the substitute — see C1). Neither is a
-  bug we can regression-guard, because not implementing them is the decision.
+- **`#3723` (same-rank constraint)** — planned under `BUILD-24` as typed
+  request/mutation metadata, not new Mermaid syntax; its fixture lands with
+  that implementation. **`#5420` (manual node positioning)** remains out of
+  scope: arbitrary coordinates and dragging are distinct from structural
+  auto-layout constraints. There is therefore no #5420 regression fixture.
 
 These guards assert "Agentic Mermaid does not exhibit the complaint," not
 "the upstream Mermaid bug is fixed" — every cited issue is a defect in

@@ -1082,7 +1082,7 @@ function renameInTransitions(body: StateBody, from: string, to: string): void {
   walk(body.states, body.transitions)
 }
 
-// ---- Verifier (FamilyPlugin.verify hook) — structural Tier 1 on the body ----
+// ---- Verifier (FamilyDescriptor.verify hook) — structural Tier 1 on the body ----
 //
 // The geometric Tier 2 checks (NODE_OVERLAP / ROUTE_SELF_CROSS) run in verify.ts
 // via the graph projection. This hook adds the body-level structural checks:

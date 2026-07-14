@@ -1,4 +1,7 @@
-var exportScale = 4;
+// The generator projects PNG_DEFAULT_SCALE into this canonical data attribute.
+var pngScaleControls = document.getElementById('size-pills');
+var exportScale = Number(pngScaleControls.dataset.defaultScale);
+if (!Number.isFinite(exportScale) || exportScale <= 0) throw new Error('Invalid canonical PNG default scale');
 var lastRenderedPngArtifact = null;
 var lastRenderedSvgExportProjection = null;
 var exportDropdown = document.getElementById('export-dropdown');
@@ -48,7 +51,7 @@ exportMainBtn.addEventListener('click', function() {
   exportPNG();
 });
 
-document.getElementById('size-pills').addEventListener('click', function(e) {
+pngScaleControls.addEventListener('click', function(e) {
   var pill = e.target.closest('.size-pill');
   if (!pill) return;
   exportScale = parseInt(pill.dataset.scale, 10);
@@ -58,6 +61,33 @@ document.getElementById('size-pills').addEventListener('click', function(e) {
     p.setAttribute('aria-pressed', on ? 'true' : 'false');
   });
 });
+
+var pngFitMode = document.getElementById('png-fit-mode');
+var pngFitValue = document.getElementById('png-fit-value');
+var pngBackgroundMode = document.getElementById('png-background-mode');
+var pngBackgroundColor = document.getElementById('png-background-color');
+
+function syncPngExportControls() {
+  pngFitValue.disabled = pngFitMode.value === 'scale';
+  pngBackgroundColor.disabled = pngBackgroundMode.value !== 'explicit';
+}
+
+function currentPngOutputOptions() {
+  var output = { scale: exportScale };
+  if (pngFitMode.value !== 'scale') {
+    var pixels = Number(pngFitValue.value);
+    if (!Number.isSafeInteger(pixels) || pixels <= 0) {
+      throw new Error('PNG fit size must be a positive integer number of pixels');
+    }
+    output.fitTo = pngFitMode.value === 'width' ? { width: pixels } : { height: pixels };
+  }
+  if (pngBackgroundMode.value === 'explicit') output.background = pngBackgroundColor.value;
+  return output;
+}
+
+pngFitMode.addEventListener('change', syncPngExportControls);
+pngBackgroundMode.addEventListener('change', syncPngExportControls);
+syncPngExportControls();
 
 // ── Export font embedding ─────────────────────────────────────────────────────
 // The preview loads the self-hosted faces (Caveat, DejaVu Sans, …) through the
@@ -158,7 +188,10 @@ function embeddedFontCss(svgEl) {
     var diagnostics = parts.reduce(function(all, part) { return all.concat(part.diagnostics); }, []);
     var fontSources = [];
     if (css) fontSources.push('embedded-data-uri');
-    if (!css || diagnostics.length > 0) fontSources.push('unavailable');
+    // Even an embedded primary face can trigger per-glyph browser/system
+    // fallback. Canvas exposes no API that proves which fallback bytes were
+    // consumed, so browser provenance always retains unavailable evidence.
+    fontSources.push('unavailable');
     return {
       css: css,
       diagnostics: diagnostics,
@@ -208,18 +241,17 @@ function rasterizeCanonicalSvg(svg, context) {
       var img = new Image();
       img.onload = function() {
         var canvas = document.createElement('canvas');
-        var w = img.naturalWidth || svgEl.viewBox.baseVal.width || 800;
-        var h = img.naturalHeight || svgEl.viewBox.baseVal.height || 600;
-        canvas.width = Math.max(1, Math.ceil(w * context.scale));
-        canvas.height = Math.max(1, Math.ceil(h * context.scale));
+        canvas.width = context.rasterDimensions.width;
+        canvas.height = context.rasterDimensions.height;
         var ctx = canvas.getContext('2d');
         if (!ctx) {
           URL.revokeObjectURL(url);
           reject(new Error('Browser PNG canvas context is unavailable'));
           return;
         }
-        ctx.scale(context.scale, context.scale);
-        ctx.drawImage(img, 0, 0);
+        ctx.fillStyle = context.rasterBackground;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         URL.revokeObjectURL(url);
         canvas.toBlob(function(blob) {
           if (!blob) {
@@ -244,7 +276,7 @@ function rasterizeCanonicalSvg(svg, context) {
   });
 }
 
-function canonicalBrowserPng(scale) {
+function canonicalBrowserPng(outputOptions) {
   if (typeof renderMermaidPngInBrowserWithReceipt !== 'function') {
     return Promise.reject(new Error('Canonical browser PNG adapter is unavailable'));
   }
@@ -252,7 +284,7 @@ function canonicalBrowserPng(scale) {
   var requestVersion = renderRequestVersion;
   var previewDigest = previewInner.dataset.sharedRequestDigest;
   var options = buildOptions();
-  return renderMermaidPngInBrowserWithReceipt(source, options, scale, rasterizeCanonicalSvg).then(function(artifact) {
+  return renderMermaidPngInBrowserWithReceipt(source, options, outputOptions, rasterizeCanonicalSvg).then(function(artifact) {
     if (renderRequestVersion !== requestVersion || currentEditorSource() !== source) {
       throw new Error('Diagram changed while PNG export was rendering; try again.');
     }
@@ -273,13 +305,19 @@ function reportExportDiagnostics(diagnostics, action) {
 
 function exportPNG() {
   if (!hasRenderedSvg()) return;
-  canonicalBrowserPng(exportScale).then(function(artifact) {
+  var outputOptions;
+  try { outputOptions = currentPngOutputOptions(); }
+  catch (error) {
+    showToast('PNG export failed: ' + (error && error.message ? error.message : String(error)));
+    return;
+  }
+  canonicalBrowserPng(outputOptions).then(function(artifact) {
     var blob = new Blob([artifact.png], { type: 'image/png' });
     var url = URL.createObjectURL(blob);
     var a = document.createElement('a');
     a.href = url; a.download = 'diagram.png'; a.click();
     URL.revokeObjectURL(url);
-    if (!reportExportDiagnostics(artifact.diagnostics, 'PNG saved')) showToast('PNG saved (' + exportScale + '×).');
+    if (!reportExportDiagnostics(artifact.diagnostics, 'PNG saved')) showToast('PNG saved.');
     setExportDropdownOpen(false, false);
   }).catch(function(error) {
     showToast('PNG export failed: ' + (error && error.message ? error.message : String(error)));
@@ -322,13 +360,20 @@ function copyPNG() {
     return;
   }
   var copyDiagnostics = [];
-  var blobPromise = canonicalBrowserPng(exportScale).then(function(artifact) {
+  var outputOptions;
+  try { outputOptions = currentPngOutputOptions(); }
+  catch (error) {
+    setCopyFeedback(copyPngBtn, 'err');
+    showToast('Copy PNG failed: ' + (error && error.message ? error.message : String(error)));
+    return;
+  }
+  var blobPromise = canonicalBrowserPng(outputOptions).then(function(artifact) {
     copyDiagnostics = artifact.diagnostics;
     return new Blob([artifact.png], { type: 'image/png' });
   });
   navigator.clipboard.write([new ClipboardItem({ 'image/png': blobPromise })]).then(function() {
     setCopyFeedback(copyPngBtn, 'ok');
-    if (!reportExportDiagnostics(copyDiagnostics, 'PNG copied')) showToast('PNG copied (' + exportScale + '×).');
+    if (!reportExportDiagnostics(copyDiagnostics, 'PNG copied')) showToast('PNG copied.');
     setExportDropdownOpen(false, false);
   }).catch(function() {
     setCopyFeedback(copyPngBtn, 'err');

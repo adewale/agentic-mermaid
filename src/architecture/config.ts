@@ -3,6 +3,7 @@ import type { MermaidFrontmatterMap, MermaidConfigValue } from '../mermaid-sourc
 import type { RenderOptions, TextTransform } from '../types.ts'
 import { resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults } from '../styles.ts'
+import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { ineffectiveFieldsPresent } from '../shared/config-wire-or-warn.ts'
 
 // Deterministic spacing defaults, shared with layout.ts so the
@@ -52,6 +53,11 @@ export interface ArchitectureVisualConfig {
   serviceSurface?: string
   serviceBorder?: string
 }
+
+/** Sparse public input merged over the complete request-resolved visual
+ * configuration. Callers can change one metric without copying internal
+ * defaults; renderers continue to consume ArchitectureVisualConfig only. */
+export type ArchitectureVisualOverrides = Partial<ArchitectureVisualConfig>
 
 export interface ArchitectureLayoutMetrics {
   groupFontSize: number
@@ -128,6 +134,7 @@ export function resolveArchitectureVisualConfig(
   mermaidConfig: MermaidFrontmatterMap,
   colors: DiagramColors,
   options: RenderOptions = {},
+  styleFace?: Readonly<InternalStyleFace>,
 ): ResolvedArchitectureVisualConfig {
   const themeVariables = getMap(mermaidConfig, 'themeVariables')
   const architecture = getMap(mermaidConfig, 'architecture')
@@ -176,7 +183,7 @@ export function resolveArchitectureVisualConfig(
     groupLabelPaddingX: DEFAULT_ARCHITECTURE_VISUAL.groupLabelPaddingX,
     groupLineWidth: DEFAULT_ARCHITECTURE_VISUAL.groupLineWidth,
   }
-  const style = resolveRenderStyle(options, styleDefaults)
+  const style = resolveRenderStyle(options, styleDefaults, styleFace)
 
   const derivedVisual: ArchitectureVisualConfig = {
     groupHeaderHeight: Math.max(groupHeaderHeight, style.groupHeaderFontSize + 12),
@@ -218,13 +225,16 @@ export function resolveArchitectureVisualConfig(
     edgeStroke: style.edgeStrokeColor,
     edgeText: style.edgeTextColor,
   }
-  // The complete public `architecture.visual` record is the final explicit
-  // layer. It must affect the same metrics used for layout and Scene lowering;
-  // retaining it only in the request digest would make a validated option a
-  // no-op and break receipt/output coherence.
+  // Sparse public `architecture.visual` overrides are the final explicit
+  // layer. They affect the same complete metrics used for layout and Scene
+  // lowering; retaining them only in the request digest would make a validated
+  // option a no-op and break receipt/output coherence.
   const visual: ArchitectureVisualConfig = {
     ...derivedVisual,
     ...options.architecture?.visual,
+  }
+  if (visual.junctionInnerRadius > visual.junctionOuterRadius) {
+    throw new RangeError('architecture.visual.junctionInnerRadius must not exceed junctionOuterRadius')
   }
 
   return {

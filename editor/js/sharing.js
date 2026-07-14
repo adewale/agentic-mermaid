@@ -139,20 +139,22 @@ async function decodeSource(encoded) {
   }
 }
 
-// Share hashes and localStorage are untrusted inputs. Keep only the editor's
-// public, data-only render controls; raw Mermaid config (especially themeCSS),
-// callbacks, and prototype keys must never reach renderMermaidSVG + innerHTML.
-var SHAREABLE_CONFIG_KEYS = new Set([
-  'accent', 'bg', 'border', 'editorEdgeStroke', 'editorNodeStroke', 'fg',
-  'font', 'interactive', 'line', 'muted', 'padding', 'seed', 'style',
-  'surface', 'transparent',
-]);
-
 function sanitizeEditorConfig(config) {
   if (!config || typeof config !== 'object' || Array.isArray(config)) return {};
+  // Share hashes and localStorage are untrusted inputs. Project the browser
+  // API's canonical serializable field manifest instead of maintaining a
+  // second editor schema; buildOptions validates this same projection and
+  // enforces the editor-owned strict security/font policy.
+  var allowed = new Set(
+    (window.__mermaid && window.__mermaid.SHARED_RENDER_OPTION_FIELDS) || []
+  );
+  // The editor host owns these two policy fields unconditionally. Do not keep
+  // ignored copies in drafts/share links or feed hostile values into the
+  // portable options validator before buildOptions pins the host policy.
+  var editorOwned = new Set(["embedFontImport", "security"]);
   var safe = {};
   Object.keys(config).forEach(function(key) {
-    if (!SHAREABLE_CONFIG_KEYS.has(key)) return;
+    if (!allowed.has(key) || editorOwned.has(key)) return;
     var value = config[key];
     if (value === undefined || typeof value === 'function') return;
     try { safe[key] = JSON.parse(JSON.stringify(value)); } catch(e) {}
@@ -182,7 +184,11 @@ async function getHashSource() {
         hashDecodeFailure = 'corrupt';
         return null;
       }
-      if (obj.theme) { state.theme = obj.theme; }
+      var sharedPalette = obj.palette || obj.theme;
+      if (sharedPalette) {
+        var importedPalette = editorPaletteInput(sharedPalette);
+        if (importedPalette) state.palette = importedPalette;
+      }
       var importedStyle = sanitizeEditorStyle(obj.style);
       if (importedStyle) { state.style = importedStyle; }
       if (typeof obj.seed === 'number') { state.seed = obj.seed; }
@@ -202,7 +208,7 @@ var hashUpdateToken = 0;
 
 function updateHash() {
   var obj = { source: editor.value };
-  if (state.theme) obj.theme = state.theme;
+  if (state.palette) obj.palette = state.palette;
   if (state.style && state.style !== 'crisp') obj.style = state.style;
   if (state.seed) obj.seed = state.seed;
   if (hasOwnConfig(state.config)) obj.config = state.config;

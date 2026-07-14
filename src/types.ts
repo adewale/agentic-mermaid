@@ -1,7 +1,7 @@
 import type { MermaidRuntimeConfig } from './mermaid-source.ts'
 import type { DiagramColors } from './theme.ts'
-import type { ArchitectureVisualConfig } from './architecture/config.ts'
-import type { StyleInput } from './scene/style-registry.ts'
+import type { ArchitectureVisualOverrides } from './architecture/config.ts'
+import type { InternalStyleFace, StyleInput } from './scene/style-registry.ts'
 
 // ============================================================================
 // Parsed graph — logical structure extracted from Mermaid text
@@ -150,10 +150,18 @@ export interface PositionedDiagram {
   height: number
 }
 
+/** Explicit request-boundary data consumed by family layout/render code. */
+export interface ResolvedFamilyRenderContext {
+  readonly renderOptions: Readonly<RenderOptions>
+  readonly styleFace?: Readonly<InternalStyleFace>
+  readonly familyConfig?: Readonly<Record<string, unknown>>
+  readonly familyAppearance?: Readonly<Record<string, unknown>>
+}
+
 export interface RenderContext<TPositioned extends PositionedDiagram = PositionedDiagram> {
   positioned: TPositioned
   colors: DiagramColors
-  options: RenderOptions
+  resolved: ResolvedFamilyRenderContext
 }
 
 export interface PositionedGraph extends PositionedDiagram {
@@ -466,8 +474,9 @@ export interface RenderOptions {
   font?: string
 
   /**
-   * How the diagram looks: a registered style name ('hand-drawn', 'tufte',
-   * any THEMES palette name like 'dracula'), an inline StyleSpec, or a STACK
+   * How the diagram looks: a registered style name ('hand-drawn',
+   * 'look:tufte', 'palette:tufte', or any THEMES palette name like 'dracula'),
+   * an inline StyleSpec, or a STACK
    * of either merged left-to-right ({ style: ['hand-drawn', 'dracula'] } is
    * hand-drawn geometry with the dracula palette). A colors-only style is a
    * palette.
@@ -505,7 +514,7 @@ export interface RenderOptions {
   }
   /** Family-specific SVG renderer options for architecture-beta diagrams. */
   architecture?: {
-    visual?: ArchitectureVisualConfig
+    visual?: ArchitectureVisualOverrides
   }
   /** Family-specific layout options for timeline diagrams. */
   timeline?: {
@@ -566,14 +575,13 @@ export interface RenderOptions {
 
   /**
    * Compact SVG output. Default `false`. When true:
-   *  - Numeric coords with 3+ fractional digits are rounded (via `roundCoord`).
-   *  - Newlines between SVG elements are collapsed (whitespace inside `<style>`
-   *    is preserved so CSS declarations don't break).
+   *  - Formatting newlines between structural SVG elements are collapsed.
+   *  - Geometry, authored text, accessibility content, attribute boundaries,
+   *    and whitespace inside `<style>` are preserved exactly.
    *  - `data-*` and `class=` attributes are preserved (agent inspection hooks).
    *
-   * Typical reduction: 30-40% of bytes on flowchart graphs. Useful for the
-   * PNG render path (no need for human-readable SVG) and for bandwidth-
-   * sensitive consumers.
+   * Useful for the PNG render path (no need for human-readable indentation)
+   * and for bandwidth-sensitive consumers without changing diagram semantics.
    */
   compact?: boolean
   /**

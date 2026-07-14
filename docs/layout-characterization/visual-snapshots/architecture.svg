@@ -53,7 +53,7 @@
 </g>
   <text x="74" y="54" class="architecture-group-label" text-anchor="start" font-size="12" font-weight="600" dy="4.199999999999999">API</text>
 </g>
-<polyline class="architecture-edge" data-from="app" data-to="db" data-from-side="R" data-to-side="L" data-from-boundary="item" data-to-boundary="item" points="176,108 254,108" marker-end="url(#char-architecture-architecture-arrow-end)" data-id="edge:app-&gt;db#0" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="app to db" />
+<polyline class="architecture-edge" data-from="app" data-to="db" data-from-side="R" data-to-side="L" data-from-boundary="item" data-to-boundary="item" points="176,108 254,108" marker-end="url(#char-architecture-architecture-arrow-end)" data-relationship="architecture-edge" data-direction="forward" data-id="edge:app-&gt;db#0" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="app to db" />
 <g class="architecture-service" data-id="db" data-label="DB" data-role="service">
   <rect class="architecture-service-card" x="254" y="84" width="120" height="48" rx="0" ry="0" data-id="service-card:db" data-role="service" />
   <rect class="architecture-service-outline" x="254" y="84" width="120" height="48" rx="0" ry="0" data-id="service-outline:db" data-role="service" />

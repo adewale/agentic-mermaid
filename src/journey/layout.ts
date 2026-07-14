@@ -13,7 +13,7 @@ import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import { stripFormattingTags } from '../multiline-utils.ts'
 import { wrapLabelToWidth } from '../shared/label-wrap.ts'
 import type { JourneyRuntimeConfig } from '../mermaid-source.ts'
-import { resolvedFamilyAppearanceOf } from '../render-contract.ts'
+import type { InternalStyleFace } from '../scene/style-registry.ts'
 
 // ============================================================================
 // Journey diagram layout engine
@@ -141,23 +141,6 @@ export function resolveJourneyRequestAppearance(options: RenderOptions = {}): Jo
   return resolveJourneyRequestAppearanceRaw(options)
 }
 
-function journeyRequestAppearanceOf(options: RenderOptions): JourneyRequestAppearance {
-  return resolvedFamilyAppearanceOf<JourneyRequestAppearance>(options)
-    ?? resolveJourneyRequestAppearanceRaw(options)
-}
-
-export function resolveJourneyVisualConfig(options: RenderOptions = {}): JourneyVisualConfig {
-  return journeyRequestAppearanceOf(options).visual
-}
-
-export function resolveJourneyStyle(options: RenderOptions = {}): ResolvedRenderStyle {
-  return resolveRenderStyle(options, journeyRequestAppearanceOf(options).styleDefaults)
-}
-
-export function journeyUsesMaxWidth(options: RenderOptions = {}): boolean {
-  return journeyRequestAppearanceOf(options).useMaxWidth
-}
-
 function journeyStyleDefaults(config: JourneyRuntimeConfig | undefined): RenderStyleDefaults {
   return {
     ...JOURNEY_STYLE_DEFAULTS,
@@ -186,10 +169,12 @@ interface SectionMetric {
  */
 export function layoutJourneyDiagram(
   diagram: JourneyDiagram,
+  appearance: JourneyRequestAppearance,
   options: RenderOptions = {},
+  styleFace?: Readonly<InternalStyleFace>,
 ): PositionedJourneyDiagram {
-  const visual = resolveJourneyVisualConfig(options)
-  const style = resolveJourneyStyle(options)
+  const visual = appearance.visual
+  const style = resolveRenderStyle(options, appearance.styleDefaults, styleFace)
   const hasNamedSections = diagram.sections.some(section => !!section.label)
 
   const titleText = diagram.title

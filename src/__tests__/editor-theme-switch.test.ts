@@ -7,15 +7,16 @@
  * switch Paper → tokyo-night → Paper and assert the diagram's arrowheads track
  * the render theme while the chrome triplet stays pinned to the brand.
  *
- * Serves website/public like website-browser-a11y.test.ts, and skips the same
- * way when Playwright's Chromium is not installed (CI's unit job). Set
- * AM_CHROMIUM=/path/to/chrome to run against a system Chromium when the
- * pinned Playwright browser build is absent (e.g. sandboxed containers).
+ * Serves website/public like website-browser-a11y.test.ts. It runs only in the
+ * explicit `test:browser` lane so the coverage unit lane never starts browser
+ * servers. Set AM_CHROMIUM=/path/to/chrome there to use a system Chromium when
+ * the pinned Playwright browser build is absent (e.g. sandboxed containers).
  */
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import { existsSync } from 'node:fs'
 import { extname, join, normalize } from 'node:path'
 import { chromium, type Browser, type Page } from 'playwright'
+import { serveWithAvailablePort } from '../../e2e/test-port.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const SITE = join(REPO, 'website', 'public')
@@ -34,7 +35,9 @@ const chromiumExecutable = (() => {
   }
   try { return existsSync(chromium.executablePath()) ? undefined : null } catch { return null }
 })()
-const describeBrowser = chromiumExecutable === null ? describe.skip : describe
+const describeBrowser = chromiumExecutable !== null && process.env.AM_BROWSER_TESTS === '1'
+  ? describe
+  : describe.skip
 
 const mime: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -102,8 +105,8 @@ async function pickTheme(page: Page, key: string) {
 
 describeBrowser('editor theme switcher re-themes the diagram, never the chrome', () => {
   beforeAll(async () => {
-    server = Bun.serve({
-      port: 0,
+    const served = serveWithAvailablePort({
+      preferredPort: 4600,
       fetch(req) {
         const url = new URL(req.url)
         const abs = fileForPath(url.pathname)
@@ -111,7 +114,8 @@ describeBrowser('editor theme switcher re-themes the diagram, never the chrome',
         return new Response(Bun.file(abs), { headers: { 'content-type': mime[extname(abs)] || 'application/octet-stream' } })
       },
     })
-    baseUrl = `http://${server.hostname}:${server.port}`
+    server = served.server
+    baseUrl = served.base
     // null (no usable browser) never reaches here: describeBrowser skips first.
     browser = await chromium.launch({ headless: true, executablePath: chromiumExecutable ?? undefined })
   }, 30_000)

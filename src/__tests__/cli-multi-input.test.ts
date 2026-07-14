@@ -32,12 +32,12 @@ describe('#959 multi-input rendering', () => {
     expect(payload.files[0].ok).toBe(true)
     expect(payload.files[1].ok).toBe(true)
     expect(payload.files[2].ok).toBe(false)
-    expect(payload.files[2].error.code).toBe('RENDER_FAILED')
+    expect(payload.files[2].error.code).toBe('UNKNOWN_HEADER')
   })
 
   test('multi-input json parse errors expose structured details, not stringified blobs', () => {
     const good = tmp('flowchart TD\n A --> B')
-    const bad = tmp('not a diagram')
+    const bad = tmp('flowchart XX\n  A --> B')
     const { code, out } = capture(() => runCli(['render', good, bad, '--format', 'json']))
     expect(code).toBe(0)
     const payload = JSON.parse(out)
@@ -97,6 +97,35 @@ describe('#930 watch re-render step (renderFileOnce)', () => {
   test('strict SVG option applies to the watch render core', () => {
     const f = tmp('flowchart TD\n A --> B')
     expect(renderFileOnce(f, 'svg', { security: 'strict' })).not.toContain('fonts.googleapis.com')
+  })
+
+  test('watch re-renders serialize family diagnostics instead of printing an undefined message', () => {
+    for (const fixture of [
+      {
+        source: 'futureDiagram&#45;v99\n  payload',
+        code: 'UNKNOWN_HEADER',
+        authoredHeader: 'futureDiagram&#45;v99',
+      },
+      {
+        source: 'C4&#68;eployment\n  Deployment_Node(a, "A")',
+        code: 'UNSUPPORTED_FAMILY',
+        authoredHeader: 'C4&#68;eployment',
+      },
+    ]) {
+      const payload = JSON.parse(renderFileOnce(tmp(fixture.source), 'svg'))
+      expect(payload).toMatchObject({
+        ok: false,
+        error: {
+          code: fixture.code,
+          line: 1,
+          preservation: { source: fixture.source },
+          help: expect.stringContaining('source was preserved unchanged'),
+        },
+      })
+      expect(payload.error.message).not.toContain('undefined')
+      const span = payload.error.preservation.spans.header
+      expect(fixture.source.slice(span.start.offset, span.end.offset)).toBe(fixture.authoredHeader)
+    }
   })
 
   test('watch mode rejects PNG instead of writing SVG to a PNG path', () => {

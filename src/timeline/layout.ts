@@ -9,6 +9,7 @@ import type { RenderOptions } from '../types.ts'
 import { measureMultilineText, measureTextWidth } from '../text-metrics.ts'
 import { STROKE_WIDTHS, applyTextTransform, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
+import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { stripFormattingTags } from '../multiline-utils.ts'
 
 // ============================================================================
@@ -134,9 +135,10 @@ const DEFAULT_WRAP_CAPS: TimelineWrapCaps = {
  */
 export function layoutTimelineDiagram(
   diagram: TimelineDiagram,
-  options: RenderOptions = {}
+  options: RenderOptions = {},
+  styleFace?: Readonly<InternalStyleFace>,
 ): PositionedTimelineDiagram {
-  const style = resolveRenderStyle(options, TIMELINE_STYLE_DEFAULTS)
+  const style = resolveRenderStyle(options, TIMELINE_STYLE_DEFAULTS, styleFace)
   const vertical = diagram.direction === 'TD'
   // Box main/cross extents: boxes keep their measured width/height in both
   // orientations; only which dimension advances each axis flips.

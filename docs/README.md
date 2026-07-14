@@ -87,7 +87,7 @@ The design docs split into two tiers — **system** (how the engine works, cross
 | [`project/agent-interface-contract-audit-2026-07.md`](./project/agent-interface-contract-audit-2026-07.md) | PR #162 defect provenance, review of PRs #157/#160, testing root causes, and recurrence controls. |
 | [`contributing/lessons-learned.md`](./contributing/lessons-learned.md) | Dated contributor process lessons (newest first). |
 | [`project/dogfooding-docs-strategy.md`](./project/dogfooding-docs-strategy.md) | How we render and pin our own docs with our own tools. |
-| [`project/archive/`](./project/archive/) | Frozen implementation plans, audits, and completion evidence; never live backlog authority. |
+| [`project/archive/`](./project/archive/) | Status-marked landing/completion evidence and frozen historical records; never live backlog authority. |
 | [`issue-derived-test-cases.md`](./issue-derived-test-cases.md) | Issue-derived regression coverage map. |
 | [`mermaid-layout-complaints.md`](./mermaid-layout-complaints.md) | Mermaid layout complaint catalog, root causes, and coverage scorecard. |
 

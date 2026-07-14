@@ -57,7 +57,11 @@ function geometryProblems(geom: Geometry, els: Array<{ tag: string; attrs: Map<s
   }
   const eq = (field: string, semantic: number | string | undefined, attr: string | undefined) => {
     if (semantic === undefined) return
-    if (String(semantic) !== attr && num(attr) !== semantic) {
+    const parsed = num(attr)
+    const numericallyEquivalent = typeof semantic === 'number'
+      && parsed !== undefined
+      && Math.abs(parsed - semantic) <= Number.EPSILON * 8 * Math.max(1, Math.abs(parsed), Math.abs(semantic))
+    if (String(semantic) !== attr && !numericallyEquivalent) {
       problems.push(`${path}.${field}: semantic ${semantic} != crisp ${attr}`)
     }
   }
@@ -185,6 +189,9 @@ export function nodeProblems(node: SceneNode, path: string, problems: string[]):
       if (el && node.startMarker && !(el.attrs.get('marker-start') ?? '').includes(`#${node.startMarker.id}`)) {
         problems.push(`${path}(connector:${node.id}): startMarker ${node.startMarker.id} not in crisp marker-start`)
       }
+      if (el && node.markers.mid.length > 0 && !(el.attrs.get('marker-mid') ?? '').includes(`#${node.markers.mid[0]!.id}`)) {
+        problems.push(`${path}(connector:${node.id}): mid marker ${node.markers.mid[0]!.id} not in crisp marker-mid`)
+      }
       return
     }
     case 'text': {
@@ -219,9 +226,10 @@ export function nodeProblems(node: SceneNode, path: string, problems: string[]):
       // normalized the way the text emitter normalizes labels (markdown
       // backticks, <b>/<i>/<u>/<s> emphasis tags, whitespace), so formatted
       // labels don't false-positive.
-      const normalize = (s: string) => unescapeXml(s)
+      const normalize = (s: string) => unescapeXml(s
         .replace(/<br\s*\/?>/gi, ' ')
         .replace(/<[^>]+>/g, '')
+      )
         .replace(/[`*_]/g, '')
         .replace(/\s+/g, ' ')
         .trim()

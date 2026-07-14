@@ -57,8 +57,7 @@ Use it when you want to test whether a style keeps connectors readable:
   },
   "font": "DejaVu Sans",
   "stroke": "crisp",
-  "strokeWidth": 4,
-  "fill": "none"
+  "strokeWidth": 4
 }
 ```
 
@@ -70,8 +69,8 @@ Complete file:
 ![Mid-century report custom style](./assets/style-cookbook/mid-century-report.png)
 
 This is the easiest uncovered cluster to teach with today's StyleSpec. It is
-mostly palette, fill, typography, and page treatment. No new backend capability
-is needed.
+mostly palette, typography, and page treatment. No new backend capability is
+needed.
 
 Use it when you want a report figure with visible section bands and square
 technical connectors:
@@ -89,8 +88,7 @@ technical connectors:
   },
   "font": "DejaVu Sans",
   "stroke": "crisp",
-  "strokeWidth": 1.6,
-  "fill": "solid"
+  "strokeWidth": 1.6
 }
 ```
 

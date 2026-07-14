@@ -57,9 +57,8 @@ architecture-beta
     expect(resolved.visual.serviceBorder).toBe('#a8a29e')
   })
 
-  it('applies the explicit complete visual record to layout and Scene paint', () => {
+  it('merges sparse public visual overrides into complete layout and Scene paint', () => {
     const visual = {
-      ...DEFAULT_ARCHITECTURE_VISUAL,
       serviceCornerRadius: 17,
       serviceSurface: '#AABBCC',
     }
@@ -71,6 +70,14 @@ architecture-beta
     const svg = renderMermaidSVG('architecture-beta\n  service api(server)[API]', { architecture: { visual } })
     expect(svg).toContain('rx="17" ry="17"')
     expect(svg).toContain('--arch-service-fill:#AABBCC')
+  })
+
+  it('validates cross-field invariants after sparse overrides merge with resolved defaults', () => {
+    expect(() => resolveArchitectureVisualConfig(
+      {},
+      { bg: '#fff', fg: '#111' },
+      { architecture: { visual: { junctionInnerRadius: 99 } } },
+    )).toThrow(/junctionInnerRadius must not exceed junctionOuterRadius/)
   })
 })
 

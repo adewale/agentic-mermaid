@@ -69,10 +69,10 @@ describe('official Mermaid documentation showcase', () => {
   test('every built-in Look × Palette combination renders every docs family', () => {
     const descriptors = knownStyleDescriptors()
     const looks = descriptors
-      .filter(descriptor => descriptor.category === 'look')
+      .filter(descriptor => descriptor.kind === 'look' && !descriptor.isDefault)
       .map(descriptor => descriptor.inputName)
     const palettes = descriptors
-      .filter(descriptor => descriptor.category === 'theme')
+      .filter(descriptor => descriptor.kind === 'palette')
       .map(descriptor => descriptor.inputName)
     expect(looks).not.toContain('crisp')
     expect(palettes.length).toBeGreaterThan(0)
@@ -98,7 +98,10 @@ describe('official Mermaid documentation showcase', () => {
       }
     }
     expect(combinations).toBe(manifest.cases.length * looks.length * palettes.length)
-  }, 60_000)
+  // This is the deliberately exhaustive family × Look × Palette gate (tens
+  // of thousands of assertions), not a unit-test timeout sentinel. Coverage
+  // instrumentation pushes the stable local runtime beyond one minute.
+  }, 120_000)
 
   test('generated docs gallery receipt covers current sources and PNG bytes', () => {
     const receipt = JSON.parse(readFileSync(join(ROOT, 'eval', 'mermaid-doc-showcase', 'gallery-receipt.json'), 'utf8')) as {

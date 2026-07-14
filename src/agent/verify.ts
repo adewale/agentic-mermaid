@@ -38,8 +38,8 @@ import { parseTodayMarkerStyle, GANTT_TODAY_MARKER_STYLE_PROPS } from '../gantt/
 import { normalizeMermaidSource } from '../mermaid-source.ts'
 import { normalizeV11Shape } from '../flowchart-shapes.ts'
 import { familyConfigDiagnostics } from '../shared/family-config-diagnostics.ts'
-import './families-builtin.ts'  // registers built-in families at import time
 import { sequenceMessages } from './sequence-body.ts'
+import { sameExtensionIdentity } from '../shared/extension-identity.ts'
 
 function familyConfigShapeWarnings(d: ValidDiagram): LayoutWarning[] {
   const roots: unknown[] = [d.meta.frontmatter, ...d.meta.initDirectives.map(directive => directive.parsed)]
@@ -98,6 +98,15 @@ export function verifyMermaid(input: ParsedDiagram | string, opts: VerifyOptions
   logToolInvocation('verify')
   const parsed = typeof input === 'string' ? parseRegisteredMermaid(input) : { ok: true as const, value: input }
   if (!parsed.ok) return finalize([{ code: 'EMPTY_DIAGRAM' }], emptyRenderedLayout('flowchart'), opts)
+  if (parsed.value.body.kind === 'preserved') {
+    const { diagnostic } = parsed.value.body
+    return finalize(
+      [{ code: 'RENDER_FAILED', reason: `${diagnostic.code}: ${diagnostic.message}` }],
+      emptyRenderedLayout(parsed.value.kind),
+      opts,
+      false,
+    )
+  }
   const positioned = memoizedVerificationArtifact(parsed.value, opts)
   try {
     return withRenderParity(verifyStructure(parsed.value, opts, positioned), opts, positioned)
@@ -250,10 +259,10 @@ function verifyStructure(
 ): VerifyResult {
   const cap = opts.labelCharCap ?? DEFAULT_LABEL_CHAR_CAP
 
-  // Family-plugin verify dispatcher pass: every registered family's `verify`
+  // FamilyDescriptor verify dispatcher pass: every registered family's `verify`
   // hook gets a chance to contribute warnings. Runs ahead of per-body branches
-  // so plugins can hook into any body kind (structured or opaque). Closes the
-  // dead-code gap where `FamilyPlugin.verify` was declared but never invoked.
+  // so descriptors can hook into any body kind (structured or opaque). Closes the
+  // dead-code gap where `FamilyDescriptor.verify` was declared but never invoked.
   // 2C comment policy: in-body comments that structured serialization drops
   // (recorded at parse time) surface here as the Tier 3 COMMENT_DROPPED lint,
   // so the loss is announced rather than silent.
@@ -284,16 +293,16 @@ function verifyStructure(
 
   if (d.body.kind === 'sequence') return mergeFinalize(verifySequence(d as ValidDiagram & { body: SequenceBody }, cap, opts, positioned), pluginWarnings, opts)
   if (d.body.kind === 'timeline') return mergeFinalize(verifyTimeline(d as ValidDiagram & { body: import('./types.ts').TimelineBody }, cap, opts, positioned), pluginWarnings, opts)
-  // class + ER: the FamilyPlugin.verify hooks (registered in families-builtin.ts)
+  // class + ER: the FamilyDescriptor.verify hooks from the atomic registry
   // already produce the per-body warnings. Loop 9 M2 removes the duplicate
   // explicit branches; the dispatcher path + emptyRenderedLayout fall-through
   // does the work. Dedup is unnecessary now (single source of truth) so we
   // emit pluginWarnings directly.
-  // class + ER + journey + architecture: the FamilyPlugin.verify hooks produce
+  // class + ER + journey + architecture: the FamilyDescriptor.verify hooks produce
   // the per-body warnings (journey added by BUILD-15, architecture by BUILD-17).
   // Gantt adds geometric tripwires (OFF_CANVAS / GROUP_BREACH) over its real
   // layout and surfaces unresolvable schedules (UNRESOLVABLE_SCHEDULE),
-  // alongside the body-level plugin warnings — see docs/design/families/gantt.md
+  // alongside the body-level descriptor warnings — see docs/design/families/gantt.md
   // §Verification.
   if (d.body.kind === 'gantt') {
     // Schedule resolution is the named render precondition for Gantt. If it
@@ -565,8 +574,8 @@ function dedupedConcat(a: LayoutWarning[], b: LayoutWarning[]): LayoutWarning[] 
 }
 
 /**
- * Run the registered FamilyPlugin.verify hook for this diagram's kind.
- * Returns the warnings the plugin produced. Registered extension families
+ * Run the registered FamilyDescriptor.verify hook for this diagram's kind.
+ * Returns the warnings the descriptor produced. Registered extension families
  * without a hook, and hooks that throw, become explicit verification errors.
  */
 function dispatchFamilyVerify(d: ParsedDiagram, opts: VerifyOptions): LayoutWarning[] {
@@ -575,7 +584,25 @@ function dispatchFamilyVerify(d: ParsedDiagram, opts: VerifyOptions): LayoutWarn
     ? [{ code: 'RENDER_FAILED', reason: `Mermaid family "${d.kind}" has no verify hook registered` }]
     : []
   try {
-    return plugin.verify(d.body, opts)
+    let body = d.body
+    if (d.body.kind === 'extension') {
+      const extension = d as ExtensionValidDiagram
+      if (!sameExtensionIdentity(extension.descriptorIdentity, plugin.identity)) {
+        // Descriptor-owned structured data is meaningful only to the exact
+        // registration that produced it. Serialize falls back to this same
+        // core-owned source on an identity mismatch; reparse that source under
+        // the current descriptor before invoking its verification hook.
+        const reparsed = parseRegisteredMermaid(serializeMermaid(d))
+        if (!reparsed.ok || reparsed.value.kind !== d.kind || reparsed.value.body.kind !== 'extension') {
+          return [{
+            code: 'RENDER_FAILED',
+            reason: `Mermaid family "${d.kind}" could not reparse source under its current descriptor before verification`,
+          }]
+        }
+        body = reparsed.value.body
+      }
+    }
+    return plugin.verify(body, opts)
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error)
     return [{ code: 'RENDER_FAILED', reason: `Mermaid family "${d.kind}" verify hook failed: ${reason}` }]
@@ -584,7 +611,7 @@ function dispatchFamilyVerify(d: ParsedDiagram, opts: VerifyOptions): LayoutWarn
 
 /** finalize() variant that merges an already-finalized result with extra warnings.
  *  Loop 9 M10: now delegates fully to dedupedConcat → finalize. Dedupes on
- *  (code, target/edge/node) so a plugin verify hook returning a warning
+ *  (code, target/edge/node) so a descriptor verify hook returning a warning
  *  identical to one the per-body verify already produced doesn't surface twice.
  *  The dispatcher has been live since Loop 7 M1, so this hazard remains real. */
 function mergeFinalize(prev: VerifyResult, extra: LayoutWarning[], opts: VerifyOptions): VerifyResult {

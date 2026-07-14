@@ -4,13 +4,12 @@ import { spawnSync } from 'node:child_process'
 import { writeFileSync } from 'node:fs'
 import {
   BUILTIN_FAMILY_METADATA,
-  augmentFamily,
   detectRegisteredFamilyFromFirstLine,
   getFamily,
   knownFamilies,
-  registerFamily,
   type FamilyDescriptor,
 } from '../agent/families.ts'
+import { registerFamily } from '../agent/family-registration.ts'
 import { parseMermaid, parseRegisteredMermaid } from '../agent/parse.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
 import { projectPositionedView } from '../agent/index.ts'
@@ -45,6 +44,7 @@ function syntheticFamily(localId: string, header: string): FamilyDescriptor {
     }),
     id,
     label: `Synthetic ${localId}`,
+    example: `${header}\n  example payload`,
     headers: [header],
     aliases: [],
     maturity: 'experimental',
@@ -68,7 +68,15 @@ function syntheticFamily(localId: string, header: string): FamilyDescriptor {
     layout: () => ({ width: 80, height: 24 }),
     projectPositioned: ({ positioned }) => ({
       version: 1,
-      nodes: [],
+      nodes: [{
+        id: 'future',
+        x: toFinite(4),
+        y: toFinite(4),
+        w: toFinite(positioned.width - 8),
+        h: toFinite(positioned.height - 8),
+        shape: 'rectangle',
+        label: 'future',
+      }],
       edges: [],
       groups: [],
       bounds: { w: toFinite(positioned.width), h: toFinite(positioned.height) },
@@ -356,7 +364,9 @@ describe('synthetic family registration', () => {
         source: context.opaqueSource,
         data: {
           familyLines: [...context.lines],
-          accessibilityTitle: context.meta.accessibility.title,
+          ...(context.meta.accessibility.title === undefined
+            ? {}
+            : { accessibilityTitle: context.meta.accessibility.title }),
         },
       }),
       serialize: body => body.kind === 'extension' ? body.source : '',
@@ -417,7 +427,19 @@ describe('synthetic family registration', () => {
         process.stdout.write = originalWrite
       }
       expect(projectPositionedView(descriptor.id, { width: 80, height: 24 })).toEqual({
-        version: 1, nodes: [], edges: [], groups: [], bounds: { w: toFinite(80), h: toFinite(24) },
+        version: 1,
+        nodes: [{
+          id: 'future',
+          x: toFinite(4),
+          y: toFinite(4),
+          w: toFinite(72),
+          h: toFinite(16),
+          shape: 'rectangle',
+          label: 'future',
+        }],
+        edges: [],
+        groups: [],
+        bounds: { w: toFinite(80), h: toFinite(24) },
       })
       expect(explicitFamilyConfigDiagnostics(descriptor.id, {
         future: { spacing: 12, legacy: true, typo: 1 },
@@ -465,11 +487,14 @@ describe('synthetic family registration', () => {
       ...syntheticFamily('acme/detector-collision', 'detectorOnly'),
       detect: (line: string) => line === 'detectoronly' || line === 'flowchart',
     }
-    expect(() => registerFamily(detectorCollision))
-      .toThrow(/detector .* overlaps header "flowchart" owned by "flowchart"/)
+    const unregisterDetector = registerFamily(detectorCollision)
+    expect(detectRegisteredFamilyFromFirstLine('flowchart LR')).toBe('flowchart')
+    unregisterDetector()
 
-    const flowchart = getFamily('flowchart')
-    expect(() => augmentFamily('flowchart', { id: 'family:evil' } as never)).toThrow(/Cannot augment/)
+    const flowchart = getFamily('flowchart')!
+    expect(Object.isFrozen(flowchart)).toBe(true)
+    expect(Object.isFrozen(flowchart.headers)).toBe(true)
+    expect(() => { (flowchart.headers as string[])[0] = 'family:evil' }).toThrow()
     expect(getFamily('flowchart')).toBe(flowchart)
     expect(knownFamilies()).toEqual(before)
   })

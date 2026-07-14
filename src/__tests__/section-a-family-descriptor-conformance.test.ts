@@ -2,13 +2,21 @@ import { describe, expect, test } from 'bun:test'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 
-import '../render-family-hooks.ts'
 import {
   FAMILY_CAPABILITY_COLUMNS,
   getFamily,
   knownBuiltinFamilies,
+  replaceFamilyForTest,
   type BuiltinFamilyId,
+  type FamilyDescriptor,
 } from '../agent/families.ts'
+import { parseMermaid } from '../agent/parse.ts'
+import { serializeMermaid } from '../agent/serialize.ts'
+import { mutate } from '../agent/mutate.ts'
+import { verifyMermaid } from '../agent/verify.ts'
+import { layoutMermaid } from '../agent/core.ts'
+import type { AnyMutationOp, MutableValidDiagram } from '../agent/types.ts'
+import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
 import { BUILTIN_SCENE_ROLE_TRAITS } from '../scene/roles.ts'
 import { CORE_SCENE_PRIMITIVES, sceneNodePrimitives } from '../scene/capabilities.ts'
 import type { PositionedDiagram, RenderContext, RenderOptions } from '../types.ts'
@@ -72,7 +80,7 @@ const RICH_SCENE_FIXTURES: Partial<Record<BuiltinFamilyId, string>> = {
   subgraph Commerce
     CUSTOMER ||--o{ ORDER : places
     CUSTOMER {
-      string id PK
+      string id PK "stable customer identifier"
       string name
     }
   end
@@ -104,7 +112,8 @@ xychart-beta
   y-axis USD 0 --> 100
   bar Online [30, 55, 80]
   line Forecast [25, 60, 75]`,
-  pie: `pie showData
+  pie: `%%{init: {"themeVariables": {"pieOuterStrokeWidth": "2px", "pieOuterStrokeColor": "#654321"}}}%%
+pie showData
   title Plans
   "Free" : 60
   "Pro" : 30
@@ -143,6 +152,23 @@ gitGraph
   merge feature id:"merge"`,
 }
 
+const CAPABILITY_MUTATIONS: Readonly<Record<BuiltinFamilyId, AnyMutationOp>> = {
+  flowchart: { kind: 'add_node', id: 'CapabilityWitness', label: 'Capability witness' },
+  state: { kind: 'add_state', id: 'CapabilityWitness', label: 'Capability witness' },
+  sequence: { kind: 'add_participant', id: 'CapabilityWitness', label: 'Capability witness' },
+  timeline: { kind: 'set_title', title: 'Capability witness' },
+  class: { kind: 'add_class', id: 'CapabilityWitness' },
+  er: { kind: 'add_entity', id: 'CAPABILITY_WITNESS' },
+  journey: { kind: 'set_title', title: 'Capability witness' },
+  architecture: { kind: 'set_title', title: 'Capability witness' },
+  xychart: { kind: 'set_title', title: 'Capability witness' },
+  pie: { kind: 'set_title', title: 'Capability witness' },
+  quadrant: { kind: 'set_title', title: 'Capability witness' },
+  gantt: { kind: 'set_title', title: 'Capability witness' },
+  mindmap: { kind: 'set_accessibility_title', title: 'Capability witness' },
+  gitgraph: { kind: 'set_accessibility_title', title: 'Capability witness' },
+}
+
 function lowerFixture(id: BuiltinFamilyId, sourceText: string): SceneDoc {
   const descriptor = getFamily(id)!
   const options: RenderOptions = {
@@ -156,7 +182,12 @@ function lowerFixture(id: BuiltinFamilyId, sourceText: string): SceneDoc {
   const context: RenderContext = {
     positioned: result.positioned,
     colors: request.appearance.colors,
-    options: request.renderOptions,
+    resolved: {
+      renderOptions: request.renderOptions,
+      ...(request.appearance.face ? { styleFace: request.appearance.face } : {}),
+      ...(request.familyConfig ? { familyConfig: request.familyConfig } : {}),
+      ...(request.appearance.family ? { familyAppearance: request.appearance.family } : {}),
+    },
   }
   return descriptor.lowerScene!(context)
 }
@@ -198,6 +229,67 @@ describe('family descriptor capability authority', () => {
         for (const path of claim.evidence) {
           expect(existsSync(join(ROOT, path)), `${id}/${claim.capability}: ${path}`).toBe(true)
         }
+      }
+    }
+  })
+
+  test('every native built-in capability is exercised through its real implementation path', () => {
+    for (const id of knownBuiltinFamilies()) {
+      const descriptor = getFamily(id)!
+      const calls = new Map<string, number>()
+      const hit = (name: string): void => { calls.set(name, (calls.get(name) ?? 0) + 1) }
+      const wrapped: FamilyDescriptor = {
+        ...descriptor,
+        detect: line => { hit('detection'); return descriptor.detect(line) },
+        ...(descriptor.detectLoose
+          ? { detectLoose: (line: string) => { hit('detection'); return descriptor.detectLoose!(line) } }
+          : {}),
+        normalizeRequest: ctx => { hit('normalization'); return descriptor.normalizeRequest!(ctx) },
+        extractLabels: source => { hit('label-extraction'); return descriptor.extractLabels!(source) },
+        parse: ctx => { hit('parse'); return descriptor.parse!(ctx) },
+        ...(descriptor.buildSourceMap
+          ? { buildSourceMap: (body, source) => descriptor.buildSourceMap!(body, source) }
+          : {}),
+        serialize: body => { hit('serialize'); return descriptor.serialize!(body) },
+        mutate: (body, op) => { hit('mutation'); return descriptor.mutate!(body, op) },
+        ...(descriptor.verify
+          ? { verify: (body, options) => { hit('verify-hook'); return descriptor.verify!(body, options) } }
+          : {}),
+        layout: ctx => { hit('layout'); return descriptor.layout!(ctx) },
+        projectPositioned: ctx => { hit('positioned-projection'); return descriptor.projectPositioned!(ctx) },
+        lowerScene: ctx => { hit('scene'); return descriptor.lowerScene!(ctx) },
+        renderAscii: ctx => { hit('terminal'); return descriptor.renderAscii!(ctx) },
+      }
+      const restore = replaceFamilyForTest(id, wrapped)
+      calls.clear() // registration validation executes detection; it is not the witness.
+      try {
+        expect(getFamily(id)!.extractLabels!(descriptor.example!), `${id} label-extraction witness`).toBeArray()
+        const parsed = parseMermaid(descriptor.example!)
+        expect(parsed.ok, `${id} parse witness`).toBe(true)
+        if (!parsed.ok) continue
+        const serialized = serializeMermaid(parsed.value)
+        expect(serialized.length, `${id} serialize witness`).toBeGreaterThan(0)
+        const reparsed = parseMermaid(serialized)
+        expect(reparsed.ok, `${id} source-preservation reparse witness`).toBe(true)
+        if (reparsed.ok) expect(serializeMermaid(reparsed.value), `${id} stable source-preservation witness`).toBe(serialized)
+        hit('source-preservation')
+        expect(mutate(parsed.value as MutableValidDiagram, CAPABILITY_MUTATIONS[id]).ok, `${id} mutation witness`).toBe(true)
+        expect(verifyMermaid(parsed.value).warnings, `${id} verify witness`).toBeArray()
+        hit('verify')
+        expect(layoutMermaid(parsed.value).kind, `${id} layout projection witness`).toBe(id)
+        expect(renderMermaidSVG(descriptor.example!, { embedFontImport: false }), `${id} SVG witness`).toContain('<svg')
+        hit('svg')
+        expect(renderMermaidASCII(descriptor.example!, { colorMode: 'none' }).trim().length, `${id} terminal witness`).toBeGreaterThan(0)
+
+        for (const capability of FAMILY_CAPABILITY_COLUMNS) {
+          expect(calls.get(capability) ?? 0, `${id} did not invoke ${capability}`).toBeGreaterThan(0)
+        }
+        expect(calls.get('label-extraction') ?? 0, `${id} label extraction`).toBeGreaterThan(0)
+        expect(calls.get('normalization') ?? 0, `${id} request normalization`).toBeGreaterThan(0)
+        expect(calls.get('positioned-projection') ?? 0, `${id} positioned projection`).toBeGreaterThan(0)
+        if (descriptor.verify) expect(calls.get('verify-hook') ?? 0, `${id} verify hook`).toBeGreaterThan(0)
+      } finally {
+        restore()
       }
     }
   })

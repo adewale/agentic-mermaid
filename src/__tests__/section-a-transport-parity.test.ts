@@ -20,16 +20,13 @@ import { decodePng } from './helpers/png-pixels.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { layoutMermaidWithReceipt } from '../agent/core.ts'
+import { renderWebsiteSVGWithReceipt } from '../../website/src/rendering.ts'
+import {
+  SECTION_A_TRANSPORT_FIXTURE,
+  sectionATransportReceiptProjection,
+} from './helpers/section-a-transport-fixture.ts'
 
-const SOURCE = 'flowchart LR\n  A[Start] -->|ships| B[Finish]'
-const OPTIONS = {
-  style: 'hand-drawn',
-  seed: 17,
-  padding: 24,
-  embedFontImport: false,
-  security: 'strict',
-  mermaidConfig: { themeVariables: { lineColor: '#24415f' } },
-} as const satisfies RenderOptions
+const { source: SOURCE, options: OPTIONS } = SECTION_A_TRANSPORT_FIXTURE
 
 function call(name: string, args: Record<string, unknown>): JsonRpcRequest {
   return { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } }
@@ -68,7 +65,7 @@ function captureStdout(run: () => number): { code: number; stdout: string } {
 describe('Section A transport and backend parity receipts', () => {
   test('canonical PNG policy rejects ambiguous, unsafe, and non-finite output controls', () => {
     expect(() => resolvePngOutputPolicy({ scale: Number.NaN })).toThrow('positive finite')
-    expect(() => resolvePngOutputPolicy({ fitTo: { width: 10, height: 10 } })).toThrow('width or height')
+    expect(() => resolvePngOutputPolicy({ fitTo: { width: 10, height: 10 } } as never)).toThrow('width or height')
     expect(() => resolvePngOutputPolicy({ background: 'red" onload="alert(1)' })).toThrow('safe CSS color')
     expect(resolvePngOutputPolicy({ background: '#123456' }).background).toEqual({ mode: 'explicit', value: '#123456' })
   })
@@ -97,18 +94,74 @@ describe('Section A transport and backend parity receipts', () => {
     expect(value.terminalDiagnostics).toContainEqual(expect.objectContaining({ feature: 'render-option:padding' }))
   })
 
-  test('library, CLI, and hosted MCP enter the same SVG request boundary', async () => {
+  test('the canonical SVG sentinel crosses library, CLI, local MCP, hosted MCP, and website adapters unchanged', async () => {
     const library = renderMermaidSVGWithReceipt(SOURCE, OPTIONS)
-    const cli = renderSourceToFormatWithReceipt(SOURCE, 'svg', OPTIONS)
+    const dir = mkdtempSync(join(tmpdir(), 'am-section-a-transport-'))
+    const input = join(dir, 'sentinel.mmd')
+    writeFileSync(input, SOURCE)
+    const cliRun = captureStdout(() => runCli([
+      'render', input,
+      '--format', 'svg',
+      '--options', JSON.stringify(OPTIONS),
+      '--json',
+    ]))
+    const cli = JSON.parse(cliRun.stdout) as { svg: string; receipt: typeof library.receipt }
+    const local = payloadOf(await handleRequest(call('execute', {
+      code: `return mermaid.renderMermaidSVGWithReceipt(${JSON.stringify(SOURCE)}, ${JSON.stringify(OPTIONS)})`,
+    })))
     const hosted = payloadOf(await handleHostedRequest(
       call('render_svg', { source: SOURCE, options: OPTIONS }),
       hostedContext(),
     ))
+    const website = renderWebsiteSVGWithReceipt(SOURCE, OPTIONS)
 
-    expect(cli.receipt).toEqual(library.receipt)
-    expect(hosted.receipt).toEqual(library.receipt)
-    expect(cli.output).toBe(library.svg)
-    expect(hosted.svg).toBe(library.svg)
+    const expectedReceipt = sectionATransportReceiptProjection(library.receipt)
+    const surfaces = {
+      cli: { svg: cli.svg, receipt: cli.receipt },
+      localMcp: { svg: local.value.svg, receipt: local.value.receipt },
+      hostedMcp: { svg: hosted.svg, receipt: hosted.receipt },
+      website,
+    }
+
+    expect(cliRun.code).toBe(0)
+    expect(local.ok).toBe(true)
+    for (const [surface, artifact] of Object.entries(surfaces)) {
+      expect(artifact.svg, surface).toBe(library.svg)
+      expect(sectionATransportReceiptProjection(artifact.receipt), surface).toEqual(expectedReceipt)
+    }
+  })
+
+  test('deprecated Style diagnostics cross library, CLI, local MCP, and hosted MCP receipts', async () => {
+    const options = { style: 'tufte' } as const
+    const library = renderMermaidSVGWithReceipt(SOURCE, options)
+    const dir = mkdtempSync(join(tmpdir(), 'am-section-a-alias-'))
+    const input = join(dir, 'alias.mmd')
+    writeFileSync(input, SOURCE)
+    const cliRun = captureStdout(() => runCli([
+      'render', input,
+      '--format', 'svg',
+      '--options', JSON.stringify(options),
+      '--json',
+    ]))
+    const cli = JSON.parse(cliRun.stdout) as { receipt: typeof library.receipt }
+    const local = payloadOf(await handleRequest(call('execute', {
+      code: `return mermaid.renderMermaidSVGWithReceipt(${JSON.stringify(SOURCE)}, ${JSON.stringify(options)})`,
+    })))
+    const hosted = payloadOf(await handleHostedRequest(
+      call('render_svg', { source: SOURCE, options }),
+      hostedContext(),
+    ))
+
+    expect(cliRun.code).toBe(0)
+    expect(local.ok).toBe(true)
+    for (const receipt of [library.receipt, cli.receipt, local.value.receipt, hosted.receipt]) {
+      expect(receipt.diagnostics).toContainEqual(expect.objectContaining({
+        code: 'STYLE_ALIAS_DEPRECATED',
+        input: 'tufte',
+        canonicalId: 'look:tufte',
+        removal: { release: '0.3.0', date: '2027-01-31' },
+      }))
+    }
   })
 
   test('CLI JSON delegates every built-in family to the canonical layout request', () => {
@@ -224,36 +277,47 @@ architecture-beta
   })
 
   test('local and hosted PNG tools preserve the library receipt', async () => {
-    const pngOptions = { ...OPTIONS, scale: 0.1, background: '#ffffff' }
+    const pngOptions = { ...OPTIONS, scale: 0.1, background: '#ffffff', fitTo: { width: 64 } }
     const library = renderMermaidPNGWithReceipt(SOURCE, pngOptions)
     const local = payloadOf(await handleRequest(call('render_png', {
       source: SOURCE,
       scale: pngOptions.scale,
       background: pngOptions.background,
+      fitTo: pngOptions.fitTo,
       options: OPTIONS,
     })))
     const hosted = payloadOf(await handleHostedRequest(call('render_png', {
       source: SOURCE,
       scale: pngOptions.scale,
       background: pngOptions.background,
+      fitTo: pngOptions.fitTo,
       options: OPTIONS,
     }), hostedContext()))
 
     expect(local.receipt).toEqual(library.receipt)
     expect(hosted.receipt).toEqual(library.receipt)
+    const decoded = [
+      library.png,
+      Buffer.from(local.png_base64, 'base64'),
+      Buffer.from(hosted.png_base64, 'base64'),
+    ].map(decodePng)
+    expect(decoded.map(image => image.width)).toEqual([64, 64, 64])
+    expect(decoded[1]!.rgba).toEqual(decoded[0]!.rgba)
+    expect(decoded[2]!.rgba).toEqual(decoded[0]!.rgba)
   })
 
   test('dark-style PNG defaults align while the hosted boundary remains strict', async () => {
     const style = ['dracula']
-    const library = renderMermaidPNGWithReceipt(SOURCE, { style, scale: 0.1 })
+    const library = renderMermaidPNGWithReceipt(SOURCE, { style, scale: 0.1, fitTo: { width: 64 } })
     const hostedProjection = renderPngGraphicalProjection(
       SOURCE,
       { style, security: 'strict' },
-      { scale: 0.1 },
+      { scale: 0.1, fitTo: { width: 64 } },
     )
     const hosted = payloadOf(await handleHostedRequest(call('render_png', {
       source: SOURCE,
       scale: 0.1,
+      fitTo: { width: 64 },
       style,
     }), hostedContext()))
     const dir = mkdtempSync(join(tmpdir(), 'am-section-a-png-'))
@@ -266,6 +330,7 @@ architecture-beta
       '--output', output,
       '--style', 'dracula',
       '--scale', '0.1',
+      '--fit-width', '64',
       '--json',
     ]))
     const payload = JSON.parse(cli.stdout) as {
@@ -277,6 +342,7 @@ architecture-beta
     expect(cli.code).toBe(0)
     expect(payload.ok).toBe(true)
     expect(readFileSync(output)).toEqual(Buffer.from(library.png))
+    expect(decodePng(library.png).width).toBe(64)
     expect([...decodePng(library.png).rgba.slice(0, 4)]).toEqual([40, 42, 54, 255])
     expect(payload.receipt).toEqual(library.receipt)
     expect(hosted.receipt).toEqual(hostedProjection.receipt)

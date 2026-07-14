@@ -1,23 +1,25 @@
-# Section A rendering contract — completion record
+# Section A rendering contract — landing candidate record
 
-Status: completed on the Section A implementation branch in July 2026, based
-on `0a81c3b` (the merge of PR #148). The landing PR link is added before this
-record is merged. Live follow-up work is owned only by root `TODO.md`.
+Status: open landing candidate, implemented and under final verification in
+July 2026 on the Section A landing branch after PR #148 landed. This record must
+name the exact landing PR before publication and must not claim completion or
+`main` until that PR merges. Live follow-up work remains owned only by root
+`TODO.md`.
 
-This record closes Section A of
+Once its final gates pass, this record closes Section A of
 [`brand-primitives-plan.md`](../brand-primitives-plan.md). It does not close
 independent family-adoption, source-preservation, terminal, or remaining
 non-marker `RawMark` work.
 
 | Boundary | Result | Primary executable evidence |
 |---|---|---|
-| A0 — truth | Capability states and parity claims are registry-derived and use explicit native/projected/diagnosed/absent meanings. | `section-a-capability-report.test.ts`, `section-a-render-contract.test.ts` |
-| A1 — identity | Namespaced extension identities, deterministic discovery, immutable registration, and the diagnosed `tufte` compatibility window replace shadowing and copied menus. | `extension-registries.test.ts`, `style-spec-authority.test.ts` |
-| A2 — request | One internal immutable request/appearance boundary drives runtime validation and transport receipts; public schemas and receipt digests expose its behavior without exporting executable implementation types. | `render-options-authority.test.ts`, `section-a-transport-parity.test.ts` |
+| A0 — truth | Capability states and parity claims are registry-derived and use the applicable checked vocabulary for each dimension rather than mixing family, transport, output, backend and realization states. | `section-a-capability-report.test.ts`, `section-a-render-contract.test.ts` |
+| A1 — identity | Namespaced extension identities, explicit core/Scene compatibility for executable extensions, committed-only discovery, immutable registration, and the diagnosed `tufte` compatibility window replace shadowing and copied menus. | `extension-registries.test.ts`, `family-registration-conformance.test.ts`, `style-spec-authority.test.ts` |
+| A2 — request | One internal immutable request/appearance boundary drives runtime validation and transport receipts; public schemas and receipt digests expose its behavior without exporting executable implementation types. Family-specific options either apply or emit a stable not-applicable diagnostic. | `render-options-authority.test.ts`, `section-a-transport-parity.test.ts` |
 | A3 — primitives | Typed connector routes, terminals, markers, roles, hit semantics, and fine-grained backend claims replace graphical marker-string reconstruction and supply terminal evidence. Family cell-grid topology remains independently owned. | `scene-connector-contract.test.ts`, `terminal-projection-security.test.ts` |
-| A4 — family | `FamilyDescriptor` owns routing, examples, operations, positioning hooks, roles, and capability evidence; every built-in uses one positioned artifact/projection. | `section-a-family-descriptor-conformance.test.ts`, `positioned-artifact-convergence.test.ts` |
-| A5 — parity | The 42 product/output cells, all first-party backends, strict insertion, color profiles, terminal appearance/diagnostic projection, and content-addressed bundled-resource receipts are explicit and tested. Host font inputs are marked host-dependent. | `section-a-transport-parity.test.ts`, `browser-png-contract.test.ts`, `editor-security-closures.test.ts` |
-| A6 — evolution | A version-pinned Mermaid manifest, lossless unknown-header behavior, namespaced family/resource contracts, and a bounded executable backend SVG admission report make additions reviewable without core switches. Primitive claims remain declarations; PNG inherits admitted SVG through the canonical rasterizer. | `upstream-family-manifest.test.ts`, `resource-manifest-integrity.test.ts`, `extension-registries.test.ts` |
+| A4 — family | `FamilyDescriptor` owns routing, examples, operations, positioning hooks, roles, and capability evidence; every registered built-in or extension uses one positioned artifact/projection, and external registration is staged until its native declarations pass executable conformance, including meaningful positive-bounds layout evidence. | `section-a-family-descriptor-conformance.test.ts`, `family-registration-conformance.test.ts`, `extension-family-public-api.test.ts`, `positioned-artifact-convergence.test.ts` |
+| A5 — parity | Every generated shared-field×surface and product/output cell is exhaustively classified and evidence-linked, with executable public-adapter sentinels rather than a misleading full Cartesian claim. Every registered family and first-party backend has registry-wide bounded conformance coverage; hosted policy across SVG, PNG, ASCII and Code Mode layout, strict insertion, color profiles, portable PNG controls, admitted terminal appearance/diagnostic projection, and content-addressed bundled-resource receipts have focused executable gates. Host font inputs are marked host-dependent. | `section-a-transport-parity.test.ts`, `hosted-execute-differential.test.ts`, `backend-capability-conformance.test.ts`, `section-a-family-descriptor-conformance.test.ts`, `family-registration-conformance.test.ts`, `characterization-families.test.ts`, `browser-png-contract.test.ts`, `website-render-receipts.test.ts`, `editor-security-closures.test.ts` |
+| A6 — evolution | A version-pinned Mermaid manifest, lossless unknown-header behavior, namespaced family/resource contracts, and claim-keyed executable SVG witnesses make additions reviewable without core switches. Every first-party core primitive/feature/operation claim has an exact witness; namespaced extension claims are retained as explicitly unverified. PNG inherits admitted SVG through the separately tested canonical rasterizers. | `upstream-family-manifest.test.ts`, `resource-manifest-integrity.test.ts`, `extension-registries.test.ts`, `backend-capability-conformance.test.ts` |
 | A7 — deletion | Generated family, StyleSpec, RenderOptions, SDK, and capability projections replace copied tables; completed plans moved under `docs/project/archive/`. | `docs-consolidation-contract.test.ts`, freshness checks below |
 
 ## Authorities retired

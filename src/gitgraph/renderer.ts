@@ -14,7 +14,6 @@ import { getSeriesColor } from '../xychart/colors.ts'
 import { measureTextWidth } from '../text-metrics.ts'
 import { ensureContrast, isHexColor, mixHex } from '../shared/color-math.ts'
 import { resolveGitGraphCommitLabelFontSize } from './position.ts'
-import { resolvedFamilyAppearanceOf } from '../render-contract.ts'
 
 export type GitGraphThemeProjection = Record<string, string | number>
 
@@ -42,7 +41,8 @@ export function renderGitGraphSvg(ctx: RenderContext<PositionedGitGraphDiagram>)
 }
 
 export function lowerGitGraphScene(ctx: RenderContext<PositionedGitGraphDiagram>): SceneDoc {
-  const { positioned: diagram, colors, options } = ctx
+  const { positioned: diagram, colors, resolved } = ctx
+  const options = resolved.renderOptions
   const font = colors.font ?? 'Inter'
   const transparent = options.transparent ?? false
   const titleId = 'gitgraph-title'
@@ -51,8 +51,9 @@ export function lowerGitGraphScene(ctx: RenderContext<PositionedGitGraphDiagram>
   const head = [svgOpenTag(diagram.width, diagram.height, colors, transparent, { attrs }), buildStyleBlock(font, false, colors.shadow, colors.embedFontImport)]
   const shadow = buildShadowDefs(colors)
   if (shadow) head.push(`<defs>${shadow}</defs>`)
-  const projectedTheme = resolvedFamilyAppearanceOf<{ themeVariables?: GitGraphThemeProjection }>(options)?.themeVariables
-    ?? resolveGitGraphThemeProjection(options.mermaidConfig?.themeVariables)
+  const familyAppearance = resolved.familyAppearance as { themeVariables?: GitGraphThemeProjection } | undefined
+  if (!familyAppearance) throw new Error('GitGraph rendering requires request-boundary family appearance resolution')
+  const projectedTheme = familyAppearance.themeVariables
   const paints = gitGraphPaints(diagram, projectedTheme, colors)
   const parts: SceneNode[] = [marks.prelude({ id: 'prelude', width: diagram.width, height: diagram.height, colors, transparent, font, hasMonoFont: false }, head.join('\n'))]
   parts.push(marks.documentText({ id: 'acc-title', element: 'title', domId: titleId, text: diagram.accessibilityTitle ?? 'Git graph' }))
