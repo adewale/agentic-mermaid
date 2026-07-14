@@ -8,6 +8,23 @@ date; do not delete old ones — supersede them in place.
 > long-form fork narrative and major-PR retrospectives, see
 > [`../project/lessons-learned.md`](../project/lessons-learned.md).
 
+## 2026-07 — cross-family aesthetics from the radar family (#161)
+
+The full plan, the families-that-beat-radar table, a before/after radar mock, and an
+every-family review against the union of lessons live in
+[`../design/system/cross-family-aesthetics.md`](../design/system/cross-family-aesthetics.md).
+The durable process lessons:
+
+**Beauty is a property of the roles a family assigns, not of family rendering code.** Radar became a first-class citizen — hand-drawn/wash, 21 palettes × 16 looks, halos, DOM identity — with *zero* new scene roles and *zero* new mark kinds, purely by lowering its marks onto existing roles (`pie-slice`/`grid`/`point`/`axis`/`legend`/`title`) whose traits the backends dispatch on (`rough-backend.ts:446-459`). Rule: a family opts into (or out of) the marquee look one role assignment at a time; audit which role each mark carries, and decide every `sketch:'none'` opt-out on the *signature* glyph on purpose — the recurring cross-family gap is a hand-drawn box holding a ruler-crisp icon/marker/glyph (architecture `raw` icons, er `cardinality`, class `<defs>` markers, mindmap/gitgraph `chrome` primaries).
+
+**Share the palette, not just the palette *system*.** Timeline inherits the sketch/halo *look* of every Palette but paints all sections the same gray because it never derives hue from the accent; quadrant points are one accent with no categorical identity. `pieSliceColors(count, {accent,bg})` is the shared identity radar/pie use, and it hue-spreads past 6 categories where `getSeriesColor`'s mono ladder degrades. Rule: categorical color comes from the shared palette re-derived from `RenderContext.colors`, so a swap recolors for free and series identity matches across families — but only where a *series* concept exists (not sequence, not the monochromatic structural families; there it is an opt-in accent, never the baseline).
+
+**The label concern is a ladder, and radar sits near its bottom.** Radar reserves *static* gutters; ER actively de-collides labels (`separateRelationshipLabels`), quadrant adds spiral placement with leader lines, gantt reserves *vertical* room per wrapped block (`rowAdvance`) and repairs-then-surfaces, timeline compresses to a width budget, flowchart draws a bordered knockout box (better than a bare paint-order halo over busy fills), journey gates label ink to WCAG-AA. Rule: hold every family to the *union* — wrap → compress → de-collide → leader-line → reserve vertical room → knockout-box → AA-gate — reaching for the highest rung its content needs, and copy the family that already implements that rung rather than reinventing it.
+
+**A green rubric certifies the floor, not beauty.** `assessRenderedLayout`/`assessJourneyLayout` and the overlap-audit score finiteness, on-canvas, box-non-overlap, group tiling, and label presence — nothing scores recession, translucent blend, silhouette legibility, or palette harmony (those come free from roles). Rule: pair the deterministic gate with a one-line per-family aesthetic thesis ("the silhouette IS the message") written *before* the work; `bun run track` score 100 means you didn't break the floor, not that the diagram is beautiful.
+
+**The reverse flow is real — radar did not invent every discipline it codified.** ER's active de-collision, quadrant's leader placement, gantt's vertical reservation, flowchart's knockout box, gitgraph's rotated-bounds packing, timeline's budget compression, and pie's largest-first admission each *beat* radar's own label handling. Rule: when improving one family, mine the whole family set for the best existing technique for that concern before writing a new one; the union of lessons flows in every direction, not just outward from the newest family.
+
 ## 2026-07 — closing Mermaid 11.16 fidelity gaps (#149)
 
 **A zero-overlap claim is only as strong as the transforms the auditor understands.** GitGraph's hardest labels were rotated 45°, while the universal overlap auditor deliberately skipped arbitrary angles; its green result therefore said nothing about the visible collisions. Rule: audit final transformed corners for every emitted transform, add a discriminating rotated-label probe, and run the real-content corpus through the upgraded oracle before tuning spacing.

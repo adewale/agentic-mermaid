@@ -62,6 +62,17 @@ family docs, and `TODO.md`.
 14. **Archive completion; promote remaining work.** Completed implementation
     ledgers and release retrospectives retain provenance under `project/archive/`.
     Genuine defects receive stable IDs and acceptance criteria in `TODO.md`.
+15. **Aesthetics live on scene roles, not in family renderers.** A family inherits
+    the whole house style — hand-drawn/wash, 21 palettes × 16 looks, text halos, DOM
+    identity — by lowering its marks onto existing scene roles whose traits the
+    backends dispatch on; it never draws styled pixels or branches on family. Assign
+    the signature shape a sketchable role, keep the scaffold on a crisp role so it
+    recedes, take categorical color from the shared palette re-derived from context,
+    and hold labels to the whole-repo union (wrap, compress, de-collide, leader-line,
+    reserve vertical room, knockout-box, contrast-gate). The deterministic rubric
+    certifies only a hygiene floor; the aesthetic ceiling comes from a per-family
+    thesis plus good role choices. Full cross-family analysis in
+    [`../design/system/cross-family-aesthetics.md`](../design/system/cross-family-aesthetics.md).
 
 ## Lessons from the consolidation audits
 
