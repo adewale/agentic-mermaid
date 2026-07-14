@@ -12,7 +12,7 @@ import { MCP_SERVER_NAME } from '../mcp/tool-surface.ts'
 import type { JsonRpcRequest } from '../mcp/protocol.ts'
 import pkg from '../../package.json'
 import { visualWidth } from '../ascii/width.ts'
-import { getStyle, knownStyles, styleKind } from '../scene/style-registry.ts'
+import { knownStyleDescriptors } from '../scene/style-registry.ts'
 import { verifyNoExternalRefs } from '../index.ts'
 import { MAX_HOSTED_PNG_BYTES, PNG_WASM_RUNTIME } from '../png-contract.ts'
 import { THEMES } from '../theme.ts'
@@ -105,11 +105,11 @@ describe('hosted MCP handshake', () => {
   test('render_svg discovery lists every registered built-in look', () => {
     const renderSvg = HOSTED_TOOLS.find(tool => tool.name === 'render_svg')!
     const styleDescription = (renderSvg.inputSchema.properties as Record<string, { description?: string }>).style?.description ?? ''
-    const looks = knownStyles().filter(name => {
-      const spec = getStyle(name)
-      return spec && styleKind(spec) === 'look'
-    })
+    const looks = knownStyleDescriptors()
+      .filter(descriptor => descriptor.kind === 'look')
+      .map(descriptor => descriptor.inputName)
     for (const look of looks) expect(styleDescription).toContain(look)
+    expect(styleDescription.toLowerCase()).not.toContain('cupertino')
   })
 
   test('unknown methods and unknown tools are JSON-RPC errors', async () => {

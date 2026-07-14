@@ -12,40 +12,20 @@ import { createHash } from 'node:crypto'
 import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { HOSTED_FONT_FACES, HOSTED_FONT_FILES } from '../font-manifest.ts'
-import { renderMermaidSVG, verifyNoExternalRefs, getStyle, inferBackend, knownStyles, resolveStyleStack, validateStyleSpec } from '../index.ts'
-import { styleKind } from '../scene/style-registry.ts'
+import { renderMermaidSVG, verifyNoExternalRefs, getStyle, inferBackend, knownStyleDescriptors, resolveStyleStack, validateStyleSpec } from '../index.ts'
 
 const FIXTURES = join(import.meta.dir, '..', '..', 'eval', 'layout-compare', 'fixtures')
 const BASELINE = join(import.meta.dir, 'testdata', 'styled-output-baseline.json')
 const UPDATE = process.env.UPDATE_STYLED_BASELINE === '1'
 
-// The built-in full looks (themes register too, but the golden matrix
-// pins the looks; palette-only styles are covered by the composition tests).
-const LOOKS = [
-  'hand-drawn',
-  'excalidraw',
-  'pen-and-ink',
-  'freehand',
-  'watercolor',
-  'blueprint',
-  'look:tufte',
-  'accessible-high-contrast',
-  'patent-drawing',
-  'status-dashboard',
-  'ops-schematic',
-  'chalkboard',
-  'risograph',
-  'architectural-plan',
-  'cupertino',
-  'publication-figure',
-]
-
-function registeredLooks() {
-  return knownStyles().filter((name) => name !== 'crisp' && styleKind(getStyle(name)!) === 'look')
-}
+// One registry projection owns both the golden matrix and hosted discovery.
+// Palette-only styles are covered by the composition tests.
+const LOOK_DESCRIPTORS = knownStyleDescriptors()
+  .filter(descriptor => descriptor.kind === 'look' && !descriptor.isDefault)
+const LOOKS = LOOK_DESCRIPTORS.map(descriptor => descriptor.inputName)
 
 function builtInLookFonts() {
-  return Array.from(new Set(LOOKS.map((name) => getStyle(name)?.font).filter((font): font is string => Boolean(font))))
+  return Array.from(new Set(LOOK_DESCRIPTORS.map(descriptor => descriptor.spec.font).filter((font): font is string => Boolean(font))))
 }
 
 function hostedFacesForFamily(family: string) {
@@ -62,8 +42,16 @@ function fixtureSources(): Array<{ name: string; source: string }> {
 describe('styled output', () => {
   const fixtures = fixtureSources()
 
-  test('the golden matrix includes every registered built-in look', () => {
-    expect(new Set(LOOKS)).toEqual(new Set(registeredLooks()))
+  test('the golden matrix derives from every registered non-default built-in look', () => {
+    expect(LOOKS.length).toBeGreaterThan(0)
+    expect(LOOKS).not.toContain('crisp')
+    expect(LOOKS).not.toContain('cupertino')
+  })
+
+  test('the Cupertino prototype remains documentation-only', () => {
+    expect(getStyle('cupertino')).toBeUndefined()
+    expect(() => renderMermaidSVG(fixtures[0]!.source, { style: 'cupertino' }))
+      .toThrow(/Unknown style "cupertino"/)
   })
 
   test('every style × fixture is hash-stable against the committed baseline', () => {

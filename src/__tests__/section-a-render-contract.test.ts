@@ -443,13 +443,42 @@ xychart-beta
     expect(observed).toContain('TERMINAL_STROKE_CHARACTER_PROJECTED')
   })
 
-  test('terminal receipts diagnose built-in face paints and surface elevation', () => {
-    const rendered = renderMermaidASCIIWithReceipt(SOURCE, { style: 'cupertino', colorMode: 'none' })
-    const codes = rendered.receipt.diagnostics?.map(diagnostic => diagnostic.code) ?? []
-    expect(codes).toContain('TERMINAL_FILL_PROJECTED')
-    expect(codes).toContain('TERMINAL_ROLE_PAINT_PROJECTED')
-    expect(codes).toContain('TERMINAL_ELEVATION_PROJECTED')
+  test('terminal receipts diagnose rendered treatments, role paints, and explicit elevation', () => {
+    const rendered = renderMermaidASCIIWithReceipt(SOURCE, {
+      style: 'risograph', shadow: true, colorMode: 'none',
+    })
+    const diagnostics = rendered.receipt.diagnostics ?? []
+    expect(diagnostics).toContainEqual(expect.objectContaining({
+      code: 'TERMINAL_FILL_PROJECTED', feature: 'fill-treatment',
+    }))
+    expect(diagnostics).toContainEqual(expect.objectContaining({
+      code: 'TERMINAL_ROLE_PAINT_PROJECTED', feature: 'role-paint',
+    }))
+    expect(diagnostics).toContainEqual(expect.objectContaining({
+      code: 'TERMINAL_ELEVATION_PROJECTED', feature: 'elevation',
+    }))
     expect(rendered.receipt.diagnostics).toEqual(rendered.terminalStyle.diagnostics)
+  })
+
+  test('terminal projection diagnoses private role-surface paint without a product Style fixture', () => {
+    const request = resolveRenderRequest(SOURCE, {}, 'unicode')
+    const fixture = {
+      ...request,
+      appearance: {
+        ...request.appearance,
+        face: {
+          node: { fillColor: 'var(--surface)' },
+          group: { headerFillColor: 'var(--bg)' },
+        },
+      },
+    }
+    const diagnostics = projectTerminalStyle(fixture, 'none').diagnostics
+    expect(diagnostics).toContainEqual(expect.objectContaining({
+      code: 'TERMINAL_FILL_PROJECTED', feature: 'role-surface-fill',
+    }))
+    expect(diagnostics).toContainEqual(expect.objectContaining({
+      code: 'TERMINAL_ELEVATION_PROJECTED', feature: 'elevation',
+    }))
   })
 
   test('PNG declares one sRGB policy with cICP precedence and no conflicting ICC chunk', () => {

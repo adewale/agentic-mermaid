@@ -77,7 +77,7 @@ registerStyle, knownStyles, validateStyleSpec } from 'agentic-mermaid/agent'`
 
 ## Styles
 
-Every render call accepts style: a registered look name ('crisp', 'hand-drawn', 'excalidraw', 'pen-and-ink', 'freehand', 'watercolor', 'blueprint', 'look:tufte', 'accessible-high-contrast', 'patent-drawing', 'status-dashboard', 'ops-schematic', 'chalkboard', 'risograph', 'architectural-plan', 'cupertino', 'publication-figure'), any palette
+Every render call accepts style: a registered look name ('crisp', 'hand-drawn', 'excalidraw', 'pen-and-ink', 'freehand', 'watercolor', 'blueprint', 'look:tufte', 'accessible-high-contrast', 'patent-drawing', 'status-dashboard', 'ops-schematic', 'chalkboard', 'risograph', 'architectural-plan', 'publication-figure'), any palette
 name, an inline JSON spec, or a stack
 merged left → right ({ style: ['hand-drawn', 'dracula'] }). seed re-rolls
 ink wobble, never layout — (source, style, seed) reproduces an image

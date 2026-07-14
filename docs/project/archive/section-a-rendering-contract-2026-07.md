@@ -1,11 +1,11 @@
-# Section A rendering contract — landing candidate record
+# Section A rendering contract — implementation record
 
-Status: open landing candidate in PR #163, implemented and locally verified in
-July 2026 on the Section A landing branch after PR #148 landed. This record must
-not claim completion or `main` until PR #163 merges. Live follow-up work remains
+Status: implemented and verified by PR #163 in July 2026 after PR #148 landed.
+Git history determines whether this implementation is published on `main`;
+this archive does not mirror live PR or branch status. Follow-up work remains
 owned only by root `TODO.md`.
 
-If PR #163's landing gates pass and it merges, this record closes Section A of
+This record closes the implementation scope of Section A in
 [`brand-primitives-plan.md`](../brand-primitives-plan.md). It does not close
 independent family-adoption, source-preservation, terminal, or remaining
 non-marker `RawMark` work.
@@ -58,7 +58,7 @@ bun run style-spec-artifacts:check
 bun run section-a-report:check
 bun run upstream-manifest:check
 bun run website:check
-bun test src/__tests__/
+bun run test
 ```
 
 Visual baseline updates remain governed by the repository's explicit golden

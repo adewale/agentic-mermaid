@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "sample": "cupertino-prototype.mmd",
+  "examples": [
+    {
+      "id": "cupertino-prototype",
+      "style": "cupertino-prototype.style.json",
+      "screenshot": "cupertino-prototype.png",
+      "alt": "Documentation-only Cupertino-inspired custom style prototype",
+      "summary": "is an independent implementation example built only from public APIs; it is not an Apple product, an endorsed implementation, or a built-in Agentic Mermaid Style.",
+      "docsOnly": true,
+      "renderOptions": { "shadow": true }
+    },
+    {
+      "id": "transit-route-map",
+      "style": "transit-route-map.style.json",
+      "screenshot": "transit-route-map.png",
+      "alt": "Transit route map custom style",
+      "summary": "stresses thick connectors, rounded bends, compact station labels, and group labels."
+    },
+    {
+      "id": "mid-century-report",
+      "style": "mid-century-report.style.json",
+      "screenshot": "mid-century-report.png",
+      "alt": "Mid-century report custom style",
+      "summary": "uses palette, solid fills, typography, corners, and section bands without a custom renderer."
+    },
+    {
+      "id": "star-chart-atlas",
+      "style": "star-chart-atlas.style.json",
+      "screenshot": "star-chart-atlas.png",
+      "alt": "Star chart atlas custom style",
+      "summary": "tests dark-page tokens, grid backdrop, pale strokes, and serif labels."
+    }
+  ]
+}

@@ -229,7 +229,7 @@ judgement.
 
 ```bash
 bun run style:audit                         # Style + Palette contract across families
-bun test src/__tests__/styled-output.test.ts   # determinism + goldens + composition
+bun test src/__tests__/styled-output.test.ts --timeout 30000   # determinism + goldens + composition
 bun test src/__tests__/scene-fidelity.test.ts  # semantic/crisp agreement
 bun test src/__tests__/svg-equivalence.test.ts # crisp path untouched
 ```

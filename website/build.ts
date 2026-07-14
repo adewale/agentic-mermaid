@@ -21,6 +21,7 @@ import { CLEAN_PAGE_ROUTES, DYNAMIC_CLEAN_REDIRECT_LINES, staticRedirectLines } 
 import { HOMEPAGE_AGENT_POINTER } from '../eval/agent-usage/homepage-prompt.ts'
 import { EDITOR_EXAMPLES } from '../editor/examples.ts'
 import { samples as RICH_EXAMPLES } from '../scripts/site/samples-data.ts'
+import { CUSTOM_STYLE_CATALOG } from '../scripts/docs/custom-style-catalog.ts'
 
 const ROOT = join(import.meta.dir, '..')
 const SOURCE = join(import.meta.dir, 'source')
@@ -2536,15 +2537,20 @@ const designBody = `
 </ul>
 <p class="muted">Diagram styles and palettes (hand-drawn, watercolor, paper, dusk, tokyo-night, …) are documented in <a href="/docs/theming/">Styles and palettes</a>; they style rendered diagrams and stay out of this shell by construction.</p>`
 
+const cupertinoPrototype = CUSTOM_STYLE_CATALOG.examples.find(entry => entry.id === 'cupertino-prototype')
+if (!cupertinoPrototype) throw new Error('custom-style catalog is missing the Cupertino documentation prototype')
+const customStyleFigures = CUSTOM_STYLE_CATALOG.examples.map(entry =>
+  `<figure><div class="plate"><img src="/docs/assets/style-cookbook/${escapeAttr(entry.screenshot)}" alt="${escapeAttr(entry.alt)}"></div><figcaption><a href="/examples/styles/${escapeAttr(entry.style)}"><code>${escapeHtml(entry.style)}</code></a> ${escapeHtml(entry.summary)}</figcaption></figure>`,
+).join('\n')
+
 const customStylesBody = [
   '<p>Custom styles are plain JSON files passed to <code>--style</code>. Keep them in source control, add a <code>seed</code> when the style uses sketch variation, and validate the file before using it from an untrusted source.</p>',
   '<pre><code>am render diagram.mmd --format png --style examples/styles/transit-route-map.style.json --seed 11 --output diagram.png</code></pre>',
   '<p>Use the public schema at <a href="/schemas/style-spec.schema.json"><code>/schemas/style-spec.schema.json</code></a>. The same file is exported from the npm package as <code>agentic-mermaid/style-spec.schema.json</code>, so editors can map either the hosted URL or the package export.</p>',
   '<h2>Cookbook examples</h2>',
-  '<p>The package ships complete JSON files under <code>examples/styles/</code>. These three examples cover the uncovered clusters that work with the current StyleSpec: route-map semantics, retro editorial palettes, and page/backdrop treatments.</p>',
-  '<figure><div class="plate"><img src="/docs/assets/style-cookbook/transit-route-map.png" alt="Transit route map custom style screenshot"></div><figcaption><a href="/examples/styles/transit-route-map.style.json"><code>transit-route-map.style.json</code></a> stresses thick connectors, rounded bends, compact station labels, and group labels.</figcaption></figure>',
-  '<figure><div class="plate"><img src="/docs/assets/style-cookbook/mid-century-report.png" alt="Mid-century report custom style screenshot"></div><figcaption><a href="/examples/styles/mid-century-report.style.json"><code>mid-century-report.style.json</code></a> uses palette, solid fills, typography, corners, and section bands without a custom renderer.</figcaption></figure>',
-  '<figure><div class="plate"><img src="/docs/assets/style-cookbook/star-chart-atlas.png" alt="Star chart atlas custom style screenshot"></div><figcaption><a href="/examples/styles/star-chart-atlas.style.json"><code>star-chart-atlas.style.json</code></a> tests dark-page tokens, grid backdrop, pale strokes, and serif labels.</figcaption></figure>',
+  '<p>The package ships complete JSON files under <code>examples/styles/</code>. They cover the clusters that work with the current StyleSpec plus one deliberately incomplete design-system prototype.</p>',
+  `<p><a href="/examples/styles/${escapeAttr(cupertinoPrototype.style)}"><code>${escapeHtml(cupertinoPrototype.style)}</code></a> is documentation-only: it is not registered or advertised as a built-in Style. Load the file explicitly and pass <code>--options '${escapeHtml(JSON.stringify(cupertinoPrototype.renderOptions ?? {}))}'</code> to exercise the current public StyleSpec palette/font/stroke floor plus the shared <code>shadow</code> render option; role typography, spacing, radii and designed modes remain Section B evidence.</p>`,
+  customStyleFigures,
   '<h2>Custom fonts</h2>',
   '<p>A Style\'s <code>font</code> field names a CSS family or stack; it does not load a font file. SVG declares the family, while local PNG rendering resolves bundled faces plus caller-provided directories. Use <code>--security strict</code> for an SVG with no external font request, or pass <code>--font-dirs</code> when rendering an unbundled family to PNG.</p>',
   '<pre><code>am render diagram.mmd --format svg --style brand.style.json --security strict --output diagram.svg\nam render diagram.mmd --format png --style brand.style.json --font-dirs ./fonts --output diagram.png</code></pre>',

@@ -89,8 +89,9 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   `docs/project/brand-primitives-plan.md` through one public `style` stack:
   inline fragments, semantic roles, minimal versioned BrandPacks, bindings and
   constraints, the optional B4 post-positioning Treatment seam only if its
-  evidence gate passes, and built-in equivalence. Cupertino and other brand
-  documents are probes/acceptance evidence, not independent backlogs. Do not add
+  evidence gate passes, and built-in equivalence. The documentation-only
+  Cupertino prototype and other brand evidence are acceptance probes, not
+  built-ins or independent backlogs. Do not add
   custom-backend packaging,
   runtime design-token machinery, or another appearance resolver without a
   separately promoted evidence-backed TODO item.

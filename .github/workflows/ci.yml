@@ -52,9 +52,9 @@ jobs:
         # error occurred (WriteFailed)`, exiting 1 with zero test failures
         # (runs 28576001032, 28576303182). The pass/fail summary still prints.
         # Coverage makes corpus and adversarial tests several times slower on
-        # shared runners. Keep their one bounded default here; passing it on
-        # the command line is effective across the Bun versions used by CI.
-        run: bun test --coverage --timeout 30000 src/__tests__/
+        # shared runners. The canonical package script owns their one bounded
+        # command-line default so local, CI, and release gates cannot drift.
+        run: bun run test
 
       - name: Adequacy signal reminder
         # Surface where the trustworthy adequacy number lives so a green

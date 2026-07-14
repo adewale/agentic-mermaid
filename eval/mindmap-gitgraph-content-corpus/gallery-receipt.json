@@ -68,7 +68,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "ae199934f0d0efe4abc6a5681cce84d226d418440e5c75c3ac1923eb6af5d6d9"
+      "sha256": "9ba3f73f396820aa302d3082113b951cb2470ace94753609336add21aaae4df2"
     },
     {
       "path": "scripts/pr-assets/artifact-receipt.ts",
@@ -224,7 +224,7 @@
     },
     {
       "path": "src/__tests__/agent-readiness-standards.test.ts",
-      "sha256": "d85dde6d1d1aeca86a5c048755ec736cd5480428971a42c244d55f5e72bf96dd"
+      "sha256": "f5b707532ca8afc99ac437a57dca9ffdc32fd272f66b4c30d2beff2cf34522de"
     },
     {
       "path": "src/__tests__/agent-region-tree.test.ts",
@@ -524,7 +524,7 @@
     },
     {
       "path": "src/__tests__/cli-llms-txt.test.ts",
-      "sha256": "7bcc8115fdefe41b103a24915c9f817c03017ce60e7ef1a149fb7ff52b6babbd"
+      "sha256": "f9d0c05c586b3627199c3d55973ebd417478d5144fe9e09c34bb32d684952d45"
     },
     {
       "path": "src/__tests__/cli-multi-input.test.ts",
@@ -580,7 +580,7 @@
     },
     {
       "path": "src/__tests__/custom-style-cookbook.test.ts",
-      "sha256": "e47164b31328ce1d6f4c2a1ebf8dedcc8b087a57f04db324384e9fb2267232f3"
+      "sha256": "ad146eec3d925244a5af47adc03e730ca984962bcc9b9d80c1ccdf6cac5fce5c"
     },
     {
       "path": "src/__tests__/deploy-hash.test.ts",
@@ -860,7 +860,7 @@
     },
     {
       "path": "src/__tests__/hosted-mcp.test.ts",
-      "sha256": "e486e325938d2709f6847fff6b7e92dd91fd98a3aaba5096e062ed1a7109d8fc"
+      "sha256": "4878a8e6a9c8d4614eea6bc52f380423c92b2ed12b4b22956d03e8f4148d8922"
     },
     {
       "path": "src/__tests__/hosted-raster-budget.test.ts",
@@ -1256,7 +1256,7 @@
     },
     {
       "path": "src/__tests__/section-a-render-contract.test.ts",
-      "sha256": "eff6047c227155e348a43fecd1ac0887ad08ede7fa275ed7a41655cc940b7df1"
+      "sha256": "57ebeef79599b467168e7f704a705d80465cb129f112140186e46e3512d1a612"
     },
     {
       "path": "src/__tests__/section-a-transport-parity.test.ts",
@@ -1348,7 +1348,7 @@
     },
     {
       "path": "src/__tests__/styled-output.test.ts",
-      "sha256": "8a88c088b94c237b951a956ccf94b6e41705c1f8ba39fabcd979151be276d52e"
+      "sha256": "34c9938c4f2a1b2f62abdad2375d414f736ea25293ca517ea3ea443e86362c71"
     },
     {
       "path": "src/__tests__/styles.test.ts",
@@ -1396,7 +1396,7 @@
     },
     {
       "path": "src/__tests__/terminal-projection-security.test.ts",
-      "sha256": "20aa4826e4d4487b463800fa1db449f78e2961d2aa40df76ee2a0ffbc9ed351b"
+      "sha256": "ae2dfa3932f24e27b4633a6ba0850bcb6ea2aea73a6389c69b0812f9bd1ee021"
     },
     {
       "path": "src/__tests__/test-quality-lint.test.ts",
@@ -1484,7 +1484,7 @@
     },
     {
       "path": "src/__tests__/website-build.test.ts",
-      "sha256": "f1469caba287d07f9c87d57a6a73bdf4eb31e289619d7d96bd73736264fe4e10"
+      "sha256": "bd03c6a12bf6e8d458d335af6a8e3fb08419863bb485006c04ba2c46e60d3c0c"
     },
     {
       "path": "src/__tests__/website-public.preload.ts",
@@ -2420,7 +2420,7 @@
     },
     {
       "path": "src/scene/style-registry.ts",
-      "sha256": "00c96a0d05d7ca8d2babfad85443888fabf49ad82ab9913d0ccf9febd23807ee"
+      "sha256": "0aec52d4c2381d7a417594fcd61f4d4f2958e2be589c2add0dc05d3fd68e7d3f"
     },
     {
       "path": "src/scene/style-spec.ts",

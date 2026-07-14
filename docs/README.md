@@ -11,7 +11,7 @@ This directory holds the long-form documentation. The root README is intentional
 | [`diagram-families.md`](./diagram-families.md) | Supported Mermaid families, examples, and edit policy. |
 | [`theming.md`](./theming.md) | Two-color themes, built-in themes, custom themes, Shiki import. |
 | [`style-authoring.md`](./style-authoring.md) | Style model, stack semantics, field reference, rubric, and validation commands. |
-| [`custom-style-cookbook.md`](./custom-style-cookbook.md) | Complete custom style JSON files, screenshots, schema usage, and CLI commands. |
+| [`custom-style-cookbook.md`](./custom-style-cookbook.md) | Complete custom style JSON files, screenshots, schema usage, CLI commands, and the documentation-only Cupertino prototype. |
 | [`custom-fonts.md`](./custom-fonts.md) | How custom Styles select and resolve fonts across SVG, PNG, browser, and MCP surfaces. |
 | [`react.md`](./react.md) | Zero-flash React rendering with CSS variables. |
 | [`ascii.md`](./ascii.md) | Terminal output, ASCII vs Unicode, color modes, XY charts. |
@@ -47,7 +47,6 @@ The design docs split into two tiers — **system** (how the engine works, cross
 | Doc | Purpose |
 |---|---|
 | [`project/brand-primitives-plan.md`](./project/brand-primitives-plan.md) | Normative appearance/family-contract decision and A/B dependency/acceptance plan; live status is owned by root `TODO.md`. |
-| [`project/cupertino-style-plan.md`](./project/cupertino-style-plan.md) | Non-authoritative brand probe and acceptance-evidence record. |
 | [`design/system/`](./design/system/README.md) | **Start here.** Current resolved-request, family-descriptor, positioned-artifact, and output-security architecture overview (dogfooded, drift-proof). |
 | [`design/system/route-contracts.md`](./design/system/route-contracts.md) | Route contracts: edge classification, direct-lane proofs, certifying straightener (issue #25). |
 | [`design/system/layout-rubric.md`](./design/system/layout-rubric.md) | Deterministic layout-quality rubric: metrics, CI gates, and property oracles. |

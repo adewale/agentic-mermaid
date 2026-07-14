@@ -30,6 +30,64 @@ The `font` field names a family; the output environment still has to provide
 that face. See [Fonts in custom styles](./custom-fonts.md) for SVG behavior,
 PNG `fontDirs`, system fonts, fallbacks, and browser usage.
 
+## Cupertino prototype — documentation only
+
+Complete file:
+[`examples/styles/cupertino-prototype.style.json`](../examples/styles/cupertino-prototype.style.json).
+
+This is an implementation example, not a built-in Style. Agentic Mermaid ships
+the opt-in file but does not register `cupertino`, give it a package-owned
+runtime identity, expose it in a built-in catalog or picker, or retain a
+compatibility alias. Load the JSON explicitly when you want to study or adapt
+the prototype:
+
+![Documentation-only Cupertino prototype](./assets/style-cookbook/cupertino-prototype.png)
+
+```bash
+am render examples/styles/cupertino-prototype.mmd --format svg \
+  --style examples/styles/cupertino-prototype.style.json \
+  --options '{"shadow":true}' \
+  --output diagram.svg
+```
+
+Library hosts can opt into a reusable name without creating a built-in registry
+identity. Registration is explicit, process-local, and disposable:
+
+```ts
+import { readFileSync } from 'node:fs'
+import { registerStyle, renderMermaidSVG, validateStyleSpec } from 'agentic-mermaid'
+
+const prototype = JSON.parse(
+  readFileSync('examples/styles/cupertino-prototype.style.json', 'utf8'),
+)
+const source = readFileSync('examples/styles/cupertino-prototype.mmd', 'utf8')
+const problems = validateStyleSpec(prototype)
+if (problems.length) throw new Error(problems.join('\n'))
+
+const unregister = registerStyle(prototype)
+try {
+  const svg = renderMermaidSVG(source, {
+    style: 'look:cupertino-prototype',
+    shadow: true,
+  })
+} finally {
+  unregister()
+}
+```
+
+The current public `StyleSpec` expresses this prototype's palette, font and
+stroke weight. `shadow` remains a shared render option. Per-role type ramps,
+padding, corner radii, border policy, semantic accent placement and designed
+light/dark modes are intentionally absent: those gaps are evidence for Section
+B of the brand-primitives plan, not private fields smuggled into this example.
+Consequently the file demonstrates today's public customization floor; it does
+not claim pixel equivalence with an Apple interface or with PR #148's retired
+Cupertino-specific private-face configuration and evidence.
+
+Agentic Mermaid is independent of and not affiliated with Apple Inc.;
+“Cupertino” describes the prototype's design inspiration, not an Apple product
+or endorsed implementation.
+
 ## Transit route map
 
 Complete file:

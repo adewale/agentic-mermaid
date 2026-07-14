@@ -5,7 +5,7 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 ## Unreleased
 
 ### Added
-- Implemented the open Section A landing candidate for the rendering-contract
+- Implemented Section A of the rendering-contract
   program: one immutable request and appearance waist, descriptor-owned
   family/style/render-option discovery, typed connector terminals and backend
   claims, explicit product/output parity, a version-pinned Mermaid compatibility
@@ -21,10 +21,10 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 - Added focused Mindmap/GitGraph mutation lanes and exhaustive operation contracts. The latest 2026-07-10 local runs killed 400/405 Mindmap mutants (98.77%) and 294/303 GitGraph mutants (97.03%); reports were gitignored and the committed break floors remain 60%, so these measurements are not represented as immutable acceptance evidence.
 - Added official Mermaid 11.16.0 comparison fixtures and reproducible SVG/terminal contact sheets for Mindmap and GitGraph. The evidence records AlexanderGrooff/mermaid-ascii 1.4.0's exact unsupported-family result instead of fabricating equivalent output.
 - Added exact executable-title evidence for every done family-elevation ledger row; CI now rejects uncited files, missing titles, duplicate IDs, empty evidence, and newly-done rows without a matching evidence entry.
-- Added a pinned official Mermaid 11.16 documentation showcase for all 14 families and an exhaustive 4,480-render built-in Look × Palette × family compatibility gate.
-- Added `cupertino` as the sixteenth built-in Look plus reproducible three-brand discovery evidence across all 14 families. The styled-output golden matrix now contains 23 fixtures × 16 Looks = 368 records, including 23 Cupertino rows; the Mindmap/GitGraph evidence deliberately records that those two families accept palette/font styling but do not yet consume internal role-face overrides.
+- Added a pinned official Mermaid 11.16 documentation showcase for all 14 families and a registry-derived exhaustive non-default Look × Palette × family compatibility gate.
 
 ### Changed
+- Removed the accidental `cupertino` built-in registration and its private-face evidence path. Cupertino now exists only as an explicitly loaded, documentation-only public `StyleSpec` prototype; no compatibility alias is retained.
 - CLI, Code Mode, local/hosted MCP, editor, website, SVG, PNG, ASCII, and
   Unicode now project shared options and capabilities from canonical
   descriptors. Historical execution plans moved to the archive, copied family

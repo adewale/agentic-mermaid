@@ -119,7 +119,7 @@ Regression guard:
 
 Run the checks that fit the change:
 
-- `bun test src/__tests__/`
+- `bun run test`
 - `bun run typecheck`
 - `bun run goldens:ascii:check` if you added or changed ASCII/Unicode fixtures
 - `bun run build`

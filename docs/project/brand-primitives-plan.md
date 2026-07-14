@@ -1,9 +1,9 @@
 # Brand primitives and forward-compatible family support — plan
 
-Status: Section A is implemented on its landing branch and remains an open
-landing candidate until its final gates pass and its landing PR merges; Section
-B is the normative customization plan owned by `BUILD-31`. Root `TODO.md` owns
-live work. Section A candidate evidence lives in its
+Status: Section A is implemented by PR #163; Git history determines whether
+that implementation is published on `main`. Section B is the normative
+customization plan owned by `BUILD-31`. Root `TODO.md` owns live work. Section A
+evidence lives in its
 [landing record](./archive/section-a-rendering-contract-2026-07.md) and is
 projected from the registries into the [generated capability
 report](./section-a-capability-report.md). The upstream
@@ -13,9 +13,9 @@ roster copied into prose.
 
 ## Decision
 
-The original direction still makes sense. The Section A landing candidate makes
+The original direction still makes sense. The Section A implementation makes
 its correctness, parity, consolidation, and forward-compatibility foundation
-explicit; after it lands, Section B builds richer customization on that
+explicit; Section B builds richer customization on that
 baseline:
 
 1. Keep **Look + Palette** as the low floor.
@@ -37,8 +37,9 @@ baseline:
    roles, or capability claims can drift between code paths.
 
 This plan is the normative product and architecture decision. The
-[`cupertino-style-plan.md`](./cupertino-style-plan.md) is one probe/evidence
-record; it does not independently decide or schedule the public brand API.
+[documentation-only Cupertino prototype](../custom-style-cookbook.md#cupertino-prototype--documentation-only)
+is one public-API probe; it is not a built-in, compatibility alias, separate
+plan, or source of scheduled work.
 Current family citizenship remains governed by
 [`diagram-family-citizenship.md`](../contributing/diagram-family-citizenship.md),
 and actionable work remains owned by [`TODO.md`](../../TODO.md).
@@ -164,7 +165,7 @@ Release claims state the parity level and output, never the unqualified phrase
 
 | Probe | Source | What it proves |
 |---|---|---|
-| `cupertino` | emilkowalski's apple-design skill and public Apple design guidance | A borderless surface language needs elevation, role typography, radius and spacing discipline, designed modes, and semantic accent placement. |
+| Cupertino prototype | emilkowalski's apple-design skill and public Apple design guidance | A borderless surface language needs elevation, role typography, radius and spacing discipline, designed modes, and semantic accent placement. The checked-in JSON demonstrates only the current public floor and is never auto-registered. |
 | `vercel` | vercel-labs/beautiful-mermaid and the Geist visual language | Brand defaults, deterministic fonts, hairlines, live retheming, and motion cannot be represented completely by the current public JSON surface. |
 | `cf-workers` | CF Workers design-system tokens | Real brands need surface/text ramps, strong+soft categories, status colors, sans+mono roles, scales, tinted layered shadows, signature treatments, and enforceable constraints. |
 
@@ -1125,7 +1126,8 @@ authorities only when their source manifest and semantic invariant are singular.
 ### In this plan and its documentation set
 
 1. Keep this document as the only active decision and dependency order for brand
-   primitives. Keep Cupertino as a non-authoritative probe/evidence record.
+   primitives. Keep the Cupertino example in the custom-style cookbook as a
+   public-API probe, never as a built-in or a second plan.
 2. Treat [`archive/styles-rollout.md`](./archive/styles-rollout.md) as the executed
    history of Style + Palette, not a second active brand roadmap.
 3. Keep
@@ -1212,13 +1214,13 @@ review and conformance tests rather than a brand-specific shortcut.
 ### Phase-to-TODO ownership
 
 `TODO.md` is the only status-bearing backlog. The phases below are dependency
-and acceptance boundaries, not another checklist; Cupertino and other brand
-documents supply probe evidence only.
+and acceptance boundaries, not another checklist; the documentation-only
+Cupertino example and other brand research supply probe evidence only.
 
 | Plan boundary | Status owner | Independent scope retained |
 |---|---|---|
-| A0–A7 | implementation candidate under final gates; [`Section A landing record`](./archive/section-a-rendering-contract-2026-07.md) | referenced `CONS-*`, `SRC-*`, `TERM-*`, security, family-adoption and evidence items keep any work beyond Section A |
-| B0–B5 | active `BUILD-31` | Cupertino/holdout acceptance evidence; native-family adoption remains `BUILD-6` |
+| A0–A7 | PR #163 implementation and [`Section A landing record`](./archive/section-a-rendering-contract-2026-07.md) | referenced `CONS-*`, `SRC-*`, `TERM-*`, security, family-adoption and evidence items keep any work beyond Section A |
+| B0–B5 | active `BUILD-31` | documentation-only Cupertino/holdout acceptance evidence; native-family adoption remains `BUILD-6` |
 
 The graph above defines hard phase dependencies. Reused IDs in the table retain
 their independent scope, status, and evidence; `BUILD-31` coordinates Section B
@@ -1231,11 +1233,10 @@ block the current program.
 
 ## Section A — correctness, parity, consolidation, and essential primitives
 
-Section A is implemented as a landing candidate, not yet an architectural
-baseline. It becomes authoritative only after the final gates pass and its PR
-merges. Until then, the
-[landing record](./archive/section-a-rendering-contract-2026-07.md) owns
-candidate evidence and execution history.
+Section A's implementation is carried by PR #163. The
+[landing record](./archive/section-a-rendering-contract-2026-07.md) preserves
+its evidence and execution history; Git history, rather than mirrored status
+prose, determines whether that implementation is present on `main`.
 
 Root `TODO.md` is the sole status-bearing backlog. This table preserves the
 permanent contract and names executable evidence; it does not create phase
@@ -1260,7 +1261,7 @@ provenance, but it may not acquire unchecked work.
 
 The detailed A0–A7 execution narrative was deliberately removed from this active
 plan. Permanent invariants already live in the canonical-authority,
-internal-consistency and deletion-first sections above; candidate history lives
+internal-consistency and deletion-first sections above; implementation history lives
 only in the landing archive, and future work lives only in `TODO.md`.
 
 ## Section B — richer custom Styles and branding

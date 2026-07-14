@@ -1040,23 +1040,28 @@ describe('Workers Static Assets website contract', () => {
 
   test('custom style docs publish schema, examples, and screenshots', () => {
     const schema = JSON.parse(read('schemas/style-spec.schema.json'))
+    const catalog = JSON.parse(read('examples/styles/catalog.json')) as {
+      sample: string
+      examples: Array<{ style: string; screenshot: string }>
+    }
     expect(schema.$id).toBe('https://agentic-mermaid.dev/schemas/style-spec.schema.json')
     const page = read('docs/custom-styles/index.html')
     expect(page).toContain('/schemas/style-spec.schema.json')
     expect(page).toContain('/examples/styles/transit-route-map.style.json')
+    expect(page).toContain('/examples/styles/cupertino-prototype.style.json')
+    expect(page).toContain('not registered or advertised as a built-in Style')
     expect(page).toContain('/docs/assets/style-cookbook/transit-route-map.png')
+    expect(page).toContain('/docs/assets/style-cookbook/cupertino-prototype.png')
+    expect(page).toContain('not an Apple product')
     expect(page).toContain('<h2>Custom fonts</h2>')
     expect(page).toContain('--font-dirs ./fonts')
     expect(page).toContain('Local MCP <code>render_png</code> accepts <code>fontDirs</code> and <code>loadSystemFonts</code>')
     expect(page).toContain('Hosted MCP has no filesystem font input')
-    for (const rel of [
-      'examples/styles/transit-route-map.style.json',
-      'examples/styles/mid-century-report.style.json',
-      'examples/styles/star-chart-atlas.style.json',
-      'docs/assets/style-cookbook/transit-route-map.png',
-      'docs/assets/style-cookbook/mid-century-report.png',
-      'docs/assets/style-cookbook/star-chart-atlas.png',
-    ]) {
+    const catalogFiles = catalog.examples.flatMap(entry => [
+      `examples/styles/${entry.style}`,
+      `docs/assets/style-cookbook/${entry.screenshot}`,
+    ])
+    for (const rel of [`examples/styles/${catalog.sample}`, ...catalogFiles]) {
       expect({ rel, exists: existsSync(join(SITE, rel)) }).toEqual({ rel, exists: true })
     }
   })
