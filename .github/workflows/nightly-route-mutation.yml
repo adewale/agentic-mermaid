@@ -11,6 +11,12 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  # A manual run must not double the runner load of the scheduled run. Preserve
+  # the active run's evidence and queue the newer request behind it.
+  group: nightly-mutation-${{ github.repository }}
+  cancel-in-progress: false
+
 jobs:
   plan:
     name: Plan complete mutation coverage
@@ -67,6 +73,10 @@ jobs:
           path: reports/mutation/${{ matrix.name }}-mutation.json
           if-no-files-found: error
           overwrite: true
+          # Reports only need to survive aggregation and a short rerun window;
+          # retaining roughly 90 daily copies at the repository default would
+          # create avoidable Actions storage pressure.
+          retention-days: 3
 
   sabotage-routes:
     name: sabotage-routes

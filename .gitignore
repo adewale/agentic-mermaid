@@ -48,6 +48,7 @@ e2e/screenshots/current-*.png
 # Stryker mutation testing
 .stryker-tmp/
 .stryker-tmp-*/
+.stryker-nightly-*.config.json
 reports/
 dist/am
 

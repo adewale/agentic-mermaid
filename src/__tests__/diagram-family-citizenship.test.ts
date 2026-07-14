@@ -427,10 +427,8 @@ describe('diagram-family citizenship ratchet (issue #41)', () => {
     expect(workflow).toContain('scripts/quality/nightly-mutation.ts matrix')
     expect(workflow).toContain('scripts/quality/nightly-mutation.ts verify')
     const scheduledConfigs = new Set(NIGHTLY_MUTATION_LANES.map(lane => lane.config))
-    const scheduledFamilies = new Set(NIGHTLY_MUTATION_LANES.flatMap(lane => [...lane.families]))
     const matrix = loadMatrix()
     for (const family of BUILTIN_FAMILY_METADATA) {
-      expect({ family: family.id, scheduled: scheduledFamilies.has(family.id) }).toEqual({ family: family.id, scheduled: true })
       const evidence = matrix.families[family.id]!.cells.mutationLane.evidence
         .filter(isStrykerConfig)
       expect({ family: family.id, scheduledEvidence: evidence.some(path => scheduledConfigs.has(path)) })

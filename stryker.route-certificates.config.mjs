@@ -20,7 +20,7 @@ export default {
   jsonReporter: {
     fileName: 'reports/mutation/route-certificates-mutation.json',
   },
-  thresholds: { break: 1 },
+  thresholds: { break: 69.23 },
   timeoutMS: 30000,
   concurrency: 4,
   tempDirName: '.stryker-tmp-route-certificates',

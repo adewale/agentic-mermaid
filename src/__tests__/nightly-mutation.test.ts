@@ -2,11 +2,15 @@ import { describe, expect, test } from 'bun:test'
 import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import {
   NIGHTLY_MUTATION_LANES,
   buildNightlyMutationPlan,
+  calibratedMutationFloor,
+  compactMutationReport,
+  compareExpectedMutants,
   loadStrykerConfig,
+  mutationBreakFloor,
+  mutationOracleOptions,
   mutationScore,
   parseMutationTarget,
   shardMutationTargets,
@@ -58,11 +62,6 @@ describe('nightly mutation orchestration', () => {
     }
   })
 
-  test('every built-in family has a scheduled aggregate score owner', () => {
-    const scheduled = new Set(NIGHTLY_MUTATION_LANES.flatMap(lane => [...lane.families]))
-    expect(BUILTIN_FAMILY_METADATA.filter(family => !scheduled.has(family.id)).map(family => family.id)).toEqual([])
-  })
-
   test('the union of AST-safe shards is exactly the full Stryker mutant multiset', async () => {
     const plan = await buildNightlyMutationPlan(ROOT)
     const lanes = []
@@ -73,11 +72,10 @@ describe('nightly mutation orchestration', () => {
         const fullLineCount = readFileSync(join(ROOT, target.file), 'utf8').split(/\r?\n/).length
         expect({ lane: lane.id, target }).toEqual({ lane: lane.id, target: { file: target.file, start: 1, end: fullLineCount } })
       }
-      const mutator = config.mutator as { excludedMutations?: string[] } | undefined
       lanes.push({
         id: lane.id,
         full: config.mutate,
-        excludedMutations: mutator?.excludedMutations ?? [],
+        ...mutationOracleOptions(lane.config, config),
         shards: plan.filter(item => item.lane === lane.id).map(item => item.mutate),
         reported: [],
       })
@@ -118,7 +116,7 @@ describe('nightly mutation orchestration', () => {
     expect(scopedSource(subgraph.mutate![1]!)).toContain('function deepestCommonAncestor')
   })
 
-  test('the oracle normalizes internal offsets to one-based report coordinates', async () => {
+  test('the production oracle bridge normalizes coordinates and rejects incomplete or altered reports', () => {
     const file = 'src/agent/sequence-body.ts'
     const content = readFileSync(join(ROOT, file), 'utf8')
     const sourceLine = content.split(/\r?\n/).find(value => value.startsWith('const BLOCK_OPEN_RE ='))
@@ -127,36 +125,44 @@ describe('nightly mutation orchestration', () => {
     expect(line).toBeGreaterThan(0)
     const regexColumn = sourceLine!.indexOf('/')
     const originalRegex = sourceLine!.slice(regexColumn)
-    const reported = [{
-      file,
-      mutant: {
-        // Stryker's reporter inserts end before start. The oracle fingerprint
-        // must depend on coordinates, not object-key insertion order.
-        location: {
-          end: { line, column: regexColumn + originalRegex.length + 1 },
-          start: { line, column: regexColumn + 1 },
-        },
-        mutatorName: 'Regex',
-        replacement: originalRegex.replace('/^', '/'),
+    const mutant = {
+      status: 'Killed',
+      // Stryker's reporter inserts end before start. The oracle fingerprint
+      // must depend on coordinates, not object-key insertion order.
+      location: {
+        end: { line, column: regexColumn + originalRegex.length + 1 },
+        start: { line, column: regexColumn + 1 },
       },
-    }]
+      mutatorName: 'Regex',
+      replacement: originalRegex.replace('/^', '/'),
+    }
     const spec = `${file}:${line}-${line}`
-    const result = spawnSync('node', [join(ROOT, 'scripts/quality/mutation-shard-oracle.mjs')], {
-      cwd: ROOT,
-      input: JSON.stringify({
-        root: ROOT,
-        lanes: [{ id: 'one-based-report', full: [spec], shards: [[spec]], reported }],
-      }),
-      encoding: 'utf8',
-    })
-    expect({ status: result.status, stderr: result.stderr }).toEqual({ status: 0, stderr: '' })
-    expect(JSON.parse(result.stdout)).toEqual([expect.objectContaining({
-      lane: 'one-based-report',
-      exact: true,
-      reportExact: true,
-      missingReportMutants: 0,
-      extraReportMutants: 0,
-    })])
+    const lane = { id: 'one-based-report', config: 'fixture', timeout: 1 }
+    const config = { mutate: [spec] }
+    const item = { name: lane.id, lane: lane.id, config: lane.config, timeout: 1, mutate: [spec], report: 'fixture.json' }
+    const report = { files: { [file]: { mutants: [mutant] } } }
+
+    expect(compareExpectedMutants(lane, config, [item], [report], ROOT)).toEqual(expect.objectContaining({
+      lane: lane.id, exact: true, reportExact: true, missingReportMutants: 0, extraReportMutants: 0,
+    }))
+
+    const missing = structuredClone(report)
+    missing.files[file]!.mutants = []
+    expect(compareExpectedMutants(lane, config, [item], [missing], ROOT)).toEqual(expect.objectContaining({
+      reportExact: false, missingReportMutants: 1, extraReportMutants: 0,
+    }))
+
+    const altered = structuredClone(report)
+    altered.files[file]!.mutants[0]!.replacement = '/altered/'
+    expect(compareExpectedMutants(lane, config, [item], [altered], ROOT)).toEqual(expect.objectContaining({
+      reportExact: false, missingReportMutants: 1, extraReportMutants: 1,
+    }))
+
+    const duplicated = structuredClone(report)
+    duplicated.files[file]!.mutants.push(structuredClone(mutant))
+    expect(compareExpectedMutants(lane, config, [item], [duplicated], ROOT)).toEqual(expect.objectContaining({
+      reportExact: false, missingReportMutants: 0, extraReportMutants: 1,
+    }))
   })
 
   test('report validation enforces compatible provenance and one-based source bounds', async () => {
@@ -192,12 +198,14 @@ describe('nightly mutation orchestration', () => {
 
     const invalid = structuredClone(report)
     invalid.schemaVersion = '2.0'
+    invalid.config.mutate = [...item.mutate, item.mutate[0]!]
     invalid.config.thresholds.break = 1
     invalid.config.jsonReporter.fileName = 'wrong.json'
     invalid.files[target.file]!.mutants[0]!.location.start.line = 0
     invalid.files[target.file]!.mutants[0]!.location.end.line = 0
     expect(validateMutationReport(item, invalid, ROOT)).toEqual([
       `${item.name}: unsupported report schema 2.0`,
+      `${item.name}: report mutate scope does not match the plan`,
       `${item.name}: shard report was not run with break=0`,
       `${item.name}: report filename provenance does not match ${item.report}`,
       `${item.name}: ${target.file} mutant lies outside its planned source scope`,
@@ -227,5 +235,66 @@ describe('nightly mutation orchestration', () => {
       },
     }
     expect(mutationScore([report])).toEqual({ detected: 2, valid: 4, excluded: 2, unknown: 1, score: 50 })
+  })
+
+  test('artifact compaction drops only repeated killed-mutant diagnostics', () => {
+    const report = {
+      files: {
+        'src/example.ts': {
+          mutants: [
+            { status: 'Killed', statusReason: 'repeated full test output', killedBy: ['t1'] },
+            { status: 'Timeout', statusReason: 'diagnostic timeout output' },
+            { status: 'RuntimeError', statusReason: 'diagnostic error output' },
+          ],
+        },
+      },
+    }
+    expect(compactMutationReport(report)).toEqual({
+      files: {
+        'src/example.ts': {
+          mutants: [
+            { status: 'Killed', killedBy: ['t1'] },
+            { status: 'Timeout', statusReason: 'diagnostic timeout output' },
+            { status: 'RuntimeError', statusReason: 'diagnostic error output' },
+          ],
+        },
+      },
+    })
+  })
+
+  test('aggregate floors must be finite percentages', () => {
+    expect(mutationBreakFloor('valid', { thresholds: { break: 0.01 } })).toBe(0.01)
+    expect(mutationBreakFloor('valid', { thresholds: { break: 100 } })).toBe(100)
+    for (const floor of [undefined, 0, -1, 101, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(() => mutationBreakFloor('invalid', { thresholds: { break: floor } })).toThrow(
+        'nightly lanes require a finite aggregate thresholds.break floor in (0, 100]',
+      )
+    }
+  })
+
+  test('calibration floors round down from integer evidence instead of presentation text', () => {
+    expect(calibratedMutationFloor(63, 91)).toBe(69.23)
+    expect(calibratedMutationFloor(2, 3)).toBe(66.66)
+    expect(calibratedMutationFloor(1, 8)).toBe(12.5)
+    expect(calibratedMutationFloor(0, 0)).toBe(0)
+    for (const counts of [[-1, 1], [2, 1], [1.5, 2], [1, Number.POSITIVE_INFINITY]] as const) {
+      expect(() => calibratedMutationFloor(counts[0], counts[1])).toThrow('Mutation floor counts must be safe integers')
+    }
+  })
+
+  test('oracle options fail early when future configs need unsupported instrumentation', () => {
+    expect(mutationOracleOptions('valid', {})).toEqual({ excludedMutations: [] })
+    expect(mutationOracleOptions('valid', { mutator: { excludedMutations: ['BlockStatement'] } })).toEqual({
+      excludedMutations: ['BlockStatement'],
+    })
+    expect(() => mutationOracleOptions('plugins', { mutator: { plugins: ['custom'] } })).toThrow(
+      'nightly mutation oracle does not yet support custom mutator plugins',
+    )
+    expect(() => mutationOracleOptions('ignorers', { ignorers: ['custom'] })).toThrow(
+      'nightly mutation oracle does not yet support custom ignorers',
+    )
+    expect(() => mutationOracleOptions('excluded', { mutator: { excludedMutations: [1] } })).toThrow(
+      'mutator.excludedMutations must be an array of strings',
+    )
   })
 })

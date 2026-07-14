@@ -175,9 +175,9 @@ Tests can be green and still worthless. Two gates test the tests:
 - **Mutation testing (Stryker)** — scoped to the high-value ASCII/route
   core and built-in family implementations, with named `.json` or `.mjs`
   configs. A *survived* mutant is a test gap until classified. Retained
-  measurements and survivor catalogs document each lane's baseline and any
-  explicit "accepted" classifications (performance guards,
-  unreachable-by-convention). Mutation testing has earned its keep: it
+  measurements establish lane baselines; survivor catalogs record explicit
+  "accepted" classifications where a harvest has been reviewed (performance
+  guards, unreachable-by-convention). Mutation testing has earned its keep: it
   falsified an audit assumption and found dead code the unit tests couldn't.
 - **Sabotage suite** (`eval/sabotage/route-regressions.ts`) — deliberately
   reverts a fixed bug in a detached worktree and asserts the suite goes
@@ -185,18 +185,12 @@ Tests can be green and still worthless. Two gates test the tests:
 
 **Runs:** the broad route and family lanes are **scheduled nightly** by
 `nightly-route-mutation.yml`; the ASCII lane remains manual-only.
-`scripts/quality/nightly-mutation.ts` is the single schedule authority. Large
-whole-file targets are partitioned only between complete top-level TypeScript
-statements, and a checked instrumentation oracle requires the full target and
-the union of its shards to have exactly the same mutant multiset. Narrow
-route-certificate and subgraph-routing configs derive their ranges from paired
-source markers instead of drift-prone absolute line numbers. Each shard uses a
-temporary break floor of zero only to emit a report; the final verifier
-recombines all reports per lane and applies the original config's aggregate
-floor. Per-lane floors are measured regression ratchets. The shared 60% value
-is an improvement target, not an assumed baseline for an unmeasured lane. A
-narrow module takes 5–15 minutes locally; a full broad lane can take
-substantially longer. A **fast incremental lane**
+`scripts/quality/nightly-mutation.ts` is the single schedule authority, and
+`docs/mutation-testing.md` is the canonical account of semantic sharding,
+scope markers, report verification, retention, and measured aggregate floors.
+The shared 60% value is an improvement target, not an assumed baseline for an
+unmeasured lane. A narrow module takes 5–15 minutes locally; a full broad lane
+can take substantially longer. A **fast incremental lane**
 (`stryker.incremental.config.json`, the `mutation-incremental` CI job) mutates
 only the small pure faithfulness counter (`src/agent/structural-count.ts`) with
 a sub-second unit runner, so it gates **per-PR** (~1 min, measured 96% kill /

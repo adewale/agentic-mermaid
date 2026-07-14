@@ -59,10 +59,18 @@ shard for its lane, and applies the original config's single aggregate
 `thresholds.break` floor. That per-lane floor is a measured regression ratchet;
 60% is the improvement target, not a baseline assumed for every lane. Raise a
 floor when retained evidence supports it rather than assigning an unmeasured
-lane the target. Reports have unique names and are uploaded as workflow
-artifacts. Broad mutation runs remain outside the PR gate; run a narrow lane
-locally when you touch ASCII/route core logic and want immediate proof the
-tests bite.
+lane the target. The verifier prints both the precise aggregate score and a
+candidate floor calculated downwards from the integer detected/valid counts;
+use that candidate rather than rounding the displayed score. Never lower a
+calibrated floor automatically: a deliberate reduction needs retained evidence
+and a reviewed explanation. Reports have unique names and are uploaded as workflow
+artifacts for three days: enough for aggregation and normal failed-job reruns
+without retaining roughly 90 daily copies. Before upload, repeated full test
+output is removed from killed mutants; status, location, replacement, and
+`killedBy` identity remain, while timeout/error diagnostics are preserved.
+After the retention window, rerun the whole workflow rather than only failed
+jobs. Broad mutation runs remain outside the PR gate; run a narrow lane locally
+when you touch ASCII/route core logic and want immediate proof the tests bite.
 
 ## Focused Mindmap/GitGraph historical local measurement (2026-07-10)
 

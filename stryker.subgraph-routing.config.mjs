@@ -20,7 +20,7 @@ export default {
   jsonReporter: {
     fileName: 'reports/mutation/subgraph-routing-mutation.json',
   },
-  thresholds: { break: 1 },
+  thresholds: { break: 86.36 },
   timeoutMS: 30000,
   concurrency: 4,
   tempDirName: '.stryker-tmp-subgraph-routing',

@@ -4,7 +4,6 @@ import { existsSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'no
 import { basename, extname, join, relative, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import ts from 'typescript'
-import type { BuiltinFamilyId } from '../../src/agent/families.ts'
 
 const ROOT = resolve(import.meta.dir, '../..')
 const VALID_MUTANT_STATUSES = new Set(['Killed', 'Timeout', 'Survived', 'NoCoverage'])
@@ -26,7 +25,6 @@ export interface NightlyLane {
   config: string
   timeout: number
   maxLinesPerShard?: number
-  families: readonly BuiltinFamilyId[]
 }
 
 export interface MutationPlanItem {
@@ -40,6 +38,8 @@ export interface MutationPlanItem {
 
 export interface Mutant {
   status: string
+  statusReason?: string
+  killedBy?: string[]
   mutatorName?: string
   replacement?: string
   location?: {
@@ -84,21 +84,21 @@ interface MutationOracleSummary {
  * and aggregate break floors; this list owns only orchestration and sharding.
  */
 export const NIGHTLY_MUTATION_LANES: readonly NightlyLane[] = [
-  { id: 'routes', config: 'stryker.routes.config.json', timeout: 180, maxLinesPerShard: 525, families: ['flowchart'] },
-  { id: 'route-certificates', config: 'stryker.route-certificates.config.mjs', timeout: 45, families: [] },
-  { id: 'subgraph-routing', config: 'stryker.subgraph-routing.config.mjs', timeout: 60, families: [] },
-  { id: 'state', config: 'stryker.state.config.json', timeout: 90, maxLinesPerShard: 600, families: ['state'] },
-  { id: 'sequence', config: 'stryker.sequence.config.json', timeout: 90, families: ['sequence'] },
-  { id: 'timeline', config: 'stryker.timeline.config.json', timeout: 90, families: ['timeline'] },
-  { id: 'class', config: 'stryker.class.config.json', timeout: 90, families: ['class'] },
-  { id: 'er', config: 'stryker.er.config.json', timeout: 90, families: ['er'] },
-  { id: 'journey', config: 'stryker.journey.config.json', timeout: 90, families: ['journey'] },
-  { id: 'pie', config: 'stryker.pie.config.json', timeout: 90, families: ['pie'] },
-  { id: 'quadrant', config: 'stryker.quadrant.config.json', timeout: 90, families: ['quadrant'] },
-  { id: 'gantt', config: 'stryker.gantt.config.json', timeout: 120, maxLinesPerShard: 700, families: ['gantt'] },
-  { id: 'mindmap', config: 'stryker.mindmap.config.json', timeout: 90, families: ['mindmap'] },
-  { id: 'gitgraph', config: 'stryker.gitgraph.config.json', timeout: 90, families: ['gitgraph'] },
-  { id: 'families', config: 'stryker.families.config.json', timeout: 120, maxLinesPerShard: 900, families: ['xychart', 'architecture', 'mindmap', 'gitgraph'] },
+  { id: 'routes', config: 'stryker.routes.config.json', timeout: 180, maxLinesPerShard: 525 },
+  { id: 'route-certificates', config: 'stryker.route-certificates.config.mjs', timeout: 45 },
+  { id: 'subgraph-routing', config: 'stryker.subgraph-routing.config.mjs', timeout: 60 },
+  { id: 'state', config: 'stryker.state.config.json', timeout: 90, maxLinesPerShard: 500 },
+  { id: 'sequence', config: 'stryker.sequence.config.json', timeout: 90, maxLinesPerShard: 500 },
+  { id: 'timeline', config: 'stryker.timeline.config.json', timeout: 90 },
+  { id: 'class', config: 'stryker.class.config.json', timeout: 90 },
+  { id: 'er', config: 'stryker.er.config.json', timeout: 90 },
+  { id: 'journey', config: 'stryker.journey.config.json', timeout: 90 },
+  { id: 'pie', config: 'stryker.pie.config.json', timeout: 90 },
+  { id: 'quadrant', config: 'stryker.quadrant.config.json', timeout: 90 },
+  { id: 'gantt', config: 'stryker.gantt.config.json', timeout: 120, maxLinesPerShard: 700 },
+  { id: 'mindmap', config: 'stryker.mindmap.config.json', timeout: 90 },
+  { id: 'gitgraph', config: 'stryker.gitgraph.config.json', timeout: 90 },
+  { id: 'families', config: 'stryker.families.config.json', timeout: 120, maxLinesPerShard: 900 },
 ]
 
 function safeName(value: string): string {
@@ -138,6 +138,35 @@ export function parseMutationTarget(spec: string, root = ROOT): MutationTarget {
     throw new Error(`Mutation target is outside ${file}'s 1-${lineCount} line range: ${spec}`)
   }
   return { file, start, end }
+}
+
+export function mutationBreakFloor(configName: string, config: StrykerConfig): number {
+  const floor = config.thresholds?.break
+  if (typeof floor !== 'number' || !Number.isFinite(floor) || floor <= 0 || floor > 100) {
+    throw new Error(`${configName}: nightly lanes require a finite aggregate thresholds.break floor in (0, 100]`)
+  }
+  return floor
+}
+
+export function mutationOracleOptions(configName: string, config: StrykerConfig): { excludedMutations: string[] } {
+  const mutator = config.mutator
+  if (mutator != null && (typeof mutator !== 'object' || Array.isArray(mutator))) {
+    throw new Error(`${configName}: nightly mutation oracle requires an object mutator configuration`)
+  }
+  const options = mutator as { plugins?: unknown; excludedMutations?: unknown } | undefined
+  if (options?.plugins != null) {
+    throw new Error(`${configName}: nightly mutation oracle does not yet support custom mutator plugins`)
+  }
+  const excludedMutations = options?.excludedMutations ?? []
+  if (!Array.isArray(excludedMutations) || !excludedMutations.every(value => typeof value === 'string')) {
+    throw new Error(`${configName}: mutator.excludedMutations must be an array of strings`)
+  }
+  const ignorers = config.ignorers ?? []
+  if (!Array.isArray(ignorers)) throw new Error(`${configName}: ignorers must be an array`)
+  if (ignorers.length > 0) {
+    throw new Error(`${configName}: nightly mutation oracle does not yet support custom ignorers`)
+  }
+  return { excludedMutations }
 }
 
 function formatMutationTarget(target: MutationTarget): string {
@@ -206,9 +235,8 @@ export async function buildNightlyMutationPlan(root = ROOT): Promise<MutationPla
     if (!config.reporters?.includes('json') || !config.jsonReporter?.fileName) {
       throw new Error(`${lane.config}: nightly lanes require a named JSON reporter`)
     }
-    if (typeof config.thresholds?.break !== 'number' || config.thresholds.break <= 0) {
-      throw new Error(`${lane.config}: nightly lanes require a positive aggregate thresholds.break floor`)
-    }
+    mutationBreakFloor(lane.config, config)
+    mutationOracleOptions(lane.config, config)
     const shards = lane.maxLinesPerShard
       ? shardMutationTargets(config.mutate, lane.maxLinesPerShard, root)
       : [[...config.mutate]]
@@ -263,6 +291,28 @@ export function mutationScore(reports: readonly MutationReport[]): MutationScore
   return { detected, valid, excluded, unknown, score: valid === 0 ? 0 : detected / valid * 100 }
 }
 
+export function calibratedMutationFloor(detected: number, valid: number): number {
+  if (!Number.isSafeInteger(detected) || !Number.isSafeInteger(valid) || detected < 0 || valid < 0 || detected > valid) {
+    throw new Error(`Mutation floor counts must be safe integers with 0 <= detected <= valid; got ${detected}/${valid}`)
+  }
+  // A candidate floor must never round above the evidence that established it.
+  // Calculate from the integer counts rather than from the presentation score.
+  return valid === 0 ? 0 : Number(BigInt(detected) * 10_000n / BigInt(valid)) / 100
+}
+
+export function compactMutationReport(report: MutationReport): MutationReport {
+  // Command-runner failures repeat the complete test log in every killed
+  // mutant. `statusReason` is optional MTE diagnostic data; killedBy retains
+  // the useful test identity while this subtraction keeps nightly artifacts
+  // small. Preserve reasons for timeouts and errors, where they aid diagnosis.
+  for (const file of Object.values(report.files ?? {})) {
+    for (const mutant of file.mutants ?? []) {
+      if (mutant.status === 'Killed') delete mutant.statusReason
+    }
+  }
+  return report
+}
+
 async function runPlanItem(name: string): Promise<void> {
   const plan = await buildNightlyMutationPlan()
   const item = plan.find(candidate => candidate.name === name)
@@ -289,6 +339,8 @@ async function runPlanItem(name: string): Promise<void> {
     if (result.status !== 0) throw new Error(`${name}: Stryker exited with status ${result.status}`)
     const report = join(ROOT, 'reports/mutation', item.report)
     if (!existsSync(report)) throw new Error(`${name}: Stryker completed without ${relative(ROOT, report)}`)
+    const mutationReport = JSON.parse(readFileSync(report, 'utf8')) as MutationReport
+    writeFileSync(report, `${JSON.stringify(compactMutationReport(mutationReport))}\n`)
   } finally {
     rmSync(tempConfig, { force: true })
   }
@@ -301,7 +353,7 @@ function targetContainsLocation(target: MutationTarget, location: NonNullable<Mu
   return location.start.line >= target.start && location.end.line <= target.end
 }
 
-function compareExpectedMutants(
+export function compareExpectedMutants(
   lane: NightlyLane,
   config: StrykerConfig,
   items: readonly MutationPlanItem[],
@@ -317,7 +369,7 @@ function compareExpectedMutants(
         replacement: mutant.replacement,
       },
     }))))
-  const mutator = config.mutator as { excludedMutations?: string[] } | undefined
+  const { excludedMutations } = mutationOracleOptions(lane.config, config)
   const oracle = spawnSync('node', [join(root, 'scripts/quality/mutation-shard-oracle.mjs')], {
     cwd: root,
     input: JSON.stringify({
@@ -325,7 +377,7 @@ function compareExpectedMutants(
       lanes: [{
         id: lane.id,
         full: config.mutate,
-        excludedMutations: mutator?.excludedMutations ?? [],
+        excludedMutations,
         shards: items.map(item => item.mutate),
         reported,
       }],
@@ -387,6 +439,7 @@ async function verifyReports(reportRoot: string): Promise<void> {
   const rows: string[] = []
   const failures: string[] = []
   for (const lane of NIGHTLY_MUTATION_LANES) {
+    const laneFailureStart = failures.length
     const items = plan.filter(item => item.lane === lane.id)
     const reports: MutationReport[] = []
     const validationFailures: string[] = []
@@ -403,8 +456,9 @@ async function verifyReports(reportRoot: string): Promise<void> {
     const config = await loadStrykerConfig(lane.config)
     failures.push(...validationFailures)
     const oracle = compareExpectedMutants(lane, config, items, reports)
-    const floor = config.thresholds!.break!
+    const floor = mutationBreakFloor(lane.config, config)
     const result = mutationScore(reports)
+    const candidateFloor = calibratedMutationFloor(result.detected, result.valid)
     const complete = reports.length === items.length
     const passes = complete
       && validationFailures.length === 0
@@ -412,7 +466,7 @@ async function verifyReports(reportRoot: string): Promise<void> {
       && result.valid > 0
       && result.unknown === 0
       && result.score >= floor
-    rows.push(`| ${lane.id} | ${items.length} | ${result.detected}/${result.valid} | ${result.excluded} | ${result.score.toFixed(2)}% | ${floor.toFixed(2)}% | ${passes ? 'pass' : 'fail'} |`)
+    rows.push(`| ${lane.id} | ${items.length} | ${result.detected}/${result.valid} | ${result.excluded} | ${result.score.toFixed(4)}% | ${candidateFloor.toFixed(2)}% | ${floor.toFixed(2)}% | ${passes ? 'pass' : 'fail'} |`)
     if (complete && result.valid === 0) failures.push(`${lane.id}: reports contain no valid mutants`)
     if (result.unknown > 0) failures.push(`${lane.id}: reports contain ${result.unknown} pending or unknown-status mutants`)
     if (oracle.reportExact !== true) {
@@ -421,13 +475,16 @@ async function verifyReports(reportRoot: string): Promise<void> {
     if (complete && result.valid > 0 && result.score < floor) {
       failures.push(`${lane.id}: ${result.score.toFixed(2)}% is below ${floor.toFixed(2)}%`)
     }
+    if (!passes && failures.length === laneFailureStart) {
+      failures.push(`${lane.id}: verification failed without a more specific diagnostic`)
+    }
   }
 
   const summary = [
     '## Nightly mutation score ratchet',
     '',
-    '| Lane | Shards | Detected/valid | Excluded | Score | Floor | Result |',
-    '| --- | ---: | ---: | ---: | ---: | ---: | --- |',
+    '| Lane | Shards | Detected/valid | Excluded | Score | Candidate floor | Enforced floor | Result |',
+    '| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |',
     ...rows,
     '',
   ].join('\n')
