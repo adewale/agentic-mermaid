@@ -2292,6 +2292,7 @@ export function applyRouteContracts(
     if (targetNode) repairRectLikeEndpointOverflow(edge, targetNode, false)
   }
 
+  // mutation-scope:route-certificate-finality:start
   const certificates: RouteCertificate[] = []
   const finalPortPlan = allocateRoutePorts(positioned, graph, classes)
   const finalizeCertificate = (edge: PositionedEdge, draft: DraftRouteCertificate): RouteCertificate => {
@@ -2330,6 +2331,7 @@ export function applyRouteContracts(
   }
 
   return certificates
+  // mutation-scope:route-certificate-finality:end
 }
 
 /**
@@ -2930,6 +2932,7 @@ export function auditRouteContracts(
       }
     }
 
+    // mutation-scope:stale-route-audit:start
     // ROUTE_STALE_AFTER_NODE_MOVE also catches the other stale-corridor
     // signature: a non-incident node moved onto an already-certified route.
     // Endpoint detachment above catches moved endpoints; this catches moved
@@ -2947,6 +2950,7 @@ export function auditRouteContracts(
         }
       }
     }
+    // mutation-scope:stale-route-audit:end
 
     // ROUTE_LABEL_ON_SHARED_TRUNK: a label pill sitting on a piece of line
     // that another edge's collinear segment shares (spec §11.4) — the reader

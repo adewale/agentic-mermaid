@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "updated": "2026-07-12",
+  "updated": "2026-07-14",
   "statusValues": [
     "satisfied",
     "exception"
@@ -93,10 +93,6 @@
     {
       "id": "distributionPackage",
       "description": "Package files/exports/consumer init artifacts expose the family surface."
-    },
-    {
-      "id": "mutationLane",
-      "description": "Targeted mutation/sabotage lane exists or is tracked."
     }
   ],
   "families": {
@@ -261,15 +257,6 @@
             "package.json",
             "src/__tests__/doc-sync.test.ts",
             "src/__tests__/agent-doc-sync.test.ts"
-          ]
-        },
-        "mutationLane": {
-          "status": "satisfied",
-          "evidence": [
-            "stryker.routes.config.json",
-            "stryker.link-grammar.config.json",
-            "stryker.route-certificates.config.json",
-            "package.json"
           ]
         },
         "mermaidSyntaxParity": {
@@ -463,13 +450,6 @@
             "package.json",
             "src/__tests__/doc-sync.test.ts",
             "src/__tests__/agent-doc-sync.test.ts"
-          ]
-        },
-        "mutationLane": {
-          "status": "satisfied",
-          "evidence": [
-            "stryker.state.config.json",
-            "package.json"
           ]
         },
         "mermaidSyntaxParity": {
@@ -667,13 +647,6 @@
             "src/__tests__/agent-doc-sync.test.ts"
           ]
         },
-        "mutationLane": {
-          "status": "satisfied",
-          "evidence": [
-            "stryker.sequence.config.json",
-            "package.json"
-          ]
-        },
         "mermaidSyntaxParity": {
           "status": "satisfied",
           "evidence": [
@@ -865,13 +838,6 @@
             "package.json",
             "src/__tests__/doc-sync.test.ts",
             "src/__tests__/agent-doc-sync.test.ts"
-          ]
-        },
-        "mutationLane": {
-          "status": "satisfied",
-          "evidence": [
-            "stryker.timeline.config.json",
-            "package.json"
           ]
         },
         "mermaidSyntaxParity": {
@@ -1068,13 +1034,6 @@
             "src/__tests__/agent-doc-sync.test.ts"
           ]
         },
-        "mutationLane": {
-          "status": "satisfied",
-          "evidence": [
-            "stryker.class.config.json",
-            "package.json"
-          ]
-        },
         "mermaidSyntaxParity": {
           "status": "satisfied",
           "evidence": [
@@ -1267,13 +1226,6 @@
             "package.json",
             "src/__tests__/doc-sync.test.ts",
             "src/__tests__/agent-doc-sync.test.ts"
-          ]
-        },
-        "mutationLane": {
-          "status": "satisfied",
-          "evidence": [
-            "stryker.er.config.json",
-            "package.json"
           ]
         },
         "mermaidSyntaxParity": {
@@ -1469,13 +1421,6 @@
             "src/__tests__/agent-doc-sync.test.ts"
           ]
         },
-        "mutationLane": {
-          "status": "satisfied",
-          "evidence": [
-            "stryker.journey.config.json",
-            "package.json"
-          ]
-        },
         "mermaidSyntaxParity": {
           "status": "satisfied",
           "evidence": [
@@ -1667,13 +1612,6 @@
             "package.json",
             "src/__tests__/doc-sync.test.ts",
             "src/__tests__/agent-doc-sync.test.ts"
-          ]
-        },
-        "mutationLane": {
-          "status": "satisfied",
-          "evidence": [
-            "stryker.families.config.json",
-            "package.json"
           ]
         },
         "mermaidSyntaxParity": {
@@ -1870,13 +1808,6 @@
             "src/__tests__/agent-doc-sync.test.ts"
           ]
         },
-        "mutationLane": {
-          "status": "satisfied",
-          "evidence": [
-            "stryker.families.config.json",
-            "package.json"
-          ]
-        },
         "mermaidSyntaxParity": {
           "status": "satisfied",
           "evidence": [
@@ -2070,13 +2001,6 @@
             "src/__tests__/agent-doc-sync.test.ts"
           ]
         },
-        "mutationLane": {
-          "status": "satisfied",
-          "evidence": [
-            "stryker.pie.config.json",
-            "package.json"
-          ]
-        },
         "mermaidSyntaxParity": {
           "status": "satisfied",
           "evidence": [
@@ -2268,13 +2192,6 @@
             "package.json",
             "src/__tests__/doc-sync.test.ts",
             "src/__tests__/agent-doc-sync.test.ts"
-          ]
-        },
-        "mutationLane": {
-          "status": "satisfied",
-          "evidence": [
-            "stryker.quadrant.config.json",
-            "package.json"
           ]
         },
         "mermaidSyntaxParity": {
@@ -2474,13 +2391,6 @@
             "src/__tests__/agent-doc-sync.test.ts"
           ]
         },
-        "mutationLane": {
-          "status": "satisfied",
-          "evidence": [
-            "stryker.gantt.config.json",
-            "package.json"
-          ]
-        },
         "mermaidSyntaxParity": {
           "status": "satisfied",
           "evidence": [
@@ -2652,12 +2562,6 @@
           "evidence": [
             "package.json",
             "src/index.ts"
-          ]
-        },
-        "mutationLane": {
-          "status": "satisfied",
-          "evidence": [
-            "stryker.families.config.json"
           ]
         },
         "mermaidSyntaxParity": {
@@ -2839,12 +2743,6 @@
           "evidence": [
             "package.json",
             "src/index.ts"
-          ]
-        },
-        "mutationLane": {
-          "status": "satisfied",
-          "evidence": [
-            "stryker.families.config.json"
           ]
         },
         "mermaidSyntaxParity": {
@@ -3040,12 +2938,6 @@
           "evidence": [
             "package.json",
             "src/index.ts"
-          ]
-        },
-        "mutationLane": {
-          "status": "satisfied",
-          "evidence": [
-            "stryker.families.config.json"
           ]
         }
       },

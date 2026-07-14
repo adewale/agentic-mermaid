@@ -170,7 +170,7 @@ Progressive discovery moves schema tokens out of the initial prompt, but an
 unfamiliar edit now needs a `describe_sdk` call before `mutate`, `build`, or
 `execute`. That extra round trip is wasted on a small catalog whose definitions
 are used in every session. It pays off here because most diagram tasks use one
-of 14 families, and the old declarations devoted 93.1% of the hosted tool-list
+registered family, and the old declarations devoted 93.1% of the hosted tool-list
 tokens to the full SDK and repeated mutation menus.
 
 Code execution also adds work that a direct tool does not need. A one-shot

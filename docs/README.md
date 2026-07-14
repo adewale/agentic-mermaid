@@ -80,7 +80,7 @@ The design docs split into two tiers — **system** (how the engine works, cross
 | [`contributing/releasing.md`](./contributing/releasing.md) | How to cut an npm release (GitHub Release → provenance publish) and flip the "published" copy. |
 | [`layout-characterization/README.md`](./layout-characterization/README.md) | Layout and visual testing approach: properties, contact sheets, raster contracts, and approval artifacts. |
 | [`svg-semantic-contract.md`](./svg-semantic-contract.md) | Typed Scene identity, geometry, references, and accessibility contract. |
-| [`mutation-testing.md`](./mutation-testing.md) | Mutation lanes, survivor handling, and adequacy evidence. |
+| [`mutation-testing.md`](./mutation-testing.md) | Mutation lanes, survivor handling, and fault-sensitivity evidence. |
 | [`project/divergences.md`](./project/divergences.md) | Deliberate divergences and guardrails. |
 | [`project/lessons-learned.md`](./project/lessons-learned.md) | Evergreen engineering lessons distilled from the archived fork narrative. |
 | [`project/agent-interface-contract-audit-2026-07.md`](./project/agent-interface-contract-audit-2026-07.md) | PR #162 defect provenance, review of PRs #157/#160, testing root causes, and recurrence controls. |

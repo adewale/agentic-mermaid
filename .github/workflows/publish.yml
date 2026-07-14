@@ -76,8 +76,8 @@ jobs:
       - name: Golden snapshot drift gate
         run: bun run scripts/ci/golden-drift.ts
 
-      - name: Incremental mutation lane (faithfulness + ranking core)
-        run: npx stryker run stryker.incremental.config.json
+      - name: Incremental mutation lane (faithfulness counter)
+        run: bun run mutation-test:incremental
 
       - name: Fuzz the shipped artifact (built bundle + packed tarball, under Node)
         # The strongest pre-publish signal: builds dist/, and packs+installs the

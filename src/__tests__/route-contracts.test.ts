@@ -985,7 +985,7 @@ describe('duplicate parallel edges (fast-check counterexample, pinned)', () => {
 })
 
 describe('straightened certificate finality (fast-check counterexample, pinned)', () => {
-  it('clears the straightened bit when a fixed-point retry downgrades to a detour', () => {
+  it('does not expose straightened on a final detour', () => {
     const positioned = layoutGraphSync(parseMermaid(`flowchart BT
   N1 -- No --> N4
   N4 -- yes --> N1

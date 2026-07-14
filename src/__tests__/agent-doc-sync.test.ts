@@ -288,13 +288,23 @@ describe('vocabulary doc-sync', () => {
     expect(plan).not.toContain('same canonical installed-appearance registry')
   })
 
-  test('nightly route mutation workflow stays synced with documented commands', () => {
-    const workflow = readFileSync(join(REPO, '.github/workflows/nightly-route-mutation.yml'), 'utf8')
+  test('bounded fault-detection commands stay wired and documented', () => {
     const docs = readFileSync(join(REPO, 'docs/mutation-testing.md'), 'utf8')
-    for (const command of ['bun run mutation-test:routes', 'bun run mutation-test:routes:certs', 'bun run mutation-test:routes:subgraph', 'bun run sabotage:routes']) {
-      expect(workflow).toContain(command)
-      expect(docs).toContain(command.replace('bun run ', ''))
+    const ci = readFileSync(join(REPO, '.github/workflows/ci.yml'), 'utf8')
+    const packageJson = readFileSync(join(REPO, 'package.json'), 'utf8')
+    for (const command of [
+      'mutation-test:incremental',
+      'mutation-test:routes',
+      'mutation-test:routes:certs',
+      'mutation-test:routes:subgraph',
+      'sabotage:routes',
+    ]) {
+      expect(docs).toContain(command)
+      expect(packageJson).toContain(`"${command}"`)
     }
+    expect(ci).toContain('bun run mutation-test:incremental')
+    expect(ci).toContain('bun run sabotage:routes')
+    expect(existsSync(join(REPO, '.github/workflows/nightly-route-mutation.yml'))).toBe(false)
   })
 
   test('every warning code in Instructions_for_agents.md and spec', () => {

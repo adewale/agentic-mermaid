@@ -16,6 +16,5 @@
   "timeoutMS": 60000,
   "concurrency": 4,
   "tempDirName": ".stryker-tmp-routes",
-  "disableTypeChecks": true,
-  "thresholds": { "break": 60 }
+  "disableTypeChecks": true
 }

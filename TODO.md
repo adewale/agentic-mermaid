@@ -200,11 +200,6 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   deduplicate repeated LABEL_OVERFLOW, id-allocation, `set_title`, collection,
   source-map, label-extraction, seeded-hash, and CSS-mix helpers. Characterize
   semantics first and extract one proven cluster at a time.
-- [ ] **CONS-40 — Generate the per-family stryker configs** (`todo`). The
-  `stryker.<family>.config.json` lanes duplicate pure `family → globs → tests` data.
-  Generate them from the citizenship matrix. Caveat: the citizenship test and
-  matrix hard-code the config filenames, so a generator must keep on-disk names
-  or update both in lockstep.
 - [ ] **CONS-41 — Classify remaining non-marker `RawMark` escapes** (`todo`).
   Connector terminals and marker resources are typed. Replace or explicitly
   classify the remaining accessibility/prelude, CSS, icon/image, tooltip, and

@@ -317,7 +317,9 @@ mutation score is the adequacy signal" while the nightly mutation lane had been
 timing out (cancelled) for over a week — the signal's *existence* was asserted
 by docs while its *output* was absent, and nothing alarmed. If a scheduled
 gate's failure/cancellation isn't itself surfaced (a required check, a badge, a
-notification), the gate will die quietly exactly when it matters.
+notification), the gate will die quietly exactly when it matters. Three
+consecutive scheduled failures are now a stop condition: fix, narrow, disable,
+or delete the signal before expanding it.
 
 ## 2026-07 — tracker archaeology (issues 1–83)
 
@@ -373,8 +375,8 @@ null-clearing, ordering, cycle/duplicate guards, immutability, and verification
 warnings—raised the latest local runs to 98.77% and 97.03%. A test that
 touches every op name can still leave almost every branch unproved; mutation
 evidence is a useful check on that distinction. The reports were gitignored
-and the configs enforce only a 60% break floor, so retain a CI artifact or a
-content-addressed report before presenting a local score as an acceptance gate.
+and the configs are diagnostic only, so retain a CI artifact or a
+content-addressed report before presenting a local score as acceptance evidence.
 
 **Treat mutation survivors as design feedback before classifying them.** The
 GitGraph run exposed an unused `currentBranch` helper, which was removed rather

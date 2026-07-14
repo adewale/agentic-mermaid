@@ -245,14 +245,13 @@ avoid duplicating them.
   whole framing: pin actual behaviour, review diffs, approve changes.
 - **Bartocci et al. (2023), property-based mutation testing.** The "load-bearing
   = kills a unique mutant" criterion used in [§ Minimality](#minimality);
-  Stryker (`stryker.characterization.config.json` for fast PR evidence,
-  `stryker.ascii.config.json` for the exhaustive run) is the tool that can
-  verify it.
+  Stryker (`stryker.characterization.config.json` for selected ranges,
+  `stryker.ascii.config.json` for the broader run) is one tool that can explore
+  it.
 
-The fast characterization Stryker config is a smoke gate over selected mutation
-ranges, not a substitute for the exhaustive ASCII run. Surviving mutants in the
-smoke report are useful backlog signals for future deeper characterisation; the
-full ASCII config remains the expensive overnight-style audit.
+Both characterization configs are opt-in diagnostics without break floors or
+acceptance authority. A survivor can inform deliberate follow-up, but the report
+does not create a backlog; only root `TODO.md` schedules work.
 
 ## How to use this
 
