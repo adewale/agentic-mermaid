@@ -49,6 +49,8 @@ bun run gallery:mindmap-gitgraph
 bun run gallery:mindmap-gitgraph:check
 bun run gallery:mermaid-docs
 bun run gallery:mermaid-docs:check
+bun run gallery:pie-highlight
+bun run gallery:pie-highlight:check
 ```
 
 ## Where every registered family is documented

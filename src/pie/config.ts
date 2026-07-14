@@ -7,7 +7,7 @@
 //   pie.textPosition   number 0..1, default 0.75 — axial label position
 //   pie.donutHole      number, valid (0, 0.9], anything else resolves to 0
 //   pie.legendPosition 'top'|'bottom'|'left'|'right'|'center', default 'right'
-//   pie.highlightSlice string — static cross-format emphasis target
+//   pie.highlightSlice string — static cross-format target, or reserved `hover`
 // Theme variables (theming.html):
 //   pie1..pie12                      slice fills, honored in SOURCE order
 //                                    (upstream assigns after d3 sorts — #5314;
@@ -17,7 +17,7 @@
 //                                    configured — the crisp default has none)
 //   pieOpacity                       slice fill opacity
 //   pieSectionTextSize / pieSectionTextColor   on-slice percentage labels
-//   pieTitleTextSize/Color, pieLegendTextSize/Color — NOT wired (lint)
+//   pieTitleTextSize/Color, pieLegendTextSize/Color — title/legend typography
 //
 // Wire-or-warn (P4): every documented key is either resolved here or named in
 // the PIE_NOOP_* lists that verify surfaces as Tier-3 INEFFECTIVE_CONFIG.

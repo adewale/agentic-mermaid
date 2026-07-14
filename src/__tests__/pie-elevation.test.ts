@@ -24,21 +24,30 @@
 // ============================================================================
 
 import { describe, it, expect } from 'bun:test'
+import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import fc from 'fast-check'
 import { parsePieChart } from '../pie/parser.ts'
-import { layoutPieChart, formatPiePercent } from '../pie/layout.ts'
+import {
+  layoutPieChart,
+  formatPiePercent,
+  PIE_LEGEND_HIGHLIGHT_FONT_WEIGHT,
+} from '../pie/layout.ts'
 import type { PositionedPieChart } from '../pie/types.ts'
 import { resolvePieVisualConfig, DEFAULT_PIE_VISUAL_CONFIG } from '../pie/config.ts'
 import type { PieVisualConfig } from '../pie/config.ts'
 import { pieSliceColors } from '../pie/palette.ts'
 import { hexToHsl } from '../xychart/colors.ts'
-import { wcagContrastRatio } from '../shared/color-math.ts'
+import { wcagContrastRatio, wcagCssContrastRatio } from '../shared/color-math.ts'
 import { renderMermaidSVG, renderMermaidASCII } from '../index.ts'
 import { parseMermaid } from '../agent/parse.ts'
 import { verifyMermaid } from '../agent/verify.ts'
 import { measureTextWidth } from '../text-metrics.ts'
 import { toMermaidLines } from '../mermaid-source.ts'
+import { filesUnder, hashFileTree, sortRepositoryPaths } from '../../scripts/pr-assets/artifact-receipt.ts'
 
+const ROOT = join(import.meta.dir, '..', '..')
 const LEGEND_FONT = { size: 13, weight: 500 }
 const LEGEND_LINE_HEIGHT = LEGEND_FONT.size * 1.3
 
@@ -390,18 +399,128 @@ pie showData
     const svg = renderMermaidSVG(donut('Potassium'), { embedFontImport: false })
     // heavier foreground border on the highlighted slice (shape cue, not colour-only);
     // the `var(--fg)` origin is resolved to a concrete theme colour at render time.
-    expect(svg).toMatch(/\.pie-slice\.highlighted \{ stroke: [^;]+; stroke-width: 2\.5; \}/)
+    expect(svg).toMatch(/\.pie-slice\.highlighted \{ stroke: [^;]+; stroke-width: 2\.5; opacity: 1; \}/)
     // a dim tier applied to the non-highlighted slices
     expect(svg).toMatch(/class="pie-slice pie-dim"/)
-    // the highlighted legend row is bold; dimmed rows carry the pie-dim class
+    // the highlighted legend row is bold; only non-text swatches are dimmed.
     expect(svg).toMatch(/class="pie-legend-text" [^>]*font-weight="700"/)
-    expect(svg).toMatch(/class="pie-legend-text pie-dim"/)
+    expect(svg).toMatch(/class="pie-legend-swatch pie-dim"/)
+    expect(svg).not.toContain('class="pie-legend-text pie-dim"')
+    expect(svg).not.toContain('class="pie-slice-label pie-dim"')
+  })
+
+  it('keeps meaningful text at full contrast while graphical siblings dim', () => {
+    const svg = renderMermaidSVG(donut('Potassium'), { embedFontImport: false })
+    expect(wcagCssContrastRatio('#27272A', '#FFFFFF')).toBeGreaterThanOrEqual(4.5)
+    expect(svg).not.toMatch(/<(?:text|tspan)[^>]*\bopacity="0\.4"/)
+    expect(svg).not.toMatch(/class="pie-(?:legend-text|slice-label)[^"]*pie-dim/)
+    const dimmedSliceFill = svg.match(/class="pie-slice pie-dim"[^>]*fill="([^"]+)"/)?.[1]
+    const dimmedLabelFill = svg.match(/class="pie-slice-label"[^>]*fill="([^"]+)"/)?.[1]
+    if (dimmedSliceFill === undefined || dimmedLabelFill === undefined) {
+      throw new Error('highlight fixture must expose a dimmed slice and percentage label')
+    }
+    // 0.4 opacity is 0x66 in eight-digit hex. Check the actual label ink
+    // against the wedge after it is composited over the default page.
+    expect(wcagCssContrastRatio(dimmedLabelFill, `${dimmedSliceFill}66`, '#FFFFFF'))
+      .toBeGreaterThanOrEqual(4.5)
+  })
+
+  it('keeps highlight and legend dimming independent from pieOpacity', () => {
+    const src = donut('Potassium').replace(
+      'pieOuterStrokeWidth: "5px"',
+      'pieOuterStrokeWidth: "5px"\n    pieOpacity: 0.5',
+    )
+    const svg = renderMermaidSVG(src, { embedFontImport: false })
+    expect(svg).toContain('.pie-slice.highlighted')
+    expect(svg).toContain('stroke-width: 2.5; opacity: 1;')
+    expect(svg).toContain('.pie-slice.pie-dim { opacity: 0.2; }')
+    expect(svg).toContain('.pie-legend-swatch.pie-dim { opacity: 0.4; }')
+  })
+
+  it('preserves the semantic highlight border in styled backends', () => {
+    for (const style of ['hand-drawn', 'watercolor'] as const) {
+      const svg = renderMermaidSVG(donut('Potassium'), { style, embedFontImport: false })
+      const fg = svg.match(/--fg:\s*([^;]+)/)?.[1]
+      if (fg === undefined) throw new Error(`${style} output is missing the foreground token`)
+      const carrier = svg.indexOf('data-id="slice:Potassium"')
+      expect(carrier).toBeGreaterThan(-1)
+      // Styled backends redraw semantic paint immediately after the crisp
+      // carrier. Their style-specific scale differs, but the outline must use
+      // the foreground colour, full opacity, and a width above the base 2.7px.
+      const redraw = svg.slice(carrier).match(/\/>\n(<path[^>]+>)/)?.[1]
+      expect(redraw).toContain(`stroke="${fg}"`)
+      expect(redraw).toContain('stroke-opacity="1"')
+      expect(Number(redraw?.match(/stroke-width="([^"]+)"/)?.[1])).toBeGreaterThan(2.7)
+    }
+  })
+
+  it('measures the selected legend row at the bold weight it renders', () => {
+    const label = 'W'.repeat(48)
+    const chart = layout(`pie showData\n  "${label}" : 2\n  "Other" : 1`, { highlightSlice: label })
+    const item = chart.legend[0]!
+    const renderedTextWidth = Math.max(...item.lines.map(line =>
+      measureTextWidth(line, LEGEND_FONT.size, PIE_LEGEND_HIGHLIGHT_FONT_WEIGHT)))
+    expect(item.textX + renderedTextWidth).toBeLessThanOrEqual(chart.width + 0.01)
+    expect(chart.width - item.textX - renderedTextWidth).toBeGreaterThan(renderedTextWidth * 0.09)
   })
 
   it('dims nothing when the highlight target matches no slice', () => {
     const svg = renderMermaidSVG(donut('Nonexistent'), { embedFontImport: false })
     expect(svg).not.toMatch(/class="[^"]*pie-dim/)
     expect(svg).not.toContain('class="pie-slice highlighted"')
+  })
+
+  it('treats the reserved hover value as interaction mode, not a literal slice label', () => {
+    const src = `---
+config:
+  pie:
+    highlightSlice: hover
+---
+pie showData
+  "hover" : 2
+  "Other" : 1`
+    const svg = renderMermaidSVG(src, { embedFontImport: false })
+    expect((svg.match(/class="pie-slice highlighted-on-hover"/g) ?? []).length).toBe(2)
+    expect((svg.match(/class="pie-slice-hover-target"/g) ?? []).length).toBe(2)
+    expect((svg.match(/class="pie-slice-group"/g) ?? []).length).toBe(2)
+    expect(svg).toContain('.pie-slice-group:hover > .pie-slice-hover-target')
+    expect(svg).not.toContain('<title>')
+    expect(svg).not.toContain('.pie-tip')
+    expect(svg).not.toContain('class="pie-slice highlighted"')
+    expect(svg).not.toMatch(/class="[^"]*pie-dim/)
+    expect(svg).not.toContain('font-weight="700"')
+    expect(renderMermaidASCII(src, { useAscii: true })).toBe(
+      renderMermaidASCII('pie showData\n  "hover" : 2\n  "Other" : 1', { useAscii: true }),
+    )
+  })
+
+  it('pins the generated cross-product evidence to current renderer inputs and PNG bytes', () => {
+    const receipt = JSON.parse(readFileSync(join(ROOT, 'eval', 'pie-highlightslice', 'evidence-receipt.json'), 'utf8')) as {
+      schemaVersion: number
+      generator: string
+      inputCount: number
+      inputTreeSha256: string
+      outputs: Array<{ path: string; sha256: string }>
+    }
+    expect(receipt.schemaVersion).toBe(1)
+    expect(receipt.generator).toBe('scripts/pr-assets/pie-highlightslice-evidence.ts')
+    const inputs = sortRepositoryPaths(ROOT, [
+      join(ROOT, 'package.json'),
+      join(ROOT, 'bun.lock'),
+      join(ROOT, receipt.generator),
+      join(ROOT, 'scripts/pr-assets/artifact-receipt.ts'),
+      ...filesUnder(join(ROOT, 'src'), path => path.endsWith('.ts')),
+    ])
+    expect(receipt.inputCount).toBe(inputs.length)
+    expect(receipt.inputTreeSha256).toBe(hashFileTree(ROOT, inputs))
+    expect(receipt.outputs.map(output => output.path)).toEqual([
+      'docs/design/families/pie-highlightslice-regression-matrix.png',
+      'docs/design/families/pie-highlightslice-after.png',
+    ])
+    for (const output of receipt.outputs) {
+      expect(createHash('sha256').update(readFileSync(join(ROOT, output.path))).digest('hex'))
+        .toBe(output.sha256)
+    }
   })
 })
 
@@ -645,6 +764,19 @@ describe('pie interactive tooltips', () => {
     expect((svg.match(/<title>/g) ?? []).length).toBe(3)
     expect(svg).toContain('.pie-tip')
     expect(svg).toContain('Dogs: 386 (79.4%)')
+  })
+
+  it('uses the interactive hit target to drive hover emphasis', () => {
+    const src = `---
+config:
+  pie:
+    highlightSlice: hover
+---
+${SRC}`
+    const svg = renderMermaidSVG(src, { interactive: true, embedFontImport: false })
+    expect((svg.match(/class="pie-slice-hover-target"/g) ?? []).length).toBe(3)
+    expect(svg).toContain('.pie-slice-group:hover > .pie-slice-hover-target')
+    expect(svg).toMatch(/\.pie-slice-group:hover > \.pie-slice-hover-target \{ stroke: [^;]+; stroke-width: 2\.5; opacity: 1; \}/)
   })
 
   it('stays inert by default (no tooltip chrome in non-interactive output)', () => {
