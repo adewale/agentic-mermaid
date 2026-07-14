@@ -1,6 +1,10 @@
 var cfgColors = { bg: '', fg: '', accent: '', line: '', muted: '', surface: '' };
 var cfgFont = '';
-var cfgPadding = 24;
+// Must match the library's default padding (src/layout/geometry.ts DEFAULTS.padding / the
+// render-contract `padding` schema default). This value is both the control's display default
+// and the "unset" sentinel below, so a mismatch made the control show a value the renderer did
+// not use and made the real default unreachable.
+var cfgPadding = 40;
 var advancedOptionsInput = document.getElementById('cfg-advanced-options');
 var advancedOptionsApply = document.getElementById('cfg-advanced-apply');
 var advancedOptionsSchema = document.getElementById('cfg-advanced-schema');
@@ -79,7 +83,7 @@ function readConfig() {
   });
   if (cfgFont) cfg.font = cfgFont;
   else delete cfg.font;
-  if (cfgPadding !== 24) cfg.padding = cfgPadding;
+  if (cfgPadding !== 40) cfg.padding = cfgPadding;
   else delete cfg.padding;
   state.config = cfg;
   syncAdvancedOptionsEditor(state.config);
@@ -141,7 +145,7 @@ function hydrateConfigControls(config) {
   });
   cfgFont = typeof config.font === 'string' ? config.font : '';
   var parsedPadding = Number(config.padding);
-  cfgPadding = Number.isFinite(parsedPadding) ? parsedPadding : 24;
+  cfgPadding = Number.isFinite(parsedPadding) ? parsedPadding : 40;
   if (typeof fontSelectLabel !== 'undefined' && fontSelectLabel) fontSelectLabel.textContent = fontLabelForValue(cfgFont);
   if (typeof paddingNum !== 'undefined' && paddingNum) paddingNum.value = cfgPadding;
   if (typeof paddingSlider !== 'undefined' && paddingSlider) paddingSlider.value = cfgPadding;
