@@ -1491,7 +1491,13 @@ export function runBatchLine(rawLine: string, lineIndex = 0): BatchOutput {
         return { ok: false, op, error: { code: 'UNKNOWN_OP', message: `unknown op: ${op}` } }
     }
   } catch (e) {
-    if (isCliStructuredFailure(e)) return { ok: false, op, error: e.error }
+    // Project documented render diagnostics (family-detection UNKNOWN_HEADER/
+    // UNSUPPORTED_FAMILY, ASCII_TARGET_WIDTH_IMPOSSIBLE) the same way every other CLI render
+    // transport does (cmdRender/preview/render-markdown), instead of collapsing them to a
+    // generic INTERNAL. cliStructuredRenderFailure first honours an already-structured throw,
+    // then falls back to INTERNAL for genuinely internal errors.
+    const structured = cliStructuredRenderFailure(e)
+    if (structured) return { ok: false, op, error: structured.error }
     return { ok: false, op, error: { code: 'INTERNAL', message: (e as Error).message } }
   }
 }
