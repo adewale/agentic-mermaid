@@ -1084,7 +1084,7 @@
     },
     {
       "path": "src/__tests__/property-agent-read-surface-fuzz.test.ts",
-      "sha256": "d10b9a86a15e8d0f79c30e58100c377bd0779db3421e8f4942a83562b4765a3b"
+      "sha256": "4c3e3ffbf6c928f5be0c4f32f793f3f1423952e6809682f0ccb77745771f4b80"
     },
     {
       "path": "src/__tests__/property-all-families-fuzz.test.ts",
@@ -1164,7 +1164,7 @@
     },
     {
       "path": "src/__tests__/property-synthesize-fuzz.test.ts",
-      "sha256": "b133b4b8e6f9a20877711a0062b6b9711a1e11063c57f86f5d2720d593143efa"
+      "sha256": "3c877a74234e83622e09eb98356200a555777cc08b3bb28b694b127089c344cb"
     },
     {
       "path": "src/__tests__/property-unicode-labels.test.ts",
