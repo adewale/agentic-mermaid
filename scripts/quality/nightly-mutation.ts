@@ -94,7 +94,7 @@ export const NIGHTLY_MUTATION_LANES: readonly NightlyLane[] = [
   { id: 'er', config: 'stryker.er.config.json', timeout: 90 },
   { id: 'journey', config: 'stryker.journey.config.json', timeout: 90 },
   { id: 'pie', config: 'stryker.pie.config.json', timeout: 90 },
-  { id: 'quadrant', config: 'stryker.quadrant.config.json', timeout: 90 },
+  { id: 'quadrant', config: 'stryker.quadrant.config.json', timeout: 90, maxLinesPerShard: 500 },
   { id: 'gantt', config: 'stryker.gantt.config.json', timeout: 120, maxLinesPerShard: 700 },
   { id: 'mindmap', config: 'stryker.mindmap.config.json', timeout: 90 },
   { id: 'gitgraph', config: 'stryker.gitgraph.config.json', timeout: 90 },
