@@ -7,11 +7,13 @@
 // The matching "-before.png" images are baselines rendered at the radar base
 // commit (they predate this change) and are retained, not regenerated here —
 // reproduce them with:
-//   git worktree add --detach /tmp/radar-base <radar-base-sha>
-//   (cd /tmp/radar-base && bun install && \
+//   git worktree add --detach /tmp/agentic-mermaid-radar-before e27d9ed4caf1e161933c2ce797a616cbd92af784
+//   (cd /tmp/agentic-mermaid-radar-before && bun install --frozen-lockfile && \
 //     bun run bin/am.ts render \
-//       ../<repo>/docs/design/families/radar-reverse-lessons-demo.mmd \
-//       --format png --output radar-reverse-lessons-before.png)
+//       docs/design/families/radar-reverse-lessons-demo.mmd \
+//       --format png --output /tmp/radar-reverse-lessons-before.png)
+//   cp /tmp/radar-reverse-lessons-before.png \
+//     docs/design/families/radar-reverse-lessons-before.png
 //
 // Run: bun run scripts/pr-assets/radar-reverse-lessons.ts
 import { readFileSync, writeFileSync } from 'node:fs'

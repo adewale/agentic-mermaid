@@ -4,7 +4,7 @@ import { layoutRadarChart, RADAR_METRICS, RADAR_LABEL_METRICS } from '../radar/l
 import { guardLabelInk } from '../radar/renderer.ts'
 import type { PositionedRadarAxis, PositionedRadarChart } from '../radar/types.ts'
 import { measureTextWidth } from '../text-metrics.ts'
-import { contrastRatio } from '../shared/color-math.ts'
+import { contrastRatio, wcagCssContrastRatio } from '../shared/color-math.ts'
 import { renderMermaidSVG } from '../agent/index.ts'
 
 // ============================================================================
@@ -32,6 +32,9 @@ function axisBox(a: PositionedRadarAxis): Box {
 function overlaps(A: Box, B: Box, tol = 0.5): boolean {
   return A.left < B.right - tol && B.left < A.right - tol && A.top < B.bottom - tol && B.top < A.bottom - tol
 }
+function tickBox(t: PositionedRadarChart['tickLabels'][number]): Box {
+  return { left: t.x - t.w / 2, right: t.x + t.w / 2, top: t.y - t.h / 2, bottom: t.y + t.h / 2 }
+}
 
 // A dataset whose bottom axis reaches the outer ring and whose labels are long.
 const DEMO = `radar-beta
@@ -51,7 +54,7 @@ ${Array.from({ length: 24 }, (_v, i) => `  axis a${i}["Metric ${i}"]`).join('\n'
   max 5`
 
 describe('radar label discipline — reverse-flow lessons', () => {
-  test('R5 — every ring value label carries a knockout box (rendered as a rect)', () => {
+  test('R5 — admitted ring labels have disjoint knockout boxes painted before text', () => {
     const chart = layout(DEMO, { tickLabels: true })
     expect(chart.tickLabels.length).toBe(5)
     for (const t of chart.tickLabels) {
@@ -60,15 +63,34 @@ describe('radar label discipline — reverse-flow lessons', () => {
     }
     const svg = renderMermaidSVG(`---\nconfig:\n  radar:\n    tickLabels: true\n---\n${DEMO}`)
     expect((svg.match(/class="radar-tick-box"/g) ?? []).length).toBe(5)
+    expect(svg.lastIndexOf('class="radar-tick-box"')).toBeLessThan(svg.indexOf('class="radar-tick-label"'))
+
+    const dense = layout('radar-beta\n axis a, b, c, d\n curve x{1,2,3,4}\n ticks 64\n max 64', { tickLabels: true })
+    expect(dense.tickLabels.length).toBeLessThan(64)
+    expect(dense.tickLabels.at(-1)?.text).toBe('64')
+    for (let i = 0; i < dense.tickLabels.length; i++) {
+      for (let j = i + 1; j < dense.tickLabels.length; j++) {
+        expect(overlaps(tickBox(dense.tickLabels[i]!), tickBox(dense.tickLabels[j]!))).toBe(false)
+      }
+    }
   })
 
-  test('R6 — guardLabelInk lifts a concrete low-contrast ink to WCAG-AA and passes vars through', () => {
+  test('R6 — guardLabelInk certifies composited ink and falls back from unresolved CSS', () => {
     const guarded = guardLabelInk('#9a9a9a', '#ffffff', '#111111')
     expect(guarded).not.toBe('#9a9a9a')
     expect(contrastRatio(guarded, '#ffffff')!).toBeGreaterThanOrEqual(4.5)
-    // An already-AA color is preserved; unresolved var() tokens pass through.
+    // An already-AA color is preserved; uncertainty and translucent low
+    // contrast are never treated as proof of AA.
     expect(guardLabelInk('#111111', '#ffffff', '#000000')).toBe('#111111')
-    expect(guardLabelInk('var(--_text)', '#ffffff', '#000000')).toBe('var(--_text)')
+    expect(guardLabelInk('var(--_text)', '#ffffff', '#000000')).toBe('#000000')
+    const alphaGuarded = guardLabelInk('rgba(0,0,0,0.1)', '#ffffff', '#111111')
+    expect(wcagCssContrastRatio(alphaGuarded, '#ffffff')!).toBeGreaterThanOrEqual(4.5)
+
+    const svg = renderMermaidSVG(DEMO)
+    const defaultInk = svg.match(/\.radar-axis-label \{ fill: ([^;]+); \}/)?.[1]
+    expect(defaultInk).toBeDefined()
+    expect(defaultInk).not.toBe('var(--_line)')
+    expect(wcagCssContrastRatio(defaultInk!, '#ffffff')!).toBeGreaterThanOrEqual(4.5)
   })
 
   test('R4 — long axis labels wrap to a width budget (and stay within the cap)', () => {
@@ -82,6 +104,18 @@ describe('radar label discipline — reverse-flow lessons', () => {
     }
   })
 
+  test('R4 — hard-wrapped tokens retain every authored grapheme and accessible label', () => {
+    const authored = 'OperationalCostEfficiency'
+    const source = `radar-beta\n axis a["${authored}"], b, c, d\n curve x{1,2,3,4}\n max 5`
+    const axis = layout(source).axes[0]!
+    const reconstructed = axis.lines
+      .map((line, index) => index < axis.lines.length - 1 && line.endsWith('-') ? line.slice(0, -1) : line)
+      .join('')
+    expect(reconstructed).toBe(authored)
+    expect(axis.label).toBe(authored)
+    expect(renderMermaidSVG(source)).toContain(`aria-label="${authored}"`)
+  })
+
   test('R1 (clearance) — the straight-down axis label clears the outer ring + dot', () => {
     const chart = layout(DEMO)
     const bottom = chart.axes[3]! // n=6, index 3 → 180° (bottom); curve c reaches max here
@@ -90,8 +124,9 @@ describe('radar label discipline — reverse-flow lessons', () => {
     expect(box.top - chart.cy).toBeGreaterThanOrEqual(chart.radius + RADAR_METRICS.dotRadius)
   })
 
-  test('R1 (de-collision) — no two axis-label boxes overlap, even at 24 tight axes', () => {
-    for (const chart of [layout(DEMO), layout(DENSE)]) {
+  test('R1 (de-collision) — no two axis-label boxes overlap, including the maximum axis count', () => {
+    const maxAxes = `radar-beta\n${Array.from({ length: 256 }, (_v, i) => ` axis a${i}["Metric ${i}"]`).join('\n')}\n max 5`
+    for (const chart of [layout(DEMO), layout(DENSE), layout(maxAxes)]) {
       const boxes = chart.axes.map(axisBox)
       for (let i = 0; i < boxes.length; i++) {
         for (let j = i + 1; j < boxes.length; j++) {
@@ -117,10 +152,20 @@ describe('radar label discipline — reverse-flow lessons', () => {
     const chart = layout(DEMO)
     const longItem = chart.legend.find(i => i.label.startsWith('Model A'))!
     expect(longItem.lines.length).toBeGreaterThanOrEqual(2)
-    // Rows are laid out top-to-bottom; consecutive swatches never overlap.
+    // Rows are laid out top-to-bottom; the union of the swatch and measured
+    // multi-line text box never overlaps the following row.
     const sorted = [...chart.legend].sort((a, b) => a.y - b.y)
+    const rowBox = (item: typeof sorted[number]): Box => {
+      const textHeight = item.lines.length * chart.typography.legendFontSize * 1.2
+      return {
+        left: Math.min(item.x, item.textX),
+        right: Math.max(item.x + item.swatchSize, item.textX),
+        top: Math.min(item.y, item.textY - textHeight / 2),
+        bottom: Math.max(item.y + item.swatchSize, item.textY + textHeight / 2),
+      }
+    }
     for (let i = 1; i < sorted.length; i++) {
-      expect(sorted[i]!.y).toBeGreaterThanOrEqual(sorted[i - 1]!.y + sorted[i - 1]!.swatchSize - 0.5)
+      expect(overlaps(rowBox(sorted[i - 1]!), rowBox(sorted[i]!))).toBe(false)
     }
   })
 

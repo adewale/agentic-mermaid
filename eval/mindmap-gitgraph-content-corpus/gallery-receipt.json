@@ -1208,15 +1208,19 @@
     },
     {
       "path": "src/__tests__/radar-config.test.ts",
-      "sha256": "499957f85bc1ad505690518a54b295a8dd7e7072b748cfd52d6e7a85f3d30d95"
+      "sha256": "fdc5f40bfff9b274f40e5ccb35a22083a54470380724c75dea36f2b345c17f06"
     },
     {
       "path": "src/__tests__/radar-integration.test.ts",
       "sha256": "a5cbd91c0881dd30ba5c5387a1946715b011a077ba8a38ff54895159a4210972"
     },
     {
+      "path": "src/__tests__/radar-label-discipline.test.ts",
+      "sha256": "63347c1c4dbf2836a40eb1650d6d40c67cb9f271317e3ac746ee83c08d0387e8"
+    },
+    {
       "path": "src/__tests__/radar-parser.test.ts",
-      "sha256": "423fa688f3c6c7be6a3078ecca129ad6f118c3d1f2fe6d16d59f97f3b3f4c513"
+      "sha256": "f4d1ea31b94c7d22d8a92efa534a67c78b490e117703e1763dae29902d0418ec"
     },
     {
       "path": "src/__tests__/radar-renderer.test.ts",
@@ -1636,7 +1640,7 @@
     },
     {
       "path": "src/agent/family-layouts.ts",
-      "sha256": "d1c73835fa37fe622d015db570c5e8a691aae923d27cf24359b5006914750432"
+      "sha256": "6007b2a09f0cd72cfb6691861aeec00722cf7dcb755ae916228859a3c59c7f39"
     },
     {
       "path": "src/agent/family-registration.ts",
@@ -2344,19 +2348,19 @@
     },
     {
       "path": "src/radar/config.ts",
-      "sha256": "0a2cbccc2cd753d5f6cf2bf4724d980e9aafc78f9ee4e268c00c977fcb6df936"
+      "sha256": "8276293ce41767fdaa23b1d6c7e93ca22b405203f84194bcb304c4ffa6f8c2b6"
     },
     {
       "path": "src/radar/layout.ts",
-      "sha256": "c5ecc5d3db79ee5f72a86d02fab4c7f538f465928b48c6c823e19a396f492e5e"
+      "sha256": "91f2ca272baadac3b99e7c81bdd40e67ac30210ce17b63546cb3b2af4327d761"
     },
     {
       "path": "src/radar/parser.ts",
-      "sha256": "8e779fdc0623a27d7115964ec85bd2cddcba030164a1000ebabdbf3e3bcbf862"
+      "sha256": "238d2e87eaab4148dd12e0d2f413558f2c59a5cad1f009a5bd34384392b18ae1"
     },
     {
       "path": "src/radar/renderer.ts",
-      "sha256": "0fa48be2b17d438b4a14d993dd920b8a8351746ffa809357a8ef53ffc2915d23"
+      "sha256": "41b8e8b96bf248efbec548789a2557f4d33b7e9fda0165f95e66ba2447213df7"
     },
     {
       "path": "src/radar/scale.ts",
@@ -2364,7 +2368,7 @@
     },
     {
       "path": "src/radar/types.ts",
-      "sha256": "1dd7533db428315195c88644459dcdabf6ea57c63f21851ed106adab6013ac1a"
+      "sha256": "8f38fc55b77d4124b03e323bddb9eac059e28da24fd64f3c22165eec0bd9d08d"
     },
     {
       "path": "src/render-contract.ts",
@@ -2588,7 +2592,7 @@
     },
     {
       "path": "src/shared/family-config-diagnostics.ts",
-      "sha256": "51014113d17a33a12ae05e8bec8caeccb244341e2bb81824da0f2ce86d0c1e67"
+      "sha256": "b03eea6a3edf8df6e096201f55368c1f4181c3c6af7e32fd11205246b9216770"
     },
     {
       "path": "src/shared/graphemes.ts",
@@ -2604,7 +2608,7 @@
     },
     {
       "path": "src/shared/label-wrap.ts",
-      "sha256": "7b2682f9fe54b96e1bb48915421086ac10ff242e68061e91bc1d53f157b70b6c"
+      "sha256": "be93a27f68a8fe09ed3b9754956a99e3157b6e0a3cecab32df80bdef8410713e"
     },
     {
       "path": "src/shared/mermaid-identifiers.ts",

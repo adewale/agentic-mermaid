@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { parseRadarChart } from '../radar/parser.ts'
+import { MAX_RADAR_AXES, parseRadarChart } from '../radar/parser.ts'
 
 const lines = (src: string): string[] => src.split('\n').map(l => l.trim()).filter(Boolean)
 
@@ -57,6 +57,12 @@ describe('radar parser', () => {
     for (const ticks of ['0', '2.5', '65']) {
       expect(() => parseRadarChart(lines(`radar-beta\n  axis a\n  curve x{1}\n  ticks ${ticks}\n  max 2`))).toThrow(/ticks/i)
     }
+  })
+
+  test('axis count is resource-bounded before layout', () => {
+    const accepted = Array.from({ length: MAX_RADAR_AXES }, (_v, i) => `a${i}`).join(',')
+    expect(parseRadarChart(lines(`radar-beta\n axis ${accepted}`)).axes).toHaveLength(MAX_RADAR_AXES)
+    expect(() => parseRadarChart(lines(`radar-beta\n axis ${accepted},overflow`))).toThrow(/at most 256 axes/i)
   })
 
   test('multiple axes/curves per line, comma-joined options', () => {

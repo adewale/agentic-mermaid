@@ -117,23 +117,38 @@ function wrapFormattedParagraph(
 
 export function breakWordToWidth(word: string, maxWidth: number, fontSize: number, fontWeight: number): string {
   if (measureTextWidth(word, fontSize, fontWeight) <= maxWidth) return word
+  const clusters = graphemes(word)
   const lines: string[] = []
-  let current = ''
-  let previousCluster = ''
-  for (const cluster of graphemes(word)) {
-    const candidate = current + cluster
-    if (current && measureTextWidth(candidate, fontSize, fontWeight) > maxWidth) {
-      // A hyphen marks a mid-word break in alphabetic scripts; CJK, emoji,
-      // and other fullwidth grapheme clusters break without one.
-      const breakIsFullwidth = isFullwidthChar(previousCluster) && isFullwidthChar(cluster)
-      lines.push(breakIsFullwidth ? current : `${current}-`)
-      current = cluster
-    } else {
+  let start = 0
+  while (start < clusters.length) {
+    let current = ''
+    let end = start
+    while (end < clusters.length) {
+      const cluster = clusters[end]!
+      const candidate = current + cluster
+      const hasMore = end < clusters.length - 1
+      const next = clusters[end + 1] ?? ''
+      const breakIsFullwidth = hasMore && isFullwidthChar(cluster) && isFullwidthChar(next)
+      const measured = candidate + (hasMore && !breakIsFullwidth ? '-' : '')
+      if (current && measureTextWidth(measured, fontSize, fontWeight) > maxWidth) break
       current = candidate
+      end++
     }
-    previousCluster = cluster
+
+    // One unusually wide grapheme must still make progress. A hyphen is only
+    // emitted when it also fits inside the promised line-width budget.
+    if (end === start) {
+      current = clusters[end]!
+      end++
+    }
+    const hasMore = end < clusters.length
+    const breakIsFullwidth = hasMore && isFullwidthChar(clusters[end - 1]!) && isFullwidthChar(clusters[end]!)
+    const hyphenated = `${current}-`
+    lines.push(hasMore && !breakIsFullwidth && measureTextWidth(hyphenated, fontSize, fontWeight) <= maxWidth
+      ? hyphenated
+      : current)
+    start = end
   }
-  if (current) lines.push(current)
   return lines.join('\n')
 }
 

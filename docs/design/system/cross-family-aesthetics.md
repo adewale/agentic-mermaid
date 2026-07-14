@@ -27,7 +27,10 @@ Radar became beautiful **without touching the styling engine**. It added *zero* 
 scene roles and *zero* new mark kinds, lowered its marks onto existing roles —
 `pie-slice` (fill), `grid` (rings/spokes), `point` (dots), `axis`, `legend`, `title` —
 and inherited hand-drawn sketch, watercolor wash, text halos, 21 palettes × 16 looks,
-DOM identity and accessibility **for free**. The backends dispatch purely on
+and shared paint behavior **for free**. DOM identity and accessibility remain
+explicit family responsibilities: radar builds its root accessibility attributes
+in `src/radar/renderer.ts`, while its reused `axis`/`legend` roles intentionally
+carry no automatic DOM identity or relation semantics. The backends dispatch purely on
 `sceneRoleTraits(node.role)`, never on the diagram family (`src/scene/rough-backend.ts:446-459`;
 `src/scene/backend.ts`).
 

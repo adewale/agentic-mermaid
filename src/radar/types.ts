@@ -86,6 +86,9 @@ export interface PositionedRadarRing {
 /** A radial spoke plus its outward axis label. */
 export interface PositionedRadarAxis {
   id: string
+  /** Complete authored label, retained for accessibility/public projections
+   *  even when the visible label is wrapped. */
+  label: string
   /** Spoke endpoint (on the outer ring). */
   x: number
   y: number

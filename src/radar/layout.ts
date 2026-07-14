@@ -15,6 +15,7 @@ import { resolveRenderStyle, STROKE_WIDTHS } from '../styles.ts'
 import type { RenderStyleDefaults } from '../styles.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { radarValueRatio, resolveRadarScale } from './scale.ts'
+import { MAX_RADAR_AXES } from './parser.ts'
 
 // ============================================================================
 // Radar chart layout engine
@@ -31,7 +32,7 @@ import { radarValueRatio, resolveRadarScale } from './scale.ts'
 //
 // Label discipline borrows the whole-repo "union of lessons" (see
 // docs/design/system/cross-family-aesthetics.md):
-//   • budget-driven wrap compression + ellipsize (timeline / quadrant)
+//   • budget-driven, lossless wrap compression (timeline / quadrant)
 //   • radial clearance + pairwise de-collision of axis labels (ER)
 //   • leader lines to relocated labels (quadrant)
 //   • knockout boxes behind ring value labels (flowchart)
@@ -109,21 +110,6 @@ function boxesOverlap(a: Box, b: Box, pad = 0): boolean {
   return a.left < b.right + pad && b.left < a.right + pad && a.top < b.bottom + pad && b.top < a.bottom + pad
 }
 
-/** Trim `text` with a trailing ellipsis until it fits `maxWidth` (last-resort
- *  guard after word-wrapping; the wrapper already hard-breaks long tokens). */
-function ellipsizeLine(text: string, maxWidth: number, fontSize: number, fontWeight: number): string {
-  if (measureTextWidth(text, fontSize, fontWeight) <= maxWidth) return text
-  const chars = [...text]
-  let lo = 0
-  let hi = chars.length
-  while (lo < hi) {
-    const mid = Math.ceil((lo + hi) / 2)
-    if (measureTextWidth(chars.slice(0, mid).join('') + '…', fontSize, fontWeight) <= maxWidth) lo = mid
-    else hi = mid - 1
-  }
-  return lo > 0 ? chars.slice(0, lo).join('') + '…' : '…'
-}
-
 /**
  * Closed curve `d` through `pts`. `graticule polygon` → straight polygon;
  * `graticule circle` → smooth closed Catmull-Rom (tension `t`), the exact
@@ -159,6 +145,7 @@ export function layoutRadarChart(
 ): PositionedRadarChart {
   const style = resolveRenderStyle(options, radarStyleDefaults(visual), styleFace)
   const n = chart.axes.length
+  if (n > MAX_RADAR_AXES) throw new Error(`Radar charts support at most ${MAX_RADAR_AXES} axes.`)
 
   // Radius from config (min(width,height)/2 minus label gutter) or default.
   let radius: number = R.radius
@@ -182,7 +169,7 @@ export function layoutRadarChart(
   const titleFont = style.groupHeaderFontSize
   const titleWeight = style.groupHeaderFontWeight
 
-  // --- Axis labels: budget-driven wrap compression + ellipsize -------------
+  // --- Axis labels: budget-driven, lossless wrap compression ----------------
   // Wrap at the default cap, then (timeline discipline) shrink the cap in
   // bounded steps while the widest wrapped label still exceeds a budget derived
   // from the plot radius, so a couple of very long labels can't blow the gutter.
@@ -197,9 +184,6 @@ export function layoutRadarChart(
     wrapCap = Math.max(R.axisLabelMinWidth, wrapCap - 12)
     wrappedAxes = wrapAt(wrapCap)
   }
-  // Last-resort ellipsize for any unbreakable token still over the tightest cap.
-  const ellipsizeCap = Math.max(wrapCap, R.axisLabelMinWidth)
-  wrappedAxes = wrappedAxes.map(lines => lines.map(line => ellipsizeLine(line, ellipsizeCap, axisFont, axisWeight)))
   const axisLabelW = wrappedAxes.map(lines => Math.max(0, ...lines.map(line => measureTextWidth(line, axisFont, axisWeight))))
   const axisBlockH = wrappedAxes.map(lines => lines.length * axisLineH)
 
@@ -213,7 +197,10 @@ export function layoutRadarChart(
   // --- Axis-label placement (center-relative), de-collision + leaders -------
   // Overlaps are translation-invariant, so we resolve them around the origin,
   // then size gutters from the final boxes and place absolutely.
-  const baseR = radius * labelFactor + R.axisLabelPad
+  const baseR = radius * 1.05 + R.axisLabelPad
+  // Valid configured factors begin above the default and remain observable
+  // even when mandatory ring/text clearance determines the base position.
+  const configuredLabelPush = visual.axisLabelFactor === undefined ? 0 : radius * (labelFactor - 1.05)
   const anchors: Array<'start' | 'middle' | 'end'> = chart.axes.map((_a, i) => {
     const h = Math.sin(axisAngle(i, n))
     return h > 0.3 ? 'start' : h < -0.3 ? 'end' : 'middle'
@@ -221,7 +208,8 @@ export function layoutRadarChart(
   // Initial radial push: clear the outer ring + its dot + half the label block,
   // so a multi-line label (esp. straight-down) never overlaps the silhouette.
   const ringClear = Math.max(radius, radius * axisScale, ...dataMaxR) + R.dotRadius + R.labelClearGap
-  const offset = new Array<number>(n).fill(0).map((_v, i) => Math.max(0, ringClear + axisBlockH[i]! / 2 - baseR))
+  const offset = new Array<number>(n).fill(0).map((_v, i) =>
+    Math.max(0, ringClear + axisBlockH[i]! / 2 - baseR) + configuredLabelPush)
   const collided = new Array<boolean>(n).fill(false)
   const relBox = (i: number): Box & { rx: number; ry: number } => {
     const ang = axisAngle(i, n)
@@ -232,23 +220,26 @@ export function layoutRadarChart(
     const left = anchors[i] === 'start' ? rx : anchors[i] === 'end' ? rx - w : rx - w / 2
     return { left, right: left + w, top: ry - axisBlockH[i]! / 2, bottom: ry + axisBlockH[i]! / 2, rx, ry }
   }
-  // Pairwise de-collision (ER discipline): push the more-horizontal label of an
-  // overlapping pair outward until clear. Bounded + deterministic order.
-  for (let pass = 0; pass < 60; pass++) {
-    let moved = false
-    for (let a = 0; a < n; a++) {
-      for (let b = a + 1; b < n; b++) {
-        if (boxesOverlap(relBox(a), relBox(b), 2)) {
-          const ha = Math.abs(Math.sin(axisAngle(a, n)))
-          const hb = Math.abs(Math.sin(axisAngle(b, n)))
-          const push = ha >= hb ? a : b
-          offset[push]! += 6
-          collided[push] = true
-          moved = true
-        }
+  // Deterministic radial admission: place axes in source order and, only when
+  // needed, exponentially move the current label beyond every already-admitted
+  // box. Unlike a fixed relaxation pass, every returned pair is proven clear.
+  // MAX_RADAR_AXES makes the pair checks a hard-bounded resource cost.
+  const admitted: number[] = []
+  for (let i = 0; i < n; i++) {
+    const initialOffset = offset[i]!
+    const overlapsAdmitted = (): boolean => admitted.some(other => boxesOverlap(relBox(i), relBox(other), 2))
+    if (overlapsAdmitted()) {
+      collided[i] = true
+      let extra = 6
+      let placed = false
+      for (let attempt = 0; attempt < 48; attempt++) {
+        offset[i] = initialOffset + extra
+        if (!overlapsAdmitted()) { placed = true; break }
+        extra *= 2
       }
+      if (!placed) throw new Error('Radar axis labels could not be placed within finite layout bounds.')
     }
-    if (!moved) break
+    admitted.push(i)
   }
 
   // --- Legend: wrap labels to a budget, reserve per-row height (gantt) ------
@@ -328,6 +319,7 @@ export function layoutRadarChart(
       : undefined
     return {
       id: axis.id,
+      label: axis.label,
       x: round(spoke.x),
       y: round(spoke.y),
       labelX: round(label.x),
@@ -360,12 +352,20 @@ export function layoutRadarChart(
   const tickLabels: PositionedRadarTickLabel[] = []
   if (visual.tickLabels && n > 0) {
     const gapAngle = axisAngle(0, n) + Math.PI / n
-    for (const ring of rings) {
+    // Admit outside-in so the scale endpoint survives when dense tick counts
+    // cannot fit. Each accepted knockout box is disjoint from every other.
+    for (const ring of [...rings].reverse()) {
       const p = polar(cx, cy, ring.r, gapAngle)
       const text = formatTick(ring.value)
       const w = measureTextWidth(text, R.ringLabelFontSize, 500) + R.tickBoxPadX * 2
       const h = R.ringLabelFontSize + R.tickBoxPadY * 2
-      tickLabels.push({ text, x: round(p.x), y: round(p.y), w: round(w), h: round(h) })
+      const candidate = { text, x: round(p.x), y: round(p.y), w: round(w), h: round(h) }
+      const box: Box = { left: candidate.x - candidate.w / 2, right: candidate.x + candidate.w / 2, top: candidate.y - candidate.h / 2, bottom: candidate.y + candidate.h / 2 }
+      const collides = tickLabels.some(t => boxesOverlap(box, {
+        left: t.x - t.w / 2, right: t.x + t.w / 2,
+        top: t.y - t.h / 2, bottom: t.y + t.h / 2,
+      }, 1))
+      if (!collides) tickLabels.unshift(candidate)
     }
   }
 

@@ -7,7 +7,7 @@ import { radarStyleDefaults } from './layout.ts'
 import { resolveRenderStyle } from '../styles.ts'
 import type { ResolvedRenderStyle } from '../styles.ts'
 import { pieSliceColors } from '../pie/palette.ts'
-import { ensureContrast } from '../shared/color-math.ts'
+import { wcagCssContrastRatio } from '../shared/color-math.ts'
 import type { SceneDoc, SceneNode } from '../scene/ir.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
@@ -43,12 +43,19 @@ import { hashId } from '../scene/seed.ts'
 // Deterministic: no Math.random / Date.now. All geometry comes from layout.
 // ============================================================================
 
-/** WCAG-AA (4.5:1) guard for label ink. Concrete colors are checked and mixed
- *  toward the page ink; unresolved `var(--…)` tokens pass through, so a
- *  palette swap still recolors while a hostile concrete override cannot go
- *  illegible. Exported for the discipline's red→green test. */
+/** WCAG-AA (4.5:1) guard for label ink after alpha compositing. Unresolved CSS
+ *  is uncertainty rather than proof, so it falls back to the best certifiable
+ *  page ink. Exported for the discipline's red→green test. */
 export function guardLabelInk(candidate: string, background: string, fallback: string): string {
-  return ensureContrast(candidate, background, 4.5, fallback)
+  const candidateRatio = wcagCssContrastRatio(candidate, background)
+  if (candidateRatio !== null && candidateRatio >= 4.5) return candidate
+
+  const choices = [fallback, '#000000', '#ffffff']
+    .map(color => ({ color, ratio: wcagCssContrastRatio(color, background) }))
+    .filter((choice): choice is { color: string; ratio: number } => choice.ratio !== null)
+    .sort((a, b) => b.ratio - a.ratio)
+  const best = choices[0]
+  return best && best.ratio >= 4.5 ? best.color : fallback
 }
 
 export function renderRadarSvg(ctx: RenderContext<PositionedRadarChart>): string {
@@ -76,13 +83,12 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
   const graticuleOpacity = chart.visual.graticuleOpacity ?? 0.7
   const titleColor = chart.visual.titleColor ?? style.groupTextColor ?? style.nodeTextColor ?? 'var(--_text)'
   const dotStroke = style.nodeBorderColor ?? 'var(--bg)'
-  // Mermaid parity: radar.axisColor colors both spokes and their labels. Route
-  // the label ink through the journey contrast guard — `colors.bg`/`.fg` are the
-  // concrete page colors, so a configured concrete axis color is verified for
-  // WCAG-AA while the default `var(--…)` tokens pass through untouched. Ring
-  // values sit on knockout boxes, so their ink is the readable page text.
-  const axisTextColor = guardLabelInk(axisColor, colors.bg, colors.fg)
-  const tickTextColor = guardLabelInk(style.edgeTextColor ?? 'var(--_text)', colors.bg, colors.fg)
+  // Mermaid parity: an explicit radar.axisColor colors both spokes and labels.
+  // The default label candidate is page text, not the lower-contrast scaffold
+  // token; every candidate is certified after alpha compositing.
+  const axisTextCandidate = chart.visual.axisColor ?? style.edgeTextColor ?? colors.fg
+  const axisTextColor = guardLabelInk(axisTextCandidate, colors.bg, colors.fg)
+  const tickTextColor = guardLabelInk(style.edgeTextColor ?? colors.fg, colors.bg, colors.fg)
 
   const accessibility = {
     title: chart.accessibility?.title ?? chart.title?.text ?? 'Radar chart',
@@ -245,6 +251,11 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
       },
       `<rect class="radar-tick-box" x="${bx}" y="${by}" width="${t.w}" height="${t.h}" rx="4" ry="4" />`,
     ))
+  }
+  // Paint all text after all knockout boxes. Layout already admits disjoint
+  // boxes; this order is a final safeguard against any future geometry drift.
+  for (let i = 0; i < chart.tickLabels.length; i++) {
+    const t = chart.tickLabels[i]!
     parts.push(marks.text(
       {
         id: `tick:${i}`,
@@ -279,7 +290,7 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
         anchor: axis.anchor,
         paint: { fill: axisTextColor },
       },
-      `<text class="radar-axis-label" x="${axis.labelX}" y="${axis.labelY}" text-anchor="${axis.anchor}" ` +
+      `<text class="radar-axis-label" aria-label="${escapeXml(axis.label)}" x="${axis.labelX}" y="${axis.labelY}" text-anchor="${axis.anchor}" ` +
         `dominant-baseline="middle" font-size="${chart.typography.axisFontSize}" font-weight="${chart.typography.axisFontWeight}">${tspans}</text>`,
     ))
   }
