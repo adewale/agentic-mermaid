@@ -132,7 +132,7 @@
     },
     {
       "path": "src/__tests__/agent-doc-sync.test.ts",
-      "sha256": "e46169bf46d09892eab0310bd671d4e13380989387a68f76cf27559988be1b82"
+      "sha256": "35650f675ce8e2aa957c6dfa15c8bce73f15acaebd2b96e41e2b186515652cd5"
     },
     {
       "path": "src/__tests__/agent-er.test.ts",
@@ -2738,7 +2738,7 @@
   "outputs": [
     {
       "path": "docs/design/families/gitgraph-content-gallery.png",
-      "sha256": "fee85816198f90166bde90c0199364341223ed8d7cb20d36eea9d0e4e1c5c524"
+      "sha256": "292692d1a3c750d17790368b9e450d41d0627ba3b94aca97d67e14ead0a6850c"
     },
     {
       "path": "docs/design/families/mindmap-content-gallery.png",
