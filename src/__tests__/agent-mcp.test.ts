@@ -73,6 +73,22 @@ describe('sandbox — happy', () => {
     `)
     expect(r.ok && (r.value as any).source).toBe('pie\n  "A" : 5\n')
   })
+
+  test('returned trusted diagrams are verify-gated before Code Mode emits source', async () => {
+    for (const code of [
+      'return mermaid.createMermaid("flowchart")',
+      'return mermaid.buildMermaid("flowchart", [])',
+    ]) {
+      const result = await executeInSandbox(code)
+      expect(result.ok).toBe(true)
+      expect(result.value).toMatchObject({
+        ok: false,
+        family: 'flowchart',
+        error: { code: 'VERIFY_FAILED', details: [{ code: 'EMPTY_DIAGRAM' }] },
+      })
+      expect(result.value).not.toHaveProperty('source')
+    }
+  })
   test('console captured', async () => {
     const r = await executeInSandbox(`console.log('a','b'); return 1`)
     expect(r.logs).toEqual(['a b'])
@@ -279,6 +295,53 @@ describe('sandbox — isolation + sad paths', () => {
     expect(r.error).toMatch(/timed out|timeout/i)
   })
 
+  test('trusted-diagram auto-verification shares the execute deadline', async () => {
+    // The code/parser phase is cheap; layout verification at the return commit
+    // is deliberately the expensive part. Before the commit watchdog this ran
+    // outside node:vm's timeout and could occupy the MCP process indefinitely.
+    const source = 'flowchart TD\n' + Array.from(
+      { length: 1_200 },
+      (_, index) => `N${index} --> N${index + 1}`,
+    ).join('\n')
+    const startedAt = performance.now()
+    const r = await executeInSandbox(
+      `return mermaid.parseMermaid(${JSON.stringify(source)}).value`,
+      { timeoutMs: 2_000 },
+    )
+    const elapsedMs = performance.now() - startedAt
+    expect(r.ok).toBe(false)
+    expect(r.error).toContain('timed out after 2000ms while committing the result')
+    // Error/log projection adds a small scheduling tail after the watchdog,
+    // but result work must remain tightly bounded rather than scale with layout.
+    expect(elapsedMs).toBeLessThan(3_000)
+  }, 5_000)
+
+  test('the post-close commit watchdog never exposes a raw host callable', async () => {
+    const r = await executeInSandbox(`
+      mermaid.parseMermaid('flowchart TD\\n  A --> B')
+      return new Proxy({ guard: null }, {
+        get(target, property, receiver) {
+          if (property === 'ok') {
+            const key = Reflect.ownKeys(globalThis).find(candidate =>
+              typeof candidate === 'string' && candidate.startsWith('__pi_marshal_'))
+            const commit = key ? globalThis[key] : undefined
+            target.guard = {
+              constructor: typeof commit?.constructor,
+              bind: typeof commit?.bind,
+              prototype: commit ? Object.getPrototypeOf(commit) : 'missing',
+            }
+            return false
+          }
+          return Reflect.get(target, property, receiver)
+        },
+      })
+    `)
+    expect(r).toMatchObject({
+      ok: true,
+      value: { guard: { constructor: 'undefined', bind: 'undefined', prototype: null } },
+    })
+  })
+
   test('result handoff slot cannot be replaced with a host-assignment setter', async () => {
     const r = await executeInSandbox(`
       Object.defineProperty(globalThis, '__pi_result', { set(v) { while (true) {} }, configurable: true })
@@ -350,6 +413,25 @@ describe('sandbox — isolation + sad paths', () => {
     expect((await executeInSandbox(`Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0)`)).error).toContain('blocking')
     const globals = await executeInSandbox(`return ['Promise', 'Atomics', 'SharedArrayBuffer', 'ShadowRealm', 'AsyncDisposableStack', 'FinalizationRegistry', 'WeakRef'].map(k => typeof globalThis[k]).concat(typeof Array['fromAsync'])`)
     expect(globals).toMatchObject({ ok: true, value: ['undefined', 'undefined', 'undefined', 'undefined', 'undefined', 'undefined', 'undefined', 'undefined'] })
+  })
+
+  test('safe object property spellings are not confused with disabled async globals', async () => {
+    expect((await executeInSandbox('return ({ Promise: 1 }).Promise')).value).toBe(1)
+    expect((await executeInSandbox('return ({ fromAsync: 2 }).fromAsync')).value).toBe(2)
+    expect((await executeInSandbox('return ({ [Promise]: 1 })')).error).toContain('synchronous')
+    expect((await executeInSandbox('return Promise')).error).toContain('synchronous')
+    expect((await executeInSandbox('return Array.fromAsync([1])')).error).toContain('fromAsync')
+  })
+
+  test('Bun rejects unsafe sub-second SDK watchdogs as a tagged result', async () => {
+    expect(await executeInSandbox('return "mermaid"', { timeoutMs: 100 })).toMatchObject({ ok: true, value: 'mermaid' })
+    const result = await executeInSandbox('return mermaid.parseMermaid("flowchart TD\\n A --> B")', { timeoutMs: 100 })
+    if (typeof Bun !== 'undefined') {
+      expect(result).toMatchObject({ ok: false })
+      expect(result.error).toContain('timeoutMs >= 1000')
+      const computed = await executeInSandbox('return globalThis["mer" + "maid"].parseMermaid("flowchart TD\\n A --> B")', { timeoutMs: 100 })
+      expect(computed.error).toContain('timeoutMs >= 1000')
+    }
   })
   test('thrown error', async () => {
     const r = await executeInSandbox(`throw new Error('boom')`)
@@ -539,13 +621,18 @@ describe('MCP bin shim', () => {
 
 describe('CLI — sad paths via runCli', () => {
   // Capture stdout
-  function capture(fn: () => number): { code: number; out: string } {
-    const chunks: string[] = []
+  function capture(fn: () => number): { code: number; out: string; err: string } {
+    const chunks: string[] = [], errors: string[] = []
     const orig = process.stdout.write.bind(process.stdout)
+    const origErr = process.stderr.write.bind(process.stderr)
     ;(process.stdout as any).write = (s: string) => { chunks.push(s); return true }
+    ;(process.stderr as any).write = (s: string) => { errors.push(s); return true }
     let code: number
-    try { code = fn() } finally { (process.stdout as any).write = orig }
-    return { code, out: chunks.join('') }
+    try { code = fn() } finally {
+      ;(process.stdout as any).write = orig
+      ;(process.stderr as any).write = origErr
+    }
+    return { code, out: chunks.join(''), err: errors.join('') }
   }
 
   test('render parse failures exit 2 with PARSE_FAILED, not INTERNAL', () => {
@@ -664,6 +751,20 @@ describe('CLI — sad paths via runCli', () => {
     require('node:fs').writeFileSync(tmp, '')
     const { code } = capture(() => runCli(['verify', tmp]))
     expect(code).toBe(3)
+  })
+
+  test('verify rejects malformed label caps and unknown suppression codes', () => {
+    const tmp = `/tmp/cli-verify-options-${Date.now()}.mmd`
+    require('node:fs').writeFileSync(tmp, 'flowchart TD\n  A --> B\n')
+    for (const args of [
+      ['verify', tmp, '--label-cap', 'nope'],
+      ['verify', tmp, '--label-cap', '1.5'],
+      ['verify', tmp, '--suppress', 'NOT_A_WARNING'],
+    ]) {
+      const result = capture(() => runCli(args))
+      expect(result.code).toBe(2)
+      expect(result.err).toMatch(/known warning codes|positive safe integer/)
+    }
   })
 
   test('--help per command differs from global', () => {

@@ -94,18 +94,22 @@ document.querySelectorAll('[data-canvas-format]').forEach(function(btn) {
 
 if (copyTextOutputBtn) copyTextOutputBtn.addEventListener('click', function() {
   if (currentCanvasFormat === 'diagram') {
-    // Copy the rendered SVG markup — "Copy source" already lives in the export
-    // dropdown, so the preview copy always copies what is on the canvas.
-    var svgEl = previewInner.querySelector('svg');
-    if (!svgEl) {
+    // Copy the canonical receipt-bearing artifact, never a DOM serialization
+    // that extensions or browser tooling may have mutated after insertion.
+    if (typeof hasCurrentVerifiedSvgArtifact !== 'function' || !hasCurrentVerifiedSvgArtifact()) {
       setCopyFeedback(copyTextOutputBtn, 'err');
-      showToast('Render a diagram before copying its SVG.');
+      showToast('Render and verify a diagram before copying its SVG.');
       return;
     }
-    writeClipboardText(new XMLSerializer().serializeToString(svgEl), 'SVG markup copied.', 'Copy SVG failed.', copyTextOutputBtn);
+    writeClipboardText(lastRenderedSvgArtifact.svg, 'SVG markup copied.', 'Copy SVG failed.', copyTextOutputBtn);
     return;
   }
   var name = currentCanvasFormat === 'ascii' ? 'ASCII' : 'Unicode';
+  if (typeof hasCurrentVerifiedSvgArtifact !== 'function' || !hasCurrentVerifiedSvgArtifact()) {
+    setCopyFeedback(copyTextOutputBtn, 'err');
+    showToast('Render and verify a diagram before copying its ' + name + ' output.');
+    return;
+  }
   var artifact = lastRenderedTextArtifacts && lastRenderedTextArtifacts[currentCanvasFormat];
   if (artifact && artifact.receipt.sharedRequestDigest !== previewInner.dataset.sharedRequestDigest) {
     setCopyFeedback(copyTextOutputBtn, 'err');

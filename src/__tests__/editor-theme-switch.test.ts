@@ -157,4 +157,61 @@ describeBrowser('editor theme switcher re-themes the diagram, never the chrome',
     await expectArrowFill(page, PAPER_ARROW)
     await page.close()
   }, 60_000)
+
+  test('verification is the authority gate for export, copy, and share links', async () => {
+    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
+    await page.goto(baseUrl + '/editor/', { waitUntil: 'networkidle' })
+    await expectArrowFill(page, PAPER_ARROW)
+    await page.waitForFunction(() => location.hash.length > 1)
+
+    const copied = await page.evaluate(async () => {
+      const g = window as any
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: { writeText: async (text: string) => { g.__editorAuditCopied = text } },
+      })
+      document.getElementById('copy-text-output-btn')!.click()
+      await new Promise(resolve => setTimeout(resolve, 0))
+      const beforeMutation = g.__editorAuditCopied
+      document.querySelector('#preview-inner svg')!.setAttribute('data-dom-mutated', 'yes')
+      document.getElementById('copy-text-output-btn')!.click()
+      await new Promise(resolve => setTimeout(resolve, 0))
+      return { beforeMutation, afterMutation: g.__editorAuditCopied }
+    })
+    expect(copied.afterMutation).toBe(copied.beforeMutation)
+    expect(copied.afterMutation).not.toContain('data-dom-mutated')
+
+    const validHash = await page.evaluate(() => location.hash)
+    await page.fill('#code-editor', 'flowchart TD')
+    await page.waitForFunction(() => document.getElementById('verify-summary')?.textContent?.includes('Fix structural'))
+    expect(await page.locator('#preview-inner svg').count()).toBe(1)
+    expect(await page.locator('#export-svg-btn').isDisabled()).toBe(true)
+    expect(await page.locator('#preview-inner').getAttribute('data-shared-request-digest')).toBeNull()
+    for (const format of ['unicode', 'ascii']) {
+      await page.click(`[data-canvas-format="${format}"]`)
+      await page.evaluate(() => document.getElementById('copy-text-output-btn')!.click())
+      expect(await page.evaluate(() => (window as any).__editorAuditCopied)).toBe(copied.afterMutation)
+      expect(await page.locator(`#${format}-output`).textContent()).toContain('Render and verify')
+    }
+    await page.evaluate(() => document.getElementById('copy-link-btn')!.click())
+    expect(await page.evaluate(() => location.hash)).toBe(validHash)
+    expect(await page.evaluate(() => (window as any).__editorAuditCopied)).toBe(copied.afterMutation)
+    await page.close()
+  }, 60_000)
+
+  test('storage-denied browsers still boot and render the default diagram', async () => {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 800 } })
+    await page.addInitScript(() => {
+      for (const name of ['getItem', 'setItem', 'removeItem']) {
+        Object.defineProperty(Storage.prototype, name, {
+          configurable: true,
+          value() { throw new DOMException('storage denied', 'SecurityError') },
+        })
+      }
+    })
+    await page.goto(baseUrl + '/editor/', { waitUntil: 'networkidle' })
+    await expectArrowFill(page, PAPER_ARROW)
+    expect(await page.locator('#status-text').textContent()).toBe('OK')
+    await page.close()
+  }, 60_000)
 })

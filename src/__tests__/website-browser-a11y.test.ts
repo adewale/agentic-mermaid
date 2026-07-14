@@ -93,6 +93,17 @@ async function brokenAriaControls(page: Page) {
   }))
 }
 
+async function withFreshBrowser<T>(run: (page: Page) => Promise<T>): Promise<T> {
+  const isolatedBrowser = await chromium.launch({ headless: true })
+  const page = await isolatedBrowser.newPage({ viewport: { width: 1280, height: 900 } })
+  try {
+    return await run(page)
+  } finally {
+    await page.close().catch(() => {})
+    await isolatedBrowser.close({ reason: 'isolated accessibility test cleanup' }).catch(() => {})
+  }
+}
+
 describeBrowser('website browser accessibility smoke', () => {
   // Hooks live inside the guarded describe so a browser-less run (CI `test` job)
   // skips them too — a file-level beforeAll runs even when its only describe is
@@ -499,8 +510,8 @@ describeBrowser('website browser accessibility smoke', () => {
   }, 30_000)
 
   test('editor popovers are keyboard-operable, inert when closed, and restore focus', async () => {
-    const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
-    await page.goto(baseUrl + '/editor/?example=flowchart-basic', { waitUntil: 'networkidle' })
+    await withFreshBrowser(async page => {
+      await page.goto(baseUrl + '/editor/?example=flowchart-basic', { waitUntil: 'domcontentloaded' })
     await page.waitForFunction(() => (document.querySelector('#code-editor') as HTMLTextAreaElement | null)?.value.startsWith('flowchart TD'))
     await page.locator('#preview-inner svg').waitFor({ state: 'visible', timeout: 10_000 })
 
@@ -522,10 +533,10 @@ describeBrowser('website browser accessibility smoke', () => {
       await page.locator(spec.button).focus()
       await page.keyboard.press('Enter')
       expect(await page.locator(spec.button).getAttribute('aria-expanded')).toBe('true')
-      expect(await page.locator(spec.popup).evaluate((el) => (el as HTMLElement).inert)).toBe(false)
+      expect(await page.locator(spec.popup).getAttribute('inert')).toBeNull()
       await page.keyboard.press('Escape')
       expect(await page.locator(spec.button).getAttribute('aria-expanded')).toBe('false')
-      expect(await page.locator(spec.popup).evaluate((el) => (el as HTMLElement).inert)).toBe(true)
+      expect(await page.locator(spec.popup).getAttribute('inert')).toBe('')
       expect(await page.evaluate((selector) => document.activeElement === document.querySelector(selector), spec.button)).toBe(true)
     }
 
@@ -559,15 +570,15 @@ describeBrowser('website browser accessibility smoke', () => {
       await page.locator(spec.button).focus()
       await page.keyboard.press('Enter')
       expect(await page.locator(spec.button).getAttribute('aria-expanded')).toBe('true')
-      expect(await page.locator(spec.popup).evaluate((el) => (el as HTMLElement).inert)).toBe(false)
+      expect(await page.locator(spec.popup).getAttribute('inert')).toBeNull()
       await page.keyboard.press('Escape')
       expect(await page.locator(spec.button).getAttribute('aria-expanded')).toBe('false')
-      expect(await page.locator(spec.popup).evaluate((el) => (el as HTMLElement).inert)).toBe(true)
+      expect(await page.locator(spec.popup).getAttribute('inert')).toBe('')
       expect(await page.evaluate((selector) => document.activeElement === document.querySelector(selector), spec.button)).toBe(true)
     }
 
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
     expect(overflow).toBe(0)
-    await page.close()
+    })
   }, 30_000)
 })

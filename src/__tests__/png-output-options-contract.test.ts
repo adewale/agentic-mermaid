@@ -19,6 +19,8 @@ import {
   projectPortablePngOutputOptions,
   resolvePngOutputPolicy,
   resolvePortablePngOutputPolicy,
+  assertHostedPngRasterBudget,
+  assertPngRasterBudget,
   svgIntrinsicDimensions,
 } from '../png-contract.ts'
 import { renderPngGraphicalProjection, renderPortablePngGraphicalProjection } from '../png-graphical.ts'
@@ -295,5 +297,15 @@ describe('canonical PNG output-option authority', () => {
     expect(() => renderMermaidPNGWithReceipt(SOURCE, {
       onWarning: 'ignore' as never,
     })).toThrow('onWarning must be a function')
+  })
+
+  test('raster budget helpers reject malformed direct-call inputs with controlled errors', () => {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 10 10"></svg>'
+    for (const output of [null, {}, { scale: 1, fitTo: null }, { scale: Number.NaN, fitTo: { mode: 'zoom', value: 1 } }]) {
+      expect(() => assertPngRasterBudget(svg, output as never)).toThrow(RangeError)
+    }
+    expect(() => assertPngRasterBudget(null as never, 1)).toThrow('SVG input must be a string')
+    expect(() => assertHostedPngRasterBudget(null as never)).toThrow(RangeError)
+    expect(() => assertHostedPngRasterBudget({ width: 1, height: 1, pixels: 2 })).toThrow(RangeError)
   })
 })

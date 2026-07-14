@@ -85,6 +85,16 @@ describe('versioned capability negotiation', () => {
     expect(semVerSatisfies('1.4.2-beta.1', '*')).toBe(false)
     expect(semVerSatisfies('1.4.2-beta.1', '1.4.2-beta.1')).toBe(true)
     expect(semVerSatisfies('1.4.2-beta.2', '1.4.2-beta.1')).toBe(false)
+    expect(semVerSatisfies('9007199254740992.0.0', '9007199254740993.0.0')).toBe(false)
+    expect(semVerSatisfies('9007199254740993.0.0', '>=9007199254740992.0.0')).toBe(true)
+    expect(semVerSatisfies('1.0.0-01', '1.0.0-01')).toBe(false)
+  })
+
+  test('rejects malformed offer and requirement containers without engine TypeErrors', () => {
+    expect(() => negotiateCapabilities(null as never, [])).toThrow('Capability offers must be an array')
+    expect(() => negotiateCapabilities([], null as never)).toThrow('Capability requirements must be an array')
+    expect(() => negotiateCapabilities([null] as never, [])).toThrow('Capability offer at index 0 must be an object')
+    expect(() => negotiateCapabilities([], [null] as never)).toThrow('Capability requirement at index 0 must be an object')
   })
 
   test('rejects malformed requirement levels and ranges at the negotiation boundary', () => {
@@ -97,6 +107,24 @@ describe('versioned capability negotiation', () => {
     expect(() => negotiateCapabilities([], [{
       id: 'core:test', range: '^1.0.0-beta.1', level: 'required',
     }])).toThrow(/invalid semantic-version range/i)
+  })
+
+  test('projects closed resolution records without caller-controlled receipt fields', () => {
+    const decision = negotiateCapabilities([], [{
+      id: 'grease:closed-shape',
+      range: '*',
+      level: 'optional',
+      injected: 'receipt-data',
+    } as never])
+    expect(decision.resolutions[0]).toEqual({
+      id: 'grease:closed-shape',
+      range: '*',
+      level: 'optional',
+      status: 'unsupported',
+    })
+    expect(() => negotiateCapabilities([
+      { id: 'core:test', version: '1.0.0-01' },
+    ], [])).toThrow(/invalid semantic version/i)
   })
 
   test('greases unknown optional capabilities but rejects unknown required ones', () => {

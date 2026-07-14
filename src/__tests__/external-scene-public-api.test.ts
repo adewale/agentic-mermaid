@@ -525,6 +525,19 @@ describe('public external Scene construction and admission', () => {
     }
   })
 
+  test('rejects malformed node records with stable boundary diagnostics', () => {
+    const base = sceneInput('family:test/node-admission', { bg: '#fff', fg: '#111' })
+    const malformed: Array<[Record<string, unknown>, RegExp]> = [
+      [{ kind: 'container', id: 'group', role: 'group' }, /input\.parts\[0\]\.children must be a plain array/],
+      [{ kind: 'shape', id: 'shape', role: 'node' }, /input\.parts\[0\]\.geometry must be a plain object/],
+      [{ kind: 'text', id: 'label', role: 'label', x: 1, y: 2, fontSize: 12 }, /input\.parts\[0\]\.text must be a string/],
+      [{ kind: 'not-a-node', id: 'unknown', role: 'node' }, /input\.parts\[0\]\.kind must be one of/],
+    ]
+    for (const [part, message] of malformed) {
+      expect(() => buildExternalScene({ ...base, parts: [part] } as unknown as ExternalSceneInput)).toThrow(message)
+    }
+  })
+
   test('rejects oversized, sparse, accessor-backed, and custom-iterated arrays before iteration', () => {
     const base = sceneInput('family:test/input-preflight', { bg: '#fff', fg: '#111' })
     const oversized = new Array<ExternalSceneNode>(SCENE_VALIDATION_LIMITS.maxNodes + 1)

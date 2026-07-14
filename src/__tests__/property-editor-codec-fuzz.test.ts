@@ -43,7 +43,10 @@ function sharingHarness() {
   const window: Record<string, unknown> = {
     location: { hash: '', pathname: '/editor/', search: '' },
     history: { replaceState(_s: unknown, _t: string, url: string) { replacedUrls.push(url) } },
-    __mermaid: { SHARED_RENDER_OPTION_FIELDS },
+    __mermaid: {
+      SHARED_RENDER_OPTION_FIELDS,
+      knownStyleDescriptors: () => [{ kind: 'look', inputName: 'hand-drawn' }],
+    },
   }
   // editorPaletteInput is a cross-file global in the real editor; stub it so getHashSource's
   // palette-import branch is exercised without a ReferenceError.
@@ -53,6 +56,7 @@ function sharingHarness() {
     'editorPaletteInput',
     'CompressionStream', 'DecompressionStream', 'Blob', 'Response', 'TextEncoder', 'TextDecoder',
     'Uint8Array', 'URLSearchParams', 'btoa', 'atob', 'setTimeout', 'clearTimeout',
+    'hasCurrentVerifiedSvgArtifact', 'DEFAULT_EDITOR_PALETTE',
     `${sharingSource}\nreturn {
       decodeSource, encodeSourceCompressed, updateHash, getHashSource,
       sanitizeEditorConfig, readEditorDraft, saveEditorDraft, discardEditorDraft,
@@ -68,6 +72,8 @@ function sharingHarness() {
     globalThis.CompressionStream, globalThis.DecompressionStream, globalThis.Blob, globalThis.Response,
     globalThis.TextEncoder, globalThis.TextDecoder, globalThis.Uint8Array, globalThis.URLSearchParams,
     globalThis.btoa, globalThis.atob, globalThis.setTimeout, globalThis.clearTimeout,
+    () => true,
+    'paper',
   )
   return { api, localStorage, sessionStorage, editor, state, toasts, replacedUrls, window }
 }
@@ -164,6 +170,39 @@ describe('editor-codec fuzz: sanitizeEditorConfig allowlist', () => {
         expect(EDITOR_OWNED.has(key)).toBe(false)
       }
     }), { numRuns: NUM_RUNS })
+  })
+
+  it('share appearance is a complete snapshot and cannot inherit recipient state', async () => {
+    const { api, state, window } = sharingHarness()
+    state.palette = 'recipient-palette'
+    state.style = 'hand-drawn'
+    state.seed = 7
+    state.config = { seed: 99 }
+    const encoded = await api.encodeSourceCompressed(JSON.stringify({
+      source: 'flowchart TD\n  A --> B',
+      palette: '',
+      style: 'crisp',
+      seed: 0,
+    }))
+    ;(window.location as { hash: string }).hash = '#' + encoded
+    expect(await api.getHashSource()).toContain('flowchart TD')
+    expect(state).toEqual({ palette: '', style: 'crisp', seed: 0, config: {} })
+
+    const hostileSeed = btoa(unescape(encodeURIComponent(
+      '{"source":"flowchart TD\\n A --> B","seed":1e309}',
+    )))
+    ;(window.location as { hash: string }).hash = '#' + hostileSeed
+    state.seed = 23
+    await api.getHashSource()
+    expect(state.seed).toBe(0)
+
+    const fractionalSeed = await api.encodeSourceCompressed(JSON.stringify({
+      source: 'flowchart TD\n  A --> B',
+      seed: 1.5,
+    }))
+    ;(window.location as { hash: string }).hash = '#' + fractionalSeed
+    await api.getHashSource()
+    expect(state.seed).toBe(1.5)
   })
 })
 

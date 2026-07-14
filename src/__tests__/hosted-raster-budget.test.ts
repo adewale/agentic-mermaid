@@ -76,6 +76,11 @@ describe('shared PNG raster budget', () => {
       height: 2048,
       pixels: 2049 * 2048,
     })).toThrow(/hosted pixel cap/)
+    expect(() => assertHostedPngRasterBudget({
+      width: 16_385,
+      height: 1,
+      pixels: 16_385,
+    })).toThrow(/maximum dimension is 16384px/)
     expect(MAX_HOSTED_PNG_PIXELS).toBe(4_194_304)
   })
 

@@ -96,7 +96,7 @@ declare const mermaid: {
   buildMermaid(kind: DiagramKind, ops: MutationOp[], opts?: { direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }): Result<ValidDiagram, { code: string; message: string; opIndex: number }>
 ${NARROWERS}
   mutate(diagram: ValidDiagram, op: MutationOp): Result<ValidDiagram>
-  verifyMermaid(input: ParsedDiagram | string, opts?: { suppress?: string[]; labelCharCap?: number }): VerifyResult
+  verifyMermaid(input: ParsedDiagram | string, opts?: { suppress?: string[]; labelCharCap?: number; renderOptions?: SharedRenderOptions }): VerifyResult
   analyzeMermaid(diagram: ValidDiagram): Record<string, unknown>
   analyzeMermaidSource(source: string): Result<Record<string, unknown>>
   describeMermaidFacts(diagram: ValidDiagram): string[]
@@ -111,9 +111,7 @@ ${NARROWERS}
   layoutMermaidWithReceipt(input: ParsedDiagram | string, opts?: LayoutRenderOptions): RenderedLayoutArtifact
   describeOps(family: DiagramKind): Record<string, { name: string; required: boolean; type: string; note?: string }[]>
   opSignatures(family: DiagramKind): string[]
-}
-
-// Use describe_sdk or describeOps/opSignatures for unfamiliar MutationOp shapes.`
+}`
 
 export type DescribeSdkDetail = 'signatures' | 'fields'
 

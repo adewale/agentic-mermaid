@@ -151,6 +151,36 @@ describe('op-boundary fuzz: inherited Object.prototype keys are never valid ops'
   })
 })
 
+describe('op-boundary admission rejects non-JSON object mechanics', () => {
+  it('rejects inherited, accessor-backed, and proxy-backed ops without throwing', () => {
+    const inherited = Object.create({ kind: 'add_node', id: 'Injected', label: 'Injected' })
+    const accessor = Object.defineProperty({}, 'kind', {
+      enumerable: true,
+      get() { throw new Error('boom') },
+    })
+    const proxy = new Proxy({ kind: 'add_node', id: 'A', label: 'A' }, {
+      getOwnPropertyDescriptor() { throw new Error('boom') },
+    })
+    for (const op of [inherited, accessor, proxy]) {
+      expect(() => validateOp('flowchart', op)).not.toThrow()
+      expect(validateOp('flowchart', op)).toMatchObject({ code: 'INVALID_OP' })
+      expect(() => mutateChecked(createMermaid('flowchart'), op)).not.toThrow()
+      expect(mutateChecked(createMermaid('flowchart'), op).ok).toBe(false)
+    }
+  })
+
+  it('rejects unreadable op arrays with tagged results', () => {
+    const ops = new Proxy([] as unknown[], {
+      getOwnPropertyDescriptor() { throw new Error('boom') },
+    })
+    expect(() => applyOps({ source: 'flowchart TD\n  A --> B', ops })).not.toThrow()
+    expect(applyOps({ source: 'flowchart TD\n  A --> B', ops })).toMatchObject({
+      ok: false,
+      error: { code: 'INVALID_OP' },
+    })
+  })
+})
+
 describe('op-boundary fuzz: hosted mutate/build handlers', () => {
   const ctx: HostedMcpContext = { execute: async () => ({ ok: true, value: null, logs: [] }) }
   const argsArb = fc.oneof(

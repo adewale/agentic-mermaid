@@ -304,11 +304,49 @@ export async function verifyResourceBytes(
     readonly digest?: (bytes: Uint8Array) => Promise<string>
   } = {},
 ): Promise<void> {
-  if (bytes.byteLength !== entry.bytes) {
-    throw new Error(`RESOURCE_SIZE_MISMATCH: ${entry.identity.id} declared ${entry.bytes} bytes but received ${bytes.byteLength}`)
+  let checkedEntry: ResourceManifestEntry
+  try {
+    // Font resources extend the generic entry with family/file metadata. Admit
+    // the exact generic projection while still validating every field this
+    // verifier consumes.
+    const candidate = entry as unknown as Record<string, unknown>
+    checkedEntry = snapshotResourceManifest({
+      version: RESOURCE_MANIFEST_VERSION,
+      resources: [{
+        identity: candidate.identity,
+        path: candidate.path,
+        mediaType: candidate.mediaType,
+        sha256: candidate.sha256,
+        bytes: candidate.bytes,
+        license: candidate.license,
+        required: candidate.required,
+        network: candidate.network,
+      }],
+    }).resources[0]!
+  } catch (error) {
+    throw new TypeError(`INVALID_RESOURCE_ENTRY: ${errorMessage(error)}`)
   }
-  const verifier = (options.mediaTypes ?? BUILTIN_RESOURCE_MEDIA_TYPES)[entry.mediaType]
-  if (!verifier || !verifier(bytes)) throw new Error(`RESOURCE_MEDIA_TYPE_MISMATCH: ${entry.identity.id} is not ${entry.mediaType}`)
+  if (!(bytes instanceof Uint8Array)) throw new TypeError('INVALID_RESOURCE_BYTES: bytes must be a Uint8Array')
+  if (!isPlainRecord(options)) throw new TypeError('INVALID_RESOURCE_VERIFY_OPTIONS: options must be a plain object')
+  for (const key of Reflect.ownKeys(options)) {
+    if (typeof key !== 'string' || (key !== 'mediaTypes' && key !== 'digest')) {
+      throw new TypeError(`INVALID_RESOURCE_VERIFY_OPTIONS: unknown option ${String(key)}`)
+    }
+  }
+  if (options.mediaTypes !== undefined) {
+    if (!isPlainRecord(options.mediaTypes)) throw new TypeError('INVALID_RESOURCE_VERIFY_OPTIONS: mediaTypes must be a plain object')
+    for (const [mediaType, verifier] of Object.entries(options.mediaTypes)) {
+      if (typeof verifier !== 'function') throw new TypeError(`INVALID_RESOURCE_VERIFY_OPTIONS: mediaTypes.${mediaType} must be a function`)
+    }
+  }
+  if (options.digest !== undefined && typeof options.digest !== 'function') {
+    throw new TypeError('INVALID_RESOURCE_VERIFY_OPTIONS: digest must be a function')
+  }
+  if (bytes.byteLength !== checkedEntry.bytes) {
+    throw new Error(`RESOURCE_SIZE_MISMATCH: ${checkedEntry.identity.id} declared ${checkedEntry.bytes} bytes but received ${bytes.byteLength}`)
+  }
+  const verifier = (options.mediaTypes ?? BUILTIN_RESOURCE_MEDIA_TYPES)[checkedEntry.mediaType]
+  if (!verifier || !verifier(bytes)) throw new Error(`RESOURCE_MEDIA_TYPE_MISMATCH: ${checkedEntry.identity.id} is not ${checkedEntry.mediaType}`)
   const digest = options.digest ?? (async value => {
     if (!globalThis.crypto?.subtle) throw new Error('RESOURCE_DIGEST_UNAVAILABLE: Web Crypto SHA-256 is required')
     const copy = new Uint8Array(value.byteLength)
@@ -316,5 +354,5 @@ export async function verifyResourceBytes(
     return bytesToHex(new Uint8Array(await globalThis.crypto.subtle.digest('SHA-256', copy.buffer)))
   })
   const actual = await digest(bytes)
-  if (actual !== entry.sha256) throw new Error(`RESOURCE_DIGEST_MISMATCH: ${entry.identity.id}`)
+  if (actual !== checkedEntry.sha256) throw new Error(`RESOURCE_DIGEST_MISMATCH: ${checkedEntry.identity.id}`)
 }

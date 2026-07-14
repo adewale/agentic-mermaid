@@ -63,4 +63,14 @@ describe('Code Mode can self-discover op shapes', () => {
     const r = await executeInSandbox('return mermaid.describeOps(123)', {})
     expect(r.ok).toBe(false)
   })
+
+  test('unknown family names get a prescriptive discovery error', async () => {
+    for (const helper of ['describeOps', 'opSignatures']) {
+      const r = await executeInSandbox(`return mermaid.${helper}("nope")`, {})
+      expect(r.ok).toBe(false)
+      if (r.ok) continue
+      expect(r.error).toContain('family must be one of:')
+      expect(r.error).toContain('flowchart')
+    }
+  })
 })

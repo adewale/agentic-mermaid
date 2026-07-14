@@ -894,8 +894,9 @@ pie showData
       expect(result.html).not.toMatch(/<script|\sonload=|evil\.example/i)
       expect(result.html).toContain('#123456')
       expect(result.shared.config).toEqual({ accent: '#123456' })
-      expect(result.shared.style).toBeUndefined()
+      expect(result.shared.style).toBe('crisp')
       expect(result.shared.palette).toBe('salmon')
+      expect(result.shared.seed).toBe(0)
       expect(externalRequests).toEqual([])
     } finally {
       context.off('request', recordRequest as any)

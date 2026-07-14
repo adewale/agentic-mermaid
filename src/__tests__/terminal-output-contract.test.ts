@@ -214,6 +214,13 @@ describe('canonical terminal output policy', () => {
     }
     expect(() => renderMermaidASCIIWithReceipt(SOURCE, { paddingX: -1 })).toThrow(/non-negative finite integer/)
     expect(() => renderMermaidASCIIWithReceipt(SOURCE, { colorMode: 'ansi1024' as never })).toThrow(/colorMode/)
+
+    const symbolInput = { colorMode: 'none' } as Record<PropertyKey, unknown>
+    symbolInput[Symbol('extra')] = true
+    expect(() => resolveTerminalOutputPolicy(symbolInput as never)).toThrow('unknown field "Symbol(extra)"')
+    const symbolTheme = { fg: '#000000' } as Record<PropertyKey, unknown>
+    symbolTheme[Symbol('extra')] = true
+    expect(() => resolveTerminalOutputPolicy({ theme: symbolTheme } as never)).toThrow('unknown field "Symbol(extra)"')
   })
 
   test('hashes the exact normalized object used for execution', () => {

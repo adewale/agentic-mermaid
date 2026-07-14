@@ -16,7 +16,7 @@ function memoryStorage() {
   }
 }
 
-function sharingHarness(options: { decompression?: typeof DecompressionStream | undefined } = {}) {
+function sharingHarness(options: { decompression?: typeof DecompressionStream | undefined; verified?: boolean } = {}) {
   const localStorage = memoryStorage()
   const sessionStorage = memoryStorage()
   const editor = { value: 'flowchart TD\n  A --> B' }
@@ -26,11 +26,18 @@ function sharingHarness(options: { decompression?: typeof DecompressionStream | 
   const window = {
     location: { hash: '', pathname: '/editor/', search: '' },
     history: { replaceState(_state: unknown, _title: string, url: string) { replacedUrls.push(url) } },
+    __mermaid: {
+      knownStyleDescriptors: () => [
+        { kind: 'look', inputName: 'hand-drawn' },
+        { kind: 'palette', inputName: 'paper' },
+      ],
+    },
   }
   const factory = new Function(
     'window', 'localStorage', 'sessionStorage', 'editor', 'state', 'document', 'showToast',
     'CompressionStream', 'DecompressionStream', 'Blob', 'Response', 'TextEncoder', 'TextDecoder',
     'Uint8Array', 'URLSearchParams', 'btoa', 'atob', 'setTimeout', 'clearTimeout',
+    'hasCurrentVerifiedSvgArtifact', 'DEFAULT_EDITOR_PALETTE',
     `${sharingSource}\nreturn {
       decodeSource,
       encodeSourceCompressed,
@@ -47,6 +54,7 @@ function sharingHarness(options: { decompression?: typeof DecompressionStream | 
       MAX_DRAFT_BYTES,
       DRAFT_STORAGE_KEY,
       DRAFT_MODE_STORAGE_KEY,
+      sanitizeEditorStyle,
     };`,
   )
   const api = factory(
@@ -69,6 +77,8 @@ function sharingHarness(options: { decompression?: typeof DecompressionStream | 
     globalThis.atob,
     globalThis.setTimeout,
     globalThis.clearTimeout,
+    () => options.verified !== false,
+    'paper',
   )
   return { api, localStorage, sessionStorage, editor, state, toasts, replacedUrls }
 }
@@ -124,6 +134,18 @@ describe('editor share-link resource limits', () => {
     await api.updateHash()
     expect(replacedUrls.at(-1)).toBe('/editor/')
     expect(toasts).toContain('This diagram is too large for a share URL. Export or copy the source instead.')
+  })
+
+  test('share links require a current verified artifact and styles use the registered look roster', async () => {
+    const { api, replacedUrls, toasts } = sharingHarness({ verified: false })
+    expect(await api.updateHash()).toBe(false)
+    expect(replacedUrls).toEqual([])
+    expect(toasts).toContain('Render and verify this diagram before copying a share link.')
+
+    expect(api.sanitizeEditorStyle('crisp')).toBe('crisp')
+    expect(api.sanitizeEditorStyle('hand-drawn')).toBe('hand-drawn')
+    expect(api.sanitizeEditorStyle('paper')).toBe('')
+    expect(api.sanitizeEditorStyle('future-unregistered-look')).toBe('')
   })
 })
 
@@ -226,5 +248,30 @@ describe('editor SEC-1 insertion choke point', () => {
     expect(rendering).toContain('lastRenderedSvgArtifact = rendered')
     expect(rendering).toContain('invalidateRenderedArtifacts()')
     expect(rendering).not.toContain('ensurePreviewSvgAccessibility')
+  })
+
+  test('Editor commit points require verification and canonical receipt-bearing artifacts', () => {
+    const rendering = readFileSync(join(ROOT, 'editor/js/rendering.js'), 'utf8')
+    const exporting = readFileSync(join(ROOT, 'editor/js/export.js'), 'utf8')
+    const buttons = readFileSync(join(ROOT, 'editor/js/buttons.js'), 'utf8')
+    expect(rendering).toContain('verifyMermaid(source, { renderOptions: renderOptions })')
+    expect(rendering).toContain('if (verification && verification.ok)')
+    expect(rendering).toContain('function hasCurrentVerifiedSvgArtifact()')
+    expect(rendering).toContain('lastRenderedSvgSource === currentEditorSource()')
+    expect(rendering).toContain('RENDER_FAILED: "structural"')
+    expect(rendering).toContain('ROUTE_SELF_LOOP_OCCUPANCY: "geometric"')
+    expect(exporting).toContain("typeof hasCurrentVerifiedSvgArtifact === 'function'")
+    expect(buttons).toContain('writeClipboardText(lastRenderedSvgArtifact.svg')
+    expect(buttons).not.toContain('new XMLSerializer().serializeToString(svgEl)')
+    expect(rendering).toContain('state.style !== "crisp" && opts.seed === undefined')
+    expect(rendering).toContain('INEFFECTIVE_CONFIG: "lint"')
+    expect(rendering).toContain('if (!hasCurrentVerifiedSvgArtifact())')
+    expect(exporting).toContain('if (!hasRenderedSvg()) return;')
+    const sharing = readFileSync(join(ROOT, 'editor/js/sharing.js'), 'utf8')
+    const darkMode = readFileSync(join(ROOT, 'editor/js/dark-mode.js'), 'utf8')
+    const init = readFileSync(join(ROOT, 'editor/js/init.js'), 'utf8')
+    expect(sharing).toContain('function safeLocalStorageGet(key)')
+    expect(darkMode).not.toMatch(/\blocalStorage\.(?:getItem|setItem|removeItem)/)
+    expect(init).not.toMatch(/\blocalStorage\.(?:getItem|setItem|removeItem)/)
   })
 })

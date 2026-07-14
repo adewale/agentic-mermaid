@@ -8,7 +8,7 @@ import {
   handleHostedRequest, HOSTED_MCP_SERVER_NAME, HOSTED_TOOLS, MAX_CODE_BYTES, MAX_SOURCE_BYTES,
   SUPPORTED_PROTOCOL_VERSIONS, cacheKeyFor, type HostedMcpContext, type ExecuteResult,
 } from '../mcp/hosted-server.ts'
-import { MCP_SERVER_NAME } from '../mcp/tool-surface.ts'
+import { MCP_SERVER_NAME, validateMcpToolArguments } from '../mcp/tool-surface.ts'
 import type { JsonRpcRequest } from '../mcp/protocol.ts'
 import pkg from '../../package.json'
 import { visualWidth } from '../ascii/width.ts'
@@ -369,6 +369,31 @@ describe('hosted declarative mutate/build tools', () => {
     expect(p.source).toContain('class Dog')
   })
 
+  test('mutate and build never publish source rejected by canonical verify', async () => {
+    const mutated = payloadOf(await handleHostedRequest(call('mutate', {
+      source: 'flowchart TD\n  A[Only]\n',
+      ops: [{ kind: 'remove_node', id: 'A' }],
+    }), makeContext()))
+    expect(mutated).toMatchObject({
+      ok: false,
+      isError: true,
+      family: 'flowchart',
+      error: { code: 'VERIFY_FAILED' },
+    })
+    expect(mutated.error.details.map((warning: { code: string }) => warning.code)).toContain('EMPTY_DIAGRAM')
+    expect(mutated.source).toBeUndefined()
+
+    const built = payloadOf(await handleHostedRequest(call('build', {
+      family: 'flowchart',
+      ops: [
+        { kind: 'add_node', id: 'A', label: 'A' },
+        { kind: 'remove_node', id: 'A' },
+      ],
+    }), makeContext()))
+    expect(built).toMatchObject({ ok: false, isError: true, error: { code: 'VERIFY_FAILED' } })
+    expect(built.source).toBeUndefined()
+  })
+
   test('Architecture junction, boundary-edge, accessibility, and in-place edge ops cross the hosted boundary', async () => {
     const built = payloadOf(await handleHostedRequest(call('build', { family: 'architecture', ops: [
       { kind: 'set_accessibility_title', title: 'Hosted topology' },
@@ -404,6 +429,15 @@ describe('hosted declarative mutate/build tools', () => {
   test('mutate requires source+ops; build requires family+ops', async () => {
     expect((await handleHostedRequest(call('mutate', { ops: [] }), makeContext()))?.error?.code).toBe(-32602)
     expect((await handleHostedRequest(call('build', { family: 'class' }), makeContext()))?.error?.code).toBe(-32602)
+    expect((await handleHostedRequest(call('mutate', { source: 'classDiagram\n  class A', ops: [] }), makeContext()))?.error?.code).toBe(-32602)
+    expect((await handleHostedRequest(call('build', { family: 'class', ops: [] }), makeContext()))?.error?.code).toBe(-32602)
+    for (const name of ['mutate', 'build']) {
+      const tool = HOSTED_TOOLS.find(candidate => candidate.name === name)!
+      const args = name === 'mutate'
+        ? { source: 'classDiagram\n  class A', ops: [] }
+        : { family: 'class', ops: [] }
+      expect(validateMcpToolArguments(tool, args).join(' ')).toContain('must contain at least 1 item')
+    }
   })
 
   test('tool descriptions defer family schemas to describe_sdk', () => {

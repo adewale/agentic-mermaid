@@ -317,6 +317,8 @@ interface ValidDiagram {
     frontmatter?: Record<string, unknown>
     initDirectives: { raw: string; parsed: Record<string, unknown> }[]
     comments: { text: string; line: number }[]
+    wrapperSource?: string
+    droppedComments?: { text: string; line: number }[]
     accessibility: { title?: string; descr?: string }
   }
   readonly body:
@@ -367,21 +369,27 @@ interface FlowchartGraph {
   // semanticShape/authoredShape carry Mermaid v11 @{ shape } metadata: shape
   // stays the drawn geometry, semanticShape the canonical v11 id, and
   // authoredShape the exact spelling that serializes back.
-  nodes: Map<string, { id: string; label: string; shape: string; semanticShape?: string; authoredShape?: string }>
+  nodes: Map<string, { id: string; label: string; shape: string; semanticShape?: string; authoredShape?: string; markdownLabel?: true; icon?: string; image?: string; iconForm?: 'square' | 'circle' | 'rounded'; href?: string }>
   edges: {
     // id = authored v11.6 edge ID ('e1@-->'): round-trips verbatim and is a
     // valid remove_edge/set_label target selector.
     id?: string
     source: string; target: string; label?: string; style: string
     hasArrowStart?: boolean; hasArrowEnd?: boolean; startMarker?: string; endMarker?: string
+    curve?: string; animate?: boolean; animation?: 'fast' | 'slow'; length?: number
   }[]
-  subgraphs: { id: string; label: string; nodeIds: string[]; children: FlowchartGraph['subgraphs']; direction?: FlowchartGraph['direction'] }[]
+  subgraphs: { id: string; label: string; nodeIds: string[]; children: FlowchartGraph['subgraphs']; direction?: FlowchartGraph['direction']; concurrencyRegion?: true }[]
+  classDefs: Map<string, Record<string, string>>
+  classAssignments: Map<string, string>
+  nodeStyles: Map<string, Record<string, string>>
+  linkStyles: Map<number | 'default', Record<string, string>>
 }
 
-interface StateNode { id: string; label?: string; stereotype?: 'fork' | 'join' | 'choice' | 'history' | 'deep-history'; states?: StateNode[]; transitions?: StateTransition[]; direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }
-interface StateTransition { from: string; to: string; label?: string }   // from/to may be '[*]' or a history ref ('[H]', 'X[H*]')
+interface StateNode { id: string; label?: string; declaredBare?: true; stereotype?: 'fork' | 'join' | 'choice' | 'history' | 'deep-history'; states?: StateNode[]; transitions?: StateTransition[]; regions?: StateRegion[]; className?: string; style?: Record<string, string>; direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }
+interface StateRegion { states: StateNode[]; transitions: StateTransition[]; direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }
+interface StateTransition { from: string; to: string; label?: string; style?: Record<string, string> }   // from/to may be '[*]' or a history ref ('[H]', 'X[H*]')
 interface StateNote { target: string; side: 'left' | 'right'; text: string }
-interface StateBody { kind: 'state'; states: StateNode[]; transitions: StateTransition[]; notes?: StateNote[]; direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }
+interface StateBody { kind: 'state'; states: StateNode[]; transitions: StateTransition[]; notes?: StateNote[]; direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL'; classDefs?: Record<string, Record<string, string>>; defaultTransitionStyle?: Record<string, string> }
 
 type SeqParticipantKind = 'participant' | 'actor' | 'boundary' | 'control' | 'entity' | 'database' | 'collections' | 'queue'
 interface SeqParticipant { id: string; label: string; kind: SeqParticipantKind; declaration?: 'participant' | 'actor'; links?: Record<string, string> }
@@ -406,21 +414,22 @@ interface TimelineSection { id: string; label?: string; periods: TimelinePeriod[
 // direction: explicit \`timeline TD\`/\`timeline LR\` header token (TD = vertical, upstream PR #7270); undefined = LR default.
 interface TimelineBody { kind: 'timeline'; direction?: 'LR' | 'TD'; title?: string; accessibilityTitle?: string; accessibilityDescription?: string; sections: TimelineSection[] }
 
-interface ClassNode { id: string; generic?: string; label?: string; members: string[]; namespace?: string; href?: string }
+interface ClassNode { id: string; generic?: string; label?: string; members: string[]; namespace?: string; className?: string; style?: Record<string, string>; href?: string }
 type ClassRelationKind = 'inheritance' | 'composition' | 'aggregation' | 'association' | 'dependency' | 'realization' | 'link-solid' | 'link-dashed' | 'lollipop'
 interface ClassRelation { from: string; to: string; kind: ClassRelationKind; label?: string; fromCardinality?: string; toCardinality?: string; markerAt?: 'from' | 'to' | 'both'; fromKind?: ClassRelationKind; toKind?: ClassRelationKind }
 interface ClassNote { text: string; for?: string }
 // namespace paths are dot-joined (e.g. 'Platform.Auth'); namespaces render as
 // compound boxes and serialize to "namespace path { ... }" blocks.
 interface ClassNamespaceDecl { name: string; label?: string }
-interface ClassBody { kind: 'class'; title?: string; classes: ClassNode[]; relations: ClassRelation[]; notes: ClassNote[]; namespaces?: ClassNamespaceDecl[] }
+interface ClassBody { kind: 'class'; title?: string; classes: ClassNode[]; relations: ClassRelation[]; notes: ClassNote[]; namespaces?: ClassNamespaceDecl[]; classDefs?: Record<string, Record<string, string>> }
 
 type ErCardinality = 'one-only' | 'zero-or-one' | 'zero-or-many' | 'one-or-many'
 interface ErAttribute { text: string }
-interface ErEntity { id: string; label?: string; attributes: ErAttribute[]; groupId?: string }
+interface ErEntity { id: string; label?: string; attributes: ErAttribute[]; className?: string; style?: Record<string, string>; groupId?: string }
 interface ErGroup { id: string; label: string; parentId?: string; direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }
 interface ErRelation { from: string; to: string; leftCard: ErCardinality; rightCard: ErCardinality; dashed: boolean; label?: string }
-interface ErBody { kind: 'er'; entities: ErEntity[]; relations: ErRelation[]; groups?: ErGroup[] }
+type ErStatement = { kind: 'entity'; id: string } | { kind: 'relation'; ref: number } | { kind: 'direction'; groupId?: string } | { kind: 'group-open'; id: string } | { kind: 'group-close'; id: string } | { kind: 'opaque'; lines: string[] }
+interface ErBody { kind: 'er'; entities: ErEntity[]; relations: ErRelation[]; groups?: ErGroup[]; direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL'; classDefs?: Record<string, Record<string, string>>; statements?: ErStatement[] }
 
 interface JourneyTask { id: string; text: string; score: number; actors: string[] }
 interface JourneySection { id: string; label?: string; tasks: JourneyTask[] }
@@ -431,29 +440,29 @@ type ArchitectureEndpointBoundary = 'item' | 'group'
 interface ArchitectureGroup { id: string; label: string; icon?: string; parentId?: string }
 interface ArchitectureService { id: string; label: string; icon?: string; parentId?: string }
 interface ArchitectureJunction { id: string; parentId?: string }
-interface ArchitectureEndpoint { id: string; side: ArchitectureSide }
+interface ArchitectureEndpoint { id: string; side: ArchitectureSide; boundary?: ArchitectureEndpointBoundary }
 interface ArchitectureEdge { source: ArchitectureEndpoint; target: ArchitectureEndpoint; label?: string; hasArrowStart: boolean; hasArrowEnd: boolean }
 // alignments: upstream v11.16.0 "align row|column" directives, preserved
 // losslessly and honored as deterministic center-coordinate constraints.
 interface ArchitectureAlignment { axis: 'row' | 'column'; members: string[] }
-interface ArchitectureBody { kind: 'architecture'; title?: string; groups: ArchitectureGroup[]; services: ArchitectureService[]; junctions: ArchitectureJunction[]; edges: ArchitectureEdge[]; alignments?: ArchitectureAlignment[] }
+interface ArchitectureBody { kind: 'architecture'; title?: string; accessibilityTitle?: string; accessibilityDescription?: string; groups: ArchitectureGroup[]; services: ArchitectureService[]; junctions: ArchitectureJunction[]; edges: ArchitectureEdge[]; alignments?: ArchitectureAlignment[] }
 
 interface XyChartAxis { name?: string; categories?: string[]; range?: { min: number; max: number } }
 interface XyChartSeries { id: string; kind: 'bar' | 'line'; name?: string; values: number[]; pointLabels?: Array<string | undefined> }
-interface XyChartBody { kind: 'xychart'; title?: string; horizontal?: boolean; xAxis?: XyChartAxis; yAxis?: XyChartAxis; series: XyChartSeries[] }
+interface XyChartBody { kind: 'xychart'; accessibilityTitle?: string; accessibilityDescription?: string; title?: string; horizontal?: boolean; xAxis?: XyChartAxis; yAxis?: XyChartAxis; series: XyChartSeries[] }
 
 interface PieSlice { id: string; label: string; value: number }   // value > 0
-interface PieBody { kind: 'pie'; title?: string; showData: boolean; slices: PieSlice[] }
+interface PieBody { kind: 'pie'; accessibilityTitle?: string; accessibilityDescription?: string; title?: string; showData: boolean; slices: PieSlice[] }
 
 interface QuadrantAxis { near: string; far?: string }
 // Upstream per-point styling (direct \`radius:/color:/stroke-color:/stroke-width:\`
 // tails, \`classDef\` tables, \`:::class\` assignments) is structured content:
 // preserved by every op and serialized canonically. strokeWidth may carry px.
-interface QuadrantPointStyle { radius?: number; color?: string; strokeColor?: string; strokeWidth?: string }
+interface QuadrantPointStyle { radius?: number; color?: string; strokeColor?: string; strokeWidth?: string; extra?: string[] }
 interface QuadrantPoint { label: string; x: number; y: number; className?: string; style?: QuadrantPointStyle }   // x,y in [0,1]
 // quadrants indexed 0-based; index n-1 holds Mermaid quadrant-n
 // (1=top-right, 2=top-left, 3=bottom-left, 4=bottom-right)
-interface QuadrantBody { kind: 'quadrant'; title?: string; xAxis?: QuadrantAxis; yAxis?: QuadrantAxis; quadrants: [string?, string?, string?, string?]; points: QuadrantPoint[]; classDefs?: Record<string, QuadrantPointStyle> }
+interface QuadrantBody { kind: 'quadrant'; accessibilityTitle?: string; accessibilityDescription?: string; title?: string; xAxis?: QuadrantAxis; yAxis?: QuadrantAxis; quadrants: [string?, string?, string?, string?]; points: QuadrantPoint[]; classDefs?: Record<string, QuadrantPointStyle> }
 
 // Radar (spider) chart: axes = spokes; curves = one value per axis (axis order).
 interface RadarBodyAxis { id: string; label: string }
@@ -477,13 +486,14 @@ type GanttStatement =
 interface GanttBody { kind: 'gantt'; title?: string; sections: GanttSection[]; statements?: GanttStatement[] }
 
 type MindmapShape = 'default' | 'rect' | 'rounded' | 'circle' | 'cloud' | 'bang' | 'hexagon'
-interface MindmapNode { id: string; label: string; shape: MindmapShape; icon?: string; className?: string; children: MindmapNode[] }
+interface MindmapNode { id: string; label: string; shape: MindmapShape; markdown?: true; icon?: string; className?: string; children: MindmapNode[] }
 interface MindmapBody { kind: 'mindmap'; root: MindmapNode; accessibilityTitle?: string; accessibilityDescription?: string }
 
 type GitGraphCommitType = 'NORMAL' | 'REVERSE' | 'HIGHLIGHT' | 'MERGE' | 'CHERRY_PICK'
-interface GitGraphCommit { id: string; message?: string; type: GitGraphCommitType; customType?: 'NORMAL' | 'REVERSE' | 'HIGHLIGHT'; tags: string[]; parents: string[]; branch: string; sequence: number; source: 'commit' | 'merge' | 'cherry-pick'; customId: boolean }
-interface GitGraphBranch { name: string; order: number; head?: string }
-interface GitGraphBody { kind: 'gitgraph'; direction: 'LR' | 'TB' | 'BT'; mainBranchName: string; commits: GitGraphCommit[]; branches: GitGraphBranch[]; statements: unknown[]; accessibilityTitle?: string; accessibilityDescription?: string }
+interface GitGraphCommit { id: string; message?: string; type: GitGraphCommitType; customType?: 'NORMAL' | 'REVERSE' | 'HIGHLIGHT'; tags: string[]; parents: string[]; branch: string; sequence: number; source: 'commit' | 'merge' | 'cherry-pick'; mergeBranch?: string; cherrySource?: string; cherryParent?: string; syntheticCherryTag?: string; customId: boolean }
+interface GitGraphBranch { name: string; order: number; sequence: number; head?: string }
+type GitGraphStatement = { kind: 'commit'; ref: string } | { kind: 'branch'; name: string; order?: number } | { kind: 'checkout'; branch: string; keyword: 'checkout' | 'switch' } | { kind: 'merge'; ref: string; branch: string } | { kind: 'cherry-pick'; ref: string; source: string; parent?: string }
+interface GitGraphBody { kind: 'gitgraph'; direction: 'LR' | 'TB' | 'BT'; mainBranchName: string; title?: string; commits: GitGraphCommit[]; branches: GitGraphBranch[]; statements: GitGraphStatement[]; accessibilityTitle?: string; accessibilityDescription?: string }
 
 type FlowchartMutationOp =
   // shape also accepts any Mermaid v11 @{ shape } name/alias (e.g. 'manual-input')
@@ -769,7 +779,7 @@ declare const mermaid: {
   buildMermaid(kind: DiagramKind, ops: AnyMutationOp[], opts?: { direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }): Result<ValidDiagram, { code: string; message: string; opIndex: number }>
 ${SDK_NARROWER_METHOD_DECLARATIONS}
 ${SDK_MUTATE_METHOD_DECLARATIONS}
-  verifyMermaid(input: ParsedDiagram | string, opts?: { suppress?: WarningCode[]; labelCharCap?: number }): VerifyResult
+  verifyMermaid(input: ParsedDiagram | string, opts?: { suppress?: WarningCode[]; labelCharCap?: number; renderOptions?: SharedRenderOptions }): VerifyResult
   analyzeMermaid(d: ValidDiagram): DiagramAnalysis
   analyzeMermaidSource(source: string): Result<DiagramAnalysis, { code: string; message: string }[]>
   describeMermaidFacts(d: ValidDiagram): string[]

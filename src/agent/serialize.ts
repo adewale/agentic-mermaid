@@ -10,6 +10,7 @@ import type {
 import { ok, err } from './types.ts'
 import YAML from 'yaml'
 import { getFamily, knownFamilies } from './families.ts'
+import { parseMermaid, parseRegisteredMermaid } from './parse.ts'
 import { ensureAccessibilityLines } from './accessibility-envelope.ts'
 import type { ExtensionIdentity } from '../shared/extension-identity.ts'
 import { sameExtensionIdentity } from '../shared/extension-identity.ts'
@@ -121,7 +122,14 @@ function renderBody(
 
 // ---- synthesizeFromGraph --------------------------------------------------
 
-export function synthesizeFromGraph(payload: ValidDiagramPayload): Result<ValidDiagram, ParseError[]> {
+export function synthesizeFromGraph(
+  payload: ValidDiagramPayload & {
+    kind: ValidDiagram['kind']
+    body: Exclude<ValidDiagramPayload['body'], import('./types.ts').ExtensionDiagramBody>
+  },
+): Result<ValidDiagram, ParseError[]>
+export function synthesizeFromGraph(payload: ValidDiagramPayload): Result<ParsedDiagram, ParseError[]>
+export function synthesizeFromGraph(payload: ValidDiagramPayload): Result<ParsedDiagram, ParseError[]> {
   // This is an untrusted-JSON boundary (`am serialize`, batch `serialize`, Code Mode): the
   // declared Result type promises err-not-throw for ANY payload. Guard the top-level shape for
   // a clean message, then net any deeper malformed-graph throw (e.g. `new Map` on a non-tuple
@@ -134,8 +142,67 @@ export function synthesizeFromGraph(payload: ValidDiagramPayload): Result<ValidD
   if (!bodyPayload || typeof bodyPayload !== 'object' || typeof (bodyPayload as { kind?: unknown }).kind !== 'string') {
     return err([{ code: 'INVALID_PAYLOAD', message: 'payload.body.kind must be a string' }])
   }
+  const kind = (payload as { kind?: unknown }).kind
+  if (typeof kind !== 'string' || !knownFamilies().includes(kind as never)) {
+    return err([{ code: 'INVALID_PAYLOAD', message: `payload.kind must be a known diagram family, received ${String(kind)}` }])
+  }
+  const bodyKind = (bodyPayload as { kind: string }).kind
+  const bodyFamily = bodyKind === 'opaque' || bodyKind === 'extension'
+    ? (bodyPayload as { family?: unknown }).family
+    : bodyKind
+  if (bodyFamily !== kind) {
+    return err([{ code: 'INVALID_PAYLOAD', message: `payload kind "${kind}" does not match body family "${String(bodyFamily)}"` }])
+  }
+  if (bodyKind === 'pie') {
+    const pie = bodyPayload as { showData?: unknown; title?: unknown; slices?: unknown }
+    if (typeof pie.showData !== 'boolean'
+      || (pie.title !== undefined && typeof pie.title !== 'string')
+      || !Array.isArray(pie.slices)
+      || pie.slices.some(slice => !slice || typeof slice !== 'object'
+        || typeof (slice as { id?: unknown }).id !== 'string'
+        || typeof (slice as { label?: unknown }).label !== 'string'
+        || typeof (slice as { value?: unknown }).value !== 'number'
+        || !Number.isFinite((slice as { value: number }).value)
+        || (slice as { value: number }).value <= 0)) {
+      return err([{ code: 'INVALID_PAYLOAD', message: 'payload pie body must contain typed positive finite slices' }])
+    }
+  }
   try {
-    return rebuildFromPayload(payload)
+    if (bodyKind === 'extension') {
+      const bodySource = (bodyPayload as { source?: unknown }).source
+      const canonicalSource = (payload as { canonicalSource?: unknown }).canonicalSource
+      const wrapperSource = (payload as { meta?: { wrapperSource?: unknown } }).meta?.wrapperSource
+      const source = typeof bodySource === 'string' && bodySource.trim()
+        ? (typeof wrapperSource === 'string' ? wrapperSource : '') + bodySource
+        : canonicalSource
+      if (typeof source !== 'string' || !source.trim()) {
+        return err([{ code: 'INVALID_PAYLOAD', message: 'extension payload must retain canonicalSource or body.source' }])
+      }
+      const reparsed = parseRegisteredMermaid(source)
+      if (!reparsed.ok || reparsed.value.kind !== kind || reparsed.value.body.kind !== 'extension') {
+        const detail = reparsed.ok
+          ? `serialized source reparsed as ${reparsed.value.kind}/${reparsed.value.body.kind}`
+          : reparsed.error.map(error => error.message).join('; ')
+        return err([{ code: 'INVALID_PAYLOAD', message: `serialized extension payload is not a valid ${kind} diagram: ${detail}` }])
+      }
+      return ok(reparsed.value)
+    }
+    const rebuilt = rebuildFromPayload(payload)
+    if (!rebuilt.ok) return rebuilt
+    // A successful untrusted rehydration must be a real diagram, not merely a
+    // body that happened not to throw in a serializer. Reparse the canonical
+    // source and require the same family before publishing ValidDiagram.
+    const reparsed = parseMermaid(rebuilt.value.canonicalSource)
+    if (!reparsed.ok || reparsed.value.kind !== rebuilt.value.kind) {
+      const detail = reparsed.ok
+        ? `serialized source reparsed as ${reparsed.value.kind}/${reparsed.value.body.kind}`
+        : reparsed.error.map(error => error.message).join('; ')
+      return err([{ code: 'INVALID_PAYLOAD', message: `serialized payload is not a valid ${kind} diagram: ${detail}` }])
+    }
+    // Publish the parser-admitted snapshot, not the caller's retained graph.
+    // Reparse normalization prevents malformed optional metadata and nested
+    // records from surviving a nominally successful synthesis.
+    return ok({ ...reparsed.value, canonicalSource: serializeMermaid(reparsed.value) })
   } catch (e) {
     return err([{ code: 'INVALID_PAYLOAD', message: `could not rebuild diagram from payload: ${(e as Error).message}` }])
   }
@@ -179,7 +246,9 @@ function rebuildFromPayload(payload: ValidDiagramPayload): Result<ValidDiagram, 
     const problem = radarBodyProblem(payload.body)
     if (problem) return err([{ code: 'INVALID_PAYLOAD', message: problem }])
     body = payload.body
-  } else if (payload.body.kind === 'opaque' || knownFamilies().includes(payload.body.kind)) {
+  } else if (payload.body.kind === 'extension') {
+    return err([{ code: 'INVALID_PAYLOAD', message: 'extension payload must be reparsed through its registered descriptor' }])
+  } else if (payload.body.kind === 'opaque' || knownFamilies().includes(payload.body.kind as never)) {
     // Structured bodies pass through verbatim (flowchart is rebuilt above).
     // Membership is derived from the family registry rather than a hand-kept
     // kind list — the old list silently dropped pie and quadrant payloads to
@@ -190,7 +259,7 @@ function rebuildFromPayload(payload: ValidDiagramPayload): Result<ValidDiagram, 
   }
 
   const draft: ValidDiagram = {
-    kind: payload.kind, meta, body,
+    kind: payload.kind as ValidDiagram['kind'], meta, body,
     source: { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() },
     canonicalSource: '',
   }
