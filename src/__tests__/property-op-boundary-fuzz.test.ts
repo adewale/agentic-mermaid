@@ -15,7 +15,7 @@
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
 
-import { validateOp, applyOps, mutateChecked } from '../agent/core.ts'
+import { validateOp, applyOps, mutateChecked, hasOpSchema } from '../agent/core.ts'
 import { createMermaid } from '../agent/create.ts'
 import { MUTATION_OPS_BY_FAMILY, type MutableFamilyId } from '../agent/mutation-ops.ts'
 import { handleHostedRequest, type HostedMcpContext } from '../mcp/hosted-server.ts'
@@ -103,6 +103,51 @@ describe('op-boundary fuzz: applyOps / mutateChecked', () => {
     fc.assert(fc.property(familyArb, fc.array(opArb, { maxLength: 4 }), (family, ops) => {
       expect(applyOps({ family, ops })).toEqual(applyOps({ family, ops }))
     }), { numRuns: NUM_RUNS })
+  })
+})
+
+// Regression: an op `kind`, a `family`, or a field name that collides with an inherited
+// Object.prototype property (toString, constructor, __proto__, …) must not slip past the
+// prototype chain. `kind in schema` / `family in SCHEMAS` reported these as valid and then
+// dereferenced the inherited function as an op spec, crashing validateOp/applyOps at the
+// untrusted boundary (found by the finder sweep at op-boundary seed=2, kind:"toString").
+describe('op-boundary fuzz: inherited Object.prototype keys are never valid ops', () => {
+  const PROTO_KEYS = [
+    'toString', 'valueOf', 'hasOwnProperty', 'constructor', 'isPrototypeOf',
+    'toLocaleString', 'propertyIsEnumerable', '__proto__', '__defineGetter__',
+  ]
+
+  it('validateOp rejects a prototype-named kind with INVALID_OP instead of throwing', () => {
+    for (const family of FAMILIES) {
+      for (const kind of PROTO_KEYS) {
+        const r = validateOp(family, { kind })
+        expect(r).not.toBeNull()
+        expect(r!.code).toBe('INVALID_OP')
+        expect(r!.reason).toBe('unknown_kind')
+      }
+    }
+  })
+
+  it('validateOp flags a prototype-named field as unknown_field', () => {
+    // add_node is a flowchart op; add a well-formed base then an inherited-name extra field.
+    for (const key of PROTO_KEYS) {
+      const r = validateOp('flowchart', { kind: 'add_node', id: 'A', label: 'x', [key]: 'evil' })
+      expect(r).not.toBeNull()
+      expect(r!.reason).toBe('unknown_field')
+    }
+  })
+
+  it('hasOpSchema returns false for inherited prototype names', () => {
+    for (const key of PROTO_KEYS) expect(hasOpSchema(key)).toBe(false)
+  })
+
+  it('applyOps never throws on a prototype-named family or op kind', () => {
+    for (const key of PROTO_KEYS) {
+      expect(() => applyOps({ family: key as never, ops: [{ kind: 'add_node', id: 'A' }] })).not.toThrow()
+      expect(applyOps({ family: key as never, ops: [{ kind: 'add_node', id: 'A' }] }).ok).toBe(false)
+      expect(() => applyOps({ family: 'flowchart', ops: [{ kind: key }] })).not.toThrow()
+      expect(applyOps({ family: 'flowchart', ops: [{ kind: key }] }).ok).toBe(false)
+    }
   })
 })
 

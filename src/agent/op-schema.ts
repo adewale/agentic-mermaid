@@ -373,9 +373,11 @@ const SCHEMAS: Record<OpFamily, Record<string, OpSpec>> = {
   radar: RADAR_SCHEMA,
 }
 
-/** True when `family` has a shape schema (i.e. is a mutable structured family). */
+/** True when `family` has a shape schema (i.e. is a mutable structured family).
+ *  Own-property only: `family in SCHEMAS` would report inherited Object.prototype
+ *  names (`toString`, `constructor`, `__proto__`, …) as families and mis-narrow them. */
 export function hasOpSchema(family: string): family is OpFamily {
-  return family in SCHEMAS
+  return Object.hasOwn(SCHEMAS, family)
 }
 
 // ---- Prescriptive error ---------------------------------------------------
@@ -471,7 +473,10 @@ export function validateOp(family: OpFamily, op: unknown): OpValidationError | n
   }
   const rec = op as Record<string, unknown>
   const kind = rec.kind
-  if (typeof kind !== 'string' || !(kind in schema)) {
+  // Own-property only: `kind in schema` treats inherited Object.prototype names
+  // (`toString`, `constructor`, `__proto__`, …) as real op kinds, then dereferences
+  // the inherited function as an op spec below and crashes on Object.keys(spec.fields).
+  if (typeof kind !== 'string' || !Object.hasOwn(schema, kind)) {
     const validKinds = Object.keys(schema)
     const dym = typeof kind === 'string' ? nearest(kind, validKinds) : undefined
     // Reuse the mutator's own prescriptive phrasing ("valid ops: …") so the
@@ -490,7 +495,9 @@ export function validateOp(family: OpFamily, op: unknown): OpValidationError | n
   // 1) Unknown / misnamed fields (this catches the `name`-instead-of-`id` bug).
   for (const key of Object.keys(rec)) {
     if (key === 'kind') continue
-    if (!(key in spec.fields)) {
+    // Own-property only: an inherited field name (`toString`, `constructor`, …) must be
+    // reported as an unknown field, not silently accepted via the prototype chain.
+    if (!Object.hasOwn(spec.fields, key)) {
       const dym = nearest(key, validFields)
       return {
         code: 'INVALID_OP', reason: 'unknown_field', family, opKind: kind, field: key,
