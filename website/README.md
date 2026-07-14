@@ -22,8 +22,9 @@ The MCP server core lives in `src/mcp/hosted-server.ts` (repo root `src/`), shar
 - `/docs/getting-started/`, `/docs/api/`, `/docs/cli/`, `/docs/mcp/`, `/docs/ascii/`, `/docs/theming/`, `/docs/custom-styles/`, `/docs/quality/`, `/docs/fork-differences/`
 - `/skills/agentic-mermaid-diagram-workflow/`
 - `/warnings/`, `/warnings/<CODE>/`, `/errors/`, `/errors/<kind>/`
-- `/index.md`, `/llms.txt`, `/llms.md`, `/.well-known/llms.txt`, `/agent-instructions.md`, `/capabilities.json`, `/examples/index.json`
+- `/index.md`, `/llms.txt`, `/llms.md`, `/.well-known/llms.txt`, `/agent-instructions.md`, `/capabilities.json`, `/examples/index.json`, `/warning-codes.md`
 - `/.well-known/mcp`, `/.well-known/mcp.json`, `/.well-known/mcp/server-card.json`, `/.well-known/ai-catalog.json`
+- `/schemas/style-spec.schema.json`, `/schemas/render-options.schema.json`
 - raw `/skills/agentic-mermaid-diagram-workflow/SKILL.md`
 - `/mcp` — hosted MCP (stateless Streamable HTTP; `claude mcp add --transport http agentic-mermaid https://agentic-mermaid.dev/mcp`)
 - `/.well-known/mcp` — standard discovery alias for the same hosted MCP transport.

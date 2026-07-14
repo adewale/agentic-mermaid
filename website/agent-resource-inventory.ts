@@ -10,6 +10,6 @@ export const AI_CATALOG_RESOURCES = [
   { identifier: 'urn:air:agentic-mermaid.dev:start', type: 'text/markdown', path: '/start.md' },
   { identifier: 'urn:air:agentic-mermaid.dev:instructions', type: 'text/markdown', path: '/agent-instructions.md' },
   { identifier: 'urn:air:agentic-mermaid.dev:mcp:manifest', type: 'application/json', path: '/.well-known/mcp.json' },
-  { identifier: 'urn:air:agentic-mermaid.dev:warnings', type: 'text/markdown', path: '/warnings/index.md' },
+  { identifier: 'urn:air:agentic-mermaid.dev:warnings', type: 'text/markdown', path: '/warning-codes.md' },
   { identifier: 'urn:air:agentic-mermaid.dev:style-schema', type: 'application/schema+json', path: '/schemas/style-spec.schema.json' },
 ] as const

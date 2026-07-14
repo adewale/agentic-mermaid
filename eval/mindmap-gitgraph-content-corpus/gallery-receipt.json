@@ -1484,7 +1484,7 @@
     },
     {
       "path": "src/__tests__/website-build.test.ts",
-      "sha256": "bd03c6a12bf6e8d458d335af6a8e3fb08419863bb485006c04ba2c46e60d3c0c"
+      "sha256": "83b6e1e63e2cf9ca339b9255197c05ed8599f8e7c92e4fd9d4bbf927b162fbc9"
     },
     {
       "path": "src/__tests__/website-public.preload.ts",
