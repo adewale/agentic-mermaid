@@ -100,8 +100,9 @@ This was intentionally a diagnostic run, not a passing acceptance run. The old
 broad-family shard received GitHub's runner-shutdown signal before it could
 write a report. The aggregate verifier rejected all four incomplete lanes and
 reported their exact missing-mutant counts; no partial score was accepted or
-used for calibration. The revised schedule splits State, Sequence, and
-Quadrant into three shards each, rebalances Gantt across five shards, and
+used for calibration. The revised schedule splits State into four shards,
+Sequence and Quadrant into three shards each, rebalances Gantt across five
+shards, and
 rebalances the broad-family lane across nine shards. The next complete run
 calibrates the four omitted lanes and proves every measured floor together.
 

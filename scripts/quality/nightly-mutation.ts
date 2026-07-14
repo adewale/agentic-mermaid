@@ -87,7 +87,7 @@ export const NIGHTLY_MUTATION_LANES: readonly NightlyLane[] = [
   { id: 'routes', config: 'stryker.routes.config.json', timeout: 180, maxLinesPerShard: 525 },
   { id: 'route-certificates', config: 'stryker.route-certificates.config.mjs', timeout: 45 },
   { id: 'subgraph-routing', config: 'stryker.subgraph-routing.config.mjs', timeout: 60 },
-  { id: 'state', config: 'stryker.state.config.json', timeout: 90, maxLinesPerShard: 500 },
+  { id: 'state', config: 'stryker.state.config.json', timeout: 90, maxLinesPerShard: 450 },
   { id: 'sequence', config: 'stryker.sequence.config.json', timeout: 90, maxLinesPerShard: 500 },
   { id: 'timeline', config: 'stryker.timeline.config.json', timeout: 90 },
   { id: 'class', config: 'stryker.class.config.json', timeout: 90 },
