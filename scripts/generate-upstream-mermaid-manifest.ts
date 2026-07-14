@@ -267,6 +267,10 @@ const suiteManifest = readJson(SUITE_MANIFEST_PATH)
 const suiteRevision = String(suiteManifest.upstream?.revision ?? '')
 const docsShowcase = readJson(DOCS_SHOWCASE_PATH)
 const mindmapGitgraph = readJson(MINDMAP_GITGRAPH_PATH)
+const companionRevision = String(mindmapGitgraph.upstream?.commit ?? '')
+if (companionRevision !== commit) {
+  throw new Error(`Reviewed upstream commit ${commit} does not match the executable Mindmap/GitGraph oracle ${companionRevision || 'missing'}`)
+}
 
 interface SemanticSourceArtifact {
   id: string

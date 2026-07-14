@@ -5,10 +5,10 @@
     "version": "11.16.0",
     "repository": "mermaid-js/mermaid",
     "tag": "mermaid@11.16.0",
-    "commit": "5e3c88ea6d937a89078a5e8f1b2a6fd0ea391a5c",
+    "commit": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
     "npmIntegrity": "sha512-Zvm3kbstgdpvIJPPItlL7fppIZ3kibvc1oZIGxdvk9t6UFz6flv+Jw7FtRGKwfcI8OckmH04LqG6LlS6X4B1pA==",
     "packageJsonSha256": "88ea12cf87bb2616d3ed68b1f0d3202a0ab1ad5a1eed82f8471dfd8f9dc8d1cb",
-    "inventorySha256": "9ebde3550b6a9d51769fa3b68b0565b13be45df3ddf8e8752d432675b38a1209",
+    "inventorySha256": "5dc63de4bf954cc8c7cbeec4643e737bcf3ac917f650c5a32c844f38e0da5697",
     "inputs": [
       "packages/mermaid/src/diagram-api/diagram-orchestration.ts",
       "packages/mermaid/src/diagram-api/detectType.ts",
@@ -1202,7 +1202,7 @@
         "scope": "installed-package",
         "path": "dist/config.type.d.ts",
         "sha256": "be369beb8545de3e1d35c387d7ce0f328fb672f7c347e6540617a40d1b7244c0",
-        "upstreamRevision": "5e3c88ea6d937a89078a5e8f1b2a6fd0ea391a5c"
+        "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc"
       },
       {
         "id": "docs-corpus",
@@ -1247,7 +1247,7 @@
         "scope": "repository",
         "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/architecture.md",
         "sha256": "b79c518fd0a9661157731b99091e987a8010ffa9522a179f30099236699ca8ad",
-        "upstreamRevision": "5e3c88ea6d937a89078a5e8f1b2a6fd0ea391a5c"
+        "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc"
       },
       {
         "id": "official-doc:block",
@@ -1255,7 +1255,7 @@
         "scope": "repository",
         "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/block.md",
         "sha256": "803a2975a94d25e1bcb41ff60d9d9653514e2a833df360c36382cca804809e7f",
-        "upstreamRevision": "5e3c88ea6d937a89078a5e8f1b2a6fd0ea391a5c"
+        "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc"
       },
       {
         "id": "official-doc:c4",
@@ -1263,7 +1263,7 @@
         "scope": "repository",
         "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/c4.md",
         "sha256": "f12badd3ae2c972a3b6cc5a882f03f34249997a2b48ee66ad5e98bb40309dff4",
-        "upstreamRevision": "5e3c88ea6d937a89078a5e8f1b2a6fd0ea391a5c"
+        "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc"
       },
       {
         "id": "official-doc:class",
@@ -1271,7 +1271,7 @@
         "scope": "repository",
         "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/classDiagram.md",
         "sha256": "178370ab11242580ee431c1f9ba14810a8617a7a6b0473a4eee8fb465a037087",
-        "upstreamRevision": "5e3c88ea6d937a89078a5e8f1b2a6fd0ea391a5c"
+        "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc"
       },
       {
         "id": "official-doc:cynefin",
@@ -1279,7 +1279,7 @@
         "scope": "repository",
         "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/cynefin.md",
         "sha256": "fc8d2718505fe027c367b6dd063f261dfcbc6e5ade73efa1678d9f46d925cca1",
-        "upstreamRevision": "5e3c88ea6d937a89078a5e8f1b2a6fd0ea391a5c"
+        "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc"
       },
       {
         "id": "official-doc:er",
@@ -1287,7 +1287,7 @@
         "scope": "repository",
         "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/entityRelationshipDiagram.md",
         "sha256": "6dae5e32f9048d944b336d2edfb093b11aba45e775d02d0cf4979f51a5d1d931",
-        "upstreamRevision": "5e3c88ea6d937a89078a5e8f1b2a6fd0ea391a5c"
+        "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc"
       },
       {
         "id": "official-doc:eventmodeling",
@@ -1295,7 +1295,7 @@
         "scope": "repository",
         "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/eventmodeling.md",
         "sha256": "87a44dbb80ff96d9cbaba5c81a237555f5503c87d01e9027556aa73a276e6421",
-        "upstreamRevision": "5e3c88ea6d937a89078a5e8f1b2a6fd0ea391a5c"
+        "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc"
       },
       {
         "id": "official-doc:flowchart",
@@ -1303,7 +1303,7 @@
         "scope": "repository",
         "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/flowchart.md",
         "sha256": "b93d95e801310da61a2b68db2612f86c050defc53bed5f13c4cb3504d80706f9",
-        "upstreamRevision": "5e3c88ea6d937a89078a5e8f1b2a6fd0ea391a5c"
+        "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc"
       },
       {
         "id": "official-doc:gantt",
@@ -1311,7 +1311,7 @@
         "scope": "repository",
         "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/gantt.md",
         "sha256": "8f77fca811ebc1978fa094bf3a464d7ffc7520ac30b05cf86534ab1d673a9448",
-        "upstreamRevision": "5e3c88ea6d937a89078a5e8f1b2a6fd0ea391a5c"
+        "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc"
       },
       {
         "id": "official-doc:gitgraph",
@@ -1319,7 +1319,7 @@
         "scope": "repository",
         "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/gitgraph.md",
         "sha256": "e59433a1aa25d19e4cd841e749c968b099f2c90f07a37e844ae795f53c0b027d",
-        "upstreamRevision": "5e3c88ea6d937a89078a5e8f1b2a6fd0ea391a5c"
+        "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc"
       },
       {
         "id": "official-doc:ishikawa",
@@ -1327,7 +1327,7 @@
         "scope": "repository",
         "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/ishikawa.md",
         "sha256": "146435981aae5e448262be2a54640bdcac3a61d46b7c0cbd9d49aaf35d6a5889",
-        "upstreamRevision": "5e3c88ea6d937a89078a5e8f1b2a6fd0ea391a5c"
+        "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc"
       },
       {
         "id": "official-doc:journey",
@@ -1335,7 +1335,7 @@
         "scope": "repository",
         "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/userJourney.md",
         "sha256": "6dd8531973c855733938f9df064c0f5d4a402978bae250e5b0f143f2500a0df9",
-        "upstreamRevision": "5e3c88ea6d937a89078a5e8f1b2a6fd0ea391a5c"
+        "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc"
       },
       {
         "id": "official-doc:kanban",
@@ -1343,7 +1343,7 @@
         "scope": "repository",
         "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/kanban.md",
         "sha256": "77a3966aee10b313694178ef835818b42da5c7e358ac3073d14a05c5850771c2",
-        "upstreamRevision": "5e3c88ea6d937a89078a5e8f1b2a6fd0ea391a5c"
+        "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc"
       },
       {
         "id": "official-doc:mindmap",
@@ -1351,7 +1351,7 @@
         "scope": "repository",
         "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/mindmap.md",
         "sha256": "69d0338a34563fd3d29230d138e3960bac64f8a9df761b0bc8baaf0326884a3c",
-        "upstreamRevision": "5e3c88ea6d937a89078a5e8f1b2a6fd0ea391a5c"
+        "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc"
       },
       {
         "id": "official-doc:packet",
@@ -1359,7 +1359,7 @@
         "scope": "repository",
         "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/packet.md",
         "sha256": "7644f30c54c2c69800f3b93cddc3e623376d45cb6b8f8ca84bcbb943a490a4a8",
-        "upstreamRevision": "5e3c88ea6d937a89078a5e8f1b2a6fd0ea391a5c"
+        "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc"
       },
       {
         "id": "official-doc:pie",
@@ -1367,7 +1367,7 @@
         "scope": "repository",
         "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/pie.md",
         "sha256": "0e21ba69d9946c98aec1846f22f6c699414f8cd49d4e50a3753714bf4c48aa1d",
-        "upstreamRevision": "5e3c88ea6d937a89078a5e8f1b2a6fd0ea391a5c"
+        "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc"
       },
       {
         "id": "official-doc:quadrant",
@@ -1375,7 +1375,7 @@
         "scope": "repository",
         "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/quadrantChart.md",
         "sha256": "6beef7a8950f651aafc83295051398e1ca08715e89ac261efcb3e2daed4d2cab",
-        "upstreamRevision": "5e3c88ea6d937a89078a5e8f1b2a6fd0ea391a5c"
+        "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc"
       },
       {
         "id": "official-doc:radar",
@@ -1383,7 +1383,7 @@
         "scope": "repository",
         "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/radar.md",
         "sha256": "fc8f477b64ff2ffea8cd0a1e553df3e05cc04bf9512a4860cd441344c4c0a267",
-        "upstreamRevision": "5e3c88ea6d937a89078a5e8f1b2a6fd0ea391a5c"
+        "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc"
       },
       {
         "id": "official-doc:railroad",
@@ -1391,7 +1391,7 @@
         "scope": "repository",
         "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/railroad.md",
         "sha256": "24e70804e588b2a8e0dd6253dbd275390ed5b8810b8c4a4701aec1c0109b760e",
-        "upstreamRevision": "5e3c88ea6d937a89078a5e8f1b2a6fd0ea391a5c"
+        "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc"
       },
       {
         "id": "official-doc:requirement",
@@ -1399,7 +1399,7 @@
         "scope": "repository",
         "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/requirementDiagram.md",
         "sha256": "61b0028ecb5ca2f5e00da081955e80c0d819f0dfe875b9185660fb1677dfe650",
-        "upstreamRevision": "5e3c88ea6d937a89078a5e8f1b2a6fd0ea391a5c"
+        "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc"
       },
       {
         "id": "official-doc:sankey",
@@ -1407,7 +1407,7 @@
         "scope": "repository",
         "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/sankey.md",
         "sha256": "26f097e48cc1d2289b52043d756201df6298dbcd8c7abf8678b24f3332547502",
-        "upstreamRevision": "5e3c88ea6d937a89078a5e8f1b2a6fd0ea391a5c"
+        "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc"
       },
       {
         "id": "official-doc:sequence",
@@ -1415,7 +1415,7 @@
         "scope": "repository",
         "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/sequenceDiagram.md",
         "sha256": "5d7d5e93d5f40f9a50d1819302c050d40a299a710c7de92691f5c263c391f8d0",
-        "upstreamRevision": "5e3c88ea6d937a89078a5e8f1b2a6fd0ea391a5c"
+        "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc"
       },
       {
         "id": "official-doc:state",
@@ -1423,7 +1423,7 @@
         "scope": "repository",
         "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/stateDiagram.md",
         "sha256": "881747c2df82dca4b7b286566f931859e9f0e275ef0a3dbae517c26a0bcca004",
-        "upstreamRevision": "5e3c88ea6d937a89078a5e8f1b2a6fd0ea391a5c"
+        "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc"
       },
       {
         "id": "official-doc:swimlane",
@@ -1431,7 +1431,7 @@
         "scope": "repository",
         "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/swimlanes.md",
         "sha256": "d4c80462f1b91dc865112b3345cf158236530a144f6245248a60afe8a25718c0",
-        "upstreamRevision": "5e3c88ea6d937a89078a5e8f1b2a6fd0ea391a5c"
+        "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc"
       },
       {
         "id": "official-doc:timeline",
@@ -1439,7 +1439,7 @@
         "scope": "repository",
         "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/timeline.md",
         "sha256": "16a407d5468b307dc4481bf56f130d8b88b2b5913b8409194205e8fffcd1b41e",
-        "upstreamRevision": "5e3c88ea6d937a89078a5e8f1b2a6fd0ea391a5c"
+        "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc"
       },
       {
         "id": "official-doc:treemap",
@@ -1447,7 +1447,7 @@
         "scope": "repository",
         "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/treemap.md",
         "sha256": "9754cf6a29e373ff9f5c43ea2b03e3e7330c4f0bc0056c51aa174b92eefa443e",
-        "upstreamRevision": "5e3c88ea6d937a89078a5e8f1b2a6fd0ea391a5c"
+        "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc"
       },
       {
         "id": "official-doc:treeview",
@@ -1455,7 +1455,7 @@
         "scope": "repository",
         "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/treeView.md",
         "sha256": "c3d6bc4111a1d80e305bd5b69555a8804fefdfbcc6f6be978c4b02877c33fc5c",
-        "upstreamRevision": "5e3c88ea6d937a89078a5e8f1b2a6fd0ea391a5c"
+        "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc"
       },
       {
         "id": "official-doc:venn",
@@ -1463,7 +1463,7 @@
         "scope": "repository",
         "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/venn.md",
         "sha256": "01deb071e281243e05a872ed875cc1c17c8c9cdbbf2e70aac4fca5c3c7d55aa0",
-        "upstreamRevision": "5e3c88ea6d937a89078a5e8f1b2a6fd0ea391a5c"
+        "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc"
       },
       {
         "id": "official-doc:wardley",
@@ -1471,7 +1471,7 @@
         "scope": "repository",
         "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/wardley.md",
         "sha256": "1a346388c7e84d1566650c383f43dbf769590c7d22e81cc4ac86235749677118",
-        "upstreamRevision": "5e3c88ea6d937a89078a5e8f1b2a6fd0ea391a5c"
+        "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc"
       },
       {
         "id": "official-doc:xychart",
@@ -1479,7 +1479,7 @@
         "scope": "repository",
         "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/xyChart.md",
         "sha256": "ecb54b3639e6009e860a1ae65135620faacac3f4f882468cf4c440103da06438",
-        "upstreamRevision": "5e3c88ea6d937a89078a5e8f1b2a6fd0ea391a5c"
+        "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc"
       },
       {
         "id": "official-doc:zenuml",
@@ -1487,7 +1487,7 @@
         "scope": "repository",
         "path": "skills/agentic-mermaid-diagram-workflow/references/upstream/zenuml.md",
         "sha256": "2db6da951451717f3de2f22370bb4a0c89a826970f71969bce8586891a61e4c8",
-        "upstreamRevision": "5e3c88ea6d937a89078a5e8f1b2a6fd0ea391a5c"
+        "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc"
       },
       {
         "id": "suite-accounting",
@@ -1519,7 +1519,7 @@
         "scope": "installed-package",
         "path": "dist/themes/theme-base.d.ts",
         "sha256": "e3a9a77cae42bafb5eb4ef9d34757cddbf077e40a817aece1f2ef59d47b65aa0",
-        "upstreamRevision": "5e3c88ea6d937a89078a5e8f1b2a6fd0ea391a5c"
+        "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc"
       }
     ],
     "syntaxFeatures": [

@@ -92,7 +92,7 @@ describe('pinned Mermaid public-family manifest', () => {
     expect(UPSTREAM_MERMAID_MANIFEST.provenance).toMatchObject({
       version: '11.16.0',
       tag: 'mermaid@11.16.0',
-      commit: '5e3c88ea6d937a89078a5e8f1b2a6fd0ea391a5c',
+      commit: 'f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc',
     })
     expect(UPSTREAM_MERMAID_MANIFEST.families.filter(family => family.source === 'external-first-party').map(family => family.id)).toEqual(['zenuml'])
     expect(UPSTREAM_MERMAID_MANIFEST.watchEntries.map(entry => entry.id).sort()).toEqual(['error', 'frontmatter', 'info'])

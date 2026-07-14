@@ -1464,7 +1464,7 @@
     },
     {
       "path": "src/__tests__/upstream-family-manifest.test.ts",
-      "sha256": "59ccc3a758c6cabedc246b359b71321faaa7d8447aadc4e39159062914ec44a7"
+      "sha256": "006bfd0796d3babb35f6d45f0e50aed17f7bd602369f6ddc9b568560bd7f7577"
     },
     {
       "path": "src/__tests__/verify-roundtrip-faithfulness.test.ts",
