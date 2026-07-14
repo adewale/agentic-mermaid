@@ -988,12 +988,16 @@ export function projectRadarPositioned(
       x: f(item.x), y: f(item.y), w: f(item.swatchSize), h: f(item.swatchSize),
       shape: 'rectangle', role: 'mark',
     })
-    const width = measureTextWidth(item.label, typography.legendFontSize, typography.legendFontWeight)
-    const height = typography.legendFontSize * 1.2
+    // Legend labels wrap to a budget, so project the wrapped extent (widest
+    // line × line count), not the full single-line label — the public view must
+    // match the rendered legend.
+    let width = 8
+    for (const line of item.lines) width = Math.max(width, measureTextWidth(line, typography.legendFontSize, typography.legendFontWeight))
+    const height = Math.max(typography.legendFontSize, item.lines.length * typography.legendFontSize * 1.2)
     nodes.push({
       id: `legend-label#${index}`,
       x: f(item.textX), y: f(item.textY - height / 2), w: f(width), h: f(height),
-      shape: 'rectangle', label: item.label, role: 'labelled-mark',
+      shape: 'rectangle', label: item.lines.join(' '), role: 'labelled-mark',
     })
   }
 

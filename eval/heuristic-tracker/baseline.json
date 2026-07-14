@@ -873,7 +873,7 @@
   "family/radar": {
     "kind": "family",
     "hard": 0,
-    "score": 99.4,
+    "score": 100,
     "offCanvas": 0,
     "nodeOverlaps": 0,
     "groupBreaches": 0,

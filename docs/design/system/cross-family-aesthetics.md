@@ -13,10 +13,11 @@
 > [`../style-palette-compatibility.md`](../style-palette-compatibility.md),
 > [`../../contributing/lessons-learned.md`](../../contributing/lessons-learned.md).
 >
-> **Honesty note.** Radar's source lives on the #161 head, not in this tree, so all
-> radar file:line references are per the PR; every *other* family's citations are
-> against this working tree. The before/after image below is a **hand-authored mock**,
-> not renderer output (radar can't render here yet).
+> **Honesty note.** This branch is stacked on PR #161, so radar's source is present
+> here and the reverse-flow disciplines in §3–§4 are **implemented** against it
+> (`src/radar/layout.ts`, `src/radar/renderer.ts`, tests in
+> `src/__tests__/radar-label-discipline.test.ts`). The before/after images below are
+> real renderer output. Other families' citations are against this working tree.
 
 ---
 
@@ -109,26 +110,33 @@ families are strictly ahead of radar on specific concerns and are the models to 
 
 ---
 
-## 3. What happens if we apply those lessons — radar before/after
+## 3. What happens when we apply them — radar before/after (delivered)
 
-Radar today reserves *static* gutters and paints ring value labels as bare text on the
-gap ray. Absorbing the reverse-flow disciplines (R1–R6) yields the right-hand panel:
+Radar reserved *static* gutters and painted ring values as bare text on the gap ray, so a
+multi-line axis label on a spoke whose data reached the outer ring **overlapped the
+silhouette** (the straight-down "Safety…" label), and the tick values washed out over the
+rings. Absorbing the reverse-flow disciplines (R1–R6) fixes both — real renders, same data:
 
-![Radar before/after absorbing the disciplines from the families that beat it](../families/radar-reverse-lessons-mock.svg)
+| Before | After |
+|---|---|
+| ![radar before](../families/radar-reverse-lessons-before.png) | ![radar after](../families/radar-reverse-lessons-after.png) |
 
-*Illustrative mock (not renderer output). Identical radar geometry in both panels — only
-the label / tick treatments differ.*
+*Real renderer output from [`radar-reverse-lessons-demo.mmd`](../families/radar-reverse-lessons-demo.mmd);
+regenerate the "after" with `bun run scripts/pr-assets/radar-reverse-lessons.ts`.*
 
-| Concern | BEFORE (today's radar) | AFTER (union applied) | Borrowed from |
+| Concern | Before | After | Borrowed from |
 |---|---|---|---|
-| Long axis labels | Single line, **clips the frame** | Wrap to 2 lines, **compressed to a budget**, pulled clear with a **leader line**, within bounds | timeline R4 · quadrant R2 |
-| Crowded labels | Static gutter, can overlap | **Actively de-collided** in the normal lane | ER R1 |
-| Ring value labels | Bare text, **washes out over rings** | **Bordered knockout pills**, **AA-gated ink** | flowchart R5 · journey R6 |
-| Dense legend | Column just extends | **Vertical row reservation** + largest-first admission | gantt R3 · pie |
+| A multi-line label on a maxed-out spoke | **overlaps the silhouette** | radial **clearance** pushes it clear; a **leader line** reconnects it | ER R1 · quadrant R2 |
+| Adjacent labels on many axes | can collide | **pairwise de-collision** (verified to 24 tight axes) | ER R1 |
+| Ring value labels | bare gray text, wash out | **page-colored knockout pills** + **WCAG-AA ink** | flowchart R5 · journey R6 |
+| A very long axis label | fixed 96px wrap only | **budget-driven wrap compression** + ellipsize fallback | timeline R4 |
+| A long legend label | column just widens | **wrapped with reserved row height** | gantt R3 |
 
-The point of the mock is honest and narrow: **radar's silhouette, palette, translucency
-and dots are already good** (they came from L1–L4 for free); what improves is the *label
-and tick discipline*, and every improvement is a technique another family already ships.
+Everything else radar already did well (silhouette, palette, translucency, dots — free from
+L1–L4). This is delivered in `src/radar/{layout,renderer,types}.ts`; each discipline has a
+geometry/structure invariant in `src/__tests__/radar-label-discipline.test.ts` that fails
+when reverted, and the canvas grows to contain every final box so nothing clips. `bun run
+track` radar score rose to **100 (+0.6), 0 regressions**.
 
 ---
 
@@ -165,10 +173,10 @@ localized, deterministic-safe, and they inherit the rest of the house style for 
     `renderer.ts:269`; knob-gate the categorical hue (monochrome is a defensible
     control-flow default).
 
-**Radar's own backlog (the reverse flow applied to radar):** upgrade its static gutter
-to ER-style active de-collision (R1) + quadrant leaders (R2); knockout-box its ring/axis
-labels (R5); compress very long labels to a budget (R4); AA-gate tick ink (R6). See the
-mock in §3.
+**Radar's own upgrade (the reverse flow applied to radar) — done.** Radar's static gutter
+was upgraded to ER-style active de-collision (R1) + quadrant leaders (R2); ring values now
+sit on knockout boxes with AA-gated ink (R5/R6); long labels compress to a budget (R4); and
+legend labels wrap with reserved rows (R3). Renders and tests in §3.
 
 ---
 
@@ -179,7 +187,7 @@ mock in §3.
 
 | Family | L1 sig-shape sketch | L2 scaffold recedes | L3 shared hue | L4 translucent + bead | L5+R label discipline | L6 one-scale | L7 wire-or-warn | L8 ASCII parity | Top opportunity |
 |---|---|---|---|---|---|---|---|---|---|
-| **radar** (ref) | ✅ pie-slice | ✅ grid | ✅ canonical | ✅ | ⚠️ static reserve only | ✅ | ✅ | ✅ | Absorb R1/R2/R5 (§3) |
+| **radar** (ref) | ✅ pie-slice | ✅ grid | ✅ canonical | ✅ | ✅ **full union** (§3) | ✅ | ✅ | ✅ | Delivered — de-collision, leaders, knockout ticks, wrap compression, legend rows |
 | **pie** | ✅ pie-slice | N/A | ✅ **canonical** | N/A (no overlap) | ✅ largest-first | ✅ | ✅ | ✅ | Default a quiet framing ring (`renderer.ts:126`) |
 | **xychart** | ✅ bar/series | ✅ grid @0.25 | ⚠️ `getSeriesColor` (>6 degrades) | ⚠️ dots only if labelled | ⚠️ thins/drops, no wrap | ✅ `yAxis.range` | ✅ | ✅ | `pieSliceColors` >6 (`colors.ts:102`); always-on dots (`renderer.ts:158`) |
 | **quadrant** | ✅ plate/point | ✅ tints+dividers | ❌ single accent | ✅ (chart is dots) | ✅✅ **2-pass + leaders** | ✅ normalized | ✅ | ✅ | **Categorical point color** (`renderer.ts:229`) + legend |
