@@ -279,11 +279,18 @@ describe('vocabulary doc-sync', () => {
     expect(workflow).not.toContain('git-auto-commit-action')
   })
 
-  test('BrandPack and Treatment examples keep kind-specific registry identities', () => {
+  test('BrandPack stays exact and kind-specific while executable decorations remain deferred', () => {
     const plan = readFileSync(join(REPO, 'docs/project/brand-primitives-plan.md'), 'utf8')
     expect(plan).toContain("identity: ExtensionIdentity<'brand-pack'>")
-    expect(plan).toContain("id: 'treatment:acme/corner-brackets'")
+    expect(plan).toContain('interface BrandSelection')
+    expect(plan).toContain('version: string')
+    expect(plan).toContain('digest: string')
     expect(plan).toContain('separate BrandPack registry')
+    expect(plan).toContain('BUILD-31 adds no Treatment field, registry, selector,')
+    expect(plan).not.toContain("id: 'treatment:")
+    expect(plan).not.toContain('version?: SemverRange')
+    expect(plan).not.toContain('interface AppearanceFragment')
+    expect(plan).not.toContain('interface BrandRole')
     expect(plan).not.toContain('NamespacedId')
     expect(plan).not.toContain('same canonical installed-appearance registry')
   })
