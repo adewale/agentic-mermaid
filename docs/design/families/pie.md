@@ -36,9 +36,9 @@ on-slice labels: #1027).
 | `pieSectionTextSize`, `pieSectionTextColor` | on-slice labels | size feeds the layout's fit/collision measurement too |
 
 Documented-but-unwired keys emit the Tier-3 `INEFFECTIVE_CONFIG` lint instead
-of being silently swallowed (P4): `highlightSlice`, `useMaxWidth`, `useWidth`
-(config section); `pieTitleTextSize`, `pieTitleTextColor`,
-`pieLegendTextSize`, `pieLegendTextColor` (theme variables).
+of being silently swallowed (P4): `useMaxWidth`, `useWidth` (config section).
+Every other documented key — including `highlightSlice` and the title/legend
+text theme variables — is wired above.
 
 ## On-slice labels: format and small-slice policy
 
@@ -99,9 +99,19 @@ so the only behavioral change vs. the old `toFixed(1)` is the floor.
   and quadrant) — hover group per slice, native `<title>`, styled tip
   anchored at the label point. Upstream pie has no tooltips outside the
   mermaid.live wrapper.
-- **`highlightSlice` is static cross-format emphasis.** The configured slice is
-  offset/emphasized in SVG and represented explicitly in terminal output; static
-  renderers do not add executable hover/click behavior.
+- **`highlightSlice` is static, non-geometric emphasis (Option D).** The
+  configured slice keeps its exact geometry and is emphasized with a heavier
+  foreground border while the other slices/legend rows dim and its legend row
+  goes bold; terminal output marks it with `>`. Geometry is deliberately left
+  untouched: the perception literature (Skau & Kosara 2016, "Arcs, Angles, or
+  Areas") finds arc length and area are the cues people read, and that changing a
+  slice's radius or exploding it degrades reading — so emphasis must not distort
+  the wedge (this also honours the faithfulness contract). Earlier this used a
+  CSS `scale(1.05)` about the wedge's fill-box centre, which displaced the slice
+  off the pie centre (bulging past the outer ring, gapping its neighbour, and
+  detaching from the donut hole); that transform is gone. `highlightSlice: hover`
+  applies the same border on hover only. Static renderers add no executable
+  hover/click behavior.
 
 ## Verification surface
 

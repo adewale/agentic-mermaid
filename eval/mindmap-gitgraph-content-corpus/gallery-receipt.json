@@ -1056,7 +1056,7 @@
     },
     {
       "path": "src/__tests__/pie-elevation.test.ts",
-      "sha256": "4ca990d8f412c2e0ed0563a93b6f152ca3d21b76355a4c0bb6148481675afcf8"
+      "sha256": "72c1ad23a5aef473be1cdd8a69ca930f6fe6198a97a875d2d425ab3ba66925ad"
     },
     {
       "path": "src/__tests__/pie.test.ts",
@@ -2276,7 +2276,7 @@
     },
     {
       "path": "src/pie/renderer.ts",
-      "sha256": "9f75389860f6662e8aba9cab163890f9ca46d536ecabf655b4560114935d16b1"
+      "sha256": "115352c951ca5aa3b54f9fde048e43cd539f4044b72397243325afa83d1c0b5e"
     },
     {
       "path": "src/pie/types.ts",

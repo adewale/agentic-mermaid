@@ -13,7 +13,7 @@
 //     label — divergence documented in docs/design/families/pie.md)
 //   - pie config: textPosition (0..1), donutHole (0..0.9, invalid → 0),
 //     legendPosition (top|bottom|left|right|center, default right),
-//     highlightSlice (unwired here → INEFFECTIVE_CONFIG)
+//     highlightSlice (wired: static non-geometric emphasis — Option D)
 //   - theme variables: pie1..pie12 fills (honored in SOURCE order — upstream
 //     itself broke this, #5314), pieStrokeColor/pieStrokeWidth/pieOpacity on
 //     slices, pieOuterStrokeWidth/pieOuterStrokeColor as the outer circle,
@@ -340,6 +340,68 @@ describe('pie multiline legend rows', () => {
     // (percent rides on the last, shorter line), so the canvas must not be
     // wider than the single-line chart's canvas plus rounding slack.
     expect(twoLine.width).toBeLessThanOrEqual(oneLine.width + 1)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// highlightSlice — Option D: non-geometric emphasis (foreground border on the
+// target + dimmed siblings), never a geometry change. Perception research
+// (Skau & Kosara 2016, "Arcs, Angles, or Areas") shows arc length/area are the
+// cues people actually read, and that changing a slice's radius or exploding it
+// degrades reading — so emphasis must leave geometry exact. These gates fail if
+// the old scale()-about-fill-box behaviour (or any future grow-radius/translate
+// emphasis) returns.
+// ---------------------------------------------------------------------------
+
+describe('pie highlightSlice — Option D non-geometric emphasis', () => {
+  const donut = (hl: string | null) => `---
+config:
+  pie:${hl ? `\n    highlightSlice: ${hl}` : ''}
+    donutHole: 0.2
+  themeVariables:
+    pieOuterStrokeWidth: "5px"
+---
+pie showData
+  title Key elements in Product X
+  "Calcium" : 42.96
+  "Potassium" : 50.05
+  "Magnesium" : 10.01
+  "Iron" : 5`
+
+  const slicePaths = (svg: string): string[] =>
+    [...svg.matchAll(/<path class="pie-slice[^"]*" d="([^"]*)"/g)].map(m => m[1]!)
+
+  it('leaves every slice path byte-identical whether or not a slice is highlighted', () => {
+    const plain = renderMermaidSVG(donut(null), { embedFontImport: false })
+    const highlighted = renderMermaidSVG(donut('Potassium'), { embedFontImport: false })
+    // Geometry is the encoding people read (arc length/area); emphasis must not touch it.
+    expect(slicePaths(highlighted)).toEqual(slicePaths(plain))
+    expect(slicePaths(highlighted).length).toBe(4)
+  })
+
+  it('never emits a CSS transform on slices (guards the old scale-about-fill-box bug)', () => {
+    const svg = renderMermaidSVG(donut('Potassium'), { embedFontImport: false })
+    expect(svg).not.toContain('scale(1.05)')
+    expect(svg).not.toContain('transform-box')
+    expect(svg).not.toContain('transform-origin')
+  })
+
+  it('emphasises the target with a foreground border and dims the rest', () => {
+    const svg = renderMermaidSVG(donut('Potassium'), { embedFontImport: false })
+    // heavier foreground border on the highlighted slice (shape cue, not colour-only);
+    // the `var(--fg)` origin is resolved to a concrete theme colour at render time.
+    expect(svg).toMatch(/\.pie-slice\.highlighted \{ stroke: [^;]+; stroke-width: 2\.5; \}/)
+    // a dim tier applied to the non-highlighted slices
+    expect(svg).toMatch(/class="pie-slice pie-dim"/)
+    // the highlighted legend row is bold; dimmed rows carry the pie-dim class
+    expect(svg).toMatch(/class="pie-legend-text" [^>]*font-weight="700"/)
+    expect(svg).toMatch(/class="pie-legend-text pie-dim"/)
+  })
+
+  it('dims nothing when the highlight target matches no slice', () => {
+    const svg = renderMermaidSVG(donut('Nonexistent'), { embedFontImport: false })
+    expect(svg).not.toMatch(/class="[^"]*pie-dim/)
+    expect(svg).not.toContain('class="pie-slice highlighted"')
   })
 })
 

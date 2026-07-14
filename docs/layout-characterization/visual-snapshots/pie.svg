@@ -18,12 +18,13 @@
   }
 </style>
 <style>
-  .pie-slice { stroke: #FFFFFF; stroke-width: 1.5; transform-box: fill-box; transform-origin: center; }
-  .pie-slice.highlighted { transform: scale(1.05); opacity: 1; }
-  .pie-slice.highlighted-on-hover:hover { transform: scale(1.05); opacity: 1; }
+  .pie-slice { stroke: #FFFFFF; stroke-width: 1.5; }
+  .pie-slice.highlighted { stroke: #27272A; stroke-width: 2.5; }
+  .pie-slice.highlighted-on-hover:hover { stroke: #27272A; stroke-width: 2.5; }
   .pie-legend-swatch { stroke: #d4d4d4; stroke-width: 1; }
   .pie-legend-text { fill: #27272A; }
   .pie-title { fill: #27272A; }
+  .pie-dim { opacity: 0.4; }
 </style>
 <path class="pie-slice" d="M 119 157 L 119 62 A 95 95 0 0 1 201.27 204.5 Z" fill="#3b82f6" data-label="Cats" data-value="4" data-percent="33.3%" data-id="slice:Cats" data-role="pie-slice" />
 <path class="pie-slice" d="M 119 157 L 201.27 204.5 A 95 95 0 0 1 36.73 109.5 Z" fill="#0d5ba5" data-label="Dogs" data-value="6" data-percent="50.0%" data-id="slice:Dogs" data-role="pie-slice" />
