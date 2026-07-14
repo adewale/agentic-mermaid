@@ -69,8 +69,8 @@ const cases: SabotageCase[] = [
     // lanes then keep their doglegs and the criterion-1 straightness test fails.
     name: 'disabling the direct-lane straightening proof reintroduces MFA hitches',
     file: 'src/route-contracts.ts',
-    oldText: '  if (!srcSpan || !tgtSpan) return { applied: false, blockers: [] }\n',
-    newText: '  if (true || !srcSpan || !tgtSpan) return { applied: false, blockers: [] }\n',
+    oldText: '  if (!search) return { applied: false, blockers: [] }\n',
+    newText: '  if (true) return { applied: false, blockers: [] }\n',
     command: ['bun', 'test', 'src/__tests__/route-contracts.test.ts', '--timeout', '120000'],
     expectedFailure: /MFA\/login regression.*straight horizontal lane|isStraightHorizontal/,
   },
