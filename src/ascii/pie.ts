@@ -46,6 +46,9 @@ export function renderPieAscii(
   if (total <= 0) return ''
 
   const visual = resolvedVisual ?? resolvePieVisualConfig(frontmatter)
+  // `hover` is interaction-only. Terminal output has no hover state, so it
+  // must neither select a literal "hover" label nor reserve marker padding.
+  const staticHighlight = visual.highlightSlice === 'hover' ? undefined : visual.highlightSlice
   const colors = pieSliceColors(chart.entries.length, {
     accent: theme.accent,
     bg: theme.bg,
@@ -76,8 +79,8 @@ export function renderPieAscii(
     for (let lineIndex = 0; lineIndex < linesForEntry.length - 1; lineIndex++) {
       out.push(padEndToVisualWidth(linesForEntry[lineIndex]!, labelWidth))
     }
-    const highlighted = visual.highlightSlice === entry.label
-    const marker = highlighted ? '> ' : visual.highlightSlice !== undefined ? '  ' : ''
+    const highlighted = staticHighlight === entry.label
+    const marker = highlighted ? '> ' : staticHighlight !== undefined ? '  ' : ''
     const label = padEndToVisualWidth(linesForEntry.at(-1) ?? '', labelWidth)
     out.push(`${marker}${label}  ${coloredBar}${barPad}${pct}${valuePart}`)
   })

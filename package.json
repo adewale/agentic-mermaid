@@ -193,6 +193,8 @@
     "gallery:mindmap-gitgraph:check": "bun run scripts/pr-assets/mindmap-gitgraph-content-gallery.ts --check",
     "gallery:mermaid-docs": "bun run scripts/pr-assets/mermaid-doc-showcase-gallery.ts",
     "gallery:mermaid-docs:check": "bun run scripts/pr-assets/mermaid-doc-showcase-gallery.ts --check",
+    "gallery:pie-highlight": "bun run scripts/pr-assets/pie-highlightslice-evidence.ts",
+    "gallery:pie-highlight:check": "bun run scripts/pr-assets/pie-highlightslice-evidence.ts --check",
     "track": "bun run eval/heuristic-tracker/run.ts",
     "audit:ugly": "bun run eval/ugly-detector/audit.ts"
   },

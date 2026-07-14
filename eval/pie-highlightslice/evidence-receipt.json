@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "generator": "scripts/pr-assets/pie-highlightslice-evidence.ts",
+  "inputCount": 668,
+  "inputTreeSha256": "b7004361fc8e2a257459dee2267228c0cf938142e2914523e92173e4a26cd7dd",
+  "outputs": [
+    {
+      "path": "docs/design/families/pie-highlightslice-regression-matrix.png",
+      "sha256": "f365e909da931827f46e3846bc76453986e7f853619d1a9a4b176ff6ca0d2854"
+    },
+    {
+      "path": "docs/design/families/pie-highlightslice-after.png",
+      "sha256": "e4b794090a227227791d4f8754048baa7a5d99b57eb553d301c86039c53f2055"
+    }
+  ]
+}

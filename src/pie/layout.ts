@@ -8,7 +8,7 @@ import type {
 import type { RenderOptions } from '../types.ts'
 import type { PieVisualConfig } from './config.ts'
 import { DEFAULT_PIE_VISUAL_CONFIG } from './config.ts'
-import { measureTextWidth } from '../text-metrics.ts'
+import { measureSystemFontSafeTextWidth, measureTextWidth } from '../text-metrics.ts'
 
 // ============================================================================
 // Pie chart layout engine
@@ -46,6 +46,8 @@ const PIE = {
   legendSwatch: 14,
   legendRowGap: 8,
   legendSwatchToText: 8,
+  /** General 700-weight fallback allowance, composed with safe W/M metrics. */
+  legendHighlightWidthScale: 1.1,
   sliceLabelFontSize: 12,
   sliceLabelFontWeight: 500,
   /** Horizontal slack a slice label needs inside its wedge chord. */
@@ -54,6 +56,9 @@ const PIE = {
 
 /** On-slice label weight — the renderer must emit what the layout measured. */
 export const PIE_SLICE_LABEL_FONT_WEIGHT: number = PIE.sliceLabelFontWeight
+
+/** Selected legend-row weight — shared so layout and rendering cannot drift. */
+export const PIE_LEGEND_HIGHLIGHT_FONT_WEIGHT = 700
 
 /** Format a numeric value compactly (drops trailing `.0`). */
 export function formatPieValue(value: number): string {
@@ -171,6 +176,7 @@ export function layoutPieChart(
     ? Math.max(...chart.title.split('\n').map(line =>
       measureTextWidth(line, titleFontSize, PIE.titleFontWeight)))
     : 0
+  const staticHighlight = visual.highlightSlice === 'hover' ? undefined : visual.highlightSlice
 
   // Legend metrics — one row per entry; `<br/>` labels span multiple lines
   // (value/percent suffix rides on the last line), measured per line so a
@@ -181,8 +187,14 @@ export function layoutPieChart(
     const suffix = `${valuePart} (${formatPiePercent(fraction)})`
     const labelLines = e.label.split('\n')
     const lines = labelLines.map((line, k) => (k === labelLines.length - 1 ? `${line}${suffix}` : line))
-    const textWidth = Math.max(...lines.map(line =>
-      measureTextWidth(line, legendFontSize, PIE.legendFontWeight)))
+    const fontWeight = staticHighlight === e.label
+      ? PIE_LEGEND_HIGHLIGHT_FONT_WEIGHT
+      : PIE.legendFontWeight
+    const measuredTextWidth = Math.max(...lines.map(line =>
+      measureSystemFontSafeTextWidth(line, legendFontSize, fontWeight)))
+    const textWidth = fontWeight === PIE_LEGEND_HIGHLIGHT_FONT_WEIGHT
+      ? measuredTextWidth * PIE.legendHighlightWidthScale
+      : measuredTextWidth
     const contentHeight = Math.max(PIE.legendSwatch, legendFontSize) +
       (lines.length - 1) * legendLineHeight
     return { lines, fraction, textWidth, contentHeight }

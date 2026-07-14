@@ -15,6 +15,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'bun:test'
 import { join } from 'path'
 import { chromium, type Browser, type BrowserContext, type CDPSession, type Page } from 'playwright'
 import { BUILTIN_FAMILY_METADATA } from '../src/agent/families.ts'
+import { renderMermaidSVG } from '../src/index.ts'
 import { serveWithAvailablePort } from './test-port.ts'
 
 const ROOT = join(import.meta.dir, '..')
@@ -249,6 +250,150 @@ afterAll(async () => {
 // ---------------------------------------------------------------------------
 
 describe('browser: live editor integration', () => {
+  it('contains long regular and highlighted pie legend rows across fallback fonts', async () => {
+    const label = 'W'.repeat(48)
+    const cases = [
+      { file: 'Inter-Regular.ttf', family: 'E2E Inter Regular', weight: 500, highlighted: false },
+      { file: 'DejaVuSans.ttf', family: 'E2E DejaVu Regular', weight: 500, highlighted: false },
+      { file: 'Inter-Bold.ttf', family: 'E2E Inter Bold', weight: 700, highlighted: true },
+      { file: 'DejaVuSans-Bold.ttf', family: 'E2E DejaVu Bold', weight: 700, highlighted: true },
+    ] as const
+
+    for (const testCase of cases) {
+      const frontmatter = testCase.highlighted
+        ? `---\nconfig:\n  pie:\n    highlightSlice: ${label}\n---\n`
+        : ''
+      const svg = renderMermaidSVG(`${frontmatter}pie showData
+  "${label}" : 2
+  "Other" : 1`, { embedFontImport: false })
+      const fontBytes = await Bun.file(join(ROOT, 'assets', 'fonts', testCase.file)).arrayBuffer()
+      const fontUrl = `data:font/ttf;base64,${Buffer.from(fontBytes).toString('base64')}`
+      await page.setContent(svg)
+      await page.addStyleTag({ content: `
+        @font-face {
+          font-family: "${testCase.family}";
+          src: url("${fontUrl}") format("truetype");
+          font-weight: ${testCase.weight};
+        }
+        svg text { font-family: "${testCase.family}" !important; }
+      ` })
+      await page.evaluate(async ({ family, weight }) => {
+        await document.fonts.load(`${weight} 13px "${family}"`)
+        await document.fonts.ready
+      }, { family: testCase.family, weight: testCase.weight })
+
+      const bounds = await page.locator('.pie-legend-text').first().evaluate((text: SVGGraphicsElement) => {
+        const box = text.getBBox()
+        const viewBox = text.ownerSVGElement!.viewBox.baseVal
+        return {
+          textRight: box.x + box.width,
+          canvasRight: viewBox.x + viewBox.width,
+          remaining: viewBox.x + viewBox.width - box.x - box.width,
+        }
+      })
+      expect(bounds.textRight).toBeLessThanOrEqual(bounds.canvasRight)
+      expect(bounds.remaining).toBeGreaterThanOrEqual(1)
+    }
+  })
+
+  it('pie hover emphasis remains reachable when interactive tooltips add a hit target', async () => {
+    const svg = renderMermaidSVG(`---
+config:
+  pie:
+    highlightSlice: hover
+---
+pie showData
+  "Dogs" : 386
+  "Cats" : 85
+  "Rats" : 15`, { interactive: true, embedFontImport: false })
+    await page.setContent(svg)
+
+    const hitTarget = page.locator('.pie-slice-hover-target').first()
+    const box = await hitTarget.boundingBox()
+    expect(box).not.toBeNull()
+    if (!box) return
+
+    // The transparent overlay owns pointer hit-testing. Find an interior point
+    // instead of assuming the bounding-box centre lies inside this wedge.
+    const point = await hitTarget.evaluate((path, bounds) => {
+      for (let y = bounds.y + 2; y < bounds.y + bounds.height - 1; y += 3) {
+        for (let x = bounds.x + 2; x < bounds.x + bounds.width - 1; x += 3) {
+          if (document.elementFromPoint(x, y) === path) return { x, y }
+        }
+      }
+      return null
+    }, box)
+    expect(point).not.toBeNull()
+    if (!point) return
+
+    await page.mouse.move(point.x, point.y)
+    await page.waitForFunction(() => {
+      const path = document.querySelector('.pie-slice-hover-target')
+      const tip = document.querySelector('.pie-tip')
+      if (!path || !tip) return false
+      const style = getComputedStyle(path)
+      return style.stroke === 'rgb(39, 39, 42)' &&
+        parseFloat(style.strokeWidth) === 2.5 &&
+        style.opacity === '1' &&
+        getComputedStyle(tip).opacity === '1'
+    })
+    expect(await hitTarget.evaluate(path => ({
+      stroke: getComputedStyle(path).stroke,
+      strokeWidth: parseFloat(getComputedStyle(path).strokeWidth),
+      opacity: getComputedStyle(path).opacity,
+    }))).toEqual({ stroke: 'rgb(39, 39, 42)', strokeWidth: 2.5, opacity: '1' })
+    expect(await page.locator('.pie-tip').first().evaluate(tip =>
+      getComputedStyle(tip).opacity)).toBe('1')
+  })
+
+  it('pie hover emphasis survives styled redraws without enabling tooltips', async () => {
+    const source = `---
+config:
+  pie:
+    highlightSlice: hover
+---
+pie showData
+  "Dogs" : 386
+  "Cats" : 85
+  "Rats" : 15`
+
+    for (const style of ['hand-drawn', 'watercolor'] as const) {
+      const svg = renderMermaidSVG(source, { style, embedFontImport: false })
+      await page.setContent(svg)
+      expect(await page.locator('.pie-tip').count()).toBe(0)
+      expect(await page.locator('title').count()).toBe(0)
+
+      const hitTarget = page.locator('.pie-slice-hover-target').first()
+      const box = await hitTarget.boundingBox()
+      expect(box).not.toBeNull()
+      if (!box) continue
+      const point = await hitTarget.evaluate((path, bounds) => {
+        for (let y = bounds.y + 2; y < bounds.y + bounds.height - 1; y += 3) {
+          for (let x = bounds.x + 2; x < bounds.x + bounds.width - 1; x += 3) {
+            if (document.elementFromPoint(x, y) === path) return { x, y }
+          }
+        }
+        return null
+      }, box)
+      expect(point).not.toBeNull()
+      if (!point) continue
+
+      await page.mouse.move(point.x, point.y)
+      await page.waitForFunction(() => {
+        const path = document.querySelector('.pie-slice-hover-target')
+        if (!path) return false
+        const computed = getComputedStyle(path)
+        return computed.stroke !== 'rgba(0, 0, 0, 0)' &&
+          parseFloat(computed.strokeWidth) >= 2.5 &&
+          computed.opacity === '1'
+      })
+      expect(await hitTarget.evaluate(path => ({
+        stroke: getComputedStyle(path).stroke,
+        strokeWidth: parseFloat(getComputedStyle(path).strokeWidth),
+        opacity: getComputedStyle(path).opacity,
+      }))).toMatchObject({ strokeWidth: 2.5, opacity: '1' })
+    }
+  })
 
   it('opens /editor to the default loop diagram on the Kiln Stone chrome', async () => {
     await gotoApp(`${BASE}/editor`)

@@ -29,16 +29,19 @@ on-slice labels: #1027).
 | `pie.textPosition` | number 0..1, default 0.75 | label anchor at `radius * textPosition` along the slice mid-angle (upstream's zero-thickness label-arc centroid); invalid/out-of-range → default |
 | `pie.donutHole` | valid (0, 0.9], else 0 | exact upstream clamp; inner radius = `donutHole * radius`; annular wedge paths (nonzero winding ring for a single-slice donut) |
 | `pie.legendPosition` | `top\|bottom\|left\|right\|center`, default `right` | same enum/default as upstream; geometry is ours (see divergences) |
+| `pie.highlightSlice` | slice label, or reserved `hover` | static target gets non-geometric emphasis; `hover` enables hover-only emphasis without matching a literal label |
 | `pie1`..`pie12` | slice fills | honored in **source order**, cycling past 12; unset indices fall back to the derived palette |
 | `pieStrokeColor`, `pieStrokeWidth` | slice border | `.pie-slice` rule; accepts numbers or upstream-style `"2px"` strings |
 | `pieOuterStrokeWidth`, `pieOuterStrokeColor` | outer circle | drawn at `radius + width/2` (upstream geometry) — only when configured |
 | `pieOpacity` | slice fill opacity | applied only when explicitly set |
 | `pieSectionTextSize`, `pieSectionTextColor` | on-slice labels | size feeds the layout's fit/collision measurement too |
+| `pieTitleTextSize`, `pieTitleTextColor` | title text | size feeds layout measurement and rendering |
+| `pieLegendTextSize`, `pieLegendTextColor` | legend text | size feeds layout measurement and rendering |
 
 Documented-but-unwired keys emit the Tier-3 `INEFFECTIVE_CONFIG` lint instead
-of being silently swallowed (P4): `highlightSlice`, `useMaxWidth`, `useWidth`
-(config section); `pieTitleTextSize`, `pieTitleTextColor`,
-`pieLegendTextSize`, `pieLegendTextColor` (theme variables).
+of being silently swallowed (P4): `useMaxWidth`, `useWidth` (config section).
+Every other documented key — including `highlightSlice` and the title/legend
+text theme variables — is wired above.
 
 ## On-slice labels: format and small-slice policy
 
@@ -99,18 +102,41 @@ so the only behavioral change vs. the old `toFixed(1)` is the floor.
   and quadrant) — hover group per slice, native `<title>`, styled tip
   anchored at the label point. Upstream pie has no tooltips outside the
   mermaid.live wrapper.
-- **`highlightSlice` is static cross-format emphasis.** The configured slice is
-  offset/emphasized in SVG and represented explicitly in terminal output; static
-  renderers do not add executable hover/click behavior.
+- **`highlightSlice` is static, non-geometric emphasis (Option D).** The
+  configured slice keeps its exact geometry and is emphasized with a heavier
+  foreground border while the other slices and legend swatches dim; meaningful
+  percentage and legend text stays at full contrast, and the selected legend
+  row goes bold. Terminal output marks it with `>`. Geometry is deliberately left
+  untouched: the perception literature (Skau & Kosara 2016, "Arcs, Angles, or
+  Areas") finds arc length and area are the cues people read, and that changing a
+  slice's radius or exploding it degrades reading — so emphasis must not distort
+  the wedge (this also honours the faithfulness contract). Earlier this used a
+  CSS `scale(1.05)` about the wedge's fill-box centre, which displaced the slice
+  off the pie centre (bulging past the outer ring, gapping its neighbour, and
+  detaching from the donut hole); that transform is gone. `highlightSlice: hover`
+  is a reserved interaction mode and applies the same border on hover only. With
+  interactive tooltips, the transparent tooltip hit target also owns the hover
+  border so it cannot intercept the interaction. Static renderers add no
+  executable hover/click behavior.
 
 ## Verification surface
+
+![Pie highlightSlice regression cross-products](./pie-highlightslice-regression-matrix.png)
+
+The captioned evidence sheet above is generated from current renderer output by
+`bun run gallery:pie-highlight`; `bun run gallery:pie-highlight:check` and its
+receipt test bind both PNGs to the complete TypeScript input tree. It includes
+crisp `highlightSlice × pieOpacity × long bold label`, hand-drawn and watercolor
+Scene redraws, and a real browser pointer over the interactive tooltip overlay.
 
 `src/__tests__/pie-elevation.test.ts` carries the invariant gates that
 accompany the golden updates (P5): label collision/canvas-containment
 property, legend containment across all five positions on the pie-15 probe,
 donut path invariants (no center vertex, ring subpaths), palette
 distinguishability (pairwise contrast-or-hue-separation) and background
-contrast floors, source-order pieN binding, wire-or-warn lint behavior, and
-tooltip presence/absence. The label-overlap fuzz gate pins pie at zero
+contrast floors (including post-opacity compositing), source-order pieN
+binding, wire-or-warn lint behavior, and tooltip presence/absence. Browser E2E
+also checks actual bold-glyph containment and pointer-driven tooltip hover. The
+label-overlap fuzz gate pins pie at zero
 affected cases; the layout's collision policy uses the same text estimator
 as the auditor, so the guarantee is by construction.
