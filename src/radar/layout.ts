@@ -13,6 +13,7 @@ import { measureTextWidth } from '../text-metrics.ts'
 import { wrapLabelToWidth } from '../shared/label-wrap.ts'
 import { resolveRenderStyle, STROKE_WIDTHS } from '../styles.ts'
 import type { RenderStyleDefaults } from '../styles.ts'
+import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { radarValueRatio, resolveRadarScale } from './scale.ts'
 
 // ============================================================================
@@ -58,7 +59,7 @@ export function radarStyleDefaults(visual: RadarVisualConfig = {}): RenderStyleD
   return {
     nodeLabelFontSize: visual.legendFontSize ?? R.legendFontSize, // legend text
     edgeLabelFontSize: visual.axisLabelFontSize ?? R.axisFontSize, // axis labels
-    groupHeaderFontSize: R.titleFontSize, // title
+    groupHeaderFontSize: visual.titleFontSize ?? R.titleFontSize, // title
     nodeLabelFontWeight: 500,
     edgeLabelFontWeight: 500,
     groupHeaderFontWeight: 600,
@@ -113,8 +114,9 @@ export function layoutRadarChart(
   chart: RadarChart,
   options: RenderOptions = {},
   visual: RadarVisualConfig = {},
+  styleFace?: InternalStyleFace,
 ): PositionedRadarChart {
-  const style = resolveRenderStyle(options, radarStyleDefaults(visual))
+  const style = resolveRenderStyle(options, radarStyleDefaults(visual), styleFace)
   const n = chart.axes.length
 
   // Radius from config (min(width,height)/2 minus label gutter) or default.
@@ -135,6 +137,8 @@ export function layoutRadarChart(
 
   const axisFont = style.edgeLabelFontSize
   const axisWeight = style.edgeLabelFontWeight
+  const titleFont = style.groupHeaderFontSize
+  const titleWeight = style.groupHeaderFontWeight
 
   // Axis labels: wrapped to a width budget (upstream #7683 — long labels wrap
   // instead of clipping). Measure to size the gutters.
@@ -173,16 +177,21 @@ export function layoutRadarChart(
   const rExt = radius * Math.max(labelFactor, 1, axisScale)
   const sideGutter = maxAxisLabelWidth + R.axisLabelPad
   const vGutter = axisLabelBlockH + R.axisLabelPad
-  const titleHeight = chart.title ? (visual.height ? R.titleFontSize + R.titleGap : R.titleFontSize + R.titleGap) : 0
+  const titleHeight = chart.title ? titleFont + R.titleGap : 0
 
-  const contentW = 2 * rExt + 2 * sideGutter
-  const contentH = 2 * rExt + 2 * vGutter
+  const naturalContentW = 2 * rExt + 2 * sideGutter
+  const naturalContentH = 2 * rExt + 2 * vGutter
+  // Mermaid's configured frame width/height are independent. Radius still
+  // derives from their minimum, while the larger dimension remains reserved
+  // as real canvas space rather than being collapsed back to a square.
+  const contentW = Math.max(naturalContentW, visual.width ?? 0)
+  const contentH = Math.max(naturalContentH, visual.height ?? 0)
   const bodyHeight = Math.max(contentH, legendHeight)
   const legendColW = wantLegend ? R.legendGap + legendWidth : 0
 
   const baseWidth = marginL + contentW + legendColW + marginR
-  const baseCx = marginL + sideGutter + rExt
-  const titleWidth = chart.title ? measureTextWidth(chart.title, R.titleFontSize, style.groupHeaderFontWeight) : 0
+  const baseCx = marginL + contentW / 2
+  const titleWidth = chart.title ? measureTextWidth(chart.title, titleFont, titleWeight) : 0
   const titleLeftExtra = Math.max(0, titleWidth / 2 - baseCx)
   const titleRightExtra = Math.max(0, baseCx + titleWidth / 2 - baseWidth)
   const width = baseWidth + titleLeftExtra + titleRightExtra
@@ -192,7 +201,7 @@ export function layoutRadarChart(
 
   // Rings.
   const rings: PositionedRadarRing[] = []
-  for (let k = 1; k <= chart.ticks; k++) {
+  for (let k = 1; n > 0 && k <= chart.ticks; k++) {
     const rr = (radius * k) / chart.ticks
     const value = min + ((max - min) * k) / chart.ticks
     const points = chart.graticule === 'polygon'
@@ -238,7 +247,7 @@ export function layoutRadarChart(
   // Ring value labels (Agentic extension) — along the gap ray between axis 0
   // and axis 1 so they never sit on a spoke.
   const tickLabels: PositionedRadarTickLabel[] = []
-  if (visual.tickLabels) {
+  if (visual.tickLabels && n > 0) {
     const gapAngle = axisAngle(0, n) + Math.PI / n
     for (const ring of rings) {
       const p = polar(cx, cy, ring.r, gapAngle)
@@ -272,7 +281,7 @@ export function layoutRadarChart(
     cy: round(cy),
     radius: round(radius),
     title: chart.title
-      ? { text: chart.title, x: round(cx), y: round(marginT + R.titleFontSize / 2), fontSize: R.titleFontSize }
+      ? { text: chart.title, x: round(cx), y: round(marginT + titleFont / 2), fontSize: titleFont }
       : undefined,
     accessibility: chart.accessibility ? { ...chart.accessibility } : undefined,
     rings,
@@ -281,6 +290,16 @@ export function layoutRadarChart(
     tickLabels,
     legend,
     polygonGraticule: chart.graticule === 'polygon',
+    typography: {
+      axisFontSize: axisFont,
+      axisFontWeight: axisWeight,
+      legendFontSize: legendFont,
+      legendFontWeight: legendWeight,
+      titleFontSize: titleFont,
+      titleFontWeight: titleWeight,
+      tickFontSize: R.ringLabelFontSize,
+      tickFontWeight: axisWeight,
+    },
     visual,
   }
 }

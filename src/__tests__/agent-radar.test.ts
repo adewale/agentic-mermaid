@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
-import { parseMermaid, serializeMermaid, verifyMermaid, mutate, mutateChecked, asRadar, createMermaid, buildMermaid } from '../agent/index.ts'
+import { parseMermaid, serializeMermaid, verifyMermaid, mutate, mutateChecked, asRadar, createMermaid, buildMermaid, synthesizeFromGraph } from '../agent/index.ts'
 import { parseRadarChart } from '../radar/parser.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
 import type { RadarBody, RadarMutationOp, RadarValidDiagram } from '../agent/index.ts'
@@ -92,6 +92,22 @@ describe('radar agent surface', () => {
       expect(parsed.ok).toBe(true)
       if (parsed.ok) expect(asRadar(parsed.value)).toBeNull()
     }
+  })
+
+  test('synthesizeFromGraph rejects malformed typed radar payloads before constructing ValidDiagram', () => {
+    const malformed: RadarBody = {
+      kind: 'radar',
+      axes: [{ id: 'a', label: 'A' }],
+      curves: [{ id: 'x', label: 'X', values: [1, 2] }],
+      min: 0,
+      max: 3,
+      ticks: 5,
+      graticule: 'circle',
+      showLegend: true,
+    }
+    const result = synthesizeFromGraph({ kind: 'radar', body: malformed })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error[0]).toEqual(expect.objectContaining({ code: 'INVALID_PAYLOAD', message: expect.stringContaining('exactly 1 value') }))
   })
 
   test('public radar types, config, and blank-slate overloads stay precise', () => {

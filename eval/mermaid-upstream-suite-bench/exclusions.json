@@ -8093,6 +8093,177 @@
     "summary": "The upstream block asserts that this input throws or is rejected. BUILD-20 imports positive portable parser/DB behavior as cases and marks upstream negative coverage WONTFIX with Mermaid.js provenance."
   },
   {
+    "id": "radar-excluded-radar-spec-should-calculate-relative-radius",
+    "families": [
+      "radar"
+    ],
+    "reason": "api-internal",
+    "disposition": "WONTFIX",
+    "blockCount": 1,
+    "upstream": {
+      "repo": "mermaid-js/mermaid",
+      "files": [
+        "packages/mermaid/src/diagrams/radar/radar.spec.ts"
+      ],
+      "blocks": [
+        "packages/mermaid/src/diagrams/radar/radar.spec.ts :: should calculate relative radius"
+      ]
+    },
+    "summary": "The upstream block exercises parser database helper state, renderer DOM details, mocks, shape factories, or generated/table-driven inputs rather than a direct portable Mermaid source string."
+  },
+  {
+    "id": "radar-excluded-radar-spec-should-clip-values-above-max",
+    "families": [
+      "radar"
+    ],
+    "reason": "api-internal",
+    "disposition": "WONTFIX",
+    "blockCount": 1,
+    "upstream": {
+      "repo": "mermaid-js/mermaid",
+      "files": [
+        "packages/mermaid/src/diagrams/radar/radar.spec.ts"
+      ],
+      "blocks": [
+        "packages/mermaid/src/diagrams/radar/radar.spec.ts :: should clip values above max"
+      ]
+    },
+    "summary": "The upstream block exercises parser database helper state, renderer DOM details, mocks, shape factories, or generated/table-driven inputs rather than a direct portable Mermaid source string."
+  },
+  {
+    "id": "radar-excluded-radar-spec-should-clip-values-below-min",
+    "families": [
+      "radar"
+    ],
+    "reason": "api-internal",
+    "disposition": "WONTFIX",
+    "blockCount": 1,
+    "upstream": {
+      "repo": "mermaid-js/mermaid",
+      "files": [
+        "packages/mermaid/src/diagrams/radar/radar.spec.ts"
+      ],
+      "blocks": [
+        "packages/mermaid/src/diagrams/radar/radar.spec.ts :: should clip values below min"
+      ]
+    },
+    "summary": "The upstream block exercises parser database helper state, renderer DOM details, mocks, shape factories, or generated/table-driven inputs rather than a direct portable Mermaid source string."
+  },
+  {
+    "id": "radar-excluded-radar-spec-should-construct-a-closed-round-curve",
+    "families": [
+      "radar"
+    ],
+    "reason": "api-internal",
+    "disposition": "WONTFIX",
+    "blockCount": 1,
+    "upstream": {
+      "repo": "mermaid-js/mermaid",
+      "files": [
+        "packages/mermaid/src/diagrams/radar/radar.spec.ts"
+      ],
+      "blocks": [
+        "packages/mermaid/src/diagrams/radar/radar.spec.ts :: should construct a closed round curve"
+      ]
+    },
+    "summary": "The upstream block exercises parser database helper state, renderer DOM details, mocks, shape factories, or generated/table-driven inputs rather than a direct portable Mermaid source string."
+  },
+  {
+    "id": "radar-excluded-radar-spec-should-construct-a-polygon-if-tension-is-0",
+    "families": [
+      "radar"
+    ],
+    "reason": "api-internal",
+    "disposition": "WONTFIX",
+    "blockCount": 1,
+    "upstream": {
+      "repo": "mermaid-js/mermaid",
+      "files": [
+        "packages/mermaid/src/diagrams/radar/radar.spec.ts"
+      ],
+      "blocks": [
+        "packages/mermaid/src/diagrams/radar/radar.spec.ts :: should construct a polygon if tension is 0"
+      ]
+    },
+    "summary": "The upstream block exercises parser database helper state, renderer DOM details, mocks, shape factories, or generated/table-driven inputs rather than a direct portable Mermaid source string."
+  },
+  {
+    "id": "radar-excluded-radar-spec-should-construct-a-simple-round-curve",
+    "families": [
+      "radar"
+    ],
+    "reason": "api-internal",
+    "disposition": "WONTFIX",
+    "blockCount": 1,
+    "upstream": {
+      "repo": "mermaid-js/mermaid",
+      "files": [
+        "packages/mermaid/src/diagrams/radar/radar.spec.ts"
+      ],
+      "blocks": [
+        "packages/mermaid/src/diagrams/radar/radar.spec.ts :: should construct a simple round curve"
+      ]
+    },
+    "summary": "The upstream block exercises parser database helper state, renderer DOM details, mocks, shape factories, or generated/table-driven inputs rather than a direct portable Mermaid source string."
+  },
+  {
+    "id": "radar-excluded-radar-spec-should-handle-max-value",
+    "families": [
+      "radar"
+    ],
+    "reason": "api-internal",
+    "disposition": "WONTFIX",
+    "blockCount": 1,
+    "upstream": {
+      "repo": "mermaid-js/mermaid",
+      "files": [
+        "packages/mermaid/src/diagrams/radar/radar.spec.ts"
+      ],
+      "blocks": [
+        "packages/mermaid/src/diagrams/radar/radar.spec.ts :: should handle max value"
+      ]
+    },
+    "summary": "The upstream block exercises parser database helper state, renderer DOM details, mocks, shape factories, or generated/table-driven inputs rather than a direct portable Mermaid source string."
+  },
+  {
+    "id": "radar-excluded-radar-spec-should-handle-min-value",
+    "families": [
+      "radar"
+    ],
+    "reason": "api-internal",
+    "disposition": "WONTFIX",
+    "blockCount": 1,
+    "upstream": {
+      "repo": "mermaid-js/mermaid",
+      "files": [
+        "packages/mermaid/src/diagrams/radar/radar.spec.ts"
+      ],
+      "blocks": [
+        "packages/mermaid/src/diagrams/radar/radar.spec.ts :: should handle min value"
+      ]
+    },
+    "summary": "The upstream block exercises parser database helper state, renderer DOM details, mocks, shape factories, or generated/table-driven inputs rather than a direct portable Mermaid source string."
+  },
+  {
+    "id": "radar-excluded-radar-spec-should-handle-negative-min",
+    "families": [
+      "radar"
+    ],
+    "reason": "api-internal",
+    "disposition": "WONTFIX",
+    "blockCount": 1,
+    "upstream": {
+      "repo": "mermaid-js/mermaid",
+      "files": [
+        "packages/mermaid/src/diagrams/radar/radar.spec.ts"
+      ],
+      "blocks": [
+        "packages/mermaid/src/diagrams/radar/radar.spec.ts :: should handle negative min"
+      ]
+    },
+    "summary": "The upstream block exercises parser database helper state, renderer DOM details, mocks, shape factories, or generated/table-driven inputs rather than a direct portable Mermaid source string."
+  },
+  {
     "id": "sequence-excluded-sequencediagram-spec-should-allow-s-as-an-actor-name",
     "families": [
       "sequence"
@@ -9307,35 +9478,5 @@
       ]
     },
     "summary": "The upstream block exercises parser database helper state, renderer DOM details, mocks, shape factories, or generated/table-driven inputs rather than a direct portable Mermaid source string."
-  },
-  {
-    "id": "radar-excluded-radar-spec-renderer-and-db-state-blocks",
-    "families": [
-      "radar"
-    ],
-    "reason": "api-internal",
-    "disposition": "WONTFIX",
-    "blockCount": 12,
-    "upstream": {
-      "repo": "mermaid-js/mermaid",
-      "files": [
-        "packages/mermaid/src/diagrams/radar/radar.spec.ts"
-      ],
-      "blocks": [
-        "packages/mermaid/src/diagrams/radar/radar.spec.ts :: should handle a radar diagram with options",
-        "packages/mermaid/src/diagrams/radar/radar.spec.ts :: should calculate relative radius",
-        "packages/mermaid/src/diagrams/radar/radar.spec.ts :: should handle min value",
-        "packages/mermaid/src/diagrams/radar/radar.spec.ts :: should handle max value",
-        "packages/mermaid/src/diagrams/radar/radar.spec.ts :: should clip values below min",
-        "packages/mermaid/src/diagrams/radar/radar.spec.ts :: should clip values above max",
-        "packages/mermaid/src/diagrams/radar/radar.spec.ts :: should handle negative min",
-        "packages/mermaid/src/diagrams/radar/radar.spec.ts :: should construct a polygon if tension is 0",
-        "packages/mermaid/src/diagrams/radar/radar.spec.ts :: should construct a simple round curve",
-        "packages/mermaid/src/diagrams/radar/radar.spec.ts :: should construct a closed round curve",
-        "packages/mermaid/src/diagrams/radar/radar.spec.ts :: should draw a simple radar diagram",
-        "packages/mermaid/src/diagrams/radar/radar.spec.ts :: should draw a complex radar diagram"
-      ]
-    },
-    "summary": "These upstream blocks exercise private renderer helpers (relativeRadius, closedRoundCurve), the draw() DOM path, and DB option-getter state (options with no axis) rather than a portable structured Mermaid source string."
   }
 ]

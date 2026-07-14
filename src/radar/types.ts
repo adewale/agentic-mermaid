@@ -130,6 +130,18 @@ export interface PositionedRadarLegendItem {
   textY: number
 }
 
+/** Exact resolved typography shared by layout, public projection, and SVG. */
+export interface PositionedRadarTypography {
+  axisFontSize: number
+  axisFontWeight: number
+  legendFontSize: number
+  legendFontWeight: number
+  titleFontSize: number
+  titleFontWeight: number
+  tickFontSize: number
+  tickFontWeight: number
+}
+
 export interface PositionedRadarChart extends PositionedDiagram {
   width: number
   height: number
@@ -148,6 +160,7 @@ export interface PositionedRadarChart extends PositionedDiagram {
   legend: PositionedRadarLegendItem[]
   /** True when `graticule polygon` (rings are N-gons; curves are straight). */
   polygonGraticule: boolean
+  typography: PositionedRadarTypography
   /** Resolved radarChart config the layout used — the renderer reads the SAME
    *  values so paint cannot drift. */
   visual: RadarVisualConfig

@@ -65,6 +65,40 @@ describe('radar parser', () => {
     expect({ min: chart.min, max: chart.max, ticks: chart.ticks, graticule: chart.graticule }).toEqual({ min: 1, max: 10, ticks: 4, graticule: 'polygon' })
   })
 
+  test('accepts upstream whitespace-separated statements and header-adjacent titles', () => {
+    const titled = parseRadarChart(lines('radar-beta title Skills\n axis a\n curve x{1}\n max 2'))
+    expect(titled.title).toBe('Skills')
+    expect(titled.axes.map(axis => axis.id)).toEqual(['a'])
+
+    const compact = parseRadarChart(lines('radar-beta axis A,B curve x{1,2} max 3 showLegend false'))
+    expect(compact.axes.map(axis => axis.id)).toEqual(['A', 'B'])
+    expect(compact.curves[0]!.values).toEqual([1, 2])
+    expect(compact.max).toBe(3)
+    expect(compact.showLegend).toBe(false)
+  })
+
+  test('matches upstream free-text and empty title/comment tokenization', () => {
+    const chart = parseRadarChart(lines(`radar-beta
+      title Cost {USD %% reviewer note
+      accTitle: Coverage %% hidden
+      accDescr: Visible description %% hidden
+      axis a
+      curve x{1}`))
+    expect(chart.title).toBe('Cost {USD')
+    expect(chart.accessibility).toEqual({ title: 'Coverage', description: 'Visible description' })
+
+    const empty = parseRadarChart(lines('radar-beta\n title\n axis a\n curve x{1}'))
+    expect(empty.title).toBe('')
+  })
+
+  test('accepts the portable upstream options-only source', () => {
+    const chart = parseRadarChart(lines('radar-beta ticks 10 showLegend false graticule polygon min 1 max 10'))
+    expect(chart.axes).toEqual([])
+    expect(chart.curves).toEqual([])
+    expect({ ticks: chart.ticks, showLegend: chart.showLegend, graticule: chart.graticule, min: chart.min, max: chart.max })
+      .toEqual({ ticks: 10, showLegend: false, graticule: 'polygon', min: 1, max: 10 })
+  })
+
   test('comments and blank lines are ignored', () => {
     const chart = parseRadarChart(lines('radar-beta\n  %% a comment\n  axis a, b\n\n  curve x{1,2}'))
     expect(chart.axes).toHaveLength(2)
@@ -75,7 +109,7 @@ describe('radar parser', () => {
     expect(() => parseRadarChart(lines('radar-beta\n  axis a\n  curve x{}'))).toThrow(/empty/)
     expect(() => parseRadarChart(lines('radar-beta\n  axis A,B,C\n  curve x{ A: 1, B: 2 }'))).toThrow(/missing an entry/i)
     expect(() => parseRadarChart(lines('radar-beta\n  axis a, b\n  min 5\n  max 5'))).toThrow(/greater than min/)
-    expect(() => parseRadarChart(lines('radar-beta\n  curve x{1}'))).toThrow(/no axes/)
+    expect(() => parseRadarChart(lines('radar-beta\n  curve x{a: 1}'))).toThrow(/no axes/)
     expect(() => parseRadarChart(lines('radar-beta\n  axis a\n  curve x{1, a: 2}'))).toThrow(/mixes/)
     expect(() => parseRadarChart(lines('radar-beta\n  axis a\n  wut'))).toThrow(/Unrecognized/i)
   })

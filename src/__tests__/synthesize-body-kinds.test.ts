@@ -10,8 +10,26 @@ import { describe, it, expect } from 'bun:test'
 import { parseMermaid } from '../agent/parse.ts'
 import { synthesizeFromGraph } from '../agent/serialize.ts'
 import { builtinFamilyMetadata, knownBuiltinFamilies } from '../agent/families.ts'
+import type { ValidDiagramPayload } from '../agent/types.ts'
 
 describe('synthesizeFromGraph accepts every declared body kind', () => {
+  it('publicly types the registered structured radar payload without a cast', () => {
+    const payload = {
+      kind: 'radar',
+      body: {
+        kind: 'radar',
+        axes: [{ id: 'a', label: 'A' }],
+        curves: [{ id: 'x', label: 'X', values: [1] }],
+        min: 0,
+        max: 2,
+        ticks: 5,
+        graticule: 'circle',
+        showLegend: true,
+      },
+    } satisfies ValidDiagramPayload
+    expect(synthesizeFromGraph(payload).ok).toBe(true)
+  })
+
   for (const kind of knownBuiltinFamilies()) {
     const meta = builtinFamilyMetadata(kind)
     if (!meta) continue

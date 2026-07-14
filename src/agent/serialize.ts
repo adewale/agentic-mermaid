@@ -13,6 +13,7 @@ import { getFamily, knownFamilies } from './families.ts'
 import { ensureAccessibilityLines } from './accessibility-envelope.ts'
 import type { ExtensionIdentity } from '../shared/extension-identity.ts'
 import { sameExtensionIdentity } from '../shared/extension-identity.ts'
+import { radarBodyProblem } from './radar-body.ts'
 
 // Re-export for callers that used the previous in-tree serializer home.
 export { renderTimeline } from './timeline-body.ts'
@@ -150,6 +151,10 @@ export function synthesizeFromGraph(payload: ValidDiagramPayload): Result<ValidD
         linkStyles: toLinkStyleMap(sg.linkStyles),
       },
     }
+  } else if (payload.body.kind === 'radar') {
+    const problem = radarBodyProblem(payload.body)
+    if (problem) return err([{ code: 'INVALID_PAYLOAD', message: problem }])
+    body = payload.body
   } else if (payload.body.kind === 'opaque' || knownFamilies().includes(payload.body.kind)) {
     // Structured bodies pass through verbatim (flowchart is rebuilt above).
     // Membership is derived from the family registry rather than a hand-kept

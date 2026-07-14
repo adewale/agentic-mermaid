@@ -1504,5 +1504,8 @@ export interface ValidDiagramPayload {
     | PieBody
     | QuadrantBody
     | GanttBody
+    | MindmapBody
+    | GitGraphBody
+    | RadarBody
     | { kind: 'opaque'; family: DiagramKind; source: string }
 }

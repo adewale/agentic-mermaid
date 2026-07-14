@@ -92,6 +92,34 @@ describe('radar layout — domain metaphor invariants', () => {
     }
   })
 
+  test('named style typography participates in layout before rendering', () => {
+    const label = 'A deliberately long legend label whose larger accessible type must expand the canvas'
+    const source = `radar-beta\n axis a, b, c\n curve x["${label}"]{1,2,3}\n max 5`
+    const parsed = parseMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    const crisp = layoutMermaid(parsed.value)
+    const accessible = layoutMermaid(parsed.value, { style: 'accessible-high-contrast' })
+    expect(accessible.bounds.w).toBeGreaterThan(crisp.bounds.w)
+    for (const node of accessible.nodes) {
+      expect(node.x).toBeGreaterThanOrEqual(0)
+      expect(node.y).toBeGreaterThanOrEqual(0)
+      expect(node.x + node.w).toBeLessThanOrEqual(accessible.bounds.w)
+      expect(node.y + node.h).toBeLessThanOrEqual(accessible.bounds.h)
+    }
+  })
+
+  test('configured width and height independently reserve their frame dimensions', () => {
+    const source = 'radar-beta\n axis a, b, c\n curve x{1,2,3}\n max 5'
+    const short = layout(source, { width: 300, height: 300 })
+    const tall = layout(source, { width: 300, height: 900 })
+    const wide = layout(source, { width: 900, height: 300 })
+    expect(tall.height).toBeGreaterThan(short.height)
+    expect(tall.width).toBe(short.width)
+    expect(wide.width).toBeGreaterThan(short.width)
+    expect(wide.height).toBe(short.height)
+  })
+
   test('long title furniture expands symmetrically enough to stay on-canvas', () => {
     const title = 'A deliberately long radar title '.repeat(12).trim()
     const source = `radar-beta\n  title ${title}\n  axis a, b, c\n  curve x{1,2,3}\n  max 5`
@@ -139,6 +167,27 @@ describe('radar layout — domain metaphor invariants', () => {
     const parsed = parseMermaid('---\nconfig:\n  radar:\n    tickLabels: true\n---\nradar-beta\n  axis a, b, c\n  curve x{1,2,3}\n  ticks 5\n  max 5')
     expect(parsed.ok).toBe(true)
     if (parsed.ok) expect(layoutMermaid(parsed.value).nodes.filter(node => node.id.startsWith('tick:'))).toHaveLength(5)
+  })
+
+  test('public tick boxes measure the fixed tick typography painted by SVG', () => {
+    const parsed = parseMermaid(`---
+config:
+  radar:
+    tickLabels: true
+  themeVariables:
+    radar:
+      axisLabelFontSize: 40
+---
+radar-beta
+  axis a, b, c
+  curve x{1,2,3}
+  max 5`)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    const tick = layoutMermaid(parsed.value).nodes.find(node => node.id === 'tick:0')!
+    // Public layout coordinates are integer-normalized, so the painted
+    // 9.5px tick face projects to the nearest-pixel 11px line box.
+    expect(Number(tick.h)).toBe(Math.round(9.5 * 1.2))
   })
 
   test('layout is deterministic', () => {

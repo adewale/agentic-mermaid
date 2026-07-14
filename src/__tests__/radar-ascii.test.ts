@@ -56,6 +56,17 @@ describe('radar ASCII renderer', () => {
     expect(out.split('\n')[0]).toBe('Grades')
   })
 
+  test('retains axis structure when no curve is drawable', () => {
+    const axisOnly = renderMermaidASCII('radar-beta\n axis a, b, c\n max 5', { colorMode: 'none' })
+    expect(axisOnly).toContain('a')
+    expect(axisOnly).toContain('b')
+    expect(axisOnly).toContain('c')
+
+    const mismatched = renderMermaidASCII('radar-beta\n axis alpha, beta\n curve bad{1}\n max 5', { colorMode: 'none' })
+    expect(mismatched).toContain('alpha')
+    expect(mismatched).toContain('beta')
+  })
+
   test('is deterministic', () => {
     expect(renderMermaidASCII(BASIC, { colorMode: 'none' })).toBe(renderMermaidASCII(BASIC, { colorMode: 'none' }))
   })

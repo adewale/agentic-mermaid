@@ -14,10 +14,10 @@ import { syntaxError } from '../shared/syntax-error.ts'
 
 export const MAX_RADAR_TICKS = 64
 
-const HEADER_RE = /^radar-beta\s*:?\s*$/i
-const TITLE_RE = /^title\s+(.+)$/i
-const ACC_TITLE_RE = /^accTitle\s*:\s*(.+)$/i
-const ACC_DESCR_RE = /^accDescr\s*:\s*(.+)$/i
+const HEADER_RE = /^radar-beta(?:[\t ]*:)?(?=$|\s)/i
+const TITLE_RE = /^title(?:[\t ]+(.*))?$/i
+const ACC_TITLE_RE = /^accTitle[\t ]*:[\t ]*(.*)$/i
+const ACC_DESCR_RE = /^accDescr[\t ]*:[\t ]*(.*)$/i
 const ACC_DESCR_BLOCK_RE = /^accDescr\s*:?\s*\{/i
 const AXIS_RE = /^axis\s+(.+)$/i
 const CURVE_RE = /^curve\s+([\s\S]+)$/i
@@ -96,66 +96,124 @@ function decodeQuotedString(raw: string, context: string): string {
   return out
 }
 
-function stripInlineComment(raw: string): string {
+/** Mermaid's hidden SINGLE_LINE_COMMENT token applies everywhere outside a
+ * quoted string, including title/accessibility free text and multiline curve
+ * blocks. Preserve newlines so title/accessibility terminals retain their
+ * line boundary. */
+function stripComments(source: string): string {
+  let out = ''
   let quote: '"' | "'" | null = null
   let escaped = false
-  for (let i = 0; i < raw.length - 1; i++) {
-    const ch = raw[i]!
-    if (escaped) { escaped = false; continue }
-    if (quote && ch === '\\') { escaped = true; continue }
+  for (let i = 0; i < source.length; i++) {
+    const ch = source[i]!
+    if (escaped) { out += ch; escaped = false; continue }
+    if (quote && ch === '\\') { out += ch; escaped = true; continue }
     if (ch === '"' || ch === "'") {
       if (quote === ch) quote = null
       else if (quote === null) quote = ch
+      out += ch
       continue
     }
-    if (!quote && ch === '%' && raw[i + 1] === '%') return raw.slice(0, i).trimEnd()
-  }
-  return raw
-}
-
-function braceBalance(raw: string): number {
-  let balance = 0
-  let quote: '"' | "'" | null = null
-  let escaped = false
-  for (const ch of raw) {
-    if (escaped) { escaped = false; continue }
-    if (quote && ch === '\\') { escaped = true; continue }
-    if (ch === '"' || ch === "'") {
-      if (quote === ch) quote = null
-      else if (quote === null) quote = ch
+    if (!quote && ch === '%' && source[i + 1] === '%') {
+      while (i < source.length && source[i] !== '\n') i++
+      if (i < source.length) out += '\n'
       continue
     }
-    if (!quote) {
-      if (ch === '{') balance++
-      else if (ch === '}') balance--
-    }
+    out += ch
   }
-  return balance
+  return out
 }
 
-/** Coalesce multiline curve/accessibility blocks before statement parsing. */
-function logicalStatements(lines: string[]): string[] {
+const STATEMENT_KEYWORDS = [
+  'showLegend', 'graticule', 'accTitle', 'accDescr',
+  'title', 'ticks', 'curve', 'axis', 'max', 'min',
+] as const
+
+function statementKeywordAt(source: string, index: number): string | undefined {
+  for (const keyword of STATEMENT_KEYWORDS) {
+    if (source.slice(index, index + keyword.length).toLowerCase() !== keyword.toLowerCase()) continue
+    const next = source[index + keyword.length]
+    if (next === undefined || /[\s:]/.test(next)) return keyword
+  }
+  return undefined
+}
+
+/** Tokenize the whitespace-oriented upstream grammar. Newlines terminate
+ * ordinary statements, while a following top-level keyword also starts a new
+ * statement on the same line (`axis A,B curve x{1,2}`). Title/accessibility
+ * terminals deliberately consume the remainder of their line as free text. */
+function bodyStatements(rawSource: string): string[] {
+  const source = stripComments(rawSource)
   const out: string[] = []
-  for (let i = 0; i < lines.length; i++) {
-    const raw = lines[i]!.trim()
-    if (!raw || raw.startsWith('%%')) continue
-    // Mermaid's hidden %% token terminates ordinary radar statements. Keep
-    // accessibility/title free text literal; comments after data/options are
-    // stripped outside quoted labels.
-    let statement = /^(?:title|accTitle|accDescr)\b/i.test(raw) ? raw : stripInlineComment(raw)
-    if (!statement) continue
-    let balance = braceBalance(statement)
-    if (balance < 0) throw new Error(`Radar statement has an unexpected closing brace: "${statement}"`)
-    while (balance > 0) {
-      i++
-      if (i >= lines.length) throw new Error(`Radar statement is missing a closing "}": "${statement}"`)
-      const continuationRaw = lines[i]!.trim()
-      const continuation = stripInlineComment(continuationRaw)
-      statement += `\n${continuation}`
-      balance = braceBalance(statement)
-      if (balance < 0) throw new Error(`Radar statement has an unexpected closing brace: "${statement}"`)
+  let i = 0
+  while (i < source.length) {
+    while (i < source.length && /\s/.test(source[i]!)) i++
+    if (i >= source.length) break
+    const start = i
+    const keyword = statementKeywordAt(source, i)
+
+    if (keyword && /^(?:title|accTitle)$/i.test(keyword)) {
+      while (i < source.length && source[i] !== '\n' && source[i] !== '\r') i++
+      const statement = source.slice(start, i).trim()
+      if (statement) out.push(statement)
+      continue
     }
-    out.push(statement.trim())
+
+    if (keyword?.toLowerCase() === 'accdescr') {
+      let probe = i + keyword.length
+      while (probe < source.length && /[\t ]/.test(source[probe]!)) probe++
+      if (source[probe] === ':') {
+        probe++
+        while (probe < source.length && /[\t ]/.test(source[probe]!)) probe++
+      }
+      if (source[probe] === '{') {
+        const close = source.indexOf('}', probe + 1)
+        if (close < 0) throw new Error(`Radar statement is missing a closing "}": "${source.slice(start).trim()}"`)
+        i = close + 1
+        out.push(source.slice(start, i).trim())
+        continue
+      }
+      while (i < source.length && source[i] !== '\n' && source[i] !== '\r') i++
+      const statement = source.slice(start, i).trim()
+      if (statement) out.push(statement)
+      continue
+    }
+
+    let squareDepth = 0
+    let braceDepth = 0
+    let quote: '"' | "'" | null = null
+    let escaped = false
+    for (; i < source.length; i++) {
+      const ch = source[i]!
+      if (escaped) { escaped = false; continue }
+      if (quote && ch === '\\') { escaped = true; continue }
+      if (ch === '"' || ch === "'") {
+        if (quote === ch) quote = null
+        else if (quote === null) quote = ch
+        continue
+      }
+      if (quote) continue
+      if (ch === '[') squareDepth++
+      else if (ch === ']') squareDepth--
+      else if (ch === '{') braceDepth++
+      else if (ch === '}') braceDepth--
+      if (squareDepth < 0 || braceDepth < 0) {
+        throw new Error(`Radar statement has an unexpected closing delimiter: "${source.slice(start, i + 1).trim()}"`)
+      }
+      if ((ch === '\n' || ch === '\r') && squareDepth === 0 && braceDepth === 0) break
+      if (/[\t ]/.test(ch) && squareDepth === 0 && braceDepth === 0) {
+        let next = i + 1
+        while (next < source.length && /[\t ]/.test(source[next]!)) next++
+        let previous = i - 1
+        while (previous >= start && /[\t ]/.test(source[previous]!)) previous--
+        if (source[previous] !== ',' && statementKeywordAt(source, next)) break
+      }
+    }
+    if (quote || squareDepth !== 0 || braceDepth !== 0) {
+      throw new Error(`Radar statement has unbalanced quotes or delimiters: "${source.slice(start, i).trim()}"`)
+    }
+    const statement = source.slice(start, i).trim()
+    if (statement) out.push(statement)
   }
   return out
 }
@@ -243,10 +301,11 @@ function parseCurveItem(item: string, axes: RadarAxis[]): RadarCurve {
 
 /** Parse Mermaid radar source after wrapper normalization/comment extraction. */
 export function parseRadarChart(lines: string[], options: RadarParseOptions = {}): RadarChart {
-  const statements = logicalStatements(lines)
-  if (statements.length === 0) throw new Error('Radar chart is empty')
-  const header = statements[0]!
-  if (!HEADER_RE.test(header)) throw new Error(`Radar chart must start with "radar-beta", got: "${header}"`)
+  const source = stripComments(lines.join('\n')).trimStart()
+  if (!source) throw new Error('Radar chart is empty')
+  const header = source.match(HEADER_RE)
+  if (!header) throw new Error(`Radar chart must start with "radar-beta", got: "${source.split(/\r?\n/, 1)[0]}"`)
+  const statements = bodyStatements(source.slice(header[0].length))
 
   let title = options.title
   const accessibility: NonNullable<RadarChart['accessibility']> = {}
@@ -258,7 +317,7 @@ export function parseRadarChart(lines: string[], options: RadarParseOptions = {}
   let graticule: 'circle' | 'polygon' = 'circle'
   let showLegend = true
 
-  for (let i = 1; i < statements.length; i++) {
+  for (let i = 0; i < statements.length; i++) {
     const line = statements[i]!
     let match: RegExpMatchArray | null
 
@@ -272,7 +331,7 @@ export function parseRadarChart(lines: string[], options: RadarParseOptions = {}
       continue
     }
     if ((match = line.match(ACC_DESCR_RE))) { accessibility.description = normalizeBrTags(match[1]!.trim()); continue }
-    if ((match = line.match(TITLE_RE))) { title = normalizeBrTags(match[1]!.trim()); continue }
+    if ((match = line.match(TITLE_RE))) { title = normalizeBrTags((match[1] ?? '').trim()); continue }
     if ((match = line.match(AXIS_RE))) {
       for (const item of splitTopLevel(match[1]!, 'axis list')) axes.push(parseAxisItem(item))
       continue
@@ -310,7 +369,6 @@ export function parseRadarChart(lines: string[], options: RadarParseOptions = {}
     })
   }
 
-  if (axes.length === 0) throw new Error('Radar chart has no axes — declare at least one `axis`.')
   const curves = pendingCurves.map(item => parseCurveItem(item, axes))
   if (max !== undefined && max <= min) throw new Error(`Radar max (${max}) must be greater than min (${min}).`)
 

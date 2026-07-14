@@ -34,6 +34,7 @@ const FAMILIES = [
   ['Gantt', 'gantt-dependency-overlay-demo.mmd', { gantt: { dependencyArrows: true, criticalPath: true } }],
   ['Mindmap', 'mindmap-demo.mmd', {}],
   ['GitGraph', 'gitgraph-demo.mmd', {}],
+  ['Radar', 'radar-demo.mmd', {}],
 ] as const
 
 function esc(text: string): string {

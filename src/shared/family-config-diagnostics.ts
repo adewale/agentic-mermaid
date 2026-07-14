@@ -1,7 +1,7 @@
 import type { DiagramKind, FamilyId } from '../agent/types.ts'
 import type { ConfigDiagnostic } from '../types.ts'
 import { getFamily, type FamilyConfigContract } from '../agent/families.ts'
-import { RADAR_THEME_FIELDS } from '../radar/config.ts'
+import { RADAR_CONFIG_LIMITS, RADAR_THEME_FIELDS } from '../radar/config.ts'
 import { stateConfigDiagnostics } from '../state/config.ts'
 import { compareCodePointStrings } from './deterministic-order.ts'
 import { safeCssColor } from './css-color.ts'
@@ -54,6 +54,14 @@ const range = (min: number, max: number, leftClosed = true): ValueRule => rule(
   `a finite number ${leftClosed ? 'from' : 'greater than'} ${min} through ${max}`,
   value => typeof value === 'number' && Number.isFinite(value) && (leftClosed ? value >= min : value > min) && value <= max,
 )
+const boundedPositive = (max: number): ValueRule => rule(
+  `a finite positive number no greater than ${max}`,
+  value => typeof value === 'number' && Number.isFinite(value) && value > 0 && value <= max,
+)
+const boundedNonNegative = (max: number): ValueRule => rule(
+  `a finite non-negative number no greater than ${max}`,
+  value => typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= max,
+)
 const positiveCssSize = rule('a finite positive number or non-empty CSS size string', value =>
   (typeof value === 'number' && Number.isFinite(value) && value > 0) || (typeof value === 'string' && value.trim().length > 0),
 )
@@ -80,9 +88,10 @@ const FAMILY_VALUE_RULES: Partial<Record<DiagramKind, Record<string, ValueRule>>
     ['useMaxWidth', boolean],
   ]),
   radar: {
-    width: positive, height: positive,
-    marginTop: nonNegative, marginRight: nonNegative, marginBottom: nonNegative, marginLeft: nonNegative,
-    axisScaleFactor: positive, axisLabelFactor: positive, curveTension: range(0, 1),
+    width: boundedPositive(RADAR_CONFIG_LIMITS.dimension), height: boundedPositive(RADAR_CONFIG_LIMITS.dimension),
+    marginTop: boundedNonNegative(RADAR_CONFIG_LIMITS.margin), marginRight: boundedNonNegative(RADAR_CONFIG_LIMITS.margin),
+    marginBottom: boundedNonNegative(RADAR_CONFIG_LIMITS.margin), marginLeft: boundedNonNegative(RADAR_CONFIG_LIMITS.margin),
+    axisScaleFactor: boundedPositive(RADAR_CONFIG_LIMITS.factor), axisLabelFactor: boundedPositive(RADAR_CONFIG_LIMITS.factor), curveTension: range(0, 1),
     useMaxWidth: boolean, tickLabels: boolean,
   },
   class: { nodeSpacing: nonNegative, rankSpacing: nonNegative, hierarchicalNamespaces: boolean },
@@ -136,14 +145,17 @@ function radarThemeDiagnostics(root: unknown): ConfigDiagnostic[] {
   }]
   const known = new Set<string>(RADAR_THEME_FIELDS)
   const diagnostics: ConfigDiagnostic[] = []
-  const positiveFields = new Set(['axisStrokeWidth', 'axisLabelFontSize', 'curveStrokeWidth', 'graticuleStrokeWidth', 'legendBoxSize', 'legendFontSize'])
+  const lineWidthFields = new Set(['axisStrokeWidth', 'curveStrokeWidth', 'graticuleStrokeWidth'])
+  const fontSizeFields = new Set(['axisLabelFontSize', 'legendFontSize'])
   const opacityFields = new Set(['curveOpacity', 'graticuleOpacity'])
   const colorFields = new Set(['axisColor', 'graticuleColor'])
   for (const key of Object.keys(radar).sort(compareCodePointStrings)) {
     const value = radar[key]
     let expected: string | undefined
     if (!known.has(key)) expected = 'a documented radar theme field'
-    else if (positiveFields.has(key) && !positive.valid(value)) expected = positive.expected
+    else if (lineWidthFields.has(key) && !boundedPositive(RADAR_CONFIG_LIMITS.lineWidth).valid(value)) expected = boundedPositive(RADAR_CONFIG_LIMITS.lineWidth).expected
+    else if (fontSizeFields.has(key) && !boundedPositive(RADAR_CONFIG_LIMITS.fontSize).valid(value)) expected = boundedPositive(RADAR_CONFIG_LIMITS.fontSize).expected
+    else if (key === 'legendBoxSize' && !boundedPositive(RADAR_CONFIG_LIMITS.legendBoxSize).valid(value)) expected = boundedPositive(RADAR_CONFIG_LIMITS.legendBoxSize).expected
     else if (opacityFields.has(key) && !range(0, 1).valid(value)) expected = 'a finite number from 0 through 1'
     else if (colorFields.has(key) && !safeCssColor(value)) expected = 'a safe CSS color without url(), variables, or context-breaking characters'
     if (expected) diagnostics.push({

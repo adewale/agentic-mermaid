@@ -15,10 +15,29 @@ describe('radar config (wire-or-warn)', () => {
   })
 
   test('drops out-of-domain values', () => {
-    const cfg = resolveRadarVisualConfig({ radar: { width: -1, curveTension: 2, axisScaleFactor: 0 } } as never)
+    const cfg = resolveRadarVisualConfig({ radar: { width: -1, curveTension: 2, axisScaleFactor: 0, marginLeft: 1e308 } } as never)
     expect(cfg.width).toBeUndefined()
     expect(cfg.curveTension).toBeUndefined()
     expect(cfg.axisScaleFactor).toBeUndefined()
+    expect(cfg.marginLeft).toBeUndefined()
+  })
+
+  test('bounds finite geometry config before arithmetic can overflow', () => {
+    const source = `---
+config:
+  radar:
+    marginLeft: 1e308
+    axisScaleFactor: 1e308
+---
+radar-beta
+  axis a, b, c
+  curve x{1,2,3}
+  max 5`
+    expect(() => renderMermaidSVG(source)).not.toThrow()
+    expect(verifyMermaid(source).warnings).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: 'INEFFECTIVE_CONFIG', field: 'radar.marginLeft' }),
+      expect.objectContaining({ code: 'INEFFECTIVE_CONFIG', field: 'radar.axisScaleFactor' }),
+    ]))
   })
 
   test('reads the complete safe radar theme surface and cScale palette overrides', () => {
@@ -69,7 +88,9 @@ radar-beta
   max 5`
     const svg = renderMermaidSVG(source)
     expect(svg).toContain('.radar-axis-line { stroke: #111111; stroke-width: 2.5; }')
+    expect(svg).toContain('.radar-axis-label { fill: #111111; }')
     expect(svg).toContain('.radar-ring { stroke: #222222; stroke-width: 1.5; stroke-opacity: 0.4;')
+    expect(svg).toContain('.radar-ring-outer { stroke-width: 2.0999999999999996; stroke-opacity: 0.4; }')
     expect(svg).toContain('.radar-area { stroke-width: 3; fill-opacity: 0.3;')
     expect(svg).toContain('font-size="14"')
     expect(svg).toContain('width="16" height="16"')
@@ -97,6 +118,38 @@ radar-beta
       expect.objectContaining({ code: 'INEFFECTIVE_CONFIG', field: 'themeVariables.radar.curveOpacity' }),
       expect.objectContaining({ code: 'INEFFECTIVE_CONFIG', field: 'themeVariables.radar.mystery' }),
     ]))
+  })
+
+  test('wires global radar title fontSize into measured and painted geometry', () => {
+    const source = `---
+config:
+  themeVariables:
+    fontSize: 80
+---
+radar-beta
+  title Large title
+  axis a, b, c
+  curve x{1,2,3}
+  max 5`
+    const svg = renderMermaidSVG(source)
+    expect(svg).toMatch(/class="radar-title"[^>]*font-size="80"/)
+  })
+
+  test('curve opacity reaches legend and styled replacement geometry', () => {
+    const source = `---
+config:
+  themeVariables:
+    radar:
+      curveOpacity: 0.2
+---
+radar-beta
+  axis a, b, c
+  curve x{1,2,3}
+  max 5`
+    const crisp = renderMermaidSVG(source)
+    expect(crisp).toMatch(/class="radar-legend-swatch"[^>]*fill-opacity="0.2"/)
+    expect(renderMermaidSVG(source, { style: 'watercolor' })).toContain('fill-opacity="0.2"')
+    expect(renderMermaidSVG(source, { style: 'hand-drawn' })).toContain('stroke-opacity="0.2"')
   })
 
   test('curveTension 0 degenerates the smooth curve to straight edges', () => {

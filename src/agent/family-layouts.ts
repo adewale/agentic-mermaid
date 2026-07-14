@@ -78,7 +78,6 @@ import type { PositionedPieChart } from '../pie/types.ts'
 import { formatPiePercent } from '../pie/layout.ts'
 import type { PositionedQuadrantChart } from '../quadrant/types.ts'
 import type { PositionedRadarChart } from '../radar/types.ts'
-import { radarStyleDefaults } from '../radar/layout.ts'
 import { measureTextWidth } from '../text-metrics.ts'
 import { parseGanttModel, applyGanttFrontmatterConfig } from '../gantt/parser.ts'
 import { resolveGanttSchedule } from '../gantt/schedule.ts'
@@ -937,9 +936,9 @@ export function projectQuadrantPositioned(
 export function projectRadarPositioned(
   { positioned }: FamilyPositionedProjectionContext<PositionedRadarChart>,
 ): FamilyPositionedView {
-  // The positioned chart carries the resolved config it was laid out with, so
-  // the projected metric boxes read the SAME font sizes the renderer paints.
-  const style = resolveRenderStyle({}, radarStyleDefaults(positioned.visual))
+  // The positioned chart carries the exact resolved typography it was laid
+  // out with, including named Style-face metrics.
+  const typography = positioned.typography
   const nodes: RenderedLayoutNode[] = []
   // Concentric graticule rings are the (member-less) grouping frames.
   const groups: RenderedLayoutGroup[] = positioned.rings.map((ring, index) => ({
@@ -951,8 +950,8 @@ export function projectRadarPositioned(
   positioned.axes.forEach((axis, index) => {
     const label = axis.lines.join(' ')
     let width = 8
-    for (const line of axis.lines) width = Math.max(width, measureTextWidth(line, style.edgeLabelFontSize, style.edgeLabelFontWeight))
-    const height = Math.max(style.edgeLabelFontSize, axis.lines.length * style.edgeLabelFontSize * 1.2)
+    for (const line of axis.lines) width = Math.max(width, measureTextWidth(line, typography.axisFontSize, typography.axisFontWeight))
+    const height = Math.max(typography.axisFontSize, axis.lines.length * typography.axisFontSize * 1.2)
     const x = axis.anchor === 'start' ? axis.labelX : axis.anchor === 'end' ? axis.labelX - width : axis.labelX - width / 2
     nodes.push({
       id: `axis#${index}:${axis.id}`,
@@ -962,8 +961,8 @@ export function projectRadarPositioned(
   })
 
   positioned.tickLabels.forEach((tick, index) => {
-    const width = measureTextWidth(tick.text, style.edgeLabelFontSize, style.edgeLabelFontWeight)
-    const height = style.edgeLabelFontSize * 1.2
+    const width = measureTextWidth(tick.text, typography.tickFontSize, typography.tickFontWeight)
+    const height = typography.tickFontSize * 1.2
     nodes.push({
       id: `tick:${index}`,
       x: f(tick.x - width / 2), y: f(tick.y - height / 2), w: f(width), h: f(height),
@@ -973,8 +972,11 @@ export function projectRadarPositioned(
 
   const curveIdCounts = new Map<string, number>()
   for (const curve of positioned.curves) curveIdCounts.set(curve.id, (curveIdCounts.get(curve.id) ?? 0) + 1)
-  positioned.curves.forEach((curve, curveIndex) => {
-    const identity = (curveIdCounts.get(curve.id) ?? 0) > 1 ? `${curve.id}#${curveIndex}` : curve.id
+  const curveIdOccurrences = new Map<string, number>()
+  positioned.curves.forEach(curve => {
+    const occurrence = curveIdOccurrences.get(curve.id) ?? 0
+    curveIdOccurrences.set(curve.id, occurrence + 1)
+    const identity = (curveIdCounts.get(curve.id) ?? 0) > 1 ? `${curve.id}#${occurrence}` : curve.id
     curve.vertices.forEach((vertex, vertexIndex) => {
       nodes.push({ id: `dot:${identity}:${vertexIndex}`, x: f(vertex.x - 3), y: f(vertex.y - 3), w: f(6), h: f(6), shape: 'circle', role: 'mark' })
     })
@@ -986,8 +988,8 @@ export function projectRadarPositioned(
       x: f(item.x), y: f(item.y), w: f(item.swatchSize), h: f(item.swatchSize),
       shape: 'rectangle', role: 'mark',
     })
-    const width = measureTextWidth(item.label, style.nodeLabelFontSize, style.nodeLabelFontWeight)
-    const height = style.nodeLabelFontSize * 1.2
+    const width = measureTextWidth(item.label, typography.legendFontSize, typography.legendFontWeight)
+    const height = typography.legendFontSize * 1.2
     nodes.push({
       id: `legend-label#${index}`,
       x: f(item.textX), y: f(item.textY - height / 2), w: f(width), h: f(height),
@@ -996,7 +998,7 @@ export function projectRadarPositioned(
   }
 
   if (positioned.title) {
-    const width = measureTextWidth(positioned.title.text, positioned.title.fontSize, style.groupHeaderFontWeight)
+    const width = measureTextWidth(positioned.title.text, positioned.title.fontSize, typography.titleFontWeight)
     const height = positioned.title.fontSize * 1.2
     nodes.push({
       id: 'title',

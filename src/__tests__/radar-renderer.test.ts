@@ -66,6 +66,13 @@ describe('radar SVG renderer', () => {
     expect(new Set(ids).size).toBe(ids.length)
   })
 
+  test('duplicate semantic identities use per-key occurrence, stable under unrelated insertion', () => {
+    const ids = (source: string) => [...renderMermaidSVG(source).matchAll(/data-id="(curve:x#[^"]+|dot:x#[^"]+)"/g)].map(match => match[1]!)
+    const base = ids('radar-beta\n axis a, b\n curve x{1,2}\n curve x{2,1}\n max 3')
+    const inserted = ids('radar-beta\n axis a, b\n curve y{1,1}\n curve x{1,2}\n curve x{2,1}\n max 3')
+    expect(inserted).toEqual(base)
+  })
+
   test('render is deterministic', () => {
     expect(renderMermaidSVG(BASIC)).toBe(renderMermaidSVG(BASIC))
   })

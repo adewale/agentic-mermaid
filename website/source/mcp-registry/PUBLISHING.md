@@ -55,10 +55,11 @@ mcp-publisher login dns --domain agentic-mermaid.dev --private-key "$(cat key.he
 shred -u key.hex   # or rm; key.pem remains the durable copy
 ```
 
-(Equivalent alternative if DNS is inconvenient: `mcp-publisher login http` with
-the public key served at `https://agentic-mermaid.dev/.well-known/mcp-registry-auth`
-as `v=MCPv1; k=ed25519; p=<base64>` — the site already serves static
-`.well-known` assets.)
+(Equivalent alternative if DNS is inconvenient: first add a generated static
+asset at `/.well-known/mcp-registry-auth` containing
+`v=MCPv1; k=ed25519; p=<base64>`, deploy it, and then run
+`mcp-publisher login http`. That optional auth asset is not published by the
+current site.)
 
 ## 3. Validate and publish
 

@@ -69,7 +69,7 @@ export function parseRadarBody(lines: string[]): RadarBody | null {
 }
 
 /** One owner for every typed RadarBody invariant. */
-function radarBodyProblem(body: RadarBody, allowEmptyDraft: boolean): string | null {
+export function radarBodyProblem(body: RadarBody, allowEmptyDraft = false): string | null {
   const emptyDraft = allowEmptyDraft && body.axes.length === 0 && body.curves.length === 0
   if (body.axes.length === 0 && !emptyDraft) return 'Radar requires at least one axis before curves can exist.'
   if (body.axes.some(axis => !ID_RE.test(axis.id))) return 'Every typed radar axis id must satisfy the Mermaid identifier grammar.'

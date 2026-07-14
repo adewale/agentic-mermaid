@@ -24,13 +24,14 @@ Polygon graticule + straight edges (`graticule polygon`):
 ## Syntax
 
 - Header: `radar-beta`, `radar-beta:`, or `radar-beta :`.
-- `title <text>`; `accTitle:` / `accDescr:` (accessibility directives fall back to a
-  lossless opaque body — they render but typed mutation is unavailable).
+- `title [<text>]`; `accTitle:` / `accDescr:` (including block descriptions). These
+  are carried by the structured body's universal accessibility envelope.
 - `axis id["Label"] [, id2 …]` — one or more axes; label defaults to the id.
 - `curve id["Label"]{…}` — values either **positional** (`{85, 90, 80}`, mapped to
   axes in declaration order) or **keyed** (`{ c: 3, a: 1, b: 2 }`, colon optional,
   reordered to axis order). Declarations are order-independent, curve blocks may span
-  lines, and Mermaid `%%` comments are accepted between and after statements.
+  lines, top-level keywords may start another statement on the same line, and Mermaid
+  `%%` comments terminate free text and data statements exactly as they do upstream.
 - Body options: `min`, `max`, `ticks` (integer `1..64`), `graticule circle|polygon`,
   `showLegend`.
 
@@ -46,24 +47,29 @@ dot vertices on the data points; per-curve colors come from the shared chart pal
 matches pie/xychart series identity. Axis labels wrap to two lines when long (closing the
 upstream long-label clipping gap, #7683).
 
+![Radar across every built-in Look and Palette](./radar-style-palette-sheet.png)
+
 Config (`config.radar.*`, wire-or-warn): `width`, `height`, `marginTop/Right/Bottom/Left`,
 `axisScaleFactor` (spoke length only), `axisLabelFactor`, `curveTension`, `useMaxWidth`,
 and the Agentic extension `tickLabels` (draws numeric ring labels — the still-unmerged
-upstream request #6473/#6481 — off by default to preserve parity).
+upstream request #6473/#6481 — off by default to preserve parity). Configured width and
+height reserve their dimensions independently; all input-driven geometry values are
+bounded before canvas arithmetic.
 
 Safe `themeVariables.radar.*` fields are also wired and diagnosed: axis/graticule colors
 and stroke widths, axis/legend font sizes, curve/graticule opacity, curve stroke width,
-and legend box size. `themeVariables.titleColor` and `cScale0..11` control the title and
-curve palette. Unknown or invalid values produce `INEFFECTIVE_CONFIG` rather than silently
-vanishing.
+and legend box size. Global `themeVariables.fontSize`, `themeVariables.titleColor`, and
+`cScale0..11` control the measured title and curve palette. Unknown, invalid, or
+out-of-budget values produce `INEFFECTIVE_CONFIG` rather than silently vanishing.
 
 ## ASCII
 
 Radar's polar geometry doesn't map onto a character grid, so — like pie — it degrades to
 a proportional bar table grouped by axis, one colored bar per curve, reusing the shared
 palette. It uses the same clamped scale as SVG, honors `showLegend`, preserves multiline
-axis/curve cells, includes frontmatter titles, explicitly reports arity mismatches, and
-bounds bars independently of input size.
+axis/curve cells, includes frontmatter titles, explicitly reports arity mismatches, keeps
+the axis structure visible even when no curve is drawable, and bounds bars independently
+of input size.
 
 ## Agent-native mutation (`asRadar`)
 
@@ -79,8 +85,9 @@ Axes and curves are coupled: every curve carries exactly one value per axis. `ad
 Where Mermaid is unguarded, Agentic Mermaid fails loudly instead of emitting NaN geometry:
 a degenerate scale (`max ≤ min`) is a named error; negative literals are rejected (the
 grammar has no sign token); `ticks` is bounded to `1..64` to prevent input-driven
-allocations (upstream accepts zero or arbitrarily large counts). Values outside the scale
-are clamped in both SVG and ASCII. A positional curve whose value count ≠ the axis count is
-not drawn but is still legended (matching upstream), while it stays opaque rather than
-entering the invariant-preserving typed mutation model. See
+allocations (upstream accepts zero or arbitrarily large counts). Finite frame, margin,
+factor, font, stroke, and legend-box config is also bounded before layout. Values outside
+the scale are clamped in both SVG and ASCII. A positional curve whose value count ≠ the
+axis count is not drawn but is still legended (matching upstream), while it stays opaque
+rather than entering the invariant-preserving typed mutation model. See
 [`eval/mermaid-radar-bench/harvest.json`](../../../eval/mermaid-radar-bench/harvest.json).

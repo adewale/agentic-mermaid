@@ -447,6 +447,7 @@ const RADAR_RENDER_HOOKS = {
     ctx.renderOptions,
     (ctx.familyConfig as { visual?: ReturnType<typeof resolveRadarVisualConfig> } | undefined)?.visual
       ?? resolveRadarVisualConfig(ctx.source.frontmatter),
+    ctx.styleFace,
   ), { injectAccessibility: false }),
   projectPositioned: positionedView(projectRadarPositioned),
   lowerScene: scene(lowerRadarScene),

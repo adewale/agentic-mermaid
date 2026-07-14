@@ -59,7 +59,8 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
   const axisStrokeWidth = chart.visual.axisStrokeWidth ?? 1
   const graticuleStrokeWidth = chart.visual.graticuleStrokeWidth ?? 1
   const graticuleOpacity = chart.visual.graticuleOpacity ?? 0.7
-  const axisTextColor = style.edgeTextColor ?? 'var(--_text-muted)'
+  // Mermaid applies radar.axisColor to both spokes and their labels.
+  const axisTextColor = axisColor
   const titleColor = chart.visual.titleColor ?? style.groupTextColor ?? style.nodeTextColor ?? 'var(--_text)'
   const dotStroke = style.nodeBorderColor ?? 'var(--bg)'
 
@@ -67,8 +68,8 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
     title: chart.accessibility?.title ?? chart.title?.text ?? 'Radar chart',
     description: chart.accessibility?.description,
   }
-  const duplicateAxisIds = repeatedValues(chart.axes.map(axis => axis.id))
-  const duplicateCurveIds = repeatedValues(chart.curves.map(curve => curve.id))
+  const axisIdentities = occurrenceIdentities(chart.axes.map(axis => axis.id))
+  const curveIdentities = occurrenceIdentities(chart.curves.map(curve => curve.id))
   const namespaceParts: Array<string | number> = [chart.width, chart.height, accessibility.title ?? '']
   for (const axis of chart.axes) namespaceParts.push(axis.id)
   for (const curve of chart.curves) namespaceParts.push(curve.label)
@@ -127,7 +128,7 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
 
   // Spokes.
   for (const [axisIndex, axis] of chart.axes.entries()) {
-    const identity = occurrenceIdentity(axis.id, axisIndex, duplicateAxisIds)
+    const identity = axisIdentities[axisIndex]!
     parts.push(marks.shape(
       {
         id: `spoke:${identity}`,
@@ -144,7 +145,7 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
   // nothing but still legends (upstream parity).
   for (const [curveIndex, curve] of chart.curves.entries()) {
     if (curve.arityMismatch || curve.vertices.length === 0) continue
-    const identity = occurrenceIdentity(curve.id, curveIndex, duplicateCurveIds)
+    const identity = curveIdentities[curveIndex]!
     const fill = fills[curve.colorIndex]!
     if (chart.polygonGraticule) {
       const pts = curve.vertices.map(p => `${p.x},${p.y}`).join(' ')
@@ -177,7 +178,7 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
   // Vertex dots on top of the areas.
   for (const [curveIndex, curve] of chart.curves.entries()) {
     if (curve.arityMismatch) continue
-    const identity = occurrenceIdentity(curve.id, curveIndex, duplicateCurveIds)
+    const identity = curveIdentities[curveIndex]!
     const fill = fills[curve.colorIndex]!
     curve.vertices.forEach((v, vi) => {
       parts.push(marks.shape(
@@ -203,17 +204,17 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
         text: t.text,
         x: t.x,
         y: t.y,
-        fontSize: 9.5,
+        fontSize: chart.typography.tickFontSize,
         anchor: 'middle',
         paint: { fill: axisTextColor },
       },
-      `<text class="radar-tick-label" x="${t.x}" y="${t.y}" text-anchor="middle" dominant-baseline="middle" font-size="9.5">${escapeXml(t.text)}</text>`,
+      `<text class="radar-tick-label" x="${t.x}" y="${t.y}" text-anchor="middle" dominant-baseline="middle" font-size="${chart.typography.tickFontSize}" font-weight="${chart.typography.tickFontWeight}">${escapeXml(t.text)}</text>`,
     ))
   }
 
   // Axis labels (wrapped, radial, outside the outer ring).
   for (const [axisIndex, axis] of chart.axes.entries()) {
-    const identity = occurrenceIdentity(axis.id, axisIndex, duplicateAxisIds)
+    const identity = axisIdentities[axisIndex]!
     const lines = axis.lines
     const shift = -(lines.length - 1) * 0.6
     const tspans = lines
@@ -226,12 +227,12 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
         text: lines.join('\n'),
         x: axis.labelX,
         y: axis.labelY,
-        fontSize: style.edgeLabelFontSize,
+        fontSize: chart.typography.axisFontSize,
         anchor: axis.anchor,
         paint: { fill: axisTextColor },
       },
       `<text class="radar-axis-label" x="${axis.labelX}" y="${axis.labelY}" text-anchor="${axis.anchor}" ` +
-        `dominant-baseline="middle" font-size="${style.edgeLabelFontSize}" font-weight="${style.edgeLabelFontWeight}">${tspans}</text>`,
+        `dominant-baseline="middle" font-size="${chart.typography.axisFontSize}" font-weight="${chart.typography.axisFontWeight}">${tspans}</text>`,
     ))
   }
 
@@ -243,10 +244,10 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
         id: `legend-swatch:${item.colorIndex}`,
         role: 'legend',
         geometry: { kind: 'rect', x: item.x, y: item.y, width: item.swatchSize, height: item.swatchSize, rx: 2, ry: 2 },
-        paint: { fill, stroke: style.nodeBorderColor ?? 'var(--_node-stroke)', strokeWidth: '1' },
+        paint: { fill, stroke: style.nodeBorderColor ?? 'var(--_node-stroke)', strokeWidth: '1', opacity: String(curveOpacity) },
         channels: { category: item.label },
       },
-      `<rect class="radar-legend-swatch" x="${item.x}" y="${item.y}" width="${item.swatchSize}" height="${item.swatchSize}" rx="2" ry="2" fill="${escapeXml(fill)}" />`,
+      `<rect class="radar-legend-swatch" x="${item.x}" y="${item.y}" width="${item.swatchSize}" height="${item.swatchSize}" rx="2" ry="2" fill="${escapeXml(fill)}" fill-opacity="${curveOpacity}" />`,
     ))
     parts.push(marks.text(
       {
@@ -255,12 +256,12 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
         text: item.label,
         x: item.textX,
         y: item.textY,
-        fontSize: style.nodeLabelFontSize,
+        fontSize: chart.typography.legendFontSize,
         anchor: 'start',
         paint: { fill: style.nodeTextColor ?? 'var(--_text)' },
       },
       `<text class="radar-legend-text" x="${item.textX}" y="${item.textY}" text-anchor="start" dominant-baseline="middle" ` +
-        `font-size="${style.nodeLabelFontSize}" font-weight="${style.nodeLabelFontWeight}">${escapeXml(item.label)}</text>`,
+        `font-size="${chart.typography.legendFontSize}" font-weight="${chart.typography.legendFontWeight}">${escapeXml(item.label)}</text>`,
     ))
   }
 
@@ -278,7 +279,7 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
         paint: { fill: titleColor },
       },
       `<text class="radar-title" x="${chart.title.x}" y="${chart.title.y}" text-anchor="middle" dominant-baseline="middle" ` +
-        `font-size="${chart.title.fontSize}" font-weight="${Math.max(style.groupHeaderFontWeight, 600)}">${escapeXml(chart.title.text)}</text>`,
+        `font-size="${chart.title.fontSize}" font-weight="${Math.max(chart.typography.titleFontWeight, 600)}">${escapeXml(chart.title.text)}</text>`,
     ))
   }
 
@@ -309,14 +310,16 @@ function openRadarSvgTag(
   })
 }
 
-function repeatedValues(values: readonly string[]): ReadonlySet<string> {
+function occurrenceIdentities(values: readonly string[]): string[] {
   const counts = new Map<string, number>()
   for (const value of values) counts.set(value, (counts.get(value) ?? 0) + 1)
-  return new Set([...counts].filter(([, count]) => count > 1).map(([value]) => value))
-}
-
-function occurrenceIdentity(value: string, index: number, repeated: ReadonlySet<string>): string {
-  return repeated.has(value) ? `${value}#${index}` : value
+  const seen = new Map<string, number>()
+  return values.map(value => {
+    if ((counts.get(value) ?? 0) <= 1) return value
+    const occurrence = seen.get(value) ?? 0
+    seen.set(value, occurrence + 1)
+    return `${value}#${occurrence}`
+  })
 }
 
 function radarStyles(
@@ -333,7 +336,7 @@ function radarStyles(
 ): string {
   return `<style>
   .radar-ring { stroke: ${graticuleColor}; stroke-width: ${graticuleStrokeWidth}; stroke-opacity: ${graticuleOpacity}; fill: none; }
-  .radar-ring-outer { stroke-width: ${graticuleStrokeWidth * 1.4}; stroke-opacity: 1; }
+  .radar-ring-outer { stroke-width: ${graticuleStrokeWidth * 1.4}; stroke-opacity: ${graticuleOpacity}; }
   .radar-axis-line { stroke: ${axisColor}; stroke-width: ${axisStrokeWidth}; }
   .radar-area { stroke-width: ${style.nodeLineWidth}; fill-opacity: ${curveOpacity}; stroke-linejoin: round; }
   .radar-dot { stroke: ${dotStroke}; stroke-width: 1.2; }

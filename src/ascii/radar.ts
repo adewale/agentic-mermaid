@@ -87,6 +87,16 @@ export function renderRadarAscii(
     out.push('')
   }
 
+  // Axes are meaningful chart structure even when there is no drawable
+  // series (axis-only source or every curve has an arity mismatch).
+  if (drawable.length === 0) {
+    for (const axis of chart.axes) {
+      for (const line of cellLines(axis.label)) {
+        out.push(`${padEndToVisualWidth(line, axisWidth)}  ${sep}`.trimEnd())
+      }
+    }
+  }
+
   chart.axes.forEach((axis, axisIndex) => {
     drawable.forEach((curve, curveIndex) => {
       const value = curve.values[axisIndex]!

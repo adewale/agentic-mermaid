@@ -2,9 +2,10 @@
 // registered Look (fixed palette) and every Palette (default Look), rasterizes
 // each with Resvg, and writes an HTML contact sheet + inlined base64 PNGs.
 // Run: bun run scripts/pr-assets/radar-style-palette.ts
-import { writeFileSync } from 'node:fs'
+import { existsSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { Resvg } from '@resvg/resvg-js'
+import { chromium } from 'playwright'
 import '../../src/index.ts'
 import { renderMermaidSVG } from '../../src/agent/index.ts'
 import { knownStyles, getStyle, styleKind } from '../../src/scene/style-registry.ts'
@@ -12,7 +13,9 @@ import { inlineFontVarForRaster } from '../../src/theme.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const FONT_DIR = join(ROOT, 'assets', 'fonts')
-const OUT = join(ROOT, 'scripts', 'pr-assets', 'radar-style-palette.html')
+const HTML_OUT = join(ROOT, 'scripts', 'pr-assets', 'radar-style-palette.html')
+const PNG_OUT = join(ROOT, 'docs', 'design', 'families', 'radar-style-palette-sheet.png')
+const chromePath = ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/opt/pw-browsers/chromium'].find(existsSync)
 
 const SOURCE = `radar-beta
   title Profile
@@ -60,5 +63,12 @@ const html = `<!doctype html><html><head><meta charset="utf-8"><style>
   <div class="grid">${paletteTiles}</div>
 </body></html>`
 
-writeFileSync(OUT, html)
-console.log(`wrote ${OUT} — ${looks.length} looks + ${palettes.length} palettes`)
+writeFileSync(HTML_OUT, html)
+const browser = await chromium.launch({ headless: true, ...(chromePath ? { executablePath: chromePath } : {}) })
+const page = await browser.newPage({ viewport: { width: 1880, height: 4200 }, deviceScaleFactor: 1 })
+await page.goto(`file://${HTML_OUT}`)
+const body = await page.$('body')
+await body!.screenshot({ path: PNG_OUT })
+await browser.close()
+rmSync(HTML_OUT)
+console.log(`wrote ${PNG_OUT} — ${looks.length} looks + ${palettes.length} palettes`)

@@ -14,7 +14,7 @@
   },
   "constructs": [
     { "id": "header", "form": "radar-beta[:]", "modeled": true, "note": "three spellings: radar-beta, radar-beta:, radar-beta :" },
-    { "id": "title", "form": "title <text>", "modeled": true },
+    { "id": "title", "form": "title [<text>]", "modeled": true, "note": "free text may be empty, contain braces, or follow the header on the same line; %% comments terminate the line" },
     { "id": "axis", "form": "axis id[\"Label\"] [, id2 …]", "modeled": true, "note": "statements are order-independent; quoted labels decode escapes" },
     { "id": "curve-positional", "form": "curve id[\"Label\"]{v1, v2, …}", "modeled": true, "note": "values map to axes in declaration order; blocks may span lines" },
     { "id": "curve-keyed", "form": "curve id{axisId[:] value, …}", "modeled": true, "note": "colon optional; entries reordered to axis order" },
@@ -23,14 +23,17 @@
     { "id": "option-ticks", "form": "ticks <n>", "modeled": true, "default": 5, "agenticRange": "integer 1..64" },
     { "id": "option-graticule", "form": "graticule circle|polygon", "modeled": true, "default": "circle", "note": "controls ring shape AND curve edge (smooth vs straight)" },
     { "id": "option-showLegend", "form": "showLegend true|false", "modeled": true, "default": true },
-    { "id": "accessibility", "form": "accTitle:/accDescr:", "modeled": "opaque", "note": "preserved verbatim via opaque fallback (structured mutation unavailable)" },
-    { "id": "config", "form": "frontmatter config.radar.*", "modeled": true, "note": "width/height/margins/axisScaleFactor/axisLabelFactor/curveTension/useMaxWidth wired; wire-or-warn" },
+    { "id": "accessibility", "form": "accTitle:/accDescr:", "modeled": true, "note": "carried by the universal accessibility envelope; inline comments and accDescr blocks match upstream tokenization" },
+    { "id": "whitespace-statements", "form": "<statement> <statement>", "modeled": true, "note": "top-level keywords may begin the next statement on the same line, matching the whitespace-oriented upstream grammar" },
+    { "id": "config", "form": "frontmatter config.radar.*", "modeled": true, "note": "width/height independently reserve their frame; margins/factors/curveTension/useMaxWidth are wired; numeric geometry is bounded before layout; wire-or-warn" },
     { "id": "theme", "form": "frontmatter themeVariables.radar.*", "modeled": true, "note": "colors, stroke widths, font sizes, opacities, and legend box size are validated and wire-or-warn" }
   ],
   "examples": [
     { "id": "grades", "source": "---\ntitle: \"Grades\"\n---\nradar-beta\n  axis m[\"Math\"], s[\"Science\"], e[\"English\"]\n  axis h[\"History\"], g[\"Geography\"], a[\"Art\"]\n  curve a[\"Alice\"]{85, 90, 80, 70, 75, 90}\n  curve b[\"Bob\"]{70, 75, 85, 80, 90, 85}\n  max 100\n  min 0" },
     { "id": "restaurant-polygon", "source": "radar-beta\n  title Restaurant Comparison\n  axis food[\"Food Quality\"], service[\"Service\"], price[\"Price\"], ambiance[\"Ambiance\"]\n  curve a[\"Restaurant A\"]{4, 3, 2, 4}\n  curve b[\"Restaurant B\"]{3, 4, 3, 3}\n  graticule polygon\n  max 5" },
-    { "id": "keyed", "source": "radar-beta\n  axis A, B, C\n  curve mycurve{ C: 3, A: 1, B: 2 }" }
+    { "id": "keyed", "source": "radar-beta\n  axis A, B, C\n  curve mycurve{ C: 3, A: 1, B: 2 }" },
+    { "id": "upstream-options-only", "source": "radar-beta\n  ticks 10\n  showLegend false\n  graticule polygon\n  min 1\n  max 10", "provenance": "packages/mermaid/src/diagrams/radar/radar.spec.ts :: should handle a radar diagram with options" },
+    { "id": "same-line-statements", "source": "radar-beta title Compact radar\n  axis A,B,C curve x{1,2,3} ticks 4 max 5" }
   ],
   "divergences": [
     {
@@ -56,6 +59,12 @@
       "upstream": "ticks 0 draws no rings and arbitrarily large counts drive proportional ring allocation",
       "agentic": "ticks must be an integer from 1 through 64 in source and typed mutation",
       "rationale": "all input-driven allocation multipliers are bounded; malformed values fail before layout"
+    },
+    {
+      "id": "bounded-geometry-config",
+      "upstream": "finite width, height, margin, factor, font, stroke, and legend-box values are accepted without resource ceilings",
+      "agentic": "values above generous documented rendering ceilings are diagnosed and dropped before any canvas arithmetic",
+      "rationale": "finite IEEE-754 inputs can still overflow intermediate geometry; the renderer must never emit NaN or Infinity"
     },
     {
       "id": "ring-value-labels",

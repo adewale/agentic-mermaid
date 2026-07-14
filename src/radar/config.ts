@@ -54,6 +54,8 @@ export interface RadarVisualConfig {
   graticuleOpacity?: number
   legendBoxSize?: number
   legendFontSize?: number
+  /** Mermaid's global themeVariables.fontSize, used by the radar title. */
+  titleFontSize?: number
   titleColor?: string
   /** cScale0..11 per-curve fill overrides, index i = curve i (cycling at 12). */
   paletteOverrides?: Array<string | undefined>
@@ -84,6 +86,18 @@ const POSITIVE_FIELDS = [
   'width', 'height', 'axisScaleFactor', 'axisLabelFactor',
 ] as const
 
+/** Arithmetic/resource bounds applied before layout. They are deliberately
+ * generous for exported artwork while preventing finite IEEE-754 inputs from
+ * overflowing canvas geometry. */
+export const RADAR_CONFIG_LIMITS = Object.freeze({
+  dimension: 4096,
+  margin: 4096,
+  factor: 8,
+  fontSize: 256,
+  lineWidth: 64,
+  legendBoxSize: 512,
+})
+
 const NON_NEGATIVE_FIELDS = [
   'marginTop', 'marginRight', 'marginBottom', 'marginLeft',
 ] as const
@@ -101,11 +115,12 @@ export function resolveRadarVisualConfig(
 
   for (const field of POSITIVE_FIELDS) {
     const value = getFrontmatterScalar<number>(section, [field])
-    if (typeof value === 'number' && Number.isFinite(value) && value > 0) config[field] = value
+    const maximum = field === 'width' || field === 'height' ? RADAR_CONFIG_LIMITS.dimension : RADAR_CONFIG_LIMITS.factor
+    if (typeof value === 'number' && Number.isFinite(value) && value > 0 && value <= maximum) config[field] = value
   }
   for (const field of NON_NEGATIVE_FIELDS) {
     const value = getFrontmatterScalar<number>(section, [field])
-    if (typeof value === 'number' && Number.isFinite(value) && value >= 0) config[field] = value
+    if (typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= RADAR_CONFIG_LIMITS.margin) config[field] = value
   }
   // curveTension in [0,1]; 0 degenerates the smooth curve to a polygon.
   const tension = getFrontmatterScalar<number>(section, ['curveTension'])
@@ -121,7 +136,12 @@ export function resolveRadarVisualConfig(
   const positiveThemeFields = ['axisStrokeWidth', 'axisLabelFontSize', 'curveStrokeWidth', 'graticuleStrokeWidth', 'legendBoxSize', 'legendFontSize'] as const
   for (const field of positiveThemeFields) {
     const value = getFrontmatterScalar<number>(radarTheme, [field])
-    if (typeof value === 'number' && Number.isFinite(value) && value > 0) config[field] = value
+    const maximum = field === 'legendBoxSize'
+      ? RADAR_CONFIG_LIMITS.legendBoxSize
+      : field.endsWith('FontSize')
+        ? RADAR_CONFIG_LIMITS.fontSize
+        : RADAR_CONFIG_LIMITS.lineWidth
+    if (typeof value === 'number' && Number.isFinite(value) && value > 0 && value <= maximum) config[field] = value
   }
   for (const field of ['curveOpacity', 'graticuleOpacity'] as const) {
     const value = getFrontmatterScalar<number>(radarTheme, [field])
@@ -133,6 +153,15 @@ export function resolveRadarVisualConfig(
   }
   const titleColor = safeCssColor(getFrontmatterScalar<string>(frontmatter, ['themeVariables', 'titleColor']))
   if (titleColor) config.titleColor = titleColor
+  const rawTitleFontSize = getFrontmatterScalar<string | number>(frontmatter, ['themeVariables', 'fontSize'])
+  const titleFontSize = typeof rawTitleFontSize === 'number'
+    ? rawTitleFontSize
+    : typeof rawTitleFontSize === 'string' && /^\d+(?:\.\d+)?(?:px)?$/i.test(rawTitleFontSize.trim())
+      ? Number.parseFloat(rawTitleFontSize)
+      : Number.NaN
+  if (Number.isFinite(titleFontSize) && titleFontSize > 0 && titleFontSize <= RADAR_CONFIG_LIMITS.fontSize) {
+    config.titleFontSize = titleFontSize
+  }
 
   // cScale0..cScale11 per-curve color overrides (themeVariables).
   const overrides: Array<string | undefined> = []

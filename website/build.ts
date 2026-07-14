@@ -22,6 +22,7 @@ import { HOMEPAGE_AGENT_POINTER } from '../eval/agent-usage/homepage-prompt.ts'
 import { EDITOR_EXAMPLES } from '../editor/examples.ts'
 import { samples as RICH_EXAMPLES } from '../scripts/site/samples-data.ts'
 import { CUSTOM_STYLE_CATALOG } from '../scripts/docs/custom-style-catalog.ts'
+import { sharedRenderOptionsJsonSchema } from '../src/render-contract.ts'
 
 const ROOT = join(import.meta.dir, '..')
 const SOURCE = join(import.meta.dir, 'source')
@@ -1951,6 +1952,7 @@ for (const font of HOSTED_FONT_RESOURCES) {
 for (const name of SUBSET_FONT_FILES) await copyFileFrom(join(SOURCE_ASSETS, 'fonts', `${name}.subset.woff2`), `fonts/${name}.subset.woff2`)
 await copyDir(SOURCE_DIAGRAMS, 'diagrams')
 await copyFileFrom(join(ROOT, 'docs', 'schemas', 'style-spec.schema.json'), 'schemas/style-spec.schema.json')
+await emitJson('schemas/render-options.schema.json', sharedRenderOptionsJsonSchema())
 await copyDir(join(ROOT, 'docs', 'assets', 'style-cookbook'), 'docs/assets/style-cookbook')
 await copyDir(join(ROOT, 'examples', 'styles'), 'examples/styles')
 // Standalone var()-token demo of the live-theming feature (set --bg/--fg/--accent
@@ -2148,7 +2150,7 @@ const aiCatalog = {
     },
     {
       identifier: 'urn:air:agentic-mermaid.dev:warnings', displayName: 'Agentic Mermaid warnings index',
-      type: 'text/markdown', url: `${siteOrigin}/warnings/index.md`,
+      type: 'text/markdown', url: `${siteOrigin}/warning-codes.md`,
       description: 'Machine-oriented index of structural, geometric, and lint warning codes.',
       tags: ['warnings', 'verification'], representativeQueries: ['what does this verify warning mean'],
     },
@@ -2800,7 +2802,7 @@ function warningsIndexHtml() {
 </script>`
 }
 await emitShell('warnings/index.html', 'Warnings', 'Warning codes are tiered so agents know whether to fix, retry, or ask.', warningsIndexHtml())
-await emit('warnings/index.md', `# Warning codes\n\nFix structural warnings first; geometric warnings require visual review; lint warnings usually call for a smaller edit.\n\n${capabilities.warningCodes.map((w: any) => `- [${w.code}](${siteOrigin}/warnings/${w.code}/index.md) — ${w.tier}; ${w.severity}`).join('\n')}\n`)
+await emit('warning-codes.md', `# Warning codes\n\nFix structural warnings first; geometric warnings require visual review; lint warnings usually call for a smaller edit.\n\n${capabilities.warningCodes.map((w: any) => `- [${w.code}](${siteOrigin}/warnings/${w.code}/index.md) — ${w.tier}; ${w.severity}`).join('\n')}\n`)
 let firingDemos = 0
 for (const w of capabilities.warningCodes) {
   const detail = WARNING_DETAIL[w.code]

@@ -3,4 +3,4 @@
 // main-worker compatibility_date). Used as the /mcp response-cache version
 // so any change to the hosted tool surface, transport, PNG path, SDK, or
 // worker runtime semantics invalidates cached tool results.
-export const DEPLOY_VERSION = 'v0.1.1-4e7e833bfd073615b33e7dd7'
+export const DEPLOY_VERSION = 'v0.1.1-39710ac077d2c03670a957aa'
