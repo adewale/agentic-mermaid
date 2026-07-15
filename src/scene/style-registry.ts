@@ -177,17 +177,6 @@ const DEFAULT_STYLE_ALIAS = Object.freeze({
   }),
 }) satisfies CompatibilityAlias
 
-/** Published compatibility window for the historically ambiguous bare name. */
-const TUFTE_STYLE_ALIAS = Object.freeze({
-  alias: 'tufte',
-  targetId: 'look:tufte',
-  diagnostic: Object.freeze({
-    code: 'STYLE_ALIAS_DEPRECATED',
-    message: 'Style alias "tufte" resolves to "look:tufte"; use "palette:tufte" for the palette-only style.',
-    removal: Object.freeze({ release: '0.3.0', date: '2027-01-31' }),
-  }),
-}) satisfies CompatibilityAlias
-
 function plainDeclarativeRecord(value: unknown): value is Record<string, unknown> {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
   const prototype = Object.getPrototypeOf(value)
@@ -713,8 +702,8 @@ export function isStyledSpec(spec: StyleSpec): boolean {
 
 // ----------------------------------------------------------------------------
 // Palettes register as canonical palette:* styles. Most built-ins also have a
-// stable unqualified input. `tufte` is the diagnosed historical alias for the
-// Look, so both Tufte meanings advertise their canonical names instead.
+// stable unqualified input. Both Tufte resources require canonical qualified
+// inputs because the retired bare name cannot identify Look versus Palette.
 // ----------------------------------------------------------------------------
 
 // The byte-identical default is a real discoverable descriptor, not a picker-
@@ -866,7 +855,7 @@ registerBuiltInStyle({
     group: { lineWidth: 0.8 },
   },
   mono: true,
-}, 'look', TUFTE_STYLE_ALIAS, 'look:tufte')
+}, 'look', null, 'look:tufte')
 
 registerBuiltInStyle({
   name: 'accessible-high-contrast',

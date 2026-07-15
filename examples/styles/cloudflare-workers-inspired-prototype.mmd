@@ -1,0 +1,9 @@
+gantt
+  title Workers delivery
+  dateFormat YYYY-MM-DD
+  section Edge
+    Route request :done, route, 2026-01-05, 2d
+    Deploy isolate :crit, deploy, after route, 3d
+  section Runtime
+    Execute worker :run, after deploy, 4d
+    Observe release :milestone, observe, after run, 0d

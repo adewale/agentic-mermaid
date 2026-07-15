@@ -46,12 +46,16 @@ describe('styled output', () => {
     expect(LOOKS.length).toBeGreaterThan(0)
     expect(LOOKS).not.toContain('crisp')
     expect(LOOKS).not.toContain('cupertino')
+    expect(LOOKS).not.toContain('vercel-inspired-prototype')
+    expect(LOOKS).not.toContain('cloudflare-workers-inspired-prototype')
   })
 
-  test('the Cupertino prototype remains documentation-only', () => {
-    expect(getStyle('cupertino')).toBeUndefined()
-    expect(() => renderMermaidSVG(fixtures[0]!.source, { style: 'cupertino' }))
-      .toThrow(/Unknown style "cupertino"/)
+  test('the brand-inspired prototypes remain documentation-only', () => {
+    for (const name of ['cupertino', 'vercel-inspired-prototype', 'cloudflare-workers-inspired-prototype']) {
+      expect(getStyle(name), name).toBeUndefined()
+      expect(() => renderMermaidSVG(fixtures[0]!.source, { style: name }), name)
+        .toThrow(new RegExp(`Unknown style "${name}"`))
+    }
   })
 
   test('every style × fixture is hash-stable against the committed baseline', () => {

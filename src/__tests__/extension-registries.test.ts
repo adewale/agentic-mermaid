@@ -454,22 +454,19 @@ describe('shared extension identity', () => {
 })
 
 describe('canonical style identities', () => {
-  test('keeps palette:tufte and look:tufte distinct while the bare alias selects the Look', () => {
+  test('keeps palette:tufte and look:tufte distinct and rejects the retired ambiguous bare input', () => {
     const palette = getStyle('palette:tufte')!
     const look = getStyle('look:tufte')!
     expect(palette.name).toBe('palette:tufte')
     expect(palette.font).toBeUndefined()
     expect(look.name).toBe('look:tufte')
     expect(look.font).toBe('EB Garamond')
-    expect(getStyle('tufte')).toEqual(look)
-
-    const resolution = resolveStyleReference('tufte')!
-    const alias = knownStyleDescriptors()
+    expect(getStyle('tufte')).toBeUndefined()
+    expect(resolveStyleReference('tufte')).toBeUndefined()
+    expect(() => resolveStyleStack('tufte')).toThrow(/Unknown style "tufte"/)
+    expect(knownStyleDescriptors()
       .find(descriptor => descriptor.identity.id === 'look:tufte')!
-      .aliases.find(candidate => candidate.alias === 'tufte')!
-    expect(resolution.canonicalId).toBe('look:tufte')
-    expect(resolution.diagnostic).toEqual(alias.diagnostic)
-    expect(resolution.diagnostic?.removal).toEqual({ release: '0.3.0', date: '2027-01-31' })
+      .aliases).toEqual([])
   })
 
   test('discovers canonical identities and retains legacy inputs without duplicate meanings', () => {
@@ -512,7 +509,7 @@ describe('canonical style identities', () => {
       { ...getStyle('look:tufte')!, name: 'look:tufte' },
       { provenance: { owner: 'collision-probe', source: 'test' } },
     )).toThrow(ExtensionCollisionError)
-    expect(getStyle('tufte')?.font).toBe('EB Garamond')
+    expect(getStyle('look:tufte')?.font).toBe('EB Garamond')
     expect(() => registerStyle(
       { name: 'look:test/incompatible-core', stroke: 'jittered' },
       { compatibility: { core: '^99.0.0' } },

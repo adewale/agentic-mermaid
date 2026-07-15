@@ -145,6 +145,30 @@ family docs, and `TODO.md`.
   named package script shared by CI and release workflows, and run it after the
   final test edit; transpile-only builds and Bun tests do not prove strict
   TypeScript compilation.
+- **Prototype maturity is an evidence ladder, not a naming promotion.** Move a
+  design probe from temporary research to a checked-in prototype only when its
+  public data validates, its own fixture executes the claimed roles/policy, its
+  deterministic visual is reviewed, and discovery proves it remains non-built-
+  in. Brand inspiration never supplies ownership, endorsement, or permission to
+  manufacture proprietary assets; BrandPack and built-in promotion require
+  separate distribution evidence.
+- **A semantic-binding witness must discriminate the binding from role defaults.**
+  Render the same family fixture with and without slots/bindings, make the base
+  role visibly different, and assert the bound mark—not merely the presence of a
+  color already supplied by the role. Trim valid-but-inert bindings instead of
+  treating schema admission as executable evidence; keep editorial feature tags
+  explicitly outside capability authority.
+- **Ambiguous aliases should disappear, never change meaning.** Canonical
+  kind-qualified identities must exist before retirement, discovery must expose
+  both choices, and the old input should fail rather than silently switch from a
+  Look to a Palette. Honor published compatibility windows by default; if the
+  repository owner explicitly overrides one, record a breaking migration in the
+  changelog and PR risk instead of rewriting history as though no promise existed.
+- **A diagnostic prototype should pass its own policy.** Run style-aware verify
+  on each fixture and tune authored text/surface pairs until its inspect-only
+  constraints are quiet. A screenshot generator proving only that bytes exist is
+  weaker than a prototype whose render, policy, terminal cue, registration, and
+  non-registration boundaries all execute.
 
 ## How to apply these lessons
 

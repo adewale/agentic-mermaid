@@ -34,13 +34,12 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   `Sitemap: https://agentic-mermaid.dev/sitemap.xml`. Then verify the live body
   and status with `curl` and both search consoles. The repo deliberately ships
   no competing `robots.txt`, so the dashboard remains the single source.
-- [ ] **COMPAT-1 — Remove deprecated bare Style aliases** (`todo`; earliest in
-  `0.3.0`, no earlier than 2027-01-31). Remove `default` and the historically
-  ambiguous bare `tufte` only after receipt diagnostics have shipped for the
-  published window, migration docs use `crisp`, `look:tufte`, and
-  `palette:tufte`, and regression tests prove discovery no longer advertises
-  either compatibility name. The release owner must confirm those gates before
-  deleting the aliases and their diagnostics.
+- [ ] **COMPAT-1 — Remove the deprecated bare `default` Style alias** (`todo`;
+  earliest in `0.3.0`, no earlier than 2027-01-31). Remove `default` only after
+  receipt diagnostics have shipped for the published window, migration docs use
+  `crisp`, and regression tests prove discovery no longer advertises the
+  compatibility name. The ambiguous bare `tufte` input is already retired;
+  callers must choose `look:tufte` or `palette:tufte` explicitly.
 
 
 ## Security backlog

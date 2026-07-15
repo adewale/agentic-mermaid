@@ -23,6 +23,8 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 - Added official Mermaid 11.16.0 comparison fixtures and reproducible SVG/terminal contact sheets for Mindmap and GitGraph. The evidence records AlexanderGrooff/mermaid-ascii 1.4.0's exact unsupported-family result instead of fabricating equivalent output.
 - Added exact executable-title evidence for every done family-elevation ledger row; CI now rejects uncited files, missing titles, duplicate IDs, empty evidence, and newly-done rows without a matching evidence entry.
 - Added a pinned official Mermaid 11.16 documentation showcase for all registered families and a registry-derived exhaustive non-default Look × Palette × family compatibility gate.
+- Completed the mandatory Section B public styling surface: descriptor-derived exact role records, named semantic slots, executable V1 `category` bindings, visible non-color cues, and inspect-only contrast/accent-area/mono-role constraints across SVG, PNG, and declared lossy terminal projections. Authored Mermaid paint and family semantics remain authoritative, and evidence-gated B4 BrandPack packaging remains unpromoted.
+- Promoted the Cupertino-, Vercel-, and Cloudflare Workers-inspired research fixtures to the highest non-built-in evidence form: schema-validated public `StyleSpec` prototypes with executable family-specific fixtures, deterministic screenshots, role styles, inspect-only constraints, and semantic bindings/cues where the family exposes them. They remain documentation-only, unendorsed, and absent from built-in discovery.
 
 ### Changed
 - Retired and deleted the broad scheduled mutation matrix and its sharding/oracle machinery after 26 consecutive failed or cancelled runs. The bounded incremental counter gate and five behavior-specific sabotage probes remain automatic; family lanes are opt-in diagnostics without acceptance floors.
@@ -68,6 +70,7 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 - Closed the Radar audit gaps in public synthesis validation, upstream title/comment/options grammar, Style-face-aware measurement, independent frame dimensions, theme paint/typography propagation, styled-backend opacity, empty-curve ASCII output, tick geometry, and duplicate-ID stability.
 
 ### Breaking
+- The ambiguous bare `tufte` Style input is retired and now fails as unknown. Select `look:tufte` for the full Look or `palette:tufte` for the palette-only resource; both remain discoverable canonical identities.
 - Consumers matching `INEFFECTIVE_CONFIG.field` for family-section keys must use the qualified path (for example `journey.boxMargin` rather than `boxMargin`).
 - Gantt exclusion-boundary semantics and default shading may change existing rendered calendars; CLI scripts relying on ignored known flags now fail fast with exit 2.
 - The transitional `FamilyPlugin` type alias has been removed; extension hosts should import `FamilyDescriptor`, which is the canonical registration and discovery contract.

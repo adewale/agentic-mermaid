@@ -2,13 +2,13 @@
   "$schema": "https://agentic-mermaid.dev/schemas/style-spec.schema.json",
   "formatVersion": 1,
   "name": "look:cupertino-prototype",
-  "blurb": "Documentation-only Cupertino-inspired prototype with concentric corner curves and generously rounded connector bends, using only the public StyleSpec.",
+  "blurb": "Documentation-only Cupertino-inspired prototype exercising public role geometry, shared elevation, and inspect-only constraints; not built in or endorsed.",
   "colors": {
     "bg": "#f2f2f7",
     "fg": "#000000",
     "line": "#7a7a80",
     "accent": "#007aff",
-    "muted": "#66666b",
+    "muted": "#5f5f64",
     "surface": "#ffffff",
     "border": "rgba(60,60,67,0.29)"
   },
@@ -35,7 +35,7 @@
       "lineWidth": 1.5,
       "bendRadius": 16,
       "strokeColor": "#7a7a80",
-      "textColor": "#66666b"
+      "textColor": "#5f5f64"
     },
     "group": {
       "fontSize": 12,
@@ -47,13 +47,17 @@
       "fillColor": "rgba(120,120,128,0.08)",
       "headerFillColor": "rgba(120,120,128,0.12)",
       "borderColor": "transparent",
-      "textColor": "#66666b"
+      "textColor": "#5f5f64"
     },
     "label": {
       "fontSize": 11,
       "fontWeight": 500,
       "letterSpacing": 0.07,
-      "textColor": "#66666b"
+      "textColor": "#5f5f64"
     }
-  }
+  },
+  "constraints": [
+    { "kind": "contrast", "action": "warn", "minimum": 4.5 },
+    { "kind": "accent-area", "action": "warn", "maxFraction": 0.2 }
+  ]
 }

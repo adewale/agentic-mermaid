@@ -153,15 +153,13 @@ describe('StyleSpec has one projected field authority', () => {
     expect(readFileSync(join(ROOT, 'website', 'build.ts'), 'utf8')).not.toContain('STYLE_THEME_LABELS')
   })
 
-  test('deprecated alias metadata stays discoverable without becoming public API', () => {
-    for (const relative of ['src/index.ts', 'src/agent/core.ts']) {
+  test('the retired bare Tufte input has no alias metadata or public resolution', () => {
+    for (const relative of ['src/index.ts', 'src/agent/core.ts', 'src/scene/style-registry.ts']) {
       expect(readFileSync(join(ROOT, relative), 'utf8')).not.toContain('TUFTE_STYLE_ALIAS')
     }
     const tufte = knownStyleDescriptors().find(descriptor => descriptor.identity.id === 'look:tufte')!
-    expect(tufte.aliases).toContainEqual(expect.objectContaining({
-      alias: 'tufte',
-      diagnostic: expect.objectContaining({ code: 'STYLE_ALIAS_DEPRECATED' }),
-    }))
+    expect(tufte.aliases).toEqual([])
+    expect(getStyle('tufte')).toBeUndefined()
   })
 
   test('CLI discovery publishes only Look/Palette kind plus explicit default state', () => {

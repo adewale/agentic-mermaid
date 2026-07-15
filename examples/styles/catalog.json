@@ -6,10 +6,28 @@
       "id": "cupertino-prototype",
       "style": "cupertino-prototype.style.json",
       "screenshot": "cupertino-prototype.png",
-      "alt": "Documentation-only Cupertino-inspired custom style prototype",
-      "summary": "uses public role geometry to demonstrate Cupertino-inspired concentric corner curves and rounded connector bends; it is not an Apple product, an endorsed implementation, or a built-in Agentic Mermaid Style.",
+      "alt": "Documentation-only Cupertino-inspired public StyleSpec prototype",
+      "summary": "uses public role geometry, elevation, and inspect-only constraints to demonstrate concentric corner curves and rounded connector bends; it is not an Apple product, an endorsed implementation, or a built-in Agentic Mermaid Style.",
       "docsOnly": true,
       "renderOptions": { "shadow": true }
+    },
+    {
+      "id": "vercel-inspired-prototype",
+      "style": "vercel-inspired-prototype.style.json",
+      "sample": "vercel-inspired-prototype.mmd",
+      "screenshot": "vercel-inspired-prototype.png",
+      "alt": "Documentation-only Vercel-inspired public StyleSpec prototype",
+      "summary": "uses public role styles, XYChart category bindings, semantic slots, and inspect-only constraints; it is not a Vercel product, an endorsed implementation, or a built-in Agentic Mermaid Style.",
+      "docsOnly": true
+    },
+    {
+      "id": "cloudflare-workers-inspired-prototype",
+      "style": "cloudflare-workers-inspired-prototype.style.json",
+      "sample": "cloudflare-workers-inspired-prototype.mmd",
+      "screenshot": "cloudflare-workers-inspired-prototype.png",
+      "alt": "Documentation-only Cloudflare Workers-inspired public StyleSpec prototype",
+      "summary": "uses public role styles, Gantt section bindings, visible non-color cues, semantic slots, and inspect-only constraints; it is not a Cloudflare product, an endorsed implementation, or a built-in Agentic Mermaid Style.",
+      "docsOnly": true
     },
     {
       "id": "transit-route-map",

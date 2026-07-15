@@ -132,7 +132,7 @@ describe('Section A transport and backend parity receipts', () => {
   })
 
   test('deprecated Style diagnostics cross library, CLI, local MCP, and hosted MCP receipts', async () => {
-    const options = { style: 'tufte' } as const
+    const options = { style: 'default' } as const
     const library = renderMermaidSVGWithReceipt(SOURCE, options)
     const dir = mkdtempSync(join(tmpdir(), 'am-section-a-alias-'))
     const input = join(dir, 'alias.mmd')
@@ -157,8 +157,8 @@ describe('Section A transport and backend parity receipts', () => {
     for (const receipt of [library.receipt, cli.receipt, local.value.receipt, hosted.receipt]) {
       expect(receipt.diagnostics).toContainEqual(expect.objectContaining({
         code: 'STYLE_ALIAS_DEPRECATED',
-        input: 'tufte',
-        canonicalId: 'look:tufte',
+        input: 'default',
+        canonicalId: 'look:crisp',
         removal: { release: '0.3.0', date: '2027-01-31' },
       }))
     }

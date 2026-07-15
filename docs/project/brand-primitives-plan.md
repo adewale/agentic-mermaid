@@ -54,10 +54,11 @@ Post-positioning executable decorations, universal mode axes, wider-gamut output
 and an accessibility execution mode are outside active Section B. Each requires
 its own observed need and promoted `TODO.md` item rather than dormant machinery.
 
-This plan is the normative product and architecture decision. The
-[documentation-only Cupertino prototype](../custom-style-cookbook.md#cupertino-prototype--documentation-only)
-is one public-API probe; it is not a built-in, compatibility alias, separate
-plan, or source of scheduled work.
+This plan is the normative product and architecture decision. The three
+[documentation-only public prototypes](../custom-style-cookbook.md#public-brand-inspired-prototypes--documentation-only)
+are the highest non-built-in probe form: checked-in public `StyleSpec` files,
+executable fixtures, and screenshot gates—not compatibility aliases, separate
+plans, endorsements, or sources of scheduled work.
 Current family citizenship remains governed by
 [`diagram-family-citizenship.md`](../contributing/diagram-family-citizenship.md),
 and actionable work remains owned by [`TODO.md`](../../TODO.md).
@@ -222,9 +223,9 @@ Release claims state the parity level and output, never the unqualified phrase
 
 | Probe | Source | What it proves |
 |---|---|---|
-| Cupertino prototype | emilkowalski's apple-design skill and public Apple design guidance | A borderless surface language needs elevation, role typography, radius and spacing discipline, explicit light/dark/contrast variants, and semantic accent placement. The checked-in JSON demonstrates only the current public floor and is never auto-registered. |
-| `vercel` | vercel-labs/beautiful-mermaid and the Geist visual language | Brand defaults, deterministic fonts, hairlines, live retheming, and motion cannot be represented completely by the current public JSON surface. |
-| `cf-workers` | CF Workers design-system tokens | Real brands need surface/text pairs, strong+soft categories, status colors, sans+mono roles, scales, tinted layered shadows, and enforceable constraints. Signature effects remain evidence for a future decision, not a Section B execution seam. |
+| Cupertino-inspired prototype | emilkowalski's apple-design skill and public Apple design guidance | The checked-in public `StyleSpec` proves borderless surfaces, shared elevation, role typography, radius/spacing discipline, and inspect-only constraints. It remains static, light-only, and never auto-registers. |
+| Vercel-inspired prototype | vercel-labs/beautiful-mermaid and the Geist visual language | The checked-in public `StyleSpec` and XYChart fixture prove dark brand defaults, hairlines, deterministic bundled typography, category-bound series slots, and inspect-only constraints. Motion, live application chrome, and proprietary assets remain outside the static prototype. |
+| Cloudflare Workers-inspired prototype | CF Workers design-system tokens | The checked-in public `StyleSpec` and Gantt fixture prove surface/text pairs, sans+mono roles, section-bound slots, visible no-color cues, and enforceable diagnostics. Tinted layered shadows, broader status scales, and signature motion remain research rather than a new execution seam. |
 
 The following findings describe the pre-Section-A baseline that motivated the
 correctness work; they are retained as historical design evidence, not as a
@@ -1048,11 +1049,13 @@ Before Section A, `tufte` meant both a palette in `THEMES` and a full Look in
 the style registry; built-in Look registration silently overwrote the palette
 entry. This represented the broader historical overlap between “theme,”
 “palette,” and “style.” Section A introduced explicit kinds and
-collision-safe names such as `palette:tufte` and `look:tufte`. The bare
-`tufte` alias selects the historically observable full Look during a
-published compatibility window, with discovery showing its canonical ID and
-the formerly shadowed palette becoming directly addressable. New registrations
-must be namespaced and cannot silently replace another kind or owner.
+collision-safe names such as `palette:tufte` and `look:tufte`. The ambiguous
+bare `tufte` input is retired and rejected, while both canonical resources are
+directly addressable. PR #172 records the repository owner's explicit breaking-
+compatibility decision to complete that retirement before the previously
+announced window; the changelog names the migration rather than silently
+reassigning the ambiguous input. New registrations must be namespaced and cannot
+silently replace another kind or owner.
 
 This cleanup happens before BrandPack naming. Otherwise the pack registry would
 institutionalize the same ambiguity at a larger scale.
@@ -1146,8 +1149,9 @@ authorities only when their source manifest and semantic invariant are singular.
 ### In this plan and its documentation set
 
 1. Keep this document as the only active decision and dependency order for brand
-   primitives. Keep the Cupertino example in the custom-style cookbook as a
-   public-API probe, never as a built-in or a second plan.
+   primitives. Keep the Cupertino-, Vercel-, and Cloudflare Workers-inspired
+   examples in the custom-style cookbook as public-API prototypes, never as
+   built-ins or a second plan.
 2. Treat [`archive/styles-rollout.md`](./archive/styles-rollout.md) as the executed
    history of Style + Palette, not a second active brand roadmap.
 3. Keep
@@ -1231,13 +1235,13 @@ and policy without creating a registry merely to complete a phase diagram.
 ### Phase-to-TODO ownership
 
 `TODO.md` is the only status-bearing backlog. The phases below are dependency
-and acceptance boundaries, not another checklist; the documentation-only
-Cupertino example and other brand research supply probe evidence only.
+and acceptance boundaries, not another checklist; the three documentation-only
+brand-inspired prototypes supply public-API evidence only.
 
 | Plan boundary | Status owner | Independent scope retained |
 |---|---|---|
 | A0–A7 | PR #163 implementation and [`Section A landing record`](./archive/section-a-rendering-contract-2026-07.md) | referenced `CONS-*`, `SRC-*`, `TERM-*`, security, family-adoption and evidence items keep any work beyond Section A |
-| B0–B3, B5 | completed Section B scope | documentation-only Cupertino/holdout acceptance evidence; native-family adoption remains `BUILD-6` |
+| B0–B3, B5 | completed Section B scope | documentation-only Cupertino-, Vercel-, and Cloudflare Workers-inspired prototype evidence; native-family adoption remains `BUILD-6` |
 | B4 | not promoted; requires a new evidence-backed TODO after external consumer evidence | ordinary `StyleSpec` files remain the default distribution path; no pack registry was required to complete B1–B3/B5 |
 
 The graph above defines hard phase dependencies. Reused IDs in the table retain
@@ -1265,7 +1269,7 @@ checklists or imply that independently owned work is complete.
 | Boundary | Permanent invariant | Generated or machine-evidence authority | Ongoing TODO owner and independent scope |
 |---|---|---|---|
 | A0 — truth and characterization | Claims use the applicable checked state vocabulary for their dimension; family syntax, transport, output, backend and realization states are never mixed into one ambiguous scale. Registries, current precedence, routing, fields and capability behavior are characterized before they change. | Generated Section A capability report; `section-a-capability-report.test.ts`; `section-a-render-contract.test.ts`. | New gaps are promoted only in `TODO.md`; characterization evidence in the landing archive is not a backlog. |
-| A1 — identities and registries | Shared `ExtensionIdentity` rules feed typed, kind-specific family, backend, resource, Palette and Look registries; external executable families and backends declare compatible core ranges before hooks run, Scene consumers also declare Scene ranges, and deterministic discovery exposes only committed registrations. Compatibility aliases such as bare `tufte` are diagnosed and time-bounded rather than silently shadowing canonical names. | Registry descriptors and generated discovery projections; `extension-registries.test.ts`; `style-spec-authority.test.ts`; `family-registration-conformance.test.ts`. | Alias removal is owned by `COMPAT-1`; future extension work remains root-TODO work; an evidence-promoted BrandPack registry belongs to Section B B4. |
+| A1 — identities and registries | Shared `ExtensionIdentity` rules feed typed, kind-specific family, backend, resource, Palette and Look registries; external executable families and backends declare compatible core ranges before hooks run, Scene consumers also declare Scene ranges, and deterministic discovery exposes only committed registrations. The ambiguous bare `tufte` input is retired; the remaining `default` compatibility alias is diagnosed and time-bounded rather than silently shadowing canonical names. | Registry descriptors and generated discovery projections; `extension-registries.test.ts`; `style-spec-authority.test.ts`; `family-registration-conformance.test.ts`. | Remaining `default` alias removal is owned by `COMPAT-1`; future extension work remains root-TODO work; an evidence-promoted BrandPack registry belongs to Section B B4. |
 | A2 — request and appearance waist | One immutable `ResolvedRenderRequest` and one internal `ResolvedAppearance` normalize precedence once; checked shared/output field descriptors project validation and receipts into every transport and output adapter, with every shared-field×surface cell declared `forwarded`, `host-enforced`, or `unavailable`. Family-specific fields also declare applicability: a supplied field must affect that family or emit a stable `RENDER_OPTION_NOT_APPLICABLE` diagnostic instead of changing identity silently. | RenderOptions/StyleSpec generated artifacts, the generated shared-field×surface matrix, applicability diagnostics, and request/appearance digests; `render-options-authority.test.ts`; `section-a-transport-parity.test.ts`. | New surfaces from `BUILD-27`, `BUILD-28`, and `BUILD-29` must enroll in this contract when they land; they do not reopen or block Section A. |
 | A3 — essential primitives | Versioned typed Scene marks make connectors, routes, markers, hit geometry, identity and accessibility semantic inputs; terminal projections declare each lossy or unsupported feature instead of reconstructing graphical output. | Scene/Connector schema, capability report and conformance fixtures; `scene-connector-contract.test.ts`; `terminal-projection-security.test.ts`. | Family cell-grid topology remains solely owned by `TERM-1` and `TERM-2`; Section A does not claim terminal pixel or topology parity. |
 | A4 — families and positioned artifacts | `FamilyDescriptor` is the open, namespaced family authority for detection, parsing, examples, roles, capabilities and lowering; built-ins and extensions use one lossless envelope and one positioned artifact/projection without core switches. A native layout claim must prove finite positive positioned/projected bounds and at least one semantic item on its canonical example. | Descriptor registry and generated family projections; `section-a-family-descriptor-conformance.test.ts`; `family-registration-conformance.test.ts`; `positioned-artifact-convergence.test.ts`. | Native adoption remains `BUILD-6`; config-rule consolidation remains `CONS-44`; minimal-example deduplication remains `CONS-27`. |

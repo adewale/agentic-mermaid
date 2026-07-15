@@ -68,7 +68,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "4055e8a42c5a8a8b99fbe243757053bb7236fd9762e3df21afa328189aac572c"
+      "sha256": "89d60bca425f9e68c17acf50e68d745d31fd07fdd035ee1e74f33d3e98da9271"
     },
     {
       "path": "scripts/pr-assets/artifact-receipt.ts",
@@ -448,7 +448,7 @@
     },
     {
       "path": "src/__tests__/characterization-generated-artifacts.test.ts",
-      "sha256": "ac1e29410bcc483b8a56501e284fb64401d4226b0e95aaed49ce85338a7636ea"
+      "sha256": "5e00ad55b263b97af86271a7f44df1c33b43770ad6d225da0830857f1a396d8c"
     },
     {
       "path": "src/__tests__/characterization-layout.test.ts",
@@ -584,7 +584,7 @@
     },
     {
       "path": "src/__tests__/custom-style-cookbook.test.ts",
-      "sha256": "3b0eb6b2e3e0fb970af1cd5a18f38dac31c12697e358290355f74467c8809362"
+      "sha256": "db227ee3450a7c15e51b6149ea0b6faf27fdd4db11ec0e37f74efcc7c66de47a"
     },
     {
       "path": "src/__tests__/deploy-hash.test.ts",
@@ -696,7 +696,7 @@
     },
     {
       "path": "src/__tests__/extension-registries.test.ts",
-      "sha256": "5f0f002c86c95a59509a4a63599844ba84f5fc6031684cf23f5a08d847847ae0"
+      "sha256": "4d686ff54743769a497be0bd34471b6967dcb5e725e0564338b17056bf46a9f4"
     },
     {
       "path": "src/__tests__/external-scene-public-api.test.ts",
@@ -1316,11 +1316,11 @@
     },
     {
       "path": "src/__tests__/section-a-render-contract.test.ts",
-      "sha256": "57ebeef79599b467168e7f704a705d80465cb129f112140186e46e3512d1a612"
+      "sha256": "5f9385409d088d5a9b883018a069fb70362c397d4d33e9db590611f29425528d"
     },
     {
       "path": "src/__tests__/section-a-transport-parity.test.ts",
-      "sha256": "a8af1878063a1c70dd85a0e0154b9a46927d070680087dbcac83296f3028ff86"
+      "sha256": "97b0a5eb6d94f062c8cd3621370f321752736d6fa5b7d0275ed824f89c588f04"
     },
     {
       "path": "src/__tests__/section-b-capability-report.test.ts",
@@ -1428,7 +1428,7 @@
     },
     {
       "path": "src/__tests__/style-spec-authority.test.ts",
-      "sha256": "36105939e20b261125671d8545fb232d6b659d7e0d2ae6b65646bb37e34c2e89"
+      "sha256": "23762e8b1972b7e55f8587ce8a648ec271faef6dd41e9bfe5d73b67ee0c39163"
     },
     {
       "path": "src/__tests__/styled-backend-paint.test.ts",
@@ -1436,7 +1436,7 @@
     },
     {
       "path": "src/__tests__/styled-output.test.ts",
-      "sha256": "125aa20e3786cd7a578e670d807b66c1ff2de654c0932c110f32437df5ecaa14"
+      "sha256": "4ea5aae17f89d47c2182ba5c57ae0d49dfd9f0a2480cbcc4c95e9c68deb71d2f"
     },
     {
       "path": "src/__tests__/styles.test.ts",
@@ -2556,7 +2556,7 @@
     },
     {
       "path": "src/scene/style-registry.ts",
-      "sha256": "4aa85e0efad5b3c2888fcc7add0678c9e8d82c66c69e13e7ae147dbe62da01ad"
+      "sha256": "9805130be996bd20794be8817da223a26f2e9ee18ff2571a69ac6704a9aa6977"
     },
     {
       "path": "src/scene/style-spec.ts",

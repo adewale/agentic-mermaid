@@ -303,13 +303,13 @@ describe('Section A canonical render contracts', () => {
   })
 
   test('deprecated Style aliases emit one structured, time-bounded receipt diagnostic', () => {
-    const { receipt } = renderMermaidSVGWithReceipt(SOURCE, { style: ['tufte', 'tufte'] })
+    const { receipt } = renderMermaidSVGWithReceipt(SOURCE, { style: ['default', 'default'] })
     const diagnostics = receipt.diagnostics ?? []
     expect(diagnostics).toContainEqual({
       code: 'STYLE_ALIAS_DEPRECATED',
-      message: 'Style alias "tufte" resolves to "look:tufte"; use "palette:tufte" for the palette-only style.',
-      input: 'tufte',
-      canonicalId: 'look:tufte',
+      message: 'Style alias "default" resolves to "look:crisp"; use the stable input "crisp".',
+      input: 'default',
+      canonicalId: 'look:crisp',
       removal: { release: '0.3.0', date: '2027-01-31' },
     })
     expect(diagnostics.filter(diagnostic => diagnostic.code === 'STYLE_ALIAS_DEPRECATED')).toHaveLength(1)
