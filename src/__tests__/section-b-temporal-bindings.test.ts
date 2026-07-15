@@ -1,0 +1,83 @@
+import { describe, expect, test } from 'bun:test'
+import { renderMermaidSVG } from '../index.ts'
+
+const GANTT = `gantt
+  dateFormat YYYY-MM-DD
+  section Build
+  Critical :crit, a, 2026-01-01, 2d
+  Done :done, b, after a, 2d
+  Gate :milestone, done, m, after b, 0d`
+
+const temporalStyle = {
+  semanticSlots: {
+    build: { fillColor: '#ff00ff', borderColor: '#00aa00', lineWidth: 9, cue: 'double-line' },
+    done: { fillColor: '#00ffff', borderColor: '#005555', lineWidth: 7, cue: 'pattern' },
+  },
+  bindings: [
+    { channel: 'category', value: 'Build', slot: 'build', role: 'task' },
+    { channel: 'status', value: 'done', slot: 'done', role: 'task' },
+    { channel: 'status', value: 'done', slot: 'done', role: 'milestone' },
+  ],
+} as const
+
+function taskGeometry(svg: string): string[] {
+  return [...svg.matchAll(/<(rect|path)[^>]*data-task="[^"]+"[^>]*>/g)].map(match => {
+    const mark = match[0]
+    const attr = (name: string) => mark.match(new RegExp(`\\s${name}="([^"]*)"`))?.[1] ?? ''
+    return match[1] === 'rect'
+      ? ['rect', attr('data-task'), attr('x'), attr('y'), attr('width'), attr('height'), attr('rx'), attr('ry')].join('|')
+      : ['path', attr('data-task'), attr('d')].join('|')
+  })
+}
+
+describe('Section B temporal semantic bindings', () => {
+  test('Gantt category/status slots alter paint while preserving geometry and critical emphasis', () => {
+    const options = { gantt: { criticalPath: true } } as const
+    const baseline = renderMermaidSVG(GANTT, options)
+    const branded = renderMermaidSVG(GANTT, { ...options, style: temporalStyle })
+
+    expect(taskGeometry(branded)).toEqual(taskGeometry(baseline))
+    expect(branded).toContain('data-task="a"')
+    expect(branded).toContain('data-task="b"')
+    expect(branded).toContain('data-task="m"')
+    expect(branded.match(/gantt-bar-critical-path/g)?.length).toBeGreaterThanOrEqual(3)
+    expect(branded).toContain('data-brand-cue="double-line"')
+    expect(branded).toContain('data-brand-cue="pattern"')
+    expect(branded).toContain('fill:#ff00ff')
+    expect(branded).toContain('fill:#00ffff')
+    // Critical-path stroke and width are family-owned and remain the final
+    // crisp/semantic authority instead of the deliberately conflicting slots.
+    for (const mark of branded.match(/<(?:rect|path)[^>]*gantt-bar-critical-path[^>]*>/g) ?? []) {
+      expect(mark).not.toContain('stroke:#00aa00')
+      expect(mark).not.toContain('stroke:#005555')
+      expect(mark).not.toContain('stroke-width:9')
+      expect(mark).not.toContain('stroke-width:7')
+    }
+  })
+
+  test('Journey category slot is a default beneath explicit family section paint', () => {
+    const body = `journey
+  section Browse
+    Find product: 4: Shopper`
+    const style = {
+      semanticSlots: { browse: { fillColor: '#ff00ff', borderColor: '#006600', lineWidth: 3, cue: 'outline' } },
+      bindings: [{ channel: 'category', value: 'Browse', slot: 'browse', role: 'group-header' }],
+    } as const
+    const baseline = renderMermaidSVG(body)
+    const branded = renderMermaidSVG(body, { style })
+    const geometry = (svg: string) => svg.match(/<rect class="journey-section-label-band[^>]*\sx="([^"]+)"\sy="([^"]+)"\swidth="([^"]+)"\sheight="([^"]+)"\srx="([^"]+)"\sry="([^"]+)"/)?.slice(1)
+    expect(geometry(branded)).toEqual(geometry(baseline))
+    expect(branded).toContain('fill:#ff00ff')
+    expect(branded).toContain('data-brand-cue="outline"')
+
+    const authored = `---
+config:
+  journey:
+    sectionFills: ["#123456"]
+---
+${body}`
+    const authoredSvg = renderMermaidSVG(authored, { style })
+    expect(authoredSvg).toContain('.journey-section-label-band { fill: #123456;')
+    expect(authoredSvg).not.toContain('fill:#ff00ff')
+  })
+})

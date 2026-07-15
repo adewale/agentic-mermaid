@@ -141,7 +141,16 @@ const TEXT_STYLE = Object.freeze(['fontFamily', 'fontSize', 'fontWeight', 'lette
 const SHAPE_STYLE = Object.freeze(['paddingX', 'paddingY', 'cornerRadius', 'lineWidth', 'fillColor', 'borderColor', 'elevation', 'cue'] as const)
 const CONNECTOR_STYLE = Object.freeze(['lineWidth', 'bendRadius', 'strokeColor', 'cue'] as const)
 const GROUP_STYLE = Object.freeze([...TEXT_STYLE, ...SHAPE_STYLE, 'headerFillColor'] as const)
+const BRAND_FALLBACK_OVERRIDES: Partial<Record<BuiltinSceneRole, BuiltinSceneRole>> = Object.freeze({
+  'group-header': 'group',
+  section: 'group',
+  task: 'node',
+  milestone: 'node',
+})
+
 function fallbackRole(role: BuiltinSceneRole, roleTraits: SceneRoleTraits): BuiltinSceneRole {
+  const override = BRAND_FALLBACK_OVERRIDES[role]
+  if (override) return override
   if (role === 'node' || role === 'edge' || role === 'group' || role === 'label') return role
   if (roleTraits.applicableKinds.includes('connector')) return 'edge'
   if (roleTraits.applicableKinds.includes('group')) return 'group'

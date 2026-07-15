@@ -39,6 +39,8 @@ import type { MarkerDescriptor, MarkPaint, SceneDoc, SceneNode, SemanticChannels
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { serializeMarkerResources } from '../scene/marker-resources.ts'
+import { resolveRoleStyle } from '../scene/style-registry.ts'
+import type { RoleStyleSpec } from '../scene/style-spec.ts'
 
 const GS = {
   barRadius: 3,
@@ -229,6 +231,30 @@ function textMark(
     paint: { fill },
     channels,
   }, text(x, y, content, cls, size, weight, anchor, letterSpacing))
+}
+
+function rolePaint(style: Readonly<RoleStyleSpec> | undefined): MarkPaint {
+  if (!style) return {}
+  return {
+    ...(style.fillColor !== undefined ? { fill: style.fillColor } : {}),
+    ...(style.strokeColor ?? style.borderColor ? { stroke: style.strokeColor ?? style.borderColor } : {}),
+    ...(style.lineWidth !== undefined ? { strokeWidth: String(style.lineWidth) } : {}),
+  }
+}
+
+function inlineRolePaint(style: Readonly<RoleStyleSpec> | undefined, paint: MarkPaint): string {
+  if (!style || (style.fillColor === undefined && style.strokeColor === undefined && style.borderColor === undefined && style.lineWidth === undefined)) return ''
+  const declarations = [
+    paint.fill !== undefined ? `fill:${paint.fill}` : undefined,
+    paint.stroke !== undefined ? `stroke:${paint.stroke}` : undefined,
+    paint.strokeWidth !== undefined ? `stroke-width:${paint.strokeWidth}` : undefined,
+    paint.opacity !== undefined ? `opacity:${paint.opacity}` : undefined,
+  ].filter((value): value is string => value !== undefined)
+  return declarations.length > 0 ? ` style="${escapeAttr(declarations.join(';'))}"` : ''
+}
+
+function brandCue(style: Readonly<RoleStyleSpec> | undefined): string {
+  return style?.cue && style.cue !== 'none' ? ` data-brand-cue="${escapeAttr(style.cue)}"` : ''
 }
 
 function r(n: number): number { return Math.round(n * 100) / 100 }
@@ -474,38 +500,45 @@ export function lowerGanttScene(
             : status === 'done'
               ? { fill: palette.doneFill, stroke: palette.nodeBorder, strokeWidth: String(Math.max(1, style.nodeLineWidth)), opacity: style.nodeFillColor ? '0.72' : '0.55' }
               : { fill: palette.nodeFill, stroke: palette.nodeBorder, strokeWidth: String(Math.max(1, style.nodeLineWidth)) }
-      const milestonePaint: MarkPaint = { ...statusPaint, ...criticalPathPaint }
+      const channels: SemanticChannels = {
+        ...(status !== undefined ? { status } : {}),
+        ...(status === 'done' ? { progress: 1 } : {}),
+        ...(onCriticalPath ? { emphasis: true } : {}),
+        ...(section !== undefined ? { category: section } : {}),
+      }
+      const semanticStyle = resolveRoleStyle(resolved.styleFace, 'milestone', channels)
+      // Binding paint refines family defaults. Critical-path emphasis remains
+      // the final family-owned stroke/weight authority.
+      const milestonePaint: MarkPaint = { ...statusPaint, ...rolePaint(semanticStyle), ...criticalPathPaint }
       parts.push(marks.shape({
         id: taskSceneId(bar.id ?? bar.label),
         role: 'milestone',
         geometry: { kind: 'path', d },
         paint: milestonePaint,
-        channels: {
-          ...(status !== undefined ? { status } : {}),
-          ...(status === 'done' ? { progress: 1 } : {}),
-          ...(onCriticalPath ? { emphasis: true } : {}),
-          ...(section !== undefined ? { category: section } : {}),
-        },
-      }, `<path class="${cls}" d="${d}" data-task="${escapeXml(bar.id ?? bar.label)}"${interactionAttrs} />`))
+        channels,
+      }, `<path class="${cls}" d="${d}" data-task="${escapeXml(bar.id ?? bar.label)}"${inlineRolePaint(semanticStyle, milestonePaint)}${brandCue(semanticStyle)}${interactionAttrs} />`))
       continue
     }
     const status = statusChannel(bar.tags)
+    const channels: SemanticChannels = {
+      ...(status !== undefined ? { status } : {}),
+      // The layout carries no per-task completion fraction; 'done' is the
+      // only completion signal, and it lands on the status channel.
+      ...(status === 'done' ? { progress: 1 } : {}),
+      ...(onCriticalPath ? { emphasis: true } : {}),
+      ...(section !== undefined ? { category: section } : {}),
+    }
+    const semanticStyle = resolveRoleStyle(resolved.styleFace, 'task', channels)
+    const taskPaint: MarkPaint = { ...barPaint(status, palette, style), ...rolePaint(semanticStyle), ...criticalPathPaint }
     parts.push(marks.shape({
       id: taskSceneId(bar.id ?? bar.label),
       role: 'task',
       geometry: { kind: 'rect', x: r(bar.x), y: r(bar.y), width: r(Math.max(2, bar.w)), height: r(bar.h), rx: GS.barRadius, ry: GS.barRadius },
-      paint: { ...barPaint(status, palette, style), ...criticalPathPaint },
-      channels: {
-        ...(status !== undefined ? { status } : {}),
-        // The layout carries no per-task completion fraction; 'done' is the
-        // only completion signal, and it lands on the status channel.
-        ...(status === 'done' ? { progress: 1 } : {}),
-        ...(onCriticalPath ? { emphasis: true } : {}),
-        ...(section !== undefined ? { category: section } : {}),
-      },
+      paint: taskPaint,
+      channels,
     },
       `<rect class="${statusClass(bar.tags)}${criticalPathCls}" x="${r(bar.x)}" y="${r(bar.y)}" width="${r(Math.max(2, bar.w))}" height="${r(bar.h)}" ` +
-        `rx="${GS.barRadius}" ry="${GS.barRadius}" data-task="${escapeXml(bar.id ?? bar.label)}"${interactionAttrs} />`,
+        `rx="${GS.barRadius}" ry="${GS.barRadius}" data-task="${escapeXml(bar.id ?? bar.label)}"${inlineRolePaint(semanticStyle, taskPaint)}${brandCue(semanticStyle)}${interactionAttrs} />`,
     ))
   }
 

@@ -21,6 +21,8 @@ import type { MarkerDescriptor, SceneDoc, SceneNode, SemanticChannels } from '..
 import { hashId } from '../scene/seed.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
+import { resolveRoleStyle } from '../scene/style-registry.ts'
+import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { getSeriesColor, hexToHsl, hslToHex, isDarkBackground } from '../xychart/colors.ts'
 import { isHexColor, wcagCssContrastRatio } from '../shared/color-math.ts'
 import { serializeMarkerResource } from '../scene/marker-resources.ts'
@@ -149,9 +151,11 @@ export function lowerJourneyScene(
     parts.push(renderActorLegend(diagram.actors, style, paints))
   }
 
+  const rawJourneyConfig = options.mermaidConfig?.journey as Record<string, unknown> | undefined
+  const authoredSectionPaint = rawJourneyConfig?.sectionFills !== undefined || rawJourneyConfig?.sectionColours !== undefined
   diagram.sections.forEach((section, index) => {
     if (section.framed) {
-      parts.push(renderSectionFrame(section, style, paints, index))
+      parts.push(renderSectionFrame(section, style, paints, index, resolved.styleFace, authoredSectionPaint))
     }
   })
 
@@ -486,7 +490,14 @@ function renderActorLegend(actors: PositionedJourneyActor[], style: ResolvedRend
   })
 }
 
-function renderSectionFrame(section: PositionedJourneySection, style: ResolvedRenderStyle, paints: JourneyPaints, sectionIndex: number): SceneNode {
+function renderSectionFrame(
+  section: PositionedJourneySection,
+  style: ResolvedRenderStyle,
+  paints: JourneyPaints,
+  sectionIndex: number,
+  face: Readonly<InternalStyleFace> | undefined,
+  authoredSectionPaint: boolean,
+): SceneNode {
   const name = section.label ?? section.id
   const labelAttr = section.label ? ` data-label="${escapeAttr(section.label)}"` : ''
   const children: Array<{ node: SceneNode; indent: number }> = []
@@ -511,7 +522,7 @@ function renderSectionFrame(section: PositionedJourneySection, style: ResolvedRe
   if (section.label) {
     children.push({
       indent: 2,
-      node: renderSectionLabelBand(section, style, paints, sectionIndex),
+      node: renderSectionLabelBand(section, style, paints, sectionIndex, face, authoredSectionPaint),
     })
     children.push({
       indent: 2,
@@ -547,7 +558,23 @@ function renderSectionFrame(section: PositionedJourneySection, style: ResolvedRe
   })
 }
 
-function renderSectionLabelBand(section: PositionedJourneySection, style: ResolvedRenderStyle, paints: JourneyPaints, sectionIndex: number): SceneNode {
+function renderSectionLabelBand(
+  section: PositionedJourneySection,
+  style: ResolvedRenderStyle,
+  paints: JourneyPaints,
+  sectionIndex: number,
+  face: Readonly<InternalStyleFace> | undefined,
+  authoredSectionPaint: boolean,
+): SceneNode {
+  const channels = { category: section.label ?? section.id }
+  const semanticStyle = resolveRoleStyle(face, 'group-header', channels)
+  const fill = authoredSectionPaint ? sectionHeaderFill(sectionIndex, paints) : semanticStyle?.fillColor ?? sectionHeaderFill(sectionIndex, paints)
+  const stroke = semanticStyle?.strokeColor ?? semanticStyle?.borderColor ?? 'none'
+  const strokeWidth = semanticStyle?.lineWidth
+  const inline = semanticStyle && (semanticStyle.fillColor !== undefined || stroke !== 'none' || strokeWidth !== undefined)
+    ? ` style="${escapeAttr([`fill:${fill}`, stroke !== 'none' ? `stroke:${stroke}` : undefined, strokeWidth !== undefined ? `stroke-width:${strokeWidth}` : undefined].filter(Boolean).join(';'))}"`
+    : ''
+  const cue = semanticStyle?.cue && semanticStyle.cue !== 'none' ? ` data-brand-cue="${escapeAttr(semanticStyle.cue)}"` : ''
   const bandInset = Math.min(6, Math.max(3, section.height / 6))
   const bandHeight = Math.max(18, Math.min(section.height - bandInset * 2, style.groupHeaderFontSize + style.groupPaddingY))
   const bandX = section.x + bandInset
@@ -560,10 +587,10 @@ function renderSectionLabelBand(section: PositionedJourneySection, style: Resolv
       id: `section-band:${section.id}`,
       role: 'group-header',
       geometry: { kind: 'rect', x: bandX, y: bandY, width: bandWidth, height: bandHeight, rx: radius, ry: radius },
-      paint: { fill: sectionHeaderFill(sectionIndex, paints), stroke: 'none' },
-      channels: { category: section.label ?? section.id },
+      paint: { fill, stroke, ...(strokeWidth !== undefined ? { strokeWidth: String(strokeWidth) } : {}) },
+      channels,
     },
-    `<rect class="journey-section-label-band journey-section-band-${sectionIndex % paints.sectionBands.length}" x="${bandX}" y="${bandY}" width="${bandWidth}" height="${bandHeight}" rx="${radius}" ry="${radius}" />`,
+    `<rect class="journey-section-label-band journey-section-band-${sectionIndex % paints.sectionBands.length}" x="${bandX}" y="${bandY}" width="${bandWidth}" height="${bandHeight}" rx="${radius}" ry="${radius}"${inline}${cue} />`,
   )
 }
 
