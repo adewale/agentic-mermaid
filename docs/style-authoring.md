@@ -112,10 +112,13 @@ renderMermaidSVG(source, { style: exported })
 
 ### Terminal projection
 
-ASCII/Unicode consumes the same resolved Style, role selections, and semantic
-bindings. It preserves hierarchy, emphasis, symbols, line patterns, and
-available color; typography, radius, elevation, and detailed role paint produce
-explicit terminal projection diagnostics rather than pretending pixel parity.
+ASCII/Unicode receives the same resolved Style and compiled role face. Family
+terminal adapters consume supported semantic projections—the Pie witness turns
+an applicable category cue into a no-color marker while keeping
+`highlightSlice` authoritative. Terminal output preserves hierarchy, emphasis,
+symbols, line patterns, and available color; typography, radius, shared shadow,
+and detailed graphical paint produce explicit projection diagnostics rather
+than pretending pixel parity.
 
 ### Why there is no BrandPack yet
 
@@ -127,7 +130,8 @@ dependency solving, ambient resource loading, and a second inheritance system
 remain absent.
 
 The generated [Section B capability report](./project/section-b-capability-report.md)
-accounts for every role leaf, role fallback, family channel, and built-in export.
+accounts for every role leaf, private-face projection, role fallback, admitted
+family role/channel, and built-in export.
 The [all-family evidence sheet](./design/families/section-b-brand-evidence.png)
 shows one deliberately distinctive sentinel plus two holdout styles; its receipt
 and honest hard-error baseline live in `eval/section-b-brand-evidence/`.

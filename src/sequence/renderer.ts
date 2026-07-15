@@ -213,7 +213,7 @@ function renderActor(
 ): SceneNode {
   const { id, x, y, width, height, label, type } = actor
   const children: Array<{ node: SceneNode; indent: number }> = []
-  const roleStyle = resolveRoleStyle(styleFace, 'actor', { category: id })
+  const roleStyle = resolveRoleStyle(styleFace, 'actor', { category: id }, { includeFallback: false })
   const fontSize = roleStyle?.fontSize ?? style.nodeLabelFontSize
   const fontWeight = roleStyle?.fontWeight ?? style.nodeLabelFontWeight
   const letterSpacing = roleStyle?.letterSpacing ?? style.nodeLetterSpacing

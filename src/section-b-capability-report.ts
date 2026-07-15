@@ -1,5 +1,11 @@
 import { createHash } from 'node:crypto'
-import { knownStyleDescriptors, ROLE_STYLE_PROPERTY_DESCRIPTORS, validateStyleSpec } from './scene/style-registry.ts'
+import {
+  INTERNAL_STYLE_FACE_PROJECTION,
+  knownStyleDescriptors,
+  ROLE_STYLE_PROPERTY_DESCRIPTORS,
+  SEMANTIC_BINDING_CHANNELS,
+  validateStyleSpec,
+} from './scene/style-registry.ts'
 import { SCENE_ROLE_DESCRIPTORS } from './scene/roles.ts'
 import { getFamily, knownBuiltinFamilies } from './agent/families.ts'
 
@@ -32,11 +38,20 @@ export interface SectionBCapabilityReport {
   readonly roles: readonly {
     readonly role: string
     readonly fallbackRole: string
+    readonly consumption: 'exact' | 'fallback-only'
     readonly applicableProperties: readonly string[]
+  }[]
+  readonly privateFaceProjection: readonly {
+    readonly face: string
+    readonly sourceRole: string
+    readonly publicFields: readonly string[]
   }[]
   readonly families: readonly {
     readonly id: string
+    readonly semanticRoles: readonly string[]
     readonly semanticChannels: readonly string[]
+    readonly bindingRoles: readonly string[]
+    readonly bindingChannels: readonly string[]
   }[]
   readonly builtInLooks: readonly {
     readonly id: string
@@ -72,11 +87,28 @@ function body(): Omit<SectionBCapabilityReport, 'digest'> {
   const roles = SCENE_ROLE_DESCRIPTORS.map(descriptor => ({
     role: descriptor.role,
     fallbackRole: descriptor.style.fallbackRole,
+    consumption: descriptor.traits.styleConsumption,
     applicableProperties: [...descriptor.style.applicableProperties],
+  }))
+  const privateFaceProjection = Object.entries(INTERNAL_STYLE_FACE_PROJECTION).map(([face, descriptor]) => ({
+    face,
+    sourceRole: descriptor.sourceRole,
+    publicFields: [...descriptor.fields],
   }))
   const families = knownBuiltinFamilies().map(id => {
     const descriptor = getFamily(id)!
-    return { id, semanticChannels: [...descriptor.semanticChannels] }
+    const bindingRoles = SCENE_ROLE_DESCRIPTORS
+      .filter(role => role.traits.styleBindingFamilies.includes(id))
+      .map(role => role.role)
+    return {
+      id,
+      semanticRoles: [...descriptor.semanticRoles],
+      semanticChannels: [...descriptor.semanticChannels],
+      bindingRoles,
+      bindingChannels: bindingRoles.length === 0
+        ? []
+        : SEMANTIC_BINDING_CHANNELS.filter(channel => descriptor.semanticChannels.includes(channel)),
+    }
   })
   const builtInLooks = knownStyleDescriptors()
     .filter(descriptor => descriptor.kind === 'look' && descriptor.identity.provenance.source === 'built-in')
@@ -94,6 +126,7 @@ function body(): Omit<SectionBCapabilityReport, 'digest'> {
     version: SECTION_B_CAPABILITY_REPORT_VERSION,
     publicRoleStyleLeaves,
     roles,
+    privateFaceProjection,
     families,
     builtInLooks,
     paintAuthority: [
@@ -193,8 +226,9 @@ export function validateSectionBCapabilityReport(report: SectionBCapabilityRepor
 }
 
 export function sectionBCapabilityReportMarkdown(report = createSectionBCapabilityReport()): string {
-  const channelRows = report.families.map(family => `| \`${family.id}\` | ${family.semanticChannels.length ? family.semanticChannels.map(value => `\`${value}\``).join(', ') : 'none'} |`).join('\n')
-  const roleRows = report.roles.map(role => `| \`${role.role}\` | \`${role.fallbackRole}\` | ${role.applicableProperties.map(value => `\`${value}\``).join(', ')} |`).join('\n')
+  const channelRows = report.families.map(family => `| \`${family.id}\` | ${family.semanticRoles.length ? family.semanticRoles.map(value => `\`${value}\``).join(', ') : 'none'} | ${family.semanticChannels.length ? family.semanticChannels.map(value => `\`${value}\``).join(', ') : 'none'} | ${family.bindingRoles.length ? family.bindingRoles.map(value => `\`${value}\``).join(', ') : 'none'} | ${family.bindingChannels.length ? family.bindingChannels.map(value => `\`${value}\``).join(', ') : 'none'} |`).join('\n')
+  const roleRows = report.roles.map(role => `| \`${role.role}\` | \`${role.fallbackRole}\` | ${role.consumption} | ${role.applicableProperties.length ? role.applicableProperties.map(value => `\`${value}\``).join(', ') : 'fallback-only'} |`).join('\n')
+  const privateFaceRows = report.privateFaceProjection.map(face => `| \`${face.face}\` | \`${face.sourceRole}\` | ${face.publicFields.map(value => `\`${value}\``).join(', ')} |`).join('\n')
   const looks = report.builtInLooks.map(look => `- \`${look.inputName}\` → \`${look.id}\`; public export ${look.exportable ? 'valid' : 'invalid'}; role keys: ${look.roleKeys.length ? look.roleKeys.map(value => `\`${value}\``).join(', ') : 'none'}`).join('\n')
-  return `# Section B capability report\n\nGenerated from the Style, SceneRole, and FamilyDescriptor registries. Do not edit by hand. Machine-readable sibling: [section-b-capability-report.json](./section-b-capability-report.json).\n\n- Public role-style leaves: **${report.publicRoleStyleLeaves.length}**\n- Registered Scene roles: **${report.roles.length}**\n- Built-in families: **${report.families.length}**\n- Exportable built-in Looks: **${report.builtInLooks.length}**\n- BrandPack promoted: **no** — ${report.brandPack.reason}\n- Digest: \`${report.digest}\`\n\n## SceneRole styling\n\n| Role | Fallback | Applicable public leaves |\n|---|---|---|\n${roleRows}\n\n## Family semantic-channel census\n\n| Family | Declared channels |\n|---|---|\n${channelRows}\n\n## Built-in public exportability\n\n${looks}\n\n## Paint authority and constraints\n\nDerived defaults may be guarded while they are chosen. Concrete authored theme/config/element paint is diagnose-only. Opaque concrete pairs are measurable; transparent host backdrops are explicitly unmeasurable. Evidence is recorded in the JSON report.\n\n## Phase evidence\n\n${report.phases.map(phase => `- **${phase.id}:** ${phase.acceptanceEvidence.map(value => `\`${value}\``).join(', ')}`).join('\n')}\n`
+  return `# Section B capability report\n\nGenerated from the Style, SceneRole, and FamilyDescriptor registries. Do not edit by hand. Machine-readable sibling: [section-b-capability-report.json](./section-b-capability-report.json).\n\n- Public role-style leaves: **${report.publicRoleStyleLeaves.length}**\n- Registered Scene roles: **${report.roles.length}**\n- Built-in families: **${report.families.length}**\n- Exportable built-in Looks: **${report.builtInLooks.length}**\n- BrandPack promoted: **no** — ${report.brandPack.reason}\n- Digest: \`${report.digest}\`\n\n## SceneRole styling\n\n| Role | Fallback | Exact consumption | Applicable public leaves |\n|---|---|---|---|\n${roleRows}\n\n## Derived private-face projection\n\nThe remaining private face is compiled only from these public role records; it has no author-only leaf.\n\n| Compiled face | Public source role | Public fields |\n|---|---|---|\n${privateFaceRows}\n\n## Family semantic-channel census\n\n| Family | Admitted Scene roles | Emitted channels | Binding consumer roles | Public binding channels |\n|---|---|---|---|---|\n${channelRows}\n\n## Built-in public exportability\n\n${looks}\n\n## Paint authority and constraints\n\nDerived defaults may be guarded while they are chosen. Concrete authored theme/config/element paint is diagnose-only. Opaque concrete pairs are measurable; transparent host backdrops are explicitly unmeasurable. Evidence is recorded in the JSON report.\n\n## Phase evidence\n\n${report.phases.map(phase => `- **${phase.id}:** ${phase.acceptanceEvidence.map(value => `\`${value}\``).join(', ')}`).join('\n')}\n`
 }

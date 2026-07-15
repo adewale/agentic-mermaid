@@ -140,7 +140,7 @@ export function projectTerminalStyle(
     appearance.font !== 'Inter' ||
     face?.group?.fontFamily !== undefined ||
     typographyFaces.some(value => value?.fontSize !== undefined || value?.fontWeight !== undefined || value?.letterSpacing !== undefined || value?.textTransform !== undefined) ||
-    roleValues.some(value => value?.fontFamily !== undefined || value?.fontSize !== undefined || value?.fontWeight !== undefined || value?.letterSpacing !== undefined || value?.lineHeight !== undefined || value?.textTransform !== undefined)
+    roleValues.some(value => value?.fontFamily !== undefined || value?.fontSize !== undefined || value?.fontWeight !== undefined || value?.letterSpacing !== undefined || value?.textTransform !== undefined)
   ) {
     diagnostics.push({
       code: 'TERMINAL_TYPOGRAPHY_PROJECTED',
@@ -157,7 +157,7 @@ export function projectTerminalStyle(
     || face?.edge?.textColor !== undefined || face?.edge?.strokeColor !== undefined
     || face?.group?.textColor !== undefined || face?.group?.borderColor !== undefined
     || roleValues.some(value => value?.textColor !== undefined || value?.borderColor !== undefined || value?.strokeColor !== undefined)
-  if (appearance.colors.shadow === true || faceSurfacePaint || roleValues.some(value => value?.elevation !== undefined && value.elevation !== 'none')) {
+  if (appearance.colors.shadow === true || faceSurfacePaint) {
     diagnostics.push({
       code: 'TERMINAL_ELEVATION_PROJECTED',
       feature: 'elevation',

@@ -69,7 +69,7 @@ Use these terms consistently in code, docs, tests, and product copy:
 | **Style** | The umbrella appearance input accepted by the current APIs: a named or inline partial record that may be a Look, a Palette, or a composition of both. |
 | **Look** | Geometry or material treatment such as crisp, hand-drawn, watercolor, or publication. |
 | **Palette** | Semantic color values. A colors-only style is a palette. |
-| **Brand primitives** | Role typography, spacing, shape, border, elevation, semantic status/category slots, and non-color visual cues expressed by `StyleSpec`. |
+| **Brand primitives** | Role typography, spacing, shape, border, elevation, semantic category slots, and non-color visual cues expressed by `StyleSpec`; status remains deferred until a second unrelated family has a consumer witness. |
 | **Semantic role** | An existing versioned `SceneRole` plus its centralized traits and brand fallback; never an element ID, selector, or second role taxonomy. |
 | **Pack variant** | An optional pack-local named `StyleSpec` fragment selected explicitly by the caller. Variants do not create universal color, density, contrast, or scale axes. |
 | **Semantic policy** | Ordered bindings from authored/domain meaning to brand slots plus closed-catalog constraints evaluated over resolved tokens or final Scene marks. |
@@ -121,7 +121,7 @@ The plan succeeds when:
 - every entry point produces the same shared resolved-request and resolved-
   appearance digests for the same input; output-specific projections are explicit;
 - SVG and PNG consume the same resolved request, while terminal output extends
-  its existing `ResolvedTerminalStyle` projection with role/status/category cues
+  its existing `ResolvedTerminalStyle` projection with role/category cues
   and explicit degradation diagnostics;
 - adding a family is primarily one adapter plus family-specific semantics, not a
   hunt through duplicated switches, schemas, docs, editors, and transports;
@@ -140,7 +140,7 @@ not as a new rendering mode:
   keep using `style`; existing records continue to render unchanged.
 - **Custom styles gain built-in power.** Users can set semantic-role typography,
   padding, radii, borders, surfaces, and connector stroke/bend character that are
-  currently private to first-party built-ins, plus shared status/category cues
+  currently private to first-party built-ins, plus shared category cues
   that the public global Style API does not yet provide.
 - **One brand travels across families.** A role or binding such as
   `status:error` or `category:storage` produces the same brand intent in every
@@ -189,7 +189,7 @@ levels:
 3. **Output parity:** SVG and PNG preserve the same branded geometry, paint,
    semantic identity, accessibility, security decisions, and deterministic
    resources, subject only to declared raster concerns. ASCII/Unicode preserves
-   semantic role, hierarchy, emphasis, status/category selection, and
+   semantic role, hierarchy, emphasis, category selection, and
    diagnostics through a terminal projection; it does not claim pixel or
    typographic equivalence.
 
@@ -362,8 +362,8 @@ fonts, and outputs usually costs more than writing the record.
 | 0. Preset | choose a named Look or Palette | seconds | nontechnical user; no file or code |
 | 1. Composition | stack Look + Palette and change a few fields in the editor or inline request | minutes | global colors, font, stroke, fill, backdrop and deterministic seed |
 | 2. Reusable Style | save and validate a partial `StyleSpec` JSON record | tens of minutes; hours with visual review | the existing low floor, without registration or family knowledge |
-| 3. Semantic Style | add role typography, geometry, paint, status and category slots to that same record | hours with cross-family review | designer/design-system owner; public parity with built-in styles |
-| 4. Semantic policy | add class/tag/status/category bindings and closed-catalog constraints | hours plus cross-family QA | domain-aware branding without selectors or renderer code |
+| 3. Semantic Style | add consumed role typography, geometry, paint, and category slots to that same record | hours with cross-family review | designer/design-system owner; public parity with built-in styles |
+| 4. Semantic policy | add census-proven category bindings and closed-catalog constraints | hours plus cross-family QA | domain-aware branding without selectors or renderer code |
 | 5. BrandPack (evidence-gated) | package exact styles, variants and installed-resource references | hours to days | teams that have proved a repeated distribution/versioning need |
 
 Levels 0–2 exist today, although Level 2 is less capable than built-in styles.
@@ -526,9 +526,9 @@ resource hashes and provenance through the existing contract.
 Packs, if promoted, compose only through the caller's explicit `style` stack;
 there is no hidden `extends` graph. JSON `null` remains rejected rather than
 acquiring accidental clear/reset meaning; omission means inherit. A later reset
-operation requires an explicit typed sentinel and composition laws. Bindings are
-equality matches over normalized class, tag, status, category, and namespaced
-metadata fields. Constraints are a closed catalog with `warn | error` actions.
+operation requires an explicit typed sentinel and composition laws. Bindings are equality matches over normalized category values; class, tag,
+status, route, and namespaced metadata remain deferred until their census and
+consumer witnesses exist. Constraints are a closed catalog with `warn | error` actions.
 CSS selectors, tree queries, arbitrary predicates, renderer-private fields,
 general expressions, and automatic rewriting remain outside the declarative
 language.
@@ -558,7 +558,7 @@ The target contract is:
 
 B2 completes all-built-in equivalence instead of postponing it until packaging.
 By B3, a declarative custom style can exceed today's private faces through
-semantic status/category slots, bindings, and constraints. B5 supplies usability
+semantic category slots, bindings, and constraints. B5 supplies usability
 and release evidence; it is not the first point at which private expressiveness
 is removed.
 
@@ -569,9 +569,9 @@ is removed.
 | role padding, radii, widths and edge bend | only coarse global render options | private face scalars | public applicable role geometry shared by measurement and rendering |
 | title, legend, axis and future-family roles | family-specific or unavailable | no universal built-in contract | existing built-in/namespaced roles with deterministic brand fallback |
 | surface/text pairs and sans/mono pairing | unavailable | flat colors and one main font; partial private overrides | named semantic tokens consumed consistently by adapters |
-| status/category slots and bindings | authored family-local styles | unavailable | normalized declarative bindings over existing Scene channels |
+| category slots and bindings | authored family-local styles | unavailable | normalized declarative category bindings; status waits for a second unrelated consumer |
 | contextual variants | separate names/caller stacks | separate names/caller stacks | explicit caller stacks; pack-local named variants only if packaging is promoted |
-| elevation | boolean shadow or renderer/private implementation | partial private implementation | bounded declarative elevation where geometry/bounds can represent it |
+| elevation | shared boolean `shadow` plus family-owned depth cues | no private face leaf | keep shared shadow; do not admit per-role elevation until Scene bounds and every backend can consume it coherently |
 | constraints | advisory `intent`/`mono` only | no enforcement advantage | token/final-Scene `warn | error` diagnostics, never rewriting |
 | distribution and token ingestion | style JSON, `fromShikiTheme`, caller fonts | repository registration and bundled fonts | retain style JSON; exact packs/resources and a pure importer only after consumer evidence |
 | new compositor | backend registration; declarative style data cannot select host code | core can wire an ID | outside this branding roadmap; trusted host selection remains separate |
@@ -605,10 +605,15 @@ built-in. A new core role still requires evidence from at least two unrelated
 families or holdout brands. Generated docs and matrices derive from the role
 descriptors rather than a prose roster.
 
-Role style properties are brand-neutral and closed: typography, spacing,
-applicable shape geometry, paint, border/stroke, bounded elevation, and
-non-color cues. They are never element IDs, CSS selectors, or arbitrary SVG
-properties. Marker archetypes remain family/relationship semantics; branding
+Role style properties are brand-neutral and closed: implemented typography,
+spacing, applicable shape geometry, paint, border/stroke, and role-specific
+non-color cues. A leaf is exposed only where its role descriptor names a real
+measurement/render projection. V1 deliberately rejects dormant per-role
+`lineHeight` and `elevation`, rejects per-role `fontFamily` except where a
+family-owned text surface consumes it, and admits `cue` only for roles with a
+visible graphical/terminal projection. Shared `font` and `shadow` remain the
+cross-family controls until stronger coherent primitives exist. They are never
+element IDs, CSS selectors, or arbitrary SVG properties. Marker archetypes remain family/relationship semantics; branding
 may affect applicable marker paint or scale but cannot globally replace arrow,
 diamond, inheritance, or other semantic marker kinds.
 
@@ -620,24 +625,29 @@ generated registry-wide census must show which registered families populate
 each channel, its normalized values, and its fallback/not-applicable behavior.
 A channel with no stable cross-family meaning remains family-owned.
 
-Bindings map authored meaning, not SVG selectors, to brand slots. V1 inputs are:
-
-- Mermaid class names and admitted namespaced metadata;
-- normalized Scene status/category/route values whose cross-family census proves
-  stable meaning;
-- explicit agent-side tags stored in typed semantic data.
+Bindings map authored meaning, not SVG selectors, to brand slots. V1 admits
+only normalized Scene `category` equality because that channel has typed
+emitters and renderer witnesses across unrelated families in this phase.
+`status` is emitted by several families but remains family-owned until at least
+two unrelated adapters consume the same normalized values. Class names, tags,
+route values, and namespaced metadata remain family-owned until their census,
+normalization, authored-precedence, and diagnostic contracts have executable
+cross-family evidence; unknown channel names fail strict admission.
 
 `emphasis` remains family-owned state rather than a V1 binding selector. Brand
 policy may style an already-emphasized mark through applicable paint, weight, or
 non-color defaults, but cannot create/remove the target, alter quantitative
 geometry, suppress meaningful text, or outrank source/config-authored emphasis.
 
-For example, `category:storage -> categories.storage` should select the same
-brand pair and non-color cue for applicable Architecture, Flowchart, Pie, and
-Radar marks. Tests use only registered families plus one synthetic namespaced
-extension fixture; unsupported future families are not acceptance dependencies.
-Bindings are ordered, declarative, safe under strict security, and report
-unmatched, conflicting, or not-applicable matches.
+For example, a normalized category slot selects the same brand defaults on
+applicable Pie, Radar, XY, Sequence, ER, Gantt, and Journey marks; a role
+restriction projects only meaningful leaves. Tests use registered families;
+unsupported future families are not acceptance dependencies.
+Bindings are ordered, declarative, and safe under strict security. Later
+matching bindings win per leaf; an unmatched value deterministically projects
+nothing; a role-restricted slot projects only descriptor-applicable leaves; and
+dangling or wholly inapplicable restricted slots fail final-stack admission.
+These outcomes are property-tested rather than inferred from family switches.
 
 A binding chooses a role/token default during family lowering. It never mutates
 an already serialized Scene and never outranks an authored Mermaid `classDef`,
@@ -662,7 +672,7 @@ pairs. Render-dependent contrast runs after request/family resolution against a
 concrete effective foreground/background pair and records `measurable`,
 `unmeasurable`, or `not-applicable`; transparent, unresolved, or host-dependent
 backdrops never produce a fabricated ratio. Actual rendered contrast, non-color
-status/category meaning, SVG semantics, and product accessibility claims remain
+category meaning, SVG semantics, and product accessibility claims remain
 in the existing verification, quality, and output contracts. A future fail-
 closed accessibility render policy requires a separate public API decision.
 
@@ -1277,7 +1287,9 @@ only in the landing archive, and future work lives only in `TODO.md`.
 - Treat the current partial, JSON-safe `StyleSpec` as the fragment format; do not
   add a synonymous public type.
 - Record every private `InternalStyleFace` leaf, which built-ins use it, and the
-  exact public field/role needed to reproduce it.
+  exact public field/role needed to reproduce it. Derive this census from the
+  runtime private-face projection authority so an author-only leaf cannot hide
+  behind TypeScript-only declarations.
 - Generate a registered-family census of emitted `SceneRole`s and populated
   semantic channels, including `radar-beta`, graphical backends, and terminal
   projection behavior.
@@ -1297,18 +1309,22 @@ Deletion gate: B0 adds no public type, option, registry, resolver, or schema.
 
 ### B1 — public semantic role Styles
 
-- Extend the existing Style field descriptors with role typography, spacing,
-  applicable radii/bend geometry, border/stroke, surface/text paint, bounded
-  elevation, semantic color pairs, and non-color cues.
+- Extend the existing Style field descriptors with consumed role typography,
+  spacing, applicable radii/bend geometry, border/stroke, surface/text paint,
+  semantic color pairs, and visible non-color cues. Reject leaves whose
+  measurement, graphical, or terminal projection would otherwise be inert;
+  shared `shadow` remains the elevation surface in V1.
 - Extend `SCENE_ROLE_DESCRIPTORS`/central role traits with style applicability and
   deterministic brand fallback; do not add `BrandRole` or copied role lists.
 - Add one shared role-style resolver used by measurement and family lowering
   before final `MarkPaint` and crisp serialization. Preserve winning-value
   provenance and the authored Mermaid cascade as the final per-element
   override.
-- Resolve the complete typography tuple once. Require non-default-weight,
-  wrap-prone witnesses proving measurement, collision boxes, knockout/halo
-  geometry, bounds, crisp output, and styled backends use identical values.
+- Resolve each descriptor-approved typography tuple once. Require
+  non-default-weight, wrap-prone witnesses proving measurement, collision boxes,
+  knockout/halo geometry, bounds, crisp output, and styled backends use
+  identical values. Do not advertise family/font/line-height leaves until that
+  complete tuple exists for the applicable role.
 - Keep connector marker archetype semantic and family-owned. Only applicable
   paint, width, dash, cap/join, bend, and marker scale may be branded.
 - Extend the existing terminal projection and degradation diagnostics instead of
@@ -1348,8 +1364,9 @@ compiled representation with tests preventing private input.
 ### B3 — semantic bindings and inspect-only constraints
 
 - Publish the family/channel census before admitting cross-family binding claims.
-- Add ordered equality bindings over normalized class, tag, status, category,
-  route, and namespaced metadata; exclude CSS selectors, tree queries, arbitrary
+- Add ordered equality bindings over normalized `category`.
+  Defer status, class, tag, route, and namespaced metadata until the same census and
+  renderer-witness bar is met; exclude CSS selectors, tree queries, arbitrary
   predicates, and renderer-private state.
 - Apply bindings as role/token defaults during family lowering, beneath authored
   `classDef`, `style`, `linkStyle`, and equivalent family-native styling.
@@ -1365,8 +1382,8 @@ compiled representation with tests preventing private input.
   meaningful paint-pair ownership, but family adapters do not own policy engines
   or require a growing central family switch; existing family-local checks are
   characterization inputs to this migration.
-- Publish binding precedence, unmatched/conflict, not-applicable, and constraint
-  composition laws with property tests. Bindings cannot select or override
+- Publish binding precedence, deterministic unmatched/no-op, ordered conflict,
+  not-applicable, and constraint composition laws with property tests. Bindings cannot select or override
   family-owned emphasis targets.
 
 Exit: a brand author can express the same normalized domain meaning across
@@ -1418,7 +1435,7 @@ loader, migration framework, executable code, or second inheritance rule.
 - Verify all library, CLI, Code Mode, MCP, editor, website, and installed-package
   declarations expose the same schema, validation, diagnostics, and receipts.
 
-Exit: unfamiliar users can customize role appearance and semantic status/category
+Exit: unfamiliar users can customize role appearance and semantic category
 meaning through the existing `style` workflow, and broad branding claims are
 supported by conformance and human evidence.
 
@@ -1434,7 +1451,7 @@ requirement is introduced.
   schema across all registered families, SVG and PNG, without core changes.
 - **Sentinel brand:** every token is deliberately distinctive so a no-op or
   wrong role is obvious; render it for every current and newly added family.
-- **Semantic binding:** the same status/category tag selects the same slot across
+- **Semantic binding:** the same normalized category selects the same slot across
   structural, temporal, domain, and chart families.
 - **Family-owned emphasis fixture — pinned baseline:** Pie `highlightSlice`
   already proves byte-identical slice geometry, `category`/`value`/`emphasis`
@@ -1459,8 +1476,9 @@ requirement is introduced.
   also has an exactly pinned pack path. Choosing a simpler path never requires
   understanding the levels above it.
 - **No-family-knowledge test:** brand authors do not enumerate registered
-  families or edit adapters to style core roles; unmatched bindings and
-  unconsumed roles return actionable diagnostics.
+  families or edit adapters to style core roles. Unmatched equality bindings
+  deterministically project nothing; fallback-only exact roles reject every
+  leaf at schema/runtime admission instead of accepting an inert record.
 - **No-built-in-privilege test:** export each first-party Look, resolve it as an
   ordinary public record in a clean registry, and compare semantic output and
   accepted visual tolerance with selection by built-in name.

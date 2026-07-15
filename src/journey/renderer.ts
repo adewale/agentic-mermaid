@@ -498,7 +498,7 @@ function renderSectionFrame(
   face: Readonly<InternalStyleFace> | undefined,
   authoredSectionPaint: boolean,
 ): SceneNode {
-  const name = section.label ?? section.id
+  const name = section.category
   const labelAttr = section.label ? ` data-label="${escapeAttr(section.label)}"` : ''
   const children: Array<{ node: SceneNode; indent: number }> = []
 
@@ -521,7 +521,7 @@ function renderSectionFrame(
 
   if (section.label) {
     const channels = { category: name }
-    const semanticStyle = resolveRoleStyle(face, 'group-header', channels)
+    const semanticStyle = resolveRoleStyle(face, 'group-header', channels, { includeFallback: false })
     const labelText = applyTextTransform(section.label, semanticStyle?.textTransform ?? style.groupTextTransform)
     const labelFontSize = semanticStyle?.fontSize ?? style.groupHeaderFontSize
     const labelFontWeight = semanticStyle?.fontWeight ?? style.groupHeaderFontWeight
@@ -574,15 +574,22 @@ function renderSectionLabelBand(
   face: Readonly<InternalStyleFace> | undefined,
   authoredSectionPaint: boolean,
 ): SceneNode {
-  const channels = { category: section.label ?? section.id }
-  const semanticStyle = resolveRoleStyle(face, 'group-header', channels)
+  const channels = { category: section.category }
+  const semanticStyle = resolveRoleStyle(face, 'group-header', channels, { includeFallback: false })
   const fill = authoredSectionPaint ? sectionHeaderFill(sectionIndex, paints) : semanticStyle?.fillColor ?? sectionHeaderFill(sectionIndex, paints)
-  const stroke = semanticStyle?.strokeColor ?? semanticStyle?.borderColor ?? 'none'
-  const strokeWidth = semanticStyle?.lineWidth
-  const inline = semanticStyle && (semanticStyle.fillColor !== undefined || stroke !== 'none' || strokeWidth !== undefined)
-    ? ` style="${escapeAttr([`fill:${fill}`, stroke !== 'none' ? `stroke:${stroke}` : undefined, strokeWidth !== undefined ? `stroke-width:${strokeWidth}` : undefined].filter(Boolean).join(';'))}"`
+  const cueValue = semanticStyle?.cue ?? 'none'
+  const stroke = semanticStyle?.strokeColor ?? semanticStyle?.borderColor ?? (cueValue !== 'none' ? 'var(--fg)' : 'none')
+  const baseStrokeWidth = semanticStyle?.lineWidth ?? (cueValue !== 'none' ? style.groupLineWidth : undefined)
+  const strokeWidth = baseStrokeWidth === undefined
+    ? undefined
+    : cueValue === 'outline' ? baseStrokeWidth + 1
+    : cueValue === 'double-line' ? baseStrokeWidth + 2
+    : baseStrokeWidth
+  const strokeDasharray = cueValue === 'pattern' ? '3 2' : cueValue === 'double-line' ? '8 2 2 2' : undefined
+  const inline = semanticStyle && (semanticStyle.fillColor !== undefined || stroke !== 'none' || strokeWidth !== undefined || strokeDasharray !== undefined)
+    ? ` style="${escapeAttr([`fill:${fill}`, stroke !== 'none' ? `stroke:${stroke}` : undefined, strokeWidth !== undefined ? `stroke-width:${strokeWidth}` : undefined, strokeDasharray ? `stroke-dasharray:${strokeDasharray}` : undefined].filter(Boolean).join(';'))}"`
     : ''
-  const cue = semanticStyle?.cue && semanticStyle.cue !== 'none' ? ` data-brand-cue="${escapeAttr(semanticStyle.cue)}"` : ''
+  const cue = cueValue !== 'none' ? ` data-brand-cue="${escapeAttr(cueValue)}"` : ''
   const bandInset = Math.min(6, Math.max(3, section.height / 6))
   const bandHeight = Math.max(18, Math.min(section.height - bandInset * 2, style.groupHeaderFontSize + style.groupPaddingY))
   const bandX = section.x + bandInset
@@ -595,7 +602,12 @@ function renderSectionLabelBand(
       id: `section-band:${section.id}`,
       role: 'group-header',
       geometry: { kind: 'rect', x: bandX, y: bandY, width: bandWidth, height: bandHeight, rx: radius, ry: radius },
-      paint: { fill, stroke, ...(strokeWidth !== undefined ? { strokeWidth: String(strokeWidth) } : {}) },
+      paint: {
+        fill,
+        stroke,
+        ...(strokeWidth !== undefined ? { strokeWidth: String(strokeWidth) } : {}),
+        ...(strokeDasharray ? { strokeDasharray } : {}),
+      },
       channels,
     },
     `<rect class="journey-section-label-band journey-section-band-${sectionIndex % paints.sectionBands.length}" x="${bandX}" y="${bandY}" width="${bandWidth}" height="${bandHeight}" rx="${radius}" ry="${radius}"${inline}${cue} />`,

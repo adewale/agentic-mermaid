@@ -800,7 +800,11 @@ function freezeDescriptor(untrusted: FamilyDescriptor): FamilyDescriptor {
     headers: snapshotDescriptorArray<string, string>(captured.headers, 'headers', item => item),
     aliases: snapshotDescriptorArray<string, string>(captured.aliases, 'aliases', item => item),
     semanticRoles: snapshotDescriptorArray<string, string>(captured.semanticRoles, 'semanticRoles', item => item),
-    semanticChannels: snapshotDescriptorArray<string, SemanticChannelName>(captured.semanticChannels, 'semanticChannels', item => item as SemanticChannelName),
+    // Additive compatibility: descriptors registered before the channel census
+    // omitted this field and mean "no declared semantic channels".
+    semanticChannels: captured.semanticChannels === undefined
+      ? Object.freeze([])
+      : snapshotDescriptorArray<string, SemanticChannelName>(captured.semanticChannels, 'semanticChannels', item => item as SemanticChannelName),
     scenePrimitiveEvidence: snapshotDescriptorArray<unknown, FamilyScenePrimitiveEvidence>(
       captured.scenePrimitiveEvidence,
       'scenePrimitiveEvidence',

@@ -130,7 +130,7 @@ export function lowerXYChartScene(
     const barId = `bar:${bar.seriesIndex}:${bar.label ?? catIndex}`
     const dataAttrs = ` data-value="${bar.value}"${bar.label ? ` data-label="${escapeXml(bar.label)}"` : ''}`
     const channels = { category: `bar-${bar.seriesIndex}`, value: normalized(bar.value) }
-    const roleStyle = resolveRoleStyle(resolved.styleFace, 'bar', channels)
+    const roleStyle = resolveRoleStyle(resolved.styleFace, 'bar', channels, { includeFallback: false })
     const paletteFill = `var(--xychart-color-${bar.colorIndex})`
     const fill = hasAuthoredSeriesPalette ? paletteFill : roleStyle?.fillColor ?? paletteFill
     const stroke = roleStyle?.strokeColor ?? roleStyle?.borderColor
@@ -179,7 +179,7 @@ export function lowerXYChartScene(
     if (line.points.length < 2) continue
     const d = polylinePath(line.points)
     const channels = { category: `line-${line.seriesIndex}` }
-    const roleStyle = resolveRoleStyle(resolved.styleFace, 'series', channels)
+    const roleStyle = resolveRoleStyle(resolved.styleFace, 'series', channels, { includeFallback: false })
     const paletteStroke = `var(--xychart-color-${line.colorIndex})`
     const stroke = hasAuthoredSeriesPalette ? paletteStroke : roleStyle?.strokeColor ?? roleStyle?.borderColor ?? paletteStroke
     const strokeWidth = roleStyle?.lineWidth ?? style.lineWidth

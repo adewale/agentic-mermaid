@@ -3,7 +3,7 @@
   "generator": "scripts/pr-assets/section-b-brand-evidence.ts",
   "inputs": {
     "count": 685,
-    "treeSha256": "cba7acdd6dd01c406a30da5c5830195b42dd59361d10f9fded040210dab51523"
+    "treeSha256": "dd158b016a66aefdb2ef7ede4861ff50b4e1cd9963bc9dd2106acbed12945663"
   },
   "families": [
     "flowchart",
@@ -25,8 +25,14 @@
   "variants": [
     "Sentinel · every channel deliberately distinctive",
     "Holdout · warm editorial",
+    "Holdout · light technical",
     "Holdout · dark operations"
   ],
+  "outputPaths": {
+    "graphicalCells": "public native renderMermaidPNG",
+    "terminal": "public renderMermaidASCII (Unicode, no color)"
+  },
+  "terminalSha256": "b4ce32cb71246e74c52052f6fe6db25d4dd0788299935bc446e3b462355e22ab",
   "baseline": {
     "state": "unsupported-style-fields",
     "command": "git worktree add --detach /tmp/am-section-b-base origin/main && (cd /tmp/am-section-b-base && bun install --frozen-lockfile && bun run bin/am.ts render \"$OLDPWD/eval/section-b-brand-evidence/baseline.mmd\" --format svg --style \"$OLDPWD/eval/section-b-brand-evidence/role-style.json\")",
@@ -35,7 +41,7 @@
   "outputs": [
     {
       "path": "docs/design/families/section-b-brand-evidence.png",
-      "sha256": "85431b86b34f2fd046a53b022e09bfc15555a5a768f79d526017d9f63f021fb8"
+      "sha256": "2a1a5ca05c54d2cae8cdce6a1101d9254bc772c00ff5920a39bdae3449e6ca0a"
     }
   ]
 }

@@ -342,7 +342,7 @@ const JOURNEY_RENDER_HOOKS = {
   )),
   projectPositioned: positionedView(projectJourneyPositioned),
   lowerScene: scene(lowerJourneyScene),
-  renderAscii: ctx => renderJourneyAscii(ctx.source.familyText, ctx.config, ctx.colorMode, ctx.theme, ctx.options.maxWidth),
+  renderAscii: ctx => renderJourneyAscii(ctx.source.familyText, ctx.config, ctx.colorMode, ctx.theme, ctx.options.maxWidth, ctx.styleFace),
 } satisfies BuiltinRenderHooks
 
 const XYCHART_RENDER_HOOKS = {
@@ -410,6 +410,7 @@ const PIE_RENDER_HOOKS = {
     {},
     ctx.options.targetWidth,
     (ctx.familyConfig as { visual?: ReturnType<typeof resolvePieVisualConfig> } | undefined)?.visual,
+    ctx.styleFace,
   ),
 } satisfies BuiltinRenderHooks
 
@@ -479,6 +480,7 @@ const GANTT_RENDER_HOOKS = {
     resolvedConfig: (ctx.familyConfig as {
       config?: ReturnType<typeof resolveGanttFrontmatterConfig>
     } | undefined)?.config,
+    styleFace: ctx.styleFace,
   }),
 } satisfies BuiltinRenderHooks
 

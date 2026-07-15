@@ -28,6 +28,15 @@ function relationship(svg: string, identifying: boolean): string {
 }
 
 describe('Section B structural/domain semantic bindings', () => {
+  test('Sequence actor tracking is measured by the same resolved tuple that renders it', () => {
+    const source = 'sequenceDiagram\n  participant A as Wide tracking witness\n  participant B\n  A->>B: ping'
+    const baseline = renderMermaidSVG(source)
+    const tracked = renderMermaidSVG(source, { style: { roles: { actor: { letterSpacing: 4 } } } })
+    const width = (svg: string) => Number(actorBox(svg, 'A').match(/width="([^"]+)"/)?.[1])
+    expect(width(tracked)).toBeGreaterThan(width(baseline))
+    expect(tracked).toContain('letter-spacing="4"')
+  })
+
   test('one named slot styles Sequence actor and ER relationship without changing authored geometry or semantics', () => {
     const sequence = `sequenceDiagram
       box rgb(33,66,99) Ops

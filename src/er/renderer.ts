@@ -404,7 +404,7 @@ function renderRelationshipLine(
 ): SceneNode {
   const lineStyle = rel.identifying ? 'solid' as const : 'dashed' as const
   const channels = { category: rel.identifying ? 'identifying' : 'non-identifying' }
-  const roleStyle = resolveRoleStyle(styleFace, 'relationship', channels)
+  const roleStyle = resolveRoleStyle(styleFace, 'relationship', channels, { includeFallback: false })
   const bendRadius = roleStyle?.bendRadius ?? style.edgeBendRadius
   const connectorSemantics = {
     endpoints: { from: rel.entity1, to: rel.entity2 },
@@ -510,7 +510,7 @@ export function separateRelationshipLabels(
     if (!rel.label || rel.points.length < 2) continue
     const roleStyle = resolveRoleStyle(styleFace, 'relationship', {
       category: rel.identifying ? 'identifying' : 'non-identifying',
-    })
+    }, { includeFallback: false })
     const m = measureMultilineText(
       applyTextTransform(rel.label, roleStyle?.textTransform ?? style.edgeTextTransform),
       roleStyle?.fontSize ?? style.edgeLabelFontSize,
@@ -583,7 +583,7 @@ function renderRelationshipLabel(
   }
 
   const channels = { category: rel.identifying ? 'identifying' : 'non-identifying' }
-  const roleStyle = resolveRoleStyle(styleFace, 'relationship', channels)
+  const roleStyle = resolveRoleStyle(styleFace, 'relationship', channels, { includeFallback: false })
   const fontSize = roleStyle?.fontSize ?? style.edgeLabelFontSize
   const fontWeight = roleStyle?.fontWeight ?? style.edgeLabelFontWeight
   const letterSpacing = roleStyle?.letterSpacing ?? style.edgeLetterSpacing

@@ -4,11 +4,14 @@ import { join } from 'node:path'
 import {
   STYLE_COLOR_TOKEN_DESCRIPTORS,
   STYLE_SPEC_FIELD_DESCRIPTORS,
+  getStyle,
   knownStyleDescriptors,
   knownStyles,
+  registerStyle,
   resolveStyleStack,
   styleSpecFieldReferenceMarkdown,
   styleSpecJsonSchema,
+  styleSpecTypeScriptDeclaration,
   validateStyleSpec,
 } from '../scene/style-registry.ts'
 
@@ -24,6 +27,13 @@ describe('StyleSpec has one projected field authority', () => {
     expect(checked.properties.colors.properties.bg['x-agentic-mermaid-runtime-validator']).toBe('safeCssColor')
     expect(Object.keys(checked.properties)).toEqual(Object.keys(STYLE_SPEC_FIELD_DESCRIPTORS))
     expect(Object.keys(checked.properties.colors.properties)).toEqual(Object.keys(STYLE_COLOR_TOKEN_DESCRIPTORS))
+  })
+
+  test('agent declarations expose the exact closed Style contract', () => {
+    const declaration = styleSpecTypeScriptDeclaration()
+    expect(declaration).toContain('type SemanticBindingChannel = "category"')
+    expect(declaration).toContain('"pie-slice"?: Readonly<StyleRole_pie_slice>')
+    expect(declaration).not.toContain('{ [key: string]: unknown }')
   })
 
   test('callers cannot mutate the authority through descriptors or schema projections', () => {
@@ -57,6 +67,35 @@ describe('StyleSpec has one projected field authority', () => {
       expect(validateStyleSpec(topLevel)).toContain(`unknown field "${inheritedName}"`)
       expect(validateStyleSpec(color)).toContain(`unknown color token "${inheritedName}"`)
     }
+  })
+
+  test('admission snapshots nested arrays once and bounds hostile JSON shapes', () => {
+    let reads = 0
+    const binding = {
+      get channel() { reads++; return reads === 1 ? 'category' : 'route' },
+      value: 'Beta',
+      slot: 'selected',
+      role: 'pie-slice',
+    }
+    const unregister = registerStyle({
+      name: 'look:array-snapshot-test',
+      semanticSlots: { selected: { fillColor: '#ff00ff' } },
+      bindings: [binding],
+    } as any)
+    try {
+      expect(reads).toBe(1)
+      expect(getStyle('look:array-snapshot-test')?.bindings?.[0]?.channel).toBe('category')
+      expect(reads).toBe(1)
+    } finally {
+      unregister()
+    }
+
+    const cyclic: Record<string, unknown> = {}
+    cyclic.self = cyclic
+    expect(() => resolveStyleStack(cyclic as any)).toThrow('Style input must be acyclic')
+    const sparse = Array(2)
+    sparse[1] = { channel: 'category', value: 'Beta', slot: 'selected' }
+    expect(() => resolveStyleStack({ bindings: sparse } as any)).toThrow('Style arrays must not be sparse')
   })
 
   test('normalization owns formatVersion even when an input explicitly supplies undefined', () => {

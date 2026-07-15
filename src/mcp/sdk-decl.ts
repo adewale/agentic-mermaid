@@ -4,6 +4,7 @@ import {
   sharedRenderOptionsTypeScriptDeclaration,
 } from '../render-contract.ts'
 import { BUILTIN_FAMILY_METADATA, type BuiltinFamilyMetadata } from '../agent/families.ts'
+import { styleSpecTypeScriptDeclaration } from '../scene/style-spec.ts'
 
 function sdkFamilyTypeStem(family: BuiltinFamilyMetadata): string {
   return family.narrower.slice(2)
@@ -139,7 +140,7 @@ const CODE_MODE_CORE_RENDER_RECEIPT_DECLARATIONS = compactInterfaceDeclarations(
   CODE_MODE_RENDER_RECEIPT_DECLARATIONS,
 )
 
-export const CODE_MODE_RENDER_OPTION_DECLARATIONS = `type StyleInput = string | { [key: string]: unknown }
+export const CODE_MODE_RENDER_OPTION_DECLARATIONS = `${styleSpecTypeScriptDeclaration()}
 
 ${architectureVisualOverridesTypeScriptDeclaration()}
 
@@ -188,7 +189,7 @@ interface RenderedLayoutArtifact { layout: VerifyResult['layout']; receipt: Rend
 /** Compact tools/list projection. It shares the exact generated public option
  * fields, output-option interfaces, and receipt contract with the full SDK,
  * while intentionally summarizing the full terminal evidence records. */
-export const CODE_MODE_CORE_RENDER_OPTION_DECLARATIONS = `type StyleInput = string | { [key: string]: unknown }
+export const CODE_MODE_CORE_RENDER_OPTION_DECLARATIONS = `${styleSpecTypeScriptDeclaration({ compact: true })}
 type ArchitectureVisualOverrides = Readonly<Record<string, unknown>>
 
 ${CODE_MODE_CORE_SHARED_RENDER_OPTIONS_DECLARATION}

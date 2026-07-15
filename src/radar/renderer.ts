@@ -176,7 +176,7 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
     if (curve.arityMismatch || curve.vertices.length === 0) continue
     const identity = curveIdentities[curveIndex]!
     const channels = { category: curve.label }
-    const roleStyle = resolveRoleStyle(resolved.styleFace, 'pie-slice', channels)
+    const roleStyle = resolveRoleStyle(resolved.styleFace, 'pie-slice', channels, { includeFallback: false })
     // Mermaid-authored cScaleN paint remains authoritative. Semantic policy is
     // a default beneath it, never a post-resolution repaint.
     const authoredFill = chart.visual.paletteOverrides?.[curve.colorIndex]
@@ -217,7 +217,7 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
     if (curve.arityMismatch) continue
     const identity = curveIdentities[curveIndex]!
     const channels = { category: curve.label }
-    const roleStyle = resolveRoleStyle(resolved.styleFace, 'point', channels)
+    const roleStyle = resolveRoleStyle(resolved.styleFace, 'point', channels, { includeFallback: false })
     const authoredFill = chart.visual.paletteOverrides?.[curve.colorIndex]
     const fill = authoredFill ?? roleStyle?.fillColor ?? fills[curve.colorIndex]!
     const stroke = roleStyle?.strokeColor ?? roleStyle?.borderColor ?? dotStroke
@@ -317,7 +317,7 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
   // Legend (wrapped labels, reserved row height).
   for (const item of chart.legend) {
     const channels = { category: item.label }
-    const roleStyle = resolveRoleStyle(resolved.styleFace, 'legend', channels)
+    const roleStyle = resolveRoleStyle(resolved.styleFace, 'legend', channels, { includeFallback: false })
     const authoredFill = chart.visual.paletteOverrides?.[item.colorIndex]
     const fill = authoredFill ?? roleStyle?.fillColor ?? fills[item.colorIndex]!
     const stroke = roleStyle?.strokeColor ?? roleStyle?.borderColor ?? style.nodeBorderColor ?? 'var(--_node-stroke)'

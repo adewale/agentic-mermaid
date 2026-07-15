@@ -36,14 +36,17 @@ import type {
   ExtensionRegistration,
 } from '../shared/extension-identity.ts'
 import { BUILTIN_PALETTE_DEFINITIONS, type BuiltinPaletteDefinition } from '../palette-catalog.ts'
+import { JSON_CONFIG_ADMISSION_LIMITS } from '../shared/json-config-admission.ts'
 
 export {
   STYLE_SPEC_FORMAT_VERSION,
   STYLE_SPEC_FIELD_DESCRIPTORS,
   STYLE_COLOR_TOKEN_DESCRIPTORS,
   ROLE_STYLE_PROPERTY_DESCRIPTORS,
+  SEMANTIC_BINDING_CHANNELS,
   styleSpecJsonSchema,
   styleSpecFieldReferenceMarkdown,
+  styleSpecTypeScriptDeclaration,
   validateStyleSpec,
 } from './style-spec.ts'
 export type {
@@ -69,13 +72,25 @@ export interface InternalStyleFace {
   edge?: InternalEdgeFace
   group?: InternalGroupFace
 }
-export type InternalTextFace = Pick<RoleStyleSpec,
-  'fontSize' | 'fontWeight' | 'letterSpacing' | 'textTransform' | 'textColor'>
-export type InternalBoxFace = Pick<RoleStyleSpec,
-  'paddingX' | 'paddingY' | 'cornerRadius' | 'lineWidth' | 'fillColor' | 'borderColor'>
-export type InternalNodeFace = InternalTextFace & InternalBoxFace
-export type InternalEdgeFace = InternalTextFace & Pick<RoleStyleSpec, 'lineWidth' | 'bendRadius' | 'strokeColor'>
-export type InternalGroupFace = InternalTextFace & InternalBoxFace & Pick<RoleStyleSpec, 'fontFamily' | 'headerFillColor'>
+const INTERNAL_TEXT_FACE_FIELDS = Object.freeze([
+  'fontSize', 'fontWeight', 'letterSpacing', 'textTransform', 'textColor',
+] as const)
+const INTERNAL_BOX_FACE_FIELDS = Object.freeze([
+  'paddingX', 'paddingY', 'cornerRadius', 'lineWidth', 'fillColor', 'borderColor',
+] as const)
+/** Runtime census authority: the private face is only a compiled projection of
+ * these admitted public role records and cannot own an extra expressive leaf. */
+export const INTERNAL_STYLE_FACE_PROJECTION = Object.freeze({
+  text: Object.freeze({ sourceRole: 'label' as const, fields: INTERNAL_TEXT_FACE_FIELDS }),
+  node: Object.freeze({ sourceRole: 'node' as const, fields: Object.freeze([...INTERNAL_TEXT_FACE_FIELDS, ...INTERNAL_BOX_FACE_FIELDS]) }),
+  edge: Object.freeze({ sourceRole: 'edge' as const, fields: Object.freeze([...INTERNAL_TEXT_FACE_FIELDS, 'lineWidth', 'bendRadius', 'strokeColor'] as const) }),
+  group: Object.freeze({ sourceRole: 'group' as const, fields: Object.freeze([...INTERNAL_TEXT_FACE_FIELDS, ...INTERNAL_BOX_FACE_FIELDS, 'fontFamily', 'headerFillColor'] as const) }),
+})
+export type InternalTextFace = Pick<RoleStyleSpec, (typeof INTERNAL_STYLE_FACE_PROJECTION.text.fields)[number]>
+export type InternalBoxFace = Pick<RoleStyleSpec, (typeof INTERNAL_BOX_FACE_FIELDS)[number]>
+export type InternalNodeFace = Pick<RoleStyleSpec, (typeof INTERNAL_STYLE_FACE_PROJECTION.node.fields)[number]>
+export type InternalEdgeFace = Pick<RoleStyleSpec, (typeof INTERNAL_STYLE_FACE_PROJECTION.edge.fields)[number]>
+export type InternalGroupFace = Pick<RoleStyleSpec, (typeof INTERNAL_STYLE_FACE_PROJECTION.group.fields)[number]>
 
 interface InternalStyleSpec extends StyleSpec {
   /** Registry discovery metadata; never accepted in public StyleSpec JSON. */
@@ -184,28 +199,74 @@ function plainDeclarativeRecord(value: unknown): value is Record<string, unknown
  * proxy that presents a plain-record surface is safely reduced to frozen data;
  * other object kinds remain intact so the canonical validator rejects them.
  */
-function snapshotDeclarativeStyleValue(
-  value: unknown,
-  snapshots: WeakMap<object, unknown> = new WeakMap(),
-): unknown {
-  if (!plainDeclarativeRecord(value)) return value
-  const existing = snapshots.get(value)
-  if (existing !== undefined) return existing
+function snapshotDeclarativeStyleValue(value: unknown): unknown {
+  const snapshots = new WeakMap<object, unknown>()
+  const active = new WeakSet<object>()
+  const forbiddenKeys = new Set(['__proto__', 'prototype', 'constructor'])
+  let nodes = 0
+  let textCharacters = 0
 
-  const snapshot = Object.create(null) as Record<string, unknown>
-  snapshots.set(value, snapshot)
-  // Capture all values before recursing so no later validation/storage phase
-  // ever returns to an accessor-backed caller object.
-  const entries = Object.entries(value)
-  for (const [key, child] of entries) {
-    Object.defineProperty(snapshot, key, {
-      value: snapshotDeclarativeStyleValue(child, snapshots),
-      enumerable: true,
-      writable: false,
-      configurable: false,
-    })
+  const snapshot = (candidate: unknown, depth: number): unknown => {
+    if (depth > JSON_CONFIG_ADMISSION_LIMITS.maxDepth) {
+      throw new TypeError(`Style input exceeds maximum nesting depth ${JSON_CONFIG_ADMISSION_LIMITS.maxDepth}`)
+    }
+    nodes++
+    if (nodes > JSON_CONFIG_ADMISSION_LIMITS.maxNodes) {
+      throw new TypeError(`Style input exceeds the ${JSON_CONFIG_ADMISSION_LIMITS.maxNodes}-node limit`)
+    }
+    if (typeof candidate === 'string') {
+      textCharacters += candidate.length
+      if (textCharacters > JSON_CONFIG_ADMISSION_LIMITS.maxAggregateTextCharacters) {
+        throw new TypeError(`Style input exceeds the ${JSON_CONFIG_ADMISSION_LIMITS.maxAggregateTextCharacters}-character text limit`)
+      }
+      return candidate
+    }
+    if (typeof candidate !== 'object' || candidate === null) return candidate
+    if (active.has(candidate)) throw new TypeError('Style input must be acyclic')
+    const existing = snapshots.get(candidate)
+    if (existing !== undefined) return existing
+
+    if (Array.isArray(candidate)) {
+      if (candidate.length > JSON_CONFIG_ADMISSION_LIMITS.maxItemsPerContainer) {
+        throw new TypeError(`Style array must contain at most ${JSON_CONFIG_ADMISSION_LIMITS.maxItemsPerContainer} items`)
+      }
+      const copy: unknown[] = []
+      snapshots.set(candidate, copy)
+      active.add(candidate)
+      for (let index = 0; index < candidate.length; index++) {
+        if (!Object.prototype.hasOwnProperty.call(candidate, index)) throw new TypeError('Style arrays must not be sparse')
+        copy.push(snapshot(candidate[index], depth + 1))
+      }
+      active.delete(candidate)
+      return Object.freeze(copy)
+    }
+
+    if (!plainDeclarativeRecord(candidate)) return candidate
+    const entries = Object.entries(candidate)
+    if (entries.length > JSON_CONFIG_ADMISSION_LIMITS.maxItemsPerContainer) {
+      throw new TypeError(`Style object must contain at most ${JSON_CONFIG_ADMISSION_LIMITS.maxItemsPerContainer} properties`)
+    }
+    const copy = Object.create(null) as Record<string, unknown>
+    snapshots.set(candidate, copy)
+    active.add(candidate)
+    for (const [key, child] of entries) {
+      if (forbiddenKeys.has(key)) throw new TypeError(`Style input uses forbidden key "${key}"`)
+      textCharacters += key.length
+      if (textCharacters > JSON_CONFIG_ADMISSION_LIMITS.maxAggregateTextCharacters) {
+        throw new TypeError(`Style input exceeds the ${JSON_CONFIG_ADMISSION_LIMITS.maxAggregateTextCharacters}-character text limit`)
+      }
+      Object.defineProperty(copy, key, {
+        value: snapshot(child, depth + 1),
+        enumerable: true,
+        writable: false,
+        configurable: false,
+      })
+    }
+    active.delete(candidate)
+    return Object.freeze(copy)
   }
-  return Object.freeze(snapshot)
+
+  return snapshot(value, 0)
 }
 
 function validatedStyleSpecSnapshot(spec: StyleSpec): StyleSpec {
@@ -544,7 +605,7 @@ function internalStyleFace(spec: InternalStyleSpec): InternalStyleFace | undefin
   }
 }
 
-export type SemanticBindingContext = Readonly<SemanticChannels & Partial<Record<'class' | 'tag' | 'metadata', string | readonly string[]>>>
+export type SemanticBindingContext = Readonly<SemanticChannels>
 
 function bindingMatches(binding: SemanticBinding, context: SemanticBindingContext): boolean {
   const candidate = context[binding.channel]
@@ -558,9 +619,12 @@ export function resolveRoleStyle(
   face: Readonly<InternalStyleFace> | undefined,
   role: BuiltinSceneRole,
   context: SemanticBindingContext = {},
+  options: { readonly includeFallback?: boolean } = {},
 ): Readonly<RoleStyleSpec> | undefined {
   const descriptor = SCENE_ROLE_DESCRIPTORS.find(candidate => candidate.role === role)
-  const fallback = descriptor ? face?.roles?.[descriptor.style.fallbackRole] : undefined
+  const fallback = options.includeFallback === false
+    ? undefined
+    : descriptor ? face?.roles?.[descriptor.style.fallbackRole] : undefined
   const exact = face?.roles?.[role]
   let merged: RoleStyleSpec | undefined = fallback || exact ? { ...fallback, ...exact } : undefined
   const applicable: ReadonlySet<string> = new Set(descriptor?.style.applicableProperties ?? [])

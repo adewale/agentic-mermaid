@@ -93,7 +93,7 @@ export function lowerPieScene(
   const transparent = options.transparent ?? false
   const interactive = options.interactive ?? false
   const style = resolveRenderStyle(options, PIE_STYLE_DEFAULTS, resolved.styleFace)
-  const baseSliceRole = resolveRoleStyle(resolved.styleFace, 'pie-slice')
+  const baseSliceRole = resolveRoleStyle(resolved.styleFace, 'pie-slice', {}, { includeFallback: false })
   const visual = chart.visual
   const parts: SceneNode[] = []
 
@@ -177,11 +177,16 @@ export function lowerPieScene(
     const slice = chart.slices[index]!
     const pct = formatPiePercent(slice.fraction)
     const channels = { category: slice.label, value: slice.fraction }
-    const sliceRole = resolveRoleStyle(resolved.styleFace, 'pie-slice', channels)
+    const sliceRole = resolveRoleStyle(resolved.styleFace, 'pie-slice', channels, { includeFallback: false })
     const fill = sliceRole?.fillColor ?? fills[index]!
     const sliceStroke = visual.strokeColor ?? sliceRole?.strokeColor ?? sliceRole?.borderColor ?? style.nodeBorderColor ?? 'var(--bg)'
     const sliceStrokeWidth = visual.strokeWidth ?? sliceRole?.lineWidth ?? style.nodeLineWidth
-    const emphasisStrokeWidth = pieEmphasisStrokeWidth(sliceStrokeWidth)
+    const cue = sliceRole?.cue ?? 'none'
+    const cueStrokeWidth = cue === 'outline'
+      ? sliceStrokeWidth + 1
+      : cue === 'double-line' ? sliceStrokeWidth + 2 : sliceStrokeWidth
+    const cueDash = cue === 'pattern' ? '3 2' : cue === 'double-line' ? '8 2 2 2' : undefined
+    const emphasisStrokeWidth = pieEmphasisStrokeWidth(cueStrokeWidth)
     const highlighted = anyHighlighted && visual.highlightSlice === slice.label
     const dimmed = anyHighlighted && !highlighted
     const sliceClass = `pie-slice${highlighted ? ' highlighted' : ''}` +
@@ -193,6 +198,10 @@ export function lowerPieScene(
       : dimmed
         ? rnd((visual.opacity ?? 1) * PIE.dimOpacity)
         : visual.opacity
+    const hasInlineRoleStroke = sliceRole !== undefined && (
+      sliceRole.strokeColor !== undefined || sliceRole.borderColor !== undefined
+      || sliceRole.lineWidth !== undefined || cue !== 'none'
+    )
     parts.push(marks.shape(
       {
         id: occurrenceId('slice', slice.label),
@@ -203,14 +212,15 @@ export function lowerPieScene(
         paint: {
           fill,
           stroke: highlighted ? 'var(--fg)' : sliceStroke,
-          strokeWidth: String(highlighted ? emphasisStrokeWidth : sliceStrokeWidth),
+          strokeWidth: String(highlighted ? emphasisStrokeWidth : cueStrokeWidth),
+          ...(cueDash ? { strokeDasharray: cueDash } : {}),
           ...(sliceOpacity !== undefined ? { opacity: String(sliceOpacity) } : {}),
         },
         channels: { ...channels, ...(highlighted ? { emphasis: true } : {}) },
       },
       `<path class="${sliceClass}" d="${slice.path}" fill="${escapeXml(fill)}" ` +
-        `stroke="${escapeXml(highlighted ? 'var(--fg)' : sliceStroke)}" stroke-width="${highlighted ? emphasisStrokeWidth : sliceStrokeWidth}" ` +
-        `data-label="${escapeXml(slice.label)}" data-value="${slice.value}" data-percent="${pct}"${highlighted ? ' data-highlighted="true"' : ''} />`,
+        `${hasInlineRoleStroke ? `stroke="${escapeXml(highlighted ? 'var(--fg)' : sliceStroke)}" stroke-width="${highlighted ? emphasisStrokeWidth : cueStrokeWidth}"${cueDash ? ` stroke-dasharray="${cueDash}"` : ''} ` : ''}` +
+        `data-label="${escapeXml(slice.label)}" data-value="${slice.value}" data-percent="${pct}"${cue !== 'none' ? ` data-brand-cue="${cue}"` : ''}${highlighted ? ' data-highlighted="true"' : ''} />`,
     ))
   }
 

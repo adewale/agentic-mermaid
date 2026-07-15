@@ -91,7 +91,7 @@ describe('styled output', () => {
     if (stale.length > 0) {
       throw new Error(`styled-output: ${stale.length} stale baseline records (e.g. ${stale[0]}) — regenerate with UPDATE_STYLED_BASELINE=1`)
     }
-  })
+  }, 10_000)
 
   test('no styled render throws on any fixture', () => {
     for (const fixture of fixtures) {

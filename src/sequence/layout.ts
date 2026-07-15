@@ -100,7 +100,7 @@ export function layoutSequenceDiagram(
   const minActorWidth = config.width ?? 80
   const noteGap = config.noteMargin ?? SEQ.noteGap
   const activationWidth = config.activationWidth ?? SEQ.activationWidth
-  const actorRoleStyles = diagram.actors.map(actor => resolveRoleStyle(styleFace, 'actor', { category: actor.id }))
+  const actorRoleStyles = diagram.actors.map(actor => resolveRoleStyle(styleFace, 'actor', { category: actor.id }, { includeFallback: false }))
   const actorHeight = Math.max(
     config.height ?? SEQ.actorHeight,
     ...actorRoleStyles.map(role => measureMultilineText(
@@ -131,7 +131,10 @@ export function layoutSequenceDiagram(
     const fontSize = role?.fontSize ?? style.nodeLabelFontSize
     const fontWeight = role?.fontWeight ?? style.nodeLabelFontWeight
     const paddingX = role?.paddingX ?? style.nodePaddingX
-    const textW = estimateTextWidth(applyTextTransform(a.label, transform), fontSize, fontWeight)
+    const displayLabel = applyTextTransform(a.label, transform)
+    const letterSpacing = role?.letterSpacing ?? style.nodeLetterSpacing
+    const tracking = Math.max(0, [...displayLabel].length - 1) * letterSpacing
+    const textW = estimateTextWidth(displayLabel, fontSize, fontWeight) + tracking
     return Math.max(textW + paddingX * 2, minActorWidth)
   })
 

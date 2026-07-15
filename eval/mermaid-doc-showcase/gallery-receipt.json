@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "generator": "scripts/pr-assets/mermaid-doc-showcase-gallery.ts",
   "inputCount": 684,
-  "inputTreeSha256": "900f797cf430875b7fdd7d18f87e49e7039326fb37d11de462fb9e04884eeeaa",
+  "inputTreeSha256": "9c4cac329fdd25f06c2d176d39b4083a106b09b853b26e76ed85bbe8c7dc3349",
   "output": "docs/design/families/mermaid-doc-examples-all-families.png",
   "outputSha256": "463141faed2ed844c5c33e6254610bf0e75d94a376a20cde778cbc2c919cbe89"
 }

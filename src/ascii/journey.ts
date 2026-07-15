@@ -13,6 +13,7 @@ import { colorizeLine, DEFAULT_ASCII_THEME } from './ansi.ts'
 import type { AsciiConfig, AsciiTheme, CharRole, ColorMode } from './types.ts'
 import { visualWidth } from './width.ts'
 import { wrapText } from './wrap.ts'
+import { resolveRoleStyle, type InternalStyleFace } from '../scene/style-registry.ts'
 
 interface StyledSegment {
   text: string
@@ -75,6 +76,7 @@ export function renderJourneyAscii(
   colorMode: ColorMode = 'none',
   theme: AsciiTheme = DEFAULT_ASCII_THEME,
   maxWidth?: number,
+  styleFace?: InternalStyleFace,
 ): string {
   const lines = preprocessMermaidLines(text)
   const diagram = parseJourneyDiagram(lines)
@@ -113,9 +115,16 @@ export function renderJourneyAscii(
       // Bracket only the first line of a wrapped label — bracketing every
       // line would read as one section per line. Continuations indent by
       // one cell to align inside the opening bracket.
-      const labelLines = wrapText(stripFormattingTags(section.label).replace(/\n/g, ' / '), maxWidth ? Math.max(1, maxWidth - 2) : undefined)
+      const roleStyle = resolveRoleStyle(styleFace, 'group-header', { category: section.label }, { includeFallback: false })
+      const cue = roleStyle?.cue ?? 'none'
+      const cueMarker = cue === 'outline' ? (useAscii ? '* ' : '◇ ')
+        : cue === 'double-line' ? (useAscii ? '= ' : '║ ')
+        : cue === 'pattern' ? (useAscii ? '# ' : '░ ')
+        : ''
+      const labelLines = wrapText(stripFormattingTags(section.label).replace(/\n/g, ' / '), maxWidth ? Math.max(1, maxWidth - 2 - cueMarker.length) : undefined)
       labelLines.forEach((line, index) => {
         const segments: StyledSegment[] = [
+          { text: index === 0 ? cueMarker : ' '.repeat(cueMarker.length), role: cueMarker ? 'arrow' : null },
           index === 0
             ? { text: '[', role: 'border' }
             : { text: ' ', role: null },

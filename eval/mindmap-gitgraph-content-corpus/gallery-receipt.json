@@ -180,7 +180,7 @@
     },
     {
       "path": "src/__tests__/agent-mcp.test.ts",
-      "sha256": "28381a7fa27d22895757e4fe4d017ee3d7b7b02e66289cc0ba7486ff3ef68b2d"
+      "sha256": "860b4d3a48b24ac93feb57434a680105abf7ed204abbb750449cd38fde80d028"
     },
     {
       "path": "src/__tests__/agent-mermaid-corpus.test.ts",
@@ -864,7 +864,7 @@
     },
     {
       "path": "src/__tests__/hosted-mcp.test.ts",
-      "sha256": "cb8d395283ad3c8576e94b2179b659128ac8ad6cba15c6056b1169a5f579d5b0"
+      "sha256": "c8b033210225f6181cff8cd1b423453f3fe86a8b3e27eba173dfaa86c24b0029"
     },
     {
       "path": "src/__tests__/hosted-raster-budget.test.ts",
@@ -1316,7 +1316,7 @@
     },
     {
       "path": "src/__tests__/section-b-capability-report.test.ts",
-      "sha256": "efe395fcd0c0f1ca0ac36ce0211d49dbbb1c86dd669196caa30745f7f04b4aeb"
+      "sha256": "687338eb200fc8f328e85716e5575a808d11eec5bc1f72b3a9055d5e5ea47371"
     },
     {
       "path": "src/__tests__/section-b-chart-bindings.test.ts",
@@ -1324,23 +1324,23 @@
     },
     {
       "path": "src/__tests__/section-b-policy.test.ts",
-      "sha256": "ef40eccf4369cac468567bc6b4ded2663537ff81b30a7de07aca8caa6d671139"
+      "sha256": "e50066dc0bfcd5ded6e02f677da314faf03b0ac7d8f4f27dc09ec9e26efa9732"
     },
     {
       "path": "src/__tests__/section-b-role-styles.test.ts",
-      "sha256": "1e48a5a806633f9cfc6bdb5518b52bca864a4eabe15818da6c7e2d87da1ade8b"
+      "sha256": "f88e85f1f61e64f228fac31540d96053fe1127af03ccb4df0f67de25c8f1b55c"
     },
     {
       "path": "src/__tests__/section-b-structural-domain-bindings.test.ts",
-      "sha256": "350b8dba851e587e18d4638bb0c5bffc436536bc133179da5a4fab3585bb4f8d"
+      "sha256": "50b22c8ba8a52b74ee0b73f1a0a83b4970fcbc4f9c7bfd172bbf0960f33587b1"
     },
     {
       "path": "src/__tests__/section-b-temporal-bindings.test.ts",
-      "sha256": "117ce174e38f73e463f8b9e2142421bf271e764fc4454a8e255a535801660dc9"
+      "sha256": "c5395365061d7f997dfd64544750ba8928020e91eea0f5695d6ef9ea8dea07e3"
     },
     {
       "path": "src/__tests__/section-b-visual-evidence.test.ts",
-      "sha256": "2ee8a23d6090d218defda4a8d0fdda0c0becce46656dafae04ee9c774dd998b9"
+      "sha256": "a75a2b517cb7934fd23fceedb458f5fd7c5043026755cd9012913d36cf671606"
     },
     {
       "path": "src/__tests__/self-loop-arcs.test.ts",
@@ -1420,7 +1420,7 @@
     },
     {
       "path": "src/__tests__/style-spec-authority.test.ts",
-      "sha256": "cb891c7b504dc8f8375603fccd5192dcc8ede11e64463c67aa427ef19c39e48c"
+      "sha256": "c64a709aa7afde679bf7026495614c74de5ce5a51b7a1228b7675e87eb8611bf"
     },
     {
       "path": "src/__tests__/styled-backend-paint.test.ts",
@@ -1428,7 +1428,7 @@
     },
     {
       "path": "src/__tests__/styled-output.test.ts",
-      "sha256": "34c9938c4f2a1b2f62abdad2375d414f736ea25293ca517ea3ea443e86362c71"
+      "sha256": "125aa20e3786cd7a578e670d807b66c1ff2de654c0932c110f32437df5ecaa14"
     },
     {
       "path": "src/__tests__/styles.test.ts",
@@ -1632,7 +1632,7 @@
     },
     {
       "path": "src/agent/core.ts",
-      "sha256": "4e4d1c2db130189466982b44fcd717d50086699adfb034f03f7323b8d0205df1"
+      "sha256": "2d37c144d2218069f4f3f7cc281be4d18d65e76606da55c903067669edba2863"
     },
     {
       "path": "src/agent/create.ts",
@@ -1660,7 +1660,7 @@
     },
     {
       "path": "src/agent/families.ts",
-      "sha256": "0937c96be0c3a598e2aa2b9ae39119f308f4b5183f1217e07a5bf20a9e6eb377"
+      "sha256": "a93b0067f99a4f59971907d51ac7dfa5d044f49750e52f43fb7ea5063edf52ea"
     },
     {
       "path": "src/agent/family-labels.ts",
@@ -1872,7 +1872,7 @@
     },
     {
       "path": "src/ascii/gantt.ts",
-      "sha256": "951711347546ffbb6f7288c9e7ed83a2c32ad4af33662c4e62249fa1fac6153a"
+      "sha256": "a768915c4b417b4a586443c6fd1b74221549cea2d4e945a411e47b3b43101ce5"
     },
     {
       "path": "src/ascii/gitgraph.ts",
@@ -1888,7 +1888,7 @@
     },
     {
       "path": "src/ascii/journey.ts",
-      "sha256": "29b70d5eb1a021bea6b5de725987b6e8a9bc3f9979fe6fe25cf25efede088f84"
+      "sha256": "c2c1112419b5d087c87ae7697be618f3fb4eb7a7e97e1734be3cc4a793ffad0a"
     },
     {
       "path": "src/ascii/meta.ts",
@@ -1908,7 +1908,7 @@
     },
     {
       "path": "src/ascii/pie.ts",
-      "sha256": "c98be88e6bd9b1a98a378777a28469077863f22f27ae845fec64d07ffd71af05"
+      "sha256": "5c2c50e4f1f51b102ed3fffe5d51081cb8ee8ba4203a2bf2314b5975528e87a5"
     },
     {
       "path": "src/ascii/quadrant.ts",
@@ -2076,7 +2076,7 @@
     },
     {
       "path": "src/er/renderer.ts",
-      "sha256": "fea3d32eff75dc97686763ce112a095ecfbcd4a18b0a4c60f7e39b9a2174dcbb"
+      "sha256": "a8f6b96d312909e0d7a7bfec37c3b12f5a0f55997785a22db7037bcbe7a06662"
     },
     {
       "path": "src/er/types.ts",
@@ -2116,7 +2116,7 @@
     },
     {
       "path": "src/gantt/renderer.ts",
-      "sha256": "38dad91c6b2f62dbf39ef9b3688789582726f0f86e74e14dc96cddbc9f92a4a7"
+      "sha256": "4aa65a28adf61aba4bf473ad64212171989960898c80813876629c3949841403"
     },
     {
       "path": "src/gantt/schedule.ts",
@@ -2156,11 +2156,11 @@
     },
     {
       "path": "src/index.ts",
-      "sha256": "07de08fd49a7da5aa1e63eea96563b1ab8849c7d22a2c35a833c688887452f70"
+      "sha256": "ff51d9d5f8570e5201455f797c4d4b879b605b4182ade79a470be5b858ad3e8d"
     },
     {
       "path": "src/journey/layout.ts",
-      "sha256": "9e6b74d6da4b555f450fc27e04eae003a1c960fce206f03fce84608a725b0150"
+      "sha256": "8b168a1c196b215b66b05d46bce91a658d891cf4239832c102f50deff2ef3208"
     },
     {
       "path": "src/journey/parse-core.ts",
@@ -2172,11 +2172,11 @@
     },
     {
       "path": "src/journey/renderer.ts",
-      "sha256": "f3c7750a59a1e129f6264491f1ea3c837e1ae69a5ac11bdb5d35e3fc5f95a95f"
+      "sha256": "6ceeb67068e7b7181ff384a64d3718de363e8393db152f9d8624fa1192471d8d"
     },
     {
       "path": "src/journey/types.ts",
-      "sha256": "09f60fd29ddd75833c05ace1878265e5884f68130cfa15d56d89ce6c9def8fa9"
+      "sha256": "a9bd5fc10b8dc24218c81530de650442294c0191aa2628a28e83e8fed1bd1f51"
     },
     {
       "path": "src/layout-engine.ts",
@@ -2248,7 +2248,7 @@
     },
     {
       "path": "src/mcp/sdk-decl.ts",
-      "sha256": "6b71ae33da569e95a827f50a8d80b229f0dea87bcf3e338d3b2839358a167d9b"
+      "sha256": "40491ccffc1d162b8d5efa2f96e943a0b34c5b2496ffc5e1324297546d6fb148"
     },
     {
       "path": "src/mcp/sdk-discovery.ts",
@@ -2332,7 +2332,7 @@
     },
     {
       "path": "src/pie/renderer.ts",
-      "sha256": "2881ad4610bc6c4f317a07cce387bd7c7d140ae59d5936edf393981d1ff79905"
+      "sha256": "ab3d449ec5c51d1813b268ad2beb9d3cd3bd9156eae08c2a31bb142f1ae829cb"
     },
     {
       "path": "src/pie/types.ts",
@@ -2388,7 +2388,7 @@
     },
     {
       "path": "src/radar/renderer.ts",
-      "sha256": "9b2e1e1c6a65fe0f97a91e2e8331f92ace4b7c1cec7118e1cc6f66ec0d509fe9"
+      "sha256": "65886595ae92ae03c944b896619be9752d412982abf18579edaf55c717b77c90"
     },
     {
       "path": "src/radar/scale.ts",
@@ -2400,7 +2400,7 @@
     },
     {
       "path": "src/render-contract.ts",
-      "sha256": "f4d7bb21597c021324dc6291839206f097a49d10875bbedd0a8deb758348b720"
+      "sha256": "c0b9f0fc45876a0181b5091e95196bd7fcf3fc02d89e806a7823ba88bbf5f8cb"
     },
     {
       "path": "src/render-error-diagnostic.ts",
@@ -2408,7 +2408,7 @@
     },
     {
       "path": "src/render-family-hooks.ts",
-      "sha256": "7813322c7605e64dc60eb0c5e0e8edadbb7ed73f6bb04c2cb3c220f04e43691a"
+      "sha256": "472c8c7365805d30ebfe306fa752ba205c1eaa61479997680f4ca7920473785a"
     },
     {
       "path": "src/render-host-policy.ts",
@@ -2460,7 +2460,7 @@
     },
     {
       "path": "src/scene/brand-constraints.ts",
-      "sha256": "c22a0055e7ad73a9507b1b233405e256c1612171f20d82d59cb722261d66a89c"
+      "sha256": "1c2566a0d2565a0e15a2f9c094433aa7d0de220dbbcbfd952dfefd57b2631031"
     },
     {
       "path": "src/scene/builtin-backends.ts",
@@ -2520,7 +2520,7 @@
     },
     {
       "path": "src/scene/roles.ts",
-      "sha256": "4caaa46fce918716d0f742cf816835543f0339d7ea20b59c8c62f909be20a602"
+      "sha256": "054bf39d4a9ab298abaf84a2fac31390a29d60e57c6c56abfe1f04fb91909387"
     },
     {
       "path": "src/scene/rough-backend.ts",
@@ -2536,11 +2536,11 @@
     },
     {
       "path": "src/scene/style-registry.ts",
-      "sha256": "e18a1de929561cac699b0e3bf8a2a04980344e42611b9f4d5b07e59ffe3a151b"
+      "sha256": "03e21ee88dc465f3bd8b5b3c85658cf4a38349a8309c3f448c418bf1d63e2196"
     },
     {
       "path": "src/scene/style-spec.ts",
-      "sha256": "f594458737c4ce6fce74f996959325ba7698a83a4272b63d82639a8f6df49fe0"
+      "sha256": "3aa8a0f09f2da9c181bb3775555ce5d6459c07b068174717f76946143fcc789a"
     },
     {
       "path": "src/scene/svg-serialize.ts",
@@ -2556,7 +2556,7 @@
     },
     {
       "path": "src/section-b-capability-report.ts",
-      "sha256": "da992837b46ee11969fc45c59165a992be041ab318fff32f6b3d72328a150918"
+      "sha256": "a58b34fceb1736a2c1d8d8655d90b9c71ce8326f59304afc01ebbf5c05f6e461"
     },
     {
       "path": "src/sequence/colors.ts",
@@ -2568,7 +2568,7 @@
     },
     {
       "path": "src/sequence/layout.ts",
-      "sha256": "7910a54da7ead3cd9a55b2f7fa85d6426f39e92d5937c08422e8e0a679c3b31c"
+      "sha256": "2b22ab7c2b78cd455ea846a521a64bf203db7538e22c409768124a6f1c0d2329"
     },
     {
       "path": "src/sequence/parser.ts",
@@ -2576,7 +2576,7 @@
     },
     {
       "path": "src/sequence/renderer.ts",
-      "sha256": "443bd084e6d4cd9cba7c414018ad984ccf6e893d1f86fcc40c6a99f9532a364e"
+      "sha256": "e758c1e8a5e63b51f61712bd83a55faccaefdb5b4267ab851b0913108ef95a93"
     },
     {
       "path": "src/sequence/types.ts",
@@ -2716,7 +2716,7 @@
     },
     {
       "path": "src/terminal-style.ts",
-      "sha256": "3e4ee174b796ae4bec93031f667a9439a61ffdccedf64c3b162229b117df06e7"
+      "sha256": "66ce7219843e2c00a1efed2a66c1a11b878c19614bb47f4e1ec1cb37817c69df"
     },
     {
       "path": "src/text-metrics.ts",
@@ -2788,7 +2788,7 @@
     },
     {
       "path": "src/xychart/renderer.ts",
-      "sha256": "20e303d56acc8d1ba922d4f20dd94a50bfe3846d855ce012c6d759f4c3c1a11a"
+      "sha256": "16566ed8912ab69acc680a24f18201fe42683c64baaeda41718a7121694b62ef"
     },
     {
       "path": "src/xychart/types.ts",

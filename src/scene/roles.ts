@@ -35,6 +35,14 @@ export interface SceneRoleTraits {
   applicableKinds: readonly SceneMarkKind[]
   /** Public brand archetype inherited by this semantic role. */
   styleFallback: SceneRoleStyleFallback
+  /** Whether an exact role record has an implemented family projection. */
+  styleConsumption: 'exact' | 'fallback-only'
+  /** Additional role-specific leaves with an implemented family projection. */
+  styleExtras: readonly (keyof RoleStyleSpec)[]
+  /** Optional exact applicable set when the fallback archetype is broader. */
+  styleProperties?: readonly (keyof RoleStyleSpec)[]
+  /** Built-in families that resolve semantic bindings for this exact role. */
+  styleBindingFamilies: readonly string[]
   /** Whether structured SVG receives the stable data-id/data-role contract. */
   domIdentity: boolean
   /** Whether endpoint-bearing marks receive relation accessibility semantics. */
@@ -67,24 +75,31 @@ function traits(
   return Object.freeze({
     applicableKinds,
     styleFallback,
+    styleConsumption: 'fallback-only',
     domIdentity: false,
     relation: false,
     sketch: 'none',
     textHalo: false,
     ...options,
+    styleExtras: Object.freeze([...(options.styleExtras ?? [])]),
+    styleBindingFamilies: Object.freeze([...(options.styleBindingFamilies ?? [])]),
+    ...(options.styleProperties ? { styleProperties: Object.freeze([...options.styleProperties]) } : {}),
   })
 }
 
 /** Exact built-in policy.  Backends consume this table instead of maintaining
  * independent role lists, so a role cannot drift between identity and paint. */
 export const BUILTIN_SCENE_ROLE_TRAITS: Readonly<Record<BuiltinSceneRole, SceneRoleTraits>> = Object.freeze({
-  node: traits(SHAPE_OR_GROUP, 'node', { domIdentity: true, sketch: 'shape' }),
-  edge: traits(CONNECTOR, 'edge', { domIdentity: true, relation: true, sketch: 'connector' }),
+  node: traits(SHAPE_OR_GROUP, 'node', { domIdentity: true, sketch: 'shape', styleConsumption: 'exact' }),
+  edge: traits(CONNECTOR, 'edge', { domIdentity: true, relation: true, sketch: 'connector', styleConsumption: 'exact' }),
   'edge-label': traits(TEXT_OR_GROUP, 'label'),
-  group: traits(SHAPE_OR_GROUP, 'group', { domIdentity: true, sketch: 'shape' }),
-  'group-header': traits(ANY_MARK, 'group', { sketch: 'shape', textHalo: true }),
-  label: traits(TEXT, 'label', { textHalo: true }),
-  actor: traits(SHAPE_OR_GROUP, 'node', { domIdentity: true, sketch: 'shape' }),
+  group: traits(SHAPE_OR_GROUP, 'group', { domIdentity: true, sketch: 'shape', styleConsumption: 'exact', styleExtras: ['fontFamily'] }),
+  'group-header': traits(ANY_MARK, 'group', {
+    sketch: 'shape', textHalo: true, styleConsumption: 'exact', styleBindingFamilies: ['journey'],
+    styleProperties: ['fontFamily', 'fontSize', 'fontWeight', 'letterSpacing', 'textTransform', 'textColor', 'fillColor', 'borderColor', 'strokeColor', 'lineWidth', 'cue'],
+  }),
+  label: traits(TEXT, 'label', { textHalo: true, styleConsumption: 'exact' }),
+  actor: traits(SHAPE_OR_GROUP, 'node', { domIdentity: true, sketch: 'shape', styleConsumption: 'exact', styleBindingFamilies: ['sequence'] }),
   lifeline: traits(CONNECTOR, 'edge', { sketch: 'connector' }),
   activation: traits(SHAPE, 'node', { domIdentity: true, sketch: 'shape' }),
   message: traits(CONNECTOR_OR_GROUP, 'edge', { domIdentity: true, relation: true, sketch: 'connector' }),
@@ -96,19 +111,40 @@ export const BUILTIN_SCENE_ROLE_TRAITS: Readonly<Record<BuiltinSceneRole, SceneR
   // ER attributes may be emitted as a semantic wrapper containing the name,
   // type, and key badge; the group carries the attribute identity.
   attribute: traits(TEXT_OR_GROUP, 'label', { domIdentity: true, textHalo: true }),
-  relationship: traits(CONNECTOR, 'edge', { domIdentity: true, relation: true, sketch: 'connector' }),
+  relationship: traits(CONNECTOR, 'edge', { domIdentity: true, relation: true, sketch: 'connector', styleConsumption: 'exact', styleBindingFamilies: ['er'] }),
   cardinality: traits(SHAPE_OR_TEXT, 'label', { domIdentity: true, textHalo: true }),
-  'pie-slice': traits(SHAPE, 'node', { domIdentity: true, sketch: 'shape' }),
-  legend: traits(SHAPE_TEXT_OR_GROUP, 'group', { textHalo: true }),
-  bar: traits(SHAPE, 'node', { domIdentity: true, sketch: 'shape' }),
-  series: traits(CONNECTOR, 'edge', { domIdentity: true, sketch: 'connector' }),
-  point: traits(SHAPE, 'node', { domIdentity: true }),
+  'pie-slice': traits(SHAPE, 'node', {
+    domIdentity: true, sketch: 'shape', styleConsumption: 'exact', styleBindingFamilies: ['pie', 'radar'],
+    styleProperties: ['fillColor', 'borderColor', 'strokeColor', 'lineWidth', 'cue'],
+  }),
+  legend: traits(SHAPE_TEXT_OR_GROUP, 'group', {
+    textHalo: true, styleConsumption: 'exact', styleBindingFamilies: ['radar'],
+    styleProperties: ['fillColor', 'borderColor', 'strokeColor', 'lineWidth', 'textColor'],
+  }),
+  bar: traits(SHAPE, 'node', {
+    domIdentity: true, sketch: 'shape', styleConsumption: 'exact', styleBindingFamilies: ['xychart'],
+    styleProperties: ['fillColor', 'borderColor', 'strokeColor', 'lineWidth'],
+  }),
+  series: traits(CONNECTOR, 'edge', {
+    domIdentity: true, sketch: 'connector', styleConsumption: 'exact', styleBindingFamilies: ['xychart'],
+    styleProperties: ['borderColor', 'strokeColor', 'lineWidth'],
+  }),
+  point: traits(SHAPE, 'node', {
+    domIdentity: true, styleConsumption: 'exact', styleBindingFamilies: ['radar'],
+    styleProperties: ['fillColor', 'borderColor', 'strokeColor', 'lineWidth'],
+  }),
   axis: traits(ANY_MARK, 'label', { textHalo: true }),
   grid: traits(ANY_MARK, 'edge'),
   plate: traits(SHAPE, 'node', { domIdentity: true, sketch: 'shape' }),
   section: traits(ANY_MARK, 'group', { domIdentity: true, sketch: 'shape', textHalo: true }),
-  task: traits(ANY_MARK, 'node', { domIdentity: true, sketch: 'shape' }),
-  milestone: traits(SHAPE, 'node', { domIdentity: true, sketch: 'shape' }),
+  task: traits(ANY_MARK, 'node', {
+    domIdentity: true, sketch: 'shape', styleConsumption: 'exact', styleBindingFamilies: ['gantt'],
+    styleProperties: ['fillColor', 'borderColor', 'strokeColor', 'lineWidth', 'cue'],
+  }),
+  milestone: traits(SHAPE, 'node', {
+    domIdentity: true, sketch: 'shape', styleConsumption: 'exact', styleBindingFamilies: ['gantt'],
+    styleProperties: ['fillColor', 'borderColor', 'strokeColor', 'lineWidth', 'cue'],
+  }),
   'marker-line': traits(ANY_MARK, 'edge'),
   rail: traits(ANY_MARK, 'edge', { sketch: 'connector' }),
   period: traits(SHAPE_OR_GROUP, 'group', { domIdentity: true, sketch: 'shape' }),
@@ -143,20 +179,23 @@ export interface SceneRoleDescriptor {
   readonly style: SceneRoleStyleDescriptor
 }
 
-const TEXT_STYLE = Object.freeze(['fontFamily', 'fontSize', 'fontWeight', 'letterSpacing', 'lineHeight', 'textTransform', 'textColor', 'cue'] as const)
-const SHAPE_STYLE = Object.freeze(['paddingX', 'paddingY', 'cornerRadius', 'lineWidth', 'fillColor', 'borderColor', 'elevation', 'cue'] as const)
-const CONNECTOR_STYLE = Object.freeze(['lineWidth', 'bendRadius', 'strokeColor', 'cue'] as const)
+const TEXT_STYLE = Object.freeze(['fontSize', 'fontWeight', 'letterSpacing', 'textTransform', 'textColor'] as const)
+const SHAPE_STYLE = Object.freeze(['paddingX', 'paddingY', 'cornerRadius', 'lineWidth', 'fillColor', 'borderColor'] as const)
+const CONNECTOR_STYLE = Object.freeze(['lineWidth', 'bendRadius', 'strokeColor'] as const)
 const uniqueProperties = (...groups: readonly (readonly RoleStyleProperty[])[]): readonly RoleStyleProperty[] =>
   Object.freeze([...new Set(groups.flat())])
 const GROUP_STYLE = uniqueProperties(TEXT_STYLE, SHAPE_STYLE, ['headerFillColor'])
-function applicableStyle(fallback: SceneRoleStyleFallback): readonly RoleStyleProperty[] {
+function applicableStyle(
+  fallback: SceneRoleStyleFallback,
+  extras: readonly RoleStyleProperty[],
+): readonly RoleStyleProperty[] {
   // A semantic wrapper may own the typography of child text even when its own
   // Scene mark kind is shape/group. Applicability therefore follows the
   // descriptor's explicit brand fallback contract, not physical-kind order.
-  if (fallback === 'node') return uniqueProperties(TEXT_STYLE, SHAPE_STYLE)
-  if (fallback === 'edge') return uniqueProperties(TEXT_STYLE, CONNECTOR_STYLE)
-  if (fallback === 'group') return GROUP_STYLE
-  return TEXT_STYLE
+  if (fallback === 'node') return uniqueProperties(TEXT_STYLE, SHAPE_STYLE, extras)
+  if (fallback === 'edge') return uniqueProperties(TEXT_STYLE, CONNECTOR_STYLE, extras)
+  if (fallback === 'group') return uniqueProperties(GROUP_STYLE, extras)
+  return uniqueProperties(TEXT_STYLE, extras)
 }
 
 /** Canonical discovery/identity/style projection derived from the trait authority. */
@@ -176,7 +215,9 @@ export const SCENE_ROLE_DESCRIPTORS: readonly SceneRoleDescriptor[] = Object.fre
       const fallback = roleTraits.styleFallback
       return Object.freeze({
         fallbackRole: fallback,
-        applicableProperties: applicableStyle(fallback),
+        applicableProperties: roleTraits.styleConsumption === 'exact'
+          ? roleTraits.styleProperties ?? applicableStyle(fallback, roleTraits.styleExtras)
+          : Object.freeze([]),
       })
     })(),
   })),

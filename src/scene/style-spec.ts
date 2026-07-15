@@ -1,6 +1,7 @@
 import { safeCssColor, safeCssPaint } from '../shared/css-color.ts'
 import { safeCssFontFamily } from '../shared/css-font.ts'
 import { SCENE_ROLE_DESCRIPTORS, type BuiltinSceneRole } from './roles.ts'
+import { JSON_CONFIG_ADMISSION_LIMITS, limitJsonConfigDiagnostics } from '../shared/json-config-admission.ts'
 
 /**
  * The persisted StyleSpec wire format. Inputs may omit the version; registry
@@ -94,11 +95,10 @@ export type StyleColors = {
  * authority projects runtime admission, TypeScript, JSON Schema, docs, and
  * the compiled layout face. */
 export const ROLE_STYLE_PROPERTY_DESCRIPTORS = deepFreeze({
-  fontFamily: { kind: 'font', description: 'Safe font family/stack.' },
+  fontFamily: { kind: 'font', description: 'Safe font family/stack for roles whose descriptor exposes family-specific typography.' },
   fontSize: { kind: 'number', minimum: 1, maximum: 256, expected: 'between 1 and 256', description: 'Font size in SVG user units.' },
   fontWeight: { kind: 'number', minimum: 1, maximum: 1000, expected: 'between 1 and 1000', description: 'CSS numeric font weight.' },
-  letterSpacing: { kind: 'number', minimum: -2, maximum: 4, expected: 'between -2 and 4', description: 'Letter spacing in em.' },
-  lineHeight: { kind: 'number', minimum: 0.5, maximum: 4, expected: 'between 0.5 and 4', description: 'Unitless line-height multiplier.' },
+  letterSpacing: { kind: 'number', minimum: -2, maximum: 4, expected: 'between -2 and 4', description: 'Letter spacing in SVG user units.' },
   textTransform: { kind: 'enum', values: ['uppercase', 'lowercase', 'capitalize'], description: 'Text transformation.' },
   textColor: { kind: 'color', description: 'Text paint.' },
   paddingX: { kind: 'number', minimum: 0, maximum: 256, expected: 'between 0 and 256', description: 'Horizontal role padding.' },
@@ -110,8 +110,7 @@ export const ROLE_STYLE_PROPERTY_DESCRIPTORS = deepFreeze({
   borderColor: { kind: 'color', description: 'Border paint.' },
   strokeColor: { kind: 'color', description: 'Connector stroke paint.' },
   headerFillColor: { kind: 'color', description: 'Group header surface paint.' },
-  elevation: { kind: 'enum', values: ['none', 'low', 'medium', 'high'], description: 'Bounded semantic elevation cue.' },
-  cue: { kind: 'enum', values: ['none', 'outline', 'double-line', 'pattern'], description: 'Non-color semantic cue.' },
+  cue: { kind: 'enum', values: ['none', 'outline', 'double-line', 'pattern'], description: 'Non-color semantic cue on roles whose family renderer exposes a cue projection.' },
 } as const)
 
 type RolePropertyDescriptor = (typeof ROLE_STYLE_PROPERTY_DESCRIPTORS)[keyof typeof ROLE_STYLE_PROPERTY_DESCRIPTORS]
@@ -122,7 +121,9 @@ type RolePropertyValue<D> = D extends { readonly kind: 'number' } ? number
 export type RoleStyleSpec = { -readonly [K in keyof typeof ROLE_STYLE_PROPERTY_DESCRIPTORS]?: RolePropertyValue<(typeof ROLE_STYLE_PROPERTY_DESCRIPTORS)[K]> }
 export type RoleStyles = Partial<Record<BuiltinSceneRole, RoleStyleSpec>>
 
-export const SEMANTIC_BINDING_CHANNELS = Object.freeze(['category', 'status', 'route', 'class', 'tag', 'metadata'] as const)
+// V1 exposes only channels with typed family emitters and renderer witnesses.
+// Additions require census evidence, layout/render consumption, and diagnostics.
+export const SEMANTIC_BINDING_CHANNELS = Object.freeze(['category'] as const)
 export type SemanticBindingChannel = typeof SEMANTIC_BINDING_CHANNELS[number]
 export interface SemanticBinding {
   readonly channel: SemanticBindingChannel
@@ -294,8 +295,15 @@ function numberIsValid(value: unknown, descriptor: Pick<NumberField, 'minimum' |
   return true
 }
 
+const STYLE_OWNED_PAINT_VARIABLES = new Set([
+  '--bg', '--fg', '--_text', '--_text-sec', '--_text-muted', '--_text-faint',
+  '--_line', '--_arrow', '--_node-fill', '--_node-stroke', '--_group-fill',
+  '--_group-hdr', '--_inner-stroke', '--_key-badge',
+])
 function safeRoleColor(value: unknown): value is string {
-  return typeof value === 'string' && safeCssPaint(value) !== undefined
+  if (typeof value !== 'string' || safeCssPaint(value) === undefined) return false
+  const variables = [...value.matchAll(/var\(\s*(--[a-z0-9_-]+)/gi)].map(match => match[1]!)
+  return variables.every(variable => STYLE_OWNED_PAINT_VARIABLES.has(variable))
 }
 
 const SCENE_ROLE_BY_NAME = new Map(SCENE_ROLE_DESCRIPTORS.map(descriptor => [descriptor.role, descriptor] as const))
@@ -335,7 +343,7 @@ function validateRoleStyles(value: unknown): string[] {
     const roleProblems = validateRoleStyleRecord(raw, `roles.${role}`, applicable)
       .map(problem => problem === `"roles.${role}" must be an object` ? problem
         : problem.replace(`role style field "roles.${role}.`, `role style field "${role}.`)
-          .replace('" is not applicable', `" is not applicable to ${roleDescriptor.style.fallbackRole} roles`))
+          .replace('" is not applicable', `" is not applicable to ${role} roles`))
     problems.push(...roleProblems)
   }
   return problems
@@ -347,6 +355,7 @@ function validSlotName(value: unknown): value is string {
 
 function validateSemanticSlots(value: unknown): string[] {
   if (!isPlainRecord(value)) return ['"semanticSlots" must be an object of named role-style slots']
+  if (Object.keys(value).length > JSON_CONFIG_ADMISSION_LIMITS.maxItemsPerContainer) return [`"semanticSlots" must contain at most ${JSON_CONFIG_ADMISSION_LIMITS.maxItemsPerContainer} slots`]
   const problems: string[] = []
   for (const [slot, raw] of Object.entries(value)) {
     if (!validSlotName(slot)) { problems.push(`invalid semantic slot name "${slot}"`); continue }
@@ -357,6 +366,7 @@ function validateSemanticSlots(value: unknown): string[] {
 
 function validateBindings(value: unknown): string[] {
   if (!Array.isArray(value)) return ['"bindings" must be an array']
+  if (value.length > JSON_CONFIG_ADMISSION_LIMITS.maxItemsPerContainer) return [`"bindings" must contain at most ${JSON_CONFIG_ADMISSION_LIMITS.maxItemsPerContainer} entries`]
   const problems: string[] = []
   value.forEach((raw, index) => {
     const path = `bindings[${index}]`
@@ -372,6 +382,7 @@ function validateBindings(value: unknown): string[] {
 
 function validateConstraints(value: unknown): string[] {
   if (!Array.isArray(value)) return ['"constraints" must be an array']
+  if (value.length > JSON_CONFIG_ADMISSION_LIMITS.maxItemsPerContainer) return [`"constraints" must contain at most ${JSON_CONFIG_ADMISSION_LIMITS.maxItemsPerContainer} entries`]
   const problems: string[] = []
   value.forEach((raw, index) => {
     const path = `constraints[${index}]`
@@ -400,6 +411,7 @@ function validateConstraints(value: unknown): string[] {
  */
 export function validateStyleSpec(value: unknown): string[] {
   if (!isPlainRecord(value)) return ['style spec must be a plain object']
+  if (Object.keys(value).length > JSON_CONFIG_ADMISSION_LIMITS.maxItemsPerContainer) return [`style spec must contain at most ${JSON_CONFIG_ADMISSION_LIMITS.maxItemsPerContainer} fields`]
 
   const problems: string[] = []
   for (const [key, fieldValue] of Object.entries(value)) {
@@ -458,7 +470,7 @@ export function validateStyleSpec(value: unknown): string[] {
       }
     }
   }
-  return problems
+  return limitJsonConfigDiagnostics(problems, 'Style validation')
 }
 
 type JsonSchema = Readonly<Record<string, unknown>>
@@ -470,17 +482,17 @@ function rolePropertyJsonSchemas(): Record<string, unknown> {
       return [name, { type: 'number', ...(numeric.minimum !== undefined ? { minimum: numeric.minimum } : {}), ...(numeric.exclusiveMinimum !== undefined ? { exclusiveMinimum: numeric.exclusiveMinimum } : {}), ...(numeric.maximum !== undefined ? { maximum: numeric.maximum } : {}), description: numeric.description }]
     }
     if (property.kind === 'enum') return [name, { type: 'string', enum: [...property.values], description: property.description }]
-    return [name, { type: 'string', description: property.description, 'x-agentic-mermaid-runtime-validator': property.kind === 'font' ? 'safeCssFontFamily' : 'safeCssPaint' }]
+    return [name, { type: 'string', description: property.description, 'x-agentic-mermaid-runtime-validator': property.kind === 'font' ? 'safeCssFontFamily' : 'safeStylePaint' }]
   }))
 }
 
 function roleStyleJsonSchema(properties: readonly string[] = Object.keys(ROLE_STYLE_PROPERTY_DESCRIPTORS)): JsonSchema {
   const schemas = rolePropertyJsonSchemas()
-  return { type: 'object', additionalProperties: false, properties: Object.fromEntries(properties.map(property => [property, schemas[property]])) }
+  return { type: 'object', additionalProperties: false, maxProperties: properties.length, properties: Object.fromEntries(properties.map(property => [property, schemas[property]])) }
 }
 
 function roleStyleDefinitionName(role: (typeof SCENE_ROLE_DESCRIPTORS)[number]): string {
-  return `roleStyle-${role.style.fallbackRole}`
+  return `roleStyle-${role.role}`
 }
 
 const SLOT_NAME_PATTERN = '^[A-Za-z][A-Za-z0-9._-]{0,63}$'
@@ -516,18 +528,20 @@ function fieldJsonSchema(descriptor: StyleFieldDescriptor): JsonSchema {
     case 'semanticSlots':
       return {
         type: 'object', description: descriptor.description,
+        maxProperties: JSON_CONFIG_ADMISSION_LIMITS.maxItemsPerContainer,
         propertyNames: { pattern: SLOT_NAME_PATTERN, not: { enum: [...FORBIDDEN_RECORD_KEYS] } },
         additionalProperties: { $ref: '#/$defs/roleStyle-any' },
       }
     case 'bindings':
       return {
         type: 'array', description: descriptor.description,
+        maxItems: JSON_CONFIG_ADMISSION_LIMITS.maxItemsPerContainer,
         items: {
-          type: 'object', additionalProperties: false, required: ['channel', 'value', 'slot'],
+          type: 'object', additionalProperties: false, maxProperties: 4, required: ['channel', 'value', 'slot'],
           properties: {
             channel: { type: 'string', enum: [...SEMANTIC_BINDING_CHANNELS] },
             value: { type: 'string', minLength: 1, maxLength: 256, pattern: '^[^\\r\\n\\u0000]+$' },
-            slot: { type: 'string', pattern: SLOT_NAME_PATTERN },
+            slot: { type: 'string', pattern: SLOT_NAME_PATTERN, not: { enum: [...FORBIDDEN_RECORD_KEYS] } },
             role: { type: 'string', enum: SCENE_ROLE_DESCRIPTORS.map(role => role.role) },
           },
         },
@@ -537,6 +551,7 @@ function fieldJsonSchema(descriptor: StyleFieldDescriptor): JsonSchema {
       const role = { type: 'string', enum: SCENE_ROLE_DESCRIPTORS.map(item => item.role) }
       return {
         type: 'array', description: descriptor.description,
+        maxItems: JSON_CONFIG_ADMISSION_LIMITS.maxItemsPerContainer,
         items: { oneOf: [
           { type: 'object', additionalProperties: false, required: ['kind', 'action'], properties: { kind: { const: 'contrast' }, action, role, minimum: { type: 'number', minimum: 1, maximum: 21 } } },
           { type: 'object', additionalProperties: false, required: ['kind', 'action', 'maxFraction'], properties: { kind: { const: 'accent-area' }, action, maxFraction: { type: 'number', minimum: 0, maximum: 1 } } },
@@ -548,6 +563,7 @@ function fieldJsonSchema(descriptor: StyleFieldDescriptor): JsonSchema {
       return {
         type: 'object',
         additionalProperties: false,
+        maxProperties: Object.keys(STYLE_COLOR_TOKEN_DESCRIPTORS).length,
         description: `${descriptor.description} Runtime validation applies the stricter safe-color policy.`,
         properties: Object.fromEntries(Object.entries(STYLE_COLOR_TOKEN_DESCRIPTORS).map(([token, metadata]) => [token, {
           type: 'string',
@@ -561,10 +577,10 @@ function fieldJsonSchema(descriptor: StyleFieldDescriptor): JsonSchema {
 /** JSON Schema projected from the same descriptors used at runtime. */
 export function styleSpecJsonSchema(): JsonSchema {
   const roleStyleDefinitions = Object.fromEntries(
-    ['node', 'edge', 'group', 'label'].map(fallback => {
-      const descriptor = SCENE_ROLE_DESCRIPTORS.find(role => role.role === fallback)!
-      return [`roleStyle-${fallback}`, roleStyleJsonSchema(descriptor.style.applicableProperties)]
-    }),
+    SCENE_ROLE_DESCRIPTORS.map(descriptor => [
+      roleStyleDefinitionName(descriptor),
+      roleStyleJsonSchema(descriptor.style.applicableProperties),
+    ]),
   )
   return {
     $schema: 'https://json-schema.org/draft/2020-12/schema',
@@ -573,6 +589,7 @@ export function styleSpecJsonSchema(): JsonSchema {
     description: 'A partial declarative style record for Agentic Mermaid rendering. All fields, including formatVersion, are optional on input; resolved and registered specs normalize formatVersion to 1.',
     type: 'object',
     additionalProperties: false,
+    maxProperties: Object.keys(STYLE_SPEC_FIELD_DESCRIPTORS).length,
     properties: Object.fromEntries(Object.entries(STYLE_SPEC_FIELD_DESCRIPTORS).map(([name, descriptor]) => [name, fieldJsonSchema(descriptor)])),
     $defs: { ...roleStyleDefinitions, 'roleStyle-any': roleStyleJsonSchema() },
   }
@@ -608,4 +625,53 @@ export function styleSpecFieldReferenceMarkdown(): string {
     `| ${descriptor.group} | \`${name}\` | ${fieldTypeLabel(descriptor)} | ${descriptor.description} |`,
   )
   return [header, ...rows].join('\n')
+}
+
+function rolePropertyTypeScript(name: string): string {
+  const descriptor = ROLE_STYLE_PROPERTY_DESCRIPTORS[name as keyof typeof ROLE_STYLE_PROPERTY_DESCRIPTORS]
+  if (descriptor.kind === 'number') return 'number'
+  if (descriptor.kind === 'enum') return descriptor.values.map(value => JSON.stringify(value)).join(' | ')
+  return 'string'
+}
+
+function styleFieldTypeScript(descriptor: StyleFieldDescriptor): string {
+  if (descriptor.kind === 'const') return String(descriptor.value)
+  if (descriptor.kind === 'string') return 'string'
+  if (descriptor.kind === 'boolean') return 'boolean'
+  if (descriptor.kind === 'number' || descriptor.kind === 'integer') return 'number'
+  if (descriptor.kind === 'enum') return descriptor.values.map(value => JSON.stringify(value)).join(' | ')
+  if (descriptor.kind === 'colors') return 'StyleColors'
+  if (descriptor.kind === 'roles') return 'RoleStyles'
+  if (descriptor.kind === 'semanticSlots') return 'Readonly<Record<string, Readonly<RoleStyleSpec>>>'
+  if (descriptor.kind === 'bindings') return 'readonly SemanticBinding[]'
+  return 'readonly BrandConstraint[]'
+}
+
+/** Exact agent-facing declaration generated from the runtime/schema authority. */
+export function styleSpecTypeScriptDeclaration(options: { readonly compact?: boolean } = {}): string {
+  const roleInterface = (name: string, properties: readonly string[]) => {
+    const stem = `StyleRole_${name.replace(/[^A-Za-z0-9_]/g, '_')}`
+    const fields = properties.map(property => `  ${JSON.stringify(property)}?: ${rolePropertyTypeScript(property)}`).join('\n')
+    return { stem, declaration: `interface ${stem} {\n${fields}\n}` }
+  }
+  const anyRole = roleInterface('Any', Object.keys(ROLE_STYLE_PROPERTY_DESCRIPTORS))
+  const exactRoles = SCENE_ROLE_DESCRIPTORS.map(descriptor => ({
+    role: descriptor.role,
+    ...roleInterface(descriptor.role, descriptor.style.applicableProperties),
+  }))
+  const colors = Object.keys(STYLE_COLOR_TOKEN_DESCRIPTORS).map(token => `  ${token}?: string`).join('\n')
+  const roles = exactRoles.map(role => `  ${JSON.stringify(role.role)}?: Readonly<${role.stem}>`).join('\n')
+  const styleFields = Object.entries(STYLE_SPEC_FIELD_DESCRIPTORS)
+    .map(([name, descriptor]) => `  ${JSON.stringify(name)}?: ${styleFieldTypeScript(descriptor)}`)
+    .join('\n')
+  if (options.compact) {
+    const compactRole = Object.keys(ROLE_STYLE_PROPERTY_DESCRIPTORS)
+      .map(name => `${JSON.stringify(name)}?:${rolePropertyTypeScript(name)}`).join(';')
+    const roleNames = SCENE_ROLE_DESCRIPTORS.map(role => JSON.stringify(role.role)).join(' | ')
+    const compactStyle = Object.entries(STYLE_SPEC_FIELD_DESCRIPTORS)
+      .map(([name, descriptor]) => `${JSON.stringify(name)}?:${styleFieldTypeScript(descriptor)}`).join(';')
+    const compactColors = Object.keys(STYLE_COLOR_TOKEN_DESCRIPTORS).map(token => `${token}?:string`).join(';')
+    return `interface StyleColors {${compactColors}}\ntype SceneStyleRole=${roleNames}\ntype RoleStyleSpec={${compactRole}}\ntype RoleStyles=Partial<Record<SceneStyleRole,Readonly<RoleStyleSpec>>>\ntype SemanticBindingChannel=${SEMANTIC_BINDING_CHANNELS.map(value => JSON.stringify(value)).join(' | ')}\ninterface SemanticBinding {channel:SemanticBindingChannel;value:string;slot:string;role?:SceneStyleRole}\ntype BrandConstraint={kind:'contrast';action:'warn'|'error';role?:SceneStyleRole;minimum?:number}|{kind:'accent-area';action:'warn'|'error';maxFraction:number}|{kind:'mono-role';action:'warn'|'error';role:SceneStyleRole}\ninterface StyleSpec {${compactStyle}}\ntype StyleInput=string|StyleSpec`
+  }
+  return `interface StyleColors {\n${colors}\n}\n${anyRole.declaration}\ntype RoleStyleSpec = StyleRole_Any\n${exactRoles.map(role => role.declaration).join('\n')}\ninterface RoleStyles {\n${roles}\n}\ntype SemanticBindingChannel = ${SEMANTIC_BINDING_CHANNELS.map(value => JSON.stringify(value)).join(' | ')}\ninterface SemanticBinding { channel: SemanticBindingChannel; value: string; slot: string; role?: keyof RoleStyles }\ntype BrandConstraint =\n  | { kind: 'contrast'; action: 'warn' | 'error'; role?: keyof RoleStyles; minimum?: number }\n  | { kind: 'accent-area'; action: 'warn' | 'error'; maxFraction: number }\n  | { kind: 'mono-role'; action: 'warn' | 'error'; role: keyof RoleStyles }\ninterface StyleSpec {\n${styleFields}\n}\ntype StyleInput = string | StyleSpec`
 }

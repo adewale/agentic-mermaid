@@ -235,19 +235,27 @@ function textMark(
 
 function rolePaint(style: Readonly<RoleStyleSpec> | undefined): MarkPaint {
   if (!style) return {}
+  const width = style.lineWidth === undefined
+    ? undefined
+    : style.cue === 'outline' ? style.lineWidth + 1
+    : style.cue === 'double-line' ? style.lineWidth + 2
+    : style.lineWidth
+  const dash = style.cue === 'pattern' ? '3 2' : style.cue === 'double-line' ? '8 2 2 2' : undefined
   return {
     ...(style.fillColor !== undefined ? { fill: style.fillColor } : {}),
     ...(style.strokeColor ?? style.borderColor ? { stroke: style.strokeColor ?? style.borderColor } : {}),
-    ...(style.lineWidth !== undefined ? { strokeWidth: String(style.lineWidth) } : {}),
+    ...(width !== undefined ? { strokeWidth: String(width) } : {}),
+    ...(dash !== undefined ? { strokeDasharray: dash } : {}),
   }
 }
 
 function inlineRolePaint(style: Readonly<RoleStyleSpec> | undefined, paint: MarkPaint): string {
-  if (!style || (style.fillColor === undefined && style.strokeColor === undefined && style.borderColor === undefined && style.lineWidth === undefined)) return ''
+  if (!style || (style.fillColor === undefined && style.strokeColor === undefined && style.borderColor === undefined && style.lineWidth === undefined && (style.cue === undefined || style.cue === 'none'))) return ''
   const declarations = [
     paint.fill !== undefined ? `fill:${paint.fill}` : undefined,
     paint.stroke !== undefined ? `stroke:${paint.stroke}` : undefined,
     paint.strokeWidth !== undefined ? `stroke-width:${paint.strokeWidth}` : undefined,
+    paint.strokeDasharray !== undefined ? `stroke-dasharray:${paint.strokeDasharray}` : undefined,
     paint.opacity !== undefined ? `opacity:${paint.opacity}` : undefined,
   ].filter((value): value is string => value !== undefined)
   return declarations.length > 0 ? ` style="${escapeAttr(declarations.join(';'))}"` : ''
@@ -506,7 +514,7 @@ export function lowerGanttScene(
         ...(onCriticalPath ? { emphasis: true } : {}),
         ...(section !== undefined ? { category: section } : {}),
       }
-      const semanticStyle = resolveRoleStyle(resolved.styleFace, 'milestone', channels)
+      const semanticStyle = resolveRoleStyle(resolved.styleFace, 'milestone', channels, { includeFallback: false })
       // Binding paint refines family defaults. Critical-path emphasis remains
       // the final family-owned stroke/weight authority.
       const milestonePaint: MarkPaint = { ...statusPaint, ...rolePaint(semanticStyle), ...criticalPathPaint }
@@ -528,7 +536,7 @@ export function lowerGanttScene(
       ...(onCriticalPath ? { emphasis: true } : {}),
       ...(section !== undefined ? { category: section } : {}),
     }
-    const semanticStyle = resolveRoleStyle(resolved.styleFace, 'task', channels)
+    const semanticStyle = resolveRoleStyle(resolved.styleFace, 'task', channels, { includeFallback: false })
     const taskPaint: MarkPaint = { ...barPaint(status, palette, style), ...rolePaint(semanticStyle), ...criticalPathPaint }
     parts.push(marks.shape({
       id: taskSceneId(bar.id ?? bar.label),

@@ -4,7 +4,7 @@
     {
       "field": "fontFamily",
       "kind": "font",
-      "description": "Safe font family/stack."
+      "description": "Safe font family/stack for roles whose descriptor exposes family-specific typography."
     },
     {
       "field": "fontSize",
@@ -19,12 +19,7 @@
     {
       "field": "letterSpacing",
       "kind": "number",
-      "description": "Letter spacing in em."
-    },
-    {
-      "field": "lineHeight",
-      "kind": "number",
-      "description": "Unitless line-height multiplier."
+      "description": "Letter spacing in SVG user units."
     },
     {
       "field": "textTransform",
@@ -82,50 +77,40 @@
       "description": "Group header surface paint."
     },
     {
-      "field": "elevation",
-      "kind": "enum",
-      "description": "Bounded semantic elevation cue."
-    },
-    {
       "field": "cue",
       "kind": "enum",
-      "description": "Non-color semantic cue."
+      "description": "Non-color semantic cue on roles whose family renderer exposes a cue projection."
     }
   ],
   "roles": [
     {
       "role": "node",
       "fallbackRole": "node",
+      "consumption": "exact",
       "applicableProperties": [
-        "fontFamily",
         "fontSize",
         "fontWeight",
         "letterSpacing",
-        "lineHeight",
         "textTransform",
         "textColor",
-        "cue",
         "paddingX",
         "paddingY",
         "cornerRadius",
         "lineWidth",
         "fillColor",
-        "borderColor",
-        "elevation"
+        "borderColor"
       ]
     },
     {
       "role": "edge",
       "fallbackRole": "edge",
+      "consumption": "exact",
       "applicableProperties": [
-        "fontFamily",
         "fontSize",
         "fontWeight",
         "letterSpacing",
-        "lineHeight",
         "textTransform",
         "textColor",
-        "cue",
         "lineWidth",
         "bendRadius",
         "strokeColor"
@@ -134,277 +119,141 @@
     {
       "role": "edge-label",
       "fallbackRole": "label",
-      "applicableProperties": [
-        "fontFamily",
-        "fontSize",
-        "fontWeight",
-        "letterSpacing",
-        "lineHeight",
-        "textTransform",
-        "textColor",
-        "cue"
-      ]
+      "consumption": "fallback-only",
+      "applicableProperties": []
     },
     {
       "role": "group",
       "fallbackRole": "group",
+      "consumption": "exact",
       "applicableProperties": [
-        "fontFamily",
         "fontSize",
         "fontWeight",
         "letterSpacing",
-        "lineHeight",
         "textTransform",
         "textColor",
-        "cue",
         "paddingX",
         "paddingY",
         "cornerRadius",
         "lineWidth",
         "fillColor",
         "borderColor",
-        "elevation",
-        "headerFillColor"
+        "headerFillColor",
+        "fontFamily"
       ]
     },
     {
       "role": "group-header",
       "fallbackRole": "group",
+      "consumption": "exact",
       "applicableProperties": [
         "fontFamily",
         "fontSize",
         "fontWeight",
         "letterSpacing",
-        "lineHeight",
         "textTransform",
         "textColor",
-        "cue",
-        "paddingX",
-        "paddingY",
-        "cornerRadius",
-        "lineWidth",
         "fillColor",
         "borderColor",
-        "elevation",
-        "headerFillColor"
+        "strokeColor",
+        "lineWidth",
+        "cue"
       ]
     },
     {
       "role": "label",
       "fallbackRole": "label",
+      "consumption": "exact",
       "applicableProperties": [
-        "fontFamily",
         "fontSize",
         "fontWeight",
         "letterSpacing",
-        "lineHeight",
         "textTransform",
-        "textColor",
-        "cue"
+        "textColor"
       ]
     },
     {
       "role": "actor",
       "fallbackRole": "node",
+      "consumption": "exact",
       "applicableProperties": [
-        "fontFamily",
         "fontSize",
         "fontWeight",
         "letterSpacing",
-        "lineHeight",
         "textTransform",
         "textColor",
-        "cue",
         "paddingX",
         "paddingY",
         "cornerRadius",
         "lineWidth",
         "fillColor",
-        "borderColor",
-        "elevation"
+        "borderColor"
       ]
     },
     {
       "role": "lifeline",
       "fallbackRole": "edge",
-      "applicableProperties": [
-        "fontFamily",
-        "fontSize",
-        "fontWeight",
-        "letterSpacing",
-        "lineHeight",
-        "textTransform",
-        "textColor",
-        "cue",
-        "lineWidth",
-        "bendRadius",
-        "strokeColor"
-      ]
+      "consumption": "fallback-only",
+      "applicableProperties": []
     },
     {
       "role": "activation",
       "fallbackRole": "node",
-      "applicableProperties": [
-        "fontFamily",
-        "fontSize",
-        "fontWeight",
-        "letterSpacing",
-        "lineHeight",
-        "textTransform",
-        "textColor",
-        "cue",
-        "paddingX",
-        "paddingY",
-        "cornerRadius",
-        "lineWidth",
-        "fillColor",
-        "borderColor",
-        "elevation"
-      ]
+      "consumption": "fallback-only",
+      "applicableProperties": []
     },
     {
       "role": "message",
       "fallbackRole": "edge",
-      "applicableProperties": [
-        "fontFamily",
-        "fontSize",
-        "fontWeight",
-        "letterSpacing",
-        "lineHeight",
-        "textTransform",
-        "textColor",
-        "cue",
-        "lineWidth",
-        "bendRadius",
-        "strokeColor"
-      ]
+      "consumption": "fallback-only",
+      "applicableProperties": []
     },
     {
       "role": "block",
       "fallbackRole": "group",
-      "applicableProperties": [
-        "fontFamily",
-        "fontSize",
-        "fontWeight",
-        "letterSpacing",
-        "lineHeight",
-        "textTransform",
-        "textColor",
-        "cue",
-        "paddingX",
-        "paddingY",
-        "cornerRadius",
-        "lineWidth",
-        "fillColor",
-        "borderColor",
-        "elevation",
-        "headerFillColor"
-      ]
+      "consumption": "fallback-only",
+      "applicableProperties": []
     },
     {
       "role": "note",
       "fallbackRole": "group",
-      "applicableProperties": [
-        "fontFamily",
-        "fontSize",
-        "fontWeight",
-        "letterSpacing",
-        "lineHeight",
-        "textTransform",
-        "textColor",
-        "cue",
-        "paddingX",
-        "paddingY",
-        "cornerRadius",
-        "lineWidth",
-        "fillColor",
-        "borderColor",
-        "elevation",
-        "headerFillColor"
-      ]
+      "consumption": "fallback-only",
+      "applicableProperties": []
     },
     {
       "role": "class-box",
       "fallbackRole": "node",
-      "applicableProperties": [
-        "fontFamily",
-        "fontSize",
-        "fontWeight",
-        "letterSpacing",
-        "lineHeight",
-        "textTransform",
-        "textColor",
-        "cue",
-        "paddingX",
-        "paddingY",
-        "cornerRadius",
-        "lineWidth",
-        "fillColor",
-        "borderColor",
-        "elevation"
-      ]
+      "consumption": "fallback-only",
+      "applicableProperties": []
     },
     {
       "role": "member",
       "fallbackRole": "label",
-      "applicableProperties": [
-        "fontFamily",
-        "fontSize",
-        "fontWeight",
-        "letterSpacing",
-        "lineHeight",
-        "textTransform",
-        "textColor",
-        "cue"
-      ]
+      "consumption": "fallback-only",
+      "applicableProperties": []
     },
     {
       "role": "entity",
       "fallbackRole": "node",
-      "applicableProperties": [
-        "fontFamily",
-        "fontSize",
-        "fontWeight",
-        "letterSpacing",
-        "lineHeight",
-        "textTransform",
-        "textColor",
-        "cue",
-        "paddingX",
-        "paddingY",
-        "cornerRadius",
-        "lineWidth",
-        "fillColor",
-        "borderColor",
-        "elevation"
-      ]
+      "consumption": "fallback-only",
+      "applicableProperties": []
     },
     {
       "role": "attribute",
       "fallbackRole": "label",
-      "applicableProperties": [
-        "fontFamily",
-        "fontSize",
-        "fontWeight",
-        "letterSpacing",
-        "lineHeight",
-        "textTransform",
-        "textColor",
-        "cue"
-      ]
+      "consumption": "fallback-only",
+      "applicableProperties": []
     },
     {
       "role": "relationship",
       "fallbackRole": "edge",
+      "consumption": "exact",
       "applicableProperties": [
-        "fontFamily",
         "fontSize",
         "fontWeight",
         "letterSpacing",
-        "lineHeight",
         "textTransform",
         "textColor",
-        "cue",
         "lineWidth",
         "bendRadius",
         "strokeColor"
@@ -413,566 +262,586 @@
     {
       "role": "cardinality",
       "fallbackRole": "label",
-      "applicableProperties": [
-        "fontFamily",
-        "fontSize",
-        "fontWeight",
-        "letterSpacing",
-        "lineHeight",
-        "textTransform",
-        "textColor",
-        "cue"
-      ]
+      "consumption": "fallback-only",
+      "applicableProperties": []
     },
     {
       "role": "pie-slice",
       "fallbackRole": "node",
+      "consumption": "exact",
       "applicableProperties": [
-        "fontFamily",
-        "fontSize",
-        "fontWeight",
-        "letterSpacing",
-        "lineHeight",
-        "textTransform",
-        "textColor",
-        "cue",
-        "paddingX",
-        "paddingY",
-        "cornerRadius",
-        "lineWidth",
         "fillColor",
         "borderColor",
-        "elevation"
+        "strokeColor",
+        "lineWidth",
+        "cue"
       ]
     },
     {
       "role": "legend",
       "fallbackRole": "group",
+      "consumption": "exact",
       "applicableProperties": [
-        "fontFamily",
-        "fontSize",
-        "fontWeight",
-        "letterSpacing",
-        "lineHeight",
-        "textTransform",
-        "textColor",
-        "cue",
-        "paddingX",
-        "paddingY",
-        "cornerRadius",
-        "lineWidth",
         "fillColor",
         "borderColor",
-        "elevation",
-        "headerFillColor"
+        "strokeColor",
+        "lineWidth",
+        "textColor"
       ]
     },
     {
       "role": "bar",
       "fallbackRole": "node",
+      "consumption": "exact",
       "applicableProperties": [
-        "fontFamily",
-        "fontSize",
-        "fontWeight",
-        "letterSpacing",
-        "lineHeight",
-        "textTransform",
-        "textColor",
-        "cue",
-        "paddingX",
-        "paddingY",
-        "cornerRadius",
-        "lineWidth",
         "fillColor",
         "borderColor",
-        "elevation"
+        "strokeColor",
+        "lineWidth"
       ]
     },
     {
       "role": "series",
       "fallbackRole": "edge",
+      "consumption": "exact",
       "applicableProperties": [
-        "fontFamily",
-        "fontSize",
-        "fontWeight",
-        "letterSpacing",
-        "lineHeight",
-        "textTransform",
-        "textColor",
-        "cue",
-        "lineWidth",
-        "bendRadius",
-        "strokeColor"
+        "borderColor",
+        "strokeColor",
+        "lineWidth"
       ]
     },
     {
       "role": "point",
       "fallbackRole": "node",
+      "consumption": "exact",
       "applicableProperties": [
-        "fontFamily",
-        "fontSize",
-        "fontWeight",
-        "letterSpacing",
-        "lineHeight",
-        "textTransform",
-        "textColor",
-        "cue",
-        "paddingX",
-        "paddingY",
-        "cornerRadius",
-        "lineWidth",
         "fillColor",
         "borderColor",
-        "elevation"
+        "strokeColor",
+        "lineWidth"
       ]
     },
     {
       "role": "axis",
       "fallbackRole": "label",
-      "applicableProperties": [
-        "fontFamily",
-        "fontSize",
-        "fontWeight",
-        "letterSpacing",
-        "lineHeight",
-        "textTransform",
-        "textColor",
-        "cue"
-      ]
+      "consumption": "fallback-only",
+      "applicableProperties": []
     },
     {
       "role": "grid",
       "fallbackRole": "edge",
-      "applicableProperties": [
-        "fontFamily",
-        "fontSize",
-        "fontWeight",
-        "letterSpacing",
-        "lineHeight",
-        "textTransform",
-        "textColor",
-        "cue",
-        "lineWidth",
-        "bendRadius",
-        "strokeColor"
-      ]
+      "consumption": "fallback-only",
+      "applicableProperties": []
     },
     {
       "role": "plate",
       "fallbackRole": "node",
-      "applicableProperties": [
-        "fontFamily",
-        "fontSize",
-        "fontWeight",
-        "letterSpacing",
-        "lineHeight",
-        "textTransform",
-        "textColor",
-        "cue",
-        "paddingX",
-        "paddingY",
-        "cornerRadius",
-        "lineWidth",
-        "fillColor",
-        "borderColor",
-        "elevation"
-      ]
+      "consumption": "fallback-only",
+      "applicableProperties": []
     },
     {
       "role": "section",
       "fallbackRole": "group",
-      "applicableProperties": [
-        "fontFamily",
-        "fontSize",
-        "fontWeight",
-        "letterSpacing",
-        "lineHeight",
-        "textTransform",
-        "textColor",
-        "cue",
-        "paddingX",
-        "paddingY",
-        "cornerRadius",
-        "lineWidth",
-        "fillColor",
-        "borderColor",
-        "elevation",
-        "headerFillColor"
-      ]
+      "consumption": "fallback-only",
+      "applicableProperties": []
     },
     {
       "role": "task",
       "fallbackRole": "node",
+      "consumption": "exact",
       "applicableProperties": [
-        "fontFamily",
-        "fontSize",
-        "fontWeight",
-        "letterSpacing",
-        "lineHeight",
-        "textTransform",
-        "textColor",
-        "cue",
-        "paddingX",
-        "paddingY",
-        "cornerRadius",
-        "lineWidth",
         "fillColor",
         "borderColor",
-        "elevation"
+        "strokeColor",
+        "lineWidth",
+        "cue"
       ]
     },
     {
       "role": "milestone",
       "fallbackRole": "node",
+      "consumption": "exact",
       "applicableProperties": [
-        "fontFamily",
-        "fontSize",
-        "fontWeight",
-        "letterSpacing",
-        "lineHeight",
-        "textTransform",
-        "textColor",
-        "cue",
-        "paddingX",
-        "paddingY",
-        "cornerRadius",
-        "lineWidth",
         "fillColor",
         "borderColor",
-        "elevation"
+        "strokeColor",
+        "lineWidth",
+        "cue"
       ]
     },
     {
       "role": "marker-line",
       "fallbackRole": "edge",
-      "applicableProperties": [
-        "fontFamily",
-        "fontSize",
-        "fontWeight",
-        "letterSpacing",
-        "lineHeight",
-        "textTransform",
-        "textColor",
-        "cue",
-        "lineWidth",
-        "bendRadius",
-        "strokeColor"
-      ]
+      "consumption": "fallback-only",
+      "applicableProperties": []
     },
     {
       "role": "rail",
       "fallbackRole": "edge",
-      "applicableProperties": [
-        "fontFamily",
+      "consumption": "fallback-only",
+      "applicableProperties": []
+    },
+    {
+      "role": "period",
+      "fallbackRole": "group",
+      "consumption": "fallback-only",
+      "applicableProperties": []
+    },
+    {
+      "role": "event",
+      "fallbackRole": "group",
+      "consumption": "fallback-only",
+      "applicableProperties": []
+    },
+    {
+      "role": "score",
+      "fallbackRole": "node",
+      "consumption": "fallback-only",
+      "applicableProperties": []
+    },
+    {
+      "role": "actor-pill",
+      "fallbackRole": "node",
+      "consumption": "fallback-only",
+      "applicableProperties": []
+    },
+    {
+      "role": "service",
+      "fallbackRole": "node",
+      "consumption": "fallback-only",
+      "applicableProperties": []
+    },
+    {
+      "role": "junction",
+      "fallbackRole": "node",
+      "consumption": "fallback-only",
+      "applicableProperties": []
+    },
+    {
+      "role": "icon",
+      "fallbackRole": "node",
+      "consumption": "fallback-only",
+      "applicableProperties": []
+    },
+    {
+      "role": "title",
+      "fallbackRole": "label",
+      "consumption": "fallback-only",
+      "applicableProperties": []
+    },
+    {
+      "role": "defs",
+      "fallbackRole": "label",
+      "consumption": "fallback-only",
+      "applicableProperties": []
+    },
+    {
+      "role": "prelude",
+      "fallbackRole": "label",
+      "consumption": "fallback-only",
+      "applicableProperties": []
+    },
+    {
+      "role": "chrome",
+      "fallbackRole": "label",
+      "consumption": "fallback-only",
+      "applicableProperties": []
+    }
+  ],
+  "privateFaceProjection": [
+    {
+      "face": "text",
+      "sourceRole": "label",
+      "publicFields": [
         "fontSize",
         "fontWeight",
         "letterSpacing",
-        "lineHeight",
+        "textTransform",
+        "textColor"
+      ]
+    },
+    {
+      "face": "node",
+      "sourceRole": "node",
+      "publicFields": [
+        "fontSize",
+        "fontWeight",
+        "letterSpacing",
         "textTransform",
         "textColor",
-        "cue",
+        "paddingX",
+        "paddingY",
+        "cornerRadius",
+        "lineWidth",
+        "fillColor",
+        "borderColor"
+      ]
+    },
+    {
+      "face": "edge",
+      "sourceRole": "edge",
+      "publicFields": [
+        "fontSize",
+        "fontWeight",
+        "letterSpacing",
+        "textTransform",
+        "textColor",
         "lineWidth",
         "bendRadius",
         "strokeColor"
       ]
     },
     {
-      "role": "period",
-      "fallbackRole": "group",
-      "applicableProperties": [
-        "fontFamily",
+      "face": "group",
+      "sourceRole": "group",
+      "publicFields": [
         "fontSize",
         "fontWeight",
         "letterSpacing",
-        "lineHeight",
         "textTransform",
         "textColor",
-        "cue",
         "paddingX",
         "paddingY",
         "cornerRadius",
         "lineWidth",
         "fillColor",
         "borderColor",
-        "elevation",
+        "fontFamily",
         "headerFillColor"
-      ]
-    },
-    {
-      "role": "event",
-      "fallbackRole": "group",
-      "applicableProperties": [
-        "fontFamily",
-        "fontSize",
-        "fontWeight",
-        "letterSpacing",
-        "lineHeight",
-        "textTransform",
-        "textColor",
-        "cue",
-        "paddingX",
-        "paddingY",
-        "cornerRadius",
-        "lineWidth",
-        "fillColor",
-        "borderColor",
-        "elevation",
-        "headerFillColor"
-      ]
-    },
-    {
-      "role": "score",
-      "fallbackRole": "node",
-      "applicableProperties": [
-        "fontFamily",
-        "fontSize",
-        "fontWeight",
-        "letterSpacing",
-        "lineHeight",
-        "textTransform",
-        "textColor",
-        "cue",
-        "paddingX",
-        "paddingY",
-        "cornerRadius",
-        "lineWidth",
-        "fillColor",
-        "borderColor",
-        "elevation"
-      ]
-    },
-    {
-      "role": "actor-pill",
-      "fallbackRole": "node",
-      "applicableProperties": [
-        "fontFamily",
-        "fontSize",
-        "fontWeight",
-        "letterSpacing",
-        "lineHeight",
-        "textTransform",
-        "textColor",
-        "cue",
-        "paddingX",
-        "paddingY",
-        "cornerRadius",
-        "lineWidth",
-        "fillColor",
-        "borderColor",
-        "elevation"
-      ]
-    },
-    {
-      "role": "service",
-      "fallbackRole": "node",
-      "applicableProperties": [
-        "fontFamily",
-        "fontSize",
-        "fontWeight",
-        "letterSpacing",
-        "lineHeight",
-        "textTransform",
-        "textColor",
-        "cue",
-        "paddingX",
-        "paddingY",
-        "cornerRadius",
-        "lineWidth",
-        "fillColor",
-        "borderColor",
-        "elevation"
-      ]
-    },
-    {
-      "role": "junction",
-      "fallbackRole": "node",
-      "applicableProperties": [
-        "fontFamily",
-        "fontSize",
-        "fontWeight",
-        "letterSpacing",
-        "lineHeight",
-        "textTransform",
-        "textColor",
-        "cue",
-        "paddingX",
-        "paddingY",
-        "cornerRadius",
-        "lineWidth",
-        "fillColor",
-        "borderColor",
-        "elevation"
-      ]
-    },
-    {
-      "role": "icon",
-      "fallbackRole": "node",
-      "applicableProperties": [
-        "fontFamily",
-        "fontSize",
-        "fontWeight",
-        "letterSpacing",
-        "lineHeight",
-        "textTransform",
-        "textColor",
-        "cue",
-        "paddingX",
-        "paddingY",
-        "cornerRadius",
-        "lineWidth",
-        "fillColor",
-        "borderColor",
-        "elevation"
-      ]
-    },
-    {
-      "role": "title",
-      "fallbackRole": "label",
-      "applicableProperties": [
-        "fontFamily",
-        "fontSize",
-        "fontWeight",
-        "letterSpacing",
-        "lineHeight",
-        "textTransform",
-        "textColor",
-        "cue"
-      ]
-    },
-    {
-      "role": "defs",
-      "fallbackRole": "label",
-      "applicableProperties": [
-        "fontFamily",
-        "fontSize",
-        "fontWeight",
-        "letterSpacing",
-        "lineHeight",
-        "textTransform",
-        "textColor",
-        "cue"
-      ]
-    },
-    {
-      "role": "prelude",
-      "fallbackRole": "label",
-      "applicableProperties": [
-        "fontFamily",
-        "fontSize",
-        "fontWeight",
-        "letterSpacing",
-        "lineHeight",
-        "textTransform",
-        "textColor",
-        "cue"
-      ]
-    },
-    {
-      "role": "chrome",
-      "fallbackRole": "label",
-      "applicableProperties": [
-        "fontFamily",
-        "fontSize",
-        "fontWeight",
-        "letterSpacing",
-        "lineHeight",
-        "textTransform",
-        "textColor",
-        "cue"
       ]
     }
   ],
   "families": [
     {
       "id": "flowchart",
-      "semanticChannels": []
+      "semanticRoles": [
+        "prelude",
+        "defs",
+        "chrome",
+        "group",
+        "group-header",
+        "edge",
+        "edge-label",
+        "node",
+        "label",
+        "icon"
+      ],
+      "semanticChannels": [],
+      "bindingRoles": [],
+      "bindingChannels": []
     },
     {
       "id": "state",
+      "semanticRoles": [
+        "prelude",
+        "defs",
+        "chrome",
+        "group",
+        "group-header",
+        "edge",
+        "edge-label",
+        "node",
+        "note",
+        "label"
+      ],
       "semanticChannels": [
         "status"
-      ]
+      ],
+      "bindingRoles": [],
+      "bindingChannels": []
     },
     {
       "id": "sequence",
+      "semanticRoles": [
+        "prelude",
+        "defs",
+        "chrome",
+        "actor",
+        "lifeline",
+        "activation",
+        "message",
+        "block",
+        "group",
+        "note",
+        "label",
+        "icon"
+      ],
       "semanticChannels": [
+        "category"
+      ],
+      "bindingRoles": [
+        "actor"
+      ],
+      "bindingChannels": [
         "category"
       ]
     },
     {
       "id": "timeline",
+      "semanticRoles": [
+        "prelude",
+        "chrome",
+        "rail",
+        "title",
+        "section",
+        "group-header",
+        "period",
+        "event",
+        "label"
+      ],
       "semanticChannels": [
         "category"
-      ]
+      ],
+      "bindingRoles": [],
+      "bindingChannels": []
     },
     {
       "id": "class",
-      "semanticChannels": []
+      "semanticRoles": [
+        "prelude",
+        "defs",
+        "chrome",
+        "group",
+        "group-header",
+        "class-box",
+        "member",
+        "relationship",
+        "cardinality",
+        "note",
+        "label"
+      ],
+      "semanticChannels": [],
+      "bindingRoles": [],
+      "bindingChannels": []
     },
     {
       "id": "er",
+      "semanticRoles": [
+        "prelude",
+        "defs",
+        "chrome",
+        "group",
+        "group-header",
+        "entity",
+        "attribute",
+        "relationship",
+        "cardinality",
+        "label"
+      ],
       "semanticChannels": [
+        "category"
+      ],
+      "bindingRoles": [
+        "relationship"
+      ],
+      "bindingChannels": [
         "category"
       ]
     },
     {
       "id": "journey",
+      "semanticRoles": [
+        "prelude",
+        "defs",
+        "chrome",
+        "title",
+        "series",
+        "grid",
+        "axis",
+        "rail",
+        "legend",
+        "actor",
+        "section",
+        "group-header",
+        "task",
+        "marker-line",
+        "label",
+        "score"
+      ],
       "semanticChannels": [
         "value",
+        "category"
+      ],
+      "bindingRoles": [
+        "group-header"
+      ],
+      "bindingChannels": [
         "category"
       ]
     },
     {
       "id": "architecture",
-      "semanticChannels": []
+      "semanticRoles": [
+        "prelude",
+        "defs",
+        "chrome",
+        "title",
+        "group",
+        "group-header",
+        "icon",
+        "label",
+        "service",
+        "junction",
+        "edge"
+      ],
+      "semanticChannels": [],
+      "bindingRoles": [],
+      "bindingChannels": []
     },
     {
       "id": "xychart",
+      "semanticRoles": [
+        "prelude",
+        "defs",
+        "chrome",
+        "grid",
+        "bar",
+        "series",
+        "point",
+        "axis",
+        "legend",
+        "title",
+        "label"
+      ],
       "semanticChannels": [
         "value",
+        "category"
+      ],
+      "bindingRoles": [
+        "bar",
+        "series"
+      ],
+      "bindingChannels": [
         "category"
       ]
     },
     {
       "id": "pie",
+      "semanticRoles": [
+        "prelude",
+        "chrome",
+        "pie-slice",
+        "legend",
+        "title",
+        "label"
+      ],
       "semanticChannels": [
         "value",
         "category",
         "emphasis"
-      ]
-    },
-    {
-      "id": "quadrant",
-      "semanticChannels": [
+      ],
+      "bindingRoles": [
+        "pie-slice"
+      ],
+      "bindingChannels": [
         "category"
       ]
     },
     {
+      "id": "quadrant",
+      "semanticRoles": [
+        "prelude",
+        "chrome",
+        "plate",
+        "grid",
+        "point",
+        "axis",
+        "title",
+        "label"
+      ],
+      "semanticChannels": [
+        "category"
+      ],
+      "bindingRoles": [],
+      "bindingChannels": []
+    },
+    {
       "id": "gantt",
+      "semanticRoles": [
+        "prelude",
+        "defs",
+        "chrome",
+        "section",
+        "grid",
+        "axis",
+        "label",
+        "task",
+        "milestone",
+        "edge",
+        "marker-line",
+        "title"
+      ],
       "semanticChannels": [
         "status",
         "progress",
         "emphasis",
         "category"
+      ],
+      "bindingRoles": [
+        "task",
+        "milestone"
+      ],
+      "bindingChannels": [
+        "category"
       ]
     },
     {
       "id": "mindmap",
+      "semanticRoles": [
+        "prelude",
+        "chrome",
+        "edge",
+        "node",
+        "icon",
+        "label"
+      ],
       "semanticChannels": [
         "importance",
         "category"
-      ]
+      ],
+      "bindingRoles": [],
+      "bindingChannels": []
     },
     {
       "id": "gitgraph",
+      "semanticRoles": [
+        "prelude",
+        "chrome",
+        "title",
+        "group",
+        "rail",
+        "edge",
+        "node",
+        "label"
+      ],
       "semanticChannels": [
         "status",
         "category"
-      ]
+      ],
+      "bindingRoles": [],
+      "bindingChannels": []
     },
     {
       "id": "radar",
+      "semanticRoles": [
+        "prelude",
+        "chrome",
+        "grid",
+        "pie-slice",
+        "point",
+        "axis",
+        "legend",
+        "title"
+      ],
       "semanticChannels": [
+        "category"
+      ],
+      "bindingRoles": [
+        "pie-slice",
+        "legend",
+        "point"
+      ],
+      "bindingChannels": [
         "category"
       ]
     }
@@ -1256,5 +1125,5 @@
       ]
     }
   ],
-  "digest": "sha256:b2e329742474a704387e4025a1cdf8e80381e66b0d3126989510b271ea143c37"
+  "digest": "sha256:bed423af93c8f18d8064b4912d9420cbdbb15971f7ed49d01beccb4d57607260"
 }

@@ -396,8 +396,8 @@ const ARCHITECTURE_VISUAL_SCHEMA = {
 } as const satisfies JsonSchemaNode
 
 const STYLE_SPEC_SCHEMA = (() => {
-  const document = styleSpecJsonSchema() as Record<string, unknown>
-  const definitions = document.$defs as Record<string, Record<string, unknown>> | undefined
+  const styleSchema = styleSpecJsonSchema() as Record<string, unknown>
+  const definitions = styleSchema.$defs as Record<string, Record<string, unknown>> | undefined
   const expandLocalReferences = (value: unknown): unknown => {
     if (Array.isArray(value)) return value.map(expandLocalReferences)
     if (value === null || typeof value !== 'object') return value
@@ -412,7 +412,7 @@ const STYLE_SPEC_SCHEMA = (() => {
       .filter(([key]) => key !== '$defs')
       .map(([key, child]) => [key, expandLocalReferences(child)]))
   }
-  const { $schema: _dialect, $id: _id, title: _title, ...fragment } = document
+  const { $schema: _dialect, $id: _id, title: _title, ...fragment } = styleSchema
   return expandLocalReferences(fragment) as Record<string, unknown>
 })()
 

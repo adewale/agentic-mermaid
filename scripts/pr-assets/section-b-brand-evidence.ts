@@ -1,9 +1,12 @@
 #!/usr/bin/env bun
+import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { Resvg } from '@resvg/resvg-js'
 import { getFamily, knownBuiltinFamilies } from '../../src/agent/families.ts'
-import { renderMermaidSVG, validateStyleSpec, type StyleSpec } from '../../src/index.ts'
+import { renderMermaidPNG } from '../../src/agent/png.ts'
+import { inspectPngDimensions } from '../../src/output-color-profile.ts'
+import { renderMermaidASCII, renderMermaidSVG, validateStyleSpec, type StyleSpec } from '../../src/index.ts'
 import { filesUnder, hashFileTree, repositoryPath, sha256File, sortRepositoryPaths } from './artifact-receipt.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
@@ -39,6 +42,17 @@ const HOLDOUT_EDITORIAL: StyleSpec = {
   },
 }
 
+const HOLDOUT_TECHNICAL: StyleSpec = {
+  colors: { bg: '#f4fbff', fg: '#102a43', line: '#176b87', accent: '#007f73', muted: '#486581', surface: '#e6f6fb', border: '#2287a5' },
+  font: 'IBM Plex Sans',
+  roles: {
+    node: { fontSize: 14, fontWeight: 700, paddingX: 22, paddingY: 12, cornerRadius: 0, lineWidth: 1.8 },
+    edge: { fontSize: 11, fontWeight: 600, lineWidth: 1.8, bendRadius: 0 },
+    group: { fontSize: 12, fontWeight: 700, letterSpacing: 0.04, paddingX: 20, paddingY: 18, cornerRadius: 0, lineWidth: 1.5 },
+    label: { fontSize: 12, fontWeight: 600 },
+  },
+}
+
 const HOLDOUT_OPS: StyleSpec = {
   colors: { bg: '#07131d', fg: '#e2f2ff', line: '#54a3c7', accent: '#2dd4bf', muted: '#91afc2', surface: '#102638', border: '#3f7791' },
   font: 'Share Tech Mono',
@@ -53,6 +67,7 @@ const HOLDOUT_OPS: StyleSpec = {
 const VARIANTS = [
   ['Sentinel · every channel deliberately distinctive', SENTINEL],
   ['Holdout · warm editorial', HOLDOUT_EDITORIAL],
+  ['Holdout · light technical', HOLDOUT_TECHNICAL],
   ['Holdout · dark operations', HOLDOUT_OPS],
 ] as const
 for (const [name, style] of VARIANTS) {
@@ -92,11 +107,18 @@ function raster(source: string, style: StyleSpec): { data: string; width: number
   const scale = Math.min(maxWidth / size.width, maxHeight / size.height)
   const width = Math.max(1, Math.round(size.width * scale))
   const height = Math.max(1, Math.round(size.height * scale))
-  const png = new Resvg(svg, {
-    fitTo: { mode: 'width', value: width },
-    font: { fontFiles: FONT_FILES, loadSystemFonts: false, defaultFontFamily: 'DejaVu Sans' },
-  }).render().asPng()
-  return { data: Buffer.from(png).toString('base64'), width, height }
+  // Exercise the public native PNG request path for every cell rather than
+  // privately rasterizing the SVG and merely claiming PNG parity.
+  const png = renderMermaidPNG(source, {
+    style,
+    seed: 17,
+    security: 'strict',
+    embedFontImport: false,
+    fitTo: { width },
+    onWarning: () => {},
+  })
+  const dimensions = inspectPngDimensions(png)
+  return { data: Buffer.from(png).toString('base64'), width: dimensions.width, height: dimensions.height }
 }
 
 export function buildSectionBBrandEvidence(): Uint8Array {
@@ -151,6 +173,13 @@ const currentReceipt = () => ({
   inputs: { count: inputPaths.length, treeSha256: hashFileTree(ROOT, inputPaths) },
   families: knownBuiltinFamilies(),
   variants: VARIANTS.map(([name]) => name),
+  outputPaths: {
+    graphicalCells: 'public native renderMermaidPNG',
+    terminal: 'public renderMermaidASCII (Unicode, no color)',
+  },
+  terminalSha256: createHash('sha256').update(VARIANTS.flatMap(([, style]) =>
+    knownBuiltinFamilies().map(id => renderMermaidASCII(familySource(id), { style, colorMode: 'none' })),
+  ).join('\n\u0000\n')).digest('hex'),
   baseline: {
     state: 'unsupported-style-fields',
     command: 'git worktree add --detach /tmp/am-section-b-base origin/main && (cd /tmp/am-section-b-base && bun install --frozen-lockfile && bun run bin/am.ts render "$OLDPWD/eval/section-b-brand-evidence/baseline.mmd" --format svg --style "$OLDPWD/eval/section-b-brand-evidence/role-style.json")',
@@ -167,7 +196,7 @@ if (process.argv.includes('--check')) {
   mkdirSync(join(ROOT, 'docs', 'design', 'families'), { recursive: true })
   mkdirSync(join(ROOT, 'eval', 'section-b-brand-evidence'), { recursive: true })
   writeFileSync(OUTPUT, buildSectionBBrandEvidence())
-  writeFileSync(README, `# Section B visual evidence\n\nThe baseline rejects the public \`roles\` field, so no plausible before image exists. \`baseline.mmd\` and \`role-style.json\` are the exact committed inputs. Reproduce the causal baseline with the command retained in \`evidence-receipt.json\`; the expected result is an \`Invalid style spec\` error.\n\nThe generated after sheet renders every registered family through three ordinary inline StyleSpec records. Inspect typography, padding/radius/line-weight changes, cross-family palette coherence, and the Pie card: \`Pro\` remains the family-authored highlighted slice while the sentinel category binding changes its paint without changing wedge geometry.\n\nRegenerate with \`bun run gallery:section-b\`; verify freshness with \`bun run gallery:section-b:check\`.\n`)
+  writeFileSync(README, `# Section B visual evidence\n\nThe baseline rejects the public \`roles\` field, so no plausible before image exists. \`baseline.mmd\` and \`role-style.json\` are the exact committed inputs. Reproduce the causal baseline with the command retained in \`evidence-receipt.json\`; the expected result is an \`Invalid style spec\` error.\n\nThe generated after sheet renders every registered family through one deliberately distinctive sentinel and three holdout inline StyleSpec records. Every cell uses the public native PNG API; the receipt also hashes no-color Unicode output for the same family×style matrix. Inspect typography, padding/radius/line-weight changes, cross-family palette coherence, and the Pie card: \`Pro\` remains the family-authored highlighted slice while the sentinel category binding changes its paint without changing wedge geometry.\n\nRegenerate with \`bun run gallery:section-b\`; verify freshness with \`bun run gallery:section-b:check\`.\n`)
   writeFileSync(RECEIPT, `${JSON.stringify(currentReceipt(), null, 2)}\n`)
   process.stdout.write(`wrote ${OUTPUT}\n`)
 }

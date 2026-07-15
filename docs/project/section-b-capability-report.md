@@ -2,79 +2,90 @@
 
 Generated from the Style, SceneRole, and FamilyDescriptor registries. Do not edit by hand. Machine-readable sibling: [section-b-capability-report.json](./section-b-capability-report.json).
 
-- Public role-style leaves: **18**
+- Public role-style leaves: **16**
 - Registered Scene roles: **42**
 - Built-in families: **15**
 - Exportable built-in Looks: **16**
 - BrandPack promoted: **no** — No external consumer has shown that ordinary version-controlled StyleSpec files are insufficient for repeated distribution, exact selection, or installed-resource integrity.
-- Digest: `sha256:b2e329742474a704387e4025a1cdf8e80381e66b0d3126989510b271ea143c37`
+- Digest: `sha256:bed423af93c8f18d8064b4912d9420cbdbb15971f7ed49d01beccb4d57607260`
 
 ## SceneRole styling
 
-| Role | Fallback | Applicable public leaves |
+| Role | Fallback | Exact consumption | Applicable public leaves |
+|---|---|---|---|
+| `node` | `node` | exact | `fontSize`, `fontWeight`, `letterSpacing`, `textTransform`, `textColor`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor` |
+| `edge` | `edge` | exact | `fontSize`, `fontWeight`, `letterSpacing`, `textTransform`, `textColor`, `lineWidth`, `bendRadius`, `strokeColor` |
+| `edge-label` | `label` | fallback-only | fallback-only |
+| `group` | `group` | exact | `fontSize`, `fontWeight`, `letterSpacing`, `textTransform`, `textColor`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `headerFillColor`, `fontFamily` |
+| `group-header` | `group` | exact | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `textTransform`, `textColor`, `fillColor`, `borderColor`, `strokeColor`, `lineWidth`, `cue` |
+| `label` | `label` | exact | `fontSize`, `fontWeight`, `letterSpacing`, `textTransform`, `textColor` |
+| `actor` | `node` | exact | `fontSize`, `fontWeight`, `letterSpacing`, `textTransform`, `textColor`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor` |
+| `lifeline` | `edge` | fallback-only | fallback-only |
+| `activation` | `node` | fallback-only | fallback-only |
+| `message` | `edge` | fallback-only | fallback-only |
+| `block` | `group` | fallback-only | fallback-only |
+| `note` | `group` | fallback-only | fallback-only |
+| `class-box` | `node` | fallback-only | fallback-only |
+| `member` | `label` | fallback-only | fallback-only |
+| `entity` | `node` | fallback-only | fallback-only |
+| `attribute` | `label` | fallback-only | fallback-only |
+| `relationship` | `edge` | exact | `fontSize`, `fontWeight`, `letterSpacing`, `textTransform`, `textColor`, `lineWidth`, `bendRadius`, `strokeColor` |
+| `cardinality` | `label` | fallback-only | fallback-only |
+| `pie-slice` | `node` | exact | `fillColor`, `borderColor`, `strokeColor`, `lineWidth`, `cue` |
+| `legend` | `group` | exact | `fillColor`, `borderColor`, `strokeColor`, `lineWidth`, `textColor` |
+| `bar` | `node` | exact | `fillColor`, `borderColor`, `strokeColor`, `lineWidth` |
+| `series` | `edge` | exact | `borderColor`, `strokeColor`, `lineWidth` |
+| `point` | `node` | exact | `fillColor`, `borderColor`, `strokeColor`, `lineWidth` |
+| `axis` | `label` | fallback-only | fallback-only |
+| `grid` | `edge` | fallback-only | fallback-only |
+| `plate` | `node` | fallback-only | fallback-only |
+| `section` | `group` | fallback-only | fallback-only |
+| `task` | `node` | exact | `fillColor`, `borderColor`, `strokeColor`, `lineWidth`, `cue` |
+| `milestone` | `node` | exact | `fillColor`, `borderColor`, `strokeColor`, `lineWidth`, `cue` |
+| `marker-line` | `edge` | fallback-only | fallback-only |
+| `rail` | `edge` | fallback-only | fallback-only |
+| `period` | `group` | fallback-only | fallback-only |
+| `event` | `group` | fallback-only | fallback-only |
+| `score` | `node` | fallback-only | fallback-only |
+| `actor-pill` | `node` | fallback-only | fallback-only |
+| `service` | `node` | fallback-only | fallback-only |
+| `junction` | `node` | fallback-only | fallback-only |
+| `icon` | `node` | fallback-only | fallback-only |
+| `title` | `label` | fallback-only | fallback-only |
+| `defs` | `label` | fallback-only | fallback-only |
+| `prelude` | `label` | fallback-only | fallback-only |
+| `chrome` | `label` | fallback-only | fallback-only |
+
+## Derived private-face projection
+
+The remaining private face is compiled only from these public role records; it has no author-only leaf.
+
+| Compiled face | Public source role | Public fields |
 |---|---|---|
-| `node` | `node` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation` |
-| `edge` | `edge` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `lineWidth`, `bendRadius`, `strokeColor` |
-| `edge-label` | `label` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue` |
-| `group` | `group` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation`, `headerFillColor` |
-| `group-header` | `group` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation`, `headerFillColor` |
-| `label` | `label` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue` |
-| `actor` | `node` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation` |
-| `lifeline` | `edge` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `lineWidth`, `bendRadius`, `strokeColor` |
-| `activation` | `node` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation` |
-| `message` | `edge` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `lineWidth`, `bendRadius`, `strokeColor` |
-| `block` | `group` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation`, `headerFillColor` |
-| `note` | `group` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation`, `headerFillColor` |
-| `class-box` | `node` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation` |
-| `member` | `label` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue` |
-| `entity` | `node` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation` |
-| `attribute` | `label` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue` |
-| `relationship` | `edge` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `lineWidth`, `bendRadius`, `strokeColor` |
-| `cardinality` | `label` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue` |
-| `pie-slice` | `node` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation` |
-| `legend` | `group` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation`, `headerFillColor` |
-| `bar` | `node` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation` |
-| `series` | `edge` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `lineWidth`, `bendRadius`, `strokeColor` |
-| `point` | `node` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation` |
-| `axis` | `label` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue` |
-| `grid` | `edge` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `lineWidth`, `bendRadius`, `strokeColor` |
-| `plate` | `node` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation` |
-| `section` | `group` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation`, `headerFillColor` |
-| `task` | `node` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation` |
-| `milestone` | `node` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation` |
-| `marker-line` | `edge` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `lineWidth`, `bendRadius`, `strokeColor` |
-| `rail` | `edge` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `lineWidth`, `bendRadius`, `strokeColor` |
-| `period` | `group` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation`, `headerFillColor` |
-| `event` | `group` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation`, `headerFillColor` |
-| `score` | `node` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation` |
-| `actor-pill` | `node` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation` |
-| `service` | `node` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation` |
-| `junction` | `node` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation` |
-| `icon` | `node` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation` |
-| `title` | `label` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue` |
-| `defs` | `label` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue` |
-| `prelude` | `label` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue` |
-| `chrome` | `label` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue` |
+| `text` | `label` | `fontSize`, `fontWeight`, `letterSpacing`, `textTransform`, `textColor` |
+| `node` | `node` | `fontSize`, `fontWeight`, `letterSpacing`, `textTransform`, `textColor`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor` |
+| `edge` | `edge` | `fontSize`, `fontWeight`, `letterSpacing`, `textTransform`, `textColor`, `lineWidth`, `bendRadius`, `strokeColor` |
+| `group` | `group` | `fontSize`, `fontWeight`, `letterSpacing`, `textTransform`, `textColor`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `fontFamily`, `headerFillColor` |
 
 ## Family semantic-channel census
 
-| Family | Declared channels |
-|---|---|
-| `flowchart` | none |
-| `state` | `status` |
-| `sequence` | `category` |
-| `timeline` | `category` |
-| `class` | none |
-| `er` | `category` |
-| `journey` | `value`, `category` |
-| `architecture` | none |
-| `xychart` | `value`, `category` |
-| `pie` | `value`, `category`, `emphasis` |
-| `quadrant` | `category` |
-| `gantt` | `status`, `progress`, `emphasis`, `category` |
-| `mindmap` | `importance`, `category` |
-| `gitgraph` | `status`, `category` |
-| `radar` | `category` |
+| Family | Admitted Scene roles | Emitted channels | Binding consumer roles | Public binding channels |
+|---|---|---|---|---|
+| `flowchart` | `prelude`, `defs`, `chrome`, `group`, `group-header`, `edge`, `edge-label`, `node`, `label`, `icon` | none | none | none |
+| `state` | `prelude`, `defs`, `chrome`, `group`, `group-header`, `edge`, `edge-label`, `node`, `note`, `label` | `status` | none | none |
+| `sequence` | `prelude`, `defs`, `chrome`, `actor`, `lifeline`, `activation`, `message`, `block`, `group`, `note`, `label`, `icon` | `category` | `actor` | `category` |
+| `timeline` | `prelude`, `chrome`, `rail`, `title`, `section`, `group-header`, `period`, `event`, `label` | `category` | none | none |
+| `class` | `prelude`, `defs`, `chrome`, `group`, `group-header`, `class-box`, `member`, `relationship`, `cardinality`, `note`, `label` | none | none | none |
+| `er` | `prelude`, `defs`, `chrome`, `group`, `group-header`, `entity`, `attribute`, `relationship`, `cardinality`, `label` | `category` | `relationship` | `category` |
+| `journey` | `prelude`, `defs`, `chrome`, `title`, `series`, `grid`, `axis`, `rail`, `legend`, `actor`, `section`, `group-header`, `task`, `marker-line`, `label`, `score` | `value`, `category` | `group-header` | `category` |
+| `architecture` | `prelude`, `defs`, `chrome`, `title`, `group`, `group-header`, `icon`, `label`, `service`, `junction`, `edge` | none | none | none |
+| `xychart` | `prelude`, `defs`, `chrome`, `grid`, `bar`, `series`, `point`, `axis`, `legend`, `title`, `label` | `value`, `category` | `bar`, `series` | `category` |
+| `pie` | `prelude`, `chrome`, `pie-slice`, `legend`, `title`, `label` | `value`, `category`, `emphasis` | `pie-slice` | `category` |
+| `quadrant` | `prelude`, `chrome`, `plate`, `grid`, `point`, `axis`, `title`, `label` | `category` | none | none |
+| `gantt` | `prelude`, `defs`, `chrome`, `section`, `grid`, `axis`, `label`, `task`, `milestone`, `edge`, `marker-line`, `title` | `status`, `progress`, `emphasis`, `category` | `task`, `milestone` | `category` |
+| `mindmap` | `prelude`, `chrome`, `edge`, `node`, `icon`, `label` | `importance`, `category` | none | none |
+| `gitgraph` | `prelude`, `chrome`, `title`, `group`, `rail`, `edge`, `node`, `label` | `status`, `category` | none | none |
+| `radar` | `prelude`, `chrome`, `grid`, `pie-slice`, `point`, `axis`, `legend`, `title` | `category` | `pie-slice`, `legend`, `point` | `category` |
 
 ## Built-in public exportability
 
