@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "participant": "fresh-context agent consumer",
+  "allowedDocumentation": [
+    "docs/style-authoring.md",
+    "am --help",
+    "am render --help",
+    "am verify --help",
+    "am styles --help"
+  ],
+  "startedAt": "2026-07-15T03:22:05Z",
+  "endedAt": "2026-07-15T03:23:25Z",
+  "elapsedSeconds": 80,
+  "task": "Author one file-backed StyleSpec with core roles, a Pie category binding, and an inspect-only constraint; render Flowchart, Sequence, and Pie to SVG, PNG, and no-color Unicode without editing product code.",
+  "result": {
+    "completed": true,
+    "families": ["flowchart", "sequence", "pie"],
+    "formats": ["svg", "png", "unicode"],
+    "styleValidationProblems": [],
+    "verifyOk": ["flowchart", "sequence", "pie"],
+    "coreOrFamilyCodeTouched": false,
+    "repositoryFilesChanged": false,
+    "easeScoreOutOf5": 3
+  },
+  "attempts": {
+    "renderCommands": 9,
+    "validationCommands": 1,
+    "corrections": 1,
+    "correction": "The first attempt used am verify --style, which the pre-fix CLI rejected; the consumer switched to the documented public library verifyMermaid renderOptions.style path. This session directly caused CLI verify --style enrollment and an end-to-end saved-record example."
+  },
+  "observations": [
+    "All nine public render commands succeeded and produced non-empty artifacts.",
+    "The Pie SVG carried the Pro category binding's fill, stroke, and width.",
+    "The original semantic slot omitted cue, so no terminal cue was expected; the authoring example now includes cue: outline.",
+    "Style-aware CLI verification and saved-record verification needed a clearer single path; the product and guide were updated from this finding."
+  ],
+  "artifactPolicy": "Temporary rendered consumer artifacts remained under /tmp and are intentionally not committed; deterministic repository evidence is generated separately by section-b-brand-evidence.ts."
+}

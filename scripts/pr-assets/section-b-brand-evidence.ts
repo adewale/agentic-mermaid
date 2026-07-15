@@ -163,6 +163,7 @@ const inputPaths = sortRepositoryPaths(ROOT, [
   join(ROOT, 'bun.lock'),
   join(ROOT, 'eval', 'section-b-brand-evidence', 'baseline.mmd'),
   join(ROOT, 'eval', 'section-b-brand-evidence', 'role-style.json'),
+  join(ROOT, 'eval', 'section-b-brand-evidence', 'usability-agent-session.json'),
   import.meta.filename,
   join(import.meta.dir, 'artifact-receipt.ts'),
   ...filesUnder(join(ROOT, 'src'), path => path.endsWith('.ts')),

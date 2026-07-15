@@ -84,20 +84,6 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   and privacy-policy URLs, screenshots, test prompts/responses, localization,
   and review notes. Submit through the plugin portal only when the live endpoint
   and UI are stable enough to preserve the reviewed metadata contract.
-- [ ] **BUILD-31 — Progressive custom Styles and evidence-gated BrandPacks**
-  (`todo`; Section A landed in PR #163). Execute Section B of
-  `docs/project/brand-primitives-plan.md` through the existing public `style`
-  stack: characterize current role/channel behavior, extend `StyleSpec` over the
-  existing `SceneRole` authority, make every built-in publicly reproducible, and
-  add equality bindings plus inspect-only constraints. Add the optional B4
-  BrandPack envelope only after a real external consumer proves a repeated
-  distribution/version/resource need; render requests must pin exact versions
-  and digests. The documentation-only Cupertino prototype and other brand
-  evidence are acceptance probes, not built-ins or independent backlogs. Do not
-  add a second fragment/role type, universal mode axes, wider-gamut output,
-  accessibility execution mode, post-positioning decoration/repaint pipeline,
-  custom-backend packaging, runtime design-token machinery, or another
-  appearance resolver without a separately promoted evidence-backed TODO item.
 - [ ] **BUILD-24 — Layout hints: rank/group pinning and edge-length
   preferences** (`todo`). Direct agent feedback (2026-07): an agent deleted a
   real edge because the auto-layout drew its feedback loop as a long,

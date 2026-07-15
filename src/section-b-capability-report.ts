@@ -219,15 +219,15 @@ function body(): Omit<SectionBCapabilityReport, 'digest'> {
     brandPack: {
       promoted: false,
       reason: 'No external consumer has shown that ordinary version-controlled StyleSpec files are insufficient for repeated distribution, exact selection, or installed-resource integrity.',
-      evidence: ['docs/project/brand-primitives-plan.md', 'TODO.md#BUILD-31'],
+      evidence: ['docs/project/brand-primitives-plan.md', 'eval/section-b-brand-evidence/usability-agent-session.json'],
     },
     phases: [
       { id: 'B0', acceptanceEvidence: ['src/__tests__/section-b-capability-report.test.ts', 'docs/project/section-b-capability-report.json'] },
       { id: 'B1', acceptanceEvidence: ['src/__tests__/section-b-role-styles.test.ts', 'src/__tests__/radar-label-discipline.test.ts'] },
       { id: 'B2', acceptanceEvidence: ['src/__tests__/section-b-role-styles.test.ts', 'src/__tests__/style-spec-authority.test.ts'] },
       { id: 'B3', acceptanceEvidence: ['src/__tests__/section-b-policy.test.ts', 'src/scene/brand-constraints.ts'] },
-      { id: 'B4', acceptanceEvidence: ['docs/project/brand-primitives-plan.md', 'TODO.md#BUILD-31'] },
-      { id: 'B5', acceptanceEvidence: ['docs/style-authoring.md', 'scripts/pr-assets/section-b-brand-evidence.ts', 'eval/section-b-brand-evidence/evidence-receipt.json'] },
+      { id: 'B4', acceptanceEvidence: ['docs/project/brand-primitives-plan.md', 'eval/section-b-brand-evidence/usability-agent-session.json'] },
+      { id: 'B5', acceptanceEvidence: ['docs/style-authoring.md', 'scripts/pr-assets/section-b-brand-evidence.ts', 'eval/section-b-brand-evidence/evidence-receipt.json', 'eval/section-b-brand-evidence/usability-agent-session.json'] },
     ],
   }
 }

@@ -152,7 +152,7 @@ const PNG_RENDER_FLAGS = Object.freeze(Object.values(PNG_CLI_FLAG_BINDINGS).flat
 // name globally is not permission to ignore it on an unrelated command.
 const COMMAND_FLAGS: Record<string, readonly string[]> = {
   render: ['help', 'json', 'ascii', 'certificates', 'watch', 'style', 'seed', 'options', 'output', 'format', 'security', 'gantt-today', 'target-width', ...PNG_RENDER_FLAGS, 'o'],
-  verify: ['help', 'json', 'suppress', 'label-cap'],
+  verify: ['help', 'json', 'suppress', 'label-cap', 'style'],
   parse: ['help', 'json'],
   serialize: ['help'],
   mutate: ['help', 'json', 'op', 'ops'],
@@ -292,8 +292,10 @@ too. Stack them with render --style (e.g. --style hand-drawn,dracula) and
 re-roll ink with --seed. Custom styles are JSON records (docs/style-authoring.md);
 pass a .json file path anywhere a name is accepted.
 With --json: [{ name, canonicalId, kind: look|palette, isDefault, backend, intent?, blurb }].`,
-  verify: `am verify <file|-> [--suppress A,B] [--label-cap N]
+  verify: `am verify <file|-> [--suppress A,B] [--label-cap N] [--style NAMES|file]
 Always emits JSON: {ok, warnings[], layout}.
+  --style <S>       Resolve the same named/file-backed Style used by render so
+                    inspect-only Brand constraints evaluate the styled Scene.
 Tier-1 error codes flip ok=false:
 EMPTY_DIAGRAM, EDGE_MISANCHORED, OFF_CANVAS, GROUP_BREACH, UNRESOLVABLE_SCHEDULE,
 RENDER_FAILED (source verifies structurally but the render parser rejects it), BRAND_CONSTRAINT_ERROR
@@ -772,7 +774,21 @@ function cmdVerify(args: ParsedArgs): number {
       return EXIT_ARG_ERROR
     }
   }
-  const r = verifyMermaid(source, { suppress, labelCharCap })
+  let style: StyleInput[] | undefined
+  if (typeof args.flags.style === 'string') {
+    try {
+      style = parseStyleFlag(args.flags.style)
+      resolveStyleStack(style)
+    } catch (error) {
+      process.stderr.write(`am verify --style: ${error instanceof Error ? error.message : String(error)}\n`)
+      return EXIT_ARG_ERROR
+    }
+  }
+  const r = verifyMermaid(source, {
+    suppress,
+    labelCharCap,
+    ...(style ? { renderOptions: { style } } : {}),
+  })
   process.stdout.write(JSON.stringify(r, replacer) + '\n')
   return r.ok ? EXIT_OK : EXIT_VERIFY_FAILED
 }

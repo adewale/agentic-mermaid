@@ -76,7 +76,7 @@ const roleStyle = {
 const policyStyle = {
   ...roleStyle,
   semanticSlots: {
-    selected: { fillColor: '#fecdd3', borderColor: '#881337', lineWidth: 4 },
+    selected: { fillColor: '#fecdd3', borderColor: '#881337', lineWidth: 4, cue: 'outline' },
   },
   bindings: [
     { channel: 'category', value: 'Pro', slot: 'selected', role: 'pie-slice' },
@@ -87,6 +87,7 @@ const policyStyle = {
   ],
 }
 const verification = verifyMermaid(source, { renderOptions: { style: policyStyle } })
+// CLI equivalent for a saved record: am verify diagram.mmd --style brand.style.json
 ```
 
 Role/slot values are defaults. Concrete Mermaid theme/config and element paint

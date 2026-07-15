@@ -286,7 +286,7 @@ describe('vocabulary doc-sync', () => {
     expect(plan).toContain('version: string')
     expect(plan).toContain('digest: string')
     expect(plan).toContain('separate BrandPack registry')
-    expect(plan).toContain('BUILD-31 adds no Treatment field, registry, selector,')
+    expect(plan).toContain('Section B adds no Treatment field, registry, selector,')
     expect(plan).not.toContain("id: 'treatment:")
     expect(plan).not.toContain('version?: SemverRange')
     expect(plan).not.toContain('interface AppearanceFragment')

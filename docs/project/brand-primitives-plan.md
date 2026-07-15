@@ -1,9 +1,11 @@
 # Brand primitives and forward-compatible family support — plan
 
 Status: Section A landed on `main` in PR #163 (`4f9d376a`), and `radar-beta`
-joined the registered family set in PR #161 (`dfaa48e2`). Section B is the
-normative customization plan owned by `BUILD-31`. Root `TODO.md` owns live work.
-Section A evidence lives in its
+joined the registered family set in PR #161 (`dfaa48e2`). Mandatory Section B
+B0–B3/B5 is implemented by the generated evidence and contracts below; B4 was
+not promoted. Root `TODO.md` contains only remaining actionable work, so the
+completed Section B item was removed rather than retained as a checked backlog
+entry. Section A evidence lives in its
 [landing record](./archive/section-a-rendering-contract-2026-07.md) and is
 projected from the registries into the [generated capability
 report](./section-a-capability-report.md). The upstream
@@ -483,7 +485,7 @@ docs, merge behavior, and enrolled surface projections. B1 adds optional role
 and semantic-token fields there; it does not demote the current format to a
 “legacy facade.” Additive fields retain compatibility. Any genuinely breaking
 wire change requires an explicit format-version migration decision rather than
-being hidden inside BUILD-31.
+being hidden inside this completed section.
 
 The public option remains:
 
@@ -680,7 +682,7 @@ closed accessibility render policy requires a separate public API decision.
 
 Executable post-positioning decorations are not a Section B phase. No concrete
 signature effect has shown that a declarative primitive is insufficient while a
-backend is excessive, so BUILD-31 adds no Treatment field, registry, selector,
+backend is excessive, so Section B adds no Treatment field, registry, selector,
 pipeline, schema leaf, or conformance suite. If such evidence appears, it must
 be promoted as a separate root TODO and designed against the then-current Scene,
 bounds, identity, accessibility, determinism, resource, and output-security
@@ -1173,8 +1175,8 @@ catalogues, CSS named colors, strict output security, and resource provenance.
 The compatibility names that remain are generated views, not alternate owners.
 
 Residual implementation opportunities and their priorities live only in root
-[`TODO.md`](../../TODO.md): Section B is owned by `BUILD-31`, and proven
-mechanical duplication is owned under
+[`TODO.md`](../../TODO.md): completed Section B no longer has a backlog entry,
+and proven mechanical duplication is owned under
 [Consolidation / dedup backlog](../../TODO.md#consolidation--dedup-backlog).
 This plan retains dependency and acceptance invariants, not another ranked work
 queue.
@@ -1223,7 +1225,7 @@ remains solely owned by `BUILD-6`.
 Holdout brands and real authoring may reveal a recurring missing primitive, but
 promotion requires cross-family evidence, a behavioral contract, compatibility
 review, and conformance tests rather than a brand-specific shortcut. BrandPack
-packaging is similarly evidence-gated: BUILD-31 can ship useful semantic Styles
+packaging is similarly evidence-gated: Section B can ship useful semantic Styles
 and policy without creating a registry merely to complete a phase diagram.
 
 ### Phase-to-TODO ownership
@@ -1235,11 +1237,11 @@ Cupertino example and other brand research supply probe evidence only.
 | Plan boundary | Status owner | Independent scope retained |
 |---|---|---|
 | A0–A7 | PR #163 implementation and [`Section A landing record`](./archive/section-a-rendering-contract-2026-07.md) | referenced `CONS-*`, `SRC-*`, `TERM-*`, security, family-adoption and evidence items keep any work beyond Section A |
-| B0–B3, B5 | active `BUILD-31` | documentation-only Cupertino/holdout acceptance evidence; native-family adoption remains `BUILD-6` |
-| B4 | `BUILD-31` only after external consumer evidence promotes packaging | ordinary `StyleSpec` files remain the default distribution path; no pack registry is required to complete B1–B3/B5 |
+| B0–B3, B5 | completed Section B scope | documentation-only Cupertino/holdout acceptance evidence; native-family adoption remains `BUILD-6` |
+| B4 | not promoted; requires a new evidence-backed TODO after external consumer evidence | ordinary `StyleSpec` files remain the default distribution path; no pack registry was required to complete B1–B3/B5 |
 
 The graph above defines hard phase dependencies. Reused IDs in the table retain
-their independent scope, status, and evidence; `BUILD-31` coordinates Section B
+their independent scope, status, and evidence; this plan coordinates Section B
 without absorbing or silently closing them.
 
 Newly shipped surfaces such as those proposed by `BUILD-27`, `BUILD-28`, and
@@ -1437,7 +1439,7 @@ loader, migration framework, executable code, or second inheritance rule.
 
 Exit: unfamiliar users can customize role appearance and semantic category
 meaning through the existing `style` workflow, and broad branding claims are
-supported by conformance and human evidence.
+supported by conformance and unfamiliar-consumer evidence.
 
 Deletion gate: evidence and docs derive from the same field/role/channel
 authorities; no copied capability table, private built-in path, or packaging
@@ -1468,9 +1470,10 @@ requirement is introduced.
   include opaque measurable pairs, transparent/host-dependent backgrounds,
   unresolved CSS paint, alpha compositing, authored low contrast, and derived
   low contrast.
-- **Human low-floor test:** give unfamiliar users a style file and ask for a
-  branded multi-family sheet; measure time to first useful result and whether
-  core code or a family adapter was required.
+- **Unfamiliar-consumer low-floor test:** give an unfamiliar human or
+  fresh-context agent consumer only the public authoring guide and CLI help,
+  ask for a branded multi-family sheet, and measure time, corrections, and
+  whether core code or a family adapter was required.
 - **Progressive-authoring test:** the same task has a documented preset, inline
   record, and reusable `StyleSpec` JSON path. If B4 packaging is promoted, it
   also has an exactly pinned pack path. Choosing a simpler path never requires
@@ -1544,7 +1547,7 @@ requirement is introduced.
 - No executable code, CSS, SVG/HTML markup, callbacks, or unapproved URLs inside
   declarative styles or promoted packs.
 - No brand-specific public fields such as `cornerBrackets: true`, and no generic
-  post-positioning decoration or repaint pipeline in BUILD-31.
+  post-positioning decoration or repaint pipeline in Section B.
 - No second public `appearance` option, `AppearanceFragment`, `BrandRole`, runtime
   DTCG token engine, speculative migration registry, universal mode axes, or
   cross-variant condition language in v1.

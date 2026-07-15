@@ -132,7 +132,7 @@
     },
     {
       "path": "src/__tests__/agent-doc-sync.test.ts",
-      "sha256": "35650f675ce8e2aa957c6dfa15c8bce73f15acaebd2b96e41e2b186515652cd5"
+      "sha256": "0681db6870dd18cf2876cb0a6fabe870cefcb1fd68911040ba8090c6d110338a"
     },
     {
       "path": "src/__tests__/agent-er.test.ts",
@@ -180,7 +180,7 @@
     },
     {
       "path": "src/__tests__/agent-mcp.test.ts",
-      "sha256": "92d8d9d9290d36a1b2d97b84271ced35c54971e33e9f1aa814e48048e3335798"
+      "sha256": "76b2fd9cf9c1378d0e46c4d837a987fe8ba47f56270e380cc21b76629996f227"
     },
     {
       "path": "src/__tests__/agent-mermaid-corpus.test.ts",
@@ -2032,7 +2032,7 @@
     },
     {
       "path": "src/cli/agent-instructions.ts",
-      "sha256": "fde328d6754371d40121e97215a91121dd6c0481a689394e23e43bcf32c10832"
+      "sha256": "df3dc5d1e0f626c8c3d229e09419fc1c8c39c3bd0a9a98d32765f909c1c5f2c0"
     },
     {
       "path": "src/cli/am-bin.ts",
@@ -2044,7 +2044,7 @@
     },
     {
       "path": "src/cli/index.ts",
-      "sha256": "c8e1d140b89df8807058d7e4193680a967ac45277ddf53b89a95ec5ee6e11796"
+      "sha256": "29f4a6d5a3e2c38a10ab7e41512da16fc8a19d9ebfcbf0df981d6d322268ec49"
     },
     {
       "path": "src/cli/init-agent.ts",
@@ -2560,7 +2560,7 @@
     },
     {
       "path": "src/section-b-capability-report.ts",
-      "sha256": "0265cf7c408191988f4d32e6b70987e7d16cece3bea55d5145c743b31b817736"
+      "sha256": "125ca0e0057e2b486e4dadbfc9668d7f6c8873f164801dd8115a8b8aa8e5d35f"
     },
     {
       "path": "src/sequence/colors.ts",

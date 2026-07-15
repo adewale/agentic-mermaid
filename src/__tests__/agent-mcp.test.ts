@@ -754,6 +754,22 @@ describe('CLI — sad paths via runCli', () => {
     expect(code).toBe(3)
   })
 
+  test('verify resolves file-backed Styles so inspect-only constraints match render', () => {
+    const stamp = Date.now()
+    const source = `/tmp/cli-verify-style-${stamp}.mmd`
+    const style = `/tmp/cli-verify-style-${stamp}.json`
+    require('node:fs').writeFileSync(source, 'flowchart TD\n  A[Alpha]\n')
+    require('node:fs').writeFileSync(style, JSON.stringify({
+      roles: { node: { fillColor: '#111111', textColor: '#111111' } },
+      constraints: [{ kind: 'contrast', action: 'warn', minimum: 4.5 }],
+    }))
+    const result = capture(() => runCli(['verify', source, '--style', style]))
+    expect(result.code).toBe(0)
+    expect(JSON.parse(result.out).warnings).toContainEqual(expect.objectContaining({
+      code: 'BRAND_CONSTRAINT_WARNING', ratio: 1,
+    }))
+  })
+
   test('verify rejects malformed label caps and unknown suppression codes', () => {
     const tmp = `/tmp/cli-verify-options-${Date.now()}.mmd`
     require('node:fs').writeFileSync(tmp, 'flowchart TD\n  A --> B\n')

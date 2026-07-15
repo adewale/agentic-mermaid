@@ -7,7 +7,7 @@ Generated from the Style, SceneRole, and FamilyDescriptor registries. Do not edi
 - Built-in families: **15**
 - Exportable built-in Looks: **16**
 - BrandPack promoted: **no** — No external consumer has shown that ordinary version-controlled StyleSpec files are insufficient for repeated distribution, exact selection, or installed-resource integrity.
-- Digest: `sha256:377b1aa30aeae87532efdf5924b35dbd0c134ff13e74822897b61d33d675ea89`
+- Digest: `sha256:a9c3d60bb5d4b3bb9cc9e5f5a564a5edb4879cce98b9206f8841693e6223dd8b`
 
 ## SceneRole styling
 
@@ -128,5 +128,5 @@ Derived defaults may be guarded while they are chosen. Concrete authored theme/c
 - **B1:** `src/__tests__/section-b-role-styles.test.ts`, `src/__tests__/radar-label-discipline.test.ts`
 - **B2:** `src/__tests__/section-b-role-styles.test.ts`, `src/__tests__/style-spec-authority.test.ts`
 - **B3:** `src/__tests__/section-b-policy.test.ts`, `src/scene/brand-constraints.ts`
-- **B4:** `docs/project/brand-primitives-plan.md`, `TODO.md#BUILD-31`
-- **B5:** `docs/style-authoring.md`, `scripts/pr-assets/section-b-brand-evidence.ts`, `eval/section-b-brand-evidence/evidence-receipt.json`
+- **B4:** `docs/project/brand-primitives-plan.md`, `eval/section-b-brand-evidence/usability-agent-session.json`
+- **B5:** `docs/style-authoring.md`, `scripts/pr-assets/section-b-brand-evidence.ts`, `eval/section-b-brand-evidence/evidence-receipt.json`, `eval/section-b-brand-evidence/usability-agent-session.json`
