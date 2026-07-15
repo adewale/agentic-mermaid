@@ -7,54 +7,54 @@ Generated from the Style, SceneRole, and FamilyDescriptor registries. Do not edi
 - Built-in families: **15**
 - Exportable built-in Looks: **16**
 - BrandPack promoted: **no** — No external consumer has shown that ordinary version-controlled StyleSpec files are insufficient for repeated distribution, exact selection, or installed-resource integrity.
-- Digest: `sha256:a30e01acb12cd6fd7b2adbcddf7702c2d532390f623eb54fd2ac0fea85e2f598`
+- Digest: `sha256:b2e329742474a704387e4025a1cdf8e80381e66b0d3126989510b271ea143c37`
 
 ## SceneRole styling
 
 | Role | Fallback | Applicable public leaves |
 |---|---|---|
-| `node` | `node` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation`, `cue` |
-| `edge` | `edge` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `lineWidth`, `bendRadius`, `strokeColor`, `cue` |
-| `edge-label` | `group` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation`, `cue`, `headerFillColor` |
-| `group` | `group` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation`, `cue`, `headerFillColor` |
-| `group-header` | `group` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation`, `cue`, `headerFillColor` |
+| `node` | `node` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation` |
+| `edge` | `edge` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `lineWidth`, `bendRadius`, `strokeColor` |
+| `edge-label` | `label` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue` |
+| `group` | `group` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation`, `headerFillColor` |
+| `group-header` | `group` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation`, `headerFillColor` |
 | `label` | `label` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue` |
-| `actor` | `group` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation`, `cue`, `headerFillColor` |
-| `lifeline` | `edge` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `lineWidth`, `bendRadius`, `strokeColor`, `cue` |
-| `activation` | `node` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation`, `cue` |
-| `message` | `edge` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `lineWidth`, `bendRadius`, `strokeColor`, `cue` |
-| `block` | `edge` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `lineWidth`, `bendRadius`, `strokeColor`, `cue` |
-| `note` | `group` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation`, `cue`, `headerFillColor` |
-| `class-box` | `group` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation`, `cue`, `headerFillColor` |
+| `actor` | `node` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation` |
+| `lifeline` | `edge` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `lineWidth`, `bendRadius`, `strokeColor` |
+| `activation` | `node` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation` |
+| `message` | `edge` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `lineWidth`, `bendRadius`, `strokeColor` |
+| `block` | `group` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation`, `headerFillColor` |
+| `note` | `group` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation`, `headerFillColor` |
+| `class-box` | `node` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation` |
 | `member` | `label` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue` |
-| `entity` | `group` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation`, `cue`, `headerFillColor` |
-| `attribute` | `group` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation`, `cue`, `headerFillColor` |
-| `relationship` | `edge` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `lineWidth`, `bendRadius`, `strokeColor`, `cue` |
-| `cardinality` | `node` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation`, `cue` |
-| `pie-slice` | `node` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation`, `cue` |
-| `legend` | `group` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation`, `cue`, `headerFillColor` |
-| `bar` | `node` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation`, `cue` |
-| `series` | `edge` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `lineWidth`, `bendRadius`, `strokeColor`, `cue` |
-| `point` | `node` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation`, `cue` |
-| `axis` | `edge` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `lineWidth`, `bendRadius`, `strokeColor`, `cue` |
-| `grid` | `edge` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `lineWidth`, `bendRadius`, `strokeColor`, `cue` |
-| `plate` | `node` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation`, `cue` |
-| `section` | `group` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation`, `cue`, `headerFillColor` |
-| `task` | `node` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation`, `cue` |
-| `milestone` | `node` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation`, `cue` |
-| `marker-line` | `edge` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `lineWidth`, `bendRadius`, `strokeColor`, `cue` |
-| `rail` | `edge` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `lineWidth`, `bendRadius`, `strokeColor`, `cue` |
-| `period` | `group` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation`, `cue`, `headerFillColor` |
-| `event` | `group` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation`, `cue`, `headerFillColor` |
-| `score` | `edge` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `lineWidth`, `bendRadius`, `strokeColor`, `cue` |
-| `actor-pill` | `node` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation`, `cue` |
-| `service` | `group` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation`, `cue`, `headerFillColor` |
-| `junction` | `group` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation`, `cue`, `headerFillColor` |
-| `icon` | `node` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation`, `cue` |
-| `title` | `edge` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `lineWidth`, `bendRadius`, `strokeColor`, `cue` |
+| `entity` | `node` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation` |
+| `attribute` | `label` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue` |
+| `relationship` | `edge` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `lineWidth`, `bendRadius`, `strokeColor` |
+| `cardinality` | `label` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue` |
+| `pie-slice` | `node` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation` |
+| `legend` | `group` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation`, `headerFillColor` |
+| `bar` | `node` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation` |
+| `series` | `edge` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `lineWidth`, `bendRadius`, `strokeColor` |
+| `point` | `node` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation` |
+| `axis` | `label` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue` |
+| `grid` | `edge` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `lineWidth`, `bendRadius`, `strokeColor` |
+| `plate` | `node` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation` |
+| `section` | `group` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation`, `headerFillColor` |
+| `task` | `node` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation` |
+| `milestone` | `node` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation` |
+| `marker-line` | `edge` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `lineWidth`, `bendRadius`, `strokeColor` |
+| `rail` | `edge` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `lineWidth`, `bendRadius`, `strokeColor` |
+| `period` | `group` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation`, `headerFillColor` |
+| `event` | `group` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation`, `headerFillColor` |
+| `score` | `node` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation` |
+| `actor-pill` | `node` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation` |
+| `service` | `node` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation` |
+| `junction` | `node` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation` |
+| `icon` | `node` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `elevation` |
+| `title` | `label` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue` |
 | `defs` | `label` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue` |
 | `prelude` | `label` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue` |
-| `chrome` | `edge` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue`, `lineWidth`, `bendRadius`, `strokeColor`, `cue` |
+| `chrome` | `label` | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`, `textTransform`, `textColor`, `cue` |
 
 ## Family semantic-channel census
 

@@ -81,7 +81,7 @@
           "$ref": "#/$defs/roleStyle-edge"
         },
         "edge-label": {
-          "$ref": "#/$defs/roleStyle-group"
+          "$ref": "#/$defs/roleStyle-label"
         },
         "group": {
           "$ref": "#/$defs/roleStyle-group"
@@ -93,7 +93,7 @@
           "$ref": "#/$defs/roleStyle-label"
         },
         "actor": {
-          "$ref": "#/$defs/roleStyle-group"
+          "$ref": "#/$defs/roleStyle-node"
         },
         "lifeline": {
           "$ref": "#/$defs/roleStyle-edge"
@@ -105,28 +105,28 @@
           "$ref": "#/$defs/roleStyle-edge"
         },
         "block": {
-          "$ref": "#/$defs/roleStyle-edge"
+          "$ref": "#/$defs/roleStyle-group"
         },
         "note": {
           "$ref": "#/$defs/roleStyle-group"
         },
         "class-box": {
-          "$ref": "#/$defs/roleStyle-group"
+          "$ref": "#/$defs/roleStyle-node"
         },
         "member": {
           "$ref": "#/$defs/roleStyle-label"
         },
         "entity": {
-          "$ref": "#/$defs/roleStyle-group"
+          "$ref": "#/$defs/roleStyle-node"
         },
         "attribute": {
-          "$ref": "#/$defs/roleStyle-group"
+          "$ref": "#/$defs/roleStyle-label"
         },
         "relationship": {
           "$ref": "#/$defs/roleStyle-edge"
         },
         "cardinality": {
-          "$ref": "#/$defs/roleStyle-node"
+          "$ref": "#/$defs/roleStyle-label"
         },
         "pie-slice": {
           "$ref": "#/$defs/roleStyle-node"
@@ -144,7 +144,7 @@
           "$ref": "#/$defs/roleStyle-node"
         },
         "axis": {
-          "$ref": "#/$defs/roleStyle-edge"
+          "$ref": "#/$defs/roleStyle-label"
         },
         "grid": {
           "$ref": "#/$defs/roleStyle-edge"
@@ -174,22 +174,22 @@
           "$ref": "#/$defs/roleStyle-group"
         },
         "score": {
-          "$ref": "#/$defs/roleStyle-edge"
+          "$ref": "#/$defs/roleStyle-node"
         },
         "actor-pill": {
           "$ref": "#/$defs/roleStyle-node"
         },
         "service": {
-          "$ref": "#/$defs/roleStyle-group"
+          "$ref": "#/$defs/roleStyle-node"
         },
         "junction": {
-          "$ref": "#/$defs/roleStyle-group"
+          "$ref": "#/$defs/roleStyle-node"
         },
         "icon": {
           "$ref": "#/$defs/roleStyle-node"
         },
         "title": {
-          "$ref": "#/$defs/roleStyle-edge"
+          "$ref": "#/$defs/roleStyle-label"
         },
         "defs": {
           "$ref": "#/$defs/roleStyle-label"
@@ -198,7 +198,7 @@
           "$ref": "#/$defs/roleStyle-label"
         },
         "chrome": {
-          "$ref": "#/$defs/roleStyle-edge"
+          "$ref": "#/$defs/roleStyle-label"
         }
       }
     },

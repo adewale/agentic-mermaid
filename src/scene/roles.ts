@@ -28,9 +28,13 @@ export type SceneRole = BuiltinSceneRole | NamespacedSceneRole
 export type SceneMarkKind = 'shape' | 'connector' | 'text' | 'group' | 'raw' | 'document' | 'prelude'
 export type SceneSketchPolicy = 'shape' | 'connector' | 'none'
 
+export type SceneRoleStyleFallback = 'node' | 'edge' | 'group' | 'label'
+
 export interface SceneRoleTraits {
   /** Scene mark kinds on which the role is meaningful. */
   applicableKinds: readonly SceneMarkKind[]
+  /** Public brand archetype inherited by this semantic role. */
+  styleFallback: SceneRoleStyleFallback
   /** Whether structured SVG receives the stable data-id/data-role contract. */
   domIdentity: boolean
   /** Whether endpoint-bearing marks receive relation accessibility semantics. */
@@ -57,10 +61,12 @@ const PRELUDE: readonly SceneMarkKind[] = ['prelude']
 
 function traits(
   applicableKinds: readonly SceneMarkKind[],
-  options: Partial<Omit<SceneRoleTraits, 'applicableKinds'>> = {},
+  styleFallback: SceneRoleStyleFallback,
+  options: Partial<Omit<SceneRoleTraits, 'applicableKinds' | 'styleFallback'>> = {},
 ): SceneRoleTraits {
   return Object.freeze({
     applicableKinds,
+    styleFallback,
     domIdentity: false,
     relation: false,
     sketch: 'none',
@@ -72,53 +78,53 @@ function traits(
 /** Exact built-in policy.  Backends consume this table instead of maintaining
  * independent role lists, so a role cannot drift between identity and paint. */
 export const BUILTIN_SCENE_ROLE_TRAITS: Readonly<Record<BuiltinSceneRole, SceneRoleTraits>> = Object.freeze({
-  node: traits(SHAPE_OR_GROUP, { domIdentity: true, sketch: 'shape' }),
-  edge: traits(CONNECTOR, { domIdentity: true, relation: true, sketch: 'connector' }),
-  'edge-label': traits(TEXT_OR_GROUP),
-  group: traits(SHAPE_OR_GROUP, { domIdentity: true, sketch: 'shape' }),
-  'group-header': traits(ANY_MARK, { sketch: 'shape', textHalo: true }),
-  label: traits(TEXT, { textHalo: true }),
-  actor: traits(SHAPE_OR_GROUP, { domIdentity: true, sketch: 'shape' }),
-  lifeline: traits(CONNECTOR, { sketch: 'connector' }),
-  activation: traits(SHAPE, { domIdentity: true, sketch: 'shape' }),
-  message: traits(CONNECTOR_OR_GROUP, { domIdentity: true, relation: true, sketch: 'connector' }),
-  block: traits(ANY_MARK, { domIdentity: true, sketch: 'shape' }),
-  note: traits(SHAPE_OR_GROUP, { domIdentity: true, sketch: 'shape' }),
-  'class-box': traits(SHAPE_OR_GROUP, { domIdentity: true, sketch: 'shape' }),
-  member: traits(TEXT, { domIdentity: true, textHalo: true }),
-  entity: traits(SHAPE_OR_GROUP, { domIdentity: true, sketch: 'shape' }),
+  node: traits(SHAPE_OR_GROUP, 'node', { domIdentity: true, sketch: 'shape' }),
+  edge: traits(CONNECTOR, 'edge', { domIdentity: true, relation: true, sketch: 'connector' }),
+  'edge-label': traits(TEXT_OR_GROUP, 'label'),
+  group: traits(SHAPE_OR_GROUP, 'group', { domIdentity: true, sketch: 'shape' }),
+  'group-header': traits(ANY_MARK, 'group', { sketch: 'shape', textHalo: true }),
+  label: traits(TEXT, 'label', { textHalo: true }),
+  actor: traits(SHAPE_OR_GROUP, 'node', { domIdentity: true, sketch: 'shape' }),
+  lifeline: traits(CONNECTOR, 'edge', { sketch: 'connector' }),
+  activation: traits(SHAPE, 'node', { domIdentity: true, sketch: 'shape' }),
+  message: traits(CONNECTOR_OR_GROUP, 'edge', { domIdentity: true, relation: true, sketch: 'connector' }),
+  block: traits(ANY_MARK, 'group', { domIdentity: true, sketch: 'shape' }),
+  note: traits(SHAPE_OR_GROUP, 'group', { domIdentity: true, sketch: 'shape' }),
+  'class-box': traits(SHAPE_OR_GROUP, 'node', { domIdentity: true, sketch: 'shape' }),
+  member: traits(TEXT, 'label', { domIdentity: true, textHalo: true }),
+  entity: traits(SHAPE_OR_GROUP, 'node', { domIdentity: true, sketch: 'shape' }),
   // ER attributes may be emitted as a semantic wrapper containing the name,
   // type, and key badge; the group carries the attribute identity.
-  attribute: traits(TEXT_OR_GROUP, { domIdentity: true, textHalo: true }),
-  relationship: traits(CONNECTOR, { domIdentity: true, relation: true, sketch: 'connector' }),
-  cardinality: traits(SHAPE_OR_TEXT, { domIdentity: true, textHalo: true }),
-  'pie-slice': traits(SHAPE, { domIdentity: true, sketch: 'shape' }),
-  legend: traits(SHAPE_TEXT_OR_GROUP, { textHalo: true }),
-  bar: traits(SHAPE, { domIdentity: true, sketch: 'shape' }),
-  series: traits(CONNECTOR, { domIdentity: true, sketch: 'connector' }),
-  point: traits(SHAPE, { domIdentity: true }),
-  axis: traits(ANY_MARK, { textHalo: true }),
-  grid: traits(ANY_MARK),
-  plate: traits(SHAPE, { domIdentity: true, sketch: 'shape' }),
-  section: traits(ANY_MARK, { domIdentity: true, sketch: 'shape', textHalo: true }),
-  task: traits(ANY_MARK, { domIdentity: true, sketch: 'shape' }),
-  milestone: traits(SHAPE, { domIdentity: true, sketch: 'shape' }),
-  'marker-line': traits(ANY_MARK),
-  rail: traits(ANY_MARK, { sketch: 'connector' }),
-  period: traits(SHAPE_OR_GROUP, { domIdentity: true, sketch: 'shape' }),
-  event: traits(SHAPE_OR_GROUP, { domIdentity: true, sketch: 'shape' }),
-  score: traits(ANY_MARK),
-  'actor-pill': traits(SHAPE, { sketch: 'shape' }),
-  service: traits(SHAPE_OR_GROUP, { domIdentity: true, sketch: 'shape' }),
-  junction: traits(SHAPE_OR_GROUP, { domIdentity: true }),
-  icon: traits(SHAPE_TEXT_OR_RAW),
-  title: traits(ANY_MARK, { domIdentity: true }),
-  defs: traits(RAW_OR_DOCUMENT),
-  prelude: traits(PRELUDE),
-  chrome: traits(ANY_MARK),
+  attribute: traits(TEXT_OR_GROUP, 'label', { domIdentity: true, textHalo: true }),
+  relationship: traits(CONNECTOR, 'edge', { domIdentity: true, relation: true, sketch: 'connector' }),
+  cardinality: traits(SHAPE_OR_TEXT, 'label', { domIdentity: true, textHalo: true }),
+  'pie-slice': traits(SHAPE, 'node', { domIdentity: true, sketch: 'shape' }),
+  legend: traits(SHAPE_TEXT_OR_GROUP, 'group', { textHalo: true }),
+  bar: traits(SHAPE, 'node', { domIdentity: true, sketch: 'shape' }),
+  series: traits(CONNECTOR, 'edge', { domIdentity: true, sketch: 'connector' }),
+  point: traits(SHAPE, 'node', { domIdentity: true }),
+  axis: traits(ANY_MARK, 'label', { textHalo: true }),
+  grid: traits(ANY_MARK, 'edge'),
+  plate: traits(SHAPE, 'node', { domIdentity: true, sketch: 'shape' }),
+  section: traits(ANY_MARK, 'group', { domIdentity: true, sketch: 'shape', textHalo: true }),
+  task: traits(ANY_MARK, 'node', { domIdentity: true, sketch: 'shape' }),
+  milestone: traits(SHAPE, 'node', { domIdentity: true, sketch: 'shape' }),
+  'marker-line': traits(ANY_MARK, 'edge'),
+  rail: traits(ANY_MARK, 'edge', { sketch: 'connector' }),
+  period: traits(SHAPE_OR_GROUP, 'group', { domIdentity: true, sketch: 'shape' }),
+  event: traits(SHAPE_OR_GROUP, 'group', { domIdentity: true, sketch: 'shape' }),
+  score: traits(ANY_MARK, 'node'),
+  'actor-pill': traits(SHAPE, 'node', { sketch: 'shape' }),
+  service: traits(SHAPE_OR_GROUP, 'node', { domIdentity: true, sketch: 'shape' }),
+  junction: traits(SHAPE_OR_GROUP, 'node', { domIdentity: true }),
+  icon: traits(SHAPE_TEXT_OR_RAW, 'node'),
+  title: traits(ANY_MARK, 'label', { domIdentity: true }),
+  defs: traits(RAW_OR_DOCUMENT, 'label'),
+  prelude: traits(PRELUDE, 'label'),
+  chrome: traits(ANY_MARK, 'label'),
 })
 
-const SAFE_NAMESPACED_TRAITS = traits(ANY_MARK, { domIdentity: true })
+const SAFE_NAMESPACED_TRAITS = traits(ANY_MARK, 'label', { domIdentity: true })
 
 export interface ResolvedSceneRoleTraits {
   traits: SceneRoleTraits
@@ -127,7 +133,7 @@ export interface ResolvedSceneRoleTraits {
 
 export type RoleStyleProperty = keyof RoleStyleSpec
 export interface SceneRoleStyleDescriptor {
-  readonly fallbackRole: BuiltinSceneRole
+  readonly fallbackRole: SceneRoleStyleFallback
   readonly applicableProperties: readonly RoleStyleProperty[]
 }
 export interface SceneRoleDescriptor {
@@ -140,29 +146,15 @@ export interface SceneRoleDescriptor {
 const TEXT_STYLE = Object.freeze(['fontFamily', 'fontSize', 'fontWeight', 'letterSpacing', 'lineHeight', 'textTransform', 'textColor', 'cue'] as const)
 const SHAPE_STYLE = Object.freeze(['paddingX', 'paddingY', 'cornerRadius', 'lineWidth', 'fillColor', 'borderColor', 'elevation', 'cue'] as const)
 const CONNECTOR_STYLE = Object.freeze(['lineWidth', 'bendRadius', 'strokeColor', 'cue'] as const)
-const GROUP_STYLE = Object.freeze([...TEXT_STYLE, ...SHAPE_STYLE, 'headerFillColor'] as const)
-const BRAND_FALLBACK_OVERRIDES: Partial<Record<BuiltinSceneRole, BuiltinSceneRole>> = Object.freeze({
-  'group-header': 'group',
-  section: 'group',
-  task: 'node',
-  milestone: 'node',
-})
-
-function fallbackRole(role: BuiltinSceneRole, roleTraits: SceneRoleTraits): BuiltinSceneRole {
-  const override = BRAND_FALLBACK_OVERRIDES[role]
-  if (override) return override
-  if (role === 'node' || role === 'edge' || role === 'group' || role === 'label') return role
-  if (roleTraits.applicableKinds.includes('connector')) return 'edge'
-  if (roleTraits.applicableKinds.includes('group')) return 'group'
-  if (roleTraits.applicableKinds.includes('shape')) return 'node'
-  return 'label'
-}
-function applicableStyle(fallback: BuiltinSceneRole): readonly RoleStyleProperty[] {
+const uniqueProperties = (...groups: readonly (readonly RoleStyleProperty[])[]): readonly RoleStyleProperty[] =>
+  Object.freeze([...new Set(groups.flat())])
+const GROUP_STYLE = uniqueProperties(TEXT_STYLE, SHAPE_STYLE, ['headerFillColor'])
+function applicableStyle(fallback: SceneRoleStyleFallback): readonly RoleStyleProperty[] {
   // A semantic wrapper may own the typography of child text even when its own
   // Scene mark kind is shape/group. Applicability therefore follows the
-  // descriptor's brand fallback contract, not only the physical mark kind.
-  if (fallback === 'node') return Object.freeze([...TEXT_STYLE, ...SHAPE_STYLE])
-  if (fallback === 'edge') return Object.freeze([...TEXT_STYLE, ...CONNECTOR_STYLE])
+  // descriptor's explicit brand fallback contract, not physical-kind order.
+  if (fallback === 'node') return uniqueProperties(TEXT_STYLE, SHAPE_STYLE)
+  if (fallback === 'edge') return uniqueProperties(TEXT_STYLE, CONNECTOR_STYLE)
   if (fallback === 'group') return GROUP_STYLE
   return TEXT_STYLE
 }
@@ -181,7 +173,7 @@ export const SCENE_ROLE_DESCRIPTORS: readonly SceneRoleDescriptor[] = Object.fre
     role: role as BuiltinSceneRole,
     traits: roleTraits,
     style: (() => {
-      const fallback = fallbackRole(role as BuiltinSceneRole, roleTraits)
+      const fallback = roleTraits.styleFallback
       return Object.freeze({
         fallbackRole: fallback,
         applicableProperties: applicableStyle(fallback),

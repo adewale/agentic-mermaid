@@ -111,8 +111,7 @@
         "lineWidth",
         "fillColor",
         "borderColor",
-        "elevation",
-        "cue"
+        "elevation"
       ]
     },
     {
@@ -129,13 +128,12 @@
         "cue",
         "lineWidth",
         "bendRadius",
-        "strokeColor",
-        "cue"
+        "strokeColor"
       ]
     },
     {
       "role": "edge-label",
-      "fallbackRole": "group",
+      "fallbackRole": "label",
       "applicableProperties": [
         "fontFamily",
         "fontSize",
@@ -144,16 +142,7 @@
         "lineHeight",
         "textTransform",
         "textColor",
-        "cue",
-        "paddingX",
-        "paddingY",
-        "cornerRadius",
-        "lineWidth",
-        "fillColor",
-        "borderColor",
-        "elevation",
-        "cue",
-        "headerFillColor"
+        "cue"
       ]
     },
     {
@@ -175,7 +164,6 @@
         "fillColor",
         "borderColor",
         "elevation",
-        "cue",
         "headerFillColor"
       ]
     },
@@ -198,7 +186,6 @@
         "fillColor",
         "borderColor",
         "elevation",
-        "cue",
         "headerFillColor"
       ]
     },
@@ -218,7 +205,7 @@
     },
     {
       "role": "actor",
-      "fallbackRole": "group",
+      "fallbackRole": "node",
       "applicableProperties": [
         "fontFamily",
         "fontSize",
@@ -234,9 +221,7 @@
         "lineWidth",
         "fillColor",
         "borderColor",
-        "elevation",
-        "cue",
-        "headerFillColor"
+        "elevation"
       ]
     },
     {
@@ -253,8 +238,7 @@
         "cue",
         "lineWidth",
         "bendRadius",
-        "strokeColor",
-        "cue"
+        "strokeColor"
       ]
     },
     {
@@ -275,8 +259,7 @@
         "lineWidth",
         "fillColor",
         "borderColor",
-        "elevation",
-        "cue"
+        "elevation"
       ]
     },
     {
@@ -293,13 +276,12 @@
         "cue",
         "lineWidth",
         "bendRadius",
-        "strokeColor",
-        "cue"
+        "strokeColor"
       ]
     },
     {
       "role": "block",
-      "fallbackRole": "edge",
+      "fallbackRole": "group",
       "applicableProperties": [
         "fontFamily",
         "fontSize",
@@ -309,10 +291,14 @@
         "textTransform",
         "textColor",
         "cue",
+        "paddingX",
+        "paddingY",
+        "cornerRadius",
         "lineWidth",
-        "bendRadius",
-        "strokeColor",
-        "cue"
+        "fillColor",
+        "borderColor",
+        "elevation",
+        "headerFillColor"
       ]
     },
     {
@@ -334,13 +320,12 @@
         "fillColor",
         "borderColor",
         "elevation",
-        "cue",
         "headerFillColor"
       ]
     },
     {
       "role": "class-box",
-      "fallbackRole": "group",
+      "fallbackRole": "node",
       "applicableProperties": [
         "fontFamily",
         "fontSize",
@@ -356,9 +341,7 @@
         "lineWidth",
         "fillColor",
         "borderColor",
-        "elevation",
-        "cue",
-        "headerFillColor"
+        "elevation"
       ]
     },
     {
@@ -377,70 +360,6 @@
     },
     {
       "role": "entity",
-      "fallbackRole": "group",
-      "applicableProperties": [
-        "fontFamily",
-        "fontSize",
-        "fontWeight",
-        "letterSpacing",
-        "lineHeight",
-        "textTransform",
-        "textColor",
-        "cue",
-        "paddingX",
-        "paddingY",
-        "cornerRadius",
-        "lineWidth",
-        "fillColor",
-        "borderColor",
-        "elevation",
-        "cue",
-        "headerFillColor"
-      ]
-    },
-    {
-      "role": "attribute",
-      "fallbackRole": "group",
-      "applicableProperties": [
-        "fontFamily",
-        "fontSize",
-        "fontWeight",
-        "letterSpacing",
-        "lineHeight",
-        "textTransform",
-        "textColor",
-        "cue",
-        "paddingX",
-        "paddingY",
-        "cornerRadius",
-        "lineWidth",
-        "fillColor",
-        "borderColor",
-        "elevation",
-        "cue",
-        "headerFillColor"
-      ]
-    },
-    {
-      "role": "relationship",
-      "fallbackRole": "edge",
-      "applicableProperties": [
-        "fontFamily",
-        "fontSize",
-        "fontWeight",
-        "letterSpacing",
-        "lineHeight",
-        "textTransform",
-        "textColor",
-        "cue",
-        "lineWidth",
-        "bendRadius",
-        "strokeColor",
-        "cue"
-      ]
-    },
-    {
-      "role": "cardinality",
       "fallbackRole": "node",
       "applicableProperties": [
         "fontFamily",
@@ -457,7 +376,51 @@
         "lineWidth",
         "fillColor",
         "borderColor",
-        "elevation",
+        "elevation"
+      ]
+    },
+    {
+      "role": "attribute",
+      "fallbackRole": "label",
+      "applicableProperties": [
+        "fontFamily",
+        "fontSize",
+        "fontWeight",
+        "letterSpacing",
+        "lineHeight",
+        "textTransform",
+        "textColor",
+        "cue"
+      ]
+    },
+    {
+      "role": "relationship",
+      "fallbackRole": "edge",
+      "applicableProperties": [
+        "fontFamily",
+        "fontSize",
+        "fontWeight",
+        "letterSpacing",
+        "lineHeight",
+        "textTransform",
+        "textColor",
+        "cue",
+        "lineWidth",
+        "bendRadius",
+        "strokeColor"
+      ]
+    },
+    {
+      "role": "cardinality",
+      "fallbackRole": "label",
+      "applicableProperties": [
+        "fontFamily",
+        "fontSize",
+        "fontWeight",
+        "letterSpacing",
+        "lineHeight",
+        "textTransform",
+        "textColor",
         "cue"
       ]
     },
@@ -479,8 +442,7 @@
         "lineWidth",
         "fillColor",
         "borderColor",
-        "elevation",
-        "cue"
+        "elevation"
       ]
     },
     {
@@ -502,7 +464,6 @@
         "fillColor",
         "borderColor",
         "elevation",
-        "cue",
         "headerFillColor"
       ]
     },
@@ -524,8 +485,7 @@
         "lineWidth",
         "fillColor",
         "borderColor",
-        "elevation",
-        "cue"
+        "elevation"
       ]
     },
     {
@@ -542,8 +502,7 @@
         "cue",
         "lineWidth",
         "bendRadius",
-        "strokeColor",
-        "cue"
+        "strokeColor"
       ]
     },
     {
@@ -564,13 +523,12 @@
         "lineWidth",
         "fillColor",
         "borderColor",
-        "elevation",
-        "cue"
+        "elevation"
       ]
     },
     {
       "role": "axis",
-      "fallbackRole": "edge",
+      "fallbackRole": "label",
       "applicableProperties": [
         "fontFamily",
         "fontSize",
@@ -579,10 +537,6 @@
         "lineHeight",
         "textTransform",
         "textColor",
-        "cue",
-        "lineWidth",
-        "bendRadius",
-        "strokeColor",
         "cue"
       ]
     },
@@ -600,8 +554,7 @@
         "cue",
         "lineWidth",
         "bendRadius",
-        "strokeColor",
-        "cue"
+        "strokeColor"
       ]
     },
     {
@@ -622,8 +575,7 @@
         "lineWidth",
         "fillColor",
         "borderColor",
-        "elevation",
-        "cue"
+        "elevation"
       ]
     },
     {
@@ -645,7 +597,6 @@
         "fillColor",
         "borderColor",
         "elevation",
-        "cue",
         "headerFillColor"
       ]
     },
@@ -667,8 +618,7 @@
         "lineWidth",
         "fillColor",
         "borderColor",
-        "elevation",
-        "cue"
+        "elevation"
       ]
     },
     {
@@ -689,8 +639,7 @@
         "lineWidth",
         "fillColor",
         "borderColor",
-        "elevation",
-        "cue"
+        "elevation"
       ]
     },
     {
@@ -707,8 +656,7 @@
         "cue",
         "lineWidth",
         "bendRadius",
-        "strokeColor",
-        "cue"
+        "strokeColor"
       ]
     },
     {
@@ -725,8 +673,7 @@
         "cue",
         "lineWidth",
         "bendRadius",
-        "strokeColor",
-        "cue"
+        "strokeColor"
       ]
     },
     {
@@ -748,7 +695,6 @@
         "fillColor",
         "borderColor",
         "elevation",
-        "cue",
         "headerFillColor"
       ]
     },
@@ -771,13 +717,12 @@
         "fillColor",
         "borderColor",
         "elevation",
-        "cue",
         "headerFillColor"
       ]
     },
     {
       "role": "score",
-      "fallbackRole": "edge",
+      "fallbackRole": "node",
       "applicableProperties": [
         "fontFamily",
         "fontSize",
@@ -787,10 +732,13 @@
         "textTransform",
         "textColor",
         "cue",
+        "paddingX",
+        "paddingY",
+        "cornerRadius",
         "lineWidth",
-        "bendRadius",
-        "strokeColor",
-        "cue"
+        "fillColor",
+        "borderColor",
+        "elevation"
       ]
     },
     {
@@ -811,13 +759,12 @@
         "lineWidth",
         "fillColor",
         "borderColor",
-        "elevation",
-        "cue"
+        "elevation"
       ]
     },
     {
       "role": "service",
-      "fallbackRole": "group",
+      "fallbackRole": "node",
       "applicableProperties": [
         "fontFamily",
         "fontSize",
@@ -833,14 +780,12 @@
         "lineWidth",
         "fillColor",
         "borderColor",
-        "elevation",
-        "cue",
-        "headerFillColor"
+        "elevation"
       ]
     },
     {
       "role": "junction",
-      "fallbackRole": "group",
+      "fallbackRole": "node",
       "applicableProperties": [
         "fontFamily",
         "fontSize",
@@ -856,9 +801,7 @@
         "lineWidth",
         "fillColor",
         "borderColor",
-        "elevation",
-        "cue",
-        "headerFillColor"
+        "elevation"
       ]
     },
     {
@@ -879,13 +822,12 @@
         "lineWidth",
         "fillColor",
         "borderColor",
-        "elevation",
-        "cue"
+        "elevation"
       ]
     },
     {
       "role": "title",
-      "fallbackRole": "edge",
+      "fallbackRole": "label",
       "applicableProperties": [
         "fontFamily",
         "fontSize",
@@ -894,10 +836,6 @@
         "lineHeight",
         "textTransform",
         "textColor",
-        "cue",
-        "lineWidth",
-        "bendRadius",
-        "strokeColor",
         "cue"
       ]
     },
@@ -931,7 +869,7 @@
     },
     {
       "role": "chrome",
-      "fallbackRole": "edge",
+      "fallbackRole": "label",
       "applicableProperties": [
         "fontFamily",
         "fontSize",
@@ -940,10 +878,6 @@
         "lineHeight",
         "textTransform",
         "textColor",
-        "cue",
-        "lineWidth",
-        "bendRadius",
-        "strokeColor",
         "cue"
       ]
     }
@@ -1322,5 +1256,5 @@
       ]
     }
   ],
-  "digest": "sha256:a30e01acb12cd6fd7b2adbcddf7702c2d532390f623eb54fd2ac0fea85e2f598"
+  "digest": "sha256:b2e329742474a704387e4025a1cdf8e80381e66b0d3126989510b271ea143c37"
 }

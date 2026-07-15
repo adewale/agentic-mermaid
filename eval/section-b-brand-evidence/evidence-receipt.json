@@ -3,7 +3,7 @@
   "generator": "scripts/pr-assets/section-b-brand-evidence.ts",
   "inputs": {
     "count": 685,
-    "treeSha256": "b7cbb87d43f47d5dc6bf27742f2ebf00bd219a9542eae25e226ab487c8376dcc"
+    "treeSha256": "cba7acdd6dd01c406a30da5c5830195b42dd59361d10f9fded040210dab51523"
   },
   "families": [
     "flowchart",
@@ -35,7 +35,7 @@
   "outputs": [
     {
       "path": "docs/design/families/section-b-brand-evidence.png",
-      "sha256": "139e8d902e8a77ceec00358b0211bf2fb154547d1aac8b2f18d24a582659bf03"
+      "sha256": "85431b86b34f2fd046a53b022e09bfc15555a5a768f79d526017d9f63f021fb8"
     }
   ]
 }

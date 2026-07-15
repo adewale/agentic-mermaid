@@ -30,7 +30,7 @@ import type { SceneRole } from './roles.ts'
 
 export type {
   BuiltinSceneRole, CoreSceneRole, NamespacedSceneRole, SceneRole,
-  SceneRoleTraits, SceneSketchPolicy,
+  SceneRoleTraits, SceneRoleStyleFallback, SceneSketchPolicy,
 } from './roles.ts'
 
 /** One canonical closed channel vocabulary shared by Scene types, family
