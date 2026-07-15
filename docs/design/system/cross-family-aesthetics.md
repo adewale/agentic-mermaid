@@ -240,6 +240,31 @@ consistent improvement available.
   family didn't break the floor; it does not certify beauty (L9). Beauty still requires a
   per-family aesthetic thesis.
 
+## 8. Update — the canonical palette is now perceptually uniform (PR #179)
+
+L3's "categorical color from the shared `pieSliceColors`" got a perceptual upgrade
+that every inheriting family (radar today; the §4 item 4 `getSeriesColor → pieSliceColors`
+migration next) receives for free. The old high-count (`>6`) ladder spread hues in
+**HSL** at two fixed lightness tiers, and equal HSL lightness is *unequal perceived*
+lightness across hues — so hue-adjacent categories collapsed (measured: two of fifteen
+fills at WCAG 1.01:1; worst pair ΔE_OK 0.049). `hueSpreadColors` now:
+
+- spreads hues at **constant OKLCH lightness**, so the two tiers separate evenly at every hue;
+- enforces a **minimum ΔE_OK distinctness floor** (a bounded, deterministic separation pass),
+  so no two fills read as the same color for realistic counts (best-effort past ~two dozen,
+  where the sRGB gamut is exhausted — still collision-free and visible);
+- gates wedge visibility on **APCA** as well as WCAG, because WCAG is polarity-blind and
+  passes a wedge that is invisible on a dark theme.
+
+This is the first step toward §6's open gap — the rubric still does not *score* a rendered
+diagram's palette harmony, but the palette *generator* now guarantees perceptual distinctness
+and visibility by construction. Primitives in `src/shared/perceptual-color.ts` (OKLab/OKLCH,
+ΔE_OK, APCA); the cross-family impact is guarded end-to-end in
+`src/__tests__/perceptual-palette-impact.test.ts` (an 8-curve radar renders 8 distinct,
+visible curve colors). It also strengthens the §4 item 4 recommendation: swapping the four
+`getSeriesColor` families onto `pieSliceColors` now buys perceptual uniformity, not just a
+shared hue language.
+
 ---
 
 ## 7. Process lesson

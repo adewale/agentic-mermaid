@@ -170,6 +170,34 @@ family docs, and `TODO.md`.
   constraints are quiet. A screenshot generator proving only that bytes exist is
   weaker than a prototype whose render, policy, terminal cue, registration, and
   non-registration boundaries all execute.
+- **Perceptually-uniform categorical color beats HSL.** Equal HSL lightness is
+  *unequal perceived* lightness across hues, so an HSL hue-sweep collapses
+  hue-adjacent categories (measured on the old pie ladder: two of fifteen fills
+  at WCAG 1.01:1; worst pair ΔE_OK 0.049 — a near-identical green pair).
+  Generate categorical fills at constant OKLCH lightness, enforce a minimum
+  ΔE_OK distinctness floor, and gate wedge visibility with polarity-aware APCA
+  (WCAG is polarity-blind and passes wedges that vanish on a dark theme). Put it
+  in the *canonical* palette (`pieSliceColors`): radar already inherits it, and
+  the cross-family plan routes xychart/journey/mindmap/gitgraph through it, so
+  one perceptual fix compounds across every family that shares the color waist.
+  See [`../design/system/cross-family-aesthetics.md`](../design/system/cross-family-aesthetics.md) L3.
+- **A guarantee is only as honest as its stated bound.** The ΔE_OK collision
+  floor holds up to a couple dozen slices; past that the sRGB gamut is exhausted
+  and separation is best-effort. "No two colors collide, even for adversarial
+  counts" was an overclaim that the test quietly dodged by stopping one count
+  before the cliff. State the realistic range in the comment, and add a
+  high-count test that asserts the invariants that *do* survive (no repeated
+  color, every wedge clears both visibility floors) instead of the target that
+  does not. A soft geometric/color metric that runs out of gamut/space is
+  best-effort, not a hard guarantee — say which.
+- **Reverting a wiring can strand its mechanism as dead code.** An auto-wrap was
+  reverted for overriding an explicit `wrappingWidth` (a user directive); that
+  left the wrap *option* it fed with no product caller, reachable only from
+  tests. Ship the reachable half (the `LABEL_LINE_OVERLONG` detector, an
+  agent-facing rewrap signal) and delete the stranded mechanism. A detector
+  without its corrective is still useful; unreachable code is a tax the next
+  reviewer pays. When a revert removes the only consumer of a helper, remove the
+  helper in the same change.
 
 ## How to apply these lessons
 

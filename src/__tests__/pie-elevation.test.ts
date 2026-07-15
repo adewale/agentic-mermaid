@@ -38,8 +38,8 @@ import type { PositionedPieChart } from '../pie/types.ts'
 import { resolvePieVisualConfig, DEFAULT_PIE_VISUAL_CONFIG } from '../pie/config.ts'
 import type { PieVisualConfig } from '../pie/config.ts'
 import { pieSliceColors } from '../pie/palette.ts'
-import { hexToHsl } from '../xychart/colors.ts'
 import { wcagContrastRatio, wcagCssContrastRatio } from '../shared/color-math.ts'
+import { deltaEOK, minPairwiseDeltaEOK, apcaContrast } from '../shared/perceptual-color.ts'
 import { renderMermaidSVG, renderMermaidASCII } from '../index.ts'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { verifyMermaid } from '../agent/verify.ts'
@@ -703,13 +703,17 @@ describe('pie stroke and opacity theme variables', () => {
 // ---------------------------------------------------------------------------
 
 describe('pie high-count palette', () => {
+  // Perceptual distinctness: two fills are distinguishable when their OKLCH
+  // distance clears a JND-safe floor. This replaces the old HSL-hue proxy,
+  // which mislabelled perceptually-distinct warm colors (an OKLCH orange vs
+  // olive) as identical because HSL hue compresses in that region — the very
+  // non-uniformity idea #1 moves the palette off of. 0.06 sits above the ~0.02
+  // JND and above the 0.053 the pre-OKLCH HSL ladder degenerated to, so
+  // reverting to the HSL ramp turns this test red.
+  const DISTINCT_FLOOR = 0.06
   const distinguishable = (a: string, b: string): boolean => {
-    const contrast = wcagContrastRatio(a, b)
-    if (contrast !== null && contrast >= 1.1) return true
-    const ha = hexToHsl(a)[0]
-    const hb = hexToHsl(b)[0]
-    const sep = Math.min(Math.abs(ha - hb), 360 - Math.abs(ha - hb))
-    return sep >= 25
+    const d = deltaEOK(a, b)
+    return d !== null && d >= DISTINCT_FLOOR
   }
 
   it('15 slices on the default light theme are pairwise distinguishable', () => {
@@ -721,6 +725,44 @@ describe('pie high-count palette', () => {
           throw new Error(`palette degenerates: ${i}:${cols[i]} vs ${j}:${cols[j]}`)
         }
       }
+    }
+  })
+
+  it('enforces the minimum ΔE_OK collision floor across realistic slice counts (idea #2)', () => {
+    // The old HSL two-tier ladder let the worst pair fall to ΔE_OK ≈ 0.053;
+    // the OKLCH-constant-lightness sweep plus the ΔE floor keeps every pair
+    // ≥ 0.10 on light and dark themes for realistic counts (up to two dozen).
+    for (const count of [7, 12, 15, 24]) {
+      for (const bg of ['#ffffff', '#1a1b26']) {
+        const cols = pieSliceColors(count, { accent: '#3b82f6', bg })
+        expect(minPairwiseDeltaEOK(cols)).toBeGreaterThanOrEqual(0.10)
+      }
+    }
+  })
+
+  it('degrades gracefully past the gamut limit — best-effort, still collision-free and visible', () => {
+    // Past ~two dozen slices the sRGB gamut is exhausted, so the 0.10 ΔE target
+    // can slip (a 40-slice pie is unreadable regardless). The invariants that
+    // MUST still hold: no repeated color, and every wedge clears both the WCAG
+    // and APCA visibility floors. This documents the real high-count contract.
+    for (const bg of ['#ffffff', '#1a1b26']) {
+      const cols = pieSliceColors(40, { accent: '#3b82f6', bg })
+      expect(new Set(cols).size).toBe(40)
+      for (const c of cols) {
+        expect(wcagContrastRatio(c, bg)!).toBeGreaterThanOrEqual(1.25)
+        expect(apcaContrast(c, bg)!).toBeGreaterThanOrEqual(15)
+      }
+    }
+  })
+
+  it('high-count wedges clear the APCA visibility floor, including on dark themes (idea #3)', () => {
+    // WCAG is polarity-blind: the pre-APCA ladder shipped a wedge at APCA
+    // |Lc| = 0 (invisible) on a dark theme while WCAG still read ~1.42. The
+    // APCA floor forbids that regardless of polarity.
+    const cases: Array<[string, string]> = [['#3b82f6', '#1a1b26'], ['#1a1b26', '#1a1b26'], ['#ffffff', '#ffffff']]
+    for (const [accent, bg] of cases) {
+      const cols = pieSliceColors(15, { accent, bg })
+      for (const c of cols) expect(apcaContrast(c, bg)!).toBeGreaterThanOrEqual(15)
     }
   })
 
