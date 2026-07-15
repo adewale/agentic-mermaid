@@ -77,12 +77,18 @@ async function waitForEditorRender(timeoutMs = 30_000): Promise<void> {
  * BrowserContext, so localStorage persists but a stuck prior document cannot
  * block the next response from committing on slower GitHub runners.
  */
-async function gotoApp(url: string): Promise<void> {
+async function gotoApp(url: string, options: { clearDraft?: boolean } = {}): Promise<void> {
   const previous = page
   const viewport = previous?.viewportSize() ?? null
   try { await cdpSession?.send('Page.stopLoading') } catch {}
   page = await context.newPage()
   if (viewport) await page.setViewportSize(viewport)
+  if (options.clearDraft) {
+    await page.addInitScript(() => {
+      localStorage.removeItem('bm-editor-draft')
+      localStorage.removeItem('bm-editor-draft-mode')
+    })
+  }
   cdpSession = await context.newCDPSession(page)
   if (previous && !previous.isClosed()) {
     void previous.close({ runBeforeUnload: false }).catch(() => {})
@@ -677,7 +683,7 @@ pie showData
   }, 120_000)
 
   it('examples sidebar keeps the selected theme and exposes blank reset without a floating source toolbar', async () => {
-    await gotoApp(`${BASE}/editor`)
+    await gotoApp(`${BASE}/editor`, { clearDraft: true })
     await page.waitForSelector('#code-editor', { timeout: 30_000 })
 
     await page.click('#theme-dropdown-btn')
@@ -770,7 +776,7 @@ pie showData
   }, 60_000)
 
   it('loads source/config examples without overriding the selected theme', async () => {
-    await gotoApp(`${BASE}/editor`)
+    await gotoApp(`${BASE}/editor`, { clearDraft: true })
     await page.waitForSelector('#code-editor', { timeout: 30_000 })
     // The chrome bg must not change with the diagram theme; capture it up front so
     // the assertion holds whether or not a prior test left the editor in dark mode.
