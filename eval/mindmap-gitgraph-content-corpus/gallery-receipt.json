@@ -68,7 +68,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "89d60bca425f9e68c17acf50e68d745d31fd07fdd035ee1e74f33d3e98da9271"
+      "sha256": "82ca1d95a0e81ddc4142d352626e9d0fb8e2f19e3848f75ce1839b0b8b7a2978"
     },
     {
       "path": "scripts/pr-assets/artifact-receipt.ts",
@@ -228,7 +228,7 @@
     },
     {
       "path": "src/__tests__/agent-readiness-standards.test.ts",
-      "sha256": "62bef475bd9a5cef2ae47cbbfb7dc7f13eeff47b88cac859ce7f876e1e85cd51"
+      "sha256": "b478a6550401c3ea9d726fbdad61a63878b8722abd2e4d3277430107d1a4290d"
     },
     {
       "path": "src/__tests__/agent-region-tree.test.ts",

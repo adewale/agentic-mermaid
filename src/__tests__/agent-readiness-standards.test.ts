@@ -70,8 +70,15 @@ describe('agent-readiness standards syntax', () => {
     expect(aggregateSteps.find((step: any) => step.name === 'Merge shard coverage')?.run)
       .toBe('bun run scripts/ci/merge-lcov.ts coverage-shards coverage/lcov.info 3')
     expect(ci.jobs.e2e.strategy.matrix.suite).toEqual(['cli', 'dist-artifact', 'tarball-consumer', 'browser'])
-    expect(e2eSteps.find((step: any) => step.name === 'Run browser-gated unit contracts')?.run)
-      .toBe('cd e2e && AM_BROWSER_TESTS=1 bun test ../src/__tests__/editor-theme-switch.test.ts ../src/__tests__/editor-style-switch.test.ts ../src/__tests__/website-browser-a11y.test.ts --timeout 600000')
+    const browserContractCommands = [
+      'AM_BROWSER_TESTS=1 bun test ../src/__tests__/editor-theme-switch.test.ts --timeout 600000',
+      'AM_BROWSER_TESTS=1 bun test ../src/__tests__/editor-style-switch.test.ts --timeout 600000',
+      'AM_BROWSER_TESTS=1 bun test ../src/__tests__/website-browser-a11y.test.ts --timeout 600000',
+    ]
+    expect(e2eSteps.find((step: any) => step.name === 'Run browser-gated unit contracts')?.run.trim().split('\n'))
+      .toEqual(['cd e2e', ...browserContractCommands])
+    expect(packageJson.scripts['test:browser'])
+      .toBe(['cd e2e', 'bun test . --timeout 600000', ...browserContractCommands].join(' && '))
     expect(publishWorkflow.match(/run: bun run test/g)?.length).toBe(1)
     expect(strategy).toContain('`bun run test`')
     expect(pullRequestTemplate).toContain('`bun run test`')

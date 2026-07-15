@@ -245,8 +245,14 @@ jobs:
         if: ${{ matrix.suite == 'browser' }}
         # These suites live in src/__tests__ but require the explicit browser
         # opt-in and a real Chromium, so keep them out of the unit shards and
-        # execute the complete theme/style/accessibility contract here.
-        run: cd e2e && AM_BROWSER_TESTS=1 bun test ../src/__tests__/editor-theme-switch.test.ts ../src/__tests__/editor-style-switch.test.ts ../src/__tests__/website-browser-a11y.test.ts --timeout 600000
+        # execute the complete theme/style/accessibility contract here. Keep
+        # one file per Bun process: loading all three files together overlaps
+        # their browser/server hooks and exhausts a constrained hosted runner.
+        run: |
+          cd e2e
+          AM_BROWSER_TESTS=1 bun test ../src/__tests__/editor-theme-switch.test.ts --timeout 600000
+          AM_BROWSER_TESTS=1 bun test ../src/__tests__/editor-style-switch.test.ts --timeout 600000
+          AM_BROWSER_TESTS=1 bun test ../src/__tests__/website-browser-a11y.test.ts --timeout 600000
 
   # Bounded fault-detection check for a small, pure module. This lane is kept
   # because a full run is about one minute and its measured ~97% kill score is

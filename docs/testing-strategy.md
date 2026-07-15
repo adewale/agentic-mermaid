@@ -81,8 +81,10 @@ independent spec:
 per PR — it is the four-lane `e2e` matrix in `ci.yml` (`needs: test`). Its
 browser lane installs Chromium and runs `browser.test.ts` (screenshot diff)
 plus the security contracts and the explicitly enabled theme/style/accessibility
-browser suites, while independent lanes run the CLI/single-binary, dist-artifact,
-and tarball-consumer suites. The broad contact sheets are not on the per-PR gate.
+browser suites. Each browser contract file runs in its own Bun process so its
+Chromium/server hooks cannot overlap and exhaust a constrained hosted runner, while
+independent lanes run the CLI/single-binary, dist-artifact, and tarball-consumer
+suites. The broad contact sheets are not on the per-PR gate.
 **Does not prove:** that a *changed* golden is an improvement — only that
 change was noticed. Judging the change still needs a human or the
 before/after harness (`eval/layout-compare`).
