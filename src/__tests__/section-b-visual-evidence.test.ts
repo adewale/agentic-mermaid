@@ -3,11 +3,12 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { knownBuiltinFamilies } from '../agent/families.ts'
-import { buildSectionBBrandEvidence, buildSectionBBrandEvidenceReceipt } from '../../scripts/pr-assets/section-b-brand-evidence.ts'
+import { buildSectionBBrandEvidence, buildSectionBBrandEvidenceReceipt, sectionBVariantHeadingMarkup } from '../../scripts/pr-assets/section-b-brand-evidence.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const PNG = join(ROOT, 'docs/design/families/section-b-brand-evidence.png')
 const RECEIPT = join(ROOT, 'eval/section-b-brand-evidence/evidence-receipt.json')
+const APPROVAL = join(ROOT, 'eval/section-b-brand-evidence/visual-approval.json')
 
 function pngDimensions(bytes: Uint8Array): { width: number; height: number } {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
@@ -16,6 +17,17 @@ function pngDimensions(bytes: Uint8Array): { width: number; height: number } {
 }
 
 describe('Section B generated visual evidence', () => {
+  test('positions every variant heading inside its own section band', () => {
+    const sectionHeight = 86 + 5 * 380
+    for (let index = 0; index < 4; index++) {
+      const cursorY = index * sectionHeight
+      const markup = sectionBVariantHeadingMarkup(`Variant ${index}`, cursorY, 1560, 86)
+      expect(markup).toContain(`y="${cursorY + 37}"`)
+      expect(markup).toContain(`y="${cursorY + 64}"`)
+      if (index > 0) expect(markup).not.toContain('y="37"')
+    }
+  })
+
   test('byte-matches the registry-driven renderer output and is reviewable at native size', () => {
     const checked = readFileSync(PNG)
     expect(buildSectionBBrandEvidence()).toEqual(checked)
@@ -38,6 +50,10 @@ describe('Section B generated visual evidence', () => {
       terminal: 'public renderMermaidASCII (Unicode, no color)',
     })
     expect(receipt.terminalSha256).toMatch(/^[a-f0-9]{64}$/)
+    expect(receipt.fontInputs).toEqual([
+      { path: 'assets/fonts/DejaVuSans-Bold.ttf', sha256: expect.stringMatching(/^[a-f0-9]{64}$/) },
+      { path: 'assets/fonts/DejaVuSans.ttf', sha256: expect.stringMatching(/^[a-f0-9]{64}$/) },
+    ])
     expect(receipt.baseline).toMatchObject({
       state: 'unsupported-style-fields',
       expected: expect.stringContaining('no fabricated before image'),
@@ -51,5 +67,16 @@ describe('Section B generated visual evidence', () => {
       expect.objectContaining({ path: 'docs/design/families/section-b-brand-evidence.png', sha256: expect.stringMatching(/^[a-f0-9]{64}$/) }),
     ])
     expect(receipt.outputs[0].sha256).toBe(createHash('sha256').update(readFileSync(PNG)).digest('hex'))
+    const approval = JSON.parse(readFileSync(APPROVAL, 'utf8'))
+    expect(receipt.visualApproval).toEqual({
+      path: 'eval/section-b-brand-evidence/visual-approval.json',
+      status: 'approved',
+      artifactSha256: receipt.outputs[0].sha256,
+      reviewedAt: approval.reviewedAt,
+      reviewer: approval.reviewer,
+      audit: approval.audit,
+    })
+    expect(approval.scope).toContain('60 family-by-variant cells')
+    expect(readFileSync(join(ROOT, 'docs/style-authoring.md'), 'utf8')).toContain('plus three holdout styles')
   })
 })

@@ -8,13 +8,14 @@ import {
   formatPiePercent,
   PIE_LEGEND_HIGHLIGHT_FONT_WEIGHT,
   PIE_SLICE_LABEL_FONT_WEIGHT,
+  PIE_STYLE_DEFAULTS,
 } from './layout.ts'
 import type { PieVisualConfig } from './config.ts'
 import { pieSliceColors } from './palette.ts'
 import { contrastTextColor } from '../color-resolver.ts'
 import { tooltipMarkup, tooltipCss } from '../shared/svg-tooltip.ts'
-import { STROKE_WIDTHS, applyTextTransform, resolveRenderStyle } from '../styles.ts'
-import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
+import { applyTextTransform, resolveRenderStyle } from '../styles.ts'
+import type { ResolvedRenderStyle } from '../styles.ts'
 import type { SceneDoc, SceneNode } from '../scene/ir.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
@@ -53,23 +54,6 @@ const PIE = {
   /** Option D: non-highlighted graphical marks dim to this fraction. */
   dimOpacity: 0.4,
 } as const
-
-const PIE_STYLE_DEFAULTS: RenderStyleDefaults = {
-  nodeLabelFontSize: PIE.legendFontSize,
-  edgeLabelFontSize: PIE.legendFontSize,
-  groupHeaderFontSize: PIE.titleFontSize,
-  nodeLabelFontWeight: PIE.legendFontWeight,
-  edgeLabelFontWeight: PIE.legendFontWeight,
-  groupHeaderFontWeight: PIE.titleFontWeight,
-  nodePaddingX: 0,
-  nodePaddingY: 0,
-  nodeLineWidth: PIE.sliceStrokeWidth,
-  edgeLineWidth: STROKE_WIDTHS.connector,
-  groupCornerRadius: 0,
-  groupPaddingX: 0,
-  groupPaddingY: 0,
-  groupLineWidth: STROKE_WIDTHS.outerBox,
-}
 
 /**
  * Render a positioned pie chart as an SVG string.

@@ -399,6 +399,7 @@ const PIE_RENDER_HOOKS = {
     ctx.renderOptions,
     (ctx.familyConfig as { visual?: ReturnType<typeof resolvePieVisualConfig> } | undefined)?.visual
       ?? resolvePieVisualConfig(),
+    ctx.styleFace,
   )),
   projectPositioned: positionedView(projectPiePositioned),
   lowerScene: scene(lowerPieScene),

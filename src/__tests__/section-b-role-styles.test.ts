@@ -35,10 +35,16 @@ describe('Section B public semantic role Styles', () => {
     expect(schema.$defs['roleStyle-label'].properties.paddingX).toBeUndefined()
     for (const descriptor of SCENE_ROLE_DESCRIPTORS) {
       const definition = schema.$defs[`roleStyle-${descriptor.role}`]
-      expect(Object.keys(definition.properties).sort(), descriptor.role)
-        .toEqual([...descriptor.style.applicableProperties].sort())
+      if (descriptor.traits.styleConsumption === 'fallback-only') {
+        expect(definition, descriptor.role).toBeUndefined()
+        expect(schema.properties.roles.properties[descriptor.role], descriptor.role).toBeUndefined()
+      } else {
+        expect(Object.keys(definition.properties).sort(), descriptor.role)
+          .toEqual([...descriptor.style.applicableProperties].sort())
+      }
     }
-    expect(validateStyleSpec({ roles: { title: { fontSize: 20 } } })).toContain('role style field "title.fontSize" is not applicable to title roles')
+    expect(validateStyleSpec({ roles: { title: {} } })).toContain('scene role "title" is fallback-only; set roles.label instead')
+    expect(validateStyleSpec({ roles: { title: { fontSize: 20 } } })).toContain('scene role "title" is fallback-only; set roles.label instead')
     expect(validateStyleSpec({ roles: { node: { fontWeight: 0 } } })).toContain('"roles.node.fontWeight" must be between 1 and 1000')
     expect(validateStyleSpec({ roles: { node: { fillColor: 'url(https://example.test/x)' } } })).toContain('"roles.node.fillColor" must be a safe non-fetching CSS paint')
   })

@@ -12,6 +12,8 @@ import { filesUnder, hashFileTree, repositoryPath, sha256File, sortRepositoryPat
 const ROOT = join(import.meta.dir, '..', '..')
 export const OUTPUT = join(ROOT, 'docs', 'design', 'families', 'section-b-brand-evidence.png')
 export const RECEIPT = join(ROOT, 'eval', 'section-b-brand-evidence', 'evidence-receipt.json')
+export const VISUAL_APPROVAL = join(ROOT, 'eval', 'section-b-brand-evidence', 'visual-approval.json')
+const PRODUCTION_COMPARISON = join(ROOT, 'eval', 'section-b-brand-evidence', 'production-comparison.md')
 const README = join(ROOT, 'eval', 'section-b-brand-evidence', 'README.md')
 const FONT_FILES = [
   join(ROOT, 'assets', 'fonts', 'DejaVuSans.ttf'),
@@ -93,6 +95,17 @@ function escapeXml(value: string): string {
   return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
+export function sectionBVariantHeadingMarkup(
+  variantName: string,
+  cursorY: number,
+  width: number,
+  headingHeight: number,
+): string {
+  return `<rect x="0" y="${cursorY}" width="${width}" height="${headingHeight}" fill="#18181b"/>` +
+    `<text x="24" y="${cursorY + 37}" fill="#fafafa" font-family="DejaVu Sans" font-size="23" font-weight="700">${escapeXml(variantName)}</text>` +
+    `<text x="24" y="${cursorY + 64}" fill="#d4d4d8" font-family="DejaVu Sans" font-size="14">All registered families · public StyleSpec only · Pie keeps authored Pro emphasis and exact wedge geometry</text>`
+}
+
 function svgSize(svg: string): { width: number; height: number } {
   const viewBox = svg.match(/viewBox="(?:[-\d.]+\s+){2}([\d.]+)\s+([\d.]+)"/)
   if (!viewBox) throw new Error('Section B evidence SVG has no finite viewBox')
@@ -133,9 +146,7 @@ export function buildSectionBBrandEvidence(): Uint8Array {
   let cursorY = 0
   const sections: string[] = []
   for (const [variantName, style] of VARIANTS) {
-    sections.push(`<rect x="0" y="${cursorY}" width="${width}" height="${headingHeight}" fill="#18181b"/>`)
-    sections.push(`<text x="24" y="37" fill="#fafafa" font-family="DejaVu Sans" font-size="23" font-weight="700">${escapeXml(variantName)}</text>`)
-    sections.push(`<text x="24" y="64" fill="#d4d4d8" font-family="DejaVu Sans" font-size="14">All registered families · public StyleSpec only · Pie keeps authored Pro emphasis and exact wedge geometry</text>`)
+    sections.push(sectionBVariantHeadingMarkup(variantName, cursorY, width, headingHeight))
     const top = cursorY + headingHeight
     for (const [index, id] of families.entries()) {
       const image = raster(familySource(id), style)
@@ -164,30 +175,77 @@ const inputPaths = sortRepositoryPaths(ROOT, [
   join(ROOT, 'eval', 'section-b-brand-evidence', 'baseline.mmd'),
   join(ROOT, 'eval', 'section-b-brand-evidence', 'role-style.json'),
   join(ROOT, 'eval', 'section-b-brand-evidence', 'usability-agent-session.json'),
+  VISUAL_APPROVAL,
+  PRODUCTION_COMPARISON,
+  ...FONT_FILES,
   import.meta.filename,
   join(import.meta.dir, 'artifact-receipt.ts'),
   ...filesUnder(join(ROOT, 'src'), path => path.endsWith('.ts')),
 ])
-export const buildSectionBBrandEvidenceReceipt = () => ({
-  schemaVersion: 1,
-  generator: repositoryPath(ROOT, import.meta.filename),
-  inputs: { count: inputPaths.length, treeSha256: hashFileTree(ROOT, inputPaths) },
-  families: knownBuiltinFamilies(),
-  variants: VARIANTS.map(([name]) => name),
-  outputPaths: {
-    graphicalCells: 'public native renderMermaidPNG',
-    terminal: 'public renderMermaidASCII (Unicode, no color)',
-  },
-  terminalSha256: createHash('sha256').update(VARIANTS.flatMap(([, style]) =>
-    knownBuiltinFamilies().map(id => renderMermaidASCII(familySource(id), { style, colorMode: 'none' })),
-  ).join('\n\u0000\n')).digest('hex'),
-  baseline: {
-    state: 'unsupported-style-fields',
-    command: 'git worktree add --detach /tmp/am-section-b-base origin/main && (cd /tmp/am-section-b-base && bun install --frozen-lockfile && bun run bin/am.ts render "$OLDPWD/eval/section-b-brand-evidence/baseline.mmd" --format svg --style "$OLDPWD/eval/section-b-brand-evidence/role-style.json")',
-    expected: 'Invalid style spec: unknown field "roles" (no fabricated before image)',
-  },
-  outputs: [{ path: repositoryPath(ROOT, OUTPUT), sha256: sha256File(OUTPUT) }],
-})
+
+interface VisualApprovalRecord {
+  schemaVersion: 1
+  status: 'approved'
+  artifact: string
+  artifactSha256: string
+  reviewedAt: string
+  reviewer: string
+  scope: string
+  audit: string
+}
+
+function verifiedVisualApproval(outputSha256: string) {
+  const approval = JSON.parse(readFileSync(VISUAL_APPROVAL, 'utf8')) as Partial<VisualApprovalRecord>
+  const expectedArtifact = repositoryPath(ROOT, OUTPUT)
+  if (approval.schemaVersion !== 1 || approval.status !== 'approved' || approval.artifact !== expectedArtifact) {
+    throw new Error('Section B visual approval is malformed; inspect the generated sheet and update visual-approval.json')
+  }
+  if (approval.artifactSha256 !== outputSha256) {
+    throw new Error(`Section B visual approval covers ${approval.artifactSha256 ?? 'no hash'}, not ${outputSha256}; inspect the generated sheet at native size before approving it`)
+  }
+  for (const field of ['reviewedAt', 'reviewer', 'scope', 'audit'] as const) {
+    if (typeof approval[field] !== 'string' || approval[field]!.trim().length === 0) {
+      throw new Error(`Section B visual approval requires a non-empty ${field}`)
+    }
+  }
+  return {
+    path: repositoryPath(ROOT, VISUAL_APPROVAL),
+    status: approval.status,
+    artifactSha256: approval.artifactSha256,
+    reviewedAt: approval.reviewedAt,
+    reviewer: approval.reviewer,
+    audit: approval.audit,
+  }
+}
+
+export const buildSectionBBrandEvidenceReceipt = () => {
+  const outputSha256 = sha256File(OUTPUT)
+  return {
+    schemaVersion: 2,
+    generator: repositoryPath(ROOT, import.meta.filename),
+    inputs: { count: inputPaths.length, treeSha256: hashFileTree(ROOT, inputPaths) },
+    fontInputs: sortRepositoryPaths(ROOT, FONT_FILES).map(path => ({
+      path: repositoryPath(ROOT, path),
+      sha256: sha256File(path),
+    })),
+    families: knownBuiltinFamilies(),
+    variants: VARIANTS.map(([name]) => name),
+    outputPaths: {
+      graphicalCells: 'public native renderMermaidPNG',
+      terminal: 'public renderMermaidASCII (Unicode, no color)',
+    },
+    terminalSha256: createHash('sha256').update(VARIANTS.flatMap(([, style]) =>
+      knownBuiltinFamilies().map(id => renderMermaidASCII(familySource(id), { style, colorMode: 'none' })),
+    ).join('\n\u0000\n')).digest('hex'),
+    baseline: {
+      state: 'unsupported-style-fields',
+      command: 'git worktree add --detach /tmp/am-section-b-base origin/main && (cd /tmp/am-section-b-base && bun install --frozen-lockfile && bun run bin/am.ts render "$OLDPWD/eval/section-b-brand-evidence/baseline.mmd" --format svg --style "$OLDPWD/eval/section-b-brand-evidence/role-style.json")',
+      expected: 'Invalid style spec: unknown field "roles" (no fabricated before image)',
+    },
+    visualApproval: verifiedVisualApproval(outputSha256),
+    outputs: [{ path: repositoryPath(ROOT, OUTPUT), sha256: outputSha256 }],
+  }
+}
 
 if (process.argv.includes('--check')) {
   const recorded = JSON.parse(readFileSync(RECEIPT, 'utf8'))
@@ -197,7 +255,7 @@ if (process.argv.includes('--check')) {
   mkdirSync(join(ROOT, 'docs', 'design', 'families'), { recursive: true })
   mkdirSync(join(ROOT, 'eval', 'section-b-brand-evidence'), { recursive: true })
   writeFileSync(OUTPUT, buildSectionBBrandEvidence())
-  writeFileSync(README, `# Section B visual evidence\n\nThe baseline rejects the public \`roles\` field, so no plausible before image exists. \`baseline.mmd\` and \`role-style.json\` are the exact committed inputs. Reproduce the causal baseline with the command retained in \`evidence-receipt.json\`; the expected result is an \`Invalid style spec\` error.\n\nThe generated after sheet renders every registered family through one deliberately distinctive sentinel and three holdout inline StyleSpec records. Every cell uses the public native PNG API; the receipt also hashes no-color Unicode output for the same family×style matrix. Inspect typography, padding/radius/line-weight changes, cross-family palette coherence, and the Pie card: \`Pro\` remains the family-authored highlighted slice while the sentinel category binding changes its paint without changing wedge geometry.\n\nRegenerate with \`bun run gallery:section-b\`; verify freshness with \`bun run gallery:section-b:check\`.\n`)
+  writeFileSync(README, `# Section B visual evidence\n\nThe baseline rejects the public \`roles\` field, so no plausible before image exists. \`baseline.mmd\` and \`role-style.json\` are the exact committed inputs. Reproduce the causal baseline with the command retained in \`evidence-receipt.json\`; the expected result is an \`Invalid style spec\` error.\n\nThe generated after sheet renders every registered family through one deliberately distinctive sentinel and three holdout inline StyleSpec records. Every cell uses the public native PNG API; the receipt also hashes no-color Unicode output for the same family×style matrix. Inspect typography, padding/radius/line-weight changes, cross-family palette coherence, and the Pie card: \`Pro\` remains the family-authored highlighted slice while the sentinel category binding changes its paint without changing wedge geometry. The manual native-size review and deployed-website comparison are recorded by \`visual-approval.json\` and \`production-comparison.md\`.\n\nApproval is intentionally separate from generation: run \`bun run gallery:section-b\` to create a candidate, inspect all 60 cells at native size, update \`visual-approval.json\` with the candidate SHA-256 and audit path, then rerun the command to refresh the receipt. \`bun run gallery:section-b:check\` verifies source/font freshness, output bytes, and that the approval names those exact bytes.\n`)
   writeFileSync(RECEIPT, `${JSON.stringify(buildSectionBBrandEvidenceReceipt(), null, 2)}\n`)
   process.stdout.write(`wrote ${OUTPUT}\n`)
 }

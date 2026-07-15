@@ -25,8 +25,11 @@ function compileTimeRoleContract(): void {
   const invalidNode: RoleStyles = { node: { fontFamily: 'Georgia' } }
   // @ts-expect-error label padding is rejected by the exact public role type.
   const invalidLabel: RoleStyles = { label: { paddingX: 4 } }
+  // @ts-expect-error fallback-only roles inherit their archetype and cannot own inert exact records.
+  const invalidFallback: RoleStyles = { title: {} }
   void invalidNode
   void invalidLabel
+  void invalidFallback
 }
 void compileTimeRoleContract
 
@@ -46,7 +49,9 @@ describe('StyleSpec has one projected field authority', () => {
     const declaration = styleSpecTypeScriptDeclaration()
     expect(declaration).toContain('type SemanticBindingChannel = "category"')
     expect(declaration).toContain('"pie-slice"?: Readonly<StyleRole_pie_slice>')
-    expect(styleSpecTypeScriptDeclaration({ compact: true })).toContain('type RoleStyleFor<R extends SceneStyleRole>=')
+    expect(declaration).not.toContain('"title"?: Readonly<StyleRole_title>')
+    expect(declaration).toContain('type SceneStyleRole = ')
+    expect(styleSpecTypeScriptDeclaration({ compact: true })).toContain('type RoleStyleFor<R extends ExactSceneStyleRole>=')
     expect(styleSpecTypeScriptDeclaration({ compact: true })).not.toContain('Partial<Record<SceneStyleRole,Readonly<RoleStyleSpec>>>')
     expect(declaration).not.toContain('{ [key: string]: unknown }')
   })

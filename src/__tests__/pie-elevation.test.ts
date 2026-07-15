@@ -474,6 +474,26 @@ pie showData
     }
   })
 
+  it('reserves the rendered role typography so a styled legend cannot clip', () => {
+    const source = `---\nconfig:\n  pie:\n    highlightSlice: Pro\n---\npie title Plans\n  "Free" : 60\n  "Pro" : 30\n  "Enterprise" : 10`
+    const svg = renderMermaidSVG(source, {
+      style: { roles: { node: { fontSize: 16, fontWeight: 800, letterSpacing: 2, textTransform: 'uppercase' } } },
+      embedFontImport: false,
+    })
+    const width = Number(svg.match(/viewBox="0 0 ([\d.]+)/)?.[1])
+    const legendText = [...svg.matchAll(/<text ([^>]*class="pie-legend-text"[^>]*)>([^<]+)<\/text>/g)]
+    expect(legendText).toHaveLength(3)
+    for (const [, attributes, text] of legendText) {
+      const x = Number(attributes!.match(/\bx="([\d.]+)"/)?.[1])
+      const fontSize = Number(attributes!.match(/font-size="([\d.]+)"/)?.[1])
+      const fontWeight = Number(attributes!.match(/font-weight="([\d.]+)"/)?.[1])
+      expect(text).toBe(text!.toUpperCase())
+      const tracking = Math.max(0, Array.from(text!).length - 1) * 2
+      const right = x + measureSystemFontSafeTextWidth(text!, fontSize, fontWeight) + tracking
+      expect(right, text).toBeLessThanOrEqual(width - 24 + 0.01)
+    }
+  })
+
   it('dims nothing when the highlight target matches no slice', () => {
     const svg = renderMermaidSVG(donut('Nonexistent'), { embedFontImport: false })
     expect(svg).not.toMatch(/class="[^"]*pie-dim/)

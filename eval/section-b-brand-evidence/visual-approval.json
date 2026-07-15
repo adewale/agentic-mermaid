@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "status": "approved",
+  "artifact": "docs/design/families/section-b-brand-evidence.png",
+  "artifactSha256": "79b185ac3b0cddccd998d7f3fc27a44cf5c0a1ae765572d5055edf7cc69afe51",
+  "reviewedAt": "2026-07-15",
+  "reviewer": "OpenAI coding agent, at the user's explicit request",
+  "scope": "All 60 family-by-variant cells at the native 1560x7944 artifact size, all 13 local website diagram screenshots against deployed equivalents, and eight changed built-in Pie Look screenshots against origin/main",
+  "audit": "eval/section-b-brand-evidence/production-comparison.md"
+}

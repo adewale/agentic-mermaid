@@ -148,6 +148,9 @@ export type RoleStyleFor<Role extends BuiltinSceneRole> =
                   : Role extends 'series' ? ConnectorPaintRoleStyle
                     : Role extends 'task' | 'milestone' ? CuedShapePaintRoleStyle
                       : never
+export type ExactStyleSceneRole = {
+  [Role in BuiltinSceneRole]: [RoleStyleFor<Role>] extends [never] ? never : Role
+}[BuiltinSceneRole]
 export type RoleStyles = { [Role in BuiltinSceneRole]?: Readonly<RoleStyleFor<Role>> }
 
 // V1 exposes only channels with typed family emitters and renderer witnesses.
@@ -335,6 +338,9 @@ function safeRoleColor(value: unknown): value is string {
 }
 
 const SCENE_ROLE_BY_NAME = new Map(SCENE_ROLE_DESCRIPTORS.map(descriptor => [descriptor.role, descriptor] as const))
+const EXACT_SCENE_ROLE_DESCRIPTORS = SCENE_ROLE_DESCRIPTORS.filter(
+  descriptor => descriptor.traits.styleConsumption === 'exact',
+)
 const SLOT_NAME = /^[A-Za-z][A-Za-z0-9._-]{0,63}$/
 const FORBIDDEN_RECORD_KEYS = new Set(['__proto__', 'constructor', 'prototype'])
 
@@ -367,6 +373,10 @@ function validateRoleStyles(value: unknown): string[] {
   for (const [role, raw] of Object.entries(value)) {
     const roleDescriptor = SCENE_ROLE_BY_NAME.get(role as BuiltinSceneRole)
     if (!roleDescriptor) { problems.push(`unknown scene role "${role}"`); continue }
+    if (roleDescriptor.traits.styleConsumption === 'fallback-only') {
+      problems.push(`scene role "${role}" is fallback-only; set roles.${roleDescriptor.style.fallbackRole} instead`)
+      continue
+    }
     const applicable = new Set<string>(roleDescriptor.style.applicableProperties)
     const roleProblems = validateRoleStyleRecord(raw, `roles.${role}`, applicable)
       .map(problem => problem === `"roles.${role}" must be an object` ? problem
@@ -549,7 +559,7 @@ function fieldJsonSchema(descriptor: StyleFieldDescriptor): JsonSchema {
     case 'roles':
       return {
         type: 'object', additionalProperties: false, description: descriptor.description,
-        properties: Object.fromEntries(SCENE_ROLE_DESCRIPTORS.map(role => [role.role, { $ref: `#/$defs/${roleStyleDefinitionName(role)}` }])),
+        properties: Object.fromEntries(EXACT_SCENE_ROLE_DESCRIPTORS.map(role => [role.role, { $ref: `#/$defs/${roleStyleDefinitionName(role)}` }])),
       }
     case 'semanticSlots':
       return {
@@ -603,7 +613,7 @@ function fieldJsonSchema(descriptor: StyleFieldDescriptor): JsonSchema {
 /** JSON Schema projected from the same descriptors used at runtime. */
 export function styleSpecJsonSchema(): JsonSchema {
   const roleStyleDefinitions = Object.fromEntries(
-    SCENE_ROLE_DESCRIPTORS.map(descriptor => [
+    EXACT_SCENE_ROLE_DESCRIPTORS.map(descriptor => [
       roleStyleDefinitionName(descriptor),
       roleStyleJsonSchema(descriptor.style.applicableProperties),
     ]),
@@ -636,7 +646,7 @@ function fieldTypeLabel(descriptor: StyleFieldDescriptor): string {
       return [`\`${descriptor.kind}\``, ...constraints].join('; ')
     }
     case 'enum': return descriptor.values.map(value => `\`${value}\``).join(' \\| ')
-    case 'roles': return `object: partial records keyed by registered \`SceneRole\``
+    case 'roles': return `object: partial records keyed by exact-style \`SceneRole\``
     case 'semanticSlots': return '`Record<string, RoleStyleSpec>`'
     case 'bindings': return '`SemanticBinding[]`'
     case 'constraints': return '`BrandConstraint[]`'
@@ -681,7 +691,7 @@ export function styleSpecTypeScriptDeclaration(options: { readonly compact?: boo
     return { stem, declaration: `interface ${stem} {\n${fields}\n}` }
   }
   const anyRole = roleInterface('Any', Object.keys(ROLE_STYLE_PROPERTY_DESCRIPTORS))
-  const exactRoles = SCENE_ROLE_DESCRIPTORS.map(descriptor => ({
+  const exactRoles = EXACT_SCENE_ROLE_DESCRIPTORS.map(descriptor => ({
     role: descriptor.role,
     ...roleInterface(descriptor.role, descriptor.style.applicableProperties),
   }))
@@ -690,12 +700,13 @@ export function styleSpecTypeScriptDeclaration(options: { readonly compact?: boo
   const styleFields = Object.entries(STYLE_SPEC_FIELD_DESCRIPTORS)
     .map(([name, descriptor]) => `  ${JSON.stringify(name)}?: ${styleFieldTypeScript(descriptor)}`)
     .join('\n')
+  const sceneRoleUnion = SCENE_ROLE_DESCRIPTORS.map(role => JSON.stringify(role.role)).join(' | ')
+  const exactSceneRoleUnion = EXACT_SCENE_ROLE_DESCRIPTORS.map(role => JSON.stringify(role.role)).join(' | ')
   if (options.compact) {
     const compactRole = Object.keys(ROLE_STYLE_PROPERTY_DESCRIPTORS)
       .map(name => `${JSON.stringify(name)}?:${rolePropertyTypeScript(name)}`).join(';')
-    const roleNames = SCENE_ROLE_DESCRIPTORS.map(role => JSON.stringify(role.role)).join(' | ')
     const propertyGroups = new Map<string, string[]>()
-    for (const descriptor of SCENE_ROLE_DESCRIPTORS) {
+    for (const descriptor of EXACT_SCENE_ROLE_DESCRIPTORS) {
       const signature = [...descriptor.style.applicableProperties].sort().join('|')
       propertyGroups.set(signature, [...(propertyGroups.get(signature) ?? []), descriptor.role])
     }
@@ -707,7 +718,7 @@ export function styleSpecTypeScriptDeclaration(options: { readonly compact?: boo
     const compactStyle = Object.entries(STYLE_SPEC_FIELD_DESCRIPTORS)
       .map(([name, descriptor]) => `${JSON.stringify(name)}?:${styleFieldTypeScript(descriptor)}`).join(';')
     const compactColors = Object.keys(STYLE_COLOR_TOKEN_DESCRIPTORS).map(token => `${token}?:string`).join(';')
-    return `interface StyleColors {${compactColors}}\ntype SceneStyleRole=${roleNames}\ntype RoleStyleSpec={${compactRole}}\ntype RoleStyleFor<R extends SceneStyleRole>=${roleStyleCases}never\ntype RoleStyles={[R in SceneStyleRole]?:Readonly<RoleStyleFor<R>>}\ntype SemanticBindingChannel=${SEMANTIC_BINDING_CHANNELS.map(value => JSON.stringify(value)).join(' | ')}\ninterface SemanticBinding {channel:SemanticBindingChannel;value:string;slot:string;role?:SceneStyleRole}\ntype BrandConstraint={kind:'contrast';action:'warn'|'error';role?:SceneStyleRole;minimum?:number}|{kind:'accent-area';action:'warn'|'error';maxFraction:number}|{kind:'mono-role';action:'warn'|'error';role:SceneStyleRole}\ninterface StyleSpec {${compactStyle}}\ntype StyleInput=string|StyleSpec`
+    return `interface StyleColors {${compactColors}}\ntype SceneStyleRole=${sceneRoleUnion}\ntype ExactSceneStyleRole=${exactSceneRoleUnion}\ntype RoleStyleSpec={${compactRole}}\ntype RoleStyleFor<R extends ExactSceneStyleRole>=${roleStyleCases}never\ntype RoleStyles={[R in ExactSceneStyleRole]?:Readonly<RoleStyleFor<R>>}\ntype SemanticBindingChannel=${SEMANTIC_BINDING_CHANNELS.map(value => JSON.stringify(value)).join(' | ')}\ninterface SemanticBinding {channel:SemanticBindingChannel;value:string;slot:string;role?:SceneStyleRole}\ntype BrandConstraint={kind:'contrast';action:'warn'|'error';role?:SceneStyleRole;minimum?:number}|{kind:'accent-area';action:'warn'|'error';maxFraction:number}|{kind:'mono-role';action:'warn'|'error';role:SceneStyleRole}\ninterface StyleSpec {${compactStyle}}\ntype StyleInput=string|StyleSpec`
   }
-  return `interface StyleColors {\n${colors}\n}\n${anyRole.declaration}\ntype RoleStyleSpec = StyleRole_Any\n${exactRoles.map(role => role.declaration).join('\n')}\ninterface RoleStyles {\n${roles}\n}\ntype SemanticBindingChannel = ${SEMANTIC_BINDING_CHANNELS.map(value => JSON.stringify(value)).join(' | ')}\ninterface SemanticBinding { channel: SemanticBindingChannel; value: string; slot: string; role?: keyof RoleStyles }\ntype BrandConstraint =\n  | { kind: 'contrast'; action: 'warn' | 'error'; role?: keyof RoleStyles; minimum?: number }\n  | { kind: 'accent-area'; action: 'warn' | 'error'; maxFraction: number }\n  | { kind: 'mono-role'; action: 'warn' | 'error'; role: keyof RoleStyles }\ninterface StyleSpec {\n${styleFields}\n}\ntype StyleInput = string | StyleSpec`
+  return `interface StyleColors {\n${colors}\n}\ntype SceneStyleRole = ${sceneRoleUnion}\ntype ExactSceneStyleRole = ${exactSceneRoleUnion}\n${anyRole.declaration}\ntype RoleStyleSpec = StyleRole_Any\n${exactRoles.map(role => role.declaration).join('\n')}\ninterface RoleStyles {\n${roles}\n}\ntype SemanticBindingChannel = ${SEMANTIC_BINDING_CHANNELS.map(value => JSON.stringify(value)).join(' | ')}\ninterface SemanticBinding { channel: SemanticBindingChannel; value: string; slot: string; role?: SceneStyleRole }\ntype BrandConstraint =\n  | { kind: 'contrast'; action: 'warn' | 'error'; role?: SceneStyleRole; minimum?: number }\n  | { kind: 'accent-area'; action: 'warn' | 'error'; maxFraction: number }\n  | { kind: 'mono-role'; action: 'warn' | 'error'; role: SceneStyleRole }\ninterface StyleSpec {\n${styleFields}\n}\ntype StyleInput = string | StyleSpec`
 }

@@ -134,7 +134,7 @@ The generated [Section B capability report](./project/section-b-capability-repor
 accounts for every role leaf, private-face projection, role fallback, admitted
 family role/channel, and built-in export.
 The [all-family evidence sheet](./design/families/section-b-brand-evidence.png)
-shows one deliberately distinctive sentinel plus two holdout styles; its receipt
+shows one deliberately distinctive sentinel plus three holdout styles; its receipt
 and honest hard-error baseline live in `eval/section-b-brand-evidence/`.
 
 Every field is optional in a reusable fragment, but the resolved final stack
@@ -189,7 +189,7 @@ compatibility alias.
 | metadata | `blurb` | `string` | Short human-readable description used by discovery surfaces. |
 | palette | `colors` | object: `bg`, `fg`, `line`, `accent`, `muted`, `surface`, `border` | Partial palette of safe, non-fetching CSS color tokens. |
 | typography | `font` | `string` | Safe, non-fetching CSS font family or stack; the rendering environment supplies the font face. |
-| roles | `roles` | object: partial records keyed by registered `SceneRole` | Partial semantic SceneRole defaults. Family-authored styling remains authoritative. |
+| roles | `roles` | object: partial records keyed by exact-style `SceneRole` | Partial semantic SceneRole defaults. Family-authored styling remains authoritative. |
 | policy | `semanticSlots` | `Record<string, RoleStyleSpec>` | Named brand-neutral role-style slots selected by semantic bindings. |
 | policy | `bindings` | `SemanticBinding[]` | Ordered equality bindings from authored/domain meaning to semantic slots. |
 | policy | `constraints` | `BrandConstraint[]` | Closed inspect-only brand constraints with warn or error actions. |

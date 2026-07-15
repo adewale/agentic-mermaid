@@ -82,9 +82,6 @@
         "edge": {
           "$ref": "#/$defs/roleStyle-edge"
         },
-        "edge-label": {
-          "$ref": "#/$defs/roleStyle-edge-label"
-        },
         "group": {
           "$ref": "#/$defs/roleStyle-group"
         },
@@ -97,38 +94,8 @@
         "actor": {
           "$ref": "#/$defs/roleStyle-actor"
         },
-        "lifeline": {
-          "$ref": "#/$defs/roleStyle-lifeline"
-        },
-        "activation": {
-          "$ref": "#/$defs/roleStyle-activation"
-        },
-        "message": {
-          "$ref": "#/$defs/roleStyle-message"
-        },
-        "block": {
-          "$ref": "#/$defs/roleStyle-block"
-        },
-        "note": {
-          "$ref": "#/$defs/roleStyle-note"
-        },
-        "class-box": {
-          "$ref": "#/$defs/roleStyle-class-box"
-        },
-        "member": {
-          "$ref": "#/$defs/roleStyle-member"
-        },
-        "entity": {
-          "$ref": "#/$defs/roleStyle-entity"
-        },
-        "attribute": {
-          "$ref": "#/$defs/roleStyle-attribute"
-        },
         "relationship": {
           "$ref": "#/$defs/roleStyle-relationship"
-        },
-        "cardinality": {
-          "$ref": "#/$defs/roleStyle-cardinality"
         },
         "pie-slice": {
           "$ref": "#/$defs/roleStyle-pie-slice"
@@ -145,62 +112,11 @@
         "point": {
           "$ref": "#/$defs/roleStyle-point"
         },
-        "axis": {
-          "$ref": "#/$defs/roleStyle-axis"
-        },
-        "grid": {
-          "$ref": "#/$defs/roleStyle-grid"
-        },
-        "plate": {
-          "$ref": "#/$defs/roleStyle-plate"
-        },
-        "section": {
-          "$ref": "#/$defs/roleStyle-section"
-        },
         "task": {
           "$ref": "#/$defs/roleStyle-task"
         },
         "milestone": {
           "$ref": "#/$defs/roleStyle-milestone"
-        },
-        "marker-line": {
-          "$ref": "#/$defs/roleStyle-marker-line"
-        },
-        "rail": {
-          "$ref": "#/$defs/roleStyle-rail"
-        },
-        "period": {
-          "$ref": "#/$defs/roleStyle-period"
-        },
-        "event": {
-          "$ref": "#/$defs/roleStyle-event"
-        },
-        "score": {
-          "$ref": "#/$defs/roleStyle-score"
-        },
-        "actor-pill": {
-          "$ref": "#/$defs/roleStyle-actor-pill"
-        },
-        "service": {
-          "$ref": "#/$defs/roleStyle-service"
-        },
-        "junction": {
-          "$ref": "#/$defs/roleStyle-junction"
-        },
-        "icon": {
-          "$ref": "#/$defs/roleStyle-icon"
-        },
-        "title": {
-          "$ref": "#/$defs/roleStyle-title"
-        },
-        "defs": {
-          "$ref": "#/$defs/roleStyle-defs"
-        },
-        "prelude": {
-          "$ref": "#/$defs/roleStyle-prelude"
-        },
-        "chrome": {
-          "$ref": "#/$defs/roleStyle-chrome"
         }
       }
     },
@@ -710,12 +626,6 @@
         }
       }
     },
-    "roleStyle-edge-label": {
-      "type": "object",
-      "additionalProperties": false,
-      "maxProperties": 0,
-      "properties": {}
-    },
     "roleStyle-group": {
       "type": "object",
       "additionalProperties": false,
@@ -986,60 +896,6 @@
         }
       }
     },
-    "roleStyle-lifeline": {
-      "type": "object",
-      "additionalProperties": false,
-      "maxProperties": 0,
-      "properties": {}
-    },
-    "roleStyle-activation": {
-      "type": "object",
-      "additionalProperties": false,
-      "maxProperties": 0,
-      "properties": {}
-    },
-    "roleStyle-message": {
-      "type": "object",
-      "additionalProperties": false,
-      "maxProperties": 0,
-      "properties": {}
-    },
-    "roleStyle-block": {
-      "type": "object",
-      "additionalProperties": false,
-      "maxProperties": 0,
-      "properties": {}
-    },
-    "roleStyle-note": {
-      "type": "object",
-      "additionalProperties": false,
-      "maxProperties": 0,
-      "properties": {}
-    },
-    "roleStyle-class-box": {
-      "type": "object",
-      "additionalProperties": false,
-      "maxProperties": 0,
-      "properties": {}
-    },
-    "roleStyle-member": {
-      "type": "object",
-      "additionalProperties": false,
-      "maxProperties": 0,
-      "properties": {}
-    },
-    "roleStyle-entity": {
-      "type": "object",
-      "additionalProperties": false,
-      "maxProperties": 0,
-      "properties": {}
-    },
-    "roleStyle-attribute": {
-      "type": "object",
-      "additionalProperties": false,
-      "maxProperties": 0,
-      "properties": {}
-    },
     "roleStyle-relationship": {
       "type": "object",
       "additionalProperties": false,
@@ -1095,12 +951,6 @@
           "x-agentic-mermaid-runtime-validator": "safeStylePaint"
         }
       }
-    },
-    "roleStyle-cardinality": {
-      "type": "object",
-      "additionalProperties": false,
-      "maxProperties": 0,
-      "properties": {}
     },
     "roleStyle-pie-slice": {
       "type": "object",
@@ -1252,30 +1102,6 @@
         }
       }
     },
-    "roleStyle-axis": {
-      "type": "object",
-      "additionalProperties": false,
-      "maxProperties": 0,
-      "properties": {}
-    },
-    "roleStyle-grid": {
-      "type": "object",
-      "additionalProperties": false,
-      "maxProperties": 0,
-      "properties": {}
-    },
-    "roleStyle-plate": {
-      "type": "object",
-      "additionalProperties": false,
-      "maxProperties": 0,
-      "properties": {}
-    },
-    "roleStyle-section": {
-      "type": "object",
-      "additionalProperties": false,
-      "maxProperties": 0,
-      "properties": {}
-    },
     "roleStyle-task": {
       "type": "object",
       "additionalProperties": false,
@@ -1351,84 +1177,6 @@
           "description": "Non-color semantic cue on roles whose family renderer exposes a cue projection."
         }
       }
-    },
-    "roleStyle-marker-line": {
-      "type": "object",
-      "additionalProperties": false,
-      "maxProperties": 0,
-      "properties": {}
-    },
-    "roleStyle-rail": {
-      "type": "object",
-      "additionalProperties": false,
-      "maxProperties": 0,
-      "properties": {}
-    },
-    "roleStyle-period": {
-      "type": "object",
-      "additionalProperties": false,
-      "maxProperties": 0,
-      "properties": {}
-    },
-    "roleStyle-event": {
-      "type": "object",
-      "additionalProperties": false,
-      "maxProperties": 0,
-      "properties": {}
-    },
-    "roleStyle-score": {
-      "type": "object",
-      "additionalProperties": false,
-      "maxProperties": 0,
-      "properties": {}
-    },
-    "roleStyle-actor-pill": {
-      "type": "object",
-      "additionalProperties": false,
-      "maxProperties": 0,
-      "properties": {}
-    },
-    "roleStyle-service": {
-      "type": "object",
-      "additionalProperties": false,
-      "maxProperties": 0,
-      "properties": {}
-    },
-    "roleStyle-junction": {
-      "type": "object",
-      "additionalProperties": false,
-      "maxProperties": 0,
-      "properties": {}
-    },
-    "roleStyle-icon": {
-      "type": "object",
-      "additionalProperties": false,
-      "maxProperties": 0,
-      "properties": {}
-    },
-    "roleStyle-title": {
-      "type": "object",
-      "additionalProperties": false,
-      "maxProperties": 0,
-      "properties": {}
-    },
-    "roleStyle-defs": {
-      "type": "object",
-      "additionalProperties": false,
-      "maxProperties": 0,
-      "properties": {}
-    },
-    "roleStyle-prelude": {
-      "type": "object",
-      "additionalProperties": false,
-      "maxProperties": 0,
-      "properties": {}
-    },
-    "roleStyle-chrome": {
-      "type": "object",
-      "additionalProperties": false,
-      "maxProperties": 0,
-      "properties": {}
     },
     "roleStyle-any": {
       "type": "object",

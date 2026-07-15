@@ -1,10 +1,20 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "generator": "scripts/pr-assets/section-b-brand-evidence.ts",
   "inputs": {
-    "count": 688,
-    "treeSha256": "0bc65a468bc0ae7f49d8c654af625857fe67f29ed93e49c63e6600b74bf0de48"
+    "count": 692,
+    "treeSha256": "0a16a8410e6a65c8890e75de62b872ca443bce2e2042dfb5ba68e357ef5fb021"
   },
+  "fontInputs": [
+    {
+      "path": "assets/fonts/DejaVuSans-Bold.ttf",
+      "sha256": "5c1247acef7f2b8522a31742c76d6adcb5569bacc0be7ceaa4dc39dd252ce895"
+    },
+    {
+      "path": "assets/fonts/DejaVuSans.ttf",
+      "sha256": "ae7b7855e115a5966d8b1b3f80f254ccc117ec86f9965e202ee2940453837280"
+    }
+  ],
   "families": [
     "flowchart",
     "state",
@@ -38,10 +48,18 @@
     "command": "git worktree add --detach /tmp/am-section-b-base origin/main && (cd /tmp/am-section-b-base && bun install --frozen-lockfile && bun run bin/am.ts render \"$OLDPWD/eval/section-b-brand-evidence/baseline.mmd\" --format svg --style \"$OLDPWD/eval/section-b-brand-evidence/role-style.json\")",
     "expected": "Invalid style spec: unknown field \"roles\" (no fabricated before image)"
   },
+  "visualApproval": {
+    "path": "eval/section-b-brand-evidence/visual-approval.json",
+    "status": "approved",
+    "artifactSha256": "79b185ac3b0cddccd998d7f3fc27a44cf5c0a1ae765572d5055edf7cc69afe51",
+    "reviewedAt": "2026-07-15",
+    "reviewer": "OpenAI coding agent, at the user's explicit request",
+    "audit": "eval/section-b-brand-evidence/production-comparison.md"
+  },
   "outputs": [
     {
       "path": "docs/design/families/section-b-brand-evidence.png",
-      "sha256": "2a1a5ca05c54d2cae8cdce6a1101d9254bc772c00ff5920a39bdae3449e6ca0a"
+      "sha256": "79b185ac3b0cddccd998d7f3fc27a44cf5c0a1ae765572d5055edf7cc69afe51"
     }
   ]
 }
