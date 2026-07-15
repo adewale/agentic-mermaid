@@ -139,13 +139,13 @@ export function lowerErScene(
   // relationships between the same entity pair both put their labels at the
   // route midpoint otherwise (2026-07 overlap audit: 15% of fuzzed ER
   // diagrams print relationship labels on top of each other).
-  const labelPos = separateRelationshipLabels(diagram, style)
+  const labelPos = separateRelationshipLabels(diagram, style, resolved.styleFace)
   const labelOccurrence = new Map<string, number>()
   for (const rel of diagram.relationships) {
     const pairKey = `${rel.entity1}-${rel.entity2}`
     const k = labelOccurrence.get(pairKey) ?? 0
     labelOccurrence.set(pairKey, k + 1)
-    parts.push(...renderRelationshipLabel(rel, style, `rel-label:${pairKey}#${k}`, labelPos.get(rel)))
+    parts.push(...renderRelationshipLabel(rel, style, resolved.styleFace, `rel-label:${pairKey}#${k}`, labelPos.get(rel)))
   }
 
   parts.push(marks.documentClose())
@@ -490,6 +490,7 @@ function renderRelationshipLine(
 export function separateRelationshipLabels(
   diagram: PositionedErDiagram,
   style: ResolvedRenderStyle,
+  styleFace?: Readonly<InternalStyleFace>,
 ): Map<PositionedErRelationship, { x: number; y: number }> {
   interface Box { x0: number; y0: number; x1: number; y1: number }
   const out = new Map<PositionedErRelationship, { x: number; y: number }>()
@@ -507,7 +508,14 @@ export function separateRelationshipLabels(
   const placed: Box[] = []
   for (const rel of diagram.relationships) {
     if (!rel.label || rel.points.length < 2) continue
-    const m = measureMultilineText(applyTextTransform(rel.label, style.edgeTextTransform), style.edgeLabelFontSize, style.edgeLabelFontWeight)
+    const roleStyle = resolveRoleStyle(styleFace, 'relationship', {
+      category: rel.identifying ? 'identifying' : 'non-identifying',
+    })
+    const m = measureMultilineText(
+      applyTextTransform(rel.label, roleStyle?.textTransform ?? style.edgeTextTransform),
+      roleStyle?.fontSize ?? style.edgeLabelFontSize,
+      roleStyle?.fontWeight ?? style.edgeLabelFontWeight,
+    )
     // Match the public readability audit's conservative glyph-clearance box
     // (8px per side), not merely the smaller painted pill dimensions.
     const bgW = m.width + 16, bgH = m.height + 16
@@ -563,14 +571,25 @@ export function separateRelationshipLabels(
 
 /** Render a relationship label at the midpoint (supports multi-line).
  *  Emits the background pill and the text as separate marks (in old part order). */
-function renderRelationshipLabel(rel: PositionedErRelationship, style: ResolvedRenderStyle, sceneId: string, at?: { x: number; y: number }): SceneNode[] {
+function renderRelationshipLabel(
+  rel: PositionedErRelationship,
+  style: ResolvedRenderStyle,
+  styleFace: Readonly<InternalStyleFace> | undefined,
+  sceneId: string,
+  at?: { x: number; y: number },
+): SceneNode[] {
   if (!rel.label || rel.points.length < 2) {
     return []
   }
 
+  const channels = { category: rel.identifying ? 'identifying' : 'non-identifying' }
+  const roleStyle = resolveRoleStyle(styleFace, 'relationship', channels)
+  const fontSize = roleStyle?.fontSize ?? style.edgeLabelFontSize
+  const fontWeight = roleStyle?.fontWeight ?? style.edgeLabelFontWeight
+  const letterSpacing = roleStyle?.letterSpacing ?? style.edgeLetterSpacing
   const mid = at ?? midpoint(rel.points)
-  const displayLabel = applyTextTransform(rel.label, style.edgeTextTransform)
-  const metrics = measureMultilineText(displayLabel, style.edgeLabelFontSize, style.edgeLabelFontWeight)
+  const displayLabel = applyTextTransform(rel.label, roleStyle?.textTransform ?? style.edgeTextTransform)
+  const metrics = measureMultilineText(displayLabel, fontSize, fontWeight)
 
   // Background pill for readability
   const bgW = metrics.width + 8
@@ -581,22 +600,24 @@ function renderRelationshipLabel(rel: PositionedErRelationship, style: ResolvedR
     role: 'chrome',
     geometry: { kind: 'rect', x: mid.x - bgW / 2, y: mid.y - bgH / 2, width: bgW, height: bgH, rx: 2, ry: 2 },
     paint: { fill: 'var(--bg)', stroke: 'var(--_inner-stroke)', strokeWidth: '0.5' },
+    channels,
   },
     `<rect x="${mid.x - bgW / 2}" y="${mid.y - bgH / 2}" width="${bgW}" height="${bgH}" rx="2" ry="2" ` +
     `fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="0.5" />`)
 
-  const labelColor = style.edgeTextColor ?? 'var(--_text-muted)'
+  const labelColor = roleStyle?.textColor ?? style.edgeTextColor ?? 'var(--_text-muted)'
   const label = marks.text({
     id: sceneId,
     role: 'label',
     text: displayLabel,
     x: mid.x,
     y: mid.y,
-    fontSize: style.edgeLabelFontSize,
+    fontSize,
     anchor: 'middle',
     paint: { fill: labelColor },
-  }, renderMultilineText(displayLabel, mid.x, mid.y, style.edgeLabelFontSize,
-    `text-anchor="middle" font-size="${style.edgeLabelFontSize}" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)} fill="${escapeAttr(labelColor)}"`))
+    channels,
+  }, renderMultilineText(displayLabel, mid.x, mid.y, fontSize,
+    `text-anchor="middle" font-size="${fontSize}" font-weight="${fontWeight}"${letterAttr(letterSpacing)} fill="${escapeAttr(labelColor)}"`))
 
   return [pill, label]
 }

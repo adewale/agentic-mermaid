@@ -520,6 +520,14 @@ function renderSectionFrame(
   })
 
   if (section.label) {
+    const channels = { category: name }
+    const semanticStyle = resolveRoleStyle(face, 'group-header', channels)
+    const labelText = applyTextTransform(section.label, semanticStyle?.textTransform ?? style.groupTextTransform)
+    const labelFontSize = semanticStyle?.fontSize ?? style.groupHeaderFontSize
+    const labelFontWeight = semanticStyle?.fontWeight ?? style.groupHeaderFontWeight
+    const labelFontFamily = semanticStyle?.fontFamily ?? style.groupFont
+    const labelLetterSpacing = semanticStyle?.letterSpacing ?? style.groupLetterSpacing
+    const labelColor = authoredSectionPaint ? sectionTextColor(sectionIndex, paints) : semanticStyle?.textColor ?? sectionTextColor(sectionIndex, paints)
     children.push({
       indent: 2,
       node: renderSectionLabelBand(section, style, paints, sectionIndex, face, authoredSectionPaint),
@@ -530,19 +538,19 @@ function renderSectionFrame(
         {
           id: `section-label:${section.id}`,
           role: 'group-header',
-          text: section.label,
+          text: labelText,
           x: section.labelX,
           y: section.labelY,
-          fontSize: style.groupHeaderFontSize,
+          fontSize: labelFontSize,
           anchor: 'middle',
-          paint: { fill: sectionTextColor(sectionIndex, paints) },
+          paint: { fill: labelColor },
         },
         renderMultilineText(
-          section.label,
+          labelText,
           section.labelX,
           section.labelY,
-          style.groupHeaderFontSize,
-          `class="journey-section-label journey-section-label-${sectionIndex % paints.sectionTextColors.length}" text-anchor="middle" font-size="${style.groupHeaderFontSize}" font-weight="${style.groupHeaderFontWeight}"${style.groupFont ? ` font-family="${escapeAttr(style.groupFont)}"` : ''}${letterAttr(style.groupLetterSpacing)}`,
+          labelFontSize,
+          `class="journey-section-label journey-section-label-${sectionIndex % paints.sectionTextColors.length}" text-anchor="middle" font-size="${labelFontSize}" font-weight="${labelFontWeight}"${labelFontFamily ? ` font-family="${escapeAttr(labelFontFamily)}"` : ''}${letterAttr(labelLetterSpacing)}${semanticStyle?.textColor && !authoredSectionPaint ? ` style="fill:${escapeAttr(labelColor)}"` : ''}`,
         ),
       ),
     })

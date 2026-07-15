@@ -65,6 +65,7 @@ describe('Section B structural/domain semantic bindings', () => {
     // Authored ER relationship semantics still decide solid vs dashed.
     expect(brandedIdentifying).not.toContain('stroke-dasharray')
     expect(relationship(erBranded, false)).toContain('stroke-dasharray="6 4"')
+    expect(erBranded).toMatch(/<text[^>]*fill="#111111"[^>]*>owns<\/text>/)
     expect(erBranded).toContain('data-cardinality1=')
     expect(erBranded).toContain('data-cardinality2=')
   })

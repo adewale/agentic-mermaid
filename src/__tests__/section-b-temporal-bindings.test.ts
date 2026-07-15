@@ -60,7 +60,7 @@ describe('Section B temporal semantic bindings', () => {
   section Browse
     Find product: 4: Shopper`
     const style = {
-      semanticSlots: { browse: { fillColor: '#ff00ff', borderColor: '#006600', lineWidth: 3, cue: 'outline' } },
+      semanticSlots: { browse: { fillColor: '#ff00ff', borderColor: '#006600', lineWidth: 3, fontSize: 15, fontWeight: 800, textColor: '#2222aa', cue: 'outline' } },
       bindings: [{ channel: 'category', value: 'Browse', slot: 'browse', role: 'group-header' }],
     } as const
     const baseline = renderMermaidSVG(body)
@@ -69,6 +69,8 @@ describe('Section B temporal semantic bindings', () => {
     expect(geometry(branded)).toEqual(geometry(baseline))
     expect(branded).toContain('fill:#ff00ff')
     expect(branded).toContain('data-brand-cue="outline"')
+    expect(branded).toContain('font-size="15" font-weight="800"')
+    expect(branded).toContain('style="fill:#2222aa"')
 
     const authored = `---
 config:
@@ -79,5 +81,6 @@ ${body}`
     const authoredSvg = renderMermaidSVG(authored, { style })
     expect(authoredSvg).toContain('.journey-section-label-band { fill: #123456;')
     expect(authoredSvg).not.toContain('fill:#ff00ff')
+    expect(authoredSvg).not.toContain('style="fill:#2222aa"')
   })
 })
