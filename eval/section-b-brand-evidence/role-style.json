@@ -1,0 +1,12 @@
+{
+  "roles": {
+    "node": {
+      "fontWeight": 800,
+      "paddingX": 30,
+      "cornerRadius": 12,
+      "lineWidth": 3,
+      "fillColor": "#f5e9ff",
+      "borderColor": "#6d28d9"
+    }
+  }
+}

@@ -156,6 +156,8 @@
     "agent-doc-artifacts:check": "bun run scripts/generate-agent-doc-artifacts.ts --check",
     "section-a-report": "bun run scripts/generate-section-a-capability-report.ts",
     "section-a-report:check": "bun run scripts/generate-section-a-capability-report.ts --check",
+    "section-b-report": "bun run scripts/generate-section-b-capability-report.ts",
+    "section-b-report:check": "bun run scripts/generate-section-b-capability-report.ts --check",
     "render-options-docs": "bun run scripts/generate-render-options-docs.ts",
     "render-options-docs:check": "bun run scripts/generate-render-options-docs.ts --check",
     "style-spec-artifacts": "bun run scripts/generate-style-spec-artifacts.ts",
@@ -195,6 +197,8 @@
     "gallery:mermaid-docs:check": "bun run scripts/pr-assets/mermaid-doc-showcase-gallery.ts --check",
     "gallery:pie-highlight": "bun run scripts/pr-assets/pie-highlightslice-evidence.ts",
     "gallery:pie-highlight:check": "bun run scripts/pr-assets/pie-highlightslice-evidence.ts --check",
+    "gallery:section-b": "bun run scripts/pr-assets/section-b-brand-evidence.ts",
+    "gallery:section-b:check": "bun run scripts/pr-assets/section-b-brand-evidence.ts --check",
     "track": "bun run eval/heuristic-tracker/run.ts",
     "audit:ugly": "bun run eval/ugly-detector/audit.ts"
   },

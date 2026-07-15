@@ -43,6 +43,95 @@ backend (pressure ribbons, watercolor); `stroke: 'jittered'`, hachure fills,
 sketch parameters, or a page backdrop engage rough.js; anything else renders
 on the crisp default backend with your palette and font.
 
+## Progressive authoring: Levels 0–4
+
+All five levels use the same `style` option and the same left-to-right merge
+law. Moving up never requires a new package or family adapter.
+
+```ts
+import { renderMermaidSVG } from 'agentic-mermaid'
+import { verifyMermaid } from 'agentic-mermaid/agent'
+
+// Level 0 — preset
+renderMermaidSVG(source, { style: 'publication-figure' })
+
+// Level 1 — compose a Look and Palette
+renderMermaidSVG(source, { style: ['hand-drawn', 'nord'] })
+
+// Level 2 — reusable ordinary StyleSpec JSON
+const palette = { colors: { bg: '#fffdf7', fg: '#211a1a', accent: '#a33b20' } }
+renderMermaidSVG(source, { style: palette })
+
+// Level 3 — semantic SceneRole defaults, shared by layout and rendering
+const roleStyle = {
+  roles: {
+    node: { fontSize: 16, fontWeight: 700, paddingX: 28, paddingY: 14,
+      cornerRadius: 8, lineWidth: 2, fillColor: '#fff7ed' },
+    edge: { fontSize: 12, fontWeight: 600, lineWidth: 2, bendRadius: 10 },
+    group: { fontSize: 13, fontWeight: 700, paddingX: 22, paddingY: 20 },
+  },
+}
+
+// Level 4 — ordered equality bindings plus inspect-only constraints
+const policyStyle = {
+  ...roleStyle,
+  semanticSlots: {
+    selected: { fillColor: '#fecdd3', borderColor: '#881337', lineWidth: 4 },
+  },
+  bindings: [
+    { channel: 'category', value: 'Pro', slot: 'selected', role: 'pie-slice' },
+  ],
+  constraints: [
+    { kind: 'contrast', action: 'error', minimum: 4.5 },
+    { kind: 'accent-area', action: 'warn', maxFraction: 0.25 },
+  ],
+}
+const verification = verifyMermaid(source, { renderOptions: { style: policyStyle } })
+```
+
+Role/slot values are defaults. Concrete Mermaid theme/config and element paint
+remain authoritative. Bindings never target `emphasis`: family syntax such as
+Pie `highlightSlice` owns its target and quantitative geometry. Constraints
+inspect the admitted final Scene and return measurable, unmeasurable, or
+not-applicable evidence; they never repaint or relayout. Transparent output has
+no known host backdrop, so contrast reports unmeasurable rather than inventing
+a ratio.
+
+### Export and edit a built-in
+
+Built-ins dogfood this same record format. Export one with `getStyle`, validate
+or save the returned JSON, then pass it inline; selecting the name and importing
+its export are behaviorally equivalent.
+
+```ts
+import { getStyle, validateStyleSpec } from 'agentic-mermaid'
+const exported = getStyle('publication-figure')!
+if (validateStyleSpec(exported).length) throw new Error('invalid exported style')
+renderMermaidSVG(source, { style: exported })
+```
+
+### Terminal projection
+
+ASCII/Unicode consumes the same resolved Style, role selections, and semantic
+bindings. It preserves hierarchy, emphasis, symbols, line patterns, and
+available color; typography, radius, elevation, and detailed role paint produce
+explicit terminal projection diagnostics rather than pretending pixel parity.
+
+### Why there is no BrandPack yet
+
+Level 4 is the active ceiling. No external consumer has shown that ordinary
+version-controlled StyleSpec files are insufficient for repeated distribution,
+exact selection, or installed-resource integrity, so the evidence-gated B4
+BrandPack registry is deliberately **not promoted**. Render-time semver ranges,
+dependency solving, ambient resource loading, and a second inheritance system
+remain absent.
+
+The generated [Section B capability report](./project/section-b-capability-report.md)
+accounts for every role leaf, role fallback, family channel, and built-in export.
+The [all-family evidence sheet](./design/families/section-b-brand-evidence.png)
+shows one deliberately distinctive sentinel plus two holdout styles; its receipt
+and honest hard-error baseline live in `eval/section-b-brand-evidence/`.
+
 Every field is optional in a reusable fragment, but the resolved final stack
 must make each renderer parameter applicable. `hachureAngle`, `hachureGap`,
 and `fillWeight` require `fill: 'hachure'`; `washOpacity` and `washEdge`

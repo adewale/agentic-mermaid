@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "generator": "scripts/pr-assets/section-b-brand-evidence.ts",
+  "inputs": {
+    "count": 685,
+    "treeSha256": "b7cbb87d43f47d5dc6bf27742f2ebf00bd219a9542eae25e226ab487c8376dcc"
+  },
+  "families": [
+    "flowchart",
+    "state",
+    "sequence",
+    "timeline",
+    "class",
+    "er",
+    "journey",
+    "architecture",
+    "xychart",
+    "pie",
+    "quadrant",
+    "gantt",
+    "mindmap",
+    "gitgraph",
+    "radar"
+  ],
+  "variants": [
+    "Sentinel · every channel deliberately distinctive",
+    "Holdout · warm editorial",
+    "Holdout · dark operations"
+  ],
+  "baseline": {
+    "state": "unsupported-style-fields",
+    "command": "git worktree add --detach /tmp/am-section-b-base origin/main && (cd /tmp/am-section-b-base && bun install --frozen-lockfile && bun run bin/am.ts render \"$OLDPWD/eval/section-b-brand-evidence/baseline.mmd\" --format svg --style \"$OLDPWD/eval/section-b-brand-evidence/role-style.json\")",
+    "expected": "Invalid style spec: unknown field \"roles\" (no fabricated before image)"
+  },
+  "outputs": [
+    {
+      "path": "docs/design/families/section-b-brand-evidence.png",
+      "sha256": "139e8d902e8a77ceec00358b0211bf2fb154547d1aac8b2f18d24a582659bf03"
+    }
+  ]
+}

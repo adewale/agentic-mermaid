@@ -87,7 +87,7 @@
           "$ref": "#/$defs/roleStyle-group"
         },
         "group-header": {
-          "$ref": "#/$defs/roleStyle-edge"
+          "$ref": "#/$defs/roleStyle-group"
         },
         "label": {
           "$ref": "#/$defs/roleStyle-label"
@@ -153,10 +153,10 @@
           "$ref": "#/$defs/roleStyle-node"
         },
         "section": {
-          "$ref": "#/$defs/roleStyle-edge"
+          "$ref": "#/$defs/roleStyle-group"
         },
         "task": {
-          "$ref": "#/$defs/roleStyle-edge"
+          "$ref": "#/$defs/roleStyle-node"
         },
         "milestone": {
           "$ref": "#/$defs/roleStyle-node"
