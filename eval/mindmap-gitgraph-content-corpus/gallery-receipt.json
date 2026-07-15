@@ -616,7 +616,7 @@
     },
     {
       "path": "src/__tests__/editor-example-exemplars.test.ts",
-      "sha256": "bbb015d44a4569444d218602420b402cc2bc72000fe3f0f05e7829618b00f2d1"
+      "sha256": "a4dd6741b2f9219ec2584a6a75a952adc53cdd65c9769ab2b6658b21be0c4b96"
     },
     {
       "path": "src/__tests__/editor-examples.test.ts",
@@ -2275,12 +2275,16 @@
       "sha256": "15830c37c8807af82bbb7bee917d520e975ac67a660c253330818b61b6ccb21c"
     },
     {
+      "path": "src/mindmap/geometry.ts",
+      "sha256": "b28c8dc58401658f319f1bce4a79152933c8c02cd21158430123a6871def3b2a"
+    },
+    {
       "path": "src/mindmap/icons.ts",
       "sha256": "229953a5e1d6a000db4e422607dfb3e4558faccdd33b63f48baa2bcec3bd2048"
     },
     {
       "path": "src/mindmap/layout.ts",
-      "sha256": "893c8745190562825b42d1503621b05ea6624fcbf0c0834a2be7edbb635a60ec"
+      "sha256": "40ddf39c983c955dd2fbd761d36a2c2633a45e428edfbc84efcccbccd9d18fe9"
     },
     {
       "path": "src/mindmap/parser.ts",
@@ -2292,7 +2296,7 @@
     },
     {
       "path": "src/mindmap/renderer.ts",
-      "sha256": "c9924c89e9a64d103968765b69c9b0c64f7ef3e047ec3b510fabdae30a07ab2f"
+      "sha256": "2269ddb79e2cc1e629e1b7936047b27fdf59230ffaa80d53bec27c58b291dd5b"
     },
     {
       "path": "src/mindmap/types.ts",
@@ -2818,7 +2822,7 @@
     },
     {
       "path": "docs/design/families/mindmap-content-gallery.png",
-      "sha256": "d619e0987d529254cf03399c419943302ce6d3b06d410a7e1e636d433459cc2a"
+      "sha256": "034642626596e202678575132eef57e5d8816dc90b98f1443fdffcb3457a90c6"
     }
   ]
 }

@@ -21,6 +21,21 @@ describe('editor family examples are obvious canonical exemplars', () => {
     expect(children.some(node => node.x > root.x + root.w)).toBe(true)
   })
 
+  test('Mindmap Delivery branch reaches the visible Beta signal burst boundary', () => {
+    const parsed = parseMermaid(example('mindmap-basic'))
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    const layout = layoutMermaid(parsed.value)
+    const beta = layout.nodes.find(node => node.label === 'Beta signal')!
+    const edge = layout.edges.find(candidate => candidate.from === 'delivery' && candidate.to === 'beta')!
+    const endpoint = edge.path.at(-1)!
+
+    // The bang shape's horizontal tip is 0.38 radii from its center; its
+    // rectangular layout bounds extend farther than the painted polygon.
+    expect(endpoint[0]).toBeCloseTo(beta.x + beta.w * 0.88, 0)
+    expect(Math.abs(endpoint[1] - (beta.y + beta.h / 2))).toBeLessThanOrEqual(1)
+  })
+
   test('Class demonstrates both inheritance and composition relationships', () => {
     const parsed = parseMermaid(example('class-basic'))
     expect(parsed.ok).toBe(true)

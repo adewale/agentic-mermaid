@@ -55,7 +55,7 @@ in all four treatments:
 | State | State boxes and transitions inherit the same role face without moving or reclassifying start/end markers. |
 | Sequence | Actor boxes and message/lifeline strokes project the brand face; request/response direction and message semantics remain unchanged. Separate fragment fixtures confirm resolved padding, divider clearance, and header-over-lifeline compositing. |
 | Timeline | Period/event cards inherit node/group/label fallbacks; chronological order and rail anchors remain intact. |
-| Class | Class surfaces, members, and relationships remain structurally identical while archetype paint and typography change. Endpoint marker overlays keep each triangle and diamond wholly visible above class surfaces. |
+| Class | Class surfaces, members, and relationships remain structurally identical while archetype paint and typography change. Endpoint overlays keep markers visible above class surfaces. Marker attachment geometry remains a separate inherited defect: composition/aggregation diamonds and lollipops use node-facing refs that place part of the symbol inside the class surface ([#178](https://github.com/adewale/agentic-mermaid/issues/178)). |
 | ER | Entity surfaces use fallbacks and the exact relationship projection changes connector typography/stroke without changing cardinality. |
 | Journey | Section headers use resolved tracking/weight in both measurement and rendering; task scores, actor attribution, and rail geometry remain meaningful and collision-free. |
 | Architecture | Group and service surfaces gain the selected radius/padding/paint while service/junction topology stays unchanged. |
@@ -77,8 +77,9 @@ in all four treatments:
    now share `PIE_STYLE_DEFAULTS`, resolved weight/transform/tracking, and the
    same style face. All four Pie panels fit after regeneration.
 3. Class endpoint symbols could be painted under class surfaces. Markers now
-   use a post-surface overlay with visible overflow; all triangles and diamonds
-   remain complete in every treatment.
+   use a post-surface overlay with visible overflow, so their silhouettes are
+   complete in every treatment. This fixes occlusion, not the pre-existing
+   marker-reference placement defect tracked in #178.
 4. XY bottom labels reserved the tick coordinate but not the resolved baseline
    shift/descent. The lower inset now contains every label, including the large
    Sentinel treatment.
@@ -91,9 +92,10 @@ in all four treatments:
    single post-lifeline header projection repair those production defects.
 
 After those corrections, all 60 cells were inspected as four native-width
-variant crops: headings are distinct, text is readable, endpoint symbols remain
-complete, cards remain inside their panels, and no quantitative or
-family-authored emphasis geometry changed.
+variant crops: headings are distinct, text is readable, endpoint silhouettes
+remain complete, cards remain inside their panels, and no quantitative or
+family-authored emphasis geometry changed. Correct Class marker attachment is
+explicitly excluded pending #178.
 
 ## Built-in Pie Look production comparison
 

@@ -1,4 +1,5 @@
 import type { MindmapDiagram, MindmapNode, PositionedMindmapDiagram, PositionedMindmapEdge, PositionedMindmapNode } from './types.ts'
+import { mindmapHorizontalBoundaryX } from './geometry.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import { wrapLabelToWidth } from '../shared/label-wrap.ts'
 
@@ -221,11 +222,11 @@ function finish(
     const parent = entries.get(node.parentId)!
     const leftward = node.side === 'left'
     const start = {
-      x: leftward ? parent.x : parent.x + parent.width,
+      x: mindmapHorizontalBoundaryX(parent, leftward ? 'left' : 'right'),
       y: parent.y + parent.height / 2,
     }
     const end = {
-      x: leftward ? node.x + node.width : node.x,
+      x: mindmapHorizontalBoundaryX(node, leftward ? 'right' : 'left'),
       y: node.y + node.height / 2,
     }
     // Keep cubic controls ordered between their endpoints. The old 24px
