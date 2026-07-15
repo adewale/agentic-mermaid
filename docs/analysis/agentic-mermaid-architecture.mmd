@@ -1,0 +1,73 @@
+graph TD
+  subgraph INPUT["1 · Entry surfaces"]
+    direction LR
+    CLI["am CLI<br/>bin/am.ts"]
+    MCP["MCP server<br/>agentic-mermaid-mcp.ts"]
+    LIB["Library API<br/>src/index.ts · agent/core.ts"]
+    WEB["Web editor + Worker<br/>editor/ · website/src"]
+  end
+
+  PREP["prepareRenderInput<br/>string or typed ParsedDiagram"]
+  NORM["Source normalizer<br/>frontmatter · %%init%% · wrappers"]
+  CONTRACT{{"Render contract — the shared waist<br/>resolveRenderRequestForExecution<br/>normalize source · appearance · style"}}
+  DETECT["Family detection + registry<br/>15 FamilyDescriptors<br/>flowchart · sequence · gantt · radar · …"]
+
+  CLI --> PREP
+  MCP --> PREP
+  LIB --> PREP
+  WEB --> PREP
+  PREP --> CONTRACT
+  NORM --> CONTRACT
+  CONTRACT --> DETECT
+
+  subgraph FAMILY["2 · Registered-family waist — one descriptor, typed hooks"]
+    direction TB
+    PARSE["parse → IR<br/>parseMermaid / family parser<br/>→ ValidDiagram / MermaidGraph"]
+    POS["positionResolvedFamily<br/>runs the family layout hook"]
+    AGENTH["Agent hooks<br/>parse · mutate · verify · serialize"]
+    PARSE --> POS
+  end
+  DETECT --> PARSE
+  DETECT --> AGENTH
+
+  subgraph LAYOUT["3 · Layout — IR → positioned geometry"]
+    direction TB
+    ENGINE["Layout engine · layoutGraphSync<br/>ELK → ~20 geometry passes<br/>src/layout-engine.ts"]
+    ELK["ELK singleton<br/>synchronous · only graph-layout dep"]
+    ROUTE["Route contracts<br/>ports · routing · certificates"]
+    RUBRIC["Layout rubric — GATE<br/>never ship a hard violation<br/>src/layout-rubric.ts"]
+    ENGINE --> ELK
+    ENGINE --> ROUTE
+    ENGINE --> RUBRIC
+  end
+  POS --> ENGINE
+
+  subgraph OUT["4 · Output projections"]
+    direction TB
+    SCENE["SceneDoc lowering<br/>semantic mark tree · typed roles"]
+    BACKEND["Style backends<br/>Default · Rough · Hybrid"]
+    SVG["SVG assembly<br/>color inline · a11y · output-security"]
+    IMG["SVG · PNG (resvg)"]
+    ASCII["ASCII pipeline<br/>converter → grid → draw → canvas"]
+    TEXT["Unicode · ASCII"]
+    LJSON["Layout JSON<br/>bounds · route certificates"]
+    SCENE --> BACKEND
+    BACKEND --> SVG
+    SVG --> IMG
+    ASCII --> TEXT
+  end
+  ENGINE --> SCENE
+  PARSE --> ASCII
+  ENGINE --> LJSON
+
+  subgraph SUPPORT["Cross-cutting support"]
+    direction LR
+    THEME["Theme + palettes<br/>21 palettes · 7 channels"]
+    STYLEREG["Style registry<br/>16 looks · stackable specs"]
+    FONTS["Font metrics<br/>Inter-calibrated estimator"]
+  end
+
+  THEME -.-> CONTRACT
+  STYLEREG -.-> BACKEND
+  FONTS -.-> ENGINE
+  AGENTH -.->|"verify re-runs render + layout + rubric"| ENGINE
