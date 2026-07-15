@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
 import {
+  BRAND_CONSTRAINT_DESCRIPTORS,
   renderMermaidSVG,
   resolveStyleStack,
   SEMANTIC_BINDING_CHANNELS,
@@ -23,6 +24,7 @@ function policyStyle() {
 describe('Section B semantic policy', () => {
   test('strict admission rejects illegal selectors, names, fields, unsafe paints, and invalid constraints', () => {
     expect(SEMANTIC_BINDING_CHANNELS).toEqual(['category'])
+    expect(Object.keys(BRAND_CONSTRAINT_DESCRIPTORS)).toEqual(['contrast', 'accent-area', 'mono-role'])
     expect(validateStyleSpec(policyStyle())).toEqual([])
     expect(validateStyleSpec(JSON.parse('{"semanticSlots":{"__proto__":{"fillColor":"#fff"}}}'))).toContain('invalid semantic slot name "__proto__"')
     expect(validateStyleSpec({ semanticSlots: { selected: { fillColor: 'url(https://evil.test/x)' } } })).toContain('"semanticSlots.selected.fillColor" must be a safe non-fetching CSS paint')
@@ -111,6 +113,7 @@ describe('Section B semantic policy', () => {
     const warned = verifyMermaid(source, { renderOptions: { style: low } })
     expect(warned.warnings).toContainEqual(expect.objectContaining({
       code: 'BRAND_CONSTRAINT_WARNING', constraint: 'contrast', measurement: 'measurable', minimum: 4.5,
+      message: expect.stringContaining(BRAND_CONSTRAINT_DESCRIPTORS.contrast.recovery),
     }))
     expect(renderMermaidSVG(source, { style: low })).toBe(before)
     const errored = verifyMermaid(source, { renderOptions: { style: { ...low, constraints: [{ kind: 'contrast', action: 'error', minimum: 4.5 }] } } })
@@ -143,7 +146,7 @@ describe('Section B semantic policy', () => {
     const style = {
       colors: { accent: '#7C3AED' },
       roles: {
-        node: { fillColor: '#7C3AED' },
+        node: { fillColor: 'rgb(124, 58, 237)' },
         edge: { strokeColor: '#ff0000' },
       },
       constraints: [

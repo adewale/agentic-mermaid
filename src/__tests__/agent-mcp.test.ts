@@ -511,7 +511,7 @@ describe('MCP — JSON-RPC happy + sad', () => {
     }
     expect(tools[0].description).toContain('interface RenderRequestReceipt')
     // Includes the compact strict StyleSpec contract; remain bounded.
-    expect(new TextEncoder().encode(tools[0].description).length).toBeLessThan(12_500)
+    expect(new TextEncoder().encode(tools[0].description).length).toBeLessThan(14_500)
   })
   test('tools/call execute', async () => {
     const r = await handleRequest({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'execute', arguments: { code: 'return mermaid.verifyMermaid("flowchart TD\\n A --> B").ok' } } })

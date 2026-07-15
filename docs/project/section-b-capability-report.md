@@ -7,7 +7,7 @@ Generated from the Style, SceneRole, and FamilyDescriptor registries. Do not edi
 - Built-in families: **15**
 - Exportable built-in Looks: **16**
 - BrandPack promoted: **no** — No external consumer has shown that ordinary version-controlled StyleSpec files are insufficient for repeated distribution, exact selection, or installed-resource integrity.
-- Digest: `sha256:bed423af93c8f18d8064b4912d9420cbdbb15971f7ed49d01beccb4d57607260`
+- Digest: `sha256:377b1aa30aeae87532efdf5924b35dbd0c134ff13e74822897b61d33d675ea89`
 
 ## SceneRole styling
 
@@ -108,7 +108,19 @@ The remaining private face is compiled only from these public role records; it h
 
 ## Paint authority and constraints
 
-Derived defaults may be guarded while they are chosen. Concrete authored theme/config/element paint is diagnose-only. Opaque concrete pairs are measurable; transparent host backdrops are explicitly unmeasurable. Evidence is recorded in the JSON report.
+Derived defaults may be guarded while they are chosen. Concrete authored theme/config/element paint is diagnose-only. Opaque concrete pairs are measurable; transparent host backdrops are explicitly unmeasurable.
+
+| Case | Provenance | Foreground | Background | Output context | Measurement / behavior |
+|---|---|---|---|---|---|
+| `core-derived-semantic-paint-tokens` | core-derived | derived semantic foreground token | resolved opaque page/surface token | shared SVG/PNG appearance | opaque-measurable / guard-may-substitute |
+| `journey-derived-label-ink` | core-derived | derived journey label ink | resolved journey surface | Journey SVG/PNG Scene | opaque-measurable / guard-may-substitute |
+| `mindmap-derived-label-ink` | core-derived | derived mindmap label ink | resolved node fill | Mindmap SVG/PNG Scene | opaque-measurable / guard-may-substitute |
+| `gitgraph-derived-label-ink` | core-derived | derived branch/commit label ink | derived label surface | GitGraph SVG/PNG Scene | opaque-measurable / guard-may-substitute |
+| `pie-derived-series-palette` | core-derived | derived slice/label palette | resolved opaque page | Pie SVG/PNG and terminal palette | opaque-measurable / guard-may-substitute |
+| `radar-derived-label-ink` | core-derived | derived radar label ink | resolved opaque page | Radar SVG/PNG Scene | opaque-measurable / guard-may-substitute |
+| `radar-authored-axis-color` | theme-authored | themeVariables.radar.axisColor | resolved opaque page | Radar SVG/PNG verification artifact | opaque-measurable / diagnose-only |
+| `brand-constraint-final-scene-paint` | style-or-source-authored | final admitted text MarkPaint | nearest admitted semantic surface or page | final admitted Scene before graphical backend | opaque-measurable / diagnose-only |
+| `transparent-host-backdrop` | host-owned | final admitted text MarkPaint | unknown embedding-host backdrop | transparent SVG/PNG host composition | host-dependent-unmeasurable / diagnose-only |
 
 ## Phase evidence
 

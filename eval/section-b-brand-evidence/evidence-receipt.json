@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "generator": "scripts/pr-assets/section-b-brand-evidence.ts",
   "inputs": {
-    "count": 685,
-    "treeSha256": "dd158b016a66aefdb2ef7ede4861ff50b4e1cd9963bc9dd2106acbed12945663"
+    "count": 686,
+    "treeSha256": "fe0e2d64d4a45a1557c8d955f020e6a3820d5c83d678b74989bd8d1b68fab34f"
   },
   "families": [
     "flowchart",

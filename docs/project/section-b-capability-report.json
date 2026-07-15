@@ -986,6 +986,10 @@
       "authority": "derived-default",
       "behavior": "guard-may-substitute",
       "compositing": "opaque-measurable",
+      "foreground": "derived semantic foreground token",
+      "background": "resolved opaque page/surface token",
+      "provenance": "core-derived",
+      "outputContext": "shared SVG/PNG appearance",
       "evidence": [
         "src/theme.ts",
         "src/__tests__/property-color-algebra.test.ts"
@@ -996,6 +1000,10 @@
       "authority": "derived-default",
       "behavior": "guard-may-substitute",
       "compositing": "opaque-measurable",
+      "foreground": "derived journey label ink",
+      "background": "resolved journey surface",
+      "provenance": "core-derived",
+      "outputContext": "Journey SVG/PNG Scene",
       "evidence": [
         "src/journey/renderer.ts",
         "src/__tests__/journey-theme.test.ts"
@@ -1006,6 +1014,10 @@
       "authority": "derived-default",
       "behavior": "guard-may-substitute",
       "compositing": "opaque-measurable",
+      "foreground": "derived mindmap label ink",
+      "background": "resolved node fill",
+      "provenance": "core-derived",
+      "outputContext": "Mindmap SVG/PNG Scene",
       "evidence": [
         "src/mindmap/renderer.ts",
         "src/__tests__/closing-the-gap.test.ts"
@@ -1016,6 +1028,10 @@
       "authority": "derived-default",
       "behavior": "guard-may-substitute",
       "compositing": "opaque-measurable",
+      "foreground": "derived branch/commit label ink",
+      "background": "derived label surface",
+      "provenance": "core-derived",
+      "outputContext": "GitGraph SVG/PNG Scene",
       "evidence": [
         "src/gitgraph/renderer.ts",
         "src/__tests__/mindmap-gitgraph-content-corpus.test.ts"
@@ -1026,6 +1042,10 @@
       "authority": "derived-default",
       "behavior": "guard-may-substitute",
       "compositing": "opaque-measurable",
+      "foreground": "derived slice/label palette",
+      "background": "resolved opaque page",
+      "provenance": "core-derived",
+      "outputContext": "Pie SVG/PNG and terminal palette",
       "evidence": [
         "src/pie/palette.ts",
         "src/__tests__/pie-elevation.test.ts"
@@ -1036,6 +1056,10 @@
       "authority": "derived-default",
       "behavior": "guard-may-substitute",
       "compositing": "opaque-measurable",
+      "foreground": "derived radar label ink",
+      "background": "resolved opaque page",
+      "provenance": "core-derived",
+      "outputContext": "Radar SVG/PNG Scene",
       "evidence": [
         "src/radar/renderer.ts",
         "src/__tests__/radar-label-discipline.test.ts"
@@ -1046,6 +1070,10 @@
       "authority": "authored",
       "behavior": "diagnose-only",
       "compositing": "opaque-measurable",
+      "foreground": "themeVariables.radar.axisColor",
+      "background": "resolved opaque page",
+      "provenance": "theme-authored",
+      "outputContext": "Radar SVG/PNG verification artifact",
       "evidence": [
         "src/agent/verify.ts",
         "src/__tests__/radar-label-discipline.test.ts"
@@ -1056,6 +1084,10 @@
       "authority": "authored",
       "behavior": "diagnose-only",
       "compositing": "opaque-measurable",
+      "foreground": "final admitted text MarkPaint",
+      "background": "nearest admitted semantic surface or page",
+      "provenance": "style-or-source-authored",
+      "outputContext": "final admitted Scene before graphical backend",
       "evidence": [
         "src/scene/brand-constraints.ts",
         "src/__tests__/section-b-policy.test.ts"
@@ -1066,6 +1098,10 @@
       "authority": "authored",
       "behavior": "diagnose-only",
       "compositing": "host-dependent-unmeasurable",
+      "foreground": "final admitted text MarkPaint",
+      "background": "unknown embedding-host backdrop",
+      "provenance": "host-owned",
+      "outputContext": "transparent SVG/PNG host composition",
       "evidence": [
         "src/scene/brand-constraints.ts",
         "src/__tests__/section-b-policy.test.ts"
@@ -1125,5 +1161,5 @@
       ]
     }
   ],
-  "digest": "sha256:bed423af93c8f18d8064b4912d9420cbdbb15971f7ed49d01beccb4d57607260"
+  "digest": "sha256:377b1aa30aeae87532efdf5924b35dbd0c134ff13e74822897b61d33d675ea89"
 }

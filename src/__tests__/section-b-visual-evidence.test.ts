@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { knownBuiltinFamilies } from '../agent/families.ts'
-import { buildSectionBBrandEvidence } from '../../scripts/pr-assets/section-b-brand-evidence.ts'
+import { buildSectionBBrandEvidence, buildSectionBBrandEvidenceReceipt } from '../../scripts/pr-assets/section-b-brand-evidence.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const PNG = join(ROOT, 'docs/design/families/section-b-brand-evidence.png')
@@ -25,8 +25,14 @@ describe('Section B generated visual evidence', () => {
 
   test('receipt covers every built-in family, sentinel plus three holdouts, public output paths, and an honest hard-error baseline', () => {
     const receipt = JSON.parse(readFileSync(RECEIPT, 'utf8'))
+    expect(receipt).toEqual(buildSectionBBrandEvidenceReceipt())
     expect(receipt.families).toEqual(knownBuiltinFamilies())
-    expect(receipt.variants).toHaveLength(4)
+    expect(receipt.variants).toEqual([
+      'Sentinel · every channel deliberately distinctive',
+      'Holdout · warm editorial',
+      'Holdout · light technical',
+      'Holdout · dark operations',
+    ])
     expect(receipt.outputPaths).toEqual({
       graphicalCells: 'public native renderMermaidPNG',
       terminal: 'public renderMermaidASCII (Unicode, no color)',

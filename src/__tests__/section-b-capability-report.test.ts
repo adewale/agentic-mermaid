@@ -31,6 +31,7 @@ describe('Section B generated capability report', () => {
       .filter(row => row.kind === 'look' && row.identity.provenance.source === 'built-in')
       .map(row => row.identity.id))
     expect(report.builtInLooks.every(row => row.exportable)).toBe(true)
+    expect(report.paintAuthority.every(row => row.foreground && row.background && row.provenance && row.outputContext)).toBe(true)
     expect(report.brandPack).toMatchObject({ promoted: false })
     expect(report.phases.map(row => row.id)).toEqual(['B0', 'B1', 'B2', 'B3', 'B4', 'B5'])
   })

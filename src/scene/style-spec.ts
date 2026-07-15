@@ -2,6 +2,13 @@ import { safeCssColor, safeCssPaint } from '../shared/css-color.ts'
 import { safeCssFontFamily } from '../shared/css-font.ts'
 import { SCENE_ROLE_DESCRIPTORS, type BuiltinSceneRole } from './roles.ts'
 import { JSON_CONFIG_ADMISSION_LIMITS, limitJsonConfigDiagnostics } from '../shared/json-config-admission.ts'
+import {
+  BRAND_CONSTRAINT_DESCRIPTORS,
+  BRAND_CONSTRAINT_KINDS,
+  type BrandConstraintAction,
+} from './brand-constraint-contract.ts'
+export { BRAND_CONSTRAINT_DESCRIPTORS, BRAND_CONSTRAINT_KINDS } from './brand-constraint-contract.ts'
+export type { BrandConstraintAction, BrandConstraintKind } from './brand-constraint-contract.ts'
 
 /**
  * The persisted StyleSpec wire format. Inputs may omit the version; registry
@@ -119,7 +126,29 @@ type RolePropertyValue<D> = D extends { readonly kind: 'number' } ? number
     : D extends { readonly kind: 'enum'; readonly values: readonly (infer V)[] } ? V
       : never
 export type RoleStyleSpec = { -readonly [K in keyof typeof ROLE_STYLE_PROPERTY_DESCRIPTORS]?: RolePropertyValue<(typeof ROLE_STYLE_PROPERTY_DESCRIPTORS)[K]> }
-export type RoleStyles = Partial<Record<BuiltinSceneRole, RoleStyleSpec>>
+type NodeRoleStyle = Pick<RoleStyleSpec, 'fontSize' | 'fontWeight' | 'letterSpacing' | 'textTransform' | 'textColor' | 'paddingX' | 'paddingY' | 'cornerRadius' | 'lineWidth' | 'fillColor' | 'borderColor'>
+type EdgeRoleStyle = Pick<RoleStyleSpec, 'fontSize' | 'fontWeight' | 'letterSpacing' | 'textTransform' | 'textColor' | 'lineWidth' | 'bendRadius' | 'strokeColor'>
+type GroupRoleStyle = NodeRoleStyle & Pick<RoleStyleSpec, 'fontFamily' | 'headerFillColor'>
+type LabelRoleStyle = Pick<RoleStyleSpec, 'fontSize' | 'fontWeight' | 'letterSpacing' | 'textTransform' | 'textColor'>
+type HeaderRoleStyle = Pick<RoleStyleSpec, 'fontFamily' | 'fontSize' | 'fontWeight' | 'letterSpacing' | 'textTransform' | 'textColor' | 'fillColor' | 'borderColor' | 'strokeColor' | 'lineWidth' | 'cue'>
+type PieSliceRoleStyle = Pick<RoleStyleSpec, 'fillColor' | 'borderColor' | 'strokeColor' | 'lineWidth' | 'cue'>
+type LegendRoleStyle = Pick<RoleStyleSpec, 'fillColor' | 'borderColor' | 'strokeColor' | 'lineWidth' | 'textColor'>
+type ShapePaintRoleStyle = Pick<RoleStyleSpec, 'fillColor' | 'borderColor' | 'strokeColor' | 'lineWidth'>
+type ConnectorPaintRoleStyle = Pick<RoleStyleSpec, 'borderColor' | 'strokeColor' | 'lineWidth'>
+type CuedShapePaintRoleStyle = ShapePaintRoleStyle & Pick<RoleStyleSpec, 'cue'>
+export type RoleStyleFor<Role extends BuiltinSceneRole> =
+  Role extends 'node' | 'actor' ? NodeRoleStyle
+    : Role extends 'edge' | 'relationship' ? EdgeRoleStyle
+      : Role extends 'group' ? GroupRoleStyle
+        : Role extends 'label' ? LabelRoleStyle
+          : Role extends 'group-header' ? HeaderRoleStyle
+            : Role extends 'pie-slice' ? PieSliceRoleStyle
+              : Role extends 'legend' ? LegendRoleStyle
+                : Role extends 'bar' | 'point' ? ShapePaintRoleStyle
+                  : Role extends 'series' ? ConnectorPaintRoleStyle
+                    : Role extends 'task' | 'milestone' ? CuedShapePaintRoleStyle
+                      : never
+export type RoleStyles = { [Role in BuiltinSceneRole]?: Readonly<RoleStyleFor<Role>> }
 
 // V1 exposes only channels with typed family emitters and renderer witnesses.
 // Additions require census evidence, layout/render consumption, and diagnostics.
@@ -132,13 +161,11 @@ export interface SemanticBinding {
   readonly role?: BuiltinSceneRole
 }
 export type SemanticSlots = Readonly<Record<string, Readonly<RoleStyleSpec>>>
-export type BrandConstraintAction = 'warn' | 'error'
 export type BrandConstraint =
   | { readonly kind: 'contrast'; readonly action: BrandConstraintAction; readonly role?: BuiltinSceneRole; readonly minimum?: number }
   | { readonly kind: 'accent-area'; readonly action: BrandConstraintAction; readonly maxFraction: number }
   | { readonly kind: 'mono-role'; readonly action: BrandConstraintAction; readonly role: BuiltinSceneRole }
 
-export const BRAND_CONSTRAINT_KINDS = Object.freeze(['contrast', 'accent-area', 'mono-role'] as const)
 
 /**
  * One authority for every public StyleSpec field and constraint. Keep
@@ -391,10 +418,8 @@ function validateConstraints(value: unknown): string[] {
       problems.push(`"${path}.kind" must be one of ${BRAND_CONSTRAINT_KINDS.join(' | ')}`)
       return
     }
-    const allowed = raw.kind === 'contrast' ? ['kind', 'action', 'role', 'minimum']
-      : raw.kind === 'accent-area' ? ['kind', 'action', 'maxFraction']
-        : ['kind', 'action', 'role']
-    for (const field of Object.keys(raw)) if (!allowed.includes(field)) problems.push(`unknown constraint field "${path}.${field}"`)
+    const descriptor = BRAND_CONSTRAINT_DESCRIPTORS[raw.kind as keyof typeof BRAND_CONSTRAINT_DESCRIPTORS]
+    for (const field of Object.keys(raw)) if (!(descriptor.fields as readonly string[]).includes(field)) problems.push(`unknown constraint field "${path}.${field}"`)
     if (raw.action !== 'warn' && raw.action !== 'error') problems.push(`"${path}.action" must be one of warn | error`)
     if (raw.role !== undefined && !SCENE_ROLE_BY_NAME.has(raw.role as BuiltinSceneRole)) problems.push(`"${path}.role" must be a registered built-in SceneRole`)
     if (raw.kind === 'contrast' && raw.minimum !== undefined && (!numberIsValid(raw.minimum, { minimum: 1, maximum: 21 }))) problems.push(`"${path}.minimum" must be between 1 and 21`)
@@ -553,9 +578,9 @@ function fieldJsonSchema(descriptor: StyleFieldDescriptor): JsonSchema {
         type: 'array', description: descriptor.description,
         maxItems: JSON_CONFIG_ADMISSION_LIMITS.maxItemsPerContainer,
         items: { oneOf: [
-          { type: 'object', additionalProperties: false, required: ['kind', 'action'], properties: { kind: { const: 'contrast' }, action, role, minimum: { type: 'number', minimum: 1, maximum: 21 } } },
-          { type: 'object', additionalProperties: false, required: ['kind', 'action', 'maxFraction'], properties: { kind: { const: 'accent-area' }, action, maxFraction: { type: 'number', minimum: 0, maximum: 1 } } },
-          { type: 'object', additionalProperties: false, required: ['kind', 'action', 'role'], properties: { kind: { const: 'mono-role' }, action, role } },
+          { type: 'object', additionalProperties: false, required: [...BRAND_CONSTRAINT_DESCRIPTORS.contrast.required], properties: { kind: { const: 'contrast' }, action, role, minimum: { type: 'number', minimum: 1, maximum: 21 } } },
+          { type: 'object', additionalProperties: false, required: [...BRAND_CONSTRAINT_DESCRIPTORS['accent-area'].required], properties: { kind: { const: 'accent-area' }, action, maxFraction: { type: 'number', minimum: 0, maximum: 1 } } },
+          { type: 'object', additionalProperties: false, required: [...BRAND_CONSTRAINT_DESCRIPTORS['mono-role'].required], properties: { kind: { const: 'mono-role' }, action, role } },
         ] },
       }
     }
@@ -668,10 +693,20 @@ export function styleSpecTypeScriptDeclaration(options: { readonly compact?: boo
     const compactRole = Object.keys(ROLE_STYLE_PROPERTY_DESCRIPTORS)
       .map(name => `${JSON.stringify(name)}?:${rolePropertyTypeScript(name)}`).join(';')
     const roleNames = SCENE_ROLE_DESCRIPTORS.map(role => JSON.stringify(role.role)).join(' | ')
+    const propertyGroups = new Map<string, string[]>()
+    for (const descriptor of SCENE_ROLE_DESCRIPTORS) {
+      const signature = [...descriptor.style.applicableProperties].sort().join('|')
+      propertyGroups.set(signature, [...(propertyGroups.get(signature) ?? []), descriptor.role])
+    }
+    const roleStyleCases = [...propertyGroups.entries()].map(([signature, roles]) => {
+      const match = roles.map(value => JSON.stringify(value)).join(' | ')
+      const properties = signature.length === 0 ? 'never' : `Pick<RoleStyleSpec, ${signature.split('|').map(value => JSON.stringify(value)).join(' | ')}>`
+      return `R extends ${match}?${properties}:`
+    }).join('')
     const compactStyle = Object.entries(STYLE_SPEC_FIELD_DESCRIPTORS)
       .map(([name, descriptor]) => `${JSON.stringify(name)}?:${styleFieldTypeScript(descriptor)}`).join(';')
     const compactColors = Object.keys(STYLE_COLOR_TOKEN_DESCRIPTORS).map(token => `${token}?:string`).join(';')
-    return `interface StyleColors {${compactColors}}\ntype SceneStyleRole=${roleNames}\ntype RoleStyleSpec={${compactRole}}\ntype RoleStyles=Partial<Record<SceneStyleRole,Readonly<RoleStyleSpec>>>\ntype SemanticBindingChannel=${SEMANTIC_BINDING_CHANNELS.map(value => JSON.stringify(value)).join(' | ')}\ninterface SemanticBinding {channel:SemanticBindingChannel;value:string;slot:string;role?:SceneStyleRole}\ntype BrandConstraint={kind:'contrast';action:'warn'|'error';role?:SceneStyleRole;minimum?:number}|{kind:'accent-area';action:'warn'|'error';maxFraction:number}|{kind:'mono-role';action:'warn'|'error';role:SceneStyleRole}\ninterface StyleSpec {${compactStyle}}\ntype StyleInput=string|StyleSpec`
+    return `interface StyleColors {${compactColors}}\ntype SceneStyleRole=${roleNames}\ntype RoleStyleSpec={${compactRole}}\ntype RoleStyleFor<R extends SceneStyleRole>=${roleStyleCases}never\ntype RoleStyles={[R in SceneStyleRole]?:Readonly<RoleStyleFor<R>>}\ntype SemanticBindingChannel=${SEMANTIC_BINDING_CHANNELS.map(value => JSON.stringify(value)).join(' | ')}\ninterface SemanticBinding {channel:SemanticBindingChannel;value:string;slot:string;role?:SceneStyleRole}\ntype BrandConstraint={kind:'contrast';action:'warn'|'error';role?:SceneStyleRole;minimum?:number}|{kind:'accent-area';action:'warn'|'error';maxFraction:number}|{kind:'mono-role';action:'warn'|'error';role:SceneStyleRole}\ninterface StyleSpec {${compactStyle}}\ntype StyleInput=string|StyleSpec`
   }
   return `interface StyleColors {\n${colors}\n}\n${anyRole.declaration}\ntype RoleStyleSpec = StyleRole_Any\n${exactRoles.map(role => role.declaration).join('\n')}\ninterface RoleStyles {\n${roles}\n}\ntype SemanticBindingChannel = ${SEMANTIC_BINDING_CHANNELS.map(value => JSON.stringify(value)).join(' | ')}\ninterface SemanticBinding { channel: SemanticBindingChannel; value: string; slot: string; role?: keyof RoleStyles }\ntype BrandConstraint =\n  | { kind: 'contrast'; action: 'warn' | 'error'; role?: keyof RoleStyles; minimum?: number }\n  | { kind: 'accent-area'; action: 'warn' | 'error'; maxFraction: number }\n  | { kind: 'mono-role'; action: 'warn' | 'error'; role: keyof RoleStyles }\ninterface StyleSpec {\n${styleFields}\n}\ntype StyleInput = string | StyleSpec`
 }

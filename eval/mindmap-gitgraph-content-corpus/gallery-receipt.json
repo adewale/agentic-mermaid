@@ -180,7 +180,7 @@
     },
     {
       "path": "src/__tests__/agent-mcp.test.ts",
-      "sha256": "860b4d3a48b24ac93feb57434a680105abf7ed204abbb750449cd38fde80d028"
+      "sha256": "92d8d9d9290d36a1b2d97b84271ced35c54971e33e9f1aa814e48048e3335798"
     },
     {
       "path": "src/__tests__/agent-mermaid-corpus.test.ts",
@@ -864,7 +864,7 @@
     },
     {
       "path": "src/__tests__/hosted-mcp.test.ts",
-      "sha256": "c8b033210225f6181cff8cd1b423453f3fe86a8b3e27eba173dfaa86c24b0029"
+      "sha256": "8bcde03acea5d77ba3876a7ff268113553b0da21f9a52dd9de19d3b1ebde952c"
     },
     {
       "path": "src/__tests__/hosted-raster-budget.test.ts",
@@ -1316,7 +1316,7 @@
     },
     {
       "path": "src/__tests__/section-b-capability-report.test.ts",
-      "sha256": "687338eb200fc8f328e85716e5575a808d11eec5bc1f72b3a9055d5e5ea47371"
+      "sha256": "3821c0eb5f1f0b041f1992170ff77c1244d55ff13133f77a64693c0ca8289ea5"
     },
     {
       "path": "src/__tests__/section-b-chart-bindings.test.ts",
@@ -1324,11 +1324,11 @@
     },
     {
       "path": "src/__tests__/section-b-policy.test.ts",
-      "sha256": "e50066dc0bfcd5ded6e02f677da314faf03b0ac7d8f4f27dc09ec9e26efa9732"
+      "sha256": "ff909e7aa683ab42529d3621abcab9ee4387e66e737616a8012e6afc922339e0"
     },
     {
       "path": "src/__tests__/section-b-role-styles.test.ts",
-      "sha256": "f88e85f1f61e64f228fac31540d96053fe1127af03ccb4df0f67de25c8f1b55c"
+      "sha256": "5806a29454d7f3cf6db643396e29bbf884656a6e6c5c2fe8193776cb656235e3"
     },
     {
       "path": "src/__tests__/section-b-structural-domain-bindings.test.ts",
@@ -1340,7 +1340,7 @@
     },
     {
       "path": "src/__tests__/section-b-visual-evidence.test.ts",
-      "sha256": "a75a2b517cb7934fd23fceedb458f5fd7c5043026755cd9012913d36cf671606"
+      "sha256": "93cbdfd15aa82eee1ef15a173115b9d68b5c6255bd8d96f6f9a3b5f4632dd412"
     },
     {
       "path": "src/__tests__/self-loop-arcs.test.ts",
@@ -1420,7 +1420,7 @@
     },
     {
       "path": "src/__tests__/style-spec-authority.test.ts",
-      "sha256": "c64a709aa7afde679bf7026495614c74de5ce5a51b7a1228b7675e87eb8611bf"
+      "sha256": "711b5964d82b2e1a01904421274eb29f6048f24d935f6aee02c858725456a8ef"
     },
     {
       "path": "src/__tests__/styled-backend-paint.test.ts",
@@ -1632,7 +1632,7 @@
     },
     {
       "path": "src/agent/core.ts",
-      "sha256": "2d37c144d2218069f4f3f7cc281be4d18d65e76606da55c903067669edba2863"
+      "sha256": "eee2fe6b7eb5d52d5b31c6834915c8d0f5400c8379e3c67581c3894c4479e336"
     },
     {
       "path": "src/agent/create.ts",
@@ -1796,7 +1796,7 @@
     },
     {
       "path": "src/agent/types.ts",
-      "sha256": "102cc8180a2bb94e5f8c487eba1c7ac87d14fc25d86d775df870f33ece652ed9"
+      "sha256": "ba73cbdfd3b6ad779341c1fcc5aa88169335564e0f86a8146dd80b159bb45a82"
     },
     {
       "path": "src/agent/verify.ts",
@@ -2156,7 +2156,7 @@
     },
     {
       "path": "src/index.ts",
-      "sha256": "ff51d9d5f8570e5201455f797c4d4b879b605b4182ade79a470be5b858ad3e8d"
+      "sha256": "da3c1949c6ebd8b35febd80f96349a68f85010be1e7f5b18fa09e063b3dfb9ef"
     },
     {
       "path": "src/journey/layout.ts",
@@ -2459,8 +2459,12 @@
       "sha256": "4cf2bc93edd8f1c2d03738d4fa4761924333bf1dd9599fad69a98130758a6976"
     },
     {
+      "path": "src/scene/brand-constraint-contract.ts",
+      "sha256": "a7f89c279061157e5bf9c12610a4a02d68defab7355e0120a1dbc4b24a2316f0"
+    },
+    {
       "path": "src/scene/brand-constraints.ts",
-      "sha256": "1c2566a0d2565a0e15a2f9c094433aa7d0de220dbbcbfd952dfefd57b2631031"
+      "sha256": "071bcdb06124bf453a0a427cacc52010ad912859e0c5d39e7fbe11f6badab47c"
     },
     {
       "path": "src/scene/builtin-backends.ts",
@@ -2536,11 +2540,11 @@
     },
     {
       "path": "src/scene/style-registry.ts",
-      "sha256": "03e21ee88dc465f3bd8b5b3c85658cf4a38349a8309c3f448c418bf1d63e2196"
+      "sha256": "4aa85e0efad5b3c2888fcc7add0678c9e8d82c66c69e13e7ae147dbe62da01ad"
     },
     {
       "path": "src/scene/style-spec.ts",
-      "sha256": "3aa8a0f09f2da9c181bb3775555ce5d6459c07b068174717f76946143fcc789a"
+      "sha256": "423d090377f5ef5cbc8775524f0929a4c1a95f12c94f6b5eb6986c60317441ec"
     },
     {
       "path": "src/scene/svg-serialize.ts",
@@ -2556,7 +2560,7 @@
     },
     {
       "path": "src/section-b-capability-report.ts",
-      "sha256": "a58b34fceb1736a2c1d8d8655d90b9c71ce8326f59304afc01ebbf5c05f6e461"
+      "sha256": "0265cf7c408191988f4d32e6b70987e7d16cece3bea55d5145c743b31b817736"
     },
     {
       "path": "src/sequence/colors.ts",

@@ -64,6 +64,10 @@ export interface SectionBCapabilityReport {
     readonly authority: 'derived-default' | 'authored'
     readonly behavior: 'guard-may-substitute' | 'diagnose-only'
     readonly compositing: 'opaque-measurable' | 'host-dependent-unmeasurable'
+    readonly foreground: string
+    readonly background: string
+    readonly provenance: 'core-derived' | 'theme-authored' | 'style-or-source-authored' | 'host-owned'
+    readonly outputContext: string
     readonly evidence: readonly string[]
   }[]
   readonly brandPack: {
@@ -135,6 +139,8 @@ function body(): Omit<SectionBCapabilityReport, 'digest'> {
         authority: 'derived-default',
         behavior: 'guard-may-substitute',
         compositing: 'opaque-measurable',
+        foreground: 'derived semantic foreground token', background: 'resolved opaque page/surface token',
+        provenance: 'core-derived', outputContext: 'shared SVG/PNG appearance',
         evidence: ['src/theme.ts', 'src/__tests__/property-color-algebra.test.ts'],
       },
       {
@@ -142,6 +148,8 @@ function body(): Omit<SectionBCapabilityReport, 'digest'> {
         authority: 'derived-default',
         behavior: 'guard-may-substitute',
         compositing: 'opaque-measurable',
+        foreground: 'derived journey label ink', background: 'resolved journey surface',
+        provenance: 'core-derived', outputContext: 'Journey SVG/PNG Scene',
         evidence: ['src/journey/renderer.ts', 'src/__tests__/journey-theme.test.ts'],
       },
       {
@@ -149,6 +157,8 @@ function body(): Omit<SectionBCapabilityReport, 'digest'> {
         authority: 'derived-default',
         behavior: 'guard-may-substitute',
         compositing: 'opaque-measurable',
+        foreground: 'derived mindmap label ink', background: 'resolved node fill',
+        provenance: 'core-derived', outputContext: 'Mindmap SVG/PNG Scene',
         evidence: ['src/mindmap/renderer.ts', 'src/__tests__/closing-the-gap.test.ts'],
       },
       {
@@ -156,6 +166,8 @@ function body(): Omit<SectionBCapabilityReport, 'digest'> {
         authority: 'derived-default',
         behavior: 'guard-may-substitute',
         compositing: 'opaque-measurable',
+        foreground: 'derived branch/commit label ink', background: 'derived label surface',
+        provenance: 'core-derived', outputContext: 'GitGraph SVG/PNG Scene',
         evidence: ['src/gitgraph/renderer.ts', 'src/__tests__/mindmap-gitgraph-content-corpus.test.ts'],
       },
       {
@@ -163,6 +175,8 @@ function body(): Omit<SectionBCapabilityReport, 'digest'> {
         authority: 'derived-default',
         behavior: 'guard-may-substitute',
         compositing: 'opaque-measurable',
+        foreground: 'derived slice/label palette', background: 'resolved opaque page',
+        provenance: 'core-derived', outputContext: 'Pie SVG/PNG and terminal palette',
         evidence: ['src/pie/palette.ts', 'src/__tests__/pie-elevation.test.ts'],
       },
       {
@@ -170,6 +184,8 @@ function body(): Omit<SectionBCapabilityReport, 'digest'> {
         authority: 'derived-default',
         behavior: 'guard-may-substitute',
         compositing: 'opaque-measurable',
+        foreground: 'derived radar label ink', background: 'resolved opaque page',
+        provenance: 'core-derived', outputContext: 'Radar SVG/PNG Scene',
         evidence: ['src/radar/renderer.ts', 'src/__tests__/radar-label-discipline.test.ts'],
       },
       {
@@ -177,6 +193,8 @@ function body(): Omit<SectionBCapabilityReport, 'digest'> {
         authority: 'authored',
         behavior: 'diagnose-only',
         compositing: 'opaque-measurable',
+        foreground: 'themeVariables.radar.axisColor', background: 'resolved opaque page',
+        provenance: 'theme-authored', outputContext: 'Radar SVG/PNG verification artifact',
         evidence: ['src/agent/verify.ts', 'src/__tests__/radar-label-discipline.test.ts'],
       },
       {
@@ -184,6 +202,8 @@ function body(): Omit<SectionBCapabilityReport, 'digest'> {
         authority: 'authored',
         behavior: 'diagnose-only',
         compositing: 'opaque-measurable',
+        foreground: 'final admitted text MarkPaint', background: 'nearest admitted semantic surface or page',
+        provenance: 'style-or-source-authored', outputContext: 'final admitted Scene before graphical backend',
         evidence: ['src/scene/brand-constraints.ts', 'src/__tests__/section-b-policy.test.ts'],
       },
       {
@@ -191,6 +211,8 @@ function body(): Omit<SectionBCapabilityReport, 'digest'> {
         authority: 'authored',
         behavior: 'diagnose-only',
         compositing: 'host-dependent-unmeasurable',
+        foreground: 'final admitted text MarkPaint', background: 'unknown embedding-host backdrop',
+        provenance: 'host-owned', outputContext: 'transparent SVG/PNG host composition',
         evidence: ['src/scene/brand-constraints.ts', 'src/__tests__/section-b-policy.test.ts'],
       },
     ],
@@ -230,5 +252,6 @@ export function sectionBCapabilityReportMarkdown(report = createSectionBCapabili
   const roleRows = report.roles.map(role => `| \`${role.role}\` | \`${role.fallbackRole}\` | ${role.consumption} | ${role.applicableProperties.length ? role.applicableProperties.map(value => `\`${value}\``).join(', ') : 'fallback-only'} |`).join('\n')
   const privateFaceRows = report.privateFaceProjection.map(face => `| \`${face.face}\` | \`${face.sourceRole}\` | ${face.publicFields.map(value => `\`${value}\``).join(', ')} |`).join('\n')
   const looks = report.builtInLooks.map(look => `- \`${look.inputName}\` → \`${look.id}\`; public export ${look.exportable ? 'valid' : 'invalid'}; role keys: ${look.roleKeys.length ? look.roleKeys.map(value => `\`${value}\``).join(', ') : 'none'}`).join('\n')
-  return `# Section B capability report\n\nGenerated from the Style, SceneRole, and FamilyDescriptor registries. Do not edit by hand. Machine-readable sibling: [section-b-capability-report.json](./section-b-capability-report.json).\n\n- Public role-style leaves: **${report.publicRoleStyleLeaves.length}**\n- Registered Scene roles: **${report.roles.length}**\n- Built-in families: **${report.families.length}**\n- Exportable built-in Looks: **${report.builtInLooks.length}**\n- BrandPack promoted: **no** — ${report.brandPack.reason}\n- Digest: \`${report.digest}\`\n\n## SceneRole styling\n\n| Role | Fallback | Exact consumption | Applicable public leaves |\n|---|---|---|---|\n${roleRows}\n\n## Derived private-face projection\n\nThe remaining private face is compiled only from these public role records; it has no author-only leaf.\n\n| Compiled face | Public source role | Public fields |\n|---|---|---|\n${privateFaceRows}\n\n## Family semantic-channel census\n\n| Family | Admitted Scene roles | Emitted channels | Binding consumer roles | Public binding channels |\n|---|---|---|---|---|\n${channelRows}\n\n## Built-in public exportability\n\n${looks}\n\n## Paint authority and constraints\n\nDerived defaults may be guarded while they are chosen. Concrete authored theme/config/element paint is diagnose-only. Opaque concrete pairs are measurable; transparent host backdrops are explicitly unmeasurable. Evidence is recorded in the JSON report.\n\n## Phase evidence\n\n${report.phases.map(phase => `- **${phase.id}:** ${phase.acceptanceEvidence.map(value => `\`${value}\``).join(', ')}`).join('\n')}\n`
+  const paintRows = report.paintAuthority.map(row => `| \`${row.id}\` | ${row.provenance} | ${row.foreground} | ${row.background} | ${row.outputContext} | ${row.compositing} / ${row.behavior} |`).join('\n')
+  return `# Section B capability report\n\nGenerated from the Style, SceneRole, and FamilyDescriptor registries. Do not edit by hand. Machine-readable sibling: [section-b-capability-report.json](./section-b-capability-report.json).\n\n- Public role-style leaves: **${report.publicRoleStyleLeaves.length}**\n- Registered Scene roles: **${report.roles.length}**\n- Built-in families: **${report.families.length}**\n- Exportable built-in Looks: **${report.builtInLooks.length}**\n- BrandPack promoted: **no** — ${report.brandPack.reason}\n- Digest: \`${report.digest}\`\n\n## SceneRole styling\n\n| Role | Fallback | Exact consumption | Applicable public leaves |\n|---|---|---|---|\n${roleRows}\n\n## Derived private-face projection\n\nThe remaining private face is compiled only from these public role records; it has no author-only leaf.\n\n| Compiled face | Public source role | Public fields |\n|---|---|---|\n${privateFaceRows}\n\n## Family semantic-channel census\n\n| Family | Admitted Scene roles | Emitted channels | Binding consumer roles | Public binding channels |\n|---|---|---|---|---|\n${channelRows}\n\n## Built-in public exportability\n\n${looks}\n\n## Paint authority and constraints\n\nDerived defaults may be guarded while they are chosen. Concrete authored theme/config/element paint is diagnose-only. Opaque concrete pairs are measurable; transparent host backdrops are explicitly unmeasurable.\n\n| Case | Provenance | Foreground | Background | Output context | Measurement / behavior |\n|---|---|---|---|---|---|\n${paintRows}\n\n## Phase evidence\n\n${report.phases.map(phase => `- **${phase.id}:** ${phase.acceptanceEvidence.map(value => `\`${value}\``).join(', ')}`).join('\n')}\n`
 }

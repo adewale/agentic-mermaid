@@ -43,6 +43,8 @@ export {
   STYLE_SPEC_FIELD_DESCRIPTORS,
   STYLE_COLOR_TOKEN_DESCRIPTORS,
   ROLE_STYLE_PROPERTY_DESCRIPTORS,
+  BRAND_CONSTRAINT_DESCRIPTORS,
+  BRAND_CONSTRAINT_KINDS,
   SEMANTIC_BINDING_CHANNELS,
   styleSpecJsonSchema,
   styleSpecFieldReferenceMarkdown,
@@ -50,7 +52,7 @@ export {
   validateStyleSpec,
 } from './style-spec.ts'
 export type {
-  BrandConstraint, BrandConstraintAction, RoleStyleSpec, RoleStyles,
+  BrandConstraint, BrandConstraintAction, BrandConstraintKind, RoleStyleFor, RoleStyleSpec, RoleStyles,
   SemanticBinding, SemanticBindingChannel, SemanticSlots, StyleSpec, StyleColors,
 } from './style-spec.ts'
 import type {

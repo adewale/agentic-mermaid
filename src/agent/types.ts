@@ -10,6 +10,12 @@ import type { MermaidGraph, NodeShape, EdgeStyle, Direction, EdgeRouteCertificat
 import type { MermaidFrontmatterMap, MermaidConfigMap } from '../mermaid-source.ts'
 import type { MindmapNode, MindmapShape } from '../mindmap/types.ts'
 import type { GitGraphDiagram, GitGraphCommitType } from '../gitgraph/types.ts'
+import {
+  BRAND_CONSTRAINT_WARNING_POLICY,
+  type BrandConstraintKind,
+  type BrandConstraintWarningCode,
+} from '../scene/brand-constraint-contract.ts'
+export type { BrandConstraintWarningCode } from '../scene/brand-constraint-contract.ts'
 
 // ---- Result ---------------------------------------------------------------
 
@@ -1301,8 +1307,7 @@ export type Tier2WarningCode =
  * Tier 3 (advisory lint). Family-specific quality hints for common agent
  * mistakes that still parse and render. Lint warnings never flip verify.ok.
  */
-export type Tier3WarningCode = 'DUPLICATE_EDGE' | 'UNREACHABLE_NODE' | 'DECISION_BRANCH_UNLABELED' | 'COMMENT_DROPPED' | 'UNSUPPORTED_SYNTAX' | 'CONTENT_DROPPED_ON_ROUNDTRIP' | 'INEFFECTIVE_CONFIG' | 'LOW_CONTRAST' | 'BRAND_CONSTRAINT_WARNING'
-export type BrandConstraintWarningCode = 'BRAND_CONSTRAINT_WARNING' | 'BRAND_CONSTRAINT_ERROR'
+export type Tier3WarningCode = 'DUPLICATE_EDGE' | 'UNREACHABLE_NODE' | 'DECISION_BRANCH_UNLABELED' | 'COMMENT_DROPPED' | 'UNSUPPORTED_SYNTAX' | 'CONTENT_DROPPED_ON_ROUNDTRIP' | 'INEFFECTIVE_CONFIG' | 'LOW_CONTRAST' | typeof BRAND_CONSTRAINT_WARNING_POLICY.warn.code
 export type WarningCode = Tier1WarningCode | Tier2WarningCode | Tier3WarningCode | BrandConstraintWarningCode
 
 export type LayoutWarning =
@@ -1363,8 +1368,8 @@ export type LayoutWarning =
    * threshold against the final resolved background. Advisory: never repaints. */
   | { code: 'LOW_CONTRAST'; field: string; foreground: string; background: string; ratio: number; minimum: number; message: string }
   | {
-      code: 'BRAND_CONSTRAINT_WARNING' | 'BRAND_CONSTRAINT_ERROR'
-      constraint: 'contrast' | 'accent-area' | 'mono-role'
+      code: BrandConstraintWarningCode
+      constraint: BrandConstraintKind
       measurement: 'measurable' | 'unmeasurable' | 'not-applicable'
       role?: string
       mark?: string
@@ -1381,7 +1386,7 @@ export const WARNING_SEVERITY: Record<WarningCode, WarningSeverity> = {
   EMPTY_DIAGRAM: 'error',
   UNRESOLVABLE_SCHEDULE: 'error',
   RENDER_FAILED: 'error',
-  BRAND_CONSTRAINT_ERROR: 'error',
+  [BRAND_CONSTRAINT_WARNING_POLICY.error.code]: BRAND_CONSTRAINT_WARNING_POLICY.error.severity,
   EDGE_MISANCHORED: 'error',
   OFF_CANVAS: 'error',
   GROUP_BREACH: 'error',
@@ -1404,14 +1409,14 @@ export const WARNING_SEVERITY: Record<WarningCode, WarningSeverity> = {
   CONTENT_DROPPED_ON_ROUNDTRIP: 'warning',
   INEFFECTIVE_CONFIG: 'warning',
   LOW_CONTRAST: 'warning',
-  BRAND_CONSTRAINT_WARNING: 'warning',
+  [BRAND_CONSTRAINT_WARNING_POLICY.warn.code]: BRAND_CONSTRAINT_WARNING_POLICY.warn.severity,
 }
 
 export const WARNING_TIER: Record<WarningCode, WarningTier> = {
   EMPTY_DIAGRAM: 'structural',
   UNRESOLVABLE_SCHEDULE: 'structural',
   RENDER_FAILED: 'structural',
-  BRAND_CONSTRAINT_ERROR: 'lint',
+  [BRAND_CONSTRAINT_WARNING_POLICY.error.code]: BRAND_CONSTRAINT_WARNING_POLICY.error.tier,
   EDGE_MISANCHORED: 'structural',
   OFF_CANVAS: 'structural',
   GROUP_BREACH: 'structural',
@@ -1434,7 +1439,7 @@ export const WARNING_TIER: Record<WarningCode, WarningTier> = {
   CONTENT_DROPPED_ON_ROUNDTRIP: 'lint',
   INEFFECTIVE_CONFIG: 'lint',
   LOW_CONTRAST: 'lint',
-  BRAND_CONSTRAINT_WARNING: 'lint',
+  [BRAND_CONSTRAINT_WARNING_POLICY.warn.code]: BRAND_CONSTRAINT_WARNING_POLICY.warn.tier,
 }
 
 export const DEFAULT_LABEL_CHAR_CAP = 40

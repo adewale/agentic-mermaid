@@ -93,11 +93,21 @@ describe('Section B public semantic role Styles', () => {
     for (const role of exactRoles) {
       const witness = witnesses[role]!
       const baseline = renderMermaidSVG(witness.source)
-      for (const property of SCENE_ROLE_DESCRIPTORS.find(descriptor => descriptor.role === role)!.style.applicableProperties) {
+      const descriptor = SCENE_ROLE_DESCRIPTORS.find(candidate => candidate.role === role)!
+      for (const property of descriptor.style.applicableProperties) {
         const style = { roles: { [role]: { [property]: leafValues[property] } } }
         expect(validateStyleSpec(style), `${role}.${property}`).toEqual([])
-        expect(renderMermaidSVG(witness.source, { style: style as any }), `${role}.${property}`)
-          .not.toBe(baseline)
+        const rendered = renderMermaidSVG(witness.source, { style: style as any })
+        expect(rendered, `${role}.${property}`).not.toBe(baseline)
+        if (descriptor.traits.domIdentity) {
+          expect(rendered, `${role}.${property}.target-role`).toContain(`data-role="${role}"`)
+        }
+        if (property === 'fontFamily') expect(rendered).toContain('Georgia')
+        if (property === 'fontSize') expect(rendered).toContain('font-size="23"')
+        if (property === 'fontWeight') expect(rendered).toContain('font-weight="900"')
+        if (property === 'letterSpacing') expect(rendered).toContain('letter-spacing="4"')
+        if (property === 'cue') expect(rendered).toContain('data-brand-cue="pattern"')
+        if (property.endsWith('Color')) expect(rendered).toContain(String(leafValues[property]))
       }
     }
   })
@@ -137,12 +147,14 @@ describe('Section B public semantic role Styles', () => {
     }
   }, 30_000)
 
-  test('every built-in Look export is equivalent on the public PNG path', async () => {
-    const source = 'flowchart LR\n  A[Alpha] --> B[Beta]'
+  test('every built-in Look export is equivalent across every family on the public PNG path', async () => {
     for (const { inputName: name } of knownStyleDescriptors().filter(descriptor => descriptor.kind === 'look')) {
       const exported = getStyle(name)!
-      expect(await renderMermaidPNG(source, { style: name, seed: 7 }), name)
-        .toEqual(await renderMermaidPNG(source, { style: exported, seed: 7 }))
+      for (const family of knownBuiltinFamilies()) {
+        const source = getFamily(family)!.example
+        expect(await renderMermaidPNG(source, { style: name, seed: 7 }), `${name}/${family}`)
+          .toEqual(await renderMermaidPNG(source, { style: exported, seed: 7 }))
+      }
     }
   }, 30_000)
 

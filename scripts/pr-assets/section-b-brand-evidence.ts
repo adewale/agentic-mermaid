@@ -167,7 +167,7 @@ const inputPaths = sortRepositoryPaths(ROOT, [
   join(import.meta.dir, 'artifact-receipt.ts'),
   ...filesUnder(join(ROOT, 'src'), path => path.endsWith('.ts')),
 ])
-const currentReceipt = () => ({
+export const buildSectionBBrandEvidenceReceipt = () => ({
   schemaVersion: 1,
   generator: repositoryPath(ROOT, import.meta.filename),
   inputs: { count: inputPaths.length, treeSha256: hashFileTree(ROOT, inputPaths) },
@@ -190,13 +190,13 @@ const currentReceipt = () => ({
 
 if (process.argv.includes('--check')) {
   const recorded = JSON.parse(readFileSync(RECEIPT, 'utf8'))
-  if (JSON.stringify(recorded) !== JSON.stringify(currentReceipt())) throw new Error('Section B visual evidence is stale; run bun run gallery:section-b')
+  if (JSON.stringify(recorded) !== JSON.stringify(buildSectionBBrandEvidenceReceipt())) throw new Error('Section B visual evidence is stale; run bun run gallery:section-b')
   process.stdout.write('Section B visual evidence is synchronized.\n')
 } else if (import.meta.main) {
   mkdirSync(join(ROOT, 'docs', 'design', 'families'), { recursive: true })
   mkdirSync(join(ROOT, 'eval', 'section-b-brand-evidence'), { recursive: true })
   writeFileSync(OUTPUT, buildSectionBBrandEvidence())
   writeFileSync(README, `# Section B visual evidence\n\nThe baseline rejects the public \`roles\` field, so no plausible before image exists. \`baseline.mmd\` and \`role-style.json\` are the exact committed inputs. Reproduce the causal baseline with the command retained in \`evidence-receipt.json\`; the expected result is an \`Invalid style spec\` error.\n\nThe generated after sheet renders every registered family through one deliberately distinctive sentinel and three holdout inline StyleSpec records. Every cell uses the public native PNG API; the receipt also hashes no-color Unicode output for the same family×style matrix. Inspect typography, padding/radius/line-weight changes, cross-family palette coherence, and the Pie card: \`Pro\` remains the family-authored highlighted slice while the sentinel category binding changes its paint without changing wedge geometry.\n\nRegenerate with \`bun run gallery:section-b\`; verify freshness with \`bun run gallery:section-b:check\`.\n`)
-  writeFileSync(RECEIPT, `${JSON.stringify(currentReceipt(), null, 2)}\n`)
+  writeFileSync(RECEIPT, `${JSON.stringify(buildSectionBBrandEvidenceReceipt(), null, 2)}\n`)
   process.stdout.write(`wrote ${OUTPUT}\n`)
 }

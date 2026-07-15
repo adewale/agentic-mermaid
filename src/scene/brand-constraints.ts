@@ -3,6 +3,7 @@ import type { ResolvedRenderRequest } from '../render-contract.ts'
 import { mixHex, wcagCssContrastRatio, tryParseCssColor } from '../shared/color-math.ts'
 import { MIX } from '../theme.ts'
 import type { BrandConstraint } from './style-spec.ts'
+import { BRAND_CONSTRAINT_DESCRIPTORS, BRAND_CONSTRAINT_WARNING_POLICY } from './brand-constraint-contract.ts'
 import { geometryBounds } from './bounds.ts'
 import type { SceneDoc, SceneNode } from './ir.ts'
 
@@ -50,9 +51,10 @@ function warning(
   fields: Omit<BrandWarning, 'code' | 'constraint'>,
 ): BrandWarning {
   return {
-    code: constraint.action === 'error' ? 'BRAND_CONSTRAINT_ERROR' : 'BRAND_CONSTRAINT_WARNING',
+    code: BRAND_CONSTRAINT_WARNING_POLICY[constraint.action].code,
     constraint: constraint.kind,
     ...fields,
+    message: `${fields.message} Recovery: ${BRAND_CONSTRAINT_DESCRIPTORS[constraint.kind].recovery}`,
   }
 }
 
@@ -159,6 +161,13 @@ function contrastConstraint(
   })
 }
 
+function sameConcretePaint(left: string, right: string): boolean {
+  const a = tryParseCssColor(left)
+  const b = tryParseCssColor(right)
+  if (!a || !b) return left.trim().toLowerCase() === right.trim().toLowerCase()
+  return a.every((channel, index) => Math.abs(channel - b[index]!) < 1e-6)
+}
+
 function accentAreaConstraint(
   constraint: Extract<BrandConstraint, { kind: 'accent-area' }>,
   scene: SceneDoc,
@@ -179,7 +188,7 @@ function accentAreaConstraint(
     if (!bounds) return
     const area = Math.max(0, bounds.x1 - bounds.x0) * Math.max(0, bounds.y1 - bounds.y0)
     total += area
-    if (fill === accent) accented += area
+    if (sameConcretePaint(fill, accent)) accented += area
   })
   if (total === 0) return warning(constraint, {
     measurement: 'not-applicable', maximum: constraint.maxFraction,

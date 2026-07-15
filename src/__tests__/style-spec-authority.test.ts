@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import type { RoleStyles } from '../scene/style-registry.ts'
 import {
   STYLE_COLOR_TOKEN_DESCRIPTORS,
   STYLE_SPEC_FIELD_DESCRIPTORS,
@@ -16,6 +17,18 @@ import {
 } from '../scene/style-registry.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
+
+function compileTimeRoleContract(): void {
+  const valid: RoleStyles = { node: { paddingX: 4 }, 'pie-slice': { cue: 'pattern' } }
+  void valid
+  // @ts-expect-error node fontFamily is rejected by the exact public role type.
+  const invalidNode: RoleStyles = { node: { fontFamily: 'Georgia' } }
+  // @ts-expect-error label padding is rejected by the exact public role type.
+  const invalidLabel: RoleStyles = { label: { paddingX: 4 } }
+  void invalidNode
+  void invalidLabel
+}
+void compileTimeRoleContract
 
 describe('StyleSpec has one projected field authority', () => {
   test('the checked JSON Schema is the canonical descriptor projection', () => {
@@ -33,6 +46,8 @@ describe('StyleSpec has one projected field authority', () => {
     const declaration = styleSpecTypeScriptDeclaration()
     expect(declaration).toContain('type SemanticBindingChannel = "category"')
     expect(declaration).toContain('"pie-slice"?: Readonly<StyleRole_pie_slice>')
+    expect(styleSpecTypeScriptDeclaration({ compact: true })).toContain('type RoleStyleFor<R extends SceneStyleRole>=')
+    expect(styleSpecTypeScriptDeclaration({ compact: true })).not.toContain('Partial<Record<SceneStyleRole,Readonly<RoleStyleSpec>>>')
     expect(declaration).not.toContain('{ [key: string]: unknown }')
   })
 
