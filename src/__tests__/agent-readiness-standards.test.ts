@@ -76,9 +76,9 @@ describe('agent-readiness standards syntax', () => {
       'AM_BROWSER_TESTS=1 bun test ../src/__tests__/website-browser-a11y.test.ts --timeout 600000',
     ]
     expect(e2eSteps.find((step: any) => step.name === 'Run browser-gated unit contracts')?.run.trim().split('\n'))
-      .toEqual(['cd e2e', ...browserContractCommands])
+      .toEqual(['bun run website', 'cd e2e', ...browserContractCommands])
     expect(packageJson.scripts['test:browser'])
-      .toBe(['cd e2e', 'bun test . --timeout 600000', ...browserContractCommands].join(' && '))
+      .toBe(['bun run website', 'cd e2e', 'bun test . --timeout 600000', ...browserContractCommands].join(' && '))
     expect(publishWorkflow.match(/run: bun run test/g)?.length).toBe(1)
     expect(strategy).toContain('`bun run test`')
     expect(pullRequestTemplate).toContain('`bun run test`')

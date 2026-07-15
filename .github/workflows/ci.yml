@@ -248,7 +248,10 @@ jobs:
         # execute the complete theme/style/accessibility contract here. Keep
         # one file per Bun process: loading all three files together overlaps
         # their browser/server hooks and exhausts a constrained hosted runner.
+        # website/public is gitignored, so build it once before the contracts
+        # serve it; browser.test.ts only builds the separate root editor.html.
         run: |
+          bun run website
           cd e2e
           AM_BROWSER_TESTS=1 bun test ../src/__tests__/editor-theme-switch.test.ts --timeout 600000
           AM_BROWSER_TESTS=1 bun test ../src/__tests__/editor-style-switch.test.ts --timeout 600000
