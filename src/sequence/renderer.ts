@@ -166,7 +166,7 @@ export function lowerSequenceScene(
 
   // 6. Actor boxes at top (rendered last so they're on top)
   for (const actor of diagram.actors) {
-    parts.push(renderActor(actor, style, resolved.styleFace))
+    parts.push(renderActor(actor, style, resolved.styleFace, options.security !== 'strict'))
   }
 
   parts.push(marks.documentClose())
@@ -215,6 +215,7 @@ function renderActor(
   actor: PositionedActor,
   style: ResolvedRenderStyle,
   styleFace: Readonly<InternalStyleFace> | undefined,
+  includeInteraction: boolean,
 ): SceneNode {
   const { id, x, y, width, height, label, type } = actor
   const children: Array<{ node: SceneNode; indent: number }> = []
@@ -229,7 +230,9 @@ function renderActor(
   const rawTextColor = roleStyle?.textColor ?? style.nodeTextColor ?? 'var(--_text)'
 
   // Semantic wrapper with actor metadata
-  const menu = actor.links ? ` data-links="${escapeAttr(JSON.stringify(actor.links))}" role="link" tabindex="0"` : ''
+  const menu = includeInteraction && actor.links
+    ? ` data-links="${escapeAttr(JSON.stringify(actor.links))}" role="link" tabindex="0"`
+    : ''
   const open =
     `<g class="actor" data-id="${escapeAttr(id)}" data-label="${escapeAttr(label)}" data-type="${type}"${menu}>`
 

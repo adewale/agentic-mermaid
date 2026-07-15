@@ -21,7 +21,7 @@ import type { ExtractedLabel, FamilyOperations } from './families.ts'
 import { extractLabelsGeneric } from './family-labels.ts'
 import type { DiagramBody, DiagramKind, AnyMutationOp, MutationError, Result, LayoutWarning, SourceMap, ClassBody, ErBody, XyChartBody, PieBody, QuadrantBody, GanttBody, RadarBody } from './types.ts'
 import { ok, err } from './types.ts'
-import { verifyClass, parseClassBody, renderClass, mutateClass } from './class-body.ts'
+import { verifyClass, parseClassBody, renderClass, mutateClass, parseClassRelationSyntax } from './class-body.ts'
 import { verifyErBody, parseErBody, renderEr, mutateEr } from './er-body.ts'
 import { parseSequenceBody, renderSequence, mutateSequence } from './sequence-body.ts'
 import { parseTimelineBody, renderTimeline, mutateTimeline } from './timeline-body.ts'
@@ -38,6 +38,10 @@ import { containsFlowchartOpaqueSyntax } from './flowchart-unsupported.ts'
 import { parseMindmapBody, renderMindmapBody, mutateMindmap, verifyMindmap } from './mindmap-body.ts'
 import { parseGitGraphBody, renderGitGraphBody, mutateGitGraph, verifyGitGraph } from './gitgraph-body.ts'
 import { parseRadarBody, renderRadar, mutateRadar, verifyRadar } from './radar-body.ts'
+import { expandInlineNamespaceStatement, parseClassDeclaration, parseClassReference } from '../class/parser.ts'
+import { parseErEntityReference, parseErGroupHeader, parseErRelationshipSyntax } from '../er/parser.ts'
+import { splitPointClassSuffix } from '../quadrant/point-style.ts'
+import { parseDirectionStatement } from '../shared/direction-statement.ts'
 
 // Build the structured-or-opaque hook set shared by every structured family
 // that is not flowchart/state. `headerOk` gates structured parsing: families
@@ -273,42 +277,189 @@ function emptySourceMap(): SourceMap { return { nodes: new Map(), edges: new Map
 function loc(line: number, col: number): { line: number; col: number } { return { line, col: Math.max(1, col) } }
 function firstIndex(line: string, text: string): number { const i = line.indexOf(text); return i >= 0 ? i + 1 : 1 }
 
+function nextOccurrence(counts: Map<string, number>, key: string): number {
+  const occurrence = counts.get(key) ?? 0
+  counts.set(key, occurrence + 1)
+  return occurrence
+}
+
+function xyValueTokenOffsets(valueSlice: string): number[] {
+  const offsets: number[] = []
+  let segmentStart = 0
+  let quote: string | undefined
+  let escaped = false
+  const visit = (end: number): void => {
+    const segment = valueSlice.slice(segmentStart, end)
+    const match = segment.match(/^\s*[+-]?(?:\d+(?:\.\d+)?|\.\d+)/)
+    if (match) offsets.push(segmentStart + (match[0].length - match[0].trimStart().length))
+    segmentStart = end + 1
+  }
+  for (let index = 0; index < valueSlice.length; index++) {
+    const char = valueSlice[index]!
+    if (quote) {
+      if (escaped) escaped = false
+      else if (char === '\\') escaped = true
+      else if (char === quote) quote = undefined
+      continue
+    }
+    if (char === '"' || char === "'") { quote = char; continue }
+    if (char === ',') visit(index)
+  }
+  visit(valueSlice.length)
+  return offsets
+}
+
+function xySeriesNameLocation(line: string, lineIndex: number, name: string, valueStart: number): { line: number; col: number } | undefined {
+  const kind = line.match(/^\s*(?:bar|line)\b/i)
+  if (!kind) return undefined
+  const start = kind[0].length
+  const prefix = line.slice(start, valueStart >= 0 ? valueStart : line.length)
+  const quoted = prefix.match(/(["'])([^"']*)\1/)
+  if (quoted?.[2]?.trim() === name && quoted.index !== undefined) {
+    const contentStart = start + quoted.index + 1 + (quoted[2]!.length - quoted[2]!.trimStart().length)
+    return loc(lineIndex + 1, contentStart + 1)
+  }
+  const column = line.indexOf(name, start)
+  return column >= 0 && (valueStart < 0 || column < valueStart) ? loc(lineIndex + 1, column + 1) : undefined
+}
+
+interface LocatedSourceLine {
+  line: string
+  trimmed: string
+  lineIndex: number
+  start: number
+}
+
+function locatedSourceLines(lines: readonly string[]): LocatedSourceLine[] {
+  return lines.map((line, lineIndex) => ({
+    line,
+    trimmed: line.trim(),
+    lineIndex,
+    start: line.length - line.trimStart().length,
+  }))
+}
+
+/** Preserve physical offsets while following the class parser's compact
+ * `namespace X { class A; ... }` expansion. The source-map scanner only needs
+ * the brace-free body statements; namespace ownership remains in the parsed
+ * body and layout projection. */
+function locatedClassSourceStatements(lines: readonly string[]): LocatedSourceLine[] {
+  return locatedSourceLines(lines).flatMap(source => {
+    const expanded = expandInlineNamespaceStatement(source.trimmed)
+    if (expanded.length === 1) return [source]
+    let cursor = source.start
+    return expanded.slice(1, -1).flatMap(trimmed => {
+      const start = source.line.indexOf(trimmed, cursor)
+      if (start < 0) return []
+      cursor = start + trimmed.length
+      return [{ ...source, trimmed, start }]
+    })
+  })
+}
+
+function pieSliceSourceLocations(lines: readonly string[]): Array<{ label: string; location: { line: number; col: number } }> {
+  return lines.flatMap((line, lineIndex) => {
+    const match = line.match(/^\s*"((?:[^"\\]|\\.)*)"\s*:/)
+    if (match?.[1] === undefined || match.index === undefined) return []
+    const quote = line.indexOf('"', match.index)
+    return [{
+      label: match[1].replace(/\\(["\\])/g, '$1'),
+      location: loc(lineIndex + 1, quote + 2),
+    }]
+  })
+}
+
+function classArrowIndex(line: string): number {
+  return line.search(/<\|--\|>|\(\)--|--\(\)|<\|--|--\|>|\.\.\|>|\*--|--\*|o--|--o|-->|<--|\.\.>|<\.\.?|--|\.\./)
+}
+
+function quotedContentLocations(line: string): Array<{ text: string; start: number; end: number }> {
+  return [...line.matchAll(/"((?:\\.|[^"\\])*)"/g)].flatMap(match => match.index === undefined
+    ? []
+    : [{ text: match[1]!.replace(/\\(["\\])/g, '$1'), start: match.index + 1, end: match.index + match[0].length - 1 }])
+}
+
 function buildClassSourceMap(body: DiagramBody, canonicalSource: string): SourceMap {
   const map = emptySourceMap()
   if (body.kind !== 'class') return map
   const b = body as ClassBody
   const lines = canonicalSource.split(/\r?\n/)
-  for (const c of b.classes) {
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i]!
-      if (new RegExp(`\\b${escapeSourceMapRegex(c.id)}\\b`).test(line)) { map.nodes.set(c.id, loc(i + 1, firstIndex(line, c.id))); break }
+  const located = locatedClassSourceStatements(lines)
+  const nodeDeclarations = new Map<string, { line: number; col: number }>()
+  const memberSources = new Map<string, Array<{ line: number; col: number }>>()
+  const relationSources: Array<{ source: LocatedSourceLine; relation: NonNullable<ReturnType<typeof parseClassRelationSyntax>> }> = []
+  let openClass: string | undefined
+
+  const addMember = (id: string, text: string, line: number, col: number): void => {
+    const key = `${id}\u0000${text}`
+    const entries = memberSources.get(key) ?? []
+    entries.push(loc(line, col))
+    memberSources.set(key, entries)
+  }
+
+  for (const source of located) {
+    if (!source.trimmed || source.trimmed.startsWith('%%')) continue
+    if (openClass) {
+      if (source.trimmed === '}') { openClass = undefined; continue }
+      addMember(openClass, source.trimmed, source.lineIndex + 1, source.start + 1)
+      continue
     }
+    const declaration = parseClassDeclaration(source.trimmed)
+    if (declaration) {
+      const idStart = source.line.indexOf(declaration.id, source.start)
+      nodeDeclarations.set(declaration.id, loc(source.lineIndex + 1, (idStart >= 0 ? idStart : source.start) + 1))
+      if (declaration.opensBody) openClass = declaration.id
+      continue
+    }
+    const relation = parseClassRelationSyntax(source.trimmed)
+    if (relation) {
+      relationSources.push({ source, relation })
+      continue
+    }
+    const inlineMember = source.trimmed.match(/^(\S+?)\s*:\s*(.+)$/)
+    const reference = inlineMember ? parseClassReference(inlineMember[1]!) : null
+    if (inlineMember && reference) {
+      const member = inlineMember[2]!.trim()
+      const memberStart = source.line.indexOf(member, source.start + inlineMember[1]!.length)
+      addMember(reference.id, member, source.lineIndex + 1, (memberStart >= 0 ? memberStart : source.start) + 1)
+      if (!nodeDeclarations.has(reference.id)) nodeDeclarations.set(reference.id, loc(source.lineIndex + 1, source.start + 1))
+    }
+  }
+
+  for (const c of b.classes) {
+    const declared = nodeDeclarations.get(c.id)
+    if (declared) map.nodes.set(c.id, declared)
+    const memberOccurrences = new Map<string, number>()
     c.members.forEach((member, index) => {
-      for (let i = 0; i < lines.length; i++) {
-        const col = lines[i]!.indexOf(member)
-        if (col >= 0) { map.labels.set(`class:${c.id}:member#${index}`, loc(i + 1, col + 1)); break }
-      }
+      const occurrence = nextOccurrence(memberOccurrences, member)
+      const found = memberSources.get(`${c.id}\u0000${member}`)?.[occurrence]
+      if (found) map.labels.set(`class:${c.id}:member#${index}`, found)
     })
   }
+
   b.relations.forEach((r, index) => {
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i]!
-      if (!line.includes(r.from) || !line.includes(r.to)) continue
-      const key = `rel#${index}:${r.from}->${r.to}`
-      map.edges.set(key, loc(i + 1, firstIndex(line, r.from)))
-      if (r.label) {
-        const labelCol = line.lastIndexOf(r.label)
-        if (labelCol >= 0) map.labels.set(key, loc(i + 1, labelCol + 1))
-      }
-      if (r.fromCardinality) {
-        const col = line.indexOf(`"${r.fromCardinality}"`)
-        if (col >= 0) map.labels.set(`${key}:fromCardinality`, loc(i + 1, col + 2))
-      }
-      if (r.toCardinality) {
-        const col = line.indexOf(`"${r.toCardinality}"`)
-        if (col >= 0) map.labels.set(`${key}:toCardinality`, loc(i + 1, col + 2))
-      }
-      break
+    const locatedRelation = relationSources[index]
+    if (!locatedRelation) return
+    const { source } = locatedRelation
+    const key = `rel#${index}:${r.from}->${r.to}`
+    const relationLocation = loc(source.lineIndex + 1, source.start + 1)
+    map.edges.set(key, relationLocation)
+    if (!map.nodes.has(r.from)) map.nodes.set(r.from, relationLocation)
+    if (!map.nodes.has(r.to)) map.nodes.set(r.to, relationLocation)
+    const arrow = classArrowIndex(source.trimmed)
+    const colon = arrow >= 0 ? source.trimmed.indexOf(':', arrow) : -1
+    if (r.label && colon >= 0) {
+      const labelCol = source.trimmed.indexOf(r.label, colon + 1)
+      if (labelCol >= 0) map.labels.set(key, loc(source.lineIndex + 1, source.start + labelCol + 1))
+    }
+    const quoted = quotedContentLocations(source.trimmed)
+    if (r.fromCardinality && arrow >= 0) {
+      const cardinality = quoted.filter(entry => entry.start < arrow).at(-1)
+      if (cardinality) map.labels.set(`${key}:fromCardinality`, loc(source.lineIndex + 1, source.start + cardinality.start + 1))
+    }
+    if (r.toCardinality && arrow >= 0) {
+      const cardinality = quoted.find(entry => entry.start > arrow && (colon < 0 || entry.start < colon))
+      if (cardinality) map.labels.set(`${key}:toCardinality`, loc(source.lineIndex + 1, source.start + cardinality.start + 1))
     }
   })
   return map
@@ -319,34 +470,79 @@ function buildErSourceMap(body: DiagramBody, canonicalSource: string): SourceMap
   if (body.kind !== 'er') return map
   const b = body as ErBody
   const lines = canonicalSource.split(/\r?\n/)
-  for (const e of b.entities) {
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i]!
-      if (new RegExp(`\\b${escapeSourceMapRegex(e.id)}\\b`).test(line)) { map.nodes.set(e.id, loc(i + 1, firstIndex(line, e.id))); break }
+  const located = locatedSourceLines(lines)
+  const nodeDeclarations = new Map<string, { line: number; col: number }>()
+  const attributeSources = new Map<string, Array<{ line: number; col: number }>>()
+  const relationSources: Array<{ source: LocatedSourceLine; relation: NonNullable<ReturnType<typeof parseErRelationshipSyntax>> }> = []
+  let openEntity: string | undefined
+  let openGroups = 0
+
+  for (const source of located) {
+    if (!source.trimmed || source.trimmed.startsWith('%%')) continue
+    if (openEntity) {
+      if (source.trimmed === '}') { openEntity = undefined; continue }
+      const key = `${openEntity}\u0000${source.trimmed}`
+      const entries = attributeSources.get(key) ?? []
+      entries.push(loc(source.lineIndex + 1, source.start + 1))
+      attributeSources.set(key, entries)
+      continue
     }
-    e.attributes.forEach((attr, index) => {
-      for (let i = 0; i < lines.length; i++) {
-        const col = lines[i]!.indexOf(attr.text)
-        if (col >= 0) { map.labels.set(`er:${e.id}:attr#${index}`, loc(i + 1, col + 1)); break }
+    // Grammar control lines can also be valid bare ER identifiers. Exclude
+    // them before entity-reference parsing so an entity introduced later by a
+    // relationship is mapped to that relationship, not to the family header
+    // or a surrounding subgraph delimiter.
+    if (source.lineIndex === 0 && /^erDiagram\s*$/i.test(source.trimmed)) continue
+    if (parseErGroupHeader(source.trimmed)) { openGroups++; continue }
+    if (source.trimmed === 'end' && openGroups > 0) { openGroups--; continue }
+    if (parseDirectionStatement(source.trimmed)) continue
+    const relation = parseErRelationshipSyntax(source.trimmed)
+    if (relation) {
+      relationSources.push({ source, relation })
+      continue
+    }
+    if (source.trimmed.endsWith('{')) {
+      const entity = parseErEntityReference(source.trimmed.slice(0, -1).trim())
+      if (entity) {
+        nodeDeclarations.set(entity.id, loc(source.lineIndex + 1, source.start + 1))
+        openEntity = entity.id
+        continue
       }
+    }
+    const entity = parseErEntityReference(source.trimmed)
+    if (entity) nodeDeclarations.set(entity.id, loc(source.lineIndex + 1, source.start + 1))
+  }
+
+  for (const e of b.entities) {
+    const declared = nodeDeclarations.get(e.id)
+    if (declared) map.nodes.set(e.id, declared)
+    const attributeOccurrences = new Map<string, number>()
+    e.attributes.forEach((attr, index) => {
+      const occurrence = nextOccurrence(attributeOccurrences, attr.text)
+      const found = attributeSources.get(`${e.id}\u0000${attr.text}`)?.[occurrence]
+      if (found) map.labels.set(`er:${e.id}:attr#${index}`, found)
     })
   }
+
   b.relations.forEach((r, index) => {
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i]!
-      if (!line.includes(r.from) || !line.includes(r.to)) continue
-      const key = `rel#${index}:${r.from}->${r.to}`
-      map.edges.set(key, loc(i + 1, firstIndex(line, r.from)))
-      if (r.label) {
-        const labelCol = line.lastIndexOf(r.label)
-        if (labelCol >= 0) map.labels.set(key, loc(i + 1, labelCol + 1))
-      }
-      const between = line.slice(line.indexOf(r.from) + r.from.length, line.indexOf(r.to))
-      const relStart = line.indexOf(between)
-      const cardMatches = [...between.matchAll(/[|o}{]{2}/g)]
-      if (cardMatches[0]) map.labels.set(`${key}:leftCardinality`, loc(i + 1, relStart + cardMatches[0].index! + 1))
-      if (cardMatches[1]) map.labels.set(`${key}:rightCardinality`, loc(i + 1, relStart + cardMatches[1].index! + 1))
-      break
+    const locatedRelation = relationSources[index]
+    if (!locatedRelation) return
+    const { source, relation } = locatedRelation
+    const key = `rel#${index}:${r.from}->${r.to}`
+    const relationLocation = loc(source.lineIndex + 1, source.start + 1)
+    map.edges.set(key, relationLocation)
+    if (!map.nodes.has(r.from)) map.nodes.set(r.from, relationLocation)
+    if (!map.nodes.has(r.to)) map.nodes.set(r.to, relationLocation)
+    const link = relation.identifying ? '--' : '..'
+    const operator = `${relation.leftToken}${link}${relation.rightToken}`
+    const operatorStart = source.line.indexOf(operator, source.start)
+    if (operatorStart >= 0) {
+      map.labels.set(`${key}:leftCardinality`, loc(source.lineIndex + 1, operatorStart + 1))
+      map.labels.set(`${key}:rightCardinality`, loc(source.lineIndex + 1, operatorStart + relation.leftToken.length + link.length + 1))
+    }
+    if (r.label) {
+      const colon = source.line.indexOf(':', Math.max(source.start, operatorStart))
+      const labelCol = colon >= 0 ? source.line.indexOf(r.label, colon + 1) : -1
+      if (labelCol >= 0) map.labels.set(key, loc(source.lineIndex + 1, labelCol + 1))
     }
   })
   return map
@@ -357,36 +553,64 @@ function buildChartSourceMap(body: DiagramBody, canonicalSource: string): Source
   const lines = canonicalSource.split(/\r?\n/)
   if (body.kind === 'xychart') {
     const b = body as XyChartBody
+    const seriesLines = lines
+      .map((line, index) => ({ line, index }))
+      .filter(({ line }) => /^\s*(?:bar|line)\b/i.test(line))
     b.series.forEach((series, si) => {
-      const lineIndex = lines.findIndex(line => line.trim().startsWith(series.kind))
-      if (lineIndex < 0) return
-      const line = lines[lineIndex]!
-      if (series.name) map.labels.set(`xychart:${series.id}:name`, loc(lineIndex + 1, firstIndex(line, series.name)))
-      series.values.forEach((value, vi) => {
-        const valueText = String(value)
-        const col = line.indexOf(valueText)
-        if (col >= 0) map.labels.set(`xychart:${series.id}:point#${vi}`, loc(lineIndex + 1, col + 1))
+      const candidate = seriesLines[si]
+      if (!candidate || !new RegExp(`^\\s*${series.kind}\\b`, 'i').test(candidate.line)) return
+      const lineIndex = candidate.index
+      const line = candidate.line
+      const valueStart = line.indexOf('[')
+      const valueEnd = line.lastIndexOf(']')
+      if (series.name) {
+        const nameLocation = xySeriesNameLocation(line, lineIndex, series.name, valueStart)
+        if (nameLocation) map.labels.set(`xychart:${series.id}:name`, nameLocation)
+      }
+      const valueSlice = valueStart >= 0 && valueEnd > valueStart ? line.slice(valueStart + 1, valueEnd) : ''
+      const numericOffsets = xyValueTokenOffsets(valueSlice)
+      series.values.forEach((_value, vi) => {
+        const tokenOffset = numericOffsets[vi]
+        if (tokenOffset !== undefined) map.labels.set(`xychart:${series.id}:point#${vi}`, loc(lineIndex + 1, valueStart + 2 + tokenOffset))
       })
     })
   } else if (body.kind === 'pie') {
+    const sliceSources = pieSliceSourceLocations(lines)
     ;(body as PieBody).slices.forEach((slice, index) => {
-      const lineIndex = lines.findIndex(line => line.includes(slice.label))
-      if (lineIndex >= 0) map.labels.set(`pie:slice#${index}`, loc(lineIndex + 1, firstIndex(lines[lineIndex]!, slice.label)))
+      const found = sliceSources[index]
+      if (found?.label === slice.label) map.labels.set(`pie:slice#${index}`, found.location)
     })
   } else if (body.kind === 'quadrant') {
+    const pointLines = locatedSourceLines(lines).flatMap(source => {
+      const match = source.trimmed.match(/^(.+?)\s*:\s*\[\s*[+-]?(?:\d+(?:\.\d+)?|\.\d+)\s*,\s*[+-]?(?:\d+(?:\.\d+)?|\.\d+)\s*\]/)
+      if (!match) return []
+      const label = splitPointClassSuffix(match[1]!.trim()).label
+      const labelStart = source.line.indexOf(label, source.start)
+      return labelStart < 0 ? [] : [{ label, location: loc(source.lineIndex + 1, labelStart + 1) }]
+    })
     ;(body as QuadrantBody).points.forEach((point, index) => {
-      const lineIndex = lines.findIndex(line => line.includes(point.label))
-      if (lineIndex >= 0) map.labels.set(`quadrant:point#${index}`, loc(lineIndex + 1, firstIndex(lines[lineIndex]!, point.label)))
+      const found = pointLines[index]
+      if (found?.label === point.label) map.labels.set(`quadrant:point#${index}`, found.location)
     })
   } else if (body.kind === 'radar') {
     const b = body as RadarBody
     b.axes.forEach((axis, index) => {
-      const lineIndex = lines.findIndex(line => /^\s*axis\b/i.test(line) && line.includes(axis.id))
-      if (lineIndex >= 0) map.labels.set(`radar:axis#${index}`, loc(lineIndex + 1, firstIndex(lines[lineIndex]!, axis.id)))
+      const token = new RegExp(`(?:^\\s*axis\\s+|,\\s*)(${escapeSourceMapRegex(axis.id)})(?=\\s*(?:\\[|,|$))`, 'i')
+      for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+        const match = lines[lineIndex]!.match(token)
+        if (!match?.[1] || match.index === undefined) continue
+        map.labels.set(`radar:axis#${index}`, loc(lineIndex + 1, match.index + match[0].lastIndexOf(match[1]) + 1))
+        break
+      }
     })
     b.curves.forEach((curve, index) => {
-      const lineIndex = lines.findIndex(line => /^\s*curve\b/i.test(line) && line.includes(curve.id))
-      if (lineIndex >= 0) map.labels.set(`radar:curve#${index}`, loc(lineIndex + 1, firstIndex(lines[lineIndex]!, curve.id)))
+      const token = new RegExp(`^\\s*curve\\s+(${escapeSourceMapRegex(curve.id)})(?=\\s*(?:\\[|\\{))`, 'i')
+      for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+        const match = lines[lineIndex]!.match(token)
+        if (!match?.[1] || match.index === undefined) continue
+        map.labels.set(`radar:curve#${index}`, loc(lineIndex + 1, match.index + match[0].lastIndexOf(match[1]) + 1))
+        break
+      }
     })
   }
   return map
@@ -397,18 +621,38 @@ function buildGanttSourceMap(body: DiagramBody, canonicalSource: string): Source
   if (body.kind !== 'gantt') return map
   const b = body as GanttBody
   const lines = canonicalSource.split(/\r?\n/)
+  const taskOccurrences = new Map<string, number>()
+  const sectionOccurrences = new Map<string, number>()
   for (const section of b.sections) {
     if (section.label) {
-      const lineIndex = lines.findIndex(line => /^\s*section\s+/i.test(line) && line.includes(section.label!))
-      if (lineIndex >= 0) { map.groups.set(section.id, loc(lineIndex + 1, firstIndex(lines[lineIndex]!, section.label))); map.labels.set(`gantt:${section.id}:label`, loc(lineIndex + 1, firstIndex(lines[lineIndex]!, section.label))) }
+      const wanted = nextOccurrence(sectionOccurrences, section.label)
+      let seen = 0
+      for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+        const match = lines[lineIndex]!.match(/^\s*section\s+(.+?)\s*$/i)
+        if (!match || match[1]!.trim() !== section.label || seen++ !== wanted) continue
+        const keyword = lines[lineIndex]!.match(/^\s*section\s+/i)!
+        const labelStart = lines[lineIndex]!.indexOf(match[1]!, keyword[0].length)
+        const location = loc(lineIndex + 1, labelStart + 1)
+        map.groups.set(section.id, location)
+        map.labels.set(`gantt:${section.id}:label`, location)
+        break
+      }
     }
     for (const task of section.tasks) {
       const stableId = task.taskId ?? task.id
-      const lineIndex = lines.findIndex(line => line.includes(task.label) && line.includes(task.end))
-      if (lineIndex < 0) continue
-      const line = lines[lineIndex]!
-      map.nodes.set(stableId, loc(lineIndex + 1, firstIndex(line, task.label)))
-      map.labels.set(`gantt:task:${stableId}`, loc(lineIndex + 1, firstIndex(line, task.label)))
+      const signature = `${task.label}\u0000${task.end}`
+      const wanted = nextOccurrence(taskOccurrences, signature)
+      let seen = 0
+      for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+        const line = lines[lineIndex]!
+        const colon = line.indexOf(':')
+        if (colon < 0 || line.slice(0, colon).trim() !== task.label || !line.slice(colon + 1).includes(task.end)) continue
+        if (seen++ !== wanted) continue
+        const location = loc(lineIndex + 1, firstIndex(line, task.label))
+        map.nodes.set(stableId, location)
+        map.labels.set(`gantt:task:${stableId}`, location)
+        break
+      }
     }
   }
   return map

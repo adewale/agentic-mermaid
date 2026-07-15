@@ -15,11 +15,13 @@ const NARROWERS = BUILTIN_FAMILY_METADATA
  * of initial model context; describe_sdk returns the one family schema needed
  * by the task. SDK_DECLARATION remains the full reference used by docs/evals.
  */
-export const SDK_CORE_DECLARATION = `// Core Agentic Mermaid SDK available as global mermaid. Calls are synchronous and pure.
-type DiagramKind = ${DIAGRAM_KIND}
+export const SDK_CORE_DECLARATION = `type DiagramKind = ${DIAGRAM_KIND}
 type MutationOp = { kind: string; [field: string]: unknown }
 type Result<T, E = { code: string; message: string }> = { ok: true; value: T } | { ok: false; error: E }
-interface ValidDiagram { readonly kind: DiagramKind }
+interface SourceLocation { readonly line: number; readonly col: number }
+interface SourceMapSpans { readonly preserved: PreservedSourceSpans; readonly nodes: ReadonlyMap<string, SourceSpan>; readonly edges: ReadonlyMap<string, SourceSpan>; readonly groups: ReadonlyMap<string, SourceSpan>; readonly labels: ReadonlyMap<string, SourceSpan> }
+interface SourceMap { readonly nodes: ReadonlyMap<string, SourceLocation>; readonly edges: ReadonlyMap<string, SourceLocation>; readonly groups: ReadonlyMap<string, SourceLocation>; readonly labels: ReadonlyMap<string, SourceLocation>; readonly spans?: SourceMapSpans }
+interface ValidDiagram { readonly kind: DiagramKind; readonly source: SourceMap }
 type ExternalFamilyId = \`family:\${string}\`
 interface ExtensionCompatibility {
   readonly [contract: string]: string | undefined
@@ -39,6 +41,9 @@ interface SourceSpan { readonly start: SourceSpanPoint; readonly end: SourceSpan
 interface PreservedSourceSpans {
   readonly source: SourceSpan
   readonly wrapper?: SourceSpan
+  readonly frontmatter?: SourceSpan
+  readonly initDirectives?: readonly SourceSpan[]
+  readonly accessibilityDirectives?: readonly SourceSpan[]
   readonly header: SourceSpan
   readonly body: SourceSpan
 }
@@ -62,9 +67,11 @@ interface ParseError {
 interface ExtensionValidDiagram {
   readonly kind: ExternalFamilyId
   readonly descriptorIdentity: ExtensionIdentity<'family'>
+  readonly source: SourceMap
 }
 interface PreservedValidDiagram {
   readonly kind: ExternalFamilyId
+  readonly source: SourceMap
   readonly body: {
     readonly kind: 'preserved'
     readonly representation: 'opaque' | 'unknown'
@@ -79,7 +86,12 @@ interface PreservedValidDiagram {
   }
 }
 type ParsedDiagram = ValidDiagram | ExtensionValidDiagram | PreservedValidDiagram
-interface VerifyResult { ok: boolean; warnings: unknown[]; layout: { bounds: unknown; nodes: unknown[]; edges: unknown[] } }
+type RenderedRegionKind='node'|'edge'|'label'|'canvas'|'group'|'cluster'|'lane'|'band'|'compartment'|'plot'|'ring'
+type DiagramActionSecurity='safe'|'unsafe'|'source-only'|'unsupported'
+interface RenderedRegion { id:string;kind:RenderedRegionKind;elementId?:string;parentId?:string;bounds:{x:number;y:number;w:number;h:number};sourceLine?:number }
+interface DiagramActionRecord { id?:string;regionId?:string;family:DiagramKind;target:string;action:'href'|'call'|'callback';raw:string;line?:number;href?:string;security:DiagramActionSecurity;executable:false;message?:string }
+interface RenderedLayout { version: 1; kind: DiagramKind | ExternalFamilyId; bounds: { w: number; h: number }; nodes: unknown[]; edges: unknown[]; groups: unknown[]; regions?: RenderedRegion[]; actions?: DiagramActionRecord[] }
+interface VerifyResult { ok: boolean; warnings: unknown[]; layout: RenderedLayout }
 type CheckMermaidSpec = string[] | { include?: string[]; exclude?: string[]; exact?: boolean }
 interface CheckMermaidResult { ok: boolean; missing: string[]; unexpected: string[]; facts: string[] }
 type MermaidConfigScalar = string | number | boolean | null

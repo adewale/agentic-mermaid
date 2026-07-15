@@ -721,14 +721,17 @@ export function projectXyChartPositioned(
 ): FamilyPositionedView {
   const nodes: RenderedLayoutNode[] = []
   // Bars are the primary boxes.
-  positioned.bars.forEach((b, i) => {
-    nodes.push({ id: `bar#${i}`, x: f(b.x), y: f(b.y), w: f(b.width), h: f(b.height), shape: 'rectangle', label: b.label, role: 'labelled-mark' })
+  const barPointIndices = new Map<number, number>()
+  positioned.bars.forEach(b => {
+    const pointIndex = barPointIndices.get(b.seriesIndex) ?? 0
+    barPointIndices.set(b.seriesIndex, pointIndex + 1)
+    nodes.push({ id: `bar#${b.seriesIndex}:pt#${pointIndex}`, x: f(b.x), y: f(b.y), w: f(b.width), h: f(b.height), shape: 'rectangle', label: b.label, role: 'labelled-mark' })
   })
   // Line series points become small marker boxes so line-only charts are
   // still measured (whitespace/legibility care about node area).
-  positioned.lines.forEach((ln, li) => {
+  positioned.lines.forEach(ln => {
     ln.points.forEach((p, pi) => {
-      nodes.push({ id: `line#${li}:pt#${pi}`, x: f(p.x - 3), y: f(p.y - 3), w: f(6), h: f(6), shape: 'circle', label: p.label, role: p.label ? 'labelled-mark' : 'mark' })
+      nodes.push({ id: `line#${ln.seriesIndex}:pt#${pi}`, x: f(p.x - 3), y: f(p.y - 3), w: f(6), h: f(6), shape: 'circle', label: p.label, role: p.label ? 'labelled-mark' : 'mark' })
     })
   })
   // Plot area is the single group (the chart's content frame).

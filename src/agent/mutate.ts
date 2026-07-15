@@ -16,6 +16,7 @@ import { logToolInvocation } from './trace-log.ts'
 import { getFamily } from './families.ts'
 import { admitOpRecord, validateOp, hasOpSchema } from './op-schema.ts'
 import { accessibilityFromBody, ensureAccessibilityLines } from './accessibility-envelope.ts'
+import { parseRegisteredMermaid as parseMermaid } from './parse.ts'
 
 export function mutate(d: FlowchartValidDiagram, op: FlowchartMutationOp): Result<FlowchartValidDiagram, MutationError>
 export function mutate(d: StateValidDiagram, op: StateMutationOp): Result<StateValidDiagram, MutationError>
@@ -83,7 +84,18 @@ function applyOneMutation(
       plugin.serialize(r.value),
       meta.accessibility,
     )
-    return ok({ ...d, body: r.value, meta, canonicalSource } as ParsedDiagram)
+    // Source locations and exact authored spans describe a particular source
+    // artifact. Rebuild them from the mutated serialization; retaining the
+    // pre-mutation map leaves removed objects addressable and is worse than no
+    // provenance at all.
+    const reparsed = parseMermaid(canonicalSource)
+    if (!reparsed.ok) {
+      return err({
+        code: 'INVALID_OP',
+        message: `Mutation produced source that could not be reparsed: ${reparsed.error.map(error => error.message).join('; ')}`,
+      })
+    }
+    return ok({ ...d, body: r.value, meta, canonicalSource, source: reparsed.value.source } as ParsedDiagram)
   }
   return err({ code: 'INVALID_OP', message: `Unsupported mutable diagram kind: ${d.kind}` })
 }

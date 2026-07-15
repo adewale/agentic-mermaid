@@ -341,6 +341,20 @@ function normalizedReference(value: string): string {
     .toLowerCase()
 }
 
+/** Classify inert action hrefs using the same iterative XML-reference and
+ * control-whitespace normalization as the SVG output-security gate. */
+export function isSafeActionHref(value: string): boolean {
+  const decoded = decodeXmlReferences(value)
+  // Action records retain the authored href for non-SVG hosts. Removing a
+  // control solely for scheme classification would label an OSC/DCS-bearing
+  // payload safe while still handing the original bytes to a TUI consumer.
+  if (/[\u0000-\u001f\u007f-\u009f]/.test(decoded)) return false
+  const normalized = decoded.replace(/ +/g, '').toLowerCase().trim()
+  if (/^(?:https?:|mailto:)/.test(normalized)) return true
+  if (/^[a-z][a-z0-9+.-]*:/.test(normalized)) return false
+  return normalized.length > 0
+}
+
 function isUnsafeReference(value: string): boolean {
   const normalized = normalizedReference(value)
   // Only same-document fragments are inert in an SVG imported into a host

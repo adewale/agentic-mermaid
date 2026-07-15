@@ -9,6 +9,7 @@ import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { layoutMermaid } from '../agent/index.ts'
 import { measureQuality, checkQuality } from '../agent/quality.ts'
 import { toFinite, type RenderedLayout } from '../agent/types.ts'
+import { validateStyleSpec } from '../scene/style-spec.ts'
 
 const CORPUS_PATH = join(import.meta.dir, '..', '..', 'eval', 'mermaid-docs-corpus', 'corpus.json')
 interface CorpusEntry { family: string; source: string; origin: string; index: number }
@@ -153,6 +154,138 @@ describe('quality metrics — deterministic', () => {
     expect(m.labelEdgeProximity).toBe(Infinity)
     const v = checkQuality(layout, { whitespaceBand: [0, 1] })
     expect(v.ok).toBe(true)
+  })
+
+  test('measures contrast, nearest-node spacing, and element density', () => {
+    const layout: RenderedLayout = {
+      version: 1,
+      kind: 'flowchart',
+      nodes: [
+        { id: 'A', x: f(0), y: f(0), w: f(20), h: f(20), shape: 'rectangle', label: 'A' },
+        { id: 'B', x: f(25), y: f(0), w: f(20), h: f(20), shape: 'rectangle', label: 'B' },
+      ],
+      groups: [],
+      edges: [],
+      bounds: { w: f(1_000), h: f(1_000) },
+    }
+    const colors = { foreground: '#777777', background: '#ffffff' }
+    const metrics = measureQuality(layout, colors)
+    expect(metrics.minimumNodeSpacing).toBe(5)
+    expect(metrics.elementDensity).toBeCloseTo(0.02)
+    expect(metrics.minimumTextContrast).not.toBeNull()
+    if (metrics.minimumTextContrast !== null) expect(metrics.minimumTextContrast).toBeCloseTo(4.478, 2)
+
+    const verdict = checkQuality(layout, {
+      whitespaceBand: [0, 1],
+      aspectBand: [0.2, 5],
+      elementDensityBand: [0.1, 6],
+    }, colors)
+    expect(verdict.ranked.map(violation => violation.metric)).toEqual(expect.arrayContaining([
+      'minimumNodeSpacing', 'elementDensity', 'minimumTextContrast',
+    ]))
+  })
+
+  test('fails closed for unresolved paints instead of silently dropping them', () => {
+    const p = parseMermaid('flowchart LR\n  A --> B')
+    expect(p.ok).toBe(true)
+    if (!p.ok) return
+    const layout = layoutMermaid(p.value)
+    expect(measureQuality(layout, { foreground: 'var(--fg)' }).minimumTextContrast).toBeNull()
+    expect(measureQuality(layout, { surfaces: ['var(--surface)'] }).minimumTextContrast).toBeNull()
+    expect(checkQuality(layout, {}, { foreground: 'var(--fg)' }).ranked)
+      .toContainEqual(expect.objectContaining({ metric: 'minimumTextContrast' }))
+  })
+
+  test('composites alpha colors before calculating contrast', () => {
+    const p = parseMermaid('flowchart LR\n  A --> B')
+    expect(p.ok).toBe(true)
+    if (!p.ok) return
+    const layout = layoutMermaid(p.value)
+    for (const foreground of ['rgba(255,255,255,0)', 'rgba(255 255 255 / 0)', '#ffffff00']) {
+      expect(measureQuality(layout, { foreground, background: '#000000' }).minimumTextContrast).toBeCloseTo(1, 6)
+    }
+    expect(measureQuality(layout, {
+      background: '#ffffff',
+      textPairs: [{ foreground: '#ffffff', background: 'rgba(0 0 0 / 50%)' }],
+    }).minimumTextContrast).toBeCloseTo(3.98, 2)
+  })
+
+  test('resolves concrete CSS colors accepted by public StyleSpec', () => {
+    const p = parseMermaid('flowchart LR\n  A --> B')
+    expect(p.ok).toBe(true)
+    if (!p.ok) return
+    const layout = layoutMermaid(p.value)
+    const cases = [
+      { foreground: 'black', background: 'white', expected: 21 },
+      { foreground: 'transparent', background: 'white', expected: 1 },
+      { foreground: 'hsl(0 0% 0%)', background: 'hsl(0 0% 100%)', expected: 21 },
+      { foreground: 'rgb(0% 0% 0%)', background: 'rgb(100% 100% 100%)', expected: 21 },
+    ]
+    for (const { foreground, background, expected } of cases) {
+      expect(validateStyleSpec({ colors: { fg: foreground, bg: background } })).toEqual([])
+      expect(measureQuality(layout, { foreground, background }).minimumTextContrast).toBeCloseTo(expected, 6)
+    }
+  })
+
+  test('ignores intentional XY bar/line containment when measuring spacing', () => {
+    const p = parseMermaid('xychart-beta\n  x-axis [A, B, C]\n  bar [3, 5, 4]\n  line [4, 2, 6]')
+    expect(p.ok).toBe(true)
+    if (!p.ok) return
+    expect(measureQuality(layoutMermaid(p.value)).minimumNodeSpacing).toBeGreaterThan(0)
+  })
+
+  test('ignores intentional same-category XY series adjacency and overlays', () => {
+    for (const source of [
+      'xychart-beta\n  x-axis [A, B]\n  bar X [1, 2]\n  bar Y [2, 1]',
+      'xychart-beta\n  x-axis [A, B, C]\n  line X [1, 2, 3]\n  line Y [1, 2, 3]',
+    ]) {
+      const p = parseMermaid(source)
+      expect(p.ok).toBe(true)
+      if (!p.ok) continue
+      const layout = layoutMermaid(p.value)
+      expect(measureQuality(layout).minimumNodeSpacing).toBeGreaterThan(0)
+      expect(checkQuality(layout).ranked.map(violation => violation.metric)).not.toContain('minimumNodeSpacing')
+    }
+  })
+
+  test('ignores intentional same-vertex Radar curve overlays', () => {
+    const p = parseMermaid('radar-beta\n  axis a, b, c\n  curve x{1, 2, 3}\n  curve y{1, 2, 3}\n  max 3')
+    expect(p.ok).toBe(true)
+    if (!p.ok) return
+    const layout = layoutMermaid(p.value)
+    expect(measureQuality(layout).minimumNodeSpacing).toBeGreaterThan(0)
+    expect(checkQuality(layout, { minNodeSpacing: 0.1 }).ranked.map(violation => violation.metric))
+      .not.toContain('minimumNodeSpacing')
+  })
+
+  test('measures XY cross-category and Radar near-but-distinct mark collisions', () => {
+    const mark = (id: string, x: number): RenderedLayout['nodes'][number] => ({
+      id, x: toFinite(x), y: toFinite(0), w: toFinite(10), h: toFinite(10),
+      shape: 'mark', role: 'mark',
+    })
+    const layout = (kind: 'xychart' | 'radar', nodes: RenderedLayout['nodes']): RenderedLayout => ({
+      version: 1, kind, nodes, edges: [], groups: [], bounds: { w: toFinite(20), h: toFinite(10) },
+    })
+
+    expect(measureQuality(layout('xychart', [
+      mark('bar#0:pt#0', 0),
+      mark('line#0:pt#1', 0),
+    ])).minimumNodeSpacing).toBe(0)
+    expect(measureQuality(layout('radar', [
+      mark('dot:first:0', 0),
+      mark('dot:second:0', 5),
+    ])).minimumNodeSpacing).toBe(0)
+  })
+
+  test('indexes large edge-free layouts without an all-pairs spacing scan', () => {
+    const nodes = Array.from({ length: 10_000 }, (_, index) => ({
+      id: `N${index}`, x: f((index % 100) * 20), y: f(Math.floor(index / 100) * 20),
+      w: f(10), h: f(10), shape: 'rectangle', label: '',
+    }))
+    const layout: RenderedLayout = {
+      version: 1, kind: 'flowchart', nodes, groups: [], edges: [], bounds: { w: f(2_000), h: f(2_000) },
+    }
+    expect(measureQuality(layout).minimumNodeSpacing).toBe(10)
   })
 })
 

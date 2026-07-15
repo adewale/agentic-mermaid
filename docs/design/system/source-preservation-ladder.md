@@ -14,7 +14,7 @@ modeled subset. Silent loss is never an acceptable level.
 | L1 | whole-body opaque | The family header is recognized, but the body is preserved byte-for-byte as opaque source. Typed narrowers return `null`; render/verify may use a safe legacy/family parser. |
 | L2 | segment-preserving mixed body | Modeled statements are typed-editable; unmodeled blocks/directives/comments remain in ordered opaque segments and serialize without silent loss. |
 | L3 | canonical structured body | Accepted body syntax is modeled; parse → serialize → parse is stable. Unsupported syntax falls back to L1/L2 or fails loud. |
-| L4 | traceable structured model | L3 plus stable source spans, rendered regions, and action/analysis sidecars for load-bearing semantic objects. |
+| L4 | traceable structured model | L3 plus exact authored document/statement/sub-statement spans, rendered regions, and action/analysis sidecars for load-bearing semantic objects. Structured maps retain legacy canonical locations and add authored spans under `source.spans`; wrapper, frontmatter, init, accessibility, header, and body spans share one exact-source coordinate basis under `source.spans.preserved`. |
 
 ## Construct policy
 

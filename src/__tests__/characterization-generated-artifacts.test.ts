@@ -14,6 +14,7 @@ import {
   buildArtifacts as buildVisualQualityArtifacts,
   collectVisualQualityRows,
 } from '../../scripts/characterization/visual-quality.ts'
+import { knownBuiltinFamilies } from '../agent/index.ts'
 import {
   buildPng as buildIssue38StylePermutationPng,
   OUTPUT_PATH as ISSUE38_STYLE_PERMUTATION_PATH,
@@ -58,7 +59,7 @@ describe('characterisation generated artifacts', () => {
 
   it('visual quality metrics stay finite and reviewable for every canonical family', () => {
     const rows = collectVisualQualityRows()
-    expect(rows.length).toBe(14)
+    expect(rows.map(row => row.family).sort()).toEqual([...knownBuiltinFamilies()].sort())
 
     for (const row of rows) {
       expect(row.svg).toContain('<svg')
@@ -76,6 +77,13 @@ describe('characterisation generated artifacts', () => {
       expect(row.metrics.labelLegibility).toBeLessThanOrEqual(1)
       expect(row.labelOverlaps).toBeGreaterThanOrEqual(0)
       expect(Number.isFinite(row.metrics.aspectRatio)).toBe(true)
+      expect(row.metrics.minimumTextContrast).not.toBeNull()
     }
+    const pie = rows.find(row => row.family === 'pie')!
+    expect(pie.metrics.minimumTextContrast).not.toBeNull()
+    expect(pie.metrics.minimumTextContrast!).toBeLessThan(4.5)
+    expect(pie.metrics.minimumTextContrast!).toBeGreaterThan(3.5)
+    const classDiagram = rows.find(row => row.family === 'class')!
+    expect(classDiagram.metrics.minimumTextContrast).toBeCloseTo(13.54, 2)
   })
 })

@@ -116,7 +116,7 @@ export function lowerClassScene(
 
   // 2. Class boxes
   for (const cls of diagram.classes) {
-    parts.push(renderClassBox(cls, style))
+    parts.push(renderClassBox(cls, style, options.security !== 'strict'))
   }
 
   // 2b. Endpoint markers must sit above class surfaces. SVG paints a marker
@@ -258,7 +258,7 @@ function renderNamespaceBox(ns: PositionedClassNamespace, style: ResolvedRenderS
  * Render a class box with 3 compartments: header, attributes, methods.
  * Wrapped in <g class="class-node"> with semantic data attributes.
  */
-function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle): SceneNode {
+function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle, includeInteraction: boolean): SceneNode {
   const { x, y, width, height, headerHeight, attrHeight } = cls
   const children: Array<{ node: SceneNode; indent: number }> = []
 
@@ -269,7 +269,7 @@ function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle): S
   const annotationAttr = cls.annotation ? ` data-annotation="${escapeAttr(cls.annotation)}"` : ''
   const classAttr = cls.className ? ` ${escapeAttr(cls.className)}` : ''
   const dataClass = cls.className ? ` data-class="${escapeAttr(cls.className)}"` : ''
-  const interaction = cls.href ? ` data-href="${escapeAttr(cls.href)}" role="link" tabindex="0"` : ''
+  const interaction = includeInteraction && cls.href ? ` data-href="${escapeAttr(cls.href)}" role="link" tabindex="0"` : ''
   const open =
     `<g class="class-node${classAttr}" data-id="${escapeAttr(cls.id)}" data-label="${escapeAttr(cls.label)}"${annotationAttr}${dataClass}${interaction}>`
 

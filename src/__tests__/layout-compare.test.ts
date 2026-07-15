@@ -14,6 +14,7 @@ const FLOW = { id: 'probe/flow', family: 'flowchart', source: 'flowchart TD\n  A
 function sampleWith(id: string, family: string, m: Partial<QualityMetrics>): SampleResult {
   const metrics: QualityMetrics = {
     edgeCrossings: 0, labelLegibility: 1, whitespaceBalance: 0, labelEdgeProximity: Infinity,
+    minimumNodeSpacing: Infinity, elementDensity: 0, minimumTextContrast: 21,
     aspectRatio: 1, nodeCount: 0, edgeCount: 0, ...m,
   }
   return { id, family, source: `${family} src`, ok: true, metrics, svg: 'SVG', ascii: 'ASCII' }

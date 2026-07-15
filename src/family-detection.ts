@@ -47,20 +47,128 @@ export interface FamilyDetectionDiagnostic {
   help: string
 }
 
-function sourcePointAt(source: string, offset: number): SourceSpanPoint {
-  let line = 1
-  let lineStart = 0
-  for (let index = 0; index < offset; index++) {
-    if (source.charCodeAt(index) === 10) {
-      line++
-      lineStart = index + 1
-    }
+function sourceLineStarts(source: string): readonly number[] {
+  const starts = [0]
+  for (let index = 0; index < source.length; index++) {
+    if (source.charCodeAt(index) === 10) starts.push(index + 1)
   }
-  return Object.freeze({ offset, line, col: offset - lineStart + 1 })
+  return starts
 }
 
-function sourceSpan(source: string, start: number, end: number): SourceSpan {
-  return Object.freeze({ start: sourcePointAt(source, start), end: sourcePointAt(source, end) })
+function sourcePointAt(lineStarts: readonly number[], offset: number): SourceSpanPoint {
+  let low = 0
+  let high = lineStarts.length
+  while (low < high) {
+    const middle = low + Math.floor((high - low) / 2)
+    if (lineStarts[middle]! <= offset) low = middle + 1
+    else high = middle
+  }
+  const lineIndex = Math.max(0, low - 1)
+  return Object.freeze({ offset, line: lineIndex + 1, col: offset - lineStarts[lineIndex]! + 1 })
+}
+
+function sourceSpan(lineStarts: readonly number[], start: number, end: number): SourceSpan {
+  return Object.freeze({ start: sourcePointAt(lineStarts, start), end: sourcePointAt(lineStarts, end) })
+}
+
+function matchingSpans(
+  source: string,
+  expression: RegExp,
+  baseOffset = 0,
+  lineStarts = sourceLineStarts(source),
+): readonly SourceSpan[] {
+  const spans: SourceSpan[] = []
+  const regex = new RegExp(expression.source, expression.flags.includes('g') ? expression.flags : `${expression.flags}g`)
+  let match: RegExpExecArray | null
+  while ((match = regex.exec(source)) !== null) {
+    spans.push(sourceSpan(lineStarts, baseOffset + match.index, baseOffset + match.index + match[0].length))
+    if (match[0].length === 0) regex.lastIndex++
+  }
+  return Object.freeze(spans)
+}
+
+function accessibilityDirectiveSpans(
+  source: string,
+  bodyStart: number,
+  lineStarts = sourceLineStarts(source),
+): readonly SourceSpan[] {
+  const body = source.slice(bodyStart)
+  const blocks = matchingSpans(
+    body,
+    // Stop at the closing brace. A family statement may legally follow that
+    // brace on the same physical line and must remain visible to source maps.
+    /^[ \t]*accDescr\s*:?\s*\{[\s\S]*?\}/gmi,
+    bodyStart,
+    lineStarts,
+  )
+  const lines = matchingSpans(
+    body,
+    /^[ \t]*(?:accTitle(?:\s*:\s*|\s+).*|accDescr(?!\s*:?\s*\{)(?:\s*:\s*|\s+).*)(?:\r?\n|$)/gmi,
+    bodyStart,
+    lineStarts,
+  )
+  let blockIndex = 0
+  const uncoveredLines: SourceSpan[] = []
+  for (const line of lines) {
+    while (blocks[blockIndex] && blocks[blockIndex]!.end.offset <= line.start.offset) blockIndex++
+    const block = blocks[blockIndex]
+    if (block && line.start.offset >= block.start.offset && line.end.offset <= block.end.offset) continue
+    uncoveredLines.push(line)
+  }
+  const merged: SourceSpan[] = []
+  let blockCursor = 0
+  let lineCursor = 0
+  while (blockCursor < blocks.length || lineCursor < uncoveredLines.length) {
+    if (lineCursor >= uncoveredLines.length
+      || (blockCursor < blocks.length && blocks[blockCursor]!.start.offset <= uncoveredLines[lineCursor]!.start.offset)) {
+      merged.push(blocks[blockCursor++]!)
+    } else {
+      merged.push(uncoveredLines[lineCursor++]!)
+    }
+  }
+  return Object.freeze(merged)
+}
+
+function universalDirectiveSpans(
+  source: string,
+  bodyStart: number,
+  lineStarts = sourceLineStarts(source),
+): Pick<
+  PreservedSourceSpans,
+  'frontmatter' | 'initDirectives' | 'accessibilityDirectives'
+> {
+  const frontmatter = source.match(/^\uFEFF?\s*---\s*\r?\n[\s\S]*?\r?\n\s*---\s*(?:\r?\n|$)/)
+  const frontmatterEnd = frontmatter ? frontmatter.index! + frontmatter[0].length : 0
+  const initDirectives = matchingSpans(
+    // Source normalization recognizes init/initialize directives anywhere
+    // after frontmatter, not only in the leading wrapper. Trace the same
+    // admitted directives so meta.initDirectives and preserved spans cannot
+    // disagree for an in-body directive.
+    source.slice(frontmatterEnd),
+    /^[ \t]*%%\{\s*(?:init|initialize)\s*:[\s\S]*?\}\s*%%[ \t]*(?:\r?\n|$)/gmi,
+    frontmatterEnd,
+    lineStarts,
+  )
+  const accessibilityDirectives = accessibilityDirectiveSpans(source, bodyStart, lineStarts)
+  return {
+    ...(frontmatter
+      ? { frontmatter: sourceSpan(lineStarts, frontmatter.index!, frontmatter.index! + frontmatter[0].length) }
+      : {}),
+    ...(initDirectives.length > 0 ? { initDirectives } : {}),
+    ...(accessibilityDirectives.length > 0 ? { accessibilityDirectives: Object.freeze(accessibilityDirectives) } : {}),
+  }
+}
+
+/** Blank accessibility directives without changing line/column coordinates. */
+export function maskAccessibilityDirectivesForSourceMap(source: string): string {
+  const chars = source.split('')
+  const lineStarts = sourceLineStarts(source)
+  for (const directive of accessibilityDirectiveSpans(source, 0, lineStarts)) {
+    for (let offset = directive.start.offset; offset < directive.end.offset; offset++) {
+      if (chars[offset] !== '\n' && chars[offset] !== '\r') chars[offset] = ' '
+    }
+  }
+  return chars.join('')
 }
 
 /** Locate the detected family line without normalizing or discarding authored bytes.
@@ -72,6 +180,7 @@ export function sourcePreservationSpans(
   header: string,
   familyLineBoundary = 0,
 ): PreservedSourceSpans {
+  const lineStarts = sourceLineStarts(source)
   let headerStart = -1
   let headerEnd = -1
   let payloadStart = source.length
@@ -84,11 +193,17 @@ export function sourcePreservationSpans(
     // String trimming already treats U+FEFF as whitespace. Locate the header
     // in the untouched line instead of adding a second BOM offset.
     const trimmed = raw.trim()
-    if (trimmed === header) {
+    if (trimmed === header || (trimmed.startsWith(header) && /^\s*;/.test(trimmed.slice(header.length)))) {
       const relativeStart = raw.indexOf(header)
       headerStart = lineStart + relativeStart
       headerEnd = headerStart + header.length
-      payloadStart = newline < 0 ? source.length : newline + 1
+      if (trimmed === header) {
+        payloadStart = newline < 0 ? source.length : newline + 1
+      } else {
+        const semicolon = raw.indexOf(';', relativeStart + header.length)
+        payloadStart = semicolon + 1
+        while (payloadStart < lineEnd && /[ \t]/.test(source[payloadStart]!)) payloadStart++
+      }
       break
     }
     if (newline < 0) break
@@ -104,10 +219,11 @@ export function sourcePreservationSpans(
     while (lineStart > 0 && source.charCodeAt(lineStart - 1) !== 10) lineStart--
   }
   return Object.freeze({
-    source: sourceSpan(source, 0, source.length),
-    ...(lineStart > 0 ? { wrapper: sourceSpan(source, 0, lineStart) } : {}),
-    header: sourceSpan(source, headerStart, headerEnd),
-    body: sourceSpan(source, payloadStart, source.length),
+    source: sourceSpan(lineStarts, 0, source.length),
+    ...(lineStart > 0 ? { wrapper: sourceSpan(lineStarts, 0, lineStart) } : {}),
+    ...universalDirectiveSpans(source, payloadStart, lineStarts),
+    header: sourceSpan(lineStarts, headerStart, headerEnd),
+    body: sourceSpan(lineStarts, payloadStart, source.length),
   })
 }
 

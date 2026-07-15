@@ -140,7 +140,7 @@ export function lowerGraphScene(
 
   // 4. Nodes (shape + label wrapped in <g class="node">)
   for (const node of graph.nodes) {
-    parts.push(renderNode(node, font, style))
+    parts.push(renderNode(node, font, style, options.security !== 'strict'))
   }
 
   // 5. State-diagram notes (placed by the layout pass on their declared side)
@@ -782,7 +782,7 @@ function dist(a: Point, b: Point): number {
  * - data-label: display label text
  * - data-shape: shape type (rectangle, diamond, circle, etc.)
  */
-function renderNode(node: PositionedNode, font: string, style: ResolvedRenderStyle): SceneNode {
+function renderNode(node: PositionedNode, font: string, style: ResolvedRenderStyle, includeInteraction: boolean): SceneNode {
   const shape = renderNodeShape(node, style)
   const label = renderNodeLabel(node, font, style)
 
@@ -810,7 +810,7 @@ function renderNode(node: PositionedNode, font: string, style: ResolvedRenderSty
   // geometry is a mapping of it, so agents can explain the semantic shape
   // even when the geometry is approximate (repo #44).
   const semanticShape = node.semanticShape ? ` data-semantic-shape="${escapeAttr(node.semanticShape)}"` : ''
-  const interaction = node.href ? ` data-href="${escapeAttr(node.href)}" role="link" tabindex="0"` : ''
+  const interaction = includeInteraction && node.href ? ` data-href="${escapeAttr(node.href)}" role="link" tabindex="0"` : ''
   return marks.group({
     id: `node:${node.id}`,
     role: 'node',

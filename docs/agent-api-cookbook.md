@@ -173,7 +173,31 @@ return {
 }
 ```
 
+For a unified render plus inert action regions, use
+`renderMermaidWithActions`. ASCII and Unicode artifacts include structured
+terminal `warnings`; an `ASCII_RENDER_FAILED` condition throws instead of
+returning an empty output as a successful artifact. SVG actions are marked
+`embedded-inert` only when their target metadata is present in that SVG.
+This includes Sequence `link`/`links` actor menus as well as admitted
+Flowchart, Class, and Gantt interactions; strict SVG removes authored href
+metadata and reports those actions through the sidecar only.
+
 Route, family-edge, and region certificates are opt-in; when graph-edge or family-edge certificates are present, `sourcePort`/`targetPort` are exact endpoint anchors where the family exposes them, and `sourcePortAssignment`/`targetPortAssignment` describe side, ordered slot, slot count, and semantic role for graph routes. Timeline/chart certificates use region-containment fields instead. Debug layouts also expose V1 `regions` and source-only `actions` sidecars so agents can attach UI affordances without executing Mermaid callbacks.
+
+For a renderer-neutral hit surface, use the same API for every output:
+
+```ts
+import { renderMermaidWithActions } from 'agentic-mermaid/agent'
+
+const rendered = renderMermaidWithActions(source, {
+  format: 'png',
+  options: { fitTo: { width: 1200 } },
+})
+// rendered.output is PNG bytes; actionSurface actions reference pixel regions.
+for (const action of rendered.actionSurface.actions) {
+  if (action.region) console.log(action.target, action.disposition, action.region.bounds)
+}
+```
 
 Use render artifacts for human visual review:
 

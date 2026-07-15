@@ -1,6 +1,6 @@
 import type { LayoutWarning } from './types.ts'
 import { normalizeV11Shape } from '../flowchart-shapes.ts'
-import { parseMetadataEntries } from '../parser.ts'
+import { parseMetadataEntries, splitFlowchartStatements } from '../parser.ts'
 
 export interface FlowchartStatement {
   text: string
@@ -62,6 +62,10 @@ export function flowchartUnsupportedSyntaxWarnings(source: string): LayoutWarnin
 /** Every balanced `id@{ … }` object body in the statement (quote-aware). */
 function metadataObjects(statement: string): string[] {
   const out: string[] = []
+  // Avoid restarting the greedy id matcher at every character of a long
+  // metadata-free identifier. This path is part of every structured parse and
+  // must stay linear up to the hosted source-size ceiling.
+  if (!statement.includes('@')) return out
   const re = /([\w-]+)@\s*\{/g
   let match: RegExpExecArray | null
   while ((match = re.exec(statement)) !== null) {
@@ -321,50 +325,4 @@ function oneEditApart(a: string, b: string): boolean {
 function isNodeMetadata(metadata: string): boolean {
   const entries = parseMetadataEntries(metadata)
   return entries.has('shape') || entries.has('label') || entries.has('icon') || entries.has('img')
-}
-
-function splitFlowchartStatements(line: string): string[] {
-  const out: string[] = []
-  let start = 0
-  let depth = 0
-  let quote: '"' | "'" | '`' | null = null
-  let escaped = false
-  let inPipeLabel = false
-
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i]!
-    if (escaped) { escaped = false; continue }
-    if (ch === '\\') { escaped = true; continue }
-    if (quote) {
-      if (ch === quote) quote = null
-      continue
-    }
-    if (ch === '"' || ch === "'" || ch === '`') { quote = ch; continue }
-    if (ch === '|' && depth === 0) { inPipeLabel = !inPipeLabel; continue }
-    if (inPipeLabel) continue
-    if (ch === '[' || ch === '(' || ch === '{') depth++
-    else if (ch === ']' || ch === ')' || ch === '}') depth = Math.max(0, depth - 1)
-    else if (ch === ';' && depth === 0 && !semicolonInsideTextArrowLabel(line, i, start)) {
-      const part = line.slice(start, i).trim()
-      if (part) out.push(part)
-      start = i + 1
-    }
-  }
-
-  const tail = line.slice(start).trim()
-  if (tail) out.push(tail)
-  return out
-}
-
-function semicolonInsideTextArrowLabel(line: string, index: number, start: number): boolean {
-  const before = line.slice(start, index)
-  const after = line.slice(index + 1)
-  const openerRe = /(?:^|\s)(?:[\w-]+@\s*)?(?:<)?(?:-{2,}|-\.+|={2,})\s+/g
-  const closerRe = /(?:^|\s)(?:-{2,}>|-{3,}|\.+->|-\.+-|={2,}>|={3,})/
-  let activeTextLabel = false
-  for (const match of before.matchAll(openerRe)) {
-    const tail = before.slice((match.index ?? 0) + match[0].length)
-    if (!closerRe.test(tail)) activeTextLabel = true
-  }
-  return activeTextLabel && closerRe.test(after)
 }
