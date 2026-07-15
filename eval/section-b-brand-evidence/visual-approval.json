@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "status": "approved",
   "artifact": "docs/design/families/section-b-brand-evidence.png",
-  "artifactSha256": "19d5ccb463d0c05722d3ea09e247bc64627aac93e8b93a09de5a36c34db93662",
+  "artifactSha256": "4a69a855066e0b08ba77972beebc963aac9b537bba51edfe4ac0398ad43c4f44",
   "reviewedAt": "2026-07-15",
   "reviewer": "OpenAI coding agent, at the user's explicit request",
-  "scope": "All 60 family-by-variant cells at the native 1560x7944 artifact size, including visible Class endpoint silhouettes (attachment placement excluded under #178), contained XY labels, padded GitGraph labels, monotonic Mindmap connectors, and the prior Pie typography corrections; reviewed as four native-width variant crops",
+  "scope": "All 60 family-by-variant cells at the native 1560x7944 artifact size, including corrected Class endpoint placement and visible silhouettes in all four variants, contained XY labels, padded GitGraph labels, monotonic Mindmap connectors, and the prior Pie typography corrections; reviewed as a full-sheet native-size pass plus four Class-cell crops",
   "audit": "eval/section-b-brand-evidence/production-comparison.md"
 }

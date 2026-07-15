@@ -167,13 +167,13 @@ export function lowerClassScene(
 function classMarkerResources(style: ResolvedRenderStyle): readonly MarkerDescriptor[] {
   const edgeColor = style.edgeStrokeColor ?? 'var(--_arrow)'
   const triangle = [{ x: 0, y: 0 }, { x: 12, y: 5 }, { x: 0, y: 10 }]
-  const diamond = [{ x: 6, y: 0 }, { x: 12, y: 5 }, { x: 6, y: 10 }, { x: 0, y: 5 }]
+  const diamond = [{ x: 7, y: 1 }, { x: 13, y: 6 }, { x: 7, y: 11 }, { x: 1, y: 6 }]
   return [
     { id: 'cls-inherit', shape: 'triangle', size: { width: 12, height: 10 }, ref: { x: 12, y: 5 }, orient: 'auto-start-reverse', overflow: 'visible', geometry: { kind: 'polygon', points: triangle }, paint: { fill: 'var(--bg)', stroke: edgeColor, strokeWidth: '1.5' } },
-    { id: 'cls-composition', shape: 'diamond', size: { width: 12, height: 10 }, ref: { x: 0, y: 5 }, orient: 'auto-start-reverse', overflow: 'visible', geometry: { kind: 'polygon', points: diamond }, paint: { fill: edgeColor, stroke: edgeColor, strokeWidth: '1' } },
-    { id: 'cls-aggregation', shape: 'diamond-open', size: { width: 12, height: 10 }, ref: { x: 0, y: 5 }, orient: 'auto-start-reverse', overflow: 'visible', geometry: { kind: 'polygon', points: diamond }, paint: { fill: 'var(--bg)', stroke: edgeColor, strokeWidth: '1.5' } },
+    { id: 'cls-composition', shape: 'diamond', size: { width: 14, height: 12 }, viewBox: { x: 0, y: 0, width: 14, height: 12 }, ref: { x: 13, y: 6 }, orient: 'auto-start-reverse', overflow: 'hidden', geometry: { kind: 'polygon', points: diamond }, paint: { fill: edgeColor, stroke: edgeColor, strokeWidth: '1' } },
+    { id: 'cls-aggregation', shape: 'diamond-open', size: { width: 14, height: 12 }, viewBox: { x: 0, y: 0, width: 14, height: 12 }, ref: { x: 13, y: 6 }, orient: 'auto-start-reverse', overflow: 'hidden', geometry: { kind: 'polygon', points: diamond }, paint: { fill: 'var(--bg)', stroke: edgeColor, strokeWidth: '1.5' } },
     { id: 'cls-arrow', shape: 'open-arrow', size: { width: 8, height: 6 }, ref: { x: 8, y: 3 }, orient: 'auto-start-reverse', overflow: 'visible', geometry: { kind: 'polyline', points: [{ x: 0, y: 0 }, { x: 8, y: 3 }, { x: 0, y: 6 }] }, paint: { fill: 'none', stroke: edgeColor, strokeWidth: '1.5' } },
-    { id: 'cls-lollipop', shape: 'circle', size: { width: 14, height: 14 }, ref: { x: 7, y: 7 }, orient: 'auto', overflow: 'visible', geometry: { kind: 'circle', cx: 7, cy: 7, r: 5 }, paint: { fill: 'var(--bg)', stroke: edgeColor, strokeWidth: '1.5' } },
+    { id: 'cls-lollipop', shape: 'circle', size: { width: 14, height: 14 }, viewBox: { x: 0, y: 0, width: 14, height: 14 }, ref: { x: 12, y: 7 }, orient: 'auto-start-reverse', overflow: 'hidden', geometry: { kind: 'circle', cx: 7, cy: 7, r: 5 }, paint: { fill: 'var(--bg)', stroke: edgeColor, strokeWidth: '1.5' } },
   ]
 }
 

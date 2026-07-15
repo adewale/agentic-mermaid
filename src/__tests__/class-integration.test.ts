@@ -54,7 +54,7 @@ describe('renderMermaidSVG – class diagrams', () => {
     const overlays = [...svg.matchAll(/class="class-marker-overlay"/g)].map(match => match.index)
 
     expect(svg).toMatch(/<marker id="cls-inherit"[^>]*overflow="visible"/)
-    expect(svg).toMatch(/<marker id="cls-aggregation"[^>]*overflow="visible"/)
+    expect(svg).toMatch(/<marker id="cls-aggregation"[^>]*viewBox="0 0 14 12"[^>]*overflow="hidden"/)
     expect(overlays).toHaveLength(2)
     expect(overlays.every(index => index > lastClassBox)).toBe(true)
     expect(svg).toMatch(/class="class-marker-overlay"[^>]*stroke-opacity="0"[^>]*marker-start="url\(#cls-inherit\)"/)
