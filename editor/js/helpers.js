@@ -44,8 +44,9 @@ function setPopupVisibility(popup, trigger, open, opts) {
   if (!popup) return;
   opts = opts || {};
   var className = opts.className || 'open';
+  var wasOpen = popup.classList.contains(className);
   if (open) clearPopupClosing(popup);
-  else startPopupClosing(popup, opts);
+  else if (wasOpen) startPopupClosing(popup, opts);
   popup.classList.toggle(className, open);
   popup.setAttribute('aria-hidden', open ? 'false' : 'true');
   if (opts.inert !== false) popup.inert = !open;
