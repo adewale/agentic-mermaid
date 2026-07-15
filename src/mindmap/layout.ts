@@ -228,7 +228,10 @@ function finish(
       x: leftward ? node.x + node.width : node.x,
       y: node.y + node.height / 2,
     }
-    const bend = Math.max(24, Math.abs(end.x - start.x) * 0.52)
+    // Keep cubic controls ordered between their endpoints. The old 24px
+    // minimum (and 0.52 ratio) crossed controls on short parent/child gaps,
+    // producing a visible hook immediately before otherwise straight branches.
+    const bend = Math.abs(end.x - start.x) * 0.42
     const c1 = { x: start.x + (leftward ? -bend : bend), y: start.y }
     const c2 = { x: end.x + (leftward ? bend : -bend), y: end.y }
     return [{

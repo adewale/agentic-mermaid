@@ -7,7 +7,7 @@
       "style": "cupertino-prototype.style.json",
       "screenshot": "cupertino-prototype.png",
       "alt": "Documentation-only Cupertino-inspired custom style prototype",
-      "summary": "is an independent implementation example built only from public APIs; it is not an Apple product, an endorsed implementation, or a built-in Agentic Mermaid Style.",
+      "summary": "uses public role geometry to demonstrate Cupertino-inspired concentric corner curves and rounded connector bends; it is not an Apple product, an endorsed implementation, or a built-in Agentic Mermaid Style.",
       "docsOnly": true,
       "renderOptions": { "shadow": true }
     },

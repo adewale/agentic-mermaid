@@ -75,14 +75,14 @@ try {
 }
 ```
 
-The current public `StyleSpec` expresses this prototype's palette, font and
-stroke weight. `shadow` remains a shared render option. Per-role type ramps,
-padding, corner radii, border policy, semantic accent placement and designed
-light/dark modes are intentionally absent: those gaps are evidence for Section
-B of the brand-primitives plan, not private fields smuggled into this example.
-Consequently the file demonstrates today's public customization floor; it does
-not claim pixel equivalence with an Apple interface or with PR #148's retired
-Cupertino-specific private-face configuration and evidence.
+The public `StyleSpec` expresses the prototype's palette, font, weight-based
+role typography, surface-first border policy, padding, and geometry. Its
+10-unit node corners, 26-unit group corners, and 16-unit connector bend radius
+make the intended Cupertino-inspired curve discipline directly inspectable;
+`shadow` remains the shared render option supplying elevation. The file still
+does not claim pixel equivalence with an Apple interface: it uses bundled Inter
+rather than licensed SF Pro, has no motion/spring system, and provides no
+designed dark companion.
 
 Agentic Mermaid is independent of and not affiliated with Apple Inc.;
 “Cupertino” describes the prototype's design inspiration, not an Apple product

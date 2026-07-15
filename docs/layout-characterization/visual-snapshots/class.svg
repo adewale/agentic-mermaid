@@ -19,19 +19,19 @@
   }
 </style>
 <defs>
-  <marker id="char-class-cls-inherit" markerWidth="12" markerHeight="10" refX="12" refY="5" orient="auto-start-reverse">
+  <marker id="char-class-cls-inherit" markerWidth="12" markerHeight="10" refX="12" refY="5" orient="auto-start-reverse" overflow="visible">
     <polygon points="0 0, 12 5, 0 10" fill="#FFFFFF" stroke="#47474a" stroke-width="1.5" />
   </marker>
-  <marker id="char-class-cls-composition" markerWidth="12" markerHeight="10" refX="0" refY="5" orient="auto-start-reverse">
+  <marker id="char-class-cls-composition" markerWidth="12" markerHeight="10" refX="0" refY="5" orient="auto-start-reverse" overflow="visible">
     <polygon points="6 0, 12 5, 6 10, 0 5" fill="#47474a" stroke="#47474a" stroke-width="1" />
   </marker>
-  <marker id="char-class-cls-aggregation" markerWidth="12" markerHeight="10" refX="0" refY="5" orient="auto-start-reverse">
+  <marker id="char-class-cls-aggregation" markerWidth="12" markerHeight="10" refX="0" refY="5" orient="auto-start-reverse" overflow="visible">
     <polygon points="6 0, 12 5, 6 10, 0 5" fill="#FFFFFF" stroke="#47474a" stroke-width="1.5" />
   </marker>
-  <marker id="char-class-cls-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto-start-reverse">
+  <marker id="char-class-cls-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto-start-reverse" overflow="visible">
     <polyline points="0 0, 8 3, 0 6" fill="none" stroke="#47474a" stroke-width="1.5" />
   </marker>
-  <marker id="char-class-cls-lollipop" markerWidth="14" markerHeight="14" refX="7" refY="7" orient="auto">
+  <marker id="char-class-cls-lollipop" markerWidth="14" markerHeight="14" refX="7" refY="7" orient="auto" overflow="visible">
     <circle cx="7" cy="7" r="5" fill="#FFFFFF" stroke="#47474a" stroke-width="1.5" />
   </marker>
 </defs>
@@ -58,6 +58,8 @@
   <line x1="200" y1="181.8" x2="320" y2="181.8" stroke="#d4d4d4" stroke-width="0.75" />
   <line x1="200" y1="189.8" x2="320" y2="189.8" stroke="#d4d4d4" stroke-width="0.75" />
 </g>
+<polyline class="class-marker-overlay" points="100,88.9 100,148.9" fill="none" stroke="#939395" stroke-width="1" stroke-opacity="0" marker-start="url(#char-class-cls-inherit)" pointer-events="none" aria-hidden="true" />
+<polyline class="class-marker-overlay" points="140,88.9 140,98.9 260,98.9 260,148.9" fill="none" stroke="#939395" stroke-width="1" stroke-opacity="0" marker-start="url(#char-class-cls-inherit)" pointer-events="none" aria-hidden="true" />
 
 
 </svg>

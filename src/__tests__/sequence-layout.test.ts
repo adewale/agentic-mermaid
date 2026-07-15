@@ -10,14 +10,22 @@ import fc from 'fast-check'
 import { parseSequenceDiagram } from '../sequence/parser.ts'
 import { layoutSequenceDiagram } from '../sequence/layout.ts'
 import type { PositionedSequenceDiagram } from '../sequence/types.ts'
+import { resolveStyleStackWithFace } from '../scene/style-registry.ts'
+import { estimateTextWidth } from '../styles.ts'
+import { renderMermaidSVG } from '../index.ts'
 
 /** Helper: parse and layout a sequence diagram from source lines */
 function layout(source: string) {
+  return layoutStyled(source)
+}
+
+function layoutStyled(source: string, style?: string) {
   const lines = source
     .split('\n')
     .map(l => l.trim())
     .filter(l => l.length > 0 && !l.startsWith('%%'))
-  return layoutSequenceDiagram(parseSequenceDiagram(lines))
+  const face = style ? resolveStyleStackWithFace(style).face : undefined
+  return layoutSequenceDiagram(parseSequenceDiagram(lines), {}, {}, face)
 }
 
 interface Rect {
@@ -444,6 +452,46 @@ describe('sequence layout – diagram dimensions', () => {
 // ============================================================================
 
 describe('sequence layout – render clearance', () => {
+  it('keeps adjacent official alt/opt fragments disjoint under role-driven group padding', () => {
+    const source = `sequenceDiagram
+      Alice->>Bob: Hello Bob, how are you?
+      alt is sick
+        Bob->>Alice: Not so good :(
+      else is well
+        Bob->>Alice: Feeling fresh like a daisy
+      end
+      opt Extra response
+        Bob->>Alice: Thanks for asking
+      end`
+
+    for (const style of ['accessible-high-contrast', 'status-dashboard', 'publication-figure']) {
+      const result = layoutStyled(source, style)
+      expect(result.blocks).toHaveLength(2)
+      const [alt, opt] = result.blocks
+      expect(alt!.y + alt!.height, style).toBeLessThanOrEqual(opt!.y)
+      for (const message of result.messages) {
+        if (message.isSelf) continue
+        const labelWidth = estimateTextWidth(message.label, style === 'accessible-high-contrast' ? 14 : 12, style === 'accessible-high-contrast' ? 700 : 600)
+        expect(Math.abs(message.x2 - message.x1), `${style}: ${message.label}`).toBeGreaterThanOrEqual(labelWidth + 16)
+      }
+    }
+  })
+
+  it('paints fragment headers after lifelines so dashed lines cannot occlude their labels', () => {
+    const svg = renderMermaidSVG(`sequenceDiagram
+      Alice->>Bob: Hello
+      alt is sick
+        Bob->>Alice: Recover
+      end`, { style: 'accessible-high-contrast', embedFontImport: false })
+    const lifeline = svg.indexOf('class="lifeline"')
+    const overlay = svg.indexOf('class="sequence-block-header-overlay"')
+    const message = svg.indexOf('class="message"')
+
+    expect(lifeline).toBeGreaterThan(0)
+    expect(overlay).toBeGreaterThan(lifeline)
+    expect(message).toBeGreaterThan(overlay)
+  })
+
   it('block header tab bottom is above the first message label', () => {
     // The header tab has height 18, drawn starting at block.y.
     // The message label is at msg.y - 6.

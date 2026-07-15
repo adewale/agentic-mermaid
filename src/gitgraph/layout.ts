@@ -6,6 +6,10 @@ import { measureTextWidth } from '../text-metrics.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import { rotateBoxBounds } from '../shared/transformed-bounds.ts'
 
+/** Horizontal inset on each side of a commit-message pill. Shared with the
+ * renderer so measured glyphs cannot touch or escape the rotated outline. */
+export const GITGRAPH_COMMIT_LABEL_PADDING_X = 12
+
 export interface GitGraphLayoutOptions {
   padding?: number
   showBranches?: boolean
@@ -168,9 +172,7 @@ function relativeCommitTextBounds(
   const bounds: TextBounds[] = [{ minX: -10, minY: -10, maxX: 10, maxY: 10 }]
   if (showCommitLabel) {
     const label = commit.message || commit.id
-    bounds.push(direction === 'LR'
-      ? measuredTextBounds(label, 0, 24, fontSize, 500, 'middle', rotate ? 45 : 0)
-      : measuredTextBounds(label, 14, 4, fontSize, 500, 'start', 0))
+    bounds.push(commitLabelBackgroundBounds(label, direction === 'LR' ? 0 : 14, direction === 'LR' ? 24 : 4, fontSize, direction === 'LR' ? 'middle' : 'start', direction === 'LR' && rotate ? 45 : 0))
   }
   for (const [index, tag] of commit.tags.entries()) {
     const tagBounds = measuredTextBounds(tag, 14, -16 - index * 17, 10, 600, 'start', 0)
@@ -190,8 +192,26 @@ function commitLabelBounds(
 ): TextBounds {
   const label = commit.message || commit.id
   return direction === 'LR'
-    ? measuredTextBounds(label, commit.x, commit.y + 24, fontSize, 500, 'middle', rotate ? 45 : 0)
-    : measuredTextBounds(label, commit.x + 14, commit.y + 4, fontSize, 500, 'start', 0)
+    ? commitLabelBackgroundBounds(label, commit.x, commit.y + 24, fontSize, 'middle', rotate ? 45 : 0)
+    : commitLabelBackgroundBounds(label, commit.x + 14, commit.y + 4, fontSize, 'start', 0)
+}
+
+function commitLabelBackgroundBounds(
+  text: string,
+  x: number,
+  baselineY: number,
+  fontSize: number,
+  anchor: 'start' | 'middle',
+  angle: number,
+): TextBounds {
+  const width = Math.max(18, measureTextWidth(text, fontSize, 500) + GITGRAPH_COMMIT_LABEL_PADDING_X * 2)
+  const left = anchor === 'middle' ? -width / 2 : -GITGRAPH_COMMIT_LABEL_PADDING_X
+  const bounds = rotateBoxBounds(
+    { x0: x + left, y0: baselineY - fontSize, x1: x + left + width, y1: baselineY + 6 },
+    { x, y: baselineY },
+    angle,
+  )
+  return { minX: bounds.x0, minY: bounds.y0, maxX: bounds.x1, maxY: bounds.y1 }
 }
 
 function measuredTextBounds(

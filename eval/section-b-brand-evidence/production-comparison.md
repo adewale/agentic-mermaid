@@ -9,9 +9,10 @@ at `http://127.0.0.1:9095/` and its deployed equivalent at
 ## Deployed website comparison
 
 The audit compared SVG bytes first, then rasterized each SVG independently.
-Twelve of thirteen SVGs are byte-identical to production. The tiny Journey
-raster delta below occurred despite byte-identical SVG and is capture-edge
-antialiasing, not a renderer difference.
+Eleven of thirteen SVGs are byte-identical to production. Class changes because
+the official exemplar now demonstrates inheritance and composition and because
+endpoint symbols are no longer occluded by class surfaces. Gantt retains the
+previously audited family-authored opacity difference.
 
 | # | Diagram screenshot | Branch appearance | Difference from deployed production |
 |---:|---|---|---|
@@ -19,11 +20,11 @@ antialiasing, not a renderer difference.
 | 2 | Flowchart · Report Figure + GitHub Light | Restrained publication lines and compact labeled groups. | Byte-identical. |
 | 3 | Flowchart · Compact Trace Map + Tokyo Night | Dark operations palette, uppercase compact labels, orthogonal routing. | Byte-identical. |
 | 4 | Timeline · Hand-drawn + Catppuccin Latte | Two roadmap columns with sketch frames and purple milestones. | Byte-identical. |
-| 5 | Class · Patent Hatching + Paper | Vertical class relationship with technical hatching and serif labels. | Byte-identical. |
+| 5 | Class · Patent Hatching + Paper | Compact three-class composition/inheritance example with technical hatching and complete diamond/triangle endpoints. | Intentional source and renderer change: 319.4×432 → 420.7×471.6. The old example showed only an association; the branch visibly demonstrates composition and inheritance, with markers painted after surfaces so no endpoint symbol is hidden by a class box. |
 | 6 | ER · Riso Print + Salmon | Wide three-entity relationship strip with red print treatment. | Byte-identical. |
-| 7 | Journey · Dark Ops Dashboard + GitHub Dark | Dark score rail, four task cards, actor legend, and section bands. | SVG byte-identical. Separate screenshots differed in 12 of 479,710 pixels (0.0025%, maximum channel delta 49) at antialiased edges only. |
+| 7 | Journey · Dark Ops Dashboard + GitHub Dark | Dark score rail, four task cards, actor legend, and section bands. | SVG and independent raster are byte-identical. |
 | 8 | Quadrant · Compact Trace Map + Nord Light | Four-quadrant planning matrix with sparse labeled points. | Byte-identical. |
-| 9 | Gantt · Plan Drafting + Solarized Light | Release train with status-specific task bars and milestone diamond. | Only substantive delta: 1,922 of 273,480 pixels (0.703%, maximum channel delta 12). Geometry, fills, labels, and dates are unchanged. The branch carries family-authored task opacity into rough redraw strokes (`1`, `0.92`, `0.95`); production redraws every outline at full opacity. This preserves task-status semantics rather than inventing branding. |
+| 9 | Gantt · Plan Drafting + Solarized Light | Release train with status-specific task bars and milestone diamond. | 1,881 of 238,056 independently rasterized pixels differ (0.790%, maximum channel delta 12). Geometry, fills, labels, and dates are unchanged. The branch carries family-authored task opacity into rough redraw strokes (`1`, `0.92`, `0.95`); production redraws every outline at full opacity. This preserves task-status semantics rather than inventing branding. |
 | 10 | Agentic Mermaid edit loop | Source → parse → narrow → mutate → verify → serialize/render, with warning return path. | Byte-identical. |
 | 11 | Sketch note style card | Watercolor/Paper approval flow with loose ink. | Byte-identical. |
 | 12 | Report figure style card | GitHub Light approval flow with publication treatment. | Byte-identical. |
@@ -52,18 +53,18 @@ in all four treatments:
 |---|---|
 | Flowchart | Node typography, padding, radius, border weight, and connector treatment change together; branch topology and labels are unchanged. |
 | State | State boxes and transitions inherit the same role face without moving or reclassifying start/end markers. |
-| Sequence | Actor boxes and message/lifeline strokes project the brand face; request/response direction and message semantics remain unchanged. |
+| Sequence | Actor boxes and message/lifeline strokes project the brand face; request/response direction and message semantics remain unchanged. Separate fragment fixtures confirm resolved padding, divider clearance, and header-over-lifeline compositing. |
 | Timeline | Period/event cards inherit node/group/label fallbacks; chronological order and rail anchors remain intact. |
-| Class | Class surfaces, members, and relationships remain structurally identical while archetype paint and typography change. |
+| Class | Class surfaces, members, and relationships remain structurally identical while archetype paint and typography change. Endpoint marker overlays keep each triangle and diamond wholly visible above class surfaces. |
 | ER | Entity surfaces use fallbacks and the exact relationship projection changes connector typography/stroke without changing cardinality. |
 | Journey | Section headers use resolved tracking/weight in both measurement and rendering; task scores, actor attribution, and rail geometry remain meaningful and collision-free. |
 | Architecture | Group and service surfaces gain the selected radius/padding/paint while service/junction topology stays unchanged. |
-| XY chart | Exact bar/series projections change paint and line weight; Q1–Q3 values, axes, and bar heights remain unchanged. |
+| XY chart | Exact bar/series projections change paint and line weight; Q1–Q3 values, axes, and bar heights remain unchanged. The lower inset contains the full resolved-font baseline and descent in every treatment. |
 | Pie | `Pro` remains the family-authored highlighted slice and every wedge path is unchanged. The sentinel category binding changes applicable paint/cue only. All legend rows now fit the canvas under rendered role typography. |
 | Quadrant | Archetype styling changes the frame, labels, and points without moving authored coordinates or quadrant meaning. |
 | Gantt | Task/milestone paint and cues change while dates, durations, critical status, and timeline geometry remain authoritative. |
-| Mindmap | Node/group fallbacks produce a coherent family palette; hierarchy and branch order remain unchanged. |
-| GitGraph | Commit/branch archetypes adopt the style palette and line treatment without changing commit topology. |
+| Mindmap | Node/group fallbacks produce a coherent family palette; hierarchy and branch order remain unchanged. Direction-monotonic cubic controls remove short-edge hooks without moving endpoints. |
+| GitGraph | Commit/branch archetypes adopt the style palette and line treatment without changing commit topology. Layout and rendering share a 12-unit horizontal commit-label inset. |
 | Radar | Exact point/legend projections and visible cue treatment change; axis values, polygon coordinates, and series identity remain unchanged. |
 
 ### Defects found and corrected during review
@@ -75,15 +76,29 @@ in all four treatments:
    font in the sentinel, clipping `Enterprise (10.0%)`. Layout and rendering
    now share `PIE_STYLE_DEFAULTS`, resolved weight/transform/tracking, and the
    same style face. All four Pie panels fit after regeneration.
+3. Class endpoint symbols could be painted under class surfaces. Markers now
+   use a post-surface overlay with visible overflow; all triangles and diamonds
+   remain complete in every treatment.
+4. XY bottom labels reserved the tick coordinate but not the resolved baseline
+   shift/descent. The lower inset now contains every label, including the large
+   Sentinel treatment.
+5. GitGraph commit pills used only four units of horizontal label padding.
+   Layout and rendering now share a 12-unit inset.
+6. Mindmap cubic controls could reverse direction on short links. Monotonic
+   controls remove the hook while preserving node and endpoint geometry.
+7. Styled Sequence fragment fixtures inherited adjacent-frame collisions and
+   lifeline-over-header paint. Resolved group padding, message width, and a
+   single post-lifeline header projection repair those production defects.
 
-After those corrections, all 60 cells were inspected at native size: headings
-are distinct, text is readable, cards remain inside their panels, and no
-quantitative or family-authored emphasis geometry changed.
+After those corrections, all 60 cells were inspected as four native-width
+variant crops: headings are distinct, text is readable, endpoint symbols remain
+complete, cards remain inside their panels, and no quantitative or
+family-authored emphasis geometry changed.
 
 ## Built-in Pie Look production comparison
 
 The eight intentionally changed styled-output goldens were rendered as native
-PNGs in both the branch and an `origin/main` worktree at `ad20678e`. Unlike the
+PNGs in both the branch and the production worktree at `828c6944`. Unlike the
 Section B custom-role sheet, these are valid production equivalents because
 all eight Look names exist on `origin/main`.
 

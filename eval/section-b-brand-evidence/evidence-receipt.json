@@ -2,8 +2,8 @@
   "schemaVersion": 2,
   "generator": "scripts/pr-assets/section-b-brand-evidence.ts",
   "inputs": {
-    "count": 693,
-    "treeSha256": "bd1c310c2bad84e6f0464810741b595bdea1dbb81d4d1b4f01ed8de03c73f50f"
+    "count": 694,
+    "treeSha256": "ca337dbd287cb055226e356ae7306a43b96fefa2d7c4fb82b55dd3b3eb496e76"
   },
   "fontInputs": [
     {
@@ -51,7 +51,7 @@
   "visualApproval": {
     "path": "eval/section-b-brand-evidence/visual-approval.json",
     "status": "approved",
-    "artifactSha256": "79b185ac3b0cddccd998d7f3fc27a44cf5c0a1ae765572d5055edf7cc69afe51",
+    "artifactSha256": "19d5ccb463d0c05722d3ea09e247bc64627aac93e8b93a09de5a36c34db93662",
     "reviewedAt": "2026-07-15",
     "reviewer": "OpenAI coding agent, at the user's explicit request",
     "audit": "eval/section-b-brand-evidence/production-comparison.md"
@@ -59,7 +59,7 @@
   "outputs": [
     {
       "path": "docs/design/families/section-b-brand-evidence.png",
-      "sha256": "79b185ac3b0cddccd998d7f3fc27a44cf5c0a1ae765572d5055edf7cc69afe51"
+      "sha256": "19d5ccb463d0c05722d3ea09e247bc64627aac93e8b93a09de5a36c34db93662"
     }
   ]
 }

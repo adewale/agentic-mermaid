@@ -480,7 +480,7 @@
     },
     {
       "path": "src/__tests__/class-integration.test.ts",
-      "sha256": "1f8a4f11d4936975f44c7d40211c7f2310be4223cffe27dda7b75438a09dd00e"
+      "sha256": "0d599139a8e815a33ef424c3f3a5e537392d0991db4c6338a2079b5e0d73f6ed"
     },
     {
       "path": "src/__tests__/class-namespace.test.ts",
@@ -544,7 +544,7 @@
     },
     {
       "path": "src/__tests__/closing-the-gap.test.ts",
-      "sha256": "c8946a69ff7f5a11c0668ab06d1be5ef4bc5b8e008e6ac585a6ee0bf87d40e5d"
+      "sha256": "5d5dbc9361666ba799118f2fd3d063c1a8c9d9914dc77d2b673ee76f962c1abb"
     },
     {
       "path": "src/__tests__/code-mode-structured-errors.test.ts",
@@ -584,7 +584,7 @@
     },
     {
       "path": "src/__tests__/custom-style-cookbook.test.ts",
-      "sha256": "ad146eec3d925244a5af47adc03e730ca984962bcc9b9d80c1ccdf6cac5fce5c"
+      "sha256": "3b0eb6b2e3e0fb970af1cd5a18f38dac31c12697e358290355f74467c8809362"
     },
     {
       "path": "src/__tests__/deploy-hash.test.ts",
@@ -613,6 +613,10 @@
     {
       "path": "src/__tests__/edge-approach-direction.test.ts",
       "sha256": "ea1433db6fc68622f1ce0c04fac22b0f6178869a948e9d8f736f06d3bdc42c94"
+    },
+    {
+      "path": "src/__tests__/editor-example-exemplars.test.ts",
+      "sha256": "bbb015d44a4569444d218602420b402cc2bc72000fe3f0f05e7829618b00f2d1"
     },
     {
       "path": "src/__tests__/editor-examples.test.ts",
@@ -1372,7 +1376,7 @@
     },
     {
       "path": "src/__tests__/sequence-layout.test.ts",
-      "sha256": "9ac8282e91ef0956812d48758205f86a00c206bce5a26379d7d7c92985b96c4f"
+      "sha256": "b455bb61bf0b3a5d3ef21feabf15be54646808f5455d335c1bc808b4a1347f3e"
     },
     {
       "path": "src/__tests__/sequence-parser.test.ts",
@@ -1592,7 +1596,7 @@
     },
     {
       "path": "src/__tests__/xychart-legend.test.ts",
-      "sha256": "338baae5bc105c61e6c87afa4bd66816eb1c71d556c56b7282041bdd27bc4276"
+      "sha256": "49e5604517977b9573e9935878aeac301b6357123ed724ef552d75baa91a7ae8"
     },
     {
       "path": "src/__tests__/xychart-parser.test.ts",
@@ -2028,7 +2032,7 @@
     },
     {
       "path": "src/class/renderer.ts",
-      "sha256": "b0b2ad3e52146acbb2c17f25fc2c62b43676909eb8d06d794f2c2ef9987a64b5"
+      "sha256": "b2afca645da1439375fadee6c54c72c9bf92e62d6d3e4e6e4df135f9d2a556dc"
     },
     {
       "path": "src/class/types.ts",
@@ -2136,7 +2140,7 @@
     },
     {
       "path": "src/gitgraph/layout.ts",
-      "sha256": "f18f0e6e1030b33d8335645dee2b79283b0e55fcee26dfcf35d71b182e8ed58c"
+      "sha256": "8e6ca909a24956ed6aee570c695f86a21dc5e52b3e9d8d8e7f5ef4d97353032f"
     },
     {
       "path": "src/gitgraph/parser.ts",
@@ -2148,7 +2152,7 @@
     },
     {
       "path": "src/gitgraph/renderer.ts",
-      "sha256": "0d2689545c29a8187ce93712deb3a76979b4b24fe405463e77c81da75006ba34"
+      "sha256": "24536d55d52e79ceb70bfaf3f06aad95322c9e7689d1062989052faf8ce8a089"
     },
     {
       "path": "src/gitgraph/types.ts",
@@ -2276,7 +2280,7 @@
     },
     {
       "path": "src/mindmap/layout.ts",
-      "sha256": "25a1ea1f9c9dd7a125524322b4bb4faa4df24f17a97331281277b63013079dd6"
+      "sha256": "893c8745190562825b42d1503621b05ea6624fcbf0c0834a2be7edbb635a60ec"
     },
     {
       "path": "src/mindmap/parser.ts",
@@ -2580,7 +2584,7 @@
     },
     {
       "path": "src/sequence/layout.ts",
-      "sha256": "2b22ab7c2b78cd455ea846a521a64bf203db7538e22c409768124a6f1c0d2329"
+      "sha256": "5b59050b2e4292fb8da4306905d310ac6d2722069f765337f15505d1f6d3ddcc"
     },
     {
       "path": "src/sequence/parser.ts",
@@ -2588,7 +2592,7 @@
     },
     {
       "path": "src/sequence/renderer.ts",
-      "sha256": "e758c1e8a5e63b51f61712bd83a55faccaefdb5b4267ab851b0913108ef95a93"
+      "sha256": "65e41b788d6ff7514bdbf3c1623028b945edc0a648c9c790117dbc6c69ea8b10"
     },
     {
       "path": "src/sequence/types.ts",
@@ -2788,7 +2792,7 @@
     },
     {
       "path": "src/xychart/layout.ts",
-      "sha256": "a11e282b56fb7342f058ea9645d6cea5de38befd4488c6a156d049d1331881a5"
+      "sha256": "88525a360fc193643f32f235481942eead3944a984484061971fcb09b6965e8e"
     },
     {
       "path": "src/xychart/legend.ts",
@@ -2810,11 +2814,11 @@
   "outputs": [
     {
       "path": "docs/design/families/gitgraph-content-gallery.png",
-      "sha256": "292692d1a3c750d17790368b9e450d41d0627ba3b94aca97d67e14ead0a6850c"
+      "sha256": "ffef0e6e8aa0e48554a52357ae03c5e7d86b42524d3346739a04fbff6c98b9d1"
     },
     {
       "path": "docs/design/families/mindmap-content-gallery.png",
-      "sha256": "45933bedf2b674446c126227991ed0c2242a41ec1a3b6300272ca2485163f43f"
+      "sha256": "d619e0987d529254cf03399c419943302ce6d3b06d410a7e1e636d433459cc2a"
     }
   ]
 }

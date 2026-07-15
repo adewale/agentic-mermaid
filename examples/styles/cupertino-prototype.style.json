@@ -2,7 +2,7 @@
   "$schema": "https://agentic-mermaid.dev/schemas/style-spec.schema.json",
   "formatVersion": 1,
   "name": "look:cupertino-prototype",
-  "blurb": "Documentation-only Cupertino-inspired prototype using only the current public StyleSpec.",
+  "blurb": "Documentation-only Cupertino-inspired prototype with concentric corner curves and generously rounded connector bends, using only the public StyleSpec.",
   "colors": {
     "bg": "#f2f2f7",
     "fg": "#000000",
@@ -15,5 +15,45 @@
   "font": "Inter",
   "stroke": "crisp",
   "strokeWidth": 1,
-  "intent": "premium"
+  "intent": "premium",
+  "roles": {
+    "node": {
+      "fontSize": 13,
+      "fontWeight": 600,
+      "paddingX": 24,
+      "paddingY": 12,
+      "cornerRadius": 10,
+      "lineWidth": 1,
+      "fillColor": "#ffffff",
+      "borderColor": "transparent",
+      "textColor": "#000000"
+    },
+    "edge": {
+      "fontSize": 11,
+      "fontWeight": 500,
+      "letterSpacing": 0.07,
+      "lineWidth": 1.5,
+      "bendRadius": 16,
+      "strokeColor": "#7a7a80",
+      "textColor": "#66666b"
+    },
+    "group": {
+      "fontSize": 12,
+      "fontWeight": 600,
+      "paddingX": 16,
+      "paddingY": 16,
+      "cornerRadius": 26,
+      "lineWidth": 1,
+      "fillColor": "rgba(120,120,128,0.08)",
+      "headerFillColor": "rgba(120,120,128,0.12)",
+      "borderColor": "transparent",
+      "textColor": "#66666b"
+    },
+    "label": {
+      "fontSize": 11,
+      "fontWeight": 500,
+      "letterSpacing": 0.07,
+      "textColor": "#66666b"
+    }
+  }
 }

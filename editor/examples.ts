@@ -61,17 +61,20 @@ export const EDITOR_EXAMPLES = [
     label: 'Class',
     category: 'Supported diagrams',
     diagramType: 'Class',
-    description: 'Classes with members and relationships.',
+    description: 'Classes with members, inheritance, and composition.',
     source: `classDiagram
   class Renderer {
-    +renderSVG(source) string
-    +renderASCII(source) string
+    <<abstract>>
+    +render(source) string
   }
-  class Palette {
-    +bg string
-    +fg string
+  class SVGRenderer {
+    +render(source) string
   }
-  Renderer --> Palette : uses`,
+  class RenderPipeline {
+    +run(source) string
+  }
+  Renderer <|-- SVGRenderer
+  RenderPipeline *-- SVGRenderer : owns`,
   },
   {
     id: 'er-basic',
@@ -175,12 +178,8 @@ export const EDITOR_EXAMPLES = [
     label: 'Mindmap',
     category: 'Supported diagrams',
     diagramType: 'Mindmap',
-    description: 'A shaped, decorated hierarchy with Markdown, Unicode, accessibility, and deep quality branches.',
-    source: `---
-config:
-  layout: tidy-tree
----
-mindmap
+    description: 'A centered, bilateral hierarchy with shapes, Markdown, Unicode, accessibility, and deep quality branches.',
+    source: `mindmap
   root((Agent-native release))
     discovery[Discovery]
       ::icon(fa fa-book)
@@ -264,6 +263,7 @@ gitGraph LR:
   axis latency["Latency"], context["Context"], safety["Safety"]
   curve a["Model A"]{4, 5, 3, 4, 4, 5}
   curve b["Model B"]{5, 3, 4, 3, 5, 3}
+  graticule polygon
   max 5`,
   }
 ];

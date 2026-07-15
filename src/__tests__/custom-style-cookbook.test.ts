@@ -67,6 +67,11 @@ describe('custom style cookbook docs', () => {
     const names = () => knownStyleDescriptors().map(descriptor => descriptor.inputName)
     expect(validateStyleSpec(prototype)).toEqual([])
     expect(prototype.name).toBe('look:cupertino-prototype')
+    expect(prototype.roles).toMatchObject({
+      node: { cornerRadius: 10 },
+      edge: { bendRadius: 16 },
+      group: { cornerRadius: 26 },
+    })
     expect(names()).not.toContain('cupertino')
     expect(names()).not.toContain('look:cupertino-prototype')
 

@@ -127,6 +127,16 @@ export function lowerSequenceScene(
     parts.push(renderLifeline(lifeline, style))
   }
 
+  // 2b. Paint fragment header tabs above lifelines. The outer fragment and
+  // dividers remain behind lifelines, while the opaque tab protects its label
+  // from a dashed actor line passing through the text.
+  const blockHeaderOccurrence = new Map<string, number>()
+  for (const block of diagram.blocks) {
+    const k = blockHeaderOccurrence.get(block.type) ?? 0
+    blockHeaderOccurrence.set(block.type, k + 1)
+    parts.push(renderBlockHeader(block, style, `block:${block.type}#${k}`))
+  }
+
   // 3. Activation boxes
   const activationOccurrence = new Map<string, number>()
   for (const activation of diagram.activations) {
@@ -547,47 +557,6 @@ function renderBlock(block: PositionedBlock, style: ResolvedRenderStyle, sceneId
       `rx="${style.groupCornerRadius}" ry="${style.groupCornerRadius}" fill="${escapeAttr(rawFill)}" stroke="${escapeAttr(rawStroke)}" stroke-width="${style.groupLineWidth}" />`),
   })
 
-  // Type label tab (top-left corner)
-  // For multi-line block labels, we use the first line for the tab but show full label
-  const labelText = applyTextTransform(`${block.type}${block.label ? ` [${block.label}]` : ''}`, style.groupTextTransform)
-  const firstLine = labelText.split('\n')[0]!
-  const tabWidth = estimateTextWidth(firstLine, style.groupHeaderFontSize, style.groupHeaderFontWeight) + style.groupPaddingX * 2
-  const tabHeight = Math.max(18, style.groupHeaderFontSize + style.groupPaddingY)
-
-  const rawHeaderFill = style.groupHeaderFillColor ?? 'var(--_group-hdr)'
-  children.push({
-    indent: 2,
-    node: marks.shape({
-      id: `${sceneId}:tab`,
-      role: 'block',
-      geometry: { kind: 'rect', x: block.x, y: block.y, width: tabWidth, height: tabHeight },
-      paint: { fill: rawHeaderFill, stroke: rawStroke, strokeWidth: String(style.groupLineWidth) },
-    },
-      `<rect x="${block.x}" y="${block.y}" width="${tabWidth}" height="${tabHeight}" ` +
-      `fill="${escapeAttr(rawHeaderFill)}" stroke="${escapeAttr(rawStroke)}" stroke-width="${style.groupLineWidth}" />`),
-  })
-  // Block type label (supports multi-line via <br> tags)
-  const rawHeaderText = style.groupTextColor ?? 'var(--_text-sec)'
-  children.push({
-    indent: 2,
-    node: marks.text({
-      id: `${sceneId}:label`,
-      role: 'label',
-      text: labelText,
-      x: block.x + style.groupLabelPaddingX,
-      y: block.y + tabHeight / 2,
-      fontSize: style.groupHeaderFontSize,
-      anchor: 'start',
-      paint: { fill: rawHeaderText },
-    }, renderMultilineText(
-      labelText,
-      block.x + style.groupLabelPaddingX,
-      block.y + tabHeight / 2,
-      style.groupHeaderFontSize,
-      `font-size="${style.groupHeaderFontSize}" font-weight="${style.groupHeaderFontWeight}"${style.groupFont ? ` font-family="${escapeAttr(style.groupFont)}"` : ''}${letterAttr(style.groupLetterSpacing)} fill="${escapeAttr(rawHeaderText)}"`
-    )),
-  })
-
   // Divider lines (for alt/else, par/and)
   const rawDividerStroke = style.edgeStrokeColor ?? 'var(--_line)'
   const rawDividerText = style.edgeTextColor ?? 'var(--_text-muted)'
@@ -634,6 +603,52 @@ function renderBlock(block: PositionedBlock, style: ResolvedRenderStyle, sceneId
     open,
     close: '</g>',
     children,
+  })
+}
+
+function renderBlockHeader(block: PositionedBlock, style: ResolvedRenderStyle, sceneId: string): SceneNode {
+  const labelText = applyTextTransform(`${block.type}${block.label ? ` [${block.label}]` : ''}`, style.groupTextTransform)
+  const firstLine = labelText.split('\n')[0]!
+  const tabWidth = estimateTextWidth(firstLine, style.groupHeaderFontSize, style.groupHeaderFontWeight) + style.groupPaddingX * 2
+  const tabHeight = Math.max(18, style.groupHeaderFontSize + style.groupPaddingY)
+  const fill = style.groupHeaderFillColor ?? 'var(--_group-hdr)'
+  const stroke = style.groupBorderColor ?? 'var(--_node-stroke)'
+  const text = style.groupTextColor ?? 'var(--_text-sec)'
+  return marks.group({
+    id: `${sceneId}:header-overlay`,
+    role: 'block',
+    open: `<g class="sequence-block-header-overlay" pointer-events="none" aria-hidden="true">`,
+    close: '</g>',
+    children: [
+      {
+        indent: 0,
+        node: marks.shape({
+          id: `${sceneId}:tab`,
+          role: 'block',
+          geometry: { kind: 'rect', x: block.x, y: block.y, width: tabWidth, height: tabHeight },
+          paint: { fill, stroke, strokeWidth: String(style.groupLineWidth) },
+        }, `<rect x="${block.x}" y="${block.y}" width="${tabWidth}" height="${tabHeight}" fill="${escapeAttr(fill)}" stroke="${escapeAttr(stroke)}" stroke-width="${style.groupLineWidth}" />`),
+      },
+      {
+        indent: 0,
+        node: marks.text({
+          id: `${sceneId}:label`,
+          role: 'label',
+          text: labelText,
+          x: block.x + style.groupLabelPaddingX,
+          y: block.y + tabHeight / 2,
+          fontSize: style.groupHeaderFontSize,
+          anchor: 'start',
+          paint: { fill: text },
+        }, renderMultilineText(
+          labelText,
+          block.x + style.groupLabelPaddingX,
+          block.y + tabHeight / 2,
+          style.groupHeaderFontSize,
+          `font-size="${style.groupHeaderFontSize}" font-weight="${style.groupHeaderFontWeight}"${style.groupFont ? ` font-family="${escapeAttr(style.groupFont)}"` : ''}${letterAttr(style.groupLetterSpacing)} fill="${escapeAttr(text)}"`,
+        )),
+      },
+    ],
   })
 }
 
