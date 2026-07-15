@@ -140,6 +140,7 @@ function descriptor(
     collisionPriority: 0,
     detect: line => line === header.toLowerCase(),
     semanticRoles: roles.map(row => row.role),
+    semanticChannels: ['category', 'value'],
     scenePrimitiveEvidence: declareFamilyScenePrimitiveEvidence(id, roles, [EVIDENCE]),
     capabilityEvidence: [
       { capability: 'detection', state: 'native', evidence: [EVIDENCE] },

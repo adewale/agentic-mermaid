@@ -87,9 +87,13 @@ export {
   registerStyle, getStyle, knownStyles, knownStyleDescriptors, resolveStyleReference,
   validateStyleSpec, resolveStyleStack, inferBackend,
   STYLE_SPEC_FORMAT_VERSION, STYLE_SPEC_FIELD_DESCRIPTORS, STYLE_COLOR_TOKEN_DESCRIPTORS,
-  styleSpecJsonSchema,
+  ROLE_STYLE_PROPERTY_DESCRIPTORS, styleSpecJsonSchema,
 } from '../scene/style-registry.ts'
-export type { StyleSpec, StyleColors, StyleInput, StyleDescriptor, StyleReferenceResolution, StyleRegistrationOptions } from '../scene/style-registry.ts'
+export type {
+  StyleSpec, StyleColors, RoleStyleSpec, RoleStyles, SemanticSlots, SemanticBinding,
+  SemanticBindingChannel, BrandConstraint, BrandConstraintAction, StyleInput,
+  StyleDescriptor, StyleReferenceResolution, StyleRegistrationOptions,
+} from '../scene/style-registry.ts'
 export type { ArchitectureVisualOverrides } from '../architecture/config.ts'
 export { registerBackend, getBackend, knownBackendDescriptors, DefaultBackend } from '../scene/backend.ts'
 export type { StyleBackend, StyleBackendContext, BackendDescriptor, BackendRegistrationOptions, HostBackendPolicy } from '../scene/backend.ts'

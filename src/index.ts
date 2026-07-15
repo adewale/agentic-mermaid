@@ -76,11 +76,12 @@ import { executeGraphicalRequest } from './graphical-render.ts'
 export {
   registerStyle, getStyle, knownStyles, knownStyleDescriptors, resolveStyleReference,
   validateStyleSpec, resolveStyleStack, inferBackend, STYLE_SPEC_FORMAT_VERSION,
-  STYLE_SPEC_FIELD_DESCRIPTORS, STYLE_COLOR_TOKEN_DESCRIPTORS, styleSpecJsonSchema,
+  STYLE_SPEC_FIELD_DESCRIPTORS, STYLE_COLOR_TOKEN_DESCRIPTORS, ROLE_STYLE_PROPERTY_DESCRIPTORS, styleSpecJsonSchema,
 } from './scene/style-registry.ts'
 export type {
-  StyleSpec, StyleColors, StyleInput, StyleDescriptor, StyleReferenceResolution,
-  StyleRegistrationOptions, StyleRegistryKind,
+  StyleSpec, StyleColors, RoleStyleSpec, RoleStyles, SemanticSlots, SemanticBinding,
+  SemanticBindingChannel, BrandConstraint, BrandConstraintAction, StyleInput, StyleDescriptor,
+  StyleReferenceResolution, StyleRegistrationOptions, StyleRegistryKind,
 } from './scene/style-registry.ts'
 export {
   renderContractDigest, validateSerializableRenderOptions, RenderCapabilityError, ParsedDiagramFamilyMismatchError,

@@ -396,8 +396,24 @@ const ARCHITECTURE_VISUAL_SCHEMA = {
 } as const satisfies JsonSchemaNode
 
 const STYLE_SPEC_SCHEMA = (() => {
-  const { $schema: _dialect, $id: _id, title: _title, ...fragment } = styleSpecJsonSchema()
-  return fragment
+  const document = styleSpecJsonSchema() as Record<string, unknown>
+  const definitions = document.$defs as Record<string, Record<string, unknown>> | undefined
+  const expandLocalReferences = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(expandLocalReferences)
+    if (value === null || typeof value !== 'object') return value
+    const record = value as Record<string, unknown>
+    const reference = record.$ref
+    if (typeof reference === 'string' && reference.startsWith('#/$defs/')) {
+      const definition = definitions?.[reference.slice('#/$defs/'.length)]
+      if (!definition) throw new Error(`StyleSpec schema has unresolved local reference ${reference}`)
+      return expandLocalReferences(definition)
+    }
+    return Object.fromEntries(Object.entries(record)
+      .filter(([key]) => key !== '$defs')
+      .map(([key, child]) => [key, expandLocalReferences(child)]))
+  }
+  const { $schema: _dialect, $id: _id, title: _title, ...fragment } = document
+  return expandLocalReferences(fragment) as Record<string, unknown>
 })()
 
 const STYLE_INPUT_SCHEMA = {

@@ -15,7 +15,6 @@
 // 'crisp' (or unset) is the byte-identical default path.
 // ============================================================================
 
-import type { TextTransform } from '../types.ts'
 import {
   STYLE_SPEC_FORMAT_VERSION,
   validateStyleSpec,
@@ -42,49 +41,43 @@ export {
   STYLE_SPEC_FORMAT_VERSION,
   STYLE_SPEC_FIELD_DESCRIPTORS,
   STYLE_COLOR_TOKEN_DESCRIPTORS,
+  ROLE_STYLE_PROPERTY_DESCRIPTORS,
   styleSpecJsonSchema,
   styleSpecFieldReferenceMarkdown,
   validateStyleSpec,
 } from './style-spec.ts'
-export type { StyleSpec, StyleColors } from './style-spec.ts'
+export type {
+  BrandConstraint, BrandConstraintAction, RoleStyleSpec, RoleStyles,
+  SemanticBinding, SemanticBindingChannel, SemanticSlots, StyleSpec, StyleColors,
+} from './style-spec.ts'
+import type {
+  BrandConstraint, RoleStyleSpec, RoleStyles, SemanticBinding, SemanticSlots,
+} from './style-spec.ts'
+import type { SemanticChannels } from './ir.ts'
+import { SCENE_ROLE_DESCRIPTORS, type BuiltinSceneRole } from './roles.ts'
 
 /** Private renderer defaults for built-in looks. This is intentionally not
  *  part of the public StyleSpec schema, registerStyle boundary, or docs. */
 export interface InternalStyleFace {
+  /** Complete admitted public role/policy view retained for family lowering. */
+  roles?: Readonly<RoleStyles>
+  semanticSlots?: SemanticSlots
+  bindings?: readonly SemanticBinding[]
+  constraints?: readonly BrandConstraint[]
   text?: InternalTextFace
   node?: InternalNodeFace
   edge?: InternalEdgeFace
   group?: InternalGroupFace
 }
-export interface InternalTextFace {
-  fontSize?: number
-  fontWeight?: number
-  letterSpacing?: number
-  textTransform?: TextTransform
-  textColor?: string
-}
-export interface InternalBoxFace {
-  paddingX?: number
-  paddingY?: number
-  cornerRadius?: number
-  lineWidth?: number
-  fillColor?: string
-  borderColor?: string
-}
-export interface InternalNodeFace extends InternalTextFace, InternalBoxFace {}
-export interface InternalEdgeFace extends InternalTextFace {
-  lineWidth?: number
-  bendRadius?: number
-  strokeColor?: string
-}
-export interface InternalGroupFace extends InternalTextFace, InternalBoxFace {
-  fontFamily?: string
-  lineWidth?: number
-  headerFillColor?: string
-}
+export type InternalTextFace = Pick<RoleStyleSpec,
+  'fontSize' | 'fontWeight' | 'letterSpacing' | 'textTransform' | 'textColor'>
+export type InternalBoxFace = Pick<RoleStyleSpec,
+  'paddingX' | 'paddingY' | 'cornerRadius' | 'lineWidth' | 'fillColor' | 'borderColor'>
+export type InternalNodeFace = InternalTextFace & InternalBoxFace
+export type InternalEdgeFace = InternalTextFace & Pick<RoleStyleSpec, 'lineWidth' | 'bendRadius' | 'strokeColor'>
+export type InternalGroupFace = InternalTextFace & InternalBoxFace & Pick<RoleStyleSpec, 'fontFamily' | 'headerFillColor'>
 
 interface InternalStyleSpec extends StyleSpec {
-  face?: InternalStyleFace
   /** Registry discovery metadata; never accepted in public StyleSpec JSON. */
   displayLabel?: string
 }
@@ -230,13 +223,31 @@ function styleRegistrationOptionsSnapshot(options: StyleRegistrationOptions): St
   return snapshot as StyleRegistrationOptions
 }
 
+function frozenRoleStyles(roles: RoleStyles | undefined): Readonly<RoleStyles> | undefined {
+  if (!roles) return undefined
+  return Object.freeze(Object.fromEntries(Object.entries(roles).map(([role, value]) => [role, Object.freeze({ ...value })])))
+}
+
+function frozenSemanticSlots(slots: SemanticSlots | undefined): SemanticSlots | undefined {
+  if (!slots) return undefined
+  return Object.freeze(Object.fromEntries(Object.entries(slots).map(([slot, value]) => [slot, Object.freeze({ ...value })])))
+}
+
+function frozenPolicyList<T extends object>(values: readonly T[] | undefined): readonly T[] | undefined {
+  return values ? Object.freeze(values.map(value => Object.freeze({ ...value }) as T)) : undefined
+}
+
 function stripInternalStyle(spec: InternalStyleSpec | undefined): StyleSpec | undefined {
   if (!spec) return undefined
-  const { face: _face, displayLabel: _displayLabel, ...publicSpec } = spec
+  const { displayLabel: _displayLabel, ...publicSpec } = spec
   return Object.freeze({
     ...publicSpec,
     formatVersion: STYLE_SPEC_FORMAT_VERSION,
     ...(publicSpec.colors ? { colors: Object.freeze({ ...publicSpec.colors }) } : {}),
+    ...(publicSpec.roles ? { roles: frozenRoleStyles(publicSpec.roles) } : {}),
+    ...(publicSpec.semanticSlots ? { semanticSlots: frozenSemanticSlots(publicSpec.semanticSlots) } : {}),
+    ...(publicSpec.bindings ? { bindings: frozenPolicyList(publicSpec.bindings) } : {}),
+    ...(publicSpec.constraints ? { constraints: frozenPolicyList(publicSpec.constraints) } : {}),
   })
 }
 
@@ -271,7 +282,10 @@ function registerCanonicalStyle(
     ...spec,
     formatVersion: STYLE_SPEC_FORMAT_VERSION,
     ...(spec.colors ? { colors: Object.freeze({ ...spec.colors }) } : {}),
-    ...(spec.face ? { face: Object.freeze({ ...spec.face }) } : {}),
+    ...(spec.roles ? { roles: frozenRoleStyles(spec.roles) } : {}),
+    ...(spec.semanticSlots ? { semanticSlots: frozenSemanticSlots(spec.semanticSlots) } : {}),
+    ...(spec.bindings ? { bindings: frozenPolicyList(spec.bindings) } : {}),
+    ...(spec.constraints ? { constraints: frozenPolicyList(spec.constraints) } : {}),
   })
   const identity = registrationIdentity(id, kind, options)
   registerExtension(STYLE_REGISTRY, {
@@ -425,16 +439,31 @@ export function inferBackend(spec: StyleSpec): 'default' | 'rough' | 'hybrid' {
   return 'default'
 }
 
-const FACE_KEYS = ['text', 'node', 'edge', 'group'] as const
-
-function mergeFace(left: InternalStyleFace | undefined, right: InternalStyleFace | undefined): InternalStyleFace | undefined {
+function mergeRoleStyles(left: RoleStyles | undefined, right: RoleStyles | undefined): RoleStyles | undefined {
   if (!left && !right) return undefined
-  const merged: InternalStyleFace = { ...left }
-  if (!right) return merged
-  for (const key of FACE_KEYS) {
-    if (right[key] !== undefined) merged[key] = { ...merged[key], ...right[key] } as never
+  const merged: RoleStyles = { ...left }
+  for (const [role, value] of Object.entries(right ?? {})) {
+    if (value !== undefined) merged[role as BuiltinSceneRole] = { ...merged[role as BuiltinSceneRole], ...value }
   }
   return merged
+}
+
+function mergeSemanticSlots(left: SemanticSlots | undefined, right: SemanticSlots | undefined): SemanticSlots | undefined {
+  if (!left && !right) return undefined
+  const merged: Record<string, RoleStyleSpec> = { ...left }
+  for (const [slot, value] of Object.entries(right ?? {})) merged[slot] = { ...merged[slot], ...value }
+  return merged
+}
+
+function mergeUniquePolicy<T>(left: readonly T[] | undefined, right: readonly T[] | undefined): readonly T[] | undefined {
+  if (!left && !right) return undefined
+  const values: T[] = []
+  const seen = new Set<string>()
+  for (const value of [...(left ?? []), ...(right ?? [])]) {
+    const key = JSON.stringify(value)
+    if (!seen.has(key)) { seen.add(key); values.push(value) }
+  }
+  return values
 }
 
 /** Merge a stack of styles left → right: later fields win; colors merge per
@@ -460,32 +489,90 @@ function resolveInternalStyleStack(input: StyleInput | StyleInput[] | undefined)
   const merged: InternalStyleSpec = { formatVersion: STYLE_SPEC_FORMAT_VERSION }
   for (const spec of specs) {
     for (const [key, value] of Object.entries(spec)) {
-      if (value === undefined || key === 'face') continue
+      if (value === undefined) continue
       if (key === 'colors') {
         const colors = { ...merged.colors }
         for (const [token, color] of Object.entries(spec.colors ?? {})) {
           if (color !== undefined) (colors as Record<string, string>)[token] = color
         }
         merged.colors = colors
+      } else if (key === 'roles') {
+        merged.roles = mergeRoleStyles(merged.roles, spec.roles)
+      } else if (key === 'semanticSlots') {
+        merged.semanticSlots = mergeSemanticSlots(merged.semanticSlots, spec.semanticSlots)
+      } else if (key === 'bindings') {
+        merged.bindings = mergeUniquePolicy(merged.bindings, spec.bindings)
+      } else if (key === 'constraints') {
+        merged.constraints = mergeUniquePolicy(merged.constraints, spec.constraints)
       } else {
         ;(merged as Record<string, unknown>)[key] = value
       }
     }
-    merged.face = mergeFace(merged.face, spec.face)
   }
   return merged
 }
 
 export function resolveStyleStack(input: StyleInput | StyleInput[] | undefined): StyleSpec | undefined {
-  return withStyleAdmission(() => stripInternalStyle(resolveInternalStyleStack(input)))
+  return withStyleAdmission(() => {
+    const internal = resolveInternalStyleStack(input)
+    if (internal) assertRealizedStyleSpec(internal)
+    return stripInternalStyle(internal)
+  })
+}
+
+function compiledRoleStyle(value: RoleStyleSpec | undefined): RoleStyleSpec | undefined {
+  return value ? { ...value } : undefined
 }
 
 function internalStyleFace(spec: InternalStyleSpec): InternalStyleFace | undefined {
   const width = spec.strokeWidth
-  const widthFace: InternalStyleFace | undefined = width !== undefined && width > 0 && inferBackend(spec) === 'default'
-    ? { node: { lineWidth: width }, edge: { lineWidth: width }, group: { lineWidth: width } }
-    : undefined
-  return mergeFace(widthFace, spec.face)
+  const roles = spec.roles ? Object.fromEntries(Object.entries(spec.roles).map(([role, value]) => [role, compiledRoleStyle(value)])) as RoleStyles : undefined
+  const node = { ...(width !== undefined && width > 0 && inferBackend(spec) === 'default' ? { lineWidth: width } : {}), ...roles?.node }
+  const edge = { ...(width !== undefined && width > 0 && inferBackend(spec) === 'default' ? { lineWidth: width } : {}), ...roles?.edge }
+  const group = { ...(width !== undefined && width > 0 && inferBackend(spec) === 'default' ? { lineWidth: width } : {}), ...roles?.group }
+  if (!roles && !spec.semanticSlots && !spec.bindings && !spec.constraints
+    && Object.keys(node).length === 0 && Object.keys(edge).length === 0 && Object.keys(group).length === 0) return undefined
+  return {
+    ...(roles ? { roles: frozenRoleStyles(roles) } : {}),
+    ...(spec.semanticSlots ? { semanticSlots: frozenSemanticSlots(spec.semanticSlots) } : {}),
+    ...(spec.bindings ? { bindings: frozenPolicyList(spec.bindings) } : {}),
+    ...(spec.constraints ? { constraints: frozenPolicyList(spec.constraints) } : {}),
+    ...(roles?.label ? { text: { ...roles.label } } : {}),
+    ...(Object.keys(node).length ? { node } : {}),
+    ...(Object.keys(edge).length ? { edge } : {}),
+    ...(Object.keys(group).length ? { group } : {}),
+  }
+}
+
+export type SemanticBindingContext = Readonly<SemanticChannels & Partial<Record<'class' | 'tag' | 'metadata', string | readonly string[]>>>
+
+function bindingMatches(binding: SemanticBinding, context: SemanticBindingContext): boolean {
+  const candidate = context[binding.channel]
+  return Array.isArray(candidate) ? candidate.includes(binding.value) : String(candidate ?? '') === binding.value
+}
+
+/** Shared pre-serialization resolver. Exact role leaves and ordered semantic
+ * slots refine the deterministic fallback; family-authored values are applied
+ * afterwards by the lowering and therefore remain authoritative. */
+export function resolveRoleStyle(
+  face: Readonly<InternalStyleFace> | undefined,
+  role: BuiltinSceneRole,
+  context: SemanticBindingContext = {},
+): Readonly<RoleStyleSpec> | undefined {
+  const descriptor = SCENE_ROLE_DESCRIPTORS.find(candidate => candidate.role === role)
+  const fallback = descriptor ? face?.roles?.[descriptor.style.fallbackRole] : undefined
+  const exact = face?.roles?.[role]
+  let merged: RoleStyleSpec | undefined = fallback || exact ? { ...fallback, ...exact } : undefined
+  const applicable: ReadonlySet<string> = new Set(descriptor?.style.applicableProperties ?? [])
+  for (const binding of face?.bindings ?? []) {
+    if (binding.role !== undefined && binding.role !== role) continue
+    if (!bindingMatches(binding, context)) continue
+    const slot = face?.semanticSlots?.[binding.slot]
+    if (!slot) continue // final-stack admission makes this unreachable
+    const projected = Object.fromEntries(Object.entries(slot).filter(([property]) => applicable.has(property))) as RoleStyleSpec
+    merged = { ...merged, ...projected }
+  }
+  return merged ? Object.freeze(merged) : undefined
 }
 
 /** Validate dependencies only after composition: a fragment may deliberately
@@ -493,6 +580,16 @@ function internalStyleFace(spec: InternalStyleSpec): InternalStyleFace | undefin
  * The final stack, however, must not carry customization that merely changes
  * receipt identity while producing no corresponding projection. */
 function assertRealizedStyleSpec(spec: InternalStyleSpec): void {
+  for (const [index, binding] of (spec.bindings ?? []).entries()) {
+    const slot = spec.semanticSlots?.[binding.slot]
+    if (!slot) throw new Error(`Invalid style spec: binding ${index + 1} references missing semantic slot "${binding.slot}"`)
+    if (binding.role !== undefined) {
+      const descriptor = SCENE_ROLE_DESCRIPTORS.find(candidate => candidate.role === binding.role)!
+      const applicable: ReadonlySet<string> = new Set(descriptor.style.applicableProperties)
+      const invalid = Object.keys(slot).find(property => !applicable.has(property))
+      if (invalid) throw new Error(`Invalid style spec: semantic slot "${binding.slot}" field "${invalid}" is not applicable to role "${binding.role}"`)
+    }
+  }
   const hachureFields = ['hachureAngle', 'hachureGap', 'fillWeight'] as const
   const inactiveHachure = hachureFields.filter(field => spec[field] !== undefined && spec.fill !== 'hachure')
   if (inactiveHachure.length > 0) {
@@ -526,15 +623,6 @@ export function resolveStyleStackWithFace(
   })
 }
 
-/** Private reader for renderer/layout defaults attached to built-in styles. */
-export function styleFaceOf(input: StyleInput | StyleInput[] | undefined): InternalStyleFace | undefined {
-  return withStyleAdmission(() => {
-    const spec = resolveInternalStyleStack(input)
-    if (spec === undefined) return undefined
-    return internalStyleFace(spec)
-  })
-}
-
 /** A colors-only style is a Palette; anything that also sets stroke, fill, or
  * typography is a Look. "theme" remains prose and diagnosed legacy input,
  * never a published registry kind. */
@@ -549,6 +637,10 @@ export function isStyledSpec(spec: StyleSpec): boolean {
     || spec.colors !== undefined
     || spec.font !== undefined
     || spec.strokeWidth !== undefined
+    || spec.roles !== undefined
+    || spec.semanticSlots !== undefined
+    || spec.bindings !== undefined
+    || spec.constraints !== undefined
 }
 
 // ----------------------------------------------------------------------------
@@ -700,7 +792,7 @@ registerBuiltInStyle({
   intent: 'premium',
   colors: { bg: '#fffff8', fg: '#111111', line: '#4a4a45', accent: '#a00000', muted: '#6b6b64', border: '#8a8a80' },
   font: 'EB Garamond',
-  face: {
+  roles: {
     node: { lineWidth: 0.8, cornerRadius: 0 },
     edge: { lineWidth: 0.8 },
     group: { lineWidth: 0.8 },
@@ -714,7 +806,7 @@ registerBuiltInStyle({
   blurb: 'Accessibility-first: large labels, heavy strokes, white ground, colorblind-safe blue accent.',
   intent: 'premium',
   colors: { bg: '#ffffff', fg: '#050505', line: '#111111', accent: '#005fcc', muted: '#333333', surface: '#ffffff', border: '#050505' },
-  face: {
+  roles: {
     node: { fontSize: 17, fontWeight: 700, textColor: 'var(--fg)', paddingX: 28, paddingY: 16, cornerRadius: 8, lineWidth: 2.4, borderColor: 'var(--fg)' },
     edge: { fontSize: 14, fontWeight: 700, textColor: 'var(--fg)', lineWidth: 2.6, bendRadius: 10, strokeColor: 'var(--fg)' },
     group: { fontSize: 14, fontWeight: 700, textColor: 'var(--fg)', paddingX: 24, paddingY: 22, cornerRadius: 8, lineWidth: 2.2, borderColor: 'var(--fg)' },
@@ -737,7 +829,7 @@ registerBuiltInStyle({
   hachureAngle: -50,
   hachureGap: 7,
   fillWeight: 0.65,
-  face: {
+  roles: {
     node: { fontSize: 14, fontWeight: 600, textColor: 'var(--fg)', paddingX: 24, paddingY: 13, lineWidth: 1.35, cornerRadius: 0, borderColor: 'var(--fg)' },
     edge: { fontSize: 12, textColor: 'var(--fg)', lineWidth: 1.45, bendRadius: 0, strokeColor: 'var(--fg)' },
     group: { fontSize: 12, fontWeight: 700, textColor: 'var(--fg)', paddingX: 22, paddingY: 18, lineWidth: 1.35, cornerRadius: 0, borderColor: 'var(--fg)' },
@@ -751,7 +843,7 @@ registerBuiltInStyle({
   blurb: 'Operational dashboard: dark surface, rounded modules, bright status-friendly accent.',
   intent: 'premium',
   colors: { bg: '#08111f', fg: '#e6f4ff', line: '#5a7c99', accent: '#2dd4bf', muted: '#8aa6bf', surface: '#102033', border: '#2e4c63' },
-  face: {
+  roles: {
     node: { fontSize: 14, fontWeight: 700, textColor: 'var(--fg)', paddingX: 24, paddingY: 13, cornerRadius: 10, lineWidth: 1.4, borderColor: 'var(--fg)' },
     edge: { fontSize: 12, fontWeight: 600, textColor: 'var(--fg)', lineWidth: 2, bendRadius: 14, strokeColor: 'var(--fg)' },
     group: { fontSize: 13, fontWeight: 700, textColor: 'var(--fg)', textTransform: 'uppercase', letterSpacing: 0.06, paddingX: 22, paddingY: 20, cornerRadius: 10, lineWidth: 1.3, borderColor: 'var(--fg)' },
@@ -771,7 +863,7 @@ registerBuiltInStyle({
   passes: 1,
   strokeWidth: 1.6,
   fill: 'none',
-  face: {
+  roles: {
     node: { fontSize: 12, fontWeight: 700, textTransform: 'uppercase', textColor: 'var(--fg)', paddingX: 16, paddingY: 8, cornerRadius: 2, lineWidth: 1.6, borderColor: 'var(--fg)' },
     edge: { fontSize: 10, fontWeight: 700, textTransform: 'uppercase', textColor: 'var(--fg)', lineWidth: 1.8, bendRadius: 0, strokeColor: 'var(--fg)' },
     group: { fontSize: 11, fontWeight: 700, textColor: 'var(--fg)', textTransform: 'uppercase', letterSpacing: 0.05, paddingX: 16, paddingY: 16, cornerRadius: 2, lineWidth: 1.5, borderColor: 'var(--fg)' },
@@ -791,7 +883,7 @@ registerBuiltInStyle({
   passes: 2,
   strokeWidth: 1.9,
   fill: 'none',
-  face: {
+  roles: {
     node: { fontSize: 16, fontWeight: 700, textColor: 'var(--fg)', paddingX: 24, paddingY: 12, borderColor: 'var(--fg)' },
     edge: { fontSize: 13, textColor: 'var(--fg)', lineWidth: 1.8, strokeColor: 'var(--fg)' },
     group: { fontSize: 14, fontWeight: 700, textColor: 'var(--fg)', paddingX: 20, paddingY: 20, lineWidth: 1.7, borderColor: 'var(--fg)' },
@@ -815,7 +907,7 @@ registerBuiltInStyle({
   hachureAngle: 18,
   hachureGap: 6.5,
   fillWeight: 0.75,
-  face: {
+  roles: {
     node: { fontSize: 14, fontWeight: 700, textColor: 'var(--fg)', paddingX: 24, paddingY: 13, cornerRadius: 3, borderColor: 'var(--fg)' },
     edge: { fontSize: 12, textColor: 'var(--fg)', lineWidth: 1.5, strokeColor: 'var(--fg)' },
     group: { fontSize: 13, fontWeight: 700, textColor: 'var(--fg)', paddingX: 22, paddingY: 18, cornerRadius: 3, borderColor: 'var(--fg)' },
@@ -835,7 +927,7 @@ registerBuiltInStyle({
   passes: 1,
   strokeWidth: 1.45,
   fill: 'none',
-  face: {
+  roles: {
     node: { fontSize: 12, fontWeight: 700, textTransform: 'uppercase', textColor: 'var(--fg)', paddingX: 20, paddingY: 10, cornerRadius: 0, lineWidth: 1.45, borderColor: 'var(--fg)' },
     edge: { fontSize: 10, fontWeight: 700, textTransform: 'uppercase', textColor: 'var(--fg)', lineWidth: 1.55, bendRadius: 0, strokeColor: 'var(--fg)' },
     group: { fontSize: 11, fontWeight: 700, textColor: 'var(--fg)', textTransform: 'uppercase', letterSpacing: 0.06, paddingX: 20, paddingY: 20, cornerRadius: 0, lineWidth: 1.45, borderColor: 'var(--fg)' },
@@ -850,7 +942,7 @@ registerBuiltInStyle({
   colors: { bg: '#fffdf8', fg: '#171512', line: '#24211d', accent: '#1d4ed8', muted: '#5f5a52', surface: '#faf5ea', border: '#24211d' },
   font: 'EB Garamond',
   strokeWidth: 1.45,
-  face: {
+  roles: {
     node: { fontSize: 15, fontWeight: 700, textColor: 'var(--fg)', paddingX: 26, paddingY: 14, cornerRadius: 7, lineWidth: 1.45, borderColor: 'var(--fg)' },
     edge: { fontSize: 12, fontWeight: 600, textColor: 'var(--fg)', lineWidth: 1.45, bendRadius: 8, strokeColor: 'var(--fg)' },
     group: { fontSize: 12, fontWeight: 700, textColor: 'var(--fg)', textTransform: 'uppercase', letterSpacing: 0.08, paddingX: 24, paddingY: 22, cornerRadius: 7, lineWidth: 1.35, borderColor: 'var(--fg)' },

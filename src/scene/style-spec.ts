@@ -1,5 +1,6 @@
-import { safeCssColor } from '../shared/css-color.ts'
+import { safeCssColor, safeCssPaint } from '../shared/css-color.ts'
 import { safeCssFontFamily } from '../shared/css-font.ts'
+import { SCENE_ROLE_DESCRIPTORS, type BuiltinSceneRole } from './roles.ts'
 
 /**
  * The persisted StyleSpec wire format. Inputs may omit the version; registry
@@ -7,7 +8,7 @@ import { safeCssFontFamily } from '../shared/css-font.ts'
  */
 export const STYLE_SPEC_FORMAT_VERSION = 1 as const
 
-type FieldGroup = 'metadata' | 'palette' | 'typography' | 'stroke' | 'fill' | 'page' | 'advisory'
+type FieldGroup = 'metadata' | 'palette' | 'typography' | 'roles' | 'policy' | 'stroke' | 'fill' | 'page' | 'advisory'
 
 interface FieldBase {
   readonly group: FieldGroup
@@ -45,6 +46,13 @@ interface ColorsField extends FieldBase {
   readonly kind: 'colors'
 }
 
+interface RolesField extends FieldBase {
+  readonly kind: 'roles'
+}
+interface SemanticSlotsField extends FieldBase { readonly kind: 'semanticSlots' }
+interface BindingsField extends FieldBase { readonly kind: 'bindings' }
+interface ConstraintsField extends FieldBase { readonly kind: 'constraints' }
+
 type StyleFieldDescriptor =
   | ConstField
   | StringField
@@ -52,6 +60,10 @@ type StyleFieldDescriptor =
   | NumberField
   | EnumField
   | ColorsField
+  | RolesField
+  | SemanticSlotsField
+  | BindingsField
+  | ConstraintsField
 
 function deepFreeze<T>(value: T): T {
   if (typeof value !== 'object' || value === null || Object.isFrozen(value)) return value
@@ -77,6 +89,55 @@ export const STYLE_COLOR_TOKEN_DESCRIPTORS = deepFreeze({
 export type StyleColors = {
   -readonly [Key in keyof typeof STYLE_COLOR_TOKEN_DESCRIPTORS]?: string
 }
+
+/** Closed brand-neutral leaves available to applicable Scene roles. This one
+ * authority projects runtime admission, TypeScript, JSON Schema, docs, and
+ * the compiled layout face. */
+export const ROLE_STYLE_PROPERTY_DESCRIPTORS = deepFreeze({
+  fontFamily: { kind: 'font', description: 'Safe font family/stack.' },
+  fontSize: { kind: 'number', minimum: 1, maximum: 256, expected: 'between 1 and 256', description: 'Font size in SVG user units.' },
+  fontWeight: { kind: 'number', minimum: 1, maximum: 1000, expected: 'between 1 and 1000', description: 'CSS numeric font weight.' },
+  letterSpacing: { kind: 'number', minimum: -2, maximum: 4, expected: 'between -2 and 4', description: 'Letter spacing in em.' },
+  lineHeight: { kind: 'number', minimum: 0.5, maximum: 4, expected: 'between 0.5 and 4', description: 'Unitless line-height multiplier.' },
+  textTransform: { kind: 'enum', values: ['uppercase', 'lowercase', 'capitalize'], description: 'Text transformation.' },
+  textColor: { kind: 'color', description: 'Text paint.' },
+  paddingX: { kind: 'number', minimum: 0, maximum: 256, expected: 'between 0 and 256', description: 'Horizontal role padding.' },
+  paddingY: { kind: 'number', minimum: 0, maximum: 256, expected: 'between 0 and 256', description: 'Vertical role padding.' },
+  cornerRadius: { kind: 'number', minimum: 0, maximum: 256, expected: 'between 0 and 256', description: 'Applicable corner radius.' },
+  lineWidth: { kind: 'number', exclusiveMinimum: 0, maximum: 20, expected: 'greater than 0 and at most 20', description: 'Border or connector width.' },
+  bendRadius: { kind: 'number', minimum: 0, maximum: 256, expected: 'between 0 and 256', description: 'Applicable connector bend radius.' },
+  fillColor: { kind: 'color', description: 'Surface fill paint.' },
+  borderColor: { kind: 'color', description: 'Border paint.' },
+  strokeColor: { kind: 'color', description: 'Connector stroke paint.' },
+  headerFillColor: { kind: 'color', description: 'Group header surface paint.' },
+  elevation: { kind: 'enum', values: ['none', 'low', 'medium', 'high'], description: 'Bounded semantic elevation cue.' },
+  cue: { kind: 'enum', values: ['none', 'outline', 'double-line', 'pattern'], description: 'Non-color semantic cue.' },
+} as const)
+
+type RolePropertyDescriptor = (typeof ROLE_STYLE_PROPERTY_DESCRIPTORS)[keyof typeof ROLE_STYLE_PROPERTY_DESCRIPTORS]
+type RolePropertyValue<D> = D extends { readonly kind: 'number' } ? number
+  : D extends { readonly kind: 'font' | 'color' } ? string
+    : D extends { readonly kind: 'enum'; readonly values: readonly (infer V)[] } ? V
+      : never
+export type RoleStyleSpec = { -readonly [K in keyof typeof ROLE_STYLE_PROPERTY_DESCRIPTORS]?: RolePropertyValue<(typeof ROLE_STYLE_PROPERTY_DESCRIPTORS)[K]> }
+export type RoleStyles = Partial<Record<BuiltinSceneRole, RoleStyleSpec>>
+
+export const SEMANTIC_BINDING_CHANNELS = Object.freeze(['category', 'status', 'route', 'class', 'tag', 'metadata'] as const)
+export type SemanticBindingChannel = typeof SEMANTIC_BINDING_CHANNELS[number]
+export interface SemanticBinding {
+  readonly channel: SemanticBindingChannel
+  readonly value: string
+  readonly slot: string
+  readonly role?: BuiltinSceneRole
+}
+export type SemanticSlots = Readonly<Record<string, Readonly<RoleStyleSpec>>>
+export type BrandConstraintAction = 'warn' | 'error'
+export type BrandConstraint =
+  | { readonly kind: 'contrast'; readonly action: BrandConstraintAction; readonly role?: BuiltinSceneRole; readonly minimum?: number }
+  | { readonly kind: 'accent-area'; readonly action: BrandConstraintAction; readonly maxFraction: number }
+  | { readonly kind: 'mono-role'; readonly action: BrandConstraintAction; readonly role: BuiltinSceneRole }
+
+export const BRAND_CONSTRAINT_KINDS = Object.freeze(['contrast', 'accent-area', 'mono-role'] as const)
 
 /**
  * One authority for every public StyleSpec field and constraint. Keep
@@ -115,6 +176,23 @@ export const STYLE_SPEC_FIELD_DESCRIPTORS = deepFreeze({
     runtimeValidator: 'safeCssFontFamily',
     group: 'typography',
     description: 'Safe, non-fetching CSS font family or stack; the rendering environment supplies the font face.',
+  },
+  roles: {
+    kind: 'roles',
+    group: 'roles',
+    description: 'Partial semantic SceneRole defaults. Family-authored styling remains authoritative.',
+  },
+  semanticSlots: {
+    kind: 'semanticSlots', group: 'policy',
+    description: 'Named brand-neutral role-style slots selected by semantic bindings.',
+  },
+  bindings: {
+    kind: 'bindings', group: 'policy',
+    description: 'Ordered equality bindings from authored/domain meaning to semantic slots.',
+  },
+  constraints: {
+    kind: 'constraints', group: 'policy',
+    description: 'Closed inspect-only brand constraints with warn or error actions.',
   },
   stroke: {
     kind: 'enum',
@@ -190,7 +268,11 @@ type DescriptorValue<Descriptor> =
         : Descriptor extends { readonly kind: 'number' | 'integer' } ? number
           : Descriptor extends { readonly kind: 'enum'; readonly values: readonly (infer Value)[] } ? Value
             : Descriptor extends { readonly kind: 'colors' } ? StyleColors
-              : never
+              : Descriptor extends { readonly kind: 'roles' } ? RoleStyles
+                : Descriptor extends { readonly kind: 'semanticSlots' } ? SemanticSlots
+                  : Descriptor extends { readonly kind: 'bindings' } ? readonly SemanticBinding[]
+                    : Descriptor extends { readonly kind: 'constraints' } ? readonly BrandConstraint[]
+                      : never
 
 /** A partial, composable public description of how diagrams look. */
 export type StyleSpec = {
@@ -203,13 +285,112 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return prototype === Object.prototype || prototype === null
 }
 
-function numberIsValid(value: unknown, descriptor: NumberField): value is number {
+function numberIsValid(value: unknown, descriptor: Pick<NumberField, 'minimum' | 'exclusiveMinimum' | 'maximum'> & { kind?: string }): value is number {
   if (typeof value !== 'number' || !Number.isFinite(value)) return false
   if (descriptor.kind === 'integer' && !Number.isInteger(value)) return false
   if (descriptor.minimum !== undefined && value < descriptor.minimum) return false
   if (descriptor.exclusiveMinimum !== undefined && value <= descriptor.exclusiveMinimum) return false
   if (descriptor.maximum !== undefined && value > descriptor.maximum) return false
   return true
+}
+
+function safeRoleColor(value: unknown): value is string {
+  return typeof value === 'string' && safeCssPaint(value) !== undefined
+}
+
+const SCENE_ROLE_BY_NAME = new Map(SCENE_ROLE_DESCRIPTORS.map(descriptor => [descriptor.role, descriptor] as const))
+const SLOT_NAME = /^[A-Za-z][A-Za-z0-9._-]{0,63}$/
+const FORBIDDEN_RECORD_KEYS = new Set(['__proto__', 'constructor', 'prototype'])
+
+function validateRoleStyleRecord(raw: unknown, path: string, applicable?: ReadonlySet<string>): string[] {
+  if (!isPlainRecord(raw)) return [`"${path}" must be an object`]
+  const problems: string[] = []
+  for (const [property, candidate] of Object.entries(raw)) {
+    if (!Object.hasOwn(ROLE_STYLE_PROPERTY_DESCRIPTORS, property)) {
+      problems.push(`unknown role style field "${path.slice(path.indexOf('.') + 1)}.${property}"`)
+      continue
+    }
+    if (applicable && !applicable.has(property)) {
+      problems.push(`role style field "${path}.${property}" is not applicable`)
+      continue
+    }
+    const descriptor = (ROLE_STYLE_PROPERTY_DESCRIPTORS as Record<string, RolePropertyDescriptor>)[property]!
+    const leaf = `${path}.${property}`
+    if (candidate === undefined) continue
+    if (descriptor.kind === 'number' && !numberIsValid(candidate, descriptor)) problems.push(`"${leaf}" must be ${descriptor.expected}`)
+    else if (descriptor.kind === 'font' && (typeof candidate !== 'string' || safeCssFontFamily(candidate) === undefined)) problems.push(`"${leaf}" must be a safe non-fetching CSS font family or stack`)
+    else if (descriptor.kind === 'color' && !safeRoleColor(candidate)) problems.push(`"${leaf}" must be a safe non-fetching CSS paint`)
+    else if (descriptor.kind === 'enum' && (typeof candidate !== 'string' || !(descriptor.values as readonly string[]).includes(candidate))) problems.push(`"${leaf}" must be one of ${descriptor.values.join(' | ')}`)
+  }
+  return problems
+}
+
+function validateRoleStyles(value: unknown): string[] {
+  if (!isPlainRecord(value)) return ['"roles" must be an object of SceneRole records']
+  const problems: string[] = []
+  for (const [role, raw] of Object.entries(value)) {
+    const roleDescriptor = SCENE_ROLE_BY_NAME.get(role as BuiltinSceneRole)
+    if (!roleDescriptor) { problems.push(`unknown scene role "${role}"`); continue }
+    const applicable = new Set<string>(roleDescriptor.style.applicableProperties)
+    const roleProblems = validateRoleStyleRecord(raw, `roles.${role}`, applicable)
+      .map(problem => problem === `"roles.${role}" must be an object` ? problem
+        : problem.replace(`role style field "roles.${role}.`, `role style field "${role}.`)
+          .replace('" is not applicable', `" is not applicable to ${roleDescriptor.style.fallbackRole} roles`))
+    problems.push(...roleProblems)
+  }
+  return problems
+}
+
+function validSlotName(value: unknown): value is string {
+  return typeof value === 'string' && SLOT_NAME.test(value) && !FORBIDDEN_RECORD_KEYS.has(value)
+}
+
+function validateSemanticSlots(value: unknown): string[] {
+  if (!isPlainRecord(value)) return ['"semanticSlots" must be an object of named role-style slots']
+  const problems: string[] = []
+  for (const [slot, raw] of Object.entries(value)) {
+    if (!validSlotName(slot)) { problems.push(`invalid semantic slot name "${slot}"`); continue }
+    problems.push(...validateRoleStyleRecord(raw, `semanticSlots.${slot}`))
+  }
+  return problems
+}
+
+function validateBindings(value: unknown): string[] {
+  if (!Array.isArray(value)) return ['"bindings" must be an array']
+  const problems: string[] = []
+  value.forEach((raw, index) => {
+    const path = `bindings[${index}]`
+    if (!isPlainRecord(raw)) { problems.push(`"${path}" must be an object`); return }
+    for (const field of Object.keys(raw)) if (!['channel', 'value', 'slot', 'role'].includes(field)) problems.push(`unknown binding field "${path}.${field}"`)
+    if (typeof raw.channel !== 'string' || !(SEMANTIC_BINDING_CHANNELS as readonly string[]).includes(raw.channel)) problems.push(`"${path}.channel" must be one of ${SEMANTIC_BINDING_CHANNELS.join(' | ')}`)
+    if (typeof raw.value !== 'string' || raw.value.length === 0 || raw.value.length > 256 || /[\r\n\0]/.test(raw.value)) problems.push(`"${path}.value" must be a non-empty single-line string of at most 256 characters`)
+    if (!validSlotName(raw.slot)) problems.push(`"${path}.slot" must be a valid semantic slot name`)
+    if (raw.role !== undefined && !SCENE_ROLE_BY_NAME.has(raw.role as BuiltinSceneRole)) problems.push(`"${path}.role" must be a registered built-in SceneRole`)
+  })
+  return problems
+}
+
+function validateConstraints(value: unknown): string[] {
+  if (!Array.isArray(value)) return ['"constraints" must be an array']
+  const problems: string[] = []
+  value.forEach((raw, index) => {
+    const path = `constraints[${index}]`
+    if (!isPlainRecord(raw)) { problems.push(`"${path}" must be an object`); return }
+    if (typeof raw.kind !== 'string' || !(BRAND_CONSTRAINT_KINDS as readonly string[]).includes(raw.kind)) {
+      problems.push(`"${path}.kind" must be one of ${BRAND_CONSTRAINT_KINDS.join(' | ')}`)
+      return
+    }
+    const allowed = raw.kind === 'contrast' ? ['kind', 'action', 'role', 'minimum']
+      : raw.kind === 'accent-area' ? ['kind', 'action', 'maxFraction']
+        : ['kind', 'action', 'role']
+    for (const field of Object.keys(raw)) if (!allowed.includes(field)) problems.push(`unknown constraint field "${path}.${field}"`)
+    if (raw.action !== 'warn' && raw.action !== 'error') problems.push(`"${path}.action" must be one of warn | error`)
+    if (raw.role !== undefined && !SCENE_ROLE_BY_NAME.has(raw.role as BuiltinSceneRole)) problems.push(`"${path}.role" must be a registered built-in SceneRole`)
+    if (raw.kind === 'contrast' && raw.minimum !== undefined && (!numberIsValid(raw.minimum, { minimum: 1, maximum: 21 }))) problems.push(`"${path}.minimum" must be between 1 and 21`)
+    if (raw.kind === 'accent-area' && !numberIsValid(raw.maxFraction, { minimum: 0, maximum: 1 })) problems.push(`"${path}.maxFraction" must be between 0 and 1`)
+    if (raw.kind === 'mono-role' && raw.role === undefined) problems.push(`"${path}.role" is required for mono-role`)
+  })
+  return problems
 }
 
 /**
@@ -251,6 +432,18 @@ export function validateStyleSpec(value: unknown): string[] {
           problems.push(`"${key}" must be one of ${descriptor.values.join(' | ')}`)
         }
         break
+      case 'roles':
+        problems.push(...validateRoleStyles(fieldValue))
+        break
+      case 'semanticSlots':
+        problems.push(...validateSemanticSlots(fieldValue))
+        break
+      case 'bindings':
+        problems.push(...validateBindings(fieldValue))
+        break
+      case 'constraints':
+        problems.push(...validateConstraints(fieldValue))
+        break
       case 'colors': {
         if (!isPlainRecord(fieldValue)) {
           problems.push('"colors" must be an object of color tokens')
@@ -269,6 +462,28 @@ export function validateStyleSpec(value: unknown): string[] {
 }
 
 type JsonSchema = Readonly<Record<string, unknown>>
+
+function rolePropertyJsonSchemas(): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(ROLE_STYLE_PROPERTY_DESCRIPTORS).map(([name, property]) => {
+    if (property.kind === 'number') {
+      const numeric = property as { minimum?: number; exclusiveMinimum?: number; maximum?: number; description: string }
+      return [name, { type: 'number', ...(numeric.minimum !== undefined ? { minimum: numeric.minimum } : {}), ...(numeric.exclusiveMinimum !== undefined ? { exclusiveMinimum: numeric.exclusiveMinimum } : {}), ...(numeric.maximum !== undefined ? { maximum: numeric.maximum } : {}), description: numeric.description }]
+    }
+    if (property.kind === 'enum') return [name, { type: 'string', enum: [...property.values], description: property.description }]
+    return [name, { type: 'string', description: property.description, 'x-agentic-mermaid-runtime-validator': property.kind === 'font' ? 'safeCssFontFamily' : 'safeCssPaint' }]
+  }))
+}
+
+function roleStyleJsonSchema(properties: readonly string[] = Object.keys(ROLE_STYLE_PROPERTY_DESCRIPTORS)): JsonSchema {
+  const schemas = rolePropertyJsonSchemas()
+  return { type: 'object', additionalProperties: false, properties: Object.fromEntries(properties.map(property => [property, schemas[property]])) }
+}
+
+function roleStyleDefinitionName(role: (typeof SCENE_ROLE_DESCRIPTORS)[number]): string {
+  return `roleStyle-${role.style.fallbackRole}`
+}
+
+const SLOT_NAME_PATTERN = '^[A-Za-z][A-Za-z0-9._-]{0,63}$'
 
 function fieldJsonSchema(descriptor: StyleFieldDescriptor): JsonSchema {
   switch (descriptor.kind) {
@@ -293,6 +508,42 @@ function fieldJsonSchema(descriptor: StyleFieldDescriptor): JsonSchema {
         ...(descriptor.maximum !== undefined ? { maximum: descriptor.maximum } : {}),
         description: descriptor.description,
       }
+    case 'roles':
+      return {
+        type: 'object', additionalProperties: false, description: descriptor.description,
+        properties: Object.fromEntries(SCENE_ROLE_DESCRIPTORS.map(role => [role.role, { $ref: `#/$defs/${roleStyleDefinitionName(role)}` }])),
+      }
+    case 'semanticSlots':
+      return {
+        type: 'object', description: descriptor.description,
+        propertyNames: { pattern: SLOT_NAME_PATTERN, not: { enum: [...FORBIDDEN_RECORD_KEYS] } },
+        additionalProperties: { $ref: '#/$defs/roleStyle-any' },
+      }
+    case 'bindings':
+      return {
+        type: 'array', description: descriptor.description,
+        items: {
+          type: 'object', additionalProperties: false, required: ['channel', 'value', 'slot'],
+          properties: {
+            channel: { type: 'string', enum: [...SEMANTIC_BINDING_CHANNELS] },
+            value: { type: 'string', minLength: 1, maxLength: 256, pattern: '^[^\\r\\n\\u0000]+$' },
+            slot: { type: 'string', pattern: SLOT_NAME_PATTERN },
+            role: { type: 'string', enum: SCENE_ROLE_DESCRIPTORS.map(role => role.role) },
+          },
+        },
+      }
+    case 'constraints': {
+      const action = { type: 'string', enum: ['warn', 'error'] }
+      const role = { type: 'string', enum: SCENE_ROLE_DESCRIPTORS.map(item => item.role) }
+      return {
+        type: 'array', description: descriptor.description,
+        items: { oneOf: [
+          { type: 'object', additionalProperties: false, required: ['kind', 'action'], properties: { kind: { const: 'contrast' }, action, role, minimum: { type: 'number', minimum: 1, maximum: 21 } } },
+          { type: 'object', additionalProperties: false, required: ['kind', 'action', 'maxFraction'], properties: { kind: { const: 'accent-area' }, action, maxFraction: { type: 'number', minimum: 0, maximum: 1 } } },
+          { type: 'object', additionalProperties: false, required: ['kind', 'action', 'role'], properties: { kind: { const: 'mono-role' }, action, role } },
+        ] },
+      }
+    }
     case 'colors':
       return {
         type: 'object',
@@ -309,6 +560,12 @@ function fieldJsonSchema(descriptor: StyleFieldDescriptor): JsonSchema {
 
 /** JSON Schema projected from the same descriptors used at runtime. */
 export function styleSpecJsonSchema(): JsonSchema {
+  const roleStyleDefinitions = Object.fromEntries(
+    ['node', 'edge', 'group', 'label'].map(fallback => {
+      const descriptor = SCENE_ROLE_DESCRIPTORS.find(role => role.role === fallback)!
+      return [`roleStyle-${fallback}`, roleStyleJsonSchema(descriptor.style.applicableProperties)]
+    }),
+  )
   return {
     $schema: 'https://json-schema.org/draft/2020-12/schema',
     $id: 'https://agentic-mermaid.dev/schemas/style-spec.schema.json',
@@ -317,6 +574,7 @@ export function styleSpecJsonSchema(): JsonSchema {
     type: 'object',
     additionalProperties: false,
     properties: Object.fromEntries(Object.entries(STYLE_SPEC_FIELD_DESCRIPTORS).map(([name, descriptor]) => [name, fieldJsonSchema(descriptor)])),
+    $defs: { ...roleStyleDefinitions, 'roleStyle-any': roleStyleJsonSchema() },
   }
 }
 
@@ -335,6 +593,10 @@ function fieldTypeLabel(descriptor: StyleFieldDescriptor): string {
       return [`\`${descriptor.kind}\``, ...constraints].join('; ')
     }
     case 'enum': return descriptor.values.map(value => `\`${value}\``).join(' \\| ')
+    case 'roles': return `object: partial records keyed by registered \`SceneRole\``
+    case 'semanticSlots': return '`Record<string, RoleStyleSpec>`'
+    case 'bindings': return '`SemanticBinding[]`'
+    case 'constraints': return '`BrandConstraint[]`'
     case 'colors': return `object: ${Object.keys(STYLE_COLOR_TOKEN_DESCRIPTORS).map(token => `\`${token}\``).join(', ')}`
   }
 }

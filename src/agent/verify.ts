@@ -11,7 +11,7 @@ import { parseMermaid as parseValidDiagram, parseRegisteredMermaid } from './par
 import { serializeMermaid } from './serialize.ts'
 import { logToolInvocation } from './trace-log.ts'
 import { countStructuralElements, faithfulnessWarning } from './structural-count.ts'
-import { renderPositionedMermaidSVG } from '../graphical-render.ts'
+import { lowerPositionedFamilyScene, renderPositionedMermaidSVG } from '../graphical-render.ts'
 import { auditRouteContracts, findRouteHitches } from '../route-contracts.ts'
 import type { PositionedGraph } from '../types.ts'
 import type {
@@ -41,6 +41,7 @@ import { familyConfigDiagnostics } from '../shared/family-config-diagnostics.ts'
 import { sequenceMessages } from './sequence-body.ts'
 import { sameExtensionIdentity } from '../shared/extension-identity.ts'
 import { wcagCssContrastRatio } from '../shared/color-math.ts'
+import { evaluateBrandConstraints } from '../scene/brand-constraints.ts'
 
 function familyConfigShapeWarnings(d: ValidDiagram): LayoutWarning[] {
   const roots: unknown[] = [d.meta.frontmatter, ...d.meta.initDirectives.map(directive => directive.parsed)]
@@ -110,7 +111,8 @@ export function verifyMermaid(input: ParsedDiagram | string, opts: VerifyOptions
   }
   const positioned = memoizedVerificationArtifact(parsed.value, opts)
   try {
-    return withRenderParity(verifyStructure(parsed.value, opts, positioned), opts, positioned)
+    const structured = verifyStructure(parsed.value, opts, positioned)
+    return withRenderParity(withBrandConstraints(structured, opts, positioned), opts, positioned)
   } catch (error) {
     if (!(error instanceof FamilyLayoutError)) throw error
     return finalize(
@@ -123,6 +125,32 @@ export function verifyMermaid(input: ParsedDiagram | string, opts: VerifyOptions
 }
 
 type VerificationArtifact = () => ProjectedFamilyArtifact | null
+
+function withBrandConstraints(
+  result: VerifyResult,
+  opts: VerifyOptions,
+  positioned: VerificationArtifact,
+): VerifyResult {
+  if (!result.ok) return result
+  try {
+    const artifact = positioned()
+    const constraints = artifact?.request.appearance.style?.constraints
+    if (!artifact || !constraints || constraints.length === 0) return result
+    const scene = lowerPositionedFamilyScene(artifact.request, artifact.layoutResult)
+    const suppressed = new Set(opts.suppress ?? [])
+    const warnings = evaluateBrandConstraints(scene, artifact.request)
+      .filter(warning => !suppressed.has(warning.code))
+    return {
+      ...result,
+      ok: result.ok && !warnings.some(warning => WARNING_SEVERITY[warning.code] === 'error'),
+      warnings: [...result.warnings, ...warnings],
+    }
+  } catch {
+    // The canonical render-parity gate owns layout/Scene failures. Constraint
+    // inspection never replaces that primary diagnosis.
+    return result
+  }
+}
 
 /** One lazy artifact per verify call; failures are memoized as well as values. */
 function memoizedVerificationArtifact(d: ParsedDiagram, opts: VerifyOptions): VerificationArtifact {

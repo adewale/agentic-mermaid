@@ -2754,6 +2754,16 @@ const WARNING_DETAIL: Record<string, { what: string; triggers: string; fix: stri
     fix: 'Choose a foreground or page color that meets the warning’s <code>minimum</code> ratio. The renderer preserves explicit authored paint, so re-run verify after changing the source rather than expecting an automatic repaint.',
     example: '---\nconfig:\n  themeVariables:\n    radar:\n      axisColor: "#dddddd"\n---\nradar-beta\n  axis speed, cost, safety\n  curve current{4,3,5}\n  max 5',
   },
+  BRAND_CONSTRAINT_WARNING: {
+    what: 'an explicitly requested inspect-only Brand constraint failed or could not be measured.',
+    triggers: 'A StyleSpec <code>contrast</code>, <code>accent-area</code>, or <code>mono-role</code> constraint with <code>action: "warn"</code> inspects final Scene paint. Transparent or unresolved compositing contexts report unmeasurable evidence without inventing a ratio.',
+    fix: 'Inspect the structured measurement payload and adjust the role/slot paint or the constraint threshold. The renderer deliberately preserves the authored artifact and never repaints or relayouts it.',
+  },
+  BRAND_CONSTRAINT_ERROR: {
+    what: 'a caller-selected Brand constraint failed with error action and therefore blocks verification.',
+    triggers: 'The same final-Scene rules as <code>BRAND_CONSTRAINT_WARNING</code>, selected with <code>action: "error"</code> when a project wants its declared brand policy to flip <code>verify.ok</code>.',
+    fix: 'Correct the StyleSpec or diagram paint named by the payload, or deliberately change that constraint to <code>action: "warn"</code>. Suppression does not repair the visual issue.',
+  },
 }
 
 // Fold the warning prose into capabilities.warningCodes so capabilities.json is

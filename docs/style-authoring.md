@@ -95,6 +95,10 @@ compatibility alias.
 | metadata | `blurb` | `string` | Short human-readable description used by discovery surfaces. |
 | palette | `colors` | object: `bg`, `fg`, `line`, `accent`, `muted`, `surface`, `border` | Partial palette of safe, non-fetching CSS color tokens. |
 | typography | `font` | `string` | Safe, non-fetching CSS font family or stack; the rendering environment supplies the font face. |
+| roles | `roles` | object: partial records keyed by registered `SceneRole` | Partial semantic SceneRole defaults. Family-authored styling remains authoritative. |
+| policy | `semanticSlots` | `Record<string, RoleStyleSpec>` | Named brand-neutral role-style slots selected by semantic bindings. |
+| policy | `bindings` | `SemanticBinding[]` | Ordered equality bindings from authored/domain meaning to semantic slots. |
+| policy | `constraints` | `BrandConstraint[]` | Closed inspect-only brand constraints with warn or error actions. |
 | stroke | `stroke` | `crisp` \| `jittered` \| `freehand` | Stroke treatment; crisp is the default renderer. |
 | stroke | `roughness` | `number`; minimum 0; maximum 10 | Rough.js stroke irregularity. |
 | stroke | `bowing` | `number`; minimum 0; maximum 10 | Rough.js line bowing. |

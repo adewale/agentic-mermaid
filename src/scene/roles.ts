@@ -5,6 +5,7 @@
  */
 
 import { createExtensionIdentity, type ExtensionIdentity } from '../shared/extension-identity.ts'
+import type { RoleStyleSpec } from './style-spec.ts'
 
 export type CoreSceneRole =
   | 'node' | 'edge' | 'edge-label' | 'group' | 'group-header' | 'label'
@@ -124,16 +125,44 @@ export interface ResolvedSceneRoleTraits {
   source: 'builtin' | 'namespaced-safe'
 }
 
+export type RoleStyleProperty = keyof RoleStyleSpec
+export interface SceneRoleStyleDescriptor {
+  readonly fallbackRole: BuiltinSceneRole
+  readonly applicableProperties: readonly RoleStyleProperty[]
+}
 export interface SceneRoleDescriptor {
   readonly identity: ExtensionIdentity<'role'>
   readonly role: BuiltinSceneRole
   readonly traits: SceneRoleTraits
+  readonly style: SceneRoleStyleDescriptor
 }
 
-/** Canonical discovery/identity projection derived from the trait authority. */
+const TEXT_STYLE = Object.freeze(['fontFamily', 'fontSize', 'fontWeight', 'letterSpacing', 'lineHeight', 'textTransform', 'textColor', 'cue'] as const)
+const SHAPE_STYLE = Object.freeze(['paddingX', 'paddingY', 'cornerRadius', 'lineWidth', 'fillColor', 'borderColor', 'elevation', 'cue'] as const)
+const CONNECTOR_STYLE = Object.freeze(['lineWidth', 'bendRadius', 'strokeColor', 'cue'] as const)
+const GROUP_STYLE = Object.freeze([...TEXT_STYLE, ...SHAPE_STYLE, 'headerFillColor'] as const)
+function fallbackRole(role: BuiltinSceneRole, roleTraits: SceneRoleTraits): BuiltinSceneRole {
+  if (role === 'node' || role === 'edge' || role === 'group' || role === 'label') return role
+  if (roleTraits.applicableKinds.includes('connector')) return 'edge'
+  if (roleTraits.applicableKinds.includes('group')) return 'group'
+  if (roleTraits.applicableKinds.includes('shape')) return 'node'
+  return 'label'
+}
+function applicableStyle(fallback: BuiltinSceneRole): readonly RoleStyleProperty[] {
+  // A semantic wrapper may own the typography of child text even when its own
+  // Scene mark kind is shape/group. Applicability therefore follows the
+  // descriptor's brand fallback contract, not only the physical mark kind.
+  if (fallback === 'node') return Object.freeze([...TEXT_STYLE, ...SHAPE_STYLE])
+  if (fallback === 'edge') return Object.freeze([...TEXT_STYLE, ...CONNECTOR_STYLE])
+  if (fallback === 'group') return GROUP_STYLE
+  return TEXT_STYLE
+}
+
+/** Canonical discovery/identity/style projection derived from the trait authority. */
 export const SCENE_ROLE_DESCRIPTORS: readonly SceneRoleDescriptor[] = Object.freeze(
   Object.entries(BUILTIN_SCENE_ROLE_TRAITS).map(([role, roleTraits]) => Object.freeze({
     identity: createExtensionIdentity({
+
       id: `role:${role}`,
       kind: 'role',
       version: '1.0.0',
@@ -142,6 +171,13 @@ export const SCENE_ROLE_DESCRIPTORS: readonly SceneRoleDescriptor[] = Object.fre
     }),
     role: role as BuiltinSceneRole,
     traits: roleTraits,
+    style: (() => {
+      const fallback = fallbackRole(role as BuiltinSceneRole, roleTraits)
+      return Object.freeze({
+        fallbackRole: fallback,
+        applicableProperties: applicableStyle(fallback),
+      })
+    })(),
   })),
 )
 

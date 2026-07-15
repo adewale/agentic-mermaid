@@ -3,7 +3,7 @@
 import type { FamilyDescriptor } from '../agent/families.ts'
 import { isExternalFamilyId } from '../agent/families.ts'
 import { sceneNodePrimitives } from './capabilities.ts'
-import type { SceneDoc, SceneNode } from './ir.ts'
+import type { SceneDoc, SceneNode, SemanticChannelName } from './ir.ts'
 import {
   EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS,
   snapshotBoundedExternalData,
@@ -54,6 +54,7 @@ export function admitFamilyScene(descriptor: FamilyDescriptor, value: unknown): 
   }
 
   const roles = new Set(descriptor.semanticRoles)
+  const channels = new Set(descriptor.semanticChannels)
   const evidence = new Map(descriptor.scenePrimitiveEvidence.map(cell => [
     `${cell.role}\u0000${cell.primitive}`,
     cell,
@@ -66,6 +67,15 @@ export function admitFamilyScene(descriptor: FamilyDescriptor, value: unknown): 
         message: `emitted undeclared role "${node.role}"`,
       })
       return
+    }
+    for (const channel of Object.keys(node.channels ?? {})) {
+      if (!channels.has(channel as SemanticChannelName)) {
+        diagnostics.push({
+          code: 'SCENE_CHANNEL_CLAIM',
+          path: `${path}.channels.${channel}`,
+          message: `emitted undeclared semantic channel "${channel}"`,
+        })
+      }
     }
     for (const primitive of sceneNodePrimitives(node)) {
       const claim = evidence.get(`${node.role}\u0000${primitive}`)
