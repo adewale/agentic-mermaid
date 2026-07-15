@@ -343,6 +343,7 @@ describe('Section A capability report', () => {
       applicableRenderOptions: ['componentSpacing'],
       detect: line => /^(?:requirementdiagram|reportprobediagram)(?:\s|$)/.test(line),
       semanticRoles: [],
+      semanticChannels: [],
       scenePrimitiveEvidence: [],
       capabilityEvidence: [
         { capability: 'detection', state: 'native', evidence: ['src/__tests__/section-a-capability-report.test.ts'] },

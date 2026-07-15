@@ -26,6 +26,7 @@ import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
 import { colorizeText } from './ansi.ts'
 import { padEndToVisualWidth, visualWidth } from './width.ts'
 import { wrapText } from './wrap.ts'
+import { resolveRoleStyle, type InternalStyleFace } from '../scene/style-registry.ts'
 
 /** Maximum bar length in characters (the largest slice fills this). */
 const MAX_BAR = 30
@@ -38,6 +39,7 @@ export function renderPieAscii(
   frontmatter: MermaidFrontmatterMap = {},
   targetWidth?: number,
   resolvedVisual?: PieVisualConfig,
+  styleFace?: InternalStyleFace,
 ): string {
   const chart = parsePieChart(lines)
   const barChar = config.useAscii ? '#' : '█'
@@ -55,6 +57,11 @@ export function renderPieAscii(
     overrides: visual.paletteOverrides,
   })
 
+  const semanticRoles = chart.entries.map(entry => resolveRoleStyle(styleFace, 'pie-slice', {
+    category: entry.label,
+    value: entry.value,
+  }, { includeFallback: false }))
+  const hasSemanticCue = semanticRoles.some(role => role?.cue !== undefined && role.cue !== 'none')
   const maxValue = Math.max(...chart.entries.map(e => e.value))
   const valueWidths = chart.entries.map(entry => chart.showData ? visualWidth(`  [${formatPieValue(entry.value)}]`) : 0)
   const fixedWidth = 2 + MAX_BAR + 2 + 6 + Math.max(0, ...valueWidths)
@@ -80,7 +87,14 @@ export function renderPieAscii(
       out.push(padEndToVisualWidth(linesForEntry[lineIndex]!, labelWidth))
     }
     const highlighted = staticHighlight === entry.label
-    const marker = highlighted ? '> ' : staticHighlight !== undefined ? '  ' : ''
+    const cue = semanticRoles[index]?.cue ?? 'none'
+    const cueMarker = cue === 'outline' ? (config.useAscii ? '* ' : '◇ ')
+      : cue === 'double-line' ? '= '
+      : cue === 'pattern' ? (config.useAscii ? '# ' : '░ ')
+      : ''
+    // The family-owned highlight selector remains authoritative. A brand cue
+    // may style any category, but it cannot displace the explicit `>` target.
+    const marker = highlighted ? '> ' : cueMarker || (staticHighlight !== undefined || hasSemanticCue ? '  ' : '')
     const label = padEndToVisualWidth(linesForEntry.at(-1) ?? '', labelWidth)
     out.push(`${marker}${label}  ${coloredBar}${barPad}${pct}${valuePart}`)
   })

@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "status": "approved",
+  "reviewedAt": "2026-07-15",
+  "reviewer": "OpenAI coding agent, at the user's explicit request",
+  "scope": "Native deterministic cookbook renders for all three documentation-only brand-inspired public StyleSpec prototypes; reviewed for readable labels, contained geometry, visible semantic binding/cue effects, and consistency with the stated non-endorsement/non-equivalence boundaries.",
+  "artifacts": [
+    {
+      "id": "cupertino-prototype",
+      "path": "docs/assets/style-cookbook/cupertino-prototype.png",
+      "sha256": "d3181333d7cbda8f949083e058c5fb50cff68ad4cfd76e4893e7de603162a019"
+    },
+    {
+      "id": "vercel-inspired-prototype",
+      "path": "docs/assets/style-cookbook/vercel-inspired-prototype.png",
+      "sha256": "e12e886aa19a38659635144b0f3f1f31e8f26c090e9809ebb2ad8f8874497ef3"
+    },
+    {
+      "id": "cloudflare-workers-inspired-prototype",
+      "path": "docs/assets/style-cookbook/cloudflare-workers-inspired-prototype.png",
+      "sha256": "74b802dd577b3be9732b122e769d581df77fdd83864efdb27b3b980a70c0dc17"
+    }
+  ],
+  "limitations": "These are static documentation prototypes, not built-in Looks, BrandPacks, endorsements, proprietary-asset reproductions, or exhaustive design-system equivalence claims."
+}

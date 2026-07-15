@@ -15,6 +15,7 @@
 
 import { isWideRange, isZeroWidth, VS_EMOJI, VS_TEXT } from './shared/unicode-ranges.ts'
 import { HAS_FORMAT_TAGS, parseInlineFormatting } from './shared/inline-format.ts'
+import { graphemes } from './shared/graphemes.ts'
 
 /**
  * Narrow characters - visually thin glyphs.
@@ -212,10 +213,18 @@ export function measureSystemFontSafeTextWidth(text: string, fontSize: number, f
 /** Measure normalized inline formatting with the actual weight of each run.
  * Italic/decorations do not materially change this estimator's advance width;
  * bold runs use at least weight 700. */
-export function measureFormattedTextWidth(text: string, fontSize: number, fontWeight: number): number {
-  if (!HAS_FORMAT_TAGS.test(text)) return measureTextWidth(text, fontSize, fontWeight)
-  return parseInlineFormatting(text).reduce((width, segment) =>
+export function measureFormattedTextWidth(
+  text: string,
+  fontSize: number,
+  fontWeight: number,
+  letterSpacing = 0,
+): number {
+  const segments = HAS_FORMAT_TAGS.test(text) ? parseInlineFormatting(text) : [{ text, bold: false }]
+  const glyphText = segments.map(segment => segment.text).join('')
+  const tracking = Math.max(0, graphemes(glyphText).length - 1) * letterSpacing
+  const measured = segments.reduce((width, segment) =>
     width + measureTextWidth(segment.text, fontSize, segment.bold ? Math.max(700, fontWeight) : fontWeight), 0)
+  return Math.max(0, measured + tracking)
 }
 
 // ============================================================================
@@ -246,12 +255,14 @@ export interface MultilineMetrics {
  * @param text - The text to measure (may contain \n)
  * @param fontSize - Font size in pixels
  * @param fontWeight - Font weight (affects width slightly)
+ * @param letterSpacing - CSS/SVG tracking applied between rendered grapheme clusters
  * @returns Metrics including width, height, lines array, and lineHeight
  */
 export function measureMultilineText(
   text: string,
   fontSize: number,
-  fontWeight: number
+  fontWeight: number,
+  letterSpacing = 0,
 ): MultilineMetrics {
   const lines = text.split('\n')
   const lineHeight = fontSize * LINE_HEIGHT_RATIO
@@ -259,7 +270,7 @@ export function measureMultilineText(
   // Width = max of all line widths
   let maxWidth = 0
   for (const line of lines) {
-    const w = measureFormattedTextWidth(line, fontSize, fontWeight)
+    const w = measureFormattedTextWidth(line, fontSize, fontWeight, letterSpacing)
     if (w > maxWidth) maxWidth = w
   }
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import { existsSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
 
 import {
   build as buildContactSheet,
@@ -22,6 +23,8 @@ import {
   OUTPUT_PATH as FAMILY_ELEVATION_STYLE_PALETTE_PATH,
 } from '../../scripts/pr-assets/family-elevation-style-palette.ts'
 
+const ROOT = join(import.meta.dir, '..', '..')
+
 describe('characterisation generated artifacts', () => {
   it('contact sheets are in sync with their generators', () => {
     expect(readFileSync(CONTACT_SHEET_PATH, 'utf8')).toBe(buildContactSheet())
@@ -37,6 +40,14 @@ describe('characterisation generated artifacts', () => {
     expect(existsSync(FAMILY_ELEVATION_STYLE_PALETTE_PATH)).toBe(true)
     expect(readFileSync(FAMILY_ELEVATION_STYLE_PALETTE_PATH)).toEqual(Buffer.from(buildFamilyElevationStylePalettePng()))
   })
+
+  it('the interactive all-family Style contact sheet is in sync with its generator', () => {
+    const result = Bun.spawnSync([
+      'bun', 'run', 'scripts/pr-assets/style-switch-contact-sheet.ts', '--check',
+    ], { cwd: ROOT })
+    expect(result.exitCode, result.stderr.toString()).toBe(0)
+    expect(result.stdout.toString()).toContain('Style-switch contact sheet is synchronized')
+  }, 30_000)
 
   it('visual quality report and SVG snapshots are in sync with their generator', () => {
     for (const [path, expected] of buildVisualQualityArtifacts()) {

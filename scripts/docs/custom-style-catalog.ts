@@ -4,6 +4,8 @@ import { join } from 'node:path'
 export interface CustomStyleCatalogEntry {
   readonly id: string
   readonly style: string
+  /** Optional family-specific Mermaid fixture; defaults to catalog.sample. */
+  readonly sample?: string
   readonly screenshot: string
   readonly alt: string
   readonly summary: string
@@ -36,6 +38,9 @@ function loadCatalog(): CustomStyleCatalog {
         throw new Error(`custom-style catalog entry ${index} requires a non-empty ${field}`)
       }
     }
+    if (entry.sample !== undefined && (typeof entry.sample !== 'string' || entry.sample.trim() === '')) {
+      throw new Error(`custom-style catalog entry ${index} sample must be a non-empty string`)
+    }
     for (const field of ['id', 'style', 'screenshot'] as const) {
       if (seen[field].has(entry[field])) {
         throw new Error(`duplicate custom-style catalog ${field} "${entry[field]}"`)
@@ -66,6 +71,6 @@ export function customStyleScreenshotPath(entry: CustomStyleCatalogEntry): strin
   return join(CUSTOM_STYLE_SCREENSHOT_ROOT, entry.screenshot)
 }
 
-export function customStyleSamplePath(): string {
-  return join(CUSTOM_STYLE_ROOT, CUSTOM_STYLE_CATALOG.sample)
+export function customStyleSamplePath(entry?: CustomStyleCatalogEntry): string {
+  return join(CUSTOM_STYLE_ROOT, entry?.sample ?? CUSTOM_STYLE_CATALOG.sample)
 }

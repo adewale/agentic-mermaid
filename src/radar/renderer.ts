@@ -13,6 +13,7 @@ import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
 import { hashId } from '../scene/seed.ts'
+import { resolveRoleStyle } from '../scene/style-registry.ts'
 
 // ============================================================================
 // Radar chart SVG renderer
@@ -35,17 +36,18 @@ import { hashId } from '../scene/seed.ts'
 // single radar renders correctly across every built-in Palette (the renderer
 // re-derives fills from RenderContext.colors) and matches pie/xychart identity.
 //
-// Label ink is contrast-guarded (journey discipline): a configured concrete
-// axis/tick color is honored only when it clears WCAG-AA 4.5:1 on the page,
-// else it is nudged toward the page ink — and ring-value labels sit on a
-// page-colored knockout box so the default token reads over the silhouettes.
+// Derived label ink is contrast-guarded (journey discipline), while an
+// explicitly authored radar.axisColor remains authoritative and verify reports
+// low contrast without repainting it. Ring-value labels sit on a page-colored
+// knockout box so their derived default reads over the silhouettes.
 //
 // Deterministic: no Math.random / Date.now. All geometry comes from layout.
 // ============================================================================
 
-/** WCAG-AA (4.5:1) guard for label ink after alpha compositing. Unresolved CSS
- *  is uncertainty rather than proof, so it falls back to the best certifiable
- *  page ink. Exported for the discipline's red→green test. */
+/** WCAG-AA (4.5:1) guard for internally derived label ink after alpha
+ *  compositing. Authored colors bypass this helper and are diagnosed by verify
+ *  instead of being repainted. Unresolved CSS is uncertainty rather than proof,
+ *  so derived ink falls back to the best certifiable page color. */
 export function guardLabelInk(candidate: string, background: string, fallback: string): string {
   const candidateRatio = wcagCssContrastRatio(candidate, background)
   if (candidateRatio !== null && candidateRatio >= 4.5) return candidate
@@ -83,11 +85,12 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
   const graticuleOpacity = chart.visual.graticuleOpacity ?? 0.7
   const titleColor = chart.visual.titleColor ?? style.groupTextColor ?? style.nodeTextColor ?? 'var(--_text)'
   const dotStroke = style.nodeBorderColor ?? 'var(--bg)'
-  // Mermaid parity: an explicit radar.axisColor colors both spokes and labels.
-  // The default label candidate is page text, not the lower-contrast scaffold
-  // token; every candidate is certified after alpha compositing.
-  const axisTextCandidate = chart.visual.axisColor ?? style.edgeTextColor ?? colors.fg
-  const axisTextColor = guardLabelInk(axisTextCandidate, colors.bg, colors.fg)
+  // Mermaid parity and authored-style precedence: an explicit radar.axisColor
+  // colors both spokes and labels exactly as authored. Only the internally
+  // derived default is contrast-guarded; verify diagnoses a measurable authored
+  // contrast failure without silently changing the requested paint.
+  const axisTextColor = chart.visual.axisColor
+    ?? guardLabelInk(style.edgeTextColor ?? colors.fg, colors.bg, colors.fg)
   const tickTextColor = guardLabelInk(style.edgeTextColor ?? colors.fg, colors.bg, colors.fg)
 
   const accessibility = {
@@ -172,7 +175,15 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
   for (const [curveIndex, curve] of chart.curves.entries()) {
     if (curve.arityMismatch || curve.vertices.length === 0) continue
     const identity = curveIdentities[curveIndex]!
-    const fill = fills[curve.colorIndex]!
+    const channels = { category: curve.label }
+    const roleStyle = resolveRoleStyle(resolved.styleFace, 'pie-slice', channels, { includeFallback: false })
+    // Mermaid-authored cScaleN paint remains authoritative. Semantic policy is
+    // a default beneath it, never a post-resolution repaint.
+    const authoredFill = chart.visual.paletteOverrides?.[curve.colorIndex]
+    const fill = authoredFill ?? roleStyle?.fillColor ?? fills[curve.colorIndex]!
+    const stroke = authoredFill ?? roleStyle?.strokeColor ?? roleStyle?.borderColor ?? fill
+    const strokeWidth = roleStyle?.lineWidth ?? style.nodeLineWidth
+    const roleStyleAttr = roleStyle?.lineWidth !== undefined ? ` style="stroke-width:${strokeWidth}"` : ''
     if (chart.polygonGraticule) {
       const pts = curve.vertices.map(p => `${p.x},${p.y}`).join(' ')
       parts.push(marks.shape(
@@ -180,10 +191,10 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
           id: `curve:${identity}`,
           role: 'pie-slice',
           geometry: { kind: 'polygon', points: curve.vertices },
-          paint: { fill, stroke: fill, strokeWidth: String(style.nodeLineWidth), opacity: String(curveOpacity) },
-          channels: { category: curve.label },
+          paint: { fill, stroke, strokeWidth: String(strokeWidth), opacity: String(curveOpacity) },
+          channels,
         },
-        `<polygon class="radar-area" points="${pts}" fill="${escapeXml(fill)}" stroke="${escapeXml(fill)}" ` +
+        `<polygon class="radar-area" points="${pts}" fill="${escapeXml(fill)}" stroke="${escapeXml(stroke)}"${roleStyleAttr} ` +
           `fill-opacity="${curveOpacity}" data-curve="${escapeXml(curve.label)}" />`,
       ))
     } else {
@@ -192,10 +203,10 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
           id: `curve:${identity}`,
           role: 'pie-slice',
           geometry: { kind: 'path', d: curve.areaPath },
-          paint: { fill, stroke: fill, strokeWidth: String(style.nodeLineWidth), opacity: String(curveOpacity) },
-          channels: { category: curve.label },
+          paint: { fill, stroke, strokeWidth: String(strokeWidth), opacity: String(curveOpacity) },
+          channels,
         },
-        `<path class="radar-area" d="${curve.areaPath}" fill="${escapeXml(fill)}" stroke="${escapeXml(fill)}" ` +
+        `<path class="radar-area" d="${curve.areaPath}" fill="${escapeXml(fill)}" stroke="${escapeXml(stroke)}"${roleStyleAttr} ` +
           `fill-opacity="${curveOpacity}" data-curve="${escapeXml(curve.label)}" />`,
       ))
     }
@@ -205,17 +216,25 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
   for (const [curveIndex, curve] of chart.curves.entries()) {
     if (curve.arityMismatch) continue
     const identity = curveIdentities[curveIndex]!
-    const fill = fills[curve.colorIndex]!
+    const channels = { category: curve.label }
+    const roleStyle = resolveRoleStyle(resolved.styleFace, 'point', channels, { includeFallback: false })
+    const authoredFill = chart.visual.paletteOverrides?.[curve.colorIndex]
+    const fill = authoredFill ?? roleStyle?.fillColor ?? fills[curve.colorIndex]!
+    const stroke = roleStyle?.strokeColor ?? roleStyle?.borderColor ?? dotStroke
+    const strokeWidth = roleStyle?.lineWidth ?? 1.2
+    const roleStyleAttr = roleStyle
+      ? ` style="fill:${escapeXml(fill)};stroke:${escapeXml(stroke)};stroke-width:${strokeWidth}"`
+      : ''
     curve.vertices.forEach((v, vi) => {
       parts.push(marks.shape(
         {
           id: `dot:${identity}:${vi}`,
           role: 'point',
           geometry: { kind: 'circle', cx: v.x, cy: v.y, r: 3 },
-          paint: { fill, stroke: dotStroke, strokeWidth: '1.2' },
-          channels: { category: curve.label },
+          paint: { fill, stroke, strokeWidth: String(strokeWidth) },
+          channels,
         },
-        `<circle class="radar-dot" cx="${v.x}" cy="${v.y}" r="3" fill="${escapeXml(fill)}" />`,
+        `<circle class="radar-dot" cx="${v.x}" cy="${v.y}" r="3" fill="${escapeXml(fill)}"${roleStyleAttr} />`,
       ))
     })
   }
@@ -297,16 +316,24 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
 
   // Legend (wrapped labels, reserved row height).
   for (const item of chart.legend) {
-    const fill = fills[item.colorIndex]!
+    const channels = { category: item.label }
+    const roleStyle = resolveRoleStyle(resolved.styleFace, 'legend', channels, { includeFallback: false })
+    const authoredFill = chart.visual.paletteOverrides?.[item.colorIndex]
+    const fill = authoredFill ?? roleStyle?.fillColor ?? fills[item.colorIndex]!
+    const stroke = roleStyle?.strokeColor ?? roleStyle?.borderColor ?? style.nodeBorderColor ?? 'var(--_node-stroke)'
+    const strokeWidth = roleStyle?.lineWidth ?? 1
+    const roleStyleAttr = roleStyle
+      ? ` style="fill:${escapeXml(fill)};stroke:${escapeXml(stroke)};stroke-width:${strokeWidth}"`
+      : ''
     parts.push(marks.shape(
       {
         id: `legend-swatch:${item.colorIndex}`,
         role: 'legend',
         geometry: { kind: 'rect', x: item.x, y: item.y, width: item.swatchSize, height: item.swatchSize, rx: 2, ry: 2 },
-        paint: { fill, stroke: style.nodeBorderColor ?? 'var(--_node-stroke)', strokeWidth: '1', opacity: String(curveOpacity) },
-        channels: { category: item.label },
+        paint: { fill, stroke, strokeWidth: String(strokeWidth), opacity: String(curveOpacity) },
+        channels,
       },
-      `<rect class="radar-legend-swatch" x="${item.x}" y="${item.y}" width="${item.swatchSize}" height="${item.swatchSize}" rx="2" ry="2" fill="${escapeXml(fill)}" fill-opacity="${curveOpacity}" />`,
+      `<rect class="radar-legend-swatch" x="${item.x}" y="${item.y}" width="${item.swatchSize}" height="${item.swatchSize}" rx="2" ry="2" fill="${escapeXml(fill)}"${roleStyleAttr} fill-opacity="${curveOpacity}" />`,
     ))
     const legendShift = -(item.lines.length - 1) * 0.6
     const legendTspans = item.lines
@@ -321,10 +348,10 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
         y: item.textY,
         fontSize: chart.typography.legendFontSize,
         anchor: 'start',
-        paint: { fill: style.nodeTextColor ?? 'var(--_text)' },
+        paint: { fill: roleStyle?.textColor ?? style.nodeTextColor ?? 'var(--_text)' },
       },
       `<text class="radar-legend-text" x="${item.textX}" y="${item.textY}" text-anchor="start" dominant-baseline="middle" ` +
-        `font-size="${chart.typography.legendFontSize}" font-weight="${chart.typography.legendFontWeight}">${legendTspans}</text>`,
+        `font-size="${chart.typography.legendFontSize}" font-weight="${chart.typography.legendFontWeight}"${roleStyle?.textColor ? ` style="fill:${escapeXml(roleStyle.textColor)}"` : ''}>${legendTspans}</text>`,
     ))
   }
 

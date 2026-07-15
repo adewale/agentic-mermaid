@@ -4,6 +4,7 @@ import {
   sharedRenderOptionsTypeScriptDeclaration,
 } from '../render-contract.ts'
 import { BUILTIN_FAMILY_METADATA, type BuiltinFamilyMetadata } from '../agent/families.ts'
+import { styleSpecTypeScriptDeclaration } from '../scene/style-spec.ts'
 
 function sdkFamilyTypeStem(family: BuiltinFamilyMetadata): string {
   return family.narrower.slice(2)
@@ -139,7 +140,7 @@ const CODE_MODE_CORE_RENDER_RECEIPT_DECLARATIONS = compactInterfaceDeclarations(
   CODE_MODE_RENDER_RECEIPT_DECLARATIONS,
 )
 
-export const CODE_MODE_RENDER_OPTION_DECLARATIONS = `type StyleInput = string | { [key: string]: unknown }
+export const CODE_MODE_RENDER_OPTION_DECLARATIONS = `${styleSpecTypeScriptDeclaration()}
 
 ${architectureVisualOverridesTypeScriptDeclaration()}
 
@@ -188,7 +189,7 @@ interface RenderedLayoutArtifact { layout: VerifyResult['layout']; receipt: Rend
 /** Compact tools/list projection. It shares the exact generated public option
  * fields, output-option interfaces, and receipt contract with the full SDK,
  * while intentionally summarizing the full terminal evidence records. */
-export const CODE_MODE_CORE_RENDER_OPTION_DECLARATIONS = `type StyleInput = string | { [key: string]: unknown }
+export const CODE_MODE_CORE_RENDER_OPTION_DECLARATIONS = `${styleSpecTypeScriptDeclaration({ compact: true })}
 type ArchitectureVisualOverrides = Readonly<Record<string, unknown>>
 
 ${CODE_MODE_CORE_SHARED_RENDER_OPTIONS_DECLARATION}
@@ -740,7 +741,9 @@ type GanttMutationOp =
 // ROUTE_SHAPE_MISANCHOR, ROUTE_STALE_AFTER_NODE_MOVE.
 // Tier 3 (lint, advisory): DUPLICATE_EDGE, UNREACHABLE_NODE,
 // DECISION_BRANCH_UNLABELED, COMMENT_DROPPED, UNSUPPORTED_SYNTAX,
-// CONTENT_DROPPED_ON_ROUNDTRIP, INEFFECTIVE_CONFIG.
+// CONTENT_DROPPED_ON_ROUNDTRIP, INEFFECTIVE_CONFIG, LOW_CONTRAST,
+// BRAND_CONSTRAINT_WARNING. BRAND_CONSTRAINT_ERROR is inspect-only policy
+// selected explicitly by a Style constraint with action "error".
 type WarningCode =
   | 'EMPTY_DIAGRAM' | 'EDGE_MISANCHORED' | 'OFF_CANVAS' | 'GROUP_BREACH'
   | 'UNKNOWN_SHAPE' | 'LABEL_OVERFLOW' | 'UNRESOLVABLE_SCHEDULE' | 'RENDER_FAILED'
@@ -748,7 +751,8 @@ type WarningCode =
   | 'ROUTE_UNEXPLAINED_BEND' | 'ROUTE_LABEL_ON_SHARED_TRUNK' | 'ROUTE_SELF_LOOP_OCCUPANCY' | 'ROUTE_CONTAINER_MISANCHOR'
   | 'ROUTE_SHAPE_MISANCHOR' | 'ROUTE_STALE_AFTER_NODE_MOVE'
   | 'DUPLICATE_EDGE' | 'UNREACHABLE_NODE' | 'DECISION_BRANCH_UNLABELED' | 'COMMENT_DROPPED' | 'UNSUPPORTED_SYNTAX'
-  | 'CONTENT_DROPPED_ON_ROUNDTRIP' | 'INEFFECTIVE_CONFIG'
+  | 'CONTENT_DROPPED_ON_ROUNDTRIP' | 'INEFFECTIVE_CONFIG' | 'LOW_CONTRAST'
+  | 'BRAND_CONSTRAINT_WARNING' | 'BRAND_CONSTRAINT_ERROR'
 
 interface VerifyResult {
   ok: boolean

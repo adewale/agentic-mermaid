@@ -30,7 +30,18 @@ The `font` field names a family; the output environment still has to provide
 that face. See [Fonts in custom styles](./custom-fonts.md) for SVG behavior,
 PNG `fontDirs`, system fonts, fallbacks, and browser usage.
 
-## Cupertino prototype — documentation only
+## Public brand-inspired prototypes — documentation only
+
+These three files are the highest supported non-built-in form of a Style probe:
+version-controlled public `StyleSpec` records with schema validation, executable
+fixtures, deterministic screenshot gates, strict rendering, inspect-only
+constraints, and optional process-local registration. The reviewed image hashes
+are pinned in
+[`eval/style-prototype-evidence/visual-approval.json`](../eval/style-prototype-evidence/visual-approval.json).
+They are not package-owned built-ins, installed BrandPacks, claims of pixel
+equivalence, or endorsements.
+
+### Cupertino-inspired prototype
 
 Complete file:
 [`examples/styles/cupertino-prototype.style.json`](../examples/styles/cupertino-prototype.style.json).
@@ -75,18 +86,68 @@ try {
 }
 ```
 
-The current public `StyleSpec` expresses this prototype's palette, font and
-stroke weight. `shadow` remains a shared render option. Per-role type ramps,
-padding, corner radii, border policy, semantic accent placement and designed
-light/dark modes are intentionally absent: those gaps are evidence for Section
-B of the brand-primitives plan, not private fields smuggled into this example.
-Consequently the file demonstrates today's public customization floor; it does
-not claim pixel equivalence with an Apple interface or with PR #148's retired
-Cupertino-specific private-face configuration and evidence.
+The public `StyleSpec` expresses the prototype's palette, font, weight-based
+role typography, surface-first border policy, padding, geometry, and inspect-only
+contrast/accent-area constraints. Its 10-unit node corners, 26-unit group
+corners, and 16-unit connector bend radius make the intended Cupertino-inspired
+curve discipline directly inspectable; `shadow` remains the shared render option
+supplying elevation. The file still does not claim pixel equivalence with an
+Apple interface: it uses bundled Inter rather than licensed SF Pro, has no
+motion/spring system, and provides no designed dark companion.
 
 Agentic Mermaid is independent of and not affiliated with Apple Inc.;
 “Cupertino” describes the prototype's design inspiration, not an Apple product
 or endorsed implementation.
+
+### Vercel-inspired prototype
+
+Complete file:
+[`examples/styles/vercel-inspired-prototype.style.json`](../examples/styles/vercel-inspired-prototype.style.json).
+
+![Documentation-only Vercel-inspired prototype](./assets/style-cookbook/vercel-inspired-prototype.png)
+
+```bash
+am verify examples/styles/vercel-inspired-prototype.mmd \
+  --style examples/styles/vercel-inspired-prototype.style.json
+am render examples/styles/vercel-inspired-prototype.mmd --format svg \
+  --style examples/styles/vercel-inspired-prototype.style.json > diagram.svg
+```
+
+This static prototype uses the public palette and role records for dark surfaces,
+hairlines, compact typography, and restrained geometry. Its executable XYChart
+fixture exercises `bar-0` and `line-0` category bindings through named semantic
+slots; contrast and accent-area policy remains inspect-only. It deliberately
+does not imitate Geist assets, Vercel motion, live application chrome, or a
+complete product design system.
+
+Agentic Mermaid is independent of and not affiliated with Vercel Inc.;
+“Vercel-inspired” describes visual research, not a Vercel product or endorsed
+implementation.
+
+### Cloudflare Workers-inspired prototype
+
+Complete file:
+[`examples/styles/cloudflare-workers-inspired-prototype.style.json`](../examples/styles/cloudflare-workers-inspired-prototype.style.json).
+
+![Documentation-only Cloudflare Workers-inspired prototype](./assets/style-cookbook/cloudflare-workers-inspired-prototype.png)
+
+```bash
+am verify examples/styles/cloudflare-workers-inspired-prototype.mmd \
+  --style examples/styles/cloudflare-workers-inspired-prototype.style.json
+am render examples/styles/cloudflare-workers-inspired-prototype.mmd --format svg \
+  --style examples/styles/cloudflare-workers-inspired-prototype.style.json > diagram.svg
+```
+
+This static prototype combines warm surface tokens, sans/mono role typography,
+Gantt section-category bindings, and visible `outline`/`pattern` cues. The cues
+survive no-color terminal projection where that family supports them; contrast
+and accent-area rules diagnose without repainting. It does not reproduce
+Cloudflare application chrome, motion, tinted multi-layer shadow systems, or a
+complete Workers design system.
+
+Agentic Mermaid is independent of and not affiliated with Cloudflare, Inc.;
+“Cloudflare Workers-inspired” describes visual research, not a Cloudflare
+product or endorsed implementation.
 
 ## Transit route map
 

@@ -8,7 +8,10 @@ import type {
 import type { RenderOptions } from '../types.ts'
 import type { PieVisualConfig } from './config.ts'
 import { DEFAULT_PIE_VISUAL_CONFIG } from './config.ts'
-import { measureSystemFontSafeTextWidth, measureTextWidth } from '../text-metrics.ts'
+import { measureFormattedTextWidth, measureSystemFontSafeTextWidth, measureTextWidth } from '../text-metrics.ts'
+import { STROKE_WIDTHS, applyTextTransform, resolveRenderStyle } from '../styles.ts'
+import type { RenderStyleDefaults } from '../styles.ts'
+import type { InternalStyleFace } from '../scene/style-registry.ts'
 
 // ============================================================================
 // Pie chart layout engine
@@ -41,6 +44,7 @@ const PIE = {
   circleToLegendStackGap: 24,
   legendFontSize: 13,
   legendFontWeight: 500,
+  sliceStrokeWidth: 1.5,
   /** Line advance inside a multiline legend row (matches renderMultilineText). */
   legendLineHeight: 13 * 1.3,
   legendSwatch: 14,
@@ -59,6 +63,36 @@ export const PIE_SLICE_LABEL_FONT_WEIGHT: number = PIE.sliceLabelFontWeight
 
 /** Selected legend-row weight — shared so layout and rendering cannot drift. */
 export const PIE_LEGEND_HIGHLIGHT_FONT_WEIGHT = 700
+
+/** Shared by layout and rendering so role typography reserves the exact canvas
+ * that the renderer consumes. */
+export const PIE_STYLE_DEFAULTS: RenderStyleDefaults = {
+  nodeLabelFontSize: PIE.legendFontSize,
+  edgeLabelFontSize: PIE.legendFontSize,
+  groupHeaderFontSize: PIE.titleFontSize,
+  nodeLabelFontWeight: PIE.legendFontWeight,
+  edgeLabelFontWeight: PIE.legendFontWeight,
+  groupHeaderFontWeight: PIE.titleFontWeight,
+  nodePaddingX: 0,
+  nodePaddingY: 0,
+  nodeLineWidth: PIE.sliceStrokeWidth,
+  edgeLineWidth: STROKE_WIDTHS.connector,
+  groupCornerRadius: 0,
+  groupPaddingX: 0,
+  groupPaddingY: 0,
+  groupLineWidth: STROKE_WIDTHS.outerBox,
+}
+
+function measureSafeStyledTextWidth(
+  text: string,
+  fontSize: number,
+  fontWeight: number,
+  letterSpacing: number,
+): number {
+  const tracking = measureFormattedTextWidth(text, fontSize, fontWeight, letterSpacing) -
+    measureFormattedTextWidth(text, fontSize, fontWeight)
+  return measureSystemFontSafeTextWidth(text, fontSize, fontWeight) + tracking
+}
 
 /** Format a numeric value compactly (drops trailing `.0`). */
 export function formatPieValue(value: number): string {
@@ -158,8 +192,9 @@ export function layoutPieChart(
   chart: PieChart,
   options: RenderOptions = {},
   visual: PieVisualConfig = DEFAULT_PIE_VISUAL_CONFIG,
+  styleFace?: Readonly<InternalStyleFace>,
 ): PositionedPieChart {
-  void options
+  const style = resolveRenderStyle(options, PIE_STYLE_DEFAULTS, styleFace)
   const total = chart.entries.reduce((sum, e) => sum + e.value, 0)
 
   const radius = PIE.radius
@@ -168,13 +203,14 @@ export function layoutPieChart(
 
   // Title/legend typography comes from the same resolved config the renderer
   // uses, so larger documented theme sizes reserve geometry by construction.
-  const titleFontSize = visual.titleTextSize ?? PIE.titleFontSize
-  const legendFontSize = visual.legendTextSize ?? PIE.legendFontSize
+  const titleFontSize = visual.titleTextSize ?? style.groupHeaderFontSize
+  const legendFontSize = visual.legendTextSize ?? style.nodeLabelFontSize
   const legendLineHeight = legendFontSize * 1.3
-  const titleHeight = chart.title ? titleFontSize + PIE.titleGap : 0
-  const titleWidth = chart.title
-    ? Math.max(...chart.title.split('\n').map(line =>
-      measureTextWidth(line, titleFontSize, PIE.titleFontWeight)))
+  const renderedTitle = chart.title ? applyTextTransform(chart.title, style.groupTextTransform) : undefined
+  const titleHeight = renderedTitle ? titleFontSize + PIE.titleGap : 0
+  const titleWidth = renderedTitle
+    ? Math.max(...renderedTitle.split('\n').map(line =>
+      measureSafeStyledTextWidth(line, titleFontSize, style.groupHeaderFontWeight, style.groupLetterSpacing)))
     : 0
   const staticHighlight = visual.highlightSlice === 'hover' ? undefined : visual.highlightSlice
 
@@ -186,12 +222,15 @@ export function layoutPieChart(
     const valuePart = chart.showData ? ` [${formatPieValue(e.value)}]` : ''
     const suffix = `${valuePart} (${formatPiePercent(fraction)})`
     const labelLines = e.label.split('\n')
-    const lines = labelLines.map((line, k) => (k === labelLines.length - 1 ? `${line}${suffix}` : line))
+    const lines = labelLines.map((line, k) => applyTextTransform(
+      k === labelLines.length - 1 ? `${line}${suffix}` : line,
+      style.nodeTextTransform,
+    ))
     const fontWeight = staticHighlight === e.label
       ? PIE_LEGEND_HIGHLIGHT_FONT_WEIGHT
-      : PIE.legendFontWeight
+      : style.nodeLabelFontWeight
     const measuredTextWidth = Math.max(...lines.map(line =>
-      measureSystemFontSafeTextWidth(line, legendFontSize, fontWeight)))
+      measureSafeStyledTextWidth(line, legendFontSize, fontWeight, style.nodeLetterSpacing)))
     const textWidth = fontWeight === PIE_LEGEND_HIGHLIGHT_FONT_WEIGHT
       ? measuredTextWidth * PIE.legendHighlightWidthScale
       : measuredTextWidth
@@ -299,7 +338,7 @@ export function layoutPieChart(
     width: round(width),
     height: round(height),
     title: chart.title
-      ? { text: chart.title, x: round(width / 2), y: PIE.paddingY + titleFontSize / 2 }
+      ? { text: renderedTitle!, x: round(width / 2), y: PIE.paddingY + titleFontSize / 2 }
       : undefined,
     cx: round(cx),
     cy: round(cy),

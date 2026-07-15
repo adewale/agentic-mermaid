@@ -65,6 +65,7 @@ function directDescriptor(localId: string): FamilyDescriptor {
     collisionPriority: 0,
     detect: line => line === header.toLowerCase(),
     semanticRoles: [],
+    semanticChannels: [],
     scenePrimitiveEvidence: [],
     capabilityEvidence: [
       { capability: 'detection', state: 'native', evidence: [EVIDENCE] },
@@ -105,6 +106,7 @@ function throwingSceneDescriptor(localId: string): FamilyDescriptor {
       compatibility: { core: '^0.1.1', scene: '^1.0.0' },
     }),
     semanticRoles: ['prelude'],
+    semanticChannels: [],
     scenePrimitiveEvidence: declareFamilyScenePrimitiveEvidence(base.id, roles, [EVIDENCE]),
     capabilityEvidence: base.capabilityEvidence.map(claim => {
       if (claim.capability === 'verify') return { ...claim, state: 'diagnosed' }

@@ -8,16 +8,18 @@ import {
   formatPiePercent,
   PIE_LEGEND_HIGHLIGHT_FONT_WEIGHT,
   PIE_SLICE_LABEL_FONT_WEIGHT,
+  PIE_STYLE_DEFAULTS,
 } from './layout.ts'
 import type { PieVisualConfig } from './config.ts'
 import { pieSliceColors } from './palette.ts'
 import { contrastTextColor } from '../color-resolver.ts'
 import { tooltipMarkup, tooltipCss } from '../shared/svg-tooltip.ts'
-import { STROKE_WIDTHS, applyTextTransform, resolveRenderStyle } from '../styles.ts'
-import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
+import { applyTextTransform, resolveRenderStyle } from '../styles.ts'
+import type { ResolvedRenderStyle } from '../styles.ts'
 import type { SceneDoc, SceneNode } from '../scene/ir.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
+import { resolveRoleStyle } from '../scene/style-registry.ts'
 
 // ============================================================================
 // Pie chart SVG renderer
@@ -53,23 +55,6 @@ const PIE = {
   dimOpacity: 0.4,
 } as const
 
-const PIE_STYLE_DEFAULTS: RenderStyleDefaults = {
-  nodeLabelFontSize: PIE.legendFontSize,
-  edgeLabelFontSize: PIE.legendFontSize,
-  groupHeaderFontSize: PIE.titleFontSize,
-  nodeLabelFontWeight: PIE.legendFontWeight,
-  edgeLabelFontWeight: PIE.legendFontWeight,
-  groupHeaderFontWeight: PIE.titleFontWeight,
-  nodePaddingX: 0,
-  nodePaddingY: 0,
-  nodeLineWidth: PIE.sliceStrokeWidth,
-  edgeLineWidth: STROKE_WIDTHS.connector,
-  groupCornerRadius: 0,
-  groupPaddingX: 0,
-  groupPaddingY: 0,
-  groupLineWidth: STROKE_WIDTHS.outerBox,
-}
-
 /**
  * Render a positioned pie chart as an SVG string.
  */
@@ -92,6 +77,7 @@ export function lowerPieScene(
   const transparent = options.transparent ?? false
   const interactive = options.interactive ?? false
   const style = resolveRenderStyle(options, PIE_STYLE_DEFAULTS, resolved.styleFace)
+  const baseSliceRole = resolveRoleStyle(resolved.styleFace, 'pie-slice', {}, { includeFallback: false })
   const visual = chart.visual
   const parts: SceneNode[] = []
 
@@ -123,7 +109,7 @@ export function lowerPieScene(
   headParts.push(buildStyleBlock(font, false, colors.shadow, colors.embedFontImport))
   const shadowDefs = buildShadowDefs(colors)
   if (shadowDefs) headParts.push(`<defs>${shadowDefs}</defs>`)
-  const pieCss = pieStyles(style, visual, interactive)
+  const pieCss = pieStyles(style, visual, interactive, baseSliceRole)
   headParts.push(pieCss)
   parts.push(marks.prelude(
     {
@@ -168,13 +154,23 @@ export function lowerPieScene(
     labelOccurrence.set(key, k + 1)
     return k === 0 ? key : `${key}#${k}`
   }
-  const sliceStroke = visual.strokeColor ?? style.nodeBorderColor ?? 'var(--bg)'
-  const sliceStrokeWidth = visual.strokeWidth ?? style.nodeLineWidth
-  const emphasisStrokeWidth = pieEmphasisStrokeWidth(sliceStrokeWidth)
+  const hoverEmphasisStrokeWidth = pieEmphasisStrokeWidth(
+    visual.strokeWidth ?? baseSliceRole?.lineWidth ?? style.nodeLineWidth,
+  )
   for (let index = 0; index < chart.slices.length; index++) {
     const slice = chart.slices[index]!
     const pct = formatPiePercent(slice.fraction)
-    const fill = fills[index]!
+    const channels = { category: slice.label, value: slice.fraction }
+    const sliceRole = resolveRoleStyle(resolved.styleFace, 'pie-slice', channels, { includeFallback: false })
+    const fill = sliceRole?.fillColor ?? fills[index]!
+    const sliceStroke = visual.strokeColor ?? sliceRole?.strokeColor ?? sliceRole?.borderColor ?? style.nodeBorderColor ?? 'var(--bg)'
+    const sliceStrokeWidth = visual.strokeWidth ?? sliceRole?.lineWidth ?? style.nodeLineWidth
+    const cue = sliceRole?.cue ?? 'none'
+    const cueStrokeWidth = cue === 'outline'
+      ? sliceStrokeWidth + 1
+      : cue === 'double-line' ? sliceStrokeWidth + 2 : sliceStrokeWidth
+    const cueDash = cue === 'pattern' ? '3 2' : cue === 'double-line' ? '8 2 2 2' : undefined
+    const emphasisStrokeWidth = pieEmphasisStrokeWidth(cueStrokeWidth)
     const highlighted = anyHighlighted && visual.highlightSlice === slice.label
     const dimmed = anyHighlighted && !highlighted
     const sliceClass = `pie-slice${highlighted ? ' highlighted' : ''}` +
@@ -186,6 +182,10 @@ export function lowerPieScene(
       : dimmed
         ? rnd((visual.opacity ?? 1) * PIE.dimOpacity)
         : visual.opacity
+    const hasInlineRoleStroke = sliceRole !== undefined && (
+      sliceRole.strokeColor !== undefined || sliceRole.borderColor !== undefined
+      || sliceRole.lineWidth !== undefined || cue !== 'none'
+    )
     parts.push(marks.shape(
       {
         id: occurrenceId('slice', slice.label),
@@ -196,17 +196,15 @@ export function lowerPieScene(
         paint: {
           fill,
           stroke: highlighted ? 'var(--fg)' : sliceStroke,
-          strokeWidth: String(highlighted ? emphasisStrokeWidth : sliceStrokeWidth),
+          strokeWidth: String(highlighted ? emphasisStrokeWidth : cueStrokeWidth),
+          ...(cueDash ? { strokeDasharray: cueDash } : {}),
           ...(sliceOpacity !== undefined ? { opacity: String(sliceOpacity) } : {}),
         },
-        channels: {
-          category: slice.label,
-          value: slice.fraction,
-          ...(highlighted ? { emphasis: true } : {}),
-        },
+        channels: { ...channels, ...(highlighted ? { emphasis: true } : {}) },
       },
       `<path class="${sliceClass}" d="${slice.path}" fill="${escapeXml(fill)}" ` +
-        `data-label="${escapeXml(slice.label)}" data-value="${slice.value}" data-percent="${pct}"${highlighted ? ' data-highlighted="true"' : ''} />`,
+        `${hasInlineRoleStroke ? `stroke="${escapeXml(highlighted ? 'var(--fg)' : sliceStroke)}" stroke-width="${highlighted ? emphasisStrokeWidth : cueStrokeWidth}"${cueDash ? ` stroke-dasharray="${cueDash}"` : ''} ` : ''}` +
+        `data-label="${escapeXml(slice.label)}" data-value="${slice.value}" data-percent="${pct}"${cue !== 'none' ? ` data-brand-cue="${cue}"` : ''}${highlighted ? ' data-highlighted="true"' : ''} />`,
     ))
   }
 
@@ -334,7 +332,7 @@ export function lowerPieScene(
       const anchorY = rnd(chart.cy - labelRadius * Math.cos(mid))
       const tipText = `${slice.label.replace(/\n/g, ' ')}: ${formatPieValue(slice.value)} (${formatPiePercent(slice.fraction)})`
       const hoverTargetAttrs = hoverHighlight
-        ? ` class="pie-slice-hover-target" stroke="transparent" stroke-width="${emphasisStrokeWidth}"`
+        ? ` class="pie-slice-hover-target" stroke="transparent" stroke-width="${hoverEmphasisStrokeWidth}"`
         : ''
       parts.push(marks.raw(
         { id: occurrenceId('tooltip:slice', slice.label), role: 'chrome' },
@@ -367,9 +365,14 @@ function openPieSvgTag(
   })
 }
 
-function pieStyles(style: ResolvedRenderStyle, visual: PieVisualConfig, interactive: boolean): string {
-  const sliceStroke = visual.strokeColor ?? style.nodeBorderColor ?? 'var(--bg)'
-  const sliceStrokeWidth = visual.strokeWidth ?? style.nodeLineWidth
+function pieStyles(
+  style: ResolvedRenderStyle,
+  visual: PieVisualConfig,
+  interactive: boolean,
+  sliceRole?: Readonly<import('../scene/style-spec.ts').RoleStyleSpec>,
+): string {
+  const sliceStroke = visual.strokeColor ?? sliceRole?.strokeColor ?? sliceRole?.borderColor ?? style.nodeBorderColor ?? 'var(--bg)'
+  const sliceStrokeWidth = visual.strokeWidth ?? sliceRole?.lineWidth ?? style.nodeLineWidth
   const sliceOpacity = visual.opacity !== undefined ? ` opacity: ${visual.opacity};` : ''
   // Option D: emphasise the highlighted slice with a heavier foreground border
   // (a shape/weight cue, so it reads even without colour) and fade the rest via

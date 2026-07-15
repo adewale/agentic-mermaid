@@ -1,4 +1,5 @@
 import type { MindmapDiagram, MindmapNode, PositionedMindmapDiagram, PositionedMindmapEdge, PositionedMindmapNode } from './types.ts'
+import { mindmapHorizontalBoundaryX } from './geometry.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import { wrapLabelToWidth } from '../shared/label-wrap.ts'
 
@@ -221,14 +222,17 @@ function finish(
     const parent = entries.get(node.parentId)!
     const leftward = node.side === 'left'
     const start = {
-      x: leftward ? parent.x : parent.x + parent.width,
+      x: mindmapHorizontalBoundaryX(parent, leftward ? 'left' : 'right'),
       y: parent.y + parent.height / 2,
     }
     const end = {
-      x: leftward ? node.x + node.width : node.x,
+      x: mindmapHorizontalBoundaryX(node, leftward ? 'right' : 'left'),
       y: node.y + node.height / 2,
     }
-    const bend = Math.max(24, Math.abs(end.x - start.x) * 0.52)
+    // Keep cubic controls ordered between their endpoints. The old 24px
+    // minimum (and 0.52 ratio) crossed controls on short parent/child gaps,
+    // producing a visible hook immediately before otherwise straight branches.
+    const bend = Math.abs(end.x - start.x) * 0.42
     const c1 = { x: start.x + (leftward ? -bend : bend), y: start.y }
     const c2 = { x: end.x + (leftward ? bend : -bend), y: end.y }
     return [{

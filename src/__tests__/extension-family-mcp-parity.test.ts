@@ -42,6 +42,7 @@ function descriptor(onVerify: () => void = () => {}): FamilyDescriptor {
     collisionPriority: 0,
     detect: line => line === HEADER.toLowerCase(),
     semanticRoles: [],
+    semanticChannels: [],
     scenePrimitiveEvidence: [],
     capabilityEvidence: [
       { capability: 'detection', state: 'native', evidence: [EVIDENCE] },

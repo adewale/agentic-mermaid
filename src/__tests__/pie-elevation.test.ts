@@ -353,8 +353,9 @@ describe('pie multiline legend rows', () => {
 })
 
 // ---------------------------------------------------------------------------
-// highlightSlice — Option D: non-geometric emphasis (foreground border on the
-// target + dimmed siblings), never a geometry change. Perception research
+// highlightSlice — Option D and the Section B family-owned-emphasis fixture:
+// foreground border on the target + dimmed siblings, never a geometry change.
+// Perception research
 // (Skau & Kosara 2016, "Arcs, Angles, or Areas") shows arc length/area are the
 // cues people actually read, and that changing a slice's radius or exploding it
 // degrades reading — so emphasis must leave geometry exact. These gates fail if
@@ -470,6 +471,26 @@ pie showData
         ? renderedTextWidth * 0.09 + 23.99
         : 23.99
       expect(chart.width - item.textX - renderedTextWidth).toBeGreaterThanOrEqual(expectedMargin)
+    }
+  })
+
+  it('reserves the rendered role typography so a styled legend cannot clip', () => {
+    const source = `---\nconfig:\n  pie:\n    highlightSlice: Pro\n---\npie title Plans\n  "Free" : 60\n  "Pro" : 30\n  "Enterprise" : 10`
+    const svg = renderMermaidSVG(source, {
+      style: { roles: { node: { fontSize: 16, fontWeight: 800, letterSpacing: 2, textTransform: 'uppercase' } } },
+      embedFontImport: false,
+    })
+    const width = Number(svg.match(/viewBox="0 0 ([\d.]+)/)?.[1])
+    const legendText = [...svg.matchAll(/<text ([^>]*class="pie-legend-text"[^>]*)>([^<]+)<\/text>/g)]
+    expect(legendText).toHaveLength(3)
+    for (const [, attributes, text] of legendText) {
+      const x = Number(attributes!.match(/\bx="([\d.]+)"/)?.[1])
+      const fontSize = Number(attributes!.match(/font-size="([\d.]+)"/)?.[1])
+      const fontWeight = Number(attributes!.match(/font-weight="([\d.]+)"/)?.[1])
+      expect(text).toBe(text!.toUpperCase())
+      const tracking = Math.max(0, Array.from(text!).length - 1) * 2
+      const right = x + measureSystemFontSafeTextWidth(text!, fontSize, fontWeight) + tracking
+      expect(right, text).toBeLessThanOrEqual(width - 24 + 0.01)
     }
   })
 

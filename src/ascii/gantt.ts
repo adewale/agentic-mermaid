@@ -35,6 +35,7 @@ import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
 import { colorizeLine, DEFAULT_ASCII_THEME } from './ansi.ts'
 import { padEndToVisualWidth, truncateToVisualWidth, visualWidth } from './width.ts'
 import type { AsciiConfig, AsciiTheme, CharRole, ColorMode } from './types.ts'
+import { resolveRoleStyle, type InternalStyleFace } from '../scene/style-registry.ts'
 
 interface StyledSegment { text: string; role: CharRole | null }
 
@@ -86,7 +87,7 @@ export function renderGanttAscii(
   colorMode: ColorMode = 'none',
   theme: AsciiTheme = DEFAULT_ASCII_THEME,
   frontmatter?: MermaidFrontmatterMap,
-  options: { maxWidth?: number; today?: string; resolvedConfig?: ResolvedGanttFrontmatterConfig } = {},
+  options: { maxWidth?: number; today?: string; resolvedConfig?: ResolvedGanttFrontmatterConfig; styleFace?: InternalStyleFace } = {},
 ): string {
   const model = applyResolvedGanttFrontmatterConfig(
     parseGanttModel(lines),
@@ -181,14 +182,34 @@ export function renderGanttAscii(
   // ---- track builder ------------------------------------------------------------
   const buildTrack = (task: ScheduledGanttTask): string => {
     const cells = new Array<string>(plotWidth).fill(g.track)
+    const status = task.tags.includes('crit') ? 'crit'
+      : task.tags.includes('active') ? 'active'
+      : task.tags.includes('done') ? 'done'
+      : undefined
+    const category = model.sections[task.sectionIndex]?.label
+    const role = task.tags.includes('milestone') ? 'milestone' : 'task'
+    const roleStyle = resolveRoleStyle(options.styleFace, role, {
+      ...(status ? { status } : {}),
+      ...(category ? { category } : {}),
+    }, { includeFallback: false })
+    const cueFill = roleStyle?.cue === 'outline' ? (config.useAscii ? '+' : '◇')
+      : roleStyle?.cue === 'double-line' ? '='
+      : roleStyle?.cue === 'pattern' ? (config.useAscii ? '%' : '░')
+      : undefined
     if (task.tags.includes('milestone')) {
       const c = Math.min(plotWidth - 1, colOf(task.start + (task.renderEnd - task.start) / 2))
-      cells[c] = g.milestone
+      const milestoneCue = roleStyle?.cue === 'outline' ? (config.useAscii ? '+' : '◇')
+        : roleStyle?.cue === 'double-line' ? (config.useAscii ? '#' : '◈')
+        : roleStyle?.cue === 'pattern' ? (config.useAscii ? '%' : '▣')
+        : undefined
+      cells[c] = milestoneCue ?? g.milestone
     } else {
       // Bars draw to renderEnd — the same drawn extent the SVG bars use.
       const from = colOf(task.start)
       const to = Math.max(from + 1, colOf(task.renderEnd))
-      const fill = fillGlyph(task.tags, g)
+      // Critical emphasis remains family-owned; otherwise the semantic cue
+      // receives a deterministic no-color glyph projection.
+      const fill = task.tags.includes('crit') ? g.crit : cueFill ?? fillGlyph(task.tags, g)
       for (let c = from; c < to && c < plotWidth; c++) cells[c] = fill
     }
     for (const vc of vertCols) if (cells[vc] === g.track) cells[vc] = g.vert

@@ -45,6 +45,7 @@ function extensionDescriptor(
     collisionPriority: 0,
     detect: line => line === header.toLowerCase(),
     semanticRoles: [],
+    semanticChannels: [],
     scenePrimitiveEvidence: [],
     capabilityEvidence: [
       { capability: 'detection', state: 'native', evidence: [EVIDENCE] },

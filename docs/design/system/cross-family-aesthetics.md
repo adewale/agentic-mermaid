@@ -77,7 +77,7 @@ These make L5 (and L4/L7) stronger than radar's own implementation:
 | R3 | **Vertical row reservation + repair-then-surface** — `rowAdvance` grows the row for a wrapped block; place label left/right/column else surface (`gantt/layout.ts:600`, `gantt/renderer.ts:410-435`) | gantt | …horizontal-only gutter sizing. |
 | R4 | **Budget-driven compression** — a second metric pass with proportionally compressed wrap caps to hit a width budget (`timeline/layout.ts:169-185`) | timeline | …a fixed 96px wrap cap. |
 | R5 | **Bordered knockout label box** — a real `fill:var(--bg)` box with a hairline behind text over busy fills (`flowchart renderer.ts:721-733`) | flowchart | …a bare paint-order text halo. |
-| R6 | **WCAG-AA contrast gate on label ink** — honor an author/label color only if it clears 4.5:1 on its composited ground (`contrastGuardedLabelColor`, `journey/renderer.ts:836-852`) | journey | …ungated ring/axis label ink. |
+| R6 | **WCAG-AA contrast evidence for label ink** — guard internally derived defaults; preserve explicit authored paint and emit `LOW_CONTRAST` when a concrete final pair misses 4.5:1 (`guardLabelInk`, Radar verify) | journey, adapted to Section B authored-style precedence | …unchecked ring/axis label ink. |
 
 Also in the union, credited below: pie's **largest-first legend admission**
 (`pie/layout.ts:321-378`), mindmap's **depth-alpha recession** (`mindmap/renderer.ts:98`),
@@ -88,7 +88,7 @@ gitgraph's **rotated-bounds axis packing** + **resolve-once boundary**
 the label concern becomes: *wrap to a budget (radar) → compress the budget if still too
 wide (R4) → de-collide what remains (R1) → leader-line anything that can't fit in place
 (R2) → reserve vertical room for the wrapped block (R3) → knockout-box it over busy
-fills (R5) → gate the ink for contrast (R6).* Each family should reach for the highest
+fills (R5) → guard derived ink and diagnose authored contrast (R6).* Each family should reach for the highest
 rung its content needs. Radar sits near the bottom of that ladder today; §4 shows what
 it looks like near the top.
 
@@ -131,7 +131,7 @@ regenerate the "after" with `bun run scripts/pr-assets/radar-reverse-lessons.ts`
 |---|---|---|---|
 | A multi-line label on a maxed-out spoke | **overlaps the silhouette** | radial **clearance** pushes it clear; a **leader line** reconnects it | ER R1 · quadrant R2 |
 | Adjacent labels on many axes | can collide | **pairwise de-collision** (verified to 24 tight axes) | ER R1 |
-| Ring value labels | bare gray text, wash out | **page-colored knockout pills** + **WCAG-AA ink** | flowchart R5 · journey R6 |
+| Ring value labels | bare gray text, wash out | **page-colored knockout pills** + **WCAG-AA derived ink**; explicit low-contrast axis paint is preserved and diagnosed | flowchart R5 · journey R6, adapted |
 | A very long axis label | fixed 96px wrap only | **budget-driven wrap compression** + ellipsize fallback | timeline R4 |
 | A long legend label | column just widens | **wrapped with reserved row height** | gantt R3 |
 

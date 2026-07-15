@@ -46,6 +46,20 @@ describe('renderMermaidSVG – class diagrams', () => {
     expect(svg).toContain('cls-inherit')
   })
 
+  it('repaints endpoint markers after class boxes so node fills cannot occlude them', () => {
+    const svg = renderMermaidSVG(`classDiagram
+      Account <|-- Savings
+      Account o-- Transaction`)
+    const lastClassBox = svg.lastIndexOf('<g class="class"')
+    const overlays = [...svg.matchAll(/class="class-marker-overlay"/g)].map(match => match.index)
+
+    expect(svg).toMatch(/<marker id="cls-inherit"[^>]*overflow="visible"/)
+    expect(svg).toMatch(/<marker id="cls-aggregation"[^>]*overflow="visible"/)
+    expect(overlays).toHaveLength(2)
+    expect(overlays.every(index => index > lastClassBox)).toBe(true)
+    expect(svg).toMatch(/class="class-marker-overlay"[^>]*stroke-opacity="0"[^>]*marker-start="url\(#cls-inherit\)"/)
+  })
+
   it('renders composition with filled diamond', () => {
     const svg = renderMermaidSVG(`classDiagram
       Car *-- Engine`)

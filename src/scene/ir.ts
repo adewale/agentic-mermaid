@@ -30,8 +30,15 @@ import type { SceneRole } from './roles.ts'
 
 export type {
   BuiltinSceneRole, CoreSceneRole, NamespacedSceneRole, SceneRole,
-  SceneRoleTraits, SceneSketchPolicy,
+  SceneRoleTraits, SceneRoleStyleFallback, SceneSketchPolicy,
 } from './roles.ts'
+
+/** One canonical closed channel vocabulary shared by Scene types, family
+ * descriptors, binding admission, generated census, and terminal projection. */
+export const SEMANTIC_CHANNEL_NAMES = Object.freeze([
+  'importance', 'value', 'category', 'status', 'progress', 'route', 'emphasis',
+] as const)
+export type SemanticChannelName = typeof SEMANTIC_CHANNEL_NAMES[number]
 
 /** Semantic channels preserved across the renderer boundary (SPEC §5).
  *  `tone`/hue are style-derived outputs, not stored here. */

@@ -14,6 +14,7 @@ import { getSeriesColor } from '../xychart/colors.ts'
 import { measureTextWidth } from '../text-metrics.ts'
 import { ensureContrast, isHexColor, mixHex } from '../shared/color-math.ts'
 import { resolveGitGraphCommitLabelFontSize } from './position.ts'
+import { GITGRAPH_COMMIT_LABEL_PADDING_X } from './layout.ts'
 
 export type GitGraphThemeProjection = Record<string, string | number>
 
@@ -144,8 +145,8 @@ function renderCommit(commit: PositionedGitGraphCommit, diagram: PositionedGitGr
       : undefined
     const transform = rotation ? ` transform="rotate(${rotation.angle} ${rotation.cx} ${rotation.cy})"` : ''
     if (paints.commitLabelBackground) {
-      const width = r(Math.max(18, measureTextWidth(label, paints.commitLabelFontSize, 500) + 8))
-      const backgroundX = r(anchor === 'middle' ? labelX - width / 2 : labelX - 4)
+      const width = r(Math.max(18, measureTextWidth(label, paints.commitLabelFontSize, 500) + GITGRAPH_COMMIT_LABEL_PADDING_X * 2))
+      const backgroundX = r(anchor === 'middle' ? labelX - width / 2 : labelX - GITGRAPH_COMMIT_LABEL_PADDING_X)
       children.push({ node: marks.shape({ id: semanticChildId(commit.id, 'label-bg'), role: 'chrome', geometry: { kind: 'rect', x: backgroundX, y: labelY - paints.commitLabelFontSize, width, height: paints.commitLabelFontSize + 6, rx: 3, ry: 3 }, paint: { fill: paints.commitLabelBackground, stroke: branchPaint.line, strokeWidth: '0.75' }, transform: rotation }, `<rect class="git-commit-label-background" x="${r(backgroundX)}" y="${r(labelY - paints.commitLabelFontSize)}" width="${r(width)}" height="${r(paints.commitLabelFontSize + 6)}" rx="3" fill="${escapeAttr(paints.commitLabelBackground)}" fill-opacity="0.94" stroke="${escapeAttr(branchPaint.line)}" stroke-width="0.75"${transform} />`), indent: 2 })
     }
     children.push({ node: marks.text({ id: semanticChildId(commit.id, 'label'), role: 'label', text: label, x: labelX, y: labelY, fontSize: paints.commitLabelFontSize, anchor, paint: { fill: paints.commitLabelColor }, transform: rotation }, `<text class="git-commit-label" x="${r(labelX)}" y="${r(labelY)}" text-anchor="${anchor}" font-size="${r(paints.commitLabelFontSize)}" fill="${escapeAttr(paints.commitLabelColor)}"${transform}>${escapeXml(label)}</text>`), indent: 2 })

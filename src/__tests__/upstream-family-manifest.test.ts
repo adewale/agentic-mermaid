@@ -52,6 +52,7 @@ function syntheticFamily(localId: string, header: string): FamilyDescriptor {
     detect: line => line === header.toLowerCase(),
     detectLoose: line => line.startsWith(header.toLowerCase()),
     semanticRoles: [],
+    semanticChannels: [],
     scenePrimitiveEvidence: [],
     capabilityEvidence: [
       { capability: 'detection', state: 'native', evidence: ['src/__tests__/upstream-family-manifest.test.ts'] },

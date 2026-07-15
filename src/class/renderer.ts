@@ -123,6 +123,14 @@ export function lowerClassScene(
     parts.push(renderClassBox(cls, style))
   }
 
+  // 2b. Endpoint markers must sit above class surfaces. SVG paints a marker
+  // with its connector, so the relationship pass behind boxes lets the later
+  // node fill erase the marker tip/base. Repaint only the marker attachment on
+  // an invisible carrier; the semantic connector and its line remain behind.
+  diagram.relationships.forEach((rel, index) => {
+    parts.push(renderRelationshipMarkerOverlay(rel, style, index))
+  })
+
   // 3. Notes are first-class UML marks; anchored notes include a connector.
   for (let index = 0; index < diagram.notes.length; index++) parts.push(renderClassNote(diagram.notes[index]!, style, index))
 
@@ -161,11 +169,11 @@ function classMarkerResources(style: ResolvedRenderStyle): readonly MarkerDescri
   const triangle = [{ x: 0, y: 0 }, { x: 12, y: 5 }, { x: 0, y: 10 }]
   const diamond = [{ x: 6, y: 0 }, { x: 12, y: 5 }, { x: 6, y: 10 }, { x: 0, y: 5 }]
   return [
-    { id: 'cls-inherit', shape: 'triangle', size: { width: 12, height: 10 }, ref: { x: 12, y: 5 }, orient: 'auto-start-reverse', geometry: { kind: 'polygon', points: triangle }, paint: { fill: 'var(--bg)', stroke: edgeColor, strokeWidth: '1.5' } },
-    { id: 'cls-composition', shape: 'diamond', size: { width: 12, height: 10 }, ref: { x: 0, y: 5 }, orient: 'auto-start-reverse', geometry: { kind: 'polygon', points: diamond }, paint: { fill: edgeColor, stroke: edgeColor, strokeWidth: '1' } },
-    { id: 'cls-aggregation', shape: 'diamond-open', size: { width: 12, height: 10 }, ref: { x: 0, y: 5 }, orient: 'auto-start-reverse', geometry: { kind: 'polygon', points: diamond }, paint: { fill: 'var(--bg)', stroke: edgeColor, strokeWidth: '1.5' } },
-    { id: 'cls-arrow', shape: 'open-arrow', size: { width: 8, height: 6 }, ref: { x: 8, y: 3 }, orient: 'auto-start-reverse', geometry: { kind: 'polyline', points: [{ x: 0, y: 0 }, { x: 8, y: 3 }, { x: 0, y: 6 }] }, paint: { fill: 'none', stroke: edgeColor, strokeWidth: '1.5' } },
-    { id: 'cls-lollipop', shape: 'circle', size: { width: 14, height: 14 }, ref: { x: 7, y: 7 }, orient: 'auto', geometry: { kind: 'circle', cx: 7, cy: 7, r: 5 }, paint: { fill: 'var(--bg)', stroke: edgeColor, strokeWidth: '1.5' } },
+    { id: 'cls-inherit', shape: 'triangle', size: { width: 12, height: 10 }, ref: { x: 12, y: 5 }, orient: 'auto-start-reverse', overflow: 'visible', geometry: { kind: 'polygon', points: triangle }, paint: { fill: 'var(--bg)', stroke: edgeColor, strokeWidth: '1.5' } },
+    { id: 'cls-composition', shape: 'diamond', size: { width: 12, height: 10 }, ref: { x: 0, y: 5 }, orient: 'auto-start-reverse', overflow: 'visible', geometry: { kind: 'polygon', points: diamond }, paint: { fill: edgeColor, stroke: edgeColor, strokeWidth: '1' } },
+    { id: 'cls-aggregation', shape: 'diamond-open', size: { width: 12, height: 10 }, ref: { x: 0, y: 5 }, orient: 'auto-start-reverse', overflow: 'visible', geometry: { kind: 'polygon', points: diamond }, paint: { fill: 'var(--bg)', stroke: edgeColor, strokeWidth: '1.5' } },
+    { id: 'cls-arrow', shape: 'open-arrow', size: { width: 8, height: 6 }, ref: { x: 8, y: 3 }, orient: 'auto-start-reverse', overflow: 'visible', geometry: { kind: 'polyline', points: [{ x: 0, y: 0 }, { x: 8, y: 3 }, { x: 0, y: 6 }] }, paint: { fill: 'none', stroke: edgeColor, strokeWidth: '1.5' } },
+    { id: 'cls-lollipop', shape: 'circle', size: { width: 14, height: 14 }, ref: { x: 7, y: 7 }, orient: 'auto', overflow: 'visible', geometry: { kind: 'circle', cx: 7, cy: 7, r: 5 }, paint: { fill: 'var(--bg)', stroke: edgeColor, strokeWidth: '1.5' } },
   ]
 }
 
@@ -584,6 +592,35 @@ function renderRelationship(rel: PositionedClassRelationship, style: ResolvedRen
   },
     `<polyline ${dataAttrs.join(' ')} points="${pathData}" fill="none" stroke="${escapeAttr(strokeColor)}" ` +
     `stroke-width="${style.lineWidth}"${dashArray}${markers} />`)
+}
+
+/** Marker-only carrier painted after class boxes. The connector remains the
+ * semantic authority; this raw chrome exists only to prevent node surfaces
+ * from occluding endpoint symbols. */
+function renderRelationshipMarkerOverlay(
+  rel: PositionedClassRelationship,
+  style: ResolvedRenderStyle,
+  index: number,
+): SceneNode {
+  if (rel.points.length < 2) return marks.raw({ id: `marker-overlay:${index}`, role: 'chrome' }, '')
+  const startType = rel.markerAt === 'from' || rel.markerAt === 'both' ? rel.fromType ?? rel.type : undefined
+  const endType = rel.markerAt === 'to' || rel.markerAt === 'both' ? rel.toType ?? rel.type : undefined
+  const startId = startType ? getMarkerDefId(startType) : null
+  const endId = endType ? getMarkerDefId(endType) : null
+  if (!startId && !endId) return marks.raw({ id: `marker-overlay:${index}`, role: 'chrome' }, '')
+  const markers = `${startId ? ` marker-start="url(#${startId})"` : ''}${endId ? ` marker-end="url(#${endId})"` : ''}`
+  const carrierPaint = `fill="none" stroke="${escapeAttr(style.edgeStrokeColor ?? 'var(--_line)')}" stroke-width="${style.lineWidth}" stroke-opacity="0"${markers} pointer-events="none" aria-hidden="true"`
+  if (style.edgeBendRadius > 0 && rel.points.length > 2) {
+    const projection = projectRoundedConnectorPath(rel.points, style.edgeBendRadius, {
+      metric: 'manhattan',
+      precision: 3,
+    })
+    return marks.raw({ id: `marker-overlay:${index}`, role: 'chrome' },
+      `<path class="class-marker-overlay" d="${projection.geometry.d}" ${carrierPaint} />`)
+  }
+  const points = rel.points.map(point => `${point.x},${point.y}`).join(' ')
+  return marks.raw({ id: `marker-overlay:${index}`, role: 'chrome' },
+    `<polyline class="class-marker-overlay" points="${points}" ${carrierPaint} />`)
 }
 
 /**

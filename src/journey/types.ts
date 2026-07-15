@@ -58,6 +58,8 @@ export interface PositionedJourneyTitle {
 
 export interface PositionedJourneySection {
   id: string
+  /** Unwrapped semantic category used by Style bindings. */
+  category: string
   label?: string
   x: number
   y: number

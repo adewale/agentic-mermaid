@@ -1,9 +1,11 @@
 # Brand primitives and forward-compatible family support — plan
 
 Status: Section A landed on `main` in PR #163 (`4f9d376a`), and `radar-beta`
-joined the registered family set in PR #161 (`dfaa48e2`). Section B is the
-normative customization plan owned by `BUILD-31`. Root `TODO.md` owns live work.
-Section A evidence lives in its
+joined the registered family set in PR #161 (`dfaa48e2`). Mandatory Section B
+B0–B3/B5 is implemented by the generated evidence and contracts below; B4 was
+not promoted. Root `TODO.md` contains only remaining actionable work, so the
+completed Section B item was removed rather than retained as a checked backlog
+entry. Section A evidence lives in its
 [landing record](./archive/section-a-rendering-contract-2026-07.md) and is
 projected from the registries into the [generated capability
 report](./section-a-capability-report.md). The upstream
@@ -29,7 +31,10 @@ abstractions:
 4. Add **semantic bindings** so authored classes, categories, statuses, and
    metadata can select brand slots without embedding raw CSS or SVG. Bindings
    supply defaults before Mermaid-authored styling; final constraints inspect
-   rather than repaint the Scene.
+   rather than repaint the Scene. Resolved values retain authority provenance:
+   only internally derived defaults may be guarded or substituted, while
+   concrete authored theme/config/element paint remains authoritative and is
+   diagnosed rather than repaired.
 5. Add a versioned **BrandPack** envelope only after a real consumer proves the
    need for repeated distribution, exact identity, and installed resources.
    Render requests pin exact versions and content digests; semver ranges belong
@@ -49,10 +54,11 @@ Post-positioning executable decorations, universal mode axes, wider-gamut output
 and an accessibility execution mode are outside active Section B. Each requires
 its own observed need and promoted `TODO.md` item rather than dormant machinery.
 
-This plan is the normative product and architecture decision. The
-[documentation-only Cupertino prototype](../custom-style-cookbook.md#cupertino-prototype--documentation-only)
-is one public-API probe; it is not a built-in, compatibility alias, separate
-plan, or source of scheduled work.
+This plan is the normative product and architecture decision. The three
+[documentation-only public prototypes](../custom-style-cookbook.md#public-brand-inspired-prototypes--documentation-only)
+are the highest non-built-in probe form: checked-in public `StyleSpec` files,
+executable fixtures, and screenshot gates—not compatibility aliases, separate
+plans, endorsements, or sources of scheduled work.
 Current family citizenship remains governed by
 [`diagram-family-citizenship.md`](../contributing/diagram-family-citizenship.md),
 and actionable work remains owned by [`TODO.md`](../../TODO.md).
@@ -66,7 +72,7 @@ Use these terms consistently in code, docs, tests, and product copy:
 | **Style** | The umbrella appearance input accepted by the current APIs: a named or inline partial record that may be a Look, a Palette, or a composition of both. |
 | **Look** | Geometry or material treatment such as crisp, hand-drawn, watercolor, or publication. |
 | **Palette** | Semantic color values. A colors-only style is a palette. |
-| **Brand primitives** | Role typography, spacing, shape, border, elevation, semantic status/category slots, and non-color visual cues expressed by `StyleSpec`. |
+| **Brand primitives** | Role typography, spacing, shape, border, elevation, semantic category slots, and non-color visual cues expressed by `StyleSpec`; status remains deferred until a second unrelated family has a consumer witness. |
 | **Semantic role** | An existing versioned `SceneRole` plus its centralized traits and brand fallback; never an element ID, selector, or second role taxonomy. |
 | **Pack variant** | An optional pack-local named `StyleSpec` fragment selected explicitly by the caller. Variants do not create universal color, density, contrast, or scale axes. |
 | **Semantic policy** | Ordered bindings from authored/domain meaning to brand slots plus closed-catalog constraints evaluated over resolved tokens or final Scene marks. |
@@ -118,7 +124,7 @@ The plan succeeds when:
 - every entry point produces the same shared resolved-request and resolved-
   appearance digests for the same input; output-specific projections are explicit;
 - SVG and PNG consume the same resolved request, while terminal output extends
-  its existing `ResolvedTerminalStyle` projection with role/status/category cues
+  its existing `ResolvedTerminalStyle` projection with role/category cues
   and explicit degradation diagnostics;
 - adding a family is primarily one adapter plus family-specific semantics, not a
   hunt through duplicated switches, schemas, docs, editors, and transports;
@@ -137,15 +143,18 @@ not as a new rendering mode:
   keep using `style`; existing records continue to render unchanged.
 - **Custom styles gain built-in power.** Users can set semantic-role typography,
   padding, radii, borders, surfaces, and connector stroke/bend character that are
-  currently private to first-party built-ins, plus shared status/category cues
+  currently private to first-party built-ins, plus shared category cues
   that the public global Style API does not yet provide.
 - **One brand travels across families.** A role or binding such as
   `status:error` or `category:storage` produces the same brand intent in every
   family that declares the channel, with an actionable diagnostic where the
   role or channel is not applicable.
 - **Authored Mermaid remains authoritative.** Global brand values are defaults;
-  `classDef`, `style`, `linkStyle`, and other family-native styling continue to
-  override them according to the documented cascade.
+  concrete family theme/config values, `classDef`, `style`, `linkStyle`, and
+  other family-native styling continue to override them according to the
+  documented cascade. Derived defaults may be guarded while they are being
+  chosen; once authored paint wins, verification may diagnose but never repair,
+  clamp, or substitute it.
 - **Outputs stay honest.** SVG and PNG share geometry and paint. Terminal output
   preserves hierarchy, labels, symbols, line patterns, and available color while
   reporting typography, radius, elevation, or paint that cannot be represented.
@@ -183,7 +192,7 @@ levels:
 3. **Output parity:** SVG and PNG preserve the same branded geometry, paint,
    semantic identity, accessibility, security decisions, and deterministic
    resources, subject only to declared raster concerns. ASCII/Unicode preserves
-   semantic role, hierarchy, emphasis, status/category selection, and
+   semantic role, hierarchy, emphasis, category selection, and
    diagnostics through a terminal projection; it does not claim pixel or
    typographic equivalence.
 
@@ -214,9 +223,9 @@ Release claims state the parity level and output, never the unqualified phrase
 
 | Probe | Source | What it proves |
 |---|---|---|
-| Cupertino prototype | emilkowalski's apple-design skill and public Apple design guidance | A borderless surface language needs elevation, role typography, radius and spacing discipline, explicit light/dark/contrast variants, and semantic accent placement. The checked-in JSON demonstrates only the current public floor and is never auto-registered. |
-| `vercel` | vercel-labs/beautiful-mermaid and the Geist visual language | Brand defaults, deterministic fonts, hairlines, live retheming, and motion cannot be represented completely by the current public JSON surface. |
-| `cf-workers` | CF Workers design-system tokens | Real brands need surface/text pairs, strong+soft categories, status colors, sans+mono roles, scales, tinted layered shadows, and enforceable constraints. Signature effects remain evidence for a future decision, not a Section B execution seam. |
+| Cupertino-inspired prototype | emilkowalski's apple-design skill and public Apple design guidance | The checked-in public `StyleSpec` proves borderless surfaces, shared elevation, role typography, radius/spacing discipline, and inspect-only constraints. It remains static, light-only, and never auto-registers. |
+| Vercel-inspired prototype | vercel-labs/beautiful-mermaid and the Geist visual language | The checked-in public `StyleSpec` and XYChart fixture prove dark brand defaults, hairlines, deterministic bundled typography, category-bound series slots, and inspect-only constraints. Motion, live application chrome, and proprietary assets remain outside the static prototype. |
+| Cloudflare Workers-inspired prototype | CF Workers design-system tokens | The checked-in public `StyleSpec` and Gantt fixture prove surface/text pairs, sans+mono roles, section-bound slots, visible no-color cues, and enforceable diagnostics. Tinted layered shadows, broader status scales, and signature motion remain research rather than a new execution seam. |
 
 The following findings describe the pre-Section-A baseline that motivated the
 correctness work; they are retained as historical design evidence, not as a
@@ -356,8 +365,8 @@ fonts, and outputs usually costs more than writing the record.
 | 0. Preset | choose a named Look or Palette | seconds | nontechnical user; no file or code |
 | 1. Composition | stack Look + Palette and change a few fields in the editor or inline request | minutes | global colors, font, stroke, fill, backdrop and deterministic seed |
 | 2. Reusable Style | save and validate a partial `StyleSpec` JSON record | tens of minutes; hours with visual review | the existing low floor, without registration or family knowledge |
-| 3. Semantic Style | add role typography, geometry, paint, status and category slots to that same record | hours with cross-family review | designer/design-system owner; public parity with built-in styles |
-| 4. Semantic policy | add class/tag/status/category bindings and closed-catalog constraints | hours plus cross-family QA | domain-aware branding without selectors or renderer code |
+| 3. Semantic Style | add consumed role typography, geometry, paint, and category slots to that same record | hours with cross-family review | designer/design-system owner; public parity with built-in styles |
+| 4. Semantic policy | add census-proven category bindings and closed-catalog constraints | hours plus cross-family QA | domain-aware branding without selectors or renderer code |
 | 5. BrandPack (evidence-gated) | package exact styles, variants and installed-resource references | hours to days | teams that have proved a repeated distribution/versioning need |
 
 Levels 0–2 exist today, although Level 2 is less capable than built-in styles.
@@ -414,8 +423,11 @@ The role-style resolver is an immutable capability-scoped view of the same
 resolved request, not a second public record or merge engine. Family lowering
 must obtain role defaults before constructing `MarkPaint` and `crisp`; changing
 paint after Scene construction would violate the Section A fidelity contract.
-Post-Scene constraints inspect final marks and return diagnostics but never
-rewrite paint or geometry.
+The resolver retains whether each winning value came from a derived default,
+the Style stack, source theme/config, an explicit option, or authored element
+styling. Post-Scene constraints inspect final marks, provenance, and available
+output/compositing context and return diagnostics but never rewrite paint or
+geometry.
 
 All declarative records remain partial, JSON-safe, and expressed in Agentic
 Mermaid's semantic vocabulary. The schema stays deliberately smaller than a
@@ -474,7 +486,7 @@ docs, merge behavior, and enrolled surface projections. B1 adds optional role
 and semantic-token fields there; it does not demote the current format to a
 “legacy facade.” Additive fields retain compatibility. Any genuinely breaking
 wire change requires an explicit format-version migration decision rather than
-being hidden inside BUILD-31.
+being hidden inside this completed section.
 
 The public option remains:
 
@@ -517,9 +529,9 @@ resource hashes and provenance through the existing contract.
 Packs, if promoted, compose only through the caller's explicit `style` stack;
 there is no hidden `extends` graph. JSON `null` remains rejected rather than
 acquiring accidental clear/reset meaning; omission means inherit. A later reset
-operation requires an explicit typed sentinel and composition laws. Bindings are
-equality matches over normalized class, tag, status, category, and namespaced
-metadata fields. Constraints are a closed catalog with `warn | error` actions.
+operation requires an explicit typed sentinel and composition laws. Bindings are equality matches over normalized category values; class, tag,
+status, route, and namespaced metadata remain deferred until their census and
+consumer witnesses exist. Constraints are a closed catalog with `warn | error` actions.
 CSS selectors, tree queries, arbitrary predicates, renderer-private fields,
 general expressions, and automatic rewriting remain outside the declarative
 language.
@@ -549,7 +561,7 @@ The target contract is:
 
 B2 completes all-built-in equivalence instead of postponing it until packaging.
 By B3, a declarative custom style can exceed today's private faces through
-semantic status/category slots, bindings, and constraints. B5 supplies usability
+semantic category slots, bindings, and constraints. B5 supplies usability
 and release evidence; it is not the first point at which private expressiveness
 is removed.
 
@@ -560,9 +572,9 @@ is removed.
 | role padding, radii, widths and edge bend | only coarse global render options | private face scalars | public applicable role geometry shared by measurement and rendering |
 | title, legend, axis and future-family roles | family-specific or unavailable | no universal built-in contract | existing built-in/namespaced roles with deterministic brand fallback |
 | surface/text pairs and sans/mono pairing | unavailable | flat colors and one main font; partial private overrides | named semantic tokens consumed consistently by adapters |
-| status/category slots and bindings | authored family-local styles | unavailable | normalized declarative bindings over existing Scene channels |
+| category slots and bindings | authored family-local styles | unavailable | normalized declarative category bindings; status waits for a second unrelated consumer |
 | contextual variants | separate names/caller stacks | separate names/caller stacks | explicit caller stacks; pack-local named variants only if packaging is promoted |
-| elevation | boolean shadow or renderer/private implementation | partial private implementation | bounded declarative elevation where geometry/bounds can represent it |
+| elevation | shared boolean `shadow` plus family-owned depth cues | no private face leaf | keep shared shadow; do not admit per-role elevation until Scene bounds and every backend can consume it coherently |
 | constraints | advisory `intent`/`mono` only | no enforcement advantage | token/final-Scene `warn | error` diagnostics, never rewriting |
 | distribution and token ingestion | style JSON, `fromShikiTheme`, caller fonts | repository registration and bundled fonts | retain style JSON; exact packs/resources and a pure importer only after consumer evidence |
 | new compositor | backend registration; declarative style data cannot select host code | core can wire an ID | outside this branding roadmap; trusted host selection remains separate |
@@ -596,10 +608,15 @@ built-in. A new core role still requires evidence from at least two unrelated
 families or holdout brands. Generated docs and matrices derive from the role
 descriptors rather than a prose roster.
 
-Role style properties are brand-neutral and closed: typography, spacing,
-applicable shape geometry, paint, border/stroke, bounded elevation, and
-non-color cues. They are never element IDs, CSS selectors, or arbitrary SVG
-properties. Marker archetypes remain family/relationship semantics; branding
+Role style properties are brand-neutral and closed: implemented typography,
+spacing, applicable shape geometry, paint, border/stroke, and role-specific
+non-color cues. A leaf is exposed only where its role descriptor names a real
+measurement/render projection. V1 deliberately rejects dormant per-role
+`lineHeight` and `elevation`, rejects per-role `fontFamily` except where a
+family-owned text surface consumes it, and admits `cue` only for roles with a
+visible graphical/terminal projection. Shared `font` and `shadow` remain the
+cross-family controls until stronger coherent primitives exist. They are never
+element IDs, CSS selectors, or arbitrary SVG properties. Marker archetypes remain family/relationship semantics; branding
 may affect applicable marker paint or scale but cannot globally replace arrow,
 diamond, inheritance, or other semantic marker kinds.
 
@@ -611,18 +628,29 @@ generated registry-wide census must show which registered families populate
 each channel, its normalized values, and its fallback/not-applicable behavior.
 A channel with no stable cross-family meaning remains family-owned.
 
-Bindings map authored meaning, not SVG selectors, to brand slots. V1 inputs are:
+Bindings map authored meaning, not SVG selectors, to brand slots. V1 admits
+only normalized Scene `category` equality because that channel has typed
+emitters and renderer witnesses across unrelated families in this phase.
+`status` is emitted by several families but remains family-owned until at least
+two unrelated adapters consume the same normalized values. Class names, tags,
+route values, and namespaced metadata remain family-owned until their census,
+normalization, authored-precedence, and diagnostic contracts have executable
+cross-family evidence; unknown channel names fail strict admission.
 
-- Mermaid class names and admitted namespaced metadata;
-- normalized Scene status/category/route values;
-- explicit agent-side tags stored in typed semantic data.
+`emphasis` remains family-owned state rather than a V1 binding selector. Brand
+policy may style an already-emphasized mark through applicable paint, weight, or
+non-color defaults, but cannot create/remove the target, alter quantitative
+geometry, suppress meaningful text, or outrank source/config-authored emphasis.
 
-For example, `category:storage -> categories.storage` should select the same
-brand pair and non-color cue for applicable Architecture, Flowchart, Pie, and
-Radar marks. Tests use only registered families plus one synthetic namespaced
-extension fixture; unsupported future families are not acceptance dependencies.
-Bindings are ordered, declarative, safe under strict security, and report
-unmatched, conflicting, or not-applicable matches.
+For example, a normalized category slot selects the same brand defaults on
+applicable Pie, Radar, XY, Sequence, ER, Gantt, and Journey marks; a role
+restriction projects only meaningful leaves. Tests use registered families;
+unsupported future families are not acceptance dependencies.
+Bindings are ordered, declarative, and safe under strict security. Later
+matching bindings win per leaf; an unmatched value deterministically projects
+nothing; a role-restricted slot projects only descriptor-applicable leaves; and
+dangling or wholly inapplicable restricted slots fail final-stack admission.
+These outcomes are property-tested rather than inferred from family switches.
 
 A binding chooses a role/token default during family lowering. It never mutates
 an already serialized Scene and never outranks an authored Mermaid `classDef`,
@@ -642,17 +670,20 @@ expression AST or extension language. Adding a rule requires cross-brand
 evidence, a composition law, and conformance evidence.
 
 Section B does not introduce an `AccessibilityProfile` or overload security's
-`strict` mode. Obvious foreground/background pair checks belong at Style
-admission; actual rendered contrast, non-color status/category meaning, SVG
-semantics, and product accessibility claims remain in the existing verification,
-quality, and output contracts. A future fail-closed accessibility render policy
-requires a separate public API decision.
+`strict` mode. Style admission checks only context-independent concrete token
+pairs. Render-dependent contrast runs after request/family resolution against a
+concrete effective foreground/background pair and records `measurable`,
+`unmeasurable`, or `not-applicable`; transparent, unresolved, or host-dependent
+backdrops never produce a fabricated ratio. Actual rendered contrast, non-color
+category meaning, SVG semantics, and product accessibility claims remain
+in the existing verification, quality, and output contracts. A future fail-
+closed accessibility render policy requires a separate public API decision.
 
 ### Deferred signature effects
 
 Executable post-positioning decorations are not a Section B phase. No concrete
 signature effect has shown that a declarative primitive is insufficient while a
-backend is excessive, so BUILD-31 adds no Treatment field, registry, selector,
+backend is excessive, so Section B adds no Treatment field, registry, selector,
 pipeline, schema leaf, or conformance suite. If such evidence appears, it must
 be promoted as a separate root TODO and designed against the then-current Scene,
 bounds, identity, accessibility, determinism, resource, and output-security
@@ -706,14 +737,20 @@ The composition laws are public API:
    explicit deterministic fallback, or a documented not-applicable state.
 9. **Determinism and purity:** source + resolved request + seed + frozen registry,
    extension, resource, and capability snapshot fixes output.
-10. **Layout/render coherence:** geometry-affecting tokens are measured and drawn
-    from the same resolution.
-11. **Crisp/semantic coherence:** final `MarkPaint` and crisp serialization are
+10. **Authority preservation:** the winning value retains its provenance;
+    concrete authored theme/config/element values remain value-authoritative and
+    constraints cannot relabel them as derived defaults or repair them.
+11. **Layout/render coherence:** every metric-affecting typography component—font
+    and resource/fallback identity, size, weight, style, letter spacing, line
+    height, transform, and wrapping policy—is resolved once and shared by
+    measurement, collision/admission, knockout/halo geometry, bounds, crisp
+    serialization, and styled rendering.
+12. **Crisp/semantic coherence:** final `MarkPaint` and crisp serialization are
     constructed from the same cascade; neither is patched independently.
-12. **Output parity:** SVG and PNG consume the same resolved request; terminal
+13. **Output parity:** SVG and PNG consume the same resolved request; terminal
     output derives its declared semantic projection; unsupported output features
     fail or warn explicitly.
-13. **JSON safety:** declarative records contain no executable code, markup, or
+14. **JSON safety:** declarative records contain no executable code, markup, or
     unapproved resource URLs.
 
 ## Pinned Mermaid family envelope
@@ -1011,12 +1048,15 @@ testing, verification and accessibility all consume the same positioned mark.
 Before Section A, `tufte` meant both a palette in `THEMES` and a full Look in
 the style registry; built-in Look registration silently overwrote the palette
 entry. This represented the broader historical overlap between “theme,”
-“palette,” and “style.” Section A introduced explicit kinds and
-collision-safe names such as `palette:tufte` and `look:tufte`. The bare
-`tufte` alias selects the historically observable full Look during a
-published compatibility window, with discovery showing its canonical ID and
-the formerly shadowed palette becoming directly addressable. New registrations
-must be namespaced and cannot silently replace another kind or owner.
+“palette,” and “style.” Section A first exposed the collision as
+`palette:tufte` and `look:tufte`; the final product decision retains only the
+full `look:tufte` resource. The duplicate light palette, its legacy `tufte`
+theme, and the ambiguous bare Style input are retired and rejected. The distinct
+`tufte-dark` palette is unchanged. PR #172 records the repository owner's
+explicit breaking-compatibility decision to complete that retirement before the
+previously announced window; the changelog names the migration rather than
+silently reassigning an input. New registrations must be namespaced and cannot
+silently replace another kind or owner.
 
 This cleanup happens before BrandPack naming. Otherwise the pack registry would
 institutionalize the same ambiguity at a larger scale.
@@ -1110,8 +1150,9 @@ authorities only when their source manifest and semantic invariant are singular.
 ### In this plan and its documentation set
 
 1. Keep this document as the only active decision and dependency order for brand
-   primitives. Keep the Cupertino example in the custom-style cookbook as a
-   public-API probe, never as a built-in or a second plan.
+   primitives. Keep the Cupertino-, Vercel-, and Cloudflare Workers-inspired
+   examples in the custom-style cookbook as public-API prototypes, never as
+   built-ins or a second plan.
 2. Treat [`archive/styles-rollout.md`](./archive/styles-rollout.md) as the executed
    history of Style + Palette, not a second active brand roadmap.
 3. Keep
@@ -1139,8 +1180,8 @@ catalogues, CSS named colors, strict output security, and resource provenance.
 The compatibility names that remain are generated views, not alternate owners.
 
 Residual implementation opportunities and their priorities live only in root
-[`TODO.md`](../../TODO.md): Section B is owned by `BUILD-31`, and proven
-mechanical duplication is owned under
+[`TODO.md`](../../TODO.md): completed Section B no longer has a backlog entry,
+and proven mechanical duplication is owned under
 [Consolidation / dedup backlog](../../TODO.md#consolidation--dedup-backlog).
 This plan retains dependency and acceptance invariants, not another ranked work
 queue.
@@ -1189,23 +1230,23 @@ remains solely owned by `BUILD-6`.
 Holdout brands and real authoring may reveal a recurring missing primitive, but
 promotion requires cross-family evidence, a behavioral contract, compatibility
 review, and conformance tests rather than a brand-specific shortcut. BrandPack
-packaging is similarly evidence-gated: BUILD-31 can ship useful semantic Styles
+packaging is similarly evidence-gated: Section B can ship useful semantic Styles
 and policy without creating a registry merely to complete a phase diagram.
 
 ### Phase-to-TODO ownership
 
 `TODO.md` is the only status-bearing backlog. The phases below are dependency
-and acceptance boundaries, not another checklist; the documentation-only
-Cupertino example and other brand research supply probe evidence only.
+and acceptance boundaries, not another checklist; the three documentation-only
+brand-inspired prototypes supply public-API evidence only.
 
 | Plan boundary | Status owner | Independent scope retained |
 |---|---|---|
 | A0–A7 | PR #163 implementation and [`Section A landing record`](./archive/section-a-rendering-contract-2026-07.md) | referenced `CONS-*`, `SRC-*`, `TERM-*`, security, family-adoption and evidence items keep any work beyond Section A |
-| B0–B3, B5 | active `BUILD-31` | documentation-only Cupertino/holdout acceptance evidence; native-family adoption remains `BUILD-6` |
-| B4 | `BUILD-31` only after external consumer evidence promotes packaging | ordinary `StyleSpec` files remain the default distribution path; no pack registry is required to complete B1–B3/B5 |
+| B0–B3, B5 | completed Section B scope | documentation-only Cupertino-, Vercel-, and Cloudflare Workers-inspired prototype evidence; native-family adoption remains `BUILD-6` |
+| B4 | not promoted; requires a new evidence-backed TODO after external consumer evidence | ordinary `StyleSpec` files remain the default distribution path; no pack registry was required to complete B1–B3/B5 |
 
 The graph above defines hard phase dependencies. Reused IDs in the table retain
-their independent scope, status, and evidence; `BUILD-31` coordinates Section B
+their independent scope, status, and evidence; this plan coordinates Section B
 without absorbing or silently closing them.
 
 Newly shipped surfaces such as those proposed by `BUILD-27`, `BUILD-28`, and
@@ -1229,7 +1270,7 @@ checklists or imply that independently owned work is complete.
 | Boundary | Permanent invariant | Generated or machine-evidence authority | Ongoing TODO owner and independent scope |
 |---|---|---|---|
 | A0 — truth and characterization | Claims use the applicable checked state vocabulary for their dimension; family syntax, transport, output, backend and realization states are never mixed into one ambiguous scale. Registries, current precedence, routing, fields and capability behavior are characterized before they change. | Generated Section A capability report; `section-a-capability-report.test.ts`; `section-a-render-contract.test.ts`. | New gaps are promoted only in `TODO.md`; characterization evidence in the landing archive is not a backlog. |
-| A1 — identities and registries | Shared `ExtensionIdentity` rules feed typed, kind-specific family, backend, resource, Palette and Look registries; external executable families and backends declare compatible core ranges before hooks run, Scene consumers also declare Scene ranges, and deterministic discovery exposes only committed registrations. Compatibility aliases such as bare `tufte` are diagnosed and time-bounded rather than silently shadowing canonical names. | Registry descriptors and generated discovery projections; `extension-registries.test.ts`; `style-spec-authority.test.ts`; `family-registration-conformance.test.ts`. | Alias removal is owned by `COMPAT-1`; future extension work remains root-TODO work; an evidence-promoted BrandPack registry belongs to Section B B4. |
+| A1 — identities and registries | Shared `ExtensionIdentity` rules feed typed, kind-specific family, backend, resource, Palette and Look registries; external executable families and backends declare compatible core ranges before hooks run, Scene consumers also declare Scene ranges, and deterministic discovery exposes only committed registrations. Light Tufte is solely `look:tufte`; its duplicate palette and ambiguous bare input are retired. The remaining `default` compatibility alias is diagnosed and time-bounded rather than silently shadowing canonical names. | Registry descriptors and generated discovery projections; `extension-registries.test.ts`; `style-spec-authority.test.ts`; `family-registration-conformance.test.ts`. | Remaining `default` alias removal is owned by `COMPAT-1`; future extension work remains root-TODO work; an evidence-promoted BrandPack registry belongs to Section B B4. |
 | A2 — request and appearance waist | One immutable `ResolvedRenderRequest` and one internal `ResolvedAppearance` normalize precedence once; checked shared/output field descriptors project validation and receipts into every transport and output adapter, with every shared-field×surface cell declared `forwarded`, `host-enforced`, or `unavailable`. Family-specific fields also declare applicability: a supplied field must affect that family or emit a stable `RENDER_OPTION_NOT_APPLICABLE` diagnostic instead of changing identity silently. | RenderOptions/StyleSpec generated artifacts, the generated shared-field×surface matrix, applicability diagnostics, and request/appearance digests; `render-options-authority.test.ts`; `section-a-transport-parity.test.ts`. | New surfaces from `BUILD-27`, `BUILD-28`, and `BUILD-29` must enroll in this contract when they land; they do not reopen or block Section A. |
 | A3 — essential primitives | Versioned typed Scene marks make connectors, routes, markers, hit geometry, identity and accessibility semantic inputs; terminal projections declare each lossy or unsupported feature instead of reconstructing graphical output. | Scene/Connector schema, capability report and conformance fixtures; `scene-connector-contract.test.ts`; `terminal-projection-security.test.ts`. | Family cell-grid topology remains solely owned by `TERM-1` and `TERM-2`; Section A does not claim terminal pixel or topology parity. |
 | A4 — families and positioned artifacts | `FamilyDescriptor` is the open, namespaced family authority for detection, parsing, examples, roles, capabilities and lowering; built-ins and extensions use one lossless envelope and one positioned artifact/projection without core switches. A native layout claim must prove finite positive positioned/projected bounds and at least one semantic item on its canonical example. | Descriptor registry and generated family projections; `section-a-family-descriptor-conformance.test.ts`; `family-registration-conformance.test.ts`; `positioned-artifact-convergence.test.ts`. | Native adoption remains `BUILD-6`; config-rule consolidation remains `CONS-44`; minimal-example deduplication remains `CONS-27`. |
@@ -1253,12 +1294,20 @@ only in the landing archive, and future work lives only in `TODO.md`.
 - Treat the current partial, JSON-safe `StyleSpec` as the fragment format; do not
   add a synonymous public type.
 - Record every private `InternalStyleFace` leaf, which built-ins use it, and the
-  exact public field/role needed to reproduce it.
+  exact public field/role needed to reproduce it. Derive this census from the
+  runtime private-face projection authority so an author-only leaf cannot hide
+  behind TypeScript-only declarations.
 - Generate a registered-family census of emitted `SceneRole`s and populated
   semantic channels, including `radar-beta`, graphical backends, and terminal
   projection behavior.
-- Lock current Style stack, theme-variable, explicit-option, and authored-source
-  precedence with discriminating tests before changing resolution.
+- Inventory existing automatic paint guards and family-specific paint
+  diagnostics. For each, record the effective pair, authority provenance,
+  output/compositing context, and measurable/unmeasurable/not-applicable result.
+- Lock current Style-stack, theme/config, explicit-option, and element-authored
+  precedence with discriminating tests before changing resolution. The Radar
+  witness must prove that derived ink may be guarded while explicit
+  `themeVariables.radar.axisColor` is preserved and diagnosed; transparent
+  output must not claim a ratio against a guessed backdrop.
 
 Exit: each private style value and each registered family role/channel has a
 public migration target, fallback/not-applicable state, and executable witness.
@@ -1267,14 +1316,22 @@ Deletion gate: B0 adds no public type, option, registry, resolver, or schema.
 
 ### B1 — public semantic role Styles
 
-- Extend the existing Style field descriptors with role typography, spacing,
-  applicable radii/bend geometry, border/stroke, surface/text paint, bounded
-  elevation, semantic color pairs, and non-color cues.
+- Extend the existing Style field descriptors with consumed role typography,
+  spacing, applicable radii/bend geometry, border/stroke, surface/text paint,
+  semantic color pairs, and visible non-color cues. Reject leaves whose
+  measurement, graphical, or terminal projection would otherwise be inert;
+  shared `shadow` remains the elevation surface in V1.
 - Extend `SCENE_ROLE_DESCRIPTORS`/central role traits with style applicability and
   deterministic brand fallback; do not add `BrandRole` or copied role lists.
 - Add one shared role-style resolver used by measurement and family lowering
-  before final `MarkPaint` and crisp serialization. Preserve the authored
-  Mermaid cascade as the final per-element override.
+  before final `MarkPaint` and crisp serialization. Preserve winning-value
+  provenance and the authored Mermaid cascade as the final per-element
+  override.
+- Resolve each descriptor-approved typography tuple once. Require
+  non-default-weight, wrap-prone witnesses proving measurement, collision boxes,
+  knockout/halo geometry, bounds, crisp output, and styled backends use
+  identical values. Do not advertise family/font/line-height leaves until that
+  complete tuple exists for the applicable role.
 - Keep connector marker archetype semantic and family-owned. Only applicable
   paint, width, dash, cap/join, bend, and marker scale may be branded.
 - Extend the existing terminal projection and degradation diagnostics instead of
@@ -1284,7 +1341,9 @@ Deletion gate: B0 adds no public type, option, registry, resolver, or schema.
 
 Exit: an inline or file-backed `StyleSpec` can express the role styling currently
 available only to representative first-party built-ins across SVG, PNG, and the
-declared terminal projection.
+declared terminal projection. Pie `highlightSlice` preserves its family-owned
+target, byte-identical slice paths, value/category/emphasis channels, meaningful
+text, and non-color cue under deliberately conflicting role defaults.
 
 Deletion gate: no `appearance` option, parallel role taxonomy, family-local brand
 resolver, or post-Scene repaint lands; sentinel built-ins have no private-only
@@ -1312,19 +1371,32 @@ compiled representation with tests preventing private input.
 ### B3 — semantic bindings and inspect-only constraints
 
 - Publish the family/channel census before admitting cross-family binding claims.
-- Add ordered equality bindings over normalized class, tag, status, category,
-  route, and namespaced metadata; exclude CSS selectors, tree queries, arbitrary
+- Add ordered equality bindings over normalized `category`.
+  Defer status, class, tag, route, and namespaced metadata until the same census and
+  renderer-witness bar is met; exclude CSS selectors, tree queries, arbitrary
   predicates, and renderer-private state.
 - Apply bindings as role/token defaults during family lowering, beneath authored
   `classDef`, `style`, `linkStyle`, and equivalent family-native styling.
 - Add token-time and final-Scene constraints from a closed catalog with stable
   mark/role diagnostics. V1 actions are `warn | error`; constraints never repaint,
-  relayout, or claim to be an accessibility execution profile.
-- Publish binding precedence, unmatched/conflict, not-applicable, and constraint
-  composition laws with property tests.
+  relayout, or claim to be an accessibility execution profile. Contrast rules
+  require a concrete effective pair and expose measurable/unmeasurable/not-
+  applicable evidence instead of guessing a host backdrop.
+- Derive every constraint code, payload shape, tier/severity, recovery prose,
+  transport declaration, and verified firing example from one authority (or
+  explicitly classify a non-reproducible engine tripwire).
+- Centralize rule evaluation. Family descriptors may declare applicability and
+  meaningful paint-pair ownership, but family adapters do not own policy engines
+  or require a growing central family switch; existing family-local checks are
+  characterization inputs to this migration.
+- Publish binding precedence, deterministic unmatched/no-op, ordered conflict,
+  not-applicable, and constraint composition laws with property tests. Bindings cannot select or override
+  family-owned emphasis targets.
 
 Exit: a brand author can express the same normalized domain meaning across
 applicable unrelated families without enumerating adapters or embedding CSS.
+Deliberately conflicting Pie role/category bindings still preserve the authored
+highlight target, quantitative geometry, semantic `emphasis`, and non-color cue.
 
 Deletion gate: no selector engine, expression language, automatic rewriter,
 parallel accessibility mode, or family-local policy registry is introduced.
@@ -1365,13 +1437,14 @@ loader, migration framework, executable code, or second inheritance rule.
   selection guide; do not make it prerequisite reading for ordinary Styles.
 - Run sentinel and holdout brands across registered families, backends, SVG,
   PNG, and terminal projection, plus low-floor usability and small-size visual
-  review.
+  review. The Pie family-owned-emphasis fixture must retain its graphical and
+  terminal non-color cue.
 - Verify all library, CLI, Code Mode, MCP, editor, website, and installed-package
   declarations expose the same schema, validation, diagnostics, and receipts.
 
-Exit: unfamiliar users can customize role appearance and semantic status/category
+Exit: unfamiliar users can customize role appearance and semantic category
 meaning through the existing `style` workflow, and broad branding claims are
-supported by conformance and human evidence.
+supported by conformance and unfamiliar-consumer evidence.
 
 Deletion gate: evidence and docs derive from the same field/role/channel
 authorities; no copied capability table, private built-in path, or packaging
@@ -1385,20 +1458,35 @@ requirement is introduced.
   schema across all registered families, SVG and PNG, without core changes.
 - **Sentinel brand:** every token is deliberately distinctive so a no-op or
   wrong role is obvious; render it for every current and newly added family.
-- **Semantic binding:** the same status/category tag selects the same slot across
+- **Semantic binding:** the same normalized category selects the same slot across
   structural, temporal, domain, and chart families.
+- **Family-owned emphasis fixture — pinned baseline:** Pie `highlightSlice`
+  already proves byte-identical slice geometry, `category`/`value`/`emphasis`
+  channels, final `MarkPaint` across crisp/styled backends, derived meaningful
+  text contrast, and a terminal non-color cue. This baseline is pinned by the
+  existing Pie/Closing-The-Gap suites and generated receipt.
+- **Family-owned emphasis fixture — B1/B3 extension:** apply deliberately
+  conflicting role/category defaults and prove the target, geometry, semantic
+  channels, meaningful text, and non-color cue remain family-authoritative.
+  Authored low-contrast text remains unchanged and is diagnosed; only renderer-
+  derived fixture text may be contrast-guarded.
 - **Constraint tests:** positive and negative examples for accent area, contrast,
-  mono role, not-applicable channels, and unmatched bindings.
-- **Human low-floor test:** give unfamiliar users a style file and ask for a
-  branded multi-family sheet; measure time to first useful result and whether
-  core code or a family adapter was required.
+  mono role, not-applicable channels, and unmatched bindings. Contrast cases
+  include opaque measurable pairs, transparent/host-dependent backgrounds,
+  unresolved CSS paint, alpha compositing, authored low contrast, and derived
+  low contrast.
+- **Unfamiliar-consumer low-floor test:** give an unfamiliar human or
+  fresh-context agent consumer only the public authoring guide and CLI help,
+  ask for a branded multi-family sheet, and measure time, corrections, and
+  whether core code or a family adapter was required.
 - **Progressive-authoring test:** the same task has a documented preset, inline
   record, and reusable `StyleSpec` JSON path. If B4 packaging is promoted, it
   also has an exactly pinned pack path. Choosing a simpler path never requires
   understanding the levels above it.
 - **No-family-knowledge test:** brand authors do not enumerate registered
-  families or edit adapters to style core roles; unmatched bindings and
-  unconsumed roles return actionable diagnostics.
+  families or edit adapters to style core roles. Unmatched equality bindings
+  deterministically project nothing; fallback-only exact roles reject every
+  leaf at schema/runtime admission instead of accepting an inert record.
 - **No-built-in-privilege test:** export each first-party Look, resolve it as an
   ordinary public record in a clean registry, and compare semantic output and
   accepted visual tolerance with selection by built-in name.
@@ -1412,7 +1500,10 @@ requirement is introduced.
 - assert a named built-in and its public resolved/exported representation are
   behaviorally equivalent, including private implementation defaults;
 - assert all current family headers route identically on every entry point;
-- assert layout and Scene geometry agree after typography/spacing overrides;
+- assert measurement, collision/admission, knockout/halo geometry, layout,
+  Scene bounds, crisp serialization and styled rendering agree after complete
+  typography/spacing overrides, including at least one non-default weight and
+  wrap-prone label per applicable text-role class;
 - submit one serialized fixture through every enrolled transport surface; compare
   shared resolved-request digest, resolved-appearance digest, diagnostics and
   capability decisions;
@@ -1461,7 +1552,7 @@ requirement is introduced.
 - No executable code, CSS, SVG/HTML markup, callbacks, or unapproved URLs inside
   declarative styles or promoted packs.
 - No brand-specific public fields such as `cornerBrackets: true`, and no generic
-  post-positioning decoration or repaint pipeline in BUILD-31.
+  post-positioning decoration or repaint pipeline in Section B.
 - No second public `appearance` option, `AppearanceFragment`, `BrandRole`, runtime
   DTCG token engine, speculative migration registry, universal mode axes, or
   cross-variant condition language in v1.

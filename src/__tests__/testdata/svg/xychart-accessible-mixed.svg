@@ -85,9 +85,9 @@ across two regions.</desc>
 <text x="158.87" y="348.3" text-anchor="middle" dominant-baseline="hanging" font-size="16" font-weight="400" class="xychart-data-label">30</text>
 <text x="350.12" y="219.6" text-anchor="middle" dominant-baseline="hanging" font-size="16" font-weight="400" class="xychart-data-label">60</text>
 <text x="541.37" y="283.95" text-anchor="middle" dominant-baseline="hanging" font-size="16" font-weight="400" class="xychart-data-label">45</text>
-<text x="158.87" y="495" text-anchor="middle" font-size="14" font-weight="400" dy="0.35em" class="xychart-label xychart-x-label">Q1</text>
-<text x="350.122" y="495" text-anchor="middle" font-size="14" font-weight="400" dy="0.35em" class="xychart-label xychart-x-label">Q2 Growth</text>
-<text x="541.374" y="495" text-anchor="middle" font-size="14" font-weight="400" dy="0.35em" class="xychart-label xychart-x-label">Q3</text>
+<text x="158.87" y="486.6" text-anchor="middle" font-size="14" font-weight="400" dy="0.35em" class="xychart-label xychart-x-label">Q1</text>
+<text x="350.122" y="486.6" text-anchor="middle" font-size="14" font-weight="400" dy="0.35em" class="xychart-label xychart-x-label">Q2 Growth</text>
+<text x="541.374" y="486.6" text-anchor="middle" font-size="14" font-weight="400" dy="0.35em" class="xychart-label xychart-x-label">Q3</text>
 <text x="51.24400000000003" y="469" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">0</text>
 <text x="51.24400000000003" y="426.1" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">10</text>
 <text x="51.24400000000003" y="383.2" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">20</text>

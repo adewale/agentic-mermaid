@@ -13,7 +13,7 @@ import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import { stripFormattingTags } from '../multiline-utils.ts'
 import { wrapLabelToWidth } from '../shared/label-wrap.ts'
 import type { JourneyRuntimeConfig } from '../mermaid-source.ts'
-import type { InternalStyleFace } from '../scene/style-registry.ts'
+import { resolveRoleStyle, type InternalStyleFace } from '../scene/style-registry.ts'
 
 // ============================================================================
 // Journey diagram layout engine
@@ -158,8 +158,10 @@ interface TaskMetric {
 }
 
 interface SectionMetric {
+  category: string
   label?: string
   labelWidth: number
+  labelHeight: number
   tasks: TaskMetric[]
   emptyWidth: number
 }
@@ -209,21 +211,27 @@ export function layoutJourneyDiagram(
     : 0
 
   const sectionMetrics: SectionMetric[] = diagram.sections.map(section => {
+    const category = section.label ?? section.id
+    const semanticStyle = resolveRoleStyle(styleFace, 'group-header', { category }, { includeFallback: false })
+    const fontSize = semanticStyle?.fontSize ?? style.groupHeaderFontSize
+    const fontWeight = semanticStyle?.fontWeight ?? style.groupHeaderFontWeight
+    const letterSpacing = semanticStyle?.letterSpacing ?? style.groupLetterSpacing
     const label = section.label
       ? wrapLabelToWidth(
-          applyTextTransform(section.label, style.groupTextTransform),
+          applyTextTransform(section.label, semanticStyle?.textTransform ?? style.groupTextTransform),
           visual.maxLabelWidth,
-          style.groupHeaderFontSize,
-          style.groupHeaderFontWeight,
+          fontSize,
+          fontWeight,
+          letterSpacing,
         )
       : undefined
-    const labelWidth = label
-      ? measureMultilineText(label, style.groupHeaderFontSize, style.groupHeaderFontWeight).width
-      : 0
+    const labelMetrics = label ? measureMultilineText(label, fontSize, fontWeight, letterSpacing) : undefined
+    const labelWidth = labelMetrics?.width ?? 0
+    const labelHeight = labelMetrics?.height ?? 0
     const tasks = section.tasks.map(task => measureTask(task.text, task.actors.length, style, visual))
     const emptyWidth = Math.max(visual.taskMinWidth, labelWidth + JY.sectionHeaderPadX * 2)
 
-    return { label, labelWidth, tasks, emptyWidth }
+    return { category, label, labelWidth, labelHeight, tasks, emptyWidth }
   })
 
   const maxTaskHeight = Math.max(
@@ -238,7 +246,7 @@ export function layoutJourneyDiagram(
     ? Math.max(
         JY.sectionHeaderMinHeight,
         ...sectionMetrics.map(section => section.label
-          ? measureMultilineText(section.label, style.groupHeaderFontSize, style.groupHeaderFontWeight).height + style.groupPaddingY * 2
+          ? section.labelHeight + style.groupPaddingY * 2
           : 0),
       )
     : 0
@@ -325,6 +333,7 @@ export function layoutJourneyDiagram(
 
     sections.push({
       id: section.id,
+      category: metric.category,
       label: metric.label,
       x: spanX,
       y: sectionY,

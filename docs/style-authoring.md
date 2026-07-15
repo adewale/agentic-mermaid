@@ -43,6 +43,100 @@ backend (pressure ribbons, watercolor); `stroke: 'jittered'`, hachure fills,
 sketch parameters, or a page backdrop engage rough.js; anything else renders
 on the crisp default backend with your palette and font.
 
+## Progressive authoring: Levels 0–4
+
+All five levels use the same `style` option and the same left-to-right merge
+law. Moving up never requires a new package or family adapter.
+
+```ts
+import { renderMermaidSVG } from 'agentic-mermaid'
+import { verifyMermaid } from 'agentic-mermaid/agent'
+
+// Level 0 — preset
+renderMermaidSVG(source, { style: 'publication-figure' })
+
+// Level 1 — compose a Look and Palette
+renderMermaidSVG(source, { style: ['hand-drawn', 'nord'] })
+
+// Level 2 — reusable ordinary StyleSpec JSON
+const palette = { colors: { bg: '#fffdf7', fg: '#211a1a', accent: '#a33b20' } }
+renderMermaidSVG(source, { style: palette })
+
+// Level 3 — semantic SceneRole defaults, shared by layout and rendering
+const roleStyle = {
+  roles: {
+    node: { fontSize: 16, fontWeight: 700, paddingX: 28, paddingY: 14,
+      cornerRadius: 8, lineWidth: 2, fillColor: '#fff7ed' },
+    edge: { fontSize: 12, fontWeight: 600, lineWidth: 2, bendRadius: 10 },
+    group: { fontSize: 13, fontWeight: 700, paddingX: 22, paddingY: 20 },
+  },
+}
+
+// Level 4 — ordered equality bindings plus inspect-only constraints
+const policyStyle = {
+  ...roleStyle,
+  semanticSlots: {
+    selected: { fillColor: '#fecdd3', borderColor: '#881337', lineWidth: 4, cue: 'outline' },
+  },
+  bindings: [
+    { channel: 'category', value: 'Pro', slot: 'selected', role: 'pie-slice' },
+  ],
+  constraints: [
+    { kind: 'contrast', action: 'error', minimum: 4.5 },
+    { kind: 'accent-area', action: 'warn', maxFraction: 0.25 },
+  ],
+}
+const verification = verifyMermaid(source, { renderOptions: { style: policyStyle } })
+// CLI equivalent for a saved record: am verify diagram.mmd --style brand.style.json
+```
+
+Role/slot values are defaults. Concrete Mermaid theme/config and element paint
+remain authoritative. Bindings never target `emphasis`: family syntax such as
+Pie `highlightSlice` owns its target and quantitative geometry. Constraints
+inspect the admitted final Scene and return measurable, unmeasurable, or
+not-applicable evidence; they never repaint or relayout. Transparent output has
+no known host backdrop, so contrast reports unmeasurable rather than inventing
+a ratio.
+
+### Export and edit a built-in
+
+Built-ins dogfood this same record format. Export one with `getStyle`, validate
+or save the returned JSON, then pass it inline; selecting the name and importing
+its export are behaviorally equivalent.
+
+```ts
+import { getStyle, validateStyleSpec } from 'agentic-mermaid'
+const exported = getStyle('publication-figure')!
+if (validateStyleSpec(exported).length) throw new Error('invalid exported style')
+renderMermaidSVG(source, { style: exported })
+```
+
+### Terminal projection
+
+ASCII/Unicode receives the same resolved Style and compiled role face. Family
+terminal adapters consume supported semantic projections—the Pie witness turns
+an applicable category cue into a no-color marker while keeping
+`highlightSlice` authoritative. Terminal output preserves hierarchy, emphasis,
+symbols, line patterns, and available color; typography, radius, shared shadow,
+and detailed graphical paint produce explicit projection diagnostics rather
+than pretending pixel parity.
+
+### Why there is no BrandPack yet
+
+Level 4 is the active ceiling. No external consumer has shown that ordinary
+version-controlled StyleSpec files are insufficient for repeated distribution,
+exact selection, or installed-resource integrity, so the evidence-gated B4
+BrandPack registry is deliberately **not promoted**. Render-time semver ranges,
+dependency solving, ambient resource loading, and a second inheritance system
+remain absent.
+
+The generated [Section B capability report](./project/section-b-capability-report.md)
+accounts for every role leaf, private-face projection, role fallback, admitted
+family role/channel, and built-in export.
+The [all-family evidence sheet](./design/families/section-b-brand-evidence.png)
+shows one deliberately distinctive sentinel plus three holdout styles; its receipt
+and honest hard-error baseline live in `eval/section-b-brand-evidence/`.
+
 Every field is optional in a reusable fragment, but the resolved final stack
 must make each renderer parameter applicable. `hachureAngle`, `hachureGap`,
 and `fillWeight` require `fill: 'hachure'`; `washOpacity` and `washEdge`
@@ -57,11 +151,11 @@ and `palette:dracula`. Discovery exposes exactly one `kind` (`look` or
 `palette`), an explicit `isDefault`, and a stable `inputName`. Stable short
 inputs such as `hand-drawn` and `dracula` are not deprecation aliases.
 `aliases` contains only temporary compatibility spellings, each with a
-diagnostic and removal release/date. The historically ambiguous `tufte` alias
-continues to mean `look:tufte` until release 0.3.0 after 2027-01-31; discovery
-advertises `look:tufte` and `palette:tufte` so neither meaning is implicit.
-Likewise, use the stable `crisp` input instead of the diagnosed `default`
-compatibility alias.
+diagnostic and removal release/date. Light Tufte is intentionally one full Look:
+use `look:tufte`. The duplicate `palette:tufte`, legacy theme `tufte`, and
+ambiguous bare Style input are retired and rejected. The distinct `tufte-dark`
+palette is unchanged. Use the stable `crisp` input instead of the remaining
+diagnosed `default` compatibility alias.
 
 ## The contract you get for free
 
@@ -95,6 +189,10 @@ compatibility alias.
 | metadata | `blurb` | `string` | Short human-readable description used by discovery surfaces. |
 | palette | `colors` | object: `bg`, `fg`, `line`, `accent`, `muted`, `surface`, `border` | Partial palette of safe, non-fetching CSS color tokens. |
 | typography | `font` | `string` | Safe, non-fetching CSS font family or stack; the rendering environment supplies the font face. |
+| roles | `roles` | object: partial records keyed by exact-style `SceneRole` | Partial semantic SceneRole defaults. Family-authored styling remains authoritative. |
+| policy | `semanticSlots` | `Record<string, RoleStyleSpec>` | Named brand-neutral role-style slots selected by semantic bindings. |
+| policy | `bindings` | `SemanticBinding[]` | Ordered equality bindings from authored/domain meaning to semantic slots. |
+| policy | `constraints` | `BrandConstraint[]` | Closed inspect-only brand constraints with warn or error actions. |
 | stroke | `stroke` | `crisp` \| `jittered` \| `freehand` | Stroke treatment; crisp is the default renderer. |
 | stroke | `roughness` | `number`; minimum 0; maximum 10 | Rough.js stroke irregularity. |
 | stroke | `bowing` | `number`; minimum 0; maximum 10 | Rough.js line bowing. |

@@ -1,18 +1,37 @@
 import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import type { RoleStyles } from '../scene/style-registry.ts'
 import {
   STYLE_COLOR_TOKEN_DESCRIPTORS,
   STYLE_SPEC_FIELD_DESCRIPTORS,
+  getStyle,
   knownStyleDescriptors,
   knownStyles,
+  registerStyle,
   resolveStyleStack,
   styleSpecFieldReferenceMarkdown,
   styleSpecJsonSchema,
+  styleSpecTypeScriptDeclaration,
   validateStyleSpec,
 } from '../scene/style-registry.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
+
+function compileTimeRoleContract(): void {
+  const valid: RoleStyles = { node: { paddingX: 4 }, 'pie-slice': { cue: 'pattern' } }
+  void valid
+  // @ts-expect-error node fontFamily is rejected by the exact public role type.
+  const invalidNode: RoleStyles = { node: { fontFamily: 'Georgia' } }
+  // @ts-expect-error label padding is rejected by the exact public role type.
+  const invalidLabel: RoleStyles = { label: { paddingX: 4 } }
+  // @ts-expect-error fallback-only roles inherit their archetype and cannot own inert exact records.
+  const invalidFallback: RoleStyles = { title: {} }
+  void invalidNode
+  void invalidLabel
+  void invalidFallback
+}
+void compileTimeRoleContract
 
 describe('StyleSpec has one projected field authority', () => {
   test('the checked JSON Schema is the canonical descriptor projection', () => {
@@ -24,6 +43,17 @@ describe('StyleSpec has one projected field authority', () => {
     expect(checked.properties.colors.properties.bg['x-agentic-mermaid-runtime-validator']).toBe('safeCssColor')
     expect(Object.keys(checked.properties)).toEqual(Object.keys(STYLE_SPEC_FIELD_DESCRIPTORS))
     expect(Object.keys(checked.properties.colors.properties)).toEqual(Object.keys(STYLE_COLOR_TOKEN_DESCRIPTORS))
+  })
+
+  test('agent declarations expose the exact closed Style contract', () => {
+    const declaration = styleSpecTypeScriptDeclaration()
+    expect(declaration).toContain('type SemanticBindingChannel = "category"')
+    expect(declaration).toContain('"pie-slice"?: Readonly<StyleRole_pie_slice>')
+    expect(declaration).not.toContain('"title"?: Readonly<StyleRole_title>')
+    expect(declaration).toContain('type SceneStyleRole = ')
+    expect(styleSpecTypeScriptDeclaration({ compact: true })).toContain('type RoleStyleFor<R extends ExactSceneStyleRole>=')
+    expect(styleSpecTypeScriptDeclaration({ compact: true })).not.toContain('Partial<Record<SceneStyleRole,Readonly<RoleStyleSpec>>>')
+    expect(declaration).not.toContain('{ [key: string]: unknown }')
   })
 
   test('callers cannot mutate the authority through descriptors or schema projections', () => {
@@ -59,6 +89,35 @@ describe('StyleSpec has one projected field authority', () => {
     }
   })
 
+  test('admission snapshots nested arrays once and bounds hostile JSON shapes', () => {
+    let reads = 0
+    const binding = {
+      get channel() { reads++; return reads === 1 ? 'category' : 'route' },
+      value: 'Beta',
+      slot: 'selected',
+      role: 'pie-slice',
+    }
+    const unregister = registerStyle({
+      name: 'look:array-snapshot-test',
+      semanticSlots: { selected: { fillColor: '#ff00ff' } },
+      bindings: [binding],
+    } as any)
+    try {
+      expect(reads).toBe(1)
+      expect(getStyle('look:array-snapshot-test')?.bindings?.[0]?.channel).toBe('category')
+      expect(reads).toBe(1)
+    } finally {
+      unregister()
+    }
+
+    const cyclic: Record<string, unknown> = {}
+    cyclic.self = cyclic
+    expect(() => resolveStyleStack(cyclic as any)).toThrow('Style input must be acyclic')
+    const sparse = Array(2)
+    sparse[1] = { channel: 'category', value: 'Beta', slot: 'selected' }
+    expect(() => resolveStyleStack({ bindings: sparse } as any)).toThrow('Style arrays must not be sparse')
+  })
+
   test('normalization owns formatVersion even when an input explicitly supplies undefined', () => {
     expect(resolveStyleStack({ formatVersion: undefined, colors: { bg: '#fff' } })?.formatVersion).toBe(1)
   })
@@ -72,13 +131,8 @@ describe('StyleSpec has one projected field authority', () => {
     expect(crisp?.aliases.map(alias => alias.alias)).toContain('default')
     expect(knownStyles().filter(name => name === 'crisp')).toHaveLength(1)
 
-    const tuftePalette = descriptors.find(descriptor => descriptor.identity.id === 'palette:tufte')
-    expect(tuftePalette).toMatchObject({
-      inputName: 'palette:tufte',
-      displayLabel: 'Tufte',
-      kind: 'palette',
-      isDefault: false,
-    })
+    expect(descriptors.find(descriptor => descriptor.identity.id === 'palette:tufte')).toBeUndefined()
+    expect(knownStyles()).not.toContain('palette:tufte')
 
     const editorGenerator = readFileSync(join(ROOT, 'scripts', 'site', 'editor.ts'), 'utf8')
     expect(editorGenerator).toContain('knownStyleDescriptors()')
@@ -94,15 +148,30 @@ describe('StyleSpec has one projected field authority', () => {
     expect(readFileSync(join(ROOT, 'website', 'build.ts'), 'utf8')).not.toContain('STYLE_THEME_LABELS')
   })
 
-  test('deprecated alias metadata stays discoverable without becoming public API', () => {
-    for (const relative of ['src/index.ts', 'src/agent/core.ts']) {
+  test('removed Tufte palette/bare inputs have no metadata or public resolution', () => {
+    for (const relative of ['src/index.ts', 'src/agent/core.ts', 'src/scene/style-registry.ts']) {
       expect(readFileSync(join(ROOT, relative), 'utf8')).not.toContain('TUFTE_STYLE_ALIAS')
     }
     const tufte = knownStyleDescriptors().find(descriptor => descriptor.identity.id === 'look:tufte')!
-    expect(tufte.aliases).toContainEqual(expect.objectContaining({
-      alias: 'tufte',
-      diagnostic: expect.objectContaining({ code: 'STYLE_ALIAS_DEPRECATED' }),
-    }))
+    expect(tufte.aliases).toEqual([])
+    expect(getStyle('palette:tufte')).toBeUndefined()
+    expect(getStyle('tufte')).toBeUndefined()
+  })
+
+  test('CLI rejects the removed Tufte palette while retaining the full Look', () => {
+    const input = join(ROOT, 'eval/layout-compare/fixtures/flowchart-basic.mmd')
+    const removed = Bun.spawnSync([
+      'bun', 'run', join(ROOT, 'bin/am.ts'), 'render', input, '--style', 'palette:tufte',
+    ], { cwd: ROOT })
+    expect(removed.exitCode).toBe(2)
+    expect(removed.stderr.toString()).toContain('Unknown style "palette:tufte"')
+    expect(removed.stdout.toString()).toBe('')
+
+    const retained = Bun.spawnSync([
+      'bun', 'run', join(ROOT, 'bin/am.ts'), 'render', input, '--style', 'look:tufte',
+    ], { cwd: ROOT })
+    expect(retained.exitCode, retained.stderr.toString()).toBe(0)
+    expect(retained.stdout.toString()).toContain('<svg')
   })
 
   test('CLI discovery publishes only Look/Palette kind plus explicit default state', () => {

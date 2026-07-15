@@ -60,6 +60,7 @@ export type SceneValidationDiagnosticCode =
   | 'SCENE_SECURITY'
   | 'SCENE_FIDELITY'
   | 'SCENE_PRIMITIVE_CLAIM'
+  | 'SCENE_CHANNEL_CLAIM'
 
 export interface SceneValidationDiagnostic {
   readonly code: SceneValidationDiagnosticCode

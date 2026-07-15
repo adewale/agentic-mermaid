@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 2,
+  "generator": "scripts/pr-assets/section-b-brand-evidence.ts",
+  "inputs": {
+    "count": 695,
+    "treeSha256": "9a7641a8dc9aecd4789752b91a90bf9bed7d64e009266f01ce6028fd4ffc070b"
+  },
+  "fontInputs": [
+    {
+      "path": "assets/fonts/DejaVuSans-Bold.ttf",
+      "sha256": "5c1247acef7f2b8522a31742c76d6adcb5569bacc0be7ceaa4dc39dd252ce895"
+    },
+    {
+      "path": "assets/fonts/DejaVuSans.ttf",
+      "sha256": "ae7b7855e115a5966d8b1b3f80f254ccc117ec86f9965e202ee2940453837280"
+    }
+  ],
+  "families": [
+    "flowchart",
+    "state",
+    "sequence",
+    "timeline",
+    "class",
+    "er",
+    "journey",
+    "architecture",
+    "xychart",
+    "pie",
+    "quadrant",
+    "gantt",
+    "mindmap",
+    "gitgraph",
+    "radar"
+  ],
+  "variants": [
+    "Sentinel · every channel deliberately distinctive",
+    "Holdout · warm editorial",
+    "Holdout · light technical",
+    "Holdout · dark operations"
+  ],
+  "outputPaths": {
+    "graphicalCells": "public native renderMermaidPNG",
+    "terminal": "public renderMermaidASCII (Unicode, no color)"
+  },
+  "terminalSha256": "b4ce32cb71246e74c52052f6fe6db25d4dd0788299935bc446e3b462355e22ab",
+  "baseline": {
+    "state": "unsupported-style-fields",
+    "command": "git worktree add --detach /tmp/am-section-b-base origin/main && (cd /tmp/am-section-b-base && bun install --frozen-lockfile && bun run bin/am.ts render \"$OLDPWD/eval/section-b-brand-evidence/baseline.mmd\" --format svg --style \"$OLDPWD/eval/section-b-brand-evidence/role-style.json\")",
+    "expected": "Invalid style spec: unknown field \"roles\" (no fabricated before image)"
+  },
+  "visualApproval": {
+    "path": "eval/section-b-brand-evidence/visual-approval.json",
+    "status": "approved",
+    "artifactSha256": "19d5ccb463d0c05722d3ea09e247bc64627aac93e8b93a09de5a36c34db93662",
+    "reviewedAt": "2026-07-15",
+    "reviewer": "OpenAI coding agent, at the user's explicit request",
+    "audit": "eval/section-b-brand-evidence/production-comparison.md"
+  },
+  "outputs": [
+    {
+      "path": "docs/design/families/section-b-brand-evidence.png",
+      "sha256": "19d5ccb463d0c05722d3ea09e247bc64627aac93e8b93a09de5a36c34db93662"
+    }
+  ]
+}

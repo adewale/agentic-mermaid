@@ -11,7 +11,7 @@ import { parseMermaid as parseValidDiagram, parseRegisteredMermaid } from './par
 import { serializeMermaid } from './serialize.ts'
 import { logToolInvocation } from './trace-log.ts'
 import { countStructuralElements, faithfulnessWarning } from './structural-count.ts'
-import { renderPositionedMermaidSVG } from '../graphical-render.ts'
+import { lowerPositionedFamilyScene, renderPositionedMermaidSVG } from '../graphical-render.ts'
 import { auditRouteContracts, findRouteHitches } from '../route-contracts.ts'
 import type { PositionedGraph } from '../types.ts'
 import type {
@@ -40,6 +40,8 @@ import { normalizeV11Shape } from '../flowchart-shapes.ts'
 import { familyConfigDiagnostics } from '../shared/family-config-diagnostics.ts'
 import { sequenceMessages } from './sequence-body.ts'
 import { sameExtensionIdentity } from '../shared/extension-identity.ts'
+import { wcagCssContrastRatio } from '../shared/color-math.ts'
+import { evaluateBrandConstraints } from '../scene/brand-constraints.ts'
 
 function familyConfigShapeWarnings(d: ValidDiagram): LayoutWarning[] {
   const roots: unknown[] = [d.meta.frontmatter, ...d.meta.initDirectives.map(directive => directive.parsed)]
@@ -109,7 +111,8 @@ export function verifyMermaid(input: ParsedDiagram | string, opts: VerifyOptions
   }
   const positioned = memoizedVerificationArtifact(parsed.value, opts)
   try {
-    return withRenderParity(verifyStructure(parsed.value, opts, positioned), opts, positioned)
+    const structured = verifyStructure(parsed.value, opts, positioned)
+    return withRenderParity(withBrandConstraints(structured, opts, positioned), opts, positioned)
   } catch (error) {
     if (!(error instanceof FamilyLayoutError)) throw error
     return finalize(
@@ -122,6 +125,32 @@ export function verifyMermaid(input: ParsedDiagram | string, opts: VerifyOptions
 }
 
 type VerificationArtifact = () => ProjectedFamilyArtifact | null
+
+function withBrandConstraints(
+  result: VerifyResult,
+  opts: VerifyOptions,
+  positioned: VerificationArtifact,
+): VerifyResult {
+  if (!result.ok) return result
+  try {
+    const artifact = positioned()
+    const constraints = artifact?.request.appearance.style?.constraints
+    if (!artifact || !constraints || constraints.length === 0) return result
+    const scene = lowerPositionedFamilyScene(artifact.request, artifact.layoutResult)
+    const suppressed = new Set(opts.suppress ?? [])
+    const warnings = evaluateBrandConstraints(scene, artifact.request)
+      .filter(warning => !suppressed.has(warning.code))
+    return {
+      ...result,
+      ok: result.ok && !warnings.some(warning => WARNING_SEVERITY[warning.code] === 'error'),
+      warnings: [...result.warnings, ...warnings],
+    }
+  } catch {
+    // The canonical render-parity gate owns layout/Scene failures. Constraint
+    // inspection never replaces that primary diagnosis.
+    return result
+  }
+}
 
 /** One lazy artifact per verify call; failures are memoized as well as values. */
 function memoizedVerificationArtifact(d: ParsedDiagram, opts: VerifyOptions): VerificationArtifact {
@@ -241,6 +270,37 @@ function quadrantInertStyleWarnings(d: ValidDiagram): LayoutWarning[] {
   }))
 }
 
+/** Preserve Mermaid-authored Radar paint exactly and diagnose measurable
+ * contrast after request resolution. This consumes the same frozen visual
+ * config and background as rendering, so verification never guesses from raw
+ * source or introduces an automatic repaint stage. */
+function radarAuthoredContrastWarnings(positioned: VerificationArtifact): LayoutWarning[] {
+  try {
+    const artifact = positioned()
+    if (artifact?.request.renderOptions.transparent) return []
+    const visual = artifact?.request.familyConfig?.visual as { axisColor?: unknown } | undefined
+    const foreground = visual?.axisColor
+    if (typeof foreground !== 'string') return []
+    const background = artifact!.request.appearance.colors.bg
+    const ratio = wcagCssContrastRatio(foreground, background)
+    if (ratio === null || ratio >= 4.5) return []
+    const roundedRatio = Math.round(ratio * 100) / 100
+    return [{
+      code: 'LOW_CONTRAST',
+      field: 'themeVariables.radar.axisColor',
+      foreground,
+      background,
+      ratio: roundedRatio,
+      minimum: 4.5,
+      message: `Authored Radar axis label color ${foreground} has contrast ${roundedRatio}:1 against ${background}; expected at least 4.5:1. The color is preserved as authored.`,
+    }]
+  } catch {
+    // Layout/render failures have their own RENDER_FAILED path; do not replace
+    // the primary diagnosis with a speculative contrast warning.
+    return []
+  }
+}
+
 export function configWarningsForDiagram(d: ValidDiagram): LayoutWarning[] {
   const familySpecific = d.kind === 'gantt' ? ganttTodayMarkerWarnings(d) : []
   return dedupedConcat(familySpecific, familyConfigShapeWarnings(d))
@@ -348,7 +408,14 @@ function verifyStructure(
           ? 'center'
           : d.body.kind === 'journey',
       })
-    return finalize(dedupedConcat(dedupedConcat(pluginWarnings, familyGeometry), layoutOutcome.warnings), layout, opts)
+    const appearanceWarnings = d.body.kind === 'radar'
+      ? radarAuthoredContrastWarnings(positioned)
+      : []
+    return finalize(
+      dedupedConcat(dedupedConcat(dedupedConcat(pluginWarnings, familyGeometry), layoutOutcome.warnings), appearanceWarnings),
+      layout,
+      opts,
+    )
   }
 
   // State diagrams (BUILD-19): the StateBody projects to a MermaidGraph via the

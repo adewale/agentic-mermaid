@@ -21,10 +21,12 @@ import { preprocessMermaidSource } from '../mermaid-source.ts'
 import { applyXYChartFrontmatterConfig, parseXYChart } from '../xychart/parser.ts'
 import { layoutXYChart } from '../xychart/layout.ts'
 import { estimateTextWidth } from '../styles.ts'
+import { resolveStyleStackWithFace } from '../scene/style-registry.ts'
 
-function layout(text: string) {
+function layout(text: string, style?: string) {
   const processed = preprocessMermaidSource(text)
-  return layoutXYChart(applyXYChartFrontmatterConfig(parseXYChart(processed.lines), processed.frontmatter))
+  const face = style ? resolveStyleStackWithFace(style).face : undefined
+  return layoutXYChart(applyXYChartFrontmatterConfig(parseXYChart(processed.lines), processed.frontmatter), {}, face)
 }
 
 function svg(text: string): string {
@@ -140,6 +142,20 @@ ${MULTI_NAMED}`)
 })
 
 describe('xychart legend – layout containment (no clipping)', () => {
+  it('keeps resolved-font x-axis glyphs inside the fixed-height canvas', () => {
+    const chart = layout(`xychart
+      title "Sales Revenue"
+      x-axis [jan, feb, mar, apr, may, jun, jul, aug, sep, oct, nov, dec]
+      y-axis "Revenue" 4000 --> 11000
+      bar [5000, 6000, 7500, 8200, 9500, 10500, 11000, 10200, 9200, 8500, 7000, 6000]`, 'accessible-high-contrast')
+
+    expect(chart.xAxis.ticks.length).toBeGreaterThan(0)
+    const renderedBottomAllowance = chart.xAxis.config.labelFontSize * 0.6
+    for (const tick of chart.xAxis.ticks) {
+      expect(tick.labelY + renderedBottomAllowance, tick.label).toBeLessThanOrEqual(chart.height)
+    }
+  })
+
   it('reserves right-side space: the plot area ends before the legend starts', () => {
     const chart = layout(MULTI_NAMED)
     expect(chart.legend.length).toBe(2)

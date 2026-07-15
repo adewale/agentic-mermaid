@@ -122,7 +122,7 @@ Codes are the contract surface agents reason about. Emitting an undocumented cod
 
 ### Tier 3 — Lint (advisory)
 
-Tier 3 warnings are family-specific quality hints for "common LLM mistakes" that parse and render but are probably not what the agent intended. They never flip `verify.ok`; callers decide whether to fail a style/quality gate.
+Tier 3 warnings are family-specific quality hints for "common LLM mistakes" that parse and render but are probably not what the agent intended. Advisory lint never flips `verify.ok`; an explicitly authored Brand constraint with `action: "error"` emits `BRAND_CONSTRAINT_ERROR` and does flip it.
 
 | Code | Severity | Description |
 |---|---|---|
@@ -133,6 +133,9 @@ Tier 3 warnings are family-specific quality hints for "common LLM mistakes" that
 | `UNSUPPORTED_SYNTAX` | warning | The source uses Mermaid syntax that is preserved losslessly but not fully modeled by local structured mutation/render semantics (for example flowchart edge IDs, edge metadata, click/href directives, or markdown strings). Payload includes `syntax`, optional `line`, and `message`. |
 | `CONTENT_DROPPED_ON_ROUNDTRIP` | warning | The structured `{nodes, edges, groups}` tally changed across a parse → serialize → re-parse cycle, so canonical serialization is silently dropping or duplicating content even though the bytes may re-parse (payload carries `before`/`after` counts). The faithfulness analogue of `COMMENT_DROPPED` — "100% parse success is not faithfulness". Runs on every verify, for every family; opaque bodies (byte-verbatim) are exempt. |
 | `INEFFECTIVE_CONFIG` | warning | A Mermaid config field was accepted (for config-shape compatibility) but has no effect on this family's geometry or paint — e.g. Journey's sequence-era fields (`boxMargin`, `rightAngles`, …). Payload names the `field`. Accepting-and-ignoring silently misleads migrating users; this lint says so. |
+| `LOW_CONTRAST` | warning | A concrete authored paint remains authoritative but misses a measurable contrast threshold against the final resolved opaque background. Payload names the `field`, `foreground`, `background`, measured `ratio`, and required `minimum`; verification diagnoses without repainting authored intent. Transparent output is not measured because its host backdrop is unknown. |
+| `BRAND_CONSTRAINT_WARNING` | warning | A caller-selected inspect-only `contrast`, `accent-area`, or `mono-role` Brand constraint failed or could not be measured. Payload reports the constraint, `measurement`, applicable role/mark, and concrete evidence without repainting or relayout. |
+| `BRAND_CONSTRAINT_ERROR` | error | The same inspect-only Brand constraint contract with `action: "error"`; it preserves authored output but flips `verify.ok` so a caller can enforce its declared brand policy. |
 
 `FamilyDescriptor.verify` hooks are wired and run today; built-ins use them for Tier 1 structural warnings for class/ER and the central flowchart verifier emits the initial Tier 3 lint catalogue. Future lint codes should be added deliberately to `WARNING_TIER`, documented here, and covered by doc-sync tests.
 

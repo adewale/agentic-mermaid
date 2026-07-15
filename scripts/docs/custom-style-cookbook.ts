@@ -25,11 +25,14 @@ const FONT_FILES = [
   join(ROOT, 'assets', 'fonts', 'ShareTechMono.ttf'),
 ].filter(existsSync)
 
-const SAMPLE = readFileSync(customStyleSamplePath(), 'utf8')
-
-export function buildCookbookScreenshot(stylePath: string, renderOptions: Readonly<{ shadow?: boolean }> = {}): Uint8Array {
+export function buildCookbookScreenshot(
+  stylePath: string,
+  renderOptions: Readonly<{ shadow?: boolean }> = {},
+  samplePath = customStyleSamplePath(),
+): Uint8Array {
   const style = JSON.parse(readFileSync(stylePath, 'utf8'))
-  const svg = inlineFontVarForRaster(renderMermaidSVG(SAMPLE, {
+  const sample = readFileSync(samplePath, 'utf8')
+  const svg = inlineFontVarForRaster(renderMermaidSVG(sample, {
     style,
     seed: 11,
     padding: 28,
@@ -46,7 +49,7 @@ export function buildCookbookScreenshot(stylePath: string, renderOptions: Readon
 export function buildCookbookScreenshots(): Array<{ path: string; png: Uint8Array }> {
   return CUSTOM_STYLE_CATALOG.examples.map(entry => ({
     path: customStyleScreenshotPath(entry),
-    png: buildCookbookScreenshot(customStylePath(entry), entry.renderOptions),
+    png: buildCookbookScreenshot(customStylePath(entry), entry.renderOptions, customStyleSamplePath(entry)),
   }))
 }
 

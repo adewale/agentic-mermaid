@@ -342,7 +342,7 @@ const JOURNEY_RENDER_HOOKS = {
   )),
   projectPositioned: positionedView(projectJourneyPositioned),
   lowerScene: scene(lowerJourneyScene),
-  renderAscii: ctx => renderJourneyAscii(ctx.source.familyText, ctx.config, ctx.colorMode, ctx.theme, ctx.options.maxWidth),
+  renderAscii: ctx => renderJourneyAscii(ctx.source.familyText, ctx.config, ctx.colorMode, ctx.theme, ctx.options.maxWidth, ctx.styleFace),
 } satisfies BuiltinRenderHooks
 
 const XYCHART_RENDER_HOOKS = {
@@ -399,6 +399,7 @@ const PIE_RENDER_HOOKS = {
     ctx.renderOptions,
     (ctx.familyConfig as { visual?: ReturnType<typeof resolvePieVisualConfig> } | undefined)?.visual
       ?? resolvePieVisualConfig(),
+    ctx.styleFace,
   )),
   projectPositioned: positionedView(projectPiePositioned),
   lowerScene: scene(lowerPieScene),
@@ -410,6 +411,7 @@ const PIE_RENDER_HOOKS = {
     {},
     ctx.options.targetWidth,
     (ctx.familyConfig as { visual?: ReturnType<typeof resolvePieVisualConfig> } | undefined)?.visual,
+    ctx.styleFace,
   ),
 } satisfies BuiltinRenderHooks
 
@@ -451,7 +453,7 @@ const RADAR_RENDER_HOOKS = {
   ), { injectAccessibility: false }),
   projectPositioned: positionedView(projectRadarPositioned),
   lowerScene: scene(lowerRadarScene),
-  renderAscii: ctx => renderRadarAscii(ctx.source.lines, ctx.config, ctx.colorMode, ctx.theme, ctx.source.frontmatter, ctx.options.targetWidth),
+  renderAscii: ctx => renderRadarAscii(ctx.source.lines, ctx.config, ctx.colorMode, ctx.theme, ctx.source.frontmatter, ctx.options.targetWidth, ctx.styleFace),
 } satisfies BuiltinRenderHooks
 
 const GANTT_RENDER_HOOKS = {
@@ -479,6 +481,7 @@ const GANTT_RENDER_HOOKS = {
     resolvedConfig: (ctx.familyConfig as {
       config?: ReturnType<typeof resolveGanttFrontmatterConfig>
     } | undefined)?.config,
+    styleFace: ctx.styleFace,
   }),
 } satisfies BuiltinRenderHooks
 

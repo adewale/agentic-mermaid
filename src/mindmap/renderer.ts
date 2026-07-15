@@ -1,5 +1,6 @@
 import type { RenderContext } from '../types.ts'
 import type { PositionedMindmapDiagram, PositionedMindmapNode } from './types.ts'
+import { MINDMAP_BANG_INNER_RADIUS_RATIO } from './geometry.ts'
 import type { SceneDoc, SceneNode } from '../scene/ir.ts'
 import { serializeGeometryShape, type SerializableShapeGeometry } from '../scene/svg-serialize.ts'
 import * as marks from '../scene/marks.ts'
@@ -155,7 +156,7 @@ function nodeGeometry(node: PositionedMindmapNode): SerializableShapeGeometry {
     const points: Array<{ x: number; y: number }> = []
     for (let index = 0; index < 12; index++) {
       const angle = -Math.PI / 2 + index * Math.PI / 6
-      const radiusX = (index % 2 === 0 ? width / 2 : width * 0.38)
+      const radiusX = (index % 2 === 0 ? width / 2 : width * MINDMAP_BANG_INNER_RADIUS_RATIO)
       const radiusY = (index % 2 === 0 ? height / 2 : height * 0.38)
       points.push(point(x + width / 2 + Math.cos(angle) * radiusX, y + height / 2 + Math.sin(angle) * radiusY))
     }

@@ -21,6 +21,8 @@ import type { MarkerDescriptor, SceneDoc, SceneNode, SemanticChannels } from '..
 import { hashId } from '../scene/seed.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
+import { resolveRoleStyle } from '../scene/style-registry.ts'
+import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { getSeriesColor, hexToHsl, hslToHex, isDarkBackground } from '../xychart/colors.ts'
 import { isHexColor, wcagCssContrastRatio } from '../shared/color-math.ts'
 import { serializeMarkerResource } from '../scene/marker-resources.ts'
@@ -149,9 +151,11 @@ export function lowerJourneyScene(
     parts.push(renderActorLegend(diagram.actors, style, paints))
   }
 
+  const rawJourneyConfig = options.mermaidConfig?.journey as Record<string, unknown> | undefined
+  const authoredSectionPaint = rawJourneyConfig?.sectionFills !== undefined || rawJourneyConfig?.sectionColours !== undefined
   diagram.sections.forEach((section, index) => {
     if (section.framed) {
-      parts.push(renderSectionFrame(section, style, paints, index))
+      parts.push(renderSectionFrame(section, style, paints, index, resolved.styleFace, authoredSectionPaint))
     }
   })
 
@@ -486,8 +490,15 @@ function renderActorLegend(actors: PositionedJourneyActor[], style: ResolvedRend
   })
 }
 
-function renderSectionFrame(section: PositionedJourneySection, style: ResolvedRenderStyle, paints: JourneyPaints, sectionIndex: number): SceneNode {
-  const name = section.label ?? section.id
+function renderSectionFrame(
+  section: PositionedJourneySection,
+  style: ResolvedRenderStyle,
+  paints: JourneyPaints,
+  sectionIndex: number,
+  face: Readonly<InternalStyleFace> | undefined,
+  authoredSectionPaint: boolean,
+): SceneNode {
+  const name = section.category
   const labelAttr = section.label ? ` data-label="${escapeAttr(section.label)}"` : ''
   const children: Array<{ node: SceneNode; indent: number }> = []
 
@@ -509,9 +520,17 @@ function renderSectionFrame(section: PositionedJourneySection, style: ResolvedRe
   })
 
   if (section.label) {
+    const channels = { category: name }
+    const semanticStyle = resolveRoleStyle(face, 'group-header', channels, { includeFallback: false })
+    const labelText = applyTextTransform(section.label, semanticStyle?.textTransform ?? style.groupTextTransform)
+    const labelFontSize = semanticStyle?.fontSize ?? style.groupHeaderFontSize
+    const labelFontWeight = semanticStyle?.fontWeight ?? style.groupHeaderFontWeight
+    const labelFontFamily = semanticStyle?.fontFamily ?? style.groupFont
+    const labelLetterSpacing = semanticStyle?.letterSpacing ?? style.groupLetterSpacing
+    const labelColor = authoredSectionPaint ? sectionTextColor(sectionIndex, paints) : semanticStyle?.textColor ?? sectionTextColor(sectionIndex, paints)
     children.push({
       indent: 2,
-      node: renderSectionLabelBand(section, style, paints, sectionIndex),
+      node: renderSectionLabelBand(section, style, paints, sectionIndex, face, authoredSectionPaint),
     })
     children.push({
       indent: 2,
@@ -519,19 +538,19 @@ function renderSectionFrame(section: PositionedJourneySection, style: ResolvedRe
         {
           id: `section-label:${section.id}`,
           role: 'group-header',
-          text: section.label,
+          text: labelText,
           x: section.labelX,
           y: section.labelY,
-          fontSize: style.groupHeaderFontSize,
+          fontSize: labelFontSize,
           anchor: 'middle',
-          paint: { fill: sectionTextColor(sectionIndex, paints) },
+          paint: { fill: labelColor },
         },
         renderMultilineText(
-          section.label,
+          labelText,
           section.labelX,
           section.labelY,
-          style.groupHeaderFontSize,
-          `class="journey-section-label journey-section-label-${sectionIndex % paints.sectionTextColors.length}" text-anchor="middle" font-size="${style.groupHeaderFontSize}" font-weight="${style.groupHeaderFontWeight}"${style.groupFont ? ` font-family="${escapeAttr(style.groupFont)}"` : ''}${letterAttr(style.groupLetterSpacing)}`,
+          labelFontSize,
+          `class="journey-section-label journey-section-label-${sectionIndex % paints.sectionTextColors.length}" text-anchor="middle" font-size="${labelFontSize}" font-weight="${labelFontWeight}"${labelFontFamily ? ` font-family="${escapeAttr(labelFontFamily)}"` : ''}${letterAttr(labelLetterSpacing)}${semanticStyle?.textColor && !authoredSectionPaint ? ` style="fill:${escapeAttr(labelColor)}"` : ''}`,
         ),
       ),
     })
@@ -547,7 +566,30 @@ function renderSectionFrame(section: PositionedJourneySection, style: ResolvedRe
   })
 }
 
-function renderSectionLabelBand(section: PositionedJourneySection, style: ResolvedRenderStyle, paints: JourneyPaints, sectionIndex: number): SceneNode {
+function renderSectionLabelBand(
+  section: PositionedJourneySection,
+  style: ResolvedRenderStyle,
+  paints: JourneyPaints,
+  sectionIndex: number,
+  face: Readonly<InternalStyleFace> | undefined,
+  authoredSectionPaint: boolean,
+): SceneNode {
+  const channels = { category: section.category }
+  const semanticStyle = resolveRoleStyle(face, 'group-header', channels, { includeFallback: false })
+  const fill = authoredSectionPaint ? sectionHeaderFill(sectionIndex, paints) : semanticStyle?.fillColor ?? sectionHeaderFill(sectionIndex, paints)
+  const cueValue = semanticStyle?.cue ?? 'none'
+  const stroke = semanticStyle?.strokeColor ?? semanticStyle?.borderColor ?? (cueValue !== 'none' ? 'var(--fg)' : 'none')
+  const baseStrokeWidth = semanticStyle?.lineWidth ?? (cueValue !== 'none' ? style.groupLineWidth : undefined)
+  const strokeWidth = baseStrokeWidth === undefined
+    ? undefined
+    : cueValue === 'outline' ? baseStrokeWidth + 1
+    : cueValue === 'double-line' ? baseStrokeWidth + 2
+    : baseStrokeWidth
+  const strokeDasharray = cueValue === 'pattern' ? '3 2' : cueValue === 'double-line' ? '8 2 2 2' : undefined
+  const inline = semanticStyle && (semanticStyle.fillColor !== undefined || stroke !== 'none' || strokeWidth !== undefined || strokeDasharray !== undefined)
+    ? ` style="${escapeAttr([`fill:${fill}`, stroke !== 'none' ? `stroke:${stroke}` : undefined, strokeWidth !== undefined ? `stroke-width:${strokeWidth}` : undefined, strokeDasharray ? `stroke-dasharray:${strokeDasharray}` : undefined].filter(Boolean).join(';'))}"`
+    : ''
+  const cue = cueValue !== 'none' ? ` data-brand-cue="${escapeAttr(cueValue)}"` : ''
   const bandInset = Math.min(6, Math.max(3, section.height / 6))
   const bandHeight = Math.max(18, Math.min(section.height - bandInset * 2, style.groupHeaderFontSize + style.groupPaddingY))
   const bandX = section.x + bandInset
@@ -560,10 +602,15 @@ function renderSectionLabelBand(section: PositionedJourneySection, style: Resolv
       id: `section-band:${section.id}`,
       role: 'group-header',
       geometry: { kind: 'rect', x: bandX, y: bandY, width: bandWidth, height: bandHeight, rx: radius, ry: radius },
-      paint: { fill: sectionHeaderFill(sectionIndex, paints), stroke: 'none' },
-      channels: { category: section.label ?? section.id },
+      paint: {
+        fill,
+        stroke,
+        ...(strokeWidth !== undefined ? { strokeWidth: String(strokeWidth) } : {}),
+        ...(strokeDasharray ? { strokeDasharray } : {}),
+      },
+      channels,
     },
-    `<rect class="journey-section-label-band journey-section-band-${sectionIndex % paints.sectionBands.length}" x="${bandX}" y="${bandY}" width="${bandWidth}" height="${bandHeight}" rx="${radius}" ry="${radius}" />`,
+    `<rect class="journey-section-label-band journey-section-band-${sectionIndex % paints.sectionBands.length}" x="${bandX}" y="${bandY}" width="${bandWidth}" height="${bandHeight}" rx="${radius}" ry="${radius}"${inline}${cue} />`,
   )
 }
 

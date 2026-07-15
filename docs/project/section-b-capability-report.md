@@ -1,0 +1,329 @@
+# Section B capability report
+
+Generated from the Style, SceneRole, and FamilyDescriptor registries. Do not edit by hand. Machine-readable sibling: [section-b-capability-report.json](./section-b-capability-report.json).
+
+- Public role-style leaves: **16**
+- Registered Scene roles: **42**
+- Built-in families: **15**
+- Exportable built-in Looks: **16**
+- BrandPack promoted: **no** — No external consumer has shown that ordinary version-controlled StyleSpec files are insufficient for repeated distribution, exact selection, or installed-resource integrity.
+- Digest: `sha256:4e84b443b2ceba2fb192b1d2bf106a35e0d80f846ffd179b98f34b7c0f3918a8`
+
+## SceneRole styling
+
+| Role | Fallback | Exact consumption | Applicable public leaves |
+|---|---|---|---|
+| `node` | `node` | exact | `fontSize`, `fontWeight`, `letterSpacing`, `textTransform`, `textColor`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor` |
+| `edge` | `edge` | exact | `fontSize`, `fontWeight`, `letterSpacing`, `textTransform`, `textColor`, `lineWidth`, `bendRadius`, `strokeColor` |
+| `edge-label` | `label` | fallback-only | fallback-only |
+| `group` | `group` | exact | `fontSize`, `fontWeight`, `letterSpacing`, `textTransform`, `textColor`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `headerFillColor`, `fontFamily` |
+| `group-header` | `group` | exact | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `textTransform`, `textColor`, `fillColor`, `borderColor`, `strokeColor`, `lineWidth`, `cue` |
+| `label` | `label` | exact | `fontSize`, `fontWeight`, `letterSpacing`, `textTransform`, `textColor` |
+| `actor` | `node` | exact | `fontSize`, `fontWeight`, `letterSpacing`, `textTransform`, `textColor`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor` |
+| `lifeline` | `edge` | fallback-only | fallback-only |
+| `activation` | `node` | fallback-only | fallback-only |
+| `message` | `edge` | fallback-only | fallback-only |
+| `block` | `group` | fallback-only | fallback-only |
+| `note` | `group` | fallback-only | fallback-only |
+| `class-box` | `node` | fallback-only | fallback-only |
+| `member` | `label` | fallback-only | fallback-only |
+| `entity` | `node` | fallback-only | fallback-only |
+| `attribute` | `label` | fallback-only | fallback-only |
+| `relationship` | `edge` | exact | `fontSize`, `fontWeight`, `letterSpacing`, `textTransform`, `textColor`, `lineWidth`, `bendRadius`, `strokeColor` |
+| `cardinality` | `label` | fallback-only | fallback-only |
+| `pie-slice` | `node` | exact | `fillColor`, `borderColor`, `strokeColor`, `lineWidth`, `cue` |
+| `legend` | `group` | exact | `fillColor`, `borderColor`, `strokeColor`, `lineWidth`, `textColor` |
+| `bar` | `node` | exact | `fillColor`, `borderColor`, `strokeColor`, `lineWidth` |
+| `series` | `edge` | exact | `borderColor`, `strokeColor`, `lineWidth` |
+| `point` | `node` | exact | `fillColor`, `borderColor`, `strokeColor`, `lineWidth` |
+| `axis` | `label` | fallback-only | fallback-only |
+| `grid` | `edge` | fallback-only | fallback-only |
+| `plate` | `node` | fallback-only | fallback-only |
+| `section` | `group` | fallback-only | fallback-only |
+| `task` | `node` | exact | `fillColor`, `borderColor`, `strokeColor`, `lineWidth`, `cue` |
+| `milestone` | `node` | exact | `fillColor`, `borderColor`, `strokeColor`, `lineWidth`, `cue` |
+| `marker-line` | `edge` | fallback-only | fallback-only |
+| `rail` | `edge` | fallback-only | fallback-only |
+| `period` | `group` | fallback-only | fallback-only |
+| `event` | `group` | fallback-only | fallback-only |
+| `score` | `node` | fallback-only | fallback-only |
+| `actor-pill` | `node` | fallback-only | fallback-only |
+| `service` | `node` | fallback-only | fallback-only |
+| `junction` | `node` | fallback-only | fallback-only |
+| `icon` | `node` | fallback-only | fallback-only |
+| `title` | `label` | fallback-only | fallback-only |
+| `defs` | `label` | fallback-only | fallback-only |
+| `prelude` | `label` | fallback-only | fallback-only |
+| `chrome` | `label` | fallback-only | fallback-only |
+
+## Derived private-face projection
+
+The remaining private face is compiled only from these public role records; it has no author-only leaf.
+
+| Compiled face | Public source role | Public fields |
+|---|---|---|
+| `text` | `label` | `fontSize`, `fontWeight`, `letterSpacing`, `textTransform`, `textColor` |
+| `node` | `node` | `fontSize`, `fontWeight`, `letterSpacing`, `textTransform`, `textColor`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor` |
+| `edge` | `edge` | `fontSize`, `fontWeight`, `letterSpacing`, `textTransform`, `textColor`, `lineWidth`, `bendRadius`, `strokeColor` |
+| `group` | `group` | `fontSize`, `fontWeight`, `letterSpacing`, `textTransform`, `textColor`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `fontFamily`, `headerFillColor` |
+
+## Executable family census
+
+Every row below is generated by lowering the descriptor example plus its rich census fixture through the admitted Scene path, executing no-color terminal output, and composing that Scene evidence with each registered built-in backend's executable conformance receipt. Generation fails when a declared role/channel is not emitted or an enrolled binding is inert.
+
+| Family | Emitted roles | Populated channels | Conformant graphical backends | Terminal witness |
+|---|---:|---:|---|---|
+| `flowchart` | 10 / 10 | 0 / 0 | `backend:default`, `backend:rough`, `backend:hybrid` | native-lossy; `sha256:253e838a33e1cf4ed4fd389e5f90bc182d87b1ed3f96d958f2735a63641ca1b4` |
+| `state` | 10 / 10 | 1 / 1 | `backend:default`, `backend:rough`, `backend:hybrid` | native-lossy; `sha256:9846c38acc09cfa17ccc89752d8a58eef7fd5371f67acd5ce46cc6fd3e5f6af4` |
+| `sequence` | 12 / 12 | 1 / 1 | `backend:default`, `backend:rough`, `backend:hybrid` | native-lossy; `sha256:8de66460dd920c2930675690ec57b0042fff8f15f90a21ed3f8c19b77cf5496e` |
+| `timeline` | 9 / 9 | 1 / 1 | `backend:default`, `backend:rough`, `backend:hybrid` | native-lossy; `sha256:e36624ac01a1b11a0319c824a4c55db4b899747fedad9a6171f21391a2ad1a39` |
+| `class` | 11 / 11 | 0 / 0 | `backend:default`, `backend:rough`, `backend:hybrid` | native-lossy; `sha256:31ad9957a8e58af894aad17b8213cbddc09ee84b81595dcecf4e93bb257f3478` |
+| `er` | 10 / 10 | 1 / 1 | `backend:default`, `backend:rough`, `backend:hybrid` | native-lossy; `sha256:c234f4cc0455a1941d1ed7436bd5de74661719de41452372c26ecee34dc3202b` |
+| `journey` | 16 / 16 | 2 / 2 | `backend:default`, `backend:rough`, `backend:hybrid` | native-lossy; `sha256:bf370d706951eb92d2d8824d3d16875092c3889ef9ce7265a61fd3e53d12f777` |
+| `architecture` | 11 / 11 | 0 / 0 | `backend:default`, `backend:rough`, `backend:hybrid` | native-lossy; `sha256:71ef37c02c94b6c77068bb52f18cc8c6c6b53001712b5dfbf7a41341366b37b2` |
+| `xychart` | 11 / 11 | 2 / 2 | `backend:default`, `backend:rough`, `backend:hybrid` | native-lossy; `sha256:fa29d6231f76692f4bf47412adfd56f497f44275580b03afbf595ada16dd2656` |
+| `pie` | 6 / 6 | 3 / 3 | `backend:default`, `backend:rough`, `backend:hybrid` | native-lossy; `sha256:69cd423fd3c98bcbd643bd153e3eacb1d931c7c621914453f9bb01074a162858` |
+| `quadrant` | 8 / 8 | 1 / 1 | `backend:default`, `backend:rough`, `backend:hybrid` | native-lossy; `sha256:3f2ef8dae020fc255f3bb37961af1be16ed5c7b1f1971bc506c721fde2fd082e` |
+| `gantt` | 12 / 12 | 4 / 4 | `backend:default`, `backend:rough`, `backend:hybrid` | native-lossy; `sha256:26313a8f2fd124ae9785fe1ae4c1860c712c9ff748a42b2cae35f26c1b4056ab` |
+| `mindmap` | 6 / 6 | 2 / 2 | `backend:default`, `backend:rough`, `backend:hybrid` | native-lossy; `sha256:736d9bae89f37419793e16d20050f4a4c069de80d5ed408014d8ccc1c54ffeda` |
+| `gitgraph` | 8 / 8 | 2 / 2 | `backend:default`, `backend:rough`, `backend:hybrid` | native-lossy; `sha256:e07a2a2f28ab6a6ac538e9a886df0641921ab3e86929424fd8b754d16fb134f2` |
+| `radar` | 8 / 8 | 1 / 1 | `backend:default`, `backend:rough`, `backend:hybrid` | native-lossy; `sha256:b0fd011ea1ccb3fb8ce3bdb2fa762de317db1840bcb2002d0eb72dae985324ce` |
+
+### Role migration and projection witnesses
+
+| Family | Emitted role | Observed mark kinds | Public migration target | Representative emitted channels | Terminal evidence boundary | Executable witness |
+|---|---|---|---|---|---|---|
+| `flowchart` | `prelude` | `prelude` | not-applicable → `none` | none | family-level-only | `section-b/flowchart/scene-role/prelude`; `section-b/flowchart/style/prelude/not-applicable` |
+| `flowchart` | `defs` | `document` | not-applicable → `none` | none | family-level-only | `section-b/flowchart/scene-role/defs`; `section-b/flowchart/style/defs/not-applicable` |
+| `flowchart` | `chrome` | `document`, `shape` | not-applicable → `none` | none | family-level-only | `section-b/flowchart/scene-role/chrome`; `section-b/flowchart/style/chrome/not-applicable` |
+| `flowchart` | `group` | `group`, `shape` | exact → `group` | none | family-level-only | `section-b/flowchart/scene-role/group`; `section-b/flowchart/style/group/exact` |
+| `flowchart` | `group-header` | `shape`, `text` | not-applicable → `none` | none | family-level-only | `section-b/flowchart/scene-role/group-header`; `section-b/flowchart/style/group-header/not-applicable` |
+| `flowchart` | `edge` | `connector` | exact → `edge` | none | family-level-only | `section-b/flowchart/scene-role/edge`; `section-b/flowchart/style/edge/exact` |
+| `flowchart` | `edge-label` | `group` | fallback-only → `label` | none | family-level-only | `section-b/flowchart/scene-role/edge-label`; `section-b/flowchart/style/edge-label/fallback-only` |
+| `flowchart` | `node` | `group`, `shape` | exact → `node` | none | family-level-only | `section-b/flowchart/scene-role/node`; `section-b/flowchart/style/node/exact` |
+| `flowchart` | `label` | `text` | exact → `label` | none | family-level-only | `section-b/flowchart/scene-role/label`; `section-b/flowchart/style/label/exact` |
+| `flowchart` | `icon` | `raw`, `text` | not-applicable → `none` | none | family-level-only | `section-b/flowchart/scene-role/icon`; `section-b/flowchart/style/icon/not-applicable` |
+| `state` | `prelude` | `prelude` | not-applicable → `none` | none | family-level-only | `section-b/state/scene-role/prelude`; `section-b/state/style/prelude/not-applicable` |
+| `state` | `defs` | `document` | not-applicable → `none` | none | family-level-only | `section-b/state/scene-role/defs`; `section-b/state/style/defs/not-applicable` |
+| `state` | `chrome` | `document`, `shape` | not-applicable → `none` | none | family-level-only | `section-b/state/scene-role/chrome`; `section-b/state/style/chrome/not-applicable` |
+| `state` | `group` | `group`, `shape` | exact → `group` | none | family-level-only | `section-b/state/scene-role/group`; `section-b/state/style/group/exact` |
+| `state` | `group-header` | `shape`, `text` | not-applicable → `none` | none | family-level-only | `section-b/state/scene-role/group-header`; `section-b/state/style/group-header/not-applicable` |
+| `state` | `edge` | `connector` | exact → `edge` | none | family-level-only | `section-b/state/scene-role/edge`; `section-b/state/style/edge/exact` |
+| `state` | `edge-label` | `group` | fallback-only → `label` | none | family-level-only | `section-b/state/scene-role/edge-label`; `section-b/state/style/edge-label/fallback-only` |
+| `state` | `node` | `group`, `shape` | exact → `node` | `status`=`end`/`start` | family-level-only | `section-b/state/scene-role/node`; `section-b/state/style/node/exact` |
+| `state` | `note` | `group`, `shape` | not-applicable → `none` | none | family-level-only | `section-b/state/scene-role/note`; `section-b/state/style/note/not-applicable` |
+| `state` | `label` | `text` | exact → `label` | none | family-level-only | `section-b/state/scene-role/label`; `section-b/state/style/label/exact` |
+| `sequence` | `prelude` | `prelude` | not-applicable → `none` | none | family-level-only | `section-b/sequence/scene-role/prelude`; `section-b/sequence/style/prelude/not-applicable` |
+| `sequence` | `defs` | `document` | not-applicable → `none` | none | family-level-only | `section-b/sequence/scene-role/defs`; `section-b/sequence/style/defs/not-applicable` |
+| `sequence` | `chrome` | `document`, `shape` | not-applicable → `none` | none | family-level-only | `section-b/sequence/scene-role/chrome`; `section-b/sequence/style/chrome/not-applicable` |
+| `sequence` | `actor` | `group`, `shape` | exact → `actor` | `category`=`A`/`B`/`S`/`U` | family-level-only | `section-b/sequence/scene-role/actor`; `section-b/sequence/style/actor/exact` |
+| `sequence` | `lifeline` | `connector` | fallback-only → `edge` | none | family-level-only | `section-b/sequence/scene-role/lifeline`; `section-b/sequence/style/lifeline/fallback-only` |
+| `sequence` | `activation` | `shape` | fallback-only → `node` | none | family-level-only | `section-b/sequence/scene-role/activation`; `section-b/sequence/style/activation/fallback-only` |
+| `sequence` | `message` | `connector`, `group` | fallback-only → `edge` | none | family-level-only | `section-b/sequence/scene-role/message`; `section-b/sequence/style/message/fallback-only` |
+| `sequence` | `block` | `connector`, `group`, `shape` | fallback-only → `group` | none | family-level-only | `section-b/sequence/scene-role/block`; `section-b/sequence/style/block/fallback-only` |
+| `sequence` | `group` | `group`, `shape` | not-applicable → `none` | none | family-level-only | `section-b/sequence/scene-role/group`; `section-b/sequence/style/group/not-applicable` |
+| `sequence` | `note` | `group`, `shape` | not-applicable → `none` | none | family-level-only | `section-b/sequence/scene-role/note`; `section-b/sequence/style/note/not-applicable` |
+| `sequence` | `label` | `text` | exact → `label` | `category`=`A`/`B`/`S`/`U` | family-level-only | `section-b/sequence/scene-role/label`; `section-b/sequence/style/label/exact` |
+| `sequence` | `icon` | `raw`, `shape`, `text` | fallback-only → `node` | `category`=`A`/`B` | family-level-only | `section-b/sequence/scene-role/icon`; `section-b/sequence/style/icon/fallback-only` |
+| `timeline` | `prelude` | `prelude` | fallback-only → `label` | none | family-level-only | `section-b/timeline/scene-role/prelude`; `section-b/timeline/style/prelude/fallback-only` |
+| `timeline` | `chrome` | `document`, `raw` | not-applicable → `none` | none | family-level-only | `section-b/timeline/scene-role/chrome`; `section-b/timeline/style/chrome/not-applicable` |
+| `timeline` | `rail` | `shape` | fallback-only → `edge` | none | family-level-only | `section-b/timeline/scene-role/rail`; `section-b/timeline/style/rail/fallback-only` |
+| `timeline` | `title` | `text` | fallback-only → `label` | none | family-level-only | `section-b/timeline/scene-role/title`; `section-b/timeline/style/title/fallback-only` |
+| `timeline` | `section` | `group`, `shape` | fallback-only → `group` | `category`=`Alpha`/`Beta` | family-level-only | `section-b/timeline/scene-role/section`; `section-b/timeline/style/section/fallback-only` |
+| `timeline` | `group-header` | `shape`, `text` | not-applicable → `none` | none | family-level-only | `section-b/timeline/scene-role/group-header`; `section-b/timeline/style/group-header/not-applicable` |
+| `timeline` | `period` | `group`, `shape` | not-applicable → `none` | none | family-level-only | `section-b/timeline/scene-role/period`; `section-b/timeline/style/period/not-applicable` |
+| `timeline` | `event` | `group`, `shape` | not-applicable → `none` | none | family-level-only | `section-b/timeline/scene-role/event`; `section-b/timeline/style/event/not-applicable` |
+| `timeline` | `label` | `text` | exact → `label` | none | family-level-only | `section-b/timeline/scene-role/label`; `section-b/timeline/style/label/exact` |
+| `class` | `prelude` | `prelude` | not-applicable → `none` | none | family-level-only | `section-b/class/scene-role/prelude`; `section-b/class/style/prelude/not-applicable` |
+| `class` | `defs` | `document` | not-applicable → `none` | none | family-level-only | `section-b/class/scene-role/defs`; `section-b/class/style/defs/not-applicable` |
+| `class` | `chrome` | `document`, `raw`, `shape` | not-applicable → `none` | none | family-level-only | `section-b/class/scene-role/chrome`; `section-b/class/style/chrome/not-applicable` |
+| `class` | `group` | `group`, `shape` | exact → `group` | none | family-level-only | `section-b/class/scene-role/group`; `section-b/class/style/group/exact` |
+| `class` | `group-header` | `shape`, `text` | not-applicable → `none` | none | family-level-only | `section-b/class/scene-role/group-header`; `section-b/class/style/group-header/not-applicable` |
+| `class` | `class-box` | `group`, `shape` | fallback-only → `node` | none | family-level-only | `section-b/class/scene-role/class-box`; `section-b/class/style/class-box/fallback-only` |
+| `class` | `member` | `text` | fallback-only → `label` | none | family-level-only | `section-b/class/scene-role/member`; `section-b/class/style/member/fallback-only` |
+| `class` | `relationship` | `connector` | fallback-only → `edge` | none | family-level-only | `section-b/class/scene-role/relationship`; `section-b/class/style/relationship/fallback-only` |
+| `class` | `cardinality` | `text` | fallback-only → `label` | none | family-level-only | `section-b/class/scene-role/cardinality`; `section-b/class/style/cardinality/fallback-only` |
+| `class` | `note` | `group`, `shape` | fallback-only → `group` | none | family-level-only | `section-b/class/scene-role/note`; `section-b/class/style/note/fallback-only` |
+| `class` | `label` | `text` | exact → `label` | none | family-level-only | `section-b/class/scene-role/label`; `section-b/class/style/label/exact` |
+| `er` | `prelude` | `prelude` | not-applicable → `none` | none | family-level-only | `section-b/er/scene-role/prelude`; `section-b/er/style/prelude/not-applicable` |
+| `er` | `defs` | `document` | not-applicable → `none` | none | family-level-only | `section-b/er/scene-role/defs`; `section-b/er/style/defs/not-applicable` |
+| `er` | `chrome` | `document`, `shape` | not-applicable → `none` | `category`=`identifying` | family-level-only | `section-b/er/scene-role/chrome`; `section-b/er/style/chrome/not-applicable` |
+| `er` | `group` | `group`, `shape` | exact → `group` | none | family-level-only | `section-b/er/scene-role/group`; `section-b/er/style/group/exact` |
+| `er` | `group-header` | `shape` | not-applicable → `none` | none | family-level-only | `section-b/er/scene-role/group-header`; `section-b/er/style/group-header/not-applicable` |
+| `er` | `entity` | `group`, `shape` | fallback-only → `node` | none | family-level-only | `section-b/er/scene-role/entity`; `section-b/er/style/entity/fallback-only` |
+| `er` | `attribute` | `group`, `text` | fallback-only → `label` | none | family-level-only | `section-b/er/scene-role/attribute`; `section-b/er/style/attribute/fallback-only` |
+| `er` | `relationship` | `connector` | exact → `relationship` | `category`=`identifying` | family-level-only | `section-b/er/scene-role/relationship`; `section-b/er/style/relationship/exact` |
+| `er` | `cardinality` | `shape` | not-applicable → `none` | `category`=`one`/`zero-many` | family-level-only | `section-b/er/scene-role/cardinality`; `section-b/er/style/cardinality/not-applicable` |
+| `er` | `label` | `text` | exact → `label` | `category`=`identifying` | family-level-only | `section-b/er/scene-role/label`; `section-b/er/style/label/exact` |
+| `journey` | `prelude` | `prelude` | not-applicable → `none` | none | family-level-only | `section-b/journey/scene-role/prelude`; `section-b/journey/style/prelude/not-applicable` |
+| `journey` | `defs` | `document` | not-applicable → `none` | none | family-level-only | `section-b/journey/scene-role/defs`; `section-b/journey/style/defs/not-applicable` |
+| `journey` | `chrome` | `document`, `raw` | fallback-only → `label` | none | family-level-only | `section-b/journey/scene-role/chrome`; `section-b/journey/style/chrome/fallback-only` |
+| `journey` | `title` | `text` | fallback-only → `label` | none | family-level-only | `section-b/journey/scene-role/title`; `section-b/journey/style/title/fallback-only` |
+| `journey` | `series` | `connector` | fallback-only → `edge` | none | family-level-only | `section-b/journey/scene-role/series`; `section-b/journey/style/series/fallback-only` |
+| `journey` | `grid` | `connector`, `group` | not-applicable → `none` | `value`=`0.2`/`0.4`/`0.6`/`0.8`/`1` | family-level-only | `section-b/journey/scene-role/grid`; `section-b/journey/style/grid/not-applicable` |
+| `journey` | `axis` | `text` | fallback-only → `label` | `value`=`0.2`/`0.4`/`0.6`/`0.8`/`1` | family-level-only | `section-b/journey/scene-role/axis`; `section-b/journey/style/axis/fallback-only` |
+| `journey` | `rail` | `connector` | fallback-only → `edge` | none | family-level-only | `section-b/journey/scene-role/rail`; `section-b/journey/style/rail/fallback-only` |
+| `journey` | `legend` | `group`, `text` | not-applicable → `none` | `category`=`Assistant`/`Shopper` | family-level-only | `section-b/journey/scene-role/legend`; `section-b/journey/style/legend/not-applicable` |
+| `journey` | `actor` | `shape` | not-applicable → `none` | `category`=`Assistant`/`Shopper` | family-level-only | `section-b/journey/scene-role/actor`; `section-b/journey/style/actor/not-applicable` |
+| `journey` | `section` | `group`, `shape` | fallback-only → `group` | `category`=`Browse`/`Buy` | family-level-only | `section-b/journey/scene-role/section`; `section-b/journey/style/section/fallback-only` |
+| `journey` | `group-header` | `shape`, `text` | exact → `group-header` | `category`=`Browse`/`Buy` | family-level-only | `section-b/journey/scene-role/group-header`; `section-b/journey/style/group-header/exact` |
+| `journey` | `task` | `group`, `shape` | fallback-only → `node` | `value`=`0.4`/`0.6`/`0.8`; `category`=`Browse`/`Buy` | family-level-only | `section-b/journey/scene-role/task`; `section-b/journey/style/task/fallback-only` |
+| `journey` | `marker-line` | `connector` | not-applicable → `none` | `value`=`0.4`/`0.6`/`0.8` | family-level-only | `section-b/journey/scene-role/marker-line`; `section-b/journey/style/marker-line/not-applicable` |
+| `journey` | `label` | `text` | exact → `label` | `value`=`0.4`/`0.6`/`0.8`; `category`=`Browse`/`Buy` | family-level-only | `section-b/journey/scene-role/label`; `section-b/journey/style/label/exact` |
+| `journey` | `score` | `group`, `shape` | not-applicable → `none` | `value`=`0.4`/`0.6`/`0.8`; `category`=`Browse`/`Buy` | family-level-only | `section-b/journey/scene-role/score`; `section-b/journey/style/score/not-applicable` |
+| `architecture` | `prelude` | `prelude` | fallback-only → `label` | none | family-level-only | `section-b/architecture/scene-role/prelude`; `section-b/architecture/style/prelude/fallback-only` |
+| `architecture` | `defs` | `document` | not-applicable → `none` | none | family-level-only | `section-b/architecture/scene-role/defs`; `section-b/architecture/style/defs/not-applicable` |
+| `architecture` | `chrome` | `document`, `shape` | not-applicable → `none` | none | family-level-only | `section-b/architecture/scene-role/chrome`; `section-b/architecture/style/chrome/not-applicable` |
+| `architecture` | `title` | `text` | not-applicable → `none` | none | family-level-only | `section-b/architecture/scene-role/title`; `section-b/architecture/style/title/not-applicable` |
+| `architecture` | `group` | `group`, `shape` | not-applicable → `none` | none | family-level-only | `section-b/architecture/scene-role/group`; `section-b/architecture/style/group/not-applicable` |
+| `architecture` | `group-header` | `shape` | not-applicable → `none` | none | family-level-only | `section-b/architecture/scene-role/group-header`; `section-b/architecture/style/group-header/not-applicable` |
+| `architecture` | `icon` | `raw` | not-applicable → `none` | none | family-level-only | `section-b/architecture/scene-role/icon`; `section-b/architecture/style/icon/not-applicable` |
+| `architecture` | `label` | `text` | not-applicable → `none` | none | family-level-only | `section-b/architecture/scene-role/label`; `section-b/architecture/style/label/not-applicable` |
+| `architecture` | `service` | `group`, `shape` | not-applicable → `none` | none | family-level-only | `section-b/architecture/scene-role/service`; `section-b/architecture/style/service/not-applicable` |
+| `architecture` | `junction` | `group`, `shape` | not-applicable → `none` | none | family-level-only | `section-b/architecture/scene-role/junction`; `section-b/architecture/style/junction/not-applicable` |
+| `architecture` | `edge` | `connector` | not-applicable → `none` | none | family-level-only | `section-b/architecture/scene-role/edge`; `section-b/architecture/style/edge/not-applicable` |
+| `xychart` | `prelude` | `prelude` | fallback-only → `label` | none | family-level-only | `section-b/xychart/scene-role/prelude`; `section-b/xychart/style/prelude/fallback-only` |
+| `xychart` | `defs` | `document` | not-applicable → `none` | none | family-level-only | `section-b/xychart/scene-role/defs`; `section-b/xychart/style/defs/not-applicable` |
+| `xychart` | `chrome` | `document`, `group`, `raw` | not-applicable → `none` | none | family-level-only | `section-b/xychart/scene-role/chrome`; `section-b/xychart/style/chrome/not-applicable` |
+| `xychart` | `grid` | `shape` | fallback-only → `edge` | none | family-level-only | `section-b/xychart/scene-role/grid`; `section-b/xychart/style/grid/fallback-only` |
+| `xychart` | `bar` | `shape` | exact → `bar` | `value`=`0.375`/`0.5625`/`0.6875`/`0.775`/`1`; `category`=`bar-0` | family-level-only | `section-b/xychart/scene-role/bar`; `section-b/xychart/style/bar/exact` |
+| `xychart` | `series` | `connector` | exact → `series` | `category`=`line-0` | family-level-only | `section-b/xychart/scene-role/series`; `section-b/xychart/style/series/exact` |
+| `xychart` | `point` | `shape` | not-applicable → `none` | `value`=`0.3125`/`0.75`/`0.9375`; `category`=`line-0` | family-level-only | `section-b/xychart/scene-role/point`; `section-b/xychart/style/point/not-applicable` |
+| `xychart` | `axis` | `shape`, `text` | fallback-only → `label` | none | family-level-only | `section-b/xychart/scene-role/axis`; `section-b/xychart/style/axis/fallback-only` |
+| `xychart` | `legend` | `group`, `shape`, `text` | not-applicable → `none` | `category`=`bar-0`/`line-0` | family-level-only | `section-b/xychart/scene-role/legend`; `section-b/xychart/style/legend/not-applicable` |
+| `xychart` | `title` | `text` | fallback-only → `label` | none | family-level-only | `section-b/xychart/scene-role/title`; `section-b/xychart/style/title/fallback-only` |
+| `xychart` | `label` | `text` | exact → `label` | `value`=`0.375`/`0.6875`/`1`; `category`=`bar-0` | family-level-only | `section-b/xychart/scene-role/label`; `section-b/xychart/style/label/exact` |
+| `pie` | `prelude` | `prelude` | fallback-only → `label` | none | family-level-only | `section-b/pie/scene-role/prelude`; `section-b/pie/style/prelude/fallback-only` |
+| `pie` | `chrome` | `document`, `raw` | not-applicable → `none` | none | family-level-only | `section-b/pie/scene-role/chrome`; `section-b/pie/style/chrome/not-applicable` |
+| `pie` | `pie-slice` | `shape` | exact → `pie-slice` | `value`=`0.1`/`0.3`/`0.6`; `category`=`Enterprise`/`Free`/`Pro`; `emphasis`=`true` | family-level-only | `section-b/pie/scene-role/pie-slice`; `section-b/pie/style/pie-slice/exact` |
+| `pie` | `legend` | `shape`, `text` | not-applicable → `none` | `value`=`0.1`/`0.3`/`0.6`; `category`=`Enterprise`/`Free`/`Pro` | family-level-only | `section-b/pie/scene-role/legend`; `section-b/pie/style/legend/not-applicable` |
+| `pie` | `title` | `text` | fallback-only → `label` | none | family-level-only | `section-b/pie/scene-role/title`; `section-b/pie/style/title/fallback-only` |
+| `pie` | `label` | `text` | exact → `label` | `value`=`0.1`/`0.3`/`0.6`; `category`=`Enterprise`/`Free`/`Pro` | family-level-only | `section-b/pie/scene-role/label`; `section-b/pie/style/label/exact` |
+| `quadrant` | `prelude` | `prelude` | fallback-only → `label` | none | family-level-only | `section-b/quadrant/scene-role/prelude`; `section-b/quadrant/style/prelude/fallback-only` |
+| `quadrant` | `chrome` | `document`, `raw`, `shape` | not-applicable → `none` | none | family-level-only | `section-b/quadrant/scene-role/chrome`; `section-b/quadrant/style/chrome/not-applicable` |
+| `quadrant` | `plate` | `shape` | not-applicable → `none` | `category`=`Invest` | family-level-only | `section-b/quadrant/scene-role/plate`; `section-b/quadrant/style/plate/not-applicable` |
+| `quadrant` | `grid` | `shape` | fallback-only → `edge` | none | family-level-only | `section-b/quadrant/scene-role/grid`; `section-b/quadrant/style/grid/fallback-only` |
+| `quadrant` | `point` | `shape` | fallback-only → `node` | none | family-level-only | `section-b/quadrant/scene-role/point`; `section-b/quadrant/style/point/fallback-only` |
+| `quadrant` | `axis` | `text` | fallback-only → `label` | none | family-level-only | `section-b/quadrant/scene-role/axis`; `section-b/quadrant/style/axis/fallback-only` |
+| `quadrant` | `title` | `text` | fallback-only → `label` | none | family-level-only | `section-b/quadrant/scene-role/title`; `section-b/quadrant/style/title/fallback-only` |
+| `quadrant` | `label` | `text` | exact → `label` | `category`=`Invest` | family-level-only | `section-b/quadrant/scene-role/label`; `section-b/quadrant/style/label/exact` |
+| `gantt` | `prelude` | `prelude` | fallback-only → `label` | none | family-level-only | `section-b/gantt/scene-role/prelude`; `section-b/gantt/style/prelude/fallback-only` |
+| `gantt` | `defs` | `document` | not-applicable → `none` | none | family-level-only | `section-b/gantt/scene-role/defs`; `section-b/gantt/style/defs/not-applicable` |
+| `gantt` | `chrome` | `document` | not-applicable → `none` | none | family-level-only | `section-b/gantt/scene-role/chrome`; `section-b/gantt/style/chrome/not-applicable` |
+| `gantt` | `section` | `shape`, `text` | fallback-only → `group` | `category`=`Build` | family-level-only | `section-b/gantt/scene-role/section`; `section-b/gantt/style/section/fallback-only` |
+| `gantt` | `grid` | `shape` | fallback-only → `edge` | none | family-level-only | `section-b/gantt/scene-role/grid`; `section-b/gantt/style/grid/fallback-only` |
+| `gantt` | `axis` | `text` | fallback-only → `label` | none | family-level-only | `section-b/gantt/scene-role/axis`; `section-b/gantt/style/axis/fallback-only` |
+| `gantt` | `label` | `text` | exact → `label` | none | family-level-only | `section-b/gantt/scene-role/label`; `section-b/gantt/style/label/exact` |
+| `gantt` | `task` | `shape` | exact → `task` | `status`=`crit`/`done`; `progress`=`1`; `emphasis`=`true`; `category`=`Build` | family-level-only | `section-b/gantt/scene-role/task`; `section-b/gantt/style/task/exact` |
+| `gantt` | `milestone` | `shape` | exact → `milestone` | `emphasis`=`true`; `category`=`Build` | family-level-only | `section-b/gantt/scene-role/milestone`; `section-b/gantt/style/milestone/exact` |
+| `gantt` | `edge` | `connector` | exact → `edge` | `status`=`crit`; `emphasis`=`true` | family-level-only | `section-b/gantt/scene-role/edge`; `section-b/gantt/style/edge/exact` |
+| `gantt` | `marker-line` | `shape` | fallback-only → `edge` | none | family-level-only | `section-b/gantt/scene-role/marker-line`; `section-b/gantt/style/marker-line/fallback-only` |
+| `gantt` | `title` | `text` | fallback-only → `label` | none | family-level-only | `section-b/gantt/scene-role/title`; `section-b/gantt/style/title/fallback-only` |
+| `mindmap` | `prelude` | `prelude` | not-applicable → `none` | none | family-level-only | `section-b/mindmap/scene-role/prelude`; `section-b/mindmap/style/prelude/not-applicable` |
+| `mindmap` | `chrome` | `document`, `shape` | not-applicable → `none` | none | family-level-only | `section-b/mindmap/scene-role/chrome`; `section-b/mindmap/style/chrome/not-applicable` |
+| `mindmap` | `edge` | `connector` | not-applicable → `none` | `importance`=`1`; `category`=`0`/`1` | family-level-only | `section-b/mindmap/scene-role/edge`; `section-b/mindmap/style/edge/not-applicable` |
+| `mindmap` | `node` | `group` | not-applicable → `none` | `importance`=`3`/`4`/`5`; `category`=`0`/`1` | family-level-only | `section-b/mindmap/scene-role/node`; `section-b/mindmap/style/node/not-applicable` |
+| `mindmap` | `icon` | `raw`, `text` | not-applicable → `none` | none | family-level-only | `section-b/mindmap/scene-role/icon`; `section-b/mindmap/style/icon/not-applicable` |
+| `mindmap` | `label` | `text` | not-applicable → `none` | none | family-level-only | `section-b/mindmap/scene-role/label`; `section-b/mindmap/style/label/not-applicable` |
+| `gitgraph` | `prelude` | `prelude` | not-applicable → `none` | none | family-level-only | `section-b/gitgraph/scene-role/prelude`; `section-b/gitgraph/style/prelude/not-applicable` |
+| `gitgraph` | `chrome` | `document`, `shape` | not-applicable → `none` | `status`=`merge`/`normal`; `category`=`feature`/`main` | family-level-only | `section-b/gitgraph/scene-role/chrome`; `section-b/gitgraph/style/chrome/not-applicable` |
+| `gitgraph` | `title` | `text` | not-applicable → `none` | none | family-level-only | `section-b/gitgraph/scene-role/title`; `section-b/gitgraph/style/title/not-applicable` |
+| `gitgraph` | `group` | `group` | not-applicable → `none` | `category`=`feature`/`main` | family-level-only | `section-b/gitgraph/scene-role/group`; `section-b/gitgraph/style/group/not-applicable` |
+| `gitgraph` | `rail` | `shape` | not-applicable → `none` | `category`=`feature`/`main` | family-level-only | `section-b/gitgraph/scene-role/rail`; `section-b/gitgraph/style/rail/not-applicable` |
+| `gitgraph` | `edge` | `connector` | not-applicable → `none` | `category`=`merge`/`parent` | family-level-only | `section-b/gitgraph/scene-role/edge`; `section-b/gitgraph/style/edge/not-applicable` |
+| `gitgraph` | `node` | `group` | not-applicable → `none` | `status`=`merge`/`normal`; `category`=`feature`/`main` | family-level-only | `section-b/gitgraph/scene-role/node`; `section-b/gitgraph/style/node/not-applicable` |
+| `gitgraph` | `label` | `text` | not-applicable → `none` | `category`=`feature`/`main` | family-level-only | `section-b/gitgraph/scene-role/label`; `section-b/gitgraph/style/label/not-applicable` |
+| `radar` | `prelude` | `prelude` | fallback-only → `label` | none | family-level-only | `section-b/radar/scene-role/prelude`; `section-b/radar/style/prelude/fallback-only` |
+| `radar` | `chrome` | `document` | not-applicable → `none` | none | family-level-only | `section-b/radar/scene-role/chrome`; `section-b/radar/style/chrome/not-applicable` |
+| `radar` | `grid` | `shape` | fallback-only → `edge` | none | family-level-only | `section-b/radar/scene-role/grid`; `section-b/radar/style/grid/fallback-only` |
+| `radar` | `pie-slice` | `shape` | exact → `pie-slice` | `category`=`Current`/`Target` | family-level-only | `section-b/radar/scene-role/pie-slice`; `section-b/radar/style/pie-slice/exact` |
+| `radar` | `point` | `shape` | exact → `point` | `category`=`Current`/`Target` | family-level-only | `section-b/radar/scene-role/point`; `section-b/radar/style/point/exact` |
+| `radar` | `axis` | `text` | fallback-only → `label` | none | family-level-only | `section-b/radar/scene-role/axis`; `section-b/radar/style/axis/fallback-only` |
+| `radar` | `legend` | `shape`, `text` | exact → `legend` | `category`=`Current`/`Target` | family-level-only | `section-b/radar/scene-role/legend`; `section-b/radar/style/legend/exact` |
+| `radar` | `title` | `text` | fallback-only → `label` | none | family-level-only | `section-b/radar/scene-role/title`; `section-b/radar/style/title/fallback-only` |
+
+### Semantic-channel emission witnesses
+
+| Family | Populated channel | Representative values | Emitting roles | Public binding state | Executable witness |
+|---|---|---|---|---|---|
+| `state` | `status` | `end`, `start` | `node` | not-publicly-bindable | `section-b/state/semantic-channel/status` |
+| `sequence` | `category` | `A`, `B`, `S`, `U` | `actor`, `icon`, `label` | category | `section-b/sequence/semantic-channel/category` |
+| `timeline` | `category` | `Alpha`, `Beta` | `section` | not-publicly-bindable | `section-b/timeline/semantic-channel/category` |
+| `er` | `category` | `identifying`, `one`, `zero-many` | `cardinality`, `chrome`, `label`, `relationship` | category | `section-b/er/semantic-channel/category` |
+| `journey` | `value` | `0.2`, `0.4`, `0.6`, `0.8`, `1` | `axis`, `grid`, `label`, `marker-line`, `score`, `task` | not-publicly-bindable | `section-b/journey/semantic-channel/value` |
+| `journey` | `category` | `Assistant`, `Browse`, `Buy`, `Shopper` | `actor`, `group-header`, `label`, `legend`, `score`, `section`, `task` | category | `section-b/journey/semantic-channel/category` |
+| `xychart` | `value` | `0.3125`, `0.375`, `0.5625`, `0.6875`, `0.75`, `0.775`, `0.9375`, `1` | `bar`, `label`, `point` | not-publicly-bindable | `section-b/xychart/semantic-channel/value` |
+| `xychart` | `category` | `bar-0`, `line-0` | `bar`, `label`, `legend`, `point`, `series` | category | `section-b/xychart/semantic-channel/category` |
+| `pie` | `value` | `0.1`, `0.3`, `0.6` | `label`, `legend`, `pie-slice` | not-publicly-bindable | `section-b/pie/semantic-channel/value` |
+| `pie` | `category` | `Enterprise`, `Free`, `Pro` | `label`, `legend`, `pie-slice` | category | `section-b/pie/semantic-channel/category` |
+| `pie` | `emphasis` | `true` | `pie-slice` | not-publicly-bindable | `section-b/pie/semantic-channel/emphasis` |
+| `quadrant` | `category` | `Invest` | `label`, `plate` | not-publicly-bindable | `section-b/quadrant/semantic-channel/category` |
+| `gantt` | `status` | `crit`, `done` | `edge`, `task` | not-publicly-bindable | `section-b/gantt/semantic-channel/status` |
+| `gantt` | `progress` | `1` | `task` | not-publicly-bindable | `section-b/gantt/semantic-channel/progress` |
+| `gantt` | `emphasis` | `true` | `edge`, `milestone`, `task` | not-publicly-bindable | `section-b/gantt/semantic-channel/emphasis` |
+| `gantt` | `category` | `Build` | `milestone`, `section`, `task` | category | `section-b/gantt/semantic-channel/category` |
+| `mindmap` | `importance` | `1`, `3`, `4`, `5` | `edge`, `node` | not-publicly-bindable | `section-b/mindmap/semantic-channel/importance` |
+| `mindmap` | `category` | `0`, `1` | `edge`, `node` | not-publicly-bindable | `section-b/mindmap/semantic-channel/category` |
+| `gitgraph` | `status` | `merge`, `normal` | `chrome`, `node` | not-publicly-bindable | `section-b/gitgraph/semantic-channel/status` |
+| `gitgraph` | `category` | `feature`, `main`, `merge`, `parent` | `chrome`, `edge`, `group`, `label`, `node`, `rail` | not-publicly-bindable | `section-b/gitgraph/semantic-channel/category` |
+| `radar` | `category` | `Current`, `Target` | `legend`, `pie-slice`, `point` | category | `section-b/radar/semantic-channel/category` |
+
+### Binding-consumer witnesses
+
+| Family | Consumer role | Emitted selector | Graphical projection | No-color terminal projection | Executable witness |
+|---|---|---|---|---|---|
+| `sequence` | `actor` | `category`=`A` | changed | not-applicable | `section-b/sequence/binding/actor/category/graphical` |
+| `er` | `relationship` | `category`=`identifying` | changed | not-applicable | `section-b/er/binding/relationship/category/graphical` |
+| `journey` | `group-header` | `category`=`Browse` | changed | perceptible-no-color-cue | `section-b/journey/binding/group-header/category/graphical` |
+| `xychart` | `bar` | `category`=`bar-0` | changed | not-applicable | `section-b/xychart/binding/bar/category/graphical` |
+| `xychart` | `series` | `category`=`line-0` | changed | not-applicable | `section-b/xychart/binding/series/category/graphical` |
+| `pie` | `pie-slice` | `category`=`Free` | changed | perceptible-no-color-cue | `section-b/pie/binding/pie-slice/category/graphical` |
+| `gantt` | `task` | `category`=`Build` | changed | perceptible-no-color-cue | `section-b/gantt/binding/task/category/graphical` |
+| `gantt` | `milestone` | `category`=`Build` | changed | perceptible-no-color-cue | `section-b/gantt/binding/milestone/category/graphical` |
+| `radar` | `pie-slice` | `category`=`Current` | changed | perceptible-no-color-cue | `section-b/radar/binding/pie-slice/category/graphical` |
+| `radar` | `legend` | `category`=`Current` | changed | not-applicable | `section-b/radar/binding/legend/category/graphical` |
+| `radar` | `point` | `category`=`Current` | changed | not-applicable | `section-b/radar/binding/point/category/graphical` |
+
+## Built-in public exportability
+
+- `crisp` → `look:crisp`; public export valid; role keys: none
+- `hand-drawn` → `look:hand-drawn`; public export valid; role keys: none
+- `excalidraw` → `look:excalidraw`; public export valid; role keys: none
+- `pen-and-ink` → `look:pen-and-ink`; public export valid; role keys: none
+- `freehand` → `look:freehand`; public export valid; role keys: none
+- `watercolor` → `look:watercolor`; public export valid; role keys: none
+- `blueprint` → `look:blueprint`; public export valid; role keys: none
+- `look:tufte` → `look:tufte`; public export valid; role keys: `edge`, `group`, `node`
+- `accessible-high-contrast` → `look:accessible-high-contrast`; public export valid; role keys: `edge`, `group`, `node`
+- `patent-drawing` → `look:patent-drawing`; public export valid; role keys: `edge`, `group`, `node`
+- `status-dashboard` → `look:status-dashboard`; public export valid; role keys: `edge`, `group`, `node`
+- `ops-schematic` → `look:ops-schematic`; public export valid; role keys: `edge`, `group`, `node`
+- `chalkboard` → `look:chalkboard`; public export valid; role keys: `edge`, `group`, `node`
+- `risograph` → `look:risograph`; public export valid; role keys: `edge`, `group`, `node`
+- `architectural-plan` → `look:architectural-plan`; public export valid; role keys: `edge`, `group`, `node`
+- `publication-figure` → `look:publication-figure`; public export valid; role keys: `edge`, `group`, `node`
+
+## Paint authority and constraints
+
+Derived defaults may be guarded while they are chosen. Concrete authored theme/config/element paint is diagnose-only. Opaque concrete pairs are measurable; transparent host backdrops are explicitly unmeasurable.
+
+| Case | Provenance | Foreground | Background | Output context | Measurement / behavior |
+|---|---|---|---|---|---|
+| `core-derived-semantic-paint-tokens` | core-derived | derived semantic foreground token | resolved opaque page/surface token | shared SVG/PNG appearance | opaque-measurable / guard-may-substitute |
+| `journey-derived-label-ink` | core-derived | derived journey label ink | resolved journey surface | Journey SVG/PNG Scene | opaque-measurable / guard-may-substitute |
+| `mindmap-derived-label-ink` | core-derived | derived mindmap label ink | resolved node fill | Mindmap SVG/PNG Scene | opaque-measurable / guard-may-substitute |
+| `gitgraph-derived-label-ink` | core-derived | derived branch/commit label ink | derived label surface | GitGraph SVG/PNG Scene | opaque-measurable / guard-may-substitute |
+| `pie-derived-series-palette` | core-derived | derived slice/label palette | resolved opaque page | Pie SVG/PNG and terminal palette | opaque-measurable / guard-may-substitute |
+| `radar-derived-label-ink` | core-derived | derived radar label ink | resolved opaque page | Radar SVG/PNG Scene | opaque-measurable / guard-may-substitute |
+| `radar-authored-axis-color` | theme-authored | themeVariables.radar.axisColor | resolved opaque page | Radar SVG/PNG verification artifact | opaque-measurable / diagnose-only |
+| `brand-constraint-final-scene-paint` | style-or-source-authored | final admitted text MarkPaint | nearest admitted semantic surface or page | final admitted Scene before graphical backend | opaque-measurable / diagnose-only |
+| `transparent-host-backdrop` | host-owned | final admitted text MarkPaint | unknown embedding-host backdrop | transparent SVG/PNG host composition | host-dependent-unmeasurable / diagnose-only |
+
+## Phase evidence
+
+- **B0:** `src/__tests__/section-b-capability-report.test.ts`, `docs/project/section-b-capability-report.json`
+- **B1:** `src/__tests__/section-b-role-styles.test.ts`, `src/__tests__/radar-label-discipline.test.ts`
+- **B2:** `src/__tests__/section-b-role-styles.test.ts`, `src/__tests__/style-spec-authority.test.ts`
+- **B3:** `src/__tests__/section-b-policy.test.ts`, `src/scene/brand-constraints.ts`
+- **B4:** `docs/project/brand-primitives-plan.md`, `eval/section-b-brand-evidence/usability-agent-session.json`
+- **B5:** `docs/style-authoring.md`, `scripts/pr-assets/section-b-brand-evidence.ts`, `eval/section-b-brand-evidence/evidence-receipt.json`, `eval/section-b-brand-evidence/usability-agent-session.json`

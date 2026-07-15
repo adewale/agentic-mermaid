@@ -359,7 +359,7 @@ copied here.
 |---|---|---|---|
 | Mermaid-authored appearance | frontmatter/init config, theme variables, family style statements such as classes and link styles | Syntax-defined colors, labels, family geometry, and interaction metadata where the family advertises support | Source-level and family-dependent. Raw `themeCSS` is recognized but diagnosed at the render boundary because its selectors and markup can escape an imported SVG; use `StyleSpec` instead. |
 | One-off render overrides | `RenderOptions` | Palette channels, font family, spacing/geometry controls, deterministic seed, security, accessibility-related output options, and a Style stack | The generated field×surface matrix marks each serializable shared field `forwarded`, `host-enforced`, or `unavailable`. Hosted SVG and editor SVG enforce strict security with external font imports disabled; effective receipts reflect those constraints. Host callbacks are library-only and never enter receipts. |
-| One-off declarative style | inline `StyleSpec` or a left-to-right `StyleInput[]` stack | Safe palette, font, stroke/fill treatment, backdrop, and the other generated StyleSpec fields | JSON-safe and executable-code-free. This is the lowest-complexity custom Style path. |
+| One-off declarative style | inline `StyleSpec` or a left-to-right `StyleInput[]` stack | Safe palette, font, stroke/fill treatment, backdrop, exact semantic-role defaults, named semantic slots, V1 `category` bindings, non-color cues, and inspect-only contrast/accent-area/mono-role constraints | JSON-safe and executable-code-free. Bindings supply defaults beneath authored family paint and semantics; constraints diagnose final effective paint without repainting or relayout. This is the lowest-complexity custom Style path. |
 | Named Palette/Look | `registerStyle`, `getStyle`, `knownStyleDescriptors`, compatibility aliases | Installs a versioned `palette:` or `look:` name backed by exactly the same `StyleSpec` accepted inline | Descriptors expose one `kind` (`look` or `palette`), explicit `isDefault`, and a stable `inputName`; temporary `aliases` carry diagnostic/removal metadata and are never advertised as the preferred input. In-process host registry. A CLI/MCP/server sees a registration only when that host installs it at startup. |
 | Theme conversion | `fromShikiTheme` | Converts a Shiki-compatible editor theme into diagram colors | Pure library helper; the result is ordinary declarative color input. |
 | Live host retheming | CSS custom-property values in graphical color/font inputs | Lets a host page switch SVG palette and font values without re-rendering | SVG/browser-only and limited to safe property values; this is not a raw CSS rule or selector hook. Static outputs need values resolved under their rasterization environment to remain reproducible. |
@@ -371,10 +371,12 @@ copied here.
 | Browser PNG host adapter | `renderMermaidPNGInBrowserWithReceipt(..., rasterize)` or reusable `createMermaidBrowserPNGRenderer({ rasterize, backendPolicy? })` | Supplies Canvas/OffscreenCanvas rasterization and reports font provenance | Trusted callback receives only the admitted, secured canonical SVG; the library re-applies the PNG color-profile gate and retains the same logical receipt as the native PNG path. |
 | Identity and compatibility plumbing | `canonicalExtensionId`, `parseExtensionId`, `createExtensionIdentity`, `registerExtension`, `registerCompatibilityAlias`, `ExtensionCollisionError` | Gives kind-specific registries stable names, parsing, versions, provenance, compatibility ranges, collision rejection, and time-bounded aliases | Low-level plumbing, not a stand-alone extension registry or rendering hook. A compatibility alias must include a diagnostic plus removal release/date; stable short inputs belong to kind-specific descriptors instead. |
 
-There is currently no BrandPack registry, semantic-binding API, public role-trait
-registration, arbitrary SVG/CSS hook, or Treatment hook. Those are Section B
-decisions; B4 adds a Treatment seam only if a concrete effect cannot be expressed
-as a primitive or backend.
+There is currently no BrandPack registry, public role-trait registration,
+arbitrary SVG/CSS hook, or Treatment hook. Semantic slots and the closed V1
+`category` binding API are ordinary `StyleSpec` fields; other Scene channels are
+not publicly bindable without new executable family witnesses. B4 remains the
+unpromoted, evidence-gated BrandPack distribution envelope only. A future
+Treatment seam is a separate decision and is not implied by B4.
 
 ## CLI
 

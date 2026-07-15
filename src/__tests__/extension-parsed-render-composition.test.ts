@@ -45,6 +45,7 @@ function descriptor(): FamilyDescriptor {
     collisionPriority: 0,
     detect: line => line === 'parsedrendercompositiondiagram',
     semanticRoles: [],
+    semanticChannels: [],
     scenePrimitiveEvidence: [],
     capabilityEvidence: [
       { capability: 'detection', state: 'native', evidence: [EVIDENCE] },

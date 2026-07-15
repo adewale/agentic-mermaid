@@ -5,6 +5,7 @@
   "description": "A partial declarative style record for Agentic Mermaid rendering. All fields, including formatVersion, are optional on input; resolved and registered specs normalize formatVersion to 1.",
   "type": "object",
   "additionalProperties": false,
+  "maxProperties": 24,
   "properties": {
     "formatVersion": {
       "const": 1,
@@ -25,6 +26,7 @@
     "colors": {
       "type": "object",
       "additionalProperties": false,
+      "maxProperties": 7,
       "description": "Partial palette of safe, non-fetching CSS color tokens. Runtime validation applies the stricter safe-color policy.",
       "properties": {
         "bg": {
@@ -68,6 +70,335 @@
       "type": "string",
       "description": "Safe, non-fetching CSS font family or stack; the rendering environment supplies the font face.",
       "x-agentic-mermaid-runtime-validator": "safeCssFontFamily"
+    },
+    "roles": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Partial semantic SceneRole defaults. Family-authored styling remains authoritative.",
+      "properties": {
+        "node": {
+          "$ref": "#/$defs/roleStyle-node"
+        },
+        "edge": {
+          "$ref": "#/$defs/roleStyle-edge"
+        },
+        "group": {
+          "$ref": "#/$defs/roleStyle-group"
+        },
+        "group-header": {
+          "$ref": "#/$defs/roleStyle-group-header"
+        },
+        "label": {
+          "$ref": "#/$defs/roleStyle-label"
+        },
+        "actor": {
+          "$ref": "#/$defs/roleStyle-actor"
+        },
+        "relationship": {
+          "$ref": "#/$defs/roleStyle-relationship"
+        },
+        "pie-slice": {
+          "$ref": "#/$defs/roleStyle-pie-slice"
+        },
+        "legend": {
+          "$ref": "#/$defs/roleStyle-legend"
+        },
+        "bar": {
+          "$ref": "#/$defs/roleStyle-bar"
+        },
+        "series": {
+          "$ref": "#/$defs/roleStyle-series"
+        },
+        "point": {
+          "$ref": "#/$defs/roleStyle-point"
+        },
+        "task": {
+          "$ref": "#/$defs/roleStyle-task"
+        },
+        "milestone": {
+          "$ref": "#/$defs/roleStyle-milestone"
+        }
+      }
+    },
+    "semanticSlots": {
+      "type": "object",
+      "description": "Named brand-neutral role-style slots selected by semantic bindings.",
+      "maxProperties": 4096,
+      "propertyNames": {
+        "pattern": "^[A-Za-z][A-Za-z0-9._-]{0,63}$",
+        "not": {
+          "enum": [
+            "__proto__",
+            "constructor",
+            "prototype"
+          ]
+        }
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/roleStyle-any"
+      }
+    },
+    "bindings": {
+      "type": "array",
+      "description": "Ordered equality bindings from authored/domain meaning to semantic slots.",
+      "maxItems": 4096,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "maxProperties": 4,
+        "required": [
+          "channel",
+          "value",
+          "slot"
+        ],
+        "properties": {
+          "channel": {
+            "type": "string",
+            "enum": [
+              "category"
+            ]
+          },
+          "value": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "pattern": "^[^\\r\\n\\u0000]+$"
+          },
+          "slot": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9._-]{0,63}$",
+            "not": {
+              "enum": [
+                "__proto__",
+                "constructor",
+                "prototype"
+              ]
+            }
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "node",
+              "edge",
+              "edge-label",
+              "group",
+              "group-header",
+              "label",
+              "actor",
+              "lifeline",
+              "activation",
+              "message",
+              "block",
+              "note",
+              "class-box",
+              "member",
+              "entity",
+              "attribute",
+              "relationship",
+              "cardinality",
+              "pie-slice",
+              "legend",
+              "bar",
+              "series",
+              "point",
+              "axis",
+              "grid",
+              "plate",
+              "section",
+              "task",
+              "milestone",
+              "marker-line",
+              "rail",
+              "period",
+              "event",
+              "score",
+              "actor-pill",
+              "service",
+              "junction",
+              "icon",
+              "title",
+              "defs",
+              "prelude",
+              "chrome"
+            ]
+          }
+        }
+      }
+    },
+    "constraints": {
+      "type": "array",
+      "description": "Closed inspect-only brand constraints with warn or error actions.",
+      "maxItems": 4096,
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "action"
+            ],
+            "properties": {
+              "kind": {
+                "const": "contrast"
+              },
+              "action": {
+                "type": "string",
+                "enum": [
+                  "warn",
+                  "error"
+                ]
+              },
+              "role": {
+                "type": "string",
+                "enum": [
+                  "node",
+                  "edge",
+                  "edge-label",
+                  "group",
+                  "group-header",
+                  "label",
+                  "actor",
+                  "lifeline",
+                  "activation",
+                  "message",
+                  "block",
+                  "note",
+                  "class-box",
+                  "member",
+                  "entity",
+                  "attribute",
+                  "relationship",
+                  "cardinality",
+                  "pie-slice",
+                  "legend",
+                  "bar",
+                  "series",
+                  "point",
+                  "axis",
+                  "grid",
+                  "plate",
+                  "section",
+                  "task",
+                  "milestone",
+                  "marker-line",
+                  "rail",
+                  "period",
+                  "event",
+                  "score",
+                  "actor-pill",
+                  "service",
+                  "junction",
+                  "icon",
+                  "title",
+                  "defs",
+                  "prelude",
+                  "chrome"
+                ]
+              },
+              "minimum": {
+                "type": "number",
+                "minimum": 1,
+                "maximum": 21
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "action",
+              "maxFraction"
+            ],
+            "properties": {
+              "kind": {
+                "const": "accent-area"
+              },
+              "action": {
+                "type": "string",
+                "enum": [
+                  "warn",
+                  "error"
+                ]
+              },
+              "maxFraction": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "action",
+              "role"
+            ],
+            "properties": {
+              "kind": {
+                "const": "mono-role"
+              },
+              "action": {
+                "type": "string",
+                "enum": [
+                  "warn",
+                  "error"
+                ]
+              },
+              "role": {
+                "type": "string",
+                "enum": [
+                  "node",
+                  "edge",
+                  "edge-label",
+                  "group",
+                  "group-header",
+                  "label",
+                  "actor",
+                  "lifeline",
+                  "activation",
+                  "message",
+                  "block",
+                  "note",
+                  "class-box",
+                  "member",
+                  "entity",
+                  "attribute",
+                  "relationship",
+                  "cardinality",
+                  "pie-slice",
+                  "legend",
+                  "bar",
+                  "series",
+                  "point",
+                  "axis",
+                  "grid",
+                  "plate",
+                  "section",
+                  "task",
+                  "milestone",
+                  "marker-line",
+                  "rail",
+                  "period",
+                  "event",
+                  "score",
+                  "actor-pill",
+                  "service",
+                  "junction",
+                  "icon",
+                  "title",
+                  "defs",
+                  "prelude",
+                  "chrome"
+                ]
+              }
+            }
+          }
+        ]
+      }
     },
     "stroke": {
       "type": "string",
@@ -163,6 +494,793 @@
     "mono": {
       "type": "boolean",
       "description": "Advisory monochrome contract: express tone through shading and weight."
+    }
+  },
+  "$defs": {
+    "roleStyle-node": {
+      "type": "object",
+      "additionalProperties": false,
+      "maxProperties": 11,
+      "properties": {
+        "fontSize": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 256,
+          "description": "Font size in SVG user units."
+        },
+        "fontWeight": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 1000,
+          "description": "CSS numeric font weight."
+        },
+        "letterSpacing": {
+          "type": "number",
+          "minimum": -2,
+          "maximum": 4,
+          "description": "Letter spacing in SVG user units."
+        },
+        "textTransform": {
+          "type": "string",
+          "enum": [
+            "uppercase",
+            "lowercase",
+            "capitalize"
+          ],
+          "description": "Text transformation."
+        },
+        "textColor": {
+          "type": "string",
+          "description": "Text paint.",
+          "x-agentic-mermaid-runtime-validator": "safeStylePaint"
+        },
+        "paddingX": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 256,
+          "description": "Horizontal role padding."
+        },
+        "paddingY": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 256,
+          "description": "Vertical role padding."
+        },
+        "cornerRadius": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 256,
+          "description": "Applicable corner radius."
+        },
+        "lineWidth": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 20,
+          "description": "Border or connector width."
+        },
+        "fillColor": {
+          "type": "string",
+          "description": "Surface fill paint.",
+          "x-agentic-mermaid-runtime-validator": "safeStylePaint"
+        },
+        "borderColor": {
+          "type": "string",
+          "description": "Border paint.",
+          "x-agentic-mermaid-runtime-validator": "safeStylePaint"
+        }
+      }
+    },
+    "roleStyle-edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "maxProperties": 8,
+      "properties": {
+        "fontSize": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 256,
+          "description": "Font size in SVG user units."
+        },
+        "fontWeight": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 1000,
+          "description": "CSS numeric font weight."
+        },
+        "letterSpacing": {
+          "type": "number",
+          "minimum": -2,
+          "maximum": 4,
+          "description": "Letter spacing in SVG user units."
+        },
+        "textTransform": {
+          "type": "string",
+          "enum": [
+            "uppercase",
+            "lowercase",
+            "capitalize"
+          ],
+          "description": "Text transformation."
+        },
+        "textColor": {
+          "type": "string",
+          "description": "Text paint.",
+          "x-agentic-mermaid-runtime-validator": "safeStylePaint"
+        },
+        "lineWidth": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 20,
+          "description": "Border or connector width."
+        },
+        "bendRadius": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 256,
+          "description": "Applicable connector bend radius."
+        },
+        "strokeColor": {
+          "type": "string",
+          "description": "Connector stroke paint.",
+          "x-agentic-mermaid-runtime-validator": "safeStylePaint"
+        }
+      }
+    },
+    "roleStyle-group": {
+      "type": "object",
+      "additionalProperties": false,
+      "maxProperties": 13,
+      "properties": {
+        "fontSize": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 256,
+          "description": "Font size in SVG user units."
+        },
+        "fontWeight": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 1000,
+          "description": "CSS numeric font weight."
+        },
+        "letterSpacing": {
+          "type": "number",
+          "minimum": -2,
+          "maximum": 4,
+          "description": "Letter spacing in SVG user units."
+        },
+        "textTransform": {
+          "type": "string",
+          "enum": [
+            "uppercase",
+            "lowercase",
+            "capitalize"
+          ],
+          "description": "Text transformation."
+        },
+        "textColor": {
+          "type": "string",
+          "description": "Text paint.",
+          "x-agentic-mermaid-runtime-validator": "safeStylePaint"
+        },
+        "paddingX": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 256,
+          "description": "Horizontal role padding."
+        },
+        "paddingY": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 256,
+          "description": "Vertical role padding."
+        },
+        "cornerRadius": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 256,
+          "description": "Applicable corner radius."
+        },
+        "lineWidth": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 20,
+          "description": "Border or connector width."
+        },
+        "fillColor": {
+          "type": "string",
+          "description": "Surface fill paint.",
+          "x-agentic-mermaid-runtime-validator": "safeStylePaint"
+        },
+        "borderColor": {
+          "type": "string",
+          "description": "Border paint.",
+          "x-agentic-mermaid-runtime-validator": "safeStylePaint"
+        },
+        "headerFillColor": {
+          "type": "string",
+          "description": "Group header surface paint.",
+          "x-agentic-mermaid-runtime-validator": "safeStylePaint"
+        },
+        "fontFamily": {
+          "type": "string",
+          "description": "Safe font family/stack for roles whose descriptor exposes family-specific typography.",
+          "x-agentic-mermaid-runtime-validator": "safeCssFontFamily"
+        }
+      }
+    },
+    "roleStyle-group-header": {
+      "type": "object",
+      "additionalProperties": false,
+      "maxProperties": 11,
+      "properties": {
+        "fontFamily": {
+          "type": "string",
+          "description": "Safe font family/stack for roles whose descriptor exposes family-specific typography.",
+          "x-agentic-mermaid-runtime-validator": "safeCssFontFamily"
+        },
+        "fontSize": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 256,
+          "description": "Font size in SVG user units."
+        },
+        "fontWeight": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 1000,
+          "description": "CSS numeric font weight."
+        },
+        "letterSpacing": {
+          "type": "number",
+          "minimum": -2,
+          "maximum": 4,
+          "description": "Letter spacing in SVG user units."
+        },
+        "textTransform": {
+          "type": "string",
+          "enum": [
+            "uppercase",
+            "lowercase",
+            "capitalize"
+          ],
+          "description": "Text transformation."
+        },
+        "textColor": {
+          "type": "string",
+          "description": "Text paint.",
+          "x-agentic-mermaid-runtime-validator": "safeStylePaint"
+        },
+        "fillColor": {
+          "type": "string",
+          "description": "Surface fill paint.",
+          "x-agentic-mermaid-runtime-validator": "safeStylePaint"
+        },
+        "borderColor": {
+          "type": "string",
+          "description": "Border paint.",
+          "x-agentic-mermaid-runtime-validator": "safeStylePaint"
+        },
+        "strokeColor": {
+          "type": "string",
+          "description": "Connector stroke paint.",
+          "x-agentic-mermaid-runtime-validator": "safeStylePaint"
+        },
+        "lineWidth": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 20,
+          "description": "Border or connector width."
+        },
+        "cue": {
+          "type": "string",
+          "enum": [
+            "none",
+            "outline",
+            "double-line",
+            "pattern"
+          ],
+          "description": "Non-color semantic cue on roles whose family renderer exposes a cue projection."
+        }
+      }
+    },
+    "roleStyle-label": {
+      "type": "object",
+      "additionalProperties": false,
+      "maxProperties": 5,
+      "properties": {
+        "fontSize": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 256,
+          "description": "Font size in SVG user units."
+        },
+        "fontWeight": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 1000,
+          "description": "CSS numeric font weight."
+        },
+        "letterSpacing": {
+          "type": "number",
+          "minimum": -2,
+          "maximum": 4,
+          "description": "Letter spacing in SVG user units."
+        },
+        "textTransform": {
+          "type": "string",
+          "enum": [
+            "uppercase",
+            "lowercase",
+            "capitalize"
+          ],
+          "description": "Text transformation."
+        },
+        "textColor": {
+          "type": "string",
+          "description": "Text paint.",
+          "x-agentic-mermaid-runtime-validator": "safeStylePaint"
+        }
+      }
+    },
+    "roleStyle-actor": {
+      "type": "object",
+      "additionalProperties": false,
+      "maxProperties": 11,
+      "properties": {
+        "fontSize": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 256,
+          "description": "Font size in SVG user units."
+        },
+        "fontWeight": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 1000,
+          "description": "CSS numeric font weight."
+        },
+        "letterSpacing": {
+          "type": "number",
+          "minimum": -2,
+          "maximum": 4,
+          "description": "Letter spacing in SVG user units."
+        },
+        "textTransform": {
+          "type": "string",
+          "enum": [
+            "uppercase",
+            "lowercase",
+            "capitalize"
+          ],
+          "description": "Text transformation."
+        },
+        "textColor": {
+          "type": "string",
+          "description": "Text paint.",
+          "x-agentic-mermaid-runtime-validator": "safeStylePaint"
+        },
+        "paddingX": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 256,
+          "description": "Horizontal role padding."
+        },
+        "paddingY": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 256,
+          "description": "Vertical role padding."
+        },
+        "cornerRadius": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 256,
+          "description": "Applicable corner radius."
+        },
+        "lineWidth": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 20,
+          "description": "Border or connector width."
+        },
+        "fillColor": {
+          "type": "string",
+          "description": "Surface fill paint.",
+          "x-agentic-mermaid-runtime-validator": "safeStylePaint"
+        },
+        "borderColor": {
+          "type": "string",
+          "description": "Border paint.",
+          "x-agentic-mermaid-runtime-validator": "safeStylePaint"
+        }
+      }
+    },
+    "roleStyle-relationship": {
+      "type": "object",
+      "additionalProperties": false,
+      "maxProperties": 8,
+      "properties": {
+        "fontSize": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 256,
+          "description": "Font size in SVG user units."
+        },
+        "fontWeight": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 1000,
+          "description": "CSS numeric font weight."
+        },
+        "letterSpacing": {
+          "type": "number",
+          "minimum": -2,
+          "maximum": 4,
+          "description": "Letter spacing in SVG user units."
+        },
+        "textTransform": {
+          "type": "string",
+          "enum": [
+            "uppercase",
+            "lowercase",
+            "capitalize"
+          ],
+          "description": "Text transformation."
+        },
+        "textColor": {
+          "type": "string",
+          "description": "Text paint.",
+          "x-agentic-mermaid-runtime-validator": "safeStylePaint"
+        },
+        "lineWidth": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 20,
+          "description": "Border or connector width."
+        },
+        "bendRadius": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 256,
+          "description": "Applicable connector bend radius."
+        },
+        "strokeColor": {
+          "type": "string",
+          "description": "Connector stroke paint.",
+          "x-agentic-mermaid-runtime-validator": "safeStylePaint"
+        }
+      }
+    },
+    "roleStyle-pie-slice": {
+      "type": "object",
+      "additionalProperties": false,
+      "maxProperties": 5,
+      "properties": {
+        "fillColor": {
+          "type": "string",
+          "description": "Surface fill paint.",
+          "x-agentic-mermaid-runtime-validator": "safeStylePaint"
+        },
+        "borderColor": {
+          "type": "string",
+          "description": "Border paint.",
+          "x-agentic-mermaid-runtime-validator": "safeStylePaint"
+        },
+        "strokeColor": {
+          "type": "string",
+          "description": "Connector stroke paint.",
+          "x-agentic-mermaid-runtime-validator": "safeStylePaint"
+        },
+        "lineWidth": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 20,
+          "description": "Border or connector width."
+        },
+        "cue": {
+          "type": "string",
+          "enum": [
+            "none",
+            "outline",
+            "double-line",
+            "pattern"
+          ],
+          "description": "Non-color semantic cue on roles whose family renderer exposes a cue projection."
+        }
+      }
+    },
+    "roleStyle-legend": {
+      "type": "object",
+      "additionalProperties": false,
+      "maxProperties": 5,
+      "properties": {
+        "fillColor": {
+          "type": "string",
+          "description": "Surface fill paint.",
+          "x-agentic-mermaid-runtime-validator": "safeStylePaint"
+        },
+        "borderColor": {
+          "type": "string",
+          "description": "Border paint.",
+          "x-agentic-mermaid-runtime-validator": "safeStylePaint"
+        },
+        "strokeColor": {
+          "type": "string",
+          "description": "Connector stroke paint.",
+          "x-agentic-mermaid-runtime-validator": "safeStylePaint"
+        },
+        "lineWidth": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 20,
+          "description": "Border or connector width."
+        },
+        "textColor": {
+          "type": "string",
+          "description": "Text paint.",
+          "x-agentic-mermaid-runtime-validator": "safeStylePaint"
+        }
+      }
+    },
+    "roleStyle-bar": {
+      "type": "object",
+      "additionalProperties": false,
+      "maxProperties": 4,
+      "properties": {
+        "fillColor": {
+          "type": "string",
+          "description": "Surface fill paint.",
+          "x-agentic-mermaid-runtime-validator": "safeStylePaint"
+        },
+        "borderColor": {
+          "type": "string",
+          "description": "Border paint.",
+          "x-agentic-mermaid-runtime-validator": "safeStylePaint"
+        },
+        "strokeColor": {
+          "type": "string",
+          "description": "Connector stroke paint.",
+          "x-agentic-mermaid-runtime-validator": "safeStylePaint"
+        },
+        "lineWidth": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 20,
+          "description": "Border or connector width."
+        }
+      }
+    },
+    "roleStyle-series": {
+      "type": "object",
+      "additionalProperties": false,
+      "maxProperties": 3,
+      "properties": {
+        "borderColor": {
+          "type": "string",
+          "description": "Border paint.",
+          "x-agentic-mermaid-runtime-validator": "safeStylePaint"
+        },
+        "strokeColor": {
+          "type": "string",
+          "description": "Connector stroke paint.",
+          "x-agentic-mermaid-runtime-validator": "safeStylePaint"
+        },
+        "lineWidth": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 20,
+          "description": "Border or connector width."
+        }
+      }
+    },
+    "roleStyle-point": {
+      "type": "object",
+      "additionalProperties": false,
+      "maxProperties": 4,
+      "properties": {
+        "fillColor": {
+          "type": "string",
+          "description": "Surface fill paint.",
+          "x-agentic-mermaid-runtime-validator": "safeStylePaint"
+        },
+        "borderColor": {
+          "type": "string",
+          "description": "Border paint.",
+          "x-agentic-mermaid-runtime-validator": "safeStylePaint"
+        },
+        "strokeColor": {
+          "type": "string",
+          "description": "Connector stroke paint.",
+          "x-agentic-mermaid-runtime-validator": "safeStylePaint"
+        },
+        "lineWidth": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 20,
+          "description": "Border or connector width."
+        }
+      }
+    },
+    "roleStyle-task": {
+      "type": "object",
+      "additionalProperties": false,
+      "maxProperties": 5,
+      "properties": {
+        "fillColor": {
+          "type": "string",
+          "description": "Surface fill paint.",
+          "x-agentic-mermaid-runtime-validator": "safeStylePaint"
+        },
+        "borderColor": {
+          "type": "string",
+          "description": "Border paint.",
+          "x-agentic-mermaid-runtime-validator": "safeStylePaint"
+        },
+        "strokeColor": {
+          "type": "string",
+          "description": "Connector stroke paint.",
+          "x-agentic-mermaid-runtime-validator": "safeStylePaint"
+        },
+        "lineWidth": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 20,
+          "description": "Border or connector width."
+        },
+        "cue": {
+          "type": "string",
+          "enum": [
+            "none",
+            "outline",
+            "double-line",
+            "pattern"
+          ],
+          "description": "Non-color semantic cue on roles whose family renderer exposes a cue projection."
+        }
+      }
+    },
+    "roleStyle-milestone": {
+      "type": "object",
+      "additionalProperties": false,
+      "maxProperties": 5,
+      "properties": {
+        "fillColor": {
+          "type": "string",
+          "description": "Surface fill paint.",
+          "x-agentic-mermaid-runtime-validator": "safeStylePaint"
+        },
+        "borderColor": {
+          "type": "string",
+          "description": "Border paint.",
+          "x-agentic-mermaid-runtime-validator": "safeStylePaint"
+        },
+        "strokeColor": {
+          "type": "string",
+          "description": "Connector stroke paint.",
+          "x-agentic-mermaid-runtime-validator": "safeStylePaint"
+        },
+        "lineWidth": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 20,
+          "description": "Border or connector width."
+        },
+        "cue": {
+          "type": "string",
+          "enum": [
+            "none",
+            "outline",
+            "double-line",
+            "pattern"
+          ],
+          "description": "Non-color semantic cue on roles whose family renderer exposes a cue projection."
+        }
+      }
+    },
+    "roleStyle-any": {
+      "type": "object",
+      "additionalProperties": false,
+      "maxProperties": 16,
+      "properties": {
+        "fontFamily": {
+          "type": "string",
+          "description": "Safe font family/stack for roles whose descriptor exposes family-specific typography.",
+          "x-agentic-mermaid-runtime-validator": "safeCssFontFamily"
+        },
+        "fontSize": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 256,
+          "description": "Font size in SVG user units."
+        },
+        "fontWeight": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 1000,
+          "description": "CSS numeric font weight."
+        },
+        "letterSpacing": {
+          "type": "number",
+          "minimum": -2,
+          "maximum": 4,
+          "description": "Letter spacing in SVG user units."
+        },
+        "textTransform": {
+          "type": "string",
+          "enum": [
+            "uppercase",
+            "lowercase",
+            "capitalize"
+          ],
+          "description": "Text transformation."
+        },
+        "textColor": {
+          "type": "string",
+          "description": "Text paint.",
+          "x-agentic-mermaid-runtime-validator": "safeStylePaint"
+        },
+        "paddingX": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 256,
+          "description": "Horizontal role padding."
+        },
+        "paddingY": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 256,
+          "description": "Vertical role padding."
+        },
+        "cornerRadius": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 256,
+          "description": "Applicable corner radius."
+        },
+        "lineWidth": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 20,
+          "description": "Border or connector width."
+        },
+        "bendRadius": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 256,
+          "description": "Applicable connector bend radius."
+        },
+        "fillColor": {
+          "type": "string",
+          "description": "Surface fill paint.",
+          "x-agentic-mermaid-runtime-validator": "safeStylePaint"
+        },
+        "borderColor": {
+          "type": "string",
+          "description": "Border paint.",
+          "x-agentic-mermaid-runtime-validator": "safeStylePaint"
+        },
+        "strokeColor": {
+          "type": "string",
+          "description": "Connector stroke paint.",
+          "x-agentic-mermaid-runtime-validator": "safeStylePaint"
+        },
+        "headerFillColor": {
+          "type": "string",
+          "description": "Group header surface paint.",
+          "x-agentic-mermaid-runtime-validator": "safeStylePaint"
+        },
+        "cue": {
+          "type": "string",
+          "enum": [
+            "none",
+            "outline",
+            "double-line",
+            "pattern"
+          ],
+          "description": "Non-color semantic cue on roles whose family renderer exposes a cue projection."
+        }
+      }
     }
   }
 }

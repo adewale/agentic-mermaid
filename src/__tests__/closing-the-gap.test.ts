@@ -71,6 +71,20 @@ describe('Closing The Gap — official Mermaid 11.16 contracts', () => {
     expect(tidy.nodes.filter(node => node.parentId).every(node => node.x > tidyRoot.x)).toBe(true)
   })
 
+  test('mindmap branch controls stay ordered so connectors cannot create a local hitch', () => {
+    const positioned = layoutMindmap(parseMindmap(`mindmap
+  root((Agent-native release))
+    Delivery
+      Beta signal
+      Launch cloud`), { layout: 'tidy-tree' })
+    const edge = positioned.edges.find(candidate => candidate.to === 'Delivery')!
+    const [start, control1, control2, end] = edge.points
+
+    expect(start!.x).toBeLessThanOrEqual(control1!.x)
+    expect(control1!.x).toBeLessThanOrEqual(control2!.x)
+    expect(control2!.x).toBeLessThanOrEqual(end!.x)
+  })
+
   test('mindmap renders curved branches and local pictograms instead of icon-name text', () => {
     const svg = renderMermaidSVG(`mindmap
   Root
@@ -373,6 +387,17 @@ pie
     expect(explicitFamilyConfigDiagnostics('gantt', { gantt: { axisFormat: '' } })).toEqual([expect.objectContaining({ field: 'gantt.axisFormat' })])
     expect(explicitFamilyConfigDiagnostics('gantt', { gantt: { tickInterval: '2week' } })).toEqual([])
     expect(explicitFamilyConfigDiagnostics('gantt', { gantt: { tickInterval: '2weeks' } })).toEqual([expect.objectContaining({ field: 'gantt.tickInterval', message: expect.stringContaining('"2week"') })])
+  })
+
+  test('GitGraph commit-label pills retain visible horizontal glyph padding', () => {
+    const message = 'cherry-picked a merged branch develop into main into release'
+    const svg = renderMermaidSVG(`gitGraph LR:
+  commit id:"ROOT"
+  commit id:"PICK" msg:"${message}"`, { embedFontImport: false })
+    const widths = [...svg.matchAll(/<rect class="git-commit-label-background"[^>]*>/g)]
+      .map(match => Number(match[0].match(/\swidth="([^"]+)"/)?.[1]))
+
+    expect(Math.max(...widths)).toBeGreaterThanOrEqual(measureTextWidth(message, 11, 500) + 24)
   })
 
   test('GitGraph gives branches distinct deterministic colors and honors documented theme variables', () => {

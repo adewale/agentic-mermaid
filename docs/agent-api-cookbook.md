@@ -270,7 +270,7 @@ Tier 1 warnings are reliable structural/source checks. Do not suppress Tier 1 er
 
 Tier 2 warnings are advisory geometric checks — route tripwires for flowchart/state, plus boundary-anchor/overlap checks on class/ER entity boxes: `NODE_OVERLAP`, `ROUTE_SELF_CROSS`, and the route-contract tripwires `ROUTE_HITCH`, `ROUTE_UNEXPLAINED_BEND`, `ROUTE_LABEL_ON_SHARED_TRUNK`, `ROUTE_SELF_LOOP_OCCUPANCY`, `ROUTE_CONTAINER_MISANCHOR`, `ROUTE_SHAPE_MISANCHOR`, `ROUTE_STALE_AFTER_NODE_MOVE`.
 
-Tier 3 warnings are advisory lint checks for common agent mistakes or source-preserved Mermaid syntax that is not fully modeled: `DUPLICATE_EDGE`, `UNREACHABLE_NODE`, `DECISION_BRANCH_UNLABELED`, `COMMENT_DROPPED`, `UNSUPPORTED_SYNTAX`, `CONTENT_DROPPED_ON_ROUNDTRIP`, `INEFFECTIVE_CONFIG` (a config field is accepted for Mermaid compatibility but has no effect on this family). They do not flip `verify.ok`, but they are worth fixing when the caller asks for clean maintainable diagrams.
+Tier 3 covers advisory lint plus caller-selected inspect-only Brand policy: `DUPLICATE_EDGE`, `UNREACHABLE_NODE`, `DECISION_BRANCH_UNLABELED`, `COMMENT_DROPPED`, `UNSUPPORTED_SYNTAX`, `CONTENT_DROPPED_ON_ROUNDTRIP`, `INEFFECTIVE_CONFIG`, `LOW_CONTRAST`, `BRAND_CONSTRAINT_WARNING`, `BRAND_CONSTRAINT_ERROR`. `LOW_CONTRAST` preserves authored paint and reports its foreground, final opaque background, ratio, and minimum; transparent output is not measured because its host backdrop is unknown. Brand constraints inspect final contrast, accent-area, or mono-role evidence without repainting or relayout. Advisory findings do not flip `verify.ok`; `BRAND_CONSTRAINT_ERROR` does only because the caller explicitly selected `action: "error"`.
 
 ## Common anti-patterns
 

@@ -5,7 +5,7 @@ import { applyTextTransform, estimateTextWidth, FONT_SIZES, FONT_WEIGHTS, STROKE
 import type { RenderStyleDefaults } from '../styles.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import type { ResolvedSequenceConfig } from './config.ts'
-import type { InternalStyleFace } from '../scene/style-registry.ts'
+import { resolveRoleStyle, type InternalStyleFace } from '../scene/style-registry.ts'
 
 // ============================================================================
 // Sequence diagram layout engine
@@ -100,7 +100,15 @@ export function layoutSequenceDiagram(
   const minActorWidth = config.width ?? 80
   const noteGap = config.noteMargin ?? SEQ.noteGap
   const activationWidth = config.activationWidth ?? SEQ.activationWidth
-  const actorHeight = Math.max(config.height ?? SEQ.actorHeight, measureMultilineText('Mg', style.nodeLabelFontSize, style.nodeLabelFontWeight).height + style.nodePaddingY * 2)
+  const actorRoleStyles = diagram.actors.map(actor => resolveRoleStyle(styleFace, 'actor', { category: actor.id }, { includeFallback: false }))
+  const actorHeight = Math.max(
+    config.height ?? SEQ.actorHeight,
+    ...actorRoleStyles.map(role => measureMultilineText(
+      'Mg',
+      role?.fontSize ?? style.nodeLabelFontSize,
+      role?.fontWeight ?? style.nodeLabelFontWeight,
+    ).height + (role?.paddingY ?? style.nodePaddingY) * 2),
+  )
   const defaultEdgeTextHeight = measureMultilineText('Mg', SEQUENCE_STYLE_DEFAULTS.edgeLabelFontSize, SEQUENCE_STYLE_DEFAULTS.edgeLabelFontWeight).height
   const edgeTextHeight = measureMultilineText('Mg', style.edgeLabelFontSize, style.edgeLabelFontWeight).height
   const baseRowHeight = config.messageMargin ?? SEQ.messageRowHeight
@@ -112,36 +120,65 @@ export function layoutSequenceDiagram(
       + (style.groupHeaderFontSize - SEQUENCE_STYLE_DEFAULTS.groupHeaderFontSize)
       + (style.groupPaddingY - SEQUENCE_STYLE_DEFAULTS.groupPaddingY) * 2,
   )
+  // Adjacent fragments are positioned from message rows, so their leading
+  // clearance must grow with the same role-driven group padding as their
+  // frames. Keeping the historical fixed 28 here made an `opt` overlap the
+  // preceding `alt` whenever a public Style selected roomy group geometry.
+  const blockHeaderExtra = Math.max(
+    SEQ.blockHeaderExtra,
+    blockPadTop + style.groupPaddingY + 20 - messageRowHeight,
+  )
   if (diagram.actors.length === 0) {
     return { width: 0, height: 0, accessibilityTitle: diagram.accessibilityTitle, accessibilityDescription: diagram.accessibilityDescription, actors: [], lifelines: [], messages: [], activations: [], blocks: [], notes: [], boxes: [], destructions: [] }
   }
 
   // 1. Calculate actor widths and assign horizontal positions (center X)
-  const actorWidths = diagram.actors.map(a => {
-    const textW = estimateTextWidth(applyTextTransform(a.label, style.nodeTextTransform), style.nodeLabelFontSize, style.nodeLabelFontWeight)
-    return Math.max(textW + style.nodePaddingX * 2, minActorWidth)
+  const actorWidths = diagram.actors.map((a, index) => {
+    const role = actorRoleStyles[index]
+    const transform = role?.textTransform ?? style.nodeTextTransform
+    const fontSize = role?.fontSize ?? style.nodeLabelFontSize
+    const fontWeight = role?.fontWeight ?? style.nodeLabelFontWeight
+    const paddingX = role?.paddingX ?? style.nodePaddingX
+    const displayLabel = applyTextTransform(a.label, transform)
+    const letterSpacing = role?.letterSpacing ?? style.nodeLetterSpacing
+    const tracking = Math.max(0, [...displayLabel].length - 1) * letterSpacing
+    const textW = estimateTextWidth(displayLabel, fontSize, fontWeight) + tracking
+    return Math.max(textW + paddingX * 2, minActorWidth)
   })
 
-  // Build actor center X positions with minimum gap. With actorMargin
-  // configured, spacing follows upstream's model exactly: center gap =
-  // (w₁+w₂)/2 + actorMargin. Without it, the historical floor formula holds.
+  // Build actor ID → index lookup before spacing: authored message labels are
+  // content between lifelines, so they participate in the required span.
+  const actorIndex = new Map<string, number>()
+  for (let i = 0; i < diagram.actors.length; i++) actorIndex.set(diagram.actors[i]!.id, i)
+  const messageGapRequirements = Array.from({ length: Math.max(0, diagram.actors.length - 1) }, () => 0)
+  for (const message of diagram.messages) {
+    const from = actorIndex.get(message.from)
+    const to = actorIndex.get(message.to)
+    if (from === undefined || to === undefined || from === to) continue
+    const first = Math.min(from, to)
+    const last = Math.max(from, to)
+    const span = last - first
+    const label = applyTextTransform(displayMessageLabel(message), style.edgeTextTransform)
+    const tracking = Math.max(0, [...label].length - 1) * style.edgeLetterSpacing
+    const requiredPerGap = (estimateTextWidth(label, style.edgeLabelFontSize, style.edgeLabelFontWeight) + tracking + 16) / span
+    for (let gap = first; gap < last; gap++) {
+      messageGapRequirements[gap] = Math.max(messageGapRequirements[gap]!, requiredPerGap)
+    }
+  }
+
+  // Build actor center X positions with minimum gap. Authored actorMargin still
+  // supplies the floor, while message containment may enlarge it.
   const actorCenterX: number[] = []
   let currentX = padX + actorWidths[0]! / 2
   for (let i = 0; i < diagram.actors.length; i++) {
     if (i > 0) {
       const halfWidths = (actorWidths[i - 1]! + actorWidths[i]!) / 2
-      const minGap = config.actorMargin !== undefined
+      const configuredGap = config.actorMargin !== undefined
         ? halfWidths + config.actorMargin
         : Math.max(SEQ.actorGap, halfWidths + 40)
-      currentX += minGap
+      currentX += Math.max(configuredGap, messageGapRequirements[i - 1] ?? 0)
     }
     actorCenterX.push(currentX)
-  }
-
-  // Build actor ID → index lookup
-  const actorIndex = new Map<string, number>()
-  for (let i = 0; i < diagram.actors.length; i++) {
-    actorIndex.set(diagram.actors[i]!.id, i)
   }
 
   // 2. Position actors at the top. `box … end` groups draw a title band above
@@ -171,7 +208,7 @@ export function layoutSequenceDiagram(
   for (const block of diagram.blocks) {
     // First message in the block needs room for the block header label
     const prev = extraSpaceBefore.get(block.startIndex) ?? 0
-    extraSpaceBefore.set(block.startIndex, Math.max(prev, SEQ.blockHeaderExtra))
+    extraSpaceBefore.set(block.startIndex, Math.max(prev, blockHeaderExtra))
 
     // Each divider (else/and) needs room for the divider label
     for (const div of block.dividers) {
@@ -441,8 +478,13 @@ export function layoutSequenceDiagram(
           : (msg.x1 + msg.x2) / 2 - msgLabelW / 2
         const msgLabelRight = msgLabelLeft + msgLabelW
 
-        if (divLabelRight > msgLabelLeft && divLabelLeft < msgLabelRight) {
-          offset = 36
+        const horizontalClearance = 8
+        if (divLabelRight + horizontalClearance > msgLabelLeft
+          && divLabelLeft - horizontalClearance < msgLabelRight) {
+          // Divider labels render at divider.y + 14 while message labels render
+          // at msg.y - 10. Reserve one resolved text line, not a fixed 12px,
+          // after accounting for that 24px baseline offset.
+          offset = Math.max(36, Math.ceil(24 + edgeTextHeight))
         }
       }
 

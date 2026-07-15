@@ -27,6 +27,9 @@ import { legendEntries } from './legend.ts'
 // ============================================================================
 
 const BAR_PADDING_PERCENT = 0.05
+// X-axis labels use dy="0.35em" to optically center the glyphs. Reserve that
+// shift plus a conservative 0.25em descent inside the fixed chart viewport.
+const BOTTOM_LABEL_RENDERED_ALLOWANCE_EM = 0.6
 
 /** Legend swatch geometry, shared with the renderer and pinned by tests. */
 export const LEGEND_SWATCH_SIZE = 12
@@ -409,7 +412,8 @@ function buildBottomAxisTicks<T extends string | number>(
 ): AxisTick[] {
   const lineOffset = config.showAxisLine ? config.axisLineWidth : 0
   const tickOffset = config.showTick ? config.tickLength : 0
-  const labelY = plotArea.y + plotArea.height + lineOffset + tickOffset + config.labelPadding + config.labelFontSize
+  const labelY = plotArea.y + plotArea.height + lineOffset + tickOffset + config.labelPadding
+    + config.labelFontSize * (1 - BOTTOM_LABEL_RENDERED_ALLOWANCE_EM)
 
   // Deterministic tick-label thinning: centered labels garble into each other
   // when the widest label plus a readability gap exceeds the tick spacing

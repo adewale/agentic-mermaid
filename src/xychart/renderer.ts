@@ -10,7 +10,7 @@ import type { MarkPaint, SceneDoc, SceneNode } from '../scene/ir.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { tooltipMarkup, tooltipCss } from '../shared/svg-tooltip.ts'
-import type { InternalStyleFace } from '../scene/style-registry.ts'
+import { resolveRoleStyle, type InternalStyleFace } from '../scene/style-registry.ts'
 
 // ============================================================================
 // XY Chart SVG renderer
@@ -61,6 +61,7 @@ export function lowerXYChartScene(
   const parts: SceneNode[] = []
   const style = resolveRenderStyle(options, XY_STYLE_DEFAULTS, resolved.styleFace)
   const chartColors = resolveChartColors(chart, style)
+  const hasAuthoredSeriesPalette = Boolean(chart.theme.plotColorPalette?.length)
 
   const maxColorIdx = Math.max(0, ...chart.bars.map(bar => bar.colorIndex), ...chart.lines.map(line => line.colorIndex))
   const svgMeta = buildSvgMetadata(chart)
@@ -128,15 +129,30 @@ export function lowerXYChartScene(
     barSeriesCount.set(bar.seriesIndex, catIndex + 1)
     const barId = `bar:${bar.seriesIndex}:${bar.label ?? catIndex}`
     const dataAttrs = ` data-value="${bar.value}"${bar.label ? ` data-label="${escapeXml(bar.label)}"` : ''}`
+    const channels = { category: `bar-${bar.seriesIndex}`, value: normalized(bar.value) }
+    const roleStyle = resolveRoleStyle(resolved.styleFace, 'bar', channels, { includeFallback: false })
+    const paletteFill = `var(--xychart-color-${bar.colorIndex})`
+    const fill = hasAuthoredSeriesPalette ? paletteFill : roleStyle?.fillColor ?? paletteFill
+    const stroke = roleStyle?.strokeColor ?? roleStyle?.borderColor
+    const strokeWidth = roleStyle?.lineWidth
+    const inlineStyle = roleStyleAttr({
+      ...(hasAuthoredSeriesPalette ? {} : { fill: roleStyle?.fillColor }),
+      stroke,
+      strokeWidth,
+    })
     parts.push(marks.shape({
       id: barId,
       role: 'bar',
       geometry: { kind: 'rect', x: rn(bar.x), y: rn(bar.y), width: rn(bar.width), height: rn(bar.height) },
-      paint: { fill: `var(--xychart-color-${bar.colorIndex})` },
-      channels: { category: `bar-${bar.seriesIndex}`, value: normalized(bar.value) },
+      paint: {
+        fill,
+        ...(stroke ? { stroke } : {}),
+        ...(strokeWidth !== undefined ? { strokeWidth: String(strokeWidth) } : {}),
+      },
+      channels,
     },
       `<rect x="${r(bar.x)}" y="${r(bar.y)}" width="${r(bar.width)}" height="${r(bar.height)}" ` +
-      `class="xychart-bar xychart-color-${bar.colorIndex}"${dataAttrs}/>`,
+      `class="xychart-bar xychart-color-${bar.colorIndex}"${inlineStyle}${dataAttrs}/>`,
     ))
 
     if (interactive) {
@@ -162,15 +178,24 @@ export function lowerXYChartScene(
     // series.  Do not manufacture an invalid one-point Scene connector.
     if (line.points.length < 2) continue
     const d = polylinePath(line.points)
+    const channels = { category: `line-${line.seriesIndex}` }
+    const roleStyle = resolveRoleStyle(resolved.styleFace, 'series', channels, { includeFallback: false })
+    const paletteStroke = `var(--xychart-color-${line.colorIndex})`
+    const stroke = hasAuthoredSeriesPalette ? paletteStroke : roleStyle?.strokeColor ?? roleStyle?.borderColor ?? paletteStroke
+    const strokeWidth = roleStyle?.lineWidth ?? style.lineWidth
+    const inlineStyle = roleStyleAttr({
+      ...(hasAuthoredSeriesPalette ? {} : { stroke: roleStyle?.strokeColor ?? roleStyle?.borderColor }),
+      strokeWidth: roleStyle?.lineWidth,
+    })
     parts.push(marks.connector({
       id: `series:line-${line.seriesIndex}`,
       role: 'series',
       geometry: { kind: 'path', d, points: line.points },
       lineStyle: 'solid',
-      paint: { stroke: `var(--xychart-color-${line.colorIndex})`, strokeWidth: String(style.lineWidth) },
-      channels: { category: `line-${line.seriesIndex}` },
+      paint: { stroke, strokeWidth: String(strokeWidth) },
+      channels,
     },
-      `<path d="${d}" class="xychart-line xychart-color-${line.colorIndex}"/>`,
+      `<path d="${d}" class="xychart-line xychart-color-${line.colorIndex}"${inlineStyle}/>`,
     ))
   }
 
@@ -579,6 +604,14 @@ ${seriesRules.join('\n')}${tipRules}${extraThemeCss}
 </style>`
 
   return { style, defs: '' }
+}
+
+function roleStyleAttr(values: { fill?: string; stroke?: string; strokeWidth?: number }): string {
+  const declarations: string[] = []
+  if (values.fill !== undefined) declarations.push(`fill:${escapeXml(values.fill)}`)
+  if (values.stroke !== undefined) declarations.push(`stroke:${escapeXml(values.stroke)}`)
+  if (values.strokeWidth !== undefined) declarations.push(`stroke-width:${values.strokeWidth}`)
+  return declarations.length > 0 ? ` style="${declarations.join(';')}"` : ''
 }
 
 function polylinePath(points: Array<{ x: number; y: number }>): string {

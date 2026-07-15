@@ -157,7 +157,6 @@
 [data-theme="nord-light"]        { --bg:#ECEFF4; --fg:#2E3440; --accent:#5E81AC; }
 [data-theme="tokyo-night-light"] { --bg:#D5D6DB; --fg:#343B58; --accent:#34548A; }
 [data-theme="salmon"]            { --bg:#FFFBF5; --fg:#521000; --accent:#D23C00; }
-[data-theme="tufte"]             { --bg:#FFFFF8; --fg:#111111; --accent:#7A0000; }
 [data-theme="dusk"]              { --bg:#2A2521; --fg:#E9DFCC; --accent:#CC8A57; }
 [data-theme="paper-dark"]        { --bg:#16130D; --fg:#ECE3CE; --accent:#C9824F; }
 [data-theme="pine-dark"]         { --bg:#0F1512; --fg:#E7ECE9; --accent:#6FC2A2; }

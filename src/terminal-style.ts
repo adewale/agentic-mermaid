@@ -33,6 +33,7 @@ export type TerminalProjectionDiagnosticCode =
   | 'TERMINAL_STROKE_CHARACTER_PROJECTED'
   | 'TERMINAL_FILL_PROJECTED'
   | 'TERMINAL_ROLE_PAINT_PROJECTED'
+  | 'TERMINAL_ROLE_CUE_PROJECTED'
   | 'TERMINAL_RENDER_OPTION_PROJECTED'
   | 'TERMINAL_RENDER_OPTION_NOT_APPLICABLE'
   | 'TERMINAL_UNSAFE_COLOR_REJECTED'
@@ -123,7 +124,11 @@ export function projectTerminalStyle(
     })
   }
   const face = appearance.face
-  if (hasPositive(face?.node?.cornerRadius, face?.group?.cornerRadius, face?.edge?.bendRadius)) {
+  const roleValues = Object.values(appearance.style?.roles ?? {})
+  if (hasPositive(
+    face?.node?.cornerRadius, face?.group?.cornerRadius, face?.edge?.bendRadius,
+    ...roleValues.flatMap(role => [role?.cornerRadius, role?.bendRadius]),
+  )) {
     diagnostics.push({
       code: 'TERMINAL_RADIUS_PROJECTED',
       feature: 'corner-and-bend-radius',
@@ -134,7 +139,8 @@ export function projectTerminalStyle(
   if (
     appearance.font !== 'Inter' ||
     face?.group?.fontFamily !== undefined ||
-    typographyFaces.some(value => value?.fontSize !== undefined || value?.fontWeight !== undefined || value?.letterSpacing !== undefined || value?.textTransform !== undefined)
+    typographyFaces.some(value => value?.fontSize !== undefined || value?.fontWeight !== undefined || value?.letterSpacing !== undefined || value?.textTransform !== undefined) ||
+    roleValues.some(value => value?.fontFamily !== undefined || value?.fontSize !== undefined || value?.fontWeight !== undefined || value?.letterSpacing !== undefined || value?.textTransform !== undefined)
   ) {
     diagnostics.push({
       code: 'TERMINAL_TYPOGRAPHY_PROJECTED',
@@ -145,10 +151,12 @@ export function projectTerminalStyle(
   const faceSurfacePaint = face?.node?.fillColor !== undefined
     || face?.group?.fillColor !== undefined
     || face?.group?.headerFillColor !== undefined
+    || roleValues.some(value => value?.fillColor !== undefined || value?.headerFillColor !== undefined)
   const faceRolePaint = face?.text?.textColor !== undefined
     || face?.node?.textColor !== undefined || face?.node?.borderColor !== undefined
     || face?.edge?.textColor !== undefined || face?.edge?.strokeColor !== undefined
     || face?.group?.textColor !== undefined || face?.group?.borderColor !== undefined
+    || roleValues.some(value => value?.textColor !== undefined || value?.borderColor !== undefined || value?.strokeColor !== undefined)
   if (appearance.colors.shadow === true || faceSurfacePaint) {
     diagnostics.push({
       code: 'TERMINAL_ELEVATION_PROJECTED',
@@ -182,6 +190,13 @@ export function projectTerminalStyle(
       code: 'TERMINAL_ROLE_PAINT_PROJECTED',
       feature: 'role-paint',
       message: 'Per-role text, border, and connector paints project through the smaller terminal theme palette.',
+    })
+  }
+  if (roleValues.some(value => value?.cue !== undefined && value.cue !== 'none')) {
+    diagnostics.push({
+      code: 'TERMINAL_ROLE_CUE_PROJECTED',
+      feature: 'role-non-color-cue',
+      message: 'Per-role non-color cues project to the terminal label, symbol, marker, and line-pattern vocabulary.',
     })
   }
   // Normalize every public color source before terminal math or HTML emission.

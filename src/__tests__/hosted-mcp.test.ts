@@ -444,9 +444,9 @@ describe('hosted declarative mutate/build tools', () => {
     const execute = HOSTED_TOOLS.find(t => t.name === 'execute')!
     const mutate = HOSTED_TOOLS.find(t => t.name === 'mutate')!
     const build = HOSTED_TOOLS.find(t => t.name === 'build')!
-    // The core SDK declaration carries one DiagramKind + narrower per built-in
-    // family; the ceiling has headroom for the current roster (radar is the 15th).
-    expect(new TextEncoder().encode(execute.description).length).toBeLessThan(11_000)
+    // The compact declaration now includes the strict semantic StyleSpec
+    // contract as well as DiagramKind/narrowers; keep a bounded 15KB ceiling.
+    expect(new TextEncoder().encode(execute.description).length).toBeLessThan(15_000)
     expect(mutate.description).toContain('describe_sdk')
     expect(build.description).toContain('describe_sdk')
     expect(mutate.description).not.toContain('add_class(id, label?, generic?, members?, namespace?)')

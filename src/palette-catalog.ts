@@ -91,10 +91,6 @@ export const BUILTIN_PALETTE_DEFINITIONS = Object.freeze([
     colors: { bg: '#1F1008', fg: '#F5DCC8', line: '#6B4A2E', accent: '#FF6B35', muted: '#A07858', surface: '#2A1810', border: '#5A3A22' },
   },
   {
-    id: 'palette:tufte', legacyName: 'tufte', displayLabel: 'Tufte',
-    colors: { bg: '#FFFFF8', fg: '#111111', line: '#AAAAAA', accent: '#7A0000', muted: '#888888', surface: '#F5F0E8', border: '#CCCCCC' },
-  },
-  {
     id: 'palette:tufte-dark', legacyName: 'tufte-dark', displayLabel: 'Tufte Dark',
     colors: { bg: '#1C1C1A', fg: '#E8E4DC', line: '#666660', accent: '#C87070', muted: '#908880', surface: '#2A2926', border: '#444440' },
   },
