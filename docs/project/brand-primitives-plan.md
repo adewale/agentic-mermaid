@@ -29,7 +29,10 @@ abstractions:
 4. Add **semantic bindings** so authored classes, categories, statuses, and
    metadata can select brand slots without embedding raw CSS or SVG. Bindings
    supply defaults before Mermaid-authored styling; final constraints inspect
-   rather than repaint the Scene.
+   rather than repaint the Scene. Resolved values retain authority provenance:
+   only internally derived defaults may be guarded or substituted, while
+   concrete authored theme/config/element paint remains authoritative and is
+   diagnosed rather than repaired.
 5. Add a versioned **BrandPack** envelope only after a real consumer proves the
    need for repeated distribution, exact identity, and installed resources.
    Render requests pin exact versions and content digests; semver ranges belong
@@ -144,8 +147,11 @@ not as a new rendering mode:
   family that declares the channel, with an actionable diagnostic where the
   role or channel is not applicable.
 - **Authored Mermaid remains authoritative.** Global brand values are defaults;
-  `classDef`, `style`, `linkStyle`, and other family-native styling continue to
-  override them according to the documented cascade.
+  concrete family theme/config values, `classDef`, `style`, `linkStyle`, and
+  other family-native styling continue to override them according to the
+  documented cascade. Derived defaults may be guarded while they are being
+  chosen; once authored paint wins, verification may diagnose but never repair,
+  clamp, or substitute it.
 - **Outputs stay honest.** SVG and PNG share geometry and paint. Terminal output
   preserves hierarchy, labels, symbols, line patterns, and available color while
   reporting typography, radius, elevation, or paint that cannot be represented.
@@ -414,8 +420,11 @@ The role-style resolver is an immutable capability-scoped view of the same
 resolved request, not a second public record or merge engine. Family lowering
 must obtain role defaults before constructing `MarkPaint` and `crisp`; changing
 paint after Scene construction would violate the Section A fidelity contract.
-Post-Scene constraints inspect final marks and return diagnostics but never
-rewrite paint or geometry.
+The resolver retains whether each winning value came from a derived default,
+the Style stack, source theme/config, an explicit option, or authored element
+styling. Post-Scene constraints inspect final marks, provenance, and available
+output/compositing context and return diagnostics but never rewrite paint or
+geometry.
 
 All declarative records remain partial, JSON-safe, and expressed in Agentic
 Mermaid's semantic vocabulary. The schema stays deliberately smaller than a
@@ -614,8 +623,14 @@ A channel with no stable cross-family meaning remains family-owned.
 Bindings map authored meaning, not SVG selectors, to brand slots. V1 inputs are:
 
 - Mermaid class names and admitted namespaced metadata;
-- normalized Scene status/category/route values;
+- normalized Scene status/category/route values whose cross-family census proves
+  stable meaning;
 - explicit agent-side tags stored in typed semantic data.
+
+`emphasis` remains family-owned state rather than a V1 binding selector. Brand
+policy may style an already-emphasized mark through applicable paint, weight, or
+non-color defaults, but cannot create/remove the target, alter quantitative
+geometry, suppress meaningful text, or outrank source/config-authored emphasis.
 
 For example, `category:storage -> categories.storage` should select the same
 brand pair and non-color cue for applicable Architecture, Flowchart, Pie, and
@@ -642,11 +657,14 @@ expression AST or extension language. Adding a rule requires cross-brand
 evidence, a composition law, and conformance evidence.
 
 Section B does not introduce an `AccessibilityProfile` or overload security's
-`strict` mode. Obvious foreground/background pair checks belong at Style
-admission; actual rendered contrast, non-color status/category meaning, SVG
-semantics, and product accessibility claims remain in the existing verification,
-quality, and output contracts. A future fail-closed accessibility render policy
-requires a separate public API decision.
+`strict` mode. Style admission checks only context-independent concrete token
+pairs. Render-dependent contrast runs after request/family resolution against a
+concrete effective foreground/background pair and records `measurable`,
+`unmeasurable`, or `not-applicable`; transparent, unresolved, or host-dependent
+backdrops never produce a fabricated ratio. Actual rendered contrast, non-color
+status/category meaning, SVG semantics, and product accessibility claims remain
+in the existing verification, quality, and output contracts. A future fail-
+closed accessibility render policy requires a separate public API decision.
 
 ### Deferred signature effects
 
@@ -706,14 +724,20 @@ The composition laws are public API:
    explicit deterministic fallback, or a documented not-applicable state.
 9. **Determinism and purity:** source + resolved request + seed + frozen registry,
    extension, resource, and capability snapshot fixes output.
-10. **Layout/render coherence:** geometry-affecting tokens are measured and drawn
-    from the same resolution.
-11. **Crisp/semantic coherence:** final `MarkPaint` and crisp serialization are
+10. **Authority preservation:** the winning value retains its provenance;
+    concrete authored theme/config/element values remain value-authoritative and
+    constraints cannot relabel them as derived defaults or repair them.
+11. **Layout/render coherence:** every metric-affecting typography component—font
+    and resource/fallback identity, size, weight, style, letter spacing, line
+    height, transform, and wrapping policy—is resolved once and shared by
+    measurement, collision/admission, knockout/halo geometry, bounds, crisp
+    serialization, and styled rendering.
+12. **Crisp/semantic coherence:** final `MarkPaint` and crisp serialization are
     constructed from the same cascade; neither is patched independently.
-12. **Output parity:** SVG and PNG consume the same resolved request; terminal
+13. **Output parity:** SVG and PNG consume the same resolved request; terminal
     output derives its declared semantic projection; unsupported output features
     fail or warn explicitly.
-13. **JSON safety:** declarative records contain no executable code, markup, or
+14. **JSON safety:** declarative records contain no executable code, markup, or
     unapproved resource URLs.
 
 ## Pinned Mermaid family envelope
@@ -1257,8 +1281,14 @@ only in the landing archive, and future work lives only in `TODO.md`.
 - Generate a registered-family census of emitted `SceneRole`s and populated
   semantic channels, including `radar-beta`, graphical backends, and terminal
   projection behavior.
-- Lock current Style stack, theme-variable, explicit-option, and authored-source
-  precedence with discriminating tests before changing resolution.
+- Inventory existing automatic paint guards and family-specific paint
+  diagnostics. For each, record the effective pair, authority provenance,
+  output/compositing context, and measurable/unmeasurable/not-applicable result.
+- Lock current Style-stack, theme/config, explicit-option, and element-authored
+  precedence with discriminating tests before changing resolution. The Radar
+  witness must prove that derived ink may be guarded while explicit
+  `themeVariables.radar.axisColor` is preserved and diagnosed; transparent
+  output must not claim a ratio against a guessed backdrop.
 
 Exit: each private style value and each registered family role/channel has a
 public migration target, fallback/not-applicable state, and executable witness.
@@ -1273,8 +1303,12 @@ Deletion gate: B0 adds no public type, option, registry, resolver, or schema.
 - Extend `SCENE_ROLE_DESCRIPTORS`/central role traits with style applicability and
   deterministic brand fallback; do not add `BrandRole` or copied role lists.
 - Add one shared role-style resolver used by measurement and family lowering
-  before final `MarkPaint` and crisp serialization. Preserve the authored
-  Mermaid cascade as the final per-element override.
+  before final `MarkPaint` and crisp serialization. Preserve winning-value
+  provenance and the authored Mermaid cascade as the final per-element
+  override.
+- Resolve the complete typography tuple once. Require non-default-weight,
+  wrap-prone witnesses proving measurement, collision boxes, knockout/halo
+  geometry, bounds, crisp output, and styled backends use identical values.
 - Keep connector marker archetype semantic and family-owned. Only applicable
   paint, width, dash, cap/join, bend, and marker scale may be branded.
 - Extend the existing terminal projection and degradation diagnostics instead of
@@ -1284,7 +1318,9 @@ Deletion gate: B0 adds no public type, option, registry, resolver, or schema.
 
 Exit: an inline or file-backed `StyleSpec` can express the role styling currently
 available only to representative first-party built-ins across SVG, PNG, and the
-declared terminal projection.
+declared terminal projection. Pie `highlightSlice` preserves its family-owned
+target, byte-identical slice paths, value/category/emphasis channels, meaningful
+text, and non-color cue under deliberately conflicting role defaults.
 
 Deletion gate: no `appearance` option, parallel role taxonomy, family-local brand
 resolver, or post-Scene repaint lands; sentinel built-ins have no private-only
@@ -1319,12 +1355,24 @@ compiled representation with tests preventing private input.
   `classDef`, `style`, `linkStyle`, and equivalent family-native styling.
 - Add token-time and final-Scene constraints from a closed catalog with stable
   mark/role diagnostics. V1 actions are `warn | error`; constraints never repaint,
-  relayout, or claim to be an accessibility execution profile.
+  relayout, or claim to be an accessibility execution profile. Contrast rules
+  require a concrete effective pair and expose measurable/unmeasurable/not-
+  applicable evidence instead of guessing a host backdrop.
+- Derive every constraint code, payload shape, tier/severity, recovery prose,
+  transport declaration, and verified firing example from one authority (or
+  explicitly classify a non-reproducible engine tripwire).
+- Centralize rule evaluation. Family descriptors may declare applicability and
+  meaningful paint-pair ownership, but family adapters do not own policy engines
+  or require a growing central family switch; existing family-local checks are
+  characterization inputs to this migration.
 - Publish binding precedence, unmatched/conflict, not-applicable, and constraint
-  composition laws with property tests.
+  composition laws with property tests. Bindings cannot select or override
+  family-owned emphasis targets.
 
 Exit: a brand author can express the same normalized domain meaning across
 applicable unrelated families without enumerating adapters or embedding CSS.
+Deliberately conflicting Pie role/category bindings still preserve the authored
+highlight target, quantitative geometry, semantic `emphasis`, and non-color cue.
 
 Deletion gate: no selector engine, expression language, automatic rewriter,
 parallel accessibility mode, or family-local policy registry is introduced.
@@ -1365,7 +1413,8 @@ loader, migration framework, executable code, or second inheritance rule.
   selection guide; do not make it prerequisite reading for ordinary Styles.
 - Run sentinel and holdout brands across registered families, backends, SVG,
   PNG, and terminal projection, plus low-floor usability and small-size visual
-  review.
+  review. The Pie family-owned-emphasis fixture must retain its graphical and
+  terminal non-color cue.
 - Verify all library, CLI, Code Mode, MCP, editor, website, and installed-package
   declarations expose the same schema, validation, diagnostics, and receipts.
 
@@ -1387,14 +1436,21 @@ requirement is introduced.
   wrong role is obvious; render it for every current and newly added family.
 - **Semantic binding:** the same status/category tag selects the same slot across
   structural, temporal, domain, and chart families.
-- **Family-owned emphasis fixture:** Pie `highlightSlice` is the discriminating
-  Section B fixture: highlighted and unhighlighted renders keep byte-identical
-  slice geometry; `category`/`value`/`emphasis` channels and final `MarkPaint`
-  survive crisp and styled backends; meaningful text stays full-contrast;
-  terminal output retains a non-color cue; and role/binding defaults never
-  override the authored family emphasis.
+- **Family-owned emphasis fixture — pinned baseline:** Pie `highlightSlice`
+  already proves byte-identical slice geometry, `category`/`value`/`emphasis`
+  channels, final `MarkPaint` across crisp/styled backends, derived meaningful
+  text contrast, and a terminal non-color cue. This baseline is pinned by the
+  existing Pie/Closing-The-Gap suites and generated receipt.
+- **Family-owned emphasis fixture — B1/B3 extension:** apply deliberately
+  conflicting role/category defaults and prove the target, geometry, semantic
+  channels, meaningful text, and non-color cue remain family-authoritative.
+  Authored low-contrast text remains unchanged and is diagnosed; only renderer-
+  derived fixture text may be contrast-guarded.
 - **Constraint tests:** positive and negative examples for accent area, contrast,
-  mono role, not-applicable channels, and unmatched bindings.
+  mono role, not-applicable channels, and unmatched bindings. Contrast cases
+  include opaque measurable pairs, transparent/host-dependent backgrounds,
+  unresolved CSS paint, alpha compositing, authored low contrast, and derived
+  low contrast.
 - **Human low-floor test:** give unfamiliar users a style file and ask for a
   branded multi-family sheet; measure time to first useful result and whether
   core code or a family adapter was required.
@@ -1418,7 +1474,10 @@ requirement is introduced.
 - assert a named built-in and its public resolved/exported representation are
   behaviorally equivalent, including private implementation defaults;
 - assert all current family headers route identically on every entry point;
-- assert layout and Scene geometry agree after typography/spacing overrides;
+- assert measurement, collision/admission, knockout/halo geometry, layout,
+  Scene bounds, crisp serialization and styled rendering agree after complete
+  typography/spacing overrides, including at least one non-default weight and
+  wrap-prone label per applicable text-role class;
 - submit one serialized fixture through every enrolled transport surface; compare
   shared resolved-request digest, resolved-appearance digest, diagnostics and
   capability decisions;
