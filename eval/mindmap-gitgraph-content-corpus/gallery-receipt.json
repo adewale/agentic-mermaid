@@ -627,6 +627,10 @@
       "sha256": "bdd660b2c9b9cd252a2210340972b69b130a38f5820817b72494ccba535770fe"
     },
     {
+      "path": "src/__tests__/editor-popup.test.ts",
+      "sha256": "cc460f6538b7fa65f19b3e58fbd869e4b290b3d3f4460d51d6e76493017f1989"
+    },
+    {
       "path": "src/__tests__/editor-security-closures.test.ts",
       "sha256": "df6736b571135a8bec8517414f170ece047e6ab97698e3a9bbb4905c20859661"
     },

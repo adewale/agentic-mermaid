@@ -2,8 +2,8 @@
   "schemaVersion": 2,
   "generator": "scripts/pr-assets/section-b-brand-evidence.ts",
   "inputs": {
-    "count": 692,
-    "treeSha256": "0a16a8410e6a65c8890e75de62b872ca443bce2e2042dfb5ba68e357ef5fb021"
+    "count": 693,
+    "treeSha256": "bd1c310c2bad84e6f0464810741b595bdea1dbb81d4d1b4f01ed8de03c73f50f"
   },
   "fontInputs": [
     {
