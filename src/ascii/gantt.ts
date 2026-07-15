@@ -198,7 +198,11 @@ export function renderGanttAscii(
       : undefined
     if (task.tags.includes('milestone')) {
       const c = Math.min(plotWidth - 1, colOf(task.start + (task.renderEnd - task.start) / 2))
-      cells[c] = g.milestone
+      const milestoneCue = roleStyle?.cue === 'outline' ? (config.useAscii ? '+' : '◇')
+        : roleStyle?.cue === 'double-line' ? (config.useAscii ? '#' : '◈')
+        : roleStyle?.cue === 'pattern' ? (config.useAscii ? '%' : '▣')
+        : undefined
+      cells[c] = milestoneCue ?? g.milestone
     } else {
       // Bars draw to renderEnd — the same drawn extent the SVG bars use.
       const from = colOf(task.start)

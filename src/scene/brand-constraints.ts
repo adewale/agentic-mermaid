@@ -1,8 +1,8 @@
 import type { LayoutWarning } from '../agent/types.ts'
 import type { ResolvedRenderRequest } from '../render-contract.ts'
-import { mixHex, wcagCssContrastRatio, tryParseCssColor } from '../shared/color-math.ts'
+import { toHex, wcagCssContrastRatio, tryParseCssColor } from '../shared/color-math.ts'
 import { MIX } from '../theme.ts'
-import type { BrandConstraint } from './style-spec.ts'
+import { STYLE_OWNED_PAINT_VARIABLES, type BrandConstraint } from './style-spec.ts'
 import { BRAND_CONSTRAINT_DESCRIPTORS, BRAND_CONSTRAINT_WARNING_POLICY } from './brand-constraint-contract.ts'
 import { geometryBounds } from './bounds.ts'
 import type { SceneDoc, SceneNode } from './ir.ts'
@@ -16,34 +16,60 @@ function visit(nodes: readonly SceneNode[], fn: (node: SceneNode) => void): void
   }
 }
 
+function mixOpaqueCss(foreground: string, background: string, percent: number): string | undefined {
+  const fg = tryParseCssColor(foreground)
+  const bg = tryParseCssColor(background)
+  if (!fg || !bg || fg[3] !== 1 || bg[3] !== 1) return undefined
+  const ratio = percent / 100
+  return toHex(
+    fg[0] * ratio + bg[0] * (1 - ratio),
+    fg[1] * ratio + bg[1] * (1 - ratio),
+    fg[2] * ratio + bg[2] * (1 - ratio),
+  )
+}
+
 function resolvedPaint(value: string | undefined, request: ResolvedRenderRequest): string | undefined {
   if (!value) return undefined
   const colors = request.appearance.colors
-  const mixableHex = (color: string): boolean => /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(color)
-  const canMix = mixableHex(colors.fg) && mixableHex(colors.bg)
-  const derivedNodeFill = request.appearance.face?.node?.fillColor
-    ?? colors.surface
-    ?? (canMix ? mixHex(colors.fg, colors.bg, MIX.nodeFill) : undefined)
-  const derivedNodeStroke = request.appearance.face?.node?.borderColor
-    ?? colors.border
-    ?? (canMix ? mixHex(colors.fg, colors.bg, MIX.nodeStroke) : undefined)
-  const token: Record<string, string | undefined> = {
-    'var(--bg)': colors.bg,
-    'var(--fg)': colors.fg,
-    'var(--line)': colors.line,
-    'var(--accent)': colors.accent,
-    'var(--muted)': colors.muted,
-    'var(--surface)': colors.surface,
-    'var(--border)': colors.border,
-    'var(--_text)': colors.fg,
-    'var(--_text-sec)': colors.muted,
-    'var(--_line)': colors.line,
-    'var(--_arrow)': colors.line,
-    'var(--_node-fill)': derivedNodeFill,
-    'var(--_node-stroke)': derivedNodeStroke,
-    'var(--_group-fill)': colors.bg,
+  const mixed = (percent: number): string | undefined => mixOpaqueCss(colors.fg, colors.bg, percent)
+  const derived = {
+    textSec: colors.muted ?? mixed(MIX.textSec),
+    textMuted: colors.muted ?? mixed(MIX.textMuted),
+    textFaint: mixed(MIX.textFaint),
+    line: colors.line ?? mixed(MIX.line),
+    arrow: colors.accent ?? mixed(MIX.arrow),
+    nodeFill: colors.surface ?? mixed(MIX.nodeFill),
+    nodeStroke: colors.border ?? mixed(MIX.nodeStroke),
+    groupHdr: mixed(MIX.groupHeader),
+    innerStroke: mixed(MIX.innerStroke),
+    keyBadge: mixed(MIX.keyBadge),
   }
-  return token[value] ?? value
+  const styleOwnedToken = {
+    '--bg': colors.bg,
+    '--fg': colors.fg,
+    '--_text': colors.fg,
+    '--_text-sec': derived.textSec,
+    '--_text-muted': derived.textMuted,
+    '--_text-faint': derived.textFaint,
+    '--_line': derived.line,
+    '--_arrow': derived.arrow,
+    '--_node-fill': derived.nodeFill,
+    '--_node-stroke': derived.nodeStroke,
+    '--_group-fill': colors.bg,
+    '--_group-hdr': derived.groupHdr,
+    '--_inner-stroke': derived.innerStroke,
+    '--_key-badge': derived.keyBadge,
+  } satisfies Record<(typeof STYLE_OWNED_PAINT_VARIABLES)[number], string | undefined>
+  const token: Readonly<Record<string, string | undefined>> = {
+    '--line': colors.line,
+    '--accent': colors.accent,
+    '--muted': colors.muted,
+    '--surface': colors.surface,
+    '--border': colors.border,
+    ...styleOwnedToken,
+  }
+  const variable = value.match(/^var\(\s*(--[a-z0-9_-]+)(?:\s*,[\s\S]*)?\)$/i)?.[1]
+  return variable && Object.hasOwn(token, variable) ? token[variable] : value
 }
 
 function warning(

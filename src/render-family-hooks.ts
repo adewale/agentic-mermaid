@@ -452,7 +452,7 @@ const RADAR_RENDER_HOOKS = {
   ), { injectAccessibility: false }),
   projectPositioned: positionedView(projectRadarPositioned),
   lowerScene: scene(lowerRadarScene),
-  renderAscii: ctx => renderRadarAscii(ctx.source.lines, ctx.config, ctx.colorMode, ctx.theme, ctx.source.frontmatter, ctx.options.targetWidth),
+  renderAscii: ctx => renderRadarAscii(ctx.source.lines, ctx.config, ctx.colorMode, ctx.theme, ctx.source.frontmatter, ctx.options.targetWidth, ctx.styleFace),
 } satisfies BuiltinRenderHooks
 
 const GANTT_RENDER_HOOKS = {

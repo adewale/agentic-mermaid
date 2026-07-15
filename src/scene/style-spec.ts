@@ -322,15 +322,16 @@ function numberIsValid(value: unknown, descriptor: Pick<NumberField, 'minimum' |
   return true
 }
 
-const STYLE_OWNED_PAINT_VARIABLES = new Set([
+export const STYLE_OWNED_PAINT_VARIABLES = Object.freeze([
   '--bg', '--fg', '--_text', '--_text-sec', '--_text-muted', '--_text-faint',
   '--_line', '--_arrow', '--_node-fill', '--_node-stroke', '--_group-fill',
   '--_group-hdr', '--_inner-stroke', '--_key-badge',
-])
+] as const)
+const STYLE_OWNED_PAINT_VARIABLE_SET: ReadonlySet<string> = new Set(STYLE_OWNED_PAINT_VARIABLES)
 function safeRoleColor(value: unknown): value is string {
   if (typeof value !== 'string' || safeCssPaint(value) === undefined) return false
   const variables = [...value.matchAll(/var\(\s*(--[a-z0-9_-]+)/gi)].map(match => match[1]!)
-  return variables.every(variable => STYLE_OWNED_PAINT_VARIABLES.has(variable))
+  return variables.every(variable => STYLE_OWNED_PAINT_VARIABLE_SET.has(variable))
 }
 
 const SCENE_ROLE_BY_NAME = new Map(SCENE_ROLE_DESCRIPTORS.map(descriptor => [descriptor.role, descriptor] as const))

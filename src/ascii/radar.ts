@@ -15,6 +15,7 @@ import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
 import { colorizeText } from './ansi.ts'
 import { padEndToVisualWidth, visualWidth } from './width.ts'
 import { wrapText } from './wrap.ts'
+import { resolveRoleStyle, type InternalStyleFace } from '../scene/style-registry.ts'
 
 const MAX_BAR = 24
 
@@ -40,11 +41,17 @@ export function renderRadarAscii(
   theme: AsciiTheme,
   frontmatter: MermaidFrontmatterMap = {},
   targetWidth?: number,
+  styleFace?: Readonly<InternalStyleFace>,
 ): string {
   const chart = parseRadarChart(lines, { title: getFrontmatterScalar<string>(frontmatter, ['title']) })
-  const barChar = config.useAscii ? '#' : '█'
   const sep = config.useAscii ? '|' : '│'
-  const glyph = config.useAscii ? '*' : '●'
+  const cueGlyphs = (label: string): { marker: string; bar: string } => {
+    const cue = resolveRoleStyle(styleFace, 'pie-slice', { category: label }, { includeFallback: false })?.cue
+    if (cue === 'outline') return config.useAscii ? { marker: '+', bar: '+' } : { marker: '◇', bar: '□' }
+    if (cue === 'double-line') return config.useAscii ? { marker: '=', bar: '=' } : { marker: '◈', bar: '═' }
+    if (cue === 'pattern') return config.useAscii ? { marker: '%', bar: '%' } : { marker: '░', bar: '░' }
+    return config.useAscii ? { marker: '*', bar: '#' } : { marker: '●', bar: '█' }
+  }
 
   const visual = resolveRadarVisualConfig(frontmatter)
   const colors = pieSliceColors(chart.curves.length, {
@@ -71,6 +78,7 @@ export function renderRadarAscii(
 
   if (chart.showLegend && chart.curves.length > 0) {
     const legend = chart.curves.map((curve, index) => {
+      const glyph = cueGlyphs(curve.label).marker
       const marker = colorMode === 'none' ? glyph : colorizeText(glyph, colors[index]!, colorMode)
       return `${marker} ${cellLines(curve.label).join(' ')}`
     }).join('   ')
@@ -102,7 +110,7 @@ export function renderRadarAscii(
       const value = curve.values[axisIndex]!
       const ratio = radarValueRatio(value, scale)
       const barLength = ratio > 0 ? Math.max(1, Math.round(ratio * barMax)) : 0
-      const bar = barChar.repeat(barLength)
+      const bar = cueGlyphs(curve.label).bar.repeat(barLength)
       const paletteIndex = chart.curves.indexOf(curve)
       const coloredBar = colorMode === 'none' ? bar : colorizeText(bar, colors[paletteIndex]!, colorMode)
       const axisLines = curveIndex === 0 ? cellLines(axis.label) : ['']

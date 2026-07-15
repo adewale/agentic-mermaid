@@ -60,6 +60,14 @@ describe('Section B temporal semantic bindings', () => {
     const terminalBranded = renderMermaidASCII(GANTT, { colorMode: 'none', useAscii: true, style: temporalStyle })
     expect(terminalBranded).not.toBe(terminalBaseline)
     expect(terminalBranded).toContain('%%%%')
+
+    const milestoneOnly = {
+      semanticSlots: { marked: { cue: 'pattern' } },
+      bindings: [{ channel: 'category', value: 'Release', slot: 'marked', role: 'milestone' }],
+    } as const
+    const milestoneTerminal = renderMermaidASCII(GANTT, { colorMode: 'none', useAscii: true, style: milestoneOnly })
+    expect(milestoneTerminal).not.toBe(terminalBaseline)
+    expect(milestoneTerminal).toMatch(/Gate\s+.*%/)
   })
 
   test('Journey category slot is a default beneath explicit family section paint', () => {

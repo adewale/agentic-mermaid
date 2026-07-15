@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "publicRoleStyleLeaves": [
     {
       "field": "fontFamily",
@@ -528,7 +528,168 @@
       ],
       "semanticChannels": [],
       "bindingRoles": [],
-      "bindingChannels": []
+      "bindingChannels": [],
+      "graphicalBackends": [
+        {
+          "id": "backend:default",
+          "state": "conformant-scene-consumer",
+          "witnessId": "backend-claim-matrix@3/backend:default"
+        },
+        {
+          "id": "backend:rough",
+          "state": "conformant-scene-consumer",
+          "witnessId": "backend-claim-matrix@3/backend:rough"
+        },
+        {
+          "id": "backend:hybrid",
+          "state": "conformant-scene-consumer",
+          "witnessId": "backend-claim-matrix@3/backend:hybrid"
+        }
+      ],
+      "terminalProjection": {
+        "state": "native-lossy",
+        "witnessId": "section-b/flowchart/terminal/no-color",
+        "outputDigest": "sha256:253e838a33e1cf4ed4fd389e5f90bc182d87b1ed3f96d958f2735a63641ca1b4"
+      },
+      "roleWitnesses": [
+        {
+          "role": "prelude",
+          "observedKinds": [
+            "prelude"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/flowchart/scene-role/prelude",
+          "styleWitnessId": "section-b/flowchart/style/prelude/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/flowchart/terminal/no-color"
+        },
+        {
+          "role": "defs",
+          "observedKinds": [
+            "document"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/flowchart/scene-role/defs",
+          "styleWitnessId": "section-b/flowchart/style/defs/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/flowchart/terminal/no-color"
+        },
+        {
+          "role": "chrome",
+          "observedKinds": [
+            "document",
+            "shape"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/flowchart/scene-role/chrome",
+          "styleWitnessId": "section-b/flowchart/style/chrome/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/flowchart/terminal/no-color"
+        },
+        {
+          "role": "group",
+          "observedKinds": [
+            "group",
+            "shape"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "group",
+          "styleProjection": "exact",
+          "graphicalWitnessId": "section-b/flowchart/scene-role/group",
+          "styleWitnessId": "section-b/flowchart/style/group/exact",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/flowchart/terminal/no-color"
+        },
+        {
+          "role": "group-header",
+          "observedKinds": [
+            "shape",
+            "text"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/flowchart/scene-role/group-header",
+          "styleWitnessId": "section-b/flowchart/style/group-header/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/flowchart/terminal/no-color"
+        },
+        {
+          "role": "edge",
+          "observedKinds": [
+            "connector"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "edge",
+          "styleProjection": "exact",
+          "graphicalWitnessId": "section-b/flowchart/scene-role/edge",
+          "styleWitnessId": "section-b/flowchart/style/edge/exact",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/flowchart/terminal/no-color"
+        },
+        {
+          "role": "edge-label",
+          "observedKinds": [
+            "group"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "label",
+          "styleProjection": "fallback-only",
+          "graphicalWitnessId": "section-b/flowchart/scene-role/edge-label",
+          "styleWitnessId": "section-b/flowchart/style/edge-label/fallback-only",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/flowchart/terminal/no-color"
+        },
+        {
+          "role": "node",
+          "observedKinds": [
+            "group",
+            "shape"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "node",
+          "styleProjection": "exact",
+          "graphicalWitnessId": "section-b/flowchart/scene-role/node",
+          "styleWitnessId": "section-b/flowchart/style/node/exact",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/flowchart/terminal/no-color"
+        },
+        {
+          "role": "label",
+          "observedKinds": [
+            "text"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "label",
+          "styleProjection": "exact",
+          "graphicalWitnessId": "section-b/flowchart/scene-role/label",
+          "styleWitnessId": "section-b/flowchart/style/label/exact",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/flowchart/terminal/no-color"
+        },
+        {
+          "role": "icon",
+          "observedKinds": [
+            "raw",
+            "text"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/flowchart/scene-role/icon",
+          "styleWitnessId": "section-b/flowchart/style/icon/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/flowchart/terminal/no-color"
+        }
+      ],
+      "channelWitnesses": [],
+      "bindingWitnesses": []
     },
     {
       "id": "state",
@@ -548,7 +709,186 @@
         "status"
       ],
       "bindingRoles": [],
-      "bindingChannels": []
+      "bindingChannels": [],
+      "graphicalBackends": [
+        {
+          "id": "backend:default",
+          "state": "conformant-scene-consumer",
+          "witnessId": "backend-claim-matrix@3/backend:default"
+        },
+        {
+          "id": "backend:rough",
+          "state": "conformant-scene-consumer",
+          "witnessId": "backend-claim-matrix@3/backend:rough"
+        },
+        {
+          "id": "backend:hybrid",
+          "state": "conformant-scene-consumer",
+          "witnessId": "backend-claim-matrix@3/backend:hybrid"
+        }
+      ],
+      "terminalProjection": {
+        "state": "native-lossy",
+        "witnessId": "section-b/state/terminal/no-color",
+        "outputDigest": "sha256:9846c38acc09cfa17ccc89752d8a58eef7fd5371f67acd5ce46cc6fd3e5f6af4"
+      },
+      "roleWitnesses": [
+        {
+          "role": "prelude",
+          "observedKinds": [
+            "prelude"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/state/scene-role/prelude",
+          "styleWitnessId": "section-b/state/style/prelude/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/state/terminal/no-color"
+        },
+        {
+          "role": "defs",
+          "observedKinds": [
+            "document"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/state/scene-role/defs",
+          "styleWitnessId": "section-b/state/style/defs/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/state/terminal/no-color"
+        },
+        {
+          "role": "chrome",
+          "observedKinds": [
+            "document",
+            "shape"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/state/scene-role/chrome",
+          "styleWitnessId": "section-b/state/style/chrome/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/state/terminal/no-color"
+        },
+        {
+          "role": "group",
+          "observedKinds": [
+            "group",
+            "shape"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "group",
+          "styleProjection": "exact",
+          "graphicalWitnessId": "section-b/state/scene-role/group",
+          "styleWitnessId": "section-b/state/style/group/exact",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/state/terminal/no-color"
+        },
+        {
+          "role": "group-header",
+          "observedKinds": [
+            "shape",
+            "text"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/state/scene-role/group-header",
+          "styleWitnessId": "section-b/state/style/group-header/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/state/terminal/no-color"
+        },
+        {
+          "role": "edge",
+          "observedKinds": [
+            "connector"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "edge",
+          "styleProjection": "exact",
+          "graphicalWitnessId": "section-b/state/scene-role/edge",
+          "styleWitnessId": "section-b/state/style/edge/exact",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/state/terminal/no-color"
+        },
+        {
+          "role": "edge-label",
+          "observedKinds": [
+            "group"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "label",
+          "styleProjection": "fallback-only",
+          "graphicalWitnessId": "section-b/state/scene-role/edge-label",
+          "styleWitnessId": "section-b/state/style/edge-label/fallback-only",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/state/terminal/no-color"
+        },
+        {
+          "role": "node",
+          "observedKinds": [
+            "group",
+            "shape"
+          ],
+          "emittedChannelValues": {
+            "status": [
+              "end",
+              "start"
+            ]
+          },
+          "publicMigrationTarget": "node",
+          "styleProjection": "exact",
+          "graphicalWitnessId": "section-b/state/scene-role/node",
+          "styleWitnessId": "section-b/state/style/node/exact",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/state/terminal/no-color"
+        },
+        {
+          "role": "note",
+          "observedKinds": [
+            "group",
+            "shape"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/state/scene-role/note",
+          "styleWitnessId": "section-b/state/style/note/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/state/terminal/no-color"
+        },
+        {
+          "role": "label",
+          "observedKinds": [
+            "text"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "label",
+          "styleProjection": "exact",
+          "graphicalWitnessId": "section-b/state/scene-role/label",
+          "styleWitnessId": "section-b/state/style/label/exact",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/state/terminal/no-color"
+        }
+      ],
+      "channelWitnesses": [
+        {
+          "channel": "status",
+          "representativeValues": [
+            "end",
+            "start"
+          ],
+          "emittingRoles": [
+            "node"
+          ],
+          "publicBinding": "not-publicly-bindable",
+          "witnessId": "section-b/state/semantic-channel/status"
+        }
+      ],
+      "bindingWitnesses": []
     },
     {
       "id": "sequence",
@@ -574,6 +914,243 @@
       ],
       "bindingChannels": [
         "category"
+      ],
+      "graphicalBackends": [
+        {
+          "id": "backend:default",
+          "state": "conformant-scene-consumer",
+          "witnessId": "backend-claim-matrix@3/backend:default"
+        },
+        {
+          "id": "backend:rough",
+          "state": "conformant-scene-consumer",
+          "witnessId": "backend-claim-matrix@3/backend:rough"
+        },
+        {
+          "id": "backend:hybrid",
+          "state": "conformant-scene-consumer",
+          "witnessId": "backend-claim-matrix@3/backend:hybrid"
+        }
+      ],
+      "terminalProjection": {
+        "state": "native-lossy",
+        "witnessId": "section-b/sequence/terminal/no-color",
+        "outputDigest": "sha256:8de66460dd920c2930675690ec57b0042fff8f15f90a21ed3f8c19b77cf5496e"
+      },
+      "roleWitnesses": [
+        {
+          "role": "prelude",
+          "observedKinds": [
+            "prelude"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/sequence/scene-role/prelude",
+          "styleWitnessId": "section-b/sequence/style/prelude/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/sequence/terminal/no-color"
+        },
+        {
+          "role": "defs",
+          "observedKinds": [
+            "document"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/sequence/scene-role/defs",
+          "styleWitnessId": "section-b/sequence/style/defs/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/sequence/terminal/no-color"
+        },
+        {
+          "role": "chrome",
+          "observedKinds": [
+            "document",
+            "shape"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/sequence/scene-role/chrome",
+          "styleWitnessId": "section-b/sequence/style/chrome/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/sequence/terminal/no-color"
+        },
+        {
+          "role": "actor",
+          "observedKinds": [
+            "group",
+            "shape"
+          ],
+          "emittedChannelValues": {
+            "category": [
+              "A",
+              "B",
+              "S",
+              "U"
+            ]
+          },
+          "publicMigrationTarget": "actor",
+          "styleProjection": "exact",
+          "graphicalWitnessId": "section-b/sequence/scene-role/actor",
+          "styleWitnessId": "section-b/sequence/style/actor/exact",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/sequence/terminal/no-color"
+        },
+        {
+          "role": "lifeline",
+          "observedKinds": [
+            "connector"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "edge",
+          "styleProjection": "fallback-only",
+          "graphicalWitnessId": "section-b/sequence/scene-role/lifeline",
+          "styleWitnessId": "section-b/sequence/style/lifeline/fallback-only",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/sequence/terminal/no-color"
+        },
+        {
+          "role": "activation",
+          "observedKinds": [
+            "shape"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "node",
+          "styleProjection": "fallback-only",
+          "graphicalWitnessId": "section-b/sequence/scene-role/activation",
+          "styleWitnessId": "section-b/sequence/style/activation/fallback-only",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/sequence/terminal/no-color"
+        },
+        {
+          "role": "message",
+          "observedKinds": [
+            "connector",
+            "group"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "edge",
+          "styleProjection": "fallback-only",
+          "graphicalWitnessId": "section-b/sequence/scene-role/message",
+          "styleWitnessId": "section-b/sequence/style/message/fallback-only",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/sequence/terminal/no-color"
+        },
+        {
+          "role": "block",
+          "observedKinds": [
+            "connector",
+            "group",
+            "shape"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "group",
+          "styleProjection": "fallback-only",
+          "graphicalWitnessId": "section-b/sequence/scene-role/block",
+          "styleWitnessId": "section-b/sequence/style/block/fallback-only",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/sequence/terminal/no-color"
+        },
+        {
+          "role": "group",
+          "observedKinds": [
+            "group",
+            "shape"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/sequence/scene-role/group",
+          "styleWitnessId": "section-b/sequence/style/group/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/sequence/terminal/no-color"
+        },
+        {
+          "role": "note",
+          "observedKinds": [
+            "group",
+            "shape"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/sequence/scene-role/note",
+          "styleWitnessId": "section-b/sequence/style/note/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/sequence/terminal/no-color"
+        },
+        {
+          "role": "label",
+          "observedKinds": [
+            "text"
+          ],
+          "emittedChannelValues": {
+            "category": [
+              "A",
+              "B",
+              "S",
+              "U"
+            ]
+          },
+          "publicMigrationTarget": "label",
+          "styleProjection": "exact",
+          "graphicalWitnessId": "section-b/sequence/scene-role/label",
+          "styleWitnessId": "section-b/sequence/style/label/exact",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/sequence/terminal/no-color"
+        },
+        {
+          "role": "icon",
+          "observedKinds": [
+            "raw",
+            "shape",
+            "text"
+          ],
+          "emittedChannelValues": {
+            "category": [
+              "A",
+              "B"
+            ]
+          },
+          "publicMigrationTarget": "node",
+          "styleProjection": "fallback-only",
+          "graphicalWitnessId": "section-b/sequence/scene-role/icon",
+          "styleWitnessId": "section-b/sequence/style/icon/fallback-only",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/sequence/terminal/no-color"
+        }
+      ],
+      "channelWitnesses": [
+        {
+          "channel": "category",
+          "representativeValues": [
+            "A",
+            "B",
+            "S",
+            "U"
+          ],
+          "emittingRoles": [
+            "actor",
+            "icon",
+            "label"
+          ],
+          "publicBinding": "category",
+          "witnessId": "section-b/sequence/semantic-channel/category"
+        }
+      ],
+      "bindingWitnesses": [
+        {
+          "role": "actor",
+          "channel": "category",
+          "representativeValue": "A",
+          "graphicalProjection": "changed",
+          "graphicalWitnessId": "section-b/sequence/binding/actor/category/graphical",
+          "terminalProjection": "not-applicable",
+          "terminalWitnessId": "section-b/sequence/binding/actor/category/terminal"
+        }
       ]
     },
     {
@@ -593,7 +1170,173 @@
         "category"
       ],
       "bindingRoles": [],
-      "bindingChannels": []
+      "bindingChannels": [],
+      "graphicalBackends": [
+        {
+          "id": "backend:default",
+          "state": "conformant-scene-consumer",
+          "witnessId": "backend-claim-matrix@3/backend:default"
+        },
+        {
+          "id": "backend:rough",
+          "state": "conformant-scene-consumer",
+          "witnessId": "backend-claim-matrix@3/backend:rough"
+        },
+        {
+          "id": "backend:hybrid",
+          "state": "conformant-scene-consumer",
+          "witnessId": "backend-claim-matrix@3/backend:hybrid"
+        }
+      ],
+      "terminalProjection": {
+        "state": "native-lossy",
+        "witnessId": "section-b/timeline/terminal/no-color",
+        "outputDigest": "sha256:e36624ac01a1b11a0319c824a4c55db4b899747fedad9a6171f21391a2ad1a39"
+      },
+      "roleWitnesses": [
+        {
+          "role": "prelude",
+          "observedKinds": [
+            "prelude"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "label",
+          "styleProjection": "fallback-only",
+          "graphicalWitnessId": "section-b/timeline/scene-role/prelude",
+          "styleWitnessId": "section-b/timeline/style/prelude/fallback-only",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/timeline/terminal/no-color"
+        },
+        {
+          "role": "chrome",
+          "observedKinds": [
+            "document",
+            "raw"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/timeline/scene-role/chrome",
+          "styleWitnessId": "section-b/timeline/style/chrome/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/timeline/terminal/no-color"
+        },
+        {
+          "role": "rail",
+          "observedKinds": [
+            "shape"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "edge",
+          "styleProjection": "fallback-only",
+          "graphicalWitnessId": "section-b/timeline/scene-role/rail",
+          "styleWitnessId": "section-b/timeline/style/rail/fallback-only",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/timeline/terminal/no-color"
+        },
+        {
+          "role": "title",
+          "observedKinds": [
+            "text"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "label",
+          "styleProjection": "fallback-only",
+          "graphicalWitnessId": "section-b/timeline/scene-role/title",
+          "styleWitnessId": "section-b/timeline/style/title/fallback-only",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/timeline/terminal/no-color"
+        },
+        {
+          "role": "section",
+          "observedKinds": [
+            "group",
+            "shape"
+          ],
+          "emittedChannelValues": {
+            "category": [
+              "Alpha",
+              "Beta"
+            ]
+          },
+          "publicMigrationTarget": "group",
+          "styleProjection": "fallback-only",
+          "graphicalWitnessId": "section-b/timeline/scene-role/section",
+          "styleWitnessId": "section-b/timeline/style/section/fallback-only",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/timeline/terminal/no-color"
+        },
+        {
+          "role": "group-header",
+          "observedKinds": [
+            "shape",
+            "text"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/timeline/scene-role/group-header",
+          "styleWitnessId": "section-b/timeline/style/group-header/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/timeline/terminal/no-color"
+        },
+        {
+          "role": "period",
+          "observedKinds": [
+            "group",
+            "shape"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/timeline/scene-role/period",
+          "styleWitnessId": "section-b/timeline/style/period/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/timeline/terminal/no-color"
+        },
+        {
+          "role": "event",
+          "observedKinds": [
+            "group",
+            "shape"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/timeline/scene-role/event",
+          "styleWitnessId": "section-b/timeline/style/event/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/timeline/terminal/no-color"
+        },
+        {
+          "role": "label",
+          "observedKinds": [
+            "text"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "label",
+          "styleProjection": "exact",
+          "graphicalWitnessId": "section-b/timeline/scene-role/label",
+          "styleWitnessId": "section-b/timeline/style/label/exact",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/timeline/terminal/no-color"
+        }
+      ],
+      "channelWitnesses": [
+        {
+          "channel": "category",
+          "representativeValues": [
+            "Alpha",
+            "Beta"
+          ],
+          "emittingRoles": [
+            "section"
+          ],
+          "publicBinding": "not-publicly-bindable",
+          "witnessId": "section-b/timeline/semantic-channel/category"
+        }
+      ],
+      "bindingWitnesses": []
     },
     {
       "id": "class",
@@ -612,7 +1355,182 @@
       ],
       "semanticChannels": [],
       "bindingRoles": [],
-      "bindingChannels": []
+      "bindingChannels": [],
+      "graphicalBackends": [
+        {
+          "id": "backend:default",
+          "state": "conformant-scene-consumer",
+          "witnessId": "backend-claim-matrix@3/backend:default"
+        },
+        {
+          "id": "backend:rough",
+          "state": "conformant-scene-consumer",
+          "witnessId": "backend-claim-matrix@3/backend:rough"
+        },
+        {
+          "id": "backend:hybrid",
+          "state": "conformant-scene-consumer",
+          "witnessId": "backend-claim-matrix@3/backend:hybrid"
+        }
+      ],
+      "terminalProjection": {
+        "state": "native-lossy",
+        "witnessId": "section-b/class/terminal/no-color",
+        "outputDigest": "sha256:31ad9957a8e58af894aad17b8213cbddc09ee84b81595dcecf4e93bb257f3478"
+      },
+      "roleWitnesses": [
+        {
+          "role": "prelude",
+          "observedKinds": [
+            "prelude"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/class/scene-role/prelude",
+          "styleWitnessId": "section-b/class/style/prelude/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/class/terminal/no-color"
+        },
+        {
+          "role": "defs",
+          "observedKinds": [
+            "document"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/class/scene-role/defs",
+          "styleWitnessId": "section-b/class/style/defs/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/class/terminal/no-color"
+        },
+        {
+          "role": "chrome",
+          "observedKinds": [
+            "document",
+            "raw",
+            "shape"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/class/scene-role/chrome",
+          "styleWitnessId": "section-b/class/style/chrome/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/class/terminal/no-color"
+        },
+        {
+          "role": "group",
+          "observedKinds": [
+            "group",
+            "shape"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "group",
+          "styleProjection": "exact",
+          "graphicalWitnessId": "section-b/class/scene-role/group",
+          "styleWitnessId": "section-b/class/style/group/exact",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/class/terminal/no-color"
+        },
+        {
+          "role": "group-header",
+          "observedKinds": [
+            "shape",
+            "text"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/class/scene-role/group-header",
+          "styleWitnessId": "section-b/class/style/group-header/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/class/terminal/no-color"
+        },
+        {
+          "role": "class-box",
+          "observedKinds": [
+            "group",
+            "shape"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "node",
+          "styleProjection": "fallback-only",
+          "graphicalWitnessId": "section-b/class/scene-role/class-box",
+          "styleWitnessId": "section-b/class/style/class-box/fallback-only",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/class/terminal/no-color"
+        },
+        {
+          "role": "member",
+          "observedKinds": [
+            "text"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "label",
+          "styleProjection": "fallback-only",
+          "graphicalWitnessId": "section-b/class/scene-role/member",
+          "styleWitnessId": "section-b/class/style/member/fallback-only",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/class/terminal/no-color"
+        },
+        {
+          "role": "relationship",
+          "observedKinds": [
+            "connector"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "edge",
+          "styleProjection": "fallback-only",
+          "graphicalWitnessId": "section-b/class/scene-role/relationship",
+          "styleWitnessId": "section-b/class/style/relationship/fallback-only",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/class/terminal/no-color"
+        },
+        {
+          "role": "cardinality",
+          "observedKinds": [
+            "text"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "label",
+          "styleProjection": "fallback-only",
+          "graphicalWitnessId": "section-b/class/scene-role/cardinality",
+          "styleWitnessId": "section-b/class/style/cardinality/fallback-only",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/class/terminal/no-color"
+        },
+        {
+          "role": "note",
+          "observedKinds": [
+            "group",
+            "shape"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "group",
+          "styleProjection": "fallback-only",
+          "graphicalWitnessId": "section-b/class/scene-role/note",
+          "styleWitnessId": "section-b/class/style/note/fallback-only",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/class/terminal/no-color"
+        },
+        {
+          "role": "label",
+          "observedKinds": [
+            "text"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "label",
+          "styleProjection": "exact",
+          "graphicalWitnessId": "section-b/class/scene-role/label",
+          "styleWitnessId": "section-b/class/style/label/exact",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/class/terminal/no-color"
+        }
+      ],
+      "channelWitnesses": [],
+      "bindingWitnesses": []
     },
     {
       "id": "er",
@@ -636,6 +1554,210 @@
       ],
       "bindingChannels": [
         "category"
+      ],
+      "graphicalBackends": [
+        {
+          "id": "backend:default",
+          "state": "conformant-scene-consumer",
+          "witnessId": "backend-claim-matrix@3/backend:default"
+        },
+        {
+          "id": "backend:rough",
+          "state": "conformant-scene-consumer",
+          "witnessId": "backend-claim-matrix@3/backend:rough"
+        },
+        {
+          "id": "backend:hybrid",
+          "state": "conformant-scene-consumer",
+          "witnessId": "backend-claim-matrix@3/backend:hybrid"
+        }
+      ],
+      "terminalProjection": {
+        "state": "native-lossy",
+        "witnessId": "section-b/er/terminal/no-color",
+        "outputDigest": "sha256:c234f4cc0455a1941d1ed7436bd5de74661719de41452372c26ecee34dc3202b"
+      },
+      "roleWitnesses": [
+        {
+          "role": "prelude",
+          "observedKinds": [
+            "prelude"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/er/scene-role/prelude",
+          "styleWitnessId": "section-b/er/style/prelude/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/er/terminal/no-color"
+        },
+        {
+          "role": "defs",
+          "observedKinds": [
+            "document"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/er/scene-role/defs",
+          "styleWitnessId": "section-b/er/style/defs/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/er/terminal/no-color"
+        },
+        {
+          "role": "chrome",
+          "observedKinds": [
+            "document",
+            "shape"
+          ],
+          "emittedChannelValues": {
+            "category": [
+              "identifying"
+            ]
+          },
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/er/scene-role/chrome",
+          "styleWitnessId": "section-b/er/style/chrome/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/er/terminal/no-color"
+        },
+        {
+          "role": "group",
+          "observedKinds": [
+            "group",
+            "shape"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "group",
+          "styleProjection": "exact",
+          "graphicalWitnessId": "section-b/er/scene-role/group",
+          "styleWitnessId": "section-b/er/style/group/exact",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/er/terminal/no-color"
+        },
+        {
+          "role": "group-header",
+          "observedKinds": [
+            "shape"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/er/scene-role/group-header",
+          "styleWitnessId": "section-b/er/style/group-header/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/er/terminal/no-color"
+        },
+        {
+          "role": "entity",
+          "observedKinds": [
+            "group",
+            "shape"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "node",
+          "styleProjection": "fallback-only",
+          "graphicalWitnessId": "section-b/er/scene-role/entity",
+          "styleWitnessId": "section-b/er/style/entity/fallback-only",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/er/terminal/no-color"
+        },
+        {
+          "role": "attribute",
+          "observedKinds": [
+            "group",
+            "text"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "label",
+          "styleProjection": "fallback-only",
+          "graphicalWitnessId": "section-b/er/scene-role/attribute",
+          "styleWitnessId": "section-b/er/style/attribute/fallback-only",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/er/terminal/no-color"
+        },
+        {
+          "role": "relationship",
+          "observedKinds": [
+            "connector"
+          ],
+          "emittedChannelValues": {
+            "category": [
+              "identifying"
+            ]
+          },
+          "publicMigrationTarget": "relationship",
+          "styleProjection": "exact",
+          "graphicalWitnessId": "section-b/er/scene-role/relationship",
+          "styleWitnessId": "section-b/er/style/relationship/exact",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/er/terminal/no-color"
+        },
+        {
+          "role": "cardinality",
+          "observedKinds": [
+            "shape"
+          ],
+          "emittedChannelValues": {
+            "category": [
+              "one",
+              "zero-many"
+            ]
+          },
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/er/scene-role/cardinality",
+          "styleWitnessId": "section-b/er/style/cardinality/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/er/terminal/no-color"
+        },
+        {
+          "role": "label",
+          "observedKinds": [
+            "text"
+          ],
+          "emittedChannelValues": {
+            "category": [
+              "identifying"
+            ]
+          },
+          "publicMigrationTarget": "label",
+          "styleProjection": "exact",
+          "graphicalWitnessId": "section-b/er/scene-role/label",
+          "styleWitnessId": "section-b/er/style/label/exact",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/er/terminal/no-color"
+        }
+      ],
+      "channelWitnesses": [
+        {
+          "channel": "category",
+          "representativeValues": [
+            "identifying",
+            "one",
+            "zero-many"
+          ],
+          "emittingRoles": [
+            "cardinality",
+            "chrome",
+            "label",
+            "relationship"
+          ],
+          "publicBinding": "category",
+          "witnessId": "section-b/er/semantic-channel/category"
+        }
+      ],
+      "bindingWitnesses": [
+        {
+          "role": "relationship",
+          "channel": "category",
+          "representativeValue": "identifying",
+          "graphicalProjection": "changed",
+          "graphicalWitnessId": "section-b/er/binding/relationship/category/graphical",
+          "terminalProjection": "not-applicable",
+          "terminalWitnessId": "section-b/er/binding/relationship/category/terminal"
+        }
       ]
     },
     {
@@ -667,6 +1789,370 @@
       ],
       "bindingChannels": [
         "category"
+      ],
+      "graphicalBackends": [
+        {
+          "id": "backend:default",
+          "state": "conformant-scene-consumer",
+          "witnessId": "backend-claim-matrix@3/backend:default"
+        },
+        {
+          "id": "backend:rough",
+          "state": "conformant-scene-consumer",
+          "witnessId": "backend-claim-matrix@3/backend:rough"
+        },
+        {
+          "id": "backend:hybrid",
+          "state": "conformant-scene-consumer",
+          "witnessId": "backend-claim-matrix@3/backend:hybrid"
+        }
+      ],
+      "terminalProjection": {
+        "state": "native-lossy",
+        "witnessId": "section-b/journey/terminal/no-color",
+        "outputDigest": "sha256:bf370d706951eb92d2d8824d3d16875092c3889ef9ce7265a61fd3e53d12f777"
+      },
+      "roleWitnesses": [
+        {
+          "role": "prelude",
+          "observedKinds": [
+            "prelude"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/journey/scene-role/prelude",
+          "styleWitnessId": "section-b/journey/style/prelude/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/journey/terminal/no-color"
+        },
+        {
+          "role": "defs",
+          "observedKinds": [
+            "document"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/journey/scene-role/defs",
+          "styleWitnessId": "section-b/journey/style/defs/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/journey/terminal/no-color"
+        },
+        {
+          "role": "chrome",
+          "observedKinds": [
+            "document",
+            "raw"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "label",
+          "styleProjection": "fallback-only",
+          "graphicalWitnessId": "section-b/journey/scene-role/chrome",
+          "styleWitnessId": "section-b/journey/style/chrome/fallback-only",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/journey/terminal/no-color"
+        },
+        {
+          "role": "title",
+          "observedKinds": [
+            "text"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "label",
+          "styleProjection": "fallback-only",
+          "graphicalWitnessId": "section-b/journey/scene-role/title",
+          "styleWitnessId": "section-b/journey/style/title/fallback-only",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/journey/terminal/no-color"
+        },
+        {
+          "role": "series",
+          "observedKinds": [
+            "connector"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "edge",
+          "styleProjection": "fallback-only",
+          "graphicalWitnessId": "section-b/journey/scene-role/series",
+          "styleWitnessId": "section-b/journey/style/series/fallback-only",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/journey/terminal/no-color"
+        },
+        {
+          "role": "grid",
+          "observedKinds": [
+            "connector",
+            "group"
+          ],
+          "emittedChannelValues": {
+            "value": [
+              "0.2",
+              "0.4",
+              "0.6",
+              "0.8",
+              "1"
+            ]
+          },
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/journey/scene-role/grid",
+          "styleWitnessId": "section-b/journey/style/grid/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/journey/terminal/no-color"
+        },
+        {
+          "role": "axis",
+          "observedKinds": [
+            "text"
+          ],
+          "emittedChannelValues": {
+            "value": [
+              "0.2",
+              "0.4",
+              "0.6",
+              "0.8",
+              "1"
+            ]
+          },
+          "publicMigrationTarget": "label",
+          "styleProjection": "fallback-only",
+          "graphicalWitnessId": "section-b/journey/scene-role/axis",
+          "styleWitnessId": "section-b/journey/style/axis/fallback-only",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/journey/terminal/no-color"
+        },
+        {
+          "role": "rail",
+          "observedKinds": [
+            "connector"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "edge",
+          "styleProjection": "fallback-only",
+          "graphicalWitnessId": "section-b/journey/scene-role/rail",
+          "styleWitnessId": "section-b/journey/style/rail/fallback-only",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/journey/terminal/no-color"
+        },
+        {
+          "role": "legend",
+          "observedKinds": [
+            "group",
+            "text"
+          ],
+          "emittedChannelValues": {
+            "category": [
+              "Assistant",
+              "Shopper"
+            ]
+          },
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/journey/scene-role/legend",
+          "styleWitnessId": "section-b/journey/style/legend/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/journey/terminal/no-color"
+        },
+        {
+          "role": "actor",
+          "observedKinds": [
+            "shape"
+          ],
+          "emittedChannelValues": {
+            "category": [
+              "Assistant",
+              "Shopper"
+            ]
+          },
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/journey/scene-role/actor",
+          "styleWitnessId": "section-b/journey/style/actor/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/journey/terminal/no-color"
+        },
+        {
+          "role": "section",
+          "observedKinds": [
+            "group",
+            "shape"
+          ],
+          "emittedChannelValues": {
+            "category": [
+              "Browse",
+              "Buy"
+            ]
+          },
+          "publicMigrationTarget": "group",
+          "styleProjection": "fallback-only",
+          "graphicalWitnessId": "section-b/journey/scene-role/section",
+          "styleWitnessId": "section-b/journey/style/section/fallback-only",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/journey/terminal/no-color"
+        },
+        {
+          "role": "group-header",
+          "observedKinds": [
+            "shape",
+            "text"
+          ],
+          "emittedChannelValues": {
+            "category": [
+              "Browse",
+              "Buy"
+            ]
+          },
+          "publicMigrationTarget": "group-header",
+          "styleProjection": "exact",
+          "graphicalWitnessId": "section-b/journey/scene-role/group-header",
+          "styleWitnessId": "section-b/journey/style/group-header/exact",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/journey/terminal/no-color"
+        },
+        {
+          "role": "task",
+          "observedKinds": [
+            "group",
+            "shape"
+          ],
+          "emittedChannelValues": {
+            "value": [
+              "0.4",
+              "0.6",
+              "0.8"
+            ],
+            "category": [
+              "Browse",
+              "Buy"
+            ]
+          },
+          "publicMigrationTarget": "node",
+          "styleProjection": "fallback-only",
+          "graphicalWitnessId": "section-b/journey/scene-role/task",
+          "styleWitnessId": "section-b/journey/style/task/fallback-only",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/journey/terminal/no-color"
+        },
+        {
+          "role": "marker-line",
+          "observedKinds": [
+            "connector"
+          ],
+          "emittedChannelValues": {
+            "value": [
+              "0.4",
+              "0.6",
+              "0.8"
+            ]
+          },
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/journey/scene-role/marker-line",
+          "styleWitnessId": "section-b/journey/style/marker-line/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/journey/terminal/no-color"
+        },
+        {
+          "role": "label",
+          "observedKinds": [
+            "text"
+          ],
+          "emittedChannelValues": {
+            "value": [
+              "0.4",
+              "0.6",
+              "0.8"
+            ],
+            "category": [
+              "Browse",
+              "Buy"
+            ]
+          },
+          "publicMigrationTarget": "label",
+          "styleProjection": "exact",
+          "graphicalWitnessId": "section-b/journey/scene-role/label",
+          "styleWitnessId": "section-b/journey/style/label/exact",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/journey/terminal/no-color"
+        },
+        {
+          "role": "score",
+          "observedKinds": [
+            "group",
+            "shape"
+          ],
+          "emittedChannelValues": {
+            "value": [
+              "0.4",
+              "0.6",
+              "0.8"
+            ],
+            "category": [
+              "Browse",
+              "Buy"
+            ]
+          },
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/journey/scene-role/score",
+          "styleWitnessId": "section-b/journey/style/score/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/journey/terminal/no-color"
+        }
+      ],
+      "channelWitnesses": [
+        {
+          "channel": "value",
+          "representativeValues": [
+            "0.2",
+            "0.4",
+            "0.6",
+            "0.8",
+            "1"
+          ],
+          "emittingRoles": [
+            "axis",
+            "grid",
+            "label",
+            "marker-line",
+            "score",
+            "task"
+          ],
+          "publicBinding": "not-publicly-bindable",
+          "witnessId": "section-b/journey/semantic-channel/value"
+        },
+        {
+          "channel": "category",
+          "representativeValues": [
+            "Assistant",
+            "Browse",
+            "Buy",
+            "Shopper"
+          ],
+          "emittingRoles": [
+            "actor",
+            "group-header",
+            "label",
+            "legend",
+            "score",
+            "section",
+            "task"
+          ],
+          "publicBinding": "category",
+          "witnessId": "section-b/journey/semantic-channel/category"
+        }
+      ],
+      "bindingWitnesses": [
+        {
+          "role": "group-header",
+          "channel": "category",
+          "representativeValue": "Browse",
+          "graphicalProjection": "changed",
+          "graphicalWitnessId": "section-b/journey/binding/group-header/category/graphical",
+          "terminalProjection": "perceptible-no-color-cue",
+          "terminalWitnessId": "section-b/journey/binding/group-header/category/terminal"
+        }
       ]
     },
     {
@@ -686,7 +2172,180 @@
       ],
       "semanticChannels": [],
       "bindingRoles": [],
-      "bindingChannels": []
+      "bindingChannels": [],
+      "graphicalBackends": [
+        {
+          "id": "backend:default",
+          "state": "conformant-scene-consumer",
+          "witnessId": "backend-claim-matrix@3/backend:default"
+        },
+        {
+          "id": "backend:rough",
+          "state": "conformant-scene-consumer",
+          "witnessId": "backend-claim-matrix@3/backend:rough"
+        },
+        {
+          "id": "backend:hybrid",
+          "state": "conformant-scene-consumer",
+          "witnessId": "backend-claim-matrix@3/backend:hybrid"
+        }
+      ],
+      "terminalProjection": {
+        "state": "native-lossy",
+        "witnessId": "section-b/architecture/terminal/no-color",
+        "outputDigest": "sha256:71ef37c02c94b6c77068bb52f18cc8c6c6b53001712b5dfbf7a41341366b37b2"
+      },
+      "roleWitnesses": [
+        {
+          "role": "prelude",
+          "observedKinds": [
+            "prelude"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "label",
+          "styleProjection": "fallback-only",
+          "graphicalWitnessId": "section-b/architecture/scene-role/prelude",
+          "styleWitnessId": "section-b/architecture/style/prelude/fallback-only",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/architecture/terminal/no-color"
+        },
+        {
+          "role": "defs",
+          "observedKinds": [
+            "document"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/architecture/scene-role/defs",
+          "styleWitnessId": "section-b/architecture/style/defs/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/architecture/terminal/no-color"
+        },
+        {
+          "role": "chrome",
+          "observedKinds": [
+            "document",
+            "shape"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/architecture/scene-role/chrome",
+          "styleWitnessId": "section-b/architecture/style/chrome/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/architecture/terminal/no-color"
+        },
+        {
+          "role": "title",
+          "observedKinds": [
+            "text"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/architecture/scene-role/title",
+          "styleWitnessId": "section-b/architecture/style/title/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/architecture/terminal/no-color"
+        },
+        {
+          "role": "group",
+          "observedKinds": [
+            "group",
+            "shape"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/architecture/scene-role/group",
+          "styleWitnessId": "section-b/architecture/style/group/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/architecture/terminal/no-color"
+        },
+        {
+          "role": "group-header",
+          "observedKinds": [
+            "shape"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/architecture/scene-role/group-header",
+          "styleWitnessId": "section-b/architecture/style/group-header/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/architecture/terminal/no-color"
+        },
+        {
+          "role": "icon",
+          "observedKinds": [
+            "raw"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/architecture/scene-role/icon",
+          "styleWitnessId": "section-b/architecture/style/icon/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/architecture/terminal/no-color"
+        },
+        {
+          "role": "label",
+          "observedKinds": [
+            "text"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/architecture/scene-role/label",
+          "styleWitnessId": "section-b/architecture/style/label/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/architecture/terminal/no-color"
+        },
+        {
+          "role": "service",
+          "observedKinds": [
+            "group",
+            "shape"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/architecture/scene-role/service",
+          "styleWitnessId": "section-b/architecture/style/service/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/architecture/terminal/no-color"
+        },
+        {
+          "role": "junction",
+          "observedKinds": [
+            "group",
+            "shape"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/architecture/scene-role/junction",
+          "styleWitnessId": "section-b/architecture/style/junction/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/architecture/terminal/no-color"
+        },
+        {
+          "role": "edge",
+          "observedKinds": [
+            "connector"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/architecture/scene-role/edge",
+          "styleWitnessId": "section-b/architecture/style/edge/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/architecture/terminal/no-color"
+        }
+      ],
+      "channelWitnesses": [],
+      "bindingWitnesses": []
     },
     {
       "id": "xychart",
@@ -713,6 +2372,274 @@
       ],
       "bindingChannels": [
         "category"
+      ],
+      "graphicalBackends": [
+        {
+          "id": "backend:default",
+          "state": "conformant-scene-consumer",
+          "witnessId": "backend-claim-matrix@3/backend:default"
+        },
+        {
+          "id": "backend:rough",
+          "state": "conformant-scene-consumer",
+          "witnessId": "backend-claim-matrix@3/backend:rough"
+        },
+        {
+          "id": "backend:hybrid",
+          "state": "conformant-scene-consumer",
+          "witnessId": "backend-claim-matrix@3/backend:hybrid"
+        }
+      ],
+      "terminalProjection": {
+        "state": "native-lossy",
+        "witnessId": "section-b/xychart/terminal/no-color",
+        "outputDigest": "sha256:fa29d6231f76692f4bf47412adfd56f497f44275580b03afbf595ada16dd2656"
+      },
+      "roleWitnesses": [
+        {
+          "role": "prelude",
+          "observedKinds": [
+            "prelude"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "label",
+          "styleProjection": "fallback-only",
+          "graphicalWitnessId": "section-b/xychart/scene-role/prelude",
+          "styleWitnessId": "section-b/xychart/style/prelude/fallback-only",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/xychart/terminal/no-color"
+        },
+        {
+          "role": "defs",
+          "observedKinds": [
+            "document"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/xychart/scene-role/defs",
+          "styleWitnessId": "section-b/xychart/style/defs/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/xychart/terminal/no-color"
+        },
+        {
+          "role": "chrome",
+          "observedKinds": [
+            "document",
+            "group",
+            "raw"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/xychart/scene-role/chrome",
+          "styleWitnessId": "section-b/xychart/style/chrome/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/xychart/terminal/no-color"
+        },
+        {
+          "role": "grid",
+          "observedKinds": [
+            "shape"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "edge",
+          "styleProjection": "fallback-only",
+          "graphicalWitnessId": "section-b/xychart/scene-role/grid",
+          "styleWitnessId": "section-b/xychart/style/grid/fallback-only",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/xychart/terminal/no-color"
+        },
+        {
+          "role": "bar",
+          "observedKinds": [
+            "shape"
+          ],
+          "emittedChannelValues": {
+            "value": [
+              "0.375",
+              "0.5625",
+              "0.6875",
+              "0.775",
+              "1"
+            ],
+            "category": [
+              "bar-0"
+            ]
+          },
+          "publicMigrationTarget": "bar",
+          "styleProjection": "exact",
+          "graphicalWitnessId": "section-b/xychart/scene-role/bar",
+          "styleWitnessId": "section-b/xychart/style/bar/exact",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/xychart/terminal/no-color"
+        },
+        {
+          "role": "series",
+          "observedKinds": [
+            "connector"
+          ],
+          "emittedChannelValues": {
+            "category": [
+              "line-0"
+            ]
+          },
+          "publicMigrationTarget": "series",
+          "styleProjection": "exact",
+          "graphicalWitnessId": "section-b/xychart/scene-role/series",
+          "styleWitnessId": "section-b/xychart/style/series/exact",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/xychart/terminal/no-color"
+        },
+        {
+          "role": "point",
+          "observedKinds": [
+            "shape"
+          ],
+          "emittedChannelValues": {
+            "value": [
+              "0.3125",
+              "0.75",
+              "0.9375"
+            ],
+            "category": [
+              "line-0"
+            ]
+          },
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/xychart/scene-role/point",
+          "styleWitnessId": "section-b/xychart/style/point/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/xychart/terminal/no-color"
+        },
+        {
+          "role": "axis",
+          "observedKinds": [
+            "shape",
+            "text"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "label",
+          "styleProjection": "fallback-only",
+          "graphicalWitnessId": "section-b/xychart/scene-role/axis",
+          "styleWitnessId": "section-b/xychart/style/axis/fallback-only",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/xychart/terminal/no-color"
+        },
+        {
+          "role": "legend",
+          "observedKinds": [
+            "group",
+            "shape",
+            "text"
+          ],
+          "emittedChannelValues": {
+            "category": [
+              "bar-0",
+              "line-0"
+            ]
+          },
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/xychart/scene-role/legend",
+          "styleWitnessId": "section-b/xychart/style/legend/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/xychart/terminal/no-color"
+        },
+        {
+          "role": "title",
+          "observedKinds": [
+            "text"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "label",
+          "styleProjection": "fallback-only",
+          "graphicalWitnessId": "section-b/xychart/scene-role/title",
+          "styleWitnessId": "section-b/xychart/style/title/fallback-only",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/xychart/terminal/no-color"
+        },
+        {
+          "role": "label",
+          "observedKinds": [
+            "text"
+          ],
+          "emittedChannelValues": {
+            "value": [
+              "0.375",
+              "0.6875",
+              "1"
+            ],
+            "category": [
+              "bar-0"
+            ]
+          },
+          "publicMigrationTarget": "label",
+          "styleProjection": "exact",
+          "graphicalWitnessId": "section-b/xychart/scene-role/label",
+          "styleWitnessId": "section-b/xychart/style/label/exact",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/xychart/terminal/no-color"
+        }
+      ],
+      "channelWitnesses": [
+        {
+          "channel": "value",
+          "representativeValues": [
+            "0.3125",
+            "0.375",
+            "0.5625",
+            "0.6875",
+            "0.75",
+            "0.775",
+            "0.9375",
+            "1"
+          ],
+          "emittingRoles": [
+            "bar",
+            "label",
+            "point"
+          ],
+          "publicBinding": "not-publicly-bindable",
+          "witnessId": "section-b/xychart/semantic-channel/value"
+        },
+        {
+          "channel": "category",
+          "representativeValues": [
+            "bar-0",
+            "line-0"
+          ],
+          "emittingRoles": [
+            "bar",
+            "label",
+            "legend",
+            "point",
+            "series"
+          ],
+          "publicBinding": "category",
+          "witnessId": "section-b/xychart/semantic-channel/category"
+        }
+      ],
+      "bindingWitnesses": [
+        {
+          "role": "bar",
+          "channel": "category",
+          "representativeValue": "bar-0",
+          "graphicalProjection": "changed",
+          "graphicalWitnessId": "section-b/xychart/binding/bar/category/graphical",
+          "terminalProjection": "not-applicable",
+          "terminalWitnessId": "section-b/xychart/binding/bar/category/terminal"
+        },
+        {
+          "role": "series",
+          "channel": "category",
+          "representativeValue": "line-0",
+          "graphicalProjection": "changed",
+          "graphicalWitnessId": "section-b/xychart/binding/series/category/graphical",
+          "terminalProjection": "not-applicable",
+          "terminalWitnessId": "section-b/xychart/binding/series/category/terminal"
+        }
       ]
     },
     {
@@ -735,6 +2662,200 @@
       ],
       "bindingChannels": [
         "category"
+      ],
+      "graphicalBackends": [
+        {
+          "id": "backend:default",
+          "state": "conformant-scene-consumer",
+          "witnessId": "backend-claim-matrix@3/backend:default"
+        },
+        {
+          "id": "backend:rough",
+          "state": "conformant-scene-consumer",
+          "witnessId": "backend-claim-matrix@3/backend:rough"
+        },
+        {
+          "id": "backend:hybrid",
+          "state": "conformant-scene-consumer",
+          "witnessId": "backend-claim-matrix@3/backend:hybrid"
+        }
+      ],
+      "terminalProjection": {
+        "state": "native-lossy",
+        "witnessId": "section-b/pie/terminal/no-color",
+        "outputDigest": "sha256:69cd423fd3c98bcbd643bd153e3eacb1d931c7c621914453f9bb01074a162858"
+      },
+      "roleWitnesses": [
+        {
+          "role": "prelude",
+          "observedKinds": [
+            "prelude"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "label",
+          "styleProjection": "fallback-only",
+          "graphicalWitnessId": "section-b/pie/scene-role/prelude",
+          "styleWitnessId": "section-b/pie/style/prelude/fallback-only",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/pie/terminal/no-color"
+        },
+        {
+          "role": "chrome",
+          "observedKinds": [
+            "document",
+            "raw"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/pie/scene-role/chrome",
+          "styleWitnessId": "section-b/pie/style/chrome/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/pie/terminal/no-color"
+        },
+        {
+          "role": "pie-slice",
+          "observedKinds": [
+            "shape"
+          ],
+          "emittedChannelValues": {
+            "value": [
+              "0.1",
+              "0.3",
+              "0.6"
+            ],
+            "category": [
+              "Enterprise",
+              "Free",
+              "Pro"
+            ],
+            "emphasis": [
+              "true"
+            ]
+          },
+          "publicMigrationTarget": "pie-slice",
+          "styleProjection": "exact",
+          "graphicalWitnessId": "section-b/pie/scene-role/pie-slice",
+          "styleWitnessId": "section-b/pie/style/pie-slice/exact",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/pie/terminal/no-color"
+        },
+        {
+          "role": "legend",
+          "observedKinds": [
+            "shape",
+            "text"
+          ],
+          "emittedChannelValues": {
+            "value": [
+              "0.1",
+              "0.3",
+              "0.6"
+            ],
+            "category": [
+              "Enterprise",
+              "Free",
+              "Pro"
+            ]
+          },
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/pie/scene-role/legend",
+          "styleWitnessId": "section-b/pie/style/legend/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/pie/terminal/no-color"
+        },
+        {
+          "role": "title",
+          "observedKinds": [
+            "text"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "label",
+          "styleProjection": "fallback-only",
+          "graphicalWitnessId": "section-b/pie/scene-role/title",
+          "styleWitnessId": "section-b/pie/style/title/fallback-only",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/pie/terminal/no-color"
+        },
+        {
+          "role": "label",
+          "observedKinds": [
+            "text"
+          ],
+          "emittedChannelValues": {
+            "value": [
+              "0.1",
+              "0.3",
+              "0.6"
+            ],
+            "category": [
+              "Enterprise",
+              "Free",
+              "Pro"
+            ]
+          },
+          "publicMigrationTarget": "label",
+          "styleProjection": "exact",
+          "graphicalWitnessId": "section-b/pie/scene-role/label",
+          "styleWitnessId": "section-b/pie/style/label/exact",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/pie/terminal/no-color"
+        }
+      ],
+      "channelWitnesses": [
+        {
+          "channel": "value",
+          "representativeValues": [
+            "0.1",
+            "0.3",
+            "0.6"
+          ],
+          "emittingRoles": [
+            "label",
+            "legend",
+            "pie-slice"
+          ],
+          "publicBinding": "not-publicly-bindable",
+          "witnessId": "section-b/pie/semantic-channel/value"
+        },
+        {
+          "channel": "category",
+          "representativeValues": [
+            "Enterprise",
+            "Free",
+            "Pro"
+          ],
+          "emittingRoles": [
+            "label",
+            "legend",
+            "pie-slice"
+          ],
+          "publicBinding": "category",
+          "witnessId": "section-b/pie/semantic-channel/category"
+        },
+        {
+          "channel": "emphasis",
+          "representativeValues": [
+            "true"
+          ],
+          "emittingRoles": [
+            "pie-slice"
+          ],
+          "publicBinding": "not-publicly-bindable",
+          "witnessId": "section-b/pie/semantic-channel/emphasis"
+        }
+      ],
+      "bindingWitnesses": [
+        {
+          "role": "pie-slice",
+          "channel": "category",
+          "representativeValue": "Free",
+          "graphicalProjection": "changed",
+          "graphicalWitnessId": "section-b/pie/binding/pie-slice/category/graphical",
+          "terminalProjection": "perceptible-no-color-cue",
+          "terminalWitnessId": "section-b/pie/binding/pie-slice/category/terminal"
+        }
       ]
     },
     {
@@ -753,7 +2874,160 @@
         "category"
       ],
       "bindingRoles": [],
-      "bindingChannels": []
+      "bindingChannels": [],
+      "graphicalBackends": [
+        {
+          "id": "backend:default",
+          "state": "conformant-scene-consumer",
+          "witnessId": "backend-claim-matrix@3/backend:default"
+        },
+        {
+          "id": "backend:rough",
+          "state": "conformant-scene-consumer",
+          "witnessId": "backend-claim-matrix@3/backend:rough"
+        },
+        {
+          "id": "backend:hybrid",
+          "state": "conformant-scene-consumer",
+          "witnessId": "backend-claim-matrix@3/backend:hybrid"
+        }
+      ],
+      "terminalProjection": {
+        "state": "native-lossy",
+        "witnessId": "section-b/quadrant/terminal/no-color",
+        "outputDigest": "sha256:3f2ef8dae020fc255f3bb37961af1be16ed5c7b1f1971bc506c721fde2fd082e"
+      },
+      "roleWitnesses": [
+        {
+          "role": "prelude",
+          "observedKinds": [
+            "prelude"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "label",
+          "styleProjection": "fallback-only",
+          "graphicalWitnessId": "section-b/quadrant/scene-role/prelude",
+          "styleWitnessId": "section-b/quadrant/style/prelude/fallback-only",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/quadrant/terminal/no-color"
+        },
+        {
+          "role": "chrome",
+          "observedKinds": [
+            "document",
+            "raw",
+            "shape"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/quadrant/scene-role/chrome",
+          "styleWitnessId": "section-b/quadrant/style/chrome/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/quadrant/terminal/no-color"
+        },
+        {
+          "role": "plate",
+          "observedKinds": [
+            "shape"
+          ],
+          "emittedChannelValues": {
+            "category": [
+              "Invest"
+            ]
+          },
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/quadrant/scene-role/plate",
+          "styleWitnessId": "section-b/quadrant/style/plate/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/quadrant/terminal/no-color"
+        },
+        {
+          "role": "grid",
+          "observedKinds": [
+            "shape"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "edge",
+          "styleProjection": "fallback-only",
+          "graphicalWitnessId": "section-b/quadrant/scene-role/grid",
+          "styleWitnessId": "section-b/quadrant/style/grid/fallback-only",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/quadrant/terminal/no-color"
+        },
+        {
+          "role": "point",
+          "observedKinds": [
+            "shape"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "node",
+          "styleProjection": "fallback-only",
+          "graphicalWitnessId": "section-b/quadrant/scene-role/point",
+          "styleWitnessId": "section-b/quadrant/style/point/fallback-only",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/quadrant/terminal/no-color"
+        },
+        {
+          "role": "axis",
+          "observedKinds": [
+            "text"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "label",
+          "styleProjection": "fallback-only",
+          "graphicalWitnessId": "section-b/quadrant/scene-role/axis",
+          "styleWitnessId": "section-b/quadrant/style/axis/fallback-only",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/quadrant/terminal/no-color"
+        },
+        {
+          "role": "title",
+          "observedKinds": [
+            "text"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "label",
+          "styleProjection": "fallback-only",
+          "graphicalWitnessId": "section-b/quadrant/scene-role/title",
+          "styleWitnessId": "section-b/quadrant/style/title/fallback-only",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/quadrant/terminal/no-color"
+        },
+        {
+          "role": "label",
+          "observedKinds": [
+            "text"
+          ],
+          "emittedChannelValues": {
+            "category": [
+              "Invest"
+            ]
+          },
+          "publicMigrationTarget": "label",
+          "styleProjection": "exact",
+          "graphicalWitnessId": "section-b/quadrant/scene-role/label",
+          "styleWitnessId": "section-b/quadrant/style/label/exact",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/quadrant/terminal/no-color"
+        }
+      ],
+      "channelWitnesses": [
+        {
+          "channel": "category",
+          "representativeValues": [
+            "Invest"
+          ],
+          "emittingRoles": [
+            "label",
+            "plate"
+          ],
+          "publicBinding": "not-publicly-bindable",
+          "witnessId": "section-b/quadrant/semantic-channel/category"
+        }
+      ],
+      "bindingWitnesses": []
     },
     {
       "id": "gantt",
@@ -783,6 +3057,291 @@
       ],
       "bindingChannels": [
         "category"
+      ],
+      "graphicalBackends": [
+        {
+          "id": "backend:default",
+          "state": "conformant-scene-consumer",
+          "witnessId": "backend-claim-matrix@3/backend:default"
+        },
+        {
+          "id": "backend:rough",
+          "state": "conformant-scene-consumer",
+          "witnessId": "backend-claim-matrix@3/backend:rough"
+        },
+        {
+          "id": "backend:hybrid",
+          "state": "conformant-scene-consumer",
+          "witnessId": "backend-claim-matrix@3/backend:hybrid"
+        }
+      ],
+      "terminalProjection": {
+        "state": "native-lossy",
+        "witnessId": "section-b/gantt/terminal/no-color",
+        "outputDigest": "sha256:26313a8f2fd124ae9785fe1ae4c1860c712c9ff748a42b2cae35f26c1b4056ab"
+      },
+      "roleWitnesses": [
+        {
+          "role": "prelude",
+          "observedKinds": [
+            "prelude"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "label",
+          "styleProjection": "fallback-only",
+          "graphicalWitnessId": "section-b/gantt/scene-role/prelude",
+          "styleWitnessId": "section-b/gantt/style/prelude/fallback-only",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/gantt/terminal/no-color"
+        },
+        {
+          "role": "defs",
+          "observedKinds": [
+            "document"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/gantt/scene-role/defs",
+          "styleWitnessId": "section-b/gantt/style/defs/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/gantt/terminal/no-color"
+        },
+        {
+          "role": "chrome",
+          "observedKinds": [
+            "document"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/gantt/scene-role/chrome",
+          "styleWitnessId": "section-b/gantt/style/chrome/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/gantt/terminal/no-color"
+        },
+        {
+          "role": "section",
+          "observedKinds": [
+            "shape",
+            "text"
+          ],
+          "emittedChannelValues": {
+            "category": [
+              "Build"
+            ]
+          },
+          "publicMigrationTarget": "group",
+          "styleProjection": "fallback-only",
+          "graphicalWitnessId": "section-b/gantt/scene-role/section",
+          "styleWitnessId": "section-b/gantt/style/section/fallback-only",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/gantt/terminal/no-color"
+        },
+        {
+          "role": "grid",
+          "observedKinds": [
+            "shape"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "edge",
+          "styleProjection": "fallback-only",
+          "graphicalWitnessId": "section-b/gantt/scene-role/grid",
+          "styleWitnessId": "section-b/gantt/style/grid/fallback-only",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/gantt/terminal/no-color"
+        },
+        {
+          "role": "axis",
+          "observedKinds": [
+            "text"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "label",
+          "styleProjection": "fallback-only",
+          "graphicalWitnessId": "section-b/gantt/scene-role/axis",
+          "styleWitnessId": "section-b/gantt/style/axis/fallback-only",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/gantt/terminal/no-color"
+        },
+        {
+          "role": "label",
+          "observedKinds": [
+            "text"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "label",
+          "styleProjection": "exact",
+          "graphicalWitnessId": "section-b/gantt/scene-role/label",
+          "styleWitnessId": "section-b/gantt/style/label/exact",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/gantt/terminal/no-color"
+        },
+        {
+          "role": "task",
+          "observedKinds": [
+            "shape"
+          ],
+          "emittedChannelValues": {
+            "status": [
+              "crit",
+              "done"
+            ],
+            "progress": [
+              "1"
+            ],
+            "emphasis": [
+              "true"
+            ],
+            "category": [
+              "Build"
+            ]
+          },
+          "publicMigrationTarget": "task",
+          "styleProjection": "exact",
+          "graphicalWitnessId": "section-b/gantt/scene-role/task",
+          "styleWitnessId": "section-b/gantt/style/task/exact",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/gantt/terminal/no-color"
+        },
+        {
+          "role": "milestone",
+          "observedKinds": [
+            "shape"
+          ],
+          "emittedChannelValues": {
+            "emphasis": [
+              "true"
+            ],
+            "category": [
+              "Build"
+            ]
+          },
+          "publicMigrationTarget": "milestone",
+          "styleProjection": "exact",
+          "graphicalWitnessId": "section-b/gantt/scene-role/milestone",
+          "styleWitnessId": "section-b/gantt/style/milestone/exact",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/gantt/terminal/no-color"
+        },
+        {
+          "role": "edge",
+          "observedKinds": [
+            "connector"
+          ],
+          "emittedChannelValues": {
+            "status": [
+              "crit"
+            ],
+            "emphasis": [
+              "true"
+            ]
+          },
+          "publicMigrationTarget": "edge",
+          "styleProjection": "exact",
+          "graphicalWitnessId": "section-b/gantt/scene-role/edge",
+          "styleWitnessId": "section-b/gantt/style/edge/exact",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/gantt/terminal/no-color"
+        },
+        {
+          "role": "marker-line",
+          "observedKinds": [
+            "shape"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "edge",
+          "styleProjection": "fallback-only",
+          "graphicalWitnessId": "section-b/gantt/scene-role/marker-line",
+          "styleWitnessId": "section-b/gantt/style/marker-line/fallback-only",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/gantt/terminal/no-color"
+        },
+        {
+          "role": "title",
+          "observedKinds": [
+            "text"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "label",
+          "styleProjection": "fallback-only",
+          "graphicalWitnessId": "section-b/gantt/scene-role/title",
+          "styleWitnessId": "section-b/gantt/style/title/fallback-only",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/gantt/terminal/no-color"
+        }
+      ],
+      "channelWitnesses": [
+        {
+          "channel": "status",
+          "representativeValues": [
+            "crit",
+            "done"
+          ],
+          "emittingRoles": [
+            "edge",
+            "task"
+          ],
+          "publicBinding": "not-publicly-bindable",
+          "witnessId": "section-b/gantt/semantic-channel/status"
+        },
+        {
+          "channel": "progress",
+          "representativeValues": [
+            "1"
+          ],
+          "emittingRoles": [
+            "task"
+          ],
+          "publicBinding": "not-publicly-bindable",
+          "witnessId": "section-b/gantt/semantic-channel/progress"
+        },
+        {
+          "channel": "emphasis",
+          "representativeValues": [
+            "true"
+          ],
+          "emittingRoles": [
+            "edge",
+            "milestone",
+            "task"
+          ],
+          "publicBinding": "not-publicly-bindable",
+          "witnessId": "section-b/gantt/semantic-channel/emphasis"
+        },
+        {
+          "channel": "category",
+          "representativeValues": [
+            "Build"
+          ],
+          "emittingRoles": [
+            "milestone",
+            "section",
+            "task"
+          ],
+          "publicBinding": "category",
+          "witnessId": "section-b/gantt/semantic-channel/category"
+        }
+      ],
+      "bindingWitnesses": [
+        {
+          "role": "task",
+          "channel": "category",
+          "representativeValue": "Build",
+          "graphicalProjection": "changed",
+          "graphicalWitnessId": "section-b/gantt/binding/task/category/graphical",
+          "terminalProjection": "perceptible-no-color-cue",
+          "terminalWitnessId": "section-b/gantt/binding/task/category/terminal"
+        },
+        {
+          "role": "milestone",
+          "channel": "category",
+          "representativeValue": "Build",
+          "graphicalProjection": "changed",
+          "graphicalWitnessId": "section-b/gantt/binding/milestone/category/graphical",
+          "terminalProjection": "perceptible-no-color-cue",
+          "terminalWitnessId": "section-b/gantt/binding/milestone/category/terminal"
+        }
       ]
     },
     {
@@ -800,7 +3359,160 @@
         "category"
       ],
       "bindingRoles": [],
-      "bindingChannels": []
+      "bindingChannels": [],
+      "graphicalBackends": [
+        {
+          "id": "backend:default",
+          "state": "conformant-scene-consumer",
+          "witnessId": "backend-claim-matrix@3/backend:default"
+        },
+        {
+          "id": "backend:rough",
+          "state": "conformant-scene-consumer",
+          "witnessId": "backend-claim-matrix@3/backend:rough"
+        },
+        {
+          "id": "backend:hybrid",
+          "state": "conformant-scene-consumer",
+          "witnessId": "backend-claim-matrix@3/backend:hybrid"
+        }
+      ],
+      "terminalProjection": {
+        "state": "native-lossy",
+        "witnessId": "section-b/mindmap/terminal/no-color",
+        "outputDigest": "sha256:736d9bae89f37419793e16d20050f4a4c069de80d5ed408014d8ccc1c54ffeda"
+      },
+      "roleWitnesses": [
+        {
+          "role": "prelude",
+          "observedKinds": [
+            "prelude"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/mindmap/scene-role/prelude",
+          "styleWitnessId": "section-b/mindmap/style/prelude/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/mindmap/terminal/no-color"
+        },
+        {
+          "role": "chrome",
+          "observedKinds": [
+            "document",
+            "shape"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/mindmap/scene-role/chrome",
+          "styleWitnessId": "section-b/mindmap/style/chrome/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/mindmap/terminal/no-color"
+        },
+        {
+          "role": "edge",
+          "observedKinds": [
+            "connector"
+          ],
+          "emittedChannelValues": {
+            "importance": [
+              "1"
+            ],
+            "category": [
+              "0",
+              "1"
+            ]
+          },
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/mindmap/scene-role/edge",
+          "styleWitnessId": "section-b/mindmap/style/edge/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/mindmap/terminal/no-color"
+        },
+        {
+          "role": "node",
+          "observedKinds": [
+            "group"
+          ],
+          "emittedChannelValues": {
+            "importance": [
+              "3",
+              "4",
+              "5"
+            ],
+            "category": [
+              "0",
+              "1"
+            ]
+          },
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/mindmap/scene-role/node",
+          "styleWitnessId": "section-b/mindmap/style/node/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/mindmap/terminal/no-color"
+        },
+        {
+          "role": "icon",
+          "observedKinds": [
+            "raw",
+            "text"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/mindmap/scene-role/icon",
+          "styleWitnessId": "section-b/mindmap/style/icon/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/mindmap/terminal/no-color"
+        },
+        {
+          "role": "label",
+          "observedKinds": [
+            "text"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/mindmap/scene-role/label",
+          "styleWitnessId": "section-b/mindmap/style/label/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/mindmap/terminal/no-color"
+        }
+      ],
+      "channelWitnesses": [
+        {
+          "channel": "importance",
+          "representativeValues": [
+            "1",
+            "3",
+            "4",
+            "5"
+          ],
+          "emittingRoles": [
+            "edge",
+            "node"
+          ],
+          "publicBinding": "not-publicly-bindable",
+          "witnessId": "section-b/mindmap/semantic-channel/importance"
+        },
+        {
+          "channel": "category",
+          "representativeValues": [
+            "0",
+            "1"
+          ],
+          "emittingRoles": [
+            "edge",
+            "node"
+          ],
+          "publicBinding": "not-publicly-bindable",
+          "witnessId": "section-b/mindmap/semantic-channel/category"
+        }
+      ],
+      "bindingWitnesses": []
     },
     {
       "id": "gitgraph",
@@ -819,7 +3531,209 @@
         "category"
       ],
       "bindingRoles": [],
-      "bindingChannels": []
+      "bindingChannels": [],
+      "graphicalBackends": [
+        {
+          "id": "backend:default",
+          "state": "conformant-scene-consumer",
+          "witnessId": "backend-claim-matrix@3/backend:default"
+        },
+        {
+          "id": "backend:rough",
+          "state": "conformant-scene-consumer",
+          "witnessId": "backend-claim-matrix@3/backend:rough"
+        },
+        {
+          "id": "backend:hybrid",
+          "state": "conformant-scene-consumer",
+          "witnessId": "backend-claim-matrix@3/backend:hybrid"
+        }
+      ],
+      "terminalProjection": {
+        "state": "native-lossy",
+        "witnessId": "section-b/gitgraph/terminal/no-color",
+        "outputDigest": "sha256:e07a2a2f28ab6a6ac538e9a886df0641921ab3e86929424fd8b754d16fb134f2"
+      },
+      "roleWitnesses": [
+        {
+          "role": "prelude",
+          "observedKinds": [
+            "prelude"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/gitgraph/scene-role/prelude",
+          "styleWitnessId": "section-b/gitgraph/style/prelude/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/gitgraph/terminal/no-color"
+        },
+        {
+          "role": "chrome",
+          "observedKinds": [
+            "document",
+            "shape"
+          ],
+          "emittedChannelValues": {
+            "status": [
+              "merge",
+              "normal"
+            ],
+            "category": [
+              "feature",
+              "main"
+            ]
+          },
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/gitgraph/scene-role/chrome",
+          "styleWitnessId": "section-b/gitgraph/style/chrome/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/gitgraph/terminal/no-color"
+        },
+        {
+          "role": "title",
+          "observedKinds": [
+            "text"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/gitgraph/scene-role/title",
+          "styleWitnessId": "section-b/gitgraph/style/title/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/gitgraph/terminal/no-color"
+        },
+        {
+          "role": "group",
+          "observedKinds": [
+            "group"
+          ],
+          "emittedChannelValues": {
+            "category": [
+              "feature",
+              "main"
+            ]
+          },
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/gitgraph/scene-role/group",
+          "styleWitnessId": "section-b/gitgraph/style/group/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/gitgraph/terminal/no-color"
+        },
+        {
+          "role": "rail",
+          "observedKinds": [
+            "shape"
+          ],
+          "emittedChannelValues": {
+            "category": [
+              "feature",
+              "main"
+            ]
+          },
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/gitgraph/scene-role/rail",
+          "styleWitnessId": "section-b/gitgraph/style/rail/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/gitgraph/terminal/no-color"
+        },
+        {
+          "role": "edge",
+          "observedKinds": [
+            "connector"
+          ],
+          "emittedChannelValues": {
+            "category": [
+              "merge",
+              "parent"
+            ]
+          },
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/gitgraph/scene-role/edge",
+          "styleWitnessId": "section-b/gitgraph/style/edge/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/gitgraph/terminal/no-color"
+        },
+        {
+          "role": "node",
+          "observedKinds": [
+            "group"
+          ],
+          "emittedChannelValues": {
+            "status": [
+              "merge",
+              "normal"
+            ],
+            "category": [
+              "feature",
+              "main"
+            ]
+          },
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/gitgraph/scene-role/node",
+          "styleWitnessId": "section-b/gitgraph/style/node/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/gitgraph/terminal/no-color"
+        },
+        {
+          "role": "label",
+          "observedKinds": [
+            "text"
+          ],
+          "emittedChannelValues": {
+            "category": [
+              "feature",
+              "main"
+            ]
+          },
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/gitgraph/scene-role/label",
+          "styleWitnessId": "section-b/gitgraph/style/label/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/gitgraph/terminal/no-color"
+        }
+      ],
+      "channelWitnesses": [
+        {
+          "channel": "status",
+          "representativeValues": [
+            "merge",
+            "normal"
+          ],
+          "emittingRoles": [
+            "chrome",
+            "node"
+          ],
+          "publicBinding": "not-publicly-bindable",
+          "witnessId": "section-b/gitgraph/semantic-channel/status"
+        },
+        {
+          "channel": "category",
+          "representativeValues": [
+            "feature",
+            "main",
+            "merge",
+            "parent"
+          ],
+          "emittingRoles": [
+            "chrome",
+            "edge",
+            "group",
+            "label",
+            "node",
+            "rail"
+          ],
+          "publicBinding": "not-publicly-bindable",
+          "witnessId": "section-b/gitgraph/semantic-channel/category"
+        }
+      ],
+      "bindingWitnesses": []
     },
     {
       "id": "radar",
@@ -843,6 +3757,195 @@
       ],
       "bindingChannels": [
         "category"
+      ],
+      "graphicalBackends": [
+        {
+          "id": "backend:default",
+          "state": "conformant-scene-consumer",
+          "witnessId": "backend-claim-matrix@3/backend:default"
+        },
+        {
+          "id": "backend:rough",
+          "state": "conformant-scene-consumer",
+          "witnessId": "backend-claim-matrix@3/backend:rough"
+        },
+        {
+          "id": "backend:hybrid",
+          "state": "conformant-scene-consumer",
+          "witnessId": "backend-claim-matrix@3/backend:hybrid"
+        }
+      ],
+      "terminalProjection": {
+        "state": "native-lossy",
+        "witnessId": "section-b/radar/terminal/no-color",
+        "outputDigest": "sha256:b0fd011ea1ccb3fb8ce3bdb2fa762de317db1840bcb2002d0eb72dae985324ce"
+      },
+      "roleWitnesses": [
+        {
+          "role": "prelude",
+          "observedKinds": [
+            "prelude"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "label",
+          "styleProjection": "fallback-only",
+          "graphicalWitnessId": "section-b/radar/scene-role/prelude",
+          "styleWitnessId": "section-b/radar/style/prelude/fallback-only",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/radar/terminal/no-color"
+        },
+        {
+          "role": "chrome",
+          "observedKinds": [
+            "document"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/radar/scene-role/chrome",
+          "styleWitnessId": "section-b/radar/style/chrome/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/radar/terminal/no-color"
+        },
+        {
+          "role": "grid",
+          "observedKinds": [
+            "shape"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "edge",
+          "styleProjection": "fallback-only",
+          "graphicalWitnessId": "section-b/radar/scene-role/grid",
+          "styleWitnessId": "section-b/radar/style/grid/fallback-only",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/radar/terminal/no-color"
+        },
+        {
+          "role": "pie-slice",
+          "observedKinds": [
+            "shape"
+          ],
+          "emittedChannelValues": {
+            "category": [
+              "Current",
+              "Target"
+            ]
+          },
+          "publicMigrationTarget": "pie-slice",
+          "styleProjection": "exact",
+          "graphicalWitnessId": "section-b/radar/scene-role/pie-slice",
+          "styleWitnessId": "section-b/radar/style/pie-slice/exact",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/radar/terminal/no-color"
+        },
+        {
+          "role": "point",
+          "observedKinds": [
+            "shape"
+          ],
+          "emittedChannelValues": {
+            "category": [
+              "Current",
+              "Target"
+            ]
+          },
+          "publicMigrationTarget": "point",
+          "styleProjection": "exact",
+          "graphicalWitnessId": "section-b/radar/scene-role/point",
+          "styleWitnessId": "section-b/radar/style/point/exact",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/radar/terminal/no-color"
+        },
+        {
+          "role": "axis",
+          "observedKinds": [
+            "text"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "label",
+          "styleProjection": "fallback-only",
+          "graphicalWitnessId": "section-b/radar/scene-role/axis",
+          "styleWitnessId": "section-b/radar/style/axis/fallback-only",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/radar/terminal/no-color"
+        },
+        {
+          "role": "legend",
+          "observedKinds": [
+            "shape",
+            "text"
+          ],
+          "emittedChannelValues": {
+            "category": [
+              "Current",
+              "Target"
+            ]
+          },
+          "publicMigrationTarget": "legend",
+          "styleProjection": "exact",
+          "graphicalWitnessId": "section-b/radar/scene-role/legend",
+          "styleWitnessId": "section-b/radar/style/legend/exact",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/radar/terminal/no-color"
+        },
+        {
+          "role": "title",
+          "observedKinds": [
+            "text"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "label",
+          "styleProjection": "fallback-only",
+          "graphicalWitnessId": "section-b/radar/scene-role/title",
+          "styleWitnessId": "section-b/radar/style/title/fallback-only",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/radar/terminal/no-color"
+        }
+      ],
+      "channelWitnesses": [
+        {
+          "channel": "category",
+          "representativeValues": [
+            "Current",
+            "Target"
+          ],
+          "emittingRoles": [
+            "legend",
+            "pie-slice",
+            "point"
+          ],
+          "publicBinding": "category",
+          "witnessId": "section-b/radar/semantic-channel/category"
+        }
+      ],
+      "bindingWitnesses": [
+        {
+          "role": "pie-slice",
+          "channel": "category",
+          "representativeValue": "Current",
+          "graphicalProjection": "changed",
+          "graphicalWitnessId": "section-b/radar/binding/pie-slice/category/graphical",
+          "terminalProjection": "perceptible-no-color-cue",
+          "terminalWitnessId": "section-b/radar/binding/pie-slice/category/terminal"
+        },
+        {
+          "role": "legend",
+          "channel": "category",
+          "representativeValue": "Current",
+          "graphicalProjection": "changed",
+          "graphicalWitnessId": "section-b/radar/binding/legend/category/graphical",
+          "terminalProjection": "not-applicable",
+          "terminalWitnessId": "section-b/radar/binding/legend/category/terminal"
+        },
+        {
+          "role": "point",
+          "channel": "category",
+          "representativeValue": "Current",
+          "graphicalProjection": "changed",
+          "graphicalWitnessId": "section-b/radar/binding/point/category/graphical",
+          "terminalProjection": "not-applicable",
+          "terminalWitnessId": "section-b/radar/binding/point/category/terminal"
+        }
       ]
     }
   ],
@@ -1162,5 +4265,5 @@
       ]
     }
   ],
-  "digest": "sha256:a9c3d60bb5d4b3bb9cc9e5f5a564a5edb4879cce98b9206f8841693e6223dd8b"
+  "digest": "sha256:4e84b443b2ceba2fb192b1d2bf106a35e0d80f846ffd179b98f34b7c0f3918a8"
 }

@@ -10,6 +10,7 @@ import {
 import { verifyMermaid } from '../agent/index.ts'
 import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
 import { resolveStyleStackWithFace, resolveRoleStyle } from '../scene/style-registry.ts'
+import { STYLE_OWNED_PAINT_VARIABLES } from '../scene/style-spec.ts'
 
 const SLOT = { fillColor: '#ff00ff', borderColor: '#007700', lineWidth: 3 } as const
 const BINDING = { channel: 'category', value: 'Beta', slot: 'selected', role: 'pie-slice' } as const
@@ -163,6 +164,40 @@ describe('Section B semantic policy', () => {
       code: 'BRAND_CONSTRAINT_WARNING', constraint: 'mono-role', measurement: 'measurable', foreground: '#ff0000',
     }))
     expect(renderMermaidSVG(source, { style })).toBe(svg)
+  })
+
+  test('every admitted style-owned paint variable has an executable constraint projection', () => {
+    const source = 'flowchart LR\n  A[Alpha]'
+    for (const variable of STYLE_OWNED_PAINT_VARIABLES) {
+      const result = verifyMermaid(source, { renderOptions: { style: {
+        roles: {
+          node: { fillColor: `var(${variable})` },
+          label: { textColor: `var(${variable})` },
+        },
+        constraints: [{ kind: 'contrast', action: 'warn', role: 'label', minimum: 4.5 }],
+      } as any } })
+      expect(result.warnings, variable).toContainEqual(expect.objectContaining({
+        constraint: 'contrast', measurement: 'measurable', role: 'label',
+      }))
+    }
+
+    for (const colors of [
+      { fg: 'rgb(255, 0, 0)', bg: 'white' },
+      { fg: 'navy', bg: 'white' },
+      { fg: 'hsl(240 100% 25%)', bg: 'rgb(255 255 255)' },
+    ]) {
+      const result = verifyMermaid(source, { renderOptions: { style: {
+        colors,
+        roles: {
+          node: { fillColor: 'var(--_group-hdr)' },
+          label: { textColor: 'var(--_group-hdr)' },
+        },
+        constraints: [{ kind: 'contrast', action: 'warn', role: 'label', minimum: 4.5 }],
+      } as any } })
+      expect(result.warnings, JSON.stringify(colors)).toContainEqual(expect.objectContaining({
+        constraint: 'contrast', measurement: 'measurable', ratio: 1,
+      }))
+    }
   })
 
   test('constraint measurement covers alpha composition, unresolved paint, and not-applicable roles', () => {

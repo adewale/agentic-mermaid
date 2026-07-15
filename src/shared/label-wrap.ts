@@ -11,7 +11,7 @@
 // text breaks between any two characters without hyphenation.
 // ============================================================================
 
-import { measureFormattedTextWidth, measureTextWidth } from '../text-metrics.ts'
+import { measureFormattedTextWidth } from '../text-metrics.ts'
 import { HAS_FORMAT_TAGS, parseInlineFormatting, serializeStyledSegment, type StyledSegment } from './inline-format.ts'
 import { graphemes } from './graphemes.ts'
 
@@ -25,26 +25,27 @@ export function wrapLabelToWidth(
   maxWidth: number,
   fontSize: number,
   fontWeight: number,
+  letterSpacing = 0,
 ): string {
   if (!Number.isFinite(maxWidth) || maxWidth <= 0) return text
-  if (measureFormattedTextWidth(text, fontSize, fontWeight) <= maxWidth) return text
+  if (measureFormattedTextWidth(text, fontSize, fontWeight, letterSpacing) <= maxWidth) return text
 
   const lines: string[] = []
   for (const paragraph of text.split(/\r?\n/)) {
     if (HAS_FORMAT_TAGS.test(paragraph)) {
-      lines.push(...wrapFormattedParagraph(paragraph, maxWidth, fontSize, fontWeight))
+      lines.push(...wrapFormattedParagraph(paragraph, maxWidth, fontSize, fontWeight, letterSpacing))
       continue
     }
     const words = paragraph.split(/\s+/).filter(Boolean)
     let current = ''
     for (const word of words) {
       const candidate = current ? `${current} ${word}` : word
-      if (measureTextWidth(candidate, fontSize, fontWeight) <= maxWidth) {
+      if (measureFormattedTextWidth(candidate, fontSize, fontWeight, letterSpacing) <= maxWidth) {
         current = candidate
         continue
       }
       if (current) lines.push(current)
-      current = breakWordToWidth(word, maxWidth, fontSize, fontWeight)
+      current = breakWordToWidth(word, maxWidth, fontSize, fontWeight, letterSpacing)
     }
     if (current) lines.push(current)
   }
@@ -82,13 +83,14 @@ function wrapFormattedParagraph(
   maxWidth: number,
   fontSize: number,
   fontWeight: number,
+  letterSpacing: number,
 ): string[] {
   const lines: string[] = []
   let current: string[] = []
   for (const word of styledWords(paragraph)) {
     const rendered = renderStyledWord(word)
     const candidate = [...current, rendered].join(' ')
-    if (measureFormattedTextWidth(candidate, fontSize, fontWeight) <= maxWidth) {
+    if (measureFormattedTextWidth(candidate, fontSize, fontWeight, letterSpacing) <= maxWidth) {
       current.push(rendered)
       continue
     }
@@ -97,13 +99,14 @@ function wrapFormattedParagraph(
 
     // Preserve formatting on ordinary long single-style words. Mixed-style
     // words are rare and stay intact rather than emitting malformed tags.
-    if (word.length === 1 && measureFormattedTextWidth(rendered, fontSize, fontWeight) > maxWidth) {
+    if (word.length === 1 && measureFormattedTextWidth(rendered, fontSize, fontWeight, letterSpacing) > maxWidth) {
       const segment = word[0]!
       const broken = breakWordToWidth(
         segment.text,
         maxWidth,
         fontSize,
         segment.bold ? Math.max(700, fontWeight) : fontWeight,
+        letterSpacing,
       ).split('\n')
       lines.push(...broken.slice(0, -1).map(text => serializeStyledSegment({ ...segment, text })))
       current = [serializeStyledSegment({ ...segment, text: broken.at(-1)! })]
@@ -115,8 +118,14 @@ function wrapFormattedParagraph(
   return lines
 }
 
-export function breakWordToWidth(word: string, maxWidth: number, fontSize: number, fontWeight: number): string {
-  if (measureTextWidth(word, fontSize, fontWeight) <= maxWidth) return word
+export function breakWordToWidth(
+  word: string,
+  maxWidth: number,
+  fontSize: number,
+  fontWeight: number,
+  letterSpacing = 0,
+): string {
+  if (measureFormattedTextWidth(word, fontSize, fontWeight, letterSpacing) <= maxWidth) return word
   const clusters = graphemes(word)
   const lines: string[] = []
   let start = 0
@@ -130,7 +139,7 @@ export function breakWordToWidth(word: string, maxWidth: number, fontSize: numbe
       const next = clusters[end + 1] ?? ''
       const breakIsFullwidth = hasMore && isFullwidthChar(cluster) && isFullwidthChar(next)
       const measured = candidate + (hasMore && !breakIsFullwidth ? '-' : '')
-      if (current && measureTextWidth(measured, fontSize, fontWeight) > maxWidth) break
+      if (current && measureFormattedTextWidth(measured, fontSize, fontWeight, letterSpacing) > maxWidth) break
       current = candidate
       end++
     }
@@ -144,7 +153,7 @@ export function breakWordToWidth(word: string, maxWidth: number, fontSize: numbe
     const hasMore = end < clusters.length
     const breakIsFullwidth = hasMore && isFullwidthChar(clusters[end - 1]!) && isFullwidthChar(clusters[end]!)
     const hyphenated = `${current}-`
-    lines.push(hasMore && !breakIsFullwidth && measureTextWidth(hyphenated, fontSize, fontWeight) <= maxWidth
+    lines.push(hasMore && !breakIsFullwidth && measureFormattedTextWidth(hyphenated, fontSize, fontWeight, letterSpacing) <= maxWidth
       ? hyphenated
       : current)
     start = end

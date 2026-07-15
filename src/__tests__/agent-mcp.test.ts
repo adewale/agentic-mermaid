@@ -754,20 +754,41 @@ describe('CLI — sad paths via runCli', () => {
     expect(code).toBe(3)
   })
 
-  test('verify resolves file-backed Styles so inspect-only constraints match render', () => {
+  test('verify resolves and safely admits file-backed Styles so constraints match render', () => {
     const stamp = Date.now()
     const source = `/tmp/cli-verify-style-${stamp}.mmd`
     const style = `/tmp/cli-verify-style-${stamp}.json`
-    require('node:fs').writeFileSync(source, 'flowchart TD\n  A[Alpha]\n')
-    require('node:fs').writeFileSync(style, JSON.stringify({
-      roles: { node: { fillColor: '#111111', textColor: '#111111' } },
-      constraints: [{ kind: 'contrast', action: 'warn', minimum: 4.5 }],
-    }))
-    const result = capture(() => runCli(['verify', source, '--style', style]))
-    expect(result.code).toBe(0)
-    expect(JSON.parse(result.out).warnings).toContainEqual(expect.objectContaining({
-      code: 'BRAND_CONSTRAINT_WARNING', ratio: 1,
-    }))
+    const fs = require('node:fs') as typeof import('node:fs')
+    fs.writeFileSync(source, 'flowchart TD\n  A[Alpha]\n')
+    try {
+      fs.writeFileSync(style, JSON.stringify({
+        roles: { node: { fillColor: '#111111', textColor: '#111111' } },
+        constraints: [{ kind: 'contrast', action: 'warn', minimum: 4.5 }],
+      }))
+      const warned = capture(() => runCli(['verify', source, '--style', style]))
+      expect(warned.code).toBe(0)
+      expect(JSON.parse(warned.out).warnings).toContainEqual(expect.objectContaining({
+        code: 'BRAND_CONSTRAINT_WARNING', ratio: 1,
+      }))
+
+      fs.writeFileSync(style, JSON.stringify({
+        roles: { node: { fillColor: '#111111', textColor: '#111111' } },
+        constraints: [{ kind: 'contrast', action: 'error', minimum: 4.5 }],
+      }))
+      const errored = capture(() => runCli(['verify', source, '--style', style]))
+      expect(errored.code).toBe(3)
+      expect(JSON.parse(errored.out).warnings).toContainEqual(expect.objectContaining({
+        code: 'BRAND_CONSTRAINT_ERROR', ratio: 1,
+      }))
+
+      fs.writeFileSync(style, JSON.stringify({ roles: { node: { fillColor: 'url(https://evil.test/x)' } } }))
+      const hostile = capture(() => runCli(['verify', source, '--style', style]))
+      expect(hostile.code).toBe(2)
+      expect(hostile.err).toContain('must be a safe non-fetching CSS paint')
+    } finally {
+      fs.rmSync(source, { force: true })
+      fs.rmSync(style, { force: true })
+    }
   })
 
   test('verify rejects malformed label caps and unknown suppression codes', () => {

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { renderMermaidSVG } from '../index.ts'
+import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
 
 const RADAR = `radar-beta
   axis speed, cost, safety
@@ -38,6 +38,17 @@ describe('Section B chart semantic bindings', () => {
     expect(barGeometry(xyBranded)).toEqual(barGeometry(xyBaseline))
     expect(radarBranded).toMatch(/class="radar-area"[^>]*fill="#ff00ff"[^>]*stroke="#007700"/)
     expect(xyBranded).toMatch(/class="xychart-bar[^>]*style="[^"]*fill:#ff00ff[^"]*stroke:#007700[^"]*stroke-width:6/)
+  })
+
+  test('Radar category cues remain perceptible in no-color terminal output', () => {
+    const style = {
+      semanticSlots: { selected: { cue: 'pattern' } },
+      bindings: [{ channel: 'category', value: 'Current', slot: 'selected', role: 'pie-slice' }],
+    } as const
+    const baseline = renderMermaidASCII(RADAR, { colorMode: 'none' })
+    const branded = renderMermaidASCII(RADAR, { colorMode: 'none', style })
+    expect(branded).not.toBe(baseline)
+    expect(branded).toContain('░ Current')
   })
 
   test('authored family palettes remain authoritative over semantic slot paint', () => {

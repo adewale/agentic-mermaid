@@ -37,6 +37,22 @@ describe('Section B structural/domain semantic bindings', () => {
     expect(tracked).toContain('letter-spacing="4"')
   })
 
+  test('Journey section and ER relationship tracking participate in allocated geometry', () => {
+    const journey = 'journey\n  section MeasuredTracking\n    x: 3: U'
+    const journeyBaseline = renderMermaidSVG(journey)
+    const journeyTracked = renderMermaidSVG(journey, { style: { roles: { 'group-header': { letterSpacing: 4 } } } })
+    const sectionWidth = (svg: string) => Number(svg.match(/journey-section-bg[^>]+width="([^"]+)/)?.[1])
+    expect(sectionWidth(journeyTracked)).toBeGreaterThan(sectionWidth(journeyBaseline))
+    expect(journeyTracked).toContain('letter-spacing="4"')
+
+    const er = 'erDiagram\n  A ||--o{ B : tracking witness'
+    const erBaseline = renderMermaidSVG(er)
+    const erTracked = renderMermaidSVG(er, { style: { roles: { relationship: { letterSpacing: 4 } } } })
+    const pillWidth = (svg: string) => Number(svg.match(/<rect[^>]+width="([^"]+)"[^>]+stroke-width="0\.5"/)?.[1])
+    expect(pillWidth(erTracked)).toBeGreaterThan(pillWidth(erBaseline))
+    expect(erTracked).toContain('letter-spacing="4"')
+  })
+
   test('one named slot styles Sequence actor and ER relationship without changing authored geometry or semantics', () => {
     const sequence = `sequenceDiagram
       box rgb(33,66,99) Ops

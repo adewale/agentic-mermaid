@@ -8,7 +8,8 @@ import {
 } from '../section-b-capability-report.ts'
 import { INTERNAL_STYLE_FACE_PROJECTION, ROLE_STYLE_PROPERTY_DESCRIPTORS, knownStyleDescriptors } from '../scene/style-registry.ts'
 import { SCENE_ROLE_DESCRIPTORS } from '../scene/roles.ts'
-import { knownBuiltinFamilies } from '../agent/families.ts'
+import { getFamily, knownBuiltinFamilies, replaceFamilyForTest } from '../agent/families.ts'
+import { knownBackendDescriptors } from '../scene/backend.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 
@@ -27,6 +28,47 @@ describe('Section B generated capability report', () => {
       'er', 'gantt', 'journey', 'pie', 'radar', 'sequence', 'xychart',
     ])
     expect(new Set(report.families.flatMap(row => row.bindingChannels))).toEqual(new Set(['category']))
+    const builtInBackends = knownBackendDescriptors()
+      .filter(row => row.identity.provenance.source === 'built-in')
+      .map(row => row.identity.id)
+    for (const family of report.families) {
+      const descriptor = getFamily(family.id)!
+      expect(family.roleWitnesses.map(row => row.role), `${family.id} emitted-role census`)
+        .toEqual([...descriptor.semanticRoles])
+      expect(family.channelWitnesses.map(row => row.channel), `${family.id} emitted-channel census`)
+        .toEqual([...descriptor.semanticChannels])
+      expect(family.roleWitnesses.every(row => row.observedKinds.length > 0 && row.graphicalWitnessId.length > 0 && row.styleWitnessId.length > 0), `${family.id} role witnesses`).toBe(true)
+      for (const witness of family.roleWitnesses) {
+        const role = SCENE_ROLE_DESCRIPTORS.find(row => row.role === witness.role)!
+        expect(witness.publicMigrationTarget, `${family.id}/${witness.role} migration target`).toBe(
+          witness.styleProjection === 'exact' ? witness.role
+            : witness.styleProjection === 'fallback-only' ? role.style.fallbackRole
+              : 'none',
+        )
+      }
+      expect(family.channelWitnesses.every(row => row.representativeValues.length > 0 && row.emittingRoles.length > 0), `${family.id} channel witnesses`).toBe(true)
+      expect(family.channelWitnesses.filter(row => row.publicBinding === 'category').map(row => row.channel))
+        .toEqual(family.bindingRoles.length > 0 ? ['category'] : [])
+      expect(family.graphicalBackends.map(row => row.id), `${family.id} backend witnesses`).toEqual(builtInBackends)
+      expect(family.graphicalBackends.every(row => row.state === 'conformant-scene-consumer' && row.witnessId.length > 0)).toBe(true)
+      expect(family.terminalProjection.state).toBe('native-lossy')
+      expect(family.terminalProjection.witnessId.length).toBeGreaterThan(0)
+      expect(family.terminalProjection.outputDigest).toMatch(/^sha256:/)
+      expect(family.bindingWitnesses.map(row => row.role), `${family.id} binding consumers`).toEqual([...family.bindingRoles])
+      expect(family.bindingWitnesses.every(row => row.graphicalProjection === 'changed')).toBe(true)
+    }
+    expect(report.families.find(row => row.id === 'pie')?.bindingWitnesses[0]?.terminalProjection)
+      .toBe('perceptible-no-color-cue')
+    expect(report.families.find(row => row.id === 'radar')?.bindingWitnesses[0]?.terminalProjection)
+      .toBe('perceptible-no-color-cue')
+    // These nested roles changed under the former combined probe only because
+    // a sibling archetype changed inside the same serialized group.
+    for (const [family, role] of [
+      ['flowchart', 'group-header'], ['state', 'note'], ['journey', 'actor'], ['er', 'cardinality'],
+    ] as const) {
+      expect(report.families.find(row => row.id === family)?.roleWitnesses.find(row => row.role === role)?.styleProjection)
+        .toBe('not-applicable')
+    }
     expect(report.builtInLooks.map(row => row.id)).toEqual(knownStyleDescriptors()
       .filter(row => row.kind === 'look' && row.identity.provenance.source === 'built-in')
       .map(row => row.identity.id))
@@ -44,12 +86,33 @@ describe('Section B generated capability report', () => {
     expect(markdown).toBe(sectionBCapabilityReportMarkdown(report))
   })
 
-  test('semantic validation discriminates stale payloads', () => {
-    const stale = JSON.parse(JSON.stringify(createSectionBCapabilityReport()))
-    stale.families[0].semanticChannels.push('made-up')
-    expect(validateSectionBCapabilityReport(stale)).toEqual(expect.arrayContaining([
-      'report digest does not match its payload',
-      'report does not match live Section B authorities',
-    ]))
+  test('cache invalidates against live family registration identity', () => {
+    const before = createSectionBCapabilityReport()
+    const original = getFamily('flowchart')!
+    const restore = replaceFamilyForTest('flowchart', { ...original, semanticChannels: ['category'] })
+    try {
+      expect(() => createSectionBCapabilityReport()).toThrow('did not emit declared channels: category')
+    } finally {
+      restore()
+    }
+    expect(createSectionBCapabilityReport()).toBe(before)
+  })
+
+  test('semantic validation discriminates missing emitters, channels, consumers, and projections', () => {
+    const mutations = [
+      (report: any) => report.families[0].roleWitnesses.pop(),
+      (report: any) => report.families.find((row: any) => row.channelWitnesses.length > 0).channelWitnesses.pop(),
+      (report: any) => report.families.find((row: any) => row.bindingWitnesses.length > 0).bindingWitnesses.pop(),
+      (report: any) => { report.families[0].graphicalBackends[0].state = 'missing' },
+      (report: any) => { report.families[0].terminalProjection.outputDigest = 'sha256:missing' },
+    ]
+    for (const mutate of mutations) {
+      const stale = JSON.parse(JSON.stringify(createSectionBCapabilityReport()))
+      mutate(stale)
+      expect(validateSectionBCapabilityReport(stale)).toEqual(expect.arrayContaining([
+        'report digest does not match its payload',
+        'report does not match live Section B authorities',
+      ]))
+    }
   })
 })

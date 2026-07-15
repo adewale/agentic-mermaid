@@ -215,15 +215,17 @@ export function layoutJourneyDiagram(
     const semanticStyle = resolveRoleStyle(styleFace, 'group-header', { category }, { includeFallback: false })
     const fontSize = semanticStyle?.fontSize ?? style.groupHeaderFontSize
     const fontWeight = semanticStyle?.fontWeight ?? style.groupHeaderFontWeight
+    const letterSpacing = semanticStyle?.letterSpacing ?? style.groupLetterSpacing
     const label = section.label
       ? wrapLabelToWidth(
           applyTextTransform(section.label, semanticStyle?.textTransform ?? style.groupTextTransform),
           visual.maxLabelWidth,
           fontSize,
           fontWeight,
+          letterSpacing,
         )
       : undefined
-    const labelMetrics = label ? measureMultilineText(label, fontSize, fontWeight) : undefined
+    const labelMetrics = label ? measureMultilineText(label, fontSize, fontWeight, letterSpacing) : undefined
     const labelWidth = labelMetrics?.width ?? 0
     const labelHeight = labelMetrics?.height ?? 0
     const tasks = section.tasks.map(task => measureTask(task.text, task.actors.length, style, visual))

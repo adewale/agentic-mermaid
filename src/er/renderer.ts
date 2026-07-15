@@ -515,6 +515,7 @@ export function separateRelationshipLabels(
       applyTextTransform(rel.label, roleStyle?.textTransform ?? style.edgeTextTransform),
       roleStyle?.fontSize ?? style.edgeLabelFontSize,
       roleStyle?.fontWeight ?? style.edgeLabelFontWeight,
+      roleStyle?.letterSpacing ?? style.edgeLetterSpacing,
     )
     // Match the public readability audit's conservative glyph-clearance box
     // (8px per side), not merely the smaller painted pill dimensions.
@@ -589,7 +590,7 @@ function renderRelationshipLabel(
   const letterSpacing = roleStyle?.letterSpacing ?? style.edgeLetterSpacing
   const mid = at ?? midpoint(rel.points)
   const displayLabel = applyTextTransform(rel.label, roleStyle?.textTransform ?? style.edgeTextTransform)
-  const metrics = measureMultilineText(displayLabel, fontSize, fontWeight)
+  const metrics = measureMultilineText(displayLabel, fontSize, fontWeight, letterSpacing)
 
   // Background pill for readability
   const bgW = metrics.width + 8
