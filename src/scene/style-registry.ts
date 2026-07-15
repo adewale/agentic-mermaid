@@ -586,8 +586,10 @@ function assertRealizedStyleSpec(spec: InternalStyleSpec): void {
     if (binding.role !== undefined) {
       const descriptor = SCENE_ROLE_DESCRIPTORS.find(candidate => candidate.role === binding.role)!
       const applicable: ReadonlySet<string> = new Set(descriptor.style.applicableProperties)
-      const invalid = Object.keys(slot).find(property => !applicable.has(property))
-      if (invalid) throw new Error(`Invalid style spec: semantic slot "${binding.slot}" field "${invalid}" is not applicable to role "${binding.role}"`)
+      const slotProperties = Object.keys(slot)
+      if (slotProperties.length > 0 && !slotProperties.some(property => applicable.has(property))) {
+        throw new Error(`Invalid style spec: semantic slot "${binding.slot}" has no field applicable to role "${binding.role}"`)
+      }
     }
   }
   const hachureFields = ['hachureAngle', 'hachureGap', 'fillWeight'] as const

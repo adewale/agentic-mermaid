@@ -34,7 +34,7 @@ describe('Section B semantic policy', () => {
     expect(() => resolveStyleStack({
       semanticSlots: { bad: { paddingX: 4 } },
       bindings: [{ channel: 'category', value: 'Beta', slot: 'bad', role: 'label' }],
-    } as any)).toThrow(/semantic slot "bad" field "paddingX" is not applicable to role "label"/)
+    } as any)).toThrow(/semantic slot "bad" has no field applicable to role "label"/)
   })
 
   test('policy merge is deterministic, right-biased, associative, and idempotent', () => {

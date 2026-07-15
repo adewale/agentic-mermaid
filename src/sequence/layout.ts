@@ -5,7 +5,7 @@ import { applyTextTransform, estimateTextWidth, FONT_SIZES, FONT_WEIGHTS, STROKE
 import type { RenderStyleDefaults } from '../styles.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import type { ResolvedSequenceConfig } from './config.ts'
-import type { InternalStyleFace } from '../scene/style-registry.ts'
+import { resolveRoleStyle, type InternalStyleFace } from '../scene/style-registry.ts'
 
 // ============================================================================
 // Sequence diagram layout engine
@@ -100,7 +100,15 @@ export function layoutSequenceDiagram(
   const minActorWidth = config.width ?? 80
   const noteGap = config.noteMargin ?? SEQ.noteGap
   const activationWidth = config.activationWidth ?? SEQ.activationWidth
-  const actorHeight = Math.max(config.height ?? SEQ.actorHeight, measureMultilineText('Mg', style.nodeLabelFontSize, style.nodeLabelFontWeight).height + style.nodePaddingY * 2)
+  const actorRoleStyles = diagram.actors.map(actor => resolveRoleStyle(styleFace, 'actor', { category: actor.id }))
+  const actorHeight = Math.max(
+    config.height ?? SEQ.actorHeight,
+    ...actorRoleStyles.map(role => measureMultilineText(
+      'Mg',
+      role?.fontSize ?? style.nodeLabelFontSize,
+      role?.fontWeight ?? style.nodeLabelFontWeight,
+    ).height + (role?.paddingY ?? style.nodePaddingY) * 2),
+  )
   const defaultEdgeTextHeight = measureMultilineText('Mg', SEQUENCE_STYLE_DEFAULTS.edgeLabelFontSize, SEQUENCE_STYLE_DEFAULTS.edgeLabelFontWeight).height
   const edgeTextHeight = measureMultilineText('Mg', style.edgeLabelFontSize, style.edgeLabelFontWeight).height
   const baseRowHeight = config.messageMargin ?? SEQ.messageRowHeight
@@ -117,9 +125,14 @@ export function layoutSequenceDiagram(
   }
 
   // 1. Calculate actor widths and assign horizontal positions (center X)
-  const actorWidths = diagram.actors.map(a => {
-    const textW = estimateTextWidth(applyTextTransform(a.label, style.nodeTextTransform), style.nodeLabelFontSize, style.nodeLabelFontWeight)
-    return Math.max(textW + style.nodePaddingX * 2, minActorWidth)
+  const actorWidths = diagram.actors.map((a, index) => {
+    const role = actorRoleStyles[index]
+    const transform = role?.textTransform ?? style.nodeTextTransform
+    const fontSize = role?.fontSize ?? style.nodeLabelFontSize
+    const fontWeight = role?.fontWeight ?? style.nodeLabelFontWeight
+    const paddingX = role?.paddingX ?? style.nodePaddingX
+    const textW = estimateTextWidth(applyTextTransform(a.label, transform), fontSize, fontWeight)
+    return Math.max(textW + paddingX * 2, minActorWidth)
   })
 
   // Build actor center X positions with minimum gap. With actorMargin

@@ -13,6 +13,7 @@ import { hashId } from '../scene/seed.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { projectRoundedConnectorPath } from '../scene/connector-geometry.ts'
+import { resolveRoleStyle, type InternalStyleFace } from '../scene/style-registry.ts'
 
 // ============================================================================
 // ER diagram SVG renderer
@@ -117,7 +118,7 @@ export function lowerErScene(
     const pairKey = `${rel.entity1}-${rel.entity2}`
     const k = lineOccurrence.get(pairKey) ?? 0
     lineOccurrence.set(pairKey, k + 1)
-    parts.push(renderRelationshipLine(rel, style, `rel:${pairKey}#${k}`))
+    parts.push(renderRelationshipLine(rel, style, resolved.styleFace, `rel:${pairKey}#${k}`))
   }
 
   // 2. Entity boxes
@@ -395,13 +396,20 @@ function renderAttribute(attr: ErAttribute, entityId: string, boxX: number, y: n
 /**
  * Render a relationship line with semantic data attributes.
  */
-function renderRelationshipLine(rel: PositionedErRelationship, style: ResolvedRenderStyle, sceneId: string): SceneNode {
+function renderRelationshipLine(
+  rel: PositionedErRelationship,
+  style: ResolvedRenderStyle,
+  styleFace: Readonly<InternalStyleFace> | undefined,
+  sceneId: string,
+): SceneNode {
   const lineStyle = rel.identifying ? 'solid' as const : 'dashed' as const
   const channels = { category: rel.identifying ? 'identifying' : 'non-identifying' }
+  const roleStyle = resolveRoleStyle(styleFace, 'relationship', channels)
+  const bendRadius = roleStyle?.bendRadius ?? style.edgeBendRadius
   const connectorSemantics = {
     endpoints: { from: rel.entity1, to: rel.entity2 },
     relationship: { kind: rel.identifying ? 'identifying' : 'non-identifying' },
-    route: { ownership: 'layout', bendRadius: style.edgeBendRadius },
+    route: { ownership: 'layout', bendRadius },
     labels: rel.label ? [{ text: rel.label }] : [],
     projectAccessibilityToSvg: true,
   } as const
@@ -433,15 +441,16 @@ function renderRelationshipLine(rel: PositionedErRelationship, style: ResolvedRe
     `data-identifying="${rel.identifying}"`,
   ]
 
-  const strokeColor = style.edgeStrokeColor ?? 'var(--_line)'
+  const strokeColor = roleStyle?.strokeColor ?? style.edgeStrokeColor ?? 'var(--_line)'
+  const lineWidth = roleStyle?.lineWidth ?? style.lineWidth
   const paint = {
     stroke: strokeColor,
-    strokeWidth: String(style.lineWidth),
+    strokeWidth: String(lineWidth),
     ...(!rel.identifying ? { strokeDasharray: '6 4' } : {}),
   }
 
-  if (style.edgeBendRadius > 0 && rel.points.length > 2) {
-    const projection = projectRoundedConnectorPath(rel.points, style.edgeBendRadius, {
+  if (bendRadius > 0 && rel.points.length > 2) {
+    const projection = projectRoundedConnectorPath(rel.points, bendRadius, {
       metric: 'manhattan',
       precision: 3,
     })
@@ -456,7 +465,7 @@ function renderRelationshipLine(rel: PositionedErRelationship, style: ResolvedRe
       route: { ...connectorSemantics.route, contours: projection.contours },
     },
       `<path ${dataAttrs.join(' ')}${labelAttr} d="${projection.geometry.d}" fill="none" stroke="${escapeAttr(strokeColor)}" ` +
-      `stroke-width="${style.lineWidth}"${dashArray} />`)
+      `stroke-width="${lineWidth}"${dashArray} />`)
   }
 
   return marks.connector({
@@ -469,7 +478,7 @@ function renderRelationshipLine(rel: PositionedErRelationship, style: ResolvedRe
     ...connectorSemantics,
   },
     `<polyline ${dataAttrs.join(' ')}${labelAttr} points="${pathData}" fill="none" stroke="${escapeAttr(strokeColor)}" ` +
-    `stroke-width="${style.lineWidth}"${dashArray} />`)
+    `stroke-width="${lineWidth}"${dashArray} />`)
 }
 
 /**
