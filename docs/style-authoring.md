@@ -151,10 +151,11 @@ and `palette:dracula`. Discovery exposes exactly one `kind` (`look` or
 `palette`), an explicit `isDefault`, and a stable `inputName`. Stable short
 inputs such as `hand-drawn` and `dracula` are not deprecation aliases.
 `aliases` contains only temporary compatibility spellings, each with a
-diagnostic and removal release/date. The historically ambiguous bare `tufte`
-input is retired and rejected: select `look:tufte` or `palette:tufte`
-explicitly. Use the stable `crisp` input instead of the remaining diagnosed
-`default` compatibility alias.
+diagnostic and removal release/date. Light Tufte is intentionally one full Look:
+use `look:tufte`. The duplicate `palette:tufte`, legacy theme `tufte`, and
+ambiguous bare Style input are retired and rejected. The distinct `tufte-dark`
+palette is unchanged. Use the stable `crisp` input instead of the remaining
+diagnosed `default` compatibility alias.
 
 ## The contract you get for free
 

@@ -38,8 +38,8 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   earliest in `0.3.0`, no earlier than 2027-01-31). Remove `default` only after
   receipt diagnostics have shipped for the published window, migration docs use
   `crisp`, and regression tests prove discovery no longer advertises the
-  compatibility name. The ambiguous bare `tufte` input is already retired;
-  callers must choose `look:tufte` or `palette:tufte` explicitly.
+  compatibility name. The duplicate light Tufte palette and ambiguous bare
+  `tufte` input are already retired; callers must use `look:tufte`.
 
 
 ## Security backlog

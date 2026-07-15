@@ -475,7 +475,7 @@ export interface RenderOptions {
 
   /**
    * How the diagram looks: a registered style name ('hand-drawn',
-   * 'look:tufte', 'palette:tufte', or any THEMES palette name like 'dracula'),
+   * 'look:tufte', or any THEMES palette name like 'dracula'),
    * an inline StyleSpec, or a STACK
    * of either merged left-to-right ({ style: ['hand-drawn', 'dracula'] } is
    * hand-drawn geometry with the dracula palette). A colors-only style is a

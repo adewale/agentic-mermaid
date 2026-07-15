@@ -710,7 +710,7 @@ const STYLE_THEME_PAIR_BY_FAMILY: Record<BuiltinFamilyId, { look: string; theme:
   timeline: { look: 'hand-drawn', theme: 'catppuccin-latte', seed: 3 },
   journey: { look: 'status-dashboard', theme: 'github-dark', seed: 0 },
   xychart: { look: 'accessible-high-contrast', theme: 'zinc-light', seed: 0 },
-  pie: { look: 'pen-and-ink', theme: 'palette:tufte', seed: 7 },
+  pie: { look: 'pen-and-ink', theme: 'paper', seed: 7 },
   quadrant: { look: 'ops-schematic', theme: 'nord-light', seed: 8 },
   gantt: { look: 'architectural-plan', theme: 'solarized-light', seed: 9 },
   mindmap: { look: 'hand-drawn', theme: 'paper', seed: 10 },

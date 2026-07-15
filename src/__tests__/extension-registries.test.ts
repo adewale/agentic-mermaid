@@ -454,13 +454,13 @@ describe('shared extension identity', () => {
 })
 
 describe('canonical style identities', () => {
-  test('keeps palette:tufte and look:tufte distinct and rejects the retired ambiguous bare input', () => {
-    const palette = getStyle('palette:tufte')!
+  test('publishes only the full Tufte Look and rejects removed palette and bare inputs', () => {
     const look = getStyle('look:tufte')!
-    expect(palette.name).toBe('palette:tufte')
-    expect(palette.font).toBeUndefined()
     expect(look.name).toBe('look:tufte')
     expect(look.font).toBe('EB Garamond')
+    expect(getStyle('palette:tufte')).toBeUndefined()
+    expect(resolveStyleReference('palette:tufte')).toBeUndefined()
+    expect(() => resolveStyleStack('palette:tufte')).toThrow(/Unknown style "palette:tufte"/)
     expect(getStyle('tufte')).toBeUndefined()
     expect(resolveStyleReference('tufte')).toBeUndefined()
     expect(() => resolveStyleStack('tufte')).toThrow(/Unknown style "tufte"/)
@@ -472,10 +472,10 @@ describe('canonical style identities', () => {
   test('discovers canonical identities and retains legacy inputs without duplicate meanings', () => {
     const descriptors = knownStyleDescriptors()
     const ids = descriptors.map(descriptor => descriptor.identity.id)
-    expect(ids).toContain('palette:tufte')
+    expect(ids).not.toContain('palette:tufte')
     expect(ids).toContain('look:tufte')
     expect(new Set(ids).size).toBe(ids.length)
-    expect(knownStyles()).toContain('palette:tufte')
+    expect(knownStyles()).not.toContain('palette:tufte')
     expect(knownStyles()).toContain('look:tufte')
     expect(knownStyles()).not.toContain('tufte')
     expect(descriptors.find(descriptor => descriptor.identity.id === 'look:tufte')?.identity.provenance.owner)
@@ -493,6 +493,7 @@ describe('canonical style identities', () => {
 
   test('generates the legacy THEMES view from the canonical palette catalog', () => {
     expect(Object.keys(THEMES)).toEqual(BUILTIN_PALETTE_DEFINITIONS.map(definition => definition.legacyName))
+    expect(THEMES).not.toHaveProperty('tufte')
     const descriptors = new Map(knownStyleDescriptors().map(descriptor => [descriptor.identity.id, descriptor]))
     for (const definition of BUILTIN_PALETTE_DEFINITIONS) {
       expect(THEMES[definition.legacyName]).toEqual(definition.colors)
@@ -762,7 +763,7 @@ describe('canonical style identities', () => {
   })
 
   test('returns deeply immutable discovery specs', () => {
-    const descriptor = knownStyleDescriptors().find(candidate => candidate.identity.id === 'palette:tufte')!
+    const descriptor = knownStyleDescriptors().find(candidate => candidate.identity.id === 'palette:paper')!
     expect(Object.isFrozen(descriptor)).toBe(true)
     expect(Object.isFrozen(descriptor.spec)).toBe(true)
     expect(Object.isFrozen(descriptor.spec.colors)).toBe(true)

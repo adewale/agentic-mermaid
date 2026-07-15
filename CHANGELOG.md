@@ -70,7 +70,7 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 - Closed the Radar audit gaps in public synthesis validation, upstream title/comment/options grammar, Style-face-aware measurement, independent frame dimensions, theme paint/typography propagation, styled-backend opacity, empty-curve ASCII output, tick geometry, and duplicate-ID stability.
 
 ### Breaking
-- The ambiguous bare `tufte` Style input is retired and now fails as unknown. Select `look:tufte` for the full Look or `palette:tufte` for the palette-only resource; both remain discoverable canonical identities.
+- The duplicate light Tufte palette (`palette:tufte` and legacy theme `tufte`) and the ambiguous bare `tufte` Style input are removed and now fail as unknown. Use the sole light Tufte resource, `look:tufte`; the distinct `tufte-dark` palette is unchanged.
 - Consumers matching `INEFFECTIVE_CONFIG.field` for family-section keys must use the qualified path (for example `journey.boxMargin` rather than `boxMargin`).
 - Gantt exclusion-boundary semantics and default shading may change existing rendered calendars; CLI scripts relying on ignored known flags now fail fast with exit 2.
 - The transitional `FamilyPlugin` type alias has been removed; extension hosts should import `FamilyDescriptor`, which is the canonical registration and discovery contract.

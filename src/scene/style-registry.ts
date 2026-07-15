@@ -701,9 +701,9 @@ export function isStyledSpec(spec: StyleSpec): boolean {
 }
 
 // ----------------------------------------------------------------------------
-// Palettes register as canonical palette:* styles. Most built-ins also have a
-// stable unqualified input. Both Tufte resources require canonical qualified
-// inputs because the retired bare name cannot identify Look versus Palette.
+// Palettes register as canonical palette:* styles and have stable unqualified
+// inputs. Tufte is intentionally a full Look only; neither a palette resource
+// nor an ambiguous bare input is registered.
 // ----------------------------------------------------------------------------
 
 // The byte-identical default is a real discoverable descriptor, not a picker-
@@ -734,7 +734,7 @@ for (const definition of BUILTIN_PALETTE_DEFINITIONS as readonly BuiltinPaletteD
       surface: palette.surface,
       border: palette.border,
     },
-  }, 'palette', null, name === 'tufte' ? 'palette:tufte' : name)
+  }, 'palette', null, name)
 }
 
 // ----------------------------------------------------------------------------

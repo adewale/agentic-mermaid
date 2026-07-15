@@ -158,12 +158,13 @@ family docs, and `TODO.md`.
   color already supplied by the role. Trim valid-but-inert bindings instead of
   treating schema admission as executable evidence; keep editorial feature tags
   explicitly outside capability authority.
-- **Ambiguous aliases should disappear, never change meaning.** Canonical
-  kind-qualified identities must exist before retirement, discovery must expose
-  both choices, and the old input should fail rather than silently switch from a
-  Look to a Palette. Honor published compatibility windows by default; if the
-  repository owner explicitly overrides one, record a breaking migration in the
-  changelog and PR risk instead of rewriting history as though no promise existed.
+- **Ambiguous aliases should disappear, never change meaning.** Establish the
+  intended surviving canonical identity before retirement; if the second meaning
+  is duplicate rather than useful, remove that resource too. Old inputs should
+  fail rather than silently switch from a Look to a Palette. Honor published
+  compatibility windows by default; if the repository owner explicitly overrides
+  one, record a breaking migration in the changelog and PR risk instead of
+  rewriting history as though no promise existed.
 - **A diagnostic prototype should pass its own policy.** Run style-aware verify
   on each fixture and tune authored text/surface pairs until its inspect-only
   constraints are quiet. A screenshot generator proving only that bytes exist is

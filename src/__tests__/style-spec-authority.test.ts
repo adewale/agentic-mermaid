@@ -131,13 +131,8 @@ describe('StyleSpec has one projected field authority', () => {
     expect(crisp?.aliases.map(alias => alias.alias)).toContain('default')
     expect(knownStyles().filter(name => name === 'crisp')).toHaveLength(1)
 
-    const tuftePalette = descriptors.find(descriptor => descriptor.identity.id === 'palette:tufte')
-    expect(tuftePalette).toMatchObject({
-      inputName: 'palette:tufte',
-      displayLabel: 'Tufte',
-      kind: 'palette',
-      isDefault: false,
-    })
+    expect(descriptors.find(descriptor => descriptor.identity.id === 'palette:tufte')).toBeUndefined()
+    expect(knownStyles()).not.toContain('palette:tufte')
 
     const editorGenerator = readFileSync(join(ROOT, 'scripts', 'site', 'editor.ts'), 'utf8')
     expect(editorGenerator).toContain('knownStyleDescriptors()')
@@ -153,13 +148,30 @@ describe('StyleSpec has one projected field authority', () => {
     expect(readFileSync(join(ROOT, 'website', 'build.ts'), 'utf8')).not.toContain('STYLE_THEME_LABELS')
   })
 
-  test('the retired bare Tufte input has no alias metadata or public resolution', () => {
+  test('removed Tufte palette/bare inputs have no metadata or public resolution', () => {
     for (const relative of ['src/index.ts', 'src/agent/core.ts', 'src/scene/style-registry.ts']) {
       expect(readFileSync(join(ROOT, relative), 'utf8')).not.toContain('TUFTE_STYLE_ALIAS')
     }
     const tufte = knownStyleDescriptors().find(descriptor => descriptor.identity.id === 'look:tufte')!
     expect(tufte.aliases).toEqual([])
+    expect(getStyle('palette:tufte')).toBeUndefined()
     expect(getStyle('tufte')).toBeUndefined()
+  })
+
+  test('CLI rejects the removed Tufte palette while retaining the full Look', () => {
+    const input = join(ROOT, 'eval/layout-compare/fixtures/flowchart-basic.mmd')
+    const removed = Bun.spawnSync([
+      'bun', 'run', join(ROOT, 'bin/am.ts'), 'render', input, '--style', 'palette:tufte',
+    ], { cwd: ROOT })
+    expect(removed.exitCode).toBe(2)
+    expect(removed.stderr.toString()).toContain('Unknown style "palette:tufte"')
+    expect(removed.stdout.toString()).toBe('')
+
+    const retained = Bun.spawnSync([
+      'bun', 'run', join(ROOT, 'bin/am.ts'), 'render', input, '--style', 'look:tufte',
+    ], { cwd: ROOT })
+    expect(retained.exitCode, retained.stderr.toString()).toBe(0)
+    expect(retained.stdout.toString()).toContain('<svg')
   })
 
   test('CLI discovery publishes only Look/Palette kind plus explicit default state', () => {

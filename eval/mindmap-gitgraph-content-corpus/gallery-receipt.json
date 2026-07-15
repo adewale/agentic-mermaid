@@ -696,7 +696,7 @@
     },
     {
       "path": "src/__tests__/extension-registries.test.ts",
-      "sha256": "4d686ff54743769a497be0bd34471b6967dcb5e725e0564338b17056bf46a9f4"
+      "sha256": "f070090b016677b6778cd88e1af8df3ba33ab51946769b38ed8e3115343b433a"
     },
     {
       "path": "src/__tests__/external-scene-public-api.test.ts",
@@ -1428,7 +1428,7 @@
     },
     {
       "path": "src/__tests__/style-spec-authority.test.ts",
-      "sha256": "23762e8b1972b7e55f8587ce8a648ec271faef6dd41e9bfe5d73b67ee0c39163"
+      "sha256": "83478b1f26f177a68578bf47c0d275e9794140906c0b1029fad900b7890d6c19"
     },
     {
       "path": "src/__tests__/styled-backend-paint.test.ts",
@@ -2320,7 +2320,7 @@
     },
     {
       "path": "src/palette-catalog.ts",
-      "sha256": "0001aa34b8ca6aff57981034810615c80ecb10df7cfbaa01685fb798c7e36f58"
+      "sha256": "d4cdc88ef15676a84091f9c4cc0b9c8eebe65bdd2234c1f2ae8111e406375468"
     },
     {
       "path": "src/parser.ts",
@@ -2556,7 +2556,7 @@
     },
     {
       "path": "src/scene/style-registry.ts",
-      "sha256": "9805130be996bd20794be8817da223a26f2e9ee18ff2571a69ac6704a9aa6977"
+      "sha256": "7709c8e57088efa384baf2d80b3d256581631a6ec28254fc0af89b2b6360757f"
     },
     {
       "path": "src/scene/style-spec.ts",
@@ -2768,7 +2768,7 @@
     },
     {
       "path": "src/types.ts",
-      "sha256": "19a932e28f8b556fc7c54b55586fa9434554677389378bd4ac6e057966ce1df9"
+      "sha256": "4b32691f143f9ba1aa6ee48992b861129490a9e199c3cd099951830437a80817"
     },
     {
       "path": "src/upstream-family-index.ts",
