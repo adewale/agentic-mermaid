@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { parse as parseYaml } from 'yaml'
 
 const REPO = join(import.meta.dir, '..', '..')
 const SITE = join(REPO, 'website', 'public')
@@ -47,13 +48,30 @@ describe('agent-readiness standards syntax', () => {
     const strategy = readFileSync(join(REPO, 'docs/testing-strategy.md'), 'utf8')
     const pullRequestTemplate = readFileSync(join(REPO, '.github/PULL_REQUEST_TEMPLATE.md'), 'utf8')
     const agentGuide = readFileSync(join(REPO, 'CLAUDE.md'), 'utf8')
+    const ci = parseYaml(ciWorkflow)
+    const unitSteps = ci.jobs.unit.steps
+    const aggregateSteps = ci.jobs.test.steps
+    const e2eSteps = ci.jobs.e2e.steps
 
     expect(packageJson.scripts.test).toBe('bun test --coverage --timeout 30000 src/__tests__/')
     expect(ciWorkflow.match(/run: bun run test/g)?.length).toBe(1)
-    expect(ciWorkflow).toContain('shard: [1/3, 2/3, 3/3]')
-    expect(ciWorkflow).toContain('run: bun run test -- --shard=${{ matrix.shard }}')
-    expect(ciWorkflow).toContain('suite: [cli, dist-artifact, tarball-consumer, browser]')
-    expect(ciWorkflow).toContain('needs: [unit, quality, route-sabotage]')
+    expect(ci.concurrency).toEqual({
+      group: 'ci-${{ github.event.pull_request.number || github.ref }}',
+      'cancel-in-progress': true,
+    })
+    expect(ci.jobs.unit.strategy.matrix.shard).toEqual(['1/3', '2/3', '3/3'])
+    expect(unitSteps.find((step: any) => step.name === 'Build the Node bundle for cross-runtime determinism contracts')?.run)
+      .toBe('bun run build')
+    expect(unitSteps.find((step: any) => step.name === 'Run test shard (coverage = under-tested finder, NOT an adequacy target)')?.run)
+      .toBe('bun run test -- --shard=${{ matrix.shard }}')
+    expect(unitSteps.find((step: any) => step.name === 'Upload shard coverage')?.uses)
+      .toBe('actions/upload-artifact@v4')
+    expect(ci.jobs.test.needs).toEqual(['unit', 'quality', 'route-sabotage'])
+    expect(aggregateSteps.find((step: any) => step.name === 'Merge shard coverage')?.run)
+      .toBe('bun run scripts/ci/merge-lcov.ts coverage-shards coverage/lcov.info 3')
+    expect(ci.jobs.e2e.strategy.matrix.suite).toEqual(['cli', 'dist-artifact', 'tarball-consumer', 'browser'])
+    expect(e2eSteps.find((step: any) => step.name === 'Run browser-gated unit contracts')?.run)
+      .toBe('cd e2e && AM_BROWSER_TESTS=1 bun test ../src/__tests__/editor-theme-switch.test.ts ../src/__tests__/editor-style-switch.test.ts ../src/__tests__/website-browser-a11y.test.ts --timeout 600000')
     expect(publishWorkflow.match(/run: bun run test/g)?.length).toBe(1)
     expect(strategy).toContain('`bun run test`')
     expect(pullRequestTemplate).toContain('`bun run test`')

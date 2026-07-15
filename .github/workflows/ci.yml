@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   unit:
     name: Unit tests (${{ matrix.shard }})
@@ -28,9 +32,13 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Build the Node bundle for cross-runtime determinism contracts
+        run: bun run build
+
       - name: Run test shard (coverage = under-tested finder, NOT an adequacy target)
-        # The pass/fail of this suite is the gate. Coverage is printed only to
-        # locate under-tested files — it is deliberately NOT a quality target:
+        # The pass/fail of this suite is the gate. Coverage is merged from all
+        # three shards only to locate under-tested files — it is deliberately
+        # NOT a quality target:
         # line coverage is weakly correlated with fault detection once suite
         # size is controlled (Inozemtseva & Holmes, ICSE 2014). Treat it as one
         # diagnostic alongside the behavioral, property, differential, and
@@ -46,6 +54,16 @@ jobs:
         # command-line default so local, CI, and release gates cannot drift;
         # CI appends only Bun's deterministic file-shard selector.
         run: bun run test -- --shard=${{ matrix.shard }}
+
+      - name: Upload shard coverage
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-coverage-${{ strategy.job-index }}
+          path: coverage/lcov.info
+          if-no-files-found: warn
+          overwrite: true
+          retention-days: 7
 
   quality:
     name: Quality gates
@@ -123,7 +141,37 @@ jobs:
     if: ${{ always() }}
 
     steps:
+      - uses: actions/checkout@v4
+        if: ${{ needs.unit.result == 'success' }}
+
+      - name: Setup Bun for coverage merge
+        if: ${{ needs.unit.result == 'success' }}
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: 1.3.13
+
+      - name: Download shard coverage
+        if: ${{ needs.unit.result == 'success' }}
+        uses: actions/download-artifact@v4
+        with:
+          pattern: unit-coverage-*
+          path: coverage-shards
+
+      - name: Merge shard coverage
+        if: ${{ needs.unit.result == 'success' }}
+        run: bun run scripts/ci/merge-lcov.ts coverage-shards coverage/lcov.info 3
+
+      - name: Upload merged coverage
+        if: ${{ needs.unit.result == 'success' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-lcov
+          path: coverage/lcov.info
+          overwrite: true
+          retention-days: 7
+
       - name: Require every test lane to pass
+        if: ${{ always() }}
         env:
           UNIT_RESULT: ${{ needs.unit.result }}
           QUALITY_RESULT: ${{ needs.quality.result }}
@@ -195,12 +243,10 @@ jobs:
 
       - name: Run browser-gated unit contracts
         if: ${{ matrix.suite == 'browser' }}
-        # editor-theme-switch.test.ts and website-browser-a11y.test.ts live in
-        # src/__tests__ but need a real Chromium, so they describe.skip in the
-        # unit job (no browsers there). Run them here where Playwright is
-        # installed — otherwise the chrome/artwork behavioral contract and the
-        # website accessibility smoke never execute in CI.
-        run: bun test src/__tests__/editor-theme-switch.test.ts src/__tests__/website-browser-a11y.test.ts --timeout 120000
+        # These suites live in src/__tests__ but require the explicit browser
+        # opt-in and a real Chromium, so keep them out of the unit shards and
+        # execute the complete theme/style/accessibility contract here.
+        run: cd e2e && AM_BROWSER_TESTS=1 bun test ../src/__tests__/editor-theme-switch.test.ts ../src/__tests__/editor-style-switch.test.ts ../src/__tests__/website-browser-a11y.test.ts --timeout 600000
 
   # Bounded fault-detection check for a small, pure module. This lane is kept
   # because a full run is about one minute and its measured ~97% kill score is

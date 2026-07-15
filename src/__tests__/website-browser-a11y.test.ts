@@ -121,7 +121,7 @@ describeBrowser('website browser accessibility smoke', () => {
     server = served.server
     baseUrl = served.base
     browser = await chromium.launch({ headless: true })
-  }, 30_000)
+  }, 120_000)
 
   afterAll(async () => {
     server?.stop(true)

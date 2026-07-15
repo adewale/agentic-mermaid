@@ -228,7 +228,7 @@
     },
     {
       "path": "src/__tests__/agent-readiness-standards.test.ts",
-      "sha256": "8fcab0ff4490791517871c0fe8efdd2330fb37de97ea56fcfed49b804204bfaa"
+      "sha256": "62bef475bd9a5cef2ae47cbbfb7dc7f13eeff47b88cac859ce7f876e1e85cd51"
     },
     {
       "path": "src/__tests__/agent-region-tree.test.ts",
@@ -644,11 +644,11 @@
     },
     {
       "path": "src/__tests__/editor-style-switch.test.ts",
-      "sha256": "785b9be515f6f4423ddd90a9f78a7feb723de939cc3a41e1860e88d2e2308e6d"
+      "sha256": "7715c9f1d8d6047999af109985b202205c6d0330dbb0660458b939e99dd9d49a"
     },
     {
       "path": "src/__tests__/editor-theme-switch.test.ts",
-      "sha256": "281c618180b0a492b679fedf2a56f713e6d834c5c80ecfe88210e198f4190c72"
+      "sha256": "cba03d10d874376763ca0a336d53d774a032a5d1ffca7a5f21f205d702852b44"
     },
     {
       "path": "src/__tests__/embedded-font-resources.test.ts",
@@ -724,11 +724,11 @@
     },
     {
       "path": "src/__tests__/fc-seed-policy.test.ts",
-      "sha256": "a62e789b2af92ea78f301c1df61451ef173f3663e27d21d76e0e19f27e703b42"
+      "sha256": "fbf147944084369eea39bb546133d78984f0cf8fb8d1183fe605ffcf2f5e6536"
     },
     {
       "path": "src/__tests__/fc-seed.preload.ts",
-      "sha256": "dfa2d1fcf2ede7ca115729ad9b3d700f3fbee27e0bd0c1e81272a3d9d7ecdad0"
+      "sha256": "00c33ce512856cdf3ac3d6d532a9a4c23d4b134d80cca514ff085c1d08f34530"
     },
     {
       "path": "src/__tests__/feedback-reroute.test.ts",
@@ -999,6 +999,10 @@
       "sha256": "1ff3cebd23bf5c9d2cd035404676b645415ef48644d84427377a475df1ffaafc"
     },
     {
+      "path": "src/__tests__/merge-lcov.test.ts",
+      "sha256": "858a4ae01bbc206aee7a30079d6fe2c3e1574b20409c3620724f76f0eeee9929"
+    },
+    {
       "path": "src/__tests__/mermaid-conformance.test.ts",
       "sha256": "a3cde4010119caaf0425153ea836f7a002a3b877b06040848a96059cec10de5a"
     },
@@ -1160,7 +1164,7 @@
     },
     {
       "path": "src/__tests__/property-mermaid-source-and-parser.test.ts",
-      "sha256": "6b58331090c2d8ae0ba4de723a1ceac97795c193af89f39e0c9c3664ebf6f544"
+      "sha256": "cf5e5f424263d063156787d70f056623522c404e79759e88f2e8b44d5a0b6d57"
     },
     {
       "path": "src/__tests__/property-op-boundary-fuzz.test.ts",
@@ -1284,7 +1288,7 @@
     },
     {
       "path": "src/__tests__/route-contracts.test.ts",
-      "sha256": "d9e4f411e87a9c284c335f8751838af823a6cb973d973a0bdcfaefab6c5918b4"
+      "sha256": "3a90597911582619fdfe41e5e068fe7d8a032e174aec83218bbc1ad1adb63c62"
     },
     {
       "path": "src/__tests__/scene-connector-contract.test.ts",
@@ -1572,7 +1576,7 @@
     },
     {
       "path": "src/__tests__/website-browser-a11y.test.ts",
-      "sha256": "0a000c371bbf9de924b09a1709643681e7c04e305c3bbea36fb14c5d608add82"
+      "sha256": "245942c95dd734821c8a82a615df2a6875fbc3d80d977a58d9ee6890777840c7"
     },
     {
       "path": "src/__tests__/website-build.test.ts",
@@ -1616,7 +1620,7 @@
     },
     {
       "path": "src/__tests__/zzz-fc-seed-policy-epilogue.test.ts",
-      "sha256": "fe036f36de19339c58eac9143ab1c900522ea4702c59204a685b8476f9a77d70"
+      "sha256": "a5971e0eaed1018d521738611be04e72f3fdefce2c9b6b0118059db116e5f49c"
     },
     {
       "path": "src/agent/accessibility-envelope.ts",
