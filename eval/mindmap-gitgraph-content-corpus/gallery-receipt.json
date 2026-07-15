@@ -228,7 +228,7 @@
     },
     {
       "path": "src/__tests__/agent-readiness-standards.test.ts",
-      "sha256": "f5b707532ca8afc99ac437a57dca9ffdc32fd272f66b4c30d2beff2cf34522de"
+      "sha256": "8fcab0ff4490791517871c0fe8efdd2330fb37de97ea56fcfed49b804204bfaa"
     },
     {
       "path": "src/__tests__/agent-region-tree.test.ts",

@@ -78,9 +78,11 @@ independent spec:
   golden never moves silently.
 
 **Runs:** ASCII/SVG goldens per PR. The browser/screenshot e2e suite also runs
-per PR — it is the `e2e` job in `ci.yml` (`needs: test`), which installs
-Chromium and runs `browser.test.ts` (screenshot diff), the CLI/security e2e,
-and the single-binary e2e. The broad contact sheets are not on the per-PR gate.
+per PR — it is the four-lane `e2e` matrix in `ci.yml` (`needs: test`). Its
+browser lane installs Chromium and runs `browser.test.ts` (screenshot diff)
+plus the security contracts, while independent lanes run the CLI/single-binary,
+dist-artifact, and tarball-consumer suites. The broad contact sheets are not on
+the per-PR gate.
 **Does not prove:** that a *changed* golden is an improvement — only that
 change was noticed. Judging the change still needs a human or the
 before/after harness (`eval/layout-compare`).
@@ -264,12 +266,12 @@ real judge run can.
 `ci.yml` is the source of truth for what gates each PR — read it rather than a
 table here, which would drift. In broad strokes:
 
-- **Per-PR (`ci.yml`):** the unit/property suite (`bun run test`) —
+- **Per-PR (`ci.yml`):** the three-shard unit/property suite (`bun run test`) —
   Tier-1 verify, goldens, the differential + faithfulness + metamorphic gates,
   `measureQuality`/ugly-detector/layout-rubric, the heuristic-tracker ratchet,
   the corpus/seqbench/upstream benches — plus type check, the hero check, the
-  golden-drift gate, the browser/CLI/binary e2e job, the fast incremental
-  mutation lane, and the focused sabotage suite.
+  golden-drift gate, the parallel browser/CLI/binary/fuzz e2e matrix, the fast
+  incremental mutation lane, and the independent focused sabotage lane.
 - **Manual / periodic:** opt-in broad Stryker survivor harvests,
   `layout-compare` before/after, the benchmark vs competitors, and the real
   LLM-as-judge run.

@@ -50,6 +50,10 @@ describe('agent-readiness standards syntax', () => {
 
     expect(packageJson.scripts.test).toBe('bun test --coverage --timeout 30000 src/__tests__/')
     expect(ciWorkflow.match(/run: bun run test/g)?.length).toBe(1)
+    expect(ciWorkflow).toContain('shard: [1/3, 2/3, 3/3]')
+    expect(ciWorkflow).toContain('run: bun run test -- --shard=${{ matrix.shard }}')
+    expect(ciWorkflow).toContain('suite: [cli, dist-artifact, tarball-consumer, browser]')
+    expect(ciWorkflow).toContain('needs: [unit, quality, route-sabotage]')
     expect(publishWorkflow.match(/run: bun run test/g)?.length).toBe(1)
     expect(strategy).toContain('`bun run test`')
     expect(pullRequestTemplate).toContain('`bun run test`')
