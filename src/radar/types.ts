@@ -86,6 +86,9 @@ export interface PositionedRadarRing {
 /** A radial spoke plus its outward axis label. */
 export interface PositionedRadarAxis {
   id: string
+  /** Complete authored label, retained for accessibility/public projections
+   *  even when the visible label is wrapped. */
+  label: string
   /** Spoke endpoint (on the outer ring). */
   x: number
   y: number
@@ -95,6 +98,11 @@ export interface PositionedRadarAxis {
   anchor: 'start' | 'middle' | 'end'
   /** Wrapped label lines (≥1). */
   lines: string[]
+  /** Widest measured label line (px) — the de-collision/knockout footprint. */
+  labelWidth: number
+  /** Leader line from the outer ring to a label displaced clear of a neighbour
+   *  (quadrant-style); present only when the label was relocated. */
+  leader?: { x1: number; y1: number; x2: number; y2: number }
 }
 
 /** One positioned curve. */
@@ -118,10 +126,16 @@ export interface PositionedRadarTickLabel {
   text: string
   x: number
   y: number
+  /** Knockout box dimensions (centered on x,y) so the value reads over rings
+   *  and translucent silhouettes — the flowchart bordered-label-box discipline. */
+  w: number
+  h: number
 }
 
 export interface PositionedRadarLegendItem {
   label: string
+  /** Wrapped legend label lines (≥1) — budget-wrapped with reserved row height. */
+  lines: string[]
   colorIndex: number
   x: number
   y: number

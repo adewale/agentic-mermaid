@@ -83,7 +83,7 @@ export const RADAR_THEME_FIELDS = [
 ] as const
 
 const POSITIVE_FIELDS = [
-  'width', 'height', 'axisScaleFactor', 'axisLabelFactor',
+  'width', 'height', 'axisScaleFactor',
 ] as const
 
 /** Arithmetic/resource bounds applied before layout. They are deliberately
@@ -93,6 +93,9 @@ export const RADAR_CONFIG_LIMITS = Object.freeze({
   dimension: 4096,
   margin: 4096,
   factor: 8,
+  /** Values at or below Mermaid's 1.05 default are consumed by mandatory
+   *  label clearance and therefore cannot be an effective user override. */
+  axisLabelFactorMin: 1.1,
   fontSize: 256,
   lineWidth: 64,
   legendBoxSize: 512,
@@ -117,6 +120,11 @@ export function resolveRadarVisualConfig(
     const value = getFrontmatterScalar<number>(section, [field])
     const maximum = field === 'width' || field === 'height' ? RADAR_CONFIG_LIMITS.dimension : RADAR_CONFIG_LIMITS.factor
     if (typeof value === 'number' && Number.isFinite(value) && value > 0 && value <= maximum) config[field] = value
+  }
+  const axisLabelFactor = getFrontmatterScalar<number>(section, ['axisLabelFactor'])
+  if (typeof axisLabelFactor === 'number' && Number.isFinite(axisLabelFactor) &&
+      axisLabelFactor >= RADAR_CONFIG_LIMITS.axisLabelFactorMin && axisLabelFactor <= RADAR_CONFIG_LIMITS.factor) {
+    config.axisLabelFactor = axisLabelFactor
   }
   for (const field of NON_NEGATIVE_FIELDS) {
     const value = getFrontmatterScalar<number>(section, [field])

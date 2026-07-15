@@ -1,0 +1,13 @@
+---
+title: Model capability profile
+config:
+  radar:
+    tickLabels: true
+---
+radar-beta
+  axis speed["Speed"], acc["Operational cost efficiency"], ctx["Context-window utilisation"]
+  axis safety["Safety and alignment robustness"], lat["Latency"], tp["Throughput per dollar"]
+  curve a["Model A, frontier release 2026"]{4, 3, 2, 4, 3, 5}
+  curve b["Model B"]{3, 5, 4, 3, 5, 3}
+  curve c["Model C baseline"]{2, 4, 3, 5, 4, 2}
+  max 5

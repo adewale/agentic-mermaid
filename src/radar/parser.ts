@@ -13,6 +13,8 @@ import { syntaxError } from '../shared/syntax-error.ts'
 // ============================================================================
 
 export const MAX_RADAR_TICKS = 64
+/** Resource bound for radial layout and SVG scene size. */
+export const MAX_RADAR_AXES = 256
 
 const HEADER_RE = /^radar-beta(?:[\t ]*:)?(?=$|\s)/i
 const TITLE_RE = /^title(?:[\t ]+(.*))?$/i
@@ -333,7 +335,12 @@ export function parseRadarChart(lines: string[], options: RadarParseOptions = {}
     if ((match = line.match(ACC_DESCR_RE))) { accessibility.description = normalizeBrTags(match[1]!.trim()); continue }
     if ((match = line.match(TITLE_RE))) { title = normalizeBrTags((match[1] ?? '').trim()); continue }
     if ((match = line.match(AXIS_RE))) {
-      for (const item of splitTopLevel(match[1]!, 'axis list')) axes.push(parseAxisItem(item))
+      for (const item of splitTopLevel(match[1]!, 'axis list')) {
+        if (axes.length >= MAX_RADAR_AXES) {
+          throw new Error(`Radar charts support at most ${MAX_RADAR_AXES} axes.`)
+        }
+        axes.push(parseAxisItem(item))
+      }
       continue
     }
     if ((match = line.match(CURVE_RE))) {

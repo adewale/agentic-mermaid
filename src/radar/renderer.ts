@@ -7,6 +7,7 @@ import { radarStyleDefaults } from './layout.ts'
 import { resolveRenderStyle } from '../styles.ts'
 import type { ResolvedRenderStyle } from '../styles.ts'
 import { pieSliceColors } from '../pie/palette.ts'
+import { wcagCssContrastRatio } from '../shared/color-math.ts'
 import type { SceneDoc, SceneNode } from '../scene/ir.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
@@ -27,14 +28,35 @@ import { hashId } from '../scene/seed.ts'
 //                              already in SKETCH_SHAPE_ROLES, so it inherits the
 //                              hand-drawn/wash fill treatment under styled looks)
 //   vertex dots              → 'point'
+//   label leaders + tick box → 'grid' / 'chrome' (crisp furniture)
 //   axis + ring labels       → 'axis'   legend → 'legend'   title → 'title'
 //
 // Per-curve colors come from the shared chart palette (pieSliceColors), so a
 // single radar renders correctly across every built-in Palette (the renderer
 // re-derives fills from RenderContext.colors) and matches pie/xychart identity.
 //
+// Label ink is contrast-guarded (journey discipline): a configured concrete
+// axis/tick color is honored only when it clears WCAG-AA 4.5:1 on the page,
+// else it is nudged toward the page ink — and ring-value labels sit on a
+// page-colored knockout box so the default token reads over the silhouettes.
+//
 // Deterministic: no Math.random / Date.now. All geometry comes from layout.
 // ============================================================================
+
+/** WCAG-AA (4.5:1) guard for label ink after alpha compositing. Unresolved CSS
+ *  is uncertainty rather than proof, so it falls back to the best certifiable
+ *  page ink. Exported for the discipline's red→green test. */
+export function guardLabelInk(candidate: string, background: string, fallback: string): string {
+  const candidateRatio = wcagCssContrastRatio(candidate, background)
+  if (candidateRatio !== null && candidateRatio >= 4.5) return candidate
+
+  const choices = [fallback, '#000000', '#ffffff']
+    .map(color => ({ color, ratio: wcagCssContrastRatio(color, background) }))
+    .filter((choice): choice is { color: string; ratio: number } => choice.ratio !== null)
+    .sort((a, b) => b.ratio - a.ratio)
+  const best = choices[0]
+  return best && best.ratio >= 4.5 ? best.color : fallback
+}
 
 export function renderRadarSvg(ctx: RenderContext<PositionedRadarChart>): string {
   return DefaultBackend.render(lowerRadarScene(ctx), { seed: 0 })
@@ -59,10 +81,14 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
   const axisStrokeWidth = chart.visual.axisStrokeWidth ?? 1
   const graticuleStrokeWidth = chart.visual.graticuleStrokeWidth ?? 1
   const graticuleOpacity = chart.visual.graticuleOpacity ?? 0.7
-  // Mermaid applies radar.axisColor to both spokes and their labels.
-  const axisTextColor = axisColor
   const titleColor = chart.visual.titleColor ?? style.groupTextColor ?? style.nodeTextColor ?? 'var(--_text)'
   const dotStroke = style.nodeBorderColor ?? 'var(--bg)'
+  // Mermaid parity: an explicit radar.axisColor colors both spokes and labels.
+  // The default label candidate is page text, not the lower-contrast scaffold
+  // token; every candidate is certified after alpha compositing.
+  const axisTextCandidate = chart.visual.axisColor ?? style.edgeTextColor ?? colors.fg
+  const axisTextColor = guardLabelInk(axisTextCandidate, colors.bg, colors.fg)
+  const tickTextColor = guardLabelInk(style.edgeTextColor ?? colors.fg, colors.bg, colors.fg)
 
   const accessibility = {
     title: chart.accessibility?.title ?? chart.title?.text ?? 'Radar chart',
@@ -81,7 +107,7 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
 
   // Document shell.
   const extraCss = radarStyles(
-    style, axisColor, graticuleColor, axisTextColor, titleColor, dotStroke,
+    style, axisColor, graticuleColor, axisTextColor, tickTextColor, titleColor, dotStroke,
     axisStrokeWidth, graticuleStrokeWidth, graticuleOpacity, curveOpacity,
   )
   const preludeSegments = [
@@ -194,7 +220,40 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
     })
   }
 
-  // Ring value labels (Agentic extension).
+  // Leader lines to relocated axis labels (quadrant discipline; crisp/quiet).
+  for (const [axisIndex, axis] of chart.axes.entries()) {
+    if (!axis.leader) continue
+    const identity = axisIdentities[axisIndex]!
+    const l = axis.leader
+    parts.push(marks.shape(
+      {
+        id: `leader:${identity}`,
+        role: 'grid',
+        geometry: { kind: 'line', x1: l.x1, y1: l.y1, x2: l.x2, y2: l.y2 },
+        paint: { stroke: graticuleColor, strokeWidth: '1' },
+      },
+      `<line class="radar-leader" x1="${l.x1}" y1="${l.y1}" x2="${l.x2}" y2="${l.y2}" />`,
+    ))
+  }
+
+  // Ring value labels (Agentic extension): a page-colored knockout box + value,
+  // so the number reads over the rings and translucent silhouettes.
+  for (let i = 0; i < chart.tickLabels.length; i++) {
+    const t = chart.tickLabels[i]!
+    const bx = round2(t.x - t.w / 2)
+    const by = round2(t.y - t.h / 2)
+    parts.push(marks.shape(
+      {
+        id: `tick-box:${i}`,
+        role: 'grid',
+        geometry: { kind: 'rect', x: bx, y: by, width: t.w, height: t.h, rx: 4, ry: 4 },
+        paint: { fill: 'var(--bg)', stroke: graticuleColor, strokeWidth: '0.75' },
+      },
+      `<rect class="radar-tick-box" x="${bx}" y="${by}" width="${t.w}" height="${t.h}" rx="4" ry="4" />`,
+    ))
+  }
+  // Paint all text after all knockout boxes. Layout already admits disjoint
+  // boxes; this order is a final safeguard against any future geometry drift.
   for (let i = 0; i < chart.tickLabels.length; i++) {
     const t = chart.tickLabels[i]!
     parts.push(marks.text(
@@ -206,7 +265,7 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
         y: t.y,
         fontSize: chart.typography.tickFontSize,
         anchor: 'middle',
-        paint: { fill: axisTextColor },
+        paint: { fill: tickTextColor },
       },
       `<text class="radar-tick-label" x="${t.x}" y="${t.y}" text-anchor="middle" dominant-baseline="middle" font-size="${chart.typography.tickFontSize}" font-weight="${chart.typography.tickFontWeight}">${escapeXml(t.text)}</text>`,
     ))
@@ -231,12 +290,12 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
         anchor: axis.anchor,
         paint: { fill: axisTextColor },
       },
-      `<text class="radar-axis-label" x="${axis.labelX}" y="${axis.labelY}" text-anchor="${axis.anchor}" ` +
+      `<text class="radar-axis-label" aria-label="${escapeXml(axis.label)}" x="${axis.labelX}" y="${axis.labelY}" text-anchor="${axis.anchor}" ` +
         `dominant-baseline="middle" font-size="${chart.typography.axisFontSize}" font-weight="${chart.typography.axisFontWeight}">${tspans}</text>`,
     ))
   }
 
-  // Legend.
+  // Legend (wrapped labels, reserved row height).
   for (const item of chart.legend) {
     const fill = fills[item.colorIndex]!
     parts.push(marks.shape(
@@ -249,11 +308,15 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
       },
       `<rect class="radar-legend-swatch" x="${item.x}" y="${item.y}" width="${item.swatchSize}" height="${item.swatchSize}" rx="2" ry="2" fill="${escapeXml(fill)}" fill-opacity="${curveOpacity}" />`,
     ))
+    const legendShift = -(item.lines.length - 1) * 0.6
+    const legendTspans = item.lines
+      .map((line, li) => `<tspan x="${item.textX}" dy="${li === 0 ? `${legendShift}em` : '1.2em'}">${escapeXml(line)}</tspan>`)
+      .join('')
     parts.push(marks.text(
       {
         id: `legend-label:${item.colorIndex}`,
         role: 'legend',
-        text: item.label,
+        text: item.lines.join('\n'),
         x: item.textX,
         y: item.textY,
         fontSize: chart.typography.legendFontSize,
@@ -261,7 +324,7 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
         paint: { fill: style.nodeTextColor ?? 'var(--_text)' },
       },
       `<text class="radar-legend-text" x="${item.textX}" y="${item.textY}" text-anchor="start" dominant-baseline="middle" ` +
-        `font-size="${chart.typography.legendFontSize}" font-weight="${chart.typography.legendFontWeight}">${escapeXml(item.label)}</text>`,
+        `font-size="${chart.typography.legendFontSize}" font-weight="${chart.typography.legendFontWeight}">${legendTspans}</text>`,
     ))
   }
 
@@ -287,6 +350,8 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
 
   return { family: 'radar', width: chart.width, height: chart.height, colors, parts }
 }
+
+function round2(n: number): number { return Math.round(n * 100) / 100 }
 
 function openRadarSvgTag(
   chart: PositionedRadarChart,
@@ -327,6 +392,7 @@ function radarStyles(
   axisColor: string,
   graticuleColor: string,
   axisTextColor: string,
+  tickTextColor: string,
   titleColor: string,
   dotStroke: string,
   axisStrokeWidth: number,
@@ -338,10 +404,12 @@ function radarStyles(
   .radar-ring { stroke: ${graticuleColor}; stroke-width: ${graticuleStrokeWidth}; stroke-opacity: ${graticuleOpacity}; fill: none; }
   .radar-ring-outer { stroke-width: ${graticuleStrokeWidth * 1.4}; stroke-opacity: ${graticuleOpacity}; }
   .radar-axis-line { stroke: ${axisColor}; stroke-width: ${axisStrokeWidth}; }
+  .radar-leader { stroke: ${graticuleColor}; stroke-width: 1; stroke-opacity: 0.5; }
   .radar-area { stroke-width: ${style.nodeLineWidth}; fill-opacity: ${curveOpacity}; stroke-linejoin: round; }
   .radar-dot { stroke: ${dotStroke}; stroke-width: 1.2; }
   .radar-axis-label { fill: ${axisTextColor}; }
-  .radar-tick-label { fill: ${axisTextColor}; opacity: 0.85; }
+  .radar-tick-box { fill: var(--bg); stroke: ${graticuleColor}; stroke-opacity: 0.35; stroke-width: 0.75; }
+  .radar-tick-label { fill: ${tickTextColor}; }
   .radar-legend-swatch { stroke: ${style.nodeBorderColor ?? 'var(--_node-stroke)'}; stroke-width: 1; }
   .radar-legend-text { fill: ${style.nodeTextColor ?? 'var(--_text)'}; }
   .radar-title { fill: ${titleColor}; }

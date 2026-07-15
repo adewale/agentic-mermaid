@@ -91,7 +91,7 @@ const FAMILY_VALUE_RULES: Partial<Record<DiagramKind, Record<string, ValueRule>>
     width: boundedPositive(RADAR_CONFIG_LIMITS.dimension), height: boundedPositive(RADAR_CONFIG_LIMITS.dimension),
     marginTop: boundedNonNegative(RADAR_CONFIG_LIMITS.margin), marginRight: boundedNonNegative(RADAR_CONFIG_LIMITS.margin),
     marginBottom: boundedNonNegative(RADAR_CONFIG_LIMITS.margin), marginLeft: boundedNonNegative(RADAR_CONFIG_LIMITS.margin),
-    axisScaleFactor: boundedPositive(RADAR_CONFIG_LIMITS.factor), axisLabelFactor: boundedPositive(RADAR_CONFIG_LIMITS.factor), curveTension: range(0, 1),
+    axisScaleFactor: boundedPositive(RADAR_CONFIG_LIMITS.factor), axisLabelFactor: range(RADAR_CONFIG_LIMITS.axisLabelFactorMin, RADAR_CONFIG_LIMITS.factor), curveTension: range(0, 1),
     useMaxWidth: boolean, tickLabels: boolean,
   },
   class: { nodeSpacing: nonNegative, rankSpacing: nonNegative, hierarchicalNamespaces: boolean },

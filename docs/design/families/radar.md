@@ -50,7 +50,8 @@ upstream long-label clipping gap, #7683).
 ![Radar across every built-in Look and Palette](./radar-style-palette-sheet.png)
 
 Config (`config.radar.*`, wire-or-warn): `width`, `height`, `marginTop/Right/Bottom/Left`,
-`axisScaleFactor` (spoke length only), `axisLabelFactor`, `curveTension`, `useMaxWidth`,
+`axisScaleFactor` (spoke length only), `axisLabelFactor` (effective overrides are
+`1.1` through `8`), `curveTension`, `useMaxWidth`,
 and the Agentic extension `tickLabels` (draws numeric ring labels — the still-unmerged
 upstream request #6473/#6481 — off by default to preserve parity). Configured width and
 height reserve their dimensions independently; all input-driven geometry values are

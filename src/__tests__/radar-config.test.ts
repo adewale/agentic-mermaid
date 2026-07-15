@@ -15,11 +15,25 @@ describe('radar config (wire-or-warn)', () => {
   })
 
   test('drops out-of-domain values', () => {
-    const cfg = resolveRadarVisualConfig({ radar: { width: -1, curveTension: 2, axisScaleFactor: 0, marginLeft: 1e308 } } as never)
+    const cfg = resolveRadarVisualConfig({ radar: { width: -1, curveTension: 2, axisScaleFactor: 0, axisLabelFactor: 1.05, marginLeft: 1e308 } } as never)
     expect(cfg.width).toBeUndefined()
     expect(cfg.curveTension).toBeUndefined()
     expect(cfg.axisScaleFactor).toBeUndefined()
+    expect(cfg.axisLabelFactor).toBeUndefined()
     expect(cfg.marginLeft).toBeUndefined()
+  })
+
+  test('axisLabelFactor rejects ineffective low values and moves labels when accepted', () => {
+    const source = 'radar-beta\n axis top, right, bottom, left\n max 5'
+    const chart = parseRadarChart(lines(source))
+    const near = layoutRadarChart(chart, {}, { axisLabelFactor: 1.1 })
+    const far = layoutRadarChart(chart, {}, { axisLabelFactor: 1.2 })
+    expect(far.cy - far.axes[0]!.labelY).toBeGreaterThan(near.cy - near.axes[0]!.labelY)
+
+    const configured = `---\nconfig:\n  radar:\n    axisLabelFactor: 1.05\n---\n${source}`
+    expect(verifyMermaid(configured).warnings).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: 'INEFFECTIVE_CONFIG', field: 'radar.axisLabelFactor' }),
+    ]))
   })
 
   test('bounds finite geometry config before arithmetic can overflow', () => {
