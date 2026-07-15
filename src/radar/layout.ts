@@ -357,7 +357,7 @@ export function layoutRadarChart(
     for (const ring of [...rings].reverse()) {
       const p = polar(cx, cy, ring.r, gapAngle)
       const text = formatTick(ring.value)
-      const w = measureTextWidth(text, R.ringLabelFontSize, 500) + R.tickBoxPadX * 2
+      const w = measureTextWidth(text, R.ringLabelFontSize, axisWeight) + R.tickBoxPadX * 2
       const h = R.ringLabelFontSize + R.tickBoxPadY * 2
       const candidate = { text, x: round(p.x), y: round(p.y), w: round(w), h: round(h) }
       const box: Box = { left: candidate.x - candidate.w / 2, right: candidate.x + candidate.w / 2, top: candidate.y - candidate.h / 2, bottom: candidate.y + candidate.h / 2 }

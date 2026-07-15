@@ -40,6 +40,7 @@ import { normalizeV11Shape } from '../flowchart-shapes.ts'
 import { familyConfigDiagnostics } from '../shared/family-config-diagnostics.ts'
 import { sequenceMessages } from './sequence-body.ts'
 import { sameExtensionIdentity } from '../shared/extension-identity.ts'
+import { wcagCssContrastRatio } from '../shared/color-math.ts'
 
 function familyConfigShapeWarnings(d: ValidDiagram): LayoutWarning[] {
   const roots: unknown[] = [d.meta.frontmatter, ...d.meta.initDirectives.map(directive => directive.parsed)]
@@ -241,6 +242,37 @@ function quadrantInertStyleWarnings(d: ValidDiagram): LayoutWarning[] {
   }))
 }
 
+/** Preserve Mermaid-authored Radar paint exactly and diagnose measurable
+ * contrast after request resolution. This consumes the same frozen visual
+ * config and background as rendering, so verification never guesses from raw
+ * source or introduces an automatic repaint stage. */
+function radarAuthoredContrastWarnings(positioned: VerificationArtifact): LayoutWarning[] {
+  try {
+    const artifact = positioned()
+    if (artifact?.request.renderOptions.transparent) return []
+    const visual = artifact?.request.familyConfig?.visual as { axisColor?: unknown } | undefined
+    const foreground = visual?.axisColor
+    if (typeof foreground !== 'string') return []
+    const background = artifact!.request.appearance.colors.bg
+    const ratio = wcagCssContrastRatio(foreground, background)
+    if (ratio === null || ratio >= 4.5) return []
+    const roundedRatio = Math.round(ratio * 100) / 100
+    return [{
+      code: 'LOW_CONTRAST',
+      field: 'themeVariables.radar.axisColor',
+      foreground,
+      background,
+      ratio: roundedRatio,
+      minimum: 4.5,
+      message: `Authored Radar axis label color ${foreground} has contrast ${roundedRatio}:1 against ${background}; expected at least 4.5:1. The color is preserved as authored.`,
+    }]
+  } catch {
+    // Layout/render failures have their own RENDER_FAILED path; do not replace
+    // the primary diagnosis with a speculative contrast warning.
+    return []
+  }
+}
+
 export function configWarningsForDiagram(d: ValidDiagram): LayoutWarning[] {
   const familySpecific = d.kind === 'gantt' ? ganttTodayMarkerWarnings(d) : []
   return dedupedConcat(familySpecific, familyConfigShapeWarnings(d))
@@ -348,7 +380,14 @@ function verifyStructure(
           ? 'center'
           : d.body.kind === 'journey',
       })
-    return finalize(dedupedConcat(dedupedConcat(pluginWarnings, familyGeometry), layoutOutcome.warnings), layout, opts)
+    const appearanceWarnings = d.body.kind === 'radar'
+      ? radarAuthoredContrastWarnings(positioned)
+      : []
+    return finalize(
+      dedupedConcat(dedupedConcat(dedupedConcat(pluginWarnings, familyGeometry), layoutOutcome.warnings), appearanceWarnings),
+      layout,
+      opts,
+    )
   }
 
   // State diagrams (BUILD-19): the StateBody projects to a MermaidGraph via the

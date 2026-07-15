@@ -1387,6 +1387,12 @@ requirement is introduced.
   wrong role is obvious; render it for every current and newly added family.
 - **Semantic binding:** the same status/category tag selects the same slot across
   structural, temporal, domain, and chart families.
+- **Family-owned emphasis fixture:** Pie `highlightSlice` is the discriminating
+  Section B fixture: highlighted and unhighlighted renders keep byte-identical
+  slice geometry; `category`/`value`/`emphasis` channels and final `MarkPaint`
+  survive crisp and styled backends; meaningful text stays full-contrast;
+  terminal output retains a non-color cue; and role/binding defaults never
+  override the authored family emphasis.
 - **Constraint tests:** positive and negative examples for accent area, contrast,
   mono role, not-applicable channels, and unmatched bindings.
 - **Human low-floor test:** give unfamiliar users a style file and ask for a

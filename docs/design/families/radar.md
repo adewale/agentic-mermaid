@@ -44,8 +44,9 @@ rings and straight polygon edges. Each curve is a translucent filled area (reusi
 scene `pie-slice` role, so the hand-drawn / watercolor Style stacks apply for free) with
 dot vertices on the data points; per-curve colors come from the shared chart palette
 (`pieSliceColors`), so a radar renders consistently across every built-in Palette and
-matches pie/xychart series identity. Axis labels wrap to two lines when long (closing the
-upstream long-label clipping gap, #7683).
+matches pie/xychart series identity. Long axis labels wrap losslessly to a bounded width,
+are de-collided radially, and receive leaders when displaced (closing the upstream
+long-label clipping gap, #7683).
 
 ![Radar across every built-in Look and Palette](./radar-style-palette-sheet.png)
 
@@ -62,6 +63,10 @@ and stroke widths, axis/legend font sizes, curve/graticule opacity, curve stroke
 and legend box size. Global `themeVariables.fontSize`, `themeVariables.titleColor`, and
 `cScale0..11` control the measured title and curve palette. Unknown, invalid, or
 out-of-budget values produce `INEFFECTIVE_CONFIG` rather than silently vanishing.
+An explicit `themeVariables.radar.axisColor` remains authoritative for spokes and labels;
+when its concrete contrast against an opaque resolved page is below 4.5:1, verification
+emits advisory `LOW_CONTRAST` with the measured pair instead of silently repainting it.
+Transparent output is not measured because its host backdrop is unknown.
 
 ## ASCII
 

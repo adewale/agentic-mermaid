@@ -5,7 +5,7 @@ import { guardLabelInk } from '../radar/renderer.ts'
 import type { PositionedRadarAxis, PositionedRadarChart } from '../radar/types.ts'
 import { measureTextWidth } from '../text-metrics.ts'
 import { contrastRatio, wcagCssContrastRatio } from '../shared/color-math.ts'
-import { renderMermaidSVG } from '../agent/index.ts'
+import { renderMermaidSVG, verifyMermaid } from '../agent/index.ts'
 
 // ============================================================================
 // The reverse-flow label disciplines applied to radar (see
@@ -75,7 +75,7 @@ describe('radar label discipline — reverse-flow lessons', () => {
     }
   })
 
-  test('R6 — guardLabelInk certifies composited ink and falls back from unresolved CSS', () => {
+  test('R6 — derived label ink is contrast-guarded without repainting authored color', () => {
     const guarded = guardLabelInk('#9a9a9a', '#ffffff', '#111111')
     expect(guarded).not.toBe('#9a9a9a')
     expect(contrastRatio(guarded, '#ffffff')!).toBeGreaterThanOrEqual(4.5)
@@ -91,6 +91,27 @@ describe('radar label discipline — reverse-flow lessons', () => {
     expect(defaultInk).toBeDefined()
     expect(defaultInk).not.toBe('var(--_line)')
     expect(wcagCssContrastRatio(defaultInk!, '#ffffff')!).toBeGreaterThanOrEqual(4.5)
+
+    const authored = `---
+config:
+  themeVariables:
+    radar:
+      axisColor: "#dddddd"
+---
+${DEMO}`
+    const authoredSvg = renderMermaidSVG(authored)
+    expect(authoredSvg).toContain('.radar-axis-label { fill: #dddddd; }')
+    expect(verifyMermaid(authored).warnings).toContainEqual(expect.objectContaining({
+      code: 'LOW_CONTRAST',
+      field: 'themeVariables.radar.axisColor',
+      foreground: '#dddddd',
+      background: '#FFFFFF',
+      minimum: 4.5,
+    }))
+    // A transparent SVG has no final page paint: the host backdrop is unknown,
+    // so verification must not claim a contrast ratio against the fallback bg.
+    expect(verifyMermaid(authored, { renderOptions: { transparent: true } }).warnings)
+      .not.toContainEqual(expect.objectContaining({ code: 'LOW_CONTRAST' }))
   })
 
   test('R4 — long axis labels wrap to a width budget (and stay within the cap)', () => {
@@ -146,6 +167,28 @@ describe('radar label discipline — reverse-flow lessons', () => {
     }
     const svg = renderMermaidSVG(DEMO)
     expect(svg).toContain('class="radar-leader"')
+  })
+
+  test('R5 — tick knockout boxes use the exact resolved style weight', () => {
+    const source = `---
+config:
+  radar:
+    tickLabels: true
+---
+radar-beta
+  axis a, b, c, d
+  curve x{1,2,3,4}
+  max 5`
+    const svg = renderMermaidSVG(source, { style: 'accessible-high-contrast' })
+    const boxes = [...svg.matchAll(/class="radar-tick-box"[^>]*width="([^"]+)"/g)]
+    const labels = [...svg.matchAll(/class="radar-tick-label"[^>]*font-size="([^"]+)" font-weight="([^"]+)">([^<]+)<\/text>/g)]
+    const endpointBox = boxes.at(-1)
+    const endpointLabel = labels.at(-1)
+    expect(endpointLabel?.[3]).toBe('5')
+    expect(endpointLabel?.[2]).toBe('700')
+    const expectedWidth = measureTextWidth('5', Number(endpointLabel?.[1]), Number(endpointLabel?.[2]))
+      + RADAR_LABEL_METRICS.tickBoxPadX * 2
+    expect(Number(endpointBox?.[1])).toBe(Math.round(expectedWidth * 100) / 100)
   })
 
   test('R3 — legend labels wrap and rows are reserved without overlap', () => {

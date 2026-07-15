@@ -2748,6 +2748,12 @@ const WARNING_DETAIL: Record<string, { what: string; triggers: string; fix: stri
     fix: 'Remove the inert field, move the setting under the family that supports it, or use a wired render option. Do not rely on the accepted value until verify stops reporting it.',
     example: '---\nconfig:\n  flowchart:\n    madeUpKey: 1\n---\nflowchart LR\n  A --> B',
   },
+  LOW_CONTRAST: {
+    what: 'a concrete authored paint remains in the output but misses a measurable contrast threshold against the final resolved page background.',
+    triggers: 'An authored color such as <code>themeVariables.radar.axisColor</code> resolves to less than 4.5:1 against an opaque page. Transparent output is not measured because its host backdrop is unknown.',
+    fix: 'Choose a foreground or page color that meets the warning’s <code>minimum</code> ratio. The renderer preserves explicit authored paint, so re-run verify after changing the source rather than expecting an automatic repaint.',
+    example: '---\nconfig:\n  themeVariables:\n    radar:\n      axisColor: "#dddddd"\n---\nradar-beta\n  axis speed, cost, safety\n  curve current{4,3,5}\n  max 5',
+  },
 }
 
 // Fold the warning prose into capabilities.warningCodes so capabilities.json is

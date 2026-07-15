@@ -353,8 +353,9 @@ describe('pie multiline legend rows', () => {
 })
 
 // ---------------------------------------------------------------------------
-// highlightSlice — Option D: non-geometric emphasis (foreground border on the
-// target + dimmed siblings), never a geometry change. Perception research
+// highlightSlice — Option D and the Section B family-owned-emphasis fixture:
+// foreground border on the target + dimmed siblings, never a geometry change.
+// Perception research
 // (Skau & Kosara 2016, "Arcs, Angles, or Areas") shows arc length/area are the
 // cues people actually read, and that changing a slice's radius or exploding it
 // degrades reading — so emphasis must leave geometry exact. These gates fail if

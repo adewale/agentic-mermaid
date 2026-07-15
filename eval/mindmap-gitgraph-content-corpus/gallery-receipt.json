@@ -284,7 +284,7 @@
     },
     {
       "path": "src/__tests__/agent.test.ts",
-      "sha256": "51e997a55aaed35f3e885085fa0b8e63b79145aa88ff2553ed4dc0823ccb6409"
+      "sha256": "32a5247d6e3966d32c4363ac840544f3f989e1c079bf5c838c5a3b88da6ec80c"
     },
     {
       "path": "src/__tests__/architecture-ascii.test.ts",
@@ -1060,7 +1060,7 @@
     },
     {
       "path": "src/__tests__/pie-elevation.test.ts",
-      "sha256": "333cded2f7654c1001a5a78728e8f89f8187c05947cf9dcd088813cc677ed4a6"
+      "sha256": "b6ac574e59a2ad59990cad307992b9e1aaea6001ca23635be3f91d933cea89b1"
     },
     {
       "path": "src/__tests__/pie.test.ts",
@@ -1216,7 +1216,7 @@
     },
     {
       "path": "src/__tests__/radar-label-discipline.test.ts",
-      "sha256": "63347c1c4dbf2836a40eb1650d6d40c67cb9f271317e3ac746ee83c08d0387e8"
+      "sha256": "849e6a992f632aea3493bcb8cd5033864e18e30581fb2e0d2027cdc31b4e6ef0"
     },
     {
       "path": "src/__tests__/radar-parser.test.ts",
@@ -1768,11 +1768,11 @@
     },
     {
       "path": "src/agent/types.ts",
-      "sha256": "8e7cc3b5666e1f497c3da67dd657ccded230125dc870d402624ca3f945910ac7"
+      "sha256": "bc1c71e661ea6ed41b4c515418be85ab7358481986ab7b777f4282ed1f33b3bf"
     },
     {
       "path": "src/agent/verify.ts",
-      "sha256": "86987450bfad9de1710aac9303e4ab0eb956ae642e58727d79f16089382c3961"
+      "sha256": "f62446842cc58b037bf8e50c88834e826857c734824d806379b9892ef0dac86e"
     },
     {
       "path": "src/agent/xychart-body.ts",
@@ -2004,7 +2004,7 @@
     },
     {
       "path": "src/cli/agent-instructions.ts",
-      "sha256": "a7a17ababf3df88a8f415ab4d5e9afa838e202d94946ae851e80860ad4df7550"
+      "sha256": "56a628ad9b7128da0b457b973b51b733d61bb1823e7ef256096e3b61cdd7d520"
     },
     {
       "path": "src/cli/am-bin.ts",
@@ -2016,7 +2016,7 @@
     },
     {
       "path": "src/cli/index.ts",
-      "sha256": "e308d38a7006d7e9ad6da7d821f6ddb3bf9a0f330de5d163d21fb1bbca79df86"
+      "sha256": "dfd0ca3192df082af0fd48de9f4f89d9ac41c0ecd66e7c01b67abe1572d0b6c1"
     },
     {
       "path": "src/cli/init-agent.ts",
@@ -2220,7 +2220,7 @@
     },
     {
       "path": "src/mcp/sdk-decl.ts",
-      "sha256": "270cfabaec7e47d28582bdfcc5258c77057198df6e9b2fa2029276cfe832839a"
+      "sha256": "b8bdac1339b30a695c261400105143bbfa536ace53356b6fa9306c3c4f91c3cb"
     },
     {
       "path": "src/mcp/sdk-discovery.ts",
@@ -2352,7 +2352,7 @@
     },
     {
       "path": "src/radar/layout.ts",
-      "sha256": "91f2ca272baadac3b99e7c81bdd40e67ac30210ce17b63546cb3b2af4327d761"
+      "sha256": "6eef9d23c6eaf92b4c2237081be6bceaea9c0c7ae0320dcefb0362a9085ca4cb"
     },
     {
       "path": "src/radar/parser.ts",
@@ -2360,7 +2360,7 @@
     },
     {
       "path": "src/radar/renderer.ts",
-      "sha256": "41b8e8b96bf248efbec548789a2557f4d33b7e9fda0165f95e66ba2447213df7"
+      "sha256": "471ac216daa60755c81dda4563aaa6db26a0dc408545ee617c435c3c941c6750"
     },
     {
       "path": "src/radar/scale.ts",

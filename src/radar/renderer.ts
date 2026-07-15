@@ -35,17 +35,18 @@ import { hashId } from '../scene/seed.ts'
 // single radar renders correctly across every built-in Palette (the renderer
 // re-derives fills from RenderContext.colors) and matches pie/xychart identity.
 //
-// Label ink is contrast-guarded (journey discipline): a configured concrete
-// axis/tick color is honored only when it clears WCAG-AA 4.5:1 on the page,
-// else it is nudged toward the page ink — and ring-value labels sit on a
-// page-colored knockout box so the default token reads over the silhouettes.
+// Derived label ink is contrast-guarded (journey discipline), while an
+// explicitly authored radar.axisColor remains authoritative and verify reports
+// low contrast without repainting it. Ring-value labels sit on a page-colored
+// knockout box so their derived default reads over the silhouettes.
 //
 // Deterministic: no Math.random / Date.now. All geometry comes from layout.
 // ============================================================================
 
-/** WCAG-AA (4.5:1) guard for label ink after alpha compositing. Unresolved CSS
- *  is uncertainty rather than proof, so it falls back to the best certifiable
- *  page ink. Exported for the discipline's red→green test. */
+/** WCAG-AA (4.5:1) guard for internally derived label ink after alpha
+ *  compositing. Authored colors bypass this helper and are diagnosed by verify
+ *  instead of being repainted. Unresolved CSS is uncertainty rather than proof,
+ *  so derived ink falls back to the best certifiable page color. */
 export function guardLabelInk(candidate: string, background: string, fallback: string): string {
   const candidateRatio = wcagCssContrastRatio(candidate, background)
   if (candidateRatio !== null && candidateRatio >= 4.5) return candidate
@@ -83,11 +84,12 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
   const graticuleOpacity = chart.visual.graticuleOpacity ?? 0.7
   const titleColor = chart.visual.titleColor ?? style.groupTextColor ?? style.nodeTextColor ?? 'var(--_text)'
   const dotStroke = style.nodeBorderColor ?? 'var(--bg)'
-  // Mermaid parity: an explicit radar.axisColor colors both spokes and labels.
-  // The default label candidate is page text, not the lower-contrast scaffold
-  // token; every candidate is certified after alpha compositing.
-  const axisTextCandidate = chart.visual.axisColor ?? style.edgeTextColor ?? colors.fg
-  const axisTextColor = guardLabelInk(axisTextCandidate, colors.bg, colors.fg)
+  // Mermaid parity and authored-style precedence: an explicit radar.axisColor
+  // colors both spokes and labels exactly as authored. Only the internally
+  // derived default is contrast-guarded; verify diagnoses a measurable authored
+  // contrast failure without silently changing the requested paint.
+  const axisTextColor = chart.visual.axisColor
+    ?? guardLabelInk(style.edgeTextColor ?? colors.fg, colors.bg, colors.fg)
   const tickTextColor = guardLabelInk(style.edgeTextColor ?? colors.fg, colors.bg, colors.fg)
 
   const accessibility = {

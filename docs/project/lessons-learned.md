@@ -69,7 +69,7 @@ family docs, and `TODO.md`.
     the signature shape a sketchable role, keep the scaffold on a crisp role so it
     recedes, take categorical color from the shared palette re-derived from context,
     and hold labels to the whole-repo union (wrap, compress, de-collide, leader-line,
-    reserve vertical room, knockout-box, contrast-gate). The deterministic rubric
+    reserve vertical room, knockout-box, guard derived contrast, diagnose authored contrast). The deterministic rubric
     certifies only a hygiene floor; the aesthetic ceiling comes from a per-family
     thesis plus good role choices. Full cross-family analysis in
     [`../design/system/cross-family-aesthetics.md`](../design/system/cross-family-aesthetics.md).

@@ -270,7 +270,7 @@ Tier 1 warnings are reliable structural/source checks. Do not suppress Tier 1 er
 
 Tier 2 warnings are advisory geometric checks — route tripwires for flowchart/state, plus boundary-anchor/overlap checks on class/ER entity boxes: `NODE_OVERLAP`, `ROUTE_SELF_CROSS`, and the route-contract tripwires `ROUTE_HITCH`, `ROUTE_UNEXPLAINED_BEND`, `ROUTE_LABEL_ON_SHARED_TRUNK`, `ROUTE_SELF_LOOP_OCCUPANCY`, `ROUTE_CONTAINER_MISANCHOR`, `ROUTE_SHAPE_MISANCHOR`, `ROUTE_STALE_AFTER_NODE_MOVE`.
 
-Tier 3 warnings are advisory lint checks for common agent mistakes or source-preserved Mermaid syntax that is not fully modeled: `DUPLICATE_EDGE`, `UNREACHABLE_NODE`, `DECISION_BRANCH_UNLABELED`, `COMMENT_DROPPED`, `UNSUPPORTED_SYNTAX`, `CONTENT_DROPPED_ON_ROUNDTRIP`, `INEFFECTIVE_CONFIG` (a config field is accepted for Mermaid compatibility but has no effect on this family). They do not flip `verify.ok`, but they are worth fixing when the caller asks for clean maintainable diagrams.
+Tier 3 warnings are advisory lint checks for common agent mistakes, source-preserved Mermaid syntax that is not fully modeled, ineffective configuration, or measurable authored-paint accessibility risks: `DUPLICATE_EDGE`, `UNREACHABLE_NODE`, `DECISION_BRANCH_UNLABELED`, `COMMENT_DROPPED`, `UNSUPPORTED_SYNTAX`, `CONTENT_DROPPED_ON_ROUNDTRIP`, `INEFFECTIVE_CONFIG`, `LOW_CONTRAST`. `LOW_CONTRAST` preserves the authored paint and reports its foreground, final opaque background, measured ratio, and minimum instead of silently repainting it; transparent output is not measured because its host backdrop is unknown. Tier 3 warnings do not flip `verify.ok`, but they are worth fixing when the caller asks for clean maintainable diagrams.
 
 ## Common anti-patterns
 

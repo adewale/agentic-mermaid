@@ -1301,7 +1301,7 @@ export type Tier2WarningCode =
  * Tier 3 (advisory lint). Family-specific quality hints for common agent
  * mistakes that still parse and render. Lint warnings never flip verify.ok.
  */
-export type Tier3WarningCode = 'DUPLICATE_EDGE' | 'UNREACHABLE_NODE' | 'DECISION_BRANCH_UNLABELED' | 'COMMENT_DROPPED' | 'UNSUPPORTED_SYNTAX' | 'CONTENT_DROPPED_ON_ROUNDTRIP' | 'INEFFECTIVE_CONFIG'
+export type Tier3WarningCode = 'DUPLICATE_EDGE' | 'UNREACHABLE_NODE' | 'DECISION_BRANCH_UNLABELED' | 'COMMENT_DROPPED' | 'UNSUPPORTED_SYNTAX' | 'CONTENT_DROPPED_ON_ROUNDTRIP' | 'INEFFECTIVE_CONFIG' | 'LOW_CONTRAST'
 export type WarningCode = Tier1WarningCode | Tier2WarningCode | Tier3WarningCode
 
 export type LayoutWarning =
@@ -1358,6 +1358,9 @@ export type LayoutWarning =
    * users; this lint says so. Never flips verify.ok.
    */
   | { code: 'INEFFECTIVE_CONFIG'; field: string; message: string }
+  /** Authored paint remains authoritative but fails a measurable contrast
+   * threshold against the final resolved background. Advisory: never repaints. */
+  | { code: 'LOW_CONTRAST'; field: string; foreground: string; background: string; ratio: number; minimum: number; message: string }
 
 export const WARNING_SEVERITY: Record<WarningCode, WarningSeverity> = {
   EMPTY_DIAGRAM: 'error',
@@ -1384,6 +1387,7 @@ export const WARNING_SEVERITY: Record<WarningCode, WarningSeverity> = {
   UNSUPPORTED_SYNTAX: 'warning',
   CONTENT_DROPPED_ON_ROUNDTRIP: 'warning',
   INEFFECTIVE_CONFIG: 'warning',
+  LOW_CONTRAST: 'warning',
 }
 
 export const WARNING_TIER: Record<WarningCode, WarningTier> = {
@@ -1411,6 +1415,7 @@ export const WARNING_TIER: Record<WarningCode, WarningTier> = {
   UNSUPPORTED_SYNTAX: 'lint',
   CONTENT_DROPPED_ON_ROUNDTRIP: 'lint',
   INEFFECTIVE_CONFIG: 'lint',
+  LOW_CONTRAST: 'lint',
 }
 
 export const DEFAULT_LABEL_CHAR_CAP = 40
