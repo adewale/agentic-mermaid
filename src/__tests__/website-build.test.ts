@@ -102,7 +102,7 @@ function renderedPeerMapping(category: string, article: string): Array<[string, 
       .map(match => [Number(match[1]), match[2]!.toLowerCase()] as const))
     const colorIndexes = matches(article, /<path[^>]*class="xychart-line xychart-color-(\d+)"[^>]*data-role="series"/gi)
       .map(match => Number(match[1]))
-    const labels = matches(article, /class="xychart-legend-label">([^<]+)<\/text>/g).map(match => match[1]!)
+    const labels = matches(article, /class="xychart-legend-label"[^>]*>([^<]+)<\/text>/g).map(match => match[1]!)
     expect(colorIndexes, 'XY rendered series/legend alignment').toHaveLength(labels.length)
     return labels.map((label, index) => [label, colors.get(colorIndexes[index]!)!])
   }
