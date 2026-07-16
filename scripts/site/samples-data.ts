@@ -16,8 +16,15 @@ export interface Sample {
   title: string
   description: string
   source: string
+  /** Stable rich-gallery anchor override, used only when title slugs collide. */
+  anchor?: string
   /** Optional category tag for grouping in the Table of Contents */
   category?: string
+  /** Declares a high-cardinality peer set that exercises derived categorical color. */
+  palettePeers?: {
+    count: number
+    kind: string
+  }
   options?: RenderOptions
 }
 
@@ -290,6 +297,7 @@ export const samples: Sample[] = [
     title: 'Subgraph Direction Override',
     category: 'Flowchart',
     description: 'Using `direction LR` inside a subgraph while the outer graph flows TD.',
+    anchor: 'subgraph-direction-override-connected',
     source: `graph TD
   subgraph pipeline [Processing Pipeline]
     direction LR
@@ -1382,6 +1390,23 @@ export const samples: Sample[] = [
       Go downstairs: 5: Me
       Sit down: 3: Me`,
   },
+  {
+    title: 'Journey: Cross-functional Release Readiness',
+    category: 'Journey',
+    description: 'Ten peer actors coordinate a four-stage launch, making the high-cardinality actor palette visible without changing authored status or score semantics.',
+    palettePeers: { count: 10, kind: 'peer actors' },
+    source: `journey
+    title Cross-functional release readiness
+    section Plan
+      Scope launch: 5: Product, Design
+    section Build
+      Ship product: 4: Web, API
+      Instrument events: 4: Data, Mobile
+    section Validate
+      Prove release: 5: QA, Security
+    section Release
+      Publish rollout: 5: Docs, Support`,
+  },
 
   // ══════════════════════════════════════════════════════════════════════════
   //  XY CHARTS (xychart-beta)
@@ -1496,6 +1521,25 @@ export const samples: Sample[] = [
     line [72, 65, 58, 50, 43, 36, 29, 22, 14, 0]`,
     options: { interactive: true },
   },
+  {
+    title: 'XY: Service Health Portfolio',
+    category: 'XY Chart',
+    description: 'Eight peer service series share one operational scale, exposing whether line and legend colors remain distinguishable above the legacy six-series boundary.',
+    palettePeers: { count: 8, kind: 'peer series' },
+    source: `xychart-beta
+    title "Service Health Portfolio"
+    x-axis [Mon, Tue, Wed, Thu, Fri, Sat]
+    y-axis "Availability (%)" 80 --> 100
+    line Web [99, 98, 99, 99, 100, 99]
+    line API [96, 97, 98, 97, 99, 98]
+    line Data [93, 95, 94, 96, 97, 96]
+    line Mobile [89, 92, 93, 91, 95, 94]
+    line Identity [98, 96, 95, 97, 96, 98]
+    line Search [86, 88, 91, 93, 92, 95]
+    line Billing [94, 93, 96, 95, 98, 97]
+    line Notifications [82, 87, 85, 90, 89, 93]`,
+    options: { interactive: true },
+  },
 
   // ══════════════════════════════════════════════════════════════════════════
   //  PIE
@@ -1520,6 +1564,24 @@ export const samples: Sample[] = [
     "Potassium" : 50.05
     "Magnesium" : 10.01
     "Iron" : 5`,
+  },
+  {
+    title: 'Pie: Platform Workload Portfolio',
+    category: 'Pie',
+    description: 'Ten peer workload categories exercise high-cardinality slice and legend identity while preserving the values and source order authored by the user.',
+    palettePeers: { count: 10, kind: 'peer slices' },
+    source: `pie showData
+    title Platform workload portfolio
+    "Web" : 24
+    "API" : 18
+    "Data" : 14
+    "Mobile" : 11
+    "Security" : 9
+    "Infrastructure" : 8
+    "Documentation" : 6
+    "Support" : 5
+    "Quality" : 3
+    "Research" : 2`,
   },
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -1623,6 +1685,7 @@ gantt
     title: 'Mindmap: Incident Response Command Map',
     category: 'Mindmap',
     description: 'A 40-node operational map with thirteen first-level branches for testing broad, real-world incident coordination.',
+    palettePeers: { count: 13, kind: 'first-level branches' },
     source: promotedCorpusSource('mindmap/wide-incident-response.mmd'),
   },
   {
@@ -1646,6 +1709,7 @@ gantt
     title: 'GitGraph: Monorepo Delivery Lanes',
     category: 'GitGraph',
     description: 'Twelve delivery lanes with explicit main placement, double-digit branch orders, and a tagged coordination commit.',
+    palettePeers: { count: 12, kind: 'delivery lanes' },
     source: promotedCorpusSource('gitgraph/many-lanes-and-ordering.mmd'),
   },
   {
@@ -1855,6 +1919,25 @@ gantt
   curve winter["Winter"]{5, 3, 2, 1, 2, 4, 5, 4}
   curve summer["Summer"]{2, 4, 5, 4, 3, 2, 1, 2}
   graticule polygon
+  max 5`,
+  },
+  {
+    title: 'Radar: Delivery Team Profiles',
+    category: 'Radar',
+    description: 'Eight peer team profiles share six delivery axes, stress-testing curve, point, fill, and legend identity above the legacy six-color boundary.',
+    palettePeers: { count: 8, kind: 'peer curves' },
+    source: `radar-beta
+  title Delivery team profiles
+  axis speed["Speed"], quality["Quality"], reliability["Reliability"]
+  axis security["Security"], docs["Docs"], support["Support"]
+  curve product["Product"]{4, 4, 3, 3, 4, 5}
+  curve web["Web"]{5, 4, 4, 3, 3, 4}
+  curve api["API"]{4, 5, 5, 4, 3, 3}
+  curve data["Data"]{3, 4, 5, 4, 3, 3}
+  curve mobile["Mobile"]{4, 4, 3, 4, 3, 4}
+  curve security["Security"]{2, 4, 4, 5, 3, 3}
+  curve qa["QA"]{3, 5, 4, 4, 3, 4}
+  curve docs["Docs"]{3, 4, 3, 3, 5, 5}
   max 5`,
   },
 ]

@@ -175,11 +175,11 @@ export function tryParseCssColor(color: string): RgbaColor | null {
     let alphaToken = slash[1]
     if (components.length === 4 && alphaToken === undefined) alphaToken = components.pop()
     if (components.length !== 3 || !components[1]!.endsWith('%') || !components[2]!.endsWith('%')) return null
-    const hue = Number.parseFloat(components[0]!)
+    const hue = parseCssHue(components[0]!)
     const saturation = Number.parseFloat(components[1]!)
     const lightness = Number.parseFloat(components[2]!)
     const alpha = parseAlpha(alphaToken)
-    if (![hue, saturation, lightness].every(Number.isFinite) || saturation < 0 || saturation > 100 || lightness < 0 || lightness > 100 || alpha === null) return null
+    if (hue === null || ![saturation, lightness].every(Number.isFinite) || saturation < 0 || saturation > 100 || lightness < 0 || lightness > 100 || alpha === null) return null
     const s = saturation / 100
     const l = lightness / 100
     const chroma = (1 - Math.abs(2 * l - 1)) * s
@@ -191,6 +191,22 @@ export function tryParseCssColor(color: string): RgbaColor | null {
   }
 
   return null
+}
+
+/** CSS hue angle → degrees. Bare numbers and `deg` are degrees; the other
+ * units follow CSS Color 4. Reject trailing junk instead of parseFloat's
+ * dangerous partial parse (for example, treating `0.5turn` as 0.5 degrees). */
+function parseCssHue(token: string): number | null {
+  const match = token.trim().match(/^([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?)(deg|grad|rad|turn)?$/i)
+  if (!match) return null
+  const value = Number(match[1])
+  if (!Number.isFinite(value)) return null
+  switch (match[2]?.toLowerCase()) {
+    case 'grad': return value * 0.9
+    case 'rad': return value * 180 / Math.PI
+    case 'turn': return value * 360
+    default: return value
+  }
 }
 
 function parseAlpha(token: string | undefined): number | null {

@@ -51,8 +51,77 @@ function exampleSlug(s: string) {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 }
 
-function richExampleId(sample: { title: string }, index: number) {
-  return `rich-${index + 1}-${exampleSlug(sample.title)}`
+function richExampleId(sample: { title: string; anchor?: string }) {
+  return `rich-${sample.anchor ?? exampleSlug(sample.title)}`
+}
+
+function richExampleArticle(html: string, sample: { title: string }) {
+  const start = html.indexOf(`<article class="example-sample example-sample-palette" id="${richExampleId(sample)}"`)
+  expect(start, `${sample.title} palette article`).toBeGreaterThanOrEqual(0)
+  const end = html.indexOf('</article>', start)
+  expect(end, `${sample.title} palette article end`).toBeGreaterThan(start)
+  return html.slice(start, end)
+}
+
+function matches(source: string, pattern: RegExp) {
+  return Array.from(source.matchAll(pattern))
+}
+
+function sourcePeerLabels(category: string, source: string) {
+  if (category === 'Pie') return matches(source, /^\s*"([^"]+)"\s*:/gm).map(match => match[1]!)
+  if (category === 'Radar') return matches(source, /^\s*curve\s+\S+?\["([^"]+)"\]/gm).map(match => match[1]!)
+  if (category === 'XY Chart') return matches(source, /^\s*(?:bar|line)\s+([A-Za-z][\w-]*)\s+\[/gm).map(match => match[1]!)
+  if (category === 'Journey') {
+    return Array.from(new Set(source.split('\n').flatMap((line) => {
+      const match = line.match(/:\s*[1-5]\s*:\s*(.+)$/)
+      return match ? match[1]!.split(',').map(actor => actor.trim()).filter(Boolean) : []
+    })))
+  }
+  if (category === 'Mindmap') return matches(source, /^ {4}([^\s].*)$/gm).map(match => match[1]!.trim())
+  if (category === 'GitGraph') {
+    const mainOrder = Number(source.match(/^\s*mainBranchOrder:\s*(\d+)/m)?.[1])
+    const ordered = matches(source, /^\s*branch\s+(\S+)\s+order:(\d+)/gm)
+      .map(match => ({ label: match[1]!, order: Number(match[2]) }))
+    ordered.push({ label: 'main', order: mainOrder })
+    return ordered.sort((a, b) => a.order - b.order).map(entry => entry.label)
+  }
+  return []
+}
+
+function renderedPeerMapping(category: string, article: string): Array<[string, string]> {
+  if (category === 'Pie') {
+    return matches(article, /<path class="pie-slice"[^>]*fill="(#[0-9a-f]{6})"[^>]*data-label="([^"]+)"/gi)
+      .map(match => [match[2]!, match[1]!.toLowerCase()])
+  }
+  if (category === 'Radar') {
+    return matches(article, /<path class="radar-area"[^>]*fill="(#[0-9a-f]{6})"[^>]*data-curve="([^"]+)"/gi)
+      .map(match => [match[2]!, match[1]!.toLowerCase()])
+  }
+  if (category === 'XY Chart') {
+    const colors = new Map(matches(article, /--xychart-color-(\d+):\s*(#[0-9a-f]{6})/gi)
+      .map(match => [Number(match[1]), match[2]!.toLowerCase()] as const))
+    const colorIndexes = matches(article, /<path[^>]*class="xychart-line xychart-color-(\d+)"[^>]*data-role="series"/gi)
+      .map(match => Number(match[1]))
+    const labels = matches(article, /class="xychart-legend-label">([^<]+)<\/text>/g).map(match => match[1]!)
+    expect(colorIndexes, 'XY rendered series/legend alignment').toHaveLength(labels.length)
+    return labels.map((label, index) => [label, colors.get(colorIndexes[index]!)!])
+  }
+  if (category === 'Journey') {
+    const colors = new Map(matches(article, /\.journey-actor-(\d+)\s*\{\s*fill:\s*(#[0-9a-f]{6});\s*\}/gi)
+      .map(match => [Number(match[1]), match[2]!.toLowerCase()] as const))
+    const legend = article.match(/<g class="journey-actor-legend">([\s\S]*?)<\/g>/)?.[1] ?? ''
+    return matches(legend, /<circle class="journey-actor-dot journey-actor-(\d+)" data-actor="([^"]+)"/g)
+      .map(match => [match[2]!, colors.get(Number(match[1]))!])
+  }
+  if (category === 'Mindmap') {
+    return matches(article, /<path class="mindmap-edge" data-from="root" data-to="([^"]+)"[^>]*stroke="(#[0-9a-f]{6})"/gi)
+      .map(match => [match[1]!, match[2]!.toLowerCase()])
+  }
+  if (category === 'GitGraph') {
+    return matches(article, /<line class="git-branch-line" data-branch="([^"]+)"[^>]*stroke="(#[0-9a-f]{6})"/gi)
+      .map(match => [match[1]!, match[2]!.toLowerCase()])
+  }
+  return []
 }
 
 function readJsonGlobal<T>(script: string, name: string): T {
@@ -899,6 +968,64 @@ describe('Workers Static Assets website contract', () => {
     expect(examplesHtml).toContain('<strong>GitGraph</strong><span>3 shared examples</span>')
   })
 
+  test('rich gallery exposes one source-verified high-cardinality palette example per controlled family', () => {
+    const expected = new Map([
+      ['Pie', ['Pie: Platform Workload Portfolio', 10, 'peer slices']],
+      ['Radar', ['Radar: Delivery Team Profiles', 8, 'peer curves']],
+      ['XY Chart', ['XY: Service Health Portfolio', 8, 'peer series']],
+      ['Journey', ['Journey: Cross-functional Release Readiness', 10, 'peer actors']],
+      ['Mindmap', ['Mindmap: Incident Response Command Map', 13, 'first-level branches']],
+      ['GitGraph', ['GitGraph: Monorepo Delivery Lanes', 12, 'delivery lanes']],
+    ] as const)
+    const examplesIndex = JSON.parse(read('examples/index.json'))
+    const examplesHtml = read('examples/index.html')
+    expect(examplesHtml).toContain('<p class="example-jump-title" id="examples-high-cardinality-palettes-jump">High-cardinality peer palettes</p>')
+    const paletteJump = examplesHtml.match(/<section class="example-jump-section" aria-labelledby="examples-high-cardinality-palettes-jump">([\s\S]*?)<\/section>/)?.[1] ?? ''
+    expect(paletteJump.match(/class="example-jump-card"/g)).toHaveLength(expected.size)
+    for (const [category, [title, count, kind]] of expected) {
+      const candidates = RICH_EXAMPLES.filter(sample => sample.category === category && sample.palettePeers)
+      expect(candidates.length, `${category} designated palette examples`).toBeGreaterThanOrEqual(1)
+      const sample = candidates.find(candidate => candidate.title === title)
+      expect(sample, title).toEqual(expect.objectContaining({
+        category,
+        title,
+        palettePeers: { count, kind },
+      }))
+      expect(count, `${title} crosses the legacy boundary`).toBeGreaterThan(6)
+      const sourceLabels = sourcePeerLabels(category, sample!.source)
+      expect(sourceLabels, `${title} source-derived peers`).toHaveLength(count)
+      expect(examplesIndex.richExamples.find((candidate: any) => candidate.title === title), `${title} catalog metadata`).toEqual(
+        expect.objectContaining({
+          id: richExampleId(sample!),
+          category,
+          title,
+          palettePeers: { count, kind },
+          renderUrl: `/examples/#${richExampleId(sample!)}`,
+        }),
+      )
+      expect(paletteJump, `${title} jump href`).toContain(`href="#${richExampleId(sample!)}"`)
+      expect(examplesHtml, `${title} palette proof`).toContain(`Palette proof: ${count} ${kind}`)
+      const mapping = renderedPeerMapping(category, richExampleArticle(examplesHtml, sample!))
+      const article = richExampleArticle(examplesHtml, sample!)
+      expect(article, `${title} keyboard-scroll target`).toContain(
+        `class="example-svg" tabindex="0" aria-label="${title} diagram. Scroll horizontally to inspect every peer."`,
+      )
+      expect(mapping.map(([label]) => label), `${title} rendered source-order mapping`).toEqual(sourceLabels)
+      expect(mapping, `${title} rendered category-color mapping`).toHaveLength(count)
+      expect(new Set(mapping.map(([, color]) => color)).size, `${title} distinct rendered colors`).toBe(count)
+      expect(mapping.every(([, color]) => /^#[0-9a-f]{6}$/.test(color)), `${title} concrete rendered colors`).toBe(true)
+    }
+    expect(new Set(RICH_EXAMPLES.map(sample => richExampleId(sample))).size, 'stable rich example ids').toBe(RICH_EXAMPLES.length)
+    expect(richExampleId({ title: 'Mindmap: Incident Response Command Map' })).toBe('rich-mindmap-incident-response-command-map')
+    const legacyAnchorScript = files(join(SITE, 'generated'), 'generated').find(file => read(file).includes('resolveLegacyRichExampleAnchor'))
+    expect(legacyAnchorScript, 'numeric rich-anchor compatibility resolver').toBeDefined()
+    expect(read(legacyAnchorScript!)).toContain("/^#rich-\\d+-(.+)$/")
+    const styles = read('styles.css')
+    expect(styles).toContain('.example-sample-palette .example-sample-grid { grid-template-columns: minmax(0, 1fr); }')
+    expect(styles).toContain('.example-render-palette .example-svg svg { width: auto; max-width: none; margin-inline: auto; }')
+    expect(styles).toContain('.example-render-palette .example-svg svg.xychart { width: 700px; }')
+  })
+
   test('examples page carries an agent task, trace, and render anchor for every family', () => {
     const examples = read('examples/index.html')
     // Registry-exact: adding a family without a prompt/trace or supported render
@@ -1040,14 +1167,15 @@ describe('Workers Static Assets website contract', () => {
     expect(editorRuntime.indexOf('var EDITOR_EXAMPLES = ')).toBeGreaterThanOrEqual(0)
     expect(editorRuntime.indexOf('var EDITOR_EXAMPLES = ')).toBeLessThan(editorRuntime.indexOf('function cloneEditorConfig'))
     expect(readJsonGlobal<unknown>(editorRuntime, 'EDITOR_EXAMPLES')).toEqual(JSON.parse(JSON.stringify(EDITOR_EXAMPLES)))
-    expect(examplesIndex.richExamples).toEqual(RICH_EXAMPLES.map((sample, index) => ({
-      id: richExampleId(sample, index),
+    expect(examplesIndex.richExamples).toEqual(RICH_EXAMPLES.map((sample) => ({
+      id: richExampleId(sample),
       category: sample.category ?? 'Examples',
       title: sample.title,
       description: sample.description,
       source: String(sample.source ?? '').trim(),
       options: sample.options ?? {},
-      renderUrl: `/examples/#${richExampleId(sample, index)}`,
+      ...(sample.palettePeers ? { palettePeers: sample.palettePeers } : {}),
+      renderUrl: `/examples/#${richExampleId(sample)}`,
       editorUrl: expect.stringContaining('/editor/#'),
     })))
     expect(examplesIndex.richExamples.some((example: any) => example.category === 'Style + Palette')).toBe(true)

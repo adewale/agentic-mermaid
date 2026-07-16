@@ -5,7 +5,7 @@
 // invariant the before/after fan-out screenshots violated — the "yes" label
 // rendered as a clipped "es" because a node box was drawn over it.
 //
-// Two codes, both family-agnostic (they read only the rendered geometry):
+// Two codes, both family-agnostic (they read only the rendered geometry/text):
 //   • LABEL_OCCLUDED — a text element overlaps foreign geometry that hides its
 //     glyphs: an edge-label pill over a non-incident node or another edge label,
 //     or a LABELLED node's box overlapped by another node.

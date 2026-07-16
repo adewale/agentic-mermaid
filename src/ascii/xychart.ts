@@ -16,7 +16,8 @@ import type { XYChart, XYChartConfig, XYChartTheme } from '../xychart/types.ts'
 import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode, CharRole, Canvas, RoleCanvas } from './types.ts'
 import { colorizeText } from './ansi.ts'
-import { getSeriesColor, CHART_ACCENT_FALLBACK, isValidHex } from '../xychart/colors.ts'
+import { CHART_ACCENT_FALLBACK, isValidHex } from '../xychart/colors.ts'
+import { categoricalPalette } from '../shared/categorical-palette.ts'
 import { isLegendWorthy, legendEntries } from '../xychart/legend.ts'
 import { graphemes } from '../shared/graphemes.ts'
 import { visualWidth, WIDE_CHAR_CONTINUATION } from './width.ts'
@@ -77,7 +78,7 @@ function getSeriesColors(total: number, theme: AsciiTheme, palette?: string[]): 
   }
   const accent = theme.accent ?? CHART_ACCENT_FALLBACK
   if (total <= 1) return [accent]
-  return Array.from({ length: total }, (_, i) => getSeriesColor(i, accent, theme.bg))
+  return categoricalPalette(total, { accent, bg: theme.bg })
 }
 
 /** Map a CharRole to its hex color from the theme (for canvasToString fallback). */

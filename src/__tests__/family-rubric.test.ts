@@ -20,13 +20,14 @@ type LooseLayout = {
   [K in keyof RenderedLayout]: RenderedLayout[K]
 }
 function looseLayout(layout: {
+  kind?: string
   nodes?: Array<{ id: string; x: number; y: number; w: number; h: number; shape: string; label: string; role?: 'box' | 'mark' | 'labelled-mark' }>
   groups?: Array<{ id: string; x: number; y: number; w: number; h: number; members: string[]; label?: string; parentId?: string }>
   bounds?: { w: number; h: number }
 } = {}): LooseLayout {
   return {
     version: 1,
-    kind: 'journey',
+    kind: layout.kind ?? 'journey',
     nodes: layout.nodes ?? [
       { id: 'a', x: 10, y: 10, w: 50, h: 20, shape: 'rectangle', label: 'A' },
       { id: 'b', x: 80, y: 10, w: 50, h: 20, shape: 'rectangle', label: 'B' },
@@ -112,6 +113,87 @@ describe('family rubric hard metrics discriminate', () => {
       ],
     }))
     expect(nested.metrics.groupOverlaps).toBe(0)
+  })
+
+  it('flags a foreign node intruding into every ownership-frame family', () => {
+    // These families expose true ownership frames. A non-member
+    // whose centre sits inside the frame reads as belonging to the wrong
+    // cluster (Palmer common-region purity — the dual of groupBreaches).
+    for (const kind of ['architecture', 'class', 'er', 'timeline']) {
+      const intruded = assessRenderedLayout(looseLayout({
+        kind,
+        nodes: [
+          { id: 'a', x: 10, y: 10, w: 40, h: 20, shape: 'rectangle', label: 'A' }, // member, inside
+          { id: 'b', x: 60, y: 40, w: 40, h: 20, shape: 'rectangle', label: 'B' }, // foreign, inside
+        ],
+        groups: [{ id: 'g', x: 0, y: 0, w: 120, h: 90, members: ['a'], label: 'G' }],
+      }))
+      expect(intruded.metrics.regionIntrusions, kind).toBe(1)
+      expect(intruded.violations, kind).toContainEqual(expect.objectContaining({ metric: 'regionIntrusions' }))
+      expect(intruded.score, kind).toBeLessThan(100)
+    }
+  })
+
+  it('does not count members or deeply nested descendants as region intrusions', () => {
+
+    // Same geometry, but B now belongs to the group: no intrusion.
+    const member = assessRenderedLayout(looseLayout({
+      kind: 'architecture',
+      nodes: [
+        { id: 'a', x: 10, y: 10, w: 40, h: 20, shape: 'service', label: 'A' },
+        { id: 'b', x: 60, y: 40, w: 40, h: 20, shape: 'service', label: 'B' },
+      ],
+      groups: [{ id: 'g', x: 0, y: 0, w: 120, h: 90, members: ['a', 'b'], label: 'G' }],
+    }))
+    expect(member.metrics.regionIntrusions).toBe(0)
+
+    // B belongs to a nested child group inside G: still inside G's region
+    // legitimately, so not an intruder into the ancestor.
+    const nested = assessRenderedLayout(looseLayout({
+      kind: 'architecture',
+      nodes: [
+        { id: 'a', x: 10, y: 10, w: 40, h: 20, shape: 'service', label: 'A' },
+        { id: 'b', x: 60, y: 40, w: 40, h: 20, shape: 'service', label: 'B' },
+      ],
+      groups: [
+        { id: 'g', x: 0, y: 0, w: 120, h: 90, members: ['a'], label: 'G' },
+        { id: 'child', x: 55, y: 35, w: 55, h: 45, members: ['b'], parentId: 'g', label: 'C' },
+      ],
+    }))
+    expect(nested.metrics.regionIntrusions).toBe(0)
+
+    // The ancestry walk is cycle-safe but has no arbitrary depth cutoff: a
+    // member of a 102-deep child still legitimately occupies every ancestor.
+    const groups = Array.from({ length: 103 }, (_unused, index) => ({
+      id: `g${index}`,
+      x: 0,
+      y: 0,
+      w: 120,
+      h: 90,
+      members: index === 102 ? ['deep'] : [],
+      ...(index > 0 ? { parentId: `g${index - 1}` } : {}),
+      label: `G${index}`,
+    }))
+    const deep = assessRenderedLayout(looseLayout({
+      kind: 'architecture',
+      nodes: [{ id: 'deep', x: 10, y: 10, w: 40, h: 20, shape: 'service', label: 'Deep' }],
+      groups,
+    }))
+    expect(deep.metrics.regionIntrusions).toBe(0)
+  })
+
+  it('does not count region intrusions for band/plot group models (journey)', () => {
+    // Journey sections are header BANDS ('x' axis), not ownership frames, so a
+    // task sitting below a foreign band is not an intrusion.
+    const r = assessRenderedLayout(looseLayout({
+      kind: 'journey',
+      nodes: [
+        { id: 'a', x: 10, y: 10, w: 40, h: 20, shape: 'rectangle', label: 'A' },
+        { id: 'b', x: 60, y: 40, w: 40, h: 20, shape: 'rectangle', label: 'B' },
+      ],
+      groups: [{ id: 'g', x: 0, y: 0, w: 120, h: 90, members: ['a'], label: 'G' }],
+    }))
+    expect(r.metrics.regionIntrusions).toBe(0)
   })
 
   it('every hard metric is exercised by this file', () => {

@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="533.1" height="323.6" viewBox="0 0 533.1 323.6" style="--bg:#ffffff;--fg:#1f2328;--line:#d1d9e0;--accent:#0969da;--muted:#59636e;--font:Inter;background:#ffffff" aria-labelledby="mindmap-github-lightmindmap-title" aria-roledescription="mindmap" role="img">
+<style>
+  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #1f2328;
+    --_text-sec:      #59636e;
+    --_text-muted:    #59636e;
+    --_text-faint:    #86888b;
+    --_line:          #d1d9e0;
+    --_arrow:         #0969da;
+    --_node-fill:     #f8f8f9;
+    --_node-stroke:   #d2d3d4;
+    --_group-fill:    #ffffff;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e4e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<rect width="533.1" height="323.6" fill="#ffffff" data-backdrop="page" />
+<title id="mindmap-github-lightmindmap-title">Portfolio</title>
+<path class="mindmap-edge" data-from="root" data-to="Discover" data-branch-index="0" d="M 295.086 161.8 C 303.486 161.8 306.686 49.45 315.086 49.45" fill="none" stroke="#0969da" stroke-width="2.5" stroke-linecap="round" data-relationship="mindmap-branch" data-direction="forward" data-id="root-&gt;Discover" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="root to Discover" />
+<path class="mindmap-edge" data-from="Discover" data-to="Research" data-branch-index="0" d="M 395.87 49.45 C 404.27 49.45 407.47 49.45 415.87 49.45" fill="none" stroke="#0969da" stroke-width="2.5" stroke-linecap="round" data-relationship="mindmap-branch" data-direction="forward" data-id="Discover-&gt;Research" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="Discover to Research" />
+<path class="mindmap-edge" data-from="root" data-to="Define" data-branch-index="1" d="M 220.23 161.8 C 211.83 161.8 208.63 49.45 200.23 49.45" fill="none" stroke="#0d67a5" stroke-width="2.5" stroke-linecap="round" data-relationship="mindmap-branch" data-direction="forward" data-id="root-&gt;Define" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="root to Define" />
+<path class="mindmap-edge" data-from="Define" data-to="Strategy" data-branch-index="1" d="M 137.23 49.45 C 125.095 49.45 120.473 49.45 108.338 49.45" fill="none" stroke="#0d67a5" stroke-width="2.5" stroke-linecap="round" data-relationship="mindmap-branch" data-direction="forward" data-id="Define-&gt;Strategy" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="Define to Strategy" />
+<path class="mindmap-edge" data-from="root" data-to="Design" data-branch-index="2" d="M 295.086 161.8 C 303.486 161.8 306.686 124.35 315.086 124.35" fill="none" stroke="#5f85f2" stroke-width="2.5" stroke-linecap="round" data-relationship="mindmap-branch" data-direction="forward" data-id="root-&gt;Design" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="root to Design" />
+<path class="mindmap-edge" data-from="Design" data-to="Prototype" data-branch-index="2" d="M 382.532 124.35 C 396.534 124.35 401.868 124.35 415.87 124.35" fill="none" stroke="#5f85f2" stroke-width="2.5" stroke-linecap="round" data-relationship="mindmap-branch" data-direction="forward" data-id="Design-&gt;Prototype" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="Design to Prototype" />
+<path class="mindmap-edge" data-from="root" data-to="Build" data-branch-index="3" d="M 220.23 161.8 C 211.83 161.8 208.63 124.35 200.23 124.35" fill="none" stroke="#0a5876" stroke-width="2.5" stroke-linecap="round" data-relationship="mindmap-branch" data-direction="forward" data-id="root-&gt;Build" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="root to Build" />
+<path class="mindmap-edge" data-from="Build" data-to="Product" data-branch-index="3" d="M 144.23 124.35 C 129.155 124.35 123.413 124.35 108.338 124.35" fill="none" stroke="#0a5876" stroke-width="2.5" stroke-linecap="round" data-relationship="mindmap-branch" data-direction="forward" data-id="Build-&gt;Product" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="Build to Product" />
+<path class="mindmap-edge" data-from="root" data-to="Test" data-branch-index="4" d="M 295.086 161.8 C 303.486 161.8 306.686 199.25 315.086 199.25" fill="none" stroke="#9298f6" stroke-width="2.5" stroke-linecap="round" data-relationship="mindmap-branch" data-direction="forward" data-id="root-&gt;Test" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="root to Test" />
+<path class="mindmap-edge" data-from="Test" data-to="Quality" data-branch-index="4" d="M 371.086 199.25 C 389.895 199.25 397.061 199.25 415.87 199.25" fill="none" stroke="#9298f6" stroke-width="2.5" stroke-linecap="round" data-relationship="mindmap-branch" data-direction="forward" data-id="Test-&gt;Quality" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="Test to Quality" />
+<path class="mindmap-edge" data-from="root" data-to="Launch" data-branch-index="5" d="M 220.23 161.8 C 211.83 161.8 208.63 199.25 200.23 199.25" fill="none" stroke="#0a6776" stroke-width="2.5" stroke-linecap="round" data-relationship="mindmap-branch" data-direction="forward" data-id="root-&gt;Launch" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="root to Launch" />
+<path class="mindmap-edge" data-from="Launch" data-to="Release" data-branch-index="5" d="M 128.338 199.25 C 119.938 199.25 116.738 199.25 108.338 199.25" fill="none" stroke="#0a6776" stroke-width="2.5" stroke-linecap="round" data-relationship="mindmap-branch" data-direction="forward" data-id="Launch-&gt;Release" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="Launch to Release" />
+<path class="mindmap-edge" data-from="root" data-to="Learn" data-branch-index="6" d="M 295.086 161.8 C 303.486 161.8 306.686 274.15 315.086 274.15" fill="none" stroke="#a597f7" stroke-width="2.5" stroke-linecap="round" data-relationship="mindmap-branch" data-direction="forward" data-id="root-&gt;Learn" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="root to Learn" />
+<path class="mindmap-edge" data-from="Learn" data-to="Insight" data-branch-index="6" d="M 378.086 274.15 C 393.955 274.15 400.001 274.15 415.87 274.15" fill="none" stroke="#a597f7" stroke-width="2.5" stroke-linecap="round" data-relationship="mindmap-branch" data-direction="forward" data-id="Learn-&gt;Insight" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="Learn to Insight" />
+<path class="mindmap-edge" data-from="root" data-to="Scale" data-branch-index="7" d="M 220.23 161.8 C 211.83 161.8 208.63 274.15 200.23 274.15" fill="none" stroke="#0a7576" stroke-width="2.5" stroke-linecap="round" data-relationship="mindmap-branch" data-direction="forward" data-id="root-&gt;Scale" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="root to Scale" />
+<path class="mindmap-edge" data-from="Scale" data-to="Growth" data-branch-index="7" d="M 140.194 274.15 C 126.814 274.15 121.718 274.15 108.338 274.15" fill="none" stroke="#0a7576" stroke-width="2.5" stroke-linecap="round" data-relationship="mindmap-branch" data-direction="forward" data-id="Scale-&gt;Growth" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="Scale to Growth" />
+<g class="mindmap-node depth-0" data-id="root" data-label="Portfolio" data-role="node">
+  <circle cx="257.658" cy="161.8" r="37.428" fill="#0969da" stroke="#0969da" stroke-width="1.5" />
+  <text x="257.658" y="161.8" text-anchor="middle" font-size="13" font-weight="500" fill="#ffffff" dy="4.55">Portfolio</text>
+</g>
+<g class="mindmap-node depth-1" data-id="Discover" data-label="Discover" data-branch-index="0" data-parent-id="root" data-role="node">
+  <rect x="315.086" y="32" width="80.784" height="34.9" rx="16" ry="16" fill="#b5d2f4" stroke="#0969da" stroke-width="1.5" />
+  <text x="355.478" y="49.45" text-anchor="middle" font-size="13" font-weight="500" fill="#1f2328" dy="4.55">Discover</text>
+</g>
+<g class="mindmap-node depth-2" data-id="Research" data-label="Research" data-branch-index="0" data-parent-id="Discover" data-role="node">
+  <rect x="415.87" y="32" width="85.23" height="34.9" rx="16" ry="16" fill="#cee1f8" stroke="#0969da" stroke-width="1.5" />
+  <text x="458.485" y="49.45" text-anchor="middle" font-size="13" font-weight="500" fill="#1f2328" dy="4.55">Research</text>
+</g>
+<g class="mindmap-node depth-1" data-id="Define" data-label="Define" data-branch-index="1" data-parent-id="root" data-role="node">
+  <rect x="137.23" y="32" width="63" height="34.9" rx="16" ry="16" fill="#b6d1e4" stroke="#0d67a5" stroke-width="1.5" />
+  <text x="168.73" y="49.45" text-anchor="middle" font-size="13" font-weight="500" fill="#1f2328" dy="4.55">Define</text>
+</g>
+<g class="mindmap-node depth-2" data-id="Strategy" data-label="Strategy" data-branch-index="1" data-parent-id="Define" data-role="node">
+  <rect x="32" y="32" width="76.338" height="34.9" rx="16" ry="16" fill="#cfe1ed" stroke="#0d67a5" stroke-width="1.5" />
+  <text x="70.169" y="49.45" text-anchor="middle" font-size="13" font-weight="500" fill="#1f2328" dy="4.55">Strategy</text>
+</g>
+<g class="mindmap-node depth-1" data-id="Design" data-label="Design" data-branch-index="2" data-parent-id="root" data-role="node">
+  <rect x="315.086" y="106.9" width="67.446" height="34.9" rx="16" ry="16" fill="#cfdafb" stroke="#5f85f2" stroke-width="1.5" />
+  <text x="348.809" y="124.35000000000001" text-anchor="middle" font-size="13" font-weight="500" fill="#1f2328" dy="4.55">Design</text>
+</g>
+<g class="mindmap-node depth-2" data-id="Prototype" data-label="Prototype" data-branch-index="2" data-parent-id="Design" data-role="node">
+  <rect x="415.87" y="106.9" width="83.748" height="34.9" rx="16" ry="16" fill="#dfe7fc" stroke="#5f85f2" stroke-width="1.5" />
+  <text x="457.744" y="124.35000000000001" text-anchor="middle" font-size="13" font-weight="500" fill="#1f2328" dy="4.55">Prototype</text>
+</g>
+<g class="mindmap-node depth-1" data-id="Build" data-label="Build" data-branch-index="3" data-parent-id="root" data-role="node">
+  <rect x="144.23" y="106.9" width="56" height="34.9" rx="16" ry="16" fill="#b6cdd6" stroke="#0a5876" stroke-width="1.5" />
+  <text x="172.23" y="124.35000000000001" text-anchor="middle" font-size="13" font-weight="500" fill="#1f2328" dy="4.55">Build</text>
+</g>
+<g class="mindmap-node depth-2" data-id="Product" data-label="Product" data-branch-index="3" data-parent-id="Build" data-role="node">
+  <rect x="34.964" y="106.9" width="73.374" height="34.9" rx="16" ry="16" fill="#cedee4" stroke="#0a5876" stroke-width="1.5" />
+  <text x="71.651" y="124.35000000000001" text-anchor="middle" font-size="13" font-weight="500" fill="#1f2328" dy="4.55">Product</text>
+</g>
+<g class="mindmap-node depth-1" data-id="Test" data-label="Test" data-branch-index="4" data-parent-id="root" data-role="node">
+  <rect x="315.086" y="181.8" width="56" height="34.9" rx="16" ry="16" fill="#dee0fc" stroke="#9298f6" stroke-width="1.5" />
+  <text x="343.086" y="199.25" text-anchor="middle" font-size="13" font-weight="500" fill="#1f2328" dy="4.55">Test</text>
+</g>
+<g class="mindmap-node depth-2" data-id="Quality" data-label="Quality" data-branch-index="4" data-parent-id="Test" data-role="node">
+  <rect x="415.87" y="181.8" width="65.964" height="34.9" rx="16" ry="16" fill="#e9eafd" stroke="#9298f6" stroke-width="1.5" />
+  <text x="448.852" y="199.25" text-anchor="middle" font-size="13" font-weight="500" fill="#1f2328" dy="4.55">Quality</text>
+</g>
+<g class="mindmap-node depth-1" data-id="Launch" data-label="Launch" data-branch-index="5" data-parent-id="root" data-role="node">
+  <rect x="128.338" y="181.8" width="71.892" height="34.9" rx="16" ry="16" fill="#b6d1d6" stroke="#0a6776" stroke-width="1.5" />
+  <text x="164.284" y="199.25" text-anchor="middle" font-size="13" font-weight="500" fill="#1f2328" dy="4.55">Launch</text>
+</g>
+<g class="mindmap-node depth-2" data-id="Release" data-label="Release" data-branch-index="5" data-parent-id="Launch" data-role="node">
+  <rect x="33.482" y="181.8" width="74.856" height="34.9" rx="16" ry="16" fill="#cee1e4" stroke="#0a6776" stroke-width="1.5" />
+  <text x="70.91" y="199.25" text-anchor="middle" font-size="13" font-weight="500" fill="#1f2328" dy="4.55">Release</text>
+</g>
+<g class="mindmap-node depth-1" data-id="Learn" data-label="Learn" data-branch-index="6" data-parent-id="root" data-role="node">
+  <rect x="315.086" y="256.7" width="63" height="34.9" rx="16" ry="16" fill="#e4e0fd" stroke="#a597f7" stroke-width="1.5" />
+  <text x="346.586" y="274.15000000000003" text-anchor="middle" font-size="13" font-weight="500" fill="#1f2328" dy="4.55">Learn</text>
+</g>
+<g class="mindmap-node depth-2" data-id="Insight" data-label="Insight" data-branch-index="6" data-parent-id="Learn" data-role="node">
+  <rect x="415.87" y="256.7" width="64.482" height="34.9" rx="16" ry="16" fill="#edeafd" stroke="#a597f7" stroke-width="1.5" />
+  <text x="448.111" y="274.15000000000003" text-anchor="middle" font-size="13" font-weight="500" fill="#1f2328" dy="4.55">Insight</text>
+</g>
+<g class="mindmap-node depth-1" data-id="Scale" data-label="Scale" data-branch-index="7" data-parent-id="root" data-role="node">
+  <rect x="140.194" y="256.7" width="60.036" height="34.9" rx="16" ry="16" fill="#b6d6d6" stroke="#0a7576" stroke-width="1.5" />
+  <text x="170.212" y="274.15000000000003" text-anchor="middle" font-size="13" font-weight="500" fill="#1f2328" dy="4.55">Scale</text>
+</g>
+<g class="mindmap-node depth-2" data-id="Growth" data-label="Growth" data-branch-index="7" data-parent-id="Scale" data-role="node">
+  <rect x="40.892" y="256.7" width="67.446" height="34.9" rx="16" ry="16" fill="#cee3e4" stroke="#0a7576" stroke-width="1.5" />
+  <text x="74.615" y="274.15000000000003" text-anchor="middle" font-size="13" font-weight="500" fill="#1f2328" dy="4.55">Growth</text>
+</g>
+</svg>

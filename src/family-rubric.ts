@@ -61,6 +61,14 @@ export interface FamilyRubricMetrics {
   /** HARD (0): two sibling groups PARTIALLY overlapping (tiling: groups must
    *  nest fully or stay disjoint). */
   groupOverlaps: number
+  /** SOFT: foreign nodes intruding into a group's region — a node whose centre
+   *  sits inside a group's rect while it is NOT a (transitive) member of that
+   *  group. This is the *dual* of groupBreaches: breaches catch a member that
+   *  escaped its region; intrusions catch a non-member that reads as if it
+   *  belongs (Palmer 1992 common-region purity is a both-directions property).
+   *  Only counted for families whose groups are true bounding frames
+   *  ('both' axes); 0 for band/frame/plot-region group models. */
+  regionIntrusions: number
   /** SOFT: overlapping pairs involving a data MARK (point/junction marker)
    *  over all node pairs — marks may legitimately coincide (a line point on a
    *  bar, two quadrant points at one coordinate), so this is a rate to
@@ -95,6 +103,9 @@ export const FAMILY_RUBRIC_WEIGHTS = {
   nodeOverlaps: 10,
   groupBreaches: 10,
   groupOverlaps: 8,
+  /** Soft: a foreign node reading inside a region it does not belong to. Ranks
+   *  below the hard containment defects; applied as weight × count. */
+  regionIntrusions: 6,
   /** Soft: applied as weight × markOverlapRate (a fraction, not a count). */
   markOverlapRate: 10,
   /** Soft: applied as weight × (1 − labelledBoxRate). */
@@ -125,6 +136,18 @@ const GROUP_CONTAINMENT_AXES: Partial<Record<DiagramKind, 'both' | 'x' | 'center
   quadrant: 'center',
 }
 
+/**
+ * Families whose groups are OWNERSHIP FRAMES — a member belongs to its group
+ * and a non-member inside the frame is a common-region defect (region
+ * intrusion). This is deliberately an explicit allow-list, not the 'both'
+ * default: many families draw non-ownership groups (radar's concentric grid
+ * rings, chart plot regions, journey bands) that data marks legitimately sit
+ * inside. Flowchart/state subgraphs are also ownership frames but are scored by
+ * layout-rubric.ts, not this module. Architecture groups, class namespaces,
+ * ER groups, and timeline sections are ownership frames in RenderedLayout.
+ */
+const REGION_OWNERSHIP_KINDS = new Set<DiagramKind>(['architecture', 'class', 'er', 'timeline'])
+
 function isBox(node: RenderedLayoutNode): boolean {
   return node.role ? node.role === 'box' : BOX_SHAPES.has(node.shape)
 }
@@ -154,11 +177,32 @@ function rectContains(outer: RenderedLayoutGroup, inner: RenderedLayoutGroup): b
 /** Whether `ancestor` is on `group`'s parentId chain (flattened group trees). */
 function isAncestor(ancestor: RenderedLayoutGroup, group: RenderedLayoutGroup, byId: Map<string, RenderedLayoutGroup>): boolean {
   let cur: RenderedLayoutGroup | undefined = group
-  for (let hops = 0; cur?.parentId && hops < 100; hops++) {
+  const visited = new Set<string>()
+  while (cur?.parentId && !visited.has(cur.id)) {
+    visited.add(cur.id)
     if (cur.parentId === ancestor.id) return true
     cur = byId.get(cur.parentId)
   }
   return false
+}
+
+/**
+ * The node ids that legitimately occupy `group`: its own members plus the
+ * members of every descendant group (a node in a nested child still belongs
+ * inside its ancestor's region, so it is not an intruder).
+ */
+function groupOccupants(
+  group: RenderedLayoutGroup,
+  groups: RenderedLayoutGroup[],
+  byId: Map<string, RenderedLayoutGroup>,
+): Set<string> {
+  const occupants = new Set<string>(group.members)
+  for (const other of groups) {
+    if (other.id !== group.id && isAncestor(group, other, byId)) {
+      for (const memberId of other.members) occupants.add(memberId)
+    }
+  }
+  return occupants
 }
 
 /**
@@ -276,6 +320,29 @@ export function assessRenderedLayout(layout: RenderedLayout): FamilyRubricResult
     }
   }
 
+  // Region-intrusion purity (the dual of groupBreaches): a foreign node whose
+  // CENTRE sits strictly inside a group's rect while it is not a member of that
+  // group or any of the group's descendants reads as belonging to the wrong
+  // cluster. Only meaningful where groups are true bounding frames.
+  let regionIntrusions = 0
+  if (REGION_OWNERSHIP_KINDS.has(layout.kind as DiagramKind)) {
+    for (const g of layout.groups) {
+      if (!finiteRect(g.x, g.y, g.w, g.h)) continue
+      const occupants = groupOccupants(g, layout.groups, groupById)
+      for (const n of layout.nodes) {
+        if (occupants.has(n.id) || !finiteRect(n.x, n.y, n.w, n.h)) continue
+        // Skip nodes that ARE a group's frame box (a group can surface as a node).
+        if (groupById.has(n.id)) continue
+        const cx = n.x + n.w / 2
+        const cy = n.y + n.h / 2
+        if (cx > g.x + TOL && cx < g.x + g.w - TOL && cy > g.y + TOL && cy < g.y + g.h - TOL) {
+          regionIntrusions++
+          violations.push({ metric: 'regionIntrusions', detail: `${n.id} intrudes into ${g.id}` })
+        }
+      }
+    }
+  }
+
   // Label presence on semantic boxes and labelled data marks. Shapes alone
   // cannot distinguish a rectangular bar mark from a text-bearing node.
   const boxes = layout.nodes.filter(requiresLabel)
@@ -292,6 +359,7 @@ export function assessRenderedLayout(layout: RenderedLayout): FamilyRubricResult
     nodeOverlaps,
     groupBreaches,
     groupOverlaps,
+    regionIntrusions,
     markOverlapRate: pairs === 0 ? 0 : markOverlaps / pairs,
     labelledBoxRate: boxes.length === 0 ? 1 : labelledBoxes.length / boxes.length,
   }
@@ -304,6 +372,7 @@ export function assessRenderedLayout(layout: RenderedLayout): FamilyRubricResult
     - w.nodeOverlaps * metrics.nodeOverlaps
     - w.groupBreaches * metrics.groupBreaches
     - w.groupOverlaps * metrics.groupOverlaps
+    - w.regionIntrusions * metrics.regionIntrusions
     - w.markOverlapRate * metrics.markOverlapRate
     - w.missingLabelRate * (1 - metrics.labelledBoxRate)
   ) * 10) / 10)

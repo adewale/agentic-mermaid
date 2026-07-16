@@ -396,6 +396,10 @@ hr { border: 0; margin: var(--sp-6) 0; }
 .example-render { display: grid; grid-template-rows: minmax(260px, 1fr) auto; }
 .example-svg { display: grid; align-items: center; justify-items: center; min-height: 260px; padding: 18px; background: var(--diagram-bg); overflow: auto; }
 .example-svg svg { display: block; width: 100%; max-width: 100%; height: auto; }
+.example-sample-palette .example-sample-grid { grid-template-columns: minmax(0, 1fr); }
+.example-render-palette .example-svg { display: block; }
+.example-render-palette .example-svg svg { width: auto; max-width: none; margin-inline: auto; }
+.example-render-palette .example-svg svg.xychart { width: 700px; }
 .example-render figcaption { margin: 0; padding: 10px 12px; border-top: 1px solid var(--line); color: var(--ink-faint); font-size: var(--t-label); line-height: var(--lh-ui); }
 @media (max-width: 720px) {
   .example-sample-head { display: block; }

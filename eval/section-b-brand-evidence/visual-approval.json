@@ -3,8 +3,8 @@
   "status": "approved",
   "artifact": "docs/design/families/section-b-brand-evidence.png",
   "artifactSha256": "4a69a855066e0b08ba77972beebc963aac9b537bba51edfe4ac0398ad43c4f44",
-  "reviewedAt": "2026-07-15",
+  "reviewedAt": "2026-07-16",
   "reviewer": "OpenAI coding agent, at the user's explicit request",
-  "scope": "All 60 family-by-variant cells at the native 1560x7944 artifact size, including corrected Class endpoint placement and visible silhouettes in all four variants, contained XY labels, padded GitGraph labels, monotonic Mindmap connectors, and the prior Pie typography corrections; reviewed as a full-sheet native-size pass plus four Class-cell crops",
+  "scope": "All 60 family-by-variant cells at the native 1560x7944 artifact size after the controlled categorical-palette rollout and Journey low-cardinality compatibility correction, including coherent XY, Journey, Mindmap, GitGraph, Pie, and Radar paint across all four style variants; reviewed as a full-sheet native-size pass with no clipping, broken silhouettes, or illegible category paint",
   "audit": "eval/section-b-brand-evidence/production-comparison.md"
 }

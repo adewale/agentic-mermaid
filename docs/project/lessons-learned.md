@@ -170,6 +170,29 @@ family docs, and `TODO.md`.
   constraints are quiet. A screenshot generator proving only that bytes exist is
   weaker than a prototype whose render, policy, terminal cue, registration, and
   non-registration boundaries all execute.
+- **Perceptually-uniform categorical color beats HSL.** Equal HSL lightness is
+  *unequal perceived* lightness across hues, so an HSL hue-sweep collapses
+  hue-adjacent categories (measured on the old pie ladder: two of fifteen fills
+  at WCAG 1.01:1; worst pair ΔE_OK 0.049 — a near-identical green pair).
+  Generate categorical fills at constant OKLCH lightness, enforce a minimum
+  ΔE_OK distinctness floor, and gate wedge visibility with polarity-aware APCA
+  (WCAG is polarity-blind and passes wedges that vanish on a dark theme). Put it
+  in the *canonical* palette (`pieSliceColors`): radar already inherits it, and
+  the cross-family plan routes xychart/journey/mindmap/gitgraph through it, so
+  one perceptual fix compounds across every family that shares the color waist.
+  See [`../design/system/cross-family-aesthetics.md`](../design/system/cross-family-aesthetics.md) L3.
+- **A guarantee is only as honest as its domain and runtime bound.** The ΔE_OK
+  collision floor is hard for 7–24 fills across every built-in theme and
+  adversarial custom backgrounds. Above 24, the pairwise pass is skipped so
+  generation remains linear and separation becomes explicitly best-effort.
+  State the supported range, degraded tail, and cost budget together; a
+  deterministic O(n²) search can still be a production failure.
+- **Reachability and independence come before a new diagnostic.** A proposed
+  `LABEL_LINE_OVERLONG` finding was private to a render audit and duplicated the
+  public, universal `LABEL_OVERFLOW` warning already exposed through verify,
+  CLI, API, and MCP. Removing the duplicate was better than wiring a second
+  threshold. When a revert strands a helper, delete it; when an existing metric
+  already owns the defect class, extend that metric instead of adding a shadow.
 
 ## How to apply these lessons
 

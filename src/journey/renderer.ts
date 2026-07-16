@@ -23,8 +23,9 @@ import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { resolveRoleStyle } from '../scene/style-registry.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
-import { getSeriesColor, hexToHsl, hslToHex, isDarkBackground } from '../xychart/colors.ts'
-import { isHexColor, wcagCssContrastRatio } from '../shared/color-math.ts'
+import { categoricalPalette } from '../shared/categorical-palette.ts'
+import { hexToHsl, hslToHex, isDarkBackground } from '../xychart/colors.ts'
+import { isHexColor, tryParseCssColor, wcagCssContrastRatio } from '../shared/color-math.ts'
 import { serializeMarkerResource } from '../scene/marker-resources.ts'
 import {
   projectConnectorPath,
@@ -898,39 +899,22 @@ function contrastGuardedLabelColor(
   return fallback
 }
 
-/** Actor identity is carried by 4px dots, where only hue differences read.
- * Derived actor colors therefore rotate hue (golden-angle steps from the
- * accent) at fixed saturation/lightness, sized to the actual actor count —
- * two actors can never share a color because the palette ran out. */
+/** Actor identity is carried by small dots. Keep Journey's established colors
+ * through six actors; above that compatibility boundary, use the shared
+ * measured separation and visibility contract. Authored actorColours still
+ * win in journeyPaints. */
 function actorPalette(arrow: string, colors: DiagramColors, style: ResolvedRenderStyle, actorCount: number): string[] {
   const count = Math.max(actorCount, 1)
+  if (count > 6 && isOpaqueConcreteCssColor(colors.bg)) {
+    const accent = firstConcreteCssColor(style.edgeStrokeColor, colors.accent)
+    if (accent) return categoricalPalette(count, { accent, bg: colors.bg })
+  }
   if (isHexColor(colors.bg) && isHexColor(colors.fg)) {
     const resolved = resolveColors(colors)
     const accent = firstHexColor(style.edgeStrokeColor, colors.accent, resolved.arrow)
     if (accent) {
-      const [accentHue, accentSat] = hexToHsl(accent)
-      const dark = isDarkBackground(colors.bg)
-      // Neutral accents (the default gray theme) have no meaningful hue, so
-      // anchor the wheel on the indigo family the derived palettes lean on.
-      const baseHue = accentSat < 20 ? 230 : accentHue
-      const saturation = Math.min(72, Math.max(42, accentSat < 20 ? 46 : accentSat))
-      const lightness = dark ? 64 : 38
-      const unique: string[] = []
-      const seen = new Set<string>()
-      const bounded = Math.min(count, JOURNEY_ACTOR_COLOR_LIMIT)
-      for (let attempt = 0; unique.length < bounded && attempt < JOURNEY_ACTOR_COLOR_LIMIT * 16; attempt++) {
-        const band = Math.floor(attempt / 360)
-        const hue = (baseHue + (attempt % 360) * 137.508) % 360
-        const candidate = hslToHex(
-          hue,
-          Math.max(34, saturation - (band % 4) * 7),
-          Math.max(dark ? 46 : 24, Math.min(dark ? 78 : 58, lightness + (band % 2 === 0 ? -band * 2 : band * 2))),
-        )
-        if (!seen.has(candidate)) { seen.add(candidate); unique.push(candidate) }
-      }
-      // Above the documented bound, repeat the guaranteed lattice rather than
-      // pretending unbounded 8-bit categorical uniqueness is possible.
-      return Array.from({ length: count }, (_unused, index) => unique[index % unique.length]!)
+      if (count <= 6) return legacyActorPalette(accent, colors.bg, count)
+      return categoricalPalette(count, { accent, bg: colors.bg })
     }
   }
   const fallback = [
@@ -946,16 +930,52 @@ function actorPalette(arrow: string, colors: DiagramColors, style: ResolvedRende
   return fallback.slice(0, Math.max(count <= fallback.length ? count : fallback.length, 1))
 }
 
+/** Journey's pre-rollout golden-angle actor palette, retained verbatim for the
+ * compatibility range. */
+function legacyActorPalette(accent: string, bg: string, count: number): string[] {
+  const [accentHue, accentSat] = hexToHsl(accent)
+  const dark = isDarkBackground(bg)
+  const baseHue = accentSat < 20 ? 230 : accentHue
+  const saturation = Math.min(72, Math.max(42, accentSat < 20 ? 46 : accentSat))
+  const lightness = dark ? 64 : 38
+  const unique: string[] = []
+  const seen = new Set<string>()
+  const bounded = Math.min(count, JOURNEY_ACTOR_COLOR_LIMIT)
+  for (let attempt = 0; unique.length < bounded && attempt < JOURNEY_ACTOR_COLOR_LIMIT * 16; attempt++) {
+    const band = Math.floor(attempt / 360)
+    const hue = (baseHue + (attempt % 360) * 137.508) % 360
+    const candidate = hslToHex(
+      hue,
+      Math.max(34, saturation - (band % 4) * 7),
+      Math.max(dark ? 46 : 24, Math.min(dark ? 78 : 58, lightness + (band % 2 === 0 ? -band * 2 : band * 2))),
+    )
+    if (!seen.has(candidate)) { seen.add(candidate); unique.push(candidate) }
+  }
+  return Array.from({ length: count }, (_unused, index) => unique[index % unique.length]!)
+}
+
 function concreteSeriesColors(colors: DiagramColors, style: ResolvedRenderStyle, count: number): string[] | undefined {
+  if (count > 6 && isOpaqueConcreteCssColor(colors.bg)) {
+    const accent = firstConcreteCssColor(style.edgeStrokeColor, colors.accent)
+    if (accent) return categoricalPalette(count, { accent, bg: colors.bg })
+  }
   if (!isHexColor(colors.bg) || !isHexColor(colors.fg)) return undefined
   const resolved = resolveColors(colors)
   const accent = firstHexColor(style.edgeStrokeColor, colors.accent, resolved.arrow)
   if (!accent) return undefined
-  return Array.from({ length: count }, (_unused, index) => getSeriesColor(index, accent, colors.bg))
+  return categoricalPalette(count, { accent, bg: colors.bg })
 }
 
 function firstHexColor(...values: Array<string | undefined>): string | undefined {
   return values.find((value): value is string => value !== undefined && isHexColor(value))
+}
+
+function firstConcreteCssColor(...values: Array<string | undefined>): string | undefined {
+  return values.find((value): value is string => value !== undefined && tryParseCssColor(value) !== null)
+}
+
+function isOpaqueConcreteCssColor(value: string): boolean {
+  return tryParseCssColor(value)?.[3] === 1
 }
 
 function actorClass(index: number, paints: JourneyPaints): string {

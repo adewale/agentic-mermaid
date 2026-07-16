@@ -68,7 +68,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "ebdb4a0e7ebbce12e36bc6491e0d4ea50004afb364ecf30a3b3284d8ea206ee7"
+      "sha256": "ca1bd3d1f7bb201e94fe773c72126aafab78c3683d9fdb5e8591df37559cfd58"
     },
     {
       "path": "scripts/pr-assets/artifact-receipt.ts",
@@ -439,6 +439,10 @@
       "sha256": "cec1811cfc8cdeca6be5c63bf61d8c1797ce8d75c1d9580dc04ce840a8df09cc"
     },
     {
+      "path": "src/__tests__/categorical-palette-rollout.test.ts",
+      "sha256": "5920f4c0bb79ae58b0eee01356feaf1d0486edf79bf4947e770e6db8f92fd3b5"
+    },
+    {
       "path": "src/__tests__/certificate-completeness.test.ts",
       "sha256": "2058e22806782ec09dab0ec55d820028b654cf99cdd9ca740cfed41fcfd0b772"
     },
@@ -556,7 +560,7 @@
     },
     {
       "path": "src/__tests__/color-math.test.ts",
-      "sha256": "1d0e2994324a77e79758e271128ea2b45082f6ba76b8c763ba97e33666ccaf1f"
+      "sha256": "92ac2b3861de32b002520de1ea56ca3bf09d4696e4538726a4a6aa37deccbf51"
     },
     {
       "path": "src/__tests__/comparison-differences-sync.test.ts",
@@ -716,7 +720,7 @@
     },
     {
       "path": "src/__tests__/family-rubric.test.ts",
-      "sha256": "570764422c9717e55464732d0bb8cf467d6e6fa1367668e2034947625c562cae"
+      "sha256": "f8d908abd4e4b453247facef6ab1e99582ab9930ca36a61170164f9604b671ea"
     },
     {
       "path": "src/__tests__/fanout-symmetry.test.ts",
@@ -1067,6 +1071,18 @@
       "sha256": "f084db3205d2f5dea02b8cbdca9d6a3923c71e98a0b3f3d822f06ceb3d5be68d"
     },
     {
+      "path": "src/__tests__/palette-harmony-experiment.test.ts",
+      "sha256": "b11b81f9f4656e0e976de73ae647f7d8cdc89c7a0902896f35f427449c36eb8d"
+    },
+    {
+      "path": "src/__tests__/palette-performance-evidence.test.ts",
+      "sha256": "d320daaa80489f136ece8e5ec03d1282d179fb3beb4bccadf5d130953dde7746"
+    },
+    {
+      "path": "src/__tests__/palette-rollout-evidence-integrity.test.ts",
+      "sha256": "fd151d2079b96117f7c047f34b5b5f64b50bb568e24855d0d2f268037542541b"
+    },
+    {
       "path": "src/__tests__/parser-style-props.test.ts",
       "sha256": "cc56c81fd4fbb2f010ed28f9d38835faa718bb4c8b2adde1304cfb8c8c6f3446"
     },
@@ -1075,8 +1091,16 @@
       "sha256": "d73e3a3bc3198c2c1f4006e09cee98001ed3d0d488ab5701ff545852f9f9c99e"
     },
     {
+      "path": "src/__tests__/perceptual-color.test.ts",
+      "sha256": "5019e7bdc90edf57ea25aeb8a62c2f2039cb14e1f58239841f907b8444846cd4"
+    },
+    {
+      "path": "src/__tests__/perceptual-palette-impact.test.ts",
+      "sha256": "7940d3db96dd5a38b9581c6aa802d0df43e638c13ee783c0b494a583b9d7d9c9"
+    },
+    {
       "path": "src/__tests__/pie-elevation.test.ts",
-      "sha256": "c8bfe810e2bba97a1b9ae5a37f7ffd2c6ae9f5af7f911ded31fbf967480913fb"
+      "sha256": "6f4603c1ca9a9d82035ae5f4146df967d0fb89d6a6df8629447272faa6cf4220"
     },
     {
       "path": "src/__tests__/pie.test.ts",
@@ -1580,7 +1604,7 @@
     },
     {
       "path": "src/__tests__/website-build.test.ts",
-      "sha256": "f4a6da41f1aa05cb2dccec00c50ef280bf414c12c9aadef9415ab58d35b35175"
+      "sha256": "7af670a96820acb8f9d9f853e2e576a62263f12ee2187b776c7370c2f388ce30"
     },
     {
       "path": "src/__tests__/website-public.preload.ts",
@@ -1776,7 +1800,7 @@
     },
     {
       "path": "src/agent/readability-audit.ts",
-      "sha256": "06a500c5e73857e4347e656da29f63605937077b08bfc65986c294566b8a8864"
+      "sha256": "13e5a91efc91360ae310e7797dfd96c39dbe1544337728f7679450d0070aca47"
     },
     {
       "path": "src/agent/render-input.ts",
@@ -1892,7 +1916,7 @@
     },
     {
       "path": "src/ascii/gitgraph.ts",
-      "sha256": "19e49a6148b68e2e770a36c0c7d2e113e66b5d54880cb0f32f3b6750abc4f644"
+      "sha256": "67d3bed0850394975c637cd66653a93a84c1c83f199b78043ec8ce48c9243d19"
     },
     {
       "path": "src/ascii/grid.ts",
@@ -2012,7 +2036,7 @@
     },
     {
       "path": "src/ascii/xychart.ts",
-      "sha256": "9f36f8178b1f3bc1b3a9b8b536ff40cd3e0d9943f4fdb2579c4affa288126f97"
+      "sha256": "e7866e76e58fb5b021fa35322ad00831535af59cbd31630f987d23d22a849030"
     },
     {
       "path": "src/browser-png.ts",
@@ -2104,7 +2128,7 @@
     },
     {
       "path": "src/family-rubric.ts",
-      "sha256": "b29402e9415acf8d1c25cf3a16dee6ae8171d518468d5b225a16bfcec7f98283"
+      "sha256": "dc9d884922227887460d90813e849e84552a7fc71b0b62dc25389a7e6605ffeb"
     },
     {
       "path": "src/flowchart-config.ts",
@@ -2160,7 +2184,7 @@
     },
     {
       "path": "src/gitgraph/renderer.ts",
-      "sha256": "90a39ef701b1a5572dcf1659be2280b457970c5092aa3662ab8ce1656ab43534"
+      "sha256": "4c4f886adb59f21f71528d306fe2d45b198b822be793fbb7962a95eea37e0936"
     },
     {
       "path": "src/gitgraph/types.ts",
@@ -2188,7 +2212,7 @@
     },
     {
       "path": "src/journey/renderer.ts",
-      "sha256": "dd11aaedf2d60db22352e55348e3b37870289e7d795047c754fd7a024f8c38e7"
+      "sha256": "2395e3e4afdcf4011f9add10de630cd7c4ccd4d4353f74a8a3bcb833aa8a2663"
     },
     {
       "path": "src/journey/types.ts",
@@ -2304,7 +2328,7 @@
     },
     {
       "path": "src/mindmap/renderer.ts",
-      "sha256": "25ff009178620f94ee61ebc5a8edbf6a2156d752736ef593ffdec48e51dbaa56"
+      "sha256": "852e92f92e3d37b9a97b7911f06f4938ec5488532416c9dd87a23a28a614c069"
     },
     {
       "path": "src/mindmap/types.ts",
@@ -2344,7 +2368,7 @@
     },
     {
       "path": "src/pie/palette.ts",
-      "sha256": "4a35346f1a3c8f7bfa1402d1e4969d5c4f4252e36dab2b326be0486c93985df0"
+      "sha256": "a8e7fc6eb503f0bfee6cd233fb65463ee4f4fae58c12ba34555e2b695954c786"
     },
     {
       "path": "src/pie/parser.ts",
@@ -2627,8 +2651,12 @@
       "sha256": "c8c7d92d8878f1856e20e697446439e13407348c7eb9fe38a202852e7902d8de"
     },
     {
+      "path": "src/shared/categorical-palette.ts",
+      "sha256": "32fe41d7f8adc67fd9034ae6c35a01e7bbbe9b788859b39f26828c465a38e176"
+    },
+    {
       "path": "src/shared/color-math.ts",
-      "sha256": "b82fe24f3e5ad92451525ad01a12047d55564a313424688c75d762a8fed58849"
+      "sha256": "494c7a4b91dba1df7766d1a45551b5ec283170741d39310ea813d6e58ca2a257"
     },
     {
       "path": "src/shared/config-wire-or-warn.ts",
@@ -2681,6 +2709,10 @@
     {
       "path": "src/shared/mermaid-identifiers.ts",
       "sha256": "bd4df442a1326017c9f83fe171609205259f4e75a34203a50cef0d23e7f09796"
+    },
+    {
+      "path": "src/shared/perceptual-color.ts",
+      "sha256": "ce978da907b6d6d5be8bca8dcbed0b2da9728503fa9fa0f87033675e9980880a"
     },
     {
       "path": "src/shared/png-font-warnings.ts",
@@ -2820,7 +2852,7 @@
     },
     {
       "path": "src/xychart/renderer.ts",
-      "sha256": "dfb9f62e35add486522116bf1bb2770b16e5a15c5a486c0636fd6171fe7ab6e2"
+      "sha256": "dd6184dcfb0e44d7f556743d533c50c73986eff85328a09572d6ade6d0dd96fc"
     },
     {
       "path": "src/xychart/types.ts",
@@ -2830,11 +2862,11 @@
   "outputs": [
     {
       "path": "docs/design/families/gitgraph-content-gallery.png",
-      "sha256": "ffef0e6e8aa0e48554a52357ae03c5e7d86b42524d3346739a04fbff6c98b9d1"
+      "sha256": "b0884413393fbd4c6ed053ddc44d29de74106fb4ce46ecfa3bd4bc9fd17f0dd8"
     },
     {
       "path": "docs/design/families/mindmap-content-gallery.png",
-      "sha256": "034642626596e202678575132eef57e5d8816dc90b98f1443fdffcb3457a90c6"
+      "sha256": "e434e8648fb2e3041f17330b3f0dff331e5e9339b79f37576395e9a64cc4ecaa"
     }
   ]
 }

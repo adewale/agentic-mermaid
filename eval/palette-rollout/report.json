@@ -1,0 +1,427 @@
+{
+  "schemaVersion": 1,
+  "baselineCommit": "a9548ea8050869c673572dc786ba4dbb27996f44",
+  "contract": {
+    "minDeltaEOK": 0.1,
+    "minWcagVsBackground": 1.25,
+    "minAbsApcaVsBackground": 15
+  },
+  "cases": [
+    {
+      "id": "xychart-github-light",
+      "family": "xychart",
+      "theme": "github-light",
+      "background": "#ffffff",
+      "colors": [
+        "#0969da",
+        "#b283f0",
+        "#b44586",
+        "#f1735b",
+        "#a76300",
+        "#8dad22",
+        "#009061",
+        "#00b6d8"
+      ],
+      "metrics": {
+        "unique": 8,
+        "minDeltaEOK": 0.1582,
+        "minWcagVsBackground": 2.4186,
+        "minAbsApcaVsBackground": 46.9394,
+        "violations": []
+      }
+    },
+    {
+      "id": "xychart-dracula",
+      "family": "xychart",
+      "theme": "dracula",
+      "background": "#282a36",
+      "colors": [
+        "#bd93f9",
+        "#bd5691",
+        "#fa846e",
+        "#b17100",
+        "#9cb941",
+        "#009b6d",
+        "#00c2e1",
+        "#4080d7"
+      ],
+      "metrics": {
+        "unique": 8,
+        "minDeltaEOK": 0.165,
+        "minWcagVsBackground": 3.3253,
+        "minAbsApcaVsBackground": 28.6024,
+        "violations": []
+      }
+    },
+    {
+      "id": "journey-github-light",
+      "family": "journey",
+      "theme": "github-light",
+      "background": "#ffffff",
+      "colors": [
+        "#0969da",
+        "#b283f0",
+        "#b44586",
+        "#f1735b",
+        "#a76300",
+        "#8dad22",
+        "#009061",
+        "#00b6d8"
+      ],
+      "metrics": {
+        "unique": 8,
+        "minDeltaEOK": 0.1582,
+        "minWcagVsBackground": 2.4186,
+        "minAbsApcaVsBackground": 46.9394,
+        "violations": []
+      }
+    },
+    {
+      "id": "journey-dracula",
+      "family": "journey",
+      "theme": "dracula",
+      "background": "#282a36",
+      "colors": [
+        "#bd93f9",
+        "#bd5691",
+        "#fa846e",
+        "#b17100",
+        "#9cb941",
+        "#009b6d",
+        "#00c2e1",
+        "#4080d7"
+      ],
+      "metrics": {
+        "unique": 8,
+        "minDeltaEOK": 0.165,
+        "minWcagVsBackground": 3.3253,
+        "minAbsApcaVsBackground": 28.6024,
+        "violations": []
+      }
+    },
+    {
+      "id": "mindmap-github-light",
+      "family": "mindmap",
+      "theme": "github-light",
+      "background": "#ffffff",
+      "colors": [
+        "#0969da",
+        "#b283f0",
+        "#b44586",
+        "#f1735b",
+        "#a76300",
+        "#8dad22",
+        "#009061",
+        "#00b6d8"
+      ],
+      "metrics": {
+        "unique": 8,
+        "minDeltaEOK": 0.1582,
+        "minWcagVsBackground": 2.4186,
+        "minAbsApcaVsBackground": 46.9394,
+        "violations": []
+      }
+    },
+    {
+      "id": "mindmap-dracula",
+      "family": "mindmap",
+      "theme": "dracula",
+      "background": "#282a36",
+      "colors": [
+        "#bd93f9",
+        "#bd5691",
+        "#fa846e",
+        "#b17100",
+        "#9cb941",
+        "#009b6d",
+        "#00c2e1",
+        "#4080d7"
+      ],
+      "metrics": {
+        "unique": 8,
+        "minDeltaEOK": 0.165,
+        "minWcagVsBackground": 3.3253,
+        "minAbsApcaVsBackground": 28.6024,
+        "violations": []
+      }
+    },
+    {
+      "id": "gitgraph-github-light",
+      "family": "gitgraph",
+      "theme": "github-light",
+      "background": "#ffffff",
+      "colors": [
+        "#0969da",
+        "#b283f0",
+        "#b44586",
+        "#f1735b",
+        "#a76300",
+        "#8dad22",
+        "#009061",
+        "#00b6d8"
+      ],
+      "metrics": {
+        "unique": 8,
+        "minDeltaEOK": 0.1582,
+        "minWcagVsBackground": 2.4186,
+        "minAbsApcaVsBackground": 46.9394,
+        "violations": []
+      }
+    },
+    {
+      "id": "gitgraph-dracula",
+      "family": "gitgraph",
+      "theme": "dracula",
+      "background": "#282a36",
+      "colors": [
+        "#bd93f9",
+        "#bd5691",
+        "#fa846e",
+        "#b17100",
+        "#9cb941",
+        "#009b6d",
+        "#00c2e1",
+        "#4080d7"
+      ],
+      "metrics": {
+        "unique": 8,
+        "minDeltaEOK": 0.165,
+        "minWcagVsBackground": 3.3253,
+        "minAbsApcaVsBackground": 28.6024,
+        "violations": []
+      }
+    }
+  ],
+  "comparisons": [
+    {
+      "id": "xychart-github-light",
+      "family": "xychart",
+      "theme": "github-light",
+      "before": {
+        "unique": 8,
+        "minDeltaEOK": 0.0265,
+        "minWcagVsBackground": 2.5091,
+        "minAbsApcaVsBackground": 49.1446,
+        "violations": [
+          "ΔE 0.0265 < 0.1"
+        ]
+      },
+      "after": {
+        "unique": 8,
+        "minDeltaEOK": 0.1582,
+        "minWcagVsBackground": 2.4186,
+        "minAbsApcaVsBackground": 46.9394,
+        "violations": []
+      },
+      "delta": {
+        "minDeltaEOK": 0.1317,
+        "minWcagVsBackground": -0.0905,
+        "minAbsApcaVsBackground": -2.2052
+      },
+      "improved": true
+    },
+    {
+      "id": "xychart-dracula",
+      "family": "xychart",
+      "theme": "dracula",
+      "before": {
+        "unique": 8,
+        "minDeltaEOK": 0.0193,
+        "minWcagVsBackground": 1.0953,
+        "minAbsApcaVsBackground": 0,
+        "violations": [
+          "ΔE 0.0193 < 0.1",
+          "WCAG 1.0953 < 1.25",
+          "APCA 0 < 15"
+        ]
+      },
+      "after": {
+        "unique": 8,
+        "minDeltaEOK": 0.165,
+        "minWcagVsBackground": 3.3253,
+        "minAbsApcaVsBackground": 28.6024,
+        "violations": []
+      },
+      "delta": {
+        "minDeltaEOK": 0.1457,
+        "minWcagVsBackground": 2.23,
+        "minAbsApcaVsBackground": 28.6024
+      },
+      "improved": true
+    },
+    {
+      "id": "journey-github-light",
+      "family": "journey",
+      "theme": "github-light",
+      "before": {
+        "unique": 8,
+        "minDeltaEOK": 0.0329,
+        "minWcagVsBackground": 2.9444,
+        "minAbsApcaVsBackground": 55.4421,
+        "violations": [
+          "ΔE 0.0329 < 0.1"
+        ]
+      },
+      "after": {
+        "unique": 8,
+        "minDeltaEOK": 0.1582,
+        "minWcagVsBackground": 2.4186,
+        "minAbsApcaVsBackground": 46.9394,
+        "violations": []
+      },
+      "delta": {
+        "minDeltaEOK": 0.1253,
+        "minWcagVsBackground": -0.5258,
+        "minAbsApcaVsBackground": -8.5027
+      },
+      "improved": true
+    },
+    {
+      "id": "journey-dracula",
+      "family": "journey",
+      "theme": "dracula",
+      "before": {
+        "unique": 8,
+        "minDeltaEOK": 0.0726,
+        "minWcagVsBackground": 3.4222,
+        "minAbsApcaVsBackground": 29.3277,
+        "violations": [
+          "ΔE 0.0726 < 0.1"
+        ]
+      },
+      "after": {
+        "unique": 8,
+        "minDeltaEOK": 0.165,
+        "minWcagVsBackground": 3.3253,
+        "minAbsApcaVsBackground": 28.6024,
+        "violations": []
+      },
+      "delta": {
+        "minDeltaEOK": 0.0924,
+        "minWcagVsBackground": -0.0969,
+        "minAbsApcaVsBackground": -0.7253
+      },
+      "improved": true
+    },
+    {
+      "id": "mindmap-github-light",
+      "family": "mindmap",
+      "theme": "github-light",
+      "before": {
+        "unique": 8,
+        "minDeltaEOK": 0.0265,
+        "minWcagVsBackground": 2.5091,
+        "minAbsApcaVsBackground": 49.1446,
+        "violations": [
+          "ΔE 0.0265 < 0.1"
+        ]
+      },
+      "after": {
+        "unique": 8,
+        "minDeltaEOK": 0.1582,
+        "minWcagVsBackground": 2.4186,
+        "minAbsApcaVsBackground": 46.9394,
+        "violations": []
+      },
+      "delta": {
+        "minDeltaEOK": 0.1317,
+        "minWcagVsBackground": -0.0905,
+        "minAbsApcaVsBackground": -2.2052
+      },
+      "improved": true
+    },
+    {
+      "id": "mindmap-dracula",
+      "family": "mindmap",
+      "theme": "dracula",
+      "before": {
+        "unique": 8,
+        "minDeltaEOK": 0.0193,
+        "minWcagVsBackground": 1.0953,
+        "minAbsApcaVsBackground": 0,
+        "violations": [
+          "ΔE 0.0193 < 0.1",
+          "WCAG 1.0953 < 1.25",
+          "APCA 0 < 15"
+        ]
+      },
+      "after": {
+        "unique": 8,
+        "minDeltaEOK": 0.165,
+        "minWcagVsBackground": 3.3253,
+        "minAbsApcaVsBackground": 28.6024,
+        "violations": []
+      },
+      "delta": {
+        "minDeltaEOK": 0.1457,
+        "minWcagVsBackground": 2.23,
+        "minAbsApcaVsBackground": 28.6024
+      },
+      "improved": true
+    },
+    {
+      "id": "gitgraph-github-light",
+      "family": "gitgraph",
+      "theme": "github-light",
+      "before": {
+        "unique": 8,
+        "minDeltaEOK": 0.0265,
+        "minWcagVsBackground": 2.5091,
+        "minAbsApcaVsBackground": 49.1446,
+        "violations": [
+          "ΔE 0.0265 < 0.1"
+        ]
+      },
+      "after": {
+        "unique": 8,
+        "minDeltaEOK": 0.1582,
+        "minWcagVsBackground": 2.4186,
+        "minAbsApcaVsBackground": 46.9394,
+        "violations": []
+      },
+      "delta": {
+        "minDeltaEOK": 0.1317,
+        "minWcagVsBackground": -0.0905,
+        "minAbsApcaVsBackground": -2.2052
+      },
+      "improved": true
+    },
+    {
+      "id": "gitgraph-dracula",
+      "family": "gitgraph",
+      "theme": "dracula",
+      "before": {
+        "unique": 8,
+        "minDeltaEOK": 0.0193,
+        "minWcagVsBackground": 1.0953,
+        "minAbsApcaVsBackground": 0,
+        "violations": [
+          "ΔE 0.0193 < 0.1",
+          "WCAG 1.0953 < 1.25",
+          "APCA 0 < 15"
+        ]
+      },
+      "after": {
+        "unique": 8,
+        "minDeltaEOK": 0.165,
+        "minWcagVsBackground": 3.3253,
+        "minAbsApcaVsBackground": 28.6024,
+        "violations": []
+      },
+      "delta": {
+        "minDeltaEOK": 0.1457,
+        "minWcagVsBackground": 2.23,
+        "minAbsApcaVsBackground": 28.6024
+      },
+      "improved": true
+    }
+  ],
+  "summary": {
+    "caseCount": 8,
+    "beforeViolations": 14,
+    "afterViolations": 0,
+    "correctedCases": 8,
+    "passingCases": 8,
+    "automaticVerdict": "improvement"
+  }
+}

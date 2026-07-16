@@ -2,8 +2,8 @@
   "schemaVersion": 2,
   "generator": "scripts/pr-assets/section-b-brand-evidence.ts",
   "inputs": {
-    "count": 698,
-    "treeSha256": "1cd500a783024b1372411bce9b772d66d7e07d4b51ed6f31c33aa94211d5d506"
+    "count": 706,
+    "treeSha256": "aad3fc4f47a29753735beaa3c1bade998943a53682d5672304c0e7ae1ad148d8"
   },
   "fontInputs": [
     {
@@ -52,7 +52,7 @@
     "path": "eval/section-b-brand-evidence/visual-approval.json",
     "status": "approved",
     "artifactSha256": "4a69a855066e0b08ba77972beebc963aac9b537bba51edfe4ac0398ad43c4f44",
-    "reviewedAt": "2026-07-15",
+    "reviewedAt": "2026-07-16",
     "reviewer": "OpenAI coding agent, at the user's explicit request",
     "audit": "eval/section-b-brand-evidence/production-comparison.md"
   },

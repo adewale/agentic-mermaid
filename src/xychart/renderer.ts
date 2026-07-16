@@ -5,7 +5,8 @@ import { TEXT_BASELINE_SHIFT, applyTextTransform, estimateTextWidth, STROKE_WIDT
 import type { RenderStyleDefaults } from '../styles.ts'
 import { LEGEND_SWATCH_GAP, LEGEND_SWATCH_SIZE, XY_STYLE_DEFAULTS } from './layout.ts'
 import { escapeXml } from '../multiline-utils.ts'
-import { getSeriesColor, CHART_ACCENT_FALLBACK } from './colors.ts'
+import { CHART_ACCENT_FALLBACK } from './colors.ts'
+import { categoricalPalette } from '../shared/categorical-palette.ts'
 import type { MarkPaint, SceneDoc, SceneNode } from '../scene/ir.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
@@ -557,10 +558,13 @@ function chartStyles(
 
   const colorVarDefs: string[] = []
   const explicitPalette = themeOverrides.plotColorPalette
+  const derivedPalette = categoricalPalette(Math.max(0, ...colorIndices) + 1, { accent: accentHex, bg: bgColor })
   for (const index of [...colorIndices].sort((a, b) => a - b)) {
     const value = explicitPalette && explicitPalette.length > 0
       ? explicitPalette[index % explicitPalette.length]!
-      : (index === 0 ? `var(--accent, ${CHART_ACCENT_FALLBACK})` : getSeriesColor(index, accentHex, bgColor))
+      : (index === 0 && derivedPalette.length <= 6
+          ? `var(--accent, ${CHART_ACCENT_FALLBACK})`
+          : derivedPalette[index]!)
     colorVarDefs.push(`    --xychart-color-${index}: ${value};`)
   }
 
