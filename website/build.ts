@@ -662,7 +662,18 @@ resolveLegacyRichExampleAnchor()
 }
 
 function richExampleRenderState(sample: any) {
-  return createExampleRenderState(sample.source, sample.options ?? {})
+  const options = { ...(sample.options ?? {}) }
+  if (sample.category === 'Style + Palette'
+    && Array.isArray(options.style)
+    && typeof options.style[0] === 'string'
+    && typeof options.style[1] === 'string') {
+    const [style, palette] = options.style
+    const seed = typeof options.seed === 'number' ? options.seed : 0
+    delete options.style
+    delete options.seed
+    return createStyledExampleRenderState(sample.source, { style, palette, seed }, options)
+  }
+  return createExampleRenderState(sample.source, options)
 }
 
 function renderRichExampleSvg(sample: any, id: string, request = richExampleRenderState(sample)) {
@@ -1087,8 +1098,11 @@ function comparisonSvg(svg: string, id: string, engine: string, family: string) 
     .replace(/(<svg\b[^>]*?)\saria-labelledby="[^"]*"/, '$1')
   return addSvgAccessibleName(namespaced, id, `${engine} ${family}`, `${family} rendered by ${engine}.`)
 }
-function comparisonAgenticSvg(c: ComparisonCase) {
-  return comparisonSvg(renderMermaidSVG(c.source, { ...WEBSITE_EXAMPLE_THEME, security: 'strict', compact: true, embedFontImport: false, idPrefix: `comparison-agentic-${c.id}-` }), `comparison-agentic-${c.id}`, 'Agentic Mermaid', c.family)
+function comparisonAgenticRenderState(c: ComparisonCase) {
+  return createExampleRenderState(c.source, WEBSITE_EXAMPLE_THEME)
+}
+function comparisonAgenticSvg(c: ComparisonCase, request = comparisonAgenticRenderState(c)) {
+  return comparisonSvg(renderMermaidSVG(c.source, { ...request.renderOptions, security: 'strict', embedFontImport: false, idPrefix: `comparison-agentic-${c.id}-` }), `comparison-agentic-${c.id}`, 'Agentic Mermaid', c.family)
 }
 function comparisonBeautifulRender(c: ComparisonCase) {
   try {
@@ -1100,8 +1114,8 @@ function comparisonBeautifulRender(c: ComparisonCase) {
 function comparisonPanel(engine: string, label: string, body: string) {
   return `<div class="comparison-panel" data-comparison-engine="${escapeAttr(engine)}"><h3>${escapeHtml(label)}</h3><div class="comparison-render">${body}</div></div>`
 }
-function comparisonEditorHref(source: string) {
-  return editorStateHref({ source })
+function comparisonEditorHref(request: ReturnType<typeof comparisonAgenticRenderState>) {
+  return editorStateHref(request.editorState)
 }
 const COMPARISON_TAKEAWAYS: Record<string, string> = {
   flowchart: 'Compare edge routing, label stability, and whether dense fan-out still reads without browser-dependent drift.',
@@ -1194,15 +1208,16 @@ ${COMPARISON_STYLE_ROWS.map((row) => `<tr><th scope="row">${escapeHtml(row.tool)
 function comparisonsHtml() {
   const sections = COMPARISON_CASES.map((c) => {
     const beautiful = comparisonBeautifulRender(c)
+    const agenticRequest = comparisonAgenticRenderState(c)
     const takeaway = COMPARISON_TAKEAWAYS[c.id] ?? 'Compare deterministic local rendering against the browser/runtime render.'
     const panels = [
       comparisonPanel('mermaid', 'Mermaid', `<pre class="mermaid comparison-mermaid" id="comparison-mermaid-${escapeAttr(c.id)}">${escapeHtml(c.source)}</pre>`),
       beautiful.supported ? comparisonPanel('beautiful', 'Beautiful Mermaid', beautiful.html) : '',
-      comparisonPanel('agentic', 'Agentic Mermaid', comparisonAgenticSvg(c)),
+      comparisonPanel('agentic', 'Agentic Mermaid', comparisonAgenticSvg(c, agenticRequest)),
     ].filter(Boolean).join('\n    ')
     const note = beautiful.supported ? '' : '\n  <p class="comparison-note">Beautiful Mermaid does not render this family; only Mermaid and Agentic Mermaid are shown.</p>'
     return `
-<section class="comparison-case${beautiful.supported ? '' : ' comparison-case-omits-beautiful'}" id="${escapeAttr(c.id)}" aria-labelledby="comparison-${escapeAttr(c.id)}-title" data-comparison-editor-href="${escapeAttr(comparisonEditorHref(c.source))}">
+<section class="comparison-case${beautiful.supported ? '' : ' comparison-case-omits-beautiful'}" id="${escapeAttr(c.id)}" aria-labelledby="comparison-${escapeAttr(c.id)}-title" data-comparison-editor-href="${escapeAttr(comparisonEditorHref(agenticRequest))}">
   <header class="comparison-case-head">
     <h2 id="comparison-${escapeAttr(c.id)}-title">${escapeHtml(c.family)}</h2>
     <button class="comparison-open" type="button" data-comparison-open>Open larger comparison</button>
@@ -1820,29 +1835,39 @@ function heroGallerySlides() {
 function heroStyleFigureHtml() {
   const slides = heroGallerySlides()
   const panels = slides.map((slide, i) => {
+    const request = createStyledExampleRenderState(slide.source, {
+      style: slide.look,
+      palette: slide.theme,
+      seed: slide.seed,
+    })
     const svg = addSvgAccessibleName(
       renderMermaidSVG(slide.source, {
-        style: [slide.look, slide.theme], seed: slide.seed,
-        security: 'strict', compact: true, embedFontImport: false, idPrefix: `hero-${slide.key}-`,
+        ...request.renderOptions,
+        security: 'strict', embedFontImport: false, idPrefix: `hero-${slide.key}-`,
       }).replace(/[ \t]+$/gm, ''),
       `hero-${slide.key}`,
       `${slide.subjectShort} in ${displayStyleName(slide.look)} and ${displayStyleName(slide.theme)}`,
       `Build-time render: ${slide.subject}, style ${slide.look}, palette ${slide.theme}, seed ${slide.seed}.`,
     )
     const label = `${slide.look} · ${slide.theme}`
-    return `<div class="gallery-panel hero-style-panel" data-gallery-panel data-gallery-label="${escapeAttr(`${label} — ${slide.subjectShort}`)}" data-gallery-editor="${escapeAttr(editorStateHref({ source: slide.source, style: slide.look, palette: slide.theme, seed: slide.seed }))}"${i === 0 ? '' : ' hidden'}>
+    return `<div class="gallery-panel hero-style-panel" data-gallery-panel data-gallery-label="${escapeAttr(`${label} — ${slide.subjectShort}`)}" data-gallery-editor="${escapeAttr(editorStateHref(request.editorState))}"${i === 0 ? '' : ' hidden'}>
       <p class="meta-label gallery-panel-label">${escapeHtml(`${label} — ${slide.subjectShort}`)}</p>
       <div class="plate dia-plate hero-plate">${svg}</div>
     </div>`
   }).join('\n')
   const firstLabel = `${slides[0]!.look} · ${slides[0]!.theme} — ${slides[0]!.subjectShort}`
+  const firstRequest = createStyledExampleRenderState(slides[0]!.source, {
+    style: slides[0]!.look,
+    palette: slides[0]!.theme,
+    seed: slides[0]!.seed,
+  })
   return `<figure class="hero-style-figure">
     <div class="hero-style-card" data-gallery>
       <div class="gallery-bar">
         <button type="button" class="gallery-nav" data-gallery-prev aria-label="Previous style combination">‹</button>
         <p class="gallery-status"><span data-gallery-status aria-live="polite">${escapeHtml(firstLabel)} (1/${slides.length})</span></p>
         <button type="button" class="gallery-nav" data-gallery-next aria-label="Next style combination">›</button>
-        <a class="go gallery-editor-link" data-gallery-editor-link href="${escapeAttr(editorStateHref({ source: slides[0]!.source, style: slides[0]!.look, palette: slides[0]!.theme, seed: slides[0]!.seed }))}">Open in editor</a>
+        <a class="go gallery-editor-link" data-gallery-editor-link href="${escapeAttr(editorStateHref(firstRequest.editorState))}">Open in editor</a>
       </div>
       ${panels}
     </div>
@@ -1899,12 +1924,17 @@ const HOME_STYLE_SHOWCASE_COMBOS = [
   { label: 'Report figure', look: 'publication-figure', theme: 'github-light', seed: 0, blurb: 'For specs, READMEs, and reviewable product documents.' },
   { label: 'Ops map', look: 'ops-schematic', theme: 'nord-light', seed: 8, blurb: 'For traces, runbooks, and compact engineering diagrams.' },
 ] as const
-function renderHomeStyleShowcaseSvg(combo: (typeof HOME_STYLE_SHOWCASE_COMBOS)[number]) {
-  const svg = renderMermaidSVG(HOME_STYLE_SHOWCASE_SOURCE, {
-    style: [combo.look, combo.theme],
+function homeStyleShowcaseRenderState(combo: (typeof HOME_STYLE_SHOWCASE_COMBOS)[number]) {
+  return createStyledExampleRenderState(HOME_STYLE_SHOWCASE_SOURCE, {
+    style: combo.look,
+    palette: combo.theme,
     seed: combo.seed,
+  })
+}
+function renderHomeStyleShowcaseSvg(combo: (typeof HOME_STYLE_SHOWCASE_COMBOS)[number], request = homeStyleShowcaseRenderState(combo)) {
+  const svg = renderMermaidSVG(HOME_STYLE_SHOWCASE_SOURCE, {
+    ...request.renderOptions,
     security: 'strict',
-    compact: true,
     embedFontImport: false,
     idPrefix: `home-style-${combo.look}-`,
   }).replace(/[ \t]+$/gm, '')
@@ -1918,8 +1948,9 @@ function renderHomeStyleShowcaseSvg(combo: (typeof HOME_STYLE_SHOWCASE_COMBOS)[n
 function homeStyleShowcaseHtml() {
   return `<div class="home-style-showcase-grid">
 ${HOME_STYLE_SHOWCASE_COMBOS.map((combo) => {
+  const request = homeStyleShowcaseRenderState(combo)
   return `<article class="home-style-card">
-  <div class="home-style-render">${renderHomeStyleShowcaseSvg(combo)}</div>
+  <div class="home-style-render">${renderHomeStyleShowcaseSvg(combo, request)}</div>
   <div class="home-style-card-body">
     <h3>${escapeHtml(combo.label)}</h3>
     <p>${escapeHtml(combo.blurb)}</p>
@@ -1928,7 +1959,7 @@ ${HOME_STYLE_SHOWCASE_COMBOS.map((combo) => {
       <li><span>Palette</span><code>${escapeHtml(combo.theme)}</code></li>
       <li><span>Seed</span><code>${combo.seed}</code></li>
     </ul>
-    <a class="go" href="${escapeAttr(editorStateHref({ source: HOME_STYLE_SHOWCASE_SOURCE, style: combo.look, palette: combo.theme, seed: combo.seed }))}">Open this style</a>
+    <a class="go" href="${escapeAttr(editorStateHref(request.editorState))}">Open this style</a>
   </div>
 </article>`
 }).join('\n')}
@@ -2830,10 +2861,14 @@ await emitJson('capabilities.json', capabilities)
 // code against the current engine. A stale example degrades to prose, never to
 // a false claim.
 function warningDemoHtml(code: string, example: string): string {
+  const request = createExampleRenderState(example)
   let fired = false
-  try { fired = verifyMermaid(example).warnings.some((w: any) => w.code === code) } catch { fired = false }
+  try {
+    fired = verifyMermaid(example, { renderOptions: request.renderOptions }).warnings
+      .some((w: any) => w.code === code)
+  } catch { fired = false }
   if (!fired) throw new Error(`warning example for ${code} does not fire its advertised code`)
-  return `\n<h2>Minimal reproducer</h2>\n<p>This source triggers <code>${code}</code> — checked at build time against the same engine the editor runs.</p>\n<pre><code>${escapeHtml(example)}</code></pre>\n<p><a class="go" href="${escapeAttr(editorStateHref({ source: example }))}">Open this reproducer in the editor</a></p>`
+  return `\n<h2>Minimal reproducer</h2>\n<p>This source triggers <code>${code}</code> — checked at build time against the same engine the editor runs.</p>\n<pre><code>${escapeHtml(example)}</code></pre>\n<p><a class="go" href="${escapeAttr(editorStateHref(request.editorState))}">Open this reproducer in the editor</a></p>`
 }
 
 function warningsIndexHtml() {

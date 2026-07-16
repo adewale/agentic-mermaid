@@ -4,8 +4,14 @@ import { extname, join, normalize } from 'node:path'
 import { deflateRawSync } from 'node:zlib'
 import { chromium, type Browser, type Page } from 'playwright'
 import { serveWithAvailablePort } from '../../e2e/test-port.ts'
+import { decodeEditorStateHash } from '../../scripts/site/editor-state-url.ts'
+import { renderWebsiteSVGWithReceipt } from '../../website/src/rendering.ts'
 import { HOSTED_FONT_RESOURCES } from '../font-manifest.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
+import { resolveEditorRenderOptions } from '../editor-render-options.ts'
+import { SHARED_RENDER_OPTION_FIELDS, validateSerializableRenderOptions } from '../render-contract.ts'
+import { knownStyleDescriptors } from '../scene/style-registry.ts'
+import type { RenderOptions } from '../types.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const SITE = join(REPO, 'website', 'public')
@@ -23,7 +29,11 @@ let baseUrl = ''
 const haveBrowser = (() => {
   try { return existsSync(chromium.executablePath()) } catch { return false }
 })()
-const describeBrowser = haveBrowser && process.env.AM_BROWSER_TESTS === '1' ? describe : describe.skip
+const browserRequested = process.env.AM_BROWSER_TESTS === '1'
+if (browserRequested && !haveBrowser) {
+  throw new Error('AM_BROWSER_TESTS=1 requires the Playwright Chromium executable; install it before running this lane')
+}
+const describeBrowser = browserRequested ? describe : describe.skip
 
 const mime: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -40,6 +50,32 @@ const mime: Record<string, string> = {
 
 function deflatedEditorHash(payload: unknown) {
   return 'deflate:' + deflateRawSync(Buffer.from(JSON.stringify(payload), 'utf8')).toString('base64url')
+}
+
+function decodedEditorState(href: string): Record<string, unknown> {
+  return decodeEditorStateHash(href.split('#')[1] ?? '') as unknown as Record<string, unknown>
+}
+
+function editorRenderOptions(state: Record<string, unknown>): RenderOptions {
+  return resolveEditorRenderOptions(state, {
+    allowedFields: SHARED_RENDER_OPTION_FIELDS,
+    validate: validateSerializableRenderOptions,
+    resolvePaletteInput: (palette) => {
+      if (typeof palette !== 'string' || !palette) return ''
+      const descriptor = knownStyleDescriptors().find(candidate => {
+        const localName = candidate.identity.id.slice(candidate.identity.id.indexOf(':') + 1)
+        return candidate.kind === 'palette'
+          && (candidate.inputName === palette || candidate.identity.id === palette || localName === palette)
+      })
+      return descriptor?.inputName ?? ''
+    },
+  })
+}
+
+function appearanceLabel(kind: 'look' | 'palette', input: unknown): string {
+  if (kind === 'look' && input === 'crisp') return 'Crisp'
+  if (kind === 'palette' && !input) return 'Default'
+  return knownStyleDescriptors().find(descriptor => descriptor.kind === kind && descriptor.inputName === input)?.displayLabel ?? ''
 }
 
 function fileForPath(pathname: string) {
@@ -173,55 +209,117 @@ describeBrowser('website browser accessibility smoke', () => {
     await page.close()
   }, 30_000)
 
-  test('basic, styled, and rich Examples links restore the gallery source and colour tokens', async () => {
+  test('every distinct Examples state shape crosses the real Editor resolver with complete render parity', async () => {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
-    const ids = [
-      'flowchart',
-      'style-palette-flowchart',
-      'rich-radar-seasonal-wind-rose-polygon-octagon',
-    ]
-    const tokenNames = ['--bg', '--fg', '--line', '--accent', '--muted', '--surface', '--border', '--font']
-
-    // website-build.test.ts checks every card byte-for-byte. These three
-    // representatives cross the real browser consumer for each card shape so
-    // a future Editor restoration change cannot make that build-only proof lie.
-    for (const id of ids) {
-      await page.goto(`${baseUrl}/examples/#${id}`, { waitUntil: 'networkidle' })
-      const gallery = await page.locator(`#${id}`).evaluate((article, names) => {
-        const svg = article.querySelector('.example-svg svg') as SVGElement | null
-        const source = article.querySelector('.example-source code')?.textContent?.trim()
-        const href = article.querySelector<HTMLAnchorElement>('a.go')?.getAttribute('href')
-        return {
-          href,
-          source,
-          viewBox: svg?.getAttribute('viewBox'),
-          tokens: Object.fromEntries(names.map(name => [name, svg?.style.getPropertyValue(name).trim() || ''])),
-        }
-      }, tokenNames)
-      expect(gallery.href, `${id}: canonical Editor state URL`).toStartWith('/editor/#deflate:')
-
-      await page.goto(baseUrl + gallery.href, { waitUntil: 'networkidle' })
-      await page.waitForFunction(() => {
-        const preview = document.getElementById('preview-inner') as HTMLElement | null
-        return Boolean(preview?.dataset.appearanceDigest && preview.querySelector('svg'))
-      }, null, { timeout: 15_000 })
-      const editor = await page.evaluate((names) => {
-        const svg = document.querySelector('#preview-inner svg') as SVGElement | null
-        const source = (document.getElementById('code-editor') as HTMLTextAreaElement | null)?.value.trim()
-        return {
-          source,
-          viewBox: svg?.getAttribute('viewBox'),
-          tokens: Object.fromEntries(names.map(name => [name, svg?.style.getPropertyValue(name).trim() || ''])),
-        }
-      }, tokenNames)
-      expect(editor, `${id}: live Editor/gallery parity`).toEqual({
-        source: gallery.source,
-        viewBox: gallery.viewBox,
-        tokens: gallery.tokens,
+    await page.addInitScript(() => {
+      let mermaidValue: any
+      Object.defineProperty(window, '__mermaid', {
+        configurable: true,
+        get() { return mermaidValue },
+        set(value) {
+          const original = value.renderMermaidSVGWithReceipt
+          value.renderMermaidSVGWithReceipt = function(source: string, options: unknown) {
+            const artifact = original(source, options)
+            ;(window as any).__examplesEditorRender = { source, options, artifact }
+            return artifact
+          }
+          mermaidValue = value
+        },
       })
+    })
+
+    await page.goto(`${baseUrl}/examples/`, { waitUntil: 'networkidle' })
+    const cards = await page.locator('article.example-sample').evaluateAll(articles => articles.map((article) => ({
+      id: article.id,
+      source: article.querySelector('.example-source code')?.textContent?.trim() ?? '',
+      href: article.querySelector<HTMLAnchorElement>('a.go')?.getAttribute('href') ?? '',
+    })))
+    expect(cards.length).toBeGreaterThan(150)
+
+    // One live-browser startup per distinct state/config shape, plus the
+    // longest payload and the formerly transparent card. The exhaustive unit
+    // proof covers every card through the same production resolver.
+    const selected = new Map<string, (typeof cards)[number]>()
+    for (const card of cards) {
+      const state = decodedEditorState(card.href)
+      const config = (state.config ?? {}) as Record<string, unknown>
+      const signature = JSON.stringify({
+        style: state.style,
+        palette: state.palette,
+        config: Object.keys(config).sort().map(key => [key, Array.isArray(config[key]) ? 'array' : typeof config[key]]),
+      })
+      if (!selected.has(signature)) selected.set(signature, card)
+    }
+    const longest = cards.reduce((current, card) => card.href.length > current.href.length ? card : current)
+    selected.set('longest-link', longest)
+    const formerlyTransparent = cards.find(card => card.id === 'rich-agentic-mermaid')
+    expect(formerlyTransparent).toBeDefined()
+    selected.set('formerly-transparent', formerlyTransparent!)
+
+    for (const card of selected.values()) {
+      expect(card.href, `${card.id}: canonical Editor state URL`).toStartWith('/editor/#deflate:')
+      const state = decodedEditorState(card.href)
+      const expectedOptions = editorRenderOptions(state)
+      const expectedArtifact = renderWebsiteSVGWithReceipt(card.source, expectedOptions)
+      // Hash-only navigation within one Editor document does not reboot its
+      // share-state loader. Cross an empty document so every case exercises a
+      // genuine recipient startup, including the initialization-reset path.
+      await page.goto('about:blank')
+      await page.goto(baseUrl + card.href, { waitUntil: 'networkidle' })
+      try {
+        await page.waitForFunction(({ source, appearanceDigest }) => {
+          const rendered = (window as any).__examplesEditorRender
+          const preview = document.getElementById('preview-inner') as HTMLElement | null
+          return rendered?.source === source
+            && rendered.artifact?.receipt?.appearanceDigest === appearanceDigest
+            && preview?.dataset.sharedRequestDigest === rendered.artifact.receipt.sharedRequestDigest
+        }, { source: card.source, appearanceDigest: expectedArtifact.receipt.appearanceDigest }, { timeout: 15_000 })
+      } catch (error) {
+        const last = await page.evaluate(() => {
+          const rendered = (window as any).__examplesEditorRender
+          return {
+            source: rendered?.source,
+            options: rendered?.options,
+            appearanceDigest: rendered?.artifact?.receipt?.appearanceDigest,
+            error: document.querySelector('.preview-error')?.textContent?.trim(),
+          }
+        })
+        throw new Error(`${card.id}: expected appearance ${expectedArtifact.receipt.appearanceDigest}; last render ${JSON.stringify(last)}`, { cause: error })
+      }
+      const actual = await page.evaluate(() => ({
+        render: (window as any).__examplesEditorRender,
+        source: (document.getElementById('code-editor') as HTMLTextAreaElement | null)?.value.trim(),
+        hash: location.hash,
+        styleLabel: document.getElementById('style-btn-label')?.textContent?.trim(),
+        paletteLabel: document.getElementById('theme-btn-label')?.textContent?.trim(),
+      }))
+      expect(actual.source, `${card.id}: restored source`).toBe(card.source)
+      // Browser CompressionStream and Node zlib may produce different valid
+      // deflate bytes. Assert semantic state stability, then pin the browser's
+      // own canonical hash after its first verified render.
+      expect(decodedEditorState(actual.hash), `${card.id}: stable canonical state`).toEqual(state)
+      expect(actual.render.options, `${card.id}: live production options`).toEqual(expectedOptions)
+      expect(actual.render.artifact.receipt.appearanceDigest, `${card.id}: appearance receipt`).toBe(expectedArtifact.receipt.appearanceDigest)
+      expect(actual.render.artifact.svg, `${card.id}: complete SVG artifact`).toBe(expectedArtifact.svg)
+      expect(actual.styleLabel, `${card.id}: truthful Style control`).toBe(appearanceLabel('look', state.style))
+      expect(actual.paletteLabel, `${card.id}: truthful Palette control`).toBe(appearanceLabel('palette', state.palette))
+      const settledHash = await page.evaluate((expectedHash) => new Promise<string>((resolve, reject) => {
+        let stableFrames = 0
+        function observe() {
+          if (location.hash !== expectedHash) {
+            reject(new Error(`hash changed to ${location.hash}`))
+            return
+          }
+          stableFrames += 1
+          if (stableFrames >= 3) resolve(location.hash)
+          else requestAnimationFrame(observe)
+        }
+        requestAnimationFrame(observe)
+      }), actual.hash)
+      expect(settledHash, `${card.id}: hash after initialization settles`).toBe(actual.hash)
     }
     await page.close()
-  }, 60_000)
+  }, 240_000)
 
   test('design motion specimen supports keyboard and direct manipulation without reduced-motion coast', async () => {
     const page = await browser.newPage({ viewport: { width: 390, height: 900 } })

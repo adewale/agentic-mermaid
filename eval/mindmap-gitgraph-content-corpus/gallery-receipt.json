@@ -660,7 +660,7 @@
     },
     {
       "path": "src/__tests__/editor-security-closures.test.ts",
-      "sha256": "7b38b1520211abfab92b117e6b0b4812a7f0463c769fbf59cc410878ea8cb198"
+      "sha256": "22b290d5df57261ad9018b2ea695180bafc53f7fecf267b55e06337eab4ba005"
     },
     {
       "path": "src/__tests__/editor-style-switch.test.ts",
@@ -1616,11 +1616,11 @@
     },
     {
       "path": "src/__tests__/website-browser-a11y.test.ts",
-      "sha256": "91cbfe8d2a88e5390b8bee432389300f255109aa52beb12c207f2c2b0e812f57"
+      "sha256": "0498cd9e4d5e8900703ed5f51621596d9e83cb6734fcad5d1eb8a752e9727c8d"
     },
     {
       "path": "src/__tests__/website-build.test.ts",
-      "sha256": "c5f81ce32b5caaffb6503ca1c94ee4e590089d65b2d9bc17ae6f79027b2a78bd"
+      "sha256": "3084034898a3a003884ad3bc46c78da8412ad9b37111d01298669ab9f1ef1414"
     },
     {
       "path": "src/__tests__/website-public.preload.ts",
@@ -2060,7 +2060,7 @@
     },
     {
       "path": "src/browser.ts",
-      "sha256": "af287f7e0e1a9c10da4add4bd643ed0a04157a6d870349fc603c0bd82f586c29"
+      "sha256": "5250cf05bed666c190b65c12bc910248719272333d203db84b7e32b5d3556dec"
     },
     {
       "path": "src/capabilities.ts",
@@ -2121,6 +2121,10 @@
     {
       "path": "src/editor-family-data.ts",
       "sha256": "51da969a5add56b465874a02496b0858d99723d1ce0db6d851727f8c0af39ba5"
+    },
+    {
+      "path": "src/editor-render-options.ts",
+      "sha256": "8e12f6794b58d740148889f5c68b1b557d7473e0cd2bf5faf722da5a7d1820a6"
     },
     {
       "path": "src/elk-instance.ts",

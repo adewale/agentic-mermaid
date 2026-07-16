@@ -60,7 +60,6 @@ export const samples: Sample[] = [
     ASCII --> Theme
     Theme --> Output
     Output --> [*]`,
-    options: { transparent: true },
   },
 
   // ══════════════════════════════════════════════════════════════════════════
