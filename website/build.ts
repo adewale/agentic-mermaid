@@ -835,7 +835,7 @@ ${entries.map(({ sample, id, legacyId }) => `
   </header>
   <div class="example-sample-grid">
     <section class="example-source" aria-label="${escapeAttr(sample.title)} Mermaid source"><pre><code>${escapeHtml(String(sample.source ?? '').trim())}</code></pre></section>
-    <figure class="example-render${sample.palettePeers ? ' example-render-palette' : ''}"><div class="example-svg">${renderRichExampleSvg(sample, id)}</div><figcaption>${sample.palettePeers ? 'High-cardinality proof at intrinsic size; scroll to inspect every peer.' : 'Build-time proof from the shared examples corpus.'}</figcaption></figure>
+    <figure class="example-render${sample.palettePeers ? ' example-render-palette' : ''}"><div class="example-svg"${sample.palettePeers ? ` tabindex="0" aria-label="${escapeAttr(`${sample.title} diagram. Scroll horizontally to inspect every peer.`)}"` : ''}>${renderRichExampleSvg(sample, id)}</div><figcaption>${sample.palettePeers ? 'High-cardinality proof at intrinsic size; scroll to inspect every peer.' : 'Build-time proof from the shared examples corpus.'}</figcaption></figure>
   </div>
 </article>`).join('')}
 </section>`).join('')}

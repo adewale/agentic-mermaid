@@ -1,6 +1,8 @@
 #!/usr/bin/env bun
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { chromium } from 'playwright'
 import { renderMermaidSVG } from '../../src/index.ts'
 import { wcagContrastRatio } from '../../src/shared/color-math.ts'
@@ -195,6 +197,50 @@ export function verifyBaselineCommit(commit: string, root = ROOT): void {
   }
 }
 
+/** Prove that the frozen bytes are outputs of the named historical source, not
+ * merely a self-consistent SVG/JSON pair. The historical `src/` tree is
+ * materialized below the current repository so its imports resolve through the
+ * already-frozen-lockfile install, then all canonical cases are re-rendered and
+ * compared byte-for-byte. */
+export async function verifyFrozenBaselineRender(
+  commit: string,
+  baselineDirectory = BASELINE_DIR,
+  root = ROOT,
+): Promise<void> {
+  verifyBaselineCommit(commit, root)
+  const checkout = mkdtempSync(join(root, '.palette-baseline-source-'))
+  try {
+    const archive = execFileSync('git', ['archive', '--format=tar', commit, 'src', 'package.json', 'bun.lock'], {
+      cwd: root,
+      maxBuffer: 32 * 1024 * 1024,
+    })
+    execFileSync('tar', ['-xf', '-', '-C', checkout], {
+      cwd: root,
+      input: archive,
+      maxBuffer: 32 * 1024 * 1024,
+    })
+    if (readFileSync(join(checkout, 'bun.lock'), 'utf8') !== readFileSync(join(root, 'bun.lock'), 'utf8')) {
+      throw new Error(`Historical baseline ${commit} uses a different dependency lockfile`)
+    }
+    const historical = await import(`${pathToFileURL(join(checkout, 'src', 'index.ts')).href}?baseline=${commit}`) as {
+      renderMermaidSVG: typeof renderMermaidSVG
+    }
+    for (const evidence of cases) {
+      const rendered = historical.renderMermaidSVG(evidence.source, {
+        style: evidence.theme,
+        embedFontImport: false,
+        idPrefix: evidence.id,
+      })
+      const frozen = readFileSync(join(baselineDirectory, `${evidence.id}.svg`), 'utf8')
+      if (rendered !== frozen) {
+        throw new Error(`Frozen baseline ${evidence.id} does not match the renderer at commit ${commit}`)
+      }
+    }
+  } finally {
+    rmSync(checkout, { recursive: true, force: true })
+  }
+}
+
 function measure(colors: string[], background: string): PaletteMetrics {
   const unique = new Set(colors).size
   const minDeltaEOK = minPairwiseDeltaEOK(colors)
@@ -329,6 +375,7 @@ async function main(): Promise<void> {
   if (!existsSync(BASELINE_JSON)) throw new Error('Missing palette baseline; run bun run gallery:palette-rollout:baseline before changing palette code')
   const baseline = JSON.parse(readFileSync(BASELINE_JSON, 'utf8')) as BaselineFile
   verifyBaselineCommit(baseline.commit)
+  await verifyFrozenBaselineRender(baseline.commit)
   // Frozen SVG bytes, not baseline.json, are the source of truth. Re-extract
   // every color and recompute every metric before building/checking evidence.
   const baselineCases = verifiedBaselineCases(baseline)

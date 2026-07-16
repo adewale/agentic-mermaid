@@ -57,7 +57,7 @@ best-in-repo technique for each concern."
 |---|---|---|
 | L1 | **Signature shape → a `sketch:'shape'` role** | A ruler-perfect primary glyph beside wobbly boxes reads as broken; the sketch look coheres only if the defining element gets the treatment. |
 | L2 | **Scaffold → a `sketch:'none'` role (recedes)** | Lively translucent data reads only on a quiet ground; a jittery scaffold turns overlaps into noise. |
-| L3 | **Categorical color from the shared `categoricalPalette`** (hue-spread >6) | One color language across applicable peer-series families; palette swaps recolor free; N categories stay *distinguishable* instead of collapsing to shades of one hue. |
+| L3 | **Categorical color from the shared `categoricalPalette`** (hue-spread >6) | One color language across applicable peer-series families; palette swaps recolor free; 7–24 categories have a hard perceptual-separation floor. Above 24, visibility remains guaranteed while uniqueness and separation are best-effort. |
 | L4 | **Translucent fill + crisp bg-stroked marker** | Translucency lets overlaps blend legibly; the bg-stroked bead keeps the precise data point sharp on a busy ground ("the sketch marks the measurement"). |
 | L5 | **Measure-then-reserve gutters** (wrap; widen for title) | Clipping is the loudest "unfinished" signal; reserving space *before* the plot expands keeps the composition whole at any label length. |
 | L6 | **Single-scale contract** (resolve auto-max once; degenerate → throw) | A chart whose SVG and ASCII clamp differently, or that emits NaN, is broken; beauty presupposes the floor. |

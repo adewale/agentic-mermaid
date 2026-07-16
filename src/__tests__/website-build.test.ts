@@ -1006,6 +1006,10 @@ describe('Workers Static Assets website contract', () => {
       expect(paletteJump, `${title} jump href`).toContain(`href="#${richExampleId(sample!)}"`)
       expect(examplesHtml, `${title} palette proof`).toContain(`Palette proof: ${count} ${kind}`)
       const mapping = renderedPeerMapping(category, richExampleArticle(examplesHtml, sample!))
+      const article = richExampleArticle(examplesHtml, sample!)
+      expect(article, `${title} keyboard-scroll target`).toContain(
+        `class="example-svg" tabindex="0" aria-label="${title} diagram. Scroll horizontally to inspect every peer."`,
+      )
       expect(mapping.map(([label]) => label), `${title} rendered source-order mapping`).toEqual(sourceLabels)
       expect(mapping, `${title} rendered category-color mapping`).toHaveLength(count)
       expect(new Set(mapping.map(([, color]) => color)).size, `${title} distinct rendered colors`).toBe(count)
@@ -1019,6 +1023,7 @@ describe('Workers Static Assets website contract', () => {
     const styles = read('styles.css')
     expect(styles).toContain('.example-sample-palette .example-sample-grid { grid-template-columns: minmax(0, 1fr); }')
     expect(styles).toContain('.example-render-palette .example-svg svg { width: auto; max-width: none; margin-inline: auto; }')
+    expect(styles).toContain('.example-render-palette .example-svg svg.xychart { width: 700px; }')
   })
 
   test('examples page carries an agent task, trace, and render anchor for every family', () => {

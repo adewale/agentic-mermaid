@@ -5,10 +5,11 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { categoricalPalette, categoricalPaletteWithDiagnostics } from '../../src/shared/categorical-palette.ts'
 import { THEMES } from '../../src/theme.ts'
-import { fileReceiptEntries, hashFileTree } from '../../scripts/pr-assets/artifact-receipt.ts'
+import { fileReceiptEntries, hashFileTree, sha256File } from '../../scripts/pr-assets/artifact-receipt.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const REPORT = join(import.meta.dir, 'report.json')
+const SAMPLES = join(import.meta.dir, 'samples.json')
 const COUNTS = Array.from({ length: 18 }, (_unused, index) => index + 7)
 const LARGE_COUNTS = [25, 64, 256, 1000] as const
 const WARMUP_CALLS = 200
@@ -55,6 +56,29 @@ function seededShuffle<T>(values: readonly T[], seed: number): T[] {
   return out
 }
 
+type Fixture = { theme: string; count: number; inputs: { accent: string; bg: string } }
+type Timing = Fixture & { milliseconds: number }
+
+const benchmarkFixtures = (): Fixture[] => Object.entries(THEMES).flatMap(([theme, colors]) => COUNTS.map(count => ({
+  theme,
+  count,
+  inputs: { accent: colors.accent ?? colors.fg, bg: colors.bg },
+})))
+
+const timingPlan = (fixtures: readonly Fixture[]): Fixture[] => Array.from(
+  { length: SAMPLES_PER_FIXTURE },
+  (_unused, repetition) => seededShuffle(fixtures, ORDER_SEED + repetition + 1),
+).flat()
+
+export const timingResults = (timings: readonly Timing[]) => ({
+  unit: 'milliseconds per palette-generation call',
+  overall: summarize(timings.map(item => item.milliseconds)),
+  byCount: COUNTS.map(count => ({
+    count,
+    ...summarize(timings.filter(item => item.count === count).map(item => item.milliseconds)),
+  })),
+})
+
 function complexityEvidence() {
   const themes = Object.entries(THEMES)
   return LARGE_COUNTS.map(count => {
@@ -93,28 +117,28 @@ function assertCleanWorktree(): void {
 
 function record(): void {
   assertCleanWorktree()
-  const fixtures = Object.entries(THEMES).flatMap(([theme, colors]) => COUNTS.map(count => ({
-    theme,
-    count,
-    inputs: { accent: colors.accent ?? colors.fg, bg: colors.bg },
-  })))
+  const fixtures = benchmarkFixtures()
   const ordered = seededShuffle(fixtures, ORDER_SEED)
   for (let index = 0; index < WARMUP_CALLS; index++) {
     const fixture = ordered[index % ordered.length]!
     categoricalPalette(fixture.count, fixture.inputs)
   }
 
-  const timings: Array<{ theme: string; count: number; milliseconds: number }> = []
-  for (let repetition = 0; repetition < SAMPLES_PER_FIXTURE; repetition++) {
-    for (const fixture of seededShuffle(ordered, ORDER_SEED + repetition + 1)) {
-      const started = performance.now()
-      categoricalPalette(fixture.count, fixture.inputs)
-      timings.push({ ...fixture, milliseconds: performance.now() - started })
-    }
+  const timings: Timing[] = []
+  for (const fixture of timingPlan(ordered)) {
+    const started = performance.now()
+    categoricalPalette(fixture.count, fixture.inputs)
+    timings.push({ ...fixture, milliseconds: round(performance.now() - started) })
   }
-  const all = timings.map(item => item.milliseconds)
   const sourceCommit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim()
   const cpu = cpus()
+  const sampleArtifact = {
+    schemaVersion: 1,
+    unit: 'milliseconds per palette-generation call',
+    order: 'deterministic fixture order reconstructed from protocol orderSeed',
+    values: timings.map(item => item.milliseconds),
+  }
+  writeFileSync(SAMPLES, `${JSON.stringify(sampleArtifact)}\n`)
   const report = {
     schemaVersion: 1,
     validity: {
@@ -147,6 +171,10 @@ function record(): void {
       totalSamples: timings.length,
       orderSeed: ORDER_SEED,
     },
+    timingEvidence: {
+      samplesPath: repoPath(SAMPLES),
+      samplesSha256: sha256File(SAMPLES),
+    },
     complexity: {
       regimes: {
         '0..6': 'O(n) time and O(n) output space',
@@ -155,11 +183,7 @@ function record(): void {
       },
       deterministicLargeCountEvidence: complexityEvidence(),
     },
-    results: {
-      unit: 'milliseconds per palette-generation call',
-      overall: summarize(all),
-      byCount: COUNTS.map(count => ({ count, ...summarize(timings.filter(item => item.count === count).map(item => item.milliseconds)) })),
-    },
+    results: timingResults(timings),
     limitations: [
       'This measures palette generation, not an entire diagram render.',
       'Most controlled families generate one peer-category channel; Journey independently generates section and actor palettes.',
@@ -171,8 +195,33 @@ function record(): void {
   console.log(`Recorded ${timings.length} palette samples in ${repoPath(REPORT)}`)
 }
 
+export function verifyTimingEvidence(report: any, samples: any): void {
+  if (samples.schemaVersion !== 1 || samples.unit !== 'milliseconds per palette-generation call') {
+    throw new Error('Palette timing sample artifact schema is invalid')
+  }
+  const fixtures = seededShuffle(benchmarkFixtures(), ORDER_SEED)
+  const plan = timingPlan(fixtures)
+  if (!Array.isArray(samples.values) || samples.values.length !== plan.length) {
+    throw new Error('Palette timing sample count does not match the recorded protocol')
+  }
+  const timings = plan.map((fixture, index): Timing => {
+    const milliseconds = samples.values[index]
+    if (typeof milliseconds !== 'number' || !Number.isFinite(milliseconds) || milliseconds < 0) {
+      throw new Error(`Palette timing sample ${index} is invalid`)
+    }
+    return { ...fixture, milliseconds }
+  })
+  if (report.timingEvidence?.samplesPath !== repoPath(SAMPLES) || report.timingEvidence?.samplesSha256 !== sha256File(SAMPLES)) {
+    throw new Error('Palette timing sample provenance is stale')
+  }
+  if (JSON.stringify(report.results) !== JSON.stringify(timingResults(timings))) {
+    throw new Error('Palette timing aggregates do not match the committed raw samples')
+  }
+}
+
 function check(): void {
   const report = JSON.parse(readFileSync(REPORT, 'utf8')) as any
+  const samples = JSON.parse(readFileSync(SAMPLES, 'utf8')) as any
   if (report.schemaVersion !== 1) throw new Error('Unsupported palette performance report schema')
   if (report.provenance?.dirty !== false) throw new Error('Palette performance report does not attest a clean source tree')
   if (report.provenance?.sourceTreeSha256 !== hashFileTree(ROOT, INPUTS)) {
@@ -188,12 +237,15 @@ function check(): void {
   if (JSON.stringify(report.complexity?.deterministicLargeCountEvidence) !== JSON.stringify(complexityEvidence())) {
     throw new Error('Palette deterministic complexity evidence is stale')
   }
+  verifyTimingEvidence(report, samples)
   if (report.validity?.rebuttal !== 'Absolute timings are observational, are not portable across machines, and are not a CI threshold.') {
     throw new Error('Palette timing validity limitation is missing')
   }
-  console.log('Palette performance report provenance and deterministic complexity evidence pass')
+  console.log('Palette performance provenance, raw timing aggregates, and deterministic complexity evidence pass')
 }
 
-if (process.argv.includes('--check')) check()
-else if (process.argv.includes('--record')) record()
-else throw new Error('Use --record or --check')
+if (import.meta.main) {
+  if (process.argv.includes('--check')) check()
+  else if (process.argv.includes('--record')) record()
+  else throw new Error('Use --record or --check')
+}
