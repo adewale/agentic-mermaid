@@ -207,6 +207,19 @@ export async function verifyFrozenBaselineRender(
   baselineDirectory = BASELINE_DIR,
   root = ROOT,
 ): Promise<void> {
+  const rendered = await renderHistorical(commit, root)
+  for (const item of rendered) {
+    const frozen = readFileSync(join(baselineDirectory, `${item.evidence.id}.svg`), 'utf8')
+    if (item.svg !== frozen) {
+      throw new Error(`Frozen baseline ${item.evidence.id} does not match the renderer at commit ${commit}`)
+    }
+  }
+}
+
+async function renderHistorical(
+  commit: string,
+  root = ROOT,
+): Promise<ReturnType<typeof renderAll>> {
   verifyBaselineCommit(commit, root)
   const checkout = mkdtempSync(join(root, '.palette-baseline-source-'))
   try {
@@ -225,17 +238,7 @@ export async function verifyFrozenBaselineRender(
     const historical = await import(`${pathToFileURL(join(checkout, 'src', 'index.ts')).href}?baseline=${commit}`) as {
       renderMermaidSVG: typeof renderMermaidSVG
     }
-    for (const evidence of cases) {
-      const rendered = historical.renderMermaidSVG(evidence.source, {
-        style: evidence.theme,
-        embedFontImport: false,
-        idPrefix: evidence.id,
-      })
-      const frozen = readFileSync(join(baselineDirectory, `${evidence.id}.svg`), 'utf8')
-      if (rendered !== frozen) {
-        throw new Error(`Frozen baseline ${evidence.id} does not match the renderer at commit ${commit}`)
-      }
-    }
+    return renderAll(historical.renderMermaidSVG)
   } finally {
     rmSync(checkout, { recursive: true, force: true })
   }
@@ -274,9 +277,9 @@ function resultFromSvg(evidence: EvidenceCase, svg: string, label: string): Case
   }
 }
 
-function renderAll(): Array<{ evidence: EvidenceCase; svg: string; result: CaseResult }> {
+function renderAll(renderer: typeof renderMermaidSVG = renderMermaidSVG): Array<{ evidence: EvidenceCase; svg: string; result: CaseResult }> {
   return cases.map(evidence => {
-    const svg = renderMermaidSVG(evidence.source, { style: evidence.theme, embedFontImport: false, idPrefix: evidence.id })
+    const svg = renderer(evidence.source, { style: evidence.theme, embedFontImport: false, idPrefix: evidence.id })
     return {
       evidence,
       svg,
@@ -362,8 +365,11 @@ function buildReport(currentCases: CaseResult[], baseline: BaselineFile, baselin
 
 async function main(): Promise<void> {
   if (process.argv.includes('--record-baseline')) {
-    const commit = cleanHeadCommit()
-    const rendered = renderAll()
+    const baselineCommitIndex = process.argv.indexOf('--baseline-commit')
+    const requestedCommit = baselineCommitIndex === -1 ? undefined : process.argv[baselineCommitIndex + 1]
+    if (baselineCommitIndex !== -1 && !requestedCommit) throw new Error('--baseline-commit requires a full commit SHA')
+    const commit = requestedCommit ?? cleanHeadCommit()
+    const rendered = requestedCommit ? await renderHistorical(commit) : renderAll()
     mkdirSync(BASELINE_DIR, { recursive: true })
     for (const item of rendered) writeFileSync(baselineSvgPath(item.evidence.id), item.svg)
     const baseline: BaselineFile = { schemaVersion: 1, commit, cases: rendered.map(item => item.result) }

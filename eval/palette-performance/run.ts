@@ -4,7 +4,7 @@ import { cpus } from 'node:os'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { categoricalPalette, categoricalPaletteWithDiagnostics } from '../../src/shared/categorical-palette.ts'
-import { THEMES } from '../../src/theme.ts'
+import { BUILTIN_PALETTE_DEFINITIONS } from '../../src/palette-catalog.ts'
 import { fileReceiptEntries, hashFileTree, sha256File } from '../../scripts/pr-assets/artifact-receipt.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
@@ -24,13 +24,14 @@ const INPUTS = [
   'src/shared/color-math.ts',
   'src/shared/css-named-colors.ts',
   'src/shared/perceptual-color.ts',
-  'src/theme.ts',
   'src/xychart/colors.ts',
   'eval/palette-performance/run.ts',
 ].map(path => join(ROOT, path))
 
 const repoPath = (path: string): string => relative(ROOT, path).replaceAll('\\', '/')
 const round = (value: number): number => Math.round(value * 1_000_000) / 1_000_000
+const PALETTE_FIXTURES = BUILTIN_PALETTE_DEFINITIONS.map(definition =>
+  [definition.inputName, definition.colors] as const)
 const percentile = (sorted: number[], p: number): number => sorted[Math.floor((sorted.length - 1) * p)] ?? 0
 const summarize = (values: number[]) => {
   const sorted = [...values].sort((a, b) => a - b)
@@ -59,10 +60,10 @@ function seededShuffle<T>(values: readonly T[], seed: number): T[] {
 type Fixture = { theme: string; count: number; inputs: { accent: string; bg: string } }
 type Timing = Fixture & { milliseconds: number }
 
-const benchmarkFixtures = (): Fixture[] => Object.entries(THEMES).flatMap(([theme, colors]) => COUNTS.map(count => ({
+const benchmarkFixtures = (): Fixture[] => PALETTE_FIXTURES.flatMap(([theme, colors]) => COUNTS.map(count => ({
   theme,
   count,
-  inputs: { accent: colors.accent ?? colors.fg, bg: colors.bg },
+  inputs: { accent: 'accent' in colors ? colors.accent : colors.fg, bg: colors.bg },
 })))
 
 const timingPlan = (fixtures: readonly Fixture[]): Fixture[] => Array.from(
@@ -80,11 +81,11 @@ export const timingResults = (timings: readonly Timing[]) => ({
 })
 
 function complexityEvidence() {
-  const themes = Object.entries(THEMES)
+  const themes = PALETTE_FIXTURES
   return LARGE_COUNTS.map(count => {
     let maxCandidateEvaluations = 0
     for (const [themeName, theme] of themes) {
-      const inputs = { accent: theme.accent ?? theme.fg, bg: theme.bg }
+      const inputs = { accent: 'accent' in theme ? theme.accent : theme.fg, bg: theme.bg }
       const { colors, diagnostics } = categoricalPaletteWithDiagnostics(count, inputs)
       if (diagnostics.path !== 'linear-tail') throw new Error(`${themeName}/${count}: linear tail did not engage`)
       if (diagnostics.pairDistanceChecks !== 0) throw new Error(`${themeName}/${count}: pair repair leaked into linear tail`)
@@ -163,7 +164,7 @@ function record(): void {
     protocol: {
       command: 'bun run benchmark:palette',
       clock: 'performance.now monotonic high-resolution clock',
-      themes: Object.keys(THEMES).length,
+      themes: PALETTE_FIXTURES.length,
       counts: '7..24',
       fixtureCount: fixtures.length,
       warmupCalls: WARMUP_CALLS,

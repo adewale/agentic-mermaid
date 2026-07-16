@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 892.405 792" width="892.405" height="792" style="--bg:#ffffff;--fg:#1f2328;--line:#d1d9e0;--accent:#0969da;--muted:#59636e;--font:Inter;background:#ffffff" role="img" aria-roledescription="git graph" aria-labelledby="gitgraph-github-lightgitgraph-title">
+<svg xmlns="http://www.w3.org/2000/svg" width="892.405" height="792" viewBox="0 0 892.405 792" style="--bg:#ffffff;--fg:#1f2328;--line:#d1d9e0;--accent:#0969da;--muted:#59636e;--font:Inter;background:#ffffff" aria-labelledby="gitgraph-github-lightgitgraph-title" aria-roledescription="git graph" role="img">
 <style>
   text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
   svg {

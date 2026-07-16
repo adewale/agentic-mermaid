@@ -21,4 +21,13 @@ bun run gallery:palette-rollout:check
 update command. Re-record the baseline only when intentionally starting a new
 experiment; doing so during implementation would erase the before state. The
 command refuses a dirty worktree so its commit identity cannot mislabel local
-bytes.
+bytes. After rebasing across an incompatible renderer contract, regenerate from
+the named pre-rollout ancestor instead of the working tree:
+
+```sh
+bun run scripts/pr-assets/palette-rollout-evidence.ts --record-baseline \
+  --baseline-commit <full-pre-rollout-ancestor-sha>
+```
+
+That path archives and executes the named historical source, verifies its lock
+file and ancestry, and freezes those bytes under that exact commit identity.

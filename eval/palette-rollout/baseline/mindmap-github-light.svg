@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 533.1 323.6" width="533.1" height="323.6" style="--bg:#ffffff;--fg:#1f2328;--line:#d1d9e0;--accent:#0969da;--muted:#59636e;--font:Inter;background:#ffffff" role="img" aria-roledescription="mindmap" aria-labelledby="mindmap-github-lightmindmap-title">
+<svg xmlns="http://www.w3.org/2000/svg" width="533.1" height="323.6" viewBox="0 0 533.1 323.6" style="--bg:#ffffff;--fg:#1f2328;--line:#d1d9e0;--accent:#0969da;--muted:#59636e;--font:Inter;background:#ffffff" aria-labelledby="mindmap-github-lightmindmap-title" aria-roledescription="mindmap" role="img">
 <style>
   text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
   svg {

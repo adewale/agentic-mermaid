@@ -2,7 +2,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { chromium } from 'playwright'
-import { THEMES } from '../../src/theme.ts'
+import { BUILTIN_PALETTE_DEFINITIONS } from '../../src/palette-catalog.ts'
 import { categoricalPalette } from '../../src/shared/categorical-palette.ts'
 import { wcagContrastRatio } from '../../src/shared/color-math.ts'
 import { apcaContrast, deltaEOK, minPairwiseDeltaEOK } from '../../src/shared/perceptual-color.ts'
@@ -15,6 +15,8 @@ const CONTACT_SHEET = join(ROOT, 'docs', 'pr-assets', 'pr-179', 'palette-harmony
 const RECEIPT = join(ROOT, 'eval', 'palette-harmony', 'evidence-receipt.json')
 const chromePath = ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/opt/pw-browsers/chromium'].find(existsSync)
 const round = (value: number): number => Math.round(value * 10_000) / 10_000
+const PALETTE_FIXTURES = BUILTIN_PALETTE_DEFINITIONS.map(definition =>
+  [definition.inputName, definition.colors] as const)
 
 interface PaletteMeasures {
   unique: number
@@ -38,9 +40,9 @@ function measure(colors: string[], bg: string): PaletteMeasures {
 }
 
 function buildReport() {
-  const cases = Object.entries(THEMES).flatMap(([theme, colors]) => {
+  const cases = PALETTE_FIXTURES.flatMap(([theme, colors]) => {
     const bg = colors.bg
-    const accent = colors.accent ?? colors.fg
+    const accent = 'accent' in colors ? colors.accent : colors.fg
     return Array.from({ length: 18 }, (_unused, offset) => {
       const count = offset + 7
       const base = categoricalPalette(count, { accent, bg })
@@ -78,7 +80,7 @@ function buildReport() {
     },
     summary: {
       cases: cases.length,
-      themes: Object.keys(THEMES).length,
+      themes: PALETTE_FIXTURES.length,
       counts: '7..24',
       basePassing123: basePassing.length,
       harmonyPassing123: passing.length,

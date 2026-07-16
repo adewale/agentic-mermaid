@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "baselineCommit": "574e029b3af6fe7026d473933e2253cba72ddb39",
+  "baselineCommit": "a9548ea8050869c673572dc786ba4dbb27996f44",
   "contract": {
     "minDeltaEOK": 0.1,
     "minWcagVsBackground": 1.25,

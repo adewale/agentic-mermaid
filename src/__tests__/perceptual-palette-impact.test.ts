@@ -11,7 +11,7 @@ import { pieSliceColors } from '../pie/palette.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { minPairwiseDeltaEOK, apcaContrast } from '../shared/perceptual-color.ts'
 import { wcagContrastRatio } from '../shared/color-math.ts'
-import { THEMES } from '../theme.ts'
+import { BUILTIN_PALETTE_DEFINITIONS } from '../palette-catalog.ts'
 import { categoricalPaletteWithDiagnostics } from '../shared/categorical-palette.ts'
 
 describe('perceptual palette — systematic impact', () => {
@@ -38,10 +38,10 @@ describe('perceptual palette — systematic impact', () => {
     }
   })
 
-  it('keeps the hard separation and visibility contracts across every built-in theme', () => {
-    for (const [name, theme] of Object.entries(THEMES)) {
+  it('keeps the hard separation and visibility contracts across every built-in palette', () => {
+    for (const { inputName: name, colors: theme } of BUILTIN_PALETTE_DEFINITIONS) {
       for (let count = 7; count <= 24; count++) {
-        const cols = pieSliceColors(count, { accent: theme.accent ?? theme.fg, bg: theme.bg })
+        const cols = pieSliceColors(count, { accent: 'accent' in theme ? theme.accent : theme.fg, bg: theme.bg })
         expect(new Set(cols).size, `${name} at ${count} slices`).toBe(count)
         expect(minPairwiseDeltaEOK(cols), `${name} at ${count} slices`).toBeGreaterThanOrEqual(0.10)
         for (const color of cols) {
