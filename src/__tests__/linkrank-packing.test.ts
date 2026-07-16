@@ -12,6 +12,7 @@ import { describe, test, expect } from 'bun:test'
 import { parseMermaid } from '../parser.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { assessLayout, hardViolations } from '../layout-rubric.ts'
+import { auditRouteContracts } from '../route-contracts.ts'
 import { createHash } from 'node:crypto'
 
 const cases: [string, string][] = [
@@ -59,8 +60,7 @@ describe('honorLinkRankDistance packing: a shove never leaves overlaps or blocke
   test('packing preserves every requested long-link gap in all four directions', () => {
     const template = (dir: 'LR' | 'RL' | 'TD' | 'BT') =>
       `flowchart ${dir}\n  N2((x))\n  N9 ===>|x| N6\n  N7 ----> N0\n  N2 ---> N7`
-    const mainGap = (dir: 'LR' | 'RL' | 'TD' | 'BT'): number => {
-      const positioned = layoutGraphSync(parseMermaid(template(dir)))
+    const mainGap = (positioned: ReturnType<typeof layoutGraphSync>, dir: 'LR' | 'RL' | 'TD' | 'BT'): number => {
       const source = positioned.nodes.find(n => n.id === 'N7')!
       const target = positioned.nodes.find(n => n.id === 'N0')!
       switch (dir) {
@@ -71,11 +71,12 @@ describe('honorLinkRankDistance packing: a shove never leaves overlaps or blocke
       }
     }
     for (const dir of ['LR', 'RL', 'TD', 'BT'] as const) {
-      // `---->` parses as length 3: 48 + 2 × (48 + 40) = 224px.
-      expect(mainGap(dir)).toBeGreaterThanOrEqual(223.5)
       const graph = parseMermaid(template(dir))
-      const violations = hardViolations(assessLayout(graph, layoutGraphSync(graph)))
-      expect(violations.filter(v => v.metric === 'nodeOverlaps' || v.metric === 'edgeThroughNode')).toEqual([])
+      const positioned = layoutGraphSync(graph)
+      // `---->` parses as length 3: 48 + 2 × (48 + 40) = 224px.
+      expect(mainGap(positioned, dir)).toBeGreaterThanOrEqual(223.5)
+      expect(hardViolations(assessLayout(graph, positioned))).toEqual([])
+      expect(auditRouteContracts(positioned, graph)).toEqual([])
     }
   })
 

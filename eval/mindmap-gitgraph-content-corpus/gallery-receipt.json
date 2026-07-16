@@ -68,7 +68,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "8316f4b96ceb1ea8d90d735893cb026610ba66d5eca69e062da33054dd9910bc"
+      "sha256": "54663bbef14fccaf0d8409cd13f63d02d8d75b36ca9028bc94f167f516d2c47f"
     },
     {
       "path": "scripts/pr-assets/artifact-receipt.ts",
@@ -1012,7 +1012,7 @@
     },
     {
       "path": "src/__tests__/linkrank-packing.test.ts",
-      "sha256": "bcd2e9164e0cd18641142108952dc0dfd799e2afef63e253071e9d53d9c644b4"
+      "sha256": "3d3695c84aa0613ced292c5651f47ac818c1ce0d6d4af2e640de003cd5d68262"
     },
     {
       "path": "src/__tests__/linkstyle.test.ts",

@@ -104,6 +104,9 @@ jobs:
       - name: Check optional palette harmony experiment evidence is current
         run: bun run gallery:palette-harmony:check
 
+      - name: Check Issue #87 link-rank visual evidence is current
+        run: bun run gallery:linkrank-feedback-packing:check
+
       - name: Check palette performance provenance and deterministic complexity
         run: bun run benchmark:palette:check
 

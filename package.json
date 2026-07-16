@@ -195,6 +195,8 @@
     "contact:sheet": "bun run eval/visual-rubric/contact-sheet.ts",
     "gallery:custom-styles": "bun run scripts/docs/custom-style-cookbook.ts",
     "gallery:custom-styles:check": "bun run scripts/docs/custom-style-cookbook.ts --check",
+    "gallery:linkrank-feedback-packing": "bun run scripts/pr-assets/linkrank-feedback-packing-evidence.ts",
+    "gallery:linkrank-feedback-packing:check": "bun run scripts/pr-assets/linkrank-feedback-packing-evidence.ts --check",
     "gallery:mindmap-gitgraph": "bun run scripts/pr-assets/mindmap-gitgraph-content-gallery.ts",
     "gallery:mindmap-gitgraph:check": "bun run scripts/pr-assets/mindmap-gitgraph-content-gallery.ts --check",
     "gallery:mermaid-docs": "bun run scripts/pr-assets/mermaid-doc-showcase-gallery.ts",
