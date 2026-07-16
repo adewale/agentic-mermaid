@@ -10,7 +10,7 @@ import { parse as parseJavaScript } from 'acorn'
 import type { Node as AcornNode } from 'acorn'
 import { ParsedDiagramFamilyMismatchError, RenderCapabilityError } from '../render-contract.ts'
 import type { CodeModeHostPolicy } from '../render-host-policy.ts'
-import { projectRenderErrorDiagnostic } from '../render-error-diagnostic.ts'
+import { projectKnownRenderErrorDiagnostic, projectRenderErrorDiagnostic } from '../render-error-diagnostic.ts'
 
 export type ExecutionTraceCall =
   | { verb: 'parse'; diagram?: number; source?: string }
@@ -64,15 +64,7 @@ export function createTracingMermaid(
     const carried = structuredErrorMetadata.get(error)
     if (carried) return carried
     let fields: Record<string, unknown> | undefined
-    const renderDiagnostic = projectRenderErrorDiagnostic(error)
-    if (renderDiagnostic) {
-      fields = {
-        name: renderDiagnostic.code === 'ASCII_TARGET_WIDTH_IMPOSSIBLE'
-          ? 'AsciiWidthError'
-          : 'MermaidFamilyDetectionError',
-        ...renderDiagnostic,
-      }
-    } else if (error instanceof RenderCapabilityError) {
+    if (error instanceof RenderCapabilityError) {
       fields = {
         name: error.name,
         code: error.code,
@@ -86,6 +78,15 @@ export function createTracingMermaid(
         code: error.code,
         expectedFamilyId: error.expectedFamilyId,
         detectedFamilyId: error.detectedFamilyId,
+      }
+    } else {
+      const renderDiagnostic = projectKnownRenderErrorDiagnostic(error)
+      if (!renderDiagnostic) return undefined
+      fields = {
+        name: renderDiagnostic.code === 'ASCII_TARGET_WIDTH_IMPOSSIBLE'
+          ? 'AsciiWidthError'
+          : 'MermaidFamilyDetectionError',
+        ...renderDiagnostic,
       }
     }
     if (!fields) return undefined
@@ -104,10 +105,12 @@ export function createTracingMermaid(
       ? Object.assign(Object.create(prototype), value)
       : value
   }
-  const hostCall = <T>(fn: () => T): T => {
+  const hostCall = <T>(fn: () => T, genericRenderFailure = false): T => {
     try { return fn() } catch (e) {
-      const wrapped = sandboxError((e as Error).message)
-      const fields = structuredErrorFields(e)
+      const fields = structuredErrorFields(e) ?? (genericRenderFailure
+        ? { name: 'RenderError', ...projectRenderErrorDiagnostic(e) }
+        : undefined)
+      const wrapped = sandboxError(fields?.message as string ?? (e as Error).message)
       if (fields) {
         structuredErrorMetadata.set(wrapped, fields)
         for (const [field, value] of Object.entries(fields)) {
@@ -162,7 +165,7 @@ export function createTracingMermaid(
   const requireTrustedDiagram = (value: unknown, verb: string): void => {
     value = rawOf(value)
     if (value && (typeof value === 'object' || typeof value === 'function') && !trusted.has(value as object)) {
-      throw sandboxError(`Code Mode ${verb} input must come from mermaid.parseMermaid(...), mermaid.parseRegisteredMermaid(...), or mermaid.mutate(...)`)
+      throw sandboxError(`Code Mode ${verb} input must come from mermaid.parseRegisteredMermaid(...) or mermaid.mutate(...)`)
     }
   }
   const rememberRaw = <T extends object>(proxy: T, target: object): T => {
@@ -335,7 +338,6 @@ export function createTracingMermaid(
   }
   const push = (call: ExecutionTraceCall) => { trace?.push(call) }
   const sdkTarget = {
-    parseMermaid: mermaid.parseMermaid,
     parseRegisteredMermaid: mermaid.parseRegisteredMermaid,
     createMermaid: mermaid.createMermaid,
     buildMermaid: mermaid.buildMermaid,
@@ -381,11 +383,10 @@ export function createTracingMermaid(
     if (forbidden(prop) || !sdkProps.has(prop)) return undefined
     if (sdkValues.has(prop)) return sdkValues.get(prop)
     let value: unknown
-    if (prop === 'parseMermaid' || prop === 'parseRegisteredMermaid') value = harden((source: string) => {
+    if (prop === 'parseRegisteredMermaid') value = harden((source: string) => {
       assertOpen()
       if (typeof source !== 'string') throw sandboxError(`Code Mode ${prop} source must be a string`)
-      const parse = prop === 'parseRegisteredMermaid' ? target.parseRegisteredMermaid : target.parseMermaid
-      const r = hostCall(() => parse(source))
+      const r = hostCall(() => target.parseRegisteredMermaid(source))
       if (r.ok) trustDiagram(r.value)
       const diagram = r.ok ? idOf(r.value) : undefined
       push({ verb: 'parse', diagram, source: r.ok ? (r.value.body.kind === 'opaque' ? r.value.body.source : r.value.canonicalSource) : undefined })
@@ -546,7 +547,10 @@ export function createTracingMermaid(
       if (projectionCallback) {
         cloned!.onProjectionDiagnostic = (diagnostic: unknown) => projectionDiagnostics.push(diagnostic)
       }
-      const rendered = hostCall(() => ((target as any)[prop] as (diagram: any, options?: any) => unknown)(rawOf(input), cloned))
+      const rendered = hostCall(
+        () => ((target as any)[prop] as (diagram: any, options?: any) => unknown)(rawOf(input), cloned),
+        true,
+      )
       for (const diagnostic of configDiagnostics) configCallback(harden(jsonClone(diagnostic)))
       for (const diagnostic of projectionDiagnostics) projectionCallback(harden(jsonClone(diagnostic)))
       // Render artifacts/receipts are immutable host records. Clone to an
@@ -666,8 +670,9 @@ const NARROWER_TO_FAMILY: ReadonlyMap<string, DiagramKind> = new Map(
 )
 
 function narrowerFamily(prop: string | symbol): TraceNarrowFamily {
-  // Unknown props keep the historical 'er' fallback (asEr was the switch default).
-  return NARROWER_TO_FAMILY.get(String(prop)) ?? 'er'
+  const family = NARROWER_TO_FAMILY.get(String(prop))
+  if (!family) throw new Error(`Unknown Code Mode narrower: ${String(prop)}`)
+  return family
 }
 
 /**

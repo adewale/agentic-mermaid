@@ -1,7 +1,7 @@
 /** Runtime admission checks for the Scene contract.
  *
- * Validation is deliberately non-mutating. Built-in lowerings retain their
- * exact crisp bytes; external family scenes receive stricter containment,
+ * Validation is deliberately non-mutating. Built-in lowerings carry a
+ * canonical backend-private projection; external family scenes receive stricter containment,
  * reference, and non-fetching checks before a backend can observe them.
  */
 
@@ -34,8 +34,9 @@ import {
 import { assertRenderableMarker, serializeMarkerResources } from './marker-resources.ts'
 import { BUILTIN_SCENE_ROLE_TRAITS, sceneRoleTraits } from './roles.ts'
 import { boundedUtf8ByteLength } from '../shared/utf8.ts'
+import { canonicalizeSceneNodeSerialization, sceneNodeSerialization } from './serialization.ts'
 
-export const SCENE_VALIDATION_VERSION = 1 as const
+export const SCENE_VALIDATION_VERSION = 2 as const
 export const SCENE_VALIDATION_LIMITS = Object.freeze({
   maxExtent: 1_000_000,
   maxNodes: 100_000,
@@ -43,8 +44,8 @@ export const SCENE_VALIDATION_LIMITS = Object.freeze({
   maxTextLength: 1_000_000,
   maxTextBytes: 2_000_000,
   maxPoints: 50_000,
-  maxCrispBytesPerNode: 5_000_000,
-  maxAggregateCrispBytes: 16_000_000,
+  maxSerializationBytesPerNode: 5_000_000,
+  maxAggregateSerializationBytes: 16_000_000,
   maxFinalSvgBytes: 8_000_000,
 } as const)
 
@@ -93,8 +94,8 @@ const MAX_SCENE_DEPTH = SCENE_VALIDATION_LIMITS.maxDepth
 const MAX_TEXT_LENGTH = SCENE_VALIDATION_LIMITS.maxTextLength
 const MAX_TEXT_BYTES = SCENE_VALIDATION_LIMITS.maxTextBytes
 const MAX_SCENE_POINTS = SCENE_VALIDATION_LIMITS.maxPoints
-const MAX_CRISP_BYTES_PER_NODE = SCENE_VALIDATION_LIMITS.maxCrispBytesPerNode
-const MAX_AGGREGATE_CRISP_BYTES = SCENE_VALIDATION_LIMITS.maxAggregateCrispBytes
+const MAX_SERIALIZATION_BYTES_PER_NODE = SCENE_VALIDATION_LIMITS.maxSerializationBytesPerNode
+const MAX_AGGREGATE_SERIALIZATION_BYTES = SCENE_VALIDATION_LIMITS.maxAggregateSerializationBytes
 const MAX_FINAL_SVG_BYTES = SCENE_VALIDATION_LIMITS.maxFinalSvgBytes
 const EXTERNAL_ID = /^[A-Za-z0-9][A-Za-z0-9_.:/-]*$/
 const NAMESPACED_ROLE = /^[a-z0-9][a-z0-9._/-]*:[a-z0-9][a-z0-9._/-]*$/i
@@ -338,18 +339,18 @@ function validatePaint(
 
 interface ValidationBudget {
   textBytes: number
-  crispBytes: number
+  serializationBytes: number
   points: number
   textExceeded: boolean
-  crispExceeded: boolean
+  serializationExceeded: boolean
   pointsExceeded: boolean
   readonly pointCollections: WeakSet<object>
 }
 
 function consumeStringBudget(
   budget: ValidationBudget | undefined,
-  field: 'textBytes' | 'crispBytes',
-  exceededField: 'textExceeded' | 'crispExceeded',
+  field: 'textBytes' | 'serializationBytes',
+  exceededField: 'textExceeded' | 'serializationExceeded',
   value: unknown,
   path: string,
   diagnostics: MutableDiagnostic[],
@@ -656,25 +657,22 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
     return
   }
   const kind = value.kind
-  if (!['shape', 'connector', 'text', 'group', 'raw', 'document', 'prelude'].includes(kind)) {
+  if (!['shape', 'connector', 'text', 'group', 'document'].includes(kind)) {
     add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.kind`, `unknown Scene node kind "${kind}"`)
     return
   }
-  if (state.external && depth > 0 && (kind === 'document' || kind === 'prelude')) {
+  if (state.external && depth > 0 && kind === 'document') {
     add(state.diagnostics, 'SCENE_DOCUMENT', path, `${kind} marks must be top-level document furniture`)
   }
   if (state.external) {
-    const base = ['kind', 'id', 'role', 'identity', 'accessibility', 'channels', 'transform', 'crisp']
+    const base = ['kind', 'id', 'role', 'identity', 'accessibility', 'channels', 'transform']
     const fields: Record<string, readonly string[]> = {
       shape: [...base, 'geometry', 'paint'],
       text: [...base, 'text', 'x', 'y', 'fontSize', 'anchor', 'paint'],
       group: [...base, 'open', 'close', 'children', 'join'],
-      raw: base,
       'document': [...base, 'element', 'text', 'domId', 'markerResources'],
-      prelude: [...base, 'prelude'],
       connector: [
-        ...base, 'geometry', 'lineStyle', 'paint', 'startMarker', 'endMarker',
-        'endpoints', 'relationship', 'route', 'stroke', 'markers', 'labels', 'hit',
+        ...base, 'lineStyle', 'endpoints', 'relationship', 'route', 'stroke', 'markers', 'labels', 'hit',
         'terminalProjection',
       ],
     }
@@ -694,19 +692,25 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
   }
   validateRole(kind, value.role, `${path}.role`, state)
   validateChannels(value.channels, `${path}.channels`, state.diagnostics)
-  if (typeof value.crisp !== 'string' || boundedUtf8ByteLength(value.crisp, MAX_CRISP_BYTES_PER_NODE) > MAX_CRISP_BYTES_PER_NODE) {
-    add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.crisp`, 'must be a bounded SVG projection string')
+  let serialized: string | undefined
+  try {
+    serialized = sceneNodeSerialization(value as unknown as SceneNode)
+    if (boundedUtf8ByteLength(serialized, MAX_SERIALIZATION_BYTES_PER_NODE) > MAX_SERIALIZATION_BYTES_PER_NODE) {
+      add(state.diagnostics, 'SCENE_DOCUMENT', path, 'has an oversized SVG serialization')
+    }
+  } catch (error) {
+    add(state.diagnostics, 'SCENE_DOCUMENT', path, error instanceof Error ? error.message : String(error))
   }
-  if (state.external) {
+  if (state.external && serialized !== undefined) {
     consumeStringBudget(
       state.budget,
-      'crispBytes',
-      'crispExceeded',
-      value.crisp,
-      `${path}.crisp`,
+      'serializationBytes',
+      'serializationExceeded',
+      serialized,
+      path,
       state.diagnostics,
-      MAX_AGGREGATE_CRISP_BYTES,
-      'Scene crisp projections',
+      MAX_AGGREGATE_SERIALIZATION_BYTES,
+      'Scene serializations',
     )
   }
   if (value.transform !== undefined) {
@@ -757,28 +761,8 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
     }
     return
   }
-  if (kind === 'raw') {
-    if (state.external) add(state.diagnostics, 'SCENE_SECURITY', path, 'raw marks are not allowed in external Scene documents')
-    return
-  }
-  if (kind === 'prelude') {
-    if (!record(value.prelude)) {
-      add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.prelude`, 'must be a typed document prelude')
-      return
-    }
-    finite(value.prelude.width, `${path}.prelude.width`, state.diagnostics, state.external ? { positive: true } : { nonNegative: true })
-    finite(value.prelude.height, `${path}.prelude.height`, state.diagnostics, state.external ? { positive: true } : { nonNegative: true })
-    boundedString(value.prelude.font, `${path}.prelude.font`, state.diagnostics)
-    if (safeCssFontFamily(value.prelude.font) === undefined) add(state.diagnostics, 'SCENE_SECURITY', `${path}.prelude.font`, 'must be a safe non-fetching font family')
-    if (!record(value.prelude.colors)) add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.prelude.colors`, 'must be a DiagramColors object')
-    if (typeof value.prelude.transparent !== 'boolean') add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.prelude.transparent`, 'must be boolean')
-    if (typeof value.prelude.hasMonoFont !== 'boolean') add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.prelude.hasMonoFont`, 'must be boolean')
-    if (typeof value.prelude.extraCss !== 'string') add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.prelude.extraCss`, 'must be a string')
-    if (state.external && value.prelude.extraCss !== '') add(state.diagnostics, 'SCENE_SECURITY', `${path}.prelude.extraCss`, 'external Scene documents cannot provide CSS')
-    return
-  }
   if (kind === 'document') {
-    if (!['title', 'description', 'definitions', 'close'].includes(String(value.element))) {
+    if (!['open', 'title', 'description', 'definitions', 'content', 'close'].includes(String(value.element))) {
       add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.element`, 'has an unknown document element')
     }
     if (value.markerResources !== undefined) {
@@ -798,8 +782,10 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
         }
         if (state.external && value.element === 'definitions') {
           try {
-            const expected = `<defs>\n${serializeMarkerResources(value.markerResources as MarkerDescriptor[])}\n</defs>`
-            if (value.crisp !== expected) add(state.diagnostics, 'SCENE_FIDELITY', `${path}.crisp`, 'must be generated from the typed marker resources')
+            const expected = canonicalizeSceneNodeSerialization(
+              `<defs>\n${serializeMarkerResources(value.markerResources as MarkerDescriptor[])}\n</defs>`,
+            )
+            if (serialized !== expected) add(state.diagnostics, 'SCENE_FIDELITY', path, 'definitions must be generated from the typed marker resources')
           } catch {
             // The marker diagnostic above is more precise.
           }
@@ -809,18 +795,13 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
     if (state.external && (value.element === 'title' || value.element === 'description')) {
       consumeStringBudget(state.budget, 'textBytes', 'textExceeded', value.text, `${path}.text`, state.diagnostics, MAX_TEXT_BYTES, 'Scene text values')
     }
-    if (state.external && value.element === 'close' && value.crisp !== '</svg>') {
-      add(state.diagnostics, 'SCENE_SECURITY', `${path}.crisp`, 'external document close must be canonical')
+    if (state.external && value.element === 'close' && serialized !== '</svg>') {
+      add(state.diagnostics, 'SCENE_SECURITY', path, 'external document close must be canonical')
     }
     return
   }
 
   // Connector
-  validateGeometry(value.geometry, `${path}.geometry`, state.diagnostics, false, 0, state.budget, state.external)
-  if (state.external && record(value.geometry) && value.geometry.kind === 'path' && !Array.isArray(value.geometry.points)) {
-    add(state.diagnostics, 'SCENE_BOUNDS', `${path}.geometry.points`, 'external connector paths require deterministic routed points')
-  }
-  validatePaint(value.paint, `${path}.paint`, state.diagnostics, state.external)
   if (!['solid', 'dotted', 'dashed', 'thick', 'invisible'].includes(String(value.lineStyle))) {
     add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.lineStyle`, 'has an unknown line style')
   }
@@ -847,16 +828,16 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
     add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.relationship.direction`, 'has an unknown connector direction')
   }
   if (record(value.route)) {
-    if (value.route.geometry !== value.geometry) {
-      add(state.diagnostics, 'SCENE_FIDELITY', `${path}.route.geometry`, 'must be the connector geometry authority by reference')
-    }
     validateGeometry(value.route.geometry, `${path}.route.geometry`, state.diagnostics, false, 0, state.budget, state.external)
+    if (state.external && record(value.route.geometry) && value.route.geometry.kind === 'path' && !Array.isArray(value.route.geometry.points)) {
+      add(state.diagnostics, 'SCENE_BOUNDS', `${path}.route.geometry.points`, 'external connector paths require deterministic routed points')
+    }
     finite(value.route.bendRadius, `${path}.route.bendRadius`, state.diagnostics, { nonNegative: true })
     if (!['authored', 'layout', 'family', 'projected'].includes(String(value.route.ownership))) {
       add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.route.ownership`, 'has an unknown route ownership')
     }
     if (typeof value.route.closed !== 'boolean') add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.route.closed`, 'must be boolean')
-    if (value.route.closed === true && record(value.geometry) && value.geometry.kind !== 'path') {
+    if (value.route.closed === true && record(value.route.geometry) && value.route.geometry.kind !== 'path') {
       add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.route.closed`, 'closed connector topology requires path geometry')
     }
     if (value.route.startTangent !== undefined) {
@@ -1081,15 +1062,9 @@ function validateConnectorProjectionConsistency(
     || !record(value.terminalProjection)
     || !Array.isArray(value.terminalProjection.diagnostics)) return
 
-  if (value.startMarker !== value.markers.start) {
-    add(state.diagnostics, 'SCENE_FIDELITY', `${path}.startMarker`, 'must alias markers.start by reference')
-  }
-  if (value.endMarker !== value.markers.end) {
-    add(state.diagnostics, 'SCENE_FIDELITY', `${path}.endMarker`, 'must alias markers.end by reference')
-  }
-
   const connector = value as unknown as ConnectorMark
-  const anchors = connectorEndpointAnchors(connector.geometry, connector.route.closed)
+  const geometry = connector.route.geometry
+  const anchors = connectorEndpointAnchors(geometry, connector.route.closed)
   const expectedStart = anchors.starts[0]
   const expectedEnd = anchors.ends.at(-1)
   for (const [field, actual, expected] of [
@@ -1100,11 +1075,11 @@ function validateConnectorProjectionConsistency(
       add(state.diagnostics, 'SCENE_FIDELITY', `${path}.endpoints.${field}.point`, 'must equal the endpoint derived from connector geometry')
     }
   }
-  const derivedContours = connectorContourSemantics(connector.geometry, connector.route.closed)
+  const derivedContours = connectorContourSemantics(geometry, connector.route.closed)
   if (connector.route.contours.length !== derivedContours.length) {
     add(state.diagnostics, 'SCENE_FIDELITY', `${path}.route.contours`, 'must match the geometry-derived contour count')
   }
-  const linearGeometry = !connectorGeometryHasCurves(connector.geometry)
+  const linearGeometry = !connectorGeometryHasCurves(geometry)
   for (let index = 0; index < Math.min(connector.route.contours.length, derivedContours.length); index++) {
     const actual = connector.route.contours[index]!
     const expected = derivedContours[index]!
@@ -1138,7 +1113,7 @@ function validateConnectorProjectionConsistency(
 
   try {
     const expected = deriveConnectorTerminalProjection({
-      geometry: connector.geometry,
+      geometry,
       lineStyle: connector.lineStyle,
       endpoints: connector.endpoints,
       relationship: connector.relationship,
@@ -1158,24 +1133,22 @@ function validateConnectorProjectionConsistency(
   }
 }
 
-/** External structured marks have exactly one SVG projection authority. The
- * generic Scene `crisp` compatibility field is accepted only when it equals
- * the projection rebuilt from the public declarative fields. */
+/** External structured marks have exactly one backend-owned SVG projection. */
 function validateCanonicalExternalNode(
   node: SceneNode,
   path: string,
   diagnostics: MutableDiagnostic[],
 ): void {
-  if (node.kind === 'raw' || node.kind === 'prelude' || node.kind === 'document') return
+  if (node.kind === 'document') return
   let expected: SceneNode
   try {
     expected = canonicalExternalNode(node)
   } catch (error) {
-    add(diagnostics, 'SCENE_FIDELITY', `${path}.crisp`, error instanceof Error ? error.message : String(error))
+    add(diagnostics, 'SCENE_FIDELITY', path, error instanceof Error ? error.message : String(error))
     return
   }
-  if (node.crisp !== expected.crisp) {
-    add(diagnostics, 'SCENE_FIDELITY', `${path}.crisp`, 'must equal the canonical projection generated from the external Scene fields')
+  if (sceneNodeSerialization(node) !== sceneNodeSerialization(expected)) {
+    add(diagnostics, 'SCENE_FIDELITY', path, 'must equal the canonical serialization generated from the external Scene fields')
   }
   if (!structurallyEqual(node.identity, expected.identity) || !structurallyEqual(node.accessibility, expected.accessibility)) {
     add(diagnostics, 'SCENE_FIDELITY', path, 'typed identity and accessibility must equal the canonical generated projection')
@@ -1196,11 +1169,7 @@ function validateCanonicalExternalNode(
         add(diagnostics, 'SCENE_FIDELITY', `${path}.${field}`, 'must equal semantics derived by the external Scene builder')
       }
     }
-    if (
-      node.startMarker !== expected.startMarker
-      || node.endMarker !== expected.endMarker
-      || !structurallyEqual(node.markers.mid, expected.markers.mid)
-    ) {
+    if (!structurallyEqual(node.markers, expected.markers)) {
       add(diagnostics, 'SCENE_FIDELITY', `${path}.markers`, 'must equal the canonical external start/mid/end marker projection')
     }
   }
@@ -1222,15 +1191,17 @@ function boundedExternalSvg(
   }
   for (let index = 0; index < parts.length; index++) {
     const part = parts[index]
-    if (!record(part) || typeof part.crisp !== 'string') return undefined
+    if (!record(part)) return undefined
+    let serialized: string
+    try { serialized = sceneNodeSerialization(part as unknown as SceneNode) } catch { return undefined }
     const remaining = Math.max(0, MAX_FINAL_SVG_BYTES - bytes)
-    const chunkBytes = boundedUtf8ByteLength(part.crisp, remaining)
+    const chunkBytes = boundedUtf8ByteLength(serialized, remaining)
     if (chunkBytes > remaining) {
       add(diagnostics, 'SCENE_BOUNDS', 'scene.parts', `serialized SVG exceeds the aggregate ${MAX_FINAL_SVG_BYTES}-byte limit`)
       return undefined
     }
     bytes += chunkBytes
-    chunks.push(part.crisp)
+    chunks.push(serialized)
   }
   return chunks.join('\n')
 }
@@ -1246,10 +1217,11 @@ export function validateSceneDoc(value: unknown, options: SceneValidationOptions
   }
   const parsedFamily = typeof value.family === 'string' ? parseExtensionId(value.family) : undefined
   const external = options.mode === 'external' || (options.mode !== 'internal' && parsedFamily?.kind === 'family')
-  if (external) rejectUnknownKeys(value, ['family', 'width', 'height', 'colors', 'parts'], 'scene', diagnostics)
+  if (external) rejectUnknownKeys(value, ['family', 'width', 'height', 'colors', 'transparent', 'parts'], 'scene', diagnostics)
   boundedString(value.family, 'scene.family', diagnostics)
   const widthOk = finite(value.width, 'scene.width', diagnostics, external ? { positive: true } : { nonNegative: true })
   const heightOk = finite(value.height, 'scene.height', diagnostics, external ? { positive: true } : { nonNegative: true })
+  if (value.transparent !== undefined && typeof value.transparent !== 'boolean') add(diagnostics, 'SCENE_DOCUMENT', 'scene.transparent', 'must be boolean')
   if (!record(value.colors)) add(diagnostics, 'SCENE_DOCUMENT', 'scene.colors', 'must be a DiagramColors object')
   else {
     if (external) {
@@ -1287,10 +1259,10 @@ export function validateSceneDoc(value: unknown, options: SceneValidationOptions
       companionLabelReferences: [],
       budget: {
         textBytes: 0,
-        crispBytes: 0,
+        serializationBytes: 0,
         points: 0,
         textExceeded: false,
-        crispExceeded: false,
+        serializationExceeded: false,
         pointsExceeded: false,
         pointCollections: new WeakSet(),
       },
@@ -1309,14 +1281,14 @@ export function validateSceneDoc(value: unknown, options: SceneValidationOptions
         const part = value.parts[index]
         if (record(part)) indexed.push({ part, index })
       }
-      const preludes = indexed.filter(entry => entry.part.kind === 'prelude')
       const documents = indexed.filter(entry => entry.part.kind === 'document')
+      const opens = documents.filter(entry => entry.part.element === 'open')
       const titles = documents.filter(entry => entry.part.element === 'title')
       const descriptions = documents.filter(entry => entry.part.element === 'description')
       const definitions = documents.filter(entry => entry.part.element === 'definitions')
       const closes = documents.filter(entry => entry.part.element === 'close')
-      if (preludes.length !== 1 || preludes[0]?.index !== 0) add(diagnostics, 'SCENE_DOCUMENT', 'scene.parts', 'external Scene documents require exactly one leading prelude')
-      if (titles.length !== 1 || titles[0]?.index !== 1) add(diagnostics, 'SCENE_DOCUMENT', 'scene.parts', 'external Scene documents require exactly one title after the prelude')
+      if (opens.length !== 1 || opens[0]?.index !== 0) add(diagnostics, 'SCENE_DOCUMENT', 'scene.parts', 'external Scene documents require exactly one leading open mark')
+      if (titles.length !== 1 || titles[0]?.index !== 1) add(diagnostics, 'SCENE_DOCUMENT', 'scene.parts', 'external Scene documents require exactly one title after the open mark')
       if (descriptions.length > 1) add(diagnostics, 'SCENE_DOCUMENT', 'scene.parts', 'external Scene documents allow at most one description')
       if (definitions.length > 1) add(diagnostics, 'SCENE_DOCUMENT', 'scene.parts', 'external Scene documents allow at most one definitions mark')
       if (closes.length !== 1 || closes[0]?.index !== value.parts.length - 1) add(diagnostics, 'SCENE_DOCUMENT', 'scene.parts', 'external Scene documents require exactly one trailing close')
@@ -1327,7 +1299,7 @@ export function validateSceneDoc(value: unknown, options: SceneValidationOptions
         ...descriptions,
         ...definitions,
       ].map(entry => entry.index)
-      if (expectedFurniture.some((index, offset) => index !== offset + 1) || documents.some(entry => entry.part.element !== 'close' && entry.index > furnitureEnd)) {
+      if (expectedFurniture.some((index, offset) => index !== offset + 1) || documents.some(entry => !['open', 'close'].includes(String(entry.part.element)) && entry.index > furnitureEnd)) {
         add(diagnostics, 'SCENE_DOCUMENT', 'scene.parts', 'title, description, and typed definitions must be contiguous leading furniture')
       }
 
@@ -1336,16 +1308,20 @@ export function validateSceneDoc(value: unknown, options: SceneValidationOptions
         add(diagnostics, 'SCENE_DOCUMENT', `scene.parts[${titles[0]!.index}]`, 'external title must use the canonical generated identity')
       }
       if (title && typeof title.text === 'string') {
-        const expected = `<title id="external-scene-title">${escapeXml(title.text)}</title>`
-        if (title.crisp !== expected) add(diagnostics, 'SCENE_FIDELITY', `scene.parts[${titles[0]!.index}].crisp`, 'external title must use the canonical generated projection')
+        const expected = canonicalizeSceneNodeSerialization(
+          `<title id="external-scene-title">${escapeXml(title.text)}</title>`,
+        )
+        if (sceneNodeSerialization(title as unknown as SceneNode) !== expected) add(diagnostics, 'SCENE_FIDELITY', `scene.parts[${titles[0]!.index}]`, 'external title must use the canonical generated serialization')
       }
       const description = descriptions[0]?.part
       if (description && (description.id !== 'external-scene-description' || description.domId !== 'external-scene-description')) {
         add(diagnostics, 'SCENE_DOCUMENT', `scene.parts[${descriptions[0]!.index}]`, 'external description must use the canonical generated identity')
       }
       if (description && typeof description.text === 'string') {
-        const expected = `<desc id="${escapeAttr('external-scene-description')}">${escapeXml(description.text)}</desc>`
-        if (description.crisp !== expected) add(diagnostics, 'SCENE_FIDELITY', `scene.parts[${descriptions[0]!.index}].crisp`, 'external description must use the canonical generated projection')
+        const expected = canonicalizeSceneNodeSerialization(
+          `<desc id="${escapeAttr('external-scene-description')}">${escapeXml(description.text)}</desc>`,
+        )
+        if (sceneNodeSerialization(description as unknown as SceneNode) !== expected) add(diagnostics, 'SCENE_FIDELITY', `scene.parts[${descriptions[0]!.index}]`, 'external description must use the canonical generated serialization')
       }
       const definition = definitions[0]?.part
       if (definition && (definition.id !== 'external-scene-definitions' || !Array.isArray(definition.markerResources) || definition.markerResources.length === 0)) {
@@ -1354,29 +1330,21 @@ export function validateSceneDoc(value: unknown, options: SceneValidationOptions
       const close = closes[0]?.part
       if (close && close.id !== 'svg-close') add(diagnostics, 'SCENE_DOCUMENT', `scene.parts[${closes[0]!.index}]`, 'external close must use the canonical generated identity')
 
-      const prelude = preludes[0]?.part
-      if (prelude && record(prelude.prelude)) {
-        if (prelude.id !== 'external-scene-prelude') add(diagnostics, 'SCENE_DOCUMENT', 'scene.parts[0].id', 'external prelude must use the canonical generated identity')
-        if (prelude.prelude.width !== value.width || prelude.prelude.height !== value.height) add(diagnostics, 'SCENE_BOUNDS', 'scene.parts[0].prelude', 'prelude dimensions must equal document dimensions')
-        if (prelude.prelude.hasMonoFont !== false) add(diagnostics, 'SCENE_DOCUMENT', 'scene.parts[0].prelude.hasMonoFont', 'external builder does not expose a monospace font resource')
-        if (record(prelude.prelude.colors)) {
-          const preludeColors = prelude.prelude.colors as unknown as DiagramColors
-          const documentColors = record(value.colors) ? value.colors : {}
-          const colorsMatch = ['bg', 'fg', 'line', 'accent', 'muted', 'surface', 'border', 'font', 'shadow', 'embedFontImport']
-            .every(key => (preludeColors as unknown as Record<string, unknown>)[key] === documentColors[key])
-          if (!colorsMatch || preludeColors.embedFontImport !== false) add(diagnostics, 'SCENE_DOCUMENT', 'scene.parts[0].prelude.colors', 'must equal the document colors with external font imports disabled')
-          try {
-            const ariaIds = ['external-scene-title', ...(descriptions.length ? ['external-scene-description'] : [])].join(' ')
-            const expected = [
-              svgOpenTag(value.width as number, value.height as number, preludeColors, Boolean(prelude.prelude.transparent), {
-                attrs: { role: 'img', 'aria-labelledby': ariaIds },
-              }),
-              buildStyleBlock(String(prelude.prelude.font), false, preludeColors.shadow, false),
-            ].join('\n')
-            if (prelude.crisp !== expected) add(diagnostics, 'SCENE_SECURITY', 'scene.parts[0].crisp', 'must be the canonical CSS-free external document projection')
-          } catch (error) {
-            add(diagnostics, 'SCENE_SECURITY', 'scene.parts[0].crisp', error instanceof Error ? error.message : String(error))
-          }
+      const open = opens[0]?.part
+      if (open) {
+        if (open.id !== 'external-scene-prelude') add(diagnostics, 'SCENE_DOCUMENT', 'scene.parts[0].id', 'external open mark must use the canonical generated identity')
+        try {
+          const colors = value.colors as unknown as DiagramColors
+          const ariaIds = ['external-scene-title', ...(descriptions.length ? ['external-scene-description'] : [])].join(' ')
+          const expected = canonicalizeSceneNodeSerialization([
+            svgOpenTag(value.width as number, value.height as number, colors, Boolean(value.transparent), {
+              attrs: { role: 'img', 'aria-labelledby': ariaIds },
+            }),
+            buildStyleBlock(colors.font ?? 'Inter', false, colors.shadow, false),
+          ].join('\n'))
+          if (sceneNodeSerialization(open as unknown as SceneNode) !== expected) add(diagnostics, 'SCENE_SECURITY', 'scene.parts[0]', 'must be the canonical CSS-free external document serialization')
+        } catch (error) {
+          add(diagnostics, 'SCENE_SECURITY', 'scene.parts[0]', error instanceof Error ? error.message : String(error))
         }
       }
       for (const reference of state.markerReferences) {
@@ -1432,7 +1400,7 @@ export function validateSceneDoc(value: unknown, options: SceneValidationOptions
         add(diagnostics, 'SCENE_FIDELITY', 'scene', error instanceof Error ? error.message : String(error))
       }
       try {
-        const svg = external ? externalSvg : scene.parts.map(part => part.crisp).join('\n')
+        const svg = external ? externalSvg : scene.parts.map(sceneNodeSerialization).join('\n')
         if (svg !== undefined) applyOutputSecurityPolicy(svg, external ? 'strict' : 'default')
       } catch (error) {
         add(diagnostics, 'SCENE_SECURITY', 'scene', error instanceof Error ? error.message : String(error))

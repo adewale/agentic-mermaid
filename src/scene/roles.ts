@@ -25,7 +25,7 @@ export type BuiltinSceneRole = CoreSceneRole
 export type NamespacedSceneRole = `${string}:${string}`
 export type SceneRole = BuiltinSceneRole | NamespacedSceneRole
 
-export type SceneMarkKind = 'shape' | 'connector' | 'text' | 'group' | 'raw' | 'document' | 'prelude'
+export type SceneMarkKind = 'shape' | 'connector' | 'text' | 'group' | 'document'
 export type SceneSketchPolicy = 'shape' | 'connector' | 'none'
 
 export type SceneRoleStyleFallback = 'node' | 'edge' | 'group' | 'label'
@@ -53,7 +53,7 @@ export interface SceneRoleTraits {
   textHalo: boolean
 }
 
-const ANY_MARK: readonly SceneMarkKind[] = ['shape', 'connector', 'text', 'group', 'raw', 'document', 'prelude']
+const ANY_MARK: readonly SceneMarkKind[] = ['shape', 'connector', 'text', 'group', 'document']
 const SHAPE: readonly SceneMarkKind[] = ['shape']
 const CONNECTOR: readonly SceneMarkKind[] = ['connector']
 const TEXT: readonly SceneMarkKind[] = ['text']
@@ -61,11 +61,11 @@ const SHAPE_OR_TEXT: readonly SceneMarkKind[] = ['shape', 'text']
 const SHAPE_OR_GROUP: readonly SceneMarkKind[] = ['shape', 'group']
 const SHAPE_TEXT_OR_GROUP: readonly SceneMarkKind[] = ['shape', 'text', 'group']
 const CONNECTOR_OR_GROUP: readonly SceneMarkKind[] = ['connector', 'group']
-const RAW_OR_DOCUMENT: readonly SceneMarkKind[] = ['raw', 'document']
+const DOCUMENT: readonly SceneMarkKind[] = ['document']
 const TEXT_OR_GROUP: readonly SceneMarkKind[] = ['text', 'group']
-const TEXT_OR_RAW: readonly SceneMarkKind[] = ['text', 'raw']
-const SHAPE_TEXT_OR_RAW: readonly SceneMarkKind[] = ['shape', 'text', 'raw']
-const PRELUDE: readonly SceneMarkKind[] = ['prelude']
+const TEXT_OR_DOCUMENT: readonly SceneMarkKind[] = ['text', 'document']
+const SHAPE_TEXT_OR_DOCUMENT: readonly SceneMarkKind[] = ['shape', 'text', 'document']
+const PRELUDE: readonly SceneMarkKind[] = ['document']
 
 function traits(
   applicableKinds: readonly SceneMarkKind[],
@@ -153,9 +153,9 @@ export const BUILTIN_SCENE_ROLE_TRAITS: Readonly<Record<BuiltinSceneRole, SceneR
   'actor-pill': traits(SHAPE, 'node', { sketch: 'shape' }),
   service: traits(SHAPE_OR_GROUP, 'node', { domIdentity: true, sketch: 'shape' }),
   junction: traits(SHAPE_OR_GROUP, 'node', { domIdentity: true }),
-  icon: traits(SHAPE_TEXT_OR_RAW, 'node'),
+  icon: traits(SHAPE_TEXT_OR_DOCUMENT, 'node'),
   title: traits(ANY_MARK, 'label', { domIdentity: true }),
-  defs: traits(RAW_OR_DOCUMENT, 'label'),
+  defs: traits(DOCUMENT, 'label'),
   prelude: traits(PRELUDE, 'label'),
   chrome: traits(ANY_MARK, 'label'),
 })
@@ -206,7 +206,7 @@ export const SCENE_ROLE_DESCRIPTORS: readonly SceneRoleDescriptor[] = Object.fre
       id: `role:${role}`,
       kind: 'role',
       version: '1.0.0',
-      compatibility: { core: '^0.1.1', scene: '^1.0.0' },
+      compatibility: { core: '^0.1.1', scene: '^2.0.0' },
       provenance: { owner: 'agentic-mermaid', source: 'built-in', reference: 'src/scene/roles.ts' },
     }),
     role: role as BuiltinSceneRole,

@@ -31,7 +31,7 @@
   ],
   "mechanisms": [
     "Mechanism 1: 'am capabilities --json' - provided authoritative list of 12 families with complete mutation op specs",
-    "Mechanism 2: 'am render <file> --format json' - verify parser and get layout output in single command",
+    "Mechanism 2: 'am render <file> --format layout' - verify parser and get layout output in single command",
     "Mechanism 3: Error messages explicitly stated 'UNKNOWN_HEADER' when trying wrong syntax, enabled rapid iteration",
     "Mechanism 4: 'am llms-txt' provided summary of families and hints about special features (segment-preserving diagrams)",
     "Mechanism 5: Trial-and-error with various header formats (system-diagram, block-diagram, C4Context, etc.) led to discovering %%{init}%% syntax",

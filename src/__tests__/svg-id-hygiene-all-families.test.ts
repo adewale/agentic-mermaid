@@ -63,7 +63,7 @@ describe('all-family multi-diagram SVG ID hygiene', () => {
 
   test('rejects prefixes that could escape an SVG attribute or URL reference', () => {
     expect(() => namespaceSvgIds('<svg><path id="safe"/></svg>', 'bad\" onload="x-'))
-      .toThrow('idPrefix may contain only')
+      .toThrow('idPrefix must be non-empty and contain only')
   })
 
   test('does not rewrite user-facing data-id identities', () => {

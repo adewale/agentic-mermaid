@@ -111,7 +111,7 @@ describe('maintained documentation is derived from current contracts', () => {
     expect(projectionSource).not.toContain('function augmentFamily')
 
     expect(new Set(manifest.contracts.map(contract => contract.surface))).toEqual(new Set([
-      'bytes', 'semantic identity', 'geometry', 'terminal cells', 'config diagnostics',
+      'semantic identity', 'geometry', 'terminal cells', 'config diagnostics',
       'security', 'packaging', 'generated artifacts',
     ]))
     for (const contract of manifest.contracts) {

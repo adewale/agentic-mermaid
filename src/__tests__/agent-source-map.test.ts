@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { parseMermaid } from '../agent/parse.ts'
+import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 
 describe('flowchart SourceMap', () => {
   test('maps nodes, edges, groups, and labels to source locations', () => {

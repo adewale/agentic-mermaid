@@ -1,6 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 739.848 231" width="739.848" height="231" style="--bg:#0b1120;--fg:#1f2937;--line:#f59e0b;--accent:#38bdf8;--muted:#6b7280;--surface:#38bdf8;--border:#7dd3fc;--font:IBM Plex Sans;background:#0b1120;--arch-group-fill:#111827;--arch-group-stroke:#38bdf8;--arch-service-fill:#0f172a;--arch-service-stroke:#7dd3fc">
+<svg xmlns="http://www.w3.org/2000/svg" width="739.848" height="231" viewBox="0 0 739.848 231" style="--bg:#0b1120;--fg:#1f2937;--line:#f59e0b;--accent:#38bdf8;--muted:#6b7280;--surface:#38bdf8;--border:#7dd3fc;--font:IBM Plex Sans;background:#0b1120;--arch-group-fill:#111827;--arch-group-stroke:#38bdf8;--arch-service-fill:#0f172a;--arch-service-stroke:#7dd3fc">
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=IBM%20Plex%20Sans:wght@400;500;600;700&amp;display=swap');
   text { font-family: var(--font, 'IBM Plex Sans'), system-ui, sans-serif; }
   svg {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */

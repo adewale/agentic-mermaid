@@ -3,7 +3,7 @@
 Agentic Mermaid outputs SVG, PNG, ASCII, Unicode, and JSON layout through the CLI.
 
 ```text
-am render <file|-> --format svg|ascii|unicode|json
+am render <file|-> --format svg|ascii|unicode|layout
 am render <file> --format png --output file.png  # one-shot only; no watch/multi-input
 am preview <file|-> [--output preview.html] [--open] [--json] [--security strict]  # strict standalone HTML
 am verify <file|->            structured JSON warnings (exit 3 if not ok)

@@ -5,7 +5,7 @@
 // meaning), so the rendered geometry must be byte-identical up to the rename.
 // On a mismatch, ddmin reduces the source to a minimal repro (the "reduce" half).
 
-import { parseMermaid, layoutMermaid } from '../../src/agent/index.ts'
+import { parseRegisteredMermaid as parseMermaid, layoutMermaid } from '../../src/agent/index.ts'
 
 /**
  * A geometry signature that is invariant under node-id renaming: node boxes and

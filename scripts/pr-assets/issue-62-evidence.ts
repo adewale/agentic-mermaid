@@ -12,7 +12,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Resvg } from '@resvg/resvg-js'
 import { renderMermaidSVG } from '../../src/index.ts'
-import { THEMES } from '../../src/theme.ts'
+import { BUILTIN_PALETTE_DEFINITIONS } from '../../src/palette-catalog.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const OUT_DIR = join(ROOT, 'docs', 'pr-assets')
@@ -20,7 +20,7 @@ const OUT_DIR = join(ROOT, 'docs', 'pr-assets')
 // work does not exist here, so this is the honest "before".
 const BEFORE_SHA = '1dc77fe6a2d2cba55e4a3c6e21256cdad04f9974'
 
-const THEME = THEMES['github-light']!
+const THEME = BUILTIN_PALETTE_DEFINITIONS.find(palette => palette.inputName === 'github-light')!.colors
 const COLORS = {
   bg: THEME.bg,
   surface: THEME.bg, // neutral wrapper that matches the diagram background
@@ -68,9 +68,8 @@ function renderBeforeAll(sources: string[]): string[] {
     if (!existsSync(modules)) symlinkSync(join(ROOT, 'node_modules'), modules, 'dir')
     writeFileSync(join(wt, 'issue-62-probe.ts'), `
       import { renderMermaidSVG } from './src/index.ts'
-      import { THEMES } from './src/theme.ts'
       const sources = ${JSON.stringify(sources)}
-      const out = sources.map(s => renderMermaidSVG(s, { ...THEMES['github-light'], embedFontImport: false }))
+      const out = sources.map(s => renderMermaidSVG(s, { style: 'github-light', embedFontImport: false }))
       console.log(JSON.stringify(out))
     `)
     const raw = execFileSync('bun', ['issue-62-probe.ts'], {

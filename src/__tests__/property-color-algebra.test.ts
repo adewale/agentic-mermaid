@@ -3,12 +3,12 @@ import fc from 'fast-check'
 
 import { renderMermaidSVG } from '../index.ts'
 import {
-  THEMES,
   type DiagramColors,
   buildStyleBlock,
   buildShadowDefs,
   svgOpenTag,
 } from '../theme.ts'
+import { BUILTIN_PALETTE_DEFINITIONS } from '../palette-catalog.ts'
 import { diagramColorsToAsciiTheme } from '../ascii/ansi.ts'
 import { getSeriesColor } from '../xychart/colors.ts'
 import { resolveArchitectureVisualConfig } from '../architecture/config.ts'
@@ -42,7 +42,7 @@ const diagramColorsArb: fc.Arbitrary<DiagramColors> = fc.record({
 // ============================================================================
 
 describe('All built-in themes produce valid output', () => {
-  for (const [name, theme] of Object.entries(THEMES)) {
+  for (const { inputName: name, colors: theme } of BUILTIN_PALETTE_DEFINITIONS) {
     it(`theme "${name}" produces SVG with --bg:, --fg:, and no NaN`, () => {
       const svg = renderMermaidSVG('graph TD\n  A-->B', theme)
       expect(svg).toContain('--bg:')

@@ -27,7 +27,7 @@ function registerProbeBackend(id: string, rendered: () => void): () => void {
         .replace('<svg ', `<svg data-host-backend="${id}" `)
     },
   }, {
-    compatibility: { core: '^0.1.1', scene: '^1.0.0' },
+    compatibility: { core: '^0.1.1', scene: '^2.0.0' },
     provenance: { owner: 'host-png-parity-test', source: 'test' },
   })
 }
@@ -116,10 +116,8 @@ describe('host-selected graphical backend parity', () => {
       lowerScene(context) {
         const scene = originalLowerScene(context)
         const first = scene.parts[0]!
-        return {
-          ...scene,
-          parts: [{ ...first, role: 'test:undeclared' as SceneRole }, ...scene.parts.slice(1)],
-        }
+        ;(first as { role: SceneRole }).role = 'test:undeclared'
+        return scene
       },
     })
     const backendPolicy: HostBackendPolicy = { selectBackend: () => id }

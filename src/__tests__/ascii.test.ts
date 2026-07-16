@@ -8,7 +8,7 @@
  * Test data: auto-discovered ASCII and Unicode golden files.
  */
 import { describe, it, expect } from 'bun:test'
-import { renderMermaidAscii } from '../ascii/index.ts'
+import { renderMermaidASCII } from '../ascii/index.ts'
 import { hasDiagonalLines, DIAGONAL_CHARS } from '../ascii/validate.ts'
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -130,7 +130,7 @@ function runGoldenTests(dir: string, useAscii: boolean): void {
       const content = readFileSync(join(dir, file), 'utf-8')
       const tc = parseTestCase(content)
 
-      const actual = renderMermaidAscii(tc.mermaid, {
+      const actual = renderMermaidASCII(tc.mermaid, {
         useAscii,
         paddingX: tc.paddingX,
         paddingY: tc.paddingY,
@@ -170,20 +170,20 @@ describe('Config behavior', () => {
   const mermaidInput = 'graph LR\nA --> B'
 
   it('ASCII and Unicode outputs should differ', () => {
-    const asciiOutput = renderMermaidAscii(mermaidInput, { useAscii: true })
-    const unicodeOutput = renderMermaidAscii(mermaidInput, { useAscii: false })
+    const asciiOutput = renderMermaidASCII(mermaidInput, { useAscii: true })
+    const unicodeOutput = renderMermaidASCII(mermaidInput, { useAscii: false })
     expect(asciiOutput).not.toBe(unicodeOutput)
   })
 
   it('ASCII output should not contain Unicode box-drawing characters', () => {
-    const output = renderMermaidAscii(mermaidInput, { useAscii: true })
+    const output = renderMermaidASCII(mermaidInput, { useAscii: true })
     expect(output).not.toContain('┌')
     expect(output).not.toContain('─')
     expect(output).not.toContain('│')
   })
 
   it('Unicode output should contain Unicode box-drawing characters', () => {
-    const output = renderMermaidAscii(mermaidInput, { useAscii: false })
+    const output = renderMermaidASCII(mermaidInput, { useAscii: false })
     const hasUnicode = output.includes('┌') || output.includes('─') || output.includes('│')
     expect(hasUnicode).toBe(true)
   })
@@ -203,7 +203,7 @@ describe('Diagonal validation', () => {
     for (const file of files) {
       const content = readFileSync(join(asciiDir, file), 'utf-8')
       const { mermaid, paddingX, paddingY } = parseTestCase(content)
-      const output = renderMermaidAscii(mermaid, {
+      const output = renderMermaidASCII(mermaid, {
         useAscii: true,
         boxBorderPadding: paddingX,
         paddingY: paddingY,
@@ -222,7 +222,7 @@ describe('Diagonal validation', () => {
     for (const file of files) {
       const content = readFileSync(join(unicodeDir, file), 'utf-8')
       const { mermaid, paddingX, paddingY } = parseTestCase(content)
-      const output = renderMermaidAscii(mermaid, {
+      const output = renderMermaidASCII(mermaid, {
         useAscii: false,
         boxBorderPadding: paddingX,
         paddingY: paddingY,
@@ -261,7 +261,7 @@ describe('Sequence pre-message notes (Loop 7 A2 — rnbguy#54)', () => {
   participant B
   Note over A: setup before flow
   A->>B: ping`
-    const result = renderMermaidAscii(src)
+    const result = renderMermaidASCII(src)
     expect(result).toContain('setup before flow')
     expect(result).toContain('ping')
     // The note row must appear ABOVE the message row (smaller y index).
@@ -278,7 +278,7 @@ describe('Sequence pre-message notes (Loop 7 A2 — rnbguy#54)', () => {
   participant B
   Note over A,B: shared preamble
   A->>B: go`
-    const result = renderMermaidAscii(src)
+    const result = renderMermaidASCII(src)
     expect(result).toContain('shared preamble')
     expect(result).toContain('go')
     const lines = result.split('\n')

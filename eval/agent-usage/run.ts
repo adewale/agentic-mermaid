@@ -1,7 +1,7 @@
 import { executeInSandbox } from '../../src/mcp/sandbox.ts'
-import { parseMermaid } from '../../src/agent/parse.ts'
+import { parseRegisteredMermaid as parseMermaid } from '../../src/agent/parse.ts'
 import { serializeMermaid } from '../../src/agent/serialize.ts'
-import { asFlowchart, asState, asSequence, asTimeline, asClass, asEr, asJourney, asArchitecture, asXyChart, asPie, asQuadrant, asGantt, asMindmap, asGitGraph, asRadar, type DiagramKind, type ValidDiagram } from '../../src/agent/types.ts'
+import { asFlowchart, asState, asSequence, asTimeline, asClass, asEr, asJourney, asArchitecture, asXyChart, asPie, asQuadrant, asGantt, asMindmap, asGitGraph, asRadar, type DiagramKind, type ParsedDiagram } from '../../src/agent/types.ts'
 import { checkMermaidSource, type CheckMermaidSpec } from '../../src/agent/facts.ts'
 import { lintAgentTrace, type SdkCall, type AntiPattern } from './harness.ts'
 import { buildHomepageAgentPromptTask } from './homepage-prompt.ts'
@@ -56,7 +56,7 @@ export const DEFAULT_CASES: AgentUsageEvalCase[] = [
     ),
     input: 'flowchart TD\n  API --> DB',
     script: `
-      const r0 = mermaid.parseMermaid('flowchart TD\\n  API --> DB')
+      const r0 = mermaid.parseRegisteredMermaid('flowchart TD\\n  API --> DB')
       if (!r0.ok) return { error: 'parse' }
       const flow = mermaid.asFlowchart(r0.value)
       if (!flow) return { error: 'not-flowchart' }
@@ -83,7 +83,7 @@ export const DEFAULT_CASES: AgentUsageEvalCase[] = [
     ),
     input: 'stateDiagram-v2\n  [*] --> Idle\n  Idle --> Processing : start',
     script: `
-      const r0 = mermaid.parseMermaid('stateDiagram-v2\\n  [*] --> Idle\\n  Idle --> Processing : start')
+      const r0 = mermaid.parseRegisteredMermaid('stateDiagram-v2\\n  [*] --> Idle\\n  Idle --> Processing : start')
       if (!r0.ok) return { error: 'parse' }
       const state = mermaid.asState(r0.value)
       if (!state) return { error: 'not-state' }
@@ -106,7 +106,7 @@ export const DEFAULT_CASES: AgentUsageEvalCase[] = [
     ),
     input: 'sequenceDiagram\n  A->>B: hi\n  alt ok\n    B-->>A: yes\n  end',
     script: `
-      const r0 = mermaid.parseMermaid('sequenceDiagram\\n  A->>B: hi\\n  alt ok\\n    B-->>A: yes\\n  end')
+      const r0 = mermaid.parseRegisteredMermaid('sequenceDiagram\\n  A->>B: hi\\n  alt ok\\n    B-->>A: yes\\n  end')
       if (!r0.ok) return { error: 'parse' }
       const seq = mermaid.asSequence(r0.value)
       if (!seq) return { error: 'not-sequence' }
@@ -127,7 +127,7 @@ export const DEFAULT_CASES: AgentUsageEvalCase[] = [
     ),
     input: 'timeline\n  title Plan\n  2024 : Alpha',
     script: `
-      const r0 = mermaid.parseMermaid('timeline\\n  title Plan\\n  2024 : Alpha')
+      const r0 = mermaid.parseRegisteredMermaid('timeline\\n  title Plan\\n  2024 : Alpha')
       if (!r0.ok) return { error: 'parse' }
       const timeline = mermaid.asTimeline(r0.value)
       if (!timeline) return { error: 'not-timeline' }
@@ -148,7 +148,7 @@ export const DEFAULT_CASES: AgentUsageEvalCase[] = [
     ),
     input: 'classDiagram\n  class Animal',
     script: `
-      const r0 = mermaid.parseMermaid('classDiagram\\n  class Animal')
+      const r0 = mermaid.parseRegisteredMermaid('classDiagram\\n  class Animal')
       if (!r0.ok) return { error: 'parse' }
       const klass = mermaid.asClass(r0.value)
       if (!klass) return { error: 'not-class' }
@@ -171,7 +171,7 @@ export const DEFAULT_CASES: AgentUsageEvalCase[] = [
     ),
     input: 'erDiagram\n  CUSTOMER {\n    string id\n  }',
     script: `
-      const r0 = mermaid.parseMermaid('erDiagram\\n  CUSTOMER {\\n    string id\\n  }')
+      const r0 = mermaid.parseRegisteredMermaid('erDiagram\\n  CUSTOMER {\\n    string id\\n  }')
       if (!r0.ok) return { error: 'parse' }
       const er = mermaid.asEr(r0.value)
       if (!er) return { error: 'not-er' }
@@ -192,7 +192,7 @@ export const DEFAULT_CASES: AgentUsageEvalCase[] = [
     ),
     input: 'journey\n  section Build\n    Draft: 3: Agent',
     script: `
-      const r0 = mermaid.parseMermaid('journey\\n  section Build\\n    Draft: 3: Agent')
+      const r0 = mermaid.parseRegisteredMermaid('journey\\n  section Build\\n    Draft: 3: Agent')
       if (!r0.ok) return { error: 'parse' }
       const journey = mermaid.asJourney(r0.value)
       if (!journey) return { error: 'not-journey' }
@@ -213,7 +213,7 @@ export const DEFAULT_CASES: AgentUsageEvalCase[] = [
     ),
     input: 'architecture-beta\n  service api(server)[API]\n  service db(database)[DB]\n  api:R --> L:db',
     script: `
-      const r0 = mermaid.parseMermaid('architecture-beta\\n  service api(server)[API]\\n  service db(database)[DB]\\n  api:R --> L:db')
+      const r0 = mermaid.parseRegisteredMermaid('architecture-beta\\n  service api(server)[API]\\n  service db(database)[DB]\\n  api:R --> L:db')
       if (!r0.ok) return { error: 'parse' }
       const arch = mermaid.asArchitecture(r0.value)
       if (!arch) return { error: 'not-architecture' }
@@ -236,7 +236,7 @@ export const DEFAULT_CASES: AgentUsageEvalCase[] = [
     ),
     input: 'xychart-beta\n  x-axis [Q1, Q2]\n  bar Revenue [1, 2]',
     script: `
-      const r0 = mermaid.parseMermaid('xychart-beta\\n  x-axis [Q1, Q2]\\n  bar Revenue [1, 2]')
+      const r0 = mermaid.parseRegisteredMermaid('xychart-beta\\n  x-axis [Q1, Q2]\\n  bar Revenue [1, 2]')
       if (!r0.ok) return { error: 'parse' }
       const xy = mermaid.asXyChart(r0.value)
       if (!xy) return { error: 'not-xychart' }
@@ -257,7 +257,7 @@ export const DEFAULT_CASES: AgentUsageEvalCase[] = [
     ),
     input: 'pie\n  "Build" : 5\n  "Test" : 2',
     script: `
-      const r0 = mermaid.parseMermaid('pie\\n  "Build" : 5\\n  "Test" : 2')
+      const r0 = mermaid.parseRegisteredMermaid('pie\\n  "Build" : 5\\n  "Test" : 2')
       if (!r0.ok) return { error: 'parse' }
       const pie = mermaid.asPie(r0.value)
       if (!pie) return { error: 'not-pie' }
@@ -278,7 +278,7 @@ export const DEFAULT_CASES: AgentUsageEvalCase[] = [
     ),
     input: 'quadrantChart\n  x-axis Low --> High\n  y-axis Easy --> Hard\n  API: [0.4, 0.7]',
     script: `
-      const r0 = mermaid.parseMermaid('quadrantChart\\n  x-axis Low --> High\\n  y-axis Easy --> Hard\\n  API: [0.4, 0.7]')
+      const r0 = mermaid.parseRegisteredMermaid('quadrantChart\\n  x-axis Low --> High\\n  y-axis Easy --> Hard\\n  API: [0.4, 0.7]')
       if (!r0.ok) return { error: 'parse' }
       const quad = mermaid.asQuadrant(r0.value)
       if (!quad) return { error: 'not-quadrant' }
@@ -299,7 +299,7 @@ export const DEFAULT_CASES: AgentUsageEvalCase[] = [
     ),
     input: 'gantt\n  dateFormat YYYY-MM-DD\n  section Build\n    Core :core, 2024-01-01, 2d',
     script: `
-      const r0 = mermaid.parseMermaid('gantt\\n  dateFormat YYYY-MM-DD\\n  section Build\\n    Core :core, 2024-01-01, 2d')
+      const r0 = mermaid.parseRegisteredMermaid('gantt\\n  dateFormat YYYY-MM-DD\\n  section Build\\n    Core :core, 2024-01-01, 2d')
       if (!r0.ok) return { error: 'parse' }
       const gantt = mermaid.asGantt(r0.value)
       if (!gantt) return { error: 'not-gantt' }
@@ -322,7 +322,7 @@ export const DEFAULT_CASES: AgentUsageEvalCase[] = [
     ),
     input: 'mindmap\n  Product\n    Research',
     script: `
-      const r0 = mermaid.parseMermaid('mindmap\\n  Product\\n    Research')
+      const r0 = mermaid.parseRegisteredMermaid('mindmap\\n  Product\\n    Research')
       if (!r0.ok) return { error: 'parse' }
       const mindmap = mermaid.asMindmap(r0.value)
       if (!mindmap) return { error: 'not-mindmap' }
@@ -345,7 +345,7 @@ export const DEFAULT_CASES: AgentUsageEvalCase[] = [
     ),
     input: 'gitGraph\n  commit id:"ROOT" msg:"Foundation"',
     script: `
-      const r0 = mermaid.parseMermaid('gitGraph\\n  commit id:"ROOT" msg:"Foundation"')
+      const r0 = mermaid.parseRegisteredMermaid('gitGraph\\n  commit id:"ROOT" msg:"Foundation"')
       if (!r0.ok) return { error: 'parse' }
       const gitgraph = mermaid.asGitGraph(r0.value)
       if (!gitgraph) return { error: 'not-gitgraph' }
@@ -370,7 +370,7 @@ export const DEFAULT_CASES: AgentUsageEvalCase[] = [
     ),
     input: 'radar-beta\n  axis Speed, Power, Range\n  curve alpha["Alpha"]{4, 3, 5}\n  max 5',
     script: `
-      const r0 = mermaid.parseMermaid('radar-beta\\n  axis Speed, Power, Range\\n  curve alpha["Alpha"]{4, 3, 5}\\n  max 5')
+      const r0 = mermaid.parseRegisteredMermaid('radar-beta\\n  axis Speed, Power, Range\\n  curve alpha["Alpha"]{4, 3, 5}\\n  max 5')
       if (!r0.ok) return { error: 'parse' }
       const radar = mermaid.asRadar(r0.value)
       if (!radar) return { error: 'not-radar' }
@@ -390,7 +390,7 @@ export const DEFAULT_CASES: AgentUsageEvalCase[] = [
     ),
     script: `
       const source = '---\\ntitle: Auth Flow\\n---\\nflowchart LR\\n  A[User] --> B[Login Page]\\n  B --> C{Valid Credentials?}\\n  C -->|No| B\\n  C -->|Yes| D{MFA Enabled?}\\n  D -->|Yes| E[Enter MFA Code]\\n  E --> F{Code Valid?}\\n  F -->|No| E\\n  D -->|No| G[Create Session]\\n  F -->|Yes| G\\n  G --> H[Dashboard]'
-      const parsed = mermaid.parseMermaid(source)
+      const parsed = mermaid.parseRegisteredMermaid(source)
       if (!parsed.ok) return { error: parsed.error }
       const verify = mermaid.verifyMermaid(parsed.value)
       if (!verify.ok) return { error: 'verify', warnings: verify.warnings }
@@ -406,7 +406,7 @@ export const DEFAULT_CASES: AgentUsageEvalCase[] = [
     ),
     script: `
       const source = 'sequenceDiagram\\n  participant User\\n  participant App\\n  participant API\\n  User->>App: Export diagram\\n  App->>API: Render SVG\\n  API-->>App: SVG string\\n  App-->>User: Download'
-      const parsed = mermaid.parseMermaid(source)
+      const parsed = mermaid.parseRegisteredMermaid(source)
       if (!parsed.ok) return { error: parsed.error }
       const verify = mermaid.verifyMermaid(parsed.value)
       if (!verify.ok) return { error: 'verify', warnings: verify.warnings }
@@ -441,7 +441,7 @@ function authorCase(id: string, family: DiagramKind, task: string, context: stri
     prompt: promptTask(task, context),
     script: `
       const source = ${JSON.stringify(source)}
-      const parsed = mermaid.parseMermaid(source)
+      const parsed = mermaid.parseRegisteredMermaid(source)
       if (!parsed.ok) return { error: parsed.error }
       const verify = mermaid.verifyMermaid(parsed.value)
       if (!verify.ok) return { error: 'verify', warnings: verify.warnings }
@@ -516,7 +516,7 @@ export const KNOWLEDGE_CASES: AgentUsageEvalCase[] = [
     ),
     input: KNOWLEDGE_MESSY_FLOWCHART,
     script: `
-      const r0 = mermaid.parseMermaid(${JSON.stringify(KNOWLEDGE_MESSY_FLOWCHART)})
+      const r0 = mermaid.parseRegisteredMermaid(${JSON.stringify(KNOWLEDGE_MESSY_FLOWCHART)})
       if (!r0.ok) return { error: 'parse' }
       const flow = mermaid.asFlowchart(r0.value)
       if (!flow) return { error: 'not-flowchart' }
@@ -544,11 +544,11 @@ export const KNOWLEDGE_CASES: AgentUsageEvalCase[] = [
     input: KNOWLEDGE_STRAY_END_SEQUENCE,
     script: `
       const src = ${JSON.stringify(KNOWLEDGE_STRAY_END_SEQUENCE)}
-      const r0 = mermaid.parseMermaid(src)
+      const r0 = mermaid.parseRegisteredMermaid(src)
       if (!r0.ok) return { error: 'parse' }
       if (mermaid.asSequence(r0.value)) return { error: 'expected opaque fallback for the stray end' }
       const edited = src + '\\n  B-->>A: ok'
-      const r1 = mermaid.parseMermaid(edited)
+      const r1 = mermaid.parseRegisteredMermaid(edited)
       if (!r1.ok) return { error: 'reparse' }
       const verify = mermaid.verifyMermaid(r1.value)
       if (!verify.ok) return { error: 'verify', warnings: verify.warnings }
@@ -792,7 +792,7 @@ export function checkAgentUsageTaskSource(id: string, source: string): boolean {
 // Per-family authoring oracles: the returned source must model the described
 // entities/relationships. Structural (not byte-exact), matching the spirit of
 // the two flowchart/sequence author oracles.
-function narrow<T>(source: string, as: (d: ValidDiagram) => T | null): T | null {
+function narrow<T>(source: string, as: (d: ParsedDiagram) => T | null): T | null {
   const parsed = parseMermaid(source)
   return parsed.ok ? as(parsed.value) : null
 }

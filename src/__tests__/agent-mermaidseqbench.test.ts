@@ -9,7 +9,7 @@ import { describe, test, expect } from 'bun:test'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { loadDataset, runBench, parseCsv } from '../../eval/mermaidseqbench/runner.ts'
-import { parseMermaid, serializeMermaid } from '../agent/index.ts'
+import { parseRegisteredMermaid as parseMermaid, serializeMermaid } from '../agent/index.ts'
 import { countStructuralElements, isDrop } from '../agent/structural-count.ts'
 
 const DATA = join(import.meta.dir, '..', '..', 'eval', 'mermaidseqbench', 'data.csv')

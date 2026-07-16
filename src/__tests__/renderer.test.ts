@@ -88,16 +88,15 @@ describe('renderSvg – SVG structure', () => {
     expect(svg).toContain('</defs>')
   })
 
-  it('includes embedded Google Fonts import', () => {
+  it('does not embed a Google Fonts import by default', () => {
     const svg = renderSvg(makeGraph(), lightColors, 'Inter')
-    expect(svg).toContain('fonts.googleapis.com')
-    expect(svg).toContain('Inter')
+    expect(svg).not.toContain('fonts.googleapis.com')
+    expect(svg).toContain('--font:Inter')
   })
 
   it('uses custom font name when specified', () => {
     const svg = renderSvg(makeGraph(), lightColors, 'Roboto Mono')
-    // encodeURIComponent turns spaces into %20
-    expect(svg).toContain('Roboto%20Mono')
+    expect(svg).toContain('--font:Roboto Mono')
     expect(svg).toContain("'Roboto Mono'")
   })
 

@@ -12,7 +12,7 @@ bun run examples/mcp-vs-cli-complex-diagrams.ts
 
 What it demonstrates:
 
-- MCP Code Mode path: `tools/call execute` runs `parseMermaid → asFlowchart → mutate[] → verifyMermaid → serializeMermaid` in one sandboxed call.
+- MCP Code Mode path: `tools/call execute` runs `parseRegisteredMermaid → asFlowchart → mutate[] → verifyMermaid → serializeMermaid` in one sandboxed call.
 - CLI path: `am mutate auth-flow.mmd --ops ops.json --json` applies the same mutation batch and verifies before emitting source.
 - The example asserts both channels produce byte-identical Mermaid source for multiple non-trivial cases: an Auth Flow with decisions/feedback loops and an Order Domain ER diagram.
 

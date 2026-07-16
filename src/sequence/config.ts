@@ -22,9 +22,8 @@
 //   Font keys deliberately stay unwired: typography routes through the style
 //   system (RenderOptions.style roles), not per-family config.
 //
-// Absent config resolves to {} and every layout formula falls back to the
-// historical constants — default geometry stays byte-identical (asserted by
-// src/__tests__/sequence-config.test.ts and the svg-equivalence corpus gate).
+// Absent config resolves to {} and every layout formula uses the canonical
+// sequence defaults asserted by src/__tests__/sequence-config.test.ts.
 // ============================================================================
 
 import type { MermaidFrontmatterMap } from '../mermaid-source.ts'

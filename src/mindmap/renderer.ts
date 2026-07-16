@@ -47,7 +47,7 @@ export function lowerMindmapScene(ctx: RenderContext<PositionedMindmapDiagram>):
     const bg = isHexColor(colors.bg) ? colors.bg : '#ffffff'
     return getSeriesColor(index, accent, bg)
   }
-  const parts: SceneNode[] = [marks.prelude({
+  const parts: SceneNode[] = [marks.documentOpen({
     id: 'prelude', width: diagram.width, height: diagram.height, colors,
     transparent, font, hasMonoFont: false,
   }, head.join('\n'))]
@@ -77,7 +77,6 @@ export function lowerMindmapScene(ctx: RenderContext<PositionedMindmapDiagram>):
         contours: projection.contours,
       },
       stroke: { lineCap: 'round' },
-      projectAccessibilityToSvg: true,
       channels: { importance: 1, category: String(branchByNode.get(edge.to) ?? 0) },
     }, `<path class="mindmap-edge" data-from="${escapeAttr(edge.from)}" data-to="${escapeAttr(edge.to)}" data-branch-index="${branchByNode.get(edge.to) ?? 0}" d="${edge.d}" fill="none" stroke="${escapeAttr(stroke)}" stroke-width="2.5" stroke-linecap="round" />`))
   }
@@ -116,7 +115,7 @@ function renderNode(
       const y = node.y + 4
       const scale = size / 24
       const paths = glyph.paths.map(path => `<path d="${path}" />`).join('')
-      children.push({ node: marks.raw({ id: semanticChildId(node.id, 'icon'), role: 'icon' },
+      children.push({ node: marks.documentContent({ id: semanticChildId(node.id, 'icon'), role: 'icon' },
         `<g class="mindmap-icon-glyph" data-icon="${escapeAttr(node.icon)}" data-icon-source="${escapeAttr(glyph.source)}" transform="translate(${round(x)} ${round(y)}) scale(${round(scale)})" fill="${textColor}" stroke="${textColor}" stroke-width="0.8">${paths}</g>`), indent: 2 })
     } else {
       const token = node.icon.split(/[:\s/-]+/).filter(Boolean).at(-1)?.slice(0, 2).toUpperCase() || '?'

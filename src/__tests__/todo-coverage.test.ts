@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { renderMermaidSVG } from '../index.ts'
-import { THEMES } from '../theme.ts'
+import { BUILTIN_PALETTE_DEFINITIONS } from '../palette-catalog.ts'
 import { parseSequenceDiagram } from '../sequence/parser.ts'
 import { layoutSequenceDiagram } from '../sequence/layout.ts'
 import { renderSequenceSvg } from '../sequence/renderer.ts'
@@ -13,8 +13,8 @@ import { layoutErDiagram } from '../er/layout.ts'
 import { renderErSvg } from '../er/renderer.ts'
 import { renderMermaidASCII } from '../ascii/index.ts'
 
-const githubLight = THEMES['github-light']!
-const githubDark = THEMES['github-dark']!
+const githubLight = BUILTIN_PALETTE_DEFINITIONS.find(palette => palette.inputName === 'github-light')!.colors
+const githubDark = BUILTIN_PALETTE_DEFINITIONS.find(palette => palette.inputName === 'github-dark')!.colors
 
 const themeCases = [
   ['timeline', `timeline\n  title Release plan\n  section Now\n    2026 : Ship`, 'timeline-period'],
@@ -58,7 +58,8 @@ describe('TODO coverage – sequence renderer and ASCII regressions', () => {
     const positioned = layoutSequenceDiagram(parsed)
     const svg = renderSequenceSvg({ positioned, colors: githubLight, resolved: { renderOptions: {} } })
     expect(svg).toContain('class="actor" data-id="A"')
-    expect(svg).toContain('class="message" data-from="A" data-to="B"')
+    expect(svg).toContain('class="message" data-label="Hello"')
+    expect(svg).toContain('data-id="message:A-&gt;B#0:line" data-role="message" data-from="A" data-to="B"')
     expect(svg).toContain('Hello')
   })
 

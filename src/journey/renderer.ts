@@ -119,7 +119,7 @@ export function lowerJourneyScene(
   const drawCurve = curveMarkers.length >= 2
   const journeyCss = journeyStyles(style, visual, paints, drawCurve)
 
-  parts.push(marks.prelude(
+  parts.push(marks.documentOpen(
     {
       id: 'prelude',
       width: diagram.width,
@@ -133,17 +133,17 @@ export function lowerJourneyScene(
     openJourneySvgTag(diagram, colors, transparent, accessibility, titleId, descId, appearance.useMaxWidth),
   ))
   if (accessibility.title) {
-    parts.push(marks.raw({ id: 'a11y-title', role: 'chrome' },
+    parts.push(marks.documentContent({ id: 'a11y-title', role: 'chrome' },
       `<title id="${titleId}">${escapeXml(accessibility.title)}</title>`))
   }
   if (accessibility.description) {
-    parts.push(marks.raw({ id: 'a11y-desc', role: 'chrome' },
+    parts.push(marks.documentContent({ id: 'a11y-desc', role: 'chrome' },
       `<desc id="${descId}">${escapeXml(accessibility.description)}</desc>`))
   }
-  parts.push(marks.raw({ id: 'style', role: 'chrome' },
+  parts.push(marks.documentContent({ id: 'style', role: 'chrome' },
     buildStyleBlock(font, false, colors.shadow, colors.embedFontImport)))
   parts.push(marks.definitions({ id: 'defs', markerResources: [arrowMarker] }, buildJourneyDefs(colors, arrowMarker)))
-  parts.push(marks.raw({ id: 'journey-style', role: 'chrome' }, journeyCss))
+  parts.push(marks.documentContent({ id: 'journey-style', role: 'chrome' }, journeyCss))
 
   parts.push(renderScoreGuide(diagram.scoreGuide, style, arrowMarker))
 
@@ -396,7 +396,7 @@ function renderScoreGuide(guide: PositionedJourneyScoreGuide, style: ResolvedRen
           stroke: style.edgeStrokeColor ?? 'var(--_arrow)',
           strokeWidth: String(Math.max(2, style.lineWidth * 2)),
         },
-        endMarker: arrowMarker,
+        markers: { mid: [], end: arrowMarker },
       },
       `<line class="journey-baseline" x1="${baseline.x1}" y1="${baseline.y1}" x2="${baseline.x2}" y2="${baseline.y2}" marker-end="url(#${escapeAttr(arrowMarker.id)})" />`,
     ),

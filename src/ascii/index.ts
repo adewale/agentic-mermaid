@@ -41,7 +41,6 @@ import { safeCssPaint } from '../shared/css-color.ts'
 import { safeCssFontFamily } from '../shared/css-font.ts'
 import {
   resolveTerminalOutputPolicy,
-  TerminalOutputPolicyError,
   type ResolvedTerminalOutputPolicy,
   type TerminalOutputPolicyInput,
 } from '../terminal-contract.ts'
@@ -125,7 +124,7 @@ export interface AsciiRenderOptions extends RenderOptions, TerminalOutputPolicyI
  *
  * @example
  * ```ts
- * const result = renderMermaidAscii(`
+ * const result = renderMermaidASCII(`
  *   graph LR
  *     A --> B --> C
  * `, { useAscii: true })
@@ -152,8 +151,6 @@ export class AsciiWidthError extends Error {
     this.name = 'AsciiWidthError'
   }
 
-  /** Backward-friendly alias for callers that name the requested bound targetWidth. */
-  get targetWidth(): number { return this.requestedWidth }
 }
 
 export function renderMermaidASCII(
@@ -176,33 +173,16 @@ export function renderMermaidASCIIWithReceipt(
 ): RenderedAscii {
   const preparedInput = prepareRenderInput(input)
   const text = preparedInput.source
-  let outputPolicy: ResolvedTerminalOutputPolicy
-  try {
-    outputPolicy = resolveTerminalOutputPolicy({
-      useAscii: options.useAscii,
-      paddingX: options.paddingX,
-      paddingY: options.paddingY,
-      boxBorderPadding: options.boxBorderPadding,
-      colorMode: options.colorMode,
-      theme: options.theme,
-      maxWidth: options.maxWidth,
-      targetWidth: options.targetWidth,
-    })
-  } catch (error) {
-    // Preserve the established typed error for the legacy width ambiguity
-    // while keeping the policy resolver as the sole validation authority.
-    if (error instanceof TerminalOutputPolicyError && error.code === 'WIDTH_CONFLICT') {
-      const normalized = normalizeMermaidSource(text)
-      const family = requireRegisteredMermaidFamily(
-        normalized.lines[0] ?? normalized.firstLine,
-        text,
-        'strict',
-        normalized.wrapperSource?.length ?? 0,
-      )
-      throw new AsciiWidthError(options.targetWidth!, 1, family, 'INVALID_WIDTH')
-    }
-    throw error
-  }
+  const outputPolicy: ResolvedTerminalOutputPolicy = resolveTerminalOutputPolicy({
+    useAscii: options.useAscii,
+    paddingX: options.paddingX,
+    paddingY: options.paddingY,
+    boxBorderPadding: options.boxBorderPadding,
+    colorMode: options.colorMode,
+    theme: options.theme,
+    maxWidth: options.maxWidth,
+    targetWidth: options.targetWidth,
+  })
   const config: AsciiConfig = {
     useAscii: outputPolicy.useAscii,
     paddingX: outputPolicy.paddingX,
@@ -398,9 +378,6 @@ function projectLabelsInNormalizedSource(
     firstLine: lines[0]?.toLowerCase() ?? '',
   })
 }
-
-/** @deprecated Use `renderMermaidASCII` */
-export const renderMermaidAscii = renderMermaidASCII
 
 /**
  * Loop 9 M13: wrap a single label string at word boundaries to fit a column

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
-import { parseMermaid, serializeMermaid, verifyMermaid, mutate, mutateChecked, asRadar, createMermaid, buildMermaid, synthesizeFromGraph } from '../agent/index.ts'
+import { parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid, mutate, mutateChecked, asRadar, createMermaid, buildMermaid, synthesizeFromGraph } from '../agent/index.ts'
 import { parseRadarChart } from '../radar/parser.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
 import type { RadarBody, RadarMutationOp, RadarValidDiagram } from '../agent/index.ts'

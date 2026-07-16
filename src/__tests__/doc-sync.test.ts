@@ -2,26 +2,25 @@
  * Doc-sync tests — verify the library's public API matches its code registries.
  *
  * These tests ensure that:
- *   1. All named themes in THEMES have required color properties
+ *   1. All built-in palette definitions have required color properties
  *   2. Every built-in family in the checked family registry renders
  *   3. All public exports from src/index.ts are real (not undefined)
  *   4. Package.json keywords include all supported diagram types
  */
 import { describe, it, expect } from 'bun:test'
 import {
-  THEMES,
   DEFAULTS,
   fromShikiTheme,
   resolveColors,
   inlineResolvedColors,
-  parseMermaid,
+  parseRegisteredMermaid,
   renderMermaidASCII,
-  renderMermaidAscii,
   parseArchitectureDiagram,
   architectureToMermaidGraph,
 } from '../index.ts'
-import { renderMermaidSVG, renderMermaidSVGAsync, renderMermaidSync, renderMermaid } from '../index.ts'
+import { renderMermaidSVG, renderMermaidSVGAsync } from '../index.ts'
 import type { DiagramColors } from '../theme.ts'
+import { BUILTIN_PALETTE_DEFINITIONS } from '../palette-catalog.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import type { BuiltinFamilyId } from '../agent/families.ts'
 
@@ -29,45 +28,41 @@ import type { BuiltinFamilyId } from '../agent/families.ts'
 // 1. All named themes have required color properties
 // ============================================================================
 
-describe('THEMES registry — required color properties', () => {
-  const themeNames = Object.keys(THEMES)
+describe('built-in palette catalog — required color properties', () => {
+  const palettes = BUILTIN_PALETTE_DEFINITIONS
 
   it('has at least 5 themes registered', () => {
-    expect(themeNames.length).toBeGreaterThanOrEqual(5)
+    expect(palettes.length).toBeGreaterThanOrEqual(5)
   })
 
   it('every theme has a bg property that is a non-empty string', () => {
-    for (const name of themeNames) {
-      const theme = THEMES[name]!
-      expect(typeof theme.bg).toBe('string')
-      expect(theme.bg.length).toBeGreaterThan(0)
+    for (const { colors } of palettes) {
+      expect(typeof colors.bg).toBe('string')
+      expect(colors.bg.length).toBeGreaterThan(0)
     }
   })
 
   it('every theme has a fg property that is a non-empty string', () => {
-    for (const name of themeNames) {
-      const theme = THEMES[name]!
-      expect(typeof theme.fg).toBe('string')
-      expect(theme.fg.length).toBeGreaterThan(0)
+    for (const { colors } of palettes) {
+      expect(typeof colors.fg).toBe('string')
+      expect(colors.fg.length).toBeGreaterThan(0)
     }
   })
 
   it('bg and fg are always valid hex colors', () => {
     const hexPattern = /^#[0-9a-fA-F]{3,8}$/
-    for (const name of themeNames) {
-      const theme = THEMES[name]!
-      expect(hexPattern.test(theme.bg)).toBe(true)
-      expect(hexPattern.test(theme.fg)).toBe(true)
+    for (const { colors } of palettes) {
+      expect(hexPattern.test(colors.bg)).toBe(true)
+      expect(hexPattern.test(colors.fg)).toBe(true)
     }
   })
 
   it('optional enrichment properties, when present, are non-empty hex strings', () => {
     const hexPattern = /^#[0-9a-fA-F]{3,8}$/
-    const optionalKeys: (keyof DiagramColors)[] = ['line', 'accent', 'muted', 'surface', 'border']
-    for (const name of themeNames) {
-      const theme = THEMES[name]!
+    const optionalKeys = ['line', 'accent', 'muted', 'surface', 'border'] as const
+    for (const { colors } of palettes) {
       for (const key of optionalKeys) {
-        const value = theme[key]
+        const value = (colors as DiagramColors)[key]
         if (value !== undefined && typeof value === 'string') {
           expect(hexPattern.test(value)).toBe(true)
         }
@@ -131,18 +126,6 @@ describe('public API exports — all are defined', () => {
     expect(renderMermaidSVGAsync.length).toBeGreaterThanOrEqual(1)
   })
 
-  it('backward-compatible aliases are defined and equal to their targets', () => {
-    expect(renderMermaidSync).toBe(renderMermaidSVG)
-    expect(renderMermaid).toBe(renderMermaidSVGAsync)
-    expect(typeof renderMermaidSync).toBe('function')
-  })
-
-  it('THEMES is a non-empty object', () => {
-    expect(typeof THEMES).toBe('object')
-    expect(THEMES).toBeDefined()
-    expect(Object.keys(THEMES).length).toBeGreaterThan(0)
-  })
-
   it('DEFAULTS has bg and fg', () => {
     expect(DEFAULTS).toBeDefined()
     expect(typeof DEFAULTS.bg).toBe('string')
@@ -167,15 +150,14 @@ describe('public API exports — all are defined', () => {
     expect(inlineResolvedColors.length).toBeGreaterThanOrEqual(2)
   })
 
-  it('parseMermaid is a function', () => {
-    expect(typeof parseMermaid).toBe('function')
-    expect(parseMermaid).toBeDefined()
-    expect(parseMermaid.length).toBeGreaterThanOrEqual(1)
+  it('parseRegisteredMermaid is a function', () => {
+    expect(typeof parseRegisteredMermaid).toBe('function')
+    expect(parseRegisteredMermaid).toBeDefined()
+    expect(parseRegisteredMermaid.length).toBeGreaterThanOrEqual(1)
   })
 
-  it('renderMermaidASCII and renderMermaidAscii are both defined', () => {
+  it('renderMermaidASCII is defined', () => {
     expect(typeof renderMermaidASCII).toBe('function')
-    expect(typeof renderMermaidAscii).toBe('function')
     expect(renderMermaidASCII).toBeDefined()
   })
 

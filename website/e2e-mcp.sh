@@ -59,7 +59,7 @@ printf '%s' "$png_response" | bun run scripts/verify-hosted-png-e2e.ts
 pass=$((pass + 1))
 
 check 'execute: statement-form SDK mutate workflow' 'C[New]' \
-  "$(j '{"jsonrpc":"2.0","id":8,"method":"tools/call","params":{"name":"execute","arguments":{"code":"const r = mermaid.parseMermaid(\"flowchart TD\\n  A --> B\"); const m = mermaid.mutate(r.value, { kind: \"add_node\", id: \"C\", label: \"New\" }); return { ok: m.ok, source: mermaid.serializeMermaid(m.value) }"}}}')"
+  "$(j '{"jsonrpc":"2.0","id":8,"method":"tools/call","params":{"name":"execute","arguments":{"code":"const r = mermaid.parseRegisteredMermaid(\"flowchart TD\\n  A --> B\"); const m = mermaid.mutate(r.value, { kind: \"add_node\", id: \"C\", label: \"New\" }); return { ok: m.ok, source: mermaid.serializeMermaid(m.value) }"}}}')"
 
 check 'execute: expression form' '\"value\":42' \
   "$(j '{"jsonrpc":"2.0","id":9,"method":"tools/call","params":{"name":"execute","arguments":{"code":"1 + 41"}}}')"
@@ -106,7 +106,7 @@ check 'import-injection breakout is rejected (not executed)' '\"ok\":false' \
 # The SDK still renders after hardenIsolateGlobals() stripped fetch/crypto/etc.
 # from the live isolate — proves the neutralization did not break rendering.
 check 'execute renders through the SDK after global hardening' 'C[New]' \
-  "$(j '{"jsonrpc":"2.0","id":19,"method":"tools/call","params":{"name":"execute","arguments":{"code":"const r = mermaid.parseMermaid(\"flowchart TD\\n  A --> B\"); const m = mermaid.mutate(r.value, { kind: \"add_node\", id: \"C\", label: \"New\" }); return mermaid.serializeMermaid(m.value)"}}}')"
+  "$(j '{"jsonrpc":"2.0","id":19,"method":"tools/call","params":{"name":"execute","arguments":{"code":"const r = mermaid.parseRegisteredMermaid(\"flowchart TD\\n  A --> B\"); const m = mermaid.mutate(r.value, { kind: \"add_node\", id: \"C\", label: \"New\" }); return mermaid.serializeMermaid(m.value)"}}}')"
 
 check 'oversized bodies are 413' '413' \
   "$(python3 -c 'import json; print(json.dumps({"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"describe","arguments":{"source":"x"*200000}}}))' | curl -sS --max-time 10 -o /dev/null -w '%{http_code}' -X POST "$MCP" -H 'content-type: application/json' --data @-)"

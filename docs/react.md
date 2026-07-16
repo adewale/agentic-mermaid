@@ -72,11 +72,11 @@ For client-only exports, use the live editor/browser's existing download path or
 For untrusted source, parse or verify before rendering:
 
 ```tsx
-import { parseMermaid, verifyMermaid, renderMermaidSVG } from 'agentic-mermaid/agent'
+import { parseRegisteredMermaid, verifyMermaid, renderMermaidSVG } from 'agentic-mermaid/agent'
 
 export function SafeDiagram({ source }: { source: string }) {
   const result = useMemo(() => {
-    const parsed = parseMermaid(source)
+    const parsed = parseRegisteredMermaid(source)
     if (!parsed.ok) return { ok: false, message: parsed.error.map(e => e.message).join('\n') }
 
     const verify = verifyMermaid(parsed.value)

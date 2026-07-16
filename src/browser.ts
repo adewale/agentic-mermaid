@@ -22,7 +22,6 @@ import {
   diagramColorsToAsciiTheme,
   type AsciiRenderOptions,
 } from './ascii/index.ts'
-import { THEMES } from './theme.ts'
 import { STYLE_COLOR_TOKEN_DESCRIPTORS, knownStyles, knownStyleDescriptors, getStyle } from './scene/style-registry.ts'
 import { getSeriesColor, CHART_ACCENT_FALLBACK } from './xychart/colors.ts'
 import { renderMermaidPNGInBrowserWithReceipt } from './browser-png.ts'
@@ -50,7 +49,6 @@ function renderMermaidUnicodeWithReceipt(text: string, options: AsciiRenderOptio
   renderMermaidUnicodeWithReceipt,
   renderMermaidPNGInBrowserWithReceipt,
   diagramColorsToAsciiTheme,
-  THEMES,
   knownStyles,
   knownStyleDescriptors,
   getStyle,

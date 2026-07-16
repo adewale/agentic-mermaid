@@ -3,7 +3,7 @@ import { isAbsolute, join, relative } from 'node:path'
 import { DEFAULT_CASES, KNOWLEDGE_CASES, CREATE_CASES, checkAgentUsageTaskSource, requiresStructuredMutation, runAgentUsageEval, type AgentUsageEvalCase, type AgentUsageEvalResult } from './run.ts'
 import { extractCodeModeScript } from './live.ts'
 import { SDK_DECLARATION } from '../../src/mcp/sdk-decl.ts'
-import { parseMermaid, verifyMermaid } from '../../src/agent/index.ts'
+import { parseRegisteredMermaid as parseMermaid, verifyMermaid } from '../../src/agent/index.ts'
 import { HOMEPAGE_PROMPT_VARIANTS, type HomepagePromptVariant } from './homepage-prompt.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
@@ -87,7 +87,7 @@ const CODE_MODE_CONTRACT = `Return ONLY the JavaScript body that will be passed 
 Do not include markdown, code fences, or prose.
 The code runs synchronously in a node:vm sandbox with global mermaid.*; top-level return is allowed.
 Do not use async/await, Promise jobs, dynamic import, filesystem, network, or template-literal interpolation.
-For new diagrams, author Mermaid source directly, then parseMermaid and verifyMermaid.
+For new diagrams, author Mermaid source directly, then parseRegisteredMermaid and verifyMermaid.
 For existing modeled diagrams, use family narrowers, mutate, verifyMermaid, inspect verify.ok/warnings, then serializeMermaid.
 The Code Mode return value is evaluated by an oracle: on success return an object with { source } equal to the final Mermaid source.
 Do not return the public prompt's human-facing “Updated Mermaid / Verification / Trace” sections from inside Code Mode; the parent agent would format those after this code succeeds.
@@ -350,7 +350,7 @@ function chatTraceOk(id: string, text: string): boolean {
     // Existing structured diagram: confirm the response drove the typed Agentic
     // Mermaid surface — parse/narrow, mutate, or a declared source-level fallback —
     // rather than hand-writing Mermaid from memory. Any one of these tokens is
-    // sufficient: the `parseMermaid` call, a family narrower (`asTimeline()`,
+    // sufficient: the canonical parser call, a family narrower (`asTimeline()`,
     // `asFlowchart`, …), a `mutate(...)` call or a `mutate`/`mutated`/`mutating`/
     // `mutation` mention, a typed op literal (`{ kind: "add_event", … }` — only
     // obtainable by calling mutate/buildMermaid with a real op), or an explicit
@@ -360,7 +360,7 @@ function chatTraceOk(id: string, text: string): boolean {
     // { kind: 'add_event' }") now passes rather than being rejected for writing
     // "Parsed"/"Mutated" instead of the exact camelCase identifiers. taskOk remains
     // the independent diagram-correctness signal.
-    return /parseMermaid/i.test(text)
+    return /parse(?:Registered)?Mermaid/i.test(text)
       || /\bas(?:Flowchart|Sequence|State|Class|Er|Journey|Timeline|Gantt|Pie|Quadrant|XyChart|Architecture)\b/.test(text)
       || /mutate\s*\(/i.test(text)
       || /\bmutat(?:e|ed|es|ing|ion)\b/i.test(text)
@@ -369,12 +369,12 @@ function chatTraceOk(id: string, text: string): boolean {
       || declarativeEdit
   }
   // New diagram: any trusted construction is a safe path — author source then
-  // `parseMermaid`, the endorsed typed builders `buildMermaid`/`createMermaid`
+  // `parseRegisteredMermaid`, the endorsed typed builders `buildMermaid`/`createMermaid`
   // (which construct a ValidDiagram directly, no parse), or a channel that
   // parses the authored source itself (CLI `am verify` or the hosted MCP verify
-  // tool). Requiring parseMermaid here wrongly failed the builder, CLI, and
+  // tool). Requiring a parser call here wrongly failed the builder, CLI, and
   // hosted-MCP paths the prompt recommends.
-  return /parseMermaid/i.test(text) || /buildMermaid/i.test(text) || /createMermaid/i.test(text) || bundledVerify
+  return /parse(?:Registered)?Mermaid/i.test(text) || /buildMermaid/i.test(text) || /createMermaid/i.test(text) || bundledVerify
 }
 
 /** Read the OBSERVED tool-use log for a case (verbs the `am` CLI actually ran),

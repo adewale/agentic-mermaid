@@ -114,7 +114,7 @@ export interface AsciiEdge {
   startDir: Direction
   endDir: Direction
   /** Shared semantic route intent from classifyRoutes(); consumed by grid placement/routing parity. */
-  routeClass?: RouteClass
+  routeClass: RouteClass
   /** Line style: solid (default), dotted (-.->) or thick (==>) */
   style: AsciiEdgeStyle
   /** Whether to render a marker at the start (source end) of the edge */

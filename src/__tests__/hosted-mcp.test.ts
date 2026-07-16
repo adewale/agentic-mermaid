@@ -12,13 +12,11 @@ import { MCP_SERVER_NAME, validateMcpToolArguments } from '../mcp/tool-surface.t
 import type { JsonRpcRequest } from '../mcp/protocol.ts'
 import pkg from '../../package.json'
 import { visualWidth } from '../ascii/width.ts'
-import { knownStyleDescriptors } from '../scene/style-registry.ts'
 import { verifyNoExternalRefs } from '../index.ts'
 import { MAX_HOSTED_PNG_BYTES, PNG_WASM_RUNTIME } from '../png-contract.ts'
-import { THEMES } from '../theme.ts'
 
 const FLOW = 'flowchart TD\n  A[Start] --> B{OK?}\n  B -->|yes| C[Done]'
-const TEST_PNG_RECEIPT = { version: 1, output: 'png', sharedRequestDigest: 'test-shared', requestDigest: 'test-request', appearanceDigest: 'test-appearance' } as const
+const TEST_PNG_RECEIPT = { version: 2, output: 'png', sharedRequestDigest: 'test-shared', requestDigest: 'test-request', appearanceDigest: 'test-appearance', capabilityDecision: { version: 1, accepted: true, resolutions: [] } } as const
 
 function makeContext(overrides: Partial<HostedMcpContext> = {}): HostedMcpContext & { executeCalls: Array<{ code: string; timeoutMs: number }>; pngCalls: Array<{ source: string; scale?: number; background?: string; security?: 'default' | 'strict'; embedFontImport?: boolean }> } {
   const executeCalls: Array<{ code: string; timeoutMs: number }> = []
@@ -102,13 +100,11 @@ describe('hosted MCP handshake', () => {
     }
   })
 
-  test('render_svg discovery lists every registered built-in look', () => {
+  test('render_svg discovery uses the canonical nested Style schema', () => {
     const renderSvg = HOSTED_TOOLS.find(tool => tool.name === 'render_svg')!
-    const styleDescription = (renderSvg.inputSchema.properties as Record<string, { description?: string }>).style?.description ?? ''
-    const looks = knownStyleDescriptors()
-      .filter(descriptor => descriptor.kind === 'look')
-      .map(descriptor => descriptor.inputName)
-    for (const look of looks) expect(styleDescription).toContain(look)
+    const options = (renderSvg.inputSchema.properties as Record<string, any>).options
+    const styleDescription = options?.properties?.style?.description ?? ''
+    expect(styleDescription).toContain('registered name')
     expect(styleDescription.toLowerCase()).not.toContain('cupertino')
   })
 
@@ -177,7 +173,10 @@ describe('hosted pure tools', () => {
     expect(verifyNoExternalRefs(first.svg)).toEqual({ ok: true, refs: [] })
     const second = payloadOf(await handleHostedRequest(call('render_svg', { source: FLOW }), makeContext()))
     expect(second.svg).toBe(first.svg)
-    const dark = payloadOf(await handleHostedRequest(call('render_svg', { source: FLOW, bg: '#101014', fg: '#e6e6f0' }), makeContext()))
+    const dark = payloadOf(await handleHostedRequest(call('render_svg', {
+      source: FLOW,
+      options: { bg: '#101014', fg: '#e6e6f0' },
+    }), makeContext()))
     expect(dark.svg).toContain('#101014')
     expect(dark.svg).not.toBe(first.svg)
     const weaker = payloadOf(await handleHostedRequest(call('render_svg', {
@@ -189,33 +188,22 @@ describe('hosted pure tools', () => {
     expect(weaker.svg).not.toContain('@import')
   })
 
-  test('render_svg applies canonical options before top-level compatibility conveniences', async () => {
-    const direct = payloadOf(await handleHostedRequest(call('render_svg', {
+  test('render_svg rejects removed top-level render options', async () => {
+    const response = await handleHostedRequest(call('render_svg', {
       source: FLOW,
       bg: '#101014',
       seed: 7,
-    }), makeContext()))
-    const overlaid = payloadOf(await handleHostedRequest(call('render_svg', {
-      source: FLOW,
-      options: { bg: '#ffffff', seed: 1 },
-      bg: '#101014',
-      seed: 7,
-    }), makeContext()))
-    expect(overlaid.svg).toBe(direct.svg)
-    expect(overlaid.receipt).toEqual(direct.receipt)
+    }), makeContext())
+    expect(response?.error?.code).toBe(-32602)
+    expect(response?.error?.message).toContain('arguments.bg')
   })
 
-  test('retains theme as a diagnosed legacy compatibility input', async () => {
+  test('render_svg does not advertise or accept the removed theme input', async () => {
     const tool = HOSTED_TOOLS.find(candidate => candidate.name === 'render_svg')!
-    const themeSchema = (tool.inputSchema.properties as Record<string, any>).theme
-    expect(themeSchema.deprecated).toBe(true)
-    expect(themeSchema['x-agentic-mermaid-diagnostic']).toMatchObject({
-      code: 'THEME_INPUT_DEPRECATED',
-      removal: { release: '0.3.0', date: '2027-01-31' },
-    })
-    const payload = payloadOf(await handleHostedRequest(call('render_svg', { source: FLOW, theme: 'paper' }), makeContext()))
-    expect(payload.ok).toBe(true)
-    expect(payload.warnings).toContainEqual(expect.objectContaining({ code: 'THEME_INPUT_DEPRECATED' }))
+    expect((tool.inputSchema.properties as Record<string, any>)).not.toHaveProperty('theme')
+    const response = await handleHostedRequest(call('render_svg', { source: FLOW, theme: 'paper' }), makeContext())
+    expect(response?.error?.code).toBe(-32602)
+    expect(response?.error?.message).toContain('arguments.theme')
   })
 
   test('render_svg rejects raw theme CSS instead of rewriting active content', async () => {
@@ -224,8 +212,7 @@ describe('hosted pure tools', () => {
     const payload = payloadOf(await handleHostedRequest(call('render_svg', { source }), makeContext()))
     expect(payload.ok).toBe(false)
     expect(payload.isError).toBe(true)
-    expect(payload.error.code).toBe('SVG_RENDER_FAILED')
-    expect(payload.error.message).toContain('Raw Mermaid themeCSS is not allowed')
+    expect(payload.error).toEqual({ code: 'RENDER_FAILED', message: 'Rendering failed' })
     expect(payload).not.toHaveProperty('svg')
   })
 
@@ -238,12 +225,6 @@ describe('hosted pure tools', () => {
         code: 'INEFFECTIVE_CONFIG', field: 'state.titleTopMargin',
       }))
     }
-  })
-
-  test('render_svg rejects unknown themes at the advertised schema boundary', async () => {
-    const response = await handleHostedRequest(call('render_svg', { source: FLOW, theme: 'no-such-theme' }), makeContext())
-    expect(response?.error?.code).toBe(-32602)
-    expect(response?.error?.message).toContain('arguments.theme')
   })
 
   test('render_ascii switches between Unicode and ASCII charsets', async () => {
@@ -573,16 +554,14 @@ describe('hosted render_png', () => {
     expect(ctx.pngCalls).toEqual([expect.objectContaining({ security: 'strict', seed: 4 })])
   })
 
-  test('PNG compatibility conveniences override the canonical options object', async () => {
+  test('PNG accepts shared render fields only through the canonical options object', async () => {
     const ctx = makeContext()
     const payload = payloadOf(await handleHostedRequest(call('render_png', {
       source: FLOW,
       options: { style: 'hand-drawn', seed: 1 },
-      style: 'crisp',
-      seed: 7,
     }), ctx))
     expect(payload.ok).toBe(true)
-    expect(ctx.pngCalls).toEqual([expect.objectContaining({ style: 'crisp', seed: 7, security: 'strict' })])
+    expect(ctx.pngCalls).toEqual([expect.objectContaining({ style: 'hand-drawn', seed: 1, security: 'strict' })])
   })
 
   test('a PNG larger than one base64 chunk round-trips byte-for-byte', async () => {
@@ -635,12 +614,11 @@ describe('hosted render_png', () => {
     expect(p.error.code).toBe('PNG_UNAVAILABLE')
   })
 
-  test('rasterizer failures surface as PNG_RENDER_FAILED', async () => {
+  test('rasterizer failures use the transport-neutral render diagnostic', async () => {
     const ctx = makeContext({ renderPng: async () => { throw new Error('wasm init failed') } })
     const p = payloadOf(await handleHostedRequest(call('render_png', { source: FLOW }), ctx))
     expect(p.ok).toBe(false)
-    expect(p.error.code).toBe('PNG_RENDER_FAILED')
-    expect(p.error.message).toContain('wasm init failed')
+    expect(p.error).toEqual({ code: 'RENDER_FAILED', message: 'Rendering failed' })
   })
 })
 
@@ -698,11 +676,7 @@ describe('cacheKeyFor (validated, normalized, output-affecting arguments)', () =
       source: FLOW,
       style: 'crisp',
       options: { style: 'hand-drawn', seed: 1 },
-    })).toEqual(cacheKeyFor('render_png', {
-      source: FLOW,
-      style: 'crisp',
-      options: { style: 'crisp', seed: 1 },
-    }))
+    })).toBeNull()
   })
 
   test('the source/code payload is keyed verbatim (comment junk is NOT normalized)', () => {
@@ -713,27 +687,15 @@ describe('cacheKeyFor (validated, normalized, output-affecting arguments)', () =
       .not.toEqual(cacheKeyFor('render_svg', { source: 'flowchart LR\n  A --> B\n%% c' }))
   })
 
-  test('render_svg keys validated theme/bg/fg inputs and rejects junk', () => {
-    expect(cacheKeyFor('render_svg', { source: FLOW, bg: '#000' }))
+  test('render_svg keys canonical nested options and rejects top-level projections', () => {
+    expect(cacheKeyFor('render_svg', { source: FLOW, options: { bg: '#000' } }))
       .toEqual({
         t: 'render_svg',
         source: FLOW,
         render: { bg: '#000', security: 'strict', embedFontImport: false },
-        legacyThemeDiagnostic: false,
       })
     expect(cacheKeyFor('render_svg', { source: FLOW, bg: '#000', junk: 1 })).toBeNull()
-    expect(cacheKeyFor('render_svg', { source: FLOW, theme: 'paper' }))
-      .not.toEqual(cacheKeyFor('render_svg', { source: FLOW, theme: 'dusk' }))
-  })
-
-  test('render_svg cache identity preserves the legacy-theme diagnostic', () => {
-    const legacy = cacheKeyFor('render_svg', { source: FLOW, theme: 'paper' }) as Record<string, unknown>
-    const canonical = cacheKeyFor('render_svg', { source: FLOW, options: THEMES.paper }) as Record<string, unknown>
-
-    expect(legacy.render).toEqual(canonical.render)
-    expect(legacy).toHaveProperty('legacyThemeDiagnostic', true)
-    expect(canonical).toHaveProperty('legacyThemeDiagnostic', false)
-    expect(legacy).not.toEqual(canonical)
+    expect(cacheKeyFor('render_svg', { source: FLOW, theme: 'paper' })).toBeNull()
   })
 
   test('render_ascii distinguishes charset and target width', () => {

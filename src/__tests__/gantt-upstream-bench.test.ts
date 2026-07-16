@@ -13,7 +13,7 @@ import { parseGanttModel, applyGanttFrontmatterConfig } from '../gantt/parser.ts
 import { resolveGanttSchedule } from '../gantt/schedule.ts'
 import { GanttError, type GanttModel, type GanttCalendarToken } from '../gantt/types.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
-import { parseMermaid } from '../agent/parse.ts'
+import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
 import { renderMermaidASCII } from '../ascii/index.ts'
 

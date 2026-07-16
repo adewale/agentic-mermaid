@@ -3,7 +3,7 @@ import { describe, expect, test } from 'bun:test'
 import { parseClassDiagram } from '../class/parser.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { asClass, type ClassMutationOp, type ClassValidDiagram } from '../agent/types.ts'
-import { parseMermaid, serializeMermaid, mutate, verifyMermaid } from '../agent/index.ts'
+import { parseRegisteredMermaid as parseMermaid, serializeMermaid, mutate, verifyMermaid } from '../agent/index.ts'
 
 function legacy(source: string) {
   return parseClassDiagram(source.split('\n').map(line => line.trim()).filter(Boolean))

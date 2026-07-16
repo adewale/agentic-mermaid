@@ -21,7 +21,7 @@
 import { readFileSync, readdirSync, writeFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { execSync } from 'node:child_process'
-import { parseMermaid, layoutMermaid, measureQuality, renderMermaidSVG, renderMermaidASCII } from '../../src/agent/index.ts'
+import { parseRegisteredMermaid as parseMermaid, layoutMermaid, measureQuality, renderMermaidSVG, renderMermaidASCII } from '../../src/agent/index.ts'
 import type { QualityMetrics } from '../../src/agent/index.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')

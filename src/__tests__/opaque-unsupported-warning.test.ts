@@ -7,7 +7,7 @@
 // by a more specific warning.
 
 import { describe, test, expect } from 'bun:test'
-import { parseMermaid, verifyMermaid, serializeMermaid, renderMermaidSVG } from '../agent/index.ts'
+import { parseRegisteredMermaid as parseMermaid, verifyMermaid, serializeMermaid, renderMermaidSVG } from '../agent/index.ts'
 import { WARNING_TIER, WARNING_SEVERITY } from '../agent/types.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 

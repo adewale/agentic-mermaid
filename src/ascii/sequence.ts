@@ -321,7 +321,7 @@ export function renderSequenceAscii(text: string, config: AsciiConfig, colorMode
     const toX = llX[ti]!
     const isSelf = fi === ti
     const isDashed = msg.lineStyle === 'dashed'
-    const isFilled = msg.arrowHead === 'filled'
+    const isFilled = msg.endHead === 'filled' || msg.endHead === 'cross'
 
     // Arrow line character (solid vs dashed)
     const lineChar = isDashed ? (useAscii ? '.' : '╌') : H

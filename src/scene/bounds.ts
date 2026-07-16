@@ -111,9 +111,10 @@ function numericStrokeWidth(width: string | number): number {
 }
 
 function connectorLocalBounds(node: ConnectorMark): AxisAlignedBox | undefined {
-  let local = node.geometry.kind === 'path'
-    ? pointsBounds(node.geometry.points)
-    : geometryBounds(node.geometry)
+  const geometry = node.route.geometry
+  let local = geometry.kind === 'path'
+    ? pointsBounds(geometry.points)
+    : geometryBounds(geometry)
   if (!local) return undefined
 
   const width = numericStrokeWidth(node.stroke.width)
@@ -123,10 +124,10 @@ function connectorLocalBounds(node: ConnectorMark): AxisAlignedBox | undefined {
     : halfWidth
   local = expandSceneBounds(local, joinExtent)
 
-  const anchors = connectorEndpointAnchors(node.geometry, node.route.closed)
+  const anchors = connectorEndpointAnchors(geometry, node.route.closed)
   for (const anchor of anchors.starts) local = unionSceneBounds(local, markerBoundsAt(node.markers.start, anchor, width))!
   for (const anchor of anchors.ends) local = unionSceneBounds(local, markerBoundsAt(node.markers.end, anchor, width))!
-  const interior = connectorMidpoints(node.geometry, node.route.closed)
+  const interior = connectorMidpoints(geometry, node.route.closed)
   if (node.markers.mid.length === 1) {
     for (const anchor of interior) local = unionSceneBounds(local, markerBoundsAt(node.markers.mid[0], anchor, width))!
   } else {

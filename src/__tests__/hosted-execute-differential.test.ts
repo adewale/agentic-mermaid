@@ -53,7 +53,7 @@ async function executeHosted(code: string): Promise<ExecuteResult> {
   return runUserCode(fn)
 }
 
-const PARSE = "const r = mermaid.parseMermaid('flowchart TD\\n  A --> B')"
+const PARSE = "const r = mermaid.parseRegisteredMermaid('flowchart TD\\n  A --> B')"
 
 // Each case must produce identical results through both implementations.
 const EQUIVALENT_CASES: Array<[label: string, code: string]> = [
@@ -124,7 +124,7 @@ describe('hosted execute ≡ vm sandbox', () => {
     const [local, hosted] = [await executeInSandbox(code), await executeHosted(code)]
     for (const r of [local, hosted]) {
       expect(r.ok).toBe(false)
-      expect(r.error).toContain('must come from mermaid.parseMermaid(...)')
+      expect(r.error).toContain('must come from mermaid.parseRegisteredMermaid(...)')
     }
   })
 

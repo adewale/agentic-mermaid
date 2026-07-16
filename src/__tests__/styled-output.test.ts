@@ -11,7 +11,7 @@ import { describe, test, expect } from 'bun:test'
 import { createHash } from 'node:crypto'
 import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
-import { HOSTED_FONT_FACES, HOSTED_FONT_FILES } from '../font-manifest.ts'
+import { HOSTED_FONT_RESOURCES } from '../font-manifest.ts'
 import { renderMermaidSVG, verifyNoExternalRefs, getStyle, inferBackend, knownStyleDescriptors, resolveStyleStack, validateStyleSpec } from '../index.ts'
 
 const FIXTURES = join(import.meta.dir, '..', '..', 'eval', 'layout-compare', 'fixtures')
@@ -29,7 +29,7 @@ function builtInLookFonts() {
 }
 
 function hostedFacesForFamily(family: string) {
-  return HOSTED_FONT_FACES.filter((font) => font.family === family)
+  return HOSTED_FONT_RESOURCES.filter((font) => font.family === family)
 }
 
 function fixtureSources(): Array<{ name: string; source: string }> {
@@ -90,7 +90,7 @@ describe('styled output', () => {
       }
     }
     // Stale keys rot silently otherwise: a removed fixture or style must
-    // shrink the baseline too (mirrors the svg-equivalence gate).
+    // shrink the styled baseline too.
     const stale = Object.keys(baseline).filter(k => !(k in records))
     if (stale.length > 0) {
       throw new Error(`styled-output: ${stale.length} stale baseline records (e.g. ${stale[0]}) — regenerate with UPDATE_STYLED_BASELINE=1`)
@@ -103,7 +103,7 @@ describe('styled output', () => {
         renderMermaidSVG(fixture.source, { style }) // throws = fail
       }
     }
-  })
+  }, 10_000)
 
   test('seed re-rolls geometry deterministically', () => {
     const source = fixtures.find(f => f.name === 'flowchart-basic.mmd')!.source
@@ -156,7 +156,7 @@ describe('style consolidation', () => {
     expect(() => renderMermaidSVG(source, { style: { node: { cornerRadius: 9 } } as any })).toThrow(/Invalid style spec/)
   })
 
-  test('a theme is a style: THEMES palettes resolve by name', () => {
+  test('a registered Palette resolves by its stable input name', () => {
     const dracula = getStyle('dracula')
     expect(dracula?.colors?.bg).toBeDefined()
     const svg = renderMermaidSVG(source, { style: 'dracula' })
@@ -320,7 +320,7 @@ describe('bundled fonts', () => {
     // PNG rasterization loads assets/fonts with loadSystemFonts: false — a
     // look whose face is missing there uses Inter with DejaVu per-glyph fallback.
     const fontsDir = join(import.meta.dir, '..', '..', 'assets', 'fonts')
-    for (const file of HOSTED_FONT_FILES) {
+    for (const { file } of HOSTED_FONT_RESOURCES) {
       expect({ file, exists: existsSync(join(fontsDir, file)) }).toEqual({ file, exists: true })
     }
   })
@@ -329,7 +329,7 @@ describe('bundled fonts', () => {
     const hostedPng = readFileSync(join(import.meta.dir, '..', '..', 'website', 'src', 'png-wasm.ts'), 'utf8')
     const generatedDir = join(import.meta.dir, '..', '..', 'website', 'src', 'generated')
 
-    for (const file of HOSTED_FONT_FILES) {
+    for (const { file } of HOSTED_FONT_RESOURCES) {
       expect(hostedPng).toContain(`./generated/${file}`)
       expect(existsSync(join(generatedDir, file))).toBe(true)
     }

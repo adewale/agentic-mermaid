@@ -6,7 +6,7 @@ import { readFileSync, existsSync, writeFileSync, mkdtempSync, watch } from 'nod
 import { spawnSync } from 'node:child_process'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
-import { parseMermaid, parseRegisteredMermaid } from '../agent/parse.ts'
+import { parseRegisteredMermaid } from '../agent/parse.ts'
 import { logToolInvocation } from '../agent/trace-log.ts'
 import { serializeMermaid, synthesizeFromGraph } from '../agent/serialize.ts'
 import { mutateChecked } from '../agent/mutate.ts'
@@ -25,7 +25,7 @@ import type {
   MutationError, Result, MutableValidDiagram, LayoutWarning,
 } from '../agent/types.ts'
 import { WARNING_SEVERITY, WARNING_TIER } from '../agent/types.ts'
-import { BUILTIN_FAMILY_METADATA, knownFamilies, getFamily, getFamilyConformanceReport } from '../agent/families.ts'
+import { BUILTIN_FAMILY_METADATA, builtinFamilyMetadata, isBuiltinFamilyId, knownFamilies, getFamily, getFamilyConformanceReport } from '../agent/families.ts'
 import type { FamilyConformanceReport } from '../agent/families.ts'
 import { knownStyleDescriptors, validateStyleSpec, inferBackend, resolveStyleStack } from '../scene/style-registry.ts'
 import type { StyleInput, StyleSpec } from '../scene/style-registry.ts'
@@ -85,13 +85,9 @@ function isCliStructuredFailure(value: unknown): value is CliStructuredFailure {
   return typeof error.code === 'string' && typeof error.message === 'string'
 }
 
-/** Normalize only documented structured failures. Generic renderer errors stay
- * outside this function so their established adapter-specific fallbacks remain
- * intact. */
-function cliStructuredRenderFailure(error: unknown): CliStructuredFailure | undefined {
+function cliStructuredRenderFailure(error: unknown): CliStructuredFailure {
   if (isCliStructuredFailure(error)) return error
-  const diagnostic = projectRenderErrorDiagnostic(error)
-  return diagnostic ? { ok: false, error: diagnostic } : undefined
+  return { ok: false, error: projectRenderErrorDiagnostic(error) }
 }
 
 /** CLI render accepts installed extensions but cannot execute a source-only
@@ -151,7 +147,7 @@ const PNG_RENDER_FLAGS = Object.freeze(Object.values(PNG_CLI_FLAG_BINDINGS).flat
 // Command ownership is the second half of the flag contract: recognizing a
 // name globally is not permission to ignore it on an unrelated command.
 const COMMAND_FLAGS: Record<string, readonly string[]> = {
-  render: ['help', 'json', 'ascii', 'certificates', 'watch', 'style', 'seed', 'options', 'output', 'format', 'security', 'gantt-today', 'target-width', ...PNG_RENDER_FLAGS, 'o'],
+  render: ['help', 'json', 'certificates', 'watch', 'style', 'seed', 'options', 'output', 'format', 'security', 'gantt-today', 'target-width', ...PNG_RENDER_FLAGS, 'o'],
   verify: ['help', 'json', 'suppress', 'label-cap', 'style'],
   parse: ['help', 'json'],
   serialize: ['help'],
@@ -229,7 +225,7 @@ Commands:
 
 Flags:
   --json                 Structured JSON output
-  --ascii                For render/render-markdown: ASCII instead of SVG
+  --ascii                For render-markdown: ASCII instead of SVG
   --op <JSON>            For mutate: one MutationOp
   --ops <JSON|file>      For mutate: JSON array of MutationOps
   --output <FILE>        Write render/preview output to FILE instead of stdout
@@ -242,7 +238,7 @@ Flags:
   --system-fonts         For render png: also load OS fonts (coverage warnings then skipped)
   --suppress <CODES>     For verify: comma-separated WarningCodes to suppress
   --label-cap <N>        For verify: LABEL_OVERFLOW char cap (default 40)
-  --certificates         For render --format json: include route/family certificates
+  --certificates         For render --format layout: include route/family certificates
   --gantt-today <DATE>   For render: draw the gantt today marker at DATE (rendering never reads the wall clock)
   --target-width <CELLS> Hard terminal-cell bound for ASCII/Unicode output
   --agent-instructions   Print the canonical agent-use guide
@@ -256,10 +252,10 @@ Exit codes:
 `
 
 export const COMMAND_HELP: Record<string, string> = {
-  render: `am render <file|-> [--format ${CLI_RENDER_FORMATS.join('|')}] [--ascii] [--json]
+  render: `am render <file|-> [--format ${CLI_RENDER_FORMATS.join('|')}] [--json]
 Render a diagram. Default is ${DEFAULT_CLI_RENDER_FORMAT.toUpperCase()}.
 ${cliRenderFormatHelpLines()}
-  --certificates     With --format json, include route/family certificates
+  --certificates     With --format layout, include route/family certificates
   --style <S>       Style stack: comma-separated names and/or .json spec files,
                     merged left → right (e.g. --style hand-drawn,dracula or
                     --style ./brand.json). Applies to graphical and terminal
@@ -425,7 +421,14 @@ export function runCli(argv: string[]): number {
     }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
-    const structured = cliStructuredRenderFailure(e)
+    // Argument and file-shape failures are not renderer failures even when
+    // they occur under the render command.
+    const isArgError = /^needs a file argument|^File not found:/.test(msg)
+    const structured = isArgError
+      ? undefined
+      : args.command === 'render' || args.command === 'preview' || isCliStructuredFailure(e)
+        ? cliStructuredRenderFailure(e)
+        : undefined
     if (structured) {
       if (json) process.stdout.write(JSON.stringify(structured) + '\n')
       else process.stderr.write(`Error: ${structured.error.code}: ${structured.error.message}\n`)
@@ -434,7 +437,6 @@ export function runCli(argv: string[]): number {
     // Loop 9 M5: argument-shape errors (missing file, TTY stdin, etc.) get
     // exit 2 per the documented contract. Heuristic: messages thrown from
     // readSourceArg / arg parsing are advisory rather than internal bugs.
-    const isArgError = /^needs a file argument|^File not found:/.test(msg)
     if (json) process.stdout.write(JSON.stringify({ ok: false, error: { code: isArgError ? 'ARG' : 'INTERNAL', message: msg } }) + '\n')
     else process.stderr.write(`Error: ${msg}\n`)
     return isArgError ? EXIT_ARG_ERROR : EXIT_INTERNAL
@@ -442,7 +444,7 @@ export function runCli(argv: string[]): number {
 }
 
 function cmdRender(args: ParsedArgs, json: boolean): number {
-  const format = typeof args.flags.format === 'string' ? args.flags.format : (args.flags.ascii ? 'ascii' : DEFAULT_CLI_RENDER_FORMAT)
+  const format = typeof args.flags.format === 'string' ? args.flags.format : DEFAULT_CLI_RENDER_FORMAT
   const security = args.flags.security === 'strict' ? 'strict' as const : undefined
   // Explicit gantt clock (rendering never reads wall-clock time).
   const ganttToday = typeof args.flags['gantt-today'] === 'string' ? args.flags['gantt-today'] : undefined
@@ -479,7 +481,7 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
     return EXIT_ARG_ERROR
   }
   if (args.flags.certificates && output.id !== 'layout') {
-    process.stderr.write('am render: --certificates is valid only with --format json\n')
+    process.stderr.write('am render: --certificates is valid only with --format layout\n')
     return EXIT_ARG_ERROR
   }
   if (args.flags.watch && args.positional.length > 1) {
@@ -605,7 +607,7 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
     const { certificates: _certificates, targetWidth: _targetWidth, ...sharedOptions } = formatOptions
     return renderPngSync(source, { ...sharedOptions, scale, background, fitTo, fontDirs, loadSystemFonts }, outFile, json, configWarnings)
   }
-  // Loop 9 M3/M4, #7645: json = layout shape; unicode is the default text
+  // Loop 9 M3/M4, #7645: layout = layout shape; unicode is the default text
   // renderer; `--security strict` enforces the shared SVG output-security policy.
   emitConfigWarnings(configWarnings, 'am render')
   const rendered = renderPreflightedSourceToFormatWithReceipt(source, format, formatOptions)
@@ -843,14 +845,14 @@ function parseMutationOpsFlag(args: ParsedArgs): Result<AnyMutationOp[], CliMuta
   }
 }
 
-function mutateAny(d: ValidDiagram, op: AnyMutationOp): Result<MutableValidDiagram, CliMutationError> {
+function mutateAny(d: ParsedDiagram, op: AnyMutationOp): Result<MutableValidDiagram, CliMutationError> {
   // mutate() dispatches to the family's registered mutator by diagram kind,
   // so the CLI only rules out what the registry cannot handle: opaque bodies
   // (source-preserved syntax has no structured ops) and families without a
   // mutate hook. The per-family narrowing cascade this replaces re-encoded
   // the family list a 13th time.
   const plugin = getFamily(d.kind)
-  if (d.body.kind !== 'opaque' && plugin?.mutate && plugin.serialize) {
+  if (d.body.kind !== 'opaque' && d.body.kind !== 'extension' && d.body.kind !== 'preserved' && plugin?.mutate && plugin.serialize) {
     // `--op`/`--ops` arrive as untyped JSON, so the CLI funnels through the same
     // mutateChecked choke point the MCP paths use: shape is validated (a wrong/
     // missing/mistyped field is a prescriptive INVALID_OP) before the mutator.
@@ -863,12 +865,12 @@ function mutateAny(d: ValidDiagram, op: AnyMutationOp): Result<MutableValidDiagr
 }
 
 export function mutateSource(source: string, ops: AnyMutationOp[]): MutationRunResult {
-  const r0 = parseMermaid(source)
+  const r0 = parseRegisteredMermaid(source)
   if (!r0.ok) {
     const env = parseErrorEnvelope(r0.error)
     return { ok: false, error: { code: 'PARSE_FAILED', message: env.error.message, details: env.error.details } }
   }
-  let current: ValidDiagram = r0.value
+  let current: ParsedDiagram = r0.value
   for (let index = 0; index < ops.length; index++) {
     const op = ops[index]!
     const next = mutateAny(current, op)
@@ -906,7 +908,7 @@ function emitMutationRun(r: MutationRunResult, json: boolean): number {
 }
 
 export function buildPreviewHtml(source: string, opts: { security?: 'default' | 'strict' } = {}): Result<string, { code: string; message: string; details?: unknown }> {
-  const parsed = parseMermaid(source)
+  const parsed = parseRegisteredMermaid(source)
   if (!parsed.ok) {
     const env = parseErrorEnvelope(parsed.error)
     return { ok: false, error: env.error }
@@ -983,7 +985,7 @@ function cmdPreview(args: ParsedArgs, json: boolean): number {
 }
 
 function cmdFormat(args: ParsedArgs): number {
-  const r = parseMermaid(readSourceArg(args.positional[0]))
+  const r = parseRegisteredMermaid(readSourceArg(args.positional[0]))
   if (!r.ok) { process.stderr.write(`format: parse failed: ${JSON.stringify(r.error)}\n`); return EXIT_ARG_ERROR }
   const wrapper = args.flags['canonical-wrapper'] ? 'canonical' as const : 'verbatim' as const
   process.stdout.write(serializeMermaid(r.value, { wrapper }))
@@ -1000,7 +1002,7 @@ function cmdDescribe(args: ParsedArgs, json: boolean): number {
     process.stderr.write('am describe --format must be one of: text, json, facts\n')
     return EXIT_ARG_ERROR
   }
-  const parsed = parseMermaid(source)
+  const parsed = parseRegisteredMermaid(source)
   if (!parsed.ok) {
     const env = parseErrorEnvelope(parsed.error)
     if (json || format === 'json') process.stdout.write(JSON.stringify(env) + '\n')
@@ -1151,7 +1153,7 @@ export function buildCapabilities(): CapabilitiesEnvelope {
       mutationOps,
       opFields: hasOpSchema(id) ? describeOps(id) : undefined,
       editPolicy,
-      narrower: p.narrower,
+      narrower: isBuiltinFamilyId(id) ? builtinFamilyMetadata(id)?.narrower : undefined,
       headers: p.headers,
       example: p.example,
     }
@@ -1313,7 +1315,7 @@ ${codes}
 
 ## Library
 
-\`import { parseMermaid, mutate, verifyMermaid, analyzeMermaid,
+\`import { parseRegisteredMermaid, mutate, verifyMermaid, analyzeMermaid,
 analyzeMermaidSource, serializeMermaid, renderMermaidASCII,
 renderMermaidPNG, renderMermaidSVG, renderMermaidASCIIWithMeta,
 describeMermaid, asciiToMermaid, verifyNoExternalRefs,
@@ -1429,10 +1431,7 @@ interface BatchLine {
 }
 
 export interface BatchRenderOptions extends Record<string, unknown> {
-  /** Preferred output spelling; matches `am render --format`. */
   format?: CliRenderFormat
-  /** Backward-compatible alias for `format: 'ascii'`. */
-  ascii?: boolean
   certificates?: boolean
   targetWidth?: number
 }
@@ -1472,31 +1471,24 @@ export function runBatchLine(rawLine: string, lineIndex = 0): BatchOutput {
         }
         const {
           format: requestedFormat,
-          ascii: legacyAscii,
           certificates,
           targetWidth,
           ...sharedCandidate
         } = options as BatchRenderOptions
-        if (legacyAscii !== undefined && typeof legacyAscii !== 'boolean') {
-          return { ok: false, op, error: { code: 'INVALID_OPTIONS', message: 'batch render option "ascii" must be a boolean' } }
-        }
         if (requestedFormat !== undefined && typeof requestedFormat !== 'string') {
           return { ok: false, op, error: { code: 'INVALID_OPTIONS', message: 'batch render option "format" must be a string' } }
         }
-        const format = requestedFormat ?? (legacyAscii ? 'ascii' : DEFAULT_CLI_RENDER_FORMAT)
+        const format = requestedFormat ?? DEFAULT_CLI_RENDER_FORMAT
         if (!isCliRenderFormat(format) || renderOutputForCliFormat(format)?.id === 'png') {
           const supported = CLI_RENDER_FORMATS.filter(candidate => renderOutputForCliFormat(candidate)?.id !== 'png')
           return { ok: false, op, error: { code: 'INVALID_OPTIONS', message: `batch render format must be one of ${supported.join(', ')}` } }
-        }
-        if (legacyAscii === true && requestedFormat !== undefined && requestedFormat !== 'ascii') {
-          return { ok: false, op, error: { code: 'INVALID_OPTIONS', message: 'batch render option "ascii" conflicts with the requested format' } }
         }
         const output = renderOutputForCliFormat(format)!
         if (certificates !== undefined && typeof certificates !== 'boolean') {
           return { ok: false, op, error: { code: 'INVALID_OPTIONS', message: 'batch render option "certificates" must be a boolean' } }
         }
         if (certificates === true && output.id !== 'layout') {
-          return { ok: false, op, error: { code: 'INVALID_OPTIONS', message: 'batch render option "certificates" is valid only with format "json"' } }
+          return { ok: false, op, error: { code: 'INVALID_OPTIONS', message: 'batch render option "certificates" is valid only with format "layout"' } }
         }
         if (targetWidth !== undefined && (!Number.isInteger(targetWidth) || targetWidth <= 0)) {
           return { ok: false, op, error: { code: 'INVALID_OPTIONS', message: 'batch render option "targetWidth" must be a positive integer' } }

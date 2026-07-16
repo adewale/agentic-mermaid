@@ -4,24 +4,25 @@
  */
 import { describe, it, expect } from 'bun:test'
 import { estimateTextWidth, FONT_SIZES, FONT_WEIGHTS, NODE_PADDING, STROKE_WIDTHS, ARROW_HEAD } from '../styles.ts'
-import { THEMES, DEFAULTS, fromShikiTheme, buildStyleBlock, svgOpenTag } from '../theme.ts'
+import { DEFAULTS, fromShikiTheme, buildStyleBlock, svgOpenTag } from '../theme.ts'
 import type { DiagramColors } from '../theme.ts'
+import { BUILTIN_PALETTE_DEFINITIONS } from '../palette-catalog.ts'
 
 // ============================================================================
 // Theme system (CSS custom properties)
 // ============================================================================
 
-describe('THEMES', () => {
+describe('built-in palette catalog', () => {
   it('contains well-known theme palettes with valid colors', () => {
     for (const name of ['zinc-light', 'zinc-dark', 'tokyo-night', 'catppuccin-mocha', 'nord'] as const) {
-      const theme = THEMES[name]!
+      const theme = BUILTIN_PALETTE_DEFINITIONS.find(palette => palette.inputName === name)!.colors
       expect(theme.bg).toMatch(/^#[0-9a-fA-F]{6}$/)
       expect(theme.fg).toMatch(/^#[0-9a-fA-F]{6}$/)
     }
   })
 
   it('each theme has valid bg and fg colors', () => {
-    for (const [name, colors] of Object.entries(THEMES)) {
+    for (const { colors } of BUILTIN_PALETTE_DEFINITIONS) {
       expect(colors.bg).toMatch(/^#[0-9a-fA-F]{6}$/)
       expect(colors.fg).toMatch(/^#[0-9a-fA-F]{6}$/)
     }

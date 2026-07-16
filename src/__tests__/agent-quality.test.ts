@@ -5,7 +5,7 @@
 import { describe, test, expect } from 'bun:test'
 import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
-import { parseMermaid } from '../agent/parse.ts'
+import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { layoutMermaid } from '../agent/index.ts'
 import { measureQuality, checkQuality } from '../agent/quality.ts'
 import { toFinite, type RenderedLayout } from '../agent/types.ts'
@@ -116,7 +116,7 @@ describe('quality metrics — deterministic', () => {
     expect(m.labelEdgeProximity).toBe(0)
     const v = checkQuality(layout, { whitespaceBand: [0, 1] })
     expect(v.ok).toBe(false)
-    expect(v.violations).toContain('edge-label clearance 0px < min 4px')
+    expect(v.ranked.map(item => item.message)).toContain('edge-label clearance 0px < min 4px')
   })
 
   test('labelEdgeProximity includes label-to-unrelated-edge path overlap', () => {
@@ -135,7 +135,7 @@ describe('quality metrics — deterministic', () => {
     expect(m.labelEdgeProximity).toBe(0)
     const v = checkQuality(layout, { whitespaceBand: [0, 1] })
     expect(v.ok).toBe(false)
-    expect(v.violations).toContain('edge-label clearance 0px < min 4px')
+    expect(v.ranked.map(item => item.message)).toContain('edge-label clearance 0px < min 4px')
   })
 
   test("labelEdgeProximity ignores the label's own edge path", () => {
@@ -184,7 +184,7 @@ describe('checkQuality — verdict', () => {
     if (!p.ok || p.value.body.kind !== 'flowchart') return
     const v = checkQuality(layoutMermaid(p.value))
     expect(v.ok).toBe(true)
-    expect(v.violations).toEqual([])
+    expect(v.ranked.map(item => item.message)).toEqual([])
   })
 
   test('tight bounds catch real violations', () => {
@@ -193,7 +193,7 @@ describe('checkQuality — verdict', () => {
     if (!p.ok || p.value.body.kind !== 'flowchart') return
     const v = checkQuality(layoutMermaid(p.value), { minLabelLegibility: 1.5 })  // impossible bound
     expect(v.ok).toBe(false)
-    expect(v.violations.length).toBeGreaterThan(0)
+    expect(v.ranked.map(item => item.message).length).toBeGreaterThan(0)
   })
 })
 

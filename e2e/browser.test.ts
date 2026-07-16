@@ -13,6 +13,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test'
 import { join } from 'path'
+import { deflateRawSync } from 'node:zlib'
 import { chromium, type Browser, type BrowserContext, type CDPSession, type Page } from 'playwright'
 import { BUILTIN_FAMILY_METADATA } from '../src/agent/families.ts'
 import { renderMermaidSVG } from '../src/index.ts'
@@ -74,7 +75,7 @@ async function waitForEditorRender(timeoutMs = 30_000): Promise<void> {
  * The page also embeds many SVGs whose Google Font imports can keep Chromium's
  * previous document in a loading state even after the app reports that rendering
  * is done. Use a fresh Page for each explicit navigation while keeping the same
- * BrowserContext, so localStorage persists but a stuck prior document cannot
+ * BrowserContext, so editor palette preferences persist but a stuck prior document cannot
  * block the next response from committing on slower GitHub runners.
  */
 async function gotoApp(url: string, options: { clearDraft?: boolean } = {}): Promise<void> {
@@ -85,8 +86,8 @@ async function gotoApp(url: string, options: { clearDraft?: boolean } = {}): Pro
   if (viewport) await page.setViewportSize(viewport)
   if (options.clearDraft) {
     await page.addInitScript(() => {
+      sessionStorage.removeItem('bm-editor-draft')
       localStorage.removeItem('bm-editor-draft')
-      localStorage.removeItem('bm-editor-draft-mode')
     })
   }
   cdpSession = await context.newCDPSession(page)
@@ -101,7 +102,7 @@ async function gotoApp(url: string, options: { clearDraft?: boolean } = {}): Pro
 }
 
 function editorHash(source: string, config = ROUNDED_FILL_CONFIG, palette = 'salmon'): string {
-  return Buffer.from(JSON.stringify({ source, palette, config }), 'utf8').toString('base64')
+  return 'deflate:' + deflateRawSync(Buffer.from(JSON.stringify({ source, palette, config }), 'utf8')).toString('base64url')
 }
 
 async function gotoEditorWithWarmFonts(query: string, hash: string): Promise<void> {
@@ -663,9 +664,10 @@ pie showData
     await waitForEditorRender(60_000)
 
     const salmonBg = await page.evaluate(
-      () => (window as unknown as { __mermaid: { THEMES: Record<string, { bg: string }> } })
-        .__mermaid.THEMES.salmon.bg,
+      () => (window as unknown as { __mermaid: { getStyle(name: string): { colors?: { bg?: string } } | undefined } })
+        .__mermaid.getStyle('salmon')?.colors?.bg,
     )
+    expect(typeof salmonBg).toBe('string')
 
     await page.click('#theme-dropdown-btn')
     await page.click('.theme-dropdown-item[data-theme="salmon"]')
@@ -812,16 +814,12 @@ pie showData
     await page.waitForFunction(async () => {
       try {
         const hash = window.location.hash.slice(1)
-        let state: { config?: { interactive?: boolean } | null; palette?: string }
-        if (hash.startsWith('deflate:')) {
-          let b64 = hash.slice('deflate:'.length).replace(/-/g, '+').replace(/_/g, '/')
-          while (b64.length % 4) b64 += '='
-          const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))
-          const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'))
-          state = JSON.parse(await new Response(stream).text())
-        } else {
-          state = JSON.parse(decodeURIComponent(escape(atob(hash))))
-        }
+        if (!hash.startsWith('deflate:')) return false
+        let b64 = hash.slice('deflate:'.length).replace(/-/g, '+').replace(/_/g, '/')
+        while (b64.length % 4) b64 += '='
+        const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))
+        const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'))
+        const state = JSON.parse(await new Response(stream).text()) as { config?: { interactive?: boolean } | null; palette?: string }
         return state.config?.interactive === true && state.palette === 'dracula'
       } catch {
         return false
@@ -829,17 +827,15 @@ pie showData
     }, undefined, { timeout: 30_000 })
 
     const hashState = await page.evaluate(async () => {
-      // Mirrors sharing.js decodeSource: new hashes are deflate:-prefixed
-      // base64url(deflate-raw); legacy hashes are plain base64.
+      // Mirrors sharing.js decodeSource: canonical hashes are
+      // deflate:-prefixed base64url(deflate-raw).
       const hash = window.location.hash.slice(1)
-      if (hash.startsWith('deflate:')) {
-        let b64 = hash.slice('deflate:'.length).replace(/-/g, '+').replace(/_/g, '/')
-        while (b64.length % 4) b64 += '='
-        const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))
-        const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'))
-        return JSON.parse(await new Response(stream).text())
-      }
-      return JSON.parse(decodeURIComponent(escape(atob(hash))))
+      if (!hash.startsWith('deflate:')) throw new Error('non-canonical editor hash')
+      let b64 = hash.slice('deflate:'.length).replace(/-/g, '+').replace(/_/g, '/')
+      while (b64.length % 4) b64 += '='
+      const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))
+      const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'))
+      return JSON.parse(await new Response(stream).text())
     })
 
     expect(hashState.config).toMatchObject({ interactive: true })
@@ -860,14 +856,16 @@ pie showData
     try {
       const hostileCss = '@import url(https://evil.example/font.css);</style><svg onload="window.__amAudit=123"><script>window.__amAudit=456</script>'
       const source = 'flowchart TD\n  A[Safe] --> B[Preview]'
-      const hash = editorHash(source, {
-        accent: '#123456',
-        security: 'loose',
-        themeCSS: hostileCss,
-      } as any, 'salmon')
-      const decoded = JSON.parse(Buffer.from(hash, 'base64').toString('utf8'))
-      decoded.style = { font: hostileCss }
-      const hostileHash = Buffer.from(JSON.stringify(decoded), 'utf8').toString('base64')
+      const hostileHash = 'deflate:' + deflateRawSync(Buffer.from(JSON.stringify({
+        source,
+        palette: 'salmon',
+        config: {
+          accent: '#123456',
+          security: 'loose',
+          themeCSS: hostileCss,
+        },
+        style: { font: hostileCss },
+      }), 'utf8')).toString('base64url')
       await gotoApp(`${BASE}/editor?empty=1#${hostileHash}`)
       await page.waitForFunction(
         () => ['OK', 'Error'].includes(document.querySelector('#status-text')?.textContent ?? ''),

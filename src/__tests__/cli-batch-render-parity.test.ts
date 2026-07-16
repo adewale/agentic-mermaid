@@ -17,8 +17,8 @@ describe('batch render uses the canonical render contract', () => {
     expect(actual).toEqual({ ok: true, op: 'render', data: { svg: expected.output, receipt: expected.receipt } })
   })
 
-  test('keeps the legacy ascii alias but returns a receipt', () => {
-    const actual = render({ ascii: true, targetWidth: 80 })
+  test('renders the canonical ASCII format with a receipt', () => {
+    const actual = render({ format: 'ascii', targetWidth: 80 })
     expect(actual.ok).toBe(true)
     expect(actual.data).toEqual(expect.objectContaining({
       ascii: expect.any(String),
@@ -26,7 +26,7 @@ describe('batch render uses the canonical render contract', () => {
     }))
   })
 
-  test('rejects unknown styles, malformed shared fields, and conflicting aliases', () => {
+  test('rejects unknown styles, malformed shared fields, and removed aliases', () => {
     expect(render({ style: 'not-a-style' })).toEqual(expect.objectContaining({
       ok: false,
       error: expect.objectContaining({ code: 'INVALID_OPTIONS', message: expect.stringContaining('Unknown style') }),
@@ -35,9 +35,9 @@ describe('batch render uses the canonical render contract', () => {
       ok: false,
       error: expect.objectContaining({ code: 'INVALID_OPTIONS', message: expect.stringContaining('seed') }),
     }))
-    expect(render({ ascii: true, format: 'svg' })).toEqual(expect.objectContaining({
+    expect(render({ ascii: true })).toEqual(expect.objectContaining({
       ok: false,
-      error: expect.objectContaining({ code: 'INVALID_OPTIONS', message: expect.stringContaining('conflicts') }),
+      error: expect.objectContaining({ code: 'INVALID_OPTIONS', message: expect.stringContaining('ascii') }),
     }))
   })
 })

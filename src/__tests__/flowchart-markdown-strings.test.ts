@@ -17,7 +17,7 @@ import { describe, it, expect } from 'bun:test'
 
 import { parseMermaid as parseGraph } from '../parser.ts'
 import { renderMermaidSVG } from '../index.ts'
-import { parseMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
+import { parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 
 function parseAgent(source: string) {
   const parsed = parseMermaid(source)

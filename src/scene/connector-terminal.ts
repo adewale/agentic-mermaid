@@ -1,8 +1,7 @@
 /** Canonical terminal projection of one already-normalized connector.
  *
- * Constructors and admission validation both call this function so the
- * compatibility copies carried by ConnectorMark cannot acquire independent
- * semantics.
+ * Constructors and admission validation both call this function so derived
+ * terminal semantics have one authority.
  */
 
 import type {

@@ -96,7 +96,7 @@ derives a per-column budget from the fixed overhead and re-runs the metric
 pass once with proportionally compressed wrap caps and box minimums — reusing
 the existing `wrapTimelineText` machinery, never a second wrapper. Properties:
 
-- no-op when the chart already fits (the default path stays byte-identical);
+- no-op when the chart already fits;
 - deterministic (a pure function of the same inputs);
 - floor of 36px on wrap caps so labels never wrap to letter soup;
 - best-effort: unbreakable tokens and extra-wide section headers can still
@@ -191,7 +191,7 @@ by construction (the outline is already vertical).
   registry operation menu, differential vs the renderer parser, `INEFFECTIVE_CONFIG`
 - `src/__tests__/property-layout-bounds.test.ts` — fast-check bounds over the
   positioned layout
-- corpus gates: `svg-equivalence` / `layout-equivalence` /
-  `styled-output` / `scene-fidelity` (the `timeline TD` corpus entry
+- corpus gates: `layout-equivalence` / `styled-output` / `scene-fidelity`
+  (the `timeline TD` corpus entry
   `corpus/timeline/5` renders vertically; its golden records were regenerated
   surgically for that reason)

@@ -19,7 +19,7 @@ import { describe, expect, test } from 'bun:test'
 import { spawnSync } from 'node:child_process'
 import { join } from 'node:path'
 import {
-  parseMermaid, serializeMermaid, verifyMermaid, mutate, asFlowchart,
+  parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid, mutate, asFlowchart,
 } from '../agent/index.ts'
 
 const FM_NESTED = '---\nconfig:\n  layout: elk\n  look: handDrawn\n---\nflowchart TD\n  A --> B'

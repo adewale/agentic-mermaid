@@ -26,7 +26,6 @@ import { svgCssText, transformSvgCssValues } from './svg-structure.ts'
  * derivation from bg + fg if not set.
  */
 import { parseHex, toHex, mixHex, isHexColor, luma255, ensureContrast } from './shared/color-math.ts'
-import { BUILTIN_PALETTE_DEFINITIONS } from './palette-catalog.ts'
 import { requireSafeCssFontFamily } from './shared/css-font.ts'
 import { requireSafeCssPaint } from './shared/css-color.ts'
 
@@ -69,9 +68,10 @@ export interface DiagramColors {
 
   /**
    * Whether to embed the Google Fonts `@import` line in the SVG `<style>` block.
-   * Default: `true` (preserves wire compatibility with all existing consumers).
+   * Default: `false`. Set `true` explicitly when a fetching font import is
+   * appropriate for the target document.
    *
-   * CLI / PNG paths set `false` explicitly to render offline / CSP-friendly.
+   * PNG paths keep this disabled to render offline.
    * The CSS variable `--font` is always emitted on the SVG root regardless,
    * so the family stays overridable post-render even when the @import is gone.
    */
@@ -122,24 +122,6 @@ export const MIX = {
   /** Key badge background opacity (ER diagrams) */
   keyBadge:     10,
 } as const
-
-// ============================================================================
-// Well-known theme palettes
-//
-// Curated bg/fg pairs (+ optional enrichment) for popular editor themes.
-// Users can also extract from Shiki theme objects via fromShikiTheme().
-// ============================================================================
-
-/** Legacy theme-name projection generated from the canonical built-in palette
- * catalog. New discovery and registration code must use Style descriptors. */
-export const THEMES: Readonly<Record<string, DiagramColors>> = Object.freeze(
-  Object.fromEntries(BUILTIN_PALETTE_DEFINITIONS.map(definition => [
-    definition.legacyName,
-    Object.freeze({ ...definition.colors }),
-  ])),
-)
-
-export type ThemeName = keyof typeof THEMES
 
 // ============================================================================
 // Shiki theme extraction
@@ -319,12 +301,10 @@ function inlineFontVarInCss(svg: string): string {
   }
 }
 
-export function buildStyleBlock(font: string, hasMonoFont: boolean, shadow?: boolean, embedFontImport: boolean = true): string {
+export function buildStyleBlock(font: string, hasMonoFont: boolean, shadow?: boolean, embedFontImport: boolean = false): string {
   font = requireSafeCssFontFamily(font)
-  // CLI / PNG path sets embedFontImport=false explicitly to render offline /
-  // CSP-friendly; library default preserves wire compatibility (existing SVG
-  // fixtures and consumer snapshots assert the @import is present). The family
-  // @import is additionally suppressed for var() references and multi-family
+  // Font imports are opt-in. The family import is additionally suppressed for
+  // var() references and multi-family
   // stacks — URL-encoding those yields a nonsense Google Fonts request.
   const fontImports = embedFontImport
     ? [

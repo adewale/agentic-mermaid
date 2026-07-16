@@ -16,7 +16,7 @@ import { dirname, join, relative } from 'node:path'
 import {
   layoutMermaid,
   measureQuality,
-  parseMermaid,
+  parseRegisteredMermaid as parseMermaid,
   renderMermaidPNG,
   renderMermaidSVG,
 } from '../../src/agent/index.ts'

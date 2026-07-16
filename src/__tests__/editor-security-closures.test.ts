@@ -16,7 +16,11 @@ function memoryStorage() {
   }
 }
 
-function sharingHarness(options: { decompression?: typeof DecompressionStream | undefined; verified?: boolean } = {}) {
+function sharingHarness(options: {
+  compression?: typeof CompressionStream | undefined
+  decompression?: typeof DecompressionStream | undefined
+  verified?: boolean
+} = {}) {
   const localStorage = memoryStorage()
   const sessionStorage = memoryStorage()
   const editor = { value: 'flowchart TD\n  A --> B' }
@@ -45,15 +49,12 @@ function sharingHarness(options: { decompression?: typeof DecompressionStream | 
       readEditorDraft,
       saveEditorDraft,
       discardEditorDraft,
-      setDraftStorageMode,
       get hashDecodeFailure() { return hashDecodeFailure; },
       get draftRestoreFailure() { return draftRestoreFailure; },
-      get draftStorageMode() { return draftStorageMode; },
       MAX_SHARE_DECODED_BYTES,
       MAX_SHARE_ENCODED_BYTES,
       MAX_DRAFT_BYTES,
       DRAFT_STORAGE_KEY,
-      DRAFT_MODE_STORAGE_KEY,
       sanitizeEditorStyle,
     };`,
   )
@@ -65,7 +66,7 @@ function sharingHarness(options: { decompression?: typeof DecompressionStream | 
     state,
     { getElementById() { return null } },
     (message: string) => toasts.push(message),
-    globalThis.CompressionStream,
+    Object.prototype.hasOwnProperty.call(options, 'compression') ? options.compression : globalThis.CompressionStream,
     Object.prototype.hasOwnProperty.call(options, 'decompression') ? options.decompression : globalThis.DecompressionStream,
     globalThis.Blob,
     globalThis.Response,
@@ -84,7 +85,7 @@ function sharingHarness(options: { decompression?: typeof DecompressionStream | 
 }
 
 describe('editor share-link resource limits', () => {
-  test('new share links emit Palette vocabulary while legacy theme links remain decodable', async () => {
+  test('new share links emit the canonical palette vocabulary', async () => {
     const { api, replacedUrls } = sharingHarness()
     await api.updateHash()
     const encoded = replacedUrls.at(-1)!.split('#')[1]!
@@ -128,6 +129,15 @@ describe('editor share-link resource limits', () => {
     expect(unsupported.api.hashDecodeFailure).toBe('unsupported')
   })
 
+  test('reports when the browser cannot create a canonical compressed share link', async () => {
+    const { api, replacedUrls, toasts } = sharingHarness({ compression: undefined })
+    expect(await api.updateHash()).toBe(false)
+    expect(replacedUrls.at(-1)).toBe('/editor/')
+    expect(toasts).toContain(
+      'This browser cannot create compressed share links (missing CompressionStream). Export or copy the source instead.',
+    )
+  })
+
   test('a too-large edit clears a stale share URL instead of misrepresenting the source', async () => {
     const { api, editor, replacedUrls, toasts } = sharingHarness()
     editor.value = 'x'.repeat(api.MAX_SHARE_DECODED_BYTES + 1)
@@ -149,25 +159,20 @@ describe('editor share-link resource limits', () => {
   })
 })
 
-describe('editor bounded, explicit draft persistence', () => {
+describe('editor bounded, session-scoped draft persistence', () => {
   test('oversized drafts are cleared before JSON.parse', () => {
-    const { api, localStorage } = sharingHarness()
-    localStorage.setItem(api.DRAFT_STORAGE_KEY, 'x'.repeat(api.MAX_DRAFT_BYTES + 1))
+    const { api, sessionStorage } = sharingHarness()
+    sessionStorage.setItem(api.DRAFT_STORAGE_KEY, 'x'.repeat(api.MAX_DRAFT_BYTES + 1))
     expect(api.readEditorDraft()).toBeNull()
     expect(api.draftRestoreFailure).toBe('too-large')
-    expect(localStorage.getItem(api.DRAFT_STORAGE_KEY)).toBeNull()
+    expect(sessionStorage.getItem(api.DRAFT_STORAGE_KEY)).toBeNull()
   })
 
-  test('private mode removes the persistent copy and writes only to session storage', () => {
+  test('writes only to session storage and removes any stale persistent copy', () => {
     const { api, localStorage, sessionStorage, editor } = sharingHarness()
+    localStorage.setItem(api.DRAFT_STORAGE_KEY, '{"source":"stale"}')
     api.saveEditorDraft()
-    expect(localStorage.getItem(api.DRAFT_STORAGE_KEY)).toContain('flowchart TD')
-    expect(sessionStorage.getItem(api.DRAFT_STORAGE_KEY)).toBeNull()
-
-    api.setDraftStorageMode('session')
-    expect(api.draftStorageMode).toBe('session')
     expect(localStorage.getItem(api.DRAFT_STORAGE_KEY)).toBeNull()
-    expect(localStorage.getItem(api.DRAFT_MODE_STORAGE_KEY)).toBe('session')
     expect(JSON.parse(sessionStorage.getItem(api.DRAFT_STORAGE_KEY)!)).toMatchObject({ source: editor.value })
 
     api.discardEditorDraft()
@@ -176,12 +181,12 @@ describe('editor bounded, explicit draft persistence', () => {
   })
 
   test('oversized current drafts fail visibly and cannot leave a stale restore', () => {
-    const { api, localStorage, editor, toasts } = sharingHarness()
+    const { api, sessionStorage, editor, toasts } = sharingHarness()
     editor.value = 'flowchart TD\n  Small --> Draft'
     api.saveEditorDraft()
     editor.value = 'x'.repeat(api.MAX_DRAFT_BYTES + 1)
     api.saveEditorDraft()
-    expect(localStorage.getItem(api.DRAFT_STORAGE_KEY)).toBeNull()
+    expect(sessionStorage.getItem(api.DRAFT_STORAGE_KEY)).toBeNull()
     expect(toasts).toContain('This diagram is too large for browser autosave. Export or copy the source to keep it.')
   })
 })

@@ -3,7 +3,6 @@
  */
 import { describe, it, expect } from 'bun:test'
 import { renderMermaidSVG } from '../index.ts'
-import { THEMES } from '../theme.ts'
 
 const source = `journey
   title My working day
@@ -15,7 +14,7 @@ const source = `journey
 
 describe('renderMermaidSVG – journey themes', () => {
   it('renders correctly with the built-in light theme palette', () => {
-    const svg = renderMermaidSVG(source, THEMES['github-light'])
+    const svg = renderMermaidSVG(source, { style: 'github-light' })
 
     expect(svg).toContain('--bg:#ffffff')
     expect(svg).toContain('--fg:#1f2328')
@@ -27,7 +26,7 @@ describe('renderMermaidSVG – journey themes', () => {
   })
 
   it('renders correctly with the built-in dark theme palette', () => {
-    const svg = renderMermaidSVG(source, THEMES['github-dark'])
+    const svg = renderMermaidSVG(source, { style: 'github-dark' })
 
     expect(svg).toContain('--bg:#0d1117')
     expect(svg).toContain('--fg:#e6edf3')

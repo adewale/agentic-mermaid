@@ -7,8 +7,8 @@
 // renderable while these facts prove it still says the requested thing.
 // ============================================================================
 
-import { parseMermaid } from './parse.ts'
-import { err, ok, type ParseError, type Result, type ValidDiagram } from './types.ts'
+import { parseRegisteredMermaid } from './parse.ts'
+import { err, ok, type ParseError, type Result, type ParsedDiagram } from './types.ts'
 import { getFamily, extractLabelsGeneric } from './families.ts'
 import type {
   ArchitectureBody, ClassBody, ErBody, GanttBody, JourneyBody, PieBody,
@@ -48,7 +48,7 @@ export interface CheckMermaidResult {
 }
 
 /** Facts for a parsed diagram. Output is sorted, de-duplicated, and single-line. */
-export function describeMermaidFacts(d: ValidDiagram): string[] {
+export function describeMermaidFacts(d: ParsedDiagram): string[] {
   const out: string[] = []
   add(out, `family ${d.kind}`)
   if (d.meta.accessibility.title) add(out, `accessibility title ${clean(d.meta.accessibility.title)}`)
@@ -107,6 +107,15 @@ export function describeMermaidFacts(d: ValidDiagram): string[] {
       labels.forEach((label, i) => add(out, `label#${i} ${clean(label.target || '')} : ${clean(label.text)}`))
       break
     }
+    case 'extension': {
+      const plugin = getFamily(d.kind)
+      const labels = (plugin?.extractLabels ?? extractLabelsGeneric)(d.body.source)
+      labels.forEach((label, i) => add(out, `label#${i} ${clean(label.target || '')} : ${clean(label.text)}`))
+      break
+    }
+    case 'preserved':
+      add(out, `preserved ${d.body.preservation.upstreamFamilyId ?? d.body.preservation.header}`)
+      break
     default: {
       const _never: never = d.body
       void _never
@@ -117,12 +126,12 @@ export function describeMermaidFacts(d: ValidDiagram): string[] {
 
 /** Parse then emit facts. Parse failures are explicit Result errors. */
 export function describeMermaidFactsSource(source: string): Result<string[], ParseError[]> {
-  const parsed = parseMermaid(source)
+  const parsed = parseRegisteredMermaid(source)
   return parsed.ok ? ok(describeMermaidFacts(parsed.value)) : err(parsed.error)
 }
 
 /** Check required/forbidden semantic facts against a parsed diagram. */
-export function checkMermaid(d: ValidDiagram, spec: CheckMermaidSpec): CheckMermaidResult {
+export function checkMermaid(d: ParsedDiagram, spec: CheckMermaidSpec): CheckMermaidResult {
   const facts = describeMermaidFacts(d)
   const have = new Set(facts)
   const required = specRequired(spec)
@@ -138,7 +147,7 @@ export function checkMermaid(d: ValidDiagram, spec: CheckMermaidSpec): CheckMerm
 }
 
 export function checkMermaidSource(source: string, spec: CheckMermaidSpec): Result<CheckMermaidResult, ParseError[]> {
-  const parsed = parseMermaid(source)
+  const parsed = parseRegisteredMermaid(source)
   return parsed.ok ? ok(checkMermaid(parsed.value, spec)) : err(parsed.error)
 }
 
@@ -181,7 +190,7 @@ function factsSequence(out: string[], body: SequenceBody): void {
     add(out, `message#${i} ${context.scope === 'top-level' ? 'top-level' : `fragment#${context.fragmentIndex} branch#${context.branchIndex}`} ${clean(m.from)} -> ${clean(m.to)} : ${clean(m.text)}`)
     if (m.style !== 'sync') add(out, `message#${i} style ${m.style}`)
   })
-  const fragments = (body.statements ?? []).filter(statement => statement.kind === 'fragment')
+  const fragments = body.statements.filter(statement => statement.kind === 'fragment')
   fragments.forEach((statement, index) => {
     if (statement.kind !== 'fragment') return
     add(out, `fragment#${index} ${statement.fragment.fragmentKind}`)

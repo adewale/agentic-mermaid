@@ -11,7 +11,7 @@
 // ============================================================================
 
 import { describe, expect, it } from 'bun:test'
-import { layoutCertificateProof, parseMermaid, layoutMermaid, measureQuality, verifyMermaid } from '../agent/index.ts'
+import { layoutCertificateProof, parseRegisteredMermaid as parseMermaid, layoutMermaid, measureQuality, verifyMermaid } from '../agent/index.ts'
 import type { RenderedLayout } from '../agent/index.ts'
 
 const EPS = 1

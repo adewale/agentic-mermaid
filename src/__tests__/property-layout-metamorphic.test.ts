@@ -23,7 +23,7 @@
 
 import { describe, test, expect } from 'bun:test'
 import fc from 'fast-check'
-import { parseMermaid, verifyMermaid, layoutMermaid, measureQuality, serializeMermaid } from '../agent/index.ts'
+import { parseRegisteredMermaid as parseMermaid, verifyMermaid, layoutMermaid, measureQuality, serializeMermaid } from '../agent/index.ts'
 import { countStructuralElements, type StructuralCount } from '../agent/structural-count.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'

@@ -19,7 +19,7 @@
 import { describe, test, expect } from 'bun:test'
 import fc from 'fast-check'
 import {
-  parseMermaid, layoutMermaid, renderMermaidSVG, serializeMermaid,
+  parseRegisteredMermaid as parseMermaid, layoutMermaid, renderMermaidSVG, serializeMermaid,
   describeMermaidFacts,
 } from '../agent/index.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
@@ -31,7 +31,7 @@ import { positionedToRenderedLayout } from '../agent/layout-to-rendered.ts'
 import { layoutFamilyToRendered } from '../agent/family-layouts.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'
-import type { RenderedLayout, ValidDiagram } from '../agent/types.ts'
+import type { ParsedDiagram, RenderedLayout } from '../agent/types.ts'
 import type { MermaidGraph } from '../types.ts'
 
 const SEED = 0x5eed1234
@@ -42,7 +42,7 @@ const tagArb = fc.integer({ min: 0, max: 1_000_000 }).map(n => `q${n.toString(36
 // directly, state via its graph conversion (stateBodyToGraph). Every OTHER
 // family is route-audited at the rendered level (auditRenderedRoutes) instead —
 // so the label-on-shared-trunk class can no longer hide in any family.
-function graphFor(d: ValidDiagram): MermaidGraph | null {
+function graphFor(d: ParsedDiagram): MermaidGraph | null {
   if (d.body.kind === 'flowchart') return d.body.graph
   if (d.body.kind === 'state') return stateBodyToGraph(d.body)
   return null
@@ -70,7 +70,7 @@ const edge = (from: string, to: string, label?: string): string => `${from}->${t
 const group = (id: string, label: string | undefined, members: string[]): string => `${id}|${label ?? ''}|${[...members].sort().join(',')}`
 
 /** Independently project the structured agent body — never via a renderer parser. */
-function structuredBodyInventory(d: ValidDiagram): SemanticInventory {
+function structuredBodyInventory(d: ParsedDiagram): SemanticInventory {
   const body = d.body
   if (body.kind === 'flowchart' || body.kind === 'state') {
     const graphBody = body.kind === 'flowchart' ? body.graph : stateBodyToGraph(body)
@@ -170,7 +170,7 @@ function structuredBodyInventory(d: ValidDiagram): SemanticInventory {
 }
 
 /** Parse canonical source through the real renderer parser, then normalize its inventory. */
-function rendererInventory(d: ValidDiagram, canonical: string): SemanticInventory {
+function rendererInventory(d: ParsedDiagram, canonical: string): SemanticInventory {
   let layout: RenderedLayout
   if (d.kind === 'flowchart' || d.kind === 'state') {
     const graph = parseRendererGraph(canonical)

@@ -3,7 +3,7 @@ import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { chromium } from 'playwright'
 import { renderMermaidASCII, renderMermaidSVG } from '../../src/index.ts'
-import { parseMermaid, serializeMermaid, verifyMermaid } from '../../src/agent/index.ts'
+import { parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid } from '../../src/agent/index.ts'
 import { visualWidth } from '../../src/ascii/width.ts'
 import { fileReceiptEntries, filesUnder, repositoryPath, sortRepositoryPaths } from './artifact-receipt.ts'
 

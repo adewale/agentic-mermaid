@@ -1066,8 +1066,6 @@ function unescapeQuotedString(valueText: string): string {
 }
 
 /** Compatibility alias: routing now accepts installed, namespaced families too. */
-export type RoutedDiagramType = FamilyId
-
 /**
  * Return the logical Mermaid lines after frontmatter/init/comment normalization.
  * This is a thin wrapper around the richer source preprocessing used by the
@@ -1081,7 +1079,7 @@ export function preprocessMermaidLines(text: string): string[] {
  * Detect the routed Mermaid diagram family from a normalized first logical line.
  * Returns null for headers that are known not to be routed by this renderer.
  */
-export function detectDiagramTypeFromFirstLine(firstLine: string): RoutedDiagramType | null {
+export function detectDiagramTypeFromFirstLine(firstLine: string): FamilyId | null {
   return detectRegisteredFamilyFromFirstLine(firstLine, 'strict')
 }
 
@@ -1089,7 +1087,7 @@ export function detectDiagramTypeFromFirstLine(firstLine: string): RoutedDiagram
  * Looser family recognition for agent parsing: malformed known-family headers
  * should become opaque round-trip bodies instead of UNKNOWN_HEADER errors.
  */
-export function detectLooseDiagramTypeFromFirstLine(firstLine: string): RoutedDiagramType | null {
+export function detectLooseDiagramTypeFromFirstLine(firstLine: string): FamilyId | null {
   return detectRegisteredFamilyFromFirstLine(firstLine, 'loose')
 }
 
@@ -1098,6 +1096,6 @@ export function detectLooseDiagramTypeFromFirstLine(firstLine: string): RoutedDi
  * return null and must be classified or diagnosed by the caller; they are
  * never coerced to Flowchart.
  */
-export function detectDiagramType(text: string): RoutedDiagramType | null {
+export function detectDiagramType(text: string): FamilyId | null {
   return detectDiagramTypeFromFirstLine(preprocessMermaidLines(text)[0] ?? '')
 }

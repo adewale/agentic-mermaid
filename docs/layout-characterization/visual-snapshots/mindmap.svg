@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 445.654 173.8" width="445.654" height="173.8" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" role="img" aria-roledescription="mindmap" aria-labelledby="char-mindmap-mindmap-title">
+<svg xmlns="http://www.w3.org/2000/svg" width="445.654" height="173.8" viewBox="0 0 445.654 173.8" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" aria-labelledby="char-mindmap-mindmap-title" aria-roledescription="mindmap" role="img">
 <style>
   text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
   svg {

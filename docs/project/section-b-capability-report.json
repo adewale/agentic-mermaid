@@ -555,7 +555,7 @@
         {
           "role": "prelude",
           "observedKinds": [
-            "prelude"
+            "document"
           ],
           "emittedChannelValues": {},
           "publicMigrationTarget": "none",
@@ -676,7 +676,7 @@
         {
           "role": "icon",
           "observedKinds": [
-            "raw",
+            "document",
             "text"
           ],
           "emittedChannelValues": {},
@@ -736,7 +736,7 @@
         {
           "role": "prelude",
           "observedKinds": [
-            "prelude"
+            "document"
           ],
           "emittedChannelValues": {},
           "publicMigrationTarget": "none",
@@ -941,7 +941,7 @@
         {
           "role": "prelude",
           "observedKinds": [
-            "prelude"
+            "document"
           ],
           "emittedChannelValues": {},
           "publicMigrationTarget": "none",
@@ -1105,7 +1105,7 @@
         {
           "role": "icon",
           "observedKinds": [
-            "raw",
+            "document",
             "shape",
             "text"
           ],
@@ -1197,7 +1197,7 @@
         {
           "role": "prelude",
           "observedKinds": [
-            "prelude"
+            "document"
           ],
           "emittedChannelValues": {},
           "publicMigrationTarget": "label",
@@ -1210,8 +1210,7 @@
         {
           "role": "chrome",
           "observedKinds": [
-            "document",
-            "raw"
+            "document"
           ],
           "emittedChannelValues": {},
           "publicMigrationTarget": "none",
@@ -1382,7 +1381,7 @@
         {
           "role": "prelude",
           "observedKinds": [
-            "prelude"
+            "document"
           ],
           "emittedChannelValues": {},
           "publicMigrationTarget": "none",
@@ -1409,7 +1408,6 @@
           "role": "chrome",
           "observedKinds": [
             "document",
-            "raw",
             "shape"
           ],
           "emittedChannelValues": {},
@@ -1581,7 +1579,7 @@
         {
           "role": "prelude",
           "observedKinds": [
-            "prelude"
+            "document"
           ],
           "emittedChannelValues": {},
           "publicMigrationTarget": "none",
@@ -1816,7 +1814,7 @@
         {
           "role": "prelude",
           "observedKinds": [
-            "prelude"
+            "document"
           ],
           "emittedChannelValues": {},
           "publicMigrationTarget": "none",
@@ -1842,8 +1840,7 @@
         {
           "role": "chrome",
           "observedKinds": [
-            "document",
-            "raw"
+            "document"
           ],
           "emittedChannelValues": {},
           "publicMigrationTarget": "label",
@@ -1872,10 +1869,10 @@
             "connector"
           ],
           "emittedChannelValues": {},
-          "publicMigrationTarget": "edge",
-          "styleProjection": "fallback-only",
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
           "graphicalWitnessId": "section-b/journey/scene-role/series",
-          "styleWitnessId": "section-b/journey/style/series/fallback-only",
+          "styleWitnessId": "section-b/journey/style/series/not-applicable",
           "terminalProjection": "family-level-only",
           "terminalWitnessId": "section-b/journey/terminal/no-color"
         },
@@ -1928,10 +1925,10 @@
             "connector"
           ],
           "emittedChannelValues": {},
-          "publicMigrationTarget": "edge",
-          "styleProjection": "fallback-only",
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
           "graphicalWitnessId": "section-b/journey/scene-role/rail",
-          "styleWitnessId": "section-b/journey/style/rail/fallback-only",
+          "styleWitnessId": "section-b/journey/style/rail/not-applicable",
           "terminalProjection": "family-level-only",
           "terminalWitnessId": "section-b/journey/terminal/no-color"
         },
@@ -2199,7 +2196,7 @@
         {
           "role": "prelude",
           "observedKinds": [
-            "prelude"
+            "document"
           ],
           "emittedChannelValues": {},
           "publicMigrationTarget": "label",
@@ -2279,7 +2276,7 @@
         {
           "role": "icon",
           "observedKinds": [
-            "raw"
+            "document"
           ],
           "emittedChannelValues": {},
           "publicMigrationTarget": "none",
@@ -2399,7 +2396,7 @@
         {
           "role": "prelude",
           "observedKinds": [
-            "prelude"
+            "document"
           ],
           "emittedChannelValues": {},
           "publicMigrationTarget": "label",
@@ -2426,8 +2423,7 @@
           "role": "chrome",
           "observedKinds": [
             "document",
-            "group",
-            "raw"
+            "group"
           ],
           "emittedChannelValues": {},
           "publicMigrationTarget": "none",
@@ -2689,7 +2685,7 @@
         {
           "role": "prelude",
           "observedKinds": [
-            "prelude"
+            "document"
           ],
           "emittedChannelValues": {},
           "publicMigrationTarget": "label",
@@ -2702,8 +2698,7 @@
         {
           "role": "chrome",
           "observedKinds": [
-            "document",
-            "raw"
+            "document"
           ],
           "emittedChannelValues": {},
           "publicMigrationTarget": "none",
@@ -2901,7 +2896,7 @@
         {
           "role": "prelude",
           "observedKinds": [
-            "prelude"
+            "document"
           ],
           "emittedChannelValues": {},
           "publicMigrationTarget": "label",
@@ -2915,7 +2910,6 @@
           "role": "chrome",
           "observedKinds": [
             "document",
-            "raw",
             "shape"
           ],
           "emittedChannelValues": {},
@@ -3084,7 +3078,7 @@
         {
           "role": "prelude",
           "observedKinds": [
-            "prelude"
+            "document"
           ],
           "emittedChannelValues": {},
           "publicMigrationTarget": "label",
@@ -3237,10 +3231,10 @@
               "true"
             ]
           },
-          "publicMigrationTarget": "edge",
-          "styleProjection": "exact",
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
           "graphicalWitnessId": "section-b/gantt/scene-role/edge",
-          "styleWitnessId": "section-b/gantt/style/edge/exact",
+          "styleWitnessId": "section-b/gantt/style/edge/not-applicable",
           "terminalProjection": "family-level-only",
           "terminalWitnessId": "section-b/gantt/terminal/no-color"
         },
@@ -3386,7 +3380,7 @@
         {
           "role": "prelude",
           "observedKinds": [
-            "prelude"
+            "document"
           ],
           "emittedChannelValues": {},
           "publicMigrationTarget": "none",
@@ -3457,7 +3451,7 @@
         {
           "role": "icon",
           "observedKinds": [
-            "raw",
+            "document",
             "text"
           ],
           "emittedChannelValues": {},
@@ -3558,7 +3552,7 @@
         {
           "role": "prelude",
           "observedKinds": [
-            "prelude"
+            "document"
           ],
           "emittedChannelValues": {},
           "publicMigrationTarget": "none",
@@ -3784,7 +3778,7 @@
         {
           "role": "prelude",
           "observedKinds": [
-            "prelude"
+            "document"
           ],
           "emittedChannelValues": {},
           "publicMigrationTarget": "label",
@@ -4265,5 +4259,5 @@
       ]
     }
   ],
-  "digest": "sha256:4e84b443b2ceba2fb192b1d2bf106a35e0d80f846ffd179b98f34b7c0f3918a8"
+  "digest": "sha256:fcb35425a451105084f264e186a3d360bb79ca73885f91f4da4172ab45a80eae"
 }

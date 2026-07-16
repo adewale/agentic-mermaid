@@ -18,6 +18,7 @@ import type { SceneDoc, SceneNode, SemanticChannelName } from './scene/ir.ts'
 import type { RenderOptions } from './types.ts'
 import type { StyleSpec } from './scene/style-spec.ts'
 import { SECTION_B_FAMILY_CENSUS_FIXTURES } from './scene/section-b-census-fixtures.ts'
+import { sceneNodeSerialization } from './scene/serialization.ts'
 
 export const SECTION_B_CAPABILITY_REPORT_VERSION = 2 as const
 
@@ -178,7 +179,7 @@ function roleSignature(nodes: readonly SceneNode[], role: string, value: string)
     .map(node => ({
       id: node.id,
       kind: node.kind,
-      crisp: node.crisp,
+      serialization: sceneNodeSerialization(node),
       ...('paint' in node ? { paint: node.paint } : {}),
     })))
 }
@@ -230,7 +231,7 @@ function allRoleSignature(nodes: readonly SceneNode[], role: string): string {
   return canonicalJson(nodes.filter(node => node.role === role).map(node => ({
     id: node.id,
     kind: node.kind,
-    crisp: node.crisp,
+    serialization: sceneNodeSerialization(node),
     ...('paint' in node ? { paint: node.paint } : {}),
   })))
 }

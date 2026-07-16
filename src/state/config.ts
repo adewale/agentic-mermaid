@@ -40,12 +40,6 @@ export interface StateRenderOptions extends RenderOptions {
   stateVisual?: ResolvedStateVisualConfig
 }
 
-/** Direct low-level layout compatibility; canonical requests pass appearance
- * explicitly through ResolvedFamilyRenderContext instead. */
-export function resolvedStateVisualOf(options: RenderOptions): ResolvedStateVisualConfig | undefined {
-  return (options as StateRenderOptions).stateVisual
-}
-
 const positive = (value: unknown): number | undefined =>
   typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : undefined
 const nonNegative = (value: unknown): number | undefined =>
@@ -103,11 +97,6 @@ export function stateConfigDiagnostics(configs: unknown[], includeUnknown = fals
     }
   }
   return diagnostics
-}
-
-/** Backward-compatible helper used by verification call sites. */
-export function stateIneffectiveConfigFields(configs: unknown[]): string[] {
-  return stateConfigDiagnostics(configs).map(diagnostic => diagnostic.field)
 }
 
 function stateSection(config: MermaidRuntimeConfig | Record<string, unknown> | undefined): StateRuntimeConfig {

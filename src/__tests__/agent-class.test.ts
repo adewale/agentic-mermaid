@@ -1,7 +1,7 @@
 // Phase C: structured class diagram support.
 
 import { describe, test, expect } from 'bun:test'
-import { parseMermaid, asClass, mutate, serializeMermaid, verifyMermaid } from '../agent/index.ts'
+import { parseRegisteredMermaid as parseMermaid, asClass, mutate, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 
 const parse = (s: string) => {
   const r = parseMermaid(s)

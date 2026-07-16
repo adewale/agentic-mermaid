@@ -5,7 +5,7 @@
 // "Unknown op" catch-all.
 
 import { describe, test, expect } from 'bun:test'
-import { parseMermaid } from '../agent/parse.ts'
+import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { mutate } from '../agent/mutate.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { MUTATION_OPS_BY_FAMILY } from '../agent/mutation-ops.ts'

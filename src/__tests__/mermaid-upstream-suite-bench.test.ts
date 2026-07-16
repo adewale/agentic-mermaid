@@ -4,9 +4,9 @@ import { join } from 'node:path'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import {
   asArchitecture, asClass, asEr, asFlowchart, asGantt, asJourney, asPie, asQuadrant, asSequence, asState, asTimeline, asXyChart, asMindmap, asGitGraph, asRadar,
-  layoutMermaid, parseMermaid, serializeMermaid, verifyMermaid,
+  layoutMermaid, parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid,
 } from '../agent/index.ts'
-import type { DiagramKind, ValidDiagram } from '../agent/types.ts'
+import type { DiagramKind, ParsedDiagram, ValidDiagram } from '../agent/types.ts'
 import { countStructuralElements, isDrop } from '../agent/structural-count.ts'
 import { stripFormattingTags } from '../multiline-utils.ts'
 
@@ -109,7 +109,7 @@ const documentedReasons = new Set([
   'unextracted-dynamic-source',
 ])
 const localGapReasons = new Set(['local-parse-gap', 'local-verify-gap', 'local-layout-gap', 'local-roundtrip-gap', 'unsupported-header', 'unsupported-syntax', 'unsupported-structured-syntax'])
-const narrowerByFamily: Record<DiagramKind, (d: ValidDiagram) => ValidDiagram | null> = {
+const narrowerByFamily: Record<DiagramKind, (d: ParsedDiagram) => ValidDiagram | null> = {
   flowchart: asFlowchart,
   state: asState,
   sequence: asSequence,
@@ -135,7 +135,7 @@ function layoutLabels(layout: ReturnType<typeof layoutMermaid>): string[] {
   return labels.map(stripFormattingTags)
 }
 
-function safeVerifyOk(diagram: ValidDiagram): boolean {
+function safeVerifyOk(diagram: ParsedDiagram): boolean {
   try {
     return verifyMermaid(diagram).ok
   } catch {

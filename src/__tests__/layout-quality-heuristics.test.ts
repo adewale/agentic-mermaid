@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 
-import { layoutMermaid, parseMermaid, verifyMermaid, measureQuality, checkQuality } from '../agent/index.ts'
+import { layoutMermaid, parseRegisteredMermaid as parseMermaid, verifyMermaid, measureQuality, checkQuality } from '../agent/index.ts'
 import type { RenderedLayout, RenderedLayoutEdge, RenderedLayoutNode } from '../agent/types.ts'
 
 function layoutOf(source: string): RenderedLayout {
@@ -140,7 +140,7 @@ describe('programmatic bad-layout heuristics', () => {
     const metrics = measureQuality(layout)
     expect(metrics.edgeCrossings).toBe(0)
     expect(metrics.labelLegibility).toBe(1)
-    expect(checkQuality(layout, { aspectBand: [0.1, 5] }).violations).toEqual([])
+    expect(checkQuality(layout, { aspectBand: [0.1, 5] }).ranked.map(item => item.message)).toEqual([])
   })
 
   // upstream: mermaid-js/mermaid#6336 (state) / #6049 (flowchart) — ugly self-loops

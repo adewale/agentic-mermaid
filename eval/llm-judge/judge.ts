@@ -10,7 +10,7 @@
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
 import { join, dirname } from 'node:path'
-import { parseMermaid } from '../../src/agent/parse.ts'
+import { parseRegisteredMermaid as parseMermaid } from '../../src/agent/parse.ts'
 import { renderMermaidSVG, serializeMermaid } from '../../src/agent/index.ts'
 import { measureQuality, type QualityMetrics } from '../../src/agent/quality.ts'
 import { layoutMermaid } from '../../src/agent/index.ts'

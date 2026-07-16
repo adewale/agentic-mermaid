@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { parseRadarChart } from '../radar/parser.ts'
 import { layoutRadarChart } from '../radar/layout.ts'
 import { resolveRadarScale } from '../radar/scale.ts'
-import { layoutMermaid, parseMermaid } from '../agent/index.ts'
+import { layoutMermaid, parseRegisteredMermaid as parseMermaid } from '../agent/index.ts'
 
 const lines = (src: string): string[] => src.split('\n').map(l => l.trim()).filter(Boolean)
 const layout = (src: string, visual = {}) => layoutRadarChart(parseRadarChart(lines(src)), {}, visual)

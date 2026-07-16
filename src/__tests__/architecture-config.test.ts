@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import { DEFAULT_ARCHITECTURE_VISUAL, resolveArchitectureVisualConfig, architectureIneffectiveConfigFields } from '../architecture/config.ts'
 import { preprocessMermaidSource } from '../mermaid-source.ts'
 import { renderMermaidSVG } from '../index.ts'
-import { parseMermaid } from '../agent/parse.ts'
+import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { verifyMermaid } from '../agent/verify.ts'
 import type { DiagramColors } from '../theme.ts'
 

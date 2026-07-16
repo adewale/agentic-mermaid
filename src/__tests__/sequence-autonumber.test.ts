@@ -9,7 +9,7 @@
 import { describe, it, expect } from 'bun:test'
 import { parseSequenceDiagram } from '../sequence/parser.ts'
 import { layoutSequenceDiagram } from '../sequence/layout.ts'
-import { renderMermaidSVG, renderMermaidAscii } from '../index.ts'
+import { renderMermaidSVG, renderMermaidASCII } from '../index.ts'
 
 function parse(text: string) {
   const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('%%'))
@@ -89,7 +89,7 @@ describe('autonumber rendering', () => {
   })
 
   it('unicode/ASCII output carries the same numbers (one label truth)', () => {
-    const text = renderMermaidAscii(SRC, { useAscii: false })
+    const text = renderMermaidASCII(SRC, { useAscii: false })
     expect(text).toContain('1. Hello')
     expect(text).toContain('2. Hi')
   })

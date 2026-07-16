@@ -21,10 +21,7 @@ import { resolveRoleStyle, type InternalStyleFace } from '../scene/style-registr
 //
 // The chart is lowered to the SceneGraph IR (SPEC §3.1): every visual mark
 // becomes a scene node carrying semantic fields (role, geometry, paint,
-// channels, stable id) plus its exact crisp serialization, built here from
-// the same inputs. renderXYChartSvg() is DefaultBackend serialization of that
-// scene, so the default path stays byte-identical to the historical string
-// renderer (corpus-gated by svg-equivalence.test.ts). Interaction-only
+// channels, stable id). renderXYChartSvg() uses DefaultBackend serialization of that scene. Interaction-only
 // chrome (hover targets, tooltip groups) stays raw in this phase.
 // ============================================================================
 
@@ -47,8 +44,7 @@ export function renderXYChartSvg(
 }
 
 /**
- * Lower a positioned XY chart to the SceneGraph IR. Mark order matches the
- * historical parts[] order exactly; DefaultBackend joins crisps with '\n'.
+ * Lower a positioned XY chart to the SceneGraph IR in canonical mark order.
  */
 export function lowerXYChartScene(
   ctx: RenderContext<PositionedXYChart>,
@@ -69,7 +65,7 @@ export function lowerXYChartScene(
     .replace('<svg ', `<svg data-xychart-colors="${maxColorIdx}" `)
 
   const { style: chartStyle, defs } = chartStyles(chart, interactive, colors.accent, colors.bg, options, resolved.styleFace)
-  parts.push(marks.prelude(
+  parts.push(marks.documentOpen(
     {
       id: 'prelude',
       width: chart.width,
@@ -87,8 +83,8 @@ export function lowerXYChartScene(
   const shadowDefs = buildShadowDefs(colors)
   if (shadowDefs) parts.push(marks.definitions({ id: 'shadow-defs' }, `<defs>${shadowDefs}</defs>`))
   if (defs) parts.push(marks.definitions({ id: 'defs' }, defs))
-  if (svgMeta.title) parts.push(marks.raw({ id: 'acc-title', role: 'chrome' }, svgMeta.title))
-  if (svgMeta.description) parts.push(marks.raw({ id: 'acc-desc', role: 'chrome' }, svgMeta.description))
+  if (svgMeta.title) parts.push(marks.documentContent({ id: 'acc-title', role: 'chrome' }, svgMeta.title))
+  if (svgMeta.description) parts.push(marks.documentContent({ id: 'acc-desc', role: 'chrome' }, svgMeta.description))
 
   // Grid lines are always derived from the value (y) axis tick values, in
   // both orientations; the tick value itself is not carried through layout,
@@ -161,7 +157,7 @@ export function lowerXYChartScene(
       const tipAnchorX = chart.horizontal ? bar.x + bar.width : bar.x + bar.width / 2
       const tipAnchorY = chart.horizontal ? bar.y + bar.height / 2 : bar.y
       // Pure interaction chrome (invisible hover rect + tooltip) — stays raw.
-      barOverlay.push(marks.raw({ id: `tooltip:${barId}`, role: 'chrome' },
+      barOverlay.push(marks.documentContent({ id: `tooltip:${barId}`, role: 'chrome' },
         `<g class="xychart-bar-group">` +
         `<rect x="${r(bar.x)}" y="${r(bar.y)}" width="${r(bar.width)}" height="${r(bar.height)}" fill="transparent"/>` +
         `<title>${escapeXml(tipTitle)}</title>` +
@@ -242,7 +238,7 @@ export function lowerXYChartScene(
           join: '',
           children: [
             {
-              node: marks.raw({ id: `hit:${pointId}`, role: 'chrome' },
+              node: marks.documentContent({ id: `hit:${pointId}`, role: 'chrome' },
                 `<circle cx="${r(point.x)}" cy="${r(point.y)}" r="${CHART_FONT.dotRadius * 3}" fill="transparent" class="xychart-hit"/>`),
               indent: 0,
             },
@@ -258,7 +254,7 @@ export function lowerXYChartScene(
               indent: 0,
             },
             {
-              node: marks.raw({ id: `tooltip:${pointId}`, role: 'chrome' },
+              node: marks.documentContent({ id: `tooltip:${pointId}`, role: 'chrome' },
                 `<title>${escapeXml(tipTitle)}</title>` +
                 tooltipMarkup('xychart', point.x, point.y - CHART_FONT.dotRadius, tipText)),
               indent: 0,

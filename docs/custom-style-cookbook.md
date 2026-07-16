@@ -49,8 +49,8 @@ Complete file:
 This is an implementation example, not a built-in Style. Agentic Mermaid ships
 the opt-in file but does not register `cupertino`, give it a package-owned
 runtime identity, expose it in a built-in catalog or picker, or retain a
-compatibility alias. Load the JSON explicitly when you want to study or adapt
-the prototype:
+registered short name. Load the JSON explicitly when you want to study or
+adapt the prototype:
 
 ![Documentation-only Cupertino prototype](./assets/style-cookbook/cupertino-prototype.png)
 

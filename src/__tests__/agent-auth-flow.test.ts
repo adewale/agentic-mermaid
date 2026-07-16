@@ -6,7 +6,7 @@ import {
   layoutMermaid,
   measureQuality,
   mutate,
-  parseMermaid,
+  parseRegisteredMermaid as parseMermaid,
   renderMermaidPNG,
   serializeMermaid,
   verifyMermaid,
@@ -124,6 +124,6 @@ describe('tweet auth-flow agent workflow', () => {
     expect(metrics.aspectRatio).toBeLessThanOrEqual(7)
 
     const verdict = checkQuality(layout, { aspectBand: [0.2, 7] })
-    expect(verdict).toMatchObject({ ok: true, violations: [] })
+    expect(verdict).toMatchObject({ ok: true, ranked: [] })
   })
 })

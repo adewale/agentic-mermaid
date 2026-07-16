@@ -14,6 +14,7 @@ import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import { Buffer } from 'node:buffer'
 import { existsSync } from 'node:fs'
 import { extname, join, normalize } from 'node:path'
+import { deflateRawSync } from 'node:zlib'
 import { chromium, type Browser, type Page } from 'playwright'
 import { serveWithAvailablePort } from '../../e2e/test-port.ts'
 import { DEFAULT_ARCHITECTURE_VISUAL } from '../architecture/config.ts'
@@ -106,8 +107,8 @@ async function topbarSlots(page: Page) {
   })
 }
 
-function legacyShareHash(payload: unknown) {
-  return Buffer.from(JSON.stringify(payload), 'utf8').toString('base64')
+function shareHash(payload: unknown) {
+  return 'deflate:' + deflateRawSync(Buffer.from(JSON.stringify(payload), 'utf8')).toString('base64url')
 }
 
 const STYLE_STACK_SHARE = {
@@ -193,7 +194,7 @@ describeBrowser('editor style switcher restyles the artwork, never the chrome', 
 
   test('shared config style still responds to the Style dropdown', async () => {
     const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
-    await page.goto(baseUrl + '/editor/?empty=1#' + legacyShareHash(STYLE_STACK_SHARE), { waitUntil: 'networkidle' })
+    await page.goto(baseUrl + '/editor/?empty=1#' + shareHash(STYLE_STACK_SHARE), { waitUntil: 'networkidle' })
 
     await page.waitForFunction(() => {
       const editor = document.getElementById('code-editor') as HTMLTextAreaElement | null
@@ -214,7 +215,7 @@ describeBrowser('editor style switcher restyles the artwork, never the chrome', 
 
   test('shared config hydrates Settings and survives the first settings edit', async () => {
     const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
-    await page.goto(baseUrl + '/editor/?empty=1#' + legacyShareHash(RESTORED_CONFIG_SHARE), { waitUntil: 'networkidle' })
+    await page.goto(baseUrl + '/editor/?empty=1#' + shareHash(RESTORED_CONFIG_SHARE), { waitUntil: 'networkidle' })
     await page.waitForFunction(() => {
       const svg = document.querySelector('.preview-inner svg') as SVGSVGElement | null
       const preview = document.querySelector('.preview-inner') as HTMLElement | null
@@ -449,9 +450,9 @@ describeBrowser('editor style switcher restyles the artwork, never the chrome', 
         },
       })
     })
-    const share = legacyShareHash({
+    const share = shareHash({
       source,
-      theme: 'paper',
+      palette: 'paper',
       style: 'hand-drawn',
       seed: options.seed,
       config: { padding: options.padding },

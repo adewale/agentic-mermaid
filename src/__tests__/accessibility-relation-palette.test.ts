@@ -1,7 +1,8 @@
 import { describe, expect, test } from 'bun:test'
 import { renderMermaidSVG } from '../index.ts'
-import { layoutMermaid, parseMermaid } from '../agent/index.ts'
-import { THEMES, resolveColors } from '../theme.ts'
+import { layoutMermaid, parseRegisteredMermaid as parseMermaid } from '../agent/index.ts'
+import { resolveColors } from '../theme.ts'
+import { BUILTIN_PALETTE_DEFINITIONS } from '../palette-catalog.ts'
 import { contrastRatio } from '../shared/color-math.ts'
 import { relationAccessibilityForSvg } from '../scene/accessibility.ts'
 import { METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'
@@ -48,7 +49,7 @@ describe('typed relation accessibility', () => {
 })
 
 describe('all built-in palette WCAG contract', () => {
-  for (const [name, theme] of Object.entries(THEMES)) {
+  for (const { inputName: name, colors: theme } of BUILTIN_PALETTE_DEFINITIONS) {
     test(`${name} keeps text AA and relation graphics at 3:1`, () => {
       const colors = resolveColors(theme)
       expect(contrastRatio(colors.text, colors.bg), `${name} primary`).toBeGreaterThanOrEqual(4.5)
@@ -62,12 +63,12 @@ describe('all built-in palette WCAG contract', () => {
   }
 
   test('the resolved SVG uses the checked palette colors on text and relations', () => {
-    for (const name of Object.keys(THEMES)) {
+    for (const { inputName: name, colors: palette } of BUILTIN_PALETTE_DEFINITIONS) {
       const svg = renderMermaidSVG('flowchart LR\n  A -- calls --> B', {
-        ...THEMES[name]!,
+        ...palette,
         embedFontImport: false,
       })
-      const colors = resolveColors(THEMES[name]!)
+      const colors = resolveColors(palette)
       const edge = svg.match(/<polyline[^>]*data-role="edge"[^>]*>/)?.[0]
       const nodeGroup = svg.match(/<g class="node"[^>]*>[\s\S]*?<\/g>/)?.[0]
       const nodeLabel = nodeGroup?.match(/<text[^>]*>/)?.[0]

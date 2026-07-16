@@ -122,7 +122,7 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
   const shadowDefs = buildShadowDefs(colors)
   if (shadowDefs) preludeSegments.push(`<defs>${shadowDefs}</defs>`)
   preludeSegments.push(extraCss)
-  parts.push(marks.prelude(
+  parts.push(marks.documentOpen(
     { id: 'prelude', width: chart.width, height: chart.height, colors, transparent, font, hasMonoFont: false, extraCss },
     preludeSegments.join('\n'),
   ))

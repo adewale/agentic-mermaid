@@ -5,7 +5,7 @@ import { parseMermaid } from '../parser.ts'
 import { applyRouteContracts, auditRouteContracts, classifyRoutes, diamondFacetPorts, directLaneBlockers, findLabelSlot, findRouteHitches, shapePorts, simplifyPolyline } from '../route-contracts.ts'
 import { onShapeOutline } from '../layout-rubric.ts'
 import { measureMultilineText } from '../text-metrics.ts'
-import { layoutMermaid, parseMermaid as agentParse, verifyMermaid } from '../agent/index.ts'
+import { layoutMermaid, parseRegisteredMermaid as agentParse, verifyMermaid } from '../agent/index.ts'
 import type { AnyPort, Point, PositionedEdge, PositionedGraph, PositionedGroup, PositionedNode } from '../types.ts'
 import { EDGE_FORMS, renderEdgeLine } from './helpers/edge-vocabulary.ts'
 

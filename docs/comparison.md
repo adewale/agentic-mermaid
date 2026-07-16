@@ -36,7 +36,7 @@ changelogs for the current state.
 | Diagram types | Broad Mermaid catalogue, including newer experimental families | Flowchart, state, sequence, class, ER, and XY chart | Registry-backed subset listed by `am capabilities --json` |
 | Output formats | SVG (PNG/PDF via CLI tooling) | SVG, ASCII/Unicode | SVG, PNG (offline resvg), ASCII/Unicode, JSON layout |
 | Theming | Theme config + CSS | Two-color foundation, 15+ named themes, Shiki/VS Code compatibility, live CSS-variable switching | Style + Palette stacks: named looks, palette-only styles, custom JSON records, and deterministic seeds |
-| Parse to a typed AST for editing | — (internal parser, not an editing API) | — (render-only API) | ✅ `parseMermaid` → typed `ValidDiagram` |
+| Parse to a typed AST for editing | — (internal parser, not an editing API) | — (render-only API) | ✅ `parseRegisteredMermaid` → typed `ValidDiagram` |
 | Typed mutation | — | — | ✅ every registered family, structured-or-opaque and never lossy |
 | Structural verification | — | — | ✅ 3 warning tiers + perceptual quality metrics, all families |
 | Deterministic output | Not a goal (browser/layout variance) | Mostly stable, not a tested guarantee | ✅ byte-identical across runs/processes, CI-gated |
@@ -61,7 +61,7 @@ enriched palettes and Shiki theme compatibility; ASCII/Unicode terminal
 output. Agentic Mermaid inherits all of this — it is upstream's work, and
 credit belongs there.
 
-**Only Agentic Mermaid:** the typed editing loop. `parseMermaid` returns a
+**Only Agentic Mermaid:** the typed editing loop. `parseRegisteredMermaid` returns a
 sealed IR; family narrowers (`asFlowchart` … `asXyChart`) expose typed
 mutation ops; `verifyMermaid` returns structured warnings instead of asking
 an agent to eyeball pixels; `serializeMermaid` round-trips losslessly

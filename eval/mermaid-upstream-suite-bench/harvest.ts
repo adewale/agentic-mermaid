@@ -17,7 +17,7 @@ import {
   asTimeline,
   asXyChart,
   layoutMermaid,
-  parseMermaid,
+  parseRegisteredMermaid as parseMermaid,
   serializeMermaid,
   verifyMermaid,
 } from '../../src/agent/index.ts'
@@ -648,7 +648,7 @@ function classifyBlock(block: TestBlock):
     reason: 'local-parse-gap',
     source: portableSources[0],
     ours: portableSources[0] ? localBehavior(portableSources[0], block.family) : { parseOk: false },
-    summary: `The upstream source is positive parser coverage, but parseMermaid currently rejects it${firstParseFailure ? ` (${firstParseFailure})` : ''}.`,
+    summary: `The upstream source is positive parser coverage, but parseRegisteredMermaid currently rejects it${firstParseFailure ? ` (${firstParseFailure})` : ''}.`,
   }
 }
 

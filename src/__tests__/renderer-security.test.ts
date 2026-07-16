@@ -13,11 +13,9 @@ describe('#7645/#7695 strict security mode', () => {
     expect(verifyNoExternalRefs(svg)).toEqual({ ok: true, refs: [] })
   })
 
-  test('default mode still emits the Google Fonts @import (back-compat)', () => {
+  test('default mode has zero external-fetch references', () => {
     const svg = renderMermaidSVG('flowchart TD\n A --> B')
-    const v = verifyNoExternalRefs(svg)
-    expect(v.ok).toBe(false)
-    expect(v.refs.some(r => r.includes('fonts.googleapis.com'))).toBe(true)
+    expect(verifyNoExternalRefs(svg)).toEqual({ ok: true, refs: [] })
   })
 
   test('strict mode preserves the --font CSS variable (family still declared)', () => {

@@ -6,7 +6,6 @@ import {
   canonicalExtensionId,
   createExtensionIdentity,
   evaluateExtensionCompatibility,
-  registerCompatibilityAlias,
   registerExtension,
 } from '../shared/extension-identity.ts'
 import type { ExtensionRegistration } from '../shared/extension-identity.ts'
@@ -30,9 +29,8 @@ import { SCENE_VALIDATION_LIMITS } from '../scene/scene-validation.ts'
 import { createMermaidRenderer, renderMermaidSVGWithReceipt } from '../index.ts'
 import '../scene/builtin-backends.ts'
 import { BUILTIN_PALETTE_DEFINITIONS } from '../palette-catalog.ts'
-import { THEMES } from '../theme.ts'
 
-const BACKEND_COMPATIBILITY = Object.freeze({ core: '^0.1.1', scene: '^1.0.0' })
+const BACKEND_COMPATIBILITY = Object.freeze({ core: '^0.1.1', scene: '^2.0.0' })
 const BACKEND_REGISTRATION_OPTIONS = Object.freeze({ compatibility: BACKEND_COMPATIBILITY })
 const registerBackendFromJs = registerBackend as unknown as (
   backend: Parameters<typeof registerBackend>[0],
@@ -273,188 +271,10 @@ describe('shared extension identity', () => {
     expect(registry.size).toBe(0)
   })
 
-  test('keeps stable input names separate from expiring compatibility aliases', () => {
-    const aliases = new Map()
-    expect(() => registerCompatibilityAlias(aliases, {
-      alias: 'old-name',
-      targetId: 'look:new-name',
-    } as any)).toThrow(/requires a diagnostic and removal release\/date/)
-    registerCompatibilityAlias(aliases, {
-      alias: 'old-name',
-      targetId: 'look:new-name',
-      diagnostic: {
-        code: 'STYLE_ALIAS_DEPRECATED',
-        message: 'use new-name',
-        removal: { release: '0.3.0', date: '2027-01-31' },
-      },
-    })
-    expect(aliases.get('old-name')).toMatchObject({
-      diagnostic: { removal: { release: '0.3.0', date: '2027-01-31' } },
-    })
-  })
-
-  test('captures one deep compatibility alias before validation and keying', () => {
-    const reads = { alias: 0, targetId: 0, diagnostic: 0, code: 0, message: 0, removal: 0, release: 0, date: 0 }
-    const removal: Record<string, unknown> = {}
-    Object.defineProperties(removal, {
-      release: {
-        enumerable: true,
-        get() {
-          reads.release++
-          return reads.release === 1 ? '0.3.0' : ''
-        },
-      },
-      date: {
-        enumerable: true,
-        get() {
-          reads.date++
-          return reads.date === 1 ? '2027-01-31' : 'not-a-date'
-        },
-      },
-    })
-    const diagnostic: Record<string, unknown> = {}
-    Object.defineProperties(diagnostic, {
-      code: { enumerable: true, get() { reads.code++; return reads.code === 1 ? 'STYLE_ALIAS_DEPRECATED' : '' } },
-      message: { enumerable: true, get() { reads.message++; return reads.message === 1 ? 'use new-name' : '' } },
-      removal: { enumerable: true, get() { reads.removal++; return removal } },
-    })
-    const input: Record<string, unknown> = {}
-    Object.defineProperties(input, {
-      alias: {
-        enumerable: true,
-        get() {
-          reads.alias++
-          return reads.alias === 1 ? 'old-snapshot' : 'bad:stored'
-        },
-      },
-      targetId: {
-        enumerable: true,
-        get() {
-          reads.targetId++
-          return reads.targetId === 1 ? 'look:new-name' : 'not-canonical'
-        },
-      },
-      diagnostic: { enumerable: true, get() { reads.diagnostic++; return diagnostic } },
-    })
-    const aliases = new Map<string, Parameters<typeof registerCompatibilityAlias>[1]>()
-
-    registerCompatibilityAlias(aliases, input as unknown as Parameters<typeof registerCompatibilityAlias>[1])
-
-    expect(reads).toEqual({ alias: 1, targetId: 1, diagnostic: 1, code: 1, message: 1, removal: 1, release: 1, date: 1 })
-    expect([...aliases.entries()]).toEqual([['old-snapshot', {
-      alias: 'old-snapshot',
-      targetId: 'look:new-name',
-      diagnostic: {
-        code: 'STYLE_ALIAS_DEPRECATED',
-        message: 'use new-name',
-        removal: { release: '0.3.0', date: '2027-01-31' },
-      },
-    }]])
-  })
-
-  test('keeps alias registration atomic when an alias getter re-enters the same Map', () => {
-    const diagnostic = {
-      code: 'STYLE_ALIAS_DEPRECATED',
-      message: 'use canonical input',
-      removal: { release: '0.3.0', date: '2027-01-31' },
-    }
-    const aliases = new Map<string, Parameters<typeof registerCompatibilityAlias>[1]>()
-    let nestedError: unknown
-    const invalidOuter: Record<string, unknown> = {
-      targetId: 'not-canonical',
-      diagnostic,
-    }
-    Object.defineProperty(invalidOuter, 'alias', {
-      enumerable: true,
-      get() {
-        try {
-          registerCompatibilityAlias(aliases, {
-            alias: 'nested-old',
-            targetId: 'look:nested-new',
-            diagnostic,
-          })
-        } catch (error) {
-          nestedError = error
-        }
-        return 'outer-old'
-      },
-    })
-
-    expect(() => registerCompatibilityAlias(
-      aliases,
-      invalidOuter as unknown as Parameters<typeof registerCompatibilityAlias>[1],
-    )).toThrow(/requires a canonical target id/)
-    expect(String(nestedError)).toMatch(/registry mutation is forbidden/)
-    expect(aliases.size).toBe(0)
-
-    const caught: Record<string, unknown> = {
-      targetId: 'look:outer-new',
-      diagnostic,
-    }
-    Object.defineProperty(caught, 'alias', {
-      enumerable: true,
-      get() {
-        try {
-          registerCompatibilityAlias(aliases, {
-            alias: 'nested-old',
-            targetId: 'look:nested-new',
-            diagnostic,
-          })
-        } catch {}
-        return 'outer-old'
-      },
-    })
-    expect(() => registerCompatibilityAlias(
-      aliases,
-      caught as unknown as Parameters<typeof registerCompatibilityAlias>[1],
-    )).toThrow(/reentrant attempt/)
-    expect(aliases.size).toBe(0)
-  })
-
-  test('shares the same-Map mutation guard across both generic helpers', () => {
-    const registry = new Map<string, ExtensionRegistration<string, 'look'>>()
-    const outerIdentity = createExtensionIdentity({
-      id: 'look:test/cross-helper-outer',
-      kind: 'look',
-      version: '1.0.0',
-      provenance: { owner: 'reentrancy-test', source: 'test' },
-    })
-    let nestedError: unknown
-    const outer: Record<string, unknown> = { value: 'outer' }
-    Object.defineProperty(outer, 'identity', {
-      enumerable: true,
-      get() {
-        try {
-          registerCompatibilityAlias(
-            registry as unknown as Map<string, Parameters<typeof registerCompatibilityAlias>[1]>,
-            {
-              alias: 'cross-helper-old',
-              targetId: 'look:cross-helper-new',
-              diagnostic: {
-                code: 'STYLE_ALIAS_DEPRECATED',
-                message: 'use canonical input',
-                removal: { release: '0.3.0', date: '2027-01-31' },
-              },
-            },
-          )
-        } catch (error) {
-          nestedError = error
-        }
-        return outerIdentity
-      },
-    })
-
-    expect(() => registerExtension(
-      registry,
-      outer as unknown as ExtensionRegistration<string, 'look'>,
-    )).toThrow(/reentrant attempt/)
-    expect(String(nestedError)).toMatch(/registry mutation is forbidden/)
-    expect(registry.size).toBe(0)
-  })
 })
 
 describe('canonical style identities', () => {
-  test('publishes only the full Tufte Look and rejects removed palette and bare inputs', () => {
+  test('publishes the full Tufte Look and rejects the removed palette identity', () => {
     const look = getStyle('look:tufte')!
     expect(look.name).toBe('look:tufte')
     expect(look.font).toBe('EB Garamond')
@@ -464,12 +284,9 @@ describe('canonical style identities', () => {
     expect(getStyle('tufte')).toBeUndefined()
     expect(resolveStyleReference('tufte')).toBeUndefined()
     expect(() => resolveStyleStack('tufte')).toThrow(/Unknown style "tufte"/)
-    expect(knownStyleDescriptors()
-      .find(descriptor => descriptor.identity.id === 'look:tufte')!
-      .aliases).toEqual([])
   })
 
-  test('discovers canonical identities and retains legacy inputs without duplicate meanings', () => {
+  test('discovers canonical identities and stable inputs without duplicate meanings', () => {
     const descriptors = knownStyleDescriptors()
     const ids = descriptors.map(descriptor => descriptor.identity.id)
     expect(ids).not.toContain('palette:tufte')
@@ -480,10 +297,7 @@ describe('canonical style identities', () => {
     expect(knownStyles()).not.toContain('tufte')
     expect(descriptors.find(descriptor => descriptor.identity.id === 'look:tufte')?.identity.provenance.owner)
       .toBe('agentic-mermaid')
-    expect(resolveStyleReference('default')).toMatchObject({
-      canonicalId: 'look:crisp',
-      diagnostic: { code: 'STYLE_ALIAS_DEPRECATED', removal: { release: '0.3.0', date: '2027-01-31' } },
-    })
+    expect(resolveStyleReference('default')).toBeUndefined()
     expect(descriptors.find(descriptor => descriptor.identity.id === 'look:crisp')).toMatchObject({
       inputName: 'crisp',
       kind: 'look',
@@ -491,13 +305,11 @@ describe('canonical style identities', () => {
     })
   })
 
-  test('generates the legacy THEMES view from the canonical palette catalog', () => {
-    expect(Object.keys(THEMES)).toEqual(BUILTIN_PALETTE_DEFINITIONS.map(definition => definition.legacyName))
-    expect(THEMES).not.toHaveProperty('tufte')
+  test('registers every canonical palette catalog entry', () => {
     const descriptors = new Map(knownStyleDescriptors().map(descriptor => [descriptor.identity.id, descriptor]))
     for (const definition of BUILTIN_PALETTE_DEFINITIONS) {
-      expect(THEMES[definition.legacyName]).toEqual(definition.colors)
       expect(descriptors.get(definition.id)?.spec.colors).toEqual(definition.colors)
+      expect(resolveStyleReference(definition.inputName)?.canonicalId).toBe(definition.id)
     }
   })
 
@@ -852,8 +664,17 @@ describe('backend registration and host policy', () => {
         return DefaultBackend.render(document, context)
       },
     }, { compatibility: { core: '^0.1.1', scene: '^99.0.0' } }))
-      .toThrow(/scene.*\^99\.0\.0.*host version 1\.0\.0/i)
+      .toThrow(/scene.*\^99\.0\.0.*host version 2\.0\.0/i)
     expect(incompatibleWitnessCalls).toBe(0)
+    expect(() => registerBackendFromJs({
+      ...DefaultBackend,
+      id: 'backend:test/scene-v1',
+      capabilities: DefaultBackend.capabilities.map(claim => ({
+        ...claim,
+        target: 'backend:test/scene-v1',
+      })),
+    }, { compatibility: { core: '^0.1.1', scene: '^1.0.0' } }))
+      .toThrow(/scene.*\^1\.0\.0.*host version 2\.0\.0/i)
   })
 
   test('requires an explicit Scene range before backend conformance executes', () => {
@@ -896,7 +717,7 @@ describe('backend registration and host policy', () => {
       .toThrow(/options with explicit core and Scene compatibility ranges are required/i)
     expect(() => registerBackendFromJs(
       candidate('backend:test/missing-core-range'),
-      { compatibility: { scene: '^1.0.0' } },
+      { compatibility: { scene: '^2.0.0' } },
     )).toThrow(/must declare an explicit compatible "core" range/i)
     expect(witnessCalls).toBe(0)
   })

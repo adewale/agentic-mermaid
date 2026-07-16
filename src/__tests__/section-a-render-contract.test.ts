@@ -20,11 +20,7 @@ import { SDK_DECLARATION } from '../mcp/sdk-decl.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { HOSTED_TOOLS } from '../mcp/hosted-server.ts'
 import { LOCAL_TOOLS } from '../mcp/server.ts'
-import {
-  MCP_PNG_RENDER_OPTION_CONVENIENCES,
-  MCP_SVG_RENDER_OPTION_CONVENIENCES,
-  projectMcpRenderOptions,
-} from '../mcp/tool-surface.ts'
+import { projectMcpRenderOptions } from '../mcp/tool-surface.ts'
 import { applyOutputSecurityPolicy, verifyNoExternalRefs } from '../output-security.ts'
 import { detectColorMode } from '../ascii/ansi.ts'
 import { renderMermaidASCII, renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
@@ -135,8 +131,9 @@ describe('Section A canonical render contracts', () => {
 
   test('idPrefix schema and runtime admission enforce the same SVG-id alphabet', () => {
     const schema = sharedRenderOptionsJsonSchema() as { properties: { idPrefix: { pattern?: string } } }
-    expect(schema.properties.idPrefix.pattern).toBe('^[A-Za-z0-9_.:-]*$')
-    expect(validateSerializableRenderOptions({ idPrefix: '' })).toEqual([])
+    expect(schema.properties.idPrefix.pattern).toBe('^[A-Za-z0-9_.:-]+$')
+    expect(validateSerializableRenderOptions({ idPrefix: '' }))
+      .toEqual([expect.stringContaining('non-empty')])
     expect(validateSerializableRenderOptions({ idPrefix: 'diagram_1.2:-' })).toEqual([])
     expect(validateSerializableRenderOptions({ idPrefix: 'bad" onload="x-' }))
       .toEqual([expect.stringContaining('ASCII letters, digits, underscore, hyphen, dot, and colon')])
@@ -180,7 +177,7 @@ describe('Section A canonical render contracts', () => {
   })
 
   test('output descriptors derive CLI aliases and the Code Mode render declaration', () => {
-    expect(CLI_RENDER_FORMATS).toEqual(['svg', 'ascii', 'unicode', 'png', 'json'])
+    expect(CLI_RENDER_FORMATS).toEqual(['svg', 'ascii', 'unicode', 'png', 'layout'])
     const html = RENDER_OUTPUT_DESCRIPTORS.find(descriptor => descriptor.id === 'html')!
     const layout = RENDER_OUTPUT_DESCRIPTORS.find(descriptor => descriptor.id === 'layout')!
     expect(html.transports.library).toMatchObject({ availability: 'projected', entrypoint: 'renderMermaidASCII' })
@@ -190,7 +187,7 @@ describe('Section A canonical render contracts', () => {
     expect(html.transports.hostedMcp).toMatchObject({ availability: 'indirect', entrypoint: 'execute' })
     expect(html.transports.editor).toMatchObject({ availability: 'unavailable', entrypoint: 'none' })
     expect(html.transports.website).toMatchObject({ availability: 'unavailable', entrypoint: 'none' })
-    expect(layout.transports.cli).toMatchObject({ availability: 'direct', format: 'json' })
+    expect(layout.transports.cli).toMatchObject({ availability: 'direct', format: 'layout' })
     expect(layout.transports.codeMode).toMatchObject({ availability: 'direct', method: 'layoutMermaidWithReceipt' })
     expect(layout.transports.localMcp).toMatchObject({ availability: 'indirect', entrypoint: 'execute' })
     expect(RENDER_OUTPUT_DESCRIPTORS.flatMap(descriptor =>
@@ -242,50 +239,15 @@ describe('Section A canonical render contracts', () => {
     }
   })
 
-  test('MCP convenience style fields project the canonical shared-field schema', () => {
-    const withoutDescription = (schema: Record<string, unknown>) => {
-      const { description: _description, ...rest } = schema
-      return rest
-    }
-    const sharedProperties = (sharedRenderOptionsJsonSchema() as {
-      properties: Record<string, Record<string, unknown>>
-    }).properties
-    const expected = withoutDescription(sharedProperties.style!)
+  test('MCP render schemas expose shared fields only through canonical nested options', () => {
     expect(styleInputJsonSchema()).toEqual(SHARED_RENDER_OPTION_FIELD_DESCRIPTORS.style.schema)
-    for (const tool of [...HOSTED_TOOLS, ...LOCAL_TOOLS].filter(tool =>
-      (tool.name === 'render_svg' || tool.name === 'render_png')
-      && (tool.inputSchema.properties as Record<string, unknown>)?.style !== undefined)) {
+    for (const tool of [...HOSTED_TOOLS, ...LOCAL_TOOLS].filter(tool => tool.name === 'render_svg' || tool.name === 'render_png')) {
       const properties = tool.inputSchema.properties as Record<string, Record<string, unknown>>
-      expect(withoutDescription(properties.style!), tool.name).toEqual(expected)
+      expect(properties.options, `${tool.name}.options`).toBeDefined()
+      for (const field of ['bg', 'fg', 'style', 'seed']) expect(properties[field], `${tool.name}.${field}`).toBeUndefined()
     }
-  })
-
-  test('MCP compatibility conveniences derive schema and precedence from one projection', () => {
-    const canonical = (sharedRenderOptionsJsonSchema() as {
-      properties: Record<string, Record<string, unknown>>
-    }).properties
-    const profiles = [
-      [HOSTED_TOOLS.find(tool => tool.name === 'render_svg')!, MCP_SVG_RENDER_OPTION_CONVENIENCES],
-      [HOSTED_TOOLS.find(tool => tool.name === 'render_png')!, MCP_PNG_RENDER_OPTION_CONVENIENCES],
-      [LOCAL_TOOLS.find(tool => tool.name === 'render_png')!, MCP_PNG_RENDER_OPTION_CONVENIENCES],
-    ] as const
-    for (const [tool, fields] of profiles) {
-      const properties = tool.inputSchema.properties as Record<string, Record<string, unknown>>
-      for (const field of fields) {
-        const withoutDescription = ({ description: _description, ...schema }: Record<string, unknown>) => schema
-        expect(withoutDescription(properties[field]!), `${tool.name}.${field}`)
-          .toEqual(withoutDescription(canonical[field]!))
-      }
-    }
-
-    expect(projectMcpRenderOptions({
-      options: { bg: '#ffffff', fg: '#111111', seed: 1 },
-      bg: '#000000',
-      seed: 3,
-    }, MCP_SVG_RENDER_OPTION_CONVENIENCES, { fg: '#222222' })).toEqual({
-      bg: '#000000',
-      fg: '#222222',
-      seed: 3,
+    expect(projectMcpRenderOptions({ options: { bg: '#ffffff', fg: '#111111', seed: 1 } })).toEqual({
+      bg: '#ffffff', fg: '#111111', seed: 1,
     })
   })
 
@@ -302,19 +264,9 @@ describe('Section A canonical render contracts', () => {
     expect(Object.isFrozen(svg.renderOptions)).toBe(true)
   })
 
-  test('deprecated Style aliases emit one structured, time-bounded receipt diagnostic', () => {
-    const { receipt } = renderMermaidSVGWithReceipt(SOURCE, { style: ['default', 'default'] })
-    const diagnostics = receipt.diagnostics ?? []
-    expect(diagnostics).toContainEqual({
-      code: 'STYLE_ALIAS_DEPRECATED',
-      message: 'Style alias "default" resolves to "look:crisp"; use the stable input "crisp".',
-      input: 'default',
-      canonicalId: 'look:crisp',
-      removal: { release: '0.3.0', date: '2027-01-31' },
-    })
-    expect(diagnostics.filter(diagnostic => diagnostic.code === 'STYLE_ALIAS_DEPRECATED')).toHaveLength(1)
-    expect(Object.isFrozen(diagnostics)).toBe(true)
-    expect(Object.isFrozen(diagnostics.find(diagnostic => diagnostic.code === 'STYLE_ALIAS_DEPRECATED')?.removal)).toBe(true)
+  test('removed Style aliases fail instead of producing compatibility diagnostics', () => {
+    expect(() => renderMermaidSVGWithReceipt(SOURCE, { style: 'default' }))
+      .toThrow('Unknown style "default"')
   })
 
   test('appearance is a pure projection and family code receives one explicit resolved context', () => {
@@ -418,7 +370,9 @@ xychart-beta
 
   test('output-security decisions remain visible in the artifact receipt', () => {
     const defaultArtifact = renderMermaidSVGWithReceipt(SOURCE)
-    expect(defaultArtifact.receipt.diagnostics).toContainEqual(expect.objectContaining({ code: 'EXTERNAL_REFERENCE' }))
+    expect(defaultArtifact.receipt.diagnostics).toEqual([])
+    const importingArtifact = renderMermaidSVGWithReceipt(SOURCE, { embedFontImport: true })
+    expect(importingArtifact.receipt.diagnostics).toContainEqual(expect.objectContaining({ code: 'EXTERNAL_REFERENCE' }))
     const strictArtifact = renderMermaidSVGWithReceipt(SOURCE, { security: 'strict' })
     expect(strictArtifact.receipt.diagnostics).toEqual([])
     expect(verifyNoExternalRefs(strictArtifact.svg).ok).toBe(true)

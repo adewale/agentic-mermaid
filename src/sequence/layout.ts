@@ -346,9 +346,8 @@ export function layoutSequenceDiagram(
       to: msg.to,
       label: displayMessageLabel(msg), // autonumber prefix baked in ("1. label")
       lineStyle: msg.lineStyle,
-      arrowHead: msg.arrowHead,
-      startHead: msg.startHead ?? 'none',
-      endHead: msg.endHead ?? (msg.arrowHead === 'filled' ? 'filled' : 'open'),
+      startHead: msg.startHead,
+      endHead: msg.endHead,
       centralStart: msg.centralStart ?? false,
       centralEnd: msg.centralEnd ?? false,
       x1, x2,

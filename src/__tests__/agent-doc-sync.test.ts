@@ -210,7 +210,7 @@ describe('vocabulary doc-sync', () => {
     for (const family of BUILTIN_FAMILY_METADATA) {
       const descriptor = getFamily(family.id)
       const capability = capabilities.families.find(entry => entry.id === family.id)
-      expect(descriptor?.narrower).toBe(family.narrower)
+      expect(descriptor?.id).toBe(family.id)
       expect(capability?.narrower).toBe(family.narrower)
       expect(capability?.headers).toEqual(family.headers)
     }
@@ -390,17 +390,18 @@ describe('vocabulary doc-sync', () => {
 
     for (const [family, ops] of Object.entries(MUTATION_OPS_BY_FAMILY) as Array<[keyof typeof MUTATION_OPS_BY_FAMILY, readonly string[]]>) {
       const descriptor = getFamily(family)!
+      const metadata = BUILTIN_FAMILY_METADATA.find(entry => entry.id === family)!
       const capability = capabilities.families.find(entry => entry.id === family)
       expect(capability?.mutationOps).toEqual([...ops])
-      expect(capability?.narrower).toBe(descriptor.narrower)
-      expect(SDK_DECLARATION).toContain(descriptor.narrower!)
+      expect(capability?.narrower).toBe(metadata.narrower)
+      expect(SDK_DECLARATION).toContain(metadata.narrower)
 
       for (const [file, text] of [
         ['llms.txt', llms],
         ['init-agent AGENTS.md snippet', AGENTS_SNIPPET],
         ['init-agent skill bundle', INIT_SKILL_MD],
       ] as const) {
-        expect({ family, file, narrowerListed: text.includes(descriptor.narrower!) })
+        expect({ family, file, narrowerListed: text.includes(metadata.narrower) })
           .toEqual({ family, file, narrowerListed: true })
       }
     }
@@ -452,7 +453,7 @@ describe('vocabulary doc-sync', () => {
     for (const narrower of advertised) {
       const source = SOURCES[narrower]
       expect({ narrower, known: Boolean(source) }).toEqual({ narrower, known: true })
-      const code = `const r = mermaid.parseMermaid('${source}')\nif (!r.ok) return { narrower: '${narrower}', phase: 'parse' }\nconst n = mermaid.${narrower}(r.value)\nreturn { narrower: '${narrower}', narrowed: n !== null }`
+      const code = `const r = mermaid.parseRegisteredMermaid('${source}')\nif (!r.ok) return { narrower: '${narrower}', phase: 'parse' }\nconst n = mermaid.${narrower}(r.value)\nreturn { narrower: '${narrower}', narrowed: n !== null }`
       const result = await executeInSandbox(code, {})
       expect({ narrower, ok: result.ok, value: result.ok ? result.value : result.error })
         .toEqual({ narrower, ok: true, value: { narrower, narrowed: true } })
@@ -857,8 +858,8 @@ describe('detector drift guard (agent vs shared router)', () => {
   // Agent parse, SVG rendering, and ASCII rendering all share the routed
   // detector in mermaid-source.ts. The agent layer only splits state out from
   // the renderer's flowchart route.
-  test('agent.parseMermaid and detectDiagramType agree on routed families', async () => {
-    const { parseMermaid: agentParse } = await import('../agent/parse.ts')
+  test('agent.parseRegisteredMermaid and detectDiagramType agree on routed families', async () => {
+    const { parseRegisteredMermaid: agentParse } = await import('../agent/parse.ts')
     const { detectDiagramType } = await import('../mermaid-source.ts')
     const cases: Array<[string, string]> = [
       ['flowchart TD\n  A --> B', 'flowchart'],

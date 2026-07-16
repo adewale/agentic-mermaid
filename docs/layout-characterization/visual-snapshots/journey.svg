@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 530 482.3" width="530" height="482.3" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" role="img" aria-roledescription="user journey" aria-labelledby="char-journey-journey-4ni3mk-title">
+<svg xmlns="http://www.w3.org/2000/svg" width="530" height="482.3" viewBox="0 0 530 482.3" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" aria-labelledby="char-journey-journey-4ni3mk-title" aria-roledescription="user journey" role="img">
 <title id="char-journey-journey-4ni3mk-title">Checkout</title>
 <style>
   text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }

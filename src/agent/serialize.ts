@@ -10,7 +10,7 @@ import type {
 import { ok, err } from './types.ts'
 import YAML from 'yaml'
 import { getFamily, knownFamilies } from './families.ts'
-import { parseMermaid, parseRegisteredMermaid } from './parse.ts'
+import { parseRegisteredMermaid } from './parse.ts'
 import { ensureAccessibilityLines } from './accessibility-envelope.ts'
 import type { ExtensionIdentity } from '../shared/extension-identity.ts'
 import { sameExtensionIdentity } from '../shared/extension-identity.ts'
@@ -192,7 +192,7 @@ export function synthesizeFromGraph(payload: ValidDiagramPayload): Result<Parsed
     // A successful untrusted rehydration must be a real diagram, not merely a
     // body that happened not to throw in a serializer. Reparse the canonical
     // source and require the same family before publishing ValidDiagram.
-    const reparsed = parseMermaid(rebuilt.value.canonicalSource)
+    const reparsed = parseRegisteredMermaid(rebuilt.value.canonicalSource)
     if (!reparsed.ok || reparsed.value.kind !== rebuilt.value.kind) {
       const detail = reparsed.ok
         ? `serialized source reparsed as ${reparsed.value.kind}/${reparsed.value.body.kind}`

@@ -1,9 +1,10 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { Resvg } from '@resvg/resvg-js'
-import { renderMermaidSVG, parseMermaid } from '../../src/index.ts'
+import { renderMermaidSVG } from '../../src/index.ts'
+import { parseMermaid } from '../../src/parser.ts'
 import { layoutGraphSync } from '../../src/layout-engine.ts'
-import { THEMES } from '../../src/theme.ts'
+import { BUILTIN_PALETTE_DEFINITIONS } from '../../src/palette-catalog.ts'
 import type { PositionedGraph } from '../../src/types.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
@@ -16,7 +17,7 @@ const OPTIONS = {
   seed: 3,
 }
 
-const COLORS = THEMES.salmon!
+const COLORS = BUILTIN_PALETTE_DEFINITIONS.find(palette => palette.inputName === 'salmon')!.colors
 const FONT_FILES = [
   join(ROOT, 'assets', 'fonts', 'DejaVuSans.ttf'),
   join(ROOT, 'assets', 'fonts', 'DejaVuSans-Bold.ttf'),

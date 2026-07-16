@@ -28,7 +28,7 @@ const SOURCE = 'parsedRenderCompositionDiagram\n  future payload'
 
 function descriptor(): FamilyDescriptor {
   return {
-    contractVersion: 1,
+    contractVersion: 2,
     identity: createExtensionIdentity({
       id: FAMILY_ID,
       kind: 'family',

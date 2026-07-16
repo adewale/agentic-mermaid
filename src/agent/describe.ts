@@ -6,13 +6,13 @@
 // doc generation, and LLM context compaction without re-parsing.
 //
 // Library: describeMermaid(d, opts?) — accepts a ValidDiagram. Convenience
-// describeMermaidSource(source) wraps parseMermaid for callers (CLI/MCP) that
+// describeMermaidSource(source) wraps parseRegisteredMermaid for callers (CLI/MCP) that
 // only have a string.
 // ============================================================================
 
-import { parseMermaid } from './parse.ts'
+import { parseRegisteredMermaid } from './parse.ts'
 import type {
-  ValidDiagram, FlowchartValidDiagram, SequenceValidDiagram, TimelineValidDiagram,
+  ValidDiagram, ParsedDiagram, FamilyId, FlowchartValidDiagram, SequenceValidDiagram, TimelineValidDiagram,
   ClassValidDiagram, ErValidDiagram,
 } from './types.ts'
 import { getFamily, extractLabelsGeneric } from './families.ts'
@@ -42,7 +42,7 @@ export interface DescribeTree {
 }
 
 export function describeMermaidSource(source: string, opts: DescribeOptions = {}): string {
-  const r = parseMermaid(source)
+  const r = parseRegisteredMermaid(source)
   if (!r.ok) {
     const first = Array.isArray(r.error) ? r.error[0] : undefined
     if (opts.format === 'json') {
@@ -54,7 +54,7 @@ export function describeMermaidSource(source: string, opts: DescribeOptions = {}
   return describeMermaid(r.value, opts)
 }
 
-export function describeMermaid(d: ValidDiagram, opts: DescribeOptions = {}): string {
+export function describeMermaid(d: ParsedDiagram, opts: DescribeOptions = {}): string {
   if (opts.format === 'json') return JSON.stringify(describeMermaidTree(d))
   if (opts.format === 'facts') return describeMermaidFacts(d).join('\n')
   if (d.body.kind === 'flowchart') return describeFlowchart(d as FlowchartValidDiagram)
@@ -78,6 +78,8 @@ export function describeMermaid(d: ValidDiagram, opts: DescribeOptions = {}): st
     return `A radar chart ${title}comparing ${d.body.curves.length} curve(s)${curves ? ` (${curves})` : ''} across ${d.body.axes.length} axis/axes${axes ? ` (${axes})` : ''}.`
   }
   if (d.body.kind === 'opaque') return describeOpaque(d.kind, d.body.source)
+  if (d.body.kind === 'extension') return describeOpaque(d.kind, d.body.source)
+  if (d.body.kind === 'preserved') return `An unregistered ${d.body.preservation.upstreamFamilyId ?? d.body.preservation.header} diagram preserved as source. ${d.body.diagnostic.message}`
   // Exhaustiveness guard: a new family must declare its prose here. This is why
   // pie/quadrant silently fell through to a "not yet supported" line for months.
   const _never: never = d.body
@@ -91,7 +93,7 @@ export function describeMermaid(d: ValidDiagram, opts: DescribeOptions = {}): st
  * tooling than prose. Covers the structured families; source-level/opaque
  * families expose extracted labels as nodes and no edges.
  */
-export function describeMermaidTree(d: ValidDiagram): DescribeTree {
+export function describeMermaidTree(d: ParsedDiagram): DescribeTree {
   const tree: DescribeTree = { kind: d.kind, nodes: [], edges: [], entryPoints: [], sinks: [] }
   if (d.body.kind === 'flowchart') {
     const g = d.body.graph
@@ -194,6 +196,12 @@ export function describeMermaidTree(d: ValidDiagram): DescribeTree {
     const plugin = getFamily(d.kind)
     const labels = (plugin?.extractLabels ?? extractLabelsGeneric)(d.body.source)
     labels.forEach((label, index) => tree.nodes.push({ id: label.target || `label-${index}`, label: label.text }))
+  } else if (d.body.kind === 'extension') {
+    const plugin = getFamily(d.kind)
+    const labels = (plugin?.extractLabels ?? extractLabelsGeneric)(d.body.source)
+    labels.forEach((label, index) => tree.nodes.push({ id: label.target || `label-${index}`, label: label.text }))
+  } else if (d.body.kind === 'preserved') {
+    // Preserved sources have no registered semantic contract to project.
   } else {
     // Exhaustiveness guard: a new structured family must add a node/edge branch
     // above rather than silently producing an empty accessibility tree.
@@ -291,10 +299,9 @@ function describeSequence(d: SequenceValidDiagram): string {
   const parts = d.body.participants
   const partStr = parts.map(p => p.label || p.id).join(', ')
   let s = `A sequence diagram between ${partStr || '(no participants)'}.`
-  const statements = d.body.statements ?? d.body.messages.map((_, ref) => ({ kind: 'message' as const, ref }))
   const interactions: string[] = []
   let fragmentIndex = 0
-  for (const statement of statements) {
+  for (const statement of d.body.statements) {
     if (statement.kind === 'message') {
       const message = d.body.messages[statement.ref]
       if (message) interactions.push(`message ${message.from} -> ${message.to}: ${message.text}`)
@@ -454,7 +461,7 @@ function describeGantt(d: ValidDiagram & { body: import('./types.ts').GanttBody 
   return s
 }
 
-function describeOpaque(kind: ValidDiagram['kind'], source: string): string {
+function describeOpaque(kind: FamilyId, source: string): string {
   const plugin = getFamily(kind)
   const labels = (plugin?.extractLabels ?? extractLabelsGeneric)(source).map(label => label.text)
   const unique = Array.from(new Set(labels)).filter(Boolean)

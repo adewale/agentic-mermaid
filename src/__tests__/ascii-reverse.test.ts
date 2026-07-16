@@ -8,7 +8,7 @@
 import { describe, test, expect } from 'bun:test'
 import { renderMermaidASCII } from '../ascii/index.ts'
 import { asciiToMermaid } from '../ascii/reverse.ts'
-import { parseMermaid } from '../agent/parse.ts'
+import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 
 function labelsAndEdgeCount(mermaid: string): { labels: Set<string>; edges: number } {
   const labels = new Set<string>()

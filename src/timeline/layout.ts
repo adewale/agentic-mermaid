@@ -164,7 +164,7 @@ export function layoutTimelineDiagram(
   // overhead (paddings, gaps, frame insets) and re-run the metric pass ONCE
   // with proportionally compressed wrap caps and box minimums. Deterministic
   // (a pure function of the same inputs), and a no-op when the chart already
-  // fits, so the default path stays byte-identical. Best-effort: unbreakable
+  // fits, so the default layout is unchanged. Best-effort: unbreakable
   // tokens and extra-wide section headers can still exceed the budget.
   const budget = options.timeline?.maxWidth
   if (!vertical && typeof budget === 'number' && Number.isFinite(budget) && budget > 0) {

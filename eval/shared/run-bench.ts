@@ -7,10 +7,10 @@
 // sequence" in seqbench) live in the caller via the optional `extra` hook.
 // ============================================================================
 
-import { parseMermaid } from '../../src/agent/parse.ts'
+import { parseRegisteredMermaid as parseMermaid } from '../../src/agent/parse.ts'
 import { serializeMermaid } from '../../src/agent/serialize.ts'
 import { verifyMermaid } from '../../src/agent/verify.ts'
-import type { ValidDiagram } from '../../src/agent/types.ts'
+import type { ParsedDiagram } from '../../src/agent/types.ts'
 
 export interface RoundtripRow {
   source: string
@@ -28,7 +28,7 @@ export interface RoundtripCounts {
 
 export interface RoundtripOptions<R = unknown> {
   /** Per-row hook for caller-specific tallies (e.g. "is sequence structured"). */
-  extra?: (row: RoundtripRow, diagram: ValidDiagram, acc: R) => void
+  extra?: (row: RoundtripRow, diagram: ParsedDiagram, acc: R) => void
   /** Initial extra-state. */
   initial?: R
 }

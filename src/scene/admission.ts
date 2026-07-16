@@ -1,7 +1,6 @@
 /** One family-aware admission gate between Scene lowering and every backend. */
 
 import type { FamilyDescriptor } from '../agent/families.ts'
-import { isExternalFamilyId } from '../agent/families.ts'
 import { sceneNodePrimitives } from './capabilities.ts'
 import type { SceneDoc, SceneNode, SemanticChannelName } from './ir.ts'
 import {
@@ -24,23 +23,16 @@ function visit(nodes: readonly SceneNode[], callback: (node: SceneNode, path: st
 
 /**
  * Validate a lowered document and reconcile what it actually emitted with the
- * descriptor's complete role x primitive ledger. Built-in documents retain
- * their original identity for byte compatibility; external documents return
- * the bounded immutable snapshot that every backend must serialize.
+ * descriptor's complete role x primitive ledger. Every family returns the
+ * bounded immutable snapshot that every backend must serialize.
  */
 export function admitFamilyScene(descriptor: FamilyDescriptor, value: unknown): SceneDoc {
-  const external = isExternalFamilyId(descriptor.id)
-  // External lowerScene hooks are executable host code and may return a live
-  // Proxy. Reduce that value to one bounded immutable data snapshot before
-  // validation; every backend then serializes the exact object that passed
-  // admission. Built-ins retain their historical identity/byte path.
-  const admitted = external
-    ? snapshotBoundedExternalData(
-        value,
-        EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS,
-        'scene',
-      )
-    : value
+  const external = descriptor.id.startsWith('family:')
+  const admitted = snapshotBoundedExternalData(
+    value,
+    EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS,
+    'scene',
+  )
   assertValidSceneDoc(admitted, { mode: external ? 'external' : 'internal' })
   const scene = admitted as SceneDoc
   const diagnostics: SceneValidationDiagnostic[] = []

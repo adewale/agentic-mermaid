@@ -172,7 +172,8 @@ export const FAMILY_CONFORMANCE_MAX_EXAMPLE_BYTES = 64 * 1024
 
 export type FamilyCapability = (typeof FAMILY_CAPABILITY_COLUMNS)[number]
 export type FamilyCapabilityState = 'native' | 'source-preserved' | 'diagnosed' | 'not-applicable' | 'absent'
-export const FAMILY_CONFORMANCE_VERSION = 1 as const
+export const FAMILY_DESCRIPTOR_CONTRACT_VERSION = 2 as const
+export const FAMILY_CONFORMANCE_VERSION = 2 as const
 
 /**
  * Canonical processing contract for a Mermaid family that is recognized by
@@ -382,7 +383,7 @@ export interface BuiltinFamilyMetadata {
 }
 
 export interface FamilyDescriptor extends FamilyOperations {
-  readonly contractVersion: 1
+  readonly contractVersion: typeof FAMILY_DESCRIPTOR_CONTRACT_VERSION
   readonly identity: ExtensionIdentity<'family'>
   readonly id: FamilyId
   readonly upstreamId?: string
@@ -410,11 +411,6 @@ export interface FamilyDescriptor extends FamilyOperations {
    * realization; negative cells are explicit and diagnosed. */
   readonly scenePrimitiveEvidence: readonly FamilyScenePrimitiveEvidence[]
   readonly capabilityEvidence: readonly FamilyCapabilityEvidence[]
-  /** Built-in-only compatibility/discovery projection fields. */
-  readonly narrower?: `as${string}`
-  readonly editorDiagramType?: string
-  readonly editorExampleId?: string
-  readonly editorGlyph?: string
   readonly example: string
 }
 
@@ -561,13 +557,20 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
 export type BuiltinFamilyId = typeof BUILTIN_FAMILY_DESCRIPTOR_SEEDS[number]['id']
 
 function completeBuiltinDescriptor(seed: BuiltinFamilyDescriptorSeed): FamilyDescriptor {
-  const { sceneRoles, ...descriptor } = seed
+  const {
+    sceneRoles,
+    narrower: _narrower,
+    editorDiagramType: _editorDiagramType,
+    editorExampleId: _editorExampleId,
+    editorGlyph: _editorGlyph,
+    ...descriptor
+  } = seed
   const semanticRoles = sceneRoles.map(row => row.role)
   return freezeDescriptor({
     ...descriptor,
     ...BUILTIN_AGENT_HOOKS[seed.id],
     ...BUILTIN_RENDER_HOOKS[seed.id],
-    contractVersion: 1 as const,
+    contractVersion: FAMILY_DESCRIPTOR_CONTRACT_VERSION,
     identity: createExtensionIdentity({
       id: `family:${seed.id}`,
       kind: 'family',
@@ -647,10 +650,6 @@ const FAMILY_DESCRIPTOR_FIELDS = Object.freeze([
   'semanticChannels',
   'scenePrimitiveEvidence',
   'capabilityEvidence',
-  'narrower',
-  'editorDiagramType',
-  'editorExampleId',
-  'editorGlyph',
   'example',
   'normalizeRequest',
   'extractLabels',
@@ -911,7 +910,7 @@ function validateDescriptor(
   if (descriptor.identity?.id !== expectedIdentityId || descriptor.identity.kind !== 'family') {
     throw new Error(`Family descriptor identity must be "${expectedIdentityId}" with kind "family"`)
   }
-  if (descriptor.contractVersion !== 1) {
+  if (descriptor.contractVersion !== FAMILY_DESCRIPTOR_CONTRACT_VERSION) {
     throw new Error(`Family "${descriptor.id}" uses an unsupported descriptor contract`)
   }
   createExtensionIdentity({

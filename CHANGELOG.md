@@ -70,6 +70,38 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 - Closed the Radar audit gaps in public synthesis validation, upstream title/comment/options grammar, Style-face-aware measurement, independent frame dimensions, theme paint/typography propagation, styled-backend opacity, empty-curve ASCII output, tick geometry, and duplicate-ID stability.
 
 ### Breaking
+- Removed the deprecated compatibility layer across library, agent, CLI, MCP,
+  editor, Style, Scene, and SVG surfaces. Library callers must use
+  `renderMermaidSVG` / `renderMermaidSVGAsync`, `renderMermaidASCII`, and
+  `parseRegisteredMermaid`; `AsciiWidthError.requestedWidth` replaces
+  `targetWidth`. The browser PNG raster callback no longer receives `scale`.
+  Agent callers must use `FlowchartMutationOp`, required Sequence statements,
+  and canonical message endpoint data instead of the removed mutation/type
+  aliases and projections.
+- CLI and MCP inputs now accept canonical spellings and nesting only: use
+  `am render --format ascii`, batch `format: "ascii"`, layout
+  `--format layout`, and `agentic-mermaid-mcp --transport http`. MCP render
+  appearance belongs under canonical nested options; hosted SVG uses
+  `palette`, not `theme`. Removed and unknown MCP flags now fail closed instead
+  of silently starting stdio.
+- Style discovery no longer exposes `THEMES`, compatibility-alias registration,
+  `default`, bare `tufte`, or dormant Style aliases. Use `crisp` and the
+  canonical-only `look:tufte`. Editor share links are deflate-only, accept
+  `palette` only, and drafts persist in `sessionStorage` for the current tab;
+  old plain-base64 links and persistent draft controls are not migrated.
+- Scene contract v2 removes public crisp/raw/prelude serialization carriers and
+  duplicate connector geometry/paint/marker fields. Connector marks and private
+  serialization sidecars are the sole authorities. External Scene families and
+  backends must declare `identity.compatibility.scene: "^2.0.0"`; v1 ranges are
+  rejected before callbacks run. The render receipt, Scene validation, family
+  descriptor, family conformance, and backend conformance generations were
+  advanced with the incompatible schemas.
+- Default SVG rendering no longer embeds font imports, an explicit empty
+  `idPrefix` is invalid, registered ASCII routing requires `routeClass`, opaque
+  State bodies use the canonical layout result, and unknown render failures use
+  one generic diagnostic instead of transport-specific fallbacks. Consumers
+  relying on historical SVG byte order, legacy ARIA/data-entity projections, or
+  built-in Scene object identity must migrate to the typed canonical contracts.
 - The duplicate light Tufte palette (`palette:tufte` and legacy theme `tufte`) and the ambiguous bare `tufte` Style input are removed and now fail as unknown. Use the sole light Tufte resource, `look:tufte`; the distinct `tufte-dark` palette is unchanged.
 - Consumers matching `INEFFECTIVE_CONFIG.field` for family-section keys must use the qualified path (for example `journey.boxMargin` rather than `boxMargin`).
 - Gantt exclusion-boundary semantics and default shading may change existing rendered calendars; CLI scripts relying on ignored known flags now fail fast with exit 2.

@@ -1,7 +1,7 @@
 // FamilyDescriptor registry tests + Phase B universal LABEL_OVERFLOW gap closure.
 
 import { describe, test, expect } from 'bun:test'
-import { parseMermaid } from '../agent/parse.ts'
+import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { verifyMermaid } from '../agent/verify.ts'
 import { layoutMermaid } from '../agent/core.ts'
 import { BUILTIN_FAMILY_METADATA, knownFamilies, getFamily, replaceFamilyForTest, extractLabelsGeneric } from '../agent/families.ts'

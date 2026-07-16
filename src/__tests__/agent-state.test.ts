@@ -11,7 +11,7 @@
 
 import { describe, test, expect } from 'bun:test'
 import fc from 'fast-check'
-import { parseMermaid } from '../agent/parse.ts'
+import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
 import { mutate } from '../agent/mutate.ts'
 import { verifyMermaid } from '../agent/verify.ts'
@@ -208,6 +208,20 @@ describe('state residual syntax promotion table', () => {
       expect(r.value.body.kind).toBe('state')
       expect(asState(r.value)).not.toBeNull()
     }
+  })
+
+  test('an opaque state body exposes the renderer-backed layout', () => {
+    const r = parseMermaid(`stateDiagram-v2
+  state Active
+  Active --> Done`)
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.value.body.kind).toBe('opaque')
+    const verified = verifyMermaid(r.value)
+    expect(verified.layout.kind).toBe('state')
+    expect(verified.layout.nodes.map(node => node.id).sort()).toEqual(['Active', 'Done'])
+    expect(verified.layout.bounds.w).toBeGreaterThan(0)
+    expect(verified.layout.bounds.h).toBeGreaterThan(0)
   })
 })
 

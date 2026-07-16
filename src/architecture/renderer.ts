@@ -13,7 +13,7 @@ import { escapeAttr, renderMultilineText, renderMultilineTextWithBackground, esc
 import { measureMultilineText } from '../text-metrics.ts'
 import { applyTextTransform } from '../styles.ts'
 import { topRoundedRectPath } from '../svg-paths.ts'
-import type { MarkerDescriptor, MarkerRef, SceneDoc, SceneNode } from '../scene/ir.ts'
+import type { MarkerDescriptor, SceneDoc, SceneNode } from '../scene/ir.ts'
 import { hashId } from '../scene/seed.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
@@ -25,10 +25,8 @@ import { projectRoundedConnectorPath } from '../scene/connector-geometry.ts'
 // Architecture renderer — lowers a PositionedArchitectureDiagram to the
 // SceneGraph IR (SPEC §3.1) and serializes it via the DefaultBackend.
 //
-// Every crisp template below is the historical string renderer's template
-// moved verbatim into a mark constructor call, and doc.parts order matches
-// the historical parts[] order, so DefaultBackend output stays byte-identical
-// (corpus-gated by svg-equivalence.test.ts).
+// Mark constructors attach private default-backend serialization while the
+// Scene document remains the semantic authority.
 // ============================================================================
 
 /**
@@ -41,9 +39,7 @@ export function renderArchitectureSvg(
 }
 
 /**
- * Lower a positioned architecture diagram to the SceneGraph IR. Mark order
- * matches the historical parts[] order exactly; DefaultBackend joins crisps
- * with '\n'.
+ * Lower a positioned architecture diagram to the SceneGraph IR in canonical mark order.
  */
 export function lowerArchitectureScene(
   ctx: RenderContext<PositionedArchitectureDiagram>,
@@ -84,12 +80,8 @@ export function lowerArchitectureScene(
   if (hasTitle) a11yAttrs['aria-labelledby'] = titleId
   if (hasDesc) a11yAttrs['aria-describedby'] = descId
 
-  // Document prelude: svg open tag + shared style block + architecture CSS,
-  // joined the way the string renderer pushed them. The accessibility
-  // <title>/<desc> lines sit between the open tag and the style block in the
-  // historical byte stream, so when present they are folded into the prelude
-  // crisp at that exact position (a separate part after the prelude would
-  // reorder them below the style blocks and drift the output bytes).
+  // Document shell: SVG open tag, accessibility elements, shared style block,
+  // and architecture CSS in canonical order.
   const archCss = architectureStyles(visual)
   const preludeParts: string[] = []
   preludeParts.push(svgOpenTag(diagram.width, diagram.height, colors, transparent, {
@@ -100,7 +92,7 @@ export function lowerArchitectureScene(
   if (hasDesc) preludeParts.push(`<desc id="${descId}">${escapeXml(diagram.accessibilityDescription!)}</desc>`)
   preludeParts.push(buildStyleBlock(font, false, undefined, colors.embedFontImport))
   preludeParts.push(archCss)
-  parts.push(marks.prelude({
+  parts.push(marks.documentOpen({
     id: 'prelude',
     width: diagram.width,
     height: diagram.height,
@@ -238,7 +230,7 @@ function lowerGroup(group: PositionedArchitectureGroup, visual: ArchitectureVisu
     // (which indents every line).
     children.push({
       indent: 0,
-      node: marks.raw(
+      node: marks.documentContent(
         { id: `icon:${group.id}`, role: 'icon' },
         `  ${renderIcon(group.x + 10, group.y + 6, visual.iconSize, group.icon, true)}`,
       ),
@@ -319,7 +311,7 @@ function lowerService(service: PositionedArchitectureService, visual: Architectu
     // Same first-line-only indent as group icons (see lowerGroup).
     children.push({
       indent: 0,
-      node: marks.raw(
+      node: marks.documentContent(
         { id: `icon:${service.id}`, role: 'icon' },
         `  ${renderIcon(iconX, iconY, visual.serviceIconSize, service.icon, false)}`,
       ),
@@ -388,8 +380,8 @@ function lowerJunction(junction: PositionedArchitectureJunction, visual: Archite
 function lowerEdge(edge: PositionedArchitectureEdge, visual: ArchitectureVisualConfig, sceneId: string): SceneNode {
   const points = edge.points.map((point) => `${point.x},${point.y}`).join(' ')
   let markers = ''
-  let startMarker: MarkerRef | undefined
-  let endMarker: MarkerRef | undefined
+  let startMarker: MarkerDescriptor | undefined
+  let endMarker: MarkerDescriptor | undefined
   if (edge.hasArrowStart) {
     startMarker = ARCHITECTURE_MARKERS[1]
     markers += ' marker-start="url(#architecture-arrow-start)"'
@@ -420,7 +412,6 @@ function lowerEdge(edge: PositionedArchitectureEdge, visual: ArchitectureVisualC
       labelAnchors: edge.labelPosition ? [edge.labelPosition] : [],
     },
     labels: edge.label ? [{ text: edge.label, ...(edge.labelPosition ? { anchor: edge.labelPosition } : {}) }] : [],
-    projectAccessibilityToSvg: true,
   } as const
 
   if (visual.edgeBendRadius > 0 && edge.points.length > 2) {
@@ -434,8 +425,7 @@ function lowerEdge(edge: PositionedArchitectureEdge, visual: ArchitectureVisualC
       geometry: projection.geometry,
       lineStyle: 'solid',
       paint,
-      startMarker,
-      endMarker,
+      markers: { ...(startMarker ? { start: startMarker } : {}), mid: [], ...(endMarker ? { end: endMarker } : {}) },
       ...connectorSemantics,
       route: { ...connectorSemantics.route, contours: projection.contours },
     }, `<path ${attrs.join(' ')} d="${projection.geometry.d}"${markers} />`)
@@ -446,8 +436,7 @@ function lowerEdge(edge: PositionedArchitectureEdge, visual: ArchitectureVisualC
     geometry: { kind: 'polyline', points: edge.points },
     lineStyle: 'solid',
     paint,
-    startMarker,
-    endMarker,
+    markers: { ...(startMarker ? { start: startMarker } : {}), mid: [], ...(endMarker ? { end: endMarker } : {}) },
     ...connectorSemantics,
   }, `<polyline ${attrs.join(' ')} points="${points}"${markers} />`)
 }

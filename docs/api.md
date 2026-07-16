@@ -235,9 +235,9 @@ remain in their respective sections.
 | `journey` | `{ experienceCurve?: boolean }` | `experienceCurve: true` | User-journey graphical controls. | journey | not-applicable — experience curves are graphical-only |
 | `gantt` | `{ dependencyArrows?: boolean; criticalPath?: boolean }` | both `false` | Gantt dependency and critical-path overlays. | gantt | not-applicable — graphical Gantt connector emphasis is not represented in cells |
 | `mermaidConfig` | `MermaidRuntimeConfig` | source config | Mermaid-style recursive runtime configuration. | all | consumed |
-| `embedFontImport` | `boolean` | `true` (SVG) | Embed the Google Fonts import in SVG styles; PNG forces this off for offline rasterization. | all | not-applicable — terminal output embeds no web-font import |
+| `embedFontImport` | `boolean` | `false` | Embed the Google Fonts import in SVG styles; PNG forces this off for offline rasterization. | all | not-applicable — terminal output embeds no web-font import |
 | `compact` | `boolean` | `false` | Compact SVG serialization while preserving agent hooks. | all | not-applicable — compact controls SVG serialization |
-| `idPrefix` | `string` | `''` | Namespace generated SVG definition IDs and local references. | all | not-applicable — terminal output has no SVG definition ids |
+| `idPrefix` | `string` | unset | Non-empty namespace for generated SVG definition IDs and local references. | all | not-applicable — terminal output has no SVG definition ids |
 | `security` | `'default' \| 'strict'` | `default` | Active SVG content is rejected in every mode; strict additionally rejects every external reference. Raw Mermaid themeCSS is rejected in both modes. | all | not-applicable — terminal text has its own control-character and HTML-color safety projection |
 | `ganttToday` | `string` | unset | Explicit deterministic date for the Gantt today marker. | gantt | consumed |
 | `seed` | `number` | `0` | Deterministic re-roll seed for stochastic Styles. | all | not-applicable — terminal glyph geometry is deterministic and has no stochastic ink |
@@ -290,7 +290,7 @@ resolution across output surfaces.
 
 ```ts
 import {
-  parseMermaid,
+  parseRegisteredMermaid,
   asFlowchart,
   mutate,
   verifyMermaid,
@@ -306,7 +306,7 @@ Core functions:
 
 | Function | Purpose |
 |---|---|
-| `parseMermaid(source)` | Parse Mermaid source to `Result<ValidDiagram, ParseError[]>`. |
+| `parseRegisteredMermaid(source)` | Parse Mermaid source to `Result<ValidDiagram, ParseError[]>`. |
 | Family narrower | Narrow to a mutable family or return `null`; obtain the current generated name from `am capabilities --json`. |
 | `mutate(d, op)` | Apply a kind-discriminated typed mutation. |
 | `verifyMermaid(d)` | Return structural warnings and layout evidence. |
@@ -344,7 +344,7 @@ and collision-safe. New graphical backends declare feature/operation-level
 Scene primitive capability claims; the registry rejects an empty, duplicate,
 cross-target, or otherwise invalid claim set. Every external backend, and every
 external family that supplies `lowerScene`, must also declare an explicit
-compatible `identity.compatibility.scene` range (Scene v1: `^1.0.0`). The host
+compatible `identity.compatibility.scene` range (Scene v2: `^2.0.0`). The host
 checks that range before running backend conformance or other executable
 witnesses; only the internal built-in enrollment path receives compatibility
 defaults.
@@ -360,7 +360,7 @@ copied here.
 | Mermaid-authored appearance | frontmatter/init config, theme variables, family style statements such as classes and link styles | Syntax-defined colors, labels, family geometry, and interaction metadata where the family advertises support | Source-level and family-dependent. Raw `themeCSS` is recognized but diagnosed at the render boundary because its selectors and markup can escape an imported SVG; use `StyleSpec` instead. |
 | One-off render overrides | `RenderOptions` | Palette channels, font family, spacing/geometry controls, deterministic seed, security, accessibility-related output options, and a Style stack | The generated field×surface matrix marks each serializable shared field `forwarded`, `host-enforced`, or `unavailable`. Hosted SVG and editor SVG enforce strict security with external font imports disabled; effective receipts reflect those constraints. Host callbacks are library-only and never enter receipts. |
 | One-off declarative style | inline `StyleSpec` or a left-to-right `StyleInput[]` stack | Safe palette, font, stroke/fill treatment, backdrop, exact semantic-role defaults, named semantic slots, V1 `category` bindings, non-color cues, and inspect-only contrast/accent-area/mono-role constraints | JSON-safe and executable-code-free. Bindings supply defaults beneath authored family paint and semantics; constraints diagnose final effective paint without repainting or relayout. This is the lowest-complexity custom Style path. |
-| Named Palette/Look | `registerStyle`, `getStyle`, `knownStyleDescriptors`, compatibility aliases | Installs a versioned `palette:` or `look:` name backed by exactly the same `StyleSpec` accepted inline | Descriptors expose one `kind` (`look` or `palette`), explicit `isDefault`, and a stable `inputName`; temporary `aliases` carry diagnostic/removal metadata and are never advertised as the preferred input. In-process host registry. A CLI/MCP/server sees a registration only when that host installs it at startup. |
+| Named Palette/Look | `registerStyle`, `getStyle`, `knownStyleDescriptors` | Installs a versioned `palette:` or `look:` name backed by exactly the same `StyleSpec` accepted inline | Descriptors expose one `kind` (`look` or `palette`), explicit `isDefault`, and one stable `inputName`. In-process host registry. A CLI/MCP/server sees a registration only when that host installs it at startup. |
 | Theme conversion | `fromShikiTheme` | Converts a Shiki-compatible editor theme into diagram colors | Pure library helper; the result is ordinary declarative color input. |
 | Live host retheming | CSS custom-property values in graphical color/font inputs | Lets a host page switch SVG palette and font values without re-rendering | SVG/browser-only and limited to safe property values; this is not a raw CSS rule or selector hook. Static outputs need values resolved under their rasterization environment to remain reproducible. |
 | Terminal output projection | `AsciiRenderOptions` (`useAscii`, `paddingX`, `paddingY`, `boxBorderPadding`, `colorMode`, `theme`, `targetWidth`/`maxWidth`, `onProjectionDiagnostic`) | Selects Unicode/ASCII encoding, cell spacing, width policy, ANSI/HTML colors, terminal-only theme overrides, and projection-loss reporting | Output-adapter customization, not a second shared Style system. Serializable fields have transport-specific availability; the diagnostic callback is host-only and remains outside receipts. |
@@ -369,7 +369,7 @@ copied here.
 | Diagram family | `registerFamily`, `getFamilyConformanceReport`, `parseRegisteredMermaid`, `projectPositionedView` | Adds a namespaced language with detection, parse/preservation, verification, layout, Scene/SVG, terminal, and discovery claims | Every versioned `family:<owner/name>` descriptor declares a compatible core range and supplies one bounded canonical `example`. It also lists consumed family-scoped shared fields in `applicableRenderOptions`; omission means none, unknown or duplicate fields fail registration, and the frozen declaration appears in the capability report. Registration stages the frozen candidate, runs native claims twice through canonical parse/serialize, non-empty positive-bounds layout, strict SVG, portable PNG pre-raster, terminal, Scene and verify paths, and rolls back on failure, reentrancy or nondeterminism. Discovery reports `native` only beside a passed per-capability witness. Native tuples still require layout + `projectPositioned`, Scene requires layout + `lowerScene`, and extension verification requires its hook plus executable SVG. An external Scene family additionally declares a compatible Scene range, and its example witnesses every positive role/primitive cell. Built-in-only unions stay closed; extension bodies use the open envelope. Remote transports gain the family only when their trusted host installs it. |
 | Scene semantics | `SceneDoc`, typed connectors/markers/hit geometry, namespaced `SceneRole` | Lets a family/backend exchange identity, relationship, accessibility, geometry, and terminal-projection intent | This is a versioned typed contract, not a raw SVG hook. Unknown namespaced roles deliberately receive inert identity-only traits and cannot acquire core behavior by local-name collision. There is no public arbitrary primitive/trait mutation registry. |
 | Browser PNG host adapter | `renderMermaidPNGInBrowserWithReceipt(..., rasterize)` or reusable `createMermaidBrowserPNGRenderer({ rasterize, backendPolicy? })` | Supplies Canvas/OffscreenCanvas rasterization and reports font provenance | Trusted callback receives only the admitted, secured canonical SVG; the library re-applies the PNG color-profile gate and retains the same logical receipt as the native PNG path. |
-| Identity and compatibility plumbing | `canonicalExtensionId`, `parseExtensionId`, `createExtensionIdentity`, `registerExtension`, `registerCompatibilityAlias`, `ExtensionCollisionError` | Gives kind-specific registries stable names, parsing, versions, provenance, compatibility ranges, collision rejection, and time-bounded aliases | Low-level plumbing, not a stand-alone extension registry or rendering hook. A compatibility alias must include a diagnostic plus removal release/date; stable short inputs belong to kind-specific descriptors instead. |
+| Identity plumbing | `canonicalExtensionId`, `parseExtensionId`, `createExtensionIdentity`, `registerExtension`, `ExtensionCollisionError` | Gives kind-specific registries stable names, parsing, versions, provenance, compatibility ranges, and collision rejection | Low-level plumbing, not a stand-alone extension registry or rendering hook. Stable short inputs belong to kind-specific descriptors. |
 
 There is currently no BrandPack registry, public role-trait registration,
 arbitrary SVG/CSS hook, or Treatment hook. Semantic slots and the closed V1
@@ -384,7 +384,7 @@ Treatment seam is a separate decision and is not implied by B4.
 am render diagram.mmd --format svg > diagram.svg
 am render diagram.mmd --format png --output diagram.png --fit-width 1200 --bg '#fff'
 am render diagram.mmd --format ascii > diagram.txt
-am render diagram.mmd --format json --certificates > layout-with-routes.json
+am render diagram.mmd --format layout --certificates > layout-with-routes.json
 am verify diagram.mmd
 am describe diagram.mmd --format facts
 am mutate diagram.mmd --op '{"kind":"add_node","id":"Cache","label":"Cache"}' --json

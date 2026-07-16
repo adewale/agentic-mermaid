@@ -7,7 +7,7 @@ import { CLS, CLASS_STYLE_DEFAULTS } from './layout.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
 import { renderMultilineText, escapeAttr, escapeXml as escapeXmlUtil } from '../multiline-utils.ts'
 import { topRoundedRectPath } from '../svg-paths.ts'
-import type { MarkerDescriptor, MarkerRef, SceneDoc, SceneNode } from '../scene/ir.ts'
+import type { MarkerDescriptor, SceneDoc, SceneNode } from '../scene/ir.ts'
 import { hashId } from '../scene/seed.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
@@ -19,10 +19,7 @@ import { projectRoundedConnectorPath } from '../scene/connector-geometry.ts'
 //
 // The positioned diagram is first lowered to a SceneGraph (SPEC §3.1): every
 // visual mark becomes a scene node carrying semantic fields (role, geometry,
-// paint, stable id) plus its exact crisp serialization, built here from the
-// same inputs. renderClassSvg() is DefaultBackend serialization of that scene,
-// so the default path stays byte-identical to the historical string renderer
-// (corpus-gated by svg-equivalence.test.ts).
+// paint, stable id). renderClassSvg() uses DefaultBackend serialization of that scene.
 //
 // All colors use CSS custom properties (var(--_xxx)) from the theme system.
 //
@@ -55,8 +52,7 @@ export function renderClassSvg(
 }
 
 /**
- * Lower a positioned class diagram to the SceneGraph IR. Mark order matches
- * the historical parts[] order exactly; DefaultBackend joins crisps with '\n'.
+ * Lower a positioned class diagram to the SceneGraph IR in canonical mark order.
  */
 export function lowerClassScene(
   ctx: RenderContext<PositionedClassDiagram>,
@@ -73,7 +69,7 @@ export function lowerClassScene(
   const rootAttrs = buildAccessibilityAttrs(diagram.accessibilityTitle, diagram.accessibilityDescription, titleId, descId)
 
   // SVG root with CSS variables + style block (with mono font) + defs
-  parts.push(marks.prelude(
+  parts.push(marks.documentOpen(
     {
       id: 'prelude',
       width: diagram.width,
@@ -96,10 +92,10 @@ export function lowerClassScene(
   parts.push(marks.definitions({ id: 'defs', markerResources }, defsParts.join('\n')))
 
   if (diagram.accessibilityTitle) {
-    parts.push(marks.raw({ id: 'title', role: 'chrome' }, `<title id="${titleId}">${escapeXml(diagram.accessibilityTitle)}</title>`))
+    parts.push(marks.documentContent({ id: 'title', role: 'chrome' }, `<title id="${titleId}">${escapeXml(diagram.accessibilityTitle)}</title>`))
   }
   if (diagram.accessibilityDescription) {
-    parts.push(marks.raw({ id: 'desc', role: 'chrome' }, `<desc id="${descId}">${escapeXml(diagram.accessibilityDescription)}</desc>`))
+    parts.push(marks.documentContent({ id: 'desc', role: 'chrome' }, `<desc id="${descId}">${escapeXml(diagram.accessibilityDescription)}</desc>`))
   }
 
   // 0. Namespace boxes (behind everything, parent-first so children draw on
@@ -513,8 +509,8 @@ function renderRelationship(rel: PositionedClassRelationship, style: ResolvedRen
   const startId = startType ? getMarkerDefId(startType) : null
   const endId = endType ? getMarkerDefId(endType) : null
   const markerResources = classMarkerResources(style)
-  const startMarker: MarkerRef | undefined = startId ? markerResources.find(marker => marker.id === startId) : undefined
-  const endMarker: MarkerRef | undefined = endId ? markerResources.find(marker => marker.id === endId) : undefined
+  const startMarker: MarkerDescriptor | undefined = startId ? markerResources.find(marker => marker.id === startId) : undefined
+  const endMarker: MarkerDescriptor | undefined = endId ? markerResources.find(marker => marker.id === endId) : undefined
   const markers = `${startId ? ` marker-start="url(#${startId})"` : ''}${endId ? ` marker-end="url(#${endId})"` : ''}`
 
   // Build semantic data attributes for relationship inspection:
@@ -557,7 +553,6 @@ function renderRelationship(rel: PositionedClassRelationship, style: ResolvedRen
       labelAnchors: rel.labelPosition ? [rel.labelPosition] : [],
     },
     labels: rel.label ? [{ text: rel.label, ...(rel.labelPosition ? { anchor: rel.labelPosition } : {}) }] : [],
-    projectAccessibilityToSvg: true,
   } as const
 
   if (style.edgeBendRadius > 0 && rel.points.length > 2) {
@@ -571,8 +566,7 @@ function renderRelationship(rel: PositionedClassRelationship, style: ResolvedRen
       geometry: projection.geometry,
       lineStyle,
       paint,
-      startMarker,
-      endMarker,
+      markers: { ...(startMarker ? { start: startMarker } : {}), mid: [], ...(endMarker ? { end: endMarker } : {}) },
       ...connectorSemantics,
       route: { ...connectorSemantics.route, contours: projection.contours },
     },
@@ -586,8 +580,7 @@ function renderRelationship(rel: PositionedClassRelationship, style: ResolvedRen
     geometry: { kind: 'polyline', points: rel.points },
     lineStyle,
     paint,
-    startMarker,
-    endMarker,
+    markers: { ...(startMarker ? { start: startMarker } : {}), mid: [], ...(endMarker ? { end: endMarker } : {}) },
     ...connectorSemantics,
   },
     `<polyline ${dataAttrs.join(' ')} points="${pathData}" fill="none" stroke="${escapeAttr(strokeColor)}" ` +
@@ -602,12 +595,12 @@ function renderRelationshipMarkerOverlay(
   style: ResolvedRenderStyle,
   index: number,
 ): SceneNode {
-  if (rel.points.length < 2) return marks.raw({ id: `marker-overlay:${index}`, role: 'chrome' }, '')
+  if (rel.points.length < 2) return marks.documentContent({ id: `marker-overlay:${index}`, role: 'chrome' }, '')
   const startType = rel.markerAt === 'from' || rel.markerAt === 'both' ? rel.fromType ?? rel.type : undefined
   const endType = rel.markerAt === 'to' || rel.markerAt === 'both' ? rel.toType ?? rel.type : undefined
   const startId = startType ? getMarkerDefId(startType) : null
   const endId = endType ? getMarkerDefId(endType) : null
-  if (!startId && !endId) return marks.raw({ id: `marker-overlay:${index}`, role: 'chrome' }, '')
+  if (!startId && !endId) return marks.documentContent({ id: `marker-overlay:${index}`, role: 'chrome' }, '')
   const markers = `${startId ? ` marker-start="url(#${startId})"` : ''}${endId ? ` marker-end="url(#${endId})"` : ''}`
   const carrierPaint = `fill="none" stroke="${escapeAttr(style.edgeStrokeColor ?? 'var(--_line)')}" stroke-width="${style.lineWidth}" stroke-opacity="0"${markers} pointer-events="none" aria-hidden="true"`
   if (style.edgeBendRadius > 0 && rel.points.length > 2) {
@@ -615,11 +608,11 @@ function renderRelationshipMarkerOverlay(
       metric: 'manhattan',
       precision: 3,
     })
-    return marks.raw({ id: `marker-overlay:${index}`, role: 'chrome' },
+    return marks.documentContent({ id: `marker-overlay:${index}`, role: 'chrome' },
       `<path class="class-marker-overlay" d="${projection.geometry.d}" ${carrierPaint} />`)
   }
   const points = rel.points.map(point => `${point.x},${point.y}`).join(' ')
-  return marks.raw({ id: `marker-overlay:${index}`, role: 'chrome' },
+  return marks.documentContent({ id: `marker-overlay:${index}`, role: 'chrome' },
     `<polyline class="class-marker-overlay" points="${points}" ${carrierPaint} />`)
 }
 
@@ -663,7 +656,7 @@ function getMarkerDefId(type: RelationshipType): string | null {
  *  none, a single empty mark keeps the historical '' part (blank line). */
 function renderRelationshipLabels(rel: PositionedClassRelationship, style: ResolvedRenderStyle, key: string): SceneNode[] {
   if ((!rel.label && !rel.fromCardinality && !rel.toCardinality) || rel.points.length < 2) {
-    return [marks.raw({ id: `rel-labels:${key}`, role: 'chrome' }, '')]
+    return [marks.documentContent({ id: `rel-labels:${key}`, role: 'chrome' }, '')]
   }
 
   const out: SceneNode[] = []

@@ -477,14 +477,7 @@ export function createMapping(graph: AsciiGraph): void {
   // Forward in-degree per node, for fan-in target alignment below
   // (fan-in trunk grouping, issues #68/#69). SVG and ASCII now share the
   // classifier from route-contracts.ts; only primary-forward edges contribute
-  // to deepest-parent placement. The reciprocal-neighbor fallback is retained
-  // for older/incomplete graphs where a routeClass is absent.
-  const outNeighbors = new Map<string, Set<string>>()
-  for (const edge of graph.edges) {
-    let s = outNeighbors.get(edge.from.name)
-    if (!s) { s = new Set(); outNeighbors.set(edge.from.name, s) }
-    s.add(edge.to.name)
-  }
+  // to deepest-parent placement.
   const inDegree = new Map<string, number>()
   // Forward parents per child (same exclusions as inDegree): used for
   // longest-path layering, so a fan-in target waits for its DEEPEST parent
@@ -494,13 +487,7 @@ export function createMapping(graph: AsciiGraph): void {
   for (const edge of graph.edges) {
     // Skip self-loops: a node is not its own fan-in source (issues #68/#69).
     if (edge.from.name === edge.to.name) continue
-    if (edge.routeClass !== undefined) {
-      if (edge.routeClass !== 'primary-forward') continue
-    } else if (outNeighbors.get(edge.to.name)?.has(edge.from.name)) {
-      // Back-compat fallback: skip 2-cycle back-edges when no shared route
-      // classification was attached by the converter.
-      continue
-    }
+    if (edge.routeClass !== 'primary-forward') continue
     inDegree.set(edge.to.name, (inDegree.get(edge.to.name) ?? 0) + 1)
     if (!forwardParents.has(edge.to.name)) forwardParents.set(edge.to.name, [])
     forwardParents.get(edge.to.name)!.push(edge.from)

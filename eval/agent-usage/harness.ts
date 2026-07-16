@@ -13,7 +13,7 @@
 //      captured Code Mode output through the same trace linter and task oracles.
 // ============================================================================
 
-import { parseMermaid } from '../../src/agent/parse.ts'
+import { parseRegisteredMermaid as parseMermaid } from '../../src/agent/parse.ts'
 import { mutate, edgeIdOf } from '../../src/agent/mutate.ts'
 import { verifyMermaid } from '../../src/agent/verify.ts'
 import { serializeMermaid } from '../../src/agent/serialize.ts'

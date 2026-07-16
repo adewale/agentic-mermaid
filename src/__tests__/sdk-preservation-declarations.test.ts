@@ -69,7 +69,7 @@ describe('Code Mode preservation declarations', () => {
       for (const field of SHARED_RENDER_OPTION_FIELDS) {
         expect(declaration).toContain(`${field}?:`)
       }
-      expect(declaration).toContain('capabilityDecision?: CapabilityDecision')
+      expect(declaration).toContain('capabilityDecision: CapabilityDecision')
       expect(declaration).toMatch(/verifyMermaid\(input: ParsedDiagram \| string, opts\?: \{[^}]*renderOptions\?: SharedRenderOptions[^}]*\}\): VerifyResult/)
       expect(declaration).toContain('graphicalProjectionDigest?: string')
       expect(declaration).toContain('executionDecision?: RenderExecutionDecision')

@@ -883,7 +883,7 @@
           "name": "sdk",
           "type": "contains_all",
           "values": [
-            "mermaid.parseMermaid",
+            "mermaid.parseRegisteredMermaid",
             "mermaid.mutate",
             "mermaid.verifyMermaid"
           ]

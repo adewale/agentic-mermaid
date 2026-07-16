@@ -25,7 +25,7 @@
 // ============================================================================
 
 import { renderMermaidASCII, type AsciiRenderOptions } from './index.ts'
-import { parseMermaid } from '../agent/parse.ts'
+import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { visualWidth } from './width.ts'
 import type { TerminalProjectionDiagnostic, TerminalProjectionDiagnosticCode } from '../terminal-style.ts'
 

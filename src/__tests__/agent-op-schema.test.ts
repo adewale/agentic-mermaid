@@ -8,7 +8,7 @@
 
 import { describe, test, expect } from 'bun:test'
 import { applyOps, mutateChecked, validateOp, opMenu, hasOpSchema } from '../agent/core.ts'
-import { parseMermaid } from '../agent/parse.ts'
+import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { createMermaid } from '../agent/create.ts'
 import { mutateSource } from '../cli/index.ts'
 import { MUTATION_OPS_BY_FAMILY } from '../agent/mutation-ops.ts'

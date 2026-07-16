@@ -56,7 +56,7 @@ export function lowerGitGraphScene(ctx: RenderContext<PositionedGitGraphDiagram>
   if (!familyAppearance) throw new Error('GitGraph rendering requires request-boundary family appearance resolution')
   const projectedTheme = familyAppearance.themeVariables
   const paints = gitGraphPaints(diagram, projectedTheme, colors)
-  const parts: SceneNode[] = [marks.prelude({ id: 'prelude', width: diagram.width, height: diagram.height, colors, transparent, font, hasMonoFont: false }, head.join('\n'))]
+  const parts: SceneNode[] = [marks.documentOpen({ id: 'prelude', width: diagram.width, height: diagram.height, colors, transparent, font, hasMonoFont: false }, head.join('\n'))]
   parts.push(marks.documentText({ id: 'acc-title', element: 'title', domId: titleId, text: diagram.accessibilityTitle ?? 'Git graph' }))
   if (diagram.accessibilityDescription) parts.push(marks.documentText({ id: 'acc-desc', element: 'description', domId: descId, text: diagram.accessibilityDescription }))
   if (diagram.title) parts.push(marks.text({
@@ -111,7 +111,6 @@ export function lowerGitGraphScene(ctx: RenderContext<PositionedGitGraphDiagram>
       endpoints: { from: edge.from, to: edge.to },
       relationship: { kind: edge.kind, direction: 'forward' },
       route: { ownership: 'layout' },
-      projectAccessibilityToSvg: true,
       channels: { category: edge.kind },
     }, `<polyline class="git-edge git-edge-${edge.kind}" data-from="${escapeAttr(edge.from)}" data-to="${escapeAttr(edge.to)}" points="${points}" fill="none" stroke="${escapeAttr(edgePaint)}" stroke-width="${edge.kind === 'parent' ? 2 : 2.5}"${edge.kind === 'cherry-pick' ? ' stroke-dasharray="4 3"' : ''} />`))
   }

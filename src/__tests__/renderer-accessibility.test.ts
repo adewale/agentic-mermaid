@@ -4,7 +4,7 @@
 import { describe, test, expect } from 'bun:test'
 import { renderMermaidSVG } from '../index.ts'
 import { describeMermaidSource, describeMermaidTree } from '../agent/describe.ts'
-import { parseMermaid } from '../agent/parse.ts'
+import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 
 describe('#7254/#7255 SVG accessibility', () => {
   test('accTitle → <title>, accDescr → <desc>, role + ARIA references on root', () => {
@@ -31,7 +31,7 @@ describe('#7254/#7255 SVG accessibility', () => {
     expect(svg).toContain('data-id="B"')
   })
 
-  test('diagram without acc directives emits no <title>/<desc> (back-compat)', () => {
+  test('diagram without acc directives emits no <title>/<desc>', () => {
     const svg = renderMermaidSVG('flowchart TD\n A --> B')
     expect(svg).not.toContain('<title')
     expect(svg).not.toContain('aria-labelledby')
@@ -84,10 +84,10 @@ describe('#7349 AX tree — describeMermaid({format:json})', () => {
     expect(tree.edges.length).toBe(1)
   })
 
-  test('unparseable source → json error envelope, not a throw', () => {
+  test('an unregistered source → preserved-family JSON tree, not a throw', () => {
     const json = describeMermaidSource('not a diagram', { format: 'json' })
     const parsed = JSON.parse(json)
-    expect(parsed.error).toBeDefined()
+    expect(parsed.kind).toBe('family:unknown')
     expect(parsed.nodes).toEqual([])
   })
 })

@@ -2,17 +2,10 @@
 // SceneGraph IR — the post-layout semantic render-mark tree (SPEC §3.1).
 //
 // Family renderers lower their positioned results to a SceneDoc instead of
-// concatenating SVG strings directly. Each mark carries BOTH:
-//   - semantic fields (role, geometry, paints, channels, stable id) that
-//     styled backends (rough/hybrid) consume, and
-//   - the exact crisp serialization, built at construction time from the same
-//     inputs by the mark constructors in marks.ts, which the DefaultBackend
-//     emits verbatim — so the default path stays byte-identical to the
-//     pre-IR string renderers (guarded by svg-equivalence.test.ts).
-//
-// The scene-fidelity test (scene-fidelity.test.ts) parses each mark's crisp
-// element and asserts the semantic fields agree with it, so a styled backend
-// can never silently draw different geometry than crisp output shows.
+// exposing SVG strings as Scene authority. Each mark carries semantic fields
+// (role, geometry, paints, channels, stable id) consumed by graphical
+// backends. Backend-private serialization is a canonical projection rather
+// than a replay of construction-time SVG byte order.
 //
 // Determinism: constructing a SceneDoc is pure — no RNG, no clock. Stochastic
 // styling happens inside styled backends, seeded per §8's substream contract
@@ -61,7 +54,7 @@ export interface SemanticChannels {
 
 /** Geometry a styled backend can redraw. Numbers are in final user units.
  *  Paint strings may be CSS var()/color-mix() refs — they resolve later via
- *  inlineResolvedColors, exactly like the crisp path. */
+ *  inlineResolvedColors, exactly like the default backend. */
 export type Geometry =
   | { kind: 'rect'; x: number; y: number; width: number; height: number; rx?: number; ry?: number }
   | { kind: 'circle'; cx: number; cy: number; r: number }
@@ -103,9 +96,6 @@ export interface SceneNodeBase {
   channels?: SemanticChannels
   /** Semantic geometry transform applied by every backend. */
   transform?: SceneTransform
-  /** The exact crisp SVG serialization of this mark (possibly multi-line,
-   *  possibly '' for marks that draw nothing, e.g. invisible edges). */
-  crisp: string
 }
 
 export interface ShapeMark extends SceneNodeBase {
@@ -149,9 +139,6 @@ export interface MarkerDescriptor {
   /** Scalar relative to marker units; used for conservative bounds. */
   scale?: number
 }
-
-/** Compatibility name used by existing family lowerings. */
-export type MarkerRef = MarkerDescriptor
 
 /** One continuous path contour. `closed` is semantic topology: callers must
  * not infer it from a repeated endpoint or reparse SVG `d`. */
@@ -259,7 +246,7 @@ export interface ConnectorLabelDescriptor {
 
 export interface ConnectorHitGeometry {
   geometry: ConnectorGeometry
-  /** Closes the compatibility single contour when geometry has no subpaths. */
+  /** Closes the single contour when geometry has no subpaths. */
   closed: boolean
   strokeWidth: number
   pointerEvents: 'stroke' | 'none'
@@ -330,13 +317,7 @@ export interface ConnectorTerminalProjection {
 
 export interface ConnectorMark extends SceneNodeBase {
   kind: 'connector'
-  /** Compatibility geometry; identical by reference to route.geometry. */
-  geometry: ConnectorGeometry
   lineStyle: 'solid' | 'dotted' | 'dashed' | 'thick' | 'invisible'
-  /** Compatibility paint; connector backends consume `stroke`, not crisp. */
-  paint: MarkPaint
-  startMarker?: MarkerRef
-  endMarker?: MarkerRef
   endpoints: ConnectorEndpoints
   relationship: ConnectorRelationship
   route: ConnectorRoute
@@ -366,7 +347,7 @@ export interface TextMark extends SceneNodeBase {
 /** A semantic wrapper (<g ...>...</g>) whose children are scene nodes.
  *  Serialization is reconstructed from open/close/children + per-child indent,
  *  so styled backends can restyle children while keeping wrapper semantics
- *  (classes, data-* attributes, ARIA) byte-compatible. */
+ *  (classes, data-* attributes, ARIA). */
 export interface GroupMark extends SceneNodeBase {
   kind: 'group'
   open: string
@@ -376,50 +357,25 @@ export interface GroupMark extends SceneNodeBase {
   join: string
 }
 
-/** Escape hatch for chunks not yet lowered semantically (style blocks,
- *  defs bodies, icon glyph stacks...). Styled backends pass these through or
- *  replace them wholesale via their own prelude/defs policy — they must not
- *  parse them. Aim to shrink raw usage over time. */
-export interface RawMark extends SceneNodeBase {
-  kind: 'raw'
-}
-
-/** Document prelude parameters — everything svgOpenTag/buildStyleBlock were
- *  called with, so a styled backend can re-derive its own document shell
- *  (different palette, fonts, backdrop) without string-parsing the crisp one. */
+/** One typed element in the ordered SVG document shell. */
 export interface DocumentMark extends SceneNodeBase {
   kind: 'document'
-  element: 'title' | 'description' | 'definitions' | 'close'
+  element: 'open' | 'title' | 'description' | 'definitions' | 'content' | 'close'
   text?: string
   domId?: string
   /** Typed marker resources owned by the definitions mark. Backends may
-   * reserialize these without inspecting the crisp SVG definition string. */
+   * reserialize these without inspecting the private SVG definition string. */
   markerResources?: readonly MarkerDescriptor[]
 }
 
-export interface PreludeMark extends SceneNodeBase {
-  kind: 'prelude'
-  prelude: {
-    width: number
-    height: number
-    colors: DiagramColors
-    transparent: boolean
-    font: string
-    hasMonoFont: boolean
-    /** Family-specific extra CSS appended after the shared style block ('' if none). */
-    extraCss: string
-  }
-}
+export type SceneNode = ShapeMark | ConnectorMark | TextMark | GroupMark | DocumentMark
 
-export type SceneNode = ShapeMark | ConnectorMark | TextMark | GroupMark | RawMark | DocumentMark | PreludeMark
-
-/** The lowered document: an ordered flat list of top-level marks. The crisp
- *  serialization is parts.map(crisp).join('\n') — exactly what the string
- *  renderers produced. */
+/** The lowered document: an ordered flat list of top-level semantic marks. */
 export interface SceneDoc {
   family: string
   width: number
   height: number
   colors: DiagramColors
+  transparent?: boolean
   parts: SceneNode[]
 }

@@ -25,7 +25,7 @@ const EVIDENCE = 'src/__tests__/extension-family-mcp-parity.test.ts'
 
 function descriptor(onVerify: () => void = () => {}): FamilyDescriptor {
   return {
-    contractVersion: 1,
+    contractVersion: 2,
     identity: createExtensionIdentity({
       id: FAMILY,
       kind: 'family',
@@ -160,7 +160,7 @@ describe('registered external family MCP parity', () => {
               family: FAMILY,
             },
           })
-          expect((payload.error as Record<string, unknown>).message).toContain('FamilyDescriptor v1')
+          expect((payload.error as Record<string, unknown>).message).toContain('FamilyDescriptor v2')
           expect(JSON.stringify(payload)).not.toContain('EXTENSION_PARSE_REQUIRES_OPEN_ENVELOPE')
         }
       }

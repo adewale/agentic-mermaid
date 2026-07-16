@@ -12,7 +12,7 @@
 // equalize them. Reverting the gate to 28 fails the assertions below.
 
 import { describe, test, expect } from 'bun:test'
-import { parseMermaid, layoutMermaid } from '../agent/index.ts'
+import { parseRegisteredMermaid as parseMermaid, layoutMermaid } from '../agent/index.ts'
 
 const SYM = [
   'flowchart LR',

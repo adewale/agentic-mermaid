@@ -1,4 +1,3 @@
-var THEMES = window.__mermaid.THEMES;
 var knownStyleDescriptors = window.__mermaid.knownStyleDescriptors;
 var renderMermaidWithReceipt = window.__mermaid.renderMermaidSVGWithReceipt;
 var verifyNoExternalRefs = window.__mermaid.verifyNoExternalRefs;
@@ -7,10 +6,7 @@ var renderMermaidAsciiWithReceipt = window.__mermaid.renderMermaidASCIIWithRecei
 var renderMermaidUnicodeWithReceipt = window.__mermaid.renderMermaidUnicodeWithReceipt;
 var renderMermaidPngInBrowserWithReceipt = window.__mermaid.renderMermaidPNGInBrowserWithReceipt;
 
-// Palette state stores the registry's stable input name. The legacy THEMES
-// object remains a compatibility projection for older saved links only; it is
-// never expanded into explicit render colors because that would change
-// precedence relative to Mermaid themeVariables.
+// Palette state stores the registry's stable input name.
 function editorPaletteDescriptor(key) {
   if (!key || typeof knownStyleDescriptors !== "function") return null;
   var descriptors = knownStyleDescriptors();
@@ -32,7 +28,7 @@ function editorPaletteColors(key) {
   var descriptor = editorPaletteDescriptor(key);
   return descriptor && descriptor.spec && descriptor.spec.colors
     ? descriptor.spec.colors
-    : (key && THEMES[key]) || null;
+    : null;
 }
 
 var DEFAULT_EDITOR_PALETTE = "paper";

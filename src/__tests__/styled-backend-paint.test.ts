@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'bun:test'
 
-import type { ShapeMark } from '../scene/ir.ts'
 import * as marks from '../scene/marks.ts'
 import { RoughBackend } from '../scene/rough-backend.ts'
+import { sceneNodeSerialization } from '../scene/serialization.ts'
 
 describe('styled backend paint fallback', () => {
   test('uses semantic stroke paint for class-only connectors', () => {
@@ -35,8 +35,7 @@ describe('styled backend paint fallback', () => {
   })
 
   test('uses semantic fill paint for class-only fill shapes', () => {
-    const bar: ShapeMark = {
-      kind: 'shape',
+    const bar = marks.shape({
       id: 'bar',
       role: 'bar',
       geometry: {
@@ -49,8 +48,7 @@ describe('styled backend paint fallback', () => {
       paint: {
         fill: '#00aa00',
       },
-      crisp: '<rect x="10" y="10" width="30" height="20" class="xychart-bar" />',
-    }
+    }, '<rect x="10" y="10" width="30" height="20" class="xychart-bar" />')
 
     const svg = RoughBackend.drawNode(bar, {
       seed: 11,
@@ -62,8 +60,7 @@ describe('styled backend paint fallback', () => {
   })
 
   test('does not synthesize a stroke when crisp SVG explicitly disables it', () => {
-    const shape: ShapeMark = {
-      kind: 'shape',
+    const shape = marks.shape({
       id: 'suppressed-stroke',
       role: 'bar',
       geometry: {
@@ -78,14 +75,13 @@ describe('styled backend paint fallback', () => {
         stroke: '#ff0000',
         strokeWidth: '3',
       },
-      crisp: '<rect x="0" y="0" width="20" height="20" fill="#00aa00" stroke="none" />',
-    }
+    }, '<rect x="0" y="0" width="20" height="20" fill="#00aa00" stroke="none" />')
 
     const svg = RoughBackend.drawNode(shape, {
       seed: 13,
       style: { stroke: 'jittered', fill: 'none', strokeWidth: 1.5 },
     })
 
-    expect(svg).toBe(shape.crisp)
+    expect(svg).toBe(sceneNodeSerialization(shape))
   })
 })

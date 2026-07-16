@@ -18,10 +18,7 @@ import { hashId } from '../scene/seed.ts'
 //
 // The chart is first lowered to a SceneGraph (SPEC §3.1): every visual mark
 // becomes a scene node carrying semantic fields (role, geometry, paint,
-// channels, stable id) plus its exact crisp serialization, built here from
-// the same inputs. renderQuadrantSvg() is DefaultBackend serialization of
-// that scene, so the default path stays byte-identical to the historical
-// string renderer (corpus-gated by svg-equivalence.test.ts).
+// channels, stable id). renderQuadrantSvg() uses DefaultBackend serialization of that scene.
 //
 // Visual language:
 //   - a square plot area split into four quadrant background rectangles with
@@ -49,8 +46,7 @@ export function renderQuadrantSvg(
 }
 
 /**
- * Lower a positioned quadrant chart to the SceneGraph IR. Mark order matches
- * the historical parts[] order exactly; DefaultBackend joins crisps with '\n'.
+ * Lower a positioned quadrant chart to the SceneGraph IR in canonical mark order.
  */
 export function lowerQuadrantScene(
   ctx: RenderContext<PositionedQuadrantChart>,
@@ -92,7 +88,7 @@ export function lowerQuadrantScene(
   const shadowDefs = buildShadowDefs(colors)
   if (shadowDefs) preludeSegments.push(`<defs>${shadowDefs}</defs>`)
   preludeSegments.push(extraCss)
-  parts.push(marks.prelude(
+  parts.push(marks.documentOpen(
     {
       id: 'prelude',
       width: chart.width,
@@ -261,7 +257,7 @@ export function lowerQuadrantScene(
       // Hover target + native title + tooltip: pure interaction chrome. The
       // tooltip carries the full label even when dense placement hid it.
       const tipText = `${point.label}: [${point.nx}, ${point.ny}]`
-      pointOverlay.push(marks.raw({ id: `tooltip:${pointId}`, role: 'chrome' },
+      pointOverlay.push(marks.documentContent({ id: `tooltip:${pointId}`, role: 'chrome' },
         `<g class="quadrant-point-group">` +
         `<circle cx="${point.cx}" cy="${point.cy}" r="${point.radius + 6}" fill="transparent"/>` +
         `<title>${escapeXml(tipText)}</title>` +

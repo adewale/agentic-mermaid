@@ -151,8 +151,6 @@ export interface RankedViolation {
 export interface QualityVerdict {
   ok: boolean
   metrics: QualityMetrics
-  /** Human-readable violation strings. Backward-compatible. */
-  violations: string[]
   /**
    * The same violations, each tagged with its evidence-based severity so a
    * consumer can weight a crossings violation above a whitespace one
@@ -185,7 +183,7 @@ export function checkQuality(layout: RenderedLayout, bounds: QualityBounds = {})
   }
   const order: Record<ViolationSeverity, number> = { primary: 0, secondary: 1, sanity: 2 }
   ranked.sort((x, y) => order[x.severity] - order[y.severity])
-  return { ok: ranked.length === 0, metrics: m, violations: ranked.map(v => v.message), ranked }
+  return { ok: ranked.length === 0, metrics: m, ranked }
 }
 
 // ---- crossings -----------------------------------------------------------

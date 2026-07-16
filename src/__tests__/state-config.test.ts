@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { parseMermaid, verifyMermaid } from '../agent/index.ts'
+import { parseRegisteredMermaid as parseMermaid, verifyMermaid } from '../agent/index.ts'
 import { renderMermaidSVG } from '../index.ts'
 import {
   STATE_CONFIG_FIELDS, STATE_LEGACY_CONFIG_FIELDS, STATE_WIRED_CONFIG_FIELDS,

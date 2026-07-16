@@ -149,13 +149,12 @@ change request identity without realizing that customization.
 Canonical registered identities say what is being named: `look:hand-drawn`
 and `palette:dracula`. Discovery exposes exactly one `kind` (`look` or
 `palette`), an explicit `isDefault`, and a stable `inputName`. Stable short
-inputs such as `hand-drawn` and `dracula` are not deprecation aliases.
-`aliases` contains only temporary compatibility spellings, each with a
-diagnostic and removal release/date. Light Tufte is intentionally one full Look:
-use `look:tufte`. The duplicate `palette:tufte`, legacy theme `tufte`, and
-ambiguous bare Style input are retired and rejected. The distinct `tufte-dark`
-palette is unchanged. Use the stable `crisp` input instead of the remaining
-diagnosed `default` compatibility alias.
+inputs such as `hand-drawn` and `dracula` are descriptor-owned names, not
+aliases. Light Tufte is intentionally one full Look with the canonical-only
+input `look:tufte`; the ambiguous bare `tufte` input and duplicate
+`palette:tufte` are not registered. The distinct `tufte-dark` palette is
+unchanged. Use the stable `crisp` input for the default Look; `default` is not
+accepted as a Style name.
 
 ## The contract you get for free
 
@@ -175,8 +174,8 @@ diagnosed `default` compatibility alias.
   secured geometry and appearance but cannot embed DOM attributes in pixels.
   Text is drawn last, never perturbed, with a page-colored halo (labels stay
   legible on any fill).
-- **Crisp is sacred.** `style: 'crisp'` (or unset) is byte-identical to the
-  plain renderer and gated by a corpus-wide equivalence test.
+- **Crisp is the canonical default.** `style: 'crisp'` (or unset) selects the
+  precise default backend.
 
 ## Field reference
 
@@ -261,7 +260,7 @@ contract explicitly; no built-in compatibility default is borrowed by
 ```ts
 registerBackend(backend, {
   version: '1.0.0',
-  compatibility: { core: '^0.1.1', scene: '^1.0.0' },
+  compatibility: { core: '^0.1.1', scene: '^2.0.0' },
   provenance: { owner: 'acme-diagrams', source: 'application-startup' },
 })
 ```
@@ -269,7 +268,7 @@ registerBackend(backend, {
 The host validates this identity and both ranges before executing any
 conformance witness. Every external `FamilyDescriptor` declares a compatible
 `core` range; one that provides `lowerScene` must additionally include
-`scene: '^1.0.0'` in `identity.compatibility`. A family that remains
+`scene: '^2.0.0'` in `identity.compatibility`. A family that remains
 source-only or uses the direct-SVG extension fallback does not consume Scene.
 
 Every external family supplies one bounded canonical `example`.
@@ -328,8 +327,7 @@ judgement.
 ```bash
 bun run style:audit                         # Style + Palette contract across families
 bun test src/__tests__/styled-output.test.ts --timeout 30000   # determinism + goldens + composition
-bun test src/__tests__/scene-fidelity.test.ts  # semantic/crisp agreement
-bun test src/__tests__/svg-equivalence.test.ts # crisp path untouched
+bun test src/__tests__/scene-fidelity.test.ts  # semantic/backend agreement
 ```
 
 Then render your style across every registered diagram type and *look at it small*

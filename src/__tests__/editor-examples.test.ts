@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { runInNewContext } from 'node:vm'
 import { EDITOR_EXAMPLES } from '../../editor/examples.ts'
-import { parseMermaid, renderMermaidSVG } from '../agent/index.ts'
+import { parseRegisteredMermaid as parseMermaid, renderMermaidSVG } from '../agent/index.ts'
 import { BUILTIN_FAMILY_METADATA, knownFamilies } from '../agent/families.ts'
 
 const REPO = join(import.meta.dir, '..', '..')

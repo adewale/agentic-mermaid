@@ -206,7 +206,7 @@ data: {"jsonrpc":"2.0","id":4,"result":{}}
 
 | Option | Default | Purpose |
 |---|---:|---|
-| `--transport stdio\|http` | `stdio` | Select stdio or HTTP/SSE transport. `--http` is an alias for `--transport http`. |
+| `--transport stdio\|http` | `stdio` | Select stdio or HTTP transport. |
 | `--host <host>` | `127.0.0.1` | HTTP bind host. Non-loopback hosts require `--auth-token`. |
 | `--port <port>` | `3000` | HTTP bind port. Use `0` for an ephemeral test port. |
 | `--artifact-dir <dir>` | OS temp dir | Directory for managed file/URL artifacts. Files use generated safe names. |

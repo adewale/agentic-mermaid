@@ -30,13 +30,13 @@ All channels expose the same core contract: parse, optionally narrow, mutate, ve
 Use direct source authoring for new diagrams. Do not construct a diagram by calling `mutate` repeatedly unless you specifically need a mutation trace.
 
 ```ts
-import { parseMermaid, verifyMermaid, renderMermaidSVG } from 'agentic-mermaid/agent'
+import { parseRegisteredMermaid, verifyMermaid, renderMermaidSVG } from 'agentic-mermaid/agent'
 
 const source = `flowchart LR
   User --> Login
   Login --> Dashboard`
 
-const parsed = parseMermaid(source)
+const parsed = parseRegisteredMermaid(source)
 if (!parsed.ok) throw new Error(parsed.error.map(e => e.message).join('\n'))
 
 const verify = verifyMermaid(parsed.value)
@@ -56,9 +56,9 @@ am render diagram.mmd --format svg > diagram.svg
 ## Recipe: edit an existing flowchart safely
 
 ```ts
-import { parseMermaid, asFlowchart, mutate, verifyMermaid, serializeMermaid } from 'agentic-mermaid/agent'
+import { parseRegisteredMermaid, asFlowchart, mutate, verifyMermaid, serializeMermaid } from 'agentic-mermaid/agent'
 
-const parsed = parseMermaid('flowchart TD\n  API --> DB')
+const parsed = parseRegisteredMermaid('flowchart TD\n  API --> DB')
 if (!parsed.ok) throw new Error('parse failed')
 
 const flow = asFlowchart(parsed.value)
@@ -92,10 +92,10 @@ am mutate flow.mmd --ops '[
 When applying several edits, keep the previous verified value. If a mutation or verification fails, return the last known-good diagram and the failure reason.
 
 ```ts
-import { parseMermaid, asFlowchart, mutate, verifyMermaid, serializeMermaid, type FlowchartMutationOp } from 'agentic-mermaid/agent'
+import { parseRegisteredMermaid, asFlowchart, mutate, verifyMermaid, serializeMermaid, type FlowchartMutationOp } from 'agentic-mermaid/agent'
 
 export function applyFlowchartOps(source: string, ops: FlowchartMutationOp[]) {
-  const parsed = parseMermaid(source)
+  const parsed = parseRegisteredMermaid(source)
   if (!parsed.ok) return { ok: false as const, phase: 'parse', error: parsed.error }
 
   let current = asFlowchart(parsed.value)
@@ -127,9 +127,9 @@ export function applyFlowchartOps(source: string, ops: FlowchartMutationOp[]) {
 Every built-in renderable family has a typed mutation path when its modeled subset narrows successfully. Unmodeled syntax is preserved as an opaque fallback body: it still parses, verifies, renders, and serializes losslessly, but family narrowers return `null` for that particular body.
 
 ```ts
-import { parseMermaid, asFlowchart, verifyMermaid, serializeMermaid } from 'agentic-mermaid/agent'
+import { parseRegisteredMermaid, asFlowchart, verifyMermaid, serializeMermaid } from 'agentic-mermaid/agent'
 
-const parsed = parseMermaid(source)
+const parsed = parseRegisteredMermaid(source)
 if (!parsed.ok) return { phase: 'parse', errors: parsed.error }
 
 const flow = asFlowchart(parsed.value)
@@ -145,16 +145,16 @@ if (!flow) {
 const verify = verifyMermaid(flow)
 ```
 
-For source-level edits, preserve as much original source as possible, then run `parseMermaid` and `verifyMermaid` again before returning it.
+For source-level edits, preserve as much original source as possible, then run `parseRegisteredMermaid` and `verifyMermaid` again before returning it.
 
 ## Recipe: inspect quality without screenshots
 
 `verifyMermaid` is structural. It catches reliable warning codes and returns layout JSON; it is not a subjective aesthetics score.
 
 ```ts
-import { parseMermaid, verifyMermaid, measureQuality, layoutMermaid, analyzeMermaid } from 'agentic-mermaid/agent'
+import { parseRegisteredMermaid, verifyMermaid, measureQuality, layoutMermaid, analyzeMermaid } from 'agentic-mermaid/agent'
 
-const parsed = parseMermaid(source)
+const parsed = parseRegisteredMermaid(source)
 if (!parsed.ok) throw new Error('parse failed')
 
 const verify = verifyMermaid(parsed.value, { labelCharCap: 28 })
@@ -191,9 +191,9 @@ Library channel:
 
 ```ts
 import { writeFileSync } from 'node:fs'
-import { parseMermaid, verifyMermaid, renderMermaidSVG, renderMermaidPNG, renderMermaidASCII } from 'agentic-mermaid/agent'
+import { parseRegisteredMermaid, verifyMermaid, renderMermaidSVG, renderMermaidPNG, renderMermaidASCII } from 'agentic-mermaid/agent'
 
-const parsed = parseMermaid(source)
+const parsed = parseRegisteredMermaid(source)
 if (!parsed.ok) throw new Error(parsed.error.map(e => e.message).join('\n'))
 
 const verify = verifyMermaid(parsed.value)
@@ -226,7 +226,7 @@ MCP channel:
 In MCP Code Mode, do not import. The server injects `mermaid.*` as a global. Return JSON-serializable values.
 
 ```ts
-const parsed = mermaid.parseMermaid('flowchart TD\n  API --> DB')
+const parsed = mermaid.parseRegisteredMermaid('flowchart TD\n  API --> DB')
 if (!parsed.ok) return { phase: 'parse', errors: parsed.error }
 
 const flow = mermaid.asFlowchart(parsed.value)

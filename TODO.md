@@ -34,14 +34,6 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   `Sitemap: https://agentic-mermaid.dev/sitemap.xml`. Then verify the live body
   and status with `curl` and both search consoles. The repo deliberately ships
   no competing `robots.txt`, so the dashboard remains the single source.
-- [ ] **COMPAT-1 — Remove the deprecated bare `default` Style alias** (`todo`;
-  earliest in `0.3.0`, no earlier than 2027-01-31). Remove `default` only after
-  receipt diagnostics have shipped for the published window, migration docs use
-  `crisp`, and regression tests prove discovery no longer advertises the
-  compatibility name. The duplicate light Tufte palette and ambiguous bare
-  `tufte` input are already retired; callers must use `look:tufte`.
-
-
 ## Security backlog
 
 - [ ] **SEC-4 — Implement and drill hosted MCP abuse controls** (`todo`; the
@@ -188,11 +180,6 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   deduplicate repeated LABEL_OVERFLOW, id-allocation, `set_title`, collection,
   source-map, label-extraction, seeded-hash, and CSS-mix helpers. Characterize
   semantics first and extract one proven cluster at a time.
-- [ ] **CONS-41 — Classify remaining non-marker `RawMark` escapes** (`todo`).
-  Connector terminals and marker resources are typed. Replace or explicitly
-  classify the remaining accessibility/prelude, CSS, icon/image, tooltip, and
-  hit-overlay escapes with typed document, icon, or interaction primitives,
-  preserving default bytes and strict-security evidence.
 - [ ] **CONS-43 — Continue physical layout-pass extraction** (`todo`). Move
   cohesive pass implementations out of `layout/passes/index.ts` one at a time
   behind the checked manifest; preserve order, mutation declarations,

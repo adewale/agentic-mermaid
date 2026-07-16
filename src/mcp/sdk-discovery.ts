@@ -89,8 +89,6 @@ type MermaidRuntimeConfig = { [key: string]: MermaidConfigValue | undefined }
 ${CODE_MODE_CORE_RENDER_OPTION_DECLARATIONS}
 
 declare const mermaid: {
-  parseMermaid(source: string): Result<ValidDiagram, ParseError[]>
-  // Open parser for installed families; built-in authoring ops remain ValidDiagram-only.
   parseRegisteredMermaid(source: string): Result<ParsedDiagram, ParseError[]>
   createMermaid(kind: DiagramKind, opts?: { direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }): ValidDiagram
   buildMermaid(kind: DiagramKind, ops: MutationOp[], opts?: { direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }): Result<ValidDiagram, { code: string; message: string; opIndex: number }>

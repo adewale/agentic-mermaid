@@ -8,7 +8,7 @@
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
 
-import { synthesizeFromGraph, serializeMermaid, parseMermaid, createMermaid } from '../agent/index.ts'
+import { synthesizeFromGraph, serializeMermaid, parseRegisteredMermaid as parseMermaid, createMermaid } from '../agent/index.ts'
 import type { DiagramKind } from '../agent/types.ts'
 
 const NUM_RUNS = 400

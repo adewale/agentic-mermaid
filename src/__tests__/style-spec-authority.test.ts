@@ -9,6 +9,7 @@ import {
   knownStyleDescriptors,
   knownStyles,
   registerStyle,
+  resolveStyleReference,
   resolveStyleStack,
   styleSpecFieldReferenceMarkdown,
   styleSpecJsonSchema,
@@ -128,7 +129,7 @@ describe('StyleSpec has one projected field authority', () => {
     expect(crisp?.identity.kind).toBe('look')
     expect(crisp?.inputName).toBe('crisp')
     expect(crisp?.isDefault).toBe(true)
-    expect(crisp?.aliases.map(alias => alias.alias)).toContain('default')
+    expect(resolveStyleReference('default')).toBeUndefined()
     expect(knownStyles().filter(name => name === 'crisp')).toHaveLength(1)
 
     expect(descriptors.find(descriptor => descriptor.identity.id === 'palette:tufte')).toBeUndefined()
@@ -148,14 +149,14 @@ describe('StyleSpec has one projected field authority', () => {
     expect(readFileSync(join(ROOT, 'website', 'build.ts'), 'utf8')).not.toContain('STYLE_THEME_LABELS')
   })
 
-  test('removed Tufte palette/bare inputs have no metadata or public resolution', () => {
+  test('removed Tufte palette and bare input have no public resolution', () => {
     for (const relative of ['src/index.ts', 'src/agent/core.ts', 'src/scene/style-registry.ts']) {
       expect(readFileSync(join(ROOT, relative), 'utf8')).not.toContain('TUFTE_STYLE_ALIAS')
     }
-    const tufte = knownStyleDescriptors().find(descriptor => descriptor.identity.id === 'look:tufte')!
-    expect(tufte.aliases).toEqual([])
+    expect(knownStyleDescriptors().some(descriptor => descriptor.identity.id === 'look:tufte')).toBe(true)
     expect(getStyle('palette:tufte')).toBeUndefined()
     expect(getStyle('tufte')).toBeUndefined()
+    expect(getStyle('look:tufte')?.name).toBe('look:tufte')
   })
 
   test('CLI rejects the removed Tufte palette while retaining the full Look', () => {
@@ -166,6 +167,13 @@ describe('StyleSpec has one projected field authority', () => {
     expect(removed.exitCode).toBe(2)
     expect(removed.stderr.toString()).toContain('Unknown style "palette:tufte"')
     expect(removed.stdout.toString()).toBe('')
+
+    const removedBare = Bun.spawnSync([
+      'bun', 'run', join(ROOT, 'bin/am.ts'), 'render', input, '--style', 'tufte',
+    ], { cwd: ROOT })
+    expect(removedBare.exitCode).toBe(2)
+    expect(removedBare.stderr.toString()).toContain('Unknown style "tufte"')
+    expect(removedBare.stdout.toString()).toBe('')
 
     const retained = Bun.spawnSync([
       'bun', 'run', join(ROOT, 'bin/am.ts'), 'render', input, '--style', 'look:tufte',

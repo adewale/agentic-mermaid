@@ -3,7 +3,7 @@ import { runHttp, runStdio, type HttpMcpOptions } from './server.ts'
 export const MCP_CLI_HELP = `agentic-mermaid-mcp [--transport stdio|http] [--host 127.0.0.1] [--port 3000]
 
 Options:
-  --transport stdio|http   Transport to run (default stdio). --http is an alias.
+  --transport stdio|http   Transport to run (default stdio).
   --host <host>            HTTP/SSE bind host (default 127.0.0.1).
   --port <port>            HTTP/SSE bind port (default 3000, 0 = ephemeral).
   --artifact-dir <dir>     Managed artifact directory for file/url outputs.
@@ -29,6 +29,33 @@ function has(args: readonly string[], name: string): boolean {
   return args.includes(name)
 }
 
+const MCP_VALUE_FLAGS = new Set([
+  '--transport',
+  '--host',
+  '--port',
+  '--artifact-dir',
+  '--public-url',
+  '--max-artifact-bytes',
+  '--artifact-ttl-ms',
+  '--max-rpc-body-bytes',
+  '--auth-token',
+  '--max-sandbox-timeout-ms',
+])
+
+function validateArgs(args: readonly string[]): void {
+  const seen = new Set<string>()
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i]!
+    if (arg === '--help' || arg === '-h') continue
+    if (!MCP_VALUE_FLAGS.has(arg)) throw new Error(`unknown option: ${arg}`)
+    if (seen.has(arg)) throw new Error(`${arg} may be provided only once`)
+    seen.add(arg)
+    const value = args[i + 1]
+    if (value === undefined || value.startsWith('-')) throw new Error(`${arg} requires a value`)
+    i++
+  }
+}
+
 function integerFlag(args: readonly string[], name: string, opts: { min: number; max?: number }): number | undefined {
   const raw = flag(args, name)
   if (raw === undefined) return undefined
@@ -40,7 +67,8 @@ function integerFlag(args: readonly string[], name: string, opts: { min: number;
 }
 
 export function parseMcpCliOptions(argv: readonly string[]): { transport: string; httpOptions: HttpMcpOptions } {
-  const transport = has(argv, '--http') ? 'http' : (flag(argv, '--transport') ?? 'stdio')
+  validateArgs(argv)
+  const transport = flag(argv, '--transport') ?? 'stdio'
   return {
     transport,
     httpOptions: {

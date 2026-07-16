@@ -8,7 +8,8 @@
  * The key invariant: disconnected components should NEVER overlap.
  */
 import { describe, it, expect } from 'bun:test'
-import { renderMermaidSync, parseMermaid } from '../index.ts'
+import { renderMermaidSVG } from '../index.ts'
+import { parseMermaid } from '../parser.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 
 // ============================================================================
@@ -352,7 +353,7 @@ describe('layoutGraph – disconnected edge cases', () => {
 // Full render tests (SVG output)
 // ============================================================================
 
-describe('renderMermaid – disconnected components', () => {
+describe('renderMermaidSVGAsync – disconnected components', () => {
   it('renders two disconnected subgraphs to valid SVG', () => {
     const source = `graph LR
       subgraph Today [Today]
@@ -362,7 +363,7 @@ describe('renderMermaid – disconnected components', () => {
         C --> D
       end`
 
-    const svg = renderMermaidSync(source)
+    const svg = renderMermaidSVG(source)
 
     expect(svg).toContain('<svg')
     expect(svg).toContain('</svg>')
@@ -380,7 +381,7 @@ describe('renderMermaid – disconnected components', () => {
       B[Second]
       C[Third]`
 
-    const svg = renderMermaidSync(source)
+    const svg = renderMermaidSVG(source)
 
     expect(svg).toContain('<svg')
     expect(svg).toContain('</svg>')

@@ -2,12 +2,10 @@
 // StyleBackend interface + DefaultBackend + backend registry (SPEC §3.2).
 //
 // A backend consumes a SceneDoc and produces the SVG document string. The
-// DefaultBackend is the Agentic Mermaid crisp renderer: it emits each mark's
-// construction-time crisp serialization verbatim, so its output is
-// byte-identical to the pre-IR string renderers (svg-equivalence.test.ts is
-// the corpus-wide gate). Styled backends (rough/hybrid) redraw shape and
+// DefaultBackend is the Agentic Mermaid precise renderer: it emits each mark's
+// canonical projection, not its construction-time byte order. Styled backends (rough/hybrid) redraw shape and
 // connector marks from their semantic fields and re-derive the document shell
-// from PreludeMark parameters; they never dispatch on diagram family.
+// from the admitted Scene serialization; they never dispatch on diagram family.
 // ============================================================================
 
 import type { SceneDoc, SceneNode } from './ir.ts'
@@ -22,6 +20,7 @@ import {
 } from './capabilities.ts'
 import type { PrimitiveCapabilityClaim } from './capabilities.ts'
 import { admitBackendSceneDocument } from './external-data-snapshot.ts'
+import { sceneNodeSerialization } from './serialization.ts'
 import {
   canonicalExtensionId,
   createExtensionIdentity,
@@ -39,7 +38,7 @@ import type {
 export interface StyleBackendContext {
   /** User-supplied deterministic re-roll seed (RenderOptions.seed). */
   seed: number
-  /** The selected style (undefined on the crisp default path). */
+  /** The selected style (undefined on the default path). */
   style?: StyleSpec
 }
 
@@ -104,11 +103,9 @@ export function composeGroup(
 
 /** Styled documents carry an explicit page rect after the prelude — resvg
  *  does not paint the root style="background:…" CSS (SPEC §10). Emitted by
- *  every backend when a style is active and the document isn't transparent;
- *  the crisp path (no style) is byte-identical to previous releases. */
+ *  every backend when a style is active and the document isn't transparent. */
 export function pageRectFor(doc: SceneDoc, ctx: StyleBackendContext): string {
-  const prelude = doc.parts[0]
-  if (!ctx.style || prelude?.kind !== 'prelude' || prelude.prelude.transparent) return ''
+  if (!ctx.style || doc.transparent) return ''
   return `<rect width="${doc.width}" height="${doc.height}" fill="var(--bg)" data-backdrop="page" />`
 }
 
@@ -116,20 +113,20 @@ export const DefaultBackend: StyleBackend = {
   id: 'default',
   capabilities: graphicalBackendCapabilityClaims('backend:default', 'crisp'),
   drawNode(node: SceneNode): string {
-    return node.crisp
+    return sceneNodeSerialization(node)
   },
   render(doc: SceneDoc, ctx: StyleBackendContext): string {
     const admitted = admitBackendSceneDocument(doc)
     const pageRect = pageRectFor(admitted, ctx)
-    if (!pageRect) return admitted.parts.map(part => part.crisp).join('\n')
+    if (!pageRect) return admitted.parts.map(sceneNodeSerialization).join('\n')
     return admitted.parts
-      .map((part, i) => (i === 0 ? `${part.crisp}\n${pageRect}` : part.crisp))
+      .map((part, i) => (i === 0 ? `${sceneNodeSerialization(part)}\n${pageRect}` : sceneNodeSerialization(part)))
       .join('\n')
   },
 }
 
 const CORE_BACKEND_VERSION = '1.0.0'
-const CORE_BACKEND_COMPATIBILITY = Object.freeze({ core: '^0.1.1', scene: '^1.0.0' })
+const CORE_BACKEND_COMPATIBILITY = Object.freeze({ core: '^0.1.1', scene: '^2.0.0' })
 const CORE_BACKEND_PROVENANCE = Object.freeze({
   owner: 'agentic-mermaid',
   source: 'built-in',
@@ -263,15 +260,15 @@ function snapshotBackend(backend: StyleBackend): StyleBackend {
   return Object.freeze(snapshot)
 }
 
-/** Built-ins retain their historical object identity while receiving the same
- * frozen capability/method surface as host registrations. */
+/** Built-in backend instances receive the same frozen capability/method
+ * surface as host registrations. */
 function freezeBuiltInBackend(backend: StyleBackend): StyleBackend {
   const mutable = backend as {
     capabilities: readonly PrimitiveCapabilityClaim[]
   }
   mutable.capabilities = snapshotBackendCapabilities(backend.capabilities)
-  // Built-ins admit documents at their own public render boundary. Preserve
-  // that behavior for direct imports and avoid a second validation pass after
+  // Built-ins admit documents at their own public render boundary, including
+  // direct imports, and avoid a second validation pass after
   // registry selection; host backends remain wrapped by snapshotBackend().
   return Object.freeze(backend)
 }

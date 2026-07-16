@@ -4,8 +4,8 @@
 // Renders Mermaid diagrams to styled SVG strings.
 // Framework-agnostic, no DOM required. Pure TypeScript.
 //
-// Supported families are projected from the FamilyDescriptor registry. Do not
-// duplicate that inventory here; see knownFamilyDescriptors()/capabilities.
+// Supported families come from the registry. Do not duplicate that inventory
+// here; see knownFamilyDescriptors()/capabilities.
 //
 // Theming uses CSS custom properties (--bg, --fg, + optional enrichment).
 // See src/theme.ts for the full variable system.
@@ -17,10 +17,9 @@
 
 export type { RenderOptions, RenderContext, ConfigDiagnostic, MermaidGraph, PositionedDiagram, PositionedGraph, RouteCertificate, EdgeRouteCertificate, FamilyEdgeRouteCertificate, RegionContainmentCertificate, FamilyRouteCertificate, LayoutRouteCertificate, LayoutRouteClass, RouteClass, RouteBlocker, RoutePortAssignment, PortSemanticRole, AnyPort, PortSide, DiamondFacet } from './types.ts'
 export type { ArchitectureVisualOverrides } from './architecture/config.ts'
-export type { DiagramColors, ThemeName, ResolvedColors } from './theme.ts'
-export { fromShikiTheme, THEMES, DEFAULTS, resolveColors, inlineResolvedColors } from './theme.ts'
+export type { DiagramColors, ResolvedColors } from './theme.ts'
+export { fromShikiTheme, DEFAULTS, resolveColors, inlineResolvedColors } from './theme.ts'
 export { resolveDiagramColors } from './color-resolver.ts'
-export { parseMermaid } from './parser.ts'
 export { parseRegisteredMermaid } from './agent/parse.ts'
 export type {
   ParsedDiagram,
@@ -32,7 +31,7 @@ export type {
   SourceSpan,
   SourceSpanPoint,
 } from './agent/types.ts'
-export { renderMermaidASCII, renderMermaidASCIIWithReceipt, renderMermaidAscii, AsciiWidthError } from './ascii/index.ts'
+export { renderMermaidASCII, renderMermaidASCIIWithReceipt, AsciiWidthError } from './ascii/index.ts'
 export type { AsciiRenderOptions, AsciiWidthErrorReason, RenderedAscii } from './ascii/index.ts'
 export { TERMINAL_STYLE_VERSION } from './terminal-style.ts'
 export type {
@@ -116,12 +115,12 @@ export type {
 export { SCENE_CONTRACT_VERSION } from './scene/ir.ts'
 export type {
   SceneDoc, SceneNode, SceneNodeBase, SemanticChannels, SceneRole, Geometry, MarkPaint,
-  ShapeMark, TextMark, GroupMark, RawMark, DocumentMark, PreludeMark, ConnectorMark,
+  ShapeMark, TextMark, GroupMark, DocumentMark, ConnectorMark,
   ConnectorGeometry, ConnectorSubpath, ConnectorDirection, ConnectorEndpointAnchor, ConnectorEndpoints,
   ConnectorRelationship, ConnectorRoute, ConnectorContourSemantics, ConnectorDash, ConnectorStroke,
   ConnectorLabelDescriptor, ConnectorHitGeometry, ConnectorTerminalProjection,
   ConnectorTerminalStrokeLoss, ConnectorTerminalMarkerProjection, ConnectorTerminalMarkerPlacement, ConnectorTerminalLabelProjection,
-  MarkerDescriptor, MarkerRef, MarkerShape, ScenePoint, SceneBox,
+  MarkerDescriptor, MarkerShape, ScenePoint, SceneBox,
 } from './scene/ir.ts'
 export {
   EXTERNAL_SCENE_API_VERSION, buildExternalScene,
@@ -164,10 +163,10 @@ export type {
 export {
   KNOWN_EXTENSION_CONTRACT_VERSIONS, canonicalExtensionId, parseExtensionId,
   createExtensionIdentity, evaluateExtensionCompatibility,
-  registerCompatibilityAlias, registerExtension, ExtensionCollisionError,
+  registerExtension, ExtensionCollisionError,
 } from './shared/extension-identity.ts'
 export {
-  HOSTED_FONT_RESOURCES, HOSTED_FONT_FACES, HOSTED_FONT_FILES,
+  HOSTED_FONT_RESOURCES,
   RESOURCE_MANIFEST, hostedFontResource, validateResourceManifest,
 } from './font-manifest.ts'
 export { RESOURCE_MANIFEST_VERSION, snapshotResourceManifest, verifyResourceBytes } from './resource-manifest.ts'
@@ -177,7 +176,6 @@ export type {
 export type {
   ExtensionIdentity, ExtensionCompatibility, ExtensionProvenance, ExtensionRegistration,
   ExtensionCompatibilityDecision, ExtensionCompatibilityResolution,
-  CompatibilityAlias, CompatibilityAliasDiagnostic, CompatibilityRemoval,
 } from './shared/extension-identity.ts'
 export type { SvgSemanticIdentity } from './scene/identity.ts'
 export type { SvgSemanticAccessibility, SvgRelationSemantics } from './scene/accessibility.ts'
@@ -311,13 +309,3 @@ export async function renderMermaidSVGAsync(
 ): Promise<string> {
   return renderMermaidSVG(text, options)
 }
-
-// ---------------------------------------------------------------------------
-// Backward-compatible aliases
-// ---------------------------------------------------------------------------
-
-/** @deprecated Use `renderMermaidSVG` */
-export const renderMermaidSync = renderMermaidSVG
-
-/** @deprecated Use `renderMermaidSVGAsync` */
-export const renderMermaid = renderMermaidSVGAsync

@@ -3,7 +3,7 @@ import {
   layoutMermaid,
   layoutMermaidWithReceipt,
   measureQuality,
-  parseMermaid,
+  parseRegisteredMermaid as parseMermaid,
   renderMermaidSVGWithReceipt,
   parseRegisteredMermaid,
   registerFamily,
@@ -28,7 +28,7 @@ function extensionDescriptor(
 ): FamilyDescriptor {
   const id = `family:test/${localId}` as ExternalFamilyId
   return {
-    contractVersion: 1,
+    contractVersion: 2,
     identity: createExtensionIdentity({
       id,
       kind: 'family',

@@ -30,7 +30,7 @@ export function sectionATransportReceiptProjection(receipt: RenderRequestReceipt
     requestDigest: receipt.requestDigest,
     appearanceDigest: receipt.appearanceDigest,
     diagnostics: receipt.diagnostics ?? [],
-    capabilityDecision: receipt.capabilityDecision ?? null,
+    capabilityDecision: receipt.capabilityDecision,
     executionDecision: receipt.executionDecision ?? null,
     graphicalProjectionDigest: receipt.graphicalProjectionDigest ?? null,
   }

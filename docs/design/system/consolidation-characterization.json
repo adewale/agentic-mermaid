@@ -102,12 +102,6 @@
   ],
   "contracts": [
     {
-      "id": "default-svg-bytes",
-      "surface": "bytes",
-      "familyScope": "registry",
-      "evidence": ["src/__tests__/svg-equivalence.test.ts", "src/__tests__/styled-output.test.ts"]
-    },
-    {
       "id": "semantic-identity",
       "surface": "semantic identity",
       "familyScope": "registry",

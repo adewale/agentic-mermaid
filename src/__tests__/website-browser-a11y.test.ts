@@ -4,7 +4,7 @@ import { extname, join, normalize } from 'node:path'
 import { deflateRawSync } from 'node:zlib'
 import { chromium, type Browser, type Page } from 'playwright'
 import { serveWithAvailablePort } from '../../e2e/test-port.ts'
-import { HOSTED_FONT_FACES } from '../font-manifest.ts'
+import { HOSTED_FONT_RESOURCES } from '../font-manifest.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
@@ -36,10 +36,6 @@ const mime: Record<string, string> = {
   '.ttf': 'font/ttf',
   '.txt': 'text/plain; charset=utf-8',
   '.md': 'text/markdown; charset=utf-8',
-}
-
-function legacyEditorHash(payload: unknown) {
-  return Buffer.from(JSON.stringify(payload), 'utf8').toString('base64')
 }
 
 function deflatedEditorHash(payload: unknown) {
@@ -260,7 +256,7 @@ describeBrowser('website browser accessibility smoke', () => {
   test('editor blank-start URL opens an empty canvas instead of the default or saved draft', async () => {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
     await page.goto(baseUrl + '/editor/', { waitUntil: 'networkidle' })
-    await page.evaluate(() => localStorage.setItem('bm-editor-draft', JSON.stringify({ source: 'flowchart TD\n  Draft --> Restored', config: {}, savedAt: Date.now() })))
+    await page.evaluate(() => sessionStorage.setItem('bm-editor-draft', JSON.stringify({ source: 'flowchart TD\n  Draft --> Restored', config: {}, savedAt: Date.now() })))
     await page.goto(baseUrl + '/editor/?empty=1', { waitUntil: 'networkidle' })
     await page.waitForFunction(() => document.querySelector('#preview-placeholder'))
     expect(await page.locator('#code-editor').inputValue()).toBe('')
@@ -305,48 +301,34 @@ describeBrowser('website browser accessibility smoke', () => {
   test('editor rejects oversized saved drafts before parsing and clears them', async () => {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
     await page.goto(baseUrl + '/editor/?empty=1', { waitUntil: 'networkidle' })
-    await page.evaluate(() => {
-      localStorage.removeItem('bm-editor-draft-mode')
-      localStorage.setItem('bm-editor-draft', 'x'.repeat(256 * 1024 + 1))
-    })
+    await page.evaluate(() => sessionStorage.setItem('bm-editor-draft', 'x'.repeat(256 * 1024 + 1)))
     await page.goto(baseUrl + '/editor/', { waitUntil: 'networkidle' })
     await page.waitForFunction(() => document.querySelector('#toast')?.textContent?.includes('too large to restore safely'))
-    expect(await page.evaluate(() => localStorage.getItem('bm-editor-draft'))).toBeNull()
+    expect(await page.evaluate(() => sessionStorage.getItem('bm-editor-draft'))).toBeNull()
     expect(await page.locator('#code-editor').inputValue()).toContain('Parse source')
     await page.close()
   }, 30_000)
 
-  test('editor exposes private autosave and moves draft content to session storage', async () => {
+  test('editor autosaves drafts only within the current tab session', async () => {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
     await page.goto(baseUrl + '/editor/?empty=1', { waitUntil: 'networkidle' })
-    const privacy = page.locator('#draft-privacy-btn')
-    expect((await privacy.textContent())?.trim()).toBe('Autosave: this browser')
-    expect(await privacy.getAttribute('aria-label')).toContain('stored in plaintext in this browser')
-
     const source = 'flowchart TD\n  Private --> Session'
     await page.locator('#code-editor').fill(source)
     await page.locator('#code-editor').dispatchEvent('input')
-    await page.waitForFunction(() => localStorage.getItem('bm-editor-draft')?.includes('Private'))
-    await privacy.click()
     await page.waitForFunction(() => sessionStorage.getItem('bm-editor-draft')?.includes('Private'))
-    expect(await privacy.getAttribute('aria-pressed')).toBe('true')
-    expect((await privacy.textContent())?.trim()).toBe('Autosave: private')
-    expect(await page.evaluate(() => ({
-      persistentDraft: localStorage.getItem('bm-editor-draft'),
-      mode: localStorage.getItem('bm-editor-draft-mode'),
-    }))).toEqual({ persistentDraft: null, mode: 'session' })
+    expect(await page.locator('#draft-privacy-btn').count()).toBe(0)
+    expect(await page.evaluate(() => localStorage.getItem('bm-editor-draft'))).toBeNull()
 
     await page.evaluate(() => history.replaceState(null, '', '/editor/'))
     await page.reload({ waitUntil: 'networkidle' })
     await page.waitForFunction((expected) => (document.querySelector('#code-editor') as HTMLTextAreaElement | null)?.value === expected, source)
-    expect(await page.locator('#draft-privacy-btn').getAttribute('aria-pressed')).toBe('true')
     expect(await page.evaluate(() => localStorage.getItem('bm-editor-draft'))).toBeNull()
     await page.close()
   }, 30_000)
 
   test('editor share config cannot weaken strict SVG insertion', async () => {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
-    const hash = legacyEditorHash({
+    const hash = deflatedEditorHash({
       source: 'flowchart TD\n  Safe --> Preview',
       config: {
         security: 'default',
@@ -403,7 +385,7 @@ describeBrowser('website browser accessibility smoke', () => {
           loadedFaces: loaded.map((font) => ({ family: font.family.replace(/["']/g, ''), weight: font.weight, style: font.style, status: font.status })),
         }
       }))
-    }, HOSTED_FONT_FACES)
+    }, HOSTED_FONT_RESOURCES)
     for (const result of results) {
       expect(result).toMatchObject({ fetchOk: true, checkOk: true })
       expect(result.loadedFaces.some((font) => font.family === result.family && font.status === 'loaded' && font.style === result.style)).toBe(true)
@@ -421,7 +403,7 @@ describeBrowser('website browser accessibility smoke', () => {
         },
       },
     }
-    const hash = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64')
+    const hash = deflatedEditorHash(payload)
     await page.goto(baseUrl + '/editor/#' + hash, { waitUntil: 'networkidle' })
     await page.waitForFunction(() => ['OK', 'Error'].includes(document.querySelector('#status-text')?.textContent || ''))
     const result = await page.evaluate(() => ({
@@ -438,7 +420,11 @@ describeBrowser('website browser accessibility smoke', () => {
 
   test('editor share links restore style state and styled label fonts', async () => {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
-    const hash = 'deflate:PY5BDoIwEEWvMumaegAXnkAIgYRNZTHCIARoybRIkLD1AB7Rk5iWxOV_7yf_b8KamSsSZ9EMZqlaZAfX7KYBcpUHBadxrEuQ8gKpmpAtlV6ngSRKI7NZAkoCitU4O3RHKw6o2J7EXbPuHhUgJZg-iExZ4g6H7kXwfX-ASdfE5b-2IOtOP-yxJSLhWhr92QknYhEJ69bB56rFob8b5FrsPw'
+    const hash = deflatedEditorHash({
+      source: 'flowchart LR\n  S[Source .mmd] --> P[parse]\n  P --> N[narrow]\n  N --> M[mutate]\n  M --> V{verify}\n  V -- ok --> R[serialize → render]\n  V -- warnings --> N',
+      palette: 'paper',
+      style: 'chalkboard',
+    })
     await page.goto(baseUrl + '/editor/#' + hash, { waitUntil: 'networkidle' })
     await page.locator('#preview-inner svg text').first().waitFor({ state: 'visible', timeout: 10_000 })
     await page.waitForFunction(() => document.fonts.check('16px Caveat'))
@@ -451,7 +437,12 @@ describeBrowser('website browser accessibility smoke', () => {
 
   test('editor share links apply compact schematic label typography in the browser', async () => {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
-    const hash = 'deflate:RY6xDoIwFEV_5eXNdDcMGqGsLriYykDKkzZCS9pnjKH8uykOjuec5OauGP0raMISH5N_a9MHhqu8O4CzarkP3IEQR6hWSdpG691py7HKNt0oJqiV9MCGgI11Y_evF59AqvZpF7C8-3rfalTjhp3lj7FANjTnE86HQUx2NIwFRv5MWfoliqgNzT1bnT3RgOVh-wI'
+    const hash = deflatedEditorHash({
+      source: 'flowchart TD\n  A[Start] --> B{Decision?}\n  B -->|Yes| C[Do the thing]\n  B -->|No| D[Skip it]\n  C --> E[End]\n  D --> E',
+      palette: 'nord-light',
+      style: 'ops-schematic',
+      seed: 8,
+    })
     await page.goto(baseUrl + '/editor/#' + hash, { waitUntil: 'networkidle' })
     await page.locator('#preview-inner svg text').first().waitFor({ state: 'visible', timeout: 10_000 })
     await page.waitForFunction(() => document.fonts.check('12px "Share Tech Mono"'))

@@ -3,14 +3,14 @@ import { rmSync, writeFileSync } from 'node:fs'
 import { applyOps, buildChecked } from '../agent/apply.ts'
 import { describeMermaid, describeMermaidSource } from '../agent/describe.ts'
 import { describeMermaidFacts } from '../agent/facts.ts'
-import { parseMermaid } from '../agent/parse.ts'
+import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { verifyMermaid } from '../agent/verify.ts'
 import { runBatchLine, runCli } from '../cli/index.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
 import { handleRequest as handleLocalRequest } from '../mcp/server.ts'
 import { handleHostedRequest } from '../mcp/hosted-server.ts'
 import { dependencyStartupMessage } from '../../bin/dependency-error.ts'
-import { createMcpHandler, preserveUnsafeJsonRpcIds, type McpCache } from '../../website/src/mcp-handler.ts'
+import { createMcpHandler, type McpCache } from '../../website/src/mcp-handler.ts'
 
 const toolCall = (name: string, args: Record<string, unknown>, id: number | string = 1) => ({
   jsonrpc: '2.0' as const, id, method: 'tools/call', params: { name, arguments: args },
@@ -185,7 +185,7 @@ describe('reported contract regressions', () => {
     ])
     expect(built.ok).toBe(true)
     if (built.ok) expect(built.value.canonicalSource).toBe('erDiagram\n  CUSTOMER\n  ORDER\n')
-    const rendered = runBatchLine(JSON.stringify({ op: 'render', source: 'flowchart LR\n  A --> B', options: { ascii: true } })) as any
+    const rendered = runBatchLine(JSON.stringify({ op: 'render', source: 'flowchart LR\n  A --> B', options: { format: 'ascii' } })) as any
     expect(rendered.ok).toBe(true)
     expect(rendered.data.ascii).toMatch(/^[\x00-\x7f]*$/)
   })
@@ -228,20 +228,6 @@ describe('reported contract regressions', () => {
 
 describe('hosted transport truthfulness', () => {
   const context = { execute: async () => ({ ok: true as const, value: null, logs: [] }) }
-
-  test('unsafe numeric JSON-RPC ids round-trip lexically without touching nested ids', async () => {
-    const raw = '{"jsonrpc":"2.0","id":9007199254740993,"method":"ping","params":{"id":9007199254740995}}'
-    const protectedBody = preserveUnsafeJsonRpcIds(raw)
-    expect(protectedBody.ids.map(id => id.raw)).toEqual(['9007199254740993'])
-    expect(protectedBody.body).toContain('"params":{"id":9007199254740995}')
-    expect(preserveUnsafeJsonRpcIds('{"jsonrpc":"2.0","id":9007199254740993.0,"method":"ping"}').ids.map(id => id.raw)).toEqual(['9007199254740993.0'])
-    const handler = createMcpHandler({ context, cacheVersion: 'test', onEvent: () => {} })
-    for (const id of ['-0', '9007199254740993', '9007199254740993.0', '9007199254740993e0', '9.007199254740993e15']) {
-      const body = `{"jsonrpc":"2.0","id":${id},"method":"ping"}`
-      const response = await handler(new Request('https://agentic-mermaid.dev/mcp', { method: 'POST', headers: { 'content-type': 'application/json' }, body }))
-      expect(await response.text()).toContain(`"id":${id}`)
-    }
-  })
 
   test('HTTP responses stay no-store while the private compute-cache status is observable', async () => {
     const entries = new Map<string, Response>()

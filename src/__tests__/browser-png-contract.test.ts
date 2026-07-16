@@ -18,7 +18,6 @@ describe('canonical browser PNG adapter', () => {
       async (svg, context) => {
         expect(verifyNoExternalRefs(svg).ok).toBe(true)
         expect(context.receipt.output).toBe('png')
-        expect(context.scale).toBe(2)
         expect(context.outputPolicy).toMatchObject({
           scale: 2,
           background: { mode: 'explicit', value: '#fefefe' },
@@ -91,7 +90,7 @@ describe('canonical browser PNG adapter', () => {
     )
   })
 
-  test('preserves numeric scale compatibility and passes height/background policy intact', async () => {
+  test('accepts the numeric scale overload and passes height/background policy intact', async () => {
     const policies: unknown[] = []
     await renderMermaidPNGInBrowserWithReceipt(
       'flowchart LR\n A --> B', {}, 1.25,
@@ -166,7 +165,7 @@ describe('canonical browser PNG adapter', () => {
           : svg
       },
     }, {
-      compatibility: { core: '^0.1.1', scene: '^1.0.0' },
+      compatibility: { core: '^0.1.1', scene: '^2.0.0' },
       provenance: { owner: 'browser-png-contract-test', source: 'test' },
     })
     let rasterCalls = 0
@@ -200,7 +199,7 @@ describe('canonical browser PNG adapter', () => {
           .replace('<svg ', '<svg data-comparison="1 > 0" ')
       },
     }, {
-      compatibility: { core: '^0.1.1', scene: '^1.0.0' },
+      compatibility: { core: '^0.1.1', scene: '^2.0.0' },
       provenance: { owner: 'browser-png-contract-test', source: 'test' },
     })
     try {

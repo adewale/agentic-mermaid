@@ -26,7 +26,7 @@ import { writeFileSync, existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { Resvg } from '@resvg/resvg-js'
 import {
-  parseMermaid, mutate, verifyMermaid, asFlowchart,
+  parseRegisteredMermaid as parseMermaid, mutate, verifyMermaid, asFlowchart,
   renderMermaidPNG, renderMermaidSVG, renderMermaidASCII,
 } from '../../src/agent/index.ts'
 import type { FlowchartMutationOp, FlowchartValidDiagram } from '../../src/agent/types.ts'

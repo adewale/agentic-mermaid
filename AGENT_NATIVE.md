@@ -26,7 +26,7 @@ D2 has a better language than Mermaid. The Beautiful Mermaid renderer foundation
 
 1. **Deterministic layout** — same input → structurally identical layout JSON across runs with the same ELK version. (Not "byte-identical SVG across versions" — that's a stronger claim that needs a forked ELK to actually deliver.)
 2. **Verifiable rendering** — structured "did this render cleanly?" check. Structural warnings (anchors, bounds, emptiness, group containment) are reliable; metric warnings (label fit, overlap) are best-effort because they depend on font-measurement parity with ELK.
-3. **Round-trippable** — `parseMermaid` produces a `ValidDiagram` that carries source needed to re-emit the diagram. For flowchart/state, sequence, timeline, class, ER, journey, architecture, xychart, pie, quadrant, gantt, mindmap, gitgraph, and radar, `mutate` operates on structured bodies; for opaque-fallback bodies, preserved source is the round-trip mechanism.
+3. **Round-trippable** — `parseRegisteredMermaid` produces a `ValidDiagram` that carries source needed to re-emit the diagram. For flowchart/state, sequence, timeline, class, ER, journey, architecture, xychart, pie, quadrant, gantt, mindmap, gitgraph, and radar, `mutate` operates on structured bodies; for opaque-fallback bodies, preserved source is the round-trip mechanism.
 
 (Composition — `@include`, templates, layered scenarios — was the fourth in earlier drafts and is deferred. Agents do not currently reach for composition; they paste and edit. Add when evidence demands.)
 
@@ -179,7 +179,7 @@ type MutableValidDiagram = import('agentic-mermaid/agent').MutableValidDiagram
 ```
 
 ```ts
-parseMermaid(source: string):                                Result<ValidDiagram, ParseError[]>
+parseRegisteredMermaid(source: string):                                Result<ValidDiagram, ParseError[]>
 serializeMermaid(d: ValidDiagram):                           string
 synthesizeFromGraph(payload):                                Result<ValidDiagram, ParseError[]>
 createMermaid(kind, opts?):                                  MutableValidDiagram   // empty structured diagram; overloads narrow per kind
@@ -193,8 +193,8 @@ mutate(d, op):                                               Result<MutableValid
 
 Two contracts:
 
-- `serializeMermaid(parseMermaid(s)) ≡ normalize(s)` for canonical input. For structured families this emits a fresh canonical form; for opaque families it emits preserved source with `meta` re-attached.
-- `parseMermaid(serializeMermaid(d)) ≡ d` for every `d` produced by `parseMermaid` or `mutate`.
+- `serializeMermaid(parseRegisteredMermaid(s)) ≡ normalize(s)` for canonical input. For structured families this emits a fresh canonical form; for opaque families it emits preserved source with `meta` re-attached.
+- `parseRegisteredMermaid(serializeMermaid(d)) ≡ d` for every `d` produced by `parseRegisteredMermaid` or `mutate`.
 
 **Flowchart MutationOp kinds** (the authoritative menu is generated from the registry; `shape` fields accept geometry names and documented v11 names/aliases, and edge targets accept authored edge IDs or endpoint forms):
 
@@ -443,14 +443,14 @@ Two contracts:
 
 For any opaque fallback, cross-cutting edits are source-level only: operate against preserved source intentionally, then re-parse and verify before returning. Every renderable family now ships structured mutation; a new family follows the same pattern as its definition of done: narrowed type + body parser + serializer + per-family ops + verify hook + round-trip property tests + doc sync (most recently Mindmap and GitGraph). See `docs/contributing/adding-diagram-types.md`.
 
-Convention bans constructing `ValidDiagram` outside `parseMermaid`, `mutate`, `synthesizeFromGraph`, and `createMermaid`/`buildMermaid`.
+Convention bans constructing `ValidDiagram` outside `parseRegisteredMermaid`, `mutate`, `synthesizeFromGraph`, and `createMermaid`/`buildMermaid`.
 
 ---
 
 ## Public API
 
 ```ts
-parseMermaid(source: string):                              Result<ValidDiagram, ParseError[]>
+parseRegisteredMermaid(source: string):                              Result<ValidDiagram, ParseError[]>
 layoutMermaid(d: ValidDiagram):                            RenderedLayout
 renderMermaidASCII(input: ValidDiagram | string, opts?):   string
 renderMermaidPNG(input: ValidDiagram | string, opts?):     Uint8Array
@@ -559,7 +559,7 @@ Agent-contract CLI verbs for explicit self-discovery, summaries, and batch opera
 The canonical runtime guide lives in `Instructions_for_agents.md` and is emitted byte-for-byte by `am --agent-instructions`; this spec intentionally does not duplicate the full snippet. The stable contract is:
 
 1. For new diagrams, `buildMermaid(kind, ops)` — or `createMermaid(kind)` then typed mutations — then `verifyMermaid` / render or return it. Author Mermaid source directly only for syntax the typed ops do not model.
-2. For existing diagrams, `parseMermaid(source)` → `ValidDiagram`.
+2. For existing diagrams, `parseRegisteredMermaid(source)` → `ValidDiagram`.
 3. Use the family entry's registry-advertised narrower; `null` means no structured mutation for that body.
 4. Apply typed `mutate` ops only to narrowed mutable bodies; Code Mode SDK-returned diagrams are read-only to block direct IR edits.
 5. Run `verifyMermaid(d)` at every commit point and inspect `ok` / `warnings` / `layout`.

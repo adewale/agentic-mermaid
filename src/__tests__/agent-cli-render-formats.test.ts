@@ -1,4 +1,4 @@
-// Loop 9 M3 + M4 — `am render --format json|unicode|ascii` round-trips.
+// Loop 9 M3 + M4 — `am render --format layout|unicode|ascii` round-trips.
 
 import { describe, test, expect } from 'bun:test'
 import { runCli } from '../cli/index.ts'
@@ -35,10 +35,10 @@ function tmpFile(source: string): string {
   return p
 }
 
-describe('am render --format json', () => {
+describe('am render --format layout', () => {
   test('emits stable layout JSON for flowchart', () => {
     const f = tmpFile('flowchart TD\n  A --> B\n  B --> C\n')
-    const { code, out } = capture(() => runCli(['render', '--format', 'json', f]))
+    const { code, out } = capture(() => runCli(['render', '--format', 'layout', f]))
     expect(code).toBe(0)
     const payload = JSON.parse(out) as { nodes: unknown[]; edges: unknown[]; bounds: { w: number; h: number } }
     expect(Array.isArray(payload.nodes)).toBe(true)
@@ -50,8 +50,8 @@ describe('am render --format json', () => {
   })
   test('certificates flag includes route certificates without changing default JSON', () => {
     const f = tmpFile('flowchart LR\n  A --> B\n  B --> C\n')
-    const regular = capture(() => runCli(['render', '--format', 'json', f]))
-    const withCerts = capture(() => runCli(['render', '--format', 'json', '--certificates', f]))
+    const regular = capture(() => runCli(['render', '--format', 'layout', f]))
+    const withCerts = capture(() => runCli(['render', '--format', 'layout', '--certificates', f]))
     expect(regular.code).toBe(0)
     expect(withCerts.code).toBe(0)
     const plain = JSON.parse(regular.out) as { edges: Array<{ route?: unknown }> }
@@ -62,7 +62,7 @@ describe('am render --format json', () => {
   })
   test('json on sequence diagram surfaces participants as nodes', () => {
     const f = tmpFile('sequenceDiagram\n  A->>B: Hi\n')
-    const { code, out } = capture(() => runCli(['render', '--format', 'json', f]))
+    const { code, out } = capture(() => runCli(['render', '--format', 'layout', f]))
     expect(code).toBe(0)
     const payload = JSON.parse(out) as { nodes: Array<{ id: string }>; edges: unknown[] }
     expect(payload.nodes.map(n => n.id)).toContain('A')
@@ -70,7 +70,7 @@ describe('am render --format json', () => {
   })
   test('parse-fail surfaces structured error', () => {
     const f = tmpFile('flowchart XX\n  A --> B')
-    const { code, out } = capture(() => runCli(['render', '--format', 'json', f]))
+    const { code, out } = capture(() => runCli(['render', '--format', 'layout', f]))
     expect(code).toBe(2)
     const payload = JSON.parse(out) as { ok: boolean; error?: { code: string } }
     expect(payload.ok).toBe(false)

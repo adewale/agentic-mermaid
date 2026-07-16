@@ -1,6 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 735 312" width="735" height="312" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF">
+<svg xmlns="http://www.w3.org/2000/svg" width="735" height="312" viewBox="0 0 735 312" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF">
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap');
   text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
   svg {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */

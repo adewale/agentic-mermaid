@@ -9,7 +9,7 @@
 import { describe, test, expect } from 'bun:test'
 import { parseJourneyDiagram } from '../journey/parser.ts'
 import { preprocessMermaidLines } from '../mermaid-source.ts'
-import { parseMermaid } from '../agent/parse.ts'
+import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
 import { verifyMermaid } from '../agent/verify.ts'
 import { asJourney } from '../agent/types.ts'

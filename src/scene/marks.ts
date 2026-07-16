@@ -1,14 +1,11 @@
 // ============================================================================
 // Mark constructors — the only way family lowerings build scene nodes.
 //
-// Each constructor takes semantic fields plus the crisp SVG string the old
-// emitter produced (the template literal moves into the lowering call site
-// unchanged, so the byte stream cannot drift). group() is the exception: it
-// *builds* its crisp from open/close/children with the same indent/join rules
-// the string renderers used, so wrapper composition stays byte-exact while
-// styled backends re-compose restyled children.
+// Each constructor takes semantic fields plus its backend-private SVG
+// serialization. group() builds serialization from open/close/children so
+// styled backends can re-compose restyled children.
 //
-// scene-fidelity.test.ts closes the loop: it parses every crisp element and
+// scene-fidelity.test.ts closes the loop: it parses every serialized element and
 // asserts the semantic fields agree, so a lowering cannot lie about geometry.
 // ============================================================================
 
@@ -16,8 +13,8 @@ import type {
   ConnectorContourSemantics, ConnectorDash, ConnectorEndpointAnchor, ConnectorEndpoints, ConnectorGeometry,
   ConnectorHitGeometry, ConnectorLabelDescriptor, ConnectorMark, ConnectorRelationship,
   ConnectorRoute, ConnectorStroke, ConnectorTerminalProjection, DocumentMark, GroupMark,
-  Geometry, MarkPaint, MarkerDescriptor, MarkerRef, PreludeMark,
-  RawMark, SceneNode, SceneRole, SceneTransform, SemanticChannels, ShapeMark, TextMark,
+  Geometry, MarkPaint, MarkerDescriptor,
+  SceneNode, SceneRole, SceneTransform, SemanticChannels, ShapeMark, TextMark,
 } from './ir.ts'
 import type { DiagramColors } from '../theme.ts'
 import type { SvgSemanticIdentity } from './identity.ts'
@@ -33,6 +30,11 @@ import {
   sameConnectorPoint,
 } from './connector-geometry.ts'
 import { deriveConnectorTerminalProjection } from './connector-terminal.ts'
+import {
+  attachSceneNodeSerialization,
+  canonicalizeSceneNodeSerialization,
+  sceneNodeSerialization,
+} from './serialization.ts'
 
 export function shape(fields: {
   id: string
@@ -45,7 +47,7 @@ export function shape(fields: {
   const identity = semanticIdentityForSvg(crisp, fields)
   const accessibility = relationAccessibilityForSvg(crisp, identity)
   const decorated = ensureSvgAccessibility(ensureSvgIdentity(crisp, identity), accessibility)
-  return { kind: 'shape', crisp: decorated, identity, accessibility, ...fields }
+  return attachSceneNodeSerialization({ kind: 'shape', identity, accessibility, ...fields }, decorated)
 }
 
 export interface ConnectorFields {
@@ -54,8 +56,6 @@ export interface ConnectorFields {
   geometry: ConnectorGeometry
   lineStyle: ConnectorMark['lineStyle']
   paint: MarkPaint
-  startMarker?: MarkerRef
-  endMarker?: MarkerRef
   /** Typed identity is authoritative; connector() never inspects crisp SVG. */
   identity?: Omit<SvgSemanticIdentity, 'role'>
   endpoints?: ConnectorEndpoints
@@ -70,12 +70,6 @@ export interface ConnectorFields {
   /** Optional family-specific terminal limitation additions. Semantic fields
    * are always derived from the connector itself and cannot drift. */
   terminalProjection?: Partial<Pick<ConnectorTerminalProjection, 'diagnostics'>>
-  /** Preserve legacy ARIA projection only where a family already emitted it. */
-  projectAccessibilityToSvg?: boolean
-  /** A composite wrapper may own the public data-from/data-to tuple while the
-   * typed connector remains authoritative internally. This suppresses only
-   * the duplicate SVG endpoint attributes, never connector semantics. */
-  projectEndpointIdentityToSvg?: boolean
   channels?: SemanticChannels
   transform?: SceneTransform
 }
@@ -117,19 +111,6 @@ function connectorDirection(
   return 'undirected'
 }
 
-function decodedAttribute(value: string): string {
-  return value
-    .replace(/&quot;/g, '"')
-    // Spell this without a quote nested inside the opposite quote style. The
-    // DOM-free source check intentionally uses a tiny lexical stripper rather
-    // than a TypeScript parser; the nested spelling made it misclassify the
-    // following source as one unterminated string and report a false positive.
-    .replace(/&#39;|&apos;/g, String.fromCharCode(39))
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&amp;/g, '&')
-}
-
 function projectedMidMarkerId(id: string, geometry: ConnectorGeometry, closed: boolean, markers: readonly MarkerDescriptor[]): string | undefined {
   if (markers.length === 0) return undefined
   const interiorCount = connectorMidpoints(geometry, closed).length
@@ -146,9 +127,8 @@ function projectedMidMarkerId(id: string, geometry: ConnectorGeometry, closed: b
   return markers[0]!.id
 }
 
-/** Add a missing typed marker attachment to the crisp compatibility carrier.
- * Existing family bytes stay untouched; extension-authored typed markers can
- * no longer survive bounds/terminal projection while disappearing graphically. */
+/** Add a missing typed marker attachment to a connector serialization so typed
+ * markers cannot survive bounds/terminal projection while disappearing graphically. */
 function ensureConnectorMarkerProjection(
   crisp: string,
   markerIds: Readonly<{ start?: string; mid?: string; end?: string }>,
@@ -231,80 +211,6 @@ function connectorInlineLabelSvg(
   return `<text ${attrs.join(' ')}>${escapeXml(label.text)}</text>`
 }
 
-/** Crisp SVG is a checked compatibility projection, never a second connector
- * authority. Built-in lowerings remain byte-exact, but any disagreement with
- * the typed route/stroke/marker fields fails at construction. */
-function assertConnectorCrispProjection(mark: Pick<ConnectorMark, 'id' | 'geometry' | 'stroke' | 'markers' | 'relationship' | 'transform'>, crisp: string): void {
-  if (crisp === '') return
-  const openingMatch = crisp.match(/^\s*<(line|polyline|path)\b[^>]*>/)
-  if (!openingMatch) throw new Error(`Connector "${mark.id}" crisp projection must start with line, polyline, or path`)
-  const opening = openingMatch[0]
-  const tag = openingMatch[1]
-  if (tag !== mark.geometry.kind) throw new Error(`Connector "${mark.id}" crisp geometry ${tag} disagrees with typed ${mark.geometry.kind}`)
-  const attr = (name: string): string | undefined => {
-    const value = opening.match(new RegExp(`\\s${name}="([^"]*)"`))?.[1]
-    return value === undefined ? undefined : decodedAttribute(value)
-  }
-  const sameText = (name: string, expected: string | undefined) => {
-    const actual = attr(name)
-    // A family CSS class may own omitted presentational attributes. When an
-    // inline compatibility value exists, however, it must agree with the
-    // typed connector; inline SVG cannot become a competing authority.
-    if (actual === undefined) return
-    if (actual !== expected) throw new Error(`Connector "${mark.id}" crisp ${name} disagrees with typed connector semantics`)
-  }
-  const sameNumber = (name: string, expected: number) => {
-    const actual = Number(attr(name))
-    if (!Number.isFinite(actual) || Math.abs(actual - expected) > 1e-9) {
-      throw new Error(`Connector "${mark.id}" crisp ${name} disagrees with typed connector geometry`)
-    }
-  }
-  if (mark.geometry.kind === 'line') {
-    sameNumber('x1', mark.geometry.x1); sameNumber('y1', mark.geometry.y1)
-    sameNumber('x2', mark.geometry.x2); sameNumber('y2', mark.geometry.y2)
-  } else if (mark.geometry.kind === 'polyline') {
-    const actual = (attr('points') ?? '').trim().split(/\s+/).filter(Boolean).map(pair => pair.split(',').map(Number))
-    const expected = mark.geometry.points
-    if (actual.length !== expected.length || actual.some((pair, index) =>
-      pair.length !== 2 || Math.abs(pair[0]! - expected[index]!.x) > 1e-9 || Math.abs(pair[1]! - expected[index]!.y) > 1e-9)) {
-      throw new Error(`Connector "${mark.id}" crisp points disagree with typed connector geometry`)
-    }
-  } else if ((attr('d') ?? '').replace(/[\s,]+/g, ' ').trim() !== mark.geometry.d.replace(/[\s,]+/g, ' ').trim()) {
-    throw new Error(`Connector "${mark.id}" crisp path disagrees with typed connector geometry`)
-  }
-  sameText('stroke', mark.stroke.color)
-  const rawWidth = attr('stroke-width')
-  const actualWidth = Number(rawWidth)
-  const expectedWidth = Number(mark.stroke.width)
-  if (rawWidth !== undefined && (Number.isFinite(expectedWidth) ? Math.abs(actualWidth - expectedWidth) > 1e-9 : rawWidth !== String(mark.stroke.width))) {
-    throw new Error(`Connector "${mark.id}" crisp stroke-width disagrees with typed connector semantics`)
-  }
-  sameText('stroke-opacity', mark.stroke.opacity === undefined ? '1' : String(mark.stroke.opacity))
-  sameText('stroke-linecap', mark.stroke.lineCap)
-  sameText('stroke-linejoin', mark.stroke.lineJoin)
-  sameText('stroke-miterlimit', String(mark.stroke.miterLimit))
-  const dash = mark.stroke.dash
-  const expectedDash = dash === undefined ? undefined : typeof dash.array === 'string' ? dash.array : dash.array.join(' ')
-  const actualDash = attr('stroke-dasharray')?.trim().replace(/\s+/g, ' ')
-  if (actualDash !== undefined && actualDash !== expectedDash?.trim().replace(/\s+/g, ' ')) {
-    throw new Error(`Connector "${mark.id}" crisp stroke-dasharray disagrees with typed connector semantics`)
-  }
-  sameText('stroke-dashoffset', dash?.offset === undefined ? undefined : String(dash.offset))
-  sameText('pathLength', mark.stroke.pathLength === undefined ? undefined : String(mark.stroke.pathLength))
-  sameText('paint-order', mark.stroke.paintOrder)
-  sameText('vector-effect', mark.stroke.nonScaling ? 'non-scaling-stroke' : undefined)
-  sameText('marker-start', mark.markers.start ? `url(#${mark.markers.start.id})` : undefined)
-  sameText('marker-mid', mark.markers.mid.length > 0 ? `url(#${mark.markers.mid[0]!.id})` : undefined)
-  sameText('marker-end', mark.markers.end ? `url(#${mark.markers.end.id})` : undefined)
-  sameText('data-relationship', mark.relationship.kind)
-  sameText('data-direction', mark.relationship.direction)
-  if (mark.transform) {
-    const actual = attr('transform')?.replaceAll(',', ' ').replace(/\s+/g, ' ').trim()
-    const expected = `rotate(${mark.transform.angle} ${mark.transform.cx} ${mark.transform.cy})`
-    if (actual !== expected) throw new Error(`Connector "${mark.id}" crisp transform disagrees with typed connector transform`)
-  }
-}
-
 export function connector(fields: ConnectorFields, crisp: string): ConnectorMark {
   if (fields.geometry.kind !== 'path' && fields.route?.closed === true) {
     throw new TypeError(`Connector "${fields.id}" closed route topology requires path geometry`)
@@ -328,7 +234,7 @@ export function connector(fields: ConnectorFields, crisp: string): ConnectorMark
         const expected = pathGeometry.points[index]
         return !expected || expected.x !== point.x || expected.y !== point.y
       })) {
-        throw new TypeError(`Connector "${fields.id}" typed subpaths disagree with the compatibility point projection`)
+      throw new TypeError(`Connector "${fields.id}" typed subpaths disagree with the canonical point projection`)
       }
     }
   }
@@ -347,8 +253,8 @@ export function connector(fields: ConnectorFields, crisp: string): ConnectorMark
       throw new TypeError(`Connector "${fields.id}" SVG close commands disagree with typed closed-contour semantics`)
     }
   }
-  const markerStart = fields.markers?.start ?? fields.startMarker
-  const markerEnd = fields.markers?.end ?? fields.endMarker
+  const markerStart = fields.markers?.start
+  const markerEnd = fields.markers?.end
   const midMarkers = fields.markers?.mid ?? []
   for (const marker of [markerStart, ...midMarkers, markerEnd]) {
     if (marker?.geometry?.kind === 'path' && !marker.bounds && !marker.viewBox && !marker.size) {
@@ -389,11 +295,7 @@ export function connector(fields: ConnectorFields, crisp: string): ConnectorMark
   })
   const projectedRelationship = ensureConnectorRelationshipProjection(projectedMarkers, relationship)
   const projectedCrisp = ensureConnectorTransformProjection(projectedRelationship, fields.transform)
-  const projectedIdentity = fields.projectEndpointIdentityToSvg === false
-    ? (({ from: _from, to: _to, ...rest }) => rest)(identity)
-    : identity
-  let decorated = ensureSvgIdentity(projectedCrisp, projectedIdentity)
-  if (fields.projectAccessibilityToSvg) decorated = ensureSvgAccessibility(decorated, accessibility)
+  let decorated = ensureSvgAccessibility(ensureSvgIdentity(projectedCrisp, identity), accessibility)
   const inlineLabels = labels
     .map((label, index) => connectorInlineLabelSvg(fields.id, label, index, fields.transform))
     .filter((label): label is string => label !== undefined)
@@ -524,14 +426,9 @@ export function connector(fields: ConnectorFields, crisp: string): ConnectorMark
 
   const result: ConnectorMark = {
     kind: 'connector',
-    crisp: decorated,
     id: fields.id,
     role: fields.role,
-    geometry: fields.geometry,
     lineStyle: fields.lineStyle,
-    paint: fields.paint,
-    ...(markerStart ? { startMarker: markerStart } : {}),
-    ...(markerEnd ? { endMarker: markerEnd } : {}),
     endpoints,
     relationship,
     route,
@@ -541,12 +438,11 @@ export function connector(fields: ConnectorFields, crisp: string): ConnectorMark
     hit,
     terminalProjection,
     identity,
-    ...(fields.projectAccessibilityToSvg && accessibility ? { accessibility } : {}),
+    ...(accessibility ? { accessibility } : {}),
     ...(fields.channels ? { channels: fields.channels } : {}),
     ...(fields.transform ? { transform: fields.transform } : {}),
   }
-  assertConnectorCrispProjection(result, result.crisp)
-  return result
+  return attachSceneNodeSerialization(result, decorated)
 }
 
 export function text(fields: {
@@ -564,15 +460,15 @@ export function text(fields: {
   const identity = semanticIdentityForSvg(crisp, fields)
   const accessibility = relationAccessibilityForSvg(crisp, identity)
   const decorated = ensureSvgAccessibility(ensureSvgIdentity(crisp, identity), accessibility)
-  return { kind: 'text', crisp: decorated, identity, accessibility, ...fields }
+  return attachSceneNodeSerialization({ kind: 'text', identity, accessibility, ...fields }, decorated)
 }
 
-export function raw(fields: {
+export function documentContent(fields: {
   id: string
   role: SceneRole
   channels?: SemanticChannels
-}, crisp: string): RawMark {
-  return { kind: 'raw', crisp, ...fields }
+}, svg: string): DocumentMark {
+  return attachSceneNodeSerialization({ kind: 'document', element: 'content', ...fields }, svg)
 }
 
 export function documentText(fields: {
@@ -583,18 +479,21 @@ export function documentText(fields: {
 }): DocumentMark {
   const tag = fields.element === 'title' ? 'title' : 'desc'
   const idAttr = fields.domId ? ` id="${escapeAttr(fields.domId)}"` : ''
-  return { kind: 'document', role: 'chrome', crisp: `<${tag}${idAttr}>${escapeXml(fields.text)}</${tag}>`, ...fields }
+  return attachSceneNodeSerialization(
+    { kind: 'document', role: 'chrome', ...fields },
+    `<${tag}${idAttr}>${escapeXml(fields.text)}</${tag}>`,
+  )
 }
 
 export function definitions(
   fields: { id: string; markerResources?: readonly MarkerDescriptor[] },
   crisp: string,
 ): DocumentMark {
-  return { kind: 'document', role: 'defs', element: 'definitions', crisp, ...fields }
+  return attachSceneNodeSerialization({ kind: 'document', role: 'defs', element: 'definitions', ...fields }, crisp)
 }
 
 export function documentClose(): DocumentMark {
-  return { kind: 'document', id: 'svg-close', role: 'chrome', element: 'close', crisp: '</svg>' }
+  return attachSceneNodeSerialization({ kind: 'document', id: 'svg-close', role: 'chrome', element: 'close' }, '</svg>')
 }
 
 /** Indent every line of a serialized chunk by `n` spaces — the same transform
@@ -616,16 +515,17 @@ export function group(fields: {
 }): GroupMark {
   const join = fields.join ?? '\n'
   const identity = semanticIdentityForSvg(fields.open, fields)
-  const accessibility = relationAccessibilityForSvg(fields.open, identity)
-  const open = ensureSvgAccessibility(ensureSvgIdentity(fields.open, identity), accessibility)
+  // Relation accessibility belongs to the typed ConnectorMark. Composite
+  // wrappers may carry grouping metadata, but must not create a second ARIA
+  // relation beside the connector authority.
+  const open = canonicalizeSceneNodeSerialization(ensureSvgIdentity(fields.open, identity))
   const segments: string[] = [open]
   for (const child of fields.children) {
-    segments.push(indentLines(child.node.crisp, child.indent))
+    segments.push(indentLines(sceneNodeSerialization(child.node), child.indent))
   }
   segments.push(fields.close)
-  return {
+  return attachSceneNodeSerialization({
     kind: 'group',
-    crisp: segments.join(join),
     id: fields.id,
     role: fields.role,
     open,
@@ -634,11 +534,10 @@ export function group(fields: {
     join,
     channels: fields.channels,
     identity,
-    accessibility,
-  }
+  }, segments.join(join))
 }
 
-export function prelude(fields: {
+export function documentOpen(fields: {
   id: string
   width: number
   height: number
@@ -647,20 +546,11 @@ export function prelude(fields: {
   font: string
   hasMonoFont: boolean
   extraCss?: string
-}, crisp: string): PreludeMark {
-  return {
-    kind: 'prelude',
-    crisp,
+}, svg: string): DocumentMark {
+  return attachSceneNodeSerialization({
+    kind: 'document',
+    element: 'open',
     id: fields.id,
     role: 'prelude',
-    prelude: {
-      width: fields.width,
-      height: fields.height,
-      colors: fields.colors,
-      transparent: fields.transparent,
-      font: fields.font,
-      hasMonoFont: fields.hasMonoFont,
-      extraCss: fields.extraCss ?? '',
-    },
-  }
+  }, svg)
 }

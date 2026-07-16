@@ -48,7 +48,7 @@ function directDescriptor(localId: string): FamilyDescriptor {
   const id = `family:test/conformance-${localId}` as ExternalFamilyId
   const header = `conformance${localId.replace(/[^a-z0-9]/gi, '')}Diagram`
   return {
-    contractVersion: 1,
+    contractVersion: 2,
     identity: createExtensionIdentity({
       id,
       kind: 'family',
@@ -103,7 +103,7 @@ function throwingSceneDescriptor(localId: string): FamilyDescriptor {
     ...base,
     identity: createExtensionIdentity({
       ...base.identity,
-      compatibility: { core: '^0.1.1', scene: '^1.0.0' },
+      compatibility: { core: '^0.1.1', scene: '^2.0.0' },
     }),
     semanticRoles: ['prelude'],
     semanticChannels: [],
@@ -136,6 +136,21 @@ function expectRejected(descriptor: FamilyDescriptor, message: RegExp): void {
 }
 
 describe('external family executable registration conformance', () => {
+  test('rejects the removed v1 family descriptor contract before callbacks execute', () => {
+    const base = directDescriptor('descriptor-v1')
+    let detectorCalls = 0
+    expect(() => registerFamily({
+      ...base,
+      contractVersion: 1,
+      detect(line: string) {
+        detectorCalls++
+        return base.detect(line)
+      },
+    } as unknown as FamilyDescriptor)).toThrow(/unsupported descriptor contract/i)
+    expect(detectorCalls).toBe(0)
+    expect(getFamily(base.id)).toBeUndefined()
+  })
+
   test('requires a compatible core range before any family callback executes', () => {
     const base = directDescriptor('missing-core-range')
     let detectorCalls = 0
@@ -164,7 +179,7 @@ describe('external family executable registration conformance', () => {
       expect(Object.isFrozen(report)).toBe(true)
       expect(Object.isFrozen(report.capabilities)).toBe(true)
       expect(report.capabilities.every(result => Object.isFrozen(result))).toBe(true)
-      expect(report).toMatchObject({ version: 1, familyId: descriptor.id, passed: true, example: descriptor.example })
+      expect(report).toMatchObject({ version: 2, familyId: descriptor.id, passed: true, example: descriptor.example })
       expect(report.capabilities).toHaveLength(10)
       for (const result of report.capabilities) {
         if (result.declaredState === 'native') {

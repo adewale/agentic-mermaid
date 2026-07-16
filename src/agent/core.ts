@@ -24,7 +24,7 @@ export type {
   GanttBody, GanttBodySection, GanttBodyTask, GanttBodyTaskTag, GanttStatement,
   MindmapBody, GitGraphBody, RadarBody, RadarBodyAxis, RadarBodyCurve,
   SourceMap, SourceComment, InitDirective, Accessibility,
-  ParseError, SourcePreservationReceipt, MutationError, MutationOp, FlowchartMutationOp, StateMutationOp, SequenceMutationOp, TimelineMutationOp,
+  ParseError, SourcePreservationReceipt, MutationError, FlowchartMutationOp, StateMutationOp, SequenceMutationOp, TimelineMutationOp,
   ClassMutationOp, ErMutationOp, JourneyMutationOp, ArchitectureMutationOp, XyChartMutationOp, PieMutationOp, QuadrantMutationOp, GanttMutationOp, MindmapMutationOp, GitGraphMutationOp, RadarMutationOp, AnyMutationOp,
   NodeId, EdgeId, GroupId, ParticipantId,
   LayoutWarning, WarningCode, Tier1WarningCode, Tier2WarningCode, WarningSeverity, WarningTier,
@@ -35,7 +35,7 @@ export type {
 export type { MermaidFact, CheckMermaidSpec, CheckMermaidObjectSpec, CheckMermaidResult } from './facts.ts'
 
 export { WARNING_SEVERITY, WARNING_TIER, DEFAULT_LABEL_CHAR_CAP, ok, err, toFinite, asFlowchart, asState, asSequence, asTimeline, asClass, asEr, asJourney, asArchitecture, asXyChart, asPie, asQuadrant, asGantt, asMindmap, asGitGraph, asRadar } from './types.ts'
-export { parseMermaid, parseRegisteredMermaid } from './parse.ts'
+export { parseRegisteredMermaid } from './parse.ts'
 export { serializeMermaid, synthesizeFromGraph } from './serialize.ts'
 export { createMermaid, buildMermaid } from './create.ts'
 export type { CreateMermaidOptions, BuildError } from './create.ts'
@@ -51,7 +51,7 @@ export { layoutCertificateProof } from './certificates.ts'
 export type { LayoutCertificateProof } from './certificates.ts'
 export type { RouteCertificate, EdgeRouteCertificate, FamilyEdgeRouteCertificate, RegionContainmentCertificate, FamilyRouteCertificate, LayoutRouteCertificate, LayoutRouteClass, RouteClass, RouteBlocker, RoutePortAssignment, PortSemanticRole, AnyPort, PortSide, DiamondFacet } from '../types.ts'
 export { registerFamily, FamilyConformanceError } from './family-registration.ts'
-export { getFamily, getFamilyConformanceReport, effectiveFamilyCapabilityState, knownFamilies, knownBuiltinFamilies, detectRegisteredFamilyFromFirstLine, isBuiltinFamilyId, isExternalFamilyId, BUILTIN_FAMILY_METADATA, BUILTIN_FAMILY_METADATA_COVERS_DIAGRAM_KIND, builtinFamilyMetadata, FAMILY_CAPABILITY_COLUMNS, FAMILY_CONFORMANCE_VERSION, FAMILY_CONFORMANCE_MAX_EXAMPLE_BYTES, UNREGISTERED_FAMILY_CAPABILITY_STATES, declareFamilyScenePrimitiveEvidence } from './families.ts'
+export { getFamily, getFamilyConformanceReport, effectiveFamilyCapabilityState, knownFamilies, knownBuiltinFamilies, detectRegisteredFamilyFromFirstLine, isBuiltinFamilyId, isExternalFamilyId, BUILTIN_FAMILY_METADATA, BUILTIN_FAMILY_METADATA_COVERS_DIAGRAM_KIND, builtinFamilyMetadata, FAMILY_CAPABILITY_COLUMNS, FAMILY_DESCRIPTOR_CONTRACT_VERSION, FAMILY_CONFORMANCE_VERSION, FAMILY_CONFORMANCE_MAX_EXAMPLE_BYTES, UNREGISTERED_FAMILY_CAPABILITY_STATES, declareFamilyScenePrimitiveEvidence } from './families.ts'
 export type {
   FamilyDescriptor, FamilyOperations, ExtensionIdentity,
   FamilyCapability, FamilyCapabilityState, FamilyCapabilityEvidence, ExtractedLabel, BuiltinFamilyMetadata, BuiltinFamilyId,
@@ -129,7 +129,7 @@ export type {
 } from '../scene/scene-validation.ts'
 export { BUILTIN_SCENE_ROLE_TRAITS, SCENE_ROLE_DESCRIPTORS, resolveSceneRoleTraits, sceneRoleTraits } from '../scene/roles.ts'
 export {
-  HOSTED_FONT_RESOURCES, HOSTED_FONT_FACES, HOSTED_FONT_FILES,
+  HOSTED_FONT_RESOURCES,
   RESOURCE_MANIFEST, hostedFontResource, validateResourceManifest,
 } from '../font-manifest.ts'
 export { RESOURCE_MANIFEST_VERSION, verifyResourceBytes } from '../resource-manifest.ts'

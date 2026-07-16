@@ -13,7 +13,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Resvg } from '@resvg/resvg-js'
 import { renderMermaidSVG } from '../../src/index.ts'
-import { THEMES } from '../../src/theme.ts'
+import { BUILTIN_PALETTE_DEFINITIONS } from '../../src/palette-catalog.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const OUT_DIR = join(ROOT, 'docs', 'pr-assets')
@@ -22,7 +22,7 @@ const OUT_DIR = join(ROOT, 'docs', 'pr-assets')
 // honest "before" that isolates exactly this change.
 const BEFORE_SHA = '4072668024eac780b5d52e146721782a54a5f4e2'
 
-const THEME = THEMES['github-light']!
+const THEME = BUILTIN_PALETTE_DEFINITIONS.find(palette => palette.inputName === 'github-light')!.colors
 const COLORS = { bg: THEME.bg, surface: THEME.bg, border: THEME.line, fg: THEME.fg, muted: THEME.muted }
 const FONT_FILES = [
   join(ROOT, 'assets', 'fonts', 'DejaVuSans.ttf'),
@@ -64,9 +64,8 @@ function renderBeforeAll(sources: string[]): string[] {
     if (!existsSync(modules)) symlinkSync(join(ROOT, 'node_modules'), modules, 'dir')
     writeFileSync(join(wt, 'fanout-sym-probe.ts'), `
       import { renderMermaidSVG } from './src/index.ts'
-      import { THEMES } from './src/theme.ts'
       const sources = ${JSON.stringify(sources)}
-      const out = sources.map(s => renderMermaidSVG(s, { ...THEMES['github-light'], embedFontImport: false }))
+      const out = sources.map(s => renderMermaidSVG(s, { style: 'github-light', embedFontImport: false }))
       console.log(JSON.stringify(out))
     `)
     const raw = execFileSync('bun', ['fanout-sym-probe.ts'], { cwd: wt, encoding: 'utf8', env: { ...process.env, BUN_OPTIONS: '' } }).trim()

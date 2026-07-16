@@ -33,7 +33,7 @@ const codeArb = fc.oneof(
   specialCharStringArb,
   fc.constantFrom(
     'return 1 + 1',
-    'return mermaid.parseMermaid("flowchart TD\\n A --> B")',
+    'return mermaid.parseRegisteredMermaid("flowchart TD\\n A --> B")',
     'while (true) {}',            // must be cut off by the timeout, not hang
     'throw new Error("boom")',
     'undefined.x',

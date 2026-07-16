@@ -88,12 +88,12 @@ See [`ascii.md`](./ascii.md) for supported families and cell-to-region metadata.
 
 ## Theming
 
-Build a palette from two colors, or spread one discovered through `THEMES`,
-`knownStyleDescriptors()`, or `am styles`. Colors are applied
+Build a palette from two colors, or select one discovered through
+`knownStyleDescriptors()` or `am styles`. Colors are applied
 as CSS variables, so the SVG stays self-contained.
 
 ```ts
-import { renderMermaidSVG, THEMES } from 'agentic-mermaid'
+import { renderMermaidSVG } from 'agentic-mermaid'
 
 // Two-color palette
 const dark = renderMermaidSVG('flowchart TD\n  A --> B', {
@@ -103,7 +103,7 @@ const dark = renderMermaidSVG('flowchart TD\n  A --> B', {
 
 // A built-in palette (zinc-light, tokyo-night, nord, dracula, catppuccin-mocha, …)
 const themed = renderMermaidSVG('flowchart TD\n  A --> B', {
-  ...THEMES['tokyo-night'],
+  style: 'tokyo-night',
 })
 
 // Transparent background, for embedding on any page
@@ -152,7 +152,7 @@ See [`react.md`](./react.md) for the zero-flash, live-theme-switching setup.
 | SVG | `agentic-mermaid` |
 | ASCII / Unicode | `agentic-mermaid` |
 | PNG (native rasterizer) | `agentic-mermaid/agent` |
-| Themes (`THEMES`, `fromShikiTheme`) | `agentic-mermaid` |
+| Palettes (`knownStyleDescriptors`, `fromShikiTheme`) | `agentic-mermaid` |
 | Everything in one path | `agentic-mermaid/agent` |
 | Typed editing (parse/mutate/verify) | `agentic-mermaid/agent` |
 
@@ -166,7 +166,7 @@ The same renderers ship as the `am` CLI — no code required:
 ```bash
 am render diagram.mmd --format svg
 am render diagram.mmd --format png --output diagram.png
-am render diagram.mmd --ascii
+am render diagram.mmd --format ascii
 ```
 
 Run `am --help` for the full command set.

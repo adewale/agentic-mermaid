@@ -174,7 +174,5 @@ Every op round-trips: serialize → render-parse reproduces the edit (P3;
   verbatim opaque round-trip, and the exact #102 sample.
 - `flowchart-op-menu.test.ts` — the widened menu, registry + schema + mutator
   + conformance.
-- Golden gates: 32 `layout-geometry-baseline.json` and 108
-  `svg-output-baseline.json` records regenerated (flowchart records only,
-  reviewed record-by-record; the diffs are the modeled shapes/markdown labels
-  and the new identity attributes).
+- The geometry baseline covers 32 flowchart records, while semantic identity
+  and styled-output suites cover the renderer projections.

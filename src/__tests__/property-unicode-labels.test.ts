@@ -15,7 +15,7 @@
 
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
-import { parseMermaid, layoutMermaid, renderMermaidSVG, renderMermaidASCII } from '../agent/index.ts'
+import { parseRegisteredMermaid as parseMermaid, layoutMermaid, renderMermaidSVG, renderMermaidASCII } from '../agent/index.ts'
 import { auditRenderedRoutes } from '../agent/rendered-route-audit.ts'
 
 const SEED = 0x00c0ffee

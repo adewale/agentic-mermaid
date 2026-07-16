@@ -35,8 +35,8 @@ describe('M1 CLI structured error envelope', () => {
     expect(payload.error.details[0].code).toBe('PARSE_FAILED')
   })
 
-  test('am render --format json error: same structured shape', () => {
-    const { code, out } = capture(() => runCli(['render', '--format', 'json', tmp('flowchart XX\n  A --> B')]))
+  test('am render --format layout error: same structured shape', () => {
+    const { code, out } = capture(() => runCli(['render', '--format', 'layout', tmp('flowchart XX\n  A --> B')]))
     expect(code).toBe(2)
     const payload = JSON.parse(out)
     expect(payload.error.code).toBe('PARSE_FAILED')
@@ -61,7 +61,7 @@ describe('M1 CLI structured error envelope', () => {
 
   test('unknown headers remain a structured capability failure on render', () => {
     const source = 'futureDiagram-v99\n  payload'
-    const { code, out } = capture(() => runCli(['render', '--format', 'json', tmp(source)]))
+    const { code, out } = capture(() => runCli(['render', '--format', 'layout', tmp(source)]))
     expect(code).toBe(2)
     const payload = JSON.parse(out)
     expect(payload).toMatchObject({

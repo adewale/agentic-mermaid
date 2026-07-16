@@ -4,10 +4,8 @@
 // Consumes the resolved GanttLayoutResult — never computes dates. The layout
 // is first lowered to a SceneGraph (SPEC §3.1): every visual mark becomes a
 // scene node carrying semantic fields (role, geometry, paint, channels,
-// stable id) plus its exact crisp serialization, built here from the same
-// inputs. renderGanttSvg() is DefaultBackend serialization of that scene, so
-// the default path stays byte-identical to the historical string renderer
-// (corpus-gated by svg-equivalence.test.ts); styled backends redraw the same
+// stable id). renderGanttSvg() uses DefaultBackend serialization of that scene;
+// styled backends redraw the same
 // scene — task bars carry status/progress channels so styled passes are never
 // blind to done/active/crit semantics.
 //
@@ -274,8 +272,7 @@ export function renderGanttSvg(
 }
 
 /**
- * Lower a gantt layout to the SceneGraph IR. Mark order matches the
- * historical parts[] order exactly; DefaultBackend joins crisps with '\n'.
+ * Lower a gantt layout to the SceneGraph IR in canonical mark order.
  */
 export function lowerGanttScene(
   ctx: RenderContext<GanttLayoutResult>,
@@ -309,7 +306,7 @@ export function lowerGanttScene(
 
   // SVG root with CSS variables + shared style block + gantt CSS.
   const extraCss = ganttStyles(style, overlay, conditional)
-  parts.push(marks.prelude(
+  parts.push(marks.documentOpen(
     {
       id: 'prelude',
       width: layout.width,
@@ -575,11 +572,10 @@ export function lowerGanttScene(
         paint: critical
           ? { stroke: palette.criticalStroke, strokeWidth: String(Math.max(1.8, style.lineWidth * 1.5)), opacity: '0.95' }
           : { stroke: palette.edgeStroke, strokeWidth: String(Math.max(1.2, style.lineWidth)), opacity: '0.6' },
-        endMarker: dependencyMarkers.find(marker => marker.id === markerId),
+        markers: { mid: [], end: dependencyMarkers.find(marker => marker.id === markerId) },
         endpoints: { from: fromKey, to: toKey },
         relationship: { kind: dep.kind, direction: 'forward' },
         route: { ownership: 'layout' },
-        projectAccessibilityToSvg: true,
         channels: critical ? { status: 'crit', emphasis: true } : undefined,
       }, `<path class="${cls}" d="${d}" marker-end="url(#${escapeAttr(markerId)})" ` +
         `data-from="${escapeAttr(fromKey)}" data-to="${escapeAttr(toKey)}" />`))
@@ -612,7 +608,7 @@ export function lowerGanttScene(
   // Today marker — only with a supplied clock. The todayMarker directive's
   // sanitized style payload (item 3) rides as an inline style attribute
   // (overriding the class rule) and mirrors into the scene paint so styled
-  // backends honor it too. No payload → the historical byte-exact mark.
+  // backends honor it too. No payload uses the canonical marker styling.
   if (layout.todayX !== undefined) {
     const todayStyle = layout.todayMarkerStyle !== undefined ? parseTodayMarkerStyle(layout.todayMarkerStyle) : undefined
     const styleAttr = todayStyle !== undefined ? todayMarkerStyleAttr(todayStyle) : ''
