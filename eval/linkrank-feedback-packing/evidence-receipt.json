@@ -66,8 +66,8 @@
       "after": 224.00000000000003
     }
   ],
-  "inputCount": 720,
-  "inputTreeSha256": "e0128b0e8dc87a8f641a9329d0227d456115cf7161cb1fec0223d60038dd3398",
+  "inputCount": 721,
+  "inputTreeSha256": "6b13a55a8ac842a3b89fd78da50247985f082dc8d4ffafcdadccac48b2e358b8",
   "outputs": [
     {
       "path": "docs/pr-assets/issue-87-linkrank-feedback-packing-before-after.png",
