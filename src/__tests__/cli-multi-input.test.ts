@@ -31,7 +31,7 @@ describe('#930 pathname watch lifecycle', () => {
     const observed: string[] = []
     let notify: (() => void) | undefined
     const waitForChange = () => new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(() => reject(new Error('watch change timed out')), 2_000)
+      const timeout = setTimeout(() => reject(new Error('watch change timed out')), 10_000)
       notify = () => { clearTimeout(timeout); resolve() }
     })
     const handle = watchPathForChanges(input, () => {
@@ -40,6 +40,12 @@ describe('#930 pathname watch lifecycle', () => {
       notify = undefined
     }, 5)
     try {
+      // Yield once after watcher construction: Linux/Bun may register the
+      // inotify subscription on the following event-loop turn under coverage.
+      await new Promise(resolve => setTimeout(resolve, 100))
+      // Some fs.watch implementations emit an initial metadata notification;
+      // the contract under test begins with the authored post-watch save.
+      observed.length = 0
       const atomic = waitForChange()
       writeFileSync(replacement, 'flowchart TD\n A --> C')
       renameSync(replacement, input)
