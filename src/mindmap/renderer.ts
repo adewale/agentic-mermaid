@@ -44,7 +44,12 @@ export function lowerMindmapScene(ctx: RenderContext<PositionedMindmapDiagram>):
   const branchCount = new Set(branchByNode.values()).size
   const accent = isHexColor(colors.accent ?? '') ? colors.accent! : '#3b82f6'
   const bg = isHexColor(colors.bg) ? colors.bg : '#ffffff'
-  const branchPalette = categoricalPalette(branchCount, { accent, bg })
+  const branchPalette = categoricalPalette(
+    branchCount,
+    branchCount <= 6
+      ? { accent, bg }
+      : { accent: colors.accent ?? accent, bg: colors.bg },
+  )
   const branchPaint = (nodeId: string): string => {
     const index = branchByNode.get(nodeId) ?? 0
     return branchPalette[index] ?? accent

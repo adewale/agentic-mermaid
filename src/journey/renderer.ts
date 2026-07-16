@@ -25,7 +25,7 @@ import { resolveRoleStyle } from '../scene/style-registry.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { categoricalPalette } from '../shared/categorical-palette.ts'
 import { hexToHsl, hslToHex, isDarkBackground } from '../xychart/colors.ts'
-import { isHexColor, wcagCssContrastRatio } from '../shared/color-math.ts'
+import { isHexColor, tryParseCssColor, wcagCssContrastRatio } from '../shared/color-math.ts'
 import { serializeMarkerResource } from '../scene/marker-resources.ts'
 import {
   projectConnectorPath,
@@ -905,6 +905,10 @@ function contrastGuardedLabelColor(
  * win in journeyPaints. */
 function actorPalette(arrow: string, colors: DiagramColors, style: ResolvedRenderStyle, actorCount: number): string[] {
   const count = Math.max(actorCount, 1)
+  if (count > 6 && isOpaqueConcreteCssColor(colors.bg)) {
+    const accent = firstConcreteCssColor(style.edgeStrokeColor, colors.accent)
+    if (accent) return categoricalPalette(count, { accent, bg: colors.bg })
+  }
   if (isHexColor(colors.bg) && isHexColor(colors.fg)) {
     const resolved = resolveColors(colors)
     const accent = firstHexColor(style.edgeStrokeColor, colors.accent, resolved.arrow)
@@ -951,6 +955,10 @@ function legacyActorPalette(accent: string, bg: string, count: number): string[]
 }
 
 function concreteSeriesColors(colors: DiagramColors, style: ResolvedRenderStyle, count: number): string[] | undefined {
+  if (count > 6 && isOpaqueConcreteCssColor(colors.bg)) {
+    const accent = firstConcreteCssColor(style.edgeStrokeColor, colors.accent)
+    if (accent) return categoricalPalette(count, { accent, bg: colors.bg })
+  }
   if (!isHexColor(colors.bg) || !isHexColor(colors.fg)) return undefined
   const resolved = resolveColors(colors)
   const accent = firstHexColor(style.edgeStrokeColor, colors.accent, resolved.arrow)
@@ -960,6 +968,14 @@ function concreteSeriesColors(colors: DiagramColors, style: ResolvedRenderStyle,
 
 function firstHexColor(...values: Array<string | undefined>): string | undefined {
   return values.find((value): value is string => value !== undefined && isHexColor(value))
+}
+
+function firstConcreteCssColor(...values: Array<string | undefined>): string | undefined {
+  return values.find((value): value is string => value !== undefined && tryParseCssColor(value) !== null)
+}
+
+function isOpaqueConcreteCssColor(value: string): boolean {
+  return tryParseCssColor(value)?.[3] === 1
 }
 
 function actorClass(index: number, paints: JourneyPaints): string {

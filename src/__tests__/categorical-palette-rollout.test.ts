@@ -3,10 +3,29 @@ import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
 import { categoricalPalette } from '../shared/categorical-palette.ts'
 import { pieSliceColors } from '../pie/palette.ts'
 import { getSeriesColor } from '../xychart/colors.ts'
-import { wcagContrastRatio } from '../shared/color-math.ts'
+import { mixHex, wcagContrastRatio } from '../shared/color-math.ts'
 import { apcaContrast, minPairwiseDeltaEOK } from '../shared/perceptual-color.ts'
 
 const sources = {
+  pie: `pie
+  "A" : 1
+  "B" : 1
+  "C" : 1
+  "D" : 1
+  "E" : 1
+  "F" : 1
+  "G" : 1
+  "H" : 1`,
+  radar: `radar-beta
+  axis a, b, c
+  curve c1{1, 2, 3}
+  curve c2{2, 3, 1}
+  curve c3{3, 1, 2}
+  curve c4{1, 3, 2}
+  curve c5{2, 1, 3}
+  curve c6{3, 2, 1}
+  curve c7{2, 2, 3}
+  curve c8{3, 2, 2}`,
   xychart: `xychart-beta
   x-axis [A, B]
   y-axis 0 --> 10
@@ -64,6 +83,14 @@ const sources = {
 } as const
 
 function colorsFromSvg(family: keyof typeof sources, svg: string): string[] {
+  if (family === 'pie') {
+    return [...svg.matchAll(/<path class="pie-slice"[^>]*\sfill="(#[0-9a-f]{6})"/gi)]
+      .map(match => match[1]!.toLowerCase())
+  }
+  if (family === 'radar') {
+    return [...svg.matchAll(/<path class="radar-area"[^>]*\sfill="(#[0-9a-f]{6})"/gi)]
+      .map(match => match[1]!.toLowerCase())
+  }
   if (family === 'xychart') {
     return [...svg.matchAll(/--xychart-color-(\d+):\s*(#[0-9a-f]{6})/gi)]
       .sort((a, b) => Number(a[1]) - Number(b[1])).map(match => match[2]!.toLowerCase())
@@ -175,18 +202,20 @@ describe('controlled {1,2,3} categorical palette rollout', () => {
       { css: 'royalblue', hex: '#4169e1' },
       { css: 'rgb(51, 136, 255)', hex: '#3388ff' },
       { css: 'hsl(217, 100%, 60%)', hex: '#3381ff' },
+      { css: 'hsl(0.6027777777777777turn 100% 60%)', hex: '#3381ff' },
     ]
     for (const { css, hex } of cases) {
       const style = { colors: { bg: css, fg: '#111111', accent: css } } as const
       const expected = categoricalPalette(8, { accent: css, bg: css })
-      const svgColors = colorsFromSvg('xychart', renderMermaidSVG(sources.xychart, { style, embedFontImport: false }))
-
-      expect(svgColors, css).toEqual(expected)
-      expect(new Set(svgColors).size, css).toBe(8)
-      expect(minPairwiseDeltaEOK(svgColors), css).toBeGreaterThanOrEqual(0.10)
-      for (const color of svgColors) {
-        expect(wcagContrastRatio(color, hex)!, `${css}: ${color}`).toBeGreaterThanOrEqual(1.25)
-        expect(Math.abs(apcaContrast(color, hex)!), `${css}: ${color}`).toBeGreaterThanOrEqual(15)
+      for (const [family, source] of Object.entries(sources) as Array<[keyof typeof sources, string]>) {
+        const svgColors = colorsFromSvg(family, renderMermaidSVG(source, { style, embedFontImport: false }))
+        expect(svgColors, `${family}/${css}`).toEqual(expected)
+        expect(new Set(svgColors).size, `${family}/${css}`).toBe(8)
+        expect(minPairwiseDeltaEOK(svgColors), `${family}/${css}`).toBeGreaterThanOrEqual(0.10)
+        for (const color of svgColors) {
+          expect(wcagContrastRatio(color, hex)!, `${family}/${css}: ${color}`).toBeGreaterThanOrEqual(1.25)
+          expect(Math.abs(apcaContrast(color, hex)!), `${family}/${css}: ${color}`).toBeGreaterThanOrEqual(15)
+        }
       }
       for (const color of categoricalPalette(25, { accent: css, bg: css })) {
         expect(wcagContrastRatio(color, hex)!, `${css} linear tail: ${color}`).toBeGreaterThanOrEqual(1.25)
@@ -201,6 +230,44 @@ describe('controlled {1,2,3} categorical palette rollout', () => {
     const gitgraphTerminal = renderMermaidASCII(sources.gitgraph, { style, colorMode: 'html' })
     expect(gitgraphSvg).toEqual(expected)
     for (const color of expected) expect(gitgraphTerminal).toContain(`color:${color}`)
+
+    const journeyTen = `journey
+  section Team
+    A: 1: Ada
+    B: 2: Ben
+    C: 3: Cy
+    D: 4: Dee
+    E: 5: Eve
+    F: 4: Fox
+    G: 3: Gia
+    H: 2: Hal
+    I: 1: Ian
+    J: 2: Joy`
+    const ten = colorsFromSvg('journey', renderMermaidSVG(journeyTen, { style, embedFontImport: false }))
+    expect(ten).toEqual(categoricalPalette(10, { accent: css, bg: css }))
+
+    const journeySections = `journey
+  section One
+    A: 1: Ada
+  section Two
+    B: 2: Ben
+  section Three
+    C: 3: Cy
+  section Four
+    D: 4: Dee
+  section Five
+    E: 5: Eve
+  section Six
+    F: 4: Fox
+  section Seven
+    G: 3: Gia
+  section Eight
+    H: 2: Hal`
+    const sectionSvg = renderMermaidSVG(journeySections, { style, embedFontImport: false })
+    const sectionFills = [...sectionSvg.matchAll(/\.journey-section-(\d+) \{ fill: (#[0-9a-f]{6});/gi)]
+      .sort((a, b) => Number(a[1]) - Number(b[1]))
+      .map(match => match[2]!.toLowerCase())
+    expect(sectionFills).toEqual(expected.map((base, index) => mixHex(base, '#3388ff', index === 0 ? 8 : 9)))
   })
 
   it('is deterministic and does not use a fixed-size modulo palette', () => {

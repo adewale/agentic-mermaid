@@ -5,7 +5,7 @@
  */
 import { describe, test, expect } from 'bun:test'
 import fc from 'fast-check'
-import { parseHex, tryParseHex, toHex, mixHex, isHexColor, isSixDigitHex, luma255 } from '../shared/color-math.ts'
+import { parseHex, tryParseHex, tryParseCssColor, toHex, mixHex, isHexColor, isSixDigitHex, luma255 } from '../shared/color-math.ts'
 
 const channel = fc.integer({ min: 0, max: 255 })
 const hexColor = fc.tuple(channel, channel, channel).map(([r, g, b]) => toHex(r, g, b))
@@ -58,6 +58,19 @@ describe('shared color math', () => {
     fc.assert(fc.property(hexColor, c => isSixDigitHex(c) && isHexColor(c)))
     expect(isHexColor('#abc')).toBe(true)
     expect(isSixDigitHex('#abc')).toBe(false)
+  })
+
+  test('CSS HSL hue units resolve to the same concrete sRGB color', () => {
+    const cssHex = (value: string): string => {
+      const parsed = tryParseCssColor(value)!
+      return toHex(parsed[0], parsed[1], parsed[2])
+    }
+    expect(cssHex('hsl(217 100% 60%)')).toBe('#3381ff')
+    expect(cssHex('hsl(217deg 100% 60%)')).toBe('#3381ff')
+    expect(cssHex('hsl(241.111111grad 100% 60%)')).toBe('#3381ff')
+    expect(cssHex(`hsl(${217 * Math.PI / 180}rad 100% 60%)`)).toBe('#3381ff')
+    expect(cssHex('hsl(0.6027777777777777turn 100% 60%)')).toBe('#3381ff')
+    expect(tryParseCssColor('hsl(0.5turnjunk 100% 60%)')).toBeNull()
   })
 
   test('luma255 is bounded and monotone in each channel', () => {
