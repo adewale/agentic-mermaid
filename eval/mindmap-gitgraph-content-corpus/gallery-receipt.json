@@ -344,7 +344,7 @@
     },
     {
       "path": "src/__tests__/ascii-determinism.test.ts",
-      "sha256": "4f8b4f1af5f030291f61832558b98dc1483af906a308cece717063f8f03197c0"
+      "sha256": "cc6bfa92bb4174a69a6096174c43a7a68d597098f62d35e48aaa054390c399f5"
     },
     {
       "path": "src/__tests__/ascii-edge-styles.test.ts",
