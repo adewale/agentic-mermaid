@@ -157,7 +157,7 @@ describeBrowser('editor style switcher restyles the artwork, never the chrome', 
     server = served.server
     baseUrl = served.base
     browser = await chromium.launch({ headless: true, executablePath: chromiumExecutable ?? undefined })
-  }, 30_000)
+  }, 120_000)
 
   afterAll(async () => {
     await browser?.close()

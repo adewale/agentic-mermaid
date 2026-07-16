@@ -78,9 +78,15 @@ independent spec:
   golden never moves silently.
 
 **Runs:** ASCII/SVG goldens per PR. The browser/screenshot e2e suite also runs
-per PR — it is the `e2e` job in `ci.yml` (`needs: test`), which installs
-Chromium and runs `browser.test.ts` (screenshot diff), the CLI/security e2e,
-and the single-binary e2e. The broad contact sheets are not on the per-PR gate.
+per PR — it is the four-lane `e2e` matrix in `ci.yml` (`needs: test`). Its
+browser lane installs Chromium and runs `browser.test.ts` (screenshot diff)
+plus the security contracts and the explicitly enabled theme/style/accessibility
+browser suites. The browser lane builds the gitignored `website/public` tree once
+before those contracts serve it (`browser.test.ts` builds only the separate root
+`editor.html`). Each browser contract file then runs in its own Bun process so its
+Chromium/server hooks cannot overlap and exhaust a constrained hosted runner, while
+independent lanes run the CLI/single-binary, dist-artifact, and tarball-consumer
+suites. The broad contact sheets are not on the per-PR gate.
 **Does not prove:** that a *changed* golden is an improvement — only that
 change was noticed. Judging the change still needs a human or the
 before/after harness (`eval/layout-compare`).
@@ -127,7 +133,9 @@ must agree." This sidesteps the oracle problem without a human:
   suite).
 - **Determinism** — three separate processes produce byte-identical layout
   JSON; Bun and Node produce byte-identical JSON on the same source; ASCII
-  and PNG output hash-stable across 10+ repeated runs.
+  and PNG output hash-stable across 10+ repeated runs. CI builds the Node bundle
+  before the unit shards so the Bun↔Node contracts cannot silently skip in a
+  clean checkout.
 - **Layout/faithfulness relations** — `property-layout-metamorphic.test.ts`
   formalizes relations that were previously implicit: determinism (same source
   ⇒ identical metrics), node-id **relabeling invariance** (ids carry no
@@ -150,14 +158,15 @@ default seed `20260702`). A red property in CI is therefore a real,
 reproducible counterexample — never a seed lottery. The 2026-07 audit caught
 three suites flaking on rolled seeds (the route-contracts certificate property
 at ~1 CI run in 7, issue #83; the parser Cartesian-product property; both now
-pin the exact seed that exposed their bug, scoped via save/restore so the
-global policy survives them).
+pin the exact seed that exposed their bug through per-assert options, without
+mutating process-global configuration).
 
 - Reproduce a specific roll: `AM_FC_SEED=<int> bun test <file>`.
 - Finder mode (deliberate randomness): `AM_FC_SEED=random bun run test`.
 - The policy is itself gated: `fc-seed-policy.test.ts` fails if the preload is
-  unwired; `zzz-fc-seed-policy-epilogue.test.ts` (alphabetically last) fails if
-  any suite wipes the pin instead of restoring it.
+  unwired and source-checks every test file so suite-specific seeds cannot use
+  process-global overrides in another shard; `zzz-fc-seed-policy-epilogue.test.ts`
+  also catches runtime drift within its own process.
 
 Pinning is for *holding* known ground; randomness is for *finding* new
 counterexamples ("an invariant enforced by a random property is a lottery,
@@ -192,7 +201,8 @@ emit useful local scores and JSON reports, but have no break floors and carry no
 acceptance authority. `docs/mutation-testing.md` records the commands, survivor
 history, retained operational evidence, and re-enrollment criteria.
 
-**Why this matters:** line coverage is reported per-PR but is a weak
+**Why this matters:** line coverage is reported per-PR as one merged LCOV
+artifact assembled from the three unit shards, but it is a weak
 adequacy signal — coverage is not strongly correlated with fault detection
 once suite size is controlled (Inozemtseva & Holmes, ICSE 2014), whereas
 mutant detection *is* correlated with real-fault detection (Just et al.,
@@ -264,12 +274,12 @@ real judge run can.
 `ci.yml` is the source of truth for what gates each PR — read it rather than a
 table here, which would drift. In broad strokes:
 
-- **Per-PR (`ci.yml`):** the unit/property suite (`bun run test`) —
+- **Per-PR (`ci.yml`):** the three-shard unit/property suite (`bun run test`) —
   Tier-1 verify, goldens, the differential + faithfulness + metamorphic gates,
   `measureQuality`/ugly-detector/layout-rubric, the heuristic-tracker ratchet,
   the corpus/seqbench/upstream benches — plus type check, the hero check, the
-  golden-drift gate, the browser/CLI/binary e2e job, the fast incremental
-  mutation lane, and the focused sabotage suite.
+  golden-drift gate, the parallel browser/CLI/binary/fuzz e2e matrix, the fast
+  incremental mutation lane, and the independent focused sabotage lane.
 - **Manual / periodic:** opt-in broad Stryker survivor harvests,
   `layout-compare` before/after, the benchmark vs competitors, and the real
   LLM-as-judge run.

@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
 import { buildRoutePortHints, layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
@@ -1831,17 +1831,10 @@ describe('route contracts — properties', () => {
   // random CI flake (~1 run in 7; issue #83). This is the exact seed whose
   // generated counterexample exposed #83 — with the fix it passes, so the old
   // counterexample class is now a permanent deterministic regression check.
-  // Save/restore (not reset): the preload's repo-wide seed policy must survive
-  // this suite for every file that runs later in the process.
-  let savedFcConfig: ReturnType<typeof fc.readConfigureGlobal>
-  beforeAll(() => {
-    savedFcConfig = fc.readConfigureGlobal()
-    fc.configureGlobal({ ...savedFcConfig, seed: -1377631277 })
-  })
-  afterAll(() => {
-    if (savedFcConfig) fc.configureGlobal(savedFcConfig)
-    else fc.resetConfigureGlobal()
-  })
+  // Pin at each assertion instead of mutating process-global configuration.
+  // That keeps the regression seed exact even when Bun runs this file in a
+  // different CI shard from the repo-wide seed-policy epilogue.
+  const ROUTE_CONTRACT_SEED = -1377631277
 
   const flowchartArb = fc
     .record({
@@ -1878,7 +1871,7 @@ describe('route contracts — properties', () => {
         }
         return findRouteHitches(positioned, graph).length === 0
       }),
-      { numRuns: 60 },
+      { numRuns: 60, seed: ROUTE_CONTRACT_SEED },
     )
   })
 
@@ -1903,7 +1896,7 @@ describe('route contracts — properties', () => {
         }
         return true
       }),
-      { numRuns: 60 },
+      { numRuns: 60, seed: ROUTE_CONTRACT_SEED },
     )
   })
 
@@ -1914,7 +1907,7 @@ describe('route contracts — properties', () => {
         const b = JSON.stringify(layoutGraphSync(parseMermaid(source)).edges.map(e => [e.points, e.routeCertificate]))
         return a === b
       }),
-      { numRuns: 30 },
+      { numRuns: 30, seed: ROUTE_CONTRACT_SEED },
     )
   })
 })

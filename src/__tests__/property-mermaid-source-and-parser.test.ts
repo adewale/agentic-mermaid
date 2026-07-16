@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
 
 import { mergeMermaidConfigs, normalizeMermaidSource, type MermaidRuntimeConfig } from '../mermaid-source.ts'
@@ -165,17 +165,10 @@ describe('property-based mermaid source normalization', () => {
 describe('property-based parseMermaid', () => {
   // Pinned seed: unpinned runs made these properties CI seed-lotteries (the
   // Cartesian-product property above failed only on rare rolled seeds; 2026-07
-  // audit). Save/restore (not reset): the preload's repo-wide seed policy must
-  // survive this suite for every file that runs later in the process.
-  let savedFcConfig: ReturnType<typeof fc.readConfigureGlobal>
-  beforeAll(() => {
-    savedFcConfig = fc.readConfigureGlobal()
-    fc.configureGlobal({ ...savedFcConfig, seed: 20260702 })
-  })
-  afterAll(() => {
-    if (savedFcConfig) fc.configureGlobal(savedFcConfig)
-    else fc.resetConfigureGlobal()
-  })
+  // audit). Pin at each assertion instead of mutating process-global state, so
+  // the guarantee remains valid when this file and the policy epilogue land in
+  // different Bun shards.
+  const PARSER_PROPERTY_SEED = 20260702
 
   it('is invariant to blank lines, comments, and surrounding whitespace', () => {
     const graphArb = fc
@@ -210,7 +203,7 @@ describe('property-based parseMermaid', () => {
           normalizeGraph(parseMermaid(source)),
         )
       }),
-      { numRuns: PROPERTY_RUNS },
+      { numRuns: PROPERTY_RUNS, seed: PARSER_PROPERTY_SEED },
     )
   })
 
@@ -242,7 +235,7 @@ describe('property-based parseMermaid', () => {
           }
         }
       }),
-      { numRuns: PROPERTY_RUNS },
+      { numRuns: PROPERTY_RUNS, seed: PARSER_PROPERTY_SEED },
     )
   })
 
@@ -282,7 +275,7 @@ describe('property-based parseMermaid', () => {
           expect(graph.nodes.has(edge.target)).toBe(true)
         }
       }),
-      { numRuns: PROPERTY_RUNS },
+      { numRuns: PROPERTY_RUNS, seed: PARSER_PROPERTY_SEED },
     )
   })
 })

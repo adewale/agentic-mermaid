@@ -1,10 +1,8 @@
-// Runs last in bun's alphabetical file order, after every suite that
-// temporarily overrides the fast-check global seed (route-contracts,
-// property-mermaid-source-and-parser). If any of them wipes the preload's
-// repo-wide pin instead of restoring it (fc.resetConfigureGlobal in an
-// afterAll), this catches it — the red→green for that failure mode is in the
-// PR that added the preload. If bun's discovery order ever stops being
-// alphabetical this can only pass trivially, never fail falsely.
+// Runs last in Bun's alphabetical order within its process and catches runtime
+// seed drift there. The source-level policy in fc-seed-policy.test.ts forbids
+// suite-global overrides everywhere else, including files assigned to other
+// CI shards, so this epilogue no longer carries a cross-process guarantee it
+// cannot enforce.
 import { test, expect } from 'bun:test'
 import fc from 'fast-check'
 import { DEFAULT_FC_SEED } from './fc-seed.preload.ts'

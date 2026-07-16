@@ -118,7 +118,7 @@ describeBrowser('editor theme switcher re-themes the diagram, never the chrome',
     baseUrl = served.base
     // null (no usable browser) never reaches here: describeBrowser skips first.
     browser = await chromium.launch({ headless: true, executablePath: chromiumExecutable ?? undefined })
-  }, 30_000)
+  }, 120_000)
 
   afterAll(async () => {
     await browser?.close()

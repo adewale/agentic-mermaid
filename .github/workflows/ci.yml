@@ -6,8 +6,67 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  test:
+  unit:
+    name: Unit tests (${{ matrix.shard }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1/3, 2/3, 3/3]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          # Keep CI on the known-good runtime used for local/release validation.
+          # `latest` moved underneath this PR and made coverage runs flaky.
+          bun-version: 1.3.13
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build the Node bundle for cross-runtime determinism contracts
+        run: bun run build
+
+      - name: Run test shard (coverage = under-tested finder, NOT an adequacy target)
+        # The pass/fail of this suite is the gate. Coverage is merged from all
+        # three shards only to locate under-tested files — it is deliberately
+        # NOT a quality target:
+        # line coverage is weakly correlated with fault detection once suite
+        # size is controlled (Inozemtseva & Holmes, ICSE 2014). Treat it as one
+        # diagnostic alongside the behavioral, property, differential, and
+        # fault-injection checks below rather than promoting any single proxy
+        # to an overall adequacy score.
+        # Coverage is lcov-only (see bunfig.toml [test].coverageReporter —
+        # bunfig overrides any --coverage-reporter CLI flag): the text table
+        # intermittently kills bun's stdout writer with `error: An internal
+        # error occurred (WriteFailed)`, exiting 1 with zero test failures
+        # (runs 28576001032, 28576303182). The pass/fail summary still prints.
+        # Coverage makes corpus and adversarial tests several times slower on
+        # shared runners. The canonical package script owns their one bounded
+        # command-line default so local, CI, and release gates cannot drift;
+        # CI appends only Bun's deterministic file-shard selector.
+        run: bun run test -- --shard=${{ matrix.shard }}
+
+      - name: Upload shard coverage
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-coverage-${{ strategy.job-index }}
+          path: coverage/lcov.info
+          if-no-files-found: warn
+          overwrite: true
+          retention-days: 7
+
+  quality:
+    name: Quality gates
     runs-on: ubuntu-latest
 
     steps:
@@ -23,42 +82,15 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
         with:
-          # Keep CI on the known-good runtime used for local/release validation.
-          # `latest` moved underneath this PR and made coverage runs flaky.
           bun-version: 1.3.13
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      # Must run before the test step: the test preload rebuilds website/public
-      # and re-emits website/src/generated, overwriting the committed worker
-      # inputs (wasm/harness/fonts/deploy-version) this check pins against
-      # source — so drift has to be caught before the rebuild runs.
+      # This runs in a pristine job before sketch:check invokes bun:test and its
+      # preload rebuilds website/public and website/src/generated.
       - name: Check the committed website worker inputs are current
         run: bun run website:check
-
-      - name: Run tests (coverage = under-tested finder, NOT an adequacy target)
-        # The pass/fail of this suite is the gate. Coverage is printed only to
-        # locate under-tested files — it is deliberately NOT a quality target:
-        # line coverage is weakly correlated with fault detection once suite
-        # size is controlled (Inozemtseva & Holmes, ICSE 2014). Treat it as one
-        # diagnostic alongside the behavioral, property, differential, and
-        # fault-injection checks below rather than promoting any single proxy
-        # to an overall adequacy score.
-        # Coverage is lcov-only (see bunfig.toml [test].coverageReporter —
-        # bunfig overrides any --coverage-reporter CLI flag): the text table
-        # intermittently kills bun's stdout writer with `error: An internal
-        # error occurred (WriteFailed)`, exiting 1 with zero test failures
-        # (runs 28576001032, 28576303182). The pass/fail summary still prints.
-        # Coverage makes corpus and adversarial tests several times slower on
-        # shared runners. The canonical package script owns their one bounded
-        # command-line default so local, CI, and release gates cannot drift.
-        run: bun run test
-
-      - name: Prove focused route regressions fail
-        # Five one-line fault injections run in detached worktrees. This stays
-        # bounded (~1 min) and proves the named regression tests actually bite.
-        run: bun run sabotage:routes
 
       - name: Run sketch prototype style checks
         run: bun run sketch:check
@@ -80,12 +112,85 @@ jobs:
         # a commit-message line starting with [approve-goldens].
         run: bun run scripts/ci/golden-drift.ts
 
+  route-sabotage:
+    name: Route regression sabotage
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: 1.3.13
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Prove focused route regressions fail
+        # Five one-line fault injections run in detached worktrees. This stays
+        # bounded (~1 min) and proves the named regression tests actually bite.
+        run: bun run sabotage:routes
+
+  # Preserve the existing required check name while the work behind it runs in
+  # parallel. always() turns a failed or cancelled prerequisite into a failed
+  # aggregate gate instead of a misleading skipped check.
+  test:
+    runs-on: ubuntu-latest
+    needs: [unit, quality, route-sabotage]
+    if: ${{ always() }}
+
+    steps:
+      - uses: actions/checkout@v4
+        if: ${{ needs.unit.result == 'success' }}
+
+      - name: Setup Bun for coverage merge
+        if: ${{ needs.unit.result == 'success' }}
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: 1.3.13
+
+      - name: Download shard coverage
+        if: ${{ needs.unit.result == 'success' }}
+        uses: actions/download-artifact@v4
+        with:
+          pattern: unit-coverage-*
+          path: coverage-shards
+
+      - name: Merge shard coverage
+        if: ${{ needs.unit.result == 'success' }}
+        run: bun run scripts/ci/merge-lcov.ts coverage-shards coverage/lcov.info 3
+
+      - name: Upload merged coverage
+        if: ${{ needs.unit.result == 'success' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-lcov
+          path: coverage/lcov.info
+          overwrite: true
+          retention-days: 7
+
+      - name: Require every test lane to pass
+        if: ${{ always() }}
+        env:
+          UNIT_RESULT: ${{ needs.unit.result }}
+          QUALITY_RESULT: ${{ needs.quality.result }}
+          SABOTAGE_RESULT: ${{ needs['route-sabotage'].result }}
+        run: |
+          if [[ "$UNIT_RESULT" != "success" || "$QUALITY_RESULT" != "success" || "$SABOTAGE_RESULT" != "success" ]]; then
+            echo "unit=$UNIT_RESULT quality=$QUALITY_RESULT route-sabotage=$SABOTAGE_RESULT"
+            exit 1
+          fi
+
   e2e:
+    name: E2E (${{ matrix.suite }})
     runs-on: ubuntu-latest
     needs: test
-    # Raised from 30: the added dist-artifact + tarball-consumer fuzz steps carry
-    # large per-test --timeout budgets (400s/600s) whose sum now exceeds 30 min.
     timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [cli, dist-artifact, tarball-consumer, browser]
 
     steps:
       - uses: actions/checkout@v4
@@ -101,38 +206,56 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Install Playwright browsers
+        if: ${{ matrix.suite == 'browser' }}
         run: bunx playwright install chromium --with-deps
 
-      - name: Run CLI/security E2E tests
+      - name: Run CLI E2E tests
+        if: ${{ matrix.suite == 'cli' }}
         # Unit tests are the coverage gate; e2e/bunfig.toml disables coverage
         # instrumentation for browser/binary E2E.
-        run: cd e2e && bun test cli-smoke.e2e.test.ts cli.e2e.test.ts security-csp.e2e.test.ts fresh-checkout.e2e.test.ts --timeout 120000
+        run: cd e2e && bun test cli-smoke.e2e.test.ts cli.e2e.test.ts fresh-checkout.e2e.test.ts --timeout 120000
 
       - name: Run single-binary E2E tests
+        if: ${{ matrix.suite == 'cli' }}
         run: cd e2e && bun test single-binary.e2e.test.ts --timeout 180000
 
       - name: Run dist-artifact differential fuzz (built bundle under plain Node)
+        if: ${{ matrix.suite == 'dist-artifact' }}
         # Builds dist/ and fuzzes the shipped bundle under Node against the
         # source build (crash parity across families + byte-equality on
         # flowcharts). The runner's preinstalled `node` satisfies findNodeBinary.
         run: cd e2e && bun test dist-artifact-fuzz.e2e.test.ts --timeout 400000
 
       - name: Run tarball-consumer fuzz (npm pack -> install -> drive bins under Node)
+        if: ${{ matrix.suite == 'tarball-consumer' }}
         # Packs, installs into a clean project, and fuzzes the installed library
         # + `am`/`agentic-mermaid-mcp` bins as spawned Node processes — the real
         # consumer path (exports resolution, files[], bin linking, native deps).
         run: cd e2e && bun test tarball-consumer-fuzz.e2e.test.ts --timeout 600000
 
+      - name: Run browser security E2E tests
+        if: ${{ matrix.suite == 'browser' }}
+        run: cd e2e && bun test security-csp.e2e.test.ts --timeout 120000
+
       - name: Run browser E2E tests
+        if: ${{ matrix.suite == 'browser' }}
         run: cd e2e && bun test browser.test.ts --timeout 600000
 
       - name: Run browser-gated unit contracts
-        # editor-theme-switch.test.ts and website-browser-a11y.test.ts live in
-        # src/__tests__ but need a real Chromium, so they describe.skip in the
-        # unit job (no browsers there). Run them here where Playwright is
-        # installed — otherwise the chrome/artwork behavioral contract and the
-        # website accessibility smoke never execute in CI.
-        run: bun test src/__tests__/editor-theme-switch.test.ts src/__tests__/website-browser-a11y.test.ts --timeout 120000
+        if: ${{ matrix.suite == 'browser' }}
+        # These suites live in src/__tests__ but require the explicit browser
+        # opt-in and a real Chromium, so keep them out of the unit shards and
+        # execute the complete theme/style/accessibility contract here. Keep
+        # one file per Bun process: loading all three files together overlaps
+        # their browser/server hooks and exhausts a constrained hosted runner.
+        # website/public is gitignored, so build it once before the contracts
+        # serve it; browser.test.ts only builds the separate root editor.html.
+        run: |
+          bun run website
+          cd e2e
+          AM_BROWSER_TESTS=1 bun test ../src/__tests__/editor-theme-switch.test.ts --timeout 600000
+          AM_BROWSER_TESTS=1 bun test ../src/__tests__/editor-style-switch.test.ts --timeout 600000
+          AM_BROWSER_TESTS=1 bun test ../src/__tests__/website-browser-a11y.test.ts --timeout 600000
 
   # Bounded fault-detection check for a small, pure module. This lane is kept
   # because a full run is about one minute and its measured ~97% kill score is

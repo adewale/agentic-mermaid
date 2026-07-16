@@ -8,11 +8,10 @@
 //   AM_FC_SEED=random bun test src/__tests__/  # finder mode: roll fresh seeds
 //
 // Loaded via bunfig.toml [test].preload, so it applies to every current and
-// future *.test.ts without per-file wiring. Suites that pin their own seed
-// (a seed that exposed a real bug) still override this via a save/restore
-// beforeAll/afterAll — see route-contracts.test.ts — and per-call `seed:`
-// options always win over the global. fc-seed-policy.test.ts gates this file
-// against being unwired.
+// future *.test.ts without per-file wiring. Suites that preserve a seed which
+// exposed a real bug use per-call `seed:` options, which win over the global
+// without mutating process state. fc-seed-policy.test.ts gates both this file
+// and that source-level convention against being unwired.
 import fc from 'fast-check'
 
 export const DEFAULT_FC_SEED = 20260702
