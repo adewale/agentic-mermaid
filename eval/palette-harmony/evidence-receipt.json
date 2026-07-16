@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "generator": "scripts/pr-assets/palette-harmony-experiment.ts",
   "inputCount": 697,
-  "inputTreeSha256": "6c3b78cb8126136a7e8a30be7c85258236eef0e44aa494ac45f1a54f571a827a",
+  "inputTreeSha256": "5075d3d2c43121eeb99b043e44e49c2aafde84b50b29698138d823821e7b3551",
   "outputs": [
     {
       "path": "eval/palette-harmony/report.json",
