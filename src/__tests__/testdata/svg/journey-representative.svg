@@ -55,45 +55,45 @@
 </style>
 <g class="journey-score-guide" data-score-min="1" data-score-max="5">
   <line class="journey-guide" x1="176" y1="273.20000000000005" x2="650" y2="273.20000000000005" data-relationship="grid" data-direction="undirected" />
-  <text x="164" y="273.20000000000005" class="journey-score-label" text-anchor="end" font-size="11" font-weight="600" dy="3.8499999999999996">5</text>
+  <text x="164" y="273.20000000000005" class="journey-score-label" text-anchor="end" font-size="11" font-weight="600" dy="3.8499999999999996" textLength="8.25" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">5</text>
   <line class="journey-guide" x1="176" y1="313.20000000000005" x2="650" y2="313.20000000000005" data-relationship="grid" data-direction="undirected" />
-  <text x="164" y="313.20000000000005" class="journey-score-label" text-anchor="end" font-size="11" font-weight="600" dy="3.8499999999999996">4</text>
+  <text x="164" y="313.20000000000005" class="journey-score-label" text-anchor="end" font-size="11" font-weight="600" dy="3.8499999999999996" textLength="8.25" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">4</text>
   <line class="journey-guide" x1="176" y1="353.20000000000005" x2="650" y2="353.20000000000005" data-relationship="grid" data-direction="undirected" />
-  <text x="164" y="353.20000000000005" class="journey-score-label" text-anchor="end" font-size="11" font-weight="600" dy="3.8499999999999996">3</text>
+  <text x="164" y="353.20000000000005" class="journey-score-label" text-anchor="end" font-size="11" font-weight="600" dy="3.8499999999999996" textLength="8.25" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">3</text>
   <line class="journey-guide" x1="176" y1="393.20000000000005" x2="650" y2="393.20000000000005" data-relationship="grid" data-direction="undirected" />
-  <text x="164" y="393.20000000000005" class="journey-score-label" text-anchor="end" font-size="11" font-weight="600" dy="3.8499999999999996">2</text>
+  <text x="164" y="393.20000000000005" class="journey-score-label" text-anchor="end" font-size="11" font-weight="600" dy="3.8499999999999996" textLength="8.25" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">2</text>
   <line class="journey-guide" x1="176" y1="433.20000000000005" x2="650" y2="433.20000000000005" data-relationship="grid" data-direction="undirected" />
-  <text x="164" y="433.20000000000005" class="journey-score-label" text-anchor="end" font-size="11" font-weight="600" dy="3.8499999999999996">1</text>
+  <text x="164" y="433.20000000000005" class="journey-score-label" text-anchor="end" font-size="11" font-weight="600" dy="3.8499999999999996" textLength="4.29" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">1</text>
   <line class="journey-baseline" x1="176" y1="465.20000000000005" x2="650" y2="465.20000000000005" marker-end="url(#journey-1nl2g1i-arrowhead)" data-relationship="rail" data-direction="forward" />
 </g>
 <g class="journey-actor-legend">
-  <text x="32" y="118.4" class="journey-actor-legend-title" text-anchor="start" font-size="12" font-weight="600" dy="4.199999999999999">Actors</text>
+  <text x="32" y="118.4" class="journey-actor-legend-title" text-anchor="start" font-size="12" font-weight="600" dy="4.199999999999999" textLength="40.68" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Actors</text>
   <circle class="journey-actor-dot journey-actor-0" data-actor="PM" cx="37" cy="144.4" r="5" data-id="actor-legend-dot:PM" data-role="actor" />
-  <text x="54" y="144.4" class="journey-actor-legend-text" text-anchor="start" font-size="11" font-weight="600" dy="3.8499999999999996">PM</text>
+  <text x="54" y="144.4" class="journey-actor-legend-text" text-anchor="start" font-size="11" font-weight="600" dy="3.8499999999999996" textLength="19.47" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">PM</text>
   <circle class="journey-actor-dot journey-actor-1" data-actor="Research" cx="37" cy="166.4" r="5" data-id="actor-legend-dot:Research" data-role="actor" />
-  <text x="54" y="166.4" class="journey-actor-legend-text" text-anchor="start" font-size="11" font-weight="600" dy="3.8499999999999996">Research</text>
+  <text x="54" y="166.4" class="journey-actor-legend-text" text-anchor="start" font-size="11" font-weight="600" dy="3.8499999999999996" textLength="54.45" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Research</text>
   <circle class="journey-actor-dot journey-actor-2" data-actor="Design" cx="37" cy="188.4" r="5" data-id="actor-legend-dot:Design" data-role="actor" />
-  <text x="54" y="188.4" class="journey-actor-legend-text" text-anchor="start" font-size="11" font-weight="600" dy="3.8499999999999996">Design</text>
+  <text x="54" y="188.4" class="journey-actor-legend-text" text-anchor="start" font-size="11" font-weight="600" dy="3.8499999999999996" textLength="38.61" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Design</text>
   <circle class="journey-actor-dot journey-actor-3" data-actor="Eng" cx="37" cy="210.4" r="5" data-id="actor-legend-dot:Eng" data-role="actor" />
-  <text x="54" y="210.4" class="journey-actor-legend-text" text-anchor="start" font-size="11" font-weight="600" dy="3.8499999999999996">Eng</text>
+  <text x="54" y="210.4" class="journey-actor-legend-text" text-anchor="start" font-size="11" font-weight="600" dy="3.8499999999999996" textLength="22.77" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Eng</text>
   <circle class="journey-actor-dot journey-actor-4" data-actor="QA" cx="37" cy="232.4" r="5" data-id="actor-legend-dot:QA" data-role="actor" />
-  <text x="54" y="232.4" class="journey-actor-legend-text" text-anchor="start" font-size="11" font-weight="600" dy="3.8499999999999996">QA</text>
+  <text x="54" y="232.4" class="journey-actor-legend-text" text-anchor="start" font-size="11" font-weight="600" dy="3.8499999999999996" textLength="17.49" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">QA</text>
 </g>
 <g class="journey-section" data-id="section-0" data-label="Discover" data-role="section">
   <rect class="journey-section-bg journey-section-0" x="176" y="73.4" width="144" height="36" rx="6" ry="6" data-id="section-bg:section-0" data-role="section" />
   <rect class="journey-section-label-band journey-section-band-0" x="182" y="80.4" width="132" height="22" rx="6" ry="6" />
-  <text x="248" y="91.4" class="journey-section-label journey-section-label-0" text-anchor="middle" font-size="12" font-weight="600" dy="4.199999999999999">Discover</text>
+  <text x="248" y="91.4" class="journey-section-label journey-section-label-0" text-anchor="middle" font-size="12" font-weight="600" dy="4.199999999999999" textLength="55.08" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Discover</text>
 </g>
 <g class="journey-section" data-id="section-1" data-label="Deliver" data-role="section">
   <rect class="journey-section-bg journey-section-1" x="328" y="73.4" width="294" height="36" rx="6" ry="6" data-id="section-bg:section-1" data-role="section" />
   <rect class="journey-section-label-band journey-section-band-1" x="334" y="80.4" width="282" height="22" rx="6" ry="6" />
-  <text x="475" y="91.4" class="journey-section-label journey-section-label-1" text-anchor="middle" font-size="12" font-weight="600" dy="4.199999999999999">Deliver</text>
+  <text x="475" y="91.4" class="journey-section-label journey-section-label-1" text-anchor="middle" font-size="12" font-weight="600" dy="4.199999999999999" textLength="43.56" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Deliver</text>
 </g>
 <path class="journey-curve" d="M248,313.20000000000005 C298.6666666666667,313.20000000000005 349.3333333333333,353.20000000000005 400,353.20000000000005 C450,353.20000000000005 500,273.20000000000005 550,273.20000000000005" data-relationship="series" data-direction="undirected" data-id="experience-curve" data-role="series" />
 <g class="journey-task" data-id="task-0" data-score="4" data-section="Discover" data-actors="PM, Research" data-role="task">
   <line class="journey-track" x1="248" y1="200.3" x2="248" y2="465.20000000000005" data-relationship="marker-line" data-direction="undirected" />
   <rect class="journey-task-box" x="186" y="139.4" width="124" height="60.900000000000006" rx="5" ry="5" data-id="task-box:task-0" data-role="task" />
-  <text x="248" y="159.85" class="journey-task-text" text-anchor="middle" font-size="13" font-weight="500" dy="4.55">Interview users</text>
+  <text x="248" y="159.85" class="journey-task-text" text-anchor="middle" font-size="13" font-weight="500" dy="4.55" textLength="93.093" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Interview users</text>
   <circle class="journey-actor-dot journey-actor-0" data-actor="PM" cx="240" cy="184.3" r="4" data-id="actor-dot:task-0:PM" data-role="actor" />
   <circle class="journey-actor-dot journey-actor-1" data-actor="Research" cx="256" cy="184.3" r="4" data-id="actor-dot:task-0:Research" data-role="actor" />
   <g class="journey-score-marker" data-score="4">
@@ -106,7 +106,7 @@
 <g class="journey-task" data-id="task-1" data-score="3" data-section="Deliver" data-actors="Design, Eng" data-role="task">
   <line class="journey-track" x1="400" y1="217.20000000000002" x2="400" y2="465.20000000000005" data-relationship="marker-line" data-direction="undirected" />
   <rect class="journey-task-box" x="338" y="139.4" width="124" height="77.80000000000001" rx="5" ry="5" data-id="task-box:task-1" data-role="task" />
-  <text x="400" y="168.3" class="journey-task-text" text-anchor="middle" font-size="13" font-weight="500"><tspan x="400" dy="-3.9000000000000012">Prototype</tspan><tspan x="400" dy="16.900000000000002">review</tspan></text>
+  <text x="400" y="168.3" class="journey-task-text" text-anchor="middle" font-size="13" font-weight="500"><tspan x="400" dy="-3.9000000000000012" textLength="59.748" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Prototype</tspan><tspan x="400" dy="16.900000000000002" textLength="41.964" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">review</tspan></text>
   <circle class="journey-actor-dot journey-actor-2" data-actor="Design" cx="392" cy="201.20000000000002" r="4" data-id="actor-dot:task-1:Design" data-role="actor" />
   <circle class="journey-actor-dot journey-actor-3" data-actor="Eng" cx="408" cy="201.20000000000002" r="4" data-id="actor-dot:task-1:Eng" data-role="actor" />
   <g class="journey-score-marker" data-score="3">
@@ -119,7 +119,7 @@
 <g class="journey-task" data-id="task-2" data-score="5" data-section="Deliver" data-actors="Eng, QA" data-role="task">
   <line class="journey-track" x1="550" y1="200.3" x2="550" y2="465.20000000000005" data-relationship="marker-line" data-direction="undirected" />
   <rect class="journey-task-box" x="488" y="139.4" width="124" height="60.900000000000006" rx="5" ry="5" data-id="task-box:task-2" data-role="task" />
-  <text x="550" y="159.85" class="journey-task-text" text-anchor="middle" font-size="13" font-weight="500" dy="4.55">Ship</text>
+  <text x="550" y="159.85" class="journey-task-text" text-anchor="middle" font-size="13" font-weight="500" dy="4.55" textLength="28.626" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Ship</text>
   <circle class="journey-actor-dot journey-actor-3" data-actor="Eng" cx="542" cy="184.3" r="4" data-id="actor-dot:task-2:Eng" data-role="actor" />
   <circle class="journey-actor-dot journey-actor-4" data-actor="QA" cx="558" cy="184.3" r="4" data-id="actor-dot:task-2:QA" data-role="actor" />
   <g class="journey-score-marker" data-score="5">
@@ -129,5 +129,5 @@
     <path class="journey-face-mouth" d="M542,277.20000000000005 Q550,286.20000000000005 558,277.20000000000005" />
   </g>
 </g>
-<text x="341" y="39.7" class="journey-title" text-anchor="middle" font-size="18" font-weight="600" dy="6.3" data-id="title" data-role="title">Product journey</text>
+<text x="341" y="39.7" class="journey-title" text-anchor="middle" font-size="18" font-weight="600" dy="6.3" data-id="title" data-role="title" textLength="142.02" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Product journey</text>
 </svg>

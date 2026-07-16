@@ -8,7 +8,7 @@
     "commit": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
     "npmIntegrity": "sha512-Zvm3kbstgdpvIJPPItlL7fppIZ3kibvc1oZIGxdvk9t6UFz6flv+Jw7FtRGKwfcI8OckmH04LqG6LlS6X4B1pA==",
     "packageJsonSha256": "88ea12cf87bb2616d3ed68b1f0d3202a0ab1ad5a1eed82f8471dfd8f9dc8d1cb",
-    "inventorySha256": "a78dc445f19507968c3790eac4ba6ee7b1756635b24d2d4e635557a136085b16",
+    "inventorySha256": "743517bef84810c6e8afc8b470b801b8cc4a1687445037bd42cc6079f57a3b59",
     "inputs": [
       "packages/mermaid/src/diagram-api/diagram-orchestration.ts",
       "packages/mermaid/src/diagram-api/detectType.ts",
@@ -1502,7 +1502,7 @@
         "kind": "syntax-features",
         "scope": "repository",
         "path": "eval/mermaid-upstream-suite-bench/cases.json",
-        "sha256": "b8ab9e22cf8215eb7921ae5a1d5f3bec897be91af55bb344653e655c2ee7aa4e",
+        "sha256": "c3a9218f19f896d0ebb5ab390f1214d532389f60c13d22b1e6e380cdb66a6ab8",
         "upstreamRevision": "a2d9686451df7c4644a3eeca20535bbd4c5776b0"
       },
       {
@@ -11648,7 +11648,7 @@
           "flowchart"
         ],
         "status": "executable",
-        "fingerprint": "12adf9b51ab4216e3688fe5f827169a868612e9eecd19d1736ffddc9b5590cfc",
+        "fingerprint": "547b074f7bc5b6cc64416e9c54906ada92dcd448dfd3cb1f67dde5087317ea5d",
         "sourceSha256": "17aae4ab764c0e96a5ce165a5cbf16238f59b9f27649854876dabc75b8b14d9d"
       },
       {
@@ -11958,7 +11958,7 @@
           "flowchart"
         ],
         "status": "executable",
-        "fingerprint": "eea8e19a264b5e1533d048409e8bf33d82c6d957271491599417fa96db4abd32",
+        "fingerprint": "d867ddd3a1468bb0707ffa64589afc42e5578b178cdd81aa77ac268629a978f3",
         "sourceSha256": "716a3006689e1b26b6028455b6d1bb6203eee191440ac1c058be8165a856db2b"
       },
       {
@@ -11968,7 +11968,7 @@
           "flowchart"
         ],
         "status": "executable",
-        "fingerprint": "4ac2ee7c603555e8b20f921cb12767deb56b65c7c8ea57ba5f5db1d5bf1d042e",
+        "fingerprint": "dff2c4e5f184e69233cc06d911cfce8e9fe6b3d5ce0298481a8b299470877eb6",
         "sourceSha256": "5d2af7f013d906c03230cc83c277d39a1fa74ccac54c7b28443bc60a2da43367"
       },
       {
@@ -12208,7 +12208,7 @@
           "flowchart"
         ],
         "status": "executable",
-        "fingerprint": "689278610d3a9f894394c733d216beccf07c580a964816a069ffdeaaf2f62b64",
+        "fingerprint": "e5a1862b661761563e2da2b8ee9f12ec33a726c97e958402578ccf14553f9a14",
         "sourceSha256": "9ef46a9e788b94652379b736eb14c2e2c8ebda032e0593cfa4c161555acc5a6f"
       },
       {
@@ -12228,7 +12228,7 @@
           "flowchart"
         ],
         "status": "executable",
-        "fingerprint": "b8350b015c95133c8e1b7d0485b7a277f3bd3a115db8977a02a86732d443a3fc",
+        "fingerprint": "e13780f0067506be2d0f038ef92ed8790ded7688e615d47bbc51626cd7870ac3",
         "sourceSha256": "9ab4a3b6f8918c8c7f9e469b2eb79810f7252078629bb1f613943ed208ba7adf"
       },
       {
@@ -12248,7 +12248,7 @@
           "flowchart"
         ],
         "status": "executable",
-        "fingerprint": "e2c572ba099da81161bd68b095f31b3966c164779db6359a0e8ca7317a0e20d8",
+        "fingerprint": "d01065cf84a4c96310d3fdef22457bdd849fc0f9b88d549e71a04b73cc358600",
         "sourceSha256": "38a6f2d5027864878abb7ac8272e79272e99c8d201568566ebeaff6140be8dad"
       },
       {
@@ -12258,7 +12258,7 @@
           "flowchart"
         ],
         "status": "executable",
-        "fingerprint": "f27e9e5a337c415510c461bc94192646e1d3881aab46efb95eb21655db453844",
+        "fingerprint": "63f7d4ea103c1ef3ef7b37717f27474834300fd32bb955ff60fb5a2e3c12194f",
         "sourceSha256": "8db10619c82a4bf0b87fb0aa552b03f0ccb39c25e9f41fcf8185e1ab0c3df062"
       },
       {
@@ -12288,7 +12288,7 @@
           "flowchart"
         ],
         "status": "executable",
-        "fingerprint": "8dbf387dc8f6520e23c60d7c17520a53d888e9fc4b874f5bf43c883f6345ad4c",
+        "fingerprint": "c8dccee1819ff13fab9ac47aa223ef2c27e2bec70f12ddd0af06b5ef56ab9eba",
         "sourceSha256": "148c1b73d5a096f655c3c64bce2a2bc7aac9e8e7bf4bb9ebec1221fb82489251"
       },
       {
@@ -12598,7 +12598,7 @@
           "flowchart"
         ],
         "status": "executable",
-        "fingerprint": "e0f2ccc694549371375dd3fca8fe105634eeaeed2b3d73ca6cee3b3a15c71b00",
+        "fingerprint": "79346da44adf10ba5dc698747a1076cc96829f33d9fc524356946638851ece02",
         "sourceSha256": "e7c455995b7cf7aa768dac6492e6e476aecf14cccb8dd71480e1c7e341a1adc3"
       },
       {
@@ -12608,7 +12608,7 @@
           "flowchart"
         ],
         "status": "executable",
-        "fingerprint": "ee632c698e36a4a28d23c6c677290e724fd0272609db9692382772421b07e229",
+        "fingerprint": "2bd2a212eafc847312ef076e6006bda11f3e562e40550b23237574036d1b231c",
         "sourceSha256": "a66d2e1554d0d84c772f0b1a8a4f952880969a5d6586afa2fbc1762634c159bf"
       },
       {
@@ -12628,7 +12628,7 @@
           "flowchart"
         ],
         "status": "executable",
-        "fingerprint": "be6479dd1a0301dfa99bcd585fa5583f2e2d8b401769d08479403967751eabbe",
+        "fingerprint": "79ef247d2affc4c36e3b380d299c78ffecd52a30e04c10d4d27953bb0e066e92",
         "sourceSha256": "8ae161f942941da722b20fc571732bf5792dd02a2a249207955b93876af0e87e"
       },
       {
@@ -12728,7 +12728,7 @@
           "flowchart"
         ],
         "status": "executable",
-        "fingerprint": "9fa62abf3db73f99cafe16ef7006fa057f38603e4d94d596d508c52aa955b25c",
+        "fingerprint": "06cba6962f033911f4b4f0fe6133d48a7cfd5ba8ca7827b9cd9974fc01c34467",
         "sourceSha256": "74c197c6bc224a3df99162bb278003b70afb5bc5e0b19b93fd902c8ffb85d85a"
       },
       {
@@ -12788,7 +12788,7 @@
           "flowchart"
         ],
         "status": "executable",
-        "fingerprint": "98fb5b6189676f4c0b837a41f15d41dd1ce38d05e7fdba0679185d6e80aa10c2",
+        "fingerprint": "2e83bcb24583e51bda8f08693d5cbd7c41afffd827c262d694e57ad557457354",
         "sourceSha256": "34cb7d7b1b4cd0ff8bd9933f9549f4a200949a5724d2e9efa12aed69bfc44aa2"
       },
       {
@@ -14028,7 +14028,7 @@
           "sequence"
         ],
         "status": "executable",
-        "fingerprint": "3ba56e7a4af96d5217a5eff0fa03e1938542ca0b06f87a7deef0c4b6a11fe81c",
+        "fingerprint": "4913f20324340649f2de9d0199aabdfb676205416ba6ee17fe6fc59514bf8a7f",
         "sourceSha256": "a4b698d12a494fd568fd08f2fb7653f110aacb4c87e4c9921083d442ebaab5a4"
       },
       {

@@ -7,7 +7,7 @@ Generated from the Style, SceneRole, and FamilyDescriptor registries. Do not edi
 - Built-in families: **15**
 - Exportable built-in Looks: **16**
 - BrandPack promoted: **no** — No external consumer has shown that ordinary version-controlled StyleSpec files are insufficient for repeated distribution, exact selection, or installed-resource integrity.
-- Digest: `sha256:fcb35425a451105084f264e186a3d360bb79ca73885f91f4da4172ab45a80eae`
+- Digest: `sha256:508053e32b212a887e5d695844cd495256962b84b7e3cdeafc4bd143de560f22`
 
 ## SceneRole styling
 
@@ -16,7 +16,7 @@ Generated from the Style, SceneRole, and FamilyDescriptor registries. Do not edi
 | `node` | `node` | exact | `fontSize`, `fontWeight`, `letterSpacing`, `textTransform`, `textColor`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor` |
 | `edge` | `edge` | exact | `fontSize`, `fontWeight`, `letterSpacing`, `textTransform`, `textColor`, `lineWidth`, `bendRadius`, `strokeColor` |
 | `edge-label` | `label` | fallback-only | fallback-only |
-| `group` | `group` | exact | `fontSize`, `fontWeight`, `letterSpacing`, `textTransform`, `textColor`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `headerFillColor`, `fontFamily` |
+| `group` | `group` | exact | `fontSize`, `fontWeight`, `letterSpacing`, `textTransform`, `textColor`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor`, `fontFamily`, `headerFillColor` |
 | `group-header` | `group` | exact | `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `textTransform`, `textColor`, `fillColor`, `borderColor`, `strokeColor`, `lineWidth`, `cue` |
 | `label` | `label` | exact | `fontSize`, `fontWeight`, `letterSpacing`, `textTransform`, `textColor` |
 | `actor` | `node` | exact | `fontSize`, `fontWeight`, `letterSpacing`, `textTransform`, `textColor`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth`, `fillColor`, `borderColor` |
@@ -321,9 +321,9 @@ Derived defaults may be guarded while they are chosen. Concrete authored theme/c
 
 ## Phase evidence
 
-- **B0:** `src/__tests__/section-b-capability-report.test.ts`, `docs/project/section-b-capability-report.json`
-- **B1:** `src/__tests__/section-b-role-styles.test.ts`, `src/__tests__/radar-label-discipline.test.ts`
-- **B2:** `src/__tests__/section-b-role-styles.test.ts`, `src/__tests__/style-spec-authority.test.ts`
-- **B3:** `src/__tests__/section-b-policy.test.ts`, `src/scene/brand-constraints.ts`
-- **B4:** `docs/project/brand-primitives-plan.md`, `eval/section-b-brand-evidence/usability-agent-session.json`
-- **B5:** `docs/style-authoring.md`, `scripts/pr-assets/section-b-brand-evidence.ts`, `eval/section-b-brand-evidence/evidence-receipt.json`, `eval/section-b-brand-evidence/usability-agent-session.json`
+- **B0 (complete):** `src/__tests__/section-b-capability-report.test.ts`, `docs/project/section-b-capability-report.json`
+- **B1 (complete):** `src/__tests__/section-b-role-styles.test.ts`, `src/__tests__/radar-label-discipline.test.ts`
+- **B2 (complete):** `src/__tests__/section-b-role-styles.test.ts`, `src/__tests__/style-spec-authority.test.ts`
+- **B3 (complete):** `src/__tests__/section-b-policy.test.ts`, `src/scene/brand-constraints.ts`
+- **B4 (not-promoted):** `TODO.md#dec-1--get-one-real-external-consumer`, `docs/project/brand-primitives-plan.md`
+- **B5 (complete):** `docs/style-authoring.md`, `scripts/pr-assets/section-b-brand-evidence.ts`, `eval/section-b-brand-evidence/evidence-receipt.json`, `eval/section-b-brand-evidence/usability-agent-session.json`, `examples/styles/catalog.json`, `eval/style-prototype-evidence/visual-approval.json`

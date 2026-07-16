@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "publicRoleStyleLeaves": [
     {
       "field": "fontFamily",
@@ -138,8 +138,8 @@
         "lineWidth",
         "fillColor",
         "borderColor",
-        "headerFillColor",
-        "fontFamily"
+        "fontFamily",
+        "headerFillColor"
       ]
     },
     {
@@ -4209,55 +4209,63 @@
     "promoted": false,
     "reason": "No external consumer has shown that ordinary version-controlled StyleSpec files are insufficient for repeated distribution, exact selection, or installed-resource integrity.",
     "evidence": [
-      "docs/project/brand-primitives-plan.md",
-      "eval/section-b-brand-evidence/usability-agent-session.json"
+      "TODO.md#dec-1--get-one-real-external-consumer",
+      "docs/project/brand-primitives-plan.md"
     ]
   },
   "phases": [
     {
       "id": "B0",
-      "acceptanceEvidence": [
+      "status": "complete",
+      "evidence": [
         "src/__tests__/section-b-capability-report.test.ts",
         "docs/project/section-b-capability-report.json"
       ]
     },
     {
       "id": "B1",
-      "acceptanceEvidence": [
+      "status": "complete",
+      "evidence": [
         "src/__tests__/section-b-role-styles.test.ts",
         "src/__tests__/radar-label-discipline.test.ts"
       ]
     },
     {
       "id": "B2",
-      "acceptanceEvidence": [
+      "status": "complete",
+      "evidence": [
         "src/__tests__/section-b-role-styles.test.ts",
         "src/__tests__/style-spec-authority.test.ts"
       ]
     },
     {
       "id": "B3",
-      "acceptanceEvidence": [
+      "status": "complete",
+      "evidence": [
         "src/__tests__/section-b-policy.test.ts",
         "src/scene/brand-constraints.ts"
       ]
     },
     {
       "id": "B4",
-      "acceptanceEvidence": [
-        "docs/project/brand-primitives-plan.md",
-        "eval/section-b-brand-evidence/usability-agent-session.json"
+      "status": "not-promoted",
+      "evidence": [
+        "TODO.md#dec-1--get-one-real-external-consumer",
+        "docs/project/brand-primitives-plan.md"
       ]
     },
     {
       "id": "B5",
-      "acceptanceEvidence": [
+      "status": "complete",
+      "evidence": [
         "docs/style-authoring.md",
         "scripts/pr-assets/section-b-brand-evidence.ts",
         "eval/section-b-brand-evidence/evidence-receipt.json",
-        "eval/section-b-brand-evidence/usability-agent-session.json"
+        "eval/section-b-brand-evidence/usability-agent-session.json",
+        "examples/styles/catalog.json",
+        "eval/style-prototype-evidence/visual-approval.json"
       ]
     }
   ],
-  "digest": "sha256:fcb35425a451105084f264e186a3d360bb79ca73885f91f4da4172ab45a80eae"
+  "digest": "sha256:508053e32b212a887e5d695844cd495256962b84b7e3cdeafc4bd143de560f22"
 }
