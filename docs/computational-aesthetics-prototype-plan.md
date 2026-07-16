@@ -132,40 +132,49 @@ on the corpus, adds preference signal after current metrics, and stays inside
 its cost budget. Otherwise remove it or retain it explicitly as a correctness
 guard with no aesthetic weight.
 
-For combinations, run small ablations rather than blending everything:
+For combinations, run small ablations rather than blending everything. Treat
+each combination as a gated ladder: validate the cheaper base term, add one
+term, and stop when independence disappears.
 
 - **{1,2,3}:** lightness structure, categorical distance, and background
-  visibility are complementary and already ship as generation constraints.
-- **{1,4}:** harmony and even separation compete; report a Pareto front.
+  visibility are complementary and already ship as one generation contract.
+- **{1,2,3,4}:** harmony is an optional preference layer over that contract,
+  not a replacement for distance or visibility; report a Pareto front.
 - **{5,8}:** crossing prevalence and crossing quality should be complementary.
+- **{5,6,8}:** add direction only if #6 catches defects not explained by the
+  crossing pair or by ELK's existing directional constraints.
 - **{5,8,9}:** likely redundant; add #9 only if partial correlation survives.
-- **{7,11}:** likely overlapping whole-canvas/cluster signals; require trip
-  fixtures and ablation before either gets a score weight.
+- **{7,10,11}:** composition, common region, and proximity span figure,
+  ownership, and local grouping scales, but need ablation because the signals
+  can collapse onto the same cluster structure.
 
 ## Revised stack rank
 
 The rank uses five axes: user-visible value, independence from existing
 signals, product reach, bounded runtime, and validation burden. “Foundation” is
-not ranked as optional feature work.
+not optional feature work. An arrow means “validate the new idea alone, then
+admit it to the combination”; it is not permission to ship an opaque aggregate.
 
-| Rank | Item | Why it is here | Exit criterion |
-|---|---|---|---|
-| Foundation | **Harden {1,2,3} and #10; reject #12** | Corrects false guarantees, unbounded work, incomplete semantic scope, and duplicate diagnostics before expanding reach. | shipped contracts and regression tests |
-| 1 | **#5 normalized crosslessness `m_c`** | Small, report-only, scale-comparable, and unlikely to alter rendering. Best next test of the evaluation protocol. | varies on corpus and adds signal beyond raw crossings |
-| 2 | **Controlled {1,2,3} palette migration** | High visible reach, but the shared-waist blast radius makes a family-by-family rollout safer than a bulk swap. | migrate one family at a time; theme matrix, goldens, and visual review pass |
-| 3 | **{5,8} crossing count + angle** | Natural low-cost pair: prevalence plus severity of unavoidable crossings. | #8 adds partial preference signal after #5 |
-| 4 | **#6 flow direction** | Cheap and deterministic, but probably restates an ELK invariant. Useful as an early rejection test. | retain only if trip fixtures and corpus show independent failures |
-| 5 | **{1,4} harmony as generation experiment** | Potentially visible, but it competes with categorical separation and needs human preference evidence. | Pareto report: preference gain vs minimum ΔE cost |
-| 6 | **#7 composition** | Could catch figure-level imbalance that graph metrics miss; calibration and fixtures dominate implementation cost. | calibrated terms with nonzero coverage and stable transforms |
-| 7 | **{7,11} composition + proximity** | Possible whole-canvas gain, with substantial redundancy risk. | ablation keeps only independently predictive terms |
-| 8 | **#9 / {5,8,9} spine continuity** | Do not pay for a third edge-path metric until {5,8} establishes remaining error. | partial correlation survives {5,8} controls |
-| 9 | **#13 pinned gzip order** | Coarse proxy, codec-sensitive, and least interpretable. | beats simpler alignment/density features under a pinned codec |
+| Rank | Work package | Form | Why it is here | Stop / go gate |
+|---|---|---|---|---|
+| Foundation | **Keep {1,2,3,10}; reject #12** | shipped contract | The audit now gives color a bounded domain and gives ownership purity the right semantic reach; the extra label warning is redundant. | keep the regression matrix green; do not reopen #12 without an independent public signal |
+| 1 | **Controlled {1,2,3} family rollout** | combination | Highest immediate user-visible value now that the shared color waist has hard distance, visibility, and runtime contracts. | migrate one family at a time; theme matrix, goldens, and visual review must pass before the next family |
+| 2 | **#5 normalized crosslessness `m_c`** | individual | Small, report-only, scale-comparable, and the best cheap proof that the metric evaluation protocol discriminates. | varies on the corpus and adds signal beyond raw crossings |
+| 3 | **#8 → {5,8} crossing-quality bundle** | combination | Adds crossing severity to crossing prevalence with modest cost and a clear ablation. | keep #8 only if preference signal survives control for #5 |
+| 4 | **#6 → {5,6,8} directional-legibility bundle** | combination | Direction is cheap, but probably restates ELK behavior; combining it is worthwhile only after an independent trip case exists. | #6 must fire where {5,8} and current ELK guards do not |
+| 5 | **#4 → {1,2,3,4} color-harmony bundle** | combination | Harmony may improve preference, but it is subordinate to categorical distance and background visibility. | Pareto gain in blinded preference without breaking the shipped color floors |
+| 6 | **#7 whole-canvas composition** | individual | Could detect figure-level imbalance missed by graph-local metrics, but calibration and transform-stability work are substantial. | calibrated terms have nonzero coverage and stable translation/scale behavior |
+| 7 | **#11 → {7,10,11} multiscale-grouping bundle** | combination | Figure balance, semantic ownership, and proximity cover three scales; the value is plausible but redundancy risk is high. | ablation retains only terms with independent preference signal |
+| 8 | **#9 → {5,8,9} edge-path bundle** | combination | Spine continuity is costlier and likely overlaps the crossing pair, so it belongs behind that evidence. | #9 survives partial-correlation control for {5,8} |
+| 9 | **#13 pinned-gzip order** | individual | It is codec-sensitive, coarse, and less interpretable than direct alignment and density features. | beats simpler features under a pinned codec and level |
 
-This differs from the earlier rank in two important ways. Palette migration is
-no longer the automatic first move: proving the metric protocol with #5 is
-lower-risk, and the shared color waist now has an acknowledged blast radius.
-Harmony also moves below simple layout measurements because its benefit is
-subjective while its distinctness cost is concrete.
+This supersedes the earlier ordering. Before the audit fixes, palette migration
+sat behind #5 because the shared waist had false guarantees and unbounded work.
+Those blockers are now removed, so the controlled {1,2,3} rollout is first.
+Metric research still starts with #5, and every later bundle is conditional on
+an ablation rather than presumed additive value. Harmony remains below the
+cheap layout measurements because its benefit is subjective while its
+distinctness and visibility costs are concrete.
 
 ## Scope boundaries
 
