@@ -1,0 +1,262 @@
+{
+  "schemaVersion": 1,
+  "validity": {
+    "claim": "Warmed single-process palette-generation latency on the recorded environment.",
+    "warrant": "A fixed built-in-theme by peer-count fixture matrix, repeated in deterministic shuffled orders.",
+    "backing": "Recorded protocol, exact input hashes, runtime/CPU metadata, latency distribution, and deterministic operation counts.",
+    "rebuttal": "Absolute timings are observational, are not portable across machines, and are not a CI threshold."
+  },
+  "provenance": {
+    "sourceCommit": "8ec17ec2a3cbf60f24fef01508845992c83f1805",
+    "sourceTreeSha256": "88b526f9d2b2b85842f004e5a66755a7989f687c63c3d36c640f3de0c7a9ffeb",
+    "dirty": false,
+    "inputs": [
+      {
+        "path": "bun.lock",
+        "sha256": "08008fb85e84578cec54dec3ed2bd7dd755d65b15e99bea6947a49fd29a94d32"
+      },
+      {
+        "path": "eval/palette-performance/run.ts",
+        "sha256": "b367da210c86ab00bb3212ff9b20db1b26444275aec053b85a90b495b7e733f5"
+      },
+      {
+        "path": "package.json",
+        "sha256": "ca1bd3d1f7bb201e94fe773c72126aafab78c3683d9fdb5e8591df37559cfd58"
+      },
+      {
+        "path": "scripts/pr-assets/artifact-receipt.ts",
+        "sha256": "83b95d21bca3a12e6fb98658f95085190ee52007f4c2f4dd181ae0cfc13b9c56"
+      },
+      {
+        "path": "src/palette-catalog.ts",
+        "sha256": "d4cdc88ef15676a84091f9c4cc0b9c8eebe65bdd2234c1f2ae8111e406375468"
+      },
+      {
+        "path": "src/shared/categorical-palette.ts",
+        "sha256": "dae0b5078300509aa29521d90900911b37fe26919b09038c2f865b9238da3449"
+      },
+      {
+        "path": "src/shared/color-math.ts",
+        "sha256": "b82fe24f3e5ad92451525ad01a12047d55564a313424688c75d762a8fed58849"
+      },
+      {
+        "path": "src/shared/css-named-colors.ts",
+        "sha256": "c969e1d92981766731171dcaa645a0c8e1efadfe48cd6b22e8e3a47532fe6df2"
+      },
+      {
+        "path": "src/shared/perceptual-color.ts",
+        "sha256": "ce978da907b6d6d5be8bca8dcbed0b2da9728503fa9fa0f87033675e9980880a"
+      },
+      {
+        "path": "src/theme.ts",
+        "sha256": "825cbd2a95b600d128110e676a7bb068cdded3f6937f3ee7962138f80f0a55cb"
+      },
+      {
+        "path": "src/xychart/colors.ts",
+        "sha256": "8ae7897cf07074a6ec0f311078fdbdd06a8156a6d42c3c5107edb2833fd36ce6"
+      }
+    ]
+  },
+  "environment": {
+    "runtime": "Bun 1.3.13",
+    "os": "darwin",
+    "arch": "arm64",
+    "cpuModel": "Apple M2 Ultra",
+    "logicalCpus": 24
+  },
+  "protocol": {
+    "command": "bun run benchmark:palette",
+    "clock": "performance.now monotonic high-resolution clock",
+    "themes": 20,
+    "counts": "7..24",
+    "fixtureCount": 360,
+    "warmupCalls": 200,
+    "samplesPerFixture": 20,
+    "totalSamples": 7200,
+    "orderSeed": 179
+  },
+  "complexity": {
+    "regimes": {
+      "0..6": "O(n) time and O(n) output space",
+      "7..24": "bounded O(M*n^2) worst case, where n<=24 and the visible-candidate corpus M is fixed",
+      ">24": "expected O(n) time and O(n) output space, relying on average O(1) Set membership"
+    },
+    "deterministicLargeCountEvidence": [
+      {
+        "count": 25,
+        "themes": 20,
+        "path": "linear-tail",
+        "maxCandidateEvaluations": 24,
+        "candidateEvaluationCeiling": 30025,
+        "maxPairDistanceChecks": 0
+      },
+      {
+        "count": 64,
+        "themes": 20,
+        "path": "linear-tail",
+        "maxCandidateEvaluations": 63,
+        "candidateEvaluationCeiling": 76864,
+        "maxPairDistanceChecks": 0
+      },
+      {
+        "count": 256,
+        "themes": 20,
+        "path": "linear-tail",
+        "maxCandidateEvaluations": 255,
+        "candidateEvaluationCeiling": 307456,
+        "maxPairDistanceChecks": 0
+      },
+      {
+        "count": 1000,
+        "themes": 20,
+        "path": "linear-tail",
+        "maxCandidateEvaluations": 1169,
+        "candidateEvaluationCeiling": 1201000,
+        "maxPairDistanceChecks": 0
+      }
+    ]
+  },
+  "results": {
+    "unit": "milliseconds per palette-generation call",
+    "overall": {
+      "samples": 7200,
+      "p50": 0.235583,
+      "mean": 1.065361,
+      "p95": 2.099583
+    },
+    "byCount": [
+      {
+        "count": 7,
+        "samples": 400,
+        "p50": 0.028667,
+        "mean": 0.03158,
+        "p95": 0.052792
+      },
+      {
+        "count": 8,
+        "samples": 400,
+        "p50": 0.035666,
+        "mean": 0.038333,
+        "p95": 0.054667
+      },
+      {
+        "count": 9,
+        "samples": 400,
+        "p50": 0.048125,
+        "mean": 0.054789,
+        "p95": 0.096083
+      },
+      {
+        "count": 10,
+        "samples": 400,
+        "p50": 0.051958,
+        "mean": 0.059025,
+        "p95": 0.108083
+      },
+      {
+        "count": 11,
+        "samples": 400,
+        "p50": 0.07325,
+        "mean": 0.084209,
+        "p95": 0.146833
+      },
+      {
+        "count": 12,
+        "samples": 400,
+        "p50": 0.074,
+        "mean": 0.086153,
+        "p95": 0.156166
+      },
+      {
+        "count": 13,
+        "samples": 400,
+        "p50": 0.11175,
+        "mean": 0.127176,
+        "p95": 0.215208
+      },
+      {
+        "count": 14,
+        "samples": 400,
+        "p50": 0.103958,
+        "mean": 0.162854,
+        "p95": 0.38625
+      },
+      {
+        "count": 15,
+        "samples": 400,
+        "p50": 0.18675,
+        "mean": 0.248882,
+        "p95": 0.558792
+      },
+      {
+        "count": 16,
+        "samples": 400,
+        "p50": 0.243834,
+        "mean": 0.327962,
+        "p95": 0.663959
+      },
+      {
+        "count": 17,
+        "samples": 400,
+        "p50": 0.444958,
+        "mean": 0.544946,
+        "p95": 1.177042
+      },
+      {
+        "count": 18,
+        "samples": 400,
+        "p50": 0.672541,
+        "mean": 0.680167,
+        "p95": 1.079167
+      },
+      {
+        "count": 19,
+        "samples": 400,
+        "p50": 0.77875,
+        "mean": 0.839908,
+        "p95": 1.495125
+      },
+      {
+        "count": 20,
+        "samples": 400,
+        "p50": 1.042459,
+        "mean": 1.080716,
+        "p95": 1.759041
+      },
+      {
+        "count": 21,
+        "samples": 400,
+        "p50": 1.280125,
+        "mean": 1.30414,
+        "p95": 1.847875
+      },
+      {
+        "count": 22,
+        "samples": 400,
+        "p50": 1.402458,
+        "mean": 1.531203,
+        "p95": 2.273458
+      },
+      {
+        "count": 23,
+        "samples": 400,
+        "p50": 1.599333,
+        "mean": 2.884909,
+        "p95": 3.551834
+      },
+      {
+        "count": 24,
+        "samples": 400,
+        "p50": 2.153916,
+        "mean": 9.089554,
+        "p95": 26.5065
+      }
+    ]
+  },
+  "limitations": [
+    "This measures palette generation, not an entire diagram render.",
+    "Most controlled families generate one peer-category channel; Journey independently generates section and actor palettes.",
+    "No cross-machine latency guarantee follows from this report.",
+    "CI checks source freshness and deterministic complexity invariants, but does not gate on wall-clock time."
+  ]
+}
