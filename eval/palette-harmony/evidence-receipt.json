@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "generator": "scripts/pr-assets/palette-harmony-experiment.ts",
+  "inputCount": 697,
+  "inputTreeSha256": "6c3b78cb8126136a7e8a30be7c85258236eef0e44aa494ac45f1a54f571a827a",
+  "outputs": [
+    {
+      "path": "eval/palette-harmony/report.json",
+      "sha256": "5a454bfa6370af76308f89f1a6c79aaee57a4bbed3f63f59d0aef3e1548941fc"
+    },
+    {
+      "path": "docs/pr-assets/pr-179/palette-harmony-experiment.png",
+      "sha256": "2485fd8109974c8bb44777fb52a2a67dcbe00b6c443b4e9a9a6c20f6a5a5f58d"
+    }
+  ]
+}

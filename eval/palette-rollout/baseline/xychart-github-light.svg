@@ -1,0 +1,155 @@
+<svg data-xychart-colors="7" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 500" width="100%" height="100%" style="--bg:#ffffff;--fg:#1f2328;--line:#d1d9e0;--accent:#0969da;--muted:#59636e;--font:Inter;background:#ffffff;max-width:700px" id="xychart-github-lightmermaid-3bm1ni" class="xychart" aria-roledescription="xychart">
+<style>
+  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #1f2328;
+    --_text-sec:      #59636e;
+    --_text-muted:    #59636e;
+    --_text-faint:    #86888b;
+    --_line:          #d1d9e0;
+    --_arrow:         #0969da;
+    --_node-fill:     #f8f8f9;
+    --_node-stroke:   #d2d3d4;
+    --_group-fill:    #ffffff;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e4e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<style>
+  .xychart-grid { stroke: #e0e0e1; stroke-width: 1; }
+  .xychart-axis-line { fill: none; }
+  .xychart-tick { fill: none; }
+  .xychart-x-axis-line { stroke: #59636e; }
+  .xychart-y-axis-line { stroke: #59636e; }
+  .xychart-x-tick { stroke: #59636e; }
+  .xychart-y-tick { stroke: #59636e; }
+  .xychart-bar { stroke: none; }
+  .xychart-line { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+  .xychart-dot { stroke: #ffffff; stroke-width: 2; }
+  .xychart-label { fill: #1f2328; }
+  .xychart-x-label { fill: #1f2328; }
+  .xychart-y-label { fill: #1f2328; }
+  .xychart-axis-title { fill: #1f2328; }
+  .xychart-x-axis-title { fill: #1f2328; }
+  .xychart-y-axis-title { fill: #1f2328; }
+  .xychart-title { fill: #1f2328; }
+  .xychart-data-label { fill: #1f2328; pointer-events: none; }
+  .xychart-legend-label { fill: #1f2328; }
+  svg {
+    --xychart-color-0: #0969da;
+    --xychart-color-1: #0d67a5;
+    --xychart-color-2: #5f85f2;
+    --xychart-color-3: #0a5876;
+    --xychart-color-4: #9298f6;
+    --xychart-color-5: #0a6776;
+    --xychart-color-6: #a597f7;
+    --xychart-color-7: #0a7576;
+  }
+  .xychart-bar.xychart-color-0 { fill: #0969da; }
+  path.xychart-color-0, line.xychart-color-0 { stroke: #0969da; }
+  circle.xychart-color-0 { fill: #0969da; }
+  .xychart-bar.xychart-color-1 { fill: #0d67a5; }
+  path.xychart-color-1, line.xychart-color-1 { stroke: #0d67a5; }
+  circle.xychart-color-1 { fill: #0d67a5; }
+  .xychart-bar.xychart-color-2 { fill: #5f85f2; }
+  path.xychart-color-2, line.xychart-color-2 { stroke: #5f85f2; }
+  circle.xychart-color-2 { fill: #5f85f2; }
+  .xychart-bar.xychart-color-3 { fill: #0a5876; }
+  path.xychart-color-3, line.xychart-color-3 { stroke: #0a5876; }
+  circle.xychart-color-3 { fill: #0a5876; }
+  .xychart-bar.xychart-color-4 { fill: #9298f6; }
+  path.xychart-color-4, line.xychart-color-4 { stroke: #9298f6; }
+  circle.xychart-color-4 { fill: #9298f6; }
+  .xychart-bar.xychart-color-5 { fill: #0a6776; }
+  path.xychart-color-5, line.xychart-color-5 { stroke: #0a6776; }
+  circle.xychart-color-5 { fill: #0a6776; }
+  .xychart-bar.xychart-color-6 { fill: #a597f7; }
+  path.xychart-color-6, line.xychart-color-6 { stroke: #a597f7; }
+  circle.xychart-color-6 { fill: #a597f7; }
+  .xychart-bar.xychart-color-7 { fill: #0a7576; }
+  path.xychart-color-7, line.xychart-color-7 { stroke: #0a7576; }
+  circle.xychart-color-7 { fill: #0a7576; }
+</style>
+<rect width="700" height="500" fill="#ffffff" data-backdrop="page" />
+<line x1="55.68" y1="469" x2="632" y2="469" class="xychart-grid"/>
+<line x1="55.68" y1="426.1" x2="632" y2="426.1" class="xychart-grid"/>
+<line x1="55.68" y1="383.2" x2="632" y2="383.2" class="xychart-grid"/>
+<line x1="55.68" y1="340.3" x2="632" y2="340.3" class="xychart-grid"/>
+<line x1="55.68" y1="297.4" x2="632" y2="297.4" class="xychart-grid"/>
+<line x1="55.68" y1="254.5" x2="632" y2="254.5" class="xychart-grid"/>
+<line x1="55.68" y1="211.6" x2="632" y2="211.6" class="xychart-grid"/>
+<line x1="55.68" y1="168.7" x2="632" y2="168.7" class="xychart-grid"/>
+<line x1="55.68" y1="125.8" x2="632" y2="125.8" class="xychart-grid"/>
+<line x1="55.68" y1="82.9" x2="632" y2="82.9" class="xychart-grid"/>
+<line x1="55.68" y1="40" x2="632" y2="40" class="xychart-grid"/>
+<line x1="55.68" y1="470" x2="632" y2="470" class="xychart-axis-line xychart-x-axis-line" stroke-width="2"/>
+<line x1="127.72" y1="471" x2="127.72" y2="476" class="xychart-tick xychart-x-tick" stroke-width="2"/>
+<line x1="271.8" y1="471" x2="271.8" y2="476" class="xychart-tick xychart-x-tick" stroke-width="2"/>
+<line x1="415.88" y1="471" x2="415.88" y2="476" class="xychart-tick xychart-x-tick" stroke-width="2"/>
+<line x1="559.96" y1="471" x2="559.96" y2="476" class="xychart-tick xychart-x-tick" stroke-width="2"/>
+<line x1="54.68" y1="40" x2="54.68" y2="469" class="xychart-axis-line xychart-y-axis-line" stroke-width="2"/>
+<line x1="53.68" y1="469" x2="48.68" y2="469" class="xychart-tick xychart-y-tick" stroke-width="2"/>
+<line x1="53.68" y1="426.1" x2="48.68" y2="426.1" class="xychart-tick xychart-y-tick" stroke-width="2"/>
+<line x1="53.68" y1="383.2" x2="48.68" y2="383.2" class="xychart-tick xychart-y-tick" stroke-width="2"/>
+<line x1="53.68" y1="340.3" x2="48.68" y2="340.3" class="xychart-tick xychart-y-tick" stroke-width="2"/>
+<line x1="53.68" y1="297.4" x2="48.68" y2="297.4" class="xychart-tick xychart-y-tick" stroke-width="2"/>
+<line x1="53.68" y1="254.5" x2="48.68" y2="254.5" class="xychart-tick xychart-y-tick" stroke-width="2"/>
+<line x1="53.68" y1="211.6" x2="48.68" y2="211.6" class="xychart-tick xychart-y-tick" stroke-width="2"/>
+<line x1="53.68" y1="168.7" x2="48.68" y2="168.7" class="xychart-tick xychart-y-tick" stroke-width="2"/>
+<line x1="53.68" y1="125.8" x2="48.68" y2="125.8" class="xychart-tick xychart-y-tick" stroke-width="2"/>
+<line x1="53.68" y1="82.9" x2="48.68" y2="82.9" class="xychart-tick xychart-y-tick" stroke-width="2"/>
+<line x1="53.68" y1="40" x2="48.68" y2="40" class="xychart-tick xychart-y-tick" stroke-width="2"/>
+<path d="M127.72,383.2 L271.8,297.4 L415.88,254.5 L559.96,168.7" class="xychart-line xychart-color-0" data-relationship="series" data-direction="undirected" data-id="series:line-0" data-role="series" />
+<path d="M127.72,254.5 L271.8,297.4 L415.88,211.6 L559.96,125.8" class="xychart-line xychart-color-1" data-relationship="series" data-direction="undirected" data-id="series:line-1" data-role="series" />
+<path d="M127.72,340.3 L271.8,211.6 L415.88,297.4 L559.96,168.7" class="xychart-line xychart-color-2" data-relationship="series" data-direction="undirected" data-id="series:line-2" data-role="series" />
+<path d="M127.72,168.7 L271.8,254.5 L415.88,125.8 L559.96,211.6" class="xychart-line xychart-color-3" data-relationship="series" data-direction="undirected" data-id="series:line-3" data-role="series" />
+<path d="M127.72,297.4 L271.8,168.7 L415.88,211.6 L559.96,82.9" class="xychart-line xychart-color-4" data-relationship="series" data-direction="undirected" data-id="series:line-4" data-role="series" />
+<path d="M127.72,125.8 L271.8,211.6 L415.88,168.7 L559.96,254.5" class="xychart-line xychart-color-5" data-relationship="series" data-direction="undirected" data-id="series:line-5" data-role="series" />
+<path d="M127.72,426.1 L271.8,340.3 L415.88,211.6 L559.96,125.8" class="xychart-line xychart-color-6" data-relationship="series" data-direction="undirected" data-id="series:line-6" data-role="series" />
+<path d="M127.72,211.6 L271.8,125.8 L415.88,254.5 L559.96,82.9" class="xychart-line xychart-color-7" data-relationship="series" data-direction="undirected" data-id="series:line-7" data-role="series" />
+<text x="127.72349999999997" y="486.6" text-anchor="middle" font-size="14" font-weight="400" dy="0.35em" class="xychart-label xychart-x-label">Q1</text>
+<text x="271.8025" y="486.6" text-anchor="middle" font-size="14" font-weight="400" dy="0.35em" class="xychart-label xychart-x-label">Q2</text>
+<text x="415.88149999999996" y="486.6" text-anchor="middle" font-size="14" font-weight="400" dy="0.35em" class="xychart-label xychart-x-label">Q3</text>
+<text x="559.9605" y="486.6" text-anchor="middle" font-size="14" font-weight="400" dy="0.35em" class="xychart-label xychart-x-label">Q4</text>
+<text x="43.68399999999997" y="469" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">0</text>
+<text x="43.68399999999997" y="426.1" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">1</text>
+<text x="43.68399999999997" y="383.2" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">2</text>
+<text x="43.68399999999997" y="340.3" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">3</text>
+<text x="43.68399999999997" y="297.4" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">4</text>
+<text x="43.68399999999997" y="254.5" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">5</text>
+<text x="43.68399999999997" y="211.60000000000002" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">6</text>
+<text x="43.68399999999997" y="168.70000000000005" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">7</text>
+<text x="43.68399999999997" y="125.79999999999995" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">8</text>
+<text x="43.68399999999997" y="82.89999999999998" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">9</text>
+<text x="43.68399999999997" y="40" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">10</text>
+<text x="17.8" y="254.5" text-anchor="middle" transform="rotate(-90,17.8,254.5)" font-size="16" font-weight="400" dy="0.35em" class="xychart-axis-title xychart-y-axis-title">Score</text>
+<text x="350" y="30" text-anchor="middle" font-size="20" font-weight="500" dy="0.35em" class="xychart-title" data-id="title" data-role="title">Eight product signals</text>
+<g class="xychart-legend">
+  <line x1="637" y1="51" x2="649" y2="51" class="xychart-legend-swatch" stroke="#0969da" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="643" cy="51" r="2.5" class="xychart-legend-dot" fill="#0969da" stroke="#ffffff" stroke-width="1"/>
+  <text x="655" y="51" text-anchor="start" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-legend-label">Line 1</text>
+  <line x1="637" y1="70" x2="649" y2="70" class="xychart-legend-swatch" stroke="#0d67a5" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="643" cy="70" r="2.5" class="xychart-legend-dot" fill="#0d67a5" stroke="#ffffff" stroke-width="1"/>
+  <text x="655" y="70" text-anchor="start" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-legend-label">Line 2</text>
+  <line x1="637" y1="89" x2="649" y2="89" class="xychart-legend-swatch" stroke="#5f85f2" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="643" cy="89" r="2.5" class="xychart-legend-dot" fill="#5f85f2" stroke="#ffffff" stroke-width="1"/>
+  <text x="655" y="89" text-anchor="start" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-legend-label">Line 3</text>
+  <line x1="637" y1="108" x2="649" y2="108" class="xychart-legend-swatch" stroke="#0a5876" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="643" cy="108" r="2.5" class="xychart-legend-dot" fill="#0a5876" stroke="#ffffff" stroke-width="1"/>
+  <text x="655" y="108" text-anchor="start" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-legend-label">Line 4</text>
+  <line x1="637" y1="127" x2="649" y2="127" class="xychart-legend-swatch" stroke="#9298f6" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="643" cy="127" r="2.5" class="xychart-legend-dot" fill="#9298f6" stroke="#ffffff" stroke-width="1"/>
+  <text x="655" y="127" text-anchor="start" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-legend-label">Line 5</text>
+  <line x1="637" y1="146" x2="649" y2="146" class="xychart-legend-swatch" stroke="#0a6776" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="643" cy="146" r="2.5" class="xychart-legend-dot" fill="#0a6776" stroke="#ffffff" stroke-width="1"/>
+  <text x="655" y="146" text-anchor="start" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-legend-label">Line 6</text>
+  <line x1="637" y1="165" x2="649" y2="165" class="xychart-legend-swatch" stroke="#a597f7" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="643" cy="165" r="2.5" class="xychart-legend-dot" fill="#a597f7" stroke="#ffffff" stroke-width="1"/>
+  <text x="655" y="165" text-anchor="start" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-legend-label">Line 7</text>
+  <line x1="637" y1="184" x2="649" y2="184" class="xychart-legend-swatch" stroke="#0a7576" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="643" cy="184" r="2.5" class="xychart-legend-dot" fill="#0a7576" stroke="#ffffff" stroke-width="1"/>
+  <text x="655" y="184" text-anchor="start" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-legend-label">Line 8</text>
+</g>
+</svg>

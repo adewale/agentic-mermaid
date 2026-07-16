@@ -5,7 +5,7 @@ import { visualWidth } from './width.ts'
 import { wrapText } from './wrap.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import { colorizeText } from './ansi.ts'
-import { getSeriesColor } from '../xychart/colors.ts'
+import { categoricalPalette } from '../shared/categorical-palette.ts'
 import { safeCssColor } from '../shared/css-color.ts'
 
 export function renderGitGraphAscii(
@@ -88,12 +88,13 @@ export function renderGitGraphAscii(
   }
   const plain = canvasToString(canvas, { roleCanvas: roles, colorMode: 'none', theme }).split('\n').map(line => line.trimEnd())
   if (colorMode !== 'none') {
+    const accent = /^#[0-9a-f]{6}$/i.test(theme.accent ?? '') ? theme.accent! : '#3b82f6'
+    const bg = /^#[0-9a-f]{6}$/i.test(theme.bg ?? '') ? theme.bg! : '#ffffff'
+    const derivedPalette = categoricalPalette(branches.length, { accent, bg })
     branches.forEach((branch, index) => {
       const row = yFor(branch.name)
       const override = safeCssColor(themeVariables?.[`git${index % 8}`])
-      const accent = /^#[0-9a-f]{6}$/i.test(theme.accent ?? '') ? theme.accent! : '#3b82f6'
-      const bg = /^#[0-9a-f]{6}$/i.test(theme.bg ?? '') ? theme.bg! : '#ffffff'
-      plain[row] = colorizeText(plain[row] ?? '', override ?? getSeriesColor(index, accent, bg), colorMode)
+      plain[row] = colorizeText(plain[row] ?? '', override ?? derivedPalette[index]!, colorMode)
     })
   }
   return plain.join('\n').trimEnd()

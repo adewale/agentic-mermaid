@@ -57,7 +57,7 @@ best-in-repo technique for each concern."
 |---|---|---|
 | L1 | **Signature shape → a `sketch:'shape'` role** | A ruler-perfect primary glyph beside wobbly boxes reads as broken; the sketch look coheres only if the defining element gets the treatment. |
 | L2 | **Scaffold → a `sketch:'none'` role (recedes)** | Lively translucent data reads only on a quiet ground; a jittery scaffold turns overlaps into noise. |
-| L3 | **Categorical color from the shared `pieSliceColors`** (hue-spread >6) | One color language across all charts; palette swaps recolor free; N categories stay *distinguishable* instead of collapsing to shades of one hue. |
+| L3 | **Categorical color from the shared `categoricalPalette`** (hue-spread >6) | One color language across applicable peer-series families; palette swaps recolor free; N categories stay *distinguishable* instead of collapsing to shades of one hue. |
 | L4 | **Translucent fill + crisp bg-stroked marker** | Translucency lets overlaps blend legibly; the bg-stroked bead keeps the precise data point sharp on a busy ground ("the sketch marks the measurement"). |
 | L5 | **Measure-then-reserve gutters** (wrap; widen for title) | Clipping is the loudest "unfinished" signal; reserving space *before* the plot expands keeps the composition whole at any label length. |
 | L6 | **Single-scale contract** (resolve auto-max once; degenerate → throw) | A chart whose SVG and ASCII clamp differently, or that emits NaN, is broken; beauty presupposes the floor. |
@@ -109,7 +109,7 @@ families are strictly ahead of radar on specific concerns and are the models to 
 | **timeline** | **Budget-driven two-pass width compression** — stronger than radar's fixed cap; single-walk LR/TD axis frame. | `timeline/layout.ts:169-185` |
 | **mindmap** | **Per-side independent-column** 2-pass gutter sizing; **depth-alpha recession** (fills tint toward bg by depth). | `mindmap/layout.ts:120-155`, `renderer.ts:98` |
 | **pie** | **Largest-first label collision admission** + measure-then-size-the-canvas legend. The canonical `pieSliceColors`. | `pie/layout.ts:321-378`, `pie/renderer.ts:93` |
-| **journey** | **bg-ring bead** + golden-angle actor wheel (both predate radar) + **WCAG-AA label gate**. | `journey/renderer.ts:289,836-852` |
+| **journey** | **bg-ring bead** + shared measured actor palette + **WCAG-AA label gate**. | `journey/renderer.ts` |
 
 ---
 
@@ -159,9 +159,10 @@ localized, deterministic-safe, and they inherit the rest of the house style for 
 3. **Default timeline section colors** from `pieSliceColors` when unconfigured (L3) —
    `timeline/renderer.ts:522-542`. Timeline is the one family that inherits the palette's
    *look* but stays gray under swaps.
-4. **Swap `getSeriesColor` → `pieSliceColors` on the >6 path** (L3) — xychart
-   (`colors.ts:102`), journey (`renderer.ts:858-908`), mindmap (`renderer.ts:43`),
-   gitgraph (`renderer.ts:193`); inherits pie's hue-spread.
+4. **Swap `getSeriesColor` → `categoricalPalette` on the >6 path** (L3) —
+   **delivered** for xychart, journey, mindmap, and gitgraph, including terminal
+   parity where those families already encode categories with color. Existing
+   ≤6 family colors and authored family palettes remain unchanged.
 5. **Translucent sequence activations** (L4) — `sequence/renderer.ts:361`; paint-only
    alpha so stacked activations read as depth.
 6. **Fix timeline's scaffold-sketch outlier** (L2) — period stem role `period` →
@@ -192,12 +193,12 @@ legend labels wrap with reserved rows (R3). Renders and tests in §3.
 |---|---|---|---|---|---|---|---|---|---|
 | **radar** (ref) | ✅ pie-slice | ✅ grid | ✅ canonical | ✅ | ✅ **full union** (§3) | ✅ | ✅ | ✅ | Delivered — de-collision, leaders, knockout ticks, wrap compression, legend rows |
 | **pie** | ✅ pie-slice | N/A | ✅ **canonical** | N/A (no overlap) | ✅ largest-first | ✅ | ✅ | ✅ | Default a quiet framing ring (`renderer.ts:126`) |
-| **xychart** | ✅ bar/series | ✅ grid @0.25 | ⚠️ `getSeriesColor` (>6 degrades) | ⚠️ dots only if labelled | ⚠️ thins/drops, no wrap | ✅ `yAxis.range` | ✅ | ✅ | `pieSliceColors` >6 (`colors.ts:102`); always-on dots (`renderer.ts:158`) |
+| **xychart** | ✅ bar/series | ✅ grid @0.25 | ✅ shared categorical | ⚠️ dots only if labelled | ⚠️ thins/drops, no wrap | ✅ `yAxis.range` | ✅ | ✅ | always-on dots (`renderer.ts:158`) |
 | **quadrant** | ✅ plate/point | ✅ tints+dividers | ❌ single accent | ✅ (chart is dots) | ✅✅ **2-pass + leaders** | ✅ normalized | ✅ | ✅ | **Categorical point color** (`renderer.ts:229`) + legend |
-| **journey** | ✅ task/section/actor | ✅ grid/marker-line | ⚠️ `getSeriesColor` | ✅ bg-bead + bands | ✅ (title clips) | N/A (1–5) | ✅ AA gate | ⚠️ ASCII re-parses | **Wrap+widen title** (`layout.ts:180`); actors → `pieSliceColors` |
+| **journey** | ✅ task/section/actor | ✅ grid/marker-line | ✅ shared categorical | ✅ bg-bead + bands | ✅ (title clips) | N/A (1–5) | ✅ AA gate | ⚠️ ASCII re-parses | **Wrap+widen title** (`layout.ts:180`) |
 | **timeline** | ✅ period/event | ⚠️ **stem sketches** | ❌ **gray until configured** | ✅ bg-ring marker | ✅✅ **budget compression** (title clips) | N/A | ✅ | ⚠️ ASCII re-parses | **Section hue from palette** (`renderer.ts:522`); stem → `marker-line` |
-| **mindmap** | ❌ **body is `chrome`** | ✅ depth-alpha | ⚠️ `getSeriesColor` | N/A (nodes opaque) | ✅ per-side columns | N/A | ✅ | ⚠️ ASCII colors diverge | **Node body → `node`** (`renderer.ts:108`) |
-| **gitgraph** | ❌ **marker is `chrome`** | ✅ rail @0.86 | ⚠️ `getSeriesColor` + `gitN` | ✅ merge bg-ring bead | ✅✅ rotated-bounds pack | ✅ resolve-once | ✅ `git0..7` | ✅ SVG=ASCII | **Elbow → mild curve** (`layout.ts:89`); marker → `point` |
+| **mindmap** | ❌ **body is `chrome`** | ✅ depth-alpha | ✅ shared categorical | N/A (nodes opaque) | ✅ per-side columns | N/A | ✅ | ⚠️ ASCII has no category color | **Node body → `node`** (`renderer.ts:108`) |
+| **gitgraph** | ❌ **marker is `chrome`** | ✅ rail @0.86 | ✅ shared categorical + `gitN` | ✅ merge bg-ring bead | ✅✅ rotated-bounds pack | ✅ resolve-once | ✅ `git0..7` | ✅ SVG=ASCII | **Elbow → mild curve** (`layout.ts:89`); marker → `point` |
 | **sequence** | ✅ actor/activation/note | ✅ dashed lifelines | N/A (no series) | ❌ **opaque activations** | ✅ grow-and-shift | N/A | ✅ `box <Color>` | ✅ | **Translucent activations** (`renderer.ts:361`); lifeline sketch policy |
 | **gantt** | ✅ task/section/milestone | ✅✅ **textbook** | ⚠️ one accent + 7% band | ✅ semantic alpha | ✅✅ **`rowAdvance`** | ✅ span guard | ✅ `todayMarker` | ✅ | **Per-section hue** (`renderer.ts:70`); today≠crit hue |
 | **flowchart/state** | ✅ node/group/note | ✅ subgraphs recede | ❌ monochrome (by design) | ❌ opaque subgraphs | ✅✅ **knockout box + repair** | ✅ | ✅ inline style | ✅ | **Translucent subgraph fills** (`renderer.ts:269`) |

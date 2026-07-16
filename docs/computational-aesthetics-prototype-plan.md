@@ -28,7 +28,7 @@ that one scalar score certifies beauty.
 | 3 | APCA plus WCAG background-visibility floors | **shipped** | every derived fill clears both for valid concrete backgrounds |
 | 10 | Common-region ownership purity | **shipped** | architecture, class, ER, and timeline ownership frames |
 | 12 | Separate typographic CPL warning | **rejected** | duplicates public universal `LABEL_OVERFLOW`; no independent signal |
-| 4 | Cohen-Or hue-harmony templates | prototype | does preference gain justify the ΔE trade-off? |
+| 4 | Cohen-Or hue-harmony templates | **rejected as a default** | 4/360 cases retain {1,2,3}; experiment remains reproducible |
 | 5 | Purchase-normalized crosslessness `m_c` | prototype | does normalization discriminate across graph sizes? |
 | 6 | Consistent flow-direction metric | prototype | does it catch anything ELK does not already guarantee? |
 | 7 | Whole-canvas composition | prototype | which Ngo terms correlate with preference on our diagrams? |
@@ -39,7 +39,7 @@ that one scalar score certifies beauty.
 
 ## What the first implementation taught us
 
-The audit changed the plan in seven ways.
+The audit and controlled rollout changed the plan in ten ways.
 
 1. **Runtime is part of correctness.** A deterministic pairwise repair still
    fails the product if an allowed 1,000-slice input takes seconds. The ΔE
@@ -76,10 +76,32 @@ The audit changed the plan in seven ways.
    express ownership. Ancestor walks must be cycle-safe without arbitrary
    depth cutoffs.
 
-## Shipped color contract
+8. **Visual evidence needs its own reproducibility contract.** The rollout now
+   freezes pre-change SVGs, extracts the categorical colors actually serialized
+   by each renderer, writes a machine-readable comparison, and hashes every
+   source input plus the generated report/contact sheet. `--check` fails when
+   code, baseline, metrics, or images drift.
+
+9. **A controlled rollout is a compatibility policy, not a global recolor.**
+   Counts up to six retain each family's existing derived colors byte-for-byte
+   (including Journey's established actor wheel). Authored
+   `plotColorPalette`, `actorColours`, `sectionFills`/`sectionColours`, and
+   `git0..7` remain authoritative. Only derived high-cardinality peer-category
+   colors change.
+
+10. **Harmony and categorical distinctness compete at this density.** Across
+    20 built-in themes × counts 7..24, the Cohen-Or/Matsuda experiment reduced
+    mean harmony loss from 8.8303° to 0.0084°, but reduced mean minimum ΔE_OK
+    from 0.1107 to 0.0456. Only 4/360 palettes retained {1,2,3}; no count above
+    seven passed. That rejects #4 as a default layer over this palette.
+
+## Shipped color contract and family reach
 
 The color work is a generation constraint, not evidence that the quality
-rubric predicts human preference.
+rubric predicts human preference. The neutral shared waist now reaches pie,
+radar, xychart, journey, mindmap, and gitgraph. SVG and terminal xychart/gitgraph
+use the same derived palette; the other terminal families do not currently
+encode peer categories with color.
 
 | Property | 7–24 fills | More than 24 fills |
 |---|---|---|
@@ -111,7 +133,9 @@ Reuse the existing evaluator; do not create a second quality system.
    deterministic family fuzzers, all built-in themes where color is involved,
    and adversarial boundary inputs.
 6. **Keep visual evidence.** Any generation or geometry change needs
-   before/after renders and snapshot review in every affected family.
+   before/after renders and snapshot review in every affected family. The
+   palette rollout operationalizes this rule in
+   `scripts/pr-assets/palette-rollout-evidence.ts`.
 7. **Gate determinism and cost.** Preserve byte identity and record p50/p95
    runtime over a fixed corpus. Idea #13 must also pin codec and level.
 
@@ -138,8 +162,9 @@ term, and stop when independence disappears.
 
 - **{1,2,3}:** lightness structure, categorical distance, and background
   visibility are complementary and already ship as one generation contract.
-- **{1,2,3,4}:** harmony is an optional preference layer over that contract,
-  not a replacement for distance or visibility; report a Pareto front.
+- **{1,2,3,4}:** the completed experiment found no useful Pareto front at
+  8–24 categories: hue-sector contraction almost eliminates harmony loss but
+  breaks minimum categorical distance. Do not ship this bundle as a default.
 - **{5,8}:** crossing prevalence and crossing quality should be complementary.
 - **{5,6,8}:** add direction only if #6 catches defects not explained by the
   crossing pair or by ELK's existing directional constraints.
@@ -157,24 +182,23 @@ admit it to the combination”; it is not permission to ship an opaque aggregate
 
 | Rank | Work package | Form | Why it is here | Stop / go gate |
 |---|---|---|---|---|
-| Foundation | **Keep {1,2,3,10}; reject #12** | shipped contract | The audit now gives color a bounded domain and gives ownership purity the right semantic reach; the extra label warning is redundant. | keep the regression matrix green; do not reopen #12 without an independent public signal |
-| 1 | **Controlled {1,2,3} family rollout** | combination | Highest immediate user-visible value now that the shared color waist has hard distance, visibility, and runtime contracts. | migrate one family at a time; theme matrix, goldens, and visual review must pass before the next family |
-| 2 | **#5 normalized crosslessness `m_c`** | individual | Small, report-only, scale-comparable, and the best cheap proof that the metric evaluation protocol discriminates. | varies on the corpus and adds signal beyond raw crossings |
-| 3 | **#8 → {5,8} crossing-quality bundle** | combination | Adds crossing severity to crossing prevalence with modest cost and a clear ablation. | keep #8 only if preference signal survives control for #5 |
-| 4 | **#6 → {5,6,8} directional-legibility bundle** | combination | Direction is cheap, but probably restates ELK behavior; combining it is worthwhile only after an independent trip case exists. | #6 must fire where {5,8} and current ELK guards do not |
-| 5 | **#4 → {1,2,3,4} color-harmony bundle** | combination | Harmony may improve preference, but it is subordinate to categorical distance and background visibility. | Pareto gain in blinded preference without breaking the shipped color floors |
-| 6 | **#7 whole-canvas composition** | individual | Could detect figure-level imbalance missed by graph-local metrics, but calibration and transform-stability work are substantial. | calibrated terms have nonzero coverage and stable translation/scale behavior |
-| 7 | **#11 → {7,10,11} multiscale-grouping bundle** | combination | Figure balance, semantic ownership, and proximity cover three scales; the value is plausible but redundancy risk is high. | ablation retains only terms with independent preference signal |
-| 8 | **#9 → {5,8,9} edge-path bundle** | combination | Spine continuity is costlier and likely overlaps the crossing pair, so it belongs behind that evidence. | #9 survives partial-correlation control for {5,8} |
-| 9 | **#13 pinned-gzip order** | individual | It is codec-sensitive, coarse, and less interpretable than direct alignment and density features. | beats simpler features under a pinned codec and level |
+| Foundation | **Keep {1,2,3,10}; reject #12** | shipped contract | Color and ownership have bounded, reachable contracts; the extra label warning is redundant. | keep the regression matrix green |
+| Delivered | **Controlled {1,2,3} family rollout** | shipped combination | 14/14 fixture violations corrected; 8/8 family/theme cases pass; ≤6 colors and authored overrides remain compatible. | `gallery:palette-rollout:check` plus family tests |
+| Rejected | **#4 → {1,2,3,4} color-harmony default** | completed experiment | 4/360 pass rate; mean minimum ΔE_OK falls 0.1107 → 0.0456. | reconsider only with a new constraint-preserving algorithm and blinded preference evidence |
+| Paused 1 | **#5 normalized crosslessness `m_c`** | telemetry, postponed | Still the cheapest next metric experiment, but telemetry work is intentionally deferred. | resume only on explicit telemetry restart |
+| Paused 2 | **#8 → {5,8} crossing-quality bundle** | telemetry, postponed | Clear ablation after #5. | #8 must add signal after #5 |
+| Paused 3 | **#6 → {5,6,8} directional-legibility bundle** | telemetry, postponed | Likely overlaps ELK behavior. | independent trip case first |
+| Paused 4 | **#7 whole-canvas composition** | telemetry, postponed | Potential figure-level value, high calibration burden. | stable, nonzero corpus coverage |
+| Paused 5 | **#11 → {7,10,11} multiscale grouping** | telemetry, postponed | Plausible value with high redundancy risk. | term-by-term ablation |
+| Paused 6 | **#9 → {5,8,9} edge-path bundle** | telemetry, postponed | Costlier and likely redundant. | partial-correlation survival |
+| Paused 7 | **#13 pinned-gzip order** | telemetry, postponed | Codec-sensitive and coarse. | beat simpler direct features |
 
-This supersedes the earlier ordering. Before the audit fixes, palette migration
-sat behind #5 because the shared waist had false guarantees and unbounded work.
-Those blockers are now removed, so the controlled {1,2,3} rollout is first.
-Metric research still starts with #5, and every later bundle is conditional on
-an ablation rather than presumed additive value. Harmony remains below the
-cheap layout measurements because its benefit is subjective while its
-distinctness and visibility costs are concrete.
+This supersedes the earlier ordering. The highest-ranked product change is now
+delivered and its evidence gate is permanent. The harmony experiment has also
+resolved its decision: it is not merely lower priority; this formulation is a
+bad default. With telemetry postponed, there is no authorized next aesthetic
+metric package. If telemetry resumes, it still starts with #5 and every later
+bundle remains conditional on ablation.
 
 ## Scope boundaries
 
@@ -186,9 +210,13 @@ distinctness and visibility costs are concrete.
   caller-configurable cap to the longest rendered line after entity decoding,
   line-break normalization, and formatting-tag removal. A second fixed CPL
   warning would be redundant and less reachable.
-- The shared perceptual palette currently reaches pie and radar. Xychart,
-  journey, mindmap, and gitgraph migration is deliberately separate because it
-  changes family snapshots and aesthetic policy.
+- The shared perceptual palette reaches only families where color denotes peer
+  categories: pie slices, radar curves, xychart series, journey actors/sections,
+  mindmap top-level branches, and gitgraph branches. Structural families use
+  color for roles, status, hierarchy, or authored semantics; automatic hue
+  spreading there would invent category meaning and can weaken brand/status
+  cues. Timeline/gantt/quadrant have family-specific categorical contracts and
+  are not silently swept into this rollout.
 - A score of 100 proves only that a renderer clears the measured hygiene floor;
   it does not certify beauty. Each family still needs an aesthetic thesis and
   human visual review.

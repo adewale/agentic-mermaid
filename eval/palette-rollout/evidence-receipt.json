@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "generator": "scripts/pr-assets/palette-rollout-evidence.ts",
+  "inputCount": 705,
+  "inputTreeSha256": "aa5514b599a8a1227ee896dd9a390ab545549863dc8ac68e6088e2407613bd2b",
+  "outputs": [
+    {
+      "path": "eval/palette-rollout/report.json",
+      "sha256": "755cbe252d07f0994e87930a2b3cc846189894f8a553a0667a2efb30578ed30a"
+    },
+    {
+      "path": "docs/pr-assets/pr-179/palette-rollout-before-after.png",
+      "sha256": "c3ee01eff094562c8394baf262af0107f97d3b71a26f36a40bc0b17a1ba8e74c"
+    }
+  ]
+}

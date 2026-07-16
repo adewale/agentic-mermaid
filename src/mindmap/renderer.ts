@@ -11,7 +11,7 @@ import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
 import { semanticChildId, semanticRelationId } from '../scene/identity.ts'
 import { escapeAttr, escapeXml, renderMultilineText } from '../multiline-utils.ts'
 import { resolveMindmapIcon } from './icons.ts'
-import { getSeriesColor } from '../xychart/colors.ts'
+import { categoricalPalette } from '../shared/categorical-palette.ts'
 import { projectConnectorPath } from '../scene/connector-geometry.ts'
 
 const FONT_SIZE = 13
@@ -41,11 +41,13 @@ export function lowerMindmapScene(ctx: RenderContext<PositionedMindmapDiagram>):
   const shadow = buildShadowDefs(colors)
   if (shadow) head.push(`<defs>${shadow}</defs>`)
   const branchByNode = mindmapBranchIndices(diagram)
+  const branchCount = new Set(branchByNode.values()).size
+  const accent = isHexColor(colors.accent ?? '') ? colors.accent! : '#3b82f6'
+  const bg = isHexColor(colors.bg) ? colors.bg : '#ffffff'
+  const branchPalette = categoricalPalette(branchCount, { accent, bg })
   const branchPaint = (nodeId: string): string => {
     const index = branchByNode.get(nodeId) ?? 0
-    const accent = isHexColor(colors.accent ?? '') ? colors.accent! : '#3b82f6'
-    const bg = isHexColor(colors.bg) ? colors.bg : '#ffffff'
-    return getSeriesColor(index, accent, bg)
+    return branchPalette[index] ?? accent
   }
   const parts: SceneNode[] = [marks.documentOpen({
     id: 'prelude', width: diagram.width, height: diagram.height, colors,

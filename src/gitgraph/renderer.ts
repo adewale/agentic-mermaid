@@ -10,7 +10,7 @@ import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
 import { semanticChildId, semanticNamespacedId, semanticRelationId } from '../scene/identity.ts'
 import { escapeAttr, escapeXml } from '../multiline-utils.ts'
 import { safeCssColor } from '../shared/css-color.ts'
-import { getSeriesColor } from '../xychart/colors.ts'
+import { categoricalPalette } from '../shared/categorical-palette.ts'
 import { measureTextWidth } from '../text-metrics.ts'
 import { ensureContrast, isHexColor, mixHex } from '../shared/color-math.ts'
 import { resolveGitGraphCommitLabelFontSize } from './position.ts'
@@ -187,10 +187,11 @@ function gitGraphPaints(diagram: PositionedGitGraphDiagram, raw: unknown, colors
   const vars = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw as Record<string, unknown> : {}
   const accent = typeof colors.accent === 'string' && /^#[0-9a-f]{6}$/i.test(colors.accent) ? colors.accent : '#3b82f6'
   const bg = typeof colors.bg === 'string' && /^#[0-9a-f]{6}$/i.test(colors.bg) ? colors.bg : '#ffffff'
+  const derivedPalette = categoricalPalette(diagram.branches.length, { accent, bg })
   const branches = new Map<string, GitGraphBranchPaint>()
   diagram.branches.forEach((branch, index) => {
     const paletteIndex = index % 8
-    const line = safeCssColor(vars[`git${paletteIndex}`]) ?? getSeriesColor(index, accent, bg)
+    const line = safeCssColor(vars[`git${paletteIndex}`]) ?? derivedPalette[index]!
     const rawLabel = safeCssColor(vars[`gitBranchLabel${paletteIndex}`]) ?? line
     const highlight = safeCssColor(vars[`gitInv${paletteIndex}`]) ?? line
     const normalFill = isHexColor(line) && isHexColor(bg) ? mixHex(line, bg, 18) : 'var(--_node-fill)'

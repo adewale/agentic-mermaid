@@ -1,0 +1,212 @@
+{
+  "schemaVersion": 1,
+  "commit": "6baa4d5a44bf641e328d6ecaa4882904e2b9be17",
+  "cases": [
+    {
+      "id": "xychart-github-light",
+      "family": "xychart",
+      "theme": "github-light",
+      "background": "#ffffff",
+      "colors": [
+        "#0969da",
+        "#0d67a5",
+        "#5f85f2",
+        "#0a5876",
+        "#9298f6",
+        "#0a6776",
+        "#a597f7",
+        "#0a7576"
+      ],
+      "metrics": {
+        "unique": 8,
+        "minDeltaEOK": 0.0265,
+        "minWcagVsBackground": 2.5091,
+        "minAbsApcaVsBackground": 49.1446,
+        "violations": [
+          "ΔE 0.0265 < 0.1"
+        ]
+      }
+    },
+    {
+      "id": "xychart-dracula",
+      "family": "xychart",
+      "theme": "dracula",
+      "background": "#282a36",
+      "colors": [
+        "#bd93f9",
+        "#b95ff2",
+        "#380da5",
+        "#e392f6",
+        "#190a76",
+        "#f797f5",
+        "#0b0a76",
+        "#f797e2"
+      ],
+      "metrics": {
+        "unique": 8,
+        "minDeltaEOK": 0.0193,
+        "minWcagVsBackground": 1.0953,
+        "minAbsApcaVsBackground": 0,
+        "violations": [
+          "ΔE 0.0193 < 0.1",
+          "WCAG 1.0953 < 1.25",
+          "APCA 0 < 15"
+        ]
+      }
+    },
+    {
+      "id": "journey-github-light",
+      "family": "journey",
+      "theme": "github-light",
+      "background": "#ffffff",
+      "colors": [
+        "#1b5ba7",
+        "#a71b33",
+        "#1ba72c",
+        "#551ba7",
+        "#a77e1b",
+        "#1ba7a7",
+        "#a71b7e",
+        "#55a71b"
+      ],
+      "metrics": {
+        "unique": 8,
+        "minDeltaEOK": 0.0329,
+        "minWcagVsBackground": 2.9444,
+        "minAbsApcaVsBackground": 55.4421,
+        "violations": [
+          "ΔE 0.0329 < 0.1"
+        ]
+      }
+    },
+    {
+      "id": "journey-dracula",
+      "family": "journey",
+      "theme": "dracula",
+      "background": "#282a36",
+      "colors": [
+        "#9861e5",
+        "#e5be61",
+        "#61e5e5",
+        "#e561bf",
+        "#99e561",
+        "#6172e5",
+        "#e57761",
+        "#61e59d"
+      ],
+      "metrics": {
+        "unique": 8,
+        "minDeltaEOK": 0.0726,
+        "minWcagVsBackground": 3.4222,
+        "minAbsApcaVsBackground": 29.3277,
+        "violations": [
+          "ΔE 0.0726 < 0.1"
+        ]
+      }
+    },
+    {
+      "id": "mindmap-github-light",
+      "family": "mindmap",
+      "theme": "github-light",
+      "background": "#ffffff",
+      "colors": [
+        "#0969da",
+        "#0d67a5",
+        "#5f85f2",
+        "#0a5876",
+        "#9298f6",
+        "#0a6776",
+        "#a597f7",
+        "#0a7576"
+      ],
+      "metrics": {
+        "unique": 8,
+        "minDeltaEOK": 0.0265,
+        "minWcagVsBackground": 2.5091,
+        "minAbsApcaVsBackground": 49.1446,
+        "violations": [
+          "ΔE 0.0265 < 0.1"
+        ]
+      }
+    },
+    {
+      "id": "mindmap-dracula",
+      "family": "mindmap",
+      "theme": "dracula",
+      "background": "#282a36",
+      "colors": [
+        "#bd93f9",
+        "#b95ff2",
+        "#380da5",
+        "#e392f6",
+        "#190a76",
+        "#f797f5",
+        "#0b0a76",
+        "#f797e2"
+      ],
+      "metrics": {
+        "unique": 8,
+        "minDeltaEOK": 0.0193,
+        "minWcagVsBackground": 1.0953,
+        "minAbsApcaVsBackground": 0,
+        "violations": [
+          "ΔE 0.0193 < 0.1",
+          "WCAG 1.0953 < 1.25",
+          "APCA 0 < 15"
+        ]
+      }
+    },
+    {
+      "id": "gitgraph-github-light",
+      "family": "gitgraph",
+      "theme": "github-light",
+      "background": "#ffffff",
+      "colors": [
+        "#0969da",
+        "#0d67a5",
+        "#5f85f2",
+        "#0a5876",
+        "#9298f6",
+        "#0a6776",
+        "#a597f7",
+        "#0a7576"
+      ],
+      "metrics": {
+        "unique": 8,
+        "minDeltaEOK": 0.0265,
+        "minWcagVsBackground": 2.5091,
+        "minAbsApcaVsBackground": 49.1446,
+        "violations": [
+          "ΔE 0.0265 < 0.1"
+        ]
+      }
+    },
+    {
+      "id": "gitgraph-dracula",
+      "family": "gitgraph",
+      "theme": "dracula",
+      "background": "#282a36",
+      "colors": [
+        "#bd93f9",
+        "#b95ff2",
+        "#380da5",
+        "#e392f6",
+        "#190a76",
+        "#f797f5",
+        "#0b0a76",
+        "#f797e2"
+      ],
+      "metrics": {
+        "unique": 8,
+        "minDeltaEOK": 0.0193,
+        "minWcagVsBackground": 1.0953,
+        "minAbsApcaVsBackground": 0,
+        "violations": [
+          "ΔE 0.0193 < 0.1",
+          "WCAG 1.0953 < 1.25",
+          "APCA 0 < 15"
+        ]
+      }
+    }
+  ]
+}
