@@ -8,6 +8,9 @@ The committed baseline SVGs are deliberately frozen before the rollout. The
 generator extracts the colors actually serialized by each renderer, checks
 uniqueness, pairwise ΔE_OK, WCAG contrast, and APCA lightness contrast, then
 generates a side-by-side contact sheet and a machine-readable comparison.
+The baseline manifest is not trusted on its own: checks reconstruct every color
+and metric from the exact frozen SVG set and require the recorded baseline
+commit to resolve as an ancestor of the current revision.
 
 ```sh
 bun run gallery:palette-rollout
@@ -16,4 +19,6 @@ bun run gallery:palette-rollout:check
 
 `gallery:palette-rollout:baseline` is a characterization command, not a normal
 update command. Re-record the baseline only when intentionally starting a new
-experiment; doing so during implementation would erase the before state.
+experiment; doing so during implementation would erase the before state. The
+command refuses a dirty worktree so its commit identity cannot mislabel local
+bytes.

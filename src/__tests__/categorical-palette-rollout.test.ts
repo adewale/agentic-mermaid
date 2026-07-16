@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { renderMermaidSVG } from '../index.ts'
+import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
 import { categoricalPalette } from '../shared/categorical-palette.ts'
 import { getSeriesColor } from '../xychart/colors.ts'
 import { wcagContrastRatio } from '../shared/color-math.ts'
@@ -115,6 +115,20 @@ describe('controlled {1,2,3} categorical palette rollout', () => {
         expect(Math.abs(apcaContrast(color, '#282a36')!), `${family}: ${color}`).toBeGreaterThanOrEqual(15)
       }
     }
+  })
+
+  it('repairs an invisible XY accent consistently in SVG and terminal output', () => {
+    const style = { colors: { bg: '#ffffff', fg: '#111111', accent: '#ffffff' } } as const
+    const expected = categoricalPalette(8, { accent: '#ffffff', bg: '#ffffff' })
+    const svg = renderMermaidSVG(sources.xychart, { style, embedFontImport: false })
+    const svgColors = colorsFromSvg('xychart', svg)
+    const terminal = renderMermaidASCII(sources.xychart, { style, colorMode: 'html' })
+
+    expect(expected[0]).toBe('#aee2ff')
+    expect(svgColors).toEqual(expected)
+    expect(terminal).toContain('color:#aee2ff')
+    expect(wcagContrastRatio(svgColors[0]!, '#ffffff')).toBeGreaterThanOrEqual(1.25)
+    expect(apcaContrast(svgColors[0]!, '#ffffff')).toBeGreaterThanOrEqual(15)
   })
 
   it('is deterministic and does not use a fixed-size modulo palette', () => {

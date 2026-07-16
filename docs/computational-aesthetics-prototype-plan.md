@@ -39,12 +39,15 @@ that one scalar score certifies beauty.
 
 ## What the first implementation taught us
 
-The audit and controlled rollout changed the plan in ten ways.
+The audit and controlled rollout changed the plan in eleven ways.
 
 1. **Runtime is part of correctness.** A deterministic pairwise repair still
    fails the product if an allowed 1,000-slice input takes seconds. The ΔE
-   guarantee is therefore bounded at 24 and the large-count path is linear.
-   Every prototype must declare an input-size budget and a degraded-tail rule.
+   guarantee is therefore bounded at 24 and the large-count path has expected
+   linear work. Portable CI asserts the real branch and its operation counts;
+   wall-clock observations live in `eval/palette-performance/report.json` with
+   their machine, protocol, input hashes, and limitations. Every prototype must
+   declare an input-size budget and a degraded-tail rule.
 
 2. **A threshold needs a corpus, not one friendly example.** The 0.10 ΔE claim
    initially failed on shipped themes and custom accent/background pairs. The
@@ -95,6 +98,14 @@ The audit and controlled rollout changed the plan in ten ways.
     from 0.1107 to 0.0456. Only 4/360 palettes retained {1,2,3}; no count above
     seven passed. That rejects #4 as a default layer over this palette.
 
+11. **A measurement must not claim more than it measures.** The performance
+    corpus measures one palette-generation call, not a complete diagram render.
+    Most controlled families have one peer-category channel; Journey has two
+    independent channels (sections and actors). Following the
+    [testing-best-practices guidance](https://github.com/adewale/testing-best-practices/tree/e50479920006aa010850a2c37f9bee1e02b5badf),
+    CI gates deterministic complexity and evidence freshness, never a portable
+    millisecond threshold.
+
 ## Shipped color contract and family reach
 
 The color work is a generation constraint, not evidence that the quality
@@ -117,7 +128,7 @@ is explicit:
 | WCAG ≥ 1.25 and APCA ≥ 15 vs concrete background | hard | hard |
 | unique fills | hard | best-effort |
 | minimum pairwise ΔE_OK ≥ 0.10 | hard | not claimed |
-| asymptotic repair cost | bounded finite packing | linear in fill count |
+| asymptotic repair cost | bounded `O(M·n²)`, with `n ≤ 24` and fixed corpus `M` | expected `O(n)` with average `O(1)` set membership |
 
 The established local palette is preserved when it meets the contract. If it
 does not, a deterministic farthest-point packing pass selects background-visible
@@ -143,8 +154,11 @@ Reuse the existing evaluator; do not create a second quality system.
    before/after renders and snapshot review in every affected family. The
    palette rollout operationalizes this rule in
    `scripts/pr-assets/palette-rollout-evidence.ts`.
-7. **Gate determinism and cost.** Preserve byte identity and record p50/p95
-   runtime over a fixed corpus. Idea #13 must also pin codec and level.
+7. **Gate determinism and cost.** Preserve byte identity and deterministically
+   assert that the intended bounded algorithmic path engaged. Keep p50/p95
+   observations over a fixed corpus in a separate, provenance-bound report;
+   do not use cross-machine wall time as a CI threshold. Idea #13 must also pin
+   codec and level.
 
 ## Evaluation and graduation
 
@@ -155,7 +169,8 @@ For a candidate metric M, record:
 - **independence** — partial correlation after controlling for current metrics;
 - **stability** — sensitivity to harmless translation, scale, and equivalent
   source ordering where those transforms should not matter;
-- **cost** — p50/p95 time and growth at the declared size boundary;
+- **cost** — deterministic operation growth at the declared size boundary,
+  plus environment-qualified p50/p95 observations where useful;
 - **reach** — public surfaces and diagram families that consume the result.
 
 Graduate a metric from report-only only when it fires on trip fixtures, varies
@@ -190,7 +205,7 @@ admit it to the combination”; it is not permission to ship an opaque aggregate
 | Rank | Work package | Form | Why it is here | Stop / go gate |
 |---|---|---|---|---|
 | Foundation | **Keep {1,2,3,10}; reject #12** | shipped contract | Color and ownership have bounded, reachable contracts; the extra label warning is redundant. | keep the regression matrix green |
-| Delivered | **Controlled {1,2,3} family rollout** | shipped combination | 14/14 fixture violations corrected; 8/8 family/theme cases pass; ≤6 colors and authored overrides remain compatible. | `gallery:palette-rollout:check` plus family tests |
+| Delivered | **Controlled {1,2,3} family rollout** | shipped combination | 14/14 fixture violations corrected; 8/8 family/theme cases pass; ≤6 colors and authored overrides remain compatible; six rich website examples expose the peer mapping at inspectable size. | palette evidence, complexity, website, and family gates |
 | Rejected | **#4 → {1,2,3,4} color-harmony default** | completed experiment | 4/360 pass rate; mean minimum ΔE_OK falls 0.1107 → 0.0456. | reconsider only with a new constraint-preserving algorithm and blinded preference evidence |
 | Paused 1 | **#5 normalized crosslessness `m_c`** | telemetry, postponed | Still the cheapest next metric experiment, but telemetry work is intentionally deferred. | resume only on explicit telemetry restart |
 | Paused 2 | **#8 → {5,8} crossing-quality bundle** | telemetry, postponed | Clear ablation after #5. | #8 must add signal after #5 |

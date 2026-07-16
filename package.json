@@ -134,6 +134,8 @@
     "editor": "bun run scripts/site/editor.ts",
     "dev": "bun run website:dev",
     "bench": "bun run eval/benchmark/sample-bench.ts",
+    "benchmark:palette": "bun run eval/palette-performance/run.ts --record",
+    "benchmark:palette:check": "bun run eval/palette-performance/run.ts --check",
     "harvest:upstream": "bun run eval/mermaid-upstream-suite-bench/harvest.ts",
     "harvest:upstream:refresh-check": "bun run eval/mermaid-upstream-suite-bench/refresh-check.ts",
     "build": "tsup",

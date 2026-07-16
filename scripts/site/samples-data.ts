@@ -16,6 +16,8 @@ export interface Sample {
   title: string
   description: string
   source: string
+  /** Stable rich-gallery anchor override, used only when title slugs collide. */
+  anchor?: string
   /** Optional category tag for grouping in the Table of Contents */
   category?: string
   /** Declares a high-cardinality peer set that exercises derived categorical color. */
@@ -295,6 +297,7 @@ export const samples: Sample[] = [
     title: 'Subgraph Direction Override',
     category: 'Flowchart',
     description: 'Using `direction LR` inside a subgraph while the outer graph flows TD.',
+    anchor: 'subgraph-direction-override-connected',
     source: `graph TD
   subgraph pipeline [Processing Pipeline]
     direction LR
@@ -1527,14 +1530,14 @@ export const samples: Sample[] = [
     title "Service Health Portfolio"
     x-axis [Mon, Tue, Wed, Thu, Fri, Sat]
     y-axis "Availability (%)" 80 --> 100
-    line [99, 98, 99, 99, 100, 99]
-    line [96, 97, 98, 97, 99, 98]
-    line [93, 95, 94, 96, 97, 96]
-    line [89, 92, 93, 91, 95, 94]
-    line [98, 96, 95, 97, 96, 98]
-    line [86, 88, 91, 93, 92, 95]
-    line [94, 93, 96, 95, 98, 97]
-    line [82, 87, 85, 90, 89, 93]`,
+    line Web [99, 98, 99, 99, 100, 99]
+    line API [96, 97, 98, 97, 99, 98]
+    line Data [93, 95, 94, 96, 97, 96]
+    line Mobile [89, 92, 93, 91, 95, 94]
+    line Identity [98, 96, 95, 97, 96, 98]
+    line Search [86, 88, 91, 93, 92, 95]
+    line Billing [94, 93, 96, 95, 98, 97]
+    line Notifications [82, 87, 85, 90, 89, 93]`,
     options: { interactive: true },
   },
 

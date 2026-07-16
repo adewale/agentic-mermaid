@@ -46,6 +46,20 @@ export interface CategoricalPaletteInputs {
   bg?: string
 }
 
+export interface CategoricalPaletteDiagnostics {
+  path: 'legacy-ladder' | 'bounded-repair' | 'linear-tail'
+  requestedCount: number
+  emittedCount: number
+  candidateEvaluations: number
+  pairDistanceChecks: number
+  tailItems: number
+}
+
+export interface CategoricalPaletteResult {
+  colors: string[]
+  diagnostics: CategoricalPaletteDiagnostics
+}
+
 /** Largest slice count still served by the monochrome same-family ladder. */
 const MONO_LADDER_MAX = 6
 
@@ -78,14 +92,48 @@ const SLICE_CHROMA_MAX = 0.16
 /** Shared derived palette for peer categorical series. Author-supplied family
  * overrides are deliberately applied by each renderer after this function. */
 export function categoricalPalette(count: number, inputs: CategoricalPaletteInputs = {}): string[] {
+  return categoricalPaletteInternal(count, inputs)
+}
+
+/** Instrumented internal contract used by deterministic complexity tests and
+ * the reproducible performance report. It is intentionally not re-exported by
+ * the package entrypoint: callers consume colors, while repository tooling can
+ * observe which bounded algorithmic path actually ran. */
+export function categoricalPaletteWithDiagnostics(
+  count: number,
+  inputs: CategoricalPaletteInputs = {},
+): CategoricalPaletteResult {
+  const diagnostics: CategoricalPaletteDiagnostics = {
+    path: count <= MONO_LADDER_MAX ? 'legacy-ladder' : count <= GUARANTEED_DELTA_E_MAX ? 'bounded-repair' : 'linear-tail',
+    requestedCount: count,
+    emittedCount: 0,
+    candidateEvaluations: 0,
+    pairDistanceChecks: 0,
+    tailItems: 0,
+  }
+  const colors = categoricalPaletteInternal(count, inputs, diagnostics)
+  diagnostics.emittedCount = colors.length
+  return { colors, diagnostics }
+}
+
+function categoricalPaletteInternal(
+  count: number,
+  inputs: CategoricalPaletteInputs,
+  diagnostics?: CategoricalPaletteDiagnostics,
+): string[] {
   const safeAccent = inputs.accent && isValidHex(inputs.accent) ? inputs.accent : CHART_ACCENT_FALLBACK
   const safeBg = inputs.bg && isValidHex(inputs.bg) ? inputs.bg : undefined
   return count <= MONO_LADDER_MAX
     ? Array.from({ length: Math.max(0, count) }, (_unused, index) => getSeriesColor(index, safeAccent, safeBg))
-    : hueSpreadColors(count, safeAccent, safeBg)
+    : hueSpreadColors(count, safeAccent, safeBg, diagnostics)
 }
 
-function hueSpreadColors(count: number, accent: string, bg: string | undefined): string[] {
+function hueSpreadColors(
+  count: number,
+  accent: string,
+  bg: string | undefined,
+  diagnostics?: CategoricalPaletteDiagnostics,
+): string[] {
   const accentLch = hexToOklch(accent) ?? { L: 0.6, C: SLICE_CHROMA_MAX, h: NEUTRAL_BASE_HUE }
   // Neutral accents (the default grey theme) have no meaningful hue; anchor the
   // wheel on the indigo family the derived palettes lean on.
@@ -108,13 +156,13 @@ function hueSpreadColors(count: number, accent: string, bg: string | undefined):
     if (index === 0 && isVisible(accent, bg)) return accent
     const hue = index === 0 ? baseHue : ((baseHue + index * step) % 360 + 360) % 360
     const startL = index === 0 ? accentLch.L : tiers[index % 2]!
-    return ensureBgContrast({ L: startL, C: chroma, h: hue }, bg, dark)
+    return ensureBgContrast({ L: startL, C: chroma, h: hue }, bg, dark, diagnostics)
   })
   // Pairwise repair is deliberately bounded to the range whose separation
   // contract we can satisfy. Large palettes stay linear in slice count.
   return count <= GUARANTEED_DELTA_E_MAX
-    ? enforceMinDeltaE(colors, bg, dark)
-    : dedupeBestEffort(colors, bg, dark)
+    ? enforceMinDeltaE(colors, bg, dark, diagnostics)
+    : dedupeBestEffort(colors, bg, dark, diagnostics)
 }
 
 /** A fill is "visible" when it clears BOTH the WCAG and APCA wedge floors (or
@@ -131,7 +179,13 @@ function isVisible(hex: string, bg: string | undefined): boolean {
  * actual OKLab lightness chooses which direction is tried first; the opposite
  * direction remains available because chroma gamut-clamping is non-monotonic.
  */
-function ensureBgContrast(lch: Oklch, bg: string | undefined, darkBg: boolean): string {
+function ensureBgContrast(
+  lch: Oklch,
+  bg: string | undefined,
+  darkBg: boolean,
+  diagnostics?: CategoricalPaletteDiagnostics,
+): string {
+  if (diagnostics) diagnostics.candidateEvaluations++
   const initial = oklchToHex(lch)
   if (bg === undefined || isVisible(initial, bg)) return initial
   const bgL = hexToOklab(bg)?.L ?? (darkBg ? 0 : 1)
@@ -139,6 +193,7 @@ function ensureBgContrast(lch: Oklch, bg: string | undefined, darkBg: boolean): 
   for (let i = 1; i <= 24; i++) {
     const amount = i * 0.04
     for (const direction of [preferred, -preferred]) {
+      if (diagnostics) diagnostics.candidateEvaluations++
       const hex = oklchToHex({ ...lch, L: clampL(lch.L + direction * amount) })
       if (isVisible(hex, bg)) return hex
     }
@@ -162,28 +217,39 @@ function ensureBgContrast(lch: Oklch, bg: string | undefined, darkBg: boolean): 
  * one is separated by a bounded, deterministic local search. Slice 0 (the exact
  * accent, when visible) is never moved.
  */
-function enforceMinDeltaE(colors: string[], bg: string | undefined, darkBg: boolean): string[] {
+function enforceMinDeltaE(
+  colors: string[],
+  bg: string | undefined,
+  darkBg: boolean,
+  diagnostics?: CategoricalPaletteDiagnostics,
+): string[] {
   const out: string[] = []
   for (let index = 0; index < colors.length; index++) {
     const hex = colors[index]!
     const anchored = index === 0 && isVisible(hex, bg)
-    out.push(anchored || minDeltaTo(hex, out) >= MIN_SLICE_DELTA_E
+    out.push(anchored || minDeltaTo(hex, out, diagnostics) >= MIN_SLICE_DELTA_E
       ? hex
-      : separate(hex, out, bg, darkBg))
+      : separate(hex, out, bg, darkBg, diagnostics))
   }
   // The local repair preserves established palettes when it succeeds. If it
   // cannot meet the documented floor, use a bounded global packing pass over
   // concrete, background-visible sRGB candidates instead of returning a known
   // contract violation.
+  if (diagnostics) diagnostics.pairDistanceChecks += out.length * (out.length - 1) / 2
   return minPairwiseDeltaEOK(out) >= MIN_SLICE_DELTA_E
     ? out
-    : packVisibleColors(out, bg)
+    : packVisibleColors(out, bg, diagnostics)
 }
 
 /** Smallest ΔE_OK from `hex` to any already-accepted color (Infinity if none). */
-function minDeltaTo(hex: string, accepted: string[]): number {
+function minDeltaTo(
+  hex: string,
+  accepted: string[],
+  diagnostics?: CategoricalPaletteDiagnostics,
+): number {
   let min = Infinity
   for (const other of accepted) {
+    if (diagnostics) diagnostics.pairDistanceChecks++
     const d = deltaEOK(hex, other)
     if (d !== null && d < min) min = d
   }
@@ -200,11 +266,17 @@ const clampL = (L: number): number => Math.max(0.08, Math.min(0.97, L))
  * pathological count with no gamut headroom), the most-separated visible
  * candidate is kept so the output is always defined and never regresses.
  */
-function separate(hex: string, accepted: string[], bg: string | undefined, darkBg: boolean): string {
+function separate(
+  hex: string,
+  accepted: string[],
+  bg: string | undefined,
+  darkBg: boolean,
+  diagnostics?: CategoricalPaletteDiagnostics,
+): string {
   const base = hexToOklch(hex)
   if (!base) return hex
   let best = hex
-  let bestMin = minDeltaTo(hex, accepted)
+  let bestMin = minDeltaTo(hex, accepted, diagnostics)
   for (let k = 1; k <= 12; k++) {
     const dL = k * 0.03
     const dH = k * 7
@@ -216,9 +288,10 @@ function separate(hex: string, accepted: string[], bg: string | undefined, darkB
       { ...base, L: clampL(darkBg ? base.L + dL : base.L - dL), h: (base.h + dH) % 360 },
     ]
     for (const cand of candidates) {
+      if (diagnostics) diagnostics.candidateEvaluations++
       const candHex = oklchToHex(cand)
       if (bg !== undefined && !isVisible(candHex, bg)) continue
-      const m = minDeltaTo(candHex, accepted)
+      const m = minDeltaTo(candHex, accepted, diagnostics)
       if (m >= MIN_SLICE_DELTA_E) return candHex
       if (m > bestMin) { bestMin = m; best = candHex }
     }
@@ -232,9 +305,10 @@ interface LabCandidate { hex: string; lab: Oklab }
  * only when local repair fails. Gamut-clamped duplicates are removed before
  * packing. It is intentionally not cached by caller-controlled background:
  * an unbounded color-key cache would turn custom themes into a memory leak. */
-function visibleCandidateCorpus(bg: string | undefined): LabCandidate[] {
+function visibleCandidateCorpus(bg: string | undefined, diagnostics?: CategoricalPaletteDiagnostics): LabCandidate[] {
   const byHex = new Map<string, LabCandidate>()
   const add = (hex: string): void => {
+    if (diagnostics) diagnostics.candidateEvaluations++
     if (byHex.has(hex) || (bg !== undefined && !isVisible(hex, bg))) return
     const lab = hexToOklab(hex)
     if (lab) byHex.set(hex, { hex, lab })
@@ -257,9 +331,13 @@ const labDistance = (a: Oklab, b: Oklab): number =>
 /** Farthest-point packing over a bounded visible candidate corpus. Slice zero
  * remains anchored when valid; each subsequent choice maximizes its minimum
  * distance to the whole accepted set. */
-function packVisibleColors(targets: string[], bg: string | undefined): string[] {
+function packVisibleColors(
+  targets: string[],
+  bg: string | undefined,
+  diagnostics?: CategoricalPaletteDiagnostics,
+): string[] {
   if (targets.length < 2) return targets
-  const corpus = visibleCandidateCorpus(bg)
+  const corpus = visibleCandidateCorpus(bg, diagnostics)
   const target0 = hexToOklab(targets[0]!)
   if (!target0) return targets
   const selected: LabCandidate[] = [{ hex: targets[0]!, lab: target0 }]
@@ -272,8 +350,12 @@ function packVisibleColors(targets: string[], bg: string | undefined): string[] 
     const target = hexToOklab(targets[selected.length]!)
     for (const candidate of corpus) {
       if (used.has(candidate.hex.toLowerCase())) continue
+      if (diagnostics) diagnostics.candidateEvaluations++
       let min = Infinity
-      for (const accepted of selected) min = Math.min(min, labDistance(candidate.lab, accepted.lab))
+      for (const accepted of selected) {
+        if (diagnostics) diagnostics.pairDistanceChecks++
+        min = Math.min(min, labDistance(candidate.lab, accepted.lab))
+      }
       const targetDistance = target ? labDistance(candidate.lab, target) : 0
       if (min > bestMin + 1e-12 || (Math.abs(min - bestMin) <= 1e-12 && targetDistance < bestTargetDistance)) {
         best = candidate
@@ -290,9 +372,15 @@ function packVisibleColors(targets: string[], bg: string | undefined): string[] 
 
 /** Keep large-count generation linear while avoiding obvious repeated fills.
  * This is best-effort only; no perceptual floor is claimed above 24 slices. */
-function dedupeBestEffort(colors: string[], bg: string | undefined, darkBg: boolean): string[] {
+function dedupeBestEffort(
+  colors: string[],
+  bg: string | undefined,
+  darkBg: boolean,
+  diagnostics?: CategoricalPaletteDiagnostics,
+): string[] {
   const used = new Set<string>()
   return colors.map((hex, index) => {
+    if (diagnostics) diagnostics.tailItems++
     if (!used.has(hex.toLowerCase())) {
       used.add(hex.toLowerCase())
       return hex
@@ -300,11 +388,12 @@ function dedupeBestEffort(colors: string[], bg: string | undefined, darkBg: bool
     const base = hexToOklch(hex)
     if (base) {
       for (let attempt = 1; attempt <= 24; attempt++) {
+        if (diagnostics) diagnostics.candidateEvaluations++
         const candidate = ensureBgContrast({
           ...base,
           L: clampL(base.L + (attempt % 2 === 0 ? 1 : -1) * Math.ceil(attempt / 2) * 0.008),
           h: (base.h + attempt * 137.508 + index * 0.01) % 360,
-        }, bg, darkBg)
+        }, bg, darkBg, diagnostics)
         if (!used.has(candidate.toLowerCase())) {
           used.add(candidate.toLowerCase())
           return candidate

@@ -12,6 +12,7 @@ import { renderMermaidSVG } from '../index.ts'
 import { minPairwiseDeltaEOK, apcaContrast } from '../shared/perceptual-color.ts'
 import { wcagContrastRatio } from '../shared/color-math.ts'
 import { THEMES } from '../theme.ts'
+import { categoricalPaletteWithDiagnostics } from '../shared/categorical-palette.ts'
 
 describe('perceptual palette — systematic impact', () => {
   it('the ΔE_OK collision floor holds across the whole realistic count range (7…24)', () => {
@@ -67,15 +68,30 @@ describe('perceptual palette — systematic impact', () => {
     }
   })
 
-  it('keeps large-count generation bounded and linear rather than running pair repair', () => {
-    const started = performance.now()
-    const cols = pieSliceColors(1000, { accent: '#3b82f6', bg: '#ffffff' })
-    const elapsed = performance.now() - started
-    expect(cols).toHaveLength(1000)
-    expect(new Set(cols).size).toBe(1000)
-    // This takes single-digit milliseconds in normal runs. The generous cap
-    // detects the former quadratic 13-second path without becoming a benchmark.
-    expect(elapsed).toBeLessThan(500)
+  it('keeps large-count work linear without relying on machine timing', () => {
+    const themes = [
+      { accent: '#3b82f6', bg: '#ffffff' },
+      { accent: '#7aa2f7', bg: '#1a1b26' },
+      { accent: '#ff0000', bg: '#777777' },
+      { accent: '#888888', bg: '#888888' },
+    ]
+
+    for (const count of [25, 64, 256, 1000]) {
+      for (const inputs of themes) {
+        const { colors, diagnostics } = categoricalPaletteWithDiagnostics(count, inputs)
+        expect(colors).toEqual(pieSliceColors(count, inputs))
+        expect(colors).toHaveLength(count)
+        expect(new Set(colors).size).toBe(count)
+        expect(diagnostics.path).toBe('linear-tail')
+        expect(diagnostics.emittedCount).toBe(count)
+        expect(diagnostics.tailItems).toBe(count)
+        expect(diagnostics.pairDistanceChecks).toBe(0)
+        // Every search loop is statically bounded. Counting the real branch's
+        // candidate work pins that invariant deterministically across machines;
+        // observational latency belongs in eval/palette-performance instead.
+        expect(diagnostics.candidateEvaluations).toBeLessThanOrEqual(1_201 * count)
+      }
+    }
   })
 })
 

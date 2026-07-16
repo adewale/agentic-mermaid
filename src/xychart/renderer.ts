@@ -562,7 +562,9 @@ function chartStyles(
   for (const index of [...colorIndices].sort((a, b) => a - b)) {
     const value = explicitPalette && explicitPalette.length > 0
       ? explicitPalette[index % explicitPalette.length]!
-      : (index === 0 ? `var(--accent, ${CHART_ACCENT_FALLBACK})` : derivedPalette[index]!)
+      : (index === 0 && derivedPalette.length <= 6
+          ? `var(--accent, ${CHART_ACCENT_FALLBACK})`
+          : derivedPalette[index]!)
     colorVarDefs.push(`    --xychart-color-${index}: ${value};`)
   }
 

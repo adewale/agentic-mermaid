@@ -94,6 +94,15 @@ jobs:
       - name: Check the committed website worker inputs are current
         run: bun run website:check
 
+      - name: Check controlled palette rollout evidence is current and passes its improvement gate
+        run: bun run gallery:palette-rollout:check
+
+      - name: Check optional palette harmony experiment evidence is current
+        run: bun run gallery:palette-harmony:check
+
+      - name: Check palette performance provenance and deterministic complexity
+        run: bun run benchmark:palette:check
+
       - name: Run sketch prototype style checks
         run: bun run sketch:check
 

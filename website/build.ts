@@ -635,8 +635,29 @@ function exampleSlug(s: string) {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 }
 
-function richExampleId(sample: { title: string }, index: number) {
-  return `rich-${index + 1}-${exampleSlug(sample.title)}`
+function richExampleId(sample: { title: string; anchor?: string }) {
+  return `rich-${sample.anchor ?? exampleSlug(sample.title)}`
+}
+
+// Rich-example anchors used to include the sample's array index. Resolve every
+// historical numeric form by its unchanged title slug so adding or reordering
+// corpus entries cannot break a published deep link again.
+function legacyRichExampleAnchorScript() {
+  return `<script>
+function resolveLegacyRichExampleAnchor() {
+  const match = /^#rich-\\d+-(.+)$/.exec(location.hash)
+  if (!match) return
+  const legacyId = match[0].slice(1)
+  const exact = Array.from(document.querySelectorAll('[data-legacy-rich-id]'))
+    .find(element => element.getAttribute('data-legacy-rich-id') === legacyId)
+  const target = exact || document.getElementById('rich-' + match[1])
+  if (!target) return
+  history.replaceState(null, '', '#' + target.id)
+  target.scrollIntoView()
+}
+addEventListener('hashchange', resolveLegacyRichExampleAnchor)
+resolveLegacyRichExampleAnchor()
+</script>`
 }
 
 function renderRichExampleSvg(sample: any, id: string) {
@@ -779,8 +800,8 @@ function examplesJumpHtml(groups: Map<string, any[]>, styleThemeCombos: ReturnTy
   const richCategories = Array.from(new Set(richExamples.map((sample) => sample.category ?? 'Examples')))
   const richCards = richCategories.map((category) => `<a class="example-jump-card" href="#rich-${escapeAttr(exampleSlug(category))}"><strong>${escapeHtml(category)}</strong><span>${escapeHtml(String(richExamples.filter((sample) => (sample.category ?? 'Examples') === category).length))} shared examples</span></a>`).join('')
   sections.push(`<section class="example-jump-section" aria-labelledby="examples-rich-gallery-jump"><p class="example-jump-title" id="examples-rich-gallery-jump">Rich shared example gallery</p><div class="example-jump-grid">${richCards}</div></section>`)
-  const paletteProofCards = richExamples.flatMap((sample, index) => sample.palettePeers
-    ? [`<a class="example-jump-card" href="#${escapeAttr(richExampleId(sample, index))}"><strong>${escapeHtml(sample.category ?? 'Example')}</strong><span>${escapeHtml(`${sample.palettePeers.count} ${sample.palettePeers.kind} · ${sample.title}`)}</span></a>`]
+  const paletteProofCards = richExamples.flatMap((sample) => sample.palettePeers
+    ? [`<a class="example-jump-card" href="#${escapeAttr(richExampleId(sample))}"><strong>${escapeHtml(sample.category ?? 'Example')}</strong><span>${escapeHtml(`${sample.palettePeers.count} ${sample.palettePeers.kind} · ${sample.title}`)}</span></a>`]
     : []).join('')
   if (paletteProofCards) {
     sections.push(`<section class="example-jump-section" aria-labelledby="examples-high-cardinality-palettes-jump"><p class="example-jump-title" id="examples-high-cardinality-palettes-jump">High-cardinality peer palettes</p><div class="example-jump-grid">${paletteProofCards}</div></section>`)
@@ -789,11 +810,11 @@ function examplesJumpHtml(groups: Map<string, any[]>, styleThemeCombos: ReturnTy
 }
 
 function richExamplesHtml(richExamples = RICH_EXAMPLES) {
-  const groups = new Map<string, Array<{ sample: any; id: string }>>()
+  const groups = new Map<string, Array<{ sample: any; id: string; legacyId: string }>>()
   richExamples.forEach((sample, index) => {
     const category = sample.category ?? 'Examples'
     if (!groups.has(category)) groups.set(category, [])
-    groups.get(category)!.push({ sample, id: richExampleId(sample, index) })
+    groups.get(category)!.push({ sample, id: richExampleId(sample), legacyId: `rich-${index + 1}-${exampleSlug(sample.title)}` })
   })
   return `<section class="example-group" aria-labelledby="examples-rich-gallery">
 <h2 id="examples-rich-gallery">Rich shared example gallery</h2>
@@ -801,8 +822,8 @@ function richExamplesHtml(richExamples = RICH_EXAMPLES) {
 ${Array.from(groups, ([category, entries]) => `
 <section class="example-rich-group" aria-labelledby="rich-${escapeAttr(exampleSlug(category))}">
 <h3 id="rich-${escapeAttr(exampleSlug(category))}">${escapeHtml(category)}</h3>
-${entries.map(({ sample, id }) => `
-<article class="example-sample" id="${escapeAttr(id)}">
+${entries.map(({ sample, id, legacyId }) => `
+<article class="example-sample${sample.palettePeers ? ' example-sample-palette' : ''}" id="${escapeAttr(id)}" data-legacy-rich-id="${escapeAttr(legacyId)}"${sample.palettePeers ? ` data-palette-peers="${sample.palettePeers.count}"` : ''}>
   <header class="example-sample-head">
     <div>
       <p class="example-meta">${escapeHtml(category)}</p>
@@ -814,11 +835,11 @@ ${entries.map(({ sample, id }) => `
   </header>
   <div class="example-sample-grid">
     <section class="example-source" aria-label="${escapeAttr(sample.title)} Mermaid source"><pre><code>${escapeHtml(String(sample.source ?? '').trim())}</code></pre></section>
-    <figure class="example-render"><div class="example-svg">${renderRichExampleSvg(sample, id)}</div><figcaption>Build-time proof from the shared examples corpus.</figcaption></figure>
+    <figure class="example-render${sample.palettePeers ? ' example-render-palette' : ''}"><div class="example-svg">${renderRichExampleSvg(sample, id)}</div><figcaption>${sample.palettePeers ? 'High-cardinality proof at intrinsic size; scroll to inspect every peer.' : 'Build-time proof from the shared examples corpus.'}</figcaption></figure>
   </div>
 </article>`).join('')}
 </section>`).join('')}
-</section>`
+</section>${legacyRichExampleAnchorScript()}`
 }
 
 function styleThemeExamplesHtml(combos: ReturnType<typeof styleThemeExamples>) {
@@ -1992,15 +2013,15 @@ const examples = {
       docs: `/examples/#${family.id}`,
     }
   }),
-  richExamples: RICH_EXAMPLES.map((sample, index) => ({
-    id: richExampleId(sample, index),
+  richExamples: RICH_EXAMPLES.map((sample) => ({
+    id: richExampleId(sample),
     category: sample.category ?? 'Examples',
     title: sample.title,
     description: sample.description,
     source: String(sample.source ?? '').trim(),
     options: sample.options ?? {},
     ...(sample.palettePeers ? { palettePeers: sample.palettePeers } : {}),
-    renderUrl: `/examples/#${richExampleId(sample, index)}`,
+    renderUrl: `/examples/#${richExampleId(sample)}`,
     editorUrl: editorStateHref({ source: sample.source, config: sample.options ?? {} }),
   })),
 }
