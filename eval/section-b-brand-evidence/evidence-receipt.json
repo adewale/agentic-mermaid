@@ -3,7 +3,7 @@
   "generator": "scripts/pr-assets/section-b-brand-evidence.ts",
   "inputs": {
     "count": 714,
-    "treeSha256": "cb59dac28f109b383f68108e99746a6a529ce979cdc8e9f3261d06ff2ee4946d"
+    "treeSha256": "43d5f79cd36c6374fdfc4b433fc68be6800400e63591ef491d37d3364b650132"
   },
   "fontInputs": [
     {

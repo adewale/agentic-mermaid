@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "generator": "scripts/pr-assets/palette-harmony-experiment.ts",
-  "inputCount": 707,
-  "inputTreeSha256": "0d3dcef129194e4384eea247a0942424d3b9e96528d1df9aff729a5990e14591",
+  "inputCount": 708,
+  "inputTreeSha256": "fe2f1e46a3081792203ba11812db69338c3ddc981af09502db7d224023138145",
   "outputs": [
     {
       "path": "eval/palette-harmony/report.json",
