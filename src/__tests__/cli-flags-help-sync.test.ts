@@ -63,6 +63,18 @@ describe('command-specific flag validity', () => {
     expect(capture(['batch', '--jsonl']).code).toBe(0)
   })
 
+  test('boolean values and duplicate flags fail closed instead of changing meaning', () => {
+    for (const argv of [
+      ['capabilities', '--json=false'],
+      ['render', '--style', 'crisp', '--style', 'rough', 'ignored.mmd'],
+      ['render', '--json', '--json', 'ignored.mmd'],
+    ]) {
+      const result = capture(argv)
+      expect(result.code, argv.join(' ')).toBe(2)
+      expect(result.output, argv.join(' ')).toMatch(/does not accept a value|only once/)
+    }
+  })
+
   test('known but inapplicable flags and missing values fail with ARG exit 2', () => {
     for (const argv of [
       ['verify', '--scale', '2', 'ignored.mmd'],

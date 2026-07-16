@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { URL } from 'node:url'
 import { executeInSandbox } from './sandbox.ts'
+import { DEFAULT_EXECUTE_TIMEOUT_MS } from './execute-limits.ts'
 import { isJsonContentType, preserveExactJsonRpcIds, reply, rpcError as error, stringifyJsonRpc, type ExactJsonRpcId, type JsonRpcRequest, type JsonRpcResponse } from './protocol.ts'
 import {
   EXECUTE_TIMEOUT_ERROR,
@@ -74,6 +75,7 @@ export const LOCAL_TOOLS = [
 ]
 
 let defaultArtifactStore: ArtifactStore | undefined
+let defaultArtifactStoreExitHook = false
 const MCP_NARROWERS = BUILTIN_FAMILY_METADATA.map(f => f.narrower).join('/')
 
 const LOCAL_INSTRUCTIONS = `agentic-mermaid Code Mode server. Primary tool execute runs synchronous JavaScript against the typed mermaid.* SDK in a sandbox; async/await and Promise jobs are not supported. describe_sdk progressively discloses one family's version-matched mutation schema; call it before authoring unfamiliar ops. render_png and describe are narrow helpers. render_png can return base64, managed file paths, or managed URLs when the transport config provides an artifact store. There is no mutate tool on this server: structured edits go through the SDK's mermaid.mutate(...) inside execute; narrow via ${MCP_NARROWERS}. Every built-in renderable family ships a typed path when the body narrows; only opaque fallback bodies are source-level only. Layout is deterministic; there is no layout seed (the optional style seed only re-rolls ink of styled looks, never geometry).`
@@ -108,9 +110,10 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
     if (requestedTimeoutMs !== undefined && !isValidExecuteTimeout(requestedTimeoutMs)) {
       return error(id, -32602, EXECUTE_TIMEOUT_ERROR)
     }
-    const timeoutMs = typeof requestedTimeoutMs === 'number' && Number.isFinite(requestedTimeoutMs)
-      ? Math.min(requestedTimeoutMs, context.maxSandboxTimeoutMs ?? MAX_SANDBOX_TIMEOUT_MS)
-      : undefined
+    const timeoutMs = Math.min(
+      requestedTimeoutMs ?? DEFAULT_EXECUTE_TIMEOUT_MS,
+      context.maxSandboxTimeoutMs ?? MAX_SANDBOX_TIMEOUT_MS,
+    )
     if (typeof code !== 'string') return error(id, -32602, 'execute requires `code` (string)')
     const r = await executeInSandbox(code, { timeoutMs })
     return reply(id, { content: [{ type: 'text', text: JSON.stringify(r) }], isError: !r.ok })
@@ -173,6 +176,10 @@ function artifactPayload(artifact: ArtifactRecord, output: 'file' | 'url'): Reco
 
 function getDefaultArtifactStore(): ArtifactStore {
   defaultArtifactStore ??= createArtifactStore({ dir: join(tmpdir(), 'agentic-mermaid-mcp-artifacts') })
+  if (!defaultArtifactStoreExitHook) {
+    defaultArtifactStoreExitHook = true
+    process.once('exit', () => defaultArtifactStore?.close())
+  }
   return defaultArtifactStore
 }
 
@@ -219,10 +226,14 @@ export async function runStdio(options: { artifactDir?: string; maxArtifactBytes
       }
     }
   })
-  return new Promise<void>(resolve => {
-    process.stdin.on('end', () => resolve())
-    process.stdin.on('close', () => resolve())
-  })
+  try {
+    await new Promise<void>(resolve => {
+      process.stdin.on('end', () => resolve())
+      process.stdin.on('close', () => resolve())
+    })
+  } finally {
+    artifactStore.close()
+  }
 }
 
 export async function startHttpServer(options: HttpMcpOptions = {}): Promise<HttpMcpServer> {
@@ -232,6 +243,10 @@ export async function startHttpServer(options: HttpMcpOptions = {}): Promise<Htt
   if (!isLoopbackHost(host) && !options.authToken) throw new Error('HTTP MCP remote bind requires --auth-token')
   const sessions = new Map<string, ServerResponse>()
   let baseUrl = ''
+  const maxRpcBodyBytes = options.maxRpcBodyBytes ?? MAX_RPC_BODY_BYTES
+  const maxSseSessions = options.maxSseSessions ?? MAX_SSE_SESSIONS
+  const publicOrigin = httpOrigin(options.publicUrl, 'publicUrl')
+  if (!Number.isInteger(maxSseSessions) || maxSseSessions <= 0) throw new Error('maxSseSessions must be a positive integer')
   const artifactStore = createArtifactStore({
     dir: options.artifactDir,
     maxBytes: options.maxArtifactBytes,
@@ -239,10 +254,6 @@ export async function startHttpServer(options: HttpMcpOptions = {}): Promise<Htt
     maxArtifacts: options.maxArtifacts,
     ttlMs: options.artifactTtlMs,
   })
-  const maxRpcBodyBytes = options.maxRpcBodyBytes ?? MAX_RPC_BODY_BYTES
-  const maxSseSessions = options.maxSseSessions ?? MAX_SSE_SESSIONS
-  const publicOrigin = httpOrigin(options.publicUrl, 'publicUrl')
-  if (!Number.isInteger(maxSseSessions) || maxSseSessions <= 0) throw new Error('maxSseSessions must be a positive integer')
   const context = { artifactStore, maxSandboxTimeoutMs: options.maxSandboxTimeoutMs }
 
   const server = createServer(async (req, res) => {
@@ -272,17 +283,23 @@ export async function startHttpServer(options: HttpMcpOptions = {}): Promise<Htt
     }
   })
 
-  await new Promise<void>((resolve, reject) => {
-    server.once('error', reject)
-    server.listen(port, host, () => {
-      server.off('error', reject)
-      resolve()
+  try {
+    await new Promise<void>((resolve, reject) => {
+      server.once('error', reject)
+      server.listen(port, host, () => {
+        server.off('error', reject)
+        resolve()
+      })
     })
-  })
-  const address = server.address()
-  if (!address || typeof address === 'string') throw new Error('HTTP MCP server did not expose a TCP address')
-  baseUrl = `http://${host}:${address.port}`
-  artifactStore.setBaseUrl(options.publicUrl ?? `${baseUrl}/artifacts`)
+    const address = server.address()
+    if (!address || typeof address === 'string') throw new Error('HTTP MCP server did not expose a TCP address')
+    baseUrl = `http://${host}:${address.port}`
+    artifactStore.setBaseUrl(options.publicUrl ?? `${baseUrl}/artifacts`)
+  } catch (error) {
+    artifactStore.close()
+    try { server.close() } catch {}
+    throw error
+  }
   return {
     server,
     url: baseUrl,
@@ -290,7 +307,11 @@ export async function startHttpServer(options: HttpMcpOptions = {}): Promise<Htt
     close: () => new Promise<void>((resolve, reject) => {
       for (const sse of sessions.values()) sse.end()
       sessions.clear()
-      server.close(err => err ? reject(err) : resolve())
+      server.close(err => {
+        artifactStore.close()
+        if (err) reject(err)
+        else resolve()
+      })
     }),
   }
 }

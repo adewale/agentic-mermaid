@@ -531,6 +531,18 @@ describe('MCP — JSON-RPC happy + sad', () => {
     expect(payload).toEqual(expect.objectContaining({ ok: true, family: 'journey', detail: 'fields' }))
     expect(payload.ops.add_task).toContainEqual(expect.objectContaining({ name: 'score', required: true, note: 'integer 1..5' }))
   })
+  test('transport maximum caps execute even when the request omits timeoutMs', async () => {
+    const started = performance.now()
+    const r = await handleRequest({
+      jsonrpc: '2.0', id: 32, method: 'tools/call',
+      params: { name: 'execute', arguments: { code: 'while (true) {}' } },
+    }, { maxSandboxTimeoutMs: 25 })
+    const payload = JSON.parse((r!.result as any).content[0].text)
+    expect(payload.ok).toBe(false)
+    expect(payload.error).toMatch(/timed out|timeout/i)
+    expect(performance.now() - started).toBeLessThan(1_000)
+  })
+
   test('unknown tool → error', async () => {
     const r = await handleRequest({ jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'nope', arguments: {} } })
     expect(r!.error).toBeDefined()

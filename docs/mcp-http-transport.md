@@ -213,7 +213,9 @@ data: {"jsonrpc":"2.0","id":4,"result":{}}
 | `--public-url <url>` | `http://<host>:<port>/artifacts` | Absolute HTTP(S) prefix returned by `output: "url"`; its origin is accepted by the HTTP/SSE browser-origin guard. |
 | `--auth-token <token>` | unset | Bearer token required for every non-health HTTP route when binding non-loopback. Optional on loopback. |
 | `--max-artifact-bytes <n>` | `20971520` | Maximum bytes for a single managed artifact. |
-| `--artifact-ttl-ms <n>` | `3600000` | How long managed artifacts remain fetchable by this server process. |
+| `--max-artifact-total-bytes <n>` | `209715200` | Aggregate byte budget for unexpired managed artifacts. |
+| `--max-artifacts <n>` | `1000` | Maximum number of unexpired managed artifacts. |
+| `--artifact-ttl-ms <n>` | `3600000` | How long managed artifacts remain fetchable. |
 | `--max-rpc-body-bytes <n>` | `1048576` | Maximum HTTP JSON-RPC request body size. |
 | `--max-sandbox-timeout-ms <n>` | `30000` | Maximum `execute` timeout accepted over any transport. |
 
@@ -223,5 +225,6 @@ data: {"jsonrpc":"2.0","id":4,"result":{}}
 - Non-loopback binding requires `--auth-token`.
 - `/rpc` and `/message` reject non-JSON content types; every non-health route rejects browser origins other than the internal server or configured public origin.
 - Request bodies and artifact sizes are bounded.
-- URL/file artifacts are generated under a managed store, served only if the current process created and still tracks them, and checked against TTL on read.
+- URL/file artifacts use a persisted, integrity-checked manifest; aggregate quotas and TTL survive clean restarts, and cache headers never outlive the stored expiry.
+- Exactly one live store owns an artifact directory. A second server fails before reading or writing state, preventing stale-manifest quota bypass. After an unclean stop, remove `.agentic-mermaid-artifacts-v1.lock` only after confirming no server still uses that directory.
 - `execute(code)` still runs in local `node:vm`, not an OS/container security boundary. Do not expose HTTP/SSE to hostile users without an outer isolation layer.

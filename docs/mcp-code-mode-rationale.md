@@ -55,7 +55,7 @@ nested `options` object, generated from the shared RenderOptions descriptors.
 Palette selection uses `options.style`; `theme` and top-level
 `bg`/`fg`/`style`/`seed` are not tool inputs.
 
-Local managed artifacts are generated under the server artifact directory with safe names, size limits, TTL cleanup, MIME type, byte count, and SHA-256 metadata; they are not arbitrary user-chosen file writes. Hosted `render_png` returns base64 only.
+Local managed artifacts are generated under one exclusively owned server artifact directory with safe names, per-file and aggregate limits, persisted TTL cleanup, MIME type, byte count, and SHA-256 integrity metadata; they are not arbitrary user-chosen file writes. A second live owner fails closed instead of racing a stale manifest. Hosted `render_png` returns base64 only.
 
 ## Equivalence example
 

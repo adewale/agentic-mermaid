@@ -1,15 +1,20 @@
 import { createHash, randomUUID } from 'node:crypto'
 import {
+  closeSync,
   existsSync,
+  fstatSync,
+  fsyncSync,
   lstatSync,
   mkdirSync,
+  openSync,
   readFileSync,
+  readdirSync,
   renameSync,
-  statSync,
   unlinkSync,
   writeFileSync,
+  writeSync,
 } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { hostname, tmpdir } from 'node:os'
 import { basename, join, resolve, sep } from 'node:path'
 
 export interface ArtifactStoreOptions {
@@ -59,6 +64,7 @@ const DEFAULT_MAX_TOTAL_BYTES = 200 * 1024 * 1024
 const DEFAULT_MAX_ARTIFACTS = 1_000
 const DEFAULT_TTL_MS = 60 * 60 * 1000
 const MANIFEST_NAME = '.agentic-mermaid-artifacts-v1.json'
+const LOCK_NAME = '.agentic-mermaid-artifacts-v1.lock'
 const MAX_MANIFEST_BYTES = 1024 * 1024
 const MANAGED_NAME = /^[0-9a-z]+-[0-9a-f-]{36}\.[a-z0-9_-]+$/
 
@@ -77,6 +83,10 @@ export class ArtifactStore {
   private readonly now: () => number
   private readonly records = new Map<string, TrackedRecord>()
   private readonly manifestPath: string
+  private readonly lockPath: string
+  private readonly lockToken = randomUUID()
+  private lockFd = -1
+  private closed = false
 
   constructor(opts: ArtifactStoreOptions = {}) {
     this.dir = resolve(opts.dir ?? join(tmpdir(), 'agentic-mermaid-mcp-artifacts'))
@@ -89,8 +99,16 @@ export class ArtifactStore {
     this.now = opts.now ?? (() => Date.now())
     mkdirSync(this.dir, { recursive: true, mode: 0o700 })
     this.manifestPath = join(this.dir, MANIFEST_NAME)
-    this.loadManifest()
-    this.cleanupExpired()
+    this.lockPath = join(this.dir, LOCK_NAME)
+    this.acquireOwnership()
+    try {
+      this.loadManifest()
+      this.reconcileManagedFiles()
+      this.cleanupExpired()
+    } catch (error) {
+      this.close()
+      throw error
+    }
   }
 
   setBaseUrl(baseUrl: string | undefined): void {
@@ -100,6 +118,7 @@ export class ArtifactStore {
   hasBaseUrl(): boolean { return typeof this.baseUrl === 'string' && this.baseUrl.length > 0 }
 
   write(bytes: Uint8Array, opts: WriteArtifactOptions): ArtifactRecord {
+    this.assertOpen()
     if (bytes.byteLength > this.maxBytes) throw new Error(`artifact exceeds maxBytes (${bytes.byteLength} > ${this.maxBytes})`)
     if (bytes.byteLength > this.maxTotalBytes) throw new Error(`artifact exceeds maxTotalBytes (${bytes.byteLength} > ${this.maxTotalBytes})`)
     this.cleanupExpired()
@@ -140,6 +159,7 @@ export class ArtifactStore {
   }
 
   read(name: string): StoredArtifact | null {
+    this.assertOpen()
     let path: string
     try { path = safePath(this.dir, name) } catch { return null }
     const record = this.records.get(name)
@@ -174,6 +194,7 @@ export class ArtifactStore {
   }
 
   cleanupExpired(): void {
+    this.assertOpen()
     const cutoff = this.now()
     let changed = false
     for (const [name, record] of this.records) {
@@ -183,6 +204,62 @@ export class ArtifactStore {
       }
     }
     if (changed) this.persistManifest()
+  }
+
+  /** Release exclusive ownership of the artifact directory. Idempotent. */
+  close(): void {
+    if (this.closed) return
+    this.closed = true
+    const fd = this.lockFd
+    this.lockFd = -1
+    try {
+      if (fd < 0 || !existsSync(this.lockPath)) return
+      const held = fstatSync(fd)
+      const current = lstatSync(this.lockPath)
+      if (!current.isFile() || current.isSymbolicLink() || held.dev !== current.dev || held.ino !== current.ino) return
+      const marker = JSON.parse(readFileSync(this.lockPath, 'utf8')) as { token?: unknown }
+      if (marker.token === this.lockToken) unlinkSync(this.lockPath)
+    } catch {
+      // Never remove a marker whose identity cannot be proven to be ours.
+    } finally {
+      if (fd >= 0) try { closeSync(fd) } catch {}
+    }
+  }
+
+  private assertOpen(): void {
+    if (this.closed || this.lockFd < 0) throw new Error('artifact store is closed')
+  }
+
+  private acquireOwnership(): void {
+    let fd = -1
+    try {
+      fd = openSync(this.lockPath, 'wx', 0o600)
+      const marker = JSON.stringify({ schemaVersion: 1, pid: process.pid, host: hostname(), token: this.lockToken })
+      writeSync(fd, marker)
+      fsyncSync(fd)
+      this.lockFd = fd
+    } catch (error) {
+      if (fd >= 0) {
+        try { closeSync(fd) } catch {}
+        try { unlinkSync(this.lockPath) } catch {}
+      }
+      const code = (error as NodeJS.ErrnoException).code
+      if (code === 'EEXIST') {
+        throw new Error(`artifact directory is already owned; remove ${LOCK_NAME} only after confirming no server is using it`)
+      }
+      throw error
+    }
+  }
+
+  private reconcileManagedFiles(): void {
+    for (const name of readdirSync(this.dir)) {
+      if (!MANAGED_NAME.test(name) || this.records.has(name)) continue
+      const path = safePath(this.dir, name)
+      try {
+        const entry = lstatSync(path)
+        if (entry.isFile() || entry.isSymbolicLink()) unlinkSync(path)
+      } catch {}
+    }
   }
 
   private publicRecord(record: TrackedRecord): ArtifactRecord {

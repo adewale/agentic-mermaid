@@ -104,7 +104,7 @@ function preflightCliRenderableSource(source: string): ParsedDiagram {
   return parsed.value
 }
 
-export interface ParsedArgs { command?: string; positional: string[]; flags: Record<string, string | boolean> }
+export interface ParsedArgs { command?: string; positional: string[]; flags: Record<string, string | boolean>; errors: string[] }
 
 // Single source of truth for CLI flags. A flag with no `arg` is a boolean;
 // `arg` is the usage placeholder shown in `[--flag <arg>]`. BOOLEAN_FLAGS is
@@ -183,7 +183,14 @@ export const COMMAND_POSITIONALS = Object.freeze({
 } as const satisfies Record<keyof typeof COMMAND_FLAGS, { readonly min: number; readonly max: number }>)
 
 export function parseArgs(argv: string[]): ParsedArgs {
-  const out: ParsedArgs = { positional: [], flags: {} }
+  const out: ParsedArgs = { positional: [], flags: {}, errors: [] }
+  const record = (name: string, value: string | boolean) => {
+    if (Object.prototype.hasOwnProperty.call(out.flags, name)) {
+      out.errors.push(`Flag --${name} may be supplied only once.`)
+      return
+    }
+    out.flags[name] = value
+  }
   let i = 0
   while (i < argv.length) {
     const arg = argv[i]!
@@ -196,12 +203,14 @@ export function parseArgs(argv: string[]): ParsedArgs {
     }
     if (arg.startsWith('--')) {
       const eq = arg.indexOf('=')
-      if (eq !== -1) out.flags[arg.slice(2, eq)] = arg.slice(eq + 1)
-      else {
-        const name = arg.slice(2)
+      const name = arg.slice(2, eq === -1 ? undefined : eq)
+      if (eq !== -1) {
+        if (BOOLEAN_FLAGS.has(name)) out.errors.push(`Flag --${name} does not accept a value.`)
+        record(name, arg.slice(eq + 1))
+      } else {
         const next = argv[i + 1]
-        if (BOOLEAN_FLAGS.has(name) || next === undefined || next.startsWith('--')) out.flags[name] = true
-        else { out.flags[name] = next; i++ }
+        if (BOOLEAN_FLAGS.has(name) || next === undefined || next.startsWith('--')) record(name, true)
+        else { record(name, next); i++ }
       }
     } else if (!out.command) out.command = arg
     else out.positional.push(arg)
@@ -380,18 +389,19 @@ the AGENTS.md section is always appended only once, guarded by a marker.`,
 
 export function runCli(argv: string[]): number {
   const args = parseArgs(argv)
+  const json = Boolean(args.flags.json)
+  const argError = (message: string): number => {
+    if (json) process.stdout.write(JSON.stringify({ ok: false, error: { code: 'ARG', message } }) + '\n')
+    process.stderr.write(`${message}\n`)
+    return EXIT_ARG_ERROR
+  }
+  if (args.errors.length > 0) return argError(args.errors.join(' '))
   if (args.flags['agent-instructions']) { process.stdout.write(AGENT_INSTRUCTIONS); return EXIT_OK }
   if (args.flags.help && !args.command) { process.stdout.write(GLOBAL_USAGE); return EXIT_OK }
   if (!args.command) { process.stdout.write(GLOBAL_USAGE); return EXIT_ARG_ERROR }
   if (args.flags.help) {
     process.stdout.write((COMMAND_HELP[args.command] ?? GLOBAL_USAGE) + '\n')
     return EXIT_OK
-  }
-  const json = Boolean(args.flags.json)
-  const argError = (message: string): number => {
-    if (json) process.stdout.write(JSON.stringify({ ok: false, error: { code: 'ARG', message } }) + '\n')
-    process.stderr.write(`${message}\n`)
-    return EXIT_ARG_ERROR
   }
   // Unknown flags are ERRORS, not silently-swallowed no-ops (probe-confirmed
   // bug class: `--gantt-toady 2024-01-05` used to exit 0 with no marker and no

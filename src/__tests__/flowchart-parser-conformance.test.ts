@@ -69,13 +69,46 @@ describe('flowchart parser conformance safety floor (issue #36)', () => {
     for (const statement of [
       'frobnicate keep-me',
       'A -- bad ??? B',
-      'direction LR',
       'A -->',
     ]) {
       const source = `flowchart TD\n  A --> B\n  ${statement}`
       expect(() => parseGraph(source), statement).toThrow(/fully consume|invalid flowchart statement/i)
       const parsed = parseMermaid(source)
       expect(parsed.ok, statement).toBe(false)
+    }
+  })
+
+  test('root direction directives override the graph without becoming phantom nodes', () => {
+    const source = 'flowchart TD\n  direction LR\n  A --> B'
+    const graph = parseGraph(source)
+    expect(graph.direction).toBe('LR')
+    expect([...graph.nodes.keys()]).toEqual(['A', 'B'])
+    expect(edgeTriples(source)).toEqual([['A', 'B', undefined]])
+    expect(serializeMermaid(parseAgent(source))).toStartWith('flowchart LR\n')
+  })
+
+  test('quoted edge labels may contain closer and pipe syntax without ending early', () => {
+    const textArrow = 'flowchart LR\n  A -- "go --> now" --> B --> C'
+    expect(edgeTriples(textArrow)).toEqual([
+      ['A', 'B', 'go --> now'],
+      ['B', 'C', undefined],
+    ])
+
+    const pipeArrow = 'flowchart LR\n  A -->|"left | right"| B --> C'
+    expect(edgeTriples(pipeArrow)).toEqual([
+      ['A', 'B', 'left | right'],
+      ['B', 'C', undefined],
+    ])
+
+    const marker = parseGraph('flowchart LR\n  A e1@-- "not --x yet" --x B --> C')
+    expect(marker.edges[0]).toMatchObject({ id: 'e1', label: 'not --x yet', endMarker: 'cross' })
+    expect(marker.edges[1]).toMatchObject({ source: 'B', target: 'C' })
+    expect(marker.edges[1]!.id).toBeUndefined()
+  })
+
+  test('unterminated quoted edge syntax fails closed', () => {
+    for (const statement of ['A -- "only --> inside" B', 'A -->|"left | right" B']) {
+      expect(() => parseGraph(`flowchart LR\n  ${statement}`), statement).toThrow(/fully consume/i)
     }
   })
 

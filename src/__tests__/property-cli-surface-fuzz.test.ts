@@ -144,6 +144,7 @@ describe('cli-surface fuzz: runBatchLine', () => {
       command: 'render',
       positional: ['--looks-like-a-flag'],
       flags: {},
+      errors: [],
     })
   })
 

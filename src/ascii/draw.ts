@@ -377,6 +377,29 @@ export function drawLine(
  *
  * Supports bidirectional arrows via edge.hasArrowStart and edge.hasArrowEnd.
  */
+function reciprocalHorizontalLaneOffset(
+  graph: AsciiGraph,
+  edge: AsciiEdge,
+  startPoint: DrawingCoord,
+  endPoint: DrawingCoord,
+): number {
+  if (edge.routeClass !== 'feedback' || edge.bundle || edge.fromSubgraph || edge.toSubgraph
+    || edge.path.length !== 2 || edge.path[0]!.y !== edge.path[1]!.y
+    || !(dirEquals(edge.startDir, Left) || dirEquals(edge.startDir, Right))
+    || !(dirEquals(edge.endDir, Left) || dirEquals(edge.endDir, Right))) return 0
+  const opposite = graph.edges.some(other => other !== edge && other.from === edge.to && other.to === edge.from)
+  if (!opposite) return 0
+  const inside = (node: AsciiNode, point: DrawingCoord, offset: number) => {
+    if (!node.drawing || !node.drawingCoord) return false
+    const [, height] = getCanvasSize(node.drawing)
+    const y = point.y + offset
+    return y > node.drawingCoord.y && y < node.drawingCoord.y + height
+  }
+  if (inside(edge.from, startPoint, 1) && inside(edge.to, endPoint, 1)) return 1
+  if (inside(edge.from, startPoint, -1) && inside(edge.to, endPoint, -1)) return -1
+  return 0
+}
+
 export function drawArrow(
   graph: AsciiGraph,
   edge: AsciiEdge,
@@ -393,13 +416,20 @@ export function drawArrow(
     return drawContainerEdge(graph, edge)
   }
 
-  const labelCanvas = drawArrowLabel(graph, edge)
-  const startPoint = edge.fromSubgraph
+  const baseStartPoint = edge.fromSubgraph
     ? getSubgraphAttachmentPoint(graph, edge.fromSubgraph, edge.from, edge.startDir)
     : getNodeAttachmentPoint(graph, edge.from, edge.startDir)
-  const endPoint = edge.toSubgraph
+  const baseEndPoint = edge.toSubgraph
     ? getSubgraphAttachmentPoint(graph, edge.toSubgraph, edge.to, edge.endDir)
-    : undefined
+    : getNodeAttachmentPoint(graph, edge.to, edge.endDir)
+  // A reciprocal two-cycle needs two disjoint terminal rows. Merge precedence
+  // cannot preserve two labels and two markers that occupy the same cells.
+  const laneOffset = reciprocalHorizontalLaneOffset(graph, edge, baseStartPoint, baseEndPoint)
+  const startPoint = laneOffset === 0 ? baseStartPoint : { x: baseStartPoint.x, y: baseStartPoint.y + laneOffset }
+  const endPoint = edge.toSubgraph
+    ? baseEndPoint
+    : laneOffset === 0 ? undefined : { x: baseEndPoint.x, y: baseEndPoint.y + laneOffset }
+  const labelCanvas = drawArrowLabel(graph, edge, laneOffset)
   const [pathCanvas, linesDrawn, lineDirs] = drawPath(graph, edge.path, edge.style, startPoint, endPoint)
   const isStatePseudo = !edge.fromSubgraph && (edge.from.shape === 'state-start' || edge.from.shape === 'state-end')
   const boxStartCanvas = isStatePseudo
@@ -896,11 +926,12 @@ function drawCorners(graph: AsciiGraph, path: GridCoord[]): Canvas {
 }
 
 /** Draw edge label text centered on the widest path segment. */
-function drawArrowLabel(graph: AsciiGraph, edge: AsciiEdge): Canvas {
+function drawArrowLabel(graph: AsciiGraph, edge: AsciiEdge, laneOffset = 0): Canvas {
   const canvas = copyCanvas(graph.canvas)
   if (edge.text.length === 0) return canvas
 
   const drawingLine = lineToDrawing(graph, edge.labelLine)
+    .map(point => laneOffset === 0 ? point : { x: point.x, y: point.y + laneOffset })
 
   // Offset labels only for true bidirectional pairs. Ordinary downward
   // fan-out branches should keep labels centered on the branch, not shifted

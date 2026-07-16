@@ -158,7 +158,9 @@ export function lowerPieScene(
     const pct = formatPiePercent(slice.fraction)
     const channels = { category: slice.label, value: slice.fraction }
     const sliceRole = resolveRoleStyle(resolved.styleFace, 'pie-slice', channels, { includeFallback: false })
-    const fill = sliceRole?.fillColor ?? fills[index]!
+    // An indexed Mermaid `pieN` theme variable is authored concrete paint;
+    // role/binding paint is a default beneath it, never a repaint authority.
+    const fill = visual.paletteOverrides[index] ?? sliceRole?.fillColor ?? fills[index]!
     const sliceStroke = visual.strokeColor ?? sliceRole?.strokeColor ?? sliceRole?.borderColor ?? style.nodeBorderColor ?? 'var(--bg)'
     const sliceStrokeWidth = visual.strokeWidth ?? sliceRole?.lineWidth ?? style.nodeLineWidth
     const cue = sliceRole?.cue ?? 'none'

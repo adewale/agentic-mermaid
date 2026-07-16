@@ -190,7 +190,7 @@ import { prepareRenderInput } from './render-input.ts'
 import type { ParsedDiagram, ValidDiagram, RenderedLayout, RenderedRegion } from './types.ts'
 import type { RenderOptions } from '../types.ts'
 import { receiptOf as _receiptOf, resolveRenderRequestForExecution as _resolveRenderRequest } from '../render-contract.ts'
-import { familyArtifactSource, layoutResolvedFamilyToRendered } from './family-layouts.ts'
+import { layoutResolvedFamilyToRendered } from './family-layouts.ts'
 import { emitResolvedConfigDiagnostics } from '../render-config-diagnostics.ts'
 import { collectActionRecords as collectRenderedActionRecords } from './analyze.ts'
 import { toFinite } from './types.ts'
@@ -233,10 +233,7 @@ export function layoutMermaidWithReceipt(
   const { debug, regions, actions, ...renderOptions } = opts
   const layoutOptions = { debug, regions, actions }
   const preparedInput = prepareRenderInput(input)
-  // Parsed flowcharts retain authored root/group declaration order; families
-  // whose typed body is the positioning authority use the same canonical
-  // source projection as every SVG/verify path.
-  const source = typeof input === 'string' ? preparedInput.source : familyArtifactSource(input)
+  const source = preparedInput.source
   const request = _resolveRenderRequest(source, renderOptions, 'layout', layoutOptions, {
     expectedFamilyId: preparedInput.expectedFamilyId,
   })

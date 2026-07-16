@@ -47,6 +47,7 @@ function findBinary(name: string, extra: string[] = []): string | null {
 }
 const NODE = findBinary('node', ['/opt/node22/bin/node'])
 const NPM = findBinary('npm')
+if (!NODE || !NPM) throw new Error('tarball consumer gate requires plain Node and npm executables')
 
 // ---------------------------------------------------------------------------
 // Reference (source build, Bun). Node drivers below mirror this tag logic.
@@ -111,7 +112,6 @@ let binShimMcp = ''
 let haveConsumer = false
 
 beforeAll(() => {
-  if (!NODE || !NPM) return // env limitation → tests skip.
   const build = spawnSync('bun', ['run', 'build'], { cwd: REPO, encoding: 'utf8', timeout: BUILD_TIMEOUT_MS })
   if (build.status !== 0) throw new Error(`bun run build failed (${build.status}):\n${build.stderr ?? ''}`)
 
@@ -134,8 +134,6 @@ beforeAll(() => {
   for (const p of [amBin, mcpBin]) if (!existsSync(p)) throw new Error(`installed bin missing: ${p}`)
   haveConsumer = true
 }, BUILD_TIMEOUT_MS + INSTALL_TIMEOUT_MS + RUN_TIMEOUT_MS)
-
-const fn = NODE && NPM ? test : test.skip
 
 // ---------------------------------------------------------------------------
 // T1 — installed library, imported by bare specifier and run under Node.
@@ -169,7 +167,7 @@ process.stdout.write(JSON.stringify({ resolved, results }))
 `
 
 describe('installed tarball — library', () => {
-  fn('resolves both entry points and renders identically to source (crash parity + flowchart byte-equality)', () => {
+  test('resolves both entry points and renders identically to source (crash parity + flowchart byte-equality)', () => {
     expect(haveConsumer).toBe(true)
     const flow = fc.sample(flowchartArb, 50)
     const mixed = fc.sample(mixedArb, 50)
@@ -229,7 +227,7 @@ describe('installed tarball — library', () => {
 // T2 — the `am` bin under Node.
 // ---------------------------------------------------------------------------
 describe('installed tarball — am bin', () => {
-  fn('batch --jsonl: one result per line, bad lines never abort, ASCII matches source', () => {
+  test('batch --jsonl: one result per line, bad lines never abort, ASCII matches source', () => {
     expect(haveConsumer).toBe(true)
     // Interleave valid ASCII-render ops (differential), other ops, and hostile
     // lines (non-JSON, JSON-but-invalid) to prove the stream never aborts.
@@ -266,7 +264,7 @@ describe('installed tarball — am bin', () => {
     expect(mismatches).toEqual([])
   }, RUN_TIMEOUT_MS)
 
-  fn('Mindmap and GitGraph parse/render identically through the installed CLI', () => {
+  test('Mindmap and GitGraph parse/render identically through the installed CLI', () => {
     expect(haveConsumer).toBe(true)
     for (const fixture of PACKAGE_FAMILY_FIXTURES) {
       const file = join(work, `${fixture.family}.mmd`)
@@ -294,7 +292,7 @@ describe('installed tarball — am bin', () => {
     }
   }, RUN_TIMEOUT_MS)
 
-  fn('render across formats + not-found file yield valid exit codes, never a crash', () => {
+  test('render across formats + not-found file yield valid exit codes, never a crash', () => {
     expect(haveConsumer).toBe(true)
     const file = join(work, 'd.mmd')
     writeFileSync(file, 'flowchart TD\n  A[Start] --> B{Choice}\n  B -->|yes| C\n  B -->|no| D\n')
@@ -317,14 +315,14 @@ describe('installed tarball — am bin', () => {
 // T3 — the `agentic-mermaid-mcp` bin under Node (stdio JSON-RPC).
 // ---------------------------------------------------------------------------
 describe('installed tarball — mcp bin', () => {
-  fn('default package binary routes the registry mcp argument', () => {
+  test('default package binary routes the registry mcp argument', () => {
     expect(haveConsumer).toBe(true)
     const r = spawnSync(NODE!, [amBin, 'mcp', '--help'], { cwd: work, encoding: 'utf8', timeout: RUN_TIMEOUT_MS })
     expect({ status: r.status, stderr: r.stderr }).toEqual({ status: 0, stderr: '' })
     expect(r.stdout).toContain('agentic-mermaid-mcp [--transport stdio|http]')
   }, RUN_TIMEOUT_MS)
 
-  fn('Mindmap and GitGraph stay structured and source-equal through the installed MCP', () => {
+  test('Mindmap and GitGraph stay structured and source-equal through the installed MCP', () => {
     expect(haveConsumer).toBe(true)
     const requests = PACKAGE_FAMILY_FIXTURES.map((fixture, index) => ({
       jsonrpc: '2.0', id: index + 1, method: 'tools/call', params: {
@@ -351,7 +349,7 @@ describe('installed tarball — mcp bin', () => {
     })
   }, RUN_TIMEOUT_MS)
 
-  fn('stdio preserves unsafe numeric JSON-RPC id tokens exactly', () => {
+  test('stdio preserves unsafe numeric JSON-RPC id tokens exactly', () => {
     expect(haveConsumer).toBe(true)
     const ids = ['9007199254740993', '9007199254740993.0', '9.007199254740993e15']
     const input = ids.map(id => `{"jsonrpc":"2.0","id":${id},"method":"ping"}`).join('\n') + '\n'
@@ -364,7 +362,7 @@ describe('installed tarball — mcp bin', () => {
     for (const id of ids) expect(output.some(line => line.includes(`"id":${id}`))).toBe(true)
   }, RUN_TIMEOUT_MS)
 
-  fn('generated JSON-RPC over stdio yields well-formed responses and never crashes', () => {
+  test('generated JSON-RPC over stdio yields well-formed responses and never crashes', () => {
     expect(haveConsumer).toBe(true)
     const codes = fc.sample(codeArb, 18)
     const sources = fc.sample(mixedArb, 8)

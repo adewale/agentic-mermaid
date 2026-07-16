@@ -383,10 +383,12 @@ function parseFlowchart(lines: string[]): MermaidGraph {
         continue
       }
 
-      // --- direction override inside subgraph: `direction LR` ---
+      // --- direction override: root graph or innermost subgraph ---
       const dirMatch = line.match(/^direction\s+(TD|TB|LR|BT|RL)\s*$/i)
-      if (dirMatch && subgraphStack.length > 0) {
-        subgraphStack[subgraphStack.length - 1]!.direction = dirMatch[1]!.toUpperCase() as Direction
+      if (dirMatch) {
+        const direction = dirMatch[1]!.toUpperCase() as Direction
+        if (subgraphStack.length > 0) subgraphStack[subgraphStack.length - 1]!.direction = direction
+        else graph.direction = direction
         continue
       }
 
@@ -864,16 +866,78 @@ function ensureStateNode(
  *
  * Optional label: -->|label text|
  */
-const ARROW_REGEX = /^(<)?(~{3,}|-\.+->|-\.+-|={2,}>|={3,}|o-{2,}o|o-{2,}x|x-{2,}o|x-{2,}x|-{2,}[ox]|-{2,}>|-{3,})(?:\|([^|]*)\|)?/
+const ARROW_REGEX = /^(<)?(~{3,}|-\.+->|-\.+-|={2,}>|={3,}|o-{2,}o|o-{2,}x|x-{2,}o|x-{2,}x|-{2,}[ox]|-{2,}>|-{3,})/
 
-/**
- * Text-embedded label regex — matches "-- label -->", "-. label .->", "== label ==>"
- * syntax, with variable-length shafts on both the opener and the closer.
- * Tried as fallback when ARROW_REGEX doesn't match.
- *
- * Based on PR #36 by @liuxiaopai-ai (https://github.com/lukilabs/beautiful-mermaid/pull/36)
- */
-const TEXT_ARROW_REGEX = /^(<)?(-{2,}|-\.+|={2,})\s*(.+?)\s*(-{2,}[>ox]|-{3,}|\.+->|-\.+-|={2,}>|={3,})/
+function closingWholePipeLabelQuote(text: string): number {
+  const open = text.slice(1).search(/\S/) + 1
+  if (open < 1 || text[open] !== '"') return -1
+  let escaped = false
+  for (let index = open + 1; index < text.length; index++) {
+    const char = text[index]!
+    if (escaped) { escaped = false; continue }
+    if (char === '\\') { escaped = true; continue }
+    if (char === '"' && /^\s*\|/.test(text.slice(index + 1))) return index
+  }
+  return -1
+}
+
+function consumePipeLabel(text: string): { rawLabel: string; consumed: number } | null {
+  if (!text.startsWith('|')) return null
+  const quotedClose = closingWholePipeLabelQuote(text)
+  for (let index = 1; index < text.length; index++) {
+    if (quotedClose >= 0 && index < quotedClose && text[index] === '|') continue
+    if (text[index] === '|') return { rawLabel: text.slice(1, index), consumed: index + 1 }
+  }
+  return null
+}
+
+/** Quote-aware consumer for `-- label -->`, `-. label .->`, and `== label ==>`.
+ * Closer-shaped text inside a Mermaid double-quoted label is paint, not syntax. */
+const TEXT_ARROW_OPEN_REGEX = /^(<)?(-{2,}|-\.+|={2,})/
+const TEXT_ARROW_CLOSE_REGEX = /^(-{2,}[>ox]|-{3,}|\.+->|-\.+-|={2,}>|={3,})/
+
+interface ConsumedTextArrow {
+  hasArrowStart: boolean
+  openOp: string
+  rawLabel: string
+  closeOp: string
+  consumed: number
+}
+
+function closingWholeTextArrowLabelQuote(text: string, start: number): number {
+  const relativeOpen = text.slice(start).search(/\S/)
+  const open = relativeOpen < 0 ? -1 : start + relativeOpen
+  if (open < start || text[open] !== '"') return -1
+  let escaped = false
+  for (let index = open + 1; index < text.length; index++) {
+    const char = text[index]!
+    if (escaped) { escaped = false; continue }
+    if (char === '\\') { escaped = true; continue }
+    if (char === '"' && /^\s*(?:-{2,}[>ox]|-{3,}|\.+->|-\.+-|={2,}>|={3,})/.test(text.slice(index + 1))) return index
+  }
+  return -1
+}
+
+function consumeTextArrow(text: string): ConsumedTextArrow | null {
+  const opener = text.match(TEXT_ARROW_OPEN_REGEX)
+  if (!opener) return null
+  const quotedClose = closingWholeTextArrowLabelQuote(text, opener[0].length)
+  for (let index = opener[0].length; index < text.length; index++) {
+    if (quotedClose >= 0 && index < quotedClose) continue
+    const closer = text.slice(index).match(TEXT_ARROW_CLOSE_REGEX)
+    if (!closer) continue
+    const rawLabel = text.slice(opener[0].length, index).trim()
+    if (rawLabel.length === 0) continue
+    return {
+      hasArrowStart: Boolean(opener[1]),
+      openOp: opener[2]!,
+      rawLabel,
+      closeOp: closer[1]!,
+      consumed: index + closer[0].length,
+    }
+  }
+  return null
+}
 
 /**
  * Node shape patterns — ordered from most specific delimiters to least.
@@ -918,7 +982,7 @@ function consumeBareNodeId(text: string): { id: string; length: number } | null 
 }
 
 function startsFlowchartArrow(text: string): boolean {
-  return ARROW_REGEX.test(text) || TEXT_ARROW_REGEX.test(text)
+  return ARROW_REGEX.test(text) || consumeTextArrow(text) !== null
 }
 
 function nodePatternSwallowedArrow(text: string, idLength: number): boolean {
@@ -994,9 +1058,16 @@ function parseEdgeLine(
     const arrowMatch = remaining.match(ARROW_REGEX)
     if (arrowMatch) {
       const arrowOp = arrowMatch[2]!
-      const rawEdgeLabel = arrowMatch[3]?.trim()
-      edgeLabel = rawEdgeLabel ? parseLabelText(rawEdgeLabel).text : undefined
-      remaining = remaining.slice(arrowMatch[0].length).trim()
+      let consumed = arrowMatch[0].length
+      const labelSuffix = remaining.slice(consumed)
+      if (labelSuffix.startsWith('|')) {
+        const pipeLabel = consumePipeLabel(labelSuffix)
+        if (!pipeLabel) return { ok: false, remaining: labelSuffix, reason: 'expected edge target' }
+        const rawEdgeLabel = pipeLabel.rawLabel.trim()
+        edgeLabel = rawEdgeLabel ? parseLabelText(rawEdgeLabel).text : undefined
+        consumed += pipeLabel.consumed
+      }
+      remaining = remaining.slice(consumed).trim()
       style = arrowStyleFromOp(arrowOp)
       length = arrowLengthFromOp(arrowOp)
       startMarker = startMarkerForOp(arrowOp, Boolean(arrowMatch[1]))
@@ -1005,18 +1076,15 @@ function parseEdgeLine(
       hasArrowEnd = endMarker !== undefined
     } else {
       // Fallback: text-embedded label syntax (-- Yes -->, -. Maybe .->, == Sure ==>)
-      const textMatch = remaining.match(TEXT_ARROW_REGEX)
-      if (!textMatch) return { ok: false, remaining, reason: 'expected edge operator' }
-      hasArrowStart = Boolean(textMatch[1])
-      const rawLabel = textMatch[3]!.trim()
-      edgeLabel = rawLabel ? parseLabelText(rawLabel).text : undefined
-      const openOp = textMatch[2]!
-      const closeOp = textMatch[4]!
-      remaining = remaining.slice(textMatch[0].length).trim()
-      style = textArrowStyleFromOps(openOp, closeOp)
-      length = textArrowLengthFromOps(openOp, closeOp)
+      const textArrow = consumeTextArrow(remaining)
+      if (!textArrow) return { ok: false, remaining, reason: 'expected edge operator' }
+      hasArrowStart = textArrow.hasArrowStart
+      edgeLabel = parseLabelText(textArrow.rawLabel).text
+      remaining = remaining.slice(textArrow.consumed).trim()
+      style = textArrowStyleFromOps(textArrow.openOp, textArrow.closeOp)
+      length = textArrowLengthFromOps(textArrow.openOp, textArrow.closeOp)
       startMarker = hasArrowStart ? 'arrow' : undefined
-      endMarker = endMarkerForOp(closeOp)
+      endMarker = endMarkerForOp(textArrow.closeOp)
       hasArrowEnd = endMarker !== undefined
     }
 

@@ -65,12 +65,23 @@ config:
       plotColorPalette: "#654321"
 ---
 ${XY}`
+    const authoredPie = `---
+config:
+  themeVariables:
+    pie1: "#2468ac"
+---
+pie
+  "Current" : 4
+  "Other" : 3`
     const radarSvg = renderMermaidSVG(authoredRadar, { style: STYLE as any })
     const xySvg = renderMermaidSVG(authoredXY, { style: STYLE as any })
+    const pieSvg = renderMermaidSVG(authoredPie, { style: STYLE as any })
 
     expect(radarSvg).toMatch(/class="radar-area"[^>]*fill="#123456"/)
     expect(radarSvg).not.toMatch(/class="radar-area"[^>]*fill="#ff00ff"/)
     expect(xySvg).toContain('--xychart-color-0: #654321;')
     expect(xySvg).not.toMatch(/class="xychart-bar[^>]*style="[^"]*fill:#ff00ff/)
+    expect(pieSvg).toMatch(/class="pie-slice"[^>]*fill="#2468ac"/)
+    expect(pieSvg).not.toMatch(/class="pie-slice"[^>]*fill="#ff00ff"/)
   })
 })

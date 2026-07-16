@@ -221,14 +221,16 @@ visually or with a font-specific render fixture.
 
 Diagram geometry uses the deterministic proportional measurement contract
 recorded in `TEXT_MEASUREMENT_CONTRACT`; it never reads ambient system-font
-state. For an unbundled custom family, SVG adds `textLength` with
-`lengthAdjust="spacingAndGlyphs"` so the painted glyph advance is fitted to the
-same width layout reserved. Native and browser PNG consume that secured SVG, so
-a materially wider face cannot silently overflow its measured box. The tradeoff
-is explicit: unusually wide or narrow custom glyphs may be horizontally fitted
-rather than changing deterministic layout. Bundled calibrated faces retain
-their natural advances. Test long labels across the target families for visual
-quality, especially when a face has extreme proportions.
+state. Every continuous painted text advance—bundled, monospace, or custom—gets
+SVG `textLength` with `lengthAdjust="spacingAndGlyphs"`, because loading a font
+resource does not calibrate its metrics to the layout estimator. Independently
+positioned multiline tspans are fitted per line, while nested formatting
+contributes inherited size, weight, and tracking to that line's width. Explicit
+emitter-owned `textLength` remains authoritative. Native and browser PNG consume
+the same secured SVG, so a materially wider face cannot silently overflow its
+measured box. The tradeoff is explicit: unusually wide or narrow glyphs may be
+horizontally fitted rather than changing deterministic layout. Test long labels
+across target families for visual quality, especially for extreme proportions.
 
 ## Troubleshooting
 

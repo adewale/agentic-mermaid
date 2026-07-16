@@ -46,6 +46,7 @@ function findNodeBinary(): string | null {
 }
 
 const NODE = findNodeBinary()
+if (!NODE) throw new Error('dist artifact gate requires a plain Node executable')
 
 // ---------------------------------------------------------------------------
 // Reference evaluation (source build, Bun). The Node driver below mirrors this
@@ -142,8 +143,6 @@ function runDriver(inputs: string[], pngN: number): Array<{ layout: string; svg:
   return JSON.parse(r.stdout)
 }
 
-const fn = NODE ? test : test.skip
-
 describe('dist artifact differential fuzz (built bundle, plain Node)', () => {
   test('public source and built declarations both hide internal Style aliases', () => {
     expect(haveDist).toBe(true)
@@ -156,7 +155,7 @@ describe('dist artifact differential fuzz (built bundle, plain Node)', () => {
     }
   })
 
-  fn('dist-under-Node matches src-under-Bun: crash parity (all families) + byte-equality (flowcharts)', () => {
+  test('dist-under-Node matches src-under-Bun: crash parity (all families) + byte-equality (flowcharts)', () => {
     expect(haveDist).toBe(true)
     const flowInputs = fc.sample(flowchartArb, FLOW_N)
     // Deterministic success control: fuzz frequency cannot decide whether a

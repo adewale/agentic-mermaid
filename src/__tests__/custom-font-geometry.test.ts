@@ -33,29 +33,54 @@ describe('deterministic custom-font geometry', () => {
     }
   })
 
-  test('multiline/color tspans and monospace semantic text use their layout measurement authorities', () => {
+  test('positioned lines and monospace semantic text use their layout measurement authorities', () => {
     const projected = fitUncalibratedSvgText(
-      '<svg><text font-size="12" font-weight="600"><tspan>Alpha</tspan><tspan>Beta</tspan></text><text class="mono" font-size="11">code()</text></svg>',
+      '<svg><text font-size="12" font-weight="600"><tspan x="0">Alpha</tspan><tspan x="0" dy="14">Beta</tspan></text><text class="mono" font-size="11">code()</text></svg>',
       'Acme Wide',
     )
     expect(projected.match(/lengthAdjust="spacingAndGlyphs"/g)).toHaveLength(3)
     expect(projected).toContain(`class="mono" font-size="11" textLength="${measureMonospaceTextWidth('code()', 11)}"`)
   })
 
+  test('mixed plain and formatted content is fitted as one continuous painted advance', () => {
+    const fitted = fitUncalibratedSvgText(
+      '<svg><text font-size="13" font-weight="500">plain <tspan font-weight="bold">bold</tspan> tail</text></svg>',
+      'Acme Wide',
+    )
+    const expected = Math.round((
+      measureFormattedTextWidth('plain ', 13, 500)
+      + measureFormattedTextWidth('bold', 13, 700)
+      + measureFormattedTextWidth(' tail', 13, 500)
+    ) * 1000) / 1000
+    expect(fitted).toContain(`<text font-size="13" font-weight="500" textLength="${expected}"`)
+    expect(fitted).toContain('plain <tspan font-weight="bold">bold</tspan> tail')
+    expect(fitUncalibratedSvgText(fitted, 'Acme Wide')).toBe(fitted)
+  })
+
+  test('multiline formatted content fits each positioned line without scaling the parent', () => {
+    const fitted = fitUncalibratedSvgText(
+      '<svg><text font-size="13"><tspan x="10" y="20">plain <tspan font-weight="bold">bold</tspan></tspan><tspan x="10" dy="16">tail</tspan></text></svg>',
+      'Acme Wide',
+    )
+    expect(fitted.match(/data-font-metrics="deterministic-fit"/g)).toHaveLength(2)
+    expect(fitted).toMatch(/<text font-size="13"><tspan x="10" y="20" textLength=/)
+    expect(fitted).toMatch(/<tspan x="10" dy="16" textLength=/)
+  })
+
   test('symbolic tspan weights resolve before deterministic width measurement', () => {
     const roundedWidth = (text: string, weight: number) =>
       Math.round(measureFormattedTextWidth(text, 13, weight) * 1000) / 1000
     const fitted = fitUncalibratedSvgText(
-      '<svg><text font-size="13" font-weight="500"><tspan font-weight="bold">world</tspan><tspan font-weight="bolder">heavy</tspan><tspan font-weight="lighter">light</tspan><tspan font-weight="625">numeric</tspan></text><text font-size="13" font-weight="700"><tspan font-weight="normal">plain</tspan><tspan font-weight="bolder">heavier</tspan><tspan font-weight="lighter">lighter</tspan></text></svg>',
+      '<svg><text font-size="13" font-weight="500"><tspan x="0" font-weight="bold">world</tspan><tspan x="0" font-weight="bolder">heavy</tspan><tspan x="0" font-weight="lighter">light</tspan><tspan x="0" font-weight="625">numeric</tspan></text><text font-size="13" font-weight="700"><tspan x="0" font-weight="normal">plain</tspan><tspan x="0" font-weight="bolder">heavier</tspan><tspan x="0" font-weight="lighter">lighter</tspan></text></svg>',
       'Acme Wide',
     )
-    expect(fitted).toContain(`<tspan font-weight="bold" textLength="${roundedWidth('world', 700)}"`)
-    expect(fitted).toContain(`<tspan font-weight="bolder" textLength="${roundedWidth('heavy', 700)}"`)
-    expect(fitted).toContain(`<tspan font-weight="lighter" textLength="${roundedWidth('light', 100)}"`)
-    expect(fitted).toContain(`<tspan font-weight="625" textLength="${roundedWidth('numeric', 625)}"`)
-    expect(fitted).toContain(`<tspan font-weight="normal" textLength="${roundedWidth('plain', 400)}"`)
-    expect(fitted).toContain(`<tspan font-weight="bolder" textLength="${roundedWidth('heavier', 900)}"`)
-    expect(fitted).toContain(`<tspan font-weight="lighter" textLength="${roundedWidth('lighter', 400)}"`)
+    expect(fitted).toContain(`<tspan x="0" font-weight="bold" textLength="${roundedWidth('world', 700)}"`)
+    expect(fitted).toContain(`<tspan x="0" font-weight="bolder" textLength="${roundedWidth('heavy', 700)}"`)
+    expect(fitted).toContain(`<tspan x="0" font-weight="lighter" textLength="${roundedWidth('light', 100)}"`)
+    expect(fitted).toContain(`<tspan x="0" font-weight="625" textLength="${roundedWidth('numeric', 625)}"`)
+    expect(fitted).toContain(`<tspan x="0" font-weight="normal" textLength="${roundedWidth('plain', 400)}"`)
+    expect(fitted).toContain(`<tspan x="0" font-weight="bolder" textLength="${roundedWidth('heavier', 900)}"`)
+    expect(fitted).toContain(`<tspan x="0" font-weight="lighter" textLength="${roundedWidth('lighter', 400)}"`)
   })
 
   test('role-local font families are fitted through the same projection as the global face', () => {
@@ -73,7 +98,7 @@ describe('deterministic custom-font geometry', () => {
     expect(fitted).toContain('lengthAdjust="spacingAndGlyphs"')
   })
 
-  test('existing explicit geometry, missing metrics, empty text, and nested markup remain emitter-owned', () => {
+  test('existing explicit geometry remains emitter-owned while nested text inherits deterministic fitting', () => {
     const existing = '<svg><text font-size="14" textLength="99">Owned</text></svg>'
     expect(fitUncalibratedSvgText(existing, 'Acme Wide')).toBe(existing)
     const missingSize = '<svg><text>Unknown size</text></svg>'
@@ -81,7 +106,7 @@ describe('deterministic custom-font geometry', () => {
     const empty = '<svg><text font-size="14"></text></svg>'
     expect(fitUncalibratedSvgText(empty, 'Acme Wide')).toBe(empty)
     const nested = '<svg><text font-size="14"><a href="#local">Linked</a></text></svg>'
-    expect(fitUncalibratedSvgText(nested, 'Acme Wide')).toBe(nested)
+    expect(fitUncalibratedSvgText(nested, 'Acme Wide')).toContain('<text font-size="14" textLength=')
   })
 
   test('repeated wide glyphs remain inside estimator-sized node geometry for every bundled face', () => {

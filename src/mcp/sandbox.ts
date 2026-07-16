@@ -3,6 +3,7 @@
 import vm from 'node:vm'
 import { createTracingMermaid, expressionFirstWraps, unsupportedCodeReason, marshalCodeModeResult, CODE_MODE_RETURN_HINT } from './facade.ts'
 import {
+  DEFAULT_EXECUTE_TIMEOUT_MS,
   LOGS_TRUNCATED_MARKER,
   normalizeExecuteOutputLimits,
   utf8ByteLength,
@@ -38,7 +39,7 @@ export async function executeInSandbox(code: string, opts: ExecuteOptions = {}):
 }
 
 function runInSandbox(code: string, opts: ExecuteOptions = {}): ExecuteResult {
-  const timeoutMs = opts.timeoutMs ?? 5000
+  const timeoutMs = opts.timeoutMs ?? DEFAULT_EXECUTE_TIMEOUT_MS
   const outputLimits = normalizeExecuteOutputLimits(opts.outputLimits)
   const startedAt = performance.now()
   const remainingBudgetMs = () => Math.floor(timeoutMs - (performance.now() - startedAt))

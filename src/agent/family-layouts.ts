@@ -51,6 +51,7 @@ import type {
 import { toFinite } from './types.ts'
 import { emptyRenderedLayout, positionedGraphToRenderedView } from './layout-to-rendered.ts'
 import { serializeMermaid } from './serialize.ts'
+import { renderSourceForParsedDiagram } from './render-input.ts'
 import { getFamily } from './families.ts'
 import type {
   FamilyPositionedProjectionContext, FamilyPositionedProjectionOptions,
@@ -212,24 +213,7 @@ export function projectPositionedView(
  * parsing and positioning.
  */
 export function familyArtifactSource(d: ParsedDiagram): string {
-  // These descriptors position from typed/segment-preserving bodies. Their
-  // canonicalSource may be stale in a caller-constructed ParsedDiagram, and
-  // inline semicolon syntax may be less expressive than canonical serialization.
-  // Flowchart deliberately remains source-owned so authored root/group order
-  // survives positioning; opaque bodies are always byte-source-owned.
-  const bodyOwnsPositioning = d.body.kind === 'extension'
-    || d.kind === 'state'
-    || d.kind === 'sequence'
-    || d.kind === 'quadrant'
-    || d.kind === 'xychart'
-    || d.kind === 'pie'
-    || d.kind === 'gantt'
-    || d.kind === 'mindmap'
-    || d.kind === 'gitgraph'
-    || d.kind === 'radar'
-  return d.body.kind !== 'opaque' && bodyOwnsPositioning
-    ? serializeMermaid(d)
-    : d.canonicalSource
+  return renderSourceForParsedDiagram(d)
 }
 
 export function positionFamilyArtifact(

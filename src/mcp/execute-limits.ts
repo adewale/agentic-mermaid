@@ -4,6 +4,8 @@ export interface ExecuteOutputLimits {
   readonly maxLogBytes: number
 }
 
+export const DEFAULT_EXECUTE_TIMEOUT_MS = 5_000
+
 export const DEFAULT_EXECUTE_OUTPUT_LIMITS: Readonly<ExecuteOutputLimits> = Object.freeze({
   maxResultBytes: 2 * 1024 * 1024,
   maxLogEntries: 1_000,
