@@ -162,7 +162,7 @@ export function lowerArchitectureScene(
 
   parts.push(marks.documentClose())
 
-  return { family: 'architecture', width: diagram.width, height: diagram.height, colors, parts }
+  return { family: 'architecture', width: diagram.width, height: diagram.height, colors, transparent, parts }
 }
 
 function architectureStyles(visual: ArchitectureVisualConfig): string {

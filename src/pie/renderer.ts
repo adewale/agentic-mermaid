@@ -344,7 +344,7 @@ export function lowerPieScene(
 
   parts.push(marks.documentClose())
 
-  return { family: 'pie', width: chart.width, height: chart.height, colors, parts }
+  return { family: 'pie', width: chart.width, height: chart.height, colors, transparent, parts }
 }
 
 function outerStrokeColor(visual: PieVisualConfig, style: ResolvedRenderStyle): string {

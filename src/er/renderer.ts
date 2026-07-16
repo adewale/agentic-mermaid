@@ -146,7 +146,7 @@ export function lowerErScene(
 
   parts.push(marks.documentClose())
 
-  return { family: 'er', width: diagram.width, height: diagram.height, colors, parts }
+  return { family: 'er', width: diagram.width, height: diagram.height, colors, transparent, parts }
 }
 
 function renderErGroup(group: PositionedErGroup, style: ResolvedRenderStyle): SceneNode {

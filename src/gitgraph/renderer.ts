@@ -116,7 +116,7 @@ export function lowerGitGraphScene(ctx: RenderContext<PositionedGitGraphDiagram>
   }
   for (const commit of diagram.commits) parts.push(renderCommit(commit, diagram, paints))
   parts.push(marks.documentClose())
-  return { family: 'gitgraph', width: diagram.width, height: diagram.height, colors, parts }
+  return { family: 'gitgraph', width: diagram.width, height: diagram.height, colors, transparent, parts }
 }
 
 function renderCommit(commit: PositionedGitGraphCommit, diagram: PositionedGitGraphDiagram, paints: GitGraphPaints): SceneNode {

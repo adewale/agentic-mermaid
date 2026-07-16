@@ -321,6 +321,7 @@ function createFixture(): ConformanceFixture {
     width: 120,
     height: 80,
     colors,
+    transparent: false,
     parts: [root, title, description, marker, container, dataMark, richConnector, label, documentClose()],
   }
   const probes: ConformanceProbe[] = [

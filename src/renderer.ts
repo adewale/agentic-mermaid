@@ -150,7 +150,7 @@ export function lowerGraphScene(
 
   parts.push(marks.documentClose())
 
-  return { family: 'flowchart', width: graph.width, height: graph.height, colors, parts }
+  return { family: 'flowchart', width: graph.width, height: graph.height, colors, transparent, parts }
 }
 
 // ============================================================================

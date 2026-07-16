@@ -376,6 +376,6 @@ export interface SceneDoc {
   width: number
   height: number
   colors: DiagramColors
-  transparent?: boolean
+  transparent: boolean
   parts: SceneNode[]
 }

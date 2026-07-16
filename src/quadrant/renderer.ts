@@ -324,7 +324,7 @@ export function lowerQuadrantScene(
 
   parts.push(marks.documentClose())
 
-  return { family: 'quadrant', width: chart.width, height: chart.height, colors, parts }
+  return { family: 'quadrant', width: chart.width, height: chart.height, colors, transparent, parts }
 }
 
 /** Inline style attribute for a point's resolved fill/stroke overrides.

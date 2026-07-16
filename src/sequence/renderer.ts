@@ -171,7 +171,7 @@ export function lowerSequenceScene(
 
   parts.push(marks.documentClose())
 
-  return { family: 'sequence', width: diagram.width, height: diagram.height, colors, parts }
+  return { family: 'sequence', width: diagram.width, height: diagram.height, colors, transparent, parts }
 }
 
 // ============================================================================

@@ -435,7 +435,7 @@ export function lowerXYChartScene(
 
   parts.push(marks.documentClose())
 
-  return { family: 'xychart', width: chart.width, height: chart.height, colors, parts }
+  return { family: 'xychart', width: chart.width, height: chart.height, colors, transparent, parts }
 }
 
 function lowerAxis(

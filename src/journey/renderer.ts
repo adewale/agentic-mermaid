@@ -197,7 +197,7 @@ export function lowerJourneyScene(
 
   parts.push(marks.documentClose())
 
-  return { family: 'journey', width: diagram.width, height: diagram.height, colors, parts }
+  return { family: 'journey', width: diagram.width, height: diagram.height, colors, transparent, parts }
 }
 
 function journeyNamespace(diagram: PositionedJourneyDiagram): string {

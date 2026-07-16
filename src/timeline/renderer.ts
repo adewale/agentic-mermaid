@@ -186,7 +186,7 @@ export function lowerTimelineScene(
 
   parts.push(marks.documentClose())
 
-  return { family: 'timeline', width: diagram.width, height: diagram.height, colors, parts }
+  return { family: 'timeline', width: diagram.width, height: diagram.height, colors, transparent, parts }
 }
 
 /** Resolved per-role paints — mirrors the class rules in timelineStyles(), so

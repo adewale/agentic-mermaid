@@ -82,7 +82,7 @@ export function lowerMindmapScene(ctx: RenderContext<PositionedMindmapDiagram>):
   }
   for (const node of diagram.nodes) parts.push(renderNode(node, colors, branchByNode.get(node.id), branchPaint(node.id)))
   parts.push(marks.documentClose())
-  return { family: 'mindmap', width: diagram.width, height: diagram.height, colors, parts }
+  return { family: 'mindmap', width: diagram.width, height: diagram.height, colors, transparent, parts }
 }
 
 function renderNode(

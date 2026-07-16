@@ -633,7 +633,7 @@ export function lowerGanttScene(
 
   parts.push(marks.documentClose())
 
-  return { family: 'gantt', width: layout.width, height: layout.height, colors, parts }
+  return { family: 'gantt', width: layout.width, height: layout.height, colors, transparent, parts }
 }
 
 /** Content-hashed def-id namespace (the journey pattern, X5 id hygiene):

@@ -141,7 +141,7 @@ export function lowerClassScene(
 
   parts.push(marks.documentClose())
 
-  return { family: 'class', width: diagram.width, height: diagram.height, colors, parts }
+  return { family: 'class', width: diagram.width, height: diagram.height, colors, transparent, parts }
 }
 
 // ============================================================================

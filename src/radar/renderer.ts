@@ -375,7 +375,7 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
 
   parts.push(marks.documentClose())
 
-  return { family: 'radar', width: chart.width, height: chart.height, colors, parts }
+  return { family: 'radar', width: chart.width, height: chart.height, colors, transparent, parts }
 }
 
 function round2(n: number): number { return Math.round(n * 100) / 100 }

@@ -105,6 +105,16 @@ describe('styled output', () => {
     }
   }, 10_000)
 
+  test('transparent styled output stays transparent across every family fixture', () => {
+    for (const fixture of fixtures) {
+      const svg = renderMermaidSVG(fixture.source, {
+        style: 'publication-figure',
+        transparent: true,
+      })
+      expect(svg, fixture.name).not.toContain('data-backdrop="page"')
+    }
+  })
+
   test('seed re-rolls geometry deterministically', () => {
     const source = fixtures.find(f => f.name === 'flowchart-basic.mmd')!.source
     const a1 = renderMermaidSVG(source, { style: 'hand-drawn', seed: 1 })

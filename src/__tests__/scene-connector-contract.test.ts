@@ -351,7 +351,7 @@ describe('typed Scene connector contract', () => {
     expect(hitTestConnector(connector, { x: 5, y: 4.9 })).toBe(true)
     expect(hitTestConnector(connector, { x: 5, y: 6.1 })).toBe(false)
     const hits = hitTestSceneConnectors({
-      family: 'test', width: 20, height: 20, colors: { bg: '#fff', fg: '#000' }, parts: [connector],
+      family: 'test', width: 20, height: 20, colors: { bg: '#fff', fg: '#000' }, transparent: true, parts: [connector],
     }, { x: 5, y: 2 })
     expect(hits.map(hit => hit.id)).toEqual(['typed-id'])
     expect(hits[0]?.connector).toBe(connector)
@@ -374,7 +374,7 @@ describe('typed Scene connector contract', () => {
       transparent: true, font: 'Inter', hasMonoFont: false,
     }, '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">')
     const output = RoughBackend.render({
-      family: 'test', width: 20, height: 20, colors,
+      family: 'test', width: 20, height: 20, colors, transparent: true,
       parts: [root, definitions, marks.documentClose()],
     }, { seed: 1 })
     expect(output).not.toContain('markerUnits=')
