@@ -25,6 +25,7 @@ import {
 import { STYLE_COLOR_TOKEN_DESCRIPTORS, knownStyles, knownStyleDescriptors, getStyle } from './scene/style-registry.ts'
 import { getSeriesColor, CHART_ACCENT_FALLBACK } from './xychart/colors.ts'
 import { renderMermaidPNGInBrowserWithReceipt } from './browser-png.ts'
+import { resolveEditorRenderOptions } from './editor-render-options.ts'
 
 declare const window: unknown
 
@@ -54,4 +55,5 @@ function renderMermaidUnicodeWithReceipt(text: string, options: AsciiRenderOptio
   getStyle,
   getSeriesColor,
   CHART_ACCENT_FALLBACK,
+  resolveEditorRenderOptions,
 }

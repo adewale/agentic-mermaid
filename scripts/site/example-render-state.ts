@@ -28,6 +28,16 @@ function editorConfig(options: RenderOptions): Record<string, unknown> {
   return { ...options } as Record<string, unknown>
 }
 
+function portableOptions(options: RenderOptions): RenderOptions {
+  const {
+    security: _security,
+    embedFontImport: _embedFontImport,
+    idPrefix: _idPrefix,
+    ...portable
+  } = options
+  return portable
+}
+
 /**
  * Put arbitrary portable render options in config and explicitly select the
  * Editor's crisp/no-palette controls. This prevents recipient preferences from
@@ -37,7 +47,7 @@ export function createExampleRenderState(
   source: string,
   options: RenderOptions = {},
 ): ExampleRenderState {
-  const renderOptions: RenderOptions = { ...options, compact: true }
+  const renderOptions: RenderOptions = { ...portableOptions(options), compact: true }
   return {
     source,
     renderOptions,
@@ -60,7 +70,11 @@ export function createStyledExampleRenderState(
   appearance: { style: string; palette: string; seed: number },
   options: RenderOptions = {},
 ): ExampleRenderState {
-  const config: RenderOptions = { ...options, compact: true }
+  // Named appearance belongs to the visible Editor controls. Discard any
+  // conflicting hidden style/seed values so a later control change cannot be
+  // overridden by stale Advanced Options.
+  const { style: _style, seed: _seed, ...remaining } = portableOptions(options)
+  const config: RenderOptions = { ...remaining, compact: true }
   const renderOptions: RenderOptions = {
     ...config,
     style: [appearance.style, appearance.palette],

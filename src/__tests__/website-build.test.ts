@@ -6,6 +6,7 @@ import { execFileSync } from 'node:child_process'
 import { EDITOR_EXAMPLES } from '../../editor/examples.ts'
 import { samples as RICH_EXAMPLES } from '../../scripts/site/samples-data.ts'
 import { decodeEditorStateHash, EDITOR_SHARE_STATE_KEYS } from '../../scripts/site/editor-state-url.ts'
+import { createStyledExampleRenderState, WEBSITE_EXAMPLE_THEME } from '../../scripts/site/example-render-state.ts'
 import { renderWebsiteSVG } from '../../website/src/rendering.ts'
 import { createWebsiteWorker } from '../../website/src/worker-core.ts'
 import { CLEAN_PAGE_ROUTES, DYNAMIC_CLEAN_REDIRECT_LINES, staticRedirectLines } from '../../website/src/site-routes.ts'
@@ -16,8 +17,9 @@ import { resolveBuildGitSha } from '../../website/build-provenance.ts'
 import { AI_CATALOG_RESOURCES } from '../../website/agent-resource-inventory.ts'
 import { HOSTED_TOOLS } from '../mcp/hosted-server.ts'
 import { verifyMermaid } from '../agent/verify.ts'
-import { sharedRenderOptionsJsonSchema } from '../render-contract.ts'
+import { SHARED_RENDER_OPTION_FIELDS, sharedRenderOptionsJsonSchema, validateSerializableRenderOptions } from '../render-contract.ts'
 import { knownStyleDescriptors } from '../scene/style-registry.ts'
+import { resolveEditorRenderOptions } from '../editor-render-options.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const SITE = join(REPO, 'website', 'public')
@@ -75,18 +77,19 @@ function decodeEditorStateHref(href: string): Record<string, unknown> {
 }
 
 function editorRenderOptionsFromState(state: Record<string, unknown>): Record<string, unknown> {
-  const config = { ...((state.config ?? {}) as Record<string, unknown>) }
-  const configStyle = config.style
-  delete config.style
-  const styleStack: unknown[] = []
-  if (state.style && state.style !== 'crisp') styleStack.push(state.style)
-  if (Array.isArray(configStyle)) styleStack.push(...configStyle)
-  else if (configStyle) styleStack.push(configStyle)
-  if (state.palette) styleStack.push(state.palette)
-  if (styleStack.length === 1) config.style = styleStack[0]
-  else if (styleStack.length > 1) config.style = styleStack
-  if (state.style && state.style !== 'crisp' && config.seed === undefined) config.seed = state.seed ?? 0
-  return config
+  return resolveEditorRenderOptions(state, {
+    allowedFields: SHARED_RENDER_OPTION_FIELDS,
+    validate: validateSerializableRenderOptions,
+    resolvePaletteInput: (palette) => {
+      if (typeof palette !== 'string' || !palette) return ''
+      const descriptor = knownStyleDescriptors().find(candidate => {
+        const localName = candidate.identity.id.slice(candidate.identity.id.indexOf(':') + 1)
+        return candidate.kind === 'palette'
+          && (candidate.inputName === palette || candidate.identity.id === palette || localName === palette)
+      })
+      return descriptor?.inputName ?? ''
+    },
+  }) as Record<string, unknown>
 }
 
 function removeWebsiteExampleAccessibleName(svg: string): string {
@@ -768,6 +771,55 @@ describe('Workers Static Assets website contract', () => {
     }
   })
 
+  test('styled example state keeps appearance in visible controls and strips hidden conflicts', () => {
+    const request = createStyledExampleRenderState('flowchart TD\n  A --> B', {
+      style: 'publication-figure',
+      palette: 'paper',
+      seed: 3,
+    }, {
+      style: ['watercolor', 'nord-light'],
+      seed: 99,
+      padding: 12,
+      security: 'default',
+      embedFontImport: true,
+      idPrefix: 'host-only-',
+    })
+    expect(request.editorState).toEqual({
+      source: 'flowchart TD\n  A --> B',
+      palette: 'paper',
+      style: 'publication-figure',
+      seed: 3,
+      config: { padding: 12, compact: true },
+    })
+    expect(editorRenderOptionsFromState(request.editorState as unknown as Record<string, unknown>)).toEqual({
+      embedFontImport: false,
+      security: 'strict',
+      padding: 12,
+      compact: true,
+      style: ['publication-figure', 'paper'],
+      seed: 3,
+    })
+  })
+
+  test('the formerly transparent rich card has a portable painted canvas', () => {
+    const article = read('examples/index.html').match(/<article class="example-sample" id="rich-agentic-mermaid"[\s\S]*?<\/article>/)?.[0] ?? ''
+    const href = article.match(/href="(\/editor\/#deflate:[A-Za-z0-9_-]+)"/)?.[1]
+    expect(href).toBeDefined()
+    const state = decodeEditorStateHref(href!)
+    expect((state.config as Record<string, unknown>).transparent).not.toBe(true)
+    expect(article).toMatch(/<svg[^>]*style="[^"]*background:/)
+  })
+
+  test('homepage styled handoffs retain complete compact render state', () => {
+    const homeLinks = matches(read('index.html'), /\/editor\/#deflate:[A-Za-z0-9_-]+/g).map(match => match[0])
+    const styled = homeLinks.map(decodeEditorStateHref).filter(state => state.style && state.style !== 'crisp')
+    expect(styled.length).toBeGreaterThan(3)
+    for (const state of styled) {
+      expect((state.config as Record<string, unknown>)?.compact).toBe(true)
+      expect(editorRenderOptionsFromState(state).style).toEqual([state.style, state.palette])
+    }
+  })
+
   test('docs and editor reuse the shared visual primitive set', () => {
     const docs = read('docs/index.html')
     const editor = read('editor/index.html')
@@ -978,6 +1030,15 @@ describe('Workers Static Assets website contract', () => {
       expect(section).toContain('data-comparison-engine="agentic"')
       expect(section).toContain('data-comparison-editor-href="/editor/#')
       expect(section).not.toContain('>Open in Editor</a>')
+      const href = section.match(/data-comparison-editor-href="([^"]+)"/)?.[1]
+      expect(href, `${id}: comparison Editor state`).toBeDefined()
+      const state = decodeEditorStateHref(href!)
+      expect(editorRenderOptionsFromState(state), `${id}: comparison appearance parity`).toEqual({
+        embedFontImport: false,
+        security: 'strict',
+        ...WEBSITE_EXAMPLE_THEME,
+        compact: true,
+      })
     }
     expect(comparisons).toContain('Source([Source]) --&gt; Parse[Parse]')
     expect(comparisons).toContain('Render --&gt; Cache[(Cache)]')
@@ -1424,9 +1485,14 @@ describe('Workers Static Assets website contract', () => {
     expect(duplicateEdge).toContain('open a blank editor')
     const advertisedWarnings = JSON.parse(read('capabilities.json')).warningCodes as Array<{ code: string; example?: string }>
     for (const warning of advertisedWarnings.filter(warning => warning.example)) {
-      expect({ code: warning.code, fires: verifyMermaid(warning.example!).warnings.some(actual => actual.code === warning.code) })
+      const warningHtml = read(`warnings/${warning.code}/index.html`)
+      const href = warningHtml.match(/href="(\/editor\/#deflate:[A-Za-z0-9_-]+)"/)?.[1]
+      expect(href, `${warning.code}: Editor reproducer link`).toBeDefined()
+      const state = decodeEditorStateHref(href!)
+      const renderOptions = editorRenderOptionsFromState(state)
+      expect({ code: warning.code, fires: verifyMermaid(warning.example!, { renderOptions }).warnings.some(actual => actual.code === warning.code) })
         .toEqual({ code: warning.code, fires: true })
-      expect(read(`warnings/${warning.code}/index.html`)).toContain('Minimal reproducer')
+      expect(warningHtml).toContain('Minimal reproducer')
     }
     const warningsIndex = read('warnings/index.html')
     expect(warningsIndex).toContain('class="tier-badge tier-structural"')

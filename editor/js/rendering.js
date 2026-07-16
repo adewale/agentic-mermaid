@@ -132,57 +132,14 @@ function applyThemeToPage(themeKey) {
 }
 
 function buildOptions() {
-  // Share hashes are attacker-controlled. Strict mode strips active tags,
-  // event handlers, and external references even if a future config field
-  // reaches this boundary; insertion below additionally parses one SVG node.
-  var opts = { embedFontImport: false, security: "strict" };
-
-  // Restored/share-link config is untrusted JSON. Admit only fields from the
-  // library's canonical manifest and validate the same object CLI/MCP accept.
-  var config = Object.create(null);
-  var rawConfig = (state && state.config) || {};
-  var allowedFields = (window.__mermaid && window.__mermaid.SHARED_RENDER_OPTION_FIELDS) || [];
-  for (var fieldIndex = 0; fieldIndex < allowedFields.length; fieldIndex++) {
-    var field = allowedFields[fieldIndex];
-    if (Object.prototype.hasOwnProperty.call(rawConfig, field) && rawConfig[field] !== undefined) {
-      config[field] = rawConfig[field];
-    }
-  }
-  if (window.__mermaid && typeof window.__mermaid.validateSerializableRenderOptions === "function") {
-    var problems = window.__mermaid.validateSerializableRenderOptions(config);
-    if (problems.length) throw new Error("Invalid render options: " + problems.join("; "));
-  }
-  var configStyle = config.style;
-  delete config.style;
-  Object.assign(opts, config);
-  // Hosts cannot weaken editor preview policy through a saved draft/link.
-  opts.embedFontImport = false;
-  opts.security = "strict";
-
-  // Style and Palette are two views over the one canonical style stack. Keep
-  // palette selection declarative so its precedence relative to source
-  // themeVariables is identical in the website, editor, CLI, and MCP.
-  // Explicit Settings colors remain RenderOptions overrides and therefore keep
-  // their documented higher precedence.
-  var styleStack = [];
-  if (state.style && state.style !== "crisp") styleStack.push(state.style);
-  if (Array.isArray(configStyle)) styleStack = styleStack.concat(configStyle);
-  else if (configStyle) styleStack.push(configStyle);
-  // The explicit editor Palette is the final color layer. Imported example or
-  // share-link style stacks may change treatment, but must not silently replace
-  // the Palette the user selected in the editor chrome.
-  var paletteInput = editorPaletteInput(state.palette);
-  if (paletteInput) styleStack.push(paletteInput);
-  if (styleStack.length === 1) opts.style = styleStack[0];
-  else if (styleStack.length > 1) opts.style = styleStack;
-  // A non-zero shuffle seed is an explicit editor action and wins. The
-  // default zero must not erase a seed supplied through Advanced Options.
-  if (state.style && state.style !== "crisp" && opts.seed === undefined) {
-    opts.seed = state.seed || 0;
-  }
-  // Never let imported example/share configuration weaken this sink.
-  opts.security = "strict";
-  return opts;
+  // Share hashes are attacker-controlled. Resolve them through the same pure
+  // production boundary imported by build/tests, then keep strict SVG parsing
+  // at the insertion sink below as the second line of defence.
+  return window.__mermaid.resolveEditorRenderOptions(state, {
+    allowedFields: window.__mermaid.SHARED_RENDER_OPTION_FIELDS || [],
+    validate: window.__mermaid.validateSerializableRenderOptions,
+    resolvePaletteInput: editorPaletteInput,
+  });
 }
 
 function insertStrictRenderedSvg(svg) {

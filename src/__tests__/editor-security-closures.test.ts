@@ -194,10 +194,14 @@ describe('editor bounded, session-scoped draft persistence', () => {
 describe('editor SEC-1 insertion choke point', () => {
   test('restored options are allowlisted and strict policy cannot be weakened', () => {
     const rendering = readFileSync(join(ROOT, 'editor/js/rendering.js'), 'utf8')
+    const resolver = readFileSync(join(ROOT, 'src/editor-render-options.ts'), 'utf8')
     expect(rendering).toContain('SHARED_RENDER_OPTION_FIELDS')
-    expect(rendering).toContain('validateSerializableRenderOptions(config)')
-    expect(rendering).toContain('opts.embedFontImport = false')
-    expect(rendering).toContain('opts.security = "strict"')
+    expect(rendering).toContain('resolveEditorRenderOptions(state')
+    expect(rendering).toContain('validate: window.__mermaid.validateSerializableRenderOptions')
+    expect(resolver).toContain('for (const field of dependencies.allowedFields)')
+    expect(resolver).toContain('const problems = dependencies.validate(config)')
+    expect(resolver).toContain('options.embedFontImport = false')
+    expect(resolver).toContain("options.security = 'strict'")
     expect(sharingSource).toContain('new Set(["embedFontImport", "security"])')
     expect(sharingSource).toContain('!allowed.has(key) || editorOwned.has(key)')
   })
@@ -257,6 +261,7 @@ describe('editor SEC-1 insertion choke point', () => {
 
   test('Editor commit points require verification and canonical receipt-bearing artifacts', () => {
     const rendering = readFileSync(join(ROOT, 'editor/js/rendering.js'), 'utf8')
+    const resolver = readFileSync(join(ROOT, 'src/editor-render-options.ts'), 'utf8')
     const exporting = readFileSync(join(ROOT, 'editor/js/export.js'), 'utf8')
     const buttons = readFileSync(join(ROOT, 'editor/js/buttons.js'), 'utf8')
     expect(rendering).toContain('verifyMermaid(source, { renderOptions: renderOptions })')
@@ -268,7 +273,7 @@ describe('editor SEC-1 insertion choke point', () => {
     expect(exporting).toContain("typeof hasCurrentVerifiedSvgArtifact === 'function'")
     expect(buttons).toContain('writeClipboardText(lastRenderedSvgArtifact.svg')
     expect(buttons).not.toContain('new XMLSerializer().serializeToString(svgEl)')
-    expect(rendering).toContain('state.style !== "crisp" && opts.seed === undefined')
+    expect(resolver).toContain("input.style !== 'crisp' && options.seed === undefined")
     expect(rendering).toContain('INEFFECTIVE_CONFIG: "lint"')
     expect(rendering).toContain('if (!hasCurrentVerifiedSvgArtifact())')
     expect(exporting).toContain('if (!hasRenderedSvg()) return;')
