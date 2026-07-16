@@ -103,6 +103,13 @@ radar, xychart, journey, mindmap, and gitgraph. SVG and terminal xychart/gitgrap
 use the same derived palette; the other terminal families do not currently
 encode peer categories with color.
 
+The scope rule for this rollout, and for any future shared-palette expansion,
+is explicit:
+
+> The scope is intentionally limited to families where color identifies peer
+> categories. Semantic colors—status, hierarchy, role, or user-authored
+> meaning—should not be automatically redistributed.
+
 | Property | 7–24 fills | More than 24 fills |
 |---|---|---|
 | deterministic | hard | hard |
