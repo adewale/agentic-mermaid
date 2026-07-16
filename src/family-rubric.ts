@@ -143,9 +143,10 @@ const GROUP_CONTAINMENT_AXES: Partial<Record<DiagramKind, 'both' | 'x' | 'center
  * default: many families draw non-ownership groups (radar's concentric grid
  * rings, chart plot regions, journey bands) that data marks legitimately sit
  * inside. Flowchart/state subgraphs are also ownership frames but are scored by
- * layout-rubric.ts, not this module.
+ * layout-rubric.ts, not this module. Architecture groups, class namespaces,
+ * ER groups, and timeline sections are ownership frames in RenderedLayout.
  */
-const REGION_OWNERSHIP_KINDS = new Set<DiagramKind>(['architecture'])
+const REGION_OWNERSHIP_KINDS = new Set<DiagramKind>(['architecture', 'class', 'er', 'timeline'])
 
 function isBox(node: RenderedLayoutNode): boolean {
   return node.role ? node.role === 'box' : BOX_SHAPES.has(node.shape)
@@ -176,7 +177,9 @@ function rectContains(outer: RenderedLayoutGroup, inner: RenderedLayoutGroup): b
 /** Whether `ancestor` is on `group`'s parentId chain (flattened group trees). */
 function isAncestor(ancestor: RenderedLayoutGroup, group: RenderedLayoutGroup, byId: Map<string, RenderedLayoutGroup>): boolean {
   let cur: RenderedLayoutGroup | undefined = group
-  for (let hops = 0; cur?.parentId && hops < 100; hops++) {
+  const visited = new Set<string>()
+  while (cur?.parentId && !visited.has(cur.id)) {
+    visited.add(cur.id)
     if (cur.parentId === ancestor.id) return true
     cur = byId.get(cur.parentId)
   }

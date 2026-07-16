@@ -740,11 +740,12 @@ describe('pie high-count palette', () => {
     }
   })
 
-  it('degrades gracefully past the gamut limit — best-effort, still collision-free and visible', () => {
+  it('degrades gracefully past the gamut limit — a 40-slice probe remains unique and visible', () => {
     // Past ~two dozen slices the sRGB gamut is exhausted, so the 0.10 ΔE target
     // can slip (a 40-slice pie is unreadable regardless). The invariants that
-    // MUST still hold: no repeated color, and every wedge clears both the WCAG
-    // and APCA visibility floors. This documents the real high-count contract.
+    // this representative count still exercises: no repeated color, and every
+    // wedge clears both visibility floors. Uniqueness is best-effort in the
+    // general >24 contract; visibility and linear runtime are hard.
     for (const bg of ['#ffffff', '#1a1b26']) {
       const cols = pieSliceColors(40, { accent: '#3b82f6', bg })
       expect(new Set(cols).size).toBe(40)

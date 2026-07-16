@@ -11,6 +11,7 @@ import { pieSliceColors } from '../pie/palette.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { minPairwiseDeltaEOK, apcaContrast } from '../shared/perceptual-color.ts'
 import { wcagContrastRatio } from '../shared/color-math.ts'
+import { THEMES } from '../theme.ts'
 
 describe('perceptual palette — systematic impact', () => {
   it('the ΔE_OK collision floor holds across the whole realistic count range (7…24)', () => {
@@ -34,6 +35,47 @@ describe('perceptual palette — systematic impact', () => {
         }
       }
     }
+  })
+
+  it('keeps the hard separation and visibility contracts across every built-in theme', () => {
+    for (const [name, theme] of Object.entries(THEMES)) {
+      for (let count = 7; count <= 24; count++) {
+        const cols = pieSliceColors(count, { accent: theme.accent ?? theme.fg, bg: theme.bg })
+        expect(new Set(cols).size, `${name} at ${count} slices`).toBe(count)
+        expect(minPairwiseDeltaEOK(cols), `${name} at ${count} slices`).toBeGreaterThanOrEqual(0.10)
+        for (const color of cols) {
+          expect(wcagContrastRatio(color, theme.bg)!, `${name}: ${color}`).toBeGreaterThanOrEqual(1.25)
+          expect(apcaContrast(color, theme.bg)!, `${name}: ${color}`).toBeGreaterThanOrEqual(15)
+        }
+      }
+    }
+  })
+
+  it('repairs adversarial custom accent/background pairs', () => {
+    const cases = [
+      { count: 24, accent: '#ff0000', bg: '#777777' }, // former ΔE_OK 0.0789 failure
+      { count: 9, accent: '#b1e86f', bg: '#eafb02' }, // perceptually bright saturated page
+    ]
+    for (const { count, accent, bg } of cases) {
+      const cols = pieSliceColors(count, { accent, bg })
+      expect(new Set(cols).size).toBe(count)
+      for (const color of cols) {
+        expect(wcagContrastRatio(color, bg)!).toBeGreaterThanOrEqual(1.25)
+        expect(apcaContrast(color, bg)!).toBeGreaterThanOrEqual(15)
+      }
+      expect(minPairwiseDeltaEOK(cols)).toBeGreaterThanOrEqual(0.10)
+    }
+  })
+
+  it('keeps large-count generation bounded and linear rather than running pair repair', () => {
+    const started = performance.now()
+    const cols = pieSliceColors(1000, { accent: '#3b82f6', bg: '#ffffff' })
+    const elapsed = performance.now() - started
+    expect(cols).toHaveLength(1000)
+    expect(new Set(cols).size).toBe(1000)
+    // This takes single-digit milliseconds in normal runs. The generous cap
+    // detects the former quadratic 13-second path without becoming a benchmark.
+    expect(elapsed).toBeLessThan(500)
   })
 })
 

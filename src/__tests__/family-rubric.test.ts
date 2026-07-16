@@ -115,21 +115,26 @@ describe('family rubric hard metrics discriminate', () => {
     expect(nested.metrics.groupOverlaps).toBe(0)
   })
 
-  it('flags a foreign node intruding into a group region, but not its members or nested descendants', () => {
-    // Architecture groups are true bounding frames ('both' axes). A non-member
+  it('flags a foreign node intruding into every ownership-frame family', () => {
+    // These families expose true ownership frames. A non-member
     // whose centre sits inside the frame reads as belonging to the wrong
     // cluster (Palmer common-region purity — the dual of groupBreaches).
-    const intruded = assessRenderedLayout(looseLayout({
-      kind: 'architecture',
-      nodes: [
-        { id: 'a', x: 10, y: 10, w: 40, h: 20, shape: 'service', label: 'A' }, // member, inside
-        { id: 'b', x: 60, y: 40, w: 40, h: 20, shape: 'service', label: 'B' }, // foreign, inside
-      ],
-      groups: [{ id: 'g', x: 0, y: 0, w: 120, h: 90, members: ['a'], label: 'G' }],
-    }))
-    expect(intruded.metrics.regionIntrusions).toBe(1)
-    expect(intruded.violations).toContainEqual(expect.objectContaining({ metric: 'regionIntrusions' }))
-    expect(intruded.score).toBeLessThan(100)
+    for (const kind of ['architecture', 'class', 'er', 'timeline']) {
+      const intruded = assessRenderedLayout(looseLayout({
+        kind,
+        nodes: [
+          { id: 'a', x: 10, y: 10, w: 40, h: 20, shape: 'rectangle', label: 'A' }, // member, inside
+          { id: 'b', x: 60, y: 40, w: 40, h: 20, shape: 'rectangle', label: 'B' }, // foreign, inside
+        ],
+        groups: [{ id: 'g', x: 0, y: 0, w: 120, h: 90, members: ['a'], label: 'G' }],
+      }))
+      expect(intruded.metrics.regionIntrusions, kind).toBe(1)
+      expect(intruded.violations, kind).toContainEqual(expect.objectContaining({ metric: 'regionIntrusions' }))
+      expect(intruded.score, kind).toBeLessThan(100)
+    }
+  })
+
+  it('does not count members or deeply nested descendants as region intrusions', () => {
 
     // Same geometry, but B now belongs to the group: no intrusion.
     const member = assessRenderedLayout(looseLayout({
@@ -156,6 +161,25 @@ describe('family rubric hard metrics discriminate', () => {
       ],
     }))
     expect(nested.metrics.regionIntrusions).toBe(0)
+
+    // The ancestry walk is cycle-safe but has no arbitrary depth cutoff: a
+    // member of a 102-deep child still legitimately occupies every ancestor.
+    const groups = Array.from({ length: 103 }, (_unused, index) => ({
+      id: `g${index}`,
+      x: 0,
+      y: 0,
+      w: 120,
+      h: 90,
+      members: index === 102 ? ['deep'] : [],
+      ...(index > 0 ? { parentId: `g${index - 1}` } : {}),
+      label: `G${index}`,
+    }))
+    const deep = assessRenderedLayout(looseLayout({
+      kind: 'architecture',
+      nodes: [{ id: 'deep', x: 10, y: 10, w: 40, h: 20, shape: 'service', label: 'Deep' }],
+      groups,
+    }))
+    expect(deep.metrics.regionIntrusions).toBe(0)
   })
 
   it('does not count region intrusions for band/plot group models (journey)', () => {

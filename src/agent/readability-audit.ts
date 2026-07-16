@@ -5,14 +5,11 @@
 // invariant the before/after fan-out screenshots violated — the "yes" label
 // rendered as a clipped "es" because a node box was drawn over it.
 //
-// Three codes, all family-agnostic (they read only the rendered geometry/text):
+// Two codes, both family-agnostic (they read only the rendered geometry/text):
 //   • LABEL_OCCLUDED — a text element overlaps foreign geometry that hides its
 //     glyphs: an edge-label pill over a non-incident node or another edge label,
 //     or a LABELLED node's box overlapped by another node.
 //   • LABEL_CLIPPED  — a text element extends beyond the diagram bounds.
-//   • LABEL_LINE_OVERLONG — a label line runs past the comfortable reading
-//     measure (READABLE_MAX_CHARS): readable but tiring, and a signal to rewrap
-//     (idea #12). Reported with the offending line length so an agent can act.
 //
 // A small overlap tolerance (TOL) ignores grazes — a 1px touch is not a
 // readability defect, an occluded glyph is.
@@ -20,12 +17,10 @@
 import type { RenderedLayout, RenderedLayoutNode } from './types.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import { resolveRenderStyle } from '../styles.ts'
-import { longestLineChars, READABLE_MAX_CHARS } from '../shared/readability.ts'
 
 export type ReadabilityFinding =
   | { code: 'LABEL_OCCLUDED'; element: string; by: string }
   | { code: 'LABEL_CLIPPED'; element: string }
-  | { code: 'LABEL_LINE_OVERLONG'; element: string; chars: number }
 
 interface Box { x: number; y: number; w: number; h: number }
 
@@ -91,21 +86,6 @@ export function auditReadability(layout: RenderedLayout): ReadabilityFinding[] {
       if (other.id === n.id) continue
       if (overlaps(box, nodeBox(other))) { findings.push({ code: 'LABEL_OCCLUDED', element: n.id, by: other.id }); break }
     }
-  }
-
-  // Overlong lines: a label line past the comfortable reading measure is
-  // readable but tiring, and a signal to rewrap. Node labels are only drawn as
-  // glyphs for the node-link families (a chart node's label is axis metadata);
-  // edge labels are drawn as pills for every family.
-  for (const n of NODE_LINK_KINDS.has(layout.kind) ? layout.nodes : []) {
-    if (!hasText(n.label)) continue
-    const chars = longestLineChars(n.label!)
-    if (chars > READABLE_MAX_CHARS) findings.push({ code: 'LABEL_LINE_OVERLONG', element: n.id, chars })
-  }
-  for (const e of layout.edges) {
-    if (!e.label) continue
-    const chars = longestLineChars(e.label.text)
-    if (chars > READABLE_MAX_CHARS) findings.push({ code: 'LABEL_LINE_OVERLONG', element: e.id, chars })
   }
 
   return findings

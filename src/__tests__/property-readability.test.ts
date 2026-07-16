@@ -97,11 +97,7 @@ describe('node-link and edge-label readability ratchet (corpus + fuzzed families
         if (codes.includes('EMPTY_DIAGRAM') || codes.includes('UNRESOLVABLE_SCHEDULE')) return
         throw error
       }
-      // This ratchet is the zero-OCCLUSION/clipping guarantee (unreadable
-      // glyphs). LABEL_LINE_OVERLONG is a softer advisory (a long-but-readable
-      // line, a rewrap hint) that legitimately occurs in real docs, so it is
-      // not part of this ceiling.
-      const n = auditReadability(layout).filter(f => f.code === 'LABEL_OCCLUDED' || f.code === 'LABEL_CLIPPED').length
+      const n = auditReadability(layout).length
       if (n > 0) { total += n; offenders.push(`${id}×${n}`) }
     }
 

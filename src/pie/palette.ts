@@ -19,10 +19,9 @@
 //     evenly by construction (idea #1).
 //   - a minimum ΔE_OK floor is then enforced pairwise, so no two slice fills
 //     read as the same color, up to a couple dozen slices (idea #2). Past that
-//     the sRGB gamut is exhausted and the pass becomes best-effort: it
-//     maximizes separation and never repeats a color or drops a wedge below the
-//     visibility floors, but the ΔE target can slip (a >27-slice pie is
-//     unreadable regardless). The realistic range is covered by the test.
+//     the sRGB gamut is exhausted: pairwise repair stops, generation stays
+//     linear, and uniqueness/separation become best-effort while background
+//     visibility remains enforced. The hard range is covered by the test.
 //   - every color is nudged (deterministically) away from the background until
 //     it clears BOTH a WCAG floor (the historical guard) and an APCA lightness-
 //     contrast floor. APCA is polarity-aware, so it catches wedges that WCAG
@@ -35,9 +34,12 @@
 // assigned after d3 sorts slices by value).
 // ============================================================================
 
-import { getSeriesColor, isDarkBackground, isValidHex, CHART_ACCENT_FALLBACK } from '../xychart/colors.ts'
+import { getSeriesColor, isValidHex, CHART_ACCENT_FALLBACK } from '../xychart/colors.ts'
 import { wcagContrastRatio } from '../shared/color-math.ts'
-import { hexToOklch, oklchToHex, apcaContrast, deltaEOK, type Oklch } from '../shared/perceptual-color.ts'
+import {
+  hexToOklab, hexToOklch, oklchToHex, apcaContrast, deltaEOK,
+  minPairwiseDeltaEOK, type Oklab, type Oklch,
+} from '../shared/perceptual-color.ts'
 
 export interface PiePaletteInputs {
   /** Theme accent (any string; non-hex falls back to the chart accent). */
@@ -63,6 +65,11 @@ const BG_APCA_FLOOR = 15
  *  comfortably above the just-noticeable ~0.02 and above the 0.053 the old HSL
  *  ladder degenerated to, so no two wedges read as the same color. */
 const MIN_SLICE_DELTA_E = 0.10
+
+/** The documented range in which the categorical-separation floor is a hard
+ * contract. Above it, searching every color pair is both quadratic and
+ * misleading: the available visible sRGB volume cannot sustain the floor. */
+const GUARANTEED_DELTA_E_MAX = 24
 
 /** OKLCH hue anchoring the wheel when the accent has no meaningful hue (the
  *  default grey theme) — the indigo family the derived palettes lean on. */
@@ -91,7 +98,10 @@ function hueSpreadColors(count: number, accent: string, bg: string | undefined):
   const neutral = accentLch.C < 0.03
   const baseHue = neutral ? NEUTRAL_BASE_HUE : accentLch.h
   const chroma = Math.max(SLICE_CHROMA_MIN, Math.min(SLICE_CHROMA_MAX, neutral ? SLICE_CHROMA_MAX : accentLch.C))
-  const dark = bg !== undefined && isDarkBackground(bg)
+  // Perceived lightness, not HSL lightness, decides the starting polarity.
+  // Saturated yellow/green pages can have a low HSL L while being perceptually
+  // very bright; HSL sent those palettes toward the background instead of away.
+  const dark = ((bg === undefined ? null : hexToOklab(bg))?.L ?? 1) < 0.55
   // Two CONSTANT-OKLCH-LIGHTNESS tiers so hue-adjacent slices separate in
   // perceived lightness by a fixed amount at every hue (HSL's flaw was that its
   // fixed L is unequal perceived L across hues). On dark backgrounds both tiers
@@ -106,7 +116,11 @@ function hueSpreadColors(count: number, accent: string, bg: string | undefined):
     const startL = index === 0 ? accentLch.L : tiers[index % 2]!
     return ensureBgContrast({ L: startL, C: chroma, h: hue }, bg, dark)
   })
-  return enforceMinDeltaE(colors, bg, dark)
+  // Pairwise repair is deliberately bounded to the range whose separation
+  // contract we can satisfy. Large palettes stay linear in slice count.
+  return count <= GUARANTEED_DELTA_E_MAX
+    ? enforceMinDeltaE(colors, bg, dark)
+    : dedupeBestEffort(colors, bg, dark)
 }
 
 /** A fill is "visible" when it clears BOTH the WCAG and APCA wedge floors (or
@@ -115,24 +129,37 @@ function isVisible(hex: string, bg: string | undefined): boolean {
   if (bg === undefined) return true
   const wcag = wcagContrastRatio(hex, bg)
   const apca = apcaContrast(hex, bg)
-  return (wcag === null || wcag >= BG_CONTRAST_FLOOR) && (apca === null || apca >= BG_APCA_FLOOR)
+  return wcag !== null && apca !== null && wcag >= BG_CONTRAST_FLOOR && apca >= BG_APCA_FLOOR
 }
 
 /**
- * Deterministically step OKLCH lightness away from the background until the
- * fill clears both wedge-visibility floors (bounded walk; returns the last
- * candidate when the bound is hit so output is always defined).
+ * Search both OKLCH-lightness directions for a visible fill. The background's
+ * actual OKLab lightness chooses which direction is tried first; the opposite
+ * direction remains available because chroma gamut-clamping is non-monotonic.
  */
 function ensureBgContrast(lch: Oklch, bg: string | undefined, darkBg: boolean): string {
-  let L = lch.L
-  let hex = oklchToHex({ ...lch, L })
-  if (bg === undefined) return hex
-  for (let i = 0; i < 16; i++) {
-    if (isVisible(hex, bg)) return hex
-    L = darkBg ? Math.min(0.97, L + 0.04) : Math.max(0.08, L - 0.04)
-    hex = oklchToHex({ ...lch, L })
+  const initial = oklchToHex(lch)
+  if (bg === undefined || isVisible(initial, bg)) return initial
+  const bgL = hexToOklab(bg)?.L ?? (darkBg ? 0 : 1)
+  const preferred = lch.L >= bgL ? 1 : -1
+  for (let i = 1; i <= 24; i++) {
+    const amount = i * 0.04
+    for (const direction of [preferred, -preferred]) {
+      const hex = oklchToHex({ ...lch, L: clampL(lch.L + direction * amount) })
+      if (isVisible(hex, bg)) return hex
+    }
   }
-  return hex
+
+  // A concrete valid background always has at least one visible achromatic
+  // extreme. This also keeps the function total if chromatic gamut-clamping
+  // collapses every searched candidate back toward the page color.
+  const extremes = ['#000000', '#ffffff'].filter(hex => isVisible(hex, bg))
+  if (extremes.length > 0) {
+    return extremes.sort((a, b) => (apcaContrast(b, bg) ?? 0) - (apcaContrast(a, bg) ?? 0))[0]!
+  }
+  // Unreachable for valid six-digit hex backgrounds, retained as a totality
+  // guard should the color primitives ever change.
+  return initial
 }
 
 /**
@@ -150,7 +177,13 @@ function enforceMinDeltaE(colors: string[], bg: string | undefined, darkBg: bool
       ? hex
       : separate(hex, out, bg, darkBg))
   }
-  return out
+  // The local repair preserves established palettes when it succeeds. If it
+  // cannot meet the documented floor, use a bounded global packing pass over
+  // concrete, background-visible sRGB candidates instead of returning a known
+  // contract violation.
+  return minPairwiseDeltaEOK(out) >= MIN_SLICE_DELTA_E
+    ? out
+    : packVisibleColors(out, bg)
 }
 
 /** Smallest ΔE_OK from `hex` to any already-accepted color (Infinity if none). */
@@ -197,4 +230,93 @@ function separate(hex: string, accepted: string[], bg: string | undefined, darkB
     }
   }
   return best
+}
+
+interface LabCandidate { hex: string; lab: Oklab }
+
+/** A deterministic finite candidate corpus in concrete sRGB. It is generated
+ * only when local repair fails. Gamut-clamped duplicates are removed before
+ * packing. It is intentionally not cached by caller-controlled background:
+ * an unbounded color-key cache would turn custom themes into a memory leak. */
+function visibleCandidateCorpus(bg: string | undefined): LabCandidate[] {
+  const byHex = new Map<string, LabCandidate>()
+  const add = (hex: string): void => {
+    if (byHex.has(hex) || (bg !== undefined && !isVisible(hex, bg))) return
+    const lab = hexToOklab(hex)
+    if (lab) byHex.set(hex, { hex, lab })
+  }
+  add('#000000')
+  add('#ffffff')
+  for (let li = 0; li <= 22; li++) {
+    const L = 0.08 + li * 0.04
+    add(oklchToHex({ L, C: 0, h: 0 }))
+    for (const C of [0.04, 0.08, 0.12, 0.16, 0.20, 0.24, 0.28]) {
+      for (let h = 0; h < 360; h += 10) add(oklchToHex({ L, C, h }))
+    }
+  }
+  return [...byHex.values()]
+}
+
+const labDistance = (a: Oklab, b: Oklab): number =>
+  Math.hypot(a.L - b.L, a.a - b.a, a.b - b.b)
+
+/** Farthest-point packing over a bounded visible candidate corpus. Slice zero
+ * remains anchored when valid; each subsequent choice maximizes its minimum
+ * distance to the whole accepted set. */
+function packVisibleColors(targets: string[], bg: string | undefined): string[] {
+  if (targets.length < 2) return targets
+  const corpus = visibleCandidateCorpus(bg)
+  const target0 = hexToOklab(targets[0]!)
+  if (!target0) return targets
+  const selected: LabCandidate[] = [{ hex: targets[0]!, lab: target0 }]
+  const used = new Set([targets[0]!.toLowerCase()])
+
+  while (selected.length < targets.length) {
+    let best: LabCandidate | undefined
+    let bestMin = -1
+    let bestTargetDistance = Infinity
+    const target = hexToOklab(targets[selected.length]!)
+    for (const candidate of corpus) {
+      if (used.has(candidate.hex.toLowerCase())) continue
+      let min = Infinity
+      for (const accepted of selected) min = Math.min(min, labDistance(candidate.lab, accepted.lab))
+      const targetDistance = target ? labDistance(candidate.lab, target) : 0
+      if (min > bestMin + 1e-12 || (Math.abs(min - bestMin) <= 1e-12 && targetDistance < bestTargetDistance)) {
+        best = candidate
+        bestMin = min
+        bestTargetDistance = targetDistance
+      }
+    }
+    if (!best) return targets
+    selected.push(best)
+    used.add(best.hex.toLowerCase())
+  }
+  return selected.map(candidate => candidate.hex)
+}
+
+/** Keep large-count generation linear while avoiding obvious repeated fills.
+ * This is best-effort only; no perceptual floor is claimed above 24 slices. */
+function dedupeBestEffort(colors: string[], bg: string | undefined, darkBg: boolean): string[] {
+  const used = new Set<string>()
+  return colors.map((hex, index) => {
+    if (!used.has(hex.toLowerCase())) {
+      used.add(hex.toLowerCase())
+      return hex
+    }
+    const base = hexToOklch(hex)
+    if (base) {
+      for (let attempt = 1; attempt <= 24; attempt++) {
+        const candidate = ensureBgContrast({
+          ...base,
+          L: clampL(base.L + (attempt % 2 === 0 ? 1 : -1) * Math.ceil(attempt / 2) * 0.008),
+          h: (base.h + attempt * 137.508 + index * 0.01) % 360,
+        }, bg, darkBg)
+        if (!used.has(candidate.toLowerCase())) {
+          used.add(candidate.toLowerCase())
+          return candidate
+        }
+      }
+    }
+    return hex
+  })
 }

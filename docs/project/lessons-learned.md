@@ -181,23 +181,18 @@ family docs, and `TODO.md`.
   the cross-family plan routes xychart/journey/mindmap/gitgraph through it, so
   one perceptual fix compounds across every family that shares the color waist.
   See [`../design/system/cross-family-aesthetics.md`](../design/system/cross-family-aesthetics.md) L3.
-- **A guarantee is only as honest as its stated bound.** The ΔE_OK collision
-  floor holds up to a couple dozen slices; past that the sRGB gamut is exhausted
-  and separation is best-effort. "No two colors collide, even for adversarial
-  counts" was an overclaim that the test quietly dodged by stopping one count
-  before the cliff. State the realistic range in the comment, and add a
-  high-count test that asserts the invariants that *do* survive (no repeated
-  color, every wedge clears both visibility floors) instead of the target that
-  does not. A soft geometric/color metric that runs out of gamut/space is
-  best-effort, not a hard guarantee — say which.
-- **Reverting a wiring can strand its mechanism as dead code.** An auto-wrap was
-  reverted for overriding an explicit `wrappingWidth` (a user directive); that
-  left the wrap *option* it fed with no product caller, reachable only from
-  tests. Ship the reachable half (the `LABEL_LINE_OVERLONG` detector, an
-  agent-facing rewrap signal) and delete the stranded mechanism. A detector
-  without its corrective is still useful; unreachable code is a tax the next
-  reviewer pays. When a revert removes the only consumer of a helper, remove the
-  helper in the same change.
+- **A guarantee is only as honest as its domain and runtime bound.** The ΔE_OK
+  collision floor is hard for 7–24 fills across every built-in theme and
+  adversarial custom backgrounds. Above 24, the pairwise pass is skipped so
+  generation remains linear and separation becomes explicitly best-effort.
+  State the supported range, degraded tail, and cost budget together; a
+  deterministic O(n²) search can still be a production failure.
+- **Reachability and independence come before a new diagnostic.** A proposed
+  `LABEL_LINE_OVERLONG` finding was private to a render audit and duplicated the
+  public, universal `LABEL_OVERFLOW` warning already exposed through verify,
+  CLI, API, and MCP. Removing the duplicate was better than wiring a second
+  threshold. When a revert strands a helper, delete it; when an existing metric
+  already owns the defect class, extend that metric instead of adding a shadow.
 
 ## How to apply these lessons
 
