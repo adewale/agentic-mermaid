@@ -1,16 +1,16 @@
 {
   "schemaVersion": 1,
   "generator": "scripts/pr-assets/pie-highlightslice-evidence.ts",
-  "inputCount": 699,
-  "inputTreeSha256": "ec8fbe385d07bf309e64849acbb0e18467b9d27d28668e8148b399efbd17a2d5",
+  "inputCount": 706,
+  "inputTreeSha256": "791b42e5ac654fa13ca68a77785fd7399f48266558deb1f81600fa0123f99b80",
   "outputs": [
     {
       "path": "docs/design/families/pie-highlightslice-regression-matrix.png",
-      "sha256": "f365e909da931827f46e3846bc76453986e7f853619d1a9a4b176ff6ca0d2854"
+      "sha256": "8e8e9f89c9f28a5ce5c4a4e644fcf21414c6d23dbc9e3b1405af0efe1c8ebeaa"
     },
     {
       "path": "docs/design/families/pie-highlightslice-after.png",
-      "sha256": "e4b794090a227227791d4f8754048baa7a5d99b57eb553d301c86039c53f2055"
+      "sha256": "e7a47a26f0d423c84b0bce3e7ea632bbbb6c84f941b3be1520794dd9e7d0ed2f"
     }
   ]
 }
