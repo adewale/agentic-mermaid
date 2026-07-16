@@ -596,10 +596,10 @@ describe('parseMermaid – subgraph direction override', () => {
     expect(g.subgraphs[0]!.direction).toBe('LR')
   })
 
-  it('does not apply direction outside subgraph', () => {
-    // "direction LR" at root level without subgraph context should not change graph direction
-    const g = parseMermaid('graph TD\n  A --> B')
-    expect(g.direction).toBe('TD')
+  it('applies a root direction override to the graph', () => {
+    const g = parseMermaid('graph TD\n  direction LR\n  A --> B')
+    expect(g.direction).toBe('LR')
+    expect([...g.nodes.keys()]).toEqual(['A', 'B'])
   })
 })
 

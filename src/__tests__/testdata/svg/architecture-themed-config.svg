@@ -52,11 +52,11 @@ Layer" data-role="group">
 <circle class="architecture-icon-mark" cx="83.732" cy="77.9232" r="3.174" />
 <path class="architecture-icon-mark" d="M 72.3056 80.8856 H 86.4828" />
 </g>
-  <text x="94" y="77.5" class="architecture-group-label" text-anchor="start" font-size="15" font-weight="600"><tspan x="94" dy="-4.5">Edge</tspan><tspan x="94" dy="19.5">Layer</tspan></text>
+  <text x="94" y="77.5" class="architecture-group-label" text-anchor="start" font-size="15" font-weight="600"><tspan x="94" dy="-4.5" textLength="40.05" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Edge</tspan><tspan x="94" dy="19.5" textLength="47.25" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Layer</tspan></text>
 </g>
 <polyline class="architecture-edge" data-from="api" data-to="db" data-from-side="R" data-to-side="L" data-from-boundary="item" data-to-boundary="item" data-label="reads &lt;records&gt;" points="272.784,131 520.4559999999999,131" marker-end="url(#architecture-arrow-end)" data-relationship="architecture-edge" data-direction="forward" data-id="edge:api-&gt;db#0" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="api to db: reads &lt;records&gt;" />
 <rect x="336.78399999999993" y="114.9" width="119.672" height="32.2" class="architecture-edge-label-bg" rx="0" ry="0" />
-<text x="396.61999999999995" y="131" class="architecture-edge-label-text" text-anchor="middle" font-size="14" font-weight="400" dy="4.8999999999999995">reads &lt;records&gt;</text>
+<text x="396.61999999999995" y="131" class="architecture-edge-label-text" text-anchor="middle" font-size="14" font-weight="400" dy="4.8999999999999995" textLength="105.672" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">reads &lt;records&gt;</text>
 <g class="architecture-service" data-id="db" data-label="Primary DB" data-role="service">
   <rect class="architecture-service-card" x="520.4559999999999" y="107" width="159.392" height="48" rx="0" ry="0" data-id="service-card:db" data-role="service" />
   <rect class="architecture-service-outline" x="520.4559999999999" y="107" width="159.392" height="48" rx="0" ry="0" data-id="service-outline:db" data-role="service" />
@@ -67,7 +67,7 @@ Layer" data-role="group">
 <ellipse class="architecture-icon-mark" cx="553.4559999999999" cy="131.52" rx="6.24" ry="2.6" />
 <ellipse class="architecture-icon-mark" cx="553.4559999999999" cy="136.2" rx="6.24" ry="2.6" />
 </g>
-  <text x="580.4559999999999" y="131" class="architecture-service-label" text-anchor="start" font-size="16" font-weight="500" dy="5.6">Primary DB</text>
+  <text x="580.4559999999999" y="131" class="architecture-service-label" text-anchor="start" font-size="16" font-weight="500" dy="5.6" textLength="85.392" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Primary DB</text>
 </g>
 <g class="architecture-service" data-id="api" data-label="API &amp; &lt;Gateway&gt;" data-role="service">
   <rect class="architecture-service-card" x="76" y="107" width="196.784" height="48" rx="0" ry="0" data-id="service-card:api" data-role="service" />
@@ -77,6 +77,6 @@ Layer" data-role="group">
 <path class="architecture-icon-mark" d="M 104.84 128.92 H 113.16" />
 <path class="architecture-icon-mark" d="M 104.84 132.56 H 113.16" />
 </g>
-  <text x="136" y="131" class="architecture-service-label" text-anchor="start" font-size="16" font-weight="500" dy="5.6">API &amp; &lt;Gateway&gt;</text>
+  <text x="136" y="131" class="architecture-service-label" text-anchor="start" font-size="16" font-weight="500" dy="5.6" textLength="122.784" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">API &amp; &lt;Gateway&gt;</text>
 </g>
 </svg>

@@ -188,20 +188,21 @@ export function verifyBaselineCommit(commit: string, root = ROOT): void {
   if (object.exitCode !== 0) {
     throw new Error(`Palette baseline commit ${commit} does not resolve to a commit in this repository`)
   }
-  const ancestor = git(['merge-base', '--is-ancestor', commit, 'HEAD'], root)
-  if (ancestor.exitCode === 1) {
-    throw new Error(`Palette baseline commit ${commit} is not an ancestor of HEAD`)
-  }
-  if (ancestor.exitCode !== 0) {
-    throw new Error(`Cannot verify palette baseline ancestry: ${ancestor.stderr.trim()}`)
+  // GitHub's squash merge preserves the reviewed commit object but does not
+  // make it an ancestor of the resulting main commit. Require shared history
+  // instead: this admits that immutable development-line commit while still
+  // rejecting an unrelated repository's object.
+  const mergeBase = git(['merge-base', commit, 'HEAD'], root)
+  if (mergeBase.exitCode !== 0 || !/^[0-9a-f]{40}$/.test(mergeBase.stdout.trim())) {
+    throw new Error(`Palette baseline commit ${commit} does not share history with HEAD`)
   }
 }
 
 /** Prove that the frozen bytes are outputs of the named historical source, not
  * merely a self-consistent SVG/JSON pair. The historical `src/` tree is
- * materialized below the current repository so its imports resolve through the
- * already-frozen-lockfile install, then all canonical cases are re-rendered and
- * compared byte-for-byte. */
+ * materialized below the current repository and executed against the current
+ * frozen dependency closure. The byte comparison is therefore also the gate
+ * that proves later dependency-only updates preserve the historical output. */
 export async function verifyFrozenBaselineRender(
   commit: string,
   baselineDirectory = BASELINE_DIR,
@@ -232,9 +233,6 @@ async function renderHistorical(
       input: archive,
       maxBuffer: 32 * 1024 * 1024,
     })
-    if (readFileSync(join(checkout, 'bun.lock'), 'utf8') !== readFileSync(join(root, 'bun.lock'), 'utf8')) {
-      throw new Error(`Historical baseline ${commit} uses a different dependency lockfile`)
-    }
     const historical = await import(`${pathToFileURL(join(checkout, 'src', 'index.ts')).href}?baseline=${commit}`) as {
       renderMermaidSVG: typeof renderMermaidSVG
     }

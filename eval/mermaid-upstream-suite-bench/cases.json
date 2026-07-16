@@ -4420,14 +4420,16 @@
     },
     "assertions": {
       "expectStructured": true,
-      "nodeCount": 2,
-      "edgeCount": 1,
+      "nodeCount": 4,
+      "edgeCount": 4,
       "groupCount": 0,
-      "minNodes": 2,
-      "minEdges": 1,
+      "minNodes": 4,
+      "minEdges": 4,
       "labelsContain": [
         " h ",
         " test ",
+        "C",
+        "D",
         "hello"
       ]
     }
@@ -5235,13 +5237,15 @@
     },
     "assertions": {
       "expectStructured": true,
-      "nodeCount": 1,
-      "edgeCount": 0,
+      "nodeCount": 2,
+      "edgeCount": 1,
       "groupCount": 0,
-      "minNodes": 1,
+      "minNodes": 2,
       "labelsContain": [
-        "A--"
-      ]
+        "A",
+        "B"
+      ],
+      "minEdges": 1
     }
   },
   {
@@ -5259,13 +5263,15 @@
     },
     "assertions": {
       "expectStructured": true,
-      "nodeCount": 1,
-      "edgeCount": 0,
+      "nodeCount": 2,
+      "edgeCount": 1,
       "groupCount": 0,
-      "minNodes": 1,
+      "minNodes": 2,
       "labelsContain": [
-        "A--"
-      ]
+        "A",
+        "blav"
+      ],
+      "minEdges": 1
     }
   },
   {
@@ -5917,13 +5923,15 @@
     },
     "assertions": {
       "expectStructured": true,
-      "nodeCount": 1,
-      "edgeCount": 0,
+      "nodeCount": 2,
+      "edgeCount": 1,
       "groupCount": 0,
-      "minNodes": 1,
+      "minNodes": 2,
       "labelsContain": [
-        "A--"
-      ]
+        "A",
+        "B"
+      ],
+      "minEdges": 1
     }
   },
   {
@@ -5970,13 +5978,15 @@
     },
     "assertions": {
       "expectStructured": true,
-      "nodeCount": 1,
-      "edgeCount": 0,
+      "nodeCount": 2,
+      "edgeCount": 1,
       "groupCount": 0,
-      "minNodes": 1,
+      "minNodes": 2,
       "labelsContain": [
-        "A--"
-      ]
+        "A",
+        "B"
+      ],
+      "minEdges": 1
     }
   },
   {
@@ -6021,13 +6031,15 @@
     },
     "assertions": {
       "expectStructured": true,
-      "nodeCount": 1,
-      "edgeCount": 0,
+      "nodeCount": 2,
+      "edgeCount": 1,
       "groupCount": 0,
-      "minNodes": 1,
+      "minNodes": 2,
       "labelsContain": [
-        "A--"
-      ]
+        "A",
+        "B"
+      ],
+      "minEdges": 1
     }
   },
   {
@@ -6045,13 +6057,15 @@
     },
     "assertions": {
       "expectStructured": true,
-      "nodeCount": 1,
-      "edgeCount": 0,
+      "nodeCount": 2,
+      "edgeCount": 1,
       "groupCount": 0,
-      "minNodes": 1,
+      "minNodes": 2,
       "labelsContain": [
-        "A--text"
-      ]
+        "A",
+        "B"
+      ],
+      "minEdges": 1
     }
   },
   {
@@ -6123,13 +6137,15 @@
     },
     "assertions": {
       "expectStructured": true,
-      "nodeCount": 1,
-      "edgeCount": 0,
+      "nodeCount": 2,
+      "edgeCount": 1,
       "groupCount": 0,
-      "minNodes": 1,
+      "minNodes": 2,
       "labelsContain": [
-        "A"
-      ]
+        "A",
+        "B"
+      ],
+      "minEdges": 1
     }
   },
   {
@@ -6993,13 +7009,15 @@
     },
     "assertions": {
       "expectStructured": true,
-      "nodeCount": 1,
-      "edgeCount": 0,
+      "nodeCount": 2,
+      "edgeCount": 1,
       "groupCount": 0,
-      "minNodes": 1,
+      "minNodes": 2,
       "labelsContain": [
-        "A"
-      ]
+        "A",
+        "B"
+      ],
+      "minEdges": 1
     }
   },
   {
@@ -7017,13 +7035,15 @@
     },
     "assertions": {
       "expectStructured": true,
-      "nodeCount": 1,
-      "edgeCount": 0,
+      "nodeCount": 2,
+      "edgeCount": 1,
       "groupCount": 0,
-      "minNodes": 1,
+      "minNodes": 2,
       "labelsContain": [
-        "A--"
-      ]
+        "A",
+        "B"
+      ],
+      "minEdges": 1
     }
   },
   {
@@ -7068,13 +7088,15 @@
     },
     "assertions": {
       "expectStructured": true,
-      "nodeCount": 1,
-      "edgeCount": 0,
+      "nodeCount": 2,
+      "edgeCount": 1,
       "groupCount": 0,
-      "minNodes": 1,
+      "minNodes": 2,
       "labelsContain": [
-        "A--"
-      ]
+        "A",
+        "B"
+      ],
+      "minEdges": 1
     }
   },
   {
@@ -7333,13 +7355,15 @@
     },
     "assertions": {
       "expectStructured": true,
-      "nodeCount": 1,
-      "edgeCount": 0,
+      "nodeCount": 2,
+      "edgeCount": 1,
       "groupCount": 0,
-      "minNodes": 1,
+      "minNodes": 2,
       "labelsContain": [
-        "A--"
-      ]
+        "A",
+        "B"
+      ],
+      "minEdges": 1
     }
   },
   {
@@ -7487,16 +7511,14 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 5,
+      "nodeCount": 3,
       "edgeCount": 0,
       "groupCount": 0,
-      "minNodes": 5,
+      "minNodes": 3,
       "labelsContain": [
         "hello",
         "B",
-        "Hello",
-        "shape",
-        "other"
+        "Hello"
       ]
     }
   },
@@ -10831,9 +10853,18 @@
     },
     "assertions": {
       "expectStructured": true,
-      "nodeCount": 0,
-      "edgeCount": 0,
-      "groupCount": 0
+      "nodeCount": 3,
+      "edgeCount": 2,
+      "groupCount": 0,
+      "minNodes": 3,
+      "minEdges": 2,
+      "labelsContain": [
+        "Alice",
+        "Bob",
+        "Bob thinks",
+        "Hello Bob, how are you?",
+        "I am good thanks!"
+      ]
     }
   },
   {

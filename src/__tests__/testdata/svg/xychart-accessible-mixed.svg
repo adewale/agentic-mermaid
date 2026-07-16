@@ -82,30 +82,30 @@ across two regions.</desc>
 <rect x="259.28" y="211.6" width="181.69" height="257.4" class="xychart-bar xychart-color-0" data-value="60" data-label="Q2 Growth" data-id="bar:0:Q2 Growth" data-role="bar" />
 <rect x="450.53" y="275.95" width="181.69" height="193.05" class="xychart-bar xychart-color-0" data-value="45" data-label="Q3" data-id="bar:0:Q3" data-role="bar" />
 <path d="M158.87,361.75 L350.12,233.05 L541.37,254.5" class="xychart-line xychart-color-1" data-relationship="series" data-direction="undirected" data-id="series:line-0" data-role="series" />
-<text x="158.87" y="348.3" text-anchor="middle" dominant-baseline="hanging" font-size="16" font-weight="400" class="xychart-data-label">30</text>
-<text x="350.12" y="219.6" text-anchor="middle" dominant-baseline="hanging" font-size="16" font-weight="400" class="xychart-data-label">60</text>
-<text x="541.37" y="283.95" text-anchor="middle" dominant-baseline="hanging" font-size="16" font-weight="400" class="xychart-data-label">45</text>
-<text x="158.87" y="486.6" text-anchor="middle" font-size="14" font-weight="400" dy="0.35em" class="xychart-label xychart-x-label">Q1</text>
-<text x="350.122" y="486.6" text-anchor="middle" font-size="14" font-weight="400" dy="0.35em" class="xychart-label xychart-x-label">Q2 Growth</text>
-<text x="541.374" y="486.6" text-anchor="middle" font-size="14" font-weight="400" dy="0.35em" class="xychart-label xychart-x-label">Q3</text>
-<text x="51.24400000000003" y="469" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">0</text>
-<text x="51.24400000000003" y="426.1" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">10</text>
-<text x="51.24400000000003" y="383.2" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">20</text>
-<text x="51.24400000000003" y="340.3" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">30</text>
-<text x="51.24400000000003" y="297.4" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">40</text>
-<text x="51.24400000000003" y="254.5" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">50</text>
-<text x="51.24400000000003" y="211.60000000000002" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">60</text>
-<text x="51.24400000000003" y="168.70000000000005" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">70</text>
-<text x="51.24400000000003" y="125.79999999999995" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">80</text>
-<text x="51.24400000000003" y="82.89999999999998" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">90</text>
-<text x="51.24400000000003" y="40" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">100</text>
-<text x="17.8" y="254.5" text-anchor="middle" transform="rotate(-90,17.8,254.5)" font-size="16" font-weight="400" dy="0.35em" class="xychart-axis-title xychart-y-axis-title">Users</text>
-<text x="350" y="30" text-anchor="middle" font-size="20" font-weight="500" dy="0.35em" class="xychart-title" data-id="title" data-role="title">Revenue</text>
+<text x="158.87" y="348.3" text-anchor="middle" dominant-baseline="hanging" font-size="16" font-weight="400" class="xychart-data-label" textLength="19.68" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">30</text>
+<text x="350.12" y="219.6" text-anchor="middle" dominant-baseline="hanging" font-size="16" font-weight="400" class="xychart-data-label" textLength="19.68" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">60</text>
+<text x="541.37" y="283.95" text-anchor="middle" dominant-baseline="hanging" font-size="16" font-weight="400" class="xychart-data-label" textLength="19.68" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">45</text>
+<text x="158.87" y="486.6" text-anchor="middle" font-size="14" font-weight="400" dy="0.35em" class="xychart-label xychart-x-label" textLength="14.196" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Q1</text>
+<text x="350.122" y="486.6" text-anchor="middle" font-size="14" font-weight="400" dy="0.35em" class="xychart-label xychart-x-label" textLength="63.336" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Q2 Growth</text>
+<text x="541.374" y="486.6" text-anchor="middle" font-size="14" font-weight="400" dy="0.35em" class="xychart-label xychart-x-label" textLength="18.732" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Q3</text>
+<text x="51.24400000000003" y="469" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label" textLength="9.66" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">0</text>
+<text x="51.24400000000003" y="426.1" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label" textLength="12.684" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">10</text>
+<text x="51.24400000000003" y="383.2" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label" textLength="17.22" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">20</text>
+<text x="51.24400000000003" y="340.3" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label" textLength="17.22" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">30</text>
+<text x="51.24400000000003" y="297.4" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label" textLength="17.22" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">40</text>
+<text x="51.24400000000003" y="254.5" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label" textLength="17.22" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">50</text>
+<text x="51.24400000000003" y="211.60000000000002" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label" textLength="17.22" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">60</text>
+<text x="51.24400000000003" y="168.70000000000005" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label" textLength="17.22" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">70</text>
+<text x="51.24400000000003" y="125.79999999999995" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label" textLength="17.22" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">80</text>
+<text x="51.24400000000003" y="82.89999999999998" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label" textLength="17.22" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">90</text>
+<text x="51.24400000000003" y="40" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label" textLength="20.244" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">100</text>
+<text x="17.8" y="254.5" text-anchor="middle" transform="rotate(-90,17.8,254.5)" font-size="16" font-weight="400" dy="0.35em" class="xychart-axis-title xychart-y-axis-title" textLength="45.6" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Users</text>
+<text x="350" y="30" text-anchor="middle" font-size="20" font-weight="500" dy="0.35em" class="xychart-title" data-id="title" data-role="title" textLength="85.08" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Revenue</text>
 <g class="xychart-legend">
   <rect x="642" y="45" width="12" height="12" rx="2" ry="2" class="xychart-legend-swatch" fill="#ff6b6b"/>
-  <text x="660" y="51" text-anchor="start" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-legend-label">Bar 1</text>
+  <text x="660" y="51" text-anchor="start" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-legend-label" textLength="30.072" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Bar 1</text>
   <line x1="642" y1="70" x2="654" y2="70" class="xychart-legend-swatch" stroke="#0ea5e9" stroke-width="3" stroke-linecap="round"/>
   <circle cx="648" cy="70" r="2.5" class="xychart-legend-dot" fill="#0ea5e9" stroke="#f8fafc" stroke-width="1"/>
-  <text x="660" y="70" text-anchor="start" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-legend-label">Line 1</text>
+  <text x="660" y="70" text-anchor="start" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-legend-label" textLength="34.608" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Line 1</text>
 </g>
 </svg>

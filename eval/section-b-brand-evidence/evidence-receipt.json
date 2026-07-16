@@ -1,9 +1,9 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "generator": "scripts/pr-assets/section-b-brand-evidence.ts",
   "inputs": {
-    "count": 706,
-    "treeSha256": "aad3fc4f47a29753735beaa3c1bade998943a53682d5672304c0e7ae1ad148d8"
+    "count": 713,
+    "treeSha256": "5f2a26304a542ccd57f4c8c0459efbec4869f7ddb37d51872fbc8bf21a69d4f3"
   },
   "fontInputs": [
     {
@@ -40,18 +40,38 @@
   ],
   "outputPaths": {
     "graphicalCells": "public native renderMermaidPNG",
+    "graphicalBackends": "public renderMermaidSVG + renderMermaidPNG sentinel probes",
     "terminal": "public renderMermaidASCII (Unicode, no color)"
+  },
+  "graphicalBackends": {
+    "default": {
+      "familyCount": 15,
+      "svgSha256": "cf79a730de4b35ee3d8c020a48a9b690d9c8784ca355e138178d14ff19407ca5",
+      "pngSha256": "19374ce911cecf7e065304942d6628dfe32f2b73e96ec2343b2028341e8f408d"
+    },
+    "rough": {
+      "familyCount": 15,
+      "svgSha256": "af8e27213fc79626efc9f2431c9d6d4ffccb9abb669e987b37c1fdd031053bab",
+      "pngSha256": "9092d91b7d53e5c4e1b23fa724f074eefb01ecf5631d55dde9ffa79e91647ae4"
+    },
+    "hybrid": {
+      "familyCount": 15,
+      "svgSha256": "2ff439f024573611e2a16882e8eddb8767801a0e8f2da505586378a1cdc97094",
+      "pngSha256": "fc10e0c3888697e225c8c96ab8bd280df82f0aa94562b6a2c1c0eed43ec2c85c"
+    }
   },
   "terminalSha256": "b4ce32cb71246e74c52052f6fe6db25d4dd0788299935bc446e3b462355e22ab",
   "baseline": {
     "state": "unsupported-style-fields",
-    "command": "git worktree add --detach /tmp/am-section-b-base origin/main && (cd /tmp/am-section-b-base && bun install --frozen-lockfile && bun run bin/am.ts render \"$OLDPWD/eval/section-b-brand-evidence/baseline.mmd\" --format svg --style \"$OLDPWD/eval/section-b-brand-evidence/role-style.json\")",
+    "commit": "e60be1e68b5aa51fac205c7cf9e481ea3b27ffc8",
+    "command": "git worktree add --detach /tmp/am-section-b-base e60be1e68b5aa51fac205c7cf9e481ea3b27ffc8 && (cd /tmp/am-section-b-base && bun install --frozen-lockfile && bun run bin/am.ts render \"$OLDPWD/eval/section-b-brand-evidence/baseline.mmd\" --format svg --style \"$OLDPWD/eval/section-b-brand-evidence/role-style.json\")",
+    "expectedExitCode": 2,
     "expected": "Invalid style spec: unknown field \"roles\" (no fabricated before image)"
   },
   "visualApproval": {
     "path": "eval/section-b-brand-evidence/visual-approval.json",
     "status": "approved",
-    "artifactSha256": "4a69a855066e0b08ba77972beebc963aac9b537bba51edfe4ac0398ad43c4f44",
+    "artifactSha256": "1ea138f591d35cc575aeb5f11c15134358276ce25a1f9d0576db99877f749f12",
     "reviewedAt": "2026-07-16",
     "reviewer": "OpenAI coding agent, at the user's explicit request",
     "audit": "eval/section-b-brand-evidence/production-comparison.md"
@@ -59,7 +79,7 @@
   "outputs": [
     {
       "path": "docs/design/families/section-b-brand-evidence.png",
-      "sha256": "4a69a855066e0b08ba77972beebc963aac9b537bba51edfe4ac0398ad43c4f44"
+      "sha256": "1ea138f591d35cc575aeb5f11c15134358276ce25a1f9d0576db99877f749f12"
     }
   ]
 }

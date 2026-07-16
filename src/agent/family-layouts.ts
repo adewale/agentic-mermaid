@@ -51,6 +51,7 @@ import type {
 import { toFinite } from './types.ts'
 import { emptyRenderedLayout, positionedGraphToRenderedView } from './layout-to-rendered.ts'
 import { serializeMermaid } from './serialize.ts'
+import { renderSourceForParsedDiagram } from './render-input.ts'
 import { getFamily } from './families.ts'
 import type {
   FamilyPositionedProjectionContext, FamilyPositionedProjectionOptions,
@@ -211,6 +212,10 @@ export function projectPositionedView(
  * serializer as the source-context bridge; the descriptor still owns all
  * parsing and positioning.
  */
+export function familyArtifactSource(d: ParsedDiagram): string {
+  return renderSourceForParsedDiagram(d)
+}
+
 export function positionFamilyArtifact(
   d: ParsedDiagram,
   options: PositionFamilyArtifactOptions = {},
@@ -219,11 +224,7 @@ export function positionFamilyArtifact(
   if (!descriptor?.layout || !descriptor.projectPositioned) return null
   const projectionOptions: FamilyPositionedProjectionOptions = { debug: options.debug }
 
-  const sourceText = d.body.kind !== 'opaque' && (
-    d.kind === 'state' || d.kind === 'quadrant' || d.kind === 'mindmap' || d.kind === 'gitgraph' || d.kind === 'radar'
-  )
-    ? serializeMermaid(d)
-    : d.canonicalSource
+  const sourceText = familyArtifactSource(d)
   const canRetryFromBody = structuredBodyExpectsNodes(d)
 
   const projectSource = (text: string): ProjectedFamilyArtifact => {

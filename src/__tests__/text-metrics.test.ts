@@ -4,6 +4,7 @@
 import { describe, it, expect } from 'bun:test'
 import {
   getCharWidth,
+  measureMonospaceTextWidth,
   measureSystemFontSafeTextWidth,
   measureText,
   measureTextWidth,
@@ -20,6 +21,10 @@ describe('TEXT_MEASUREMENT_CONTRACT', () => {
     expect(measured.contract).toBe(TEXT_MEASUREMENT_CONTRACT)
     expect(measured.contract.wideCodepoints).toBe('src/shared/unicode-ranges.ts')
     expect(measured.contract.ambiguousWidth).toBe('single-cell')
+    expect(measured.contract.version).toBe(3)
+    expect(measured.contract.paintedAdvanceProjection).toBe('svg-textLength-spacingAndGlyphs')
+    expect(measured.contract.naturalAdvanceExemptions).toBe('none')
+    expect(measureMonospaceTextWidth('A界🙂', 10)).toBe(30)
     expect(measured.width).toBe(measureTextWidth('Hello中国🙂', 14, 500))
     expect(measured.charWidthUnits).toBeGreaterThan(0)
     expect(measured.codePointCount).toBe(8)

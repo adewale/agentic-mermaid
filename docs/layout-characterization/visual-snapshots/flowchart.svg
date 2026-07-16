@@ -32,27 +32,27 @@
 <g class="edge-label" data-from="Check" data-to="Done" data-label="yes">
   <rect class="edge-label-halo" x="53.46650000000001" y="268.382" width="43.47" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
   <rect x="57.46650000000001" y="272.382" width="35.47" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
-  <text x="75.20150000000001" y="287.532" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" dy="3.8499999999999996">yes</text>
+  <text x="75.20150000000001" y="287.532" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" dy="3.8499999999999996" textLength="19.47" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">yes</text>
 </g>
 <g class="edge-label" data-from="Check" data-to="Retry" data-label="no">
   <rect class="edge-label-halo" x="160.9185" y="268.382" width="37.53" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
   <rect x="164.9185" y="272.382" width="29.53" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
-  <text x="179.6835" y="287.532" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" dy="3.8499999999999996">no</text>
+  <text x="179.6835" y="287.532" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" dy="3.8499999999999996" textLength="13.53" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">no</text>
 </g>
 <g class="node" data-id="Start" data-label="Start" data-shape="rectangle" data-role="node">
   <rect x="92.38850000000001" y="40" width="70.108" height="36.900000000000006" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" data-id="node-shape:Start" data-role="node" />
-  <text x="127.44250000000001" y="58.45" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Start</text>
+  <text x="127.44250000000001" y="58.45" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55" textLength="30.108" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Start</text>
 </g>
 <g class="node" data-id="Check" data-label="Check" data-shape="diamond" data-role="node">
   <polygon points="127.44250000000001,124.90000000000002 179.6835,177.14100000000002 127.44250000000001,229.382 75.20150000000001,177.14100000000002" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" data-id="node-shape:Check" data-role="node" />
-  <text x="127.44250000000001" y="177.14100000000002" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Check</text>
+  <text x="127.44250000000001" y="177.14100000000002" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55" textLength="40.482" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Check</text>
 </g>
 <g class="node" data-id="Done" data-label="Done" data-shape="rectangle" data-role="node">
   <rect x="38.66550000000001" y="345.682" width="73.072" height="36.900000000000006" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" data-id="node-shape:Done" data-role="node" />
-  <text x="75.20150000000001" y="364.132" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Done</text>
+  <text x="75.20150000000001" y="364.132" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55" textLength="33.072" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Done</text>
 </g>
 <g class="node" data-id="Retry" data-label="Retry" data-shape="rectangle" data-role="node">
   <rect x="142.40650000000002" y="345.682" width="74.554" height="36.900000000000006" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" data-id="node-shape:Retry" data-role="node" />
-  <text x="179.68350000000004" y="364.132" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Retry</text>
+  <text x="179.68350000000004" y="364.132" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55" textLength="34.554" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Retry</text>
 </g>
 </svg>

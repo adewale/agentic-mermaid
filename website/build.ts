@@ -1842,7 +1842,7 @@ function injectHeroStyleFigure(html: string) {
   return html.replace('{{HERO_STYLE_FIGURE}}', heroStyleFigureHtml())
 }
 // Fact-strip counts derived from the registries so the published numbers cannot
-// drift (the strip previously hard-coded "21 palettes" against 20 real ones).
+// drift (the strip previously hard-coded a stale palette total).
 const STYLE_DESCRIPTORS = knownStyleDescriptors()
 const STYLE_LOOK_COUNT = STYLE_DESCRIPTORS.filter(descriptor => descriptor.kind === 'look').length
 const STYLE_PALETTE_COUNT = STYLE_DESCRIPTORS.filter(descriptor => descriptor.kind === 'palette').length

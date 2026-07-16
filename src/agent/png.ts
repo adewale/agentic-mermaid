@@ -46,7 +46,7 @@ import { renderPngGraphicalProjection } from '../png-graphical.ts'
 import { RESOURCE_MANIFEST } from '../font-manifest.ts'
 import { NodeResourceResolver } from '../node-resource-resolver.ts'
 import { verifyRegisteredEmbeddedFontResources } from './embedded-font-resources.ts'
-import type { HostBackendPolicy } from '../scene/backend.ts'
+import { snapshotHostBackendPolicy, type HostBackendPolicy } from '../scene/backend.ts'
 export type { PngFontWarning } from '../shared/png-font-warnings.ts'
 
 export interface PngOptions extends RenderOptions, PngOutputPolicyInput {
@@ -167,7 +167,8 @@ export interface MermaidPNGRenderer {
 export function createMermaidPNGRenderer(
   hostOptions: MermaidPNGRendererHostOptions = {},
 ): MermaidPNGRenderer {
-  const host = Object.freeze({ ...hostOptions })
+  const backendPolicy = snapshotHostBackendPolicy(hostOptions.backendPolicy)
+  const host = Object.freeze({ ...(backendPolicy ? { backendPolicy } : {}) })
   return Object.freeze({
     renderMermaidPNG(input: ParsedDiagram | string, opts: PngOptions = {}): Uint8Array {
       return renderMermaidPNGWithReceiptForHost(input, opts, host).png

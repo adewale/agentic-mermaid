@@ -103,6 +103,40 @@ describe('host-selected graphical backend parity', () => {
     }
   })
 
+  test('bound renderers snapshot the host policy selector at construction', async () => {
+    const first = 'backend:test/bound-policy-first'
+    const second = 'backend:test/bound-policy-second'
+    const unregisterFirst = registerProbeBackend(first, () => {})
+    const unregisterSecond = registerProbeBackend(second, () => {})
+    const policy: HostBackendPolicy = { selectBackend: () => first }
+    let browserSvg = ''
+    const svg = createMermaidRenderer({ backendPolicy: policy })
+    const native = createMermaidPNGRenderer({ backendPolicy: policy })
+    const browser = createMermaidBrowserPNGRenderer({
+      backendPolicy: policy,
+      async rasterize(projected, context) {
+        browserSvg = projected
+        return { png: pngFixture(context.rasterDimensions.width, context.rasterDimensions.height) }
+      },
+    })
+    ;(policy as { selectBackend: HostBackendPolicy['selectBackend'] }).selectBackend = () => second
+    const source = 'flowchart LR\n  A --> B'
+    const options = { style: 'hand-drawn' } as const
+    try {
+      const svgArtifact = svg.renderMermaidSVGWithReceipt(source, options)
+      const nativeArtifact = native.renderMermaidPNGWithReceipt(source, { ...options, scale: 0.1, onWarning: () => {} })
+      const browserArtifact = await browser.renderMermaidPNGWithReceipt(source, options, 0.1)
+      expect(svgArtifact.svg).toContain(`data-host-backend="${first}"`)
+      expect(browserSvg).toContain(`data-host-backend="${first}"`)
+      for (const receipt of [svgArtifact.receipt, nativeArtifact.receipt, browserArtifact.receipt]) {
+        expect(receipt.executionDecision?.backend).toMatchObject({ selectedId: first, hostPolicy: true })
+      }
+    } finally {
+      unregisterSecond()
+      unregisterFirst()
+    }
+  })
+
   test('Scene admission rejects undeclared graphical lowering while native terminal remains independent', async () => {
     const id = 'backend:test/host-png-admission'
     let backendRenders = 0

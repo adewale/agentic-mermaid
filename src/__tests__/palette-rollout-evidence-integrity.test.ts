@@ -13,9 +13,10 @@ import {
 const ROOT = join(import.meta.dir, '..', '..')
 const BASELINE_DIR = join(ROOT, 'eval', 'palette-rollout', 'baseline')
 
-function git(root: string, ...args: string[]): void {
+function git(root: string, ...args: string[]): string {
   const result = Bun.spawnSync(['git', ...args], { cwd: root, stdout: 'pipe', stderr: 'pipe' })
   if (result.exitCode !== 0) throw new Error(result.stderr.toString())
+  return result.stdout.toString().trim()
 }
 
 describe('palette rollout evidence integrity', () => {
@@ -34,7 +35,34 @@ describe('palette rollout evidence integrity', () => {
       .toThrow('does not resolve to a commit in this repository')
   })
 
-  test('binds every frozen SVG byte to the named historical renderer commit', async () => {
+  test('accepts a reviewed development-line commit after a squash merge', () => {
+    const repo = mkdtempSync(join(tmpdir(), 'palette-baseline-squash-'))
+    try {
+      git(repo, 'init', '--quiet')
+      git(repo, 'config', 'user.name', 'Palette Evidence')
+      git(repo, 'config', 'user.email', 'evidence@example.test')
+      writeFileSync(join(repo, 'source.txt'), 'base\n')
+      git(repo, 'add', 'source.txt')
+      git(repo, 'commit', '--quiet', '-m', 'base')
+      const base = git(repo, 'rev-parse', 'HEAD')
+
+      git(repo, 'checkout', '--quiet', '-b', 'development-line')
+      writeFileSync(join(repo, 'source.txt'), 'reviewed baseline\n')
+      git(repo, 'commit', '--quiet', '-am', 'reviewed baseline')
+      const baseline = git(repo, 'rev-parse', 'HEAD')
+
+      git(repo, 'checkout', '--quiet', '-b', 'squash-result', base)
+      writeFileSync(join(repo, 'source.txt'), 'squash result\n')
+      git(repo, 'commit', '--quiet', '-am', 'squash merge')
+      const ancestry = Bun.spawnSync(['git', 'merge-base', '--is-ancestor', baseline, 'HEAD'], { cwd: repo })
+      expect(ancestry.exitCode).toBe(1)
+      expect(() => verifyBaselineCommit(baseline, repo)).not.toThrow()
+    } finally {
+      rmSync(repo, { recursive: true, force: true })
+    }
+  })
+
+  test('binds every frozen SVG byte to the named historical renderer commit across lock updates', async () => {
     const baseline = JSON.parse(readFileSync(join(BASELINE_DIR, 'baseline.json'), 'utf8')) as BaselineFile
     await expect(verifyFrozenBaselineRender(baseline.commit, BASELINE_DIR, ROOT)).resolves.toBeUndefined()
 

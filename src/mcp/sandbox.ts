@@ -2,11 +2,18 @@
 
 import vm from 'node:vm'
 import { createTracingMermaid, expressionFirstWraps, unsupportedCodeReason, marshalCodeModeResult, CODE_MODE_RETURN_HINT } from './facade.ts'
+import {
+  DEFAULT_EXECUTE_TIMEOUT_MS,
+  LOGS_TRUNCATED_MARKER,
+  normalizeExecuteOutputLimits,
+  utf8ByteLength,
+  type ExecuteOutputLimits,
+} from './execute-limits.ts'
 
 import type { ExecutionTraceCall } from './facade.ts'
 export type { ExecutionTraceCall } from './facade.ts'
 
-export interface ExecuteOptions { timeoutMs?: number; trace?: boolean }
+export interface ExecuteOptions { timeoutMs?: number; trace?: boolean; outputLimits?: Readonly<ExecuteOutputLimits> }
 export interface ExecuteResult { ok: boolean; value?: unknown; logs?: string[]; error?: string; trace?: ExecutionTraceCall[] }
 
 const MIN_BUN_SDK_TIMEOUT_MS = 1_000
@@ -32,7 +39,8 @@ export async function executeInSandbox(code: string, opts: ExecuteOptions = {}):
 }
 
 function runInSandbox(code: string, opts: ExecuteOptions = {}): ExecuteResult {
-  const timeoutMs = opts.timeoutMs ?? 5000
+  const timeoutMs = opts.timeoutMs ?? DEFAULT_EXECUTE_TIMEOUT_MS
+  const outputLimits = normalizeExecuteOutputLimits(opts.outputLimits)
   const startedAt = performance.now()
   const remainingBudgetMs = () => Math.floor(timeoutMs - (performance.now() - startedAt))
   const trace: ExecutionTraceCall[] = []
@@ -52,12 +60,37 @@ function runInSandbox(code: string, opts: ExecuteOptions = {}): ExecuteResult {
   vm.runInContext(`
     (() => {
       const logs = []
+      let logBytes = 0
+      let logsTruncated = false
+      const maxLogEntries = ${outputLimits.maxLogEntries}
+      const maxLogBytes = ${outputLimits.maxLogBytes}
+      const truncationMarker = ${JSON.stringify(LOGS_TRUNCATED_MARKER)}
       const safeString = String
       const safeStringify = JSON.stringify.bind(JSON)
       const objectToString = Object.prototype.toString
       const safeToStringTag = (v) => objectToString.call(v)
       const safeFromEntries = Object.fromEntries.bind(Object)
       const safeArrayFrom = Array.from.bind(Array)
+      const utf8Bytes = (value) => {
+        let bytes = 0
+        for (const char of value) {
+          const code = char.codePointAt(0)
+          bytes += code <= 0x7f ? 1 : code <= 0x7ff ? 2 : code <= 0xffff ? 3 : 4
+        }
+        return bytes
+      }
+      const truncateUtf8 = (value, maximum) => {
+        let bytes = 0
+        let output = ''
+        for (const char of value) {
+          const code = char.codePointAt(0)
+          const width = code <= 0x7f ? 1 : code <= 0x7ff ? 2 : code <= 0xffff ? 3 : 4
+          if (bytes + width > maximum) break
+          output += char
+          bytes += width
+        }
+        return output
+      }
       const str = (v) => {
         if (typeof v === 'string') return v
         try {
@@ -66,6 +99,23 @@ function runInSandbox(code: string, opts: ExecuteOptions = {}): ExecuteResult {
         } catch {
           try { return safeString(v) } catch { return '[unprintable]' }
         }
+      }
+      const appendLog = (args) => {
+        if (logsTruncated) return
+        if (logs.length >= maxLogEntries || logBytes >= maxLogBytes) {
+          logsTruncated = true
+          logs.push(truncationMarker)
+          return
+        }
+        let line = args.map(str).join(' ')
+        const remaining = maxLogBytes - logBytes
+        if (utf8Bytes(line) > remaining) {
+          line = truncateUtf8(line, remaining)
+          logsTruncated = true
+        }
+        logBytes += utf8Bytes(line)
+        logs.push(line)
+        if (logsTruncated) logs.push(truncationMarker)
       }
       Object.defineProperty(globalThis, '__pi_read_logs', {
         value: () => safeStringify(logs),
@@ -100,9 +150,9 @@ function runInSandbox(code: string, opts: ExecuteOptions = {}): ExecuteResult {
       })
       Object.defineProperty(globalThis, 'console', {
         value: Object.freeze({
-          log: (...a) => logs.push(a.map(str).join(' ')),
-          error: (...a) => logs.push(a.map(str).join(' ')),
-          warn: (...a) => logs.push(a.map(str).join(' ')),
+          log: (...a) => appendLog(a),
+          error: (...a) => appendLog(a),
+          warn: (...a) => appendLog(a),
         }),
         writable: false,
         configurable: false,
@@ -270,6 +320,9 @@ function runInSandbox(code: string, opts: ExecuteOptions = {}): ExecuteResult {
   }
   if (stringified === undefined) return withTrace({ ok: true, value: null, logs: readLogs() })
   if (typeof stringified !== 'string') return withTrace({ ok: false, error: 'non-serializable: result did not stringify to JSON text', logs: readLogs() })
+  if (utf8ByteLength(stringified) > outputLimits.maxResultBytes) {
+    return withTrace({ ok: false, error: `sandbox result exceeded ${outputLimits.maxResultBytes} bytes; reduce console output or returned data`, logs: readLogs() })
+  }
   try { return withTrace({ ok: true, value: JSON.parse(stringified), logs: readLogs() }) }
   catch (e) { return withTrace({ ok: false, error: `non-serializable: ${e instanceof Error ? e.message : 'invalid JSON'}`, logs: readLogs() }) }
 }

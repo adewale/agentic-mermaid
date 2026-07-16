@@ -9,15 +9,14 @@
 // are the engine's either way). The real loader wiring is covered by the
 // wrangler e2e (website/e2e-mcp.sh).
 //
-// Documented divergences (asserted explicitly at the bottom, not hidden):
-//  1. Sloppy-mode implicit globals (`x = 1`) work in the vm context but throw
-//     in strict ES modules.
-//  2. Timeout wording differs (vm wall-clock timeout vs isolate cpuMs budget).
+// Documented divergence (asserted explicitly at the bottom, not hidden):
+// sloppy-mode implicit globals (`x = 1`) work in the vm context but throw in
+// strict ES modules. Timeout wording also differs by host budget mechanism.
 
 import { describe, expect, test } from 'bun:test'
 import { executeInSandbox, type ExecuteResult } from '../mcp/sandbox.ts'
 import { unsupportedCodeReason } from '../mcp/facade.ts'
-import { runUserCode, userModuleSources, formatHarnessError, MAX_LOG_ENTRIES, LOGS_TRUNCATED_MARKER } from '../mcp/harness-runtime.ts'
+import { runUserCode, userModuleSources, formatHarnessError, MAX_LOG_ENTRIES, MAX_RESULT_BYTES, LOGS_TRUNCATED_MARKER } from '../mcp/harness-runtime.ts'
 import {
   renderMermaidASCIIWithReceipt,
   renderMermaidSVGWithReceipt,
@@ -217,25 +216,36 @@ describe('hosted execute render policy', () => {
   })
 })
 
-describe('documented divergences from the vm sandbox', () => {
-  test('hosted log spam truncates at the cap; vm logs are unbounded', async () => {
+describe('bounded local/hosted Code Mode output', () => {
+  test('hosted and local log spam truncate at the shared cap', async () => {
     const code = 'for (let i = 0; i < 2000; i++) console.log("line", i); return 1'
     const local = await executeInSandbox(code)
     const hosted = await executeHosted(code)
-    expect(local.logs).toHaveLength(2000)
-    expect(hosted.ok).toBe(true)
-    expect(hosted.logs).toHaveLength(MAX_LOG_ENTRIES + 1)
-    expect(hosted.logs![hosted.logs!.length - 1]).toBe(LOGS_TRUNCATED_MARKER)
+    for (const result of [local, hosted]) {
+      expect(result.ok).toBe(true)
+      expect(result.logs).toHaveLength(MAX_LOG_ENTRIES + 1)
+      expect(result.logs![result.logs!.length - 1]).toBe(LOGS_TRUNCATED_MARKER)
+    }
   })
 
-  test('hosted results are capped at MAX_RESULT_BYTES; vm results are unbounded', async () => {
+  test('hosted and local results reject JSON beyond the shared UTF-8 byte cap', async () => {
     const code = 'return "x".repeat(3000000)'
     const local = await executeInSandbox(code)
     const hosted = await executeHosted(code)
-    expect(local.ok).toBe(true)
-    expect(hosted.ok).toBe(false)
-    expect(hosted.error).toContain('exceeded')
-    expect(hosted.error).toContain('bytes')
+    for (const result of [local, hosted]) {
+      expect(result.ok).toBe(false)
+      expect(result.error).toContain('exceeded')
+      expect(result.error).toContain('bytes')
+      expect(result.error).toContain(String(MAX_RESULT_BYTES))
+    }
+  })
+
+  test('local custom limits count UTF-8 bytes and preserve code points while truncating logs', async () => {
+    const result = await executeInSandbox('console.warn("🙂🙂"); return "🙂🙂"', {
+      outputLimits: { maxResultBytes: 9, maxLogEntries: 1, maxLogBytes: 5 },
+    })
+    expect(result.ok).toBe(false) // JSON quotes + two emoji = 10 UTF-8 bytes
+    expect(result.logs).toEqual(['🙂', LOGS_TRUNCATED_MARKER])
   })
 
   test('sloppy-mode implicit globals: vm allows, strict modules throw', async () => {

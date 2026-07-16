@@ -32,6 +32,11 @@ let server: ReturnType<typeof Bun.serve>
 let browser: Browser
 let baseUrl = ''
 
+async function newIsolatedPage(viewport: { width: number; height: number }): Promise<Page> {
+  const context = await browser.newContext({ viewport })
+  return context.newPage()
+}
+
 const chromiumExecutable = (() => {
   const override = process.env.AM_CHROMIUM
   if (override) {
@@ -166,7 +171,7 @@ describeBrowser('editor style switcher restyles the artwork, never the chrome', 
   })
 
   test('crisp → hand-drawn → crisp: look changes, chrome and layout ownership hold', async () => {
-    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
+    const page = await newIsolatedPage({ width: 1440, height: 900 })
     await page.goto(baseUrl + '/editor/', { waitUntil: 'networkidle' })
 
     // Crisp default: no styled backdrop and no style-seed toolbar affordance.
@@ -193,7 +198,7 @@ describeBrowser('editor style switcher restyles the artwork, never the chrome', 
   }, 60_000)
 
   test('shared config style still responds to the Style dropdown', async () => {
-    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
+    const page = await newIsolatedPage({ width: 1440, height: 900 })
     await page.goto(baseUrl + '/editor/?empty=1#' + shareHash(STYLE_STACK_SHARE), { waitUntil: 'networkidle' })
 
     await page.waitForFunction(() => {
@@ -214,7 +219,7 @@ describeBrowser('editor style switcher restyles the artwork, never the chrome', 
   }, 60_000)
 
   test('shared config hydrates Settings and survives the first settings edit', async () => {
-    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
+    const page = await newIsolatedPage({ width: 1440, height: 900 })
     await page.goto(baseUrl + '/editor/?empty=1#' + shareHash(RESTORED_CONFIG_SHARE), { waitUntil: 'networkidle' })
     await page.waitForFunction(() => {
       const svg = document.querySelector('.preview-inner svg') as SVGSVGElement | null
@@ -242,7 +247,7 @@ describeBrowser('editor style switcher restyles the artwork, never the chrome', 
   }, 60_000)
 
   test('advanced RenderOptions round-trip through the canonical schema and reject unknown fields', async () => {
-    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
+    const page = await newIsolatedPage({ width: 1440, height: 900 })
     await page.goto(baseUrl + '/editor/?empty=1', { waitUntil: 'networkidle' })
     await page.locator('#code-editor').fill('flowchart TD\n  A[Alpha] --> B[Beta]')
     await page.locator('#code-editor').dispatchEvent('input')
@@ -311,7 +316,7 @@ describeBrowser('editor style switcher restyles the artwork, never the chrome', 
   }, 60_000)
 
   test('browser PNG export passes its receipt gate, declares sRGB, and reports font failures', async () => {
-    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
+    const page = await newIsolatedPage({ width: 1440, height: 900 })
     await page.route('**/fonts/**', route => route.abort())
     await page.goto(baseUrl + '/editor/', { waitUntil: 'networkidle' })
     await page.waitForFunction(() => {
@@ -359,7 +364,7 @@ describeBrowser('editor style switcher restyles the artwork, never the chrome', 
   }, 60_000)
 
   test('scheduling a replacement render immediately revokes stale export authority', async () => {
-    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
+    const page = await newIsolatedPage({ width: 1440, height: 900 })
     await page.goto(baseUrl + '/editor/', { waitUntil: 'networkidle' })
     await page.waitForFunction(() => {
       const preview = document.getElementById('preview-inner') as HTMLElement | null
@@ -382,7 +387,7 @@ describeBrowser('editor style switcher restyles the artwork, never the chrome', 
   }, 60_000)
 
   test('browser and editor retain comparable SVG, Unicode, and ASCII receipts', async () => {
-    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
+    const page = await newIsolatedPage({ width: 1440, height: 900 })
     await page.goto(baseUrl + '/editor/?empty=1', { waitUntil: 'networkidle' })
     await page.locator('#code-editor').fill('sequenceDiagram\n  Alice->>Bob: Hello\n  Bob-->>Alice: Ready')
     await page.locator('#code-editor').dispatchEvent('input')
@@ -433,7 +438,7 @@ describeBrowser('editor style switcher restyles the artwork, never the chrome', 
   test('the canonical six-surface sentinel retains the complete receipt through the editor adapter', async () => {
     const { source, options } = SECTION_A_TRANSPORT_FIXTURE
     const library = renderMermaidSVGWithReceipt(source, options)
-    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
+    const page = await newIsolatedPage({ width: 1440, height: 900 })
     await page.addInitScript(() => {
       let mermaidValue: any
       Object.defineProperty(window, '__mermaid', {
@@ -476,7 +481,7 @@ describeBrowser('editor style switcher restyles the artwork, never the chrome', 
   }, 60_000)
 
   test('newer renders win over slower in-flight renders', async () => {
-    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
+    const page = await newIsolatedPage({ width: 1440, height: 900 })
     await page.addInitScript(() => {
       let mermaidValue: any
       Object.defineProperty(window, '__mermaid', {
@@ -517,7 +522,7 @@ describeBrowser('editor style switcher restyles the artwork, never the chrome', 
   test('style switch does not reflow the wrap-prone mobile topbar (portrait)', async () => {
     // Portrait is the worst case: the topbar wraps to several rows, so style
     // changes must not introduce or reveal any extra toolbar control.
-    const page = await browser.newPage({ viewport: { width: 390, height: 844 } })
+    const page = await newIsolatedPage({ width: 390, height: 844 })
     await page.goto(baseUrl + '/editor/', { waitUntil: 'networkidle' })
     await waitForBackdrop(page, null)
     expect(await page.locator('#seed-shuffle-btn').count()).toBe(0)

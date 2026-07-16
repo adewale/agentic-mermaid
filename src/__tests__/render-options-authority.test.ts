@@ -2,6 +2,8 @@ import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { DEFAULT_ARCHITECTURE_VISUAL } from '../architecture/config.ts'
 import { renderContractDigest, renderMermaidSVG } from '../index.ts'
+import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
+import { layoutMermaidWithReceipt } from '../agent/core.ts'
 import {
   NON_SERIALIZABLE_RENDER_OPTION_FIELDS,
   SHARED_RENDER_OPTION_FIELDS,
@@ -202,6 +204,25 @@ describe('shared RenderOptions authority', () => {
     expect(callbackReads).toBe(1)
     expect(first).toContain('flowchart.curve')
     expect(replacement).toEqual([])
+  })
+
+  test('emits explicit family-config diagnostics exactly once across SVG, terminal, and layout', () => {
+    const source = 'flowchart LR\n  A --> B'
+    const run = (render: (options: any) => unknown) => {
+      const diagnostics: Array<{ code: string; field: string; message: string }> = []
+      render({
+        mermaidConfig: { flowchart: { curve: 'basis' } },
+        onConfigDiagnostic: (diagnostic: { code: string; field: string; message: string }) => diagnostics.push(diagnostic),
+      })
+      return diagnostics
+    }
+    const graphical = run(options => renderMermaidSVG(source, options))
+    const terminal = run(options => renderMermaidASCIIWithReceipt(source, { ...options, colorMode: 'none' }))
+    const layout = run(options => layoutMermaidWithReceipt(source, options))
+    expect(graphical).toHaveLength(1)
+    expect(terminal).toEqual(graphical)
+    expect(layout).toEqual(graphical)
+    expect(graphical[0]).toMatchObject({ code: 'INEFFECTIVE_CONFIG', field: 'flowchart.curve' })
   })
 
   test('keeps the marked API inventory byte-for-byte generated from descriptors', () => {

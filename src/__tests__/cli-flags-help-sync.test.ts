@@ -7,7 +7,7 @@
 import { describe, test, expect } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { BOOLEAN_FLAGS, FLAG_SPECS, GLOBAL_USAGE, parseArgs, runCli } from '../cli/index.ts'
+import { BOOLEAN_FLAGS, COMMAND_FLAGS, COMMAND_POSITIONALS, FLAG_SPECS, GLOBAL_USAGE, parseArgs, runCli } from '../cli/index.ts'
 import { parseFlagsBlock, booleanFlagReads } from './helpers/cli-flag-parsing.ts'
 
 describe('FLAG_SPECS is the single source for flag classification', () => {
@@ -63,6 +63,18 @@ describe('command-specific flag validity', () => {
     expect(capture(['batch', '--jsonl']).code).toBe(0)
   })
 
+  test('boolean values and duplicate flags fail closed instead of changing meaning', () => {
+    for (const argv of [
+      ['capabilities', '--json=false'],
+      ['render', '--style', 'crisp', '--style', 'rough', 'ignored.mmd'],
+      ['render', '--json', '--json', 'ignored.mmd'],
+    ]) {
+      const result = capture(argv)
+      expect(result.code, argv.join(' ')).toBe(2)
+      expect(result.output, argv.join(' ')).toMatch(/does not accept a value|only once/)
+    }
+  })
+
   test('known but inapplicable flags and missing values fail with ARG exit 2', () => {
     for (const argv of [
       ['verify', '--scale', '2', 'ignored.mmd'],
@@ -72,6 +84,33 @@ describe('command-specific flag validity', () => {
       const result = capture(argv)
       expect(result.code).toBe(2)
       expect(result.output).toMatch(/not valid|require.*value/)
+    }
+  })
+})
+
+describe('command positional arity', () => {
+  test('the positional and flag authorities cover the same commands', () => {
+    expect(Object.keys(COMMAND_POSITIONALS).sort()).toEqual(Object.keys(COMMAND_FLAGS).sort())
+  })
+
+  test('single-input and zero-input commands reject ignored extra positionals', () => {
+    const capture = (argv: string[]): { code: number; output: string } => {
+      let output = ''
+      const stdout = process.stdout.write
+      const stderr = process.stderr.write
+      process.stdout.write = ((chunk: unknown) => { output += String(chunk); return true }) as typeof process.stdout.write
+      process.stderr.write = ((chunk: unknown) => { output += String(chunk); return true }) as typeof process.stderr.write
+      try { return { code: runCli(argv), output } } finally {
+        process.stdout.write = stdout
+        process.stderr.write = stderr
+      }
+    }
+    for (const [command, contract] of Object.entries(COMMAND_POSITIONALS)) {
+      if (!Number.isFinite(contract.max)) continue
+      const args = Array.from({ length: contract.max + 1 }, (_, index) => `extra-${index}`)
+      const result = capture([command, ...args])
+      expect(result.code, command).toBe(2)
+      expect(result.output, command).toContain('positional')
     }
   })
 })

@@ -23,6 +23,7 @@ import type {
 } from './scene/ir.ts'
 import { terminalConnectorCapabilityClaims } from './scene/capabilities.ts'
 import type { PrimitiveCapabilityClaim } from './scene/capabilities.ts'
+import type { RoleStyleSpec } from './scene/style-spec.ts'
 
 export const TERMINAL_STYLE_VERSION = 1 as const
 
@@ -124,7 +125,7 @@ export function projectTerminalStyle(
     })
   }
   const face = appearance.face
-  const roleValues = Object.values(appearance.style?.roles ?? {})
+  const roleValues = Object.values(appearance.style?.roles ?? {}) as Readonly<RoleStyleSpec>[]
   if (hasPositive(
     face?.node?.cornerRadius, face?.group?.cornerRadius, face?.edge?.bendRadius,
     ...roleValues.flatMap(role => [role?.cornerRadius, role?.bendRadius]),

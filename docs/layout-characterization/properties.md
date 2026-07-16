@@ -44,12 +44,11 @@ The algorithm is a **best-effort heuristic layout**, not a solver. Empirically
   input, including cycles, self-loops, and dense graphs. These are the hard
   contract.
 - **Tier B — structural properties on well-behaved subclasses.** True for
-  trees / DAGs / linear chains, where placement is unambiguous. The algorithm
-  does **not** extend these guarantees to cyclic or dense graphs — and *that
-  boundary is itself a characterisation* (Tier C, P10).
-- **Tier C — metamorphic relations & known limits.** Relations between two
-  renders (BT vs TD, RL vs LR, relabelled vs original) that pin specific design
-  decisions, plus an explicit pin of a place where Tier B *fails*.
+  trees / DAGs / linear chains, where placement is unambiguous. Focused cyclic
+  regressions extend individual guarantees only where executable evidence does.
+- **Tier C — metamorphic relations & topology regressions.** Relations between
+  two renders (BT vs TD, RL vs LR, relabelled vs original) that pin specific
+  decisions, plus focused cyclic conservation evidence.
 
 This mirrors the literature's split between **invariants** (oracle-grade, exact
 assertions) and **quality heuristics** (graded, only safe to assert as
@@ -99,18 +98,17 @@ single property that says "this is a layered downward/rightward drawing." P8 is
 the only property that checks **edges connect the right endpoints** end-to-end,
 dogfooding the repo's own documented round-trip contract (`reverse.ts`).
 
-## Tier C — metamorphic relations & known limits
+## Tier C — metamorphic relations & topology regressions
 
 | ID | Property | Statement | Pins |
 |----|----------|-----------|------|
-| **P9a** | BT = flip(TD) | An ASCII BT render equals the vertical flip (with arrowhead remap) of the TD render. | `index.ts:179-194` (BT laid out as TD then flipped) |
-| **P9b** | RL = LR | An RL render is byte-identical to the LR render. | `index.ts:179-181` (RL "not yet implemented", treated as LR) |
+| **P9a** | BT = flip(TD) | An ASCII BT render equals the vertical flip (with arrowhead remap) of the TD render. | `render-family-hooks.ts` + `canvas.ts` vertical projection |
+| **P9b** | Honest RL | Every RL tree child is left of its parent, labels retain reading order, output differs from LR, and mirror-stable chains equal the exact horizontal LR mirror. | logical-grid mirror in `grid.ts` before text drawing |
 | **P9c** | Relabel invariance | Replacing labels with same-length labels leaves the layout skeleton unchanged. | placement depends on label *width*, not identity |
-| **P10** | Known limit | A 2-cycle does **not** conserve all nodes (P5 fails). | placement multi-pass safety break (`grid.ts:582`) — pins that this is *currently* lossy |
+| **P10** | Reciprocal-cycle conservation | A three-node graph containing a 2-cycle renders every node label. | feedback edges cannot enter fan-in/fan-out bundles in `edge-bundling.ts` |
 
-P9b and P10 are "canary" characterisations: they currently pin a *limitation*.
-If someone implements real RL support or makes cyclic placement lossless, these
-tests flip — which is exactly when a human should look and re-approve.
+P9b and P10 are correctness regressions: RL may not silently alias LR, and
+feedback routing may not overwrite node content.
 
 ---
 

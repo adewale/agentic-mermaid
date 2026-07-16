@@ -28,12 +28,12 @@
 <g class="subgraph" data-id="FAMILY" data-region="subgraph" data-label="registered-family waist" data-role="group">
   <rect x="700.1405416666665" y="606.233" width="697.1339999999998" height="198.70000000000002" rx="0" ry="0" fill="#FFFFFF" stroke="#d4d4d4" stroke-width="1" data-id="group-rect:FAMILY" data-role="group" />
   <path d="M700.1405416666665,606.233 H1397.2745416666662 V634.233 H700.1405416666665 Z" fill="#f4f4f4" stroke="#d4d4d4" stroke-width="1" />
-  <text x="712.1405416666665" y="620.233" font-size="12" font-weight="600" fill="#575759" dy="4.199999999999999">registered-family waist</text>
+  <text x="712.1405416666665" y="620.233" font-size="12" font-weight="600" fill="#575759" dy="4.199999999999999" textLength="128.52" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">registered-family waist</text>
 </g>
 <g class="subgraph" data-id="OUTPUTS" data-region="subgraph" data-label="output projections" data-role="group">
   <rect x="149.32200000000012" y="864.933" width="789.4619999999998" height="317.40000000000003" rx="0" ry="0" fill="#FFFFFF" stroke="#d4d4d4" stroke-width="1" data-id="group-rect:OUTPUTS" data-role="group" />
   <path d="M149.32200000000012,864.933 H938.7839999999999 V892.933 H149.32200000000012 Z" fill="#f4f4f4" stroke="#d4d4d4" stroke-width="1" />
-  <text x="161.32200000000012" y="878.933" font-size="12" font-weight="600" fill="#575759" dy="4.199999999999999">output projections</text>
+  <text x="161.32200000000012" y="878.933" font-size="12" font-weight="600" fill="#575759" dy="4.199999999999999" textLength="103.32" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">output projections</text>
 </g>
 <polyline class="edge" data-from="SRC" data-to="NORM" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="622.1456666666666,76.9 622.1456666666666,124.9" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:SRC-&gt;NORM#0" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="SRC to NORM" />
 <polyline class="edge" data-from="NORM" data-to="DET" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="622.1456666666666,178.70000000000002 622.1456666666666,190.70000000000002 200.00799999999998,190.70000000000002 200.00799999999998,202.70000000000002" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:NORM-&gt;DET#0" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="NORM to DET" />
@@ -56,87 +56,87 @@
 <g class="edge-label" data-from="DET" data-to="DIAG" data-label="unknown or unsupported">
   <rect class="edge-label-halo" x="63.16874999999999" y="504.67887500000006" width="143.262" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
   <rect x="67.16874999999999" y="508.67887500000006" width="135.262" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
-  <text x="134.79975" y="523.828875" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" dy="3.8499999999999996">unknown or unsupported</text>
+  <text x="134.79975" y="523.828875" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" dy="3.8499999999999996" textLength="119.262" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">unknown or unsupported</text>
 </g>
 <g class="edge-label" data-from="REQ" data-to="REG" data-label="registered family">
   <rect class="edge-label-halo" x="621.4948333333332" y="422.23300000000006" width="103.46400000000001" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
   <rect x="625.4948333333332" y="426.23300000000006" width="95.46400000000001" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
-  <text x="673.2268333333332" y="441.38300000000004" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" dy="3.8499999999999996">registered family</text>
+  <text x="673.2268333333332" y="441.38300000000004" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" dy="3.8499999999999996" textLength="79.464" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">registered family</text>
 </g>
 <g class="node" data-id="SRC" data-label="Mermaid source text" data-shape="rectangle" data-role="node">
   <rect x="541.5201666666666" y="40" width="161.251" height="36.900000000000006" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" data-id="node-shape:SRC" data-role="node" />
-  <text x="622.1456666666666" y="58.45" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Mermaid source text</text>
+  <text x="622.1456666666666" y="58.45" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55" textLength="121.251" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Mermaid source text</text>
 </g>
 <g class="node" data-id="NORM" data-label="normalized source envelope
 original text · wrappers · accessibility" data-shape="rectangle" data-role="node">
   <rect x="489.65016666666656" y="124.9" width="264.991" height="53.800000000000004" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" data-id="node-shape:NORM" data-role="node" />
-  <text x="622.1456666666666" y="151.8" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A"><tspan x="622.1456666666666" dy="-3.9000000000000012">normalized source envelope</tspan><tspan x="622.1456666666666" dy="16.900000000000002">original text · wrappers · accessibility</tspan></text>
+  <text x="622.1456666666666" y="151.8" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A"><tspan x="622.1456666666666" dy="-3.9000000000000012" textLength="169.416" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">normalized source envelope</tspan><tspan x="622.1456666666666" dy="16.900000000000002" textLength="224.991" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">original text · wrappers · accessibility</tspan></text>
 </g>
 <g class="node" data-id="DET" data-label="descriptor-driven family detection" data-shape="diamond" data-role="node">
   <polygon points="200.00799999999998,202.7 330.42449999999997,333.1165 200.00799999999998,463.53299999999996 69.5915,333.1165" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" data-id="node-shape:DET" data-role="node" />
-  <text x="200.00799999999998" y="333.1165" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">descriptor-driven family detection</text>
+  <text x="200.00799999999998" y="333.1165" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55" textLength="196.833" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">descriptor-driven family detection</text>
 </g>
 <g class="node" data-id="DIAG" data-label="source-preserved diagnostic
 no default-family fallback" data-shape="rectangle" data-role="node">
   <rect x="40" y="649.3330000000001" width="215.34399999999997" height="53.800000000000004" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" data-id="node-shape:DIAG" data-role="node" />
-  <text x="147.67199999999997" y="676.2330000000001" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A"><tspan x="147.67199999999997" dy="-3.9000000000000012">source-preserved diagnostic</tspan><tspan x="147.67199999999997" dy="16.900000000000002">no default-family fallback</tspan></text>
+  <text x="147.67199999999997" y="676.2330000000001" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A"><tspan x="147.67199999999997" dy="-3.9000000000000012" textLength="175.344" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">source-preserved diagnostic</tspan><tspan x="147.67199999999997" dy="16.900000000000002" textLength="141.999" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">no default-family fallback</tspan></text>
 </g>
 <g class="node" data-id="REQ" data-label="ResolvedRenderRequest
 immutable source · shared options · output · digests" data-shape="rectangle" data-role="node">
   <rect x="449.2656666666667" y="341.433" width="345.7599999999999" height="53.800000000000004" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" data-id="node-shape:REQ" data-role="node" />
-  <text x="622.1456666666666" y="368.33299999999997" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A"><tspan x="622.1456666666666" dy="-3.9000000000000012">ResolvedRenderRequest</tspan><tspan x="622.1456666666666" dy="16.900000000000002">immutable source · shared options · output · digests</tspan></text>
+  <text x="622.1456666666666" y="368.33299999999997" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A"><tspan x="622.1456666666666" dy="-3.9000000000000012" textLength="151.632" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">ResolvedRenderRequest</tspan><tspan x="622.1456666666666" dy="16.900000000000002" textLength="305.76" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">immutable source · shared options · output · digests</tspan></text>
 </g>
 <g class="node" data-id="REG" data-label="FamilyDescriptor registry
 registered built-ins · namespaced extensions
 detect · parse · layout · project · render" data-shape="rectangle" data-role="node">
   <rect x="468.9021666666665" y="487.533" width="306.48699999999997" height="70.7" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" data-id="node-shape:REG" data-role="node" />
-  <text x="622.1456666666666" y="522.883" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A"><tspan x="622.1456666666666" dy="-12.350000000000001">FamilyDescriptor registry</tspan><tspan x="622.1456666666666" dy="16.900000000000002">registered built-ins · namespaced extensions</tspan><tspan x="622.1456666666666" dy="16.900000000000002">detect · parse · layout · project · render</tspan></text>
+  <text x="622.1456666666666" y="522.883" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A"><tspan x="622.1456666666666" dy="-12.350000000000001" textLength="153.855" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">FamilyDescriptor registry</tspan><tspan x="622.1456666666666" dy="16.900000000000002" textLength="266.487" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">registered built-ins · namespaced extensions</tspan><tspan x="622.1456666666666" dy="16.900000000000002" textLength="239.07" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">detect · parse · layout · project · render</tspan></text>
 </g>
 <g class="node" data-id="APP" data-label="ResolvedAppearance
 palette · typography · style face · backend identity" data-shape="rectangle" data-role="node">
   <rect x="199.03750000000008" y="743.133" width="335.3859999999999" height="53.800000000000004" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" data-id="node-shape:APP" data-role="node" />
-  <text x="366.7305" y="770.033" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A"><tspan x="366.7305" dy="-3.9000000000000012">ResolvedAppearance</tspan><tspan x="366.7305" dy="16.900000000000002">palette · typography · style face · backend identity</tspan></text>
+  <text x="366.7305" y="770.033" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A"><tspan x="366.7305" dy="-3.9000000000000012" textLength="132.366" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">ResolvedAppearance</tspan><tspan x="366.7305" dy="16.900000000000002" textLength="295.386" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">palette · typography · style face · backend identity</tspan></text>
 </g>
 <g class="node" data-id="POS" data-label="one layout hook → positioned artifact" data-shape="rectangle" data-role="node">
   <rect x="808.3215416666665" y="650.233" width="248.6889999999999" height="36.900000000000006" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" data-id="node-shape:POS" data-role="node" />
-  <text x="932.6660416666664" y="668.683" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">one layout hook → positioned artifact</text>
+  <text x="932.6660416666664" y="668.683" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55" textLength="208.689" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">one layout hook → positioned artifact</text>
 </g>
 <g class="node" data-id="PROJ" data-label="projectPositioned
 layout JSON · bounds · route certificates" data-shape="rectangle" data-role="node">
   <rect x="716.1405416666665" y="743.133" width="282.0339999999999" height="53.800000000000004" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" data-id="node-shape:PROJ" data-role="node" />
-  <text x="857.1575416666665" y="770.033" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A"><tspan x="857.1575416666665" dy="-3.9000000000000012">projectPositioned</tspan><tspan x="857.1575416666665" dy="16.900000000000002">layout JSON · bounds · route certificates</tspan></text>
+  <text x="857.1575416666665" y="770.033" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A"><tspan x="857.1575416666665" dy="-3.9000000000000012" textLength="105.69" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">projectPositioned</tspan><tspan x="857.1575416666665" dy="16.900000000000002" textLength="242.034" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">layout JSON · bounds · route certificates</tspan></text>
 </g>
 <g class="node" data-id="AGENT" data-label="typed agent hooks under the same descriptor
 parse · serialize · mutate · verify" data-shape="rectangle" data-role="node">
   <rect x="1077.0105416666665" y="650.233" width="304.26399999999995" height="53.800000000000004" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" data-id="node-shape:AGENT" data-role="node" />
-  <text x="1229.1425416666666" y="677.1329999999999" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A"><tspan x="1229.1425416666666" dy="-3.9000000000000012">typed agent hooks under the same descriptor</tspan><tspan x="1229.1425416666666" dy="16.900000000000002">parse · serialize · mutate · verify</tspan></text>
+  <text x="1229.1425416666666" y="677.1329999999999" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A"><tspan x="1229.1425416666666" dy="-3.9000000000000012" textLength="264.264" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">typed agent hooks under the same descriptor</tspan><tspan x="1229.1425416666666" dy="16.900000000000002" textLength="196.092" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">parse · serialize · mutate · verify</tspan></text>
 </g>
 <g class="node" data-id="GRAPHICAL" data-label="SceneDoc lowering (built-ins) or renderSvg extension fallback
 typed roles · connectors · registered Scene backend" data-shape="rectangle" data-role="node">
   <rect x="165.32200000000012" y="908.933" width="402.8169999999999" height="53.800000000000004" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" data-id="node-shape:GRAPHICAL" data-role="node" />
-  <text x="366.73050000000006" y="935.833" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A"><tspan x="366.73050000000006" dy="-3.9000000000000012">SceneDoc lowering (built-ins) or renderSvg extension fallback</tspan><tspan x="366.73050000000006" dy="16.900000000000002">typed roles · connectors · registered Scene backend</tspan></text>
+  <text x="366.73050000000006" y="935.833" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A"><tspan x="366.73050000000006" dy="-3.9000000000000012" textLength="362.817" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">SceneDoc lowering (built-ins) or renderSvg extension fallback</tspan><tspan x="366.73050000000006" dy="16.900000000000002" textLength="316.875" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">typed roles · connectors · registered Scene backend</tspan></text>
 </g>
 <g class="node" data-id="SECURITY" data-label="OutputSecurityPolicy
 reject · verify · preserve bytes" data-shape="rectangle" data-role="node">
   <rect x="254.24200000000008" y="1010.733" width="224.97699999999998" height="53.800000000000004" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" data-id="node-shape:SECURITY" data-role="node" />
-  <text x="366.73050000000006" y="1037.633" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A"><tspan x="366.73050000000006" dy="-3.9000000000000012">OutputSecurityPolicy</tspan><tspan x="366.73050000000006" dy="16.900000000000002">reject · verify · preserve bytes</tspan></text>
+  <text x="366.73050000000006" y="1037.633" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A"><tspan x="366.73050000000006" dy="-3.9000000000000012" textLength="126.438" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">OutputSecurityPolicy</tspan><tspan x="366.73050000000006" dy="16.900000000000002" textLength="184.977" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">reject · verify · preserve bytes</tspan></text>
 </g>
 <g class="node" data-id="IMAGE" data-label="SVG · PNG rasterization
 declared sRGB profile" data-shape="rectangle" data-role="node">
   <rect x="274.2490000000001" y="1112.533" width="184.96299999999997" height="53.800000000000004" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" data-id="node-shape:IMAGE" data-role="node" />
-  <text x="366.73050000000006" y="1139.433" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A"><tspan x="366.73050000000006" dy="-3.9000000000000012">SVG · PNG rasterization</tspan><tspan x="366.73050000000006" dy="16.900000000000002">declared sRGB profile</tspan></text>
+  <text x="366.73050000000006" y="1139.433" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A"><tspan x="366.73050000000006" dy="-3.9000000000000012" textLength="144.963" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">SVG · PNG rasterization</tspan><tspan x="366.73050000000006" dy="16.900000000000002" textLength="130.884" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">declared sRGB profile</tspan></text>
 </g>
 <g class="node" data-id="TERMINAL" data-label="TerminalStyle projection → family terminal renderer
 explicit loss diagnostics" data-shape="rectangle" data-role="node">
   <rect x="588.139" y="908.933" width="334.6449999999998" height="53.800000000000004" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" data-id="node-shape:TERMINAL" data-role="node" />
-  <text x="755.4614999999999" y="935.833" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A"><tspan x="755.4614999999999" dy="-3.9000000000000012">TerminalStyle projection → family terminal renderer</tspan><tspan x="755.4614999999999" dy="16.900000000000002">explicit loss diagnostics</tspan></text>
+  <text x="755.4614999999999" y="935.833" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A"><tspan x="755.4614999999999" dy="-3.9000000000000012" textLength="294.645" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">TerminalStyle projection → family terminal renderer</tspan><tspan x="755.4614999999999" dy="16.900000000000002" textLength="141.258" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">explicit loss diagnostics</tspan></text>
 </g>
 <g class="node" data-id="TEXT" data-label="Unicode · ASCII · escaped HTML" data-shape="rectangle" data-role="node">
   <rect x="635.9334999999999" y="1010.733" width="239.05599999999995" height="36.900000000000006" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" data-id="node-shape:TEXT" data-role="node" />
-  <text x="755.4614999999999" y="1029.183" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Unicode · ASCII · escaped HTML</text>
+  <text x="755.4614999999999" y="1029.183" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55" textLength="199.056" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Unicode · ASCII · escaped HTML</text>
 </g>
 <g class="node" data-id="LAYOUTJSON" data-label="layout JSON" data-shape="rectangle" data-role="node">
   <rect x="966.7839999999998" y="864.9330000000001" width="115.30900000000001" height="36.900000000000006" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" data-id="node-shape:LAYOUTJSON" data-role="node" />
-  <text x="1024.4384999999997" y="883.3830000000002" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">layout JSON</text>
+  <text x="1024.4384999999997" y="883.3830000000002" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55" textLength="75.309" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">layout JSON</text>
 </g>
 </svg>

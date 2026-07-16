@@ -29,6 +29,7 @@ import {
 import { DEFAULT_ASCII_THEME } from './ansi.ts'
 import { getPath, mergePath } from './pathfinder.ts'
 import { visualWidth } from './width.ts'
+import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 
 interface CellBox {
   id: string
@@ -161,7 +162,7 @@ export function renderArchitectureAscii(
   }
 
   // Containers form the background layer. Deeper groups draw after parents.
-  for (const group of [...groupBoxes.values()].sort((a, b) => a.depth - b.depth || a.id.localeCompare(b.id))) {
+  for (const group of [...groupBoxes.values()].sort((a, b) => a.depth - b.depth || compareCodePointStrings(a.id, b.id))) {
     drawFramedBox(group, true)
   }
 
@@ -430,7 +431,7 @@ function buildGroupBoxes(
 
 function separateItemBoxes(boxes: CellBox[]): void {
   const placed: CellBox[] = []
-  const ordered = [...boxes].sort((a, b) => a.y - b.y || a.x - b.x || a.id.localeCompare(b.id))
+  const ordered = [...boxes].sort((a, b) => a.y - b.y || a.x - b.x || compareCodePointStrings(a.id, b.id))
   for (const box of ordered) {
     for (let guard = 0; guard <= placed.length; guard++) {
       const blockers = placed.filter(other => boxesOverlap(box, other))

@@ -531,6 +531,18 @@ describe('MCP — JSON-RPC happy + sad', () => {
     expect(payload).toEqual(expect.objectContaining({ ok: true, family: 'journey', detail: 'fields' }))
     expect(payload.ops.add_task).toContainEqual(expect.objectContaining({ name: 'score', required: true, note: 'integer 1..5' }))
   })
+  test('transport maximum caps execute even when the request omits timeoutMs', async () => {
+    const started = performance.now()
+    const r = await handleRequest({
+      jsonrpc: '2.0', id: 32, method: 'tools/call',
+      params: { name: 'execute', arguments: { code: 'while (true) {}' } },
+    }, { maxSandboxTimeoutMs: 25 })
+    const payload = JSON.parse((r!.result as any).content[0].text)
+    expect(payload.ok).toBe(false)
+    expect(payload.error).toMatch(/timed out|timeout/i)
+    expect(performance.now() - started).toBeLessThan(1_000)
+  })
+
   test('unknown tool → error', async () => {
     const r = await handleRequest({ jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'nope', arguments: {} } })
     expect(r!.error).toBeDefined()
@@ -588,6 +600,7 @@ describe('MCP bin shim', () => {
     const parsed = parseMcpCliOptions([
       '--transport', 'http', '--host', '0.0.0.0', '--port', '3001', '--artifact-dir', '/tmp/am',
       '--public-url', 'https://example.test/artifacts', '--max-artifact-bytes', '123',
+      '--max-artifact-total-bytes', '1000', '--max-artifacts', '5',
       '--artifact-ttl-ms', '456', '--max-rpc-body-bytes', '789', '--auth-token', 'secret',
       '--max-sandbox-timeout-ms', '1000',
     ])
@@ -598,11 +611,29 @@ describe('MCP bin shim', () => {
       artifactDir: '/tmp/am',
       publicUrl: 'https://example.test/artifacts',
       maxArtifactBytes: 123,
+      maxArtifactTotalBytes: 1000,
+      maxArtifacts: 5,
       artifactTtlMs: 456,
       maxRpcBodyBytes: 789,
       authToken: 'secret',
       maxSandboxTimeoutMs: 1000,
     })
+  })
+
+  test('the MCP parser rejects unknown, missing, duplicate, positional, and inapplicable arguments', () => {
+    for (const argv of [
+      ['--bogus'],
+      ['--port'],
+      ['--port', '--http'],
+      ['stray'],
+      ['--transport', 'http', '--transport', 'http'],
+      ['--http', '--transport', 'stdio'],
+      ['--host', '127.0.0.1'],
+      ['--transport='],
+    ]) {
+      expect(() => parseMcpCliOptions(argv), argv.join(' ')).toThrow()
+    }
+    expect(parseMcpCliOptions(['--transport=http', '--port=0']).transport).toBe('http')
   })
 
   test('runMcpCli handles help and bad flags without launching a server', async () => {
@@ -616,7 +647,7 @@ describe('MCP bin shim', () => {
     expect(out.join('')).toContain('agentic-mermaid-mcp')
     expect(await runMcpCli(['--transport', 'smtp'], io)).toBe(1)
     expect(err.join('')).toContain('unknown transport: smtp')
-    expect(await runMcpCli(['--port', '70000'], io)).toBe(1)
+    expect(await runMcpCli(['--transport', 'http', '--port', '70000'], io)).toBe(1)
     expect(err.join('')).toContain('--port must be an integer between 0 and 65535')
     expect(await runMcpCli(['--http'], io)).toBe(1)
     expect(err.join('')).toContain('unknown option: --http')

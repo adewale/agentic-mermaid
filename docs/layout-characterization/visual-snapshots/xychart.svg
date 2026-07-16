@@ -79,27 +79,27 @@
 <rect x="254.3" y="168.7" width="184.08" height="300.3" class="xychart-bar xychart-color-0" data-value="7" data-label="Feb" data-id="bar:0:Feb" data-role="bar" />
 <rect x="448.07" y="254.5" width="184.08" height="214.5" class="xychart-bar xychart-color-0" data-value="5" data-label="Mar" data-id="bar:0:Mar" data-role="bar" />
 <path d="M152.57,383.2 L346.34,211.6 L540.11,125.8" class="xychart-line xychart-color-1" data-relationship="series" data-direction="undirected" data-id="series:line-0" data-role="series" />
-<text x="152.57" y="486.6" text-anchor="middle" font-size="14" font-weight="400" dy="0.35em" class="xychart-label xychart-x-label">Jan</text>
-<text x="346.342" y="486.6" text-anchor="middle" font-size="14" font-weight="400" dy="0.35em" class="xychart-label xychart-x-label">Feb</text>
-<text x="540.114" y="486.6" text-anchor="middle" font-size="14" font-weight="400" dy="0.35em" class="xychart-label xychart-x-label">Mar</text>
-<text x="43.68399999999997" y="469" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">0</text>
-<text x="43.68399999999997" y="426.1" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">1</text>
-<text x="43.68399999999997" y="383.2" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">2</text>
-<text x="43.68399999999997" y="340.3" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">3</text>
-<text x="43.68399999999997" y="297.4" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">4</text>
-<text x="43.68399999999997" y="254.5" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">5</text>
-<text x="43.68399999999997" y="211.60000000000002" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">6</text>
-<text x="43.68399999999997" y="168.70000000000005" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">7</text>
-<text x="43.68399999999997" y="125.79999999999995" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">8</text>
-<text x="43.68399999999997" y="82.89999999999998" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">9</text>
-<text x="43.68399999999997" y="40" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">10</text>
-<text x="17.8" y="254.5" text-anchor="middle" transform="rotate(-90,17.8,254.5)" font-size="16" font-weight="400" dy="0.35em" class="xychart-axis-title xychart-y-axis-title">Revenue</text>
-<text x="350" y="30" text-anchor="middle" font-size="20" font-weight="500" dy="0.35em" class="xychart-title" data-id="title" data-role="title">Sales</text>
+<text x="152.57" y="486.6" text-anchor="middle" font-size="14" font-weight="400" dy="0.35em" class="xychart-label xychart-x-label" textLength="26.292" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Jan</text>
+<text x="346.342" y="486.6" text-anchor="middle" font-size="14" font-weight="400" dy="0.35em" class="xychart-label xychart-x-label" textLength="26.292" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Feb</text>
+<text x="540.114" y="486.6" text-anchor="middle" font-size="14" font-weight="400" dy="0.35em" class="xychart-label xychart-x-label" textLength="27.048" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Mar</text>
+<text x="43.68399999999997" y="469" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label" textLength="9.66" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">0</text>
+<text x="43.68399999999997" y="426.1" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label" textLength="5.124" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">1</text>
+<text x="43.68399999999997" y="383.2" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label" textLength="9.66" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">2</text>
+<text x="43.68399999999997" y="340.3" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label" textLength="9.66" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">3</text>
+<text x="43.68399999999997" y="297.4" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label" textLength="9.66" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">4</text>
+<text x="43.68399999999997" y="254.5" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label" textLength="9.66" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">5</text>
+<text x="43.68399999999997" y="211.60000000000002" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label" textLength="9.66" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">6</text>
+<text x="43.68399999999997" y="168.70000000000005" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label" textLength="9.66" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">7</text>
+<text x="43.68399999999997" y="125.79999999999995" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label" textLength="9.66" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">8</text>
+<text x="43.68399999999997" y="82.89999999999998" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label" textLength="9.66" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">9</text>
+<text x="43.68399999999997" y="40" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label" textLength="12.684" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">10</text>
+<text x="17.8" y="254.5" text-anchor="middle" transform="rotate(-90,17.8,254.5)" font-size="16" font-weight="400" dy="0.35em" class="xychart-axis-title xychart-y-axis-title" textLength="64.608" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Revenue</text>
+<text x="350" y="30" text-anchor="middle" font-size="20" font-weight="500" dy="0.35em" class="xychart-title" data-id="title" data-role="title" textLength="55.44" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Sales</text>
 <g class="xychart-legend">
   <rect x="642" y="45" width="12" height="12" rx="2" ry="2" class="xychart-legend-swatch" fill="#3b82f6"/>
-  <text x="660" y="51" text-anchor="start" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-legend-label">Bar 1</text>
+  <text x="660" y="51" text-anchor="start" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-legend-label" textLength="30.072" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Bar 1</text>
   <line x1="642" y1="70" x2="654" y2="70" class="xychart-legend-swatch" stroke="#0d5ba5" stroke-width="3" stroke-linecap="round"/>
   <circle cx="648" cy="70" r="2.5" class="xychart-legend-dot" fill="#0d5ba5" stroke="#FFFFFF" stroke-width="1"/>
-  <text x="660" y="70" text-anchor="start" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-legend-label">Line 1</text>
+  <text x="660" y="70" text-anchor="start" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-legend-label" textLength="34.608" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Line 1</text>
 </g>
 </svg>

@@ -89,6 +89,27 @@ export interface HostBackendPolicy {
   ) => string | null | undefined
 }
 
+/** Capture a bound renderer's caller-owned policy exactly once. This freezes
+ * the selector reference and property surface; variables intentionally closed
+ * over by the selector remain host-owned state. */
+export function snapshotHostBackendPolicy(policy: HostBackendPolicy | undefined): HostBackendPolicy | undefined {
+  if (policy === undefined) return undefined
+  if ((typeof policy !== 'object' && typeof policy !== 'function') || policy === null) {
+    throw new TypeError('backendPolicy must be an object with a selectBackend function')
+  }
+  const selectBackend = policy.selectBackend
+  if (typeof selectBackend !== 'function') {
+    throw new TypeError('backendPolicy.selectBackend must be a function')
+  }
+  let snapshot: HostBackendPolicy
+  snapshot = Object.freeze({
+    selectBackend(selection: HostBackendSelection): string | null | undefined {
+      return Reflect.apply(selectBackend, snapshot, [selection])
+    },
+  })
+  return snapshot
+}
+
 /** Recompose a group from (possibly restyled) child serializations using the
  *  group's own indent/join rules. Shared by all backends so wrapper semantics
  *  (classes, data-*, ARIA) stay identical across styles. */

@@ -108,9 +108,9 @@ describe('am render --format ascii vs unicode', () => {
 
   test('json wrap uses correct key per format', () => {
     const f = tmpFile(SRC)
-    // Pass --json with explicit =true so the file isn't consumed as the flag value.
-    const a = capture(() => runCli(['render', '--format', 'unicode', '--json=true', f]))
-    const b = capture(() => runCli(['render', '--format', 'ascii', '--json=true', f]))
+    // Boolean classification is authority-derived, so --json never consumes the file.
+    const a = capture(() => runCli(['render', '--format', 'unicode', '--json', f]))
+    const b = capture(() => runCli(['render', '--format', 'ascii', '--json', f]))
     expect(JSON.parse(a.out)).toHaveProperty('unicode')
     expect(JSON.parse(b.out)).toHaveProperty('ascii')
   })

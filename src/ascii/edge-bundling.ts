@@ -138,6 +138,11 @@ function canBundle(edges: AsciiEdge[], graph: AsciiGraph): boolean {
   const firstToSg = getNodeSubgraph(graph, edges[0]!.to)
 
   for (const edge of edges) {
+    // A feedback/container edge is topology, not another fan-in/fan-out leg.
+    // Bundling it with primary edges can route the shared trunk through node
+    // interiors and overwrite labels in a three-node graph with a 2-cycle.
+    if (edge.routeClass !== undefined && edge.routeClass !== 'primary-forward') return false
+
     // Different styles can't be bundled (would look confusing)
     if (edge.style !== firstStyle) return false
 

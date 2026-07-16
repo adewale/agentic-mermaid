@@ -35,15 +35,15 @@
 </g>
 <g class="node" data-id="Idle" data-label="Idle" data-shape="rounded" data-role="node">
   <rect x="88.90100000000001" y="116" width="62.69799999999999" height="36.900000000000006" rx="6" ry="6" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" data-id="node-shape:Idle" data-role="node" />
-  <text x="120.25" y="134.45" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Idle</text>
+  <text x="120.25" y="134.45" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55" textLength="22.698" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Idle</text>
 </g>
 <g class="node" data-id="Running" data-label="Running" data-shape="rounded" data-role="node">
   <rect x="74.822" y="200.9" width="90.856" height="36.900000000000006" rx="6" ry="6" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" data-id="node-shape:Running" data-role="node" />
-  <text x="120.25" y="219.35000000000002" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Running</text>
+  <text x="120.25" y="219.35000000000002" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55" textLength="50.856" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Running</text>
 </g>
 <g class="node" data-id="Failed" data-label="Failed" data-shape="rounded" data-role="node">
   <rect x="40" y="290.25" width="79" height="36.900000000000006" rx="6" ry="6" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" data-id="node-shape:Failed" data-role="node" />
-  <text x="79.5" y="308.7" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Failed</text>
+  <text x="79.5" y="308.7" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55" textLength="39" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Failed</text>
 </g>
 <g class="node" data-id="_end" data-label="" data-shape="state-end" data-role="node">
   <circle cx="161" cy="304.25" r="12" fill="none" stroke="#27272A" stroke-width="1.5" data-id="node-shape:_end" data-role="node" />

@@ -11,7 +11,10 @@
 // ============================================================================
 
 import { describe, expect, it } from 'bun:test'
-import { layoutCertificateProof, parseRegisteredMermaid as parseMermaid, layoutMermaid, measureQuality, verifyMermaid } from '../agent/index.ts'
+import {
+  layoutCertificateProof, parseRegisteredMermaid as parseMermaid, layoutMermaid, layoutMermaidWithReceipt,
+  measureQuality, renderMermaidASCIIWithReceipt, renderMermaidSVGWithReceipt, verifyMermaid,
+} from '../agent/index.ts'
 import type { RenderedLayout } from '../agent/index.ts'
 
 const EPS = 1
@@ -147,6 +150,26 @@ describe('QUAL-1 adapters: structured bodies do not reparse canonicalSource', ()
       expect(layout.bounds.h).toBeGreaterThan(0)
     })
   }
+})
+
+describe('ParsedDiagram render source authority', () => {
+  it('flowchart layout, SVG, and terminal receipts all retain canonical authored order', () => {
+    const parsed = parseMermaid('flowchart LR\n  A --> B')
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok || parsed.value.body.kind !== 'flowchart') return
+    const staleBody = structuredClone(parsed.value)
+    if (staleBody.body.kind !== 'flowchart') return
+    staleBody.body.graph.direction = 'RL'
+
+    const layout = layoutMermaidWithReceipt(staleBody)
+    const svg = renderMermaidSVGWithReceipt(staleBody)
+    const terminal = renderMermaidASCIIWithReceipt(staleBody, { colorMode: 'none' })
+    expect(new Set([
+      layout.receipt.sharedRequestDigest,
+      svg.receipt.sharedRequestDigest,
+      terminal.receipt.sharedRequestDigest,
+    ]).size).toBe(1)
+  })
 })
 
 // ---- verify.layout is now truthful -----------------------------------------

@@ -178,8 +178,10 @@ export interface AsciiConfig {
   paddingY: number
   /** Padding inside node boxes. Default: 1 */
   boxBorderPadding: number
-  /** Graph direction: "LR" or "TD". */
+  /** Logical layout axis. Reverse directions are mirrored after routing. */
   graphDirection: 'LR' | 'TD'
+  /** Mirror the completed logical grid on its main axis (RL over LR). */
+  reverseDirection?: boolean
 }
 
 /** Full ASCII graph state used during layout and rendering. */

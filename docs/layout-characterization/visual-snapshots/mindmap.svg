@@ -24,22 +24,22 @@
 <path class="mindmap-edge" data-from="root" data-to="Delivery" data-branch-index="1" d="M 128.338 86.9 C 119.938 86.9 116.738 86.9 108.338 86.9" fill="none" stroke="#0d5ba5" stroke-width="2.5" stroke-linecap="round" data-relationship="mindmap-branch" data-direction="forward" data-id="root-&gt;Delivery" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="root to Delivery" />
 <g class="mindmap-node depth-0" data-id="root" data-label="Product" data-role="node">
   <circle cx="165.025" cy="86.9" r="36.687" fill="#47474a" stroke="#47474a" stroke-width="1.5" />
-  <text x="165.02499999999998" y="86.9" text-anchor="middle" font-size="13" font-weight="500" fill="#FFFFFF" dy="4.55">Product</text>
+  <text x="165.02499999999998" y="86.9" text-anchor="middle" font-size="13" font-weight="500" fill="#FFFFFF" dy="4.55" textLength="49.374" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Product</text>
 </g>
 <g class="mindmap-node depth-1" data-id="Research" data-label="Research" data-branch-index="0" data-parent-id="root" data-role="node">
   <rect x="221.712" y="69.45" width="85.23" height="34.9" rx="16" ry="16" fill="#c4dafc" stroke="#3b82f6" stroke-width="1.5" />
-  <text x="264.327" y="86.9" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Research</text>
+  <text x="264.327" y="86.9" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55" textLength="61.23" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Research</text>
 </g>
 <g class="mindmap-node depth-2" data-id="Interviews" data-label="Interviews" data-branch-index="0" data-parent-id="Research" data-role="node">
   <rect x="326.942" y="32" width="86.712" height="34.9" rx="16" ry="16" fill="#d8e6fd" stroke="#3b82f6" stroke-width="1.5" />
-  <text x="370.298" y="49.45" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Interviews</text>
+  <text x="370.298" y="49.45" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55" textLength="62.712" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Interviews</text>
 </g>
 <g class="mindmap-node depth-2" data-id="Evidence" data-label="Evidence" data-branch-index="0" data-parent-id="Research" data-role="node">
   <rect x="326.942" y="106.9" width="82.266" height="34.9" rx="16" ry="16" fill="#d8e6fd" stroke="#3b82f6" stroke-width="1.5" />
-  <text x="368.075" y="124.35000000000001" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Evidence</text>
+  <text x="368.075" y="124.35000000000001" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55" textLength="58.266" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Evidence</text>
 </g>
 <g class="mindmap-node depth-1" data-id="Delivery" data-label="Delivery" data-branch-index="1" data-parent-id="root" data-role="node">
   <rect x="32" y="69.45" width="76.338" height="34.9" rx="16" ry="16" fill="#b6cee4" stroke="#0d5ba5" stroke-width="1.5" />
-  <text x="70.169" y="86.9" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Delivery</text>
+  <text x="70.169" y="86.9" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55" textLength="52.338" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Delivery</text>
 </g>
 </svg>

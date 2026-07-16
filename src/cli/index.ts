@@ -2,9 +2,9 @@
 // am — agentic-mermaid CLI (v4).
 // ============================================================================
 
-import { readFileSync, existsSync, writeFileSync, mkdtempSync, watch } from 'node:fs'
+import { readFileSync, existsSync, writeFileSync, mkdtempSync, statSync, watch } from 'node:fs'
 import { spawnSync } from 'node:child_process'
-import { join, resolve } from 'node:path'
+import { basename, dirname, join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { parseRegisteredMermaid } from '../agent/parse.ts'
 import { logToolInvocation } from '../agent/trace-log.ts'
@@ -104,7 +104,7 @@ function preflightCliRenderableSource(source: string): ParsedDiagram {
   return parsed.value
 }
 
-export interface ParsedArgs { command?: string; positional: string[]; flags: Record<string, string | boolean> }
+export interface ParsedArgs { command?: string; positional: string[]; flags: Record<string, string | boolean>; errors: string[] }
 
 // Single source of truth for CLI flags. A flag with no `arg` is a boolean;
 // `arg` is the usage placeholder shown in `[--flag <arg>]`. BOOLEAN_FLAGS is
@@ -146,7 +146,7 @@ const PNG_RENDER_FLAGS = Object.freeze(Object.values(PNG_CLI_FLAG_BINDINGS).flat
 
 // Command ownership is the second half of the flag contract: recognizing a
 // name globally is not permission to ignore it on an unrelated command.
-const COMMAND_FLAGS: Record<string, readonly string[]> = {
+export const COMMAND_FLAGS = {
   render: ['help', 'json', 'certificates', 'watch', 'style', 'seed', 'options', 'output', 'format', 'security', 'gantt-today', 'target-width', ...PNG_RENDER_FLAGS, 'o'],
   verify: ['help', 'json', 'suppress', 'label-cap', 'style'],
   parse: ['help', 'json'],
@@ -161,10 +161,36 @@ const COMMAND_FLAGS: Record<string, readonly string[]> = {
   'init-agent': ['help', 'json', 'dir', 'force'],
   batch: ['help', 'jsonl'],
   'render-markdown': ['help', 'ascii'],
-}
+} as const satisfies Record<string, readonly string[]>
+
+/** Closed positional contract. Zero source arguments means piped stdin; only
+ * render intentionally accepts multiple files. */
+export const COMMAND_POSITIONALS = Object.freeze({
+  render: { min: 0, max: Number.POSITIVE_INFINITY },
+  verify: { min: 0, max: 1 },
+  parse: { min: 0, max: 1 },
+  serialize: { min: 0, max: 0 },
+  mutate: { min: 0, max: 1 },
+  preview: { min: 0, max: 1 },
+  format: { min: 0, max: 1 },
+  describe: { min: 0, max: 1 },
+  capabilities: { min: 0, max: 0 },
+  styles: { min: 0, max: 0 },
+  'llms-txt': { min: 0, max: 0 },
+  'init-agent': { min: 0, max: 0 },
+  batch: { min: 0, max: 0 },
+  'render-markdown': { min: 0, max: 1 },
+} as const satisfies Record<keyof typeof COMMAND_FLAGS, { readonly min: number; readonly max: number }>)
 
 export function parseArgs(argv: string[]): ParsedArgs {
-  const out: ParsedArgs = { positional: [], flags: {} }
+  const out: ParsedArgs = { positional: [], flags: {}, errors: [] }
+  const record = (name: string, value: string | boolean) => {
+    if (Object.prototype.hasOwnProperty.call(out.flags, name)) {
+      out.errors.push(`Flag --${name} may be supplied only once.`)
+      return
+    }
+    out.flags[name] = value
+  }
   let i = 0
   while (i < argv.length) {
     const arg = argv[i]!
@@ -177,12 +203,14 @@ export function parseArgs(argv: string[]): ParsedArgs {
     }
     if (arg.startsWith('--')) {
       const eq = arg.indexOf('=')
-      if (eq !== -1) out.flags[arg.slice(2, eq)] = arg.slice(eq + 1)
-      else {
-        const name = arg.slice(2)
+      const name = arg.slice(2, eq === -1 ? undefined : eq)
+      if (eq !== -1) {
+        if (BOOLEAN_FLAGS.has(name)) out.errors.push(`Flag --${name} does not accept a value.`)
+        record(name, arg.slice(eq + 1))
+      } else {
         const next = argv[i + 1]
-        if (BOOLEAN_FLAGS.has(name) || next === undefined || next.startsWith('--')) out.flags[name] = true
-        else { out.flags[name] = next; i++ }
+        if (BOOLEAN_FLAGS.has(name) || next === undefined || next.startsWith('--')) record(name, true)
+        else { record(name, next); i++ }
       }
     } else if (!out.command) out.command = arg
     else out.positional.push(arg)
@@ -361,18 +389,19 @@ the AGENTS.md section is always appended only once, guarded by a marker.`,
 
 export function runCli(argv: string[]): number {
   const args = parseArgs(argv)
+  const json = Boolean(args.flags.json)
+  const argError = (message: string): number => {
+    if (json) process.stdout.write(JSON.stringify({ ok: false, error: { code: 'ARG', message } }) + '\n')
+    process.stderr.write(`${message}\n`)
+    return EXIT_ARG_ERROR
+  }
+  if (args.errors.length > 0) return argError(args.errors.join(' '))
   if (args.flags['agent-instructions']) { process.stdout.write(AGENT_INSTRUCTIONS); return EXIT_OK }
   if (args.flags.help && !args.command) { process.stdout.write(GLOBAL_USAGE); return EXIT_OK }
   if (!args.command) { process.stdout.write(GLOBAL_USAGE); return EXIT_ARG_ERROR }
   if (args.flags.help) {
     process.stdout.write((COMMAND_HELP[args.command] ?? GLOBAL_USAGE) + '\n')
     return EXIT_OK
-  }
-  const json = Boolean(args.flags.json)
-  const argError = (message: string): number => {
-    if (json) process.stdout.write(JSON.stringify({ ok: false, error: { code: 'ARG', message } }) + '\n')
-    process.stderr.write(`${message}\n`)
-    return EXIT_ARG_ERROR
   }
   // Unknown flags are ERRORS, not silently-swallowed no-ops (probe-confirmed
   // bug class: `--gantt-toady 2024-01-05` used to exit 0 with no marker and no
@@ -388,10 +417,14 @@ export function runCli(argv: string[]): number {
   if (missingValues.length > 0) {
     return argError(`Flag${missingValues.length > 1 ? 's' : ''} ${missingValues.map(name => `--${name}`).join(', ')} require${missingValues.length === 1 ? 's' : ''} a value.`)
   }
-  const allowed = new Set(COMMAND_FLAGS[args.command] ?? ['help'])
+  const allowed = new Set(COMMAND_FLAGS[args.command as keyof typeof COMMAND_FLAGS] ?? ['help'])
   const inapplicable = Object.keys(args.flags).filter(name => !allowed.has(name))
   if (inapplicable.length > 0) {
     return argError(`Flag${inapplicable.length > 1 ? 's' : ''} ${inapplicable.map(name => `--${name}`).join(', ')} ${inapplicable.length > 1 ? 'are' : 'is'} not valid for am ${args.command}.`)
+  }
+  const positionalContract = COMMAND_POSITIONALS[args.command as keyof typeof COMMAND_POSITIONALS]
+  if (positionalContract && (args.positional.length < positionalContract.min || args.positional.length > positionalContract.max)) {
+    return argError(`am ${args.command} accepts ${positionalContract.max === 0 ? 'no positional arguments' : `at most ${positionalContract.max} positional input${positionalContract.max === 1 ? '' : 's'}`}; received ${args.positional.length}.`)
   }
   // Opt-in invocation logging: when AM_TRACE_LOG names a file, append one JSON
   // line per real command run. Shares the sink with the library and hosted MCP
@@ -693,8 +726,66 @@ export function renderFileOnce(file: string, format: string, opts: RenderFormatO
   }
 }
 
+export interface PathWatchHandle { close(): void }
+
+/** Watch the containing directory so rename-over atomic saves keep following
+ * the input pathname rather than a stale inode. A metadata poll closes the
+ * documented fs.watch event-loss gap; both signals share one coalescer. */
+export function watchPathForChanges(
+  file: string,
+  onChange: () => void,
+  debounceMs = 25,
+  watchDirectory: typeof watch = watch,
+): PathWatchHandle {
+  const absolute = resolve(file)
+  const watchedName = basename(absolute)
+  const fingerprint = (): string => {
+    try {
+      const stat = statSync(absolute, { bigint: true })
+      return `${stat.dev}:${stat.ino}:${stat.size}:${stat.mtimeNs}:${stat.ctimeNs}`
+    } catch {
+      return 'missing'
+    }
+  }
+  let lastFingerprint = fingerprint()
+  let timer: ReturnType<typeof setTimeout> | undefined
+  let closed = false
+  const detectChange = () => {
+    if (closed) return
+    const next = fingerprint()
+    if (next === lastFingerprint) return
+    lastFingerprint = next
+    if (timer !== undefined) clearTimeout(timer)
+    timer = setTimeout(() => {
+      timer = undefined
+      if (!closed) onChange()
+    }, debounceMs)
+  }
+  const watcher = watchDirectory(dirname(absolute), { persistent: true }, (_event, filename) => {
+    const changed = filename === null ? undefined : basename(String(filename))
+    if (changed === undefined || changed === watchedName) detectChange()
+  })
+  // fs.watch is explicitly allowed to omit events and filenames. Poll only
+  // metadata (not file bytes) as a bounded fallback, retaining pathname and
+  // rename identity through dev/inode plus nanosecond timestamps.
+  const poll = setInterval(detectChange, Math.max(25, Math.min(250, debounceMs * 4)))
+  return Object.freeze({
+    close(): void {
+      closed = true
+      if (timer !== undefined) clearTimeout(timer)
+      timer = undefined
+      clearInterval(poll)
+      watcher.close()
+    },
+  })
+}
+
 function cmdRenderWatch(file: string, format: string, args: ParsedArgs, json: boolean, opts: RenderFormatOptions = {}): number {
   const outFile = typeof args.flags.output === 'string' ? args.flags.output : ''
+  if (outFile && resolve(outFile) === resolve(file)) {
+    process.stderr.write('am render --watch output must differ from the input file\n')
+    return EXIT_ARG_ERROR
+  }
   const emit = () => {
     try {
       const src = readFileSync(file, 'utf8')
@@ -715,7 +806,7 @@ function cmdRenderWatch(file: string, format: string, args: ParsedArgs, json: bo
   }
   emit() // initial render
   process.stderr.write(`watching ${file} (Ctrl-C to stop)…\n`)
-  watch(file, { persistent: true }, (event) => { if (event === 'change') emit() })
+  watchPathForChanges(file, emit)
   // Block forever — the watcher keeps the event loop alive.
   return EXIT_OK
 }
@@ -1501,6 +1592,10 @@ export function runBatchLine(rawLine: string, lineIndex = 0): BatchOutput {
           return { ok: false, op, error: { code: 'INVALID_OPTIONS', message: problems.join('; ') } }
         }
         const sharedOptions = sharedCandidate as RenderOptions
+        // Classify source admission errors before entering renderer internals;
+        // malformed batch input is a documented PARSE_FAILED response, never
+        // an INTERNAL failure that can poison an otherwise healthy JSONL run.
+        preflightCliRenderableSource(parsed.source)
         // #7540: auto-namespace SVG ids per batch line so the rendered
         // diagrams can coexist on one HTML page without def-id collisions,
         // while retaining a caller-provided suffix.
@@ -1599,11 +1694,15 @@ export function runBatchLine(rawLine: string, lineIndex = 0): BatchOutput {
     // Project documented render diagnostics (family-detection UNKNOWN_HEADER/
     // UNSUPPORTED_FAMILY, ASCII_TARGET_WIDTH_IMPOSSIBLE) the same way every other CLI render
     // transport does (cmdRender/preview/render-markdown), instead of collapsing them to a
-    // generic INTERNAL. cliStructuredRenderFailure first honours an already-structured throw,
-    // then falls back to INTERNAL for genuinely internal errors.
+    // generic internal error. cliStructuredRenderFailure first honours an already-structured
+    // throw; any remaining render-path exception is still a bounded RENDER_FAILED response.
     const structured = cliStructuredRenderFailure(e)
     if (structured) return { ok: false, op, error: structured.error }
-    return { ok: false, op, error: { code: 'INTERNAL', message: (e as Error).message } }
+    return {
+      ok: false,
+      op,
+      error: { code: 'RENDER_FAILED', message: e instanceof Error ? e.message : String(e) },
+    }
   }
 }
 

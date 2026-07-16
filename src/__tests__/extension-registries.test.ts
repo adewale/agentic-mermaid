@@ -286,7 +286,7 @@ describe('canonical style identities', () => {
     expect(() => resolveStyleStack('tufte')).toThrow(/Unknown style "tufte"/)
   })
 
-  test('discovers canonical identities and stable inputs without duplicate meanings', () => {
+  test('discovers canonical identities and rejects removed pre-launch aliases', () => {
     const descriptors = knownStyleDescriptors()
     const ids = descriptors.map(descriptor => descriptor.identity.id)
     expect(ids).not.toContain('palette:tufte')
@@ -298,6 +298,7 @@ describe('canonical style identities', () => {
     expect(descriptors.find(descriptor => descriptor.identity.id === 'look:tufte')?.identity.provenance.owner)
       .toBe('agentic-mermaid')
     expect(resolveStyleReference('default')).toBeUndefined()
+    expect(() => resolveStyleStack('default')).toThrow(/Unknown style "default"/)
     expect(descriptors.find(descriptor => descriptor.identity.id === 'look:crisp')).toMatchObject({
       inputName: 'crisp',
       kind: 'look',

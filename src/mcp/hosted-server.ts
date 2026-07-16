@@ -51,6 +51,7 @@ import {
 } from '../family-detection.ts'
 import { projectRenderErrorDiagnostic } from '../render-error-diagnostic.ts'
 import { boundedUtf8ByteLength } from '../shared/utf8.ts'
+import { DEFAULT_EXECUTE_TIMEOUT_MS } from './execute-limits.ts'
 
 export type { ExecuteResult }
 
@@ -80,7 +81,6 @@ export const HOSTED_MCP_SERVER_NAME = 'agentic-mermaid-hosted'
 export const MAX_SOURCE_BYTES = 64 * 1024
 export const MAX_CODE_BYTES = 64 * 1024
 const MAX_EXECUTE_TIMEOUT_MS = 30_000
-const DEFAULT_EXECUTE_TIMEOUT_MS = 5_000
 
 // Shared with the transport's 413 (total-body cap) so every "too big" refusal
 // points at the same way out.

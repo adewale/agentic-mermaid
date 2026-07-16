@@ -2,6 +2,7 @@ import type { LayoutWarning } from '../agent/types.ts'
 import type { ResolvedRenderRequest } from '../render-contract.ts'
 import { toHex, wcagCssContrastRatio, tryParseCssColor } from '../shared/color-math.ts'
 import { MIX } from '../theme.ts'
+import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import { STYLE_OWNED_PAINT_VARIABLES, type BrandConstraint } from './style-spec.ts'
 import { BRAND_CONSTRAINT_DESCRIPTORS, BRAND_CONSTRAINT_WARNING_POLICY } from './brand-constraint-contract.ts'
 import { geometryBounds } from './bounds.ts'
@@ -92,8 +93,43 @@ interface TextContrastCandidate {
 function sameChannels(a: SceneNode, b: SceneNode): boolean {
   const left = a.channels ?? {}
   const right = b.channels ?? {}
-  const entries = (value: typeof left) => Object.entries(value).sort(([a], [b]) => a.localeCompare(b))
+  const entries = (value: typeof left) => Object.entries(value)
+    .sort(([a], [b]) => compareCodePointStrings(a, b))
   return JSON.stringify(entries(left)) === JSON.stringify(entries(right))
+}
+
+type FilledShape = Extract<SceneNode, { kind: 'shape' }>
+
+function descendantText(nodes: readonly SceneNode[]): Array<Extract<SceneNode, { kind: 'text' }>> {
+  const texts: Array<Extract<SceneNode, { kind: 'text' }>> = []
+  for (const node of nodes) {
+    if (node.kind === 'text') texts.push(node)
+    else if (node.kind === 'group') texts.push(...descendantText(node.children.map(child => child.node)))
+  }
+  return texts
+}
+
+function containsTextAnchors(shape: FilledShape, child: SceneNode): boolean {
+  const bounds = geometryBounds(shape.geometry)
+  if (!bounds) return false
+  const texts = descendantText([child])
+  return texts.length > 0 && texts.every(text =>
+    text.x >= bounds.x0 && text.x <= bounds.x1 && text.y >= bounds.y0 && text.y <= bounds.y1)
+}
+
+/** Select the visible semantic surface from shapes painted before this child.
+ * Equal-rank candidates use the last shape, matching SVG painter order. */
+function childSurface(
+  preceding: readonly FilledShape[],
+  child: SceneNode,
+  enclosingGroup: Extract<SceneNode, { kind: 'group' }> | undefined,
+): FilledShape | undefined {
+  const last = (items: readonly FilledShape[]): FilledShape | undefined => items[items.length - 1]
+  return last(preceding.filter(shape => shape.role === child.role && sameChannels(shape, child)))
+    ?? (enclosingGroup
+      ? last(preceding.filter(shape => shape.role === enclosingGroup.role && sameChannels(shape, enclosingGroup)))
+      : undefined)
+    ?? last(preceding.filter(shape => containsTextAnchors(shape, child)))
 }
 
 function collectTextContrastCandidates(
@@ -101,26 +137,22 @@ function collectTextContrastCandidates(
   inheritedBackground: string | undefined,
   candidates: TextContrastCandidate[],
   role?: string,
+  enclosingGroup?: Extract<SceneNode, { kind: 'group' }>,
 ): void {
+  const preceding: FilledShape[] = []
   for (const node of nodes) {
-    if (node.kind === 'text') {
-      if (!role || node.role === role) candidates.push({ node, background: inheritedBackground })
+    if (node.kind === 'shape') {
+      if (node.paint.fill !== undefined && node.paint.fill !== 'none' && node.paint.fill !== 'transparent') preceding.push(node)
       continue
     }
-    if (node.kind !== 'group') continue
-
-    const children = node.children.map(child => child.node)
-    const filledShapes = children.filter((child): child is Extract<SceneNode, { kind: 'shape' }> =>
-      child.kind === 'shape' && child.paint.fill !== undefined && child.paint.fill !== 'none')
-    for (const child of children) {
-      let childBackground = inheritedBackground
-      if (child.kind === 'text') {
-        const semanticSurface = filledShapes.find(shape => shape.role === child.role && sameChannels(shape, child))
-          ?? filledShapes.find(shape => shape.role === node.role && sameChannels(shape, node))
-          ?? (filledShapes.length === 1 ? filledShapes[0] : undefined)
-        childBackground = semanticSurface?.paint.fill ?? inheritedBackground
-      }
-      collectTextContrastCandidates([child], childBackground, candidates, role)
+    const surface = childSurface(preceding, node, enclosingGroup)
+    const background = surface?.paint.fill ?? inheritedBackground
+    if (node.kind === 'text') {
+      if (!role || node.role === role) candidates.push({ node, background })
+      continue
+    }
+    if (node.kind === 'group') {
+      collectTextContrastCandidates(node.children.map(child => child.node), background, candidates, role, node)
     }
   }
 }
@@ -270,14 +302,30 @@ function monoRoleConstraint(
   })
 }
 
+const CONSTRAINT_EVALUATORS = {
+  contrast: contrastConstraint,
+  'accent-area': accentAreaConstraint,
+  'mono-role': monoRoleConstraint,
+} satisfies { [Kind in BrandConstraint['kind']]: (
+  constraint: Extract<BrandConstraint, { kind: Kind }>,
+  scene: SceneDoc,
+  request: ResolvedRenderRequest,
+) => BrandWarning }
+
+function evaluateConstraint(constraint: BrandConstraint, scene: SceneDoc, request: ResolvedRenderRequest): BrandWarning {
+  const evaluator = CONSTRAINT_EVALUATORS[constraint.kind] as (
+    value: BrandConstraint,
+    scene: SceneDoc,
+    request: ResolvedRenderRequest,
+  ) => BrandWarning
+  return evaluator(constraint, scene, request)
+}
+
 /** Inspect the exact admitted Scene. Rules report evidence and never mutate it. */
 export function evaluateBrandConstraints(scene: SceneDoc, request: ResolvedRenderRequest): LayoutWarning[] {
   const constraints = request.appearance.style?.constraints ?? []
-  const results: BrandWarning[] = constraints.map(constraint => {
-    if (constraint.kind === 'contrast') return contrastConstraint(constraint, scene, request)
-    if (constraint.kind === 'accent-area') return accentAreaConstraint(constraint, scene, request)
-    return monoRoleConstraint(constraint, scene, request)
-  }).filter(warning => {
+  const results: BrandWarning[] = constraints.map(constraint =>
+    evaluateConstraint(constraint, scene, request)).filter(warning => {
     // Passing measurable rules stay silent; explicit unmeasurable/not-applicable
     // states remain observable because the caller asked for the constraint.
     if (warning.measurement !== 'measurable') return true

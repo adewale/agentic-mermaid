@@ -5,12 +5,16 @@ import {
   renderMermaidSVG,
   resolveStyleStack,
   SEMANTIC_BINDING_CHANNELS,
+  styleSpecJsonSchema,
   validateStyleSpec,
 } from '../index.ts'
 import { verifyMermaid } from '../agent/index.ts'
 import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
 import { resolveStyleStackWithFace, resolveRoleStyle } from '../scene/style-registry.ts'
 import { STYLE_OWNED_PAINT_VARIABLES } from '../scene/style-spec.ts'
+import { evaluateBrandConstraints } from '../scene/brand-constraints.ts'
+import { resolveRenderRequestForExecution } from '../render-contract.ts'
+import type { SceneDoc, SceneNode } from '../scene/ir.ts'
 
 const SLOT = { fillColor: '#ff00ff', borderColor: '#007700', lineWidth: 3 } as const
 const BINDING = { channel: 'category', value: 'Beta', slot: 'selected', role: 'pie-slice' } as const
@@ -33,16 +37,49 @@ describe('Section B semantic policy', () => {
     expect(validateStyleSpec({ roles: { node: { fillColor: 'var(--_node-fill)', textColor: 'var(--fg)' } } })).toEqual([])
     expect(validateStyleSpec({ bindings: [{ channel: 'emphasis', value: 'true', slot: 'selected' }] })).toContain('"bindings[0].channel" must be one of category')
     expect(validateStyleSpec({ bindings: [{ channel: 'category', value: 'Beta', slot: 'selected', query: '*' }] })).toContain('unknown binding field "bindings[0].query"')
+    expect(validateStyleSpec({ bindings: [{ channel: 'category', value: 'Beta', slot: 'selected', role: 'node' }] })).toEqual(expect.arrayContaining([
+      expect.stringContaining('"bindings[0].role" must be a SceneRole with an executable category-binding consumer'),
+    ]))
+    expect(() => resolveStyleStack({
+      semanticSlots: { selected: { fillColor: '#ff0000' } },
+      bindings: [{ channel: 'category', value: '0', slot: 'selected', role: 'node' }],
+    } as any)).toThrow(/executable category-binding consumer/)
     expect(validateStyleSpec({ constraints: [{ kind: 'contrast', action: 'repair' }] })).toContain('"constraints[0].action" must be one of warn | error')
     expect(validateStyleSpec({ constraints: [{ kind: 'made-up', action: 'warn' }] })).toContain('"constraints[0].kind" must be one of contrast | accent-area | mono-role')
   })
 
-  test('final stack rejects dangling slots and slot leaves inapplicable to a restricted role', () => {
+  test('constraint TypeScript/runtime/Schema payloads project from one descriptor record', () => {
+    const variants = (styleSpecJsonSchema() as any).properties.constraints.items.oneOf
+    for (const [kind, descriptor] of Object.entries(BRAND_CONSTRAINT_DESCRIPTORS) as Array<[string, any]>) {
+      const schema = variants.find((candidate: any) => candidate.properties.kind.const === kind)
+      expect(Object.keys(schema.properties)).toEqual(['kind', 'action', ...Object.keys(descriptor.properties)])
+      expect(schema.required).toEqual(['kind', 'action', ...Object.entries(descriptor.properties)
+        .filter(([, field]: any) => field.required === true)
+        .map(([field]) => field)])
+      for (const [field, contract] of Object.entries(descriptor.properties) as Array<[string, any]>) {
+        if (contract.kind === 'number') expect(schema.properties[field]).toMatchObject({
+          type: 'number', minimum: contract.minimum, maximum: contract.maximum,
+        })
+      }
+    }
+  })
+
+  test('final stack rejects dangling and permanently inert semantic bindings', () => {
     expect(() => resolveStyleStack({ bindings: [BINDING] } as any)).toThrow(/binding 1 references missing semantic slot "selected"/)
     expect(() => resolveStyleStack({
       semanticSlots: { bad: { paddingX: 4 } },
-      bindings: [{ channel: 'category', value: 'Beta', slot: 'bad', role: 'label' }],
-    } as any)).toThrow(/semantic slot "bad" has no field applicable to role "label"/)
+      bindings: [{ channel: 'category', value: 'Beta', slot: 'bad', role: 'bar' }],
+    } as any)).toThrow(/semantic slot "bad" has no field applicable to role "bar"/)
+    for (const semanticSlots of [{ inert: {} }, { inert: { headerFillColor: '#f00' } }]) {
+      expect(() => resolveStyleStack({
+        semanticSlots,
+        bindings: [{ channel: 'category', value: 'Browse', slot: 'inert' }],
+      } as any)).toThrow(/no field applicable to any executable category-binding role/)
+    }
+    expect(() => resolveStyleStack([
+      { bindings: [{ channel: 'category', value: 'Browse', slot: 'active' }] },
+      { semanticSlots: { active: { paddingX: 4 } } },
+    ] as any)).not.toThrow()
   })
 
   test('policy merge is deterministic, right-biased, associative, and idempotent', () => {
@@ -139,6 +176,37 @@ describe('Section B semantic policy', () => {
       foreground: '#111111',
       background: '#111111',
       ratio: 1,
+    }))
+  })
+
+  test('nested text inherits the nearest preceding containing surface for contrast', () => {
+    const shape: SceneNode = {
+      kind: 'shape', id: 'surface', role: 'node',
+      geometry: { kind: 'rect', x: 0, y: 0, width: 100, height: 60 },
+      paint: { fill: '#111111' },
+    }
+    const text: SceneNode = {
+      kind: 'text', id: 'nested-label', role: 'label',
+      text: 'Nested', x: 50, y: 30, fontSize: 12, anchor: 'middle',
+      paint: { fill: '#111111' },
+    }
+    const inner: SceneNode = {
+      kind: 'group', id: 'inner', role: 'group', open: '<g>', close: '</g>', join: '\n',
+      children: [{ node: text, indent: 0 }],
+    }
+    const outer: SceneNode = {
+      kind: 'group', id: 'outer', role: 'group', open: '<g>', close: '</g>', join: '\n',
+      children: [{ node: shape, indent: 0 }, { node: inner, indent: 0 }],
+    }
+    const scene: SceneDoc = {
+      family: 'flowchart', width: 100, height: 60, transparent: false, colors: { bg: '#ffffff', fg: '#111111' }, parts: [outer],
+    }
+    const request = resolveRenderRequestForExecution('flowchart TD\n  A', {
+      style: { constraints: [{ kind: 'contrast', action: 'error', minimum: 4.5 }] },
+    }, 'svg')
+    expect(evaluateBrandConstraints(scene, request)).toContainEqual(expect.objectContaining({
+      code: 'BRAND_CONSTRAINT_ERROR', constraint: 'contrast', measurement: 'measurable',
+      mark: 'nested-label', foreground: '#111111', background: '#111111', ratio: 1,
     }))
   })
 

@@ -1,10 +1,10 @@
 // Loop 13 M4 (#959) + M5 (#930): multi-input rendering + watch re-render step.
 
 import { describe, test, expect } from 'bun:test'
-import { writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, renameSync, rmSync, watch as fsWatch, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { runCli, renderFileOnce } from '../cli/index.ts'
+import { runCli, renderFileOnce, watchPathForChanges } from '../cli/index.ts'
 
 function tmp(content: string): string {
   const p = join(tmpdir(), `mi-${Date.now()}-${Math.random().toString(36).slice(2)}.mmd`)
@@ -19,6 +19,68 @@ function capture(fn: () => number): { code: number; out: string } {
   try { code = fn() } finally { process.stdout.write = orig }
   return { code, out: chunks.join('') }
 }
+
+describe('#930 pathname watch lifecycle', () => {
+  test('observes atomic rename-over saves and subsequent writes to the replacement inode', async () => {
+    // Watch an owned directory, not the shared OS /tmp root: Bun's Linux
+    // fs.watch implementation may inspect unrelated protected service dirs.
+    const dir = mkdtempSync(join(tmpdir(), 'am-watch-'))
+    const input = join(dir, 'input.mmd')
+    writeFileSync(input, 'flowchart TD\n A --> B')
+    const replacement = `${input}.replacement`
+    const observed: string[] = []
+    let notify: (() => void) | undefined
+    const waitForChange = () => new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('watch change timed out')), 10_000)
+      notify = () => { clearTimeout(timeout); resolve() }
+    })
+    const handle = watchPathForChanges(input, () => {
+      observed.push(readFileSync(input, 'utf8'))
+      notify?.()
+      notify = undefined
+    }, 5)
+    try {
+      // Yield once after watcher construction: Linux/Bun may register the
+      // inotify subscription on the following event-loop turn under coverage.
+      await new Promise(resolve => setTimeout(resolve, 100))
+      // Some fs.watch implementations emit an initial metadata notification;
+      // the contract under test begins with the authored post-watch save.
+      observed.length = 0
+      const atomic = waitForChange()
+      writeFileSync(replacement, 'flowchart TD\n A --> C')
+      renameSync(replacement, input)
+      await atomic
+
+      const subsequent = waitForChange()
+      writeFileSync(input, 'flowchart TD\n A --> D')
+      await subsequent
+      expect(observed).toEqual(['flowchart TD\n A --> C', 'flowchart TD\n A --> D'])
+    } finally {
+      handle.close()
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  test('metadata polling observes changes when the host event source stays silent', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'am-watch-poll-'))
+    const input = join(dir, 'input.mmd')
+    writeFileSync(input, 'flowchart TD\n A --> B')
+    const silentWatch = (() => ({ close() {} })) as unknown as typeof fsWatch
+    let notify: (() => void) | undefined
+    const changed = new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('watch polling timed out')), 2_000)
+      notify = () => { clearTimeout(timeout); resolve() }
+    })
+    const handle = watchPathForChanges(input, () => notify?.(), 5, silentWatch)
+    try {
+      writeFileSync(input, 'flowchart TD\n A --> C')
+      await changed
+    } finally {
+      handle.close()
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+})
 
 describe('#959 multi-input rendering', () => {
   test('renders multiple files, emits a results array, skips bad ones', () => {

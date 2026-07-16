@@ -1,8 +1,9 @@
 import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import type { RoleStyles } from '../scene/style-registry.ts'
+import type { RoleStyles, SemanticBinding } from '../scene/style-registry.ts'
 import {
+  EXACT_ROLE_STYLE_CONTRACT,
   STYLE_COLOR_TOKEN_DESCRIPTORS,
   STYLE_SPEC_FIELD_DESCRIPTORS,
   getStyle,
@@ -28,9 +29,17 @@ function compileTimeRoleContract(): void {
   const invalidLabel: RoleStyles = { label: { paddingX: 4 } }
   // @ts-expect-error fallback-only roles inherit their archetype and cannot own inert exact records.
   const invalidFallback: RoleStyles = { title: {} }
+  // @ts-expect-error fallback-only role keys are absent even when a caller supplies undefined.
+  const invalidFallbackUndefined: RoleStyles = { title: undefined }
+  const validBinding: SemanticBinding = { channel: 'category', value: 'Free', slot: 'selected', role: 'pie-slice' }
+  // @ts-expect-error roles without an executable binding family are not public binding targets.
+  const inertBinding: SemanticBinding = { channel: 'category', value: '0', slot: 'selected', role: 'node' }
   void invalidNode
   void invalidLabel
   void invalidFallback
+  void invalidFallbackUndefined
+  void validBinding
+  void inertBinding
 }
 void compileTimeRoleContract
 
@@ -61,6 +70,9 @@ describe('StyleSpec has one projected field authority', () => {
     expect(Object.isFrozen(STYLE_SPEC_FIELD_DESCRIPTORS)).toBe(true)
     expect(Object.isFrozen(STYLE_SPEC_FIELD_DESCRIPTORS.stroke.values)).toBe(true)
     expect(Object.isFrozen(STYLE_COLOR_TOKEN_DESCRIPTORS.bg)).toBe(true)
+    expect(Object.isFrozen(EXACT_ROLE_STYLE_CONTRACT)).toBe(true)
+    expect(Object.isFrozen(EXACT_ROLE_STYLE_CONTRACT.actor)).toBe(true)
+    expect(Object.isFrozen(EXACT_ROLE_STYLE_CONTRACT.actor.bindingFamilies)).toBe(true)
 
     const projected = styleSpecJsonSchema() as any
     projected.properties.stroke.enum.push('injected')
@@ -149,7 +161,7 @@ describe('StyleSpec has one projected field authority', () => {
     expect(readFileSync(join(ROOT, 'website', 'build.ts'), 'utf8')).not.toContain('STYLE_THEME_LABELS')
   })
 
-  test('removed Tufte palette and bare input have no public resolution', () => {
+  test('removed Tufte and default bare inputs have no metadata or public resolution', () => {
     for (const relative of ['src/index.ts', 'src/agent/core.ts', 'src/scene/style-registry.ts']) {
       expect(readFileSync(join(ROOT, relative), 'utf8')).not.toContain('TUFTE_STYLE_ALIAS')
     }
@@ -157,9 +169,11 @@ describe('StyleSpec has one projected field authority', () => {
     expect(getStyle('palette:tufte')).toBeUndefined()
     expect(getStyle('tufte')).toBeUndefined()
     expect(getStyle('look:tufte')?.name).toBe('look:tufte')
+    expect(getStyle('default')).toBeUndefined()
+    expect(() => resolveStyleStack('default')).toThrow(/Unknown style "default"/)
   })
 
-  test('CLI rejects the removed Tufte palette while retaining the full Look', () => {
+  test('CLI rejects removed bare inputs while retaining canonical Looks', () => {
     const input = join(ROOT, 'eval/layout-compare/fixtures/flowchart-basic.mmd')
     const removed = Bun.spawnSync([
       'bun', 'run', join(ROOT, 'bin/am.ts'), 'render', input, '--style', 'palette:tufte',
@@ -168,12 +182,14 @@ describe('StyleSpec has one projected field authority', () => {
     expect(removed.stderr.toString()).toContain('Unknown style "palette:tufte"')
     expect(removed.stdout.toString()).toBe('')
 
-    const removedBare = Bun.spawnSync([
-      'bun', 'run', join(ROOT, 'bin/am.ts'), 'render', input, '--style', 'tufte',
-    ], { cwd: ROOT })
-    expect(removedBare.exitCode).toBe(2)
-    expect(removedBare.stderr.toString()).toContain('Unknown style "tufte"')
-    expect(removedBare.stdout.toString()).toBe('')
+    for (const removedName of ['tufte', 'default']) {
+      const removedBare = Bun.spawnSync([
+        'bun', 'run', join(ROOT, 'bin/am.ts'), 'render', input, '--style', removedName,
+      ], { cwd: ROOT })
+      expect(removedBare.exitCode).toBe(2)
+      expect(removedBare.stderr.toString()).toContain(`Unknown style "${removedName}"`)
+      expect(removedBare.stdout.toString()).toBe('')
+    }
 
     const retained = Bun.spawnSync([
       'bun', 'run', join(ROOT, 'bin/am.ts'), 'render', input, '--style', 'look:tufte',

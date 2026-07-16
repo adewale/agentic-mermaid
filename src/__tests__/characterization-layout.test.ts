@@ -18,7 +18,7 @@
 //            these for cyclic / dense graphs (counterexamples are pinned in
 //            Tier C as "known limits").
 //   Tier C — METAMORPHIC / symmetry relations that pin specific design choices
-//            (BT = flip(TD); RL = LR; relabel invariance) and known limits.
+//            (BT = flip(TD); RL reverses LR layering; relabel invariance).
 //
 // Each property names the class of mutant it kills. A property that kills no
 // unique mutant is redundant; this set is the residual after that pruning.
@@ -27,9 +27,13 @@
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
 
+import { convertToAsciiGraph } from '../ascii/converter.ts'
+import { createMapping } from '../ascii/grid.ts'
 import { renderMermaidASCII } from '../ascii/index.ts'
-import { hasDiagonalLines } from '../ascii/validate.ts'
 import { asciiToMermaid } from '../ascii/reverse.ts'
+import { gridKey, type AsciiConfig } from '../ascii/types.ts'
+import { hasDiagonalLines } from '../ascii/validate.ts'
+import { parseMermaid } from '../parser.ts'
 
 const RUNS = 100
 
@@ -146,6 +150,22 @@ function flipVertically(ascii: string): string {
     .replace(/[v^]/g, (c) => (c === 'v' ? '^' : 'v'))
 }
 
+function flipHorizontally(ascii: string): string {
+  return ascii
+    .split('\n')
+    .map(line => [...line].reverse().join(''))
+    .join('\n')
+    .replace(/[<>]/g, arrow => arrow === '>' ? '<' : '>')
+}
+
+function labelColumn(ascii: string, label: string): number {
+  for (const line of ascii.split('\n')) {
+    const index = line.indexOf(label)
+    if (index >= 0) return index
+  }
+  throw new Error(`missing terminal label ${label}`)
+}
+
 const U = { colorMode: 'none', useAscii: false } as const
 const A = { colorMode: 'none', useAscii: true } as const
 
@@ -212,8 +232,8 @@ describe('characterisation · Tier A · universal invariants', () => {
 // ===========================================================================
 
 describe('characterisation · Tier B · structural (trees & chains)', () => {
-  // P5. Node conservation (trees). Every declared node is drawn. Holds for
-  // out-trees; see P10 for the cyclic counterexample where it does NOT.
+  // P5. Node conservation over generated trees. P10 separately locks the
+  // reciprocal-cycle regression without overclaiming every dense topology.
   it('P5 node conservation — every tree node is rendered', () => {
     fc.assert(
       fc.property(fc.constantFrom<Dir>('TD', 'LR'), (dir) =>
@@ -306,7 +326,7 @@ describe('characterisation · Tier B · structural (trees & chains)', () => {
 // TIER C — METAMORPHIC / SYMMETRY relations + known limits
 // ===========================================================================
 
-describe('characterisation · Tier C · metamorphic & known limits', () => {
+describe('characterisation · Tier C · metamorphic & topology regressions', () => {
   // P9a. BT = vertical flip of TD. The implementation literally lays out BT as
   // TD then flips; this pins that contract. Scoped to chains so the flip is
   // exact. Kills mutants in the BT flip / arrow remap.
@@ -324,18 +344,64 @@ describe('characterisation · Tier C · metamorphic & known limits', () => {
     )
   })
 
-  // P9b. RL = LR. RL is not implemented and is treated as LR. This pins that
-  // (current) design decision — if RL ever gets real support, this test is the
-  // canary that flags the intended change.
-  it('P9b RL renders identically to LR (RL treated as LR)', () => {
+  // P9b. RL reverses the LR main axis: every child is left of its parent,
+  // labels keep reading order, and the output is no longer an LR alias.
+  it('P9b RL reverses the main axis instead of silently aliasing LR', () => {
     fc.assert(
-      fc.property(outTreeArb('LR'), ({ src }) => {
-        const lr = renderMermaidASCII(src, U)
-        const rl = renderMermaidASCII(src.replace('graph LR', 'graph RL'), U)
-        expect(rl).toBe(lr)
+      fc.property(outTreeArb('LR'), ({ src, ns, edges }) => {
+        const lr = renderMermaidASCII(src, A)
+        const rl = renderMermaidASCII(src.replace('graph LR', 'graph RL'), A)
+        for (const id of ns) expect(rl).toContain(id)
+        for (const [parent, child] of edges) expect(labelColumn(rl, child)).toBeLessThan(labelColumn(rl, parent))
+        expect(rl).not.toBe(lr)
       }),
       { numRuns: 40 },
     )
+  })
+
+  it('P9b RL is the exact horizontal LR mirror for chains with mirror-stable labels', () => {
+    fc.assert(
+      fc.property(fc.integer({ min: 2, max: 6 }), (n) => {
+        const ns = ids(n, 'R')
+        const declarations = ns.map((id, index) => `${id}[${String.fromCharCode(65 + index).repeat(2)}]`)
+        const links = ns.slice(0, -1).map((id, index) => `${id} --> ${ns[index + 1]}`)
+        const lr = renderMermaidASCII(['graph LR', ...declarations, ...links].join('\n'), A)
+        const rl = renderMermaidASCII(['graph RL', ...declarations, ...links].join('\n'), A)
+        expect(rl).toBe(flipHorizontally(lr))
+      }),
+      { numRuns: 20 },
+    )
+  })
+
+  it('P9b keeps the mirrored logical occupancy map coherent with every node', () => {
+    const config: AsciiConfig = {
+      useAscii: true,
+      paddingX: 5,
+      paddingY: 5,
+      boxBorderPadding: 1,
+      graphDirection: 'LR',
+      reverseDirection: true,
+    }
+    const graph = convertToAsciiGraph(parseMermaid('graph RL\n  A --> B\n  A --> C'), config)
+    createMapping(graph)
+    for (const node of graph.nodes) {
+      expect(node.gridCoord).not.toBeNull()
+      for (let dx = 0; dx < 3; dx++) {
+        for (let dy = 0; dy < 3; dy++) {
+          expect(graph.grid.get(gridKey({ x: node.gridCoord!.x + dx, y: node.gridCoord!.y + dy }))).toBe(node)
+        }
+      }
+    }
+  })
+
+  it('P9b state diagrams share the honest RL projection', () => {
+    const lrSource = 'stateDiagram-v2\n  direction LR\n  Draft --> Review\n  Review --> Done'
+    const rlSource = lrSource.replace('direction LR', 'direction RL')
+    const lr = renderMermaidASCII(lrSource, A)
+    const rl = renderMermaidASCII(rlSource, A)
+    expect(labelColumn(rl, 'Done')).toBeLessThan(labelColumn(rl, 'Review'))
+    expect(labelColumn(rl, 'Review')).toBeLessThan(labelColumn(rl, 'Draft'))
+    expect(rl).not.toBe(lr)
   })
 
   // P9c. Relabel invariance. Replacing every label with a same-length label
@@ -353,16 +419,11 @@ describe('characterisation · Tier C · metamorphic & known limits', () => {
     )
   })
 
-  // P10. KNOWN LIMIT (a characterisation, not an aspiration): node conservation
-  // is NOT universal. A 2-cycle can drop a node and overlap boxes. This test
-  // pins the current behaviour so an *improvement* here is a deliberate, visible
-  // change rather than a silent one. If this starts passing the "missing" check,
-  // the layout got better — update the characterisation.
-  it('P10 known limit — a 2-cycle does not conserve all nodes', () => {
+  // P10. Reciprocal feedback edges are cycles, not fan-in bundles. Routing
+  // must conserve every node label even when a third node feeds the cycle.
+  it('P10 a three-node graph containing a 2-cycle conserves every node', () => {
     const src = 'graph TD\n  Q0[Q0]\n  Q1[Q1]\n  Q2[Q2]\n  Q0 --> Q2\n  Q2 --> Q0\n  Q1 --> Q0'
     const out = renderMermaidASCII(src, U)
-    const allPresent = ['Q0', 'Q1', 'Q2'].every((id) => out.includes(id))
-    // Documents today's reality: at least one node is lost / corrupted.
-    expect(allPresent).toBe(false)
+    expect(['Q0', 'Q1', 'Q2'].filter(id => out.includes(id))).toEqual(['Q0', 'Q1', 'Q2'])
   })
 })

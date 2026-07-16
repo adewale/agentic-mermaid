@@ -51,7 +51,7 @@
 <circle class="architecture-icon-mark" cx="60.944" cy="54.2944" r="2.208" />
 <path class="architecture-icon-mark" d="M 52.9952 56.355199999999996 H 62.8576" />
 </g>
-  <text x="76" y="54" class="architecture-group-label" text-anchor="start" font-size="12" font-weight="600" dy="4.199999999999999">Edge</text>
+  <text x="76" y="54" class="architecture-group-label" text-anchor="start" font-size="12" font-weight="600" dy="4.199999999999999" textLength="32.04" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Edge</text>
 </g>
 <g class="architecture-group" data-id="app" data-label="Application" data-role="group">
   <rect class="architecture-group-frame" x="38" y="76" width="384.58500000000004" height="174" rx="0" ry="0" data-id="group-frame:app" data-role="group" />
@@ -62,12 +62,12 @@
 <path class="architecture-icon-mark" d="M 53.644800000000004 88.8224 H 58.355199999999996" />
 <path class="architecture-icon-mark" d="M 53.644800000000004 90.8832 H 58.355199999999996" />
 </g>
-  <text x="74" y="90" class="architecture-group-label" text-anchor="start" font-size="12" font-weight="600" dy="4.199999999999999">Application</text>
+  <text x="74" y="90" class="architecture-group-label" text-anchor="start" font-size="12" font-weight="600" dy="4.199999999999999" textLength="65.16" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Application</text>
 </g>
 <polyline class="architecture-edge" data-from="api" data-to="db" data-from-side="R" data-to-side="L" data-from-boundary="item" data-to-boundary="item" points="191.971,144 337.278,144 337.278,158 482.58500000000004,158" marker-end="url(#architecture-arrow-end)" data-relationship="architecture-edge" data-direction="forward" data-id="edge:api-&gt;db#0" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="api to db" />
 <polyline class="architecture-edge" data-from="api" data-to="bus" data-from-side="B" data-to-side="T" data-from-boundary="item" data-to-boundary="item" data-label="async fan-out" points="123.9855,168 123.9855,188 390.58500000000004,188 390.58500000000004,204" marker-end="url(#architecture-arrow-end)" data-relationship="architecture-edge" data-direction="forward" data-id="edge:api-&gt;bus#0" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="api to bus: async fan-out" />
 <rect x="215.97825" y="173.85" width="78.614" height="28.3" class="architecture-edge-label-bg" rx="0" ry="0" />
-<text x="255.28525000000002" y="188" class="architecture-edge-label-text" text-anchor="middle" font-size="11" font-weight="400" dy="3.8499999999999996">async fan-out</text>
+<text x="255.28525000000002" y="188" class="architecture-edge-label-text" text-anchor="middle" font-size="11" font-weight="400" dy="3.8499999999999996" textLength="64.614" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">async fan-out</text>
 <g class="architecture-junction" data-id="bus" data-role="junction">
   <circle class="architecture-junction-ring" cx="390.58500000000004" cy="218" r="8" data-id="junction-ring:bus" data-role="junction" />
   <circle class="architecture-junction-core" cx="390.58500000000004" cy="218" r="4.5" data-id="junction-core:bus" data-role="junction" />
@@ -82,7 +82,7 @@
 <ellipse class="architecture-icon-mark" cx="511.58500000000004" cy="158.36" rx="4.32" ry="1.8" />
 <ellipse class="architecture-icon-mark" cx="511.58500000000004" cy="161.6" rx="4.32" ry="1.8" />
 </g>
-  <text x="534.585" y="158" class="architecture-service-label" text-anchor="start" font-size="13" font-weight="500" dy="4.55">Primary DB</text>
+  <text x="534.585" y="158" class="architecture-service-label" text-anchor="start" font-size="13" font-weight="500" dy="4.55" textLength="69.381" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Primary DB</text>
 </g>
 <g class="architecture-service" data-id="api" data-label="Public API" data-role="service">
   <rect class="architecture-service-card" x="56" y="120" width="135.971" height="48" rx="0" ry="0" data-id="service-card:api" data-role="service" />
@@ -92,6 +92,6 @@
 <path class="architecture-icon-mark" d="M 82.12 142.56 H 87.88" />
 <path class="architecture-icon-mark" d="M 82.12 145.08 H 87.88" />
 </g>
-  <text x="108" y="144" class="architecture-service-label" text-anchor="start" font-size="13" font-weight="500" dy="4.55">Public API</text>
+  <text x="108" y="144" class="architecture-service-label" text-anchor="start" font-size="13" font-weight="500" dy="4.55" textLength="61.971" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Public API</text>
 </g>
 </svg>
