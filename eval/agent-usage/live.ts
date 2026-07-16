@@ -101,7 +101,7 @@ export function extractCodeModeScript(text: string): string {
   return stripOuterArrowFunction(candidate)
 }
 
-async function callLiveModel(config: LiveModelConfig, system: string, user: string): Promise<string> {
+export async function callLiveModel(config: LiveModelConfig, system: string, user: string): Promise<string> {
   if (config.provider === 'anthropic') {
     const res = await fetch(config.baseUrl ?? 'https://api.anthropic.com/v1/messages', {
       method: 'POST',

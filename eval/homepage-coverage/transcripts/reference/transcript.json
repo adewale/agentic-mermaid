@@ -1,0 +1,455 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-16T16:45:43.534Z",
+  "provider": "reference",
+  "model": "deterministic-sdk",
+  "surface": "homepage-url",
+  "discovery": "browsing",
+  "roster": {
+    "families": [
+      "flowchart",
+      "state",
+      "sequence",
+      "timeline",
+      "class",
+      "er",
+      "journey",
+      "architecture",
+      "xychart",
+      "pie",
+      "quadrant",
+      "gantt",
+      "mindmap",
+      "gitgraph",
+      "radar"
+    ],
+    "styles": [
+      "crisp",
+      "hand-drawn",
+      "excalidraw",
+      "pen-and-ink",
+      "freehand",
+      "watercolor",
+      "blueprint",
+      "look:tufte",
+      "accessible-high-contrast",
+      "patent-drawing",
+      "status-dashboard",
+      "ops-schematic",
+      "chalkboard",
+      "risograph",
+      "architectural-plan",
+      "publication-figure"
+    ],
+    "palettes": [
+      "paper",
+      "dusk",
+      "zinc-light",
+      "zinc-dark",
+      "tokyo-night",
+      "tokyo-night-storm",
+      "tokyo-night-light",
+      "catppuccin-mocha",
+      "catppuccin-latte",
+      "nord",
+      "nord-light",
+      "dracula",
+      "github-light",
+      "github-dark",
+      "solarized-light",
+      "solarized-dark",
+      "one-dark",
+      "salmon",
+      "salmon-dark",
+      "tufte-dark"
+    ]
+  },
+  "manifest": {
+    "interface": "sdk",
+    "families": {
+      "flowchart": "flowchart TD\n  A[Start] --> B{Ship?}\n  B -->|yes| C[Deploy]\n  B -->|no| D[Fix]",
+      "state": "stateDiagram-v2\n  [*] --> Draft\n  Draft --> Review : submit\n  Review --> [*] : approve",
+      "sequence": "sequenceDiagram\n  participant U as User\n  participant S as Server\n  U->>S: request\n  S-->>U: response",
+      "timeline": "timeline\n  title Roadmap\n  2025 : Alpha : Beta\n  2026 : GA",
+      "class": "classDiagram\n  class Account {\n    +id: string\n    +close() void\n  }\n  Account <|-- Savings\n  Account \"1\" o-- \"*\" Transaction : logs",
+      "er": "erDiagram\n  CUSTOMER ||--o{ ORDER : places\n  ORDER {\n    string id\n  }",
+      "journey": "journey\n  title Checkout\n  section Browse\n    Find product: 4: Shopper\n  section Buy\n    Pay: 3: Shopper",
+      "architecture": "architecture-beta\n  group backend(cloud)[Backend]\n  service api(server)[API] in backend\n  service db(database)[Database] in backend\n  service cache(disk)[Cache] in backend\n  api:R --> L:db\n  api:B -[reads]-> T:cache",
+      "xychart": "xychart-beta\n  title \"Revenue\"\n  x-axis [Q1, Q2, Q3]\n  y-axis \"USD\" 0 --> 100\n  bar [45, 62, 80]",
+      "pie": "pie title Plans\n  \"Free\" : 60\n  \"Pro\" : 30\n  \"Enterprise\" : 10",
+      "quadrant": "quadrantChart\n  title Prioritize\n  x-axis Low Effort --> High Effort\n  y-axis Low Value --> High Value\n  Quick win: [0.2, 0.8]\n  Money pit: [0.8, 0.2]",
+      "gantt": "gantt\n  title Plan\n  dateFormat YYYY-MM-DD\n  section Build\n  Implement :a1, 2026-01-05, 5d\n  Review :after a1, 2d",
+      "mindmap": "mindmap\n  root((Product))\n    Research\n      Interviews\n      Evidence\n    Delivery\n      Launch",
+      "gitgraph": "gitGraph\n  commit id:\"base\"\n  branch feature\n  commit id:\"work\"\n  checkout main\n  commit id:\"release\"\n  merge feature id:\"merge\"",
+      "radar": "radar-beta\n  title Skills\n  axis speed[\"Speed\"], power[\"Power\"], range[\"Range\"]\n  curve now[\"Current\"]{4, 3, 5}\n  curve goal[\"Target\"]{5, 5, 4}\n  max 5"
+    },
+    "styles": {
+      "crisp": {
+        "source": "flowchart TD\n  A[Start] --> B{Ship?}\n  B -->|yes| C[Deploy]\n  B -->|no| D[Fix]",
+        "family": "flowchart"
+      },
+      "hand-drawn": {
+        "source": "flowchart TD\n  A[Start] --> B{Ship?}\n  B -->|yes| C[Deploy]\n  B -->|no| D[Fix]",
+        "family": "flowchart"
+      },
+      "excalidraw": {
+        "source": "flowchart TD\n  A[Start] --> B{Ship?}\n  B -->|yes| C[Deploy]\n  B -->|no| D[Fix]",
+        "family": "flowchart"
+      },
+      "pen-and-ink": {
+        "source": "flowchart TD\n  A[Start] --> B{Ship?}\n  B -->|yes| C[Deploy]\n  B -->|no| D[Fix]",
+        "family": "flowchart"
+      },
+      "freehand": {
+        "source": "flowchart TD\n  A[Start] --> B{Ship?}\n  B -->|yes| C[Deploy]\n  B -->|no| D[Fix]",
+        "family": "flowchart"
+      },
+      "watercolor": {
+        "source": "flowchart TD\n  A[Start] --> B{Ship?}\n  B -->|yes| C[Deploy]\n  B -->|no| D[Fix]",
+        "family": "flowchart"
+      },
+      "blueprint": {
+        "source": "flowchart TD\n  A[Start] --> B{Ship?}\n  B -->|yes| C[Deploy]\n  B -->|no| D[Fix]",
+        "family": "flowchart"
+      },
+      "look:tufte": {
+        "source": "flowchart TD\n  A[Start] --> B{Ship?}\n  B -->|yes| C[Deploy]\n  B -->|no| D[Fix]",
+        "family": "flowchart"
+      },
+      "accessible-high-contrast": {
+        "source": "flowchart TD\n  A[Start] --> B{Ship?}\n  B -->|yes| C[Deploy]\n  B -->|no| D[Fix]",
+        "family": "flowchart"
+      },
+      "patent-drawing": {
+        "source": "flowchart TD\n  A[Start] --> B{Ship?}\n  B -->|yes| C[Deploy]\n  B -->|no| D[Fix]",
+        "family": "flowchart"
+      },
+      "status-dashboard": {
+        "source": "flowchart TD\n  A[Start] --> B{Ship?}\n  B -->|yes| C[Deploy]\n  B -->|no| D[Fix]",
+        "family": "flowchart"
+      },
+      "ops-schematic": {
+        "source": "flowchart TD\n  A[Start] --> B{Ship?}\n  B -->|yes| C[Deploy]\n  B -->|no| D[Fix]",
+        "family": "flowchart"
+      },
+      "chalkboard": {
+        "source": "flowchart TD\n  A[Start] --> B{Ship?}\n  B -->|yes| C[Deploy]\n  B -->|no| D[Fix]",
+        "family": "flowchart"
+      },
+      "risograph": {
+        "source": "flowchart TD\n  A[Start] --> B{Ship?}\n  B -->|yes| C[Deploy]\n  B -->|no| D[Fix]",
+        "family": "flowchart"
+      },
+      "architectural-plan": {
+        "source": "flowchart TD\n  A[Start] --> B{Ship?}\n  B -->|yes| C[Deploy]\n  B -->|no| D[Fix]",
+        "family": "flowchart"
+      },
+      "publication-figure": {
+        "source": "flowchart TD\n  A[Start] --> B{Ship?}\n  B -->|yes| C[Deploy]\n  B -->|no| D[Fix]",
+        "family": "flowchart"
+      }
+    },
+    "palettes": {
+      "paper": {
+        "source": "flowchart TD\n  A[Start] --> B{Ship?}\n  B -->|yes| C[Deploy]\n  B -->|no| D[Fix]",
+        "family": "flowchart"
+      },
+      "dusk": {
+        "source": "flowchart TD\n  A[Start] --> B{Ship?}\n  B -->|yes| C[Deploy]\n  B -->|no| D[Fix]",
+        "family": "flowchart"
+      },
+      "zinc-light": {
+        "source": "flowchart TD\n  A[Start] --> B{Ship?}\n  B -->|yes| C[Deploy]\n  B -->|no| D[Fix]",
+        "family": "flowchart"
+      },
+      "zinc-dark": {
+        "source": "flowchart TD\n  A[Start] --> B{Ship?}\n  B -->|yes| C[Deploy]\n  B -->|no| D[Fix]",
+        "family": "flowchart"
+      },
+      "tokyo-night": {
+        "source": "flowchart TD\n  A[Start] --> B{Ship?}\n  B -->|yes| C[Deploy]\n  B -->|no| D[Fix]",
+        "family": "flowchart"
+      },
+      "tokyo-night-storm": {
+        "source": "flowchart TD\n  A[Start] --> B{Ship?}\n  B -->|yes| C[Deploy]\n  B -->|no| D[Fix]",
+        "family": "flowchart"
+      },
+      "tokyo-night-light": {
+        "source": "flowchart TD\n  A[Start] --> B{Ship?}\n  B -->|yes| C[Deploy]\n  B -->|no| D[Fix]",
+        "family": "flowchart"
+      },
+      "catppuccin-mocha": {
+        "source": "flowchart TD\n  A[Start] --> B{Ship?}\n  B -->|yes| C[Deploy]\n  B -->|no| D[Fix]",
+        "family": "flowchart"
+      },
+      "catppuccin-latte": {
+        "source": "flowchart TD\n  A[Start] --> B{Ship?}\n  B -->|yes| C[Deploy]\n  B -->|no| D[Fix]",
+        "family": "flowchart"
+      },
+      "nord": {
+        "source": "flowchart TD\n  A[Start] --> B{Ship?}\n  B -->|yes| C[Deploy]\n  B -->|no| D[Fix]",
+        "family": "flowchart"
+      },
+      "nord-light": {
+        "source": "flowchart TD\n  A[Start] --> B{Ship?}\n  B -->|yes| C[Deploy]\n  B -->|no| D[Fix]",
+        "family": "flowchart"
+      },
+      "dracula": {
+        "source": "flowchart TD\n  A[Start] --> B{Ship?}\n  B -->|yes| C[Deploy]\n  B -->|no| D[Fix]",
+        "family": "flowchart"
+      },
+      "github-light": {
+        "source": "flowchart TD\n  A[Start] --> B{Ship?}\n  B -->|yes| C[Deploy]\n  B -->|no| D[Fix]",
+        "family": "flowchart"
+      },
+      "github-dark": {
+        "source": "flowchart TD\n  A[Start] --> B{Ship?}\n  B -->|yes| C[Deploy]\n  B -->|no| D[Fix]",
+        "family": "flowchart"
+      },
+      "solarized-light": {
+        "source": "flowchart TD\n  A[Start] --> B{Ship?}\n  B -->|yes| C[Deploy]\n  B -->|no| D[Fix]",
+        "family": "flowchart"
+      },
+      "solarized-dark": {
+        "source": "flowchart TD\n  A[Start] --> B{Ship?}\n  B -->|yes| C[Deploy]\n  B -->|no| D[Fix]",
+        "family": "flowchart"
+      },
+      "one-dark": {
+        "source": "flowchart TD\n  A[Start] --> B{Ship?}\n  B -->|yes| C[Deploy]\n  B -->|no| D[Fix]",
+        "family": "flowchart"
+      },
+      "salmon": {
+        "source": "flowchart TD\n  A[Start] --> B{Ship?}\n  B -->|yes| C[Deploy]\n  B -->|no| D[Fix]",
+        "family": "flowchart"
+      },
+      "salmon-dark": {
+        "source": "flowchart TD\n  A[Start] --> B{Ship?}\n  B -->|yes| C[Deploy]\n  B -->|no| D[Fix]",
+        "family": "flowchart"
+      },
+      "tufte-dark": {
+        "source": "flowchart TD\n  A[Start] --> B{Ship?}\n  B -->|yes| C[Deploy]\n  B -->|no| D[Fix]",
+        "family": "flowchart"
+      }
+    }
+  },
+  "report": {
+    "ok": true,
+    "interface": "sdk",
+    "interfaceOk": true,
+    "families": [
+      {
+        "id": "flowchart",
+        "ok": true
+      },
+      {
+        "id": "state",
+        "ok": true
+      },
+      {
+        "id": "sequence",
+        "ok": true
+      },
+      {
+        "id": "timeline",
+        "ok": true
+      },
+      {
+        "id": "class",
+        "ok": true
+      },
+      {
+        "id": "er",
+        "ok": true
+      },
+      {
+        "id": "journey",
+        "ok": true
+      },
+      {
+        "id": "architecture",
+        "ok": true
+      },
+      {
+        "id": "xychart",
+        "ok": true
+      },
+      {
+        "id": "pie",
+        "ok": true
+      },
+      {
+        "id": "quadrant",
+        "ok": true
+      },
+      {
+        "id": "gantt",
+        "ok": true
+      },
+      {
+        "id": "mindmap",
+        "ok": true
+      },
+      {
+        "id": "gitgraph",
+        "ok": true
+      },
+      {
+        "id": "radar",
+        "ok": true
+      }
+    ],
+    "styles": [
+      {
+        "id": "crisp",
+        "ok": true
+      },
+      {
+        "id": "hand-drawn",
+        "ok": true
+      },
+      {
+        "id": "excalidraw",
+        "ok": true
+      },
+      {
+        "id": "pen-and-ink",
+        "ok": true
+      },
+      {
+        "id": "freehand",
+        "ok": true
+      },
+      {
+        "id": "watercolor",
+        "ok": true
+      },
+      {
+        "id": "blueprint",
+        "ok": true
+      },
+      {
+        "id": "look:tufte",
+        "ok": true
+      },
+      {
+        "id": "accessible-high-contrast",
+        "ok": true
+      },
+      {
+        "id": "patent-drawing",
+        "ok": true
+      },
+      {
+        "id": "status-dashboard",
+        "ok": true
+      },
+      {
+        "id": "ops-schematic",
+        "ok": true
+      },
+      {
+        "id": "chalkboard",
+        "ok": true
+      },
+      {
+        "id": "risograph",
+        "ok": true
+      },
+      {
+        "id": "architectural-plan",
+        "ok": true
+      },
+      {
+        "id": "publication-figure",
+        "ok": true
+      }
+    ],
+    "palettes": [
+      {
+        "id": "paper",
+        "ok": true
+      },
+      {
+        "id": "dusk",
+        "ok": true
+      },
+      {
+        "id": "zinc-light",
+        "ok": true
+      },
+      {
+        "id": "zinc-dark",
+        "ok": true
+      },
+      {
+        "id": "tokyo-night",
+        "ok": true
+      },
+      {
+        "id": "tokyo-night-storm",
+        "ok": true
+      },
+      {
+        "id": "tokyo-night-light",
+        "ok": true
+      },
+      {
+        "id": "catppuccin-mocha",
+        "ok": true
+      },
+      {
+        "id": "catppuccin-latte",
+        "ok": true
+      },
+      {
+        "id": "nord",
+        "ok": true
+      },
+      {
+        "id": "nord-light",
+        "ok": true
+      },
+      {
+        "id": "dracula",
+        "ok": true
+      },
+      {
+        "id": "github-light",
+        "ok": true
+      },
+      {
+        "id": "github-dark",
+        "ok": true
+      },
+      {
+        "id": "solarized-light",
+        "ok": true
+      },
+      {
+        "id": "solarized-dark",
+        "ok": true
+      },
+      {
+        "id": "one-dark",
+        "ok": true
+      },
+      {
+        "id": "salmon",
+        "ok": true
+      },
+      {
+        "id": "salmon-dark",
+        "ok": true
+      },
+      {
+        "id": "tufte-dark",
+        "ok": true
+      }
+    ],
+    "missing": {
+      "families": [],
+      "styles": [],
+      "palettes": []
+    }
+  }
+}

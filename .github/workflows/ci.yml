@@ -113,6 +113,12 @@ jobs:
       - name: Type check
         run: bun run typecheck
 
+      - name: Check homepage-coverage eval instrument and reference are current
+        # Grades the deterministic reference through the coverage oracle and
+        # replays the committed transcript. Lives under eval/ (not src/__tests__)
+        # so it does not drift the source-tree evidence-provenance receipts.
+        run: bun run eval/homepage-coverage/check.ts
+
       - name: Check README hero image is current with the renderer
         # Compares a deterministic fingerprint of the renderer output behind
         # assets/hero.png (diagram SVG + ASCII) — no fonts/rasterization needed.

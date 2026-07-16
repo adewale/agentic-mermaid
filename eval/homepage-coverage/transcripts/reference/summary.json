@@ -1,0 +1,22 @@
+{
+  "ok": true,
+  "capturedAt": "2026-07-16T16:45:43.534Z",
+  "provider": "reference",
+  "model": "deterministic-sdk",
+  "surface": "homepage-url",
+  "discovery": "browsing",
+  "interfaceOk": true,
+  "families": {
+    "total": 15,
+    "passed": 15
+  },
+  "styles": {
+    "total": 16,
+    "passed": 16
+  },
+  "palettes": {
+    "total": 20,
+    "passed": 20
+  },
+  "transcript": "eval/homepage-coverage/transcripts/reference/transcript.json"
+}
