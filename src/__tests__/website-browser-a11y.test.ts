@@ -173,6 +173,56 @@ describeBrowser('website browser accessibility smoke', () => {
     await page.close()
   }, 30_000)
 
+  test('basic, styled, and rich Examples links restore the gallery source and colour tokens', async () => {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+    const ids = [
+      'flowchart',
+      'style-palette-flowchart',
+      'rich-radar-seasonal-wind-rose-polygon-octagon',
+    ]
+    const tokenNames = ['--bg', '--fg', '--line', '--accent', '--muted', '--surface', '--border', '--font']
+
+    // website-build.test.ts checks every card byte-for-byte. These three
+    // representatives cross the real browser consumer for each card shape so
+    // a future Editor restoration change cannot make that build-only proof lie.
+    for (const id of ids) {
+      await page.goto(`${baseUrl}/examples/#${id}`, { waitUntil: 'networkidle' })
+      const gallery = await page.locator(`#${id}`).evaluate((article, names) => {
+        const svg = article.querySelector('.example-svg svg') as SVGElement | null
+        const source = article.querySelector('.example-source code')?.textContent?.trim()
+        const href = article.querySelector<HTMLAnchorElement>('a.go')?.getAttribute('href')
+        return {
+          href,
+          source,
+          viewBox: svg?.getAttribute('viewBox'),
+          tokens: Object.fromEntries(names.map(name => [name, svg?.style.getPropertyValue(name).trim() || ''])),
+        }
+      }, tokenNames)
+      expect(gallery.href, `${id}: canonical Editor state URL`).toStartWith('/editor/#deflate:')
+
+      await page.goto(baseUrl + gallery.href, { waitUntil: 'networkidle' })
+      await page.waitForFunction(() => {
+        const preview = document.getElementById('preview-inner') as HTMLElement | null
+        return Boolean(preview?.dataset.appearanceDigest && preview.querySelector('svg'))
+      }, null, { timeout: 15_000 })
+      const editor = await page.evaluate((names) => {
+        const svg = document.querySelector('#preview-inner svg') as SVGElement | null
+        const source = (document.getElementById('code-editor') as HTMLTextAreaElement | null)?.value.trim()
+        return {
+          source,
+          viewBox: svg?.getAttribute('viewBox'),
+          tokens: Object.fromEntries(names.map(name => [name, svg?.style.getPropertyValue(name).trim() || ''])),
+        }
+      }, tokenNames)
+      expect(editor, `${id}: live Editor/gallery parity`).toEqual({
+        source: gallery.source,
+        viewBox: gallery.viewBox,
+        tokens: gallery.tokens,
+      })
+    }
+    await page.close()
+  }, 60_000)
+
   test('design motion specimen supports keyboard and direct manipulation without reduced-motion coast', async () => {
     const page = await browser.newPage({ viewport: { width: 390, height: 900 } })
     const trackTransform = () => page.locator('.dz-motion-track').evaluate((el) => (el as HTMLElement).style.transform)

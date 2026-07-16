@@ -23,6 +23,11 @@ import { EDITOR_EXAMPLES } from '../editor/examples.ts'
 import { samples as RICH_EXAMPLES } from '../scripts/site/samples-data.ts'
 import { CUSTOM_STYLE_CATALOG } from '../scripts/docs/custom-style-catalog.ts'
 import { editorStateHref } from '../scripts/site/editor-state-url.ts'
+import {
+  createExampleRenderState,
+  createStyledExampleRenderState,
+  WEBSITE_EXAMPLE_THEME,
+} from '../scripts/site/example-render-state.ts'
 import { sharedRenderOptionsJsonSchema } from '../src/render-contract.ts'
 
 const ROOT = join(import.meta.dir, '..')
@@ -592,16 +597,6 @@ const familyByDiagramType = new Map(BUILTIN_FAMILY_METADATA.map((family) => [fam
 function familyForExample(example: any) {
   return familyByExampleId.get(example.id) ?? familyByDiagramType.get(example.diagramType)
 }
-const WEBSITE_EXAMPLE_THEME = {
-  bg: '#FFFFFF',
-  fg: '#27272A',
-  accent: '#1A7351',
-  line: '#8B9791',
-  muted: '#5D6864',
-  surface: '#F8FAF8',
-  border: '#D3DDD7',
-  font: 'Avenir Next',
-}
 function addSvgAccessibleName(svg: string, idBase: string, title: string, desc: string) {
   const safeId = idBase.replace(/[^a-z0-9_-]+/gi, '-')
   const titleId = `${safeId}-svg-title`
@@ -612,15 +607,20 @@ function addSvgAccessibleName(svg: string, idBase: string, title: string, desc: 
     return `<svg${cleanAttrs}${role} aria-labelledby="${titleId} ${descId}"><title id="${titleId}">${escapeHtml(title)}</title><desc id="${descId}">${escapeHtml(desc)}</desc>`
   })
 }
-function renderExampleSvg(example: any) {
-  // The editor examples intentionally carry their own options. The public
-  // Examples page uses one review theme so cards can be compared side by side;
-  // chart palettes still derive from the single site accent above.
-  const svg = renderMermaidSVG(example.source, {
+function editorExampleRenderState(example: any) {
+  return createExampleRenderState(example.source, {
     ...WEBSITE_EXAMPLE_THEME,
     interactive: Boolean(example.options?.interactive),
+  })
+}
+function renderExampleSvg(example: any, request = editorExampleRenderState(example)) {
+  // The editor examples intentionally carry their own options. The public
+  // Examples page uses one review theme so cards can be compared side by side;
+  // chart palettes still derive from the single site accent above. The same
+  // complete portable request is encoded in the card's Editor deep link.
+  const svg = renderMermaidSVG(example.source, {
+    ...request.renderOptions,
     security: 'strict',
-    compact: true,
     embedFontImport: false,
     idPrefix: `example-${example.id}-`,
   }).replace(/[ \t]+$/gm, '')
@@ -661,11 +661,14 @@ resolveLegacyRichExampleAnchor()
 </script>`
 }
 
-function renderRichExampleSvg(sample: any, id: string) {
+function richExampleRenderState(sample: any) {
+  return createExampleRenderState(sample.source, sample.options ?? {})
+}
+
+function renderRichExampleSvg(sample: any, id: string, request = richExampleRenderState(sample)) {
   const svg = renderMermaidSVG(sample.source, {
-    ...(sample.options ?? {}),
+    ...request.renderOptions,
     security: 'strict',
-    compact: true,
     embedFontImport: false,
     idPrefix: `example-${id}-`,
   }).replace(/[ \t]+$/gm, '')
@@ -752,12 +755,10 @@ function styleThemeExamples(editorExamples: any[]) {
 }
 
 function renderStyleThemeSvg(combo: ReturnType<typeof styleThemeExamples>[number]) {
+  const request = styleThemeExampleRenderState(combo)
   const svg = renderMermaidSVG(combo.example.source, {
-    style: [combo.look, combo.theme],
-    seed: combo.seed,
-    interactive: Boolean(combo.example.options?.interactive),
+    ...request.renderOptions,
     security: 'strict',
-    compact: true,
     embedFontImport: false,
     idPrefix: `example-${combo.id}-`,
   }).replace(/[ \t]+$/gm, '')
@@ -767,6 +768,16 @@ function renderStyleThemeSvg(combo: ReturnType<typeof styleThemeExamples>[number
     `${combo.family.editorDiagramType} ${displayStyleName(combo.look)} ${displayStyleName(combo.theme)} diagram`,
     `Build-time render of ${combo.family.editorDiagramType} with ${combo.look} style and ${combo.theme} palette.`,
   )
+}
+
+function styleThemeExampleRenderState(combo: ReturnType<typeof styleThemeExamples>[number]) {
+  return createStyledExampleRenderState(combo.example.source, {
+    style: combo.look,
+    palette: combo.theme,
+    seed: combo.seed,
+  }, {
+    interactive: Boolean(combo.example.options?.interactive),
+  })
 }
 // Examples is now the family-discovery surface: jump cards replace the removed
 // Diagram families page and the old search box.
@@ -816,7 +827,9 @@ function richExamplesHtml(richExamples = RICH_EXAMPLES) {
 ${Array.from(groups, ([category, entries]) => `
 <section class="example-rich-group" aria-labelledby="rich-${escapeAttr(exampleSlug(category))}">
 <h3 id="rich-${escapeAttr(exampleSlug(category))}">${escapeHtml(category)}</h3>
-${entries.map(({ sample, id, legacyId }) => `
+${entries.map(({ sample, id, legacyId }) => {
+  const request = richExampleRenderState(sample)
+  return `
 <article class="example-sample${sample.palettePeers ? ' example-sample-palette' : ''}" id="${escapeAttr(id)}" data-legacy-rich-id="${escapeAttr(legacyId)}"${sample.palettePeers ? ` data-palette-peers="${sample.palettePeers.count}"` : ''}>
   <header class="example-sample-head">
     <div>
@@ -825,13 +838,14 @@ ${entries.map(({ sample, id, legacyId }) => `
       <p>${escapeHtml(sample.description ?? '')}</p>
       ${sample.palettePeers ? `<p class="example-palette-proof">Palette proof: ${escapeHtml(`${sample.palettePeers.count} ${sample.palettePeers.kind}`)}</p>` : ''}
     </div>
-    <a class="go" href="${escapeAttr(editorStateHref({ source: sample.source, config: sample.options ?? {} }))}">Open in editor</a>
+    <a class="go" href="${escapeAttr(editorStateHref(request.editorState))}">Open in editor</a>
   </header>
   <div class="example-sample-grid">
     <section class="example-source" aria-label="${escapeAttr(sample.title)} Mermaid source"><pre><code>${escapeHtml(String(sample.source ?? '').trim())}</code></pre></section>
-    <figure class="example-render${sample.palettePeers ? ' example-render-palette' : ''}"><div class="example-svg"${sample.palettePeers ? ` tabindex="0" aria-label="${escapeAttr(`${sample.title} diagram. Scroll horizontally to inspect every peer.`)}"` : ''}>${renderRichExampleSvg(sample, id)}</div><figcaption>${sample.palettePeers ? 'High-cardinality proof at intrinsic size; scroll to inspect every peer.' : 'Build-time proof from the shared examples corpus.'}</figcaption></figure>
+    <figure class="example-render${sample.palettePeers ? ' example-render-palette' : ''}"><div class="example-svg"${sample.palettePeers ? ` tabindex="0" aria-label="${escapeAttr(`${sample.title} diagram. Scroll horizontally to inspect every peer.`)}"` : ''}>${renderRichExampleSvg(sample, id, request)}</div><figcaption>${sample.palettePeers ? 'High-cardinality proof at intrinsic size; scroll to inspect every peer.' : 'Build-time proof from the shared examples corpus.'}</figcaption></figure>
   </div>
-</article>`).join('')}
+</article>`
+}).join('')}
 </section>`).join('')}
 </section>${legacyRichExampleAnchorScript()}`
 }
@@ -844,6 +858,7 @@ ${combos.map((combo) => {
   const look = displayStyleName(combo.look)
   const theme = displayStyleName(combo.theme)
   const styleCode = `style: ['${combo.look}', '${combo.theme}'], seed: ${combo.seed}`
+  const request = styleThemeExampleRenderState(combo)
   return `
 <article class="example-sample" id="${escapeAttr(combo.id)}">
   <header class="example-sample-head">
@@ -853,7 +868,7 @@ ${combos.map((combo) => {
       <p>${escapeHtml(`The Mermaid source stays the same; the render call supplies ${combo.look} as the style and ${combo.theme} as the palette.`)}</p>
       <p class="example-trace"><span>Render options</span> <code>${escapeHtml(styleCode)}</code></p>
     </div>
-    <a class="go" href="${escapeAttr(editorStateHref({ source: combo.example.source, style: combo.look, palette: combo.theme, seed: combo.seed }))}">Open styled</a>
+    <a class="go" href="${escapeAttr(editorStateHref(request.editorState))}">Open styled</a>
   </header>
   <div class="example-sample-grid">
     <section class="example-source" aria-label="${escapeAttr(combo.family.editorDiagramType)} Mermaid source"><pre><code>${escapeHtml(String(combo.example.source ?? '').trim())}</code></pre></section>
@@ -879,6 +894,7 @@ function examplesShowcaseHtml(editorExamples: any[]) {
 ${examples.map((example) => {
   const family = familyForExample(example)
   const task = category === 'Supported diagrams' && family ? FAMILY_AGENT_TASK[family.id] : undefined
+  const request = editorExampleRenderState(example)
   const taskHtml = task ? `
       <p class="example-prompt"><span>Prompt</span> ${escapeHtml(task.prompt)}</p>
       <p class="example-trace"><span>Trace</span> <code>${escapeHtml(task.trace)}</code></p>` : ''
@@ -890,11 +906,11 @@ ${examples.map((example) => {
       <h3>${escapeHtml(example.label)}</h3>
       <p>${escapeHtml(example.description ?? '')}</p>${taskHtml}
     </div>
-    <a class="go" href="/editor/?example=${encodeURIComponent(example.id)}">Open in editor</a>
+    <a class="go" href="${escapeAttr(editorStateHref(request.editorState))}">Open in editor</a>
   </header>
   <div class="example-sample-grid">
     <section class="example-source" aria-label="${escapeAttr(example.label)} Mermaid source"><pre><code>${escapeHtml(String(example.source ?? '').trim())}</code></pre></section>
-    <figure class="example-render"><div class="example-svg">${renderExampleSvg(example)}</div><figcaption>Build-time proof: rendered from the same source the editor loads.</figcaption></figure>
+    <figure class="example-render"><div class="example-svg">${renderExampleSvg(example, request)}</div><figcaption>Build-time proof: rendered from the same source and options the editor loads.</figcaption></figure>
   </div>
 </article>`
 }).join('')}
@@ -1994,6 +2010,7 @@ const examples = {
   examples: EDITOR_EXAMPLES.map((example) => {
     const family = familyForExample(example)
     if (!family) throw new Error(`Editor example ${example.id} does not map to a supported family`)
+    const request = editorExampleRenderState(example)
     return {
       id: example.id,
       family: family.id,
@@ -2002,7 +2019,7 @@ const examples = {
       headers: family.headers,
       source: String(example.source ?? '').trim(),
       renderUrl: `/examples/#${exampleAnchor(example)}`,
-      editorUrl: `/editor/?example=${example.id}`,
+      editorUrl: editorStateHref(request.editorState),
       outputs: capabilities.outputFormats,
       docs: `/examples/#${family.id}`,
     }
@@ -2016,7 +2033,7 @@ const examples = {
     options: sample.options ?? {},
     ...(sample.palettePeers ? { palettePeers: sample.palettePeers } : {}),
     renderUrl: `/examples/#${richExampleId(sample)}`,
-    editorUrl: editorStateHref({ source: sample.source, config: sample.options ?? {} }),
+    editorUrl: editorStateHref(richExampleRenderState(sample).editorState),
   })),
 }
 await emitJson('examples/index.json', examples)

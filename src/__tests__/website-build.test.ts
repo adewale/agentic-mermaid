@@ -6,6 +6,7 @@ import { execFileSync } from 'node:child_process'
 import { EDITOR_EXAMPLES } from '../../editor/examples.ts'
 import { samples as RICH_EXAMPLES } from '../../scripts/site/samples-data.ts'
 import { decodeEditorStateHash, EDITOR_SHARE_STATE_KEYS } from '../../scripts/site/editor-state-url.ts'
+import { renderWebsiteSVG } from '../../website/src/rendering.ts'
 import { createWebsiteWorker } from '../../website/src/worker-core.ts'
 import { CLEAN_PAGE_ROUTES, DYNAMIC_CLEAN_REDIRECT_LINES, staticRedirectLines } from '../../website/src/site-routes.ts'
 import { HOSTED_FONT_RESOURCES } from '../font-manifest.ts'
@@ -71,6 +72,28 @@ function matches(source: string, pattern: RegExp) {
 function decodeEditorStateHref(href: string): Record<string, unknown> {
   const hash = href.split('#')[1] ?? ''
   return decodeEditorStateHash(hash) as unknown as Record<string, unknown>
+}
+
+function editorRenderOptionsFromState(state: Record<string, unknown>): Record<string, unknown> {
+  const config = { ...((state.config ?? {}) as Record<string, unknown>) }
+  const configStyle = config.style
+  delete config.style
+  const styleStack: unknown[] = []
+  if (state.style && state.style !== 'crisp') styleStack.push(state.style)
+  if (Array.isArray(configStyle)) styleStack.push(...configStyle)
+  else if (configStyle) styleStack.push(configStyle)
+  if (state.palette) styleStack.push(state.palette)
+  if (styleStack.length === 1) config.style = styleStack[0]
+  else if (styleStack.length > 1) config.style = styleStack
+  if (state.style && state.style !== 'crisp' && config.seed === undefined) config.seed = state.seed ?? 0
+  return config
+}
+
+function removeWebsiteExampleAccessibleName(svg: string): string {
+  return svg
+    .replace(/\srole="img"/, '')
+    .replace(/\saria-labelledby="[^"]+"/, '')
+    .replace(/<title id="[^"]+">[\s\S]*?<\/title><desc id="[^"]+">[\s\S]*?<\/desc>/, '')
 }
 
 function sourcePeerLabels(category: string, source: string) {
@@ -702,6 +725,41 @@ describe('Workers Static Assets website contract', () => {
     expect(nonCanonicalStateLinks).toEqual([])
   })
 
+  test('every Examples card Editor link reproduces its complete gallery SVG request', () => {
+    const html = read('examples/index.html')
+    const catalog = JSON.parse(read('examples/index.json'))
+    const articles = matches(html, /<article class="example-sample[^"]*" id="([^"]+)"[^>]*>([\s\S]*?)<\/article>/g)
+    expect(articles).toHaveLength(EDITOR_EXAMPLES.length + BUILTIN_FAMILY_METADATA.length + RICH_EXAMPLES.length)
+
+    for (const articleMatch of articles) {
+      const id = articleMatch[1]!
+      const article = articleMatch[2]!
+      const href = article.match(/<a class="go" href="(\/editor\/#deflate:[A-Za-z0-9_-]+)"/)?.[1]
+      expect(href, `${id}: canonical Editor deep link`).toBeDefined()
+      const state = decodeEditorStateHref(href!)
+      expect(Object.prototype.hasOwnProperty.call(state, 'palette'), `${id}: explicit palette`).toBe(true)
+      expect(Object.prototype.hasOwnProperty.call(state, 'style'), `${id}: explicit style`).toBe(true)
+      expect(Object.prototype.hasOwnProperty.call(state, 'seed'), `${id}: explicit seed`).toBe(true)
+      expect((state.config as Record<string, unknown>)?.compact, `${id}: compact parity`).toBe(true)
+
+      const basic = catalog.examples.find((entry: any) => entry.renderUrl === `/examples/#${id}`)
+      const idPrefix = `example-${basic?.id ?? id}-`
+      const editorSvg = renderWebsiteSVG(state.source as string, {
+        ...editorRenderOptionsFromState(state),
+        security: 'strict',
+        embedFontImport: false,
+        idPrefix,
+      } as any).replace(/[ \t]+$/gm, '')
+      const gallerySvg = article.match(/<div class="example-svg"[^>]*>(<svg[\s\S]*?<\/svg>)<\/div>/)?.[1]
+      expect(gallerySvg, `${id}: gallery SVG`).toBeDefined()
+      expect(removeWebsiteExampleAccessibleName(gallerySvg!), `${id}: exact Editor/gallery render parity`)
+        .toBe(removeWebsiteExampleAccessibleName(editorSvg))
+
+      const catalogEntry = basic ?? catalog.richExamples.find((entry: any) => entry.id === id)
+      if (catalogEntry) expect(catalogEntry.editorUrl, `${id}: HTML/JSON Editor URL parity`).toBe(href)
+    }
+  })
+
   test('docs and editor reuse the shared visual primitive set', () => {
     const docs = read('docs/index.html')
     const editor = read('editor/index.html')
@@ -1206,7 +1264,7 @@ describe('Workers Static Assets website contract', () => {
     })))
     expect(examplesIndex.richExamples.some((example: any) => example.category === 'Style + Palette')).toBe(true)
     const examplesHtml = read('examples/index.html')
-    expect(examplesHtml).toContain('Build-time proof: rendered from the same source the editor loads.')
+    expect(examplesHtml).toContain('Build-time proof: rendered from the same source and options the editor loads.')
     expect(examplesHtml).toContain('Build-time proof from the shared examples corpus.')
     expect(examplesHtml).toContain('--accent:#1A7351')
     expect(examplesHtml).not.toContain('Role style presets')
@@ -1218,7 +1276,7 @@ describe('Workers Static Assets website contract', () => {
       expect(examplesHtml).toContain(`id="${renderAnchor}"`)
       expect(example.docs.startsWith('/examples/#')).toBe(true)
       expect(examplesHtml).toContain(`id="${docsAnchor}"`)
-      expect(example.editorUrl).toContain('/editor/?example=')
+      expect(example.editorUrl).toContain('/editor/#deflate:')
     }
   })
 

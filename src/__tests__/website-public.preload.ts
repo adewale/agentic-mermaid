@@ -32,6 +32,7 @@ const FINGERPRINT_PATHS = [
   'Instructions_for_agents.md',
   'editor/examples.ts',
   'editor/js',
+  'scripts/site/example-render-state.ts',
   'scripts/site/editor-state-url.ts',
   'scripts/site/samples-data.ts',
   'src',
