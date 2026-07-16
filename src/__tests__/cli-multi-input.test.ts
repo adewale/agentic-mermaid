@@ -1,7 +1,7 @@
 // Loop 13 M4 (#959) + M5 (#930): multi-input rendering + watch re-render step.
 
 import { describe, test, expect } from 'bun:test'
-import { readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { runCli, renderFileOnce, watchPathForChanges } from '../cli/index.ts'
@@ -22,7 +22,11 @@ function capture(fn: () => number): { code: number; out: string } {
 
 describe('#930 pathname watch lifecycle', () => {
   test('observes atomic rename-over saves and subsequent writes to the replacement inode', async () => {
-    const input = tmp('flowchart TD\n A --> B')
+    // Watch an owned directory, not the shared OS /tmp root: Bun's Linux
+    // fs.watch implementation may inspect unrelated protected service dirs.
+    const dir = mkdtempSync(join(tmpdir(), 'am-watch-'))
+    const input = join(dir, 'input.mmd')
+    writeFileSync(input, 'flowchart TD\n A --> B')
     const replacement = `${input}.replacement`
     const observed: string[] = []
     let notify: (() => void) | undefined
@@ -47,6 +51,7 @@ describe('#930 pathname watch lifecycle', () => {
       expect(observed).toEqual(['flowchart TD\n A --> C', 'flowchart TD\n A --> D'])
     } finally {
       handle.close()
+      rmSync(dir, { recursive: true, force: true })
     }
   })
 })

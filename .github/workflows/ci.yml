@@ -22,9 +22,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          # The baseline-integrity test materializes and re-renders the named
-          # historical palette commit. A depth-1 PR merge checkout omits that
-          # object and makes the proof fail before it can compare SVG bytes.
+          # Baseline-integrity tests execute immutable historical palette and
+          # pre-Section-B commits; a depth-1 PR merge checkout omits them.
           fetch-depth: 0
 
       - name: Setup Bun
