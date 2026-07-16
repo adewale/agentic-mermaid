@@ -1,6 +1,8 @@
 #!/usr/bin/env bun
 import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Resvg } from '@resvg/resvg-js'
 import { getFamily, knownBuiltinFamilies } from '../../src/agent/families.ts'
@@ -13,6 +15,7 @@ const ROOT = join(import.meta.dir, '..', '..')
 export const OUTPUT = join(ROOT, 'docs', 'design', 'families', 'section-b-brand-evidence.png')
 export const RECEIPT = join(ROOT, 'eval', 'section-b-brand-evidence', 'evidence-receipt.json')
 export const VISUAL_APPROVAL = join(ROOT, 'eval', 'section-b-brand-evidence', 'visual-approval.json')
+export const SECTION_B_BASELINE_COMMIT = 'e60be1e68b5aa51fac205c7cf9e481ea3b27ffc8'
 const PRODUCTION_COMPARISON = join(ROOT, 'eval', 'section-b-brand-evidence', 'production-comparison.md')
 const README = join(ROOT, 'eval', 'section-b-brand-evidence', 'README.md')
 const FONT_FILES = [
@@ -72,6 +75,12 @@ const VARIANTS = [
   ['Holdout · light technical', HOLDOUT_TECHNICAL],
   ['Holdout · dark operations', HOLDOUT_OPS],
 ] as const
+
+const GRAPHICAL_BACKEND_PROBES = [
+  ['default', {}],
+  ['rough', { stroke: 'jittered' }],
+  ['hybrid', { stroke: 'freehand' }],
+] as const satisfies readonly (readonly [string, StyleSpec])[]
 for (const [name, style] of VARIANTS) {
   const problems = validateStyleSpec(style)
   if (problems.length) throw new Error(`${name} is not an admissible public StyleSpec: ${problems.join('; ')}`)
@@ -218,10 +227,53 @@ function verifiedVisualApproval(outputSha256: string) {
   }
 }
 
+function digestBackendProbe(style: StyleSpec): { svgSha256: string; pngSha256: string } {
+  const svgHash = createHash('sha256')
+  const pngHash = createHash('sha256')
+  for (const id of knownBuiltinFamilies()) {
+    const source = familySource(id)
+    const stack = [SENTINEL, style]
+    const svg = renderMermaidSVG(source, { style: stack, seed: 29, security: 'strict', embedFontImport: false })
+    const png = renderMermaidPNG(source, {
+      style: stack, seed: 29, security: 'strict', embedFontImport: false, onWarning: () => {},
+    })
+    svgHash.update(`${id}\0${svg.length}\0`).update(svg)
+    pngHash.update(`${id}\0${png.byteLength}\0`).update(png)
+  }
+  return { svgSha256: svgHash.digest('hex'), pngSha256: pngHash.digest('hex') }
+}
+
+export function verifySectionBCausalBaseline(): { commit: string; exitCode: number; diagnostic: string } {
+  const worktree = mkdtempSync(join(tmpdir(), 'am-section-b-base-'))
+  rmSync(worktree, { recursive: true, force: true })
+  const add = spawnSync('git', ['worktree', 'add', '--quiet', '--detach', worktree, SECTION_B_BASELINE_COMMIT], {
+    cwd: ROOT, encoding: 'utf8',
+  })
+  if (add.status !== 0) throw new Error(`Unable to create Section B baseline worktree: ${add.stderr || add.stdout}`)
+  try {
+    const dependencies = join(ROOT, 'node_modules')
+    if (existsSync(dependencies)) symlinkSync(dependencies, join(worktree, 'node_modules'), process.platform === 'win32' ? 'junction' : 'dir')
+    const run = spawnSync(process.execPath, [
+      'run', 'bin/am.ts', 'render',
+      join(ROOT, 'eval/section-b-brand-evidence/baseline.mmd'),
+      '--format', 'svg',
+      '--style', join(ROOT, 'eval/section-b-brand-evidence/role-style.json'),
+    ], { cwd: worktree, encoding: 'utf8' })
+    const diagnostic = `${run.stderr ?? ''}${run.stdout ?? ''}`.trim()
+    if (run.status !== 2 || !diagnostic.includes('unknown field "roles"')) {
+      throw new Error(`Pinned Section B baseline did not reject roles as expected (exit ${run.status}): ${diagnostic}`)
+    }
+    return { commit: SECTION_B_BASELINE_COMMIT, exitCode: run.status, diagnostic }
+  } finally {
+    spawnSync('git', ['worktree', 'remove', '--force', worktree], { cwd: ROOT, encoding: 'utf8' })
+    rmSync(worktree, { recursive: true, force: true })
+  }
+}
+
 export const buildSectionBBrandEvidenceReceipt = () => {
   const outputSha256 = sha256File(OUTPUT)
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     generator: repositoryPath(ROOT, import.meta.filename),
     inputs: { count: inputPaths.length, treeSha256: hashFileTree(ROOT, inputPaths) },
     fontInputs: sortRepositoryPaths(ROOT, FONT_FILES).map(path => ({
@@ -232,14 +284,21 @@ export const buildSectionBBrandEvidenceReceipt = () => {
     variants: VARIANTS.map(([name]) => name),
     outputPaths: {
       graphicalCells: 'public native renderMermaidPNG',
+      graphicalBackends: 'public renderMermaidSVG + renderMermaidPNG sentinel probes',
       terminal: 'public renderMermaidASCII (Unicode, no color)',
     },
+    graphicalBackends: Object.fromEntries(GRAPHICAL_BACKEND_PROBES.map(([backend, style]) => [
+      backend,
+      { familyCount: knownBuiltinFamilies().length, ...digestBackendProbe(style) },
+    ])),
     terminalSha256: createHash('sha256').update(VARIANTS.flatMap(([, style]) =>
       knownBuiltinFamilies().map(id => renderMermaidASCII(familySource(id), { style, colorMode: 'none' })),
     ).join('\n\u0000\n')).digest('hex'),
     baseline: {
       state: 'unsupported-style-fields',
-      command: 'git worktree add --detach /tmp/am-section-b-base origin/main && (cd /tmp/am-section-b-base && bun install --frozen-lockfile && bun run bin/am.ts render "$OLDPWD/eval/section-b-brand-evidence/baseline.mmd" --format svg --style "$OLDPWD/eval/section-b-brand-evidence/role-style.json")',
+      commit: SECTION_B_BASELINE_COMMIT,
+      command: `git worktree add --detach /tmp/am-section-b-base ${SECTION_B_BASELINE_COMMIT} && (cd /tmp/am-section-b-base && bun install --frozen-lockfile && bun run bin/am.ts render "$OLDPWD/eval/section-b-brand-evidence/baseline.mmd" --format svg --style "$OLDPWD/eval/section-b-brand-evidence/role-style.json")`,
+      expectedExitCode: 2,
       expected: 'Invalid style spec: unknown field "roles" (no fabricated before image)',
     },
     visualApproval: verifiedVisualApproval(outputSha256),
@@ -255,7 +314,7 @@ if (process.argv.includes('--check')) {
   mkdirSync(join(ROOT, 'docs', 'design', 'families'), { recursive: true })
   mkdirSync(join(ROOT, 'eval', 'section-b-brand-evidence'), { recursive: true })
   writeFileSync(OUTPUT, buildSectionBBrandEvidence())
-  writeFileSync(README, `# Section B visual evidence\n\nThe baseline rejects the public \`roles\` field, so no plausible before image exists. \`baseline.mmd\` and \`role-style.json\` are the exact committed inputs. Reproduce the causal baseline with the command retained in \`evidence-receipt.json\`; the expected result is an \`Invalid style spec\` error.\n\nThe generated after sheet renders every registered family through one deliberately distinctive sentinel and three holdout inline StyleSpec records. Every cell uses the public native PNG API; the receipt also hashes no-color Unicode output for the same family×style matrix. Inspect typography, padding/radius/line-weight changes, cross-family palette coherence, and the Pie card: \`Pro\` remains the family-authored highlighted slice while the sentinel category binding changes its paint without changing wedge geometry. The manual native-size review and deployed-website comparison are recorded by \`visual-approval.json\` and \`production-comparison.md\`.\n\nApproval is intentionally separate from generation: run \`bun run gallery:section-b\` to create a candidate, inspect all 60 cells at native size, update \`visual-approval.json\` with the candidate SHA-256 and audit path, then rerun the command to refresh the receipt. \`bun run gallery:section-b:check\` verifies source/font freshness, output bytes, and that the approval names those exact bytes.\n`)
+  writeFileSync(README, `# Section B visual evidence\n\nThe pinned pre-Section-B commit \`${SECTION_B_BASELINE_COMMIT}\` rejects the public \`roles\` field, so no plausible before image exists. \`baseline.mmd\` and \`role-style.json\` are the exact committed inputs. Reproduce the causal baseline with the commit-pinned command retained in \`evidence-receipt.json\`; \`section-b-visual-evidence.test.ts\` executes the same commit and requires exit 2 plus the \`unknown field "roles"\` diagnostic.\n\nThe generated after sheet renders every registered family through one deliberately distinctive sentinel and three holdout inline StyleSpec records. Every cell uses the public native PNG API; the receipt also hashes no-color Unicode output for the same family×style matrix and executes the sentinel across all registered families through default, rough, and hybrid SVG+PNG probes. Inspect typography, padding/radius/line-weight changes, cross-family palette coherence, and the Pie card: \`Pro\` remains the family-authored highlighted slice while the sentinel category binding changes its paint without changing wedge geometry. The manual native-size review and deployed-website comparison are recorded by \`visual-approval.json\` and \`production-comparison.md\`. The separate Cupertino-, Vercel-, and Cloudflare Workers-inspired public-record evidence is catalogued in \`examples/styles/catalog.json\` and pinned by \`eval/style-prototype-evidence/visual-approval.json\`.\n\nApproval is intentionally separate from generation: run \`bun run gallery:section-b\` to create a candidate, inspect all 60 cells at native size, update \`visual-approval.json\` with the candidate SHA-256 and audit path, then rerun the command to refresh the receipt. \`bun run gallery:section-b:check\` verifies source/font freshness, output bytes, and that the approval names those exact bytes.\n`)
   writeFileSync(RECEIPT, `${JSON.stringify(buildSectionBBrandEvidenceReceipt(), null, 2)}\n`)
   process.stdout.write(`wrote ${OUTPUT}\n`)
 }

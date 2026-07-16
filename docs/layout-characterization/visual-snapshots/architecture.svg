@@ -51,7 +51,7 @@
 <circle class="architecture-icon-mark" cx="58.944" cy="54.2944" r="2.208" />
 <path class="architecture-icon-mark" d="M 50.9952 56.355199999999996 H 60.8576" />
 </g>
-  <text x="74" y="54" class="architecture-group-label" text-anchor="start" font-size="12" font-weight="600" dy="4.199999999999999">API</text>
+  <text x="74" y="54" class="architecture-group-label" text-anchor="start" font-size="12" font-weight="600" dy="4.199999999999999" textLength="21.96" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">API</text>
 </g>
 <polyline class="architecture-edge" data-from="app" data-to="db" data-from-side="R" data-to-side="L" data-from-boundary="item" data-to-boundary="item" points="176,108 254,108" marker-end="url(#char-architecture-architecture-arrow-end)" data-relationship="architecture-edge" data-direction="forward" data-id="edge:app-&gt;db#0" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="app to db" />
 <g class="architecture-service" data-id="db" data-label="DB" data-role="service">
@@ -64,7 +64,7 @@
 <ellipse class="architecture-icon-mark" cx="283" cy="108.36" rx="4.32" ry="1.8" />
 <ellipse class="architecture-icon-mark" cx="283" cy="111.6" rx="4.32" ry="1.8" />
 </g>
-  <text x="306" y="108" class="architecture-service-label" text-anchor="start" font-size="13" font-weight="500" dy="4.55">DB</text>
+  <text x="306" y="108" class="architecture-service-label" text-anchor="start" font-size="13" font-weight="500" dy="4.55" textLength="19.734" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">DB</text>
 </g>
 <g class="architecture-service" data-id="app" data-label="App" data-role="service">
   <rect class="architecture-service-card" x="56" y="84" width="120" height="48" rx="0" ry="0" data-id="service-card:app" data-role="service" />
@@ -74,6 +74,6 @@
 <path class="architecture-icon-mark" d="M 82.12 106.56 H 87.88" />
 <path class="architecture-icon-mark" d="M 82.12 109.08 H 87.88" />
 </g>
-  <text x="108" y="108" class="architecture-service-label" text-anchor="start" font-size="13" font-weight="500" dy="4.55">App</text>
+  <text x="108" y="108" class="architecture-service-label" text-anchor="start" font-size="13" font-weight="500" dy="4.55" textLength="25.662" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">App</text>
 </g>
 </svg>

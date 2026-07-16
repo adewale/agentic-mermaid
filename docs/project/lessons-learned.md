@@ -63,7 +63,7 @@ family docs, and `TODO.md`.
     ledgers and release retrospectives retain provenance under `project/archive/`.
     Genuine defects receive stable IDs and acceptance criteria in `TODO.md`.
 15. **Aesthetics live on scene roles, not in family renderers.** A family inherits
-    the whole house style — hand-drawn/wash, 21 palettes × 16 looks, text halos, DOM
+    the whole house style — hand-drawn/wash, every registered Palette × Look combination, text halos, DOM
     identity — by lowering its marks onto existing scene roles whose traits the
     backends dispatch on; it never draws styled pixels or branches on family. Assign
     the signature shape a sketchable role, keep the scaffold on a crisp role so it

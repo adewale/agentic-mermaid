@@ -178,48 +178,16 @@
           "role": {
             "type": "string",
             "enum": [
-              "node",
-              "edge",
-              "edge-label",
-              "group",
               "group-header",
-              "label",
               "actor",
-              "lifeline",
-              "activation",
-              "message",
-              "block",
-              "note",
-              "class-box",
-              "member",
-              "entity",
-              "attribute",
               "relationship",
-              "cardinality",
               "pie-slice",
               "legend",
               "bar",
               "series",
               "point",
-              "axis",
-              "grid",
-              "plate",
-              "section",
               "task",
-              "milestone",
-              "marker-line",
-              "rail",
-              "period",
-              "event",
-              "score",
-              "actor-pill",
-              "service",
-              "junction",
-              "icon",
-              "title",
-              "defs",
-              "prelude",
-              "chrome"
+              "milestone"
             ]
           }
         }
@@ -697,15 +665,15 @@
           "description": "Border paint.",
           "x-agentic-mermaid-runtime-validator": "safeStylePaint"
         },
-        "headerFillColor": {
-          "type": "string",
-          "description": "Group header surface paint.",
-          "x-agentic-mermaid-runtime-validator": "safeStylePaint"
-        },
         "fontFamily": {
           "type": "string",
           "description": "Safe font family/stack for roles whose descriptor exposes family-specific typography.",
           "x-agentic-mermaid-runtime-validator": "safeCssFontFamily"
+        },
+        "headerFillColor": {
+          "type": "string",
+          "description": "Group header surface paint.",
+          "x-agentic-mermaid-runtime-validator": "safeStylePaint"
         }
       }
     },

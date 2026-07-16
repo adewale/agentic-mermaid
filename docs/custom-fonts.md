@@ -219,11 +219,16 @@ check. If `Acme Sans` is missing but Inter covers every Latin character, the
 render can fall back without a coverage warning. Confirm custom-family output
 visually or with a font-specific render fixture.
 
-Diagram geometry uses an Inter-compatible proportional text estimate. Loading
-a custom face changes the painted glyphs, not that layout model. A materially
-wider face can therefore overflow a box even when it loaded correctly. Test
-long labels across the diagram families the Style targets, and give brand
-Styles enough padding for their chosen face.
+Diagram geometry uses the deterministic proportional measurement contract
+recorded in `TEXT_MEASUREMENT_CONTRACT`; it never reads ambient system-font
+state. For an unbundled custom family, SVG adds `textLength` with
+`lengthAdjust="spacingAndGlyphs"` so the painted glyph advance is fitted to the
+same width layout reserved. Native and browser PNG consume that secured SVG, so
+a materially wider face cannot silently overflow its measured box. The tradeoff
+is explicit: unusually wide or narrow custom glyphs may be horizontally fitted
+rather than changing deterministic layout. Bundled calibrated faces retain
+their natural advances. Test long labels across the target families for visual
+quality, especially when a face has extreme proportions.
 
 ## Troubleshooting
 

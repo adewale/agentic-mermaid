@@ -159,18 +159,19 @@ shared trunks.
 - **Layer assignment.** Roots (nodes with no incoming edge) go at level 0;
   each child is placed one level (stride 4) along the **flow axis** (y for
   TD/BT, x for LR/RL). TD and LR are the same code with x/y transposed; **BT =
-  TD then vertical flip**; **RL is currently treated as LR**.
+  TD then vertical flip**; **RL mirrors the completed LR logical grid before
+  text drawing**, preserving label order while reversing topology.
 - **A\* routing.** Edges are routed cell-by-cell with A\* over the same grid that
   tracks node occupancy. Moves are 4-directional only (⇒ **orthogonal**, no
   diagonals); the heuristic is Manhattan distance + a corner penalty (prefers
   straight runs); ties break FIFO (⇒ **deterministic**); the search is bounded
   (⇒ **terminates**, returns `null` + a straight fallback if walled off).
-- **Edge bundling.** Sibling fan-out / fan-in edges of the same style merge onto
-  a single shared trunk that splits at one junction; labelled siblings (which
-  can't bundle) share a trunk prefix instead.
-- **Best-effort, not a solver.** For cyclic / dense graphs the multi-pass
-  placement can drop or overlap nodes. That limitation is real, current, and
-  pinned by property **P10** rather than hidden.
+- **Edge bundling.** Primary-forward sibling fan-out / fan-in edges of the same
+  style merge onto a shared trunk; feedback/container edges never enter those
+  bundles. Labelled siblings (which cannot bundle) share a trunk prefix instead.
+- **Best-effort, not a solver.** Dense graphs can still produce weak geometry,
+  but node conservation for the characterized three-node reciprocal cycle is a
+  correctness contract pinned by property **P10**.
 
 A fuller mechanical anatomy (with `file:line` citations for all 30+ invariants)
 informed `properties.md`; the citations are inlined there.

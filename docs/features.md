@@ -27,7 +27,9 @@ The canonical `FamilyDescriptor` registry owns headers, discovery, examples,
 operations, rendering hooks, positioned projections, semantic roles, and
 capability evidence. Run `am capabilities --json` for the current roster and
 per-family operation shapes; the generated Section A matrix records native,
-source-preserved, diagnosed, and absent capabilities without a copied table:
+source-preserved, diagnosed, and not-applicable capabilities without a copied
+table. `absent` belongs to the validation vocabulary but is rejected from the
+shipped syntax ledger:
 [`project/section-a-capability-report.md`](./project/section-a-capability-report.md).
 
 **Structured-or-opaque rule:** every family either has a structured body

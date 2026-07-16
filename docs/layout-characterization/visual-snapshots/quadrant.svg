@@ -35,14 +35,14 @@
 <line class="quadrant-divider" x1="242" y1="60" x2="242" y2="440" />
 <line class="quadrant-divider" x1="52" y1="250" x2="432" y2="250" />
 <rect class="quadrant-border" x="52" y="60" width="380" height="380" fill="none" />
-<text x="337" y="155" class="quadrant-label" text-anchor="middle" dominant-baseline="middle" font-size="15" font-weight="600" dy="5.25">Invest</text>
+<text x="337" y="155" class="quadrant-label" text-anchor="middle" dominant-baseline="middle" font-size="15" font-weight="600" dy="5.25" textLength="45.45" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Invest</text>
 <circle class="quadrant-point" cx="318" cy="136" r="6" data-label="A" data-x="0.7" data-y="0.8" data-id="point:A" data-role="point" />
-<text x="328" y="136" class="quadrant-point-label" text-anchor="start" dominant-baseline="middle" font-size="12" font-weight="500" dy="4.199999999999999">A</text>
+<text x="328" y="136" class="quadrant-point-label" text-anchor="start" dominant-baseline="middle" font-size="12" font-weight="500" dy="4.199999999999999" textLength="10.008" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">A</text>
 <circle class="quadrant-point" cx="166" cy="288" r="6" data-label="B" data-x="0.3" data-y="0.4" data-id="point:B" data-role="point" />
-<text x="176" y="288" class="quadrant-point-label" text-anchor="start" dominant-baseline="middle" font-size="12" font-weight="500" dy="4.199999999999999">B</text>
-<text class="quadrant-axis-label" x="56" y="457" text-anchor="start" font-size="13" font-weight="500">Low</text>
-<text class="quadrant-axis-label" x="428" y="457" text-anchor="end" font-size="13" font-weight="500">High</text>
-<text class="quadrant-axis-label" x="37" y="436" text-anchor="start" font-size="13" font-weight="500" transform="rotate(-90 37 436)">Risk</text>
-<text class="quadrant-axis-label" x="37" y="64" text-anchor="end" font-size="13" font-weight="500" transform="rotate(-90 37 64)">Reward</text>
-<text x="242" y="33" class="quadrant-title" text-anchor="middle" dominant-baseline="middle" font-size="18" font-weight="600" dy="6.3" data-id="title" data-role="title">Priorities</text>
+<text x="176" y="288" class="quadrant-point-label" text-anchor="start" dominant-baseline="middle" font-size="12" font-weight="500" dy="4.199999999999999" textLength="10.008" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">B</text>
+<text class="quadrant-axis-label" x="56" y="457" text-anchor="start" font-size="13" font-weight="500" textLength="27.144" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Low</text>
+<text class="quadrant-axis-label" x="428" y="457" text-anchor="end" font-size="13" font-weight="500" textLength="28.626" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">High</text>
+<text class="quadrant-axis-label" x="37" y="436" text-anchor="start" font-size="13" font-weight="500" transform="rotate(-90 37 436)" textLength="28.626" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Risk</text>
+<text class="quadrant-axis-label" x="37" y="64" text-anchor="end" font-size="13" font-weight="500" transform="rotate(-90 37 64)" textLength="47.892" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Reward</text>
+<text x="242" y="33" class="quadrant-title" text-anchor="middle" dominant-baseline="middle" font-size="18" font-weight="600" dy="6.3" data-id="title" data-role="title" textLength="82.62" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Priorities</text>
 </svg>

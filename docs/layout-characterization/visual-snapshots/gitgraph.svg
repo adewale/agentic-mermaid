@@ -21,12 +21,12 @@
 <g class="git-branch" data-id="branch:main" data-branch="main" data-role="group">
   <rect class="git-branch-label-background" x="82.28" y="79.266" width="37.72" height="18" rx="4" fill="#edf4fe" stroke="#3b82f6" stroke-width="1" />
   <line class="git-branch-line" data-branch="main" x1="130" y1="92.266" x2="471.5" y2="92.266" stroke="#3b82f6" stroke-width="3" opacity="0.86" />
-  <text class="git-branch-label" data-branch="main" x="120" y="92.266" text-anchor="end" font-size="12" font-weight="600" fill="#366dc8">main</text>
+  <text class="git-branch-label" data-branch="main" x="120" y="92.266" text-anchor="end" font-size="12" font-weight="600" fill="#366dc8" textLength="27.72" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">main</text>
 </g>
 <g class="git-branch" data-id="branch:feature" data-branch="feature" data-role="group">
   <rect class="git-branch-label-background" x="67.88" y="161.266" width="52.12" height="18" rx="4" fill="#e9f0f7" stroke="#0d5ba5" stroke-width="1" />
   <line class="git-branch-line" data-branch="feature" x1="130" y1="174.266" x2="260.178" y2="174.266" stroke="#0d5ba5" stroke-width="3" opacity="0.86" />
-  <text class="git-branch-label" data-branch="feature" x="120" y="174.266" text-anchor="end" font-size="12" font-weight="600" fill="#0d5ba5">feature</text>
+  <text class="git-branch-label" data-branch="feature" x="120" y="174.266" text-anchor="end" font-size="12" font-weight="600" fill="#0d5ba5" textLength="42.12" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">feature</text>
 </g>
 <polyline class="git-edge git-edge-parent" data-from="base" data-to="work" points="166.178,92.266 213.178,92.266 213.178,174.266 260.178,174.266" fill="none" stroke="#0d5ba5" stroke-width="2" data-relationship="parent" data-direction="forward" data-id="base-&gt;work" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="base to work" />
 <polyline class="git-edge git-edge-parent" data-from="base" data-to="release" points="166.178,92.266 260.178,92.266 260.178,92.266 354.178,92.266" fill="none" stroke="#3b82f6" stroke-width="2" data-relationship="parent" data-direction="forward" data-id="base-&gt;release" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="base to release" />
@@ -35,22 +35,22 @@
 <g class="git-commit type-normal" data-id="base" data-branch="main" data-commit-type="NORMAL" data-role="node">
   <circle cx="166.178" cy="92.266" r="8" fill="#dce9fd" stroke="#3b82f6" stroke-width="2" />
   <rect class="git-commit-label-background" x="140.813" y="105.266" width="50.73" height="17" rx="3" fill="#FFFFFF" fill-opacity="0.94" stroke="#3b82f6" stroke-width="0.75" transform="rotate(45 166.178 116.266)" />
-  <text class="git-commit-label" x="166.178" y="116.266" text-anchor="middle" font-size="11" fill="#575759" transform="rotate(45 166.178 116.266)">base</text>
+  <text class="git-commit-label" x="166.178" y="116.266" text-anchor="middle" font-size="11" fill="#575759" transform="rotate(45 166.178 116.266)" textLength="25.41" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">base</text>
 </g>
 <g class="git-commit type-normal" data-id="work" data-branch="feature" data-commit-type="NORMAL" data-role="node">
   <circle cx="260.178" cy="174.266" r="8" fill="#d3e1ef" stroke="#0d5ba5" stroke-width="2" />
   <rect class="git-commit-label-background" x="234.813" y="187.266" width="50.73" height="17" rx="3" fill="#FFFFFF" fill-opacity="0.94" stroke="#0d5ba5" stroke-width="0.75" transform="rotate(45 260.178 198.266)" />
-  <text class="git-commit-label" x="260.178" y="198.266" text-anchor="middle" font-size="11" fill="#575759" transform="rotate(45 260.178 198.266)">work</text>
+  <text class="git-commit-label" x="260.178" y="198.266" text-anchor="middle" font-size="11" fill="#575759" transform="rotate(45 260.178 198.266)" textLength="25.41" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">work</text>
 </g>
 <g class="git-commit type-normal" data-id="release" data-branch="main" data-commit-type="NORMAL" data-role="node">
   <circle cx="354.178" cy="92.266" r="8" fill="#dce9fd" stroke="#3b82f6" stroke-width="2" />
   <rect class="git-commit-label-background" x="321.916" y="105.266" width="64.524" height="17" rx="3" fill="#FFFFFF" fill-opacity="0.94" stroke="#3b82f6" stroke-width="0.75" transform="rotate(45 354.178 116.266)" />
-  <text class="git-commit-label" x="354.178" y="116.266" text-anchor="middle" font-size="11" fill="#575759" transform="rotate(45 354.178 116.266)">release</text>
+  <text class="git-commit-label" x="354.178" y="116.266" text-anchor="middle" font-size="11" fill="#575759" transform="rotate(45 354.178 116.266)" textLength="38.478" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">release</text>
 </g>
 <g class="git-commit type-merge" data-id="merge" data-branch="main" data-commit-type="MERGE" data-role="node">
   <circle cx="471.5" cy="92.266" r="10" fill="#3b82f6" stroke="#3b82f6" stroke-width="2" />
   <circle cx="471.5" cy="92.266" r="5" fill="none" stroke="#FFFFFF" stroke-width="1.5" />
   <rect class="git-commit-label-background" x="380.3" y="105.266" width="182.4" height="17" rx="3" fill="#FFFFFF" fill-opacity="0.94" stroke="#3b82f6" stroke-width="0.75" transform="rotate(45 471.5 116.266)" />
-  <text class="git-commit-label" x="471.5" y="116.266" text-anchor="middle" font-size="11" fill="#575759" transform="rotate(45 471.5 116.266)">merged branch feature into main</text>
+  <text class="git-commit-label" x="471.5" y="116.266" text-anchor="middle" font-size="11" fill="#575759" transform="rotate(45 471.5 116.266)" textLength="150.15" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">merged branch feature into main</text>
 </g>
 </svg>

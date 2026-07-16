@@ -201,11 +201,6 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
 - [ ] **SRC-1 — Segment-preserving Class and Timeline bodies** (`todo`). Preserve typed mutation around unmodeled statements without violating byte-for-byte opaque fallback. Add parser/serializer closure and adversarial reorder tests before promotion.
 - [ ] **SRC-2 — Positional comments for Flowchart and State** (`todo`). Replace announced `COMMENT_DROPPED` loss with positionally anchored opaque segments that survive typed mutation.
 
-## Terminal semantic defects
-
-- [ ] **TERM-1 — Preserve every node in a three-node graph containing a 2-cycle** (`todo`). The characterized terminal projection currently loses or corrupts content; add a failing semantic-conservation test before changing routing.
-- [ ] **TERM-2 — Make RL terminal direction honest** (`owner-decision`). Terminal rendering silently aliases RL to LR. Either implement a recognizably reversed projection or emit a named unsupported-direction diagnostic.
-
 ## Non-goals
 
 - Do not port Vercel-specific package rename, committed `dist/`, `.vercel`, or Vercel branding.

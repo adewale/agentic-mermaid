@@ -20,7 +20,7 @@ previously audited family-authored opacity difference.
 | 2 | Flowchart · Report Figure + GitHub Light | Restrained publication lines and compact labeled groups. | Byte-identical. |
 | 3 | Flowchart · Compact Trace Map + Tokyo Night | Dark operations palette, uppercase compact labels, orthogonal routing. | Byte-identical. |
 | 4 | Timeline · Hand-drawn + Catppuccin Latte | Two roadmap columns with sketch frames and purple milestones. | Byte-identical. |
-| 5 | Class · Patent Hatching + Paper | Compact three-class composition/inheritance example with technical hatching and complete diamond/triangle endpoints. | Intentional source and renderer change: 319.4×432 → 420.7×471.6. The old example showed only an association; the branch visibly demonstrates composition and inheritance, with markers painted after surfaces so no endpoint symbol is hidden by a class box. |
+| 5 | Class · Patent Hatching + Paper | Compact three-class composition/inheritance example with technical hatching and complete diamond/triangle endpoints. | Intentional source and renderer change: 319.4×432 → 420.7×471.6. The old example showed only an association; the branch visibly demonstrates composition and inheritance, with markers painted after surfaces and diamonds/lollipops anchored outside the owning class. |
 | 6 | ER · Riso Print + Salmon | Wide three-entity relationship strip with red print treatment. | Byte-identical. |
 | 7 | Journey · Dark Ops Dashboard + GitHub Dark | Dark score rail, four task cards, actor legend, and section bands. | SVG and independent raster are byte-identical. |
 | 8 | Quadrant · Compact Trace Map + Nord Light | Four-quadrant planning matrix with sparse labeled points. | Byte-identical. |
@@ -37,8 +37,9 @@ frame.
 ## Section B all-family sheet
 
 An exact production screenshot does **not** exist for these role-style records:
-`origin/main` rejects the public `roles` field with `Invalid style spec: unknown
-field "roles"`. The review therefore does not fabricate a before image. The
+the pinned pre-Section-B commit `e60be1e68b5aa51fac205c7cf9e481ea3b27ffc8`
+rejects the public `roles` field with `Invalid style spec: unknown field
+"roles"`. The review therefore does not fabricate a before image. The
 comparison below states the visible branch projection against each production
 family's existing semantic/layout behavior; source values and family-owned
 meaning remain unchanged.
@@ -55,16 +56,16 @@ in all four treatments:
 | State | State boxes and transitions inherit the same role face without moving or reclassifying start/end markers. |
 | Sequence | Actor boxes and message/lifeline strokes project the brand face; request/response direction and message semantics remain unchanged. Separate fragment fixtures confirm resolved padding, divider clearance, and header-over-lifeline compositing. |
 | Timeline | Period/event cards inherit node/group/label fallbacks; chronological order and rail anchors remain intact. |
-| Class | Class surfaces, members, and relationships remain structurally identical while archetype paint and typography change. Endpoint overlays keep markers visible above class surfaces. Marker attachment geometry remains a separate inherited defect: composition/aggregation diamonds and lollipops use node-facing refs that place part of the symbol inside the class surface ([#178](https://github.com/adewale/agentic-mermaid/issues/178)). |
+| Class | Class surfaces, members, and relationships remain structurally identical while archetype paint and typography change. Endpoint overlays keep markers visible above class surfaces; the #178 marker-resource fix anchors composition/aggregation diamonds and lollipops wholly outside the owning class in both endpoint spellings and every direction. |
 | ER | Entity surfaces use fallbacks and the exact relationship projection changes connector typography/stroke without changing cardinality. |
 | Journey | Section headers use resolved tracking/weight in both measurement and rendering; task scores, actor attribution, and rail geometry remain meaningful and collision-free. |
-| Architecture | Group and service surfaces gain the selected radius/padding/paint while service/junction topology stays unchanged. |
+| Architecture | The shared palette/Look contract changes paint while the census honestly marks exact role projection not-applicable; service/junction topology stays unchanged. |
 | XY chart | Exact bar/series projections change paint and line weight; Q1–Q3 values, axes, and bar heights remain unchanged. The lower inset contains the full resolved-font baseline and descent in every treatment. |
 | Pie | `Pro` remains the family-authored highlighted slice and every wedge path is unchanged. The sentinel category binding changes applicable paint/cue only. All legend rows now fit the canvas under rendered role typography. |
 | Quadrant | Archetype styling changes the frame, labels, and points without moving authored coordinates or quadrant meaning. |
 | Gantt | Task/milestone paint and cues change while dates, durations, critical status, and timeline geometry remain authoritative. |
-| Mindmap | Node/group fallbacks produce a coherent family palette; hierarchy and branch order remain unchanged. Direction-monotonic cubic controls remove short-edge hooks without moving endpoints. |
-| GitGraph | Commit/branch archetypes adopt the style palette and line treatment without changing commit topology. Layout and rendering share a 12-unit horizontal commit-label inset. |
+| Mindmap | The shared palette/Look contract produces a coherent family treatment while exact role projection remains not-applicable; hierarchy and branch order are unchanged. Direction-monotonic cubic controls remove short-edge hooks without moving endpoints. |
+| GitGraph | The shared palette/Look contract changes commit/branch treatment while exact role projection remains not-applicable; commit topology is unchanged. Layout and rendering share a 12-unit horizontal commit-label inset. |
 | Radar | Exact point/legend projections and visible cue treatment change; axis values, polygon coordinates, and series identity remain unchanged. |
 
 ### Defects found and corrected during review
@@ -76,10 +77,10 @@ in all four treatments:
    font in the sentinel, clipping `Enterprise (10.0%)`. Layout and rendering
    now share `PIE_STYLE_DEFAULTS`, resolved weight/transform/tracking, and the
    same style face. All four Pie panels fit after regeneration.
-3. Class endpoint symbols could be painted under class surfaces. Markers now
-   use a post-surface overlay with visible overflow, so their silhouettes are
-   complete in every treatment. This fixes occlusion, not the pre-existing
-   marker-reference placement defect tracked in #178.
+3. Class endpoint symbols could be painted under or anchored inside class
+   surfaces. The post-surface overlay preserves complete silhouettes, while the
+   #178 marker-resource refs now place composition/aggregation diamonds and
+   lollipops wholly outside the owning class.
 4. XY bottom labels reserved the tick coordinate but not the resolved baseline
    shift/descent. The lower inset now contains every label, including the large
    Sentinel treatment.
@@ -94,15 +95,17 @@ in all four treatments:
 After those corrections, all 60 cells were inspected as four native-width
 variant crops: headings are distinct, text is readable, endpoint silhouettes
 remain complete, cards remain inside their panels, and no quantitative or
-family-authored emphasis geometry changed. Correct Class marker attachment is
-explicitly excluded pending #178.
+family-authored emphasis geometry changed. The receipt additionally executes
+the sentinel across all registered families through default, rough, and hybrid
+public SVG+PNG paths. Corrected Class marker attachment is included in the
+native-size review.
 
 ## Built-in Pie Look production comparison
 
 The eight intentionally changed styled-output goldens were rendered as native
 PNGs in both the branch and the production worktree at `828c6944`. Unlike the
 Section B custom-role sheet, these are valid production equivalents because
-all eight Look names exist on `origin/main`.
+all eight Look names exist on the pinned production comparison commit `828c6944`.
 
 | Look | Production → branch PNG | Review |
 |---|---:|---|

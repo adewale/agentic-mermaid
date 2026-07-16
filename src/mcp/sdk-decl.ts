@@ -77,10 +77,11 @@ function codeModeRenderMethodDeclarations(): string {
  * both the compact tools/list declaration and the full SDK reference. */
 export const CODE_MODE_SHARED_RENDER_OPTIONS_DECLARATION = sharedRenderOptionsTypeScriptDeclaration()
 
-const CODE_MODE_OUTPUT_RENDER_OPTION_DECLARATIONS = `interface TerminalProjectionDiagnostic { code: string; feature: string; message: string }
+const CODE_MODE_OUTPUT_RENDER_OPTION_DECLARATIONS = `interface ConfigDiagnostic { code: 'INEFFECTIVE_CONFIG'; field: string; message: string }
+interface TerminalProjectionDiagnostic { code: string; feature: string; message: string }
 
 interface SvgRenderOptions extends SharedRenderOptions {
-  onConfigDiagnostic?: (diagnostic: { code: 'INEFFECTIVE_CONFIG'; field: string; message: string }) => void
+  onConfigDiagnostic?: (diagnostic: ConfigDiagnostic) => void
 }
 
 interface AsciiRenderOptions extends SharedRenderOptions {
@@ -92,6 +93,7 @@ interface AsciiRenderOptions extends SharedRenderOptions {
   theme?: { fg?: string; border?: string; line?: string; arrow?: string; accent?: string; bg?: string; corner?: string; junction?: string }
   maxWidth?: number
   targetWidth?: number
+  onConfigDiagnostic?: (diagnostic: ConfigDiagnostic) => void
   onProjectionDiagnostic?: (diagnostic: TerminalProjectionDiagnostic) => void
 }
 
@@ -99,6 +101,7 @@ interface LayoutRenderOptions extends SharedRenderOptions {
   debug?: boolean
   regions?: boolean
   actions?: boolean
+  onConfigDiagnostic?: (diagnostic: ConfigDiagnostic) => void
 }`
 
 const CODE_MODE_RENDER_RECEIPT_DECLARATIONS = `interface RenderArtifactDiagnostic { code: string; message?: string; reference?: string; feature?: string; input?: string; canonicalId?: string; removal?: { release: string; date: string } }
