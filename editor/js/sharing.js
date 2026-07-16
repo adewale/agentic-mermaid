@@ -1,5 +1,6 @@
 // Share-link encoding uses one canonical deflate-raw payload.
 var HASH_DEFLATE_PREFIX = 'deflate:';
+var EDITOR_SHARE_STATE_KEYS = Object.freeze(['source', 'palette', 'style', 'seed', 'config']);
 // These caps are deliberately expressed in UTF-8 bytes, not JavaScript string
 // length.  A share URL is already an unsuitable transport for diagrams this
 // large; the decoded cap also bounds compression bombs before they can occupy
@@ -174,6 +175,12 @@ async function getHashSource() {
   try {
     var obj = JSON.parse(decoded);
     if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
+      var allowedStateFields = new Set(EDITOR_SHARE_STATE_KEYS);
+      var unknownStateFields = Object.keys(obj).filter(function(key) { return !allowedStateFields.has(key); });
+      if (unknownStateFields.length) {
+        hashDecodeFailure = 'corrupt';
+        return null;
+      }
       if (typeof obj.source !== 'string' || !obj.source) {
         hashDecodeFailure = 'corrupt';
         return null;

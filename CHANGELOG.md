@@ -55,6 +55,7 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 - **Output compatibility note:** semantic SVG identity/ARIA attributes, palette contrast normalization, corrected marker/routing geometry, and spatial terminal rendering intentionally change SVG/PNG/ASCII bytes and regenerated characterization hashes. Consumers that snapshot output bytes should review and re-pin; source parsing and deterministic repeatability remain stable.
 
 ### Fixed
+- Restored public editor deep links after legacy hash decoding was removed. Website and checked-in links now share one bounded canonical deflate codec and current `palette` schema, with repository, generated-site, and real-browser navigation gates to catch producer/consumer drift before deployment.
 - Closed editor share/draft insertion, decompression, and share-hash DOM XSS risks; hardened imported render configuration and StyleSpec prototype/font/CSS boundaries; externalized executable scripts; and removed `unsafe-inline` from the production CSP. Editor and hosted SVG rendering now force strict security and reject active content or external references.
 - Closed unknown-family Flowchart fallthrough, connector-marker fidelity loss, and verified-resource time-of-check/time-of-use gaps. PNG/resource receipts now state whether bytes were verified, caller-supplied, system-provided, embedded, or unavailable.
 - Closed connector topology now has one path-only invariant across SVG,

@@ -22,6 +22,7 @@ import { HOMEPAGE_AGENT_POINTER } from '../eval/agent-usage/homepage-prompt.ts'
 import { EDITOR_EXAMPLES } from '../editor/examples.ts'
 import { samples as RICH_EXAMPLES } from '../scripts/site/samples-data.ts'
 import { CUSTOM_STYLE_CATALOG } from '../scripts/docs/custom-style-catalog.ts'
+import { editorStateHref } from '../scripts/site/editor-state-url.ts'
 import { sharedRenderOptionsJsonSchema } from '../src/render-contract.ts'
 
 const ROOT = join(import.meta.dir, '..')
@@ -676,13 +677,6 @@ function renderRichExampleSvg(sample: any, id: string) {
   )
 }
 
-function encodeEditorStateHash(state: Record<string, unknown>) {
-  return Buffer.from(JSON.stringify(state), 'utf8').toString('base64')
-}
-
-function editorStateHref(state: Record<string, unknown>) {
-  return `/editor/#${encodeEditorStateHash(state)}`
-}
 // Per-family agent task: a plausible prompt and the trace an agent runs before
 // it returns source. Absorbed from the former Gallery page so the unified
 // Examples page carries the agentic narrative — prompt, trace, render, deep
@@ -859,7 +853,7 @@ ${combos.map((combo) => {
       <p>${escapeHtml(`The Mermaid source stays the same; the render call supplies ${combo.look} as the style and ${combo.theme} as the palette.`)}</p>
       <p class="example-trace"><span>Render options</span> <code>${escapeHtml(styleCode)}</code></p>
     </div>
-    <a class="go" href="${escapeAttr(editorStateHref({ source: combo.example.source, style: combo.look, theme: combo.theme, seed: combo.seed }))}">Open styled</a>
+    <a class="go" href="${escapeAttr(editorStateHref({ source: combo.example.source, style: combo.look, palette: combo.theme, seed: combo.seed }))}">Open styled</a>
   </header>
   <div class="example-sample-grid">
     <section class="example-source" aria-label="${escapeAttr(combo.family.editorDiagramType)} Mermaid source"><pre><code>${escapeHtml(String(combo.example.source ?? '').trim())}</code></pre></section>
@@ -1091,7 +1085,7 @@ function comparisonPanel(engine: string, label: string, body: string) {
   return `<div class="comparison-panel" data-comparison-engine="${escapeAttr(engine)}"><h3>${escapeHtml(label)}</h3><div class="comparison-render">${body}</div></div>`
 }
 function comparisonEditorHref(source: string) {
-  return `/editor/#${btoa(unescape(encodeURIComponent(source)))}`
+  return editorStateHref({ source })
 }
 const COMPARISON_TAKEAWAYS: Record<string, string> = {
   flowchart: 'Compare edge routing, label stability, and whether dense fan-out still reads without browser-dependent drift.',
@@ -1820,7 +1814,7 @@ function heroStyleFigureHtml() {
       `Build-time render: ${slide.subject}, style ${slide.look}, palette ${slide.theme}, seed ${slide.seed}.`,
     )
     const label = `${slide.look} · ${slide.theme}`
-    return `<div class="gallery-panel hero-style-panel" data-gallery-panel data-gallery-label="${escapeAttr(`${label} — ${slide.subjectShort}`)}" data-gallery-editor="${escapeAttr(editorStateHref({ source: slide.source, style: slide.look, theme: slide.theme, seed: slide.seed }))}"${i === 0 ? '' : ' hidden'}>
+    return `<div class="gallery-panel hero-style-panel" data-gallery-panel data-gallery-label="${escapeAttr(`${label} — ${slide.subjectShort}`)}" data-gallery-editor="${escapeAttr(editorStateHref({ source: slide.source, style: slide.look, palette: slide.theme, seed: slide.seed }))}"${i === 0 ? '' : ' hidden'}>
       <p class="meta-label gallery-panel-label">${escapeHtml(`${label} — ${slide.subjectShort}`)}</p>
       <div class="plate dia-plate hero-plate">${svg}</div>
     </div>`
@@ -1832,7 +1826,7 @@ function heroStyleFigureHtml() {
         <button type="button" class="gallery-nav" data-gallery-prev aria-label="Previous style combination">‹</button>
         <p class="gallery-status"><span data-gallery-status aria-live="polite">${escapeHtml(firstLabel)} (1/${slides.length})</span></p>
         <button type="button" class="gallery-nav" data-gallery-next aria-label="Next style combination">›</button>
-        <a class="go gallery-editor-link" data-gallery-editor-link href="${escapeAttr(editorStateHref({ source: slides[0]!.source, style: slides[0]!.look, theme: slides[0]!.theme, seed: slides[0]!.seed }))}">Open in editor</a>
+        <a class="go gallery-editor-link" data-gallery-editor-link href="${escapeAttr(editorStateHref({ source: slides[0]!.source, style: slides[0]!.look, palette: slides[0]!.theme, seed: slides[0]!.seed }))}">Open in editor</a>
       </div>
       ${panels}
     </div>
@@ -1918,7 +1912,7 @@ ${HOME_STYLE_SHOWCASE_COMBOS.map((combo) => {
       <li><span>Palette</span><code>${escapeHtml(combo.theme)}</code></li>
       <li><span>Seed</span><code>${combo.seed}</code></li>
     </ul>
-    <a class="go" href="${escapeAttr(editorStateHref({ source: HOME_STYLE_SHOWCASE_SOURCE, style: combo.look, theme: combo.theme, seed: combo.seed }))}">Open this style</a>
+    <a class="go" href="${escapeAttr(editorStateHref({ source: HOME_STYLE_SHOWCASE_SOURCE, style: combo.look, palette: combo.theme, seed: combo.seed }))}">Open this style</a>
   </div>
 </article>`
 }).join('\n')}
@@ -2822,8 +2816,7 @@ function warningDemoHtml(code: string, example: string): string {
   let fired = false
   try { fired = verifyMermaid(example).warnings.some((w: any) => w.code === code) } catch { fired = false }
   if (!fired) throw new Error(`warning example for ${code} does not fire its advertised code`)
-  const editorHash = btoa(unescape(encodeURIComponent(example)))
-  return `\n<h2>Minimal reproducer</h2>\n<p>This source triggers <code>${code}</code> — checked at build time against the same engine the editor runs.</p>\n<pre><code>${escapeHtml(example)}</code></pre>\n<p><a class="go" href="/editor/#${editorHash}">Open this reproducer in the editor</a></p>`
+  return `\n<h2>Minimal reproducer</h2>\n<p>This source triggers <code>${code}</code> — checked at build time against the same engine the editor runs.</p>\n<pre><code>${escapeHtml(example)}</code></pre>\n<p><a class="go" href="${escapeAttr(editorStateHref({ source: example }))}">Open this reproducer in the editor</a></p>`
 }
 
 function warningsIndexHtml() {

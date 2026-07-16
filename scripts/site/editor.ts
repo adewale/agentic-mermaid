@@ -6,7 +6,7 @@
  * The generated HTML is fully self-contained:
  *   - Bundles the mermaid renderer client-side
  *   - Live rendering on every keystroke (debounced)
- *   - URL hash sharing (base64-encoded source)
+ *   - Canonical deflate/base64url URL hash sharing for source + editor state
  *   - Theme switcher with all built-in themes
  *   - Sample presets by diagram category
  *   - Download SVG / Copy link

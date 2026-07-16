@@ -5,6 +5,7 @@ import { gzipSync } from 'node:zlib'
 import { execFileSync } from 'node:child_process'
 import { EDITOR_EXAMPLES } from '../../editor/examples.ts'
 import { samples as RICH_EXAMPLES } from '../../scripts/site/samples-data.ts'
+import { decodeEditorStateHash, EDITOR_SHARE_STATE_KEYS } from '../../scripts/site/editor-state-url.ts'
 import { createWebsiteWorker } from '../../website/src/worker-core.ts'
 import { CLEAN_PAGE_ROUTES, DYNAMIC_CLEAN_REDIRECT_LINES, staticRedirectLines } from '../../website/src/site-routes.ts'
 import { HOSTED_FONT_RESOURCES } from '../font-manifest.ts'
@@ -65,6 +66,11 @@ function richExampleArticle(html: string, sample: { title: string }) {
 
 function matches(source: string, pattern: RegExp) {
   return Array.from(source.matchAll(pattern))
+}
+
+function decodeEditorStateHref(href: string): Record<string, unknown> {
+  const hash = href.split('#')[1] ?? ''
+  return decodeEditorStateHash(hash) as unknown as Record<string, unknown>
 }
 
 function sourcePeerLabels(category: string, source: string) {
@@ -674,6 +680,26 @@ describe('Workers Static Assets website contract', () => {
     expect(statSync(join(SITE, 'editor/index.html')).size).toBeLessThan(250_000)
     expect(gzipSync(read('editor/index.html')).byteLength).toBeLessThan(80_000)
     expect(read(editorScript).length).toBeGreaterThan(1_000_000)
+  })
+
+  test('every generated editor-state link uses the canonical codec and round-trips', () => {
+    const editorStateKeys = new Set<string>(EDITOR_SHARE_STATE_KEYS)
+    const generatedStateLinks = files()
+      .filter(rel => /\.(?:html|json)$/.test(rel))
+      .flatMap((rel) => matches(read(rel), /\/editor\/#deflate:[A-Za-z0-9_-]+/g).map(match => ({ rel, href: match[0] })))
+
+    expect(generatedStateLinks.length).toBeGreaterThan(0)
+    for (const { rel, href } of generatedStateLinks) {
+      const state = decodeEditorStateHref(href)
+      expect(typeof state.source, `${rel}: ${href.slice(0, 48)}...`).toBe('string')
+      expect((state.source as string).trim().length, `${rel}: decoded source`).toBeGreaterThan(0)
+      expect(Object.keys(state).filter(key => !editorStateKeys.has(key)), `${rel}: editor state keys`).toEqual([])
+    }
+
+    const nonCanonicalStateLinks = files()
+      .filter(rel => /\.(?:html|json)$/.test(rel))
+      .flatMap(rel => matches(read(rel), /\/editor\/#(?!deflate:)[^"'\s<]+/g).map(match => `${rel}: ${match[0]}`))
+    expect(nonCanonicalStateLinks).toEqual([])
   })
 
   test('docs and editor reuse the shared visual primitive set', () => {

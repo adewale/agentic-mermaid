@@ -109,7 +109,7 @@ Users can discover fork features through:
   Mermaid.js places `a2` inside `one` and `c1` inside `three`; this fork keeps `a2`
   and `c1` at the top level (only `a1`/`c2` are inside those subgraphs). See it both
   ways: [open in Mermaid Live](https://mermaid.live/edit#pako:eNp10DELwjAQBeC_Et7cDjpmcBBXJ50kyzW5NoU2V9KEIqX_XbSoRXB87z44eDOsOIZG3clkPcWkrkcTlFLK7sryQPs1jLlqIg1eSeC1oe2Zg_txaZK1qZ6u-u98ZN48tF-JAj3HnloHjdkgee7ZQBs4ril3yWBBAcpJLvdgoVPMXCBKbjx0Td3IBfLgKPGppSZS_yYDhZvIJ7Jrk8TzOsRrj-UBwvBYkQ)
-  · [open in the fork editor](https://agentic-mermaid.dev/editor#eyJzb3VyY2UiOiJmbG93Y2hhcnQgVEJcbiAgICBjMS0tPmEyXG4gICAgc3ViZ3JhcGggb25lXG4gICAgYTEtLT5hMlxuICAgIGVuZFxuICAgIHN1YmdyYXBoIHR3b1xuICAgIGIxLS0+YjJcbiAgICBlbmRcbiAgICBzdWJncmFwaCB0aHJlZVxuICAgIGMxLS0+YzJcbiAgICBlbmQifQ==).
+  · [open in the fork editor](https://agentic-mermaid.dev/editor/#deflate:q1Yqzi8tSk5VslJKy8kvT85ILCpRCHGKyVNQUFBINtTVtUs0gnCKS5PSixILMhTy81IhIonI0ql5KWjqSsrzISJJIHVJuNVlFKVCTQRbmIxQqVQLAA).
 
   This is a deliberate divergence, not a bug: it gives deterministic
   *definition-scope* membership with no surprising re-parenting when a node is

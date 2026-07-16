@@ -647,6 +647,10 @@
       "sha256": "985aede39ec57d03407d35a69d00d182de2f71c8318ab2e083c3f454c8e29553"
     },
     {
+      "path": "src/__tests__/editor-link-contract.test.ts",
+      "sha256": "69cb93e7019393744f9c2e9ddce3e9ea4048f5fe7dd31771693ea37afc0658ea"
+    },
+    {
       "path": "src/__tests__/editor-motion.test.ts",
       "sha256": "bdd660b2c9b9cd252a2210340972b69b130a38f5820817b72494ccba535770fe"
     },
@@ -1176,7 +1180,7 @@
     },
     {
       "path": "src/__tests__/property-editor-codec-fuzz.test.ts",
-      "sha256": "b748a398f46dcb87fda3797f70d1ccda73204b70ab822e68a07ccb4c8e691d88"
+      "sha256": "793caee11a7917a677f68a365edd70a385af9c66007cc55ce0093dc323adb505"
     },
     {
       "path": "src/__tests__/property-gantt-schedule.test.ts",
@@ -1612,15 +1616,15 @@
     },
     {
       "path": "src/__tests__/website-browser-a11y.test.ts",
-      "sha256": "1c5327eec6c3bfb8919915c6c3cf1c29774d3c744c9cd560185bfabc5af245b3"
+      "sha256": "25edaeefd890f5610952cc3f3a2df31ec8f629d90347f5e94e504b4307440366"
     },
     {
       "path": "src/__tests__/website-build.test.ts",
-      "sha256": "c517fd60b84aa1b9d30e4e0c0a9357f703ca23468e5e7a9eceb900c8920e6588"
+      "sha256": "ea6494637fd91223cc0c6e74de70c46def8db2e48c6ca6b347320145282a1535"
     },
     {
       "path": "src/__tests__/website-public.preload.ts",
-      "sha256": "3b8248dc32b1d16d7cd1197ce03188299238178fc0b2e968780a200103ea986d"
+      "sha256": "6150c9fee6e0723aecc6a28d349b62c48a0109659416278432d142e2dd2160f8"
     },
     {
       "path": "src/__tests__/website-render-receipts.test.ts",

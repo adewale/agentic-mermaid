@@ -264,6 +264,25 @@ describeBrowser('website browser accessibility smoke', () => {
     await page.close()
   }, 30_000)
 
+  test('examples editor-state links survive editor initialization and load their source', async () => {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+    await page.goto(baseUrl + '/examples/', { waitUntil: 'networkidle' })
+    const link = page.locator('.example-sample a[href^="/editor/#deflate:"]').first()
+    const article = link.locator('xpath=ancestor::article[1]')
+    const expectedSource = (await article.locator('.example-source code').textContent())?.trim() ?? ''
+    expect(expectedSource.length).toBeGreaterThan(0)
+
+    await link.click()
+    await page.locator('#code-editor').waitFor({ state: 'visible' })
+    await page.waitForFunction(
+      source => (document.querySelector('#code-editor') as HTMLTextAreaElement | null)?.value.trim() === source,
+      expectedSource,
+    )
+    expect(await page.evaluate(() => location.hash.startsWith('#deflate:'))).toBe(true)
+    expect((await page.locator('#code-editor').inputValue()).trim()).toBe(expectedSource)
+    await page.close()
+  }, 30_000)
+
   test('editor corrupt share hashes fail closed instead of loading plausible content', async () => {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
     await page.goto(baseUrl + '/editor/?example=flowchart-basic#deflate:bad', { waitUntil: 'networkidle' })

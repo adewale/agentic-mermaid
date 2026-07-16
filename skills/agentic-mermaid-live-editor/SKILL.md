@@ -1,265 +1,158 @@
 ---
 name: agentic-mermaid-live-editor-development
 description: >-
-  Agent-agnostic development skill for the Agentic Mermaid live editor.
-  Use when modifying scripts/site/editor.ts, adding Config options, changing the UI, adding
-  ASCII, PNG, or SVG export behavior, wiring new diagram options, or debugging
-  the editor page.
+  Develop and debug the Agentic Mermaid browser editor, including its modular UI,
+  render/verify pipeline, examples, configuration, exports, URL sharing, website
+  integration, and browser regression tests.
 ---
 
-# Agentic Mermaid — live editor development
+# Agentic Mermaid live editor development
 
-This skill is for coding agents modifying the repository. It is not tied to Claude, Cursor, Pi, or any other single coding agent. The editor renders diagrams through Agentic Mermaid and exposes SVG and PNG export actions; the renderer also supports ASCII output in the library/CLI surface.
+Edit the modular editor sources and preserve the contracts shared by the standalone editor and the deployed website.
 
-## Key files
+## Source map
 
-| File | Role |
-|------|------|
-| `scripts/site/editor.ts` | **Source of truth** — generates `editor.html` at build time (also used by `website/build.ts` for the Cloudflare `/editor`) |
-| `editor.html` | Generated output — never edit directly |
-| `src/browser.ts` | Bundles the renderer for the browser as `window.__mermaid` |
-| `src/types.ts` | `RenderOptions` — all supported render options |
-| `src/scene/style-registry.ts` | Palette/Look discovery and registration |
-| `src/theme.ts` | `buildStyleBlock`, `svgOpenTag` — CSS variable system |
-| `src/styles.ts` | `STROKE_WIDTHS`, `FONT_SIZES` — hardcoded constants |
-| `scripts/site/samples-data.ts` | Sample presets used by eval tooling; the editor uses its own inline `SAMPLES` array |
+| Path | Role |
+|---|---|
+| `editor/js/` | Editor behavior. Treat `sharing.js`, `rendering.js`, and `state.js` as contract sources. |
+| `editor/css/` | Editor styling. |
+| `editor/html/` | Top bar and workspace partials. |
+| `editor/examples.ts` | Canonical editor examples. |
+| `scripts/site/editor.ts` | Assemble the standalone `editor.html`. |
+| `website/build.ts` | Assemble the deployed `/editor/` and all public pages that link to it. |
+| `scripts/site/editor-state-url.ts` | Canonical build-time encoder and validator for editor-state URLs. |
+| `src/browser.ts` | Browser renderer API exposed as `window.__mermaid`. |
 
-## Build cycle
+Do not edit generated `editor.html` or `website/public/` files directly.
 
-```
-scripts/site/editor.ts  ──Bun.build──►  src/browser.ts bundle (inline JS)
-                         ──template──►   editor.html  (self-contained, ~1.7 MB)
-```
+## Build and test cycle
 
-Run manually:
+Run the target that owns the changed surface:
+
 ```bash
-bun run editor       # generates editor.html once
-bun run website:dev  # wrangler dev server for the Cloudflare site (serves /editor and the rest)
+bun run editor          # standalone editor.html
+bun run website         # production website/public, including /editor/
+bun run website:check   # committed generated inputs are current
+bun run typecheck
 ```
 
-**Always rebuild after editing `scripts/site/editor.ts`.** The HTML file is the deployed artifact.
+For behavior changes, also run the focused editor unit tests and the browser lane. The browser lane requires Playwright Chromium and `AM_BROWSER_TESTS=1`.
 
----
+## State contract
 
-## Architecture overview
-
-`scripts/site/editor.ts` is a TypeScript generator that:
-1. Calls `Bun.build()` to bundle `src/browser.ts` → inline JS string
-2. Constructs the full HTML page as a template literal
-3. Writes `editor.html`
-
-The page has **no runtime build step** — everything (renderer, UI logic, CSS) is inlined.
-
-### State model (in the client JS)
+Keep editor state in the canonical shape from `editor/js/state.js`:
 
 ```js
 state = {
-  theme: '',        // active diagram theme key ('' = Default)
-  zoom: 1,          // current preview zoom level
-  config: {},       // active RenderOptions overrides (from Config panel)
+  palette: 'paper',
+  style: 'crisp',
+  seed: 0,
+  zoom: 1,
+  config: {},
 }
-
-cfgColors  = { bg, fg, accent, line, muted, surface }  // color overrides
-cfgFont    = ''     // font name (bare, e.g. 'Inter')
-cfgPadding = 24     // padding px
-cfgEdgeStroke = 1   // edge line stroke width
-cfgNodeStroke = 1   // node border stroke width
 ```
 
-### Render pipeline
+- `palette` stores the registered palette input name.
+- `style` stores the registered Look input name or `crisp`.
+- `seed` affects styled ink without changing layout.
+- `config` contains admitted serializable render options.
+- Browser chrome dark/light mode is separate from diagram appearance and must not rewrite `state.palette`.
 
-```
+When adding state, update serialization, sanitization, restoration, control hydration, and tests together.
+
+## Render and verification boundary
+
+Follow the pipeline in `editor/js/rendering.js`:
+
+```text
 editor input
-  → scheduleRender(debounce ms)
-    → doRender()
-      → buildOptions()        // merges theme (base) + config (overrides)
-      → renderMermaidSVGAsync(source, opts)   // window.__mermaid.renderMermaidSVGAsync
-      → previewInner.innerHTML = svg
-      → applyStrokeOverrides(svgEl)   // injects <style> for stroke widths
-      → applyZoom(state.zoom)         // sets SVG width/height from viewBox × zoom
+  -> scheduleRender()
+  -> doRender()
+  -> buildOptions()
+  -> renderMermaidSVGWithReceipt()
+  -> verifyNoExternalRefs()
+  -> insertStrictRenderedSvg()
+  -> verifyMermaid()
+  -> retain the receipt-bearing artifact only when verification succeeds
 ```
 
-**Important**: `buildOptions()` layers options as `Object.assign(themeBase, state.config)` — config always wins over theme.
+Keep `security: "strict"` and `embedFontImport: false` host-owned. Admit restored configuration through `SHARED_RENDER_OPTION_FIELDS` and `validateSerializableRenderOptions`; never trust hash or storage data directly. Insert one parsed SVG node with `replaceChildren`, not arbitrary shared HTML.
 
----
+Do not enable share or export actions from stale DOM. Require the current source, receipt digests, verified artifact, and preview SVG to agree.
 
-## How to add a Config option
+## URL sharing contract
 
-### Case A: RenderOptions already supports it (colors, font, padding)
-
-1. Add UI in the relevant `config-section` in the HTML template inside `scripts/site/editor.ts`
-2. Add a JS state variable (e.g. `var cfgFoo = defaultVal`)
-3. Update `readConfig()` to include it in `state.config`
-4. Wire input events
-5. Rebuild
-
-### Case B: Post-process SVG (stroke widths, opacity, etc.)
-
-Use CSS injection via `applyStrokeOverrides` pattern — no renderer changes needed:
-
-```js
-// After render:
-var style = document.createElementNS('http://www.w3.org/2000/svg', 'style');
-style.id = '__bm-my-override';
-style.textContent = 'rect { opacity: 0.8; }';
-svgEl.insertBefore(style, svgEl.firstChild);
-```
-
-CSS rules override SVG presentation attributes (lower specificity). No `!important` needed.
-
-Call your override function in:
-- `doRender()` — after `previewInner.innerHTML = svg`
-- Any slider/input `change` handler directly (instant, no re-render)
-
-### Case C: Requires renderer support
-
-Add to `RenderOptions` in `src/types.ts`, normalize through `resolveDiagramColors` in `src/color-resolver.ts` when it affects the semantic palette, then expose it through `svgOpenTag`/`buildStyleBlock` in `src/theme.ts` when the live editor needs a CSS-variable override.
-
----
-
-## Adding a color field
-
-1. Add to `cfgColors` object: `cfgColors.myColor = ''`
-2. Add `THEME_COLOR_MAP` entry if the theme has a matching property
-3. Add HTML in the Colors section:
-```html
-<div class="color-field">
-  <span class="color-field-label">My Color</span>
-  <button class="color-edit-btn" data-cfg="myColor">
-    <span class="cfg-hex-label" id="cfg-myColor-label">—</span>
-    <span class="color-swatch" id="cfg-myColor-swatch"></span>
-  </button>
-</div>
-```
-4. Update `readConfig()`: `if (cfgColors.myColor) cfg.myColor = cfgColors.myColor`
-5. Ensure `refreshAllColorUIs()` covers it (it uses `Object.keys(cfgColors)` so automatic)
-
----
-
-## Adding a slider (Layout section)
-
-```html
-<div class="padding-field">
-  <div class="padding-row">
-    <label>My Setting</label>
-    <input class="padding-num" id="cfg-my-val" type="number" min="0" max="100" value="10" />
-  </div>
-  <input class="padding-slider" id="cfg-my-val-slider" type="range" min="0" max="100" value="10" />
-</div>
-```
-
-```js
-var cfgMyVal = 10;
-var myNum    = document.getElementById('cfg-my-val');
-var mySlider = document.getElementById('cfg-my-val-slider');
-
-function setMyVal(v) {
-  v = Math.max(0, Math.min(100, parseFloat(v) || 10));
-  cfgMyVal = v;
-  myNum.value    = v;
-  mySlider.value = v;
-  // apply effect...
-}
-myNum.addEventListener('input',    function() { setMyVal(myNum.value); });
-mySlider.addEventListener('input', function() { setMyVal(mySlider.value); });
-```
-
----
-
-## Adding a sample preset
-
-Edit the `SAMPLES` array near the top of `scripts/site/editor.ts`:
+Treat the URL payload as a versioned producer/consumer boundary. The canonical state is:
 
 ```ts
 {
-  category: 'Flowchart',   // must match an existing cat or add a new button
-  title: 'My Sample',
-  source: `graph TD\n  A --> B`,
-},
-```
-
-If adding a new category, the category button is generated automatically from unique categories in `SAMPLES`.
-
----
-
-## Zoom system
-
-Zoom sets the SVG's **actual `width`/`height`** attributes (not CSS `transform: scale`), so the scroll container expands correctly.
-
-```js
-function applyZoom(z) {
-  state.zoom = clamp(z, 0.1, 8);
-  var nat = getSvgNaturalSize(svgEl);  // reads viewBox
-  svgEl.style.width  = nat.w * z + 'px';
-  svgEl.style.height = nat.h * z + 'px';
+  source: string
+  palette?: string
+  style?: string
+  seed?: number
+  config?: Record<string, unknown>
 }
 ```
 
-Always call `applyZoom(state.zoom)` after inserting a new SVG. Zoom is preserved across re-renders.
+The hash codec is:
 
----
-
-## Theme ↔ dark mode sync
-
-```
-applyColorMode(dark)
-  → sets :root.light / removes it (editor UI)
-  → if diagramThemeIsAuto: sets state.theme = 'zinc-dark' or ''
-  → refreshAllColorUIs()
-  → scheduleRender(0)
+```text
+deflate:<base64url(deflate-raw(UTF-8(JSON(state))))>
 ```
 
-`diagramThemeIsAuto = false` once the user manually picks a theme from the dropdown — their choice is then preserved across dark/light toggles.
+Use `editor/js/sharing.js` as the browser source of truth. For Node/build-time links, import `editorStateHref()` or `hostedEditorStateHref()` from `scripts/site/editor-state-url.ts`. Never hand-roll base64, compression, field names, or `/editor/` URL assembly in another producer.
 
----
+Keep these behaviors:
 
-## CSS variable system (diagram SVG)
+- Reject unknown fields such as the removed `theme` alias.
+- Bound encoded and decoded bytes.
+- Fail closed on corrupt, unsupported, or oversized hashes.
+- Do not restore a draft, query example, or plausible default after hash decode failure.
+- Use `?example=<id>` only for canonical editor examples; use a state hash for source/config/style snapshots.
+- Update the hash only after a current render verifies successfully.
 
-The renderer injects a `<style>` block into every SVG with derived vars:
+When changing this contract, update the browser codec, build-time codec, every producer, checked-in deep links, and both unit and real-navigation tests in the same change.
 
+## Configuration controls
+
+For an existing render option:
+
+1. Add accessible controls in `editor/html/left-panel.html` or the relevant partial.
+2. Store UI state in `editor/js/config-panel.js`.
+3. Include the value in `readConfig()` and restore it in `hydrateConfigControls()`.
+4. Keep `state.config` serializable and admitted by the shared render-options schema.
+5. Render through `buildOptions()`; do not patch the preview into a state the renderer cannot reproduce.
+
+For new public options, update the library contract first, then the editor. Do not create an editor-only alias.
+
+## Examples
+
+Add or edit examples in `editor/examples.ts`. Preserve stable IDs because `/editor/?example=<id>`, the sidebar, website examples, and tests depend on them. Examples may supply source and admitted config; loading one must preserve the user-selected Palette unless the URL snapshot explicitly carries a palette.
+
+## Export behavior
+
+Keep SVG, PNG, ASCII, and Unicode exports derived from current receipt-bearing artifacts. Preserve strict SVG verification and self-hosted font handling. PNG scale changes output dimensions; it must not change diagram semantics or silently fall back after an error.
+
+## Regression gates
+
+Use these tests when touching editor links or state:
+
+```bash
+bun test src/__tests__/editor-link-contract.test.ts
+bun test src/__tests__/editor-security-closures.test.ts
+bun test src/__tests__/website-build.test.ts
+AM_BROWSER_TESTS=1 bun test src/__tests__/website-browser-a11y.test.ts --timeout 600000
 ```
---bg, --fg  →  user-provided or defaults
---line, --accent, --muted, --surface, --border  →  optional overrides
---_line, --_arrow, --_node-fill, --_node-stroke  →  internal derived (color-mix)
-```
 
-Config overrides work by setting `--bg`, `--fg` etc. on the SVG's inline `style` attribute via `svgOpenTag()`. Theme colors are the base; config values override them in `buildOptions()`.
-
----
-
-## URL sharing
-
-Source + theme are encoded in the URL hash:
-
-```js
-// Encode
-btoa(unescape(encodeURIComponent(JSON.stringify({ source, theme }))))
-
-// Decode
-JSON.parse(decodeURIComponent(escape(atob(hash))))
-```
-
-`updateHash()` is called after every successful render and on Copy URL.
-
----
-
-## Export formats
-
-| Action | Implementation |
-|--------|----------------|
-| Save PNG | SVG → `<img>` → `<canvas>` → `toBlob('image/png')` → download |
-| Save SVG | `XMLSerializer.serializeToString(svgEl)` → Blob → download |
-| Copy Image | Same as PNG but `navigator.clipboard.write([new ClipboardItem(...)])` |
-| Copy URL | `updateHash()` then `navigator.clipboard.writeText(location.href)` |
-
-Scale (1x/2x/4x) multiplies canvas dimensions for PNG export.
-
----
+The repository-wide link contract must decode every checked-in hosted editor deep link. The website build contract must decode every generated HTML/JSON editor-state link and reject legacy hashes or unknown fields. The browser test must navigate from a real public page into the editor and verify that initialization preserves the hash and source.
 
 ## Common pitfalls
 
-- **Never edit `editor.html` directly** — it's overwritten on every build
-- **Avoid `\'` inside template literals** — use DOM API (`createElement`, `.textContent`) instead of `innerHTML` with quotes
-- **Stroke overrides via CSS injection must re-run after every render** — the SVG is replaced in `doRender()`
-- **`transform: scale()` breaks scrolling** — always use explicit `width`/`height` for zoom
-- **Font option is the bare name** (`Inter`, not `"Inter", sans-serif`) — the renderer wraps it internally
+- Updating a decoder without migrating every producer.
+- Updating unit fixtures to the new codec while leaving public links untouched.
+- Reintroducing `theme` where the editor state contract requires `palette`.
+- Testing the editor only with hashes manufactured inside the editor test suite.
+- Editing generated outputs instead of modular sources.
+- Letting dark/light chrome mutate diagram appearance.
+- Restoring drafts after a broken share URL, which can make unrelated local content look shared.
+- Enabling copy/export from a stale or unverified preview.

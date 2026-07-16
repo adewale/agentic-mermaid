@@ -205,6 +205,18 @@ describe('editor-codec fuzz: sanitizeEditorConfig allowlist', () => {
     await api.getHashSource()
     expect(state.seed).toBe(1.5)
   })
+
+  it('rejects removed or unknown top-level state fields instead of silently dropping them', async () => {
+    const { api, state, window } = sharingHarness()
+    const encoded = await api.encodeSourceCompressed(JSON.stringify({
+      source: 'flowchart TD\n  A --> B',
+      theme: 'zinc-dark',
+    }))
+    ;(window.location as { hash: string }).hash = '#' + encoded
+    expect(await api.getHashSource()).toBeNull()
+    expect(api.hashDecodeFailure).toBe('corrupt')
+    expect(state).toEqual({ palette: 'paper', style: 'crisp', seed: 0, config: {} })
+  })
 })
 
 describe('editor-codec fuzz: draft persistence round-trip', () => {
