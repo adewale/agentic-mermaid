@@ -41,6 +41,8 @@ export interface HttpMcpOptions {
   artifactDir?: string
   publicUrl?: string
   maxArtifactBytes?: number
+  maxArtifactTotalBytes?: number
+  maxArtifacts?: number
   artifactTtlMs?: number
   maxRpcBodyBytes?: number
   authToken?: string
@@ -190,9 +192,15 @@ function warmUpPngRenderer(): void {
   }
 }
 
-export async function runStdio(options: { artifactDir?: string; maxArtifactBytes?: number; artifactTtlMs?: number } = {}): Promise<void> {
+export async function runStdio(options: { artifactDir?: string; maxArtifactBytes?: number; maxArtifactTotalBytes?: number; maxArtifacts?: number; artifactTtlMs?: number; maxSandboxTimeoutMs?: number } = {}): Promise<void> {
   warmUpPngRenderer()
-  const artifactStore = createArtifactStore({ dir: options.artifactDir, maxBytes: options.maxArtifactBytes, ttlMs: options.artifactTtlMs })
+  const artifactStore = createArtifactStore({
+    dir: options.artifactDir,
+    maxBytes: options.maxArtifactBytes,
+    maxTotalBytes: options.maxArtifactTotalBytes,
+    maxArtifacts: options.maxArtifacts,
+    ttlMs: options.artifactTtlMs,
+  })
   process.stdin.setEncoding('utf8')
   let buf = ''
   process.stdin.on('data', async (chunk: string) => {
@@ -204,7 +212,7 @@ export async function runStdio(options: { artifactDir?: string; maxArtifactBytes
       if (!line) continue
       try {
         const exact = preserveExactJsonRpcIds(line)
-        const res = await handleRequest(JSON.parse(exact.body) as JsonRpcRequest, { artifactStore })
+        const res = await handleRequest(JSON.parse(exact.body) as JsonRpcRequest, { artifactStore, maxSandboxTimeoutMs: options.maxSandboxTimeoutMs })
         if (res) process.stdout.write(stringifyJsonRpc(res, exact.ids) + '\n')
       } catch (e) {
         process.stdout.write(JSON.stringify(error(null, -32700, `parse error: ${(e as Error).message}`)) + '\n')
@@ -227,6 +235,8 @@ export async function startHttpServer(options: HttpMcpOptions = {}): Promise<Htt
   const artifactStore = createArtifactStore({
     dir: options.artifactDir,
     maxBytes: options.maxArtifactBytes,
+    maxTotalBytes: options.maxArtifactTotalBytes,
+    maxArtifacts: options.maxArtifacts,
     ttlMs: options.artifactTtlMs,
   })
   const maxRpcBodyBytes = options.maxRpcBodyBytes ?? MAX_RPC_BODY_BYTES
@@ -394,7 +404,7 @@ function serveArtifact(res: ServerResponse, store: ArtifactStore, name: string):
   res.writeHead(200, {
     'Content-Type': artifact.mimeType,
     'Content-Length': artifact.bytes.length,
-    'Cache-Control': 'private, max-age=3600',
+    'Cache-Control': `private, max-age=${artifact.cacheMaxAgeSeconds}, immutable`,
   })
   res.end(artifact.bytes)
 }

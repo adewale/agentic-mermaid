@@ -916,7 +916,9 @@ function drawArrowLabel(graph: AsciiGraph, edge: AsciiEdge): Canvas {
     else if (endY > startY) isUpwardEdge = false
   }
 
-  drawTextOnLine(canvas, drawingLine, edge.text, isUpwardEdge)
+  const isLeftwardEdge = edge.path.length >= 2
+    && edge.path[edge.path.length - 1]!.x < edge.path[0]!.x
+  drawTextOnLine(canvas, drawingLine, edge.text, isUpwardEdge, isLeftwardEdge)
   return canvas
 }
 
@@ -930,7 +932,13 @@ function drawArrowLabel(graph: AsciiGraph, edge: AsciiEdge): Canvas {
  * - Downward edges (isUpwardEdge=false): label placed in upper portion
  * - No direction (isUpwardEdge=undefined): label centered (default)
  */
-function drawTextOnLine(canvas: Canvas, line: DrawingCoord[], label: string, isUpwardEdge?: boolean): void {
+function drawTextOnLine(
+  canvas: Canvas,
+  line: DrawingCoord[],
+  label: string,
+  isUpwardEdge?: boolean,
+  isLeftwardEdge = false,
+): void {
   if (line.length < 2) return
   const minX = Math.min(line[0]!.x, line[1]!.x)
   const maxX = Math.max(line[0]!.x, line[1]!.x)
@@ -959,7 +967,10 @@ function drawTextOnLine(canvas: Canvas, line: DrawingCoord[], label: string, isU
 
   for (let i = 0; i < lines.length; i++) {
     const lineText = lines[i]!
-    const startX = middleX - Math.floor(lineText.length / 2)
+    // With an even-width label and an odd midpoint split, reserve the spare
+    // cell on the target side for the terminal marker. Leftward routes need
+    // the opposite tie-break from the default rightward projection.
+    const startX = middleX - Math.floor(visualWidth(lineText) / 2) + (isLeftwardEdge ? 1 : 0)
     drawText(canvas, { x: startX, y: startY + i }, lineText)
   }
 }

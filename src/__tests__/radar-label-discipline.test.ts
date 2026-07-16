@@ -181,7 +181,7 @@ radar-beta
   max 5`
     const svg = renderMermaidSVG(source, { style: 'accessible-high-contrast' })
     const boxes = [...svg.matchAll(/class="radar-tick-box"[^>]*width="([^"]+)"/g)]
-    const labels = [...svg.matchAll(/class="radar-tick-label"[^>]*font-size="([^"]+)" font-weight="([^"]+)">([^<]+)<\/text>/g)]
+    const labels = [...svg.matchAll(/class="radar-tick-label"[^>]*font-size="([^"]+)" font-weight="([^"]+)"[^>]*>([^<]+)<\/text>/g)]
     const endpointBox = boxes.at(-1)
     const endpointLabel = labels.at(-1)
     expect(endpointLabel?.[3]).toBe('5')

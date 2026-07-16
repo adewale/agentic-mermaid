@@ -142,6 +142,22 @@ describe('maintained documentation is derived from current contracts', () => {
     expect(historical).toContain('## Loop 14 lesson')
   })
 
+  test('maintained docs do not hard-code volatile Style registry totals', () => {
+    const active = [
+      ...docs.filter(path => !repoPath(path).startsWith('docs/project/archive/')),
+      join(ROOT, 'Instructions_for_agents.md'),
+      join(ROOT, 'AGENT_NATIVE.md'),
+    ]
+    const violations: string[] = []
+    for (const path of active) {
+      const text = readFileSync(path, 'utf8')
+      for (const match of text.matchAll(/\b\d+\s+palettes?\s*[×x]\s*\d+\s+looks?\b/gi)) {
+        violations.push(`${repoPath(path)}: ${match[0]}`)
+      }
+    }
+    expect(violations).toEqual([])
+  })
+
   test('current contract docs avoid volatile test and package totals', () => {
     const active = docs.filter(path => !repoPath(path).startsWith('docs/project/archive/'))
     const violations: string[] = []

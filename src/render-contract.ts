@@ -7,7 +7,7 @@
 // lowering, graphical backends, rasterization, and terminal projection share.
 // ============================================================================
 
-import type { RenderOptions, ResolvedFamilyRenderContext } from './types.ts'
+import type { ConfigDiagnostic, RenderOptions, ResolvedFamilyRenderContext } from './types.ts'
 import { decodeXML } from 'entities'
 import type { ArchitectureVisualConfig } from './architecture/config.ts'
 import type { DiagramColors } from './theme.ts'
@@ -55,6 +55,7 @@ import {
 import { RENDER_OUTPUTS, type RenderOutput } from './render-outputs.ts'
 import { PNG_OUTPUT_POLICY_VERSION } from './png-contract.ts'
 import { TERMINAL_OUTPUT_POLICY_VERSION } from './terminal-contract.ts'
+import { explicitFamilyConfigDiagnostics } from './shared/family-config-diagnostics.ts'
 export { RENDER_OUTPUTS } from './render-outputs.ts'
 export type { RenderOutput } from './render-outputs.ts'
 
@@ -1003,10 +1004,9 @@ export interface InternalRenderExecutionPlan {
   readonly family: FamilyDescriptor
   readonly backend?: BackendDescriptor
   readonly requestedBackendId?: string
-  /** Exact admitted explicit config used for diagnostics. Family
-   * normalization may remove ineffective values from renderOptions, so
-   * warning generation must retain this pre-normalization snapshot. */
-  readonly explicitMermaidConfig?: NonNullable<RenderOptions['mermaidConfig']>
+  /** Immutable diagnostics computed from the exact admitted pre-normalization
+   * config while this family execution plan is captured. */
+  readonly configDiagnostics?: readonly ConfigDiagnostic[]
   /** Captured separately from the serializable request. The callback is a
    * trusted in-process observer, never receipt or family-normalizer data. */
   readonly onConfigDiagnostic?: NonNullable<RenderOptions['onConfigDiagnostic']>
@@ -1722,13 +1722,18 @@ function resolveExecutionPlan(
     })
   }
 
+  const configDiagnostics = explicitMermaidConfig === undefined
+    ? undefined
+    : Object.freeze(explicitFamilyConfigDiagnostics(family.id, explicitMermaidConfig)
+      .map(diagnostic => Object.freeze({ ...diagnostic })))
+
   return Object.freeze({
     output,
     mode,
     family,
     ...(backend ? { backend } : {}),
     ...(requestedBackendId ? { requestedBackendId } : {}),
-    ...(explicitMermaidConfig === undefined ? {} : { explicitMermaidConfig }),
+    ...(configDiagnostics === undefined ? {} : { configDiagnostics }),
     ...(onConfigDiagnostic ? { onConfigDiagnostic } : {}),
     capabilityDecision,
     ...(executionDecision ? { executionDecision } : {}),

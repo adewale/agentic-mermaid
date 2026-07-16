@@ -75,7 +75,11 @@ describe('Section B generated capability report', () => {
     expect(report.builtInLooks.every(row => row.exportable)).toBe(true)
     expect(report.paintAuthority.every(row => row.foreground && row.background && row.provenance && row.outputContext)).toBe(true)
     expect(report.brandPack).toMatchObject({ promoted: false })
-    expect(report.phases.map(row => row.id)).toEqual(['B0', 'B1', 'B2', 'B3', 'B4', 'B5'])
+    expect(report.phases.map(row => [row.id, row.status])).toEqual([
+      ['B0', 'complete'], ['B1', 'complete'], ['B2', 'complete'], ['B3', 'complete'],
+      ['B4', 'not-promoted'], ['B5', 'complete'],
+    ])
+    expect(report.phases.find(row => row.id === 'B5')?.evidence).toContain('eval/style-prototype-evidence/visual-approval.json')
   })
 
   test('checked JSON and Markdown are exact generated projections', () => {

@@ -6,7 +6,23 @@
 // excluded from the heuristic — they are cycles, not joins.
 
 import { describe, test, expect } from 'bun:test'
+import { convertToAsciiGraph } from '../ascii/converter.ts'
+import { analyzeEdgeBundles } from '../ascii/edge-bundling.ts'
+import type { AsciiConfig } from '../ascii/types.ts'
 import { renderMermaidASCII } from '../index.ts'
+import { parseMermaid } from '../parser.ts'
+
+const CONFIG: AsciiConfig = {
+  useAscii: false,
+  paddingX: 5,
+  paddingY: 5,
+  boxBorderPadding: 1,
+  graphDirection: 'TD',
+}
+
+function fanInGraph() {
+  return convertToAsciiGraph(parseMermaid('graph TD\n  A --> C\n  B --> C'), CONFIG)
+}
 
 function columnOf(out: string, label: string): number {
   for (const line of out.split('\n')) {
@@ -41,6 +57,20 @@ describe('ASCII fan-in grouping', () => {
     expect(Math.max(columnOf(out, 'A1'), columnOf(out, 'A2')))
       .toBeLessThan(Math.min(columnOf(out, 'B1'), columnOf(out, 'B2')))
     expect(out).not.toContain('┼')
+  })
+
+  test('bundle admission retains primary and legacy joins while rejecting feedback topology', () => {
+    const primary = fanInGraph()
+    expect(primary.edges.map(edge => edge.routeClass)).toEqual(['primary-forward', 'primary-forward'])
+    expect(analyzeEdgeBundles(primary)).toHaveLength(1)
+
+    const legacy = fanInGraph()
+    for (const edge of legacy.edges) delete edge.routeClass
+    expect(analyzeEdgeBundles(legacy)).toHaveLength(1)
+
+    const feedback = fanInGraph()
+    feedback.edges[0]!.routeClass = 'feedback'
+    expect(analyzeEdgeBundles(feedback)).toEqual([])
   })
 
   test('a 2-cycle toggle pair is not treated as fan-in (state-machine guard)', () => {

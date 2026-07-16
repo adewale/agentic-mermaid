@@ -344,7 +344,7 @@ describe('public external Scene construction and admission', () => {
           },
         },
       ],
-    } as unknown as ExternalSceneInput)).toThrow(/does not expose typed connector subpaths/)
+    } as unknown as ExternalSceneInput)).toThrow(/does not expose typed connector subpaths|geometry\.subpaths is not part of the v1 input contract/)
 
     const closedScene = buildExternalScene({
       ...safe,
@@ -489,6 +489,30 @@ describe('public external Scene construction and admission', () => {
         ...base,
         parts: [...base.parts.slice(0, 2), { ...edge, labels: [{ text: 'unsafe bounds', bounds }] }],
       })).toThrow(/bounds/)
+    }
+  })
+
+  test('rejects authored v1 keys that canonical compilation would otherwise discard', () => {
+    const base = sceneInput('family:test/closed-input', { bg: '#fff', fg: '#111' })
+    const container = base.parts[0]!
+    const data = base.parts[1]!
+    const edge = base.parts[2]!
+    if (container.kind !== 'container' || data.kind !== 'data-mark' || edge.kind !== 'connector') return
+    const shape = container.children[0]!
+    const text = container.children[1]!
+    const candidates: Array<[ExternalSceneInput, RegExp]> = [
+      [{ ...base, unknownRoot: true } as unknown as ExternalSceneInput, /input\.unknownRoot/],
+      [{ ...base, metadata: { ...base.metadata, typo: true } } as unknown as ExternalSceneInput, /input\.metadata\.typo/],
+      [{ ...base, parts: [{ ...container, typo: true }, data, edge] } as unknown as ExternalSceneInput, /input\.parts\[0\]\.typo/],
+      [{ ...base, parts: [{ ...container, children: [{ ...shape, painnt: {} }, text] }, data, edge] } as unknown as ExternalSceneInput, /input\.parts\[0\]\.children\[0\]\.painnt/],
+      [{ ...base, parts: [{ ...container, children: [shape, { ...text, typo: true }] }, data, edge] } as unknown as ExternalSceneInput, /input\.parts\[0\]\.children\[1\]\.typo/],
+      [{ ...base, parts: [container, { ...data, typo: true }, edge] } as unknown as ExternalSceneInput, /input\.parts\[1\]\.typo/],
+      [{ ...base, parts: [container, { ...data, channels: { ...data.channels, hue: 'red' } }, edge] } as unknown as ExternalSceneInput, /input\.parts\[1\]\.channels\.hue/],
+      [{ ...base, parts: [container, data, { ...edge, relationship: { kind: 'dependency', typo: true } }] } as unknown as ExternalSceneInput, /input\.parts\[2\]\.relationship\.typo/],
+      [{ ...base, parts: [container, data, { ...edge, labels: [{ text: 'label', visual: { kind: 'inline' } }] }] } as unknown as ExternalSceneInput, /input\.parts\[2\]\.labels\[0\]\.visual/],
+    ]
+    for (const [candidate, path] of candidates) {
+      expect(() => buildExternalScene(candidate)).toThrow(path)
     }
   })
 

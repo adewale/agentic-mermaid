@@ -211,6 +211,27 @@ export function projectPositionedView(
  * serializer as the source-context bridge; the descriptor still owns all
  * parsing and positioning.
  */
+export function familyArtifactSource(d: ParsedDiagram): string {
+  // These descriptors position from typed/segment-preserving bodies. Their
+  // canonicalSource may be stale in a caller-constructed ParsedDiagram, and
+  // inline semicolon syntax may be less expressive than canonical serialization.
+  // Flowchart deliberately remains source-owned so authored root/group order
+  // survives positioning; opaque bodies are always byte-source-owned.
+  const bodyOwnsPositioning = d.body.kind === 'extension'
+    || d.kind === 'state'
+    || d.kind === 'sequence'
+    || d.kind === 'quadrant'
+    || d.kind === 'xychart'
+    || d.kind === 'pie'
+    || d.kind === 'gantt'
+    || d.kind === 'mindmap'
+    || d.kind === 'gitgraph'
+    || d.kind === 'radar'
+  return d.body.kind !== 'opaque' && bodyOwnsPositioning
+    ? serializeMermaid(d)
+    : d.canonicalSource
+}
+
 export function positionFamilyArtifact(
   d: ParsedDiagram,
   options: PositionFamilyArtifactOptions = {},
@@ -219,11 +240,7 @@ export function positionFamilyArtifact(
   if (!descriptor?.layout || !descriptor.projectPositioned) return null
   const projectionOptions: FamilyPositionedProjectionOptions = { debug: options.debug }
 
-  const sourceText = d.body.kind !== 'opaque' && (
-    d.kind === 'state' || d.kind === 'quadrant' || d.kind === 'mindmap' || d.kind === 'gitgraph' || d.kind === 'radar'
-  )
-    ? serializeMermaid(d)
-    : d.canonicalSource
+  const sourceText = familyArtifactSource(d)
   const canRetryFromBody = structuredBodyExpectsNodes(d)
 
   const projectSource = (text: string): ProjectedFamilyArtifact => {

@@ -10,15 +10,19 @@
 import { createTracingMermaid, marshalCodeModeResult, CODE_MODE_RETURN_HINT } from './facade.ts'
 import type { ExecuteResult } from './sandbox.ts'
 import { HOSTED_CODE_MODE_HOST_POLICY } from '../render-host-policy.ts'
+import {
+  DEFAULT_EXECUTE_OUTPUT_LIMITS,
+  LOGS_TRUNCATED_MARKER,
+  truncateUtf8,
+  utf8ByteLength,
+} from './execute-limits.ts'
 
-// Hosted output bounds, enforced at the source (inside the isolate) so a
-// log-spamming or huge-result run never builds an unbounded response body;
-// the parent's capped read of the isolate response is the backstop. The
-// local vm sandbox has no such caps — a documented hosted divergence.
-export const MAX_RESULT_BYTES = 2 * 1024 * 1024
-export const MAX_LOG_ENTRIES = 1_000
-export const MAX_LOG_BYTES = 256 * 1024
-export const LOGS_TRUNCATED_MARKER = '…[logs truncated: hosted execute caps console output]'
+// Backward-compatible named constants projected from the one local/hosted
+// Code Mode output-budget authority.
+export const MAX_RESULT_BYTES = DEFAULT_EXECUTE_OUTPUT_LIMITS.maxResultBytes
+export const MAX_LOG_ENTRIES = DEFAULT_EXECUTE_OUTPUT_LIMITS.maxLogEntries
+export const MAX_LOG_BYTES = DEFAULT_EXECUTE_OUTPUT_LIMITS.maxLogBytes
+export { LOGS_TRUNCATED_MARKER }
 
 // The globals sandbox.ts pins to undefined in the vm context, minus the ones
 // that are not legal strict-mode parameter names ('constructor' is harmless as
@@ -154,11 +158,13 @@ export function runUserCode(fn: unknown): ExecuteResult {
     // before appending) and balloons the response until the parent's
     // readCapped backstop rejects it. Truncate to the remaining budget.
     let line = a.map(coerceLogArg).join(' ')
-    if (line.length > MAX_LOG_BYTES - logBytes) {
-      line = line.slice(0, MAX_LOG_BYTES - logBytes)
+    const remaining = MAX_LOG_BYTES - logBytes
+    const lineBytes = utf8ByteLength(line)
+    if (lineBytes > remaining) {
+      line = truncateUtf8(line, remaining)
       logsTruncated = true
     }
-    logBytes += line.length
+    logBytes += utf8ByteLength(line)
     logs.push(line)
     if (logsTruncated) logs.push(LOGS_TRUNCATED_MARKER)
   }
@@ -201,7 +207,7 @@ export function runUserCode(fn: unknown): ExecuteResult {
     return { ok: false, error: `non-serializable: ${formatHarnessError(e)} — ${CODE_MODE_RETURN_HINT}`, logs }
   }
   if (stringified === undefined) return { ok: true, value: null, logs }
-  if (stringified.length > MAX_RESULT_BYTES) {
+  if (utf8ByteLength(stringified) > MAX_RESULT_BYTES) {
     return { ok: false, error: `sandbox result exceeded ${MAX_RESULT_BYTES} bytes; reduce console output or returned data`, logs }
   }
   try { return { ok: true, value: JSON.parse(stringified), logs } }

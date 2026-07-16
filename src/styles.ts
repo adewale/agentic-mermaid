@@ -7,7 +7,7 @@
 // contains font metrics, spacing constants, and stroke widths.
 // ============================================================================
 
-import { measureTextWidth } from './text-metrics'
+import { measureMonospaceTextWidth, measureTextWidth } from './text-metrics'
 import type { InternalStyleFace, StyleInput } from './scene/style-registry.ts'
 import type { TextTransform } from './types.ts'
 
@@ -20,11 +20,7 @@ export function estimateTextWidth(text: string, fontSize: number, fontWeight: nu
 
 /** Average character width in px for monospace fonts (uniform glyph width) */
 export function estimateMonoTextWidth(text: string, fontSize: number): number {
-  // Monospace fonts have uniform character width — 0.6 of fontSize matches actual
-  // glyph widths for JetBrains Mono / SF Mono / Fira Code at small sizes (11px).
-  // Previous value of 0.55 underestimated widths, causing class member labels to
-  // extend beyond their box boundaries.
-  return text.length * fontSize * 0.6
+  return measureMonospaceTextWidth(text, fontSize)
 }
 
 /** Monospace font family used for code-like text (class members, types) */

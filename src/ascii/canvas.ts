@@ -387,6 +387,14 @@ export function flipRoleCanvasVertically(roleCanvas: RoleCanvas): RoleCanvas {
  * By default, preserves existing non-space characters (labels don't overwrite each other).
  * Set forceOverwrite=true to always overwrite (for box content).
  */
+function displaySpanIsBlank(canvas: Canvas, x: number, y: number, width: number): boolean {
+  if (x < 0 || y < 0 || x + width > canvas.length) return false
+  for (let cell = x; cell < x + width; cell++) {
+    if (canvas[cell]?.[y] !== ' ') return false
+  }
+  return true
+}
+
 export function drawText(
   canvas: Canvas,
   start: DrawingCoord,
@@ -400,10 +408,10 @@ export function drawText(
     const clusterWidth = visualWidth(cluster)
     if (clusterWidth === 0) continue
     const x = start.x + offset
-    const current = canvas[x]![start.y]!
-    // Store a grapheme cluster in one logical cell. Wide clusters reserve the
-    // following cell so later text cannot split emoji/ZWJ/combining sequences.
-    if (forceOverwrite || current === ' ') {
+    // Store a grapheme cluster in one logical cell. A non-forced write owns
+    // the complete display span or none of it: checking only the first cell
+    // lets a wide glyph's continuation erase an arrow or box border.
+    if (forceOverwrite || displaySpanIsBlank(canvas, x, start.y, clusterWidth)) {
       canvas[x]![start.y] = cluster
       for (let continuation = 1; continuation < clusterWidth && x + continuation < canvas.length; continuation++) {
         canvas[x + continuation]![start.y] = WIDE_CHAR_CONTINUATION

@@ -147,6 +147,48 @@ export interface ExternalSceneInput {
   readonly parts: readonly ExternalSceneNode[]
 }
 
+type ExactKeyMap<T> = { readonly [Key in keyof Required<T>]: true }
+type GeometryOf<Kind extends ExternalSceneGeometry['kind']> = Extract<ExternalSceneGeometry, { kind: Kind }>
+type MarkerGeometryOf<Kind extends Geometry['kind']> = Extract<Geometry, { kind: Kind }>
+type NodeOf<Kind extends ExternalSceneNode['kind']> = Extract<ExternalSceneNode, { kind: Kind }>
+
+/** One closed authored-input vocabulary for External Scene v1. Each exact map
+ * is compile-time complete: widening a reused public type requires an explicit
+ * v1 admission decision instead of silently widening runtime input. */
+const EXTERNAL_SCENE_V1_ALLOWED_KEYS = Object.freeze({
+  input: { version: true, family: true, width: true, height: true, colors: true, metadata: true, markers: true, parts: true } satisfies ExactKeyMap<ExternalSceneInput>,
+  colors: { bg: true, fg: true, line: true, accent: true, muted: true, surface: true, border: true, shadow: true, font: true, embedFontImport: true } satisfies ExactKeyMap<DiagramColors>,
+  metadata: { title: true, description: true, transparent: true } satisfies ExactKeyMap<ExternalSceneDocument>,
+  nodes: {
+    shape: { kind: true, id: true, role: true, channels: true, geometry: true, paint: true } satisfies ExactKeyMap<NodeOf<'shape'>>,
+    'data-mark': { kind: true, id: true, role: true, channels: true, geometry: true, value: true, paint: true } satisfies ExactKeyMap<NodeOf<'data-mark'>>,
+    text: { kind: true, id: true, role: true, channels: true, text: true, x: true, y: true, fontSize: true, anchor: true, paint: true } satisfies ExactKeyMap<NodeOf<'text'>>,
+    container: { kind: true, id: true, role: true, channels: true, children: true } satisfies ExactKeyMap<NodeOf<'container'>>,
+    connector: { kind: true, id: true, role: true, channels: true, geometry: true, from: true, to: true, lineStyle: true, paint: true, closed: true, startMarker: true, midMarker: true, endMarker: true, relationship: true, labels: true } satisfies ExactKeyMap<NodeOf<'connector'>>,
+  },
+  geometry: {
+    rect: { kind: true, x: true, y: true, width: true, height: true, rx: true, ry: true } satisfies ExactKeyMap<GeometryOf<'rect'>>,
+    circle: { kind: true, cx: true, cy: true, r: true } satisfies ExactKeyMap<GeometryOf<'circle'>>,
+    ellipse: { kind: true, cx: true, cy: true, rx: true, ry: true } satisfies ExactKeyMap<GeometryOf<'ellipse'>>,
+    line: { kind: true, x1: true, y1: true, x2: true, y2: true } satisfies ExactKeyMap<GeometryOf<'line'>>,
+    polygon: { kind: true, points: true } satisfies ExactKeyMap<GeometryOf<'polygon'>>,
+    polyline: { kind: true, points: true } satisfies ExactKeyMap<GeometryOf<'polyline'>>,
+    markerPath: { kind: true, d: true } satisfies ExactKeyMap<MarkerGeometryOf<'path'>>,
+    connectorPath: { kind: true, d: true, points: true } satisfies ExactKeyMap<Extract<ExternalSceneConnectorGeometry, { kind: 'path' }>>,
+    compound: { kind: true, children: true } satisfies ExactKeyMap<MarkerGeometryOf<'compound'>>,
+  },
+  point: { x: true, y: true } satisfies ExactKeyMap<{ x: number; y: number }>,
+  paint: { fill: true, stroke: true, strokeWidth: true, strokeDasharray: true, strokeDashoffset: true, strokeLinecap: true, strokeLinejoin: true, strokeMiterlimit: true, vectorEffect: true, paintOrder: true, opacity: true } satisfies ExactKeyMap<MarkPaint>,
+  channels: { importance: true, value: true, category: true, status: true, progress: true, route: true, emphasis: true } satisfies ExactKeyMap<SemanticChannels>,
+  marker: { id: true, shape: true, geometry: true, size: true, viewBox: true, ref: true, bounds: true, units: true, orient: true, overflow: true, paint: true, scale: true } satisfies ExactKeyMap<ExternalSceneMarker>,
+  markerSize: { width: true, height: true } satisfies ExactKeyMap<NonNullable<ExternalSceneMarker['size']>>,
+  viewBox: { x: true, y: true, width: true, height: true } satisfies ExactKeyMap<NonNullable<ExternalSceneMarker['viewBox']>>,
+  bounds: { x0: true, y0: true, x1: true, y1: true } satisfies ExactKeyMap<NonNullable<ExternalSceneMarker['bounds']>>,
+  relationship: { kind: true, direction: true } satisfies ExactKeyMap<NonNullable<ExternalSceneConnector['relationship']>>,
+  label: { id: true, text: true, anchor: true, bounds: true, halo: true, clearance: true, paint: true, fontSize: true, textAnchor: true } satisfies ExactKeyMap<ExternalSceneConnectorLabel>,
+  halo: { color: true, width: true } satisfies ExactKeyMap<NonNullable<ExternalSceneConnectorLabel['halo']>>,
+})
+
 /** External Scene is a declarative JSON-like boundary. Admit the complete
  * object graph into a bounded data-property snapshot before any map, spread,
  * iterator, recursive compiler, or marker serializer can run. Compilation
@@ -177,6 +219,27 @@ function externalRecord(value: unknown, path: string): Record<string, unknown> {
   return value as Record<string, unknown>
 }
 
+function rejectExternalUnknownKeys(
+  value: Record<string, unknown>,
+  allowed: Readonly<Record<string, true>>,
+  path: string,
+): void {
+  for (const key of Object.keys(value)) {
+    if (!Object.hasOwn(allowed, key)) {
+      throw new TypeError(`External Scene ${path}.${key} is not part of the v1 input contract`)
+    }
+  }
+}
+
+function rejectOptionalExternalRecord(
+  value: unknown,
+  allowed: Readonly<Record<string, true>>,
+  path: string,
+): void {
+  if (value === undefined) return
+  rejectExternalUnknownKeys(externalRecord(value, path), allowed, path)
+}
+
 function externalArray(value: unknown, path: string): readonly unknown[] {
   if (!Array.isArray(value)) throw new TypeError(`External Scene ${path} must be a plain array`)
   return value
@@ -194,6 +257,7 @@ function externalFinite(value: unknown, path: string): asserts value is number {
 
 function assertExternalPoint(value: unknown, path: string): void {
   const point = externalRecord(value, path)
+  rejectExternalUnknownKeys(point, EXTERNAL_SCENE_V1_ALLOWED_KEYS.point, path)
   externalFinite(point.x, `${path}.x`)
   externalFinite(point.y, `${path}.y`)
 }
@@ -209,6 +273,10 @@ function assertExternalGeometry(
   if (!allowedKinds.includes(geometry.kind)) {
     throw new TypeError(`External Scene ${path}.kind must be one of: ${allowedKinds.join(', ')}`)
   }
+  const geometryKeys = geometry.kind === 'path'
+    ? (connectorPath ? EXTERNAL_SCENE_V1_ALLOWED_KEYS.geometry.connectorPath : EXTERNAL_SCENE_V1_ALLOWED_KEYS.geometry.markerPath)
+    : EXTERNAL_SCENE_V1_ALLOWED_KEYS.geometry[geometry.kind as Exclude<keyof typeof EXTERNAL_SCENE_V1_ALLOWED_KEYS.geometry, 'markerPath' | 'connectorPath'>]
+  rejectExternalUnknownKeys(geometry, geometryKeys, path)
   const numbers = (...fields: string[]) => {
     for (const field of fields) externalFinite(geometry[field], `${path}.${field}`)
   }
@@ -254,6 +322,13 @@ function assertExternalNode(value: unknown, path: string): void {
   if (!['shape', 'data-mark', 'text', 'container', 'connector'].includes(node.kind)) {
     throw new TypeError(`External Scene ${path}.kind must be one of: shape, data-mark, text, container, connector`)
   }
+  rejectExternalUnknownKeys(
+    node,
+    EXTERNAL_SCENE_V1_ALLOWED_KEYS.nodes[node.kind as ExternalSceneNode['kind']],
+    path,
+  )
+  rejectOptionalExternalRecord(node.channels, EXTERNAL_SCENE_V1_ALLOWED_KEYS.channels, `${path}.channels`)
+  rejectOptionalExternalRecord(node.paint, EXTERNAL_SCENE_V1_ALLOWED_KEYS.paint, `${path}.paint`)
   if (node.kind === 'shape' || node.kind === 'data-mark') {
     assertExternalGeometry(node.geometry, `${path}.geometry`, [
       'rect', 'circle', 'ellipse', 'line', 'polygon', 'polyline',
@@ -274,6 +349,7 @@ function assertExternalNode(value: unknown, path: string): void {
     return
   }
   assertExternalGeometry(node.geometry, `${path}.geometry`, ['line', 'polyline', 'path'], true)
+  rejectOptionalExternalRecord(node.relationship, EXTERNAL_SCENE_V1_ALLOWED_KEYS.relationship, `${path}.relationship`)
   if (typeof node.from !== 'string') {
     throw new TypeError(`External Scene ${path}.from is required for external connectors and must be a string`)
   }
@@ -283,20 +359,29 @@ function assertExternalNode(value: unknown, path: string): void {
   if (node.labels !== undefined) {
     const labels = externalArray(node.labels, `${path}.labels`)
     for (let index = 0; index < labels.length; index++) {
-      const label = externalRecord(labels[index], `${path}.labels[${index}]`)
-      externalString(label.text, `${path}.labels[${index}].text`)
+      const labelPath = `${path}.labels[${index}]`
+      const label = externalRecord(labels[index], labelPath)
+      rejectExternalUnknownKeys(label, EXTERNAL_SCENE_V1_ALLOWED_KEYS.label, labelPath)
+      externalString(label.text, `${labelPath}.text`)
+      if (label.anchor !== undefined) assertExternalPoint(label.anchor, `${labelPath}.anchor`)
+      rejectOptionalExternalRecord(label.bounds, EXTERNAL_SCENE_V1_ALLOWED_KEYS.bounds, `${labelPath}.bounds`)
+      rejectOptionalExternalRecord(label.halo, EXTERNAL_SCENE_V1_ALLOWED_KEYS.halo, `${labelPath}.halo`)
+      rejectOptionalExternalRecord(label.paint, EXTERNAL_SCENE_V1_ALLOWED_KEYS.paint, `${labelPath}.paint`)
     }
   }
 }
 
 function assertExternalSceneInputShape(input: Record<string, unknown>): void {
+  rejectExternalUnknownKeys(input, EXTERNAL_SCENE_V1_ALLOWED_KEYS.input, 'input')
   externalFinite(input.width, 'input.width')
   externalFinite(input.height, 'input.height')
   externalString(input.family, 'input.family')
   const colors = externalRecord(input.colors, 'input.colors')
+  rejectExternalUnknownKeys(colors, EXTERNAL_SCENE_V1_ALLOWED_KEYS.colors, 'input.colors')
   externalString(colors.bg, 'input.colors.bg')
   externalString(colors.fg, 'input.colors.fg')
   const metadata = externalRecord(input.metadata, 'input.metadata')
+  rejectExternalUnknownKeys(metadata, EXTERNAL_SCENE_V1_ALLOWED_KEYS.metadata, 'input.metadata')
   externalString(metadata.title, 'input.metadata.title')
   if (metadata.description !== undefined) externalString(metadata.description, 'input.metadata.description')
   if (metadata.transparent !== undefined && typeof metadata.transparent !== 'boolean') {
@@ -309,10 +394,16 @@ function assertExternalSceneInputShape(input: Record<string, unknown>): void {
     for (let index = 0; index < markers.length; index++) {
       const path = `input.markers[${index}]`
       const marker = externalRecord(markers[index], path)
+      rejectExternalUnknownKeys(marker, EXTERNAL_SCENE_V1_ALLOWED_KEYS.marker, path)
       externalString(marker.id, `${path}.id`)
       assertExternalGeometry(marker.geometry, `${path}.geometry`, [
         'rect', 'circle', 'ellipse', 'line', 'polygon', 'polyline', 'path', 'compound',
       ])
+      rejectOptionalExternalRecord(marker.size, EXTERNAL_SCENE_V1_ALLOWED_KEYS.markerSize, `${path}.size`)
+      rejectOptionalExternalRecord(marker.viewBox, EXTERNAL_SCENE_V1_ALLOWED_KEYS.viewBox, `${path}.viewBox`)
+      if (marker.ref !== undefined) assertExternalPoint(marker.ref, `${path}.ref`)
+      rejectOptionalExternalRecord(marker.bounds, EXTERNAL_SCENE_V1_ALLOWED_KEYS.bounds, `${path}.bounds`)
+      rejectOptionalExternalRecord(marker.paint, EXTERNAL_SCENE_V1_ALLOWED_KEYS.paint, `${path}.paint`)
       assertRenderableMarker(marker as unknown as MarkerDescriptor)
     }
   }

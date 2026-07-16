@@ -87,10 +87,11 @@ export {
   registerStyle, getStyle, knownStyles, knownStyleDescriptors, resolveStyleReference,
   validateStyleSpec, resolveStyleStack, inferBackend,
   STYLE_SPEC_FORMAT_VERSION, STYLE_SPEC_FIELD_DESCRIPTORS, STYLE_COLOR_TOKEN_DESCRIPTORS,
-  ROLE_STYLE_PROPERTY_DESCRIPTORS, BRAND_CONSTRAINT_DESCRIPTORS, BRAND_CONSTRAINT_KINDS, SEMANTIC_BINDING_CHANNELS, styleSpecJsonSchema,
+  ROLE_STYLE_PROPERTY_DESCRIPTORS, EXACT_ROLE_STYLE_CONTRACT, EXACT_STYLE_SCENE_ROLES, BINDABLE_SCENE_ROLES, BINDABLE_ROLE_STYLE_PROPERTIES,
+  BRAND_CONSTRAINT_DESCRIPTORS, BRAND_CONSTRAINT_KINDS, SEMANTIC_BINDING_CHANNELS, styleSpecJsonSchema,
 } from '../scene/style-registry.ts'
 export type {
-  StyleSpec, StyleColors, RoleStyleFor, RoleStyleSpec, RoleStyles, SemanticSlots, SemanticBinding,
+  StyleSpec, StyleColors, BindableSceneRole, ExactStyleSceneRole, RoleStyleFor, RoleStyleSpec, RoleStyles, SemanticSlots, SemanticBinding,
   SemanticBindingChannel, BrandConstraint, BrandConstraintAction, BrandConstraintKind, StyleInput,
   StyleDescriptor, StyleReferenceResolution, StyleRegistrationOptions,
 } from '../scene/style-registry.ts'
@@ -189,7 +190,8 @@ import { prepareRenderInput } from './render-input.ts'
 import type { ParsedDiagram, ValidDiagram, RenderedLayout, RenderedRegion } from './types.ts'
 import type { RenderOptions } from '../types.ts'
 import { receiptOf as _receiptOf, resolveRenderRequestForExecution as _resolveRenderRequest } from '../render-contract.ts'
-import { layoutFamilyToRendered, layoutResolvedFamilyToRendered } from './family-layouts.ts'
+import { familyArtifactSource, layoutResolvedFamilyToRendered } from './family-layouts.ts'
+import { emitResolvedConfigDiagnostics } from '../render-config-diagnostics.ts'
 import { collectActionRecords as collectRenderedActionRecords } from './analyze.ts'
 import { toFinite } from './types.ts'
 import {
@@ -231,10 +233,14 @@ export function layoutMermaidWithReceipt(
   const { debug, regions, actions, ...renderOptions } = opts
   const layoutOptions = { debug, regions, actions }
   const preparedInput = prepareRenderInput(input)
-  const source = preparedInput.source
+  // Parsed flowcharts retain authored root/group declaration order; families
+  // whose typed body is the positioning authority use the same canonical
+  // source projection as every SVG/verify path.
+  const source = typeof input === 'string' ? preparedInput.source : familyArtifactSource(input)
   const request = _resolveRenderRequest(source, renderOptions, 'layout', layoutOptions, {
     expectedFamilyId: preparedInput.expectedFamilyId,
   })
+  emitResolvedConfigDiagnostics(request)
   let diagram: ParsedDiagram
   if (typeof input === 'string') {
     const parsed = _parse(source)
@@ -255,12 +261,9 @@ export function layoutMermaid(d: ParsedDiagram, opts: LayoutMermaidOptions = {})
   if (d.body.kind === 'preserved') {
     throw new MermaidFamilyDetectionError(familyDetectionDiagnosticFromPreservedBody(d.body))
   }
-  // Every family now reaches layout JSON, certificates, regions and quality
-  // through its descriptor's view of the same artifact used by SVG.
-  const { debug, regions, actions, ...renderOptions } = opts
-  const familyLayout = layoutFamilyToRendered(d, { debug, renderOptions })
-  if (familyLayout) return enrichRenderedLayout(d, familyLayout, opts)
-  throw new Error(`No public layout projection registered for Mermaid family "${d.kind}"`)
+  // The receipt-aware adapter owns request admission and config diagnostics;
+  // direct layout delegates so a second execution path cannot drift.
+  return layoutMermaidWithReceipt(d, opts).layout
 }
 
 function enrichRenderedLayout(d: ParsedDiagram, layout: RenderedLayout, opts: LayoutMermaidOptions): RenderedLayout {

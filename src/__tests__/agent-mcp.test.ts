@@ -588,6 +588,7 @@ describe('MCP bin shim', () => {
     const parsed = parseMcpCliOptions([
       '--transport', 'http', '--host', '0.0.0.0', '--port', '3001', '--artifact-dir', '/tmp/am',
       '--public-url', 'https://example.test/artifacts', '--max-artifact-bytes', '123',
+      '--max-artifact-total-bytes', '1000', '--max-artifacts', '5',
       '--artifact-ttl-ms', '456', '--max-rpc-body-bytes', '789', '--auth-token', 'secret',
       '--max-sandbox-timeout-ms', '1000',
     ])
@@ -598,11 +599,29 @@ describe('MCP bin shim', () => {
       artifactDir: '/tmp/am',
       publicUrl: 'https://example.test/artifacts',
       maxArtifactBytes: 123,
+      maxArtifactTotalBytes: 1000,
+      maxArtifacts: 5,
       artifactTtlMs: 456,
       maxRpcBodyBytes: 789,
       authToken: 'secret',
       maxSandboxTimeoutMs: 1000,
     })
+  })
+
+  test('the MCP parser rejects unknown, missing, duplicate, positional, and inapplicable arguments', () => {
+    for (const argv of [
+      ['--bogus'],
+      ['--port'],
+      ['--port', '--http'],
+      ['stray'],
+      ['--transport', 'http', '--transport', 'http'],
+      ['--http', '--transport', 'stdio'],
+      ['--host', '127.0.0.1'],
+      ['--transport='],
+    ]) {
+      expect(() => parseMcpCliOptions(argv), argv.join(' ')).toThrow()
+    }
+    expect(parseMcpCliOptions(['--transport=http', '--port=0']).transport).toBe('http')
   })
 
   test('runMcpCli handles help and bad flags without launching a server', async () => {
@@ -616,7 +635,7 @@ describe('MCP bin shim', () => {
     expect(out.join('')).toContain('agentic-mermaid-mcp')
     expect(await runMcpCli(['--transport', 'smtp'], io)).toBe(1)
     expect(err.join('')).toContain('unknown transport: smtp')
-    expect(await runMcpCli(['--port', '70000'], io)).toBe(1)
+    expect(await runMcpCli(['--http', '--port', '70000'], io)).toBe(1)
     expect(err.join('')).toContain('--port must be an integer between 0 and 65535')
     expect(await runMcpCli(['--http'], io)).toBe(1)
     expect(err.join('')).toContain('unknown option: --http')

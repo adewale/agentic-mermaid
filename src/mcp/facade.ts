@@ -522,9 +522,8 @@ export function createTracingMermaid(
     ) value = harden((input: any, opts?: any) => {
       assertOpen()
       if (input && typeof input === 'object') requireTrustedDiagram(input, String(prop))
-      const isSvg = prop === 'renderMermaidSVG' || prop === 'renderMermaidSVGWithReceipt'
       const isAscii = prop === 'renderMermaidASCII' || prop === 'renderMermaidASCIIWithReceipt'
-      const configCallback = isSvg ? opts?.onConfigDiagnostic : undefined
+      const configCallback = opts?.onConfigDiagnostic
       const projectionCallback = isAscii ? opts?.onProjectionDiagnostic : undefined
       if (configCallback !== undefined && typeof configCallback !== 'function') {
         throw sandboxError(`Code Mode ${String(prop)} onConfigDiagnostic must be a function`)

@@ -330,6 +330,29 @@ describe('flowchart mutate — six ops', () => {
     const r = mutate(flowchart('flowchart TD\n  A --> B\n  B --> C'), { kind: 'remove_edge', id: 'A->B' })
     expect(r.ok && r.value.body.graph.edges.length).toBe(1)
   })
+  test('edge and node removals remap numeric linkStyle targets to surviving edge indices', () => {
+    const source = 'flowchart TD\n  A --> B\n  B --> C\n  C --> D\n  linkStyle 0 stroke:#111\n  linkStyle 1 stroke:#f00\n  linkStyle 2 stroke:#0f0\n  linkStyle default stroke:#888'
+    const edgeRemoval = mutate(flowchart(source), { kind: 'remove_edge', id: 'A->B' })
+    expect(edgeRemoval.ok).toBe(true)
+    if (edgeRemoval.ok) {
+      expect(edgeRemoval.value.body.graph.edges.map(edge => `${edge.source}->${edge.target}`)).toEqual(['B->C', 'C->D'])
+      expect([...edgeRemoval.value.body.graph.linkStyles.entries()]).toEqual([
+        [0, { stroke: '#f00' }],
+        [1, { stroke: '#0f0' }],
+        ['default', { stroke: '#888' }],
+      ])
+    }
+
+    const nodeRemoval = mutate(flowchart(source), { kind: 'remove_node', id: 'B' })
+    expect(nodeRemoval.ok).toBe(true)
+    if (nodeRemoval.ok) {
+      expect(nodeRemoval.value.body.graph.edges.map(edge => `${edge.source}->${edge.target}`)).toEqual(['C->D'])
+      expect([...nodeRemoval.value.body.graph.linkStyles.entries()]).toEqual([
+        [0, { stroke: '#0f0' }],
+        ['default', { stroke: '#888' }],
+      ])
+    }
+  })
   test('remove_edge missing id', () => {
     const r = mutate(flowchart('flowchart TD\n  A --> B'), { kind: 'remove_edge', id: 'Z->Y' })
     expect(!r.ok && r.error.code).toBe('EDGE_NOT_FOUND')

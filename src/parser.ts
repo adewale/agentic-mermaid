@@ -89,7 +89,7 @@ function coalesceMetadataLines(lines: string[]): string[] {
       continue
     }
 
-    if (/(?:^|[\s;])[\w-]+@\s*\{/.test(line)) {
+    if (/@\s*\{/.test(line)) {
       balance = metadataBraceDelta(line)
       if (balance > 0) current = [line.trim()]
       else out.push(line)
@@ -427,7 +427,10 @@ function parseFlowchart(lines: string[]): MermaidGraph {
       }
 
       // --- Edge/node definitions ---
-      parseEdgeLine(line, graph, subgraphStack, declaredSubgraphIds)
+      const parsed = parseEdgeLine(line, graph, subgraphStack, declaredSubgraphIds)
+      if (!parsed.ok) {
+        throw new Error(`Invalid flowchart statement "${line}": could not fully consume ${parsed.reason}; remaining input: "${parsed.remaining}"`)
+      }
     }
   }
 
@@ -870,7 +873,7 @@ const ARROW_REGEX = /^(<)?(~{3,}|-\.+->|-\.+-|={2,}>|={3,}|o-{2,}o|o-{2,}x|x-{2,
  *
  * Based on PR #36 by @liuxiaopai-ai (https://github.com/lukilabs/beautiful-mermaid/pull/36)
  */
-const TEXT_ARROW_REGEX = /^(<)?(-{2,}|-\.+|={2,})\s+(.+?)\s+(-{2,}>|-{3,}|\.+->|-\.+-|={2,}>|={3,})/
+const TEXT_ARROW_REGEX = /^(<)?(-{2,}|-\.+|={2,})\s*(.+?)\s*(-{2,}[>ox]|-{3,}|\.+->|-\.+-|={2,}>|={3,})/
 
 /**
  * Node shape patterns — ordered from most specific delimiters to least.
@@ -944,22 +947,34 @@ function consumeClassShorthand(text: string): { className: string; length: numbe
  * Handles chaining: A --> B --> C produces edges A→B and B→C.
  * Handles parallel links: A & B --> C & D produces 4 edges.
  */
+type EdgeLineParseResult =
+  | { readonly ok: true }
+  | { readonly ok: false; readonly remaining: string; readonly reason: 'expected node' | 'expected edge operator' | 'expected edge target' }
+
 function parseEdgeLine(
   line: string,
   graph: MermaidGraph,
   subgraphStack: MermaidSubgraph[],
   declaredSubgraphIds: Set<string> = new Set(),
-): void {
-  let remaining = line.trim()
+): EdgeLineParseResult {
+  // A terminal semicolon is a Mermaid statement delimiter, not authored
+  // edge/node content. The top-level splitter normally removes it; trim it
+  // here as well for labels containing unmatched quote-like characters, where
+  // the conservative splitter intentionally leaves the line intact.
+  let remaining = line.trim().replace(/;\s*$/, '').trim()
 
-  // Parse the first node group (possibly with & separators)
+  // Parse the first node group (possibly with & separators). A structured
+  // statement is admitted only when every non-whitespace token is consumed;
+  // publishing a parsed prefix would silently invent/drop authored content.
   const firstGroup = consumeNodeGroup(remaining, graph, subgraphStack, declaredSubgraphIds)
-  if (!firstGroup || firstGroup.ids.length === 0) return
+  if (!firstGroup || firstGroup.ids.length === 0) {
+    return { ok: false, remaining, reason: 'expected node' }
+  }
 
   remaining = firstGroup.remaining.trim()
   let prevGroupIds = firstGroup.ids
 
-  // Parse arrow + node-group pairs until the line is exhausted
+  // Parse arrow + node-group pairs until the line is exhausted.
   while (remaining.length > 0) {
     let hasArrowStart: boolean
     let style: EdgeStyle
@@ -991,7 +1006,7 @@ function parseEdgeLine(
     } else {
       // Fallback: text-embedded label syntax (-- Yes -->, -. Maybe .->, == Sure ==>)
       const textMatch = remaining.match(TEXT_ARROW_REGEX)
-      if (!textMatch) break
+      if (!textMatch) return { ok: false, remaining, reason: 'expected edge operator' }
       hasArrowStart = Boolean(textMatch[1])
       const rawLabel = textMatch[3]!.trim()
       edgeLabel = rawLabel ? parseLabelText(rawLabel).text : undefined
@@ -1000,14 +1015,16 @@ function parseEdgeLine(
       remaining = remaining.slice(textMatch[0].length).trim()
       style = textArrowStyleFromOps(openOp, closeOp)
       length = textArrowLengthFromOps(openOp, closeOp)
-      hasArrowEnd = closeOp.endsWith('>')
       startMarker = hasArrowStart ? 'arrow' : undefined
-      endMarker = hasArrowEnd ? 'arrow' : undefined
+      endMarker = endMarkerForOp(closeOp)
+      hasArrowEnd = endMarker !== undefined
     }
 
     // Parse the next node group
     const nextGroup = consumeNodeGroup(remaining, graph, subgraphStack, declaredSubgraphIds)
-    if (!nextGroup || nextGroup.ids.length === 0) break
+    if (!nextGroup || nextGroup.ids.length === 0) {
+      return { ok: false, remaining, reason: 'expected edge target' }
+    }
 
     remaining = nextGroup.remaining.trim()
 
@@ -1031,6 +1048,7 @@ function parseEdgeLine(
 
     prevGroupIds = nextGroup.ids
   }
+  return { ok: true }
 }
 
 interface ConsumedNodeGroup {
@@ -1083,7 +1101,17 @@ function consumeMetadataNode(
   const objectEnd = findMetadataObjectEnd(text, objectStart)
   if (objectEnd < 0) return null
 
-  const metadata = text.slice(objectStart + 1, objectEnd)
+  applyNodeMetadata(id, text.slice(objectStart + 1, objectEnd), graph, subgraphStack)
+  return { id, remaining: text.slice(objectEnd + 1) }
+}
+
+/** Apply one metadata object whether authored as `A@{...}` or `A[Label]@{...}`. */
+function applyNodeMetadata(
+  id: string,
+  metadata: string,
+  graph: MermaidGraph,
+  subgraphStack: MermaidSubgraph[],
+): void {
   const entries = parseMetadataEntries(metadata)
   const label = entries.get('label')
   const parsedLabel = label !== undefined ? parseLabelText(label, true) : undefined
@@ -1120,7 +1148,21 @@ function consumeMetadataNode(
       ...mediaFields,
     })
   }
-  return { id, remaining: text.slice(objectEnd + 1) }
+}
+
+function consumeNodeMetadataSuffix(
+  id: string,
+  text: string,
+  graph: MermaidGraph,
+  subgraphStack: MermaidSubgraph[],
+): string | null {
+  const start = text.match(/^@\s*\{/)
+  if (!start) return null
+  const objectStart = text.indexOf('{')
+  const objectEnd = findMetadataObjectEnd(text, objectStart)
+  if (objectEnd < 0) return null
+  applyNodeMetadata(id, text.slice(objectStart + 1, objectEnd), graph, subgraphStack)
+  return text.slice(objectEnd + 1)
 }
 
 function findMetadataObjectEnd(text: string, start: number): number {
@@ -1270,7 +1312,16 @@ function consumeNode(
   }
 
   const quotedShapeNode = consumeQuotedShapeNode(text, graph, subgraphStack)
-  if (quotedShapeNode) return quotedShapeNode
+  if (quotedShapeNode) {
+    let remaining = consumeNodeMetadataSuffix(quotedShapeNode.id, quotedShapeNode.remaining, graph, subgraphStack)
+      ?? quotedShapeNode.remaining
+    const classMatch = consumeClassShorthand(remaining)
+    if (classMatch) {
+      graph.classAssignments.set(quotedShapeNode.id, classMatch.className)
+      remaining = remaining.slice(classMatch.length)
+    }
+    return { id: quotedShapeNode.id, remaining }
+  }
 
   let id: string | null = null
   let remaining: string = text
@@ -1303,6 +1354,10 @@ function consumeNode(
   }
 
   if (id === null) return null
+
+  // Metadata may refine an inline node definition (`A[Label]@{...}`) without
+  // becoming an unexplained suffix or a set of phantom key-nodes.
+  remaining = consumeNodeMetadataSuffix(id, remaining, graph, subgraphStack) ?? remaining
 
   // Check for ::: class shorthand suffix immediately after the node
   const classMatch = consumeClassShorthand(remaining)

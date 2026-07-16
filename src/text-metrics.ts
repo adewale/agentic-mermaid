@@ -128,21 +128,27 @@ export function getCharWidth(char: string): number {
  * @returns Estimated width in pixels
  */
 export interface TextMeasurementContract {
-  version: 1
+  version: 3
   unit: 'px'
   fontCalibration: 'Inter-compatible proportional estimate'
+  monospaceCalibration: '0.6em-per-cell'
   wideCodepoints: 'src/shared/unicode-ranges.ts'
   emojiDetection: 'Emoji_Presentation-or-Extended_Pictographic'
   ambiguousWidth: 'single-cell'
+  paintedAdvanceProjection: 'svg-textLength-spacingAndGlyphs'
+  naturalAdvanceExemptions: 'none'
 }
 
 export const TEXT_MEASUREMENT_CONTRACT: TextMeasurementContract = {
-  version: 1,
+  version: 3,
   unit: 'px',
   fontCalibration: 'Inter-compatible proportional estimate',
+  monospaceCalibration: '0.6em-per-cell',
   wideCodepoints: 'src/shared/unicode-ranges.ts',
   emojiDetection: 'Emoji_Presentation-or-Extended_Pictographic',
   ambiguousWidth: 'single-cell',
+  paintedAdvanceProjection: 'svg-textLength-spacingAndGlyphs',
+  naturalAdvanceExemptions: 'none',
 }
 
 export interface TextMeasurementInput {
@@ -213,6 +219,28 @@ export function measureSystemFontSafeTextWidth(text: string, fontSize: number, f
 /** Measure normalized inline formatting with the actual weight of each run.
  * Italic/decorations do not materially change this estimator's advance width;
  * bold runs use at least weight 700. */
+/** Deterministic advance for code-like monospace runs. One ordinary
+ * grapheme occupies 0.6em; CJK/emoji graphemes occupy two cells. */
+export function measureMonospaceTextWidth(
+  text: string,
+  fontSize: number,
+  letterSpacing = 0,
+): number {
+  const clusters = graphemes(text)
+  let cells = 0
+  for (const cluster of clusters) {
+    let width = 0
+    for (const char of cluster) {
+      const code = char.codePointAt(0)
+      if (code === undefined || isCombiningMark(code)) continue
+      width = Math.max(width, isFullwidth(code) || isEmoji(char) ? 2 : 1)
+    }
+    cells += width
+  }
+  const tracking = Math.max(0, clusters.length - 1) * letterSpacing
+  return Math.max(0, cells * fontSize * 0.6 + tracking)
+}
+
 export function measureFormattedTextWidth(
   text: string,
   fontSize: number,

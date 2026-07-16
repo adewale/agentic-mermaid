@@ -65,6 +65,20 @@ describe('flowchart parser conformance safety floor (issue #36)', () => {
     expect(graph.edges.map(e => `${e.source}->${e.target}`)).toEqual(['A->B', 'B->C'])
   })
 
+  test('partially consumed statements fail closed instead of inventing or dropping content', () => {
+    for (const statement of [
+      'frobnicate keep-me',
+      'A -- bad ??? B',
+      'direction LR',
+      'A -->',
+    ]) {
+      const source = `flowchart TD\n  A --> B\n  ${statement}`
+      expect(() => parseGraph(source), statement).toThrow(/fully consume|invalid flowchart statement/i)
+      const parsed = parseMermaid(source)
+      expect(parsed.ok, statement).toBe(false)
+    }
+  })
+
   test('semicolon splitting preserves semicolons inside edge labels', () => {
     expect(edgeTriples('flowchart LR\n  A -->|x;y| B; B --> C')).toEqual([
       ['A', 'B', 'x;y'],

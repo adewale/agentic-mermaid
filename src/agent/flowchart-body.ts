@@ -323,7 +323,7 @@ export function mutateFlowchart(body: FlowchartBody, op: FlowchartMutationOp): R
     case 'remove_node': {
       if (!graph.nodes.has(op.id)) return err({ code: 'NODE_NOT_FOUND', message: `Node "${op.id}" not found` })
       graph.nodes.delete(op.id)
-      graph.edges = graph.edges.filter(e => e.source !== op.id && e.target !== op.id)
+      retainEdges(graph, edge => edge.source !== op.id && edge.target !== op.id)
       for (const sg of graph.subgraphs) removeFromSubgraph(sg, op.id)
       graph.classAssignments.delete(op.id)
       graph.nodeStyles.delete(op.id)
@@ -366,7 +366,7 @@ export function mutateFlowchart(body: FlowchartBody, op: FlowchartMutationOp): R
     case 'remove_edge': {
       const idx = findEdgeIndexById(graph, op.id)
       if (idx < 0) return err({ code: 'EDGE_NOT_FOUND', message: `Edge "${op.id}" not found — pass an authored edge ID (e1), "from->to", or "from->to#k" for the k-th parallel edge` })
-      graph.edges.splice(idx, 1)
+      retainEdges(graph, (_edge, edgeIndex) => edgeIndex !== idx)
       return done()
     }
     case 'set_shape': {
@@ -424,12 +424,13 @@ export function mutateFlowchart(body: FlowchartBody, op: FlowchartMutationOp): R
       const { list, index } = located
       const sg = list[index]!
       if (op.removeMembers) {
-        for (const memberId of collectMemberNodeIds(sg)) {
+        const memberIds = new Set(collectMemberNodeIds(sg))
+        for (const memberId of memberIds) {
           graph.nodes.delete(memberId)
-          graph.edges = graph.edges.filter(e => e.source !== memberId && e.target !== memberId)
           graph.classAssignments.delete(memberId)
           graph.nodeStyles.delete(memberId)
         }
+        retainEdges(graph, edge => !memberIds.has(edge.source) && !memberIds.has(edge.target))
         list.splice(index, 1)
         return done()
       }
@@ -532,6 +533,35 @@ function collectMemberNodeIds(sg: MermaidSubgraph): string[] {
 }
 
 // ---- Graph helpers ----------------------------------------------------------
+
+/** Retain edges and atomically remap every numeric linkStyle bound to an old
+ * edge index. `default` and authored out-of-range indices have no edge identity
+ * to remap, so they retain their historical compatibility behavior. */
+function retainEdges(
+  graph: MermaidGraph,
+  keep: (edge: MermaidEdge, index: number) => boolean,
+): void {
+  const oldEdges = graph.edges
+  const oldToNew = new Map<number, number>()
+  const edges: MermaidEdge[] = []
+  oldEdges.forEach((edge, oldIndex) => {
+    if (!keep(edge, oldIndex)) return
+    oldToNew.set(oldIndex, edges.length)
+    edges.push(edge)
+  })
+
+  const linkStyles = new Map<number | 'default', Record<string, string>>()
+  for (const [target, style] of graph.linkStyles) {
+    if (target === 'default' || !Number.isInteger(target) || target < 0 || target >= oldEdges.length) {
+      linkStyles.set(target, style)
+      continue
+    }
+    const remapped = oldToNew.get(target)
+    if (remapped !== undefined) linkStyles.set(remapped, style)
+  }
+  graph.edges = edges
+  graph.linkStyles = linkStyles
+}
 
 export function edgeIdOf(edge: MermaidEdge, idx = 0): string {
   return idx === 0 ? `${edge.source}->${edge.target}` : `${edge.source}->${edge.target}#${idx}`

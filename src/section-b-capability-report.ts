@@ -20,7 +20,7 @@ import type { StyleSpec } from './scene/style-spec.ts'
 import { SECTION_B_FAMILY_CENSUS_FIXTURES } from './scene/section-b-census-fixtures.ts'
 import { sceneNodeSerialization } from './scene/serialization.ts'
 
-export const SECTION_B_CAPABILITY_REPORT_VERSION = 2 as const
+export const SECTION_B_CAPABILITY_REPORT_VERSION = 3 as const
 
 function deepFreeze<T>(value: T): T {
   if (value === null || typeof value !== 'object' || Object.isFrozen(value)) return value
@@ -125,7 +125,8 @@ export interface SectionBCapabilityReport {
   }
   readonly phases: readonly {
     readonly id: 'B0' | 'B1' | 'B2' | 'B3' | 'B4' | 'B5'
-    readonly acceptanceEvidence: readonly string[]
+    readonly status: 'complete' | 'not-promoted'
+    readonly evidence: readonly string[]
   }[]
   readonly digest: string
 }
@@ -491,15 +492,22 @@ function body(): Omit<SectionBCapabilityReport, 'digest'> {
     brandPack: {
       promoted: false,
       reason: 'No external consumer has shown that ordinary version-controlled StyleSpec files are insufficient for repeated distribution, exact selection, or installed-resource integrity.',
-      evidence: ['docs/project/brand-primitives-plan.md', 'eval/section-b-brand-evidence/usability-agent-session.json'],
+      evidence: ['TODO.md#dec-1--get-one-real-external-consumer', 'docs/project/brand-primitives-plan.md'],
     },
     phases: [
-      { id: 'B0', acceptanceEvidence: ['src/__tests__/section-b-capability-report.test.ts', 'docs/project/section-b-capability-report.json'] },
-      { id: 'B1', acceptanceEvidence: ['src/__tests__/section-b-role-styles.test.ts', 'src/__tests__/radar-label-discipline.test.ts'] },
-      { id: 'B2', acceptanceEvidence: ['src/__tests__/section-b-role-styles.test.ts', 'src/__tests__/style-spec-authority.test.ts'] },
-      { id: 'B3', acceptanceEvidence: ['src/__tests__/section-b-policy.test.ts', 'src/scene/brand-constraints.ts'] },
-      { id: 'B4', acceptanceEvidence: ['docs/project/brand-primitives-plan.md', 'eval/section-b-brand-evidence/usability-agent-session.json'] },
-      { id: 'B5', acceptanceEvidence: ['docs/style-authoring.md', 'scripts/pr-assets/section-b-brand-evidence.ts', 'eval/section-b-brand-evidence/evidence-receipt.json', 'eval/section-b-brand-evidence/usability-agent-session.json'] },
+      { id: 'B0', status: 'complete', evidence: ['src/__tests__/section-b-capability-report.test.ts', 'docs/project/section-b-capability-report.json'] },
+      { id: 'B1', status: 'complete', evidence: ['src/__tests__/section-b-role-styles.test.ts', 'src/__tests__/radar-label-discipline.test.ts'] },
+      { id: 'B2', status: 'complete', evidence: ['src/__tests__/section-b-role-styles.test.ts', 'src/__tests__/style-spec-authority.test.ts'] },
+      { id: 'B3', status: 'complete', evidence: ['src/__tests__/section-b-policy.test.ts', 'src/scene/brand-constraints.ts'] },
+      { id: 'B4', status: 'not-promoted', evidence: ['TODO.md#dec-1--get-one-real-external-consumer', 'docs/project/brand-primitives-plan.md'] },
+      { id: 'B5', status: 'complete', evidence: [
+        'docs/style-authoring.md',
+        'scripts/pr-assets/section-b-brand-evidence.ts',
+        'eval/section-b-brand-evidence/evidence-receipt.json',
+        'eval/section-b-brand-evidence/usability-agent-session.json',
+        'examples/styles/catalog.json',
+        'eval/style-prototype-evidence/visual-approval.json',
+      ] },
     ],
   }
 }
@@ -555,5 +563,5 @@ export function sectionBCapabilityReportMarkdown(report = createSectionBCapabili
   const privateFaceRows = report.privateFaceProjection.map(face => `| \`${face.face}\` | \`${face.sourceRole}\` | ${face.publicFields.map(value => `\`${value}\``).join(', ')} |`).join('\n')
   const looks = report.builtInLooks.map(look => `- \`${look.inputName}\` → \`${look.id}\`; public export ${look.exportable ? 'valid' : 'invalid'}; role keys: ${look.roleKeys.length ? look.roleKeys.map(value => `\`${value}\``).join(', ') : 'none'}`).join('\n')
   const paintRows = report.paintAuthority.map(row => `| \`${row.id}\` | ${row.provenance} | ${row.foreground} | ${row.background} | ${row.outputContext} | ${row.compositing} / ${row.behavior} |`).join('\n')
-  return `# Section B capability report\n\nGenerated from the Style, SceneRole, and FamilyDescriptor registries. Do not edit by hand. Machine-readable sibling: [section-b-capability-report.json](./section-b-capability-report.json).\n\n- Public role-style leaves: **${report.publicRoleStyleLeaves.length}**\n- Registered Scene roles: **${report.roles.length}**\n- Built-in families: **${report.families.length}**\n- Exportable built-in Looks: **${report.builtInLooks.length}**\n- BrandPack promoted: **no** — ${report.brandPack.reason}\n- Digest: \`${report.digest}\`\n\n## SceneRole styling\n\n| Role | Fallback | Exact consumption | Applicable public leaves |\n|---|---|---|---|\n${roleRows}\n\n## Derived private-face projection\n\nThe remaining private face is compiled only from these public role records; it has no author-only leaf.\n\n| Compiled face | Public source role | Public fields |\n|---|---|---|\n${privateFaceRows}\n\n## Executable family census\n\nEvery row below is generated by lowering the descriptor example plus its rich census fixture through the admitted Scene path, executing no-color terminal output, and composing that Scene evidence with each registered built-in backend's executable conformance receipt. Generation fails when a declared role/channel is not emitted or an enrolled binding is inert.\n\n| Family | Emitted roles | Populated channels | Conformant graphical backends | Terminal witness |\n|---|---:|---:|---|---|\n${familyRows}\n\n### Role migration and projection witnesses\n\n| Family | Emitted role | Observed mark kinds | Public migration target | Representative emitted channels | Terminal evidence boundary | Executable witness |\n|---|---|---|---|---|---|---|\n${executableRoleRows}\n\n### Semantic-channel emission witnesses\n\n| Family | Populated channel | Representative values | Emitting roles | Public binding state | Executable witness |\n|---|---|---|---|---|---|\n${executableChannelRows}\n\n### Binding-consumer witnesses\n\n| Family | Consumer role | Emitted selector | Graphical projection | No-color terminal projection | Executable witness |\n|---|---|---|---|---|---|\n${bindingRows}\n\n## Built-in public exportability\n\n${looks}\n\n## Paint authority and constraints\n\nDerived defaults may be guarded while they are chosen. Concrete authored theme/config/element paint is diagnose-only. Opaque concrete pairs are measurable; transparent host backdrops are explicitly unmeasurable.\n\n| Case | Provenance | Foreground | Background | Output context | Measurement / behavior |\n|---|---|---|---|---|---|\n${paintRows}\n\n## Phase evidence\n\n${report.phases.map(phase => `- **${phase.id}:** ${phase.acceptanceEvidence.map(value => `\`${value}\``).join(', ')}`).join('\n')}\n`
+  return `# Section B capability report\n\nGenerated from the Style, SceneRole, and FamilyDescriptor registries. Do not edit by hand. Machine-readable sibling: [section-b-capability-report.json](./section-b-capability-report.json).\n\n- Public role-style leaves: **${report.publicRoleStyleLeaves.length}**\n- Registered Scene roles: **${report.roles.length}**\n- Built-in families: **${report.families.length}**\n- Exportable built-in Looks: **${report.builtInLooks.length}**\n- BrandPack promoted: **no** — ${report.brandPack.reason}\n- Digest: \`${report.digest}\`\n\n## SceneRole styling\n\n| Role | Fallback | Exact consumption | Applicable public leaves |\n|---|---|---|---|\n${roleRows}\n\n## Derived private-face projection\n\nThe remaining private face is compiled only from these public role records; it has no author-only leaf.\n\n| Compiled face | Public source role | Public fields |\n|---|---|---|\n${privateFaceRows}\n\n## Executable family census\n\nEvery row below is generated by lowering the descriptor example plus its rich census fixture through the admitted Scene path, executing no-color terminal output, and composing that Scene evidence with each registered built-in backend's executable conformance receipt. Generation fails when a declared role/channel is not emitted or an enrolled binding is inert.\n\n| Family | Emitted roles | Populated channels | Conformant graphical backends | Terminal witness |\n|---|---:|---:|---|---|\n${familyRows}\n\n### Role migration and projection witnesses\n\n| Family | Emitted role | Observed mark kinds | Public migration target | Representative emitted channels | Terminal evidence boundary | Executable witness |\n|---|---|---|---|---|---|---|\n${executableRoleRows}\n\n### Semantic-channel emission witnesses\n\n| Family | Populated channel | Representative values | Emitting roles | Public binding state | Executable witness |\n|---|---|---|---|---|---|\n${executableChannelRows}\n\n### Binding-consumer witnesses\n\n| Family | Consumer role | Emitted selector | Graphical projection | No-color terminal projection | Executable witness |\n|---|---|---|---|---|---|\n${bindingRows}\n\n## Built-in public exportability\n\n${looks}\n\n## Paint authority and constraints\n\nDerived defaults may be guarded while they are chosen. Concrete authored theme/config/element paint is diagnose-only. Opaque concrete pairs are measurable; transparent host backdrops are explicitly unmeasurable.\n\n| Case | Provenance | Foreground | Background | Output context | Measurement / behavior |\n|---|---|---|---|---|---|\n${paintRows}\n\n## Phase evidence\n\n${report.phases.map(phase => `- **${phase.id} (${phase.status}):** ${phase.evidence.map(value => `\`${value}\``).join(', ')}`).join('\n')}\n`
 }

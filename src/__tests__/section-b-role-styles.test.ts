@@ -10,6 +10,7 @@ import {
   validateStyleSpec,
 } from '../index.ts'
 import { SCENE_ROLE_DESCRIPTORS } from '../scene/roles.ts'
+import { BINDABLE_SCENE_ROLES, EXACT_ROLE_STYLE_CONTRACT } from '../scene/role-style-contract.ts'
 import { getFamily, knownBuiltinFamilies } from '../agent/families.ts'
 import { renderMermaidPNG } from '../agent/png.ts'
 
@@ -50,7 +51,16 @@ describe('Section B public semantic role Styles', () => {
   })
 
   test('every role descriptor owns closed applicability and deterministic fallback', () => {
+    expect(SCENE_ROLE_DESCRIPTORS.filter(role => role.traits.styleConsumption === 'exact').map(role => String(role.role)))
+      .toEqual(Object.keys(EXACT_ROLE_STYLE_CONTRACT))
+    expect(SCENE_ROLE_DESCRIPTORS.filter(role => role.traits.styleBindingFamilies.length > 0).map(role => String(role.role)))
+      .toEqual([...BINDABLE_SCENE_ROLES])
     for (const descriptor of SCENE_ROLE_DESCRIPTORS) {
+      const exact = EXACT_ROLE_STYLE_CONTRACT[descriptor.role as keyof typeof EXACT_ROLE_STYLE_CONTRACT]
+      if (exact) {
+        expect(descriptor.style.applicableProperties, descriptor.role).toEqual(exact.properties)
+        expect(descriptor.traits.styleBindingFamilies, descriptor.role).toEqual('bindingFamilies' in exact ? exact.bindingFamilies : [])
+      }
       const fallback = SCENE_ROLE_DESCRIPTORS.find(candidate => candidate.role === descriptor.style.fallbackRole)
       expect(fallback, descriptor.role).toBeDefined()
       if (descriptor.traits.styleConsumption === 'exact') {

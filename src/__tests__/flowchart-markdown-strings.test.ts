@@ -39,12 +39,12 @@ describe('markdown strings — node labels', () => {
     const graph = parseGraph(source)
     expect(graph.nodes.get('A')!.label).toBe('The <i>bat</i> in the chat')
     const svg = renderMermaidSVG(source)
-    expect(svg).toContain('<tspan font-style="italic">bat</tspan>')
+    expect(svg).toMatch(/<tspan font-style="italic"[^>]*>bat<\/tspan>/)
   })
 
   it('renders bold emphasis as a styled run', () => {
     const svg = renderMermaidSVG('flowchart TD\n  A["`hello **world**`"] --> B\n')
-    expect(svg).toContain('<tspan font-weight="bold">world</tspan>')
+    expect(svg).toMatch(/<tspan font-weight="bold"[^>]*>world<\/tspan>/)
   })
 
   it('non-markdown labels keep today\'s pipeline (bold tags, quotes)', () => {
@@ -138,8 +138,8 @@ describe('markdown strings — agent contract (#102)', () => {
     expect(graph.nodes.get('A')!.label).toBe('The cat in <b>the</b> hat')
     expect(graph.edges.map(e => e.label)).toEqual(['The <i>bat</i> in the chat', 'The rat in the mat'])
     const svg = renderMermaidSVG(source)
-    expect(svg).toContain('<tspan font-weight="bold">the</tspan>')
-    expect(svg).toContain('<tspan font-style="italic">bat</tspan>')
+    expect(svg).toMatch(/<tspan font-weight="bold"[^>]*>the<\/tspan>/)
+    expect(svg).toMatch(/<tspan font-style="italic"[^>]*>bat<\/tspan>/)
     expect(svg).not.toContain('`')
     expect(verifyMermaid(source).ok).toBe(true)
   })

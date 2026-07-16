@@ -99,7 +99,14 @@ function roundtripFaithfulnessWarnings(d: ValidDiagram): LayoutWarning[] {
 export function verifyMermaid(input: ParsedDiagram | string, opts: VerifyOptions = {}): VerifyResult {
   logToolInvocation('verify')
   const parsed = typeof input === 'string' ? parseRegisteredMermaid(input) : { ok: true as const, value: input }
-  if (!parsed.ok) return finalize([{ code: 'EMPTY_DIAGRAM' }], emptyRenderedLayout('flowchart'), opts)
+  if (!parsed.ok) {
+    // Strict parsing must fail closed, but source-level repair diagnostics are
+    // still valuable (and were historically part of verify's contract).
+    // Report them alongside the hard failure instead of making malformed
+    // delimiters and dangling edges disappear merely because admission failed.
+    const sourceWarnings = typeof input === 'string' ? flowchartUnsupportedSyntaxWarnings(input) : []
+    return finalize([{ code: 'EMPTY_DIAGRAM' }, ...sourceWarnings], emptyRenderedLayout('flowchart'), opts)
+  }
   if (parsed.value.body.kind === 'preserved') {
     const { diagnostic } = parsed.value.body
     return finalize(

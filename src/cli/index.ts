@@ -4,7 +4,7 @@
 
 import { readFileSync, existsSync, writeFileSync, mkdtempSync, watch } from 'node:fs'
 import { spawnSync } from 'node:child_process'
-import { join, resolve } from 'node:path'
+import { basename, dirname, join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { parseRegisteredMermaid } from '../agent/parse.ts'
 import { logToolInvocation } from '../agent/trace-log.ts'
@@ -146,7 +146,7 @@ const PNG_RENDER_FLAGS = Object.freeze(Object.values(PNG_CLI_FLAG_BINDINGS).flat
 
 // Command ownership is the second half of the flag contract: recognizing a
 // name globally is not permission to ignore it on an unrelated command.
-const COMMAND_FLAGS: Record<string, readonly string[]> = {
+export const COMMAND_FLAGS = {
   render: ['help', 'json', 'certificates', 'watch', 'style', 'seed', 'options', 'output', 'format', 'security', 'gantt-today', 'target-width', ...PNG_RENDER_FLAGS, 'o'],
   verify: ['help', 'json', 'suppress', 'label-cap', 'style'],
   parse: ['help', 'json'],
@@ -161,7 +161,26 @@ const COMMAND_FLAGS: Record<string, readonly string[]> = {
   'init-agent': ['help', 'json', 'dir', 'force'],
   batch: ['help', 'jsonl'],
   'render-markdown': ['help', 'ascii'],
-}
+} as const satisfies Record<string, readonly string[]>
+
+/** Closed positional contract. Zero source arguments means piped stdin; only
+ * render intentionally accepts multiple files. */
+export const COMMAND_POSITIONALS = Object.freeze({
+  render: { min: 0, max: Number.POSITIVE_INFINITY },
+  verify: { min: 0, max: 1 },
+  parse: { min: 0, max: 1 },
+  serialize: { min: 0, max: 0 },
+  mutate: { min: 0, max: 1 },
+  preview: { min: 0, max: 1 },
+  format: { min: 0, max: 1 },
+  describe: { min: 0, max: 1 },
+  capabilities: { min: 0, max: 0 },
+  styles: { min: 0, max: 0 },
+  'llms-txt': { min: 0, max: 0 },
+  'init-agent': { min: 0, max: 0 },
+  batch: { min: 0, max: 0 },
+  'render-markdown': { min: 0, max: 1 },
+} as const satisfies Record<keyof typeof COMMAND_FLAGS, { readonly min: number; readonly max: number }>)
 
 export function parseArgs(argv: string[]): ParsedArgs {
   const out: ParsedArgs = { positional: [], flags: {} }
@@ -388,10 +407,14 @@ export function runCli(argv: string[]): number {
   if (missingValues.length > 0) {
     return argError(`Flag${missingValues.length > 1 ? 's' : ''} ${missingValues.map(name => `--${name}`).join(', ')} require${missingValues.length === 1 ? 's' : ''} a value.`)
   }
-  const allowed = new Set(COMMAND_FLAGS[args.command] ?? ['help'])
+  const allowed = new Set(COMMAND_FLAGS[args.command as keyof typeof COMMAND_FLAGS] ?? ['help'])
   const inapplicable = Object.keys(args.flags).filter(name => !allowed.has(name))
   if (inapplicable.length > 0) {
     return argError(`Flag${inapplicable.length > 1 ? 's' : ''} ${inapplicable.map(name => `--${name}`).join(', ')} ${inapplicable.length > 1 ? 'are' : 'is'} not valid for am ${args.command}.`)
+  }
+  const positionalContract = COMMAND_POSITIONALS[args.command as keyof typeof COMMAND_POSITIONALS]
+  if (positionalContract && (args.positional.length < positionalContract.min || args.positional.length > positionalContract.max)) {
+    return argError(`am ${args.command} accepts ${positionalContract.max === 0 ? 'no positional arguments' : `at most ${positionalContract.max} positional input${positionalContract.max === 1 ? '' : 's'}`}; received ${args.positional.length}.`)
   }
   // Opt-in invocation logging: when AM_TRACE_LOG names a file, append one JSON
   // line per real command run. Shares the sink with the library and hosted MCP
@@ -693,8 +716,42 @@ export function renderFileOnce(file: string, format: string, opts: RenderFormatO
   }
 }
 
+export interface PathWatchHandle { close(): void }
+
+/** Watch the containing directory so rename-over atomic saves keep following
+ * the input pathname rather than a stale inode. Bursts are coalesced. */
+export function watchPathForChanges(
+  file: string,
+  onChange: () => void,
+  debounceMs = 25,
+): PathWatchHandle {
+  const absolute = resolve(file)
+  const watchedName = basename(absolute)
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const watcher = watch(dirname(absolute), { persistent: true }, (_event, filename) => {
+    const changed = filename === null ? undefined : basename(String(filename))
+    if (changed !== undefined && changed !== watchedName) return
+    if (timer !== undefined) clearTimeout(timer)
+    timer = setTimeout(() => {
+      timer = undefined
+      onChange()
+    }, debounceMs)
+  })
+  return Object.freeze({
+    close(): void {
+      if (timer !== undefined) clearTimeout(timer)
+      timer = undefined
+      watcher.close()
+    },
+  })
+}
+
 function cmdRenderWatch(file: string, format: string, args: ParsedArgs, json: boolean, opts: RenderFormatOptions = {}): number {
   const outFile = typeof args.flags.output === 'string' ? args.flags.output : ''
+  if (outFile && resolve(outFile) === resolve(file)) {
+    process.stderr.write('am render --watch output must differ from the input file\n')
+    return EXIT_ARG_ERROR
+  }
   const emit = () => {
     try {
       const src = readFileSync(file, 'utf8')
@@ -715,7 +772,7 @@ function cmdRenderWatch(file: string, format: string, args: ParsedArgs, json: bo
   }
   emit() // initial render
   process.stderr.write(`watching ${file} (Ctrl-C to stop)…\n`)
-  watch(file, { persistent: true }, (event) => { if (event === 'change') emit() })
+  watchPathForChanges(file, emit)
   // Block forever — the watcher keeps the event loop alive.
   return EXIT_OK
 }
@@ -1501,6 +1558,10 @@ export function runBatchLine(rawLine: string, lineIndex = 0): BatchOutput {
           return { ok: false, op, error: { code: 'INVALID_OPTIONS', message: problems.join('; ') } }
         }
         const sharedOptions = sharedCandidate as RenderOptions
+        // Classify source admission errors before entering renderer internals;
+        // malformed batch input is a documented PARSE_FAILED response, never
+        // an INTERNAL failure that can poison an otherwise healthy JSONL run.
+        preflightCliRenderableSource(parsed.source)
         // #7540: auto-namespace SVG ids per batch line so the rendered
         // diagrams can coexist on one HTML page without def-id collisions,
         // while retaining a caller-provided suffix.
@@ -1599,11 +1660,15 @@ export function runBatchLine(rawLine: string, lineIndex = 0): BatchOutput {
     // Project documented render diagnostics (family-detection UNKNOWN_HEADER/
     // UNSUPPORTED_FAMILY, ASCII_TARGET_WIDTH_IMPOSSIBLE) the same way every other CLI render
     // transport does (cmdRender/preview/render-markdown), instead of collapsing them to a
-    // generic INTERNAL. cliStructuredRenderFailure first honours an already-structured throw,
-    // then falls back to INTERNAL for genuinely internal errors.
+    // generic internal error. cliStructuredRenderFailure first honours an already-structured
+    // throw; any remaining render-path exception is still a bounded RENDER_FAILED response.
     const structured = cliStructuredRenderFailure(e)
     if (structured) return { ok: false, op, error: structured.error }
-    return { ok: false, op, error: { code: 'INTERNAL', message: (e as Error).message } }
+    return {
+      ok: false,
+      op,
+      error: { code: 'RENDER_FAILED', message: e instanceof Error ? e.message : String(e) },
+    }
   }
 }
 

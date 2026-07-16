@@ -30,6 +30,7 @@ import {
   type RenderRequestReceipt,
 } from '../render-contract.ts'
 import { projectTerminalStyle, type ResolvedTerminalStyle, type TerminalProjectionDiagnostic } from '../terminal-style.ts'
+import { emitResolvedConfigDiagnostics } from '../render-config-diagnostics.ts'
 import { visualWidth } from './width.ts'
 import { graphemes } from '../shared/graphemes.ts'
 import { wrapText } from './wrap.ts'
@@ -209,6 +210,7 @@ export function renderMermaidASCIIWithReceipt(
   const request = resolveRenderRequestForExecution(text, sharedOptions, outputKind, outputPolicy, {
     expectedFamilyId: preparedInput.expectedFamilyId,
   })
+  emitResolvedConfigDiagnostics(request)
   // Sanitize user-derived text before layout, cell measurement, or trusted
   // ANSI/HTML wrappers are introduced. A visible one-cell replacement keeps
   // renderer geometry and emitted geometry coherent.

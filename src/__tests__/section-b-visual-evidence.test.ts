@@ -3,7 +3,13 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { knownBuiltinFamilies } from '../agent/families.ts'
-import { buildSectionBBrandEvidence, buildSectionBBrandEvidenceReceipt, sectionBVariantHeadingMarkup } from '../../scripts/pr-assets/section-b-brand-evidence.ts'
+import {
+  SECTION_B_BASELINE_COMMIT,
+  buildSectionBBrandEvidence,
+  buildSectionBBrandEvidenceReceipt,
+  sectionBVariantHeadingMarkup,
+  verifySectionBCausalBaseline,
+} from '../../scripts/pr-assets/section-b-brand-evidence.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const PNG = join(ROOT, 'docs/design/families/section-b-brand-evidence.png')
@@ -47,8 +53,14 @@ describe('Section B generated visual evidence', () => {
     ])
     expect(receipt.outputPaths).toEqual({
       graphicalCells: 'public native renderMermaidPNG',
+      graphicalBackends: 'public renderMermaidSVG + renderMermaidPNG sentinel probes',
       terminal: 'public renderMermaidASCII (Unicode, no color)',
     })
+    expect(receipt.graphicalBackends).toEqual(Object.fromEntries(['default', 'rough', 'hybrid'].map(backend => [backend, {
+      familyCount: knownBuiltinFamilies().length,
+      svgSha256: expect.stringMatching(/^[a-f0-9]{64}$/),
+      pngSha256: expect.stringMatching(/^[a-f0-9]{64}$/),
+    }])))
     expect(receipt.terminalSha256).toMatch(/^[a-f0-9]{64}$/)
     expect(receipt.fontInputs).toEqual([
       { path: 'assets/fonts/DejaVuSans-Bold.ttf', sha256: expect.stringMatching(/^[a-f0-9]{64}$/) },
@@ -58,7 +70,9 @@ describe('Section B generated visual evidence', () => {
       state: 'unsupported-style-fields',
       expected: expect.stringContaining('no fabricated before image'),
     })
-    expect(receipt.baseline.command).toContain('origin/main')
+    expect(receipt.baseline).toMatchObject({ commit: SECTION_B_BASELINE_COMMIT, expectedExitCode: 2 })
+    expect(receipt.baseline.command).toContain(SECTION_B_BASELINE_COMMIT)
+    expect(receipt.baseline.command).not.toContain('origin/main')
     expect(receipt.baseline.command).toContain('eval/section-b-brand-evidence/baseline.mmd')
     expect(receipt.baseline.command).toContain('eval/section-b-brand-evidence/role-style.json')
     expect(readFileSync(join(ROOT, 'eval/section-b-brand-evidence/baseline.mmd'), 'utf8')).toContain('flowchart LR')
@@ -78,5 +92,13 @@ describe('Section B generated visual evidence', () => {
     })
     expect(approval.scope).toContain('60 family-by-variant cells')
     expect(readFileSync(join(ROOT, 'docs/style-authoring.md'), 'utf8')).toContain('plus three holdout styles')
-  })
+  }, 120_000)
+
+  test('the pinned pre-Section-B commit executes the documented hard-error baseline', () => {
+    expect(verifySectionBCausalBaseline()).toMatchObject({
+      commit: SECTION_B_BASELINE_COMMIT,
+      exitCode: 2,
+      diagnostic: expect.stringContaining('unknown field "roles"'),
+    })
+  }, 30_000)
 })

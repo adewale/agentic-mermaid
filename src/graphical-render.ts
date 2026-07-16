@@ -8,6 +8,7 @@
 import './scene/builtin-backends.ts'
 
 import { compactSvg, namespaceSvgIds } from './renderer.ts'
+import { fitUncalibratedSvgText } from './custom-font-geometry.ts'
 import type { FamilyLayoutResult } from './agent/families.ts'
 import type { PositionedDiagram, RenderContext, RenderOptions } from './types.ts'
 import type { DiagramColors } from './theme.ts'
@@ -27,7 +28,7 @@ import {
 import { applyOutputSecurityPolicy } from './output-security.ts'
 import type { OutputSecurityDiagnostic } from './output-security.ts'
 import { replaceSvgRootStartTag, svgAttribute, svgRootStartTag } from './svg-structure.ts'
-import { explicitFamilyConfigDiagnostics } from './shared/family-config-diagnostics.ts'
+import { emitResolvedConfigDiagnostics } from './render-config-diagnostics.ts'
 import { admitFamilyScene } from './scene/admission.ts'
 import { assertFinalSvgByteBudget } from './scene/scene-validation.ts'
 import type { SceneDoc } from './scene/ir.ts'
@@ -131,6 +132,8 @@ export function renderPositionedMermaidSVG(
 
   let svg = inlineResolvedColors(rawSvg, context.colors)
   assertFinalSvgByteBudget(svg, 'color-resolved SVG output')
+  svg = fitUncalibratedSvgText(svg, request.appearance.font)
+  assertFinalSvgByteBudget(svg, 'font-geometry-fitted SVG output')
   const idPrefix = effectiveOptions.idPrefix ?? ''
   if (idPrefix) {
     svg = namespaceSvgIds(svg, idPrefix)
@@ -196,14 +199,7 @@ export function executeGraphicalRequest(
     outputOptions,
     resolutionOptions,
   )
-  const executionPlan = resolvedRenderExecutionPlanOf(request)
-  if (executionPlan.explicitMermaidConfig) {
-    const report = executionPlan.onConfigDiagnostic ?? ((diagnostic) => console.warn(diagnostic.message))
-    for (const diagnostic of explicitFamilyConfigDiagnostics(
-      executionPlan.family.id,
-      executionPlan.explicitMermaidConfig,
-    )) report(diagnostic)
-  }
+  emitResolvedConfigDiagnostics(request)
   const securityDiagnostics: OutputSecurityDiagnostic[] = []
   const rendered = renderResolvedMermaidSVG(request, securityDiagnostics)
   const receipt = receiptOf(request, securityDiagnostics)

@@ -69,16 +69,18 @@ import { prepareRenderInput } from './agent/render-input.ts'
 import {
   type RenderRequestReceipt,
 } from './render-contract.ts'
-import type { HostBackendPolicy } from './scene/backend.ts'
+import { snapshotHostBackendPolicy, type HostBackendPolicy } from './scene/backend.ts'
 import { executeGraphicalRequest } from './graphical-render.ts'
 
 export {
   registerStyle, getStyle, knownStyles, knownStyleDescriptors, resolveStyleReference,
   validateStyleSpec, resolveStyleStack, inferBackend, STYLE_SPEC_FORMAT_VERSION,
-  STYLE_SPEC_FIELD_DESCRIPTORS, STYLE_COLOR_TOKEN_DESCRIPTORS, ROLE_STYLE_PROPERTY_DESCRIPTORS, BRAND_CONSTRAINT_DESCRIPTORS, BRAND_CONSTRAINT_KINDS, SEMANTIC_BINDING_CHANNELS, styleSpecJsonSchema,
+  STYLE_SPEC_FIELD_DESCRIPTORS, STYLE_COLOR_TOKEN_DESCRIPTORS, ROLE_STYLE_PROPERTY_DESCRIPTORS,
+  EXACT_ROLE_STYLE_CONTRACT, EXACT_STYLE_SCENE_ROLES, BINDABLE_SCENE_ROLES, BINDABLE_ROLE_STYLE_PROPERTIES,
+  BRAND_CONSTRAINT_DESCRIPTORS, BRAND_CONSTRAINT_KINDS, SEMANTIC_BINDING_CHANNELS, styleSpecJsonSchema,
 } from './scene/style-registry.ts'
 export type {
-  StyleSpec, StyleColors, RoleStyleFor, RoleStyleSpec, RoleStyles, SemanticSlots, SemanticBinding,
+  StyleSpec, StyleColors, BindableSceneRole, ExactStyleSceneRole, RoleStyleFor, RoleStyleSpec, RoleStyles, SemanticSlots, SemanticBinding,
   SemanticBindingChannel, BrandConstraint, BrandConstraintAction, BrandConstraintKind, StyleInput, StyleDescriptor,
   StyleReferenceResolution, StyleRegistrationOptions, StyleRegistryKind,
 } from './scene/style-registry.ts'
@@ -276,7 +278,8 @@ export interface MermaidRenderer {
  * requested look and cannot name or smuggle executable backend machinery.
  */
 export function createMermaidRenderer(hostOptions: MermaidRendererHostOptions = {}): MermaidRenderer {
-  const host = Object.freeze({ ...hostOptions })
+  const backendPolicy = snapshotHostBackendPolicy(hostOptions.backendPolicy)
+  const host = Object.freeze({ ...(backendPolicy ? { backendPolicy } : {}) })
   return Object.freeze({
     renderMermaidSVG(text: ParsedDiagram | string, options: RenderOptions = {}): string {
       const input = prepareRenderInput(text)

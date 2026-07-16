@@ -33,12 +33,17 @@ import type {
 } from '../shared/extension-identity.ts'
 import { BUILTIN_PALETTE_DEFINITIONS, type BuiltinPaletteDefinition } from '../palette-catalog.ts'
 import { JSON_CONFIG_ADMISSION_LIMITS } from '../shared/json-config-admission.ts'
+import { BINDABLE_ROLE_STYLE_PROPERTIES } from './role-style-contract.ts'
 
 export {
   STYLE_SPEC_FORMAT_VERSION,
   STYLE_SPEC_FIELD_DESCRIPTORS,
   STYLE_COLOR_TOKEN_DESCRIPTORS,
   ROLE_STYLE_PROPERTY_DESCRIPTORS,
+  EXACT_ROLE_STYLE_CONTRACT,
+  EXACT_STYLE_SCENE_ROLES,
+  BINDABLE_SCENE_ROLES,
+  BINDABLE_ROLE_STYLE_PROPERTIES,
   BRAND_CONSTRAINT_DESCRIPTORS,
   BRAND_CONSTRAINT_KINDS,
   SEMANTIC_BINDING_CHANNELS,
@@ -48,7 +53,7 @@ export {
   validateStyleSpec,
 } from './style-spec.ts'
 export type {
-  BrandConstraint, BrandConstraintAction, BrandConstraintKind, RoleStyleFor, RoleStyleSpec, RoleStyles,
+  BindableSceneRole, BrandConstraint, BrandConstraintAction, BrandConstraintKind, ExactStyleSceneRole, RoleStyleFor, RoleStyleSpec, RoleStyles,
   SemanticBinding, SemanticBindingChannel, SemanticSlots, StyleSpec, StyleColors,
 } from './style-spec.ts'
 import type {
@@ -350,7 +355,8 @@ function registerCanonicalStyle(
 
 /**
  * Register a reusable declarative style. New registrations use an explicit
- * `look:` or `palette:` identity.
+ * `look:` or `palette:` identity. Third-party registrations cannot create
+ * unqualified inputs or compatibility aliases.
  */
 export function registerStyle(spec: StyleSpec, options: StyleRegistrationOptions = {}): () => boolean {
   assertStyleRegistryMutationAllowed()
@@ -452,11 +458,18 @@ export function inferBackend(spec: StyleSpec): 'default' | 'rough' | 'hybrid' {
   return 'default'
 }
 
+type InternalRoleStyleLookup = Partial<Record<BuiltinSceneRole, Readonly<RoleStyleSpec>>>
+
+function roleStyleLookup(roles: RoleStyles | undefined): InternalRoleStyleLookup | undefined {
+  return roles as InternalRoleStyleLookup | undefined
+}
+
 function mergeRoleStyles(left: RoleStyles | undefined, right: RoleStyles | undefined): RoleStyles | undefined {
   if (!left && !right) return undefined
   const merged: RoleStyles = { ...left }
+  const lookup = merged as Partial<Record<BuiltinSceneRole, RoleStyleSpec>>
   for (const [role, value] of Object.entries(right ?? {})) {
-    if (value !== undefined) merged[role as BuiltinSceneRole] = { ...merged[role as BuiltinSceneRole], ...value }
+    if (value !== undefined) lookup[role as BuiltinSceneRole] = { ...lookup[role as BuiltinSceneRole], ...value }
   }
   return merged
 }
@@ -574,10 +587,11 @@ export function resolveRoleStyle(
   options: { readonly includeFallback?: boolean } = {},
 ): Readonly<RoleStyleSpec> | undefined {
   const descriptor = SCENE_ROLE_DESCRIPTORS.find(candidate => candidate.role === role)
+  const roles = roleStyleLookup(face?.roles)
   const fallback = options.includeFallback === false
     ? undefined
-    : descriptor ? face?.roles?.[descriptor.style.fallbackRole] : undefined
-  const exact = face?.roles?.[role]
+    : descriptor ? roles?.[descriptor.style.fallbackRole] : undefined
+  const exact = roles?.[role]
   let merged: RoleStyleSpec | undefined = fallback || exact ? { ...fallback, ...exact } : undefined
   const applicable: ReadonlySet<string> = new Set(descriptor?.style.applicableProperties ?? [])
   for (const binding of face?.bindings ?? []) {
@@ -599,13 +613,13 @@ function assertRealizedStyleSpec(spec: InternalStyleSpec): void {
   for (const [index, binding] of (spec.bindings ?? []).entries()) {
     const slot = spec.semanticSlots?.[binding.slot]
     if (!slot) throw new Error(`Invalid style spec: binding ${index + 1} references missing semantic slot "${binding.slot}"`)
-    if (binding.role !== undefined) {
-      const descriptor = SCENE_ROLE_DESCRIPTORS.find(candidate => candidate.role === binding.role)!
-      const applicable: ReadonlySet<string> = new Set(descriptor.style.applicableProperties)
-      const slotProperties = Object.keys(slot)
-      if (slotProperties.length > 0 && !slotProperties.some(property => applicable.has(property))) {
-        throw new Error(`Invalid style spec: semantic slot "${binding.slot}" has no field applicable to role "${binding.role}"`)
-      }
+    const applicable: ReadonlySet<string> = binding.role === undefined
+      ? new Set(BINDABLE_ROLE_STYLE_PROPERTIES)
+      : new Set(SCENE_ROLE_DESCRIPTORS.find(candidate => candidate.role === binding.role)!.style.applicableProperties)
+    if (!Object.keys(slot).some(property => applicable.has(property))) {
+      throw new Error(binding.role === undefined
+        ? `Invalid style spec: semantic slot "${binding.slot}" has no field applicable to any executable category-binding role`
+        : `Invalid style spec: semantic slot "${binding.slot}" has no field applicable to role "${binding.role}"`)
     }
   }
   const hachureFields = ['hachureAngle', 'hachureGap', 'fillWeight'] as const
@@ -665,8 +679,9 @@ export function isStyledSpec(spec: StyleSpec): boolean {
 // inputs. Tufte is intentionally a full Look only.
 // ----------------------------------------------------------------------------
 
-// The default is a real discoverable descriptor, not a picker-local
-// pseudo-style. It resolves to the empty treatment.
+// The byte-identical default is a real discoverable descriptor, not a picker-
+// local pseudo-style. Stack resolution treats `crisp` as the empty treatment so
+// selecting it cannot perturb the default path.
 registerBuiltInStyle({
   name: 'crisp',
   displayLabel: 'Crisp',

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { renderMermaidASCII } from '../ascii/index.ts'
 import { maxLineWidth, visualWidth } from '../ascii/multiline-utils.ts'
-import { drawTextWithRole, mkCanvas, mkRoleCanvas } from '../ascii/canvas.ts'
+import { drawText, drawTextWithRole, mkCanvas, mkRoleCanvas } from '../ascii/canvas.ts'
 
 describe('ASCII CJK/fullwidth display width', () => {
   it('counts CJK, Hangul, and emoji by terminal column width', () => {
@@ -15,6 +15,16 @@ describe('ASCII CJK/fullwidth display width', () => {
   it('keeps East Asian ambiguous-width symbols stable as single-cell glyphs', () => {
     expect(visualWidth('Ω·±×')).toBe(4)
     expect(visualWidth('AΩ🙂Ｂ')).toBe(6)
+  })
+
+  it('non-forced wide text never overwrites occupied topology with a continuation cell', () => {
+    for (const grapheme of ['界', '🙂', '👩‍🔬']) {
+      const canvas = mkCanvas(2, 0)
+      canvas[1]![0] = '►'
+      drawText(canvas, { x: 0, y: 0 }, grapheme)
+      expect(canvas[0]![0], grapheme).toBe(' ')
+      expect(canvas[1]![0], grapheme).toBe('►')
+    }
   })
 
   it('bounded cell writes refuse a whole wide grapheme at either boundary', () => {
@@ -52,6 +62,20 @@ describe('ASCII CJK/fullwidth display width', () => {
     expect(output).toContain('처리')
     expect(output).toContain('数据🙂')
     expect(output).not.toContain('\x00')
+  })
+
+  it('wide flowchart edge labels preserve direction markers in LR and RL projections', () => {
+    for (const [direction, marker] of [['LR', '►'], ['RL', '◄']] as const) {
+      for (const label of ['界界界界', '🙂🙂🙂🙂']) {
+        const output = renderMermaidASCII(`flowchart ${direction}\n  A -- ${label} --> B`, {
+          colorMode: 'none', paddingX: 1, paddingY: 1,
+        })
+        expect(output, `${direction} ${label}`).toContain(label)
+        expect(output, `${direction} ${label}`).toContain(marker)
+        expect(output).toContain('A')
+        expect(output).toContain('B')
+      }
+    }
   })
 
   it('centers CJK sequence message labels on the arrow (bug 3.3)', () => {

@@ -638,6 +638,10 @@ export function createMapping(graph: AsciiGraph): void {
 
   shareSiblingEdgeTrunks(graph)
 
+  if (graph.config.reverseDirection) {
+    mirrorHorizontalGrid(graph)
+  }
+
   // Convert grid coords → drawing coords and generate box drawings
   for (const node of graph.nodes) {
     node.drawingCoord = gridToDrawingCoord(graph, node.gridCoord!)
@@ -649,6 +653,46 @@ export function createMapping(graph: AsciiGraph): void {
   setRoleCanvasSizeToGrid(graph.roleCanvas, graph.columnWidth, graph.rowHeight)
   calculateSubgraphBoundingBoxes(graph)
   offsetDrawingForSubgraphs(graph)
+}
+
+// ============================================================================
+// Reverse-direction projection
+// ============================================================================
+
+function mirrorHorizontalDirection(direction: Direction): Direction {
+  return { x: 2 - direction.x, y: direction.y }
+}
+
+/**
+ * Mirror the completed LR logical grid before drawing. Text is drawn only
+ * after this projection, so labels retain reading order while node placement,
+ * routes, markers, bundles, and junctions become a genuine RL layout.
+ */
+function mirrorHorizontalGrid(graph: AsciiGraph): void {
+  const maxX = Math.max(0, ...graph.columnWidth.keys())
+  const point = (value: GridCoord): GridCoord => ({ x: maxX - value.x, y: value.y })
+
+  for (const node of graph.nodes) {
+    const coord = node.gridCoord!
+    node.gridCoord = { x: maxX - (coord.x + 2), y: coord.y }
+  }
+  for (const edge of graph.edges) {
+    edge.path = edge.path.map(point)
+    edge.labelLine = edge.labelLine.map(point)
+    edge.startDir = mirrorHorizontalDirection(edge.startDir)
+    edge.endDir = mirrorHorizontalDirection(edge.endDir)
+  }
+  // TD is the only bundling mode, so an LR-derived RL projection has no
+  // EdgeBundle/pathToJunction state to mirror.
+  graph.trunkJunctions = graph.trunkJunctions.map(point)
+
+  const mirroredGrid = new Map<string, AsciiNode>()
+  for (const [key, node] of graph.grid) {
+    const [x, y] = key.split(',').map(Number)
+    mirroredGrid.set(gridKey({ x: maxX - x!, y: y! }), node)
+  }
+  graph.grid = mirroredGrid
+  graph.columnWidth = new Map([...graph.columnWidth].map(([x, width]) => [maxX - x, width]))
 }
 
 // ============================================================================

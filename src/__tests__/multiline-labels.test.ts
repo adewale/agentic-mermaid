@@ -594,7 +594,7 @@ describe('renderMermaidSVGAsync – inline formatting', () => {
   it('does not include raw tag text in rendered text', async () => {
     const svg = await renderMermaidSVGAsync('graph TD\n  A[<b>bold</b>]')
     // Tags should not appear as escaped text content inside <text> elements
-    expect(svg).toMatch(/<tspan font-weight="bold">bold<\/tspan>/)
+    expect(svg).toMatch(/<tspan font-weight="bold"[^>]*>bold<\/tspan>/)
     expect(svg).not.toMatch(/<text[^>]*>&lt;b&gt;/)
   })
 

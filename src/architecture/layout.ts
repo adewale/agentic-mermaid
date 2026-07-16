@@ -4,6 +4,7 @@ import { ARCHITECTURE_DEFAULT_LAYER_SPACING, ARCHITECTURE_DEFAULT_NODE_SPACING }
 import type { ArchitectureLayoutMetrics } from './config.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { architectureToMermaidGraph } from './parser.ts'
+import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import type {
   ArchitectureChildRef,
   ArchitectureDiagram,
@@ -482,8 +483,8 @@ function applyArchitectureSideConstraints(
   }
   const orderedGroups = [...grouped.values()].sort((a, b) =>
     b[0]!.depth - a[0]!.depth
-      || (a[0]!.parentId ?? '').localeCompare(b[0]!.parentId ?? '')
-      || a[0]!.axis.localeCompare(b[0]!.axis))
+      || compareCodePointStrings(a[0]!.parentId ?? '', b[0]!.parentId ?? '')
+      || compareCodePointStrings(a[0]!.axis, b[0]!.axis))
 
   for (const entries of orderedGroups) {
     const { axis, parentId } = entries[0]!
@@ -563,7 +564,7 @@ function applyArchitectureSideConstraints(
         .sort((a, b) => {
           const aa = componentBounds(a), bb = componentBounds(b)
           const delta = axis === 'x' ? aa.x - bb.x : aa.y - bb.y
-          return delta || a.localeCompare(b)
+          return delta || compareCodePointStrings(a, b)
         })
       if (available.length === 0) break
       const next = available[0]!
@@ -596,7 +597,7 @@ function applyArchitectureSideConstraints(
   const contexts: Array<{ parentId?: string; depth: number }> = [
     ...diagram.groups.map(group => ({ parentId: group.id, depth: groupAncestors(group.id).length })),
     { parentId: undefined, depth: 0 },
-  ].sort((a, b) => b.depth - a.depth || (a.parentId ?? '').localeCompare(b.parentId ?? ''))
+  ].sort((a, b) => b.depth - a.depth || compareCodePointStrings(a.parentId ?? '', b.parentId ?? ''))
   const overlaps = (a: Bounds, b: Bounds): boolean =>
     a.x < b.x + b.width - ROUTE_EPSILON && b.x < a.x + a.width - ROUTE_EPSILON
       && a.y < b.y + b.height - ROUTE_EPSILON && b.y < a.y + a.height - ROUTE_EPSILON
@@ -644,7 +645,7 @@ function applyArchitectureSideConstraints(
     }
     const order = [...members.keys()].sort((a, b) => {
       const aa = boundsFor(a), bb = boundsFor(b)
-      return aa.y - bb.y || aa.x - bb.x || a.localeCompare(b)
+      return aa.y - bb.y || aa.x - bb.x || compareCodePointStrings(a, b)
     })
     const placed: string[] = []
     for (const root of order) {

@@ -17,7 +17,7 @@ import {
 import type { RenderRequestReceipt } from './render-contract.ts'
 import type { RenderExecutionResolutionOptions } from './render-contract.ts'
 import type { RenderOptions } from './types.ts'
-import type { HostBackendPolicy } from './scene/backend.ts'
+import { snapshotHostBackendPolicy, type HostBackendPolicy } from './scene/backend.ts'
 import type { ParsedDiagram } from './agent/types.ts'
 import { prepareRenderInput } from './agent/render-input.ts'
 import { inlineFontVarForRaster } from './theme.ts'
@@ -96,8 +96,10 @@ export function createMermaidBrowserPNGRenderer(
   hostOptions: MermaidBrowserPNGRendererHostOptions,
 ): MermaidBrowserPNGRenderer {
   if (!hostOptions || typeof hostOptions !== 'object') throw new TypeError('browser PNG renderer host options are required')
-  if (typeof hostOptions.rasterize !== 'function') throw new TypeError('browser PNG rasterizer must be a function')
-  const host = Object.freeze({ ...hostOptions })
+  const rasterize = hostOptions.rasterize
+  if (typeof rasterize !== 'function') throw new TypeError('browser PNG rasterizer must be a function')
+  const backendPolicy = snapshotHostBackendPolicy(hostOptions.backendPolicy)
+  const host = Object.freeze({ rasterize, ...(backendPolicy ? { backendPolicy } : {}) })
   return Object.freeze({
     async renderMermaidPNG(
       source: ParsedDiagram | string,

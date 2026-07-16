@@ -155,6 +155,7 @@ function renderFlowchartAscii(ctx: AsciiContext): string {
 
   if (parsed.direction === 'LR' || parsed.direction === 'RL') {
     config.graphDirection = 'LR'
+    config.reverseDirection = parsed.direction === 'RL'
   } else {
     config.graphDirection = 'TD'
   }
@@ -179,6 +180,7 @@ function renderStateAsciiWithContext(ctx: AsciiContext): string {
   const parsed = parseMermaid(ctx.source.familyText)
   const config = { ...ctx.config }
   config.graphDirection = parsed.direction === 'LR' || parsed.direction === 'RL' ? 'LR' : 'TD'
+  config.reverseDirection = parsed.direction === 'RL'
   return renderStateAscii(parsed, config, ctx.colorMode, ctx.theme, ctx.options.targetWidth)
 }
 

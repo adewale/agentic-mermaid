@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from 'bun:test'
-import { mkdtempSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createArtifactStore } from '../mcp/artifacts.ts'
@@ -79,6 +79,7 @@ describe('MCP HTTP/SSE transport and managed artifacts', () => {
     const artifact = await fetch(payload.artifact.url)
     expect(artifact.status).toBe(200)
     expect(artifact.headers.get('content-type')).toBe('image/png')
+    expect(artifact.headers.get('cache-control')).toMatch(/^private, max-age=(?:3599|3600), immutable$/)
     const bytes = new Uint8Array(await artifact.arrayBuffer())
     expect(bytes.length).toBe(payload.artifact.bytes)
     for (let i = 0; i < PNG_MAGIC.length; i++) expect(bytes[i]).toBe(PNG_MAGIC[i]!)
@@ -94,6 +95,40 @@ describe('MCP HTTP/SSE transport and managed artifacts', () => {
     expect(store.read(record.name)?.bytes.length).toBe(PNG_MAGIC.length)
     now += 10
     expect(store.read(record.name)).toBeNull()
+  })
+
+  test('artifact TTL and aggregate quotas survive store recreation', () => {
+    const dir = tempDir()
+    let now = 10_000
+    writeFileSync(join(dir, 'preexisting.png'), Buffer.from(PNG_MAGIC))
+    const first = createArtifactStore({
+      dir, ttlMs: 2_500, maxBytes: 16, maxTotalBytes: 16, maxArtifacts: 2, now: () => now,
+    })
+    const a = first.write(Buffer.from([1, 2, 3, 4]), { extension: '.png', mimeType: 'image/png' })
+    const b = first.write(Buffer.from([5, 6, 7, 8]), { extension: '.png', mimeType: 'image/png' })
+    expect(() => first.write(Buffer.from([9]), { extension: '.png', mimeType: 'image/png' })).toThrow(/maxArtifacts/)
+
+    now = 11_000
+    const restarted = createArtifactStore({
+      dir, ttlMs: 2_500, maxBytes: 16, maxTotalBytes: 16, maxArtifacts: 2, now: () => now,
+    })
+    expect(restarted.read(a.name)).toMatchObject({ cacheMaxAgeSeconds: 1, expiresAt: 12_500 })
+    expect(restarted.read(b.name)?.bytes).toEqual(Buffer.from([5, 6, 7, 8]))
+
+    now = 12_500
+    const expired = createArtifactStore({
+      dir, ttlMs: 2_500, maxBytes: 16, maxTotalBytes: 16, maxArtifacts: 2, now: () => now,
+    })
+    expect(expired.read(a.name)).toBeNull()
+    expect(expired.read(b.name)).toBeNull()
+    expect(existsSync(join(dir, 'preexisting.png'))).toBe(true)
+
+    const total = createArtifactStore({
+      dir: tempDir(), maxBytes: 8, maxTotalBytes: 8, maxArtifacts: 3, now: () => now,
+    })
+    total.write(Buffer.from([1, 2, 3, 4]), { extension: '.png', mimeType: 'image/png' })
+    total.write(Buffer.from([5, 6, 7, 8]), { extension: '.png', mimeType: 'image/png' })
+    expect(() => total.write(Buffer.from([9]), { extension: '.png', mimeType: 'image/png' })).toThrow(/maxTotalBytes/)
   })
 
   test('HTTP RPC requires JSON content-type and bounds request bodies', async () => {

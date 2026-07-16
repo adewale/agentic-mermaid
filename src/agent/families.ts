@@ -425,8 +425,11 @@ interface BuiltinFamilyDescriptorSeed extends BuiltinFamilyMetadata {
   config: FamilyConfigContract
 }
 
-function builtinFamilyCapabilityEvidence(): readonly FamilyCapabilityEvidence[] {
+function builtinFamilyCapabilityEvidence(familyId: BuiltinFamilyId): readonly FamilyCapabilityEvidence[] {
   const executableWitness = ['src/__tests__/section-a-family-descriptor-conformance.test.ts'] as const
+  const terminalWitness = familyId === 'flowchart' || familyId === 'state'
+    ? [...executableWitness, 'src/__tests__/characterization-layout.test.ts']
+    : executableWitness
   return [
     { capability: 'detection', state: 'native', evidence: executableWitness },
     { capability: 'source-preservation', state: 'native', evidence: executableWitness },
@@ -437,7 +440,7 @@ function builtinFamilyCapabilityEvidence(): readonly FamilyCapabilityEvidence[] 
     { capability: 'layout', state: 'native', evidence: executableWitness },
     { capability: 'scene', state: 'native', evidence: executableWitness },
     { capability: 'svg', state: 'native', evidence: executableWitness },
-    { capability: 'terminal', state: 'native', evidence: executableWitness },
+    { capability: 'terminal', state: 'native', evidence: terminalWitness },
   ]
 }
 
@@ -586,7 +589,7 @@ function completeBuiltinDescriptor(seed: BuiltinFamilyDescriptorSeed): FamilyDes
       sceneRoles,
       ['src/__tests__/section-a-family-descriptor-conformance.test.ts'],
     ),
-    capabilityEvidence: builtinFamilyCapabilityEvidence(),
+    capabilityEvidence: builtinFamilyCapabilityEvidence(seed.id),
   })
 }
 
