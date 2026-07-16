@@ -22,16 +22,16 @@
   <marker id="char-class-cls-inherit" markerWidth="12" markerHeight="10" refX="12" refY="5" orient="auto-start-reverse" overflow="visible">
     <polygon points="0 0, 12 5, 0 10" fill="#FFFFFF" stroke="#47474a" stroke-width="1.5" />
   </marker>
-  <marker id="char-class-cls-composition" markerWidth="12" markerHeight="10" refX="0" refY="5" orient="auto-start-reverse" overflow="visible">
-    <polygon points="6 0, 12 5, 6 10, 0 5" fill="#47474a" stroke="#47474a" stroke-width="1" />
+  <marker id="char-class-cls-composition" markerWidth="14" markerHeight="12" refX="13" refY="6" orient="auto-start-reverse" viewBox="0 0 14 12" overflow="hidden">
+    <polygon points="7 1, 13 6, 7 11, 1 6" fill="#47474a" stroke="#47474a" stroke-width="1" />
   </marker>
-  <marker id="char-class-cls-aggregation" markerWidth="12" markerHeight="10" refX="0" refY="5" orient="auto-start-reverse" overflow="visible">
-    <polygon points="6 0, 12 5, 6 10, 0 5" fill="#FFFFFF" stroke="#47474a" stroke-width="1.5" />
+  <marker id="char-class-cls-aggregation" markerWidth="14" markerHeight="12" refX="13" refY="6" orient="auto-start-reverse" viewBox="0 0 14 12" overflow="hidden">
+    <polygon points="7 1, 13 6, 7 11, 1 6" fill="#FFFFFF" stroke="#47474a" stroke-width="1.5" />
   </marker>
   <marker id="char-class-cls-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto-start-reverse" overflow="visible">
     <polyline points="0 0, 8 3, 0 6" fill="none" stroke="#47474a" stroke-width="1.5" />
   </marker>
-  <marker id="char-class-cls-lollipop" markerWidth="14" markerHeight="14" refX="7" refY="7" orient="auto" overflow="visible">
+  <marker id="char-class-cls-lollipop" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto-start-reverse" viewBox="0 0 14 14" overflow="hidden">
     <circle cx="7" cy="7" r="5" fill="#FFFFFF" stroke="#47474a" stroke-width="1.5" />
   </marker>
 </defs>
