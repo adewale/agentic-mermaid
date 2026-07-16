@@ -899,6 +899,52 @@ describe('Workers Static Assets website contract', () => {
     expect(examplesHtml).toContain('<strong>GitGraph</strong><span>3 shared examples</span>')
   })
 
+  test('rich gallery exposes one source-verified high-cardinality palette example per controlled family', () => {
+    const expected = new Map([
+      ['Pie', ['Pie: Platform Workload Portfolio', 10, 'peer slices']],
+      ['Radar', ['Radar: Delivery Team Profiles', 8, 'peer curves']],
+      ['XY Chart', ['XY: Service Health Portfolio', 8, 'peer series']],
+      ['Journey', ['Journey: Cross-functional Release Readiness', 10, 'peer actors']],
+      ['Mindmap', ['Mindmap: Incident Response Command Map', 13, 'first-level branches']],
+      ['GitGraph', ['GitGraph: Monorepo Delivery Lanes', 12, 'delivery lanes']],
+    ] as const)
+    const peerCountFromSource = (category: string, source: string) => {
+      if (category === 'Pie') return source.match(/^\s*"[^"]+"\s*:/gm)?.length ?? 0
+      if (category === 'Radar') return source.match(/^\s*curve\s+/gm)?.length ?? 0
+      if (category === 'XY Chart') return source.match(/^\s*(?:bar|line)\s+\[/gm)?.length ?? 0
+      if (category === 'Journey') {
+        const actors = new Set(source.split('\n').flatMap((line) => {
+          const match = line.match(/:\s*[1-5]\s*:\s*(.+)$/)
+          return match ? match[1]!.split(',').map(actor => actor.trim()).filter(Boolean) : []
+        }))
+        return actors.size
+      }
+      if (category === 'Mindmap') return source.match(/^ {4}\S/gm)?.length ?? 0
+      if (category === 'GitGraph') return 1 + (source.match(/^\s*branch\s+/gm)?.length ?? 0)
+      return 0
+    }
+
+    const examplesIndex = JSON.parse(read('examples/index.json'))
+    const examplesHtml = read('examples/index.html')
+    expect(examplesHtml).toContain('<p class="example-jump-title" id="examples-high-cardinality-palettes-jump">High-cardinality peer palettes</p>')
+    for (const [category, [title, count, kind]] of expected) {
+      const candidates = RICH_EXAMPLES.filter(sample => sample.category === category && sample.palettePeers)
+      expect(candidates.length, `${category} designated palette examples`).toBeGreaterThanOrEqual(1)
+      const sample = candidates.find(candidate => candidate.title === title)
+      expect(sample, title).toEqual(expect.objectContaining({
+        category,
+        title,
+        palettePeers: { count, kind },
+      }))
+      expect(count, `${title} crosses the legacy boundary`).toBeGreaterThan(6)
+      expect(peerCountFromSource(category, sample!.source), `${title} source-derived peer count`).toBe(count)
+      expect(examplesIndex.richExamples.find((candidate: any) => candidate.title === title), `${title} catalog metadata`).toEqual(
+        expect.objectContaining({ category, title, palettePeers: { count, kind } }),
+      )
+      expect(examplesHtml, `${title} palette proof`).toContain(`Palette proof: ${count} ${kind}`)
+    }
+  })
+
   test('examples page carries an agent task, trace, and render anchor for every family', () => {
     const examples = read('examples/index.html')
     // Registry-exact: adding a family without a prompt/trace or supported render
@@ -1047,6 +1093,7 @@ describe('Workers Static Assets website contract', () => {
       description: sample.description,
       source: String(sample.source ?? '').trim(),
       options: sample.options ?? {},
+      ...(sample.palettePeers ? { palettePeers: sample.palettePeers } : {}),
       renderUrl: `/examples/#${richExampleId(sample, index)}`,
       editorUrl: expect.stringContaining('/editor/#'),
     })))

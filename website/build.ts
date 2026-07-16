@@ -779,6 +779,12 @@ function examplesJumpHtml(groups: Map<string, any[]>, styleThemeCombos: ReturnTy
   const richCategories = Array.from(new Set(richExamples.map((sample) => sample.category ?? 'Examples')))
   const richCards = richCategories.map((category) => `<a class="example-jump-card" href="#rich-${escapeAttr(exampleSlug(category))}"><strong>${escapeHtml(category)}</strong><span>${escapeHtml(String(richExamples.filter((sample) => (sample.category ?? 'Examples') === category).length))} shared examples</span></a>`).join('')
   sections.push(`<section class="example-jump-section" aria-labelledby="examples-rich-gallery-jump"><p class="example-jump-title" id="examples-rich-gallery-jump">Rich shared example gallery</p><div class="example-jump-grid">${richCards}</div></section>`)
+  const paletteProofCards = richExamples.flatMap((sample, index) => sample.palettePeers
+    ? [`<a class="example-jump-card" href="#${escapeAttr(richExampleId(sample, index))}"><strong>${escapeHtml(sample.category ?? 'Example')}</strong><span>${escapeHtml(`${sample.palettePeers.count} ${sample.palettePeers.kind} · ${sample.title}`)}</span></a>`]
+    : []).join('')
+  if (paletteProofCards) {
+    sections.push(`<section class="example-jump-section" aria-labelledby="examples-high-cardinality-palettes-jump"><p class="example-jump-title" id="examples-high-cardinality-palettes-jump">High-cardinality peer palettes</p><div class="example-jump-grid">${paletteProofCards}</div></section>`)
+  }
   return `<nav class="example-jump" aria-label="Jump to examples">${sections.join('\n')}</nav>`
 }
 
@@ -802,6 +808,7 @@ ${entries.map(({ sample, id }) => `
       <p class="example-meta">${escapeHtml(category)}</p>
       <h4>${escapeHtml(sample.title)}</h4>
       <p>${escapeHtml(sample.description ?? '')}</p>
+      ${sample.palettePeers ? `<p class="example-palette-proof">Palette proof: ${escapeHtml(`${sample.palettePeers.count} ${sample.palettePeers.kind}`)}</p>` : ''}
     </div>
     <a class="go" href="${escapeAttr(editorStateHref({ source: sample.source, config: sample.options ?? {} }))}">Open in editor</a>
   </header>
@@ -1992,6 +1999,7 @@ const examples = {
     description: sample.description,
     source: String(sample.source ?? '').trim(),
     options: sample.options ?? {},
+    ...(sample.palettePeers ? { palettePeers: sample.palettePeers } : {}),
     renderUrl: `/examples/#${richExampleId(sample, index)}`,
     editorUrl: editorStateHref({ source: sample.source, config: sample.options ?? {} }),
   })),
