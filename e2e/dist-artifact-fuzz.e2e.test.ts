@@ -88,7 +88,11 @@ process.stdout.write(JSON.stringify(out))
 // core; the mixed arm sprays every family header + garbage for crash parity.
 // ---------------------------------------------------------------------------
 const idArb = fc.constantFrom('A', 'B', 'C', 'D', 'E', 'F', 'G', 'Svc', 'DB', 'Cache', 'n1', 'n2')
-const labelArb = fc.string({ maxLength: 10 }).filter(s => !/[[\]{}|>\n\r]/.test(s))
+// The equivalence arm claims these are valid flowcharts. Generate labels from
+// a closed grammar instead of filtering arbitrary strings that can still carry
+// unmatched quote/backtick syntax and legitimately fail strict parsing.
+const labelCharArb = fc.constantFrom(...'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 _')
+const labelArb = fc.array(labelCharArb, { minLength: 1, maxLength: 10 }).map(chars => chars.join(''))
 const edgeArb = fc.tuple(idArb, idArb, fc.option(labelArb, { nil: undefined })).map(
   ([a, b, l]) => (l ? `${a} -->|${l}| ${b}` : `${a} --> ${b}`),
 )

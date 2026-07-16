@@ -62,7 +62,10 @@ const refAscii = (src: string) => tag(() => renderMermaidASCII(src, { useAscii: 
 // Generators.
 // ---------------------------------------------------------------------------
 const idArb = fc.constantFrom('A', 'B', 'C', 'D', 'E', 'F', 'G', 'Svc', 'DB', 'Cache', 'n1', 'n2')
-const labelArb = fc.string({ maxLength: 10 }).filter(s => !/[[\]{}|>\n\r]/.test(s))
+// This arm asserts unconditional render success, so construct labels from the
+// admitted grammar rather than filtering arbitrary quote/backtick fragments.
+const labelCharArb = fc.constantFrom(...'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 _')
+const labelArb = fc.array(labelCharArb, { minLength: 1, maxLength: 10 }).map(chars => chars.join(''))
 const edgeArb = fc.tuple(idArb, idArb, fc.option(labelArb, { nil: undefined })).map(
   ([a, b, l]) => (l ? `${a} -->|${l}| ${b}` : `${a} --> ${b}`),
 )
