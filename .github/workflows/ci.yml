@@ -21,6 +21,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          # The baseline-integrity test materializes and re-renders the named
+          # historical palette commit. A depth-1 PR merge checkout omits that
+          # object and makes the proof fail before it can compare SVG bytes.
+          fetch-depth: 0
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
