@@ -20,14 +20,15 @@ jobs:
         shard: [1/3, 2/3, 3/3]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v1
+        uses: oven-sh/setup-bun@v2
         with:
           # Keep CI on the known-good runtime used for local/release validation.
           # `latest` moved underneath this PR and made coverage runs flaky.
           bun-version: 1.3.13
+          no-cache: true
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -57,7 +58,7 @@ jobs:
 
       - name: Upload shard coverage
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: unit-coverage-${{ strategy.job-index }}
           path: coverage/lcov.info
@@ -70,7 +71,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # Full history (not the default shallow depth-1). On a pull_request the
           # checkout is the merge ref: HEAD is a merge commit whose parents
@@ -80,9 +81,10 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v1
+        uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.3.13
+          no-cache: true
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -117,12 +119,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v1
+        uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.3.13
+          no-cache: true
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -141,18 +144,19 @@ jobs:
     if: ${{ always() }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: ${{ needs.unit.result == 'success' }}
 
       - name: Setup Bun for coverage merge
         if: ${{ needs.unit.result == 'success' }}
-        uses: oven-sh/setup-bun@v1
+        uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.3.13
+          no-cache: true
 
       - name: Download shard coverage
         if: ${{ needs.unit.result == 'success' }}
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: unit-coverage-*
           path: coverage-shards
@@ -163,7 +167,7 @@ jobs:
 
       - name: Upload merged coverage
         if: ${{ needs.unit.result == 'success' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-lcov
           path: coverage/lcov.info
@@ -193,14 +197,15 @@ jobs:
         suite: [cli, dist-artifact, tarball-consumer, browser]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v1
+        uses: oven-sh/setup-bun@v2
         with:
           # Keep CI on the known-good runtime used for local/release validation.
           # `latest` moved underneath this PR and made coverage runs flaky.
           bun-version: 1.3.13
+          no-cache: true
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -266,11 +271,12 @@ jobs:
     needs: test
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v1
+        uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.3.13
+          no-cache: true
       - name: Install dependencies
         run: bun install --frozen-lockfile
       - name: Incremental mutation lane (faithfulness counter)

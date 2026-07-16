@@ -56,16 +56,17 @@ jobs:
           else
             echo "available=true" >> "$GITHUB_OUTPUT"
           fi
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: steps.cloudflare-secrets.outputs.available == 'true'
         with:
           # For a workflow_run trigger, build the exact commit CI validated.
           ref: ${{ github.event.workflow_run.head_sha || github.ref }}
       - name: Setup Bun
         if: steps.cloudflare-secrets.outputs.available == 'true'
-        uses: oven-sh/setup-bun@v1
+        uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.3.13
+          no-cache: true
       - name: Install dependencies
         if: steps.cloudflare-secrets.outputs.available == 'true'
         run: bun install --frozen-lockfile

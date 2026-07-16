@@ -13,23 +13,24 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # Full history so the golden-drift gate can diff the release commit
           # (it degrades to HEAD-diff logic outside of `push` events).
           fetch-depth: 0
 
       - name: Setup Bun
-        # Pinned to a commit SHA (not the mutable `v1` tag): this workflow mints
+        # Pinned to a commit SHA (not the mutable `v2` tag): this workflow mints
         # the OIDC publish token, so a retagged/compromised action must not be
-        # able to ride along. SHA is oven-sh/setup-bun v1.
-        uses: oven-sh/setup-bun@f4d14e03ff726c06358e5557344e1da148b56cf7 # v1
+        # able to ride along. SHA is oven-sh/setup-bun v2.2.0.
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           # Pin to the runtime ci.yml validates on (see ci.yml note re: `latest`).
           bun-version: 1.3.13
+          no-cache: true
 
       - name: Setup Node.js (for npm publish)
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           # OIDC trusted publishing requires Node >= 22.14 and npm >= 11.5.1.
           # (Node 20 is also EOL as of 2026-04-30.)
@@ -102,7 +103,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install MCP Registry publisher
         # This binary shares the job's OIDC permission, so pin both the release
