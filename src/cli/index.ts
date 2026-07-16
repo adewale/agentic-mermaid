@@ -2,7 +2,7 @@
 // am — agentic-mermaid CLI (v4).
 // ============================================================================
 
-import { readFileSync, existsSync, writeFileSync, mkdtempSync, watch } from 'node:fs'
+import { readFileSync, existsSync, writeFileSync, mkdtempSync, statSync, watch } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { basename, dirname, join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -729,28 +729,52 @@ export function renderFileOnce(file: string, format: string, opts: RenderFormatO
 export interface PathWatchHandle { close(): void }
 
 /** Watch the containing directory so rename-over atomic saves keep following
- * the input pathname rather than a stale inode. Bursts are coalesced. */
+ * the input pathname rather than a stale inode. A metadata poll closes the
+ * documented fs.watch event-loss gap; both signals share one coalescer. */
 export function watchPathForChanges(
   file: string,
   onChange: () => void,
   debounceMs = 25,
+  watchDirectory: typeof watch = watch,
 ): PathWatchHandle {
   const absolute = resolve(file)
   const watchedName = basename(absolute)
+  const fingerprint = (): string => {
+    try {
+      const stat = statSync(absolute, { bigint: true })
+      return `${stat.dev}:${stat.ino}:${stat.size}:${stat.mtimeNs}:${stat.ctimeNs}`
+    } catch {
+      return 'missing'
+    }
+  }
+  let lastFingerprint = fingerprint()
   let timer: ReturnType<typeof setTimeout> | undefined
-  const watcher = watch(dirname(absolute), { persistent: true }, (_event, filename) => {
-    const changed = filename === null ? undefined : basename(String(filename))
-    if (changed !== undefined && changed !== watchedName) return
+  let closed = false
+  const detectChange = () => {
+    if (closed) return
+    const next = fingerprint()
+    if (next === lastFingerprint) return
+    lastFingerprint = next
     if (timer !== undefined) clearTimeout(timer)
     timer = setTimeout(() => {
       timer = undefined
-      onChange()
+      if (!closed) onChange()
     }, debounceMs)
+  }
+  const watcher = watchDirectory(dirname(absolute), { persistent: true }, (_event, filename) => {
+    const changed = filename === null ? undefined : basename(String(filename))
+    if (changed === undefined || changed === watchedName) detectChange()
   })
+  // fs.watch is explicitly allowed to omit events and filenames. Poll only
+  // metadata (not file bytes) as a bounded fallback, retaining pathname and
+  // rename identity through dev/inode plus nanosecond timestamps.
+  const poll = setInterval(detectChange, Math.max(25, Math.min(250, debounceMs * 4)))
   return Object.freeze({
     close(): void {
+      closed = true
       if (timer !== undefined) clearTimeout(timer)
       timer = undefined
+      clearInterval(poll)
       watcher.close()
     },
   })

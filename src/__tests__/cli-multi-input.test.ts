@@ -1,7 +1,7 @@
 // Loop 13 M4 (#959) + M5 (#930): multi-input rendering + watch re-render step.
 
 import { describe, test, expect } from 'bun:test'
-import { mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, renameSync, rmSync, watch as fsWatch, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { runCli, renderFileOnce, watchPathForChanges } from '../cli/index.ts'
@@ -55,6 +55,26 @@ describe('#930 pathname watch lifecycle', () => {
       writeFileSync(input, 'flowchart TD\n A --> D')
       await subsequent
       expect(observed).toEqual(['flowchart TD\n A --> C', 'flowchart TD\n A --> D'])
+    } finally {
+      handle.close()
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  test('metadata polling observes changes when the host event source stays silent', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'am-watch-poll-'))
+    const input = join(dir, 'input.mmd')
+    writeFileSync(input, 'flowchart TD\n A --> B')
+    const silentWatch = (() => ({ close() {} })) as unknown as typeof fsWatch
+    let notify: (() => void) | undefined
+    const changed = new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('watch polling timed out')), 2_000)
+      notify = () => { clearTimeout(timeout); resolve() }
+    })
+    const handle = watchPathForChanges(input, () => notify?.(), 5, silentWatch)
+    try {
+      writeFileSync(input, 'flowchart TD\n A --> C')
+      await changed
     } finally {
       handle.close()
       rmSync(dir, { recursive: true, force: true })
