@@ -395,6 +395,14 @@ describe('Workers Static Assets website contract', () => {
     }
   })
 
+  test('authored website diagrams do not carry copied renderer snapshots', () => {
+    const sourceFiles = readdirSync(join(REPO, 'website/source/diagrams')).sort()
+    expect(sourceFiles.filter(name => !name.endsWith('.mmd'))).toEqual([])
+
+    const publicFiles = readdirSync(join(SITE, 'diagrams')).sort()
+    expect(publicFiles.filter(name => !name.endsWith('.mmd'))).toEqual(['workflow-themeable.svg'])
+  })
+
   test('required human and machine routes are generated', () => {
     const routes = [
       'index.html', 'editor/index.html', 'about/index.html', 'docs/getting-started/index.html',

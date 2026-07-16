@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "generator": "scripts/pr-assets/palette-rollout-evidence.ts",
-  "inputCount": 715,
-  "inputTreeSha256": "39395749ca2d8dae74cb18374e99a9dee218926275ceca82235988c293abc97a",
+  "inputCount": 716,
+  "inputTreeSha256": "c34486144b8dff22fc1696f193b011098b786944a17d9d2e78ad3ef09ff41c60",
   "outputs": [
     {
       "path": "eval/palette-rollout/report.json",

@@ -1616,15 +1616,15 @@
     },
     {
       "path": "src/__tests__/website-browser-a11y.test.ts",
-      "sha256": "25edaeefd890f5610952cc3f3a2df31ec8f629d90347f5e94e504b4307440366"
+      "sha256": "91cbfe8d2a88e5390b8bee432389300f255109aa52beb12c207f2c2b0e812f57"
     },
     {
       "path": "src/__tests__/website-build.test.ts",
-      "sha256": "ea6494637fd91223cc0c6e74de70c46def8db2e48c6ca6b347320145282a1535"
+      "sha256": "c5f81ce32b5caaffb6503ca1c94ee4e590089d65b2d9bc17ae6f79027b2a78bd"
     },
     {
       "path": "src/__tests__/website-public.preload.ts",
-      "sha256": "6150c9fee6e0723aecc6a28d349b62c48a0109659416278432d142e2dd2160f8"
+      "sha256": "1e81a01bb72aa67002badb687b8a9e4dbeadc9993f64f2cf62f988ef14faa41d"
     },
     {
       "path": "src/__tests__/website-render-receipts.test.ts",
