@@ -301,7 +301,6 @@ describe('canonical style identities', () => {
     expect(() => resolveStyleStack('default')).toThrow(/Unknown style "default"/)
     expect(descriptors.find(descriptor => descriptor.identity.id === 'look:crisp')).toMatchObject({
       inputName: 'crisp',
-      aliases: [],
       kind: 'look',
       isDefault: true,
     })

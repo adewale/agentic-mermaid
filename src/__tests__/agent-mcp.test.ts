@@ -647,7 +647,7 @@ describe('MCP bin shim', () => {
     expect(out.join('')).toContain('agentic-mermaid-mcp')
     expect(await runMcpCli(['--transport', 'smtp'], io)).toBe(1)
     expect(err.join('')).toContain('unknown transport: smtp')
-    expect(await runMcpCli(['--http', '--port', '70000'], io)).toBe(1)
+    expect(await runMcpCli(['--transport', 'http', '--port', '70000'], io)).toBe(1)
     expect(err.join('')).toContain('--port must be an integer between 0 and 65535')
     expect(await runMcpCli(['--http'], io)).toBe(1)
     expect(err.join('')).toContain('unknown option: --http')

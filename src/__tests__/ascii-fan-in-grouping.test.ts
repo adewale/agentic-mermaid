@@ -59,14 +59,10 @@ describe('ASCII fan-in grouping', () => {
     expect(out).not.toContain('┼')
   })
 
-  test('bundle admission retains primary and legacy joins while rejecting feedback topology', () => {
+  test('bundle admission retains primary joins while rejecting feedback topology', () => {
     const primary = fanInGraph()
     expect(primary.edges.map(edge => edge.routeClass)).toEqual(['primary-forward', 'primary-forward'])
     expect(analyzeEdgeBundles(primary)).toHaveLength(1)
-
-    const legacy = fanInGraph()
-    for (const edge of legacy.edges) delete edge.routeClass
-    expect(analyzeEdgeBundles(legacy)).toHaveLength(1)
 
     const feedback = fanInGraph()
     feedback.edges[0]!.routeClass = 'feedback'

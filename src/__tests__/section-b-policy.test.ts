@@ -181,25 +181,25 @@ describe('Section B semantic policy', () => {
 
   test('nested text inherits the nearest preceding containing surface for contrast', () => {
     const shape: SceneNode = {
-      kind: 'shape', id: 'surface', role: 'node', crisp: '',
+      kind: 'shape', id: 'surface', role: 'node',
       geometry: { kind: 'rect', x: 0, y: 0, width: 100, height: 60 },
       paint: { fill: '#111111' },
     }
     const text: SceneNode = {
-      kind: 'text', id: 'nested-label', role: 'label', crisp: '',
+      kind: 'text', id: 'nested-label', role: 'label',
       text: 'Nested', x: 50, y: 30, fontSize: 12, anchor: 'middle',
       paint: { fill: '#111111' },
     }
     const inner: SceneNode = {
-      kind: 'group', id: 'inner', role: 'group', crisp: '', open: '<g>', close: '</g>', join: '\n',
+      kind: 'group', id: 'inner', role: 'group', open: '<g>', close: '</g>', join: '\n',
       children: [{ node: text, indent: 0 }],
     }
     const outer: SceneNode = {
-      kind: 'group', id: 'outer', role: 'group', crisp: '', open: '<g>', close: '</g>', join: '\n',
+      kind: 'group', id: 'outer', role: 'group', open: '<g>', close: '</g>', join: '\n',
       children: [{ node: shape, indent: 0 }, { node: inner, indent: 0 }],
     }
     const scene: SceneDoc = {
-      family: 'flowchart', width: 100, height: 60, colors: { bg: '#ffffff', fg: '#111111' }, parts: [outer],
+      family: 'flowchart', width: 100, height: 60, transparent: false, colors: { bg: '#ffffff', fg: '#111111' }, parts: [outer],
     }
     const request = resolveRenderRequestForExecution('flowchart TD\n  A', {
       style: { constraints: [{ kind: 'contrast', action: 'error', minimum: 4.5 }] },

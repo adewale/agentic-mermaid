@@ -55,7 +55,7 @@ function parseMcpFlags(argv: readonly string[]): ParsedMcpFlags {
     const equals = token.indexOf('=')
     const name = token.slice(2, equals < 0 ? undefined : equals)
     const spec = (MCP_FLAG_SPECS as Readonly<Record<string, McpFlagSpec>>)[name]
-    if (!spec) throw new Error(`unknown flag: --${name}`)
+    if (!spec) throw new Error(`unknown option: --${name}`)
     if (Object.hasOwn(flags, name)) throw new Error(`duplicate flag: --${name}`)
     const inline = equals < 0 ? undefined : token.slice(equals + 1)
     if (spec.kind === 'boolean') {
